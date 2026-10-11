@@ -1,0 +1,35 @@
+{
+  "name": "Lantern",
+  "category": "Lamps",
+  "icon": "lantern",
+  "description": "An oil lamp or hanging lantern: a steadier, wider warm light behind glass, with a gentle flicker.",
+  "placement": { "align": "up", "surface_offset": 0, "fixture_radius": 30 },
+  "params": [
+    { "key": "temperature", "label": "Colour temperature", "group": "Light", "type": "float", "default": 2400, "min": 1000, "max": 12000, "unit": "K" },
+    { "key": "tint", "label": "Tint", "group": "Light", "type": "color", "default": [1, 1, 1] },
+    { "key": "intensity", "label": "Intensity", "group": "Light", "type": "float", "default": 1.2, "min": 0, "max": 6 },
+    { "key": "radius", "label": "Radius", "group": "Light", "type": "float", "default": 640, "min": 32, "max": 4096, "log": true },
+    { "key": "height", "label": "Flame height", "group": "Light", "type": "float", "default": 24, "min": -256, "max": 256, "unit": "u", "tooltip": "Above the pivot; negative hangs it below (a ceiling lantern placed on the ceiling)" },
+    { "key": "flicker", "label": "Flicker amount", "group": "Animation", "type": "float", "default": 0.06, "min": 0, "max": 1 },
+    { "key": "flicker_speed", "label": "Flicker speed", "group": "Animation", "type": "float", "default": 4, "min": 0.1, "max": 30, "unit": "Hz", "log": true },
+    { "key": "shadows", "label": "Casts shadows", "group": "Shadows", "type": "bool", "default": true },
+    { "key": "light_size", "label": "Light size (softness)", "group": "Shadows", "type": "float", "default": 5, "min": 0.5, "max": 32, "unit": "u", "log": true },
+    { "key": "glow_mode", "label": "Linked glow", "group": "Glow", "type": "enum", "options": ["Leave", "Drive", "Suppress"], "default": "Drive" },
+    { "key": "glow_intensity", "label": "Glow emission", "group": "Glow", "type": "float", "default": 1, "min": 0, "max": 4 }
+  ],
+  "lights": [
+    {
+      "name": "Lamp",
+      "type": "point",
+      "offset": [0, "-height", 0],
+      "color": "kelvin(temperature) * tint",
+      "intensity": "intensity",
+      "radius": "radius",
+      "shadows": "shadows",
+      "light_size": "light_size",
+      "flicker": "flicker",
+      "flicker_speed": "flicker_speed"
+    }
+  ],
+  "glow": { "mode": "glow_mode", "scale": "glow_intensity", "suggest": { "hue": "none", "flames": true, "flame_min": 3 } }
+}

@@ -1,0 +1,9 @@
+https://github.com/KhronosGroup/glslang
+Release: 16.6.0 (tag 16.6.0)
+Vendored subset: glslang/, SPIRV/, StandAlone/, External/ (CMake only), CMakeLists.txt,
+build_info.*, gen_extension_headers.py, parse_version.cmake, CHANGES.md (read by build_info.py),
+LICENSE.txt, LICENSES/, README.md. Tests, gtests, kokoro, ndk_test and Test/ are left out.
+License: BSD-3-Clause, BSD-2-Clause, MIT, Apache-2.0 and others per file (LICENSE.txt);
+all permissive. Only the glslang compiler binary is built (pc/tools/vk_shaders.py, no SPIRV-Tools
+optimizer); its output (SPIR-V) is generated from our own shaders, so nothing of glslang is
+linked into the game.

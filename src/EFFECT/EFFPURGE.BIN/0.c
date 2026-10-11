@@ -471,6 +471,7 @@ static u_short _effectEntryPointIndices[] = { 0x000, 0x000, 0x000, 0x000, 0x000,
     0x157, 0x157, 0x157, 0x157, 0x157, 0x157, 0x157, 0x157, 0x157, 0x157, 0x157, 0x157,
     0x157, 0x157, 0x157, 0x157, 0x157, 0x157, 0x157, 0x157, 0x157, 0x157 };
 
+#ifndef ROOD_PC
 static effectExec _effectEntryPoints[] = { func_800F9818, func_800F9800, func_800FB320,
     func_800F9800, func_800F9800, vs_spiritSurge_renderTrails, func_800FBA00,
     func_800FC624, func_800FD51C, func_800F98E0, func_800FC0E4, NULL, func_800F9800,
@@ -536,6 +537,8 @@ static effectExec _effectEntryPoints[] = { func_800F9818, func_800F9800, func_80
     func_800FB3FC, func_800FBF4C, func_800F9910, func_800FBF94, func_800FC228,
     func_800FD198, func_800FB320, NULL, func_800FB5B4 };
 
+#endif
+
 #define PLG(x) { VS_PLG##x##_BIN_LBA - VS_E000_P_LBA, VS_PLG##x##_BIN_SIZE }
 #define PLG_NONE { 0x0000, 0x0000 }
 
@@ -579,6 +582,7 @@ static _loadFileContext _plgFiles[] = { PLG_NONE, PLG_NONE, PLG_NONE, PLG_NONE, 
     PLG_NONE, PLG_NONE, PLG_NONE, PLG_NONE, PLG(297), PLG_NONE, PLG_NONE, PLG(300),
     PLG(301) };
 
+#ifndef ROOD_PC
 /**
  * Invokes all effect entry points.
  * Probably a dev artifact, calling this in-game will presumably crash.
@@ -902,6 +906,8 @@ int func_800F9800(func_800D4910_t* arg0, u_int arg1, int arg2)
     return func_800FB5B4(NULL, 2, 0);
 }
 
+#endif
+
 static void _configureFb(void);
 static void _configurePlg(void);
 
@@ -912,11 +918,11 @@ void vs_effpurge_exec(void)
     _configurePlg();
     vs_battle_pFileLoadContext = _pFiles[D_800F5230.effectId];
     func_800D2698(255);
-    D_800F569C->block9Data = NULL;
-    D_800F56C8.curveBlock = NULL;
-    D_800F56C8.block11Data = NULL;
-    D_800F56C8.block12Data = NULL;
-    D_800F56C8.block13Data = NULL;
+    psx_set(D_800F569C->block9Data, NULL);
+    psx_set(D_800F56C8.curveBlock, NULL);
+    psx_set(D_800F56C8.block11Data, NULL);
+    psx_set(D_800F56C8.block12Data, NULL);
+    psx_set(D_800F56C8.block13Data, NULL);
 }
 
 static void _configureFb(void)
@@ -956,9 +962,23 @@ static void _configurePlg(void)
     vs_battle_configurePlg(
         _plgFiles[D_800F5230.effectId].lba, _plgFiles[D_800F5230.effectId].size, count);
 
+#ifdef ROOD_PC
+    /* PLG addresses are overlay-relative: a shared address is not a shared
+     * function. build_boot.py generates the native entry for each one. */
+    for (i = 0; i < count; ++i) {
+        extern void* pc_plg_entry_points[];
+        extern void pc_effect_plugin_unimplemented(unsigned);
+        void* entry = pc_plg_entry_points[firstindex + i];
+        if (entry == NULL) {
+            pc_effect_plugin_unimplemented(D_800F5230.effectId);
+        }
+        vs_battle_setEffectExec((effectExec)entry, i);
+    }
+#else
     for (i = 0; i < count; ++i) {
         vs_battle_setEffectExec(_effectEntryPoints[firstindex + i], i);
     }
+#endif
 
     if (count != 0) {
         vs_battle_setPlgLoadState(1);

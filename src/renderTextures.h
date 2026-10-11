@@ -9,7 +9,7 @@ void _renderTextureFadeInTint(int x, int y, int texId, P_CODE colors[])
         return;
     }
 
-    poly = *(void**)0x1F800000;
+    poly = psx_slot_get(void*, 0x1F800000, 0);
 
     setPolyGT4(poly);
     setXY4(poly, x, y, _disMap[texId].w + x, y, x, _disMap[texId].h + y,
@@ -46,9 +46,9 @@ void _renderTextureFadeInTint(int x, int y, int texId, P_CODE colors[])
 
     p = (void**)0x1F800000;
 
-    AddPrim(p[1] - 0x1C, poly++);
+    AddPrim(psx_slot_get(void*, p, 1) - 0x1C, poly++);
 
-    p[0] = poly;
+    psx_slot_set(void*, p, 0, poly);
 }
 
 static inline int _adjust(int component, int weight)
@@ -63,7 +63,7 @@ void _renderTexturePopIn(int x, int y, int texId, P_CODE colors[])
     void** p;
 
     if (colors[0].code != 0) {
-        poly = *(void**)0x1F800000;
+        poly = psx_slot_get(void*, 0x1F800000, 0);
 
         setPolyGT4(poly);
         setXY4(poly, x, y, _disMap[texId].w + x, y, x, _disMap[texId].h + y,
@@ -121,9 +121,9 @@ void _renderTexturePopIn(int x, int y, int texId, P_CODE colors[])
 
         p = (void**)0x1F800000;
 
-        AddPrim(p[1] - 0x1C, poly++);
+        AddPrim(psx_slot_get(void*, p, 1) - 0x1C, poly++);
 
-        p[0] = poly;
+        psx_slot_set(void*, p, 0, poly);
     }
 }
 
@@ -139,7 +139,7 @@ void _renderTextureWipe(int x, int y, int texId, P_CODE arg3[], int arg4)
     if ((x + _disMap[texId].w) < (arg4 - 64)) {
 
         scratch = (void**)0x1F800000;
-        poly = scratch[0];
+        poly = psx_slot_get(void*, scratch, 0);
 
         setPolyGT4(poly);
         setXY4(poly, x, y, _disMap[texId].w + x, y, x, _disMap[texId].h + y,
@@ -159,16 +159,16 @@ void _renderTextureWipe(int x, int y, int texId, P_CODE arg3[], int arg4)
 
         scratch = (void**)0x1F800000;
 
-        AddPrim(scratch[1] - 0x1C, poly++);
+        AddPrim(psx_slot_get(void*, scratch, 1) - 0x1C, poly++);
 
-        scratch[0] = poly;
+        psx_slot_set(void*, scratch, 0, poly);
         return;
     }
 
     if (x < arg4) {
 
         scratch = (void**)0x1F800000;
-        poly = scratch[0];
+        poly = psx_slot_get(void*, scratch, 0);
         var_s6 = _disMap[texId].x;
 
         for (i = 0; i < _disMap[texId].w; i += 12, x += 12, var_s6 += 12) {
@@ -224,10 +224,10 @@ void _renderTextureWipe(int x, int y, int texId, P_CODE arg3[], int arg4)
 
             scratch = (void**)0x1F800000;
 
-            AddPrim(scratch[1] - 0x1C, poly++);
+            AddPrim(psx_slot_get(void*, scratch, 1) - 0x1C, poly++);
         }
 
         scratch = (void**)0x1F800000;
-        scratch[0] = poly;
+        psx_slot_set(void*, scratch, 0, poly);
     }
 }

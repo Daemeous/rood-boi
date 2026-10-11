@@ -725,7 +725,7 @@ void func_80103E24(int arg0, int arg1)
             }
         } else {
             var_v1 = vs_battle_setSpriteDefaultTexPage(
-                0x80, temp_s0 | (arg0 << 0x10), 0x100010, vs_scratch.unk4 - 0xC);
+                0x80, temp_s0 | (arg0 << 0x10), 0x100010, psx_get(vs_scratch.unk4) - 0xC);
         }
 
         var_v1[4] = (0x78 + i * 0x10) | 0x8000 | (i == temp_s4 ? 0x37FD0000 : 0x37FE0000);
@@ -746,7 +746,7 @@ void func_80103F64(int arg0)
     menuItem->state = 2;
     menuItem->targetPosition0 = 0x9B;
     menuItem->selected = 1;
-    menuItem->subText = NULL;
+    psx_set(menuItem->subText, NULL);
     menuItem->unselectable = 0;
 }
 
@@ -964,7 +964,13 @@ int _bladeNavigation(int bladeIndex)
 
 int _gripNavigation(int arg0)
 {
+#ifdef ROOD_PC
+    /* Written below (BUG: write to .rodata); host literals are read-only. */
+    static char D_80109954Text[] = "X     0";
+    static char* D_80109954 = D_80109954Text;
+#else
     static char* D_80109954 = "X     0";
+#endif
 
     static char D_80109A39;
     static char D_80109A3A;
@@ -1871,12 +1877,12 @@ int _discardMenu(int arg0)
         vs_battle_setFontStyle(5);
         temp_v0_7 = vs_battle_toBCD(discardCount);
         vs_battle_printVariableWidthFontChar(
-            temp_v0_7 & 0xF, 0x42, 0x82, vs_scratch.unk8 - 0xC);
+            temp_v0_7 & 0xF, 0x42, 0x82, psx_get(vs_scratch.unk8) - 0xC);
         temp_v0_7 = vs_battle_toBCD(temp_v0_7 >> 4);
         vs_battle_printVariableWidthFontChar(
-            temp_v0_7 & 0xF, 0x3C, 0x82, vs_scratch.unk8 - 0xC);
+            temp_v0_7 & 0xF, 0x3C, 0x82, psx_get(vs_scratch.unk8) - 0xC);
         vs_battle_printVariableWidthFontChar(
-            temp_v0_7 >> 4, 0x36, 0x82, vs_scratch.unk8 - 0xC);
+            temp_v0_7 >> 4, 0x36, 0x82, psx_get(vs_scratch.unk8) - 0xC);
         D_80109A07 =
             vs_mainMenu_renderCursor(D_80109A07, (0x36 - (discardStep * 6)) | 0x720000);
         break;
@@ -2450,7 +2456,7 @@ loop_1:
         vs_mainMenu_initInformationBox();
         /* fallthrough */
     case 1:
-        temp_s1 = vs_main_allocHeapR(0x6C00);
+        temp_s1 = vs_main_allocHeapR(0x6400 + 0x200 * sizeof(char*));
         temp_s6 = (void*)temp_s1 + 0x6000;
         temp_s5 = (void*)temp_s1 + 0x6400;
         vs_mainMenu_freezeTabArrows = 1;
@@ -2530,7 +2536,7 @@ loop_1:
                     vs_mainMenu_clearMenuExcept(0);
                     D_80109A68 = 4;
                 } else {
-                    temp_v0_7 = vs_main_allocHeapR(0x6C00U);
+                    temp_v0_7 = vs_main_allocHeapR(0x6400 + 0x200 * sizeof(char*));
                     temp_s0_2 = temp_v0_7 + 0x6400;
                     temp_s1_3 = temp_v0_7 + 0x6000;
                     temp_s0 = func_80106C64(var_s4, temp_s0_2, temp_s1_3, temp_v0_7);
@@ -2964,7 +2970,7 @@ loop_1:
         break;
     case 13:
         if (vs_mainmenu_ready() != 0) {
-            temp_v0_19 = vs_main_allocHeapR(0x6C00U);
+            temp_v0_19 = vs_main_allocHeapR(0x6400 + 0x200 * sizeof(char*));
             temp_s3_7 = temp_v0_19 + 0x6400;
             temp_s1_4 = temp_v0_19 + 0x6000;
             temp_s2 = func_80106C64(7, temp_s3_7, temp_s1_4, temp_v0_19);
@@ -3093,7 +3099,8 @@ int func_801089BC(int arg0)
         }
         D_80109A2C += 16;
         vs_battle_renderTextRawColor("OK", 0x4200C8,
-            ((rsin((D_80109A2C) * 8) >> 5) + 0x40) * 0x10101, vs_scratch.unk4 - 0xC);
+            ((rsin((D_80109A2C) * 8) >> 5) + 0x40) * 0x10101,
+            psx_get(vs_scratch.unk4) - 0xC);
         v = 0x1A;
         D_80109A2D = vs_mainMenu_renderCursor(
             D_80109A2D, (((var_s1 * 0x10) - (((var_s1 * 2) & 4) - v)) << 0x10) | 0xB4);

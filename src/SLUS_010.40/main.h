@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <libgte.h>
 #include <libgpu.h>
+#include "pc/src/psx_types.h"
 
 typedef struct {
     char mode;
@@ -38,8 +39,9 @@ typedef struct {
     short priority;
     vs_main_CdFile cdFile;
     int unkC;
-    void* vram;
+    psx_ptr(void) vram;
 } vs_main_CdQueueSlot;
+PSX_ASSERT_SIZE(vs_main_CdQueueSlot, 0x14);
 
 enum actions_e { vs_main_actions_daggerArt1 = 184 };
 
@@ -102,28 +104,30 @@ typedef struct {
     int currentMusicSlot;
     u_int unk4;
     u_int unk8;
-    void* currentMusicData;
+    psx_ptr(void) currentMusicData;
     char musicIds[4];
     u_int unk14[4];
-    void* musicData[4];
-    vs_main_CdQueueSlot* musicQueueSlot[4];
+    psx_ptr(void) musicData[4];
+    psx_ptr(vs_main_CdQueueSlot) musicQueueSlot[4];
     u_int currentSfxId;
     char sfxIds[4];
-    void* sfxData[3];
-    vs_main_CdQueueSlot* sfxQueueSlot[3];
-    void* unk64[3];
-    int* unk70[3];
+    psx_ptr(void) sfxData[3];
+    psx_ptr(vs_main_CdQueueSlot) sfxQueueSlot[3];
+    psx_ptr(void) unk64[3];
+    psx_ptr(int) unk70[3];
     int soundFileId;
-    void* soundData;
-    vs_main_CdQueueSlot* soundQueueSlot;
+    psx_ptr(void) soundData;
+    psx_ptr(vs_main_CdQueueSlot) soundQueueSlot;
 } soundData_t;
+PSX_ASSERT_SIZE(soundData_t, 0x88);
 
 typedef struct vs_main_HeapHeader {
-    struct vs_main_HeapHeader* prev;
-    struct vs_main_HeapHeader* next;
+    psx_ptr(struct vs_main_HeapHeader) prev;
+    psx_ptr(struct vs_main_HeapHeader) next;
     u_int blockSz;
     int unkC;
 } vs_main_HeapHeader;
+PSX_ASSERT_SIZE(struct vs_main_HeapHeader, 0x10);
 
 typedef struct {
     u_char unk0_0 : 4;

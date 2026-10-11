@@ -39,7 +39,7 @@ static void _drawWeaponInfo(vs_battle_uiWeapon* weapon)
             sizeof weapon->classAffinityBaseline);
 
         vs_mainMenu_equipmentStats[63] =
-            weapon == &vs_battle_characterState->unk3C->weapon;
+            weapon == &psx_get(vs_battle_characterState->unk3C)->weapon;
 
         for (i = 0; i < 4; ++i) {
             vs_mainMenu_equipmentStats[i + 32] = weapon->grip.types[i];
@@ -80,7 +80,7 @@ static void _drawShieldInfo(vs_battle_uiShield* shield)
             sizeof shield->classAffinityBaseline);
 
         vs_mainMenu_equipmentStats[63] =
-            shield == &vs_battle_characterState->unk3C->shield;
+            shield == &psx_get(vs_battle_characterState->unk3C)->shield;
 
         for (i = 0; i < 4; ++i) {
             vs_mainMenu_equipmentStats[i + 32] = shield->types[i];
@@ -119,7 +119,7 @@ static void _drawArmorInfo(vs_battle_uiArmor* armor)
 
         for (i = 0; i < 5; ++i) {
             vs_mainMenu_equipmentStats[63] |=
-                armor == &vs_battle_characterState->unk3C->limbs[i].armor;
+                armor == &psx_get(vs_battle_characterState->unk3C)->limbs[i].armor;
         }
 
         for (i = 0; i < 4; ++i) {
@@ -230,15 +230,18 @@ static void _initBladeDescription(vs_battle_uiEquipment* blade, char* menuText[]
 {
     char* str;
 
-    vs_battle_stringContext.strings[9] =
-        vs_mainMenu_itemNames[blade->material - 1 + VS_ITEMNAME_BIN_INDEX_wood];
-    vs_battle_stringContext.strings[8] = (char*)&vs_mainMenu_itemHelp
-        [vs_mainMenu_itemHelp[blade->category + VS_ITEMHELP_BIN_INDEX_dagger - 1]];
-    vs_battle_stringContext.strings[7] = (char*)&vs_mainMenu_itemHelp
-        [vs_mainMenu_itemHelp[blade->damageType + VS_ITEMHELP_BIN_INDEX_blunt - 1]];
-    vs_battle_stringContext.strings[6] = (char*)&vs_mainMenu_itemHelp
-        [vs_mainMenu_itemHelp[vs_mainMenu_weaponHands[blade->category - 1]
-                              + VS_ITEMHELP_BIN_INDEX_oneHanded]];
+    psx_set(vs_battle_stringContext.strings[9],
+        vs_mainMenu_itemNames[blade->material - 1 + VS_ITEMNAME_BIN_INDEX_wood]);
+    psx_set(vs_battle_stringContext.strings[8],
+        (char*)&vs_mainMenu_itemHelp
+            [vs_mainMenu_itemHelp[blade->category + VS_ITEMHELP_BIN_INDEX_dagger - 1]]);
+    psx_set(vs_battle_stringContext.strings[7],
+        (char*)&vs_mainMenu_itemHelp
+            [vs_mainMenu_itemHelp[blade->damageType + VS_ITEMHELP_BIN_INDEX_blunt - 1]]);
+    psx_set(vs_battle_stringContext.strings[6],
+        (char*)&vs_mainMenu_itemHelp
+            [vs_mainMenu_itemHelp[vs_mainMenu_weaponHands[blade->category - 1]
+                                  + VS_ITEMHELP_BIN_INDEX_oneHanded]]);
 
     str = vs_battle_printf(vs_battle_stringBuf,
         (char*)&vs_mainMenu_itemHelp[vs_mainMenu_itemHelp[blade->id - 1]]);
@@ -258,8 +261,9 @@ static void _initGripInfo(
 
     u_short* gripId = &grip->id;
 
-    vs_battle_stringContext.strings[5] = (char*)&vs_mainMenu_itemHelp
-        [vs_mainMenu_itemHelp[grip->category + VS_ITEMHELP_BIN_INDEX_shortGrip - 1]];
+    psx_set(vs_battle_stringContext.strings[5],
+        (char*)&vs_mainMenu_itemHelp
+            [vs_mainMenu_itemHelp[grip->category + VS_ITEMHELP_BIN_INDEX_shortGrip - 1]]);
 
     str = vs_battle_printf(vs_battle_stringBuf,
         (char*)&vs_mainMenu_itemHelp[vs_mainMenu_itemHelp[*gripId - 6]]);
@@ -604,8 +608,8 @@ static int _switchCurrentActor(int init)
 
         _selectedActor = init & 0xF;
 
-        vs_battle_setMenuItem(
-            4, 180, 18, 140, 8, vs_battle_actors[_selectedActor - 1]->unk3C->name)
+        vs_battle_setMenuItem(4, 180, 18, 140, 8,
+            psx_get(vs_battle_actors[_selectedActor - 1]->unk3C)->name)
             ->selected = 1;
 
         return 0;
@@ -731,8 +735,8 @@ static void _renderStatBar(int colorIndex, int current, int max, int xy)
 
     current <<= 6;
 
-    vs_battle_renderStatBar(
-        colorIndex & 0xFF, ((current + max) - 1) / max, vs_scratch.unk4 - 0xC, xy);
+    vs_battle_renderStatBar(colorIndex & 0xFF, ((current + max) - 1) / max,
+        psx_get(vs_scratch.unk4) - 0xC, xy);
 }
 
 /**
@@ -742,8 +746,8 @@ static void _renderBasicStats(void)
 {
     int i;
     int y;
-    vs_battle_actor2* actor = vs_battle_actors[_selectedActor - 1]->unk3C;
-    u_long* insertBefore = vs_scratch.unk4 - 0xC;
+    vs_battle_actor2* actor = psx_get(vs_battle_actors[_selectedActor - 1]->unk3C);
+    u_long* insertBefore = psx_get(vs_scratch.unk4) - 0xC;
 
     switch (_renderBasicStatsState) {
     case 0:
@@ -758,14 +762,14 @@ static void _renderBasicStats(void)
             }
         } else {
             --_basicStatsAnimState;
-            actor = vs_battle_actors[_previousActor - 1]->unk3C;
+            actor = psx_get(vs_battle_actors[_previousActor - 1]->unk3C);
         }
         break;
 
     case 2:
         if (_basicStatsAnimState != 0) {
             --_basicStatsAnimState;
-            actor = vs_battle_actors[_previousActor - 1]->unk3C;
+            actor = psx_get(vs_battle_actors[_previousActor - 1]->unk3C);
         } else if (_basicStatsAnimDelay == 0) {
             _renderBasicStatsState = 3;
         } else {
@@ -850,8 +854,8 @@ void _drawStatusIndicator(int colorIndex, int xy, int subdued)
     u_long* prim;
     u_long* temp_t1;
 
-    temp_t1 = vs_scratch.unk8;
-    prim = vs_scratch.unk0;
+    temp_t1 = psx_get(vs_scratch.unk8);
+    prim = psx_get(vs_scratch.unk0);
     color = D_800EBC54[colorIndex] >> subdued;
     prim[0] = (*temp_t1 & 0xFFFFFF) | 0x06000000;
     prim[1] = color | (primTile << 24);
@@ -860,8 +864,8 @@ void _drawStatusIndicator(int colorIndex, int xy, int subdued)
     prim[4] = (color * 2) | (primTile << 24);
     prim[5] = xy + vs_getXY(1, 1);
     prim[6] = vs_getWH(5, 5);
-    *temp_t1 = ((u_long)prim << 8) >> 8;
-    vs_scratch.unk0 = prim + 7;
+    *temp_t1 = (psx_to_int(u_long, prim) << 8) >> 8;
+    psx_set(vs_scratch.unk0, prim + 7);
 }
 
 /**
@@ -880,8 +884,8 @@ static void _drawLimbLeaderLine(
     temp_t2 = limb * 16 + 42;
     limb = ((xy >> 16) - temp_t2);
 
-    prim = vs_scratch.unk0;
-    temp_t0 = vs_scratch.unk4;
+    prim = psx_get(vs_scratch.unk0);
+    temp_t0 = psx_get(vs_scratch.unk4);
 
     x = (short)xy;
 
@@ -901,9 +905,9 @@ static void _drawLimbLeaderLine(
     prim[6] = opaque;
     prim[7] = temp_v0;
     prim[8] = (temp_t2 << 0x10) | 216;
-    temp_t0[-1] = (((u_long)prim << 8) >> 8);
+    temp_t0[-1] = ((psx_to_int(u_long, prim) << 8) >> 8);
     prim += 9;
-    vs_scratch.unk0 = prim;
+    psx_set(vs_scratch.unk0, prim);
 }
 
 /**
@@ -933,14 +937,14 @@ static void _renderStatusIcons(vs_battle_actor2* actor, int animationStep)
 
             if (i >= new_var) {
                 // Element indicator
-                vs_battle_setSpriteDefaultTexPage(
-                    128, ((x + 8) & 0xFFFF) | y, vs_getWH(8, 8), vs_scratch.unk4 - 8)[4] =
+                vs_battle_setSpriteDefaultTexPage(128, ((x + 8) & 0xFFFF) | y,
+                    vs_getWH(8, 8), psx_get(vs_scratch.unk4) - 8)[4] =
                     ((((i & 3) * 8) + 0x3068) | (getClut(1008, 223) << 16));
             }
 
             // Nasty match hack
             actor = (vs_battle_actor2*)vs_battle_setSpriteDefaultTexPage(
-                128, (x & 0xFFFF) | y, vs_getWH(16, 16), vs_scratch.unk4 - 8);
+                128, (x & 0xFFFF) | y, vs_getWH(16, 16), psx_get(vs_scratch.unk4) - 8);
 
             // 0x0F0F906A = Flags for toggling the icon palette
             ((u_long*)actor)[4] =
@@ -1116,7 +1120,7 @@ static int _getLimbCount(int actor)
     int i;
 
     for (i = 0; i < 6; ++i) {
-        if (vs_battle_actors[actor]->unk3C->limbs[i].nameIndex == 0) {
+        if (psx_get(vs_battle_actors[actor]->unk3C)->limbs[i].nameIndex == 0) {
             break;
         }
     }
@@ -1132,7 +1136,8 @@ static int _getLimbCount(int actor)
 static int _getEquipmentListRowCount(void)
 {
     return _getLimbCount(_selectedActor - 1) + 2
-         + (vs_battle_actors[_selectedActor - 1]->unk3C->accessory.accessory.id != 0);
+         + (psx_get(vs_battle_actors[_selectedActor - 1]->unk3C)->accessory.accessory.id
+             != 0);
 }
 
 enum _renderLimbUiState { _renderLimbUiNone, _renderLimbUiInit };
@@ -1161,7 +1166,7 @@ static int _renderLimbUi(int init)
     int i;
     int step;
 
-    actor = vs_battle_actors[tempSelectedActor]->unk3C;
+    actor = psx_get(vs_battle_actors[tempSelectedActor]->unk3C);
     limbCount = _getLimbCount(tempSelectedActor);
 
     if (init != 0) {
@@ -1306,7 +1311,7 @@ static void _setActiveRow(int row)
     menuItem->state = menuItemStateSlideX;
     menuItem->targetPosition0 = 155;
     menuItem->selected = 1;
-    menuItem->subText = NULL;
+    psx_set(menuItem->subText, NULL);
 }
 
 /**
@@ -1504,7 +1509,7 @@ static int _equipmentDetailScreen(int row)
     vs_battle_menuItem_t* menuItem;
     unsigned char state;
 
-    vs_battle_actor2* actor = vs_battle_actors[_selectedActor - 1]->unk3C;
+    vs_battle_actor2* actor = psx_get(vs_battle_actors[_selectedActor - 1]->unk3C);
 
     if (row != 0) {
         _selectedEquipmentRow = row - 1;
@@ -1900,7 +1905,7 @@ static int _equipmentScreen(int element)
     vs_battle_menuItem_t* menuItem;
     int new_var;
 
-    vs_battle_actor2* temp_s6 = vs_battle_actors[_selectedActor - 1]->unk3C;
+    vs_battle_actor2* temp_s6 = psx_get(vs_battle_actors[_selectedActor - 1]->unk3C);
     vs_battle_uiEquipment_limb* limbs = temp_s6->limbs;
 
     limbCount = _getLimbCount(_selectedActor - 1);
@@ -2081,8 +2086,8 @@ static int _equipmentScreen(int element)
 static void _fadeScreenLeft(void)
 {
     int uv1Tpage;
-    u_long* prim = vs_scratch.unk0;
-    u_long* temp_t1 = vs_scratch.unk4;
+    u_long* prim = psx_get(vs_scratch.unk0);
+    u_long* temp_t1 = psx_get(vs_scratch.unk4);
 
     if (_fadeScreen == 0) {
         return;
@@ -2110,9 +2115,9 @@ static void _fadeScreenLeft(void)
     prim[12] = vs_getXY(96, 240);
     prim[13] = vs_getUV(96, 240);
 
-    temp_t1[-1] = (((u_long)prim << 8) >> 8);
+    temp_t1[-1] = ((psx_to_int(u_long, prim) << 8) >> 8);
 
-    vs_scratch.unk0 = prim + 14;
+    psx_set(vs_scratch.unk0, prim + 14);
 }
 
 /**
@@ -2122,8 +2127,8 @@ static void _drawMenuBackground(void)
 {
     int uv1Tpage;
 
-    u_long* prim = vs_scratch.unk0;
-    void* temp_a0 = vs_scratch.unk4;
+    u_long* prim = psx_get(vs_scratch.unk0);
+    void* temp_a0 = psx_get(vs_scratch.unk4);
     u_int* var_t9 = temp_a0 + 0x1FF4;
 
     if (_drawBackgroundFirst != 0) {
@@ -2144,7 +2149,7 @@ static void _drawMenuBackground(void)
     prim[11] = vs_getXY(160, 240);
     prim[12] = vs_getUV(160, 240);
     prim[13] = vs_getTpage(0, 0, 0, 0, ditheringOn);
-    *var_t9 = ((u_long)prim << 8) >> 8;
+    *var_t9 = (psx_to_int(u_long, prim) << 8) >> 8;
 
     prim += 14;
     prim[0] = (int)((*var_t9 & 0xFFFFFF) | (8 << 24));
@@ -2156,7 +2161,7 @@ static void _drawMenuBackground(void)
     prim[6] = vs_getRGB0(primTile, 0, 0, 0);
     prim[7] = vs_getXY(256, 0);
     prim[8] = vs_getWH(64, 240);
-    *var_t9 = ((u_long)prim << 8) >> 8;
+    *var_t9 = (psx_to_int(u_long, prim) << 8) >> 8;
 
     prim += 9;
     prim[0] = (int)((*var_t9 & 0xFFFFFF) | (13 << 24));
@@ -2179,9 +2184,9 @@ static void _drawMenuBackground(void)
     prim[11] = vs_getRGB888(0, 0, 0);
     prim[12] = vs_getXY(160, 240);
     prim[13] = vs_getUV(160, 240);
-    *var_t9 = ((u_long)prim << 8) >> 8;
+    *var_t9 = (psx_to_int(u_long, prim) << 8) >> 8;
 
-    vs_scratch.unk0 = prim + 14;
+    psx_set(vs_scratch.unk0, prim + 14);
 }
 
 /**
@@ -2191,8 +2196,16 @@ static void _drawScreen(void)
 {
     int temp_lo_5;
     int xOffset = (128 - _animationStep);
+#ifdef ROOD_PC
+    /* Until the preview model loads, the original reads through the empty
+     * slot (PS1 physical address 0, mapped on the host at 0x80000000). */
+    D_800F4538_t* preview = D_800F4538[1] ? D_800F4538[1] : (D_800F4538_t*)0x80000000;
+    int z = preview->menuCameraDistance;
+    int x = preview->menuCameraHeightOffset;
+#else
     int z = D_800F4538[1]->menuCameraDistance;
     int x = D_800F4538[1]->menuCameraHeightOffset;
+#endif
     vs_camera_t* camera = &vs_scratch.camera;
 
     camera->lookAt.vx = ((-rsin(_xPos) * xOffset) >> 8) * z;
@@ -2228,12 +2241,12 @@ static void _drawScreen(void)
 static void _renderSelectedLimbCondition(void)
 {
     vs_battle_uiEquipment_limb* limb =
-        &vs_battle_actors[_selectedActor - 1]->unk3C->limbs[_selectedElement];
-    vs_battle_stringContext.strings[0] =
-        (char*)&vs_battle_statusStrings[vs_battle_statusStrings[limb->nameIndex]];
-    vs_battle_stringContext.strings[1] =
+        &psx_get(vs_battle_actors[_selectedActor - 1]->unk3C)->limbs[_selectedElement];
+    psx_set(vs_battle_stringContext.strings[0],
+        (char*)&vs_battle_statusStrings[vs_battle_statusStrings[limb->nameIndex]]);
+    psx_set(vs_battle_stringContext.strings[1],
         (char*)&_statusStrings[_statusStrings[vs_battle_getLimbStatus(limb)
-                                              + VS_status_INDEX_critical]];
+                                              + VS_status_INDEX_critical]]);
     vs_battle_printf(
         vs_battle_stringBuf, (char*)&_statusStrings[VS_status_OFFSET_values]);
     vs_mainmenu_setInformationMessage(vs_battle_stringBuf);
@@ -2247,7 +2260,7 @@ static void _renderSelectedLimbStats(void)
 {
     int i;
     vs_battle_uiEquipment_limb* limb =
-        &vs_battle_actors[_selectedActor - 1]->unk3C->limbs[_selectedElement];
+        &psx_get(vs_battle_actors[_selectedActor - 1]->unk3C)->limbs[_selectedElement];
 
     for (i = 0; i < 16; ++i) {
         vs_mainMenu_equipmentStats[i + 16] = limb->affinities[i & 7];
@@ -2381,7 +2394,7 @@ int vs_menu4_exec(u_char* state)
         var_s5 = 0;
 
         if ((_selectedActor == 1)
-            || vs_battle_actors[_selectedActor - 1]->unk3C->isAnalyzed) {
+            || psx_get(vs_battle_actors[_selectedActor - 1]->unk3C)->isAnalyzed) {
             var_s5 = 1;
         }
 
@@ -2513,7 +2526,7 @@ int vs_menu4_exec(u_char* state)
 
                     if (userInput == 13) {
                         if (_navigateStatusModifiers(
-                                vs_battle_actors[_selectedActor - 1]->unk3C, 1)
+                                psx_get(vs_battle_actors[_selectedActor - 1]->unk3C), 1)
                             == 0) {
                             vs_battle_playMenuChangeSfx();
                             *state = 6;
@@ -2594,14 +2607,15 @@ int vs_menu4_exec(u_char* state)
         var_s5 = 0;
 
         if ((_selectedActor == 1)
-            || vs_battle_actors[_selectedActor - 1]->unk3C->isAnalyzed) {
+            || psx_get(vs_battle_actors[_selectedActor - 1]->unk3C)->isAnalyzed) {
             var_s5 = 1;
         }
 
         if (animWait != 0) {
             if (_switchCurrentActor(0)) {
 
-                _navigateStatusModifiers(vs_battle_actors[_selectedActor - 1]->unk3C, 0);
+                _navigateStatusModifiers(
+                    psx_get(vs_battle_actors[_selectedActor - 1]->unk3C), 0);
 
                 animWait = 0;
 
@@ -2653,7 +2667,8 @@ int vs_menu4_exec(u_char* state)
 
                 animWait = 1;
 
-                if (vs_battle_getStatusFlags(vs_battle_actors[userInput]->unk3C) == 0) {
+                if (vs_battle_getStatusFlags(psx_get(vs_battle_actors[userInput]->unk3C))
+                    == 0) {
                     *state = 5;
                 }
             }

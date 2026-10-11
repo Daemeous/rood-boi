@@ -1,12 +1,14 @@
 #pragma once
 #include "3A1A0.h"
 #include <libgte.h>
+#include "pc/src/psx_types.h"
 
 typedef struct {
-    void* unk0;
-    void* unk4;
+    psx_ptr(void) unk0;
+    psx_ptr(void) unk4;
     char unk8[0x78F8];
 } func_8009C378_t;
+PSX_ASSERT_SIZE(func_8009C378_t, 0x7900);
 
 typedef struct {
     int unk0;

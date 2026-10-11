@@ -379,7 +379,9 @@ extern char vs_mainMenu_enabledStatPages;
 extern char vs_mainMenu_equipmentSubtype;
 
 extern char bss_4[18];
+#ifndef ROOD_PC
 extern struct textHeader_t _textHeaders[];
+#endif
 
 /**
  * Purpose unclear, seems to be related to an unused game setting.

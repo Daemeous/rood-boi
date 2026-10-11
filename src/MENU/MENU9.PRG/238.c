@@ -81,7 +81,7 @@ void _renderScrollableMenuItem(vs_battle_menuItem_t* menuItem)
     }
 
     xy = *(int*)&menuItem->x;
-    before = vs_scratch.unk8 + 8;
+    before = psx_get(vs_scratch.unk8) + 8;
     w = menuItem->w;
     animState = menuItem->gradientState;
     isScrollable = menuItem->isScrollable - 1;
@@ -129,7 +129,7 @@ void _renderScrollableMenuItem(vs_battle_menuItem_t* menuItem)
         return;
     }
 
-    prim = vs_scratch.unk0;
+    prim = psx_get(vs_scratch.unk0);
 
     for (i = 0, s5 = 0; i < 12; s5 += 8, ++i) {
         if (isScrollable == 0) {
@@ -148,12 +148,12 @@ void _renderScrollableMenuItem(vs_battle_menuItem_t* menuItem)
         prim[5] = ((xy + w - 1) & 0xFFFF) | ((xy >> 0x10) << 0x10);
         prim[6] = vs_getTpage(0, 0, clut4Bit, semiTransparencyFull, ditheringOff);
 
-        *before = ((u_long)prim << 8) >> 8;
+        *before = (psx_to_int(u_long, prim) << 8) >> 8;
         prim += 7;
         xy += vs_getXY(0, 1);
     }
 
-    vs_scratch.unk0 = prim;
+    psx_set(vs_scratch.unk0, prim);
 
     if (isScrollable == 0) {
         vs_battle_addTile(before, vs_getRGB0(primTile, 0, 0, 0),
@@ -1558,7 +1558,7 @@ void _renderEnemyInfoBg(int x, int y, int w, int h, int color)
 
     void** scratch = (void**)getScratchAddr(0);
 
-    line = scratch[0];
+    line = psx_slot_get(void*, scratch, 0);
 
     for (i = y, var_s7 = w; i < ((y + h) - 1); ++i, --var_s7) {
         setLineG2(line);
@@ -1568,7 +1568,7 @@ void _renderEnemyInfoBg(int x, int y, int w, int h, int color)
         setRGB1(line, _bgColorStops1[color].r0, _bgColorStops1[color].g0,
             _bgColorStops1[color].b0);
 
-        AddPrim(*((void**)getScratchAddr(1)) + 0x1C, line++);
+        AddPrim(psx_slot_get(void*, getScratchAddr(1), 0) + 0x1C, line++);
     }
 
     x += 2;
@@ -1581,9 +1581,9 @@ void _renderEnemyInfoBg(int x, int y, int w, int h, int color)
 
     scratch = (void**)getScratchAddr(0);
 
-    AddPrim(scratch[1] + 0x1C, poly++);
+    AddPrim(psx_slot_get(void*, scratch, 1) + 0x1C, poly++);
 
-    scratch[0] = (void*)poly;
+    psx_slot_set(void*, scratch, 0, (void*)poly);
 
     _insertTPage(7, getTPage(0, 3, 0, 0));
 }
@@ -1606,7 +1606,7 @@ void _renderGradientQuad(int x, int y, int w, int h, int color)
     int a3 = (x + w) - 1;
     int a2 = (y + h) - 1;
 
-    polyG4 = scratch[0];
+    polyG4 = psx_slot_get(void*, scratch, 0);
     setPolyG4(polyG4);
     r0 = _bgColorStops0[color].r0;
     g0 = _bgColorStops0[color].g0;
@@ -1621,7 +1621,7 @@ void _renderGradientQuad(int x, int y, int w, int h, int color)
     setRGB2(polyG4, r0, g0, b0);
     setRGB3(polyG4, r1, g1, b1);
 
-    AddPrim(scratch[1] + 0x1C, polyG4++);
+    AddPrim(psx_slot_get(void*, scratch, 1) + 0x1C, polyG4++);
 
     x += 2;
     y += 2;
@@ -1631,9 +1631,9 @@ void _renderGradientQuad(int x, int y, int w, int h, int color)
     setXY4(polyF4, x, y, (x + w) - 1, y, x, (y + h) - 1, (x + w) - 1, (y + h) - 1);
     setRGB0(polyF4, 0, 0, 0);
 
-    AddPrim(scratch[1] + 0x1C, polyF4++);
+    AddPrim(psx_slot_get(void*, scratch, 1) + 0x1C, polyF4++);
 
-    scratch[0] = polyF4;
+    psx_slot_set(void*, scratch, 0, polyF4);
 
     _insertTPage(7, getTPage(0, 3, 0, 0));
 }
@@ -1646,7 +1646,7 @@ void _renderFooterBg(int x)
 {
     POLY_F4* polyF4;
     void** scratch = (void**)getScratchAddr(0);
-    POLY_G4* polyG4 = scratch[0];
+    POLY_G4* polyG4 = psx_slot_get(void*, scratch, 0);
 
     setPolyG4(polyG4);
     setXY4(polyG4, 0, x, 320, x, 0, x + 8, 320, x + 8);
@@ -1656,7 +1656,7 @@ void _renderFooterBg(int x)
     setRGB3(polyG4, 128, 128, 128);
     setSemiTrans(polyG4, 1);
 
-    AddPrim(scratch[1] + 0x1C, polyG4++);
+    AddPrim(psx_slot_get(void*, scratch, 1) + 0x1C, polyG4++);
 
     polyF4 = (POLY_F4*)polyG4;
 
@@ -1664,9 +1664,9 @@ void _renderFooterBg(int x)
     setXY4(polyF4, 0, x + 8, 320, x + 8, 0, 240, 320, 240);
     setRGB0(polyF4, 0, 0, 0);
 
-    AddPrim(scratch[1] + 0x1C, polyF4++);
+    AddPrim(psx_slot_get(void*, scratch, 1) + 0x1C, polyF4++);
 
-    scratch[0] = polyF4;
+    psx_slot_set(void*, scratch, 0, polyF4);
 
     _insertTPage(7, getTPage(0, 2, 0, 0));
 }
@@ -1703,14 +1703,14 @@ void _renderTopMenu(int animStep)
     scratch = (void**)getScratchAddr(0);
 
     vs_battle_renderTextRawColor("SCORE", (((animStep * 16) - 120) & 0xFFFF) | (16 << 16),
-        vs_getRGB888(128, 128, 128), scratch[1] + 0x1C);
+        vs_getRGB888(128, 128, 128), psx_slot_get(void*, scratch, 1) + 0x1C);
     vs_battle_renderTextRawColor(sp28, ((animStep * 16) & 0xFFFF) | (16 << 16),
-        vs_getRGB888(128, 128, 128), scratch[1] + 0x1C);
+        vs_getRGB888(128, 128, 128), psx_slot_get(void*, scratch, 1) + 0x1C);
 
     _renderGradientQuad((animStep * 16) - 128, 16, 136, 12, 2);
     vs_battle_renderTextRawColor("RISK   BREAKER   RANK",
         (((animStep * 16) - 120) & 0xFFFF) | (184 << 16), vs_getRGB888(128, 128, 128),
-        scratch[1] + 0x1C);
+        psx_slot_get(void*, scratch, 1) + 0x1C);
 
     _renderGradientQuad((animStep * 16) - 128, 184, 136, 12, 1);
     _renderFooterBg(236 - (animStep * 6));
@@ -1834,14 +1834,20 @@ void _renderTitleMenu(int animState)
  */
 void _renderTitleNo(int x, int y, int titleNo, int dimmed)
 {
+#ifdef ROOD_PC
+    /* sprintf writes three bytes; the PS1 overran into unused frame space,
+     * the host stack protector aborts. */
+    char digits[3];
+#else
     char digits[2];
+#endif
     int i;
     POLY_FT4* poly;
 
     sprintf(digits, "%02d", titleNo);
 
     x += 19;
-    poly = *(void**)0x1F800000;
+    poly = psx_slot_get(void*, 0x1F800000, 0);
 
     for (i = 1; i >= 0; --i, x -= 5) {
 
@@ -1862,10 +1868,10 @@ void _renderTitleNo(int x, int y, int titleNo, int dimmed)
             setClut(poly, 832, 223);
         }
 
-        AddPrim(*(void**)0x1F800008, poly++);
+        AddPrim(psx_slot_get(void*, 0x1F800008, 0), poly++);
     }
 
-    *(void**)0x1F800000 = poly;
+    psx_slot_set(void*, 0x1F800000, 0, poly);
 }
 
 /**
@@ -1877,14 +1883,20 @@ void _renderTitleNo(int x, int y, int titleNo, int dimmed)
  */
 void _renderEnemyNo(int x, int y, int enemyNo, int dimmed)
 {
+#ifdef ROOD_PC
+    /* sprintf writes four bytes; the PS1 overran into unused frame space,
+     * the host stack protector aborts (Encyclopaedia crash). */
+    char digits[4];
+#else
     char digits[2];
+#endif
     int i;
     POLY_FT4* poly;
 
     sprintf(digits, "%03d", enemyNo);
 
     x += 0x18;
-    poly = *(void**)getScratchAddr(0);
+    poly = psx_slot_get(void*, getScratchAddr(0), 0);
 
     for (i = 2; i >= 0; --i, x -= 5) {
 
@@ -1904,10 +1916,10 @@ void _renderEnemyNo(int x, int y, int enemyNo, int dimmed)
             setClut(poly, 832, 223);
         }
 
-        AddPrim(*(void**)getScratchAddr(2), poly++);
+        AddPrim(psx_slot_get(void*, getScratchAddr(2), 0), poly++);
     }
 
-    *(void**)getScratchAddr(0) = poly;
+    psx_slot_set(void*, getScratchAddr(0), 0, poly);
 }
 
 /**
@@ -2073,7 +2085,11 @@ void _renderEnemyDetailScreen(int animState, int state)
     MATRIX sp30;
     vs_battle_geomOffset sp50;
     vs_battle_geomOffset sp58;
+#ifdef ROOD_PC
+    char sp60[14]; /* "NO.   %03d/%03d" is 13 characters */
+#else
     char sp60[12];
+#endif
     int temp_s0;
     int temp_s2;
     int temp_s4;
@@ -2116,23 +2132,25 @@ void _renderEnemyDetailScreen(int animState, int state)
         temp_s4 = animState * 16;
         scratch = (void**)getScratchAddr(0);
 
-        vs_mainmenu_renderButton(buttonIdL2, temp_s4 - 120, 15, scratch[1] + 24);
+        vs_mainmenu_renderButton(
+            buttonIdL2, temp_s4 - 120, 15, psx_slot_get(void*, scratch, 1) + 24);
 
         temp_s0 = (temp_s4 - 100) & 0xFFFF;
 
-        vs_battle_renderTextRawColor(
-            "ROTATION", temp_s0 | (18 << 16), _rotationColor, scratch[1] + 24);
+        vs_battle_renderTextRawColor("ROTATION", temp_s0 | (18 << 16), _rotationColor,
+            psx_slot_get(void*, scratch, 1) + 24);
 
         temp_s6 = temp_s4 - 112;
 
         _renderEnemyInfoBg(temp_s6, 18, 96, 12, 3);
-        vs_mainmenu_renderButton(buttonIdR2, temp_s4 - 120, 34, scratch[1] + 24);
-        vs_battle_renderTextRawColor(
-            "ZOOM", temp_s0 | (36 << 16), _zoomColor, scratch[1] + 24);
+        vs_mainmenu_renderButton(
+            buttonIdR2, temp_s4 - 120, 34, psx_slot_get(void*, scratch, 1) + 24);
+        vs_battle_renderTextRawColor("ZOOM", temp_s0 | (36 << 16), _zoomColor,
+            psx_slot_get(void*, scratch, 1) + 24);
         _renderEnemyInfoBg(temp_s6, 36, 78, 12, 3);
         sprintf(sp60, "NO.   %03d/%03d", _selectedEnemy + 1, 78);
-        vs_battle_renderTextRawColor(
-            sp60, ((temp_s4 - 120) & 0xFFFF) | 0xA00000, 0x808080, scratch[1] + 0x1C);
+        vs_battle_renderTextRawColor(sp60, ((temp_s4 - 120) & 0xFFFF) | 0xA00000,
+            0x808080, psx_slot_get(void*, scratch, 1) + 0x1C);
         _renderGradientQuad(temp_s4 - 128, 160, 100, 12, 2);
         vs_battle_renderTextRawColor(enemyClassName[_monBinData[_selectedEnemy].classId],
             ((temp_s2 + 188) & 0xFFFF) | 0x9B0000, 0x808080, NULL);
@@ -2146,7 +2164,7 @@ void _renderEnemyDetailScreen(int animState, int state)
 void _renderScreenEdgeFade(void)
 {
     void** scratch = (void**)0x1F800000;
-    POLY_G4* poly = scratch[0];
+    POLY_G4* poly = psx_slot_get(void*, scratch, 0);
 
     setPolyG4(poly);
     setXY4(poly, 0, 0, 64, 0, 0, 240, 64, 240);
@@ -2156,7 +2174,7 @@ void _renderScreenEdgeFade(void)
     setRGB3(poly, 0, 0, 0);
     setSemiTrans(poly, 1);
 
-    AddPrim(scratch[1] + 0x20, poly++);
+    AddPrim(psx_slot_get(void*, scratch, 1) + 0x20, poly++);
 
     setPolyG4(poly);
     setXY4(poly, 256, 0, 320, 0, 256, 240, 320, 240);
@@ -2166,9 +2184,9 @@ void _renderScreenEdgeFade(void)
     setRGB3(poly, 128, 128, 128);
     setSemiTrans(poly, 1);
 
-    AddPrim(scratch[1] + 32, poly++);
+    AddPrim(psx_slot_get(void*, scratch, 1) + 32, poly++);
 
-    scratch[0] = poly;
+    psx_slot_set(void*, scratch, 0, poly);
 
     _insertTPage(8, getTPage(0, 2, 0, 0));
 }
@@ -2219,6 +2237,11 @@ void _toVsStringInt(char* buf, int value);
 void _printFastestClearTime(char* buf, int rounds, int totalSeconds);
 void _toVsStringPercent(char* buf, int value);
 void _toVsStringPercentAlias(char* buf, int value);
+#ifdef ROOD_PC
+/* The matching link defines this as _toVsStringPercent's address
+ * (config/MENU/MENU9.PRG/Makefile --defsym); natively, call it directly. */
+#define _toVsStringPercentAlias _toVsStringPercent
+#endif
 
 /**
  * Formats and renders the boss rush data.
@@ -2575,15 +2598,15 @@ void _renderBossRushRecords(int selected)
     }
 
     p = ((void**)0x1F800000);
-    vs_battle_renderTextRawColor(
-        "PLAYER TIME", vs_getXY((selected * 0x10) - 0x78, 0x20), 0x808080, p[1] + 0x1C);
+    vs_battle_renderTextRawColor("PLAYER TIME", vs_getXY((selected * 0x10) - 0x78, 0x20),
+        0x808080, psx_slot_get(void*, p, 1) + 0x1C);
     _renderGradientQuad((selected * 0x10) - 0x80, 0x20, 0x60, 0xC, 1);
-    vs_battle_renderTextRawColor(
-        "1ST", vs_getXY((selected * 0x10) - 0x68, 0x32), 0x808080, p[1] + 0x1C);
-    vs_battle_renderTextRawColor(
-        "2ND", vs_getXY((selected * 0x10) - 0x68, 0x50), 0x808080, p[1] + 0x1C);
-    vs_battle_renderTextRawColor(
-        "3RD", vs_getXY((selected * 0x10) - 0x68, 0x6E), 0x808080, p[1] + 0x1C);
+    vs_battle_renderTextRawColor("1ST", vs_getXY((selected * 0x10) - 0x68, 0x32),
+        0x808080, psx_slot_get(void*, p, 1) + 0x1C);
+    vs_battle_renderTextRawColor("2ND", vs_getXY((selected * 0x10) - 0x68, 0x50),
+        0x808080, psx_slot_get(void*, p, 1) + 0x1C);
+    vs_battle_renderTextRawColor("3RD", vs_getXY((selected * 0x10) - 0x68, 0x6E),
+        0x808080, psx_slot_get(void*, p, 1) + 0x1C);
 
     for (j = 0; j < 3; ++j) {
 
@@ -2595,33 +2618,34 @@ void _renderBossRushRecords(int selected)
             q = ((void**)0x1F800000);
             vs_battle_renderTextRawColor(sp28,
                 vs_getXY_2((selected * 16) - 40, 50 + j * 30), vs_getRGB(128, 128, 128),
-                q[1] + 0x1C);
+                psx_slot_get(void*, q, 1) + 0x1C);
             sprintf(sp28, "ROUND    %d",
                 vs_main_scoredata.bossTimeTrialScores[sp38][j].round + 1);
             vs_battle_renderTextRawColor(sp28,
                 vs_getXY_2((selected * 16) - 60, 62 + j * 30), vs_getRGB(128, 128, 128),
-                q[1] + 0x1C);
+                psx_slot_get(void*, q, 1) + 0x1C);
         } else {
             q = ((void**)0x1F800000);
             vs_battle_renderTextRawColor("$--:--:--",
                 vs_getXY_2((selected * 16) - 40, 50 + j * 30), vs_getRGB(80, 80, 80),
-                q[1] + 0x1C);
+                psx_slot_get(void*, q, 1) + 0x1C);
         }
     }
 
     _renderGradientQuad((selected * 0x10) - 0x70, 0x32, 0x80, 0x54, 2);
     r = ((void**)0x1F800000);
     vs_battle_renderTextRawColor("REFERENCE TIME", vs_getXY(selected * 16 - 0x78, 0x8C),
-        vs_getRGB(128, 128, 128), r[1] + 0x1C);
+        vs_getRGB(128, 128, 128), psx_slot_get(void*, r, 1) + 0x1C);
     _renderGradientQuad((selected * 0x10) - 0x80, 0x8C, 0x70, 0xC, 1);
 
     if ((var_s7 == 8) && (selected == var_s7)) {
         if (sp3C->disabled != 0) {
-            vs_battle_renderTextRawColor(
-                "$--:--:--", vs_getXY(88, 158), vs_getRGB(80, 80, 80), r[1] + 0x1C);
+            vs_battle_renderTextRawColor("$--:--:--", vs_getXY(88, 158),
+                vs_getRGB(80, 80, 80), psx_slot_get(void*, r, 1) + 0x1C);
         } else {
             vs_battle_renderTextRawColor(_timeAttackReferenceTimes[sp38],
-                vs_getXY(88, 158), vs_getRGB(128, 128, 128), r[1] + 0x1C);
+                vs_getXY(88, 158), vs_getRGB(128, 128, 128),
+                psx_slot_get(void*, r, 1) + 0x1C);
         }
     }
     _renderGradientQuad((selected * 0x10) - 0x70, 0x9E, 0x80, 0xC, 2);
@@ -2819,7 +2843,7 @@ void _renderEnemyNavigation(int direction)
 
         x -= 8;
         scratch = (void**)getScratchAddr(0);
-        poly = scratch[0];
+        poly = psx_slot_get(void*, scratch, 0);
 
         setPolyFT4(poly);
         setXY4(poly, x, 96, x + 16, 96, x, 112, x + 16, 112);
@@ -2829,9 +2853,9 @@ void _renderEnemyNavigation(int direction)
         poly->clut = clut;
         setShadeTex(poly, 1);
 
-        AddPrim(scratch[1], poly++);
+        AddPrim(psx_slot_get(void*, scratch, 1), poly++);
 
-        scratch[0] = poly;
+        psx_slot_set(void*, scratch, 0, poly);
     }
 }
 

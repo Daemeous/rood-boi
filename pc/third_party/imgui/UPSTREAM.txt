@@ -1,0 +1,6 @@
+https://github.com/ocornut/imgui (docking)
+Commit: 3bae66c735670619baf51391eba7f3d90a25d125
+Backends: imgui_impl_opengl3 and imgui_impl_sdl3 (platform), from the same commit.
+Backends: imgui_impl_vulkan (64-bit Vulkan renderer, pc/src/vk_overlay.cpp), from the same commit.
+Local change (rood-boi): SliderScalar enters text input on a double-click as DragScalar does,
+restoring the value from before the first click (imgui_widgets.cpp, marked "rood-boi").

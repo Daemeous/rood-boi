@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Run a command in its own memory-capped systemd scope, so a runaway (the
+# clang JSON-AST tools reached 38 GB) is killed alone instead of taking down
+# the desktop session that started it. ROOD_MEMCAP sets the cap (default 20G).
+#   pc/tools/memcap python3 pc/tools/lp64_audit.py --jobs 4
+set -euo pipefail
+cap="${ROOD_MEMCAP:-20G}"
+if command -v systemd-run >/dev/null && systemd-run --user --scope --quiet true 2>/dev/null; then
+    exec systemd-run --user --scope --quiet -p "MemoryMax=$cap" -p MemorySwapMax=0 "$@"
+fi
+echo "memcap: systemd user scopes unavailable; running uncapped" >&2
+exec "$@"

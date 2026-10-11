@@ -13,6 +13,7 @@
 #include <libgte.h>
 #include <libetc.h>
 #include <memory.h>
+#include "pc/src/psx_types.h"
 
 typedef struct {
     u_char unk0[0x1FE0];
@@ -30,8 +31,9 @@ typedef struct {
 
 typedef struct {
     u_char unk0[0x30];
-    int* unk30;
+    psx_ptr(int) unk30;
 } func_8004644C_t;
+PSX_ASSERT_SIZE(func_8004644C_t, 0x34);
 
 typedef struct {
     int unk0;
@@ -64,17 +66,23 @@ int func_8009F794(D_800F45E0_t* arg0);
 void func_8009F9F4(int, D_800F4538_unk64*);
 void func_8009FD38(D_800F4538_t* arg0);
 int func_800A0104(int, int);
+void func_800A06B8(D_800F4538_t*, int);
 void func_800A11D8(int, int, MATRIX*, u_long*);
-int func_800A141C(int arg0, int arg1, int* arg2, int arg3);
+/* 38C1C.c takes the output vector's address as an int. */
+int func_800A141C(int arg0, int arg1, int arg2, int arg3);
 int func_800A152C(int, int, int);
 void func_800A2C48(D_800F4538_t*);
 void func_800A525C(D_800F4538_t*);
 int func_800A6EE8(short*, int, int, int);
 int func_800A91DC(int, int, int);
+int func_800AAD4C(int, int, int, int);
 void func_800AB2AC(int);
-int func_800AD494(D_800F4538_t*, int, int*);
+void func_800AC500(D_800F4538_t*);
+void func_800AD008(void*, void*);
+int func_800AD494(D_800F4538_t*, int, u_short**);
 void func_800AD62C(int, int*, int*, int);
 int func_800AD714(D_800F4538_t*, D_800F4538_unkC54*, int);
+void func_800AE47C(D_800F4538_t*);
 void func_800AE6C0(D_800F4538_t*, int, int);
 short func_800BEB00();
 void func_800E6898(void*);
@@ -294,7 +302,7 @@ int func_8009998C(vs_battle_objectData* arg0)
         return -3;
     }
 
-    s1 = D_800F45E0[arg0->index] = arg0->unk4;
+    s1 = D_800F45E0[arg0->index] = psx_get(arg0->unk4);
 
     if (s1 == NULL) {
         return -2;
@@ -319,13 +327,13 @@ exit:
         *(int*)&s1->unk0 = temp_v1_2->unk0;
         s1->unk4 = temp_v1_2->unk4;
         temp_s0 = temp_v1_2->unk8;
-        s1->unk68 = func_8009A028(NULL, temp_v1_2 + 1, temp_v1_2->unkC);
+        psx_set(s1->unk68, func_8009A028(NULL, temp_v1_2 + 1, temp_v1_2->unkC));
 
-        if (s1->unk68 == NULL) {
+        if (psx_get(s1->unk68) == NULL) {
             return -2;
         }
 
-        temp_v1_2 = s1->unk68->unk3C;
+        temp_v1_2 = psx_get(psx_get(s1->unk68)->unk3C);
         j = arg0->actorId;
 
         if (j >= 6) {
@@ -426,7 +434,7 @@ int func_80099D6C(int arg0)
 
 exit:
     if (!found) {
-        vs_main_freeHeap(temp_s0->unk68);
+        vs_main_freeHeap(psx_get(temp_s0->unk68));
     }
 
     func_800E68A0(temp_s0);
@@ -504,10 +512,10 @@ void* func_8009A028(int* arg0, void* arg1, int arg2)
 
     memcpy(arg0, arg1, arg2);
 
-    arg0[12] += (u_long)arg0;
-    arg0[13] += (u_long)arg0;
-    arg0[14] += (u_long)arg0;
-    arg0[15] += (u_long)arg0;
+    arg0[12] += psx_to_int(u_long, arg0);
+    arg0[13] += psx_to_int(u_long, arg0);
+    arg0[14] += psx_to_int(u_long, arg0);
+    arg0[15] += psx_to_int(u_long, arg0);
 
     return arg0;
 }
@@ -548,7 +556,7 @@ int _loadWep(vs_battle_objectData* arg0)
         wepFileSize = _wepFileSectorOffsets[arg0->modelId];
         wepFileSize <<= 0xB;
         _wepFileData = vs_main_allocHeapR(wepFileSize);
-        arg0->dataAddr = (u_long)_wepFileData;
+        arg0->dataAddr = psx_to_int(u_long, _wepFileData);
 
         if (_wepFileData == NULL) {
             return -2;
@@ -558,7 +566,7 @@ int _loadWep(vs_battle_objectData* arg0)
         _wepFile.lba = D_800E8D00[arg0->modelId] + VS_01_WEP_LBA;
         _wepFile.size = wepFileSize;
         _wepCdSlot = vs_main_allocateCdQueueSlot(&_wepFile);
-        vs_main_cdEnqueue(_wepCdSlot, (void*)arg0->dataAddr);
+        vs_main_cdEnqueue(_wepCdSlot, psx_to_ptr(void*, arg0->dataAddr));
         // Fallthrough
 
     case 1:
@@ -605,12 +613,12 @@ int _parseWep(vs_battle_objectData* objectData)
 
     vs_battle_wepModels_t* model = vs_battle_wepModels[objectData->index];
 
-    u_char* data =
-        (u_char*)objectData->dataAddr; /* parse cursor walking the weapon-model file */
+    u_char* data = psx_to_ptr(
+        u_char*, objectData->dataAddr); /* parse cursor walking the weapon-model file */
 
     if (D_800E8F29 == 0) {
         if (model == NULL) {
-            vs_battle_wepModels[objectData->index] = objectData->unk4;
+            vs_battle_wepModels[objectData->index] = psx_get(objectData->unk4);
             model = vs_battle_wepModels[objectData->index];
 
             if (model == NULL) {
@@ -625,10 +633,11 @@ int _parseWep(vs_battle_objectData* objectData)
             return -3;
         }
 
-        if ((u_long)data < 20) {
+        if (psx_to_int(u_long, data) < 20) {
         copySlot:
             /* copy model from an already-loaded slot */
-            vs_main_memcpy(model, vs_battle_wepModels[(u_long)data], sizeof *model);
+            vs_main_memcpy(
+                model, vs_battle_wepModels[psx_to_int(u_long, data)], sizeof *model);
 
             if (model->texSlot != 0xFF) {
                 ++vs_battle_wepTextures[model->texSlot].refCount;
@@ -638,24 +647,25 @@ int _parseWep(vs_battle_objectData* objectData)
             }
 
             if (objectData->index < 4) {
-                data = (void*)model->offsets;
+                data = (void*)psx_get(model->offsets);
 
                 if (objectData->index < 2) {
                     buf = vs_battle_commonWepBuffs[objectData->index];
-                    model->offsets = buf;
+                    psx_set(model->offsets, buf);
                 } else {
                     buf = vs_main_allocHeap(sizeof *buf);
-                    model->offsets = buf;
+                    psx_set(model->offsets, buf);
                 }
 
                 vs_main_memcpy(buf, data, sizeof *buf);
 
                 /* dst doubles as the relocation delta for the copied pointers */
-                dst = (_wepModelOffsets*)((u_long)buf - (u_long)data);
-                buf->texturesOffset += (u_long)dst;
-                buf->vertexGroupsOffset += (u_long)dst;
-                buf->verticesOffset += (u_long)dst;
-                buf->polygonsOffset += (u_long)dst;
+                dst = psx_to_ptr(_wepModelOffsets*,
+                    psx_to_int(u_long, buf) - psx_to_int(u_long, data));
+                buf->texturesOffset += psx_to_int(u_long, dst);
+                buf->vertexGroupsOffset += psx_to_int(u_long, dst);
+                buf->verticesOffset += psx_to_int(u_long, dst);
+                buf->polygonsOffset += psx_to_int(u_long, dst);
             }
 
             model->clutSlotOffset = objectData->unk11 + (objectData->actorId << 1) + 16;
@@ -688,7 +698,7 @@ int _parseWep(vs_battle_objectData* objectData)
             found = 0;
         haveFound:
             if (found) {
-                data = (u_char*)objectData->dataAddr;
+                data = psx_to_ptr(u_char*, objectData->dataAddr);
                 goto copySlot;
             }
             model->modelId = objectData->modelId;
@@ -723,11 +733,11 @@ int _parseWep(vs_battle_objectData* objectData)
 
     memcpy(dst, data, size);
 
-    dst->texturesOffset += (u_long)dst;
-    dst->vertexGroupsOffset += (u_long)dst;
-    dst->verticesOffset += (u_long)dst;
-    dst->polygonsOffset += (u_long)dst;
-    model->offsets = dst;
+    dst->texturesOffset += psx_to_int(u_long, dst);
+    dst->vertexGroupsOffset += psx_to_int(u_long, dst);
+    dst->verticesOffset += psx_to_int(u_long, dst);
+    dst->polygonsOffset += psx_to_int(u_long, dst);
+    psx_set(model->offsets, dst);
 
     if (dst == NULL) {
         return -2;
@@ -808,7 +818,7 @@ int _parseWep(vs_battle_objectData* objectData)
 
 fixPrims:
     count = model->nOther + model->nTriangles + model->nQuads;
-    pData = (void*)model->offsets->polygonsOffset;
+    pData = psx_to_ptr(void*, psx_get(model->offsets)->polygonsOffset);
     texU = (model->texSlot & 1) * 64;
 
     for (n = 0; n < count; n++) {
@@ -902,10 +912,10 @@ int func_8009AA84(int index)
             var_v0 = 0;
         exit:
             if (var_v0 == 0) {
-                vs_main_freeHeap(model->offsets);
+                vs_main_freeHeap(psx_get(model->offsets));
             }
         } else {
-            vs_main_freeHeap(model->offsets);
+            vs_main_freeHeap(psx_get(model->offsets));
         }
     }
 
@@ -919,7 +929,7 @@ int func_8009AA84(int index)
     return 0;
 }
 
-int func_8009AC24(vs_battle_objectData* arg0)
+inline int func_8009AC24(vs_battle_objectData* arg0)
 {
     int i;
 
@@ -974,7 +984,7 @@ int _loadShp(vs_battle_objectData* arg0)
 
         shpFileSize <<= 0xB;
         _shpData = vs_main_allocHeapR(shpFileSize);
-        arg0->dataAddr = (u_long)_shpData;
+        arg0->dataAddr = psx_to_int(u_long, _shpData);
 
         if (_shpData == NULL) {
             return -2;
@@ -985,7 +995,7 @@ int _loadShp(vs_battle_objectData* arg0)
         _shpFile.size = shpFileSize;
         _shpCdSlot = vs_main_allocateCdQueueSlot(&_shpFile);
 
-        vs_main_cdEnqueue(_shpCdSlot, (void*)arg0->dataAddr);
+        vs_main_cdEnqueue(_shpCdSlot, psx_to_ptr(void*, arg0->dataAddr));
     case 1:
         if (_shpCdSlot->state != 4) {
             return -1;
@@ -1015,7 +1025,427 @@ int _loadShp(vs_battle_objectData* arg0)
     return shpData;
 }
 
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/30DB0", _parseShp);
+extern u_char D_800E8F30[];
+extern u_char D_800E8F90[];
+extern u_char* D_800F22B4;
+extern u_char D_800F22B8;
+extern int D_800F22BC;
+extern int D_800F22C0;
+extern int D_800F22C4;
+extern void* D_800F4528[];
+
+void func_8009CAEC(D_800F4538_t* arg0, int arg1);
+
+int _parseShp(vs_battle_objectData* object)
+{
+    RECT rect;
+    vs_battle_objectData queued;
+    D_800F4538_t* actor;
+    D_800F4538_t* other;
+    D_800F4538_unk68* model;
+    _armature_t* armature;
+    u_char* data;
+    u_char* pData;
+    int size;
+    int i;
+    int j;
+    int n;
+    int lo;
+    int hi;
+    int modelId;
+    int vertices;
+    int k;
+    int corner;
+    int x;
+    int y;
+    u_short* joint;
+    u_char* bounds;
+    u_char* state;
+    int texV;
+
+    if (D_800E8F29 == 0) {
+        if (object->index == 0 && object->modelId == 6) {
+            int originX;
+            int originY;
+
+            data = psx_to_ptr(u_char*, object->dataAddr);
+            actor = D_800F4538[0];
+            data += 0xF4;
+            size = *(int*)data;
+            data += size + 4;
+            data += 4;
+            i = *(int*)data;
+            D_800F22B8 = actor->unk0.unkE;
+            D_800F22C0 = 0x80;
+            D_800F22C4 = 0x80;
+            data += i + 4;
+            data += 8;
+            vs_main_memcpy(actor->unk11A4, data, D_800F22B8 * 4);
+            originX = *(short*)(D_800E8F30 + actor->unk5BB * 4) << 6;
+            rect.x = originX;
+            originY = (*(short*)(D_800E8F30 + actor->unk5BB * 4 + 2) << 8)
+                    + (D_800E8F90[actor->unk5BB] << 6);
+            rect.y = originY;
+            rect.w = D_800F22C0 / 2;
+            rect.h = D_800F22C4;
+            LoadImage(&rect, (u_long*)(data + D_800F22B8 * 4));
+            object->variant = 0;
+            goto setupPalettes;
+        }
+
+        actor = D_800F4538[object->index];
+        if (actor == NULL) {
+            D_800F4538[object->index] = psx_get(object->unk4);
+            actor = D_800F4538[object->index];
+            if (actor == NULL) {
+                return -2;
+            }
+            memset(actor, 0, 0x1900);
+            actor->unk5BB = 0xFF;
+            actor->unk0.unk12 = 0xFF;
+        }
+
+        modelId = object->modelId;
+        if (modelId == 0x7F) {
+            actor->unk6E6 = modelId;
+            actor->unk0.unkF = object->index;
+            *(u_short*)&actor->unk640[0] = 0x40;
+            *(u_short*)&actor->unk640[2] = 10000;
+            func_8009D468(actor->unk0.unkF);
+            actor->unk0.skip = 0;
+            func_800A30A0(actor->unk0.unkF, (func_80089888_t*)&object->unkC, 0, 1);
+            D_800E8F29 = 0;
+            return 0;
+        }
+
+        if ((u_long)object->dataAddr < 17) {
+        copyShared:
+            vs_main_memcpy(actor, D_800F4538[object->dataAddr], 0x1900);
+            if (actor->unk5B0_5 && actor->unk5BB != 0xFF) {
+                for (i = 0; i < actor->unk0.unk8_4 + 1; ++i) {
+                    ++D_800F46A8[actor->unk5BB + i].refCount;
+                }
+            }
+            *(vs_battle_objectData_flags*)&actor->unk0.currentTileX = object->unkC;
+            if (*(u_int*)((char*)actor + 0x5AC) & 0x08000000) {
+                D_800F22B8 = 0xA0;
+            } else {
+                D_800F22B8 = 0x10;
+            }
+            goto setupPalettes;
+        }
+        if (func_8009AC24(object)) {
+            goto copyShared;
+        }
+        actor->unk6E6 = object->modelId;
+        data = psx_to_ptr(u_char*, object->dataAddr);
+    } else if (D_800E8F29 == 1) {
+        actor = D_800F4538[object->index];
+        goto fixUVs;
+    }
+
+    data += 4;
+    *(vs_battle_objectData_flags*)&actor->unk0.currentTileX = object->unkC;
+    actor->unk0.skip = 1;
+    *(int*)&actor->unk0.nBones = *(int*)data;
+    *(int*)&actor->unk0.nQuads = *(int*)(data + 4);
+    data += 8;
+    vs_main_memcpy(actor->texMapOverlays, data, 0xE8);
+    data += 0xE8;
+    size = *(int*)data;
+    data += 4;
+    model = vs_main_allocHeap(size);
+    memcpy(model, data, size);
+    psx_set(
+        model->akaoOffset, (char*)psx_get(model->akaoOffset) + psx_to_int(u_int, model));
+    psx_set(model->groupOffset,
+        (char*)psx_get(model->groupOffset) + psx_to_int(u_int, model));
+    psx_set(model->vertexOffset,
+        (char*)psx_get(model->vertexOffset) + psx_to_int(u_int, model));
+    psx_set(
+        model->polyOffset, (char*)psx_get(model->polyOffset) + psx_to_int(u_int, model));
+    psx_set(actor->unk0.unk68, model);
+    if (model == NULL) {
+        return -2;
+    }
+    data += size;
+
+    queued.dataType = 8;
+    queued.index = object->index;
+    queued.dataAddr = psx_to_int(u_long, data);
+    queued.modelId = 0xFF;
+    queued.actorId = 0;
+    _loadSeq(&queued);
+    data += 4;
+
+    i = *(int*)data;
+    data += 4;
+    data += i;
+    size = *(int*)data;
+    actor->unk5B0_5 = 1;
+    data += 4;
+
+    if (size == 4) {
+        size = *(int*)data;
+        for (i = 0; i < 17; ++i) {
+            other = D_800F4538[i];
+            if (other != NULL && other->unk6E6 == size) {
+                break;
+            }
+        }
+        D_800F22B8 = actor->unk0.unkE = other->unk0.unkE;
+        vs_main_memcpy(actor->unk11A4, other->unk11A4, D_800F22B8 * 4);
+        actor->unk5BB = other->unk5BB;
+        actor->unk0.unk8_3 = other->unk0.unk8_3;
+        actor->unk5B0_5 = 0;
+        actor->unk5AC_27 = 1;
+        goto fixUVs;
+    }
+
+    D_800F22BC = *data;
+    actor->unk5AC_27 = (u_char)D_800F22BC;
+    actor->unk0.unk8_3 = D_800F22BC >> 4;
+    data++;
+    D_800F22C0 = *data++ * 2;
+    D_800F22C4 = *data++ * 2;
+    actor->unk0.unkE = D_800F22B8 = *data++;
+
+    n = D_800F22C4 / 64;
+    if (D_800F22C0 == 0x100) {
+        n = 8;
+    }
+    actor->unk0.unk8_4 = n - 1;
+
+    if (object->index == 1 || object->index == 16) {
+        lo = 12;
+        hi = 20;
+    } else {
+        lo = (n >= 3) * 4;
+        hi = 12;
+    }
+
+    switch (n) {
+    case 1:
+    case 2:
+        for (i = lo; i < hi; i += n) {
+            if (D_800F46A8[i].refCount == 0) {
+                break;
+            }
+        }
+        if (i == hi) {
+            goto fallback;
+        }
+        break;
+    case 3:
+    case 4:
+        for (i = lo; i < hi; ++i) {
+            for (j = 0; j < n; ++j) {
+                if (D_800F46A8[i + j].refCount != 0) {
+                    break;
+                }
+            }
+            if (j == n) {
+                goto found;
+            }
+            if (((i + n) & 3) == 0) {
+                i += n - 1;
+            }
+        }
+        goto fallback;
+    case 8:
+        for (i = lo; i < hi; ++i) {
+            if (D_800F46A8[i].refCount != 0) {
+                break;
+            }
+        }
+        if (i == hi) {
+            goto allFree;
+        }
+    fallback:
+        if (func_8007DFF0(31, 1, 4) == 0) {
+            actor->unk5BB = 0;
+            actor->unk0.unk8_4 = 0;
+            ++D_800F46A8[0].refCount;
+            goto setupPalettes;
+        }
+        i = 20;
+        break;
+    allFree:
+        i = lo;
+        break;
+    }
+found:
+    for (j = 0; j < n; ++j) {
+        D_800F46A8[i + j].refCount = 1;
+    }
+    actor->unk5BB = i;
+    if (*(u_int*)((char*)actor + 0x5AC) & 0x08000000) {
+        D_800F46A8[actor->unk5BB].tpage |= 0x80;
+    } else {
+        D_800F46A8[actor->unk5BB].tpage &= ~0x180;
+    }
+
+    vs_main_memcpy(actor->unk11A4, data, D_800F22B8 * 4);
+    data += D_800F22B8 * 4;
+    x = *(short*)(D_800E8F30 + actor->unk5BB * 4) << 6;
+    rect.x = x;
+    y = (*(short*)(D_800E8F30 + actor->unk5BB * 4 + 2) << 8)
+      + (D_800E8F90[actor->unk5BB] << 6);
+    rect.y = y;
+    rect.w = D_800F22C0 / 2;
+    rect.h = D_800F22C4;
+    LoadImage(&rect, (u_long*)data);
+    data += D_800F22C0 * D_800F22C4;
+    D_800E8F29 = 1;
+    D_800F22B4 = data;
+    return -1;
+
+fixUVs:
+    j = actor->unk0.nOther + actor->unk0.nTriangles + actor->unk0.nQuads;
+    pData = psx_get(psx_get(actor->unk0.unk68)->polyOffset);
+    texV = D_800E8F90[actor->unk5BB] << 6;
+
+    switch (actor->unk0.unk8_3) {
+    case 0:
+        for (k = 0; k < j; k++) {
+            vertices = 4;
+            if (*pData == primPolyFT3) {
+                pData += 10;
+                vertices = 3;
+            } else {
+                pData += 12;
+            }
+            for (corner = 0; corner < vertices; pData += 2, ++corner) {
+                pData[0] += 0;
+                pData[1] += texV;
+            }
+        }
+        break;
+    default:
+        for (k = 0; k < j; k++) {
+            if (pData[11] == 0x34) {
+                pData[6] += 0;
+                pData[7] += texV;
+                pData += 20;
+                vertices = 2;
+            } else {
+                pData += 24;
+                vertices = 4;
+            }
+            for (corner = 0; corner < vertices; pData += 2, ++corner) {
+                pData[0] += 0;
+                pData[1] += texV;
+            }
+        }
+    }
+
+setupPalettes:
+    vs_main_memcpy(
+        actor->unk1424, actor->unk11A4 + object->variant * 0x140, D_800F22B8 * 2);
+    vs_main_memcpy(actor->unk1424 + 0x140, actor->unk1424, D_800F22B8 * 2);
+    vs_main_memcpy(actor->unk1424 + 0x280, actor->unk1424, D_800F22B8 * 2);
+
+    if (object->index == 16) {
+        vs_main_loadClut((u_short*)actor->unk1424, 0x17, 0, D_800F22B8);
+        actor->unk6E8 = D_800F46A8[1].clut1;
+        actor->unk6EA = D_800F46A8[1].clut1;
+    } else {
+        vs_main_loadClut((u_short*)actor->unk1424, object->index + 4, 0, D_800F22B8);
+        vs_main_loadClut((u_short*)actor->unk1424, object->index + 0x16, 0, D_800F22B8);
+        actor->unk6E8 = D_800F46A8[object->index].clut0;
+        actor->unk6EA = D_800F46A8[object->index].clut1;
+    }
+
+    if (object->index == 0 && object->modelId == 6) {
+        return 0;
+    }
+
+    actor->unk0.unkF = object->index;
+    actor->unk0.unk10 = object->variant;
+    actor->unk0.unk8_7 = 1;
+    actor->unk0.unk9_0 = 0;
+    actor->unk6E5 = 13;
+    psx_set(actor->unk5D4, NULL);
+    psx_set(actor->unk5D8, NULL);
+    psx_set(actor->unk5DC[3], NULL);
+    actor->unk5B4 = 0;
+    actor->unk5B5 = 0;
+    actor->unk5B6 = 0;
+    actor->unk5B3 = 0;
+    actor->unk5B1 = 0;
+    actor->unk5BC = 0;
+    actor->unk6DC = 0;
+    actor->unk0.weaponDrawn = 0;
+    actor->unk5AC_18 = 0;
+    actor->unk5AC_8 = 0;
+    actor->unk5C2 = 8;
+    actor->unk5C0 = 0x20;
+    actor->unk0.unk2C = 0x1000;
+    actor->unk0.unk2E = 0x1000;
+    actor->unk0.unk30 = 0x1000;
+    actor->unk5B2 = 1;
+    actor->unk0.unkC_0 = 0;
+    actor->unk0.unkC_4 = 0;
+    actor->unk5AC_11 = 0;
+    actor->unk0.unk9_7 = 1;
+    *(int*)&actor->unk6F0 = 0;
+    actor->unk648_0 = 800;
+    actor->unk0.unk54 = 0x808080;
+    *(int*)&actor->unk0.unk58 = 0x404040;
+    actor->unk183C = D_800F4438.vx;
+
+    for (i = 0; i < actor->unk0.nBones; ++i) {
+        armature = &psx_get(actor->unk0.unk68)->armatures[i];
+        if (armature->unk8 >= 3 && armature->unk8 < 7) {
+            joint = (u_short*)&actor->unk1880[(armature->unk8 - 3) * 4];
+            joint[1] = 0;
+            joint[0] = *(u_short*)&armature->unkA;
+        }
+    }
+
+    for (i = 0; i < 4; ++i) {
+        state = &actor->unk181C[i * 8];
+        bounds = &actor->unk614[i * 8 + 8];
+        state[0] = bounds[0];
+        state[1] = bounds[1];
+        state[2] = bounds[4];
+        state[3] = bounds[5];
+        state[4] = bounds[7];
+        state[5] = 0;
+    }
+
+    psx_set(actor->unk5DC[0], NULL);
+    psx_set(actor->unk5DC[1], NULL);
+    for (i = 0; i < 3; ++i) {
+        if (D_800F4528[i] != NULL) {
+            func_8009CAEC(actor, i);
+        }
+    }
+
+    func_8009D7E8(object->index, 0);
+    func_8009D468(actor->unk0.unkF);
+    actor->unk0.unk13 = 0;
+    actor->unk0.unk9_5 = 0;
+
+    if (object->actorId == 0xFF) {
+        func_800A30A0(
+            object->index, (func_80089888_t*)&object->unkC, 0, object->material);
+        actor->unk0.unk12 = 0xFF;
+    } else if (object->unk11 == 0xFC) {
+        actor->unk0.unk12 = object->actorId;
+        actor->unk0.unk13 = 0xFC;
+        D_800F4538[actor->unk0.unk12]->unk17FD = object->index;
+        D_800F4538[actor->unk0.unk12]->unk6F4.unk0 = 0;
+        D_800F4538[actor->unk0.unk12]->unk6F4.unk1 = 0;
+        D_800F4538[actor->unk0.unk12]->unk6F4.unk2 = 0;
+        D_800F4538[actor->unk0.unk12]->unk6F4.unk3 = 8;
+    } else {
+        actor->unk0.unk12 = 0xFF;
+        func_8009FF08(object->index, object->actorId, object->unk11, 0);
+    }
+    D_800E8F29 = 0;
+    return 0;
+}
 
 int func_8009BD90(vs_battle_objectData* arg0)
 {
@@ -1026,7 +1456,7 @@ int func_8009BD90(vs_battle_objectData* arg0)
         if (var_a2 != arg0->index) {
             temp_v1 = D_800F4538[var_a2];
             if ((temp_v1 != NULL) && (temp_v1->unk6E6 == t1)) {
-                if ((arg0->modelId == 0 && temp_v1->unk5D4 != 0)
+                if ((arg0->modelId == 0 && psx_get(temp_v1->unk5D4) != 0)
                     || (arg0->modelId != 0 && temp_v1->unk5B1 == arg0->modelId)) {
                     arg0->dataAddr = var_a2;
                     return 1;
@@ -1038,18 +1468,377 @@ int func_8009BD90(vs_battle_objectData* arg0)
 }
 
 // https://decomp.me/scratch/wJjuU
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/30DB0", func_8009BE5C);
-
-void func_8009C378(func_8009C378_t* arg0, func_8009C378_t* arg1)
+extern u_short D_800E8A60[], D_800E8E8E[], D_800E8EA8[][4];
+extern u_char D_800E8B40[], D_800E8EA3[], D_800E8EFC[][4];
+extern void* D_800F22C8;
+extern int D_800F22D0;
+extern vs_main_CdFile D_800F22D8;
+extern vs_main_CdQueueSlot* D_800F22E0;
+static inline int vs_battleFindSharedSequence(vs_battle_objectData* arg0)
 {
-    vs_main_memcpy(arg0, arg1, 0x7800);
-    arg0->unk0 -= (long)arg1;
-    arg0->unk4 -= (long)arg1;
-    arg0->unk0 += (long)arg0;
-    arg0->unk4 += (long)arg0;
+    D_800F4538_t* temp_v1;
+    int var_a2;
+    int t1 = D_800F4538[arg0->index]->unk6E6;
+    for (var_a2 = (arg0->index >= 2) * 2; var_a2 < 17; ++var_a2) {
+        if (var_a2 != arg0->index) {
+            temp_v1 = D_800F4538[var_a2];
+            if ((temp_v1 != NULL) && (temp_v1->unk6E6 == t1)) {
+                if ((arg0->modelId == 0 && psx_get(temp_v1->unk5D4) != 0)
+                    || (arg0->modelId != 0 && temp_v1->unk5B1 == arg0->modelId)) {
+                    arg0->dataAddr = var_a2;
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
 }
 
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/30DB0", _loadSeq);
+static inline int vs_battleQueueSequenceObject(vs_battle_objectData* objectData)
+{
+    int i;
+    int slot;
+    vs_battle_objectData* dst;
+
+    for (i = 0; i < 16; ++i) {
+        if (vs_battle_objectDataSlots[i].dataType == 0) {
+            slot = i;
+            goto found;
+        }
+    }
+
+    slot = -1;
+
+found:
+    if (slot == -1) {
+        return -1;
+    }
+
+    dst = &vs_battle_objectDataSlots[slot];
+    *dst = *objectData;
+    return slot;
+}
+
+int func_8009BE5C(vs_battle_objectData* object)
+{
+    vs_battle_objectData queued;
+    D_800F4538_t* actor = D_800F4538[object->index];
+    unsigned sectors;
+    char* sequences;
+    int result;
+    int model;
+    switch (_loadShpState) {
+    case 0:
+        switch (object->actorId) {
+        case 0:
+            if (object->index != 0 && vs_battleFindSharedSequence(object)) {
+                D_800F22D0 = 0;
+                goto parse;
+            }
+            goto allocate;
+        case 1:
+        case 2:
+            D_800F22D0 = 0;
+            break;
+        default:
+        allocate:
+            D_800F22D0 = 1;
+            break;
+        }
+        break;
+    case 1:
+        goto wait;
+    case 2:
+        goto parse;
+    }
+    switch (object->actorId) {
+    case 0:
+        sequences = (char*)actor + 0x5F4;
+        sectors = *(u_short*)(sequences + 0xA0 + object->modelId * 2) >> 11;
+        if (!sectors)
+            return 0;
+        D_800F22C8 = vs_main_allocHeapR(sectors << 11);
+        object->dataAddr = psx_to_int(u_long, D_800F22C8);
+        if (!D_800F22C8)
+            return -2;
+        D_800F22D8.lba = *(u_int*)(sequences + 0x70 + object->modelId * 4);
+        if (object->index == 0 && (model = object->modelId) != 0) {
+            queued.dataType = 7;
+            queued.index = 0;
+            queued.actorId = 3;
+            queued.material = model;
+            vs_battleQueueSequenceObject(&queued);
+        }
+        break;
+    case 1:
+    case 2:
+        sectors = D_800E8B40[object->modelId];
+        if (!sectors)
+            return -2;
+        D_800F22C8 = vs_main_allocHeap(sectors << 11);
+        object->dataAddr = psx_to_int(u_long, D_800F22C8);
+        if (!D_800F22C8)
+            return -2;
+        D_800F22D8.lba = D_800E8A60[object->modelId] + 0x19797;
+        break;
+    case 3:
+        sectors = D_800E8EA3[(u_char)object->material];
+        D_800F22C8 = vs_main_allocHeapR(sectors << 11);
+        object->dataAddr = psx_to_int(u_long, D_800F22C8);
+        if (!D_800F22C8)
+            return -2;
+        D_800F22D8.lba = D_800E8E8E[(u_char)object->material] + 0x18043;
+        break;
+    case 4:
+    special:
+        sectors = D_800E8EFC[(u_char)object->material][object->modelId];
+        if (!sectors) {
+            sectors = D_800E8EFC[2][0];
+            object->material = 2;
+            object->modelId = 0;
+        }
+        D_800F22C8 = vs_main_allocHeapR(sectors << 11);
+        object->dataAddr = psx_to_int(u_long, D_800F22C8);
+        if (!D_800F22C8)
+            return -2;
+        D_800F22D8.lba = D_800E8EA8[(u_char)object->material][object->modelId] + 0x1943E;
+        break;
+    case 5:
+        if (object->modelId == 0)
+            return 0;
+        --object->modelId;
+        if (actor->unk6E6 == 2)
+            goto special;
+        sectors = *(u_short*)((char*)actor + 0x6CC + object->modelId * 2) >> 11;
+        if (!sectors)
+            return -2;
+        D_800F22D8.lba = actor->spSeqLbas[object->modelId];
+        D_800F22C8 = vs_main_allocHeapR(sectors << 11);
+        object->dataAddr = psx_to_int(u_long, D_800F22C8);
+        if (!D_800F22C8)
+            return -2;
+        break;
+    }
+    D_800F22D8.size = sectors << 11;
+    _loadShpState = 1;
+    D_800F22E0 = vs_main_allocateCdQueueSlot(&D_800F22D8);
+    vs_main_cdEnqueue(D_800F22E0, psx_to_ptr(void*, object->dataAddr));
+wait:
+    if (D_800F22E0->state != 4)
+        return -1;
+    vs_main_freeCdQueueSlot(D_800F22E0);
+    _loadShpState = 2;
+    return -1;
+parse:
+    result = _loadSeq(object);
+    if (result == -1)
+        return -1;
+    if (D_800F22D0) {
+        D_800F22D0 = 0;
+        vs_main_freeHeapR(D_800F22C8);
+    }
+    _loadShpState = 0;
+    return result;
+}
+
+inline void func_8009C378(func_8009C378_t* arg0, func_8009C378_t* arg1)
+{
+    vs_main_memcpy(arg0, arg1, 0x7800);
+#ifdef ROOD_PC_LP64
+    /* Relocate the two guest pointers from arg1's copy to arg0's. */
+    psx_raw(arg0->unk0) += psx_to_int(u_int, arg0) - psx_to_int(u_int, arg1);
+    psx_raw(arg0->unk4) += psx_to_int(u_int, arg0) - psx_to_int(u_int, arg1);
+#else
+    arg0->unk0 -= (long)arg1;
+    arg0->unk4 -= (long)arg1;
+    psx_add(arg0->unk0, (long)arg0);
+    psx_add(arg0->unk4, (long)arg0);
+#endif
+}
+
+extern u_char D_800E8F2B;
+extern u_char* D_800F22E4;
+extern void* D_800F4768;
+
+int _loadSeq(vs_battle_objectData* object)
+{
+    int _[2] __attribute__((unused));
+    D_800F4538_t* actor;
+    D_800F4538_t* source;
+    func_8009C378_t* seq;
+    int size;
+    int count;
+    int slot;
+    int i;
+
+    switch (D_800E8F2B) {
+    case 0:
+        D_800F22E4 = psx_to_ptr(u_char*, object->dataAddr);
+        break;
+    case 1:
+        goto loadEtm;
+    }
+
+    if (object->actorId == 0) {
+        actor = D_800F4538[object->index];
+        if (object->modelId != 0) {
+            if (vs_battleFindSharedSequence(object)) {
+                D_800F22E4 = psx_to_ptr(u_char*, object->dataAddr);
+            }
+        }
+        if (object->modelId == 0) {
+            if (psx_to_int(u_long, D_800F22E4) < 17) {
+                source = D_800F4538[psx_to_int(int, D_800F22E4)];
+                actor->unk5B4 = source->unk5B4;
+                psx_copy(actor->unk5D4, source->unk5D4);
+                return 0;
+            }
+            actor->unk5B4 = *D_800F22E4;
+            D_800F22E4 += 4;
+            size = *(int*)D_800F22E4;
+            D_800F22E4 += 4;
+            if (size & 3) {
+                size += (4 - size) & 3;
+            }
+            seq = vs_main_allocHeap(size);
+            if (seq == NULL) {
+                return -2;
+            }
+            psx_set(actor->unk5D4, seq);
+            goto copy;
+        }
+        if (object->modelId == 0xFF) {
+            D_800F22E4 += 4;
+            size = *(int*)D_800F22E4;
+            D_800F22E4 += 4;
+            if (size & 3) {
+                size += (4 - size) & 3;
+            }
+            seq = vs_main_allocHeap(size);
+            if (seq == NULL) {
+                return -2;
+            }
+            psx_set(actor->unk5D0, seq);
+            goto copy;
+        }
+        if (psx_to_int(u_long, D_800F22E4) < 17) {
+            source = D_800F4538[psx_to_int(int, D_800F22E4)];
+            actor->unk5B5 = source->unk5B5;
+            seq = psx_get(source->unk5D8);
+            if (object->index < 2) {
+                if (actor->unk0.unkF == 0) {
+                    seq = D_800F4930;
+                    goto clone;
+                }
+                if (D_800F22E4 == 0) {
+                    seq = vs_main_allocHeap(0x7800);
+                clone:
+                    func_8009C378(seq, psx_get(source->unk5D8));
+                }
+            }
+            psx_set(actor->unk5D8, seq);
+            actor->unk5B1 = object->modelId;
+            return 0;
+        }
+        actor->unk5B5 = *D_800F22E4;
+        D_800F22E4 += 2;
+        size = *(u_short*)D_800F22E4;
+        D_800F22E4 += 2;
+        if (size != 0 && size != actor->unk0.nBones) {
+            return 0;
+        }
+        size = *(int*)D_800F22E4;
+        D_800F22E4 += 4;
+        if (size & 3) {
+            size += (4 - size) & 3;
+        }
+        if (actor->unk0.unkF != 0) {
+            seq = vs_main_allocHeap(size);
+            if (seq == NULL) {
+                return -2;
+            }
+        } else {
+            seq = D_800F4930;
+        }
+        psx_set(actor->unk5D8, seq);
+        actor->unk5B1 = object->modelId;
+    copy:
+        vs_main_memcpy(seq, D_800F22E4, size);
+        psx_set(seq->unk0, (char*)psx_get(seq->unk0) + psx_to_int(u_int, seq));
+        psx_set(seq->unk4, (char*)psx_get(seq->unk4) + psx_to_int(u_int, seq));
+        return 0;
+    } else if (object->actorId == 3) {
+        D_800F22E4 += 4;
+        size = *(int*)D_800F22E4;
+        D_800F22E4 += 4;
+        if (size & 3) {
+            size += (4 - size) & 3;
+        }
+        seq = D_800F4768;
+        goto copy;
+    } else if (object->actorId == 4 || object->actorId == 5) {
+        actor = D_800F4538[object->index];
+        actor->unk5B6 = *D_800F22E4;
+        D_800F22E4 += 4;
+        size = *(int*)D_800F22E4;
+        D_800F22E4 += 4;
+        if (size & 3) {
+            size += (4 - size) & 3;
+        }
+        seq = vs_main_allocHeap(size);
+        if (seq == NULL) {
+            return -2;
+        }
+        psx_set(actor->unk5DC[3], seq);
+        goto copy;
+    } else {
+        slot = object->index - 1;
+        D_800F2450[slot] = 0;
+        if (D_800F4528[slot] != NULL) {
+            return -2;
+        }
+        D_800F4528[slot] = D_800F22E4;
+        count = *(int*)D_800F22E4;
+        D_800F22E4 += 4;
+        for (i = 0; i < count; ++i) {
+            D_800F4628[slot][i] = *(u_short*)D_800F22E4;
+            D_800F22E4 += 4;
+        }
+        for (i = 0; i < count; ++i) {
+            D_800F4938[slot][i] = *(u_short*)D_800F22E4;
+            D_800F22E4 += 4;
+        }
+        D_800F4628[slot][i] = -1;
+        for (i = 0; i < count; ++i) {
+            D_800F4810[slot][i] = psx_load(char*, D_800F22E4);
+            D_800F22E4 += 4;
+        }
+        for (i = 0; i < count; ++i) {
+            D_800F4810[slot][i] += psx_to_int(u_int, D_800F22E4);
+            seq = (func_8009C378_t*)(D_800F4810[slot][i] + 8);
+            psx_set(seq->unk0,
+                (char*)psx_get(seq->unk0) + psx_to_int(u_int, D_800F4810[slot][i] + 8));
+            psx_set(seq->unk4,
+                (char*)psx_get(seq->unk4) + psx_to_int(u_int, D_800F4810[slot][i] + 8));
+        }
+        D_800F4810[slot][i] = (char*)-1;
+        for (i = 0; i < 17; ++i) {
+            if (D_800F4538[i] != NULL) {
+                func_8009CAEC(D_800F4538[i], slot);
+            }
+        }
+        if (object->actorId == 1) {
+            return 0;
+        }
+        D_800E8F2B = 1;
+    loadEtm:
+        if (_loadEtm(object) == -1) {
+            return -1;
+        }
+        D_800E8F2B = 0;
+        return 0;
+    }
+}
 
 void func_8009CAEC(D_800F4538_t* arg0, int arg1)
 {
@@ -1073,7 +1862,7 @@ void func_8009CAEC(D_800F4538_t* arg0, int arg1)
         }
         ++i;
     }
-    arg0->unk5DC[arg1] = p;
+    psx_set(arg0->unk5DC[arg1], p);
 tail:
     for (i = 0; (id = D_800F4628[arg1][i]) != -1; ++i) {
         if (id == arg0->unk6E6) {
@@ -1084,7 +1873,71 @@ tail:
     arg0->unk183E[arg1] = 0xFF;
 }
 
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/30DB0", func_8009CC20);
+int func_8009CC20(int arg0, int arg1)
+{
+    vs_battle_objectData objectData;
+    D_800F4538_t* actor;
+    int i;
+
+    switch (arg1) {
+    case 0:
+        if (arg0 >= 17) {
+            return -1;
+        }
+        actor = D_800F4538[arg0];
+        if (actor == NULL) {
+            return -1;
+        }
+        if (psx_get(actor->unk5D8) == NULL) {
+            return 0;
+        }
+        if (arg0 != 0) {
+            objectData.index = arg0;
+            objectData.modelId = actor->unk5B1;
+            if (arg0 == 1 && actor->unk6E6 == 0) {
+                vs_main_freeHeap(psx_get(actor->unk5D8));
+            } else if (!vs_battleFindSharedSequence(&objectData)) {
+                vs_main_freeHeap(psx_get(actor->unk5D8));
+            }
+        }
+        psx_set(actor->unk5D8, NULL);
+        actor->unk5B1 = 0;
+        actor->unk5B5 = 0;
+        break;
+    case 1:
+    case 2:
+        --arg0;
+        for (i = 0; i < 17; ++i) {
+            actor = D_800F4538[i];
+            if (actor != NULL) {
+                psx_set(actor->unk5DC[arg0], NULL);
+            }
+        }
+        i = func_8009D208(arg0 + 1);
+        if (i < 0) {
+            return i;
+        }
+        if (D_800F4528[arg0] != NULL) {
+            vs_main_freeHeap(D_800F4528[arg0]);
+        }
+        D_800F4528[arg0] = NULL;
+        break;
+    case 4:
+    case 5:
+        actor = D_800F4538[arg0];
+        if (actor == NULL) {
+            return -1;
+        }
+        if (psx_get(actor->unk5DC[3]) == NULL) {
+            return 0;
+        }
+        vs_main_freeHeap(psx_get(actor->unk5DC[3]));
+        psx_set(actor->unk5DC[3], NULL);
+        actor->unk5B6 = 0;
+        break;
+    }
+    return 0;
+}
 
 void func_800AB098(D_800F4538_t*, int, int);
 
@@ -1151,20 +2004,20 @@ int func_8009CFB0(int arg0)
         }
     exit:
         if (var_v0 == 0) {
-            func_8004644C(0x180, temp_s1->unk0.unk68->akaoOffset, 0);
-            vs_main_freeHeap(temp_s1->unk0.unk68);
-            vs_main_freeHeap(temp_s1->unk5D0);
+            func_8004644C(0x180, psx_get(psx_get(temp_s1->unk0.unk68)->akaoOffset), 0);
+            vs_main_freeHeap(psx_get(temp_s1->unk0.unk68));
+            vs_main_freeHeap(psx_get(temp_s1->unk5D0));
         }
 
-        if (temp_s1->unk5D4 != 0) {
+        if (psx_get(temp_s1->unk5D4) != 0) {
             for (i = 0; i < 17; ++i) {
                 if ((i != arg0) && ((D_800F4538[i] != NULL))
-                    && (D_800F4538[i]->unk5D4 == temp_s1->unk5D4)) {
+                    && (psx_get(D_800F4538[i]->unk5D4) == psx_get(temp_s1->unk5D4))) {
                     goto exit2;
                 }
             }
             if (i >= 17) {
-                vs_main_freeHeap(temp_s1->unk5D4);
+                vs_main_freeHeap(psx_get(temp_s1->unk5D4));
             }
         }
     exit2:
@@ -1604,7 +2457,7 @@ void func_8009DDF4(int arg0, SVECTOR* arg1)
 
 void func_8009DF3C(int arg0, int arg1)
 {
-    int sp10[2];
+    u_short* sp10[2];
     D_800F4538_t* temp_s2 = D_800F4538[arg0];
 
     int var_s0 = 0;
@@ -1752,7 +2605,7 @@ void func_8009E2E0(int arg0, SVECTOR* arg1, int arg2)
 {
     u_char sp10[2] = { 0x55, 0x58 };
     u_char sp18[2] = { 0x57, 0x59 };
-    int sp20;
+    u_short* sp20;
     int angle;
     int diff;
     int anim;
@@ -1881,6 +2734,14 @@ int func_8009E4B0(int arg0)
 
 void func_8009E5C4(int arg0)
 {
+#ifdef ROOD_PC
+    /* The original reads animationId through empty slots (PS1 low RAM);
+     * func_8009E700 handles the empty slot itself. Host-only guard. */
+    if (D_800F4538[arg0] == NULL) {
+        func_8009E700(arg0, 1);
+        return;
+    }
+#endif
     if ((D_800F4538[arg0]->animationId != 0x63)
         && (D_800F4538[arg0]->animationId != 0xC7)) {
         func_8009E700(arg0, 1);
@@ -1929,7 +2790,124 @@ void func_8009E634(D_800F4538_t* arg0)
 }
 
 // https://decomp.me/scratch/ajofv
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/30DB0", func_8009E700);
+void func_8009E700(int actorId, int animation)
+{
+    D_800F4538_t* actor;
+    D_800F45E0_t* object;
+    int objectState;
+    int state;
+    int action;
+    int facing;
+    int direction;
+    int distance;
+    int tileDx;
+    int tileDz;
+    u_int movementFlags;
+    u_int flags;
+    int currentAnimation;
+    int reactionAnimation;
+    int baseAnimation;
+
+    actor = D_800F4538[actorId];
+    if (actor == NULL) {
+        object = D_800F45E0[actorId];
+        if ((object != NULL)
+            && ((objectState = object->unk1A, (objectState == 0xF9))
+                || (objectState == 0xFF))
+            && ((*(u_char*)((char*)object + 0x170)) == 0)) {
+            object->unk1A = 0;
+        }
+    } else {
+        currentAnimation = actor->animationId;
+        if ((currentAnimation != 0xC6) && (currentAnimation != 0xC8)
+            && ((actor->unk0.unkF != 0)
+                || (((*(int*)((char*)actor + 8)) & 0x184000) != 0x80000))) {
+            flags = (*(int*)((char*)actor + 8));
+            if (((u_int)((flags >> 0x10) & 7) < 2U)
+                && (state = flags & 0x70000000, (state != 0x20000000))
+                && (state != 0x50000000)) {
+                action = flags & 0x0F000000;
+                if (action == 0x3000000) {
+                    func_800A2C48(actor);
+                } else if (action != 0) {
+                    goto resetState;
+                }
+                {
+                    movementFlags = (*(int*)((char*)actor + 8));
+                    if ((movementFlags & 0x180000) == 0x100000) {
+                        if ((*(int*)((char*)actor + 0x18)) != 0) {
+                            actor->unk0.unk1A = 0;
+                            actor->unk0.unk18 = 0;
+                            actor->unk0.position.vx = (u_short)actor->unk0.position.vx
+                                                    + (u_short)actor->unk0.unk34.vx;
+                            actor->unk0.position.vy = (u_short)actor->unk0.position.vy
+                                                    + (u_short)actor->unk0.unk34.vy;
+                            actor->unk0.position.vz = (u_short)actor->unk0.position.vz
+                                                    + (u_short)actor->unk0.unk34.vz;
+                            actor->unk0.facing =
+                                (u_short)actor->unk0.facing + (u_short)actor->unk0.unk3E;
+                        }
+                    } else if (!(movementFlags & 0xF00)) {
+                        baseAnimation = actor->animationId;
+                        if ((int)baseAnimation >= 0x65) {
+                            baseAnimation -= 0x64;
+                        }
+                        if (baseAnimation != 0x62) {
+                            distance = 1;
+                            if (actor->unk0.unkF == 0) {
+                                reactionAnimation = actor->animationId;
+                                if ((u_int)(reactionAnimation - 0x4F) >= 4U) {
+                                    if (((u_int)(reactionAnimation - 0x47) >= 4U)
+                                        && (reactionAnimation != 0x4C)) {
+
+                                    } else {
+                                        goto moveFromReaction;
+                                    }
+                                } else {
+                                    distance = 2;
+                                moveFromReaction:
+                                    facing = actor->unk0.facing + 0x200;
+                                    facing &= 0xFFF;
+                                    facing /= 1024;
+                                    direction = facing;
+                                    tileDx = 0;
+                                    tileDz = 0;
+                                    if (direction < 2) {
+                                        distance = -distance;
+                                    }
+                                    if (direction & 1) {
+                                        tileDx = distance;
+                                    } else {
+                                        tileDz = distance;
+                                    }
+                                    func_800E4C28(actor->unk0.currentTileX + tileDx,
+                                        actor->unk0.currentTileZ + tileDz, tileDx,
+                                        tileDz);
+                                }
+                            }
+                            if ((*(int*)((char*)actor + 0x5AC)) & 8) {
+                                func_800A0204((int)actor->unk0.unkF, 0x4B, 0, 0xC);
+                            } else {
+                                func_800A0204(actorId, animation, 0, 0x10);
+                                actor->unk1846 = 0;
+                            }
+                        }
+                    }
+                }
+            }
+        resetState:
+            if (((*(int*)((char*)actor + 8)) & 0x180000) != 0x100000) {
+                (*(int*)((char*)actor + 8)) =
+                    (u_int)((*(int*)((char*)actor + 8)) & 0xFFE7FFFF);
+            }
+            actor->unk5C8 = 0;
+            actor->unk0.unk18 = 0;
+            actor->unk0.unk1A = 0;
+            (*(int*)((char*)actor + 8)) = (u_int)((*(int*)((char*)actor + 8)) & ~0x4000);
+            func_800A0ABC(actorId);
+        }
+    }
+}
 
 void func_8009EA14(int arg0, SVECTOR* arg1)
 {
@@ -2180,11 +3158,113 @@ void func_8009EE9C(int arg0, SVECTOR* arg1, int arg2)
 }
 
 // https://decomp.me/scratch/kQp6H
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/30DB0", func_8009EFEC);
+extern char D_800F49E4;
+
+void func_8009EFEC(int actorId, SVECTOR* target, int mode)
+{
+    u_short* animation;
+    D_800F4538_t* fallbackActor;
+    D_800F4538_t* actor;
+    int facingDelta;
+    int angle;
+    int dz;
+    int dx;
+    int pitch;
+    int reactionAnimation;
+    int value;
+    int verticalAngle;
+
+    actor = D_800F4538[actorId];
+    if (mode == 0) {
+        if (target != NULL) {
+            dx = target->vx - actor->unk0.position.vx;
+            dz = target->vz - actor->unk0.position.vz;
+            if ((dx == 0) && (dz == 0)) {
+                angle = actor->unk0.facing;
+            } else {
+                angle = (0xC00 - ratan2(dz, dx)) & 0xFFF;
+            }
+            angle = angle - actor->unk0.facing;
+            if (angle > 0x800) {
+                angle -= 0x1000;
+            } else if (angle < -0x800) {
+                angle += 0x1000;
+            }
+            facingDelta = angle;
+        } else {
+            facingDelta = 0;
+        }
+        actor->unk0.unk3E = facingDelta;
+        actor->unk0.unk18 = 0xA;
+        if ((u_short)actor->unk63C >= 0x80U) {
+            actor->unk0.unk18 = 0x14;
+        }
+        func_800AD494(actor, 0xBFU, &animation);
+        value = 0xBF;
+        if (animation == NULL) {
+            value = 0xC1;
+        }
+        func_800A0204(actorId, value, 0, 8);
+        func_8009FD38(actor);
+        return;
+    } else if (mode == 1) {
+        func_800AD494(actor, 0xFFU, &animation);
+        if (animation == NULL) {
+            fallbackActor = D_800F4538[actorId];
+            if (fallbackActor != NULL) {
+                fallbackActor->unk0.unk3E = func_8009E180(fallbackActor, target);
+                fallbackActor->unk0.unk18 = 0xA;
+                if ((u_short)fallbackActor->unk63C >= 0x81U) {
+                    fallbackActor->unk0.unk18 = 0x14;
+                }
+                pitch = func_8009E228(fallbackActor, target);
+                reactionAnimation = 0x48;
+                if (pitch >= -0xE4) {
+                    reactionAnimation = 0x49;
+                    if (pitch >= 0xAC) {
+                        reactionAnimation = 0x4A;
+                    }
+                }
+                func_800A0204(actorId, reactionAnimation, 0, 6);
+                func_8009FD38(fallbackActor);
+                return;
+            }
+        } else {
+            SVECTOR origin;
+            verticalAngle = 0;
+            if (target != NULL) {
+                value = target->vx - actor->unk0.position.vx;
+                value = value * value;
+                verticalAngle = target->vz - actor->unk0.position.vz;
+                if (value < 0) {
+                    value = -value;
+                }
+                verticalAngle = verticalAngle * verticalAngle;
+                if (verticalAngle < 0) {
+                    verticalAngle = -verticalAngle;
+                }
+                value = vs_gte_rsqrt(value + verticalAngle);
+                func_800A1AF8(actor->unk0.unkF, 0, &origin, 0);
+                verticalAngle = ratan2(target->vy - origin.vy, value);
+            }
+            if (verticalAngle < -0xE4) {
+                D_800F49E4 = 0;
+            } else {
+                if (verticalAngle >= 0xAC) {
+                    D_800F49E4 = 2;
+                } else {
+                    D_800F49E4 = 1;
+                }
+            }
+            func_800A0204(actorId, 0xFF, 0, 8);
+            return;
+        }
+    }
+}
 
 void func_8009F298(int arg0, SVECTOR* arg1, int arg2)
 {
-    int sp10;
+    u_short* sp10;
 
     func_8009EFEC(arg0, arg1, arg2);
     if (arg2 == 1) {
@@ -2195,7 +3275,74 @@ void func_8009F298(int arg0, SVECTOR* arg1, int arg2)
     }
 }
 
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/30DB0", func_8009F314);
+void func_800AE7D8(void*, int, int);
+
+void func_8009F314(int actorId, void* context, int animate)
+{
+    u_short* animation;
+    D_800F4538_t* actor;
+    D_800F45E0_t* object;
+    int flags;
+    int animationId;
+
+    actor = D_800F4538[actorId];
+    if (actor != NULL) {
+        flags = (*(int*)((char*)actor + 8));
+        if ((flags & 0x270000) || ((flags & 0x180000) == 0x100000)) {
+            if ((*(int*)((char*)actor + 0xC)) & 0xF) {
+                func_8008C49C(((u_char)(*(int*)((char*)actor + 0xC)) & 0xF) - 2, -1);
+                (*(int*)((char*)actor + 0xC)) =
+                    (int)((*(int*)((char*)actor + 0xC)) & ~0xF);
+            }
+            actor->unk0.unk1A = 0;
+            actor->unk0.unk34.vx = 0;
+            actor->unk0.unk34.vz = 0;
+            if (actor->unk0.unkF == 0) {
+                if (((*(int*)((char*)actor + 8)) & 0x70000) == 0x30000) {
+                    if (actor->unk0.unk34.vy <= 0) {
+                        goto setVerticalSpeed;
+                    }
+                } else {
+                    goto setFallingSpeed;
+                }
+            } else {
+            setVerticalSpeed:
+            setFallingSpeed:
+                actor->unk0.unk34.vy = -6;
+            }
+            actor->unk181A = 0;
+            (*(int*)((char*)actor + 8)) =
+                (int)(((*(int*)((char*)actor + 8)) & 0xFFF8FFFF) | 0x30000);
+        }
+        if (animate != 0) {
+            animationId = 0x46;
+            if ((*(int*)((char*)actor + 0x5AC)) & 8) {
+                animationId = 0x3A;
+            }
+            func_800AD494(actor, 0xABU, &animation);
+            if (animation != NULL) {
+                if (!((*(int*)((char*)actor + 8)) & 0x70000)) {
+                    animationId = 0x47;
+                }
+            }
+            func_800A0204(actorId, animationId, 0, 6);
+            func_8009FD38(actor);
+            actor->unk0.unk9_0 = 1;
+        } else {
+            actor->unk0.unk9_0 = 2;
+        }
+        if ((u_char)actor->unk17FD >= 2U) {
+            func_8009F314((int)actor->unk17FD, context, animate);
+        }
+    } else {
+        object = D_800F45E0[actorId];
+        if (object != NULL) {
+            object->unk1A = 0xF7;
+            *(u_char*)((char*)object + 0x170) = 0;
+            func_800AE7D8(object, 0x32, 0);
+        }
+    }
+}
 
 void func_8009F530(int arg0)
 {
@@ -2322,10 +3469,10 @@ int func_8009F8DC(int arg0)
     D_800F4538_unkC54* s0 = &D_800F4538[arg0]->unkC54;
 
     temp_s1 = s0->unk542;
-    temp_s2 = s0->unk544;
+    temp_s2 = psx_get(s0->unk544);
     temp_v0 = func_800AD714(D_800F4538[arg0], s0, 3);
     s0->unk542 = temp_s1;
-    s0->unk544 = temp_s2;
+    psx_set(s0->unk544, temp_s2);
     return temp_v0;
 }
 
@@ -2668,8 +3815,129 @@ int func_800A01C8(int arg0, int arg1, int arg2, int arg3)
     return 0;
 }
 
-// https://decomp.me/scratch/XFe1q
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/30DB0", func_800A0204);
+int func_800A0204(int actorId, int animation, int arg2, int blendFrames)
+{
+    u_short* frames;
+    D_800F4538_t* actor;
+    int keepFlag15;
+    int anim;
+    int found;
+
+    if (animation == 0) {
+        return 0;
+    }
+    actor = D_800F4538[actorId];
+    if (actor == NULL) {
+        return -1;
+    }
+    if ((*(int*)((char*)actor + 0x5AC)) & 0x1000000) {
+        return 0;
+    }
+    actor->unk5AC_16 = 0;
+    if ((*(int*)((char*)actor + 0x5AC)) & 0x800000) {
+        func_800AE47C(actor);
+    }
+    actor->unk5AC_23 = 0;
+    keepFlag15 = 0;
+    if (animation == 25 || animation == 26) {
+        keepFlag15 = 1;
+    }
+    if (!keepFlag15) {
+        actor->unk5AC_15 = 0;
+    }
+    actor->unk1802[2] = 0;
+    actor->unk1802[6] = 0;
+    func_800AAD4C(actorId, 1, 1, 1);
+    func_800AC500(actor);
+    if (((*(int*)((char*)actor + 0x5AC)) & 0x8000) && !keepFlag15) {
+        actor->unk5AC_15 = 0;
+    }
+    anim = animation;
+    actor->unk5B0_3 = 0;
+
+    if (anim < 100) {
+        if (actor->unk0.unkA_5) {
+            if (anim == 1 || anim == 6) {
+                anim = 8;
+            }
+        } else if (actor->unk0.unkA_0 == 3) {
+            if (anim == 1) {
+                anim = 48;
+                if (actor->unk0.unkA_6) {
+                    anim = 35;
+                }
+            }
+        } else if (actor->unk0.unkA_6) {
+            if (anim == 1) {
+                anim = 31;
+            } else if (anim == 13) {
+                anim = 32;
+            }
+        }
+        if (actor->unk0.weaponDrawn) {
+            anim += 100;
+        } else if (actor->unk5AC_3) {
+            if (anim == 1) {
+                anim = 75;
+            } else if (anim == 13) {
+                anim = 84;
+                if (actor->animationId == anim) {
+                    return 0;
+                }
+            } else if (anim == 84) {
+                if (actor->animationId == anim) {
+                    return 0;
+                }
+            }
+        }
+    }
+
+    actor->unk5AC_20 = 0;
+    if (!actor->unk0.weaponDrawn && (anim == 36 || anim == 39)) {
+        actor->unk0.unkA_3 = 1;
+    setHeading:
+        actor->unk1800 = (actor->unk0.facing + actor->unk0.unk3E) & 0xFFF;
+    } else if (!actor->unk0.weaponDrawn && (anim == 41 || anim == 59)) {
+        actor->unk0.unkA_3 = 2;
+        goto setHeading;
+    } else if (*(int*)&actor->unk0.unk34 == 0 && actor->unk0.unk34.vz == 0) {
+        actor->unk0.unkA_3 = 0;
+        actor->unk0.unk9_6 = 0;
+    }
+
+retry:
+    found = func_800AD494(actor, anim, &frames);
+    if (found == 0 || frames == NULL) {
+        actor->unk5AC_15 = 0;
+        if (anim == 0) {
+            // Returns without a value (v0 holds the updated flags word).
+            return;
+        }
+        anim = 0;
+        goto retry;
+    }
+
+    actor->animationId = anim;
+    if (func_800BEB00() == 4 || actor->unk187C != found || D_800F49DC != actor->unk6E3) {
+        actor->unk6E3 = D_800F49DC;
+        actor->unk187C = found;
+        actor->unk5BC = *frames;
+        func_800AD008(actor, &actor->unkC54);
+        actor->unk6E0 = 0;
+        func_800A06B8(actor, blendFrames);
+        if (actor->unk63C >= 0x80) {
+            blendFrames *= 2;
+        }
+        if (blendFrames >= 2) {
+            actor->unk5CD = blendFrames;
+            actor->unk5CC = 1;
+        } else {
+            actor->unk5CD = 0;
+            actor->unk5CC = 0;
+        }
+    }
+    return 0;
+}
 
 int func_800A0618(int arg0, int arg1, int arg2, int arg3)
 {
@@ -3042,14 +4310,14 @@ void func_800A11D8(int arg0, int arg1, MATRIX* arg2, u_long* arg3)
         }
     }
     *arg2 = var_t0->bones[arg1];
-    *arg3 = var_t0->unk0.unk68->armatures[arg1].unk0;
+    *arg3 = psx_get(var_t0->unk0.unk68)->armatures[arg1].unk0;
 }
 
 int func_800A1280(int arg0, int arg1, SVECTOR* arg2, int arg3)
 {
-    long sp10;
-    long sp14;
-    long sp18;
+    psx_long sp10;
+    psx_long sp14;
+    psx_long sp18;
     int var_v0;
     int v1;
 
@@ -3093,7 +4361,7 @@ int func_800A1280(int arg0, int arg1, SVECTOR* arg2, int arg3)
         return var_v0;
     }
 
-    v1 = func_800A141C(arg0, var_v0, (int*)arg2, arg3);
+    v1 = func_800A141C(arg0, var_v0, psx_to_int(int, arg2), arg3);
     sp14 = v1;
     if (v1 < 0) {
         return v1;
@@ -3103,7 +4371,7 @@ int func_800A1280(int arg0, int arg1, SVECTOR* arg2, int arg3)
 
 int func_800A13EC(int arg0, int arg1, int* arg2, int arg3)
 {
-    int var_v0 = func_800A141C(arg0, arg1, arg2, arg3);
+    int var_v0 = func_800A141C(arg0, arg1, psx_to_int(int, arg2), arg3);
 
     if (var_v0 < 0) {
         return var_v0;

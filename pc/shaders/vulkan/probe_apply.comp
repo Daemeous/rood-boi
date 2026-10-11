@@ -1,0 +1,30 @@
+#version 460
+#extension GL_GOOGLE_include_directive : require
+// Probe GI at GI resolution (Vulkan with a path-traced result, gi_method
+// probes): the probe field's irradiance at each GI pixel's surface replaces
+// the result's rgb (the traced indirect light, off with probes), so the
+// present's joint bilateral upsampling composites it exactly where the path
+// tracer's indirect light goes; the shadow visibility (a) stays. Without a
+// traced result the present samples the field per display pixel instead.
+layout(local_size_x = 8, local_size_y = 8) in;
+#define PROBE_SAMPLING
+layout(binding = 13) uniform sampler2D probe_irradiance;
+layout(binding = 14) uniform sampler2D probe_depth;
+layout(binding = 15) uniform sampler2D probe_data;
+#include "probe_volume.glsl"
+#include "probe_common.glsl"
+layout(binding = 4, rgba32f) uniform readonly image2D position_in; // world xyz, w 0 none, 1 surface, 2 moving
+layout(binding = 5, rgba16f) uniform readonly image2D normal_in;
+layout(binding = 6, rgba16f) uniform image2D result; // rgb indirect, a shadow visibility
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy);
+    if (any(greaterThanEqual(g, imageSize(result)))) return;
+    vec4 position = imageLoad(position_in, g);
+    vec4 r = imageLoad(result, g);
+    vec3 irradiance = vec3(0.0);
+    if (position.w > 0.5) {
+        vec3 n = normalize(imageLoad(normal_in, g).xyz);
+        irradiance = probe_irradiance_at(position.xyz, n, normalize(position.xyz - pv_eye.xyz));
+    }
+    imageStore(result, g, vec4(irradiance, r.a));
+}

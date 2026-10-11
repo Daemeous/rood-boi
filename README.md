@@ -1,8 +1,446 @@
-# Rood Reverse
+# rood-boi
 
-A decompilation project for Vagrant Story for PlayStation 1, with a goal of enabling interoperability with modern hardware and fixing bugs in the original game.
+**rood-boi** is a native PC port of *Vagrant Story* for Linux. It is built on
+the [rood-reverse](https://github.com/ser-pounce/rood-reverse) decompilation:
+the game's original logic is the decompiled C, compiled for x86-64 and run
+directly (there is no emulator and no MIPS interpreter), with a host layer that
+stands in for the PlayStation's GPU, GTE, SPU, CD drive, memory cards and pad.
+On top of that sits a modern renderer: the world is drawn from native meshes on
+Vulkan (or OpenGL), lit with hardware ray-traced shadows, path-traced or
+probe-based global illumination denoised with NVIDIA NRD, and volumetric haze,
+while the PS1 look (nearest-filtered textures, original geometry and 2D) is kept.
+A live, Unreal-style editor lets you fly a free camera and place and tune lights
+while the game runs.
 
-This project does not contain any of the original files from the game disk, you must own a copy of the game.
+**Disclaimer.** This is an unofficial fan project. It is not affiliated with,
+endorsed by or sponsored by Square Enix or Sony Interactive Entertainment. It
+ships no game data (no disc image, game executables, models, textures, audio
+or movies); you must own *Vagrant Story* and supply your own disc image. (The
+menu string tables under `assets/` come from the upstream rood-reverse
+decompilation, which needs them to rebuild the original files.) *Vagrant
+Story*, PlayStation and all other trademarks belong to their respective owners.
+
+## Contents
+
+1. [Features](#features)
+2. [Status](#status)
+3. [Requirements](#requirements)
+   - [Packages (Ubuntu 24.04)](#packages-ubuntu-2404)
+4. [Getting the game data](#getting-the-game-data)
+5. [Build](#build)
+6. [Run](#run)
+7. [Tests](#tests)
+8. [Platform support](#platform-support)
+   - [Windows](#windows)
+   - [macOS](#macos)
+9. [Licence and credits](#licence-and-credits)
+10. [The decompilation (upstream rood-reverse)](#the-decompilation-upstream-rood-reverse)
+
+The detailed reference for the port (renderer, editor, settings keys,
+developer RPC, test suites, architecture) is [`pc/README.md`](pc/README.md),
+with design notes in [`pc/docs/`](pc/docs).
+
+## Features
+
+- **The original game code, natively.** Main executable, title, battle/field
+  engine, menus and effects are the decompiled C (plus translations of the
+  remaining hand-written assembly) built for the host. The PS1 build of the
+  same sources still matches the original binaries byte for byte.
+- **Renderers.** Vulkan 1.3 with ray queries (64-bit build) or OpenGL 4.6/3.3.
+  Rooms, characters, weapons, drop shadows and particles are drawn from
+  native meshes with real depth, at up to 8x internal resolution, with
+  perspective-correct texturing, FXAA, and frame interpolation for smooth
+  motion above the game's 30/15 fps.
+- **Lighting.** Ray-traced soft shadows, per-pixel path-traced indirect light
+  (Ultra, denoised with NVIDIA NRD), DDGI probe GI (Medium/High), shadow maps
+  where there is no ray tracing, ambient occlusion and volumetric haze. Quality
+  presets from *Original* (exactly the PS1's baked lighting) to *Ultra*, picked
+  automatically on first run.
+- **PS1 look preserved.** Nearest-filtered textures, the original 2D, menus,
+  fonts and 4:3 framing by default; post effects (depth of field, tilt-shift,
+  fog) and 16:9 are opt-in.
+- **Live editor** (Escape): free camera, an Outliner of the room's lights and
+  glows, light actors from JSON prefabs (candles, torches, lanterns...),
+  one-click lighting of the room's fixtures, snapping, undo/redo, per-room
+  lighting and atmosphere settings saved as plain text files.
+- **Audio and video.** The original sound driver on a software SPU (music,
+  effects, reverb), the intro movie (MDEC video and XA audio), memory cards
+  as standard `.mcd` images that emulators also read.
+- **Input.** Keyboard and SDL 3 gamepads (Xbox, PlayStation, Switch and
+  others), hot-plugged.
+- **Developer tooling.** A JSON-RPC control socket and Python client
+  (`pc/tools/rood_rpc.py`) for scripted play, screenshots and memory
+  inspection; headless GPU test suites.
+
+## Status
+
+The port is **playable but unfinished**. It boots, plays the intro movie, and
+runs New Game (the opening cutscenes, then control of Ashley) and Continue
+from a memory card; exploration, battles, menus, saving and loading work in
+the areas played so far. The automated suites cover the boot, the opening,
+the first rooms, a save room and long unattended soak runs. It has **not**
+been played through to the end. Known gaps:
+
+- **The ending is not ported.** `ENDING.PRG` is not compiled for the PC
+  (the upstream decompilation of it is incomplete); reaching it stops the
+  game with `[UNIMPLEMENTED] vs_ending_exec`.
+- Code paths that have not been translated yet stop the game with a named
+  `[UNIMPLEMENTED]` message (and a stack trace) rather than misbehaving.
+  Rarely reached branches (some spells, effects and enemy AI routines) are
+  less tested than the rooms the tests visit.
+- The game sees a digital PS1 pad: a gamepad's left stick works as a
+  D-pad; there is no analog control, button pressure or rumble.
+- Widescreen (16:9) is experimental and off by default; HDR output is not
+  implemented.
+- 32-bit Vulkan drivers have no ray tracing: the Vulkan renderer and the
+  Ultra preset need the 64-bit build.
+- Linux only (see [Platform support](#platform-support)).
+
+## Requirements
+
+- **OS:** Linux on x86-64. Developed and tested on **Ubuntu 24.04 LTS** (X11
+  and Wayland/XWayland sessions). Other current distributions should work
+  with the equivalent packages but are untested. Windows and macOS are not
+  supported (see below).
+- **GPU and driver** (64-bit build, recommended):
+  - **Vulkan 1.3** with dynamic rendering, synchronization2 and geometry
+    shaders for the Vulkan renderer. With `VK_KHR_ray_query` (NVIDIA RTX,
+    AMD RDNA2 and later, Intel Arc, on current drivers) you get ray-traced
+    shadows and the Ultra/High presets; tested on NVIDIA (proprietary driver)
+    and Intel integrated graphics (Mesa).
+  - Without ray queries Vulkan still runs, with shadow maps and the Low /
+    Medium presets. Without usable Vulkan the game falls back to **OpenGL**:
+    4.3+ (compute shaders) for the OpenGL path tracer and probe GI, down to
+    3.3 core for the basic renderer.
+- **CPU/RAM:** any recent x86-64 CPU; 8 GB RAM is plenty for playing (building
+  uses about 1-2 GB per compiler job).
+- **Disk:** about 2.5 GB for a checkout with your disc image, the extracted
+  data and both builds, plus about 2 GB free temporarily during the first
+  64-bit build (the NRD shader compiler is unpacked and then deleted).
+- **Network for the first build:** the decompilation's `make` downloads its
+  toolchain (old GCC builds, mkpsxiso, Python packages for splat; tens of MB).
+  The first 64-bit build downloads NVIDIA NRD with its dependencies, including
+  the DirectX Shader Compiler: about **500 MB**, which is deleted again after
+  NRD is built (about 40 MB stays in `pc/build/nrd`). Later builds work offline.
+
+### Packages (Ubuntu 24.04)
+
+Build tools, the SDL 3 platform headers (SDL is vendored and built from
+source; its backends load their libraries at run time), Vulkan and the test
+helpers:
+
+```sh
+sudo apt install git build-essential ninja-build pkg-config python3 python3-venv \
+    gdb libvulkan-dev mesa-vulkan-drivers vulkan-tools \
+    libx11-dev libxext-dev libxi-dev libxcursor-dev libxfixes-dev libxrandr-dev \
+    libxrender-dev libxss-dev libxtst-dev libwayland-dev libxkbcommon-dev \
+    libdecor-0-dev libpipewire-0.3-dev libpulse-dev libasound2-dev \
+    libdbus-1-dev libudev-dev python3-numpy python3-pil xvfb
+```
+
+- **CMake 3.30 or newer.** NRD's dependencies require it, and Ubuntu 24.04's
+  `cmake` package is 3.28: install a current CMake, for example
+  `sudo snap install cmake --classic` (or Kitware's APT repository, or
+  `pipx install cmake`), and make sure `cmake --version` reports it. With an
+  older CMake the build still succeeds, but without NRD (it warns once and the
+  Vulkan path tracer uses its own denoiser).
+- **The decompilation's toolchain**, for step 3 of the build. Either
+  **Docker** (`sudo apt install docker.io`, then add yourself to the `docker`
+  group; the snap package works too), which is what this README was verified
+  with, or install the upstream prerequisites on the host:
+  `sudo apt install binutils-mipsel-linux-gnu clang-format unzip wget`
+  (upstream lists newer minimum versions than Ubuntu 24.04 ships; see
+  [Setup](#setup)). The port's own build also needs `mipsel-linux-gnu-ld`,
+  and runs it from the same Docker image when it is not installed.
+- **A graphics driver.** On NVIDIA, the proprietary driver
+  (`nvidia-driver-*`, which includes Vulkan); on AMD and Intel, Mesa
+  (`mesa-vulkan-drivers`, above). `vulkaninfo --summary` (from
+  `vulkan-tools`) should list your GPU with apiVersion 1.3 or later.
+- **Sound** goes through SDL to PipeWire, PulseAudio or ALSA, whichever is
+  running (Ubuntu's desktop has PipeWire).
+
+The **32-bit build** (optional, see [Build](#build)) additionally needs
+`gcc-multilib g++-multilib` and, after `sudo dpkg --add-architecture i386 &&
+sudo apt update`, the 32-bit runtime libraries of the backends you use:
+`libx11-6:i386 libxext6:i386 libxi6:i386 libxcursor1:i386 libxfixes3:i386
+libxrandr2:i386 libxss1:i386 libxrender1:i386 libpulse0:i386
+libasound2t64:i386 libudev1:i386 libdbus-1-3:i386 libgl1:i386 libegl1:i386`,
+plus the 32-bit OpenGL driver (`libgl1-mesa-dri:i386`, or your NVIDIA
+driver's `libnvidia-gl-*:i386`). Multiarch packages must match the versions
+of their 64-bit counterparts; check apt's list before confirming anything it
+wants to remove.
+
+## Getting the game data
+
+You need your own copy of ***Vagrant Story* (USA), SLUS-01040** and a dump of
+it made from your own disc: a raw (2352 bytes per sector) single-track BIN
+image, as made by a disc-ripping tool's BIN/CUE mode. Other releases (Europe,
+Japan) and other formats (ISO, CHD, PBP, ECM) are not supported.
+
+1. Place the image at **`disks/SLUS-01040.bin`** in the repository (create
+   `disks/`; it is git-ignored, as is everything extracted from it). A
+   symbolic link to an image stored elsewhere also works for the host build
+   (Docker only sees files inside the repository, so use a copy or a hard
+   link there).
+2. The decompilation's `make` (build step 3) extracts the disc's files into
+   `data/` with mkpsxiso's `dumpsxiso`, splits the executables with splat,
+   rebuilds them from the decompiled sources, and compares every rebuilt
+   binary with the one from your disc. **`All files match`** at the end is
+   the check that your image is the right one: a bad or different dump fails
+   there (no separate checksum is published upstream).
+
+Never commit anything from `disks/`, `data/`, `build/` or `pc/build/`.
+
+## Build
+
+The build has two parts: the upstream decompilation's `make`, which extracts
+your disc and builds the original PS1 files (the port uses its extracted data,
+symbol tables and linker maps), then the port itself
+(`pc/tools/build_boot.py`, driven by `pc/run-game.sh`).
+
+**1. Clone** with submodules (into your home directory if you use the Docker
+snap, which cannot see `/tmp`):
+
+```sh
+git clone --recursive https://github.com/noprompt/rood-boi.git
+cd rood-boi
+```
+
+**2. Add your disc image** as `disks/SLUS-01040.bin` (see above).
+
+**3. Extract and build the original files** (once, and again only when
+`src/` or the disc changes). With Docker, build the toolchain image once and
+run `make` in it as yourself:
+
+```sh
+# The upstream Dockerfile also copies the disc into the image for CI;
+# building it without that line keeps your disc out of the image.
+sed '/^COPY disks/d' Dockerfile | docker build -t rood-reverse-dev:local -
+docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD:/work" -w /work \
+    rood-reverse-dev:local make -j8
+```
+
+(Or, with the toolchain installed on the host, just `make -j8`.) It ends with
+`✔ All files match`. The image name `rood-reverse-dev:local` matters: the
+port's build uses it to run `mipsel-linux-gnu-ld` when that is not installed.
+
+**4. Build and play** (recommended: the 64-bit build with Vulkan):
+
+```sh
+pc/run-game.sh --vulkan
+```
+
+`pc/run-game.sh` builds the port (unless `--no-build`), then starts the game
+in a window from the repository root, with settings in `pc/user/settings.cfg`.
+On a hybrid-graphics NVIDIA machine it renders on the NVIDIA GPU (PRIME
+offload; `ROOD_GPU=integrated` keeps the default GPU).
+
+| Option | Effect |
+| --- | --- |
+| `--vulkan` | 64-bit build, Vulkan renderer (`ROOD_RENDERER=vulkan`). Recommended. Falls back to OpenGL if Vulkan 1.3 is not available. |
+| `--64` | 64-bit build with the OpenGL renderer |
+| *(none)* | 32-bit build (`build_boot.py --battle`) with OpenGL: the original port configuration; needs the multilib/i386 packages above and has no Vulkan or NRD |
+| `--no-build` | skip the build step and run the existing binary |
+| `--skip-movies` | (passed to the game) skip the intro movie |
+
+The builds go to `pc/build/boot64/rood_battle_probe` (64-bit) and
+`pc/build/boot/rood_battle_probe` (32-bit). To build without running:
+`python3 pc/tools/build_boot.py --arch 64` (add `--nrd off` to skip NRD and its
+download) or `python3 pc/tools/build_boot.py --battle` for 32-bit.
+
+**Build times** (measured on a 20-thread desktop with a fast connection):
+building the Docker image takes a minute or two and step 3 under a minute;
+the first 64-bit build about 3 minutes (building the vendored SDL 3 and
+glslang, and fetching and compiling NRD); the first 32-bit build about 2
+minutes. Every later build takes about 1.5 minutes, even without changes
+(the builder re-links and re-checks the game's symbol imports each time):
+use `--no-build` to just play.
+
+## Run
+
+`pc/run-game.sh --vulkan --no-build` starts the game without rebuilding. The
+intro movie plays first (Start skips it), then the title: New Game, or
+Continue to load from the memory card.
+
+**Keyboard**
+
+| Key | PS1 button |
+| --- | --- |
+| Arrow keys | D-pad |
+| Z | Circle (confirm, attack) |
+| X | Cross (cancel) |
+| A | Square |
+| S | Triangle |
+| Q / W | L1 / R1 |
+| 1 / 2 | L2 / R2 |
+| Enter | Start |
+| Tab | Select |
+| Escape or F1 | open/close the editor |
+| F2 | free camera (opens the editor) |
+
+**Gamepads** are SDL 3 gamepads (SDL's controller database; extra mappings
+from `SDL_GAMECONTROLLERCONFIG` or a `gamecontrollerdb.txt` in `pc/user/`).
+Buttons map by position, so the east face button is Circle (confirm) and the
+south one Cross (cancel) on any pad; D-pad or left stick moves; shoulders,
+triggers, Start/Select (Back) and stick clicks map to their PS1 equivalents.
+PlayStation controllers, including the **DualSense** and DualShock 4 over USB
+or Bluetooth, work as ordinary gamepads; their touchpad, motion sensors,
+lightbar, rumble and adaptive triggers are not used. Gamepads can be plugged
+in at any time; `ROOD_CONTROLLER=none` disables them. While the editor is
+open the keyboard and mouse belong to the editor, but a gamepad still plays.
+
+**Saves** are standard 128 KiB memory card images: slot 1 is
+`pc/save/card1.mcd` (created on the first save), slot 2 `pc/save/card2.mcd`
+(inserted only if the file exists). Save at a save point and load with
+Continue on the title screen. The images are compatible with PS1 emulators.
+
+**Settings.** Graphics and lighting settings are changed in the editor and
+saved with File > Save settings (Ctrl+Shift+S) to `pc/user/settings.cfg`, a
+plain text file (edits made outside the game apply live). Per-room lights and
+lighting overrides are saved with Ctrl+S to `pc/lights/`. `pc/save`,
+`pc/user` and `pc/lights` are yours and git-ignored.
+
+**Lighting quality.** The editor toolbar's *Lighting* dropdown picks a preset:
+
+| Preset | Shadows | Indirect light | Needs |
+| --- | --- | --- | --- |
+| Original | none: the PS1's own baked lighting | baked | anything |
+| Low | shadow maps | baked | integrated GPUs |
+| Medium | soft shadow maps | probe GI | no ray tracing needed |
+| High | ray-traced soft shadows | probe GI | ray queries (entry RT) |
+| Ultra | ray-traced (2 rays) | path tracing + NVIDIA NRD | discrete RT GPU, Vulkan |
+
+On first run, before any settings are saved, the preset is detected: Ultra
+on a discrete GPU with Vulkan ray queries, High on an integrated one with
+them; without ray queries Medium on a discrete GPU, Low otherwise.
+`ROOD_LIGHTING_PRESET=low` (any preset name, or `auto`) overrides it.
+Choices a backend cannot run fall back to the next one (the editor shows
+why). `ROOD_GI=0` turns the dynamic lighting off entirely.
+
+**The editor** (Escape or F1) is laid out like Unreal's: a toolbar,
+an Outliner of the room's lights and glows, a Details panel (lighting,
+atmosphere, post effects, graphics, diagnostics), Place Actors for light
+prefabs, and Help > Keyboard shortcuts. Right-drag in the view flies a free
+camera (WASD/QE); Play returns to the game camera. See
+[`pc/README.md`](pc/README.md) ("Renderer and developer overlay") for
+everything it does.
+
+Useful environment variables (more in `pc/README.md`): `ROOD_WINDOW=WxH`
+(window size), `ROOD_SCALE=1..8` (internal resolution, default 4),
+`ROOD_WIDESCREEN=1`, `ROOD_AUDIO=none`, `SDL_VIDEO_DRIVER=x11|wayland`.
+
+**If something goes wrong**, the terminal shows the log. A crash prints
+`[crash]` and `[stack]` lines (`pc/tools/where.sh resolve` turns them into
+function names); `[UNIMPLEMENTED] name` means the game reached code that is
+not ported yet. Please include those lines, your GPU and driver, and what you
+were doing when you report a problem.
+
+## Tests
+
+The test runner starts the game headless (on the GPU through EGL, no X
+server, or on a private Xvfb display with software rendering) with scratch
+memory cards and settings, so your saves and settings are never touched:
+
+```sh
+cmake -S pc -B pc/build -G Ninja && cmake --build pc/build   # CMake probes, once
+python3 pc/tests/run.py --list                               # the suites
+python3 pc/tests/run.py --arch 64 --renderer vulkan          # everything, 64-bit Vulkan
+python3 pc/tests/run.py --arch 64 --renderer vulkan rpc      # suites matching "rpc"
+python3 pc/tests/run.py                                      # the 32-bit build
+```
+
+The runner prefers rendering on the GPU through EGL (`python3
+pc/tools/rood_rpc.py headless` shows which mode and GPU it gets) and falls
+back to Xvfb with software rendering, which is several times slower. It
+prints one table with each suite's result and log
+(`pc/build/tests/<suite>/`), and exits non-zero if any failed. It does not
+build the game: build first. Some suites need a save on `pc/save/card1.mcd`
+and are skipped without one; golden-frame references are generated locally
+(`pc/tests/golden_frames.py --update`) and never committed. A quick boot
+check without the runner:
+
+```sh
+pc/build/boot64/rood_battle_probe --skip-movies --title-checkpoint
+```
+
+exits with status 0 once the original title code reaches its input loop.
+
+## Platform support
+
+| Platform | Status |
+| --- | --- |
+| Linux x86-64 | Supported (Ubuntu 24.04 tested; X11, Wayland via XWayland or natively) |
+| Windows | Not supported, not tested |
+| macOS | Not supported, not tested |
+| Linux on ARM | Not supported (the build and the guest memory layout assume x86) |
+
+### Windows
+
+The game does **not** build or run natively on Windows today. Most of the
+platform layer is already portable (SDL 3 handles the window, input, audio
+and gamepads; Vulkan and NRD exist on Windows), but the port relies on
+Linux in a few fundamental places:
+
+- **Fixed-address guest memory.** PS1 RAM, the scratchpad and the I/O page
+  are mapped at their PS1 addresses (`0x80000000`, `0x1f800000`,
+  `0x1f801000`) with `mmap(MAP_FIXED_NOREPLACE)`, and the 64-bit game runs on
+  a stack mapped below 2 GB (`MAP_32BIT`, switched to with
+  `makecontext`/`swapcontext`) so addresses fit in 4-byte PS1 fields
+  (`pc/src/boot_runtime.c`). Windows would need `VirtualAlloc` at those
+  addresses (early, before DLLs land there) and another way to place and
+  switch to a low stack.
+- **Non-PIE ELF linking.** `pc/tools/build_boot.py` links the game with GNU
+  `ld` as a non-PIE ELF executable below 4 GB, places hundreds of data
+  symbols at absolute PS1 addresses through a generated linker script
+  (`imports.ld`), uses ELF section start/stop symbols for overlay statics, and
+  rewrites objects with `objcopy`/`readelf`/`objdump`/`nm` and `gdb` (DWARF
+  types). It also hard-codes Linux library paths. A Windows build would need
+  PE/COFF equivalents of all of this.
+- **POSIX APIs:** signals and `backtrace` for crash reports, Unix-domain
+  sockets for the developer RPC (`pc/src/dev_rpc.c`), `pthread`, `dirent`,
+  `clock_gettime`.
+- **The decompilation's toolchain is Linux-only:** the `make` build uses bash,
+  Linux binaries of old GCC, mkpsxiso and objdiff, and `mipsel-linux-gnu`
+  binutils (upstream runs it on Linux or under WSL).
+- **Scripts and tests:** `pc/run-game.sh`, Xvfb/EGL headless testing,
+  `/proc` and process groups.
+
+Running the Linux build under **WSL2** (with WSLg) might work as a stopgap
+but is untested; as far as we know WSL2 exposes the GPU to Linux through
+Mesa's Direct3D 12 drivers, which do not offer Vulkan ray queries, so expect
+OpenGL or Vulkan without ray tracing at best. The detailed blocker list and a
+suggested approach for a native port are in
+[`pc/docs/Platform_Support.md`](pc/docs/Platform_Support.md).
+**Contributions and test reports are welcome.**
+
+### macOS
+
+Not supported. Besides the blockers above, macOS has no native Vulkan
+(MoltenVK lacks the geometry shaders and ray queries the Vulkan renderer
+uses) and caps OpenGL at 4.1 without compute shaders, and its ARM machines
+would need the guest memory layout reworked.
+
+## Licence and credits
+
+The project's own code (the decompilation inherited from rood-reverse and the
+port under `pc/`) is dedicated to the public domain under **CC0 1.0** (see
+[`LICENSE`](LICENSE)). Vendored third-party code under `pc/third_party/`
+(SDL 3, Dear ImGui, ImGuizmo, glslang, PsyCross) keeps its own licence, and
+NVIDIA NRD and its dependencies are downloaded at build time under their own
+terms and never committed; see [`THIRD_PARTY.md`](THIRD_PARTY.md).
+
+rood-boi exists because of the [rood-reverse](https://github.com/ser-pounce/rood-reverse)
+decompilation by ser-pounce and its contributors, whose work (and
+acknowledgements) follow below.
+
+## The decompilation (upstream rood-reverse)
+
+The rest of this README is the upstream project's, lightly adapted. rood-reverse is
+a decompilation project for Vagrant Story for PlayStation 1, with a goal of
+enabling interoperability with modern hardware and fixing bugs in the original
+game. It does not contain any of the original files from the game disk; you
+must own a copy of the game. The PS1 build in this repository still matches
+the original binaries (`make` reports `All files match`).
 
 Many thanks to the [Chrono Cross Decompilation](https://github.com/jdperos/chrono-cross-decomp) for much of the sound library code.
 
@@ -20,21 +458,24 @@ Thanks also to the following amazing projects (and their dependencies):
 - [objdiff](https://github.com/encounter/objdiff)
 - [decomp.dev](https://decomp.dev/)
 
-## Status
+### Decompilation progress (upstream)
+
+These badges track the upstream repository (ser-pounce/rood-reverse), not this fork's additions.
 
 ![Overall progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&label=Overall+progress)
 
-### Core libraries
+#### Core libraries
 ![SLUS_010.40 progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=lib.SLUS_010.40)
 
-### Main game engine
+#### Main game engine
 ![BATTLE.PRG progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=battle.BATTLE.PRG)
 ![INITBTL.PRG progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=battle.INITBTL.PRG&color=%2332a934)
 ![SCREFF2.PRG progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=battle.SCREFF2.PRG)
 
-### Effects
+#### Effects
 ![Total effects progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=effects)
 
+<details><summary>Per file</summary>
 
 ![EFFPURGE.BIN progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=effects.EFFPURGE.BIN&color=%2332a934)
 ![PLG005.BIN progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=effects.PLG005.BIN)
@@ -104,9 +545,12 @@ Thanks also to the following amazing projects (and their dependencies):
 ![PLG300.BIN progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=effects.PLG300.BIN)
 ![PLG300.BIN progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=effects.PLG301.BIN)
 
-### Menus
+</details>
+
+#### Menus
 ![Total menu progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=menus&color=%2332a934)
 
+<details><summary>Per file</summary>
 
 ![MAINMENU.PRG progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=menus.MAINMENU.PRG&color=%2332a934)
 ![MENU0.PRG progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=menus.MENU0.PRG&color=%2332a934)
@@ -124,18 +568,23 @@ Thanks also to the following amazing projects (and their dependencies):
 ![MENUE.PRG progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=menus.MENUE.PRG&color=%2332a934)
 ![MENUF.PRG progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=menus.MENUF.PRG&color=%2332a934)
 
-### Title and Ending Sequence
+</details>
+
+#### Title and Ending Sequence
 ![TITLE.PRG progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=title.TITLE.PRG&color=%2332a934)
 ![ENDING.PRG progress](https://decomp.dev/ser-pounce/rood-reverse.svg?mode=shield&category=ending.ENDING.PRG)
 
-## Editable content
+### Editable content
 The entirety of the game's menu code and data is decompiled, including all files in `MENU` and `SMALL`, with the exceptions of `MENU/MCDATA.BIN`, `MENU/OPMCIMG1.BIN` and `MENU/OPMCIMG2.BIN`.
 
 Much of the menu code has been refactored and is readable, and the menu executables are completely relocatable. It should be possible to rewrite the menu code arbitrarily, the method and data addresses in other modules will be relinked appropriately.
 
 Due to the presence of a large number of empty sectors at the start of each directory on the disk, it should also be possible to rebuild the disk without affecting sector-based data loading in `BATTLE.PRG`, as long as the number of dummy sectors is adjusted accordingly.
 
-## (Naive) Quickstart
+### (Naive) Quickstart
+For decompilation work, which is best contributed upstream to
+[rood-reverse](https://github.com/ser-pounce/rood-reverse):
+
 0. n.b.: You may want to consider limiting the jobs spawned by make to something sensible like `-j8`.
 1. Fork the project
 2. Install system dependencies and copy disk image (see "Setup" below)
@@ -147,7 +596,7 @@ Due to the presence of a large number of empty sectors at the start of each dire
 8. Run `make remake -j`, and finally `make format` if the code compiles successfully
 9. Open a PR
 
-## Setup
+### Setup
 The project is mostly self-configuring but requires a minimal amount of setup.
 - Make sure the following packages are installed, older versions may also work but this is not tested. This configuration works as-is on Ubuntu 26.04 on WSL; depending on your distro you may need additional packages.
 
@@ -166,7 +615,7 @@ Take a look at `./Dockerfile` for a minimal setup on Ubuntu
 - Dump your original disk to `disks/SLUS-01040.bin`
 - Run `make -j` to finish installation and perform an initial build
 
-## Build targets
+### Build targets
 - `make -j` should be all that is needed most of the time. The first execution will configure the remaining dependencies in the `tools` directory and extract the files from the disk; from then on it will perform a minimal rebuild. 
 - `make decompme TARGET=path/to/nonmatchings/source.s` uploads the target function to a new decomp.me scratch.
 - `make permute TARGET=path/to/nonmatchings/source.s` invokes the permuter for the target assembly file. 

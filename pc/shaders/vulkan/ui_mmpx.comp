@@ -1,0 +1,98 @@
+#version 450
+// MMPX 2x magnification of one atlas entry (pc/src/ui_upscale.c): each
+// invocation reads a source texel's neighbourhood (clamped to the entry, so
+// neighbouring sprites in the atlas never bleed in) and writes its 2x2 block.
+//
+// Ported from the authors' reference (MMPX.glc, MIT licence, Copyright 2020
+// Morgan McGuire & Mara Gagiu; THIRD_PARTY.md): McGuire and Gagiu,
+// "MMPX Style-Preserving Pixel Art Magnification", JCGT 10(2), 2021.
+// Texels are PS1 colours (5:5:5 + STP bit, 0 = transparent). Every output is
+// a copy of an input texel, so the palette, the colour key and the
+// semi-transparency bit survive exactly. Luma follows the reference's ABGR8
+// rule with the colours widened to 8 bits and alpha 0 for the colour key.
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(binding = 0) uniform usampler2D src_level;
+layout(binding = 1, r32ui) uniform writeonly uimage2D dst_level;
+#ifdef ROOD_GL
+uniform ivec4 rect; // source x, y, w, h (this level's pixels)
+#define RECT rect
+#else
+layout(push_constant) uniform Push {
+    ivec4 rect;
+} pc;
+#define RECT pc.rect
+#endif
+
+uint src(int x, int y) {
+    ivec2 p = clamp(ivec2(x, y), ivec2(0), RECT.zw - 1);
+    return texelFetch(src_level, RECT.xy + p, 0).r;
+}
+uint luma(uint c) {
+    uint r = c & 31u, g = (c >> 5) & 31u, b = (c >> 10) & 31u;
+    uint sum = ((r << 3) | (r >> 2)) + ((g << 3) | (g >> 2)) + ((b << 3) | (b >> 2));
+    return (sum + 1u) * (c == 0u ? 256u : 1u);
+}
+bool all_eq2(uint B, uint A0, uint A1) { return ((B ^ A0) | (B ^ A1)) == 0u; }
+bool all_eq3(uint B, uint A0, uint A1, uint A2) { return ((B ^ A0) | (B ^ A1) | (B ^ A2)) == 0u; }
+bool all_eq4(uint B, uint A0, uint A1, uint A2, uint A3) { return ((B ^ A0) | (B ^ A1) | (B ^ A2) | (B ^ A3)) == 0u; }
+bool any_eq3(uint B, uint A0, uint A1, uint A2) { return B == A0 || B == A1 || B == A2; }
+bool none_eq2(uint B, uint A0, uint A1) { return (B != A0) && (B != A1); }
+bool none_eq4(uint B, uint A0, uint A1, uint A2, uint A3) { return B != A0 && B != A1 && B != A2 && B != A3; }
+
+void main() {
+    int srcX = int(gl_GlobalInvocationID.x), srcY = int(gl_GlobalInvocationID.y);
+    if (srcX >= RECT.z || srcY >= RECT.w)
+        return;
+    uint A = src(srcX - 1, srcY - 1), B = src(srcX, srcY - 1), C = src(srcX + 1, srcY - 1);
+    uint D = src(srcX - 1, srcY), E = src(srcX, srcY), F = src(srcX + 1, srcY);
+    uint G = src(srcX - 1, srcY + 1), H = src(srcX, srcY + 1), I = src(srcX + 1, srcY + 1);
+    uint J = E, K = E, L = E, M = E;
+    if (((A ^ E) | (B ^ E) | (C ^ E) | (D ^ E) | (F ^ E) | (G ^ E) | (H ^ E) | (I ^ E)) != 0u) {
+        uint P = src(srcX, srcY - 2), S = src(srcX, srcY + 2);
+        uint Q = src(srcX - 2, srcY), R = src(srcX + 2, srcY);
+        uint Bl = luma(B), Dl = luma(D), El = luma(E), Fl = luma(F), Hl = luma(H);
+
+        // 1:1 slope rules
+        if ((D == B && D != H && D != F) && (El >= Dl || E == A) && any_eq3(E, A, C, G) && ((El < Dl) || A != D || E != P || E != Q)) J = D;
+        if ((B == F && B != D && B != H) && (El >= Bl || E == C) && any_eq3(E, A, C, I) && ((El < Bl) || C != B || E != P || E != R)) K = B;
+        if ((H == D && H != F && H != B) && (El >= Hl || E == G) && any_eq3(E, A, G, I) && ((El < Hl) || G != H || E != S || E != Q)) L = H;
+        if ((F == H && F != B && F != D) && (El >= Fl || E == I) && any_eq3(E, C, G, I) && ((El < Fl) || I != H || E != R || E != S)) M = F;
+
+        // Intersection rules
+        if ((E != F && all_eq4(E, C, I, D, Q) && all_eq2(F, B, H)) && (F != src(srcX + 3, srcY))) K = M = F;
+        if ((E != D && all_eq4(E, A, G, F, R) && all_eq2(D, B, H)) && (D != src(srcX - 3, srcY))) J = L = D;
+        if ((E != H && all_eq4(E, G, I, B, P) && all_eq2(H, D, F)) && (H != src(srcX, srcY + 3))) L = M = H;
+        if ((E != B && all_eq4(E, A, C, H, S) && all_eq2(B, D, F)) && (B != src(srcX, srcY - 3))) J = K = B;
+        if (Bl < El && all_eq4(E, G, H, I, S) && none_eq4(E, A, D, C, F)) J = K = B;
+        if (Hl < El && all_eq4(E, A, B, C, P) && none_eq4(E, D, G, I, F)) L = M = H;
+        if (Fl < El && all_eq4(E, A, D, G, Q) && none_eq4(E, B, C, I, H)) K = M = F;
+        if (Dl < El && all_eq4(E, C, F, I, R) && none_eq4(E, B, A, G, H)) J = L = D;
+
+        // 2:1 slope rules
+        if (H != B) {
+            if (H != A && H != E && H != C) {
+                if (all_eq3(H, G, F, R) && none_eq2(H, D, src(srcX + 2, srcY - 1))) L = M;
+                if (all_eq3(H, I, D, Q) && none_eq2(H, F, src(srcX - 2, srcY - 1))) M = L;
+            }
+            if (B != I && B != G && B != E) {
+                if (all_eq3(B, A, F, R) && none_eq2(B, D, src(srcX + 2, srcY + 1))) J = K;
+                if (all_eq3(B, C, D, Q) && none_eq2(B, F, src(srcX - 2, srcY + 1))) K = J;
+            }
+        }
+        if (F != D) {
+            if (D != I && D != E && D != C) {
+                if (all_eq3(D, A, H, S) && none_eq2(D, B, src(srcX + 1, srcY + 2))) J = L;
+                if (all_eq3(D, G, B, P) && none_eq2(D, H, src(srcX + 1, srcY - 2))) L = J;
+            }
+            if (F != E && F != A && F != G) {
+                if (all_eq3(F, C, H, S) && none_eq2(F, B, src(srcX - 1, srcY + 2))) K = M;
+                if (all_eq3(F, I, B, P) && none_eq2(F, H, src(srcX - 1, srcY - 2))) M = K;
+            }
+        }
+    }
+    ivec2 o = (RECT.xy + ivec2(srcX, srcY)) * 2;
+    imageStore(dst_level, o, uvec4(J));
+    imageStore(dst_level, o + ivec2(1, 0), uvec4(K));
+    imageStore(dst_level, o + ivec2(0, 1), uvec4(L));
+    imageStore(dst_level, o + ivec2(1, 1), uvec4(M));
+}

@@ -1,0 +1,87 @@
+#version 460
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_ray_query : require
+// Surfaces from the game view's G-buffer: world position and normal of each
+// GI pixel, reconstructed from GTE depth through the camera (ptgi.c's
+// game_surface pass), and where that point was in the previous traced frame:
+// static surfaces stay put; on characters and props (moving G-buffer
+// pixels) a short ray from the eye finds the mover triangle under the pixel
+// and the same barycentric point on its previous pose (the skinning's
+// previous positions), so their history follows them.
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(std140, binding = 0) uniform Surface {
+    ivec4 rect; // display x, y, w, h in VRAM pixels
+    ivec4 scale_; // target pixels per VRAM pixel; y: movers present
+    vec4 gi_scale_; // GI pixels per display pixel
+    vec4 projection_; // H (narrowed for widescreen), H
+    vec4 screen_offset_;
+    vec4 inverse_rotation_[3]; // columns
+    vec4 normal_to_world_[3]; // columns
+    vec4 camera_translation_;
+    vec4 eye_;
+} u;
+#define MOVERS_BINDING 9
+#include "rt_common.glsl"
+layout(binding = 4) uniform sampler2D normal_tex; // view normal * 0.5 + 0.5, a = lit surface
+layout(binding = 5) uniform sampler2D depth_tex; // SZ / 65536
+layout(binding = 6, rgba32f) uniform writeonly image2D position_out; // world xyz, w 1 = surface, 2 = moving
+layout(binding = 7, rgba16f) uniform writeonly image2D normal_out;
+layout(binding = 8, rgba32f) uniform writeonly image2D motion_out; // previous world xyz, w 1 = known
+layout(std430, binding = 10) readonly buffer Motion { vec4 previous[]; }; // mover triangles' previous a, b, c, -
+// The previous position of moving point p seen along the eye ray.
+bool previous_of(vec3 p, out vec3 was) {
+    vec3 eye = u.eye_.xyz, d = p - eye;
+    float dist = length(d);
+    d /= max(dist, 1e-3);
+    float slack = 12.0 + dist * 0.01;
+    rayQueryEXT q;
+    rayQueryInitializeEXT(q, tlas, gl_RayFlagsNoneEXT, 2u, eye, max(dist - slack, 0.0), d, dist + slack);
+    while (rayQueryProceedEXT(q))
+        if (rayQueryGetIntersectionTypeEXT(q, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
+            rayQueryConfirmIntersectionEXT(q);
+    if (rayQueryGetIntersectionTypeEXT(q, true) == gl_RayQueryCommittedIntersectionNoneEXT) return false;
+    int i = rayQueryGetIntersectionInstanceCustomIndexEXT(q, true) + rayQueryGetIntersectionPrimitiveIndexEXT(q, true);
+    if (i < MOVER_BIT) return false;
+    vec2 bc = rayQueryGetIntersectionBarycentricsEXT(q, true);
+    Tri t = movers[i - MOVER_BIT];
+    int k = (i - MOVER_BIT) * 4;
+    vec3 a = previous[k].xyz, b = previous[k + 1].xyz, c = previous[k + 2].xyz;
+    float w0 = 1.0 - bc.x - bc.y;
+    vec3 now = t.a.xyz * w0 + t.b.xyz * bc.x + t.c.xyz * bc.y;
+    vec3 then = a * w0 + b * bc.x + c * bc.y;
+    // The G-buffer point and the ray's hit differ by depth precision: move
+    // p by the triangle's motion.
+    was = p + (then - now);
+    return true;
+}
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy), size = imageSize(position_out);
+    if (any(greaterThanEqual(g, size))) return;
+    int scale = u.scale_.x;
+    vec2 display = (vec2(g) + 0.5) / u.gi_scale_.xy;
+    ivec2 q = ivec2((vec2(u.rect.xy) + display) * float(scale));
+    q = ivec2(q.x % (1024 * scale), q.y % (512 * scale));
+    vec4 nn = texelFetch(normal_tex, q, 0);
+    float z = texelFetch(depth_tex, q, 0).r * 65536.0;
+    if (nn.a < 0.5 || z < 0.5 || z >= 65535.0) {
+        imageStore(position_out, g, vec4(0.0));
+        imageStore(normal_out, g, vec4(0.0));
+        imageStore(motion_out, g, vec4(0.0));
+        return;
+    }
+    vec2 s = display - u.screen_offset_.xy;
+    vec3 view = vec3(s.x * z / u.projection_.x, s.y * z / u.projection_.y, z);
+    mat3 inverse_rotation = mat3(u.inverse_rotation_[0].xyz, u.inverse_rotation_[1].xyz, u.inverse_rotation_[2].xyz);
+    mat3 normal_to_world = mat3(u.normal_to_world_[0].xyz, u.normal_to_world_[1].xyz, u.normal_to_world_[2].xyz);
+    vec3 p = inverse_rotation * (view - u.camera_translation_.xyz);
+    bool moving = nn.a <= 0.9;
+    vec3 n = normalize(normal_to_world * normalize(nn.xyz * 2.0 - 1.0));
+    imageStore(position_out, g, vec4(p, moving ? 2.0 : 1.0));
+    imageStore(normal_out, g, vec4(n, 0.0));
+    vec4 motion = vec4(p, 1.0);
+    if (moving) {
+        vec3 was;
+        motion = u.scale_.y != 0 && previous_of(p, was) ? vec4(was, 1.0) : vec4(p, 0.0);
+    }
+    imageStore(motion_out, g, motion);
+}

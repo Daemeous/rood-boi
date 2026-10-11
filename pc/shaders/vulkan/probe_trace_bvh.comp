@@ -1,0 +1,9 @@
+#version 460
+#extension GL_GOOGLE_include_directive : require
+// Probe GI trace without ray tracing hardware: compute over ptgi.c's BVH of
+// the room (Vulkan compute, and the OpenGL 4.3 path through gl_shaders.py).
+// See probe_trace.glsl.
+#include "rt_lights.glsl"
+#include "probe_volume.glsl"
+#include "probe_bvh.glsl"
+#include "probe_trace.glsl"

@@ -1,0 +1,26 @@
+{
+  "name": "Brazier",
+  "category": "Fire",
+  "icon": "brazier",
+  "description": "An open fire in a bowl: the warmest, strongest flame, two lights licking at different rates, wide soft shadows.",
+  "placement": { "align": "up", "surface_offset": 0, "fixture_radius": 40 },
+  "params": [
+    { "key": "temperature", "label": "Colour temperature", "group": "Light", "type": "float", "default": 1600, "min": 1000, "max": 12000, "unit": "K" },
+    { "key": "tint", "label": "Tint", "group": "Light", "type": "color", "default": [1, 1, 1] },
+    { "key": "intensity", "label": "Intensity", "group": "Light", "type": "float", "default": 1.3, "min": 0, "max": 8 },
+    { "key": "radius", "label": "Radius", "group": "Light", "type": "float", "default": 900, "min": 32, "max": 4096, "log": true },
+    { "key": "height", "label": "Fire height", "group": "Light", "type": "float", "default": 56, "min": 0, "max": 256, "unit": "u" },
+    { "key": "flicker", "label": "Flicker amount", "group": "Animation", "type": "float", "default": 0.4, "min": 0, "max": 1 },
+    { "key": "flicker_speed", "label": "Flicker speed", "group": "Animation", "type": "float", "default": 8, "min": 0.1, "max": 30, "unit": "Hz", "log": true },
+    { "key": "jitter", "label": "Flame sway", "group": "Animation", "type": "float", "default": 8, "min": 0, "max": 48, "unit": "u" },
+    { "key": "shadows", "label": "Casts shadows", "group": "Shadows", "type": "bool", "default": true },
+    { "key": "light_size", "label": "Light size (softness)", "group": "Shadows", "type": "float", "default": 12, "min": 0.5, "max": 64, "unit": "u", "log": true },
+    { "key": "glow_mode", "label": "Linked glow", "group": "Glow", "type": "enum", "options": ["Leave", "Drive", "Suppress"], "default": "Drive" },
+    { "key": "glow_intensity", "label": "Glow emission", "group": "Glow", "type": "float", "default": 1, "min": 0, "max": 4 }
+  ],
+  "lights": [
+    { "name": "Fire", "type": "point", "offset": [0, "-height", 0], "color": "kelvin(temperature) * tint", "intensity": "intensity", "radius": "radius", "shadows": "shadows", "light_size": "light_size", "flicker": "flicker", "flicker_speed": "flicker_speed", "jitter": "jitter" },
+    { "name": "Tongue", "type": "point", "offset": [0, "-height * 1.5", 0], "color": "kelvin(temperature + 300) * tint", "intensity": "intensity * 0.4", "radius": "radius * 0.7", "shadows": false, "flicker": "min(flicker * 1.5, 1)", "flicker_speed": "flicker_speed * 1.6", "jitter": "jitter * 1.5", "phase": 0.5 }
+  ],
+  "glow": { "mode": "glow_mode", "scale": "glow_intensity" }
+}

@@ -20,7 +20,7 @@ static void _drawOk(int row, int brightness)
 {
     vs_battle_renderTextRawColor("OK", vs_getXY(175, row * 16 + 32),
         ((rsin(brightness * 8) >> 5) + 64) * vs_getRGB888(1, 1, 1),
-        vs_scratch.unk4 - 0xC);
+        psx_get(vs_scratch.unk4) - 0xC);
 }
 
 /**
@@ -750,7 +750,7 @@ static int _assembleBladeMenu(int params)
     switch (state) {
     case 0:
         if (vs_mainmenu_ready() != 0) {
-            textBuf = vs_main_allocHeapR(0x72C);
+            textBuf = vs_main_allocHeapR(0x6A4 + 0x22 * sizeof(char*));
             menuText = textBuf + 0x6A4;
             if (blade == NULL) {
                 menuText[0] = (char*)&vs_mainMenu_menu12Text[VS_MENU12_BIN_OFFSET_blades];
@@ -863,7 +863,7 @@ static int _assembleGripMenu(int params)
     switch (state) {
     case 0:
         if (vs_mainmenu_ready() != 0) {
-            textBuf = vs_main_allocHeapR(0x72CU);
+            textBuf = vs_main_allocHeapR(0x6A4 + 0x22 * sizeof(char*));
             menuText = textBuf + 0x6A4;
             if (grip == NULL) {
                 menuText[0] = (char*)&vs_mainMenu_menu12Text[VS_MENU12_BIN_OFFSET_grips];
@@ -974,7 +974,7 @@ static int _attachGem(int params)
     switch (state) {
     case 0:
         if (vs_mainmenu_ready() != 0) {
-            textBuf = vs_main_allocHeapR(0x14AC);
+            textBuf = vs_main_allocHeapR(0x1324 + 0x62 * sizeof(char*));
             menuText = textBuf + 0x1324;
 
             if (gem == NULL) {
@@ -2650,7 +2650,7 @@ static int _selectBlade(int arg0)
             break;
         }
 
-        textBuf = vs_main_allocHeapR(0x72C);
+        textBuf = vs_main_allocHeapR(0x6A4 + 0x22 * sizeof(char*));
         menuText = (char**)(textBuf + 0x6A4);
 
         if (blade == NULL) {
@@ -3245,7 +3245,7 @@ static int _selectShields(int arg0)
     case 0:
         if (vs_mainmenu_ready() != 0) {
 
-            stringBuf = vs_main_allocHeapR(0x3CC);
+            stringBuf = vs_main_allocHeapR(0x384 + 0x12 * sizeof(char*));
 
             menuText = stringBuf + 0x384;
 
@@ -3819,7 +3819,7 @@ static int _initUiArmor(int arg0)
     case 0:
         if (vs_mainmenu_ready() != 0) {
             s0_2 = itemId;
-            temp_v0 = vs_main_allocHeapR(0x72CU);
+            temp_v0 = vs_main_allocHeapR(0x6A4 + 0x22 * sizeof(char*));
             sp10 = (char**)(temp_v0 + 0x6A4);
             if (var_s2 == NULL) {
                 sp10[0] = (char*)&vs_mainMenu_menu12Text[VS_MENU12_BIN_OFFSET_armor];

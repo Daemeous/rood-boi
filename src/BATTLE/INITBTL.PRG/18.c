@@ -311,7 +311,7 @@ static void func_800F9AD8(void)
 {
     int j;
     int i;
-    vs_battle_actor2* temp_s0 = vs_battle_characterState->unk3C;
+    vs_battle_actor2* temp_s0 = psx_get(vs_battle_characterState->unk3C);
     D_80060068_t3* s1 = &D_80060068.unk0;
 
     temp_s0->currentHP = s1->currentHP;
@@ -405,53 +405,55 @@ static void func_800F9CCC(void)
 
     func_80076F24(0, &D_800FAB18, 0x10, 0, 0x80, 0);
     if (bladeIndex != 0) {
-        vs_battle_applyWeapon(&vs_battle_characterState->unk3C->weapon,
+        vs_battle_applyWeapon(&psx_get(vs_battle_characterState->unk3C)->weapon,
             &vs_main_inventory.weapons[bladeIndex - 1]);
     } else {
-        vs_battle_applyWeapon(&vs_battle_characterState->unk3C->weapon, NULL);
+        vs_battle_applyWeapon(&psx_get(vs_battle_characterState->unk3C)->weapon, NULL);
     }
 
-    vs_battle_characterState->unk3C->currentRange =
-        vs_battle_characterState->unk3C->weapon.range.range
-        + vs_battle_characterState->unk3C->reach;
-    vs_battle_characterState->unk3C->unk39 =
-        vs_battle_characterState->unk3C->weapon.range.unk1
-        + vs_battle_characterState->unk3C->reach;
-    vs_battle_characterState->unk3C->unk3A =
-        vs_battle_characterState->unk3C->weapon.range.unk2
-        + vs_battle_characterState->unk3C->reach;
-    vs_battle_characterState->unk3C->currentAttackShapeAngle =
-        vs_battle_characterState->unk3C->weapon.range.attackShapeAngle;
-    vs_battle_characterState->unk3C->unk3B_0 = 1;
+    psx_get(vs_battle_characterState->unk3C)->currentRange =
+        psx_get(vs_battle_characterState->unk3C)->weapon.range.range
+        + psx_get(vs_battle_characterState->unk3C)->reach;
+    psx_get(vs_battle_characterState->unk3C)->unk39 =
+        psx_get(vs_battle_characterState->unk3C)->weapon.range.unk1
+        + psx_get(vs_battle_characterState->unk3C)->reach;
+    psx_get(vs_battle_characterState->unk3C)->unk3A =
+        psx_get(vs_battle_characterState->unk3C)->weapon.range.unk2
+        + psx_get(vs_battle_characterState->unk3C)->reach;
+    psx_get(vs_battle_characterState->unk3C)->currentAttackShapeAngle =
+        psx_get(vs_battle_characterState->unk3C)->weapon.range.attackShapeAngle;
+    psx_get(vs_battle_characterState->unk3C)->unk3B_0 = 1;
 
     if (shieldIndex != 0) {
-        vs_battle_applyShield(&vs_battle_characterState->unk3C->shield,
+        vs_battle_applyShield(&psx_get(vs_battle_characterState->unk3C)->shield,
             &vs_main_inventory.shields[shieldIndex - 1]);
     } else {
-        vs_battle_applyShield(&vs_battle_characterState->unk3C->shield, NULL);
+        vs_battle_applyShield(&psx_get(vs_battle_characterState->unk3C)->shield, NULL);
     }
 
     for (i = 0; i < 6; ++i) {
-        vs_battle_applyArmor(&vs_battle_characterState->unk3C->limbs[i].armor, NULL);
+        vs_battle_applyArmor(
+            &psx_get(vs_battle_characterState->unk3C)->limbs[i].armor, NULL);
 
         for (j = 0; j < 16; ++j) {
             if (vs_main_inventory.armor[j].limb == i + 1) {
-                vs_battle_applyArmor(&vs_battle_characterState->unk3C->limbs[i].armor,
+                vs_battle_applyArmor(
+                    &psx_get(vs_battle_characterState->unk3C)->limbs[i].armor,
                     &vs_main_inventory.armor[j]);
             }
         }
     }
 
-    vs_battle_applyAccessory(&vs_battle_characterState->unk3C->accessory, NULL);
+    vs_battle_applyAccessory(&psx_get(vs_battle_characterState->unk3C)->accessory, NULL);
 
     for (i = 0; i < 16; ++i) {
         if (vs_main_inventory.armor[i].limb == 7) {
-            vs_battle_applyAccessory(
-                &vs_battle_characterState->unk3C->accessory, &vs_main_inventory.armor[i]);
+            vs_battle_applyAccessory(&psx_get(vs_battle_characterState->unk3C)->accessory,
+                &vs_main_inventory.armor[i]);
         }
     }
 
-    vs_battle_nop0(vs_battle_characterState->unk3C);
+    vs_battle_nop0(psx_get(vs_battle_characterState->unk3C));
 
     if (D_80060068.unk0.unk0 != 0) {
         func_800F9AD8();
@@ -538,11 +540,11 @@ void func_800FA35C(int startState __attribute__((unused)))
     _zoneContext.unk38 = 0;
     _zoneContext.mapId = 0;
     _zoneContext.zndId = 0;
-    _zoneContext.unk18 = 0;
-    _zoneContext.mpdCdFile = NULL;
-    _zoneContext.zndCdFile = NULL;
-    _zoneContext.mpdData = NULL;
-    _zoneContext.zndData = NULL;
+    psx_set(_zoneContext.unk18, 0);
+    psx_set(_zoneContext.mpdCdFile, NULL);
+    psx_set(_zoneContext.zndCdFile, NULL);
+    psx_set(_zoneContext.mpdData, NULL);
+    psx_set(_zoneContext.zndData, NULL);
     _zoneContext.musicSlot = 0;
     _zoneContext.musicId = 0;
     _zoneContext.unk30 = 1;

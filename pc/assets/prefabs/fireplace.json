@@ -1,0 +1,24 @@
+{
+  "name": "Fireplace",
+  "category": "Fire",
+  "icon": "fireplace",
+  "description": "A hearth fire: a rect light across the fire's opening facing into the room, plus a flickering core. Drop it on the back wall of the hearth (it faces out along the surface normal).",
+  "placement": { "align": "normal", "surface_offset": 0, "fixture_radius": 48 },
+  "params": [
+    { "key": "temperature", "label": "Colour temperature", "group": "Light", "type": "float", "default": 1700, "min": 1000, "max": 12000, "unit": "K" },
+    { "key": "tint", "label": "Tint", "group": "Light", "type": "color", "default": [1, 1, 1] },
+    { "key": "intensity", "label": "Intensity", "group": "Light", "type": "float", "default": 1.4, "min": 0, "max": 8 },
+    { "key": "radius", "label": "Radius", "group": "Light", "type": "float", "default": 1000, "min": 32, "max": 4096, "log": true },
+    { "key": "width", "label": "Opening width", "group": "Light", "type": "float", "default": 112, "min": 8, "max": 512, "unit": "u" },
+    { "key": "height", "label": "Fire height", "group": "Light", "type": "float", "default": 40, "min": 4, "max": 256, "unit": "u" },
+    { "key": "depth", "label": "Out from the wall", "group": "Light", "type": "float", "default": 32, "min": 0, "max": 256, "unit": "u" },
+    { "key": "flicker", "label": "Flicker amount", "group": "Animation", "type": "float", "default": 0.3, "min": 0, "max": 1 },
+    { "key": "flicker_speed", "label": "Flicker speed", "group": "Animation", "type": "float", "default": 6, "min": 0.1, "max": 30, "unit": "Hz", "log": true },
+    { "key": "shadows", "label": "Casts shadows", "group": "Shadows", "type": "bool", "default": true },
+    { "key": "light_size", "label": "Core light size", "group": "Shadows", "type": "float", "default": 12, "min": 0.5, "max": 64, "unit": "u", "log": true }
+  ],
+  "lights": [
+    { "name": "Opening", "type": "rect", "offset": [0, "-height * 0.5", "depth"], "direction": [0, 0, 1], "size": ["width", "height"], "color": "kelvin(temperature) * tint", "intensity": "intensity", "radius": "radius", "shadows": "shadows", "flicker": "flicker * 0.7", "flicker_speed": "flicker_speed" },
+    { "name": "Core", "type": "point", "offset": [0, "-height * 0.4", "depth * 0.5"], "color": "kelvin(temperature - 200) * tint", "intensity": "intensity * 0.5", "radius": "radius * 0.6", "shadows": "shadows", "light_size": "light_size", "flicker": "flicker", "flicker_speed": "flicker_speed * 1.4", "jitter": "width * 0.08", "phase": 0.35 }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Magic glow",
+  "category": "Magic",
+  "icon": "magic",
+  "description": "A save point's or sigil's glow: cool blue light with a slow pulse, no shadows. Select the save point's glow and use Add here, or let Suggest find it.",
+  "placement": { "align": "up", "surface_offset": 0, "fixture_radius": 24 },
+  "params": [
+    { "key": "color", "label": "Colour", "group": "Light", "type": "color", "default": [0.35, 0.6, 1] },
+    { "key": "intensity", "label": "Intensity", "group": "Light", "type": "float", "default": 1.1, "min": 0, "max": 6 },
+    { "key": "radius", "label": "Radius", "group": "Light", "type": "float", "default": 560, "min": 32, "max": 4096, "log": true },
+    { "key": "height", "label": "Height", "group": "Light", "type": "float", "default": 24, "min": -256, "max": 512, "unit": "u" },
+    { "key": "pulse", "label": "Pulse amount", "group": "Animation", "type": "float", "default": 0.25, "min": 0, "max": 1 },
+    { "key": "pulse_speed", "label": "Pulse speed", "group": "Animation", "type": "float", "default": 0.4, "min": 0.02, "max": 8, "unit": "Hz", "log": true },
+    { "key": "shadows", "label": "Casts shadows", "group": "Shadows", "type": "bool", "default": false },
+    { "key": "light_size", "label": "Light size (softness)", "group": "Shadows", "type": "float", "default": 16, "min": 0.5, "max": 64, "unit": "u", "log": true },
+    { "key": "glow_mode", "label": "Linked glow", "group": "Glow", "type": "enum", "options": ["Leave", "Drive", "Suppress"], "default": "Drive" },
+    { "key": "glow_intensity", "label": "Glow emission", "group": "Glow", "type": "float", "default": 1, "min": 0, "max": 4 }
+  ],
+  "lights": [
+    { "name": "Glow", "type": "point", "offset": [0, "-height", 0], "color": "color", "intensity": "intensity", "radius": "radius", "shadows": "shadows", "light_size": "light_size", "pulse": "pulse", "pulse_speed": "pulse_speed" }
+  ],
+  "glow": {
+    "mode": "glow_mode",
+    "scale": "glow_intensity",
+    "suggest": { "hue": "cool", "merge": 256, "priority": 1 }
+  }
+}

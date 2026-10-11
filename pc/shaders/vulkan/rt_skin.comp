@@ -1,0 +1,63 @@
+#version 450
+// Skinning for the path tracer (vk_rt.inc): one mover instance's polygons
+// (render.c mesh vertices, four per polygon) through its bone palette into
+// world-space shading triangles (rt_common.glsl's Tri), two per polygon (the
+// PS1's 0,1,2 and 1,3,2). Triangles that are not shadow casters (a
+// triangle's unused second half, semi-transparent polygons, sprites) are
+// inactive (NaN x), the same ones every frame, so the BLAS can be refit.
+// Also writes the same triangles' positions in the previous frame (the
+// mover's last skinned pose), for motion vectors.
+layout(local_size_x = 64) in;
+struct Tri { vec4 a, b, c; uvec4 info; };
+layout(std430, binding = 0) readonly buffer Mesh { uint words[]; } mesh; // 10 words per vertex
+layout(std430, binding = 1) readonly buffer Palette { vec4 rows[]; } palette; // 3 rows per bone
+layout(std430, binding = 2) writeonly buffer Out { Tri tris[]; } dst;
+layout(std430, binding = 3) readonly buffer Previous { Tri tris[]; } previous;
+layout(std430, binding = 4) writeonly buffer Motion { vec4 p[]; } motion; // previous a, b, c per triangle
+layout(push_constant) uniform Push {
+    uint polygons, bones, has_previous, override_color;
+    uint color, override_texture, tpage, clut;
+} pc;
+const float NAN = uintBitsToFloat(0x7fc00000u);
+vec3 skin(uint v, out uint rgb, out uint uv) {
+    uint w = v * 10u;
+    vec3 p = vec3(uintBitsToFloat(mesh.words[w]), uintBitsToFloat(mesh.words[w + 1u]), uintBitsToFloat(mesh.words[w + 2u]));
+    uint b = min(mesh.words[w + 7u] >> 24, pc.bones - 1u);
+    rgb = pc.override_color != 0u ? pc.color : mesh.words[w + 6u] & 0xffffffu;
+    uv = mesh.words[w + 7u] & 0xffffu;
+    vec4 r0 = palette.rows[b * 3u], r1 = palette.rows[b * 3u + 1u], r2 = palette.rows[b * 3u + 2u];
+    return vec3(dot(r0.xyz, p) + r0.w, dot(r1.xyz, p) + r1.w, dot(r2.xyz, p) + r2.w);
+}
+void put(uint index, vec3 p[4], uint rgb[4], uint uv[4], ivec3 k, uint tpage, uint clut, uint code, uint flags, bool live) {
+    Tri t;
+    t.a = vec4(live ? p[k.x].x : NAN, p[k.x].yz, uintBitsToFloat(rgb[k.x]));
+    t.b = vec4(p[k.y], uintBitsToFloat(rgb[k.y]));
+    t.c = vec4(p[k.z], uintBitsToFloat(rgb[k.z]));
+    t.info = uvec4(uv[k.x] | uv[k.y] << 16, uv[k.z] | (tpage & 0xffffu) << 16, (clut & 0xffffu) | (code & 0xffu) << 16, flags);
+    dst.tris[index] = t;
+    if (pc.has_previous != 0u) {
+        Tri o = previous.tris[index];
+        bool ok = !isnan(o.a.x) && live;
+        motion.p[index * 4u] = vec4(ok ? o.a.xyz : t.a.xyz, 0.0);
+        motion.p[index * 4u + 1u] = vec4(ok ? o.b.xyz : t.b.xyz, 0.0);
+        motion.p[index * 4u + 2u] = vec4(ok ? o.c.xyz : t.c.xyz, 0.0);
+    } else {
+        motion.p[index * 4u] = vec4(t.a.xyz, 0.0);
+        motion.p[index * 4u + 1u] = vec4(t.b.xyz, 0.0);
+        motion.p[index * 4u + 2u] = vec4(t.c.xyz, 0.0);
+    }
+}
+void main() {
+    uint poly = gl_GlobalInvocationID.x;
+    if (poly >= pc.polygons) return;
+    vec3 p[4]; uint rgb[4], uv[4];
+    for (uint i = 0u; i < 4u; i++) p[i] = skin(poly * 4u + i, rgb[i], uv[i]);
+    uint w = poly * 40u;
+    uint code = mesh.words[w + 6u] >> 24, polygon_flags = (mesh.words[w + 7u] >> 16) & 255u;
+    uint tpage = mesh.words[w + 8u] & 0xffffu, clut = mesh.words[w + 8u] >> 16;
+    if (pc.override_texture != 0u) { tpage |= pc.tpage; clut = (pc.clut + clut) & 0xffffu; }
+    bool caster = (code & 2u) == 0u && (polygon_flags & 8u) == 0u; // opaque, not a sprite
+    uint flags = ((code & 4u) != 0u ? 1u : 0u) | ((code & 1u) != 0u ? 2u : 0u) | 8u;
+    put(poly * 2u, p, rgb, uv, ivec3(0, 1, 2), tpage, clut, code, flags, caster);
+    put(poly * 2u + 1u, p, rgb, uv, ivec3(1, 3, 2), tpage, clut, code, flags, caster && (polygon_flags & 1u) != 0u);
+}

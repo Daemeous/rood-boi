@@ -1,0 +1,90 @@
+#version 450
+// One a-trous wavelet iteration (3x3 kernel at `step`; SVGF's edge-avoiding
+// filter): geometry stops on normal and plane distance, and each signal
+// stops on its own luminance difference scaled by its standard deviation
+// (temporal variance, carried through the iterations), so noisy pixels are
+// blurred and converged detail (shadow edges, contact) is kept. Indirect
+// light (rgb), shadow visibility (a) and baked-light visibility (extra r)
+// and the glows' light (extra gba) are filtered separately.
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(push_constant) uniform Push {
+    int step, filter_visibility, final_pass, unused;
+    vec4 eye_footprint; // eye xyz, world units per GI pixel per unit of distance
+} pc;
+layout(binding = 0, rgba16f) uniform readonly image2D source;
+layout(binding = 1, rgba32f) uniform readonly image2D position;
+layout(binding = 2, rgba16f) uniform readonly image2D normal;
+layout(binding = 3, rgba16f) uniform writeonly image2D target;
+layout(binding = 4, rgba16f) uniform readonly image2D source_extra;
+layout(binding = 5, rgba16f) uniform writeonly image2D target_extra;
+layout(binding = 6, rgba16f) uniform readonly image2D variance_in; // indirect luminance, visibility, baked visibility, glow luminance
+layout(binding = 7, rgba16f) uniform writeonly image2D variance_out;
+float lum(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy), size = imageSize(target);
+    if (any(greaterThanEqual(g, size))) return;
+    vec4 c = imageLoad(source, g), p = imageLoad(position, g);
+    vec4 ce = imageLoad(source_extra, g);
+    vec4 cv = imageLoad(variance_in, g);
+    if (p.w < 0.5) {
+        imageStore(target, g, c); imageStore(target_extra, g, ce); imageStore(variance_out, g, cv);
+        return;
+    }
+    vec3 n = imageLoad(normal, g).xyz;
+    float l = lum(c.rgb);
+    // The variance around this pixel (3x3 Gaussian at this step), for the
+    // stopping functions.
+    const float kernel[2] = float[](0.5, 0.25);
+    vec4 var_blur = vec4(0.0); float var_weight = 0.0;
+    for (int y = -1; y <= 1; y++)
+        for (int x = -1; x <= 1; x++) {
+            ivec2 q = clamp(g + ivec2(x, y), ivec2(0), size - 1);
+            float w = kernel[abs(x)] * kernel[abs(y)];
+            var_blur += imageLoad(variance_in, q) * w; var_weight += w;
+        }
+    var_blur /= var_weight;
+    float sigma_l = 4.0 * sqrt(max(var_blur.r, 0.0)) + 1e-3;
+    float sigma_v = 3.0 * sqrt(max(var_blur.g, 0.0)) + 1e-3;
+    float sigma_b = 3.0 * sqrt(max(var_blur.b, 0.0)) + 1e-3;
+    float sigma_e = 4.0 * sqrt(max(var_blur.a, 0.0)) + 1e-3;
+    float le = lum(ce.gba);
+    // Plane distance tolerance: grows with the pixel footprint at this step.
+    float plane = max(4.0, 0.5 * pc.eye_footprint.w * distance(p.xyz, pc.eye_footprint.xyz) * float(pc.step));
+    vec3 sum = vec3(0.0), hsum = vec3(0.0);
+    vec4 vsum = vec4(0.0); // weighted variances: indirect, visibility, baked, glow
+    float wl_sum = 0.0, wv_sum = 0.0, wb_sum = 0.0, we_sum = 0.0, v_acc = 0.0, b_acc = 0.0;
+    for (int y = -1; y <= 1; y++)
+        for (int x = -1; x <= 1; x++) {
+            ivec2 q = g + ivec2(x, y) * pc.step;
+            if (any(lessThan(q, ivec2(0))) || any(greaterThanEqual(q, size))) continue;
+            vec4 qp = imageLoad(position, q);
+            if (qp.w < 0.5) continue;
+            vec3 qn = imageLoad(normal, q).xyz;
+            vec4 qc = imageLoad(source, q), qx = imageLoad(source_extra, q), qv = imageLoad(variance_in, q);
+            float w = kernel[abs(x)] * kernel[abs(y)];
+            w *= pow(max(dot(n, qn), 0.0), 32.0);
+            w *= exp(-abs(dot(qp.xyz - p.xyz, n)) / plane);
+            if (w <= 0.0) continue;
+            bool centre = x == 0 && y == 0;
+            float wl = centre ? w : w * exp(-abs(lum(qc.rgb) - l) / sigma_l);
+            float wv = centre ? w : w * exp(-abs(qc.a - c.a) / sigma_v);
+            float wb = centre ? w : w * exp(-abs(qx.r - ce.r) / sigma_b);
+            float we = centre ? w : w * exp(-abs(lum(qx.gba) - le) / sigma_e);
+            sum += qc.rgb * wl; wl_sum += wl;
+            v_acc += qc.a * wv; wv_sum += wv;
+            b_acc += qx.r * wb; wb_sum += wb;
+            hsum += qx.gba * we; we_sum += we;
+            vsum += vec4(wl * wl * qv.r, wv * wv * qv.g, wb * wb * qv.b, we * we * qv.a);
+        }
+    vec4 out_ = vec4(wl_sum > 0.0 ? sum / wl_sum : c.rgb, pc.filter_visibility != 0 && wv_sum > 0.0 ? v_acc / wv_sum : c.a);
+    vec4 out_extra = vec4(pc.filter_visibility != 0 && wb_sum > 0.0 ? b_acc / wb_sum : ce.r,
+        we_sum > 0.0 ? hsum / we_sum : ce.gba);
+    vec4 out_var = vec4(wl_sum > 0.0 ? vsum.r / (wl_sum * wl_sum) : cv.r,
+        pc.filter_visibility != 0 && wv_sum > 0.0 ? vsum.g / (wv_sum * wv_sum) : cv.g,
+        pc.filter_visibility != 0 && wb_sum > 0.0 ? vsum.b / (wb_sum * wb_sum) : cv.b,
+        we_sum > 0.0 ? vsum.a / (we_sum * we_sum) : cv.a);
+    if (pc.final_pass != 0) out_extra.gba = max(out_extra.gba, vec3(0.0));
+    imageStore(target, g, out_);
+    imageStore(target_extra, g, out_extra);
+    imageStore(variance_out, g, out_var);
+}

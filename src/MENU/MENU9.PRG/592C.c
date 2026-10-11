@@ -214,9 +214,9 @@ int vs_menu9_parseZudFile(void)
 
         slot.dataType = 2;
         slot.index = 1;
-        slot.dataAddr = _zudData->shpOffset + (u_long)_zudData;
+        slot.dataAddr = _zudData->shpOffset + psx_to_int(u_long, _zudData);
         slot.modelId = _zudData->characterId;
-        slot.unk4 = _zudBuffer;
+        psx_set(slot.unk4, _zudBuffer);
         slot.actorId = 0xFF;
         slot.variant = _paletteFlag & 1;
         slot.material = _zudData->defaultMaterial;
@@ -226,7 +226,7 @@ int vs_menu9_parseZudFile(void)
             slot.dataType = 1;
             slot.index = 16;
             slot.modelId = _variantMap[_modelVariant];
-            slot.unk4 = _zudBuffer + 0x1900;
+            psx_set(slot.unk4, _zudBuffer + 0x1900);
             slot.actorId = 1;
             slot.unk11 = 0xFC;
             slot.variant = 0;
@@ -236,9 +236,9 @@ int vs_menu9_parseZudFile(void)
             if (_zudData->weapon != 0) {
                 slot.dataType = 4;
                 slot.index = 2;
-                slot.dataAddr = _zudData->weaponWepOffset + (u_long)_zudData;
+                slot.dataAddr = _zudData->weaponWepOffset + psx_to_int(u_long, _zudData);
                 slot.modelId = _zudData->weapon;
-                slot.unk4 = _zudBuffer + 0x1900;
+                psx_set(slot.unk4, _zudBuffer + 0x1900);
                 slot.actorId = 1;
                 slot.unk11 = 0xF0;
                 slot.material = _zudData->weaponMaterial;
@@ -248,9 +248,9 @@ int vs_menu9_parseZudFile(void)
             if (_zudData->shield != 0) {
                 slot.dataType = 4;
                 slot.index = 3;
-                slot.dataAddr = _zudData->shieldWepOffset + (u_long)_zudData;
+                slot.dataAddr = _zudData->shieldWepOffset + psx_to_int(u_long, _zudData);
                 slot.modelId = _zudData->shield;
-                slot.unk4 = _zudBuffer + 0x1EE8;
+                psx_set(slot.unk4, _zudBuffer + 0x1EE8);
                 slot.actorId = 1;
                 slot.unk11 = 0xF1;
                 slot.material = _zudData->shieldMaterial;
@@ -261,7 +261,7 @@ int vs_menu9_parseZudFile(void)
         if (_zudData->battleSeqLen != 0) {
             slot.dataType = 8;
             slot.index = 1;
-            slot.dataAddr = _zudData->battleSeqOffset + (u_long)_zudData;
+            slot.dataAddr = _zudData->battleSeqOffset + psx_to_int(u_long, _zudData);
             slot.actorId = 0;
             slot.modelId = _zudData->unk2;
             vs_battle_populateDataSlot(&slot);
@@ -270,7 +270,7 @@ int vs_menu9_parseZudFile(void)
         if (_zudData->commonSeqLen != 0) {
             slot.dataType = 8;
             slot.index = 1;
-            slot.dataAddr = _zudData->commonSeqOffset + (u_long)_zudData;
+            slot.dataAddr = _zudData->commonSeqOffset + psx_to_int(u_long, _zudData);
             slot.actorId = 0;
             slot.modelId = 0;
             vs_battle_populateDataSlot(&slot);

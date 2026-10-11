@@ -51,7 +51,12 @@ struct func_800D4910_t {
 
 void func_800D2698(int);
 void func_800D8038(int);
+#ifdef ROOD_PC
+/* The host passes the particle list (the PS1 wrapper forwards its $a0). */
+void func_800D6E44(void* particles);
+#else
 void func_800D6E44(void);
+#endif
 void func_800D7814(void);
 void func_800D78F0(void);
 void vs_battle_configurePlg(int, int, int);
@@ -67,7 +72,8 @@ void func_800E4C28(int, int, int, int);
 int func_800E5154(void);
 void func_800E5998(void);
 void func_800E6158(void);
-void func_800E6178(vs_battle_actor*, int);
+struct actorInitializationActor;
+int func_800E6178(struct actorInitializationActor*, int);
 short func_800E6694(int);
 void func_800E6700(int);
 void func_800E68EC(int, int);
@@ -75,7 +81,7 @@ void func_800E6EAC(void);
 void func_800E6F1C(void);
 void func_800E7454(vs_battle_actor*);
 void func_800E7608(int);
-u_short func_800E45B4(void);
+int func_800E45B4(void);
 void func_800E511C(void);
 void func_800E5308(void);
 int vs_battle_getMainMenuLba(void);

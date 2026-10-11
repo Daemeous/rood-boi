@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include <libspu.h>
+#include "pc/src/psx_types.h"
 
 #define VOICE_COUNT 24
 #define VOICE_MASK_ALL (0x3FF)
@@ -319,13 +320,13 @@ typedef struct {
 #define SOUND_LOOP_STACK_MAX_INDEX (SOUND_LOOP_STACK_SIZE - 1)
 
 typedef struct {
-    char* ProgramCounter;
-    char* LoopStartPc[(4)];
-    char* ReturnProgramCounter;
-    char* Keymap;
-    short* VibratoWave;
-    short* TremeloWave;
-    short* AutoPanWave;
+    psx_ptr(char) ProgramCounter;
+    psx_ptr(char) LoopStartPc[(4)];
+    psx_ptr(char) ReturnProgramCounter;
+    psx_ptr(char) Keymap;
+    psx_ptr(short) VibratoWave;
+    psx_ptr(short) TremeloWave;
+    psx_ptr(short) AutoPanWave;
     int unk28;
     int PitchBase;
     int PitchSlide;
@@ -408,6 +409,7 @@ typedef struct {
     short AutoPanVolume;
     FSoundVoiceParams VoiceParams;
 } FSoundChannel;
+PSX_ASSERT_SIZE(FSoundChannel, 0x110);
 
 typedef struct {
     signed char InstrumentIndex;
@@ -459,9 +461,9 @@ typedef struct {
     int unk30;
     int unk34;
     int unk38;
-    FAkaoSequence* SequencePatchTable;
-    u_short* KeymapTable;
-    FSoundKeymapEntry8* unk44;
+    psx_ptr(FAkaoSequence) SequencePatchTable;
+    psx_ptr(u_short) KeymapTable;
+    psx_ptr(FSoundKeymapEntry8) unk44;
     int SomeIndexRelatedToSpuVoiceInfo;
     u_int NoiseChannelFlags;
     u_int ReverbChannelFlags;
@@ -490,6 +492,7 @@ typedef struct {
     int unk98;
     int unk9C;
 } FSoundChannelConfig;
+PSX_ASSERT_SIZE(FSoundChannelConfig, 0xa0);
 
 typedef struct {
     u_int Param1;
@@ -566,8 +569,8 @@ typedef struct FSoundCutsceneStreamData {
 } FSoundCutsceneStreamData; /** size 0x80 + DataBlob */
 
 typedef struct FSoundCutsceneStreamState {
-    /* 0x00 */ void* pCurrentChunk;
-    /* 0x04 */ void* unk_Mask_0x4;
+    /* 0x00 */ psx_ptr(void) pCurrentChunk;
+    /* 0x04 */ psx_ptr(void) unk_Mask_0x4;
     /* 0x08 */ int field2_0x8;
     /* 0x0C */ int VoicesInUseFlags;
     /* 0x10 */ int VoiceIndex;
@@ -578,7 +581,7 @@ typedef struct FSoundCutsceneStreamState {
     /* 0x20 */ int field8_0x20;
     /* 0x24 */ int field9_0x24;
     /* 0x28 */ int PageIndex;
-    /* 0x2C */ FSoundCutsceneStreamData* pStreamBase;
+    /* 0x2C */ psx_ptr(FSoundCutsceneStreamData) pStreamBase;
     /* 0x30 */ int field12_0x30;
     /* 0x34 */ u_int StreamPageIndex;
     /* 0x38 */ int field14_0x38;
@@ -594,4 +597,5 @@ typedef struct FSoundCutsceneStreamState {
     /* 0x54 */ int field24_0x54;
     /* 0x58 */ int VoiceSampleRate;
     /* 0x5C */ int ControlFlags;
-} FSoundCutsceneStreamState; /* size 0x60 */
+} FSoundCutsceneStreamState;
+PSX_ASSERT_SIZE(struct FSoundCutsceneStreamState, 0x60); /* size 0x60 */

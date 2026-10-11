@@ -70,8 +70,8 @@ static void _renderItemCategory(int animationStep, int highlightSelected)
             texPage = vs_battle_setSpriteDefault(vs_getWH(16, 16), x | (16 << 16));
 
         } else {
-            texPage = vs_battle_setSpriteDefaultTexPage(
-                128, x | (animationStep << 0x10), vs_getWH(16, 16), vs_scratch.unk4);
+            texPage = vs_battle_setSpriteDefaultTexPage(128, x | (animationStep << 0x10),
+                vs_getWH(16, 16), psx_get(vs_scratch.unk4));
         }
 
         texPage[4] = (120 + i * 16) | (128 << 8)
@@ -98,7 +98,7 @@ static void _startMenuTransition(int id)
     menuItem->state = menuItemStateSlideX;
     menuItem->targetPosition0 = 155;
     menuItem->selected = 1;
-    menuItem->subText = NULL;
+    psx_set(menuItem->subText, NULL);
 }
 
 /**

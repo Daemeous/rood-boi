@@ -1,0 +1,102 @@
+#version 450
+// Temporal accumulation (strict history): each surface
+// takes the one previous GI pixel its previous position reprojects to
+// (characters and props through their previous pose, rt_surface.comp), only
+// if that pixel saw the same surface lit the same way (the lighting
+// signature must match). Shadow visibility touched by a moving blocker (now
+// or in the history: signature bit 31) keeps a short history, so moving
+// shadows do not smear. Also accumulates the second moments of the indirect
+// light's luminance and of the visibility, and writes their variance for
+// the spatial filter (SVGF's variance guidance). The glows' light (extra
+// gba) keeps the visibility's history (short where a mover shadows it).
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(std140, binding = 0) uniform Temporal {
+    mat4 previous_to_image; // world -> previous GI image (x, y in 0..1) * w, w = view depth
+    vec4 params; // footprint (world units per GI pixel per unit of depth), max history, valid history, touched history
+} u;
+layout(binding = 1, rgba16f) uniform readonly image2D current; // rgb indirect, a shadow visibility
+layout(binding = 2, rgba32f) uniform readonly image2D position;
+layout(binding = 3, rgba16f) uniform image2D normal; // xyz; w = history length (written here)
+layout(binding = 4, rgba16f) uniform writeonly image2D accumulated;
+layout(binding = 5, rgba16f) uniform readonly image2D current_extra; // r baked light visibility, gba glow light
+layout(binding = 6, rgba16f) uniform writeonly image2D accumulated_extra;
+layout(binding = 7, r32ui) uniform readonly uimage2D signature;
+layout(binding = 8, rgba16f) uniform readonly image2D history;
+layout(binding = 9, rgba32f) uniform readonly image2D history_position;
+layout(binding = 10, rgba16f) uniform readonly image2D history_normal;
+layout(binding = 11, rgba16f) uniform readonly image2D history_extra;
+layout(binding = 12, r32ui) uniform readonly uimage2D history_signature;
+layout(binding = 13, rgba32f) uniform readonly image2D motion; // previous world position, w 1 = known
+layout(binding = 14, rgba16f) uniform readonly image2D history_moments; // m2 lum(indirect), m2 visibility, visibility history, m2 lum(glow)
+layout(binding = 15, rgba16f) uniform writeonly image2D moments;
+layout(binding = 16, rgba16f) uniform writeonly image2D variance; // indirect luminance, visibility, baked visibility, glow luminance
+const uint TOUCHED = 0x80000000u;
+float lum(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy), size = imageSize(accumulated);
+    if (any(greaterThanEqual(g, size))) return;
+    float footprint = u.params.x, max_history = u.params.y, touched_history = u.params.w;
+    bool valid_history = u.params.z > 0.5;
+    vec4 c = imageLoad(current, g), p = imageLoad(position, g);
+    vec4 e = imageLoad(current_extra, g);
+    // No surface: neutral (no indirect light, fully visible), never "black".
+    if (p.w < 0.5) {
+        imageStore(accumulated, g, vec4(0.0, 0.0, 0.0, 1.0));
+        imageStore(accumulated_extra, g, vec4(1.0, 0.0, 0.0, 0.0));
+        imageStore(moments, g, vec4(0.0, 1.0, 1.0, 0.0));
+        imageStore(variance, g, vec4(0.0));
+        return;
+    }
+    vec3 n = imageLoad(normal, g).xyz;
+    uint sig = imageLoad(signature, g).r;
+    vec4 was = imageLoad(motion, g);
+    bool moving = p.w > 1.5;
+    bool reuse = false, touched = (sig & TOUCHED) != 0u;
+    vec4 hc, hx, hm;
+    float len = 1.0, len_v = 1.0;
+    if (valid_history && was.w > 0.5) {
+        vec4 v = u.previous_to_image * vec4(was.xyz, 1.0);
+        if (v.w > 1.0) {
+            ivec2 h = ivec2(floor(v.xy / v.w * vec2(size)));
+            if (all(greaterThanEqual(h, ivec2(0))) && all(lessThan(h, size))) {
+                vec4 hp = imageLoad(history_position, h), hn = imageLoad(history_normal, h);
+                float fp = footprint * v.w;
+                uint hs = imageLoad(history_signature, h).r;
+                hc = imageLoad(history, h); hx = imageLoad(history_extra, h); hm = imageLoad(history_moments, h);
+                float slack = moving ? 2.0 : 1.0;
+                reuse = hp.w > 0.5 && abs(hp.w - p.w) < 0.5 && dot(hn.xyz, n) >= (moving ? 0.8 : 0.95)
+                    && abs(dot(hp.xyz - was.xyz, n)) < (0.5 * fp + 1.0) * slack && length(hp.xyz - was.xyz) < (2.0 * fp + 2.0) * slack
+                    && (hs & ~TOUCHED) == (sig & ~TOUCHED)
+                    && !any(isnan(hc)) && !any(isnan(hx)) && !any(isinf(hc)) && !any(isinf(hx)) && !any(isnan(hm));
+                touched = touched || (hs & TOUCHED) != 0u;
+                if (reuse) {
+                    len = min(hn.w + 1.0, max_history);
+                    len_v = min(hm.z + 1.0, touched ? touched_history : max_history);
+                }
+            }
+        }
+    }
+    vec4 result = c, result_extra = e;
+    float m2 = lum(c.rgb) * lum(c.rgb), m2v = c.a * c.a, m2e = lum(e.gba) * lum(e.gba);
+    if (reuse) {
+        float a = 1.0 / len, av = 1.0 / len_v;
+        result = vec4(mix(hc.rgb, c.rgb, a), mix(hc.a, c.a, av));
+        result_extra = vec4(mix(hx.r, e.r, av), mix(hx.gba, e.gba, av));
+        m2 = mix(hm.x, m2, a);
+        m2v = mix(hm.y, m2v, av);
+        m2e = mix(hm.w, m2e, av);
+    }
+    // Variance from the moments; short histories are not trusted to know it
+    // (more blur until they converge).
+    float l = lum(result.rgb);
+    float var_l = max(m2 - l * l, 0.0), var_v = max(m2v - result.a * result.a, 0.0);
+    if (len < 4.0) var_l = max(var_l, l * l * (4.0 - len) / 4.0 + 1e-4);
+    if (len_v < 4.0) var_v = max(var_v, 0.25 * (4.0 - len_v) / 4.0);
+    float le = lum(result_extra.gba), var_e = max(m2e - le * le, 0.0);
+    if (len_v < 4.0) var_e = max(var_e, le * le * (4.0 - len_v) / 4.0 + 1e-4);
+    imageStore(accumulated, g, result);
+    imageStore(accumulated_extra, g, result_extra);
+    imageStore(normal, g, vec4(n, len));
+    imageStore(moments, g, vec4(m2, m2v, len_v, m2e));
+    imageStore(variance, g, vec4(var_l, var_v, len_v < 4.0 ? 0.25 : 0.02, var_e));
+}

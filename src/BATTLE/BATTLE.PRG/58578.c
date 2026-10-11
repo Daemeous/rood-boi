@@ -2,9 +2,14 @@
 #include "146C.h"
 #include "30DB0.h"
 #include "58578.h"
+#include "573B8.h"
 #include "5BF94.h"
 #include "../../SLUS_010.40/main.h"
+#include <memory.h>
 #include <stddef.h>
+#include <inline_c.h>
+#include "vs_inline_c.h"
+#include "pc/src/psx_types.h"
 
 typedef struct {
     char unk0;
@@ -14,29 +19,17 @@ typedef struct {
     short unk4;
     char unk6;
     char unk7;
-    char unk8;
-    char unk9;
-    char unkA;
-    char unkB;
-    char unkC;
-    char unkD;
-    char unkE;
-    char unkF;
-    char unk10;
-    char unk11;
-    char unk12;
-    char unk13;
+    SVECTOR unk8;
+    psx_ptr(char) unk10;
 } D_800EB9B8_unk990;
+PSX_ASSERT_SIZE(D_800EB9B8_unk990, 0x14);
 
 typedef struct {
-    int unk0;
-    int unk4;
-    int unk8;
-    int unkC;
-    func_800C1564_t unk10;
+    func_800C1564_t unk0[2];
     short unk20;
     short unk22;
-    int unk24;
+    short unk24;
+    short unk26;
     short unk28;
     short unk2A;
     char unk2C;
@@ -45,14 +38,17 @@ typedef struct {
     char unk2F;
     char unk30;
     char unk31;
-    char unk32;
-    char unk33;
+    short unk32;
     int unk34;
     int unk38;
     short unk3C;
     short unk3E;
     int unk40[0x254];
     D_800EB9B8_unk990 unk990[24];
+    char unkB70[0x3800];
+    int unk4370[81];
+    char unk44B4[0x604];
+    u_char unk4AB8[81];
 } D_800EB9B8_t;
 
 typedef struct {
@@ -76,10 +72,90 @@ int func_800C1034(func_800C1564_t* arg0, u_short* arg1);
 int func_800C123C(func_800C1564_t* arg0, u_short* arg1, int arg2);
 int func_800C1384(func_800C1564_t* arg0, u_short* arg1, int arg2);
 void func_800C1DC4(D_800EB9B8_unk990* arg0);
+void func_800C20B4(void);
+void func_800C253C(int type);
+void func_800C02A8(void);
+MATRIX* func_800C085C(u_char* scale, int angle);
+void func_800C0B50(func_800C1564_t* shape, int color);
+int func_800C0758(int phase, int segments, int index);
+int func_800C2368(int step, int radius, int index);
+
+extern short D_800EA234[];
+extern short D_800EA2C4[];
+extern u_char D_800EA438[];
+extern u_short D_800EA46C[];
+extern int D_800EA670[];
+extern int D_800EA684[];
+extern int D_800EA698[];
+extern u_char D_800EA6AC;
 
 extern D_800EB9B8_t* D_800EB9B8;
 
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/58578", func_800C0D78);
+void func_800C0D78(void)
+{
+    func_800C1564_t* shape = (func_800C1564_t*)0x1F800378;
+    int color = 0x10401;
+    short* sine;
+    MATRIX* m;
+    int type;
+    int i;
+    int j;
+
+    if (D_800EB9B8 == NULL) {
+        return;
+    }
+
+    sine = (short*)0x1F8003B0;
+    for (i = 0; i < 40; ++i) {
+        sine[i] = rsin(i << 7);
+    }
+
+    for (i = 0; i < 2; color = 0x10104, ++shape, ++i) {
+        *shape = D_800EB9B8->unk0[i];
+        func_800C02A8();
+        gte_ldv0(&shape->unk8);
+        gte_rtps2();
+        gte_stszotz(&D_800EB9B8->unk20);
+        switch (shape->unk0) {
+        case 1:
+            type = 0;
+            break;
+        case 2:
+            shape->unk4.values[1] <<= 1;
+            m = func_800C085C(shape->unk4.values, shape->unk2);
+            for (j = 0; j < 3; ++j) {
+                (&shape->unk8.vx)[j] += m->m[j][1] >> 1;
+            }
+            type = 1;
+            break;
+        case 3:
+            type = 1;
+            break;
+        case 4:
+            shape->unk4.values[3] += 0x80;
+            m = func_800C085C(shape->unk4.values, shape->unk2);
+            for (j = 0; j < 3; ++j) {
+                (&shape->unk8.vx)[j] += m->m[j][1];
+            }
+            type = 2;
+            break;
+        case 5:
+            type = 2;
+            break;
+        case 6:
+            type = 3;
+            break;
+        case 7:
+            type = 4;
+            break;
+        default:
+            continue;
+        }
+        func_800C253C(type);
+        func_800C0B50(shape, color);
+    }
+    func_800C20B4();
+}
 
 void func_800C0FA8(func_800C1564_t* arg0, func_800C0FA8_t2* arg1, MATRIX* arg2)
 {
@@ -259,7 +335,77 @@ int func_800C123C(func_800C1564_t* arg0, u_short* arg1, int arg2)
     return 0;
 }
 
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/58578", func_800C1384);
+int func_800C1384(func_800C1564_t* shape, u_short* position, int angled)
+{
+    struct {
+        int corners[5];
+        int clip;
+    } polygon;
+    struct {
+        SVECTOR local;
+        SVECTOR rotated;
+        short origin[4];
+    } work;
+    MATRIX matrix;
+    int i, x, z, offsetX, offsetZ;
+    short* ptr;
+    void* base;
+    int offset;
+
+    work.origin[0] = shape->unk8.vx;
+    work.origin[1] = shape->unk8.vy;
+    work.origin[2] = shape->unk8.vz;
+    work.local.vx = shape->unk4.values[3] << 4;
+    work.local.vy = -shape->unk2;
+    work.local.vz = 0;
+    ptr = (short*)&work;
+    RotMatrix_gte(&work.local, &matrix);
+    i = 0;
+    base = &work;
+    offset = 16;
+    do {
+        *ptr = *position++ - *(u_short*)(base + offset);
+        offset += 2;
+        ++i;
+        ++ptr;
+    } while (i < 3);
+    ApplyMatrixSV(&matrix, &work.local, &work.rotated);
+    if ((u_short)-work.rotated.vy > (shape->unk4.values[1] << 5)) {
+        return 0;
+    }
+    x = shape->unk4.values[0] << 5;
+    z = shape->unk4.values[2] << 5;
+    if (angled) {
+        offsetZ = z;
+        offsetX = -x;
+    } else {
+        offsetZ = 0;
+        offsetX = offsetZ;
+    }
+    i = 0;
+    polygon.corners[0] = (u_short)-x | (-offsetZ << 16);
+    polygon.corners[1] = -offsetX | (-z << 16);
+    polygon.corners[2] = x | (offsetZ << 16);
+    polygon.corners[3] = (u_short)offsetX | (z << 16);
+    polygon.corners[4] = (u_short)work.rotated.vx | (work.rotated.vz << 16);
+    do {
+#ifdef ROOD_PC
+        /* PsyCross's gte_ldsxy3 loads through pointers (the PS1 macro takes
+         * the register values). */
+        gte_ldsxy3(
+            &polygon.corners[4], &polygon.corners[i], &polygon.corners[(i + 1) & 3]);
+#else
+        gte_ldsxy3(polygon.corners[4], polygon.corners[i], polygon.corners[(i + 1) & 3]);
+#endif
+        gte_nclip2();
+        gte_stopz(&polygon.clip);
+        if (polygon.clip < 0) {
+            return 0;
+        }
+        ++i;
+    } while (i < 4);
+    return 1;
+}
 
 int func_800C1564(func_800C1564_t* arg0, u_short* arg1)
 {
@@ -327,9 +473,179 @@ void func_800C16DC(void)
     }
 }
 
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/58578", func_800C16FC);
+void func_800C16FC(int x0, int x1, int count)
+{
+    int y0;
+    int y1;
+    int midX;
+    int signY;
+    int signX;
+    int length;
+    int dx;
+    int i;
+    int level;
+    int color;
+    int gray;
+    int start;
+    int end;
+    int tail;
+    int near2;
+    int far2;
+    int y1Bits;
+    int lineColor;
+    int segmentEnd;
+    int segmentStart;
 
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/58578", func_800C1A40);
+    signX = signY = 1;
+    y1 = x1 >> 16;
+    x1 = (short)x1;
+    y0 = x0 >> 16;
+    x0 = (short)x0;
+    length = y0 - y1;
+    if (length < 0) {
+        signY = -1;
+        length = -length;
+    }
+    if (length & 1) {
+        y0 -= signY;
+    }
+    length >>= 1;
+    midX = x0 + length;
+    dx = x1 - midX;
+    if (dx < 0) {
+        signX = -1;
+        dx = -dx;
+    }
+    length = length * 2 + dx;
+    segmentEnd = length;
+    segmentStart = 0;
+    y1Bits = y1 << 16;
+    for (i = 0; i < 16; ++i, segmentEnd += length, segmentStart += length) {
+        level = i - count + 16;
+        if (count < i || level < 0) {
+            continue;
+        }
+        gray = ((level * 3) << 6) >> 4;
+        gray |= gray << 8;
+        color = gray | (((level * 255 + (16 - level) * 32) >> 4) << 16);
+        start = segmentStart >> 4;
+        if (start < dx) {
+            end = segmentEnd >> 4;
+            if (end < dx) {
+                vs_battle_addTile(psx_get(vs_scratch.unk8), color | 0x42000000,
+                    ((x1 - start * signX) & 0xFFFF) | y1Bits,
+                    ((x1 - (end - 1) * signX) & 0xFFFF) | y1Bits);
+            } else {
+                lineColor = color | 0x42000000;
+                vs_battle_addTile(psx_get(vs_scratch.unk8), lineColor,
+                    ((x1 - start * signX) & 0xFFFF) | y1Bits,
+                    ((midX + signX) & 0xFFFF) | y1Bits);
+                tail = length * (15 - i);
+                if (y1 != y0 - (tail >> 4) * signY) {
+                    vs_battle_addTile(psx_get(vs_scratch.unk8), lineColor,
+                        (midX & 0xFFFF) | y1Bits,
+                        ((x0 + (tail >> 5)) & 0xFFFF)
+                            | ((y0 - ((tail + 16) >> 4) * signY) << 16));
+                }
+            }
+        } else {
+            far2 = length * (16 - i);
+            near2 = length * (15 - i);
+            vs_battle_addTile(psx_get(vs_scratch.unk8), color | 0x42000000,
+                ((x0 + (far2 >> 5)) & 0xFFFF) | ((y0 - (far2 >> 4) * signY) << 16),
+                ((x0 + (near2 >> 5)) & 0xFFFF)
+                    | ((y0 - ((near2 + 16) >> 4) * signY) << 16));
+        }
+    }
+    vs_battle_insertTpage(0xE1000020, psx_get(vs_scratch.unk8));
+}
+
+void func_800C1A40(int x0, int x1, int count)
+{
+    int y0;
+    int y1;
+    int midX;
+    int signY;
+    int signX;
+    int length;
+    int dx;
+    int i;
+    int level;
+    int color;
+    int gray;
+    int start;
+    int end;
+    int tail;
+    int near2;
+    int far2;
+    int y1Bits;
+    int lineColor;
+    int segmentEnd;
+    int segmentStart;
+
+    signX = signY = 1;
+    y1 = x1 >> 16;
+    x1 = (short)x1;
+    y0 = x0 >> 16;
+    x0 = (short)x0;
+    length = y0 - y1;
+    if (length < 0) {
+        signY = -1;
+        length = -length;
+    }
+    if (length & 1) {
+        y0 -= signY;
+    }
+    length >>= 1;
+    midX = x0 - length;
+    dx = midX - x1;
+    if (dx < 0) {
+        signX = -1;
+        dx = -dx;
+    }
+    length = length * 2 + dx;
+    segmentEnd = length;
+    segmentStart = 0;
+    y1Bits = y1 << 16;
+    for (i = 0; i < 16; ++i, segmentEnd += length, segmentStart += length) {
+        level = i - count + 16;
+        if (count < i || level < 0) {
+            continue;
+        }
+        gray = ((level * 3) << 6) >> 4;
+        gray |= gray << 8;
+        color = gray | (((level * 255 + (16 - level) * 32) >> 4) << 16);
+        start = segmentStart >> 4;
+        if (start < dx) {
+            end = segmentEnd >> 4;
+            if (end < dx) {
+                vs_battle_addTile(psx_get(vs_scratch.unk8), color | 0x42000000,
+                    ((x1 + start * signX) & 0xFFFF) | y1Bits,
+                    ((x1 + (end - 1) * signX) & 0xFFFF) | y1Bits);
+            } else {
+                lineColor = color | 0x42000000;
+                vs_battle_addTile(psx_get(vs_scratch.unk8), lineColor,
+                    ((x1 + start * signX) & 0xFFFF) | y1Bits,
+                    ((midX - signX) & 0xFFFF) | y1Bits);
+                tail = length * (15 - i);
+                if (y1 != y0 - (tail >> 4) * signY) {
+                    vs_battle_addTile(psx_get(vs_scratch.unk8), lineColor,
+                        (midX & 0xFFFF) | y1Bits,
+                        ((x0 - (tail >> 5)) & 0xFFFF)
+                            | ((y0 - ((tail + 16) >> 4) * signY) << 16));
+                }
+            }
+        } else {
+            far2 = length * (16 - i);
+            near2 = length * (15 - i);
+            vs_battle_addTile(psx_get(vs_scratch.unk8), color | 0x42000000,
+                ((x0 - (far2 >> 5)) & 0xFFFF) | ((y0 - (far2 >> 4) * signY) << 16),
+                ((x0 - (near2 >> 5)) & 0xFFFF)
+                    | ((y0 - ((near2 + 16) >> 4) * signY) << 16));
+        }
+    }
+    vs_battle_insertTpage(0xE1000020, psx_get(vs_scratch.unk8));
+}
 
 int func_800C1D84(void)
 {
@@ -342,7 +658,102 @@ int func_800C1D84(void)
     return 1;
 }
 
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/58578", func_800C1DC4);
+extern u_char D_800F4CB4;
+
+void func_800C1DC4(D_800EB9B8_unk990* arg0)
+{
+    int sxy;
+    int otz;
+    int gradient;
+    int color0;
+    int color1;
+    int isLeft;
+    int x;
+    int y;
+    int xy;
+    int ringXy;
+    int textXy;
+    int color;
+    u_long* prim;
+    u_long* nextPrim;
+
+    gradient = arg0->unk2;
+    nextPrim = psx_get(vs_scratch.unk8) - (arg0->unk1 * 4 - 8);
+    if (arg0->unk1 != 0) {
+        gradient = 8;
+    }
+    color0 = 8 - gradient;
+    color0 = vs_battle_uiGradientStop(color0, arg0->unk7 * 8, 0x80);
+    color1 = vs_battle_uiGradientStop(gradient, arg0->unk7 * 8, 0x80);
+
+    xy = arg0->unk4;
+    isLeft = xy < 160;
+    if (isLeft) {
+        y = color0;
+        color0 = color1;
+        color1 = y;
+    }
+    y = arg0->unk6 + D_800F4CB4;
+    x = xy;
+    if (isLeft) {
+        x += 0x42;
+    } else {
+        x += 6;
+    }
+    color = 0x404040;
+    textXy = (x & 0xFFFF) | ((y - 1) << 16);
+    if (arg0->unk1 != 0) {
+        color = 0x808080;
+    }
+    vs_battle_renderTextRawColor(psx_get(arg0->unk10), textXy, color, nextPrim);
+
+    prim = psx_get(vs_scratch.unk0);
+    if (gradient != 0) {
+        arg0->unk2 = gradient - 1;
+    }
+    x = arg0->unk4 & 0xFFFF;
+    gradient = (arg0->unk4 < 160) * 2;
+    prim[0] = (*nextPrim & 0xFFFFFF) | 0x0D000000;
+    prim[1] = 0x60000000;
+    prim[2] = ((x + 2 - gradient) & 0xFFFF) | ((y + 2) << 16);
+    prim[3] = (gradient + 0x48) | 0x80000;
+    prim[4] = 0xE1000200;
+    prim[5] = color0 | 0x38000000;
+    prim[6] = x | (y << 16);
+    prim[7] = color1;
+    prim[8] = ((x + 0x48) & 0xFFFF) | (y << 16);
+    prim[9] = color0;
+    prim[10] = x | ((y + 8) << 16);
+    prim[11] = color1;
+    prim[12] = ((x + 0x48) & 0xFFFF) | ((y + 8) << 16);
+    prim[13] = 0xE1000000;
+    *nextPrim = (psx_to_int(u_long, prim) << 8) >> 8;
+    prim += 14;
+    psx_set(vs_scratch.unk0, prim);
+
+    if (arg0->unk1 != 0) {
+        y += 4;
+        func_800C02A8();
+        gte_ldv0(&arg0->unk8);
+        gte_rtps2();
+        gte_stsxy(&sxy);
+        gte_stotz(&otz);
+        if (arg0->unk4 < 160) {
+            x = (x + 0x47) & 0xFFFF;
+            ringXy = x | (y << 16);
+            func_800C1A40(sxy, ringXy, arg0->unk3 - 2);
+            if (arg0->unk3 >= 18) {
+                func_800C1A40(sxy, ringXy, (arg0->unk3 + 14) & 0x1F);
+            }
+        } else {
+            ringXy = x | (y << 16);
+            func_800C16FC(sxy, ringXy, arg0->unk3 - 2);
+            if (arg0->unk3 >= 18) {
+                func_800C16FC(sxy, ringXy, (arg0->unk3 + 14) & 0x1F);
+            }
+        }
+    }
+}
 
 void func_800C20B4(void)
 {
@@ -415,11 +826,152 @@ void func_800C20B4(void)
     }
 }
 
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/58578", func_800C2254);
+typedef struct {
+    short xyz[3], flags;
+} menuCircleVertex;
+int func_800C2254(int angle, int index)
+{
+    short (*basis)[3] = (void*)0x1F800398;
+    int point = 0, component;
+    int phase = angle;
+    menuCircleVertex* vertex = (void*)((char*)D_800EB9B8 + (index * 8 + 0x48));
+    int cosine, sine;
+    for (; point < 33; ++index, phase += 128, ++point, ++vertex) {
+        for (component = 0; component < 3; ++component) {
+            cosine = rcos(phase);
+            sine = rsin(phase);
+            vertex->xyz[component] = basis[0][component]
+                                   + ((basis[1][component] * cosine) >> 12)
+                                   + ((basis[2][component] * sine) >> 12);
+        }
+        component = point != 0;
+        vertex->flags = component;
+    }
+    return index;
+}
 
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/58578", func_800C2368);
+int func_800C2368(int step, int radius, int index)
+{
+    short* basis = (short*)0x1F800398;
+    int base;
+    int point;
+    int phase;
+    int i;
+    int x, y, z;
+    menuCircleVertex* vertex = (void*)((char*)D_800EB9B8 + (index * 8 + 0x48));
 
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/58578", func_800C253C);
+    for (base = 0; base < 0x1000; base += 0x400) {
+        z = y = x = 0;
+        phase = base - step * 4;
+        for (point = 0; point <= radius; ++index, ++point, phase += step, ++vertex) {
+            vertex->xyz[0] = (x * rcos(phase)) >> 12;
+            vertex->xyz[1] = y;
+            vertex->xyz[2] = (z * rsin(phase)) >> 12;
+            i = point != 0;
+            vertex->flags = i;
+            x += 0x200;
+            y -= 0x200;
+            z += 0x200;
+        }
+    }
+    radius <<= 9;
+    for (i = 8; i >= 0; --i) {
+        basis[i] = 0;
+    }
+    basis[1] = -radius;
+    basis[3] = radius;
+    basis[8] = radius;
+    index = func_800C2254(step * 7, index);
+    if (radius >= 5) {
+        basis[1] = -0x800;
+        basis[3] = 0x800;
+        basis[8] = 0x800;
+        index = func_800C2254(step * 4, index);
+    }
+    return index;
+}
+
+void func_800C253C(int type)
+{
+    short* basis = (short*)0x1F800398;
+    int index = 0;
+    int shape;
+    int count;
+    int command;
+    int i;
+    int j;
+    int n;
+    short* src;
+    u_short* commands;
+    menuCircleVertex* vertices;
+    menuCircleVertex* vertex;
+
+    shape = D_800EB9B8->unk2A;
+    vertices = (menuCircleVertex*)((char*)D_800EB9B8 + 0x48);
+    if (shape != 0) {
+        D_800EB9B8->unk2A = shape - 1;
+    }
+    if ((u_int)type < 3) {
+        if (type == 0) {
+            D_800EB9B8->unk24 += (shape + 1) * 3;
+            D_800EB9B8->unk28 += (shape + 1) * 11;
+        }
+        D_800EB9B8->unk26 += (shape * 2 + 1) * 7;
+        shape += type * 16;
+    } else {
+        shape = type + 0x2D;
+    }
+
+    command = D_800EA438[shape];
+    commands = &D_800EA46C[command];
+    count = D_800EA438[shape + 1] - command;
+
+    for (; count > 0; --count) {
+        command = *commands++;
+        switch ((command >> 14) & 3) {
+        case 0:
+            src = &D_800EA234[(command << 2) & 0x7C];
+            for (i = 0; i < 3; ++i) {
+                basis[i] = *src++;
+            }
+            for (i = 4; i < 11; ++i) {
+                basis[i] = 0;
+            }
+            j = (command >> 3) & 0x1C;
+            i = *src;
+            basis[(0x546465 >> j) & 0xF] = i;
+            basis[(0x8A998A >> j) & 0xF] = i;
+            i = (command >> 9) & 0x1C;
+            if (i == 0) {
+                i = 0x20;
+            }
+            index = func_800C0758((command >> 6) & 0x1C, i, index);
+            break;
+        case 1:
+            index = func_800C2368(command & 0x3FF, ((command >> 10) & 7) + 1, index);
+            break;
+        case 2:
+            src = &D_800EA2C4[command & 0x3FF];
+            command = ((command >> 10) & 7) + 2;
+            for (j = 0; j < 2; ++j) {
+                for (i = command; i > 0; --i) {
+                    vertices[index].xyz[0] = src[0];
+                    src[0] = -vertices[index].xyz[0];
+                    vertices[index].xyz[1] = src[1];
+                    vertices[index].xyz[2] = src[2];
+                    src[2] = -vertices[index].xyz[2];
+                    vertices[index].flags = 1;
+                    ++index;
+                    src += 3;
+                }
+                vertices[index - command].flags = 0;
+                src -= command * 3;
+            }
+            break;
+        }
+    }
+    D_800EB9B8->unk32 = index;
+}
 
 void* func_800C282C(void)
 {
@@ -440,49 +992,151 @@ void* func_800C282C(void)
     return (void*)0x1F800350;
 }
 
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/58578", func_800C28AC);
-
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/58578", func_800C2B0C);
-
-INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/58578", func_800C2E24);
-
-void func_800C4650(func_800C4650_t* arg0, int arg1)
+void func_800C28AC(SVECTOR* position, int arg1)
 {
+    int xy;
     int i;
+    int index;
+    int brightness;
+    u_long* prim;
+    u_long* ot = psx_get(vs_scratch.unk4) - 4;
+
+    gte_ldv0(position);
+    gte_rtps2();
+    gte_stsxy(&xy);
+
+    D_800EA6AC = (D_800EA6AC + 1) & 0xF;
+
+    if (arg1 == 0) {
+        prim = psx_get(vs_scratch.unk0);
+        prim[0] = (*ot & 0xFFFFFF) | 0x9000000;
+        prim[1] = 0x2C808080;
+        prim[2] = xy + 0xFFF7FFF3;
+        prim[3] = 0x37FD38F1;
+        prim[4] = xy + 0xFFF7FFFD;
+        prim[5] = 0xC38E7;
+        prim[6] = xy + 0xFFFEFFF3;
+        prim[7] = 0x3FF1;
+        prim[8] = xy + 0xFFFEFFFD;
+        prim[9] = 0x3FE7;
+        *ot = psx_to_int(u_long, prim);
+        prim += 10;
+        prim[0] = (*ot & 0xFFFFFF) | 0x9000000;
+        prim[1] = 0x2C808080;
+        prim[2] = xy + 0x1FFF3;
+        prim[3] = 0x37FD40F1;
+        prim[4] = xy + 0x1FFFD;
+        prim[5] = 0xC40E7;
+        prim[6] = xy + 0x8FFF3;
+        prim[7] = 0x47F1;
+        prim[8] = xy + 0x8FFFD;
+        prim[9] = 0x47E7;
+        *ot = psx_to_int(u_long, prim);
+        prim += 10;
+        psx_set(vs_scratch.unk0, prim);
+    }
+
+    for (i = 0; i < 3; ++i) {
+        index = i + arg1 * 2;
+        prim = vs_battle_setSpriteDefaultTexPage(
+            index == 2 ? vs_battle_cursorBrightnessAnimation[D_800EA6AC] : 0x80,
+            xy + D_800EA670[index], D_800EA684[index], ot);
+        prim[4] = D_800EA698[index];
+    }
+}
+
+int _getCollisionMapDimensions(int arg0);
+int func_800FA188(int x, int z, int* offset);
+int func_800A91DC(int, int, int);
+int func_8008DDA8(int x, int z);
+
+void func_800C2B0C(u_short* position, u_int row)
+{
+    int offset;
+    int width;
+    int height;
+    _mpdRoomSection3* room;
+    int column;
+    int tileX;
+    int tileZ;
+    int baseX;
+    int baseZ;
+    int x;
+    int z;
+    int dx;
+    int dz;
+    int height2;
+    int low;
+    int high;
+    int top;
+    int value;
     int type;
 
-    for (i = 0; i < arg1; i++, arg0++) {
-        type = arg0->unk9;
-        if ((type >> 4) == 0) {
-            if (func_800C1564(&D_800EB9B8->unk10, arg0->unk0)) {
-                func_8009FD5C(type, 0, arg0->unkA);
-            } else {
-                func_8009FE74(type, arg0->unkA);
+    if (row >= 9) {
+        return;
+    }
+    memset(&D_800EB9B8->unk4AB8[row * 9], 0, 9);
+    column = _getCollisionMapDimensions(0);
+    width = (column & 0xFFFF) >> 4;
+    height = column >> 20;
+
+    for (column = 0; column < 9; ++column) {
+        baseX = (short)position[0] >> 7;
+        tileX = column - 4;
+        x = baseX + tileX;
+        baseZ = (short)position[2] >> 7;
+        tileZ = row - 4;
+        z = baseZ + tileZ;
+        value = 0x10000;
+        if (((u_int)x < width) & ((u_int)z < height)) {
+            room = func_8008B764(x, z, 0);
+            if ((room->unk0_5 >> 1) & 1) {
+                value = 0xF0800000;
+                D_800EB9B8->unk4AB8[row * 9 + column] = 0;
+            } else if (room->unk0_10 < 5 || (room->unk0_18 >> 1)) {
+                func_800FA188(x, z, &offset);
+                if (offset != 0) {
+                    if (D_800F45E0[func_800A91DC(x, z, 0)]->unk6C[8].actorId < 2) {
+                        value = 0;
+                        offset += 0x20;
+                    } else {
+                        offset += 0x10;
+                    }
+                }
+                x <<= 7;
+                z <<= 7;
+                low = 0x4000;
+                high = -0x4000;
+                top = -0x4000;
+                for (dz = 0; dz < 0x80; dz += 0x20) {
+                    for (dx = 0; dx < 0x80; dx += 0x20) {
+                        height2 = func_8008DDA8(x + dx, z + dz);
+                        type = (height2 << 17) >> 17;
+                        type += offset;
+                        if (type < low) {
+                            low = type;
+                        }
+                        if (high < type) {
+                            high = type;
+                        }
+                        type = (height2 << 1) >> 17;
+                        if (top < type) {
+                            top = type;
+                        }
+                    }
+                }
+                if (value != 0) {
+                    value = low == high;
+                }
+                if ((u_int)(room->unk0_10 - 1) < 4) {
+                    low = high;
+                    D_800EB9B8->unk4AB8[row * 9 + column] = room->unk0_10 * 6;
+                }
+                value |= ((top + 0x30) << 17) | ((low & 0x7FFF) << 2);
             }
         }
+        D_800EB9B8->unk4370[row * 9 + column] = value;
     }
-}
-
-int vs_battle_mapStickDeadZone(int arg0)
-{
-    if (arg0 < 64) {
-        return arg0 - 64;
-    }
-    if (arg0 >= 192) {
-        return arg0 - 192;
-    }
-    return 0;
-}
-
-int func_800C4734(void)
-{
-    if ((D_800EB9B8 == NULL) || (D_800EB9B8->unk2A != 0)) {
-        return 0;
-    }
-    if ((D_800EB9B8->unk3E == 0) || (vs_main_buttonsState & 0x80)) {
-        return 1;
-    }
-    return 2;
 }
 
 INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/58578", D_80069860);

@@ -1,0 +1,41 @@
+{
+  "name": "Candle",
+  "category": "Fire",
+  "icon": "candle",
+  "description": "A small flame on a wick: warm, soft flicker, small soft shadows. Drop it on the candle, or select a game glow and use Add candle here (the glow's emission then flickers with it).",
+  "placement": { "align": "up", "surface_offset": 0, "fixture_radius": 14 },
+  "params": [
+    { "key": "temperature", "label": "Colour temperature", "group": "Light", "type": "float", "default": 1900, "min": 1000, "max": 12000, "unit": "K" },
+    { "key": "tint", "label": "Tint", "group": "Light", "type": "color", "default": [1, 1, 1] },
+    { "key": "intensity", "label": "Intensity", "group": "Light", "type": "float", "default": 0.9, "min": 0, "max": 6 },
+    { "key": "radius", "label": "Radius", "group": "Light", "type": "float", "default": 360, "min": 32, "max": 2048, "log": true },
+    { "key": "flame_height", "label": "Flame height", "group": "Light", "type": "float", "default": 10, "min": -64, "max": 128, "unit": "u", "tooltip": "Above the pivot (the base of the candle)" },
+    { "key": "flicker", "label": "Flicker amount", "group": "Animation", "type": "float", "default": 0.18, "min": 0, "max": 1 },
+    { "key": "flicker_speed", "label": "Flicker speed", "group": "Animation", "type": "float", "default": 7, "min": 0.1, "max": 30, "unit": "Hz", "log": true },
+    { "key": "jitter", "label": "Flame sway", "group": "Animation", "type": "float", "default": 1.5, "min": 0, "max": 16, "unit": "u", "tooltip": "How far the light wanders around the flame" },
+    { "key": "shadows", "label": "Casts shadows", "group": "Shadows", "type": "bool", "default": true },
+    { "key": "light_size", "label": "Light size (softness)", "group": "Shadows", "type": "float", "default": 2, "min": 0.5, "max": 32, "unit": "u", "log": true },
+    { "key": "glow_mode", "label": "Linked glow", "group": "Glow", "type": "enum", "options": ["Leave", "Drive", "Suppress"], "default": "Drive", "tooltip": "Drive: the game glow's emission flickers with this light. Suppress: the glow adds no light (this actor replaces it)." },
+    { "key": "glow_intensity", "label": "Glow emission", "group": "Glow", "type": "float", "default": 1, "min": 0, "max": 4 }
+  ],
+  "lights": [
+    {
+      "name": "Flame",
+      "type": "point",
+      "offset": [0, "-flame_height", 0],
+      "color": "kelvin(temperature) * tint",
+      "intensity": "intensity",
+      "radius": "radius",
+      "shadows": "shadows",
+      "light_size": "light_size",
+      "flicker": "flicker",
+      "flicker_speed": "flicker_speed",
+      "jitter": "jitter"
+    }
+  ],
+  "glow": {
+    "mode": "glow_mode",
+    "scale": "glow_intensity",
+    "suggest": { "hue": "warm", "max_size": 4.5, "priority": 1, "flames": true, "flame_max": 3 }
+  }
+}

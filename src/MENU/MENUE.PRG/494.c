@@ -383,17 +383,22 @@ static int _showMenu(void)
             }
         }
         s0 = (u_long**)getScratchAddr(0);
-        vs_mainmenu_renderButton(buttonIdSquare, 8, 16, s0[1] + 6);
-        vs_battle_renderTextRawColor("TURN    PAGE", 0x12001C, 0x808080, s0[1] + 6);
+        vs_mainmenu_renderButton(buttonIdSquare, 8, 16, psx_slot_get(u_long*, s0, 1) + 6);
+        vs_battle_renderTextRawColor(
+            "TURN    PAGE", 0x12001C, 0x808080, psx_slot_get(u_long*, s0, 1) + 6);
         _drawControlsBg(0x10, 0x12, 0x60, 0xC);
-        vs_mainmenu_renderButton(buttonIdCircle, 8, 34, s0[1] + 6);
-        vs_battle_renderTextRawColor("MENU", 0x24001C, 0x808080, s0[1] + 6);
+        vs_mainmenu_renderButton(buttonIdCircle, 8, 34, psx_slot_get(u_long*, s0, 1) + 6);
+        vs_battle_renderTextRawColor(
+            "MENU", 0x24001C, 0x808080, psx_slot_get(u_long*, s0, 1) + 6);
         _drawControlsBg(0x10, 0x24, 0x40, 0xC);
-        vs_battle_renderTextRawColor("PAGE", 0xC400D8, 0x808080, s0[1] + 7);
+        vs_battle_renderTextRawColor(
+            "PAGE", 0xC400D8, 0x808080, psx_slot_get(u_long*, s0, 1) + 7);
         sprintf(charBuf, "#%d/", currentPage + 1);
-        vs_battle_renderTextRawColor(charBuf, 0xC40118, 0x808080, s0[1] + 7);
+        vs_battle_renderTextRawColor(
+            charBuf, 0xC40118, 0x808080, psx_slot_get(u_long*, s0, 1) + 7);
         sprintf(charBuf, "#%d", lastPage + 1);
-        vs_battle_renderTextRawColor(charBuf, 0xC40130, 0x808080, s0[1] + 7);
+        vs_battle_renderTextRawColor(
+            charBuf, 0xC40130, 0x808080, psx_slot_get(u_long*, s0, 1) + 7);
         vs_battle_manualDisplayState
             .scrollPositions[vs_battle_manualDisplayState.currentManual] =
             _scrollPosition;
@@ -584,10 +589,10 @@ static void _drawContent(void)
     void** q;
     void** p = (void**)getScratchAddr(0);
 
-    area = p[0];
+    area = psx_slot_get(void*, p, 0);
     SetDrawArea(area, &vs_main_drawEnv[(vs_main_frameBuf + 1) & 1].clip);
-    AddPrim(p[1], area++);
-    p[0] = area;
+    AddPrim(psx_slot_get(void*, p, 1), area++);
+    psx_slot_set(void*, p, 0, area);
 
     _drawContentLines();
 
@@ -610,10 +615,10 @@ static void _drawContent(void)
     rect.h = 130;
 
     q = (void**)getScratchAddr(0);
-    area = q[0];
+    area = psx_slot_get(void*, q, 0);
     SetDrawArea(area, &rect);
-    AddPrim(q[1], area++);
-    q[0] = area;
+    AddPrim(psx_slot_get(void*, q, 1), area++);
+    psx_slot_set(void*, q, 0, area);
 }
 
 static inline int _min(int arg0, int arg1)
@@ -684,7 +689,7 @@ static void _drawSprite(short* data)
                 continue;
             }
 
-            sprite = *((void**)0x1F800000);
+            sprite = psx_slot_get(void*, 0x1F800000, 0);
             setSprt(sprite);
             setShadeTex(sprite, 1);
             sprite->clut = clutPacked;
@@ -706,8 +711,8 @@ static void _drawSprite(short* data)
             setWH(sprite, spriteW, spriteH);
 
             scratch = (void*)getScratchAddr(0);
-            AddPrim(scratch[1], sprite++);
-            scratch[0] = (void*)sprite;
+            AddPrim(psx_slot_get(u_long*, scratch, 1), sprite++);
+            psx_slot_set(u_long*, scratch, 0, (void*)sprite);
             _insertTPage(0, tPage);
         }
     }
@@ -718,7 +723,7 @@ static void _setPageBg(int x, int y, int w, int h, int color)
     POLY_G4* poly;
     u_long** p;
 
-    poly = *(POLY_G4**)getScratchAddr(0);
+    poly = psx_slot_get(POLY_G4*, getScratchAddr(0), 0);
     setPolyG4(poly);
     setXY4(poly, x, y, (x + w) - 1, y, x, (y + h) - 1, (x + w) - 1, (y + h) - 1);
     setRGB0(poly, _colorStops0[color].r0, _colorStops0[color].g0, _colorStops0[color].b0);
@@ -727,8 +732,8 @@ static void _setPageBg(int x, int y, int w, int h, int color)
     setRGB3(poly, _colorStops1[color].r0, _colorStops1[color].g0, _colorStops1[color].b0);
 
     p = (u_long**)getScratchAddr(0);
-    AddPrim(p[1] + 7, poly++);
-    p[0] = (u_long*)poly;
+    AddPrim(psx_slot_get(u_long*, p, 1) + 7, poly++);
+    psx_slot_set(u_long*, p, 0, (u_long*)poly);
     _insertTPage(7, getTPage(0, 3, 0, 0));
 }
 
@@ -758,7 +763,7 @@ static void _fadeMenuUpper(void)
     } while (var_v0 != (_menuBgTransparencies + 4));
 
     _drawPaginationArrow(arrowTypeUp);
-    poly = *(void**)getScratchAddr(0);
+    poly = psx_slot_get(void*, getScratchAddr(0), 0);
 
     for (i = 0; i < 16; ++i) {
         for (j = 0; j < 3; ++j) {
@@ -770,7 +775,7 @@ static void _fadeMenuUpper(void)
             poly->tpage = (j + 32) | 128 | (640 >> 6) | (256 >> 4);
             setSemiTrans(poly, 1);
             setRGB0(poly, transparency[i], transparency[i], transparency[i]);
-            AddPrim(*(u_long**)getScratchAddr(1) - 7, poly++);
+            AddPrim(psx_slot_get(u_long*, getScratchAddr(1), 0) - 7, poly++);
         }
     }
 
@@ -781,10 +786,10 @@ static void _fadeMenuUpper(void)
         setXY0(&tile[i], 0, i + 52);
         setWH(&tile[i], 320, 1);
         setRGB0(&tile[i], transparency[i], transparency[i], transparency[i]);
-        AddPrim(*(u_long**)getScratchAddr(1) - 7, &tile[i]);
+        AddPrim(psx_slot_get(u_long*, getScratchAddr(1), 0) - 7, &tile[i]);
     }
 
-    *(void**)getScratchAddr(0) = (void*)poly + 16 * sizeof(TILE);
+    psx_slot_set(void*, getScratchAddr(0), 0, (void*)poly + 16 * sizeof(TILE));
     _insertTPage(-7, getTPage(0, 2, 0, 0));
 }
 
@@ -810,7 +815,7 @@ static void _fadeMenuLower(void)
 
     _drawPaginationArrow(arrowTypeDown);
 
-    poly = *(void**)getScratchAddr(0);
+    poly = psx_slot_get(void*, getScratchAddr(0), 0);
 
     for (i = 0; i < 16; ++i) {
         for (j = 0; j < 3; ++j) {
@@ -822,7 +827,7 @@ static void _fadeMenuLower(void)
             poly->tpage = (j + 32) | 128 | (640 >> 6) | (256 >> 4);
             setSemiTrans(poly, 1);
             setRGB0(poly, transparency[i], transparency[i], transparency[i]);
-            AddPrim(*(u_long**)getScratchAddr(1) - 7, poly++);
+            AddPrim(psx_slot_get(u_long*, getScratchAddr(1), 0) - 7, poly++);
         }
     }
 
@@ -834,10 +839,10 @@ static void _fadeMenuLower(void)
         setXY0(&tile[i], 0, 0xBB - i);
         setWH(&tile[i], 320, 1);
         setRGB0(&tile[i], transparency[i], transparency[i], transparency[i]);
-        AddPrim(*(u_long**)getScratchAddr(1) - 7, &tile[i]);
+        AddPrim(psx_slot_get(u_long*, getScratchAddr(1), 0) - 7, &tile[i]);
     }
 
-    *(void**)getScratchAddr(0) = (void*)poly + 16 * sizeof(TILE);
+    psx_slot_set(void*, getScratchAddr(0), 0, (void*)poly + 16 * sizeof(TILE));
     _insertTPage(-7, getTPage(0, 2, 0, 0));
 }
 
@@ -862,7 +867,7 @@ static void _drawPaginationArrow(enum arrowType_e arrowType)
         }
     }
 
-    poly = (POLY_FT4*)*getScratchAddr(0);
+    poly = psx_to_ptr(POLY_FT4*, *getScratchAddr(0));
     setPolyFT4(poly);
     setShadeTex(poly, 1);
     setXY4(poly, 152, y, 168, y, 152, y + 16, 168, y + 16);
@@ -876,8 +881,8 @@ static void _drawPaginationArrow(enum arrowType_e arrowType)
         setClut(poly, 912, 223);
     }
     p = (u_long**)getScratchAddr(0);
-    AddPrim(p[1] - 7, poly++);
-    p[0] = (void*)poly;
+    AddPrim(psx_slot_get(u_long*, p, 1) - 7, poly++);
+    psx_slot_set(u_long*, p, 0, (void*)poly);
 }
 
 static void _drawContentLines(void)
@@ -895,7 +900,7 @@ static void _drawContentLines(void)
         return;
     }
 
-    line = *(LINE_F2**)getScratchAddr(0);
+    line = psx_slot_get(LINE_F2*, getScratchAddr(0), 0);
 
     spriteOffset = _helpText[0];
     if (spriteOffset < 0) {
@@ -931,10 +936,10 @@ static void _drawContentLines(void)
             continue;
         }
         if (((line->y0 < 186) || (line->y1 < 186)) && ((animationState << 16) == 0)) {
-            AddPrim(*(void**)getScratchAddr(1), line++);
+            AddPrim(psx_slot_get(void*, getScratchAddr(1), 0), line++);
         }
     }
-    *(void**)getScratchAddr(0) = line;
+    psx_slot_set(void*, getScratchAddr(0), 0, line);
 }
 
 static short _getAnimationState(AnimationState_t* state)
@@ -967,13 +972,13 @@ static void _drawControlsBg(int x, int y, int w, int h)
     POLY_F4* poly;
     u_long** p;
 
-    line = (LINE_G2*)*getScratchAddr(0);
+    line = psx_to_ptr(LINE_G2*, *getScratchAddr(0));
     for (i = y, j = w; i < (y + h) - 1; ++i, --j) {
         setLineG2(line);
         setXY2(line, x, i, (x + j) - 1, i);
         setRGB0(line, 64, 56, 32);
         setRGB1(line, 16, 16, 8);
-        AddPrim(*(u_long**)getScratchAddr(1) + 7, line++);
+        AddPrim(psx_slot_get(u_long*, getScratchAddr(1), 0) + 7, line++);
     }
     x += 2;
     y += 2;
@@ -983,6 +988,6 @@ static void _drawControlsBg(int x, int y, int w, int h)
     setRGB0(poly, 0, 0, 0);
 
     p = (u_long**)getScratchAddr(0);
-    AddPrim(p[1] + 7, poly);
-    p[0] = (u_long*)(poly + 1);
+    AddPrim(psx_slot_get(u_long*, p, 1) + 7, poly);
+    psx_slot_set(u_long*, p, 0, (u_long*)(poly + 1));
 }

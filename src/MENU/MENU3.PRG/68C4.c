@@ -119,7 +119,7 @@ void _populateDataSlot(int wepId, int material)
     objData.dataType = 3;
     objData.index = index;
     objData.modelId = wepId;
-    objData.unk4 = vs_battle_characterState->unk48[index];
+    psx_set(objData.unk4, psx_get(vs_battle_characterState->unk48[index]));
     objData.actorId = 0;
     objData.unk11 = var_a3;
     objData.material = material;

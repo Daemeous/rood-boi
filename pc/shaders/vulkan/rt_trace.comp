@@ -1,0 +1,259 @@
+#version 460
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_ray_query : require
+// Path-traced indirect light, shadow visibility, baked-light visibility,
+// light from the glows (small spherical area lights, shadowed when glow
+// shadows are on) and the lighting signature per GI pixel (ptgi.c's trace pass, with
+// hardware ray queries instead of the CPU-built BVH).
+layout(local_size_x = 8, local_size_y = 8) in;
+#include "rt_lights.glsl"
+#include "rt_common.glsl"
+layout(binding = 4, rgba32f) uniform readonly image2D position_in; // world xyz, w 1 = surface, 2 = moving
+layout(binding = 5, rgba16f) uniform readonly image2D normal_in;
+layout(binding = 6, rgba16f) uniform writeonly image2D gi_out;
+layout(binding = 7, rgba16f) uniform writeonly image2D extra_out; // r: baked light visibility, gba glow light
+layout(binding = 8, r32ui) uniform writeonly uimage2D signature_out;
+layout(binding = 10, r16f) uniform writeonly image2D hit_out; // mean first-bounce hit distance (NRD)
+// A moving blocker (character, prop) shadowed this pixel's visibility or
+// baked-light visibility: its history is kept short (signature bit 31).
+bool touched = false;
+vec3 cosine_direction(vec3 n) {
+    float r1 = rand(), r2 = rand(), phi = 6.2831853 * r1, s = sqrt(r2);
+    vec3 t = normalize(cross(abs(n.y) < 0.9 ? vec3(0, 1, 0) : vec3(1, 0, 0), n)), b = cross(n, t);
+    return normalize(t * cos(phi) * s + b * sin(phi) * s + n * sqrt(1.0 - r2));
+}
+// A point in emitter i's emitting sphere.
+vec3 emitter_point(int i) {
+    vec3 r = vec3(rand(), rand(), rand()) * 2.0 - 1.0;
+    return emitter_pos[i].xyz + normalize(r + 1e-4) * pow(rand(), 0.333) * abs(emitter_col[i].w);
+}
+float emitter_falloff(int i, vec3 p, vec3 n, out vec3 l, out float d) {
+    vec3 to = emitter_point(i) - p; d = length(to); l = to / max(d, 1e-3);
+    float x = clamp(d / emitter_pos[i].w, 0.0, 1.0);
+    return (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);
+}
+// Light from the emitters, shadowed by everything: one glow, picked in
+// proportion to its unshadowed light.
+vec3 emitted(vec3 p, vec3 n) {
+    if (emitter_light <= 0.0 || emitter_count == 0) return vec3(0.0);
+    float weights[32]; float all_ = 0.0;
+    for (int i = 0; i < emitter_count; i++) {
+        weights[i] = 0.0;
+        if (emitter_col[i].w < 0.0) continue; // a baked light: already in the vertex colours
+        vec3 to = emitter_pos[i].xyz - p; float d = length(to);
+        float x = clamp(d / emitter_pos[i].w, 0.0, 1.0);
+        weights[i] = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, to / max(d, 1e-3)), 0.0) * dot(emitter_col[i].rgb, vec3(0.299, 0.587, 0.114));
+        all_ += weights[i];
+    }
+    if (all_ <= 0.0) return vec3(0.0);
+    float pick = rand() * all_; int i = 0;
+    for (; i < emitter_count - 1; i++) { pick -= weights[i]; if (pick <= 0.0 && weights[i] > 0.0) break; }
+    if (weights[i] <= 0.0) return vec3(0.0);
+    vec3 l; float d, th; int hit; vec2 bc;
+    float a = emitter_falloff(i, p, n, l, d);
+    if (a <= 0.0) return vec3(0.0);
+    if (glow_shadows != 0 && glow_casts_shadow(i) && trace(p + n * 1.5, l, d - emitter_col[i].w - 2.0, true, n, 0.0, th, hit, bc)) {
+        touched = touched || hit >= MOVER_BIT;
+        return vec3(0.0);
+    }
+    return emitter_col[i].rgb * a * emitter_light * all_ / weights[i];
+}
+// Direct light from the dynamic lights at a world point, with shadow rays.
+vec3 direct(vec3 p, vec3 n) {
+    vec3 sum = vec3(0.0);
+    for (int i = 0; i < light_count; i++) {
+        vec3 centre = light_pos[i].xyz;
+        if (light_col[i].w > 1.5) {
+            vec3 rr = light_right[i].xyz, ru = light_up[i].xyz;
+            centre += rr * (rand() * 2.0 - 1.0) + ru * (rand() * 2.0 - 1.0);
+        } else {
+            centre += (vec3(rand(), rand(), rand()) - 0.5) * 2.0 * point_size(i);
+        }
+        vec3 to = centre - p; float d = length(to); vec3 l = to / max(d, 1e-3);
+        float x = clamp(d / light_pos[i].w, 0.0, 1.0);
+        float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);
+        if (light_col[i].w > 1.5) a *= max(dot(-l, light_dir[i].xyz), 0.0);
+        else if (light_col[i].w > 0.5) a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));
+        if (a <= 0.0) continue;
+        float th; int hit; vec2 bc;
+        if (trace(p + n * 1.5, l, d - max(3.0, light_up[i].w), true, n, 0.0, th, hit, bc)) continue;
+        sum += light_col[i].rgb * a;
+    }
+    return sum + emitted(p, n);
+}
+// Shadow visibility of the shadow-casting lights at a G-buffer surface:
+// each light's unshadowed contribution weights its traced visibility.
+float visibility(vec3 p, vec3 n) {
+    float lit = 0.0, all_ = 0.0;
+    for (int j = 0; j < light_count * shadow_samples; j++) {
+        int i = j / shadow_samples;
+        if (light_shadow(i) == 0) continue;
+        vec3 centre = light_pos[i].xyz;
+        vec3 to = centre - p; float d = length(to); vec3 l = to / max(d, 1e-3);
+        float x = clamp(d / light_pos[i].w, 0.0, 1.0);
+        float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);
+        if (light_col[i].w > 1.5) a *= max(dot(-l, light_dir[i].xyz), 0.0);
+        else if (light_col[i].w > 0.5) a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));
+        float w = a * dot(light_col[i].rgb, vec3(0.299, 0.587, 0.114));
+        if (w <= 0.0) continue;
+        if (light_col[i].w > 1.5) centre += light_right[i].xyz * (rand() * 2.0 - 1.0) + light_up[i].xyz * (rand() * 2.0 - 1.0);
+        else {
+            vec3 r = vec3(rand(), rand(), rand()) * 2.0 - 1.0;
+            centre += normalize(r + 1e-4) * pow(rand(), 0.333) * point_size(i);
+        }
+        to = centre - p; d = length(to); l = to / max(d, 1e-3);
+        float th; int hit; vec2 bc;
+        bool blocked = dot(n, l) <= 0.0;
+        if (!blocked && trace(p, l, d - max(3.0, light_up[i].w), true, n, 16.0, th, hit, bc)) {
+            blocked = true;
+            touched = touched || hit >= MOVER_BIT;
+        }
+        all_ += w; lit += blocked ? 0.0 : w;
+    }
+    return all_ > 0.0 ? lit / all_ : 1.0;
+}
+// How much of the baked light reaches p past characters and props: their
+// contact occlusion, and their shadows from the emitters. 1 = all of it.
+float baked_visibility(vec3 p, vec3 n, vec3 skip_n) {
+    moving_only = true;
+    float occlusion = 0.0;
+    for (int k = 0; k < 2; k++) {
+        float t; int hit; vec2 bc;
+        if (contact_radius > 0.0 && trace(p, cosine_direction(n), contact_radius, false, skip_n, 0.0, t, hit, bc)) {
+            occlusion += 1.0 - 0.5 * t / contact_radius;
+            touched = true;
+        }
+    }
+    float ao = 1.0 - 0.5 * occlusion;
+    float weights[32]; float all_ = 0.0;
+    for (int i = 0; i < emitter_count; i++) {
+        vec3 to = emitter_pos[i].xyz - p; float d = length(to);
+        if (emitter_col[i].w >= 0.0 && (glow_shadows == 0 || !glow_casts_shadow(i))) { weights[i] = 0.0; continue; }
+        float x = clamp(d / emitter_pos[i].w, 0.0, 1.0);
+        weights[i] = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, to / max(d, 1e-3)), 0.0) * dot(emitter_col[i].rgb, vec3(0.299, 0.587, 0.114));
+        all_ += weights[i];
+    }
+    float shadowed = 0.0;
+    if (all_ > 0.0) {
+        for (int k = 0; k < shadow_samples; k++) {
+            float pick = rand() * all_; int i = 0;
+            for (; i < emitter_count - 1; i++) { pick -= weights[i]; if (pick <= 0.0) break; }
+            vec3 l; float d, th; int hit; vec2 bc;
+            if (emitter_falloff(i, p, n, l, d) > 0.0 && trace(p, l, d - abs(emitter_col[i].w), true, skip_n, 0.0, th, hit, bc)) {
+                shadowed += 1.0;
+                touched = true;
+            }
+        }
+        shadowed /= float(shadow_samples);
+    }
+    moving_only = false;
+    float near = all_ / (all_ + 0.1);
+    return ao * (1.0 - (1.0 - baked_ambient) * near * shadowed);
+}
+// The lighting signature: noise-free centre rays to the shadow-casting
+// lights and (for the baked light) the emitters, one bit each.
+uint lighting_signature(vec3 p, vec3 n) {
+    uint sig = 0u; int bit = 0;
+    for (int i = 0; i < light_count && bit < 12; i++) {
+        if (light_shadow(i) == 0) continue;
+        vec3 to = light_pos[i].xyz - p; float d = length(to);
+        float th; int hit; vec2 bc;
+        if (d < light_pos[i].w && dot(n, to) > 0.0) {
+            if (!trace(p, to / max(d, 1e-3), d - max(3.0, light_up[i].w), true, n, 16.0, th, hit, bc)) sig |= 1u << bit;
+            else touched = touched || hit >= MOVER_BIT;
+        }
+        bit++;
+    }
+    if (baked_shadows != 0) {
+        moving_only = true;
+        for (int i = 0; i < emitter_count && bit < 18; i++) {
+            vec3 to = emitter_pos[i].xyz - p; float d = length(to);
+            if (d >= emitter_pos[i].w || dot(n, to) <= 0.0 || !glow_casts_shadow(i)) continue;
+            bit++;
+            float th; int hit; vec2 bc;
+            if (!trace(p, to / max(d, 1e-3), d - abs(emitter_col[i].w), true, n, 0.0, th, hit, bc))
+                sig |= 1u << bit;
+        }
+        moving_only = false;
+    }
+    return sig;
+}
+// Ambient occlusion of the room's (baked and indirect) light by everything
+// within ao_radius (lighting quality "ao" with ray tracing): two short
+// cosine rays per update, accumulated with the baked-light visibility.
+float traced_ao(vec3 p, vec3 n) {
+    float occlusion = 0.0;
+    for (int k = 0; k < 2; k++) {
+        float t; int hit; vec2 bc;
+        if (trace(p, cosine_direction(n), ao_radius, false, n, 0.0, t, hit, bc))
+            occlusion += 1.0 - t / ao_radius;
+    }
+    return 1.0 - ao_strength * 0.5 * occlusion;
+}
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy), size = imageSize(gi_out);
+    if (any(greaterThanEqual(g, size))) return;
+    vec4 pw = imageLoad(position_in, g);
+    if (pw.w < 0.5) {
+        imageStore(gi_out, g, vec4(0.0, 0.0, 0.0, 1.0));
+        imageStore(extra_out, g, vec4(1.0, 0.0, 0.0, 0.0));
+        imageStore(signature_out, g, uvec4(0u));
+        imageStore(hit_out, g, vec4(0.0));
+        return;
+    }
+    vec3 p = pw.xyz, n = imageLoad(normal_in, g).xyz;
+    float z = distance(p, eye);
+    rng = uint(g.x) * 1973u + uint(g.y) * 9277u + frame * 26699u;
+    float lift = 2.0 + z * 0.002; // off the surface, more with distance (depth precision)
+    if (trace_debug == 1) { imageStore(gi_out, g, vec4(n * 0.5 + 0.5, 1.0)); return; }
+    if (trace_debug == 3) { imageStore(gi_out, g, vec4(fract(p / 256.0), 1.0)); return; }
+    if (trace_debug == 2) {
+        float t; int hit; vec2 bc;
+        bool any_ = trace(p + n * lift, cosine_direction(n), 8192.0, false, n, 16.0, t, hit, bc);
+        imageStore(gi_out, g, any_ ? (t < 8.0 ? vec4(1, 0, 0, 1) : vec4(vec3(t / 1024.0), 1.0)) : vec4(0, 0, 1, 1));
+        return;
+    }
+    vec3 total = vec3(0.0);
+    float hit_sum = 0.0, hit_count = 0.0;
+    float vis = shadows != 0 ? visibility(p + n * lift, n) : 1.0;
+    for (int r = 0; r < (indirect != 0 ? rays : 0); r++) {
+        vec3 o = p + n * lift, nrm = n, throughput = vec3(1.0);
+        for (int b = 0; b < bounces; b++) {
+            vec3 d = cosine_direction(nrm);
+            float t; int hit; vec2 bc;
+            if (!trace(o, d, 8192.0, false, nrm, b == 0 ? 16.0 : 0.0, t, hit, bc)) break;
+            if (b == 0) { hit_sum += t; hit_count += 1.0; }
+            Tri tri = tri_at(hit);
+            vec3 y = o + d * t;
+            vec3 ny = normalize(cross(tri.b.xyz - tri.a.xyz, tri.c.xyz - tri.a.xyz));
+            if (dot(ny, d) > 0.0) ny = -ny;
+            vec3 vc = vertex_rgb(tri.a.w) * (1.0 - bc.x - bc.y) + vertex_rgb(tri.b.w) * bc.x + vertex_rgb(tri.c.w) * bc.y;
+            vec3 albedo = vc;
+            if ((tri.info.w & 1u) != 0u) {
+                uint c = surface_texel(tri, bc);
+                albedo = vec3(c & 31u, (c >> 5) & 31u, (c >> 10) & 31u) / 31.0;
+            }
+            vec3 baked = (tri.info.w & 2u) != 0u ? albedo : min(albedo * vc * 2.0, 1.0);
+            total += throughput * (albedo * direct(y + ny * 0.5, ny) + baked * baked_bounce);
+            throughput *= albedo;
+            o = y + ny * 1.0; nrm = ny;
+        }
+    }
+    vec3 gi = total / float(max(rays, 1));
+    vec3 glow = emitted(p + n * lift, n);
+    if (any(isnan(gi)) || any(isinf(gi))) gi = vec3(0.0);
+    if (isnan(vis) || isinf(vis)) vis = 1.0;
+    imageStore(gi_out, g, vec4(gi, vis));
+    imageStore(hit_out, g, vec4(hit_count > 0.0 ? min(hit_sum / hit_count, 65000.0) : 0.0));
+
+    // Characters and props carry the game's own per-frame lighting, not the
+    // room's baked light: only room surfaces take its visibility.
+    bool moving_surface = pw.w > 1.5;
+    float bvis = baked_shadows != 0 && !moving_surface ? baked_visibility(p + n * lift, n, n) : 1.0;
+    if (ao_radius > 0.0 && !moving_surface) bvis *= traced_ao(p + n * lift, n);
+    if (isnan(bvis) || isinf(bvis)) bvis = 1.0;
+    if (any(isnan(glow)) || any(isinf(glow))) glow = vec3(0.0);
+    imageStore(extra_out, g, vec4(bvis, glow));
+    uint sig = lighting_signature(p + n * lift, n);
+    imageStore(signature_out, g, uvec4(sig | (touched ? 0x80000000u : 0u)));
+}

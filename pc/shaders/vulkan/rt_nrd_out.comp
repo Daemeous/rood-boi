@@ -1,0 +1,24 @@
+#version 450
+// NRD's denoised irradiance into the GI result the present pass reads
+// (vk_rt.inc): rgb indirect light (the result's alpha, shadow visibility,
+// stays our filter's); when the glows' light went through NRD with it, the
+// extra term's glow light (gba) becomes 0 so it is not added twice.
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(push_constant) uniform Push {
+    int with_glow;
+    float inverse_scale; // undoes rt_nrd_in's radiance scale
+    int unused1, unused2;
+} pc;
+layout(binding = 0, rgba16f) uniform readonly image2D denoised;
+layout(binding = 1, rgba32f) uniform readonly image2D position;
+layout(binding = 2, rgba16f) uniform image2D result;
+layout(binding = 3, rgba16f) uniform image2D result_extra;
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy), size = imageSize(result);
+    if (any(greaterThanEqual(g, size))) return;
+    if (imageLoad(position, g).w < 0.5) return; // neutral already (no surface)
+    vec3 light = imageLoad(denoised, g).rgb * pc.inverse_scale;
+    if (any(isnan(light)) || any(isinf(light))) light = vec3(0.0);
+    imageStore(result, g, vec4(max(light, vec3(0.0)), imageLoad(result, g).a));
+    if (pc.with_glow != 0) imageStore(result_extra, g, vec4(imageLoad(result_extra, g).r, 0.0, 0.0, 0.0));
+}

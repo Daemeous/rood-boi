@@ -1,5 +1,10 @@
 #pragma once
 
+#ifdef ROOD_PC
+void pc_insert_tpage(int after, int tpage);
+#define _insertTPage(after, arg1) pc_insert_tpage((after), (arg1))
+#else
+
 #define _insertTPage(after, arg1)                                                        \
     __asm__("scratch = $t3;"                                                             \
             "tpageOp = $t4;"                                                             \
@@ -30,3 +35,5 @@
             :                                                                            \
             : "r"(after), "r"(arg1)                                                      \
             : "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7")
+
+#endif

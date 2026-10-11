@@ -72,6 +72,6 @@ void _initScriptFunctionTable(void)
     D_800F4BE2 = 0;
     D_800F4C30 = vs_main_allocHeap(0x1800);
     D_800F4C48 = vs_main_allocHeap(0x80);
-    D_800F4C28 = vs_main_allocHeap(0x400);
-    vs_main_memcpy(D_800F4C28, D_800FAF7C, 0x400);
+    D_800F4C28 = vs_main_allocHeap(PSX_SIZE(__typeof__(D_800FAF7C), 0x400));
+    vs_main_memcpy(D_800F4C28, D_800FAF7C, PSX_SIZE(__typeof__(D_800FAF7C), 0x400));
 }

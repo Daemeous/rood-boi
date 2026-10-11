@@ -1,0 +1,63 @@
+#version 460
+#extension GL_GOOGLE_include_directive : require
+// Probe GI per-probe state, one invocation per probe, after the trace:
+//
+// - Relocation (PV_RELOCATE, the first updates after a room change, as
+//   DDGI): a probe seeing many back faces is inside geometry and moves
+//   through the nearest one; a probe too close to a front face moves away
+//   from it. The offset stays within pv_relocate.z of the spacing.
+// - Classification (PV_CLASSIFY, when relocation ends): inactive when still
+//   inside geometry, or when no surface lies within its cell's diagonal (it
+//   lights nothing); inactive probes are neither traced nor sampled.
+// - Light scale (every update): the probes are traced at the lights' base
+//   intensities; animated lights (flicker, pulse) scale each probe's light
+//   by the mean of their current / base intensity weighted by their
+//   unshadowed reach at the probe, so the bounce flickers with the direct
+//   light without smearing through the hysteresis. Written with the offset
+//   to probe_data (w: the scale, 0 when inactive) for the lookups.
+layout(local_size_x = 64) in;
+#include "rt_lights.glsl"
+#include "probe_update.glsl"
+layout(binding = 4, rgba16f) uniform readonly image2D rays_in;
+layout(binding = 7, rgba32f) uniform writeonly image2D data_out;
+void main() {
+    int p = int(gl_GlobalInvocationID.x), n_rays = pv_info.y;
+    if (p >= pv_info.x) return;
+    vec4 s = probe_state[p];
+    if ((pv_info.w & (PV_RELOCATE | PV_CLASSIFY)) != 0) {
+        int backfaces = 0;
+        float back_t = 1e30, front_t = 1e30;
+        vec3 back_dir = vec3(0.0), front_dir = vec3(0.0);
+        for (int r = 0; r < n_rays; r++) {
+            float t = imageLoad(rays_in, ivec2(r, p)).w;
+            if (t < 0.0) {
+                backfaces++;
+                if (-5.0 * t < back_t) { back_t = -5.0 * t; back_dir = probe_ray_direction(r, n_rays); }
+            } else if (t < front_t) { front_t = t; front_dir = probe_ray_direction(r, n_rays); }
+        }
+        bool inside = float(backfaces) > pv_relocate.y * float(n_rays);
+        if ((pv_info.w & PV_RELOCATE) != 0) {
+            vec3 offset = s.xyz;
+            float min_front = pv_relocate.x;
+            if (inside) offset += back_dir * (back_t + min_front * 0.5); // through the nearest back face
+            else if (front_t < min_front) offset -= front_dir * (min_front - front_t); // away from a close wall
+            vec3 limit = pv_spacing.xyz * pv_relocate.z;
+            s.xyz = clamp(offset, -limit, limit);
+            s.w = 1.0;
+        }
+        if ((pv_info.w & PV_CLASSIFY) != 0)
+            s.w = !inside && front_t < length(pv_spacing.xyz) ? 1.0 : 0.0;
+        probe_state[p] = s;
+    }
+    // Animated lights: this probe's share of their current intensity.
+    float sum = 0.0, weights = 0.0;
+    vec3 at = probe_grid_position(probe_coords(p)) + s.xyz;
+    for (int i = 0; i < pv_bvh.z; i++) {
+        float x = clamp(distance(at, light_pos[i].xyz) / max(light_pos[i].w, 1.0), 0.0, 1.0);
+        float w = (1.0 - x * x) * (1.0 - x * x) * pv_flicker[i].x;
+        sum += w * pv_flicker[i].y;
+        weights += w;
+    }
+    float scale = weights > 1e-6 ? sum / weights : 1.0;
+    imageStore(data_out, probe_tile(p), vec4(s.xyz, s.w > 0.0 ? max(scale, 1e-4) : 0.0));
+}

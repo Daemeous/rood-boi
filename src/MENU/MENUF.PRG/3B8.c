@@ -558,6 +558,11 @@ enum disIndices {
     disIndexEsc0Chicken = 125,
 };
 
+#ifdef ROOD_PC
+/* texture_t.h declares _disMap extern; old GCC lets this static override it,
+ * modern GCC does not, so the file-local table gets its own name on PC. */
+#define _disMap _menuF_disMap
+#endif
 static _texture_t _disMap[] = {
     { 0, 0, 14, 20, getTPage(0, 0, 832, 256), getClut(768, 511) },
     { 14, 0, 14, 20, getTPage(0, 0, 832, 256), getClut(768, 511) },
@@ -1884,7 +1889,7 @@ void _renderTextureFadeIn(int x, int y, int texIndex, int brightness)
         return;
     }
 
-    poly = *(void**)getScratchAddr(0);
+    poly = psx_slot_get(void*, getScratchAddr(0), 0);
     texture = &_disMap[texIndex];
 
     setPolyFT4(poly);
@@ -1906,9 +1911,9 @@ void _renderTextureFadeIn(int x, int y, int texIndex, int brightness)
 
     scratch = (void**)getScratchAddr(0);
 
-    AddPrim(scratch[1] - 0x1C, poly++);
+    AddPrim(psx_slot_get(void*, scratch, 1) - 0x1C, poly++);
 
-    scratch[0] = poly;
+    psx_slot_set(void*, scratch, 0, poly);
 }
 
 void _renderTextureFadeInClut(int x, int y, int texIndex, int brightness, int clut)
@@ -1921,7 +1926,7 @@ void _renderTextureFadeInClut(int x, int y, int texIndex, int brightness, int cl
         return;
     }
 
-    poly = *(void**)getScratchAddr(0);
+    poly = psx_slot_get(void*, getScratchAddr(0), 0);
     texture = &_disMap[texIndex];
 
     setPolyFT4(poly);
@@ -1943,9 +1948,9 @@ void _renderTextureFadeInClut(int x, int y, int texIndex, int brightness, int cl
 
     scratch = (void**)getScratchAddr(0);
 
-    AddPrim(scratch[1] - 0x1C, poly++);
+    AddPrim(psx_slot_get(void*, scratch, 1) - 0x1C, poly++);
 
-    scratch[0] = poly;
+    psx_slot_set(void*, scratch, 0, poly);
 }
 
 void _renderTime(int x, int y, int timer, int time, int isNewRecord)
@@ -2030,12 +2035,12 @@ void _renderStatWheel(int x, int y, int timer, int arg3)
         x += 2 + _disMap[26].w;
         new_var2 = 16;
         p = (void**)0x1F800000;
-        area = p[0];
+        area = psx_slot_get(void*, p, 0);
 
         SetDrawArea(area, &vs_main_drawEnv[(vs_main_frameBuf + 1) & 1].clip);
-        AddPrim(p[1] - 0x1C, area++);
+        AddPrim(psx_slot_get(void*, p, 1) - 0x1C, area++);
 
-        p[0] = area;
+        psx_slot_set(void*, p, 0, area);
 
         if (vs_main_drawEnv[(vs_main_frameBuf + 1) & 1].clip.x >= 320) {
             sp18.x = 320;
@@ -2105,12 +2110,12 @@ void _renderStatWheel(int x, int y, int timer, int arg3)
         }
 
         q = (void**)0x1F800000;
-        area = q[0];
+        area = psx_slot_get(void*, q, 0);
 
         SetDrawArea(area, &sp18);
-        AddPrim(q[1] - 0x1C, area++);
+        AddPrim(psx_slot_get(void*, q, 1) - 0x1C, area++);
 
-        q[0] = area;
+        psx_slot_set(void*, q, 0, area);
     }
 }
 
@@ -2147,7 +2152,7 @@ void _renderPressButtonPrompt(int x, int y, int arg2, int arg3)
         y = v1 - ((arg3 & 0xF) >> 2);
     }
 
-    poly = *(void**)0x1F800000;
+    poly = psx_slot_get(void*, 0x1F800000, 0);
 
     setPolyFT4(poly);
     setShadeTex(poly, 1);
@@ -2158,9 +2163,9 @@ void _renderPressButtonPrompt(int x, int y, int arg2, int arg3)
 
     p = (void**)0x1F800000;
 
-    AddPrim(p[1] - 0x1C, poly++);
+    AddPrim(psx_slot_get(void*, p, 1) - 0x1C, poly++);
 
-    p[0] = poly;
+    psx_slot_set(void*, p, 0, poly);
 }
 
 #include "src/renderTextures.h"
@@ -2170,7 +2175,7 @@ void _renderAnimatedStatWheel(int x, int y, int texId)
     int i;
     int brightness;
     void** p = (void**)0x1F800000;
-    POLY_FT4* poly = p[0];
+    POLY_FT4* poly = psx_slot_get(void*, p, 0);
     int texY = _disMap[texId].y;
 
     for (i = 0; i < _disMap[texId].h; ++i, ++y, ++texY) {
@@ -2193,7 +2198,7 @@ void _renderAnimatedStatWheel(int x, int y, int texId)
             setClut(poly, 816, 511);
             poly->tpage = _disMap[texId].tpage | getTPage(0, semiTransparencyFull, 0, 0);
 
-            AddPrim(p[1] - 0x1C, poly++);
+            AddPrim(psx_slot_get(void*, p, 1) - 0x1C, poly++);
 
             setPolyFT4(poly);
             setXY4(poly, x, y, _disMap[texId].w + x, y, x, y + 1, _disMap[texId].w + x,
@@ -2208,7 +2213,7 @@ void _renderAnimatedStatWheel(int x, int y, int texId)
             poly->tpage =
                 _disMap[texId].tpage | getTPage(0, semiTransparencySubtract, 0, 0);
 
-            AddPrim(p[1] - 0x1C, poly++);
+            AddPrim(psx_slot_get(void*, p, 1) - 0x1C, poly++);
 
         } else if (y >= 206) {
 
@@ -2223,7 +2228,7 @@ void _renderAnimatedStatWheel(int x, int y, int texId)
             setClut(poly, 816, 511);
             poly->tpage = _disMap[texId].tpage | getTPage(0, semiTransparencyFull, 0, 0);
 
-            AddPrim(p[1] - 0x1C, poly++);
+            AddPrim(psx_slot_get(void*, p, 1) - 0x1C, poly++);
 
             setPolyFT4(poly);
             setXY4(poly, x, y, _disMap[texId].w + x, y, x, y + 1, _disMap[texId].w + x,
@@ -2237,7 +2242,7 @@ void _renderAnimatedStatWheel(int x, int y, int texId)
             poly->tpage =
                 _disMap[texId].tpage | getTPage(0, semiTransparencySubtract, 0, 0);
 
-            AddPrim(p[1] - 0x1C, poly++);
+            AddPrim(psx_slot_get(void*, p, 1) - 0x1C, poly++);
 
         } else {
             setRGB0(poly, 128, 128, 128);
@@ -2245,11 +2250,11 @@ void _renderAnimatedStatWheel(int x, int y, int texId)
             setClut(poly, 800, 511);
             poly->tpage = _disMap[texId].tpage;
 
-            AddPrim(p[1] - 0x1C, poly++);
+            AddPrim(psx_slot_get(void*, p, 1) - 0x1C, poly++);
         }
     }
 
-    p[0] = poly;
+    psx_slot_set(void*, p, 0, poly);
 }
 
 static void _nop0(void);
@@ -2314,7 +2319,7 @@ int _initCubePuzzleStart(void)
 
             _puzzleParTime = 600;
             _puzzleRankCap = 1;
-            room = vs_battle_roomData.sectionF->rooms;
+            room = psx_get(vs_battle_roomData.sectionF)->rooms;
             puzzleData = _iqDisData + 0x10440;
 
             for (i = 0; i < 64; ++i, ++puzzleData) {
@@ -2877,86 +2882,92 @@ void _addHealBonus(void)
 
 void _nop2(void) { }
 
-int _getTotalStrength(void) { return vs_battle_characterState->unk3C->totalStrength; }
+int _getTotalStrength(void)
+{
+    return psx_get(vs_battle_characterState->unk3C)->totalStrength;
+}
 
 int _getTotalIntelligence(void)
 {
-    return vs_battle_characterState->unk3C->totalIntelligence;
+    return psx_get(vs_battle_characterState->unk3C)->totalIntelligence;
 }
 
-int _getTotalAgility(void) { return vs_battle_characterState->unk3C->totalAgility; }
+int _getTotalAgility(void)
+{
+    return psx_get(vs_battle_characterState->unk3C)->totalAgility;
+}
 
 void _raiseMaxStrength(int amount)
 {
-    vs_battle_characterState->unk3C->totalStrength += amount;
+    psx_get(vs_battle_characterState->unk3C)->totalStrength += amount;
 
-    if (vs_battle_characterState->unk3C->totalStrength > 999) {
-        vs_battle_characterState->unk3C->totalStrength = 999;
+    if (psx_get(vs_battle_characterState->unk3C)->totalStrength > 999) {
+        psx_get(vs_battle_characterState->unk3C)->totalStrength = 999;
     }
 
-    vs_battle_characterState->unk3C->strength += amount;
+    psx_get(vs_battle_characterState->unk3C)->strength += amount;
 
-    if (vs_battle_characterState->unk3C->strength > 999) {
-        vs_battle_characterState->unk3C->strength = 999;
+    if (psx_get(vs_battle_characterState->unk3C)->strength > 999) {
+        psx_get(vs_battle_characterState->unk3C)->strength = 999;
     }
 }
 
 void _raiseMaxIntelligence(int amount)
 {
-    vs_battle_characterState->unk3C->totalIntelligence += amount;
+    psx_get(vs_battle_characterState->unk3C)->totalIntelligence += amount;
 
-    if (vs_battle_characterState->unk3C->totalIntelligence > 999) {
-        vs_battle_characterState->unk3C->totalIntelligence = 999;
+    if (psx_get(vs_battle_characterState->unk3C)->totalIntelligence > 999) {
+        psx_get(vs_battle_characterState->unk3C)->totalIntelligence = 999;
     }
 
-    vs_battle_characterState->unk3C->intelligence += amount;
+    psx_get(vs_battle_characterState->unk3C)->intelligence += amount;
 
-    if (vs_battle_characterState->unk3C->intelligence > 999) {
-        vs_battle_characterState->unk3C->intelligence = 999;
+    if (psx_get(vs_battle_characterState->unk3C)->intelligence > 999) {
+        psx_get(vs_battle_characterState->unk3C)->intelligence = 999;
     }
 }
 
 void _raiseMaxAgility(int amount)
 {
-    vs_battle_characterState->unk3C->totalAgility += amount;
+    psx_get(vs_battle_characterState->unk3C)->totalAgility += amount;
 
-    if (vs_battle_characterState->unk3C->totalAgility > 999) {
-        vs_battle_characterState->unk3C->totalAgility = 999;
+    if (psx_get(vs_battle_characterState->unk3C)->totalAgility > 999) {
+        psx_get(vs_battle_characterState->unk3C)->totalAgility = 999;
     }
 
-    vs_battle_characterState->unk3C->agility += amount;
+    psx_get(vs_battle_characterState->unk3C)->agility += amount;
 
-    if (vs_battle_characterState->unk3C->agility > 999) {
-        vs_battle_characterState->unk3C->agility = 999;
+    if (psx_get(vs_battle_characterState->unk3C)->agility > 999) {
+        psx_get(vs_battle_characterState->unk3C)->agility = 999;
     }
 }
 
 void _raiseMaxHP(int amount)
 {
-    vs_battle_characterState->unk3C->maxHP += amount;
+    psx_get(vs_battle_characterState->unk3C)->maxHP += amount;
 
-    if (vs_battle_characterState->unk3C->maxHP > 999) {
-        vs_battle_characterState->unk3C->maxHP = 999;
+    if (psx_get(vs_battle_characterState->unk3C)->maxHP > 999) {
+        psx_get(vs_battle_characterState->unk3C)->maxHP = 999;
     }
 
-    vs_battle_characterState->unk3C->currentHP += amount;
+    psx_get(vs_battle_characterState->unk3C)->currentHP += amount;
 
-    if (vs_battle_characterState->unk3C->currentHP > 999) {
-        vs_battle_characterState->unk3C->currentHP = 999;
+    if (psx_get(vs_battle_characterState->unk3C)->currentHP > 999) {
+        psx_get(vs_battle_characterState->unk3C)->currentHP = 999;
     }
 }
 
 void _raiseMaxMP(int amount)
 {
-    vs_battle_characterState->unk3C->maxMP += amount;
+    psx_get(vs_battle_characterState->unk3C)->maxMP += amount;
 
-    if (vs_battle_characterState->unk3C->maxMP > 999) {
-        vs_battle_characterState->unk3C->maxMP = 999;
+    if (psx_get(vs_battle_characterState->unk3C)->maxMP > 999) {
+        psx_get(vs_battle_characterState->unk3C)->maxMP = 999;
     }
 
-    vs_battle_characterState->unk3C->currentMP += amount;
+    psx_get(vs_battle_characterState->unk3C)->currentMP += amount;
 
-    if (vs_battle_characterState->unk3C->currentMP > 999) {
-        vs_battle_characterState->unk3C->currentMP = 999;
+    if (psx_get(vs_battle_characterState->unk3C)->currentMP > 999) {
+        psx_get(vs_battle_characterState->unk3C)->currentMP = 999;
     }
 }

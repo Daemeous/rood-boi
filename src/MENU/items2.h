@@ -278,7 +278,7 @@ loop_1:
     case none:
     case init: {
 #ifdef _ITEMMENU
-        void* textBuf = vs_main_allocHeapR(72 * 96);
+        void* textBuf = vs_main_allocHeapR(0x1900 + 0x80 * sizeof(char*));
         rowTypes = textBuf + 0x1800;
         menuText = textBuf + 0x1900;
 #else
@@ -298,7 +298,7 @@ loop_1:
                 rowTypes[i] = vs_main_stateFlags.introState < 3;
             }
 
-            if (vs_battle_characterState->unk3C->statuses & 0x80000) {
+            if (psx_get(vs_battle_characterState->unk3C)->statuses & 0x80000) {
                 for (i = 0; i < 2; ++i) {
                     menuText[i * 2 + 1] =
                         (char*)&_menuText[VS_menuText_OFFSET_equipmentTarnished];
@@ -437,7 +437,7 @@ loop_1:
                 }
 
 #ifdef _ITEMMENU
-                textBuf = vs_main_allocHeapR(72 * 96);
+                textBuf = vs_main_allocHeapR(0x1900 + 0x80 * sizeof(char*));
                 sp310 = textBuf + 0x1900;
                 rowTypes = textBuf + 0x1800;
 #else

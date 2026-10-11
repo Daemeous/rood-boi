@@ -573,7 +573,8 @@ static int _applyLoadedSaveFile(int verifyOnly)
     savedata_unk180_2_t* unk180 = &spmcimg[1].unk180.unk180;
 
     _decode(unk180->key, &unk180->base.slotState,
-        sizeof(savedata_t) - (u_long) & ((savedata_t*)0)->unk180.unk180.base.slotState);
+        sizeof(savedata_t)
+            - psx_to_int(u_long, &((savedata_t*)0)->unk180.unk180.base.slotState));
 
     blockCount = 92;
     if (verifyOnly != 0) {
@@ -3646,6 +3647,16 @@ static void _displayPublisherAndDeveloper()
 
 static void _initIntroMovie(void)
 {
+#ifdef ROOD_PC_BOOT_DIAGNOSTIC
+    extern int pc_skip_movies;
+    extern void pc_log(const char*);
+    if (pc_skip_movies) {
+        pc_log("intro movie explicitly disabled for diagnostic");
+        _introMoviePlaying = 0;
+        return;
+    }
+#endif
+
     _dslMode = DslModeStream2 | DslModeSpeed | DslModeRT;
     DsIntToPos(VS_TITLE_STR_LBA, &_introMovieLoc);
     _movieRingBuf = vs_main_allocHeap(0x20000);
@@ -3667,6 +3678,13 @@ static void _initIntroMovie(void)
 
 static void _stopIntroMovie(void)
 {
+#ifdef ROOD_PC_BOOT_DIAGNOSTIC
+    extern int pc_skip_movies;
+    if (pc_skip_movies) {
+        return;
+    }
+#endif
+
     SpuSetCommonMasterVolume(0, 0);
     _introMoviePlaying = 0;
     DecDCToutCallback(0);
@@ -3690,6 +3708,13 @@ static void _stopMovieIfComplete(void)
 
 static int _playIntroMovie(void)
 {
+#ifdef ROOD_PC_BOOT_DIAGNOSTIC
+    extern int pc_skip_movies;
+    if (pc_skip_movies) {
+        return 0;
+    }
+#endif
+
     DslLOC loc;
     DISPENV disp;
     int var_s2;
@@ -4543,6 +4568,14 @@ int vs_title_exec(void)
         }
 
         vs_main_padDisconnectAll();
+#ifdef ROOD_PC_BOOT_DIAGNOSTIC
+        {
+            extern void pc_title_menu_ready(void);
+            extern void pc_title_selection(int);
+            pc_title_menu_ready();
+            pc_title_selection(menuItem); /* the cursor: Continue when a save exists */
+        }
+#endif
         introMovieLastPlayed = VSync(-1);
         buttonsLastPressed = VSync(-1);
 
@@ -4593,6 +4626,12 @@ int vs_title_exec(void)
             }
             if (i != 0) {
                 menuItem = (menuItem + i) & 3;
+#ifdef ROOD_PC_BOOT_DIAGNOSTIC
+                {
+                    extern void pc_title_selection(int);
+                    pc_title_selection(menuItem);
+                }
+#endif
                 _playMenuChangeSfx();
                 if (i == 1) {
                     _setMenuItemFadeIn((menuItem + 1) & 3, 0x80);
@@ -4738,6 +4777,11 @@ static void _initGameData(void)
 
 static void _setTitleExitFlags(int cause)
 {
+#ifdef ROOD_PC_BOOT_DIAGNOSTIC
+    extern void pc_title_start(int);
+    pc_title_start(cause);
+#endif
+
     switch (cause) {
     case 0: // New Game
         vs_main_stateFlags.unkC = 0;

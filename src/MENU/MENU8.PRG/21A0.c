@@ -153,7 +153,7 @@ static void _renderRenameMenu(int xOffset)
     u_long* prim;
     int counter;
 
-    sp18 = (u_int*)vs_scratch.unk4 - 1;
+    sp18 = (u_int*)psx_get(vs_scratch.unk4) - 1;
 
     vs_mainmenu_renderButton(buttonIdCross, (-xOffset + 16), 50, 0);
     vs_mainmenu_renderButton(buttonIdSquare, (-xOffset + 16), 66, 0);
@@ -192,13 +192,13 @@ static void _renderRenameMenu(int xOffset)
             prim[5] = ((-xOffset - v1) & 0xFFFF) | (j + 20 + i * 16) << 16;
             prim[6] = vs_getTpage(0, 0, 0, 0, 0);
 
-            *sp18 = ((u_long)prim << 8) >> 8;
+            *sp18 = (psx_to_int(u_long, prim) << 8) >> 8;
 
             prim += 7;
         }
     }
 
-    vs_scratch.unk0 = prim;
+    psx_set(vs_scratch.unk0, prim);
 
     vs_battle_setFontStyle(4);
 
@@ -210,7 +210,7 @@ static void _renderRenameMenu(int xOffset)
 
         while ((j = *commandString++) != vs_char_terminator) {
             vs_battle_printVariableWidthFontChar(
-                j, x - xOffset, 84 - (i * 16), vs_scratch.unk4 - 0x14);
+                j, x - xOffset, 84 - (i * 16), psx_get(vs_scratch.unk4) - 0x14);
 
             x += 6;
         }
@@ -226,7 +226,7 @@ static void _renderRenameMenu(int xOffset)
             int new_var3 = (j * 6 + 0xA2);
 
             vs_battle_printVariableWidthFontChar(
-                counter, xOffset + new_var3, 0x30, vs_scratch.unk8 - 8);
+                counter, xOffset + new_var3, 0x30, psx_get(vs_scratch.unk8) - 8);
         }
     }
 
@@ -259,10 +259,10 @@ static void _renderRenameMenu(int xOffset)
         vs_battle_setSpriteDefault(vs_getWH(16, 16), (j + 296) | (48 << 16))[4] =
             (x << 0x10) | vs_getUV(16, 48);
 
-        a1 = vs_scratch.unk8;
-        prim = vs_scratch.unk0;
+        a1 = psx_get(vs_scratch.unk8);
+        prim = psx_get(vs_scratch.unk0);
 
-        prim[0] = ((u_long)a1[0] & 0xFFFFFF) | 0x09000000;
+        prim[0] = (psx_to_int(u_long, a1[0]) & 0xFFFFFF) | 0x09000000;
         prim[1] = vs_getTpage(0, 0, 0, 0, 1);
         prim[2] = vs_getRGB0(primPolyG4, 0, 0, 0);
         prim[3] = vs_getRGB888(208, 0, 30);
@@ -273,8 +273,8 @@ static void _renderRenameMenu(int xOffset)
         prim[8] = 0;
         prim[9] = vs_getRGB888(0, 1, 30);
 
-        ((u_long*)vs_scratch.unk8)[0] = ((u_long)prim << 8) >> 8;
-        vs_scratch.unk0 = prim + 10;
+        ((u_long*)psx_get(vs_scratch.unk8))[0] = (psx_to_int(u_long, prim) << 8) >> 8;
+        psx_set(vs_scratch.unk0, prim + 10);
 
         if (++D_80105EF4 >= 12) {
             D_80105EF4 = 0;
@@ -289,12 +289,12 @@ static void _renderRenameMenu(int xOffset)
             int temp_s8 = (xOffset + 0x82);
 
             vs_battle_printVariableWidthFontChar(commandString[i * 15 + j],
-                temp_s8 + j * 12, (i * 16) + 78, vs_scratch.unk8 - 8);
+                temp_s8 + j * 12, (i * 16) + 78, psx_get(vs_scratch.unk8) - 8);
         }
     }
 
     for (j = 0; j < 16; j += 4) {
-        prim = vs_scratch.unk0;
+        prim = psx_get(vs_scratch.unk0);
 
         prim[0] = (*sp18 & 0xFFFFFF) | 0x09000000;
         prim[1] = vs_getTpage(0, 0, 0, 0, 1);
@@ -307,8 +307,8 @@ static void _renderRenameMenu(int xOffset)
         prim[8] = vs_getRGB888(0, 5, 51);
         prim[9] = xOffset + _backgroundHexCoords[j + 3];
 
-        *sp18 = ((u_long)prim << 8) >> 8;
-        vs_scratch.unk0 = (u_long*)(prim + 10);
+        *sp18 = (psx_to_int(u_long, prim) << 8) >> 8;
+        psx_set(vs_scratch.unk0, (u_long*)(prim + 10));
     }
 }
 
@@ -320,8 +320,8 @@ static void _highlightSelection(int x, int y, int w, int h)
     u_long* temp_t0;
     u_long* temp_t4;
 
-    temp_t4 = vs_scratch.unk8;
-    temp_t0 = vs_scratch.unk0;
+    temp_t4 = psx_get(vs_scratch.unk8);
+    temp_t0 = psx_get(vs_scratch.unk0);
 
     temp_t0[0] = (*temp_t4 & 0xFFFFFF) | 0x09000000;
     temp_t0[1] = vs_getTpage(0, 0, 0, semiTransparencyFull, ditheringOn);
@@ -334,8 +334,8 @@ static void _highlightSelection(int x, int y, int w, int h)
     temp_t0[8] = vs_getRGB888(128, 160, 192);
     temp_t0[9] = (x + w) | ((y + h) << 16);
 
-    *temp_t4 = ((u_long)temp_t0 << 8) >> 8;
-    vs_scratch.unk0 = temp_t0 + 10;
+    *temp_t4 = (psx_to_int(u_long, temp_t0) << 8) >> 8;
+    psx_set(vs_scratch.unk0, temp_t0 + 10);
 }
 
 /**
@@ -742,7 +742,7 @@ static int _renameMenuInput(int initialize)
 
         vs_battle_initInformationTextBox(1);
 
-        vs_battle_stringContext.strings[0] = _nameBuffer;
+        psx_set(vs_battle_stringContext.strings[0], _nameBuffer);
 
         vs_battle_printf(vs_battle_stringBuf,
             (char*)(_renderRenameMenuStrings + VS_rename_OFFSET_confirmPrompt));

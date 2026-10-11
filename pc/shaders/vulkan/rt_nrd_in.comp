@@ -1,0 +1,56 @@
+#version 450
+// NRD RELAX diffuse inputs (vk_rt.inc, vk_nrd.cpp) from the GI surfaces and
+// the raw trace: world normal packed as NRD_FrontEnd_PackNormalAndRoughness
+// (R10G10B10A2 encoding, roughness 1), linear view depth along the NRD
+// camera's (orthonormal) forward axis, world-space motion (previous -
+// current; characters and props through their previous pose, rt_surface.comp),
+// and the unfiltered irradiance (indirect light, optionally plus the glows'
+// light) with its first-bounce hit distance. Albedo stays out: the present
+// pass multiplies the textures back after denoising (nearest texels kept).
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(push_constant) uniform Push {
+    vec4 eye_range; // eye xyz, denoising range
+    vec4 forward; // xyz unit forward axis; w > 0.5: add the glows' light
+    vec4 scale; // x: radiance scale into NRD's range
+} pc;
+layout(binding = 0, rgba32f) uniform readonly image2D position; // w 0 none, 1 surface, 2 moving
+layout(binding = 1, rgba16f) uniform readonly image2D normal;
+layout(binding = 2, rgba32f) uniform readonly image2D motion; // previous world xyz, w 1 = known
+layout(binding = 3, rgba16f) uniform readonly image2D raw; // rgb indirect, a visibility
+layout(binding = 4, rgba16f) uniform readonly image2D raw_extra; // r baked visibility, gba glow light
+layout(binding = 5, r16f) uniform readonly image2D hit;
+layout(binding = 6, rgba16f) uniform writeonly image2D nrd_normal;
+layout(binding = 7, r32f) uniform writeonly image2D nrd_view_z;
+layout(binding = 8, rgba16f) uniform writeonly image2D nrd_motion;
+layout(binding = 9, rgba16f) uniform writeonly image2D nrd_radiance;
+const float FP16_MAX = 65504.0;
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy), size = imageSize(nrd_radiance);
+    if (any(greaterThanEqual(g, size))) return;
+    vec4 p = imageLoad(position, g);
+    if (p.w < 0.5) { // no surface: beyond the denoising range (NRD skips it)
+        imageStore(nrd_normal, g, vec4(0.5, 0.5, 1.0, 0.0));
+        imageStore(nrd_view_z, g, vec4(pc.eye_range.w * 2.0));
+        imageStore(nrd_motion, g, vec4(0.0));
+        imageStore(nrd_radiance, g, vec4(0.0));
+        return;
+    }
+    vec3 n = imageLoad(normal, g).xyz;
+    n /= max(abs(n.x) + abs(n.y) + abs(n.z), 1e-6);
+    vec3 packed;
+    packed.y = n.y * 0.5 + 0.5;
+    packed.x = n.x * 0.5 + packed.y;
+    packed.y -= n.x * 0.5;
+    packed.z = (n.z < 0.0 ? -1.0 : 1.0) * 0.5 + 0.5; // signed roughness 1 (diffuse)
+    imageStore(nrd_normal, g, vec4(packed, 0.0));
+    imageStore(nrd_view_z, g, vec4(dot(p.xyz - pc.eye_range.xyz, pc.forward.xyz)));
+    vec4 was = imageLoad(motion, g);
+    imageStore(nrd_motion, g, vec4(was.w > 0.5 ? was.xyz - p.xyz : vec3(0.0), 0.0));
+    vec3 radiance = imageLoad(raw, g).rgb;
+    if (pc.forward.w > 0.5) radiance += imageLoad(raw_extra, g).gba;
+    radiance *= pc.scale.x;
+    float h = imageLoad(hit, g).r;
+    if (any(isnan(radiance)) || any(isinf(radiance))) radiance = vec3(0.0);
+    if (isnan(h) || isinf(h)) h = 0.0;
+    imageStore(nrd_radiance, g, vec4(clamp(radiance, vec3(0.0), vec3(FP16_MAX)), clamp(h, 0.0, FP16_MAX)));
+}

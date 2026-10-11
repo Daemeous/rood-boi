@@ -15,3 +15,19 @@
 /tools/mkpsxiso
 /tools/xdelta
 /progress.json
+/pc/build*/
+/pc/save/
+/pc/lights/
+/pc/user/
+/tools/objdiff
+/.claude/
+.ruff_cache/
+# Local inputs may be symlinks (worktrees); never commit a disc image or save.
+/data
+/disks
+*.iso
+*.cue
+*.chd
+*.ecm
+*.pbp
+*.mcd

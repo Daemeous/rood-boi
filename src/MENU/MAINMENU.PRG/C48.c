@@ -44,7 +44,7 @@ vs_main_inventoryWeapon* vs_mainMenu_weapons;
 void vs_mainMenu_initInventory(void)
 {
     int i;
-    vs_battle_actor2* actor = vs_battle_characterState->unk3C;
+    vs_battle_actor2* actor = psx_get(vs_battle_characterState->unk3C);
 
     if (actor->weapon.index != 0) {
         vs_battle_copyUiWeaponStats(
@@ -437,8 +437,8 @@ void vs_mainMenu_exec(int arg0)
                 menuItem->targetPosition0 = 18;
 
                 if (selectedMenu == 5) {
-                    menuItem = vs_battle_setMenuItem(
-                        4, 320, 18, 140, 8, vs_battle_characterState->unk3C->name);
+                    menuItem = vs_battle_setMenuItem(4, 320, 18, 140, 8,
+                        psx_get(vs_battle_characterState->unk3C)->name);
                     menuItem->state = 2;
                     menuItem->targetPosition0 = 0xB4;
                     menuItem->selected = state;
@@ -540,7 +540,7 @@ void vs_mainMenu_miscItemsShortcutMenu(int initialize)
         break;
 
     case initItemRows:
-        buf = vs_main_allocHeapR(0x1B00);
+        buf = vs_main_allocHeapR(0x1900 + 0x80 * sizeof(char*));
         rowCount = 0;
 
         vs_mainMenu_rebuildInventory(itemCategoryMisc);
@@ -705,7 +705,7 @@ static void _renderStatPage(int xOffset)
     u_long* prim;
     int a0;
 
-    u_long* before = vs_scratch.unk4 - 0xC;
+    u_long* before = psx_get(vs_scratch.unk4) - 0xC;
     statPage = vs_mainMenu_itemStatPage;
 
     switch (statPage) {
@@ -852,7 +852,7 @@ static void _renderStatPage(int xOffset)
         vs_battle_insertTpage(
             vs_getTpage(0, 0, clut4Bit, semiTransparencyHalf, ditheringOff), before);
 
-        prim = vs_scratch.unk0;
+        prim = psx_get(vs_scratch.unk0);
 
         for (j = 0; j < 11; ++j) {
             temp_a0 = var_s6 + j;
@@ -863,11 +863,11 @@ static void _renderStatPage(int xOffset)
             prim[2] = ((xOffset & 0xFFFF) | temp_a0_2);
             prim[3] = 0x5D3200;
             prim[4] = (((xOffset - temp_v1_3) & 0xFFFF) | temp_a0_2);
-            *before = ((u_long)prim << 8) >> 8;
+            *before = (psx_to_int(u_long, prim) << 8) >> 8;
             prim += 5;
         }
 
-        vs_scratch.unk0 = prim;
+        psx_set(vs_scratch.unk0, prim);
 
         vs_battle_insertTpage(
             vs_getTpage(0, 0, clut4Bit, semiTransparencyHalf, ditheringOn), before);
@@ -991,7 +991,7 @@ void vs_mainMenu_setStrIntAgi(
 
 void vs_mainMenu_populateBaseStats(int actorId)
 {
-    vs_battle_actor2* temp_t0 = vs_battle_actors[actorId & 0xF]->unk3C;
+    vs_battle_actor2* temp_t0 = psx_get(vs_battle_actors[actorId & 0xF]->unk3C);
     D_80102488[3] = actorId & 0xF;
     D_80102498[0] = temp_t0->accessory.currentStr;
     D_80102498[1] = temp_t0->accessory.currentInt;
@@ -1041,8 +1041,8 @@ void vs_mainMenu_renderEquipStats(int animate)
     vs_battle_actor2* actor;
 
     position = vs_getXY(248, 126);
-    actor = vs_battle_actors[D_80102488[3]]->unk3C;
-    temp_s4 = vs_scratch.unk4 - 0x18;
+    actor = psx_get(vs_battle_actors[D_80102488[3]]->unk3C);
+    temp_s4 = psx_get(vs_scratch.unk4) - 0x18;
 
     if (animate != 0) {
         if (statsAnimation != animate) {
@@ -1136,7 +1136,7 @@ void vs_mainMenu_renderDpPpBars(int flags)
     static char state = 1;
     static char target = 0;
 
-    void* before = vs_scratch.unk4 - 0xC;
+    void* before = psx_get(vs_scratch.unk4) - 0xC;
 
     if (flags != 0) {
 

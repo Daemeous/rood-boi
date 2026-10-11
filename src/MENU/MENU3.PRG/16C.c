@@ -815,7 +815,7 @@ static int _equipShieldMenu(int initialize)
                     &vs_main_inventory.shields[_equippedItem - 1];
                 shield->isEquipped = 1;
 
-                actor = vs_battle_characterState->unk3C;
+                actor = psx_get(vs_battle_characterState->unk3C);
                 wepId = shield->base.wepId;
                 material = shield->base.material;
 

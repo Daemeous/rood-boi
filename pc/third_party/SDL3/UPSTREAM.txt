@@ -1,0 +1,15 @@
+https://github.com/libsdl-org/SDL
+Release: 3.4.18 (release-3.4.18-0-g829a65d76)
+Tarball: SDL3-3.4.18.tar.gz, sha256 9c75cf16330322c217dedd2e0609f1124f1b54b8633e763467b4684d0f4334a3,
+signature (SDL3-3.4.18.tar.gz.sig) verified against Sam Lantinga's release keys.
+License: zlib; see LICENSE.txt.
+
+Kept: CMakeLists.txt, cmake/, include/, src/, wayland-protocols/, LICENSE.txt,
+README.md, REVISION.txt, CREDITS.md. No source changes.
+Removed: test/, examples/, docs/, build-scripts/, VisualC*/, Xcode/,
+android-project/, Android.mk, and src/hidapi/m4/ (autotools macros, unused by
+the CMake build). src/hidapi is tri-licensed; rood-boi uses it under its BSD
+licence (src/hidapi/LICENSE-bsd.txt).
+
+pc/tools/build_boot.py builds it as a static 32-bit library in pc/build/sdl3
+(the platform libraries it uses are loaded at run time).

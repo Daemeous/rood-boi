@@ -1,0 +1,20 @@
+{
+  "name": "Window light",
+  "category": "Interior",
+  "icon": "window",
+  "description": "Cool daylight or moonlight through a window: a rect light facing into the room, steady (no flicker). Drop it on the window (it faces out along the surface normal).",
+  "placement": { "align": "normal", "surface_offset": 0, "fixture_radius": 16 },
+  "params": [
+    { "key": "temperature", "label": "Colour temperature", "group": "Light", "type": "float", "default": 7500, "min": 1000, "max": 12000, "unit": "K" },
+    { "key": "tint", "label": "Tint", "group": "Light", "type": "color", "default": [0.85, 0.92, 1] },
+    { "key": "intensity", "label": "Intensity", "group": "Light", "type": "float", "default": 0.9, "min": 0, "max": 6 },
+    { "key": "radius", "label": "Radius", "group": "Light", "type": "float", "default": 1400, "min": 32, "max": 8192, "log": true },
+    { "key": "width", "label": "Width", "group": "Light", "type": "float", "default": 96, "min": 8, "max": 1024, "unit": "u" },
+    { "key": "height", "label": "Height", "group": "Light", "type": "float", "default": 128, "min": 8, "max": 1024, "unit": "u" },
+    { "key": "inset", "label": "Off the window", "group": "Light", "type": "float", "default": 4, "min": 0, "max": 128, "unit": "u" },
+    { "key": "shadows", "label": "Casts shadows", "group": "Shadows", "type": "bool", "default": true }
+  ],
+  "lights": [
+    { "name": "Window", "type": "rect", "offset": [0, 0, "inset"], "direction": [0, 0, 1], "size": ["width", "height"], "color": "kelvin(temperature) * tint", "intensity": "intensity", "radius": "radius", "shadows": "shadows" }
+  ]
+}

@@ -323,10 +323,10 @@ static int _disassembleItem(int itemIndex)
             0x1F, 0x140, 0xA2, 0x7E, 0, (char*)&_menuText[VS_menuText_OFFSET_optionNo]);
         menuItem->state = 2;
         menuItem->targetPosition0 = 0xC2;
-        vs_battle_stringContext.strings[0] =
+        psx_set(vs_battle_stringContext.strings[0],
             disassembleItemCategory == 0
                 ? _inventory->weapons[i].name
-                : vs_mainMenu_itemNames[_inventory->shields[i].base.id];
+                : vs_mainMenu_itemNames[_inventory->shields[i].base.id]);
         vs_battle_initInformationTextBox(1);
         vs_mainmenu_setInformationMessage(
             (char*)&_menuText[VS_menuText_OFFSET_disassembleConfirm]);
@@ -559,7 +559,7 @@ static int _consolidateMiscItems(int lootIndex)
             31, 320, 162, 0x7E, 0, (char*)&_menuText[VS_menuText_OFFSET_optionNo]);
         menuItem->state = 2;
         menuItem->targetPosition0 = 194;
-        vs_battle_stringContext.strings[0] = vs_mainMenu_itemNames[itemId];
+        psx_set(vs_battle_stringContext.strings[0], vs_mainMenu_itemNames[itemId]);
 
         vs_battle_initInformationTextBox(1);
         vs_mainmenu_setInformationMessage(
@@ -984,7 +984,12 @@ void _displayInventoryCapacities(int edgeX)
                 color = vs_getRGB(32, 64, 128);
             }
 
+#ifdef ROOD_PC_LP64
+            /* item is NULL, the sentinel 1 or a host pointer: test it whole. */
+            if (((__UINTPTR_TYPE__)item >> 1) != 0) {
+#else
             if (((u_long)item >> 1) != 0) {
+#endif
                 if (capacity < (_itemIncludesItemsInCategory(i, item) + itemCount)) {
                     color = vs_getRGB(128, 64, 32);
                 }
@@ -1076,7 +1081,7 @@ static void _applyAllLootLists(vs_battle_lootListNode* node)
     if (node != NULL) {
         while (node != NULL) {
             _applyLootList(&node->loot);
-            node = node->next;
+            node = psx_get(node->next);
         }
     } else {
         _applyLootList(D_800EB9C8);
@@ -1361,7 +1366,7 @@ static int _discardItems(int init)
         return state - 3;
 
     case 6:
-        vs_battle_stringContext.strings[0] = itemName;
+        psx_set(vs_battle_stringContext.strings[0], itemName);
 
         vs_battle_initInformationTextBox(1);
         vs_mainmenu_setInformationMessage(

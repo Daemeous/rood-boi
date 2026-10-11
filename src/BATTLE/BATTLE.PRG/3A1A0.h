@@ -1,5 +1,6 @@
 #pragma once
 #include "func_8006EBF8_t.h"
+#include "pc/src/psx_types.h"
 
 typedef struct {
     char unk0_0;
@@ -58,16 +59,19 @@ typedef struct {
 
 typedef struct {
     SVECTOR unk0[42];
-    SVECTOR unk150[0x7E];
+    SVECTOR unk150[42];
+    SVECTOR unk2A0[42];
+    SVECTOR unk3F0[42];
     u_short unk540;
     u_short unk542;
-    u_char* unk544;
+    psx_ptr(u_char) unk544;
     int unk548_0 : 16;
     int unk548_16 : 1;
     int unk548_17 : 1;
     int unk548_18 : 14;
     int unk54C;
 } D_800F4538_unkC54;
+PSX_ASSERT_SIZE(D_800F4538_unkC54, 0x550);
 
 typedef struct {
     int unk0;
@@ -87,12 +91,13 @@ typedef struct {
 
 typedef struct {
     u_char unk0[48];
-    void* akaoOffset;
-    void* groupOffset;
-    void* vertexOffset;
-    void* polyOffset;
+    psx_ptr(void) akaoOffset;
+    psx_ptr(void) groupOffset;
+    psx_ptr(void) vertexOffset;
+    psx_ptr(void) polyOffset;
     _armature_t armatures[0];
 } D_800F4538_unk68;
+PSX_ASSERT_SIZE(D_800F4538_unk68, 0x40);
 
 typedef struct {
     u_char unk0;
@@ -189,8 +194,9 @@ typedef struct {
     u_char lastTouchedTileZ;
     u_char unk63;
     D_800F4538_unk64 unk64;
-    D_800F4538_unk68* unk68;
+    psx_ptr(D_800F4538_unk68) unk68;
 } D_800F4538_unk0;
+PSX_ASSERT_SIZE(D_800F4538_unk0, 0x6c);
 
 typedef struct {
     u_char unk0_0 : 4;
@@ -263,10 +269,10 @@ typedef struct {
     char unk5CC;
     char unk5CD;
     short unk5CE;
-    void* unk5D0;
-    void* unk5D4;
-    void* unk5D8;
-    void* unk5DC[4];
+    psx_ptr(void) unk5D0;
+    psx_ptr(void) unk5D4;
+    psx_ptr(void) unk5D8;
+    psx_ptr(void) unk5DC[4];
     SVECTOR unk5EC;
     texMapOverlay_t texMapOverlays[8];
     u_char unk614[0x24];
@@ -351,6 +357,7 @@ typedef struct {
     u_char unk1890[2][0x20];
     u_char unk18D0[2];
 } D_800F4538_t;
+PSX_ASSERT_SIZE(D_800F4538_t, 0x18d4);
 
 typedef struct {
     u_char nBones;
@@ -379,7 +386,7 @@ typedef struct {
     int unk14;
     short unk18;
     short unk1A;
-    _wepModelOffsets* offsets;
+    psx_ptr(_wepModelOffsets) offsets;
     short unk20;
     short unk22;
     short unk24;
@@ -411,16 +418,18 @@ typedef struct {
     short unk5CE;
     int unk5D0;
     int unk5D4;
-    void* unk5D8;
+    psx_ptr(void) unk5D8;
     int unk5DC;
     int unk5E0;
     int unk5E4;
 } vs_battle_wepModels_t;
+PSX_ASSERT_SIZE(vs_battle_wepModels_t, 0x5e8);
 
 typedef struct {
     u_char unk0[0x3C];
-    void* unk3C;
+    psx_ptr(void) unk3C;
 } D_800F45E0_unk68;
+PSX_ASSERT_SIZE(D_800F45E0_unk68, 0x40);
 
 typedef struct {
     char unk0;
@@ -470,7 +479,8 @@ typedef struct {
     short unk32;
     short unk34;
     short unk36;
-    int unk38;
+    short unk38;
+    short unk3A;
     int unk3C;
     int unk40;
     int unk44;
@@ -486,7 +496,7 @@ typedef struct {
     char unk5F;
     int unk60;
     D_800F4538_unk64 unk64;
-    D_800F45E0_unk68* unk68;
+    psx_ptr(D_800F45E0_unk68) unk68;
     D_800F4538_t2 unk6C[42];
     u_int unk5AC_0 : 4;
     u_int unk5AC_4 : 2;
@@ -531,7 +541,7 @@ typedef struct {
     short unk5CE;
     int unk5D0;
     int unk5D4;
-    void* unk5D8;
+    psx_ptr(void) unk5D8;
     int unk5DC;
     int unk5E0;
     int unk5E4;
@@ -593,6 +603,7 @@ typedef struct {
     int unk1868;
     int unk187C;
 } D_800F45E0_t;
+PSX_ASSERT_SIZE(D_800F45E0_t, 0x1880);
 
 int func_800A1108(int, void*);
 void func_800A36E0(int, int, func_8006EBF8_t*);
@@ -605,7 +616,7 @@ void func_800A4828(int, MATRIX*);
 void func_800A9D24(int, SVECTOR*, int);
 int func_800A3760(int, int, int);
 int func_800A38E0(int);
-void func_800A3E6C(int);
+int func_800A3E6C(int);
 int func_800A47C4(void);
 void func_800A4E68(int);
 

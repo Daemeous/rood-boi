@@ -11,7 +11,7 @@ extern char _loadEtmState;
 extern short D_800E8F30[][2];
 extern char D_800E8FC0;
 extern char D_800F2450[];
-extern int D_800F4528[];
+extern void* D_800F4528[]; /* 30DB0.c: heap buffer pointers (8 bytes each on LP64) */
 extern void* D_800F4768;
 extern char D_800F4B18;
 extern char D_800F4B19;

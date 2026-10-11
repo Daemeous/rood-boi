@@ -3,6 +3,7 @@
 #include "2842C.h"
 #include "3A1A0.h"
 #include "scratch.h"
+#include "pc/src/psx_types.h"
 
 typedef struct {
     short width;
@@ -140,17 +141,19 @@ typedef struct {
     int unk0;
     int unk4;
     int unk8;
-    int* unkC;
-    int* unk10;
+    psx_ptr(int) unkC;
+    psx_ptr(int) unk10;
     int unk14[0];
 } _mpdRoomSectionE;
+PSX_ASSERT_SIZE(_mpdRoomSectionE, 0x14);
 
 typedef struct {
     int visited;
-    void* dataAddress;
+    psx_ptr(void) dataAddress;
     short zoneId;
     short mapId;
 } vs_battle_room;
+PSX_ASSERT_SIZE(vs_battle_room, 0xc);
 
 typedef struct {
     int roomCount;
@@ -243,31 +246,32 @@ typedef struct {
         u_int section17Len;
         u_int section18Len;
     } header;
-    int* geometrySection;
-    _mpdRoomCollisionMapSection* collisionMapSection;
-    _mpdRoomSection3* section3;
-    _mpdRoomDoorSection_t* doorSection;
+    psx_ptr(int) geometrySection;
+    psx_ptr(_mpdRoomCollisionMapSection) collisionMapSection;
+    psx_ptr(_mpdRoomSection3) section3;
+    psx_ptr(_mpdRoomDoorSection_t) doorSection;
     int lightingSection;
     int section6;
     int section7;
     int section8;
-    _mpdRoomSection9* section9;
-    _mpdRoomSectionA* sectionA;
-    _mpdRoomSectionB* sectionB;
+    psx_ptr(_mpdRoomSection9) section9;
+    psx_ptr(_mpdRoomSectionA) sectionA;
+    psx_ptr(_mpdRoomSectionB) sectionB;
     int textureEffectsSection;
     int sectionD;
-    _mpdRoomSectionE* sectionE;
-    vs_battle_scene* sectionF;
-    u_short* section10;
-    _mpdRoomSection11* section11;
-    _mpdRoomSection12* section12;
-    _mpdRoomSection13* section13;
-    u_int* section14;
+    psx_ptr(_mpdRoomSectionE) sectionE;
+    psx_ptr(vs_battle_scene) sectionF;
+    psx_ptr(u_short) section10;
+    psx_ptr(_mpdRoomSection11) section11;
+    psx_ptr(_mpdRoomSection12) section12;
+    psx_ptr(_mpdRoomSection13) section13;
+    psx_ptr(u_int) section14;
     int section15;
     int section16;
     int section17;
-    _zoneContextBounds* section18;
+    psx_ptr(_zoneContextBounds) section18;
 } _mpdRoomSection;
+PSX_ASSERT_SIZE(_mpdRoomSection, 0xc4);
 
 typedef struct {
     /* 0x00 */ short class[2][8];
@@ -559,7 +563,7 @@ typedef struct {
 } vs_battle_actor2;
 
 typedef struct vs_battle_actor {
-    /* 0x00 */ struct vs_battle_actor* next;
+    /* 0x00 */ psx_ptr(struct vs_battle_actor) next;
     /* 0x04 */ int id;
     /* 0x08 */ u_char unk8;
     /* 0x09 */ u_char unk9;
@@ -595,11 +599,12 @@ typedef struct vs_battle_actor {
     u_int unk30_14 : 18;
     int unk34;
     int unk38;
-    vs_battle_actor2* unk3C;
+    psx_ptr(vs_battle_actor2) unk3C;
     int unk40;
-    D_800F4538_unk0* unk44;
-    vs_battle_actor4* unk48[2];
+    psx_ptr(D_800F4538_unk0) unk44;
+    psx_ptr(vs_battle_actor4) unk48[2];
 } vs_battle_actor;
+PSX_ASSERT_SIZE(struct vs_battle_actor, 0x50);
 
 typedef struct {
     struct {
@@ -675,15 +680,15 @@ typedef struct {
 
 typedef struct {
     int zndId;
-    vs_main_CdFile* mpdLbas;
+    psx_ptr(vs_main_CdFile) mpdLbas;
     int zndEnemyCount;
-    _zndEnemy* zndEnemies;
-    vs_main_CdFile* zudFiles;
+    psx_ptr(_zndEnemy) zndEnemies;
+    psx_ptr(vs_main_CdFile) zudFiles;
     int unk14;
-    vs_main_CdQueueSlot* unk18;
-    void* unk1C;
-    vs_main_CdQueueSlot* zndCdFile;
-    void* zndData;
+    psx_ptr(vs_main_CdQueueSlot) unk18;
+    psx_ptr(void) unk1C;
+    psx_ptr(vs_main_CdQueueSlot) zndCdFile;
+    psx_ptr(void) zndData;
     int musicId;
     int musicSlot;
     int unk30;
@@ -696,12 +701,13 @@ typedef struct {
     int unk4C;
     int unk50;
     int unk54;
-    vs_main_CdQueueSlot* mpdCdFile;
-    void* mpdData;
+    psx_ptr(vs_main_CdQueueSlot) mpdCdFile;
+    psx_ptr(void) mpdData;
     u_int mpdEnemyCount;
-    _mpdEnemy* mpdEnemies;
+    psx_ptr(_mpdEnemy) mpdEnemies;
     int unk68;
 } _zoneContext_t;
+PSX_ASSERT_SIZE(_zoneContext_t, 0x6c);
 
 typedef struct {
     int unk0;
@@ -779,10 +785,11 @@ typedef struct {
 } vs_battle_menu9CursorMemory_t;
 
 typedef struct vs_battle_lootListNode {
-    struct vs_battle_lootListNode* next;
+    psx_ptr(struct vs_battle_lootListNode) next;
     int actorId;
     vs_battle_loot loot;
 } vs_battle_lootListNode;
+PSX_ASSERT_SIZE(struct vs_battle_lootListNode, 0x228);
 
 typedef struct {
     POLY_F4 covered;
@@ -939,6 +946,7 @@ void func_8007B1B8(int, int, short, short, short);
 void func_8007B29C(int, int, int, short, short, short);
 void func_8007B344(int, int, short, short, short);
 void func_8007B9A0(void);
+void func_8007B9CC(void);
 int func_8007B9FC(void);
 void func_8007BA98(int, int, int, int);
 void func_8007BBB8(int, int);

@@ -15,14 +15,16 @@
 #include <libspu.h>
 #include <libgpu.h>
 #include <rand.h>
+#include "pc/src/psx_types.h"
 
 typedef struct {
     int unk0[2];
     u_short unk8;
     u_short unkA;
-    char* unkC;
+    psx_ptr(char) unkC;
     int unk10[10];
 } padAct_t;
+PSX_ASSERT_SIZE(padAct_t, 0x38);
 
 typedef struct {
     char unk0[6];
@@ -101,7 +103,7 @@ typedef struct {
     u_int sectorCount;
     int cdSector;
     int byteCount;
-    void* vram;
+    psx_ptr(void) vram;
     DslFILTER pcm;
     DslLOC cdLoc;
     int commandId;
@@ -115,6 +117,7 @@ typedef struct {
     u_int ringBufIndex;
     int framesSinceLastRead;
 } vs_main_disk_t;
+PSX_ASSERT_SIZE(vs_main_disk_t, 0x48);
 
 void __main(void);
 static void _unlockPadModeSwitch(void);
@@ -8351,6 +8354,18 @@ int vs_main_execTitle(void)
     _displayLoadingScreen();
     _loadBattlePrg();
     vs_overlay_getSp(&sp);
+#ifdef ROOD_PC
+    /* vs_overlay_jumpToBattle resumes here with this frame's stack. */
+    {
+        extern void* pc_battle_jump[5];
+        if (__builtin_setjmp(pc_battle_jump)) {
+            vs_battle_exec();
+            SetDispMask(0);
+            vs_main_stopMusic();
+            return 0;
+        }
+    }
+#endif
     _inGame = 1;
     vs_battle_exec();
     SetDispMask(0);
@@ -8363,6 +8378,13 @@ void vs_main_exec(void)
     __main();
     _sysInit();
     vs_overlay_getSp(&sp2);
+#ifdef ROOD_PC
+    /* vs_overlay_jumpToTitle restarts the title from this frame's stack. */
+    {
+        extern void* pc_title_jump[5];
+        __builtin_setjmp(pc_title_jump);
+    }
+#endif
     vs_main_execTitle();
 }
 
@@ -8405,7 +8427,7 @@ void func_80042CB0(void)
         }
         vs_main_actionsLearned[var_s1] = actionsLearned;
     }
-    temp_t0 = vs_battle_characterState->unk3C;
+    temp_t0 = psx_get(vs_battle_characterState->unk3C);
     temp_t5 = &D_80060068;
     temp_t5->unk0.currentHP = temp_t0->currentHP;
     temp_t5->unk0.maxHP = temp_t0->maxHP;
@@ -8579,7 +8601,7 @@ int func_800433B4(char* arg0, u_int arg1, int arg2)
 
     if (ret != 0) {
         i = ret - 1;
-        _padAct[i].unkC = arg0;
+        psx_set(_padAct[i].unkC, arg0);
         _padAct[i].unk10[4] = 1;
         _padAct[i].unk10[10] = *arg0;
         _padAct[i].unk10[11] = 0;
@@ -8598,7 +8620,7 @@ static int func_80043470(int arg0)
     int i = arg0 - 1;
     _padAct[i].unk10[7] = 0;
     _padAct[i].unk10[1] = 0;
-    _padAct[i].unkC = 0;
+    psx_set(_padAct[i].unkC, 0);
     _padAct[i].unk8 = 0;
 
     return arg0;
@@ -8686,7 +8708,7 @@ void vs_main_resetPadAct(void)
     vs_main_padDisconnectAll();
 
     for (i = 0; i < 2; ++i) {
-        _padAct[i].unkC = NULL;
+        psx_set(_padAct[i].unkC, NULL);
         _padAct[i].unk10[7] = 0;
         _padAct[i].unk10[1] = 0;
         _padAct[i].unk8 = 0;
@@ -8713,7 +8735,7 @@ void vs_main_setVibrateParams(void)
             continue;
         }
 
-        temp_t1 = _padAct[j].unkC;
+        temp_t1 = psx_get(_padAct[j].unkC);
 
         if (temp_t1 != 0) {
             for (i = 0; i < 2; ++i) {
@@ -8753,7 +8775,7 @@ void vs_main_setVibrateParams(void)
             }
             _padAct[j].unk8 = _padAct[j].unk10[0] | _padAct[j].unk10[6];
             if (_padAct[j].unk8 == 0) {
-                _padAct[j].unkC = 0;
+                psx_set(_padAct[j].unkC, 0);
             }
             continue;
         }
@@ -8883,62 +8905,66 @@ int vs_main_processPadState(void)
 
 void vs_main_freeHeapR(void* block)
 {
-    vs_main_HeapHeader* var_a1 = heapA.prev;
+    vs_main_HeapHeader* var_a1 = psx_get(heapA.prev);
     vs_main_HeapHeader* target = (vs_main_HeapHeader*)block - 1;
 
-    for (; var_a1 >= target || target >= var_a1->next; var_a1 = var_a1->prev) {
-        if (var_a1 >= var_a1->next && ((var_a1 < target) || (target < var_a1->next))) {
+    for (; var_a1 >= target || target >= psx_get(var_a1->next);
+        var_a1 = psx_get(var_a1->prev)) {
+        if (var_a1 >= psx_get(var_a1->next)
+            && ((var_a1 < target) || (target < psx_get(var_a1->next)))) {
             break;
         }
     }
 
-    if ((target + target->blockSz) == var_a1->next) {
-        target->blockSz += var_a1->next->blockSz;
-        target->next = var_a1->next->next;
-        target->next->prev = target;
+    if ((target + target->blockSz) == psx_get(var_a1->next)) {
+        target->blockSz += psx_get(var_a1->next)->blockSz;
+        psx_copy(target->next, psx_get(var_a1->next)->next);
+        psx_set(psx_get(target->next)->prev, target);
     } else {
-        target->next = var_a1->next;
-        target->next->prev = target;
+        psx_copy(target->next, var_a1->next);
+        psx_set(psx_get(target->next)->prev, target);
     }
 
     if ((var_a1 + var_a1->blockSz) == target) {
         var_a1->blockSz += target->blockSz;
-        var_a1->next = target->next;
-        var_a1->next->prev = var_a1;
+        psx_copy(var_a1->next, target->next);
+        psx_set(psx_get(var_a1->next)->prev, var_a1);
         return;
     }
-    var_a1->next = target;
-    target->prev = var_a1;
+    psx_set(var_a1->next, target);
+    psx_set(target->prev, var_a1);
 }
 
 void vs_main_freeHeap(void* block)
 {
-    vs_main_HeapHeader* var_a1 = heapA.next;
+    vs_main_HeapHeader* var_a1 = psx_get(heapA.next);
     vs_main_HeapHeader* target = (vs_main_HeapHeader*)block - 1;
 
-    for (; var_a1 >= target || target >= var_a1->next; var_a1 = var_a1->next) {
-        if (var_a1 >= var_a1->next && ((var_a1 < target) || (target < var_a1->next))) {
+    for (; var_a1 >= target || target >= psx_get(var_a1->next);
+        var_a1 = psx_get(var_a1->next)) {
+        if (var_a1 >= psx_get(var_a1->next)
+            && ((var_a1 < target) || (target < psx_get(var_a1->next)))) {
             break;
         }
     }
 
-    if ((target + target->blockSz) == var_a1->next) {
-        target->blockSz += var_a1->next->blockSz;
-        target->next = var_a1->next->next;
-        target->next->prev = target;
+    if ((target + target->blockSz) == psx_get(var_a1->next)) {
+        target->blockSz += psx_get(var_a1->next)->blockSz;
+        psx_copy(target->next, psx_get(var_a1->next)->next);
+        psx_set(psx_get(target->next)->prev, target);
     } else {
-        target->next = var_a1->next;
-        target->next->prev = target;
+        psx_copy(target->next, var_a1->next);
+        psx_set(psx_get(target->next)->prev, target);
     }
 
     if ((var_a1 + var_a1->blockSz) == target) {
         var_a1->blockSz += target->blockSz;
-        var_a1->next = target->next;
-        var_a1->next->prev = var_a1;
+        psx_copy(var_a1->next, target->next);
+        psx_set(psx_get(var_a1->next)->prev, var_a1);
         return;
     }
-    var_a1->next = target;
-    target->prev = var_a1;
+    psx_set(var_a1->next, target);
+    psx_set(target->prev, var_a1);
 }
 
 void* vs_main_allocHeapR(u_int size)
@@ -8949,13 +8975,13 @@ void* vs_main_allocHeapR(u_int size)
 
     blockSz = ((size + 15) >> 4) + 1;
     var_a2 = &heapA;
-    var_a1 = heapA.prev;
+    var_a1 = psx_get(heapA.prev);
 
     while (1) {
         if (var_a1->blockSz >= blockSz) {
             if (var_a1->blockSz == blockSz) {
-                var_a2->prev = var_a1->prev;
-                var_a1->prev->next = var_a1->next;
+                psx_copy(var_a2->prev, var_a1->prev);
+                psx_copy(psx_get(var_a1->prev)->next, var_a1->next);
             } else {
                 var_a1->blockSz = var_a1->blockSz - blockSz;
                 var_a1 += var_a1->blockSz;
@@ -8967,7 +8993,7 @@ void* vs_main_allocHeapR(u_int size)
         if (var_a1 == &heapA) {
             return 0;
         }
-        var_a1 = var_a1->prev;
+        var_a1 = psx_get(var_a1->prev);
     }
 }
 
@@ -8978,21 +9004,21 @@ void* vs_main_allocHeap(u_int size)
     vs_main_HeapHeader* var_v1;
 
     var_v1 = &heapA;
-    var_a1 = heapA.next;
+    var_a1 = psx_get(heapA.next);
     blockSz = ((size + 0xF) >> 4) + 1;
 
     while (1) {
         if (var_a1->blockSz >= blockSz) {
             if (var_a1->blockSz == blockSz) {
-                var_v1->next = var_a1->next;
-                var_a1->next->prev = var_a1->prev;
+                psx_copy(var_v1->next, var_a1->next);
+                psx_copy(psx_get(var_a1->next)->prev, var_a1->prev);
             } else {
                 vs_main_HeapHeader* temp_v1 = var_a1 + blockSz;
                 temp_v1->blockSz = var_a1->blockSz - blockSz;
-                temp_v1->prev = var_a1->prev;
-                temp_v1->next = var_a1->next;
-                temp_v1->prev->next = temp_v1;
-                temp_v1->next->prev = temp_v1;
+                psx_copy(temp_v1->prev, var_a1->prev);
+                psx_copy(temp_v1->next, var_a1->next);
+                psx_set(psx_get(temp_v1->prev)->next, temp_v1);
+                psx_set(psx_get(temp_v1->next)->prev, temp_v1);
                 var_a1->blockSz = blockSz;
             }
             return (u_long*)(var_a1 + 1);
@@ -9001,20 +9027,20 @@ void* vs_main_allocHeap(u_int size)
         if (var_a1 == &heapA) {
             return 0;
         }
-        var_a1 = var_a1->next;
+        var_a1 = psx_get(var_a1->next);
     }
 }
 
 void vs_main_initHeap(vs_main_HeapHeader* node, u_int value)
 {
-    heapA.prev = node;
-    heapA.next = node;
+    psx_set(heapA.prev, node);
+    psx_set(heapA.next, node);
     heapA.blockSz = 0;
-    node->prev = &heapA;
-    node->next = &heapA;
+    psx_set(node->prev, &heapA);
+    psx_set(node->next, &heapA);
     node->blockSz = value / 16 - 1;
-    heapB.prev = &heapB;
-    heapB.next = &heapB;
+    psx_set(heapB.prev, &heapB);
+    psx_set(heapB.next, &heapB);
     heapB.blockSz = 0;
 }
 
@@ -9037,7 +9063,7 @@ static void _diskReadCallback(u_char intr, u_char result[] __attribute__((unused
     vs_main_disk.state = diskReadReady;
 
     if (vs_main_disk.bufferMode == cdBufferModeNone) {
-        DsGetSector(vs_main_disk.vram + vs_main_disk.sectorBufIndex * 2048, 512);
+        DsGetSector(psx_get(vs_main_disk.vram) + vs_main_disk.sectorBufIndex * 2048, 512);
     } else {
         DsGetSector(_cdReadBuffer + vs_main_disk.unk3C * 128, 512);
         if (++vs_main_disk.unk3C >= 16) {
@@ -9139,10 +9165,19 @@ static void _diskClearError(void)
 
 static int _diskInitRead(int sector, u_int bytes, void* vram)
 {
+#ifdef ROOD_PC_BOOT_DIAGNOSTIC
+    extern int pc_disc_read(int, unsigned int, void*);
+    if (!pc_disc_read(sector, bytes, vram)) {
+        return 0;
+    }
+    vs_main_disk.state = diskIdle;
+    return 1;
+#endif
+
     if (vs_main_disk.state == diskIdle) {
         vs_main_disk.cdSector = sector;
         vs_main_disk.byteCount = bytes;
-        vs_main_disk.vram = vram;
+        psx_set(vs_main_disk.vram, vram);
         vs_main_disk.ringBufIndex = 0;
         vs_main_disk.unk3C = 0;
         vs_main_disk.sectorBufIndex = 0;
@@ -9303,8 +9338,8 @@ static void func_800443CC(void)
                 return;
             }
             if (vs_main_disk.bufferMode == cdBufferModeBuffered) {
-                vs_main_memcpy(
-                    ((char*)vs_main_disk.vram + (vs_main_disk.sectorBufIndex * 2048)),
+                vs_main_memcpy(((char*)psx_get(vs_main_disk.vram)
+                                   + (vs_main_disk.sectorBufIndex * 2048)),
                     _cdReadBuffer + (vs_main_disk.ringBufIndex * 128), 2048);
 
                 ++vs_main_disk.ringBufIndex;
@@ -9383,6 +9418,13 @@ int vs_main_checkStreamXaEnd(void)
 
 static void _diskReset(void)
 {
+#ifdef ROOD_PC_BOOT_DIAGNOSTIC
+    vs_main_disk.state = diskIdle;
+    vs_main_disk.bufferMode = cdBufferModeNone;
+    _cdReadBuffer = NULL;
+    return;
+#endif
+
     while (DsControlB(DslPause, NULL, NULL) == 0)
         ;
     DsFlush();
@@ -9433,7 +9475,7 @@ void vs_main_freeCdQueueSlot(vs_main_CdQueueSlot* slot)
 void vs_main_cdEnqueue(vs_main_CdQueueSlot* slot, void* vram)
 {
     slot->state = vs_main_CdQueueStateEnqueued;
-    slot->vram = vram;
+    psx_set(slot->vram, vram);
     slot->unkC = 0;
     slot->priority = _cdQueueCount.queued++;
 }
@@ -9449,7 +9491,7 @@ void vs_main_cdEnqueuePriority(vs_main_CdQueueSlot* slot, void* vram)
         }
     }
     slot->state = vs_main_CdQueueStateEnqueued;
-    slot->vram = vram;
+    psx_set(slot->vram, vram);
     slot->unkC = 0;
     slot->priority = 0;
     ++_cdQueueCount.queued;
@@ -9469,7 +9511,8 @@ static void _processCdQueue(void)
                 if (slot->state == vs_main_CdQueueStateEnqueued) {
                     if (slot->priority == 0) {
                         slot->state = vs_main_CdQueueStateReading;
-                        _diskInitRead(slot->cdFile.lba, slot->cdFile.size, slot->vram);
+                        _diskInitRead(
+                            slot->cdFile.lba, slot->cdFile.size, psx_get(slot->vram));
                         vs_main_disk.framesSinceLastRead = 0;
                         --_cdQueueCount.queued;
                         ++_cdQueueCount.processing;
@@ -9490,7 +9533,12 @@ int func_80044D94(void) { return func_80011F90(); }
 
 void func_80044DB4(void) { func_80012004(); }
 
-void func_80044DD4(int arg0) { func_80012468((void*)arg0); }
+void func_80044DD4(int arg0)
+{
+#ifndef ROOD_PC_NO_AUDIO
+    func_80012468(psx_to_ptr(void*, arg0));
+#endif
+}
 
 int func_80044DF4(int id)
 {
@@ -9504,14 +9552,14 @@ int func_80044DF4(int id)
         }
         if (vs_main_soundData.currentMusicSlot == id) {
             vs_main_soundData.currentMusicSlot = 0;
-            vs_main_soundData.currentMusicData = NULL;
+            psx_set(vs_main_soundData.currentMusicData, NULL);
             vs_main_soundData.unk4 = 0xFFFF;
         }
         return 1;
     }
     func_80012B78();
     vs_main_soundData.currentMusicSlot = 0;
-    vs_main_soundData.currentMusicData = NULL;
+    psx_set(vs_main_soundData.currentMusicData, NULL);
     vs_main_soundData.unk4 = 0xFFFF;
 
     new_var = 0xFFFF;
@@ -9523,13 +9571,20 @@ int func_80044DF4(int id)
 
 int func_80044EC8(int id)
 {
+#ifdef ROOD_PC_NO_AUDIO
+    extern void pc_log(const char*);
+    pc_log("music restart skipped: diagnostic audio backend is disabled");
+    return 0;
+#endif
+
     u_int temp_v0;
 
     if (id != 0) {
-        if (vs_main_soundData.musicData[id - 1] != 0) {
+        if (psx_get(vs_main_soundData.musicData[id - 1]) != 0) {
             vs_main_soundData.currentMusicSlot = id;
-            vs_main_soundData.currentMusicData = vs_main_soundData.musicData[id - 1];
-            temp_v0 = func_800120E8(vs_main_soundData.currentMusicData);
+            psx_copy(
+                vs_main_soundData.currentMusicData, vs_main_soundData.musicData[id - 1]);
+            temp_v0 = func_800120E8(psx_get(vs_main_soundData.currentMusicData));
             if (temp_v0 != 0) {
                 vs_main_soundData.unk14[id - 1] = temp_v0;
                 vs_main_soundData.unk4 = temp_v0;
@@ -9546,10 +9601,12 @@ int func_80044F60(int id, int arg1, u_int arg2)
     u_int temp_v0;
 
     if (id != 0) {
-        if (vs_main_soundData.musicData[id - 1] != 0) {
+        if (psx_get(vs_main_soundData.musicData[id - 1]) != 0) {
             vs_main_soundData.currentMusicSlot = id;
-            vs_main_soundData.currentMusicData = vs_main_soundData.musicData[id - 1];
-            temp_v0 = func_80012080(vs_main_soundData.currentMusicData, arg2, arg1);
+            psx_copy(
+                vs_main_soundData.currentMusicData, vs_main_soundData.musicData[id - 1]);
+            temp_v0 =
+                func_80012080(psx_get(vs_main_soundData.currentMusicData), arg2, arg1);
             if (temp_v0 != 0) {
                 vs_main_soundData.unk14[id - 1] = temp_v0;
                 vs_main_soundData.unk4 = temp_v0;
@@ -9563,14 +9620,21 @@ int func_80044F60(int id, int arg1, u_int arg2)
 
 int func_80045000(int id, int arg1, int arg2)
 {
+#ifdef ROOD_PC_NO_AUDIO
+    extern void pc_log(const char*);
+    pc_log("music start skipped: diagnostic audio backend is disabled");
+    return 0;
+#endif
+
     u_int temp_v0;
 
     if (id != 0) {
-        if (vs_main_soundData.musicData[id - 1] != 0) {
+        if (psx_get(vs_main_soundData.musicData[id - 1]) != 0) {
             vs_main_soundData.currentMusicSlot = id;
-            vs_main_soundData.currentMusicData = vs_main_soundData.musicData[id - 1];
+            psx_copy(
+                vs_main_soundData.currentMusicData, vs_main_soundData.musicData[id - 1]);
             func_800128A0(0, arg2, arg1);
-            temp_v0 = func_80011FB4(vs_main_soundData.currentMusicData);
+            temp_v0 = func_80011FB4(psx_get(vs_main_soundData.currentMusicData));
             if (temp_v0 != 0) {
                 vs_main_soundData.unk14[id - 1] = temp_v0;
                 vs_main_soundData.unk4 = temp_v0;
@@ -9583,6 +9647,11 @@ int func_80045000(int id, int arg1, int arg2)
     return 0;
 }
 
+#ifdef ROOD_PC
+/* Overlays call this by address; keep an out-of-line copy for the host build
+ * (build_boot.py globalizes it). */
+__attribute__((used, noinline))
+#endif
 static int vs_main_getcurrentMusicSlot(void)
 {
     return vs_main_soundData.currentMusicSlot;
@@ -9606,7 +9675,7 @@ int vs_main_loadMusicSlot(int id, int targetSlot)
         if (targetSlot < 5) {
             if (vs_main_soundData.musicIds[slot] != id) {
                 do {
-                    if (vs_main_soundData.musicData[slot] != 0) {
+                    if (psx_get(vs_main_soundData.musicData[slot]) != 0) {
                         vs_main_nop10(142, 0);
                         vs_main_freeMusic(targetSlot);
                     }
@@ -9615,21 +9684,22 @@ int vs_main_loadMusicSlot(int id, int targetSlot)
                 cdFile.lba = _musicLBAs[id];
                 cdFile.size = _musicFileSizes[id];
 
-                if ((vs_main_soundData.musicQueueSlot[slot] != 0)
-                    && (vs_main_soundData.musicQueueSlot[slot]
+                if ((psx_get(vs_main_soundData.musicQueueSlot[slot]) != 0)
+                    && (psx_get(vs_main_soundData.musicQueueSlot[slot])
                         != (vs_main_CdQueueSlot*)-1)) {
                     vs_main_nop9(0x98, 0);
                 }
 
-                vs_main_soundData.musicQueueSlot[slot] =
-                    vs_main_allocateCdQueueSlot(&cdFile);
+                psx_set(vs_main_soundData.musicQueueSlot[slot],
+                    vs_main_allocateCdQueueSlot(&cdFile));
 
-                if (vs_main_soundData.musicData[slot] != 0) {
+                if (psx_get(vs_main_soundData.musicData[slot]) != 0) {
                     vs_main_nop9(0x8E, 0);
                 }
-                vs_main_soundData.musicData[slot] = vs_main_allocHeapR(cdFile.size);
-                vs_main_cdEnqueue(vs_main_soundData.musicQueueSlot[slot],
-                    vs_main_soundData.musicData[slot]);
+                psx_set(
+                    vs_main_soundData.musicData[slot], vs_main_allocHeapR(cdFile.size));
+                vs_main_cdEnqueue(psx_get(vs_main_soundData.musicQueueSlot[slot]),
+                    psx_get(vs_main_soundData.musicData[slot]));
                 vs_main_soundData.musicIds[slot] = id;
             }
             return targetSlot;
@@ -9644,7 +9714,7 @@ static int _loadMusicIntoFreeSlot(int id)
     int i;
 
     for (i = 0; i < 4; ++i) {
-        if (vs_main_soundData.musicData[i] == 0) {
+        if (psx_get(vs_main_soundData.musicData[i]) == 0) {
             return vs_main_loadMusicSlot(id, i + 1);
         }
     }
@@ -9654,17 +9724,20 @@ static int _loadMusicIntoFreeSlot(int id)
 int vs_main_clearMusicLoadSlot(u_int slot)
 {
     if ((slot - 1) < 4) {
-        if (vs_main_soundData.musicQueueSlot[slot - 1] != 0) {
-            if (vs_main_soundData.musicQueueSlot[slot - 1]->state
+        if (psx_get(vs_main_soundData.musicQueueSlot[slot - 1]) != 0) {
+            if (psx_get(vs_main_soundData.musicQueueSlot[slot - 1])->state
                 == vs_main_CdQueueStateLoaded) {
-                vs_main_freeCdQueueSlot(vs_main_soundData.musicQueueSlot[slot - 1]);
-                vs_main_soundData.musicQueueSlot[slot - 1] = NULL;
+                vs_main_freeCdQueueSlot(
+                    psx_get(vs_main_soundData.musicQueueSlot[slot - 1]));
+                psx_set(vs_main_soundData.musicQueueSlot[slot - 1], NULL);
                 return 0;
             }
-            if (vs_main_soundData.musicQueueSlot[slot - 1]->state
+            if (psx_get(vs_main_soundData.musicQueueSlot[slot - 1])->state
                 == vs_main_CdQueueStateError) {
-                vs_main_freeCdQueueSlot(vs_main_soundData.musicQueueSlot[slot - 1]);
-                vs_main_soundData.musicQueueSlot[slot - 1] = (vs_main_CdQueueSlot*)-1;
+                vs_main_freeCdQueueSlot(
+                    psx_get(vs_main_soundData.musicQueueSlot[slot - 1]));
+                psx_set_raw(
+                    vs_main_soundData.musicQueueSlot[slot - 1], vs_main_CdQueueSlot*, -1);
                 return -1;
             }
             return 1;
@@ -9717,12 +9790,12 @@ int vs_main_freeMusic(int slotId)
 {
     func_80044DF4(slotId);
 
-    if (vs_main_soundData.musicData[slotId - 1] == 0) {
+    if (psx_get(vs_main_soundData.musicData[slotId - 1]) == 0) {
         return 0;
     }
 
-    vs_main_freeHeapR(vs_main_soundData.musicData[slotId - 1]);
-    vs_main_soundData.musicData[slotId - 1] = 0;
+    vs_main_freeHeapR(psx_get(vs_main_soundData.musicData[slotId - 1]));
+    psx_set(vs_main_soundData.musicData[slotId - 1], 0);
     vs_main_soundData.musicIds[slotId - 1] = 0;
     return 1;
 }
@@ -9744,7 +9817,9 @@ int func_8004550C(int arg0) { return func_800454B8(arg0); }
 int func_8004552C(int id, int arg1, int arg2)
 {
     if (vs_main_soundData.currentMusicSlot == id) {
+#ifndef ROOD_PC_NO_AUDIO
         func_800128A0(vs_main_soundData.unk4, arg2, arg1);
+#endif
         return 1;
     }
     return 0;
@@ -9804,7 +9879,7 @@ static void func_80045684(int id, int arg1, int arg2, int arg3)
 static void func_800456EC(void* data, int arg1, int arg2, int arg3)
 {
     if (arg1 == 0x200) {
-        if (data != (void*)func_80012358(0x200)) {
+        if (data != psx_to_ptr(void*, func_80012358(0x200))) {
             func_800121F0(data, 0x200, arg2, arg3);
         }
     } else {
@@ -9814,6 +9889,10 @@ static void func_800456EC(void* data, int arg1, int arg2, int arg3)
 
 void vs_main_playSfx(int arg0, long id, int arg2, int arg3)
 {
+#ifdef ROOD_PC_NO_AUDIO
+    return;
+#endif
+
     void* var_s0_2;
 
     switch (arg0) {
@@ -9840,7 +9919,7 @@ void vs_main_playSfx(int arg0, long id, int arg2, int arg3)
         break;
 
     case 0xFF000:
-        var_s0_2 = vs_main_soundData.sfxData[vs_main_soundData.currentSfxId - 1];
+        var_s0_2 = psx_get(vs_main_soundData.sfxData[vs_main_soundData.currentSfxId - 1]);
         var_s0_2 += *((int*)var_s0_2 + id + 1);
         if (func_800123C8(var_s0_2) != 0) {
             func_800456EC(var_s0_2, D_8005FE80, arg2, arg3);
@@ -9854,7 +9933,7 @@ void vs_main_playSfx(int arg0, long id, int arg2, int arg3)
         break;
 
     case 0xF00000:
-        var_s0_2 = vs_main_soundData.sfxData[2];
+        var_s0_2 = psx_get(vs_main_soundData.sfxData[2]);
         var_s0_2 += *((int*)var_s0_2 + id + 1);
         if (func_800123C8(var_s0_2) != 0) {
             func_800456EC(var_s0_2, D_8005FE84, arg2, arg3);
@@ -9936,9 +10015,9 @@ static void _do_panSfx(int arg0, int arg1, int coords, int z)
 void vs_main_panSfx(int arg0, int arg1, SVECTOR* vec)
 {
     int z;
-    long coords;
-    long value;
-    long flag;
+    psx_long coords;
+    psx_long value;
+    psx_long flag;
 
     SetRotMatrix(&vs_scratch.viewMatrix);
     SetTransMatrix(&vs_scratch.viewMatrix);
@@ -9960,8 +10039,9 @@ static int func_80045B28(int arg0, int arg1)
         break;
     case 0xFF000:
     case 0xF00000:
-        temp_v1 = (int)vs_main_soundData.sfxData[vs_main_soundData.currentSfxId - 1];
-        temp_v1 = (int)temp_v1 + (arg1 + (int*)temp_v1)[1];
+        temp_v1 =
+            (int)psx_raw(vs_main_soundData.sfxData[vs_main_soundData.currentSfxId - 1]);
+        temp_v1 = (int)temp_v1 + (arg1 + psx_to_ptr(int*, temp_v1))[1];
         break;
     default:
         vs_main_nop10(0x95, 0);
@@ -9973,6 +10053,11 @@ static int func_80045B28(int arg0, int arg1)
 
 void func_80045BFC(int arg0, int arg1, int arg2, char arg3)
 {
+#ifdef ROOD_PC_NO_AUDIO
+    /* Sound-effect volume/pan command; no sequencer runs in this diagnostic. */
+    return;
+#endif
+
     int temp_v0;
 
     if (arg1 != 0) {
@@ -9992,6 +10077,11 @@ void func_80045BFC(int arg0, int arg1, int arg2, char arg3)
 
 void func_80045C74(int arg0, int arg1, int arg2, char arg3)
 {
+#ifdef ROOD_PC_NO_AUDIO
+    /* Sound-parameter command; the diagnostic has no active sequencer. */
+    return;
+#endif
+
     int temp_v0;
 
     if (arg1 != 0) {
@@ -10010,6 +10100,11 @@ void func_80045C74(int arg0, int arg1, int arg2, char arg3)
 
 void func_80045CEC(int arg0, int arg1, int arg2, char arg3)
 {
+#ifdef ROOD_PC_NO_AUDIO
+    /* Sound-parameter command; the diagnostic has no active sequencer. */
+    return;
+#endif
+
     if (arg1 != 0) {
         arg0 = func_80045B28(arg0, arg1);
         if (arg0 != 0) {
@@ -10026,6 +10121,11 @@ void func_80045CEC(int arg0, int arg1, int arg2, char arg3)
 
 void func_80045D64(int arg0, int arg1)
 {
+#ifdef ROOD_PC_NO_AUDIO
+    /* Stop-sound command; the diagnostic does not start a sound sequencer. */
+    return;
+#endif
+
     if (arg1 != 0) {
         arg0 = func_80045B28(arg0, arg1);
 
@@ -10039,33 +10139,40 @@ void func_80045D64(int arg0, int arg1)
     }
 }
 
-void func_80045DC0(void) { func_80012B98(); }
+void func_80045DC0(void)
+{
+#ifndef ROOD_PC_NO_AUDIO
+    func_80012B98();
+#endif
+}
 
 int vs_main_loadSfxSlot(int id, u_int slot)
 {
     vs_main_CdFile cdFile;
 
     if (slot - 1 < 3) {
-        if (vs_main_soundData.sfxData[slot - 1] == NULL) {
+        if (psx_get(vs_main_soundData.sfxData[slot - 1]) == NULL) {
             u_int index = slot - 1;
             cdFile.lba = _seLBAs[id];
             cdFile.size = _seFileSizes[id];
 
-            if ((vs_main_soundData.sfxQueueSlot[index] != NULL)
-                && (vs_main_soundData.sfxQueueSlot[index] != (vs_main_CdQueueSlot*)-1)) {
+            if ((psx_get(vs_main_soundData.sfxQueueSlot[index]) != NULL)
+                && (psx_get(vs_main_soundData.sfxQueueSlot[index])
+                    != (vs_main_CdQueueSlot*)-1)) {
                 vs_main_nop9(0x8F, 0);
             }
 
-            vs_main_soundData.sfxQueueSlot[index] = vs_main_allocateCdQueueSlot(&cdFile);
+            psx_set(vs_main_soundData.sfxQueueSlot[index],
+                vs_main_allocateCdQueueSlot(&cdFile));
 
-            if (vs_main_soundData.sfxData[index] != NULL) {
+            if (psx_get(vs_main_soundData.sfxData[index]) != NULL) {
                 vs_main_nop9(0x90, 0);
             }
 
             vs_main_soundData.sfxIds[index] = id;
-            vs_main_soundData.sfxData[index] = vs_main_allocHeapR(cdFile.size);
-            vs_main_cdEnqueue(
-                vs_main_soundData.sfxQueueSlot[index], vs_main_soundData.sfxData[index]);
+            psx_set(vs_main_soundData.sfxData[index], vs_main_allocHeapR(cdFile.size));
+            vs_main_cdEnqueue(psx_get(vs_main_soundData.sfxQueueSlot[index]),
+                psx_get(vs_main_soundData.sfxData[index]));
 
             return slot;
         }
@@ -10078,7 +10185,7 @@ static int _loadSfx(int id)
     int i;
 
     for (i = 0; i < 3; ++i) {
-        if (vs_main_soundData.sfxData[i] == NULL) {
+        if (psx_get(vs_main_soundData.sfxData[i]) == NULL) {
             return vs_main_loadSfxSlot(id, i + 1);
         }
     }
@@ -10088,17 +10195,20 @@ static int _loadSfx(int id)
 int vs_main_freeSfxQueueSlot(u_int slot)
 {
     if ((slot - 1) < 3) {
-        if (vs_main_soundData.sfxQueueSlot[slot - 1] != NULL) {
-            if (vs_main_soundData.sfxQueueSlot[slot - 1]->state
+        if (psx_get(vs_main_soundData.sfxQueueSlot[slot - 1]) != NULL) {
+            if (psx_get(vs_main_soundData.sfxQueueSlot[slot - 1])->state
                 == vs_main_CdQueueStateLoaded) {
-                vs_main_freeCdQueueSlot(vs_main_soundData.sfxQueueSlot[slot - 1]);
-                vs_main_soundData.sfxQueueSlot[slot - 1] = NULL;
+                vs_main_freeCdQueueSlot(
+                    psx_get(vs_main_soundData.sfxQueueSlot[slot - 1]));
+                psx_set(vs_main_soundData.sfxQueueSlot[slot - 1], NULL);
                 return 0;
             }
-            if (vs_main_soundData.sfxQueueSlot[slot - 1]->state
+            if (psx_get(vs_main_soundData.sfxQueueSlot[slot - 1])->state
                 == vs_main_CdQueueStateError) {
-                vs_main_freeCdQueueSlot(vs_main_soundData.sfxQueueSlot[slot - 1]);
-                vs_main_soundData.sfxQueueSlot[slot - 1] = (vs_main_CdQueueSlot*)-1;
+                vs_main_freeCdQueueSlot(
+                    psx_get(vs_main_soundData.sfxQueueSlot[slot - 1]));
+                psx_set_raw(
+                    vs_main_soundData.sfxQueueSlot[slot - 1], vs_main_CdQueueSlot*, -1);
                 return -1;
             }
             return 1;
@@ -10132,7 +10242,7 @@ static int _loadAndFreeSfx(int id)
 
 int vs_main_setCurrentSfx(int id)
 {
-    if ((id - 1u < 3) && vs_main_soundData.sfxData[id - 1] != NULL) {
+    if ((id - 1u < 3) && psx_get(vs_main_soundData.sfxData[id - 1]) != NULL) {
         vs_main_soundData.currentSfxId = id;
         return 1;
     }
@@ -10142,15 +10252,17 @@ int vs_main_setCurrentSfx(int id)
 int vs_main_freeSfx(u_int id)
 {
     if ((id - 1) < 3) {
-        if (vs_main_soundData.sfxData[id - 1] != NULL) {
+        if (psx_get(vs_main_soundData.sfxData[id - 1]) != NULL) {
             if (vs_main_soundData.currentSfxId == id) {
                 vs_main_soundData.currentSfxId = 0;
             }
+#ifndef ROOD_PC_NO_AUDIO
             func_80012288(-2, 0);
             func_80012288(0, 0xFF000);
-            vs_main_freeHeapR(vs_main_soundData.sfxData[id - 1]);
+#endif
+            vs_main_freeHeapR(psx_get(vs_main_soundData.sfxData[id - 1]));
             vs_main_soundData.sfxIds[id - 1] = 0;
-            vs_main_soundData.sfxData[id - 1] = 0;
+            psx_set(vs_main_soundData.sfxData[id - 1], 0);
             return 1;
         }
     }
@@ -10168,9 +10280,11 @@ int func_80046168(u_int arg0)
 
 int func_80046194(void)
 {
+#ifndef ROOD_PC_NO_AUDIO
     func_80012288(-2, 0);
     func_80012288(0, 0xF00000);
-    vs_main_soundData.sfxData[2] = NULL;
+#endif
+    psx_set(vs_main_soundData.sfxData[2], NULL);
     return 1;
 }
 
@@ -10207,7 +10321,9 @@ void func_800461CC(int arg0, u_int arg1[], u_int arg2, int arg3, int arg4)
         } else {
             vs_main_nop10(0x95, 0);
         }
+#ifndef ROOD_PC_NO_AUDIO
         func_800456EC(temp_s1, var_s0, arg3, arg4);
+#endif
     }
 }
 
@@ -10271,9 +10387,9 @@ static void func_80046310(int arg0, u_int arg1[], int arg2, int arg3, int arg4)
 static void func_800463BC(int arg0, u_int* arg1, int arg2, SVECTOR* vec)
 {
     int z;
-    long sxy;
-    long value;
-    long flag;
+    psx_long sxy;
+    psx_long value;
+    psx_long flag;
 
     SetRotMatrix(&vs_scratch.viewMatrix);
     SetTransMatrix(&vs_scratch.viewMatrix);
@@ -10283,6 +10399,11 @@ static void func_800463BC(int arg0, u_int* arg1, int arg2, SVECTOR* vec)
 
 void func_8004644C(int arg0, int* arg1, int arg2)
 {
+#ifdef ROOD_PC_NO_AUDIO
+    /* Positional stop-sound command; no sequencer is active in this diagnostic. */
+    return;
+#endif
+
     int var_a1;
     char* var_a0 = (char*)arg1 + (arg1 + arg2)[1];
 
@@ -10292,12 +10413,12 @@ void func_8004644C(int arg0, int* arg1, int arg2)
         var_a0 = 0;
         var_a1 = arg0;
     }
-    func_80012288((int)var_a0, var_a1);
+    func_80012288(psx_to_int(int, var_a0), var_a1);
 }
 
 void func_80046494(int arg0, int* arg1, int arg2, int arg3, int arg4)
 {
-    int a0 = (int)((char*)arg1 + (arg2 + arg1)[1]);
+    int a0 = psx_to_int(int, (char*)arg1 + (arg2 + arg1)[1]);
 
     if (arg2 == 0) {
         func_8001264C(0, arg0, arg4 & 0xFF, arg3);
@@ -10311,9 +10432,9 @@ static void func_800464DC(void) { func_80013328(); }
 static int func_800464FC(int arg0, int arg1, int arg2)
 {
     if ((arg0 - 1u) < 3) {
-        if (vs_main_soundData.unk64[arg0 - 1] != 0) {
+        if (psx_get(vs_main_soundData.unk64[arg0 - 1]) != 0) {
             func_80013378(0, arg2);
-            func_800132C4(vs_main_soundData.unk64[arg0 - 1], arg1, 1);
+            func_800132C4(psx_get(vs_main_soundData.unk64[arg0 - 1]), arg1, 1);
             return 1;
         }
     }
@@ -10325,10 +10446,10 @@ static void func_80046578(int arg0) { func_800464FC(arg0, 0x80, 0x7F); }
 static int func_8004659C(int arg0)
 {
     if ((arg0 - 1u) < 3) {
-        if (vs_main_soundData.unk64[arg0 - 1] != 0) {
+        if (psx_get(vs_main_soundData.unk64[arg0 - 1]) != 0) {
             func_80013328();
-            vs_main_freeHeapR(vs_main_soundData.unk64[arg0 - 1]);
-            vs_main_soundData.unk64[arg0 - 1] = 0;
+            vs_main_freeHeapR(psx_get(vs_main_soundData.unk64[arg0 - 1]));
+            psx_set(vs_main_soundData.unk64[arg0 - 1], 0);
             return 1;
         }
     }
@@ -10357,6 +10478,12 @@ int func_80046634(void)
 
 static void _loadSoundFile(int file)
 {
+#ifdef ROOD_PC_NO_AUDIO
+    extern void pc_log(const char*);
+    pc_log("sound-bank load skipped: diagnostic audio backend is disabled");
+    return;
+#endif
+
     vs_main_CdFile cdFile;
     int new_var;
     int temp_v1;
@@ -10375,19 +10502,20 @@ static void _loadSoundFile(int file)
     cdFile.lba = _soundLBAs[file];
     cdFile.size = _soundFileSizes[file];
 
-    if (vs_main_soundData.soundQueueSlot) {
-        if ((long)vs_main_soundData.soundQueueSlot != -1) {
+    if (psx_get(vs_main_soundData.soundQueueSlot)) {
+        if ((psx_long)psx_raw(vs_main_soundData.soundQueueSlot) != -1) {
             vs_main_nop9(0x93 & 0xFFu, 0);
         }
     }
-    vs_main_soundData.soundQueueSlot = vs_main_allocateCdQueueSlot(&cdFile);
-    if (vs_main_soundData.soundData != 0) {
+    psx_set(vs_main_soundData.soundQueueSlot, vs_main_allocateCdQueueSlot(&cdFile));
+    if (psx_get(vs_main_soundData.soundData) != 0) {
         vs_main_nop9(0x94, 0);
     }
     new_var = 1;
-    vs_main_soundData.soundData = vs_main_allocHeapR(cdFile.size);
+    psx_set(vs_main_soundData.soundData, vs_main_allocHeapR(cdFile.size));
     vs_main_soundData.soundFileId = file;
-    vs_main_cdEnqueue(vs_main_soundData.soundQueueSlot, vs_main_soundData.soundData);
+    vs_main_cdEnqueue(
+        psx_get(vs_main_soundData.soundQueueSlot), psx_get(vs_main_soundData.soundData));
 }
 
 void vs_main_loadSoundFile(int id) { _loadSoundFile(_soundFileMap[id]); }
@@ -10396,37 +10524,41 @@ int vs_main_processSoundQueue(void)
 {
     int temp_v0;
 
-    if (vs_main_soundData.soundQueueSlot != NULL) {
-        if (vs_main_soundData.soundQueueSlot->state == vs_main_CdQueueStateDispatched) {
+    if (psx_get(vs_main_soundData.soundQueueSlot) != NULL) {
+        if (psx_get(vs_main_soundData.soundQueueSlot)->state
+            == vs_main_CdQueueStateDispatched) {
             temp_v0 = vs_sound_spuTransferring();
             if (temp_v0 == 0) {
-                vs_main_freeCdQueueSlot(vs_main_soundData.soundQueueSlot);
-                vs_main_soundData.soundQueueSlot = NULL;
-                vs_main_freeHeapR(vs_main_soundData.soundData);
-                vs_main_soundData.soundData = NULL;
+                vs_main_freeCdQueueSlot(psx_get(vs_main_soundData.soundQueueSlot));
+                psx_set(vs_main_soundData.soundQueueSlot, NULL);
+                vs_main_freeHeapR(psx_get(vs_main_soundData.soundData));
+                psx_set(vs_main_soundData.soundData, NULL);
                 vs_main_soundData.soundFileId = 0;
                 return 0;
             }
             if (temp_v0 == -1) {
-                vs_main_freeCdQueueSlot(vs_main_soundData.soundQueueSlot);
-                vs_main_soundData.soundQueueSlot = NULL;
-                vs_main_freeHeapR(vs_main_soundData.soundData);
-                vs_main_soundData.soundData = NULL;
+                vs_main_freeCdQueueSlot(psx_get(vs_main_soundData.soundQueueSlot));
+                psx_set(vs_main_soundData.soundQueueSlot, NULL);
+                vs_main_freeHeapR(psx_get(vs_main_soundData.soundData));
+                psx_set(vs_main_soundData.soundData, NULL);
                 vs_main_soundData.soundFileId = 0;
                 return -1;
             }
             return 1;
         }
-        if (vs_main_soundData.soundQueueSlot->state == vs_main_CdQueueStateLoaded) {
-            vs_main_soundData.soundQueueSlot->state = vs_main_CdQueueStateDispatched;
-            func_80013188(vs_main_soundData.soundData, 0);
+        if (psx_get(vs_main_soundData.soundQueueSlot)->state
+            == vs_main_CdQueueStateLoaded) {
+            psx_get(vs_main_soundData.soundQueueSlot)->state =
+                vs_main_CdQueueStateDispatched;
+            func_80013188(psx_get(vs_main_soundData.soundData), 0);
             return 1;
         }
-        if (vs_main_soundData.soundQueueSlot->state == vs_main_CdQueueStateError) {
-            vs_main_freeCdQueueSlot(vs_main_soundData.soundQueueSlot);
-            vs_main_soundData.soundQueueSlot = NULL;
-            vs_main_freeHeapR(vs_main_soundData.soundData);
-            vs_main_soundData.soundData = NULL;
+        if (psx_get(vs_main_soundData.soundQueueSlot)->state
+            == vs_main_CdQueueStateError) {
+            vs_main_freeCdQueueSlot(psx_get(vs_main_soundData.soundQueueSlot));
+            psx_set(vs_main_soundData.soundQueueSlot, NULL);
+            vs_main_freeHeapR(psx_get(vs_main_soundData.soundData));
+            psx_set(vs_main_soundData.soundData, NULL);
             vs_main_soundData.soundFileId = 0;
             return -1;
         }
@@ -10450,6 +10582,13 @@ static void func_800468DC(void) { func_80012918(0x7FFF); }
 
 static void _loadMenuSound(void)
 {
+#ifdef ROOD_PC_NO_AUDIO
+    extern void pc_log(const char*);
+    pc_log("audio disabled for boot diagnostic; skipping SPU initialization");
+    vs_main_resetSound();
+    return;
+#endif
+
     void* buf;
 
     InitSound();
@@ -10481,7 +10620,7 @@ void vs_main_resetSound(void)
     int i;
 
     vs_main_soundData.currentMusicSlot = 0;
-    vs_main_soundData.currentMusicData = NULL;
+    psx_set(vs_main_soundData.currentMusicData, NULL);
     vs_main_soundData.unk8 = 0xFFFF;
     vs_main_soundData.unk4 = 0xFFFF;
     vs_main_soundData.currentSfxId = 0;
@@ -10489,24 +10628,24 @@ void vs_main_resetSound(void)
     for (i = 0; i < 4; ++i) {
         vs_main_soundData.musicIds[i] = 0;
         vs_main_soundData.unk14[i] = 0xFFFF;
-        vs_main_soundData.musicData[i] = NULL;
-        vs_main_soundData.musicQueueSlot[i] = NULL;
+        psx_set(vs_main_soundData.musicData[i], NULL);
+        psx_set(vs_main_soundData.musicQueueSlot[i], NULL);
     }
 
     for (i = 0; i < 3; ++i) {
         vs_main_soundData.sfxIds[i] = 0;
-        vs_main_soundData.sfxData[i] = NULL;
-        vs_main_soundData.sfxQueueSlot[i] = NULL;
+        psx_set(vs_main_soundData.sfxData[i], NULL);
+        psx_set(vs_main_soundData.sfxQueueSlot[i], NULL);
     }
 
     for (i = 0; i < 3; ++i) {
-        vs_main_soundData.unk64[i] = NULL;
-        vs_main_soundData.unk70[i] = NULL;
+        psx_set(vs_main_soundData.unk64[i], NULL);
+        psx_set(vs_main_soundData.unk70[i], NULL);
     }
 
     vs_main_soundData.soundFileId = 0;
-    vs_main_soundData.soundData = NULL;
-    vs_main_soundData.soundQueueSlot = NULL;
+    psx_set(vs_main_soundData.soundData, NULL);
+    psx_set(vs_main_soundData.soundQueueSlot, NULL);
     D_8005FE70 = 1;
     D_8005FE74 = 2;
     D_8005FE78 = 0x80;
@@ -11656,7 +11795,12 @@ void vs_main_clutInit(void)
     }
 }
 
-static void _asmNop(void) { __asm__(".nop;"); }
+static void _asmNop(void)
+{
+#ifndef ROOD_PC
+    __asm__(".nop;");
+#endif
+}
 
 void vs_main_nop9(int arg0 __attribute__((unused)), int arg1 __attribute__((unused))) { }
 
@@ -11666,6 +11810,14 @@ static void nop11(void) { }
 
 void vs_main_memcpy(void* dest, void* src, u_int sz)
 {
+#ifdef ROOD_PC
+    u_int* out = dest;
+    u_int* in = src;
+    u_int words = sz >> 2;
+    while (words--) {
+        *out++ = *in++;
+    }
+#else
     __asm__("srl $t0, %2, 4;"
             "beqz $t0, 1f;"
             "and $t5, %2, 12;"
@@ -11692,10 +11844,18 @@ void vs_main_memcpy(void* dest, void* src, u_int sz)
             "addu %0, 4;"
             "2:" ::"r"(dest),
         "r"(src), "r"(sz));
+#endif
 }
 
 void vs_main_bzero(void* dest, int sz)
 {
+#ifdef ROOD_PC
+    u_int* out = dest;
+    u_int words = ((u_int)sz & 0xFFFC) >> 2;
+    while (words--) {
+        *out++ = 0;
+    }
+#else
     __asm__("and $t0, %1, 0xFFFC;"
             "beqz $t0, 1f;"
             "0:"
@@ -11705,6 +11865,7 @@ void vs_main_bzero(void* dest, int sz)
             "addu %0, 4;"
             "1:" ::"r"(dest),
         "r"(sz));
+#endif
 }
 
 static void nop12(void) { }

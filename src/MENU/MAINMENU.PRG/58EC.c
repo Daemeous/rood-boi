@@ -439,7 +439,7 @@ static void _renderMenuCommand(void)
         prim = vs_battle_setSprite((1 << 8) | 128,
             (312 - (menuActionRenderPostitions[action] & 0xFF))
                 | ((actionYPos - 4) << 16),
-            menuActionRenderPostitions[action], vs_scratch.unk8);
+            menuActionRenderPostitions[action], psx_get(vs_scratch.unk8));
         prim[1] = vs_getTpage(768, 0, clut4Bit, semiTransparencyFull, ditheringOff);
         prim[4] = menuActionUvs[action] | vs_getUV0Clut(0, 0, 848, 223);
     }
@@ -488,7 +488,7 @@ void vs_mainmenu_renderButton(
     enum vs_mainMenu_buttonIDs buttonId, int x, int y, u_long* before)
 {
     if (before == NULL) {
-        before = vs_scratch.unk8;
+        before = psx_get(vs_scratch.unk8);
     }
 
     vs_battle_setSpriteDefaultTexPage(
@@ -503,7 +503,7 @@ int vs_mainMenu_renderCursor(u_int animStep, int xy)
 
     u_long* prim = vs_battle_setSpriteDefaultTexPage(
         vs_battle_cursorBrightnessAnimation[cursorAnimStep], xy, vs_getWH(16, 16),
-        vs_scratch.unk8);
+        psx_get(vs_scratch.unk8));
 
     if (vs_mainMenu_cursorColor == 0) {
         clut = vs_getUV0Clut(32, 48, 896, 223);
@@ -629,8 +629,8 @@ void vs_mainMenu_renderMenuRowIcon(int icon, int x, int y)
     icon = (icon - 1) & 0xFF;
 
     if (fade == 0) {
-        u_long* prim = vs_battle_setSpriteDefaultTexPage(
-            64 << brightness, vs_getXY_2(x, y), vs_getWH(16, 16), vs_scratch.unk8 + 4);
+        u_long* prim = vs_battle_setSpriteDefaultTexPage(64 << brightness,
+            vs_getXY_2(x, y), vs_getWH(16, 16), psx_get(vs_scratch.unk8) + 4);
 
         prim[4] = vs_getUV0Clut(iconUvs[icon], 0, 992, 223);
 
@@ -645,7 +645,7 @@ void vs_mainMenu_renderMenuRowIcon(int icon, int x, int y)
         }
 
         _renderFeatheredIcon(fade, vs_getXY_2(x, y),
-            vs_getUV0Clut(iconUvs[icon], 0, 992, 223), vs_scratch.unk8 + 4);
+            vs_getUV0Clut(iconUvs[icon], 0, 992, 223), psx_get(vs_scratch.unk8) + 4);
     }
 }
 
@@ -666,7 +666,7 @@ static void _renderAbilityCost(void)
 {
     static u_char animState = 8;
 
-    u_long* scratch = vs_scratch.unk4 - 4;
+    u_long* scratch = psx_get(vs_scratch.unk4) - 4;
 
     if (vs_mainMenu_displayActionCost != 0) {
         if (animState != 0) {
@@ -693,7 +693,7 @@ static void _renderAbilityCost(void)
         }
 
         x0 = x1 & 0xFFFF;
-        poly = vs_scratch.unk0;
+        poly = psx_get(vs_scratch.unk0);
 
         poly[0] = (*scratch & 0xFFFFFF) | 0x0A000000;
         poly[1] = vs_getTpage(0, 0, clut4Bit, semiTransparencyHalf, ditheringOn);
@@ -707,8 +707,8 @@ static void _renderAbilityCost(void)
         poly[9] = (x1 + 80) | (171 << 16);
         poly[10] = vs_getTpage(0, 0, clut4Bit, semiTransparencyHalf, ditheringOff);
 
-        *scratch = ((u_long)poly << 8) >> 8;
-        vs_scratch.unk0 = poly + 11;
+        *scratch = (psx_to_int(u_long, poly) << 8) >> 8;
+        psx_set(vs_scratch.unk0, poly + 11);
 
         vs_battle_addTile(
             scratch, vs_getRGB0(primTile, 0, 0, 0), x0 | (162 << 16), vs_getWH(82, 11));
@@ -718,8 +718,8 @@ static void _renderAbilityCost(void)
 void vs_mainmenu_renderButtonBackground(int x, int y, int w, int h)
 {
     int i;
-    u_long* var_t2 = vs_scratch.unk0;
-    u_long* temp_v1 = vs_scratch.unk4 - 0xC;
+    u_long* var_t2 = psx_get(vs_scratch.unk0);
+    u_long* temp_v1 = psx_get(vs_scratch.unk4) - 0xC;
 
     for (i = 0; i < h; ++i) {
         var_t2[0] = vs_getTag(u_long[6], temp_v1[0]);
@@ -729,11 +729,11 @@ void vs_mainmenu_renderButtonBackground(int x, int y, int w, int h)
         var_t2[4] = vs_getRGB888(16, 16, 8);
         var_t2[5] = vs_getXY_2((x + w) - i, y + i);
         var_t2[6] = vs_getTpage(0, 0, clut4Bit, semiTransparencyHalf, ditheringOff);
-        temp_v1[0] = (((u_long)var_t2 << 8) >> 8);
+        temp_v1[0] = ((psx_to_int(u_long, var_t2) << 8) >> 8);
         var_t2 += 7;
     }
 
-    vs_scratch.unk0 = var_t2;
+    psx_set(vs_scratch.unk0, var_t2);
 }
 
 void vs_mainMenu_setBackgroundRenderPriority(int otOffset, int brightness)
@@ -936,7 +936,7 @@ static vs_battle_menuItem_t* _initItemRow(int row, int x)
     } else if (row <= 102) {
         menuItem->outsetIcon = row - 100;
     } else {
-        menuItem->subText = vs_battle_limbNames[row - 103];
+        psx_set(menuItem->subText, vs_battle_limbNames[row - 103]);
     }
 
     menuItem->material = (flags >> 16) & 7;
@@ -1175,7 +1175,7 @@ static void _renderBackground(int brightness)
     u_long* prim;
 
     int uCoord = 0;
-    u_long* before = vs_scratch.unk4 + _backgroundOtOffset * 4;
+    u_long* before = psx_get(vs_scratch.unk4) + _backgroundOtOffset * 4;
 
     if (vs_main_frameBuf == 0) {
         uCoord = 320;
@@ -1332,7 +1332,7 @@ static void _renderScrollableRow(vs_battle_menuItem_t* menuItem)
     }
 
     xy = *(int*)&menuItem->x;
-    before = vs_scratch.unk8 + 8;
+    before = psx_get(vs_scratch.unk8) + 8;
     wh = menuItem->w;
     gradientState = menuItem->gradientState;
     scroll = menuItem->isScrollable - 1;
@@ -1396,7 +1396,7 @@ static void _renderScrollableRow(vs_battle_menuItem_t* menuItem)
     }
 
     if (wh != 0) {
-        prim = vs_scratch.unk0;
+        prim = psx_get(vs_scratch.unk0);
 
         for (i = 0; i < 12; ++i) {
 
@@ -1415,12 +1415,12 @@ static void _renderScrollableRow(vs_battle_menuItem_t* menuItem)
             prim[5] = ((xy + wh - 1) & 0xFFFF) | ((xy >> 0x10) << 0x10);
             prim[6] = vs_getTpage(0, 0, clut4Bit, semiTransparencyFull, ditheringOff);
 
-            *before = ((u_long)prim << 8) >> 8;
+            *before = (psx_to_int(u_long, prim) << 8) >> 8;
             prim += 7;
             xy += vs_getXY(0, 1);
         }
 
-        vs_scratch.unk0 = prim;
+        psx_set(vs_scratch.unk0, prim);
 
         if (scroll == 0) {
             vs_battle_addTile(before, vs_getRGB0(primTile, 0, 0, 0),
@@ -1631,7 +1631,7 @@ static void _renderMenuItems(void)
         }
 
         j = menuItem->max;
-        before = vs_scratch.unk8 + 8;
+        before = psx_get(vs_scratch.unk8) + 8;
 
         if (j != 0) {
             int xy;

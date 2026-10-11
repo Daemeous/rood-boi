@@ -1,0 +1,1066 @@
+# rood-boi: the native PC port
+
+The detailed reference for the port: renderer, editor, settings, developer
+RPC, tests and architecture. Installation, building and playing are covered
+in the [root README](../README.md); this file assumes that setup. Later
+sections keep the port's development history (checkpoints that were reached
+on the way to a playable game), so some of their "not yet" statements
+describe the state at that time.
+
+**Legal.** This is an unofficial fan project. It is not affiliated with,
+endorsed by or sponsored by Square Enix or Sony Interactive Entertainment.
+It ships no game data: no disc image, game executables, models, textures,
+audio or movies. To use it you must own *Vagrant Story* and supply your own
+disc image. *Vagrant Story*, PlayStation and other
+trademarks belong to their respective owners. The project's own code is
+released under CC0 (see `LICENSE`); vendored third-party code keeps its own
+licence, listed in [`THIRD_PARTY.md`](../THIRD_PARTY.md).
+
+## Build and run
+
+Supply your own NTSC-U SLUS-010.40 disc as `disks/SLUS-01040.bin`. First complete
+this repository's normal matching build (see the root README, which also
+lists the packages to install). The host build uses its extracted assets,
+symbol manifests, and object files. Nothing extracted from the disc belongs
+in Git. `pc/run-game.sh --vulkan` (64-bit, Vulkan) is the recommended way to
+build and play; the commands below are the 32-bit build.
+
+Host dependencies: Python 3, GCC/G++ with x86 multilib libc, CMake and (optionally)
+Ninja. The window, input, gamepads and audio use SDL 3 (`pc/third_party/SDL3`,
+vendored, zlib licence), which the builder compiles as a static 32-bit library in
+`pc/build/sdl3`; distributions do not ship 32-bit SDL 3 development packages.
+SDL loads its platform libraries at run time, so the build only needs their
+headers (on Ubuntu: `libx11-dev libxext-dev libxi-dev libxcursor-dev
+libxfixes-dev libxrandr-dev libxss-dev libwayland-dev libxkbcommon-dev
+libdecor-0-dev libpulse-dev libasound2-dev libdbus-1-dev libudev-dev`), and
+running needs the 32-bit (`:i386`) runtime libraries of the backends used:
+`libx11-6 libxext6 libxi6 libxcursor1 libxfixes3 libxrandr2 libxss1` for X11,
+`libwayland-client0 libwayland-cursor0 libwayland-egl1 libxkbcommon0` (and
+`libdecor-0-0` for title bars on GNOME) for native Wayland, `libpulse0` or
+`libasound2` (`libasound2t64` on Ubuntu 24.04) for sound, and the 32-bit OpenGL driver. The reference linker can be
+installed locally as `mipsel-linux-gnu-ld`, or run through the existing
+`rood-reverse-dev:local` Docker image. This is currently a Linux-only
+port; see `docs/Platform_Support.md` for other platforms.
+
+From the repository root:
+
+```sh
+python3 pc/tools/build_boot.py
+pc/run-boot.sh
+```
+
+Arrows navigate, Z is Circle (confirm/attack), X is Cross (cancel), A is Square,
+S is Triangle, Q/W are L1/R1, 1/2 are L2/R2, Enter is Start and Tab is Select;
+Escape or F1 opens the editor (see below), and closing the window quits. Gamepads
+are SDL gamepads, mapped through SDL's built-in GameController database, so face
+buttons go by position whatever their labels: D-pad or left stick navigates;
+Circle/east confirms, Cross/south cancels; face buttons, shoulders, triggers,
+Start/Select (Back) and stick clicks map to their PS1 equivalents. Extra mappings
+come from `SDL_GAMECONTROLLERCONFIG`, `SDL_GAMECONTROLLERCONFIG_FILE`, or a
+community `gamecontrollerdb.txt` in `pc/user/` (or at `ROOD_GAMECONTROLLERDB`).
+Input is suppressed while unfocused. Gamepads connect and disconnect at any time;
+disconnection clears held buttons and the next connected gamepad takes over. This
+first version presents a digital PS1 pad; analog pressure and rumble are not yet
+implemented. To choose a gamepad, set `ROOD_CONTROLLER` to its device path
+(`/dev/input/event*`, or the older `/dev/input/js*` name of the same device) or to
+part of its name; set it to `none` to disable gamepad input.
+`pc/build/boot/controller_probe --hardware` reports the detected gamepad and its
+current buttons. Automated mapping tests (`controller_probe`, also in CTest)
+cover positional face buttons, shoulders, Start/Select, stick clicks, the stick
+dead zone, overlapping D-pad/stick input, and triggers. Physical button presses
+still need hands-on validation. The intro movie plays before the title
+(see [Intro movie and CD drive](#intro-movie-and-cd-drive)); `--skip-movies`
+skips it. Remaining untranslated routines exit with a named `[UNIMPLEMENTED]`
+diagnostic.
+
+Memory cards are standard 128 KiB raw card images (`.mcd`, the format PS1
+emulators use), so saves move between this port and an emulator. Slot 1 is
+`pc/save/card1.mcd` (always inserted, created on the first save); slot 2 is
+`pc/save/card2.mcd` and is inserted only when that file exists. Override either
+with `ROOD_CARD1` / `ROOD_CARD2`. Save at a save point (Data > Save) and load
+from the title screen's Continue. `pc/save/` is ignored by git.
+
+For a deterministic headless title checkpoint:
+
+```sh
+pc/build/boot/rood_boot --skip-movies --title-checkpoint
+```
+
+It exits successfully only when the original title code reaches its input loop.
+`pc/build/boot/loading.ppm` (in `$ROOD_OUT` when set) contains the latest captured display (including the
+title screen at this checkpoint). `--loading-checkpoint` is an earlier checkpoint
+and does not establish title boot. `--fast` disables window pacing for tests.
+Without `--skip-movies`, the intro movie plays first (about 38 seconds of
+video before the title; Start skips it).
+
+## Intro movie and CD drive
+
+The title's own movie code (`src/TITLE/TITLE.PRG/22C.c`) plays MOV/TITLE.STR
+(320x224 MDEC frames at 15 fps with interleaved 37.8 kHz stereo XA audio) on
+host versions of the SDK calls it makes:
+
+- `pc/src/cd_drive.c` is the CD drive: libds commands (Setloc, Setmode,
+  Setfilter, ReadN/ReadS, Pause, Getloc..., DsPacket/DsCommand with
+  completion callbacks one tick later, DsReadyCallback and the ready system,
+  DsGetSector), DsRead2 streaming and the libcd streaming library
+  (StSetRing, StSetStream, StGetNext, StFreeRing, StGetBackloc, ...). A read
+  delivers sectors from the vsync tick at the disc's rate (150 sectors a
+  second at double speed), so the movie and its audio advance in real time as
+  on the PS1. Stream data sectors are assembled into whole frames in the
+  game's ring buffer; while the drive is filling it, a StGetNext poll lets a
+  vertical blank pass (the PS1 loop busy-waits on the CPU meanwhile).
+  Ordinary file loads stay synchronous (`pc_disc_read`).
+- `pc/src/xa_audio.c` decodes XA-ADPCM sectors that the drive plays in
+  real-time mode (filtered by file/channel with DslModeSF), applies the
+  DsMix/CdMix attenuators, resamples to 44.1 kHz and feeds the software SPU's
+  CD-audio input, which applies the CD volume and enable bits the game sets.
+  The movie's audio track keeps playing under the title menu until the game
+  stops the stream, as on the PS1. The decoder matches ffmpeg's `adpcm_xa`
+  sample for sample.
+- `pc/src/mdec.c` is libpress over a software MDEC (psx-spx: dequantisation,
+  integer IDCT with the uploaded scale table, YCbCr to 4/8/15/24-bit RGB).
+  `DecDCTvlc2` is a label-by-label translation of Sony's MIPS
+  (`libpress/VLC_C.s`, BS v2 and v3) over the table from the game's own
+  `DecDCTvlcBuild` (`libpress/BUILD.c`, compiled natively). DecDCTout
+  decodes before it returns and then raises the output callback; callbacks
+  that start the next strip run from a loop, not recursively.
+- `PutDispEnv` passes `isrgb24`; the presenters (OpenGL, software and the PPM
+  screenshots) show 24-bit display mode from native VRAM, since the scaled
+  hardware target only holds 15-bit pixels.
+
+`pc/build/boot/movie_probe` (run by the builder) checks synthetic macroblocks,
+XA sound groups and the first 60 frames of TITLE.STR; `--dump DIR` and
+`--wav PATH` write frames and audio, which matched ffmpeg's `psxstr` decoding
+at about 49-50 dB PSNR (rounding) and exactly for audio.
+`python3 pc/tests/movie_smoke.py` plays the movie headless: 24-bit frames
+advancing at 15 fps, XA audio in the recorded output, Start to the title and
+New Game after the stream stops. `Game.launch(movies=True)` (or `rood_rpc.py
+launch --movies`) plays it; the other tests skip it.
+
+## Renderer and developer overlay
+
+The platform layer is SDL 3 (`pc/src/boot_window.c`, `boot_gamepad.c`,
+`audio_output.c`, `gl_present.c`, `dev_overlay.cpp`). SDL uses native Wayland
+where the compositor supports it well (it needs the fifo-v1 protocol for
+dependable presentation, e.g. GNOME 48 and later) and X11 otherwise, including
+XWayland; `SDL_VIDEO_DRIVER=wayland` or `x11` chooses explicitly. If OpenGL is
+not available on Wayland (the 32-bit NVIDIA driver cannot create EGL window
+surfaces there), the game reopens on XWayland rather than a software surface,
+which Wayland cannot show without OpenGL either. Installing the `:i386` Wayland
+libraries alongside an amd64 `libdecor-0-0` from a PPA can make apt remove
+desktop packages (multiarch versions must match): check apt's removal list. Window and mouse
+coordinates are pixels on both. The window opens at the largest 4:3 size within
+two thirds of the primary display's height (1440 x 1080 on a 4K screen, at least
+960 x 720); `ROOD_WINDOW=WIDTHxHEIGHT` sets it, and `ROOD_UI_SCALE` sizes the
+overlay (by default the desktop's content scale). Closing the window exits.
+The frame loop paces itself to 59.94 Hz deadlines (`--fast` runs unpaced), with
+swap interval 0. Sound goes to SDL's audio output (PipeWire, PulseAudio or ALSA)
+at 44.1 kHz stereo, about 50 ms ahead, starting after a 2048-frame prebuffer;
+`ROOD_AUDIO=none` is silent and `ROOD_AUDIO=wav:PATH` records instead.
+
+The window uses an OpenGL 4.6 core context, or 3.3 core where 4.6 is not
+offered (`pc/src/gl_present.c`; SDL loads libGL or libEGL at run time and
+resolves the entry points in `gl_api.h`). Without OpenGL, or with
+`ROOD_RENDERER=software` (`x11`, its old name, still works), a 640 x 480
+software surface is presented instead. The
+hardware rasterizer (`pc/src/gpu_hw.c`) mirrors every primitive, fill, VRAM
+copy and upload into a VRAM render target at `ROOD_SCALE` times native
+resolution (1-8, default 4; 0 disables it). The CPU rasterizer stays the
+reference for native VRAM, so StoreImage, effects and texture decoding are
+unchanged; textures are decoded from native VRAM in the shader and re-uploaded
+per 64x256 tile only when a draw samples a tile the CPU changed. Colors keep
+8-bit precision, the four semi-transparency modes map to GL blending (opaque
+and translucent texels in separate passes), and the window is resizable with
+4:3, stretch or integer-scale presentation and nearest or bilinear filtering.
+Not yet mirrored: mask-bit testing (reported once if a game path uses it).
+24-bit display mode (the intro movie) is presented from native VRAM.
+
+Widescreen (`ROOD_WIDESCREEN=1`, the overlay checkbox or RPC `graphics`) is
+16:9 Hor+: the GTE compresses projected X by 3/4 about the screen centre, so the
+game's own screen-bounds culling admits the wider view, and the frame is shown
+at 16:9. 2D primitives keep their 4:3 shape: the GTE logs every screen position
+it projects, and the hardware rasterizer compresses primitives whose vertices
+were not projected (HUD, menus, sprites) about the drawing area's centre. 2D
+elements therefore sit within the central 4:3 area.
+
+The same log stores each projected vertex's GTE view depth (SZ), so 3D
+primitives carry depth into the hardware path: the target has a depth buffer
+written in the game's draw order (never tested; the PS1 sorts back to front),
+with 2D/UI at depth 0 and cleared areas at far. This is the input for post
+effects (depth of field, fog, ambient occlusion, lighting). With depth known,
+textures can also be mapped perspective-correct instead of the PS1's affine
+mapping (on by default; `ROOD_PERSPECTIVE=0` turns it off). The overlay and RPC `graphics` (`perspective`,
+`show_depth`) toggle both; the depth view shows far as black, UI as magenta
+and 3D as grey (near is brighter).
+
+Native room geometry (on by default; `ROOD_NATIVE_ROOM=0`, the editor's Graphics
+checkbox or RPC `graphics native_room` switch it) draws the room from meshes built once per room
+(`pc/src/room_native.c` through the render API in `pc/src/render.h`) instead of
+reconstructing it from packets: exact per-pixel depth and normals, real
+near-plane clipping, the PS1's per-polygon rules (back faces, ordering-table
+range, distance UV halving) and the game's group visibility and cutaways. The
+list is drawn at its place in the ordering table and hides the packets drawn
+after it where they are behind it. Semi-transparent room polygons stay
+packets; `2` also stops building the opaque room packets for the CPU's
+reference VRAM (less CPU, but StoreImage readers then miss the room). RPC
+`render_stats` and the Diagnostics tab count native and packet submissions.
+Design notes: `pc/docs/Native_Rendering.md`.
+
+Optional post effects run in the presentation pass and never touch UI pixels
+(depth 0): depth of field (auto focus from the screen centre, or a fixed SZ),
+tilt-shift (a sharp horizontal band, blur above and below) and depth fog.
+They are off by default; the overlay's Post effects section tunes them, and
+RPC `graphics` takes `post` (bit 0 DoF, 1 tilt-shift, 2 fog).
+
+Escape (or F1) toggles the editor (`pc/src/dev_overlay.cpp`, Dear ImGui
+vendored under `pc/third_party/imgui`, MIT), laid out like Unreal's: a menu
+bar (File: Save / Reload area and settings; Edit: Undo, Redo, Delete, Undo
+history; View; Help > Keyboard shortcuts; Play/Pause, Step), a one-row
+toolbar over the viewport (undo and redo arrows, Move/Rotate, snapping,
+view mode, Show, See into rooms, Lighting quality, Inspect, `?` for the shortcuts),
+and an Outliner and a Details panel docked on the right; the game image fits
+the space left. While it is open the keyboard and mouse belong to the editor (a
+gamepad still plays; Dear ImGui's own SDL 3 backend, `imgui_impl_sdl3`, feeds
+it). Right-drag in the view flies a free camera (WASD/QE, Shift faster; the
+pointer is hidden and held in relative mouse mode meanwhile, and returns where
+the drag began) that drives the game's own live rendering: func_8007ACB0 builds
+the view from it (RPC `editor_camera` sets or reads it); Play returns to the
+game camera. The Outliner lists the room's lights and the game's glows (the
+path tracer's emitters) by name ("Save point glow", "Flame (candle) #2",
+"Embers #3"), with mute and solo; both show in the view (a glow's diamond sits
+at its smoothed centre) and can be selected there. Each glow is one source
+(a fixture's room polygons, a particle system, an object) with an id that
+stays for the room visit; its position, colour and size are smoothed, so
+flickering sprites no longer make it jump ([docs/Glows.md](docs/Glows.md)).
+Glows come in three kinds: fixtures (candles, torches, lanterns, room
+flames), magic (the save point) and transient effects (attacks, spells, hit
+sparks, particles), which never cast shadows, are not listed one by one
+(an "Effect glows (N active)" row) and are controlled as a kind. Per kind:
+enabled, intensity, reach, cast shadows, smoothing (Details > Lighting >
+Game glows by kind; room settings `glow_<fixtures|magic|effects>_<enabled|
+intensity|reach|shadows|smoothing>` with project defaults; RPC `graphics`
+takes the same keys). A fixture's or magic glow's overrides (enabled,
+intensity, tint, size, reach) are saved with the room, by the glow's key. W/E pick the gizmo, I inspects, Ctrl+S saves the area;
+Help > Keyboard shortcuts (or the toolbar's `?`) lists every binding, with a
+search field.
+
+**Undo and redo** (`pc/src/editor_undo.cpp`): Ctrl+Z undoes, Ctrl+Y or
+Ctrl+Shift+Z redoes; Edit names the action ("Undo Move Candle 2") and lists
+the history (click an entry to go back or forward to it); the toolbar has
+arrows. Every editor edit is a transaction: lights and light actors (add,
+place, delete, duplicate, Alt+drag copies, move, rotate, every Details
+value including prefab parameter overrides, fixtures, Light fixture / Light
+all fixtures, Break into lights), glow overrides and mutes, the room's
+Lighting, Glows-by-kind and Atmosphere values, texture effect overrides,
+room group visibility, and graphics and lighting quality settings changed
+in the editor (a preset with the keys it set). A gizmo, slider or drag
+field held from press to release is one transaction, a typed value one on
+Enter; Escape leaves nothing. Undo puts back only what the action changed,
+with the selection it had. Changes are found by comparing snapshots of the
+editor's data each frame, so no edit path has to register itself. The
+history is per room visit, up to 200 steps: entering another room, Reload
+area or the room file changing on disk clears it (its states belong to the
+room file as loaded, and Unreal likewise clears it on loading a map);
+saving keeps it. Not undoable: the editor's view preferences (overlays,
+snapping, See into rooms: the `editor_*` settings), prefab files (Apply to
+prefab, Save as prefab, the prefab editor) and Use as the project default.
+**Delete** (or Backspace) deletes the selected light(s) or light actor.
+
+**Typing values**: a number field takes a click (without dragging; a drag
+scrubs it) to type a value, a slider a double-click (or Ctrl+click); Enter
+commits, Tab commits and moves to the next field, Escape cancels the edit
+(the editor stays open). While a field has the keyboard no editor shortcut
+fires (W/E, I, L, C, F, Delete, Ctrl+S, Ctrl+Z, RMB+WASD/QE flight) and no
+key reaches the game: the overlay hands every key to the field, and the
+shortcuts check Dear ImGui's `WantTextInput` (and a held item).
+
+The viewport draws overlays over the lit picture (`pc/src/editor_overlays.cpp`;
+toolbar Show, or the View menu): the room's edges (wireframe; a quad's
+diagonal is not an edge) and points, and the characters' wireframes. They
+follow what the view draws (groups hidden in the Outliner, black shells, the
+cutaway walls and the cut to focus leave theirs out) and are depth-aware:
+edges and points behind other room surfaces, or only on back faces, are
+drawn dimmed (Show > Hidden lines sets how much; 0 hides them). The hidden
+test casts rays against a BVH of the shown room polygons a few milliseconds
+per frame, so a still view costs nothing; the overlays only draw while the
+editor is open.
+
+Moving a light snaps like Houdini or Unreal: **Grid** (the step next to it;
+rotations use the rotation step), **Point** (the room point nearest the
+cursor within a search radius, visible points first, the nearest to the
+camera on ties), **Edge** (the nearest point on an edge; with Edge midpoints
+on, its middle when near), **Surface** (the surface under the cursor, held
+off it along its normal by an offset). A point or edge target wins over the
+surface, which wins over the grid; holding **V** while dragging toggles point
+snapping (and, without a drag, shows where a drag would snap), Ctrl inverts
+grid snapping. While snapping to a point the target lights up with the
+points and edges around it, brighter the nearer they are (falloff over the
+highlight radius), with the snapped coordinate next to it; points and edges
+appear during point/edge snap drags even with the overlays off. Shift+click
+and Ctrl+click (move or add a light) land on the snapped point or edge, else
+off the surface by the same offset. The snap settings (the arrow after the
+toggles) hold the steps, midpoints, search and highlight radii and offset.
+
+These switches persist with File > Save settings:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `editor_show_lights` | 1 | light and glow icons in the view |
+| `editor_wireframe`, `editor_points` | 0 | room edges / points |
+| `editor_character_wireframe` | 0 | characters, weapons and props |
+| `editor_occluded_opacity` | 0.25 | opacity of hidden edges and points |
+| `editor_snap_show` | 1 | points and edges appear during point/edge snap drags |
+| `editor_snap_grid`, `editor_snap_move`, `editor_snap_angle` | 0, 8, 15 | grid snapping and its steps (units, degrees; the snap settings offer 1-128 and 1-90) |
+| `editor_snap_point`, `editor_snap_edge`, `editor_snap_midpoint`, `editor_snap_surface` | 0 | snap modes |
+| `editor_snap_radius` | 14 | search radius around the cursor (pixels at UI scale 1) |
+| `editor_snap_highlight` | 128 | highlight radius around a snapped point (world units) |
+| `editor_snap_offset` | 64 | surface snapping's distance off the surface |
+| `light_animation` | 1 | light actors' flicker and pulse (0 holds them still) |
+| `editor_cutaway`, `editor_cutaway_radius` | 1, 320 | See into rooms > Cut to focus (key C) and its radius at the focus |
+| `editor_cutaway_opacity` | 0.3 | share of a cut surface still drawn as a ghost, with its edges (0: a hole) |
+| `editor_cutaway_auto` | 1 | cut only while room surfaces hide the focus from the camera |
+
+### 2D / UI: MMPX and sub-pixel text
+
+Graphics > 2D / UI (RPC `graphics`, settings keys below) chooses how 2D
+textures (HUD, menus, text, talk bubbles, icons; every textured primitive
+the GTE did not project and no native draw covers) reach the internal
+resolution. 3D textures always keep nearest sampling.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `ui_upscale` | `nearest` | `nearest`: the PS1's blocks (original). `mmpx`: MMPX (McGuire & Gagiu 2021), the style-preserving pixel-art magnifier: curves, diagonals and corners reconstructed, palette, transparency and one-pixel details kept exactly |
+| `ui_subpixel` | 0 | text glyphs drawn where the game places them in 16.16 fixed point instead of whole pixels (even spacing while talk bubbles zoom open and shut) |
+
+Nothing is shipped: each region a 2D primitive samples (texture page, CLUT,
+texel rectangle) is decoded from the game's own VRAM when drawn and
+magnified once into an atlas (`pc/src/ui_upscale.c`): 2x per MMPX pass, so
+2x, 4x or 8x for internal resolution 2, 3-4 or 5-8 (3x samples the 4x atlas),
+on the GPU (Vulkan or OpenGL 4.3 compute, `pc/shaders/vulkan/ui_mmpx.comp`) or
+on the CPU without compute (`ROOD_UI_UPSCALE_CPU=1` forces it). The texels are
+PS1 colours (5:5:5 + semi-transparency bit, 0 transparent), and MMPX only
+copies input texels, so the opaque/translucent passes and the colour key work
+unchanged. Regions are cached by content; a region whose VRAM tiles nothing
+wrote since is a hit without hashing, new content (a texture page rewritten,
+text drawn) is magnified again. Each region is magnified clamped to its own
+rectangle (sprites packed next to each other never bleed); strips a few
+texels high (the title menu's waving labels) take three texels of the page
+around them as context. Not magnified: regions inside a drawing area in use
+(the framebuffer used as a texture) and regions whose content changes on
+most frames. `ROOD_UI_DEBUG=1` reports atlas resets and bypassed regions, 2
+every new region, 3 sub-pixel text. RPC `ui_upscale` reports the cache (`verify: true` reads
+the atlas back and checks it against the CPU reference). The MMPX kernel is
+ported from the authors' MIT-licensed reference ([THIRD_PARTY.md](../THIRD_PARTY.md)).
+
+### Lighting the room's fixtures, light actors and Place Actors
+
+Lanterns, torches and candles are usually room geometry (a bracket and
+cage with a flame texture, a candle in a niche). **Light fixture** (toolbar;
+**L** lights the one under the cursor; a glow's Details has *Light this
+fixture*) gives one a light in one click: the flame is the nearest game glow
+within 128 units (linked), else the brightest, warmest texels of the room
+polygons within 80 units of the click (`ptgi.c` `pc_gi_flame_near`). The
+actor's prefab comes from the glow's colour and size or the flame's strength
+(the prefabs' `glow.suggest` rules: a candle, lantern, torch or magic glow),
+and its first light sits on the flame. The fixture is recorded with the
+actor (`fixture=x,y,z fixture_radius=r`): its polygons near the flame cast
+no shadow from that light (shadow rays stop `fixture_radius` short of the
+light, UE's "ignore owner"; Details > *Fixture casts shadow* turns that off,
+e.g. for an open cage whose bars should shadow the wall). Selecting the
+actor outlines the fixture's polygons; the Outliner marks it `[fixture]`.
+**Light fixture > Light all fixtures in room** (or Glows > *Light all
+fixtures in room*) lists an actor for every unlit glow (ticked) and every
+small flame polygon (unticked: less certain), drawn as ghosts, to review
+and add. Flames painted into larger textures are only found by clicking
+them (a room-wide brightness test caught patterned sandstone).
+
+Light actors are prefab instances (`pc/src/light_prefabs.h`, editor in
+`light_actors.cpp`): a prefab is a JSON file of lights placed relative to a
+pivot plus exposed parameters (colour temperature, tint, intensity, radius,
+flame height, flicker, sway, shadows, light size, the linked glow's
+treatment) that the lights' fields use in small expressions. Built-in
+prefabs (Candle, Candelabra, Lantern, Wall torch, Brazier, Fireplace, Window
+light, Magic glow) are in `pc/assets/prefabs` (format:
+`pc/assets/prefabs/README.md`); yours go to `pc/user/prefabs` (`ROOD_PREFABS`)
+and override a built-in with the same file name. Both reload live. An
+instance stores its prefab, transform, seed and only the parameters it
+overrides (`actor` lines in the room file, beside the old `light` lines,
+which still load), so editing a prefab changes every instance; Details
+shows the parameters with overridden ones highlighted and a reset arrow,
+*Apply to prefab*, *Save as prefab...*, *Edit prefab* (a live editor of the
+JSON), *Break into lights*. *Create prefab...* on a light (Ctrl+click more
+lights in the Outliner) makes a prefab of them. Flicker and pulse are
+deterministic functions of time and the actor's seed, sampled once per
+presented frame, and reach every lighting path (present shader, GL PTGI,
+Vulkan RT). A glow linked to an actor is driven by its flicker (or
+suppressed). The renderers take 16 lights: past that, the actor lights
+nearest the camera are kept (the Outliner says how many were left out).
+
+**Place Actors** (the tab beside the Outliner, Window > Place Actors,
+Shift+1, or the toolbar's **+ Place** menu) lists the light types and the
+prefabs with icons and colour swatches, a search field and categories. Drag
+one into the view: a lit ghost follows the cursor, placed by the snapping
+rules (point / edge snap with the neighbour highlight, else the surface: a
+light off it by the snap offset, an actor's pivot on it, facing the normal
+for wall prefabs); release to place it (selected, gizmo ready); Esc or a
+drop off the view cancels. Double-click places it at the surface under the
+view's centre; Ctrl+click in the view adds the panel's current item.
+
+Lighting and atmosphere settings are per room (`pc/src/room_settings.cpp`):
+each has a project default (built in, a pack's `lighting/<pack>/defaults.txt`,
+or yours in `pc/user/lighting/defaults.txt`), and changing it overrides it for
+the current room (highlighted, with a reset button; right-click to make a
+value the project default). A room's lights, actors and overrides come from
+its lighting layers (next section); Save area writes your user layer
+`pc/user/lighting/zoneZZ_roomRR.txt`. Settings not tied to a room (graphics,
+post effects, path tracer quality, shared lighting, `lighting_packs`) are
+saved from the editor (File > Save settings, Ctrl+Shift+S) to the file named
+by `ROOD_SETTINGS` (`pc/run-game.sh` uses `pc/user/settings.cfg`; tests leave
+it unset) and loaded at startup. Both kinds of file are data: edits made
+outside the game (by hand, by a script, by `git pull`) take effect live
+within half a second. `pc/user` is user content and git-ignored. The RPC
+`graphics` method sets the renderer options and `gpu_dump` writes the scaled
+target.
+
+### Lighting packs: layers, ids, Promote
+
+Lighting is data under source control, in layers merged by stable ids
+(`pc/src/lighting_layers.cpp`; format, ids and workflow:
+[lighting/README.md](../lighting/README.md)):
+
+1. `lighting/<pack>/generated/zoneZZ_roomRR.txt`: generator output
+   (tracked, regenerated wholesale, never edited by hand; generated items
+   take deterministic ids from their source);
+2. `lighting/<pack>/rooms/zoneZZ_roomRR.txt`: hand-authored lighting and
+   overrides of generated items by id (`override <id> key=value`,
+   `delete <id>`), tracked, what pull requests change;
+3. `pc/user/lighting/zoneZZ_roomRR.txt`: your own changes (untracked).
+
+Packs stack in the order of the settings key `lighting_packs` (default
+`default`; `lighting_active_pack` picks the one Promote writes, else the
+highest). Files are one item per line, sorted by id, numbers at fixed
+precision, comments allowed, with a `rood-lighting 2` header. The old
+`pc/lights/zoneZZ_roomRR.txt` files still load (as the user layer, when
+`pc/user/lighting` has no file for the room) and are migrated when saved.
+
+- **Save area** (Ctrl+S) writes only what differs from the packs: new items,
+  `override` lines with the changed fields of a pack's lights and actors,
+  `delete` for removed ones.
+- The Outliner shows each light's and actor's layers as a badge (`[G]`
+  generated, `[P]` pack, `[U]` yours, `[G>P>U]` changed on the way up).
+  Right-click a row: **Revert to the layers below** (an undoable edit),
+  **Promote to pack**, Copy id. Outliner > Layers lists the room's files,
+  items you deleted (Restore) and problems: an override or delete whose id
+  no lower layer defines (it was deleted or regenerated under it) is
+  reported, kept in its file and never silently dropped.
+- **File > Promote room to pack** / **Promote selection to pack**: saves,
+  then moves your user-layer entries for the room (or the selection) into
+  the active pack's authored file, keeping its other lines and comments.
+- Every layer reloads live. When a pack file changes under unsaved edits (a
+  pull, a regeneration), the edits are kept on top of the new packs; when
+  your own user file changes under them, the editor says so (Reload area
+  takes the file).
+
+`ROOD_LIGHTS` names the user layer's directory (tests: a scratch one; then
+no packs load unless `ROOD_LIGHTING` names a packs directory, so tests stay
+isolated); `ROOD_LIGHTING` names the packs' directory (`none`: no packs).
+RPC `lighting` reports the layers, the effective items with badges, problems
+and the user layer as it would be saved, and saves, reverts, promotes and
+switches packs. `pc/tools/lighting_lint.py` checks the packs (run.py runs it).
+
+### Room Browser: go to any room
+
+**Window > Room Browser** (toolbar **Rooms**, Ctrl+R) lists every zone and
+room of the game, with the game's own room and area names, searchable, the
+current room highlighted, Previous/Next and Go (or double-click). Nothing is
+shipped: the list is read from your disc at run time (`pc/src/room_catalog.c`,
+a few milliseconds): the executable's location table, the zone files' room
+lists, each room's door table (where doors lead and where Ashley arrives)
+and the names the map screen uses (`MENU5.PRG`, `SCENnnn.ARM`).
+
+Go makes the game itself change rooms: the field loop takes the request
+where it checks doors (`src/BATTLE/BATTLE.PRG/146C.c`, a hook under
+`ROOD_PC`; game side `pc/src/room_warp.c`) and starts the game's own door
+transition (`func_8007C4E0` within a zone, `func_8007C5C0` across zones,
+which loads the other zone file first) with a door record taken from a real
+door into the target room, so Ashley arrives where that door puts her, from
+any room. The editor stays open; the free camera and the pause come back
+after the fade-in. While the room loads (a second hook in `func_80089DC0`)
+the warp leaves its enemies out and its scripts unrun by default (toggles:
+Enemies, Room scripts): no cutscene, no story flag set by entering; the map
+screen's "rooms seen" bits are put back afterwards. The rooms' own temporary
+flags reset as on any room or zone change. Rooms you then walk into through
+doors behave as in play (their events may run). Rooms only reached by an event or
+a fall (no door leads in; 55 of 419) are listed greyed and cannot be warped
+to.
+
+Saving after a warp would record a location the story never reached:
+**while warped the memory card refuses writes** (Refuse saves, on by
+default: opening a card file for writing, renaming and erasing fail in
+`pc/src/memory_card.c`, so the save cannot complete; how the game's save
+screen words that has not been checked by hand). **Return** goes back to
+the room the warps started from (through one of its doors) and ends the
+warped state; **Stay (allow saving)** accepts the current room. RPC `rooms`
+lists the rooms (and the warp's state), `room_goto {zone, room}` warps
+(`{action: "return" | "clear" | "cancel" | "status"}`, `enemies`, `scripts`,
+`block_saves`); `pc/tests/room_browser_smoke.py` covers both with the
+lighting layers.
+
+### Lighting quality presets
+
+Lighting has quality presets so lower-spec PCs run it (`pc/src/lighting_quality.cpp`):
+the toolbar's **Lighting** dropdown picks one, and Details > Graphics >
+**Lighting quality** shows every setting by group (like Unreal's scalability
+settings). A preset sets its keys; changing any of them afterwards (editor,
+RPC, settings file) makes the preset **Custom**. Per-room values (light
+intensity, light size, haze density: the Lighting and Atmosphere tabs) still
+apply on top.
+
+| Preset | Shadows | Indirect light | Haze | AO | For |
+| --- | --- | --- | --- | --- | --- |
+| Original | none (the PS1's baked light only; dynamic lights off) | baked vertex colours | off | off | any |
+| Low | shadow maps, soft PCF | baked | off | on | integrated GPUs, no ray tracing |
+| Medium | shadow maps, contact-hardening PCSS | probe GI (else off) | low (unshadowed) | on | mid-range GPUs, no ray tracing needed |
+| High | ray-traced soft shadows, glows/candles cast shadows, characters shadow the baked light | probe GI (else off) | high (volumetric shadows) | on (traced) | entry ray tracing |
+| Ultra | ray-traced soft shadows (2 rays), glow and character shadows | per-pixel path tracing, NVIDIA NRD | high | off (the path tracer) | discrete ray-tracing GPUs |
+
+Each preset value is a list of choices in order of preference, and applying a
+preset takes the first one this backend can run: on Vulkan without ray
+queries (or `ROOD_VK_RT=0`) and on OpenGL without 4.3 compute shaders,
+ray-traced shadows become shadow maps (PCSS), high haze becomes low, path
+tracing becomes off; OpenGL with compute runs the GL path tracer (NRD is
+Vulkan only: the filter there). What runs is decided again every frame, so a
+Custom "traced" on a machine without a tracer draws shadow maps, and the
+editor greys out what cannot run with the reason for this backend. GI
+resolution is capped at 1.5 on integrated GPUs. Probe GI (`gi_method
+probes`) comes from the probe GI work; until a build has it (a
+`pc_probe_gi_available()` that returns 1), Medium and High fall back to the
+next lower choice (off) and the editor lists "Probes (not available)".
+Screen-space GI is reserved (not implemented).
+
+What the tiers add: **AO** darkens the baked and indirect light in creases
+and under props: traced with two short rays per GI pixel (accumulated with the
+baked-light visibility) where Vulkan ray queries exist, else screen-space AO
+from the depth buffer in the present pass (12 samples, no extra pass).
+**Shadow map filters**: hard (one tap), PCF (8 taps, `shadow_map_softness`)
+and PCSS (a blocker search over the light's size, then a penumbra as wide as
+the blockers' distance gives: sharp at contact, softer further away; slope
+scaled biases), the same on GL cube maps and Vulkan's atlas
+(`vk_shadows.c`). **Haze** Low is unshadowed in-scattering of every light in
+the present pass (6 jittered steps through the room's bounds, the traced
+haze's phase function and density); High is the traced haze (Vulkan froxel
+volume, GL per-pixel march). **Original** is the PS1's look exactly: no
+dynamic lights, the baked light at its own scale (the room's `baked_lighting`
+only applies with dynamic lights), the game's drop shadows.
+
+First run: with no settings file yet, the preset is detected (a settings file
+from before presets, without `lighting_preset`, loads as Custom so its tuned
+lighting keys are kept): Vulkan ray queries -> Ultra on a discrete GPU,
+High on an integrated one; no ray queries (OpenGL, or Vulkan without them)
+-> Medium on a discrete GPU, Low on an integrated (or software) one.
+`ROOD_GPU_CLASS=integrated|discrete` overrides the GPU class,
+`ROOD_LIGHTING_PRESET=name|auto` the preset. Detection is not saved by
+itself (it repeats until the settings are saved); a short benchmark could
+refine it later. Without `ROOD_SETTINGS` (tests) the built-in values stay and
+the preset shown is whichever matches them.
+
+Keys (settings file; RPC `graphics` reads and writes the same names, with
+`lighting_preset` applied first):
+
+| Key | Values | Preset key |
+| --- | --- | --- |
+| `lighting_preset` | `original`, `low`, `medium`, `high`, `ultra`, `custom` | |
+| `dynamic_lights` | 0/1 | yes |
+| `gi_method` | `off`, `screen` (reserved), `probes`, `path` | yes |
+| `gi_resolution` | GI pixels per native pixel (0.25-4) | yes |
+| `bounces`, `rays_per_pixel` | path tracer | yes |
+| `gi_denoiser` | `raw`, `filter`, `nrd` (numbers 0-2 still load) | yes |
+| `shadows` | `off`, `maps`, `traced` | yes |
+| `shadow_map_filter` | `hard`, `pcf`, `pcss` | yes |
+| `shadow_map_softness` | PCF cone (and PCSS's least penumbra) | yes |
+| `shadow_rays` | traced shadow rays per light per pixel | yes |
+| `glow_shadows` | glows (candles, torches) shadow their light | yes |
+| `characters_shadow_baked` | characters' contact and glow shadows on the baked light | yes |
+| `haze` | `off`, `low`, `high` | yes |
+| `ao`, `ao_radius` | ambient occlusion and its reach (world units) | yes |
+| `ao_strength` | 0-1 | no |
+
+The older keys `path_traced_light` and `traced_shadows`, and RPC `gi` /
+`rt_shadows`, still work (they set `gi_method` and `shadows`). The section's
+Display part (FXAA, frame pacing) is not part of the presets. Measured GPU
+time per preset (save room, a test light, RTX PRO 6000, RPC `perf`):
+`pc/tests/lighting_presets_smoke.py` prints it for each backend.
+
+A GPU too slow for the path tracer (OpenGL): at most two presented frames
+are queued on the GPU (`gl_present.c`; `ROOD_FRAMES_IN_FLIGHT` 1-8), so the
+CPU waits for the GPU instead of queueing frames without bound (that grew
+to seconds of latency and, ~20 s deep, the NVIDIA driver dropped the work:
+a black frame). When the tracer alone takes longer than its budget (RPC
+`graphics` `gi_budget`, `ROOD_GI_BUDGET`; auto 16 ms, 50 ms in fast mode,
+0 traces every present) it runs on every n-th present and the presents
+between show its last result. `ROOD_GI_SLOW=n` (testing) slows the tracer
+n-fold; `pc/tests/gi_lag_smoke.py` covers both.
+
+## Developer control interface (JSON-RPC)
+
+Set `ROOD_RPC=/path/to/socket` and the game listens on that Unix socket (mode
+0600) for JSON-RPC 2.0, one object per line. Requests are serviced on the game
+thread once per vsync, so each method runs at a frame boundary:
+
+| Method | Params | Result |
+| --- | --- | --- |
+| `status` | | vsync and battle-frame counters, pause state, injected buttons |
+| `pause` | `paused` (default true) | stop or resume at vsync boundaries |
+| `step` | `vsyncs` | run exactly N vsyncs, then pause |
+| `input` | `buttons` (name or list), `vsyncs` | hold PS1 buttons; works unfocused |
+| `release` | | drop injected buttons |
+| `state` | | zone, room, start state, music, HP/MP, risk, Ashley's position |
+| `read` / `write` | `address`, `length` / `hex` | guest RAM and scratchpad (read also host data) |
+| `screenshot` | `path` | displayed frame (native resolution) as a PPM |
+| `gpu_dump` | `path` | the whole scaled hardware VRAM target as a PPM |
+| `graphics` | `scale`, `filter`, `aspect`, `widescreen`, `perspective`, `show_depth`, `native_room`, `lighting_preset` and the lighting quality keys, ... | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
+| `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
+| `settings` | `action` (`save`, `load`) | the `ROOD_SETTINGS` file (a loaded preset applies at once) |
+| `perf` | `reset` | GPU time per presented frame since the last reset (`ROOD_PERF=1`; Vulkan timestamps, GL timer queries); GL adds `presents`, `gpu_wait_ms` (CPU waits for frames in flight), `gi_traced`/`gi_reused`, `gi_gpu_ms`, `gi_budget_ms`, `gi_interval` (path tracer cadence) |
+| `lighting_autodetect` | `ray_query`, `integrated` | the first-run preset for those capabilities |
+| `render_stats` | | native lists/instances/triangles and room triangles drawn from packets in the last frame |
+| `editor_ui` | `visible`, `help`, `tab`, `details`, `lighting_menu`, `rooms` | open or close the editor and its Keyboard shortcuts window (`rooms`: the Room Browser); `tab` `outliner` or `place`; `details` a Details tab (`lighting`, `inspector`, `atmosphere`, `post`, `graphics`, `diagnostics`); `lighting_menu` opens the toolbar's quality dropdown |
+| `editor_overlay` | `points`, `edges`, `update` | overlay state (points and edges shown, hidden-line test, cost) and N shown points/edges with window pixels |
+| `editor_snap` | `x`, `y` (or `u`, `v`), `modes`, `apply`, `highlight`, `clear` | the snap target a light drag would find there, with the lit neighbours and their weights; `apply` moves the selected light |
+| `actors` | `action` (`list`, `add`, `set`, `remove`, `select`, `sample`, `suggest`, `light_fixture`, `attach`, `fixture_triangles`, `save`, `save_prefab`, `apply_prefab`, `from_lights`), `prefab`, `position` or `x`/`y` (`u`/`v`), `modes`, `params`, `reset`, `index`, `time`, `animate`, `glows` | light actors in the room (see `pc/src/dev_rpc.c`); `time` fixes the animation clock (null: live) |
+| `glows` | `action` (`list`, `select`, `set`, `reset`, `solo`), `id`, `enabled`, `intensity`, `tint`, `size`, `reach`, `smoothing`, `fragments` | the room's glows (`pc/src/glows.c`): id, key, name, category (fixture, magic, effect), casts_shadows, smoothed and raw position/colour, presence, traced; the tracers' light `energy` (and `raw_energy` unsmoothed), per category (`categories`), `casts` (bit i: traced emitter i may cast shadows); select/set/reset/solo take fixtures and magic glows only; `smoothing` sets every kind's; `fragments: true` adds this update's glowing triangles and their glows |
+| `prefabs` | `reload` | the prefab library (built-in and user), parameters and problems |
+| `editor_place` | `item` / `prefab` / `light`, `phase` (`begin`, `move`, `drop`, `cancel`, `double_click`, `state`), `x`/`y` or `u`/`v` | a drag from Place Actors, as the mouse would do it |
+| `lighting` | `action` (`layers`, `save`, `revert` {`id`}, `promote` {`ids`}, `reload`, `packs` {`packs`, `active`}, `discard_dangling`, `poll`) | the room's lighting layers (files, entries, version), the effective items with their layer badges, deleted ids, problems (dangling overrides), the user layer as it would be saved |
+| `rooms` | | every zone and room read from the disc (zone, room, location, scene, entries, name, area), the current room, whether warped, the warp's phase |
+| `room_goto` | `zone`, `room`, `entry`, `enemies`, `scripts`, `block_saves`, or `action` (`return`, `clear`, `cancel`, `status`) | ask the game to load a room (taken in the field loop); phase 0 idle, 1 requested, 2 loading, 3 arrived, 4 done |
+| `editor_undo` | `action` (`list`, `undo`, `redo`, `begin`, `end`, `jump`), `steps`, `name`, `done` | the undo history (`done`, names, `undo`/`redo` names, `open`); each editing request (`actors`, `glows`, `lights`, `editor_place`, `room_groups`, `uv_effects`, `editor_snap` with `apply`) is one transaction, `begin`/`end` hold one open across requests (a drag) |
+| `editor_input` | `keys` (`delete`, `backspace`, `escape`, `enter`, `tab`, `f2`, a letter or digit), `text`, `ctrl`, `shift`, `focus` (`search`, `none`) | keys and text through SDL's event queue (the keyboard's path); replies `visible`, `want_text_input`, `item_active`, `gizmo` |
+| `editor_view` | `focus` | the cutaway's focus (`[x, y, z]` fixes it, null: automatic), whether it is `hidden` and how far the cut has faded in (`amount`) |
+| `quit` | | exit |
+
+Button names: `up down left right cross circle square triangle l1 r1 l2 r2 l3 r3
+start select`.
+
+`pc/tools/rood_rpc.py` is the client: a Python API (`Game.launch()`, `run`,
+`press`, `state`, `screenshot`, `read_symbol`), a CLI (`launch`, `call`,
+`symbol`) and `--rpc`, a stdin/stdout JSON-RPC bridge that adds `symbol` and
+`read_symbol` (resolved with `nm`, since the build is not position independent).
+`Game.launch()` runs headless unless `window=True` (see "Running the tests"
+for the EGL and Xvfb modes), and uses a scratch memory card unless `card=` is
+given; `fast=True` drops the 59.94 Hz pacing, which RPC stepping does not
+need. `rood_rpc.py headless` prints the mode and GPU this machine gets.
+`pc/tests/rpc_smoke.py` covers it.
+
+Crashes print `[crash]` and a `[stack]` line; `kill -USR1 <pid>` prints the
+stack of a running game. `pc/tools/where.sh resolve` turns those lines into
+function names. `ROOD_SNAP_EVERY=N` saves every Nth displayed frame.
+
+## Contributing lighting
+
+Lighting contributions arrive as pull requests that change only
+`lighting/` (format: [lighting/README.md](../lighting/README.md)):
+
+1. Light rooms in the editor (`pc/run-game.sh`, Escape; Ctrl+R jumps to any
+   room). Save area keeps your work in `pc/user/lighting` (untracked).
+2. When a room is ready, **File > Promote room to pack** (or Promote
+   selection) moves it into `lighting/default/rooms/zoneZZ_roomRR.txt`.
+   Override generated items by id rather than copying them; never edit
+   `generated/` files.
+3. Run `python3 pc/tools/lighting_lint.py` (syntax, known keys and prefab
+   parameters, duplicate ids, dangling overrides, rooms that exist; `--fix`
+   canonicalizes number formatting) and commit only `lighting/`: no game
+   data, screenshots of game imagery, `pc/user` or `pc/lights` files.
+4. One room per file keeps conflicts rare; ids are unique per item, so two
+   people adding lights to one room merge cleanly (entries are sorted by id).
+   Describe in the pull request which rooms changed and with which lighting
+   quality preset you judged them.
+
+Prefabs used by contributed actors must be built-in (`pc/assets/prefabs`) or
+contributed with them.
+
+## Validation
+
+Every successful boot build compiles and runs the software GTE probe: original
+register defaults, identity transform, perspective projection, NCLIP, AVSZ3, and
+axis/diagonal vector normalization. The battle build also checks the translated
+zero-fill spans and all 65,536 combinations of the actor flag helper.
+These focused cases do not establish full GTE fidelity.
+
+### Running the tests
+
+`pc/tests/run.py` runs every suite, several at once, and prints one table:
+
+```sh
+python3 pc/tests/run.py              # all suites, -j CPUs/4 (at most 6)
+python3 pc/tests/run.py -j 2 input   # suites whose names contain "input"
+python3 pc/tests/run.py --list
+```
+
+| Suite | Covers |
+| --- | --- |
+| `ctest` | the CMake probes in `pc/build` (configure it once, below) |
+| `rpc_smoke`, `gi_smoke`, `movie_smoke` | RPC control, path tracer, intro movie |
+| `room_smoke`, `opening_smoke`, `scene_smoke` | checkpoint frames without a window |
+| `window_smoke` | real X11 key and close events (always on Xvfb) |
+| `input:*` | each case in `start_button_smoke.sh` (`input_smoke.py`) |
+| `editor_cutaway_smoke`, `editor_snap_smoke` | the free camera's view into the save room; the viewport overlays and snapping there (both need `pc/save/card1.mcd`) |
+| `golden_frames` | fixed scenes and camera poses against reference frames |
+| `soak`, `soak:save` | `soak.py` for `--soak-frames` vsyncs (default 3000) from New Game, and from a copy of `pc/save/card1.mcd` (`--save`) when it exists; a Game Over is an event (Continue, or New Game from the title), not a finding |
+
+Each suite gets its own process group, output directory
+`pc/build/tests/<suite>/` (`output.log`, the game log, frames, scratch memory
+cards: `ROOD_OUT`), RPC socket, X display and an empty lights directory
+(`ROOD_LIGHTS`), so parallel suites cannot collide (no more "Cannot open X11
+display") and your settings, lights and saves never leak in. The table lists
+each suite's result, time and log; the exit status is nonzero when any suite
+failed (`SKIP` does not count). The runner does not build the game: rebuild
+with `pc/tools/build_boot.py --battle` (and without `--battle` for
+`window_smoke`'s `rood_boot`) first; it warns about stale binaries.
+
+**Headless rendering** (`ROOD_HEADLESS`, or `run.py --headless`):
+
+- `egl` (the default when it works): SDL's offscreen video driver with an EGL
+  context on a GPU device (`EGL_EXT_device_enumeration`/`EGL_EXT_platform_device`),
+  no X server. SDL takes the first device that initialises (NVIDIA, then Mesa
+  GPUs, then llvmpipe); `ROOD_EGL_DEVICE=N` picks one (`pc/tests/egl_probe.c N`
+  prints each device's renderer). Tests run at the real 4x scale with path
+  tracing as played. Input goes through the RPC `input` method: `input_smoke.py
+  --input rpc` maps its X11 key names to pad buttons.
+- `xvfb`: a private Xvfb display with software GL (llvmpipe), for machines
+  without a usable EGL device and for X11 input (`send_key.c`, `send_mouse.c`;
+  `input_smoke.py --input x11`). `rood_rpc.start_xvfb()` picks a display
+  number that no concurrent run can take.
+
+**Golden frames** (`pc/tests/golden_frames.py`): New Game with vsync-exact
+RPC stepping reaches the opening card and the first room, which is captured
+from the game's camera and from fixed `editor_camera` poses, with the depth
+view, 1x nearest scaling and path tracing. Frames are compared with a
+tolerance against references in `pc/build/golden/<gpu>/`. The references are
+game imagery: they are generated locally and must never be committed.
+
+```sh
+python3 pc/tests/golden_frames.py --update   # after an intended visual change
+python3 pc/tests/golden_frames.py            # compare; diffs in pc/build/tests/
+```
+
+The CMake probes on their own:
+
+```sh
+cmake -S pc -B pc/build -G Ninja
+cmake --build pc/build
+ctest --test-dir pc/build --output-on-failure
+cmake -S pc -B pc/build32 -G Ninja -DCMAKE_C_FLAGS=-m32
+cmake --build pc/build32
+ctest --test-dir pc/build32 --output-on-failure
+python3 pc/tests/window_smoke.py
+```
+
+For convenience, CMake targets `boot`, `check-boot` (build plus window test), and
+`battle-probe` wrap the same commands. They are opt-in and require the disc assets.
+
+The last test requires Xvfb and the X11 development library. It starts an
+isolated display, reaches the real title menu, injects Up, verifies that Sound
+(item 3) was selected and that Escape does not quit, then closes the window as a
+window manager would and expects a clean exit. It does not touch your desktop.
+Tests on Xvfb run SDL's X11 backend on their private display
+(`SDL_VIDEO_DRIVER=x11`, even from a Wayland session). `pc/tests/send_key.c` sends X11 key events to the window by name, which
+SDL reads as ordinary key presses; `pc/tests/send_mouse.c` moves the display's
+pointer with XTest, since SDL reads the mouse through XInput2.
+
+The independent memory probe checks 32/64-bit guest addressing, aliases,
+scratchpad, rejected MMIO/out-of-range spans, unsigned char and packed OT links.
+That small memory API is a portability experiment; the boot diagnostic currently
+uses fixed mappings instead, as described below.
+
+## Architecture and limits
+
+- Game C uses a 32-bit ABI, original SDK structures, unsigned char, and original
+  packed four-byte GPU tags. This proves a vertical slice, not a final ABI choice.
+- Original main/overlay binary **data** is loaded privately into mapped RAM at
+  `0x80000000`. Scratchpad is mapped at `0x1f800000`. These mappings are writable
+  but non-executable: MIPS instructions are not run by the host.
+- Ordering-table links are 24-bit guest addresses (every packet lives in guest
+  RAM). The 32-bit build also decodes native links below 16 MB; the 64-bit build
+  (`build_boot.py --arch 64`, `pc/build/boot64`) links only guest memory, keeps
+  native code and data below 4 GB (non-PIE) and runs the game on a stack below
+  2 GB, so any address the game stores in a 4-byte field fits. Native definitions override imports; unresolved original
+  data symbols are mapped using reference ELF symbol tables. Full relocation of
+  pointers stored in original data and coherent native/guest globals across
+  overlays remain important unfinished work.
+- The CPU renderer supports VRAM transfers/copies, CLUT and direct-color textures,
+  sprites/tiles, flat/Gouraud textured triangles and quads, blend modes, texture
+  windows, masks, and draw-area/offset packets. It is not a full PS1 GPU:
+  polygon interpolation/dithering are not hardware-exact, and unsupported packet
+  types still stop explicitly.
+- PsyCross's MIT software GTE subset is vendored with attribution under
+  `third_party/psycross/`. Its normal extended GPU structures are deliberately
+  not used because this game's code writes packed packet words directly.
+- File reads are synchronous against the user's image; streaming and XA audio
+  run in time from the CD drive (see above). Debug font output
+  and absent hardware have explicitly documented diagnostic behavior. These
+  shortcuts are isolated behind `ROOD_PC_BOOT_DIAGNOSTIC` or the host SDK layer.
+- Overlay C keeps its statics in host memory, but on the PS1 they live in the
+  overlay image and restart whenever the file is reloaded (MAINMENU.PRG at every
+  menu open). The build puts each overlay's `.data`/`.bss` in its own sections;
+  `pc/src/overlay_statics.c` snapshots them at startup and restores them when
+  the disc read that loads the file completes. `ROOD_OVERLAY_STATICS=0` turns
+  this off for comparison.
+- Unsupported function imports log `[UNIMPLEMENTED] name` and exit 2. This keeps
+  missing behavior visible. Successful title boot must not be described as
+  complete engine support.
+
+## Battle probe and next work
+
+```sh
+python3 pc/tools/build_boot.py --battle
+pc/build/boot/rood_battle_probe --skip-movies --fast
+```
+
+This optional executable also links the available BATTLE and INITBTL C sources.
+It follows the title's idle transition, loads BATTLE, INITBTL, and SYSTEM.DAT,
+and loads Ashley, equipment, ZONE020.ZND, and MAP213.MPD. It now reaches the
+battle frame loop after actor setup and collision/navigation initialization.
+Normal boot now passes actor/navigation frame preparation and reaches entry-script
+execution and shared effect setup. It renders the original VKP Headquarters
+opening card and caption. Continuing stops at scene transform `func_80098648`.
+No room is playable yet.
+Actor route paths still have unported callees; passing the current inactive-route
+case does not establish complete AI support. VSync query mode now matches the
+original API; elapsed scanlines are estimated from monotonic host time, not PS1
+hardware precision. Animated-texture MoveImage uses the tested VRAM-copy decoder.
+
+An explicit diagnostic can render the loaded mesh before that actor update:
+
+```sh
+pc/build/boot/rood_battle_probe --skip-movies --fast --room-checkpoint
+```
+
+This follows the title's idle/demo route into ZONE020 / MAP213. It deliberately
+submits loaded geometry even while the entry script keeps the room hidden,
+without setting the room active or advancing the script. It exits after writing
+`pc/build/boot/room-checkpoint.ppm`. The current preview contains textured room
+geometry but is partial and very dark; it is not a completed scene or gameplay.
+Normal execution does not use this bypass. The same packet decoder is covered by
+32/64-bit `gpu_probe` tests; projection and room packet generation have a separate
+32-bit GTE probe.
+
+Host-only actor preparation/commands, scene submission, and object shadows reuse
+retained near-matching C candidates, with provenance in their source files.
+Their rare branches are not yet validated. Two room-effect callback tables now
+use typed native wrappers; the builder verifies their original targets against
+the private overlay. Other embedded guest callbacks remain to be relocated.
+
+Room submission translates group matrices, packed vertices, culling, depth
+ordering, texture LOD and adaptive polygon subdivision (recursive midpoint
+triangles/quads plus the original's degenerate edge triangles, in submission order).
+Navigation also traps an edge case that depends on an original stack address.
+
+Dear ImGui is planned for a developer overlay after window/backend integration:
+controller state, frame timing, and renderer diagnostics. Keep original game UI
+and suppress game input while the overlay captures it.
+
+Next priorities: follow the opening through its scene transitions and reach
+controllable gameplay; finish remaining actor polygon routes; implement
+missing GPU commands; validate a complete, controllable
+scene. Then continue audio/save support.
+
+The original PS1 path is preserved with conditional host guards. Run the normal
+`make commit-check -j4` before accepting source changes. Baseline verified on
+2026-10-06: all binaries match, 1,887,248 / 1,936,592 matched code bytes (97.45%).
+This percentage describes the matching decompilation, not PC-port completeness.
+
+Regenerate `ASSEMBLY_INVENTORY.md` with `python3 pc/tools/inventory.py`. Its count
+is raw source macro occurrences, not a preprocessed count of remaining functions.
+
+### Entry-script and effect dispatch
+
+The native build generates bounded callback tables from the private reference
+BATTLE overlay, validates the targets against existing C handler signatures, and
+uses typed adapters for handlers with fewer arguments. This covers the 256 event
+opcodes, 49 shared effect commands, and the built-in trail renderer. The original
+alternate event skip table is already native and retains its distinct handlers.
+The EFFPURGE setup C now loads entry effect 229's texture and parameter files.
+Effect-specific PLG callbacks remain an explicit trap: their guest addresses are
+shared across different plugins and cannot be resolved by address alone.
+
+The particle packet routine now uses portable GTE calls and an explicit native
+argument, adapting the retained `gte-macros/s5.c` candidate. Its packet layout,
+projection, clipping, UVs, blend flag, sprite commands, and color curves have
+synthetic tests; this is not a matching-source or all-effects correctness claim.
+The four GIM renderer callbacks are native and their original targets are checked.
+Sound-bank loading, music start, and sound-effect volume commands follow the
+existing explicit no-audio diagnostic policy. `RotMatrix_gte` preserves the original GPF stages;
+rotation-order fixtures pass, but exhaustive trig-table equivalence is not claimed.
+Run `python3 pc/tests/event_callbacks_test.py` for callback generation/call tests.
+
+### Original opening-script checkpoint
+
+```sh
+python3 pc/tools/build_boot.py --battle
+pc/build/boot/rood_battle_probe --skip-movies --fast --opening-checkpoint
+python3 pc/tests/opening_smoke.py
+```
+
+This follows the title's idle/demo route and captures
+`pc/build/boot/opening-checkpoint.ppm` after the original GIM 26 background reaches
+full brightness and 60 normal battle frames allow the caption to appear. It
+changes no script, room visibility, camera, or game timing state to get there.
+The capture is the **VKP Headquarters — Valnain, 0:24 A.M.** opening card, with
+background, caption, and shared effect rendering. It is a scripted 2D opening,
+not a complete or controllable 3D room. Movies and audio remain disabled.
+The smoke test requires the background and bright caption region; visual review
+also confirmed the actual text. `cmake --build pc/build/probes --target check-opening`
+is the equivalent build-and-test target. Without the checkpoint flag, the next
+native loop now continues into the later VKP dialogue scene (see below).
+
+### Actor geometry checkpoint
+
+The native renderer now translates the far-clip-scaled scene transform, grouped
+bone vertex projection, weapon FT3/FT4 packets (including split quads), and the
+terrain-conforming actor shadow. Synthetic fixtures cover matrix/projection
+rounding, packet UVs and blend flags, culling, ordering-table links, both split
+quad diagonals, and shadow slope/fade/ring behavior. The builder runs these tests.
+These are behavioral translations of the original assembly, not matching C.
+
+The PC actor texture-cache scan skips null slots; the original PS1 path is
+unchanged. Stop-sound commands follow the existing no-audio diagnostic policy.
+The normal opening runs beyond these routines, but complete visible character
+rendering remains unvalidated and other actor packet paths remain fail-fast.
+
+### Sustained native scene checkpoint
+
+```sh
+python3 pc/tools/build_boot.py --battle
+python3 pc/tests/scene_smoke.py
+# Or choose another observational frame count:
+pc/build/boot/rood_battle_probe --skip-movies --fast --battle-frame-checkpoint 4000
+```
+
+The original title idle/demo route now runs 4,000 battle frames and renders the
+VKP interior, changing camera shots, animated actors and dialogue. The 4,000-frame
+capture shows the woman discussing the manor map. No room visibility, script,
+camera, or timing state is forced by this checkpoint. The image is saved as
+`pc/build/boot/battle-checkpoint.ppm`; `check-scene` is the CMake equivalent.
+The runtime logs each 300 completed battle frames and reports the frame of a trap.
+This is sustained cutscene rendering, **not yet controllable gameplay** or a
+pixel-exact emulator comparison. Movies and all sound remain disabled.
+
+Native additions include GTE animation blending (including its original retained
+IR3 edge case), fixed-width glyph quads, and flat/Gouraud lines and polylines.
+Tests cover blend wrap/rounding and fast paths, font atlas/CLUT/layout/advances,
+and line colors, clipping, draw offsets and command termination. The initial line
+rasterizer does not claim hardware-exact dithering or edge rules. Sound-parameter
+commands consistently use the explicit diagnostic no-audio policy.
+
+### New Game input checkpoint
+
+```sh
+python3 pc/tests/new_game_smoke.py
+python3 pc/tests/new_game_smoke.py --frames 5000
+pc/build/boot/rood_battle_probe --window --skip-movies
+```
+
+The test opens an isolated Xvfb window and presses Enter on the real title menu.
+It requires the original menu to report start mode 0 (New Game), then observes
+300 completed battle frames by default. Exploratory 5,000- and 10,000-frame runs also passed, but wait at the first
+dialogue prompt without further input; these are stability checks, not equivalent
+amounts of story progression.
+This follows ZONE001 rather than the title's ZONE020 idle cutscene. The capture is
+`pc/build/boot/new-game-checkpoint.ppm`; the transcript is `new-game-test.log` in
+the same ignored build directory. `check-new-game` runs the default check.
+The opening remains a cutscene; player control and later transitions are not
+claimed to work yet.
+
+New Game exposed a zero-particle emission that read an uninitialized node pointer.
+The PC guard retains setup side effects while avoiding that unused read. Native
+room-light interpolation now handles triangle colors, signed bounds and fallback
+colors; its wrapper explicitly forwards the output pointer that the PS1 ABI kept
+in a register. Focused interpolation tests and the real input path cover these
+fixes. Music volume commands still use the explicit no-audio diagnostic policy.
+
+The per-vertex-colored character GT3/GT4 packet path is also native. Its focused
+fixtures cover normal and special triangles/quads, vertex colors, UVs, blend and
+depth flags, culling and OT links. Broader live-scene coverage and the blended
+actor/weapon variants remain outstanding.
+
+
+### Dialogue and scene-transition work
+
+```sh
+pc/run-game.sh
+# Automated real-input exercise (later unported paths may still trap):
+python3 pc/tests/new_game_smoke.py --frames 4000 --advance-dialogue
+```
+
+The launcher builds the battle-capable diagnostic (`--no-build` skips that)
+and opens the original title, on the NVIDIA GPU when there is one (PRIME
+offload; `ROOD_GPU=integrated` keeps the default GPU) with path-traced
+lighting on (`ROOD_GI=0` turns it off).
+Enter selects New Game; `z` is Circle/confirm and `x` is Cross. The launcher
+plays the intro movie (pass `--skip-movies` to skip it). The smoke-test option sends ordinary confirm input after each
+300-frame marker, allowing dialogue to advance without rewriting script state.
+
+SCREFF2 now has overlay-specific native function names, its original C tile and
+border effects, and a native translation of the radial polygon distortion.
+Focused tests cover packet layouts, radial scale recurrence and OT restoration;
+visual equivalence to a PS1 remains unverified. Scene unload keeps its sound-data
+cleanup while omitting device commands under the explicit no-audio diagnostic.
+Actor disposition packing has a native translation with exhaustive round-trip
+coverage against the existing option unpacker.
+
+Actor unload also translates reference removal, occupancy clearing, effect stop
+callbacks, actor counters and heap release. A focused fixture checks these state
+changes independently. The dialogue-driven route completes cleanup near frame 2,745 and loads ZONE002
+room and actor assets. Its next music entry follows the same logged no-audio
+policy. Rendering the complete second scene and player control remain unverified.
+The PC actor-removal loop skips empty slots: GDB confirmed the original loop
+dereferenced a null slot while removing actor 2. The PS1 build is unchanged.
+
+
+Input-driven checkpoint: `--frames 6000 --advance-dialogue` **passes**. It
+renders the ZONE002 gateway close-up through adaptive room subdivision (frame
+2,883 onward) and continues to the next courtyard dialogue scene at frame 6,000
+(actors, room and speech bubble). This is still cutscene progress, not verified
+player control. The second-zone room and actor loads, first-room teardown, and
+subsequent music restart are reached through the original scripts and ordinary
+confirm input.
+
+Room subdivision (`pc/src/room_geometry.c`) translates `BATTLE/2EA3C.s`
+`func_80097AEC`/`CF0`/`F70`: 0x14-byte vertex records, byte UV/colour averages,
+arithmetic-shift XYZ midpoints, GTE re-projection, signed 16-bit leaf depths,
+the triangle-code conversion (`& 0xF7000000`) and the exact recursive order,
+including degenerate depth-zero edge triangles. `gte_probe` checks a level-1
+triangle's packets, UV/clut/tpage words and ordering-table links.
+
+The enemy-AI candidate evaluation that starts after the gateway scene is
+hand-written assembly. Native translations with focused fixtures now cover
+`func_800E685C`, `func_800E4DF8`, `func_800E4F14`, `func_800E4CF4` (7C4F4/7E05C),
+`func_800DC810`, `func_800DC484`/`48C`, `func_800DC4F0` (73C84), `func_800DC424`
+(73C24), `func_800DC3E8`/`344`/`3CC` (73B0C, including the K&R candidate
+quicksort from 7E05C), `func_800DC2E0` (73AE0), `func_800D9DD8` (70D4C) and the
+MVMVA weighted sum `func_800DC284` (7399C, `pc/src/battle_gte.c`). Remaining
+routines in those files (`72B70.s`, `func_800DC30C`, `func_800DC574`,
+`func_800DC784`, `func_800DC19C`/`210`, the rest of `7E05C.s`)
+still trap explicitly when reached. The per-frame AI driver `func_800E511C`
+(fixed table `D_800F16BC`, called directly, scratchpad stack switch omitted),
+`func_800D820C`/`826C`/`8280`, `func_800E4358`, `func_800E4624`,
+`func_800E4478`/`44E8` (floor and line of sight) and `func_800E437C` (facing
+cosine) followed. `--frames 7200 --advance-dialogue` passes (Ashley: "Here we
+go..."); `--frames 9000` stops at frame 7,286 on `func_800DB820` (`72B70.s`).
+Two more no-audio guards skip sound-effect
+playback (`func_800461CC`) and the sound stop command (`func_80045DC0`).
+
+
+A shorter `--frames 2850 --advance-dialogue` run **passes** and captures the
+ZONE002 exterior: rooftops, lit gateway and rain. The inspected enlarged image
+is retained locally as `pc/build/boot/new-game-zone2-2850.png` (ignored game data).
+This is a visible second-scene checkpoint, not proof of controllable gameplay.
+
+Subdivision investigation notes: `func_80097F70` averages signed 16-bit XYZ with
+arithmetic shifts (negative odd sums round down), and averages unsigned byte UV
+and RGB channels independently. `func_80097AEC` makes four recursive triangle
+calls followed by three depth-zero triangle calls; preserve that submission order
+rather than assuming a generic four-triangle tessellator. Leaf packets use signed
+16-bit depth samples. These details need independent fixtures before replacing
+the current trap.

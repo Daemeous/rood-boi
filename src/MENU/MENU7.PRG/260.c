@@ -596,7 +596,8 @@ static int _applyLoadedSaveFile(int write)
     savedata_unk180_2_t* unk180 = &spmcimg[1].unk180.unk180;
 
     _decode(unk180->key, &unk180->base.slotState,
-        sizeof(savedata_t) - (u_long) & ((savedata_t*)0)->unk180.unk180.base.slotState);
+        sizeof(savedata_t)
+            - psx_to_int(u_long, &((savedata_t*)0)->unk180.unk180.base.slotState));
 
     blockCount = 92;
     if (write != 0) {
@@ -763,6 +764,16 @@ static u_short _filePreviousProgressCounter;
 static u_short _fileProgressPosition;
 static int _fileProgressCounter;
 
+#ifdef ROOD_PC
+/* The first save after this overlay loads divides by _fileProgressTarget
+ * before setting it (0). MIPS div does not trap: by zero the quotient is -1
+ * for a non-negative dividend, else 1. */
+static int _progressDiv(int a, int b) { return b ? a / b : (a >= 0 ? -1 : 1); }
+#define _PROGRESS_DIV(a, b) _progressDiv(a, b)
+#else
+#define _PROGRESS_DIV(a, b) ((a) / (b))
+#endif
+
 static int _loadSaveData(int portFileno)
 {
     enum state { init = 0, reading = 1 };
@@ -795,10 +806,10 @@ static int _loadSaveData(int portFileno)
         char* filename;
         int new_var = 320;
 
-        _fileProgressPosition +=
+        _fileProgressPosition += _PROGRESS_DIV(
             ((_fileProgressCounter - _filePreviousProgressCounter)
-                * ((_loadSaveDataErrorOffset * 20) - (_fileProgressPosition - new_var)))
-            / _fileProgressTarget;
+                * ((_loadSaveDataErrorOffset * 20) - (_fileProgressPosition - new_var))),
+            _fileProgressTarget);
         _loadSaveDataErrorOffset = errors;
         _fileProgressTarget = 192 - (isTempSave << 7);
         _filePreviousProgressCounter = _fileProgressCounter;
@@ -890,9 +901,9 @@ static int _saveFile(int portFile)
         }
         break;
     case tempFileCreated:
-        temp_v1_2 = ((_fileProgressCounter - _filePreviousProgressCounter)
-                        * (320 - _fileProgressPosition))
-                  / _fileProgressTarget;
+        temp_v1_2 = _PROGRESS_DIV(((_fileProgressCounter - _filePreviousProgressCounter)
+                                      * (320 - _fileProgressPosition)),
+            _fileProgressTarget);
         _filePreviousProgressCounter = _fileProgressCounter;
         _fileProgressTarget = 384;
         _fileProgressPosition += temp_v1_2;
@@ -1752,10 +1763,11 @@ static void _drawFileMenuElement(fileMenuElements_t* element)
                     int new_var3 = 0x140;
                     _fileProcessingAnim(
                         _fileProgressPosition
-                            + (((_fileProgressCounter - _filePreviousProgressCounter)
-                                   * ((_loadSaveDataErrorOffset * 0x14)
-                                       - (_fileProgressPosition - new_var3)))
-                                / _fileProgressTarget),
+                            + _PROGRESS_DIV(
+                                ((_fileProgressCounter - _filePreviousProgressCounter)
+                                    * ((_loadSaveDataErrorOffset * 0x14)
+                                        - (_fileProgressPosition - new_var3))),
+                                _fileProgressTarget),
                         y);
                 }
             }
@@ -3221,7 +3233,7 @@ static int _displayGameOverScreen(int init)
     static char _[8];
 
     u_long* prim;
-    u_long* nextPrim = vs_scratch.unk8;
+    u_long* nextPrim = psx_get(vs_scratch.unk8);
 
     if (init != 0) {
         color1 = 0;
@@ -3233,14 +3245,14 @@ static int _displayGameOverScreen(int init)
         return 0;
     }
     if (color1 < 0) {
-        prim = vs_scratch.unk0;
+        prim = psx_get(vs_scratch.unk0);
         prim[0] = (*nextPrim & 0xFFFFFF) | 0x04000000;
         prim[1] = vs_getTpage(0, 0, direct16Bit, semiTransparencySubtract, ditheringOff);
         prim[3] = vs_getXY(0, 0);
         prim[4] = vs_getWH(320, 240);
         prim[2] = vs_getRGB0Raw(primTileSemiTrans, (color1 + 128) * 0x020202);
-        *nextPrim = ((u_long)prim << 8) >> 8;
-        vs_scratch.unk0 = prim + 5;
+        *nextPrim = (psx_to_int(u_long, prim) << 8) >> 8;
+        psx_set(vs_scratch.unk0, prim + 5);
         color1 += 8;
         if (color1 == 0) {
             SetDispMask(0);
@@ -3870,7 +3882,14 @@ int vs_menu7_saveContainerMenu(u_char* state)
 
 static void _drawPlayTime(void)
 {
+#ifdef ROOD_PC
+    /* The original writes into this string literal; host literals are
+     * read-only, so give it a writable copy. */
+    static char _playTimeText[] = "00:00:00:00";
+    static char* _playTime = _playTimeText;
+#else
     static char* _playTime = "00:00:00:00";
+#endif
 
     char time[4];
     int digits;
@@ -3880,7 +3899,7 @@ static void _drawPlayTime(void)
     if (time[3] >= 100) {
         *(int*)&time = 0;
         time[3] = 0;
-        vs_battle_renderTextRaw("1", 0xC800D8, vs_scratch.unk4 - 0x14);
+        vs_battle_renderTextRaw("1", 0xC800D8, psx_get(vs_scratch.unk4) - 0x14);
     } else {
         time[0] = ((((time[0] << 14) + vs_battle_keystreamBits(15)) * 5u) >> 14) / 3;
     }
@@ -3890,8 +3909,8 @@ static void _drawPlayTime(void)
         _playTime[9 - i * 3] = (digits >> 4) + 48;
         _playTime[10 - i * 3] = (digits & 0xF) + 48;
     }
-    vs_battle_renderTextRaw(_playTime, 0xC800E0, vs_scratch.unk4 - 0x14);
-    vs_battle_renderTextRaw("PLAY    TIME", 0xBC00E0, vs_scratch.unk4 - 0x14);
+    vs_battle_renderTextRaw(_playTime, 0xC800E0, psx_get(vs_scratch.unk4) - 0x14);
+    vs_battle_renderTextRaw("PLAY    TIME", 0xBC00E0, psx_get(vs_scratch.unk4) - 0x14);
 }
 
 int vs_menu7_dataMenu(u_char* state)

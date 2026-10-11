@@ -2,6 +2,7 @@
 #include "../../SLUS_010.40/main.h"
 #include "146C.h"
 #include "6E644.h"
+#include "pc/src/psx_types.h"
 
 enum vs_battle_warlockSpellIds_e {
     vs_battle_spell_solidShock = 0x61,
@@ -43,7 +44,7 @@ typedef struct {
     u_char state;
     u_char w;
     u_char backgroundWidth;
-    u_char _ __attribute__((unused));
+    u_char animationStep;
     u_char gradientState;
     u_char isScrollable;
     u_char selected;
@@ -62,8 +63,9 @@ typedef struct {
     short targetPosition0;
     short targetPosition1;
     char text[32];
-    char* subText;
+    psx_ptr(char) subText;
 } vs_battle_menuItem_t;
+PSX_ASSERT_SIZE(vs_battle_menuItem_t, 0x40);
 
 enum vs_battle_menuStates {
     menuStateMainMenu,
@@ -77,8 +79,9 @@ typedef struct {
     char returnState;
     char executeAbilityType;
     char loading;
-    vs_main_CdQueueSlot* cdQueue;
+    psx_ptr(vs_main_CdQueueSlot) cdQueue;
 } vs_battle_menuState_t;
+PSX_ASSERT_SIZE(vs_battle_menuState_t, 0x8);
 
 typedef struct {
     u_int unk0_0 : 4;
@@ -96,7 +99,7 @@ typedef struct {
     vs_battle_textBox_fields unk0;
     short unk4;
     short unk6;
-    char* string;
+    psx_ptr(char) string;
     u_short speed;
     u_short prevChunksPrinted;
     short xIndent;
@@ -119,6 +122,7 @@ typedef struct {
     short unk2C;
     short unk2E;
 } vs_battle_textBox;
+PSX_ASSERT_SIZE(vs_battle_textBox, 0x30);
 
 typedef struct {
     char cursorMemories[52];
@@ -161,8 +165,9 @@ typedef struct {
 
 typedef struct {
     int integers[10];
-    char* strings[10];
+    psx_ptr(char) strings[10];
 } vs_battle_stringContext_t;
+PSX_ASSERT_SIZE(vs_battle_stringContext_t, 0x50);
 
 typedef struct {
     short unk0[6];
@@ -205,9 +210,10 @@ typedef struct {
     short unk14;
     u_char unk16;
     u_char unk17;
-    u_char* unk18;
-    pFileBlock1Indices* unk1C;
+    psx_ptr(u_char) unk18;
+    psx_ptr(pFileBlock1Indices) unk1C;
 } func_800D6CF_t;
+PSX_ASSERT_SIZE(func_800D6CF_t, 0x20);
 
 typedef struct {
     u_char unk0;
@@ -237,7 +243,7 @@ typedef struct {
     short unk30[2];
     short unk34[8][6];
     short unk94[5][4];
-    int unkBC;
+    short unkBC[2];
     short unkC0[2];
     u_char rCurve;
     u_char gCurve;
@@ -249,12 +255,23 @@ typedef struct {
     u_char unkCB;
 } func_800FA098_arg0;
 
+typedef union {
+    int packed;
+    struct {
+        u_char rCurve;
+        u_char gCurve;
+        u_char bCurve;
+        u_char age;
+    } fields;
+} func_800D2904_curves;
+
 typedef struct {
     VECTOR unk0;
     VECTOR unk10;
     int unk20;
     u_int flags;
-    int unk28;
+    u_short unk28;
+    u_short unk2A;
     SVECTOR unk2C;
     VECTOR unk34;
     VECTOR unk44;
@@ -278,14 +295,16 @@ typedef struct {
     int unk134[2];
     SVECTOR unk13C;
     SVECTOR unk144;
-    u_char unk14C[0x1C];
+    int unk14C[2];
+    func_800D2904_curves unk154;
+    u_char unk158[0x10];
     int unk168;
     int unk16C;
     int unk170;
     int unk174;
     int unk178;
     int unk17C;
-    int unk180;
+    u_char unk180;
     int unk184;
     int unk188;
 } func_800FA098_arg1;
@@ -313,38 +332,66 @@ typedef struct {
 typedef struct {
     int unk0;
     int unk4;
-    pFileBlock5* block5Data;
-    u_char* curves[32];
-    pFileCurveBlock* curveBlock;
-    char* block8Data;
+    psx_ptr(pFileBlock5) block5Data;
+    psx_ptr(u_char) curves[32];
+    psx_ptr(pFileCurveBlock) curveBlock;
+    psx_ptr(char) block8Data;
     int block1TableCount;
-    pFileBlock1Indices* block1Tables[4];
-    pFileBlock1Data* block1Data;
+    psx_ptr(pFileBlock1Indices) block1Tables[4];
+    psx_ptr(pFileBlock1Data) block1Data;
     int block2Count;
-    u_short* block2Data;
-    pFileBlock9* block9Data;
-    void* block10Data;
-    pFileBlock3* block3Data;
-    u_char* block11Data;
-    void* block12Data;
-    void* block13Data;
+    psx_ptr(u_short) block2Data;
+    psx_ptr(pFileBlock9) block9Data;
+    psx_ptr(void) block10Data;
+    psx_ptr(pFileBlock3) block3Data;
+    psx_ptr(u_char) block11Data;
+    psx_ptr(void) block12Data;
+    psx_ptr(void) block13Data;
     int unkCC;
-    void* unkD0;
+    psx_ptr(void) unkD0;
 } D_800F569C_t;
+PSX_ASSERT_SIZE(D_800F569C_t, 0xd4);
+
+typedef struct {
+    VECTOR position;
+    VECTOR lookAt;
+    int unk20;
+    int unk24;
+    int unk28;
+    int unk2C;
+    int roll;
+    int nearClip;
+    int projectionDistance;
+    int farClip;
+} D_800F54D8_t;
 
 typedef struct func_800D2904_t {
-    struct func_800D2904_t* previous;
-    struct func_800D2904_t* next;
-    char unk8[4];
+    psx_ptr(struct func_800D2904_t) previous;
+    psx_ptr(struct func_800D2904_t) next;
+    short unk8;
+    short unkA;
     int unkC;
     int unk10;
     int unk14;
-    VECTOR unk18;
-    u_char unk28[0x14];
+    int unk18[3];
+    int unk24[3];
+    int unk30[3];
     int unk3C[8];
-    char unk5C[0x1B];
-    u_char unk77;
+    int unk5C;
+    u_int unk60_0 : 8;
+    u_int unk60_8 : 4;
+    u_int unk60_12 : 4;
+    short unk62[3];
+    short lifetime;
+    u_char unk6A;
+    u_char unk6B;
+    u_char endEvent;
+    u_char tickEvent;
+    char unk6E[2];
+    int unk70;
+    func_800D2904_curves unk74;
 } func_800D2904_t;
+PSX_ASSERT_SIZE(struct func_800D2904_t, 0x78);
 
 typedef struct {
     int unk0;
@@ -366,7 +413,9 @@ typedef struct {
     u_char unk37;
     MATRIX unk38;
     MATRIX unk58;
-    u_char unk78[0x58];
+    u_char unk78[0x46];
+    short unkBE;
+    u_char unkC0[0x10];
 } func_800CE714_t2_2;
 
 typedef struct {
@@ -381,13 +430,14 @@ typedef struct {
 } func_800D5780_t2;
 
 typedef struct {
-    /* 0x0 */ u_long* unk0;
+    /* 0x0 */ psx_ptr(u_long) unk0;
     /* 0x4 */ func_800D5780_t2 unk4;
     /* 0x6 */ short unk6;
     /* 0x8 */ short unk8;
     /* 0xA */ short unkA;
     /* 0xC */ int unkC;
 } func_800D5780_t;
+PSX_ASSERT_SIZE(func_800D5780_t, 0x10);
 
 typedef struct {
     char unk0;
@@ -402,36 +452,40 @@ typedef struct {
     D_800F53B8_t3_2 unkC;
     D_800F53B8_t3_2 unk18;
     D_800F53B8_t3_2 unk24;
-    D_800F53B8_t4* unk30;
-    func_800D4910_t* unk34;
+    psx_ptr(D_800F53B8_t4) unk30;
+    psx_ptr(func_800D4910_t) unk34;
     short unk38;
     short unk3A;
     int unk3C;
 } D_800F53B8_t3;
+PSX_ASSERT_SIZE(D_800F53B8_t3, 0x40);
 
 typedef struct D_800F53B8_t {
-    struct D_800F53B8_t* next;
-    struct D_800F53B8_t* previous;
+    psx_ptr(struct D_800F53B8_t) next;
+    psx_ptr(struct D_800F53B8_t) previous;
     char unk8;
     char unk9;
     u_short unkA;
-    char* unkC;
+    psx_ptr(char) unkC;
     char unk10[4];
     u_int unk14_0 : 8;
     u_int unk14_8 : 3;
     u_int unk14_11 : 5;
     u_int unk14_16 : 16;
-    func_800D2904_t* unk18;
+    psx_ptr(func_800D2904_t) unk18;
     func_800CE714_t2_2 unk1C[16];
     D_800F53B8_t3 unkD1C;
 } D_800F53B8_t;
+PSX_ASSERT_SIZE(struct D_800F53B8_t, 0xd5c);
 
 typedef struct {
     u_char unk0[0xC];
     VECTOR unkC;
     u_char unk1C[0x44];
-    u_char unk60;
-    u_char unk61[23];
+    u_int unk60 : 8;
+    u_int unk60_8 : 4;
+    u_int unk60_12 : 20;
+    u_char unk64[20];
 } func_800FB4C0_t;
 
 enum vs_battle_limbStatus {

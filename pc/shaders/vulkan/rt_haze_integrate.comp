@@ -1,0 +1,47 @@
+#version 450
+// Volumetric haze, step 2: integrate each screen cell's column of froxels
+// front to back (Beer-Lambert: uniform density inside the room's bounds),
+// storing per slice the light scattered toward the eye and the
+// transmittance up to that slice's far edge. The present pass samples it at
+// each pixel's depth: colour * transmittance + scattered light.
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(std140, binding = 0) uniform Integrate {
+    ivec4 grid; // GX, GY, GZ
+    vec4 depth_range; // znear, log(zfar / znear), display w, h
+    vec4 projection; // hx, hh, ofx, ofy
+    vec4 inverse_rotation[3];
+    vec4 camera_translation;
+    vec4 room_lo, room_hi; // w of room_lo: density
+} u;
+layout(binding = 1, rgba16f) uniform readonly image2D scatter;
+layout(binding = 2, rgba16f) uniform writeonly image2D integrated; // rgb scattered light, a transmittance
+float slice_z(float k) { return u.depth_range.x * exp(k / float(u.grid.z) * u.depth_range.y); }
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy);
+    if (g.x >= u.grid.x || g.y >= u.grid.y) return;
+    vec2 s = (vec2(g) + 0.5) / vec2(u.grid.xy) * u.depth_range.zw - u.projection.zw;
+    vec3 view_dir = vec3(s.x / u.projection.x, s.y / u.projection.y, 1.0); // per unit of view depth
+    mat3 inv = mat3(u.inverse_rotation[0].xyz, u.inverse_rotation[1].xyz, u.inverse_rotation[2].xyz);
+    // World distance per unit of view depth (the GTE view matrix is scaled,
+    // not orthonormal).
+    float stretch = length(inv * view_dir);
+    vec3 eye = -(inv * u.camera_translation.xyz), dir = normalize(inv * view_dir);
+    // The part of the view ray inside the room (density there only).
+    vec3 inv_d = 1.0 / dir, t0 = (u.room_lo.xyz - eye) * inv_d, t1 = (u.room_hi.xyz - eye) * inv_d;
+    float enter = max(max(min(t0.x, t1.x), min(t0.y, t1.y)), max(min(t0.z, t1.z), 0.0));
+    float leave = min(min(max(t0.x, t1.x), max(t0.y, t1.y)), max(t0.z, t1.z));
+    float density = u.room_lo.w;
+    vec3 light = vec3(0.0);
+    float transmittance = 1.0, z0 = 0.0;
+    for (int k = 0; k < u.grid.z; k++) {
+        float z1 = slice_z(float(k + 1));
+        float a = z0 * stretch, b = z1 * stretch; // distances along the ray
+        float inside = max(min(b, leave) - max(a, enter), 0.0);
+        float step_ = exp(-density * inside);
+        vec3 l = imageLoad(scatter, ivec2(g.x + k * u.grid.x, g.y)).rgb;
+        light += transmittance * l * (1.0 - step_);
+        transmittance *= step_;
+        imageStore(integrated, ivec2(g.x + k * u.grid.x, g.y), vec4(light, transmittance));
+        z0 = z1;
+    }
+}

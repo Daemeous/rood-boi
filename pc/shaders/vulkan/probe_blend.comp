@@ -1,0 +1,127 @@
+#version 460
+#extension GL_GOOGLE_include_directive : require
+// Probe GI blend pass (DDGI): one workgroup per probe, 8 x 8 invocations:
+// each blends one texel of its 8 x 8 irradiance tile and a 2 x 2 block of its
+// 16 x 16 visibility tile. This update's rays (in shared memory) are averaged over
+// each texel's hemisphere and blended into the atlases with hysteresis;
+// then the group writes its tiles' one-texel borders (copied across the
+// octahedron's folded edges, so bilinear lookups stay seamless).
+//
+// Irradiance: cosine weights; back faces are left out, and a probe seeing
+// mostly back faces keeps its texels. Visibility: the mean and mean square
+// of the distance (cosine^sharpness weights; back faces count at their
+// shortened distance), in units of the largest spacing, at most 2.
+// pv_blend.x/.y: hysteresis (0 on a reset: the first update replaces);
+// pv_blend.z: an irradiance texel that changed by more than this fraction
+// of its old value adapts faster (a light switched on or off).
+layout(local_size_x = 8, local_size_y = 8) in;
+#include "probe_update.glsl"
+layout(binding = 4, rgba16f) uniform readonly image2D rays_in;
+layout(binding = 5, rgba16f) uniform image2D irradiance_atlas;
+layout(binding = 6, rgba16f) uniform image2D depth_atlas;
+// The same atlases sampled: each texel's old value is read through the
+// texture path (much cheaper than a storage-image read on some GPUs) before
+// its own invocation writes it; borders are written, never read, here.
+layout(binding = 13) uniform sampler2D irradiance_history;
+layout(binding = 14) uniform sampler2D depth_history;
+#define MAX_RAYS 256
+shared vec4 ray_radiance[MAX_RAYS];
+shared vec4 ray_direction[MAX_RAYS];
+shared vec2 depth_texels[PROBE_DEPTH * PROBE_DEPTH];
+shared vec3 irradiance_texels[PROBE_IRRADIANCE * PROBE_IRRADIANCE];
+// Border texel k (0..4 size + 3) of a size x size tile: where it is (-1..size)
+// and the interior texel (0..size - 1) it copies.
+void border_texel(int k, int size, out ivec2 at, out ivec2 from) {
+    int last = size - 1;
+    if (k < size) { at = ivec2(k, -1); from = ivec2(last - k, 0); } // top row, mirrored
+    else if (k < 2 * size) { k -= size; at = ivec2(k, size); from = ivec2(last - k, last); } // bottom row
+    else if (k < 3 * size) { k -= 2 * size; at = ivec2(-1, k); from = ivec2(0, last - k); } // left column
+    else if (k < 4 * size) { k -= 3 * size; at = ivec2(size, k); from = ivec2(last, last - k); } // right column
+    else { // corners: the opposite interior corner
+        k -= 4 * size;
+        at = ivec2((k & 1) != 0 ? size : -1, (k & 2) != 0 ? size : -1);
+        from = ivec2((k & 1) != 0 ? 0 : last, (k & 2) != 0 ? 0 : last);
+    }
+}
+void main() {
+    int p = int(gl_WorkGroupID.x), n_rays = min(pv_info.y, MAX_RAYS);
+    if (p >= pv_info.x) return;
+    bool updating = (pv_info.w & (PV_RELOCATE | PV_CLASSIFY)) != 0;
+    if (probe_state[p].w <= 0.0 && !updating) return; // inactive (uniform per group)
+    int local = int(gl_LocalInvocationIndex);
+    float scale = 1.0 / pv_spacing.w;
+    for (int r = local; r < n_rays; r += 64) {
+        vec4 ray = imageLoad(rays_in, ivec2(r, p));
+        // Visibility distance (units of the spacing, at most 2) in w of the direction.
+        ray_direction[r] = vec4(probe_ray_direction(r, n_rays), min(abs(ray.w) * scale, 2.0));
+        ray_radiance[r] = ray;
+    }
+    barrier();
+    ivec2 tile = probe_tile(p), id = ivec2(gl_LocalInvocationID.xy);
+    // Irradiance: one texel per invocation.
+    {
+        vec3 dir = probe_oct_decode((vec2(id) + 0.5) / float(PROBE_IRRADIANCE) * 2.0 - 1.0);
+        ivec2 at = tile * (PROBE_IRRADIANCE + 2) + 1 + id;
+        vec4 old = texelFetch(irradiance_history, at, 0);
+        vec3 value = old.rgb;
+        vec4 sum = vec4(0.0);
+        int backfaces = 0;
+        for (int r = 0; r < n_rays; r++) {
+            vec4 ray = ray_radiance[r];
+            if (ray.w < 0.0) { backfaces++; continue; }
+            float w = max(dot(dir, ray_direction[r].xyz), 0.0);
+            sum += vec4(ray.rgb * w, w);
+        }
+        if (sum.w > 1e-6 && float(backfaces) <= pv_relocate.y * float(n_rays)) {
+            vec3 irradiance = sum.rgb / sum.w;
+            float h = pv_blend.x;
+            vec3 change = abs(irradiance - old.rgb);
+            float old_level = max(max(old.r, old.g), old.b);
+            if (pv_blend.z > 0.0 && max(max(change.r, change.g), change.b) > pv_blend.z * max(old_level, 0.02))
+                h *= 0.5;
+            value = mix(irradiance, old.rgb, h);
+        }
+        imageStore(irradiance_atlas, at, vec4(value, 1.0));
+        irradiance_texels[local] = value;
+    }
+    // Visibility: a 2 x 2 block of texels per invocation (each ray read once for four).
+    {
+        vec3 dir[4];
+        vec3 sum[4];
+        for (int k = 0; k < 4; k++) {
+            ivec2 texel = id * 2 + ivec2(k & 1, k >> 1);
+            dir[k] = probe_oct_decode((vec2(texel) + 0.5) / float(PROBE_DEPTH) * 2.0 - 1.0);
+            sum[k] = vec3(0.0);
+        }
+        float sharpness = pv_bias.w;
+        for (int r = 0; r < n_rays; r++) {
+            vec4 ray = ray_direction[r];
+            vec3 moments = vec3(ray.w, ray.w * ray.w, 1.0);
+            for (int k = 0; k < 4; k++) {
+                float c = max(dot(dir[k], ray.xyz), 0.0);
+                sum[k] += moments * (c > 0.0 ? exp2(sharpness * log2(c)) : 0.0);
+            }
+        }
+        for (int k = 0; k < 4; k++) {
+            ivec2 texel = id * 2 + ivec2(k & 1, k >> 1);
+            ivec2 at = tile * (PROBE_DEPTH + 2) + 1 + texel;
+            vec2 value = texelFetch(depth_history, at, 0).xy;
+            if (sum[k].z > 1e-6) value = mix(sum[k].xy / sum[k].z, value, pv_blend.y);
+            imageStore(depth_atlas, at, vec4(value, 0.0, 1.0));
+            depth_texels[texel.y * PROBE_DEPTH + texel.x] = value;
+        }
+    }
+    barrier();
+    // Borders: 68 visibility texels and 36 irradiance texels.
+    for (int k = local; k < 4 * PROBE_DEPTH + 4 + 4 * PROBE_IRRADIANCE + 4; k += 64) {
+        ivec2 at, from;
+        if (k < 4 * PROBE_DEPTH + 4) {
+            border_texel(k, PROBE_DEPTH, at, from);
+            imageStore(depth_atlas, tile * (PROBE_DEPTH + 2) + 1 + at, vec4(depth_texels[from.y * PROBE_DEPTH + from.x], 0.0, 1.0));
+        } else {
+            border_texel(k - (4 * PROBE_DEPTH + 4), PROBE_IRRADIANCE, at, from);
+            imageStore(irradiance_atlas, tile * (PROBE_IRRADIANCE + 2) + 1 + at,
+                vec4(irradiance_texels[from.y * PROBE_IRRADIANCE + from.x], 1.0));
+        }
+    }
+}
