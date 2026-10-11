@@ -34,6 +34,7 @@ Story*, PlayStation and all other trademarks belong to their respective owners.
    - [Windows](#windows)
    - [macOS](#macos)
 9. [Licence and credits](#licence-and-credits)
+   - [Thank you](#thank-you)
 10. [The decompilation (upstream rood-reverse)](#the-decompilation-upstream-rood-reverse)
 
 The detailed reference for the port (renderer, editor, settings keys,
@@ -429,9 +430,20 @@ port under `pc/`) is dedicated to the public domain under **CC0 1.0** (see
 NVIDIA NRD and its dependencies are downloaded at build time under their own
 terms and never committed; see [`THIRD_PARTY.md`](THIRD_PARTY.md).
 
+### Thank you
+
 rood-boi exists because of the [rood-reverse](https://github.com/ser-pounce/rood-reverse)
-decompilation by ser-pounce and its contributors, whose work (and
-acknowledgements) follow below.
+decompilation.
+
+- **[ser-pounce](https://github.com/ser-pounce)** started rood-reverse and has
+  done the overwhelming majority of the work on it. Turning Vagrant Story back
+  into readable C that rebuilds the original game byte for byte is what made a
+  native port like this possible at all. None of this would exist without it.
+- **[Lil' Sassy](https://github.com/lil-sassy)** is one of the decompilation's
+  most prolific contributors; their work is part of the game code this port
+  compiles and runs.
+- Thanks also to every other rood-reverse contributor, and to the projects and
+  people credited in the upstream section below.
 
 ## The decompilation (upstream rood-reverse)
 
