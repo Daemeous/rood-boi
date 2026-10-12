@@ -347,6 +347,9 @@ loop_1:
                 var_a1_2 |= 0x19200;
             }
 
+#if defined(VS_CALLO) && defined(VS_CALLO_MERLOSE_ROWS)
+            rowCount = vs_mod_optionsRows(rowCount, (char**)menuText, rowTypes);
+#endif
             vs_mainmenu_setMenuRows(rowCount, var_a1_2, menuText, rowTypes);
 
             if (state == none) {
