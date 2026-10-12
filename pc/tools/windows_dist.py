@@ -40,6 +40,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("destination", type=pathlib.Path)
     parser.add_argument("--disc", action="store_true", help="also copy disks/SLUS-01040.bin")
+    parser.add_argument("--callo", action="store_true",
+                        help="also add the Callo Merlose mod build (build_boot.py --target windows --callo) "
+                        "as rood-callo.exe with play-callo.bat, sharing the folder's data and saves")
     args = parser.parse_args()
     exe = ROOT / "pc/build/win64/rood.exe"
     if not exe.exists():
@@ -50,6 +53,13 @@ def main():
     dest.mkdir(parents=True, exist_ok=True)
     shutil.copy2(exe, dest / "rood.exe")
     (dest / "play.bat").write_bytes(PLAY_BAT.replace("\n", "\r\n").encode())
+    if args.callo:
+        callo = ROOT / "pc/build/win64_callo/rood.exe"
+        if not callo.exists():
+            raise SystemExit("pc/build/win64_callo/rood.exe is missing: run build_boot.py --target windows --callo")
+        shutil.copy2(callo, dest / "rood-callo.exe")
+        bat = PLAY_BAT.replace("rood.exe", "rood-callo.exe").replace("rood.log", "rood-callo.log")
+        (dest / "play-callo.bat").write_bytes(bat.replace("\n", "\r\n").encode())
     for tree in ["data", "lighting", "pc/assets"]:
         shutil.copytree(ROOT / tree, dest / tree, dirs_exist_ok=True)
     for empty in ["disks", "pc/user", "pc/save", "pc/lights", "pc/build/boot"]:

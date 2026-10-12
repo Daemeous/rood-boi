@@ -62,10 +62,19 @@ void pc_rpc_state(char* out, unsigned size)
     pc_dev_state(&s);
     if (s.has_player)
         sprintf(position, "{\"x\":%d,\"y\":%d,\"z\":%d,\"facing\":%d}", s.x, s.y, s.z, s.facing);
-    sprintf(out,
+    int used = sprintf(out,
         "{\"zone\":%d,\"room\":%d,\"start_state\":%d,\"music_id\":%d,\"music_slot\":%d,"
         "\"hp\":%d,\"max_hp\":%d,\"mp\":%d,\"max_mp\":%d,\"risk\":%d,\"game_over\":%d,"
         "\"intro_state\":%d,\"player\":%s}",
         s.zone, s.room, s.start_state, s.music_id, s.music_slot, s.hp, s.max_hp, s.mp, s.max_mp,
         s.risk, s.game_over, s.intro_state, position);
+#ifdef VS_CALLO
+    /* The Callo mod's companion (src/BATTLE/BATTLE.PRG/mod/merlose.h) */
+    extern int vs_mod_describe(char*);
+    used += sprintf(out + used - 1, ",\"callo\":") - 1;
+    used += vs_mod_describe(out + used);
+    out[used++] = '}';
+    out[used] = 0;
+#endif
+    (void)used;
 }

@@ -48,6 +48,12 @@ parser.add_argument(
     "pc/build/win64/rood.exe (implies --arch 64; the symbol analysis runs on "
     "the ELF twins, pc/docs/Platform_Support.md)",
 )
+parser.add_argument(
+    "--callo",
+    action="store_true",
+    help="with the Callo Merlose companion mod (src/BATTLE/BATTLE.PRG/mod; VS_CALLO and "
+    "VS_SELECTABLE_ROULETTE, as the decompilation's make CALLO=1); builds into *_callo",
+)
 parsed = parser.parse_args()
 win = parsed.target == "windows"
 if win:
@@ -59,6 +65,8 @@ no_audio = parsed.no_audio
 
 root = pathlib.Path(__file__).resolve().parents[2]
 out = root / ("pc/build/win64" if win else "pc/build/boot64" if arch64 else "pc/build/boot")
+if parsed.callo:
+    out = out.with_name(out.name + "_callo")
 out.mkdir(parents=True, exist_ok=True)
 # Generated sources included by path from src/ ("pc/build/boot/x.inc"); the
 # 64-bit pass shadows that path with -iquote so the 32-bit tree is untouched.
@@ -531,6 +539,10 @@ if battle:
         (str(p.relative_to(root)), "battle_" + p.stem)
         for p in sorted((root / "src/BATTLE/BATTLE.PRG").glob("*.c"))
     ]
+    if parsed.callo:
+        # Linked with BATTLE.PRG, as in the decompilation's CALLO=1 build; the menu module
+        # (menu.c, a separate file on the disc there) is linked in too (mod/callo.h).
+        sources += [(f"src/BATTLE/BATTLE.PRG/mod/{n}.c", f"battle_mod_{n}") for n in ["callo", "menu"]]
     sources += [
         (str(p.relative_to(root)), "init_" + p.stem)
         for p in sorted((root / "src/BATTLE/INITBTL.PRG").glob("*.c"))
@@ -588,6 +600,8 @@ game_cpp_flags = [
     "-DOBJDIFF",
     "-DROOD_PC",
     "-DROOD_PC_BOOT_DIAGNOSTIC",
+    # The Callo mod's hooks (src/BATTLE/BATTLE.PRG/mod/hooks.h) and the selectable bonus wheel
+    *(["-DVS_CALLO", "-DVS_SELECTABLE_ROULETTE"] if parsed.callo else []),
     # psx_ptr/psx_get/PSX_SIZE/PSX_ASSERT_* in every game unit; on 32 bits
     # they expand to the original pointers and literals.
     "-include",
