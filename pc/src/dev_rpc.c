@@ -207,6 +207,8 @@
  *   read {address, length}       hex bytes from guest RAM, scratchpad or host data
  *   write {address, hex}         patch guest RAM or scratchpad
  *   state                        Vagrant Story snapshot (zone, room, player, music)
+ *   state_flag {id, value}       read (and with value, set) a story/state flag,
+ *                                e.g. to get past the prologue in tests
  *   quit                         exit the game
  *
  * pc/tools/rood_rpc.py is the client (CLI, Python API and a stdin/stdout
@@ -508,12 +510,34 @@ static void reply(int fd, const char* id, const char* result)
     snprintf(line, sizeof line, "{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":%s}\n", id, result);
     send_line(fd, line);
 }
+/* A string as JSON string contents (quotes, backslashes - Windows paths -, control characters
+ * escaped), in one of a few rotating buffers so a reply can take two. */
+static const char* json_str(const char* text)
+{
+    static char buffers[4][1024];
+    static int next;
+    char* out = buffers[next++ & 3];
+    size_t used = 0;
+    for (; text && *text && used + 7 < sizeof buffers[0]; text++) {
+        unsigned char c = (unsigned char)*text;
+        if (c == '"' || c == '\\') {
+            out[used++] = '\\';
+            out[used++] = (char)c;
+        } else if (c < 0x20)
+            used += (size_t)snprintf(out + used, 7, "\\u%04x", c);
+        else
+            out[used++] = (char)c;
+    }
+    out[used] = 0;
+    return out;
+}
+
 static void fail(int fd, const char* id, int code, const char* message)
 {
     char line[1024];
     snprintf(line, sizeof line,
         "{\"jsonrpc\":\"2.0\",\"id\":%s,\"error\":{\"code\":%d,\"message\":\"%s\"}}\n", id, code,
-        message);
+        json_str(message));
     send_line(fd, line);
 }
 
@@ -764,7 +788,7 @@ static void handle_method(int fd, const char* request)
             fail(fd, id, -32000, "cannot write screenshot");
             return;
         }
-        snprintf(result, sizeof result, "{\"path\":\"%s\",\"width\":%d,\"height\":%d}", path, width,
+        snprintf(result, sizeof result, "{\"path\":\"%s\",\"width\":%d,\"height\":%d}", json_str(path), width,
             height);
         reply(fd, id, result);
     } else if (!strcmp(method, "graphics")) {
@@ -1211,7 +1235,7 @@ static void handle_method(int fd, const char* request)
         if (pc_lighting_sync)
             pc_lighting_sync(); /* a loaded preset applies now */
         const char* path = pc_settings_path();
-        snprintf(result, sizeof result, "{\"status\":\"%s\",\"path\":\"%s\"}", pc_settings_status(), path ? path : "");
+        snprintf(result, sizeof result, "{\"status\":\"%s\",\"path\":\"%s\"}", pc_settings_status(), json_str(path));
         reply(fd, id, result);
     } else if (!strcmp(method, "perf")) {
         /* GPU time per presented frame since the last {reset: true} (ROOD_PERF=1). */
@@ -1555,7 +1579,7 @@ static void handle_method(int fd, const char* request)
             fail(fd, id, -32000, "no GI result (needs Vulkan ray tracing)");
             return;
         }
-        snprintf(result, sizeof result, "{\"path\":\"%s\"}", path);
+        snprintf(result, sizeof result, "{\"path\":\"%s\"}", json_str(path));
         reply(fd, id, result);
     } else if (!strcmp(method, "probe_gi")) {
         if (!pc_probe_get_stats) {
@@ -1864,7 +1888,7 @@ static void handle_method(int fd, const char* request)
             fail(fd, id, -32000, "scene dump failed");
             return;
         }
-        snprintf(result, sizeof result, "{\"path\":\"%s\"}", path);
+        snprintf(result, sizeof result, "{\"path\":\"%s\"}", json_str(path));
         reply(fd, id, result);
     } else if (!strcmp(method, "anim_trace")) {
         /* Object instances (bone palettes as drawn, the game frame's and the
@@ -1886,7 +1910,7 @@ static void handle_method(int fd, const char* request)
             fail(fd, id, -32000, "cannot open the trace file");
             return;
         }
-        snprintf(result, sizeof result, "{\"path\":\"%s\",\"remaining\":%d}", path, render_anim_trace_remaining());
+        snprintf(result, sizeof result, "{\"path\":\"%s\",\"remaining\":%d}", json_str(path), render_anim_trace_remaining());
         reply(fd, id, result);
     } else if (!strcmp(method, "present_dump")) {
         /* The next presented window image (as displayed) to a PPM. */
@@ -1904,7 +1928,7 @@ static void handle_method(int fd, const char* request)
         if (params && &pc_present_burst && real_value(member(params, "count"), &count))
             pc_present_burst = (int)count;
         snprintf(pc_present_capture, 400, "%s", path);
-        snprintf(result, sizeof result, "{\"path\":\"%s\"}", path);
+        snprintf(result, sizeof result, "{\"path\":\"%s\"}", json_str(path));
         reply(fd, id, result);
     } else if (!strcmp(method, "editor_camera")) {
         /* The editor's free camera: {x, y, z, yaw, pitch} sets it (and turns
@@ -2005,7 +2029,27 @@ static void handle_method(int fd, const char* request)
             fail(fd, id, -32000, "hardware renderer inactive or dump failed");
             return;
         }
-        snprintf(result, sizeof result, "{\"path\":\"%s\"}", path);
+        snprintf(result, sizeof result, "{\"path\":\"%s\"}", json_str(path));
+        reply(fd, id, result);
+    } else if (!strcmp(method, "state_flag")) {
+        /* The game's story/state flags (as room scripts read and set them;
+         * 4A0A8.c): {id} reads one, {id, value} sets it first. For tests
+         * that jump ahead, e.g. past the prologue. */
+        extern char vs_battle_getStateFlag(short) __attribute__((weak));
+        extern void vs_battle_setStateFlag(short, char) __attribute__((weak));
+        long long flag, value;
+        if (!vs_battle_getStateFlag || !vs_battle_setStateFlag) {
+            fail(fd, id, -32000, "state_flag needs the battle build");
+            return;
+        }
+        if (!params || !number_value(member(params, "id"), &flag) || flag < 0 || flag >= 0x440) {
+            fail(fd, id, -32602, "state_flag needs id (0-0x43F)");
+            return;
+        }
+        if (number_value(member(params, "value"), &value))
+            vs_battle_setStateFlag((short)flag, (char)value);
+        snprintf(result, sizeof result, "{\"id\":%lld,\"value\":%d}", flag,
+            (unsigned char)vs_battle_getStateFlag((short)flag));
         reply(fd, id, result);
     } else if (!strcmp(method, "read")) {
         long long address, length = 4;
