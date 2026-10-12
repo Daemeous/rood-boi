@@ -153,6 +153,8 @@ def suites(args, mode="egl"):
               note="ui_text fonts: off = original path; bubble, HUD, menu change only inside glyph boxes, "
                    "text extents kept, settings"),
         *input_cases(scale),
+        Suite("aa_smoke", [PY, str(TESTS / "aa_smoke.py")], 300,
+              note="anti-aliasing: each method renders, smooths edges, keeps texels and 2D; interpolation"),
         Suite("golden_frames", [PY, str(TESTS / "golden_frames.py")], 600,
               note="references in pc/build/golden"),
         Suite("soak", [PY, str(TESTS / "soak.py"), "--frames", str(args.soak_frames), "--max-launches", "2"],

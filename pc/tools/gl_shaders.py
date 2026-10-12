@@ -21,7 +21,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 SOURCES = ROOT / "pc/shaders/vulkan"
 # The probe GI (pc/src/probe_gi.inc) on OpenGL 4.3 compute.
 SHADERS = ["probe_trace_bvh.comp", "probe_blend.comp", "probe_state.comp", "ui_mmpx.comp"]
-FRAGMENTS = ["probe_common.glsl"]
+FRAGMENTS = ["probe_common.glsl", "aa_geometry.glsl", "downsample.glsl", "ms_resolve.glsl",
+             # The reference SMAA shader (MIT, pc/third_party/smaa), used through its GLSL macros.
+             "../../third_party/smaa/SMAA.hlsl"]
 INCLUDE = re.compile(r'^\s*#\s*include\s+"([^"]+)"\s*$')
 
 
@@ -29,7 +31,10 @@ def inline(path, depth=0):
     if depth > 16:
         raise RuntimeError(f"{path}: includes nest too deep")
     lines = []
-    for line in path.read_text().splitlines():
+    # Vendored sources may carry CRLF and Latin-1 bytes in comments: plain ASCII for every driver.
+    text = path.read_bytes().decode("latin-1").replace("\r", "")
+    text = "".join(c if ord(c) < 128 else "?" for c in text)
+    for line in text.splitlines():
         match = INCLUDE.match(line)
         if match:
             lines += inline(SOURCES / match.group(1), depth + 1)

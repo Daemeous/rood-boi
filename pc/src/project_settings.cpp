@@ -10,8 +10,8 @@
 #include <sys/stat.h>
 
 extern "C" {
-extern int pc_gl_filter, pc_gl_aa, pc_gl_aspect, pc_gte_widescreen, pc_hw_perspective, pc_hw_subpixel,
-    pc_hw_interpolate, pc_hw_texture_filter, pc_hw_scale, pc_interp_skeleton, pc_interp_holds, pc_interp_uv,
+extern int pc_gl_filter, pc_gl_aspect, pc_gte_widescreen, pc_hw_perspective, pc_hw_subpixel,
+    pc_hw_interpolate, pc_hw_texture_filter, pc_hw_scale, pc_hw_scale_setting, pc_interp_skeleton, pc_interp_holds, pc_interp_uv,
     pc_present_rate;
 int pc_hw_set_scale(int scale);
 extern int pc_post_flags, pc_post_focus_mode;
@@ -40,6 +40,7 @@ int pc_qol_weapon_slots;
 #include "probe_gi.h"
 #include "ui_upscale.h" /* 2D / UI: ui_upscale nearest | mmpx, ui_subpixel */
 #include "ui_text.h"    /* 2D / UI: ui_text original | font, ui_text_<style>_font ... */
+#include "antialias.h" /* aa (msaa4+smaa ...), aa_downsample */
 #include "lighting_layers.h" /* lighting_packs, lighting_active_pack */
 extern bool pc_lights_show_gizmos;
 namespace rood_lights {
@@ -60,7 +61,6 @@ struct Entry {
 #define B(key, var) { key, nullptr, nullptr, 1, &(var) }
 const Entry entries[] = {
     I("filter", pc_gl_filter),
-    I("antialiasing", pc_gl_aa),
     I("aspect", pc_gl_aspect),
     I("widescreen", pc_gte_widescreen),
     I("perspective_textures", pc_hw_perspective),
@@ -149,6 +149,7 @@ const char* path()
     return p && *p ? p : nullptr;
 }
 long long loaded_mtime;
+bool loaded_once;
 char status[200];
 
 long long mtime_of(const char* file)
@@ -184,6 +185,26 @@ int apply_line(const char* line, int* scale, bool now)
     }
     if (pc_lighting_settings_parse(key, rest))
         return 1;
+    if (!strcmp(key, "aa")) { /* off | fxaa | smaa, msaa2/4/8, ssaa[factor], joined by '+' */
+        char text[64] = "";
+        sscanf(rest, "%63s", text);
+        if (!pc_aa_parse(text))
+            fprintf(stderr, "[settings] aa: unknown value '%s' (off, fxaa, smaa, msaa2/4/8, ssaa[factor], joined by '+')\n",
+                text);
+        return 1;
+    }
+    if (!strcmp(key, "antialiasing")) { /* before aa: 1 FXAA, 0 off */
+        pc_gl_aa = atoi(rest) ? PC_AA_FXAA : PC_AA_OFF;
+        return 1;
+    }
+    if (!strcmp(key, "aa_downsample")) { /* area | lanczos | bilinear */
+        char name[32] = "";
+        sscanf(rest, "%31s", name);
+        for (int k = 0; k < 3; k++)
+            if (!strcmp(name, pc_aa_downsample_names[k]))
+                pc_aa_downsample = k;
+        return 1;
+    }
     if (!strcmp(key, "ui_upscale")) { /* nearest | mmpx (or 0 / 1) */
         char name[32] = "";
         sscanf(rest, "%31s", name);
@@ -257,15 +278,21 @@ extern "C" void pc_settings_load(void)
     if (!f) {
         snprintf(status, sizeof status, "No settings saved yet (%s)", file);
         pc_lighting_settings_loaded(0); /* first run: detect the lighting quality preset */
+        pc_aa_autodetect_pending = 1; /* and the anti-aliasing */
         return;
     }
     char line[512];
-    int applied = 0, scale = 0;
-    while (fgets(line, sizeof line, f))
+    int applied = 0, scale = 0, aa_seen = 0;
+    while (fgets(line, sizeof line, f)) {
         applied += apply_line(line, &scale, false);
+        aa_seen |= !strncmp(line, "aa ", 3) || !strncmp(line, "antialiasing ", 13);
+    }
+    if (!aa_seen && !loaded_once)
+        pc_aa_autodetect_pending = 1;
+    loaded_once = true;
     fclose(f);
     pc_lighting_settings_loaded(1);
-    if (scale > 0 && scale != pc_hw_scale)
+    if (scale > 0 && scale != pc_hw_scale_setting)
         pc_hw_set_scale(scale);
     snprintf(status, sizeof status, "Loaded %d settings from %s", applied, file);
 }
@@ -274,7 +301,9 @@ extern "C" void pc_settings_load(void)
  * compares them). */
 extern "C" void pc_settings_write(FILE* f)
 {
-    fprintf(f, "internal_resolution %d\n", pc_hw_scale);
+    fprintf(f, "internal_resolution %d\n", pc_hw_scale_setting);
+    fprintf(f, "aa %s\n", pc_aa_string());
+    fprintf(f, "aa_downsample %s\n", pc_aa_downsample_names[pc_aa_downsample]);
     if (&pc_drop_shadow_mode)
         fprintf(f, "drop_shadows %d\n", pc_drop_shadow_mode);
     pc_lighting_settings_write(f);
@@ -311,7 +340,7 @@ extern "C" void pc_settings_apply(const char* text)
         apply_line(line, &scale, true);
         p += n + (end ? 1 : 0);
     }
-    if (scale > 0 && scale != pc_hw_scale)
+    if (scale > 0 && scale != pc_hw_scale_setting)
         pc_hw_set_scale(scale);
     pc_lighting_sync();
 }

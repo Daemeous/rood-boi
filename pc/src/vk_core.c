@@ -64,7 +64,7 @@ static int gpu_count;
 /* Named sections inside a frame (vk_section): a timestamp at each mark and
  * one at the end of the frame; averaged per section over the same 300
  * frames as the frame time. */
-#define VK_SECTIONS 31
+#define VK_SECTIONS 127
 static VkQueryPool section_pool;
 static const char* section_names[VK_FRAMES][VK_SECTIONS];
 static int section_count[VK_FRAMES];
@@ -73,6 +73,12 @@ static struct {
     double sum;
 } section_totals[VK_SECTIONS];
 static int section_total_count;
+/* The same sections accumulated for RPC perf until its {reset: true}. */
+static struct {
+    const char* name;
+    double sum;
+} section_rpc[VK_SECTIONS];
+static int section_rpc_count, section_rpc_frames;
 static vk_attachments current_attachments;
 static VkDebugUtilsMessengerEXT messenger;
 
@@ -250,6 +256,12 @@ int vk_core_init(const char* const* instance_extensions, uint32_t extension_coun
     int ray_query = want_rt && has_extension(device_extensions, device_extension_count, VK_KHR_RAY_QUERY_EXTENSION_NAME)
                  && has_extension(device_extensions, device_extension_count, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME)
                  && has_extension(device_extensions, device_extension_count, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+    /* MSAA (antialias.h): 2D drawn into multisampled targets takes every
+     * sample at the pixel centre, as if single-sampled. */
+    if (has_extension(device_extensions, device_extension_count, VK_EXT_SAMPLE_LOCATIONS_EXTENSION_NAME)) {
+        enable[enable_count++] = VK_EXT_SAMPLE_LOCATIONS_EXTENSION_NAME;
+        vk.sample_locations = 1;
+    }
     free(device_extensions);
 
     /* Features. */
@@ -344,6 +356,24 @@ int vk_core_init(const char* const* instance_extensions, uint32_t extension_coun
                                      | VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
     if (!format_ok(vk.depth_format, depth_needs))
         vk.depth_format = VK_FORMAT_D32_SFLOAT;
+    /* Sample counts the multisampled 3D can use: drawn into (colour and
+     * depth), sampled by the resolve, at the target's format. */
+    {
+        const VkPhysicalDeviceLimits* l = &vk.properties.limits;
+        vk.msaa_counts = l->framebufferColorSampleCounts & l->framebufferDepthSampleCounts
+                       & l->sampledImageColorSampleCounts & l->sampledImageDepthSampleCounts;
+        if (vk.sample_locations) {
+            VkPhysicalDeviceSampleLocationsPropertiesEXT locations = {
+                .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLE_LOCATIONS_PROPERTIES_EXT };
+            VkPhysicalDeviceProperties2 properties = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+                .pNext = &locations };
+            vkGetPhysicalDeviceProperties2(vk.gpu, &properties);
+            vk.sample_location_counts = locations.sampleLocationSampleCounts;
+            /* One location for every sample of a pixel (no grid): needs variable locations. */
+            if (!locations.variableSampleLocations)
+                vk.sample_location_counts = 0;
+        }
+    }
 
     for (int i = 0; i < VK_FRAMES; i++) {
         VkCommandPoolCreateInfo pool = { .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -492,16 +522,23 @@ void vk_buffer_destroy_later(vk_buffer* b)
 
 int vk_image_create(vk_image* image, int width, int height, VkFormat format, VkImageUsageFlags usage)
 {
+    return vk_image_create_ms(image, width, height, format, usage, 1);
+}
+int vk_image_create_ms(vk_image* image, int width, int height, VkFormat format, VkImageUsageFlags usage, int samples)
+{
     memset(image, 0, sizeof *image);
     int depth = format == VK_FORMAT_D32_SFLOAT || format == VK_FORMAT_X8_D24_UNORM_PACK32
              || format == VK_FORMAT_D24_UNORM_S8_UINT || format == VK_FORMAT_D16_UNORM;
     VkImageCreateInfo info = { .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .flags = depth && samples > 1 && vk.sample_location_counts
+            ? VK_IMAGE_CREATE_SAMPLE_LOCATIONS_COMPATIBLE_DEPTH_BIT_EXT
+            : 0,
         .imageType = VK_IMAGE_TYPE_2D,
         .format = format,
         .extent = { (uint32_t)width, (uint32_t)height, 1 },
         .mipLevels = 1,
         .arrayLayers = 1,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .samples = samples > 1 ? (VkSampleCountFlagBits)samples : VK_SAMPLE_COUNT_1_BIT,
         .tiling = VK_IMAGE_TILING_OPTIMAL,
         .usage = usage,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
@@ -663,6 +700,12 @@ VkCommandBuffer vk_cmd(void)
             section_count[vk.frame] = 0;
             vkCmdWriteTimestamp(f->cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, timestamps, (uint32_t)vk.frame * 2);
             frame_started[vk.frame] = 1;
+            if (section_pool) { /* the frame's drawing (VRAM target, native lists) until the first section */
+                section_names[vk.frame][0] = "draw";
+                section_count[vk.frame] = 1;
+                vkCmdWriteTimestamp(f->cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, section_pool,
+                    (uint32_t)(vk.frame * (VK_SECTIONS + 1)));
+            }
         }
         /* Earlier submissions wrote what this one reads. */
         VkMemoryBarrier2 barrier = { .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
@@ -839,8 +882,36 @@ static void read_sections(int slot)
             section_totals[section_total_count].name = name;
             section_totals[section_total_count++].sum = 0;
         }
-        section_totals[k].sum += (double)(t[i + 1] - t[i]) * vk.timestamp_period * 1e-6;
+        double ms = (double)(t[i + 1] - t[i]) * vk.timestamp_period * 1e-6;
+        section_totals[k].sum += ms;
+        k = 0;
+        while (k < section_rpc_count && strcmp(section_rpc[k].name, name))
+            ++k;
+        if (k == section_rpc_count) {
+            if (k == VK_SECTIONS)
+                continue;
+            section_rpc[section_rpc_count].name = name;
+            section_rpc[section_rpc_count++].sum = 0;
+        }
+        section_rpc[k].sum += ms;
     }
+    ++section_rpc_frames;
+}
+/* RPC perf: the sections' GPU time per frame since the last reset, as
+ * `,"sections":{"name":ms,...}` (lighting_quality.cpp pc_perf_json). */
+int pc_vk_perf_sections_json(char* out, int size, int reset)
+{
+    int n = 0;
+    if (section_rpc_frames && size > 16) {
+        n += snprintf(out, (size_t)size, ",\"sections\":{");
+        for (int k = 0; k < section_rpc_count && n < size - 64; k++)
+            n += snprintf(out + n, (size_t)(size - n), "%s\"%s\":%.4f", k ? "," : "", section_rpc[k].name,
+                section_rpc[k].sum / section_rpc_frames);
+        n += snprintf(out + n, (size_t)(size - n), "}");
+    }
+    if (reset)
+        section_rpc_count = section_rpc_frames = 0;
+    return n < size ? n : size - 1;
 }
 void vk_frame_submit(VkSemaphore wait, VkPipelineStageFlags wait_stage, VkSemaphore signal)
 {
@@ -982,7 +1053,21 @@ VkPipeline vk_pipeline(const vk_pipeline_desc* d)
         .lineWidth = 1.0f };
     VkPipelineMultisampleStateCreateInfo multisample = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT };
+        .rasterizationSamples = d->samples > 1 ? (VkSampleCountFlagBits)d->samples : VK_SAMPLE_COUNT_1_BIT };
+    /* Every sample at the pixel centre: coverage and depth as single-sampled. */
+    VkSampleLocationEXT centres[16];
+    for (int i = 0; i < 16; i++)
+        centres[i] = (VkSampleLocationEXT){ 0.5f, 0.5f };
+    VkPipelineSampleLocationsStateCreateInfoEXT locations = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SAMPLE_LOCATIONS_STATE_CREATE_INFO_EXT,
+        .sampleLocationsEnable = VK_TRUE,
+        .sampleLocationsInfo = { .sType = VK_STRUCTURE_TYPE_SAMPLE_LOCATIONS_INFO_EXT,
+            .sampleLocationsPerPixel = multisample.rasterizationSamples,
+            .sampleLocationGridSize = { 1, 1 },
+            .sampleLocationsCount = (uint32_t)(d->samples > 1 ? d->samples : 1),
+            .pSampleLocations = centres } };
+    if (d->samples > 1 && d->centre && (vk.sample_location_counts & (VkSampleCountFlags)d->samples))
+        multisample.pNext = &locations;
     VkPipelineDepthStencilStateCreateInfo depth = { .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
         .depthCompareOp = VK_COMPARE_OP_ALWAYS };
     VkPipelineColorBlendAttachmentState attachments[4];

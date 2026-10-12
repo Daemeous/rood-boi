@@ -985,6 +985,73 @@ static int instance_palette(const draw_list* list, const list_instance* in, floa
             blend_transform(&was[b], &now[b], t, &out[b]);
     return 1;
 }
+/* Where list `id` draws in `target` (native VRAM pixels x, y, w, h within
+ * its drawing area; MSAA copies and syncs only that much): each instance's
+ * per-bone boxes of its polygons through the palette it is drawn with,
+ * projected. Returns 0 (with the whole drawing area) when that cannot be
+ * told (a vertex at or behind the eye), 1 otherwise (w = 0: nothing). */
+int render_list_screen_bounds(uint32_t id, const render_target* target, int out[4])
+{
+    memcpy(out, target->clip, 4 * sizeof(int));
+    draw_list* list = find_list(id);
+    if (!list)
+        return 0;
+    const render_camera* cam = target->camera ? target->camera : &list->camera;
+    float hx = cam->h * (list->camera.widescreen ? 0.75f : 1.0f);
+    float lo[2] = { 1e30f, 1e30f }, hi[2] = { -1e30f, -1e30f };
+    static float box[RENDER_MAX_BONES][6];
+    render_transform palette[RENDER_MAX_BONES];
+    for (int i = 0; i < list->count; i++) {
+        const list_instance* in = &list->instances[i];
+        mesh_slot* mesh = lookup(in->mesh);
+        if (!mesh || in->bones <= 0 || in->bones > RENDER_MAX_BONES)
+            continue;
+        for (int b = 0; b < in->bones; b++)
+            box[b][0] = box[b][1] = box[b][2] = 1e30f, box[b][3] = box[b][4] = box[b][5] = -1e30f;
+        for (int p = 0; p < mesh->polygons; p++) {
+            const render_polygon* poly = &mesh->cpu[p];
+            int corners = poly->flags & RENDER_POLY_QUAD ? 4 : 3;
+            for (int c = 0; c < corners; c++) {
+                int b = poly->bone[c] < in->bones ? poly->bone[c] : 0;
+                for (int k = 0; k < 3; k++) {
+                    box[b][k] = fminf(box[b][k], poly->position[c][k]);
+                    box[b][k + 3] = fmaxf(box[b][k + 3], poly->position[c][k]);
+                }
+            }
+        }
+        instance_palette(list, in, target->t, palette);
+        for (int b = 0; b < in->bones; b++) {
+            if (box[b][0] > box[b][3])
+                continue;
+            for (int c = 0; c < 8; c++) {
+                float m[3] = { box[b][(c & 1) ? 3 : 0], box[b][(c & 2) ? 4 : 1], box[b][(c & 4) ? 5 : 2] }, w[3], v[3];
+                for (int k = 0; k < 3; k++)
+                    w[k] = palette[b].rotation[k][0] * m[0] + palette[b].rotation[k][1] * m[1]
+                         + palette[b].rotation[k][2] * m[2] + palette[b].translation[k];
+                for (int k = 0; k < 3; k++)
+                    v[k] = cam->rotation[k][0] * w[0] + cam->rotation[k][1] * w[1] + cam->rotation[k][2] * w[2]
+                         + cam->translation[k];
+                if (v[2] <= 1.0f)
+                    return 0;
+                float sx = cam->ofx + hx * v[0] / v[2], sy = cam->ofy + cam->h * v[1] / v[2];
+                lo[0] = fminf(lo[0], sx), lo[1] = fminf(lo[1], sy);
+                hi[0] = fmaxf(hi[0], sx), hi[1] = fmaxf(hi[1], sy);
+            }
+        }
+    }
+    if (lo[0] > hi[0]) {
+        out[2] = out[3] = 0;
+        return 1;
+    }
+    /* Into the drawing area (the drawing offset), with a margin. */
+    int x0 = (int)floorf(lo[0]) + target->ox - 4, y0 = (int)floorf(lo[1]) + target->oy - 4;
+    int x1 = (int)ceilf(hi[0]) + target->ox + 4, y1 = (int)ceilf(hi[1]) + target->oy + 4;
+    const int* clip = target->clip;
+    x0 = x0 < clip[0] ? clip[0] : x0, y0 = y0 < clip[1] ? clip[1] : y0;
+    x1 = x1 > clip[0] + clip[2] ? clip[0] + clip[2] : x1, y1 = y1 > clip[1] + clip[3] ? clip[1] + clip[3] : y1;
+    out[0] = x0, out[1] = y0, out[2] = x1 > x0 ? x1 - x0 : 0, out[3] = y1 > y0 ? y1 - y0 : 0;
+    return 1;
+}
 /* The polygon's effective code and texture page in instance `in` (blend,
  * texture override), as the geometry shader computes them. */
 static unsigned effective_code(const list_instance* in, const render_polygon* poly)
@@ -1326,17 +1393,17 @@ static const char* geometry_source =
     "uniform ivec2 instance_blend;\n" /* on, tpage blend bits (render_instance.blend) */
     "uniform int translucent;\n" /* 0: opaque polygons only, 1: semi-transparent ones only, 2: all (effects) */
     "uniform ivec2 forced;\n" /* room translucent entries: decided by the game, UVs halved */
-    "noperspective out vec3 v_color_affine;\n"
-    "noperspective out vec2 v_uv_affine;\n"
-    "smooth out vec3 v_color_persp;\n"
-    "smooth out vec2 v_uv_persp;\n"
-    "smooth out float v_z;\n"
+    "noperspective centroid out vec3 v_color_affine;\n"
+    "noperspective centroid out vec2 v_uv_affine;\n"
+    "smooth centroid out vec3 v_color_persp;\n"
+    "smooth centroid out vec2 v_uv_persp;\n"
+    "smooth centroid out float v_z;\n"
     "flat out uvec4 v_state;\n" /* flags, tpage, clut, 0 */
     "flat out vec3 v_normal;\n"
     "flat out uvec4 v_bounds;\n"
     "uniform vec4 cut_focus;\n" /* the editor's cutaway: focus (view space, rows' scales divided out), radius */
     "uniform vec4 cut_scale;\n" /* 1 / the view rows' scales; w: ghost coverage */
-    "smooth out vec3 v_view;\n"
+    "smooth centroid out vec3 v_view;\n"
     "flat out int v_cut;\n" /* bit 0: cut; bits 1-3: the triangle's real edges (opposite corner 0, 1, 2) */
     "noperspective out vec3 v_bary;\n" /* the corner weights (a ghost's edges) */
     "vec3 p[4];\n"
@@ -1545,15 +1612,15 @@ static const char* geometry_source =
     "}\n";
 static const char* fragment_source =
     "#version 330 core\n"
-    "noperspective in vec3 v_color_affine;\n"
-    "noperspective in vec2 v_uv_affine;\n"
-    "smooth in vec3 v_color_persp;\n"
-    "smooth in vec2 v_uv_persp;\n"
-    "smooth in float v_z;\n"
+    "noperspective centroid in vec3 v_color_affine;\n"
+    "noperspective centroid in vec2 v_uv_affine;\n"
+    "smooth centroid in vec3 v_color_persp;\n"
+    "smooth centroid in vec2 v_uv_persp;\n"
+    "smooth centroid in float v_z;\n"
     "flat in uvec4 v_state;\n"
     "flat in vec3 v_normal;\n"
     "flat in uvec4 v_bounds;\n"
-    "smooth in vec3 v_view;\n"
+    "smooth centroid in vec3 v_view;\n"
     "flat in int v_cut;\n"
     "noperspective in vec3 v_bary;\n"
     "uniform vec4 cut_focus;\n"
@@ -2026,6 +2093,11 @@ int render_draw_list(uint32_t id, const render_target* target)
     draw_instances(list, target, cam, 0, &interpolated);
     if (layered) {
         /* Pass 2: the visible fragments' depth into the frame's depth. */
+        if (target->surface_sync) { /* MSAA: pass 1's depth into the surfaces pass 2 reads */
+            gl_Disable(GL_SCISSOR_TEST);
+            target->surface_sync();
+            gl_Enable(GL_SCISSOR_TEST);
+        }
         gl_BindFramebuffer(GL_FRAMEBUFFER, target->fbo);
         gl_ColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
         gl_DepthFunc(GL_ALWAYS);

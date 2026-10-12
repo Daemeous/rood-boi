@@ -22,6 +22,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "pc/third_party/glslang"
 BUILD = ROOT / "pc/build/glslang"
 SHADERS = ROOT / "pc/shaders/vulkan"
+# Vendored shader sources the shaders include (SMAA, MIT: pc/third_party/smaa).
+INCLUDE_DIRS = [ROOT / "pc/third_party/smaa"]
 STAGES = ("vert", "geom", "frag", "comp")
 
 
@@ -46,7 +48,7 @@ def main():
     args = parser.parse_args()
     out = pathlib.Path(args.out)
     sources = sorted(p for p in SHADERS.iterdir() if p.suffix[1:] in STAGES)
-    includes = sorted(SHADERS.glob("*.glsl"))
+    includes = sorted(SHADERS.glob("*.glsl")) + sorted(p for d in INCLUDE_DIRS for p in d.glob("*.hlsl"))
     digest = hashlib.sha256()
     for path in sources + includes:
         digest.update(path.name.encode() + b"\0" + path.read_bytes())
@@ -61,7 +63,8 @@ def main():
     for path in sources:
         name = f"{path.stem}_{path.suffix[1:]}"
         spv = spv_dir / (name + ".spv")
-        result = subprocess.run([str(compiler), "-V", "--target-env", "vulkan1.3", "-I" + str(SHADERS), str(path),
+        result = subprocess.run([str(compiler), "-V", "--target-env", "vulkan1.3", "-I" + str(SHADERS),
+                                 *("-I" + str(d) for d in INCLUDE_DIRS), str(path),
                                  "-o", str(spv)], capture_output=True, text=True)
         if result.returncode:
             sys.stderr.write(result.stdout + result.stderr)

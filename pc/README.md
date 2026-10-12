@@ -338,6 +338,111 @@ tilt-shift (a sharp horizontal band, blur above and below) and depth fog.
 They are off by default; the overlay's Post effects section tunes them, and
 RPC `graphics` takes `post` (bit 0 DoF, 1 tilt-shift, 2 fog).
 
+### Anti-aliasing
+
+Graphics > Lighting quality > Display (not part of the lighting presets),
+the settings key `aa` and RPC `graphics` `aa` choose the methods, written as
+one value joined by `+` (`pc/src/antialias.c`); every one works on Vulkan and
+OpenGL. None of them filters textures: the PS1's texels stay one nearest
+texel per pixel (TAA is not implemented yet).
+
+| `aa` word | What it does |
+| --- | --- |
+| `off` | nothing |
+| `fxaa` | FXAA on the lit image (the default, as before): cheap, but it smooths any contrast, texel steps and the HUD included |
+| `smaa` | SMAA 1x (the reference shader, `pc/third_party/smaa`) on the lit image, with its colour edges kept only where the geometry breaks (`aa_geometry_edges`, on): texels inside a surface and 2D/UI pixels never blend |
+| `msaa2`, `msaa4`, `msaa8` | multisampled 3D: rooms, characters, effects meshes (and 3D packets) get coverage anti-aliasing; still one shading sample per pixel |
+| `ssaa`, `ssaa1.5` ... `ssaa4` | supersampling: the internal resolution raised to factor x the view (up to 8x), the lit image drawn at that resolution and filtered down (`aa_downsample`) |
+
+A post-process filter combines with MSAA and supersampling, e.g. `msaa4+smaa`.
+Old settings files' `antialiasing 1/0` still load (FXAA/off); RPC `aa`
+true/false still means FXAA/off.
+
+**MSAA** (`gpu_hw.c` "MSAA", `vk_hw.c`, `ms_resolve.glsl`): the VRAM target
+stays single-sampled, so everything that reads VRAM (StoreImage, screen
+copies, the replay copy for interpolation, picking, the path tracer) is
+unchanged. The 3D is drawn into multisampled twins of the target over one
+drawing area at a time: the first native list in an area loads the target
+there into every sample; native lists, their translucent markers, and the
+fills and packets inside the area then draw into the twins, 2D with every
+sample at the pixel centre (`VK_EXT_sample_locations`; OpenGL:
+`GL_MULTISAMPLE` off), so the HUD and text are bit-identical; anything else
+that touches the area (VRAM copies and uploads, readers, the replay copy,
+presenting) first resolves it. Sample shading is off and the 3D varyings are
+`centroid`: coverage is multisampled, texels are not. The resolve averages
+the colour (the anti-aliased picture with the game's baked light) and keeps
+one representative surface per pixel for the G-buffer the present pass
+lights from (the surface most samples agree on, among lit ones; albedo
+summed over the lit samples, so dynamic light fades with their coverage):
+lighting stays at pixel rate and is right on interior pixels and on
+silhouettes against the void or the HUD; where two lit surfaces share a
+pixel, its dynamic light is the main surface's (the averaged colour and
+albedo still blend). The native surfaces' depth that shaders read
+(occlusion, object lists' second pass) stays single-sampled (sample 0).
+Interpolated frames are drawn the same way into the replay target. The
+twins cover the target from (0, 0) past the drawing area (about 2560 x 1024
+at 4x: 0.25 GB at 4 samples); at most 1 GiB, fewer samples past that. RPC
+`graphics` reports `msaa_active` (samples the 3D was last drawn with) and
+`msaa_max`. Polygon seams inside a surface are edges to MSAA too: where two
+polygons' textures meet, the seam's pixels blend them.
+
+**SMAA** runs on the lit image before the depth of field (as does FXAA now;
+alpha, the blur radius, passes through), at the view's size or, with
+supersampling, the internal resolution.
+
+**Supersampling**: `pc_hw_supersample` raises the internal resolution to
+`ceil(factor x view height / display height)`, at most 8 (the setting
+`internal_resolution` stays as chosen; `scale_setting` in RPC `graphics`),
+and the present pass then lights the display area at the internal
+resolution and filters it to the view (`downsample.glsl`): `aa_downsample`
+`area` (default: an exact box over the destination pixel's footprint),
+`lanczos` (Lanczos-3, clamped to the pixels underneath against ringing) or
+`bilinear`. The 8x cap limits it: at 1440 x 1080 `ssaa2` gets 1.78x per
+axis, at 4K (2160 lines) the cap is below the view and supersampling does
+nothing. The older Graphics `Filter` (Box) only averages the target's colour
+under each window pixel, lighting one texel.
+
+Cost and pictures per method: `pc/tools/aa_bench.py` (RPC `perf` with Vulkan
+GPU sections, and the same frame redrawn under each mode, RPC `redraw`);
+`pc/tests/aa_smoke.py` checks every method.
+
+GPU time each method adds (ms per frame, Vulkan GPU sections, save room with
+a light, internal resolution 4x; "4K" is a 3840 x 2160 window, a 2880 x
+2160 view):
+
+| Method | RTX PRO 6000, 1440 x 1080 | RTX PRO 6000, 4K | Intel Arc iGPU (ARL), 1440 x 1080 | Intel, 4K |
+| --- | --- | --- | --- | --- |
+| `fxaa` | 0.035 | 0.10 | 1.3 | 6.0 |
+| `smaa` | 0.036 | 0.09 | 1.6 | 9.7 |
+| `msaa2` | 0.10 | 0.11 | 5.2 | 8.0 |
+| `msaa4` | 0.12 | 0.10 | 9.1 | 10.4 |
+| `msaa8` | 0.13 | 0.13 | 19 | 16 |
+| `msaa4+smaa` | 0.15 | 0.18 | 10.6 | 14 |
+| `ssaa1.5`, `ssaa2` (8x: 1.78x per axis) | 0.27 | - (the 8x cap is below 4K) | 21 | - |
+
+MSAA's share on the RTX: loading the twins 0.025, copies of the surfaces'
+depth 0.05, their single-sampled copy 0.012, the resolve 0.027 (8x: 0.046);
+on the iGPU each is 1-2 ms at 4x (it pays for multisampled bandwidth). On
+OpenGL (RTX) the methods cost about the same as on Vulkan; OpenGL on the
+Intel iGPU, which also keeps the single-sampled surfaces in step after each
+object list, takes 25-40 ms for MSAA (not recommended there).
+
+Defaults: the built-in value (and tests) stay `fxaa`. A first run with a
+settings file (`pc/run-game.sh`) picks for the GPU: `msaa4+smaa` on a
+discrete GPU (edges smooth, texels and HUD exact, ~0.15 ms on the RTX),
+`smaa` on an integrated one (FXAA's cost, but texels stay crisp); a
+settings file that has `aa` (or the older `antialiasing`) keeps it.
+`ROOD_AA=...` overrides both. These are Display settings, independent of
+the lighting presets; per preset the sensible picks are: Original/Low
+`smaa`, Medium `smaa` (iGPU) or `msaa4+smaa`, High/Ultra `msaa4+smaa`
+(`msaa8+smaa` on fast GPUs, `ssaa2` only for screenshots below 4K).
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `aa` | `fxaa` (first run: per GPU) | the methods (above) |
+| `aa_downsample` | `area` | supersampling's filter: `area`, `lanczos`, `bilinear` |
+| `aa_geometry_edges` (RPC only) | true | SMAA's edges only where the geometry breaks |
+
 Escape (or F1) toggles the editor (`pc/src/dev_overlay.cpp`, Dear ImGui
 vendored under `pc/third_party/imgui`, MIT), laid out like Unreal's: a menu
 bar (File: Save / Reload area and settings; Edit: Undo, Redo, Delete, Undo
@@ -821,7 +926,7 @@ Keys (settings file; RPC `graphics` reads and writes the same names, with
 
 The older keys `path_traced_light` and `traced_shadows`, and RPC `gi` /
 `rt_shadows`, still work (they set `gi_method` and `shadows`). The section's
-Display part (FXAA, frame pacing) is not part of the presets. Measured GPU
+Display part (anti-aliasing, frame pacing) is not part of the presets. Measured GPU
 time per preset (save room, a test light, RTX PRO 6000, RPC `perf`):
 `pc/tests/lighting_presets_smoke.py` prints it for each backend.
 
@@ -855,11 +960,12 @@ thread once per vsync, so each method runs at a frame boundary:
 | `screenshot` | `path` | displayed frame (native resolution) as a PPM |
 | `gpu_dump` | `path` | the whole scaled hardware VRAM target as a PPM |
 | `gpu_draw` | `packet` (GP0 words, hex), `texture` (hex texels) with `texture_x/y/w/h`, `area_x/y/w/h`, `offset_x/y` | tests: load texels, set the drawing area, draw the commands on both rasterizers (`flipped_sprite_smoke.py`) |
-| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_trace` N), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `lighting_preset` and the lighting quality keys, ... | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
+| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_trace` N), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample` | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
 | `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
 | `ui_text` | `ui_text` (`original`/`font`), `style` with `font`, `stretch`, `slant`, `embolden` | the text fonts: option, each style (font, placement, `loaded`), fonts loaded, glyph fields made, glyph regions drawn from fonts (`regions`) and fallen back (`failed`); a `style` with values changes it as the `ui_text_<style>_*` settings do |
+| `redraw` | | the newest frame drawn again as recorded with the current options (MSAA, ...) and presented until the game draws another: pause first, then compare options on one frame (`aa_smoke.py`) |
 | `settings` | `action` (`save`, `load`) | the `ROOD_SETTINGS` file (a loaded preset applies at once) |
-| `perf` | `reset` | GPU time per presented frame since the last reset (`ROOD_PERF=1`; Vulkan timestamps, GL timer queries); GL adds `presents`, `gpu_wait_ms` (CPU waits for frames in flight), `gi_traced`/`gi_reused`, `gi_gpu_ms`, `gi_budget_ms`, `gi_interval` (path tracer cadence) |
+| `perf` | `reset` | GPU time per presented frame since the last reset (`ROOD_PERF=1`; Vulkan timestamps, GL timer queries; Vulkan adds `sections`: ms per frame of `draw`, `present`, `aa`, `downsample`, the GI passes); GL adds `presents`, `gpu_wait_ms` (CPU waits for frames in flight), `gi_traced`/`gi_reused`, `gi_gpu_ms`, `gi_budget_ms`, `gi_interval` (path tracer cadence) |
 | `lighting_autodetect` | `ray_query`, `integrated` | the first-run preset for those capabilities |
 | `render_stats` | | native lists/instances/triangles and room triangles drawn from packets in the last frame |
 | `editor_ui` | `visible`, `help`, `tab`, `details`, `lighting_menu`, `rooms` | open or close the editor and its Keyboard shortcuts window (`rooms`: the Room Browser); `tab` `outliner` or `place`; `details` a Details tab (`lighting`, `inspector`, `atmosphere`, `post`, `graphics`, `diagnostics`); `lighting_menu` opens the toolbar's quality dropdown |

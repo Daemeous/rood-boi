@@ -30,6 +30,14 @@ static VkDescriptorSetLayout draw_set, upload_set;
 static VkPipelineLayout draw_layout, upload_layout;
 static VkPipeline opaque_pipeline, blend_pipelines[4], upload_pipeline;
 static vk_attachments live_attachments, replay_attachments, object_attachments, object_replay_attachments;
+/* MSAA: the twins' attachments, the packet pipelines at their sample count
+ * ([1]: 2D, every sample at the pixel centre), and load/resolve. */
+static vk_attachments ms_attachments, ms_object_attachments;
+static VkPipeline ms_opaque[2], ms_blend[2][4];
+static VkDescriptorSetLayout ms_set;
+static VkPipelineLayout ms_layout;
+static VkPipeline ms_load_pipeline, ms_depth_pipeline, ms_resolve_pipeline, ms_sync_pipeline;
+static int ms_pipeline_samples;
 
 typedef struct {
     float occlusion_rect[4];
@@ -104,8 +112,19 @@ const vk_attachments* vk_hw_attachments(unsigned token)
         return &object_attachments;
     case VK_TOKEN_OBJECT_REPLAY:
         return &object_replay_attachments;
+    case VK_TOKEN_MS:
+        return vk_hw.ms_samples ? &ms_attachments : NULL;
+    case VK_TOKEN_MS_OBJECT:
+        return vk_hw.ms_samples ? &ms_object_attachments : NULL;
     }
     return NULL;
+}
+int vk_hw_token_samples(unsigned token)
+{
+    return token == VK_TOKEN_MS || token == VK_TOKEN_MS_OBJECT || token == VK_TOKEN_MS_ROOM_DEPTH
+            || token == VK_TOKEN_MS_BEFORE
+        ? vk_hw.ms_samples
+        : 1;
 }
 const vk_image* vk_hw_depth(unsigned token)
 {
@@ -118,6 +137,12 @@ const vk_image* vk_hw_depth(unsigned token)
         return &vk_hw.room_depth;
     case VK_TOKEN_BEFORE:
         return &vk_hw.before;
+    case VK_TOKEN_MS:
+        return vk_hw.ms_samples ? &vk_hw.ms.depth : NULL;
+    case VK_TOKEN_MS_ROOM_DEPTH:
+        return vk_hw.ms_samples ? &vk_hw.ms_room : NULL;
+    case VK_TOKEN_MS_BEFORE:
+        return vk_hw.ms_samples ? &vk_hw.ms_before : NULL;
     }
     return NULL;
 }
@@ -143,9 +168,9 @@ int vk_hw_viewport_scissor(const int* clip)
     return 1;
 }
 
-static VkPipeline target_pipeline(VkShaderModule vs, VkShaderModule fs, VkPipelineLayout layout,
+static VkPipeline target_pipeline_ms(VkShaderModule vs, VkShaderModule fs, VkPipelineLayout layout,
     const VkVertexInputBindingDescription* binding, const VkVertexInputAttributeDescription* attributes, int count,
-    VkPrimitiveTopology topology, int blend, unsigned masks)
+    VkPrimitiveTopology topology, int blend, unsigned masks, int samples, int centre)
 {
     static const VkFormat formats[4] = { VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT };
     vk_pipeline_desc d = { .vertex = vs,
@@ -158,12 +183,31 @@ static VkPipeline target_pipeline(VkShaderModule vs, VkShaderModule fs, VkPipeli
         .color_count = 4,
         .color_formats = formats,
         .depth_format = vk.depth_format,
-        .blend = blend };
+        .blend = blend,
+        .samples = samples,
+        .centre = centre };
     for (int i = 0; i < 4; i++)
         d.write_masks[i] = (masks >> (i * 4)) & 15;
     return vk_pipeline(&d);
 }
+static VkPipeline target_pipeline(VkShaderModule vs, VkShaderModule fs, VkPipelineLayout layout,
+    const VkVertexInputBindingDescription* binding, const VkVertexInputAttributeDescription* attributes, int count,
+    VkPrimitiveTopology topology, int blend, unsigned masks)
+{
+    return target_pipeline_ms(vs, fs, layout, binding, attributes, count, topology, blend, masks, 1, 0);
+}
 
+static const VkVertexInputBindingDescription binding = { 0, sizeof(hw_vertex), VK_VERTEX_INPUT_RATE_VERTEX };
+static const VkVertexInputAttributeDescription attributes[8] = {
+    { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(hw_vertex, x) },
+    { 1, 0, VK_FORMAT_R8G8B8A8_UINT, offsetof(hw_vertex, r) },
+    { 2, 0, VK_FORMAT_R16G16_UINT, offsetof(hw_vertex, u) },
+    { 3, 0, VK_FORMAT_R16G16_UINT, offsetof(hw_vertex, tpage) },
+    { 4, 0, VK_FORMAT_R32_UINT, offsetof(hw_vertex, window) },
+    { 5, 0, VK_FORMAT_R8G8B8A8_SNORM, offsetof(hw_vertex, nx) },
+    { 6, 0, VK_FORMAT_R8G8B8A8_UINT, offsetof(hw_vertex, uv_min) },
+    { 7, 0, VK_FORMAT_R16G16_SINT, offsetof(hw_vertex, ui) },
+};
 int pc_vk_hw_init(int scale, size_t vertex_size)
 {
     if (vertex_size != sizeof(hw_vertex)) {
@@ -199,17 +243,6 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
 
     VkShaderModule vs = vk_shader(vk_spv_hw_vert, vk_spv_hw_vert_size),
                    fs = vk_shader(vk_spv_hw_frag, vk_spv_hw_frag_size);
-    static const VkVertexInputBindingDescription binding = { 0, sizeof(hw_vertex), VK_VERTEX_INPUT_RATE_VERTEX };
-    static const VkVertexInputAttributeDescription attributes[8] = {
-        { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(hw_vertex, x) },
-        { 1, 0, VK_FORMAT_R8G8B8A8_UINT, offsetof(hw_vertex, r) },
-        { 2, 0, VK_FORMAT_R16G16_UINT, offsetof(hw_vertex, u) },
-        { 3, 0, VK_FORMAT_R16G16_UINT, offsetof(hw_vertex, tpage) },
-        { 4, 0, VK_FORMAT_R32_UINT, offsetof(hw_vertex, window) },
-        { 5, 0, VK_FORMAT_R8G8B8A8_SNORM, offsetof(hw_vertex, nx) },
-        { 6, 0, VK_FORMAT_R8G8B8A8_UINT, offsetof(hw_vertex, uv_min) },
-        { 7, 0, VK_FORMAT_R16G16_SINT, offsetof(hw_vertex, ui) },
-    };
     opaque_pipeline = target_pipeline(vs, fs, draw_layout, &binding, attributes, 8,
         VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xffff);
     for (int m = 0; m < 4; m++)
@@ -300,7 +333,7 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
     VkCommandBuffer cmd = vk_cmd();
     vk_descriptors d = { 0 };
     vk_descriptors_image(&d, 0, vk_hw.vram.view, vk.nearest);
-    vk_descriptors_image(&d, 1, vk_hw.room_depth.view, vk.nearest);
+    vk_descriptors_image(&d, 1, fbo == VK_TOKEN_MS ? vk_hw.ms_room.view : vk_hw.room_depth.view, vk.nearest);
     VkImageView atlas = (VkImageView)pc_ui_upscale_vk_view();
     vk_descriptors_image(&d, 2, atlas ? atlas : vk_hw.vram.view, vk.nearest);
     draw_push push = { .perspective = pc_hw_perspective, .filtering = pc_hw_texture_filter, .occlusion = occlusion,
@@ -316,7 +349,13 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
     vkCmdSetDepthTestEnable(cmd, VK_TRUE); /* ALWAYS: depth in draw order, never rejected */
     vkCmdSetDepthCompareOp(cmd, VK_COMPARE_OP_ALWAYS);
     vkCmdSetDepthWriteEnable(cmd, VK_TRUE);
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, opaque_pipeline);
+    /* Multisampled: 2D (any vertex without depth) takes every sample at the
+     * pixel centre, exactly as single-sampled; 3D packets get coverage AA. */
+    int ms = fbo == VK_TOKEN_MS, centre = 0;
+    if (ms)
+        for (int i = 0; i < count && !centre; i++)
+            centre = ((const hw_vertex*)vertices)[i].z <= 0.0f;
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ms ? ms_opaque[centre] : opaque_pipeline);
     vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, draw_layout);
     push.pass = blend < 0 ? 0 : 1;
     vkCmdPushConstants(cmd, draw_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push, &push);
@@ -327,7 +366,7 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
          * ones (they only add light). */
         int additive = (blend & 3) == 1 || (blend & 3) == 3;
         vkCmdSetDepthWriteEnable(cmd, blend >= 4 && !additive ? VK_TRUE : VK_FALSE);
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, blend_pipelines[blend & 3]);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ms ? ms_blend[centre][blend & 3] : blend_pipelines[blend & 3]);
         push.pass = 2;
         vkCmdPushConstants(cmd, draw_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push,
             &push);
@@ -422,9 +461,14 @@ void pc_vk_hw_copy_depth(unsigned from, unsigned to, int x0, int y0, int x1, int
     const vk_image *a = vk_hw_depth(from), *b = vk_hw_depth(to);
     if (!a || !b || !clamp_rect(&x0, &y0, &x1, &y1))
         return;
+    int ms = vk_hw_token_samples(from) > 1;
+    if (ms)
+        vk_section("msaa copy");
     vk_end_rendering();
     copy_image(a, b, x0, y0, x0, y0, x1 - x0, y1 - y0);
     vk_barrier();
+    if (ms)
+        vk_section("draw");
 }
 void pc_vk_hw_replay_copy(int x0, int y0, int x1, int y1)
 {
@@ -496,4 +540,212 @@ int pc_vk_hw_sync_read(int x0, int y0, int x1, int y1, unsigned char* pixels)
     vkCmdBlitImage(vk_cmd(), vk_hw.live.color.image, VK_IMAGE_LAYOUT_GENERAL, sync_image.image, VK_IMAGE_LAYOUT_GENERAL,
         1, &blit, VK_FILTER_NEAREST);
     return vk_read_image(&sync_image, VK_IMAGE_ASPECT_COLOR_BIT, x0, y0, x1 - x0, y1 - y0, pixels, 4);
+}
+
+/* ---- MSAA (antialias.h): the multisampled twins ---- */
+
+int pc_vk_hw_ms_max(void)
+{
+    for (int samples = 8; samples >= 2; samples /= 2)
+        if (vk.msaa_counts & (VkSampleCountFlags)samples)
+            return samples;
+    return 0;
+}
+static void ms_destroy(void)
+{
+    vk_image_destroy_later(&vk_hw.ms.color);
+    vk_image_destroy_later(&vk_hw.ms.normal);
+    vk_image_destroy_later(&vk_hw.ms.albedo);
+    vk_image_destroy_later(&vk_hw.ms.shade);
+    vk_image_destroy_later(&vk_hw.ms.depth);
+    vk_image_destroy_later(&vk_hw.ms_room);
+    vk_image_destroy_later(&vk_hw.ms_before);
+    vk_hw.ms_samples = vk_hw.ms_width = vk_hw.ms_height = 0;
+}
+/* The packet pipelines at `samples`, and load/resolve (made once per count). */
+static int ms_make_pipelines(int samples)
+{
+    if (ms_pipeline_samples == samples)
+        return 1;
+    vkDeviceWaitIdle(vk.device);
+    for (int c = 0; c < 2; c++) {
+        if (ms_opaque[c])
+            vkDestroyPipeline(vk.device, ms_opaque[c], NULL);
+        for (int m = 0; m < 4; m++)
+            if (ms_blend[c][m])
+                vkDestroyPipeline(vk.device, ms_blend[c][m], NULL);
+    }
+    VkPipeline old[4] = { ms_load_pipeline, ms_depth_pipeline, ms_resolve_pipeline, ms_sync_pipeline };
+    for (int i = 0; i < 4; i++)
+        if (old[i])
+            vkDestroyPipeline(vk.device, old[i], NULL);
+    memset(ms_opaque, 0, sizeof ms_opaque);
+    memset(ms_blend, 0, sizeof ms_blend);
+    ms_load_pipeline = ms_depth_pipeline = ms_resolve_pipeline = ms_sync_pipeline = VK_NULL_HANDLE;
+    ms_pipeline_samples = 0;
+    if (!ms_set) {
+        VkDescriptorType types[5];
+        for (int i = 0; i < 5; i++)
+            types[i] = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        ms_set = vk_push_layout(types, 5);
+        VkPushConstantRange range = { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, 16 };
+        VkPipelineLayoutCreateInfo info = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = 1,
+            .pSetLayouts = &ms_set,
+            .pushConstantRangeCount = 1,
+            .pPushConstantRanges = &range };
+        if (!vk_check(vkCreatePipelineLayout(vk.device, &info, NULL, &ms_layout), "vkCreatePipelineLayout"))
+            return 0;
+    }
+    /* hw_ms.frag: the native surfaces' depth (occlusion) read from its twin. */
+    VkShaderModule vs = vk_shader(vk_spv_hw_vert, vk_spv_hw_vert_size),
+                   fs = vk_shader(vk_spv_hw_ms_frag, vk_spv_hw_ms_frag_size),
+                   fullscreen = vk_shader(vk_spv_fullscreen_vert, vk_spv_fullscreen_vert_size),
+                   load = vk_shader(vk_spv_ms_load_frag, vk_spv_ms_load_frag_size),
+                   depth = vk_shader(vk_spv_ms_depth_frag, vk_spv_ms_depth_frag_size),
+                   resolve = vk_shader(vk_spv_ms_resolve_frag, vk_spv_ms_resolve_frag_size),
+                   sync = vk_shader(vk_spv_ms_sync_frag, vk_spv_ms_sync_frag_size);
+    int ok = 1;
+    for (int c = 0; c < 2; c++) {
+        ms_opaque[c] = target_pipeline_ms(vs, fs, draw_layout, &binding, attributes, 8,
+            VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xffff, samples, c);
+        ok = ok && ms_opaque[c];
+        for (int m = 0; m < 4; m++) {
+            ms_blend[c][m] = target_pipeline_ms(vs, fs, draw_layout, &binding, attributes, 8,
+                VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, m, 0x000f, samples, c);
+            ok = ok && ms_blend[c][m];
+        }
+    }
+    /* Load: every sample of the twins (the shader runs once per pixel). */
+    ms_load_pipeline = target_pipeline_ms(fullscreen, load, ms_layout, NULL, NULL, 0,
+        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xffff, samples, 0);
+    vk_pipeline_desc d = { .vertex = fullscreen,
+        .fragment = depth,
+        .layout = ms_layout,
+        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        .color_count = 0,
+        .depth_format = vk.depth_format,
+        .blend = -1,
+        .samples = samples };
+    ms_depth_pipeline = vk_pipeline(&d);
+    /* Sync: sample 0 of the surfaces' twin into the single-sampled surfaces. */
+    d.fragment = sync;
+    d.samples = 1;
+    ms_sync_pipeline = vk_pipeline(&d);
+    /* Resolve: into the single-sampled target. */
+    ms_resolve_pipeline = target_pipeline_ms(fullscreen, resolve, ms_layout, NULL, NULL, 0,
+        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xffff, 1, 0);
+    VkShaderModule modules[7] = { vs, fs, fullscreen, load, depth, resolve, sync };
+    for (int i = 0; i < 7; i++)
+        vkDestroyShaderModule(vk.device, modules[i], NULL);
+    ok = ok && ms_load_pipeline && ms_depth_pipeline && ms_resolve_pipeline && ms_sync_pipeline;
+    if (ok)
+        ms_pipeline_samples = samples;
+    return ok;
+}
+int pc_vk_hw_ms_make(int samples, int width, int height)
+{
+    if (samples < 2 || !(vk.msaa_counts & (VkSampleCountFlags)samples))
+        return 0;
+    if (vk_hw.ms_samples == samples && vk_hw.ms_width >= width && vk_hw.ms_height >= height)
+        return 1;
+    vk_end_rendering();
+    ms_destroy();
+    if (!ms_make_pipelines(samples))
+        return 0;
+    VkImageUsageFlags color = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+                            | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    VkImageUsageFlags depth = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+                            | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    vk_target* t = &vk_hw.ms;
+    if (!vk_image_create_ms(&t->color, width, height, VK_TARGET_FORMAT, color, samples)
+        || !vk_image_create_ms(&t->normal, width, height, VK_TARGET_FORMAT, color, samples)
+        || !vk_image_create_ms(&t->albedo, width, height, VK_TARGET_FORMAT, color, samples)
+        || !vk_image_create_ms(&t->shade, width, height, VK_TARGET_FORMAT, color, samples)
+        || !vk_image_create_ms(&t->depth, width, height, vk.depth_format, depth, samples)
+        || !vk_image_create_ms(&vk_hw.ms_room, width, height, vk.depth_format, depth, samples)
+        || !vk_image_create_ms(&vk_hw.ms_before, width, height, vk.depth_format, depth, samples)) {
+        fprintf(stderr, "[vk] no %dx MSAA images (%d x %d)\n", samples, width, height);
+        ms_destroy();
+        return 0;
+    }
+    vk_hw.ms_samples = samples;
+    vk_hw.ms_width = width;
+    vk_hw.ms_height = height;
+    make_attachments(&ms_attachments, &vk_hw.ms, &vk_hw.ms.depth);
+    make_attachments(&ms_object_attachments, &vk_hw.ms, &vk_hw.ms_room);
+    ms_attachments.width = ms_object_attachments.width = width;
+    ms_attachments.height = ms_object_attachments.height = height;
+    return 1;
+}
+/* A fullscreen pass over a rectangle (scaled pixels) of the open scope. */
+static void ms_pass(VkPipeline pipeline, vk_descriptors* d, int x0, int y0, int x1, int y1, int samples)
+{
+    VkCommandBuffer cmd = vk_cmd();
+    VkViewport viewport = { (float)x0, (float)y0, (float)(x1 - x0), (float)(y1 - y0), 0, 1 };
+    VkRect2D scissor = { { x0, y0 }, { (uint32_t)(x1 - x0), (uint32_t)(y1 - y0) } };
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+    vkCmdSetDepthTestEnable(cmd, VK_TRUE);
+    vkCmdSetDepthCompareOp(cmd, VK_COMPARE_OP_ALWAYS);
+    vkCmdSetDepthWriteEnable(cmd, VK_TRUE);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    vk_descriptors_push(d, VK_PIPELINE_BIND_POINT_GRAPHICS, ms_layout);
+    int push[4] = { samples, 0, 0, 0 };
+    vkCmdPushConstants(cmd, ms_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push, push);
+    vkCmdDraw(cmd, 3, 1, 0, 0);
+}
+static int ms_clamp(int* x0, int* y0, int* x1, int* y1)
+{
+    *x1 = *x1 > vk_hw.ms_width ? vk_hw.ms_width : *x1;
+    *y1 = *y1 > vk_hw.ms_height ? vk_hw.ms_height : *y1;
+    return vk_hw.ms_samples && clamp_rect(x0, y0, x1, y1);
+}
+void pc_vk_hw_ms_load(unsigned fbo, int x0, int y0, int x1, int y1, int room)
+{
+    if (!ms_clamp(&x0, &y0, &x1, &y1))
+        return;
+    vk_section("msaa load"); /* ROOD_PERF: a section of its own, then the drawing again */
+    const vk_target* t = target_of(fbo);
+    vk_begin_rendering(&ms_attachments);
+    vk_descriptors d = { 0 };
+    const vk_image* from[5] = { &t->color, &t->normal, &t->albedo, &t->shade, &t->depth };
+    for (int i = 0; i < 5; i++)
+        vk_descriptors_image(&d, i, from[i]->view, vk.nearest);
+    ms_pass(ms_load_pipeline, &d, x0, y0, x1, y1, vk_hw.ms_samples);
+    if (room) {
+        vk_attachments a = { .depth = vk_hw.ms_room.view, .width = vk_hw.ms_width, .height = vk_hw.ms_height };
+        vk_begin_rendering(&a);
+        for (int i = 0; i < 5; i++)
+            vk_descriptors_image(&d, i, vk_hw.room_depth.view, vk.nearest);
+        ms_pass(ms_depth_pipeline, &d, x0, y0, x1, y1, vk_hw.ms_samples);
+    }
+    vk_section("draw");
+}
+void pc_vk_hw_ms_resolve(unsigned fbo, int x0, int y0, int x1, int y1)
+{
+    if (!ms_clamp(&x0, &y0, &x1, &y1))
+        return;
+    vk_section("msaa resolve");
+    vk_begin_rendering(vk_hw_attachments(fbo == VK_TOKEN_REPLAY ? VK_TOKEN_REPLAY : VK_TOKEN_LIVE));
+    vk_descriptors d = { 0 };
+    const vk_image* from[5] = { &vk_hw.ms.color, &vk_hw.ms.normal, &vk_hw.ms.albedo, &vk_hw.ms.shade, &vk_hw.ms.depth };
+    for (int i = 0; i < 5; i++)
+        vk_descriptors_image(&d, i, from[i]->view, vk.nearest);
+    ms_pass(ms_resolve_pipeline, &d, x0, y0, x1, y1, vk_hw.ms_samples);
+    vk_end_rendering();
+    vk_section("draw");
+}
+void pc_vk_hw_ms_sync_room(int x0, int y0, int x1, int y1)
+{
+    if (!ms_clamp(&x0, &y0, &x1, &y1))
+        return;
+    vk_section("msaa sync");
+    vk_attachments a = { .depth = vk_hw.room_depth.view, .width = vk_hw.width, .height = vk_hw.height };
+    vk_begin_rendering(&a);
+    vk_descriptors d = { 0 };
+    for (int i = 0; i < 5; i++)
+        vk_descriptors_image(&d, i, vk_hw.ms_room.view, vk.nearest);
+    ms_pass(ms_sync_pipeline, &d, x0, y0, x1, y1, 1);
+    vk_section("draw");
 }

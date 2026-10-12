@@ -9,6 +9,7 @@
 #include "dev_state.h"
 #include "gl_shaders.h" /* PC_GLSL_PROBE_COMMON: the probe GI lookup (probe_gi.inc) */
 #include "lighting_quality.h"
+#include "antialias.h"
 #include <SDL3/SDL.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -616,13 +617,14 @@ static const char* fxaa_fragment_source =
     "float luma(vec2 p) { return dot(texture(image, p).rgb, vec3(0.299, 0.587, 0.114)); }\n"
     "void main() {\n"
     "    vec2 st = vec2(uv.x, 1.0 - uv.y);\n" /* framebuffer rows count from the bottom */
-    "    vec3 middle = texture(image, st).rgb;\n"
+    "    vec4 centre = texture(image, st);\n" /* alpha: the blur radius for depth of field, after */
+    "    vec3 middle = centre.rgb;\n"
     "    float m = dot(middle, vec3(0.299, 0.587, 0.114));\n"
     "    float n = luma(st + vec2(0.0, texel.y)), s = luma(st - vec2(0.0, texel.y));\n"
     "    float e = luma(st + vec2(texel.x, 0.0)), w = luma(st - vec2(texel.x, 0.0));\n"
     "    float high = max(m, max(max(n, s), max(e, w))), low = min(m, min(min(n, s), min(e, w)));\n"
     "    float range = high - low;\n"
-    "    if (range < max(0.0312, high * 0.125)) { color = vec4(middle, 1.0); return; }\n"
+    "    if (range < max(0.0312, high * 0.125)) { color = vec4(middle, centre.a); return; }\n"
     "    float nw = luma(st + vec2(-texel.x, texel.y)), ne = luma(st + texel);\n"
     "    float sw = luma(st - texel), se = luma(st + vec2(texel.x, -texel.y));\n"
     "    float horizontal = abs(-2.0 * w + nw + sw) + 2.0 * abs(-2.0 * m + n + s) + abs(-2.0 * e + ne + se);\n"
@@ -655,19 +657,82 @@ static const char* fxaa_fragment_source =
     "    sub = (-2.0 * sub + 3.0) * sub * sub;\n"
     "    offset = max(offset, sub * sub * 0.75);\n"
     "    vec2 p = st + (across_y ? vec2(0.0, offset * step_size) : vec2(offset * step_size, 0.0));\n"
-    "    color = vec4(texture(image, p).rgb, 1.0);\n"
+    "    color = vec4(texture(image, p).rgb, centre.a);\n"
     "}\n";
+/* SMAA 1x (antialias.h; the reference shader pc/third_party/smaa/SMAA.hlsl,
+ * MIT, through its GLSL 3 macros), three passes as on Vulkan
+ * (pc/shaders/vulkan/smaa_*.frag). SMAA works in image coordinates: st is
+ * uv with rows counted from the bottom, as GL stores the images. */
+#define SMAA_GL_HEADER \
+    "#version 330 core\n" \
+    "in vec2 uv;\n" \
+    "uniform vec4 metrics;\n" /* 1 / width, 1 / height, width, height */ \
+    "#define SMAA_RT_METRICS metrics\n" \
+    "#define SMAA_GLSL_3 1\n" \
+    "#define SMAA_PRESET_HIGH 1\n" PC_GLSL_SMAA
+static const char* smaa_edges_source = SMAA_GL_HEADER
+    "out vec2 edges;\n"
+    "uniform sampler2D color_tex;\n"
+    "uniform sampler2D aa_depth_tex;\n"
+    "uniform sampler2D aa_normal_tex;\n"
+    "uniform ivec4 rect;\n" /* the display area (VRAM pixels) */
+    "uniform ivec4 info;\n" /* scale, geometric edges only */
+    "#define AA_RECT rect\n"
+    "#define AA_SCALE info.x\n"
+    "vec2 aa_picture(vec2 st) { return vec2(st.x, 1.0 - st.y); }\n" PC_GLSL_AA_GEOMETRY
+    "void main() {\n"
+    "    vec2 st = vec2(uv.x, 1.0 - uv.y);\n"
+    "    vec4 offset[3];\n"
+    "    SMAAEdgeDetectionVS(st, offset);\n"
+    "    vec2 e = SMAAColorEdgeDetectionPS(st, offset, color_tex);\n"
+    "    if (info.y != 0) e *= aa_geometry_edges(st, metrics.xy);\n"
+    "    if (dot(e, vec2(1.0)) == 0.0) discard;\n"
+    "    edges = e;\n"
+    "}\n";
+static const char* smaa_weights_source = SMAA_GL_HEADER
+    "out vec4 weights;\n"
+    "uniform sampler2D edges_tex;\n"
+    "uniform sampler2D area_tex;\n"
+    "uniform sampler2D search_tex;\n"
+    "void main() {\n"
+    "    vec2 st = vec2(uv.x, 1.0 - uv.y), pixcoord;\n"
+    "    vec4 offset[3];\n"
+    "    SMAABlendingWeightCalculationVS(st, pixcoord, offset);\n"
+    "    weights = SMAABlendingWeightCalculationPS(st, pixcoord, offset, edges_tex, area_tex, search_tex, vec4(0.0));\n"
+    "}\n";
+static const char* smaa_blend_source = SMAA_GL_HEADER
+    "out vec4 color;\n"
+    "uniform sampler2D color_tex;\n"
+    "uniform sampler2D blend_tex;\n"
+    "void main() {\n"
+    "    vec2 st = vec2(uv.x, 1.0 - uv.y);\n"
+    "    vec4 offset;\n"
+    "    SMAANeighborhoodBlendingVS(st, offset);\n"
+    "    color = SMAANeighborhoodBlendingPS(st, offset, color_tex, blend_tex);\n"
+    "}\n";
+/* Supersampling's reduction to the view (pc/shaders/vulkan/downsample.glsl). */
+static const char* downsample_source =
+    "#version 330 core\n"
+    "in vec2 uv;\n"
+    "out vec4 color;\n"
+    "uniform sampler2D src;\n"
+    "uniform vec2 src_size;\n"
+    "uniform vec2 dst_size;\n"
+    "uniform int filter_;\n" PC_GLSL_DOWNSAMPLE
+    "void main() { color = vec4(downsample(src, vec2(uv.x, 1.0 - uv.y), src_size, dst_size, filter_), 1.0); }\n";
+static GLuint smaa_edges_program, smaa_weights_program, smaa_blend_program, downsample_program;
+static GLuint smaa_area_texture, smaa_search_texture;
+static GLint u_smaa_metrics[3], u_smaa_rect, u_smaa_info, u_down_src_size, u_down_dst_size, u_down_filter;
 static GLuint blur_program, fxaa_program;
 static GLint u_blur_lit, u_blur_view, u_blur_radius, u_aperture, u_fxaa_image, u_fxaa_texel;
-/* View-sized intermediate images: the lit frame for the blur pass (half
- * floats, alpha = signed blur radius) and the finished frame for FXAA. */
+/* The post chain's lit-sized images (half floats; alpha = the depth of
+ * field's signed blur radius, 9999 on UI), used in turn: pass n writes
+ * chain[n & 1]. SMAA's edges and weights beside them. */
 typedef struct {
     GLuint fbo, texture;
     int w, h;
 } view_target;
-static view_target blur_view, fxaa_view;
-/* Anti-aliasing of the presented frame: 0 off, 1 FXAA. */
-int pc_gl_aa = 1;
+static view_target chain[2], smaa_edges, smaa_weights;
 static GLint u_scaled_show_depth, u_scaled_depth, u_post, u_focus, u_dof_radius, u_tilt, u_fog, u_fog_range;
 /* Post effects (developer overlay / RPC). */
 int pc_post_flags; /* 1 depth of field, 2 tilt-shift, 4 fog */
@@ -697,6 +762,7 @@ extern int pc_hw_active, pc_hw_scale;
 extern void pc_hw_init(const uint16_t* vram);
 extern GLuint pc_hw_target(void);
 extern void pc_hw_present_done(void);
+extern void pc_hw_supersample(int view_h, int display_h);
 extern void pc_hw_set_display(int x, int y, int w, int h);
 extern void pc_hw_present_origin(int* x, int* y);
 extern const uint16_t* pc_native_vram(void);
@@ -864,7 +930,7 @@ void pc_gl_resize(int width, int height)
     window_h = height;
 }
 
-static int ensure_view_target(view_target* v, int w, int h)
+static int ensure_target_format(view_target* v, int w, int h, GLenum format)
 {
     if (v->w == w && v->h == h)
         return 1;
@@ -873,7 +939,8 @@ static int ensure_view_target(view_target* v, int w, int h)
         gl_GenTextures(1, &v->texture);
     }
     gl_BindTexture(GL_TEXTURE_2D, v->texture);
-    gl_TexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_FLOAT, NULL);
+    gl_TexImage2D(GL_TEXTURE_2D, 0, format, w, h, 0, format == GL_RG8 ? GL_RG : GL_RGBA,
+        format == GL_RGBA16F ? GL_FLOAT : GL_UNSIGNED_BYTE, NULL);
     gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -884,6 +951,89 @@ static int ensure_view_target(view_target* v, int w, int h)
     gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
     v->w = ok ? w : 0, v->h = ok ? h : 0;
     return ok;
+}
+static int ensure_view_target(view_target* v, int w, int h) { return ensure_target_format(v, w, h, GL_RGBA16F); }
+/* Pass `stage` of the post chain draws into the window's view (the last of
+ * `stages`) or the next lit-sized image; returns that image's texture (the
+ * next pass's input). */
+static GLuint stage_begin(int stage, int stages, int lit_w, int lit_h, int view_x, int view_y, int view_w, int view_h)
+{
+    if (stage + 1 >= stages) {
+        gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
+        gl_Viewport(view_x, view_y, view_w, view_h);
+        return 0;
+    }
+    view_target* v = &chain[stage & 1];
+    gl_BindFramebuffer(GL_FRAMEBUFFER, v->fbo);
+    gl_Viewport(0, 0, lit_w, lit_h);
+    return v->texture;
+}
+/* SMAA's programs and lookup textures, made on first use (antialias.c). */
+static GLuint lookup_texture(GLenum format, GLenum base, const unsigned char* data, int w, int h, GLint filter)
+{
+    GLuint texture;
+    gl_GenTextures(1, &texture);
+    gl_BindTexture(GL_TEXTURE_2D, texture);
+    gl_PixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    gl_TexImage2D(GL_TEXTURE_2D, 0, format, w, h, 0, base, GL_UNSIGNED_BYTE, data);
+    gl_PixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+    gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+    gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    return texture;
+}
+static int smaa_ready(void)
+{
+    static int state; /* 0 not yet, 1 ready, -1 failed */
+    if (state)
+        return state > 0;
+    state = -1;
+    smaa_edges_program = pc_gl_program(vertex_source, smaa_edges_source);
+    smaa_weights_program = pc_gl_program(vertex_source, smaa_weights_source);
+    smaa_blend_program = pc_gl_program(vertex_source, smaa_blend_source);
+    if (!smaa_edges_program || !smaa_weights_program || !smaa_blend_program) {
+        fprintf(stderr, "[gl] SMAA unavailable (its shaders did not build)\n");
+        return 0;
+    }
+    GLuint programs[3] = { smaa_edges_program, smaa_weights_program, smaa_blend_program };
+    for (int i = 0; i < 3; i++)
+        u_smaa_metrics[i] = gl_GetUniformLocation(programs[i], "metrics");
+    u_smaa_rect = gl_GetUniformLocation(smaa_edges_program, "rect");
+    u_smaa_info = gl_GetUniformLocation(smaa_edges_program, "info");
+    static const char* const samplers[3][3] = { { "color_tex", "aa_depth_tex", "aa_normal_tex" },
+        { "edges_tex", "area_tex", "search_tex" }, { "color_tex", "blend_tex", NULL } };
+    for (int i = 0; i < 3; i++) {
+        gl_UseProgram(programs[i]);
+        for (int k = 0; k < 3; k++)
+            if (samplers[i][k])
+                gl_Uniform1i(gl_GetUniformLocation(programs[i], samplers[i][k]), k);
+    }
+    gl_UseProgram(0);
+    int aw, ah, sw, sh;
+    const unsigned char* area = pc_smaa_area_texture(&aw, &ah);
+    const unsigned char* search = pc_smaa_search_texture(&sw, &sh);
+    smaa_area_texture = lookup_texture(GL_RG8, GL_RG, area, aw, ah, GL_LINEAR);
+    smaa_search_texture = lookup_texture(GL_R8, GL_RED, search, sw, sh, GL_NEAREST);
+    state = 1;
+    return 1;
+}
+static int downsample_ready(void)
+{
+    static int state;
+    if (!state) {
+        downsample_program = pc_gl_program(vertex_source, downsample_source);
+        state = downsample_program ? 1 : -1;
+        if (downsample_program) {
+            u_down_src_size = gl_GetUniformLocation(downsample_program, "src_size");
+            u_down_dst_size = gl_GetUniformLocation(downsample_program, "dst_size");
+            u_down_filter = gl_GetUniformLocation(downsample_program, "filter_");
+            gl_UseProgram(downsample_program);
+            gl_Uniform1i(gl_GetUniformLocation(downsample_program, "src"), 0);
+            gl_UseProgram(0);
+        }
+    }
+    return state > 0;
 }
 /* Focal depth (GTE SZ) for depth of field; 0 lets the shader pick (auto).
  * On Ashley: her chest's depth, eased so focus pulls rather than snaps. */
@@ -1164,6 +1314,11 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
         swap();
         return;
     }
+    if (pc_hw_active && w > 0 && h > 0) { /* supersampling: the internal resolution the view needs */
+        int view_w, view_h;
+        update_view(&view_w, &view_h);
+        pc_hw_supersample(view_h, h);
+    }
     /* Finish the hardware target first: its flush sets its own viewport. */
     if (pc_hw_active)
         pc_hw_set_display(x, y, w, h);
@@ -1184,6 +1339,10 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
         update_view(&view_w, &view_h);
         gl_Viewport(pc_gl_view[0], window_h - pc_gl_view[1] - view_h, view_w, view_h);
         pc_gl_display[0] = x, pc_gl_display[1] = y, pc_gl_display[2] = w, pc_gl_display[3] = h;
+        /* The lit image: view-sized, or with supersampling the display area at the internal resolution. */
+        int lit_w = view_w, lit_h = view_h, ssaa = 0;
+        if (target && pc_aa_ssaa > 1.0f && w * pc_hw_scale > view_w && h * pc_hw_scale > view_h && downsample_ready())
+            ssaa = 1, lit_w = w * pc_hw_scale, lit_h = h * pc_hw_scale;
         gl_ActiveTexture(GL_TEXTURE0);
         gl_BindVertexArray(vertex_array);
         if (target) {
@@ -1200,13 +1359,13 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
             gl_Uniform4i(u_scaled_rect, x, y, w, h);
             gl_Uniform1i(u_scaled_scale, pc_hw_scale);
             gl_Uniform1i(u_scaled_filtered, pc_gl_filter);
-            gl_Uniform2f(u_scaled_view, (float)view_w, (float)view_h);
+            gl_Uniform2f(u_scaled_view, (float)lit_w, (float)lit_h);
             gl_Uniform1i(u_scaled_show_depth, pc_gl_show_depth);
             gl_Uniform1i(u_post, pc_post_flags);
             gl_Uniform1f(u_focus, focus_depth());
-            gl_Uniform1f(u_dof_radius, pc_post_dof_radius * view_h / 720.0f);
+            gl_Uniform1f(u_dof_radius, pc_post_dof_radius * lit_h / 720.0f);
             gl_Uniform1f(u_aperture, pc_post_aperture);
-            gl_Uniform3f(u_tilt, pc_post_tilt[0], pc_post_tilt[1], pc_post_tilt[2] * view_h / 720.0f);
+            gl_Uniform3f(u_tilt, pc_post_tilt[0], pc_post_tilt[1], pc_post_tilt[2] * lit_h / 720.0f);
             gl_Uniform4f(u_fog, pc_post_fog[0], pc_post_fog[1], pc_post_fog[2], pc_post_fog[3]);
             gl_Uniform2f(u_fog_range, pc_post_fog_range[0], pc_post_fog_range[1]);
             {
@@ -1336,38 +1495,97 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
             gl_Uniform4i(u_rect, x, y, w, h);
             gl_Uniform1i(u_rgb24, pc_display_rgb24);
         }
-        /* Lit frame -> [depth-of-field blur] -> [FXAA] -> window. */
-        int blur = target && !pc_gl_show_depth && (pc_post_flags & 3) && ensure_view_target(&blur_view, view_w, view_h);
-        int fxaa = target && pc_gl_aa && ensure_view_target(&fxaa_view, view_w, view_h);
-        int view_x = pc_gl_view[0], view_y = window_h - pc_gl_view[1] - view_h;
-        GLuint finished = fxaa ? fxaa_view.fbo : 0;
-        gl_BindFramebuffer(GL_FRAMEBUFFER, blur ? blur_view.fbo : finished);
-        if (blur || fxaa)
-            gl_Viewport(0, 0, view_w, view_h);
-        gl_DrawArrays(GL_TRIANGLES, 0, 3);
-        if (blur) {
-            gl_BindFramebuffer(GL_FRAMEBUFFER, finished);
-            if (!fxaa)
-                gl_Viewport(view_x, view_y, view_w, view_h);
-            gl_UseProgram(blur_program);
-            gl_ActiveTexture(GL_TEXTURE0);
-            gl_BindTexture(GL_TEXTURE_2D, blur_view.texture);
-            gl_Uniform1i(u_blur_lit, 0);
-            gl_Uniform2f(u_blur_view, (float)view_w, (float)view_h);
-            float most = pc_post_dof_radius > pc_post_tilt[2] ? pc_post_dof_radius : pc_post_tilt[2];
-            gl_Uniform1f(u_blur_radius, most * view_h / 720.0f);
-            gl_DrawArrays(GL_TRIANGLES, 0, 3);
+        /* The post chain (antialias.h): the lit image -> [FXAA | SMAA] -> [depth of field blur] ->
+         * [supersampling's downsample] -> the window. */
+        int post = target && (pc_gl_aa == PC_AA_FXAA || (pc_gl_aa == PC_AA_SMAA && smaa_ready())) ? pc_gl_aa : PC_AA_OFF;
+        int blur = target && !pc_gl_show_depth && (pc_post_flags & 3);
+        int stages = 1 + (post != PC_AA_OFF) + blur + ssaa;
+        if ((stages > 1 && !ensure_view_target(&chain[0], lit_w, lit_h))
+            || (stages > 2 && !ensure_view_target(&chain[1], lit_w, lit_h)))
+            stages = 1, post = PC_AA_OFF, blur = ssaa = 0; /* (lit_w/h only matter with stages > 1) */
+        if (post == PC_AA_SMAA
+            && (!ensure_target_format(&smaa_edges, lit_w, lit_h, GL_RG8)
+                || !ensure_target_format(&smaa_weights, lit_w, lit_h, GL_RGBA8))) {
+            post = PC_AA_OFF;
+            stages = 1 + blur + ssaa;
         }
-        if (fxaa) {
-            gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
-            gl_Viewport(view_x, view_y, view_w, view_h);
+        int view_x = pc_gl_view[0], view_y = window_h - pc_gl_view[1] - view_h;
+        int stage = 0;
+        GLuint input = stage_begin(stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
+        gl_DrawArrays(GL_TRIANGLES, 0, 3);
+        if (post == PC_AA_FXAA) {
+            GLuint source = input;
+            input = stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
             gl_UseProgram(fxaa_program);
             gl_ActiveTexture(GL_TEXTURE0);
-            gl_BindTexture(GL_TEXTURE_2D, fxaa_view.texture);
+            gl_BindTexture(GL_TEXTURE_2D, source);
             gl_Uniform1i(u_fxaa_image, 0);
-            gl_Uniform2f(u_fxaa_texel, 1.0f / view_w, 1.0f / view_h);
+            gl_Uniform2f(u_fxaa_texel, 1.0f / lit_w, 1.0f / lit_h);
+            gl_DrawArrays(GL_TRIANGLES, 0, 3);
+        } else if (post == PC_AA_SMAA) {
+            GLuint source = input;
+            float metrics[4] = { 1.0f / lit_w, 1.0f / lit_h, (float)lit_w, (float)lit_h };
+            /* 1: edges (the reference discards pixels without any: cleared first). */
+            gl_BindFramebuffer(GL_FRAMEBUFFER, smaa_edges.fbo);
+            gl_Viewport(0, 0, lit_w, lit_h);
+            gl_ClearColor(0, 0, 0, 0);
+            gl_Clear(GL_COLOR_BUFFER_BIT);
+            gl_UseProgram(smaa_edges_program);
+            gl_Uniform4fv(u_smaa_metrics[0], 1, metrics);
+            gl_Uniform4i(u_smaa_rect, x, y, w, h);
+            gl_Uniform4i(u_smaa_info, pc_hw_scale, pc_aa_geometry_edges && !pc_gl_show_depth, 0, 0);
+            GLuint normal, albedo;
+            pc_hw_gbuffer(&normal, &albedo);
+            GLuint inputs[3] = { source, pc_hw_depth_texture(), normal };
+            for (int i = 2; i >= 0; i--) {
+                gl_ActiveTexture(GL_TEXTURE0 + i);
+                gl_BindTexture(GL_TEXTURE_2D, inputs[i]);
+            }
+            gl_DrawArrays(GL_TRIANGLES, 0, 3);
+            /* 2: blending weights. */
+            gl_BindFramebuffer(GL_FRAMEBUFFER, smaa_weights.fbo);
+            gl_UseProgram(smaa_weights_program);
+            gl_Uniform4fv(u_smaa_metrics[1], 1, metrics);
+            GLuint lookups[3] = { smaa_edges.texture, smaa_area_texture, smaa_search_texture };
+            for (int i = 2; i >= 0; i--) {
+                gl_ActiveTexture(GL_TEXTURE0 + i);
+                gl_BindTexture(GL_TEXTURE_2D, lookups[i]);
+            }
+            gl_DrawArrays(GL_TRIANGLES, 0, 3);
+            /* 3: neighbourhood blending. */
+            input = stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
+            gl_UseProgram(smaa_blend_program);
+            gl_Uniform4fv(u_smaa_metrics[2], 1, metrics);
+            gl_ActiveTexture(GL_TEXTURE1);
+            gl_BindTexture(GL_TEXTURE_2D, smaa_weights.texture);
+            gl_ActiveTexture(GL_TEXTURE0);
+            gl_BindTexture(GL_TEXTURE_2D, source);
             gl_DrawArrays(GL_TRIANGLES, 0, 3);
         }
+        if (blur) {
+            GLuint source = input;
+            input = stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
+            gl_UseProgram(blur_program);
+            gl_ActiveTexture(GL_TEXTURE0);
+            gl_BindTexture(GL_TEXTURE_2D, source);
+            gl_Uniform1i(u_blur_lit, 0);
+            gl_Uniform2f(u_blur_view, (float)lit_w, (float)lit_h);
+            float most = pc_post_dof_radius > pc_post_tilt[2] ? pc_post_dof_radius : pc_post_tilt[2];
+            gl_Uniform1f(u_blur_radius, most * lit_h / 720.0f);
+            gl_DrawArrays(GL_TRIANGLES, 0, 3);
+        }
+        if (ssaa) {
+            GLuint source = input;
+            stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
+            gl_UseProgram(downsample_program);
+            gl_ActiveTexture(GL_TEXTURE0);
+            gl_BindTexture(GL_TEXTURE_2D, source);
+            gl_Uniform2f(u_down_src_size, (float)lit_w, (float)lit_h);
+            gl_Uniform2f(u_down_dst_size, (float)view_w, (float)view_h);
+            gl_Uniform1i(u_down_filter, pc_aa_downsample);
+            gl_DrawArrays(GL_TRIANGLES, 0, 3);
+        }
+        gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
         gl_BindVertexArray(0);
     }
     gl_Viewport(0, 0, window_w, window_h);

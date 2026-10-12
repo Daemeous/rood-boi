@@ -256,6 +256,13 @@ extern int pc_hw_set_scale(int scale) __attribute__((weak));
 extern int pc_hw_active __attribute__((weak)), pc_hw_scale __attribute__((weak));
 extern int pc_gl_filter __attribute__((weak)), pc_gl_aspect __attribute__((weak));
 extern int pc_gl_aa __attribute__((weak));
+/* Anti-aliasing (antialias.h). */
+extern int pc_aa_parse(const char*) __attribute__((weak));
+extern const char* pc_aa_string(void) __attribute__((weak));
+extern int pc_aa_downsample __attribute__((weak)), pc_aa_geometry_edges __attribute__((weak));
+extern const char* const pc_aa_downsample_names[3] __attribute__((weak));
+extern int pc_aa_msaa_active(void) __attribute__((weak)); /* gpu_hw.c: samples the 3D is drawn with now */
+extern int pc_aa_msaa_max(void) __attribute__((weak)); /* gpu_hw.c: the most samples this backend runs */
 extern int pc_gl_finish __attribute__((weak));
 extern int pc_room_exact_depth __attribute__((weak));
 extern int pc_baked_estimate __attribute__((weak));
@@ -769,8 +776,25 @@ static void handle_method(int fd, const char* request)
             else if (number_value(member(params, "interp_uv"), &n) && n >= 0 && n <= 2)
                 pc_interp_uv = (int)n;
         }
-        if (params && bool_value(member(params, "aa"), &flag) && &pc_gl_aa)
-            pc_gl_aa = flag;
+        /* aa: true/false (FXAA/off, as before) or "msaa4+smaa" ... (antialias.h). */
+        if (params && bool_value(member(params, "aa"), &flag) && &pc_gl_aa) {
+            pc_gl_aa = flag ? 1 : 0;
+        } else if (params && pc_aa_parse) {
+            char text[64];
+            if (string_value(member(params, "aa"), text, sizeof text) && !pc_aa_parse(text)) {
+                fail(fd, id, -32602, "aa: off, fxaa, smaa, msaa2/4/8, ssaa[factor], joined by '+'");
+                return;
+            }
+        }
+        if (params && &pc_aa_downsample) {
+            char text[32];
+            if (string_value(member(params, "aa_downsample"), text, sizeof text))
+                for (int k = 0; k < 3; k++)
+                    if (!strcmp(text, pc_aa_downsample_names[k]))
+                        pc_aa_downsample = k;
+            if (bool_value(member(params, "aa_geometry_edges"), &flag))
+                pc_aa_geometry_edges = flag;
+        }
         if (params && bool_value(member(params, "finish"), &flag) && &pc_gl_finish)
             pc_gl_finish = flag;
         if (params && bool_value(member(params, "room_depth"), &flag) && &pc_room_exact_depth)
@@ -1073,6 +1097,14 @@ static void handle_method(int fd, const char* request)
             used += snprintf(result + used - 1, sizeof result - used + 1, ",\"ui_upscale\":\"%s\",\"ui_subpixel\":%d,\"ui_text\":\"%s\"}",
                         pc_ui_upscale_names[pc_ui_upscale ? 1 : 0], pc_ui_subpixel, pc_ui_text_names[pc_ui_text ? 1 : 0])
                 - 1;
+        extern int pc_hw_scale_setting __attribute__((weak));
+        if (pc_aa_string && used < (int)sizeof result - 200)
+            used += snprintf(result + used - 1, sizeof result - used + 1,
+                        ",\"aa\":\"%s\",\"aa_downsample\":\"%s\",\"aa_geometry_edges\":%d,\"msaa_active\":%d,\"msaa_max\":%d,"
+                        "\"scale_setting\":%d}",
+                        pc_aa_string(), pc_aa_downsample_names[pc_aa_downsample], pc_aa_geometry_edges,
+                        pc_aa_msaa_active ? pc_aa_msaa_active() : 0, pc_aa_msaa_max ? pc_aa_msaa_max() : 0, &pc_hw_scale_setting ? pc_hw_scale_setting : 0)
+                - 1;
         for (int k = 0; k < editor_count && used < (int)sizeof result - 64; k++)
             used += editor_keys[k].flag
                 ? snprintf(result + used - 1, sizeof result - used + 1, ",\"%s\":%d}", editor_keys[k].name,
@@ -1225,6 +1257,15 @@ static void handle_method(int fd, const char* request)
         }
         pc_perf_json(result, (int)sizeof result, flag);
         reply(fd, id, result);
+    } else if (!strcmp(method, "redraw")) {
+        /* The newest frame drawn again as recorded with the current drawing options (MSAA, scale, ...)
+         * and presented until the game draws another (pause first): compare options on one frame. */
+        extern int pc_hw_redraw_present(void) __attribute__((weak));
+        if (!pc_hw_redraw_present || pc_hw_redraw_present()) {
+            fail(fd, id, -32000, "nothing recorded to redraw");
+            return;
+        }
+        reply(fd, id, "{}");
     } else if (!strcmp(method, "lighting_autodetect")) {
         /* The first-run rule for given capabilities (unit check): {ray_query, integrated}. */
         int rq = 0, integrated = 0;

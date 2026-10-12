@@ -85,6 +85,27 @@ VRAM row in both, so `gl_FragCoord` and texel fetches agree); the window
 passes use top-down rows, and FXAA and the blur mirror their sample
 patterns in y so the result equals GL's.
 
+### Anti-aliasing
+
+`pc/README.md` "Anti-aliasing" describes the methods. On Vulkan: MSAA's
+twins are `vk_hw.ms` and `vk_hw.ms_room` (tokens `VK_TOKEN_MS`,
+`VK_TOKEN_MS_OBJECT`, `VK_TOKEN_MS_ROOM_DEPTH`; `vk_hw_token_samples`), with
+packet pipelines per sample count (2D ones with every sample at the pixel
+centre through `VkPipelineSampleLocationsStateCreateInfoEXT`; depth twins
+are created `SAMPLE_LOCATIONS_COMPATIBLE_DEPTH`) and a multisampled set of
+the native list pipelines (`vk_native_set_for`). Loading the twins is a
+fullscreen pass (`ms_load.frag`, `ms_depth.frag`), resolving another
+(`ms_resolve.frag`); the native surfaces' depth twin is copied into the
+single-sampled one by a rendering scope with a `SAMPLE_ZERO` depth resolve
+and nothing drawn. Usable counts: `vk.msaa_counts` (framebuffer and sampled
+colour/depth counts). The present chain (`vk_present.c`) is lit image ->
+FXAA or SMAA (`smaa_edges/weights/blend.frag`, the reference
+`SMAA.hlsl` with `SMAA_GLSL_4`; `vk_shaders.py` adds `pc/third_party/smaa`
+to the include path) -> blur -> downsample (`downsample.frag`) -> window,
+each pass into the next of two lit-sized images or, last, the window's
+view. `ROOD_PERF` sections: `draw` (everything before the GI: the VRAM
+target, native lists, MSAA load/resolve), `aa`, `blur`, `downsample`.
+
 ### Ray tracing (`vk_rt.inc`)
 
 The scene is `ptgi.c`'s (the captured room, the frame's characters, weapons

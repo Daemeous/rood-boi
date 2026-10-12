@@ -20,6 +20,12 @@ typedef struct {
     vk_image vram; /* native VRAM, R16_UINT 1024 x 512 */
     vk_image dummy_depth; /* 1 x 1 depth for unused depth bindings */
     vk_image dummy_color; /* 1 x 1 colour for unused colour bindings */
+    /* MSAA (antialias.h; gpu_hw.c decides when): multisampled twins of a
+     * target's colours, G-buffer and depth and of the native surfaces' depth,
+     * covering the target from (0, 0) over ms_width x ms_height. */
+    vk_target ms;
+    vk_image ms_room, ms_before;
+    int ms_samples, ms_width, ms_height;
 } vk_hw_state;
 extern vk_hw_state vk_hw;
 #define VK_TARGET_FORMAT VK_FORMAT_R8G8B8A8_UNORM
@@ -29,6 +35,8 @@ const vk_attachments* vk_hw_attachments(unsigned token);
 /* The depth image a token names (live, replay, room depth, before); NULL
  * for 0. */
 const vk_image* vk_hw_depth(unsigned token);
+/* Samples per pixel of the attachments a token names (1, or vk_hw.ms_samples). */
+int vk_hw_token_samples(unsigned token);
 /* Viewport and scissor (native VRAM clip rectangle) for target draws;
  * returns 0 when the scissor is empty. */
 int vk_hw_viewport_scissor(const int* clip);

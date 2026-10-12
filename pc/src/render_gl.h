@@ -24,12 +24,18 @@ typedef struct {
     /* A copy of surface_depth from before the list (instances drawn in PS1
      * order test against it, not against themselves). */
     GLuint surface_before;
+    /* MSAA: called between an object list's passes, so pass 2 reads the
+     * depth pass 1 drew into a multisampled surface (NULL: nothing to do). */
+    void (*surface_sync)(void);
     const render_camera* camera; /* NULL: the list's own (frame interpolation passes one) */
     float t; /* palette blend from `previous` (0) to the current palette (1) */
     int count_stats; /* the live frame (not a replay) */
 } render_target;
 /* Returns the instances drawn, or -1 when the list is gone or unavailable. */
 int render_draw_list(uint32_t id, const render_target* target);
+/* Where list `id` draws in `target` (native x, y, w, h, within the drawing
+ * area); 0 (and the drawing area) when that cannot be told. */
+int render_list_screen_bounds(uint32_t id, const render_target* target, int out[4]);
 /* Entries [first, first + count) of the list's translucent sequence into
  * `fbo` (depth ALWAYS; hidden behind `surface_depth`, the native surfaces
  * so far, read as a texture): opaque texels write colour, G-buffer and
