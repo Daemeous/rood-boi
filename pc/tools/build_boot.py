@@ -69,6 +69,12 @@ parser.add_argument(
     "symbol analysis on them (no ELF twins, no host gcc); the only mode on a "
     "Windows host (MSYS2)",
 )
+parser.add_argument(
+    "--callo",
+    action="store_true",
+    help="with the Callo Merlose companion mod (src/BATTLE/BATTLE.PRG/mod; VS_CALLO and "
+    "VS_SELECTABLE_ROULETTE, as the decompilation's make CALLO=1); builds into *_callo",
+)
 parsed = parser.parse_args()
 win = parsed.target == "windows"
 # COFF-only: the analysis reads the PE/COFF objects themselves with MinGW's
@@ -87,6 +93,8 @@ no_audio = parsed.no_audio
 root = pathlib.Path(__file__).resolve().parents[2]
 out = root / ("pc/build/win64" if win else "pc/build/dev64" if engine_library
               else "pc/build/boot64" if arch64 else "pc/build/boot")
+if parsed.callo:
+    out = out.with_name(out.name + "_callo")
 out.mkdir(parents=True, exist_ok=True)
 # One build at a time per output tree: every run recompiles the objects and then
 # renames symbols in place (name -> name__overlay), so a second run in the same
@@ -963,6 +971,10 @@ if battle:
         (p.relative_to(root).as_posix(), "battle_" + p.stem)
         for p in sorted((root / "src/BATTLE/BATTLE.PRG").glob("*.c"))
     ]
+    if parsed.callo:
+        # Linked with BATTLE.PRG, as in the decompilation's CALLO=1 build; the menu module
+        # (menu.c, a separate file on the disc there) is linked in too (mod/callo.h).
+        sources += [(f"src/BATTLE/BATTLE.PRG/mod/{n}.c", f"battle_mod_{n}") for n in ["callo", "menu"]]
     sources += [
         (p.relative_to(root).as_posix(), "init_" + p.stem)
         for p in sorted((root / "src/BATTLE/INITBTL.PRG").glob("*.c"))
@@ -1020,6 +1032,8 @@ game_cpp_flags = [
     "-DOBJDIFF",
     "-DROOD_PC",
     "-DROOD_PC_BOOT_DIAGNOSTIC",
+    # The Callo mod's hooks (src/BATTLE/BATTLE.PRG/mod/hooks.h) and the selectable bonus wheel
+    *(["-DVS_CALLO", "-DVS_SELECTABLE_ROULETTE"] if parsed.callo else []),
     # psx_ptr/psx_get/PSX_SIZE/PSX_ASSERT_* in every game unit; on 32 bits
     # they expand to the original pointers and literals.
     "-include",
