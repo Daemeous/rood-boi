@@ -1,6 +1,7 @@
 # rood-boi
 
-**rood-boi** is a native PC port of *Vagrant Story* for Linux. It is built on
+**rood-boi** is a native PC port of *Vagrant Story* for Linux (and Windows,
+built from Linux or WSL). It is built on
 the [rood-reverse](https://github.com/ser-pounce/rood-reverse) decompilation:
 the game's original logic is the decompiled C, compiled for x86-64 and run
 directly (there is no emulator and no MIPS interpreter), with a host layer that
@@ -111,14 +112,16 @@ been played through to the end. Known gaps:
   implemented.
 - 32-bit Vulkan drivers have no ray tracing: the Vulkan renderer and the
   Ultra preset need the 64-bit build.
-- Linux only (see [Platform support](#platform-support)).
+- Linux, and Windows through a build made on Linux or WSL (see
+  [Platform support](#platform-support)).
 
 ## Requirements
 
 - **OS:** Linux on x86-64. Developed and tested on **Ubuntu 24.04 LTS** (X11
   and Wayland/XWayland sessions). Other current distributions should work
-  with the equivalent packages but are untested. Windows and macOS are not
-  supported (see below).
+  with the equivalent packages but are untested. Windows 10/11 x64 runs a
+  build made on Linux or WSL2 (see [Windows](#windows)); macOS is not
+  supported.
 - **GPU and driver** (64-bit build, recommended):
   - **Vulkan 1.3** with dynamic rendering, synchronization2 and geometry
     shaders for the Vulkan renderer. With `VK_KHR_ray_query` (NVIDIA RTX,
@@ -394,52 +397,40 @@ exits with status 0 once the original title code reaches its input loop.
 | Platform | Status |
 | --- | --- |
 | Linux x86-64 | Supported (Ubuntu 24.04 tested; X11, Wayland via XWayland or natively) |
-| Windows | Not supported, not tested |
+| Windows 10/11 x64 | Native 64-bit build, cross-compiled from Linux or WSL with MinGW-w64 (Windows 11, NVIDIA RTX 4070 tested; Vulkan with ray queries and NRD) |
 | macOS | Not supported, not tested |
 | Linux on ARM | Not supported (the build and the guest memory layout assume x86) |
 
 ### Windows
 
-The game does **not** build or run natively on Windows today. Most of the
-platform layer is already portable (SDL 3 handles the window, input, audio
-and gamepads; Vulkan and NRD exist on Windows), but the port relies on
-Linux in a few fundamental places:
-
-- **Fixed-address guest memory.** PS1 RAM, the scratchpad and the I/O page
-  are mapped at their PS1 addresses (`0x80000000`, `0x1f800000`,
-  `0x1f801000`) with `mmap(MAP_FIXED_NOREPLACE)`, and the 64-bit game runs on
-  a stack mapped below 2 GB (`MAP_32BIT`, switched to with
-  `makecontext`/`swapcontext`) so addresses fit in 4-byte PS1 fields
-  (`pc/src/boot_runtime.c`). Windows would need `VirtualAlloc` at those
-  addresses (early, before DLLs land there) and another way to place and
-  switch to a low stack.
-- **Non-PIE ELF linking.** `pc/tools/build_boot.py` links the game with GNU
-  `ld` as a non-PIE ELF executable below 4 GB, places hundreds of data
-  symbols at absolute PS1 addresses through a generated linker script
-  (`imports.ld`), uses ELF section start/stop symbols for overlay statics, and
-  rewrites objects with `objcopy`/`readelf`/`objdump`/`nm` and `gdb` (DWARF
-  types). It also hard-codes Linux library paths. A Windows build would need
-  PE/COFF equivalents of all of this.
-- **POSIX APIs:** signals and `backtrace` for crash reports, Unix-domain
-  sockets for the developer RPC (`pc/src/dev_rpc.c`), `pthread`, `dirent`,
-  `clock_gettime`.
-- **The decompilation's toolchain is Linux-only:** the `make` build uses bash,
-  Linux binaries of old GCC, mkpsxiso and objdiff, and `mipsel-linux-gnu`
-  binutils (upstream runs it on Linux or under WSL).
-- **Scripts and tests:** `pc/run-game.sh`, Xvfb/EGL headless testing,
-  `/proc` and process groups.
-
-Running the Linux build under **WSL2** (with WSLg) might work as a stopgap
-but is untested; as far as we know WSL2 exposes the GPU to Linux through
-Mesa's Direct3D 12 drivers, which do not offer Vulkan ray queries, so expect
-OpenGL or Vulkan without ray tracing at best. The detailed blocker list and a
-suggested approach for a native port are in
+The 64-bit build runs natively on Windows as `rood.exe` (Vulkan or OpenGL,
+ray-traced lighting and NRD, WASAPI audio, XInput/HID gamepads). It is
+built on Linux, or in **WSL2** on the Windows machine itself, since the
+decompilation's `make` and the port's symbol analysis need Linux tools: the
+build compiles every unit twice, for Linux (the analysis) and with MinGW-w64
+(the executable). How it works and its limits are in
 [`pc/docs/Platform_Support.md`](pc/docs/Platform_Support.md).
-**Contributions and test reports are welcome.**
+
+1. In Linux or WSL2 (Ubuntu), follow [Build](#build) steps 1-3 (in WSL, keep
+   the checkout in the Linux file system, e.g. `~/rood-boi`, not under
+   `/mnt/c`), and install MinGW-w64: `sudo apt install mingw-w64`.
+2. Build: `python3 pc/tools/build_boot.py --target windows` (it also builds
+   the Linux 64-bit objects it analyses; NRD's Windows library is compiled
+   from the Linux NRD build's sources and shaders).
+3. Make a folder to play from (on WSL, a Windows drive):
+   `python3 pc/tools/windows_dist.py /mnt/c/Games/rood-boi --disc`.
+4. On Windows, run `play.bat` in that folder. The log is `rood.log`; saves
+   and settings stay in the folder's `pc\save` and `pc\user` across updates.
+
+The developer RPC takes `ROOD_RPC=tcp:PORT` on Windows (a loopback TCP port:
+Windows' Python has no Unix sockets); `pc/tools/rood_rpc.py` connects to it
+from Windows or WSL. The Linux-only test harness (`pc/tests`, Xvfb/EGL
+headless runs) does not run on Windows.
 
 ### macOS
 
-Not supported. Besides the blockers above, macOS has no native Vulkan
+Not supported. Besides needing a Mach-O equivalent of the Windows work
+([`pc/docs/Platform_Support.md`](pc/docs/Platform_Support.md)), macOS has no native Vulkan
 (MoltenVK lacks the geometry shaders and ray queries the Vulkan renderer
 uses) and caps OpenGL at 4.1 without compute shaders, and its ARM machines
 would need the guest memory layout reworked.
