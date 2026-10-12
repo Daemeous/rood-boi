@@ -29,6 +29,7 @@ static void _copyAshleyBaseStats(vs_battle_actor2* callo);
 static void _applyLoadout(vs_battle_actor2* callo);
 static void _giveStartingArmor(void);
 static void _giveStartingWeapon(void);
+static void _placeBesideAshley(vs_battle_objectData_flags* position);
 
 #ifndef CALLO_MODEL
 #define CALLO_MODEL 8
@@ -92,7 +93,7 @@ void vs_mod_spawnCallo(void)
     /* Next to Ashley: his tile is already set for the new room at this point.
      * Live tile block is {x, facing, z, height}, the same layout as the spawn flags. */
     *(int*)&position = *(int*)((u_char*)D_800F4538[0] + 0x5C);
-    position.unk0_0 += (position.unk0_0 != 0) ? -1 : 1;
+    _placeBesideAshley(&position);
 
     _dropSharedItems();
     _giveStartingArmor();
@@ -154,6 +155,59 @@ void vs_mod_spawnCallo(void)
      * and crashed when entering/leaving rooms with enemies (tests L1/L2). */
     func_8009DF3C(slot, func_800E6178(callo, -1) ? 0 : callo->unk1F);
     _makeEnemiesHostile(slot);
+}
+
+/* Where she appears: a tile beside Ashley she can stand on. The room's collision map gives a
+ * point's floor height, with bit 15 set where it is blocked (wall, outside the map); the game
+ * checks tiles the same way (func_80074798's callers). Nearest tiles first; one whose floor is
+ * more than a step from his is a ledge or a pit. The first tried, left of him, was the only one
+ * before: on a narrow ledge (the Minotaur's arena) that put her inside a wall. */
+short func_8008DC7C(int x, int z);
+
+#define FLOOR_BLOCKED 0x7FFF
+#define SPAWN_STEP 64 /* floor height difference allowed, in model units */
+
+static const signed char _spawnOffsets[][2] = {
+    { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 }, { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 },
+    { -2, 0 }, { 2, 0 }, { 0, -2 }, { 0, 2 },
+};
+
+static int _floorAt(int tileX, int tileZ)
+{
+    int height = func_8008DC7C((tileX << 7) | 64, (tileZ << 7) | 64);
+
+    if (height & 0x8000) {
+        return FLOOR_BLOCKED;
+    }
+    return (height << 17) >> 17;
+}
+
+static void _placeBesideAshley(vs_battle_objectData_flags* position)
+{
+    int x = position->unk0_0;
+    int z = position->unk0_16;
+    int floor = _floorAt(x, z);
+    int height;
+    int tileX;
+    int tileZ;
+    int i;
+
+    for (i = 0; (floor != FLOOR_BLOCKED) && (i < sizeof _spawnOffsets / sizeof _spawnOffsets[0]); ++i) {
+        tileX = x + _spawnOffsets[i][0];
+        tileZ = z + _spawnOffsets[i][1];
+        if ((tileX < 0) || (tileZ < 0) || (tileX > 255) || (tileZ > 255)) {
+            continue;
+        }
+        height = _floorAt(tileX, tileZ);
+        if ((height != FLOOR_BLOCKED) && (height - floor <= SPAWN_STEP)
+            && (floor - height <= SPAWN_STEP)) {
+            position->unk0_0 = tileX;
+            position->unk0_16 = tileZ;
+            return;
+        }
+    }
+    /* Nothing better known: left of him, as before */
+    position->unk0_0 = x + ((x != 0) ? -1 : 1);
 }
 
 /* The loadout's weapon, if it is still in its slot and is a type she can animate */
