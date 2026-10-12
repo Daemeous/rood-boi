@@ -85,6 +85,12 @@ void main() {
     }
     if ((pc.pass == 1 && semi) || (pc.pass == 2 && !semi)) discard;
     color = vec4(c, float(mask));
+    // FLAG_COVER (untextured 2D shapes, gpu_hw.c BLEND_COVER): U is the coverage.
+    if ((flags & 65u) == 64u) {
+        float cover = clamp(v_uv.x / 256.0, 0.0, 1.0);
+        if (cover < 0.002) discard;
+        color = vec4(c, cover);
+    }
     bool lit = v_normal.w > 0.5;
     // a: 1 room surface, 0.75 something moving (character, prop), 0 unlit
     normal_out = lit ? vec4(normalize(v_normal.xyz) * 0.5 + 0.5, v_normal.w > 0.9 ? 1.0 : 0.75) : vec4(0.0);

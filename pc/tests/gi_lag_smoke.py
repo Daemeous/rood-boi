@@ -110,19 +110,21 @@ def main():
         (lights / f"zone{state['zone']:02d}_room{state['room']:02d}.txt").write_text(
             f"light point {player['x'] + 180} {player['y'] - 260} {player['z'] - 120} 1 0.8 0.55 1.4 1200 "
             "0 1 0 45 1 1\n")
-        for _ in range(4):  # room files are polled twice a second
-            game.run(15)
-            time.sleep(0.25)
-        check(len(game.call("lights")["lights"]) == 1, "the test light is loaded")
+        loaded = game.reload_lights()  # now, not at the editor's next wall-clock poll
+        check(len(loaded["lights"]) == 1, "the test light is loaded")
         g = game.call("graphics", lighting_preset="ultra", gi_budget=0)
         check(g["gi_method"] == "path", f"Ultra traces paths here (gi_method {g['gi_method']})")
 
         # 1. Every present traced: frames in flight are limited.
         game.run(30)
         game.call("perf", reset=True)
+        start = time.monotonic()
         game.run(60)
+        # This machine's time per traced present, now (other work on the box
+        # slows it): the scale for "promptly" below.
+        frame_s = (time.monotonic() - start) / 60
         perf = game.call("perf", reset=True)
-        print(f"perf, every present traced: {perf}", flush=True)
+        print(f"perf, every present traced: {perf}; {frame_s * 1000:.0f} ms per vsync", flush=True)
         check(perf["gi_gpu_ms"] > 20, f"the path tracer is slow ({perf['gi_gpu_ms']:.1f} ms GPU per update; "
               f"ROOD_GI_SLOW={args.slow})")
         check(perf["presents"] >= 60 and perf["gi_reused"] == 0,
@@ -134,7 +136,12 @@ def main():
         traced, took = shot("traced")
         lit = float(traced.mean())
         check(lit > 8, f"after {args.pause:.0f} s paused, the presented image is lit (mean {lit:.1f})")
-        check(took < 10, f"... and comes back promptly ({took:.1f} s; an unlimited queue took ~20 s)")
+        # Promptly: within a few frames' time. Seconds of queued frames (an
+        # unlimited queue: ~20 s, hundreds of frames) fail; a loaded machine's
+        # slower frames scale the limit instead of failing it.
+        prompt = max(10.0, 30 * frame_s)
+        check(took < prompt, f"... and comes back promptly ({took:.1f} s, limit {prompt:.1f} s = max(10 s, 30 frames); "
+              "an unlimited queue took ~20 s)")
 
         # 2. The cadence: the tracer every n-th present, the last result between.
         game.call("graphics", gi_budget=16)
@@ -148,7 +155,7 @@ def main():
               f"{perf['gi_reused']} reused)")
         check(perf["presents"] >= 120, f"every vsync still presents ({perf['presents']} for 120)")
         reused, took = shot("cadence")
-        check(float(reused.mean()) > 8 and took < 10,
+        check(float(reused.mean()) > 8 and took < prompt,
               f"the presented image is lit (mean {reused.mean():.1f}, {took:.1f} s)")
         d = float(np.abs(reused.astype(int) - traced.astype(int)).mean())
         check(d < 6, f"... and is the lit picture of every-present tracing (mean difference {d:.2f})")

@@ -145,6 +145,9 @@ def suites(args, mode="egl"):
           if args.save.exists() else []),
         Suite("flipped_sprite_smoke", [PY, str(TESTS / "flipped_sprite_smoke.py")], 180,
               note="textured quads (flipped sprites too) sample only their own texels: CPU, hardware 1x and 4x"),
+        Suite("ui_lines_smoke", [PY, str(TESTS / "ui_lines_smoke.py")], 420,
+              note="2D lines: 1x = CPU, 4x scale-thick, joins closed, no light dots along outlines; "
+                   "vector talk bubbles follow the game's zoom, all shapes; options saved"),
         Suite("ui_upscale_smoke", [PY, str(TESTS / "ui_upscale_smoke.py"),
                                    *(["--card", str(args.save)] if args.save.exists() else [])], 300,
               note="2D/UI MMPX: only 2D changes, atlas = CPU reference, palette kept, cache, VRAM rewrites"),

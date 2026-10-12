@@ -36,7 +36,6 @@ import shutil
 import statistics
 import sys
 import tempfile
-import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
@@ -137,10 +136,10 @@ def main():
         return [g for g in reply["glows"] if g["name"].startswith("Save point glow")]
 
     def settle_reload(game):
-        """Room files are polled twice a second of wall-clock time."""
-        for _ in range(4):
-            game.run(15)
-            time.sleep(0.25)
+        """Take the room file as written now (the editor's own poll runs
+        twice a second of wall-clock time), then let a few frames draw."""
+        game.reload_lights()
+        game.run(4)
 
     def energy(game, frames=30):
         values = []
@@ -221,7 +220,7 @@ def main():
         # An old line (no key): by position, muted; the next save adds the key.
         p = glow["position"]
         room_file.write_text(f"glow {p[0]:.1f} {p[1]:.1f} {p[2]:.1f} 1 1.000 1.000 1.000 1.000 0.0 0.0\n")
-        game.call("editor_ui", visible=True)  # the editor's live reload takes the hand edit
+        game.call("editor_ui", visible=True)
         settle_reload(game)
         reply = game.call("glows")
         old = save_point(reply)

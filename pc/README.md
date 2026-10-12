@@ -591,6 +591,10 @@ pixel's corner as the PS1 does, not one past the image (`pc_hw_set_flipped_uv`).
 | `ui_subpixel` | 0 | text glyphs drawn where the game places them in 16.16 fixed point instead of whole pixels (even spacing while talk bubbles zoom open and shut) |
 | `ui_text` | `original` | `original`: the PS1's glyphs. `font`: the game's text drawn from open-licensed fonts (below) at the internal resolution (2x and up) |
 | `ui_text_<style>_font`, `_stretch`, `_slant`, `_embolden`, `_aspect` | the chosen fonts | per style (`dialogue`, `menu`, `info`, `digits`): a TrueType file (relative to the repository root), horizontal scale, added shear, distance-field offset in em (bolder > 0), and for `digits` the least share of the font's own width/height a digit size may be condensed to (0.78; 0: any); saved only when changed |
+| `ui_lines` | `joined` | 2D lines (GP0 0x40-0x5F: the map, the minimap, the targeting sphere, talk bubble outlines) at the internal resolution. `joined`: one PS1 pixel thick at any scale, joins closed, no light dots along outlines (below). `legacy`: the earlier one-pixel quads, for comparison |
+| `ui_outline_boost` | 0 | 2D lines (and vector bubble outlines) 0-3 output pixels thicker: a bolder inked look |
+| `ui_bubbles` | `original` | `original`: talk bubbles drawn from the game's packets. `vector`: each bubble the game builds drawn as one smooth shape (below) |
+| `ui_bubble_outline` | 1 | `vector`: the outline's thickness in PS1 pixels (0.25-8; the overlay offers 0.5-4) |
 
 Nothing is shipped: each region a 2D primitive samples (texture page, CLUT,
 texel rectangle) is decoded from the game's own VRAM when drawn and
@@ -740,6 +744,45 @@ button names spelled in letters, art baked into images. `pc/tests/button_prompts
 covers it. The native (Dear ImGui) menus get the same icons as images in one
 ImGui texture: `pc_prompt_glyph`, `pc_prompt_device`, `pc_prompt_generation`
 in `pc/src/button_prompts.h`.
+
+**Lines (`ui_lines joined`).** The PS1 draws a line one pixel per step of
+its major axis, end pixels included (`pc/src/boot_lines.inc` is the
+reference). Upscaled, a line is a band one PS1 pixel across its minor axis
+through the pixel centres, so 1x gives exactly the CPU rasterizer's pixels
+(halves round away from the start, as it does) and 4x is the same line 4
+pixels thick; each end pixel is drawn whole, so the segments of a polyline,
+or separate lines that share an end, meet without notches at any angle
+(not for semi-transparent lines, which would blend twice there). The game
+outlines filled shapes edge by edge (talk bubbles: one line per outline
+edge over the fill polygons). A polygon's edge runs through the pixels'
+corners, half a pixel from the line's centre: at 1x those pixels are the
+line's, upscaled the fill showed beside the line as a sliver, light dots
+along a bubble's dark outline (`legacy`). A joined line along an edge of a
+2D polygon drawn earlier in the same ordering table therefore also reaches
+that edge (up to half a pixel wider on that side); other lines keep their
+width. `ui_outline_boost` widens every 2D line by whole output pixels.
+
+**Vector talk bubbles (`ui_bubbles vector`).** A talk bubble's frame is
+built each frame by BATTLE.PRG `func_800CD3E4` from one of nine shapes
+(rectangle, rough, jagged, shout, oval ...; mirrored by two flip bits, one
+of several tails): outline vertices placed in the box's rectangle, then a
+drop shadow (the fill polygons at +2, +2 in black, each outlined), the fill
+polygons with a screen-anchored 64 x 64 paper texture at the box's
+brightness, and one dark line per outline edge; the text comes after. The
+routine reports its packets (`ROOD_PC` hook, with the box's unrounded
+rectangle from `func_800CB83C`); `pc/src/ui_bubbles.c` places the shape's
+vertices exactly as the routine does, checks them against every line and
+polygon packet (a bubble that does not match is drawn as the original;
+RPC `ui_bubbles` counts them) and draws, in the packets' place in the
+ordering table, the shadow, the fill (the game's polygons, texture page,
+CLUT, window and brightness, nearest) and one closed anti-aliased stroke
+along the outline through the game's vertices (the fill's edges run along
+its centre: no seams, nothing light outside it; round at turns, one output
+pixel of edge). The zoom, its overshoot, size changes, tails and mirroring
+are the game's frame by frame; with `ui_subpixel` the vertices come from the
+unrounded 16.16 rectangle (smooth zoom). The CPU rasterizer still draws the
+packets, so native VRAM is the PS1's. `ROOD_UI_DEBUG=5` prints each bubble's
+points, outline and polygons.
 
 ### Lighting the room's fixtures, light actors and Place Actors
 
@@ -1047,11 +1090,13 @@ thread once per vsync, so each method runs at a frame boundary:
 | `state` | | zone, room, start state, music, HP/MP, risk, Ashley's position |
 | `read` / `write` | `address`, `length` / `hex` | guest RAM and scratchpad (read also host data) |
 | `screenshot` | `path` | displayed frame (native resolution) as a PPM |
+| `present_dump` | `path`, `count` | the next presented window image (as seen, after scaling and post-processing) as a PPM; with `count`, that many consecutive images to `<path>.0000.ppm`, ... (written a few presents later on the game thread). While a burst is armed, a paused game does not redraw, so a burst holds stepped presents only |
 | `gpu_dump` | `path` | the whole scaled hardware VRAM target as a PPM |
 | `gpu_draw` | `packet` (GP0 words, hex), `texture` (hex texels) with `texture_x/y/w/h`, `area_x/y/w/h`, `offset_x/y` | tests: load texels, set the drawing area, draw the commands on both rasterizers (`flipped_sprite_smoke.py`) |
-| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_trace` N), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample` | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
+| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_trace` N), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `ui_lines` (`joined`/`legacy`), `ui_outline_boost`, `ui_bubbles` (`original`/`vector`), `ui_bubble_outline`, `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample` | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
 | `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
-| `button_prompts` | `button_prompts` (mode), `device` (`playstation`/`xbox`/`nintendo`/`keyboard`, as a device used last would set it) with `variant` (3/4/5 PlayStation, 360 Xbox), `bind` (`{"bind_key_circle": "c", "bind_pad_circle": "south"}`), `icon` (a button name) with `size` | the mode, the family drawn, the device, `generation`, the glyph each PS1 button shows, the bindings, regions drawn from icons (`regions`) and fallen back (`failed`); `icon` adds the native menus' image (`pc_prompt_glyph`: size, uv) |
+| `button_prompts` | `button_prompts` (mode), `device` (`playstation`/`xbox`/`nintendo`/`keyboard`, as a device used last would set it) with `variant` (3/4/5 PlayStation, 360 Xbox), `bind` (`{"bind_key_circle": "c", "bind_pad_circle": "south"}`), `icon` (a button name) with `size`, `clear_shown` | the mode, the family drawn, the device, `generation`, the glyph each PS1 button shows, the bindings, `shown` (the icon each prompt on screen was drawn with since `clear_shown`, `text` and `sprite`), regions drawn from icons (`regions`) and fallen back (`failed`); `icon` adds the native menus' image (`pc_prompt_glyph`: size, uv) |
+| `ui_bubbles` | `path` (N) | vector talk bubbles: frames reported, verified, fallen back (`mismatched`), drawn; line segments the hardware path drew (`lines_drawn`); native pixels per output pixel; the recent bubbles (shape, flip, tail, outline bounds drawn and the game's whole-pixel points, thickness); `path`: bubble N's outline points |
 | `ui_text` | `ui_text` (`original`/`font`), `style` with `font`, `stretch`, `slant`, `embolden`, `aspect`; `render` ([tpage, clut, u0, v0, u1, v1]) with `factor`, `path` | the text fonts: option, each style (font, placement, `loaded`), fonts loaded, glyph fields made, glyph regions drawn from fonts (`regions`, of them `labels`) and fallen back (`failed`), the labels drawn (`labels_drawn`); a `style` with values changes it as the `ui_text_<style>_*` settings do; `render` draws that region from the font into `path` (little-endian PS1 colours) and adds its size |
 | `redraw` | | the newest frame drawn again as recorded with the current options (MSAA, ...) and presented until the game draws another: pause first, then compare options on one frame (`aa_smoke.py`) |
 | `settings` | `action` (`save`, `load`) | the `ROOD_SETTINGS` file (a loaded preset applies at once) |
@@ -1063,9 +1108,10 @@ thread once per vsync, so each method runs at a frame boundary:
 | `editor_snap` | `x`, `y` (or `u`, `v`), `modes`, `apply`, `highlight`, `clear` | the snap target a light drag would find there, with the lit neighbours and their weights; `apply` moves the selected light |
 | `actors` | `action` (`list`, `add`, `set`, `remove`, `select`, `sample`, `suggest`, `light_fixture`, `attach`, `fixture_triangles`, `save`, `save_prefab`, `apply_prefab`, `from_lights`), `prefab`, `position` or `x`/`y` (`u`/`v`), `modes`, `params`, `reset`, `index`, `time`, `animate`, `glows` | light actors in the room (see `pc/src/dev_rpc.c`); `time` fixes the animation clock (null: live) |
 | `glows` | `action` (`list`, `select`, `set`, `reset`, `solo`), `id`, `enabled`, `intensity`, `tint`, `size`, `reach`, `smoothing`, `fragments` | the room's glows (`pc/src/glows.c`): id, key, name, category (fixture, magic, effect), casts_shadows, smoothed and raw position/colour, presence, traced; the tracers' light `energy` (and `raw_energy` unsmoothed), per category (`categories`), `casts` (bit i: traced emitter i may cast shadows); select/set/reset/solo take fixtures and magic glows only; `smoothing` sets every kind's; `fragments: true` adds this update's glowing triangles and their glows |
+| `lights` | `action` (`suggest`, `save`, `reload`, `add` {`position`}), `select`, `baked` | the room's lights (zone, room, `dirty`, `loads`: layer loads so far, status); `reload` reads every lighting layer of the current room from disk at once (unsaved edits are dropped) instead of waiting for the editor's file poll (twice a second of wall-clock time, which fast stepping outpaces): scripts write a room file, call `reload`, then count frames. The poll keeps the files' times as read, so it does not load them again, and the renderers' history resets (path tracer, NRD, probes) follow a hash of the lights, so a changed light resets them once |
 | `prefabs` | `reload` | the prefab library (built-in and user), parameters and problems |
 | `editor_place` | `item` / `prefab` / `light`, `phase` (`begin`, `move`, `drop`, `cancel`, `double_click`, `state`), `x`/`y` or `u`/`v` | a drag from Place Actors, as the mouse would do it |
-| `lighting` | `action` (`layers`, `save`, `revert` {`id`}, `promote` {`ids`}, `reload`, `packs` {`packs`, `active`}, `discard_dangling`, `poll`) | the room's lighting layers (files, entries, version), the effective items with their layer badges, deleted ids, problems (dangling overrides), the user layer as it would be saved |
+| `lighting` | `action` (`layers`, `save`, `revert` {`id`}, `promote` {`ids`}, `reload` (as `lights` `reload`), `packs` {`packs`, `active`}, `discard_dangling`, `poll` (the live reload's check, now)) | the room's lighting layers (files, entries, version), the effective items with their layer badges, deleted ids, problems (dangling overrides), the user layer as it would be saved |
 | `fixtures` | `action` (`list`, `set` {`type`, `params`, `offset`, `fixture_radius`, `glow`, `enabled`, `review`}, `save`, `revert`, `regenerate` {`scope`}), `type`, `all` | the fixture catalog's types in the room (or one, or all), the room's typed actors and glows (`muted` 4: suppressed by the type); type edits apply live to every instance (`pc/docs/Fixture_Catalog.md`) |
 | `rooms` | | every zone and room read from the disc (zone, room, location, scene, entries, name, area), the current room, whether warped, the warp's phase |
 | `room_goto` | `zone`, `room`, `entry`, `enemies`, `scripts`, `block_saves`, or `action` (`return`, `clear`, `cancel`, `status`) | ask the game to load a room (taken in the field loop); phase 0 idle, 1 requested, 2 loading, 3 arrived, 4 done |
@@ -1085,7 +1131,10 @@ start select`.
 `Game.launch()` runs headless unless `window=True` (see "Running the tests"
 for the EGL and Xvfb modes), and uses a scratch memory card unless `card=` is
 given; `fast=True` drops the 59.94 Hz pacing, which RPC stepping does not
-need. `rood_rpc.py headless` prints the mode and GPU this machine gets.
+need. `run(n)` waits as long as the game keeps advancing (a loaded machine
+path tracing on OpenGL can take seconds per vsync) and fails when no vsync
+passes for `Game.STALL` seconds (a hang). `reload_lights()` is RPC `lights`
+`reload`: tests that write room lighting files call it right after writing. `rood_rpc.py headless` prints the mode and GPU this machine gets.
 `pc/tests/rpc_smoke.py` covers it.
 
 Crashes print `[crash]` and a `[stack]` line; `kill -USR1 <pid>` prints the

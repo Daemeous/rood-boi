@@ -98,8 +98,9 @@ def burst(game, base, count=20):
     game.call("present_dump", path=str(base), count=count)
     game.run(count + 6)
     paths = [pathlib.Path(f"{base}.{i:04d}.ppm") for i in range(count)]
-    deadline = time.monotonic() + 20
-    while not all(p.exists() for p in paths) and time.monotonic() < deadline:
+    for _ in range(30):  # written a few presents later (on the game thread)
+        if all(p.exists() for p in paths):
+            break
         game.run(1)
     frames = [np.asarray(Image.open(p).convert("RGB")).astype(np.float32) for p in paths]
     for p in paths:

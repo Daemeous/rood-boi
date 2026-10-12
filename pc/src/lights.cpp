@@ -409,8 +409,9 @@ extern "C" int pc_lights_view(float position[][4], float color[][4], float direc
 extern "C" int pc_lights_describe(char* out, int size)
 {
     track_room();
-    int used = snprintf(out, size, "{\"zone\":%d,\"room\":%d,\"enabled\":%s,\"baked\":%g,\"dirty\":%s,\"lights\":[",
-        zone, room, pc_lights_enabled ? "true" : "false", pc_lights_baked, dirty ? "true" : "false");
+    int used = snprintf(out, size,
+        "{\"zone\":%d,\"room\":%d,\"enabled\":%s,\"baked\":%g,\"dirty\":%s,\"loads\":%u,\"lights\":[", zone,
+        room, pc_lights_enabled ? "true" : "false", pc_lights_baked, dirty ? "true" : "false", layers_loads());
     for (size_t i = 0; i < lights.size() && used < size - 256; i++) {
         const Light& l = lights[i];
         used += snprintf(out + used, size - used,
@@ -424,6 +425,11 @@ extern "C" int pc_lights_describe(char* out, int size)
 }
 extern "C" void pc_lights_suggest(void) { track_room(); suggest(true); }
 extern "C" void pc_lights_save(void) { save_room(); }
+extern "C" void pc_lights_reload_disk(void)
+{
+    track_room(); /* the live room first (a room change loads it anyway) */
+    layers_reload();
+}
 
 /* ---- in-scene editing: icons, selection, gizmo, place on surface ---- */
 

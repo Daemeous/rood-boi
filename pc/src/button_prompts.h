@@ -60,6 +60,8 @@ void pc_button_prompts_settings_write(FILE* f);
 /* JSON object (RPC button_prompts): mode, family, device, generation, the
  * glyph each PS1 button shows now, bindings, counters. */
 int pc_button_prompts_json(char* out, int size);
+/* Forget which icons were drawn (the report's "shown"). */
+void pc_button_prompts_shown_reset(void);
 
 /* ---- Prompts for native (Dear ImGui) menus: prompt_glyphs.cpp ----
  *

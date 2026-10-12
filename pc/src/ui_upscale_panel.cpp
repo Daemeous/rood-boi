@@ -5,6 +5,7 @@
 #include "imgui.h"
 #include "ui_upscale.h"
 #include "ui_text.h"
+#include "ui_bubbles.h"
 #include "button_prompts.h"
 
 extern "C" int pc_hw_scale, pc_hw_active;
@@ -54,6 +55,25 @@ extern "C" void pc_ui_upscale_panel(void)
             ImGui::TextDisabled("  %-8s %s", pc_ui_text_styles[i].name, file ? file + 1 : pc_ui_text_styles[i].font);
         }
     }
+    static const char* line_modes[] = { "Legacy (gaps when upscaled)", "Joined (default)" };
+    ImGui::Combo("Lines", &pc_ui_lines, line_modes, 2);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("2D lines (menu rules, the map, targeting, talk bubble outlines) at the internal\n"
+                          "resolution. Joined: one PS1 pixel thick at any scale, end pixels whole so lines meet\n"
+                          "without gaps, covering the edges of shapes drawn along them (no light dots along\n"
+                          "talk bubble outlines). Legacy: the earlier one-pixel quads, for comparison.");
+    ImGui::SliderInt("Outline boost", &pc_ui_outline_boost, 0, 3, pc_ui_outline_boost ? "+%d px" : "off");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("2D lines and vector bubble outlines this many screen pixels thicker: a bolder,\n"
+                          "inked look. Off: as the game.");
+    static const char* bubble_modes[] = { "Original", "Vector" };
+    ImGui::Combo("Talk bubbles", &pc_ui_bubbles, bubble_modes, 2);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Original: the game's polygons and one-pixel lines. Vector: each bubble the game builds\n"
+                          "this frame (its corners, tail, size and zoom) drawn as one smooth shape: the same\n"
+                          "paper fill, drop shadow and an anti-aliased outline. Text is unchanged.");
+    if (pc_ui_bubbles == PC_UI_BUBBLES_VECTOR)
+        ImGui::SliderFloat("Bubble outline", &pc_ui_bubble_outline, 0.5f, 4.0f, "%.2f PS1 px");
     static const char* prompt_modes[] = { "Auto (last device used)", "PlayStation", "Xbox", "Nintendo",
         "Keyboard", "Original glyphs" };
     ImGui::Combo("Button prompts", &pc_button_prompts, prompt_modes, PC_PROMPTS_MODES);

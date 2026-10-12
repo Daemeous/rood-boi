@@ -3851,6 +3851,14 @@ void func_800CB83C(void)
         width = (box->charsPerLine * 12 + 10) * scale;
         height = (box->lineCount * 13 + 4) * scale;
         box->state = state;
+#ifdef ROOD_PC
+        {
+            /* Vector talk bubbles (pc/src/ui_bubbles.c): the unrounded rectangle. */
+            extern void pc_bubble_rect(int, int, int, int, int) __attribute__((weak));
+            if (pc_bubble_rect)
+                pc_bubble_rect(id, x + cx, y + cy, width, height);
+        }
+#endif
         box->unk24 = (x + cx) >> 16;
         box->unk26 = (y + cy) >> 16;
         box->unk28 = width >> 16;
@@ -4567,6 +4575,9 @@ void func_800CD3E4(int index)
     int v;
     int quad;
 
+#ifdef ROOD_PC
+    void* pc_frame_start = psx_get(vs_scratch.unk0);
+#endif
     points = (int*)0x1F800088;
     box = &vs_battle_textBoxes[index];
     x = box->unk24;
@@ -4713,6 +4724,15 @@ void func_800CD3E4(int index)
     }
     psx_set(vs_scratch.unk0, prim);
     vs_battle_addTile(ot + 2, 0xE1000017, 0xE2000318, 0);
+#ifdef ROOD_PC
+    {
+        /* Vector talk bubbles (pc/src/ui_bubbles.c): the frame's packets. */
+        extern void pc_bubble_frame(int, const void*, const void*, const void*,
+            const void*) __attribute__((weak));
+        if (pc_bubble_frame)
+            pc_bubble_frame(index, box, shape, pc_frame_start, psx_get(vs_scratch.unk0));
+    }
+#endif
 }
 
 #undef POINT_X

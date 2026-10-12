@@ -37,6 +37,11 @@ const char* const pc_button_prompts_names[PC_PROMPTS_MODES] = { "auto", "playsta
 
 static int device = PC_PROMPTS_KEYBOARD, device_variant;
 static long regions, failed;
+/* What each prompt on screen was drawn as since pc_button_prompts_shown_reset
+ * (RPC button_prompts "shown"; tests): family << 24 | codepoint per PS1
+ * button and context (0 text, 1 sprite), 0: not drawn. */
+static unsigned shown[PC_PAD_BUTTONS][2];
+void pc_button_prompts_shown_reset(void) { memset(shown, 0, sizeof shown); }
 
 static void init_once(void)
 {
@@ -302,6 +307,7 @@ int pc_button_prompts_classify(const uint16_t* vram, unsigned tpage, unsigned cl
     unsigned codepoint;
     if (!icon_for(&r, family, variant_now(), &codepoint))
         return 0;
+    shown[r.button][r.context] = (unsigned)family << 24 | codepoint;
     *key = (uint64_t)family << 48 ^ (uint64_t)codepoint << 16 ^ (uint64_t)r.context << 8 ^ (uint64_t)r.button;
     return 1;
 }
@@ -581,7 +587,23 @@ int pc_button_prompts_json(char* out, int size)
         if (used < size)
             used += snprintf(out + used, (size_t)(size - used), "],\"pad\":\"%s\"}", pc_pad_element_name(pc_bind_pad[b]));
     }
+    /* "shown": {"text": {"circle": "xbox_button_b", ...}, "sprite": {...}}. */
+    for (int c = 0; c < 2 && used < size; c++) {
+        used += snprintf(out + used, (size_t)(size - used), "%s\"%s\":{", c ? "}," : "},\"shown\":{",
+            c ? "sprite" : "text");
+        for (int b = 0, any = 0; b < PC_PAD_BUTTONS && used < size; b++) {
+            int fam = (int)(shown[b][c] >> 24);
+            unsigned cp = shown[b][c] & 0xffffff;
+            const char* name = NULL;
+            for (int i = 0; fam > 0 && fam < 5 && i < map_sizes[fam]; i++)
+                if (maps[fam][i].codepoint == cp)
+                    name = maps[fam][i].name;
+            if (name)
+                used += snprintf(out + used, (size_t)(size - used), "%s\"%s\":\"%s\"", any++ ? "," : "",
+                    pc_pad_button_names[b], name);
+        }
+    }
     if (used < size)
-        used += snprintf(out + used, (size_t)(size - used), "}}");
+        used += snprintf(out + used, (size_t)(size - used), "}}}");
     return used;
 }

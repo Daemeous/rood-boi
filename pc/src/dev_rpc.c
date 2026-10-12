@@ -29,6 +29,10 @@
  *                                blend) of the next `count` presented images to a
  *                                binary file (pc/tools/anim_trace.py); no count:
  *                                the images still to trace
+ *   ui_bubbles {path}            vector talk bubbles (ui_bubbles.h): counters,
+ *                                line segments drawn, recent bubbles (shape,
+ *                                bounds drawn and the game's, outline);
+ *                                path N: bubble N's outline points
  *   gpu_dump {path, replay}      write the scaled hardware VRAM target as a PPM
  *                                (replay: the last interpolated frame's)
  *   gpu_draw {packet, texture_x, texture_y, texture_w, texture_h, texture,
@@ -55,8 +59,10 @@
  *                                dump: the field to a file (pc_probe_dump)
  *   scene_dump {path}            captured room as OBJ with vertex colours
  *   lights {action, baked}       room light list; action "suggest" (fit from
- *                                vertex colours), "save" or "add" (a point
- *                                light at position [x, y, z], selected);
+ *                                vertex colours), "save", "reload" (read the
+ *                                room's files from disk now, dropping unsaved
+ *                                edits; "loads" counts layer loads) or "add"
+ *                                (a point light at position [x, y, z], selected);
  *                                select: a light's index; baked lighting scale
  *   actors {action, ...}         light actors (prefab instances) in the room:
  *                                list (default); add {prefab, position | x, y
@@ -100,6 +106,9 @@
  *                                in-betweens at fractions of a vsync), aa (FXAA),
  *                                texture_filter, ui_upscale ("nearest" | "mmpx"),
  *                                ui_subpixel, ui_text ("original" | "font"),
+ *                                ui_lines ("joined" | "legacy"),
+ *                                ui_outline_boost (0-3), ui_bubbles
+ *                                ("original" | "vector"), ui_bubble_outline,
  *                                post, drop_shadows; path-
  *                                traced GI: gi, gi_debug, gi_denoise
  *                                (on/off), gi_denoiser ("nrd": NVIDIA NRD
@@ -234,6 +243,7 @@
 #include "probe_gi.h"
 #include "ui_upscale.h"
 #include "ui_text.h"
+#include "ui_bubbles.h"
 #include "button_prompts.h"
 #include "boot_controller.h" /* pc_pad_button_index */
 #include "camera_stick.h"
@@ -834,6 +844,25 @@ static void handle_method(int fd, const char* request)
                         pc_ui_text = k;
             } else if (number_value(member(params, "ui_text"), &n) && n >= 0 && n <= 1)
                 pc_ui_text = (int)n;
+            /* ui_lines "joined" | "legacy", ui_outline_boost 0-3, ui_bubbles
+             * "original" | "vector", ui_bubble_outline (ui_bubbles.h). */
+            if (string_value(member(params, "ui_lines"), name, sizeof name)) {
+                for (int k = 0; k < 2; k++)
+                    if (!strcmp(name, pc_ui_lines_names[k]))
+                        pc_ui_lines = k;
+            } else if (number_value(member(params, "ui_lines"), &n) && n >= 0 && n <= 1)
+                pc_ui_lines = (int)n;
+            if (number_value(member(params, "ui_outline_boost"), &n) && n >= 0 && n <= 3)
+                pc_ui_outline_boost = (int)n;
+            if (string_value(member(params, "ui_bubbles"), name, sizeof name)) {
+                for (int k = 0; k < 2; k++)
+                    if (!strcmp(name, pc_ui_bubbles_names[k]))
+                        pc_ui_bubbles = k;
+            } else if (number_value(member(params, "ui_bubbles"), &n) && n >= 0 && n <= 1)
+                pc_ui_bubbles = (int)n;
+            double outline;
+            if (real_value(member(params, "ui_bubble_outline"), &outline) && outline >= 0.25 && outline <= 8)
+                pc_ui_bubble_outline = (float)outline;
         }
         if (&pc_gi_enabled && params) {
             double real;
@@ -1120,6 +1149,12 @@ static void handle_method(int fd, const char* request)
             used += snprintf(result + used - 1, sizeof result - used + 1, ",\"ui_upscale\":\"%s\",\"ui_subpixel\":%d,\"ui_text\":\"%s\"}",
                         pc_ui_upscale_names[pc_ui_upscale ? 1 : 0], pc_ui_subpixel, pc_ui_text_names[pc_ui_text ? 1 : 0])
                 - 1;
+        if (used < (int)sizeof result - 160)
+            used += snprintf(result + used - 1, sizeof result - used + 1,
+                        ",\"ui_lines\":\"%s\",\"ui_outline_boost\":%d,\"ui_bubbles\":\"%s\",\"ui_bubble_outline\":%g}",
+                        pc_ui_lines_names[pc_ui_lines ? 1 : 0], pc_ui_outline_boost,
+                        pc_ui_bubbles_names[pc_ui_bubbles ? 1 : 0], pc_ui_bubble_outline)
+                - 1;
         extern int pc_hw_scale_setting __attribute__((weak));
         if (pc_aa_string && used < (int)sizeof result - 200)
             used += snprintf(result + used - 1, sizeof result - used + 1,
@@ -1143,6 +1178,38 @@ static void handle_method(int fd, const char* request)
             used += pc_lighting_json(result + used - 1, (int)sizeof result - used) - 1;
             snprintf(result + used, sizeof result - used, "}");
         }
+        reply(fd, id, result);
+    } else if (!strcmp(method, "ui_bubbles")) {
+        /* ui_bubbles.h: vector talk bubbles drawn, each recent bubble's
+         * shape, placement (outline bounds as drawn and the game's whole
+         * pixels) and outline; {path: N} adds bubble N's outline points. */
+        pc_ui_bubbles_stats st;
+        pc_ui_bubbles_get_stats(&st);
+        int used = snprintf(result, sizeof result,
+            "{\"ui_bubbles\":\"%s\",\"frames\":%ld,\"verified\":%ld,\"mismatched\":%ld,\"drawn\":%ld,"
+            "\"native_per_output\":%g,\"lines_drawn\":%ld,\"bubbles\":[",
+            pc_ui_bubbles_names[pc_ui_bubbles ? 1 : 0], st.frames, st.verified, st.mismatched, st.drawn,
+            pc_hw_native_per_output(), pc_hw_lines_drawn);
+        for (int i = 0; i < st.count && used < (int)sizeof result - 400; i++)
+            used += snprintf(result + used, sizeof result - used,
+                "%s{\"id\":%d,\"shape\":%d,\"flip\":%d,\"tail\":%d,\"points\":%d,\"bounds\":[%g,%g,%g,%g],"
+                "\"game_bounds\":[%d,%d,%d,%d],\"thickness\":%g,\"line_rgb\":%u}",
+                i ? "," : "", st.bubble[i].id, st.bubble[i].shape, st.bubble[i].flip, st.bubble[i].tail,
+                st.bubble[i].points, st.bubble[i].bounds[0], st.bubble[i].bounds[1], st.bubble[i].bounds[2],
+                st.bubble[i].bounds[3], st.bubble[i].game_bounds[0], st.bubble[i].game_bounds[1],
+                st.bubble[i].game_bounds[2], st.bubble[i].game_bounds[3], st.bubble[i].thickness,
+                st.bubble[i].line_rgb);
+        used += snprintf(result + used, sizeof result - used, "]");
+        long long which;
+        if (params && number_value(member(params, "path"), &which)) {
+            float pts[128][2];
+            int count = pc_ui_bubble_path((int)which, pts, 128);
+            used += snprintf(result + used, sizeof result - used, ",\"path\":[");
+            for (int i = 0; i < count && used < (int)sizeof result - 64; i++)
+                used += snprintf(result + used, sizeof result - used, "%s[%g,%g]", i ? "," : "", pts[i][0], pts[i][1]);
+            used += snprintf(result + used, sizeof result - used, "]");
+        }
+        snprintf(result + used, sizeof result - used, "}");
         reply(fd, id, result);
     } else if (!strcmp(method, "ui_text")) {
         /* ui_text.h: the option, its styles (font, placement), fonts loaded,
@@ -1234,6 +1301,9 @@ static void handle_method(int fd, const char* request)
             }
             pc_button_prompts_device(family, (int)variant);
         }
+        int clear = 0;
+        if (params && bool_value(member(params, "clear_shown"), &clear) && clear)
+            pc_button_prompts_shown_reset();
         const char* bind = params ? member(params, "bind") : NULL;
         if (bind && *(bind = skip(bind)) == '{') {
             const char* p = skip(bind + 1);
@@ -1805,12 +1875,20 @@ static void handle_method(int fd, const char* request)
             pc_lights_suggest();
         else if (!strcmp(action, "save"))
             pc_lights_save();
-        else if (!strcmp(action, "add") && pc_lights_add) {
+        else if (!strcmp(action, "reload")) {
+            extern void pc_lights_reload_disk(void) __attribute__((weak));
+            if (pc_lights_reload_disk)
+                pc_lights_reload_disk();
+        } else if (!strcmp(action, "add")) {
             if (!at || sscanf(at, "[%f , %f , %f", &position[0], &position[1], &position[2]) != 3) {
                 fail(fd, id, -32602, "add needs position [x, y, z]");
                 return;
             }
-            pc_lights_add(position);
+            if (pc_lights_add)
+                pc_lights_add(position);
+        } else if (action[0]) {
+            fail(fd, id, -32602, "lights action: suggest, save, reload or add");
+            return;
         }
         if (params && number_value(member(params, "select"), &n) && pc_lights_select)
             pc_lights_select((int)n);
@@ -2396,8 +2474,13 @@ void pc_rpc_poll(void)
     }
     while (paused && step_budget == 0) {
         struct timespec delay = { 0, 16000000 };
+        extern int pc_present_burst __attribute__((weak));
         pc_window_tick();
-        pc_window_redraw();
+        /* An armed present_dump burst takes stepped presents only: paused
+         * redraws (as many as the wall clock allows between RPC calls)
+         * would put repeated images into it. */
+        if (!&pc_present_burst || pc_present_burst <= 0)
+            pc_window_redraw();
         nanosleep(&delay, NULL);
         if (listener >= 0)
             service();

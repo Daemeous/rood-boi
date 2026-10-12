@@ -215,10 +215,8 @@ def main():
             (lights / f"zone{state['zone']:02d}_room{state['room']:02d}.txt").write_text(
                 f"light point {player['x'] + 180} {player['y'] - 260} {player['z'] - 120} 1 0.8 0.55 1.4 1200 "
                 "0 1 0 45 1 1\n")
-            for _ in range(4):  # room files are polled twice a second
-                game.run(15)
-                time.sleep(0.25)
-            check(len(game.call("lights")["lights"]) == 1, f"{name}: the test light is loaded")
+            loaded = game.reload_lights()  # now, not at the editor's next wall-clock poll
+            check(len(loaded["lights"]) == 1, f"{name}: the test light is loaded")
 
             images = {}
             for preset in PRESETS:

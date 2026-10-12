@@ -22,6 +22,8 @@
 #include "glow_overrides.h"
 #include "ui_upscale.h" /* 2D / UI texture magnification (MMPX) */
 #include "ui_text.h"    /* 2D / UI: glyphs drawn from fonts (ui_text) */
+#include "ui_bubbles.h" /* 2D / UI: joined lines, vector talk bubbles */
+extern void pc_ui_bubbles_frame(void) __attribute__((weak));
 #include "button_prompts.h" /* 2D / UI: button prompts drawn from icon fonts */
 #include "antialias.h" /* anti-aliasing: supersampling's scale, MSAA */
 #include "gl_shaders.h" /* PC_GLSL_MS_RESOLVE (pc/shaders/vulkan/ms_resolve.glsl) */
@@ -46,7 +48,13 @@ typedef struct {
 
 /* FLAG_UI: a 2D texture region magnified into the UI atlas (pc_ui_upscale). */
 /* FLAG_CLAMP: 2D, texels kept inside the primitive's [uv_min, uv_max - 1]. */
-enum { FLAG_TEXTURED = 1, FLAG_RAW = 2, FLAG_SEMI = 4, FLAG_MASK = 8, FLAG_UI = 16, FLAG_CLAMP = 32 };
+/* FLAG_COVER: untextured 2D shape with coverage (anti-aliased edges, ui_bubbles.c):
+ * U is the coverage, 0..256, blended over what is drawn (BLEND_COVER). */
+enum { FLAG_TEXTURED = 1, FLAG_RAW = 2, FLAG_SEMI = 4, FLAG_MASK = 8, FLAG_UI = 16, FLAG_CLAMP = 32, FLAG_COVER = 64 };
+/* Batch blend for FLAG_COVER: colour over the target by coverage, the
+ * target's mask bit kept (above the PS1 modes 0-3 and their 2D + 4). */
+#define BLEND_COVER 12
+static uint32_t edge_generation; /* 2D polygon edges of this ordering table (pc_hw_line) */
 #define MAX_VERTICES 65536
 
 int pc_hw_active;
@@ -695,6 +703,10 @@ void pc_hw_begin_ot(void)
     active_anchor_count = pending_anchor_count;
     pending_anchor_count = 0;
     primitive_anchor = PC_ANCHOR_NONE;
+    pc_hw_suppress = 0;
+    ++edge_generation;
+    if (pc_ui_bubbles_frame)
+        pc_ui_bubbles_frame();
     if (collect_count) {
         memcpy(caster_ready, caster_collect, (size_t)collect_count * 9 * sizeof(float));
         memcpy(surface_ready, surface_collect, (size_t)collect_count * sizeof *surface_ready);
@@ -734,6 +746,11 @@ int pc_hw_texture_filter;
 static int pending_depth[3], has_pending_depth;
 static float pending_precise[6];
 static int has_pending_precise;
+/* The next triangle's exact positions (and coverage blending), set by
+ * pc_hw_shape_triangle for shapes the port builds: joined lines, vector
+ * talk bubbles (ui_bubbles.c). */
+static float exact_xy[6];
+static int has_exact, exact_cover;
 /* Sub-pixel vertex positions (PGXP-style); off restores PS1 vertex snapping. */
 int pc_hw_subpixel = 1;
 void pc_hw_set_precise(const float* xy)
@@ -890,6 +907,12 @@ static const char* draw_fragment_source =
     "    }\n"
     "    if ((pass == 1 && semi) || (pass == 2 && !semi)) discard;\n"
     "    color = vec4(c, float(mask));\n"
+    /* FLAG_COVER (untextured 2D shapes, BLEND_COVER): U is the coverage. */
+    "    if ((flags & 65u) == 64u) {\n"
+    "        float cover = clamp(v_uv.x / 256.0, 0.0, 1.0);\n"
+    "        if (cover < 0.002) discard;\n"
+    "        color = vec4(c, cover);\n"
+    "    }\n"
     "    bool lit = v_normal.w > 0.5;\n"
     /* a: 1 room surface, 0.75 something moving (character, prop), 0 unlit */
     "    normal_out = lit ? vec4(normalize(v_normal.xyz) * 0.5 + 0.5, v_normal.w > 0.9 ? 1.0 : 0.75) : vec4(0.0);\n"
@@ -1287,6 +1310,21 @@ static void draw_batch(GLuint fbo, const hw_vertex* vertices, int count, int ble
     if (blend < 0) {
         gl_Uniform1i(u_draw_pass, 0);
         gl_DrawArrays(GL_TRIANGLES, 0, count);
+    } else if (blend == BLEND_COVER) {
+        /* Coverage over the target (anti-aliased 2D shapes): colour only,
+         * the mask bit (alpha) and the surface behind kept, depth "UI". */
+        gl_Enable(GL_BLEND);
+        gl_BlendEquation(GL_FUNC_ADD);
+        gl_BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        gl_ColorMaski(0, GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+        gl_ColorMaski(1, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        gl_ColorMaski(2, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        gl_ColorMaski(3, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        gl_Uniform1i(u_draw_pass, 2);
+        gl_DrawArrays(GL_TRIANGLES, 0, count);
+        gl_Disable(GL_BLEND);
+        for (GLuint i = 0; i < 4; i++)
+            gl_ColorMaski(i, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     } else {
         gl_Uniform1i(u_draw_pass, 1);
         gl_DrawArrays(GL_TRIANGLES, 0, count);
@@ -1371,11 +1409,49 @@ static void record_triangle(const float* world, unsigned code, unsigned tpage, u
 static void mark_stale(const int* clip);
 enum { STALE_MISSING = 1, STALE_PLACED = 2 }; /* (stale_kinds, below) */
 static void mark_stale_kind(const int* clip, int kind);
+int pc_hw_suppress; /* the packet being drawn is left out here (ui_bubbles.h) */
+/* 2D polygon edges drawn in this ordering table (whole VRAM pixels): a
+ * joined line along one reaches it (pc_hw_line). Open addressing, cleared
+ * by generation at each table. */
+#define EDGE_SLOTS 8192
+static uint64_t edge_keys[EDGE_SLOTS];
+static uint32_t edge_generations[EDGE_SLOTS], edge_generation = 1;
+static uint64_t edge_key(int x0, int y0, int x1, int y1)
+{
+    uint32_t a = (uint32_t)(x0 & 0xFFFF) | (uint32_t)(y0 & 0xFFFF) << 16;
+    uint32_t b = (uint32_t)(x1 & 0xFFFF) | (uint32_t)(y1 & 0xFFFF) << 16;
+    return a < b ? (uint64_t)a << 32 | b : (uint64_t)b << 32 | a;
+}
+static int edge_find(uint64_t key, int add)
+{
+    uint32_t h = (uint32_t)((key * 0x9E3779B97F4A7C15ull) >> 40) & (EDGE_SLOTS - 1);
+    for (int probe = 0; probe < 32; probe++, h = (h + 1) & (EDGE_SLOTS - 1)) {
+        if (edge_generations[h] != edge_generation) {
+            if (add) {
+                edge_generations[h] = edge_generation;
+                edge_keys[h] = key;
+            }
+            return 0;
+        }
+        if (edge_keys[h] == key)
+            return 1;
+    }
+    return 0;
+}
+static void edge_note(int x0, int y0, int x1, int y1)
+{
+    if (pc_ui_lines == PC_UI_LINES_JOINED && pc_hw_scale > 1 && (x0 != x1 || y0 != y1))
+        edge_find(edge_key(x0, y0, x1, y1), 1);
+}
 int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage,
     unsigned clut, unsigned window, const int* clip, int mask_set, int mask_check)
 {
     if (!pc_hw_active)
         return 0;
+    if (pc_hw_suppress) {
+        has_pending_depth = has_pending_precise = 0;
+        return 0;
+    }
     if (mask_check && !report_mask_check++)
         fprintf(stderr, "[gpu] mask-bit test is not mirrored by the hardware path yet\n");
     int other = 0; /* neither room nor object packet: still reconstructed */
@@ -1501,6 +1577,8 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
      * replaces the depth and surface behind it, so post effects and lights
      * treat it as UI. */
     int blend = semi ? (int)((tpage >> 5) & 3) + (depth[0] | depth[1] | depth[2] ? 0 : 4) : -1;
+    if (exact_cover)
+        blend = BLEND_COVER;
     if (blend != batch_blend || memcmp(area, batch_clip, sizeof batch_clip)
         || batch_count + 3 > MAX_VERTICES) {
         flush();
@@ -1515,7 +1593,7 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
         }
     }
     uint8_t flags = (uint8_t)((textured ? FLAG_TEXTURED : 0) | (textured && (code & 1) ? FLAG_RAW : 0)
-        | (semi ? FLAG_SEMI : 0) | (mask_set ? FLAG_MASK : 0));
+        | (semi || exact_cover ? FLAG_SEMI : 0) | (mask_set ? FLAG_MASK : 0) | (exact_cover ? FLAG_COVER : 0));
     /* Positions: unrounded for projected 3D vertices, else the packet's. */
     float pos[6];
     for (int i = 0; i < 6; i++)
@@ -1525,6 +1603,10 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     if (has_pending_precise && (!primitive_2d || pc_ui_subpixel) && pc_hw_subpixel)
         memcpy(pos, pending_precise, sizeof pos);
     has_pending_precise = 0;
+    /* Shapes the port builds itself (joined lines, vector bubbles): their
+     * own unrounded positions (pc_hw_shape_triangle). */
+    if (has_exact)
+        memcpy(pos, exact_xy, sizeof pos);
     /* View-space face normal from the projected vertices: invert the GTE
      * projection (sx = ofx + H x / z, X narrowed by 3/4 in widescreen). The
      * drawing area's origin is the framebuffer's screen origin. */
@@ -1592,6 +1674,9 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
         }
     }
     record_triangle(has_world ? world : NULL, code, tpage, clut, uv);
+    if (primitive_2d && !has_exact && !(depth[0] | depth[1] | depth[2]))
+        for (int i = 0; i < 3; i++)
+            edge_note(xy[i * 2], xy[i * 2 + 1], xy[(i + 1) % 3 * 2], xy[(i + 1) % 3 * 2 + 1]);
     /* 2D: a flipped sprite's coordinates (pc_hw_set_flipped_uv), and texels
      * kept inside the primitive (FLAG_CLAMP). */
     int texcoord[6];
@@ -1682,9 +1767,11 @@ void pc_hw_rect(int x, int y, int w, int h, int u, int v, unsigned rgb, unsigned
         pc_hw_triangle(xy, uvs, colors, code, tpage, clut, window, clip, mask_set, mask_check);
     }
 }
-/* One-pixel-wide line segment as a quad (lines are never textured): span
- * the major axis end to end, including the end pixel, one pixel thick. */
-void pc_hw_line(int x0, int y0, int x1, int y1, unsigned c0, unsigned c1, int semi, unsigned tpage,
+/* ui_lines legacy: one-pixel-wide line segment as a quad (lines are never
+ * textured): span the major axis end to end, including the end pixel, one
+ * pixel thick (upscaled, its slanted ends leave gaps at polyline joins and
+ * miss the edges of polygons drawn along it). */
+static void line_legacy(int x0, int y0, int x1, int y1, unsigned c0, unsigned c1, int semi, unsigned tpage,
     const int* clip, int mask_set)
 {
     int dx = x1 - x0, dy = y1 - y0;
@@ -1726,6 +1813,165 @@ void pc_hw_line(int x0, int y0, int x1, int y1, unsigned c0, unsigned c1, int se
         }
         has_line_x = anchored && pc_hw_active;
         pc_hw_triangle(xy, uv, rgb, semi ? 2 : 0, tpage, 0, 0, clip, mask_set, 0);
+    }
+}
+
+/* A 2D triangle the port builds (joined lines, vector bubbles): unrounded
+ * positions (VRAM pixels, drawing offset applied), drawn through the
+ * packet path (widescreen placement, batching, recording). cover: coverage
+ * blending (FLAG_COVER), uv[0], uv[2], uv[4] each vertex's coverage 0..256;
+ * anchored_x: final X of each vertex for widescreen-anchored 2D (NULL:
+ * placed like the packet's other 2D). */
+static void shape_triangle(const float* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage,
+    unsigned clut, unsigned window, const int* clip, int mask_set, int cover, const float* anchored_x)
+{
+    int ixy[6];
+    for (int i = 0; i < 6; i++)
+        ixy[i] = (int)floorf(xy[i] + 0.5f);
+    memcpy(exact_xy, xy, sizeof exact_xy);
+    has_exact = 1;
+    exact_cover = cover;
+    if (anchored_x) {
+        memcpy(line_x, anchored_x, sizeof line_x);
+        has_line_x = pc_hw_active;
+    }
+    pc_hw_triangle(ixy, uv, rgb, code, tpage, clut, window, clip, mask_set, 0);
+    has_exact = exact_cover = has_line_x = 0;
+}
+void pc_hw_shape_triangle(const float* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage,
+    unsigned clut, unsigned window, const int* clip, int mask_set, int cover)
+{
+    pc_hw_set_packet(NULL);
+    shape_triangle(xy, uv, rgb, code, tpage, clut, window, clip, mask_set, cover, NULL);
+}
+int pc_ui_lines = 1;         /* PC_UI_LINES_*: joined (default) or legacy */
+const char* const pc_ui_lines_names[2] = { "legacy", "joined" };
+int pc_ui_outline_boost = 0; /* 2D lines this many output pixels thicker (0-3) */
+long pc_hw_lines_drawn;      /* line segments drawn here (RPC ui_bubbles: tests) */
+extern int pc_gl_view[4] __attribute__((weak)); /* the presented view (gl_present.c / vk_present.c) */
+static int display_rect[4];                     /* (below) */
+/* Native (VRAM) pixels per output pixel: the display area's height over the
+ * presented view's. */
+float pc_hw_native_per_output(void)
+{
+    int view_h = &pc_gl_view ? pc_gl_view[3] : 0, display_h = display_rect[3] > 0 ? display_rect[3] : 240;
+    return view_h > 0 ? (float)display_h / (float)view_h : 1.0f / (float)pc_hw_scale;
+}
+/* An axis-aligned quad (x0, y0)-(x1, y1) in one colour, or a general one
+ * (q: 4 corners, order 0 1 / 2 3) with per-corner colours. */
+static void line_quad(const float q[4][2], const int colors[4][3], int semi, unsigned tpage, const int* clip,
+    int mask_set, const float* anchor_shift, float ax0, float ax1)
+{
+    static const int order[2][3] = { { 0, 1, 2 }, { 1, 3, 2 } };
+    int uv[6] = { 0 };
+    for (int t = 0; t < 2; t++) {
+        float xy[6], ax[3];
+        int rgb[9];
+        for (int i = 0; i < 3; i++) {
+            const float* c = q[order[t][i]];
+            xy[i * 2] = c[0];
+            xy[i * 2 + 1] = c[1];
+            memcpy(rgb + i * 3, colors[order[t][i]], sizeof colors[0]);
+            if (anchor_shift) {
+                /* Widescreen-anchored HUD lines: each end's shift (one pixel
+                 * thick, as legacy), linearly in between. */
+                float f = ax1 != ax0 ? (c[0] - ax0) / (ax1 - ax0) : 0.0f;
+                f = f < 0 ? 0 : f > 1 ? 1 : f;
+                ax[i] = c[0] + anchor_shift[0] + (anchor_shift[1] - anchor_shift[0]) * f;
+            }
+        }
+        shape_triangle(xy, uv, rgb, semi ? 2 : 0, tpage, 0, 0, clip, mask_set, 0, anchor_shift ? ax : NULL);
+    }
+}
+/* A line segment (GP0 0x40-0x5F) at the internal resolution (ui_lines
+ * joined): what it covers at 1x, crisp at any scale and closed at joins.
+ *
+ * - The band: the pixel-centre line (end pixel included) one native pixel
+ *   across its minor axis, so 1x samples the CPU rasterizer's pixels (ties
+ *   round away from the start as it does) and 4x is the same line, scale
+ *   pixels thick.
+ * - Upscaled, a line along the edge of a 2D polygon drawn before it in
+ *   the same ordering table (the game outlines its talk bubbles' fill this
+ *   way) also reaches that edge, which runs through the pixels' corners: at
+ *   1x the edge's pixels are the line's, upscaled the fill's sliver showed
+ *   outside the line (light dots along the outline). Other lines keep one
+ *   pixel across.
+ * - Upscaled, each end pixel is drawn whole (what the PS1 covers there), so
+ *   segments meeting at a pixel join without notches whatever their angles.
+ *   Not for semi-transparent lines (the overlap would blend twice).
+ * - ui_outline_boost: every edge moved out by half the boost (output pixels). */
+void pc_hw_line(int x0, int y0, int x1, int y1, unsigned c0, unsigned c1, int semi, unsigned tpage,
+    const int* clip, int mask_set)
+{
+    if (pc_hw_suppress || !pc_hw_active)
+        return;
+    ++pc_hw_lines_drawn;
+    if (pc_ui_lines == PC_UI_LINES_LEGACY) {
+        line_legacy(x0, y0, x1, y1, c0, c1, semi, tpage, clip, mask_set);
+        return;
+    }
+    pc_hw_set_packet(NULL);
+    int dx = x1 - x0, dy = y1 - y0;
+    int xmajor = (dx < 0 ? -dx : dx) >= (dy < 0 ? -dy : dy);
+    int upscaled = pc_hw_scale > 1;
+    float boost = pc_ui_outline_boost > 0 ? (float)pc_ui_outline_boost * pc_hw_native_per_output() * 0.5f : 0.0f;
+    /* Major axis a, minor b. */
+    float a0 = (float)(xmajor ? x0 : y0), b0 = (float)(xmajor ? y0 : x0);
+    float a1 = (float)(xmajor ? x1 : y1), b1 = (float)(xmajor ? y1 : x1);
+    float da = a1 - a0, db = b1 - b0;
+    float slope = da != 0.0f ? db / da : 0.0f;
+    /* The CPU rasterizer rounds halves away from the start: shift the band
+     * that way by half the smallest step from a tie to a non-tie (1 / 2
+     * major steps), well above the GPU's sub-pixel snapping. */
+    float steps = fabsf(da) > 1.0f ? fabsf(da) : 1.0f;
+    float tie = db > 0 ? 0.5f / steps : db < 0 ? -0.5f / steps : 0.0f;
+    /* Upscaled, a hair wider (1/256 pixel) on both sides: where an edge of
+     * a polygon drawn along the line passes exactly through a sample, the
+     * line takes it, not the polygon. */
+    float hair = upscaled ? 1.0f / 256.0f : 0.0f;
+    /* Along the edge of a 2D polygon drawn before it (a fill it outlines),
+     * the band reaches the edge where it runs outside (slopes < 0). */
+    int edge = upscaled && slope < 0 && edge_find(edge_key(x0, y0, x1, y1), 0);
+    float up = 0.5f + boost + hair + (edge ? -0.5f * slope + fabsf(tie) : 0.0f), down = 0.5f + boost + hair;
+    float ends[2] = { a0 < a1 ? a0 : a1, (a0 > a1 ? a0 : a1) + 1.0f };
+    int colors[2][3];
+    for (int ch = 0; ch < 3; ch++) {
+        colors[0][ch] = (c0 >> (ch * 8)) & 255;
+        colors[1][ch] = (c1 >> (ch * 8)) & 255;
+    }
+    float q[4][2];
+    int qc[4][3];
+    for (int e = 0; e < 2; e++) {
+        float a = ends[e];
+        float centre = b0 + 0.5f + slope * (a - a0 - 0.5f) + tie;
+        float b[2] = { centre - up, centre + down };
+        const int* c = colors[(a0 <= a1) == (e == 0) ? 0 : 1];
+        for (int k = 0; k < 2; k++) {
+            float* v = q[e + k * 2];
+            v[0] = xmajor ? a : b[k];
+            v[1] = xmajor ? b[k] : a;
+            memcpy(qc[e + k * 2], c, sizeof qc[0]);
+        }
+    }
+    int anchored = pc_gte_widescreen && primitive_anchor != PC_ANCHOR_NONE && primitive_anchor != PC_ANCHOR_FILL;
+    float shift[2] = { 0, 0 };
+    if (anchored) {
+        shift[0] = anchor_x(x0 + 0.5f) - 0.5f - (float)x0;
+        shift[1] = anchor_x(x1 + 0.5f) - 0.5f - (float)x1;
+    }
+    float sx0 = (float)x0 + 0.5f, sx1 = (float)x1 + 0.5f;
+    line_quad(q, qc, semi, tpage, clip, mask_set, anchored ? shift : NULL, sx0, sx1);
+    if ((upscaled || boost > 0) && !semi) {
+        const int ends_xy[2][2] = { { x0, y0 }, { x1, y1 } };
+        for (int e = 0; e < (dx || dy ? 2 : 1); e++) {
+            float x = (float)ends_xy[e][0], y = (float)ends_xy[e][1];
+            float sq[4][2] = { { x - boost, y - boost }, { x + 1 + boost, y - boost }, { x - boost, y + 1 + boost },
+                { x + 1 + boost, y + 1 + boost } };
+            int sc[4][3];
+            for (int i = 0; i < 4; i++)
+                memcpy(sc[i], colors[e], sizeof sc[0]);
+            line_quad(sq, sc, 0, tpage, clip, mask_set, anchored ? shift : NULL, sx0, sx1);
+        }
     }
 }
 

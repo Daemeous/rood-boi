@@ -28,12 +28,12 @@ typedef struct {
 
 static VkDescriptorSetLayout draw_set, upload_set;
 static VkPipelineLayout draw_layout, upload_layout;
-static VkPipeline opaque_pipeline, blend_pipelines[4], upload_pipeline;
+static VkPipeline opaque_pipeline, blend_pipelines[4], cover_pipeline, upload_pipeline;
 static vk_attachments live_attachments, replay_attachments, object_attachments, object_replay_attachments;
 /* MSAA: the twins' attachments, the packet pipelines at their sample count
  * ([1]: 2D, every sample at the pixel centre), and load/resolve. */
 static vk_attachments ms_attachments, ms_object_attachments;
-static VkPipeline ms_opaque[2], ms_blend[2][4];
+static VkPipeline ms_opaque[2], ms_blend[2][4], ms_cover; /* ms_cover: BLEND_COVER, at the pixel centre */
 static VkDescriptorSetLayout ms_set;
 static VkPipelineLayout ms_layout;
 static VkPipeline ms_load_pipeline, ms_depth_pipeline, ms_resolve_pipeline, ms_sync_pipeline;
@@ -248,6 +248,10 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
     for (int m = 0; m < 4; m++)
         blend_pipelines[m] = target_pipeline(vs, fs, draw_layout, &binding, attributes, 8,
             VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, m, 0x000f);
+    /* gpu_hw.c's BLEND_COVER (anti-aliased 2D shapes): "over" by coverage,
+     * colour only (the mask bit in alpha and the G-buffer kept). */
+    cover_pipeline = target_pipeline(vs, fs, draw_layout, &binding, attributes, 8,
+        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 4, 0x0007);
     VkShaderModule uvs = vk_shader(vk_spv_upload_vert, vk_spv_upload_vert_size),
                    ufs = vk_shader(vk_spv_upload_frag, vk_spv_upload_frag_size);
     upload_pipeline = target_pipeline(uvs, ufs, upload_layout, NULL, NULL, 0, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
@@ -256,7 +260,7 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
     vkDestroyShaderModule(vk.device, fs, NULL);
     vkDestroyShaderModule(vk.device, uvs, NULL);
     vkDestroyShaderModule(vk.device, ufs, NULL);
-    if (!opaque_pipeline || !upload_pipeline)
+    if (!opaque_pipeline || !upload_pipeline || !cover_pipeline)
         return 0;
     for (int m = 0; m < 4; m++)
         if (!blend_pipelines[m])
@@ -355,6 +359,15 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
     if (ms)
         for (int i = 0; i < count && !centre; i++)
             centre = ((const hw_vertex*)vertices)[i].z <= 0.0f;
+    if (blend == 12) { /* BLEND_COVER (2D shapes): one blended pass, depth "UI" */
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ms ? ms_cover : cover_pipeline);
+        vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, draw_layout);
+        push.pass = 2;
+        vkCmdPushConstants(cmd, draw_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push,
+            &push);
+        vkCmdDraw(cmd, (uint32_t)count, 1, 0, 0);
+        return;
+    }
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ms ? ms_opaque[centre] : opaque_pipeline);
     vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, draw_layout);
     push.pass = blend < 0 ? 0 : 1;
@@ -579,6 +592,9 @@ static int ms_make_pipelines(int samples)
     for (int i = 0; i < 4; i++)
         if (old[i])
             vkDestroyPipeline(vk.device, old[i], NULL);
+    if (ms_cover)
+        vkDestroyPipeline(vk.device, ms_cover, NULL);
+    ms_cover = VK_NULL_HANDLE;
     memset(ms_opaque, 0, sizeof ms_opaque);
     memset(ms_blend, 0, sizeof ms_blend);
     ms_load_pipeline = ms_depth_pipeline = ms_resolve_pipeline = ms_sync_pipeline = VK_NULL_HANDLE;
@@ -616,6 +632,9 @@ static int ms_make_pipelines(int samples)
             ok = ok && ms_blend[c][m];
         }
     }
+    ms_cover = target_pipeline_ms(vs, fs, draw_layout, &binding, attributes, 8, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 4,
+        0x0007, samples, 1);
+    ok = ok && ms_cover;
     /* Load: every sample of the twins (the shader runs once per pixel). */
     ms_load_pipeline = target_pipeline_ms(fullscreen, load, ms_layout, NULL, NULL, 0,
         VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xffff, samples, 0);

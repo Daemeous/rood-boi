@@ -37,7 +37,6 @@ import pathlib
 import shutil
 import sys
 import tempfile
-import time
 
 import numpy as np
 from PIL import Image
@@ -92,11 +91,16 @@ def main():
         if not ok:
             failures.append(message)
 
-    def settle_reload():
-        """Room and prefab files are polled twice a second of wall-clock time."""
-        for _ in range(4):
-            game.run(15)
-            time.sleep(0.25)
+    def settle_reload(live=False):
+        """Take the room file as written. The editor polls files twice a
+        second of wall-clock time; tests run its check now instead (`live`:
+        RPC lighting poll, the live reload's change detection) or read the
+        room again (RPC lights reload), then let a few frames draw."""
+        if live:
+            game.call("lighting", action="poll")
+        else:
+            game.reload_lights()
+        game.run(4)
 
     def frame(name, keep=True):
         game.run(gf.SETTLE)
@@ -134,7 +138,7 @@ def main():
         room_file.write_text(OLD_LINES + f"actor candle {player['x']:.1f} {player['y'] - 100:.1f} {player['z']:.1f} "
                              "0 0 0 seed=77 intensity=1.5\n")
         game.call("editor_ui", visible=True)
-        settle_reload()
+        settle_reload(live=True)  # a new file: the live reload's check sees it
         listing = game.call("actors")
         described = game.call("lights")
         check(len(described["lights"]) == 3 and listing["light_count"] == 3,

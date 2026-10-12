@@ -636,6 +636,9 @@ extern int render_is_marker(const uint32_t*) __attribute__((weak));
 extern void pc_hw_native_marker(uint32_t, int, int, const int*, unsigned, int) __attribute__((weak));
 extern int render_translucent_marker(const uint32_t*, uint32_t*, int*, int*) __attribute__((weak));
 extern void pc_hw_native_translucent(uint32_t, int, int, int, int, const int*, unsigned, int) __attribute__((weak));
+/* Vector talk bubbles (ui_bubbles.c): their packets are drawn here as on the
+ * PS1 but left out of the hardware target, which draws the shapes instead. */
+extern void pc_ui_bubble_packet(const void*, int, int, const int*) __attribute__((weak));
 void pc_draw_packet(void* data, int chain)
 {
     uint32_t* p = data;
@@ -643,6 +646,10 @@ void pc_draw_packet(void* data, int chain)
         uint32_t tag = *p;
         if (pc_hw_anchor_packet)
             pc_hw_anchor_packet(p, draw_x, display_w);
+        if (pc_ui_bubble_packet) {
+            int clip[4] = { clip_x, clip_y, clip_w, clip_h };
+            pc_ui_bubble_packet(p, draw_x, draw_y, clip);
+        }
         if (render_is_marker && pc_hw_native_marker && render_is_marker(p)) {
             int clip[4] = { clip_x, clip_y, clip_w, clip_h };
             pc_hw_native_marker(p[2], draw_x, draw_y, clip, texture_window, (int)mask_set);

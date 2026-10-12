@@ -72,6 +72,7 @@ try:
     game.run(2440 - game.status()["vsync"])
     state = game.state()
     assert (state["zone"], state["room"]) == (1, 0), state
+    assert len(game.call("lights")["lights"]) == 1, "the test light is loaded with the room"
     obj = OUT / "rt-camera-room.obj"
     game.call("scene_dump", path=str(obj))
     vertices = np.array([[float(x) for x in line.split()[1:4]] for line in obj.read_text().splitlines()

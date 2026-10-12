@@ -31,6 +31,7 @@ using lighting::State;
 namespace {
 lighting::Room room_layers;
 int loaded_serial = -1;
+unsigned load_count; /* every read of the room's layers (room entry, live reload, RPC reload) */
 std::vector<std::string> loaded_problem_ids; /* reported once per load */
 
 std::string capture(void (*write)(FILE*))
@@ -302,6 +303,7 @@ void rood_lights::layers_load(int z, int r)
 {
     lighting::load_room(room_layers, z, r);
     loaded_serial = lighting::config_serial();
+    load_count++;
     apply_state(room_layers.loaded, false);
     frame_state_frame = -1;
     report_problems();
@@ -328,6 +330,24 @@ bool rood_lights::layers_save()
     frame_state_frame = -1;
     return ok;
 }
+
+/* RPC lights / lighting {action: "reload"}: read every layer of the room from disk
+ * now, as the live reload does but without waiting for its wall-clock poll
+ * (scripts write a room file, reload, then count frames). Unsaved edits are
+ * dropped. The layers' stored mtimes are the files' as read, so the poll
+ * does not load the same files again (the renderers would see the same
+ * lights anyway: their history resets follow a hash of the lights). */
+unsigned rood_lights::layers_reload()
+{
+    if (zone < 0)
+        return load_count;
+    dirty = false;
+    layers_load(zone, room);
+    pc_undo_reset();
+    snprintf(status + strlen(status), sizeof status - strlen(status), " (reloaded)");
+    return load_count;
+}
+unsigned rood_lights::layers_loads() { return load_count; }
 
 void rood_lights::layers_poll()
 {
@@ -548,10 +568,9 @@ extern "C" int pc_lighting_rpc(const char* params_text, char* out, int size)
     bool ok = true;
     if (action == "save")
         ok = layers_save();
-    else if (action == "reload") {
-        layers_load(zone, room);
-        pc_undo_reset();
-    } else if (action == "revert") {
+    else if (action == "reload")
+        layers_reload();
+    else if (action == "revert") {
         const prefab::Json* id = params.get("id");
         if (!id || id->type != prefab::Json::String) {
             snprintf(out, size, "revert needs id");
