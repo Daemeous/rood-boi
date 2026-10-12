@@ -99,7 +99,8 @@
  *                                hold), present_rate (images per vsync, 1-8:
  *                                in-betweens at fractions of a vsync), aa (FXAA),
  *                                texture_filter, ui_upscale ("nearest" | "mmpx"),
- *                                ui_subpixel, post, drop_shadows; path-
+ *                                ui_subpixel, ui_text ("original" | "font"),
+ *                                post, drop_shadows; path-
  *                                traced GI: gi, gi_debug, gi_denoise
  *                                (on/off), gi_denoiser ("nrd": NVIDIA NRD
  *                                RELAX for the indirect light, Vulkan built
@@ -228,6 +229,7 @@
 #include "editor_overlays.h"
 #include "probe_gi.h"
 #include "ui_upscale.h"
+#include "ui_text.h"
 #include "camera_stick.h"
 /* The editor (editor_overlays.cpp, lights.cpp). */
 extern int pc_overlay_wire __attribute__((weak)), pc_overlay_points __attribute__((weak)),
@@ -794,6 +796,13 @@ static void handle_method(int fd, const char* request)
                 pc_ui_subpixel = flag;
             else if (number_value(member(params, "ui_subpixel"), &n))
                 pc_ui_subpixel = n != 0;
+            /* ui_text "original" | "font" (or 0/1; ui_text.h). */
+            if (string_value(member(params, "ui_text"), name, sizeof name)) {
+                for (int k = 0; k < 2; k++)
+                    if (!strcmp(name, pc_ui_text_names[k]))
+                        pc_ui_text = k;
+            } else if (number_value(member(params, "ui_text"), &n) && n >= 0 && n <= 1)
+                pc_ui_text = (int)n;
         }
         if (&pc_gi_enabled && params) {
             double real;
@@ -1061,8 +1070,8 @@ static void handle_method(int fd, const char* request)
                         pc_probe_hysteresis, pc_probe_budget, pc_probe_show)
                 - 1;
         if (used < (int)sizeof result - 100)
-            used += snprintf(result + used - 1, sizeof result - used + 1, ",\"ui_upscale\":\"%s\",\"ui_subpixel\":%d}",
-                        pc_ui_upscale_names[pc_ui_upscale ? 1 : 0], pc_ui_subpixel)
+            used += snprintf(result + used - 1, sizeof result - used + 1, ",\"ui_upscale\":\"%s\",\"ui_subpixel\":%d,\"ui_text\":\"%s\"}",
+                        pc_ui_upscale_names[pc_ui_upscale ? 1 : 0], pc_ui_subpixel, pc_ui_text_names[pc_ui_text ? 1 : 0])
                 - 1;
         for (int k = 0; k < editor_count && used < (int)sizeof result - 64; k++)
             used += editor_keys[k].flag
@@ -1079,6 +1088,36 @@ static void handle_method(int fd, const char* request)
             used += pc_lighting_json(result + used - 1, (int)sizeof result - used) - 1;
             snprintf(result + used, sizeof result - used, "}");
         }
+        reply(fd, id, result);
+    } else if (!strcmp(method, "ui_text")) {
+        /* ui_text.h: the option, its styles (font, placement), fonts loaded,
+         * glyph fields made and regions drawn; {style, font, stretch, slant,
+         * embolden} changes a style (as the settings keys do). */
+        char style[32], text[300];
+        if (params && string_value(member(params, "style"), style, sizeof style)) {
+            static const char* const keys[4] = { "font", "stretch", "slant", "embolden" };
+            int known = 0;
+            for (int i = 0; i < PC_UI_TEXT_STYLES; i++)
+                known |= !strcmp(style, pc_ui_text_styles[i].name);
+            if (!known) {
+                fail(fd, id, -32602, "style: dialogue, menu, info or digits");
+                return;
+            }
+            for (int k = 0; k < 4; k++) {
+                char key[64];
+                double value;
+                snprintf(key, sizeof key, "ui_text_%s_%s", style, keys[k]);
+                if (k == 0 && string_value(member(params, "font"), text, sizeof text))
+                    pc_ui_text_setting(key, text);
+                else if (k && real_value(member(params, keys[k]), &value)) {
+                    snprintf(text, sizeof text, "%.6g", value);
+                    pc_ui_text_setting(key, text);
+                }
+            }
+        }
+        if (params && string_value(member(params, "ui_text"), style, sizeof style))
+            pc_ui_text_setting("ui_text", style);
+        pc_ui_text_json(result, (int)sizeof result);
         reply(fd, id, result);
     } else if (!strcmp(method, "ui_upscale")) {
         /* 2D / UI magnification statistics; {verify: true} also reads the

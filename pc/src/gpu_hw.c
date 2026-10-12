@@ -21,6 +21,7 @@
 #include "render_gl.h"
 #include "glow_overrides.h"
 #include "ui_upscale.h" /* 2D / UI texture magnification (MMPX) */
+#include "ui_text.h"    /* 2D / UI: glyphs drawn from fonts (ui_text) */
 #ifdef ROOD_VULKAN
 #include "vk_hooks.h" /* ROOD_RENDERER=vulkan: the GL calls below go to vk_hw.c */
 #endif
@@ -1577,10 +1578,11 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
             bounds[k] = c < bounds[k] ? c : bounds[k];
             bounds[k + 2] = c > bounds[k + 2] ? c : bounds[k + 2];
         }
-    /* 2D: the texels it samples, magnified (MMPX). The far bound is an edge
+    /* 2D: the texels it samples, magnified (MMPX) or, for glyphs, drawn from
+     * a font (ui_text). The far bound is an edge
      * the rasterizer never reaches: [min, max - 1], as the shader clamps. */
     int16_t ui_offset[2] = { 0, 0 };
-    if (pc_ui_upscale) {
+    if (pc_ui_upscale || pc_ui_text) {
         pc_ui_upscale_draw_area(area);
         if (ui && textured && !(depth[0] | depth[1] | depth[2])) {
             int u1 = bounds[2] > bounds[0] ? bounds[2] - 1 : bounds[0], v1 = bounds[3] > bounds[1] ? bounds[3] - 1 : bounds[1];

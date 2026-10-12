@@ -15,11 +15,30 @@ you must own the game and supply your own disc image (see [`README.md`](README.m
 | Component | Version | Licence | Notes |
 |---|---|---|---|
 | [SDL 3](https://github.com/libsdl-org/SDL) (`SDL3/`) | 3.4.18 | zlib (`LICENSE.txt`) | Trimmed release tarball, no source changes (`UPSTREAM.txt`). Its bundled `src/hidapi` is tri-licensed and used under its BSD licence (`src/hidapi/LICENSE-bsd.txt`). Bundled Khronos headers (EGL/GLES/Vulkan) and Wayland protocol XML keep the licences stated in their files. |
-| [Dear ImGui](https://github.com/ocornut/imgui), docking branch (`imgui/`) | 3bae66c7 | MIT (`LICENSE.txt`) | Includes the stb_rectpack/stb_textedit/stb_truetype headers (MIT or public domain, see their headers). |
+| [Dear ImGui](https://github.com/ocornut/imgui), docking branch (`imgui/`) | 3bae66c7 | MIT (`LICENSE.txt`) | Includes the stb_rectpack/stb_textedit/stb_truetype headers (MIT or public domain, see their headers); `pc/src/ui_text.c` also compiles stb_truetype to rasterize the `ui_text` fonts. |
 | [ImGuizmo](https://github.com/CedricGuillemet/ImGuizmo) (`ImGuizmo/`) | 18cef5e0 | MIT (`LICENSE`) | |
 | [glslang](https://github.com/KhronosGroup/glslang) (`glslang/`) | 16.6.0 | BSD-3-Clause, BSD-2-Clause, MIT, Apache-2.0 and others per file (`LICENSE.txt`, `LICENSES/`) | Built only as the shader-compiler tool; nothing of it is linked into the game. The Bison-generated parser (`glslang/MachineIndependent/glslang_tab.cpp`) is GPL-3.0-or-later **with the Bison special exception** (`LICENSES/Bison-exception-2.2.txt`), which permits distributing it under glslang's own terms. |
 | [PsyCross](https://github.com/OpenDriver2/PsyCross), geometry subset (`psycross/`) | e56e4cde | MIT, Copyright REDRIVER2 Project (`LICENSE`) | Software GTE and SDK geometry wrappers; changes listed in `ROOD-NOTES.md`. |
 | PsyCross software SPU (`psycross-audio/`) | from [SlickAmogus/PsyCross](https://github.com/SlickAmogus/PsyCross), a PsyCross fork | MIT, Copyright REDRIVER2 Project (`LICENSE`) | SPU core by Chris Hardin. The reverb unit (`PsyX_SPUReverb`, `PsyX_IdealReverb`) and the noise generator were rewritten for rood-boi clean-room from the public psx-spx / nocash hardware documentation and are released under the same MIT licence; see `ROOD-NOTES.md`. |
+
+### Fonts (`pc/third_party/fonts/`)
+
+Used by the optional `ui_text font` setting (`pc/src/ui_text.c`, README "2D /
+UI"), which draws the game's text with them. Each is the unmodified TrueType
+file from the [Google Fonts repository](https://github.com/google/fonts)
+(`ofl/<family>/` or `apache/<family>/`) and keeps its own licence, which sits
+beside it: the **SIL Open Font License 1.1** (`OFL.txt`, with the copyright
+notice; the fonts may be bundled and redistributed with this software but
+not sold by themselves, and Reserved Font Names apply to modified versions)
+or the **Apache License 2.0** (`LICENSE.txt`). None of them is derived from
+the game.
+
+| Font | File | Licence | Copyright |
+|---|---|---|---|
+| [Permanent Marker](https://github.com/google/fonts/tree/main/apache/permanentmarker) | `PermanentMarker/PermanentMarker-Regular.ttf` | Apache 2.0 (`LICENSE.txt`) | Font Diner, Inc. (2010) |
+| [Asap Condensed](https://github.com/Omnibus-Type/Asap) Bold | `AsapCondensed/AsapCondensed-Bold.ttf` | OFL 1.1 | The Asap Project Authors |
+| [Chakra Petch](https://github.com/m4rc1e/Chakra-Petch) Bold | `ChakraPetch/ChakraPetch-Bold.ttf` | OFL 1.1 | The Chakra Petch Project Authors |
+| [Alegreya](https://github.com/huertatipografica/Alegreya) (variable, default instance) | `Alegreya/Alegreya[wght].ttf` | OFL 1.1 | The Alegreya Project Authors |
 
 ## Ported into the project's sources
 

@@ -148,6 +148,10 @@ def suites(args, mode="egl"):
         Suite("ui_upscale_smoke", [PY, str(TESTS / "ui_upscale_smoke.py"),
                                    *(["--card", str(args.save)] if args.save.exists() else [])], 300,
               note="2D/UI MMPX: only 2D changes, atlas = CPU reference, palette kept, cache, VRAM rewrites"),
+        Suite("ui_text_smoke", [PY, str(TESTS / "ui_text_smoke.py"),
+                                *(["--card", str(args.save)] if args.save.exists() else [])], 300,
+              note="ui_text fonts: off = original path; bubble, HUD, menu change only inside glyph boxes, "
+                   "text extents kept, settings"),
         *input_cases(scale),
         Suite("golden_frames", [PY, str(TESTS / "golden_frames.py")], 600,
               note="references in pc/build/golden"),

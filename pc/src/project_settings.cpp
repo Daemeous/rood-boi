@@ -39,6 +39,7 @@ int pc_qol_weapon_slots;
 #include "lighting_quality.h" /* the lighting quality keys (lighting_preset, gi_method, shadows, ...) */
 #include "probe_gi.h"
 #include "ui_upscale.h" /* 2D / UI: ui_upscale nearest | mmpx, ui_subpixel */
+#include "ui_text.h"    /* 2D / UI: ui_text original | font, ui_text_<style>_font ... */
 #include "lighting_layers.h" /* lighting_packs, lighting_active_pack */
 extern bool pc_lights_show_gizmos;
 namespace rood_lights {
@@ -191,6 +192,8 @@ int apply_line(const char* line, int* scale, bool now)
                 pc_ui_upscale = k;
         return 1;
     }
+    if (pc_ui_text_setting(key, rest))
+        return 1;
     if (!strcmp(key, "gameplay_walls")) { /* original | smart (or 0 / 1) */
         char name[32] = "";
         sscanf(rest, "%31s", name);
@@ -276,6 +279,7 @@ extern "C" void pc_settings_write(FILE* f)
         fprintf(f, "drop_shadows %d\n", pc_drop_shadow_mode);
     pc_lighting_settings_write(f);
     fprintf(f, "ui_upscale %s\n", pc_ui_upscale_names[pc_ui_upscale ? 1 : 0]);
+    pc_ui_text_settings_write(f);
     fprintf(f, "gameplay_walls %s\n", pc_gameplay_walls ? "smart" : "original");
     fprintf(f, "lighting_packs %s\n", lighting::packs_setting().c_str());
     fprintf(f, "lighting_active_pack %s\n", lighting::active_pack_setting().c_str());

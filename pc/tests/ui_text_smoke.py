@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+"""ui_text (pc/src/ui_text.c; README "2D / UI"): the game's text drawn from
+open-licensed fonts.
+
+    python3 pc/tests/ui_text_smoke.py [--card pc/save/card1.mcd] [--shots DIR]
+
+Runs on the backend the environment selects (run.py: 32-bit GL, 64-bit GL,
+or ROOD_RENDERER=vulkan). Comparisons use the same recorded frame drawn
+twice (RPC ui_upscale redraw), once with ui_text original and once with
+ui_text font, so nothing moves between the two images. Checks:
+
+- default: ui_text original, and while it is off nothing goes through the
+  2D atlas (no lookups, no font regions): the original drawing path;
+- the opening's first talk bubble (dialogue), and with a card (a copy of
+  it) the save room's HUD (digits, RISK ZERO) and the in-game menu (menu
+  rows, information box): the font changes the picture, only inside the
+  glyph boxes the game drew (RPC ui_upscale mask), every glyph region is
+  drawn from a font (none fell back), and each text block's ink keeps the
+  original's extent within two PS1 pixels (the layout is the game's);
+- original after font: the frame drawn with ui_text original again equals
+  the first original drawing;
+- settings: ui_text saves and loads (ROOD_SETTINGS); RPC ui_text style
+  overrides apply;
+- no shader errors, Vulkan validation messages (ROOD_VK_VALIDATE where the
+  layer exists) or crashes.
+
+--shots keeps side-by-side images (game imagery: keep it out of git)."""
+import argparse
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+
+import numpy as np
+from PIL import Image
+from scipy import ndimage
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "pc/tools"))
+from rood_rpc import OUT, Game  # noqa: E402
+
+failures = []
+
+
+def check(ok, what):
+    print(("PASS: " if ok else "FAIL: ") + what)
+    if not ok:
+        failures.append(what)
+    return ok
+
+
+def default_card():
+    path = ROOT / "pc/save/card1.mcd"
+    if not path.exists():  # a worktree: the main checkout's card
+        common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=ROOT,
+                                capture_output=True, text=True).stdout.strip()
+        if common:
+            path = pathlib.Path(common).parent / "pc/save/card1.mcd"
+    return path
+
+
+def redraw(game, work, mode, name):
+    game.call("graphics", ui_text=mode)
+    path = work / f"{name}-{mode}.ppm"
+    info = game.call("ui_upscale", redraw=str(path))
+    image = np.asarray(Image.open(path))
+    path.unlink()
+    return image, info
+
+
+def ink(image, polarity):
+    """Text ink: dark pixels on a light bubble, bright ones on dark UI."""
+    luma = image[..., :3].astype(int) @ np.array([299, 587, 114]) // 1000
+    return luma < 90 if polarity == "dark" else luma > 170
+
+
+def compare(game, work, name, shots, label, polarity):
+    """Original and font drawings of the same frame."""
+    game.call("graphics", ui_text="font")
+    game.call("ui_upscale", mask=str(work / "mask.pgm"))  # clear
+    game.run(6)  # frames drawn with the font (the mask accumulates)
+    game.call("ui_upscale", mask=str(work / "mask.pgm"))
+    mask = np.asarray(Image.open(work / "mask.pgm")) > 0
+    original, info = redraw(game, work, "original", name)
+    font, _ = redraw(game, work, "font", name)
+    again, _ = redraw(game, work, "original", name + "-again")
+    stats = game.call("ui_text")
+    scale = original.shape[1] // 1024
+    x, y, w, h = info["area"]
+    x0, y0, x1, y1 = max(x, 0), max(y, 0), min(x + w, 1024), min(y + h, 512)
+    a = original[y0 * scale:y1 * scale, x0 * scale:x1 * scale]
+    b = font[y0 * scale:y1 * scale, x0 * scale:x1 * scale]
+    c = again[y0 * scale:y1 * scale, x0 * scale:x1 * scale]
+    m = mask[y0:y1, x0:x1]
+    # One VRAM pixel of slack: a primitive's box is rounded outwards.
+    grown = ndimage.binary_dilation(m, iterations=1)
+    big = np.repeat(np.repeat(grown, scale, axis=0), scale, axis=1)
+    diff = np.any(a != b, axis=2)
+    outside = int((diff & ~big).sum())
+    check(int(diff.sum()) > 0, f"{label} {name}: the font changes the text ({int(diff.sum())} pixels)")
+    check(outside == 0, f"{label} {name}: nothing changes outside the glyph boxes ({outside} pixels)")
+    check(np.array_equal(a, c), f"{label} {name}: original after font draws the same picture")
+    check(stats["regions"] > 0 and stats["failed"] == 0,
+          f"{label} {name}: {stats['regions']} glyph regions drawn from fonts, {stats['failed']} fell back")
+    # Layout: each text block (glyph boxes joined into words and lines)
+    # keeps its ink extent within two PS1 pixels.
+    blocks, count = ndimage.label(ndimage.binary_dilation(grown, iterations=3))
+    ia, ib = ink(a, polarity), ink(b, polarity)
+    worst, measured = 0, 0
+    for k, sl in enumerate(ndimage.find_objects(blocks), 1):
+        region = (blocks[sl] == k) & grown[sl]
+        big_region = np.repeat(np.repeat(region, scale, axis=0), scale, axis=1)
+        outer = (slice(sl[0].start * scale, sl[0].stop * scale), slice(sl[1].start * scale, sl[1].stop * scale))
+        pa, pb = ia[outer] & big_region, ib[outer] & big_region
+        if pa.sum() < 8 * scale * scale or pb.sum() < 8 * scale * scale:
+            continue
+        ya, xa = np.where(pa)
+        yb, xb = np.where(pb)
+        edges = [abs(xa.min() - xb.min()), abs(xa.max() - xb.max()), abs(ya.min() - yb.min()),
+                 abs(ya.max() - yb.max())]
+        worst = max(worst, max(edges) / scale)
+        measured += 1
+    check(measured > 0 and worst <= 2.0,
+          f"{label} {name}: text blocks keep their extent ({measured} blocks, worst edge {worst:.1f} PS1 pixels)")
+    if shots:
+        side = np.concatenate([a, np.full((a.shape[0], 8, 3), 255, np.uint8), b], axis=1)
+        image = Image.fromarray(side)
+        if image.width > 1600:
+            image = image.resize((1600, image.height * 1600 // image.width), Image.LANCZOS)
+        image.save(shots / f"{label}-{name}.jpg", quality=82)
+
+
+def launch(work, card, label, extra=None):
+    settings = work / "settings.cfg"
+    env = {"ROOD_OUT": str(work), "ROOD_SETTINGS": str(settings), **(extra or {})}
+    if os.environ.get("ROOD_RENDERER") == "vulkan" and os.environ.get("VK_LAYER_PATH"):
+        env.setdefault("ROOD_VK_VALIDATE", "1")
+    return Game.launch(socket_path=f"/tmp/rood-text-{os.getpid()}-{label}.sock", log=str(work / f"{label}.log"),
+                       extra_env=env, card=str(card) if card else None, fast=True)
+
+
+def log_clean(game, label):
+    log = pathlib.Path(game.log).read_text(errors="replace")
+    check("[crash]" not in log and "[gl] shader" not in log and "[vk] validation:" not in log
+          and "[gl] link" not in log and "cannot load font" not in log,
+          f"{label}: no crash, shader error, validation message or missing font")
+    if "[vk] validation:" in log or "[crash]" in log:
+        print("\n".join(line for line in log.splitlines() if "validation" in line or "crash" in line)[:4000])
+
+
+def run_bubble(work, shots):
+    """New Game: the opening's first talk bubble."""
+    game = launch(work, None, "bubble")
+    try:
+        g = game.call("graphics")
+        check(g.get("ui_text") == "original", f"bubble: default ui_text original ({g.get('ui_text')})")
+        game.call("graphics", interpolate=False)
+        game.wait_title()
+        game.run(90)
+        game.press("start", vsyncs=4, settle=90)
+        game.press("circle", vsyncs=3, settle=60)
+        game.run(2400)  # the duke's first line waits for a button
+        s = game.call("ui_upscale")
+        t = game.call("ui_text")
+        check(s["lookups"] == 0 and t["regions"] == 0,
+              f"bubble: while ui_text is original nothing uses the 2D atlas ({s['lookups']} lookups, "
+              f"{t['regions']} font regions)")
+        compare(game, work, "bubble", shots, "dialogue", "dark")
+        styles = {st["name"]: st for st in game.call("ui_text")["styles"]}
+        check(styles["dialogue"]["loaded"] is True, "bubble: the dialogue font is loaded")
+    finally:
+        game.close()
+    log_clean(game, "bubble")
+
+
+def run_save(work, card, shots):
+    """The save room: HUD, then the in-game menu."""
+    copy = work / "card.mcd"
+    shutil.copyfile(card, copy)
+    game = launch(work, copy, "save")
+    settings = work / "settings.cfg"
+    try:
+        game.call("graphics", interpolate=False)
+        game.wait_title()
+        game.run(90)
+        game.press("start", vsyncs=4, settle=90)
+        for _ in range(3):  # Continue, the card, its first save
+            game.press("circle", vsyncs=3, settle=90)
+        game.run(400)
+        if check(bool(game.state().get("player")), "save: in the save room"):
+            s = game.call("ui_upscale")
+            check(s["lookups"] == 0, f"save: ui_text original leaves 2D alone ({s['lookups']} lookups)")
+            compare(game, work, "hud", shots, "hud", "bright")
+            game.press("triangle", vsyncs=3, settle=60)
+            game.press("circle", vsyncs=3, settle=60)
+            game.press("circle", vsyncs=3, settle=60)  # Battle Abilities > Chain Abilities (information box)
+            compare(game, work, "menu", shots, "menu", "bright")
+            styles = {st["name"]: st for st in game.call("ui_text")["styles"]}
+            check(all(styles[n]["loaded"] is True for n in ("menu", "info", "digits")),
+                  "save: menu, info and digits fonts are loaded")
+        # A style override (RPC ui_text, as the settings keys) applies.
+        before = game.call("ui_text")["styles"][1]["stretch"]
+        after = game.call("ui_text", style="menu", stretch=before + 0.1)["styles"][1]["stretch"]
+        check(abs(after - before - 0.1) < 1e-6, f"save: ui_text style override ({before} -> {after})")
+        game.call("ui_text", style="menu", stretch=before)
+        # Settings persist (only the option; the style is back to its default).
+        game.call("graphics", ui_text="font")
+        game.call("settings", action="save")
+        text = settings.read_text()
+        check("ui_text font" in text and "ui_text_menu_stretch" not in text, "save: ui_text saved")
+        game.call("graphics", ui_text="original")
+        game.call("settings", action="load")
+        check(game.call("graphics")["ui_text"] == "font", "save: ui_text loads back")
+        game.call("graphics", ui_text="original")
+        game.run(4)
+    finally:
+        game.close()
+    log_clean(game, "save")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--card", type=pathlib.Path, default=default_card())
+    parser.add_argument("--shots", type=pathlib.Path)
+    args = parser.parse_args()
+    card = args.card if args.card and args.card.exists() else None
+    if args.shots:
+        args.shots.mkdir(parents=True, exist_ok=True)
+    work = OUT / "ui-text"
+    work.mkdir(parents=True, exist_ok=True)
+    (work / "settings.cfg").unlink(missing_ok=True)
+    run_bubble(work, args.shots)
+    if card:
+        run_save(work, card, args.shots)
+    else:
+        print("note: no memory card: the talk bubble only")
+    if failures:
+        print(f"{len(failures)} check(s) failed")
+        return 1
+    print("PASS: ui_text_smoke")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

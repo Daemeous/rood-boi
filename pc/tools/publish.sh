@@ -45,7 +45,9 @@ else
         echo "!! denied pattern in added lines" >&2; fail=1
     fi
     # No binaries or media: the repo ships code and data files only.
-    bins=$(git diff --numstat public main | awk '$1=="-"{print $3}')
+    # Vendored, licensed fonts are the only binaries allowed.
+    allow='^pc/third_party/fonts/[^/]+/[^/]+\.(ttf|otf)$'
+    bins=$(git diff --numstat public main | awk '$1=="-"{print $3}' | grep -vE "$allow" || true)
     media=$(git diff --name-only --diff-filter=AM public main |
         grep -iE '\.(png|jpe?g|webp|gif|bmp|ppm|tim|bin|iso|cue|chd|mcd|wav|xa|str|mpd|znd|shp|wep|seq|vab|vag|obj)$' || true)
     if [ -n "$bins$media" ]; then

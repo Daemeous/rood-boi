@@ -481,6 +481,8 @@ pixel's corner as the PS1 does, not one past the image (`pc_hw_set_flipped_uv`).
 | --- | --- | --- |
 | `ui_upscale` | `nearest` | `nearest`: the PS1's blocks (original). `mmpx`: MMPX (McGuire & Gagiu 2021), the style-preserving pixel-art magnifier: curves, diagonals and corners reconstructed, palette, transparency and one-pixel details kept exactly |
 | `ui_subpixel` | 0 | text glyphs drawn where the game places them in 16.16 fixed point instead of whole pixels (even spacing while talk bubbles zoom open and shut) |
+| `ui_text` | `original` | `original`: the PS1's glyphs. `font`: the game's text drawn from open-licensed fonts (below) at the internal resolution (2x and up) |
+| `ui_text_<style>_font`, `_stretch`, `_slant`, `_embolden` | the chosen fonts | per style (`dialogue`, `menu`, `info`, `digits`): a TrueType file (relative to the repository root), horizontal scale, added shear, distance-field offset in em (bolder > 0); saved only when changed |
 
 Nothing is shipped: each region a 2D primitive samples (texture page, CLUT,
 texel rectangle) is decoded from the game's own VRAM when drawn and
@@ -501,6 +503,49 @@ most frames. `ROOD_UI_DEBUG=1` reports atlas resets and bypassed regions, 2
 every new region, 3 sub-pixel text. RPC `ui_upscale` reports the cache (`verify: true` reads
 the atlas back and checks it against the CPU reference). The MMPX kernel is
 ported from the authors' MIT-licensed reference ([THIRD_PARTY.md](../THIRD_PARTY.md)).
+
+**Text in modern fonts (`ui_text font`).** The game keeps drawing its text
+exactly as on the PS1 (which characters, where, colours, brightness
+gradients, translucency, when a bubble types out or zooms); only the texels
+of each glyph's box are drawn again at the internal resolution from a font
+(`pc/src/ui_text.c`), through the same 2D atlas as MMPX, whatever
+`ui_upscale` is. A 2D region is a glyph by its page, CLUT and texel
+rectangle:
+
+| Style | Where the game draws it | Font (`pc/third_party/fonts`) |
+| --- | --- | --- |
+| `dialogue` | talk bubbles: italic hand-lettered capitals, small capitals for lower case (font page (832, 0), glyphs 189-377, 12 x 12 cells, proportional advances) | Permanent Marker (Apache 2.0), slanted 0.12 |
+| `menu` | menus, item and ability names, the information box (glyphs 0-188 of that page, 6-pixel fixed advance; menu rows come as 12 x 1 strips with a brightness gradient) | Asap Condensed Bold |
+| `info` | wide outlined capitals: RISK ZERO, COMMAND, MENU, NEXT (field UI page (768, 0) rows 76-95, found through the game's own width and position tables, kept from when the field's overlay holds them so the map screen's overlay does not lose them; also digits, : / % + - in PLAY TIME, NEXT, map percentages) | Chakra Petch Bold |
+| `digits` | HUD numbers (HP, MP; old-style figures in two sizes and the small slash, row 0 of that page); the dot between current and maximum HP / MP is drawn as a disc of the original's size and place, outlined like the digits | Alegreya |
+
+Each glyph is a signed distance field (64 pixels per em) made with stb_truetype
+(from Dear ImGui), a few each frame ahead of use once the option is on (about
+2 s for every style; text shown before then makes its own, a few ms each), placed on
+the original glyph: the original's baseline and
+cap height (measured from the game's VRAM on its H; digits on 0; small
+capitals on its x), centred on the original glyph's ink, a per-style
+horizontal scale, descenders squeezed into the 12-pixel cell as the PS1
+faces do. Its coverage is mapped through the original glyph's own CLUT ramp
+(index 1 up to the highest index the glyph uses; inside a one-pixel outline
+of index 1 for the outlined styles), so palettes and the colour key are the
+game's. Characters a font lacks and the pictographs (button symbols,
+arrows, notes, stars) stay original, as do text baked into images (labels
+such as HP, MP, INFORMATION, the location captions of cutscenes) and the
+few boxes the game renders into VRAM itself. While a bubble zooms, its
+glyphs are sampled nearest from the atlas like MMPX's. `ROOD_UI_DEBUG=4`
+lists 2D regions on the glyph pages that are not glyphs. RPC `ui_text`
+reports the styles and counters and takes style overrides.
+
+The fonts were chosen with `pc/tools/font_match.py`, which never ships
+anything of the game: `capture` reads the glyphs from your running game's
+VRAM (a save on `pc/save/card1.mcd`), `fetch` downloads OFL/Apache
+candidates from the Google Fonts repository and `rank` places each candidate
+exactly as `ui_text.c` does and scores it against the original glyphs (soft
+IoU and chamfer distance of the ink at 1x, stroke weight, distortion), with
+contact sheets and `report.txt`, all in the ignored `pc/build/font_match`.
+Its runner-up fonts can be tried without rebuilding through the
+`ui_text_<style>_font` settings.
 
 ### Lighting the room's fixtures, light actors and Place Actors
 
@@ -810,8 +855,9 @@ thread once per vsync, so each method runs at a frame boundary:
 | `screenshot` | `path` | displayed frame (native resolution) as a PPM |
 | `gpu_dump` | `path` | the whole scaled hardware VRAM target as a PPM |
 | `gpu_draw` | `packet` (GP0 words, hex), `texture` (hex texels) with `texture_x/y/w/h`, `area_x/y/w/h`, `offset_x/y` | tests: load texels, set the drawing area, draw the commands on both rasterizers (`flipped_sprite_smoke.py`) |
-| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_trace` N), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `lighting_preset` and the lighting quality keys, ... | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
+| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_trace` N), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `lighting_preset` and the lighting quality keys, ... | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
 | `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
+| `ui_text` | `ui_text` (`original`/`font`), `style` with `font`, `stretch`, `slant`, `embolden` | the text fonts: option, each style (font, placement, `loaded`), fonts loaded, glyph fields made, glyph regions drawn from fonts (`regions`) and fallen back (`failed`); a `style` with values changes it as the `ui_text_<style>_*` settings do |
 | `settings` | `action` (`save`, `load`) | the `ROOD_SETTINGS` file (a loaded preset applies at once) |
 | `perf` | `reset` | GPU time per presented frame since the last reset (`ROOD_PERF=1`; Vulkan timestamps, GL timer queries); GL adds `presents`, `gpu_wait_ms` (CPU waits for frames in flight), `gi_traced`/`gi_reused`, `gi_gpu_ms`, `gi_budget_ms`, `gi_interval` (path tracer cadence) |
 | `lighting_autodetect` | `ray_query`, `integrated` | the first-run preset for those capabilities |
