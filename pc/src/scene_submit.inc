@@ -166,3 +166,19 @@ void func_8008AC78(void)
         setRGB1(edge, 0, 128, 0);
     }
 }
+
+/* Host-only queries for gameplay_walls.c (smart cutaway walls). */
+extern char D_800F4C34; /* the event runner's state (4A0A8.c): nonzero while an event loads or runs */
+int pc_battle_event_running(void) { return D_800F4C34 != 0; }
+/* The battle camera's target (weapon drawn, a target chosen: the point the
+ * camera follows in its modes 1 and 3), as func_8007ACB0's caller reads it. */
+int pc_battle_camera_target(int position[3])
+{
+    if (vs_battle_characterState == NULL || vs_battle_characterState->weaponDrawn != 1 || D_800F19CC == NULL
+        || D_800F19CC->unk298D == 0xFF || D_800F19CC->unk2C00 == 0 || D_800F19CC->unk298D >= 23)
+        return 0;
+    position[0] = D_800F19CC->unk29C0[D_800F19CC->unk298D].unk0.vx;
+    position[1] = D_800F19CC->unk29C0[D_800F19CC->unk298D].unk0.vy;
+    position[2] = D_800F19CC->unk29C0[D_800F19CC->unk298D].unk0.vz;
+    return 1;
+}

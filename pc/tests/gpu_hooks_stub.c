@@ -30,6 +30,10 @@ void pc_hw_copy(int sx, int sy, int dx, int dy, int w, int h)
     (void)sx, (void)sy, (void)dx, (void)dy, (void)w, (void)h;
 }
 void pc_hw_set_2d(int is_2d) { (void)is_2d; }
+void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv, const int* clip)
+{
+    (void)x0, (void)y0, (void)x1, (void)y1, (void)code, (void)tpage, (void)uv, (void)clip;
+}
 void pc_hw_set_depth(const int* depth) { (void)depth; }
 int pc_gte_projected(int sx, int sy) { return (void)sx, (void)sy, 0; }
 int pc_gte_projected_depth(int sx, int sy, int* sz) { return (void)sx, (void)sy, (void)sz, 0; }

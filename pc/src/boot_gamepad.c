@@ -14,6 +14,7 @@
 
 static SDL_Gamepad* pad;
 static unsigned mask;
+static float right_stick[2]; /* -1..1, SDL's direction (down is +y) */
 static const char* requested;
 static char requested_event[300];
 
@@ -107,6 +108,7 @@ void pc_controller_event(const SDL_Event* event)
         SDL_CloseGamepad(pad);
         pad = NULL;
         mask = 0;
+        right_stick[0] = right_stick[1] = 0;
         fprintf(stderr, "[controller] disconnected\n");
         open_first(event->gdevice.which);
     }
@@ -116,6 +118,7 @@ void pc_controller_poll(void)
 {
     if (!pad) {
         mask = 0;
+        right_stick[0] = right_stick[1] = 0;
         return;
     }
     PcControllerState state;
@@ -124,6 +127,15 @@ void pc_controller_poll(void)
     for (int i = 0; i < SDL_GAMEPAD_AXIS_COUNT; i++)
         state.axes[i] = SDL_GetGamepadAxis(pad, (SDL_GamepadAxis)i);
     mask = pc_controller_mask(&state);
+    right_stick[0] = state.axes[SDL_GAMEPAD_AXIS_RIGHTX] / 32767.0f;
+    right_stick[1] = state.axes[SDL_GAMEPAD_AXIS_RIGHTY] / 32767.0f;
 }
 
 unsigned pc_controller_buttons(void) { return mask; }
+/* The right stick (the PS1 pad stays digital: the camera reads it,
+ * camera_stick.c); 0 without a gamepad. */
+void pc_controller_right_stick(float out[2])
+{
+    out[0] = right_stick[0] < -1 ? -1 : right_stick[0];
+    out[1] = right_stick[1] < -1 ? -1 : right_stick[1];
+}

@@ -1164,6 +1164,10 @@ bool actor_parse(const char* line, Actor& out)
             a.glow_key = text;
             continue;
         }
+        if (k == "fixture_type") {
+            a.fixture_type = text;
+            continue;
+        }
         Value v;
         if (!parse_value(text.c_str(), v))
             continue;
@@ -1177,8 +1181,11 @@ bool actor_parse(const char* line, Actor& out)
         } else if (k == "fixture" && v.n == 3) {
             a.fixture = true;
             memcpy(a.fixture_at, v.v, sizeof a.fixture_at);
-        } else if (k == "fixture_radius")
+        } else if (k == "fixture_radius") {
             a.fixture_radius = v.x();
+            a.fixture_radius_set = true;
+        } else if (k == "flame")
+            a.flame = (int)v.x();
         else if (k == "fixture_shadows")
             a.fixture_shadows = v.x() != 0;
         else
@@ -1203,9 +1210,19 @@ std::string actor_format(const Actor& a)
             out += " glowkey=" + a.glow_key;
     }
     if (a.fixture) {
-        snprintf(text, sizeof text, " fixture=%.1f,%.1f,%.1f fixture_radius=%g%s", a.fixture_at[0], a.fixture_at[1],
-            a.fixture_at[2], a.fixture_radius, a.fixture_shadows ? " fixture_shadows=1" : "");
+        snprintf(text, sizeof text, " fixture=%.1f,%.1f,%.1f", a.fixture_at[0], a.fixture_at[1], a.fixture_at[2]);
         out += text;
+        if (a.fixture_radius_set || a.fixture_type.empty()) {
+            snprintf(text, sizeof text, " fixture_radius=%g", a.fixture_radius);
+            out += text;
+        }
+        if (a.fixture_shadows)
+            out += " fixture_shadows=1";
+    }
+    if (!a.fixture_type.empty()) {
+        out += " fixture_type=" + a.fixture_type;
+        if (a.flame)
+            out += " flame=" + std::to_string(a.flame);
     }
     for (const auto& o : a.overrides) {
         if (o.second.n == 3)
@@ -1217,10 +1234,43 @@ std::string actor_format(const Actor& a)
     return out;
 }
 
+TypeHooks& type_hooks()
+{
+    static TypeHooks hooks;
+    return hooks;
+}
+static bool type_param(const Actor& a, const std::string& key, Value& out)
+{
+    return !a.fixture_type.empty() && type_hooks().param && type_hooks().param(a.fixture_type, key, out);
+}
+Value inherited_param(const Prefab& p, const Actor& a, const std::string& key, bool* from_type)
+{
+    Value v;
+    bool typed = type_param(a, key, v);
+    if (from_type)
+        *from_type = typed;
+    if (typed)
+        return v;
+    if (const Param* q = p.param(key))
+        return q->def;
+    return Value();
+}
+float actor_fixture_radius(const Actor& a)
+{
+    float r;
+    if (!a.fixture_radius_set && !a.fixture_type.empty() && type_hooks().fixture_radius
+        && type_hooks().fixture_radius(a.fixture_type, &r))
+        return r;
+    return a.fixture_radius;
+}
+
 Value actor_param(const Prefab& p, const Actor& a, const std::string& key)
 {
     if (const Value* v = a.override_of(key))
         return *v;
+    Value t;
+    if (type_param(a, key, t))
+        return t;
     if (const Param* q = p.param(key))
         return q->def;
     return Value();
@@ -1292,6 +1342,8 @@ void evaluate(const Prefab& p, const Actor& a, double time, bool animate, std::v
             v = *o;
             return true;
         }
+        if (type_param(a, name, v))
+            return true;
         if (const Param* q = p.param(name)) {
             v = q->def;
             return true;
@@ -1300,6 +1352,15 @@ void evaluate(const Prefab& p, const Actor& a, double time, bool animate, std::v
     };
     float right[3], down[3], forward[3];
     rotation_basis(a.rotation, right, down, forward);
+    /* A fixture type's light offset (from the flame, in the actor's frame). */
+    float pivot[3] = { a.position[0], a.position[1], a.position[2] }, type_offset[3];
+    if (!a.fixture_type.empty() && type_hooks().offset && type_hooks().offset(a.fixture_type, a.flame, type_offset)) {
+        float w[3];
+        to_world(right, down, forward, type_offset, w);
+        for (int k = 0; k < 3; k++)
+            pivot[k] += w[k];
+    }
+    float skip = a.fixture && !a.fixture_shadows ? fmaxf(actor_fixture_radius(a), 0) : 0;
     int index = 0;
     for (const LightTemplate& t : p.lights) {
         EvalLight l;
@@ -1310,7 +1371,7 @@ void evaluate(const Prefab& p, const Actor& a, double time, bool animate, std::v
         float local[3] = { offset.at(0), offset.at(1), offset.at(2) }, world[3];
         to_world(right, down, forward, local, world);
         for (int k = 0; k < 3; k++)
-            l.position[k] = a.position[k] + world[k];
+            l.position[k] = pivot[k] + world[k];
         Value dir = expr_eval(t.direction, lookup, Value::vec(0, 0, 1));
         float ld[3] = { dir.at(0), dir.at(1), dir.at(2) };
         to_world(right, down, forward, ld, l.direction);
@@ -1327,7 +1388,7 @@ void evaluate(const Prefab& p, const Actor& a, double time, bool animate, std::v
         l.size[0] = fmaxf(size.at(0), 1), l.size[1] = fmaxf(size.n == 3 ? size.v[1] : size.v[0], 1);
         l.shadows = expr_eval(t.shadows, lookup, Value::scalar(0)).x() > 0.5f;
         l.light_size = fmaxf(expr_eval(t.light_size, lookup, Value::scalar(0)).x(), 0);
-        l.shadow_skip = a.fixture && !a.fixture_shadows ? fmaxf(a.fixture_radius, 0) : 0;
+        l.shadow_skip = skip;
         if (animate) {
             uint32_t seed = hash32(a.seed * 2654435761u + (uint32_t)index * 7919u + (uint32_t)(t.phase * 1000.0f));
             float flicker = expr_eval(t.flicker, lookup, Value::scalar(0)).x();
@@ -1363,13 +1424,19 @@ int glow_drive(const Prefab& p, const Actor& a, double time, bool animate, float
             v = *o;
             return true;
         }
+        if (type_param(a, name, v))
+            return true;
         if (const Param* q = p.param(name)) {
             v = q->def;
             return true;
         }
         return false;
     };
-    int mode = (int)lroundf(expr_eval(p.glow_mode, lookup, Value::scalar(1)).x());
+    /* A prefab without a glow mode still takes its fixture type's. */
+    Value typed;
+    int mode = p.glow_mode || !lookup("glow_mode", typed)
+        ? (int)lroundf(expr_eval(p.glow_mode, lookup, Value::scalar(1)).x())
+        : (int)lroundf(typed.x());
     if (mode == 1) {
         float s = expr_eval(p.glow_scale, lookup, Value::scalar(1)).x();
         if (animate && !p.lights.empty()) {

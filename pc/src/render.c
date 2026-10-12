@@ -328,6 +328,8 @@ typedef struct {
     uint16_t carrier_instance;
     uint8_t carrier_bone;
     float blend_offset, blend_scale; /* render_instance's (scale 1 when 0) */
+    float cut, cut_previous; /* render_instance's dithered share left out */
+    int cut_ghost;
 } list_instance;
 typedef struct {
     uint32_t id;
@@ -813,6 +815,9 @@ void render_list_add(uint32_t id, const render_instance* instance)
     in->blend = instance->blend;
     in->owner = instance->owner;
     in->blend_offset = instance->blend_offset;
+    in->cut = instance->cut;
+    in->cut_previous = instance->cut_previous;
+    in->cut_ghost = instance->cut_ghost;
     in->blend_scale = instance->blend_scale > 0 ? instance->blend_scale : 1.0f;
     in->carrier_list = 0;
     if (previous && list->rules.objects) {
@@ -1553,6 +1558,7 @@ static const char* fragment_source =
     "noperspective in vec3 v_bary;\n"
     "uniform vec4 cut_focus;\n"
     "uniform vec4 cut_scale;\n"
+    "uniform vec4 instance_cut;\n" /* render_instance.cut: share left out (x), ghost edges (y) */
     "uniform int perspective;\n"
     "uniform int filtering;\n"
     "uniform uint window;\n"
@@ -1623,6 +1629,19 @@ static const char* fragment_source =
     "        }\n"
     "        if (cover < bayer4(ivec2(gl_FragCoord.xy))) discard;\n"
     "        ghost = keep < 0.5;\n"
+    "    }\n"
+    /* A dithered share of the whole instance left out (gameplay smart
+     * walls fading, or ghosts with their edges kept). */
+    "    if (instance_cut.x > 0.0) {\n"
+    "        float cover = 1.0 - instance_cut.x;\n"
+    "        if (instance_cut.y > 0.0) {\n"
+    "            vec3 d = v_bary / max(bary_step, vec3(1e-6));\n"
+    "            int e = v_cut >> 1;\n"
+    "            float near_edge = min(min((e & 1) != 0 ? d.x : 1e9, (e & 2) != 0 ? d.y : 1e9), (e & 4) != 0 ? d.z : 1e9);\n"
+    "            if (near_edge < 1.0) cover = 1.0;\n"
+    "            ghost = true;\n"
+    "        }\n"
+    "        if (cover < bayer4(ivec2(gl_FragCoord.xy))) discard;\n"
     "    }\n"
     "    float depth = clamp(v_z / 65536.0, 0.0, 1.0);\n"
     /* PS1 order within a model: hidden only by what was drawn before the
@@ -1696,7 +1715,7 @@ static const char* fragment_source =
 static GLint u_bone_rotation, u_bone_translation, u_normal_matrix, u_projection, u_offset, u_rules, u_split, u_tint,
     u_clip_z, u_perspective, u_filtering, u_window, u_mask_set, u_vram, u_objects, u_zsf3, u_override_color,
     u_override_texture, u_surface, u_depth_pass, u_surface_depth, u_painter, u_surface_before, u_instance_blend,
-    u_translucent, u_forced, u_semi_pass, u_surface_test, u_cut_focus, u_cut_scale, u_uv_offset, u_uv_count, u_uv_window,
+    u_translucent, u_forced, u_semi_pass, u_surface_test, u_cut_focus, u_cut_scale, u_instance_cut, u_uv_offset, u_uv_count, u_uv_window,
     u_uv_shift;
 static GLuint element_buffer; /* PS1 draw order, streamed per list */
 
@@ -1747,6 +1766,7 @@ static int ensure_program(void)
     U(surface_test);
     U(cut_focus);
     U(cut_scale);
+    U(instance_cut);
 #undef U
     gl_GenBuffers(1, &element_buffer);
     u_bone_rotation = gl_GetUniformLocation(program, "bone_rotation[0]");
@@ -1799,6 +1819,15 @@ static void upload_palette(const render_camera* cam, const render_transform* pal
         gl_UniformMatrix3fv(u_normal_matrix, 1, GL_FALSE, cof);
     }
 }
+/* render_instance.cut at blend t (frame interpolation between game frames). */
+static float instance_cut(const list_instance* in, float t)
+{
+    if (in->cut <= 0 && in->cut_previous <= 0)
+        return 0;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    float cut = in->cut_previous + (in->cut - in->cut_previous) * t;
+    return cut < 0 ? 0 : cut > 1 ? 1 : cut;
+}
 /* Uniforms and vertex array for one instance; returns its mesh. */
 static mesh_slot* use_instance(const draw_list* list, const list_instance* in, const render_target* target,
     const render_camera* cam, int pass, int* interpolated)
@@ -1815,6 +1844,7 @@ static mesh_slot* use_instance(const draw_list* list, const list_instance* in, c
     gl_Uniform4i(u_override_color, in->color[0], in->color[1], in->color[2], in->override & RENDER_OVERRIDE_COLOR ? 1 : 0);
     gl_Uniform4i(u_override_texture, in->tpage, in->clut, in->override & RENDER_OVERRIDE_TEXTURE ? 1 : 0, 0);
     gl_Uniform2i(u_instance_blend, in->blend != 0, in->blend ? ((in->blend - 1) & 3) << 5 : 0);
+    gl_Uniform4f(u_instance_cut, instance_cut(in, target->t), in->cut_ghost ? 1.0f : 0.0f, 0, 0);
     gl_BindVertexArray(mesh->vao);
     return mesh;
 }

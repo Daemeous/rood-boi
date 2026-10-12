@@ -29,6 +29,7 @@ layout(std140, binding = 0) uniform Draw {
     // space with the rows' scales divided out (xyz), radius (w; 0: off)
     vec4 cut_focus;
     vec4 cut_scale; // 240: 1 / the view rows' scales (xyz); share of a cut surface's pixels kept (w; 1 none cut)
+    vec4 instance_cut; // 256: render_instance.cut: share of the instance's pixels left out (x), ghost edges (y)
 } u;
 // Animated materials (render_list_uv_effects), entry 0 none: the UV offset
 // the game's effect writes this frame (offset.xy), its window (base u, v,

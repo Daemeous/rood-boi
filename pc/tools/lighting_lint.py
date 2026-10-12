@@ -8,7 +8,8 @@
 
 Checks every room file of every layer: syntax and the format header; known
 kinds and keys (prefab parameters against pc/assets/prefabs, room settings
-against pc/src/room_settings.cpp); required fields and value shapes;
+against pc/src/room_settings.cpp, fixture types against the fixture catalog
+pc/assets/fixtures/catalog.json); required fields and value shapes;
 duplicate ids in a file; overrides and deletes that name an id no layer
 below defines (dangling: an item was removed or renamed under them);
 overrides in generated layers; canonical formatting and id order; file
@@ -79,9 +80,28 @@ class Report:
             self.warnings += 1
 
 
+def fixture_types():
+    """The catalog's type ids (pc/assets/fixtures/catalog.json), or None."""
+    try:
+        data = json.loads((ROOT / "pc/assets/fixtures/catalog.json").read_text())
+    except (OSError, ValueError):
+        return None
+    return {t.get("id") for t in data.get("types", [])}
+
+
+FIXTURE_TYPES = None
+
+
 def check_values(report, path, e, prefabs, settings):
+    global FIXTURE_TYPES
     kind = e.id.split(":", 1)[0]
     fields = e.item.fields if e.verb == "define" else e.set
+    ftype = dict(fields).get("fixture_type")
+    if ftype is not None:
+        if FIXTURE_TYPES is None:
+            FIXTURE_TYPES = fixture_types() or set()
+        if FIXTURE_TYPES and ftype not in FIXTURE_TYPES:
+            report("error", path, e.line, f"{e.id}: fixture_type {ftype} is not in pc/assets/fixtures/catalog.json")
     if kind not in lf.SCHEMA:
         report("error", path, e.line, f"unknown kind '{kind}' (the game ignores it)")
         return

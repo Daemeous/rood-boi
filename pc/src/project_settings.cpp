@@ -30,7 +30,9 @@ extern float pc_editor_cutaway_radius, pc_editor_cutaway_opacity;
 extern int pc_lights_snap;
 extern float pc_lights_snap_move, pc_lights_snap_angle;
 }
+#include "camera_stick.h" /* the right-stick camera (camera_stick_*) */
 #include "editor_overlays.h"
+#include "gameplay_walls.h" /* gameplay_walls original | smart, gameplay_walls_ghost, _opacity, _radius */
 #include "lighting_quality.h" /* the lighting quality keys (lighting_preset, gi_method, shadows, ...) */
 #include "probe_gi.h"
 #include "ui_upscale.h" /* 2D / UI: ui_upscale nearest | mmpx, ui_subpixel */
@@ -92,6 +94,9 @@ const Entry entries[] = {
     I("probe_show", pc_probe_show),
     I("light_animation", rood_lights::animate),
     F("normal_smoothing", pc_normal_smoothing),
+    I("gameplay_walls_ghost", pc_gameplay_walls_ghost),
+    F("gameplay_walls_opacity", pc_gameplay_walls_opacity),
+    F("gameplay_walls_radius", pc_gameplay_walls_radius),
     I("editor_hide_masks", pc_editor_hide_masks),
     I("editor_game_cutaway", pc_editor_game_cutaway),
     I("editor_cutaway", pc_editor_cutaway),
@@ -115,6 +120,22 @@ const Entry entries[] = {
     F("editor_snap_radius", pc_snap_radius),
     F("editor_snap_highlight", pc_snap_highlight),
     F("editor_snap_offset", pc_snap_offset),
+    /* The right-stick camera (camera_stick.c). */
+    I("camera_stick", pc_camera_stick),
+    F("camera_stick_speed", pc_camera_stick_speed),
+    F("camera_stick_deadzone", pc_camera_stick_deadzone),
+    F("camera_stick_curve", pc_camera_stick_curve),
+    I("camera_stick_invert_x", pc_camera_stick_invert_x),
+    I("camera_stick_invert_y", pc_camera_stick_invert_y),
+    I("camera_stick_zoom", pc_camera_stick_zoom),
+    F("camera_stick_zoom_speed", pc_camera_stick_zoom_speed),
+    F("camera_stick_zoom_min", pc_camera_stick_zoom_min),
+    F("camera_stick_zoom_max", pc_camera_stick_zoom_max),
+    F("camera_stick_zoom_pitch", pc_camera_stick_zoom_pitch),
+    I("camera_stick_collision", pc_camera_stick_collision),
+    I("camera_stick_r3_reset", pc_camera_stick_r3),
+    F("camera_stick_idle_reset", pc_camera_stick_idle_reset),
+    I("camera_stick_keys", pc_camera_stick_keys),
 };
 const char* path()
 {
@@ -163,6 +184,15 @@ int apply_line(const char* line, int* scale, bool now)
         for (int k = 0; k < 2; k++)
             if (!strcmp(name, pc_ui_upscale_names[k]) || (name[0] == '0' + k && !name[1]))
                 pc_ui_upscale = k;
+        return 1;
+    }
+    if (!strcmp(key, "gameplay_walls")) { /* original | smart (or 0 / 1) */
+        char name[32] = "";
+        sscanf(rest, "%31s", name);
+        if (!strcmp(name, "original") || !strcmp(name, "0"))
+            pc_gameplay_walls = 0;
+        else if (!strcmp(name, "smart") || !strcmp(name, "1"))
+            pc_gameplay_walls = 1;
         return 1;
     }
     if (!strcmp(key, "lighting_packs") || !strcmp(key, "lighting_active_pack")) {
@@ -241,6 +271,7 @@ extern "C" void pc_settings_write(FILE* f)
         fprintf(f, "drop_shadows %d\n", pc_drop_shadow_mode);
     pc_lighting_settings_write(f);
     fprintf(f, "ui_upscale %s\n", pc_ui_upscale_names[pc_ui_upscale ? 1 : 0]);
+    fprintf(f, "gameplay_walls %s\n", pc_gameplay_walls ? "smart" : "original");
     fprintf(f, "lighting_packs %s\n", lighting::packs_setting().c_str());
     fprintf(f, "lighting_active_pack %s\n", lighting::active_pack_setting().c_str());
     for (const Entry& e : entries) {

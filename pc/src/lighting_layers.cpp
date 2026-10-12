@@ -36,11 +36,13 @@ const std::vector<KindSpec>& kinds()
             { { "name", -1, nullptr, false }, { "prefab", -1, nullptr, false }, { "pos", 1, nullptr, false },
                 { "rot", 2, "0,0,0", false }, { "seed", 0, "1", false }, { "enabled", 0, "1", false },
                 { "glow", 1, nullptr, true }, { "glowkey", -1, nullptr, false }, { "fixture", 1, nullptr, false },
-                { "fixture_radius", 1, "16", false }, { "fixture_shadows", 0, "0", false } },
+                { "fixture_radius", 1, "16", false }, { "fixture_shadows", 0, "0", false },
+                { "fixture_type", -1, nullptr, false }, { "flame", 0, "0", false } },
             true, 4 },
         { "glow",
             { { "pos", 1, nullptr, true }, { "muted", 0, "0", false }, { "intensity", 3, "1", false },
-                { "tint", 3, "1,1,1", false }, { "size", 2, "0", false }, { "reach", 1, "0", false } },
+                { "tint", 3, "1,1,1", false }, { "size", 2, "0", false }, { "reach", 1, "0", false },
+                { "fixture_type", -1, nullptr, false } },
             false, 4 },
         { "light",
             { { "name", -1, nullptr, false }, { "type", -1, "point", false }, { "pos", 1, nullptr, false },
@@ -1135,8 +1137,13 @@ Item item_from_actor(const prefab::Actor& a)
     }
     if (a.fixture) {
         it.set("fixture", vec(a.fixture_at, 3, 1));
-        it.set("fixture_radius", format_number(a.fixture_radius, 1));
+        if (a.fixture_radius_set || a.fixture_type.empty()) /* else its fixture type's */
+            it.set("fixture_radius", format_number(a.fixture_radius, 1));
         it.set("fixture_shadows", a.fixture_shadows ? "1" : "0");
+    }
+    if (!a.fixture_type.empty()) {
+        it.set("fixture_type", a.fixture_type);
+        it.set("flame", std::to_string(a.flame));
     }
     for (const auto& o : a.overrides) {
         if (field_spec("actor", o.first))
@@ -1170,8 +1177,12 @@ bool actor_from_item(const Item& it, prefab::Actor& a)
     if (get_vec(it, "fixture", a.fixture_at, 3)) {
         a.fixture = true;
         a.fixture_radius = (float)get_num(it, "fixture_radius", 16);
+        a.fixture_radius_set = it.get("fixture_radius") != nullptr;
         a.fixture_shadows = get_num(it, "fixture_shadows", 0) != 0;
     }
+    if (const std::string* t = it.get("fixture_type"))
+        a.fixture_type = *t;
+    a.flame = (int)get_num(it, "flame", 0);
     for (const auto& f : it.fields) {
         if (field_spec("actor", f.first))
             continue;
@@ -1236,6 +1247,11 @@ void legacy_items(const std::string& text, std::vector<Item>& out)
             it.set("tint", vec(g + 4, 3, 3));
             it.set("size", format_number(g[7], 2));
             it.set("reach", format_number(g[8], 1));
+            char t[16] = "";
+            if (const char* tp = strstr(c, " fixture_type="))
+                sscanf(tp + 14, "%15s", t);
+            if (t[0])
+                it.set("fixture_type", t);
             canonicalize(it);
             out.push_back(it);
             continue;

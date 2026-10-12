@@ -48,6 +48,10 @@ typedef struct {
     float reach; /* falloff radius; 0 keeps the default (Glow reach) */
     char key[PC_GLOW_KEY]; /* the glow's persistent key ("" in old room files: by position) */
     uint32_t bound; /* the glow id it applies to this visit (0: not found yet) */
+    /* The fixture type the glow belongs to (generated: "T061"; ""): the type's
+     * glow treatment applies (pc/assets/fixtures/catalog.json: a cobweb's,
+     * a light shaft's glow is suppressed), unless muted says otherwise. */
+    char fixture_type[16];
 } pc_glow_override;
 
 /* One glow (pc_gi_glow_list). */
@@ -64,11 +68,12 @@ typedef struct {
     float strength; /* the tracers get color * strength (a room glow spanning several 96-unit pieces) */
     int observed; /* the source drew glowing triangles this frame */
     int triangles; /* how many */
-    int muted; /* 1 muted, 2 left out by a solo, 3 its category is off */
+    int muted; /* 1 muted, 2 left out by a solo, 3 its category is off, 4 its fixture type suppresses it */
     int overridden; /* has an override */
     int traced; /* among the emitters the tracers use this frame */
     int category; /* PC_GLOW_FIXTURE / _MAGIC / _EFFECT */
     int casts_shadows; /* its light may be shadowed (never for effects) */
+    char fixture_type[16]; /* its fixture type (from the room's lighting layers), "" */
 } pc_glow_info;
 
 /* Every glow of the room visit, in id order (up to max). */
@@ -94,13 +99,18 @@ int pc_gi_emitter_soloed(const float p[3]);
 void pc_gi_emitter_solo(const float p[3]);
 
 void pc_gi_glows_reset(void);
-/* "glow x y z muted intensity r g b size reach [key=KEY]" (room files; the
- * key is new, lines without one match the glow nearest their position). */
+/* "glow x y z muted intensity r g b size reach [key=KEY] [fixture_type=T]"
+ * (room files; the key is new, lines without one match the glow nearest
+ * their position). */
 int pc_gi_glows_parse(const char* line);
 void pc_gi_glows_write(FILE* f);
 /* Every override as it is (the editor's undo), and replacing them all. */
 int pc_gi_glows_get(pc_glow_override* out, int max);
 void pc_gi_glows_set(const pc_glow_override* in, int count);
+
+/* A fixture type's glow treatment (fixture_catalog.cpp): 0 leave, 1 drive,
+ * 2 suppress, -1 unknown type. */
+int pc_fixture_glow_mode(const char* type);
 
 /* Per category: enabled, intensity multiplier, reach multiplier, casts
  * shadows (forced off for effects), smoothing seconds (room settings

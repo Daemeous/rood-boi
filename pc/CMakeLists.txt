@@ -33,6 +33,16 @@ target_compile_features(lighting_probe PRIVATE cxx_std_17)
 target_compile_options(lighting_probe PRIVATE -Wall -Wextra -Werror)
 add_test(NAME lighting_layers COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/lighting_layers_test.py
     --probe $<TARGET_FILE:lighting_probe>)
+# The fixture catalog (pc/assets/fixtures/catalog.json): the game's reader
+# against the tools' (schema, resolved types, canonical file), and the
+# generated layer (lint, determinism, up to date when the disc is there).
+add_executable(fixture_probe tests/fixture_probe.cpp src/fixture_catalog.cpp src/light_prefabs.cpp)
+target_include_directories(fixture_probe PRIVATE src)
+target_compile_features(fixture_probe PRIVATE cxx_std_17)
+target_compile_options(fixture_probe PRIVATE -Wall -Wextra -Werror)
+add_test(NAME fixture_catalog COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixture_catalog_test.py
+    --probe $<TARGET_FILE:fixture_probe>)
+set_tests_properties(fixture_catalog PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..)
 add_custom_target(boot
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/build_boot.py
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
@@ -56,6 +66,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_compile_options(controller_probe PRIVATE -Wall -Wextra -Werror)
     add_test(NAME controller_probe COMMAND controller_probe)
 endif()
+
+# The right-stick camera's logic (camera_stick.c) against a fake game camera.
+add_executable(camera_stick_probe tests/camera_stick_probe.c src/camera_stick.c)
+target_include_directories(camera_stick_probe PRIVATE src)
+target_compile_options(camera_stick_probe PRIVATE -Wall -Wextra -Werror)
+target_link_libraries(camera_stick_probe PRIVATE m)
+add_test(NAME camera_stick_probe COMMAND camera_stick_probe)
 
 # Exercise the actual packet decoder without running game code or opening a window.
 add_library(gpu_probe_runtime OBJECT src/boot_runtime.c)

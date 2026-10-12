@@ -59,6 +59,19 @@ void main() {
         if (cover < bayer4(ivec2(gl_FragCoord.xy))) discard;
         ghost = keep < 0.5;
     }
+    // A dithered share of the whole instance left out (gameplay smart walls
+    // fading, or ghosts with their edges kept; render.c instance_cut).
+    if (u.instance_cut.x > 0.0) {
+        float cover = 1.0 - u.instance_cut.x;
+        if (u.instance_cut.y > 0.0) {
+            vec3 d = v_bary / max(bary_step, vec3(1e-6));
+            int e = v_cut >> 1;
+            float near_edge = min(min((e & 1) != 0 ? d.x : 1e9, (e & 2) != 0 ? d.y : 1e9), (e & 4) != 0 ? d.z : 1e9);
+            if (near_edge < 1.0) cover = 1.0;
+            ghost = true;
+        }
+        if (cover < bayer4(ivec2(gl_FragCoord.xy))) discard;
+    }
     float depth = clamp(v_z / 65536.0, 0.0, 1.0);
     // PS1 order within a model: hidden only by what was drawn before the
     // model (the room, other models); its own polygons paint over each other.

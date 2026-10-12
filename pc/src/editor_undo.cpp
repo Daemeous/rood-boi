@@ -170,7 +170,8 @@ bool same_actor(const prefab::Actor& a, const prefab::Actor& b)
         && !memcmp(a.rotation, b.rotation, sizeof a.rotation) && a.enabled == b.enabled && a.seed == b.seed
         && same_overrides(a, b) && a.glow_linked == b.glow_linked && a.fixture == b.fixture
         && a.fixture_shadows == b.fixture_shadows && !memcmp(a.fixture_at, b.fixture_at, sizeof a.fixture_at)
-        && a.fixture_radius == b.fixture_radius;
+        && a.fixture_radius == b.fixture_radius && a.fixture_radius_set == b.fixture_radius_set
+        && a.fixture_type == b.fixture_type && a.flame == b.flame;
 }
 bool same_glow(const pc_glow_override& a, const pc_glow_override& b)
 {

@@ -62,8 +62,20 @@ with design notes in [`pc/docs/`](pc/docs).
   fog) and 16:9 are opt-in.
 - **Live editor** (Escape): free camera, an Outliner of the room's lights and
   glows, light actors from JSON prefabs (candles, torches, lanterns...),
-  one-click lighting of the room's fixtures, snapping, undo/redo, per-room
-  lighting and atmosphere settings saved as plain text files.
+  one-click lighting of the room's fixtures, Houdini-style point/edge/surface
+  snapping, undo/redo, and a **Room Browser** that warps to any room of the
+  game for lighting work (saves are blocked while warped).
+- **Lighting as data.** Room lighting lives in layered, diff-friendly text
+  packs under `lighting/` (generated, hand-authored, personal), so lighting
+  can be reviewed and contributed as pull requests. A **fixture catalog**
+  classifies every candle, torch, lantern and brazier type in the game once
+  (hashes and numbers, no game data), and a generator lights every instance
+  from it; tuning a type updates all of its instances.
+- **Camera and view options.** The right stick turns and zooms the game's own
+  follow camera; optional *smart* cutaway walls hide only the walls actually
+  between the camera and Ashley; optional MMPX upscaling for 2D/UI.
+- **Room texture animations** (scrolling sigils and the like) run as GPU
+  material effects driven by the game's own animation state.
 - **Audio and video.** The original sound driver on a software SPU (music,
   effects, reverb), the intro movie (MDEC video and XA audio), memory cards
   as standard `.mcd` images that emulators also read.
@@ -90,7 +102,8 @@ been played through to the end. Known gaps:
   Rarely reached branches (some spells, effects and enemy AI routines) are
   less tested than the rooms the tests visit.
 - The game sees a digital PS1 pad: a gamepad's left stick works as a
-  D-pad; there is no analog control, button pressure or rumble.
+  D-pad (the right stick drives the camera); there is no analog movement,
+  button pressure or rumble.
 - Widescreen (16:9) is experimental and off by default; HDR output is not
   implemented.
 - 32-bit Vulkan drivers have no ray tracing: the Vulkan renderer and the
@@ -276,6 +289,7 @@ Continue to load from the memory card.
 | 1 / 2 | L2 / R2 |
 | Enter | Start |
 | Tab | Select |
+| J / L, I / K, O | camera: turn, zoom, reset (the right stick and R3 on a gamepad) |
 | Escape or F1 | open/close the editor |
 | F2 | free camera (opens the editor) |
 
@@ -283,7 +297,13 @@ Continue to load from the memory card.
 from `SDL_GAMECONTROLLERCONFIG` or a `gamecontrollerdb.txt` in `pc/user/`).
 Buttons map by position, so the east face button is Circle (confirm) and the
 south one Cross (cancel) on any pad; D-pad or left stick moves; shoulders,
-triggers, Start/Select (Back) and stick clicks map to their PS1 equivalents.
+triggers, Start/Select (Back) and the left stick click map to their PS1
+equivalents. The **right stick** turns the camera around Ashley (left/right,
+faster the further it is pushed) and zooms (up/down); **R3** turns it back to
+the game's 45-degree view and distance. L1/R1 still turn in 45-degree steps;
+Start (or R3 with the reset turned off) is the first-person view. Settings:
+the editor's Graphics > Controls (speed, dead zone, curve, invert, zoom
+range, idle reset; see `pc/README.md`, "Right-stick camera").
 PlayStation controllers, including the **DualSense** and DualShock 4 over USB
 or Bluetooth, work as ordinary gamepads; their touchpad, motion sensors,
 lightbar, rumble and adaptive triggers are not used. Gamepads can be plugged

@@ -432,6 +432,8 @@ static uint32_t last_list;
 static int instance_index; /* of the group being walked (-1: none) */
 static const group_mesh* instance_mesh;
 static int translucent_failed;
+static float next_cut, next_cut_previous; /* pc_room_native_group_cut */
+static int next_cut_ghost;
 
 extern int pc_live_camera_active(void) __attribute__((weak));
 /* func_8009723C begins: returns pc_native_room's mode when the native list
@@ -441,6 +443,7 @@ int pc_room_native_begin(const void* data, unsigned mode, const unsigned* first)
     list = 0;
     instance_index = -1;
     instance_mesh = NULL;
+    next_cut = next_cut_previous = 0, next_cut_ghost = 0;
     /* The room's texture effects this frame (animated materials, and the
      * ray-traced scene's UVs). */
     pc_uv_effects_frame(data);
@@ -523,6 +526,12 @@ int pc_room_native_begin(const void* data, unsigned mode, const unsigned* first)
     translucent_failed = 0;
     return list_mode;
 }
+/* The next group's dithered share left out (gameplay_walls.c's fades and
+ * ghosts; room_geometry.c sets it before each pc_room_native_group). */
+void pc_room_native_group_cut(float cut, float cut_previous, int ghost)
+{
+    next_cut = cut, next_cut_previous = cut_previous, next_cut_ghost = ghost;
+}
 /* A visible group (room_geometry.c decided): its camera-composed matrix
  * (group + 0x20) and the packet flags `gp` (bias in the top half,
  * subdivision level in bits 13-14). */
@@ -556,6 +565,8 @@ void pc_room_native_group(const void* group_record, unsigned gp)
     }
     instance.bias = (int)gp >> 16;
     instance.subdivision_level = (int)((gp >> 13) & 3);
+    instance.cut = next_cut, instance.cut_previous = next_cut_previous, instance.cut_ghost = next_cut_ghost;
+    next_cut = next_cut_previous = 0, next_cut_ghost = 0;
     render_list_add(list, &instance);
     ++instance_index;
     instance_mesh = m;
@@ -712,6 +723,14 @@ static int group_is_black(const void* data, unsigned index)
     }
     editor_black[index] = (signed char)black;
     return black;
+}
+/* A black shell group of the current room block (gameplay_walls.c keeps
+ * them hidden). */
+int pc_room_group_black(const void* data, unsigned index)
+{
+    if (!editor_block(data) || index >= editor_count)
+        return 0;
+    return group_is_black(data, index);
 }
 /* The facing mask func_8009723C tests while the free camera flies: the bits
  * scene_submit.inc sets for a game camera with the free camera's yaw (from

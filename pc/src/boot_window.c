@@ -10,6 +10,7 @@
 #include <string.h>
 #include <time.h>
 #include "boot_controller.h"
+#include "camera_stick.h"
 #ifdef ROOD_VULKAN
 #include "vk_hooks.h" /* ROOD_RENDERER=vulkan: vk_present.c */
 #endif
@@ -17,6 +18,7 @@ static int focused = 1;
 static SDL_Window* window;
 static SDL_Surface* image;
 static unsigned buttons;
+static unsigned camera_keys; /* J L I K O held (camera_stick.c keyboard fallback) */
 static int fast;
 extern int pc_gl_active;
 extern SDL_Window* pc_gl_create_window(const char*, int, int);
@@ -168,14 +170,48 @@ static unsigned keybit(SDL_Keycode key)
         return 0;
     }
 }
+/* The right-stick camera's keys: J/L turn, I/K zoom, O is R3 (reset). */
+static unsigned camera_keybit(SDL_Keycode key)
+{
+    switch (key) {
+    case SDLK_J:
+        return 1;
+    case SDLK_L:
+        return 2;
+    case SDLK_I:
+        return 4;
+    case SDLK_K:
+        return 8;
+    case SDLK_O:
+        return 16;
+    default:
+        return 0;
+    }
+}
 /* The editor opened (dev_overlay.cpp): keys held for the game now belong to
  * the editor, which takes their releases, so let go of them here. */
-void pc_window_release_keys(void) { buttons = 0; }
+void pc_window_release_keys(void) { buttons = camera_keys = 0; }
 extern unsigned pc_rpc_buttons(void);
 unsigned pc_window_buttons(void)
 {
     /* Developer RPC input (dev_rpc.c) applies even while unfocused. */
-    return (focused ? buttons | pc_controller_buttons() : 0) | pc_rpc_buttons();
+    unsigned keys = buttons | (pc_camera_stick_keys && (camera_keys & 16) ? 1u << 10 : 0);
+    unsigned result = (focused ? keys | pc_controller_buttons() : 0) | pc_rpc_buttons();
+    /* R3 resets the right-stick camera instead (camera_stick.c). */
+    return pc_camera_stick_buttons(result);
+}
+/* The camera's stick: the gamepad's right stick and the keys (focused). */
+int pc_window_stick(float out[2])
+{
+    out[0] = out[1] = 0;
+    if (!focused)
+        return 0;
+    pc_controller_right_stick(out);
+    if (pc_camera_stick_keys) {
+        out[0] += (camera_keys & 2 ? 1.0f : 0) - (camera_keys & 1 ? 1.0f : 0);
+        out[1] += (camera_keys & 8 ? 1.0f : 0) - (camera_keys & 4 ? 1.0f : 0);
+    }
+    return 1;
 }
 void pc_window_tick(void)
 {
@@ -191,7 +227,7 @@ void pc_window_tick(void)
         case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
             exit(0);
         case SDL_EVENT_WINDOW_FOCUS_LOST:
-            buttons = 0;
+            buttons = camera_keys = 0;
             focused = 0;
             break;
         case SDL_EVENT_WINDOW_FOCUS_GAINED:
@@ -207,9 +243,11 @@ void pc_window_tick(void)
             break;
         case SDL_EVENT_KEY_DOWN:
             buttons |= keybit(event.key.key);
+            camera_keys |= camera_keybit(event.key.key);
             break;
         case SDL_EVENT_KEY_UP:
             buttons &= ~keybit(event.key.key);
+            camera_keys &= ~camera_keybit(event.key.key);
             break;
         default:
             pc_controller_event(&event);

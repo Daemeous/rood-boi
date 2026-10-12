@@ -104,12 +104,18 @@ def suites(args, mode="egl"):
                   note="undo/redo transactions (actors, glows, groups), Delete, no shortcuts while typing"),
             Suite("facing_cutaway_smoke", [PY, str(TESTS / "facing_cutaway_smoke.py"), "--card", str(args.save)], 300,
                   note="game camera cutaway walls: native = packet path at 8 yaws, during turns (save room, room 13)"),
+            Suite("camera_stick_smoke", [PY, str(TESTS / "camera_stick_smoke.py"), "--card", str(args.save)], 600,
+                  note="right-stick camera: continuous yaw, facing masks, L1/R1, zoom limits, walls, R3, "
+                       "first-person/targeting, RT camera (Vulkan), opening's scripted camera unchanged"),
             Suite("editor_snap_smoke", [PY, str(TESTS / "editor_snap_smoke.py"), "--card", str(args.save)], 300,
                   note="editor overlays (edges, points) and point/edge/surface snapping in the save room"),
             Suite("room_browser_smoke", [PY, str(TESTS / "room_browser_smoke.py"), "--card", str(args.save)], 600,
                   note="Room Browser: rooms from the disc, warps across zones and back; lighting layers in the game"),
             Suite("light_actors_smoke", [PY, str(TESTS / "light_actors_smoke.py"), "--card", str(args.save)], 300,
                   note="Place Actors drag and drop, light actor prefabs, overrides, flicker, glow links (save room)"),
+            Suite("fixture_lighting_smoke", [PY, str(TESTS / "fixture_lighting_smoke.py"), "--card", str(args.save)],
+                  600, note="generated fixture lights: types, lit, shadow exclusion, glow links, suppressed glows, "
+                            "live type edits, catalog save, regenerate (zone 9)"),
             Suite("glow_stability_smoke", [PY, str(TESTS / "glow_stability_smoke.py"), "--card", str(args.save)], 600,
                   note="save point: one steady glow, stable id, overrides persist; prologue fight: effect glows unshadowed, smooth")]
           if args.save.exists() else []),
@@ -120,6 +126,9 @@ def suites(args, mode="egl"):
           if args.save.exists() else []),
         *([Suite("texture_animation_smoke", [PY, str(TESTS / "texture_animation_smoke.py"), "--card", str(args.save)],
                  240, note="room texture animations (the save point) play on the native room")]
+          if args.save.exists() else []),
+        *([Suite("widescreen_smoke", [PY, str(TESTS / "widescreen_smoke.py"), "--card", str(args.save)], 300,
+                 note="16:9: door and cutscene fades, the map's picture cover the view's sides; HUD unchanged")]
           if args.save.exists() else []),
         *([Suite("save_menu_smoke", [PY, str(TESTS / "save_menu_smoke.py"), "--card", str(args.save)], 300,
                  note="DATA > LOAD slot images = disc data decode, on interpolated frames too (CLUT swaps)")]

@@ -27,10 +27,12 @@ SCHEMA = {
         ("name", -1, None, False), ("prefab", -1, None, False), ("pos", 1, None, False),
         ("rot", 2, "0,0,0", False), ("seed", 0, "1", False), ("enabled", 0, "1", False),
         ("glow", 1, None, True), ("glowkey", -1, None, False), ("fixture", 1, None, False),
-        ("fixture_radius", 1, "16", False), ("fixture_shadows", 0, "0", False)]),
+        ("fixture_radius", 1, "16", False), ("fixture_shadows", 0, "0", False),
+        ("fixture_type", -1, None, False), ("flame", 0, "0", False)]),
     "glow": (False, 4, [
         ("pos", 1, None, True), ("muted", 0, "0", False), ("intensity", 3, "1", False),
-        ("tint", 3, "1,1,1", False), ("size", 2, "0", False), ("reach", 1, "0", False)]),
+        ("tint", 3, "1,1,1", False), ("size", 2, "0", False), ("reach", 1, "0", False),
+        ("fixture_type", -1, None, False)]),
     "light": (False, 4, [
         ("name", -1, None, False), ("type", -1, "point", False), ("pos", 1, None, False),
         ("dir", 4, "0,1,0", False), ("color", 3, "1,0.75,0.45", False), ("intensity", 3, "1", False),

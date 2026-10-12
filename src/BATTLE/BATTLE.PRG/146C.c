@@ -2777,6 +2777,17 @@ void _snapLookAtToPosition(VECTOR* arg0)
 
 void func_8006E158(void)
 {
+#ifdef ROOD_PC
+    {
+        /* Right-stick camera (pc/src/camera_stick.c): continuous yaw and zoom
+         * wherever the game would take an L1/R1 turn. */
+        extern void pc_camera_stick_tick(void*, int) __attribute__((weak));
+        if (pc_camera_stick_tick) {
+            pc_camera_stick_tick(
+                &vs_battle_cameraCurrentSpherical, CAMERA_INPUT_LOCKED());
+        }
+    }
+#endif
     if (vs_battle_cameraCurrentSpherical.delta.yaw == 0) {
         if (!CAMERA_INPUT_LOCKED()) {
             if ((vs_main_buttonsPreviousState & 0xC) == 8) {
@@ -2788,6 +2799,16 @@ void func_8006E158(void)
                 vs_battle_cameraCurrentSpherical.delta.pitch =
                     (vs_battle_cameraCurrentSpherical.values.yaw + 0x200) & ~0x1FF;
             }
+#ifdef ROOD_PC
+            {
+                /* From a yaw the right stick left between the 45-degree
+                 * lines, R1 turns to the nearest line, as L1 does. */
+                extern void pc_camera_stick_turn(void*) __attribute__((weak));
+                if (pc_camera_stick_turn && vs_battle_cameraCurrentSpherical.delta.yaw) {
+                    pc_camera_stick_turn(&vs_battle_cameraCurrentSpherical);
+                }
+            }
+#endif
         }
     } else {
         switch (vs_battle_cameraCurrentSpherical.delta.yaw) {
@@ -8084,6 +8105,19 @@ void _computeSphericalOffset(
 
 void _setCameraPositionFromAngles(_sphericalValues* spherical)
 {
+#ifdef ROOD_PC
+    /* Right-stick camera (pc/src/camera_stick.c): the follow camera's zoom
+     * (with its pitch and the pull-in before walls) is applied to a copy, so
+     * the game's own values stay as they are. */
+    extern void pc_camera_stick_place(void*, const int*) __attribute__((weak));
+    _sphericalValues placed;
+    if (pc_camera_stick_place
+        && (spherical == &vs_battle_cameraCurrentSpherical.values)) {
+        placed = *spherical;
+        pc_camera_stick_place(&placed, (const int*)&vs_scratch.camera.lookAt);
+        spherical = &placed;
+    }
+#endif
     _computeSphericalOffset(
         &vs_scratch.camera.position, &vs_scratch.camera.lookAt, spherical);
 }

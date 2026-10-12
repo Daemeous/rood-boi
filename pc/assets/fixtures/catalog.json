@@ -1,0 +1,4836 @@
+{
+  "format": 1,
+  "comment": "Fixture types of the game's rooms (pc/docs/Fixture_Catalog.md). Hashes and numbers only; built from the user's disc by pc/tools/fixture_scan.py, then edited by hand or in the editor.",
+  "tolerance": { "abs": 4, "rel": 0.1 },
+  "classes": {
+    "candle": {
+      "family": "fire",
+      "description": "candle (holder and flame)",
+      "prefab": "candle",
+      "params": { "flame_height": 0 },
+      "fixture_radius": 14,
+      "enabled": true,
+      "glow": "drive"
+    },
+    "candelabra": {
+      "family": "fire",
+      "description": "candelabra / multi-candle holder",
+      "prefab": "candle",
+      "params": { "flame_height": 0 },
+      "fixture_radius": 14,
+      "enabled": true,
+      "glow": "drive"
+    },
+    "candle_flame": {
+      "family": "fire",
+      "description": "candle flame only (holder is room mesh)",
+      "prefab": "candle",
+      "params": { "flame_height": 0 },
+      "fixture_radius": 14,
+      "enabled": true,
+      "glow": "drive"
+    },
+    "wall_torch": {
+      "family": "fire",
+      "description": "wall torch",
+      "prefab": "torch",
+      "params": { "flame_height": 0, "reach": 0 },
+      "fixture_radius": 24,
+      "enabled": true,
+      "glow": "drive"
+    },
+    "torch_flame": {
+      "family": "fire",
+      "description": "torch flame only (holder is room mesh)",
+      "prefab": "torch",
+      "params": { "flame_height": 0, "reach": 0 },
+      "fixture_radius": 24,
+      "enabled": true,
+      "glow": "drive"
+    },
+    "standing_torch": {
+      "family": "fire",
+      "description": "standing torch / fire basket",
+      "prefab": "torch",
+      "params": { "flame_height": 0, "reach": 0 },
+      "fixture_radius": 24,
+      "enabled": true,
+      "glow": "drive"
+    },
+    "torch_group": {
+      "family": "fire",
+      "description": "group of torches / multi-flame stand",
+      "prefab": "torch",
+      "params": { "flame_height": 0, "reach": 0 },
+      "fixture_radius": 24,
+      "enabled": true,
+      "glow": "drive"
+    },
+    "brazier": {
+      "family": "fire",
+      "description": "brazier / fire bowl on a stand",
+      "prefab": "brazier",
+      "params": { "height": 0 },
+      "fixture_radius": 40,
+      "enabled": true,
+      "glow": "drive"
+    },
+    "fireplace": {
+      "family": "fire",
+      "description": "fireplace / hearth / campfire (large flame at floor level)",
+      "prefab": "fireplace",
+      "params": { "height": 0, "depth": 0 },
+      "fixture_radius": 48,
+      "enabled": true,
+      "glow": "drive"
+    },
+    "fire_sprite": {
+      "family": "fire",
+      "description": "large fire sprite only (hearth is room mesh)",
+      "prefab": "fireplace",
+      "params": { "height": 0, "depth": 0 },
+      "fixture_radius": 48,
+      "enabled": true,
+      "glow": "drive"
+    },
+    "lantern": {
+      "family": "fire",
+      "description": "lantern (hanging / standing cage)",
+      "prefab": "lantern",
+      "params": { "height": 0 },
+      "fixture_radius": 30,
+      "enabled": true,
+      "glow": "drive"
+    },
+    "wall_lantern": {
+      "family": "fire",
+      "description": "wall-bracket lantern",
+      "prefab": "lantern",
+      "params": { "height": 0 },
+      "fixture_radius": 30,
+      "enabled": true,
+      "glow": "drive"
+    },
+    "street_lantern": {
+      "family": "fire",
+      "description": "glass street lantern (flame and glowing panes)",
+      "prefab": "lantern",
+      "params": { "height": 0 },
+      "fixture_radius": 30,
+      "enabled": true,
+      "glow": "drive"
+    },
+    "glass_lamp": {
+      "family": "lamp",
+      "description": "glass lantern (glowing panes, no flame sprite)",
+      "prefab": "lantern",
+      "params": { "height": 0 },
+      "fixture_radius": 30,
+      "enabled": true,
+      "glow": "drive"
+    },
+    "save_point": {
+      "family": "magic",
+      "description": "save point (sigil and light column)",
+      "prefab": "magic_glow",
+      "params": { "height": 0 },
+      "fixture_radius": 24,
+      "enabled": false,
+      "glow": "leave"
+    },
+    "magic_glow": {
+      "family": "magic",
+      "description": "magic glow (swirl texture)",
+      "prefab": "magic_glow",
+      "params": { "height": 0 },
+      "fixture_radius": 24,
+      "enabled": false,
+      "glow": "leave"
+    },
+    "window": {
+      "family": "window",
+      "description": "window glow (additive panes)",
+      "prefab": "window_light",
+      "params": { "inset": 0 },
+      "fixture_radius": 16,
+      "enabled": false,
+      "glow": "leave"
+    },
+    "shaft": { "family": "shaft", "description": "light shaft / glow volume (additive)", "prefab": "none", "glow": "suppress", "haze": true },
+    "decal": { "family": "decal", "description": "flat additive floor/ceiling glow (decal)", "prefab": "none", "glow": "suppress" },
+    "cobweb": { "family": "non", "description": "cobweb (additive)", "prefab": "none", "glow": "suppress" },
+    "floor_arrows": { "family": "non", "description": "scrolling floor overlay (additive arrows)", "prefab": "none", "glow": "suppress" },
+    "exit_marker": { "family": "non", "description": "exit floor marker (scrolling, opaque)", "prefab": "none", "glow": "leave" },
+    "animated_surface": { "family": "non", "description": "animated surface (liquid / texture animation, no glow)", "prefab": "none", "glow": "leave" },
+    "warm_texels": { "family": "non", "description": "warm stone texels (not a light)", "prefab": "none", "glow": "leave" },
+    "other": { "family": "other", "description": "other additive glow", "prefab": "none", "glow": "leave" }
+  },
+  "types": [
+    {
+      "id": "T001",
+      "class": "candle",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 132,
+      "rooms": 56,
+      "zones": "9,12,15,28,29,46,50,51,52,53,55,56,60",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [11, 13],
+        "extent": { "min": [11.8, 15.6, 64], "max": [15.5, 25.7, 64] },
+        "holders": [
+          "0b8ddfcf1b",
+          "0ea2db2a82",
+          "124affd6b2",
+          "1f327330c7",
+          "202608d431",
+          "29701bc8d2",
+          "3c29396968",
+          "3c85810d0d",
+          "42fec2c5a9",
+          "433d93318d",
+          "4f4cfeb414",
+          "54d84fa23c",
+          "56f8c870fc",
+          "6c41f43b92",
+          "7b3ec9406f",
+          "8134a413a2",
+          "874a1d634a",
+          "87be1e8b62",
+          "8c069e0d8c",
+          "8d82edc34b",
+          "9194a8aac2",
+          "a1aa1a7a02",
+          "ad4abafc38",
+          "baf0086d58",
+          "bb548b7de7",
+          "e0560b1147",
+          "e23320d91b",
+          "e51a5c961d",
+          "ec722e9345"
+        ]
+      },
+      "flames": [
+        [0, -48, 0]
+      ]
+    },
+    {
+      "id": "T002",
+      "class": "candle",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 125,
+      "rooms": 76,
+      "zones": "9,50,51,52,53,54,55,56,60",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [12, 14],
+        "extent": { "min": [14.6, 31.9, 96], "max": [25.7, 40.8, 104] },
+        "holders": [
+          "055061fc8c",
+          "0660c61347",
+          "0b77ffcbf5",
+          "0f9c851617",
+          "1366917f86",
+          "1a513e688f",
+          "1cea987a94",
+          "1da5864a49",
+          "202df290a9",
+          "2108b39398",
+          "28e4cd6ce9",
+          "2a079d9c55",
+          "2d9f8b1806",
+          "2efc0b554d",
+          "371b83bf3b",
+          "38470f0249",
+          "38b75fd07f",
+          "3ae7e2bef5",
+          "3c536d103a",
+          "4ce65852a6",
+          "4eb9c56f05",
+          "4f53918deb",
+          "5d04b9d4a8",
+          "62f10ad6db",
+          "76401567b4",
+          "7c8a8dd7ab",
+          "81ebf7c3f2",
+          "827c655ddc",
+          "82bad85706",
+          "8d99416f69",
+          "8ddd8aaa05",
+          "904243695d",
+          "94657f8ed9",
+          "9488ac1008",
+          "99ff2bb526",
+          "a42bab14c9",
+          "a4fbd76338",
+          "a94242415a",
+          "ac85599443",
+          "ae641e150f",
+          "afb72de137",
+          "b2b6c74f57",
+          "b56bbac4d8",
+          "ba30b6bafc",
+          "bd96d4772b",
+          "c11921f47f",
+          "cd983c818c",
+          "d1c80e69e5",
+          "d5f287eeec",
+          "d695342a8a",
+          "d94620fc3d",
+          "d98eaff509",
+          "d98fdcfc42",
+          "dc3ac130bd",
+          "e381d8c4b2",
+          "ec9689f4ac",
+          "effdbecbc9",
+          "f02394684a",
+          "f63eb26067",
+          "fd874910a6",
+          "ff5aabd93b"
+        ]
+      },
+      "flames": [
+        [0, -48, -8]
+      ]
+    },
+    {
+      "id": "T003",
+      "class": "candle",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 103,
+      "rooms": 62,
+      "zones": "9,43,44,45,47,50,51,52,53,54,55,56",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [11, 13],
+        "extent": { "min": [11.5, 15.6, 64], "max": [16, 25.7, 64] },
+        "holders": [
+          "0d0dcd0be0",
+          "0d903594b5",
+          "0f3f33cb4a",
+          "188b0c4f64",
+          "1a3e6ad4e0",
+          "1d05ca72e1",
+          "3675fc7cdd",
+          "4127db4a1c",
+          "48b3009dd0",
+          "509ae4eab5",
+          "57c3850ab4",
+          "595bf65581",
+          "60ae3ad303",
+          "6a77f7bf14",
+          "772fa5002e",
+          "77d07099ec",
+          "78cada83c6",
+          "8002afd6c1",
+          "8049d97bf8",
+          "83ae2095a1",
+          "87d9ec1b56",
+          "8eae9b411f",
+          "90be677ae4",
+          "91acc92469",
+          "93f375681c",
+          "984cc5cff4",
+          "a53a18cdb2",
+          "a8920c116b",
+          "abfc4d0d5b",
+          "bb6ef6ff95",
+          "bfd1d1d4aa",
+          "c1f58395c3",
+          "c3beeee0ca",
+          "c92dfa4344",
+          "ca11b8c9d8",
+          "ccae547704",
+          "d48d66136a",
+          "e4bbd54952",
+          "feb9e0c9d5"
+        ]
+      },
+      "flames": [
+        [0, -48, 0]
+      ]
+    },
+    {
+      "id": "T004",
+      "class": "candle",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 102,
+      "rooms": 70,
+      "zones": "9,50,51,52,53,54,55,56,60",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [5, 7],
+        "extent": { "min": [12, 17.4, 48], "max": [18, 32, 64] },
+        "holders": [
+          "0e407d271d",
+          "218c1bbf2a",
+          "34760aad6b",
+          "46646bb702",
+          "57d239674c",
+          "af4c717300",
+          "c55013bd0b",
+          "cc0b275484",
+          "d5c76b2632",
+          "d65faab739",
+          "d85a41af47",
+          "daf9ba507b",
+          "ee47409919",
+          "f2539043c2"
+        ]
+      },
+      "flames": [
+        [0, -32, -2]
+      ]
+    },
+    {
+      "id": "T005",
+      "class": "lantern",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 75,
+      "rooms": 73,
+      "zones": "15,28,50,51,52,53,54,55,56",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [19, 19],
+        "extent": { "min": [32, 32, 56], "max": [32, 32, 64] },
+        "holders": ["2ee79e3bc0", "59b1058418", "6bba3a0056", "cda6c58acb"]
+      },
+      "flames": [
+        [0, -24, 0]
+      ]
+    },
+    {
+      "id": "T006",
+      "class": "wall_torch",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 72,
+      "rooms": 14,
+      "zones": "13,14",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [2, 2],
+        "extent": { "min": [16, 32, 104], "max": [32, 32, 104] },
+        "holders": [
+          "1ed418e971",
+          "2326c2722c",
+          "39698eb601",
+          "62c2e20826",
+          "661d6b8a43",
+          "6d9a38e45b",
+          "93be324cc3",
+          "a9c92bd398",
+          "d69bdf1864",
+          "dffb59da00"
+        ]
+      },
+      "flames": [
+        [0, -72, 0]
+      ]
+    },
+    {
+      "id": "T007",
+      "class": "candle",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 67,
+      "rooms": 1,
+      "zones": "26",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [5, 5],
+        "extent": { "min": [6, 24, 72], "max": [6, 24, 120] },
+        "holders": ["cd6e435a04"]
+      },
+      "flames": [
+        [0, -96, 0]
+      ]
+    },
+    {
+      "id": "T008",
+      "class": "torch_flame",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 47,
+      "rooms": 40,
+      "zones": "9,29,50,51,52,53,55,60",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 32, 32], "max": [0, 32, 32] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -16, 0]
+      ]
+    },
+    {
+      "id": "T009",
+      "class": "candle",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 43,
+      "rooms": 19,
+      "zones": "9,50,51,53,54,55,56",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [5, 7],
+        "extent": { "min": [12, 18, 48], "max": [16, 24.3, 48] },
+        "holders": [
+          "281968ec3e",
+          "28f91223c4",
+          "45259fa751",
+          "4ba2b03872",
+          "9a710d019c",
+          "a3d7a4e31a",
+          "a45ba79582",
+          "dfcd34bac9"
+        ]
+      },
+      "flames": [
+        [0, -32, 0]
+      ]
+    },
+    {
+      "id": "T010",
+      "class": "torch_flame",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 37,
+      "rooms": 13,
+      "zones": "13,28",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 32, 64], "max": [0, 32, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -32, 0]
+      ]
+    },
+    {
+      "id": "T011",
+      "class": "wall_torch",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 36,
+      "rooms": 8,
+      "zones": "30,31",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [9, 9],
+        "extent": { "min": [24.1, 72, 232], "max": [24.4, 72, 232] },
+        "holders": ["ac784a0331"]
+      },
+      "flames": [
+        [4, -184, 12]
+      ]
+    },
+    {
+      "id": "T012",
+      "class": "candle",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 35,
+      "rooms": 29,
+      "zones": "9,50,51,52,53,54,55,56",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [6, 6],
+        "extent": { "min": [16, 32, 104], "max": [27.7, 40, 104] },
+        "holders": [
+          "2953c9a314",
+          "4faf66dcd5",
+          "5a2658f5eb",
+          "6458b306d0",
+          "6accded462",
+          "6ea3f29526",
+          "74db755b51",
+          "8e20310a19",
+          "ab126737ea",
+          "c570e60c8e",
+          "d18b45d2a6",
+          "d3dfa5fd7e",
+          "e3ab9ed60f",
+          "e685212f9f",
+          "efa5f9797e"
+        ]
+      },
+      "flames": [
+        [0, -32, -8]
+      ]
+    },
+    {
+      "id": "T013",
+      "class": "street_lantern",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 31,
+      "rooms": 28,
+      "zones": "48,49,61",
+      "match": {
+        "emitters": ["92daea7663*8+eb4eda4936"],
+        "polygons": [9, 9],
+        "extent": { "min": [42, 42, 57], "max": [42, 42, 57] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -28, 0]
+      ]
+    },
+    {
+      "id": "T014",
+      "class": "street_lantern",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 30,
+      "rooms": 18,
+      "zones": "48,49",
+      "match": {
+        "emitters": ["77b0e2631a*8+eb4eda4936"],
+        "polygons": [19, 19],
+        "extent": { "min": [42, 42, 91], "max": [42.6, 42.6, 91] },
+        "holders": ["897b548262", "dfc2856045"]
+      },
+      "flames": [
+        [0, -39, 0]
+      ]
+    },
+    {
+      "id": "T015",
+      "class": "wall_torch",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 28,
+      "rooms": 11,
+      "zones": "50,51,53,55",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [7, 7],
+        "extent": { "min": [12, 22, 72], "max": [18.8, 26.2, 72] },
+        "holders": ["40944977d4"]
+      },
+      "flames": [
+        [0, -48, 2]
+      ]
+    },
+    {
+      "id": "T016",
+      "class": "wall_torch",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 12,
+      "rooms": 2,
+      "zones": "11,64",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [4, 4],
+        "extent": { "min": [32, 48, 128], "max": [32, 48, 128] },
+        "holders": [
+          "03008dd0e5",
+          "1dfaee8835",
+          "54bdbf40bb",
+          "6d62a417df",
+          "86ee971484",
+          "997719fb26"
+        ]
+      },
+      "flames": [
+        [0, -96, 0]
+      ]
+    },
+    {
+      "id": "T017",
+      "class": "wall_torch",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 10,
+      "rooms": 5,
+      "zones": "5,6,7,8",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [5, 5],
+        "extent": { "min": [16, 48, 120], "max": [16, 56, 120] },
+        "holders": ["4d1a23fdc4", "8f6274f5bb", "ddaa660d05", "fe5ca17edb"]
+      },
+      "flames": [
+        [0, -84, 4]
+      ]
+    },
+    {
+      "id": "T018",
+      "class": "candelabra",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 10,
+      "rooms": 3,
+      "zones": "18,20,67",
+      "match": {
+        "emitters": ["8127aac776*2"],
+        "polygons": [20, 26],
+        "extent": { "min": [25, 48, 112], "max": [25, 48, 112] },
+        "holders": ["7d67f274e5", "805f043b2d", "e14a00f1e7"]
+      },
+      "flames": [
+        [16, -96, 3.5],
+        [-16, -96, 3.5]
+      ]
+    },
+    {
+      "id": "T019",
+      "class": "wall_torch",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 8,
+      "rooms": 2,
+      "zones": "1",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [5, 5],
+        "extent": { "min": [32, 32, 128], "max": [32, 32, 128] },
+        "holders": ["35f1e04482"]
+      },
+      "flames": [
+        [0, -96, 0]
+      ]
+    },
+    {
+      "id": "T020",
+      "class": "candle_flame",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 8,
+      "rooms": 8,
+      "zones": "50,53,54",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 32], "max": [0, 16, 32] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -16, 0]
+      ]
+    },
+    {
+      "id": "T021",
+      "class": "lantern",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 7,
+      "rooms": 7,
+      "zones": "50,51,53,55,56",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [19, 19],
+        "extent": { "min": [32, 32, 56], "max": [32, 32, 56] },
+        "holders": ["2542dcc44e"]
+      },
+      "flames": [
+        [0, -24, 0]
+      ]
+    },
+    {
+      "id": "T022",
+      "class": "wall_lantern",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 6,
+      "rooms": 3,
+      "zones": "35,36,47",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [25, 25],
+        "extent": { "min": [32, 64, 88], "max": [32, 72, 96] },
+        "holders": ["59f343d9ac", "da9716d4e8"]
+      },
+      "flames": [
+        [0, -24, 16]
+      ]
+    },
+    {
+      "id": "T023",
+      "class": "wall_torch",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 5,
+      "rooms": 4,
+      "zones": "15,16,17",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [8, 8],
+        "extent": { "min": [10, 32, 168], "max": [10, 32, 168] },
+        "holders": ["120fc05c5f", "cba5252738"]
+      },
+      "flames": [
+        [0, -140, 0]
+      ]
+    },
+    {
+      "id": "T024",
+      "class": "candle",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 5,
+      "rooms": 5,
+      "zones": "51,55,56",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [8, 8],
+        "extent": { "min": [21, 34.7, 104], "max": [21, 34.7, 104] },
+        "holders": ["30295cbe51", "33ba5e3c27"]
+      },
+      "flames": [
+        [0, -32, -8]
+      ]
+    },
+    {
+      "id": "T025",
+      "class": "candle",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 5,
+      "rooms": 5,
+      "zones": "51,55,56",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [2, 2],
+        "extent": { "min": [33.9, 33.9, 48], "max": [33.9, 33.9, 48] },
+        "holders": ["56615f7ff9", "85ab1a4507"]
+      },
+      "flames": [
+        [-16, -32, -8]
+      ]
+    },
+    {
+      "id": "T026",
+      "class": "brazier",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 4,
+      "rooms": 2,
+      "zones": "2",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [41, 41],
+        "extent": { "min": [88.3, 92.5, 264], "max": [88.3, 92.7, 264] },
+        "holders": ["36670776fb", "4346a3de2c"]
+      },
+      "flames": [
+        [-0.5, -200, 4]
+      ]
+    },
+    {
+      "id": "T027",
+      "class": "fire_sprite",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 4,
+      "rooms": 4,
+      "zones": "9",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 128, 184], "max": [0, 128, 184] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -92, 0]
+      ]
+    },
+    {
+      "id": "T028",
+      "class": "lantern",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 4,
+      "rooms": 4,
+      "zones": "9,60",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [23, 23],
+        "extent": { "min": [32, 32, 61], "max": [32, 32, 61] },
+        "holders": ["0b7c0dde46", "7fd44ddc91", "a5ef113d12"]
+      },
+      "flames": [
+        [0, -32, 0]
+      ]
+    },
+    {
+      "id": "T029",
+      "class": "fire_sprite",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 4,
+      "rooms": 2,
+      "zones": "11,64",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 80, 160], "max": [0, 80, 160] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -80, 0]
+      ]
+    },
+    {
+      "id": "T030",
+      "class": "lantern",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 4,
+      "rooms": 4,
+      "zones": "12,28",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [21, 21],
+        "extent": { "min": [32, 32, 96], "max": [32, 32, 96] },
+        "holders": ["85977c7432", "8cc536968b"]
+      },
+      "flames": [
+        [0, -24, 0]
+      ]
+    },
+    {
+      "id": "T031",
+      "class": "brazier",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 4,
+      "rooms": 1,
+      "zones": "13",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [24, 24],
+        "extent": { "min": [90, 96, 216], "max": [90, 96, 216] },
+        "holders": ["7c42c11959", "aa642edace", "f52a84c98f"]
+      },
+      "flames": [
+        [5.4, -168, -2.7]
+      ]
+    },
+    {
+      "id": "T032",
+      "class": "candle",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 3,
+      "rooms": 3,
+      "zones": "25,57,59",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [17, 17],
+        "extent": { "min": [20.7, 21.3, 208], "max": [20.7, 21.3, 208] },
+        "holders": ["8decd2ac49"]
+      },
+      "flames": [
+        [0, -192, 2.1]
+      ]
+    },
+    {
+      "id": "T033",
+      "class": "candle",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 3,
+      "rooms": 3,
+      "zones": "42,43,45",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [13, 13],
+        "extent": { "min": [20.2, 24, 95], "max": [24, 25, 112] },
+        "holders": ["90be677ae4", "a82344abe6"]
+      },
+      "flames": [
+        [1.5, -83, 6.8]
+      ]
+    },
+    {
+      "id": "T034",
+      "class": "brazier",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "3",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [48, 48],
+        "extent": { "min": [94, 103.5, 352], "max": [94, 103.5, 352] },
+        "holders": ["6d34fc36d1"]
+      },
+      "flames": [
+        [-3.6, -256, 1.7]
+      ]
+    },
+    {
+      "id": "T035",
+      "class": "brazier",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "5",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [9, 9],
+        "extent": { "min": [122.3, 122.3, 312], "max": [122.3, 122.3, 312] },
+        "holders": ["a6d55564f8"]
+      },
+      "flames": [
+        [-3.2, -276, 2.5]
+      ]
+    },
+    {
+      "id": "T036",
+      "class": "lantern",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "13",
+      "match": {
+        "emitters": [
+          "57e7ae8c6b*4+bf8f592c67*4+cf9843b225+eb4eda4936",
+          "57e7ae8c6b*4+bf8f592c67*4+eb4eda4936"
+        ],
+        "polygons": [16, 16],
+        "extent": { "min": [35.5, 35.5, 56], "max": [35.5, 35.5, 56] },
+        "holders": ["1b10ceae30", "9d0b664ee4"]
+      },
+      "flames": [
+        [-4, -16, 4]
+      ]
+    },
+    {
+      "id": "T037",
+      "class": "wall_torch",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "13",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [5, 5],
+        "extent": { "min": [39.4, 39.4, 104], "max": [39.4, 39.4, 104] },
+        "holders": ["c85edf20d7"]
+      },
+      "flames": [
+        [0, -72, 5.7]
+      ]
+    },
+    {
+      "id": "T038",
+      "class": "standing_torch",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "13",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [5, 5],
+        "extent": { "min": [44.2, 44.2, 104], "max": [44.2, 44.2, 104] },
+        "holders": ["c85edf20d7"]
+      },
+      "flames": [
+        [0, -72, -11.3]
+      ]
+    },
+    {
+      "id": "T039",
+      "class": "fireplace",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [20, 20],
+        "extent": { "min": [58.3, 63.7, 120], "max": [58.3, 63.7, 120] },
+        "holders": ["ebccfa59bd"]
+      },
+      "flames": [
+        [4.5, -68, 0]
+      ]
+    },
+    {
+      "id": "T040",
+      "class": "lantern",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [21, 21],
+        "extent": { "min": [32, 32, 96], "max": [32, 32, 96] },
+        "holders": ["4c9ff1cc79"]
+      },
+      "flames": [
+        [0, -24, 0]
+      ]
+    },
+    {
+      "id": "T041",
+      "class": "wall_lantern",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [25, 25],
+        "extent": { "min": [32, 64, 96], "max": [32, 64, 96] },
+        "holders": ["33a1265d12"]
+      },
+      "flames": [
+        [16, -24, 0]
+      ]
+    },
+    {
+      "id": "T042",
+      "class": "brazier",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "13",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [31, 31],
+        "extent": { "min": [90, 96, 216], "max": [90, 96, 216] },
+        "holders": ["641254ef3f"]
+      },
+      "flames": [
+        [0, -168, 6]
+      ]
+    },
+    {
+      "id": "T043",
+      "class": "wall_torch",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "13",
+      "match": {
+        "emitters": [
+          "57e7ae8c6b*4+bf8f592c67*4+eb4eda4936"
+        ],
+        "polygons": [9, 9],
+        "extent": { "min": [32, 32, 32], "max": [32, 32, 32] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -16, 0]
+      ]
+    },
+    {
+      "id": "T044",
+      "class": "candle",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "15",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [7, 7],
+        "extent": { "min": [6, 16, 72], "max": [6, 16, 72] },
+        "holders": ["799edab634"]
+      },
+      "flames": [
+        [-1, -56, 0]
+      ]
+    },
+    {
+      "id": "T045",
+      "class": "candle",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [10, 10],
+        "extent": { "min": [32, 32, 240], "max": [32, 32, 240] },
+        "holders": ["bec97ac542"]
+      },
+      "flames": [
+        [0, -200, 0]
+      ]
+    },
+    {
+      "id": "T046",
+      "class": "candle",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [12, 12],
+        "extent": { "min": [32, 32, 344], "max": [32, 32, 344] },
+        "holders": ["5996969035"]
+      },
+      "flames": [
+        [0, -304, 0]
+      ]
+    },
+    {
+      "id": "T047",
+      "class": "candle",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "42",
+      "match": {
+        "emitters": ["8127aac776"],
+        "polygons": [31, 31],
+        "extent": { "min": [64, 69.2, 112.8], "max": [64, 69.2, 112.8] },
+        "holders": ["ec3bdd5e12"]
+      },
+      "flames": [
+        [-11.5, -48, 47.5]
+      ]
+    },
+    {
+      "id": "T048",
+      "class": "wall_torch",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "42",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [3, 3],
+        "extent": { "min": [32, 32, 48], "max": [32, 32, 48] },
+        "holders": ["6668752425"]
+      },
+      "flames": [
+        [0, -16, 0]
+      ]
+    },
+    {
+      "id": "T049",
+      "class": "wall_torch",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "43",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [2, 2],
+        "extent": { "min": [32, 32, 32], "max": [32, 32, 32] },
+        "holders": ["c36e337465"]
+      },
+      "flames": [
+        [0, -16, 0]
+      ]
+    },
+    {
+      "id": "T050",
+      "class": "standing_torch",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "45",
+      "match": {
+        "emitters": ["eb4eda4936"],
+        "polygons": [2, 2],
+        "extent": { "min": [32, 32, 32], "max": [32, 32, 32] },
+        "holders": ["178b9593f4"]
+      },
+      "flames": [
+        [0, -16, 0]
+      ]
+    },
+    {
+      "id": "T051",
+      "class": "glass_lamp",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 3,
+      "rooms": 1,
+      "zones": "68",
+      "match": {
+        "emitters": ["c35639afb8*3", "c35639afb8*4"],
+        "polygons": [3, 4],
+        "extent": { "min": [32, 32, 32], "max": [32, 32, 32] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -16, 4]
+      ]
+    },
+    {
+      "id": "T052",
+      "class": "glass_lamp",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "68",
+      "match": {
+        "emitters": ["c35639afb8*3"],
+        "polygons": [9, 9],
+        "extent": { "min": [32, 88, 128], "max": [32, 88, 128] },
+        "holders": ["26faee99bf"]
+      },
+      "flames": [
+        [52, -16, 0]
+      ]
+    },
+    {
+      "id": "T053",
+      "class": "save_point",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 37,
+      "rooms": 37,
+      "zones": "9,13,15,24,25,29,30,32,39,40,41,42,43,44,46,47,48,50,51,53,57,59,61",
+      "match": {
+        "emitters": [
+          "4476fe0d0e*8+cc36315fd6*8+f335e6e838",
+          "4fcbf921fa*4+72211c274e*4+bb0c779142*4+bf2100f688*4+f335e6e838",
+          "4fcbf921fa*7+72211c274e+bb0c779142+bf2100f688*7+f335e6e838",
+          "4fcbf921fa*8+bf2100f688*8+f335e6e838",
+          "72211c274e*8+bb0c779142*8+f335e6e838",
+          "79c9495a3a*8+d0c6ba51b0*8+f335e6e838"
+        ],
+        "polygons": [17, 17],
+        "extent": { "min": [181, 181, 224], "max": [181, 181, 224] },
+        "holders": [""]
+      },
+      "flames": [
+        [-2.3, -94.2, 0]
+      ]
+    },
+    {
+      "id": "T054",
+      "class": "save_point",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "13",
+      "match": {
+        "emitters": [
+          "4fcbf921fa*8+bf2100f688*8+f335e6e838"
+        ],
+        "polygons": [25, 25],
+        "extent": { "min": [137.1, 175.6, 224], "max": [137.1, 175.6, 224] },
+        "holders": ["404dc4c252"]
+      },
+      "flames": [
+        [20.7, -94.2, 3.1]
+      ]
+    },
+    {
+      "id": "T055",
+      "class": "save_point",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "45",
+      "match": {
+        "emitters": [
+          "72211c274e*8+bb0c779142*8+f335e6e838"
+        ],
+        "polygons": [28, 28],
+        "extent": { "min": [180.4, 224, 339.2], "max": [180.4, 224, 339.2] },
+        "holders": ["6d25a20abf"]
+      },
+      "flames": [
+        [61.6, -94.2, 50.4]
+      ]
+    },
+    {
+      "id": "T056",
+      "class": "window",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 1,
+      "zones": "67",
+      "match": {
+        "emitters": [
+          "04635fac37+175e6f7418+2d050238aa+35429c8690+6a6d704cd0+89496dfdf8+9184819039+a867a6c6fb+e701215ac0+ea0065c74a"
+        ],
+        "polygons": [10, 10],
+        "extent": { "min": [5.7, 192.3, 496], "max": [5.7, 192.3, 496] },
+        "holders": [""]
+      },
+      "flames": [
+        [1.3, -229.2, -2.6]
+      ]
+    },
+    {
+      "id": "T057",
+      "class": "window",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 1,
+      "zones": "67",
+      "match": {
+        "emitters": [
+          "04635fac37+35429c8690+52f2b1be79+6a6d704cd0+89496dfdf8+8983ef57bc+a867a6c6fb+ba344b2807+e701215ac0"
+        ],
+        "polygons": [9, 9],
+        "extent": { "min": [0, 192, 496], "max": [0, 192, 496] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -230.1, 0]
+      ]
+    },
+    {
+      "id": "T058",
+      "class": "window",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 1,
+      "zones": "68",
+      "match": {
+        "emitters": [
+          "51f252d1c0+5544a6c253+be4e815aa2+dd193d8ff2"
+        ],
+        "polygons": [4, 4],
+        "extent": { "min": [0, 128, 352], "max": [0, 128, 352] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -161.7, 0]
+      ]
+    },
+    {
+      "id": "T059",
+      "class": "window",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 1,
+      "zones": "68",
+      "match": {
+        "emitters": ["34f45818f1*4"],
+        "polygons": [4, 4],
+        "extent": { "min": [0, 224, 224], "max": [0, 224, 224] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -112, 0]
+      ]
+    },
+    {
+      "id": "T060",
+      "class": "window",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "43",
+      "match": {
+        "emitters": ["1a564e8dc9+683ac96d6e"],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 128, 256], "max": [0, 128, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -128, 0]
+      ]
+    },
+    {
+      "id": "T061",
+      "class": "window",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "67",
+      "match": {
+        "emitters": [
+          "04635fac37*2+236a64a954*2+35429c8690+46db2198ae*2+52f2b1be79+6a6d704cd0*2+89496dfdf8+8983ef57bc+ba344b2807+baf44ec7a1*2+eb39b485c5*2"
+        ],
+        "polygons": [17, 17],
+        "extent": { "min": [0, 192, 496], "max": [0, 192, 496] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -206.6, 0]
+      ]
+    },
+    {
+      "id": "T062",
+      "class": "decal",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 4,
+      "rooms": 4,
+      "zones": "40,41",
+      "match": {
+        "emitters": ["2bc7fe32ce+4165e0f72f"],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 64, 256], "max": [0, 64, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, 0, -10.7]
+      ]
+    },
+    {
+      "id": "T063",
+      "class": "decal",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 4,
+      "rooms": 4,
+      "zones": "40,41",
+      "match": {
+        "emitters": ["2ab574f956+c8f096ae21"],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 64, 256], "max": [0, 64, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, 0, -10.7]
+      ]
+    },
+    {
+      "id": "T064",
+      "class": "decal",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "2",
+      "match": {
+        "emitters": ["a698ac4c89*3+de90f4125c"],
+        "polygons": [4, 4],
+        "extent": { "min": [0, 242.7, 443.3], "max": [0, 242.7, 443.3] },
+        "holders": [""]
+      },
+      "flames": [
+        [23.7, 0, -77.1]
+      ]
+    },
+    {
+      "id": "T065",
+      "class": "decal",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "2",
+      "match": {
+        "emitters": ["a698ac4c89+de90f4125c*2"],
+        "polygons": [3, 3],
+        "extent": { "min": [0, 144.2, 424], "max": [0, 144.2, 424] },
+        "holders": [""]
+      },
+      "flames": [
+        [17.3, 0, -15]
+      ]
+    },
+    {
+      "id": "T066",
+      "class": "decal",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "4",
+      "match": {
+        "emitters": [
+          "0d34e513ed+0f595166f0+2625214786+2a64018338+5ae652726a*3+90b0dfdac8*5+94e49a5f5e+cba45b2d74+da5e4fbfef+df1edf8369+f39b3d20f6*3"
+        ],
+        "polygons": [19, 19],
+        "extent": { "min": [0, 511.9, 1029.9], "max": [0, 511.9, 1029.9] },
+        "holders": [""]
+      },
+      "flames": [
+        [-27.7, 0, 0.5]
+      ]
+    },
+    {
+      "id": "T067",
+      "class": "decal",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "27,65",
+      "match": {
+        "emitters": [
+          "01feb20353+05ac433b12+06b92e0e30+09abe43abe+09b551723f+1199874df2+1633e1f229+1a170d813b*2+1c26736a5c+1e15e5b393+1edb1ab0f3+21cc8c254c+24593e21e0+256b70604f+263f552507+284e05d743*2+2a5c40647c+2ac478c7e1+2c0b97db76+2da802e149+2fc2e77f24+32101158c0+34cd05300a+384e3add0c+3e7254aea9+410b40f2bb+426f8228cb+46f37592c6+47450a86f7+4c86b97332+4cae1c3843+5202ee4d08+52b8e29f69+568068a7de*2+56c600d08f+5b26e22e8c+5c20d4776e+62305ed134+644415bf89+648932da5b+6652b9e80b+667241e0b2+6b85ffb752+6b8812f24b+74480a86ef+74e411e432*2+7a5d01f393+8038e77759+8289a0f365+88c52b5b1f+8ee6aaf4b4+8f18ddb736+9009038796+939da5a948*2+a254c046d3+a26c73dd67*2+b0506382fe+b974e14fee+c0d869c153+c33ea3ce8d+c3b560dca0+c3c3064f3f*2+c5dfe25c22+c680689626+c748fd556e+c9215d7a03+ca8b5afaf2+cab9e4aaf8+cddc1e9467+ce591f1734+d87cc23f25*2+dbc6995343+e1e9b840a5+e21527f324+e50d14e65e+e8a6da6507*2+ea938ba946+ead8b80bd5*2+ebae0eef9f+edd2465a2a+f25cce9b5b*2+f4639aa165*2+f5f5b97486+f94db7933f"
+        ],
+        "polygons": [96, 96],
+        "extent": { "min": [0, 1696, 1696], "max": [0, 1696, 1696] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, 0, 0]
+      ]
+    },
+    {
+      "id": "T068",
+      "class": "decal",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "40",
+      "match": {
+        "emitters": ["1e2d8e16e6+291996baee"],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 64, 256], "max": [0, 64, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, 0, -10.7]
+      ]
+    },
+    {
+      "id": "T069",
+      "class": "decal",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": ["6156e7cbb8"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 256, 256], "max": [0, 256, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, 0, 0]
+      ]
+    },
+    {
+      "id": "T070",
+      "class": "decal",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "20",
+      "match": {
+        "emitters": ["dcdd27cf0f"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 256, 256], "max": [0, 256, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, 0, 0]
+      ]
+    },
+    {
+      "id": "T071",
+      "class": "decal",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "32",
+      "match": {
+        "emitters": ["d71d727941"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 256, 256], "max": [0, 256, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, 0, 0]
+      ]
+    },
+    {
+      "id": "T072",
+      "class": "exit_marker",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 702,
+      "rooms": 319,
+      "zones": "9,12,13,14,15,22,23,24,28,29,30,32,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,60,61,62,69",
+      "match": {
+        "emitters": ["opaque:69ef05f9fb"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 48, 128], "max": [0, 64, 128] },
+        "holders": [""]
+      },
+      "flames": [
+        [-10.7, 0, 0]
+      ]
+    },
+    {
+      "id": "T073",
+      "class": "floor_arrows",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 60,
+      "rooms": 20,
+      "zones": "40",
+      "match": {
+        "emitters": ["797889a21b+ef728cdb6c"],
+        "polygons": [2, 3],
+        "extent": { "min": [0, 64, 256], "max": [0, 72, 256] },
+        "holders": ["", "1e017c67d0"]
+      },
+      "flames": [
+        [0, 0, -10.7]
+      ]
+    },
+    {
+      "id": "T074",
+      "class": "exit_marker",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 39,
+      "rooms": 27,
+      "zones": "9,11,15,16,17,22,23,24,25,30,31,62,64",
+      "match": {
+        "emitters": [
+          "opaque:797889a21b+ef728cdb6c"
+        ],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 64, 256], "max": [0, 64, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, 0, -10.7]
+      ]
+    },
+    {
+      "id": "T075",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 27,
+      "rooms": 23,
+      "zones": "15,23,25,39,50,51,53,55,57,59",
+      "match": {
+        "emitters": ["opaque:514db27fa4*4"],
+        "polygons": [9, 9],
+        "extent": { "min": [64, 128, 128], "max": [64, 128, 128] },
+        "holders": [
+          "0aef631060",
+          "3134085ce0",
+          "3970572a1f",
+          "42c610d816",
+          "6104b69b3d",
+          "8699fedc61",
+          "88c8a54cbe",
+          "97dc32117a",
+          "a0310b800f",
+          "b934b20ea8",
+          "db55e94cba",
+          "e423c72db8",
+          "fbb0457757"
+        ]
+      },
+      "flames": [
+        [0, -64, 0]
+      ]
+    },
+    {
+      "id": "T076",
+      "class": "exit_marker",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 19,
+      "rooms": 14,
+      "zones": "13,24,30,32,39,63",
+      "match": {
+        "emitters": ["opaque:69ef05f9fb"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 64, 256], "max": [0, 64, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, 0, 10.7]
+      ]
+    },
+    {
+      "id": "T077",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 18,
+      "rooms": 13,
+      "zones": "9,24,25,30,31,32,63",
+      "match": {
+        "emitters": ["opaque:1a7a9a0083*4"],
+        "polygons": [9, 9],
+        "extent": { "min": [64, 128, 128], "max": [72, 128, 128] },
+        "holders": [
+          "0aef631060",
+          "422bc005a8",
+          "7e48506d46",
+          "9464c9d124",
+          "9773f87a08",
+          "996efd8095",
+          "a0847eb81f",
+          "ca2ad2fb1a"
+        ]
+      },
+      "flames": [
+        [0, -72, 0]
+      ]
+    },
+    {
+      "id": "T078",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 8,
+      "rooms": 1,
+      "zones": "20",
+      "match": {
+        "emitters": ["opaque:f1d3ff8443*3", "opaque:f1d3ff8443*5"],
+        "polygons": [15, 16],
+        "extent": { "min": [58.4, 66.1, 128], "max": [58.6, 66.2, 128] },
+        "holders": ["10b2ec00af", "4d4dd9f03d", "99f4e34e0b", "a59bec0503"]
+      },
+      "flames": [
+        [26, -52, 10.8]
+      ]
+    },
+    {
+      "id": "T079",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 8,
+      "rooms": 4,
+      "zones": "28",
+      "match": {
+        "emitters": ["opaque:3b16912bfe"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 8, 64], "max": [0, 8, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [-3, 0, 0]
+      ]
+    },
+    {
+      "id": "T080",
+      "class": "floor_arrows",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 7,
+      "rooms": 4,
+      "zones": "40,41",
+      "match": {
+        "emitters": [
+          "797889a21b*2+ef728cdb6c*2"
+        ],
+        "polygons": [4, 4],
+        "extent": { "min": [0, 64, 256], "max": [0, 64, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, 0, -10.7]
+      ]
+    },
+    {
+      "id": "T081",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 6,
+      "rooms": 5,
+      "zones": "43,44,45,46,47",
+      "match": {
+        "emitters": [
+          "opaque:0d76d6509c+1ef570ce33+5046348839+58a7ef21b7*2+766fde79f7+7ad4848d4e+8a5e53146b+e29dff4876*2",
+          "opaque:0d76d6509c+1ef570ce33+5046348839+58a7ef21b7*2+78f284e362+7ad4848d4e+8a5e53146b+e29dff4876*2",
+          "opaque:0d76d6509c+1ef570ce33+5046348839+766fde79f7+7ad4848d4e+7d13c69ada*2+8a5e53146b+e29dff4876*2"
+        ],
+        "polygons": [10, 10],
+        "extent": { "min": [64, 112, 256], "max": [64, 112, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -43.1, -11.3]
+      ]
+    },
+    {
+      "id": "T082",
+      "class": "cobweb",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 5,
+      "rooms": 5,
+      "zones": "5,6,7,8",
+      "match": {
+        "emitters": ["a665e67cf9*2"],
+        "polygons": [2, 2],
+        "extent": { "min": [64.6, 171.6, 256], "max": [64.6, 171.6, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [24.9, -170.7, -4.3]
+      ]
+    },
+    {
+      "id": "T083",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 5,
+      "rooms": 3,
+      "zones": "13",
+      "match": {
+        "emitters": ["opaque:c6dbedafcb"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [-5.4, -14.3, 0]
+      ]
+    },
+    {
+      "id": "T084",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 5,
+      "rooms": 3,
+      "zones": "13",
+      "match": {
+        "emitters": ["opaque:d8135df1e5"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [8, -32, 0]
+      ]
+    },
+    {
+      "id": "T085",
+      "class": "cobweb",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 4,
+      "rooms": 4,
+      "zones": "5,6,8",
+      "match": {
+        "emitters": ["a665e67cf9*2"],
+        "polygons": [2, 2],
+        "extent": { "min": [16, 112, 128.8], "max": [16, 112, 128.8] },
+        "holders": [""]
+      },
+      "flames": [
+        [-21.3, -37.3, -2.7]
+      ]
+    },
+    {
+      "id": "T086",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 4,
+      "rooms": 2,
+      "zones": "13",
+      "match": {
+        "emitters": [
+          "opaque:29216fa67f+d993af8dfb"
+        ],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 24, 80], "max": [0, 24, 80] },
+        "holders": [""]
+      },
+      "flames": [
+        [-4.4, 0, 20.3]
+      ]
+    },
+    {
+      "id": "T087",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 4,
+      "rooms": 4,
+      "zones": "28",
+      "match": {
+        "emitters": ["opaque:ba6ae63b3f"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 8, 64], "max": [0, 8, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [1, -39.7, 0]
+      ]
+    },
+    {
+      "id": "T088",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 4,
+      "rooms": 4,
+      "zones": "28",
+      "match": {
+        "emitters": ["opaque:abbd14eac0"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 8, 64], "max": [0, 8, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [-0.3, -19.9, 0]
+      ]
+    },
+    {
+      "id": "T089",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 4,
+      "rooms": 4,
+      "zones": "53,54",
+      "match": {
+        "emitters": ["opaque:cbbc296f75"],
+        "polygons": [1, 1],
+        "extent": { "min": [15.3, 35.3, 40], "max": [15.3, 35.3, 40] },
+        "holders": [""]
+      },
+      "flames": [
+        [16, 0, -8]
+      ]
+    },
+    {
+      "id": "T090",
+      "class": "exit_marker",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 4,
+      "rooms": 2,
+      "zones": "55,56",
+      "match": {
+        "emitters": ["opaque:80ccc2ae31"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 64, 128], "max": [0, 64, 128] },
+        "holders": [""]
+      },
+      "flames": [
+        [10.7, 0, 0]
+      ]
+    },
+    {
+      "id": "T091",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 3,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": ["opaque:4352d88a78"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 32], "max": [0, 32, 32] },
+        "holders": [""]
+      },
+      "flames": [
+        [-2.7, -10.7, 0]
+      ]
+    },
+    {
+      "id": "T092",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 3,
+      "rooms": 2,
+      "zones": "22",
+      "match": {
+        "emitters": ["opaque:1a7a9a0083*4"],
+        "polygons": [12, 12],
+        "extent": { "min": [64, 128, 128], "max": [64, 128, 128] },
+        "holders": ["0a8043b894", "24f52baa8d", "f7de200fca"]
+      },
+      "flames": [
+        [0, -64, 0]
+      ]
+    },
+    {
+      "id": "T093",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 3,
+      "rooms": 3,
+      "zones": "25,57,59",
+      "match": {
+        "emitters": [
+          "opaque:4ec3856fb1*4+63379a9f9e*2+a5403c7d81*2+b1378103c4+b908c219d9+bd700e87a2*2+c894278322+e6580a0493+f08ab8fdd6*2",
+          "opaque:4ec3856fb1*4+63379a9f9e*2+a5403c7d81*2+bd700e87a2*2+f08ab8fdd6*2"
+        ],
+        "polygons": [32, 32],
+        "extent": { "min": [20.6, 53.7, 176], "max": [20.6, 53.7, 176] },
+        "holders": ["5652953a67", "ed0e74bb0e"]
+      },
+      "flames": [
+        [-1.6, -131, -4]
+      ]
+    },
+    {
+      "id": "T094",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 3,
+      "rooms": 1,
+      "zones": "31",
+      "match": {
+        "emitters": ["opaque:c7c97921bc"],
+        "polygons": [1, 1],
+        "extent": { "min": [9.1, 16, 28.8], "max": [9.1, 16, 28.8] },
+        "holders": [""]
+      },
+      "flames": [
+        [-0.9, -4, 7.2]
+      ]
+    },
+    {
+      "id": "T095",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 3,
+      "rooms": 2,
+      "zones": "32",
+      "match": {
+        "emitters": ["opaque:a406419352"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 77, 125.5], "max": [0, 87.9, 141.4] },
+        "holders": [""]
+      },
+      "flames": [
+        [5.3, 0, -13.3]
+      ]
+    },
+    {
+      "id": "T096",
+      "class": "cobweb",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 3,
+      "rooms": 3,
+      "zones": "37,38,69",
+      "match": {
+        "emitters": ["a665e67cf9"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 128, 128], "max": [0, 128, 128] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -64, 0]
+      ]
+    },
+    {
+      "id": "T097",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 3,
+      "rooms": 3,
+      "zones": "50,51",
+      "match": {
+        "emitters": ["opaque:12ac1c3753"],
+        "polygons": [1, 1],
+        "extent": { "min": [15.3, 35.3, 40], "max": [15.3, 35.3, 40] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -20, -4]
+      ]
+    },
+    {
+      "id": "T098",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "2",
+      "match": {
+        "emitters": [
+          "opaque:090f93a8bd*8+2c4453db1a*9+40114e8517+45abd2dbaa*2+6701daadef+67fbd6c51e+96520f2bcb+c3cbc232a9+e1c86a1e0e"
+        ],
+        "polygons": [42, 42],
+        "extent": { "min": [128.7, 156, 156.4], "max": [128.7, 156, 156.4] },
+        "holders": ["cd2e29da77"]
+      },
+      "flames": [
+        [-0.1, -78.1, 1.8]
+      ]
+    },
+    {
+      "id": "T099",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "4",
+      "match": {
+        "emitters": [
+          "opaque:008c521ee5+10eae39c54+4081823879+5299b5285e+5f382b9153*2+673a011f7f+81ee372436+89a51080d1+8b68317c2b+acd8cb09ea+b16fd1758b+ba2c513dbe+bb72077cc1+e18697a410+e2dcabfce5+e57c392621*2+eaecb7dfab+f3b0d247a2"
+        ],
+        "polygons": [20, 20],
+        "extent": { "min": [19.2, 59, 83.2], "max": [19.2, 59, 83.2] },
+        "holders": [""]
+      },
+      "flames": [
+        [21.3, -24.7, -6.3]
+      ]
+    },
+    {
+      "id": "T100",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "4",
+      "match": {
+        "emitters": ["opaque:4a8fa29722"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 11.3, 40], "max": [0, 11.3, 40] },
+        "holders": [""]
+      },
+      "flames": [
+        [5.7, -40, 0]
+      ]
+    },
+    {
+      "id": "T101",
+      "class": "cobweb",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "5",
+      "match": {
+        "emitters": ["a665e67cf9*2"],
+        "polygons": [2, 2],
+        "extent": { "min": [37.3, 121.8, 224], "max": [37.3, 121.8, 224] },
+        "holders": [""]
+      },
+      "flames": [
+        [-12, -90.7, -1.3]
+      ]
+    },
+    {
+      "id": "T102",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "9,60",
+      "match": {
+        "emitters": ["opaque:deb8636c86"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [-2, -23, 0]
+      ]
+    },
+    {
+      "id": "T103",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "9,60",
+      "match": {
+        "emitters": ["opaque:73a3058a45"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [8, 0, 0]
+      ]
+    },
+    {
+      "id": "T104",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "12",
+      "match": {
+        "emitters": ["opaque:c264ba81b9"],
+        "polygons": [1, 1],
+        "extent": { "min": [7.7, 16, 17.6], "max": [7.7, 16, 17.6] },
+        "holders": [""]
+      },
+      "flames": [
+        [1.2, -2.4, 0]
+      ]
+    },
+    {
+      "id": "T105",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "13",
+      "match": {
+        "emitters": ["opaque:29216fa67f"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 17, 33.9], "max": [0, 17, 33.9] },
+        "holders": [""]
+      },
+      "flames": [
+        [9.2, 0, 12]
+      ]
+    },
+    {
+      "id": "T106",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "13",
+      "match": {
+        "emitters": ["opaque:bd04bfc2d5"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 17, 33.9], "max": [0, 17, 33.9] },
+        "holders": [""]
+      },
+      "flames": [
+        [12, 0, -12]
+      ]
+    },
+    {
+      "id": "T107",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 1,
+      "zones": "13",
+      "match": {
+        "emitters": ["opaque:f93427f99b"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 32, 32], "max": [0, 32, 32] },
+        "holders": [""]
+      },
+      "flames": [
+        [-2.3, -12.3, 0]
+      ]
+    },
+    {
+      "id": "T108",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 1,
+      "zones": "13",
+      "match": {
+        "emitters": ["opaque:c2d5e88191"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 32, 32], "max": [0, 32, 32] },
+        "holders": [""]
+      },
+      "flames": [
+        [8.3, -13.2, 0]
+      ]
+    },
+    {
+      "id": "T109",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "15",
+      "match": {
+        "emitters": ["opaque:19f147e06a"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [-0.5, -64, 0]
+      ]
+    },
+    {
+      "id": "T110",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "15",
+      "match": {
+        "emitters": ["opaque:8f3ee45ff5"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 25.1, 127.9], "max": [0, 25.1, 127.9] },
+        "holders": [""]
+      },
+      "flames": [
+        [-2.3, 0, 1.7]
+      ]
+    },
+    {
+      "id": "T111",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "15",
+      "match": {
+        "emitters": ["opaque:5183c38b49"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [3.2, -51.7, 0]
+      ]
+    },
+    {
+      "id": "T112",
+      "class": "exit_marker",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 1,
+      "zones": "24",
+      "match": {
+        "emitters": [
+          "opaque:797889a21b+ef728cdb6c"
+        ],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 64, 128], "max": [0, 64, 128] },
+        "holders": [""]
+      },
+      "flames": [
+        [10.7, 0, 0]
+      ]
+    },
+    {
+      "id": "T113",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "25,59",
+      "match": {
+        "emitters": [
+          "opaque:1a8863f733+2c8a432a59+5d01f81a71+86d43996ce+b0d1efb025+bf26312c72+c54ef174bc+db125c1825"
+        ],
+        "polygons": [8, 8],
+        "extent": { "min": [0, 416, 448], "max": [0, 416, 448] },
+        "holders": [""]
+      },
+      "flames": [
+        [-29.9, -257.3, 0]
+      ]
+    },
+    {
+      "id": "T114",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "28",
+      "match": {
+        "emitters": ["opaque:d696ebb587"],
+        "polygons": [1, 1],
+        "extent": { "min": [6.7, 16, 39.9], "max": [6.7, 16, 39.9] },
+        "holders": [""]
+      },
+      "flames": [
+        [6, -16, -8]
+      ]
+    },
+    {
+      "id": "T115",
+      "class": "cobweb",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "38,69",
+      "match": {
+        "emitters": ["a665e67cf9"],
+        "polygons": [5, 5],
+        "extent": { "min": [57.2, 103.5, 208], "max": [57.2, 103.5, 208] },
+        "holders": ["b870238a82"]
+      },
+      "flames": [
+        [1.9, -98.7, -1.9]
+      ]
+    },
+    {
+      "id": "T116",
+      "class": "cobweb",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "38,69",
+      "match": {
+        "emitters": ["a665e67cf9"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 128, 224], "max": [0, 128, 224] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -74.7, -21.3]
+      ]
+    },
+    {
+      "id": "T117",
+      "class": "floor_arrows",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "40,41",
+      "match": {
+        "emitters": ["531c7c903f+797889a21b"],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 64, 256], "max": [0, 64, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, 0, 10.7]
+      ]
+    },
+    {
+      "id": "T118",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": ["opaque:797a84e97b"],
+        "polygons": [1, 1],
+        "extent": { "min": [15.3, 35.3, 40], "max": [15.3, 35.3, 40] },
+        "holders": [""]
+      },
+      "flames": [
+        [14, -0.2, -7.3]
+      ]
+    },
+    {
+      "id": "T119",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": ["opaque:bbfb91f879"],
+        "polygons": [1, 1],
+        "extent": { "min": [15.3, 16, 35.3], "max": [15.3, 16, 35.3] },
+        "holders": [""]
+      },
+      "flames": [
+        [16, -16, -8]
+      ]
+    },
+    {
+      "id": "T120",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "10",
+      "match": {
+        "emitters": [
+          "opaque:57e398664d*2+e33f90aa06*2"
+        ],
+        "polygons": [80, 80],
+        "extent": { "min": [95.6, 98.8, 126], "max": [95.6, 98.8, 126] },
+        "holders": ["04b8a047a5"]
+      },
+      "flames": [
+        [-10.2, -83.4, 4.8]
+      ]
+    },
+    {
+      "id": "T121",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "10",
+      "match": {
+        "emitters": [
+          "opaque:1fe0c4091c+3e99805d77+dded07dd88"
+        ],
+        "polygons": [3, 3],
+        "extent": { "min": [15.5, 50.5, 128], "max": [15.5, 50.5, 128] },
+        "holders": [""]
+      },
+      "flames": [
+        [0.8, -71.4, -23.8]
+      ]
+    },
+    {
+      "id": "T122",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "13",
+      "match": {
+        "emitters": ["opaque:998746c12f"],
+        "polygons": [1, 1],
+        "extent": { "min": [15.7, 16, 50.1], "max": [15.7, 16, 50.1] },
+        "holders": [""]
+      },
+      "flames": [
+        [-24.5, -1, -1.3]
+      ]
+    },
+    {
+      "id": "T123",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "13",
+      "match": {
+        "emitters": ["opaque:4645493568*2"],
+        "polygons": [22, 22],
+        "extent": { "min": [18.4, 24, 29.7], "max": [18.4, 24, 29.7] },
+        "holders": ["252b2a7bc3"]
+      },
+      "flames": [
+        [-4.1, -17.2, -7.5]
+      ]
+    },
+    {
+      "id": "T124",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "13",
+      "match": {
+        "emitters": ["opaque:fa50921f13"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [2.2, -32.5, 0]
+      ]
+    },
+    {
+      "id": "T125",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "13",
+      "match": {
+        "emitters": ["opaque:737b522818"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [8, -64, 0]
+      ]
+    },
+    {
+      "id": "T126",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "13",
+      "match": {
+        "emitters": ["opaque:0e69ece039"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [6.6, -40.2, 0]
+      ]
+    },
+    {
+      "id": "T127",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "13",
+      "match": {
+        "emitters": ["opaque:ee2f52d46e"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [19, -6.2, 0]
+      ]
+    },
+    {
+      "id": "T128",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "13",
+      "match": {
+        "emitters": ["opaque:79befa8cad"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [-2.6, -5, 0]
+      ]
+    },
+    {
+      "id": "T129",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "13",
+      "match": {
+        "emitters": ["opaque:c7d03380c0*2"],
+        "polygons": [42, 42],
+        "extent": { "min": [25, 65.7, 81.3], "max": [25, 65.7, 81.3] },
+        "holders": ["05d933beb8"]
+      },
+      "flames": [
+        [-4.8, -18.8, -10.5]
+      ]
+    },
+    {
+      "id": "T130",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "14",
+      "match": {
+        "emitters": ["opaque:f0789498b2"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 27, 163], "max": [0, 27, 163] },
+        "holders": [""]
+      },
+      "flames": [
+        [7.5, 0, -15.1]
+      ]
+    },
+    {
+      "id": "T131",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "14",
+      "match": {
+        "emitters": [
+          "opaque:1db9a3bca8+554a237140+84316146bc+a7f3f4ccbe"
+        ],
+        "polygons": [4, 4],
+        "extent": { "min": [0, 195.6, 541.1], "max": [0, 195.6, 541.1] },
+        "holders": [""]
+      },
+      "flames": [
+        [45.3, 0, 45.3]
+      ]
+    },
+    {
+      "id": "T132",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "14",
+      "match": {
+        "emitters": ["opaque:221fedae74"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 34.5, 127.6], "max": [0, 34.5, 127.6] },
+        "holders": [""]
+      },
+      "flames": [
+        [11.3, 0, -3.8]
+      ]
+    },
+    {
+      "id": "T133",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "14",
+      "match": {
+        "emitters": ["opaque:4022885154"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 45.1, 212.5], "max": [0, 45.1, 212.5] },
+        "holders": [""]
+      },
+      "flames": [
+        [-15.1, 0, -1.9]
+      ]
+    },
+    {
+      "id": "T134",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "15",
+      "match": {
+        "emitters": ["opaque:1cd0c16b02"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [-2, -51.2, 0]
+      ]
+    },
+    {
+      "id": "T135",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "16",
+      "match": {
+        "emitters": ["opaque:c563f84bcc"],
+        "polygons": [1, 1],
+        "extent": { "min": [12.2, 40, 45.1], "max": [12.2, 40, 45.1] },
+        "holders": [""]
+      },
+      "flames": [
+        [12, -2, 16]
+      ]
+    },
+    {
+      "id": "T136",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "16",
+      "match": {
+        "emitters": [
+          "opaque:156909049a+a09eadc92d*2"
+        ],
+        "polygons": [3, 3],
+        "extent": { "min": [10, 10.2, 23.9], "max": [10, 10.2, 23.9] },
+        "holders": [""]
+      },
+      "flames": [
+        [1.5, -1.5, 4.5]
+      ]
+    },
+    {
+      "id": "T137",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "16",
+      "match": {
+        "emitters": [
+          "opaque:0b62486336+18f7eb46b6+cf54ba6db6"
+        ],
+        "polygons": [3, 3],
+        "extent": { "min": [23.2, 38, 65.7], "max": [23.2, 38, 65.7] },
+        "holders": [""]
+      },
+      "flames": [
+        [11.4, -20, 1.1]
+      ]
+    },
+    {
+      "id": "T138",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "16",
+      "match": {
+        "emitters": ["opaque:2a2fdb5aa1"],
+        "polygons": [1, 1],
+        "extent": { "min": [5.7, 20, 35.2], "max": [5.7, 20, 35.2] },
+        "holders": [""]
+      },
+      "flames": [
+        [2.5, -6, 18.6]
+      ]
+    },
+    {
+      "id": "T139",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "16",
+      "match": {
+        "emitters": ["opaque:fbc3c5061a"],
+        "polygons": [1, 1],
+        "extent": { "min": [11.3, 14, 16.4], "max": [11.3, 14, 16.4] },
+        "holders": [""]
+      },
+      "flames": [
+        [1.4, -12.5, 6.7]
+      ]
+    },
+    {
+      "id": "T140",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "17",
+      "match": {
+        "emitters": ["opaque:461f08213f"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [-0.4, -50.5, 0]
+      ]
+    },
+    {
+      "id": "T141",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "17",
+      "match": {
+        "emitters": ["opaque:43a13658d7"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [0.7, -55.3, 0]
+      ]
+    },
+    {
+      "id": "T142",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "18",
+      "match": {
+        "emitters": ["opaque:ee93ed17ea"],
+        "polygons": [30, 30],
+        "extent": { "min": [96.5, 156, 167.6], "max": [96.5, 156, 167.6] },
+        "holders": ["afacc8568a"]
+      },
+      "flames": [
+        [-48.2, -156, -5.8]
+      ]
+    },
+    {
+      "id": "T143",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "20",
+      "match": {
+        "emitters": [
+          "opaque:acaf371b13+c08c20b2ab+c5d0308639+d1daf9856c+f18d22e943+f1d3ff8443*7+fa52766d61"
+        ],
+        "polygons": [36, 36],
+        "extent": { "min": [125.3, 160, 332.6], "max": [125.3, 160, 332.6] },
+        "holders": ["bac804c16e"]
+      },
+      "flames": [
+        [-33.3, -88, 14.7]
+      ]
+    },
+    {
+      "id": "T144",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "20",
+      "match": {
+        "emitters": [
+          "opaque:10f0e296b0+a9aa70625f+d1daf9856c"
+        ],
+        "polygons": [5, 5],
+        "extent": { "min": [0, 56.6, 61.3], "max": [0, 56.6, 61.3] },
+        "holders": ["8347eff4ea"]
+      },
+      "flames": [
+        [22.4, 0, 21]
+      ]
+    },
+    {
+      "id": "T145",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": [
+          "opaque:27a768e08f+9c5d99caea+a4dcb3aa7c+fa51862c13"
+        ],
+        "polygons": [4, 4],
+        "extent": { "min": [0, 68.2, 447.9], "max": [0, 68.2, 447.9] },
+        "holders": [""]
+      },
+      "flames": [
+        [-49.1, 0, 2.1]
+      ]
+    },
+    {
+      "id": "T146",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": [
+          "opaque:04b864312b+2275e55e48+347e8d64a7+b37cd4e882"
+        ],
+        "polygons": [4, 4],
+        "extent": { "min": [0, 129.9, 342.6], "max": [0, 129.9, 342.6] },
+        "holders": [""]
+      },
+      "flames": [
+        [9.3, 0, 16.6]
+      ]
+    },
+    {
+      "id": "T147",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": ["opaque:0e6810727d"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 70.5, 91.9], "max": [0, 70.5, 91.9] },
+        "holders": [""]
+      },
+      "flames": [
+        [11.9, 0, 0]
+      ]
+    },
+    {
+      "id": "T148",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": [
+          "opaque:d57435824c+ec4a646689"
+        ],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 112, 192], "max": [0, 112, 192] },
+        "holders": [""]
+      },
+      "flames": [
+        [29.1, 0, 29.3]
+      ]
+    },
+    {
+      "id": "T149",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": [
+          "opaque:62b9839f33+763151791d"
+        ],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 77.6, 174.6], "max": [0, 77.6, 174.6] },
+        "holders": [""]
+      },
+      "flames": [
+        [-5.8, 0, 4.6]
+      ]
+    },
+    {
+      "id": "T150",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": ["opaque:e9f86e36e6"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 36.2, 255.7], "max": [0, 36.2, 255.7] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, 0, -24]
+      ]
+    },
+    {
+      "id": "T151",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": ["opaque:982566b0ef"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 32], "max": [0, 16, 32] },
+        "holders": [""]
+      },
+      "flames": [
+        [16, -16, 0]
+      ]
+    },
+    {
+      "id": "T152",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": ["opaque:4352d88a78*2"],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 16, 80], "max": [0, 16, 80] },
+        "holders": [""]
+      },
+      "flames": [
+        [16, -8, 0]
+      ]
+    },
+    {
+      "id": "T153",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": ["opaque:4352d88a78*3"],
+        "polygons": [3, 3],
+        "extent": { "min": [0, 64, 80], "max": [0, 64, 80] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -58.9, 3]
+      ]
+    },
+    {
+      "id": "T154",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": ["opaque:d8bc4145a9"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 61.3, 141.1], "max": [0, 61.3, 141.1] },
+        "holders": [""]
+      },
+      "flames": [
+        [-14.3, 0, 19.1]
+      ]
+    },
+    {
+      "id": "T155",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": ["opaque:a4dcb3aa7c"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 45.3, 90.5], "max": [0, 45.3, 90.5] },
+        "holders": [""]
+      },
+      "flames": [
+        [10.7, 0, 10.7]
+      ]
+    },
+    {
+      "id": "T156",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": ["opaque:68230f9da3"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 54.3, 137.8], "max": [0, 54.3, 137.8] },
+        "holders": [""]
+      },
+      "flames": [
+        [-15.8, 0, 17.1]
+      ]
+    },
+    {
+      "id": "T157",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": [
+          "opaque:01e49315ee+1a81420b2d+3e79ac82db+44cea74cc4+4b4be61dff+5d7d595255+aaa077f38a+d56e1a3b77"
+        ],
+        "polygons": [8, 8],
+        "extent": { "min": [0, 284, 509], "max": [0, 284, 509] },
+        "holders": [""]
+      },
+      "flames": [
+        [-56.5, 0, 5.3]
+      ]
+    },
+    {
+      "id": "T158",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": ["opaque:bc8212c5b0"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 23.9, 129.7], "max": [0, 23.9, 129.7] },
+        "holders": [""]
+      },
+      "flames": [
+        [-4, 0, 21.3]
+      ]
+    },
+    {
+      "id": "T159",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": [
+          "opaque:0c619b1395+19af76b3c9+dd82d3305b"
+        ],
+        "polygons": [3, 3],
+        "extent": { "min": [0, 106.6, 262.6], "max": [0, 106.6, 262.6] },
+        "holders": [""]
+      },
+      "flames": [
+        [-1.8, 0, -25]
+      ]
+    },
+    {
+      "id": "T160",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": ["opaque:e2b61f0d3b"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 34.5, 255.8], "max": [0, 34.5, 255.8] },
+        "holders": [""]
+      },
+      "flames": [
+        [-21.1, 0, 6.2]
+      ]
+    },
+    {
+      "id": "T161",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": [
+          "opaque:afea6c4a5e+d961639e9b"
+        ],
+        "polygons": [2, 2],
+        "extent": { "min": [16, 48.8, 224], "max": [16, 48.8, 224] },
+        "holders": [""]
+      },
+      "flames": [
+        [-13.8, -1.4, 9.4]
+      ]
+    },
+    {
+      "id": "T162",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": [
+          "opaque:05000497f5+ddc0e0ac9f"
+        ],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 32, 256], "max": [0, 32, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [-5.3, 0, 0]
+      ]
+    },
+    {
+      "id": "T163",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "22",
+      "match": {
+        "emitters": ["opaque:e9e46f25ec"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 33.4, 143.3], "max": [0, 33.4, 143.3] },
+        "holders": [""]
+      },
+      "flames": [
+        [5.3, 0, -18.7]
+      ]
+    },
+    {
+      "id": "T164",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "23",
+      "match": {
+        "emitters": ["opaque:1a7a9a0083*4"],
+        "polygons": [4, 4],
+        "extent": { "min": [0, 128, 128], "max": [0, 128, 128] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, 0, 0]
+      ]
+    },
+    {
+      "id": "T165",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "24",
+      "match": {
+        "emitters": [
+          "opaque:028d1ff972+0c23590e3a+1120a6003e+157c8430e6+1e0c8541a5+2dc276fc01+36a10f923f+4f9df8972f+5ea1e407aa+60866b5623+6cc4e7add3+6f2e33bda1+7306136214+7479a8f720*2+789bea0286+88c9dae766*2+a33431f1d5+a774b36426+bfe94d9fd0+c47e067bf7+ce3f3c572a+e4e49b2857+e7718e6a4e+ed88cf176a+eee3c3a374+f77ea391cb"
+        ],
+        "polygons": [47, 47],
+        "extent": { "min": [98.8, 173.7, 191], "max": [98.8, 173.7, 191] },
+        "holders": ["65b7b3c185"]
+      },
+      "flames": [
+        [-5.3, -78.7, 3.1]
+      ]
+    },
+    {
+      "id": "T166",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "24",
+      "match": {
+        "emitters": [
+          "opaque:1038221506+6027112570+e11b9d50c5+ea7789f92c"
+        ],
+        "polygons": [14, 14],
+        "extent": { "min": [12, 22, 320], "max": [12, 22, 320] },
+        "holders": ["2ba483ea69"]
+      },
+      "flames": [
+        [0, -309.9, 0.5]
+      ]
+    },
+    {
+      "id": "T167",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "24",
+      "match": {
+        "emitters": [
+          "opaque:29e97f0264+72da5b56a1+e11b9d50c5+ea7789f92c"
+        ],
+        "polygons": [14, 14],
+        "extent": { "min": [12, 22, 320], "max": [12, 22, 320] },
+        "holders": ["2e77dfb627"]
+      },
+      "flames": [
+        [0, -306.8, 0.6]
+      ]
+    },
+    {
+      "id": "T168",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "24",
+      "match": {
+        "emitters": [
+          "opaque:29e97f0264+72da5b56a1+e11b9d50c5+ea7789f92c"
+        ],
+        "polygons": [12, 12],
+        "extent": { "min": [12, 22, 208], "max": [12, 22, 208] },
+        "holders": ["95a7c3d0fd"]
+      },
+      "flames": [
+        [-0.1, -193.9, 0.6]
+      ]
+    },
+    {
+      "id": "T169",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "24",
+      "match": {
+        "emitters": [
+          "opaque:1038221506+6027112570+e11b9d50c5+ea7789f92c"
+        ],
+        "polygons": [12, 12],
+        "extent": { "min": [12, 22, 208], "max": [12, 22, 208] },
+        "holders": ["7dc5bbf03b"]
+      },
+      "flames": [
+        [0, -201.6, 0.5]
+      ]
+    },
+    {
+      "id": "T170",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "24",
+      "match": {
+        "emitters": [
+          "opaque:050e701c3a+160d59ea25+1b460f94ed+22341ca5f6+24be040749+26837ea1a5+2e277f48d8*2+4271553bd5*2+4812717e6a*2+4b5597ba1a+5b99de31f0*2+684aea81ee+69727bebd8+7b36d18bec+af11577902+b45333c884+bba0891d48*2+bc3a44d916+c5326c5fe0+c5ff4c6279*2+d4b3b43c84+db7504533b+e143bda7ca+fa8ccf5f73"
+        ],
+        "polygons": [31, 31],
+        "extent": { "min": [16, 166, 217], "max": [16, 166, 217] },
+        "holders": ["ca157f613a"]
+      },
+      "flames": [
+        [0.3, -197.4, 6.4]
+      ]
+    },
+    {
+      "id": "T171",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "24",
+      "match": {
+        "emitters": [
+          "opaque:6c6ed542bf+789bea0286+803434d355+85c27bfa9d"
+        ],
+        "polygons": [27, 27],
+        "extent": { "min": [50.4, 143, 158.1], "max": [50.4, 143, 158.1] },
+        "holders": ["1d0ec8568f"]
+      },
+      "flames": [
+        [-4.4, -59.8, -4.3]
+      ]
+    },
+    {
+      "id": "T172",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "28",
+      "match": {
+        "emitters": ["opaque:21698b8c39"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16.7, 60.9], "max": [0, 16.7, 60.9] },
+        "holders": [""]
+      },
+      "flames": [
+        [12, 0, -12]
+      ]
+    },
+    {
+      "id": "T173",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "28",
+      "match": {
+        "emitters": ["opaque:dd206021b1"],
+        "polygons": [1, 1],
+        "extent": { "min": [8, 17, 33.9], "max": [8, 17, 33.9] },
+        "holders": [""]
+      },
+      "flames": [
+        [0.2, -5.8, -6.7]
+      ]
+    },
+    {
+      "id": "T174",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "31",
+      "match": {
+        "emitters": ["opaque:eb367ca084"],
+        "polygons": [1, 1],
+        "extent": { "min": [7.1, 12, 28.7], "max": [7.1, 12, 28.7] },
+        "holders": [""]
+      },
+      "flames": [
+        [-12, -6, -4]
+      ]
+    },
+    {
+      "id": "T175",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "31",
+      "match": {
+        "emitters": [
+          "opaque:c67dcfc531+dc7c4adc8b"
+        ],
+        "polygons": [2, 2],
+        "extent": { "min": [23, 44, 56.4], "max": [23, 44, 56.4] },
+        "holders": [""]
+      },
+      "flames": [
+        [-2.9, -33.2, -6.5]
+      ]
+    },
+    {
+      "id": "T176",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "32",
+      "match": {
+        "emitters": [
+          "opaque:a406419352+afa43f8f7b"
+        ],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 141, 150.5], "max": [0, 141, 150.5] },
+        "holders": [""]
+      },
+      "flames": [
+        [-10.2, 0, -15]
+      ]
+    },
+    {
+      "id": "T177",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "32",
+      "match": {
+        "emitters": [
+          "opaque:4ba9ad8129+740bab4f9e"
+        ],
+        "polygons": [10, 10],
+        "extent": { "min": [24, 24, 48], "max": [24, 24, 48] },
+        "holders": ["02012426f4"]
+      },
+      "flames": [
+        [4.3, -43, 0.9]
+      ]
+    },
+    {
+      "id": "T178",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "32",
+      "match": {
+        "emitters": [
+          "opaque:52fb4921e8+93480c3108+c3377b6ea7+fd2c292d1a"
+        ],
+        "polygons": [4, 4],
+        "extent": { "min": [32.1, 40, 88], "max": [32.1, 40, 88] },
+        "holders": [""]
+      },
+      "flames": [
+        [11.5, -25.5, 2]
+      ]
+    },
+    {
+      "id": "T179",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "32",
+      "match": {
+        "emitters": ["opaque:b36c286155"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 56], "max": [0, 16, 56] },
+        "holders": [""]
+      },
+      "flames": [
+        [-2, -14, 0]
+      ]
+    },
+    {
+      "id": "T180",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "32",
+      "match": {
+        "emitters": ["opaque:c3377b6ea7"],
+        "polygons": [1, 1],
+        "extent": { "min": [8, 16, 32], "max": [8, 16, 32] },
+        "holders": [""]
+      },
+      "flames": [
+        [1.6, -1, -3.5]
+      ]
+    },
+    {
+      "id": "T181",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "32",
+      "match": {
+        "emitters": ["opaque:05e97d5617"],
+        "polygons": [12, 12],
+        "extent": { "min": [24.6, 112, 128], "max": [24.6, 112, 128] },
+        "holders": ["0dbbd046d4"]
+      },
+      "flames": [
+        [-40, -48, 4]
+      ]
+    },
+    {
+      "id": "T182",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "32",
+      "match": {
+        "emitters": [
+          "opaque:2c31f373d2+740bab4f9e"
+        ],
+        "polygons": [10, 10],
+        "extent": { "min": [31.6, 32.6, 40], "max": [31.6, 32.6, 40] },
+        "holders": ["faf1286977"]
+      },
+      "flames": [
+        [-2.9, -40, 1.2]
+      ]
+    },
+    {
+      "id": "T183",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "32",
+      "match": {
+        "emitters": ["opaque:0e850d533e"],
+        "polygons": [10, 10],
+        "extent": { "min": [28, 28, 42], "max": [28, 28, 42] },
+        "holders": ["2d9b7b9c07"]
+      },
+      "flames": [
+        [3, -35.7, 9.2]
+      ]
+    },
+    {
+      "id": "T184",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "34",
+      "match": {
+        "emitters": [
+          "opaque:d8d680db77+e032b144fb"
+        ],
+        "polygons": [2, 2],
+        "extent": { "min": [32, 32, 64], "max": [32, 32, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [2.5, -32, -16]
+      ]
+    },
+    {
+      "id": "T185",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "35",
+      "match": {
+        "emitters": ["opaque:25b80d2e9b"],
+        "polygons": [1, 1],
+        "extent": { "min": [3.8, 16, 17.9], "max": [3.8, 16, 17.9] },
+        "holders": [""]
+      },
+      "flames": [
+        [-1.3, -16, 4.3]
+      ]
+    },
+    {
+      "id": "T186",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "35",
+      "match": {
+        "emitters": ["opaque:a6029c7114"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 32, 35.8], "max": [0, 32, 35.8] },
+        "holders": [""]
+      },
+      "flames": [
+        [-8, -30.8, -16]
+      ]
+    },
+    {
+      "id": "T187",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "36",
+      "match": {
+        "emitters": ["opaque:7cd2574300"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 15.9, 65.5], "max": [0, 15.9, 65.5] },
+        "holders": [""]
+      },
+      "flames": [
+        [16, 0, 4]
+      ]
+    },
+    {
+      "id": "T188",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "36",
+      "match": {
+        "emitters": ["opaque:7529e9a796"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 16], "max": [0, 16, 16] },
+        "holders": [""]
+      },
+      "flames": [
+        [7.9, -9.6, -1.1]
+      ]
+    },
+    {
+      "id": "T189",
+      "class": "cobweb",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "37",
+      "match": {
+        "emitters": ["a665e67cf9"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 96, 128], "max": [0, 96, 128] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -48, 0]
+      ]
+    },
+    {
+      "id": "T190",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "37",
+      "match": {
+        "emitters": [
+          "opaque:17410c7f4e+66ba4d8775+80e2be94a9"
+        ],
+        "polygons": [18, 18],
+        "extent": { "min": [21, 22, 83.4], "max": [21, 22, 83.4] },
+        "holders": ["73a3cfe2f7"]
+      },
+      "flames": [
+        [-34.5, -14, 29]
+      ]
+    },
+    {
+      "id": "T191",
+      "class": "cobweb",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "37",
+      "match": {
+        "emitters": ["a665e67cf9"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 96, 192], "max": [0, 96, 192] },
+        "holders": [""]
+      },
+      "flames": [
+        [16, -106.7, 0]
+      ]
+    },
+    {
+      "id": "T192",
+      "class": "cobweb",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "37",
+      "match": {
+        "emitters": ["a665e67cf9"],
+        "polygons": [1, 1],
+        "extent": { "min": [64, 78.1, 180.7], "max": [64, 78.1, 180.7] },
+        "holders": [""]
+      },
+      "flames": [
+        [13.3, -42.7, -21.3]
+      ]
+    },
+    {
+      "id": "T193",
+      "class": "cobweb",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "37",
+      "match": {
+        "emitters": ["a665e67cf9"],
+        "polygons": [1, 1],
+        "extent": { "min": [38.3, 96, 172.8], "max": [38.3, 96, 172.8] },
+        "holders": [""]
+      },
+      "flames": [
+        [-2.7, -45.3, -16]
+      ]
+    },
+    {
+      "id": "T194",
+      "class": "cobweb",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "37",
+      "match": {
+        "emitters": ["a665e67cf9"],
+        "polygons": [1, 1],
+        "extent": { "min": [78.1, 136, 180.7], "max": [78.1, 136, 180.7] },
+        "holders": [""]
+      },
+      "flames": [
+        [-13.3, -80, -21.3]
+      ]
+    },
+    {
+      "id": "T195",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "40",
+      "match": {
+        "emitters": ["opaque:dec8e64b8a"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 62.6, 169.1], "max": [0, 62.6, 169.1] },
+        "holders": [""]
+      },
+      "flames": [
+        [12, 0, -4]
+      ]
+    },
+    {
+      "id": "T196",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "42",
+      "match": {
+        "emitters": ["opaque:3fe91b4a16*3"],
+        "polygons": [110, 110],
+        "extent": { "min": [24, 104, 144], "max": [24, 104, 144] },
+        "holders": ["49e71866db"]
+      },
+      "flames": [
+        [-41.8, -64.7, 0.2]
+      ]
+    },
+    {
+      "id": "T197",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "43",
+      "match": {
+        "emitters": [
+          "opaque:5887a34847+598dcf6361*2+be3f3b67ab*2+c975e164e8*2"
+        ],
+        "polygons": [55, 55],
+        "extent": { "min": [113.2, 136, 251.7], "max": [113.2, 136, 251.7] },
+        "holders": ["a711103151"]
+      },
+      "flames": [
+        [-6.1, -136, 12.1]
+      ]
+    },
+    {
+      "id": "T198",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "44",
+      "match": {
+        "emitters": ["opaque:6dacd39b9d"],
+        "polygons": [33, 33],
+        "extent": { "min": [60, 63.8, 64.9], "max": [60, 63.8, 64.9] },
+        "holders": ["656c0188c3"]
+      },
+      "flames": [
+        [-4, -40, 26.5]
+      ]
+    },
+    {
+      "id": "T199",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "45",
+      "match": {
+        "emitters": [
+          "opaque:2118077b3c+762e6e5965"
+        ],
+        "polygons": [47, 47],
+        "extent": { "min": [8, 44, 240], "max": [8, 44, 240] },
+        "holders": ["b6e519854d"]
+      },
+      "flames": [
+        [9.7, -209.2, 2.8]
+      ]
+    },
+    {
+      "id": "T200",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "45",
+      "match": {
+        "emitters": [
+          "opaque:3448c59ab6+6117d78577+ac64dcd16c+f1cc761566"
+        ],
+        "polygons": [4, 4],
+        "extent": { "min": [11.3, 42, 52.8], "max": [11.3, 42, 52.8] },
+        "holders": [""]
+      },
+      "flames": [
+        [10.4, -14.2, -5]
+      ]
+    },
+    {
+      "id": "T201",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "45",
+      "match": {
+        "emitters": ["opaque:2118077b3c"],
+        "polygons": [29, 29],
+        "extent": { "min": [4, 32, 57.6], "max": [4, 32, 57.6] },
+        "holders": ["7c4454c968"]
+      },
+      "flames": [
+        [-12.7, -4, 7.3]
+      ]
+    },
+    {
+      "id": "T202",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "46",
+      "match": {
+        "emitters": ["opaque:5a21f722ca"],
+        "polygons": [60, 60],
+        "extent": { "min": [128, 146.2, 515.1], "max": [128, 146.2, 515.1] },
+        "holders": ["1da6297c72"]
+      },
+      "flames": [
+        [-15.3, -110, 45.6]
+      ]
+    },
+    {
+      "id": "T203",
+      "class": "animated_surface",
+      "confidence": "medium",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "46",
+      "match": {
+        "emitters": ["opaque:e29dff4876"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 17.7, 47.9], "max": [0, 17.7, 47.9] },
+        "holders": [""]
+      },
+      "flames": [
+        [-2, 0, 0]
+      ]
+    },
+    {
+      "id": "T204",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "46",
+      "match": {
+        "emitters": ["opaque:ee9dffe3da"],
+        "polygons": [40, 40],
+        "extent": { "min": [32, 140, 228], "max": [32, 140, 228] },
+        "holders": ["a29524580a"]
+      },
+      "flames": [
+        [-7, -218.8, -58.5]
+      ]
+    },
+    {
+      "id": "T205",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "47",
+      "match": {
+        "emitters": [
+          "opaque:60fb09e5d3+7e347362c8+ae51e2f44c+dd2e81aac5"
+        ],
+        "polygons": [4, 4],
+        "extent": { "min": [9.8, 32, 32.7], "max": [9.8, 32, 32.7] },
+        "holders": [""]
+      },
+      "flames": [
+        [10.1, -22.7, 0.6]
+      ]
+    },
+    {
+      "id": "T206",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "47",
+      "match": {
+        "emitters": ["opaque:69b4657f0e"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [6, -43, 0]
+      ]
+    },
+    {
+      "id": "T207",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "47",
+      "match": {
+        "emitters": ["opaque:bfddaeb00e"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 64], "max": [0, 16, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [2.7, -56, 0]
+      ]
+    },
+    {
+      "id": "T208",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "57",
+      "match": {
+        "emitters": [
+          "opaque:1a8863f733+2c8a432a59"
+        ],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 96, 96], "max": [0, 96, 96] },
+        "holders": [""]
+      },
+      "flames": [
+        [-21, -78.6, 0]
+      ]
+    },
+    {
+      "id": "T209",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "57",
+      "match": {
+        "emitters": [
+          "opaque:b0d1efb025+db125c1825"
+        ],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 96, 96], "max": [0, 96, 96] },
+        "holders": [""]
+      },
+      "flames": [
+        [25.5, -39.2, 0]
+      ]
+    },
+    {
+      "id": "T210",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "58",
+      "match": {
+        "emitters": [
+          "opaque:008c521ee5*2+05307ed018+0f43b8e2bb+10eae39c54+113e2c57fb*2+238c8c433a+270f5748ff*2+2e8f70380d*2+31b7305dc6+33e263c25b*2+3634f30e12+3a534b2e77*2+4081823879+4a8fa29722*2+4d5f091d3a+5299b5285e+5ace0fc3e8*2+5f382b9153*2+673a011f7f+6bb2ba9d52*2+6d5fcd7b37+6e199d0826+715eecf895*2+81ee372436+89a51080d1+8b68317c2b+94df89b08e+9d42c4ec60*2+a6842105c3+ab5e55b223*2+acd8cb09ea+b16fd1758b+b796af3915*2+ba2c513dbe+bb72077cc1+bd3eb08c85+c4893baa36+d45d023d31*2+d57d960a08+df2efbd69b+e18697a410+e2dcabfce5+e57c392621*2+e8d341fe7d*2+eaecb7dfab+f3b0d247a2+f9ca5cf097*2"
+        ],
+        "polygons": [65, 65],
+        "extent": { "min": [48.5, 115, 144], "max": [48.5, 115, 144] },
+        "holders": [""]
+      },
+      "flames": [
+        [0.8, -87.9, 0.7]
+      ]
+    },
+    {
+      "id": "T211",
+      "class": "warm_texels",
+      "confidence": "high",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "58",
+      "match": {
+        "emitters": [
+          "opaque:722545eb93+fb88716a18"
+        ],
+        "polygons": [2, 2],
+        "extent": { "min": [0, 40, 64], "max": [0, 40, 64] },
+        "holders": [""]
+      },
+      "flames": [
+        [-5.5, -31.3, 0]
+      ]
+    },
+    {
+      "id": "T212",
+      "class": "other",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": ["45574c6963"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 40, 96], "max": [0, 40, 96] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -20, 0]
+      ]
+    },
+    {
+      "id": "T213",
+      "class": "other",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "51",
+      "match": {
+        "emitters": ["8d769088b8"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 32, 128], "max": [0, 32, 128] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -64, 0]
+      ]
+    },
+    {
+      "id": "T214",
+      "class": "other",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": ["90266600ea"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 128, 128], "max": [0, 128, 128] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -64, 0]
+      ]
+    },
+    {
+      "id": "T215",
+      "class": "other",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": ["282266022c"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 128, 128], "max": [0, 128, 128] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -64, 0]
+      ]
+    },
+    {
+      "id": "T216",
+      "class": "other",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": ["2312eef330"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 64, 128], "max": [0, 64, 128] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -28, 0]
+      ]
+    },
+    {
+      "id": "T217",
+      "class": "other",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "20",
+      "match": {
+        "emitters": [
+          "010870661c*4+18104b206c+e996a15c09*4+eda22041cd"
+        ],
+        "polygons": [29, 29],
+        "extent": { "min": [16, 16, 32], "max": [16, 16, 32] },
+        "holders": ["ade3161dda"]
+      },
+      "flames": [
+        [-4, -12, 0]
+      ]
+    },
+    {
+      "id": "T218",
+      "class": "other",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "32",
+      "match": {
+        "emitters": ["cad947806f"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 16, 128], "max": [0, 16, 128] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -64, 0]
+      ]
+    },
+    {
+      "id": "T219",
+      "class": "other",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "32",
+      "match": {
+        "emitters": ["a1321cbcee"],
+        "polygons": [17, 17],
+        "extent": { "min": [64, 80, 112], "max": [64, 80, 112] },
+        "holders": ["004da38980"]
+      },
+      "flames": [
+        [0, -48, -36]
+      ]
+    },
+    {
+      "id": "T220",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 9,
+      "rooms": 9,
+      "zones": "48,49",
+      "match": {
+        "emitters": ["c25bac1312"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 160, 192], "max": [0, 160, 192] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -86, 0]
+      ]
+    },
+    {
+      "id": "T221",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 4,
+      "rooms": 2,
+      "zones": "12",
+      "match": {
+        "emitters": [
+          "0e49c62060+1046f2c7a4+24daf0bf69+457020a354*2+4bf539c6d9*2+8775591810*2+c650ee486b*2+d4b0665327*2+db628b7599*2+df0e0ad54a",
+          "1046f2c7a4*2+457020a354*2+4bf539c6d9*2+8775591810*2+c650ee486b*2+d4b0665327*2+db628b7599*2+df0e0ad54a*2"
+        ],
+        "polygons": [16, 16],
+        "extent": { "min": [159.2, 456, 633.8], "max": [159.2, 456, 633.8] },
+        "holders": [""]
+      },
+      "flames": [
+        [9.4, -235.8, -0.1]
+      ]
+    },
+    {
+      "id": "T222",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 3,
+      "rooms": 1,
+      "zones": "20",
+      "match": {
+        "emitters": ["f1d3ff8443*14", "f1d3ff8443*15"],
+        "polygons": [33, 42],
+        "extent": { "min": [251, 489.1, 576], "max": [319.4, 527.3, 576] },
+        "holders": ["6245a6f79a", "b361103178", "bfaa813c16"]
+      },
+      "flames": [
+        [-46.1, -377.9, 2.9]
+      ]
+    },
+    {
+      "id": "T223",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "12",
+      "match": {
+        "emitters": [
+          "063aa8ae1a+1f05f8412a+2af1c78f01+3174ce647b+61b0fb0a81*2+759650e6d6+7c2b904b8b+83a9daaaca+872eb9d3f4*2+a3f3d93ae2+bece088361+d11dd2e464+e0e09eeb7d+e34a855cb7"
+        ],
+        "polygons": [16, 16],
+        "extent": { "min": [158.4, 456, 633.6], "max": [158.4, 456, 633.6] },
+        "holders": [""]
+      },
+      "flames": [
+        [-8.8, -235.5, 0]
+      ]
+    },
+    {
+      "id": "T224",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 2,
+      "rooms": 2,
+      "zones": "12",
+      "match": {
+        "emitters": [
+          "063aa8ae1a+1f05f8412a+2af1c78f01+457020a354+4bf539c6d9+61b0fb0a81*2+7c2b904b8b+872eb9d3f4*2+8775591810+a3f3d93ae2+bece088361+c650ee486b+d4b0665327+db628b7599"
+        ],
+        "polygons": [16, 16],
+        "extent": { "min": [158.4, 456, 639.2], "max": [158.4, 456, 639.2] },
+        "holders": [""]
+      },
+      "flames": [
+        [-10, -236.1, 0]
+      ]
+    },
+    {
+      "id": "T225",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": ["509fa45d75+5aed9d6493"],
+        "polygons": [2, 2],
+        "extent": { "min": [64, 128, 256], "max": [64, 128, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [-25.6, -6.4, 0]
+      ]
+    },
+    {
+      "id": "T226",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": ["37d47808f1"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 128, 256], "max": [0, 128, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [-32, -54, 0]
+      ]
+    },
+    {
+      "id": "T227",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": ["f1b0aa8599"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 128, 256], "max": [0, 128, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -64, 0]
+      ]
+    },
+    {
+      "id": "T228",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": ["c1eb68c43b"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 112, 192], "max": [0, 112, 192] },
+        "holders": [""]
+      },
+      "flames": [
+        [4, -72, 0]
+      ]
+    },
+    {
+      "id": "T229",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": ["6156e7cbb8"],
+        "polygons": [1, 1],
+        "extent": { "min": [72, 256, 256], "max": [72, 256, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -36, 0]
+      ]
+    },
+    {
+      "id": "T230",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "9",
+      "match": {
+        "emitters": [
+          "2d87cb3b90+8634c7f4f9+b41efe5fb5"
+        ],
+        "polygons": [3, 3],
+        "extent": { "min": [0, 320, 512], "max": [0, 320, 512] },
+        "holders": [""]
+      },
+      "flames": [
+        [-7.5, -166.6, 0]
+      ]
+    },
+    {
+      "id": "T231",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "20",
+      "match": {
+        "emitters": ["a36f204b62"],
+        "polygons": [1, 1],
+        "extent": { "min": [0, 128, 256], "max": [0, 128, 256] },
+        "holders": [""]
+      },
+      "flames": [
+        [0, -64, 0]
+      ]
+    },
+    {
+      "id": "T232",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "21",
+      "match": {
+        "emitters": [
+          "03434d099b+3373ee6b72*2+3c6ce96d37+5808fa4056*2+83be00068c+a97251c2b1*2+b6cca08cec+ede5dd3ffa+f54402f5c5*2"
+        ],
+        "polygons": [13, 13],
+        "extent": { "min": [899.1, 1024, 2697.5], "max": [899.1, 1024, 2697.5] },
+        "holders": [""]
+      },
+      "flames": [
+        [-17.8, -468.9, 89.2]
+      ]
+    },
+    {
+      "id": "T233",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "21",
+      "match": {
+        "emitters": [
+          "10020ff7fa+2726c545cd+2beafbeb26+3373ee6b72*4+3c6ce96d37+5808fa4056*3+694f9ea54c+6ea460a8da+6fc1970ccc+7630f12627+84828623d5*2+9376f16634+a97251c2b1+cfb7cec4b6*2+d544ed9fed+df36b36c29+f15919785b+f17eb7b2a4+f54402f5c5*2+fc6945a579+fedfb86425"
+        ],
+        "polygons": [29, 29],
+        "extent": { "min": [1296, 1348.2, 2706], "max": [1296, 1348.2, 2706] },
+        "holders": [""]
+      },
+      "flames": [
+        [-21.3, -593.2, -209.3]
+      ]
+    },
+    {
+      "id": "T234",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "32",
+      "match": {
+        "emitters": [
+          "15fa4f1dd1+6d25fa251d+93c4c2e193+e5d985e878"
+        ],
+        "polygons": [4, 4],
+        "extent": { "min": [45.3, 101.8, 440], "max": [45.3, 101.8, 440] },
+        "holders": [""]
+      },
+      "flames": [
+        [-32, -243.4, 0]
+      ]
+    },
+    {
+      "id": "T235",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "32",
+      "match": {
+        "emitters": [
+          "04520adeed+0dc088d713*2+405b5cda3f*3+57347de5bf*4+776a3cc4f6*2+93c4c2e193+a0fb1f3097*10+bd65c55c8e+cd8e86a82e+dd6f8c219b*6+e4bba920af*3+fe54803cfe*3"
+        ],
+        "polygons": [37, 37],
+        "extent": { "min": [687.9, 977, 1280], "max": [687.9, 977, 1280] },
+        "holders": [""]
+      },
+      "flames": [
+        [1.4, -583.3, 220]
+      ]
+    },
+    {
+      "id": "T236",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "32",
+      "match": {
+        "emitters": [
+          "2fd88f8038+57347de5bf+9408766e46"
+        ],
+        "polygons": [9, 9],
+        "extent": { "min": [112, 160, 256], "max": [112, 160, 256] },
+        "holders": ["446d92abcb"]
+      },
+      "flames": [
+        [0, -80, 14.7]
+      ]
+    },
+    {
+      "id": "T237",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "32",
+      "match": {
+        "emitters": [
+          "5033ec5a56+61925efedc*2+8600f8c7ae+e20569d5a2+e627ddb572+eb2d7debc5*2"
+        ],
+        "polygons": [18, 18],
+        "extent": { "min": [64, 80, 240], "max": [64, 80, 240] },
+        "holders": ["59c4f0282e"]
+      },
+      "flames": [
+        [18.2, -158.8, 12.1]
+      ]
+    },
+    {
+      "id": "T238",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "58",
+      "match": {
+        "emitters": [
+          "0d34e513ed+0e899a9035+0f595166f0*2+161d8a120d*2+2625214786+26dd4acb88+3915592807+507d065265+55e7f36288+5ae652726a*6+6941bc5ccb+6d7f616042+90b0dfdac8*9+93cfa1932c+94e49a5f5e+ae40b9dfe1+cba45b2d74*2+da5e4fbfef+df1edf8369+f39b3d20f6*5"
+        ],
+        "polygons": [40, 40],
+        "extent": { "min": [320, 512, 1028.7], "max": [320, 512, 1028.7] },
+        "holders": [""]
+      },
+      "flames": [
+        [-11.3, -5.7, 0.9]
+      ]
+    },
+    {
+      "id": "T239",
+      "class": "shaft",
+      "confidence": "low",
+      "review": "scan",
+      "instances": 1,
+      "rooms": 1,
+      "zones": "68",
+      "match": {
+        "emitters": [
+          "51f252d1c0*3+5544a6c253*3+be4e815aa2*3+dd193d8ff2*3"
+        ],
+        "polygons": [12, 12],
+        "extent": { "min": [120, 352, 400], "max": [120, 352, 400] },
+        "holders": [""]
+      },
+      "flames": [
+        [11.1, -161.3, 0]
+      ]
+    }
+  ]
+}

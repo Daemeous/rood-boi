@@ -17,9 +17,11 @@
 #include "dev_state.h"
 #include "render.h"
 #include "room_editor.h"
+#include "gameplay_walls.h"
 #include "editor_overlays.h"
 #include "lighting_quality.h"
 #include "editor_undo.h"
+#include "camera_stick.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl3.h"
 #include "ImGuizmo.h"
@@ -438,6 +440,38 @@ static void graphics_panel()
         bool perspective = pc_hw_perspective != 0;
         if (ImGui::Checkbox("Perspective-correct textures", &perspective))
             pc_hw_perspective = perspective;
+        {
+            /* Cutaway walls in gameplay (gameplay_walls.c). */
+            static const char* walls[] = { "Original", "Smart" };
+            int mode = pc_gameplay_walls ? 1 : 0;
+            ImGui::SetNextItemWidth(120);
+            if (ImGui::Combo("Cutaway walls", &mode, walls, 2))
+                pc_gameplay_walls = mode;
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Original: the game hides every wall facing the camera's side, as on the PS1\n"
+                                  "(in rooms that are not a box this leaves black void and invisible walls).\n"
+                                  "Smart: such walls are drawn unless they stand between the camera and Ashley\n"
+                                  "(or the battle target) or cover the room in front of her; they fade in and out.\n"
+                                  "Cutscenes keep the original. Settings key gameplay_walls.");
+            if (pc_gameplay_walls) {
+                ImGui::SameLine();
+                bool ghost = pc_gameplay_walls_ghost != 0;
+                if (ImGui::Checkbox("Ghost walls in the way", &ghost))
+                    pc_gameplay_walls_ghost = ghost;
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Walls in the way stay as a dithered ghost with their edges (opacity below)\n"
+                                      "instead of being left out.");
+                if (pc_gameplay_walls_ghost) {
+                    ImGui::SetNextItemWidth(120);
+                    ImGui::SliderFloat("Ghost opacity##walls", &pc_gameplay_walls_opacity, 0, 0.9f, "%.2f");
+                }
+                ImGui::SetNextItemWidth(120);
+                ImGui::SliderFloat("Clearance around Ashley", &pc_gameplay_walls_radius, 0, 256, "%.0f");
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("World units around Ashley's body (and the battle target) that a wall must\n"
+                                      "keep clear of to be drawn.");
+            }
+        }
         bool native = pc_native_room != 0;
         if (ImGui::Checkbox("Native room geometry", &native))
             pc_native_room = native ? 2 : 0;
@@ -561,6 +595,59 @@ int pc_gi_denoiser_active(void) __attribute__((weak));
 int vk_nrd_built(void) __attribute__((weak));
 extern int pc_nrd_glow __attribute__((weak)), pc_nrd_max_frames __attribute__((weak));
 }
+/* Graphics > Controls: the right-stick camera (camera_stick.c). */
+static void camera_stick_panel()
+{
+    bool on = pc_camera_stick != 0;
+    if (ImGui::Checkbox("Right stick turns and zooms the camera", &on))
+        pc_camera_stick = on;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Stick left/right turns around Ashley, up/down zooms; L1/R1 still turn 45 degrees.\n"
+                          "Keyboard: J/L turn, I/K zoom, O resets");
+    if (!pc_camera_stick)
+        return;
+    ImGui::Indent();
+    ImGui::SliderFloat("Turn speed", &pc_camera_stick_speed, 30, 360, "%.0f deg/s");
+    ImGui::SliderFloat("Dead zone", &pc_camera_stick_deadzone, 0, 0.5f, "%.2f");
+    ImGui::SliderFloat("Response curve", &pc_camera_stick_curve, 1, 3, "%.1f");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("1: linear; higher: finer control near the centre");
+    bool invert_x = pc_camera_stick_invert_x != 0, invert_y = pc_camera_stick_invert_y != 0;
+    if (ImGui::Checkbox("Invert turn", &invert_x))
+        pc_camera_stick_invert_x = invert_x;
+    ImGui::SameLine();
+    if (ImGui::Checkbox("Invert zoom", &invert_y))
+        pc_camera_stick_invert_y = invert_y;
+    bool zoom = pc_camera_stick_zoom != 0;
+    if (ImGui::Checkbox("Stick up/down zooms", &zoom))
+        pc_camera_stick_zoom = zoom;
+    if (pc_camera_stick_zoom) {
+        ImGui::SliderFloat("Zoom speed", &pc_camera_stick_zoom_speed, 0.25f, 3, "%.2f");
+        ImGui::DragFloatRange2("Zoom range", &pc_camera_stick_zoom_min, &pc_camera_stick_zoom_max, 0.01f, 0.3f, 3,
+            "in %.2fx", "out %.2fx");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Times the game's own distance; zooming out also stops at the room's size");
+        ImGui::SliderFloat("Pitch with zoom", &pc_camera_stick_zoom_pitch, 0, 15, "%.1f deg");
+        bool collision = pc_camera_stick_collision != 0;
+        if (ImGui::Checkbox("Stop before walls when zoomed out", &collision))
+            pc_camera_stick_collision = collision;
+    }
+    bool r3 = pc_camera_stick_r3 != 0;
+    if (ImGui::Checkbox("R3 resets the camera", &r3))
+        pc_camera_stick_r3 = r3;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Back to the game's 45-degree turn and distance.\nOff: R3 is the game's (first-person view, "
+                          "like Start)");
+    ImGui::SliderFloat("Reset when idle", &pc_camera_stick_idle_reset, 0, 30,
+        pc_camera_stick_idle_reset > 0 ? "after %.0f s" : "off");
+    bool keys = pc_camera_stick_keys != 0;
+    if (ImGui::Checkbox("Keyboard J/L/I/K/O", &keys))
+        pc_camera_stick_keys = keys;
+    if (ImGui::Button("Reset camera"))
+        pc_camera_stick_reset();
+    ImGui::Unindent();
+}
+
 static void post_panel()
 {
     if (!pc_hw_active)
@@ -1303,6 +1390,8 @@ static void details(float x, float y, float w, float h, double frame_ms)
                 pc_lighting_panel();
             if (ImGui::CollapsingHeader("Display and rendering", ImGuiTreeNodeFlags_DefaultOpen))
                 graphics_panel();
+            if (ImGui::CollapsingHeader("Controls"))
+                camera_stick_panel();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Diagnostics", nullptr, select[5])) {

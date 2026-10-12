@@ -49,9 +49,153 @@ int pc_hw_scale = 1;
  * (pc_gte_widescreen); 2D primitives, which the GTE did not project, are
  * compressed here about the drawing area's centre so they keep their shape. */
 extern int pc_gte_widescreen;
-static int primitive_2d, primitive_room;
+static int primitive_2d, primitive_room, primitive_cover;
 static uintptr_t current_packet; /* the GPU packet being drawn (pc_hw_set_packet) */
-void pc_hw_set_2d(int is_2d) { primitive_2d = is_2d; }
+void pc_hw_set_2d(int is_2d)
+{
+    primitive_2d = is_2d;
+    primitive_cover = 0;
+}
+/* Widescreen: 2D that stands for the whole screen draws uncompressed, over
+ * the full 16:9 view. The game draws its full-screen effects over the 4:3
+ * screen (0..320); compressed like other 2D they covered only the view's
+ * central 3/4 and its sides kept the picture underneath (the old room
+ * during a door fade, the unfaded scene beside a black centre). A 2D
+ * primitive covers the view when it
+ *
+ * - spans the drawing area's full width (a few pixels' tolerance): fades,
+ *   flashes, the battle-mode message bar, backdrops;
+ * - is untextured and reaches well past the top or bottom: wipe quads (sized
+ *   beyond the screen and rotated) and fans of gradient triangles about the
+ *   centre, as a whole;
+ * - is a full-height sprite at the screen's left or right edge: the pieces a
+ *   full-screen picture is drawn in (the map's background, 256 + 64);
+ * - is a screen copy: 15-bit texels sampling a frame buffer (a recent
+ *   display area, or a VRAM copy of one) about where it draws (the map's
+ *   rippling transition redraws the last frame in strips; menus dim a copy
+ *   of the field). In widescreen the frame buffers are read from the target
+ *   (pc_hw_set_display marks them stale), so the copy is the widescreen
+ *   picture and draws 1:1.
+ *
+ * Called by the CPU rasterizer after pc_hw_set_2d with the primitive's bounds
+ * (x1, y1 exclusive, drawing offset applied) and, textured, the texel
+ * rectangle it samples (u0, v0, u1, v1 inclusive; NULL: untextured).
+ * ROOD_WIDESCREEN_DEBUG=1 logs them. */
+int pc_widescreen_cover = -1; /* ROOD_WIDESCREEN_COVER=0: compress them too (as before; for comparisons) */
+static int cover_enabled(void)
+{
+    if (pc_widescreen_cover < 0)
+        pc_widescreen_cover = !getenv("ROOD_WIDESCREEN_COVER") || *getenv("ROOD_WIDESCREEN_COVER") != '0';
+    return pc_widescreen_cover;
+}
+/* Frame buffer pictures in VRAM: x, y, w, h and the VRAM position of the
+ * screen's top-left corner (a copy keeps its source's). */
+typedef struct {
+    int rect[4], origin[2];
+} screen_picture;
+#define MAX_SCREEN_AREAS 2
+#define MAX_SCREEN_COPIES 8
+static screen_picture screen_areas[MAX_SCREEN_AREAS], screen_copies[MAX_SCREEN_COPIES];
+static int screen_area_count, screen_copy_count;
+static int rects_overlap(const int* a, const int* b)
+{
+    return a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
+}
+/* The picture whose pixels r covers (the larger share), or NULL. */
+static const screen_picture* screen_find(const int* r)
+{
+    const screen_picture* best = NULL;
+    int best_area = 0;
+    for (int list = 0; list < 2; list++) {
+        const screen_picture* p = list ? screen_copies : screen_areas;
+        for (int i = 0, n = list ? screen_copy_count : screen_area_count; i < n; i++) {
+            const int* q = p[i].rect;
+            int w = (r[0] + r[2] < q[0] + q[2] ? r[0] + r[2] : q[0] + q[2]) - (r[0] > q[0] ? r[0] : q[0]);
+            int h = (r[1] + r[3] < q[1] + q[3] ? r[1] + r[3] : q[1] + q[3]) - (r[1] > q[1] ? r[1] : q[1]);
+            if (w > 0 && h > 0 && w * h > best_area)
+                best = &p[i], best_area = w * h;
+        }
+    }
+    return best;
+}
+/* Add to a list of `limit` pictures (the oldest goes when it is full). */
+static void screen_list_add(screen_picture* list, int* count, int limit, const screen_picture* p)
+{
+    for (int i = 0; i < *count; i++)
+        if (!memcmp(&list[i], p, sizeof *p))
+            return;
+    if (*count == limit) {
+        memmove(list, list + 1, sizeof *list * (size_t)(limit - 1));
+        --*count;
+    }
+    list[(*count)++] = *p;
+}
+static void screen_display(int x, int y, int w, int h)
+{
+    screen_picture p = { { x, y, w, h }, { x, y } };
+    if (w > 0 && h > 0)
+        screen_list_add(screen_areas, &screen_area_count, MAX_SCREEN_AREAS, &p);
+}
+/* A VRAM write: a copy from a frame buffer makes its destination a screen
+ * copy; anything written over a screen copy ends it (uploads and fills too). */
+static void screen_copy_write(int sx, int sy, int dx, int dy, int w, int h, int copy)
+{
+    int src[4] = { sx, sy, w, h }, dst[4] = { dx, dy, w, h };
+    for (int i = 0; i < screen_copy_count;)
+        if (rects_overlap(screen_copies[i].rect, dst)) {
+            memmove(&screen_copies[i], &screen_copies[i + 1], sizeof *screen_copies * (size_t)(screen_copy_count - i - 1));
+            --screen_copy_count;
+        } else
+            ++i;
+    const screen_picture* from = copy ? screen_find(src) : NULL;
+    if (from) {
+        screen_picture p = { { dx, dy, w, h }, { from->origin[0] + dx - sx, from->origin[1] + dy - sy } };
+        screen_list_add(screen_copies, &screen_copy_count, MAX_SCREEN_COPIES, &p);
+    }
+}
+void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv, const int* clip)
+{
+    if (!primitive_2d || !cover_enabled() || clip[2] <= 0 || clip[3] <= 0)
+        return;
+    int tolerance = clip[2] / 64; /* 5 pixels at 320 */
+    int wide = x0 <= clip[0] + tolerance && x1 >= clip[0] + clip[2] - tolerance;
+    /* Untextured shapes reaching well past the top or bottom (wipes; fans
+     * of gradient triangles about the centre) are screen effects as a whole. */
+    int tall = !uv && (y0 < clip[1] - 32 || y1 > clip[1] + clip[3] + 32 || (y0 < clip[1] && y1 > clip[1] + clip[3]));
+    /* Full-height sprites at the screen's left or right edge: the pieces a
+     * full-screen picture is drawn in (the map's background, 256 + 64). */
+    int backdrop = (code & 0xe0) == 0x60 && uv && y0 <= clip[1] + tolerance && y1 >= clip[1] + clip[3] - tolerance
+        && (x0 <= clip[0] + tolerance || x1 >= clip[0] + clip[2] - tolerance) && x1 - x0 >= clip[2] / 8;
+    int copy = 0;
+    if (uv && ((tpage >> 7) & 3) == 2) {
+        /* 15-bit texels: the sampled VRAM is the texture page plus UV; a
+         * screen copy samples the screen position it draws at. */
+        int tx = (int)(tpage & 15) * 64, ty = (int)((tpage >> 4) & 1) * 256;
+        int sampled[4] = { tx + uv[0], ty + uv[1], uv[2] - uv[0] + 1, uv[3] - uv[1] + 1 };
+        const screen_picture* p = screen_find(sampled);
+        if (p) {
+            int dx = (sampled[0] - p->origin[0]) - (x0 - clip[0]), dy = (sampled[1] - p->origin[1]) - (y0 - clip[1]);
+            copy = dx >= -40 && dx <= 40 && dy >= -16 && dy <= 16; /* (the map ripples by up to 32) */
+        }
+    }
+    primitive_cover = wide || tall || backdrop || copy;
+    static int debug = -1, logged;
+    if (debug < 0)
+        debug = getenv("ROOD_WIDESCREEN_DEBUG") && *getenv("ROOD_WIDESCREEN_DEBUG") == '1';
+    if (debug && primitive_cover && logged < 400) {
+        static int seen[64][5], seen_count;
+        int key[5] = { (int)code, x0 - clip[0], y0 - clip[1], x1 - clip[0], y1 - clip[1] };
+        for (int i = 0; i < seen_count; i++)
+            if (!memcmp(seen[i], key, sizeof key))
+                return;
+        memcpy(seen[seen_count], key, sizeof key);
+        seen_count = (seen_count + 1) % 64;
+        ++logged;
+        fprintf(stderr, "[widescreen] full-view 2D code 0x%02x (%d,%d)-(%d,%d) in area %d,%d %dx%d: %s\n", code & 0xff,
+            key[1], key[2], key[3], key[4], clip[0], clip[1], clip[2], clip[3],
+            wide ? "full width" : tall ? "past the top or bottom" : backdrop ? "full-screen picture piece" : "a copy of the screen");
+    }
+}
 void pc_hw_set_room(int room) { primitive_room = room; }
 
 /* Room packet ranges (func_8009723C) recorded while an OT is built; at each
@@ -1131,8 +1275,9 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     int textured = (code & 4) != 0, semi = (code & 2) != 0;
     /* Widescreen: an anchored primitive (HUD at a screen edge; its GTE
      * projections were not narrowed) scales about that edge, its drawing
-     * area with it; other 2D compresses about the drawing area's centre. */
-    int anchored = pc_gte_widescreen && primitive_anchor != PC_ANCHOR_NONE;
+     * area with it; other 2D compresses about the drawing area's centre,
+     * except screen-covering 2D (pc_hw_set_bounds), which spans the view. */
+    int anchored = pc_gte_widescreen && primitive_anchor != PC_ANCHOR_NONE && !primitive_cover;
     int area[4];
     if (anchored) {
         float left = anchor_x((float)clip[0]), right = anchor_x((float)(clip[0] + clip[2]));
@@ -1170,7 +1315,7 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     uint8_t flags = (uint8_t)((textured ? FLAG_TEXTURED : 0) | (textured && (code & 1) ? FLAG_RAW : 0)
         | (semi ? FLAG_SEMI : 0) | (mask_set ? FLAG_MASK : 0));
     float centre = clip[0] + clip[2] * 0.5f;
-    int compress = pc_gte_widescreen && primitive_2d && !anchored;
+    int compress = pc_gte_widescreen && primitive_2d && !anchored && !primitive_cover;
     /* Positions: unrounded for projected 3D vertices, else the packet's. */
     float pos[6];
     for (int i = 0; i < 6; i++)
@@ -1386,6 +1531,7 @@ void pc_hw_fill(int x, int y, int w, int h, int r, int g, int b)
         return;
     flush();
     record_fill(x, y, w, h, r, g, b);
+    screen_copy_write(0, 0, x, y, w, h, 0);
     fill_target(target_fbo, x, y, w, h, r, g, b);
 }
 static void fill_target(GLuint fbo, int x, int y, int w, int h, int r, int g, int b)
@@ -1422,6 +1568,7 @@ void pc_hw_upload(int x, int y, int w, int h)
         return;
     flush();
     record_write(x, y, w, h);
+    screen_copy_write(0, 0, x, y, w, h, 0);
     pc_hw_mark(x, y, x + w - 1, y + h - 1);
     upload_tiles(dirty_tiles & tiles_for(x, y, x + w - 1, y + h - 1));
 #ifdef ROOD_VULKAN
@@ -1463,6 +1610,7 @@ void pc_hw_copy(int sx, int sy, int dx, int dy, int w, int h)
         return;
     flush();
     record_write(dx, dy, w, h);
+    screen_copy_write(sx, sy, dx, dy, w, h, 1);
     int s = pc_hw_scale;
     if (sx + w > 1024 || sy + h > 512 || dx + w > 1024 || dy + h > 512) {
         /* Wrapping copies are rare; take them from the exact native result. */
@@ -2466,6 +2614,13 @@ void pc_hw_set_display(int x, int y, int w, int h)
 {
     display_rect[0] = x, display_rect[1] = y, display_rect[2] = w, display_rect[3] = h;
     memcpy(shown_rect, display_rect, sizeof shown_rect);
+    screen_display(x, y, w, h);
+    /* Widescreen: the target's picture is not the CPU's (2D compressed or
+     * spread over the view only here), so whatever reads the frame buffer
+     * (screen copies sampled as textures, StoreImage) takes it from the
+     * target. */
+    if (pc_gte_widescreen && cover_enabled())
+        mark_stale(display_rect);
 }
 /* Developer RPC (ui_upscale redraw): draw the newest recorded frame again,
  * as recorded (t = 1), into the replay target, so drawing options can be

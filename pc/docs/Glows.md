@@ -201,6 +201,20 @@ glow shadows on, 320 vsyncs with attacks:
 Mean effect light 0.076 before, 0.102 after (intensity 0.5); peak 1.58 vs
 1.34.
 
+### Fixture types (2026-10-12)
+
+The generated lighting layer lists each game glow that belongs to a
+catalogued fixture as `glow <key> fixture_type=T…`
+([Fixture_Catalog.md](Fixture_Catalog.md)). The override carries the type
+(`pc_glow_override.fixture_type`). A type whose glow treatment is
+`suppress` (cobwebs, scrolling floor arrows, floor/ceiling glow decals,
+fake light shafts) mutes it with `muted` 4, so it is not traced and adds
+no light. The check runs every update (`pc_fixture_glow_mode`), so a
+catalog edit applies at once. RPC `glows` and `fixtures` report the type.
+The candle and torch flame sprites are camera-facing room planes (flag
+0x400), which the scene capture skips, so they make no glow at all. Their
+light comes from the generated actors.
+
 ## Limits and next steps
 
 - Categories come from the source: a spell drawn with unattached world

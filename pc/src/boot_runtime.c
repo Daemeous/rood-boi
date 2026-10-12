@@ -29,6 +29,7 @@ extern void pc_hw_sync(int, int, int, int) __attribute__((weak));
 extern void pc_hw_sync_texture(unsigned, unsigned, unsigned, int, int, int, int) __attribute__((weak));
 extern void pc_hw_stale_copy(int, int, int, int, int, int) __attribute__((weak));
 extern void pc_hw_set_2d(int);
+extern void pc_hw_set_bounds(int, int, int, int, unsigned, unsigned, const int*, const int*);
 extern void pc_hw_set_room(int);
 extern void pc_hw_set_packet(const void*);
 extern int pc_hw_is_room_packet(const void*);
@@ -573,6 +574,8 @@ static void commands(uint32_t* p, unsigned n)
             {
                 int clip[4] = { clip_x, clip_y, clip_w, clip_h };
                 pc_hw_set_2d(1); /* sprites and tiles are screen-space */
+                int texels[4] = { (int)(uv & 255), (int)((uv >> 8) & 255), (int)(uv & 255) + (int)w - 1, (int)((uv >> 8) & 255) + (int)h - 1 };
+                pc_hw_set_bounds(x, y, x + (int)w, y + (int)h, code, tpage, tex ? texels : NULL, clip);
                 pc_hw_rect(x, y, (int)w, (int)h, uv & 255, (uv >> 8) & 255, p[i] & 0xffffff, code,
                     tpage, uv >> 16, texture_window, clip, mask_set, mask_check);
                 pc_hw_mark(x, y, x + (int)w - 1, y + (int)h - 1);

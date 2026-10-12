@@ -28,6 +28,10 @@ using prefab::Value;
 
 extern "C" void pc_lights_save(void);
 extern "C" void pc_lights_set_time(double t);
+extern "C" int pc_fixtures_rpc(const char* params, char* out, int size); /* fixture_editor.cpp */
+namespace rood_lights {
+bool fixture_type_details(int index); /* fixture_editor.cpp */
+}
 extern "C" int pc_lights_sample_actor(int index, double t, char* out, int size);
 
 namespace {
@@ -164,7 +168,8 @@ std::string actor_label(int i)
 {
     const Prefab* p = prefab::library().find(actors[i].prefab);
     char text[128];
-    snprintf(text, sizeof text, "%s %d%s", p ? p->name.c_str() : actors[i].prefab.c_str(), i + 1, p ? "" : " (missing prefab)");
+    snprintf(text, sizeof text, "%s %d%s%s%s", p ? p->name.c_str() : actors[i].prefab.c_str(), i + 1,
+        p ? "" : " (missing prefab)", actors[i].fixture_type.empty() ? "" : " ", actors[i].fixture_type.c_str());
     return text;
 }
 
@@ -925,7 +930,9 @@ namespace {
 bool param_row(const Prefab& p, Actor& a, const prefab::Param& q)
 {
     const Value* override_value = a.override_of(q.key);
-    Value v = override_value ? *override_value : q.def;
+    bool from_type = false;
+    Value base = prefab::inherited_param(p, a, q.key, &from_type); /* its fixture type's, else the prefab's */
+    Value v = override_value ? *override_value : base;
     bool overridden = override_value != nullptr, changed = false;
     ImGui::PushID(q.key.c_str());
     if (overridden)
@@ -970,14 +977,16 @@ bool param_row(const Prefab& p, Actor& a, const prefab::Param& q)
     if (overridden)
         ImGui::PopStyleColor();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-        ImGui::SetTooltip("%s%sPrefab default: %s%s", q.tooltip.c_str(), q.tooltip.empty() ? "" : "\n",
-            format_param(q, q.def).c_str(), overridden ? " (overridden here)" : "\nChange it to override it for this actor");
+        ImGui::SetTooltip("%s%s%s: %s%s", q.tooltip.c_str(), q.tooltip.empty() ? "" : "\n",
+            from_type ? ("Fixture type " + a.fixture_type).c_str() : "Prefab default", format_param(q, base).c_str(),
+            overridden ? " (overridden here)" : "\nChange it to override it for this actor");
     if (changed) {
         a.set_override(q.key, v);
         dirty = true;
     }
     if (ImGui::BeginPopupContextItem("param")) {
-        if (ImGui::MenuItem("Reset to the prefab default", nullptr, false, overridden)) {
+        if (ImGui::MenuItem(from_type ? "Reset to the fixture type's value" : "Reset to the prefab default", nullptr, false,
+                overridden)) {
             a.clear_override(q.key);
             dirty = true;
         }
@@ -991,10 +1000,10 @@ bool param_row(const Prefab& p, Actor& a, const prefab::Param& q)
             changed = true;
         }
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-            ImGui::SetTooltip("Reset to the prefab default (%s)", format_param(q, q.def).c_str());
+            ImGui::SetTooltip("Reset to the %s (%s)", from_type ? "fixture type's value" : "prefab default",
+                format_param(q, base).c_str());
     }
     ImGui::PopID();
-    (void)p;
     return changed;
 }
 
@@ -1059,8 +1068,12 @@ bool rood_lights::actor_details()
                               "cast no shadow from its light. On: an open cage's bars throw shadows on the wall.");
         if (a.fixture_shadows)
             ImGui::BeginDisabled();
-        if (ImGui::SliderFloat("Fixture radius", &a.fixture_radius, 0, 128, "%.0f u"))
+        float radius = prefab::actor_fixture_radius(a);
+        if (ImGui::SliderFloat("Fixture radius", &radius, 0, 128, "%.0f u")) {
+            a.fixture_radius = radius;
+            a.fixture_radius_set = true;
             dirty = true;
+        }
         if (a.fixture_shadows)
             ImGui::EndDisabled();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
@@ -1073,6 +1086,7 @@ bool rood_lights::actor_details()
     } else {
         ImGui::TextDisabled("Not on a room fixture (Light fixture tool, or L over a lantern or candle).");
     }
+    fixture_type_details(index);
     ImGui::SeparatorText("Glow");
     if (a.glow_linked) {
         uint32_t linked = pc_gi_glow_by_key(a.glow_key.c_str());
@@ -1664,8 +1678,11 @@ std::string actor_json(int i)
         + ",\"enabled\":" + (a.enabled ? "true" : "false") + ",\"seed\":" + std::to_string(a.seed)
         + ",\"glow\":" + (a.glow_linked ? vec_json(a.glow) : "null")
         + ",\"glow_key\":" + (a.glow_linked && !a.glow_key.empty() ? prefab::json_quote(a.glow_key) : "null")
-        + ",\"fixture\":" + (a.fixture ? vec_json(a.fixture_at) : "null") + ",\"fixture_radius\":" + num(a.fixture_radius)
-        + ",\"fixture_shadows\":" + (a.fixture_shadows ? "true" : "false") + ",\"overrides\":{";
+        + ",\"fixture\":" + (a.fixture ? vec_json(a.fixture_at) : "null")
+        + ",\"fixture_radius\":" + num(prefab::actor_fixture_radius(a))
+        + ",\"fixture_shadows\":" + (a.fixture_shadows ? "true" : "false")
+        + ",\"fixture_type\":" + (a.fixture_type.empty() ? "null" : prefab::json_quote(a.fixture_type))
+        + ",\"flame\":" + std::to_string(a.flame) + ",\"overrides\":{";
     for (size_t k = 0; k < a.overrides.size(); k++)
         out += (k ? "," : "") + prefab::json_quote(a.overrides[k].first) + ":" + value_json(a.overrides[k].second);
     out += "},\"params\":{";
@@ -1778,7 +1795,8 @@ std::string glow_json(const pc_glow_info& g)
         + std::to_string(g.muted) + ",\"overridden\":" + (g.overridden ? "true" : "false") + ",\"traced\":"
         + (g.traced ? "true" : "false") + ",\"category\":\""
         + (g.category == PC_GLOW_FIXTURE ? "fixture" : g.category == PC_GLOW_MAGIC ? "magic" : "effect")
-        + "\",\"casts_shadows\":" + (g.casts_shadows ? "true" : "false") + "}";
+        + "\",\"casts_shadows\":" + (g.casts_shadows ? "true" : "false")
+        + ",\"fixture_type\":" + (g.fixture_type[0] ? prefab::json_quote(g.fixture_type) : "null") + "}";
 }
 std::string glows_json()
 {
@@ -2157,5 +2175,7 @@ extern "C" int pc_actors_rpc(const char* method, const char* params_text, char* 
         return place_method(params, out, size);
     if (m == "glows")
         return glows_method(params, out, size);
+    if (m == "fixtures")
+        return pc_fixtures_rpc(params_text, out, size);
     return failure("unknown method", out, size);
 }

@@ -81,9 +81,9 @@ State current_state()
     for (int i = 0; i < n; i++) {
         const pc_glow_override& o = glows[i];
         char line[256];
-        snprintf(line, sizeof line, "glow %.1f %.1f %.1f %d %.3f %.3f %.3f %.3f %.2f %.1f%s%s\n", o.position[0],
+        snprintf(line, sizeof line, "glow %.1f %.1f %.1f %d %.3f %.3f %.3f %.3f %.2f %.1f%s%s%s%s\n", o.position[0],
             o.position[1], o.position[2], o.muted, o.intensity, o.tint[0], o.tint[1], o.tint[2], o.size, o.reach,
-            o.key[0] ? " key=" : "", o.key);
+            o.key[0] ? " key=" : "", o.key, o.fixture_type[0] ? " fixture_type=" : "", o.fixture_type);
         text += line;
     }
     std::vector<Item> items;
@@ -173,6 +173,8 @@ void apply_state(const State& s, bool keep_order)
             num("tint", o.tint, 3);
             num("size", &o.size, 1);
             num("reach", &o.reach, 1);
+            if (const std::string* t = it.get("fixture_type"))
+                snprintf(o.fixture_type, sizeof o.fixture_type, "%s", t->c_str());
             if (it.name[0] != '@') {
                 snprintf(o.key, sizeof o.key, "%s", it.name.c_str());
                 for (int i = 0; i < old_count; i++)

@@ -59,9 +59,9 @@ Start/Select (Back) and stick clicks map to their PS1 equivalents. Extra mapping
 come from `SDL_GAMECONTROLLERCONFIG`, `SDL_GAMECONTROLLERCONFIG_FILE`, or a
 community `gamecontrollerdb.txt` in `pc/user/` (or at `ROOD_GAMECONTROLLERDB`).
 Input is suppressed while unfocused. Gamepads connect and disconnect at any time;
-disconnection clears held buttons and the next connected gamepad takes over. This
-first version presents a digital PS1 pad; analog pressure and rumble are not yet
-implemented. To choose a gamepad, set `ROOD_CONTROLLER` to its device path
+disconnection clears held buttons and the next connected gamepad takes over. The
+game sees a digital PS1 pad (analog pressure and rumble are not yet
+implemented); the right stick drives the camera (below). To choose a gamepad, set `ROOD_CONTROLLER` to its device path
 (`/dev/input/event*`, or the older `/dev/input/js*` name of the same device) or to
 part of its name; set it to `none` to disable gamepad input.
 `pc/build/boot/controller_probe --hardware` reports the detected gamepad and its
@@ -92,6 +92,45 @@ title screen at this checkpoint). `--loading-checkpoint` is an earlier checkpoin
 and does not establish title boot. `--fast` disables window pacing for tests.
 Without `--skip-movies`, the intro movie plays first (about 38 seconds of
 video before the title; Start skips it).
+
+### Right-stick camera
+
+The right stick turns and zooms the game's own follow camera; the PS1 pad
+the game sees stays digital and L1/R1 turn in 45-degree steps as before.
+On by default (it does nothing until the stick moves); Graphics > Controls
+in the editor, `camera_stick_*` in the settings file, RPC `camera_stick`.
+
+| Input | Keyboard | Does |
+| --- | --- | --- |
+| Right stick left/right | J / L | turn around Ashley, speed proportional to the deflection (after the dead zone and response curve) |
+| Right stick up/down | I / K | zoom in/out (times the game's distance, within the zoom range and the room's size) |
+| R3 (right stick click) | O | back to the nearest 45-degree line and the game's distance |
+| L1 / R1 | Q / W | the game's 45-degree turns (from between two lines: the nearest line) |
+| Select | Tab | the game's near/far distance toggle (the zoom scales it) |
+| Start | Enter | the game's first-person view (R3 too when "R3 resets the camera" is off) |
+
+| Setting | Default | |
+| --- | --- | --- |
+| `camera_stick` | 1 | the stick turns and zooms |
+| `camera_stick_speed` | 120 | degrees per second at full deflection |
+| `camera_stick_deadzone`, `camera_stick_curve` | 0.15, 1.6 | dead zone (share of the travel); response exponent (1 linear) |
+| `camera_stick_invert_x`, `camera_stick_invert_y` | 0, 0 | invert turning, zooming |
+| `camera_stick_zoom`, `camera_stick_zoom_speed` | 1, 1 | stick up/down zooms; doublings per second |
+| `camera_stick_zoom_min`, `camera_stick_zoom_max` | 0.6, 1.5 | zoom range, times the game's distance (out also at most 1 + the room's size / 2304) |
+| `camera_stick_zoom_pitch` | 5 | degrees steeper fully out, flatter fully in |
+| `camera_stick_collision` | 1 | zoomed out beyond the game's distance, stop 64 units before the first drawn room surface (cutaway walls excepted) |
+| `camera_stick_r3_reset` | 1 | R3 resets the camera (off: R3 is the game's) |
+| `camera_stick_idle_reset` | 0 | seconds without stick input before the camera resets itself (0 off) |
+| `camera_stick_keys` | 1 | the keyboard keys above |
+
+The stick turns the game's own camera yaw, so the cutaway walls (facing
+masks), Ashley's camera-relative movement and room entries follow it; it
+works wherever the game lets L1/R1 turn (the field, battle mode, the
+targeting sphere) and not during events, combat camera moves, menus or the
+first-person view, where the zoom also eases back to the game's distance.
+`pc/src/camera_stick.c` explains the game's camera and the design;
+`pc/tests/camera_stick_smoke.py` and the CTest `camera_stick_probe` test it.
+Hands-on stick feel (speeds, curve, dead zone) still needs a playtest.
 
 ## Intro movie and CD drive
 
@@ -181,7 +220,17 @@ game's own screen-bounds culling admits the wider view, and the frame is shown
 at 16:9. 2D primitives keep their 4:3 shape: the GTE logs every screen position
 it projects, and the hardware rasterizer compresses primitives whose vertices
 were not projected (HUD, menus, sprites) about the drawing area's centre. 2D
-elements therefore sit within the central 4:3 area.
+elements therefore sit within the central 4:3 area. 2D that stands for the
+whole screen draws over the full 16:9 view instead (`pc_hw_set_bounds` in
+`gpu_hw.c`): primitives spanning the screen's width (fades, flashes, the
+battle-mode message bar), untextured shapes reaching well past its top or
+bottom (wipes), full-height sprites at its edges (the map's background picture)
+and screen copies (textures sampling the frame buffer where they draw: the
+map's rippling transition, menu backgrounds). In widescreen the frame buffers
+are read back from the hardware target when the game samples or reads them, so
+such copies hold the widescreen picture. `ROOD_WIDESCREEN_DEBUG=1` logs them;
+`ROOD_WIDESCREEN_COVER=0` compresses them as before (comparisons;
+`pc/tests/widescreen_smoke.py`).
 
 The same log stores each projected vertex's GTE view depth (SZ), so 3D
 primitives carry depth into the hardware path: the target has a depth buffer
@@ -319,6 +368,26 @@ These switches persist with File > Save settings:
 | `editor_cutaway`, `editor_cutaway_radius` | 1, 320 | See into rooms > Cut to focus (key C) and its radius at the focus |
 | `editor_cutaway_opacity` | 0.3 | share of a cut surface still drawn as a ghost, with its edges (0: a hole) |
 | `editor_cutaway_auto` | 1 | cut only while room surfaces hide the focus from the camera |
+
+### Cutaway walls in gameplay
+
+Vagrant Story hides every wall that faces the camera's side of the room (a
+facing mask per wall group, one bit per 45 degrees of camera yaw), whether
+or not it stands in the way. In rooms that are not a simple box that leaves
+black void where a far wall belongs and walls Ashley walks into without
+seeing them. Graphics > Display and rendering > Cutaway walls (settings
+keys below, RPC `graphics`) chooses:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `gameplay_walls` | `original` | `original`: the game's mask, exactly as on the PS1. `smart`: a wall group the mask hides is drawn unless it stands between the camera and Ashley (or the battle target) or would be seen in front of the play area; walls fade in and out over a few frames. Black wall shells stay hidden; cutscenes and the editor's free camera keep the original |
+| `gameplay_walls_ghost` | 0 | smart: walls in the way are drawn as dithered ghosts with their edges instead of left out |
+| `gameplay_walls_opacity` | 0.3 | a ghost's share of pixels |
+| `gameplay_walls_radius` | 64 | world units around Ashley's body a wall must keep clear of |
+
+Ray tracing and lighting always use the whole room either way.
+pc/docs/Native_Rendering.md "Smart walls" has the details; RPC `room_groups`
+reports each group's decision (`shown`, `occluding`, `cells`).
 
 ### 2D / UI: MMPX and sub-pixel text
 
@@ -506,6 +575,35 @@ lists the rooms (and the warp's state), `room_goto {zone, room}` warps
 `block_saves`); `pc/tests/room_browser_smoke.py` covers both with the
 lighting layers.
 
+### Fixture catalog and generated lighting
+
+Fixtures are lit per **type**, not per instance
+([pc/docs/Fixture_Catalog.md](docs/Fixture_Catalog.md)). The catalog
+`pc/assets/fixtures/catalog.json` (tracked, hashes and numbers only) lists
+every fixture model of the game's rooms. That is 239 types: candles,
+torches, lanterns, braziers, the save point and windows, but also cobwebs,
+floor arrows, glow decals and fake light shafts. Each type has a match rule
+(emitter texture content hashes, polygon count, size range, holder
+signature) and its treatment: a prefab with parameters, a light offset from
+the flame, a fixture radius (no self-shadow), and its game glow (drive,
+suppress or leave). Inferred fill lights (the save point, windows) are off
+by default. `pc/tools/fixture_scan.py` builds and checks the catalog from
+your disc. `pc/tools/generate_lighting.py --zone N` writes the generated
+layer: one actor per flame (`actor:gen.<type>.<hash>`, stable ids, naming
+`fixture_type`) and a typed entry for each game glow of a catalogued
+fixture. Cobwebs', shafts' and decals' glows are then suppressed by their
+type.
+
+The game reads the type's parameters, offset, radius and glow treatment
+from the catalog, live (`pc/src/fixture_catalog.cpp`). Details >
+**Edit type T00x** changes every instance at once. **Save catalog** writes
+the file, and **Regenerate room/zone** reruns the generator. Per-instance
+tweaks are ordinary overrides by id in the authored or user layer.
+`pc/tools/lighting_gallery.py` (or `generate_lighting.py --gallery DIR`)
+captures a zone's rooms before and after, with close-ups and per-type
+contact sheets. These are game images: keep them local. Zone 9 is
+generated and committed so far.
+
 ### Lighting quality presets
 
 Lighting has quality presets so lower-spec PCs run it (`pc/src/lighting_quality.cpp`):
@@ -612,13 +710,14 @@ thread once per vsync, so each method runs at a frame boundary:
 | `status` | | vsync and battle-frame counters, pause state, injected buttons |
 | `pause` | `paused` (default true) | stop or resume at vsync boundaries |
 | `step` | `vsyncs` | run exactly N vsyncs, then pause |
-| `input` | `buttons` (name or list), `vsyncs` | hold PS1 buttons; works unfocused |
+| `input` | `buttons` (name or list), `right_stick` (`[x, y]`, -1..1, down +y), `vsyncs` | hold PS1 buttons and/or the right stick (the camera); works unfocused |
+| `camera_stick` | the settings without `camera_stick_` (`enabled`, `speed`, ..., `r3_reset`, `idle_reset`, `keys`), `action` (`reset`) | the right-stick camera: settings and state (zoom, distances, collision hit, yaw) |
 | `release` | | drop injected buttons |
 | `state` | | zone, room, start state, music, HP/MP, risk, Ashley's position |
 | `read` / `write` | `address`, `length` / `hex` | guest RAM and scratchpad (read also host data) |
 | `screenshot` | `path` | displayed frame (native resolution) as a PPM |
 | `gpu_dump` | `path` | the whole scaled hardware VRAM target as a PPM |
-| `graphics` | `scale`, `filter`, `aspect`, `widescreen`, `perspective`, `show_depth`, `native_room`, `lighting_preset` and the lighting quality keys, ... | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
+| `graphics` | `scale`, `filter`, `aspect`, `widescreen`, `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `lighting_preset` and the lighting quality keys, ... | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
 | `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
 | `settings` | `action` (`save`, `load`) | the `ROOD_SETTINGS` file (a loaded preset applies at once) |
 | `perf` | `reset` | GPU time per presented frame since the last reset (`ROOD_PERF=1`; Vulkan timestamps, GL timer queries); GL adds `presents`, `gpu_wait_ms` (CPU waits for frames in flight), `gi_traced`/`gi_reused`, `gi_gpu_ms`, `gi_budget_ms`, `gi_interval` (path tracer cadence) |
@@ -632,6 +731,7 @@ thread once per vsync, so each method runs at a frame boundary:
 | `prefabs` | `reload` | the prefab library (built-in and user), parameters and problems |
 | `editor_place` | `item` / `prefab` / `light`, `phase` (`begin`, `move`, `drop`, `cancel`, `double_click`, `state`), `x`/`y` or `u`/`v` | a drag from Place Actors, as the mouse would do it |
 | `lighting` | `action` (`layers`, `save`, `revert` {`id`}, `promote` {`ids`}, `reload`, `packs` {`packs`, `active`}, `discard_dangling`, `poll`) | the room's lighting layers (files, entries, version), the effective items with their layer badges, deleted ids, problems (dangling overrides), the user layer as it would be saved |
+| `fixtures` | `action` (`list`, `set` {`type`, `params`, `offset`, `fixture_radius`, `glow`, `enabled`, `review`}, `save`, `revert`, `regenerate` {`scope`}), `type`, `all` | the fixture catalog's types in the room (or one, or all), the room's typed actors and glows (`muted` 4: suppressed by the type); type edits apply live to every instance (`pc/docs/Fixture_Catalog.md`) |
 | `rooms` | | every zone and room read from the disc (zone, room, location, scene, entries, name, area), the current room, whether warped, the warp's phase |
 | `room_goto` | `zone`, `room`, `entry`, `enemies`, `scripts`, `block_saves`, or `action` (`return`, `clear`, `cancel`, `status`) | ask the game to load a room (taken in the field loop); phase 0 idle, 1 requested, 2 loading, 3 arrived, 4 done |
 | `editor_undo` | `action` (`list`, `undo`, `redo`, `begin`, `end`, `jump`), `steps`, `name`, `done` | the undo history (`done`, names, `undo`/`redo` names, `open`); each editing request (`actors`, `glows`, `lights`, `editor_place`, `room_groups`, `uv_effects`, `editor_snap` with `apply`) is one transaction, `begin`/`end` hold one open across requests (a drag) |
@@ -706,6 +806,8 @@ python3 pc/tests/run.py --list
 | `input:*` | each case in `start_button_smoke.sh` (`input_smoke.py`) |
 | `editor_cutaway_smoke`, `editor_snap_smoke` | the free camera's view into the save room; the viewport overlays and snapping there (both need `pc/save/card1.mcd`) |
 | `golden_frames` | fixed scenes and camera poses against reference frames |
+| `camera_stick_smoke` | the right-stick camera in the save room: continuous yaw proportional to the stick, facing masks, L1/R1, zoom limits, no camera behind drawn walls, R3, idle reset, first-person view and targeting sphere, the RT camera (Vulkan); the opening's scripted camera unchanged (needs `pc/save/card1.mcd`) |
+| `fixture_lighting_smoke` | generated fixture lights in zone 9: types, lit, shadow exclusion, glow links, suppressed glows, live type edits, catalog save, regenerate (needs `pc/save/card1.mcd`); the catalog's schema, round trip and generator determinism are the CTest `fixture_catalog` |
 | `soak`, `soak:save` | `soak.py` for `--soak-frames` vsyncs (default 3000) from New Game, and from a copy of `pc/save/card1.mcd` (`--save`) when it exists; a Game Over is an event (Continue, or New Game from the title), not a finding |
 
 Each suite gets its own process group, output directory

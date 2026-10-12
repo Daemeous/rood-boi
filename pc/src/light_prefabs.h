@@ -171,6 +171,13 @@ struct Actor {
     bool fixture = false, fixture_shadows = false;
     float fixture_at[3] = { 0, 0, 0 };
     float fixture_radius = 16;
+    bool fixture_radius_set = false; // its own radius (else its fixture type's, when it has one)
+    /* A generated actor's fixture type (pc/assets/fixtures/catalog.json,
+     * fixture_catalog.cpp: "T001") and which of the type's flames it lights:
+     * the type's parameters (between the actor's own overrides and the
+     * prefab's defaults), light offset and fixture radius apply to it. */
+    std::string fixture_type;
+    int flame = 0;
     /* Stable id (lighting_layers.h: "actor:<id>"; assigned when first saved
      * or listed) and an optional display name. */
     std::string id, name;
@@ -183,8 +190,24 @@ struct Actor {
  * fixture_radius and fixture_shadows are the actor's own. */
 bool actor_parse(const char* line, Actor& out);
 std::string actor_format(const Actor& a);
-/* The parameter's value for this actor (override, else the prefab default). */
+/* The parameter's value for this actor (override, else its fixture type's,
+ * else the prefab default). */
 Value actor_param(const Prefab& p, const Actor& a, const std::string& key);
+/* What the actor inherits for a parameter (its fixture type's value, else
+ * the prefab default); *from_type tells which. */
+Value inherited_param(const Prefab& p, const Actor& a, const std::string& key, bool* from_type = nullptr);
+/* The fixture radius in effect (its own, else its type's, else 16). */
+float actor_fixture_radius(const Actor& a);
+
+/* Fixture types (fixture_catalog.cpp installs these; null: no catalog). */
+struct TypeHooks {
+    /* The type's value for a parameter (class defaults, then the type's). */
+    bool (*param)(const std::string& type, const std::string& key, Value& out) = nullptr;
+    /* The light offset from the flame (the actor's frame: x right, y down, z forward). */
+    bool (*offset)(const std::string& type, int flame, float out[3]) = nullptr;
+    bool (*fixture_radius)(const std::string& type, float* out) = nullptr;
+};
+TypeHooks& type_hooks();
 /* Columns of R: right, down, forward. */
 void rotation_basis(const float rotation[3], float right[3], float down[3], float forward[3]);
 void rotation_from_basis(const float right[3], const float down[3], const float forward[3], float rotation[3]);

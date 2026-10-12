@@ -8,7 +8,14 @@
  *   status                       counters, pause state, display, start state
  *   pause {paused}               stop (or resume) the game at vsync boundaries
  *   step {vsyncs}                run N vsyncs, then pause again
- *   input {buttons, vsyncs}      hold buttons ("circle", "up", ...) for N vsyncs
+ *   input {buttons, vsyncs}      hold buttons ("circle", "up", ...) for N vsyncs;
+ *         {right_stick: [x, y]}  and/or hold the right stick (-1..1, down +y)
+ *   camera_stick {...}           the right-stick camera (camera_stick.c):
+ *                                settings (enabled, speed, deadzone, curve,
+ *                                invert_x, invert_y, zoom, zoom_speed,
+ *                                zoom_min, zoom_max, zoom_pitch, collision,
+ *                                r3_reset, idle_reset, keys), action "reset";
+ *                                replies the settings and its state
  *   release                      drop all injected buttons
  *   screenshot {path}            write the displayed frame as a PPM
  *   present_dump {path}          the next presented window image (as seen) as a PPM
@@ -120,6 +127,12 @@
  *                                (1 keep the GTE projection log and the 3D
  *                                reconstruction of packets; 0 retire it
  *                                while every native switch is on);
+ *                                gameplay_walls ("original" / "smart", or
+ *                                0 / 1: the game's facing-mask cutaway, or
+ *                                walls drawn unless they get in the way),
+ *                                gameplay_walls_ghost (smart: occluding
+ *                                walls as ghosts), gameplay_walls_opacity,
+ *                                gameplay_walls_radius;
  *                                editor_hide_masks, editor_game_cutaway,
  *                                editor_cutaway, editor_cutaway_radius (the
  *                                free camera's view into rooms); the editor
@@ -200,6 +213,7 @@
 #include "editor_overlays.h"
 #include "probe_gi.h"
 #include "ui_upscale.h"
+#include "camera_stick.h"
 /* The editor (editor_overlays.cpp, lights.cpp). */
 extern int pc_overlay_wire __attribute__((weak)), pc_overlay_points __attribute__((weak)),
     pc_overlay_actor_wire __attribute__((weak)), pc_overlay_snap_show __attribute__((weak)),
@@ -274,6 +288,9 @@ extern float pc_editor_cutaway_radius __attribute__((weak));
 extern float pc_editor_cutaway_opacity __attribute__((weak));
 extern int pc_editor_cutaway_auto __attribute__((weak));
 extern int pc_editor_cutaway_state(int*, float*) __attribute__((weak));
+extern int pc_gameplay_walls __attribute__((weak)), pc_gameplay_walls_ghost __attribute__((weak));
+extern float pc_gameplay_walls_opacity __attribute__((weak)), pc_gameplay_walls_radius __attribute__((weak));
+extern int pc_gameplay_walls_info(unsigned, float*, int*, int*) __attribute__((weak));
 extern int pc_scene_triangles(void) __attribute__((weak));
 extern int pc_lights_describe(char*, int) __attribute__((weak));
 extern void pc_lights_suggest(void) __attribute__((weak));
@@ -307,6 +324,8 @@ static struct hold {
     unsigned mask;
     long vsyncs;
 } holds[16];
+static float stick_hold[2]; /* input {right_stick: [x, y]} */
+static long stick_vsyncs;
 
 /* ---- minimal JSON reading: enough for flat request objects ---- */
 
@@ -475,6 +494,37 @@ static int parse_buttons(const char* v, unsigned* mask)
     return *p == ']';
 }
 
+/* The right stick the RPC holds (camera_stick.c), -1..1 (down is +y). */
+int pc_rpc_stick(float out[2])
+{
+    if (stick_vsyncs <= 0)
+        return 0;
+    out[0] = stick_hold[0];
+    out[1] = stick_hold[1];
+    return 1;
+}
+/* [x, y] numbers. */
+static int pair_value(const char* v, double out[2])
+{
+    if (!v || *v != '[')
+        return 0;
+    const char* p = skip(v + 1);
+    for (int i = 0; i < 2; i++) {
+        if (!real_value(p, &out[i]))
+            return 0;
+        p = value_end(p);
+        if (!p)
+            return 0;
+        p = skip(p);
+        if (i == 0) {
+            if (*p != ',')
+                return 0;
+            p = skip(p + 1);
+        }
+    }
+    return *p == ']';
+}
+
 unsigned pc_rpc_buttons(void)
 {
     unsigned mask = 0;
@@ -548,12 +598,32 @@ static void handle_method(int fd, const char* request)
         reply(fd, id, result);
     } else if (!strcmp(method, "input")) {
         unsigned mask;
+        double stick[2];
+        int has_stick = params && pair_value(member(params, "right_stick"), stick);
+        n = 2;
+        if (params)
+            number_value(member(params, "vsyncs"), &n);
+        if (has_stick) {
+            /* The right stick for N vsyncs (the camera, camera_stick.c);
+             * buttons are optional with it. */
+            if (n < 1) {
+                fail(fd, id, -32602, "bad vsyncs");
+                return;
+            }
+            for (int k = 0; k < 2; k++)
+                stick_hold[k] = (float)(stick[k] < -1 ? -1 : stick[k] > 1 ? 1 : stick[k]);
+            stick_vsyncs = (long)n;
+            if (!member(params, "buttons")) {
+                snprintf(result, sizeof result, "{\"right_stick\":[%g,%g],\"vsyncs\":%lld}", stick_hold[0],
+                    stick_hold[1], n);
+                reply(fd, id, result);
+                return;
+            }
+        }
         if (!params || !parse_buttons(member(params, "buttons"), &mask)) {
-            fail(fd, id, -32602, "input needs buttons (name or list of names)");
+            fail(fd, id, -32602, "input needs buttons (name or list of names) or right_stick [x, y]");
             return;
         }
-        n = 2;
-        number_value(member(params, "vsyncs"), &n);
         int slot = 0;
         while (slot < 16 && holds[slot].vsyncs > 0)
             ++slot;
@@ -565,8 +635,47 @@ static void handle_method(int fd, const char* request)
         holds[slot].vsyncs = (long)n;
         snprintf(result, sizeof result, "{\"mask\":%u,\"vsyncs\":%lld}", mask, n);
         reply(fd, id, result);
+    } else if (!strcmp(method, "camera_stick")) {
+        /* The right-stick camera (camera_stick.c): settings and state. */
+        static const struct {
+            const char* key;
+            int* ints;
+            float* floats;
+        } keys[] = {
+            { "enabled", &pc_camera_stick, NULL }, { "speed", NULL, &pc_camera_stick_speed },
+            { "deadzone", NULL, &pc_camera_stick_deadzone }, { "curve", NULL, &pc_camera_stick_curve },
+            { "invert_x", &pc_camera_stick_invert_x, NULL }, { "invert_y", &pc_camera_stick_invert_y, NULL },
+            { "zoom", &pc_camera_stick_zoom, NULL }, { "zoom_speed", NULL, &pc_camera_stick_zoom_speed },
+            { "zoom_min", NULL, &pc_camera_stick_zoom_min }, { "zoom_max", NULL, &pc_camera_stick_zoom_max },
+            { "zoom_pitch", NULL, &pc_camera_stick_zoom_pitch },
+            { "collision", &pc_camera_stick_collision, NULL }, { "r3_reset", &pc_camera_stick_r3, NULL },
+            { "idle_reset", NULL, &pc_camera_stick_idle_reset }, { "keys", &pc_camera_stick_keys, NULL },
+        };
+        for (size_t i = 0; params && i < sizeof keys / sizeof *keys; i++) {
+            const char* v = member(params, keys[i].key);
+            double real;
+            int flag;
+            if (!v)
+                continue;
+            if (keys[i].ints && bool_value(v, &flag))
+                *keys[i].ints = flag;
+            else if (real_value(v, &real)) {
+                if (keys[i].ints)
+                    *keys[i].ints = (int)real;
+                else
+                    *keys[i].floats = (float)real;
+            }
+        }
+        char action[32] = "";
+        if (params)
+            string_value(member(params, "action"), action, sizeof action);
+        if (!strcmp(action, "reset"))
+            pc_camera_stick_reset();
+        pc_camera_stick_json(result, sizeof result);
+        reply(fd, id, result);
     } else if (!strcmp(method, "release")) {
         memset(holds, 0, sizeof holds);
+        stick_vsyncs = 0;
         reply(fd, id, "{}");
     } else if (!strcmp(method, "screenshot")) {
         char path[400];
@@ -763,6 +872,28 @@ static void handle_method(int fd, const char* request)
             else if (number_value(member(params, "reconstruct"), &n))
                 pc_reconstruct = n != 0;
         }
+        /* Smart cutaway walls in gameplay (gameplay_walls.h). */
+        if (params && &pc_gameplay_walls) {
+            char word[32] = "";
+            if (string_value(member(params, "gameplay_walls"), word, sizeof word)) {
+                if (!strcmp(word, "original"))
+                    pc_gameplay_walls = 0;
+                else if (!strcmp(word, "smart"))
+                    pc_gameplay_walls = 1;
+            } else if (bool_value(member(params, "gameplay_walls"), &flag))
+                pc_gameplay_walls = flag;
+            else if (number_value(member(params, "gameplay_walls"), &n))
+                pc_gameplay_walls = n != 0;
+            if (bool_value(member(params, "gameplay_walls_ghost"), &flag))
+                pc_gameplay_walls_ghost = flag;
+            else if (number_value(member(params, "gameplay_walls_ghost"), &n))
+                pc_gameplay_walls_ghost = n != 0;
+            double real;
+            if (real_value(member(params, "gameplay_walls_opacity"), &real))
+                pc_gameplay_walls_opacity = (float)real;
+            if (real_value(member(params, "gameplay_walls_radius"), &real))
+                pc_gameplay_walls_radius = (float)real;
+        }
         /* The editor's view into rooms (free camera only; room_editor.h). */
         if (params && &pc_editor_cutaway) {
             int* switches[] = { &pc_editor_hide_masks, &pc_editor_game_cutaway, &pc_editor_cutaway };
@@ -878,6 +1009,13 @@ static void handle_method(int fd, const char* request)
             denoiser_names[pc_gi_denoiser_active ? pc_gi_denoiser_active() : 1],
             vk_nrd_built && vk_nrd_built() ? "true" : "false", vk_nrd_available && vk_nrd_available() ? "true" : "false",
             &pc_nrd_glow && pc_nrd_glow ? "true" : "false");
+        if (&pc_gameplay_walls && used < (int)sizeof result - 200)
+            used += snprintf(result + used - 1, sizeof result - used + 1,
+                        ",\"gameplay_walls\":\"%s\",\"gameplay_walls_ghost\":%d,\"gameplay_walls_opacity\":%g,"
+                        "\"gameplay_walls_radius\":%g}",
+                        pc_gameplay_walls ? "smart" : "original", pc_gameplay_walls_ghost, pc_gameplay_walls_opacity,
+                        pc_gameplay_walls_radius)
+                - 1;
         if (&pc_probe_spacing && used < (int)sizeof result - 200)
             used += snprintf(result + used - 1, sizeof result - used + 1,
                         ",\"probe_hysteresis\":%g,\"probe_budget\":%d,\"probe_show\":%d}",
@@ -1098,13 +1236,25 @@ static void handle_method(int fd, const char* request)
          * path); facing: the mask it tested (the game's, or the free
          * camera's while it flies; 0x10000: every group). */
         int used = snprintf(result, sizeof result, "{\"facing\":%u,\"groups\":[", facing);
-        for (int i = 0; i < count && used < (int)sizeof result - 160; i++)
+        for (int i = 0; i < count && used < (int)sizeof result - 300; i++) {
             used += snprintf(result + used, sizeof result - used,
                 "%s{\"flags\":%u,\"polygons\":%d,\"black\":%d,\"hidden\":%d,\"room_hides\":%d,\"cutaway\":%d,"
-                "\"drawn\":%d,\"position\":[%d,%d,%d]}",
+                "\"drawn\":%d,\"position\":[%d,%d,%d]",
                 i ? "," : "", groups[i].flags, groups[i].polygons, groups[i].black, groups[i].hidden,
                 groups[i].game_hidden, groups[i].cutaway, i < drawn_count ? drawn[i] : -1, groups[i].position[0],
                 groups[i].position[1], groups[i].position[2]);
+            /* gameplay_walls smart: shown (drawn share, 1 solid), occluding
+             * (after hysteresis), and this frame's grid cells: in the focus
+             * region nearer than the focus, seen in front of the play area,
+             * over void, all its front-facing cells. */
+            float shown;
+            int occluding, cells[4];
+            if (pc_gameplay_walls_info && pc_gameplay_walls_info((unsigned)i, &shown, &occluding, cells) == 1)
+                used += snprintf(result + used, sizeof result - used,
+                    ",\"shown\":%.3f,\"occluding\":%d,\"cells\":[%d,%d,%d,%d]", shown, occluding, cells[0],
+                    cells[1], cells[2], cells[3]);
+            used += snprintf(result + used, sizeof result - used, "}");
+        }
         snprintf(result + used, sizeof result - used, "]}");
         reply(fd, id, result);
     } else if (!strcmp(method, "editor_view")) {
@@ -1429,7 +1579,7 @@ static void handle_method(int fd, const char* request)
         pc_lights_describe(result, sizeof result);
         reply(fd, id, result);
     } else if (!strcmp(method, "actors") || !strcmp(method, "prefabs") || !strcmp(method, "editor_place")
-               || !strcmp(method, "glows")) {
+               || !strcmp(method, "glows") || !strcmp(method, "fixtures")) {
         /* Light actors (light_actors.cpp parses the params object itself). */
         extern int pc_actors_rpc(const char* method, const char* params, char* out, int size) __attribute__((weak));
         if (!pc_actors_rpc) {
@@ -1913,6 +2063,8 @@ void pc_rpc_poll(void)
     for (int i = 0; i < 16; i++)
         if (holds[i].vsyncs > 0)
             --holds[i].vsyncs;
+    if (stick_vsyncs > 0)
+        --stick_vsyncs;
     if (listener >= 0)
         service();
     if (paused && step_budget > 0) {

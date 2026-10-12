@@ -169,11 +169,13 @@ typedef struct {
     int uv_count; /* animated materials' table entries (binding 5) */
     int pad;
     float cut_focus[4], cut_scale[4]; /* the editor's cutaway (cutaway_params) */
+    float instance_cut[4]; /* render_instance.cut at this draw's t, ghost edges */
 } native_ubo;
 _Static_assert(offsetof(native_ubo, projection) == 48 && offsetof(native_ubo, rules) == 96
         && offsetof(native_ubo, split) == 144 && offsetof(native_ubo, objects) == 168
         && offsetof(native_ubo, window) == 188 && offsetof(native_ubo, surface_test) == 212
-        && offsetof(native_ubo, uv_count) == 216 && offsetof(native_ubo, cut_focus) == 224 && offsetof(native_ubo, cut_scale) == 240,
+        && offsetof(native_ubo, uv_count) == 216 && offsetof(native_ubo, cut_focus) == 224 && offsetof(native_ubo, cut_scale) == 240
+        && offsetof(native_ubo, instance_cut) == 256,
     "native_ubo must match native_common.glsl's std140 layout");
 static VkDescriptorSetLayout vk_native_set;
 static VkPipelineLayout vk_native_layout;
@@ -315,6 +317,8 @@ static mesh_slot* vk_use_instance(vk_draw_state* s, const draw_list* list, const
     u->override_texture[2] = in->override & RENDER_OVERRIDE_TEXTURE ? 1 : 0, u->override_texture[3] = 0;
     u->instance_blend[0] = in->blend != 0;
     u->instance_blend[1] = in->blend ? ((in->blend - 1) & 3) << 5 : 0;
+    u->instance_cut[0] = instance_cut(in, target->t);
+    u->instance_cut[1] = in->cut_ghost ? 1.0f : 0.0f;
     if (!vk_mesh_bind(mesh->vbo))
         return NULL;
     vk_slice ubo = vk_arena(sizeof *u, s->ubo_alignment);

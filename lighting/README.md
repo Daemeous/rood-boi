@@ -72,15 +72,32 @@ uv 3 speed=0.5
   defaults are left out.
 - Light fields: `name type(point|spot|rect) pos dir color intensity radius
   cone size(w,h) shadows enabled`. Actor fields: `name prefab pos rot(yaw,pitch,roll)
-  seed enabled glow glowkey fixture fixture_radius fixture_shadows`, and any
-  parameter of its prefab (`pc/assets/prefabs/*.json`) it overrides. Glow:
-  `pos muted intensity tint size reach`. Texture effect: `speed freeze`.
-  Setting: `value`.
+  seed enabled glow glowkey fixture fixture_radius fixture_shadows
+  fixture_type flame`, and any parameter of its prefab
+  (`pc/assets/prefabs/*.json`) it overrides. Glow: `pos muted intensity
+  tint size reach fixture_type`. Texture effect: `speed freeze`. Setting:
+  `value`.
+- `fixture_type=T002` (generated actors and glows) names a type of the
+  fixture catalog (`pc/assets/fixtures/catalog.json`,
+  [pc/docs/Fixture_Catalog.md](../pc/docs/Fixture_Catalog.md)). Such an
+  actor takes the type's prefab parameters (below its own overrides), its
+  light offset and its fixture radius (unless it sets `fixture_radius`),
+  and a glow takes the type's treatment (suppressed: not a light). A
+  catalog edit changes every instance at once.
 
 An override or delete whose id no lower layer defines is **dangling** (the
 item was deleted or regenerated under it). It is never dropped: the editor
 lists it under Outliner > Layers (and keeps it in your user layer until you
 discard it), RPC `lighting` reports it and the lint fails on it.
+
+## The generated layer
+
+`pc/tools/generate_lighting.py --zone N` writes the generated files from
+the fixture catalog and your disc (one actor per flame of every catalogued
+fixture, and the typed game glows). They are deterministic and sorted, and
+regenerating keeps every id. Zone 9 is generated so far. To change how
+every candle of a type is lit, edit the type (editor: Details > *Edit
+type*, or the catalog), not the generated files.
 
 ## Editor
 

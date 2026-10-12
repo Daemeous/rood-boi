@@ -332,6 +332,11 @@ extern int pc_room_editor_hidden(const void* data, unsigned index) __attribute__
 extern int pc_room_native_begin(const void* data, unsigned mode, const unsigned* first) __attribute__((weak));
 extern void pc_room_native_group(const void* group, unsigned gp) __attribute__((weak));
 extern unsigned* pc_room_native_end(unsigned* packet, unsigned* ot) __attribute__((weak));
+extern void pc_room_native_group_cut(float cut, float cut_previous, int ghost) __attribute__((weak));
+/* Smart cutaway walls (gameplay_walls.c, gameplay_walls 1). */
+extern int pc_gameplay_walls_frame(const void* data, unsigned facing, unsigned mode) __attribute__((weak));
+extern int pc_gameplay_walls_group(unsigned index, int kept, float* cut, float* cut_previous, int* ghost)
+    __attribute__((weak));
 extern void pc_room_native_tint(const unsigned* start, int dr, int dg, int db, int fade) __attribute__((weak));
 extern const void* pc_scene_room_data(void) __attribute__((weak));
 /* The current room's groups drawn by the latest call (RPC room_groups
@@ -374,6 +379,10 @@ void func_8009723C(void* data, unsigned mode)
         for (unsigned i = 0; i < count; ++i)
             drawn_groups[i] = 0;
     }
+    /* gameplay_walls smart: the game camera's view of the current room
+     * decides again for the groups the facing mask leaves out. */
+    int smart = record && pc_gameplay_walls_frame
+        && pc_gameplay_walls_frame(free_camera ? (void*)0 : data, scratch[4], mode);
     for (unsigned i = 0; i < count; ++i, group += 0x40) {
         unsigned flags = *(unsigned*)group, facing = scratch[4];
         /* The facing mask is the game camera's; for the editor's free camera
@@ -388,7 +397,13 @@ void func_8009723C(void* data, unsigned mode)
             continue;
         if (free_camera && pc_room_editor_hidden && pc_room_editor_hidden(data, i))
             continue;
-        if (!(facing >> 16) && ((flags ^ 255) & facing & 255))
+        int kept = (facing >> 16) || !((flags ^ 255) & facing & 255);
+        float cut = 0, cut_previous = 0;
+        int ghost = 0;
+        if (smart) {
+            if (!pc_gameplay_walls_group(i, kept, &cut, &cut_previous, &ghost))
+                continue;
+        } else if (!kept)
             continue;
         unsigned gp = (flags & 0xffff6000) | (flags & 0x800 ? 0 : 3);
         MATRIX* matrix = (MATRIX*)(group + 0x20);
@@ -398,8 +413,11 @@ void func_8009723C(void* data, unsigned mode)
             (unsigned*)((unsigned char*)data + *(unsigned*)(group + 0x1c));
         if (record)
             drawn_groups[i] = 1;
-        if (native)
+        if (native) {
+            if (pc_room_native_group_cut && (cut > 0 || cut_previous > 0))
+                pc_room_native_group_cut(cut, cut_previous, ghost);
             pc_room_native_group(group, gp);
+        }
         packet = pc_room_group_packets(geometry, packet, ot, gp, mode, limit);
     }
     translucent_only = 0;

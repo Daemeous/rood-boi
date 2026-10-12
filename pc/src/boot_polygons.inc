@@ -279,6 +279,20 @@ static unsigned polygon_command(const uint32_t* p, unsigned available)
         pc_hw_sync_texture(tpage, clut, texture_window, u0, v0, u1, v1);
     }
     pc_hw_set_2d(!projected);
+    if (!projected) {
+        /* Widescreen: 2D standing for the whole screen draws over the full view. */
+        int x0 = vertex[0].x, y0 = vertex[0].y, x1 = x0, y1 = y0, clip[4] = { clip_x, clip_y, clip_w, clip_h };
+        int texels[4] = { vertex[0].u, vertex[0].v, vertex[0].u, vertex[0].v };
+        for (int i = 1; i < count; ++i) {
+            x0 = vertex[i].x < x0 ? vertex[i].x : x0, x1 = vertex[i].x > x1 ? vertex[i].x : x1;
+            y0 = vertex[i].y < y0 ? vertex[i].y : y0, y1 = vertex[i].y > y1 ? vertex[i].y : y1;
+            texels[0] = vertex[i].u < texels[0] ? vertex[i].u : texels[0];
+            texels[1] = vertex[i].v < texels[1] ? vertex[i].v : texels[1];
+            texels[2] = vertex[i].u > texels[2] ? vertex[i].u : texels[2];
+            texels[3] = vertex[i].v > texels[3] ? vertex[i].v : texels[3];
+        }
+        pc_hw_set_bounds(x0, y0, x1, y1, code, tpage, textured ? texels : NULL, clip);
+    }
     pc_hw_set_room(room);
     pc_hw_set_packet(p);
     triangle(vertex[0], vertex[1], vertex[2], code, clut);

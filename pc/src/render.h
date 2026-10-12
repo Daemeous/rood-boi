@@ -159,6 +159,13 @@ typedef struct {
      * instead of t (0 scale: 1, the plain frame-to-frame blend). The live
      * frame (t = 1) is then drawn partway too. */
     float blend_offset, blend_scale;
+    /* A share of the instance's pixels left out by an ordered dither (room
+     * groups under gameplay_walls smart: fades and ghosts,
+     * gameplay_walls.c): 0 solid. `cut_previous` is the share in the frame
+     * before (frame interpolation blends the two); `cut_ghost` keeps the
+     * polygons' edges and marks the pixels drawn as a ghost (G-buffer). */
+    float cut, cut_previous;
+    int cut_ghost;
 } render_instance;
 /* Start a list for this frame; returns its id (nonzero), 0 when native
  * drawing is unavailable. The camera and rules are copied. */

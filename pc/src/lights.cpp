@@ -30,6 +30,7 @@
 #include "ImGuizmo.h"
 #include "editor_overlays.h"
 #include "probe_gi.h"
+#include "fixture_catalog.h"
 #include "lights_internal.h"
 #include "lighting_quality.h"
 #include "editor_undo.h"
@@ -1850,6 +1851,9 @@ extern "C" void pc_lights_poll(void)
      * instance follows its prefab. */
     if (prefab::library().poll())
         snprintf(status, sizeof status, "Prefabs reloaded (%zu)", prefab::library().prefabs.size());
+    /* The fixture catalog too: every instance of a type follows it. */
+    if (fixtures::poll())
+        snprintf(status, sizeof status, "Fixture catalog reloaded (%zu types)", fixtures::catalog().types.size());
     layers_poll(); /* every layer of the room (lighting_editor.cpp) */
 }
 
@@ -1917,9 +1921,11 @@ extern "C" void pc_lights_glows_outliner(const char* filter)
         if (silent)
             ImGui::PopStyleColor();
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Glow %u, %s\n%d glowing triangles this frame%s%s", g.id, g.key, g.triangles,
+            ImGui::SetTooltip("Glow %u, %s\n%d glowing triangles this frame%s%s%s%s", g.id, g.key, g.triangles,
                 g.presence < 0.02f ? "\nout: its source drew nothing lately" : "",
-                g.traced ? "" : "\nnot among the glows the tracers use this frame");
+                g.traced ? "" : "\nnot among the glows the tracers use this frame",
+                g.fixture_type[0] ? "\nfixture type " : "", g.fixture_type,
+                g.muted == 4 ? ": not a light (suppressed by its type)" : "");
         if (g.overridden)
             layer_row(std::string("glow:") + g.key); /* its override's layers */
         ImGui::PopID();
@@ -1969,6 +1975,20 @@ extern "C" bool pc_lights_glow_details(void)
     ImGui::TextDisabled("Kind: %s (%s). Its kind's switch, intensity, reach, shadows and smoothing:\n"
                         "Details > Lighting > Game glows by kind.",
         g.category == PC_GLOW_MAGIC ? "magic" : "fixture", g.casts_shadows ? "casts shadows" : "no shadows");
+    if (existing && existing->fixture_type[0]) {
+        /* A catalogued fixture's glow (generated layer): its type decides. */
+        const fixtures::Type* t = fixtures::find(existing->fixture_type);
+        ImGui::Text("Fixture type %s%s%s: its glow is %s", existing->fixture_type, t ? " " : "",
+            t ? t->description.c_str() : " (not in the catalog)", t ? fixtures::glow_name(t->glow) : "left");
+        if (g.muted == 4)
+            ImGui::TextDisabled("Suppressed: not a light (every instance of the type; pc/assets/fixtures/catalog.json)");
+        if (ImGui::SmallButton("Ignore its type here")) {
+            existing->fixture_type[0] = 0;
+            dirty = true;
+        }
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            ImGui::SetTooltip("This glow only: the type's treatment no longer applies (saved in your layer by the glow's key)");
+    }
     if (existing && ImGui::Button("Reset to the game's glow")) {
         pc_gi_glow_remove_id(glow_id);
         dirty = true;

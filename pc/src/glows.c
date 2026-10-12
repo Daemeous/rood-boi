@@ -49,6 +49,7 @@ extern unsigned pc_vsync_count(void) __attribute__((weak));
 /* Light actors linked to a glow (lights.cpp): 1 drives its emission
  * (*scale, the actor's flicker), 2 suppresses it, 0 leaves it. */
 extern int pc_lights_glow_drive(const char* key, const float p[3], float* scale) __attribute__((weak));
+extern int pc_fixture_glow_mode(const char* type) __attribute__((weak));
 
 #define MAX_TRACKS 160
 #define MAX_GROUPS 512
@@ -74,6 +75,7 @@ typedef struct {
     /* this update, after overrides */
     float out_rgb[3], out_size, out_reach;
     int muted, overridden;
+    char fixture_type[16]; /* from its override (the generated layer) */
 } track;
 static track tracks[MAX_TRACKS];
 static int track_count;
@@ -473,6 +475,9 @@ int pc_gi_glows_parse(const char* line)
     const char* key = strstr(line, " key=");
     if (key)
         sscanf(key + 5, "%63s", o.key);
+    const char* type = strstr(line, " fixture_type=");
+    if (type)
+        sscanf(type + 14, "%15s", o.fixture_type);
     if (override_count < MAX_OVERRIDES)
         overrides[override_count++] = o;
     return 1;
@@ -485,6 +490,8 @@ void pc_gi_glows_write(FILE* f)
             o->position[2], o->muted, o->intensity, o->tint[0], o->tint[1], o->tint[2], o->size, o->reach);
         if (o->key[0])
             fprintf(f, " key=%s", o->key);
+        if (o->fixture_type[0])
+            fprintf(f, " fixture_type=%s", o->fixture_type);
         fputc('\n', f);
     }
 }
@@ -851,6 +858,7 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
         track* t = &tracks[k];
         t->muted = 0;
         t->overridden = 0;
+        t->fixture_type[0] = 0;
         float scale = t->presence;
         memcpy(t->out_rgb, t->rgb, sizeof t->out_rgb);
         t->out_size = t->origin == PC_GLOW_ORIGIN_BAKED ? t->obs_size : t->size;
@@ -863,6 +871,11 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
             memcpy(o->position, t->pos, sizeof o->position);
             t->overridden = 1;
             t->muted = o->muted ? 1 : 0;
+            /* A catalogued fixture's glow: its type's treatment (a cobweb, a
+             * light shaft, a floor decal are not lights). */
+            snprintf(t->fixture_type, sizeof t->fixture_type, "%s", o->fixture_type);
+            if (!t->muted && o->fixture_type[0] && pc_fixture_glow_mode && pc_fixture_glow_mode(o->fixture_type) == 2)
+                t->muted = 4;
             for (int j = 0; j < 3; j++)
                 t->out_rgb[j] *= o->intensity * o->tint[j];
             if (o->size > 0 && t->out_size > 0)
@@ -990,6 +1003,7 @@ static void fill_info(const track* t, pc_glow_info* g)
     g->muted = t->muted;
     g->overridden = t->overridden;
     g->traced = t->traced;
+    snprintf(g->fixture_type, sizeof g->fixture_type, "%s", t->fixture_type);
 }
 int pc_gi_glow_list(pc_glow_info* out, int max)
 {

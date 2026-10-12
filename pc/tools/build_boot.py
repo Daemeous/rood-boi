@@ -505,7 +505,7 @@ for name in ["runtime", "window", "controller", "gamepad"]:
     obj = out / (name + ".o")
     compile_object(["gcc", *flags, *sdl_flags, "-c", f"pc/src/boot_{name}.c", "-o", str(obj)], f"pc/src/boot_{name}.c")
     objects.append(obj)
-for name in ["audio_libspu", "audio_output", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "gl_present", "gpu_hw", "render", "room_native", "room_effects", "actor_native", "effect_native", "scene_capture", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "room_catalog"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []):
+for name in ["audio_libspu", "audio_output", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "room_catalog"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []):
     obj = out / (name + ".o")
     compile_object(["gcc", *flags, *sdl_flags, "-c", f"pc/src/{name}.c", "-o", str(obj)], f"pc/src/{name}.c")
     objects.append(obj)
@@ -571,6 +571,8 @@ for source in [
     root / "pc/src/lights.cpp",
     root / "pc/src/light_actors.cpp",
     root / "pc/src/light_prefabs.cpp",
+    root / "pc/src/fixture_catalog.cpp",
+    root / "pc/src/fixture_editor.cpp",
     root / "pc/src/room_settings.cpp",
     root / "pc/src/lighting_layers.cpp",
     root / "pc/src/lighting_editor.cpp",

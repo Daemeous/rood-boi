@@ -621,7 +621,9 @@ room's groups (RPC `room_groups`, `scene_dump`) shows what they are:
   keeps. RPC `room_groups` reports the mask the latest
   frame tested (`facing`) and which groups it drew (`drawn`);
   `pc/tests/facing_cutaway_smoke.py` checks the native room against the
-  packet path at all eight yaws and through L1/R1 turns.
+  packet path at all eight yaws and through L1/R1 turns. As an option,
+  `gameplay_walls smart` draws such walls while they stand clear of the
+  view ("Smart walls" below).
 
 While the free camera flies (gameplay never), three switches, each on by
 default, in the editor toolbar ("See into rooms"), the settings file and
@@ -704,6 +706,60 @@ a moment when she comes into view, then fades; hiding a group in
 `room_groups` drops one instance and `show_all` restores it. Golden frames and the comparison tools set the
 three switches off (their references show the free camera with every
 group).
+
+### Smart walls (`gameplay_walls`, 2026-10-11)
+
+The original's cut is per orientation, so in L- and cross-shaped rooms it
+removes walls that block nothing (black void behind a crate stack, a wall
+Ashley runs into). `gameplay_walls smart` (settings key, RPC `graphics`,
+Graphics > Cutaway walls; default `original`) keeps the game's mask for the
+groups it keeps and decides again for the groups it cuts
+(`gameplay_walls.c`, called from `func_8009723C` for the current room under
+the game camera):
+
+- Each frame the room's triangles (the captured scene, world space) are
+  rasterised on the CPU into an 80 x 60 depth grid over the 320 x 240
+  screen, as the game camera sees them: opaque, front faces as the PS1
+  culls them (and two-sided polygons). The groups the mask keeps make the
+  *base* picture; each cut group (not a black shell, not a camera-facing
+  plane, not hidden by the room's flags) is then tested against it.
+- A cut group is **in the way** when a front face of it lies, nearer than
+  Ashley, in her screen region: a capsule from her feet to her head widened
+  by `gameplay_walls_radius` (64) plus her half width; in battle with a
+  target chosen (the point the battle camera follows) a disc around it too.
+  It is also in the way when 6 or more of its cells are seen (over the base
+  picture or over void) more than 96 units nearer than Ashley: in front of
+  the play area (a near wall's face, trims, columns). Seen over void at or
+  beyond the play area is what drawing it is for; behind the base picture it
+  hides nothing; back faces never show (the PS1 culls them), so a revealed
+  wall never shows its outside.
+- Hysteresis: in the way from the first frame, clear again after 10 frames
+  outside a region 1.3 times as wide. The drawn share fades out over 4 game
+  frames and in over 7 as an ordered dither (`render_instance.cut`, with
+  `cut_previous` blended by frame interpolation between game frames, so the
+  fade is as smooth as the presented frame rate). Groups the mask keeps
+  stay solid (they fade in only after a smart hide, e.g. while the camera
+  turns).
+- In the way: left out, or with `gameplay_walls_ghost` drawn as ghosts
+  (`gameplay_walls_opacity` of their pixels and their polygon edges, the
+  editor's ghost; G-buffer alpha 0.55).
+- Black shells always stay hidden. While an event script runs (`D_800F4C34`,
+  cutscenes) and while the editor's free camera flies the mask decides
+  alone, and the next smart frame starts without fades.
+- The packet path (`native_room 0`) draws the same groups, without the
+  dithered fades. The ray-traced scene, probes and shadows are unchanged
+  (they always held every group).
+
+RPC `room_groups` adds per group `shown` (drawn share), `occluding` and
+`cells` (this frame's grid cells: in Ashley's region nearer than her, seen in
+front of the play area, over void, all front-facing). In zone 9 room 13 at
+yaw 0xE00 (Ashley where the Room Browser's warp puts her) the mask cuts 19
+groups; smart draws 14 of them (most face away from the camera and show
+nothing; group 19, a wall piece right of the arched door, shows) and keeps
+13, 14 and 57, which stand between the camera and Ashley, hidden.
+`facing_cutaway_smoke.py` checks it, and at each save-room yaw that no
+black shell is drawn, that every kept group still is and that both paths
+draw the same groups.
 
 ## Verification (2026-10-10)
 
