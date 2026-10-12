@@ -17,8 +17,13 @@
  * 0x800F9800 in RAM, where INITBTL.PRG and the effect overlays load. */
 #define VS_CALLO_BATTLE_PRG_SECTORS 7
 
-/* Permanent stat-up items always give their maximum (+4) */
+/* Permanent stat-up items always give their maximum (+4), unless VS_CALLO_RANDOM_STAT_ITEMS
+ * keeps the original random +1 to +4 */
+#ifdef VS_CALLO_RANDOM_STAT_ITEMS
+#define VS_CALLO_STAT_ROLL vs_main_getRand(4)
+#else
 #define VS_CALLO_STAT_ROLL 3
+#endif
 
 /* BATTLE.PRG */
 void vs_mod_spawnCallo(void);
