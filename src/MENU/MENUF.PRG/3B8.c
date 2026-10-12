@@ -775,6 +775,40 @@ int _renderCongratulationsScreen(void)
         _renderStatWheel(130, 190, _screenTimer - 272, _screenState);
     }
 
+#ifdef VS_SELECTABLE_ROULETTE
+    /* The bonus wheel doesn't spin: Down/Up move it one entry, Circle takes the bonus shown */
+    if ((_screenState == 0) && ((_screenTimer - 272) > 0)) {
+        static signed char _reelStep; /* pixels left to scroll (an entry is 16) */
+
+        if (_reelStep > 0) {
+            _buffReelSelection = (_buffReelSelection + 4) & 0xFF;
+            _reelStep -= 4;
+        } else if (_reelStep < 0) {
+            _buffReelSelection = (_buffReelSelection - 4) & 0xFF;
+            _reelStep += 4;
+        }
+        if (_elementAnimationState < 48) {
+            if (_screenTimer > 288) {
+                ++_elementAnimationState;
+                _renderPressButtonPrompt(214, 187, _elementAnimationState, _screenTimer);
+            }
+        } else {
+            if (_reelStep == 0) {
+                if (vs_main_buttonsPressed.all & PADLdown) {
+                    _reelStep = -16; /* the next entry below comes up into the window */
+                } else if (vs_main_buttonsPressed.all & PADLup) {
+                    _reelStep = 16;
+                } else if (vs_main_buttonsPressed.all & PADRright) {
+                    vs_main_playSfxDefault(0x7E, 0x77);
+                    vs_main_playSfxDefault(0x7E, 0x78);
+                    _screenState = 2;
+                    _stateTimer = 0;
+                }
+            }
+            _renderPressButtonPrompt(214, 187, 48, _screenTimer);
+        }
+    } else
+#endif
     if (_screenState == 0) {
         _buffReelSelection = (_buffReelSelection + (_elementAnimationState >> 3)) & 0xFF;
         if ((_screenTimer - 272) > 0) {
