@@ -28,6 +28,7 @@ static SDL_Window* window;
 static SDL_GLContext context;
 static GLuint program, vram_texture, vertex_array;
 static GLint u_rect, u_vram, u_rgb24;
+extern int pc_display_masked __attribute__((weak)); /* boot_sdk.c SetDispMask */
 extern int pc_display_rgb24;
 static int window_w, window_h;
 int pc_gl_active;
@@ -1013,14 +1014,16 @@ static void update_view(int* out_w, int* out_h)
         area_x = area_y = 0, area_w = window_w, area_h = window_h;
     int view_w = area_w, view_h = area_h;
     if (pc_gl_aspect == 0 || pc_gl_aspect == 2) {
-        /* 4:3, or 16:9 when the GTE projects widescreen (Hor+). */
-        int aw = pc_gte_widescreen ? 16 : 4, ah = pc_gte_widescreen ? 9 : 3;
+        /* 4:3, or 16:9 when the GTE projects widescreen (Hor+); movie frames
+         * (24-bit display) are 4:3 pictures: pillarboxed in widescreen. */
+        int wide = pc_gte_widescreen && !pc_display_rgb24;
+        int aw = wide ? 16 : 4, ah = wide ? 9 : 3;
         view_h = area_w * ah / aw;
         if (view_h > area_h) {
             view_h = area_h;
             view_w = area_h * aw / ah;
         }
-        int base_w = pc_gte_widescreen ? 427 : 320;
+        int base_w = wide ? 427 : 320;
         if (pc_gl_aspect == 2 && view_w >= base_w && view_h >= 240) {
             int n = view_w / base_w < view_h / 240 ? view_w / base_w : view_h / 240;
             view_w = base_w * n;
@@ -1176,7 +1179,7 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
     gl_Viewport(0, 0, window_w, window_h);
     gl_ClearColor(0, 0, 0, 1);
     gl_Clear(GL_COLOR_BUFFER_BIT);
-    if (w > 0 && h > 0) {
+    if (w > 0 && h > 0 && !(&pc_display_masked && pc_display_masked)) { /* SetDispMask(0): black */
         int view_w, view_h;
         update_view(&view_w, &view_h);
         gl_Viewport(pc_gl_view[0], window_h - pc_gl_view[1] - view_h, view_w, view_h);

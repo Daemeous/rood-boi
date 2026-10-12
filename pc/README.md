@@ -277,6 +277,38 @@ such copies hold the widescreen picture. `ROOD_WIDESCREEN_DEBUG=1` logs them;
 `ROOD_WIDESCREEN_COVER=0` compresses them as before (comparisons;
 `pc/tests/widescreen_smoke.py`).
 
+The layout of the rest (`ROOD_WIDESCREEN_LAYOUT=0` or RPC `graphics
+widescreen_layout` turns it off for comparisons): menus stay laid out for
+the 4:3 middle, but untextured shapes reaching one edge of the screen (menu
+rows, title bars such as COMMAND or MAP / Wine Cellar, the RISK bar)
+stretch to that edge of the view; compressed 2D is clipped to the
+compressed drawing area, so what the game parks beyond the screen's edges
+stays hidden; 2D whose vertices the GTE projected this frame (the map
+screen's rooms, effects drawn as packets) is not compressed a second time
+(the GTE keeps logging projections in widescreen for this). 2D the game
+places at a projected point (damage numbers, ability and timing labels over
+characters, target lines, icons over actors, the map screen's room icons)
+takes un-narrowed projections (`pc/src/widescreen.h`,
+`PC_GTE_UNNARROWED`/`pc_gte_unnarrow_x`), so after compression it sits on
+the narrowed 3D. Screen furniture at the edges is anchored by packet ranges
+from the game code (`PC_ANCHOR_PACKETS`): the status display and the
+timing/chain labels beside it at the left, BATTLE MODE at the right, the map
+screen's controls help and compass at the left. A still that covers the
+screen (the idle cutscene's VKP Headquarters) is magnified to fill the view
+in its proportions (`PC_ANCHOR_FILL`; its top and bottom eighths fall
+outside). A picture the game loads straight into the frame buffer (the title
+screen, its copyright; the game code marks those LoadImages, `PC_UPLOAD_AS`)
+is drawn compressed like the 2D over it; StoreImage
+reads back only what native VRAM lacks (native 3D), so the CPU's own 2D
+round trips stay 4:3; a texture sampling the frame being drawn (the
+memory-card screens' text box) reads the target back first. Movie frames
+(24-bit) are pillarboxed. RPC `graphics widescreen_trace` (N ordering
+tables) logs every 2D primitive and how it was placed.
+
+`SetDispMask(0)` shows black until `SetDispMask(1)`, as on the PS1 (it
+blanks the display while the game loads, e.g. skipping the idle cutscene);
+`ROOD_DISPLAY_MASK=0` ignores it, RPC `status` reports `display_masked`.
+
 The same log stores each projected vertex's GTE view depth (SZ), so 3D
 primitives carry depth into the hardware path: the target has a depth buffer
 written in the game's draw order (never tested; the PS1 sorts back to front),
@@ -766,7 +798,7 @@ thread once per vsync, so each method runs at a frame boundary:
 
 | Method | Params | Result |
 | --- | --- | --- |
-| `status` | | vsync and battle-frame counters, pause state, injected buttons |
+| `status` | | vsync and battle-frame counters, pause state, injected buttons, `display_masked` (SetDispMask(0)) |
 | `pause` | `paused` (default true) | stop or resume at vsync boundaries |
 | `step` | `vsyncs` | run exactly N vsyncs, then pause |
 | `input` | `buttons` (name or list), `right_stick` (`[x, y]`, -1..1, down +y), `vsyncs` | hold PS1 buttons and/or the right stick (the camera); works unfocused |
@@ -778,7 +810,7 @@ thread once per vsync, so each method runs at a frame boundary:
 | `screenshot` | `path` | displayed frame (native resolution) as a PPM |
 | `gpu_dump` | `path` | the whole scaled hardware VRAM target as a PPM |
 | `gpu_draw` | `packet` (GP0 words, hex), `texture` (hex texels) with `texture_x/y/w/h`, `area_x/y/w/h`, `offset_x/y` | tests: load texels, set the drawing area, draw the commands on both rasterizers (`flipped_sprite_smoke.py`) |
-| `graphics` | `scale`, `filter`, `aspect`, `widescreen`, `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `lighting_preset` and the lighting quality keys, ... | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
+| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_trace` N), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `lighting_preset` and the lighting quality keys, ... | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
 | `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
 | `settings` | `action` (`save`, `load`) | the `ROOD_SETTINGS` file (a loaded preset applies at once) |
 | `perf` | `reset` | GPU time per presented frame since the last reset (`ROOD_PERF=1`; Vulkan timestamps, GL timer queries); GL adds `presents`, `gpu_wait_ms` (CPU waits for frames in flight), `gi_traced`/`gi_reused`, `gi_gpu_ms`, `gi_budget_ms`, `gi_interval` (path tracer cadence) |

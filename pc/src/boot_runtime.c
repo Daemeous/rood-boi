@@ -26,6 +26,7 @@ extern void pc_hw_copy(int, int, int, int, int, int);
 /* Native VRAM is about to be read here: copy back what only the hardware
  * target has (gpu_hw.c; absent in unit probes). */
 extern void pc_hw_sync(int, int, int, int) __attribute__((weak));
+extern void pc_hw_sync_store(int, int, int, int) __attribute__((weak));
 extern void pc_hw_sync_texture(unsigned, unsigned, unsigned, int, int, int, int) __attribute__((weak));
 extern void pc_hw_stale_copy(int, int, int, int, int, int) __attribute__((weak));
 extern void pc_hw_set_2d(int);
@@ -49,6 +50,25 @@ extern int pc_gte_lookup_view[3];
 extern int pc_gte_projected_candidates(int, int, int*, unsigned*, int);
 extern const void* pc_gte_projection_caller(int);
 extern int pc_gte_log; /* off: no projection log (everything 3D is native) */
+extern int pc_gte_widescreen __attribute__((weak));
+extern void pc_hw_set_narrowed(void) __attribute__((weak));
+/* Widescreen with the log off: whether every vertex was projected (narrowed)
+ * this frame (the GTE still records projections in widescreen). */
+static int narrowed_2d(const int (*xy)[2], int count)
+{
+    if (pc_gte_log || !&pc_gte_widescreen || !pc_gte_widescreen || !pc_hw_set_narrowed)
+        return 0;
+    for (int i = 0; i < count; ++i) {
+        int found = pc_gte_projected(xy[i][0], xy[i][1]);
+        /* Lines: within a pixel (the targeting sphere nudges each segment's
+         * start by its slope, BATTLE 573B8.c func_800C0990). */
+        for (int k = 0; count == 2 && !found && k < 9; ++k)
+            found = k != 4 && pc_gte_projected(xy[i][0] + k % 3 - 1, xy[i][1] + k / 3 - 1);
+        if (!found)
+            return 0;
+    }
+    return 1;
+}
 extern const void* pc_hw_caller;
 extern void pc_gte_projection_entry(int, int, int, int*, float*, float*); /* OFX, OFY (16.16), H of the last lookup */
 extern int pc_scene_game_projection(float*, float*, float*);
@@ -90,8 +110,8 @@ void pc_vram_transfer(int x, int y, int w, int h, void* data, int write)
         fprintf(stderr, "VRAM transfer: %d,%d %dx%d\n", x, y, w, h);
         pc_unimplemented("VRAM rectangle out of bounds");
     }
-    if (!write && pc_hw_sync)
-        pc_hw_sync(x, y, w, h); /* StoreImage */
+    if (!write && pc_hw_sync_store)
+        pc_hw_sync_store(x, y, w, h); /* StoreImage */
     for (int row = 0; row < h; row++) {
         void* vp = vram + (y + row) * 1024 + x;
         void* dp = (uint16_t*)data + row * w;
@@ -383,10 +403,13 @@ int pc_disc_read(int lba, unsigned int size, void* dest)
     pc_overlay_statics_loaded(first);
     return 1;
 }
+extern int pc_gte_centre __attribute__((weak)); /* PsyX_GTE.cpp: widescreen narrows about it */
 void pc_display_env(int x, int y, int w, int h)
 {
     if (w <= 0 || h <= 0 || w > 1024 || h > 512)
         pc_unimplemented("display dimensions");
+    if (&pc_gte_centre)
+        pc_gte_centre = w / 2;
     display_x = x;
     display_y = y;
     display_w = w;

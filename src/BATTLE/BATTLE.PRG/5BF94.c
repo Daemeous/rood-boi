@@ -3912,6 +3912,10 @@ void func_800CBBCC(gim_t* image, int clut, u_long* ot)
     int packedBottom;
     u_long* prim;
 
+#ifdef ROOD_PC
+    void* pc_image_start = psx_get(vs_scratch.unk0);
+#endif
+
     j = image->unk8 + 160;
     columnX = psx_to_ptr(short*, 0x1F800400 - ((columns + 1) << 1));
     rowY = columnX - (rows + 1);
@@ -4007,6 +4011,26 @@ void func_800CBBCC(gim_t* image, int clut, u_long* ot)
             }
         }
     }
+#ifdef ROOD_PC
+    /* Widescreen: a still that covers the whole screen with picture (the
+     * idle cutscene's VKP Headquarters: no empty tile) fills the 16:9 view,
+     * magnified in its proportions, instead of standing in the 4:3 middle
+     * with black sides. (Lettering on a plain ground, GAME OVER, keeps its
+     * 4:3 composition.) */
+    {
+        extern void pc_hw_anchor_packets(const void*, const void*, int)
+            __attribute__((weak));
+        int pc_full = columns * rows > 0;
+        for (i = 0; pc_full && i < columns * rows; i++) {
+            pc_full = tiles[i] != 0;
+        }
+        if (pc_hw_anchor_packets && pc_full && columnX[0] <= 0 && columnX[columns] >= 320
+            && rowY[0] <= 0 && rowY[rows] >= 224) {
+            pc_hw_anchor_packets(
+                pc_image_start, psx_get(vs_scratch.unk0), 0x13); /* PC_ANCHOR_FILL */
+        }
+    }
+#endif
 }
 
 void func_800CC128(gim_t* arg0, int arg1, u_long* arg2)

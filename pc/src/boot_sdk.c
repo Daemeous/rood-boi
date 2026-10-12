@@ -42,8 +42,18 @@ int ResetGraph(int mode)
     return 0;
 }
 int SetGraphDebug(int mode) { return mode; }
+/* SetDispMask(0) blanks the display until SetDispMask(1): the PS1 shows
+ * black, not VRAM, while the game loads or rebuilds its frame buffers
+ * (skipping the title's idle cutscene). The presenters draw black then;
+ * ROOD_DISPLAY_MASK=0 ignores the mask (as before). */
+int pc_display_masked;
+extern char* getenv(const char*);
 void SetDispMask(int mask)
 {
+    static int honour = -1;
+    if (honour < 0)
+        honour = !getenv("ROOD_DISPLAY_MASK") || *getenv("ROOD_DISPLAY_MASK") != '0';
+    pc_display_masked = honour && !mask;
     if (mask)
         pc_present();
 }

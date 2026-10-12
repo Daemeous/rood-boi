@@ -592,10 +592,12 @@ static void handle_method(int fd, const char* request)
     static char result[LINE_MAX_BYTES];
 
     if (!strcmp(method, "status")) {
+        extern int pc_display_masked __attribute__((weak)); /* SetDispMask(0) */
         snprintf(result, sizeof result,
-            "{\"vsync\":%u,\"battle_frame\":%u,\"paused\":%s,\"step_budget\":%ld,\"buttons\":%u}",
+            "{\"vsync\":%u,\"battle_frame\":%u,\"paused\":%s,\"step_budget\":%ld,\"buttons\":%u,"
+            "\"display_masked\":%s}",
             pc_vsync_count(), pc_battle_frame_count(), paused ? "true" : "false", step_budget,
-            pc_rpc_buttons());
+            pc_rpc_buttons(), &pc_display_masked && pc_display_masked ? "true" : "false");
         reply(fd, id, result);
     } else if (!strcmp(method, "pause")) {
         int value = 1;
@@ -736,6 +738,15 @@ static void handle_method(int fd, const char* request)
         int flag;
         if (params && bool_value(member(params, "widescreen"), &flag))
             pc_gte_widescreen = flag;
+        /* Widescreen fixes, off for before/after comparisons (gpu_hw.c). */
+        extern int pc_widescreen_cover __attribute__((weak)), pc_widescreen_layout __attribute__((weak));
+        if (params && bool_value(member(params, "widescreen_cover"), &flag) && &pc_widescreen_cover)
+            pc_widescreen_cover = flag;
+        if (params && bool_value(member(params, "widescreen_layout"), &flag) && &pc_widescreen_layout)
+            pc_widescreen_layout = flag;
+        extern int pc_widescreen_trace __attribute__((weak));
+        if (params && number_value(member(params, "widescreen_trace"), &n) && &pc_widescreen_trace && n >= 0)
+            pc_widescreen_trace = (int)n + 1; /* log the next N ordering tables' 2D */
         if (params && bool_value(member(params, "perspective"), &flag) && &pc_hw_perspective)
             pc_hw_perspective = flag;
         if (params && bool_value(member(params, "show_depth"), &flag) && &pc_gl_show_depth)

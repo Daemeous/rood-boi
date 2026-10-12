@@ -31,6 +31,7 @@ static const void* captured_data;
 static unsigned captured_signature;
 static int scene_serial;
 static float camera_rotation[3][3], camera_translation[3];
+extern float pc_gte_view_ofx(void);
 static float camera_h, camera_ofx, camera_ofy;
 static int camera_valid;
 static unsigned camera_facing; /* scratch 0x1F800010: cutaway direction mask */
@@ -273,7 +274,7 @@ void pc_scene_camera(const void* view)
         camera_translation[r] = (float)m->t[r];
     }
     camera_h = (float)(CFC2(26) & 0xffff);
-    camera_ofx = (int)CFC2(24) / 65536.0f;
+    camera_ofx = pc_gte_view_ofx(); /* widescreen: as narrowed (PsyX_GTE.cpp) */
     camera_ofy = (int)CFC2(25) / 65536.0f;
     camera_valid = 1;
     camera_facing = *(const unsigned*)0x1f800010;

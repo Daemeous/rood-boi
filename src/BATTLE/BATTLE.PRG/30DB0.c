@@ -14,6 +14,9 @@
 #include <libetc.h>
 #include <memory.h>
 #include "pc/src/psx_types.h"
+#ifdef ROOD_PC
+#include "pc/src/widescreen.h"
+#endif
 
 typedef struct {
     u_char unk0[0x1FE0];
@@ -4353,7 +4356,11 @@ int func_800A1280(int arg0, int arg1, SVECTOR* arg2, int arg3)
 
         SetRotMatrix((MATRIX*)0x1F800014);
         SetTransMatrix((MATRIX*)0x1F800014);
+#ifdef ROOD_PC
+        PC_GTE_UNNARROWED(arg2->vz = RotTransPers(arg2, &sp10, &sp14, &sp18));
+#else
         arg2->vz = RotTransPers(arg2, &sp10, &sp14, &sp18);
+#endif
         arg2->vx = sp10;
         new_var = &((short*)(&sp10))[1];
         new_var2 = *new_var;

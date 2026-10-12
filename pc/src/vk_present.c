@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern int pc_display_masked __attribute__((weak)); /* boot_sdk.c SetDispMask */
 extern int pc_display_rgb24, pc_hw_active, pc_hw_scale, pc_gte_widescreen, pc_hw_perspective;
 extern int pc_gl_filter, pc_gl_aspect, pc_gl_aa, pc_gl_show_depth, pc_gl_view_mode, pc_post_flags,
     pc_post_focus_mode;
@@ -378,13 +379,16 @@ static void update_view(int* out_w, int* out_h)
         area_x = area_y = 0, area_w = window_w, area_h = window_h;
     int view_w = area_w, view_h = area_h;
     if (pc_gl_aspect == 0 || pc_gl_aspect == 2) {
-        int aw = pc_gte_widescreen ? 16 : 4, ah = pc_gte_widescreen ? 9 : 3;
+        /* 4:3, or 16:9 when the GTE projects widescreen (Hor+); movie frames
+         * (24-bit display) are 4:3 pictures: pillarboxed in widescreen. */
+        int wide = pc_gte_widescreen && !pc_display_rgb24;
+        int aw = wide ? 16 : 4, ah = wide ? 9 : 3;
         view_h = area_w * ah / aw;
         if (view_h > area_h) {
             view_h = area_h;
             view_w = area_h * aw / ah;
         }
-        int base_w = pc_gte_widescreen ? 427 : 320;
+        int base_w = wide ? 427 : 320;
         if (pc_gl_aspect == 2 && view_w >= base_w && view_h >= 240) {
             int n = view_w / base_w < view_h / 240 ? view_w / base_w : view_h / 240;
             view_w = base_w * n;
@@ -634,7 +638,7 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
     VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
     vkCmdClearColorImage(cmd, window_image.image, VK_IMAGE_LAYOUT_GENERAL, &black, 1, &range);
     vk_barrier();
-    if (w > 0 && h > 0) {
+    if (w > 0 && h > 0 && !(&pc_display_masked && pc_display_masked)) { /* SetDispMask(0): black */
         int view_w, view_h;
         update_view(&view_w, &view_h);
         pc_gl_display[0] = x, pc_gl_display[1] = y, pc_gl_display[2] = w, pc_gl_display[3] = h;

@@ -44,6 +44,7 @@
 #include <string.h>
 
 extern unsigned int CFC2(int reg);
+extern float pc_gte_view_ofx(void);
 extern int pc_gte_widescreen;
 extern int pc_hw_active;
 extern void pc_hw_object_packets(const void* start, const void* end, uint32_t list) __attribute__((weak));
@@ -504,7 +505,7 @@ static int read_camera(uint32_t serial)
         camera.translation[a] = (float)(camera_translation[a] = view->t[a]);
     }
     camera.h = (float)(CFC2(26) & 0xffff);
-    camera.ofx = (int)CFC2(24) / 65536.0f;
+    camera.ofx = pc_gte_view_ofx(); /* widescreen: as narrowed (PsyX_GTE.cpp) */
     camera.ofy = (int)CFC2(25) / 65536.0f;
     camera.widescreen = pc_gte_widescreen;
     double c[3][3] = {

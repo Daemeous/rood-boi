@@ -51,14 +51,30 @@ int pc_hw_scale = 1;
  * compressed here about the drawing area's centre so they keep their shape. */
 extern int pc_gte_widescreen;
 static int primitive_2d, primitive_room, primitive_cover;
+/* Widescreen: untextured 2D reaching the screen's right (1) or left (-1)
+ * edge (menu bars, title bars) stretches to that edge of the view from its
+ * compressed other end (pc_hw_set_bounds); primitive_span is its x0, x1. */
+static int primitive_extend;
+static float primitive_span[2];
+/* 2D whose vertices the GTE projected (narrowed) this frame although the
+ * projection log is off (pc_hw_set_narrowed): it is not compressed again. */
+static int primitive_narrowed;
 static uintptr_t current_packet; /* the GPU packet being drawn (pc_hw_set_packet) */
 static int primitive_uv_shift[2]; /* pc_hw_set_flipped_uv */
 void pc_hw_set_2d(int is_2d)
 {
     primitive_2d = is_2d;
     primitive_cover = 0;
+    primitive_extend = 0;
+    primitive_narrowed = 0;
     primitive_uv_shift[0] = primitive_uv_shift[1] = 0;
 }
+/* Widescreen with the projection log off (every 3D draw native): 2D packets
+ * whose vertices all came from the GTE this frame (the map screen's rooms,
+ * effects drawn as packets) are already narrowed by the projection; they
+ * keep their positions instead of being compressed a second time. */
+static int layout_enabled(void);
+void pc_hw_set_narrowed(void) { primitive_narrowed = layout_enabled(); }
 /* A flipped 2D sprite drawn as a polygon (U or V decreasing along X or Y,
  * no change along the other axis), as beetle-psx and DuckStation detect it.
  * The PS1 takes a pixel's texel at its top-left corner: a quad whose U runs
@@ -186,10 +202,63 @@ static void screen_copy_write(int sx, int sy, int dx, int dy, int w, int h, int 
         screen_list_add(screen_copies, &screen_copy_count, MAX_SCREEN_COPIES, &p);
     }
 }
+/* Widescreen layout of compressed 2D (ROOD_WIDESCREEN_LAYOUT=0 turns it off,
+ * for comparisons): it is clipped to the compressed drawing area, so what
+ * the game parks beyond the screen's edges (hidden by the PS1's drawing
+ * area) stays hidden instead of showing in the view's sides, and untextured
+ * shapes that reach one edge of the screen (menu and title bars running off
+ * its right side) stretch to that edge of the view. */
+int pc_widescreen_layout = -1;
+static int layout_enabled(void)
+{
+    if (pc_widescreen_layout < 0)
+        pc_widescreen_layout = !getenv("ROOD_WIDESCREEN_LAYOUT") || *getenv("ROOD_WIDESCREEN_LAYOUT") != '0';
+    return pc_widescreen_layout;
+}
+/* RPC widescreen_trace: log every 2D primitive of the next N ordering
+ * tables (bounds relative to the drawing area, how widescreen places it). */
+int pc_widescreen_trace;
+static int primitive_anchor;
+static void trace_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv, const int* clip)
+{
+    if (!pc_widescreen_trace)
+        return;
+    char texture[64] = "";
+    if (uv)
+        snprintf(texture, sizeof texture, " textured (page %d,%d depth %u, uv %d,%d-%d,%d)", (int)(tpage & 15) * 64,
+            (int)((tpage >> 4) & 1) * 256, (tpage >> 7) & 3, uv[0], uv[1], uv[2], uv[3]);
+    fprintf(stderr, "[widescreen trace] code 0x%02x (%d,%d)-(%d,%d) area %d,%d %dx%d%s: %s\n", code & 0xff,
+        x0 - clip[0], y0 - clip[1], x1 - clip[0], y1 - clip[1], clip[0], clip[1], clip[2], clip[3], texture,
+        primitive_narrowed ? "projected" : primitive_cover ? "cover"
+        : primitive_anchor ? (primitive_anchor == 1 ? "anchor left" : primitive_anchor == 2 ? "anchor right" : "fill")
+        : primitive_extend > 0 ? "extend right" : primitive_extend < 0 ? "extend left" : "compress");
+}
 void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv, const int* clip)
 {
-    if (!primitive_2d || !cover_enabled() || clip[2] <= 0 || clip[3] <= 0)
+    if (!primitive_2d || clip[2] <= 0 || clip[3] <= 0)
         return;
+    if (primitive_narrowed) {
+        trace_bounds(x0, y0, x1, y1, code, tpage, uv, clip);
+        return;
+    }
+    if (layout_enabled() && !uv) {
+        /* Reaching one edge (within a pixel; a bar's drop shadow runs a
+         * little past it) from at least a tenth of the screen away. */
+        int left = clip[0], right = clip[0] + clip[2], reach = clip[2] / 10;
+        if (x1 >= right - 1 && x0 > left + 1 && right - x0 >= reach)
+            primitive_extend = 1;
+        else if (x0 <= left + 1 && x1 < right - 1 && x1 - left >= reach)
+            primitive_extend = -1;
+        primitive_span[0] = (float)x0;
+        primitive_span[1] = (float)x1;
+    }
+    static int debug = -1, logged;
+    if (debug < 0)
+        debug = getenv("ROOD_WIDESCREEN_DEBUG") && *getenv("ROOD_WIDESCREEN_DEBUG") == '1';
+    if (!cover_enabled()) {
+        trace_bounds(x0, y0, x1, y1, code, tpage, uv, clip);
+        return;
+    }
     int tolerance = clip[2] / 64; /* 5 pixels at 320 */
     int wide = x0 <= clip[0] + tolerance && x1 >= clip[0] + clip[2] - tolerance;
     /* Untextured shapes reaching well past the top or bottom (wipes; fans
@@ -213,9 +282,24 @@ void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tp
         }
     }
     primitive_cover = wide || tall || backdrop || copy;
-    static int debug = -1, logged;
-    if (debug < 0)
-        debug = getenv("ROOD_WIDESCREEN_DEBUG") && *getenv("ROOD_WIDESCREEN_DEBUG") == '1';
+    if (primitive_cover)
+        primitive_extend = 0;
+    trace_bounds(x0, y0, x1, y1, code, tpage, uv, clip);
+    /* (Debug: 2D drawn compressed although it reaches well past the screen's
+     * sides, e.g. a full-screen effect in pieces.) */
+    if (debug && !primitive_cover && pc_gte_widescreen && (x0 < clip[0] - 8 || x1 > clip[0] + clip[2] + 8)
+        && x1 - x0 >= clip[2] / 4 && logged < 400) {
+        static int seen[64][5], seen_count;
+        int key[5] = { (int)code, x0 - clip[0], y0 - clip[1], x1 - clip[0], y1 - clip[1] };
+        for (int i = 0; i < seen_count; i++)
+            if (!memcmp(seen[i], key, sizeof key))
+                return;
+        memcpy(seen[seen_count], key, sizeof key);
+        seen_count = (seen_count + 1) % 64;
+        ++logged;
+        fprintf(stderr, "[widescreen] compressed 2D code 0x%02x (%d,%d)-(%d,%d) reaches past the screen (area %d,%d %dx%d)%s\n",
+            code & 0xff, key[1], key[2], key[3], key[4], clip[0], clip[1], clip[2], clip[3], uv ? " textured" : "");
+    }
     if (debug && primitive_cover && logged < 400) {
         static int seen[64][5], seen_count;
         int key[5] = { (int)code, x0 - clip[0], y0 - clip[1], x1 - clip[0], y1 - clip[1] };
@@ -454,8 +538,11 @@ int pc_hw_is_room_packet(const void* p)
  * ranges. Their primitives are scaled by 3/4 about that edge of the screen
  * instead of the drawing area's centre, so they keep their shape and sit at
  * the edges of the 16:9 picture. Nested ranges are allowed: the innermost
- * wins (PC_ANCHOR_NONE inside a range keeps the centred behaviour). */
-enum { PC_ANCHOR_NONE, PC_ANCHOR_LEFT, PC_ANCHOR_RIGHT };
+ * wins (PC_ANCHOR_NONE inside a range keeps the centred behaviour).
+ * PC_ANCHOR_FILL: a full-screen picture (a cutscene still) is magnified by
+ * 4/3 about the screen's centre instead, so it fills the 16:9 view in its
+ * own proportions (its top and bottom eighths fall outside). */
+enum { PC_ANCHOR_NONE, PC_ANCHOR_LEFT, PC_ANCHOR_RIGHT, PC_ANCHOR_FILL };
 #define MAX_ANCHOR_RANGES 32
 typedef struct {
     uintptr_t start, end;
@@ -463,10 +550,17 @@ typedef struct {
 } anchor_range;
 static anchor_range pending_anchors[MAX_ANCHOR_RANGES], active_anchors[MAX_ANCHOR_RANGES];
 static int pending_anchor_count, active_anchor_count;
-static int primitive_anchor; /* of the packet being drawn */
+/* primitive_anchor (above): of the packet being drawn */
 static float anchor_left, anchor_right; /* the screen's edges in VRAM X */
 void pc_hw_anchor_packets(const void* start, const void* end, int anchor)
 {
+    /* Ranges marked 0x10 belong to the widescreen layout fixes
+     * (pc/src/widescreen.h): off with them (ROOD_WIDESCREEN_LAYOUT=0). */
+    if (anchor & 0x10) {
+        if (!layout_enabled())
+            return;
+        anchor &= 0x0f;
+    }
     if (pending_anchor_count < MAX_ANCHOR_RANGES && end > start) {
         anchor_range* r = &pending_anchors[pending_anchor_count++];
         r->start = (uintptr_t)start;
@@ -565,6 +659,8 @@ static int reconstruct_active(void)
 }
 void pc_hw_begin_ot(void)
 {
+    if (pc_widescreen_trace > 0 && !--pc_widescreen_trace)
+        fprintf(stderr, "[widescreen trace] end\n");
     pc_gte_log = !pc_hw_active || reconstruct_active();
     if (has_pending_translucent)
         flush(); /* the previous table's last translucent range */
@@ -1243,6 +1339,8 @@ static void record_triangle(const float* world, unsigned code, unsigned tpage, u
  * not kept for its kind (pc_native_room / pc_native_actors 2): the CPU
  * rasterizer may skip it (its area is then stale until pc_hw_sync). */
 static void mark_stale(const int* clip);
+enum { STALE_MISSING = 1, STALE_PLACED = 2 }; /* (stale_kinds, below) */
+static void mark_stale_kind(const int* clip, int kind);
 int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage,
     unsigned clut, unsigned window, const int* clip, int mask_set, int mask_check)
 {
@@ -1311,12 +1409,26 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     }
     if (has_pending_translucent)
         flush();
+    /* Widescreen: what the target holds where this draws is not what the
+     * CPU rasterizer draws there (2D placed for the view, Hor+ 3D), so a
+     * texture sampling it (a screen copy of rows of the frame being drawn,
+     * as the memory-card screens' text box does) reads it back first, as
+     * it does for displayed frames (pc_hw_set_display). */
+    if (pc_gte_widescreen && layout_enabled())
+        mark_stale_kind(clip, STALE_PLACED);
     int textured = (code & 4) != 0, semi = (code & 2) != 0;
     /* Widescreen: an anchored primitive (HUD at a screen edge; its GTE
      * projections were not narrowed) scales about that edge, its drawing
      * area with it; other 2D compresses about the drawing area's centre,
      * except screen-covering 2D (pc_hw_set_bounds), which spans the view. */
-    int anchored = pc_gte_widescreen && primitive_anchor != PC_ANCHOR_NONE && !primitive_cover;
+    int fill = pc_gte_widescreen && primitive_anchor == PC_ANCHOR_FILL && !primitive_cover && layout_enabled();
+    int anchored = pc_gte_widescreen && primitive_anchor != PC_ANCHOR_NONE && primitive_anchor != PC_ANCHOR_FILL
+        && !primitive_cover;
+    int extend = pc_gte_widescreen && primitive_2d && !anchored && !fill && !primitive_cover ? primitive_extend : 0;
+    int compress = pc_gte_widescreen && primitive_2d && !anchored && !fill && !primitive_cover && !extend
+        && !primitive_narrowed;
+    float middle = clip[1] + clip[3] * 0.5f; /* PC_ANCHOR_FILL magnifies Y about it */
+    float centre = clip[0] + clip[2] * 0.5f;
     int area[4];
     if (anchored) {
         float left = anchor_x((float)clip[0]), right = anchor_x((float)(clip[0] + clip[2]));
@@ -1324,8 +1436,29 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
         area[1] = clip[1];
         area[2] = (int)ceilf(right) - area[0];
         area[3] = clip[3];
+    } else if ((compress || extend) && layout_enabled()) {
+        /* The drawing area compressed like its contents (an extended side
+         * reaches the view's edge). */
+        float left = extend < 0 ? (float)clip[0] : centre + (clip[0] - centre) * 0.75f;
+        float right = extend > 0 ? (float)(clip[0] + clip[2]) : centre + (clip[0] + clip[2] - centre) * 0.75f;
+        area[0] = (int)floorf(left + 0.001f);
+        area[1] = clip[1];
+        area[2] = (int)ceilf(right - 0.001f) - area[0];
+        area[3] = clip[3];
     } else
         memcpy(area, clip, sizeof area);
+    /* Extended: the far end compressed, the near edge of the screen at the
+     * view's edge, linearly in between. */
+    float extend_from = 0.0f, extend_scale = 1.0f;
+    if (extend > 0) {
+        float right = (float)(clip[0] + clip[2]);
+        extend_from = centre + (primitive_span[0] - centre) * 0.75f;
+        extend_scale = (right - extend_from) / (right - primitive_span[0]);
+    } else if (extend < 0) {
+        float left = (float)clip[0];
+        extend_from = centre + (primitive_span[1] - centre) * 0.75f;
+        extend_scale = (extend_from - left) / (primitive_span[1] - left);
+    }
     int depth[3] = { 0, 0, 0 };
     if (has_pending_depth && !primitive_2d)
         memcpy(depth, pending_depth, sizeof depth);
@@ -1353,8 +1486,6 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     }
     uint8_t flags = (uint8_t)((textured ? FLAG_TEXTURED : 0) | (textured && (code & 1) ? FLAG_RAW : 0)
         | (semi ? FLAG_SEMI : 0) | (mask_set ? FLAG_MASK : 0));
-    float centre = clip[0] + clip[2] * 0.5f;
-    int compress = pc_gte_widescreen && primitive_2d && !anchored && !primitive_cover;
     /* Positions: unrounded for projected 3D vertices, else the packet's. */
     float pos[6];
     for (int i = 0; i < 6; i++)
@@ -1471,9 +1602,11 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     for (int i = 0; i < 3; i++) {
         hw_vertex* v = &batch[batch_count++];
         v->x = anchored ? (has_line_x ? line_x[i] : anchor_x(pos[i * 2]))
-            : compress  ? centre + (pos[i * 2] - centre) * 0.75f
-                        : pos[i * 2];
-        v->y = pos[i * 2 + 1];
+            : compress   ? centre + (pos[i * 2] - centre) * 0.75f
+            : extend > 0 ? extend_from + (pos[i * 2] - primitive_span[0]) * extend_scale
+            : extend < 0 ? extend_from - (primitive_span[1] - pos[i * 2]) * extend_scale
+                         : pos[i * 2];
+        v->y = fill ? middle + (pos[i * 2 + 1] - middle) * (4.0f / 3.0f) : pos[i * 2 + 1];
         v->z = (float)depth[i];
         v->r = (uint8_t)rgb[i * 3];
         v->g = (uint8_t)rgb[i * 3 + 1];
@@ -1539,7 +1672,7 @@ void pc_hw_line(int x0, int y0, int x1, int y1, unsigned c0, unsigned c1, int se
      * position and keep the line one pixel thick (scaling the quad would
      * thin vertical lines below a pixel). */
     float shift[4] = { 0, 0, 0, 0 };
-    int anchored = pc_gte_widescreen && primitive_anchor != PC_ANCHOR_NONE;
+    int anchored = pc_gte_widescreen && primitive_anchor != PC_ANCHOR_NONE && primitive_anchor != PC_ANCHOR_FILL;
     if (anchored) {
         float s0 = anchor_x(x0 + 0.5f) - 0.5f - (float)x0, s1 = anchor_x(x1 + 0.5f) - 0.5f - (float)x1;
         shift[0] = shift[2] = s0;
@@ -1608,6 +1741,7 @@ static void fill_target(GLuint fbo, int x, int y, int w, int h, int r, int g, in
     gl_Disable(GL_SCISSOR_TEST);
     gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
 }
+static int widescreen_screen_upload(int x, int y, int w, int h);
 /* Native VRAM rectangle (already written by the CPU) into the scaled target. */
 void pc_hw_upload(int x, int y, int w, int h)
 {
@@ -1618,6 +1752,8 @@ void pc_hw_upload(int x, int y, int w, int h)
     screen_copy_write(0, 0, x, y, w, h, 0);
     pc_hw_mark(x, y, x + w - 1, y + h - 1);
     upload_tiles(dirty_tiles & tiles_for(x, y, x + w - 1, y + h - 1));
+    if (widescreen_screen_upload(x, y, w, h))
+        return;
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
         pc_vk_hw_upload_rect(x, y, w, h);
@@ -1960,9 +2096,18 @@ void pc_hw_native_translucent(uint32_t list, int first, int count, int ox, int o
  * what the window shows. */
 #define MAX_STALE 8
 static int stale_rects[MAX_STALE][4], stale_count;
+/* Why each is stale: STALE_MISSING, native VRAM lacks what native draws
+ * drew; STALE_PLACED, widescreen placed what is drawn there differently
+ * (2D compressed or spread over the view, Hor+ 3D). StoreImage reads back
+ * only the first: the CPU then reads 4:3 2D as the game drew it, so what it
+ * loads back after changing it (the title's copyright fading in over its
+ * background, its menu over its background) matches the 2D drawn by the
+ * game, compressed. */
+static int stale_kinds[MAX_STALE];
 static GLuint sync_fbo, sync_texture;
 int pc_hw_syncs; /* rectangles copied back (diagnostics) */
-static void mark_stale(const int* clip)
+static void mark_stale(const int* clip) { mark_stale_kind(clip, STALE_MISSING); }
+static void mark_stale_kind(const int* clip, int kind)
 {
     if (clip[2] <= 0 || clip[3] <= 0)
         return;
@@ -1973,10 +2118,13 @@ static void mark_stale(const int* clip)
         return;
     for (int i = 0; i < stale_count; i++) {
         int* r = stale_rects[i];
-        if (x0 >= r[0] && y0 >= r[1] && x1 <= r[0] + r[2] && y1 <= r[1] + r[3])
-            return; /* already stale */
+        if (x0 >= r[0] && y0 >= r[1] && x1 <= r[0] + r[2] && y1 <= r[1] + r[3]) {
+            stale_kinds[i] |= kind; /* already stale */
+            return;
+        }
         if (r[0] >= x0 && r[1] >= y0 && r[0] + r[2] <= x1 && r[1] + r[3] <= y1) {
             r[0] = x0, r[1] = y0, r[2] = x1 - x0, r[3] = y1 - y0; /* grows */
+            stale_kinds[i] |= kind;
             return;
         }
     }
@@ -1986,17 +2134,30 @@ static void mark_stale(const int* clip)
         int a0 = r[0] < x0 ? r[0] : x0, b0 = r[1] < y0 ? r[1] : y0;
         int a1 = r[0] + r[2] > x1 ? r[0] + r[2] : x1, b1 = r[1] + r[3] > y1 ? r[1] + r[3] : y1;
         r[0] = a0, r[1] = b0, r[2] = a1 - a0, r[3] = b1 - b0;
+        stale_kinds[MAX_STALE - 1] |= kind;
         return;
     }
+    stale_kinds[stale_count] = kind;
     int* r = stale_rects[stale_count++];
     r[0] = x0, r[1] = y0, r[2] = x1 - x0, r[3] = y1 - y0;
 }
-void pc_hw_sync(int x, int y, int w, int h)
+static void sync_kinds(int x, int y, int w, int h, int kinds);
+void pc_hw_sync(int x, int y, int w, int h) { sync_kinds(x, y, w, h, STALE_MISSING | STALE_PLACED); }
+/* StoreImage (boot_runtime.c): only what native VRAM lacks. */
+void pc_hw_sync_store(int x, int y, int w, int h)
+{
+    sync_kinds(x, y, w, h, layout_enabled() ? STALE_MISSING : STALE_MISSING | STALE_PLACED);
+}
+static void sync_kinds(int x, int y, int w, int h, int kinds)
 {
     if (!pc_hw_active || !stale_count || w <= 0 || h <= 0)
         return;
     for (int i = 0; i < stale_count;) {
         int* r = stale_rects[i];
+        if (!(stale_kinds[i] & kinds)) {
+            ++i;
+            continue;
+        }
         int x0 = x > r[0] ? x : r[0], y0 = y > r[1] ? y : r[1];
         int x1 = x + w < r[0] + r[2] ? x + w : r[0] + r[2], y1 = y + h < r[1] + r[3] ? y + h : r[1] + r[3];
         if (x1 <= x0 || y1 <= y0) {
@@ -2053,6 +2214,7 @@ void pc_hw_sync(int x, int y, int w, int h)
         pc_ui_upscale_tiles_changed(tiles_for(x0, y0, x1 - 1, y1 - 1));
         ++pc_hw_syncs;
         memmove(r, stale_rects[i + 1], (size_t)(stale_count - i - 1) * sizeof stale_rects[0]);
+        memmove(&stale_kinds[i], &stale_kinds[i + 1], (size_t)(stale_count - i - 1) * sizeof stale_kinds[0]);
         --stale_count;
     }
 }
@@ -2066,7 +2228,7 @@ void pc_hw_stale_copy(int sx, int sy, int dx, int dy, int w, int h)
         const int* r = stale_rects[i];
         if (sx < r[0] + r[2] && r[0] < sx + w && sy < r[1] + r[3] && r[1] < sy + h) {
             int clip[4] = { dx, dy, w, h };
-            mark_stale(clip);
+            mark_stale_kind(clip, stale_kinds[i]);
             return;
         }
     }
@@ -2151,6 +2313,100 @@ static int recording_index, newest = 1, previous = 2;
 static unsigned arrival[3]; /* vsync each finished frame was presented at */
 static int display_rect[4]; /* the display area (pc_hw_set_display) */
 static int shown_rect[4];   /* the area presented: the display area, or B's area for its replay */
+/* Widescreen: a picture the game loads straight into a frame buffer (the
+ * title screen's background, loaded before the title's display is set;
+ * pc_hw_upload_mode 2) is copied 1:1 and would spread over the 16:9 view.
+ * At the first present that shows it, the display area is drawn again from
+ * native VRAM compressed about its centre like other 2D (the 2D the game
+ * drew over it since is compressed there too), the sides black, so it keeps
+ * its proportions. */
+static int picture_rect[4], picture_pending;
+/* Draw native VRAM rectangle (x, y, w, h) into the target compressed about
+ * the centre of screen area `screen` (as 2D; 15-bit texture pages are 256
+ * texels square from multiples of 64; black texels stay transparent). */
+static void draw_compressed_rect(int x, int y, int w, int h, const int* screen)
+{
+    int anchor = primitive_anchor;
+    primitive_anchor = PC_ANCHOR_NONE;
+    for (int ty = y; ty < y + h;) {
+        int py = ty & ~255, rows = (py + 256 < y + h ? py + 256 : y + h) - ty;
+        for (int tx = x; tx < x + w;) {
+            int px = tx & ~63, cols = x + w - tx;
+            cols = cols > 256 - (tx - px) ? 256 - (tx - px) : cols;
+            unsigned tpage = (unsigned)(px >> 6) | (unsigned)((py >> 8) << 4) | (2u << 7);
+            pc_hw_set_2d(1);
+            pc_hw_rect(tx, ty, cols, rows, tx - px, ty - py, 0x808080, 0x65, tpage, 0, 0, screen, 0, 0);
+            tx += cols;
+        }
+        ty += rows;
+    }
+    pc_hw_set_2d(0);
+    primitive_anchor = anchor;
+    flush();
+}
+/* Widescreen: the game code says what its next LoadImage is
+ * (pc_hw_upload_mode, pc/src/widescreen.h): 1, a 2D image loaded into the
+ * shown frame buffer (the title's copyright fading in), drawn compressed
+ * like other 2D instead of 1:1; 2, a picture loaded into a frame buffer
+ * before it is shown (the title's background), drawn compressed at the
+ * first present that shows it (widescreen_picture). */
+static int upload_mode;
+void pc_hw_upload_mode(int mode) { upload_mode = mode; }
+static int widescreen_screen_upload(int x, int y, int w, int h)
+{
+    int mode = upload_mode;
+    upload_mode = 0;
+    if (mode == 2) {
+        picture_rect[0] = x, picture_rect[1] = y, picture_rect[2] = w, picture_rect[3] = h;
+        picture_pending = pc_gte_widescreen && layout_enabled();
+        return 0; /* (1:1 until it is shown) */
+    }
+    const int* d = display_rect;
+    if (mode != 1 || !pc_gte_widescreen || !layout_enabled() || x < d[0] || y < d[1] || x + w > d[0] + d[2]
+        || y + h > d[1] + d[3])
+        return 0;
+    static int logged;
+    if (getenv("ROOD_WIDESCREEN_DEBUG") && logged++ < 40)
+        fprintf(stderr, "[widescreen] image loaded into the screen %d,%d %dx%d: drawn compressed\n", x, y, w, h);
+    int rect[4] = { x, y, w, h };
+    mark_stale_kind(rect, STALE_PLACED);
+    draw_compressed_rect(x, y, w, h, d);
+    return 1;
+}
+static void widescreen_picture(const int* d)
+{
+    const int* p = picture_rect;
+    /* Widescreen switched while the picture shows: drawn again (from native
+     * VRAM: the picture and the 2D the game drew over it) 1:1 or compressed. */
+    static int compressed;
+    int wanted = pc_gte_widescreen && layout_enabled();
+    if (d[2] <= 0 || d[3] <= 0 || p[2] <= 0)
+        return;
+    if (p[0] > d[0] || p[0] + p[2] < d[0] + d[2] || p[1] > d[1] + d[3] / 4 || p[1] + p[3] < d[1] + d[3] * 3 / 4) {
+        if (!picture_pending)
+            picture_rect[2] = 0; /* shown and left: forgotten */
+        return; /* not shown (yet) */
+    }
+    if (!picture_pending && wanted == compressed)
+        return;
+    picture_pending = 0;
+    compressed = wanted;
+    if (!wanted) {
+        flush();
+        pc_hw_upload(d[0], d[1], d[2], d[3]);
+        return;
+    }
+    int y0 = p[1] > d[1] ? p[1] : d[1], y1 = p[1] + p[3] < d[1] + d[3] ? p[1] + p[3] : d[1] + d[3];
+    static int logged;
+    if (getenv("ROOD_WIDESCREEN_DEBUG") && logged++ < 20)
+        fprintf(stderr, "[widescreen] picture loaded into the display %d,%d %dx%d: drawn compressed\n", p[0], p[1],
+            p[2], p[3]);
+    flush();
+    record_fill(d[0], y0, d[2], y1 - y0, 0, 0, 0);
+    fill_target(target_fbo, d[0], y0, d[2], y1 - y0, 0, 0, 0);
+    int clip[4] = { d[0], y0, d[2], y1 - y0 };
+    draw_compressed_rect(d[0], y0, d[2], y1 - y0, clip);
+}
 static int presenting_replay;
 static float present_blend = 1.0f; /* the replay's t while presenting_replay */
 /* The next triangles come from this GPU packet (boot_polygons.inc). */
@@ -2660,6 +2916,7 @@ static void replay_frame(const recording* a, const recording* b, float t)
 void pc_hw_set_display(int x, int y, int w, int h)
 {
     display_rect[0] = x, display_rect[1] = y, display_rect[2] = w, display_rect[3] = h;
+    widescreen_picture(display_rect);
     memcpy(shown_rect, display_rect, sizeof shown_rect);
     screen_display(x, y, w, h);
     /* Widescreen: the target's picture is not the CPU's (2D compressed or
@@ -2667,7 +2924,7 @@ void pc_hw_set_display(int x, int y, int w, int h)
      * (screen copies sampled as textures, StoreImage) takes it from the
      * target. */
     if (pc_gte_widescreen && cover_enabled())
-        mark_stale(display_rect);
+        mark_stale_kind(display_rect, STALE_PLACED);
 }
 /* Developer RPC (ui_upscale redraw): draw the newest recorded frame again,
  * as recorded (t = 1), into the replay target, so drawing options can be

@@ -1,4 +1,8 @@
 #include "4D8.h"
+#ifdef ROOD_PC
+#include "pc/src/psx_types.h"
+#include "pc/src/widescreen.h"
+#endif
 #include "src/SLUS_010.40/main.h"
 #include "src/SLUS_010.40/31724.h"
 #include "src/SLUS_010.40/32154.h"
@@ -913,7 +917,12 @@ static void _renderScreen(void)
     vs_main_flags_t* flags;
     int scene;
 
+#ifdef ROOD_PC
+    /* Widescreen: the controls help and the compass hug the left edge. */
+    PC_ANCHOR_PACKETS(PC_ANCHOR_LEFT_EDGE, _drawUIControls());
+#else
     _drawUIControls();
+#endif
 
     stp = (DR_STP*)(psx_slot_get(void*, pScratch, 0));
 
@@ -1128,6 +1137,9 @@ static int _renderRoom(int roomIndex, void* roomData, int arg2, int arg3)
 
     short (*var_s1)[4] = (void*)getScratchAddr(64);
     int elementCount = *(int*)roomData;
+#ifdef ROOD_PC
+    int pc_vertex_count = elementCount;
+#endif
     roomData += 4;
 
     for (i = 0; i < elementCount; ++i) {
@@ -1373,6 +1385,13 @@ static int _renderRoom(int roomIndex, void* roomData, int arg2, int arg3)
         AddPrim(psx_slot_get(int*, getScratchAddr(0), 1) + sp38, lineG2++);
     }
 
+#ifdef ROOD_PC
+    /* Widescreen: the markers, icons and labels below are 2D at the
+     * projected points; they take the 4:3 positions (pc/src/widescreen.h). */
+    for (i = 0; i < pc_vertex_count; ++i) {
+        var_s1[i][0] = pc_gte_unnarrow_x(var_s1[i][0]);
+    }
+#endif
     tile = (TILE*)lineG2;
     elementCount = *(int*)var_s3;
     var_s3 += 4;

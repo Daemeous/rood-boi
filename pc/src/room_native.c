@@ -29,6 +29,7 @@
 #include <string.h>
 
 extern unsigned int CFC2(int reg);
+extern float pc_gte_view_ofx(void);
 extern int pc_gte_widescreen;
 extern int pc_hw_active;
 extern const void* pc_scene_room_data(void) __attribute__((weak));
@@ -471,7 +472,7 @@ int pc_room_native_begin(const void* data, unsigned mode, const unsigned* first)
         camera.translation[a] = (float)(camera_translation[a] = view->t[a]);
     }
     camera.h = (float)(CFC2(26) & 0xffff);
-    camera.ofx = (int)CFC2(24) / 65536.0f;
+    camera.ofx = pc_gte_view_ofx(); /* widescreen: as narrowed (PsyX_GTE.cpp) */
     camera.ofy = (int)CFC2(25) / 65536.0f;
     camera.widescreen = pc_gte_widescreen;
     double c[3][3] = {

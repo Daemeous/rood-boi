@@ -90,7 +90,7 @@ double-sided flag), the ordering-table range (largest vertex SZ >> 2 plus the
 bias, within the room's near/far buckets), and the distance UV halving
 (beyond the LOD bucket: UVs >> 1, texture page - 1, unless the PS1 would
 subdivide the polygon). It then projects exactly as the GTE projects
-(`sx = OFX + H x / z`, X * 3/4 about OFX in widescreen) into the scaled VRAM
+(`sx = OFX + H x / z`, X * 3/4 about the screen centre in widescreen) into the scaled VRAM
 target, with real near-plane clipping instead of the PS1's near-polygon
 subdivision, and writes per-pixel depth as GTE SZ / 65536, the encoding the
 packet path and the present pass use. The G-buffer outputs (colour,

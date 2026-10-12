@@ -4,6 +4,10 @@
 #include <inline_c.h>
 #include "vs_inline_c.h"
 #include <abs.h>
+#ifdef ROOD_PC
+#include "pc/src/psx_types.h"
+#include "pc/src/widescreen.h"
+#endif
 
 void func_8009DF3C(int, int);
 int func_800A152C(int, int, int);
@@ -71,7 +75,9 @@ int func_800A141C(int arg0, int arg1, int arg2, int arg3)
 
 #ifdef ROOD_PC
     gte_ldv0(&sp0);
-    gte_rtps();
+    /* A screen position for 2D (labels, icons, sound): 4:3, not narrowed
+     * (pc/src/widescreen.h). */
+    PC_GTE_UNNARROWED(gte_rtps());
     psx_to_ptr(u_int*, arg2)[0] = MFC2(14);
     psx_to_ptr(u_int*, arg2)[1] = MFC2(19);
 #else

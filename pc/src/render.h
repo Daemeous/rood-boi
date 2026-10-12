@@ -81,7 +81,7 @@ typedef struct {
      * rows keep the GTE matrix's scales (X carries the pixel aspect). */
     float rotation[3][3], translation[3];
     float h, ofx, ofy; /* GTE H and screen offset (pixels) */
-    int widescreen; /* 16:9 Hor+: projected X * 3/4 about OFX (pc_gte_widescreen) */
+    int widescreen; /* 16:9 Hor+: H x * 3/4 (ofx: pc_gte_view_ofx, narrowed about the screen centre) */
 } render_camera;
 /* The PS1 rules room polygons follow (BATTLE/2EA3C.s): a polygon is kept when
  * its sort bucket (largest vertex depth >> 2, plus the instance's bias) lies

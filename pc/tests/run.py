@@ -132,8 +132,9 @@ def suites(args, mode="egl"):
         *([Suite("texture_animation_smoke", [PY, str(TESTS / "texture_animation_smoke.py"), "--card", str(args.save)],
                  240, note="room texture animations (the save point) play on the native room")]
           if args.save.exists() else []),
-        *([Suite("widescreen_smoke", [PY, str(TESTS / "widescreen_smoke.py"), "--card", str(args.save)], 300,
-                 note="16:9: door and cutscene fades, the map's picture cover the view's sides; HUD unchanged")]
+        *([Suite("widescreen_smoke", [PY, str(TESTS / "widescreen_smoke.py"), "--card", str(args.save)], 360,
+                 note="16:9: fades and pictures cover the view, menu rows reach the edges, title/VKP still/map "
+                      "laid out, SetDispMask black; HUD unchanged")]
           if args.save.exists() else []),
         *([Suite("save_menu_smoke", [PY, str(TESTS / "save_menu_smoke.py"), "--card", str(args.save)], 300,
                  note="DATA > LOAD slot images = disc data decode, on interpolated frames too (CLUT swaps)")]

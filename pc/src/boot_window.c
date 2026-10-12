@@ -295,6 +295,7 @@ void pc_window_tick(void)
     }
 }
 extern int pc_display_rgb24;
+extern int pc_display_masked __attribute__((weak)); /* boot_sdk.c SetDispMask */
 void pc_window_frame(const uint16_t* vram, int x, int y, int w, int h)
 {
     if (!window)
@@ -325,7 +326,7 @@ void pc_window_frame(const uint16_t* vram, int x, int y, int w, int h)
                 unsigned c = row[(x + xx * w / 640) & 1023];
                 r = (c & 31) * 255 / 31, g = ((c >> 5) & 31) * 255 / 31, b = ((c >> 10) & 31) * 255 / 31;
             }
-            out[xx] = (r << 16) | (g << 8) | b;
+            out[xx] = &pc_display_masked && pc_display_masked ? 0 : (r << 16) | (g << 8) | b; /* SetDispMask(0): black */
         }
     }
     SDL_Surface* surface = SDL_GetWindowSurface(window);
