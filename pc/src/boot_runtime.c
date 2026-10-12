@@ -851,9 +851,22 @@ void pc_finish_room_checkpoint(void)
 }
 
 /* Native equivalent of the elapsed scanline profiler. This is an estimate from
- * monotonic time since VSync, not emulated PS1 hardware-counter precision. */
+ * monotonic time since VSync, not emulated PS1 hardware-counter precision.
+ * The AI reads it as a per-frame time budget, and VSync(1) waits poll it: input
+ * recording and replay (input_record.c) read virtual scanlines instead, a fixed
+ * step per read from each vblank, so a replay does what the recording did. */
+extern int pc_input_deterministic(void) __attribute__((weak));
 int func_800E45B4(void)
 {
+    if (pc_input_deterministic && pc_input_deterministic()) {
+        static unsigned lines, vblank;
+        if (vblank != vsyncs) {
+            vblank = vsyncs;
+            lines = 0;
+        }
+        lines += 8;
+        return lines < 263 ? (int)lines : 262; /* an NTSC field's lines */
+    }
     if (!last_vsync.tv_sec && !last_vsync.tv_nsec)
         return 0;
     struct timespec now;

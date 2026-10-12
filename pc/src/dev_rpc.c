@@ -209,6 +209,8 @@
  *   state                        Vagrant Story snapshot (zone, room, player, music)
  *   state_flag {id, value}       read (and with value, set) a story/state flag,
  *                                e.g. to get past the prologue in tests
+ *   input_record                 recording/replay state (input_record.c):
+ *                                mode, file, end vblank, current vblank
  *   quit                         exit the game
  *
  * pc/tools/rood_rpc.py is the client (CLI, Python API and a stdin/stdout
@@ -2030,6 +2032,17 @@ static void handle_method(int fd, const char* request)
             return;
         }
         snprintf(result, sizeof result, "{\"path\":\"%s\"}", json_str(path));
+        reply(fd, id, result);
+    } else if (!strcmp(method, "input_record")) {
+        /* Input recording/replay (input_record.c, ROOD_RECORD / ROOD_REPLAY):
+         * mode off|recording|replaying|replayed, the file, the replay's end. */
+        extern int pc_input_record_state(const char**, unsigned*);
+        static const char* const modes[] = { "off", "recording", "replaying", "replayed" };
+        const char* file;
+        unsigned end;
+        int mode = pc_input_record_state(&file, &end);
+        snprintf(result, sizeof result, "{\"mode\":\"%s\",\"file\":\"%s\",\"end\":%u,\"vsync\":%u}",
+            modes[mode < 0 || mode > 3 ? 0 : mode], json_str(file), end, pc_vsync_count());
         reply(fd, id, result);
     } else if (!strcmp(method, "state_flag")) {
         /* The game's story/state flags (as room scripts read and set them;
