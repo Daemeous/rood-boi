@@ -13,6 +13,8 @@
 #define _ITEMMENU
 
 #include "src/MENU/_toggleUi.h"
+#include "src/BATTLE/BATTLE.PRG/mod/hooks.h"
+#define VS_CALLO_MERLOSE_ROWS
 #include "src/MENU/items0.h"
 #include "src/MENU/items1.h"
 
@@ -1293,7 +1295,7 @@ int vs_menu3_exec(u_char* state)
         // Fallthrough
 
     case itemsTop:
-        row = _itemNavigation(0);
+        row = VS_CALLO_AFTER(vs_mod_itemNavigationDone, _itemNavigation(0));
 
         if (row == 0) {
             break;
@@ -1356,7 +1358,7 @@ int vs_menu3_exec(u_char* state)
         break;
 
     case equip:
-        row = _equipMenu(0);
+        row = VS_CALLO_AFTER(vs_mod_equipMenuDone, _equipMenu(0));
 
         if (row != 0) {
             if (row == menuSelectionQuit) {
