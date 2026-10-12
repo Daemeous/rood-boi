@@ -60,6 +60,16 @@ parser.add_argument(
     help="with the Callo Merlose companion mod (src/BATTLE/BATTLE.PRG/mod; VS_CALLO and "
     "VS_SELECTABLE_ROULETTE, as the decompilation's make CALLO=1); builds into *_callo",
 )
+parser.add_argument(
+    "--random-stat-items",
+    action="store_true",
+    help="with --callo: permanent stat-up items keep their random +1 to +4 instead of always +4",
+)
+parser.add_argument(
+    "--spin-bonus-wheel",
+    action="store_true",
+    help="with --callo: the bonus wheel after a boss spins as in the original, instead of being chosen",
+)
 parsed = parser.parse_args()
 win = parsed.target == "windows"
 if win:
@@ -722,7 +732,9 @@ game_cpp_flags = [
     "-DROOD_PC",
     "-DROOD_PC_BOOT_DIAGNOSTIC",
     # The Callo mod's hooks (src/BATTLE/BATTLE.PRG/mod/hooks.h) and the selectable bonus wheel
-    *(["-DVS_CALLO", "-DVS_SELECTABLE_ROULETTE"] if parsed.callo else []),
+    *(["-DVS_CALLO"] if parsed.callo else []),
+    *(["-DVS_SELECTABLE_ROULETTE"] if parsed.callo and not parsed.spin_bonus_wheel else []),
+    *(["-DVS_CALLO_RANDOM_STAT_ITEMS"] if parsed.callo and parsed.random_stat_items else []),
     # psx_ptr/psx_get/PSX_SIZE/PSX_ASSERT_* in every game unit; on 32 bits
     # they expand to the original pointers and literals.
     "-include",
