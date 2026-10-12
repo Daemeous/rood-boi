@@ -157,19 +157,21 @@ void vs_mod_spawnCallo(void)
     _makeEnemiesHostile(slot);
 }
 
-/* Where she appears: a tile beside Ashley she can stand on. The room's collision map gives a
- * point's floor height, with bit 15 set where it is blocked (wall, outside the map); the game
- * checks tiles the same way (func_80074798's callers). Nearest tiles first; one whose floor is
- * more than a step from his is a ledge or a pit. The first tried, left of him, was the only one
- * before: on a narrow ledge (the Minotaur's arena) that put her inside a wall. */
+/* Where she appears: a tile beside Ashley she can stand on, and not in front of him (where he is
+ * heading and enemies are). The room's collision map gives a point's floor height, with bit 15
+ * set where it is blocked (wall, outside the map); one whose floor is more than a step from his
+ * is a ledge or a pit. Before, the tile left of him was the only choice: on a narrow ledge (the
+ * Minotaur's arena) that put her inside a wall. */
 short func_8008DC7C(int x, int z);
 
 #define FLOOR_BLOCKED 0x7FFF
 #define SPAWN_STEP 64 /* floor height difference allowed, in model units */
 
+/* Tiles to try, as (side, ahead) from where he faces: beside him, behind, behind diagonally, two
+ * away, and in front only when nothing else will do */
 static const signed char _spawnOffsets[][2] = {
-    { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 }, { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 },
-    { -2, 0 }, { 2, 0 }, { 0, -2 }, { 0, 2 },
+    { 1, 0 }, { -1, 0 }, { 0, -1 }, { 1, -1 }, { -1, -1 }, { 2, 0 }, { -2, 0 }, { 0, -2 },
+    { 1, 1 }, { -1, 1 }, { 0, 1 }, { 0, 2 },
 };
 
 static int _floorAt(int tileX, int tileZ)
@@ -187,14 +189,20 @@ static void _placeBesideAshley(vs_battle_objectData_flags* position)
     int x = position->unk0_0;
     int z = position->unk0_16;
     int floor = _floorAt(x, z);
+    /* His facing (0-4095) points away from where he walks (measured: facing 0 walks towards
+     * -z, 1024 towards -x): the tile ahead is (-sin, -cos), to the nearest quarter turn */
+    int quarter = ((D_800F4538[0]->unk0.facing + 512) >> 10) & 3;
+    int aheadX = (quarter == 1) ? -1 : (quarter == 3) ? 1 : 0;
+    int aheadZ = (quarter == 0) ? -1 : (quarter == 2) ? 1 : 0;
     int height;
     int tileX;
     int tileZ;
     int i;
 
     for (i = 0; (floor != FLOOR_BLOCKED) && (i < sizeof _spawnOffsets / sizeof _spawnOffsets[0]); ++i) {
-        tileX = x + _spawnOffsets[i][0];
-        tileZ = z + _spawnOffsets[i][1];
+        /* side is ahead turned a quarter: (-aheadZ, aheadX) */
+        tileX = x - _spawnOffsets[i][0] * aheadZ + _spawnOffsets[i][1] * aheadX;
+        tileZ = z + _spawnOffsets[i][0] * aheadX + _spawnOffsets[i][1] * aheadZ;
         if ((tileX < 0) || (tileZ < 0) || (tileX > 255) || (tileZ > 255)) {
             continue;
         }
