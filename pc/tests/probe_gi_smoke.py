@@ -37,6 +37,17 @@ room_file.unlink(missing_ok=True)
 failures = []
 
 
+
+def wait_light_reset(game, resets, seconds=8.0):
+    """The lights file is polled twice a second (wall time; fast runs outpace it)."""
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if game.call("probe_gi")["light_resets"] > resets:
+            return True
+        game.run(15)
+        time.sleep(0.25)
+    return False
+
 def check(ok, message):
     print(("ok:   " if ok else "FAIL: ") + message, flush=True)
     if not ok:
@@ -179,6 +190,10 @@ try:
         # light in the corridor, the free camera in the hall looking at the
         # doorway, cells straddling the wall.
         room_file.write_text("light point 1420 -900 900 1 0.8 0.5 4 2000 0 1 0 45 1 1\n")
+        # Let the probes see the new light before the path-traced comparison
+        # switches them off (the file poll is wall-time; a fast run could
+        # otherwise reload it while the probes are inactive).
+        wait_light_reset(game, resets)
         game.call("editor_camera", x=450, y=-900, z=700, yaw=90, pitch=0)
         game.run(150)
         game.call("graphics", gi_method="path", probe_spacing=256)
@@ -204,11 +219,7 @@ try:
     else:
         room_file.write_text(f"light point {x} {y} {z} 0.6 0.8 1 2 3000 0 1 0 45 1 1\n")
         game.run(150)
-    for _ in range(16):  # the lights file is polled twice a second (wall time; fast runs outpace it)
-        if game.call("probe_gi")["light_resets"] > resets:
-            break
-        game.run(15)
-        time.sleep(0.25)
+        wait_light_reset(game, resets)
     check(game.call("probe_gi")["light_resets"] > resets, "a light change restarts the convergence")
 
     # A room change refits the grid.

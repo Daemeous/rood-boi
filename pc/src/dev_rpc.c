@@ -1677,6 +1677,21 @@ static void handle_method(int fd, const char* request)
                 pc_room_warp_scripts = flag;
             if (bool_value(member(params, "block_saves"), &flag))
                 pc_room_warp_block_saves = flag;
+            extern int pc_room_warp_cell[4] __attribute__((weak));
+            const char* cell = member(params, "cell");
+            if (cell && *cell == '[' && pc_room_warp_cell) {
+                long long v[4] = { -1, 0, 0, 0 };
+                const char* at = cell + 1;
+                for (int k = 0; k < 4; k++) {
+                    while (*at == ' ' || *at == ',')
+                        at++;
+                    if (*at != '-' && (*at < '0' || *at > '9'))
+                        break;
+                    v[k] = strtoll(at, (char**)&at, 10);
+                }
+                for (int k = 0; k < 4; k++)
+                    pc_room_warp_cell[k] = (int)v[k];
+            }
         }
         long long zone = -1, room = -1, entry = 0;
         int oz = -1, orr = -1;

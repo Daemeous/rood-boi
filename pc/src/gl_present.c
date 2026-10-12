@@ -173,11 +173,11 @@ static const char* scaled_fragment_source =
     "uniform sampler2D shade_tex;\n" /* vertex colour; a: 1 textured, 0.5 untextured */
     "uniform int view_mode;\n" /* editor: 0 lit, 1 unlit, 2 lighting only, 3 base colour, 4 vertex colour, 5 normals */
     "uniform int light_count;\n"
-    "uniform vec4 light_pos[16];\n" /* view-space xyz, radius */
-    "uniform vec4 light_col[16];\n" /* rgb * intensity, type (0 point, 1 spot, 2 rect) */
-    "uniform vec4 light_right[16];\n" /* rect: view-space half extent along its width */
-    "uniform vec4 light_up[16];\n" /* rect: view-space half extent along its height */
-    "uniform vec4 light_dir[16];\n" /* view-space direction, cos(half cone) */
+    "uniform vec4 light_pos[64];\n" /* view-space xyz, radius */
+    "uniform vec4 light_col[64];\n" /* rgb * intensity, type (0 point, 1 spot, 2 rect) */
+    "uniform vec4 light_right[64];\n" /* rect: view-space half extent along its width */
+    "uniform vec4 light_up[64];\n" /* rect: view-space half extent along its height */
+    "uniform vec4 light_dir[64];\n" /* view-space direction, cos(half cone) */
     "uniform float baked;\n" /* scale on the game's baked lighting */
     "uniform sampler2D gi_tex;\n" /* indirect irradiance over the display area (ptgi.c) */
     "uniform int gi_on;\n" /* 1 add it, 2 show it alone, 4 its alpha is shadow visibility */
@@ -201,14 +201,14 @@ static const char* scaled_fragment_source =
     "uniform mat3 inverse_rotation;\n" /* view -> world: R^-1 */
     "uniform mat3 normal_to_world;\n" /* R^T: view normals (R's rows differ in scale) */
     "uniform vec3 camera_translation;\n"
-    "uniform vec4 light_world[16];\n" /* world xyz, radius */
+    "uniform vec4 light_world[64];\n" /* world xyz, radius */
     /* Probe GI (gi_method probes, probe_gi.inc; gi_on 64): the volume and its atlases. */
     "uniform vec4 pv_origin, pv_spacing, pv_bias;\n"
     "uniform ivec4 pv_counts;\n"
     "uniform sampler2D probe_irradiance, probe_depth, probe_data;\n"
     "#define PROBE_SAMPLING\n"
     PC_GLSL_PROBE_COMMON
-    "uniform int light_shadow[16];\n" /* cube slot or -1 */
+    "uniform int light_shadow[64];\n" /* cube slot or -1 */
     "uniform samplerCube shadow0, shadow1, shadow2, shadow3;\n"
     "uniform float shadow_softness;\n"
     /* Lighting quality (lighting_quality.cpp): unshadowed haze density (0
@@ -556,6 +556,8 @@ static GLint u_normal_tex, u_albedo_tex, u_light_count, u_light_pos, u_light_col
     u_baked, u_projection, u_screen_offset;
 extern void pc_hw_gbuffer(GLuint*, GLuint*);
 extern GLuint pc_hw_shade_texture(void);
+#define GL_LIGHTS 64 /* the present shader's light arrays */
+extern void pc_lights_shadow_pick(int count, int* wants, int slots);
 extern int pc_lights_view(float (*)[4], float (*)[4], float (*)[4], float (*)[4], int*, float (*)[4],
     float (*)[4], int);
 static GLint u_light_right, u_light_up, u_quality0, u_quality1, u_quality2;
@@ -1206,18 +1208,25 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
             gl_Uniform2f(u_fog_range, pc_post_fog_range[0], pc_post_fog_range[1]);
             {
                 /* Lighting: world-space lights and the projection to invert. */
-                static float lp[16][4], lc[16][4], ld[16][4], lw[16][4], lr[16][4], lu[16][4];
-                static int wants[16], slots[16];
+                /* Up to GL_LIGHTS lights (the most important past that: lights.cpp);
+                 * with OpenGL's path-traced visibility, the 16 its trace takes
+                 * (ptgi.c), so the visibility matches; otherwise every light lit
+                 * unshadowed and shadow cubes for the most important casters. */
+                static float lp[GL_LIGHTS][4], lc[GL_LIGHTS][4], ld[GL_LIGHTS][4], lw[GL_LIGHTS][4],
+                    lr[GL_LIGHTS][4], lu[GL_LIGHTS][4];
+                static int wants[GL_LIGHTS], slots[GL_LIGHTS];
                 float h, ox, oy;
                 int count = 0;
                 if (pc_scene_projection(&h, &ox, &oy)) {
-                    count = pc_lights_view(lp, lc, ld, lw, wants, lr, lu, 16);
+                    count = pc_lights_view(lp, lc, ld, lw, wants, lr, lu, gi && pc_rt_shadows ? 16 : GL_LIGHTS);
                     if (gi && pc_rt_shadows) {
                         for (int i = 0; i < count; i++)
                             slots[i] = wants[i] ? -2 : -1; /* traced visibility, not cube maps */
-                    } else
+                    } else {
                         /* Shadow cubes render into their own framebuffer; restore ours. */
+                        pc_lights_shadow_pick(count, wants, 4);
                         pc_shadows_update(count, lw, wants, slots);
+                    }
                     gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
                     gl_Viewport(pc_gl_view[0], window_h - pc_gl_view[1] - view_h, view_w, view_h);
                     gl_UseProgram(scaled_program);
@@ -1241,15 +1250,15 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
                     gl_Uniform2f(u_screen_offset, ox, oy);
                 }
                 gl_Uniform1i(u_light_count, count);
-                gl_Uniform4fv(u_light_pos, 16, &lp[0][0]);
-                gl_Uniform4fv(u_light_col, 16, &lc[0][0]);
-                gl_Uniform4fv(u_light_dir, 16, &ld[0][0]);
-                gl_Uniform4fv(u_light_world, 16, &lw[0][0]);
-                gl_Uniform4fv(u_light_right, 16, &lr[0][0]);
-                gl_Uniform4fv(u_light_up, 16, &lu[0][0]);
-                for (int i = count; i < 16; i++)
+                gl_Uniform4fv(u_light_pos, GL_LIGHTS, &lp[0][0]);
+                gl_Uniform4fv(u_light_col, GL_LIGHTS, &lc[0][0]);
+                gl_Uniform4fv(u_light_dir, GL_LIGHTS, &ld[0][0]);
+                gl_Uniform4fv(u_light_world, GL_LIGHTS, &lw[0][0]);
+                gl_Uniform4fv(u_light_right, GL_LIGHTS, &lr[0][0]);
+                gl_Uniform4fv(u_light_up, GL_LIGHTS, &lu[0][0]);
+                for (int i = count; i < GL_LIGHTS; i++)
                     slots[i] = -1;
-                gl_Uniform1iv(u_light_shadow, 16, slots);
+                gl_Uniform1iv(u_light_shadow, GL_LIGHTS, slots);
                 gl_Uniform1f(u_shadow_softness, pc_shadow_softness);
                 gl_Uniform1f(u_normal_smoothing, pc_normal_smoothing);
                 pc_shadows_bind(4);

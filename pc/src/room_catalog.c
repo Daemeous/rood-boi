@@ -338,6 +338,10 @@ int pc_room_warp_enemies = 0; /* 1: the room's enemies appear */
 int pc_room_warp_scripts = 0; /* 1: the room's scripts run (cutscenes may set story flags) */
 int pc_room_warp_block_saves = 1; /* refuse to write the memory card while warped */
 static char warp_message[200];
+/* RPC room_goto {cell: [x, y, z, facing]}: arrive on this floor cell through
+ * a made-up door (rooms without a door into them: cutscene rooms, rooms
+ * reached by a fall); x < 0: a real door. Cleared by each request taken. */
+int pc_room_warp_cell[4] = { -1, 0, 0, 0 };
 
 /* Request a warp (the field loop takes it); 0 when refused (`why`). */
 int pc_room_warp_request(int zone, int room, int entry, char* why, int size)
@@ -348,8 +352,8 @@ int pc_room_warp_request(int zone, int room, int entry, char* why, int size)
         snprintf(why, size, "no zone %d room %d on this disc", zone, room);
         return 0;
     }
-    if (!r->entries) {
-        snprintf(why, size, "zone %d room %d has no door into it (reached by an event or a fall)", zone, room);
+    if (!r->entries && pc_room_warp_cell[0] < 0) {
+        snprintf(why, size, "zone %d room %d has no door into it (reached by an event or a fall; give a cell)", zone, room);
         return 0;
     }
     if (phase == WARP_LOADING || phase == WARP_ARRIVED) {
@@ -378,7 +382,17 @@ int pc_room_warp_take(int zone, int room, unsigned char door[12])
     const pc_room_info* r = &rooms[target];
     if (!warped)
         origin_zone = zone, origin_room = room;
-    memcpy(door, r->door[target_entry], 12);
+    if (pc_room_warp_cell[0] >= 0) { /* a made-up door onto the cell (as the game's pit falls make one) */
+        int x = pc_room_warp_cell[0] & 31, y = pc_room_warp_cell[1] & 7, z = pc_room_warp_cell[2] & 31;
+        int facing = pc_room_warp_cell[3] & 3;
+        unsigned u2 = (unsigned)(x | z << 5 | y << 10), u4 = (unsigned)(x << 8 | facing << 13), u6 = (unsigned)(z << 10);
+        memset(door, 0, 12);
+        door[2] = (unsigned char)u2, door[3] = (unsigned char)(u2 >> 8);
+        door[4] = (unsigned char)u4, door[5] = (unsigned char)(u4 >> 8);
+        door[6] = (unsigned char)u6, door[7] = (unsigned char)(u6 >> 8);
+        pc_room_warp_cell[0] = -1;
+    } else
+        memcpy(door, r->door[target_entry], 12);
     door[0] = (unsigned char)r->zone;
     door[1] = (unsigned char)r->room;
     /* Going back where the warps started ends the warped state. */

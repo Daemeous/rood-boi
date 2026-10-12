@@ -3,6 +3,6 @@ rood-lighting 2
 actor gen.t001.aca02f6bc3 name="candle T001" prefab=candle pos=-8,-304,768 rot=-90,0,0 seed=92347 fixture=-8,-304,768 fixture_type=T001
 actor gen.t002.2f3c113ed7 name="candle T002" prefab=candle pos=-8,-688,1216 rot=-90,0,0 seed=43670 fixture=-8,-688,1216 fixture_type=T002
 actor gen.t002.36b8c4fdde name="candle T002" prefab=candle pos=376,-304,120 rot=74.67,0,0 seed=56134 fixture=376,-304,120 fixture_type=T002
-actor gen.t008.4389c0ac83 name="torch_flame T008" prefab=torch pos=1104,-440,704 rot=-100.62,0,0 seed=94283 fixture=1104,-440,704 fixture_type=T008
+actor gen.t008.4389c0ac83 name="lantern T008" prefab=lantern pos=1104,-440,704 rot=-100.62,0,0 seed=94283 fixture=1104,-440,704 fixture_type=T008
 actor gen.t027.0463d5da81 name="fire_sprite T027" prefab=fireplace pos=768,-132,1472 seed=90224 fixture=768,-132,1472 fixture_type=T027
 actor gen.t039.6df73cad38 name="fireplace T039" prefab=fireplace pos=1188,-68,200 rot=90,0,0 seed=64840 fixture=1188,-68,200 fixture_type=T039

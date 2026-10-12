@@ -90,9 +90,14 @@ static struct {
     } nrd;
 } vrt = { .room_serial = -1 };
 
+/* Every light of the frame (light_list.h): the trace and the haze sample them. */
+static pc_light_gpu vrt_light_list[PC_LIGHTS_MAX];
+static int vrt_light_count;
+static vk_slice vrt_lights_slice;
+static VkDeviceSize vrt_lights_bytes;
 typedef struct {
     float eye[4];
-    float light_pos[16][4], light_col[16][4], light_dir[16][4], light_right[16][4], light_up[16][4];
+    float light_pos[16][4], light_col[16][4], light_dir[16][4], light_right[16][4], light_up[16][4]; /* unused (probes' layout) */
     int light_shadow[16];
     float emitter_pos[32][4], emitter_col[32][4];
     float room_lo[4], room_hi[4];
@@ -144,11 +149,11 @@ static int vrt_init(void)
     const VkDescriptorType U = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, S = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
                            T = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, B = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                            A = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-    VkDescriptorType trace[11] = { U, A, B, T, S, S, S, S, S, B, S };
+    VkDescriptorType trace[12] = { U, A, B, T, S, S, S, S, S, B, S, B }; /* 11: the light list */
     VkDescriptorType surface[11] = { U, A, B, T, T, T, S, S, S, B, B };
     VkDescriptorType temporal[17] = { U, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S };
     VkDescriptorType atrous[8] = { S, S, S, S, S, S, S, S };
-    vrt.trace_set = vk_push_layout(trace, 11);
+    vrt.trace_set = vk_push_layout(trace, 12);
     vrt.surface_set = vk_push_layout(surface, 11);
     vrt.temporal_set = vk_push_layout(temporal, 17);
     vrt.atrous_set = vk_push_layout(atrous, 8);
@@ -164,9 +169,9 @@ static int vrt_init(void)
     vrt.skin_set = vk_push_layout(skin, 5);
     vrt.skin_layout = vrt_layout(vrt.skin_set, 32);
     vrt.skin = vrt_compute(vk_spv_rt_skin_comp, vk_spv_rt_skin_comp_size, vrt.skin_layout);
-    VkDescriptorType haze[10] = { U, A, B, T, U, S, T, S, S, B };
+    VkDescriptorType haze[11] = { U, A, B, T, U, S, T, S, S, B, B }; /* 10: the light list */
     VkDescriptorType integrate[3] = { U, S, S };
-    vrt.haze_set = vk_push_layout(haze, 10);
+    vrt.haze_set = vk_push_layout(haze, 11);
     vrt.integrate_set = vk_push_layout(integrate, 3);
     vrt.haze_layout = vrt_layout(vrt.haze_set, 0);
     vrt.integrate_layout = vrt_layout(vrt.integrate_set, 0);
@@ -921,6 +926,8 @@ static void vrt_haze(vk_slice trace_ubo)
     vk_descriptors_storage_image(&d, 5, vrt.haze_scatter[out].view);
     vk_descriptors_image(&d, 6, vrt.haze_scatter[vrt.haze_current].view, vk.linear);
     vrt_bind_movers(&d, 9, -1);
+    vk_descriptors_buffer(&d, 10, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, vrt_lights_slice.buffer, vrt_lights_slice.offset,
+        vrt_lights_bytes);
     vrt_haze_dispatch(vrt.haze, vrt.haze_layout, &d, gx * HAZE_SLICES, gy);
     vrt_integrate_ubo* iu = is.data;
     memset(iu, 0, sizeof *iu);
@@ -1026,13 +1033,15 @@ static int vrt_nrd(const float eye[3], int result, int result_extra)
     projection[11] = 1.0f;
     projection[14] = -1.0f;
     /* Resets. */
-    unsigned lights = vrt_hash(2166136261u, &light_count, sizeof light_count);
-    lights = vrt_hash(lights, lp, sizeof lp);
-    lights = vrt_hash(lights, lc, sizeof lc);
-    lights = vrt_hash(lights, ld, sizeof ld);
-    lights = vrt_hash(lights, lr, sizeof lr);
-    lights = vrt_hash(lights, lu, sizeof lu);
-    lights = vrt_hash(lights, light_shadows, sizeof light_shadows);
+    /* (what the lights are, not their flicker or sway: those change every
+     * frame and must not reset the history) */
+    unsigned lights = vrt_hash(2166136261u, &vrt_light_count, sizeof vrt_light_count);
+    for (int i = 0; i < vrt_light_count; i++) {
+        const pc_light_gpu* l = &vrt_light_list[i];
+        int what[7] = { (int)floorf(l->pos[0] / 32), (int)floorf(l->pos[1] / 32), (int)floorf(l->pos[2] / 32),
+            (int)l->pos[3], (int)l->col[3], l->info[0], (int)(l->right[3] * 4) };
+        lights = vrt_hash(lights, what, sizeof what);
+    }
     float amounts[4] = { pc_gi_baked_bounce, pc_emitter_light, (float)pc_gi_bounces, (float)pc_nrd_glow };
     lights = vrt_hash(lights, amounts, sizeof amounts);
     float moved = 0, facing = 0;
@@ -1117,17 +1126,17 @@ static void vrt_run(const float to_image[16], const float eye[3], float footprin
     vrt_trace_ubo* u = ubo.data;
     memset(u, 0, sizeof *u);
     memcpy(u->eye, eye, 3 * sizeof(float));
-    memcpy(u->light_pos, lp, sizeof lp);
-    memcpy(u->light_col, lc, sizeof lc);
-    memcpy(u->light_dir, ld, sizeof ld);
-    memcpy(u->light_right, lr, sizeof lr);
-    memcpy(u->light_up, lu, sizeof lu);
-    memcpy(u->light_shadow, light_shadows, sizeof light_shadows);
+    /* The lights: every one, in a storage buffer (binding 11; light_list.h). */
+    vrt_lights_bytes = (VkDeviceSize)(vrt_light_count ? vrt_light_count : 1) * sizeof(pc_light_gpu);
+    vrt_lights_slice = vk_arena(vrt_lights_bytes, vk.properties.limits.minStorageBufferOffsetAlignment);
+    if (!vrt_lights_slice.data)
+        return;
+    memcpy(vrt_lights_slice.data, vrt_light_list, (size_t)vrt_light_count * sizeof(pc_light_gpu));
     memcpy(u->emitter_pos, emitter_pos, sizeof emitter_pos);
     memcpy(u->emitter_col, emitter_col, sizeof emitter_col);
     memcpy(u->room_lo, room_lo, sizeof room_lo);
     memcpy(u->room_hi, room_hi, sizeof room_hi);
-    u->i0[0] = light_count;
+    u->i0[0] = vrt_light_count;
     u->i0[1] = pc_gi_enabled; /* gi_method path only (probes: vk_probes.inc) */
     u->i0[2] = pc_rt_shadows;
     u->i0[3] = pc_gi_bounces < 1 ? 1 : pc_gi_bounces > 4 ? 4 : pc_gi_bounces;
@@ -1163,6 +1172,8 @@ static void vrt_run(const float to_image[16], const float eye[3], float footprin
     vk_descriptors_storage_image(&d, 7, im[RAW_EXTRA].view);
     vk_descriptors_storage_image(&d, 8, im[SIGNATURE].view);
     vk_descriptors_storage_image(&d, 10, im[VRT_HITDIST].view);
+    vk_descriptors_buffer(&d, 11, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, vrt_lights_slice.buffer, vrt_lights_slice.offset,
+        vrt_lights_bytes);
     vrt_dispatch(vrt.trace, vrt.trace_layout, &d);
     vrt_haze(ubo);
 
@@ -1262,7 +1273,9 @@ int pc_vk_gi_update(int x, int y, int w, int h, int replay)
     /* As ptgi.c's ready(): emitters, lights; nothing to do without them. */
     update_emitters();
     pc_scene_bounds(room_lo, room_hi);
-    int lights = gather_lights();
+    gather_lights();
+    vrt_light_count = pc_lights_list(vrt_light_list, PC_LIGHTS_MAX);
+    int lights = vrt_light_count || (pc_gi_baked_bounce > 0 && pc_gi_enabled);
     pc_baked_shadows_active = pc_baked_shadows && (emitter_count || pc_contact_radius > 0);
     if (!(lights || pc_baked_shadows_active || (emitter_count && pc_emitter_light > 0) || ao))
         return 0;

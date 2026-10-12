@@ -184,19 +184,26 @@ def with_disc(zones):
     last = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr[-300:]
     check(r.returncode == 0 and "unmatched 0" in last and "by rule" in last and ", 0 by rule" in last,
           f"scan: every fixture matches one type exactly ({last})")
+    # Every zone once (zones in parallel), then a second run of a few zones
+    # with other parallelism (a candle room, torches, the 67-candle hall, the
+    # town's street lanterns) must give the same bytes.
+    again = [z for z in (9, 13, 26, 48) if z in zones] or zones[:1]
     with tempfile.TemporaryDirectory() as tmp:
         outs = []
-        for n in range(2):
+        for n, (which, jobs) in enumerate(((zones, "8"), (again, "1"))):
             root = pathlib.Path(tmp) / f"run{n}"
             r = subprocess.run([sys.executable, str(ROOT / "pc/tools/generate_lighting.py"), "--quiet", "--root", str(root),
-                                *args], capture_output=True, text=True)
+                                "--jobs", jobs, *[a for z in which for a in ("--zone", str(z))]],
+                               capture_output=True, text=True)
             check(r.returncode == 0, f"generator run {n + 1}: {r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr[-300:]}")
             outs.append({p.name: p.read_bytes() for p in sorted((root / "default/generated").glob("*.txt"))})
-        check(outs[0] == outs[1] and outs[0], f"the generator is deterministic ({len(outs[0])} files, identical twice)")
+        first = {k: v for k, v in outs[0].items() if int(k[4:6]) in again}
+        check(first == outs[1] and outs[1], f"the generator is deterministic (zones {again}: {len(outs[1])} files "
+                                            "identical, in parallel and not)")
         committed = {p.name: p.read_bytes() for p in sorted((ROOT / "lighting/default/generated").glob("*.txt"))
                      if int(p.name[4:6]) in zones}
-        check(committed == outs[0], "the committed generated files are up to date (regenerate: "
-              "pc/tools/generate_lighting.py --zone N)")
+        check(committed == outs[0], f"the committed generated files are up to date ({len(committed)} files in "
+              f"{len(zones)} zones; regenerate: pc/tools/generate_lighting.py)")
         shutil.rmtree(tmp, ignore_errors=True)
 
 

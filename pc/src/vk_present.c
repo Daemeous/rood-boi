@@ -5,6 +5,7 @@
  * swapchain. Settings are gl_present.c's (pc_gl_filter, pc_post_*, ...). */
 #define _POSIX_C_SOURCE 200809L
 #include "vk_hw.h"
+#include "light_list.h"
 #include "vk_hooks.h"
 #include "vk_shaders.h"
 #include "dev_state.h"
@@ -52,6 +53,7 @@ extern int pc_vk_probes_update(int x, int y, int w, int h, int replay) __attribu
 extern void pc_vk_probes_gi_bind(VkImageView views[4], int* w, int* h) __attribute__((weak));
 extern int pc_vk_probes_bind(vk_descriptors* d, int first) __attribute__((weak));
 extern int pc_vk_shadows_update(int count, const float world[][4], const int* wants, int* slot_out);
+extern int pc_vk_shadows_slots(void);
 extern VkImageView pc_vk_shadows_view(void);
 
 static SDL_Window* window;
@@ -86,9 +88,6 @@ typedef struct {
     float f1[4]; /* gi_strength, fog_density, shadow_softness, normal_smoothing */
     float tilt[4], fog[4], fog_range[4], room_lo[4], room_hi[4], projection[4], screen_offset[4];
     float inverse_rotation[3][4], normal_to_world[3][4], camera_translation[4];
-    float light_pos[16][4], light_col[16][4], light_right[16][4], light_up[16][4], light_dir[16][4],
-        light_world[16][4];
-    int light_shadow[16];
     int haze_grid[4]; /* the froxel volume (vk_rt.inc): GX, GY, GZ, on */
     float haze_range[4]; /* znear, log(zfar / znear) */
     /* Lighting quality (lighting_quality.cpp): unshadowed haze density,
@@ -211,11 +210,12 @@ static VkPipeline fullscreen(VkShaderModule vs, VkShaderModule fs, VkPipelineLay
 }
 static int make_pipelines(void)
 {
-    VkDescriptorType scaled_types[16]; /* 12-15: the probe field (vk_probes.inc) */
-    for (int i = 0; i < 16; i++)
+    VkDescriptorType scaled_types[17]; /* 12-15: the probe field (vk_probes.inc); 16: the lights */
+    for (int i = 0; i < 17; i++)
         scaled_types[i] = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     scaled_types[0] = scaled_types[12] = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    scaled_set = vk_push_layout(scaled_types, 16);
+    scaled_types[16] = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    scaled_set = vk_push_layout(scaled_types, 17);
     single_set = vk_push_layout(&scaled_types[1], 1);
     scaled_layout = make_layout(scaled_set, 0);
     blur_layout = make_layout(single_set, 16);
@@ -398,6 +398,8 @@ static void update_view(int* out_w, int* out_h)
     *out_w = view_w, *out_h = view_h;
 }
 
+static pc_light_gpu present_lights[PC_LIGHTS_MAX];
+static int present_light_count;
 static void fill_present_ubo(present_ubo* u, int x, int y, int w, int h, int view_w, int view_h, int gi,
     int gi_w, int gi_h, const float lo[3], const float hi[3])
 {
@@ -411,18 +413,22 @@ static void fill_present_ubo(present_ubo* u, int x, int y, int w, int h, int vie
     u->tilt[0] = pc_post_tilt[0], u->tilt[1] = pc_post_tilt[1], u->tilt[2] = pc_post_tilt[2] * view_h / 720.0f;
     memcpy(u->fog, pc_post_fog, sizeof u->fog);
     u->fog_range[0] = pc_post_fog_range[0], u->fog_range[1] = pc_post_fog_range[1];
-    /* Lighting: world-space lights and the projection to invert. */
-    static int wants[16];
+    /* Lighting: world-space lights (every one: a storage buffer, binding
+     * 16) and the projection to invert. */
+    static float lp[PC_LIGHTS_MAX][4], lc[PC_LIGHTS_MAX][4], ld[PC_LIGHTS_MAX][4], lw[PC_LIGHTS_MAX][4],
+        lr[PC_LIGHTS_MAX][4], lu[PC_LIGHTS_MAX][4];
+    static int wants[PC_LIGHTS_MAX], slots[PC_LIGHTS_MAX];
     float hh, ox, oy;
     int count = 0;
     if (pc_scene_projection(&hh, &ox, &oy)) {
-        count = pc_lights_view(u->light_pos, u->light_col, u->light_dir, u->light_world, wants, u->light_right,
-            u->light_up, 16);
+        count = pc_lights_view(lp, lc, ld, lw, wants, lr, lu, PC_LIGHTS_MAX);
         if (gi && pc_rt_shadows)
             for (int i = 0; i < count; i++)
-                u->light_shadow[i] = wants[i] ? -2 : -1;
-        else /* no traced visibility: shadow maps (vk_shadows.c) */
-            pc_vk_shadows_update(count, (const float(*)[4])u->light_world, wants, u->light_shadow);
+                slots[i] = wants[i] ? -2 : -1;
+        else { /* no traced visibility: shadow maps (vk_shadows.c) for the most important casters */
+            pc_lights_shadow_pick(count, wants, pc_vk_shadows_slots());
+            pc_vk_shadows_update(count, (const float(*)[4])lw, wants, slots);
+        }
         float r[3][3], t[3], a, b, r_inverse[3][3];
         if (pc_scene_camera_get(r, t, &hh, &a, &b) && pc_scene_camera_inverse(r_inverse)) {
             for (int col = 0; col < 3; col++)
@@ -437,8 +443,17 @@ static void fill_present_ubo(present_ubo* u, int x, int y, int w, int h, int vie
         u->projection[1] = hh;
         u->screen_offset[0] = ox, u->screen_offset[1] = oy;
     }
-    for (int i = count; i < 16; i++)
-        u->light_shadow[i] = -1;
+    for (int i = 0; i < count; i++) {
+        pc_light_gpu* l = &present_lights[i];
+        memcpy(l->pos, lp[i], sizeof lp[i]);
+        memcpy(l->col, lc[i], sizeof lc[i]);
+        memcpy(l->dir, ld[i], sizeof ld[i]);
+        memcpy(l->right, lr[i], sizeof lr[i]);
+        memcpy(l->up, lu[i], sizeof lu[i]);
+        memcpy(l->world, lw[i], sizeof lw[i]);
+        l->info[0] = slots[i], l->info[1] = l->info[2] = l->info[3] = 0;
+    }
+    present_light_count = count;
     u->i1[0] = pc_gl_view_mode;
     u->i1[1] = count;
     u->i1[2] = gi ? (pc_gi_enabled ? (pc_gi_debug == 1 ? 2 : 1) : 0) | (pc_rt_shadows ? 4 : 0)
@@ -645,6 +660,11 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
                 goto overlay;
             vk_section("present");
             fill_present_ubo(ubo.data, x, y, w, h, view_w, view_h, gi, gi_w, gi_h, lo, hi);
+            VkDeviceSize light_bytes = (VkDeviceSize)(present_light_count ? present_light_count : 1) * sizeof(pc_light_gpu);
+            vk_slice light_slice = vk_arena(light_bytes, vk.properties.limits.minStorageBufferOffsetAlignment);
+            if (!light_slice.data)
+                goto overlay;
+            memcpy(light_slice.data, present_lights, (size_t)present_light_count * sizeof(pc_light_gpu));
             VkImageView haze_view = vk_hw.dummy_color.view;
             present_ubo* pu = ubo.data;
             if (gi && pc_vk_haze_bind && pc_vk_haze_bind(&haze_view, pu->haze_grid, pu->haze_range))
@@ -676,6 +696,8 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             vk_descriptors_image(&d, 11, pc_vk_shadows_view(), vk.linear);
             if (pc_vk_probes_bind)
                 pc_vk_probes_bind(&d, 12);
+            vk_descriptors_buffer(&d, 16, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, light_slice.buffer, light_slice.offset,
+                light_bytes);
             vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, scaled_layout);
             vkCmdDraw(cmd, 3, 1, 0, 0);
             if (blur) {

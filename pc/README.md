@@ -511,8 +511,16 @@ lights in the Outliner) makes a prefab of them. Flicker and pulse are
 deterministic functions of time and the actor's seed, sampled once per
 presented frame, and reach every lighting path (present shader, GL PTGI,
 Vulkan RT). A glow linked to an actor is driven by its flicker (or
-suppressed). The renderers take 16 lights: past that, the actor lights
-nearest the camera are kept (the Outliner says how many were left out).
+suppressed). Vulkan with ray tracing takes every light (a storage buffer;
+the shadow rays go to lights picked per pixel, so a hall of 67 candles costs
+about what 16 lights did: [pc/docs/Vulkan_Renderer.md](docs/Vulkan_Renderer.md),
+*Many lights*). The other paths have a budget: OpenGL's present 64 lights
+(16 with its path-traced shadows), shadow maps for the 4 most important
+casters. Past a budget the most important lights are kept (brightness x
+reach / distance from the camera, in view first, with hysteresis so the
+choice does not flicker), and the Outliner says how many were left out.
+RPC `actors` reports `lights_wanted` and `dropped`; `actors {budget: N}`
+caps the Vulkan list (comparisons; 0: every light).
 
 **Place Actors** (the tab beside the Outliner, Window > Place Actors,
 Shift+1, or the toolbar's **+ Place** menu) lists the light types and the
@@ -641,7 +649,9 @@ your disc. `pc/tools/generate_lighting.py --zone N` writes the generated
 layer: one actor per flame (`actor:gen.<type>.<hash>`, stable ids, naming
 `fixture_type`) and a typed entry for each game glow of a catalogued
 fixture. Cobwebs', shafts' and decals' glows are then suppressed by their
-type.
+type. Every zone is generated (338 rooms, 1152 actors);
+`pc/tools/lighting_gallery.py --all --out DIR` captures the whole game
+before/after as JPEG pages (local only) for review.
 
 The game reads the type's parameters, offset, radius and glow treatment
 from the catalog, live (`pc/src/fixture_catalog.cpp`). Details >

@@ -22,13 +22,6 @@ layout(std140, binding = 0) uniform Present {
     vec4 inverse_rotation_[3]; // view -> world: R^-1 (columns)
     vec4 normal_to_world_[3]; // R^T (columns)
     vec4 camera_translation_;
-    vec4 light_pos[16]; // view-space xyz, radius
-    vec4 light_col[16]; // rgb * intensity, type (0 point, 1 spot, 2 rect)
-    vec4 light_right[16];
-    vec4 light_up[16];
-    vec4 light_dir[16]; // view-space direction, cos(half cone)
-    vec4 light_world[16];
-    ivec4 light_shadow_[4]; // -2 ray-traced visibility (gi alpha), else unshadowed
     ivec4 haze_grid; // GX, GY, GZ, on (the froxel volume, vk_rt.inc)
     vec4 haze_range; // znear, log(zfar / znear)
     // Lighting quality (lighting_quality.cpp): unshadowed haze density (0
@@ -38,6 +31,16 @@ layout(std140, binding = 0) uniform Present {
     ivec4 quality1;
     vec4 quality2;
 } u;
+// Every dynamic light (vk_present.c, any number: light_count), world space.
+struct Light {
+    vec4 pos; // xyz, radius
+    vec4 col; // rgb * intensity, type (0 point, 1 spot, 2 rect)
+    vec4 right, up; // rect half extents; right.w the light's own size (soft shadows)
+    vec4 dir; // direction, cos(half cone)
+    vec4 world; // shadow map lookups: position, radius
+    ivec4 info; // x: -2 ray-traced visibility (gi alpha), >= 0 its shadow map, else unshadowed
+};
+layout(std430, binding = 16) readonly buffer LightList { Light lights[]; };
 layout(binding = 1) uniform sampler2D target;
 layout(binding = 2) uniform sampler2D depth_tex;
 layout(binding = 3) uniform sampler2D normal_tex;
@@ -81,14 +84,9 @@ layout(binding = 15) uniform sampler2D probe_data;
 #define projection u.projection_.xyz
 #define screen_offset u.screen_offset_.xy
 #define camera_translation u.camera_translation_.xyz
-#define light_pos u.light_pos
-#define light_col u.light_col
-#define light_right u.light_right
-#define light_up u.light_up
-#define light_dir u.light_dir
 mat3 inverse_rotation() { return mat3(u.inverse_rotation_[0].xyz, u.inverse_rotation_[1].xyz, u.inverse_rotation_[2].xyz); }
 mat3 normal_to_world() { return mat3(u.normal_to_world_[0].xyz, u.normal_to_world_[1].xyz, u.normal_to_world_[2].xyz); }
-int light_shadow(int i) { return u.light_shadow_[i >> 2][i & 3]; }
+int light_shadow(int i) { return lights[i].info.x; }
 // Depth- and crease-aware average of nearby normals (screen space). The
 // target's rows are VRAM rows in both APIs, so texel offsets match GL's.
 vec3 smooth_normal(ivec2 q, vec3 n, float z) {
@@ -233,13 +231,13 @@ vec3 low_haze(vec3 c, vec3 world) {
         vec3 x = eye + dir * (enter + tt);
         vec3 here = vec3(0.0);
         for (int i = 0; i < light_count; i++) {
-            vec3 to = light_pos[i].xyz - x; float dl = length(to); vec3 l = to / max(dl, 1e-3);
-            float f = clamp(dl / light_pos[i].w, 0.0, 1.0);
+            vec3 to = lights[i].pos.xyz - x; float dl = length(to); vec3 l = to / max(dl, 1e-3);
+            float f = clamp(dl / lights[i].pos.w, 0.0, 1.0);
             float a = (1.0 - f * f) * (1.0 - f * f);
-            if (light_col[i].w > 1.5) a *= max(dot(-l, light_dir[i].xyz), 0.0);
-            else if (light_col[i].w > 0.5) a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));
+            if (lights[i].col.w > 1.5) a *= max(dot(-l, lights[i].dir.xyz), 0.0);
+            else if (lights[i].col.w > 0.5) a *= smoothstep(lights[i].dir.w, mix(lights[i].dir.w, 1.0, 0.25), dot(-l, lights[i].dir.xyz));
             float mu = dot(dir, l);
-            here += light_col[i].rgb * a * (1.0 - g * g) / pow(1.0 + g * g + 2.0 * g * mu, 1.5);
+            here += lights[i].col.rgb * a * (1.0 - g * g) / pow(1.0 + g * g + 2.0 * g * mu, 1.5);
         }
         sum += here * exp(-density * tt);
     }
@@ -332,29 +330,29 @@ void main() {
             float baked_vis = (gi_on & 16) != 0 ? extra.r : 1.0;
             float ao = u.quality1.y != 0 ? screen_ao(world, world_normal) : 1.0;
             for (int i = 0; i < light_count; i++) {
-                vec3 centre = light_pos[i].xyz;
-                if (light_col[i].w > 1.5) { // rect: nearest point on the emitter
-                    vec3 rr = light_right[i].xyz, ru = light_up[i].xyz, rel = world - centre;
+                vec3 centre = lights[i].pos.xyz;
+                if (lights[i].col.w > 1.5) { // rect: nearest point on the emitter
+                    vec3 rr = lights[i].right.xyz, ru = lights[i].up.xyz, rel = world - centre;
                     centre += rr * clamp(dot(rel, rr) / dot(rr, rr), -1.0, 1.0)
                             + ru * clamp(dot(rel, ru) / dot(ru, ru), -1.0, 1.0);
                 }
                 vec3 to = centre - world;
                 float dl = length(to);
                 vec3 l = to / max(dl, 1e-3);
-                float x = clamp(dl / light_pos[i].w, 0.0, 1.0);
+                float x = clamp(dl / lights[i].pos.w, 0.0, 1.0);
                 float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(world_normal, l), 0.0);
-                if (light_col[i].w > 1.5) // rect: emits from its front face
-                    a *= max(dot(-l, light_dir[i].xyz), 0.0);
-                else if (light_col[i].w > 0.5) // spot: smooth cone edge
-                    a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));
+                if (lights[i].col.w > 1.5) // rect: emits from its front face
+                    a *= max(dot(-l, lights[i].dir.xyz), 0.0);
+                else if (lights[i].col.w > 0.5) // spot: smooth cone edge
+                    a *= smoothstep(lights[i].dir.w, mix(lights[i].dir.w, 1.0, 0.25), dot(-l, lights[i].dir.xyz));
                 if (light_shadow(i) == -2) // ray-traced
                     a *= clamp(gi.a, 0.0, 1.0);
                 else if (light_shadow(i) >= 0 && a > 0.0) { // shadow map (no ray tracing)
                     float cosine = clamp(dot(world_normal, l), 0.05, 1.0);
-                    a *= map_visibility(light_shadow(i), world + world_normal * max(2.0, u.light_world[i].w * 0.01), u.light_world[i],
-                        light_right[i].w > 0.0 ? light_right[i].w : u.quality2.x, min(sqrt(1.0 - cosine * cosine) / cosine, 4.0));
+                    a *= map_visibility(light_shadow(i), world + world_normal * max(2.0, lights[i].world.w * 0.01), lights[i].world,
+                        lights[i].right.w > 0.0 ? lights[i].right.w : u.quality2.x, min(sqrt(1.0 - cosine * cosine) / cosine, 4.0));
                 }
-                sum += light_col[i].rgb * a;
+                sum += lights[i].col.rgb * a;
             }
             if ((gi_on & 2) != 0) { color = vec4(min((gi.rgb + extra.gba) * gi_strength, vec3(1.0)), 1.0); return; }
             if ((gi_on & 8) != 0) { color = vec4(vec3(gi.a), 1.0); return; }

@@ -22,6 +22,7 @@
 #include <string>
 #include <thread>
 #include "pc_paths.h"
+#include "light_list.h"
 #include <vector>
 
 #include "imgui.h"
@@ -230,7 +231,12 @@ void rood_lights::track_room()
  * same lights; RPC actors {time} fixes it. */
 static bool frame_time_stale = true;
 static double frame_time, fixed_time = -1, last_sample;
-extern "C" void pc_lights_new_frame(void) { frame_time_stale = true; }
+extern "C" void pc_lights_frame_tick(void);
+extern "C" void pc_lights_new_frame(void)
+{
+    frame_time_stale = true;
+    pc_lights_frame_tick();
+}
 extern "C" void pc_lights_set_time(double t) { fixed_time = t; } /* < 0: the clock */
 extern "C" double pc_lights_time(void) { return rood_lights::light_time(); }
 double rood_lights::light_time()
@@ -376,6 +382,8 @@ static void light_frame(const Light& l, float forward[3], float right[3], float 
 
 extern "C" int pc_lights_world(float position[][4], float color[][4], float direction[][4],
     float extent_right[][4], float extent_up[][4], int shadows[], int max);
+extern "C" int pc_lights_last_dropped(void);
+extern "C" void pc_lights_set_dropped(int n);
 /* Lights for the present shader, in world space (the shader lights world
  * positions reconstructed from depth): position+radius, colour+type,
  * direction+cos(cone), rect half extents; `world` repeats the positions for
@@ -389,6 +397,7 @@ extern "C" int pc_lights_view(float position[][4], float color[][4], float direc
     if (!pc_scene_camera_get(r, t, &h, &ox, &oy))
         return 0;
     int n = pc_lights_world(position, color, direction, extent_right, extent_up, shadows, max);
+    pc_lights_set_dropped(pc_lights_last_dropped());
     for (int i = 0; i < n; i++) {
         memcpy(world[i], position[i], sizeof world[i]);
         pc_lights_shadows_active |= shadows[i];
@@ -1427,19 +1436,46 @@ extern "C" int pc_lights_selected_position(float out[3], float* radius)
 
 /* Lights for the renderers, world space: the room's lights, then its
  * actors' lights evaluated for this frame (animated), then the editor's
- * ghosts (a drag's preview, suggestions). The renderers take at most `max`
- * (16): past that, plain lights and ghosts are kept and actor lights
- * nearest the camera win. extent_right.w carries a point or spot light's own
- * emitting radius for soft shadows (0: the room's light size). */
+ * ghosts (a drag's preview, suggestions), in that (stable) order.
+ *
+ * The Vulkan ray-traced path takes every light (PC_LIGHTS_MAX: lights in a
+ * storage buffer, shadows sampled per pixel; pc/docs/Vulkan_Renderer.md).
+ * Paths with a fixed budget (`max`: OpenGL, shadow maps, probes, the
+ * editor's GL view) keep plain lights and ghosts and then the most
+ * important actor lights: importance = brightness x (radius / distance)^2
+ * from the camera (1 inside the light's reach) x 1 in view / 0.3 behind,
+ * with hysteresis (lights kept last frame count 1.5x) so the choice does not
+ * flicker as the camera moves. extent_right.w carries a point or spot
+ * light's own emitting radius for soft shadows (0: the room's light size). */
 namespace {
 struct Candidate {
     Light l;
     float light_size;
-    float priority; /* lower first */
+    float importance; /* higher first; < 0: always kept */
     float shadow_skip; /* extent_up.w: shadow rays stop this short of the light (its fixture) */
+    std::string key; /* actor id / light index: the hysteresis */
 };
 std::vector<Candidate> candidates;
-int dropped_lights; /* left out by the renderer limit last frame */
+int dropped_lights; /* left out by the present path's budget last frame */
+int wanted_lights; /* lights the room wants (before any budget) */
+/* Per budget: the lights it kept last frame (hysteresis). */
+struct Kept {
+    std::vector<std::string> keys;
+    unsigned frame;
+};
+std::vector<std::pair<int, Kept>> kept_by_budget;
+unsigned lights_frame = 1;
+/* The last pc_lights_world output's keys and importance (shadow map picks). */
+std::vector<std::string> output_keys;
+std::vector<float> output_importance;
+Kept* kept_for(int budget)
+{
+    for (auto& kb : kept_by_budget)
+        if (kb.first == budget)
+            return &kb.second;
+    kept_by_budget.push_back({ budget, Kept { {}, 0 } });
+    return &kept_by_budget.back().second;
+}
 }
 static Light from_eval(const prefab::EvalLight& e)
 {
@@ -1457,33 +1493,60 @@ static Light from_eval(const prefab::EvalLight& e)
     return l;
 }
 extern "C" int pc_lights_dropped(void) { return dropped_lights; }
+extern "C" int pc_lights_wanted(void) { return wanted_lights; }
+static int last_dropped;
+extern "C" int pc_lights_last_dropped(void) { return last_dropped; }
+extern "C" void pc_lights_set_dropped(int n) { dropped_lights = n; }
+extern "C" void pc_lights_frame_tick(void) { ++lights_frame; }
 extern "C" int pc_lights_world(float position[][4], float color[][4], float direction[][4],
     float extent_right[][4], float extent_up[][4], int shadows[], int max)
 {
+    last_dropped = 0;
     if (!pc_lights_enabled)
         return 0;
     candidates.clear();
     bool soloing = solo >= 0 || solo_actor >= 0;
     for (size_t i = 0; i < lights.size(); i++)
         if (lights[i].enabled && (!soloing || (int)i == solo))
-            candidates.push_back({ lights[i], 0, -1, 0 });
-    /* Actor lights by distance from the camera (the eye from the scene camera). */
-    float eye[3] = { 0, 0, 0 }, r[3][3], t[3], h, ox, oy, inverse[3][3];
+            candidates.push_back({ lights[i], 0, -1, 0, std::string() });
+    /* The eye and view direction (the scene camera) for the importance. */
+    float eye[3] = { 0, 0, 0 }, forward[3] = { 0, 0, 1 }, r[3][3], t[3], h, ox, oy, inverse[3][3];
     bool have_eye = pc_scene_camera_get(r, t, &h, &ox, &oy) && pc_scene_camera_inverse(inverse);
-    if (have_eye)
+    float tan_half = 2.0f;
+    if (have_eye) {
         for (int k = 0; k < 3; k++)
             eye[k] = -(inverse[k][0] * t[0] + inverse[k][1] * t[1] + inverse[k][2] * t[2]);
+        float fl = sqrtf(r[2][0] * r[2][0] + r[2][1] * r[2][1] + r[2][2] * r[2][2]);
+        for (int k = 0; k < 3; k++)
+            forward[k] = fl > 0 ? r[2][k] / fl : forward[k];
+        if (h > 1)
+            tan_half = 1.4f * 200.0f / h; /* the screen's half diagonal (widescreen too), generous */
+    }
+    float cos_half = 1.0f / sqrtf(1 + tan_half * tan_half), sin_half = tan_half * cos_half;
     std::vector<prefab::EvalLight> evaluated;
     for (size_t i = 0; i < actors.size(); i++) {
         if (!actors[i].enabled || (soloing && (int)i != solo_actor))
             continue;
         actor_lights(actors[i], evaluated);
+        int k = 0;
         for (const prefab::EvalLight& e : evaluated) {
+            ++k;
             if (!e.enabled)
                 continue;
-            float d[3] = { e.position[0] - eye[0], e.position[1] - eye[1], e.position[2] - eye[2] };
-            float distance = have_eye ? sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]) : 0;
-            candidates.push_back({ from_eval(e), e.light_size, distance - e.radius, e.shadow_skip });
+            float importance = 1;
+            if (have_eye) {
+                float v[3] = { e.position[0] - eye[0], e.position[1] - eye[1], e.position[2] - eye[2] };
+                float d = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+                float reach = fmaxf(e.radius, 1);
+                float near = reach / fmaxf(d, reach);
+                float along = v[0] * forward[0] + v[1] * forward[1] + v[2] * forward[2];
+                float across = sqrtf(fmaxf(d * d - along * along, 0));
+                bool in_view = d < reach || across * cos_half - along * sin_half < reach;
+                float brightness = (0.3f * e.color[0] + 0.6f * e.color[1] + 0.1f * e.color[2]) * e.intensity;
+                importance = fmaxf(brightness, 1e-4f) * near * near * (in_view ? 1.0f : 0.3f);
+            }
+            std::string key = (actors[i].id.empty() ? "#" + std::to_string(i) : actors[i].id) + "/" + std::to_string(k);
+            candidates.push_back({ from_eval(e), e.light_size, importance, e.shadow_skip, key });
         }
     }
     std::vector<const Ghost*> shown;
@@ -1494,23 +1557,53 @@ extern "C" int pc_lights_world(float position[][4], float color[][4], float dire
     for (const Ghost* gp : shown) {
         const Ghost& g = *gp;
         if (!g.actor) {
-            candidates.push_back({ g.light, 0, -1, 0 });
+            candidates.push_back({ g.light, 0, -1, 0, std::string() });
             continue;
         }
         actor_lights(g.a, evaluated);
         for (const prefab::EvalLight& e : evaluated)
             if (e.enabled)
-                candidates.push_back({ from_eval(e), e.light_size, -1, e.shadow_skip });
+                candidates.push_back({ from_eval(e), e.light_size, -1, e.shadow_skip, std::string() });
     }
-    dropped_lights = 0;
+    wanted_lights = (int)candidates.size();
     if ((int)candidates.size() > max) {
-        std::stable_sort(candidates.begin(), candidates.end(),
-            [](const Candidate& a, const Candidate& b) { return a.priority < b.priority; });
-        dropped_lights = (int)candidates.size() - max;
-        candidates.resize(max);
+        /* Over this path's budget: the most important, with hysteresis. */
+        Kept* kept = kept_for(max);
+        std::vector<int> order(candidates.size());
+        for (size_t i = 0; i < order.size(); i++)
+            order[i] = (int)i;
+        auto score = [&](const Candidate& c) {
+            if (c.importance < 0)
+                return 1e30f;
+            bool was = std::find(kept->keys.begin(), kept->keys.end(), c.key) != kept->keys.end();
+            return c.importance * (was ? 1.5f : 1.0f);
+        };
+        std::vector<float> scores(candidates.size());
+        for (size_t i = 0; i < candidates.size(); i++)
+            scores[i] = score(candidates[i]);
+        std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return scores[a] > scores[b]; });
+        order.resize(max);
+        std::sort(order.begin(), order.end()); /* back to the stable order */
+        std::vector<Candidate> chosen;
+        chosen.reserve(max);
+        for (int i : order)
+            chosen.push_back(candidates[i]);
+        last_dropped = (int)candidates.size() - max;
+        candidates.swap(chosen);
+        if (kept->frame != lights_frame) { /* once per frame per budget */
+            kept->frame = lights_frame;
+            kept->keys.clear();
+            for (const Candidate& c : candidates)
+                if (!c.key.empty())
+                    kept->keys.push_back(c.key);
+        }
     }
     int n = 0;
+    output_keys.clear();
+    output_importance.clear();
     for (const Candidate& c : candidates) {
+        output_keys.push_back(c.key);
+        output_importance.push_back(c.importance < 0 ? 1e30f : c.importance);
         const Light& l = c.l;
         float forward[3], right[3], up[3];
         light_frame(l, forward, right, up);
@@ -1530,6 +1623,64 @@ extern "C" int pc_lights_world(float position[][4], float color[][4], float dire
         ++n;
     }
     return n;
+}
+
+/* The Vulkan paths' list: every light, packed (light_list.h).
+ * pc_lights_budget > 0 caps it as the fixed-budget paths are (comparisons,
+ * RPC actors {budget}). */
+extern "C" {
+int pc_lights_budget = 0;
+}
+extern "C" int pc_lights_list(pc_light_gpu* out, int max)
+{
+    if (pc_lights_budget > 0 && max > pc_lights_budget)
+        max = pc_lights_budget;
+    static float p[PC_LIGHTS_MAX][4], c[PC_LIGHTS_MAX][4], d[PC_LIGHTS_MAX][4], r[PC_LIGHTS_MAX][4], u[PC_LIGHTS_MAX][4];
+    static int sh[PC_LIGHTS_MAX];
+    if (max > PC_LIGHTS_MAX)
+        max = PC_LIGHTS_MAX;
+    int n = pc_lights_world(p, c, d, r, u, sh, max);
+    for (int i = 0; i < n; i++) {
+        memcpy(out[i].pos, p[i], sizeof p[i]);
+        memcpy(out[i].col, c[i], sizeof c[i]);
+        memcpy(out[i].dir, d[i], sizeof d[i]);
+        memcpy(out[i].right, r[i], sizeof r[i]);
+        memcpy(out[i].up, u[i], sizeof u[i]);
+        memcpy(out[i].world, p[i], sizeof p[i]);
+        out[i].info[0] = sh[i];
+        out[i].info[1] = out[i].info[2] = out[i].info[3] = 0;
+    }
+    return n;
+}
+/* Shadow maps for the most important shadow casters only (light_list.h). */
+extern "C" void pc_lights_shadow_pick(int count, int* wants, int slots)
+{
+    if ((int)output_keys.size() != count)
+        return;
+    int casters = 0;
+    for (int i = 0; i < count; i++)
+        casters += wants[i] != 0;
+    if (casters <= slots)
+        return;
+    Kept* kept = kept_for(-slots);
+    std::vector<int> order;
+    std::vector<float> score(count, 0);
+    for (int i = 0; i < count; i++)
+        if (wants[i]) {
+            order.push_back(i);
+            bool was = !output_keys[i].empty()
+                && std::find(kept->keys.begin(), kept->keys.end(), output_keys[i]) != kept->keys.end();
+            score[i] = output_importance[i] * (was ? 1.5f : 1.0f);
+        }
+    std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return score[a] > score[b]; });
+    for (size_t k = slots; k < order.size(); k++)
+        wants[order[k]] = 0;
+    if (kept->frame != lights_frame) {
+        kept->frame = lights_frame;
+        kept->keys.clear();
+        for (int k = 0; k < slots && k < (int)order.size(); k++)
+            kept->keys.push_back(output_keys[order[k]]);
+    }
 }
 
 /* ---- editor panels (dev_overlay.cpp lays them out) ---- */
@@ -1622,7 +1773,7 @@ extern "C" void pc_lights_outliner(const char* filter)
     actors_outliner(filter);
     extern int pc_lights_dropped(void);
     if (pc_lights_dropped() > 0)
-        ImGui::TextColored(ImVec4(1, 0.6f, 0.3f, 1), "%d lights left out (the renderers take 16; nearest kept)",
+        ImGui::TextColored(ImVec4(1, 0.6f, 0.3f, 1), "%d lights left out by this renderer (OpenGL / no ray tracing: 16, the most important kept; Vulkan ray tracing takes all)",
             pc_lights_dropped());
     if (ImGui::SmallButton("+ Light at Ashley"))
         add_light_at_ashley();

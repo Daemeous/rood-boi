@@ -222,18 +222,53 @@ RPC `fixtures`:
 1. `python3 pc/tools/fixture_scan.py --check --zone N`: every fixture of the
    zone must match one type exactly. If not, run `--update` and review the
    new types.
-2. `python3 pc/tools/generate_lighting.py --zone N --gallery DIR`, then
-   open `DIR/index.html` to see each room before and after (game camera
-   and an overview) with close-ups of every generated actor. `types.html`
-   and `contact/Txxx.png` show every instance of a type side by side.
+2. `python3 pc/tools/generate_lighting.py --zone N --gallery DIR` (or
+   `pc/tools/lighting_gallery.py --all --out DIR --resume` for the whole
+   game), then look at `DIR/pages/zoneZZ_N.jpg` (each room before | after,
+   game camera and a second view), `DIR/pages/types/Txxx.jpg` (a type's
+   close-ups across the game) and `DIR/issues.txt` (rooms much brighter or
+   darker than the game's lighting, clipped, over a light budget, not
+   reached). Rooms no door leads into are reached through a made-up door
+   (RPC `room_goto {cell}`).
 3. Fix types, not instances: tune in the editor (*Edit type*) or in the
    catalog, regenerate, and look again. Mark reviewed types `checked`.
 4. Commit `pc/assets/fixtures/catalog.json` and the zone's
    `lighting/default/generated/` files. Never commit the gallery.
 
-Committed so far: zone 9 (the wine cellar), 19 rooms. 156 fixtures matched
-exactly, giving 102 actors (99 on, 3 save-point fills off) and 16 typed
-glows, 8 of them suppressed (room 5's light shafts and decal).
+Committed: every zone, 338 room files (2298 fixtures matched exactly; 1152
+actors, 1105 on and 47 inferred fills off; 529 typed glows, 278 of them
+suppressed: cobwebs, floor arrows, decals, light shafts). Zone 9 was
+reviewed in game; the rest from the whole-game gallery (2026-10-12):
+
+- **Review**: every light type was looked at in its contact sheet across
+  all zones; 58 are `checked`. T031, T044 and T060 stay `scan` (their
+  close-ups were blocked by a pillar, dark or a cutscene face).
+- **Reclassified**: T008 (a hanging cage lantern, was a torch flame; zone
+  9's T008 actors switch prefab torch -> lantern), T043, T048, T049
+  (lanterns, were wall torches), T038 (the wall bowl T037 is: wall torch;
+  one model split in two by its size), T050 (wall lantern), T059 (a lamp
+  halo, not a window), T067 (the magic circle of zones 27 and 65: its glow
+  lights those rooms, so `other`, glow left on, instead of a suppressed
+  decal). T045 and T046 are tall pillar candles, not hearths.
+- **Class defaults** (the light's look; the game's baked light stays the
+  base). Candles keep the prefab's values zone 9 was approved with (0.9,
+  reach 360, 1900 K). Torches 0.8 / 520 / 1800 K: the prefab's 1.6 / 760
+  doubled a torch room's brightness and washed it orange (gallery ratio of
+  mean brightness after / before: 2.2 in the catacombs, now 1.3; zone 9's
+  approved rooms are 1.1). Braziers 0.9 / 680, fireplaces and fire sprites
+  0.9 / 700, lanterns and glass lamps 0.8 / 460. Street lanterns (the
+  town): cool cyan-white, 6500 K tinted 0.72 1 0.95, 1.0 / 560, almost no
+  flicker: their panes are cyan, and a warm flame light turned the blue
+  streets brown. The candle hall's T007 (67 candles in one room) 0.35 /
+  300. Snowfly Forest and the other outdoor zones have no light fixtures
+  (exit markers and floor arrows only).
+- **Off by default**: save points and windows (inferred fills), as before.
+- **Look at by hand**: zone 12 rooms 0-1 (window light shafts suppressed:
+  0.84x the game's brightness under them), zone 9 rooms with fires (T008
+  and the fire sprites are gentler than when zone 9 was approved), zones
+  11 and 64 (a big hearth, 1.4x in the overview). A made-up door's cell
+  outside the room's map crashes the game (zone 7 room 0); the gallery
+  retries through another cell.
 
 ## Limits
 
