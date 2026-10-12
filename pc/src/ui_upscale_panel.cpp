@@ -5,6 +5,7 @@
 #include "imgui.h"
 #include "ui_upscale.h"
 #include "ui_text.h"
+#include "button_prompts.h"
 
 extern "C" int pc_hw_scale, pc_hw_active;
 
@@ -52,6 +53,18 @@ extern "C" void pc_ui_upscale_panel(void)
             const char* file = strrchr(pc_ui_text_styles[i].font, '/');
             ImGui::TextDisabled("  %-8s %s", pc_ui_text_styles[i].name, file ? file + 1 : pc_ui_text_styles[i].font);
         }
+    }
+    static const char* prompt_modes[] = { "Auto (last device used)", "PlayStation", "Xbox", "Nintendo",
+        "Keyboard", "Original glyphs" };
+    ImGui::Combo("Button prompts", &pc_button_prompts, prompt_modes, PC_PROMPTS_MODES);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("The PS1 buttons the game shows (in text, menus, the quick manual) drawn as the key or\n"
+                          "gamepad button bound to them (settings bind_key_* / bind_pad_*), from Kenney's Input\n"
+                          "Prompts (CC0). Auto follows the device used last: key caps after a key, the gamepad's\n"
+                          "own labels after a gamepad button. Original: the PS1's glyphs.");
+    if (pc_button_prompts != PC_PROMPTS_ORIGINAL) {
+        int family = pc_button_prompts_family();
+        ImGui::TextDisabled("Showing %s", family ? pc_button_prompts_names[family] : "original");
     }
     bool subpixel = pc_ui_subpixel != 0;
     if (ImGui::Checkbox("Sub-pixel text placement", &subpixel))

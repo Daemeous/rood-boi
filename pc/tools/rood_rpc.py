@@ -174,6 +174,8 @@ class Game:
         socket_path = socket_path or DEFAULT_SOCKET
         env = dict(os.environ, ROOD_RPC=socket_path, ROOD_CONTROLLER="none", ROOD_AUDIO=audio)
         env.setdefault("ROOD_GI", "0")  # path tracing is slow on software GL; tests opt in
+        # The PS1 glyphs, whatever device the machine has (button_prompts_smoke opts in).
+        env.setdefault("ROOD_BUTTON_PROMPTS", "original")
         env.setdefault("ROOD_CARD1", card or str(OUT / "test-card1.mcd"))
         if card:
             env["ROOD_CARD1"] = card

@@ -745,6 +745,13 @@ static void render_panel()
     bool occlusion = pc_native_occlusion != 0;
     if (ImGui::Checkbox("Native surfaces hide packets behind them", &occlusion))
         pc_native_occlusion = occlusion;
+    bool room_order = pc_native_room_order != 0;
+    if (ImGui::Checkbox("PS1 order for coplanar room surfaces", &room_order))
+        pc_native_room_order = room_order;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Room polygons lying on other room polygons (documents on a table, a notice on\n"
+                          "a wall, a rug on the floor) paint in the PS1's ordering-table order instead of\n"
+                          "z-fighting; occlusion stays per pixel beyond a small slack. Off: plain depth test.");
 }
 
 static void control_panel(double frame_ms)

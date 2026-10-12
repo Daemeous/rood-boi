@@ -63,7 +63,10 @@ disconnection clears held buttons and the next connected gamepad takes over. The
 game sees a digital PS1 pad (analog pressure and rumble are not yet
 implemented); the right stick drives the camera (below). To choose a gamepad, set `ROOD_CONTROLLER` to its device path
 (`/dev/input/event*`, or the older `/dev/input/js*` name of the same device) or to
-part of its name; set it to `none` to disable gamepad input.
+part of its name; set it to `none` to disable gamepad input. Keys and gamepad
+elements can be rebound per PS1 button (settings `bind_key_<button>`,
+`bind_pad_<button>`; see [Button prompts](#button-prompts)), and the buttons the
+game shows follow the device used last and the bindings.
 `pc/build/boot/controller_probe --hardware` reports the detected gamepad and its
 current buttons. Automated mapping tests (`controller_probe`, also in CTest)
 cover positional face buttons, shoulders, Start/Select, stick clicks, the stick
@@ -691,6 +694,53 @@ and `labels` finds each label word's exact box in the captured VRAM from
 the approximate ones in the script and checks (or with `--write`
 regenerates) `pc/src/ui_labels.h`.
 
+### Button prompts
+
+The game names PS1 buttons in its text (the font's triangle, square, circle
+and cross pictographs: the information box, the quick manual) and with
+16 x 16 button sprites (the four face buttons and L1, R1, L2, R2: the quick
+manual's page keys, the name entry screen, the item menus' L1/R1, PRESS
+BUTTON). With `button_prompts` other than `original` each one is drawn as the
+key or gamepad button **bound** to that PS1 button, from Kenney's
+[Input Prompts](https://kenney.nl/assets/input-prompts) icon fonts (CC0,
+`pc/third_party/fonts/KenneyInputPrompts`); Graphics > 2D / UI > Button
+prompts in the editor, RPC `button_prompts`.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `button_prompts` | `auto` | `auto`: the device used last: key caps after a bound key, the gamepad's own labels after a gamepad button or stick (a gamepad connecting counts; disconnecting the last one goes back to the keyboard). `playstation`, `xbox`, `nintendo`, `keyboard`: always that family. `original`: the PS1's glyphs, exactly as before (nothing goes through the 2D atlas for them) |
+| `bind_key_<button>` | see Controls | the key(s) for a PS1 button (`circle`, `cross`, `triangle`, `square`, `l1`, `r1`, `l2`, `r2`, `start`, `select`, `l3`, `r3`, `up`, `down`, `left`, `right`): one or two names separated by a comma (`a`-`z`, `0`-`9`, `return`, `tab`, `space`, `escape`, `backspace`, arrows `up`..., `lshift`, `lctrl`, `lalt`, ..., `f1`-`f12`, `minus`, `comma`, `period`, `slash`, ...) or `none`; saved only when changed |
+| `bind_pad_<button>` | positional | the gamepad element for a PS1 button: `south`, `east`, `west`, `north`, `leftshoulder`, `rightshoulder`, `lefttrigger`, `righttrigger`, `back`, `start`, `guide`, `leftstick`, `rightstick`, `dpup`, `dpdown`, `dpleft`, `dpright`, `misc1`, `paddle1`-`4`, `touchpad` or `none`; saved only when changed |
+
+The gamepad family comes from SDL (`SDL_GetGamepadType`): PS3/PS4/PS5 show
+PlayStation icons (Start/Select as the PS3's, Options/Share on a PS4,
+Options/Create on a PS5), Xbox 360/One/Series show Xbox icons (360: Start and
+Back), Switch Pro and Joy-Cons show Nintendo icons; generic, Steam and
+GameCube pads get the Xbox labels SDL's standard layout uses. Because SDL
+reads face buttons by position, the icon is always the physical button that
+presses the PS1 button: on a Nintendo pad Circle (east) shows **A** and Cross
+(south) **B**, on an Xbox pad B and A. Rebinding changes the icon with it
+(`bind_key_circle c` shows a C key cap).
+
+How: a 2D region the game draws is a prompt by its page, CLUT and cell (font
+page (832, 0), CLUT row 222, glyphs 0xAE-0xB1 of either table; field UI page
+(768, 0), CLUT (944, 223), the 16 x 16 cells at (0, 128)); it goes through the
+2D atlas like `ui_text` glyphs, and its texels are drawn from the icon's
+signed distance field (ui_text.c's stb_truetype path, 128 pixels per em),
+fitted and centred in the original's ink box (text: one pixel larger, inside
+its 12 x 12 cell), at the internal resolution. Text icons take the original
+glyph's CLUT ramp (the text's colour, brightness and translucency); sprites
+are a dark body with the family's symbol colours (PlayStation's green, red,
+blue and pink; Xbox's A green, B red, X blue, Y yellow) and a dark rim. The
+game still decides which button, where, when and how big. At internal
+resolution 1 the icons are drawn one texel per pixel (blocks of a 2x atlas).
+A button bound to nothing, or to a key without an icon, keeps the original.
+Not replaced: the D-pad arrows of the font (also used as plain arrows),
+button names spelled in letters, art baked into images. `pc/tests/button_prompts_smoke.py`
+covers it. The native (Dear ImGui) menus get the same icons as images in one
+ImGui texture: `pc_prompt_glyph`, `pc_prompt_device`, `pc_prompt_generation`
+in `pc/src/button_prompts.h`.
+
 ### Lighting the room's fixtures, light actors and Place Actors
 
 Lanterns, torches and candles are usually room geometry (a bracket and
@@ -1001,6 +1051,7 @@ thread once per vsync, so each method runs at a frame boundary:
 | `gpu_draw` | `packet` (GP0 words, hex), `texture` (hex texels) with `texture_x/y/w/h`, `area_x/y/w/h`, `offset_x/y` | tests: load texels, set the drawing area, draw the commands on both rasterizers (`flipped_sprite_smoke.py`) |
 | `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_trace` N), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample` | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
 | `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
+| `button_prompts` | `button_prompts` (mode), `device` (`playstation`/`xbox`/`nintendo`/`keyboard`, as a device used last would set it) with `variant` (3/4/5 PlayStation, 360 Xbox), `bind` (`{"bind_key_circle": "c", "bind_pad_circle": "south"}`), `icon` (a button name) with `size` | the mode, the family drawn, the device, `generation`, the glyph each PS1 button shows, the bindings, regions drawn from icons (`regions`) and fallen back (`failed`); `icon` adds the native menus' image (`pc_prompt_glyph`: size, uv) |
 | `ui_text` | `ui_text` (`original`/`font`), `style` with `font`, `stretch`, `slant`, `embolden`, `aspect`; `render` ([tpage, clut, u0, v0, u1, v1]) with `factor`, `path` | the text fonts: option, each style (font, placement, `loaded`), fonts loaded, glyph fields made, glyph regions drawn from fonts (`regions`, of them `labels`) and fallen back (`failed`), the labels drawn (`labels_drawn`); a `style` with values changes it as the `ui_text_<style>_*` settings do; `render` draws that region from the font into `path` (little-endian PS1 colours) and adds its size |
 | `redraw` | | the newest frame drawn again as recorded with the current options (MSAA, ...) and presented until the game draws another: pause first, then compare options on one frame (`aa_smoke.py`) |
 | `settings` | `action` (`save`, `load`) | the `ROOD_SETTINGS` file (a loaded preset applies at once) |

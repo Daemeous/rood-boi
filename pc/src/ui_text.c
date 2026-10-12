@@ -213,6 +213,54 @@ static float distance_at(const glyph_field* g, float x, float y)
     return (top + (bottom - top) * ay - 128.0f) / SDF_SCALE;
 }
 
+/* ---- icons (button_prompts.c): any font's glyph, finer, kept until exit ---- */
+
+#define ICON_EM 128 /* icons fill 16 x 16 sprites drawn at 8x: 128 pixels */
+struct pc_ui_icon {
+    glyph_field field;
+    int font; /* index in fonts + 1 (0: empty slot) */
+};
+#define ICON_SLOTS 512
+static struct pc_ui_icon icons[ICON_SLOTS];
+
+const pc_ui_icon* pc_ui_icon_glyph(const char* font_path, unsigned codepoint, int* missing)
+{
+    font_file* f = font_for(font_path);
+    *missing = 1;
+    if (!f)
+        return NULL;
+    int font = (int)(f - fonts) + 1;
+    unsigned s = ((unsigned)font * 40503u ^ codepoint * 2654435761u) & (ICON_SLOTS - 1);
+    for (int probe = 0; probe < ICON_SLOTS; probe++, s = (s + 1) & (ICON_SLOTS - 1)) {
+        struct pc_ui_icon* icon = &icons[s];
+        if (icon->font == font && icon->field.key == codepoint) {
+            *missing = !icon->field.sdf;
+            return icon->field.sdf ? icon : NULL;
+        }
+        if (icon->font)
+            continue;
+        icon->font = font;
+        icon->field.key = codepoint;
+        int index = stbtt_FindGlyphIndex(&f->info, (int)codepoint), x0, y0, x1, y1;
+        if (!index || !stbtt_GetGlyphBox(&f->info, index, &x0, &y0, &x1, &y1))
+            return NULL;
+        float scale = stbtt_ScaleForMappingEmToPixels(&f->info, ICON_EM);
+        glyph_field* g = &icon->field;
+        g->sdf = stbtt_GetGlyphSDF(&f->info, scale, index, SDF_PAD, 128, SDF_SCALE, &g->w, &g->h, &g->xoff, &g->yoff);
+        if (!g->sdf)
+            return NULL;
+        g->x0 = x0 * scale, g->x1 = x1 * scale, g->top = y1 * scale, g->bottom = y0 * scale;
+        *missing = 0;
+        return icon;
+    }
+    return NULL;
+}
+void pc_ui_icon_box(const pc_ui_icon* icon, float box[4])
+{
+    box[0] = icon->field.x0, box[1] = icon->field.bottom, box[2] = icon->field.x1, box[3] = icon->field.top;
+}
+float pc_ui_icon_distance(const pc_ui_icon* icon, float x, float y) { return distance_at(&icon->field, x, y); }
+
 /* ---- the game's glyphs ---- */
 
 typedef struct {

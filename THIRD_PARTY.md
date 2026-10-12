@@ -41,6 +41,16 @@ the game.
 | [Chakra Petch](https://github.com/m4rc1e/Chakra-Petch) Bold | `ChakraPetch/ChakraPetch-Bold.ttf` | OFL 1.1 | The Chakra Petch Project Authors |
 | [Alegreya](https://github.com/huertatipografica/Alegreya) (variable, default instance) | `Alegreya/Alegreya[wght].ttf` | OFL 1.1 | The Alegreya Project Authors |
 
+**Kenney Input Prompts** (`KenneyInputPrompts/`), version 1.5A by
+[Kenney](https://kenney.nl/assets/input-prompts), **CC0 1.0** (`License.txt`):
+the icon fonts of the PlayStation, Xbox, Nintendo Switch and keyboard sets
+(`kenney_input_<set>.ttf`, unmodified; the keyboard file renamed from
+`kenney_input_keyboard_&_mouse.ttf`) with their glyph name maps
+(`kenney_input_<set>_map.txt`, line endings made LF). Used by the
+`button_prompts` setting (`pc/src/button_prompts.c`), which draws the PS1
+buttons the game shows as the bound key or gamepad button. Not derived from
+the game.
+
 ## Ported into the project's sources
 
 - **Weapon slots** (`pc/src/weapon_slots.c` and the `ROOD_PC` hooks it lists):

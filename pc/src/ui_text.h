@@ -71,6 +71,15 @@ typedef struct {
 } pc_ui_text_stats;
 void pc_ui_text_get_stats(pc_ui_text_stats* s);
 
+/* Icons from any TrueType file (button_prompts.c): the glyph's signed
+ * distance field, made at first use and kept (NULL when the font or the
+ * glyph is missing: *missing 1). Its box (x0, bottom, x1, top) and
+ * distances are field pixels (positive inside; y up from the baseline). */
+typedef struct pc_ui_icon pc_ui_icon;
+const pc_ui_icon* pc_ui_icon_glyph(const char* font_path, unsigned codepoint, int* missing);
+void pc_ui_icon_box(const pc_ui_icon* icon, float box[4]);
+float pc_ui_icon_distance(const pc_ui_icon* icon, float x, float y);
+
 #ifdef __cplusplus
 }
 #endif

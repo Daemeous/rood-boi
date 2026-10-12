@@ -11,6 +11,7 @@
 #include <time.h>
 #include "boot_controller.h"
 #include "camera_stick.h"
+#include "button_prompts.h"
 #ifdef ROOD_VULKAN
 #include "vk_hooks.h" /* ROOD_RENDERER=vulkan: vk_present.c */
 #endif
@@ -135,41 +136,9 @@ void pc_window_init(int enabled, int run_fast)
     fprintf(stderr, "[window] SDL %d.%d.%d, %s video\n", SDL_VERSIONNUM_MAJOR(version),
         SDL_VERSIONNUM_MINOR(version), SDL_VERSIONNUM_MICRO(version), SDL_GetCurrentVideoDriver());
 }
-static unsigned keybit(SDL_Keycode key)
-{
-    switch (key) {
-    case SDLK_UP:
-        return 1u << 12;
-    case SDLK_DOWN:
-        return 1u << 14;
-    case SDLK_LEFT:
-        return 1u << 15;
-    case SDLK_RIGHT:
-        return 1u << 13;
-    case SDLK_RETURN:
-        return 1u << 11;
-    case SDLK_Z:
-        return 1u << 5;
-    case SDLK_X:
-        return 1u << 6;
-    case SDLK_TAB:
-        return 1u << 8; /* Select (libetc PADselect) */
-    case SDLK_A:
-        return 1u << 7; /* Square */
-    case SDLK_S:
-        return 1u << 4; /* Triangle */
-    case SDLK_Q:
-        return 1u << 2; /* L1 */
-    case SDLK_W:
-        return 1u << 3; /* R1 */
-    case SDLK_1:
-        return 1u; /* L2 */
-    case SDLK_2:
-        return 1u << 1; /* R2 */
-    default:
-        return 0;
-    }
-}
+/* The PS1 buttons a key presses (the bindings, boot_controller.c; defaults
+ * in README "Controls"). */
+static unsigned keybit(SDL_Keycode key) { return pc_keyboard_bits(key); }
 /* The right-stick camera's keys: J/L turn, I/K zoom, O is R3 (reset). */
 static unsigned camera_keybit(SDL_Keycode key)
 {
@@ -244,6 +213,9 @@ void pc_window_tick(void)
         case SDL_EVENT_KEY_DOWN:
             buttons |= keybit(event.key.key);
             camera_keys |= camera_keybit(event.key.key);
+            /* The keyboard is the last device used (button prompts). */
+            if (keybit(event.key.key) || camera_keybit(event.key.key))
+                pc_button_prompts_device(PC_PROMPTS_KEYBOARD, 0);
             break;
         case SDL_EVENT_KEY_UP:
             buttons &= ~keybit(event.key.key);

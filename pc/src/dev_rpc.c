@@ -124,7 +124,11 @@
  *                                (editor: 1 active, 2 all probes);
  *                                native_room (0 legacy room packets, 1 native
  *                                room meshes, 2 native without the reference
- *                                packets), native_occlusion, native_actors
+ *                                packets), native_occlusion, room_order
+ *                                (coplanar room surfaces in PS1 order;
+ *                                room_slack, room_slack_units: how far
+ *                                behind the nearest surface still counts as
+ *                                on it, relative and GTE units), native_actors
  *                                (0 legacy character/weapon/prop packets, 1
  *                                native meshes with bone palettes, 2 also
  *                                without the reference packets' CPU
@@ -230,6 +234,8 @@
 #include "probe_gi.h"
 #include "ui_upscale.h"
 #include "ui_text.h"
+#include "button_prompts.h"
+#include "boot_controller.h" /* pc_pad_button_index */
 #include "camera_stick.h"
 /* The editor (editor_overlays.cpp, lights.cpp). */
 extern int pc_overlay_wire __attribute__((weak)), pc_overlay_points __attribute__((weak)),
@@ -331,7 +337,8 @@ extern int pc_native_room __attribute__((weak)), pc_native_occlusion __attribute
     pc_native_actors __attribute__((weak)), pc_native_actor_order __attribute__((weak)),
     pc_native_blend __attribute__((weak)), pc_native_objects __attribute__((weak)),
     pc_native_shadows __attribute__((weak)), pc_native_effects __attribute__((weak)),
-    pc_reconstruct __attribute__((weak));
+    pc_reconstruct __attribute__((weak)), pc_native_room_order __attribute__((weak));
+extern float pc_native_room_slack[2] __attribute__((weak));
 extern int pc_gte_log __attribute__((weak));
 extern void render_stats_get(render_stats*) __attribute__((weak));
 
@@ -909,6 +916,18 @@ static void handle_method(int fd, const char* request)
                 pc_native_room = flag;
             if (bool_value(member(params, "native_occlusion"), &flag))
                 pc_native_occlusion = flag;
+            if (&pc_native_room_order) {
+                if (bool_value(member(params, "room_order"), &flag))
+                    pc_native_room_order = flag;
+                else if (number_value(member(params, "room_order"), &n))
+                    pc_native_room_order = n != 0;
+            }
+            if (pc_native_room_slack) {
+                if (number_value(member(params, "room_slack"), &n) && n >= 0 && n <= 0.1)
+                    pc_native_room_slack[0] = (float)n;
+                if (number_value(member(params, "room_slack_units"), &n) && n >= 0 && n <= 64)
+                    pc_native_room_slack[1] = (float)n;
+            }
         }
         if (params && &pc_native_actors) {
             if (number_value(member(params, "native_actors"), &n) && n >= 0 && n <= 2)
@@ -1065,6 +1084,7 @@ static void handle_method(int fd, const char* request)
         int used = snprintf(result, sizeof result,
             "{\"hardware\":%s,\"scale\":%d,\"filter\":%d,\"aspect\":%d,\"widescreen\":%s,"
             "\"perspective\":%s,\"show_depth\":%s,\"native_room\":%d,\"native_occlusion\":%s,"
+            "\"room_order\":%s,\"room_slack\":%g,\"room_slack_units\":%g,"
             "\"native_actors\":%d,\"actor_order\":%s,\"native_blend\":%d,\"native_objects\":%d,"
             "\"native_shadows\":%d,\"native_effects\":%d,\"reconstruct\":%d,\"gte_log\":%d,"
             "\"gi_denoiser\":\"%s\",\"gi_denoiser_active\":\"%s\",\"nrd_built\":%s,\"nrd_available\":%s,"
@@ -1072,7 +1092,10 @@ static void handle_method(int fd, const char* request)
             pc_hw_active ? "true" : "false", pc_hw_scale, pc_gl_filter, pc_gl_aspect,
             pc_gte_widescreen ? "true" : "false", pc_hw_perspective ? "true" : "false",
             pc_gl_show_depth ? "true" : "false", &pc_native_room ? pc_native_room : 0,
-            &pc_native_occlusion && pc_native_occlusion ? "true" : "false", &pc_native_actors ? pc_native_actors : 0,
+            &pc_native_occlusion && pc_native_occlusion ? "true" : "false",
+            &pc_native_room_order && pc_native_room_order ? "true" : "false",
+            pc_native_room_slack ? (double)pc_native_room_slack[0] : 0.0,
+            pc_native_room_slack ? (double)pc_native_room_slack[1] : 0.0, &pc_native_actors ? pc_native_actors : 0,
             &pc_native_actor_order && pc_native_actor_order ? "true" : "false",
             &pc_native_blend ? pc_native_blend : 0, &pc_native_objects ? pc_native_objects : 0,
             &pc_native_shadows ? pc_native_shadows : 0, &pc_native_effects ? pc_native_effects : 0,
@@ -1186,6 +1209,66 @@ static void handle_method(int fd, const char* request)
         if (rendered >= 0 && used > 1 && used < (int)sizeof result - 64)
             snprintf(result + used - 1, sizeof result - used + 1, ",\"render\":{\"ok\":%d,\"w\":%d,\"h\":%d}}",
                 rendered, rw, rh);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "button_prompts")) {
+        /* button_prompts.h: {button_prompts: mode} sets the mode; {device:
+         * "keyboard" | "playstation" | "xbox" | "nintendo", variant} stands in
+         * for the device used last; {bind: {"bind_key_circle": "c",
+         * "bind_pad_circle": "south", ...}} applies binding settings lines. */
+        char text[96];
+        if (params && string_value(member(params, "button_prompts"), text, sizeof text)
+            && !pc_button_prompts_setting("button_prompts", text)) {
+            fail(fd, id, -32602, "button_prompts: auto, playstation, xbox, nintendo, keyboard or original");
+            return;
+        }
+        if (params && string_value(member(params, "device"), text, sizeof text)) {
+            long long variant = 0;
+            number_value(member(params, "variant"), &variant);
+            int family = 0;
+            for (int k = PC_PROMPTS_PLAYSTATION; k <= PC_PROMPTS_KEYBOARD; k++)
+                if (!strcmp(text, pc_button_prompts_names[k]))
+                    family = k;
+            if (!family) {
+                fail(fd, id, -32602, "device: playstation, xbox, nintendo or keyboard");
+                return;
+            }
+            pc_button_prompts_device(family, (int)variant);
+        }
+        const char* bind = params ? member(params, "bind") : NULL;
+        if (bind && *(bind = skip(bind)) == '{') {
+            const char* p = skip(bind + 1);
+            while (*p == '"') {
+                char key[64], value[96];
+                string_value(p, key, sizeof key);
+                p = skip(value_end(p));
+                if (*p != ':' || !string_value(skip(p + 1), value, sizeof value)) {
+                    fail(fd, id, -32602, "bind: an object of setting keys and string values");
+                    return;
+                }
+                if (strncmp(key, "bind_", 5) || !pc_button_prompts_setting(key, value)) {
+                    fail(fd, id, -32602, "bind: keys are bind_key_<button> or bind_pad_<button>");
+                    return;
+                }
+                p = skip(value_end(skip(p + 1)));
+                if (*p == ',')
+                    p = skip(p + 1);
+            }
+        }
+        int used = pc_button_prompts_json(result, (int)sizeof result);
+        /* {icon: button name, size}: the native menus' image (pc_prompt_glyph). */
+        extern pc_prompt_image pc_prompt_glyph(int, float) __attribute__((weak));
+        if (params && string_value(member(params, "icon"), text, sizeof text) && pc_prompt_glyph
+            && used < (int)sizeof result - 300) {
+            long long size = 24;
+            number_value(member(params, "size"), &size);
+            int button = pc_pad_button_index(text);
+            pc_prompt_image g = pc_prompt_glyph(button, (float)size);
+            snprintf(result + used - 1, sizeof result - used + 1,
+                ",\"icon\":{\"button\":%d,\"texture\":%s,\"w\":%g,\"h\":%g,\"uv0\":[%g,%g],\"uv1\":[%g,%g],"
+                "\"generation\":%u,\"device\":%d}}",
+                button, g.texture ? "true" : "false", g.w, g.h, g.uv0[0], g.uv0[1], g.uv1[0], g.uv1[1],
+                pc_button_prompts_generation(), pc_button_prompts_family());
+        }
         reply(fd, id, result);
     } else if (!strcmp(method, "ui_upscale")) {
         /* 2D / UI magnification statistics; {verify: true} also reads the

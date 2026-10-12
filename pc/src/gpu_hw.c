@@ -22,6 +22,7 @@
 #include "glow_overrides.h"
 #include "ui_upscale.h" /* 2D / UI texture magnification (MMPX) */
 #include "ui_text.h"    /* 2D / UI: glyphs drawn from fonts (ui_text) */
+#include "button_prompts.h" /* 2D / UI: button prompts drawn from icon fonts */
 #include "antialias.h" /* anti-aliasing: supersampling's scale, MSAA */
 #include "gl_shaders.h" /* PC_GLSL_MS_RESOLVE (pc/shaders/vulkan/ms_resolve.glsl) */
 #ifdef ROOD_VULKAN
@@ -1101,6 +1102,9 @@ natives:
         native = getenv("ROOD_NATIVE_OBJECTS");
         if (native)
             pc_native_objects = atoi(native) != 0;
+        native = getenv("ROOD_NATIVE_ROOM_ORDER");
+        if (native)
+            pc_native_room_order = atoi(native) != 0;
         native = getenv("ROOD_NATIVE_SHADOWS");
         if (native)
             pc_native_shadows = atoi(native) != 0;
@@ -1607,7 +1611,7 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
      * a font (ui_text). The far bound is an edge
      * the rasterizer never reaches: [min, max - 1], as the shader clamps. */
     int16_t ui_offset[2] = { 0, 0 };
-    if (pc_ui_upscale || pc_ui_text) {
+    if (pc_ui_upscale || pc_ui_text || pc_button_prompts_active()) {
         pc_ui_upscale_draw_area(area);
         if (ui && textured && !(depth[0] | depth[1] | depth[2])) {
             int u1 = bounds[2] > bounds[0] ? bounds[2] - 1 : bounds[0], v1 = bounds[3] > bounds[1] ? bounds[3] - 1 : bounds[1];

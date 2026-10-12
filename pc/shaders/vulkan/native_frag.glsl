@@ -14,6 +14,7 @@ layout(location = 7) flat in uvec4 v_bounds;
 layout(location = 8) smooth centroid in vec3 v_view;
 layout(location = 9) flat in int v_cut;
 layout(location = 10) noperspective in vec3 v_bary;
+layout(location = 11) flat in uint v_order;
 layout(binding = 2) uniform usampler2D vram;
 // MSAA (native_ms.frag): the surfaces' depth read from multisampled twins, sample 0.
 #ifdef SURFACE_MS
@@ -79,20 +80,26 @@ void main() {
         if (cover < bayer4(ivec2(gl_FragCoord.xy))) discard;
     }
     float depth = clamp(v_z / 65536.0, 0.0, 1.0);
+    // Objects and other room blocks are painted after the room surfaces they
+    // lie on (nearer buckets): tested as if room_slack nearer.
+    float tested = u.layer_slack != 0 ? max(depth * (1.0 - u.room_slack.x) - u.room_slack.y / 65536.0, 0.0) : depth;
     // PS1 order within a model: hidden only by what was drawn before the
     // model (the room, other models); its own polygons paint over each other.
-    if (u.painter != 0 && depth > texelFetch(surface_before, ivec2(gl_FragCoord.xy), 0).r)
+    if (u.painter != 0 && tested > texelFetch(surface_before, ivec2(gl_FragCoord.xy), 0).r)
         discard;
-    if (u.depth_pass != 0 && u.painter == 0 && depth > texelFetch(surface_depth, ivec2(gl_FragCoord.xy), 0).r + 1.0 / 4194304.0)
+    if (u.depth_pass != 0 && u.painter == 0 && tested > texelFetch(surface_depth, ivec2(gl_FragCoord.xy), 0).r + 1.0 / 4194304.0)
         discard;
     if (u.surface_test != 0) {
         float surface_z = texelFetch(surface_depth, ivec2(gl_FragCoord.xy), 0).r;
         // Room translucent polygons lie on or against room surfaces: the
         // packet path's room slack.
-        if (u.surface_test == 1 ? depth > surface_z + 1.0 / 4194304.0
+        if (u.surface_test == 1 ? tested > surface_z + 1.0 / 4194304.0
             : u.surface_test == 2 ? surface_z < 1.0 && v_z > surface_z * 65536.0 * 1.002 + 1.0
             // drop shadows and effects: the packet path's slack for decals
-                                  : surface_z < 1.0 && v_z > surface_z * 65536.0 * 1.02 + 8.0)
+            : u.surface_test == 3 ? surface_z < 1.0 && v_z > surface_z * 65536.0 * 1.02 + 8.0
+            // a room list's ordered pass: only fragments on (or within the
+            // slack of) the nearest room surface take part
+                                  : v_z > surface_z * 65536.0 * (1.0 + u.room_slack.x) + u.room_slack.y)
             discard;
     }
     uint code = v_state.x, tpage = v_state.y, clut = v_state.z;
@@ -142,6 +149,6 @@ void main() {
     normal_out = vec4(normalize(v_normal) * 0.5 + 0.5, ghost ? 0.55 : u.surface);
     albedo_out = vec4(albedo, 1.0);
     shade_out = shade;
-    gl_FragDepth = depth;
+    gl_FragDepth = u.room_order != 0 ? float(v_order) / 16777215.0 : u.layer_slack == 2 ? tested : depth;
 }
 #endif

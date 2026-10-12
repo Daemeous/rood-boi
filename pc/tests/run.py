@@ -152,9 +152,16 @@ def suites(args, mode="egl"):
                                 *(["--card", str(args.save)] if args.save.exists() else [])], 300,
               note="ui_text fonts: off = original path; bubble, HUD, menu change only inside glyph boxes, "
                    "text extents kept, settings"),
+        *([Suite("button_prompts_smoke", [PY, str(TESTS / "button_prompts_smoke.py"), "--card", str(args.save)], 400,
+                 note="button prompts: original = PS1 glyphs; xbox/playstation/nintendo/keyboard icons only inside "
+                      "the glyph boxes; auto follows the device; rebinding changes the icon; 1x; settings")]
+          if args.save.exists() else []),
         *input_cases(scale),
         Suite("aa_smoke", [PY, str(TESTS / "aa_smoke.py")], 300,
               note="anti-aliasing: each method renders, smooths edges, keeps texels and 2D; interpolation"),
+        Suite("coplanar_order_smoke", [PY, str(TESTS / "coplanar_order_smoke.py"),
+                                       *(["--card", str(args.save)] if args.save.exists() else [])], 420,
+              note="coplanar room surfaces (attract cutscene papers; decals in rooms) paint in PS1 order, stable"),
         Suite("golden_frames", [PY, str(TESTS / "golden_frames.py")], 600,
               note="references in pc/build/golden"),
         Suite("soak", [PY, str(TESTS / "soak.py"), "--frames", str(args.soak_frames), "--max-launches", "2"],
@@ -213,6 +220,7 @@ def run_suite(suite, index, args, mode, results, lock):
         ROOD_LIGHTS=str(out / "lights"),
         ROOD_PREFABS=str(out / "prefabs"),
         ROOD_HEADLESS=mode,
+        ROOD_BUTTON_PROMPTS="original",  # the PS1 glyphs (button_prompts_smoke opts in)
         ROOD_AUDIO=f"wav:{out / 'audio.wav'}" if suite.name.startswith("input:") else "none",
         PYTHONUNBUFFERED="1",
         # llvmpipe (Xvfb, or EGL without a GPU) otherwise takes every core per game.

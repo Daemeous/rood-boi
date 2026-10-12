@@ -31,6 +31,7 @@
 #include "gl_api.h"
 #include "ui_upscale.h"
 #include "ui_text.h" /* ui_text font: glyph regions drawn from a font instead of magnified */
+#include "button_prompts.h" /* button pictographs and sprites drawn from icon fonts */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -453,7 +454,10 @@ static int make_atlas(int factor)
         backend == 1 ? "Vulkan compute" : backend == 2 ? "OpenGL compute" : "CPU");
     return 1;
 }
-int pc_ui_upscale_draw_factor(void) { return pc_ui_upscale == PC_UI_MMPX || pc_ui_text ? atlas_factor : 0; }
+int pc_ui_upscale_draw_factor(void)
+{
+    return pc_ui_upscale == PC_UI_MMPX || pc_ui_text || pc_button_prompts_active() ? atlas_factor : 0;
+}
 unsigned pc_ui_upscale_gl_texture(void) { return atlas_factor ? gl_levels[atlas_levels] : 0; }
 #ifdef ROOD_VULKAN
 void* pc_ui_upscale_vk_view(void) { return atlas_factor ? (void*)vk_levels[atlas_levels].view : NULL; }
@@ -545,8 +549,12 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
         return 0;
     /* ui_text: a glyph the font draws (whatever ui_upscale is). */
     uint64_t glyph_key = 0;
-    int text = pc_ui_text && factor_for(scale) && pc_ui_text_classify(vram, tpage, clut, u0, v0, u1, v1, &glyph_key);
-    int factor = text ? factor_for(scale) : pc_ui_upscale_factor(scale);
+    /* button_prompts: a PS1 button drawn as the bound key or gamepad button
+     * (at internal resolution 1 too: a 2x atlas whose blocks are uniform). */
+    int prompt = pc_button_prompts_classify(vram, tpage, clut, u0, v0, u1, v1, &glyph_key);
+    int text = prompt
+            || (pc_ui_text && factor_for(scale) && pc_ui_text_classify(vram, tpage, clut, u0, v0, u1, v1, &glyph_key));
+    int factor = prompt ? (scale < 2 ? 2 : factor_for(scale)) : text ? factor_for(scale) : pc_ui_upscale_factor(scale);
     if (!factor)
         return 0;
     if (atlas_factor != factor && !make_atlas(factor))
@@ -564,8 +572,17 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
     uint64_t key = (uint64_t)((tpage & 0x1f) | (unsigned)depth << 5) << 48 | (uint64_t)(clut & 0xffff) << 32
                  | (uint64_t)u0 << 24 | (uint64_t)v0 << 16 | (uint64_t)u1 << 8 | (uint64_t)v1;
     key |= 1ull << 63;
-    if (text)
-        key |= 1ull << 62 | (uint64_t)(pc_ui_text_generation & 0x3f) << 56; /* page bits stop at 55 */
+    if (prompt) {
+        /* What the prompts show changed (device, mode, bindings): every
+         * region's content is checked again (its hash names the icon). */
+        static unsigned prompt_generation;
+        if (prompt_generation != pc_button_prompts_generation()) {
+            prompt_generation = pc_button_prompts_generation();
+            pc_ui_upscale_tiles_changed(0xffffffffu);
+        }
+        key |= 1ull << 62 | 1ull << 61; /* page bits stop at 55; ui_text's generation below 61 */
+    } else if (text)
+        key |= 1ull << 62 | (uint64_t)(pc_ui_text_generation & 0x1f) << 56;
     /* Strips (an image drawn a few rows or columns at a time: the title
      * menu's waving labels) take their neighbours from the page as context:
      * clamped at a one-texel edge MMPX would see no shapes at all. */
@@ -680,7 +697,9 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
         uint32_t* texels = NULL;
         if (text) {
             texels = malloc((size_t)w * factor * h * factor * sizeof *texels);
-            if (!texels || !pc_ui_text_render(vram, tpage, clut, u0, v0, u1, v1, factor, texels)) {
+            if (!texels
+                || !(prompt ? pc_button_prompts_render(vram, tpage, clut, u0, v0, u1, v1, factor, scale, texels)
+                            : pc_ui_text_render(vram, tpage, clut, u0, v0, u1, v1, factor, texels))) {
                 free(texels);
                 loc->hash = 0;
                 frame_ms_acc += now_ms() - start;
