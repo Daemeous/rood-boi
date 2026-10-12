@@ -904,6 +904,14 @@ int vs_mainMenu_getConfirmedRow(void) { return _selectedRow + _subMenuPage; }
 
 int vs_mainmenu_getSelectedRow(void) { return _itemsText != NULL ? -1 : _selectedRow; }
 
+#if defined(VS_CALLO) && defined(ROOD_PC)
+/* The Callo mod recolours MAGIC rows (mod/menu.c). On the PS1 it reads these statics at their
+ * addresses; natively they are this file's own variables. */
+u_short* vs_mod_mainmenuItemsText(void) { return _itemsText; }
+int vs_mod_mainmenuRowInfo(void) { return _subMenuRowInfo; }
+int vs_mod_mainmenuPage(void) { return _subMenuPage; }
+#endif
+
 /**
  * Sets the individual properties of a row based on its rowflags.
  */
