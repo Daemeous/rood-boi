@@ -1,0 +1,6 @@
+# Windows players open these in Notepad, cmd and PowerShell; build.sh runs in Linux
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.ini text eol=crlf
+*.txt text eol=crlf
+*.sh text eol=lf
