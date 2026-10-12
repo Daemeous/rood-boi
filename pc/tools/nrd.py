@@ -100,6 +100,66 @@ def ensure(mode=None, quiet=False):
     return None
 
 
+WIN_BUILD = ROOT / "pc/build/nrd_win"
+MINGW = "x86_64-w64-mingw32-"
+
+
+def ensure_windows(paths, quiet=False):
+    """The same NRD for build_boot.py --target windows: NRD's C++ compiled by
+    MinGW-w64 into static libraries, reusing the Linux build's configuration
+    and its SPIR-V shaders (nrd-src/_Shaders; SPIR-V is the same for every
+    host, so DXC does not run again). Replays the Linux build's own compile
+    commands (`ninja -t commands`). `paths` is ensure()'s result; returns
+    the Windows {"include", "libraries"}, or None."""
+    if not paths:
+        return None
+    stamp = _stamp() + "\n" + "\n".join(paths["libraries"])
+    stamp_file = WIN_BUILD / "rood-nrd.stamp"
+    libraries = [str(WIN_BUILD / pathlib.Path(p).name) for p in paths["libraries"]]
+    if stamp_file.exists() and stamp_file.read_text() == stamp and all(pathlib.Path(p).exists() for p in libraries):
+        return {"include": paths["include"], "libraries": libraries}
+    if not (BUILD / "build.ninja").exists() or not shutil.which("ninja"):
+        sys.stderr.write("NRD: the Windows build replays the Linux build's Ninja commands; "
+                         "rebuild pc/build/nrd with Ninja installed\n")
+        return None
+    if not quiet:
+        print("NRD: compiling for Windows (MinGW-w64)", flush=True)
+    WIN_BUILD.mkdir(parents=True, exist_ok=True)
+    # MathLib calls abs() on floats unqualified; MinGW's C++ headers leave
+    # only C's int abs() global (glibc's also bring std::abs's overloads).
+    shim = WIN_BUILD / "abs_overloads.h"
+    shim.write_text("#include <cstdlib>\n#include <cmath>\nusing std::abs;\n")
+    for library, target in zip(paths["libraries"], ["NRD", "ShaderMakeBlob"]):
+        commands = subprocess.run(["ninja", "-C", str(BUILD), "-t", "commands", target], capture_output=True,
+                                  text=True, check=True).stdout.splitlines()
+        objects = []
+        for line in commands:
+            args = line.split()
+            if not args or "-c" not in args or not args[0].endswith(("c++", "g++", "clang++")):
+                continue
+            # The compile only: no dependency files, PIC or warnings-as-errors
+            # (MinGW's headers warn where glibc's do not).
+            command, skip = [MINGW + "g++-posix", "-include", str(shim)], False
+            for a in args[1:]:
+                if skip:
+                    skip = False
+                elif a in ("-MT", "-MF", "-o"):
+                    skip = True
+                elif a not in ("-MD", "-fPIC", "-Werror"):
+                    command.append(a)
+            source = pathlib.Path(args[args.index("-c") + 1])
+            obj = WIN_BUILD / target / (source.stem + ".obj")
+            obj.parent.mkdir(parents=True, exist_ok=True)
+            subprocess.run(command + ["-o", str(obj)], cwd=BUILD, check=True)
+            objects.append(str(obj))
+        archive = WIN_BUILD / pathlib.Path(library).name
+        if archive.exists():
+            archive.unlink()
+        subprocess.run([MINGW + "ar", "qcs", str(archive), *objects], check=True)
+    stamp_file.write_text(stamp)
+    return {"include": paths["include"], "libraries": libraries}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--mode", choices=["auto", "on", "off"])
