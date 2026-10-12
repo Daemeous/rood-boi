@@ -184,35 +184,89 @@ static int _floorAt(int tileX, int tileZ)
     return (height << 17) >> 17;
 }
 
+/* Whether she could stand on a tile: inside the map, not blocked, within a step of `floor` */
+static int _standable(int tileX, int tileZ, int floor)
+{
+    int height;
+
+    if ((tileX < 0) || (tileZ < 0) || (tileX > 255) || (tileZ > 255)) {
+        return 0;
+    }
+    height = _floorAt(tileX, tileZ);
+    return (height != FLOOR_BLOCKED) && (height - floor <= SPAWN_STEP)
+        && (floor - height <= SPAWN_STEP);
+}
+
+/* Open floor around a tile, not counting Ashley's: a doorway, alcove or corridor has at most two
+ * ways out, and her standing there can wall him in (seen at the Minotaur's sealed door, where she
+ * came back into the alcove behind him and neither could get past) */
+#define OPEN_TILE 3 /* standable neighbours, of 8 */
+
+static int _openAround(int tileX, int tileZ, int ashleyX, int ashleyZ, int floor)
+{
+    int open = 0;
+    int dx;
+    int dz;
+
+    for (dx = -1; dx <= 1; ++dx) {
+        for (dz = -1; dz <= 1; ++dz) {
+            if (((dx != 0) || (dz != 0))
+                && ((tileX + dx != ashleyX) || (tileZ + dz != ashleyZ))
+                && _standable(tileX + dx, tileZ + dz, floor)) {
+                ++open;
+            }
+        }
+    }
+    return open;
+}
+
+/* The tile direction Ashley faces. His facing (0-4095) points away from where he walks
+ * (measured: facing 0 walks towards -z, 1024 towards -x): ahead is (-sin, -cos), to the nearest
+ * quarter turn. */
+static void _aheadOfAshley(int* aheadX, int* aheadZ)
+{
+    int quarter = ((D_800F4538[0]->unk0.facing + 512) >> 10) & 3;
+
+    *aheadX = (quarter == 1) ? -1 : (quarter == 3) ? 1 : 0;
+    *aheadZ = (quarter == 0) ? -1 : (quarter == 2) ? 1 : 0;
+}
+
 static void _placeBesideAshley(vs_battle_objectData_flags* position)
 {
     int x = position->unk0_0;
     int z = position->unk0_16;
     int floor = _floorAt(x, z);
-    /* His facing (0-4095) points away from where he walks (measured: facing 0 walks towards
-     * -z, 1024 towards -x): the tile ahead is (-sin, -cos), to the nearest quarter turn */
-    int quarter = ((D_800F4538[0]->unk0.facing + 512) >> 10) & 3;
-    int aheadX = (quarter == 1) ? -1 : (quarter == 3) ? 1 : 0;
-    int aheadZ = (quarter == 0) ? -1 : (quarter == 2) ? 1 : 0;
-    int height;
+    int aheadX;
+    int aheadZ;
+    int firstX = -1;
+    int firstZ = -1;
     int tileX;
     int tileZ;
     int i;
 
+    _aheadOfAshley(&aheadX, &aheadZ);
+    /* The first tile in order with open floor around it; else the first she can stand on */
     for (i = 0; (floor != FLOOR_BLOCKED) && (i < sizeof _spawnOffsets / sizeof _spawnOffsets[0]); ++i) {
         /* side is ahead turned a quarter: (-aheadZ, aheadX) */
         tileX = x - _spawnOffsets[i][0] * aheadZ + _spawnOffsets[i][1] * aheadX;
         tileZ = z + _spawnOffsets[i][0] * aheadX + _spawnOffsets[i][1] * aheadZ;
-        if ((tileX < 0) || (tileZ < 0) || (tileX > 255) || (tileZ > 255)) {
+        if (!_standable(tileX, tileZ, floor)) {
             continue;
         }
-        height = _floorAt(tileX, tileZ);
-        if ((height != FLOOR_BLOCKED) && (height - floor <= SPAWN_STEP)
-            && (floor - height <= SPAWN_STEP)) {
+        if (_openAround(tileX, tileZ, x, z, floor) >= OPEN_TILE) {
             position->unk0_0 = tileX;
             position->unk0_16 = tileZ;
             return;
         }
+        if (firstX < 0) {
+            firstX = tileX;
+            firstZ = tileZ;
+        }
+    }
+    if (firstX >= 0) {
+        position->unk0_0 = firstX;
+        position->unk0_16 = firstZ;
+        return;
     }
     /* Nothing better known: left of him, as before */
     position->unk0_0 = x + ((x != 0) ? -1 : 1);
