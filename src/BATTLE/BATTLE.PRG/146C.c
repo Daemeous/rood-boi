@@ -27,6 +27,7 @@
 #ifdef ROOD_PC
 #include "pc/src/widescreen.h"
 #endif
+#include "src/BATTLE/BATTLE.PRG/mod/hooks.h"
 
 typedef struct {
     u_char targetActor;
@@ -775,6 +776,11 @@ extern u_long* D_800F1DD0;
 extern D_800F1DD4_t* D_800F1DD4;
 extern short D_800F5160;
 extern short D_8005FFB0;
+
+#ifdef VS_SHIFTPAD
+// SHIFTCHECK experiment: move all BATTLE.PRG code and data after this point
+__asm__(".space " VS_SHIFTPAD);
+#endif
 
 // invoked when using Grimoires, Casting Spells or using Break Arts (but not Battle
 // Abilities or Items) invoked just before the action takes effect
@@ -4334,7 +4340,7 @@ void func_800719FC(int arg0 __attribute__((unused)))
         func_800C0700(&D_800F19CC->unk29B0);
     count = 0;
     for (i = 0; i < 16; ++i) {
-        status = func_800A0BE0(i);
+        status = VS_CALLO_HOOK(func_800A0BE0, vs_mod_targetStatus)(i);
         actor = vs_battle_actors[i];
         if (actor
             && (i != D_800F19CC->unk8.unk4.unk0.targetActor
@@ -4432,7 +4438,7 @@ void func_80071F68(int arg0)
 
     count = 0;
     for (i = 0; i < 16; ++i) {
-        status = func_800A0BE0(i);
+        status = VS_CALLO_HOOK(func_800A0BE0, vs_mod_targetStatus)(i);
         actor = vs_battle_actors[i];
         if (actor
             && (i != D_800F19CC->unk8.unk4.unk0.targetActor
@@ -4582,7 +4588,7 @@ void func_80072734(int arg0)
         D_800F19CC->unk29B7 = spec->aoe_24 & 0xF8;
 
         for (i = 0; i < 10; ++i) {
-            status = func_800A0BE0(i);
+            status = VS_CALLO_HOOK(func_800A0BE0, vs_mod_targetStatus)(i);
             actor = vs_battle_actors[i];
             if (actor && (status & 0x3000001) == 1
                 && (i != D_800F19CC->unk8.unk4.unk0.targetActor
@@ -7919,7 +7925,7 @@ void vs_battle_exec(void)
                             if ((vs_battle_screenTransitionStep != 1)
                                 && (vs_battle_screenTransitionStep != 2)
                                 && (vs_battle_screenTransitionStep != 4)) {
-                                switch (func_80088B6C()) {
+                                switch (VS_CALLO_HOOK(func_80088B6C, vs_mod_frame)()) {
                                 case 1:
                                     func_80073898();
                                     break;
@@ -8031,12 +8037,12 @@ void vs_battle_exec(void)
                         extern void pc_hw_anchor_packets(const void*, const void*, int)
                             __attribute__((weak));
                         void* hud = psx_get(vs_scratch.unk0);
-                        func_800CA2DC();
+                        VS_CALLO_HOOK(func_800CA2DC, vs_mod_hud)();
                         if (pc_hw_anchor_packets)
                             pc_hw_anchor_packets(hud, psx_get(vs_scratch.unk0), 1);
                     }
 #else
-                    func_800CA2DC();
+                    VS_CALLO_HOOK(func_800CA2DC, vs_mod_hud)();
 #endif
                     func_800CB83C();
                     for (; i < vs_gametime_tickspeed / 2; ++i) {
@@ -12811,7 +12817,7 @@ int _increaseStrengthRand(vs_action_t* arg0 __attribute__((unused)),
     _hitEntity_t* arg1 __attribute__((unused)), _hitEntity_t* arg2,
     int arg3 __attribute__((unused)), int arg4 __attribute__((unused)))
 {
-    int amount = vs_main_getRand(4) + 1;
+    int amount = VS_CALLO_HOOK(vs_main_getRand(4), VS_CALLO_STAT_ROLL) + 1;
     arg2->strength += amount;
     arg2->strengthEffect = 2;
 }
@@ -12820,7 +12826,7 @@ int _increaseIntelligenceRand(vs_action_t* arg0 __attribute__((unused)),
     _hitEntity_t* arg1 __attribute__((unused)), _hitEntity_t* arg2,
     int arg3 __attribute__((unused)), int arg4 __attribute__((unused)))
 {
-    int amount = vs_main_getRand(4) + 1;
+    int amount = VS_CALLO_HOOK(vs_main_getRand(4), VS_CALLO_STAT_ROLL) + 1;
     arg2->intelligence += amount;
     arg2->intelligenceEffect = 2;
 }
@@ -12829,7 +12835,7 @@ int _increaseAgilityRand(vs_action_t* arg0 __attribute__((unused)),
     _hitEntity_t* arg1 __attribute__((unused)), _hitEntity_t* arg2,
     int arg3 __attribute__((unused)), int arg4 __attribute__((unused)))
 {
-    int amount = vs_main_getRand(4) + 1;
+    int amount = VS_CALLO_HOOK(vs_main_getRand(4), VS_CALLO_STAT_ROLL) + 1;
     arg2->agility += amount;
     arg2->agilityEffect = 2;
 }
@@ -12838,7 +12844,7 @@ int _increaseMaxHpRand(vs_action_t* arg0 __attribute__((unused)),
     _hitEntity_t* arg1 __attribute__((unused)), _hitEntity_t* arg2,
     int arg3 __attribute__((unused)), int arg4 __attribute__((unused)))
 {
-    int amount = vs_main_getRand(4) + 1;
+    int amount = VS_CALLO_HOOK(vs_main_getRand(4), VS_CALLO_STAT_ROLL) + 1;
     arg2->maxHp += amount;
     arg2->maxHpEffect = 2;
 }
@@ -12847,7 +12853,7 @@ int _increaseMaxMpRand(vs_action_t* arg0 __attribute__((unused)),
     _hitEntity_t* arg1 __attribute__((unused)), _hitEntity_t* arg2,
     int arg3 __attribute__((unused)), int arg4 __attribute__((unused)))
 {
-    int amount = vs_main_getRand(4) + 1;
+    int amount = VS_CALLO_HOOK(vs_main_getRand(4), VS_CALLO_STAT_ROLL) + 1;
     arg2->maxMp += amount;
     arg2->maxMpEffect = 2;
 }
@@ -15227,6 +15233,7 @@ void func_80089114(void)
     }
     psx_set(_zoneContext.unk1C, NULL);
     _zoneContext.unk14 = 0;
+    VS_CALLO_CALL(vs_mod_spawnCallo());
 }
 
 void func_80089888(void)

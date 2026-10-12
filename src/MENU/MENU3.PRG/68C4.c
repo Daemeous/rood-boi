@@ -5,6 +5,7 @@
 #include "../../BATTLE/BATTLE.PRG/30DB0.h"
 #include "../../BATTLE/BATTLE.PRG/44F14.h"
 #include "../../BATTLE/BATTLE.PRG/5BF94.h"
+#include "src/BATTLE/BATTLE.PRG/mod/hooks.h"
 
 int func_80109320(int);
 void _populateDataSlot(int wepId, int material);
@@ -14,6 +15,12 @@ int _loadObjectData(int category, int wepId, int material)
     int _[6] __attribute__((unused));
     int i;
     D_800F4538_t* temp_s1 = D_800F4538[1];
+
+#ifdef VS_CALLO
+    if (_menuMode == 2) { /* MERLOSE: her equip sequence */
+        return vs_mod_loadCalloObjectData(category, wepId, material);
+    }
+#endif
 
     switch (vs_battle_loadObjectDataState) {
     case 0:
