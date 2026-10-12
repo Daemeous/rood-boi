@@ -34,14 +34,8 @@ int pc_room_warp_warped(int* zone, int* room) __attribute__((weak));
 void pc_room_warp_clear(void) __attribute__((weak));
 const char* pc_room_warp_message(void) __attribute__((weak));
 int pc_room_warp_blocks_saving(void) __attribute__((weak));
-#ifdef _WIN32
-/* PE: a weak declaration seen by the defining unit (room_catalog.c) leaves
- * the definition unresolved; the Windows build always links it. */
-extern int pc_room_warp_enemies, pc_room_warp_scripts;
-#else
 extern int pc_room_warp_enemies __attribute__((weak)); /* 1: warped-to rooms get their enemies */
 extern int pc_room_warp_scripts __attribute__((weak)); /* 1: their scripts run */
-#endif
 extern int pc_room_warp_block_saves __attribute__((weak)); /* refuse card writes while warped */
 
 /* room_browser.cpp */

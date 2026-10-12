@@ -77,9 +77,13 @@ The Linux link is skipped; the Linux 64-bit build itself is unchanged.
   `EnterCriticalSection` is used by the C++ and thread runtimes, and MinGW's
   `main` calls `__main` to run the C++ constructors (the game's would
   replace it). `rand`/`srand` override the C library's, as on Linux.
-- **Weak data.** A weak declaration seen by the unit that defines the
-  variable leaves a PE definition unresolved: `room_warp.h` declares
-  `pc_room_warp_enemies`/`_scripts` non-weak on Windows.
+- **Weak definitions.** A function or variable declared weak in a header
+  (`room_warp.h`, `dev_state.h`) and defined by a unit that includes it is a
+  weak definition in COFF, and where other objects hold weak references to
+  it ld can resolve the name to one of their null defaults instead: the Room
+  Browser and warps were silently off. The build writes `weak_defs.ld`,
+  giving each such name a strong definition at its weak definition's
+  address.
 - **Runtime libraries.** `-static` (libstdc++, libgcc, winpthreads), SDL 3
   built for Windows (`pc/build/sdl3_win`), and `binmode.o`, so files open in
   binary mode unless `"t"` is given, as on Linux.

@@ -1497,6 +1497,24 @@ if win:
         clashes = [n for n in ["EnterCriticalSection", "__main"] if n in symbols]
         if clashes:
             run([MINGW + "objcopy", *[f"--redefine-sym={n}=psx_{n}" for n in clashes], str(twin(obj))])
+    # A function or variable declared weak in a header and defined by a unit that includes it
+    # is a weak definition in COFF (a weak external aliasing .weak.<name>.<other symbol>). Where
+    # other objects also hold weak references to it, ld can resolve the name to one of their
+    # defaults (0) instead: the Room Browser's pc_room_warp_* and pc_rooms_* were all null.
+    # Each such name gets a strong definition at its weak definition's address.
+    weak_defs, strong = {}, set()
+    for obj in [*objects, out / "traps.o", out / "overlay_statics_table.o"]:
+        for line in run([MINGW + "nm", str(twin(obj))], capture_output=True, text=True).stdout.splitlines():
+            parts = line.split()
+            if len(parts) != 3 or parts[1] not in "TDBR":
+                continue
+            weak = re.fullmatch(r"\.weak\.(\w+)\.\w+", parts[2])
+            if weak:
+                weak_defs.setdefault(weak.group(1), parts[2])
+            elif not parts[2].startswith("."):
+                strong.add(parts[2])
+    (out / "weak_defs.ld").write_text("".join(f'{name} = "{alias}";\n' for name, alias in
+                                              sorted(weak_defs.items()) if name not in strong))
     exe = out / "rood.exe"
     run([
         MINGW + "g++-posix",
@@ -1515,6 +1533,7 @@ if win:
         str(twin(out / "traps.o")),
         str(twin(out / "overlay_statics_table.o")),
         str(out / "imports.ld"),
+        str(out / "weak_defs.ld"),
         str(win_sdl_library),
         *(win_nrd["libraries"] if win_nrd else []),
         "-lsetupapi", "-lwinmm", "-limm32", "-lversion", "-lole32", "-loleaut32", "-luuid",
