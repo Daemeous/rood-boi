@@ -14,4 +14,5 @@ void pc_controller_init(void);
 void pc_controller_event(const union SDL_Event*);
 void pc_controller_poll(void);
 unsigned pc_controller_buttons(void);
+int pc_controller_fast_forward(void); /* L3 + R3 held: fast-forward (boot_window.c) */
 void pc_controller_right_stick(float out[2]);

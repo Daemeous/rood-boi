@@ -298,6 +298,7 @@ Continue to load from the memory card.
 | J / L, I / K, O | camera: turn, zoom, reset (the right stick and R3 on a gamepad) |
 | Escape or F1 | open/close the editor |
 | F2 | free camera (opens the editor) |
+| ` (backtick) | fast-forward while held (L3 + R3 together on a gamepad) |
 
 **Gamepads** are SDL 3 gamepads (SDL's controller database; extra mappings
 from `SDL_GAMECONTROLLERCONFIG` or a `gamecontrollerdb.txt` in `pc/user/`).

@@ -20,6 +20,10 @@ static SDL_Surface* image;
 static unsigned buttons;
 static unsigned camera_keys; /* J L I K O held (camera_stick.c keyboard fallback) */
 static int fast;
+/* Fast-forward while held: ` (backtick) or L3 + R3 (boot_gamepad.c). The game
+ * runs unpaced, as with --fast; audio drops what it cannot play. */
+static int fast_forward_key;
+static int fast_forward_held(void) { return focused && (fast_forward_key || pc_controller_fast_forward()); }
 extern int pc_gl_active;
 extern SDL_Window* pc_gl_create_window(const char*, int, int);
 extern void pc_gl_resize(int, int);
@@ -38,7 +42,7 @@ static struct timespec deadline;
  * vsync's deadline to the next (no wait in fast mode). */
 void pc_window_wait_fraction(int k, int n)
 {
-    if (fast || !deadline.tv_sec || n <= 0)
+    if (fast || fast_forward_held() || !deadline.tv_sec || n <= 0)
         return;
     struct timespec at = deadline;
     long long ns = at.tv_nsec + FIELD_NS * k / n;
@@ -244,10 +248,14 @@ void pc_window_tick(void)
         case SDL_EVENT_KEY_DOWN:
             buttons |= keybit(event.key.key);
             camera_keys |= camera_keybit(event.key.key);
+            if (event.key.key == SDLK_GRAVE)
+                fast_forward_key = 1;
             break;
         case SDL_EVENT_KEY_UP:
             buttons &= ~keybit(event.key.key);
             camera_keys &= ~camera_keybit(event.key.key);
+            if (event.key.key == SDLK_GRAVE)
+                fast_forward_key = 0;
             break;
         default:
             pc_controller_event(&event);
@@ -255,7 +263,9 @@ void pc_window_tick(void)
         }
     }
     pc_controller_poll();
-    if (!fast) {
+    if (fast_forward_held())
+        deadline.tv_sec = 0; /* pace again from now when it is released */
+    else if (!fast) {
         /* Pace to absolute NTSC field deadlines (59.94 Hz) so the frame's own
          * work counts toward the period; resynchronise after long stalls. */
         struct timespec now;
