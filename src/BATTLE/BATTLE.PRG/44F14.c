@@ -940,6 +940,25 @@ void func_800AEF94(MATRIX* camera)
                 func_800AEAE8(actor);
             }
             if ((*(u_int*)((char*)actor + 8)) & 0x2000) {
+#ifdef ROOD_PC
+                /* Attached to another character's bone whose slot is empty (seen in a
+                 * cutscene after the Minotaur): the PS1 reads the matrix from low RAM
+                 * through the null pointer and carries on; natively that faults. Use a
+                 * zero matrix (the character collapses to its parent's origin). */
+                if (entries[actor->unk0.unk12] == NULL) {
+                    static MATRIX zero;
+                    static int reported;
+                    extern void pc_log(const char*);
+                    extern int sprintf(char*, const char*, ...);
+                    if (!reported++) {
+                        char line[96];
+                        sprintf(line, "[actor] slot %d is attached to bone %d of empty slot %d", i,
+                            actor->unk0.unk13, actor->unk0.unk12);
+                        pc_log(line);
+                    }
+                    func_800B28A8(actor, &zero, 0U);
+                } else
+#endif
                 func_800B28A8(
                     actor, &entries[actor->unk0.unk12]->bones[actor->unk0.unk13], 0U);
             } else {
