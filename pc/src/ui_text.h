@@ -23,7 +23,9 @@ extern int pc_ui_text; /* PC_UI_TEXT_*; original keeps the PS1 glyphs */
 extern const char* const pc_ui_text_names[2];
 
 /* Text styles and their font settings (settings ui_text_<style>_font,
- * _stretch, _slant, _embolden; RPC ui_text). */
+ * _stretch, _slant, _embolden, _aspect; RPC ui_text). Fixed labels baked
+ * into the UI's images (HP, MP, INFORMATION, ...) are drawn with the info
+ * style's font. */
 enum { PC_UI_TEXT_DIALOGUE, PC_UI_TEXT_MENU, PC_UI_TEXT_INFO, PC_UI_TEXT_DIGITS, PC_UI_TEXT_STYLES };
 typedef struct {
     const char* name;  /* dialogue, menu, info, digits */
@@ -31,6 +33,8 @@ typedef struct {
     float stretch;     /* horizontal scale of the glyphs */
     float slant;       /* added shear (x per y, original pixels) */
     float embolden;    /* distance-field offset in em (bolder > 0) */
+    float aspect;      /* digits: least horizontal scale of the font's own proportions (0: any); a size whose
+                        * widest digit needs more condensing than this is drawn smaller instead */
     int small_caps;    /* lower case drawn as small capitals (the upper-case glyph at the original's height) */
     int outline;       /* the original has a one-pixel outline (CLUT index 1) around a body ramp */
 } pc_ui_text_style;
@@ -61,6 +65,7 @@ void pc_ui_text_settings_write(FILE* f);
 int pc_ui_text_json(char* out, int size);
 typedef struct {
     long regions, failed; /* regions drawn from a font / that fell back to the original */
+    long labels;          /* of those regions, fixed labels (text baked into images) */
     int fonts, glyphs;    /* fonts loaded, glyph distance fields made */
     double field_ms;      /* CPU time making them */
 } pc_ui_text_stats;

@@ -24,9 +24,15 @@
  * gradients, translucency and the colour key are the game's. Positions,
  * advances, line breaks and timing never change: the game still draws the
  * same primitives at the same places. Characters a font lacks, and the
- * pictographs (button symbols, arrows, notes), stay original. */
+ * pictographs (button symbols, arrows, notes), stay original.
+ *
+ * Words the game draws as pictures (HP, MP, COMMAND, MENU, INFORMATION,
+ * BATTLE MODE, ...: ui_labels.h, by page, box and hash) are set in the info
+ * style's font in the word's original box and colours ("fixed labels"
+ * below). */
 #define _POSIX_C_SOURCE 200809L
 #include "ui_text.h"
+#include "ui_labels.h"
 #include <math.h>
 #include <time.h>
 #include <stdlib.h>
@@ -41,14 +47,20 @@ const char* const pc_ui_text_names[2] = { "original", "font" };
 unsigned pc_ui_text_generation = 1;
 
 /* Defaults: the fonts picked from pc/tools/font_match.py's rankings (OFL or Apache
- * 2.0, vendored in pc/third_party/fonts; THIRD_PARTY.md) with the placement it fitted. */
+ * 2.0, vendored in pc/third_party/fonts; THIRD_PARTY.md) with the placement it fitted.
+ * The HUD's digit boxes are narrow (5 texels of ink between outlines) and old-style
+ * figures are round: fitted to the original's height the large size (7 x 12) would
+ * be condensed to about 0.6 of the font's own width (stretched tall), the small one
+ * (6 x 10) to about 0.75. DIGITS_ASPECT keeps both at least this proportion (the
+ * large ones a little shorter instead; font_match.py digits). */
+#define DIGITS_ASPECT 0.78f
 #define STYLE_DEFAULTS                                                                                           \
     {                                                                                                            \
         { "dialogue", "pc/third_party/fonts/PermanentMarker/PermanentMarker-Regular.ttf", 1.02f, 0.12f, -0.02f, \
-            1, 0 },                                                                                              \
-        { "menu", "pc/third_party/fonts/AsapCondensed/AsapCondensed-Bold.ttf", 1.18f, 0.0f, -0.02f, 0, 0 },     \
-        { "info", "pc/third_party/fonts/ChakraPetch/ChakraPetch-Bold.ttf", 1.26f, 0.0f, 0.0f, 0, 1 },           \
-        { "digits", "pc/third_party/fonts/Alegreya/Alegreya[wght].ttf", 1.07f, 0.0f, 0.02f, 0, 1 },             \
+            0.0f, 1, 0 },                                                                                        \
+        { "menu", "pc/third_party/fonts/AsapCondensed/AsapCondensed-Bold.ttf", 1.18f, 0.0f, -0.02f, 0.0f, 0, 0 }, \
+        { "info", "pc/third_party/fonts/ChakraPetch/ChakraPetch-Bold.ttf", 1.26f, 0.0f, 0.0f, 0.0f, 0, 1 },     \
+        { "digits", "pc/third_party/fonts/Alegreya/Alegreya[wght].ttf", 1.07f, 0.0f, 0.02f, DIGITS_ASPECT, 0, 1 }, \
     }
 pc_ui_text_style pc_ui_text_styles[PC_UI_TEXT_STYLES] = STYLE_DEFAULTS;
 static const pc_ui_text_style defaults[PC_UI_TEXT_STYLES] = STYLE_DEFAULTS;
@@ -356,6 +368,233 @@ static unsigned upper(unsigned cp)
     return cp;
 }
 
+/* ---- fixed labels (text baked into the UI's images) ---- */
+
+/* A 2D region is (part of) one or more known label words (ui_labels.h)
+ * when it lies on their page, every word it touches still holds the same
+ * texels (hash) and all the ink it covers belongs to those words. The
+ * words are then drawn from the info style's font, fitted into the
+ * original word's box: its cap height and baseline, its width (condensed
+ * only where the font's word is wider), in the original's colours (the
+ * outline's CLUT colour and the body's, row by row) with the info style's
+ * one-pixel outline. Pictographs, icons and text in other scripts are not
+ * labels and stay original. */
+#define MAX_REGION_LABELS 8
+static uint64_t labels_drawn[(LABEL_COUNT + 63) / 64]; /* which labels were drawn from the font (RPC) */
+
+static int texel4(const uint16_t* vram, int page_x, int page_y, int u, int v)
+{
+    return (vram[((page_y + v) & 511) * 1024 + ((page_x + (u >> 2)) & 1023)] >> ((u & 3) * 4)) & 15;
+}
+
+static uint32_t label_hash(const uint16_t* vram, const pc_ui_label* l)
+{
+    uint32_t h = 2166136261u;
+    for (int v = l->v0; v <= l->v1; v++)
+        for (int u = l->u0; u <= l->u1; u++)
+            h = (h ^ (uint32_t)texel4(vram, l->page_x, l->page_y, u, v)) * 16777619u;
+    return h;
+}
+
+static int find_labels(const uint16_t* vram, unsigned tpage, int u0, int v0, int u1, int v1,
+    int found[MAX_REGION_LABELS])
+{
+    if ((tpage >> 7 & 3) != 0)
+        return 0; /* 4-bit pages only */
+    int page_x = (int)(tpage & 15) * 64, page_y = (int)(tpage >> 4 & 1) * 256, n = 0;
+    for (int i = 0; i < LABEL_COUNT; i++) {
+        const pc_ui_label* l = &labels[i];
+        if (l->page_x != page_x || l->page_y != page_y || l->u0 > u1 || l->u1 < u0 || l->v0 > v1 || l->v1 < v0)
+            continue;
+        if (n == MAX_REGION_LABELS || label_hash(vram, l) != l->hash)
+            return 0;
+        found[n++] = i;
+    }
+    if (!n)
+        return 0;
+    /* Nothing else in the region: all its ink is the words'. */
+    for (int v = v0; v <= v1; v++)
+        for (int u = u0; u <= u1; u++) {
+            if (!texel4(vram, page_x, page_y, u, v))
+                continue;
+            int inside = 0;
+            for (int k = 0; k < n && !inside; k++) {
+                const pc_ui_label* l = &labels[found[k]];
+                inside = u >= l->u0 && u <= l->u1 && v >= l->v0 && v <= l->v1;
+            }
+            if (!inside)
+                return 0;
+        }
+    return n;
+}
+
+#define LABEL_CHARS 32
+typedef struct {
+    const pc_ui_label* l;
+    const glyph_field* glyph[LABEL_CHARS];
+    float pen[LABEL_CHARS]; /* field pixels from the first glyph's origin */
+    int count;
+    float s, sx, cx_t, cx_s, base;
+    uint16_t outline;       /* CLUT colour of the original's outline (0: none) */
+    uint16_t body;          /* CLUT colour of the original's lettering */
+} label_layout;
+
+static uint16_t blend555(uint16_t a, uint16_t b, float t)
+{
+    int r = (int)lrintf((a & 31) + ((b & 31) - (a & 31)) * t);
+    int g = (int)lrintf((a >> 5 & 31) + ((b >> 5 & 31) - (a >> 5 & 31)) * t);
+    int bl = (int)lrintf((a >> 10 & 31) + ((b >> 10 & 31) - (a >> 10 & 31)) * t);
+    uint16_t c = (uint16_t)(r | g << 5 | bl << 10 | (b & 0x8000));
+    return c ? c : 0x8000; /* never the colour key */
+}
+
+static int luma555(uint16_t c) { return (c & 31) * 299 + (c >> 5 & 31) * 587 + (c >> 10 & 31) * 114; }
+
+/* Ink classes of the original words: indices 1-3 are the dark outline
+ * (and its shading) of every label CLUT, 4 and up the lettering. */
+#define LABEL_BODY 4
+
+static int label_layout_make(const uint16_t* vram, unsigned clut, const pc_ui_label* l, label_layout* o)
+{
+    const pc_ui_text_style* st = &pc_ui_text_styles[PC_UI_TEXT_INFO];
+    font_file* f = font_for(st->font);
+    const uint16_t* lut = vram + (clut >> 6 & 511) * 1024 + (clut & 63) * 16;
+    memset(o, 0, sizeof *o);
+    o->l = l;
+    if (!f || l->v1 - l->v0 >= 32)
+        return 0;
+    /* The original: body box, cap top, baseline (the commonest bottom of
+     * the body's columns: descenders are the exception), colours. */
+    int bx0 = 256, bx1 = -1, top = 256, outline_count[4] = { 0 }, bottoms[32] = { 0 };
+    for (int u = l->u0; u <= l->u1; u++) {
+        int bottom = -1;
+        for (int v = l->v0; v <= l->v1; v++) {
+            int i = texel4(vram, l->page_x, l->page_y, u, v);
+            if (i >= LABEL_BODY) {
+                bx0 = u < bx0 ? u : bx0, bx1 = u > bx1 ? u : bx1, top = v < top ? v : top;
+                bottom = v;
+            } else if (i)
+                ++outline_count[i];
+        }
+        if (bottom >= 0)
+            ++bottoms[bottom - l->v0];
+    }
+    if (bx1 < 0)
+        return 0;
+    int best = 0;
+    for (int k = 1; k < 32; k++)
+        best = bottoms[k] > bottoms[best] ? k : best;
+    o->base = (float)(l->v0 + best + 1);
+    int dark = outline_count[1] >= outline_count[2] ? 1 : 2;
+    dark = outline_count[3] > outline_count[dark] ? 3 : dark;
+    o->outline = outline_count[dark] ? lut[dark] : 0;
+    /* The lettering's colour, not its bevel, shading or banding (a font's
+     * letters do not fall on the original's rows): the brightest colour the
+     * word uses at least a third as often as its commonest. */
+    int counts[16] = { 0 }, mode = 0;
+    for (int v = l->v0; v <= l->v1; v++)
+        for (int u = l->u0; u <= l->u1; u++) {
+            int i = texel4(vram, l->page_x, l->page_y, u, v);
+            if (i >= LABEL_BODY)
+                ++counts[i];
+        }
+    for (int i = LABEL_BODY; i < 16; i++)
+        mode = counts[i] > counts[mode] ? i : mode;
+    int pick = mode;
+    for (int i = LABEL_BODY; i < 16 && mode; i++)
+        if (counts[i] * 3 >= counts[mode] && luma555(lut[i]) > luma555(lut[pick]))
+            pick = i;
+    if (!pick || !lut[pick])
+        return 0;
+    o->body = lut[pick];
+    /* The word in the font: pen positions with the font's advances and
+     * kerning, its ink extent and height above the baseline. */
+    float pen = 0, x0 = 1e9f, x1 = -1e9f, height = 0;
+    int previous = 0;
+    for (const char* c = l->text; *c; c++) {
+        int index = stbtt_FindGlyphIndex(&f->info, (unsigned char)*c);
+        if (previous && index)
+            pen += stbtt_GetGlyphKernAdvance(&f->info, previous, index) * f->scale;
+        if (*c != ' ') {
+            const glyph_field* g = field(PC_UI_TEXT_INFO, (unsigned char)*c);
+            if (!g || o->count == LABEL_CHARS)
+                return 0;
+            o->glyph[o->count] = g;
+            o->pen[o->count++] = pen;
+            x0 = fminf(x0, pen + g->x0), x1 = fmaxf(x1, pen + g->x1), height = fmaxf(height, g->top);
+        }
+        int advance, bearing;
+        stbtt_GetGlyphHMetrics(&f->info, index, &advance, &bearing);
+        pen += advance * f->scale;
+        previous = index;
+    }
+    if (!o->count || height <= 0 || x1 <= x0)
+        return 0;
+    /* Its height is the original's (cap top to baseline, or the tallest
+     * letter's top), its width the font's own, condensed only where the
+     * word would leave the original's body. */
+    o->s = (o->base - top) / height;
+    o->sx = o->s * st->stretch;
+    float room = (float)(bx1 + 1 - bx0);
+    if ((x1 - x0) * o->sx > room)
+        o->sx = room / (x1 - x0);
+    o->cx_t = (bx0 + bx1 + 1) * 0.5f, o->cx_s = (x0 + x1) * 0.5f;
+    return 1;
+}
+
+static int render_labels(const uint16_t* vram, unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1,
+    int factor, uint32_t* out)
+{
+    int found[MAX_REGION_LABELS];
+    int n = find_labels(vram, tpage, u0, v0, u1, v1, found);
+    static label_layout layouts[MAX_REGION_LABELS];
+    for (int k = 0; k < n; k++)
+        if (!label_layout_make(vram, clut, &labels[found[k]], &layouts[k]))
+            return 0;
+    if (n <= 0)
+        return 0;
+    const pc_ui_text_style* st = &pc_ui_text_styles[PC_UI_TEXT_INFO];
+    float bold = st->embolden * SDF_EM, inv = 1.0f / factor;
+    int w = (u1 - u0 + 1) * factor, rows = (v1 - v0 + 1) * factor;
+    for (int y = 0; y < rows; y++) {
+        float yo = v0 + (y + 0.5f) * inv;
+        for (int x = 0; x < w; x++) {
+            float xo = u0 + (x + 0.5f) * inv;
+            uint32_t colour = 0;
+            float best = -1e9f;
+            for (int k = 0; k < n; k++) {
+                const label_layout* o = &layouts[k];
+                const pc_ui_label* l = o->l;
+                if (xo < l->u0 || xo >= l->u1 + 1 || yo < l->v0 || yo >= l->v1 + 1)
+                    continue;
+                float fx = o->cx_s + (xo - o->cx_t) / o->sx, fy = (o->base - yo) / o->s;
+                float d = -1e9f;
+                for (int i = 0; i < o->count; i++) {
+                    const glyph_field* g = o->glyph[i];
+                    float gx = fx - o->pen[i];
+                    if (gx < g->x0 - SDF_PAD || gx > g->x1 + SDF_PAD)
+                        continue;
+                    d = fmaxf(d, distance_at(g, gx, fy));
+                }
+                d = (d + bold) * fminf(o->s, o->sx); /* original pixels */
+                if (d <= best)
+                    continue;
+                best = d;
+                float c = 0.5f + d * factor;
+                uint16_t body = o->body;
+                if (c > 0.02f)
+                    colour = o->outline ? blend555(o->outline, body, fminf(c, 1.0f)) : c >= 0.5f ? body : 0;
+                else
+                    colour = o->outline && d > -1.0f ? o->outline : 0;
+            }
+            out[y * w + x] = colour;
+        }
+    }
+    for (int k = 0; k < n; k++)
+        labels_drawn[found[k] >> 6] |= 1ull << (found[k] & 63);
+    return 1;
+}
+
 int pc_ui_text_classify(const uint16_t* vram, unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1,
     uint64_t* key)
 {
@@ -366,6 +605,16 @@ int pc_ui_text_classify(const uint16_t* vram, unsigned tpage, unsigned clut, int
     if (pc_ui_text != PC_UI_TEXT_FONT || !vram)
         return 0;
     if (!identify(tpage, clut, u0, v0, u1, v1, &g)) {
+        int found[MAX_REGION_LABELS];
+        int n = find_labels(vram, tpage, u0, v0, u1, v1, found);
+        if (n > 0 && field(PC_UI_TEXT_INFO, 'H')) {
+            if (debug > 2) /* ROOD_UI_DEBUG=3: labels drawn from the font */
+                fprintf(stderr, "[ui] label %s%s: page %x clut %d,%d uv %d,%d..%d,%d\n", labels[found[0]].text,
+                    n > 1 ? " ..." : "", tpage, (int)(clut & 63) * 16, (int)(clut >> 6 & 511), u0, v0, u1, v1);
+            *key = (uint64_t)pc_ui_text_generation << 40 ^ (uint64_t)15 << 36 ^ (uint64_t)(found[0] + 1) << 8
+                 ^ (uint64_t)n;
+            return 1;
+        }
         if (debug > 3) /* ROOD_UI_DEBUG=4: 2D regions that are not glyphs */
             fprintf(stderr, "[ui] not a glyph: page %x clut %d,%d uv %d,%d..%d,%d\n", tpage, (int)(clut & 63) * 16,
                 (int)(clut >> 6 & 511), u0, v0, u1, v1);
@@ -379,11 +628,32 @@ int pc_ui_text_classify(const uint16_t* vram, unsigned tpage, unsigned clut, int
     return 1;
 }
 
+/* The scale of one digit size (s: fitted to the original's height): all
+ * ten digits share it, and the widest still fits `room` condensed to no
+ * less than `aspect` of the font's proportions; else they are smaller. */
+static float digit_scale(int style, float s, float aspect, float room)
+{
+    float widest = 0;
+    for (unsigned d = '0'; d <= '9'; d++) {
+        const glyph_field* q = field(style, d);
+        if (q && q->x1 - q->x0 > widest)
+            widest = q->x1 - q->x0;
+    }
+    if (widest > 0 && widest * s * aspect > room)
+        s = room / (widest * aspect);
+    return s;
+}
+
 int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1,
     int factor, uint32_t* out)
 {
     glyph_info g;
     if (!identify(tpage, clut, u0, v0, u1, v1, &g)) {
+        if (render_labels(vram, tpage, clut, u0, v0, u1, v1, factor, out)) {
+            ++stats.regions;
+            ++stats.labels;
+            return 1;
+        }
         ++stats.failed;
         return 0;
     }
@@ -410,8 +680,10 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
         return 0;
     }
     float s = height / cap; /* original pixels per field pixel */
-    float sx = s * st->stretch;
     float room = st->outline ? g.box_w - 2.0f : fmaxf((float)(box[2] - box[0]), (float)g.advance) + 0.5f;
+    if (g.style == PC_UI_TEXT_DIGITS && !bullet && st->aspect > 0)
+        s = digit_scale(g.style, s, st->aspect, room);
+    float sx = s * st->stretch;
     if ((f->x1 - f->x0) * sx > room)
         sx = room / (f->x1 - f->x0);
     /* Descenders squeezed into the box (the PS1 faces have none). */
@@ -419,6 +691,10 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
     if (-f->bottom * s > below && below > 0)
         sd = below / -f->bottom;
     float cx_t = (box[0] + box[2]) * 0.5f, cx_s = (f->x0 + f->x1) * 0.5f;
+    if (st->outline) { /* the ink keeps a pixel from the box's edges (the outline; neighbours overlap them) */
+        float half = (f->x1 - f->x0) * sx * 0.5f;
+        cx_t = fminf(fmaxf(cx_t, 1.0f + half), g.box_w - 1.0f - half);
+    }
     float pivot = base - height * 0.5f, bold = st->embolden * SDF_EM;
     /* The disc: centred on the original dot's ink, its radius. */
     float disc_x = (box[0] + box[2]) * 0.5f, disc_y = (box[1] + box[3]) * 0.5f;
@@ -516,6 +792,8 @@ int pc_ui_text_setting(const char* key, const char* value)
             st->slant = strtof(value, NULL);
         else if (!strcmp(field_name, "embolden"))
             st->embolden = strtof(value, NULL);
+        else if (!strcmp(field_name, "aspect"))
+            st->aspect = fminf(fmaxf(strtof(value, NULL), 0.0f), 1.0f);
         else
             return 0;
         if (st->stretch < 0.25f || st->stretch > 4.0f)
@@ -540,6 +818,8 @@ void pc_ui_text_settings_write(FILE* f)
             fprintf(f, "ui_text_%s_slant %g\n", st->name, st->slant);
         if (st->embolden != d->embolden)
             fprintf(f, "ui_text_%s_embolden %g\n", st->name, st->embolden);
+        if (st->aspect != d->aspect)
+            fprintf(f, "ui_text_%s_aspect %g\n", st->name, st->aspect);
     }
 }
 
@@ -547,9 +827,10 @@ void pc_ui_text_get_stats(pc_ui_text_stats* s) { *s = stats; }
 
 int pc_ui_text_json(char* out, int size)
 {
-    int used = snprintf(out, (size_t)size, "{\"ui_text\":\"%s\",\"regions\":%ld,\"failed\":%ld,\"fonts\":%d,"
-                                           "\"glyphs\":%d,\"field_ms\":%.1f,\"styles\":[",
-        pc_ui_text_names[pc_ui_text ? 1 : 0], stats.regions, stats.failed, stats.fonts, stats.glyphs, stats.field_ms);
+    int used = snprintf(out, (size_t)size, "{\"ui_text\":\"%s\",\"regions\":%ld,\"labels\":%ld,\"failed\":%ld,"
+                                           "\"fonts\":%d,\"glyphs\":%d,\"field_ms\":%.1f,\"styles\":[",
+        pc_ui_text_names[pc_ui_text ? 1 : 0], stats.regions, stats.labels, stats.failed, stats.fonts, stats.glyphs,
+        stats.field_ms);
     for (int i = 0; i < PC_UI_TEXT_STYLES && used < size; i++) {
         const pc_ui_text_style* st = &pc_ui_text_styles[i];
         const font_file* loaded = NULL;
@@ -558,10 +839,17 @@ int pc_ui_text_json(char* out, int size)
                 loaded = &fonts[k];
         used += snprintf(out + used, (size_t)(size - used),
             "%s{\"name\":\"%s\",\"font\":\"%s\",\"loaded\":%s,\"stretch\":%g,\"slant\":%g,\"embolden\":%g,"
-            "\"small_caps\":%d,\"outline\":%d}",
+            "\"aspect\":%g,\"small_caps\":%d,\"outline\":%d}",
             i ? "," : "", st->name, st->font, !loaded ? "null" : loaded->ok ? "true" : "false", st->stretch, st->slant,
-            st->embolden, st->small_caps, st->outline);
+            st->embolden, st->aspect, st->small_caps, st->outline);
     }
+    if (used < size)
+        used += snprintf(out + used, (size_t)(size - used), "],\"labels_drawn\":[");
+    for (int i = 0, first = 1; i < LABEL_COUNT && used < size; i++)
+        if (labels_drawn[i >> 6] >> (i & 63) & 1) {
+            used += snprintf(out + used, (size_t)(size - used), "%s\"%s\"", first ? "" : ",", labels[i].text);
+            first = 0;
+        }
     if (used < size)
         used += snprintf(out + used, (size_t)(size - used), "]}");
     return used;

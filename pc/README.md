@@ -587,7 +587,7 @@ pixel's corner as the PS1 does, not one past the image (`pc_hw_set_flipped_uv`).
 | `ui_upscale` | `nearest` | `nearest`: the PS1's blocks (original). `mmpx`: MMPX (McGuire & Gagiu 2021), the style-preserving pixel-art magnifier: curves, diagonals and corners reconstructed, palette, transparency and one-pixel details kept exactly |
 | `ui_subpixel` | 0 | text glyphs drawn where the game places them in 16.16 fixed point instead of whole pixels (even spacing while talk bubbles zoom open and shut) |
 | `ui_text` | `original` | `original`: the PS1's glyphs. `font`: the game's text drawn from open-licensed fonts (below) at the internal resolution (2x and up) |
-| `ui_text_<style>_font`, `_stretch`, `_slant`, `_embolden` | the chosen fonts | per style (`dialogue`, `menu`, `info`, `digits`): a TrueType file (relative to the repository root), horizontal scale, added shear, distance-field offset in em (bolder > 0); saved only when changed |
+| `ui_text_<style>_font`, `_stretch`, `_slant`, `_embolden`, `_aspect` | the chosen fonts | per style (`dialogue`, `menu`, `info`, `digits`): a TrueType file (relative to the repository root), horizontal scale, added shear, distance-field offset in em (bolder > 0), and for `digits` the least share of the font's own width/height a digit size may be condensed to (0.78; 0: any); saved only when changed |
 
 Nothing is shipped: each region a 2D primitive samples (texture page, CLUT,
 texel rectangle) is decoded from the game's own VRAM when drawn and
@@ -621,8 +621,9 @@ rectangle:
 | --- | --- | --- |
 | `dialogue` | talk bubbles: italic hand-lettered capitals, small capitals for lower case (font page (832, 0), glyphs 189-377, 12 x 12 cells, proportional advances) | Permanent Marker (Apache 2.0), slanted 0.12 |
 | `menu` | menus, item and ability names, the information box (glyphs 0-188 of that page, 6-pixel fixed advance; menu rows come as 12 x 1 strips with a brightness gradient) | Asap Condensed Bold |
-| `info` | wide outlined capitals: RISK ZERO, COMMAND, MENU, NEXT (field UI page (768, 0) rows 76-95, found through the game's own width and position tables, kept from when the field's overlay holds them so the map screen's overlay does not lose them; also digits, : / % + - in PLAY TIME, NEXT, map percentages) | Chakra Petch Bold |
+| `info` | wide outlined capitals: RISK ZERO, NEXT, the map screen's BACK / ROTATION / ZOOM (field UI page (768, 0) rows 76-95, found through the game's own width and position tables, kept from when the field's overlay holds them so the map screen's overlay does not lose them; also digits, : / % + - in PLAY TIME, NEXT, map percentages) | Chakra Petch Bold |
 | `digits` | HUD numbers (HP, MP; old-style figures in two sizes and the small slash, row 0 of that page); the dot between current and maximum HP / MP is drawn as a disc of the original's size and place, outlined like the digits | Alegreya |
+| labels | words the game draws as images (below): HP, MP, COMMAND, MENU, INFORMATION, CAUTION, BATTLE MODE, ... | the `info` font |
 
 Each glyph is a signed distance field (64 pixels per em) made with stb_truetype
 (from Dear ImGui), a few each frame ahead of use once the option is on (about
@@ -631,16 +632,49 @@ the original glyph: the original's baseline and
 cap height (measured from the game's VRAM on its H; digits on 0; small
 capitals on its x), centred on the original glyph's ink, a per-style
 horizontal scale, descenders squeezed into the 12-pixel cell as the PS1
-faces do. Its coverage is mapped through the original glyph's own CLUT ramp
+faces do. The HUD's digit boxes are narrow (five texels of ink between
+outlines) and old-style figures are round: fitted to the original's height
+the large size (7 x 12) would be condensed to about 0.6 of the font's own
+proportions (stretched tall), so each size shares one scale at which its
+widest digit keeps at least `ui_text_digits_aspect` (0.78) of them; the
+small size (0.9) is unchanged, the large one is drawn a little shorter.
+Ink stays a pixel inside the box's edges, so neighbours at the game's
+advances (5 and 6) never touch. Its coverage is mapped through the original glyph's own CLUT ramp
 (index 1 up to the highest index the glyph uses; inside a one-pixel outline
 of index 1 for the outlined styles), so palettes and the colour key are the
 game's. Characters a font lacks and the pictographs (button symbols,
-arrows, notes, stars) stay original, as do text baked into images (labels
-such as HP, MP, INFORMATION, the location captions of cutscenes) and the
-few boxes the game renders into VRAM itself. While a bubble zooms, its
-glyphs are sampled nearest from the atlas like MMPX's. `ROOD_UI_DEBUG=4`
-lists 2D regions on the glyph pages that are not glyphs. RPC `ui_text`
-reports the styles and counters and takes style overrides.
+arrows, notes, stars) stay original. While a bubble zooms, its
+glyphs are sampled nearest from the atlas like MMPX's.
+
+**Labels.** Words the game draws as pictures rather than glyphs are known
+by place (`pc/src/ui_labels.h`: the texture page, the word's box in it and
+a hash of its CLUT indices; only coordinates, hashes and the words): 47 on
+the field UI page (768, 0): HP, MP, RISK, WT, NO., WAITING for COMMAND!,
+TIME, SAVE, COMMAND, MENU, NUM., WARNING, HELP, INFO., CLEAR, MAP, CAUTION,
+EXIT, FACTORY, Locked, Container, CHECK, INFORMATION, Open, is,
+Unlockable, the equipment slots and enemy classes (WEAPON ... LEGS, HUMAN
+... EVIL), the affinities (PHYSICS ... DARKNESS) and WORKSHOP; 40 on the
+battle page (448, 256): BATTLE MODE, MOVE, 200%, 50%, RISK ATTACK Parry,
+STR INT AGL, the status changes (Quicken ... Regenerate, -up, -down), the
+spell schools (WARLOCK ... ENCHANTER), MP, ITEMS BREAK ARTS CHAIN DEFENSE.
+A 2D region is drawn from the font when every word it touches still has its
+hash and all of its ink belongs to those words; the word is then set in the
+`info` font with its kerning, at the original's cap height and baseline
+(the commonest bottom of its letters, so descenders hang below), centred on
+its ink and condensed only where it would be wider, in the original's
+colours: the outline's CLUT colour (indices 1-3) and the lettering's (the
+brightest colour the word uses often; the PS1 bevel and banding are not
+kept: a font's letters do not fall on the original's rows), with the `info` style's one-pixel outline. Left original:
+pictographs and icons (button symbols, SET / EQP on its button, the lock
+and key icons, the compass letters N S E W, drawn as rotated strips), the
+Japanese line on the field UI page, the + between status words, the save
+screen's NEW DATA / USED / ERROR / NO DATA (8-bit pictures with a soft glow
+that a font outline would lose), the save slots (the game draws them into
+VRAM and shows the result as a 16-bit picture) and the location captions
+of cutscenes. `ROOD_UI_DEBUG=3` prints each label drawn, `4` also 2D
+regions on the glyph pages that are neither glyphs nor labels. RPC
+`ui_text` reports the styles and counters (`labels`, `labels_drawn`),
+takes style overrides and draws a single region (`render`, tests).
 
 The fonts were chosen with `pc/tools/font_match.py`, which never ships
 anything of the game: `capture` reads the glyphs from your running game's
@@ -650,7 +684,12 @@ exactly as `ui_text.c` does and scores it against the original glyphs (soft
 IoU and chamfer distance of the ink at 1x, stroke weight, distortion), with
 contact sheets and `report.txt`, all in the ignored `pc/build/font_match`.
 Its runner-up fonts can be tried without rebuilding through the
-`ui_text_<style>_font` settings.
+`ui_text_<style>_font` settings. `digits` compares `ui_text_digits_aspect`
+values per digit size (proportions kept, height against the original's,
+score, the narrowest gap between neighbours; `digits.txt`, `digits.png`),
+and `labels` finds each label word's exact box in the captured VRAM from
+the approximate ones in the script and checks (or with `--write`
+regenerates) `pc/src/ui_labels.h`.
 
 ### Lighting the room's fixtures, light actors and Place Actors
 
@@ -962,7 +1001,7 @@ thread once per vsync, so each method runs at a frame boundary:
 | `gpu_draw` | `packet` (GP0 words, hex), `texture` (hex texels) with `texture_x/y/w/h`, `area_x/y/w/h`, `offset_x/y` | tests: load texels, set the drawing area, draw the commands on both rasterizers (`flipped_sprite_smoke.py`) |
 | `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_trace` N), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample` | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
 | `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
-| `ui_text` | `ui_text` (`original`/`font`), `style` with `font`, `stretch`, `slant`, `embolden` | the text fonts: option, each style (font, placement, `loaded`), fonts loaded, glyph fields made, glyph regions drawn from fonts (`regions`) and fallen back (`failed`); a `style` with values changes it as the `ui_text_<style>_*` settings do |
+| `ui_text` | `ui_text` (`original`/`font`), `style` with `font`, `stretch`, `slant`, `embolden`, `aspect`; `render` ([tpage, clut, u0, v0, u1, v1]) with `factor`, `path` | the text fonts: option, each style (font, placement, `loaded`), fonts loaded, glyph fields made, glyph regions drawn from fonts (`regions`, of them `labels`) and fallen back (`failed`), the labels drawn (`labels_drawn`); a `style` with values changes it as the `ui_text_<style>_*` settings do; `render` draws that region from the font into `path` (little-endian PS1 colours) and adds its size |
 | `redraw` | | the newest frame drawn again as recorded with the current options (MSAA, ...) and presented until the game draws another: pause first, then compare options on one frame (`aa_smoke.py`) |
 | `settings` | `action` (`save`, `load`) | the `ROOD_SETTINGS` file (a loaded preset applies at once) |
 | `perf` | `reset` | GPU time per presented frame since the last reset (`ROOD_PERF=1`; Vulkan timestamps, GL timer queries; Vulkan adds `sections`: ms per frame of `draw`, `present`, `aa`, `downsample`, the GI passes); GL adds `presents`, `gpu_wait_ms` (CPU waits for frames in flight), `gi_traced`/`gi_reused`, `gi_gpu_ms`, `gi_budget_ms`, `gi_interval` (path tracer cadence) |

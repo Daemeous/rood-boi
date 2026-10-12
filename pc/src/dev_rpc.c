@@ -1123,11 +1123,11 @@ static void handle_method(int fd, const char* request)
         reply(fd, id, result);
     } else if (!strcmp(method, "ui_text")) {
         /* ui_text.h: the option, its styles (font, placement), fonts loaded,
-         * glyph fields made and regions drawn; {style, font, stretch, slant,
-         * embolden} changes a style (as the settings keys do). */
+         * glyph fields made, regions and labels drawn; {style, font, stretch,
+         * slant, embolden, aspect} changes a style (as the settings keys do). */
         char style[32], text[300];
         if (params && string_value(member(params, "style"), style, sizeof style)) {
-            static const char* const keys[4] = { "font", "stretch", "slant", "embolden" };
+            static const char* const keys[5] = { "font", "stretch", "slant", "embolden", "aspect" };
             int known = 0;
             for (int i = 0; i < PC_UI_TEXT_STYLES; i++)
                 known |= !strcmp(style, pc_ui_text_styles[i].name);
@@ -1135,7 +1135,7 @@ static void handle_method(int fd, const char* request)
                 fail(fd, id, -32602, "style: dialogue, menu, info or digits");
                 return;
             }
-            for (int k = 0; k < 4; k++) {
+            for (int k = 0; k < 5; k++) {
                 char key[64];
                 double value;
                 snprintf(key, sizeof key, "ui_text_%s_%s", style, keys[k]);
@@ -1149,7 +1149,43 @@ static void handle_method(int fd, const char* request)
         }
         if (params && string_value(member(params, "ui_text"), style, sizeof style))
             pc_ui_text_setting("ui_text", style);
-        pc_ui_text_json(result, (int)sizeof result);
+        /* {render: [tpage, clut, u0, v0, u1, v1], factor, path}: that 2D
+         * region drawn from the font as the atlas would (a glyph or a
+         * label; PS1 colours, little-endian u16, row by row) into PATH;
+         * the reply's "render" has its size (ok 0: not text). Tests. */
+        const char* render = params ? member(params, "render") : NULL;
+        int rendered = -1, rw = 0, rh = 0;
+        if (render) {
+            int r[6];
+            long long factor = 8;
+            char path[512];
+            number_value(member(params, "factor"), &factor);
+            if (sscanf(render, " [ %d , %d , %d , %d , %d , %d ]", &r[0], &r[1], &r[2], &r[3], &r[4], &r[5]) != 6
+                || r[2] < 0 || r[3] < 0 || r[4] > 255 || r[5] > 255 || r[4] < r[2] || r[5] < r[3] || factor < 1
+                || factor > 16 || !string_value(member(params, "path"), path, sizeof path)) {
+                fail(fd, id, -32602, "render needs [tpage, clut, u0, v0, u1, v1] in a page, factor 1-16 and path");
+                return;
+            }
+            extern const uint16_t* pc_hw_native_vram(void);
+            rw = (r[4] - r[2] + 1) * (int)factor, rh = (r[5] - r[3] + 1) * (int)factor;
+            uint32_t* texels = malloc((size_t)rw * rh * sizeof *texels);
+            const uint16_t* vram = pc_hw_native_vram();
+            rendered = texels && vram
+                    && pc_ui_text_render(vram, (unsigned)r[0], (unsigned)r[1], r[2], r[3], r[4], r[5], (int)factor,
+                        texels);
+            FILE* out = rendered ? fopen(path, "wb") : NULL;
+            for (int i = 0; out && i < rw * rh; i++) {
+                unsigned char b[2] = { (unsigned char)(texels[i] & 255), (unsigned char)(texels[i] >> 8 & 255) };
+                fwrite(b, 1, 2, out);
+            }
+            if (out)
+                fclose(out);
+            free(texels);
+        }
+        int used = pc_ui_text_json(result, (int)sizeof result);
+        if (rendered >= 0 && used > 1 && used < (int)sizeof result - 64)
+            snprintf(result + used - 1, sizeof result - used + 1, ",\"render\":{\"ok\":%d,\"w\":%d,\"h\":%d}}",
+                rendered, rw, rh);
         reply(fd, id, result);
     } else if (!strcmp(method, "ui_upscale")) {
         /* 2D / UI magnification statistics; {verify: true} also reads the

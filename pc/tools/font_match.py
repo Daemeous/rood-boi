@@ -6,6 +6,8 @@ ui_text).
     python3 pc/tools/font_match.py fetch          # candidate fonts into pc/build/font_match/fonts
     python3 pc/tools/font_match.py rank [--top N] # scores, report.txt and contact sheets
     python3 pc/tools/font_match.py all
+    python3 pc/tools/font_match.py digits         # HUD digit proportions per size (ui_text DIGITS_ASPECT)
+    python3 pc/tools/font_match.py labels [--write]  # fixed label boxes and hashes (pc/src/ui_labels.h)
 
 Everything this writes stays under pc/build/font_match (git-ignored): the
 glyphs come from YOUR copy of the game (its VRAM while running, plus the
@@ -379,9 +381,11 @@ def placement(face, glyph, metrics, params):
     base = metrics["x_base"] if small else metrics["baseline"]
     height = (metrics["x_base"] - metrics["x_top"]) if small else (metrics["baseline"] - metrics["cap_top"])
     s = height / face.height(params.get("ref", "H"))  # original pixels per EM pixel
-    sx = s * params["stretch"]
     x0, y0, x1, y1 = g["box"]
     room = glyph.w - 2.0 if params.get("outline") else max(orig[2] - orig[0], glyph.advance) + 0.5
+    if params.get("aspect") and params.get("ref") == "0":
+        s = digit_scale(face, s, params["aspect"], room)
+    sx = s * params["stretch"]
     if (x1 - x0) * sx > room:
         sx = room / (x1 - x0)
     # Descenders squeezed into the box (the PS1 faces have none).
@@ -390,6 +394,9 @@ def placement(face, glyph, metrics, params):
     if (y1 - EM) * s > below > 0:
         sd = below / (y1 - EM)
     cx_t, cx_s = (orig[0] + orig[2]) / 2.0, (x0 + x1) / 2.0
+    if params.get("outline"):  # the ink keeps a pixel from the box's edges (ui_text.c)
+        half = (x1 - x0) * sx / 2.0
+        cx_t = min(max(cx_t, 1.0 + half), glyph.w - 1.0 - half)
     pivot = base - height / 2.0
     slant = params.get("slant", 0.0)
     bold = params.get("embolden", 0.0) * EM
@@ -404,6 +411,16 @@ def placement(face, glyph, metrics, params):
         return (d + bold) * s
 
     return distance
+
+
+def digit_scale(face, s, aspect, room):
+    """ui_text.c digit_scale: one scale for a digit size, so that its widest
+    digit is condensed to no less than `aspect` of the font's proportions."""
+    widths = [g["box"][2] - g["box"][0] for g in map(face.glyph, "0123456789") if g]
+    widest = max(widths) if widths else 0
+    if widest and widest * s * aspect > room:
+        s = room / (widest * aspect)
+    return s
 
 
 def coverage(face, glyph, metrics, params, factor):
@@ -561,12 +578,221 @@ def sheet(style, glyphs, metrics, best, factor=4):
     canvas.save(WORK / f"sheet_{style}.png")
 
 
+# ---- HUD digit proportions (ui_text.c DIGITS_ASPECT) ----
+
+DIGITS_FONT = ROOT / "pc/third_party/fonts/Alegreya/Alegreya[wght].ttf"
+DIGITS_PARAMS = {"stretch": 1.07, "slant": 0.0, "embolden": 0.02, "outline": True, "small_caps": False, "ref": "0"}
+# The game's advances (vs_battle_renderValue: 5 + font): small 5, large 6.
+DIGIT_SIZES = (("digits", "small 6x10", 5), ("digits_large", "large 7x12", 6))
+
+
+def digits_report(aspects, factor=8):
+    """Per digit size and `aspect`: how much of the font's own width/height
+    the digits keep, their height against the original's, the shape score,
+    and the narrowest gap between neighbours' ink at the game's advance."""
+    originals = original_glyphs()
+    face = Face(DIGITS_FONT)
+    lines, rows = [], []
+    for size, label, advance in DIGIT_SIZES:
+        glyphs = originals[size]
+        metrics = style_metrics(glyphs, size)
+        orig_h = np.mean([ink_box(g.cov)[3] - ink_box(g.cov)[1] for g in glyphs.values()])
+        lines.append(f"== {label}: advance {advance}, original ink height {orig_h:.1f} px")
+        rows.append((f"{label} original", None, glyphs, advance))
+        for aspect in aspects:
+            params = dict(DIGITS_PARAMS, aspect=aspect)
+            kept, heights = [], []
+            covs = {}
+            for ch, g in glyphs.items():
+                cov = coverage(face, g, metrics, params, factor)
+                covs[ch] = cov
+                box = ink_box(cov, 0.5)
+                f = face.glyph(ch)
+                if box is None or f is None:
+                    continue
+                w, h = (box[2] - box[0]) / factor, (box[3] - box[1]) / factor
+                natural = (f["box"][2] - f["box"][0]) / (f["box"][3] - f["box"][1])
+                kept.append((w / h) / natural)
+                heights.append(h)
+            # neighbours' ink at the game's advance (the outline is 1 px)
+            gap = 99.0
+            for a, b in zip("0123456789", "1234567890"):
+                ia, ib = covs[a] > 0.5, covs[b] > 0.5
+                ca, cb = np.where(ia.any(0))[0], np.where(ib.any(0))[0]
+                if len(ca) and len(cb):
+                    gap = min(gap, (advance * factor + cb.min() - ca.max() - 1) / factor)
+            score, detail = evaluate(face, glyphs, metrics, params)
+            lines.append(f"aspect {aspect:4.2f}: proportions kept mean {np.mean(kept):.2f} min {min(kept):.2f}, "
+                         f"ink height {np.mean(heights):.1f} px, score {score:.3f} (iou {detail['iou']:.2f}), "
+                         f"narrowest gap between digits {gap:.2f} px")
+            rows.append((f"{label} aspect {aspect:.2f}", covs, glyphs, advance))
+    text = "\n".join(lines)
+    print(text)
+    (WORK / "digits.txt").write_text(text + "\n")
+    # sheet: "1572530" in each variant at the game's advances
+    z = 6
+    tiles = []
+    for name, covs, glyphs, advance in rows:
+        h = max(g.h for g in glyphs.values())
+        canvas = np.zeros((h * z, (advance * 7 + 3) * z), np.float32)
+        for i, ch in enumerate("1572530"):
+            g = glyphs[ch]
+            if covs is None:
+                cov = np.kron(g.cov, np.ones((z, z)))
+            else:
+                cov = downsample(covs[ch], factor // z) if factor % z == 0 else \
+                    np.asarray(Image.fromarray((covs[ch] * 255).astype(np.uint8)).resize(
+                        (g.w * z, g.h * z), Image.BILINEAR)) / 255.0
+            region = canvas[:cov.shape[0], i * advance * z:i * advance * z + cov.shape[1]]
+            np.maximum(region, cov[:, :region.shape[1]], out=region)
+        tiles.append((name, canvas))
+    width = max(c.shape[1] for _, c in tiles) + 230
+    sheet_im = Image.new("L", (width, sum(c.shape[0] + 6 for _, c in tiles)), 24)
+    draw = ImageDraw.Draw(sheet_im)
+    y = 0
+    for name, c in tiles:
+        sheet_im.paste(Image.fromarray((np.clip(c, 0, 1) * 255).astype(np.uint8)), (230, y))
+        draw.text((4, y + 2), name, fill=170)
+        y += c.shape[0] + 6
+    sheet_im.save(WORK / "digits.png")
+    print("->", WORK / "digits.txt", WORK / "digits.png")
+
+
+# ---- fixed labels (ui_text.c / ui_labels.h) ----
+
+# Words the game draws as images, per 4-bit texture page (VRAM origin),
+# with approximate boxes (inclusive texels); `labels` finds each word's
+# exact ink box (touching words split on their shared outline column) and
+# writes pc/src/ui_labels.h with a hash of the box, so the runtime only
+# replaces a word whose texels are still the same.
+LABEL_SPEC = {
+    (768, 0): [  # the field UI page (HUD, menus, information box, equipment)
+        ("HP", 144, 0, 159, 8), ("MP", 160, 0, 177, 8), ("RISK", 180, 0, 205, 8), ("WT", 208, 0, 226, 8),
+        ("NO.", 242, 0, 254, 8),
+        ("WAITING for COMMAND!", 144, 9, 226, 16),
+        ("TIME", 104, 56, 123, 63), ("SAVE", 127, 56, 150, 63),
+        ("COMMAND", 0, 64, 62, 73), ("MENU", 63, 64, 99, 73), ("NUM.", 100, 64, 130, 73),
+        ("WARNING", 131, 64, 187, 73), ("HELP", 187, 64, 218, 73),
+        ("INFO.", 0, 76, 31, 85),
+        ("CLEAR", 223, 112, 250, 119), ("MAP", 223, 120, 241, 127),
+        ("CAUTION", 64, 145, 97, 151), ("EXIT", 103, 145, 122, 151), ("FACTORY", 123, 145, 158, 151),
+        ("Locked", 190, 144, 216, 151), ("Container", 217, 144, 254, 151),
+        ("CHECK", 64, 152, 90, 159), ("INFORMATION", 95, 152, 146, 159), ("Open", 190, 152, 212, 159),
+        ("is", 238, 152, 247, 159), ("Unlockable", 214, 160, 255, 167),
+        ("WEAPON", 70, 161, 104, 167), ("HUMAN", 104, 161, 135, 167),
+        ("SHIELD", 74, 169, 102, 175), ("BEAST", 102, 169, 135, 175),
+        ("R.ARM", 77, 177, 102, 183), ("UNDEAD", 102, 177, 137, 183),
+        ("L.ARM", 77, 185, 102, 191), ("PHANTOM", 102, 185, 141, 191),
+        ("HEAD", 81, 193, 102, 199), ("DRAGON", 102, 193, 137, 199),
+        ("BODY", 81, 201, 102, 207), ("EVIL", 102, 201, 124, 207),
+        ("LEGS", 81, 209, 104, 215),
+        ("PHYSICS", 142, 161, 177, 167), ("AIR", 142, 169, 159, 175), ("FIRE", 142, 177, 163, 183),
+        ("EARTH", 142, 185, 171, 191), ("WATER", 142, 193, 171, 199), ("LIGHT", 142, 201, 168, 207),
+        ("DARKNESS", 142, 209, 182, 215), ("WORKSHOP", 136, 217, 196, 223),
+    ],
+    (448, 256): [  # the battle page (battle mode, chain and defense, status changes, spell schools)
+        ("BATTLE", 64, 0, 103, 10), ("MODE", 103, 0, 140, 10),
+        ("MOVE", 212, 28, 246, 40),
+        ("200%", 182, 43, 213, 51), ("50%", 214, 43, 240, 51),
+        ("RISK", 150, 53, 178, 63), ("ATTACK", 179, 53, 218, 63), ("Parry", 219, 53, 252, 63),
+        ("STR", 0, 64, 22, 76), ("INT", 23, 64, 42, 76), ("AGL", 43, 64, 66, 76),
+        ("Quicken", 67, 64, 107, 76), ("Silent", 107, 64, 137, 76), ("Paralysis", 138, 64, 187, 76),
+        ("Poison", 188, 64, 222, 76), ("-up", 223, 64, 242, 76),
+        ("Numbness", 0, 77, 51, 88), ("Curse", 52, 77, 82, 88), ("Full", 82, 77, 101, 88),
+        ("HP", 102, 77, 119, 88), ("Magic", 119, 77, 150, 88), ("Ward", 151, 77, 179, 88),
+        ("Equip", 180, 77, 208, 88), ("-down", 209, 77, 246, 88),
+        ("Air", 0, 89, 17, 100), ("Fire", 18, 89, 39, 100), ("Earth", 40, 89, 70, 100),
+        ("Water", 71, 89, 103, 100), ("Resist", 103, 89, 136, 100), ("Regenerate", 143, 89, 205, 100),
+        ("WARLOCK", 0, 101, 51, 110), ("SHAMAN", 52, 101, 99, 110), ("SORCERER", 99, 101, 158, 110),
+        ("ENCHANTER", 159, 101, 218, 110), ("MP", 218, 101, 240, 110),
+        ("ITEMS", 0, 112, 34, 122), ("BREAK", 35, 112, 72, 122), ("ARTS", 73, 112, 102, 122),
+        ("CHAIN", 102, 112, 137, 122), ("DEFENSE", 150, 112, 198, 122),
+    ],
+}
+OUTLINE_MAX = 2  # CLUT indices 1-2: the outline (a column of only these separates touching words)
+
+
+def page4_at(vram, x, y):
+    return page4(vram, x)[y:y + 256]
+
+
+def label_boxes(vram):
+    def snap(p, x, rows, inward):
+        col = lambda c: p[rows, c] if 0 <= c < 256 else np.zeros(1, np.uint8)
+        if not col(x).any():  # in a gap: the ink inward
+            while not col(x).any():
+                x += inward
+            return x
+        for d in range(4):  # touching: the nearest outline-only column
+            for c in (x - d, x + d):
+                if 0 <= c < 256 and col(c).any() and col(c).max() <= OUTLINE_MAX:
+                    return c
+        return x
+
+    out = []
+    for (px, py), spec in LABEL_SPEC.items():
+        p = page4_at(vram, px, py)
+        for text, u0, v0, u1, v1 in spec:
+            rows = slice(v0, v1 + 1)
+            a, b = snap(p, u0, rows, +1), snap(p, u1, rows, -1)
+            ys = np.where(p[v0:v1 + 1, a:b + 1].any(1))[0]
+            t, bt = v0 + int(ys.min()), v0 + int(ys.max())
+            h = 2166136261
+            for v in range(t, bt + 1):
+                for u in range(a, b + 1):
+                    h = ((h ^ int(p[v, u])) * 16777619) & 0xFFFFFFFF
+            out.append((text, px, py, a, t, b, bt, h))
+    return out
+
+
+LABELS_H = ROOT / "pc/src/ui_labels.h"
+
+
+def labels(write):
+    vram = np.load(WORK / "vram.npy")
+    entries = label_boxes(vram)
+    rows = "\n".join(f'    {{ "{t}", {px}, {py}, {a}, {v0}, {b}, {v1}, 0x{h:08x}u }},'
+                     for t, px, py, a, v0, b, v1, h in entries)
+    current = LABELS_H.read_text() if LABELS_H.exists() else ""
+    if write:
+        start, end = current.index("static const pc_ui_label labels[] = {\n"), current.index("\n};")
+        head = current[:start + len("static const pc_ui_label labels[] = {\n")]
+        LABELS_H.write_text(head + rows + current[end:])
+        print(f"{len(entries)} labels -> {LABELS_H}")
+    else:
+        stale = [line for line in rows.splitlines() if line not in current]
+        print(f"{len(entries)} labels; {len(stale)} differ from {LABELS_H.name}")
+        for line in stale:
+            print("  ", line.strip())
+    # contact sheet of the boxes (game imagery: stays in pc/build)
+    z, tiles = 5, []
+    for t, px, py, a, v0, b, v1, h in entries:
+        p = page4_at(vram, px, py)
+        sub = p[max(v0 - 2, 0):v1 + 3, max(a - 3, 0):b + 4] * 17
+        im = Image.fromarray(sub.astype(np.uint8)).convert("RGB").resize((sub.shape[1] * z, sub.shape[0] * z),
+                                                                          Image.NEAREST)
+        ox, oy = (a - max(a - 3, 0)) * z, (v0 - max(v0 - 2, 0)) * z
+        ImageDraw.Draw(im).rectangle([ox, oy, ox + (b - a + 1) * z - 1, oy + (v1 - v0 + 1) * z - 1],
+                                     outline=(0, 255, 0))
+        tiles.append((t, im))
+    sheet_im = Image.new("RGB", (720, sum(im.height + 16 for _, im in tiles)), (40, 0, 40))
+    y = 0
+    for t, im in tiles:
+        ImageDraw.Draw(sheet_im).text((0, y), t, fill=(255, 255, 0))
+        sheet_im.paste(im, (0, y + 12))
+        y += im.height + 16
+    sheet_im.save(WORK / "labels.png")
+    print("->", WORK / "labels.png")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("command", choices=["capture", "fetch", "rank", "all"])
+    parser.add_argument("command", choices=["capture", "fetch", "rank", "all", "digits", "labels"])
     parser.add_argument("--card", type=pathlib.Path, default=ROOT / "pc/save/card1.mcd")
     parser.add_argument("--top", type=int, default=6)
     parser.add_argument("--styles", default="dialogue,menu,info,digits")
+    parser.add_argument("--aspects", default="0,0.7,0.78,0.85,1", help="digits: the aspect values compared")
+    parser.add_argument("--write", action="store_true", help="labels: rewrite pc/src/ui_labels.h")
     args = parser.parse_args()
     WORK.mkdir(parents=True, exist_ok=True)
     styles = args.styles.split(",")
@@ -576,6 +802,10 @@ def main():
         fetch(styles)
     if args.command in ("rank", "all"):
         rank(args.top, styles)
+    if args.command == "digits":
+        digits_report([float(a) for a in args.aspects.split(",")])
+    if args.command == "labels":
+        labels(args.write)
 
 
 if __name__ == "__main__":

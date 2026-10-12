@@ -19,6 +19,16 @@ ui_text font, so nothing moves between the two images. Checks:
   original's extent within two PS1 pixels (the layout is the game's);
 - original after font: the frame drawn with ui_text original again equals
   the first original drawing;
+- fixed labels (text baked into images): with ui_text font the HUD's HP and
+  MP, the menu's header and the information box's INFORMATION are drawn
+  from the font (RPC ui_text labels_drawn), never while it is original;
+  HP drawn alone (RPC ui_text render) keeps its ink inside the label's box
+  at the original's height;
+- HUD digits (RPC ui_text render of each digit box): every digit of each
+  size keeps at least the digits style's aspect (DIGITS_ASPECT, less a
+  small tolerance) of the width/height it has at aspect 1 (the font's own
+  proportions), and neighbours at the game's advances (5 small, 6 large)
+  never touch;
 - settings: ui_text saves and loads (ROOD_SETTINGS); RPC ui_text style
   overrides apply;
 - no shader errors, Vulkan validation messages (ROOD_VK_VALIDATE where the
@@ -131,6 +141,86 @@ def compare(game, work, name, shots, label, polarity):
         image.save(shots / f"{label}-{name}.jpg", quality=82)
 
 
+UI_PAGE = 12  # the field UI page (768, 0), 4-bit
+CLUT_DIGITS = (223 << 6) | (832 >> 4)
+CLUT_LABELS = (223 << 6) | (864 >> 4)
+
+
+def render(game, work, region, factor=8):
+    """RPC ui_text render: the region's font texels as (h, w) PS1 colours."""
+    path = work / "render.raw"
+    reply = game.call("ui_text", render=list(region), factor=factor, path=str(path))["render"]
+    if not reply["ok"]:
+        return None
+    texels = np.fromfile(path, "<u2").reshape(reply["h"], reply["w"])
+    path.unlink()
+    return texels
+
+
+def luma(texels):
+    t = texels.astype(int)
+    return (t & 31) * 299 + (t >> 5 & 31) * 587 + (t >> 10 & 31) * 114
+
+
+def bright(texels):
+    """The lettering, its anti-aliased edge included: neither the outline's
+    colour (the darkest drawn) nor the colour key."""
+    y = luma(texels)
+    lit = y[texels != 0]
+    return (texels != 0) & (y > lit.min()) if len(lit) else np.zeros(texels.shape, bool)
+
+
+def check_digits(game, work):
+    """Each digit size: drawn at the style's aspect and at aspect 1 (the
+    font's own proportions, as wide as the box allows, shorter), the ink's
+    width/height compared; neighbours at the game's advances."""
+    aspect = {st["name"]: st for st in game.call("ui_text")["styles"]}["digits"]["aspect"]
+    factor = 8
+
+    def draw(name, u, w, h, step):
+        inks = {}
+        for d in range(10):
+            texels = render(game, work, (UI_PAGE, CLUT_DIGITS, u + step * d, 0, u + step * d + w - 1, h - 1), factor)
+            if texels is None:
+                return None
+            inks[d] = bright(texels)
+        return inks
+
+    def ratio(ink):
+        ys, xs = np.where(ink)
+        return (xs.max() - xs.min() + 1) / (ys.max() - ys.min() + 1)
+
+    for name, u, w, h, step, advance in (("small", 0, 6, 10, 6, 5), ("large", 64, 7, 12, 8, 6)):
+        inks = draw(name, u, w, h, step)
+        if not check(inks is not None, f"digits {name}: drawn from the font"):
+            return
+        game.call("ui_text", style="digits", aspect=1.0)
+        natural = draw(name, u, w, h, step)
+        game.call("ui_text", style="digits", aspect=aspect)
+        kept = {d: ratio(inks[d]) / ratio(natural[d]) for d in range(10)}
+        worst = min(kept, key=kept.get)
+        check(kept[worst] >= aspect - 0.08,
+              f"digits {name}: every digit keeps at least {aspect} - 0.08 of the font's proportions "
+              f"(least: {worst}, {kept[worst]:.2f})")
+        gap = min(advance * factor + np.where(inks[b].any(0))[0].min() - np.where(inks[a].any(0))[0].max() - 1
+                  for a, b in zip(range(9), range(1, 10)))
+        check(gap >= 1, f"digits {name}: neighbours at the game's advance {advance} never touch "
+                        f"(narrowest gap {gap / factor:.2f} PS1 pixels)")
+
+
+def check_label_render(game, work):
+    """HP alone: ink inside its box, at the original's height."""
+    texels = render(game, work, (UI_PAGE, CLUT_LABELS, 144, 0, 159, 8), 8)
+    if not check(texels is not None, "label HP: drawn from the font"):
+        return
+    ink = bright(texels)
+    ys, xs = np.where(ink)
+    height = (ys.max() - ys.min() + 1) / 8
+    check(xs.min() >= 8 and xs.max() < texels.shape[1] - 8 and ys.min() >= 8 and ys.max() < texels.shape[0] - 8,
+          "label HP: the lettering stays inside the box's outline")
+    check(5.5 <= height <= 8.0, f"label HP: lettering {height:.1f} PS1 pixels tall (the original's 7)")
+
+
 def launch(work, card, label, extra=None):
     settings = work / "settings.cfg"
     env = {"ROOD_OUT": str(work), "ROOD_SETTINGS": str(settings), **(extra or {})}
@@ -191,11 +281,18 @@ def run_save(work, card, shots):
         if check(bool(game.state().get("player")), "save: in the save room"):
             s = game.call("ui_upscale")
             check(s["lookups"] == 0, f"save: ui_text original leaves 2D alone ({s['lookups']} lookups)")
+            check(game.call("ui_text")["labels_drawn"] == [], "save: no label drawn from a font while original")
             compare(game, work, "hud", shots, "hud", "bright")
+            drawn = game.call("ui_text")["labels_drawn"]
+            check("HP" in drawn and "MP" in drawn, f"save: HUD labels drawn from the font ({drawn})")
+            check_digits(game, work)
+            check_label_render(game, work)
             game.press("triangle", vsyncs=3, settle=60)
             game.press("circle", vsyncs=3, settle=60)
             game.press("circle", vsyncs=3, settle=60)  # Battle Abilities > Chain Abilities (information box)
             compare(game, work, "menu", shots, "menu", "bright")
+            drawn = game.call("ui_text")["labels_drawn"]
+            check("MENU" in drawn and "INFORMATION" in drawn, f"save: menu labels drawn from the font ({drawn})")
             styles = {st["name"]: st for st in game.call("ui_text")["styles"]}
             check(all(styles[n]["loaded"] is True for n in ("menu", "info", "digits")),
                   "save: menu, info and digits fonts are loaded")
