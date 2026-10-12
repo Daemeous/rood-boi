@@ -40,6 +40,7 @@ int pc_qol_weapon_slots;
 #include "probe_gi.h"
 #include "ui_upscale.h" /* 2D / UI: ui_upscale nearest | mmpx, ui_subpixel */
 #include "lighting_layers.h" /* lighting_packs, lighting_active_pack */
+#include "platform.h"
 extern bool pc_lights_show_gizmos;
 namespace rood_lights {
 extern int animate; /* light actors' flicker and pulse (lights.cpp) */
@@ -153,7 +154,7 @@ char status[200];
 long long mtime_of(const char* file)
 {
     struct stat st;
-    return stat(file, &st) ? 0 : (long long)st.st_mtim.tv_sec * 1000000000LL + st.st_mtim.tv_nsec;
+    return stat(file, &st) ? 0 : PC_MTIME_NS(st);
 }
 
 /* One "key value..." line; *scale takes internal_resolution. With `now`, a
@@ -323,7 +324,7 @@ extern "C" void pc_settings_save(void)
     snprintf(dir, sizeof dir, "%s", file);
     if (char* slash = strrchr(dir, '/')) {
         *slash = 0;
-        mkdir(dir, 0777);
+        pc_mkdir(dir);
     }
     FILE* f = fopen(file, "w");
     if (!f) {

@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <algorithm>
 #include <set>
+#include "platform.h"
 
 namespace prefab {
 
@@ -929,7 +930,7 @@ long long directory_stamp(const std::string& dir)
     for (const std::string& name : json_files(dir)) {
         struct stat st;
         std::string path = dir + "/" + name;
-        long long m = stat(path.c_str(), &st) ? 0 : (long long)st.st_mtim.tv_sec * 1000000000LL + st.st_mtim.tv_nsec + st.st_size;
+        long long m = stat(path.c_str(), &st) ? 0 : PC_MTIME_NS(st) + st.st_size;
         for (char c : name)
             stamp = (stamp ^ (unsigned char)c) * 1099511628211LL;
         stamp = (stamp ^ m) * 1099511628211LL;
@@ -1015,7 +1016,7 @@ static void make_dirs(const std::string& dir)
 {
     for (size_t i = 1; i <= dir.size(); i++)
         if (i == dir.size() || dir[i] == '/')
-            mkdir(dir.substr(0, i).c_str(), 0777);
+            pc_mkdir(dir.substr(0, i).c_str());
 }
 
 bool Library::save_user(const std::string& id, const Json& json, std::string* error)

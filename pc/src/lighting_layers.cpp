@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include <set>
+#include "platform.h"
 
 namespace lighting {
 
@@ -446,7 +447,7 @@ void mkdirs(const std::string& path)
 {
     for (size_t i = 1; i < path.size(); i++)
         if (path[i] == '/')
-            mkdir(path.substr(0, i).c_str(), 0777);
+            pc_mkdir(path.substr(0, i).c_str());
 }
 } // namespace
 
@@ -638,7 +639,7 @@ std::string patch_text(const std::string& old_text, const std::vector<std::strin
 long long file_mtime(const std::string& path)
 {
     struct stat st;
-    return stat(path.c_str(), &st) ? 0 : (long long)st.st_mtim.tv_sec * 1000000000LL + st.st_mtim.tv_nsec;
+    return stat(path.c_str(), &st) ? 0 : PC_MTIME_NS(st);
 }
 
 /* ---- merging ---- */

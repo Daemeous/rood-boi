@@ -84,7 +84,7 @@ const char* const presets[PC_PRESET_CUSTOM] = {
     "probe_spacing 96\nprobe_rays 64\n",
 };
 
-enum Type { BOOL, INT, FLOAT, ENUM };
+enum Type { BOOL, INT, FLOAT_KEY, ENUM };
 struct Key {
     const char* name;
     Type type;
@@ -101,22 +101,22 @@ const char* const haze_levels[] = { "off", "low", "high" };
 Key keys[] = {
     { "dynamic_lights", BOOL, &pc_lights_enabled, nullptr, 0, true },
     { "gi_method", ENUM, &pc_gi_method, gi_methods, 4, true },
-    { "gi_resolution", FLOAT, &pc_gi_resolution, nullptr, 0, true },
+    { "gi_resolution", FLOAT_KEY, &pc_gi_resolution, nullptr, 0, true },
     { "bounces", INT, &pc_gi_bounces, nullptr, 0, true },
     { "rays_per_pixel", INT, &pc_gi_rays, nullptr, 0, true },
     { "gi_denoiser", ENUM, &pc_gi_denoise, denoisers, 3, true },
     { "shadows", ENUM, &pc_shadow_mode, shadow_modes, 3, true },
     { "shadow_map_filter", ENUM, &pc_shadow_map_filter, map_filters, 3, true },
-    { "shadow_map_softness", FLOAT, &pc_shadow_softness, nullptr, 0, true },
+    { "shadow_map_softness", FLOAT_KEY, &pc_shadow_softness, nullptr, 0, true },
     { "shadow_rays", INT, &pc_shadow_samples, nullptr, 0, true },
     { "glow_shadows", BOOL, &pc_glow_shadows, nullptr, 0, true },
     { "characters_shadow_baked", BOOL, &pc_baked_shadows, nullptr, 0, true },
     { "haze", ENUM, &pc_haze_quality, haze_levels, 3, true },
     { "ao", BOOL, &pc_ao, nullptr, 0, true },
-    { "ao_radius", FLOAT, &pc_ao_radius, nullptr, 0, true },
-    { "ao_strength", FLOAT, &pc_ao_strength, nullptr, 0, false },
+    { "ao_radius", FLOAT_KEY, &pc_ao_radius, nullptr, 0, true },
+    { "ao_strength", FLOAT_KEY, &pc_ao_strength, nullptr, 0, false },
     /* Probe GI density (probe_gi.h): probes per room and rays per probe per update. */
-    { "probe_spacing", FLOAT, &pc_probe_spacing, nullptr, 0, true },
+    { "probe_spacing", FLOAT_KEY, &pc_probe_spacing, nullptr, 0, true },
     { "probe_rays", INT, &pc_probe_rays, nullptr, 0, true },
 };
 const int key_count = sizeof keys / sizeof keys[0];
@@ -131,7 +131,7 @@ Key* find(const char* name)
 double get(const Key& k)
 {
     switch (k.type) {
-    case FLOAT:
+    case FLOAT_KEY:
         return *(float*)k.value;
     default:
         return *(int*)k.value;
@@ -139,7 +139,7 @@ double get(const Key& k)
 }
 void put(const Key& k, double v)
 {
-    if (k.type == FLOAT)
+    if (k.type == FLOAT_KEY)
         *(float*)k.value = (float)v;
     else if (k.type == BOOL)
         *(int*)k.value = v != 0;
@@ -517,7 +517,7 @@ extern "C" int pc_lighting_json(char* out, int size)
             int v = (int)get(k);
             json_text(s, v >= 0 && v < k.choice_count ? k.choices[v] : "?");
         } else {
-            if (k.type == FLOAT)
+            if (k.type == FLOAT_KEY)
                 snprintf(number, sizeof number, "%g", get(k));
             else
                 snprintf(number, sizeof number, "%d", (int)get(k));
@@ -565,7 +565,7 @@ extern "C" void pc_lighting_settings_write(FILE* f)
         if (k.type == ENUM) {
             int v = (int)get(k);
             fprintf(f, "%s %s\n", k.name, v >= 0 && v < k.choice_count ? k.choices[v] : "0");
-        } else if (k.type == FLOAT)
+        } else if (k.type == FLOAT_KEY)
             fprintf(f, "%s %g\n", k.name, get(k));
         else
             fprintf(f, "%s %d\n", k.name, (int)get(k));

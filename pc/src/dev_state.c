@@ -20,7 +20,7 @@ extern int sprintf(char*, const char*, ...);
  * lie in guest RAM (this runs every frame for the lights). */
 static int guest_pointer(const void* p, unsigned size)
 {
-    unsigned long a = (unsigned long)p;
+    __UINTPTR_TYPE__ a = (__UINTPTR_TYPE__)p;
     return a >= 0x80010000ul && a + size <= 0x80200000ul && !(a & 3);
 }
 void pc_dev_state(struct pc_dev_state* out)

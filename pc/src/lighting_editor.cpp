@@ -16,6 +16,7 @@
 #include "lighting_layers.h"
 #include "lights_internal.h"
 #include "room_effects.h"
+#include "platform.h"
 
 extern "C" {
 void pc_room_settings_reset(void);
@@ -35,13 +36,10 @@ std::vector<std::string> loaded_problem_ids; /* reported once per load */
 
 std::string capture(void (*write)(FILE*))
 {
-    char* buffer = nullptr;
     size_t size = 0;
-    FILE* f = open_memstream(&buffer, &size);
-    if (!f)
+    char* buffer = pc_capture_file(write, &size);
+    if (!buffer)
         return std::string();
-    write(f);
-    fclose(f);
     std::string text(buffer, size);
     free(buffer);
     return text;

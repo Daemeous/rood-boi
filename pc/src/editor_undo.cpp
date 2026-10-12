@@ -39,6 +39,7 @@
 #include "lights_internal.h"
 #include "room_editor.h"
 #include "room_effects.h"
+#include "platform.h"
 
 extern "C" {
 void pc_room_settings_reset(void);
@@ -76,20 +77,17 @@ struct Transaction {
 std::vector<Transaction> history; /* done: [0, done); undone (redo): [done, size) */
 size_t done;
 Snapshot base, pre_ui;
-bool have_base, rebase = true, open, in_frame;
+bool have_base, rebase = true, txn_open, in_frame;
 Snapshot open_before;
 int hold;
 std::string hint, hold_name;
 
 std::string capture_text(void (*write)(FILE*))
 {
-    char* buffer = nullptr;
     size_t size = 0;
-    FILE* f = open_memstream(&buffer, &size);
-    if (!f)
+    char* buffer = pc_capture_file(write, &size);
+    if (!buffer)
         return std::string();
-    write(f);
-    fclose(f);
     std::string text(buffer, size);
     free(buffer);
     return text;
@@ -404,9 +402,9 @@ bool busy()
 }
 void close_open()
 {
-    if (!open)
+    if (!txn_open)
         return;
-    open = false;
+    txn_open = false;
     Snapshot now;
     capture(now);
     commit(open_before, now, difference(open_before, now, ~0u), hold_name.empty() ? hint : hold_name);
@@ -424,7 +422,7 @@ extern "C" void pc_undo_reset(void)
 {
     history.clear();
     done = 0;
-    open = false;
+    txn_open = false;
     hold = 0;
     hint.clear();
     hold_name.clear();
@@ -433,7 +431,7 @@ extern "C" void pc_undo_reset(void)
 
 extern "C" void pc_undo_rebase(void)
 {
-    if (!open)
+    if (!txn_open)
         rebase = true;
 }
 
@@ -446,7 +444,7 @@ extern "C" void pc_undo_frame_begin(void)
         base = now;
         have_base = true;
         rebase = false;
-    } else if (!open) {
+    } else if (!txn_open) {
         /* The room's data changed between frames (RPC, a finished suggestion). */
         unsigned d = difference(base, now, ROOM_PARTS);
         if (d)
@@ -455,7 +453,7 @@ extern "C" void pc_undo_frame_begin(void)
             hint.clear();
         base = now;
     }
-    pre_ui = open ? now : base;
+    pre_ui = txn_open ? now : base;
     in_frame = true;
 }
 
@@ -470,22 +468,22 @@ extern "C" void pc_undo_frame_end(void)
     }
     Snapshot now;
     capture(now);
-    if (!open) {
+    if (!txn_open) {
         unsigned d = difference(base, now, ROOM_PARTS) | (difference(pre_ui, now, SETTINGS | GROUPS));
         if (d & SETTINGS) { /* a preset settles (Custom) before the state is kept */
             pc_lighting_sync();
             capture(now);
         }
         if (d) {
-            open = true;
+            txn_open = true;
             open_before = base;
             /* Settings the panels did not change keep their value from now. */
             open_before.settings = pre_ui.settings;
         }
     }
-    if (open && !busy())
+    if (txn_open && !busy())
         close_open();
-    if (!open) {
+    if (!txn_open) {
         hint.clear();
         base = now;
     }
@@ -493,7 +491,7 @@ extern "C" void pc_undo_frame_end(void)
 
 extern "C" void pc_undo_prepare(void)
 {
-    if (open || hold)
+    if (txn_open || hold)
         return;
     capture(base);
     have_base = true;
@@ -502,7 +500,7 @@ extern "C" void pc_undo_prepare(void)
 
 extern "C" void pc_undo_flush(const char* name)
 {
-    if (open || hold || rebase || !have_base)
+    if (txn_open || hold || rebase || !have_base)
         return;
     Snapshot now;
     capture(now);
@@ -519,9 +517,9 @@ extern "C" void pc_undo_flush(const char* name)
 extern "C" void pc_undo_begin(const char* name)
 {
     if (!hold++) {
-        if (!open) {
+        if (!txn_open) {
             rebase_now(); /* the state as the held transaction starts */
-            open = true;
+            txn_open = true;
             open_before = base;
         }
         hold_name = name ? name : "";
@@ -584,7 +582,7 @@ extern "C" void pc_undo_jump(int target)
 
 extern "C" int pc_undo_json(char* out, int size)
 {
-    std::string s = "{\"done\":" + std::to_string(done) + ",\"open\":" + (open ? "true" : "false")
+    std::string s = "{\"done\":" + std::to_string(done) + ",\"open\":" + (txn_open ? "true" : "false")
         + ",\"hold\":" + std::to_string(hold) + ",\"limit\":" + std::to_string(PC_UNDO_LIMIT) + ",\"history\":[";
     for (size_t i = 0; i < history.size(); i++) {
         s += i ? ",\"" : "\"";
