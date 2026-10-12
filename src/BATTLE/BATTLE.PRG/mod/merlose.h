@@ -361,59 +361,63 @@ static int _farFromAshley(void)
 
 static u_char _gearSaveTimer;
 
-/* --- Pushing her ------------------------------------------------------------------------------
- * Characters block each other, so she could wall Ashley in (a doorway, a narrow ledge). When he
- * keeps walking into her without getting anywhere, she walks out of his way, as room scripts walk
- * characters (func_8007CFF8: a scripted route to a point, through the movement system): further
- * along the push if she can stand there or drop down to it (off a ledge too), else to either side
- * of it. If she can't get there in a few seconds she is left where she is. */
+/* --- Walking through her ------------------------------------------------------------------------
+ * Characters block each other (func_800A8FD4: a step towards an overlapping character is refused),
+ * so she could wall Ashley in: a doorway, a narrow ledge. When he keeps walking into her without
+ * getting anywhere, she stops blocking him: the game skips characters whose model has bit 24 of
+ * +0x5AC set, so with it he walks through her. She is solid again once he is two tiles away. */
 #include <libetc.h>
 
-void func_8007CFF8(int actor, SVECTOR* point);
-int func_8007D03C(int actor); /* non-zero once the route has ended (arrived, or none) */
-void func_800A0A1C(int actor, int flags);
-int func_800A0A74(int actor);
-
-#define PUSH_FRAMES 30    /* walking into her without moving, about a second */
-#define PUSH_TIMEOUT 150  /* give up the walk after about five seconds */
+#define PUSH_FRAMES 30   /* walking into her without moving, about a second */
+#define PASS_FRAMES 120  /* passable for at most about four seconds */
 #define PUSH_PAD (PADLup | PADLdown | PADLleft | PADLright)
+#define MODEL_FLAGS(model) (*(u_int*)((u_char*)(model) + 0x5AC))
+#define PASSABLE 0x1000000 /* others' movement ignores this character */
 
 static u_char _pushFrames;
-static u_char _pushWalk; /* frames she has been walking out of the way, 0 when not */
+static u_char _passFrames; /* frames she has been passable, 0 when solid */
 static int _pushFrom = -1; /* Ashley's tile when he started walking into her */
 
-/* Where to step, as (side, along) from the push: straight on, then the diagonals, then aside */
-static const signed char _pushOffsets[][2] = { { 0, 1 }, { 1, 1 }, { -1, 1 }, { 1, 0 }, { -1, 0 } };
+static void _setPassable(int on)
+{
+    D_800F4538_t* callo = D_800F4538[_calloSlot];
+
+    if (callo != NULL) {
+        if (on) {
+            MODEL_FLAGS(callo) |= PASSABLE;
+        } else {
+            MODEL_FLAGS(callo) &= ~PASSABLE;
+        }
+    }
+    _passFrames = on;
+}
 
 static void _push(void)
 {
     D_800F4538_t* ashley = D_800F4538[0];
     D_800F4538_t* callo = D_800F4538[_calloSlot];
-    SVECTOR point;
     int aheadX, aheadZ;
     int ashleyX, ashleyZ;
-    int calloX, calloZ;
     int dx, dz;
-    int floor, height;
-    int tileX, tileZ;
-    int i;
 
-    if (_pushWalk) {
-        if (func_8007D03C(_calloSlot) || (++_pushWalk >= PUSH_TIMEOUT)) {
-            /* Back to her AI: the scripted-route flag off */
-            func_800A0A1C(_calloSlot, func_800A0A74(_calloSlot) & ~2);
-            _pushWalk = 0;
-        }
-        return;
-    }
-    if ((ashley == NULL) || (callo == NULL) || callo->unk0.skip
-        || !(vs_main_buttonsState & PUSH_PAD)) {
-        _pushFrames = 0;
-        _pushFrom = -1;
+    if ((ashley == NULL) || (callo == NULL)) {
         return;
     }
     ashleyX = ashley->unk0.currentTileX;
     ashleyZ = ashley->unk0.currentTileZ;
+    dx = callo->unk0.currentTileX - ashleyX;
+    dz = callo->unk0.currentTileZ - ashleyZ;
+    if (_passFrames) {
+        if ((++_passFrames >= PASS_FRAMES) || (dx < -1) || (dx > 1) || (dz < -1) || (dz > 1)) {
+            _setPassable(0);
+        }
+        return;
+    }
+    if (callo->unk0.skip || !(vs_main_buttonsState & PUSH_PAD)) {
+        _pushFrames = 0;
+        _pushFrom = -1;
+        return;
+    }
     if ((ashleyX | (ashleyZ << 8)) != _pushFrom) {
         _pushFrom = ashleyX | (ashleyZ << 8);
         _pushFrames = 0;
@@ -423,37 +427,13 @@ static void _push(void)
         return;
     }
     _pushFrames = 0;
-
-    /* She has to be in his way: on the tile ahead of him, or diagonally ahead */
+    /* She has to be in his way: on his tile, the tile ahead of him, or diagonally ahead */
     _aheadOfAshley(&aheadX, &aheadZ);
-    calloX = callo->unk0.currentTileX;
-    calloZ = callo->unk0.currentTileZ;
-    dx = calloX - ashleyX;
-    dz = calloZ - ashleyZ;
-    if ((dx * aheadX + dz * aheadZ != 1) || (dx < -1) || (dx > 1) || (dz < -1) || (dz > 1)) {
+    if ((dx < -1) || (dx > 1) || (dz < -1) || (dz > 1) || (dx * aheadX + dz * aheadZ < 0)
+        || ((dx != 0 || dz != 0) && (dx * aheadX + dz * aheadZ == 0))) {
         return;
     }
-    floor = _floorAt(calloX, calloZ);
-    for (i = 0; i < sizeof _pushOffsets / sizeof _pushOffsets[0]; ++i) {
-        /* side is ahead turned a quarter: (-aheadZ, aheadX) */
-        tileX = calloX - _pushOffsets[i][0] * aheadZ + _pushOffsets[i][1] * aheadX;
-        tileZ = calloZ + _pushOffsets[i][0] * aheadX + _pushOffsets[i][1] * aheadZ;
-        if ((tileX < 0) || (tileZ < 0) || (tileX > 255) || (tileZ > 255)
-            || ((tileX == ashleyX) && (tileZ == ashleyZ))) {
-            continue;
-        }
-        height = _floorAt(tileX, tileZ);
-        /* y grows downwards: a drop of any height is fine, a climb only up a step */
-        if ((height == FLOOR_BLOCKED) || (floor - height > SPAWN_STEP)) {
-            continue;
-        }
-        point.vx = (tileX << 7) + 64;
-        point.vy = 0;
-        point.vz = (tileZ << 7) + 64;
-        func_8007CFF8(_calloSlot, &point);
-        _pushWalk = 1;
-        return;
-    }
+    _setPassable(1);
 }
 
 int vs_mod_frame(void)
@@ -499,10 +479,10 @@ int vs_mod_frame(void)
     if (!D_800EB9AF && (_calloActor() != NULL)) {
         _push();
     } else {
-        if (_pushWalk && (_calloActor() != NULL)) {
-            func_800A0A1C(_calloSlot, func_800A0A74(_calloSlot) & ~2); /* back to her AI */
+        if (_passFrames && (_calloActor() != NULL)) {
+            _setPassable(0);
         }
-        _pushWalk = 0;
+        _passFrames = 0;
         _pushFrames = 0;
     }
     return result;
