@@ -21,10 +21,20 @@ extern int pc_room_warp_enemies, pc_room_warp_scripts;
 static _mpdRoomDoorSection_t door; /* what func_8007C4E0 / func_8007C5C0 copy */
 static vs_main_mapStatus_t map_before;
 
+/* RPC ending (developer jump): play the ending from the field, as the final
+ * event script's special op 1 does (vs_battle_script_specialOp). It loads
+ * ENDING.PRG over BATTLE and returns to the title, so it does not return. */
+volatile int pc_ending_request;
+
 /* vs_battle_exec, the field (case 1), where doors are checked: start a
  * requested warp as a door does (1: the loop breaks out, as after a door). */
 int pc_room_warp_poll(void)
 {
+    if (pc_ending_request && vs_battle_screenTransitionStep == 0 && D_800F4C34 == 0 && D_800F4BE2 == 0
+        && !vs_main_stateFlags.gameOver) {
+        pc_ending_request = 0;
+        vs_main_showEndingAndReturnToTitle();
+    }
     if (pc_room_warp_finish(D_800F1AB0.zndId, D_800F1AB0.mpdId)) {
         /* The first field frame there: the map screen keeps no trace of it. */
         vs_main_mapStatus = map_before;

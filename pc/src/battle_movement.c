@@ -180,17 +180,22 @@ int func_800DBCB4(void* state, void* candidate)
     return !base[0x13f];
 }
 
-/* PS1 KSEG0 RAM with its 2 MB mirrors, for the original's out-of-list read. */
+/* PS1 main RAM through any of its KUSEG/KSEG0/KSEG1 mirrors (2 MB repeated
+ * up to 8 MB), for the original's out-of-list reads. The game's data,
+ * overlays and heap keep their PS1 addresses there; an unaligned or non-RAM
+ * address would raise an address/bus error on the PS1. */
 static unsigned guest_word(unsigned address)
 {
-    if (address < 0x80000000u || address >= 0x80800000u || (address & 3))
+    if ((address & 0x1fffffffu) >= 0x00800000u || (address & 3))
         pc_unimplemented("actor engagement read outside guest RAM");
     return *psx_to_ptr(unsigned*, 0x80000000u | (address & 0x1fffff));
 }
 /* 73460.s: 1 unless some hostile actor (relation >= 3) stands within two
  * tiles of the engaged target of `id`. The original starts its list walk at
  * &vs_battle_actors itself, so the first "node" has id vs_battle_actors[1]
- * (a pointer, or 0); that read is reproduced through guest RAM. */
+ * (a pointer, or 0); its relation word (0x1A4 + id * 4, wrapping) and, when
+ * that reads as hostile, its model D_800F4538[id] (0x800F4538 + id * 4) and
+ * the model's tile (+0x5C) are read through guest RAM as the PS1 does. */
 int func_800DBCEC(void* state, int id)
 {
     unsigned char* base = state;
@@ -202,11 +207,9 @@ int func_800DBCEC(void* state, int id)
                                        : guest_word(relation_address);
         if (((relation >> 6) & 3) < 3)
             continue;
-        if (other >= 16)
-            pc_unimplemented("actor engagement with out-of-list hostile id");
-        if (func_800E45F4(*(unsigned*)(D_800F4538[other] + 0x5c),
-                *(unsigned*)(D_800F45E0[id] + 0x5c))
-            < 3)
+        unsigned tile = other < 16 ? *(unsigned*)(D_800F4538[other] + 0x5c)
+                                   : guest_word(guest_word(0x800f4538u + (other << 2)) + 0x5c);
+        if (func_800E45F4(tile, *(unsigned*)(D_800F45E0[id] + 0x5c)) < 3)
             return 0;
     }
     return 1;
@@ -268,13 +271,63 @@ extern void func_800E1238(void*, int);
 extern void func_800E153C(void*, int);
 extern void func_800E1764(void*, int);
 
+extern void func_800E4BD8(int);
+extern int func_800DFAF8(int, unsigned, int);
+extern int func_800D954C(void*, unsigned);
+extern void func_800DEEFC(void*, int);
+extern unsigned D_800F5910; /* guest address of the room's u16 link pairs */
+/* 766FC.s L800DF8A4: continue a route through a room link (gate). Byte 0x19B
+ * is the gate bit the actor holds in the room flags (func_800E4BE0 by
+ * func_800DFBCC), word 0x19C the far end it is heading to. Off a link tile
+ * (tile byte 1 < 2) the gate is released (func_800E4BD8), the far end reset
+ * to -1 and 0x19B cleared. On a link tile, func_800DFAF8 finds the link whose
+ * far end is 0x19C; when its near end (even halfword `index` * 2 of
+ * D_800F5910: x bits 0-4, z bits 5-9) can be entered (func_800D954C > 0), the
+ * gate of pair index / 2 is released, the step is stored at 0x170 and command
+ * 14 issued; otherwise func_800E2CCC recovers.
+ * The original builds the step tile in the caller's $s2 (it saves $s2 but
+ * never initialises it), so byte 3 of 0x170 is the caller's top $s2 byte:
+ * `caller_s2` passes it. func_800D954C shifts byte 3 out and the command
+ * consumers (func_80075554, func_800A208C, func_800B6580) read bytes 0-2
+ * only, so the value is unobservable; callers pass what they know. */
+unsigned pc_route_continuations; /* times run (tests read it by symbol) */
+void pc_route_continuation(void* state, unsigned caller_s2)
+{
+    unsigned char* base = state;
+    ++pc_route_continuations;
+    if (base[0x35] < 2) {
+        *(int*)(base + 0x19c) = -1;
+        func_800E4BD8(base[0x19b]);
+        base[0x19b] = 0;
+        return;
+    }
+    int index = func_800DFAF8(psx_to_int(int, base), *(unsigned*)(base + 0x19c), 0);
+    if (index >= 0) {
+        unsigned link = psx_to_ptr(unsigned short*, D_800F5910)[index * 2];
+        unsigned tile = (caller_s2 & 0xff000000u) | (link & 0x1f) | (((link >> 5) & 0x1f) << 16);
+        if (func_800D954C(state, tile) > 0) {
+            *(int*)(base + 0x19c) = -1;
+            func_800E4BD8((index >> 1) + 2);
+            base[0x19b] = 0;
+            *(unsigned*)(base + 0x170) = tile;
+            func_800DEEFC(state, 14);
+            return;
+        }
+    }
+    func_800E2CCC(state, 0);
+}
+
 /* 7BDD4.s: head for the packed target tile at 0x168 unless already on it
- * (then func_800E2CCC); the route-continuation path (0x19B) is unported. */
+ * (then func_800E2CCC); with a gate held (0x19B) continue the route through
+ * it instead (L800DF8A4). The callers' $s2 is not known natively; its byte
+ * is unobservable (see pc_route_continuation). */
 void func_800E4B2C(void* state, int angle)
 {
     unsigned char* base = state;
-    if (base[0x19b])
-        pc_unimplemented("actor route continuation L800DF8A4");
+    if (base[0x19b]) {
+        pc_route_continuation(state, 0);
+        return;
+    }
     unsigned target = *(unsigned*)(base + 0x168) & 0xff00ff;
     if (target == (*(unsigned*)(base + 0x34) & 0xff00ff)) {
         func_800E2CCC(state, angle);
@@ -285,7 +338,8 @@ void func_800E4B2C(void* state, int angle)
     func_800E19FC(state, angle);
 }
 /* 7BDD4.s: free movement (func_800E3600 mode 1, angle & 0xFFF) unless the
- * actor is held (0x1A). */
+ * actor is held (0x1A); with a gate held (0x19B) continue the route through
+ * it (L800DF8A4, returning through 0x800E4BAC). */
 void func_800E4B70(void* state, int angle)
 {
     unsigned char* base = state;
@@ -293,8 +347,10 @@ void func_800E4B70(void* state, int angle)
         func_800E1908(state, angle);
         return;
     }
-    if (base[0x19b])
-        pc_unimplemented("actor route continuation L800DF8A4");
+    if (base[0x19b]) {
+        pc_route_continuation(state, 0);
+        return;
+    }
     base[2] = 1;
     *(unsigned char*)(0x1f800000 + 0x3d0) = 0;
     func_800E3600(state, angle & 0xfff, 1);
@@ -805,9 +861,13 @@ int func_800D954C(void* state, unsigned tile)
         if (id == base[0x88])
             continue;
         unsigned char* model = D_800F4538[id];
+        /* Actors without an AI state (no attribute bit 0/2, func_800E6178)
+         * have a null entry: the original then reads offsets 0x94/0x174/
+         * 0x178 of address 0, the start of PS1 RAM (kernel area, seen
+         * through KUSEG). Read the same guest RAM bytes. */
         unsigned char* other = SCRATCH_PTR(unsigned char*, 0x37c + id * 4);
         if (!other)
-            pc_unimplemented("tile entry test against an actor without state");
+            other = psx_to_ptr(unsigned char*, 0x80000000u);
         unsigned position, depth;
         if (id && (model[0xa] & 0x1f)) {
             position = *(unsigned*)(other + 0x174);

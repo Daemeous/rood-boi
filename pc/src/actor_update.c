@@ -19,6 +19,7 @@ extern void func_800E4288(void*, unsigned);
 extern void func_800D82CC(void*);
 extern void func_800D821C(void*);
 extern void func_800DBF00(void*);
+extern void pc_route_continuation(void*, unsigned); /* battle_movement.c */
 
 void pc_actor_scratch(unsigned* scratch)
 {
@@ -34,9 +35,10 @@ void pc_actor_scratch(unsigned* scratch)
     scratch[0x3e8 / 4] = D_800F16E8;
     scratch[0x3ec / 4] = D_800F16EC;
     scratch[0x3f0 / 4] = D_800F16F0;
-    if (!D_800F58BC)
-        pc_unimplemented("actor navigation grid missing");
-    scratch[0x3dc / 4] = *psx_to_ptr(unsigned*, D_800F58BC + 4);
+    /* Without a navigation record (func_800E5308 does not test it, unlike
+     * func_800E511C) the original reads word 4 of address 0: PS1 RAM, the
+     * kernel area, read here through guest RAM. */
+    scratch[0x3dc / 4] = *psx_to_ptr(unsigned*, (D_800F58BC ? D_800F58BC : 0x80000000u) + 4);
 }
 void func_800E65DC(void) { pc_actor_scratch((unsigned*)0x1f800000); }
 void func_800E5240(unsigned id)
@@ -112,8 +114,11 @@ int func_800E527C(unsigned id, int x, int z)
 }
 static void route_target(unsigned char* state)
 {
-    if (state[0x19b])
-        pc_unimplemented("actor route continuation L800DF8A4");
+    if (state[0x19b]) {
+        /* L800E550C -> L800DF8A4; the original's $s2 is this route record. */
+        pc_route_continuation(state, psx_to_int(unsigned, state));
+        return;
+    }
     unsigned target = *(unsigned*)(state + 0x160);
     unsigned x = target & 65535, z = target >> 16;
     *(unsigned*)(state + 0x17c) = x;
@@ -136,9 +141,14 @@ void func_800E5308(void)
         unsigned id = *(unsigned*)(actor + 4);
         if (id >= 17)
             pc_unimplemented("actor navigation index");
+        /* An actor without an AI state (no attribute bit 0/2) has a null
+         * entry; the original then loads its route record from address
+         * 0x18C, the PS1 kernel area (read here through guest RAM). A
+         * nonzero word there would have the PS1 write into its kernel, so
+         * on a working PS1 this reads 0 and the actor is skipped. */
         unsigned char* base = psx_to_ptr(unsigned char*, scratch[0x37c / 4 + id]);
         if (!base)
-            pc_unimplemented("actor navigation state missing");
+            base = psx_to_ptr(unsigned char*, 0x80000000u);
         unsigned char* state = psx_load(unsigned char*, base + 0x18c);
         scratch[0x3fc / 4] = func_800E45B4();
         if (!state)

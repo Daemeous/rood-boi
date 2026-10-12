@@ -41,6 +41,7 @@ void pc_hw_set_room(int room) { (void)room; }
 void pc_hw_set_packet(const void* p) { (void)p; }
 int pc_hw_is_room_packet(const void* p) { return (void)p, 0; }
 void pc_hw_set_precise(const float* xy) { (void)xy; }
+void pc_hw_set_flipped_uv(const int* xy, const int* uv) { (void)xy, (void)uv; }
 int pc_gte_projected_precise(int sx, int sy, int* sz, float* fx, float* fy)
 {
     return (void)sx, (void)sy, (void)sz, (void)fx, (void)fy, 0;

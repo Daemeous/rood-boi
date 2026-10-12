@@ -49,8 +49,12 @@ void main() {
             ivec2 lo = ivec2(v_bounds.xy), hi = max(ivec2(v_bounds.zw) - 1, lo);
             ivec2 q = clamp(ivec2(floor(v_uv * float(pc.ui_scale) + 0.0001)), lo * pc.ui_scale, (hi + 1) * pc.ui_scale - 1);
             t = texelFetch(ui_atlas, q + v_ui * pc.ui_scale, 0).r;
-        } else
-            t = texel_at(uint(floor(v_uv.x + 0.0001)) & 255u, uint(floor(v_uv.y + 0.0001)) & 255u, tpage, clut, win);
+        } else {
+            ivec2 q = ivec2(floor(v_uv + 0.0001));
+            // FLAG_CLAMP (2D): the texels the PS1 samples, [min, max - 1].
+            if ((flags & 32u) != 0u) q = clamp(q, ivec2(v_bounds.xy), max(ivec2(v_bounds.zw) - 1, ivec2(v_bounds.xy)));
+            t = texel_at(uint(q.x) & 255u, uint(q.y) & 255u, tpage, clut, win);
+        }
         vec3 texel = rgb(t);
         if (pc.filtering != 0 && v_normal.w > 0.5) {
             vec2 p = v_uv - 0.5;

@@ -687,9 +687,9 @@ void pc_scaled_room_transform(
     VECTOR* position, VECTOR* angles, MATRIX* camera, int far_clip, MATRIX* result)
 {
     MATRIX scale = { 0 }, scaled_camera = *camera;
-    if (far_clip == 0)
-        pc_unimplemented("zero background far clip");
-    short factor = 0x1000000 / far_clip;
+    /* `div $zero` has no zero check: the R3000 leaves LO = -1 for the
+     * positive dividend. */
+    short factor = far_clip ? 0x1000000 / far_clip : -1;
     scale.m[0][0] = scale.m[1][1] = scale.m[2][2] = factor;
     compose_rotation(&scale, &scaled_camera, &scaled_camera);
     pc_room_transform(position, angles, &scaled_camera, result);

@@ -3550,6 +3550,18 @@ static void* _getContainerIndexOffset(int section, vs_menu_containerIndices* ind
     return (u_short*)indices + offset;
 }
 
+#ifdef ROOD_PC
+/* Only gems[0..2] of a weapon or shield are gem indices (no grip or shield
+ * has a 4th gem slot, so the game leaves gems[3] at 0 and the 4th pass of
+ * the original loop never changes anything). The QoL weapon slots
+ * (pc/src/weapon_slots.c) keep their slot data in gems[3], as eremtsov's QoL
+ * mod does; remapping it as a gem index scrambled it when the Container was
+ * saved. The mod's fix: 3 passes. */
+#define CONTAINER_GEM_BYTES 3
+#else
+#define CONTAINER_GEM_BYTES 4
+#endif
+
 void _copyContainer(vs_menu_containerData* target, vs_menu_containerData* source,
     vs_menu_containerIndices* toCopy)
 {
@@ -3582,7 +3594,7 @@ void _copyContainer(vs_menu_containerData* target, vs_menu_containerData* source
             weapon->blade = targetIndices->blades[weapon->blade - 1];
             weapon->grip = targetIndices->grips[weapon->grip - 1];
 
-            for (j = 0; j < 4; ++j) {
+            for (j = 0; j < CONTAINER_GEM_BYTES; ++j) {
                 if (weapon->gems[j] != 0) {
                     weapon->gems[j] = targetIndices->gems[weapon->gems[j] - 1];
                 }
@@ -3623,7 +3635,7 @@ void _copyContainer(vs_menu_containerData* target, vs_menu_containerData* source
             vs_battle_copyAligned(
                 shield, &source->shields[sourceIndex - 1], sizeof *shield);
             shield->index = i + 1;
-            for (j = 0; j < 4; ++j) {
+            for (j = 0; j < CONTAINER_GEM_BYTES; ++j) {
                 if (shield->gems[j] != 0) {
                     shield->gems[j] = targetIndices->gems[shield->gems[j] - 1];
                 }

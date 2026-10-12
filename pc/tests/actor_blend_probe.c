@@ -63,7 +63,14 @@ int main(void)
     func_800B147C(dst, src, 2, 4, 4);
     CHECK(
         full_calls == 1 && dst[0x608 / 4] == 0x12345678 && dst[0x60c / 4] == 0xaabbccdd);
+    /* A zero duration divides by zero without a check: the R3000 gives
+     * LO = -1 (non-negative dividend), so IR0 = -1 steps backwards. */
+    memset(dst, 0, sizeof(dst));
+    memset(src, 0, sizeof(src));
+    s[0x148 / 2] = 4096;
+    func_800B147C(dst, src, 1, 1, 0);
+    CHECK(d[0x148 / 2] == -1 && !d[0x14a / 2]);
     puts(
-        "PASS: animation blend wrap, GTE rounding/state, signed fields and half/full fast paths");
+        "PASS: animation blend wrap, GTE rounding/state, signed fields, half/full fast paths, zero duration");
     return 0;
 }

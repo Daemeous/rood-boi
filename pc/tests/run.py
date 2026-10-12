@@ -111,6 +111,11 @@ def suites(args, mode="egl"):
                   note="editor overlays (edges, points) and point/edge/surface snapping in the save room"),
             Suite("room_browser_smoke", [PY, str(TESTS / "room_browser_smoke.py"), "--card", str(args.save)], 600,
                   note="Room Browser: rooms from the disc, warps across zones and back; lighting layers in the game"),
+            Suite("route_continuation_smoke", [PY, str(TESTS / "route_continuation_smoke.py"), "--card",
+                                               str(args.save)], 300,
+                  note="enemies holding a room link (gate) continue their route (L800DF8A4) in zone 9 room 5"),
+            Suite("ending_smoke", [PY, str(TESTS / "ending_smoke.py"), "--card", str(args.save)], 600,
+                  note="ENDING.PRG twice from the save: credits, skip, MISSION COMPLETE rank screen, title"),
             Suite("light_actors_smoke", [PY, str(TESTS / "light_actors_smoke.py"), "--card", str(args.save)], 300,
                   note="Place Actors drag and drop, light actor prefabs, overrides, flicker, glow links (save room)"),
             Suite("fixture_lighting_smoke", [PY, str(TESTS / "fixture_lighting_smoke.py"), "--card", str(args.save)],
@@ -133,6 +138,12 @@ def suites(args, mode="egl"):
         *([Suite("save_menu_smoke", [PY, str(TESTS / "save_menu_smoke.py"), "--card", str(args.save)], 300,
                  note="DATA > LOAD slot images = disc data decode, on interpolated frames too (CLUT swaps)")]
           if args.save.exists() else []),
+        *([Suite("weapon_slots_smoke", [PY, str(TESTS / "weapon_slots_smoke.py"), "--card", str(args.save)], 600,
+                 note="QoL weapon slots: off = the game's L2 overlay; swaps, assign mode, shields, D-pad, drawn; "
+                      "the mod's save bytes survive a save and reload")]
+          if args.save.exists() else []),
+        Suite("flipped_sprite_smoke", [PY, str(TESTS / "flipped_sprite_smoke.py")], 180,
+              note="textured quads (flipped sprites too) sample only their own texels: CPU, hardware 1x and 4x"),
         Suite("ui_upscale_smoke", [PY, str(TESTS / "ui_upscale_smoke.py"),
                                    *(["--card", str(args.save)] if args.save.exists() else [])], 300,
               note="2D/UI MMPX: only 2D changes, atlas = CPU reference, palette kept, cache, VRAM rewrites"),

@@ -43,6 +43,7 @@ extern int pc_gte_projected(int, int);
 extern int pc_gte_projected_depth(int, int, int*);
 extern void pc_hw_set_depth(const int*);
 extern void pc_hw_set_precise(const float*);
+extern void pc_hw_set_flipped_uv(const int*, const int*);
 extern int pc_gte_projected_precise(int, int, int*, float*, float*);
 extern int pc_gte_lookup_view[3];
 extern int pc_gte_projected_candidates(int, int, int*, unsigned*, int);
@@ -452,11 +453,10 @@ static uint16_t texture(int u, int v, unsigned clut)
         val = (vram[((ty + v) & 511) * 1024 + ((tx + u / 2) & 1023)] >> ((u & 1) * 8))
             & 255;
         break;
-    case 2:
-        return vram[((ty + v) & 511) * 1024 + ((tx + u) & 1023)];
     default:
-        pc_unimplemented("reserved texture depth");
-        return 0;
+        /* 2: 15-bit direct. 3 is "reserved" and the GPU reads it as 15-bit
+         * too (the ending's rank screen background uses it). */
+        return vram[((ty + v) & 511) * 1024 + ((tx + u) & 1023)];
     }
     return vram[((clut >> 6) & 511) * 1024 + (((clut & 63) * 16 + val) & 1023)];
 }

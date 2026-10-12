@@ -648,6 +648,21 @@ static void camera_stick_panel()
     ImGui::Unindent();
 }
 
+extern "C" int pc_qol_weapon_slots; /* project_settings.cpp; weapon_slots.c */
+/* Graphics > Gameplay: optional gameplay changes, all off by default. */
+static void gameplay_panel()
+{
+    bool slots = pc_qol_weapon_slots != 0;
+    if (ImGui::Checkbox("Weapon slots (L2 + R2 quick swap)", &slots))
+        pc_qol_weapon_slots = slots;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("From eremtsov's QoL mod. Hold L2 + R2: the shortcut overlay shows 8 weapon slots;\n"
+                          "Circle/Triangle/Square/Cross or Up/Down/Right/Left equips that slot's weapon and shield.\n"
+                          "Select: assign mode (the next slot button stores the equipped weapon there);\n"
+                          "Start: the equipped shield into every one-handed slot; R2 + Select: store / remove.\n"
+                          "Slots are saved in the same bytes as the mod, so memory cards stay interchangeable.");
+}
+
 static void post_panel()
 {
     if (!pc_hw_active)
@@ -1392,6 +1407,8 @@ static void details(float x, float y, float w, float h, double frame_ms)
                 graphics_panel();
             if (ImGui::CollapsingHeader("Controls"))
                 camera_stick_panel();
+            if (ImGui::CollapsingHeader("Gameplay"))
+                gameplay_panel();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Diagnostics", nullptr, select[5])) {

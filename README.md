@@ -71,6 +71,9 @@ with design notes in [`pc/docs/`](pc/docs).
   classifies every candle, torch, lantern and brazier type in the game once
   (hashes and numbers, no game data), and a generator lights every instance
   from it; tuning a type updates all of its instances.
+- **Optional weapon slots.** A quick weapon and shield swap on L2 + R2,
+  ported from eremtsov's QoL mod; off by default, memory cards stay
+  compatible with the mod and the unmodded game.
 - **Camera and view options.** The right stick turns and zooms the game's own
   follow camera; optional *smart* cutaway walls hide only the walls actually
   between the camera and Ashley; optional MMPX upscaling for 2D/UI.
@@ -462,6 +465,10 @@ decompilation.
 - **[Lil' Sassy](https://github.com/lil-sassy)** is one of the decompilation's
   most prolific contributors; their work is part of the game code this port
   compiles and runs.
+- **[eremtsov](https://github.com/eremtsov)** made the
+  [Vagrant Story QoL mod](https://github.com/eremtsov/rood-reverse) (CC0); its
+  optional weapon slots quick swap (L2 + R2) is ported from it
+  ([`pc/README.md`](pc/README.md#weapon-slots-optional)).
 - Thanks also to every other rood-reverse contributor, and to the projects and
   people credited in the upstream section below.
 

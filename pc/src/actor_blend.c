@@ -43,9 +43,14 @@ void func_800B147C(void* destination, void* source, int count, int step, int dur
         func_800AE980(destination, source, count);
         return;
     }
-    if (!duration || count <= 0 || count > 42)
+    /* The do-while over `count` bones would run away for count <= 0; the
+     * records hold 42 bones. */
+    if (count <= 0 || count > 42)
         pc_unimplemented("invalid animation blend extent");
-    MTC2((int)((unsigned)step << 12) / duration, 8);
+    /* `div $zero` has no zero check: the R3000 leaves LO = -1 for a
+     * non-negative dividend and 1 for a negative one. */
+    int dividend = (int)((unsigned)step << 12);
+    MTC2(duration ? dividend / duration : (dividend < 0 ? 1 : -1), 8);
     unsigned char* dst = destination;
     unsigned char* src = source;
     blend_vector((short*)(dst + 0x148), (short*)(src + 0x148), 0, 0);

@@ -30,7 +30,7 @@ extern float pc_present_phase;
 typedef struct {
     float x, y; /* VRAM pixels; fractional only for widescreen-compressed 2D */
     float z;    /* GTE view depth (SZ) for projected 3D vertices, 0 for 2D */
-    uint8_t r, g, b, flags; /* flags: 1 textured, 2 raw texture, 4 semi, 8 mask set */
+    uint8_t r, g, b, flags; /* FLAG_* */
     uint16_t u, v;
     uint16_t tpage, clut;
     uint32_t window;
@@ -40,7 +40,8 @@ typedef struct {
 } hw_vertex;
 
 /* FLAG_UI: a 2D texture region magnified into the UI atlas (pc_ui_upscale). */
-enum { FLAG_TEXTURED = 1, FLAG_RAW = 2, FLAG_SEMI = 4, FLAG_MASK = 8, FLAG_UI = 16 };
+/* FLAG_CLAMP: 2D, texels kept inside the primitive's [uv_min, uv_max - 1]. */
+enum { FLAG_TEXTURED = 1, FLAG_RAW = 2, FLAG_SEMI = 4, FLAG_MASK = 8, FLAG_UI = 16, FLAG_CLAMP = 32 };
 #define MAX_VERTICES 65536
 
 int pc_hw_active;
@@ -51,10 +52,42 @@ int pc_hw_scale = 1;
 extern int pc_gte_widescreen;
 static int primitive_2d, primitive_room, primitive_cover;
 static uintptr_t current_packet; /* the GPU packet being drawn (pc_hw_set_packet) */
+static int primitive_uv_shift[2]; /* pc_hw_set_flipped_uv */
 void pc_hw_set_2d(int is_2d)
 {
     primitive_2d = is_2d;
     primitive_cover = 0;
+    primitive_uv_shift[0] = primitive_uv_shift[1] = 0;
+}
+/* A flipped 2D sprite drawn as a polygon (U or V decreasing along X or Y,
+ * no change along the other axis), as beetle-psx and DuckStation detect it.
+ * The PS1 takes a pixel's texel at its top-left corner: a quad whose U runs
+ * from 87 down to 63 over 24 pixels samples 87..64. Sampled at pixel centres
+ * (as this renderer does, more finely when upscaled) it would sample 86..63,
+ * one texel past the image (the neighbour in the page shows as a line at
+ * the edge, or the image shifts by a texel). Shifting that coordinate by one
+ * samples what the PS1 does at native scale and stays inside it upscaled.
+ * Called after pc_hw_set_2d for 2D textured polygons with the packet's
+ * first three vertices (xy, uv pairs); applies to the whole polygon. */
+void pc_hw_set_flipped_uv(const int* xy, const int* uv)
+{
+    float abx = (float)(xy[2] - xy[0]), aby = (float)(xy[3] - xy[1]);
+    float bcx = (float)(xy[4] - xy[2]), bcy = (float)(xy[5] - xy[3]);
+    float cax = (float)(xy[0] - xy[4]), cay = (float)(xy[1] - xy[5]);
+    float area = bcx * cay - bcy * cax;
+    int tex_area = (uv[2] - uv[0]) * (uv[5] - uv[1]) - (uv[4] - uv[0]) * (uv[3] - uv[1]);
+    primitive_uv_shift[0] = primitive_uv_shift[1] = 0;
+    if (area == 0.0f || !tex_area)
+        return;
+    for (int k = 0; k < 2; k++) {
+        /* Plane derivatives (scaled by the area; only signs and zeros matter). */
+        float ddx = -aby * (float)uv[4 + k] - bcy * (float)uv[k] - cay * (float)uv[2 + k];
+        float ddy = abx * (float)uv[4 + k] + bcx * (float)uv[k] + cax * (float)uv[2 + k];
+        if (area < 0.0f)
+            ddx = -ddx, ddy = -ddy;
+        if ((ddx < 0.0f && ddy == 0.0f) || (ddy < 0.0f && ddx == 0.0f))
+            primitive_uv_shift[k] = 1;
+    }
 }
 /* Widescreen: 2D that stands for the whole screen draws uncompressed, over
  * the full 16:9 view. The game draws its full-screen effects over the 4:3
@@ -167,9 +200,10 @@ void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tp
     int backdrop = (code & 0xe0) == 0x60 && uv && y0 <= clip[1] + tolerance && y1 >= clip[1] + clip[3] - tolerance
         && (x0 <= clip[0] + tolerance || x1 >= clip[0] + clip[2] - tolerance) && x1 - x0 >= clip[2] / 8;
     int copy = 0;
-    if (uv && ((tpage >> 7) & 3) == 2) {
-        /* 15-bit texels: the sampled VRAM is the texture page plus UV; a
-         * screen copy samples the screen position it draws at. */
+    if (uv && ((tpage >> 7) & 3) >= 2) {
+        /* 15-bit texels (depth 3 reads as 15-bit too): the sampled VRAM
+         * is the texture page plus UV; a screen copy samples the screen
+         * position it draws at. */
         int tx = (int)(tpage & 15) * 64, ty = (int)((tpage >> 4) & 1) * 256;
         int sampled[4] = { tx + uv[0], ty + uv[1], uv[2] - uv[0] + 1, uv[3] - uv[1] + 1 };
         const screen_picture* p = screen_find(sampled);
@@ -709,8 +743,13 @@ static const char* draw_fragment_source =
     "            ivec2 lo = ivec2(v_bounds.xy), hi = max(ivec2(v_bounds.zw) - 1, lo);\n"
     "            ivec2 q = clamp(ivec2(floor(v_uv * float(ui_scale) + 0.0001)), lo * ui_scale, (hi + 1) * ui_scale - 1);\n"
     "            t = texelFetch(ui_atlas, q + v_ui * ui_scale, 0).r;\n"
-    "        } else\n"
-    "            t = texel_at(uint(floor(v_uv.x + 0.0001)) & 255u, uint(floor(v_uv.y + 0.0001)) & 255u, tpage, clut, win);\n"
+    "        } else {\n"
+    "            ivec2 q = ivec2(floor(v_uv + 0.0001));\n"
+    /* FLAG_CLAMP (2D): the texels the PS1 samples, [min, max - 1]; the far
+     * edge is never reached (finer samples than whole pixels would take it). */
+    "            if ((flags & 32u) != 0u) q = clamp(q, ivec2(v_bounds.xy), max(ivec2(v_bounds.zw) - 1, ivec2(v_bounds.xy)));\n"
+    "            t = texel_at(uint(q.x) & 255u, uint(q.y) & 255u, tpage, clut, win);\n"
+    "        }\n"
     "        vec3 texel = rgb(t);\n"
     "        if (filtering != 0 && v_normal.w > 0.5) {\n"
     /* Bilinear between the four nearest texels, kept inside the primitive's
@@ -1392,6 +1431,14 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
         }
     }
     record_triangle(has_world ? world : NULL, code, tpage, clut, uv);
+    /* 2D: a flipped sprite's coordinates (pc_hw_set_flipped_uv), and texels
+     * kept inside the primitive (FLAG_CLAMP). */
+    int texcoord[6];
+    for (int i = 0; i < 6; i++)
+        texcoord[i] = uv[i] + (textured ? primitive_uv_shift[i & 1] : 0);
+    uv = texcoord;
+    if (textured && !(depth[0] | depth[1] | depth[2]))
+        flags |= FLAG_CLAMP;
     int bounds[4] = { 255, 255, 0, 0 };
     for (int i = 0; i < 3; i++)
         for (int k = 0; k < 2; k++) {

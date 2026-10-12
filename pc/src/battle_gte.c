@@ -70,7 +70,6 @@ extern MATRIX* RotMatrixYXZ_gte(SVECTOR*, MATRIX*);
 extern MATRIX* func_80041C68(MATRIX*, MATRIX*);
 extern void func_800C02A8(void);
 extern void func_800C0990(void*, void*, unsigned, int);
-extern void pc_unimplemented(const char*);
 /* 58350.s (hand-written): draw a battle menu target shape. Its points (at the
  * shape buffer D_800EB9B8 + 0x48, count 0x32) are transformed by the GTE light
  * matrix (shape scale/rotation composed at scratchpad 0x398) plus the shape
@@ -112,10 +111,10 @@ void func_800C0B50(unsigned char* shape, unsigned color)
         scratch[0] = MFC2(14);
         scratch[1] = (int)MFC2(19) >> 2;
         if (pad) {
-            if (!divisor)
-                pc_unimplemented("target shape intensity divide by zero");
-            int depth = (*(short*)(scratch + 1) + *(short*)((unsigned char*)scratch + 0xc) - bias)
-                / divisor;
+            int sum = *(short*)(scratch + 1) + *(short*)((unsigned char*)scratch + 0xc) - bias;
+            /* `div $zero` has no zero check: the R3000 then leaves LO = -1
+             * for a non-negative dividend and 1 for a negative one. */
+            int depth = divisor ? sum / divisor : (sum < 0 ? 1 : -1);
             func_800C0990(scratch, scratch + 2, color - ((unsigned)pad << 25), 0x20 - depth);
         }
         for (int j = 0; j < 3; ++j)

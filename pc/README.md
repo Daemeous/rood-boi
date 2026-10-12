@@ -132,6 +132,51 @@ first-person view, where the zoom also eases back to the game's distance.
 `pc/tests/camera_stick_smoke.py` and the CTest `camera_stick_probe` test it.
 Hands-on stick feel (speeds, curve, dead zone) still needs a playtest.
 
+### Weapon slots (optional)
+
+A quick weapon swap ported from eremtsov's
+[Vagrant Story QoL mod](https://github.com/eremtsov/rood-reverse) (CC0; the
+`qol-mod-classic` branch, which adds only this feature). **Off by default**:
+settings key `qol_weapon_slots 1`, editor Graphics > Gameplay, RPC
+`weapon_slots {enabled}`. With it off the game is unchanged. Only the weapon
+slots are ported, none of the mod's other control changes.
+
+| Input | Keyboard | Does |
+| --- | --- | --- |
+| Hold L2 + R2 | 1 + 2 | the L2 shortcut overlay shows the 8 weapon slots by name |
+| ... then Circle, Triangle, Square, Cross / Up, Down, Right, Left | Z, S, A, X / arrows | equip that slot's weapon and shield (slots 1-8) |
+| ... then Select | Tab | assign mode (orange labels, a prompt): the next slot button stores the equipped weapon there, with the equipped shield if it is one-handed; a weapon in another slot moves, its own slot clears |
+| ... then Start | Enter | the equipped shield becomes the shield of every occupied one-handed slot (none equipped: those slots lose theirs) |
+| R2 + Select | 2 + Tab | the equipped weapon (and shield) into the first free slot, or out of its slot |
+
+- A slot is an exact loadout: swapping equips its shield or takes the shield
+  off; a two-handed weapon always takes it off, and a shield no longer in the
+  bag counts as none. With the weapon drawn, Ashley sheathes and draws the new
+  one; its name shows in the information bar for about 2.5 s.
+- Swaps happen only at safe moments: not in menus, cutscenes or screen
+  transitions, not mid-attack or during chain/defense ability timing, not while
+  something loads. The D-pad slots react only to the real D-pad (not the left
+  stick the game folds into it). L2 alone keeps the normal shortcuts.
+- No conflict with the right-stick camera: it uses R3 (reset) and the stick;
+  R2 + Select swallows only that Select press (no near/far camera toggle).
+- **Save compatibility:** the slots use the mod's format, so memory cards move
+  freely between rood-boi, the mod (DuckStation) and the unmodded game. A
+  weapon's slot (1-8, 0 none) is the 4th gem byte of its inventory record
+  (`weapons[i].gems[3]`, which no grip uses); a shield's 4th gem byte
+  (`shields[i].gems[3]`) is a bit mask of the slots it belongs to (bit N =
+  slot N+1). The unmodded game leaves both 0 and ignores them. Version 2
+  favourites (several weapons marked 1) are moved to slots 1, 2, 3, ...
+- **Container fix:** saving the Container's contents remapped all four gem
+  bytes of weapons and shields as gem indices, scrambling the slot bytes. As
+  in the mod it now remaps three (MENU7 `_copyContainer`, `#ifdef ROOD_PC`).
+  This applies whether or not the option is on (a card may come from the mod):
+  for the unmodded game's data it changes nothing, because the fourth byte is
+  always 0 and the original loop skips zero bytes. Selling a shield or
+  combining it in a workshop still drops its slots, as in the mod.
+
+`pc/src/weapon_slots.c` documents the details; `pc/tests/weapon_slots_smoke.py`
+tests it (option off, swaps, assign mode, shields, saving and reloading).
+
 ## Intro movie and CD drive
 
 The title's own movie code (`src/TITLE/TITLE.PRG/22C.c`) plays MOV/TITLE.STR
@@ -394,7 +439,11 @@ reports each group's decision (`shown`, `occluding`, `cells`).
 Graphics > 2D / UI (RPC `graphics`, settings keys below) chooses how 2D
 textures (HUD, menus, text, talk bubbles, icons; every textured primitive
 the GTE did not project and no native draw covers) reach the internal
-resolution. 3D textures always keep nearest sampling.
+resolution. 3D textures always keep nearest sampling. Whatever the scale,
+a 2D primitive samples only the texels the PS1 does: its texels are clamped
+to its UV range, and flipped sprites drawn as polygons (U or V decreasing,
+such as the enemies' emote bubbles facing left) take their texels at the
+pixel's corner as the PS1 does, not one past the image (`pc_hw_set_flipped_uv`).
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -712,11 +761,13 @@ thread once per vsync, so each method runs at a frame boundary:
 | `step` | `vsyncs` | run exactly N vsyncs, then pause |
 | `input` | `buttons` (name or list), `right_stick` (`[x, y]`, -1..1, down +y), `vsyncs` | hold PS1 buttons and/or the right stick (the camera); works unfocused |
 | `camera_stick` | the settings without `camera_stick_` (`enabled`, `speed`, ..., `r3_reset`, `idle_reset`, `keys`), `action` (`reset`) | the right-stick camera: settings and state (zoom, distances, collision hit, yaw) |
+| `weapon_slots` | `enabled` | the optional weapon slots (battle builds): the option, overlay/assign/swap state, field mode, each weapon's slot and each shield's slot bits, what Ashley's battle record has equipped |
 | `release` | | drop injected buttons |
 | `state` | | zone, room, start state, music, HP/MP, risk, Ashley's position |
 | `read` / `write` | `address`, `length` / `hex` | guest RAM and scratchpad (read also host data) |
 | `screenshot` | `path` | displayed frame (native resolution) as a PPM |
 | `gpu_dump` | `path` | the whole scaled hardware VRAM target as a PPM |
+| `gpu_draw` | `packet` (GP0 words, hex), `texture` (hex texels) with `texture_x/y/w/h`, `area_x/y/w/h`, `offset_x/y` | tests: load texels, set the drawing area, draw the commands on both rasterizers (`flipped_sprite_smoke.py`) |
 | `graphics` | `scale`, `filter`, `aspect`, `widescreen`, `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `lighting_preset` and the lighting quality keys, ... | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
 | `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
 | `settings` | `action` (`save`, `load`) | the `ROOD_SETTINGS` file (a loaded preset applies at once) |
@@ -734,6 +785,7 @@ thread once per vsync, so each method runs at a frame boundary:
 | `fixtures` | `action` (`list`, `set` {`type`, `params`, `offset`, `fixture_radius`, `glow`, `enabled`, `review`}, `save`, `revert`, `regenerate` {`scope`}), `type`, `all` | the fixture catalog's types in the room (or one, or all), the room's typed actors and glows (`muted` 4: suppressed by the type); type edits apply live to every instance (`pc/docs/Fixture_Catalog.md`) |
 | `rooms` | | every zone and room read from the disc (zone, room, location, scene, entries, name, area), the current room, whether warped, the warp's phase |
 | `room_goto` | `zone`, `room`, `entry`, `enemies`, `scripts`, `block_saves`, or `action` (`return`, `clear`, `cancel`, `status`) | ask the game to load a room (taken in the field loop); phase 0 idle, 1 requested, 2 loading, 3 arrived, 4 done |
+| `ending` | | developer jump: the field's next frame plays the ending (ENDING.PRG: credits, score and rank) and returns to the title, which offers the clear-data save; battle build |
 | `editor_undo` | `action` (`list`, `undo`, `redo`, `begin`, `end`, `jump`), `steps`, `name`, `done` | the undo history (`done`, names, `undo`/`redo` names, `open`); each editing request (`actors`, `glows`, `lights`, `editor_place`, `room_groups`, `uv_effects`, `editor_snap` with `apply`) is one transaction, `begin`/`end` hold one open across requests (a drag) |
 | `editor_input` | `keys` (`delete`, `backspace`, `escape`, `enter`, `tab`, `f2`, a letter or digit), `text`, `ctrl`, `shift`, `focus` (`search`, `none`) | keys and text through SDL's event queue (the keyboard's path); replies `visible`, `want_text_input`, `item_active`, `gizmo` |
 | `editor_view` | `focus` | the cutaway's focus (`[x, y, z]` fixes it, null: automatic), whether it is `hidden` and how far the cut has faded in (`amount`) |

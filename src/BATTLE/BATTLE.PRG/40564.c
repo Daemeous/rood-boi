@@ -365,7 +365,12 @@ static inline func_8008D2C0_t* func_800A4A24(int id)
             return &platforms[i];
         }
     }
+#ifdef ROOD_PC
+    /* No matching platform: see 3A1A0.c (reads of PS1 address 0). */
+    return (func_8008D2C0_t*)0x80000000;
+#else
     return NULL;
+#endif
 }
 
 int func_800A9530(D_800F4538_t* actor, SVECTOR* offset)

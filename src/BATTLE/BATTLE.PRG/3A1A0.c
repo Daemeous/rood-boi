@@ -1114,7 +1114,13 @@ inline func_8008D2C0_t* func_800A4A24(int arg0)
             return &sp10[i];
         }
     }
+#ifdef ROOD_PC
+    /* No matching platform: callers read through NULL, i.e. PS1 physical
+     * address 0, which the host maps at 0x80000000. */
+    return (func_8008D2C0_t*)0x80000000;
+#else
     return NULL;
+#endif
 }
 
 void func_8008C49C(int, int);
@@ -2341,7 +2347,16 @@ void func_800A70DC(D_800F4538_t* actor, int diagonal)
     }
     i = actor->unk63C;
     negativeRadius = -i;
+#ifdef ROOD_PC
+    {
+        /* Off the floor func_800A8D64 returns NULL and the original reads
+         * PS1 address 0 (the host maps it at 0x80000000). */
+        u_int* tile = func_800A8D64((&actor->unk0.position), 0);
+        samples->centerAttribute = (*(tile ? tile : (u_int*)0x80000000) >> 5) & 1;
+    }
+#else
     samples->centerAttribute = (*func_800A8D64((&actor->unk0.position), 0) >> 5) & 1;
+#endif
     samples->heights[0] = func_800A6EE8((&actor->unk0.position), 0, negativeRadius, 0);
     samples->attributes[0] = (*D_800F49F0 >> 5) & 1;
     samples->heights[6] = func_800A6EE8((&actor->unk0.position), i, 0, 0);

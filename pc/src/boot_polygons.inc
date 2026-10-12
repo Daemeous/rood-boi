@@ -1,6 +1,7 @@
-/* Initial CPU polygon rasterizer for native-port bring-up. Affine UVs, packed
- * RGB555/CLUT textures, Gouraud colors, top-left edge ownership, and PS1 blend
- * modes. Subpixel interpolation/dithering are not yet hardware-exact. */
+/* Initial CPU polygon rasterizer for native-port bring-up. Affine UVs (taken
+ * at pixel corners, as the PS1 does), packed RGB555/CLUT textures, Gouraud
+ * colors, top-left edge ownership, and PS1 blend modes. Interpolation
+ * precision and dithering are not yet hardware-exact. */
 typedef struct {
     int x, y, u, v, color[3];
     int z; /* GTE view depth (SZ) for projected vertices, 0 for 2D */
@@ -10,6 +11,10 @@ static int64_t edge(const pc_gpu_vertex* a, const pc_gpu_vertex* b, int x2, int 
 {
     return (int64_t)(b->x - a->x) * (y2 - a->y * 2)
          - (int64_t)(b->y - a->y) * (x2 - a->x * 2);
+}
+static int floor_div(int64_t n, int64_t d) /* d > 0 */
+{
+    return (int)(n >= 0 ? n / d : -((-n + d - 1) / d));
 }
 static int top_left(const pc_gpu_vertex* a, const pc_gpu_vertex* b)
 {
@@ -96,8 +101,13 @@ static void triangle(
                 continue;
             unsigned color = 0;
             if (code & 4) {
-                int u = (w0 * a.u + w1 * b.u + w2 * c.u) / area;
-                int v = (w0 * a.v + w1 * b.v + w2 * c.v) / area;
+                /* The PS1 interpolates texture coordinates at the pixel's
+                 * top-left corner, rounding to nearest (Mednafen's +0.5 on
+                 * the base value): a flipped sprite (U falling to the right)
+                 * samples its own texels, not one past them as the centre would. */
+                int64_t c0 = edge(&b, &c, x * 2, y * 2), c1 = edge(&c, &a, x * 2, y * 2), c2 = edge(&a, &b, x * 2, y * 2);
+                int u = floor_div(c0 * a.u + c1 * b.u + c2 * c.u + area / 2, area);
+                int v = floor_div(c0 * a.v + c1 * b.v + c2 * c.v + area / 2, area);
                 color = texture(u, v, clut);
                 if (!color)
                     continue;
@@ -279,6 +289,11 @@ static unsigned polygon_command(const uint32_t* p, unsigned available)
         pc_hw_sync_texture(tpage, clut, texture_window, u0, v0, u1, v1);
     }
     pc_hw_set_2d(!projected);
+    if (!projected && textured) {
+        int xy[6] = { vertex[0].x, vertex[0].y, vertex[1].x, vertex[1].y, vertex[2].x, vertex[2].y };
+        int uv[6] = { vertex[0].u, vertex[0].v, vertex[1].u, vertex[1].v, vertex[2].u, vertex[2].v };
+        pc_hw_set_flipped_uv(xy, uv);
+    }
     if (!projected) {
         /* Widescreen: 2D standing for the whole screen draws over the full view. */
         int x0 = vertex[0].x, y0 = vertex[0].y, x1 = x0, y1 = y0, clip[4] = { clip_x, clip_y, clip_w, clip_h };

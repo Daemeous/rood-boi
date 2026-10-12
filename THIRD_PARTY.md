@@ -23,6 +23,12 @@ you must own the game and supply your own disc image (see [`README.md`](README.m
 
 ## Ported into the project's sources
 
+- **Weapon slots** (`pc/src/weapon_slots.c` and the `ROOD_PC` hooks it lists):
+  ported from eremtsov's Vagrant Story QoL mod
+  (https://github.com/eremtsov/rood-reverse, branch `qol-mod-classic`,
+  `src/mod/wswap.c` and the MENU7 Container fix), reimplemented for the
+  native build with the same behaviour and save format. Released by its
+  author under CC0 1.0, like rood-reverse. Only the weapon slots are ported.
 - **MMPX** (`pc/src/ui_upscale.c` `pc_ui_mmpx2x`, `pc/shaders/vulkan/ui_mmpx.comp`):
   ported from the reference implementation of Morgan McGuire and Mara Gagiu,
   "MMPX Style-Preserving Pixel Art Magnification", JCGT 10(2), 2021

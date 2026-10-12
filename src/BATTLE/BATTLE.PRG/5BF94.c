@@ -3063,6 +3063,12 @@ void func_800C9F98(int arg0, int arg1)
     temp_v0[4] = 0x373D80C0;
 }
 
+#ifdef ROOD_PC
+/* QoL weapon slots (pc/src/weapon_slots.c): in their mode the labels show the
+ * slots' weapons; otherwise func_800C9EB8's answer. */
+int pc_weapon_slots_label(int id);
+#endif
+
 void func_800C9FE8(void)
 {
     int temp_s3;
@@ -3083,7 +3089,11 @@ void func_800C9FE8(void)
         temp_s3 = -vs_battle_rowAnimationSteps[D_800EBCE8];
 
         for (i = 0; i < 4; ++i) {
+#ifdef ROOD_PC
+            temp_v0 = pc_weapon_slots_label(i + 4);
+#else
             temp_v0 = func_800C9EB8(i + 4);
+#endif
             if (temp_v0 != 0) {
                 func_800C9F98(
                     ((temp_s3 + D_800EBC98[i]) & 0xFFFF) | (D_800EBC98[i + 4] << 0x10),
@@ -3101,7 +3111,11 @@ void func_800C9FE8(void)
         temp_s3 = (0xA0 - temp_s3);
 
         for (i = 0; i < 4; ++i) {
+#ifdef ROOD_PC
+            temp_v0 = pc_weapon_slots_label(i);
+#else
             temp_v0 = func_800C9EB8(i);
+#endif
             if (temp_v0 != 0) {
                 func_800C9F98(
                     ((temp_s3 + D_800EBCC0[i]) & 0xFFFF) | (D_800EBCC0[i + 4] << 0x10),

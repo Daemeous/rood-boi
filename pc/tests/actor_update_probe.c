@@ -50,6 +50,14 @@ void func_800E19FC(void* p, int angle)
         abort();
     ++moved;
 }
+static unsigned continued, continued_s2;
+void pc_route_continuation(void* p, unsigned s2)
+{
+    if (p != route)
+        abort();
+    ++continued;
+    continued_s2 = s2;
+}
 static unsigned char heap[0x484];
 static int released, allocated;
 void func_800D82CC(void* p) { released += p == base; }
@@ -106,10 +114,18 @@ int main(void)
     func_800E5308();
     CHECK(moved == 1 && *(unsigned*)(route + 0x17c) == 192
           && *(unsigned*)(route + 0x180) == 256);
+    /* Holding a gate (0x19B), the far-away target continues the route
+     * through it (L800E550C -> L800DF8A4, $s2 = the route record). */
+    *(void**)(base + 0x18c) = route;
+    route[0x19b] = 3;
+    *(unsigned*)(route + 0x17c) = 0;
+    func_800E5308();
+    CHECK(continued == 1 && continued_s2 == (unsigned)route && moved == 1 && !*(unsigned*)(route + 0x17c));
+    route[0x19b] = 0;
     route[0x125] = 1;
     *(unsigned*)(route + 0x168) = 0;
     func_800E5308();
-    CHECK(updated == 1);
+    CHECK(updated == 1 && continued == 1);
     /* Route requests: a record on first use, initialized from the state. */
     *(void**)(base + 0x18c) = 0;
     base[0x88] = 0;

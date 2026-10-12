@@ -503,8 +503,17 @@ void func_800C06E0(void)
 
 void func_800C0700(D_800EB9B8_t2* arg0)
 {
+#ifdef ROOD_PC
+    /* With the target shape freed (func_800C05B4) the original writes
+     * through NULL, i.e. PS1 RAM at physical address 0, which the host maps
+     * at 0x80000000; nothing reads it back there. */
+    D_800EB9B8_t* shape = D_800EB9B8 ? D_800EB9B8 : (D_800EB9B8_t*)0x80000000;
+    shape->unk10 = *arg0;
+    shape->unk2A = 0;
+#else
     D_800EB9B8->unk10 = *arg0;
     D_800EB9B8->unk2A = 0;
+#endif
 }
 
 void func_800C0738(void)

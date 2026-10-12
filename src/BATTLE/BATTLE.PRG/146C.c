@@ -7523,7 +7523,14 @@ void vs_battle_exec(void)
             D_800F1858 = 0;
             do {
                 do {
+#ifdef ROOD_PC
+                    /* QoL weapon slots (pc/src/weapon_slots.c, option
+                     * qol_weapon_slots): the pad read, then the L2 + R2 swap. */
+                    extern int pc_weapon_slots_process_pad(void);
+                    if (pc_weapon_slots_process_pad() == -1) {
+#else
                     if (vs_main_processPadState() == -1) {
+#endif
                         break;
                     }
                     ot = D_80055C80[vs_main_frameBuf];

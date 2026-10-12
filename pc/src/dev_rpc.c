@@ -16,6 +16,12 @@
  *                                zoom_min, zoom_max, zoom_pitch, collision,
  *                                r3_reset, idle_reset, keys), action "reset";
  *                                replies the settings and its state
+ *   weapon_slots {enabled}       the QoL weapon slots (weapon_slots.c,
+ *                                settings key qol_weapon_slots): sets the
+ *                                option; replies it, the overlay/assign/swap
+ *                                state, the field mode and each inventory
+ *                                weapon's slot (gems[3]) and shield's slot
+ *                                bits (battle builds)
  *   release                      drop all injected buttons
  *   screenshot {path}            write the displayed frame as a PPM
  *   present_dump {path}          the next presented window image (as seen) as a PPM
@@ -25,6 +31,14 @@
  *                                the images still to trace
  *   gpu_dump {path, replay}      write the scaled hardware VRAM target as a PPM
  *                                (replay: the last interpolated frame's)
+ *   gpu_draw {packet, texture_x, texture_y, texture_w, texture_h, texture,
+ *             area_x, area_y, area_w, area_h, offset_x, offset_y}
+ *                                tests: load 16-bit texels (hex, little-endian)
+ *                                into VRAM, set the drawing area and offset,
+ *                                then draw GP0 command words (hex, little-endian
+ *                                32-bit) on both rasterizers (CPU VRAM, read via
+ *                                the vram symbol, and the hardware target,
+ *                                gpu_dump); the game's next frame resets the area
  *   scene                        captured room: triangle count, bounds, camera
  *                                (the camera the presented picture was drawn with)
  *   gi_dump {path, count, light} Vulkan: the last GI update's world position,
@@ -198,6 +212,7 @@
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -301,6 +316,8 @@ extern int pc_scene_dump(const char*) __attribute__((weak));
 extern void pc_scene_bounds(float*, float*) __attribute__((weak));
 extern int pc_scene_camera_get(float (*)[3], float*, float*, float*, float*) __attribute__((weak));
 extern void pc_rpc_state(char* out, unsigned size) __attribute__((weak)); /* dev_state.c */
+extern int pc_qol_weapon_slots; /* project_settings.cpp */
+extern void pc_weapon_slots_json(char* out, unsigned size) __attribute__((weak)); /* weapon_slots.c */
 extern int pc_native_room __attribute__((weak)), pc_native_occlusion __attribute__((weak)),
     pc_native_actors __attribute__((weak)), pc_native_actor_order __attribute__((weak)),
     pc_native_blend __attribute__((weak)), pc_native_objects __attribute__((weak)),
@@ -672,6 +689,17 @@ static void handle_method(int fd, const char* request)
         if (!strcmp(action, "reset"))
             pc_camera_stick_reset();
         pc_camera_stick_json(result, sizeof result);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "weapon_slots")) {
+        /* The QoL weapon slots (weapon_slots.c): the option and the state. */
+        int flag;
+        if (!pc_weapon_slots_json) {
+            fail(fd, id, -32000, "weapon_slots needs the battle build");
+            return;
+        }
+        if (params && bool_value(member(params, "enabled"), &flag))
+            pc_qol_weapon_slots = flag;
+        pc_weapon_slots_json(result, sizeof result);
         reply(fd, id, result);
     } else if (!strcmp(method, "release")) {
         memset(holds, 0, sizeof holds);
@@ -1599,6 +1627,18 @@ static void handle_method(int fd, const char* request)
             return;
         }
         reply(fd, id, result);
+    } else if (!strcmp(method, "ending")) {
+        /* Developer jump: the field's next frame plays the ending (credits,
+         * score and rank) and returns to the title (room_warp.c). The game
+         * state it changes is only in memory unless the title's clear-data
+         * save is accepted. */
+        extern volatile int pc_ending_request __attribute__((weak));
+        if (!&pc_ending_request) {
+            fail(fd, id, -32000, "ending needs the battle build");
+            return;
+        }
+        pc_ending_request = 1;
+        reply(fd, id, "{\"requested\":true}");
     } else if (!strcmp(method, "rooms") || !strcmp(method, "room_goto")) {
         /* The Room Browser (room_warp.c): rooms lists every zone and room
          * read from the disc (and the warp's state); room_goto {zone, room,
@@ -1845,6 +1885,64 @@ static void handle_method(int fd, const char* request)
         int on = pc_editor_camera(set, p, &yaw, &pitch);
         snprintf(result, sizeof result, "{\"active\":%s,\"x\":%.1f,\"y\":%.1f,\"z\":%.1f,\"yaw\":%.1f,\"pitch\":%.1f}",
             on ? "true" : "false", p[0], p[1], p[2], yaw, pitch);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "gpu_draw")) {
+        extern void pc_vram_transfer(int, int, int, int, void*, int) __attribute__((weak));
+        extern void pc_draw_env(int, int, int, int, int, int, int) __attribute__((weak));
+        extern void pc_draw_packet(void*, int) __attribute__((weak));
+        static char hex[2 * 65536 + 2];
+        static uint32_t words[1 + 4096];
+        static uint16_t texels[16384];
+        if (!pc_vram_transfer || !pc_draw_env || !pc_draw_packet || !params) {
+            fail(fd, id, -32000, "gpu_draw needs the game's GPU and params");
+            return;
+        }
+        long long t[4] = { 0, 0, 0, 0 }, area[6] = { 0, 0, 1024, 512, 0, 0 };
+        static const char* const texture_keys[4] = { "texture_x", "texture_y", "texture_w", "texture_h" };
+        static const char* const area_keys[6] = { "area_x", "area_y", "area_w", "area_h", "offset_x", "offset_y" };
+        for (int i = 0; i < 4; i++)
+            number_value(member(params, texture_keys[i]), &t[i]);
+        for (int i = 0; i < 6; i++)
+            number_value(member(params, area_keys[i]), &area[i]);
+        if (string_value(member(params, "texture"), hex, sizeof hex)) {
+            size_t n = strlen(hex) / 4;
+            if (t[2] <= 0 || t[3] <= 0 || t[0] < 0 || t[1] < 0 || t[0] + t[2] > 1024 || t[1] + t[3] > 512
+                || n != (size_t)(t[2] * t[3]) || n > sizeof texels / 2) {
+                fail(fd, id, -32602, "texture needs texture_x/y/w/h inside VRAM and w*h hex texels");
+                return;
+            }
+            for (size_t i = 0; i < n; i++) {
+                unsigned lo, hi;
+                if (sscanf(hex + 4 * i, "%2x%2x", &lo, &hi) != 2) {
+                    fail(fd, id, -32602, "bad texture hex");
+                    return;
+                }
+                texels[i] = (uint16_t)(lo | hi << 8);
+            }
+            pc_vram_transfer((int)t[0], (int)t[1], (int)t[2], (int)t[3], texels, 1);
+        }
+        size_t count = 0;
+        if (string_value(member(params, "packet"), hex, sizeof hex)) {
+            count = strlen(hex) / 8;
+            if (!count || count > 255 || strlen(hex) % 8) {
+                fail(fd, id, -32602, "packet needs 1-255 whole words");
+                return;
+            }
+            for (size_t i = 0; i < count; i++) {
+                unsigned b[4];
+                if (sscanf(hex + 8 * i, "%2x%2x%2x%2x", &b[0], &b[1], &b[2], &b[3]) != 4) {
+                    fail(fd, id, -32602, "bad packet hex");
+                    return;
+                }
+                words[1 + i] = b[0] | b[1] << 8 | b[2] << 16 | (uint32_t)b[3] << 24;
+            }
+        }
+        pc_draw_env((int)area[0], (int)area[1], (int)area[2], (int)area[3], (int)area[4], (int)area[5], 0);
+        if (count) {
+            words[0] = (uint32_t)count << 24 | 0xffffff;
+            pc_draw_packet(words, 0);
+        }
+        snprintf(result, sizeof result, "{\"words\":%zu}", count);
         reply(fd, id, result);
     } else if (!strcmp(method, "gpu_dump")) {
         char path[400];

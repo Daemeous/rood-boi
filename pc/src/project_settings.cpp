@@ -29,6 +29,9 @@ extern int pc_editor_hide_masks, pc_editor_game_cutaway, pc_editor_cutaway, pc_e
 extern float pc_editor_cutaway_radius, pc_editor_cutaway_opacity;
 extern int pc_lights_snap;
 extern float pc_lights_snap_move, pc_lights_snap_angle;
+/* Gameplay options, read by the game side. qol_weapon_slots: the weapon
+ * slots quick swap on L2 + R2 (weapon_slots.c, battle builds), off by default. */
+int pc_qol_weapon_slots;
 }
 #include "camera_stick.h" /* the right-stick camera (camera_stick_*) */
 #include "editor_overlays.h"
@@ -136,6 +139,8 @@ const Entry entries[] = {
     I("camera_stick_r3_reset", pc_camera_stick_r3),
     F("camera_stick_idle_reset", pc_camera_stick_idle_reset),
     I("camera_stick_keys", pc_camera_stick_keys),
+    /* Gameplay. */
+    I("qol_weapon_slots", pc_qol_weapon_slots),
 };
 const char* path()
 {

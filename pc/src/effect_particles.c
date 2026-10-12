@@ -18,9 +18,11 @@ extern void pc_unimplemented(const char*);
 #define gte_rtps2() gte_rtps()
 static unsigned pc_curve_value(const u_char* sizes, unsigned index, unsigned clock)
 {
-    if (index >= 32 || sizes[index] == 0)
+    if (index >= 32)
         pc_unimplemented("invalid particle color curve");
-    return psx_get(D_800F569C->curves[index])[clock % sizes[index]];
+    /* `div $zero` + mfhi: with a zero size the R3000 leaves HI = the
+     * dividend, so an empty curve is read at `clock`. */
+    return psx_get(D_800F569C->curves[index])[sizes[index] ? clock % sizes[index] : clock];
 }
 
 typedef struct func_800D6E44_t {
@@ -251,9 +253,9 @@ void func_800D6E44(void* head)
             }
             node->sprite.unk14 = c;
         }
-        if (otz == 0)
-            pc_unimplemented("effect particle projection depth zero");
-        int projectionScale = projection / otz;
+        /* `div $zero` has no zero check: the R3000 leaves LO = -1 for a
+         * non-negative dividend and 1 for a negative one. */
+        int projectionScale = otz ? projection / otz : (projection < 0 ? 1 : -1);
         gte_ctc2(13, (short)a);
         a >>= 16;
         gte_ctc2(14, a);

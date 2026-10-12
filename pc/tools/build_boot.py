@@ -386,6 +386,7 @@ if battle:
         ("pc/src/map_view.c", "map_view"),
         ("pc/src/dev_state.c", "dev_state"),
         ("pc/src/room_warp.c", "room_warp"),
+        ("pc/src/weapon_slots.c", "weapon_slots"),
     ]
     sources += [
         (str(p.relative_to(root)), "battle_" + p.stem)
@@ -406,6 +407,14 @@ if battle:
     sources += [
         (str(p.relative_to(root)), p.parent.name.split(".")[0].lower() + "_" + p.stem)
         for p in sorted((root / "src/MENU").glob("MENU?.PRG/*.c"))
+    ]
+    # The ending (credits, score and rank screens; main.c's
+    # vs_main_showEndingAndReturnToTitle) loads at 0x80068800 over BATTLE.
+    # MENUF reuses some of its global names, so its globals are prefixed
+    # ending_ after compiling; its data stays in guest RAM like MAINMENU's.
+    sources += [
+        (str(p.relative_to(root)), "ending_" + p.stem)
+        for p in sorted((root / "src/ENDING/ENDING.PRG").glob("*.c"))
     ]
     sources += [
         (str(p.relative_to(root)), "gpu_" + p.stem)
@@ -682,6 +691,18 @@ for elf in [out / "main-symbols.elf", root / "build/data/TITLE/TITLE.PRG.elf"] +
                 function_addresses[name] = int(parts[1], 16)
             else:
                 addresses[name] = int(parts[1], 16)
+ending_elf = root / "build/data/ENDING/ENDING.PRG.elf"
+if battle:
+    # ENDING's names only fill gaps: where an earlier overlay uses one name
+    # for other data (MENU9's _score), ENDING's objects get name__ending.
+    for line in run(["readelf", "-sW", str(ending_elf)], capture_output=True, text=True).stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 8 and parts[3] in ("OBJECT", "FUNC", "NOTYPE") and parts[6] != "UND":
+            if parts[3] == "FUNC":
+                functions.add(parts[7])
+                function_addresses.setdefault(parts[7], int(parts[1], 16))
+            else:
+                addresses.setdefault(parts[7], int(parts[1], 16))
 # Overlays are linked side by side, but on the PS1 each was loaded alone, so two
 # overlays may import different data under one name (TITLE's _fontTable is not
 # BATTLE's). Give an object its own overlay's address for such a name by
@@ -699,6 +720,7 @@ if battle:
         overlay_elfs[menu.name.split(".")[0].lower()] = menu
     for plg in sorted((root / "build/data/EFFECT").glob("PLG*.BIN.elf")):
         overlay_elfs[plg.name.split(".")[0].lower()] = plg
+    overlay_elfs["ending"] = ending_elf
 overlay_data = {}
 for key, elf in overlay_elfs.items():
     overlay_data[key] = {}
@@ -738,6 +760,14 @@ for obj in exposing:
     if exposed:
         run(["objcopy", *[f"--globalize-symbol={n}" for n in exposed], str(obj)])
         print(f"{obj.name}: exposed static functions {', '.join(exposed)}")
+# ENDING's globals (MENUF also defines _renderRiskbreakerRank and the
+# renderTextures.h functions) become ending_<name>; main calls the entry point.
+ending_objects = [obj for obj in objects if object_overlay(obj) == "ending"]
+ending_globals = sorted({line.split()[2] for obj in ending_objects for line in
+    run(["nm", "--defined-only", "-g", str(obj)], capture_output=True, text=True).stdout.splitlines()
+    if len(line.split()) == 3} - {"vs_ending_exec"})
+for obj in ending_objects:
+    run(["objcopy", *[f"--redefine-sym={n}=ending_{n}" for n in ending_globals], str(obj)])
 natively_defined = set()
 for obj in objects:
     for line in run(["nm", "--defined-only", "-g", str(obj)], capture_output=True, text=True).stdout.splitlines():
@@ -1025,9 +1055,12 @@ def lp64_native_imports():
         base, _, key = name.rpartition("__")
         return base if base and key in overlay_data else name
     wanted = {}  # object -> names it references
+    users = {}  # import -> overlay keys of the objects that reference it
     for obj in objects:
         names = [line.split()[-1] for line in
                  run(["nm", "-u", str(obj)], capture_output=True, text=True).stdout.splitlines()]
+        for n in names:
+            users.setdefault(n, set()).add(object_overlay(obj))
         names = sorted({declared_name(n) for n in names if n in data})
         if names:
             wanted[obj] = names
@@ -1054,8 +1087,10 @@ def lp64_native_imports():
             return element["size"] != element["ps1_size"]
         return info.get("size") != info.get("ps1_size")
     image_ranges = [(base, image) for _, image, base in images]
-    def image_bytes(address, size):
-        for base, image in image_ranges:
+    # ENDING loads over BATTLE (both at 0x80068800): its regions read its image.
+    ending_image = (root / "data/ENDING/ENDING.PRG").read_bytes() if battle else b""
+    def image_bytes(address, size, owner=None):
+        for base, image in ([(0x80068800, ending_image)] if owner == "ending" else image_ranges):
             if base <= address and address + size <= base + len(image):
                 return image[address - base: address - base + size]
         return None
@@ -1063,8 +1098,19 @@ def lp64_native_imports():
     # Extents end at the next data import: symbols nothing imports (or that C
     # defines natively) do not bound an array (vs_battle_commonWepBuffs[2]
     # is followed by an unused label one word in).
-    ordered = sorted({addresses[n] for n in data})
     battle_end = 0x80068800 + len(overlay) if battle else 0
+    # ENDING loads over BATTLE (both at 0x80068800), so the imports only its
+    # objects use there are a separate group: their extents, regions and
+    # restart are ENDING's.
+    def group(name):
+        if not 0x80068800 <= addresses[name] < 0x80068800 + len(ending_image):
+            return None
+        keys = users.get(name, set())
+        if "ending" in keys and len(keys) > 1:
+            raise RuntimeError(f"LP64 import {name} is shared by ENDING and {keys - {'ending'}}")
+        return "ending" if keys == {"ending"} else None
+    groups = {n: group(n) for n in data}
+    ordered = {g: sorted({addresses[n] for n in data if groups[n] == g}) for g in set(groups.values())}
     # Each moved import covers its PS1 extent (up to the next known symbol, or
     # its declared size). Overlapping or adjacent ones form one region: splat
     # names interior elements separately (vs_battle_actors[1] is also
@@ -1073,7 +1119,7 @@ def lp64_native_imports():
     def pointer_words(name):
         infos = [info for _, info in declarations.get(declared_name(name), [])]
         return any(changes(i) for i in infos) and all(i.get("pointer_words") for i in infos if changes(i))
-    pointer_word_addresses = {addresses[n] for n in data if pointer_words(n)}
+    pointer_word_addresses = {(groups[n], addresses[n]) for n in data if pointer_words(n)}
     spans, problems = [], []
     for name in sorted(data):
         infos = declarations.get(declared_name(name), [])
@@ -1090,26 +1136,26 @@ def lp64_native_imports():
         # An incomplete array runs to the next import that is not itself a
         # pointer word splat named inside it (vs_battle_actors[] spans
         # D_800F192C = vs_battle_actors[1]).
-        following = [a for a in ordered[bisect.bisect_right(ordered, address):]
-                     if a not in pointer_word_addresses]
+        following = [a for a in ordered[groups[name]][bisect.bisect_right(ordered[groups[name]], address):]
+                     if (groups[name], a) not in pointer_word_addresses]
         extent = (following[0] - address) if following else 4
         complete = [info["ps1_size"] for info in changed if info.get("size")]
         # Complete types: their PS1 size; incomplete arrays: up to the next import.
         size = max(complete) if complete else extent
-        spans.append([address, address + size, [name]])
+        spans.append([address, address + size, [name], groups[name] or ""])
     regions = []
-    for span in sorted(spans):
-        if regions and span[0] <= regions[-1][1]:
+    for span in sorted(spans, key=lambda span: (span[3], span[0], span[1])):
+        if regions and span[3] == regions[-1][3] and span[0] <= regions[-1][1]:
             regions[-1][1] = max(regions[-1][1], span[1])
             regions[-1][2] += span[2]
         else:
             regions.append(span)
     moved = {name for region in regions for name in region[2]}
     definitions = []
-    for start, end, names in regions:
+    for start, end, names, owner in regions:
         # Other imports inside would keep reading the guest copy (symbols
         # nothing imports do not matter).
-        inside = sorted(n for n in data - moved if start <= addresses[n] < end)
+        inside = sorted(n for n in data - moved if start <= addresses[n] < end and (groups[n] or "") == owner)
         # A 4-byte integer alias of a pointer word (MENU3 tests D_800F4594,
         # which is vs_battle_wepModels[3], for zero) maps to the low half of
         # the 8-byte slot: the same value for addresses below 4 GB.
@@ -1125,14 +1171,17 @@ def lp64_native_imports():
         if (end - start) % 4 or start % 4:
             problems.append(f"region {start:#x}-{end:#x} ({', '.join(names)}) is not word aligned")
             continue
-        region = f"rood_lp64_{start:08x}"
+        region = f"rood_lp64_{start:08x}" + (f"_{owner}" if owner else "")
         attributes = "__attribute__((used, aligned(8)"
-        if battle and 0x80068800 <= start < battle_end:
+        if owner == "ending":
+            attributes += ', section("rood_ovl_ending_ending_prg_data")'
+            overlay_statics.setdefault("ENDING/ENDING.PRG", set()).add("data")
+        elif battle and 0x80068800 <= start < battle_end:
             attributes += ', section("rood_ovl_battle_battle_prg_data")'
             overlay_statics.setdefault("BATTLE/BATTLE.PRG", set()).add("data")
         attributes += "))"
         count = (end - start) // 4
-        content = image_bytes(start, end - start)
+        content = image_bytes(start, end - start, owner)
         if content is None or not any(content):
             definitions.append(f"{attributes} unsigned long long {region}[{count}];")
         else:
@@ -1334,6 +1383,22 @@ if battle:
         ]
     )
     run([str(out / "actor_update_probe")])
+
+if battle:
+    run(
+        [
+            "gcc",
+            "-m32",
+            "-ffunction-sections",
+            "-fdata-sections",
+            "-Wl,--gc-sections",
+            "pc/tests/route_continuation_probe.c",
+            "pc/src/battle_movement.c",
+            "-o",
+            str(out / "route_continuation_probe"),
+        ]
+    )
+    run([str(out / "route_continuation_probe")])
 
 if battle:
     run(

@@ -123,6 +123,14 @@ static void _updateScore(void);
 extern int D_800DBB18;
 extern int D_800DBB1C;
 extern u_char D_800DBB28[4][16];
+#ifdef ROOD_PC
+/* The logo mesh reads column 16 and row 4, past the table into the next row
+ * and the data after it, as the PS1 does; flat reads keep GCC from assuming
+ * the loops stop early. */
+#define _phantomPainRsqrt(i, j) (((u_char*)D_800DBB28)[(i) * 16 + (j)])
+#else
+#define _phantomPainRsqrt(i, j) D_800DBB28[i][j]
+#endif
 extern u_char D_8006E3FC[];
 extern u_char _glyphWidths[];
 extern func_8006A9C0_t2 D_8007005C;
@@ -151,7 +159,13 @@ extern u_int rankScores[];
 extern short D_800DBB68;
 extern short D_800DBB6A;
 extern u_short D_800DBB6C;
+#ifdef ROOD_PC_LP64
+/* Runtime state holding native pointers (renderer, data): defined natively in
+ * the native layout; it restarts with the overlay's statics. */
+_creditsElement _creditsElements[32];
+#else
 extern _creditsElement _creditsElements[];
+#endif
 extern u_char D_800DC188;
 extern u_char D_800DC189;
 extern u_char _skipInvoked;
@@ -186,7 +200,7 @@ extern u_short D_800DBB80;
 
 int func_800688D4(int angle)
 {
-    int value = (int)_trig_table;
+    int value = psx_to_int(int, _trig_table);
     int quadrant, test, index;
 
     quadrant = angle & 0x400;
@@ -207,7 +221,7 @@ int func_800688D4(int angle)
     }
     index <<= 2;
     value += index;
-    value = *(u_short*)value;
+    value = *psx_to_ptr(u_short*, value);
 negate:
     if (angle & 0x800) {
         value = -value;
@@ -232,7 +246,7 @@ void _renderPhantomPain(_creditsElement* element)
     int shift;
     int d;
 
-    poly = *(POLY_FT4**)0x1F800000;
+    poly = psx_slot_get(POLY_FT4*, 0x1F800000, 0);
     memset(&rot, 0, sizeof(rot));
 
     switch (element->state) {
@@ -295,13 +309,16 @@ void _renderPhantomPain(_creditsElement* element)
             vertices[0].vy = vertices[1].vy = i * 4 - 8;
             vertices[2].vy = vertices[3].vy = (i + 1) * 4 - 8;
             vertices[0].vz =
-                (func_800688D4(D_800DBB18 + D_800DBB28[i][j] * 400) * scale) >> 12;
+                (func_800688D4(D_800DBB18 + _phantomPainRsqrt(i, j) * 400) * scale) >> 12;
             vertices[1].vz =
-                (func_800688D4(D_800DBB18 + D_800DBB28[i][j + 1] * 400) * scale) >> 12;
+                (func_800688D4(D_800DBB18 + _phantomPainRsqrt(i, j + 1) * 400) * scale)
+                >> 12;
             vertices[2].vz =
-                (func_800688D4(D_800DBB18 + D_800DBB28[i + 1][j] * 400) * scale) >> 12;
+                (func_800688D4(D_800DBB18 + _phantomPainRsqrt(i + 1, j) * 400) * scale)
+                >> 12;
             vertices[3].vz =
-                (func_800688D4(D_800DBB18 + D_800DBB28[i + 1][j + 1] * 400) * scale)
+                (func_800688D4(D_800DBB18 + _phantomPainRsqrt(i + 1, j + 1) * 400)
+                    * scale)
                 >> 12;
 
             SetPolyFT4(poly);
@@ -316,10 +333,10 @@ void _renderPhantomPain(_creditsElement* element)
             poly->clut = getClut(896, 83);
             poly->tpage = 46;
             poly->r0 = poly->g0 = poly->b0 = brightness;
-            AddPrim(((void**)0x1F800000)[1] + 12, poly++);
+            AddPrim(psx_slot_get(void*, 0x1F800000, 1) + 12, poly++);
         }
     }
-    *(POLY_FT4**)0x1F800000 = poly;
+    psx_slot_set(POLY_FT4*, 0x1F800000, 0, poly);
 }
 
 void _renderFin(_creditsElement* arg0)
@@ -331,7 +348,7 @@ void _renderFin(_creditsElement* arg0)
     void** p;
     int new_var;
 
-    SPRT* sprt = *(SPRT**)0x1F800000;
+    SPRT* sprt = psx_slot_get(SPRT*, 0x1F800000, 0);
 
     switch (arg0->state) {
     case 1:
@@ -379,12 +396,13 @@ void _renderFin(_creditsElement* arg0)
     setClut(sprt, 896, 82);
 
     p = (void**)0x1F800000;
-    setaddr(sprt, ((u_long*)p[1])[1]);
-    setaddr(p[1] + 4, sprt++);
+    setaddr(sprt, ((u_long*)psx_slot_get(void*, p, 1))[1]);
+    setaddr(psx_slot_get(void*, p, 1) + 4, sprt++);
 
     new_var = 0;
-    p[new_var] = sprt;
-    p[new_var] = _insertTpage(getTPage(clut4Bit, semiTransparencyFull, 896, 0), 1);
+    psx_slot_set(void*, p, new_var, sprt);
+    psx_slot_set(void*, p, new_var,
+        _insertTpage(getTPage(clut4Bit, semiTransparencyFull, 896, 0), 1));
 }
 
 void _renderVagrantStory(_creditsElement* element)
@@ -394,7 +412,7 @@ void _renderVagrantStory(_creditsElement* element)
     void** s0;
     int new_var;
 
-    sprt = *(SPRT**)0x1F800000;
+    sprt = psx_slot_get(SPRT*, 0x1F800000, 0);
 
     switch (element->state) {
     case 1:
@@ -441,11 +459,11 @@ void _renderVagrantStory(_creditsElement* element)
     sprt->r0 = sprt->g0 = sprt->b0 = var_fp;
 
     s0 = (void**)0x1F800000;
-    setaddr(sprt, getaddr(s0[1] + 12));
-    setaddr(s0[1] + 12, sprt++);
+    setaddr(sprt, getaddr(psx_slot_get(void*, s0, 1) + 12));
+    setaddr(psx_slot_get(void*, s0, 1) + 12, sprt++);
 
     new_var = 0;
-    s0[new_var] = sprt;
+    psx_slot_set(void*, s0, new_var, sprt);
 
     sprt = _insertTpage(0x2E, 3);
 
@@ -457,11 +475,11 @@ void _renderVagrantStory(_creditsElement* element)
     setClut(sprt, 896, 81);
     sprt->r0 = sprt->g0 = sprt->b0 = var_fp;
 
-    setaddr(sprt, getaddr(s0[1] + 12));
-    setaddr(s0[1] + 12, sprt++);
+    setaddr(sprt, getaddr(psx_slot_get(void*, s0, 1) + 12));
+    setaddr(psx_slot_get(void*, s0, 1) + 12, sprt++);
 
-    s0[new_var] = sprt;
-    s0[new_var] = _insertTpage(0x4E, 3);
+    psx_slot_set(void*, s0, new_var, sprt);
+    psx_slot_set(void*, s0, new_var, _insertTpage(0x4E, 3));
     return;
 }
 
@@ -640,7 +658,7 @@ static void _renderllustration(_creditsElement* element)
     }
 
     p = (void**)0x1F800000;
-    sprt = p[0];
+    sprt = psx_slot_get(void*, p, 0);
 
     SetSprt(sprt);
     setXY0(sprt, 0, 0);
@@ -650,9 +668,9 @@ static void _renderllustration(_creditsElement* element)
     setClut(sprt, 0, D_800DBB6C);
     sprt->r0 = sprt->g0 = sprt->b0 = D_800DBB68;
 
-    AddPrim(p[1] + 0x10, sprt++);
+    AddPrim(psx_slot_get(void*, p, 1) + 0x10, sprt++);
 
-    p[0] = sprt;
+    psx_slot_set(void*, p, 0, sprt);
     sprt = _insertTpage(getTPage(1, 2, D_800DBB6A, 256), 4);
 
     SetSprt(sprt);
@@ -663,10 +681,10 @@ static void _renderllustration(_creditsElement* element)
     setClut(sprt, 0, D_800DBB6C);
     sprt->r0 = sprt->g0 = sprt->b0 = D_800DBB68;
 
-    AddPrim(p[1] + 0x10, sprt++);
+    AddPrim(psx_slot_get(void*, p, 1) + 0x10, sprt++);
 
-    p[0] = sprt;
-    p[0] = _insertTpage(getTPage(1, 2, D_800DBB6A + 64, 256), 4);
+    psx_slot_set(void*, p, 0, sprt);
+    psx_slot_set(void*, p, 0, _insertTpage(getTPage(1, 2, D_800DBB6A + 64, 256), 4));
 }
 
 static int _creditsStrWidth(u_char* str)
@@ -725,7 +743,7 @@ void _renderText(_creditsElement* element)
     u_short width;
     short glyphWidth;
 
-    sprt = *(SPRT**)0x1F800000;
+    sprt = psx_slot_get(SPRT*, 0x1F800000, 0);
     charTableOffset = 0;
     underline = 0;
 
@@ -779,7 +797,7 @@ void _renderText(_creditsElement* element)
             setClut(sprt, 960, 480);
             x += glyphWidth - 1;
             sprt->r0 = sprt->g0 = sprt->b0 = D_800DC19C;
-            addPrim((u_long*)((vs_scratch_t*)0x1F800000)->unk4 + 3, sprt);
+            addPrim((u_long*)psx_get(((vs_scratch_t*)0x1F800000)->unk4) + 3, sprt);
             ++sprt;
         }
     }
@@ -795,7 +813,7 @@ void _renderText(_creditsElement* element)
         setWH(sprt, 16, 3);
         setClut(sprt, 960, 480);
         sprt->r0 = sprt->g0 = sprt->b0 = D_800DC19C;
-        AddPrim(p[1] + 12, sprt++);
+        AddPrim(psx_slot_get(void*, p, 1) + 12, sprt++);
 
         poly = (POLY_FT4*)sprt;
         SetPolyFT4(poly);
@@ -812,7 +830,7 @@ void _renderText(_creditsElement* element)
         poly->clut = getClut(960, 480);
         poly->x1 = poly->x3 = x;
         poly->r0 = poly->g0 = poly->b0 = D_800DC19C;
-        AddPrim(p[1] + 12, poly++);
+        AddPrim(psx_slot_get(void*, p, 1) + 12, poly++);
 
         sprt = (SPRT*)poly;
         SetSprt(sprt);
@@ -821,17 +839,17 @@ void _renderText(_creditsElement* element)
         setWH(sprt, 16, 3);
         setClut(sprt, 960, 480);
         sprt->r0 = sprt->g0 = sprt->b0 = D_800DC19C;
-        AddPrim(p[1] + 12, sprt++);
+        AddPrim(psx_slot_get(void*, p, 1) + 12, sprt++);
     }
 
-    *(SPRT**)0x1F800000 = sprt;
-    *(void**)0x1F800000 = _insertTpage(31, 3);
+    psx_slot_set(SPRT*, 0x1F800000, 0, sprt);
+    psx_slot_set(void*, 0x1F800000, 0, _insertTpage(31, 3));
 }
 
 void _renderCopyright(_creditsElement* arg0)
 {
     void** p = (void**)0x1F800000;
-    SPRT* sprt = p[0];
+    SPRT* sprt = psx_slot_get(void*, p, 0);
     int new_var;
 
     if (arg0->state == 1) {
@@ -854,12 +872,13 @@ void _renderCopyright(_creditsElement* arg0)
     setClut(sprt, 960, 64);
     sprt->r0 = sprt->g0 = sprt->b0 = D_800DC19C;
 
-    setaddr(sprt, ((u_long*)p[1])[3]);
-    setaddr(p[1] + 12, sprt++);
+    setaddr(sprt, ((u_long*)psx_slot_get(void*, p, 1))[3]);
+    setaddr(psx_slot_get(void*, p, 1) + 12, sprt++);
 
     new_var = 0;
-    p[new_var] = sprt;
-    p[new_var] = _insertTpage(getTPage(clut4Bit, semiTransparencyFull, 960, 0), 3);
+    psx_slot_set(void*, p, new_var, sprt);
+    psx_slot_set(void*, p, new_var,
+        _insertTpage(getTPage(clut4Bit, semiTransparencyFull, 960, 0), 3));
 }
 
 static void _renderBackground(_creditsElement* arg0 __attribute__((unused)))
@@ -871,15 +890,15 @@ static void _renderBackground(_creditsElement* arg0 __attribute__((unused)))
 
     data = (void**)0x1F800000;
 
-    sprt = data[0];
+    sprt = psx_slot_get(void*, data, 0);
     SetSprt(sprt);
     setXY0(sprt, 0, 10);
     setUV0(sprt, 0, 10);
     setWH(sprt, 256, 204);
     setClut(sprt, 780, 255);
     sprt->r0 = sprt->g0 = sprt->b0 = D_800DC19C;
-    AddPrim(data[1] + 0x1FFC, sprt++);
-    data[0] = sprt;
+    AddPrim(psx_slot_get(void*, data, 1) + 0x1FFC, sprt++);
+    psx_slot_set(void*, data, 0, sprt);
 
     sprt = (SPRT*)_insertTpage(getTPage(clut4Bit, semiTransparencyFull, 768, 0), 0x7FF);
     SetSprt(sprt);
@@ -888,8 +907,8 @@ static void _renderBackground(_creditsElement* arg0 __attribute__((unused)))
     setWH(sprt, 64, 204);
     setClut(sprt, 780, 255);
     sprt->r0 = sprt->g0 = sprt->b0 = D_800DC19C;
-    AddPrim(data[1] + 0x1FFC, sprt++);
-    data[0] = sprt;
+    AddPrim(psx_slot_get(void*, data, 1) + 0x1FFC, sprt++);
+    psx_slot_set(void*, data, 0, sprt);
 
     poly =
         (POLY_G4*)_insertTpage(getTPage(clut4Bit, semiTransparencyFull, 832, 0), 0x7FF);
@@ -901,7 +920,7 @@ static void _renderBackground(_creditsElement* arg0 __attribute__((unused)))
     poly->r0 = poly->r1 = poly->g0 = poly->g1 = poly->b0 = poly->b1 = 255;
     poly->r2 = poly->r3 = poly->g2 = poly->g3 = poly->b2 = poly->b3 = 0;
     setSemiTrans(poly, 1);
-    AddPrim(data[1] + 8, poly++);
+    AddPrim(psx_slot_get(void*, data, 1) + 8, poly++);
 
     SetPolyG4(poly);
     poly->x0 = poly->x2 = 0;
@@ -911,29 +930,30 @@ static void _renderBackground(_creditsElement* arg0 __attribute__((unused)))
     poly->r0 = poly->r1 = poly->g0 = poly->g1 = poly->b0 = poly->b1 = 0;
     poly->r2 = poly->r3 = poly->g2 = poly->g3 = poly->b2 = poly->b3 = 255;
     setSemiTrans(poly, 1);
-    AddPrim(data[1] + 8, poly++);
+    AddPrim(psx_slot_get(void*, data, 1) + 8, poly++);
 
     tile = (TILE*)poly;
     SetTile(tile);
     tile->r0 = tile->g0 = tile->b0 = 0;
     setWH(tile, 320, 10);
     setXY0(tile, 0, 0);
-    AddPrim(data[1] + 8, tile++);
+    AddPrim(psx_slot_get(void*, data, 1) + 8, tile++);
 
     SetTile(tile);
     tile->r0 = tile->g0 = tile->b0 = 0;
     setWH(tile, 320, 10);
     setXY0(tile, 0, 0);
-    AddPrim(data[1] + 8, tile++);
+    AddPrim(psx_slot_get(void*, data, 1) + 8, tile++);
 
     SetTile(tile);
     tile->r0 = tile->g0 = tile->b0 = 0;
     setWH(tile, 320, 10);
     setXY0(tile, 0, 214);
-    AddPrim(data[1] + 8, tile++);
-    data[0] = tile;
+    AddPrim(psx_slot_get(void*, data, 1) + 8, tile++);
+    psx_slot_set(void*, data, 0, tile);
 
-    data[0] = _insertTpage(getTPage(clut8Bit, semiTransparencySubtract, 0, 0), 2);
+    psx_slot_set(void*, data, 0,
+        _insertTpage(getTPage(clut8Bit, semiTransparencySubtract, 0, 0), 2));
 }
 
 static void _backgroundFadeIn(_creditsElement* element)
@@ -972,7 +992,7 @@ static void _backgroundFadeOut(_creditsElement* arg0)
 static void func_8006A4D8(_creditsElement* element)
 {
     void** s2 = (void**)0x1F800000;
-    TILE* temp_s0 = s2[0];
+    TILE* temp_s0 = psx_slot_get(void*, s2, 0);
 
     if (element->state == 1) {
         element->currentStep = 0;
@@ -990,10 +1010,11 @@ static void func_8006A4D8(_creditsElement* element)
     setWH(temp_s0, 320, 240);
     setXY0(temp_s0, 0, 0);
 
-    AddPrim(s2[1], temp_s0++);
+    AddPrim(psx_slot_get(void*, s2, 1), temp_s0++);
 
-    s2[0] = temp_s0;
-    s2[0] = _insertTpage(getTPage(clut4Bit, semiTransparencySubtract, 0, 0), 0);
+    psx_slot_set(void*, s2, 0, temp_s0);
+    psx_slot_set(void*, s2, 0,
+        _insertTpage(getTPage(clut4Bit, semiTransparencySubtract, 0, 0), 0));
 }
 
 void vs_ending_exec(void)
@@ -1094,7 +1115,7 @@ static void func_8006A888(void)
             _skipInvoked = 1;
         }
 
-        _drawScreen(*(u_long**)0x1F800004 + 0x7FF);
+        _drawScreen(psx_slot_get(u_long*, 0x1F800004, 0) + 0x7FF);
 
         ++D_800DC18C;
     }
@@ -1106,9 +1127,9 @@ static void* _insertTpage(int tPage, int otOffset)
     DR_TPAGE* drTpage;
 
     scratch = (void**)0x1F800000;
-    drTpage = scratch[0];
+    drTpage = psx_slot_get(void*, scratch, 0);
     SetDrawTPage(drTpage, 0, 1, tPage & 0xFFFF);
-    AddPrim(scratch[1] + (otOffset * 4), drTpage++);
+    AddPrim(psx_slot_get(void*, scratch, 1) + (otOffset * 4), drTpage++);
     return drTpage;
 }
 
@@ -1396,7 +1417,7 @@ static void func_8006B324(short arg0, short arg1, int arg2, u_char* arg3)
     u_long** t4;
 
     var_v1 = *arg3;
-    var_a2 = *(void**)0x1F800000;
+    var_a2 = psx_slot_get(void*, 0x1F800000, 0);
 
     while (var_v1 != 0) {
 
@@ -1420,8 +1441,8 @@ static void func_8006B324(short arg0, short arg1, int arg2, u_char* arg3)
             setClut(var_a2, 960, arg2 + 32);
 
             t4 = (u_long**)0x1F800000;
-            setaddr(var_a2, *t4[1] & 0xFFFFFF);
-            setaddr(t4[1], var_a2);
+            setaddr(var_a2, *psx_slot_get(u_long*, t4, 1) & 0xFFFFFF);
+            setaddr(psx_slot_get(u_long*, t4, 1), var_a2);
 
             ++var_a2;
         }
@@ -1431,8 +1452,8 @@ static void func_8006B324(short arg0, short arg1, int arg2, u_char* arg3)
         arg0 += 7;
     }
 
-    *(void**)0x1F800000 = var_a2;
-    *(void**)0x1F800000 = _insertTpage(0xF, 0);
+    psx_slot_set(void*, 0x1F800000, 0, var_a2);
+    psx_slot_set(void*, 0x1F800000, 0, _insertTpage(0xF, 0));
 }
 
 static void func_8006B450(int arg0, int arg1, int arg2, int arg3, int arg4, int arg5)
@@ -1554,10 +1575,10 @@ static void func_8006B930(void)
 
     vs_main_processPadState();
     temp_a0 = D_80055C80[vs_main_frameBuf];
-    vs_scratch.unk8 = temp_a0 + 8;
-    vs_scratch.unk4 = temp_a0 + 0x48;
+    psx_set(vs_scratch.unk8, temp_a0 + 8);
+    psx_set(vs_scratch.unk4, temp_a0 + 0x48);
     ClearOTagR((u_long*)temp_a0, 0x822);
-    vs_scratch.unk0 = D_8005E0C0[vs_main_frameBuf];
+    psx_set(vs_scratch.unk0, D_8005E0C0[vs_main_frameBuf]);
 }
 
 static void func_8006B9B4(void)
@@ -1684,16 +1705,23 @@ static void func_8006BD78(void)
     do {
         func_8006B930();
         temp_s0 = func_8006BE04();
-        _drawScreen(*(u_long**)0x1F800004 + 0x7FF);
+        _drawScreen(psx_slot_get(u_long*, 0x1F800004, 0) + 0x7FF);
     } while (temp_s0 == 0);
 
     do {
         func_8006B930();
         temp_s0 = _renderCongratulationsScreen();
         VSync(0);
-        _drawScreen(*(u_long**)0x1F800004 + 0x7FF);
+        _drawScreen(psx_slot_get(u_long*, 0x1F800004, 0) + 0x7FF);
     } while (temp_s0 == 0);
 }
+
+#ifdef ROOD_PC
+/* Also at file scope: build_boot.py --arch 64 reads import types from the
+ * globals' DWARF, and these pointers must move natively there. */
+extern vs_main_CdQueueSlot* cdSlot;
+extern void* timData;
+#endif
 
 static int func_8006BE04(void)
 {
@@ -1905,7 +1933,7 @@ void func_8006C3CC(int arg0)
         return;
     }
 
-    poly = *(void**)0x1F800000;
+    poly = psx_slot_get(void*, 0x1F800000, 0);
     var_s2 = 64;
 
     for (i = 0; i < 5; ++i) {
@@ -1915,11 +1943,11 @@ void func_8006C3CC(int arg0)
         setRGB0(poly, temp_s4, temp_s4, temp_s4);
         setClut(poly, 0, 0);
         poly->tpage = (i + 16) | getTPage(3, 0, 0, 0);
-        AddPrim(*((void**)0x1F800004) + 0x1FF8, poly++);
+        AddPrim(psx_slot_get(void*, 0x1F800004, 0) + 0x1FF8, poly++);
         var_s2 += 64;
     }
 
-    *(void**)0x1F800000 = poly;
+    psx_slot_set(void*, 0x1F800000, 0, poly);
 }
 
 static void _renderCongratulations(int arg0, int arg1, int arg2)
@@ -2072,7 +2100,12 @@ static void _renderMapCompletion(
 {
     extern P_CODE D_800DBA98[];
 
+#ifdef ROOD_PC
+    /* sprintf writes four bytes; the PS1 overran into unused frame space. */
+    char sp10[4];
+#else
     char sp10[2];
+#endif
     int i;
     int v0;
 
@@ -2115,7 +2148,12 @@ static void _renderIncrementalMapCompletion(
 {
     extern P_CODE D_800DBAA0[];
 
+#ifdef ROOD_PC
+    /* sprintf writes four bytes; the PS1 overran into unused frame space. */
+    char sp18[4];
+#else
     char sp18[2];
+#endif
     int temp_s4;
     int i;
     int v0;

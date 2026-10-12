@@ -2416,6 +2416,14 @@ void func_8009DDF4(int arg0, SVECTOR* arg1)
 {
     int _[3] __attribute__((unused));
     D_800F4538_t* temp_s0 = D_800F4538[arg0];
+#ifdef ROOD_PC
+    /* An effect can hit an empty actor slot: the original then reads the
+     * actor through NULL, i.e. PS1 RAM at physical address 0, which the host
+     * maps at 0x80000000. */
+    if (temp_s0 == NULL) {
+        temp_s0 = (D_800F4538_t*)0x80000000;
+    }
+#endif
 
     if (temp_s0->unk0.weaponDrawn
         && ((temp_s0->unk0.unkF == 0)
