@@ -6,11 +6,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <sys/mman.h>
-#include <execinfo.h>
 #include <signal.h>
 #include <unistd.h>
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <sys/mman.h>
+#include <execinfo.h>
 #include <ucontext.h>
+#endif
 static uint16_t vram[1024 * 512];
 const uint16_t* pc_native_vram(void) { return vram; }
 /* Hardware rasterizer mirror (gpu_hw.c); no-ops until a GL context exists. */
@@ -234,7 +238,11 @@ void pc_present(void)
 static void pc_dump_stack(int sig)
 {
     void* frames[64];
+#ifdef _WIN32
+    int n = CaptureStackBackTrace(0, 62, frames, NULL);
+#else
     int n = backtrace(frames, 64);
+#endif
     char line[32];
     (void)sig;
     write(2, "[stack]", 7);
@@ -268,6 +276,80 @@ __attribute__((noreturn)) void pc_psx_bad_pointer(const void* pointer)
  * keeps addresses of its locals in 4-byte fields (psx_ptr members, guest
  * words, effect spawn records built on the stack), so the game thread runs on
  * a stack mapped below 2 GB (MAP_32BIT), where every address fits 32 bits. */
+#ifdef _WIN32
+/* Windows cannot place a thread's or a fiber's stack, so the main thread
+ * switches to one allocated below 2 GB: rood_call_on_stack(top, fn) calls
+ * fn with rsp = top. Its unwind info (frame pointer rbp) lets stack walks
+ * and exception dispatch cross back to the original stack. */
+extern void rood_call_on_stack(void* top, void (*fn)(void));
+__asm__(".text\n"
+        ".globl rood_call_on_stack\n"
+        ".def rood_call_on_stack; .scl 2; .type 32; .endef\n"
+        ".seh_proc rood_call_on_stack\n"
+        "rood_call_on_stack:\n"
+        "    pushq %rbp\n"
+        "    .seh_pushreg %rbp\n"
+        "    movq %rsp, %rbp\n"
+        "    .seh_setframe %rbp, 0\n"
+        "    .seh_endprologue\n"
+        "    movq %rcx, %rsp\n"
+        "    subq $32, %rsp\n" /* the callee's register home area */
+        "    callq *%rdx\n"
+        "    movq %rbp, %rsp\n"
+        "    popq %rbp\n"
+        "    ret\n"
+        ".seh_endproc\n");
+/* Fatal exceptions in the game's own code print [crash] and the stack like
+ * the Linux signal handler. A vectored handler runs before the frame-based
+ * search (which cannot leave the switched stack); exceptions elsewhere (a
+ * driver's own handled ones) are left alone. */
+extern char __ImageBase[];
+static LONG WINAPI pc_exception(EXCEPTION_POINTERS* info)
+{
+    DWORD code = info->ExceptionRecord->ExceptionCode;
+    uintptr_t at = (uintptr_t)info->ExceptionRecord->ExceptionAddress;
+    if (code != EXCEPTION_ACCESS_VIOLATION && code != EXCEPTION_ILLEGAL_INSTRUCTION
+        && code != EXCEPTION_INT_DIVIDE_BY_ZERO && code != EXCEPTION_PRIV_INSTRUCTION
+        && code != EXCEPTION_STACK_OVERFLOW)
+        return EXCEPTION_CONTINUE_SEARCH;
+    if (at < (uintptr_t)__ImageBase || at >= 0x80000000u)
+        return EXCEPTION_CONTINUE_SEARCH;
+    char line[160];
+    int len = snprintf(line, sizeof line,
+        "[crash] exception 0x%08lx (%s) at %p, address %p, battle frame %u\n", (unsigned long)code,
+        code == EXCEPTION_ACCESS_VIOLATION ? "access violation" : code == EXCEPTION_INT_DIVIDE_BY_ZERO ? "arithmetic" : "fatal",
+        (void*)at, code == EXCEPTION_ACCESS_VIOLATION ? (void*)info->ExceptionRecord->ExceptionInformation[1] : NULL,
+        battle_frames);
+    write(2, line, len);
+    /* The faulting frame first: the backtrace below starts in this handler. */
+    pc_dump_stack(0);
+    _exit(3);
+}
+/* Reserved in main before the window: graphics drivers reserve much of the
+ * address space below 2 GB when they load. */
+static char* game_stack;
+static const size_t game_stack_size = 64u << 20;
+static int reserve_game_stack(void)
+{
+    for (uintptr_t at = 0x02000000; !game_stack && at + game_stack_size <= 0x7f000000; at += 1u << 20)
+        game_stack = VirtualAlloc((void*)at, game_stack_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    return game_stack != NULL;
+}
+static void run_game_on_low_stack(void)
+{
+    size_t size = game_stack_size;
+    char* stack = game_stack;
+    /* Stack bounds in the thread information block, for code that checks
+     * them (exception dispatch, drivers). */
+    NT_TIB* tib = (NT_TIB*)NtCurrentTeb();
+    void *base = tib->StackBase, *limit = tib->StackLimit;
+    tib->StackBase = stack + size;
+    tib->StackLimit = stack;
+    rood_call_on_stack(stack + size - 64, vs_main_exec);
+    tib->StackBase = base;
+    tib->StackLimit = limit;
+}
+#else
 static ucontext_t game_context, host_context;
 static void run_game(void) { vs_main_exec(); }
 static void run_game_on_low_stack(void)
@@ -290,11 +372,29 @@ static void run_game_on_low_stack(void)
     makecontext(&game_context, run_game, 0);
     swapcontext(&host_context, &game_context);
 }
+#endif
+/* Guest memory at its PS1 addresses (RAM, scratchpad, the I/O page); NULL
+ * when a range is taken. */
+static void* map_guest(uintptr_t address, size_t size)
+{
+#ifdef _WIN32
+    return VirtualAlloc((void*)address, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+#else
+    void* p = mmap((void*)address, size, PROT_READ | PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+    return p == MAP_FAILED ? NULL : p;
+#endif
+}
 int main(int argc, char** argv)
 {
+#ifdef _WIN32
+    AddVectoredExceptionHandler(1, pc_exception);
+    setvbuf(stderr, NULL, _IONBF, 0); /* the log, as on Linux */
+#else
     signal(SIGUSR1, pc_dump_stack);
-    signal(SIGSEGV, pc_crash);
     signal(SIGBUS, pc_crash);
+#endif
+    signal(SIGSEGV, pc_crash);
     signal(SIGFPE, pc_crash);
     signal(SIGILL, pc_crash);
     signal(SIGABRT, pc_crash); /* e.g. stack protector failures */
@@ -334,18 +434,28 @@ int main(int argc, char** argv)
     /* Guest memory first: the window's graphics driver (Vulkan and its
      * layers especially) maps memory of its own, which must not land in the
      * guest's fixed ranges. */
-    void* ram = mmap((void*)0x80000000, 0x200000, PROT_READ | PROT_WRITE,
-        MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
-    void* scratch = mmap((void*)0x1f800000, 0x1000, PROT_READ | PROT_WRITE,
-        MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+    void* ram = map_guest(0x80000000, 0x200000);
+#ifdef _WIN32
+    /* Windows reserves in 64 KB granules: the scratchpad and the I/O page
+     * (below) are one allocation. */
+    void* scratch = map_guest(0x1f800000, 0x2000);
+    void* io = scratch;
+#else
+    void* scratch = map_guest(0x1f800000, 0x1000);
     /* I/O page: the sound driver writes SPU registers (0x1F801C00..) here;
      * pc/src/audio_spu.cpp synchronises them into the software SPU. */
-    void* io = mmap((void*)0x1f801000, 0x1000, PROT_READ | PROT_WRITE,
-        MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
-    if (ram == MAP_FAILED || scratch == MAP_FAILED || io == MAP_FAILED) {
+    void* io = map_guest(0x1f801000, 0x1000);
+#endif
+    if (!ram || !scratch || !io) {
         perror("guest mapping");
         return 1;
     }
+#ifdef _WIN32
+    if (!reserve_game_stack()) {
+        fprintf(stderr, "game stack below 2 GB: no free range\n");
+        return 1;
+    }
+#endif
     pc_window_init(window, fast);
     pc_audio_output_start();
     FILE* f = fopen("data/SLUS_010.40", "rb");
@@ -771,9 +881,22 @@ void pc_finish_room_checkpoint(void)
 }
 
 /* Native equivalent of the elapsed scanline profiler. This is an estimate from
- * monotonic time since VSync, not emulated PS1 hardware-counter precision. */
+ * monotonic time since VSync, not emulated PS1 hardware-counter precision.
+ * The AI reads it as a per-frame time budget, and VSync(1) waits poll it: input
+ * recording and replay (input_record.c) read virtual scanlines instead, a fixed
+ * step per read from each vblank, so a replay does what the recording did. */
+extern int pc_input_deterministic(void) __attribute__((weak));
 int func_800E45B4(void)
 {
+    if (pc_input_deterministic && pc_input_deterministic()) {
+        static unsigned lines, vblank;
+        if (vblank != vsyncs) {
+            vblank = vsyncs;
+            lines = 0;
+        }
+        lines += 8;
+        return lines < 263 ? (int)lines : 262; /* an NTSC field's lines */
+    }
     if (!last_vsync.tv_sec && !last_vsync.tv_nsec)
         return 0;
     struct timespec now;

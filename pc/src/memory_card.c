@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include "platform.h"
 
 extern void pc_deliver_event(psx_ulong event, psx_long spec);
 
@@ -136,7 +137,7 @@ static void save(struct card* card)
     char* slash = strrchr(card->path, '/');
     if (slash) {
         *slash = 0;
-        mkdir(card->path, 0777);
+        pc_mkdir(card->path);
         *slash = '/';
     }
     snprintf(temp, sizeof temp, "%s.tmp", card->path);

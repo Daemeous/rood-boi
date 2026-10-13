@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include "platform.h"
 
 using prefab::Json;
 using prefab::Value;
@@ -28,7 +29,7 @@ long long file_stamp(const std::string& path)
     struct stat st;
     if (stat(path.c_str(), &st))
         return 0;
-    return (long long)st.st_mtim.tv_sec * 1000000000LL + st.st_mtim.tv_nsec + st.st_size;
+    return PC_MTIME_NS(st) + st.st_size;
 }
 bool read_text(const std::string& path, std::string& out)
 {

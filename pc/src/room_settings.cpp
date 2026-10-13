@@ -17,6 +17,7 @@
 #include "lighting_layers.h"
 
 #include "imgui.h"
+#include "platform.h"
 
 extern "C" {
 extern float pc_gi_strength, pc_emitter_light, pc_emitter_radius, pc_contact_radius, pc_baked_ambient,
@@ -171,7 +172,7 @@ static void save_defaults()
     std::string dir = lighting::user_dir();
     for (size_t i = 1; i <= dir.size(); i++)
         if (i == dir.size() || dir[i] == '/')
-            mkdir(dir.substr(0, i).c_str(), 0777);
+            pc_mkdir(dir.substr(0, i).c_str());
     FILE* f = fopen(path.c_str(), "w");
     if (!f)
         return;

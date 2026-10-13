@@ -19,7 +19,8 @@ CLI:
     rood_rpc.py --rpc                         JSON-RPC lines on stdin/stdout; adds the
                                               client-side methods "symbol" and "read_symbol"
 
-The socket defaults to $ROOD_RPC or pc/build/boot/rpc.sock. Methods run at vsync
+The socket defaults to $ROOD_RPC or pc/build/boot/rpc.sock (on Windows tcp:47323, a
+loopback TCP port; ROOD_RPC=tcp:PORT works on Linux too). Methods run at vsync
 boundaries; "step" pauses after N vsyncs, so step + wait_paused gives exact timing.
 
 Headless runs (ROOD_HEADLESS, or launch(headless=...)):
@@ -42,10 +43,18 @@ import sys
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+# Windows: the build_boot.py --target windows executable, reached over TCP
+# (Windows' Python has no AF_UNIX); always windowed (no EGL/Xvfb there).
+WINDOWS = os.name == "nt"
 # ROOD_ARCH=64 selects the LP64 build (build_boot.py --arch 64).
-BUILD = ROOT / ("pc/build/boot64" if os.environ.get("ROOD_ARCH") == "64" else "pc/build/boot")
-BINARY = pathlib.Path(os.environ.get("ROOD_BINARY") or BUILD / "rood_battle_probe")  # ROOD_BINARY: e.g. a gdb wrapper
-DEFAULT_SOCKET = os.environ.get("ROOD_RPC", str(ROOT / "pc/build/boot/rpc.sock"))
+if WINDOWS:
+    BUILD = ROOT / "pc/build/win64"
+else:
+    BUILD = ROOT / ("pc/build/boot64" if os.environ.get("ROOD_ARCH") == "64" else "pc/build/boot")
+BINARY = pathlib.Path(os.environ.get("ROOD_BINARY")  # ROOD_BINARY: e.g. a gdb wrapper
+                      or BUILD / ("rood.exe" if WINDOWS else "rood_battle_probe"))
+# A socket path, or tcp:PORT (a loopback TCP port; dev_rpc.c).
+DEFAULT_SOCKET = os.environ.get("ROOD_RPC", "tcp:47323" if WINDOWS else str(ROOT / "pc/build/boot/rpc.sock"))
 # Per-run output directory (logs, frames, scratch cards); the game reads it too.
 OUT = pathlib.Path(os.environ.get("ROOD_OUT") or ROOT / "pc/build/boot")
 _symbols = None
@@ -57,7 +66,10 @@ def symbols():
     global _symbols
     if _symbols is None:
         _symbols = {}
-        out = subprocess.run(["nm", str(BUILD / "rood_battle_probe")], capture_output=True, text=True).stdout
+        # The executable that is running (or ROOD_SYMBOLS, e.g. rood.exe
+        # read by a MinGW nm under WSL); ROOD_NM picks the nm.
+        image = os.environ.get("ROOD_SYMBOLS") or str(BUILD / ("rood.exe" if WINDOWS else "rood_battle_probe"))
+        out = subprocess.run([os.environ.get("ROOD_NM", "nm"), image], capture_output=True, text=True).stdout
         for line in out.splitlines():
             parts = line.split()
             if len(parts) == 3:
@@ -152,6 +164,29 @@ def start_xvfb(size="1280x1024x24"):
     raise RpcError("no free X display for Xvfb")
 
 
+def is_tcp(path):
+    return str(path).startswith("tcp:")
+
+
+def connect(path):
+    """A connected socket: a Unix socket path, or tcp:PORT on 127.0.0.1."""
+    if is_tcp(path):
+        return socket.create_connection(("127.0.0.1", int(str(path)[4:])))
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.connect(path)
+    return sock
+
+
+def listening(path):
+    if not is_tcp(path):
+        return os.path.exists(path)
+    try:
+        connect(path).close()
+        return True
+    except OSError:
+        return False
+
+
 class Game:
     def __init__(self, path=DEFAULT_SOCKET, processes=()):
         self.path = path
@@ -159,8 +194,7 @@ class Game:
         self.display = os.environ.get("DISPLAY")
         self.processes = list(processes)
         self.next_id = 0
-        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.sock.connect(path)
+        self.sock = connect(path)
         self.file = self.sock.makefile("rwb")
 
     # ---- launching ----
@@ -182,7 +216,7 @@ class Game:
         env.setdefault("ROOD_CARD2", str(OUT / "test-card2-absent.mcd"))
         env.update(extra_env or {})
         processes = []
-        if not window:
+        if not window and not WINDOWS:
             mode = headless or headless_mode()[0]
             if mode == "egl":
                 headless_env(mode, env)
@@ -191,15 +225,16 @@ class Game:
                 env["SDL_VIDEO_DRIVER"] = "x11"  # the private display, not the desktop's Wayland
                 env.pop("WAYLAND_DISPLAY", None)
                 processes.append(xvfb)
-        if os.path.exists(socket_path):
+        if not is_tcp(socket_path) and os.path.exists(socket_path):
             os.unlink(socket_path)
+        OUT.mkdir(parents=True, exist_ok=True)
         log_file = open(log or OUT / "rpc-game.log", "w")
         game = subprocess.Popen(
             [str(BINARY), "--window"] + ([] if movies else ["--skip-movies"]) + (["--fast"] if fast else [])
             + list(args), cwd=ROOT, env=env, stdout=log_file, stderr=subprocess.STDOUT)
         processes.insert(0, game)
         deadline = time.monotonic() + 30
-        while not os.path.exists(socket_path):
+        while not listening(socket_path):
             if game.poll() is not None or time.monotonic() > deadline:
                 for p in processes:
                     p.kill()
@@ -222,7 +257,7 @@ class Game:
                 p.kill()
         for p in self.processes[1:]:
             p.terminate()
-        if self.processes and os.path.exists(self.path):
+        if self.processes and not is_tcp(self.path) and os.path.exists(self.path):
             os.unlink(self.path)  # launched here: the game leaves its socket behind
 
     # ---- protocol ----

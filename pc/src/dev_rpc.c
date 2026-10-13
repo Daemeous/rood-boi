@@ -1,7 +1,9 @@
-/* Developer control interface: JSON-RPC 2.0 over a Unix socket.
+/* Developer control interface: JSON-RPC 2.0 over a Unix socket (or TCP).
  *
  * Enabled only when ROOD_RPC names a socket path; the socket is created with
- * mode 0600. Each request is one JSON object per line and each response is one
+ * mode 0600. ROOD_RPC=tcp:PORT listens on 127.0.0.1:PORT instead (Windows
+ * has no Unix sockets for Python clients); lines that are not JSON objects
+ * close such a connection. Each request is one JSON object per line and each response is one
  * line. Requests are serviced on the game thread from pc_tick (once per
  * vsync), so every method runs at a frame boundary with no locking. Methods:
  *
@@ -219,6 +221,10 @@
  *   read {address, length}       hex bytes from guest RAM, scratchpad or host data
  *   write {address, hex}         patch guest RAM or scratchpad
  *   state                        Vagrant Story snapshot (zone, room, player, music)
+ *   state_flag {id, value}       read (and with value, set) a story/state flag,
+ *                                e.g. to get past the prologue in tests
+ *   input_record                 recording/replay state (input_record.c):
+ *                                mode, file, end vblank, current vblank
  *   quit                         exit the game
  *
  * pc/tools/rood_rpc.py is the client (CLI, Python API and a stdin/stdout
@@ -230,11 +236,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/un.h>
 #include <time.h>
 #include <unistd.h>
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#endif
 #include "pc_paths.h"
 #include "room_effects.h"
 #include "render.h"
@@ -356,11 +369,47 @@ extern void render_stats_get(render_stats*) __attribute__((weak));
 #define LINE_MAX_BYTES 262144 /* the rooms list and lighting layers fit */
 
 static int listener = -1, initialized;
+static int listener_tcp; /* ROOD_RPC=tcp:PORT */
 static struct client {
     int fd;
     size_t used;
     char buffer[LINE_MAX_BYTES];
 } clients[MAX_CLIENTS];
+
+/* Socket calls: POSIX descriptors, or Winsock sockets (kept in the same
+ * int fields; Windows socket handles fit 32 bits). */
+#ifdef _WIN32
+static long rpc_recv(int fd, char* buffer, size_t size) { return recv((SOCKET)fd, buffer, (int)size, 0); }
+static long rpc_send(int fd, const char* text, size_t size) { return send((SOCKET)fd, text, (int)size, 0); }
+static void rpc_close(int fd) { closesocket((SOCKET)fd); }
+static int rpc_retry(void) { return 0; }
+static int rpc_would_block(void) { return WSAGetLastError() == WSAEWOULDBLOCK; }
+static void rpc_set_blocking(int fd, int blocking)
+{
+    u_long nonblocking = !blocking;
+    ioctlsocket((SOCKET)fd, FIONBIO, &nonblocking);
+}
+static int rpc_accept(int fd)
+{
+    SOCKET s = accept((SOCKET)fd, NULL, NULL);
+    if (s == INVALID_SOCKET)
+        return -1;
+    rpc_set_blocking((int)s, 0);
+    return (int)s;
+}
+#else
+static long rpc_recv(int fd, char* buffer, size_t size) { return read(fd, buffer, size); }
+static long rpc_send(int fd, const char* text, size_t size) { return write(fd, text, size); }
+static void rpc_close(int fd) { close(fd); }
+static int rpc_retry(void) { return errno == EINTR; }
+static int rpc_would_block(void) { return errno == EAGAIN || errno == EWOULDBLOCK; }
+static void rpc_set_blocking(int fd, int blocking)
+{
+    int flags = fcntl(fd, F_GETFL);
+    fcntl(fd, F_SETFL, blocking ? flags & ~O_NONBLOCK : flags | O_NONBLOCK);
+}
+static int rpc_accept(int fd) { return accept4(fd, NULL, NULL, SOCK_NONBLOCK | SOCK_CLOEXEC); }
+#endif
 static int paused;
 static long step_budget;
 static struct hold {
@@ -474,8 +523,8 @@ static void send_line(int fd, const char* text)
 {
     size_t length = strlen(text);
     while (length) {
-        ssize_t n = write(fd, text, length);
-        if (n < 0 && errno == EINTR)
+        long n = rpc_send(fd, text, length);
+        if (n < 0 && rpc_retry())
             continue;
         if (n <= 0)
             return;
@@ -489,12 +538,34 @@ static void reply(int fd, const char* id, const char* result)
     snprintf(line, sizeof line, "{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":%s}\n", id, result);
     send_line(fd, line);
 }
+/* A string as JSON string contents (quotes, backslashes - Windows paths -, control characters
+ * escaped), in one of a few rotating buffers so a reply can take two. */
+static const char* json_str(const char* text)
+{
+    static char buffers[4][1024];
+    static int next;
+    char* out = buffers[next++ & 3];
+    size_t used = 0;
+    for (; text && *text && used + 7 < sizeof buffers[0]; text++) {
+        unsigned char c = (unsigned char)*text;
+        if (c == '"' || c == '\\') {
+            out[used++] = '\\';
+            out[used++] = (char)c;
+        } else if (c < 0x20)
+            used += (size_t)snprintf(out + used, 7, "\\u%04x", c);
+        else
+            out[used++] = (char)c;
+    }
+    out[used] = 0;
+    return out;
+}
+
 static void fail(int fd, const char* id, int code, const char* message)
 {
     char line[1024];
     snprintf(line, sizeof line,
         "{\"jsonrpc\":\"2.0\",\"id\":%s,\"error\":{\"code\":%d,\"message\":\"%s\"}}\n", id, code,
-        message);
+        json_str(message));
     send_line(fd, line);
 }
 
@@ -578,21 +649,25 @@ unsigned pc_rpc_buttons(void)
 }
 
 /* Readable ranges: guest RAM (and its KSEG0 view), scratchpad, host data. */
+#ifdef _WIN32
+#define __data_start __data_start__
+#define _end __bss_end__
+#endif
 extern char __data_start[], _end[];
-static int readable(unsigned long address, unsigned long length)
+static int readable(uintptr_t address, uintptr_t length)
 {
-    unsigned long end = address + length;
+    uintptr_t end = address + length;
     if (length > 65536 || end < address)
         return 0;
     if (address >= 0x80000000ul && end <= 0x80200000ul)
         return 1;
     if (address >= 0x1F800000ul && end <= 0x1F800400ul)
         return 1;
-    return address >= (unsigned long)__data_start && end <= (unsigned long)_end;
+    return address >= (uintptr_t)__data_start && end <= (uintptr_t)_end;
 }
-static int writable(unsigned long address, unsigned long length)
+static int writable(uintptr_t address, uintptr_t length)
 {
-    unsigned long end = address + length;
+    uintptr_t end = address + length;
     return length <= 65536 && end >= address
         && ((address >= 0x80000000ul && end <= 0x80200000ul)
             || (address >= 0x1F800000ul && end <= 0x1F800400ul));
@@ -743,7 +818,7 @@ static void handle_method(int fd, const char* request)
             fail(fd, id, -32000, "cannot write screenshot");
             return;
         }
-        snprintf(result, sizeof result, "{\"path\":\"%s\",\"width\":%d,\"height\":%d}", path, width,
+        snprintf(result, sizeof result, "{\"path\":\"%s\",\"width\":%d,\"height\":%d}", json_str(path), width,
             height);
         reply(fd, id, result);
     } else if (!strcmp(method, "graphics")) {
@@ -1433,7 +1508,7 @@ static void handle_method(int fd, const char* request)
         if (pc_lighting_sync)
             pc_lighting_sync(); /* a loaded preset applies now */
         const char* path = pc_settings_path();
-        snprintf(result, sizeof result, "{\"status\":\"%s\",\"path\":\"%s\"}", pc_settings_status(), path ? path : "");
+        snprintf(result, sizeof result, "{\"status\":\"%s\",\"path\":\"%s\"}", pc_settings_status(), json_str(path));
         reply(fd, id, result);
     } else if (!strcmp(method, "perf")) {
         /* GPU time per presented frame since the last {reset: true} (ROOD_PERF=1). */
@@ -1786,7 +1861,7 @@ static void handle_method(int fd, const char* request)
             fail(fd, id, -32000, "no GI result (needs Vulkan ray tracing)");
             return;
         }
-        snprintf(result, sizeof result, "{\"path\":\"%s\"}", path);
+        snprintf(result, sizeof result, "{\"path\":\"%s\"}", json_str(path));
         reply(fd, id, result);
     } else if (!strcmp(method, "probe_gi")) {
         if (!pc_probe_get_stats) {
@@ -2118,7 +2193,7 @@ static void handle_method(int fd, const char* request)
             fail(fd, id, -32000, "scene dump failed");
             return;
         }
-        snprintf(result, sizeof result, "{\"path\":\"%s\"}", path);
+        snprintf(result, sizeof result, "{\"path\":\"%s\"}", json_str(path));
         reply(fd, id, result);
     } else if (!strcmp(method, "anim_trace")) {
         /* Object instances (bone palettes as drawn, the game frame's and the
@@ -2140,7 +2215,7 @@ static void handle_method(int fd, const char* request)
             fail(fd, id, -32000, "cannot open the trace file");
             return;
         }
-        snprintf(result, sizeof result, "{\"path\":\"%s\",\"remaining\":%d}", path, render_anim_trace_remaining());
+        snprintf(result, sizeof result, "{\"path\":\"%s\",\"remaining\":%d}", json_str(path), render_anim_trace_remaining());
         reply(fd, id, result);
     } else if (!strcmp(method, "present_dump")) {
         /* The next presented window image (as displayed) to a PPM. */
@@ -2158,7 +2233,7 @@ static void handle_method(int fd, const char* request)
         if (params && &pc_present_burst && real_value(member(params, "count"), &count))
             pc_present_burst = (int)count;
         snprintf(pc_present_capture, 400, "%s", path);
-        snprintf(result, sizeof result, "{\"path\":\"%s\"}", path);
+        snprintf(result, sizeof result, "{\"path\":\"%s\"}", json_str(path));
         reply(fd, id, result);
     } else if (!strcmp(method, "editor_camera")) {
         /* The editor's free camera: {x, y, z, yaw, pitch} sets it (and turns
@@ -2259,7 +2334,38 @@ static void handle_method(int fd, const char* request)
             fail(fd, id, -32000, "hardware renderer inactive or dump failed");
             return;
         }
-        snprintf(result, sizeof result, "{\"path\":\"%s\"}", path);
+        snprintf(result, sizeof result, "{\"path\":\"%s\"}", json_str(path));
+        reply(fd, id, result);
+    } else if (!strcmp(method, "input_record")) {
+        /* Input recording/replay (input_record.c, ROOD_RECORD / ROOD_REPLAY):
+         * mode off|recording|replaying|replayed, the file, the replay's end. */
+        extern int pc_input_record_state(const char**, unsigned*);
+        static const char* const modes[] = { "off", "recording", "replaying", "replayed" };
+        const char* file;
+        unsigned end;
+        int mode = pc_input_record_state(&file, &end);
+        snprintf(result, sizeof result, "{\"mode\":\"%s\",\"file\":\"%s\",\"end\":%u,\"vsync\":%u}",
+            modes[mode < 0 || mode > 3 ? 0 : mode], json_str(file), end, pc_vsync_count());
+        reply(fd, id, result);
+    } else if (!strcmp(method, "state_flag")) {
+        /* The game's story/state flags (as room scripts read and set them;
+         * 4A0A8.c): {id} reads one, {id, value} sets it first. For tests
+         * that jump ahead, e.g. past the prologue. */
+        extern char vs_battle_getStateFlag(short) __attribute__((weak));
+        extern void vs_battle_setStateFlag(short, char) __attribute__((weak));
+        long long flag, value;
+        if (!vs_battle_getStateFlag || !vs_battle_setStateFlag) {
+            fail(fd, id, -32000, "state_flag needs the battle build");
+            return;
+        }
+        if (!params || !number_value(member(params, "id"), &flag) || flag < 0 || flag >= 0x440) {
+            fail(fd, id, -32602, "state_flag needs id (0-0x43F)");
+            return;
+        }
+        if (number_value(member(params, "value"), &value))
+            vs_battle_setStateFlag((short)flag, (char)value);
+        snprintf(result, sizeof result, "{\"id\":%lld,\"value\":%d}", flag,
+            (unsigned char)vs_battle_getStateFlag((short)flag));
         reply(fd, id, result);
     } else if (!strcmp(method, "read")) {
         long long address, length = 4;
@@ -2268,14 +2374,14 @@ static void handle_method(int fd, const char* request)
             return;
         }
         number_value(member(params, "length"), &length);
-        if (length < 1 || !readable((unsigned long)address, (unsigned long)length)) {
+        if (length < 1 || !readable((uintptr_t)address, (uintptr_t)length)) {
             fail(fd, id, -32000, "range not readable");
             return;
         }
         size_t used = (size_t)snprintf(result, sizeof result, "{\"hex\":\"");
         for (long long i = 0; i < length && used + 4 < sizeof result; i++)
             used += (size_t)snprintf(result + used, sizeof result - used, "%02x",
-                ((unsigned char*)(unsigned long)address)[i]);
+                ((unsigned char*)(uintptr_t)address)[i]);
         snprintf(result + used, sizeof result - used, "\"}");
         reply(fd, id, result);
     } else if (!strcmp(method, "write")) {
@@ -2287,7 +2393,7 @@ static void handle_method(int fd, const char* request)
             return;
         }
         size_t length = strlen(hex) / 2;
-        if (!length || !writable((unsigned long)address, length)) {
+        if (!length || !writable((uintptr_t)address, length)) {
             fail(fd, id, -32000, "range not writable");
             return;
         }
@@ -2297,7 +2403,7 @@ static void handle_method(int fd, const char* request)
                 fail(fd, id, -32602, "bad hex");
                 return;
             }
-            ((unsigned char*)(unsigned long)address)[i] = (unsigned char)byte;
+            ((unsigned char*)(uintptr_t)address)[i] = (unsigned char)byte;
         }
         snprintf(result, sizeof result, "{\"written\":%zu}", length);
         reply(fd, id, result);
@@ -2354,12 +2460,63 @@ static void handle(int fd, const char* request)
     }
 }
 
+/* ROOD_RPC=tcp:PORT: a TCP listener on the loopback interface only, for
+ * Windows (whose Python has no AF_UNIX) or any client that prefers TCP. */
+static void open_tcp_listener(const char* spec)
+{
+    char* end;
+    unsigned long port = strtoul(spec + 4, &end, 10);
+    if (*end || !port || port > 65535) {
+        fprintf(stderr, "[rpc] ROOD_RPC=%s: expected tcp:PORT\n", spec);
+        return;
+    }
+#ifdef _WIN32
+    WSADATA wsa;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa)) {
+        fprintf(stderr, "[rpc] Winsock unavailable\n");
+        return;
+    }
+    SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    listener = s == INVALID_SOCKET ? -1 : (int)s;
+#else
+    listener = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+    int reuse = 1;
+    if (listener >= 0)
+        setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof reuse);
+#endif
+    struct sockaddr_in address;
+    memset(&address, 0, sizeof address);
+    address.sin_family = AF_INET;
+    address.sin_port = htons((unsigned short)port);
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    if (listener < 0 || bind(listener, (struct sockaddr*)&address, sizeof address)
+        || listen(listener, MAX_CLIENTS)) {
+        fprintf(stderr, "[rpc] cannot listen on 127.0.0.1:%lu\n", port);
+        if (listener >= 0)
+            rpc_close(listener);
+        listener = -1;
+        return;
+    }
+    rpc_set_blocking(listener, 0);
+    listener_tcp = 1;
+    for (int i = 0; i < MAX_CLIENTS; i++)
+        clients[i].fd = -1;
+    fprintf(stderr, "[rpc] listening on tcp:127.0.0.1:%lu\n", port);
+}
+
 static void open_listener(void)
 {
     initialized = 1;
     const char* path = getenv("ROOD_RPC");
     if (!path || !*path)
         return;
+    if (!strncmp(path, "tcp:", 4)) {
+        open_tcp_listener(path);
+        return;
+    }
+#ifdef _WIN32
+    fprintf(stderr, "[rpc] ROOD_RPC=%s: Windows takes tcp:PORT (no Unix sockets)\n", path);
+#else
     struct sockaddr_un address;
     if (strlen(path) >= sizeof address.sun_path) {
         fprintf(stderr, "[rpc] socket path too long: %s\n", path);
@@ -2390,6 +2547,7 @@ static void open_listener(void)
     for (int i = 0; i < MAX_CLIENTS; i++)
         clients[i].fd = -1;
     fprintf(stderr, "[rpc] listening on %s\n", path);
+#endif
 }
 
 static void service(void)
@@ -2397,12 +2555,12 @@ static void service(void)
     if (listener < 0)
         return;
     int fd;
-    while ((fd = accept4(listener, NULL, NULL, SOCK_NONBLOCK | SOCK_CLOEXEC)) >= 0) {
+    while ((fd = rpc_accept(listener)) >= 0) {
         int i = 0;
         while (i < MAX_CLIENTS && clients[i].fd >= 0)
             ++i;
         if (i == MAX_CLIENTS) {
-            close(fd);
+            rpc_close(fd);
             continue;
         }
         clients[i].fd = fd;
@@ -2412,9 +2570,9 @@ static void service(void)
         struct client* c = &clients[i];
         if (c->fd < 0)
             continue;
-        ssize_t n = read(c->fd, c->buffer + c->used, sizeof c->buffer - 1 - c->used);
-        if (n == 0 || (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK)) {
-            close(c->fd);
+        long n = rpc_recv(c->fd, c->buffer + c->used, sizeof c->buffer - 1 - c->used);
+        if (n == 0 || (n < 0 && !rpc_would_block())) {
+            rpc_close(c->fd);
             c->fd = -1;
             continue;
         }
@@ -2422,20 +2580,27 @@ static void service(void)
             c->used += (size_t)n;
         char* newline;
         c->buffer[c->used] = 0;
-        while ((newline = memchr(c->buffer, '\n', c->used))) {
+        while (c->fd >= 0 && (newline = memchr(c->buffer, '\n', c->used))) {
             *newline = 0;
+            /* A TCP port can be reached by any local program, a web page's
+             * request included: a line that is not a JSON object (an HTTP
+             * request line) closes the connection. */
+            if (listener_tcp && *skip(c->buffer) && *skip(c->buffer) != '{') {
+                rpc_close(c->fd);
+                c->fd = -1;
+                break;
+            }
             /* Blocking writes for the reply; requests are small and local. */
-            int flags = fcntl(c->fd, F_GETFL);
-            fcntl(c->fd, F_SETFL, flags & ~O_NONBLOCK);
+            rpc_set_blocking(c->fd, 1);
             if (*skip(c->buffer))
                 handle(c->fd, c->buffer);
-            fcntl(c->fd, F_SETFL, flags);
+            rpc_set_blocking(c->fd, 0);
             size_t rest = c->used - (size_t)(newline + 1 - c->buffer);
             memmove(c->buffer, newline + 1, rest);
             c->used = rest;
             c->buffer[c->used] = 0;
         }
-        if (c->used == sizeof c->buffer - 1) {
+        if (c->fd >= 0 && c->used == sizeof c->buffer - 1) {
             fail(c->fd, "null", -32700, "request line too long");
             c->used = 0;
         }

@@ -45,6 +45,7 @@ void pc_controller_init(void);
 void pc_controller_event(const union SDL_Event*);
 void pc_controller_poll(void);
 unsigned pc_controller_buttons(void);
+int pc_controller_fast_forward(void); /* both stick clicks held: fast-forward (boot_window.c) */
 void pc_controller_right_stick(float out[2]);
 /* The open gamepad's SDL_GamepadType (SDL_GAMEPAD_TYPE_UNKNOWN: none). */
 int pc_controller_type(void);

@@ -21,6 +21,10 @@ static SDL_Surface* image;
 static unsigned buttons;
 static unsigned camera_keys; /* J L I K O held (camera_stick.c keyboard fallback) */
 static int fast;
+/* Fast-forward while held: ` (backtick) or L3 + R3 (boot_gamepad.c). The game
+ * runs unpaced, as with --fast; audio drops what it cannot play. */
+static int fast_forward_key;
+static int fast_forward_held(void) { return focused && (fast_forward_key || pc_controller_fast_forward()); }
 extern int pc_gl_active;
 extern SDL_Window* pc_gl_create_window(const char*, int, int);
 extern void pc_gl_resize(int, int);
@@ -39,7 +43,7 @@ static struct timespec deadline;
  * vsync's deadline to the next (no wait in fast mode). */
 void pc_window_wait_fraction(int k, int n)
 {
-    if (fast || !deadline.tv_sec || n <= 0)
+    if (fast || fast_forward_held() || !deadline.tv_sec || n <= 0)
         return;
     struct timespec at = deadline;
     long long ns = at.tv_nsec + FIELD_NS * k / n;
@@ -161,26 +165,30 @@ static unsigned camera_keybit(SDL_Keycode key)
  * the editor, which takes their releases, so let go of them here. */
 void pc_window_release_keys(void) { buttons = camera_keys = 0; }
 extern unsigned pc_rpc_buttons(void);
+/* input_record.c: ROOD_RECORD writes, ROOD_REPLAY replaces, the live input. */
+extern unsigned pc_input_buttons(unsigned live, unsigned rpc);
+extern int pc_input_stick(float out[2], int live_valid);
 unsigned pc_window_buttons(void)
 {
     /* Developer RPC input (dev_rpc.c) applies even while unfocused. */
     unsigned keys = buttons | (pc_camera_stick_keys && (camera_keys & 16) ? 1u << 10 : 0);
-    unsigned result = (focused ? keys | pc_controller_buttons() : 0) | pc_rpc_buttons();
+    unsigned result = pc_input_buttons(focused ? keys | pc_controller_buttons() : 0, pc_rpc_buttons());
     /* R3 resets the right-stick camera instead (camera_stick.c). */
     return pc_camera_stick_buttons(result);
 }
 /* The camera's stick: the gamepad's right stick and the keys (focused). */
 int pc_window_stick(float out[2])
 {
+    int valid = focused;
     out[0] = out[1] = 0;
-    if (!focused)
-        return 0;
-    pc_controller_right_stick(out);
-    if (pc_camera_stick_keys) {
-        out[0] += (camera_keys & 2 ? 1.0f : 0) - (camera_keys & 1 ? 1.0f : 0);
-        out[1] += (camera_keys & 8 ? 1.0f : 0) - (camera_keys & 4 ? 1.0f : 0);
+    if (focused) {
+        pc_controller_right_stick(out);
+        if (pc_camera_stick_keys) {
+            out[0] += (camera_keys & 2 ? 1.0f : 0) - (camera_keys & 1 ? 1.0f : 0);
+            out[1] += (camera_keys & 8 ? 1.0f : 0) - (camera_keys & 4 ? 1.0f : 0);
+        }
     }
-    return 1;
+    return pc_input_stick(out, valid);
 }
 void pc_window_tick(void)
 {
@@ -216,10 +224,15 @@ void pc_window_tick(void)
             /* The keyboard is the last device used (button prompts). */
             if (keybit(event.key.key) || camera_keybit(event.key.key))
                 pc_button_prompts_device(PC_PROMPTS_KEYBOARD, 0);
+            /* Unless ` is bound to a PS1 button (bind_key_*). */
+            if (event.key.key == SDLK_GRAVE && !keybit(event.key.key))
+                fast_forward_key = 1;
             break;
         case SDL_EVENT_KEY_UP:
             buttons &= ~keybit(event.key.key);
             camera_keys &= ~camera_keybit(event.key.key);
+            if (event.key.key == SDLK_GRAVE)
+                fast_forward_key = 0;
             break;
         default:
             pc_controller_event(&event);
@@ -227,7 +240,9 @@ void pc_window_tick(void)
         }
     }
     pc_controller_poll();
-    if (!fast) {
+    if (fast_forward_held())
+        deadline.tv_sec = 0; /* pace again from now when it is released */
+    else if (!fast) {
         /* Pace to absolute NTSC field deadlines (59.94 Hz) so the frame's own
          * work counts toward the period; resynchronise after long stalls. */
         struct timespec now;

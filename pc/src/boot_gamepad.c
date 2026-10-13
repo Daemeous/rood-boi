@@ -15,6 +15,7 @@
 
 static SDL_Gamepad* pad;
 static unsigned mask;
+static int fast_forward; /* L3 + R3 held (boot_window.c) */
 static float right_stick[2]; /* -1..1, SDL's direction (down is +y) */
 static const char* requested;
 static char requested_event[300];
@@ -170,6 +171,7 @@ void pc_controller_poll(void)
 {
     if (!pad) {
         mask = 0;
+        fast_forward = 0;
         right_stick[0] = right_stick[1] = 0;
         return;
     }
@@ -179,11 +181,20 @@ void pc_controller_poll(void)
     for (int i = 0; i < SDL_GAMEPAD_AXIS_COUNT; i++)
         state.axes[i] = SDL_GetGamepadAxis(pad, (SDL_GamepadAxis)i);
     mask = pc_controller_mask(&state);
+    /* Both stick clicks together: fast-forward while held, instead of
+     * whatever PS1 buttons they are bound to (L3 and R3 by default; R3
+     * resets the camera). */
+    fast_forward = state.buttons[SDL_GAMEPAD_BUTTON_LEFT_STICK] && state.buttons[SDL_GAMEPAD_BUTTON_RIGHT_STICK];
+    if (fast_forward)
+        for (int i = 0; i < PC_PAD_BUTTONS; i++)
+            if (pc_bind_pad[i] == SDL_GAMEPAD_BUTTON_LEFT_STICK || pc_bind_pad[i] == SDL_GAMEPAD_BUTTON_RIGHT_STICK)
+                mask &= ~(1u << i);
     right_stick[0] = state.axes[SDL_GAMEPAD_AXIS_RIGHTX] / 32767.0f;
     right_stick[1] = state.axes[SDL_GAMEPAD_AXIS_RIGHTY] / 32767.0f;
 }
 
 unsigned pc_controller_buttons(void) { return mask; }
+int pc_controller_fast_forward(void) { return fast_forward; }
 /* The right stick (the PS1 pad stays digital: the camera reads it,
  * camera_stick.c); 0 without a gamepad. */
 void pc_controller_right_stick(float out[2])
