@@ -1,0 +1,5 @@
+# The Linux builder's build environment: Ubuntu 24.04 (so the game runs on most current
+# distributions) with rood-boi's build packages. build-rood-boi.sh builds it once.
+FROM docker.io/library/ubuntu:24.04
+COPY build.sh /usr/local/bin/rood-boi-build.sh
+RUN bash /usr/local/bin/rood-boi-build.sh deps linux && rm -rf /var/lib/apt/lists/*
