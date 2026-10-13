@@ -102,6 +102,11 @@ class Run:
                 return state
         return None
 
+    def warp_settled(self):
+        """The warp has finished (not loading or arrived-but-not-yet-in-the-field): a new warp
+        request is refused until then."""
+        return self.wait_for(lambda s: self.game.call("room_goto", action="status")["phase"] not in (2, 3), 600)
+
     def close(self):
         try:
             self.game.call("quit")
@@ -158,6 +163,7 @@ def main():
         if not t.check(state is not None, "the opening's scenes are over (the player has control)"):
             t.shot("00-stuck")
             return 1
+        t.check(t.warp_settled() is not None, "the warp out of the opening finished")
         t.check(not state["callo"]["present"], "she is not there while the prologue flag says so")
         flag = t.game.call("state_flag", id=PROGRESS_FLAG, value=3)
         t.check(flag["value"] == 3, "the progress flag is set (prologue over)")
@@ -183,6 +189,7 @@ def main():
             state = t.wait_for(lambda s: s["zone"] == zone and s["room"] == room and s["player"] is not None, 1800)
             if not t.check(state is not None, f"arrived in zone {zone} room {room}"):
                 continue
+            t.check(t.warp_settled() is not None, "the warp finished")
             state = t.wait_for(lambda s: s["callo"]["present"], 300) or t.state()
             callo = state["callo"]
             if not t.check(callo["present"], f"she spawned (slot {callo['slot']})"):
