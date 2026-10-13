@@ -36,6 +36,15 @@ reported as "benign" and do not fail the check.
   python3 pc/tools/build_boot.py --arch 64
   pc/tools/memcap python3 pc/tools/decl_mismatch.py [--review] [--json out.json]
 
+--windows checks the --target windows build instead (pc/build/win64: the MinGW
+COFF twins, read with MinGW's objdump, which prints the same DWARF dump). There
+the game units' long is long long (lp64_longs) while the host units keep
+Windows' 4-byte long, so a declaration that crosses between them with `long`
+in it shows up as an 8- vs 4-byte HAZARD that the Linux build cannot see.
+
+  python3 pc/tools/build_boot.py --target windows
+  python3 pc/tools/decl_mismatch.py --windows
+
 Exit status 1 when a HAZARD that is not in BENIGN is found.
 """
 
@@ -49,6 +58,14 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+# The DWARF dumps: binutils' readelf for the Linux build's ELF objects; for the
+# Windows build's COFF twins, MinGW's objdump (same output format). Chosen by
+# --windows, passed to the worker processes through the environment.
+WINDOWS = bool(__import__("os").environ.get("DECL_MISMATCH_WINDOWS"))
+DUMP_INFO = (["x86_64-w64-mingw32-objdump", "--dwarf=info", "--dwarf-depth=100"] if WINDOWS
+             else ["readelf", "--debug-dump=info", "--dwarf-depth=100"])
+DUMP_LINE = ["x86_64-w64-mingw32-objdump", "--dwarf=rawline"] if WINDOWS else ["readelf", "--debug-dump=line"]
 
 # Generated objects whose C types are not the game's (address-only externs,
 # native import regions, fail-fast traps): never definitions or declarations.
@@ -103,8 +120,7 @@ class Dwarf:
     def __init__(self, path):
         self.dies = {}  # offset -> [tag, attrs, children, parent]
         self.files = {}
-        text = subprocess.run(["readelf", "--debug-dump=info", "--dwarf-depth=100", str(path)],
-                              capture_output=True, text=True, errors="replace").stdout
+        text = subprocess.run([*DUMP_INFO, str(path)], capture_output=True, text=True, errors="replace").stdout
         stack = []
         current = None
         for line in text.splitlines():
@@ -128,8 +144,7 @@ class Dwarf:
         self.read_files(path)
 
     def read_files(self, path):
-        text = subprocess.run(["readelf", "--debug-dump=line", str(path)], capture_output=True, text=True,
-                              errors="replace").stdout
+        text = subprocess.run([*DUMP_LINE, str(path)], capture_output=True, text=True, errors="replace").stdout
         dirs, section = {}, None
         for line in text.splitlines():
             if "The Directory Table" in line:
@@ -502,9 +517,13 @@ def scan(path):
     return path.stem, found
 
 
-def objects_of(build):
+def objects_of(build, windows=False):
     listed = build / "objects.txt"
-    if listed.exists():
+    if windows:
+        # The twins of the linked objects (build_boot.py writes the list for both targets)
+        paths = ([pathlib.Path(p).with_suffix(".obj") for p in listed.read_text().split()] if listed.exists()
+                 else sorted(build.glob("*.obj")))
+    elif listed.exists():
         paths = [pathlib.Path(p) for p in listed.read_text().split()]
     else:
         paths = sorted(build.glob("*.o"))
@@ -513,16 +532,26 @@ def objects_of(build):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--build", default="pc/build/boot64", help="objects of build_boot.py --arch 64")
+    parser.add_argument("--build", help="objects of build_boot.py --arch 64 (default pc/build/boot64), "
+                        "or of --target windows with --windows (default pc/build/win64)")
+    parser.add_argument("--windows", action="store_true",
+                        help="check the Windows build's COFF twins (host long is 4 bytes there)")
     parser.add_argument("--jobs", type=int, default=4)
     parser.add_argument("--review", action="store_true", help="also print REVIEW findings")
     parser.add_argument("--benign", action="store_true", help="also print known benign mismatches")
     parser.add_argument("--json", help="write every finding here")
     args = parser.parse_args()
+    if args.windows and not WINDOWS:
+        # The workers read DUMP_INFO at import: re-run with the choice in the environment
+        import os
+        os.execve(sys.executable, [sys.executable, *sys.argv],
+                  dict(os.environ, DECL_MISMATCH_WINDOWS="1"))
+    build = args.build or ("pc/build/win64" if args.windows else "pc/build/boot64")
 
-    objects = objects_of(ROOT / args.build)
+    objects = objects_of(ROOT / build, args.windows)
     if not objects:
-        sys.exit(f"no objects in {args.build}: run python3 pc/tools/build_boot.py --arch 64 first")
+        sys.exit(f"no objects in {build}: run python3 pc/tools/build_boot.py "
+                 f"{'--target windows' if args.windows else '--arch 64'} first")
     entries = collections.defaultdict(list)  # linker name -> [(object, entry)]
     with concurrent.futures.ProcessPoolExecutor(args.jobs) as pool:
         for stem, found in pool.map(scan, objects):

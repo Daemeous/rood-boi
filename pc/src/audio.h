@@ -2,14 +2,18 @@
  * driver clock (audio_libspu.c), and host output (audio_output.c). */
 #pragma once
 #include "psx_types.h" /* psx_long */
+/* Game units (boot_sdk.c) include this too, and on Windows they are compiled
+ * with long as long long (build_boot.py lp64_longs) while host units keep a
+ * 4-byte long: no plain long here (pc/tools/decl_mismatch.py --windows). unsigned int is 4
+ * bytes on every target, and needs no <stdint.h>, which game units can't include. */
 void pc_spu_sync_registers(void);
 void pc_spu_render(short* out, int frames);
 void pc_spu_reset(void);
-unsigned long pc_spu_set_transfer_addr(unsigned long addr);
+unsigned int pc_spu_set_transfer_addr(unsigned int addr);
 void pc_spu_set_transfer_mode(int io);
-unsigned long pc_spu_write(const unsigned char* data, unsigned long size);
-unsigned long pc_spu_read(unsigned char* data, unsigned long size);
-void pc_spu_init_malloc(int records, unsigned long base);
+unsigned int pc_spu_write(const unsigned char* data, unsigned int size);
+unsigned int pc_spu_read(unsigned char* data, unsigned int size);
+void pc_spu_init_malloc(int records, unsigned int base);
 void pc_spu_set_reverb(int on);
 void pc_spu_set_reverb_mode(int type, int depth_left, int depth_right, int mask);
 int pc_spu_get_reverb_mode(void);

@@ -194,25 +194,25 @@ extern "C" void pc_spu_reset(void)
     memset(last_mode, 0xff, sizeof(last_mode));
     last_main[0] = last_main[1] = last_control = 0xffff;
 }
-extern "C" unsigned long pc_spu_set_transfer_addr(unsigned long addr)
+extern "C" unsigned int pc_spu_set_transfer_addr(unsigned int addr)
 {
-    return spu().SetTransferStartAddr(static_cast<uint32_t>(addr));
+    return spu().SetTransferStartAddr(addr);
 }
 extern "C" void pc_spu_set_transfer_mode(int io)
 {
     spu().SetTransferMode(io ? PsyX::TransferMode::ManualWrite : PsyX::TransferMode::DmaWrite);
 }
-extern "C" unsigned long pc_spu_write(const unsigned char* data, unsigned long size)
+extern "C" unsigned int pc_spu_write(const unsigned char* data, unsigned int size)
 {
     return spu().Write(data, static_cast<u_int>(size));
 }
-extern "C" unsigned long pc_spu_read(unsigned char* data, unsigned long size)
+extern "C" unsigned int pc_spu_read(unsigned char* data, unsigned int size)
 {
     return spu().Read(data, static_cast<u_int>(size));
 }
-extern "C" void pc_spu_init_malloc(int records, unsigned long base)
+extern "C" void pc_spu_init_malloc(int records, unsigned int base)
 {
-    spu().InitMalloc(records, static_cast<uint32_t>(base));
+    spu().InitMalloc(records, base);
 }
 extern "C" void pc_spu_set_reverb(int on) { spu().SetReverbMasterEnable(on != 0); }
 extern "C" void pc_spu_set_reverb_mode(int type, int depth_left, int depth_right, int mask)
