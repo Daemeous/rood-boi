@@ -4,29 +4,35 @@
 # On an NVIDIA hybrid laptop/desktop it renders on the NVIDIA GPU (PRIME
 # offload); ROOD_GPU=integrated keeps the default GPU. Path-traced lighting is
 # on (ROOD_GI=0 turns it off). --64 plays the 64-bit build; --vulkan plays it
-# with the Vulkan renderer (hardware ray tracing). Other arguments go to the game.
+# with the Vulkan renderer (hardware ray tracing). --callo builds and plays the Callo
+# Merlose companion mod (64-bit; --random-stat-items and --spin-bonus-wheel turn off its
+# extras). Other arguments go to the game.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 build=1
 arch=32
+callo=()
 args=()
 for arg in "$@"; do
     case "$arg" in
     --no-build) build=0 ;;
     --64) arch=64 ;;
     --vulkan) arch=64; export ROOD_RENDERER=vulkan ;;
+    --callo) arch=64; callo+=(--callo) ;;
+    --random-stat-items | --spin-bonus-wheel) callo+=("$arg") ;;
     *) args+=("$arg") ;;
     esac
 done
 if ((build)); then
     if ((arch == 64)); then
-        python3 pc/tools/build_boot.py --arch 64
+        python3 pc/tools/build_boot.py --arch 64 "${callo[@]}"
     else
         python3 pc/tools/build_boot.py --battle
     fi
 fi
 binary=pc/build/boot/rood_battle_probe
 ((arch == 64)) && binary=pc/build/boot64/rood_battle_probe
+((${#callo[@]})) && binary=pc/build/boot64_callo/rood_battle_probe
 if [[ "${ROOD_GPU:-}" != integrated && -e /proc/driver/nvidia/version ]]; then
     export __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia
     # The same for EGL, which SDL uses on native Wayland.
