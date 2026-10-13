@@ -379,6 +379,20 @@ void func_80090EEC(void)
         case 1:
             func_8008F440();
             break;
+#ifdef ROOD_PC
+        /* Widescreen: snow and the falling glints are 2D at projected
+         * points, the dust motes 2D over the whole screen; they fill the
+         * 16:9 view (pc/src/widescreen.h). The rain is projected lines. */
+        case 2:
+            PC_ANCHOR_PACKETS(PC_ANCHOR_SCENE, func_8008FDC4());
+            break;
+        case 3:
+            PC_ANCHOR_PACKETS(PC_ANCHOR_COVER, func_80090434());
+            break;
+        case 4:
+            PC_ANCHOR_PACKETS(PC_ANCHOR_SCENE, func_8008FAC8());
+            break;
+#else
         case 2:
             func_8008FDC4();
             break;
@@ -388,6 +402,7 @@ void func_80090EEC(void)
         case 4:
             func_8008FAC8();
             break;
+#endif
         }
     }
 }
@@ -480,6 +495,17 @@ void func_80091468(int arg0, int arg1)
     D_800F1DB6 = arg1;
 }
 
+/* The sky panorama's tiles drawn (their top-left corner, 20.12 screen X): in
+ * widescreen (port) as far past the sides as the 16:9 view reaches
+ * (pc/src/widescreen.h). */
+#ifdef ROOD_PC
+#define SKY_LEFT (-0x40000 - (PC_WIDESCREEN_MARGIN << 12))
+#define SKY_RIGHT (0x180000 + (PC_WIDESCREEN_MARGIN << 12))
+#else
+#define SKY_LEFT -0x40000
+#define SKY_RIGHT 0x180000
+#endif
+
 void func_8009147C(vs_battle_backgroundLayout* arg0, int arg1, int arg2, int arg3)
 {
     char* buffer = psx_get(((vs_scratch_t*)0x1F800000)->unk0);
@@ -502,7 +528,7 @@ void func_8009147C(vs_battle_backgroundLayout* arg0, int arg1, int arg2, int arg
                         + rcos(((vs_scratch_t*)0x1F800000)->camera.angles.vz) * y;
             vs_battle_backgroundTile* tile;
 
-            if ((screenX < -0x40000) || (screenX > 0x180000) || (screenY < -0x40000)
+            if ((screenX < SKY_LEFT) || (screenX > SKY_RIGHT) || (screenY < -0x40000)
                 || (screenY > 0x130000)) {
                 continue;
             }

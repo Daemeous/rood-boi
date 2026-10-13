@@ -332,6 +332,7 @@ extern float pc_probe_spacing __attribute__((weak)), pc_probe_hysteresis __attri
 extern void pc_probe_get_stats(pc_probe_stats* out) __attribute__((weak));
 extern int pc_probe_dump(const char* path) __attribute__((weak));
 extern int pc_gte_widescreen;
+extern int pc_widescreen_scene __attribute__((weak)); /* gpu_hw.c: 2D of the 3D view fills 16:9 */
 /* Lighting quality presets (lighting_quality.cpp; absent in unit probes). */
 extern int pc_lighting_set(const char*, const char*) __attribute__((weak));
 extern int pc_lighting_key_count(void) __attribute__((weak));
@@ -895,6 +896,9 @@ static void handle_method(int fd, const char* request)
             pc_widescreen_cover = flag;
         if (params && bool_value(member(params, "widescreen_layout"), &flag) && &pc_widescreen_layout)
             pc_widescreen_layout = flag;
+
+        if (params && bool_value(member(params, "widescreen_scene"), &flag) && &pc_widescreen_scene)
+            pc_widescreen_scene = flag;
         extern int pc_widescreen_trace __attribute__((weak));
         if (params && number_value(member(params, "widescreen_trace"), &n) && &pc_widescreen_trace && n >= 0)
             pc_widescreen_trace = (int)n + 1; /* log the next N ordering tables' 2D */
@@ -1248,7 +1252,7 @@ static void handle_method(int fd, const char* request)
                     pc_glow_category[c][f] = (float)real;
             }
         int used = snprintf(result, sizeof result,
-            "{\"hardware\":%s,\"scale\":%d,\"filter\":%d,\"aspect\":%d,\"widescreen\":%s,"
+            "{\"hardware\":%s,\"scale\":%d,\"filter\":%d,\"aspect\":%d,\"widescreen\":%s,\"widescreen_scene\":%d,"
             "\"perspective\":%s,\"show_depth\":%s,\"native_room\":%d,\"native_occlusion\":%s,"
             "\"room_order\":%s,\"room_slack\":%g,\"room_slack_units\":%g,"
             "\"native_actors\":%d,\"actor_order\":%s,\"native_blend\":%d,\"native_objects\":%d,"
@@ -1256,7 +1260,8 @@ static void handle_method(int fd, const char* request)
             "\"gi_denoiser\":\"%s\",\"gi_denoiser_active\":\"%s\",\"nrd_built\":%s,\"nrd_available\":%s,"
             "\"nrd_glow\":%s}",
             pc_hw_active ? "true" : "false", pc_hw_scale, pc_gl_filter, pc_gl_aspect,
-            pc_gte_widescreen ? "true" : "false", pc_hw_perspective ? "true" : "false",
+            pc_gte_widescreen ? "true" : "false", &pc_widescreen_scene ? pc_widescreen_scene : -2,
+            pc_hw_perspective ? "true" : "false",
             pc_gl_show_depth ? "true" : "false", &pc_native_room ? pc_native_room : 0,
             &pc_native_occlusion && pc_native_occlusion ? "true" : "false",
             &pc_native_room_order && pc_native_room_order ? "true" : "false",

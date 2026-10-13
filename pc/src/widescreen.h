@@ -27,7 +27,18 @@ enum { PC_UPLOAD_SCREEN_IMAGE = 1, PC_UPLOAD_SCREEN_PICTURE = 2 };
     } while (0)
 /* PC_ANCHOR_FILL: a full-screen picture magnified to fill the 16:9 view.
  * (0x10: part of the layout fixes, off with ROOD_WIDESCREEN_LAYOUT=0.) */
-enum { PC_ANCHOR_CENTRE = 0x10, PC_ANCHOR_LEFT_EDGE = 0x11, PC_ANCHOR_RIGHT_EDGE = 0x12, PC_ANCHOR_FILL = 0x13 };
+/* PC_ANCHOR_SCENE: 2D that is part of the 3D view (the sky panorama, weather
+ * particles at projected points): compressed like the rest of the 2D but
+ * clipped to the whole 16:9 view, so what the game draws past the 4:3
+ * screen's sides shows there. PC_ANCHOR_COVER: screen-space 2D spread over
+ * the whole screen (dust motes), drawn over the whole view. */
+enum { PC_ANCHOR_CENTRE = 0x10, PC_ANCHOR_LEFT_EDGE = 0x11, PC_ANCHOR_RIGHT_EDGE = 0x12, PC_ANCHOR_FILL = 0x13,
+    PC_ANCHOR_SCENE = 0x14, PC_ANCHOR_COVER = 0x15 };
+/* The 4:3 screen's X range widened to the 16:9 view, for culling tests on
+ * un-narrowed screen X (PC_GTE_UNNARROWED projections): 320 * (4/3 - 1) / 2
+ * = 53.3 more pixels each side in widescreen, 0 otherwise. */
+extern int pc_gte_widescreen;
+#define PC_WIDESCREEN_MARGIN (pc_gte_widescreen ? 54 : 0)
 #define PC_GTE_UNNARROWED(statement) \
     do { \
         ++pc_gte_anchored; \

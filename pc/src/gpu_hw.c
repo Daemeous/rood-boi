@@ -232,6 +232,7 @@ static int layout_enabled(void)
 /* RPC widescreen_trace: log every 2D primitive of the next N ordering
  * tables (bounds relative to the drawing area, how widescreen places it). */
 int pc_widescreen_trace;
+enum { PC_ANCHOR_NONE, PC_ANCHOR_LEFT, PC_ANCHOR_RIGHT, PC_ANCHOR_FILL, PC_ANCHOR_SCENE, PC_ANCHOR_COVER };
 static int primitive_anchor;
 static void trace_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv, const int* clip)
 {
@@ -244,6 +245,7 @@ static void trace_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned
     fprintf(stderr, "[widescreen trace] code 0x%02x (%d,%d)-(%d,%d) area %d,%d %dx%d%s: %s\n", code & 0xff,
         x0 - clip[0], y0 - clip[1], x1 - clip[0], y1 - clip[1], clip[0], clip[1], clip[2], clip[3], texture,
         primitive_narrowed ? "projected" : primitive_cover ? "cover"
+        : primitive_anchor == PC_ANCHOR_SCENE ? "scene (compressed, whole view)"
         : primitive_anchor ? (primitive_anchor == 1 ? "anchor left" : primitive_anchor == 2 ? "anchor right" : "fill")
         : primitive_extend > 0 ? "extend right" : primitive_extend < 0 ? "extend left" : "compress");
 }
@@ -295,8 +297,8 @@ void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tp
             copy = dx >= -40 && dx <= 40 && dy >= -16 && dy <= 16; /* (the map ripples by up to 32) */
         }
     }
-    primitive_cover = wide || tall || backdrop || copy;
-    if (primitive_cover)
+    primitive_cover = wide || tall || backdrop || copy || primitive_anchor == PC_ANCHOR_COVER;
+    if (primitive_cover || primitive_anchor == PC_ANCHOR_SCENE)
         primitive_extend = 0;
     trace_bounds(x0, y0, x1, y1, code, tpage, uv, clip);
     /* (Debug: 2D drawn compressed although it reaches well past the screen's
@@ -556,7 +558,27 @@ int pc_hw_is_room_packet(const void* p)
  * PC_ANCHOR_FILL: a full-screen picture (a cutscene still) is magnified by
  * 4/3 about the screen's centre instead, so it fills the 16:9 view in its
  * own proportions (its top and bottom eighths fall outside). */
-enum { PC_ANCHOR_NONE, PC_ANCHOR_LEFT, PC_ANCHOR_RIGHT, PC_ANCHOR_FILL };
+/* (The anchor kinds: above, with primitive_anchor.) */
+/* PC_ANCHOR_SCENE: 2D the game draws as part of the 3D view (the sky
+ * panorama's tiles, particles at projected points): compressed about the
+ * centre like the narrowed 3D, but clipped to the whole view, not to the
+ * compressed drawing area, so what the game draws past the 4:3 screen's
+ * sides fills the 16:9 view's sides. PC_ANCHOR_COVER: screen-space 2D
+ * spread over the whole screen (the floating dust motes), drawn over the
+ * whole view like screen-covering 2D. Both off with ROOD_WIDESCREEN_SCENE=0
+ * (RPC graphics widescreen_scene; for comparisons). */
+int pc_widescreen_scene = -1;
+static int scene_enabled(void)
+{
+    if (pc_widescreen_scene < 0)
+        pc_widescreen_scene = !getenv("ROOD_WIDESCREEN_SCENE") || *getenv("ROOD_WIDESCREEN_SCENE") != '0';
+    return pc_widescreen_scene;
+}
+/* Scaled about a screen edge (the HUD's anchors). */
+static int edge_anchored(void)
+{
+    return pc_gte_widescreen && (primitive_anchor == PC_ANCHOR_LEFT || primitive_anchor == PC_ANCHOR_RIGHT);
+}
 #define MAX_ANCHOR_RANGES 32
 typedef struct {
     uintptr_t start, end;
@@ -575,6 +597,8 @@ void pc_hw_anchor_packets(const void* start, const void* end, int anchor)
             return;
         anchor &= 0x0f;
     }
+    if ((anchor == PC_ANCHOR_SCENE || anchor == PC_ANCHOR_COVER) && !scene_enabled())
+        return;
     if (pending_anchor_count < MAX_ANCHOR_RANGES && end > start) {
         anchor_range* r = &pending_anchors[pending_anchor_count++];
         r->start = (uintptr_t)start;
@@ -1602,8 +1626,7 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
      * area with it; other 2D compresses about the drawing area's centre,
      * except screen-covering 2D (pc_hw_set_bounds), which spans the view. */
     int fill = pc_gte_widescreen && primitive_anchor == PC_ANCHOR_FILL && !primitive_cover && layout_enabled();
-    int anchored = pc_gte_widescreen && primitive_anchor != PC_ANCHOR_NONE && primitive_anchor != PC_ANCHOR_FILL
-        && !primitive_cover;
+    int anchored = edge_anchored() && !primitive_cover;
     int extend = pc_gte_widescreen && primitive_2d && !anchored && !fill && !primitive_cover ? primitive_extend : 0;
     int compress = pc_gte_widescreen && primitive_2d && !anchored && !fill && !primitive_cover && !extend
         && !primitive_narrowed;
@@ -1616,7 +1639,7 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
         area[1] = clip[1];
         area[2] = (int)ceilf(right) - area[0];
         area[3] = clip[3];
-    } else if ((compress || extend) && layout_enabled()) {
+    } else if ((compress || extend) && layout_enabled() && primitive_anchor != PC_ANCHOR_SCENE) {
         /* The drawing area compressed like its contents (an extended side
          * reaches the view's edge). */
         float left = extend < 0 ? (float)clip[0] : centre + (clip[0] - centre) * 0.75f;
@@ -2056,7 +2079,7 @@ static void line_legacy(int x0, int y0, int x1, int y1, unsigned c0, unsigned c1
      * position and keep the line one pixel thick (scaling the quad would
      * thin vertical lines below a pixel). */
     float shift[4] = { 0, 0, 0, 0 };
-    int anchored = pc_gte_widescreen && primitive_anchor != PC_ANCHOR_NONE && primitive_anchor != PC_ANCHOR_FILL;
+    int anchored = edge_anchored();
     if (anchored) {
         float s0 = anchor_x(x0 + 0.5f) - 0.5f - (float)x0, s1 = anchor_x(x1 + 0.5f) - 0.5f - (float)x1;
         shift[0] = shift[2] = s0;
@@ -2219,7 +2242,7 @@ void pc_hw_line(int x0, int y0, int x1, int y1, unsigned c0, unsigned c1, int se
             memcpy(qc[e + k * 2], c, sizeof qc[0]);
         }
     }
-    int anchored = pc_gte_widescreen && primitive_anchor != PC_ANCHOR_NONE && primitive_anchor != PC_ANCHOR_FILL;
+    int anchored = edge_anchored();
     float shift[2] = { 0, 0 };
     if (anchored) {
         shift[0] = anchor_x(x0 + 0.5f) - 0.5f - (float)x0;

@@ -149,6 +149,9 @@ def suites(args, mode="egl"):
                  note="16:9: fades and pictures cover the view, menu rows reach the edges, title/VKP still/map "
                       "laid out, SetDispMask black; HUD unchanged")]
           if args.save.exists() else []),
+        Suite("widescreen_scene_smoke", [PY, str(TESTS / "widescreen_scene_smoke.py")]
+              + (["--card", str(args.save)] if args.save.exists() else []), 420,
+              note="16:9: the sky panorama and weather motes fill the view's sides (opening's manor; forest)"),
         *([Suite("save_menu_smoke", [PY, str(TESTS / "save_menu_smoke.py"), "--card", str(args.save)], 300,
                  note="DATA > LOAD slot images = disc data decode, on interpolated frames too (CLUT swaps)")]
           if args.save.exists() else []),

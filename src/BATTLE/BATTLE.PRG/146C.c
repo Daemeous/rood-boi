@@ -17491,7 +17491,14 @@ void func_8008EC48(VECTOR* arg0)
                   - D_800F1DB4;
             int y = (((vs_scratch_t*)0x1F800000)->camera.angles.vx * D_800F1DBA) / 4096;
             y = D_800F1DB6 - y;
+#ifdef ROOD_PC
+            /* Widescreen: its tiles reach past the 4:3 screen's sides; they
+             * fill the 16:9 view's (pc/src/widescreen.h). */
+            PC_ANCHOR_PACKETS(
+                PC_ANCHOR_SCENE, func_8009147C(D_800F1DCC, x, y, D_800F1DC8));
+#else
             func_8009147C(D_800F1DCC, x, y, D_800F1DC8);
+#endif
         }
     } else if (D_800F1DC6 != 0) {
         prim = psx_get(((vs_scratch_t*)0x1F800000)->unk0);
@@ -17781,6 +17788,16 @@ void func_8008F9A4(int arg0, int arg1)
     }
 }
 
+/* The screen's X range for the weather particles drawn as 2D at projected
+ * points: in widescreen (port) the 16:9 view's (pc/src/widescreen.h). */
+#ifdef ROOD_PC
+#define WEATHER_LEFT (-PC_WIDESCREEN_MARGIN)
+#define WEATHER_RIGHT (320 + PC_WIDESCREEN_MARGIN)
+#else
+#define WEATHER_LEFT 0
+#define WEATHER_RIGHT 320
+#endif
+
 void func_8008FA14(D_800F1DD4_t* arg0)
 {
     _mpdRoomSectionB* temp_s0 = psx_get(vs_battle_roomData.sectionB);
@@ -17823,8 +17840,8 @@ void func_8008FAC8(void)
 #else
         depth = RotTransPers((SVECTOR*)particle, (long*)&prim->x1, &dx, &dy);
 #endif
-        if (((u_int)((u_short)prim->y1 - 1) >= 239) || (prim->x1 <= 0)
-            || (prim->x1 >= 320) || (depth <= 64) || (depth >= 2048)) {
+        if (((u_int)((u_short)prim->y1 - 1) >= 239) || (prim->x1 <= WEATHER_LEFT)
+            || (prim->x1 >= WEATHER_RIGHT) || (depth <= 64) || (depth >= 2048)) {
             continue;
         }
         particle->unk2 += 192;
@@ -17915,7 +17932,8 @@ void func_8008FDC4(void)
                 if (depth > 4) {
                     x = prim->x0;
                     y = prim->y0;
-                    if (((u_int)((u_short)y - 1) < 239) && (x > 0) && (x < 320)) {
+                    if (((u_int)((u_short)y - 1) < 239) && (x > WEATHER_LEFT)
+                        && (x < WEATHER_RIGHT)) {
                         setTile(prim);
                         setSemiTrans(prim, 1);
                         if (i & 1) {
@@ -17931,8 +17949,8 @@ void func_8008FDC4(void)
                     }
                     projection = x + (rsin(i << 5) >> 6);
                     flags = y - (rcos(i << 5) >> 6);
-                    if (((u_int)(flags - 1) < 239) && (projection > 0)
-                        && (projection < 320) && (depth > 4)) {
+                    if (((u_int)(flags - 1) < 239) && (projection > WEATHER_LEFT)
+                        && (projection < WEATHER_RIGHT) && (depth > 4)) {
                         setTile(prim);
                         setXY0(prim, projection, flags);
                         setSemiTrans(prim, 1);
@@ -17975,8 +17993,8 @@ void func_8008FDC4(void)
             depth = RotTransPers(
                 (SVECTOR*)particle, (psx_long*)&prim->x0, &projection, &flags);
 #endif
-            if (((u_int)((u_short)prim->y0 - 1) < 239) && (prim->x0 > 0)
-                && (prim->x0 < 320) && (depth > 4)) {
+            if (((u_int)((u_short)prim->y0 - 1) < 239) && (prim->x0 > WEATHER_LEFT)
+                && (prim->x0 < WEATHER_RIGHT) && (depth > 4)) {
                 setTile(prim);
                 setSemiTrans(prim, 1);
                 setWH(prim, 2, 2);

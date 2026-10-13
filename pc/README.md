@@ -359,6 +359,41 @@ memory-card screens' text box) reads the target back first. Movie frames
 (24-bit) are pillarboxed. RPC `graphics widescreen_trace` (N ordering
 tables) logs every 2D primitive and how it was placed.
 
+What the sides show. Nothing the game projects is culled to the 4:3 frame:
+the room renderer tests polygons against the screen in narrowed X (the whole
+16:9 view) and otherwise only by depth (the near clip, which is a depth, not
+a side test), and characters and effects only by depth; a census of every
+room polygon in the opening's and the town's cutscenes found none left out
+for lying beyond the 4:3 sides. Where a 16:9 side shows a set that stops
+(a wall or the water ending in a diagonal edge, black or sky beyond), the
+modelled room ends there: the PS1 camera simply never looked that way.
+Some of the 3D view is 2D, though, placed by the game in 4:3 screen space:
+the sky panorama of outdoor scenes (32x32 tiles of a 1024-wide picture
+scrolled with the camera, BATTLE `func_8009147C`; the opening's view of the
+manor) and the weather particles (Snowfly Forest's floating motes, snow and
+falling glints, `146C.c` `func_8008FAC8`..`func_80090434`). These were
+compressed into the 4:3 middle and clipped there; now the panorama and the
+snow draw compressed like the narrowed 3D but clipped to the whole view
+(`PC_ANCHOR_SCENE`), the game draws the panorama's tiles and accepts the
+particles as far past the 4:3 sides as the view reaches
+(`PC_WIDESCREEN_MARGIN`, `SKY_LEFT`/`SKY_RIGHT`, `WEATHER_LEFT`/`WEATHER_RIGHT`,
+all `ROOD_PC` and widescreen only), and the screen-space motes are drawn over
+the whole view (`PC_ANCHOR_COVER`). (The rain is projected lines and already
+covered the view. Particles past the 4:3 sides now count as on screen, so in
+widescreen their motion and the random numbers they draw follow the wider
+view, as the rain's always did; 4:3 is unchanged.) `ROOD_WIDESCREEN_SCENE=0` or RPC `graphics
+widescreen_scene` turns this off for comparisons
+(`pc/tests/widescreen_scene_smoke.py`).
+
+The fill rule for the sides: they show what the game draws there and nothing
+else. Where no geometry reaches, that is the game's own background: the
+sky it draws behind outdoor scenes (the panorama, or the gradient sky dome
+of the town's cutscenes, both the game's) and otherwise the frame's clear
+colour (black, or a room's fog colour such as Snowfly Forest's grey), as on
+the PS1 wherever its set ends inside the 4:3 frame. The renderer's own sky
+radiance (Sun and sky, below) lights surfaces and the haze; it never paints
+pixels where nothing is drawn, so the sides are never filled with it.
+
 `SetDispMask(0)` shows black until `SetDispMask(1)`, as on the PS1 (it
 blanks the display while the game loads, e.g. skipping the idle cutscene);
 `ROOD_DISPLAY_MASK=0` ignores it, RPC `status` reports `display_masked`.
@@ -1299,7 +1334,7 @@ thread once per vsync, so each method runs at a frame boundary:
 | `present_dump` | `path`, `count` | the next presented window image (as seen, after scaling and post-processing) as a PPM; with `count`, that many consecutive images to `<path>.0000.ppm`, ... (written a few presents later on the game thread). While a burst is armed, a paused game does not redraw, so a burst holds stepped presents only |
 | `gpu_dump` | `path` | the whole scaled hardware VRAM target as a PPM |
 | `gpu_draw` | `packet` (GP0 words, hex), `texture` (hex texels) with `texture_x/y/w/h`, `area_x/y/w/h`, `offset_x/y` | tests: load texels, set the drawing area, draw the commands on both rasterizers (`flipped_sprite_smoke.py`) |
-| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_trace` N), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `ui_text_layout` (`line`/`glyph`), `ui_lines` (`joined`/`legacy`), `ui_outline_boost`, `ui_bubbles` (`original`/`vector`), `ui_bubble_outline`, `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample` | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
+| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_scene`, `widescreen_trace` N), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `ui_text_layout` (`line`/`glyph`), `ui_lines` (`joined`/`legacy`), `ui_outline_boost`, `ui_bubbles` (`original`/`vector`), `ui_bubble_outline`, `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample` | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
 | `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
 | `button_prompts` | `button_prompts` (mode), `device` (`playstation`/`xbox`/`nintendo`/`keyboard`, as a device used last would set it) with `variant` (3/4/5 PlayStation, 360 Xbox), `bind` (`{"bind_key_circle": "c", "bind_pad_circle": "south"}`), `icon` (a button name) with `size`, `clear_shown`, `style`, `scale`, `dpad` (`cross`/`dim`/`lit`), `cross_actions` (0-15: the shortcut cross's usable arms, bits up, left, right, down, whatever the game reports; -1 the game's), `mask` | the mode, the family drawn, the device, `generation`, the glyph each PS1 button shows, the bindings, `shown` (the icon each prompt on screen was drawn with since `clear_shown`, `text` and `sprite`, the shortcut cross's `dpad` and its lit `dpad_arms`), `style`, `scale`, `dpad_mode`, `cross_actions`, regions drawn from icons (`regions`) and fallen back (`failed`); `icon` adds the native menus' image (`pc_prompt_glyph`: size, uv) |
 | `ui_bubbles` | `path` (N) | vector talk bubbles: frames reported, verified, fallen back (`mismatched`), drawn; line segments the hardware path drew (`lines_drawn`); native pixels per output pixel; the recent bubbles (shape, flip, tail, outline bounds drawn and the game's whole-pixel points, thickness); `path`: bubble N's outline points |
