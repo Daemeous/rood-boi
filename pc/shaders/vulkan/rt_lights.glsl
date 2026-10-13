@@ -65,7 +65,9 @@ bool glow_casts_shadow(int i) { return ((glow_casts >> i) & 1) != 0; }
 // Every dynamic light (vk_rt.inc vrt_light_list, any number: light_count of
 // them), in a storage buffer: the path tracer samples them per pixel instead
 // of looping over a fixed few (pc/docs/Vulkan_Renderer.md, many lights).
-struct Light { vec4 pos, col, dir, right, up; ivec4 info; }; // info.x: casts shadows
+// Field for field light_list.h's pc_light_gpu (as scaled.frag's): any other
+// order or size reads every light after the first from the wrong bytes.
+struct Light { vec4 pos, col, right, up, dir, world; ivec4 info; }; // info.x: casts shadows
 layout(std430, binding = LIGHT_LIST) readonly buffer LightList { Light lights_[]; };
 vec4 lpos(int i) { return lights_[i].pos; }
 vec4 lcol(int i) { return lights_[i].col; }

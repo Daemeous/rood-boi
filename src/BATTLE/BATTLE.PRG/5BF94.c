@@ -4369,7 +4369,7 @@ void vs_battle_addTile(u_long* before, int rgb0, int xy, int wh)
 void vs_battle_insertTpage(int tpage, u_long* before)
 {
     u_long* prim = psx_get(vs_scratch.unk0);
-    prim[0] = vs_getTag(sizeof(int), *before);
+    prim[0] = vs_getTag(int, *before);
     prim[1] = tpage;
     *before = (psx_to_int(u_long, prim) << 8) >> 8;
     psx_set(vs_scratch.unk0, prim + 2);

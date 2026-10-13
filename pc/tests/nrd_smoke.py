@@ -2,11 +2,13 @@
 Vulkan (gi_denoiser nrd, the default when built with NRD;
 pc/docs/Vulkan_Renderer.md, "NRD").
 
-New Game, the first room (zone 1 room 0) with a shadow-casting test light,
-after the opening pan (a still camera). RPC gi_dump {light: true} reads the
+New Game, the first room (zone 1 room 0) with two shadow-casting test lights
+(one where the opening pan looks, one in view), after the opening pan (a
+still camera). RPC gi_dump {light: true} reads the
 GI images back (raw and displayed indirect light, NRD's history length).
 Checks:
 
+- the lights' order does not matter (same raw indirect light either way);
 - the default denoiser is NRD and it runs (history accumulates);
 - it keeps the light's energy (mean displayed vs raw indirect light) and
   outputs finite, non-negative light;
@@ -75,24 +77,35 @@ try:
     eye = -np.linalg.solve(rotation, translation)
     forward = rotation[2] / np.linalg.norm(rotation[2])
     x, y, z = (eye + forward * 700).round().astype(int)
-    # The light in view comes first: with the pan's light (768 -600 836)
-    # first in the list, the Vulkan path tracer's indirect light from the
-    # second is ~0 (renderer bug, under investigation), which left this test
-    # comparing noise (raw ~0.0002) instead of the light.
-    (lights / "zone01_room00.txt").write_text(
-        f"light point {x} {y} {z} 1 0.85 0.6 2 3000 0 1 0 45 1 1\n"
-        "light point 768 -600 836 1 0.75 0.45 2 1500 0 1 0 45 1 1\n")
-    # Taken now (the editor's file poll is wall-clock time: under load the
-    # light could arrive after NRD's history had accumulated without it).
-    loaded = game.reload_lights()
-    check(len(loaded["lights"]) == 2, f"both test lights are loaded ({len(loaded['lights'])})")
-    game.run(30)
+    pan_light = "light point 768 -600 836 1 0.75 0.45 2 1500 0 1 0 45 1 1\n"
+    view_light = f"light point {x} {y} {z} 1 0.85 0.6 2 3000 0 1 0 45 1 1\n"
+
+    def raw_energy(text, name, settle=30):
+        """Mean raw indirect light over a few updates with these lights."""
+        (lights / "zone01_room00.txt").write_text(text)
+        game.call("lights", action="reload")
+        game.run(settle)
+        means = []
+        for i in range(6):
+            game.run(1)
+            data, _ = dump(game, f"{name}{i}")
+            means.append(data[..., 1:4][data[..., 0] > 0.5].mean())
+        return float(np.mean(means))
+
     try:
-        data, head = dump(game, "first")
+        # (the trace starts with the first lights: its glows ramp up first)
+        view_first = raw_energy(view_light + pan_light, "view-first", settle=150)
     except RpcError as e:
         print(f"SKIP: no ray-traced GI here ({e})")
         game.close()
         sys.exit(77)
+    # The list's order must not matter (the shaders' light struct once
+    # disagreed with light_list.h's: every light after the first was garbage).
+    pan_first = raw_energy(pan_light + view_light, "pan-first")
+    check(view_first > 1e-3 and abs(pan_first - view_first) <= 0.15 * view_first,
+          f"light order does not matter: raw indirect {pan_first:.4f} (pan light first) "
+          f"vs {view_first:.4f} (view light first)")
+    data, head = dump(game, "first")
     for _ in range(30):  # the new light reset NRD's history: let it accumulate
         if head["since_reset"] >= 40:
             break
