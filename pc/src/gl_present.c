@@ -9,6 +9,7 @@
 #include "dev_state.h"
 #include "gl_shaders.h" /* PC_GLSL_PROBE_COMMON: the probe GI lookup (probe_gi.inc) */
 #include "environment.h"
+#include "atmosphere.h"
 #include "lighting_quality.h"
 #include "antialias.h"
 #include <SDL3/SDL.h>
@@ -186,7 +187,7 @@ static const char* scaled_fragment_source =
     "uniform int gi_on;\n" /* 1 add it, 2 show it alone, 4 its alpha is shadow visibility */
     "uniform sampler2D gi_position;\n" /* the GI pixels' world positions (w = surface) */
     "uniform sampler2D gi_extra;\n" /* r: how much baked light reaches the surface past characters, gba: haze light */
-    "uniform float fog_density;\n"
+    "uniform float fog_density;\n" /* 1: the traced haze (ptgi.c) is on; its medium in medium_ */
     "uniform vec3 room_lo, room_hi;\n"
     /* Length of the eye-to-p segment inside the room's bounds. */
     "float inside_room(vec3 eye, vec3 p) {\n"
@@ -234,6 +235,11 @@ static const char* scaled_fragment_source =
     "#define env_zenith env_[2]\n"
     "#define env_horizon env_[3]\n"
     "#define env_ground env_[4]\n" PC_GLSL_ENVIRONMENT
+    /* The room's medium (atmosphere.h pc_medium_gpu; medium.glsl): the haze,
+     * the ground fog, the fog volumes (haze Low marches it; the traced haze's
+     * transmittance). */
+    "uniform vec4 medium_[88];\n"
+    "#define MEDIUM(i) medium_[i]\n" PC_GLSL_MEDIUM
     "float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }\n"
     "uniform float normal_smoothing;\n" /* radius in native pixels, 0 = flat faces */
     /* Depth- and crease-aware average of nearby normals (screen space). */
@@ -328,33 +334,52 @@ static const char* scaled_fragment_source =
     "    }\n"
     "    return 1.0 - strength * occlusion / 12.0;\n"
     "}\n"
-    /* Unshadowed haze inside the room's bounds (haze Low): every light's
-     * in-scattering at 6 jittered steps (ptgi.c haze()'s phase and units). */
+    /* Unshadowed haze (haze Low; scaled.frag the same): the room's medium at
+     * 8 jittered steps of the part of the ray it can be in, every light's
+     * in-scattering and the sun's (through its map where it has one). */
     "vec3 low_haze(vec3 c, vec3 world) {\n"
-    "    float density = quality0.x, g = quality0.y;\n"
+    "    float g = medium_g();\n"
     "    vec3 eye = inverse_rotation * -camera_translation;\n"
     "    vec3 v = world - eye; float length_ = length(v); vec3 dir = v / max(length_, 1e-3);\n"
-    "    vec3 inv = 1.0 / dir, t0 = (room_lo - eye) * inv, t1 = (room_hi - eye) * inv;\n"
-    "    float enter = max(max(min(t0.x, t1.x), min(t0.y, t1.y)), max(min(t0.z, t1.z), 0.0));\n"
-    "    float leave = min(min(max(t0.x, t1.x), max(t0.y, t1.y)), min(max(t0.z, t1.z), length_));\n"
-    "    if (!(leave > enter)) return c;\n"
-    "    float step_ = (leave - enter) / 6.0, jitter = ign(gl_FragCoord.xy + 17.0);\n"
-    "    vec3 sum = vec3(0.0);\n"
-    "    for (int k = 0; k < 6; k++) {\n"
-    "        float tt = (float(k) + jitter) * step_;\n"
-    "        vec3 x = eye + dir * (enter + tt), here = vec3(0.0);\n"
+    "    vec2 span = medium_span(eye, dir, length_);\n"
+    "    if (!(span.y > span.x)) return c;\n"
+    "    float step_ = (span.y - span.x) / 8.0, jitter = ign(gl_FragCoord.xy + 17.0);\n"
+    "    vec3 sum = vec3(0.0); float transmittance = 1.0;\n"
+    "    for (int k = 0; k < 8; k++) {\n"
+    "        vec3 x = eye + dir * (span.x + (float(k) + jitter) * step_), here = vec3(0.0);\n"
+    "        vec3 scatter, emit;\n"
+    "        float extinction = medium_at(x, scatter, emit);\n"
+    "        if (extinction <= 0.0) continue;\n"
     "        for (int i = 0; i < light_count; i++) {\n"
     "            vec3 to = light_pos[i].xyz - x; float dl = length(to); vec3 l = to / max(dl, 1e-3);\n"
     "            float f = clamp(dl / light_pos[i].w, 0.0, 1.0);\n"
     "            float a = (1.0 - f * f) * (1.0 - f * f);\n"
     "            if (light_col[i].w > 1.5) a *= max(dot(-l, light_dir[i].xyz), 0.0);\n"
     "            else if (light_col[i].w > 0.5) a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));\n"
-    "            float mu = dot(dir, l);\n"
-    "            here += light_col[i].rgb * a * (1.0 - g * g) / pow(1.0 + g * g + 2.0 * g * mu, 1.5);\n"
+    "            here += light_col[i].rgb * a * medium_phase(dot(dir, l), g);\n"
     "        }\n"
-    "        sum += here * exp(-density * tt);\n"
+    "        if (env_sun_on())\n"
+    "            here += env_sun_col.rgb * medium_phase(dot(dir, env_sun_dir.xyz), g)\n"
+    "                  * (env_mode.x == 0 ? env_sun_map_point(x, fract(jitter + float(k) * 0.618034)) : 1.0);\n"
+    "        float a = exp(-extinction * step_);\n"
+    "        sum += transmittance * (scatter * here + emit) * ((1.0 - a) / extinction);\n"
+    "        transmittance *= a;\n"
     "    }\n"
-    "    return c * exp(-density * (leave - enter)) + sum * density * step_;\n"
+    "    return c * transmittance + sum;\n"
+    "}\n"
+    /* The medium's transmittance from the eye to `world` (deterministic: 12
+     * fixed steps), for the traced haze, whose light ptgi.c marched. */
+    "float medium_transmittance(vec3 world) {\n"
+    "    vec3 eye = inverse_rotation * -camera_translation;\n"
+    "    vec3 v = world - eye; float length_ = length(v); vec3 dir = v / max(length_, 1e-3);\n"
+    "    vec2 span = medium_span(eye, dir, length_);\n"
+    "    if (!(span.y > span.x)) return 1.0;\n"
+    "    float step_ = (span.y - span.x) / 12.0, depth = 0.0;\n"
+    "    for (int k = 0; k < 12; k++) {\n"
+    "        vec3 scatter, emit;\n"
+    "        depth += medium_at(eye + dir * (span.x + (float(k) + 0.5) * step_), scatter, emit) * step_;\n"
+    "    }\n"
+    "    return exp(-depth);\n"
     "}\n"
     "vec3 world_at(ivec2 q, float z) {\n"
     "    vec2 s = (vec2(q) + 0.5) / float(scale) - vec2(rect.xy) - screen_offset;\n"
@@ -440,6 +465,15 @@ static const char* scaled_fragment_source =
     "              : vec4(vec3(1.0 - clamp((log2(sz) - 6.0) / 8.0, 0.0, 1.0)), 1.0);\n"
     "        return;\n"
     "    }\n"
+    "    if (quality1.z != 0) {\n" /* haze_debug: the haze's light alone (scaled.frag the same) */
+    "        bool ui_ = d * 65536.0 < 0.5; vec3 hz = vec3(0.0);\n"
+    "        if (!ui_ && (gi_on & 128) != 0 && fog_density > 0.0) {\n" /* traced (ptgi.c): its GI pixel */
+    "            vec2 display = (vec2(texel(uv)) + 0.5) / float(scale) - vec2(rect.xy);\n"
+    "            hz = max(texelFetch(gi_extra, clamp(ivec2(display / vec2(rect.zw) * vec2(gi_size)), ivec2(0), gi_size - 1), 0).gba, vec3(0.0));\n"
+    "        } else if (!ui_ && quality0.x > 0.0) hz = low_haze(vec3(0.0), world_at(texel(uv), min(d, 0.999) * 65536.0));\n"
+    "        color = vec4(min(hz, vec3(1.0)), ui_ ? 9999.0 : 0.0);\n"
+    "        return;\n"
+    "    }\n"
     "    vec3 c = base(uv);\n"
     "    bool haze_done = false;\n"
     "    if ((light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || quality1.y != 0 || env_mode.z != 0) && view_mode != 1) {\n"
@@ -505,11 +539,11 @@ static const char* scaled_fragment_source =
     "            if (view_mode == 5) { color = vec4(world_normal * 0.5 + 0.5, 1.0); return; }\n"
     "            if (view_mode == 2) { c = vertex_light * 0.5; albedo = vec3(0.5); }\n"
     "            c = c * baked * baked_vis * ao + albedo * sum;\n"
-    "            if ((gi_on & 128) != 0 && fog_density > 0.0) {\n" /* volumetric haze between the eye and the surface */
-    "                float distance_ = inside_room(inverse_rotation * -camera_translation, world);\n"
-    "                c = c * exp(-fog_density * distance_) + max(extra.gba, vec3(0.0));\n"
+    "            if ((gi_on & 128) != 0 && fog_density > 0.0) {\n" /* the traced haze (ptgi.c) between the eye and the surface */
+    "                float transmittance_ = medium_transmittance(world);\n"
+    "                c = c * transmittance_ + max(extra.gba, vec3(0.0));\n"
     "                haze_done = true;\n"
-    "            } else if (quality0.x > 0.0 && light_count > 0) {\n" /* haze Low */
+    "            } else if (quality0.x > 0.0) {\n" /* haze Low */
     "                c = low_haze(c, world);\n"
     "                haze_done = true;\n"
     "            }\n"
@@ -519,7 +553,7 @@ static const char* scaled_fragment_source =
     "        }\n"
     "    }\n"
     "    bool ui = d * 65536.0 < 0.5;\n"
-    "    if (quality0.x > 0.0 && !haze_done && !ui && d < 1.0 && view_mode != 1 && light_count > 0)\n" /* unlit 3D pixels */
+    "    if (quality0.x > 0.0 && !haze_done && !ui && d < 1.0 && view_mode != 1)\n" /* unlit 3D pixels */
     "        c = low_haze(c, world_at(texel(uv), d * 65536.0));\n"
     "    if (post == 0 || ui) { color = vec4(min(c, vec3(1.0)), ui ? 9999.0 : 0.0); return; }\n"
     "    float sz = d >= 1.0 ? 65535.0 : d * 65536.0;\n"
@@ -585,6 +619,7 @@ extern GLuint pc_hw_shade_texture(void);
 extern void pc_lights_shadow_pick(int count, int* wants, int slots);
 extern int pc_lights_view(float (*)[4], float (*)[4], float (*)[4], float (*)[4], int*, float (*)[4],
     float (*)[4], int);
+static GLint u_medium;
 static GLint u_light_right, u_light_up, u_quality0, u_quality1, u_quality2, u_env, u_env_mode, u_sun_map,
     u_sun_matrix, u_sun_light, u_sun_texel;
 extern float pc_lights_baked;
@@ -902,6 +937,7 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     u_light_shadow = gl_GetUniformLocation(scaled_program, "light_shadow");
     u_shadow_softness = gl_GetUniformLocation(scaled_program, "shadow_softness");
     u_quality0 = gl_GetUniformLocation(scaled_program, "quality0");
+    u_medium = gl_GetUniformLocation(scaled_program, "medium_");
     u_quality1 = gl_GetUniformLocation(scaled_program, "quality1");
     u_quality2 = gl_GetUniformLocation(scaled_program, "quality2");
     u_env = gl_GetUniformLocation(scaled_program, "env_");
@@ -1459,9 +1495,27 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
                 gl_Uniform1f(u_baked, pc_lighting_baked_scale(pc_lights_baked, count));
                 /* Lighting quality: haze Low (or High without a traced haze this
                  * frame), screen-space AO, the shadow map filter. */
-                gl_Uniform4f(u_quality0, pc_gl_show_depth ? 0 : pc_lighting_low_haze_density(gi && pc_fog_steps > 0),
-                    pc_fog_anisotropy, pc_ao_radius, pc_ao_strength);
-                gl_Uniform4i(u_quality1, pc_shadow_map_filter, pc_lighting_ssao(gi), 0, 0);
+                /* The room's medium (atmosphere.h): the traced haze's (ptgi.c
+                 * marched its light; the present applies its transmittance) or
+                 * haze Low's. */
+                static pc_medium_gpu medium;
+                int traced_haze = gi && pc_fog_steps > 0 && pc_haze_quality == PC_HAZE_HIGH, medium_on;
+                {
+                    float lo[3], hi[3];
+                    if (gi)
+                        pc_gi_room_bounds(lo, hi);
+                    else
+                        pc_scene_bounds(lo, hi);
+                    medium_on = !pc_gl_show_depth
+                        && pc_medium_gpu_get(&medium,
+                            traced_haze ? pc_lighting_traced_haze_density() : pc_lighting_low_haze_density(0), lo, hi)
+                        /* the uniform haze alone with nothing to light it would only darken: as before, none */
+                        && (traced_haze || count > 0 || pc_env_gpu_get(&(pc_env_gpu){ 0 }) || pc_medium_has_fog());
+                    gl_Uniform4fv(u_medium, PC_MEDIUM_VEC4S, &medium.v[0][0]);
+                }
+                gl_Uniform4f(u_quality0, medium_on && !traced_haze ? 1.0f : 0.0f, pc_fog_anisotropy, pc_ao_radius,
+                    pc_ao_strength);
+                gl_Uniform4i(u_quality1, pc_shadow_map_filter, pc_lighting_ssao(gi), pc_haze_debug, 0);
                 gl_Uniform4f(u_quality2, pc_light_size, 0, 0, 0);
                 if (!gi) { /* the unshadowed haze fills the room's bounds too */
                     float lo[3], hi[3];
@@ -1517,7 +1571,7 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
                     gl_ActiveTexture(GL_TEXTURE11);
                     gl_BindTexture(GL_TEXTURE_2D, pc_gi_extra(0));
                     gl_Uniform1i(u_gi_extra, 11);
-                    gl_Uniform1f(u_fog_density, pc_lighting_traced_haze_density()); /* haze High */
+                    gl_Uniform1f(u_fog_density, traced_haze && medium_on ? 1.0f : 0.0f); /* haze High: traced */
                     float lo[3], hi[3];
                     pc_gi_room_bounds(lo, hi);
                     gl_Uniform3f(u_room_lo, lo[0], lo[1], lo[2]);

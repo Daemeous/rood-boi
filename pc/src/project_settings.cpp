@@ -29,6 +29,7 @@ extern int pc_editor_hide_masks, pc_editor_game_cutaway, pc_editor_cutaway, pc_e
 extern float pc_editor_cutaway_radius, pc_editor_cutaway_opacity;
 extern int pc_lights_snap;
 extern int pc_env_global; /* environment.cpp */
+extern int pc_fog_global; /* atmosphere.cpp */
 extern float pc_lights_snap_move, pc_lights_snap_angle;
 /* Gameplay options, read by the game side. qol_weapon_slots: the weapon
  * slots quick swap on L2 + R2 (weapon_slots.c, battle builds), off by default. */
@@ -109,6 +110,7 @@ const Entry entries[] = {
     I("probe_show", pc_probe_show),
     I("light_animation", rood_lights::animate),
     I("environment", pc_env_global), /* the rooms' sun and sky (environment.cpp) */
+    I("fog", pc_fog_global), /* the rooms' ground fog and fog volumes (atmosphere.cpp) */
     F("normal_smoothing", pc_normal_smoothing),
     I("gameplay_walls_ghost", pc_gameplay_walls_ghost),
     F("gameplay_walls_opacity", pc_gameplay_walls_opacity),

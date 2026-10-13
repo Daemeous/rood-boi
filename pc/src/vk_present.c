@@ -7,6 +7,7 @@
 #include "vk_hw.h"
 #include "light_list.h"
 #include "environment.h"
+#include "atmosphere.h"
 int pc_vk_shadows_sun(const float dir[3], float matrix[16], float light[4], float tile[4]); /* vk_shadows.c */
 #include "vk_hooks.h"
 #include "vk_shaders.h"
@@ -119,6 +120,7 @@ typedef struct {
     pc_env_gpu env; /* the room's sun and sky (environment.h) */
     int env_mode[4]; /* the sun's shadows (-2 traced, 0 its shadow map, -1 none), the sky's ambient term, any on */
     float sun_matrix[16], sun_light[4], sun_tile[4]; /* its shadow map (vk_shadows.c) */
+    pc_medium_gpu medium; /* the unshadowed haze (haze Low): the room's medium (medium.glsl) */
 } present_ubo;
 
 /* ---- swapchain ---- */
@@ -575,6 +577,7 @@ static void fill_present_ubo(present_ubo* u, int x, int y, int w, int h, int vie
     u->quality0[3] = pc_ao_strength;
     u->quality1[0] = pc_shadow_map_filter;
     u->quality1[1] = pc_lighting_ssao(gi);
+    u->quality1[2] = pc_haze_debug; /* the haze alone (atmosphere.h) */
     u->quality2[0] = pc_light_size;
     /* The sun and sky: the trace weighs a shadow-casting sun into the visibility. */
     u->env_mode[2] = pc_env_gpu_get(&u->env);
@@ -801,7 +804,12 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
              * rgb is the field (or zero, per pixel), plus the glows. */
             pu->i1[2] |= (gi || probes == 3 ? 128 : 0) | (probes == 1 ? 64 : 0) | (probes == 3 ? 256 : 0)
                        | (probes && pc_gi_debug == 1 ? 2 : 0) | (probes && gi && pc_gi_debug != 1 ? 1 : 0);
-            pu->quality0[0] = pc_gl_show_depth ? 0 : pc_lighting_low_haze_density(pu->haze_grid[3]);
+            /* Haze Low (or High where nothing traced it this frame): the room's
+             * medium marched per pixel, unshadowed but for the sun's map. */
+            pu->quality0[0] = !pc_gl_show_depth && !pu->haze_grid[3]
+                && pc_medium_gpu_get(&pu->medium, pc_lighting_low_haze_density(0), pu->room_lo, pu->room_hi)
+                /* the uniform haze alone with nothing to light it would only darken: as before, none */
+                && (present_light_count > 0 || pu->env_mode[2] || pc_medium_has_fog());
             /* The sky's ambient term where neither the path tracer nor the probes trace the sky. */
             pu->env_mode[1] = pu->env.zenith[3] > 0.5f && !(gi && pc_gi_enabled) && !probes;
             int stage = 0;

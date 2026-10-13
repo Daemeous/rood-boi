@@ -1160,7 +1160,8 @@ void vk_descriptors_structure(vk_descriptors* d, int binding, VkAccelerationStru
 }
 void vk_descriptors_push(vk_descriptors* d, VkPipelineBindPoint point, VkPipelineLayout layout)
 {
-    vkCmdPushDescriptorSetKHR(vk_cmd(), point, layout, 0, (uint32_t)d->count, d->writes);
+    if (d->count > 0) /* nothing to write: a no-op (zero writes is invalid usage) */
+        vkCmdPushDescriptorSetKHR(vk_cmd(), point, layout, 0, (uint32_t)d->count, d->writes);
     d->count = 0;
     d->structure_count = 0;
 }

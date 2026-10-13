@@ -40,6 +40,9 @@ int pc_scene_camera_get(float rotation[3][3], float translation[3], float* h, fl
 int pc_scene_game_camera(float rotation[3][3], float translation[3], float* h, float* ofx, float* ofy);
 int pc_scene_game_inverse(float inverse[3][3]);
 int pc_scene_game_projection(float* h, float* ofx, float* ofy);
+/* The captured room's bounds, and its main floor's height (world y; 0: none). */
+void pc_scene_bounds(float lo[3], float hi[3]);
+int pc_scene_floor(float* y);
 #ifdef __cplusplus
 }
 #endif

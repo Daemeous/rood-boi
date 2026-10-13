@@ -46,7 +46,18 @@ const std::vector<KindSpec>& kinds()
                 { "color", 3, "1,1,1", false }, { "intensity", 3, "1", false }, { "angle", 2, "0.53", false },
                 { "shadows", 0, "1", false }, { "zenith", 3, "0.1,0.12,0.2", false },
                 { "horizon", 3, "0.25,0.25,0.3", false }, { "ground", 3, "0.05,0.05,0.05", false },
-                { "sun_tint", 3, "0", false }, { "ambient", 3, "0.5", false } },
+                { "sun_tint", 3, "0", false }, { "ambient", 3, "0.5", false },
+                /* The ground fog ("env fog"): atmosphere.cpp. */
+                { "density", 5, "0.003", false }, { "height", 1, "48", false }, { "offset", 1, "0", false },
+                { "noise", 2, "0.6", false }, { "scale", 1, "160", false }, { "wind", 1, "12,0,4", false },
+                { "fill", 3, "0,0,0", false }, { "sky", 3, "1", false } },
+            false, 4 },
+        /* Fog volumes ("fog <id>"): atmosphere.cpp. */
+        { "fog",
+            { { "name", -1, nullptr, false }, { "shape", -1, "box", false }, { "pos", 1, nullptr, false },
+                { "size", 1, "256,128,256", false }, { "yaw", 2, "0", false }, { "density", 5, "0.004", false },
+                { "edge", 2, "0.5", false }, { "color", 3, "1,1,1", false }, { "fill", 3, "0,0,0", false },
+                { "noise", 2, "0.5", false }, { "enabled", 0, "1", false } },
             false, 4 },
         { "glow",
             { { "pos", 1, nullptr, true }, { "muted", 0, "0", false }, { "intensity", 3, "1", false },
@@ -715,7 +726,7 @@ bool diff_one(const State& below, const State& desired, const std::string& id, E
     if (same_item(b->second, d->second))
         return false;
     const Item &x = b->second, &y = d->second;
-    if (x.kind != "light" && x.kind != "actor" && x.kind != "env") {
+    if (x.kind != "light" && x.kind != "actor" && x.kind != "env" && x.kind != "fog") {
         out.verb = DEFINE;
         out.item = y;
         return true;

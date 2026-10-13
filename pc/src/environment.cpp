@@ -80,10 +80,13 @@ void reset()
 {
     sun = Sun();
     sky = Sky();
+    rood_atmo::reset();
 }
 
 bool apply_item(const lighting::Item& it)
 {
+    if (rood_atmo::apply_item(it)) /* env fog, fog volumes */
+        return true;
     if (it.kind != "env")
         return false;
     if (it.name == "sun") {
@@ -141,6 +144,7 @@ void add_items(lighting::State& s)
         lighting::canonicalize(it);
         s[it.id()] = it;
     }
+    rood_atmo::add_items(s);
 }
 
 /* Undo snapshots (editor_undo.cpp): the items as lines, and back. */
@@ -230,6 +234,7 @@ void tooltip(const char* text)
 }
 } // namespace
 
+bool pc_atmosphere_page(void); /* atmosphere.cpp */
 /* Returns true when something changed (the room has unsaved edits). */
 extern "C" bool pc_environment_page(void)
 {
@@ -311,6 +316,7 @@ extern "C" bool pc_environment_page(void)
         pc_env_global = global;
     tooltip("Switches every room's sun and sky off for comparison (not saved; RPC environment {global}).");
     ImGui::PopID();
+    changed |= pc_atmosphere_page(); /* ground fog and fog volumes (atmosphere.cpp) */
     if (changed)
         pc_lights_mark_dirty();
     return changed;
@@ -480,6 +486,7 @@ extern "C" int pc_environment_rpc(const char* params_text, char* out, int size)
         read_num(*s, "ambient", &sky.ambient);
         changed = true;
     }
+    changed |= rood_atmo::rpc(params); /* fog, volumes, fog_time (atmosphere.cpp) */
     if (changed)
         pc_lights_mark_dirty();
     pc_env_gpu g;
@@ -495,7 +502,7 @@ extern "C" int pc_environment_rpc(const char* params_text, char* out, int size)
         + ",\"sun_tint\":" + num(sky.sun_tint, 3) + ",\"ambient\":" + num(sky.ambient, 3) + "},\"gpu\":{\"sun_dir\":"
         + jvec(g.sun_dir, 4) + ",\"sun_col\":" + jvec(g.sun_col, 4) + ",\"zenith\":" + jvec(g.zenith, 4)
         + ",\"horizon\":" + jvec(g.horizon, 4) + ",\"ground\":" + jvec(g.ground, 4) + "},\"hash\":"
-        + std::to_string(pc_env_hash()) + "}";
+        + std::to_string(pc_env_hash()) + "," + rood_atmo::json() + "}";
     snprintf(out, size, "%s", s.c_str());
     return (int)s.size() < size ? 0 : -1;
 }

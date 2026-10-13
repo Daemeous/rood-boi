@@ -313,6 +313,7 @@ extern float pc_gi_baked_bounce __attribute__((weak));
 extern int pc_baked_shadows __attribute__((weak)), pc_shadow_samples __attribute__((weak));
 extern float pc_emitter_light __attribute__((weak)), pc_contact_radius __attribute__((weak));
 extern float pc_fog_density __attribute__((weak));
+extern int pc_haze_debug __attribute__((weak)), pc_haze_cell __attribute__((weak)); /* atmosphere.cpp */
 /* Probe GI (probe_gi.inc). */
 extern int pc_probe_rays __attribute__((weak)), pc_probe_budget __attribute__((weak));
 extern int pc_probe_show __attribute__((weak));
@@ -997,6 +998,11 @@ static void handle_method(int fd, const char* request)
                 pc_contact_radius = (float)real;
             if (real_value(member(params, "fog_density"), &real))
                 pc_fog_density = (float)real;
+            /* haze_debug 1: the haze's light alone; haze_cell: the froxel size (atmosphere.h). */
+            if (&pc_haze_debug && number_value(member(params, "haze_debug"), &n))
+                pc_haze_debug = (int)n;
+            if (&pc_haze_cell && number_value(member(params, "haze_cell"), &n) && n >= 1 && n <= 16)
+                pc_haze_cell = (int)n;
             if (number_value(member(params, "gi_trace_debug"), &n))
                 pc_gi_trace_debug = (int)n;
             if (number_value(member(params, "gi_rays"), &n))

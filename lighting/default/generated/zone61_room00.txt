@@ -6,3 +6,5 @@ env sky zenith=0.063,0.084,0.182 horizon=0.152,0.168,0.262 ground=0.027,0.028,0.
 env sun azimuth=242 elevation=35 color=0.492,0.606,1.083 intensity=0.7 angle=2
 glow room:62b3135@1728,-1126,448 pos=1728,-1125.8,448 fixture_type=T013
 glow room:b25a3ea@574,-734,318 pos=574.4,-734.2,318.4 fixture_type=T053
+set haze_anisotropy value=0.55
+set haze_density value=0.0003

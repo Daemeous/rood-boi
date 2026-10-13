@@ -408,6 +408,43 @@ void pc_scene_bounds(float lo[3], float hi[3])
     for (int k = 0; k < 3; ++k)
         lo[k] = cached_lo[k], hi[k] = cached_hi[k];
 }
+/* The room's main floor height (world y, y down): of its level faces, the
+ * height (in 8-unit bins) that has the most area. The ground fog lies on
+ * it (atmosphere.cpp). Returns 0 without a captured room. */
+int pc_scene_floor(float* y)
+{
+    static float cached;
+    static int cached_serial = -1, cached_count = -1, cached_ok;
+    if (cached_serial != scene_serial || cached_count != triangle_count) {
+        enum { BINS = 1024 };
+        static float area[BINS];
+        float lo[3], hi[3];
+        pc_scene_bounds(lo, hi);
+        memset(area, 0, sizeof area);
+        float bin = 8.0f;
+        for (int i = 0; i < triangle_count; ++i) {
+            const float *a = triangles[i].vertex[0].position, *b = triangles[i].vertex[1].position,
+                        *c = triangles[i].vertex[2].position;
+            float u[3] = { b[0] - a[0], b[1] - a[1], b[2] - a[2] }, v[3] = { c[0] - a[0], c[1] - a[1], c[2] - a[2] };
+            float n[3] = { u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0] };
+            float len = sqrtf(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+            if (len < 1e-3f || fabsf(n[1]) < 0.9f * len)
+                continue; /* not level */
+            int k = (int)(((a[1] + b[1] + c[1]) / 3.0f - lo[1]) / bin);
+            if (k >= 0 && k < BINS)
+                area[k] += len * 0.5f;
+        }
+        int best = -1;
+        for (int k = 0; k < BINS; ++k)
+            if (area[k] > 0 && (best < 0 || area[k] > area[best]))
+                best = k;
+        cached_ok = best >= 0;
+        cached = cached_ok ? fminf(lo[1] + (best + 1) * bin, hi[1]) : 0; /* the bin's lower edge (larger y) */
+        cached_serial = scene_serial, cached_count = triangle_count;
+    }
+    *y = cached;
+    return cached_ok;
+}
 /* Wavefront OBJ with per-vertex colours (x y z r g b) and a comment header
  * carrying the camera; texture page and CLUT per face as comments. */
 int pc_scene_dump(const char* path)

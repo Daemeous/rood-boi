@@ -8,6 +8,7 @@
 // is decided again each frame (a Custom "traced" without a tracer draws
 // shadow maps), so a settings file from another machine also works.
 #include "lighting_quality.h"
+#include "atmosphere.h"
 #include "probe_gi.h"
 #include "antialias.h"
 
@@ -68,24 +69,24 @@ const char* const presets[PC_PRESET_CUSTOM] = {
     /* Original */
     "dynamic_lights 0\ngi_method off\ngi_resolution 1\nbounces 1\nrays_per_pixel 1\ngi_denoiser filter\n"
     "shadows off\nshadow_map_filter pcf\nshadow_map_softness 0.02\nshadow_rays 1\nglow_shadows 0\n"
-    "characters_shadow_baked 0\nhaze off\nao 0\nao_radius 64\nprobe_spacing 128\nprobe_rays 32\n",
+    "characters_shadow_baked 0\nhaze off\nao 0\nao_radius 64\nprobe_spacing 128\nprobe_rays 32\nhaze_cell 4\n",
     /* Low */
     "dynamic_lights 1\ngi_method off\ngi_resolution 1\nbounces 1\nrays_per_pixel 1\ngi_denoiser filter\n"
     "shadows maps\nshadow_map_filter pcf\nshadow_map_softness 0.02\nshadow_rays 1\nglow_shadows 0\n"
-    "characters_shadow_baked 0\nhaze off\nao 1\nao_radius 64\nprobe_spacing 128\nprobe_rays 32\n",
+    "characters_shadow_baked 0\nhaze off\nao 1\nao_radius 64\nprobe_spacing 128\nprobe_rays 32\nhaze_cell 4\n",
     /* Medium */
     "dynamic_lights 1\ngi_method probes|off\ngi_resolution 1.5\nbounces 1\nrays_per_pixel 1\ngi_denoiser filter\n"
     "shadows maps\nshadow_map_filter pcss\nshadow_map_softness 0.02\nshadow_rays 1\nglow_shadows 0\n"
-    "characters_shadow_baked 0\nhaze low\nao 1\nao_radius 64\nprobe_spacing 128\nprobe_rays 32\n",
+    "characters_shadow_baked 0\nhaze low\nao 1\nao_radius 64\nprobe_spacing 128\nprobe_rays 32\nhaze_cell 4\n",
     /* High */
     "dynamic_lights 1\ngi_method probes|off\ngi_resolution 1.5\nbounces 1\nrays_per_pixel 1\ngi_denoiser filter\n"
     "shadows traced|maps\nshadow_map_filter pcss\nshadow_map_softness 0.02\nshadow_rays 1\nglow_shadows 1\n"
-    "characters_shadow_baked 1\nhaze high|low\nao 1\nao_radius 64\nprobe_spacing 128\nprobe_rays 64\n",
+    "characters_shadow_baked 1\nhaze high|low\nao 1\nao_radius 64\nprobe_spacing 128\nprobe_rays 64\nhaze_cell 3\n",
     /* Ultra */
     "dynamic_lights 1\ngi_method path|probes|off\ngi_resolution 3\nbounces 1\nrays_per_pixel 1\n"
     "gi_denoiser nrd|filter\nshadows traced|maps\nshadow_map_filter pcss\nshadow_map_softness 0.02\n"
     "shadow_rays 2\nglow_shadows 1\ncharacters_shadow_baked 1\nhaze high|low\nao 0\nao_radius 64\n"
-    "probe_spacing 96\nprobe_rays 64\n",
+    "probe_spacing 96\nprobe_rays 64\nhaze_cell 2\n",
 };
 
 enum Type { BOOL, INT, FLOAT_KEY, ENUM };
@@ -122,6 +123,8 @@ Key keys[] = {
     /* Probe GI density (probe_gi.h): probes per room and rays per probe per update. */
     { "probe_spacing", FLOAT_KEY, &pc_probe_spacing, nullptr, 0, true },
     { "probe_rays", INT, &pc_probe_rays, nullptr, 0, true },
+    /* The traced haze's froxel size in display pixels (atmosphere.h; Vulkan). */
+    { "haze_cell", INT, &pc_haze_cell, nullptr, 0, true },
 };
 const int key_count = sizeof keys / sizeof keys[0];
 
@@ -929,9 +932,12 @@ extern "C" void pc_lighting_panel(void)
         note(text);
     }
     if (pc_haze_quality == PC_HAZE_HIGH && c.traced) {
-        if (c.vulkan && &pc_haze_history) /* Vulkan: a froxel volume instead of a per-pixel march */
+        if (c.vulkan && &pc_haze_history) { /* Vulkan: a froxel volume instead of a per-pixel march */
             ImGui::SliderFloat("Haze history blend", &pc_haze_history, 0.02f, 1, "%.2f");
-        else
+            ImGui::SliderInt("Haze cell (display pixels)", &pc_haze_cell, 2, 8);
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+                ImGui::SetTooltip("The froxel volume's cell: smaller gives sharper sun shafts and costs more");
+        } else
             ImGui::SliderInt("Haze march steps", &pc_fog_steps, 2, 48);
     }
 

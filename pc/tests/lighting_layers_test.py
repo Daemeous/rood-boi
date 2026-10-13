@@ -213,7 +213,7 @@ env sun zenith=1,1,1
     expect = ["pos takes 3 numbers", "unknown key 'colour'", "also on line 2", "'flame_hieght' is not a parameter",
               "dangling: override of light:nothing", "no such room setting", "type must be one of",
               "not canonical", "room files are named", "override in a generated layer", "expected key=value",
-              "the environment items are env:sun and env:sky", "'zenith' is not a field of the sun"]
+              "the environment items are env:sun, env:sky and env:fog", "'zenith' is not a field of the sun"]
     if (ROOT / "data/SLUS_010.40").exists():
         expect.append("zone 9 room 99 is not a room of the game")
     for e in expect:

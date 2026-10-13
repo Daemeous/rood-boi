@@ -35,7 +35,17 @@ SCHEMA = {
         ("color", 3, "1,1,1", False), ("intensity", 3, "1", False), ("angle", 2, "0.53", False),
         ("shadows", 0, "1", False), ("zenith", 3, "0.1,0.12,0.2", False),
         ("horizon", 3, "0.25,0.25,0.3", False), ("ground", 3, "0.05,0.05,0.05", False),
-        ("sun_tint", 3, "0", False), ("ambient", 3, "0.5", False)]),
+        ("sun_tint", 3, "0", False), ("ambient", 3, "0.5", False),
+        # The ground fog ("env fog"): pc/src/atmosphere.cpp.
+        ("density", 5, "0.003", False), ("height", 1, "48", False), ("offset", 1, "0", False),
+        ("noise", 2, "0.6", False), ("scale", 1, "160", False), ("wind", 1, "12,0,4", False),
+        ("fill", 3, "0,0,0", False), ("sky", 3, "1", False)]),
+    # Fog volumes ("fog <id>"): pc/src/atmosphere.cpp.
+    "fog": (False, 4, [
+        ("name", -1, None, False), ("shape", -1, "box", False), ("pos", 1, None, False),
+        ("size", 1, "256,128,256", False), ("yaw", 2, "0", False), ("density", 5, "0.004", False),
+        ("edge", 2, "0.5", False), ("color", 3, "1,1,1", False), ("fill", 3, "0,0,0", False),
+        ("noise", 2, "0.5", False), ("enabled", 0, "1", False)]),
     "glow": (False, 4, [
         ("pos", 1, None, True), ("muted", 0, "0", False), ("intensity", 3, "1", False),
         ("tint", 3, "1,1,1", False), ("size", 2, "0", False), ("reach", 1, "0", False),
@@ -49,13 +59,16 @@ SCHEMA = {
     "uv": (False, 4, [("speed", 3, "1", False), ("freeze", 0, "0", False)]),
 }
 # What a define of each kind needs, and how many numbers a field takes.
-REQUIRED = {"light": ["pos"], "actor": ["prefab", "pos"], "set": ["value"], "glow": [], "uv": [], "env": []}
+REQUIRED = {"light": ["pos"], "actor": ["prefab", "pos"], "set": ["value"], "glow": [], "uv": [], "env": [],
+            "fog": ["pos"]}
 COUNTS = {"pos": 3, "dir": 3, "color": 3, "rot": 3, "glow": 3, "fixture": 3, "tint": 3, "size": None,
-          "zenith": 3, "horizon": 3, "ground": 3}
+          "zenith": 3, "horizon": 3, "ground": 3, "wind": 3, "fill": 3}
 # The env items a room may have, and the fields each takes.
 ENV_FIELDS = {"sun": ("enabled", "azimuth", "elevation", "color", "intensity", "angle", "shadows"),
-              "sky": ("enabled", "zenith", "horizon", "ground", "intensity", "sun_tint", "ambient")}
+              "sky": ("enabled", "zenith", "horizon", "ground", "intensity", "sun_tint", "ambient"),
+              "fog": ("enabled", "density", "height", "offset", "noise", "scale", "wind", "color", "fill", "sky")}
 LIGHT_TYPES = ("point", "spot", "rect")
+FOG_SHAPES = ("box", "sphere")
 
 
 def _spec(kind, key):
@@ -381,7 +394,7 @@ def diff_one(below, desired, id):
         return Entry("define", id, item=d)
     if same_item(b, d):
         return None
-    if b.kind not in ("light", "actor", "env"):
+    if b.kind not in ("light", "actor", "env", "fog"):
         return Entry("define", id, item=d)
     old = dict(b.fields)
     sets = [(k, v) for k, v in d.fields if not (k in old and (old[k] == v or volatile(d.kind, d.name, k)))]

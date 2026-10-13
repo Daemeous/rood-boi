@@ -1,0 +1,100 @@
+{
+  "about": "Per-area atmosphere moods: the haze (room settings haze_density, haze_anisotropy) and the ground fog (env fog) that pc/tools/generate_lighting.py writes into the generated layer. A zone entry applies its mood to all its rooms or only to those open to the sky (pc/tools/outdoor.py); other rooms open to the sky take outdoor_default; roofed rooms not listed get nothing (the project's default faint haze). Fields as in lighting/README.md, 'Environment'. See pc/docs/Vulkan_Renderer.md, 'Haze, ground fog and sun shafts'.",
+  "moods": {
+    "forest": {
+      "why": "Snowfly Forest: low ground mist between the trees, moonlight streaming through the canopy",
+      "haze": {
+        "density": 0.0004,
+        "anisotropy": 0.6
+      },
+      "fog": {
+        "density": 0.01,
+        "height": 40,
+        "noise": 0.7,
+        "scale": 200,
+        "wind": "9,0,3",
+        "color": "0.85,0.9,1",
+        "fill": "0.012,0.014,0.02"
+      }
+    },
+    "undercity": {
+      "why": "Undercity: damp, still haze and a cold mist on the floor of the sewers",
+      "haze": {
+        "density": 0.0003,
+        "anisotropy": 0.4
+      },
+      "fog": {
+        "density": 0.005,
+        "height": 24,
+        "noise": 0.6,
+        "scale": 120,
+        "wind": "3,0,2",
+        "color": "0.8,0.9,0.85",
+        "fill": "0.012,0.015,0.015"
+      }
+    },
+    "town_night": {
+      "why": "Lea Monde's streets, walls and the Keep at night: a faint moonlit haze, a thin mist low on the ground",
+      "haze": {
+        "density": 0.0003,
+        "anisotropy": 0.55
+      },
+      "fog": {
+        "density": 0.002,
+        "height": 48,
+        "noise": 0.5,
+        "scale": 240,
+        "wind": "6,0,2",
+        "color": "0.9,0.92,1",
+        "fill": "0.002,0.0025,0.004",
+        "sky": 0.6
+      }
+    },
+    "night": {
+      "why": "Any other room open to the sky: a faint moonlit haze",
+      "haze": {
+        "density": 0.0003,
+        "anisotropy": 0.55
+      }
+    }
+  },
+  "zones": [
+    {
+      "zones": [
+        40,
+        41
+      ],
+      "mood": "forest",
+      "rooms": "all"
+    },
+    {
+      "zones": [
+        47,
+        48,
+        49
+      ],
+      "mood": "undercity",
+      "rooms": "all"
+    },
+    {
+      "zones": [
+        28,
+        29,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        43,
+        45,
+        46
+      ],
+      "mood": "town_night",
+      "rooms": "outdoor"
+    }
+  ],
+  "outdoor_default": "night"
+}

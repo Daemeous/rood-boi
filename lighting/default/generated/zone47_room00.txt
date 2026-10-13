@@ -4,4 +4,7 @@ actor gen.t003.e3f799fb3a name="candle T003" prefab=candle pos=336,-400,920 rot=
 actor gen.t022.b293c1cb0f name="wall_lantern T022" prefab=lantern pos=408,-960,576 rot=180,0,0 seed=80911 fixture=408,-960,576 fixture_type=T022
 actor gen.t022.d7447e816a name="wall_lantern T022" prefab=lantern pos=720,-672,960 rot=180,0,0 seed=7039 fixture=720,-672,960 fixture_type=T022
 actor gen.t053.8f7dbba863 name="save_point T053" prefab=magic_glow pos=574.4,-94.2,1342.4 rot=-180,0,0 seed=43604 enabled=0 glow=574.4,-94.2,1342.4 glowkey=room:85eb5ca@574,-94,1342 fixture=574.4,-94.2,1342.4 fixture_type=T053
+env fog color=0.8,0.9,0.85 density=0.005 height=24 scale=120 wind=3,0,2 fill=0.012,0.015,0.015
 glow room:85eb5ca@574,-94,1342 pos=574.4,-94.2,1342.4 fixture_type=T053
+set haze_anisotropy value=0.4
+set haze_density value=0.0003

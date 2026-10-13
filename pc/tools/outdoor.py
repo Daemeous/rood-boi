@@ -227,6 +227,35 @@ def environment(m, zone):
     return sun, sky
 
 
+ATMOSPHERE = fl.ROOT / "pc/assets/environment/atmosphere.json"
+
+
+def load_atmosphere(path=None):
+    try:
+        return json.loads(pathlib.Path(path or ATMOSPHERE).read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def atmosphere(moods, zone, is_outdoor):
+    """The room's haze and ground fog from its area's mood
+    (pc/assets/environment/atmosphere.json): (set items [(key, value)],
+    fog fields [(key, value)] or None). Roofed rooms of unlisted zones: none."""
+    mood = None
+    for entry in moods.get("zones", []):
+        if zone in entry["zones"] and (entry.get("rooms") == "all" or is_outdoor):
+            mood = entry["mood"]
+            break
+    if mood is None and is_outdoor:
+        mood = moods.get("outdoor_default")
+    m = moods.get("moods", {}).get(mood) if mood else None
+    if not m:
+        return [], None
+    sets = [(f"haze_{k}", _num(v, 6)) for k, v in sorted(m.get("haze", {}).items())]
+    fog = [(k, v if isinstance(v, str) else _num(v, 6)) for k, v in sorted(m["fog"].items())] if "fog" in m else None
+    return sets, fog
+
+
 def _num(v, decimals):
     s = "%.*f" % (decimals, v)
     if "." in s:

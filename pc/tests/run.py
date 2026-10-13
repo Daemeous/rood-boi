@@ -124,6 +124,9 @@ def suites(args, mode="egl"):
             Suite("sky_smoke", [PY, str(TESTS / "sky_smoke.py"), "--card", str(args.save)], 600,
                   note="sun and sky: roofed room unchanged, outdoor room's generated sun shadows and sky fill, "
                        "energy, NRD, probes, shadow-map fallback, save/load, generated tags stable"),
+            Suite("atmosphere_smoke", [PY, str(TESTS / "atmosphere_smoke.py"), "--card", str(args.save)], 600,
+                  note="haze, ground fog, fog volumes: fog follows height, volumes keep to their bounds, save/load, "
+                       "generated forest fog, the moon's shafts in the haze, steady frame to frame"),
             Suite("glow_stability_smoke", [PY, str(TESTS / "glow_stability_smoke.py"), "--card", str(args.save)], 600,
                   note="save point: one steady glow, stable id, overrides persist; prologue fight: effect glows unshadowed, smooth")]
           if args.save.exists() else []),

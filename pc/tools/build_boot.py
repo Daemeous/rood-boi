@@ -775,6 +775,7 @@ for source in [
     root / "pc/src/lighting_layers.cpp",
     root / "pc/src/lighting_editor.cpp",
     root / "pc/src/environment.cpp",
+    root / "pc/src/atmosphere.cpp",
     root / "pc/src/room_browser.cpp",
     root / "pc/src/project_settings.cpp",
     root / "pc/src/lighting_quality.cpp",

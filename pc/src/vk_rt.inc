@@ -25,10 +25,10 @@ enum {
  * pc_nrd_glow the glows' light goes through it too (else our filter). */
 int pc_nrd_glow = 0;
 int pc_nrd_max_frames = 30; /* RELAX's maximum accumulated frames */
-/* Volumetric haze: a froxel volume of HAZE_CELL x HAZE_CELL display pixels
- * per cell and HAZE_SLICES logarithmic depth slices (rt_haze.comp,
+/* Volumetric haze: a froxel volume of pc_haze_cell x pc_haze_cell display
+ * pixels per cell (atmosphere.h; the lighting quality's haze_cell) and
+ * HAZE_SLICES logarithmic depth slices (rt_haze.comp,
  * rt_haze_integrate.comp), stored as slices side by side in 2D images. */
-#define HAZE_CELL 4
 #define HAZE_SLICES 64
 #define HAZE_NEAR 16.0f
 float pc_haze_history = 0.1f; /* weight of each new froxel sample (temporal blend) */
@@ -852,10 +852,12 @@ typedef struct {
     int grid[4];
     float depth_range[4], projection[4], inverse_rotation[3][4], camera_translation[4];
     float previous_rotation[3][4], previous_projection[4], previous_range[4];
+    pc_medium_gpu medium; /* the room's haze, ground fog and fog volumes (medium.glsl) */
 } vrt_haze_ubo;
 typedef struct {
     int grid[4];
     float depth_range[4], projection[4], inverse_rotation[3][4], camera_translation[4], room_lo[4], room_hi[4];
+    pc_medium_gpu medium;
 } vrt_integrate_ubo;
 static void vrt_haze_dispatch(VkPipeline pipeline, VkPipelineLayout layout, vk_descriptors* d, int w, int h)
 {
@@ -870,11 +872,22 @@ static void vrt_haze_dispatch(VkPipeline pipeline, VkPipelineLayout layout, vk_d
 static void vrt_haze(vk_slice trace_ubo)
 {
     vrt.haze_on = 0;
-    if (pc_lighting_traced_haze_density() <= 0) /* lighting quality: haze High */
+    if (pc_haze_quality != PC_HAZE_HIGH) /* lighting quality: haze High */
         return;
-    int gx = (vrt.display[0] + HAZE_CELL - 1) / HAZE_CELL, gy = (vrt.display[1] + HAZE_CELL - 1) / HAZE_CELL;
+    static pc_medium_gpu medium;
+    if (!pc_medium_gpu_get(&medium, pc_lighting_traced_haze_density(), room_lo, room_hi))
+        return;
+    medium.v[5][0] = medium.v[5][1] = medium.v[5][2] = 0; /* rt_haze.comp traces the sky (occluded) */
+    int cell = pc_haze_cell < 1 ? 1 : pc_haze_cell > 16 ? 16 : pc_haze_cell;
+    int gx = (vrt.display[0] + cell - 1) / cell, gy = (vrt.display[1] + cell - 1) / cell;
     if (gx < 1 || gy < 1)
         return;
+    /* What the in-scattered light depends on besides the camera (the sun,
+     * where the medium can be): history restarts when it changes. */
+    static unsigned last_hash;
+    unsigned hash = pc_medium_hash() * 31u + pc_env_hash();
+    if (hash != last_hash)
+        vrt.haze_valid = 0, last_hash = hash;
     if (gx != vrt.haze_grid[0] || gy != vrt.haze_grid[1] || vrt.haze_grid[2] != HAZE_SLICES) {
         for (int i = 0; i < 3; i++) {
             vk_image* im = i < 2 ? &vrt.haze_scatter[i] : &vrt.haze_integrated;
@@ -914,6 +927,7 @@ static void vrt_haze(vk_slice trace_ubo)
     memcpy(hu->previous_rotation, vrt.haze_previous_rotation, sizeof hu->previous_rotation);
     memcpy(hu->previous_projection, vrt.haze_previous_projection, sizeof hu->previous_projection);
     hu->previous_range[0] = vrt.haze_previous_range[0], hu->previous_range[1] = vrt.haze_previous_range[1];
+    hu->medium = medium;
     int out = vrt.haze_current ^ 1;
     vk_section("haze");
     vk_descriptors d = { 0 };
@@ -940,6 +954,7 @@ static void vrt_haze(vk_slice trace_ubo)
     memcpy(iu->room_lo, room_lo, 3 * sizeof(float));
     memcpy(iu->room_hi, room_hi, 3 * sizeof(float));
     iu->room_lo[3] = pc_lighting_traced_haze_density();
+    iu->medium = medium;
     vk_descriptors_buffer(&d, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, is.buffer, is.offset, sizeof *iu);
     vk_descriptors_storage_image(&d, 1, vrt.haze_scatter[out].view);
     vk_descriptors_storage_image(&d, 2, vrt.haze_integrated.view);

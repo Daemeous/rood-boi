@@ -165,14 +165,16 @@ Passes (compute):
    lighting signature. Bit 31 of the signature marks a pixel whose
    visibility a *moving* blocker touched.
 3. **Haze** (`rt_haze.comp`, `rt_haze_integrate.comp`): a froxel volume
-   (4x4 display pixels per cell, 64 logarithmic depth slices, the slices
-   side by side in 2D images): one jittered sample per froxel with one
-   light or glow picked by its unshadowed in-scattering and one shadow ray
-   (light shafts, volumetric shadows of characters), blended with the
-   reprojected previous volume (`pc_haze_history`, 0.1), then integrated
-   front to back (Beer-Lambert, uniform density inside the room's bounds;
-   distances in world units through the scaled GTE view matrix). It
-   depends only on the camera, so nothing drawn can cut holes into it.
+   (`haze_cell` x `haze_cell` display pixels per cell, 64 logarithmic depth
+   slices, the slices side by side in 2D images): one blue-noise jittered
+   sample per froxel with one light or glow picked by its unshadowed
+   in-scattering and one shadow ray (light shafts, volumetric shadows of
+   characters), one ray to the sun's disc and one to the sky (below, "Haze,
+   ground fog and sun shafts"), blended with the reprojected previous
+   volume (`pc_haze_history`, 0.1), then integrated front to back through
+   the room's medium (Beer-Lambert; distances in world units through the
+   scaled GTE view matrix). It depends only on the camera, so nothing drawn
+   can cut holes into it.
 4. **Temporal** (`rt_temporal.comp`): reprojects the previous position;
    nearest strict history, kept only where the signature matches;
    visibility and glow light touched by a moving blocker (now or in the
@@ -482,9 +484,7 @@ before).
   forest) and that the probes bring the sky too (1.4-1.5 x the path
   tracer's there: their usual over-estimate plus sky leaking between
   probes in open air).
-- **Haze**: not lit by the sun yet; `env_sun_sample()` and the record are
-  in the haze's UBO already, so sun shafts are a candidate pick per froxel
-  plus its shadow ray in `rt_haze.comp` (next).
+- **Haze**: the sun and the sky light it with their own rays (next section).
 
 Measured (RTX PRO 6000, `ROOD_PERF=1`, headless, scale 3, 300 frames after
 120 to settle; the generated moon and sky vs the settings key `environment`
@@ -498,6 +498,85 @@ off in the same room):
 | Rue Lejour, Medium | 0.393 -> 0.409 (+0.02) | probe trace +0.002, the sun's map +0.01 (redrawn as Ashley moves) |
 
 NRD, the filters and the haze are unchanged (same images, same counts).
+
+### Haze, ground fog and sun shafts (`atmosphere.cpp`, `medium.glsl`)
+
+The air of a room is one participating medium, packed per frame by
+`pc_medium_gpu_get` (`atmosphere.h`: 88 vec4s; `medium.glsl` reads them
+through the includer's `MEDIUM(i)`; appended to the haze's and the
+integrate pass's UBOs and the present UBO, uniforms `medium_` on OpenGL):
+
+- the **haze**: uniform inside the room's bounds (room setting
+  `haze_density`; the lighting quality picks the traced or the Low density);
+- the **ground fog** (`env fog`): `density x exp(-max(base y - y, 0) /
+  height)` (y down), its base `offset` units above the room's main floor
+  (`scene_capture.c` `pc_scene_floor`: the 8-unit height bin with the most
+  level-face area), times drifting **wisps**: two octaves of value noise
+  carried by the wind at different speeds (so they change shape as they
+  move), squashed vertically into sheets, mean 1, `noise` its amount;
+- up to 16 **fog volumes** (`fog <id>`): boxes (turned about y) or
+  ellipsoids, a smoothstep edge over `edge` of their half size, their own
+  wisps;
+- per point: extinction, a scattering colour (density x albedo) and an
+  emission (each part's `fill` light, and where nothing traces the sky its
+  mean radiance x `sky` x 0.5 for the cover it does not see).
+
+Traced (haze High; Vulkan ray queries, or OpenGL compute in `ptgi.c`):
+
+- `rt_haze.comp` stores, per froxel, the light arriving per unit of
+  scattering times the phase (Henyey-Greenstein, g = `haze_anisotropy`):
+  the picked light or glow with its shadow ray, **the sun** (one ray to a
+  point of its disc: shafts behind arches, branches and characters) and
+  **the sky** (one ray in a direction over the sphere, `env_sky` x `sky`
+  where it escapes: the air under a canopy, an arch or a roof loses the
+  sky, which keeps the shafts' contrast). Samples: interleaved gradient
+  noise over the froxels offset by the R2/R3 sequences per frame (blue-noise
+  jitter, stratified in time) inside the cell and over the disc; froxels
+  where the medium cannot be (`medium_maybe`, its noise at its peak) skip
+  everything. History: the reprojected previous volume; it restarts when
+  the medium's items or the sun change (`pc_medium_hash`, `pc_env_hash`).
+- `rt_haze_integrate.comp` walks each column through the part of the ray
+  the medium can be in (`medium_span`: the room's bounds and the volumes'),
+  two fixed points per slice: `T x (scatter x froxel light + emission) x
+  (1 - e^(-ext d)) / ext`, transmittance `e^(-ext d)`. The present samples
+  it at each pixel's depth (bilinear in the cell, linear between slices):
+  depth-aware by construction, and the PS1 texels are never filtered.
+- OpenGL (`ptgi.c` `haze()`): the same per march step (`fog_steps`, 4) at GI
+  resolution with the sun's and the sky's rays, the result in the GI extra
+  image's gba (temporal filter as before); the present applies the
+  transmittance from 12 fixed steps of the same medium.
+
+Low (Medium preset; Vulkan without ray queries; nothing traced this frame):
+`low_haze` in `scaled.frag` / `gl_present.c`, 8 IGN-jittered steps of the
+medium per pixel, every light unshadowed, the sun through its shadow map
+(`env_sun_map_point`, one tap) or unshadowed, the sky as the emission above.
+
+Debug: RPC `graphics {haze_debug: 1}` (editor: "Show the haze alone") draws
+the haze's light alone over black; `environment {fog_time}` stops the drift
+(tests). `pc/tests/atmosphere_smoke.py`: fog light follows its height (a base
+400 units down leaves 0.0 of 24.7), volumes light only their bounds, save
+and reload, the forest's generated fog, the moon's shafts (haze light with
+the moon's shadows vs without: 10th percentile ratio 0.72 Vulkan, 0.74 OpenGL; 90th
+1.04 and 1.00), steady frames (mean change 0.59 (Vulkan, cell 2) and 0.06 of 255 between consecutive
+frames, fog drift stopped). Khronos validation (1.4 layer) is quiet on the
+atmosphere, sky, presets and probe smokes (`vk_descriptors_push` now skips a
+push with no writes, which the newer layer reports).
+
+Measured (RTX PRO 6000, `ROOD_PERF=1`, 1440 x 1080 window, 300 frames
+after 120; the generated atmosphere vs fog off and haze density 0 in the
+same room; totals vary by about 0.05 ms between runs):
+
+| Room, preset | GPU ms/frame off -> on | haze |
+| --- | --- | --- |
+| Snowfly Forest (40/6), Ultra (cell 4) | 0.82 -> 0.90 | `haze` 0.038 ms; cell 3 0.040, cell 2 0.044 |
+| Snowfly Forest, High | 0.45 -> 0.52 | `haze` 0.032 ms |
+| Snowfly Forest, Medium (Low haze) | 0.52 -> 0.59 | in `present`: 0.07 -> 0.19 ms |
+| Snowfly Forest, Low | 0.39 -> 0.40 | off (haze off: no fog) |
+| Undercity West (48/4), Ultra | 0.69-0.85 (noise) | `haze` 0.033 ms; cell 2 0.034 |
+| Undercity West, High | 0.45 -> 0.60 | `haze` 0.019 ms |
+| Undercity West, Medium | 0.45 -> 0.51 | in `present` |
+
+So Ultra takes `haze_cell` 2 (sharper shafts for 0.006 ms), High 3.
 
 ## Status (2026-10-11): NRD
 
@@ -579,10 +658,24 @@ renderer stays opt-in until the user playtests it.
 
 ## Next
 
-- Sun and sky: the sun's shafts in the froxel haze (`rt_haze.comp`: the sun
-  as one more candidate with its own shadow ray); a time-of-day per zone if
-  the story's hours should show; cascades for the sun's shadow map in very
-  large rooms (one 1024 map covers the room's bounding sphere).
+- Sun and sky: a time-of-day per zone if the story's hours should show;
+  cascades for the sun's shadow map in very large rooms (one 1024 map covers
+  the room's bounding sphere).
+- Fog: an advected 2D density (FluidNinja-style) that flows around Ashley
+  and the actors instead of noise alone; self-shadowing of thick fog (light
+  attenuated toward the sun); the editor's separate GL view applies only the
+  uniform haze's transmittance (it uses the trace's haze light, so fog there
+  is approximate).
+- **Weather** (out of scope so far; design): rain and snow as GPU particles
+  in a camera-following box (streaks for rain, slow drifting flakes for
+  snow), occluded by a top-down depth map of the room so they stop under
+  roofs and arches, lit by the same lights (cheap: per-particle light from
+  the haze volume at its position); wet surfaces as a per-room wetness that
+  darkens the albedo and adds a sharp specular of the sun and lights to
+  level faces (ripples from the same noise as the fog); lightning as a
+  short-lived directional light (the sun's slot: its shadows come free on
+  every tier) with a flash curve, the sky radiance pulsed with it and a
+  delayed thunder cue; per-room `env weather` items like `env fog`.
 
 - NRD: try RELAX with the lighting signature as history confidence
   (`IN_DIFF_CONFIDENCE`, a deterministic rejection); REBLUR or

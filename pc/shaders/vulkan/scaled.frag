@@ -40,7 +40,12 @@ layout(std140, binding = 0) uniform Present {
     mat4 env_sun_matrix_;
     vec4 env_sun_light_;
     vec4 env_sun_tile;
+    // The room's medium for the unshadowed haze (haze Low; quality0.x 1):
+    // the uniform haze, the ground fog, the fog volumes (medium.glsl).
+    vec4 medium_[88];
 } u;
+#define MEDIUM(i) u.medium_[i]
+#include "medium.glsl"
 #define env_sun_dir u.env_[0]
 #define env_sun_col u.env_[1]
 #define env_zenith u.env_[2]
@@ -233,22 +238,26 @@ float screen_ao(vec3 world, vec3 wn) {
     }
     return 1.0 - strength * occlusion / float(N);
 }
-// Unshadowed haze between the eye and `world` inside the room's bounds
-// (haze Low; High traces it): every light's in-scattering at 6 jittered
-// steps, the traced haze's phase function and units (ptgi.c haze()).
+// Unshadowed haze between the eye and `world` (haze Low; High traces it):
+// the room's medium (medium.glsl) at 8 jittered steps of the part of the
+// ray it can be in, every light's in-scattering (unshadowed) and the sun's
+// (through its shadow map where it has one), the traced haze's phase
+// function and units, Beer-Lambert between the steps.
 vec3 low_haze(vec3 c, vec3 world) {
-    float density = u.quality0.x, g = u.quality0.y;
+    float g = medium_g();
     vec3 eye = inverse_rotation() * -camera_translation;
     vec3 v = world - eye; float length_ = length(v); vec3 dir = v / max(length_, 1e-3);
-    vec3 inv = 1.0 / dir, t0 = (room_lo - eye) * inv, t1 = (room_hi - eye) * inv;
-    float enter = max(max(min(t0.x, t1.x), min(t0.y, t1.y)), max(min(t0.z, t1.z), 0.0));
-    float leave = min(min(max(t0.x, t1.x), max(t0.y, t1.y)), min(max(t0.z, t1.z), length_));
-    if (!(leave > enter)) return c;
-    float step_ = (leave - enter) / 6.0, jitter = ign(gl_FragCoord.xy + 17.0);
+    vec2 span = medium_span(eye, dir, length_);
+    if (!(span.y > span.x)) return c;
+    const int STEPS = 8;
+    float step_ = (span.y - span.x) / float(STEPS), jitter = ign(gl_FragCoord.xy + 17.0);
     vec3 sum = vec3(0.0);
-    for (int k = 0; k < 6; k++) {
-        float tt = (float(k) + jitter) * step_;
-        vec3 x = eye + dir * (enter + tt);
+    float transmittance = 1.0;
+    for (int k = 0; k < STEPS; k++) {
+        vec3 x = eye + dir * (span.x + (float(k) + jitter) * step_);
+        vec3 scatter, emit;
+        float extinction = medium_at(x, scatter, emit);
+        if (extinction <= 0.0) continue;
         vec3 here = vec3(0.0);
         for (int i = 0; i < light_count; i++) {
             vec3 to = lights[i].pos.xyz - x; float dl = length(to); vec3 l = to / max(dl, 1e-3);
@@ -256,12 +265,16 @@ vec3 low_haze(vec3 c, vec3 world) {
             float a = (1.0 - f * f) * (1.0 - f * f);
             if (lights[i].col.w > 1.5) a *= max(dot(-l, lights[i].dir.xyz), 0.0);
             else if (lights[i].col.w > 0.5) a *= smoothstep(lights[i].dir.w, mix(lights[i].dir.w, 1.0, 0.25), dot(-l, lights[i].dir.xyz));
-            float mu = dot(dir, l);
-            here += lights[i].col.rgb * a * (1.0 - g * g) / pow(1.0 + g * g + 2.0 * g * mu, 1.5);
+            here += lights[i].col.rgb * a * medium_phase(dot(dir, l), g);
         }
-        sum += here * exp(-density * tt);
+        if (env_sun_on())
+            here += env_sun_col.rgb * medium_phase(dot(dir, env_sun_dir.xyz), g)
+                  * (u.env_mode.x == 0 ? env_sun_map_point(x, fract(jitter + float(k) * 0.618034)) : 1.0);
+        float a = exp(-extinction * step_);
+        sum += transmittance * (scatter * here + emit) * ((1.0 - a) / extinction);
+        transmittance *= a;
     }
-    return c * exp(-density * (leave - enter)) + sum * density * step_;
+    return c * transmittance + sum;
 }
 vec3 world_at(ivec2 q, float z) {
     vec2 s = (vec2(q) + 0.5) / float(scale) - vec2(rect.xy) - screen_offset;
@@ -322,6 +335,14 @@ vec3 hazed(vec3 c, ivec2 q, float d) {
 void main() {
     float d = depth_at(uv);
     bool haze_done = false;
+    if (u.quality1.z != 0) { // haze_debug: the haze's light alone (over black; the far plane where nothing is drawn)
+        bool ui_ = d * 65536.0 < 0.5;
+        vec3 hz = vec3(0.0);
+        if (!ui_ && u.haze_grid.w != 0) hz = hazed(vec3(0.0), texel(uv), min(d, 1.0));
+        else if (!ui_ && u.quality0.x > 0.0) hz = low_haze(vec3(0.0), world_at(texel(uv), min(d, 0.999) * 65536.0));
+        color = vec4(min(hz, vec3(1.0)), ui_ ? 9999.0 : 0.0);
+        return;
+    }
     if (show_depth != 0) { // far black, UI magenta, 3D log-grey near-bright
         float sz = d * 65536.0;
         color = d >= 1.0 ? vec4(0.0, 0.0, 0.0, 1.0)
@@ -394,7 +415,7 @@ void main() {
             if (view_mode == 2) { c = vertex_light * 0.5; albedo = vec3(0.5); }
             c = c * baked * baked_vis * ao + albedo * sum;
             if (u.haze_grid.w != 0) { c = hazed(c, q, d); haze_done = true; }
-            else if (u.quality0.x > 0.0 && light_count > 0) { c = low_haze(c, world); haze_done = true; }
+            else if (u.quality0.x > 0.0) { c = low_haze(c, world); haze_done = true; }
             // Soft shoulder above 0.8 instead of clipping at white (lit pixels only).
             c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c));
             if (any(isnan(c)) || any(isinf(c))) c = base(uv);
@@ -404,7 +425,7 @@ void main() {
     // Unlit 3D pixels (effects, particles, glows) get the same haze as their
     // neighbours: no dark cut-outs around them.
     if (u.haze_grid.w != 0 && !haze_done && !ui && d < 1.0 && view_mode != 1) c = hazed(c, texel(uv), d);
-    else if (u.quality0.x > 0.0 && !haze_done && !ui && d < 1.0 && view_mode != 1 && light_count > 0)
+    else if (u.quality0.x > 0.0 && !haze_done && !ui && d < 1.0 && view_mode != 1)
         c = low_haze(c, world_at(texel(uv), d * 65536.0));
     if (post == 0 || ui) { color = vec4(min(c, vec3(1.0)), ui ? 9999.0 : 0.0); return; }
     float sz = d >= 1.0 ? 65535.0 : d * 65536.0;

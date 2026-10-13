@@ -32,6 +32,7 @@
 #include "editor_overlays.h"
 #include "probe_gi.h"
 extern "C" void pc_env_draw(const float view[16], const float projection[16], const float rect[4]); /* environment.cpp */
+bool pc_atmosphere_viewport(const float view[16], const float projection[16], const float rect[4], void* draw_list);
 #include "fixture_catalog.h"
 #include "lights_internal.h"
 #include "lighting_quality.h"
@@ -1372,6 +1373,9 @@ extern "C" void pc_lights_viewport(void)
     } else {
         was_using = false;
     }
+    /* Fog volumes (atmosphere.cpp): outlines, the selected one's gizmo. */
+    if (pc_atmosphere_viewport(v.view, v.projection, v.rect, draw))
+        gizmo_busy = true;
     if (io.WantCaptureMouse || gizmo_busy || drag.active || !ImGui::IsMouseClicked(ImGuiMouseButton_Left) || io.KeyAlt)
         return;
     float world[3], normal[3];

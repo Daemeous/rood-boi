@@ -3,3 +3,5 @@ rood-lighting 2
 actor gen.t034.fc65293829 name="brazier T034" prefab=brazier pos=956,-256,1600 rot=64.62,0,0 seed=63345 fixture=956,-256,1600 fixture_type=T034
 env sky zenith=0.074,0.091,0.15 horizon=0.18,0.181,0.215 ground=0.032,0.03,0.033 sun_tint=0.25 ambient=0.6
 env sun azimuth=316 elevation=35 color=0.581,0.655,0.889 intensity=0.7 angle=2
+set haze_anisotropy value=0.55
+set haze_density value=0.0003

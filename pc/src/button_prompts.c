@@ -133,22 +133,25 @@ static unsigned codepoint_of(int family, const char* name)
 /* The glyph name for a gamepad element in a family. */
 static const char* pad_glyph(int family, int variant, int element)
 {
+    /* D-pad directions use the _outline glyphs: the filled ones are one plain
+     * cross for every direction (one-colour font); the outline set fills the
+     * pressed arm. */
     static const char* const ps[] = { [SDL_GAMEPAD_BUTTON_SOUTH] = "playstation_button_cross",
         [SDL_GAMEPAD_BUTTON_EAST] = "playstation_button_circle", [SDL_GAMEPAD_BUTTON_WEST] = "playstation_button_square",
         [SDL_GAMEPAD_BUTTON_NORTH] = "playstation_button_triangle",
         [SDL_GAMEPAD_BUTTON_LEFT_SHOULDER] = "playstation_trigger_l1_alternative",
         [SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER] = "playstation_trigger_r1_alternative",
         [SDL_GAMEPAD_BUTTON_LEFT_STICK] = "playstation_button_l3", [SDL_GAMEPAD_BUTTON_RIGHT_STICK] = "playstation_button_r3",
-        [SDL_GAMEPAD_BUTTON_DPAD_UP] = "playstation_dpad_up", [SDL_GAMEPAD_BUTTON_DPAD_DOWN] = "playstation_dpad_down",
-        [SDL_GAMEPAD_BUTTON_DPAD_LEFT] = "playstation_dpad_left",
-        [SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = "playstation_dpad_right" };
+        [SDL_GAMEPAD_BUTTON_DPAD_UP] = "playstation_dpad_up_outline", [SDL_GAMEPAD_BUTTON_DPAD_DOWN] = "playstation_dpad_down_outline",
+        [SDL_GAMEPAD_BUTTON_DPAD_LEFT] = "playstation_dpad_left_outline",
+        [SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = "playstation_dpad_right_outline" };
     static const char* const xbox[] = { [SDL_GAMEPAD_BUTTON_SOUTH] = "xbox_button_a",
         [SDL_GAMEPAD_BUTTON_EAST] = "xbox_button_b", [SDL_GAMEPAD_BUTTON_WEST] = "xbox_button_x",
         [SDL_GAMEPAD_BUTTON_NORTH] = "xbox_button_y", [SDL_GAMEPAD_BUTTON_LEFT_SHOULDER] = "xbox_lb",
         [SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER] = "xbox_rb", [SDL_GAMEPAD_BUTTON_LEFT_STICK] = "xbox_ls",
         [SDL_GAMEPAD_BUTTON_RIGHT_STICK] = "xbox_rs", [SDL_GAMEPAD_BUTTON_GUIDE] = "xbox_guide",
-        [SDL_GAMEPAD_BUTTON_DPAD_UP] = "xbox_dpad_up", [SDL_GAMEPAD_BUTTON_DPAD_DOWN] = "xbox_dpad_down",
-        [SDL_GAMEPAD_BUTTON_DPAD_LEFT] = "xbox_dpad_left", [SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = "xbox_dpad_right" };
+        [SDL_GAMEPAD_BUTTON_DPAD_UP] = "xbox_dpad_up_outline", [SDL_GAMEPAD_BUTTON_DPAD_DOWN] = "xbox_dpad_down_outline",
+        [SDL_GAMEPAD_BUTTON_DPAD_LEFT] = "xbox_dpad_left_outline", [SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = "xbox_dpad_right_outline" };
     /* Nintendo's labels sit the other way round: A is east, B south. */
     static const char* const nintendo[] = { [SDL_GAMEPAD_BUTTON_SOUTH] = "switch_button_b",
         [SDL_GAMEPAD_BUTTON_EAST] = "switch_button_a", [SDL_GAMEPAD_BUTTON_WEST] = "switch_button_y",
@@ -156,9 +159,9 @@ static const char* pad_glyph(int family, int variant, int element)
         [SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER] = "switch_button_r", [SDL_GAMEPAD_BUTTON_BACK] = "switch_button_minus",
         [SDL_GAMEPAD_BUTTON_START] = "switch_button_plus", [SDL_GAMEPAD_BUTTON_GUIDE] = "switch_button_home",
         [SDL_GAMEPAD_BUTTON_LEFT_STICK] = "switch_stick_l_press",
-        [SDL_GAMEPAD_BUTTON_RIGHT_STICK] = "switch_stick_r_press", [SDL_GAMEPAD_BUTTON_DPAD_UP] = "switch_dpad_up",
-        [SDL_GAMEPAD_BUTTON_DPAD_DOWN] = "switch_dpad_down", [SDL_GAMEPAD_BUTTON_DPAD_LEFT] = "switch_dpad_left",
-        [SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = "switch_dpad_right" };
+        [SDL_GAMEPAD_BUTTON_RIGHT_STICK] = "switch_stick_r_press", [SDL_GAMEPAD_BUTTON_DPAD_UP] = "switch_dpad_up_outline",
+        [SDL_GAMEPAD_BUTTON_DPAD_DOWN] = "switch_dpad_down_outline", [SDL_GAMEPAD_BUTTON_DPAD_LEFT] = "switch_dpad_left_outline",
+        [SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = "switch_dpad_right_outline" };
     int left = element == PC_PAD_AXIS(SDL_GAMEPAD_AXIS_LEFT_TRIGGER),
         right = element == PC_PAD_AXIS(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
     switch (family) {

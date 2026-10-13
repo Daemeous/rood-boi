@@ -9,3 +9,5 @@ glow room:67b6aea@1348,-1280,836 pos=1348.1,-1280,836.1 fixture_type=T065
 glow room:9f759e9@514,-1280,870 pos=514,-1280,869.6 fixture_type=T064
 glow room:a56abe9@278,-1280,770 pos=278.4,-1280,770 fixture_type=T064
 glow room:dbbbe24@1056,-1280,816 pos=1056,-1280,816 fixture_type=T065
+set haze_anisotropy value=0.55
+set haze_density value=0.0003

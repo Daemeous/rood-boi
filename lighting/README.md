@@ -34,7 +34,8 @@ by naming its id:
 | `glow` | `glow:<glow key>` | an override of one of the game's glows (the key the editor shows; `@x,y,z` for old position-only ones) |
 | `uv` | `uv:<1-64>` | an override of a room texture effect (speed, freeze) |
 | `set` | `set:<key>` | a per-room setting (`baked_lighting`, `haze_density`, ...: `pc/src/room_settings.cpp`) |
-| `env` | `env:sun`, `env:sky` | the room's sun (or moon) and sky (below, "Environment") |
+| `env` | `env:sun`, `env:sky`, `env:fog` | the room's sun (or moon), sky and ground fog (below, "Environment") |
+| `fog` | `fog:<14 hex digits>` | a fog volume: a box or sphere of mist (below, "Fog volumes") |
 
 The editor makes ids from the time and a random part, so ids made by
 different people do not collide and sort in the order they were made.
@@ -117,6 +118,47 @@ env sky zenith=0.07,0.09,0.16 horizon=0.17,0.18,0.23 ground=0.03,0.03,0.035 sun_
   the hemisphere term that stands in for the sky where nothing traces it).
 - A sky radiance of 0.15 adds about 0.15 x the surface's albedo to an open
   floor (the indirect light is the cosine-weighted mean radiance arriving).
+
+A room may also have a **ground fog**, `env fog` (`pc/src/atmosphere.cpp`;
+rendering: pc/docs/Vulkan_Renderer.md, "Haze, ground fog and sun shafts"),
+roofed or not; the generator writes one for the areas of
+`pc/assets/environment/atmosphere.json` (with the haze settings
+`set haze_density` / `set haze_anisotropy` of the area's mood):
+
+```
+env fog color=0.85,0.9,1 density=0.01 height=40 noise=0.7 scale=200 wind=9,0,3 fill=0.012,0.014,0.02
+```
+
+- Fog fields: `enabled` (1), `density` (extinction per world unit at its
+  base; 0.003), `height` (scale height: the density falls by e every this many
+  units up; 48), `offset` (its base above the room's main floor, which the
+  game finds from the room's level faces; 0), `noise` (0..1, how much the
+  drifting wisps thin and thicken it; 0.6), `scale` (the wisps' size; 160),
+  `wind` (their drift, units per second, y down; 12,0,4), `color` (its albedo;
+  1,1,1), `fill` (light it scatters from everywhere, a radiance: keeps it
+  visible where no light reaches; 0,0,0), `sky` (how much of the sky's light
+  the haze and the fog scatter; 1).
+- The haze stays the room settings `haze_density` (uniform in the room's
+  bounds), `haze_anisotropy` (forward scattering, also the fog's) and
+  `haze_glow`.
+
+## Fog volumes
+
+Local mist (a cellar's damp corner, a forest hollow, a sewer outlet):
+`fog <id>` items, placed in the editor (Details > Atmosphere > Fog volumes:
+Add volume, then the Move / Size / Turn gizmo) like lights.
+
+```
+fog 68ea4c1200a3f1 name="Cellar mist" shape=sphere pos=320,-60,640 size=400,120,300 yaw=30 density=0.006 fill=0.01,0.012,0.012
+```
+
+- Fields: `name`, `shape` (`box` or `sphere`; box), `pos` (its centre),
+  `size` (full extents x, y, z; 256,128,256), `yaw` (degrees about the
+  vertical; 0), `density` (0.004), `edge` (the soft part, a fraction of the
+  half size; 0.5), `color` (albedo; 1,1,1), `fill` (0,0,0), `noise` (0.5; the
+  wisps drift with the room's fog wind), `enabled` (1).
+- A room renders up to 16 enabled volumes; they add to the haze and the
+  ground fog and may reach past the room's bounds.
 
 ## The generated layer
 

@@ -116,7 +116,7 @@ def check_values(report, path, e, prefabs, settings):
     if kind == "env":
         name = e.id.split(":", 1)[1]
         if name not in lf.ENV_FIELDS:
-            report("error", path, e.line, f"{e.id}: the environment items are env:sun and env:sky")
+            report("error", path, e.line, f"{e.id}: the environment items are env:sun, env:sky and env:fog")
         else:
             for key, _ in fields:
                 if lf.known_field(kind, key) and key not in lf.ENV_FIELDS[name]:
@@ -131,6 +131,10 @@ def check_values(report, path, e, prefabs, settings):
             if value not in lf.LIGHT_TYPES:
                 report("error", path, e.line, f"{e.id}: type must be one of {', '.join(lf.LIGHT_TYPES)}")
             continue
+        if kind == "fog" and key == "shape":
+            if value not in lf.FOG_SHAPES:
+                report("error", path, e.line, f"{e.id}: shape must be one of {', '.join(lf.FOG_SHAPES)}")
+            continue
         if decimals < 0:
             continue
         nums = lf.parse_numbers(value)
@@ -140,6 +144,8 @@ def check_values(report, path, e, prefabs, settings):
         count = lf.COUNTS.get(key)
         if key == "size" and kind == "light":
             count = 2
+        elif key == "size" and kind == "fog":
+            count = 3
         elif key == "size":
             count = 1
         if spec is None:

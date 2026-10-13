@@ -30,7 +30,10 @@ and writes lighting/<pack>/generated/zoneZZ_roomRR.txt (lighting/README.md):
 - for a room open to the sky (pc/tools/outdoor.py: measured from its
   geometry and floor light, or decided in pc/assets/environment/outdoor.json),
   its moon and sky: "env sun ..." and "env sky ..." (moody night defaults
-  leaning toward the room's own vertex light); roofed rooms get none.
+  leaning toward the room's own vertex light); roofed rooms get none;
+- the area's atmosphere mood (pc/assets/environment/atmosphere.json): "set
+  haze_density" / "set haze_anisotropy" and a ground fog "env fog ..."
+  (Snowfly Forest, the Undercity, the town at night, other open rooms).
 
 The type's parameters, light offset, fixture radius and glow treatment are
 not written: the game reads them from the catalog (pc/src/fixture_catalog.cpp)
@@ -146,6 +149,7 @@ def zone_rooms(task):
     stats["by_type"] = collections.Counter()
     out = []
     review = outdoor.load_review()
+    moods = outdoor.load_atmosphere()
     try:
         vram, rooms = fl.zone_vram(disc, zone)
     except (OSError, KeyError, ValueError, IndexError):
@@ -162,6 +166,13 @@ def zone_rooms(task):
             sun, sky = outdoor.environment(m, zone)
             items += [lf.Item("env", "sun", sun), lf.Item("env", "sky", sky)]
             stats["outdoor"] += 1
+        # The area's atmosphere: haze settings and a ground fog (atmosphere.json).
+        sets, fog = outdoor.atmosphere(moods, zone, is_outdoor)
+        items += [lf.Item("set", key, [("value", value)]) for key, value in sets]
+        if fog is not None:
+            items.append(lf.Item("env", "fog", fog))
+            stats["fog"] += 1
+        stats["hazed"] += bool(sets)
         out.append((room, room_text(zone, room, items) if items else None, notes, [it.id for it in items]))
     return out, stats
 
@@ -226,7 +237,8 @@ def main():
     print(f"{stats['fixtures']} fixtures matched ({stats['rule']} by rule, {stats['unmatched']} unmatched); "
           f"{stats['actors']} actors ({stats['on']} on, {stats['off']} off by default; {stats['linked']} linked to "
           f"a game glow); {stats['glows']} glows typed ({stats['suppressed']} suppressed); "
-          f"{stats['outdoor']} rooms open to the sky (env sun, env sky)")
+          f"{stats['outdoor']} rooms open to the sky (env sun, env sky); {stats['hazed']} with an area haze, "
+          f"{stats['fog']} with a ground fog (env fog)")
     if by_type and not args.quiet:
         print(f"actors by type: {by_type}")
     if args.dry_run or args.check:

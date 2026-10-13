@@ -3,13 +3,15 @@
 #extension GL_EXT_ray_query : require
 // Volumetric haze, step 1: in-scattered light per froxel (a cell of the
 // view frustum: GX x GY screen cells, GZ logarithmic depth slices, stored as
-// GZ tiles side by side in a 2D image). Each froxel samples a jittered point
-// in its cell, picks one light or glow in proportion to its unshadowed
-// light there, traces one shadow ray (room and characters: light shafts and
-// volumetric shadows), and blends with its reprojected history, so the haze
-// is smooth and stable; density is applied when the volume is integrated.
-// It depends only on the camera, never on what is drawn, so effects and
-// particles cannot cut holes in it.
+// GZ tiles side by side in a 2D image), per unit of scattering: the medium's
+// density and colour are applied when the volume is integrated. Each froxel
+// samples a point in its cell (blue-noise jitter, R2 offsets per frame),
+// picks one light or glow in proportion to its unshadowed light there and
+// traces one shadow ray, and the sun one more (its disc, its own phase
+// weight: shafts through arches and branches), then blends with its
+// reprojected history, so the haze is smooth and stable. It depends only on
+// the camera, never on what is drawn, so effects and particles cannot cut
+// holes in it. Froxels where the medium cannot be (medium_maybe) skip it.
 layout(local_size_x = 8, local_size_y = 8) in;
 #define LIGHT_LIST 10
 #include "rt_lights.glsl"
@@ -23,7 +25,10 @@ layout(std140, binding = 4) uniform Haze {
     vec4 previous_rotation[3]; // previous world -> view (rows), w: translation
     vec4 previous_projection; // hx, hh, ofx, ofy
     vec4 previous_range; // znear, log(zfar / znear)
+    vec4 medium_[88]; // the room's medium (medium.glsl, atmosphere.h)
 } h;
+#define MEDIUM(i) h.medium_[i]
+#include "medium.glsl"
 layout(binding = 5, rgba16f) uniform writeonly image2D scatter_out;
 layout(binding = 6) uniform sampler2D history;
 float slice_z(float k) { return h.depth_range.x * exp(k / float(h.grid.z) * h.depth_range.y); }
@@ -69,13 +74,18 @@ void main() {
     int k = g.x / h.grid.x;
     ivec3 cell = ivec3(g.x - k * h.grid.x, g.y, k);
     rng = uint(g.x) * 1973u + uint(g.y) * 9277u + frame * 26699u;
-    vec3 jitter = vec3(rand(), rand(), rand());
+    // Blue-noise jitter in the cell: interleaved gradient noise over the
+    // froxels, shifted by the R3 sequence each frame (stratified over time).
+    vec3 r3 = fract(vec3(0.8191725, 0.6710436, 0.5497005) * float(frame & 4095u));
+    vec2 p = vec2(g) + vec2(float(k) * 5.3, float(k) * 2.9);
+    vec3 jitter = fract(vec3(medium_ign(p), medium_ign(p + vec2(47.0, 17.0)), medium_ign(p + vec2(13.0, 59.0))) + r3);
     vec3 x = world_of(vec3(cell) + jitter);
     vec3 centre = world_of(vec3(cell) + 0.5);
     vec3 eye_ = -(mat3(h.inverse_rotation[0].xyz, h.inverse_rotation[1].xyz, h.inverse_rotation[2].xyz) * h.camera_translation.xyz);
     vec3 dir = normalize(x - eye_);
     vec3 light = vec3(0.0);
-    bool inside = all(greaterThanEqual(x, room_lo - 1.0)) && all(lessThanEqual(x, room_hi + 1.0));
+    bool inside = medium_maybe(x) || medium_maybe(centre);
+    float g_ = medium_g();
     // Every light and glow (any number): one picked in proportion to its
     // unshadowed light here, in one pass (weighted reservoir sampling).
     int sources = light_count + emitter_count;
@@ -96,12 +106,32 @@ void main() {
             vec3 l; float d, th; int hit; vec2 bc;
             vec3 c = source_light(i, x, l, d);
             // transient effects' light is never shadowed (glow_casts)
-            if ((i >= light_count && !glow_casts_shadow(i - light_count)) || !trace(x, l, d - 2.0, true, l, 0.0, th, hit, bc)) {
-                float g_ = fog_anisotropy, mu = dot(dir, l);
-                float phase = (1.0 - g_ * g_) / pow(1.0 + g_ * g_ + 2.0 * g_ * mu, 1.5) / 12.566;
-                light = c * (all_ / w_pick) * phase * 12.566;
-            }
+            if ((i >= light_count && !glow_casts_shadow(i - light_count)) || !trace(x, l, d - 2.0, true, l, 0.0, th, hit, bc))
+                light = c * (all_ / w_pick) * medium_phase(dot(dir, l), g_);
         }
+    }
+    // The sun (or moon): one ray to a point of its disc, stratified like
+    // the jitter; past every blocker (arches, branches, the characters) the
+    // haze is lit: shafts.
+    if (inside && env_sun_on()) {
+        vec2 u2 = fract(vec2(medium_ign(p + vec2(71.0, 3.0)), medium_ign(p + vec2(5.0, 83.0)))
+                        + fract(vec2(0.7548777, 0.5698403) * float(frame & 4095u)));
+        vec3 l = env_sun_sample(u2.x, u2.y);
+        float th; int hit; vec2 bc;
+        if (env_sun_col.w < 0.5 || !trace(x, l, ENV_SUN_DISTANCE, true, l, 0.0, th, hit, bc))
+            light += env_sun_col.rgb * medium_phase(dot(dir, l), g_);
+    }
+    // The sky: one ray in a direction over the sphere (stratified the same
+    // way); what blocks it (canopies, arches, walls) occludes it, so the air
+    // under cover stays dark and the shafts keep their contrast.
+    if (inside && env_sky_on() && MEDIUM(5).w > 0.0) {
+        vec2 u2 = fract(vec2(medium_ign(p + vec2(23.0, 41.0)), medium_ign(p + vec2(67.0, 29.0)))
+                        + fract(vec2(0.5698403, 0.7548777) * float(frame & 4095u)));
+        float z = 1.0 - 2.0 * u2.x, s = sqrt(max(1.0 - z * z, 0.0)), a = 6.2831853 * u2.y;
+        vec3 d = vec3(s * cos(a), z, s * sin(a));
+        float th; int hit; vec2 bc;
+        if (!trace(x, d, ENV_SUN_DISTANCE, true, d, 0.0, th, hit, bc))
+            light += env_sky(d) * MEDIUM(5).w * medium_phase(dot(dir, d), g_);
     }
     if (any(isnan(light)) || any(isinf(light))) light = vec3(0.0);
     // History: where this froxel's centre was in the previous view.

@@ -29,6 +29,7 @@
 #include "glow_overrides.h"
 #include "lighting_quality.h"
 #include "environment.h"
+#include "atmosphere.h" /* the haze, ground fog and fog volumes (pc_medium_gpu) */
 #include "gl_shaders.h" /* PC_GLSL_ENVIRONMENT: the room's sun and sky (pc/shaders/vulkan/environment.glsl) */
 
 extern const float* pc_hw_casters(int* count, int* serial);
@@ -946,7 +947,7 @@ static const char* trace_source = SHADER_COMMON
     "uniform int shadow_samples;\n"
     "uniform int glow_shadows;\n" /* glows cast shadows (characters and props block them) */
     "uniform int glow_casts;\n" /* emitters that may cast shadows (bit i; glows.c: never transient effects) */
-    "uniform float fog_density;\n"    /* volumetric scattering per world unit (0: off) */
+    "uniform float fog_density;\n"    /* 1: the haze is traced (its medium: medium_) */
     "uniform int fog_steps;\n"
     "uniform float fog_anisotropy;\n" /* Henyey-Greenstein g: > 0 scatters forward */
     "uniform float fog_glow;\n"       /* emitters' share in the haze (glows and baked lights) */
@@ -959,6 +960,9 @@ static const char* trace_source = SHADER_COMMON
     "#define env_zenith env_[2]\n"
     "#define env_horizon env_[3]\n"
     "#define env_ground env_[4]\n" PC_GLSL_ENVIRONMENT
+    /* The room's medium (atmosphere.h pc_medium_gpu; medium.glsl). */
+    "uniform vec4 medium_[88];\n"
+    "#define MEDIUM(i) medium_[i]\n" PC_GLSL_MEDIUM
     "uint rng = 0u;\n"
     "bool moving_only = false;\n"
     "vec3 cosine_direction(vec3 n);\n"
@@ -1169,19 +1173,36 @@ static const char* trace_source = SHADER_COMMON
     "    else if (i < light_count && light_col[i].w > 0.5) a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));\n"
     "    return col * a;\n"
     "}\n"
+    /* The medium (medium.glsl: haze, ground fog, volumes) along the part of
+     * the ray it can be in; at each step its scattering colour times the
+     * light (one picked source, the sun with its own ray) plus what it adds
+     * by itself, Beer-Lambert between the steps. */
     "vec3 haze(vec3 p) {\n"
     "    vec3 v = p - eye; float length_ = length(v); vec3 dir = v / max(length_, 1e-3);\n"
-    "    vec3 inv = 1.0 / dir, t0 = (room_lo - eye) * inv, t1 = (room_hi - eye) * inv;\n"
-    "    float enter = max(max(min(t0.x, t1.x), min(t0.y, t1.y)), max(min(t0.z, t1.z), 0.0));\n"
-    "    float leave = min(min(max(t0.x, t1.x), max(t0.y, t1.y)), min(max(t0.z, t1.z), length_));\n"
-    "    if (leave <= enter) return vec3(0.0);\n"
-    "    float step_ = (leave - enter) / float(fog_steps);\n"
+    "    vec2 span = medium_span(eye, dir, length_);\n"
+    "    if (span.y <= span.x) return vec3(0.0);\n"
+    "    float step_ = (span.y - span.x) / float(fog_steps);\n"
     "    int sources = light_count + emitter_count;\n"
     "    vec3 sum = vec3(0.0);\n"
-    "    float g = fog_anisotropy;\n"
+    "    float g = medium_g(), transmittance = 1.0;\n"
     "    for (int k = 0; k < fog_steps; k++) {\n"
-    "        float t = (float(k) + rand()) * step_;\n" /* into the room */
-    "        vec3 x = eye + dir * (enter + t);\n"
+    "        vec3 x = eye + dir * (span.x + (float(k) + rand()) * step_);\n"
+    "        vec3 scatter, emit;\n"
+    "        float extinction = medium_at(x, scatter, emit);\n"
+    "        if (extinction <= 0.0) continue;\n"
+    "        vec3 here = vec3(0.0);\n"
+    "        if (env_sun_on()) {\n" /* the sun's shafts */
+    "            vec3 l = env_sun_sample(rand(), rand()); float th; int hit; vec2 bc;\n"
+    "            if (env_sun_col.w < 0.5 || !trace(x, l, ENV_SUN_DISTANCE, true, l, 0.0, th, hit, bc))\n"
+    "                here += env_sun_col.rgb * medium_phase(dot(dir, l), g);\n"
+    "        }\n"
+    "        if (env_sky_on() && MEDIUM(5).w > 0.0) {\n" /* the sky, occluded (rt_haze.comp the same) */
+    "            float z = 1.0 - 2.0 * rand(), s = sqrt(max(1.0 - z * z, 0.0)), a = 6.2831853 * rand();\n"
+    "            vec3 d = vec3(s * cos(a), z, s * sin(a)); float th; int hit; vec2 bc;\n"
+    "            if (!trace(x, d, ENV_SUN_DISTANCE, true, d, 0.0, th, hit, bc))\n"
+    "                here += env_sky(d) * MEDIUM(5).w * medium_phase(dot(dir, d), g);\n"
+    "        }\n"
+    "        float a_ = exp(-extinction * step_);\n"
     "        float weights[48]; float all_ = 0.0;\n"
     "        for (int i = 0; i < sources && i < 48; i++) {\n"
     "            vec3 pos = i < light_count ? light_pos[i].xyz : emitter_pos[i - light_count].xyz;\n"
@@ -1191,17 +1212,18 @@ static const char* trace_source = SHADER_COMMON
     "            weights[i] = (1.0 - f * f) * (1.0 - f * f) * dot(col, vec3(0.299, 0.587, 0.114));\n"
     "            all_ += weights[i];\n"
     "        }\n"
-    "        if (all_ <= 0.0) continue;\n"
-    "        float pick = rand() * all_; int i = 0;\n"
-    "        for (; i < sources - 1; i++) { pick -= weights[i]; if (pick <= 0.0) break; }\n"
-    "        vec3 l; float d, th; int hit; vec2 bc;\n"
-    "        vec3 c = source_light(i, x, l, d);\n"
-    "        if (weights[i] <= 0.0 || ((i < light_count || ((glow_casts >> (i - light_count)) & 1) != 0) && trace(x, l, d - 2.0, true, l, 0.0, th, hit, bc))) continue;\n"
-    "        float mu = dot(dir, l);\n" /* toward the light vs. along the view */
-    "        float phase = (1.0 - g * g) / pow(1.0 + g * g + 2.0 * g * mu, 1.5) / 12.566;\n"
-    "        sum += c * (all_ / weights[i]) * phase * exp(-fog_density * t);\n"
+    "        if (all_ > 0.0) {\n"
+    "            float pick = rand() * all_; int i = 0;\n"
+    "            for (; i < sources - 1; i++) { pick -= weights[i]; if (pick <= 0.0) break; }\n"
+    "            vec3 l; float d, th; int hit; vec2 bc;\n"
+    "            vec3 c = source_light(i, x, l, d);\n"
+    "            if (weights[i] > 0.0 && !((i < light_count || ((glow_casts >> (i - light_count)) & 1) != 0) && trace(x, l, d - 2.0, true, l, 0.0, th, hit, bc)))\n"
+    "                here += c * (all_ / weights[i]) * medium_phase(dot(dir, l), g);\n" /* phase x 4 pi: isotropic 1 */
+    "        }\n"
+    "        sum += transmittance * (scatter * here + emit) * ((1.0 - a_) / extinction);\n"
+    "        transmittance *= a_;\n"
     "    }\n"
-    "    return sum * fog_density * step_ * 12.566;\n" /* 4 pi: an isotropic phase gives the plain in-scatter */
+    "    return sum;\n"
     "}\n"
     /* The lighting signature: noise-free centre rays to the shadow-casting
      * lights and (for the baked light) the emitters, one bit each. History
@@ -1660,7 +1682,15 @@ static GLuint run(gi_context* c, const float to_image[16], const float eye[3], f
     gl_Uniform1i(U(pr, "shadow_samples"), pc_shadow_samples < 1 ? 1 : pc_shadow_samples > 8 ? 8 : pc_shadow_samples);
     gl_Uniform1i(U(pr, "glow_shadows"), pc_glow_shadows);
     gl_Uniform1i(U(pr, "glow_casts"), (int)pc_glow_casts);
-    gl_Uniform1f(U(pr, "fog_density"), pc_lighting_traced_haze_density()); /* haze High only */
+    {
+        /* The room's medium (atmosphere.h): haze High only. */
+        static pc_medium_gpu medium;
+        int on = pc_haze_quality == PC_HAZE_HIGH
+            && pc_medium_gpu_get(&medium, pc_lighting_traced_haze_density(), room_lo, room_hi);
+        medium.v[5][0] = medium.v[5][1] = medium.v[5][2] = 0; /* the march traces the sky */
+        gl_Uniform1f(U(pr, "fog_density"), on ? 1.0f : 0.0f);
+        gl_Uniform4fv(U(pr, "medium_"), PC_MEDIUM_VEC4S, &medium.v[0][0]);
+    }
     gl_Uniform1i(U(pr, "fog_steps"), pc_fog_steps < 2 ? 2 : pc_fog_steps > 64 ? 64 : pc_fog_steps);
     gl_Uniform1f(U(pr, "fog_anisotropy"), pc_fog_anisotropy);
     gl_Uniform1f(U(pr, "fog_glow"), pc_fog_glow);

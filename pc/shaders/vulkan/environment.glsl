@@ -70,5 +70,17 @@ float env_sun_map_visibility(vec3 world, vec3 n, float rotation) {
     }
     return lit / 8.0;
 }
+// The sun's map at a point of the air (the haze: no surface, no normal):
+// one tap, `jitter` (0..1) spreading it over the disc's blur radius.
+float env_sun_map_point(vec3 p, float jitter) {
+    vec4 c = env_sun_matrix * vec4(p, 1.0);
+    vec2 st = c.xy * 0.5 + 0.5;
+    if (any(lessThan(st, vec2(0.0))) || any(greaterThan(st, vec2(1.0)))) return 1.0;
+    float dist = length(p - env_sun_light.xyz) / env_sun_light.w;
+    vec3 row0 = vec3(env_sun_matrix[0][0], env_sun_matrix[1][0], env_sun_matrix[2][0]);
+    float texel_world = env_sun_texel * 2.0 / max(length(row0), 1e-6);
+    float a = jitter * 6.2831853, r = sqrt(fract(jitter * 7.31)) * env_sun_texel * 2.0;
+    return dist - 1.5 * texel_world / env_sun_light.w <= ENV_SUN_MAP(st + vec2(cos(a), sin(a)) * r) ? 1.0 : 0.0;
+}
 #endif
 #endif

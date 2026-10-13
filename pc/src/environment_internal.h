@@ -17,4 +17,17 @@ void add_items(lighting::State& s);
 std::string text();
 void set_text(const std::string& text);
 } // namespace rood_env
+
+/* The ground fog (`env fog`) and fog volumes (`fog <id>`): atmosphere.cpp.
+ * rood_env's functions above include them. */
+namespace prefab {
+struct Json;
+}
+namespace rood_atmo {
+void reset();
+bool apply_item(const lighting::Item& it); /* env fog, fog volumes */
+void add_items(lighting::State& s);
+bool rpc(const prefab::Json& params); /* RPC environment {fog, volumes, ...}: true when the room changed */
+std::string json(); /* "fog":{...},"volumes":[...] for its reply */
+} // namespace rood_atmo
 #endif

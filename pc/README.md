@@ -580,6 +580,7 @@ These switches persist with File > Save settings:
 | `editor_snap_offset` | 64 | surface snapping's distance off the surface |
 | `light_animation` | 1 | light actors' flicker and pulse (0 holds them still) |
 | `environment` | 1 | the rooms' sun and sky (0: off in every room, for comparison; per room: Details > Atmosphere, "Sun and sky" below) |
+| `fog` | 1 | the rooms' ground fog and fog volumes (0: off in every room; per room: Details > Atmosphere, "Haze, ground fog, fog volumes and sun shafts" below) |
 | `editor_cutaway`, `editor_cutaway_radius` | 1, 320 | See into rooms > Cut to focus (key C) and its radius at the focus |
 | `editor_cutaway_opacity` | 0.3 | share of a cut surface still drawn as a ghost, with its edges (0: a hole) |
 | `editor_cutaway_auto` | 1 | cut only while room surfaces hide the focus from the camera |
@@ -1046,6 +1047,45 @@ view (drag the disc: horizontal turns it, vertical raises it). Settings key
 `environment`. Test: `pc/tests/sky_smoke.py`. Details and costs:
 [pc/docs/Vulkan_Renderer.md](docs/Vulkan_Renderer.md), "Sun and sky".
 
+### Haze, ground fog, fog volumes and sun shafts
+
+The room's air is one **medium** (`pc/src/atmosphere.cpp`,
+`pc/shaders/vulkan/medium.glsl`): the uniform **haze** (room settings
+`haze_density`, `haze_anisotropy`, `haze_glow`), a **ground fog** (`env fog`:
+thickest at its base on the room's main floor, thinning upward with a scale
+height, animated by drifting noise wisps carried by a wind) and **fog
+volumes** (`fog <id>` items: boxes or spheres with soft edges, their own
+density, colour, fill light and wisps) for local mist. Format:
+[lighting/README.md](../lighting/README.md), "Environment" and "Fog volumes".
+
+- **Lit by every light and the sun** with a Henyey-Greenstein phase
+  (`haze_anisotropy`: forward scattering). High (traced) haze: each cell of
+  the haze's froxel volume (Vulkan) or each march step (OpenGL) traces one
+  shadow ray to a picked light, one to the sun's disc and one to the sky, so
+  moonlight **streams through arches, branches and gaps** (shafts), the air
+  under a canopy or arch loses the sky, characters cast volumetric shadows.
+  Low haze (Medium; no ray tracing): the same medium marched per pixel in the
+  present pass, unshadowed lights, the sun through its shadow map.
+- **Stable**: blue-noise jitter per froxel stratified over frames, a
+  reprojected temporal blend, a low-resolution volume (`haze_cell` display
+  pixels per cell: Ultra 2, High 3) upsampled by depth (each pixel reads the
+  volume at its own depth, so PS1 texels stay sharp: nothing is blurred
+  across the image).
+- **Generated moods** (`pc/assets/environment/atmosphere.json`, written by
+  `generate_lighting.py`): Snowfly Forest low ground mist, the Undercity damp
+  haze and floor mist, the town, walls and Keep at night a faint moonlit
+  haze and thin mist, any other open room a faint haze; roofed rooms keep
+  the project's faint default haze (unchanged).
+- **Editor**: Details > **Atmosphere** > "Ground fog" (every value live) and
+  "Fog volumes" (Add volume on the surface under the view's centre; Move /
+  Size / Turn gizmo in the view; Show the haze alone). Save area writes
+  `env fog` / `fog <id>` lines. Settings key `fog` (0) switches every room's
+  ground fog and volumes off. RPC `environment` {`haze`, `fog`, `volumes`,
+  `remove_fog`, `fog_time`, `fog_global`}, `graphics` {`haze_debug`,
+  `haze_cell`}. Test: `pc/tests/atmosphere_smoke.py`. Costs:
+  [pc/docs/Vulkan_Renderer.md](docs/Vulkan_Renderer.md), "Haze, ground fog
+  and sun shafts".
+
 ### Lighting quality presets
 
 Lighting has quality presets so lower-spec PCs run it (`pc/src/lighting_quality.cpp`):
@@ -1086,10 +1126,12 @@ from the depth buffer in the present pass (12 samples, no extra pass).
 and PCSS (a blocker search over the light's size, then a penumbra as wide as
 the blockers' distance gives: sharp at contact, softer further away; slope
 scaled biases), the same on GL cube maps and Vulkan's atlas
-(`vk_shadows.c`). **Haze** Low is unshadowed in-scattering of every light in
-the present pass (6 jittered steps through the room's bounds, the traced
-haze's phase function and density); High is the traced haze (Vulkan froxel
-volume, GL per-pixel march). **Original** is the PS1's look exactly: no
+(`vk_shadows.c`). **Haze** Low is unshadowed in-scattering of every light
+and the sun (through its shadow map) in the present pass (8 jittered steps
+through the room's medium: haze, ground fog, fog volumes; the traced haze's
+phase function and densities); High is the traced haze (Vulkan froxel
+volume, GL per-pixel march) with the lights', the sun's and the sky's
+shadows. Haze off also switches the ground fog and the volumes off. **Original** is the PS1's look exactly: no
 dynamic lights, the baked light at its own scale (the room's `baked_lighting`
 only applies with dynamic lights), the game's drop shadows.
 
@@ -1122,6 +1164,7 @@ Keys (settings file; RPC `graphics` reads and writes the same names, with
 | `glow_shadows` | glows (candles, torches) shadow their light | yes |
 | `characters_shadow_baked` | characters' contact and glow shadows on the baked light | yes |
 | `haze` | `off`, `low`, `high` | yes |
+| `haze_cell` | the traced haze's froxel size in display pixels (Vulkan; 2-8: smaller gives sharper shafts) | yes |
 | `ao`, `ao_radius` | ambient occlusion and its reach (world units) | yes |
 | `ao_strength` | 0-1 | no |
 
@@ -1182,6 +1225,7 @@ thread once per vsync, so each method runs at a frame boundary:
 | `prefabs` | `reload` | the prefab library (built-in and user), parameters and problems |
 | `editor_place` | `item` / `prefab` / `light`, `phase` (`begin`, `move`, `drop`, `cancel`, `double_click`, `state`), `x`/`y` or `u`/`v` | a drag from Place Actors, as the mouse would do it |
 | `environment` | `sun` {`enabled`, `azimuth`, `elevation`, `color`, `intensity`, `angle`, `shadows`}, `sky` {`enabled`, `zenith`, `horizon`, `ground`, `intensity`, `sun_tint`, `ambient`}, `remove` (`sun`, `sky`, `all`), `global` | the room's sun and sky (`defined`: the room has the item; setting a field of one it lacks adds it), `active`, `global` (settings key `environment`), the renderers' packed record (`gpu`) and its `hash`; an edit marks the room dirty (save with `lighting` `save`) and is one undo transaction |
+| `environment` (fog) | `haze` {`density`, `anisotropy`, `glow`} (room settings), `fog` {`enabled`, `density`, `height`, `offset`, `noise`, `scale`, `wind`, `color`, `fill`, `sky`}, `remove_fog`, `volumes` [{`id`, `remove`, `enabled`, `shape`, `name`, `pos`, `size`, `yaw`, `density`, `edge`, `color`, `fill`, `noise`}], `fog_time` (seconds, -1 live), `fog_global` | the same reply plus `haze`, `fog` (with the room's `floor`), `bounds`, `volumes`, `fog_global`, `fog_time` |
 | `lighting` | `action` (`layers`, `save`, `revert` {`id`}, `promote` {`ids`}, `reload` (as `lights` `reload`), `packs` {`packs`, `active`}, `discard_dangling`, `poll` (the live reload's check, now)) | the room's lighting layers (files, entries, version), the effective items with their layer badges, deleted ids, problems (dangling overrides), the user layer as it would be saved |
 | `fixtures` | `action` (`list`, `set` {`type`, `params`, `offset`, `fixture_radius`, `glow`, `enabled`, `review`}, `save`, `revert`, `regenerate` {`scope`}), `type`, `all` | the fixture catalog's types in the room (or one, or all), the room's typed actors and glows (`muted` 4: suppressed by the type); type edits apply live to every instance (`pc/docs/Fixture_Catalog.md`) |
 | `rooms` | | every zone and room read from the disc (zone, room, location, scene, entries, name, area), the current room, whether warped, the warp's phase |
