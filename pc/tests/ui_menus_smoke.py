@@ -7,7 +7,7 @@ From a copy of the card (skipped without one), in the save room:
   - ui_menus off: Triangle opens the game's own menu (currentMenu 0), the shell
     stays hidden; Triangle closes it
   - on: Triangle opens the shell on the Ashley tab; R1/L1 move between tabs
-  - Circle on Ashley > Status opens the original Status (MENU4); Cross returns to
+  - Square on Ashley opens the original Status (MENU4); Cross returns to
     the shell on the same tab; Triangle closes the menu (currentMenu 0x3F) and
     the field runs again
   - System > Menus switches ui_menus off from inside the shell, from the next
@@ -57,6 +57,7 @@ def main():
     sym = symbols()
     menu_state = sym["vs_battle_menuState"]
     shortcut_invoked = sym["vs_battle_shortcutInvoked"]
+    hud_hide = sym["D_800EB9AF"]  # the field HUD slides out while set
     actions, action_ranges = sym["vs_main_actions"], sym["D_800EBD68"]
     failures = []
 
@@ -100,15 +101,16 @@ def main():
         game.press("triangle", vsyncs=3, settle=40)
         s = shell()
         check(s["visible"] and s["tab"] == "ashley", f"on: the shell opens on Ashley ({s})")
+        check(game.read(hud_hide, 1)[0] == 1, "on: the field HUD slides out behind the shell")
         shot("ashley")
         game.press("r1", vsyncs=3, settle=10)
         check(shell()["tab"] == "equipment", "R1: Equipment")
         game.press("l1", vsyncs=3, settle=10)
         check(shell()["tab"] == "ashley", "L1: Ashley")
 
-        # Ashley > Status = the original Status (command 4 -> currentMenu 5 | 0x40)
-        game.press("circle", vsyncs=3, settle=120)
-        check(current_menu() == (5 | 0x40), f"Circle opens the original Status ({current_menu():#x})")
+        # Square on Ashley = the original Status (command 4 -> currentMenu 5 | 0x40)
+        game.press("square", vsyncs=3, settle=120)
+        check(current_menu() == (5 | 0x40), f"Square opens the original Status ({current_menu():#x})")
         check(not shell()["visible"], "the shell hides while Status shows")
         shot("status")
         game.press("cross", vsyncs=3, settle=120)
@@ -126,7 +128,7 @@ def main():
         check(shell()["menus"] == "original", "Circle on Menus: original from the next open")
         # the rest of this session keeps the shell: R1 wraps to Ashley, Status, back
         game.press("r1", vsyncs=3, settle=10)
-        game.press("circle", vsyncs=3, settle=120)
+        game.press("square", vsyncs=3, settle=120)
         check(current_menu() == (5 | 0x40), f"after Menus: Status opens ({current_menu():#x})")
         game.press("cross", vsyncs=3, settle=120)
         s = shell()
@@ -137,6 +139,7 @@ def main():
         game.press("triangle", vsyncs=3, settle=90)
         check(current_menu() == CLOSED, "Triangle closes the menu")
         check(not shell()["visible"], "the shell is hidden after closing")
+        check(game.read(hud_hide, 1)[0] == 0, "the field HUD is back after closing")
         shot("closed")
         # the next open is the game's own menu
         game.press("triangle", vsyncs=3, settle=40)

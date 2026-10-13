@@ -1,14 +1,14 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
 // Volumetric haze, step 2: integrate each screen cell's column of froxels
-// front to back through the room's medium (medium.glsl: the uniform haze,
-// the ground fog with its drifting noise, the fog volumes; two fixed points
-// per slice, Beer-Lambert between them), storing per slice the light
-// scattered toward the eye and the transmittance up to that slice's far
-// edge. The scattered light is the froxel's in-scattered light (step 1,
-// per unit of scattering) times the medium's scattering colour, plus what
-// the medium adds by itself (its fill light, the sky's light). The present
-// pass samples it at each pixel's depth: colour * transmittance + light.
+// front to back, storing per slice the light scattered toward the eye and
+// the transmittance up to that slice's far edge. Each froxel (step 1) holds
+// the medium's average over its cell (light scattered toward the eye per
+// unit length, extinction; jittered samples blended over frames), so a
+// slice is one Beer-Lambert step with them: no fixed sample points, no
+// slicing. The medium's limits (medium.glsl) apply: the least transmittance,
+// the soft cap on the light. The present pass samples it at each pixel's
+// depth: colour * transmittance + light.
 layout(local_size_x = 8, local_size_y = 8) in;
 layout(std140, binding = 0) uniform Integrate {
     ivec4 grid; // GX, GY, GZ
@@ -17,7 +17,7 @@ layout(std140, binding = 0) uniform Integrate {
     vec4 inverse_rotation[3];
     vec4 camera_translation;
     vec4 room_lo, room_hi;
-    vec4 medium_[88]; // the room's medium (medium.glsl, atmosphere.h)
+    vec4 medium_[250]; // the room's medium (medium.glsl, atmosphere.h)
 } u;
 #define MEDIUM(i) u.medium_[i]
 #include "medium.glsl"
@@ -34,27 +34,26 @@ void main() {
     // not orthonormal).
     float stretch = length(inv * view_dir);
     vec3 eye = -(inv * u.camera_translation.xyz), dir = normalize(inv * view_dir);
-    // Where along the ray the medium can be (the rest is skipped).
-    float far_ = slice_z(float(u.grid.z)) * stretch;
-    vec2 span = medium_span(eye, dir, far_);
     vec3 light = vec3(0.0);
     float transmittance = 1.0, z0 = 0.0;
     for (int k = 0; k < u.grid.z; k++) {
         float z1 = slice_z(float(k + 1));
-        float a = max(z0 * stretch, span.x), b = min(z1 * stretch, span.y); // the slice's part of the span
-        if (b > a) {
-            vec3 l = imageLoad(scatter, ivec2(g.x + k * u.grid.x, g.y)).rgb;
-            float half_ = (b - a) * 0.5;
-            for (int j = 0; j < 2; j++) {
-                vec3 scatter_, emit;
-                float extinction = medium_at(eye + dir * (a + half_ * (float(j) + 0.5)), scatter_, emit);
-                if (extinction <= 0.0) continue;
-                float step_ = exp(-extinction * half_);
-                light += transmittance * (scatter_ * l + emit) * ((1.0 - step_) / extinction);
-                transmittance *= step_;
+        // A 3 x 3 tent over the slice's neighbouring cells: what the jittered
+        // samples leave of the cell grid blurs away (a few display pixels).
+        vec4 f = vec4(0.0);
+        for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++) {
+                ivec2 c = clamp(g + ivec2(dx, dy), ivec2(0), u.grid.xy - 1);
+                vec4 t = imageLoad(scatter, ivec2(c.x + k * u.grid.x, c.y));
+                f += (any(isnan(t)) ? vec4(0.0, 0.0, 0.0, 1.0) : t) * float((2 - abs(dx)) * (2 - abs(dy))) * (1.0 / 16.0);
             }
+        float extinction = max(f.a - 1.0, 0.0) * 0.001, len = (z1 - z0) * stretch;
+        if (extinction > 1e-9 && !any(isnan(f))) {
+            float step_ = medium_step(extinction, len, transmittance);
+            light += transmittance * max(f.rgb, vec3(0.0)) * 0.001 * ((1.0 - step_) / extinction);
+            transmittance *= step_;
         }
-        imageStore(integrated, ivec2(g.x + k * u.grid.x, g.y), vec4(light, transmittance));
+        imageStore(integrated, ivec2(g.x + k * u.grid.x, g.y), vec4(medium_limit_light(light), transmittance));
         z0 = z1;
     }
 }

@@ -5,5 +5,5 @@ actor gen.t017.fcf779221d name="wall_torch T017" prefab=torch pos=2140,-548,1408
 env sky zenith=0.066,0.088,0.172 horizon=0.161,0.176,0.247 ground=0.028,0.029,0.038 sun_tint=0.25 ambient=0.6
 env sun azimuth=279 elevation=35 color=0.52,0.637,1.021 intensity=0.7 angle=2
 glow room:b64532d@2136,-427,1760 pos=2136,-426.7,1760 fixture_type=T082
-set haze_anisotropy value=0.55
-set haze_density value=0.0003
+set haze_anisotropy value=0.35
+set haze_density value=0.0001

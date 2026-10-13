@@ -465,6 +465,12 @@ decompilation.
   [Input Prompts](https://kenney.nl/assets/input-prompts) icons (CC0) that the
   button prompts draw for keyboards and PlayStation, Xbox and Nintendo
   controllers ([`pc/README.md`](pc/README.md#button-prompts)).
+- **[Andrew Kuhar](https://andrewkuhar.com)** designed the
+  [Vagrant Story UI Remaster](https://andrewkuhar.com/blog/the-phantom-pain/)
+  ([Figma prototype](https://www.figma.com/proto/roPMrnFqsqd8lths3rJG6n/The-Phantom-Pain?node-id=429-804&starting-point-node-id=429%3A804)),
+  the inspiration for the optional modern menus and HUD
+  ([`pc/docs/Modern_Menus.md`](pc/docs/Modern_Menus.md)). Our layouts are our
+  own implementation; no assets from the prototype are used.
 - Thanks also to every other rood-reverse contributor, and to the projects and
   people credited in the upstream section below.
 

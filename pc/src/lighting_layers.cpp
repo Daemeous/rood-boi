@@ -49,7 +49,7 @@ const std::vector<KindSpec>& kinds()
                 { "sun_tint", 3, "0", false }, { "ambient", 3, "0.5", false },
                 /* The ground fog ("env fog"): atmosphere.cpp. */
                 { "density", 5, "0.003", false }, { "height", 1, "48", false }, { "offset", 1, "0", false },
-                { "noise", 2, "0.6", false }, { "scale", 1, "160", false }, { "wind", 1, "12,0,4", false },
+                { "noise", 2, "0.6", false }, { "scale", 1, "160", false }, { "wind", 1, "4,0,1.5", false },
                 { "fill", 3, "0,0,0", false }, { "sky", 3, "1", false } },
             false, 4 },
         /* Fog volumes ("fog <id>"): atmosphere.cpp. */
@@ -57,7 +57,9 @@ const std::vector<KindSpec>& kinds()
             { { "name", -1, nullptr, false }, { "shape", -1, "box", false }, { "pos", 1, nullptr, false },
                 { "size", 1, "256,128,256", false }, { "yaw", 2, "0", false }, { "density", 5, "0.004", false },
                 { "edge", 2, "0.5", false }, { "color", 3, "1,1,1", false }, { "fill", 3, "0,0,0", false },
-                { "noise", 2, "0.5", false }, { "enabled", 0, "1", false } },
+                { "noise", 2, "0.5", false }, { "enabled", 0, "1", false },
+                /* the interactive fog (fog_sim.h, prototype) */
+                { "sim", 0, "0", false }, { "sim_strength", 2, "1", false }, { "sim_recover", 2, "3", false } },
             false, 4 },
         { "glow",
             { { "pos", 1, nullptr, true }, { "muted", 0, "0", false }, { "intensity", 3, "1", false },

@@ -362,6 +362,7 @@ extern int pc_qol_weapon_slots; /* project_settings.cpp */
 extern void pc_weapon_slots_json(char* out, unsigned size) __attribute__((weak)); /* weapon_slots.c */
 extern int pc_ui_menus; /* project_settings.cpp */
 extern void pc_ui_shell_json(char* out, unsigned size); /* ui/ui_shell.cpp */
+extern void pc_ui_draw_pointer(float x, float y, int click, int right, float wheel, int down); /* ui/ui_draw.cpp */
 extern int pc_ui_menu_active(void) __attribute__((weak)); /* ui/menu_bridge.c (battle builds) */
 extern int pc_native_room __attribute__((weak)), pc_native_occlusion __attribute__((weak)),
     pc_native_actors __attribute__((weak)), pc_native_actor_order __attribute__((weak)),
@@ -820,6 +821,26 @@ static void handle_method(int fd, const char* request)
         }
         if (params && bool_value(member(params, "modern"), &flag))
             pc_ui_menus = flag;
+        /* {model_heap_extra: bytes}: the Ashley model's heap check asks for
+         * this much more (a huge value plays a full heap; ashley_bridge.c) */
+        extern int pc_ui_ashley_heap_extra __attribute__((weak));
+        if (params && number_value(member(params, "model_heap_extra"), &n) && &pc_ui_ashley_heap_extra)
+            pc_ui_ashley_heap_extra = n < 0 ? 0 : n > 0x7FFFFFF ? 0x7FFFFFF : (int)n;
+        /* {pointer: {x, y, click, right, wheel, down}}: the next drawn frame's
+         * pointer in layout units (hit tests as a moved mouse; down: the left
+         * button held, drags; ui_draw.cpp) */
+        const char* pointer = params ? member(params, "pointer") : NULL;
+        if (pointer) {
+            double x = -1, y = -1, wheel = 0;
+            int click = 0, right = 0, down = 0;
+            real_value(member(pointer, "x"), &x);
+            real_value(member(pointer, "y"), &y);
+            real_value(member(pointer, "wheel"), &wheel);
+            bool_value(member(pointer, "click"), &click);
+            bool_value(member(pointer, "right"), &right);
+            bool_value(member(pointer, "down"), &down);
+            pc_ui_draw_pointer((float)x, (float)y, click, right, (float)wheel, down);
+        }
         pc_ui_shell_json(result, sizeof result);
         reply(fd, id, result);
     } else if (!strcmp(method, "release")) {
@@ -1386,6 +1407,43 @@ static void handle_method(int fd, const char* request)
             fail(fd, id, -32602, "button_prompts: auto, playstation, xbox, nintendo, keyboard or original");
             return;
         }
+        /* {style: solid | outline | color_solid | color_outline, scale: 0.4-1}. */
+        if (params && string_value(member(params, "style"), text, sizeof text)) {
+            int found = -1;
+            for (int k = 0; k < PC_PROMPTS_STYLES; k++)
+                if (!strcmp(text, pc_button_prompts_style_names[k]))
+                    found = k;
+            if (found < 0) {
+                fail(fd, id, -32602, "style: solid, outline, color_solid or color_outline");
+                return;
+            }
+            pc_button_prompts_style = found;
+        }
+        /* {dpad: cross | dim | lit} (the shortcut cross's D-pad);
+         * {cross_actions: 0-15} stands in for the arms with a usable action
+         * (bits up, left, right, down) whatever the game reports, -1 ends it. */
+        if (params && string_value(member(params, "dpad"), text, sizeof text)) {
+            int found = -1;
+            for (int k = 0; k < PC_PROMPTS_DPADS; k++)
+                if (!strcmp(text, pc_button_prompts_dpad_names[k]))
+                    found = k;
+            if (found < 0) {
+                fail(fd, id, -32602, "dpad: cross, dim or lit");
+                return;
+            }
+            pc_button_prompts_dpad = found;
+        }
+        long long actions;
+        if (params && number_value(member(params, "cross_actions"), &actions))
+            pc_button_prompts_cross_override((int)actions);
+        double prompt_scale;
+        if (params && real_value(member(params, "scale"), &prompt_scale)) {
+            if (prompt_scale < 0.4 || prompt_scale > 1.0) {
+                fail(fd, id, -32602, "scale: 0.4-1");
+                return;
+            }
+            pc_button_prompts_scale = (float)prompt_scale;
+        }
         if (params && string_value(member(params, "device"), text, sizeof text)) {
             long long variant = 0;
             number_value(member(params, "variant"), &variant);
@@ -1436,6 +1494,30 @@ static void handle_method(int fd, const char* request)
                 "\"generation\":%u,\"device\":%d}}",
                 button, g.texture ? "true" : "false", g.w, g.h, g.uv0[0], g.uv0[1], g.uv1[0], g.uv1[1],
                 pc_button_prompts_generation(), pc_button_prompts_family());
+        }
+        /* {mask: [u0, v0, u1, v1, factor, scale]}: which texels the icon of
+         * that region of the field UI page (768, 0; CLUT 944, 223) has at that
+         * atlas factor and internal scale, as rows of 0/1 (tests). */
+        const char* mask_param = params ? member(params, "mask") : NULL;
+        int m[6];
+        if (mask_param
+            && sscanf(mask_param, " [ %d , %d , %d , %d , %d , %d ]", &m[0], &m[1], &m[2], &m[3], &m[4], &m[5]) == 6) {
+            extern const uint16_t* pc_hw_native_vram(void);
+            static unsigned char bits[256 * 256];
+            int n = pc_hw_native_vram()
+                      ? pc_button_prompts_mask(pc_hw_native_vram(), 12, 223u << 6 | 944 / 16, m[0], m[1], m[2], m[3], m[4],
+                            m[5], bits)
+                      : 0;
+            int w = n ? (m[2] - m[0] + 1) * m[4] : 0, h = w ? n / w : 0;
+            used = (int)strlen(result) - 1;
+            used += snprintf(result + used, sizeof result - used, ",\"mask\":{\"w\":%d,\"h\":%d,\"rows\":[", w, h);
+            for (int y = 0; y < h && used < (int)sizeof result - w - 16; y++) {
+                result[used++] = y ? ',' : ' ', result[used++] = '"';
+                for (int x = 0; x < w; x++)
+                    result[used++] = bits[y * w + x] ? '1' : '0';
+                result[used++] = '"';
+            }
+            snprintf(result + used, sizeof result - used, "]}}");
         }
         reply(fd, id, result);
     } else if (!strcmp(method, "ui_upscale")) {

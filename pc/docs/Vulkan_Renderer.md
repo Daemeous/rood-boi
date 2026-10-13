@@ -502,24 +502,61 @@ NRD, the filters and the haze are unchanged (same images, same counts).
 ### Haze, ground fog and sun shafts (`atmosphere.cpp`, `medium.glsl`)
 
 The air of a room is one participating medium, packed per frame by
-`pc_medium_gpu_get` (`atmosphere.h`: 88 vec4s; `medium.glsl` reads them
+`pc_medium_gpu_get` (`atmosphere.h`: 250 vec4s, the last 87 the interactive fog prototype's field; `medium.glsl` reads them
 through the includer's `MEDIUM(i)`; appended to the haze's and the
 integrate pass's UBOs and the present UBO, uniforms `medium_` on OpenGL):
 
 - the **haze**: uniform inside the room's bounds (room setting
   `haze_density`; the lighting quality picks the traced or the Low density);
-- the **ground fog** (`env fog`): `density x exp(-max(base y - y, 0) /
-  height)` (y down), its base `offset` units above the room's main floor
-  (`scene_capture.c` `pc_scene_floor`: the 8-unit height bin with the most
-  level-face area), times drifting **wisps**: two octaves of value noise
-  carried by the wind at different speeds (so they change shape as they
-  move), squashed vertically into sheets, mean 1, `noise` its amount;
+- the **ground fog** (`env fog`): `density x exp(-(base y - y) / height)`
+  above its base (y down), its base `offset` units above **the floor under
+  the point** (`scene_capture.c` `pc_scene_floor_grid`: a 24 x 24 top-down
+  grid over the room's bounds, per cell the lowest up-facing level face,
+  each cell the lowest of its 3 x 3, empty cells grown from their
+  neighbours; packed two 12-bit heights per float, bilinear in
+  `medium_floor`), and under its base fading within one more scale height
+  (no column holds an unbounded depth of it), times drifting **wisps**:
+  three octaves of gradient (Perlin) noise with a quintic fade and an
+  integer hash, the coordinates domain-warped by one more slow octave
+  (curling wisps, not round blobs), squashed vertically into sheets, mean
+  1, `noise` its amount; the field drifts with the wind in world units per
+  *game* second (`atmosphere.cpp` `medium_time`: vsyncs / 59.94, so it
+  stops with the game, follows fast-forward and never depends on the
+  presented frame rate; default wind 4,0,1.5, the moods 1-3 units/s), the
+  finer octaves a little faster, the warp evolving slowly (2026-10-13
+  playtest: the old two octaves of value noise read as blotches with a
+  visible lattice, and drifted at 6-12 units/s of wall-clock time);
 - up to 16 **fog volumes** (`fog <id>`): boxes (turned about y) or
   ellipsoids, a smoothstep edge over `edge` of their half size, their own
   wisps;
 - per point: extinction, a scattering colour (density x albedo) and an
   emission (each part's `fill` light, and where nothing traces the sky its
-  mean radiance x `sky` x 0.5 for the cover it does not see).
+  mean radiance x `sky` x 0.5 for the cover it does not see);
+- **limits** (record vec4 88; room settings, `atmosphere.h`), applied by
+  every integrator (froxel integrate, both `low_haze`, ptgi.c's march, the
+  GL present's transmittance): the ray's transmittance never falls below
+  1 - `haze_max_opacity` (`medium_step` ends the step where it reaches it,
+  so the light stays consistent with it), the light scattered toward the
+  eye passes a soft knee at `haze_max_light` (`medium_limit_light`, luminance),
+  the phase function peaks at `haze_max_forward` (`medium_phase`), and the
+  sun's in-scattering in shadowed air keeps 1 - `haze_shafts` of it
+  (`medium_sun_visibility`: the shafts' contrast).
+
+Why (2026-10-13 playtest: Rue Vermillion, 32/0, whole views uniform
+blue-grey or near-white at some camera angles): the room's main floor was
+its roofs (y -1400; the street is near 0, bounds -2528..0), and the fog had
+its full density everywhere under its base, so a view along the street
+crossed ~1000 units of it (optical depth ~2: 13 % of the scene left), lit by
+the moon through forward scattering (g 0.55: phase 7.7). The floor grid puts
+the fog on the street; the limits make any future mistake survivable.
+`pc/tools/atmosphere_sweep.py` (every room with a haze or a ground fog; the
+game camera, the free camera orbiting Ashley at 8 yaws, alternately looking
+down and level, and toward the moon; detail = Weber contrast of the
+gradients with / without the atmosphere >= 0.5, veil = share of pixels
+where the atmosphere's light is over 40/255 and brighter than the scene <=
+0.3) fails the old medium (`--legacy`: limits off, `floor_grid` 0) in
+Rue Vermillion at 6 of 10 poses (detail 0.08-0.35, veil up to 0.99) and
+passes the new one; the `atmosphere_sweep` suite runs four rooms.
 
 Traced (haze High; Vulkan ray queries, or OpenGL compute in `ptgi.c`):
 
@@ -535,16 +572,28 @@ Traced (haze High; Vulkan ray queries, or OpenGL compute in `ptgi.c`):
   where the medium cannot be (`medium_maybe`, its noise at its peak) skip
   everything. History: the reprojected previous volume; it restarts when
   the medium's items or the sun change (`pc_medium_hash`, `pc_env_hash`).
-- `rt_haze_integrate.comp` walks each column through the part of the ray
-  the medium can be in (`medium_span`: the room's bounds and the volumes'),
-  two fixed points per slice: `T x (scatter x froxel light + emission) x
-  (1 - e^(-ext d)) / ext`, transmittance `e^(-ext d)`. The present samples
-  it at each pixel's depth (bilinear in the cell, linear between slices):
+- The froxel stores the medium's own contribution, not just the light:
+  rgb = scattering x the light arriving + emission per unit length, a =
+  extinction (both x 1000 for half floats; a + 1 marks valid history),
+  evaluated at the froxel's jittered point and blended over frames with the
+  reprojected history, so each froxel converges to the medium's **average
+  over its cell**.
+- `rt_haze_integrate.comp` walks each column front to back, one
+  Beer-Lambert step per slice with that average (a 3 x 3 tent over the
+  neighbouring cells first): `T x L x (1 - e^(-ext d)) / ext`,
+  transmittance `e^(-ext d)`, the limits applied. The present samples it at
+  each pixel's depth (bilinear in the cell, linear between slices):
   depth-aware by construction, and the PS1 texels are never filtered.
+  (Until 2026-10-13 it sampled the medium at two fixed points per slice: a
+  fog layer or a volume's edge thinner than a slice, 9 % of the depth with
+  64 log slices, came out as visible slices and steps.)
 - OpenGL (`ptgi.c` `haze()`): the same per march step (`fog_steps`, 4) at GI
   resolution with the sun's and the sky's rays, the result in the GI extra
-  image's gba (temporal filter as before); the present applies the
-  transmittance from 12 fixed steps of the same medium.
+  image's gba (temporal filter as before; the a-trous filter blurs the haze
+  across polygons whatever their normals, only not across big jumps in
+  distance: with the GI's normal weights it showed one shade per polygon);
+  the present applies the transmittance from 16 steps of the same medium,
+  offset per pixel by interleaved gradient noise (fixed steps left slices).
 
 Low (Medium preset; Vulkan without ray queries; nothing traced this frame):
 `low_haze` in `scaled.frag` / `gl_present.c`, 8 IGN-jittered steps of the
@@ -553,8 +602,8 @@ medium per pixel, every light unshadowed, the sun through its shadow map
 
 Debug: RPC `graphics {haze_debug: 1}` (editor: "Show the haze alone") draws
 the haze's light alone over black; `environment {fog_time}` stops the drift
-(tests). `pc/tests/atmosphere_smoke.py`: fog light follows its height (a base
-400 units down leaves 0.0 of 24.7), volumes light only their bounds, save
+(tests). `pc/tests/atmosphere_smoke.py`: fog light follows its height (a layer
+3 units tall leaves under 40 % of a 32-unit one), volumes light only their bounds, save
 and reload, the forest's generated fog, the moon's shafts (haze light with
 the moon's shadows vs without: 10th percentile ratio 0.72 Vulkan, 0.74 OpenGL; 90th
 1.04 and 1.00), steady frames (mean change 0.59 (Vulkan, cell 2) and 0.06 of 255 between consecutive

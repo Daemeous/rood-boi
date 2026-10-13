@@ -19,5 +19,5 @@ glow room:a4dee9e@516,-394,800 pos=516.1,-393.8,800 fixture_type=T051
 glow room:ba498ac@1176,-961,-808 pos=1176,-961,-808 fixture_type=T239
 glow room:c4ea02c@872,-961,-808 pos=872,-961,-808 fixture_type=T239
 glow room:d6fd1ac@704,-962,-928 pos=704,-961.6,-928 fixture_type=T058
-set haze_anisotropy value=0.55
-set haze_density value=0.0003
+set haze_anisotropy value=0.35
+set haze_density value=0.0001

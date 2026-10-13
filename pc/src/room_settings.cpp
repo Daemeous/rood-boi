@@ -22,7 +22,7 @@
 extern "C" {
 extern float pc_gi_strength, pc_emitter_light, pc_emitter_radius, pc_contact_radius, pc_baked_ambient,
     pc_lights_baked, pc_lights_master, pc_light_size, pc_gi_baked_bounce, pc_fog_density, pc_fog_anisotropy,
-    pc_fog_glow, pc_glow_category[3][5];
+    pc_fog_glow, pc_glow_category[3][5], pc_haze_max_opacity, pc_haze_max_light, pc_haze_shafts, pc_haze_max_forward;
 }
 
 namespace {
@@ -51,6 +51,12 @@ Setting settings[] = {
     { "haze_density", "Haze density", "Atmosphere", &pc_fog_density, 0, 0.004f, "%.5f", true },
     { "haze_anisotropy", "Forward scattering", "Atmosphere", &pc_fog_anisotropy, -0.5f, 0.9f, "%.2f", false },
     { "haze_glow", "Glows in the haze", "Atmosphere", &pc_fog_glow, 0, 4, "%.2f", false },
+    /* The limits (atmosphere.h): the haze, fog and volumes never hide more
+     * of the scene than this, never scatter more light toward the eye. */
+    { "haze_max_opacity", "Most it hides (opacity)", "Atmosphere", &pc_haze_max_opacity, 0, 1, "%.2f", false },
+    { "haze_max_light", "Most light it adds", "Atmosphere", &pc_haze_max_light, 0, 1, "%.3f", false },
+    { "haze_shafts", "Sun shafts' contrast", "Atmosphere", &pc_haze_shafts, 0, 1, "%.2f", false },
+    { "haze_max_forward", "Glow toward the moon (peak)", "Atmosphere", &pc_haze_max_forward, 0, 8, "%.2f", false },
     /* The game's glows by category (glows.c): fixtures (candles, torches,
      * lanterns, room flames), magic (the save point), transient effects
      * (attacks, spells, sparks; never shadowed). "toggle": a checkbox;

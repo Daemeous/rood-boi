@@ -42,7 +42,7 @@ layout(std140, binding = 0) uniform Present {
     vec4 env_sun_tile;
     // The room's medium for the unshadowed haze (haze Low; quality0.x 1):
     // the uniform haze, the ground fog, the fog volumes (medium.glsl).
-    vec4 medium_[88];
+    vec4 medium_[250];
 } u;
 #define MEDIUM(i) u.medium_[i]
 #include "medium.glsl"
@@ -269,12 +269,12 @@ vec3 low_haze(vec3 c, vec3 world) {
         }
         if (env_sun_on())
             here += env_sun_col.rgb * medium_phase(dot(dir, env_sun_dir.xyz), g)
-                  * (u.env_mode.x == 0 ? env_sun_map_point(x, fract(jitter + float(k) * 0.618034)) : 1.0);
-        float a = exp(-extinction * step_);
+                  * (u.env_mode.x == 0 ? medium_sun_visibility(env_sun_map_point(x, fract(jitter + float(k) * 0.618034))) : 1.0);
+        float a = medium_step(extinction, step_, transmittance);
         sum += transmittance * (scatter * here + emit) * ((1.0 - a) / extinction);
         transmittance *= a;
     }
-    return c * transmittance + sum;
+    return c * transmittance + medium_limit_light(sum);
 }
 vec3 world_at(ivec2 q, float z) {
     vec2 s = (vec2(q) + 0.5) / float(scale) - vec2(rect.xy) - screen_offset;

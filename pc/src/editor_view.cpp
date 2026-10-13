@@ -31,6 +31,7 @@ static inline int pc_vk_on(void) { return 0; }
 #include "dev_state.h"
 #include "room_editor.h"
 #include "lighting_quality.h"
+#include "ui/ui_shell.h" /* pc_ui_shell_wants_mouse */
 
 extern "C" {
 void render_cutaway(int on, const float focus[3], float amount) __attribute__((weak));
@@ -872,7 +873,7 @@ extern "C" void pc_editor_input(void)
     ImGuiIO& io = ImGui::GetIO();
     float f[3], r[3], u[3];
     basis(f, r, u);
-    bool over_ui = io.WantCaptureMouse;
+    bool over_ui = io.WantCaptureMouse || pc_ui_shell_wants_mouse(); /* or the modern menus over the game picture */
     /* Radians per pixel: the same hand movement turns as far on any screen. */
     float turn = look_sensitivity * 3.14159265f / 180.0f * 1080.0f / (io.DisplaySize.y > 1 ? io.DisplaySize.y : 1080.0f);
     float dt = io.DeltaTime > 0 ? io.DeltaTime : 1.0f / 60;

@@ -106,6 +106,7 @@ static const pc_ui_label labels[] = {
     { "ARTS", 448, 256, 73, 113, 100, 121, 0xd957fe1du },
     { "CHAIN", 448, 256, 104, 113, 135, 121, 0x6617b28fu },
     { "DEFENSE", 448, 256, 152, 113, 195, 121, 0xe0e2ee88u },
+    { "\xe2\x80\xa2", 448, 256, 193, 129, 196, 132, 0xe08a52fdu },
 };
 #define LABEL_COUNT ((int)(sizeof labels / sizeof labels[0]))
 

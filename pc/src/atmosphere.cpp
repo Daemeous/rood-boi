@@ -19,6 +19,7 @@
 #include "editor_undo.h"
 #include "environment.h"
 #include "environment_internal.h"
+#include "fog_sim.h"
 #include "lighting_layers.h"
 #include "lighting_quality.h"
 #include "lights_internal.h"
@@ -26,16 +27,32 @@
 
 extern "C" {
 extern int pc_lights_enabled;
+unsigned pc_vsync_count(void) __attribute__((weak)); /* game time */
 extern float pc_fog_anisotropy, pc_fog_density;
 int pc_room_settings_parse(const char* line);
 void pc_lights_mark_dirty(void);
 }
 
-int pc_fog_global = 0; /* off by default until the town washout is fixed (settings key fog 1) */
+int pc_fog_global = 1; /* settings key fog: 0 switches every room's ground fog and volumes off */
+/* The atmosphere's limits (atmosphere.h; room settings, so an area's mood
+ * may change them). */
+extern "C" {
+float pc_haze_max_opacity = 0.55f, pc_haze_max_light = 0.15f, pc_haze_shafts = 0.5f;
+/* Forward scattering's peak (Henyey-Greenstein x 4 pi: g 0.55 would reach 7.7
+ * looking toward the moon; 0: no limit). */
+float pc_haze_max_forward = 3.0f;
+}
+/* RPC environment {floor_grid}: 0 lays the ground fog on the room's main
+ * floor alone, as before the floor grid (comparisons, tests). */
+int pc_fog_floor_grid = 1;
+/* RPC environment {sim_field}: the next reply lists the interactive fog's field. */
+static bool sim_field_reply;
 int pc_haze_cell = 4;
 int pc_haze_debug;
 float pc_fog_time = -1; /* RPC environment {fog_time}: fixed seconds (-1: live) */
 
+static_assert(PC_FOG_SIM_GRID * PC_FOG_SIM_GRID == PC_FOG_SIM_CELLS, "atmosphere.h: the field's size");
+static_assert(PC_MEDIUM_VEC4S == 250, "the shaders' medium_[] arrays");
 namespace {
 const float DEG = 3.14159265f / 180.0f;
 
@@ -47,7 +64,7 @@ struct Fog {
     float offset = 0; /* its base above the room's floor */
     float noise = 0.6f; /* 0..1: how much the drifting noise thins and thickens it */
     float scale = 160; /* the noise's feature size */
-    float wind[3] = { 12, 0, 4 }; /* drift, units per second */
+    float wind[3] = { 4, 0, 1.5f }; /* drift, world units per game second (slow: mist creeps) */
     float color[3] = { 1, 1, 1 }; /* albedo: the colour it scatters */
     float fill[3] = { 0, 0, 0 }; /* light it scatters from everywhere (radiance) */
     float sky = 1; /* how much of the sky's light the haze and fog scatter */
@@ -63,6 +80,9 @@ struct Volume {
     float color[3] = { 1, 1, 1 };
     float fill[3] = { 0, 0, 0 };
     float noise = 0.5f;
+    /* The interactive fog (fog_sim.h, prototype): the characters part it. */
+    bool sim = false;
+    float sim_strength = 1, sim_recover = 3;
 };
 Fog fog;
 std::vector<Volume> volumes;
@@ -96,6 +116,10 @@ double now_seconds()
     clock_gettime(CLOCK_MONOTONIC, &t);
     return t.tv_sec + t.tv_nsec * 1e-9;
 }
+/* Game seconds: vsyncs at 59.94 Hz (the fog stops when the game pauses,
+ * follows fast-forward and never depends on the presented frame rate);
+ * the wall clock without the game's counter. */
+double game_seconds() { return pc_vsync_count ? pc_vsync_count() / 59.94 : now_seconds(); }
 /* Seconds the fog has drifted in this room (small numbers: the noise keeps
  * its precision), or the fixed time. */
 float medium_time()
@@ -104,9 +128,9 @@ float medium_time()
         return pc_fog_time;
     if (time_zone != rood_lights::zone || time_room != rood_lights::room) {
         time_zone = rood_lights::zone, time_room = rood_lights::room;
-        time_origin = now_seconds();
+        time_origin = game_seconds();
     }
-    return (float)fmod(now_seconds() - time_origin, 4096.0);
+    return (float)fmod(game_seconds() - time_origin, 4096.0);
 }
 bool fog_on() { return fog.defined && fog.enabled && fog.density > 0; }
 int volumes_on()
@@ -160,6 +184,9 @@ bool apply_item(const lighting::Item& it)
         get3(it, "color", v.color);
         get3(it, "fill", v.fill);
         v.noise = get1(it, "noise");
+        v.sim = get1(it, "sim") != 0;
+        v.sim_strength = get1(it, "sim_strength");
+        v.sim_recover = get1(it, "sim_recover");
         for (Volume& o : volumes)
             if (o.id == v.id) {
                 o = v;
@@ -206,6 +233,9 @@ void add_items(lighting::State& s)
         it.set("fill", vec3(v.fill, 3));
         it.set("noise", num(v.noise, 2));
         it.set("enabled", v.enabled ? "1" : "0");
+        it.set("sim", v.sim ? "1" : "0");
+        it.set("sim_strength", num(v.sim_strength, 2));
+        it.set("sim_recover", num(v.sim_recover, 2));
         lighting::canonicalize(it);
         s[it.id()] = it;
     }
@@ -236,12 +266,29 @@ extern "C" int pc_medium_gpu_get(pc_medium_gpu* out, float haze_density, const f
         m[6][k] = room_lo[k] - 1, m[7][k] = room_hi[k] + 1;
     float sky = fog.defined ? fmaxf(fog.sky, 0.0f) : 1.0f;
     if (fogs && fog_on()) {
-        float floor_y;
-        if (!pc_scene_floor(&floor_y))
-            floor_y = room_hi[1];
+        /* The floor under each point (the grid), else the room's main floor. */
+        static float heights[PC_SCENE_FLOOR_GRID * PC_SCENE_FLOOR_GRID];
+        float corner[2], cell[2], floor_y;
+        if (pc_fog_floor_grid && pc_scene_floor_grid(heights, corner, cell)) {
+            float* g = m[PC_MEDIUM_FLOOR];
+            float* q = m[PC_MEDIUM_FLOOR + 1];
+            float lo = room_lo[1], span = fmaxf(room_hi[1] - room_lo[1], 1.0f);
+            g[0] = corner[0], g[1] = corner[1], g[2] = 1.0f / cell[0], g[3] = 1.0f / cell[1];
+            q[0] = lo, q[1] = span / 4095.0f, q[2] = PC_MEDIUM_FLOOR_GRID, q[3] = 1;
+            float* data = m[PC_MEDIUM_FLOOR_DATA];
+            for (int k = 0; k < PC_SCENE_FLOOR_GRID * PC_SCENE_FLOOR_GRID; k += 2) {
+                int a = (int)lroundf((heights[k] - lo) / span * 4095.0f), b = (int)lroundf((heights[k + 1] - lo) / span * 4095.0f);
+                a = a < 0 ? 0 : a > 4095 ? 4095 : a, b = b < 0 ? 0 : b > 4095 ? 4095 : b;
+                data[k / 2] = (float)(a * 4096 + b); /* exact: below 2^24 */
+            }
+            m[1][2] = fog.offset; /* the grid's floor minus it (medium.glsl medium_fog_base) */
+        } else {
+            if (!pc_scene_floor(&floor_y))
+                floor_y = room_hi[1];
+            m[1][2] = floor_y - fog.offset; /* y down: up is smaller y */
+        }
         m[1][0] = fog.density;
         m[1][1] = fmaxf(fog.height, 1.0f);
-        m[1][2] = floor_y - fog.offset; /* y down: up is smaller y */
         m[1][3] = fminf(fmaxf(fog.noise, 0.0f), 1.0f);
         for (int k = 0; k < 3; k++) {
             m[2][k] = fmaxf(fog.color[k], 0.0f);
@@ -255,10 +302,33 @@ extern "C" int pc_medium_gpu_get(pc_medium_gpu* out, float haze_density, const f
         for (int k = 0; k < 3; k++)
             m[4][k] = Fog().wind[k];
     int n = 0;
+    bool simulated = false;
     if (fogs)
         for (const Volume& v : volumes) {
             if (!v.enabled || v.density <= 0 || n >= PC_MEDIUM_VOLUMES)
                 continue;
+            /* The first simulated volume carries the field (prototype: one per room). */
+            if (v.sim && !simulated) {
+                simulated = true;
+                rood_fog_sim::Frame f;
+                for (int k = 0; k < 3; k++)
+                    f.pos[k] = v.pos[k], f.half[k] = fmaxf(v.size[k] * 0.5f, 1.0f),
+                    f.wind[k] = fog_on() ? fog.wind[k] : Fog().wind[k];
+                f.yaw_cos = cosf(v.yaw * DEG), f.yaw_sin = sinf(v.yaw * DEG);
+                f.strength = v.sim_strength, f.recover = v.sim_recover;
+                rood_fog_sim::step(v.id.c_str(), f, pc_vsync_count ? pc_vsync_count() : 0);
+                if (const float* field = rood_fog_sim::field(v.id.c_str())) {
+                    m[n * 5 + 8 + 3][3] = 1; /* this volume samples the field */
+                    m[PC_MEDIUM_SIM][0] = PC_FOG_SIM_GRID;
+                    float* data = m[PC_MEDIUM_SIM_DATA];
+                    for (int k = 0; k < PC_FOG_SIM_GRID * PC_FOG_SIM_GRID; k += 3) {
+                        int q[3] = { 0, 0, 0 };
+                        for (int s = 0; s < 3 && k + s < PC_FOG_SIM_GRID * PC_FOG_SIM_GRID; s++)
+                            q[s] = (int)lroundf(fminf(fmaxf(field[k + s] * 0.5f, 0.0f), 1.0f) * 255.0f);
+                        data[k / 3] = (float)(q[0] * 65536 + q[1] * 256 + q[2]); /* exact: below 2^24 */
+                    }
+                }
+            }
             float(*b)[4] = m + 8 + 5 * n;
             for (int k = 0; k < 3; k++) {
                 b[0][k] = v.pos[k];
@@ -273,6 +343,12 @@ extern "C" int pc_medium_gpu_get(pc_medium_gpu* out, float haze_density, const f
             n++;
         }
     m[0][3] = (float)n;
+    /* The limits: so the atmosphere can never hide the scene or blow it out. */
+    float* lim = m[PC_MEDIUM_LIMITS];
+    lim[0] = 1.0f - fminf(fmaxf(pc_haze_max_opacity, 0.0f), 1.0f);
+    lim[1] = fmaxf(pc_haze_max_light, 0.0f);
+    lim[2] = 1.0f - fminf(fmaxf(pc_haze_shafts, 0.0f), 1.0f);
+    lim[3] = fmaxf(pc_haze_max_forward, 0.0f);
     /* The sky's light in the medium: w its strength (the traced haze samples
      * the sky with occlusion: it sets rgb to 0); rgb where nothing traces it,
      * its mean radiance, about half of it blocked (walls, canopies). */
@@ -422,6 +498,14 @@ bool pc_atmosphere_page(void)
         changed |= ImGui::SliderFloat("Wisps", &v.noise, 0, 1, "%.2f");
         changed |= color_row("Colour", v.color);
         changed |= color_row("Fill light", v.fill);
+        changed |= ImGui::Checkbox("Characters part it (prototype)", &v.sim);
+        tooltip("Interactive fog: Ashley and the enemies clear it around their feet and leave a soft wake\n"
+                "that drifts with the wind and settles back (one volume per room; off by default).");
+        if (v.sim) {
+            changed |= ImGui::SliderFloat("Parting", &v.sim_strength, 0, 2, "%.2f");
+            tooltip("How much a character clears (1: its footprint at a fifth of the fog standing still).");
+            changed |= ImGui::SliderFloat("Settles in", &v.sim_recover, 0.3f, 12, "%.1f s");
+        }
         char name[96];
         snprintf(name, sizeof name, "%s", v.name.c_str());
         if (ImGui::InputText("Name", name, sizeof name)) {
@@ -590,6 +674,9 @@ void read_volume(const prefab::Json& o, Volume& v)
     read_vec(o.get("color"), v.color, 3);
     read_vec(o.get("fill"), v.fill, 3);
     read_num(o, "noise", &v.noise);
+    read_bool(o, "sim", &v.sim);
+    read_num(o, "sim_strength", &v.sim_strength);
+    read_num(o, "sim_recover", &v.sim_recover);
 }
 } // namespace
 
@@ -602,12 +689,20 @@ namespace rood_atmo {
 bool rpc(const prefab::Json& params)
 {
     bool changed = false;
+    sim_field_reply = false;
     if (const prefab::Json* t = params.get("fog_time"))
         pc_fog_time = (float)t->number;
     if (const prefab::Json* g = params.get("fog_global"))
         pc_fog_global = g->type == prefab::Json::Bool ? g->boolean : g->number != 0;
-    if (const prefab::Json* hz = params.get("haze")) { /* the room settings haze_density, haze_anisotropy, haze_glow */
-        for (const char* key : { "density", "anisotropy", "glow" })
+    if (const prefab::Json* f = params.get("sim_field")) /* this reply carries the field's values */
+        sim_field_reply = f->type == prefab::Json::Bool ? f->boolean : f->number != 0;
+    if (const prefab::Json* r = params.get("sim_reset"))
+        if (r->type == prefab::Json::Bool ? r->boolean : r->number != 0)
+            rood_fog_sim::reset();
+    if (const prefab::Json* g = params.get("floor_grid"))
+        pc_fog_floor_grid = g->type == prefab::Json::Bool ? g->boolean : g->number != 0;
+    if (const prefab::Json* hz = params.get("haze")) { /* the room settings haze_density, haze_anisotropy, haze_glow, ... */
+        for (const char* key : { "density", "anisotropy", "glow", "max_opacity", "max_light", "shafts", "max_forward" })
             if (const prefab::Json* j = hz->get(key)) {
                 char line[96];
                 snprintf(line, sizeof line, "set haze_%s %.6f", key, j->number);
@@ -670,13 +765,20 @@ std::string json()
     float floor_y = 0, lo[3], hi[3];
     int has_floor = pc_scene_floor(&floor_y);
     pc_scene_bounds(lo, hi);
+    static float heights[PC_SCENE_FLOOR_GRID * PC_SCENE_FLOOR_GRID];
+    float corner[2], cell[2];
+    std::string grid = "null";
+    if (pc_scene_floor_grid(heights, corner, cell))
+        grid = "{\"n\":" + std::to_string(PC_SCENE_FLOOR_GRID) + ",\"corner\":" + jvec(corner, 2) + ",\"cell\":"
+            + jvec(cell, 2) + ",\"heights\":" + jvec(heights, PC_SCENE_FLOOR_GRID * PC_SCENE_FLOOR_GRID) + "}";
     std::string s = "\"haze\":{\"density\":" + num(pc_fog_density, 6) + ",\"anisotropy\":" + num(pc_fog_anisotropy, 3)
-        + "},\"fog\":{\"defined\":" + jbool(fog.defined) + ",\"enabled\":" + jbool(fog.enabled)
+        + ",\"max_opacity\":" + num(pc_haze_max_opacity, 3) + ",\"max_light\":" + num(pc_haze_max_light, 3)
+        + ",\"shafts\":" + num(pc_haze_shafts, 3) + ",\"max_forward\":" + num(pc_haze_max_forward, 3) + "},\"fog\":{\"defined\":" + jbool(fog.defined) + ",\"enabled\":" + jbool(fog.enabled)
         + ",\"density\":" + num(fog.density, 5) + ",\"height\":" + num(fog.height, 1) + ",\"offset\":"
         + num(fog.offset, 1) + ",\"noise\":" + num(fog.noise, 2) + ",\"scale\":" + num(fog.scale, 1)
         + ",\"wind\":" + jvec(fog.wind, 3) + ",\"color\":" + jvec(fog.color, 3) + ",\"fill\":" + jvec(fog.fill, 3)
         + ",\"sky\":" + num(fog.sky, 3) + ",\"floor\":" + (has_floor ? num(floor_y, 1) : std::string("null"))
-        + "},\"bounds\":[" + jvec(lo, 3) + "," + jvec(hi, 3) + "],\"fog_global\":" + jbool(pc_fog_global)
+        + ",\"floor_grid\":" + grid + "},\"bounds\":[" + jvec(lo, 3) + "," + jvec(hi, 3) + "],\"fog_global\":" + jbool(pc_fog_global)
         + ",\"fog_time\":" + num(pc_fog_time, 3) + ",\"volumes\":[";
     for (size_t i = 0; i < volumes.size(); i++) {
         const Volume& v = volumes[i];
@@ -685,8 +787,25 @@ std::string json()
             + (v.sphere ? "sphere" : "box") + "\",\"pos\":" + jvec(v.pos, 3) + ",\"size\":" + jvec(v.size, 3)
             + ",\"yaw\":" + num(v.yaw, 2) + ",\"density\":" + num(v.density, 5) + ",\"edge\":" + num(v.edge, 2)
             + ",\"color\":" + jvec(v.color, 3) + ",\"fill\":" + jvec(v.fill, 3) + ",\"noise\":" + num(v.noise, 2)
-            + "}";
+            + ",\"sim\":" + jbool(v.sim) + ",\"sim_strength\":" + num(v.sim_strength, 2)
+            + ",\"sim_recover\":" + num(v.sim_recover, 2) + "}";
     }
-    return s + "]";
+    float least, mean, at_player;
+    int actors;
+    rood_fog_sim::stats(&least, &mean, &at_player, &actors);
+    std::string sim_id;
+    for (const Volume& v : volumes)
+        if (v.sim && v.enabled && rood_fog_sim::field(v.id.c_str())) {
+            sim_id = v.id;
+            break;
+        }
+    s += "],\"sim\":";
+    if (sim_id.empty())
+        return s + "null";
+    return s + "{\"id\":" + prefab::json_quote(sim_id) + ",\"n\":" + std::to_string(PC_FOG_SIM_GRID)
+        + ",\"least\":" + num(least, 3) + ",\"mean\":" + num(mean, 3) + ",\"at_player\":" + num(at_player, 3)
+        + ",\"actors\":" + std::to_string(actors)
+        + (sim_field_reply ? ",\"field\":" + jvec(rood_fog_sim::field(sim_id.c_str()), PC_FOG_SIM_GRID * PC_FOG_SIM_GRID) : "")
+        + "}";
 }
 } // namespace rood_atmo

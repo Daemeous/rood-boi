@@ -71,6 +71,13 @@ typedef struct {
 } pc_ui_text_stats;
 void pc_ui_text_get_stats(pc_ui_text_stats* s);
 
+/* A game string (the vsString encoding, 0xE7-terminated, at most max_bytes
+ * read) as UTF-8 into out (always terminated): charset codes, 0x8F space,
+ * 0xFA n spacing and 0xE8 newline as one space (blanks collapsed, none
+ * leading or trailing); other control bytes and pictographs are skipped.
+ * Returns the UTF-8 length. For the modern menus (pc/src/ui). */
+int pc_ui_text_decode(const unsigned char* text, int max_bytes, char* out, int out_size);
+
 /* Icons from any TrueType file (button_prompts.c): the glyph's signed
  * distance field, made at first use and kept (NULL when the font or the
  * glyph is missing: *missing 1). Its box (x0, bottom, x1, top) and

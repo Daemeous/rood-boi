@@ -127,6 +127,13 @@ def suites(args, mode="egl"):
             Suite("atmosphere_smoke", [PY, str(TESTS / "atmosphere_smoke.py"), "--card", str(args.save)], 600,
                   note="haze, ground fog, fog volumes: fog follows height, volumes keep to their bounds, save/load, "
                        "generated forest fog, the moon's shafts in the haze, steady frame to frame"),
+            Suite("atmosphere_sweep", [PY, str(ROOT / "pc/tools/atmosphere_sweep.py"), "--quick", "--card",
+                                       str(args.save)], 600,
+                  note="atmosphere never washes out the view: town, forest, Undercity rooms at several camera "
+                       "angles and toward the moon (full sweep: pc/tools/atmosphere_sweep.py)"),
+            Suite("fog_sim_smoke", [PY, str(TESTS / "fog_sim_smoke.py"), "--card", str(args.save)], 300,
+                  note="interactive fog prototype (sim=1, off by default): Ashley clears her footprint, a wake "
+                       "when walking, settles back"),
             Suite("glow_stability_smoke", [PY, str(TESTS / "glow_stability_smoke.py"), "--card", str(args.save)], 600,
                   note="save point: one steady glow, stable id, overrides persist; prologue fight: effect glows unshadowed, smooth")]
           if args.save.exists() else []),
@@ -152,6 +159,14 @@ def suites(args, mode="egl"):
         *([Suite("ui_menus_smoke", [PY, str(TESTS / "ui_menus_smoke.py"), "--card", str(args.save)], 300,
                  note="modern menus: off = the game's menu; shell tabs, original Status and back, "
                       "System > Menus from the next open, L2 shortcut stays original, greyed Break arts opens, close")]
+          if args.save.exists() else []),
+        *([Suite("ui_equip_smoke", [PY, str(TESTS / "ui_equip_smoke.py"), "--card", str(args.save)], 900,
+                 note="Equipment screen: same RAM as the original equip page (MENU3) for weapon/shield/armor/"
+                      "accessory changes, snapshot, quick swap, mouse, hold on close, bare hands, drawn")]
+          if args.save.exists() else []),
+        *([Suite("ui_ashley_smoke", [PY, str(TESTS / "ui_ashley_smoke.py"), "--card", str(args.save)], 300,
+                 note="Ashley tab: summary = RAM (stats, limbs, effects), live model shown/turned (stick, drag, "
+                      "no auto-turn), tabs/Status/weapon change, world and camera restored, 16:9, soft reset")]
           if args.save.exists() else []),
         Suite("flipped_sprite_smoke", [PY, str(TESTS / "flipped_sprite_smoke.py")], 180,
               note="textured quads (flipped sprites too) sample only their own texels: CPU, hardware 1x and 4x"),

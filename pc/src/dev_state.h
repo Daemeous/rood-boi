@@ -10,6 +10,9 @@ struct pc_dev_state {
     int game_over, intro_state; /* vs_main_stateFlags: Game Over screen up; prologue */
 };
 void pc_dev_state(struct pc_dev_state* out) __attribute__((weak));
+/* The room's characters' positions (world units; Ashley first), at most
+ * `max`; returns how many (battle builds; weak elsewhere). */
+int pc_dev_actor_positions(float (*out)[3], int max) __attribute__((weak));
 #ifdef __cplusplus
 }
 #endif

@@ -7,9 +7,26 @@ choices. Option `ui_menus original|modern` (default `original` until the
 first screens are verified); the original menus stay complete and reachable
 at all times. A modern HUD follows the menus (same layer, separate option).
 
-Status: foundation landed (shell, bridge, theme, drawing, RPC `ui_menu`,
-`ui_menus_smoke`; plan in `pc/docs/plans/2026-10-12-modern-menus-foundation.md`).
-Next: Equipment (plan 2).
+Inspiration: Andrew Kuhar's [Vagrant Story UI Remaster](https://andrewkuhar.com/blog/the-phantom-pain/)
+([Figma prototype](https://www.figma.com/proto/roPMrnFqsqd8lths3rJG6n/The-Phantom-Pain?node-id=429-804&starting-point-node-id=429%3A804)).
+The layouts here are our own implementation; no assets from the prototype are used.
+
+Status: phase 1 (shell, bridge, theme, drawing, RPC `ui_menu`, HUD hidden),
+phase 2 (Equipment: Gear with compare, Quick swap from the bag, mouse;
+equips byte-for-byte equal to the original menu's, `ui_equip_smoke`) and
+phase 3 (Ashley: summary, live model turned by the right stick or a drag,
+Square = the original Status; `ui_ashley_smoke`) landed.
+Plans: `pc/docs/plans/`. Next: phase 4 (System settings).
+
+| Phase | Screens |
+| --- | --- |
+| 1 | Shell, tabs, original screens from rows, HUD hidden |
+| 2 | Equipment: Gear + Quick swap; mouse |
+| 3 | Ashley summary + live model viewport (right stick turns) |
+| 4 | System: settings pages + the game's options |
+| 5 | Abilities (chain/defense mapping, break arts) |
+| 6 | Items and Magick |
+| 7+ | Workshop, Container, Loot, Data, Map frame, Score, Title; then the HUD |
 
 ## Goals
 
@@ -107,7 +124,15 @@ All new code in `pc/src/ui/`. Game-side changes only under `#ifdef ROOD_PC`;
    `D_800F4EA0 & 0x200`, no shortcut); shortcut entries (L2
    magic/arts/items, loot, containers, ability learned, script menus) stay
    original until their screen exists. The Menus choice is latched when the
-   menu opens, so switching applies from the next open.
+   menu opens, so switching applies from the next open. A session that ends
+   without the game's close path is cleaned up: every battle frame
+   (`pc_ui_menu_heartbeat`, from the pad hook in `weapon_slots.c`) closes a
+   shell whose top level was not ticked for 4 frames or whose menu left the
+   top level, and the jumps to the title or a new battle (`boot_sdk.c`, the
+   soft reset) end the session and drop a pending model reload. The model
+   reload's finish runs from the same per-frame hook, not from the menu.
+   Weapon and shield equips wait until `MAINMENU.PRG` is resident (the
+   snapshot says busy for the first few ticks of each open).
 2. **Model** (`ui/model`). A read-only snapshot per frame: Ashley
    (`vs_battle_actor2`: HP/MP/RISK, STR/INT/AGL, limbs, statuses), computed
    equipment (`vs_battle_uiEquipment`/`uiWeapon`/`uiShield`/`uiArmor`/

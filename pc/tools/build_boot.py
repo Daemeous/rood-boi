@@ -538,6 +538,8 @@ if battle:
         ("pc/src/room_warp.c", "room_warp"),
         ("pc/src/weapon_slots.c", "weapon_slots"),
         ("pc/src/ui/menu_bridge.c", "ui_menu_bridge"),
+        ("pc/src/ui/equip_bridge.c", "ui_equip_bridge"),
+        ("pc/src/ui/ashley_bridge.c", "ui_ashley_bridge"),
     ]
     sources += [
         (str(p.relative_to(root)), "battle_" + p.stem)
@@ -701,8 +703,8 @@ for name in ["runtime", "window", "controller", "gamepad"]:
     obj = out / (name + ".o")
     compile_object(["gcc", *flags, *sdl_flags, "-c", f"pc/src/boot_{name}.c", "-o", str(obj)], f"pc/src/boot_{name}.c")
     objects.append(obj)
-for name in ["audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "room_catalog"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []):
-    obj = out / (name + ".o")
+for name in ["audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "room_catalog", "ui/item_names"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []):
+    obj = out / (name.replace("/", "_") + ".o")
     # ui_text rasterizes fonts with the stb_truetype that Dear ImGui vendors.
     extra = ["-Ipc/third_party/imgui"] if name == "ui_text" else []
     compile_object(["gcc", *flags, *sdl_flags, *extra, "-c", f"pc/src/{name}.c", "-o", str(obj)], f"pc/src/{name}.c")
@@ -776,6 +778,7 @@ for source in [
     root / "pc/src/lighting_editor.cpp",
     root / "pc/src/environment.cpp",
     root / "pc/src/atmosphere.cpp",
+    root / "pc/src/fog_sim.cpp",
     root / "pc/src/room_browser.cpp",
     root / "pc/src/project_settings.cpp",
     root / "pc/src/lighting_quality.cpp",
@@ -787,6 +790,8 @@ for source in [
     root / "pc/src/ui/ui_shell.cpp",
     root / "pc/src/ui/ui_theme.cpp",
     root / "pc/src/ui/ui_draw.cpp",
+    root / "pc/src/ui/ui_equip_draw.cpp",
+    root / "pc/src/ui/ui_ashley_draw.cpp",
     root / "pc/src/prompt_glyphs.cpp",
 ] + ([imgui / "backends/imgui_impl_vulkan.cpp", root / "pc/src/vk_overlay.cpp"] if arch64 else []):
     obj = out / ("imgui_" + source.stem + ".o")

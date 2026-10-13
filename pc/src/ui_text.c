@@ -82,6 +82,50 @@ static const uint16_t charset[189] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, '~', 0, 0, 0 /* 0xB0: ○ × ← → ↑ ↓ Lv. ★ ◼ ~ */
 };
 
+/* A game string as UTF-8 (ui_text.h; control bytes as tools/etc/vsString.py
+ * decodes them). */
+int pc_ui_text_decode(const unsigned char* text, int max_bytes, char* out, int out_size)
+{
+    int n = 0, i = 0;
+    if (out_size <= 0)
+        return 0;
+    while (text && i < max_bytes) {
+        unsigned c = text[i++], cp = 0;
+        if (c == 0xE7)
+            break;
+        if (c == 0x8F || c == 0xE8) {
+            cp = ' ';
+        } else if (c == 0xFA) {
+            cp = ' ';
+            ++i; /* the spacing's operand */
+        } else if (c >= 0xEC && c != 0xFC) {
+            ++i; /* functions and Japanese tables: one operand byte, nothing drawn here (0xFC has none) */
+        } else if (c < sizeof charset / sizeof charset[0]) {
+            cp = charset[c];
+        }
+        if (!cp || (cp == ' ' && (n == 0 || out[n - 1] == ' ')))
+            continue; /* not a character (0xEB padding, pictographs), or a repeated blank */
+        char u[3];
+        int len = 1;
+        if (cp < 0x80) {
+            u[0] = (char)cp;
+        } else if (cp < 0x800) {
+            u[0] = (char)(0xC0 | cp >> 6), u[1] = (char)(0x80 | (cp & 0x3F)), len = 2;
+        } else {
+            u[0] = (char)(0xE0 | cp >> 12), u[1] = (char)(0x80 | (cp >> 6 & 0x3F)), u[2] = (char)(0x80 | (cp & 0x3F)),
+            len = 3;
+        }
+        if (n + len >= out_size)
+            break;
+        memcpy(out + n, u, (size_t)len);
+        n += len;
+    }
+    while (n > 0 && out[n - 1] == ' ')
+        --n;
+    out[n] = 0;
+    return n;
+}
+
 /* ---- fonts and glyph distance fields ---- */
 
 #define SDF_EM 64   /* distance field pixels per em (cap height ~45: upsampled smoothly at 8x) */
@@ -483,6 +527,8 @@ typedef struct {
     float pen[LABEL_CHARS]; /* field pixels from the first glyph's origin */
     int count;
     float s, sx, cx_t, cx_s, base;
+    int disc;               /* a dot (LABEL_DOT): a disc, not letters */
+    float disc_x, disc_y, disc_r;
     uint16_t outline;       /* CLUT colour of the original's outline (0: none) */
     uint16_t body;          /* CLUT colour of the original's lettering */
 } label_layout;
@@ -501,6 +547,10 @@ static int luma555(uint16_t c) { return (c & 31) * 299 + (c >> 5 & 31) * 587 + (
 /* Ink classes of the original words: indices 1-3 are the dark outline
  * (and its shading) of every label CLUT, 4 and up the lettering. */
 #define LABEL_BODY 4
+/* A label whose text is this (U+2022) is a dot, not a word (the L2
+ * shortcut cross's connectors beside its labels): drawn as a disc the size
+ * and place of the original dot's lettering, outlined like the labels. */
+#define LABEL_DOT "\xe2\x80\xa2"
 
 static int label_layout_make(const uint16_t* vram, unsigned clut, const pc_ui_label* l, label_layout* o)
 {
@@ -555,6 +605,17 @@ static int label_layout_make(const uint16_t* vram, unsigned clut, const pc_ui_la
     if (!pick || !lut[pick])
         return 0;
     o->body = lut[pick];
+    if (!strcmp(l->text, LABEL_DOT)) {
+        int by1 = top;
+        for (int v = l->v0; v <= l->v1; v++)
+            for (int u = l->u0; u <= l->u1; u++)
+                if (texel4(vram, l->page_x, l->page_y, u, v) >= LABEL_BODY)
+                    by1 = v > by1 ? v : by1;
+        o->disc = 1;
+        o->disc_x = (bx0 + bx1 + 1) * 0.5f, o->disc_y = (top + by1 + 1) * 0.5f;
+        o->disc_r = fmaxf((float)(bx1 + 1 - bx0), (float)(by1 + 1 - top)) * 0.5f;
+        return 1;
+    }
     /* The word in the font: pen positions with the font's advances and
      * kerning, its ink extent and height above the baseline. */
     float pen = 0, x0 = 1e9f, x1 = -1e9f, height = 0;
@@ -615,16 +676,20 @@ static int render_labels(const uint16_t* vram, unsigned tpage, unsigned clut, in
                 const pc_ui_label* l = o->l;
                 if (xo < l->u0 || xo >= l->u1 + 1 || yo < l->v0 || yo >= l->v1 + 1)
                     continue;
-                float fx = o->cx_s + (xo - o->cx_t) / o->sx, fy = (o->base - yo) / o->s;
                 float d = -1e9f;
-                for (int i = 0; i < o->count; i++) {
-                    const glyph_field* g = o->glyph[i];
-                    float gx = fx - o->pen[i];
-                    if (gx < g->x0 - SDF_PAD || gx > g->x1 + SDF_PAD)
-                        continue;
-                    d = fmaxf(d, distance_at(g, gx, fy));
+                if (o->disc)
+                    d = o->disc_r - hypotf(xo - o->disc_x, yo - o->disc_y); /* original pixels */
+                else {
+                    float fx = o->cx_s + (xo - o->cx_t) / o->sx, fy = (o->base - yo) / o->s;
+                    for (int i = 0; i < o->count; i++) {
+                        const glyph_field* g = o->glyph[i];
+                        float gx = fx - o->pen[i];
+                        if (gx < g->x0 - SDF_PAD || gx > g->x1 + SDF_PAD)
+                            continue;
+                        d = fmaxf(d, distance_at(g, gx, fy));
+                    }
+                    d = (d + bold) * fminf(o->s, o->sx); /* original pixels */
                 }
-                d = (d + bold) * fminf(o->s, o->sx); /* original pixels */
                 if (d <= best)
                     continue;
                 best = d;

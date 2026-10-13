@@ -198,6 +198,24 @@ session keeps the shell). Without the Dear ImGui overlay (backend init
 failed) the original menus are used. With the option off (the default) the
 game is unchanged.
 
+The Equipment tab is native: Gear lists the eight slots (Circle opens a list
+of what fits with a STR / INT / AGL / DP and class / affinity compare against
+what is worn, Square takes off), Quick swap (L2 / R2) shows the eight field
+swap buttons as two diamonds and assigns any weapon in the bag plus a shield.
+The mouse works in the shell: hover focuses, a click opens or confirms (tabs,
+sub-tabs and hints too), the wheel moves through lists, a right click is
+Cross.
+
+The Ashley tab is native too: a summary (HP / MP / RISK, the weapon and
+shield, STR / INT / AGL, the condition of each limb, status effects with the
+time they have left, the area, room and play time) beside Ashley's live 3D
+model. The right stick (with the camera stick's settings; J / L with
+`camera_stick_keys`) or a mouse drag over the model turns it; it never turns
+on its own. Circle on the weapon or
+shield opens it on Equipment; Square opens the game's original Status screen.
+The model needs room in the game's heap and stays hidden while the editor's
+free camera is on (the screen says so).
+
 - `pc/src/ui/menu_bridge.c` (battle builds) takes over `func_800C930C`, the
   top level, from one `#ifdef ROOD_PC` hook; `ui_shell.cpp` is the navigation
   state (ctest `ui_shell_probe`), `ui_draw.cpp` draws it on Dear ImGui's
@@ -208,6 +226,10 @@ game is unchanged.
 - `pc/tests/ui_menus_smoke.py`: off = the game's menu; the shell's tabs, an
   original screen (Status) and back, System > Menus (from the next open), an
   L2 shortcut (stays original), a greyed Break arts opening, closing, 16:9.
+- `pc/tests/ui_ashley_smoke.py`: the Ashley summary against RAM, the live
+  model (shown, turned by the stick and a drag, rebuilt after an equip, the
+  heap check, the free camera), the original Status and back, the world's
+  camera and freeze state given back, 16:9, a soft reset.
 
 ## Intro movie and CD drive
 
@@ -580,7 +602,7 @@ These switches persist with File > Save settings:
 | `editor_snap_offset` | 64 | surface snapping's distance off the surface |
 | `light_animation` | 1 | light actors' flicker and pulse (0 holds them still) |
 | `environment` | 1 | the rooms' sun and sky (0: off in every room, for comparison; per room: Details > Atmosphere, "Sun and sky" below) |
-| `fog` | 0 | the rooms' ground fog and fog volumes (off by default for now: some town rooms wash out at certain camera angles; 1: on; per room: Details > Atmosphere, "Haze, ground fog, fog volumes and sun shafts" below) |
+| `fog` | 1 | the rooms' ground fog and fog volumes (0: off in every room, for comparison; per room: Details > Atmosphere, "Haze, ground fog, fog volumes and sun shafts" below) |
 | `editor_cutaway`, `editor_cutaway_radius` | 1, 320 | See into rooms > Cut to focus (key C) and its radius at the focus |
 | `editor_cutaway_opacity` | 0.3 | share of a cut surface still drawn as a ghost, with its edges (0: a hole) |
 | `editor_cutaway_auto` | 1 | cut only while room surfaces hide the focus from the camera |
@@ -691,10 +713,14 @@ the field UI page (768, 0): HP, MP, RISK, WT, NO., WAITING for COMMAND!,
 TIME, SAVE, COMMAND, MENU, NUM., WARNING, HELP, INFO., CLEAR, MAP, CAUTION,
 EXIT, FACTORY, Locked, Container, CHECK, INFORMATION, Open, is,
 Unlockable, the equipment slots and enemy classes (WEAPON ... LEGS, HUMAN
-... EVIL), the affinities (PHYSICS ... DARKNESS) and WORKSHOP; 40 on the
+... EVIL), the affinities (PHYSICS ... DARKNESS) and WORKSHOP; 41 on the
 battle page (448, 256): BATTLE MODE, MOVE, 200%, 50%, RISK ATTACK Parry,
 STR INT AGL, the status changes (Quicken ... Regenerate, -up, -down), the
-spell schools (WARLOCK ... ENCHANTER), MP, ITEMS BREAK ARTS CHAIN DEFENSE.
+spell schools (WARLOCK ... ENCHANTER), MP, ITEMS BREAK ARTS CHAIN DEFENSE
+(the L2 shortcut cross's labels), and that cross's connector dot (the 6 x 6
+sprite beside each label), drawn as a disc of the original dot's size and
+place in its lettering colour with the labels' outline (the HUD's HP / MP
+dot is drawn the same way).
 A 2D region is drawn from the font when every word it touches still has its
 hash and all of its ink belongs to those words; the word is then set in the
 `info` font with its kerning, at the original's cap height and baseline
@@ -744,6 +770,9 @@ prompts in the editor, RPC `button_prompts`.
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `button_prompts` | `auto` | `auto`: the device used last: key caps after a bound key, the gamepad's own labels after a gamepad button or stick (a gamepad connecting counts; disconnecting the last one goes back to the keyboard). `playstation`, `xbox`, `nintendo`, `keyboard`: always that family. `original`: the PS1's glyphs, exactly as before (nothing goes through the 2D atlas for them) |
+| `button_prompts_style` | `color_outline` | how the icons look (no backing behind any): `solid` (a filled cap, the symbol knocked out), `outline` (ring and symbol, no fill), `color_solid`, `color_outline` (the same in the family's colours: PlayStation's teal triangle, red circle, blue cross, pink square; Xbox's green A, red B, blue X, yellow Y; Nintendo, key caps and other buttons neutral). Outline styles use each glyph's `_outline` variant; text pictographs keep the text's colour |
+| `button_prompts_dpad` | `dim` | the L2 shortcut cross's D-pad (below): `cross` the family's whole D-pad in the style; `dim` the same with the arms that have no usable action beside them dimmed (no label, or the game's dimmed label: a locked Break Arts, items while unusable; weapon slots: an empty slot); `lit` the arms with a usable action filled and the others hollow in the outline styles (Kenney's `_<dir>_outline` glyphs joined), in the solid styles bright with the others' insides dim |
+| `button_prompts_scale` | `0.7` | 0.4-1: each 16 x 16 button sprite's icon fits in a circle this fraction of its cell across, centred on the original's (the shortcut cross's face-button diamond has diagonal neighbours 9 PS1 pixels apart: at 0.7 they keep about 1.5 pixels apart; key caps and wide shoulder tabs come out smaller than round buttons) |
 | `bind_key_<button>` | see Controls | the key(s) for a PS1 button (`circle`, `cross`, `triangle`, `square`, `l1`, `r1`, `l2`, `r2`, `start`, `select`, `l3`, `r3`, `up`, `down`, `left`, `right`): one or two names separated by a comma (`a`-`z`, `0`-`9`, `return`, `tab`, `space`, `escape`, `backspace`, arrows `up`..., `lshift`, `lctrl`, `lalt`, ..., `f1`-`f12`, `minus`, `comma`, `period`, `slash`, ...) or `none`; saved only when changed |
 | `bind_pad_<button>` | positional | the gamepad element for a PS1 button: `south`, `east`, `west`, `north`, `leftshoulder`, `rightshoulder`, `lefttrigger`, `righttrigger`, `back`, `start`, `guide`, `leftstick`, `rightstick`, `dpup`, `dpdown`, `dpleft`, `dpright`, `misc1`, `paddle1`-`4`, `touchpad` or `none`; saved only when changed |
 
@@ -759,15 +788,22 @@ presses the PS1 button: on a Nintendo pad Circle (east) shows **A** and Cross
 
 How: a 2D region the game draws is a prompt by its page, CLUT and cell (font
 page (832, 0), CLUT row 222, glyphs 0xAE-0xB1 of either table; field UI page
-(768, 0), CLUT (944, 223), the 16 x 16 cells at (0, 128)); it goes through the
-2D atlas like `ui_text` glyphs, and its texels are drawn from the icon's
-signed distance field (ui_text.c's stb_truetype path, 128 pixels per em),
-fitted and centred in the original's ink box (text: one pixel larger, inside
-its 12 x 12 cell), at the internal resolution. Text icons take the original
-glyph's CLUT ramp (the text's colour, brightness and translucency); sprites
-are a dark body with the family's symbol colours (PlayStation's green, red,
-blue and pink; Xbox's A green, B red, X blue, Y yellow) and a dark rim. The
-game still decides which button, where, when and how big. At internal
+(768, 0), CLUT (944, 223), the 16 x 16 cells at (0, 128), and the L2
+shortcut cross's D-pad, 30 x 30 at (184, 160), drawn as the family's D-pad
+when the directions are bound to one: the arrow keys on a keyboard, solid or
+outline arms by the style, its arms lit by `button_prompts_dpad` from what
+the game reports as it draws each label: `pc_weapon_slots_label`, ids 4-7 =
+up, left, right, down); it goes
+through the 2D atlas like `ui_text` glyphs, and its texels are drawn from the
+icon's signed distance field (ui_text.c's stb_truetype path, 128 pixels per
+em) at the internal resolution: text in the original's ink box (one pixel
+larger, inside its 12 x 12 cell), sprites inside a circle
+`button_prompts_scale` of the cell across centred on the original's ink (so
+neighbours never touch), the D-pad in its arms' box. Text icons take the
+original glyph's CLUT ramp (the text's colour, brightness and translucency);
+sprites are the icon alone in white or the family's colour
+(`button_prompts_style`), its anti-aliased edge darkening (texels are opaque
+or not). The game still decides which button, where and when. At internal
 resolution 1 the icons are drawn one texel per pixel (blocks of a 2x atlas).
 A button bound to nothing, or to a key without an icon, keeps the original.
 Not replaced: the D-pad arrows of the font (also used as plain arrows),
@@ -1052,8 +1088,10 @@ view (drag the disc: horizontal turns it, vertical raises it). Settings key
 The room's air is one **medium** (`pc/src/atmosphere.cpp`,
 `pc/shaders/vulkan/medium.glsl`): the uniform **haze** (room settings
 `haze_density`, `haze_anisotropy`, `haze_glow`), a **ground fog** (`env fog`:
-thickest at its base on the room's main floor, thinning upward with a scale
-height, animated by drifting noise wisps carried by a wind) and **fog
+thickest at its base on the floor under each point (the room's lowest
+up-facing level face there, a top-down grid: the streets, not the roofs),
+thinning upward with a scale height, animated by drifting noise wisps
+carried by a wind) and **fog
 volumes** (`fog <id>` items: boxes or spheres with soft edges, their own
 density, colour, fill light and wisps) for local mist. Format:
 [lighting/README.md](../lighting/README.md), "Environment" and "Fog volumes".
@@ -1066,22 +1104,39 @@ density, colour, fill light and wisps) for local mist. Format:
   under a canopy or arch loses the sky, characters cast volumetric shadows.
   Low haze (Medium; no ray tracing): the same medium marched per pixel in the
   present pass, unshadowed lights, the sun through its shadow map.
+- **Soft, slow, wispy**: three octaves of domain-warped gradient noise (no
+  blotches, no lattice), drifting with the wind in world units per game
+  second (slow by default: mist creeps; it stops with the game); each
+  froxel holds the medium's average over its cell, so thin layers and
+  volume edges never show slices or steps.
 - **Stable**: blue-noise jitter per froxel stratified over frames, a
   reprojected temporal blend, a low-resolution volume (`haze_cell` display
   pixels per cell: Ultra 2, High 3) upsampled by depth (each pixel reads the
   volume at its own depth, so PS1 texels stay sharp: nothing is blurred
   across the image).
+- **Never hides the scene**: whatever the densities, along any ray the
+  atmosphere hides at most `haze_max_opacity` (0.55) of the scene, adds at
+  most `haze_max_light` (0.15, soft knee) of light, forward scattering
+  toward the moon peaks at `haze_max_forward` (3) and the sun shafts keep a
+  limited contrast (`haze_shafts` 0.5); room settings, so a mood may change
+  them. `pc/tools/atmosphere_sweep.py` warps to every room with a haze or a
+  ground fog and checks, from the game camera and the free camera at 8
+  angles and toward the moon, that the picture keeps its detail (Weber
+  contrast with vs without the atmosphere) and is never veiled; a quick
+  subset is the `atmosphere_sweep` suite.
 - **Generated moods** (`pc/assets/environment/atmosphere.json`, written by
   `generate_lighting.py`): Snowfly Forest low ground mist, the Undercity damp
   haze and floor mist, the town, walls and Keep at night a faint moonlit
-  haze and thin mist, any other open room a faint haze; roofed rooms keep
+  haze, a thin mist on the streets and faint shafts, any other open room a
+  faint haze; roofed rooms keep
   the project's faint default haze (unchanged).
 - **Editor**: Details > **Atmosphere** > "Ground fog" (every value live) and
   "Fog volumes" (Add volume on the surface under the view's centre; Move /
   Size / Turn gizmo in the view; Show the haze alone). Save area writes
   `env fog` / `fog <id>` lines. Settings key `fog` (0) switches every room's
   ground fog and volumes off. RPC `environment` {`haze`, `fog`, `volumes`,
-  `remove_fog`, `fog_time`, `fog_global`}, `graphics` {`haze_debug`,
+  `remove_fog`, `fog_time`, `fog_global`, `floor_grid` (0: the main floor
+  alone, as before; comparisons)}, `graphics` {`haze_debug`,
   `haze_cell`}. Test: `pc/tests/atmosphere_smoke.py`. Costs:
   [pc/docs/Vulkan_Renderer.md](docs/Vulkan_Renderer.md), "Haze, ground fog
   and sun shafts".
@@ -1198,7 +1253,7 @@ thread once per vsync, so each method runs at a frame boundary:
 | `input` | `buttons` (name or list), `right_stick` (`[x, y]`, -1..1, down +y), `vsyncs` | hold PS1 buttons and/or the right stick (the camera); works unfocused |
 | `camera_stick` | the settings without `camera_stick_` (`enabled`, `speed`, ..., `r3_reset`, `idle_reset`, `keys`), `action` (`reset`) | the right-stick camera: settings and state (zoom, distances, collision hit, yaw) |
 | `weapon_slots` | `enabled` | the optional weapon slots (battle builds): the option, overlay/assign/swap state, field mode, each weapon's slot and each shield's slot bits, what Ashley's battle record has equipped |
-| `ui_menu` | `modern` | the modern menus (`pc/src/ui`, battle builds): sets `ui_menus`; the shell: visible, menus, tab, tabs, rows (id, label, enabled, reason when greyed, value), focused row |
+| `ui_menu` | `modern`, `pointer` | the modern menus (`pc/src/ui`, battle builds): sets `ui_menus`; `model_heap_extra` (bytes, tests: the Ashley model's heap check asks for that much more); `pointer {x, y, click, right, wheel}` is the next drawn frame's mouse in layout units (1280 or 960 x 720; hit tests as a moved pointer); the shell: visible, holding (closed, a result held during a model load, still drawn), menus, tab, tabs, rows (id, label, enabled, reason when greyed, value), focused row, the Equipment screen |
 | `release` | | drop injected buttons |
 | `state` | | zone, room, start state, music, HP/MP, risk, Ashley's position |
 | `read` / `write` | `address`, `length` / `hex` | guest RAM and scratchpad (read also host data) |
@@ -1208,7 +1263,7 @@ thread once per vsync, so each method runs at a frame boundary:
 | `gpu_draw` | `packet` (GP0 words, hex), `texture` (hex texels) with `texture_x/y/w/h`, `area_x/y/w/h`, `offset_x/y` | tests: load texels, set the drawing area, draw the commands on both rasterizers (`flipped_sprite_smoke.py`) |
 | `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_trace` N), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `ui_lines` (`joined`/`legacy`), `ui_outline_boost`, `ui_bubbles` (`original`/`vector`), `ui_bubble_outline`, `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample` | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
 | `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
-| `button_prompts` | `button_prompts` (mode), `device` (`playstation`/`xbox`/`nintendo`/`keyboard`, as a device used last would set it) with `variant` (3/4/5 PlayStation, 360 Xbox), `bind` (`{"bind_key_circle": "c", "bind_pad_circle": "south"}`), `icon` (a button name) with `size`, `clear_shown` | the mode, the family drawn, the device, `generation`, the glyph each PS1 button shows, the bindings, `shown` (the icon each prompt on screen was drawn with since `clear_shown`, `text` and `sprite`), regions drawn from icons (`regions`) and fallen back (`failed`); `icon` adds the native menus' image (`pc_prompt_glyph`: size, uv) |
+| `button_prompts` | `button_prompts` (mode), `device` (`playstation`/`xbox`/`nintendo`/`keyboard`, as a device used last would set it) with `variant` (3/4/5 PlayStation, 360 Xbox), `bind` (`{"bind_key_circle": "c", "bind_pad_circle": "south"}`), `icon` (a button name) with `size`, `clear_shown`, `style`, `scale`, `dpad` (`cross`/`dim`/`lit`), `cross_actions` (0-15: the shortcut cross's usable arms, bits up, left, right, down, whatever the game reports; -1 the game's), `mask` | the mode, the family drawn, the device, `generation`, the glyph each PS1 button shows, the bindings, `shown` (the icon each prompt on screen was drawn with since `clear_shown`, `text` and `sprite`, the shortcut cross's `dpad` and its lit `dpad_arms`), `style`, `scale`, `dpad_mode`, `cross_actions`, regions drawn from icons (`regions`) and fallen back (`failed`); `icon` adds the native menus' image (`pc_prompt_glyph`: size, uv) |
 | `ui_bubbles` | `path` (N) | vector talk bubbles: frames reported, verified, fallen back (`mismatched`), drawn; line segments the hardware path drew (`lines_drawn`); native pixels per output pixel; the recent bubbles (shape, flip, tail, outline bounds drawn and the game's whole-pixel points, thickness); `path`: bubble N's outline points |
 | `ui_text` | `ui_text` (`original`/`font`), `style` with `font`, `stretch`, `slant`, `embolden`, `aspect`; `render` ([tpage, clut, u0, v0, u1, v1]) with `factor`, `path` | the text fonts: option, each style (font, placement, `loaded`), fonts loaded, glyph fields made, glyph regions drawn from fonts (`regions`, of them `labels`) and fallen back (`failed`), the labels drawn (`labels_drawn`); a `style` with values changes it as the `ui_text_<style>_*` settings do; `render` draws that region from the font into `path` (little-endian PS1 colours) and adds its size |
 | `redraw` | | the newest frame drawn again as recorded with the current options (MSAA, ...) and presented until the game draws another: pause first, then compare options on one frame (`aa_smoke.py`) |
@@ -1225,7 +1280,7 @@ thread once per vsync, so each method runs at a frame boundary:
 | `prefabs` | `reload` | the prefab library (built-in and user), parameters and problems |
 | `editor_place` | `item` / `prefab` / `light`, `phase` (`begin`, `move`, `drop`, `cancel`, `double_click`, `state`), `x`/`y` or `u`/`v` | a drag from Place Actors, as the mouse would do it |
 | `environment` | `sun` {`enabled`, `azimuth`, `elevation`, `color`, `intensity`, `angle`, `shadows`}, `sky` {`enabled`, `zenith`, `horizon`, `ground`, `intensity`, `sun_tint`, `ambient`}, `remove` (`sun`, `sky`, `all`), `global` | the room's sun and sky (`defined`: the room has the item; setting a field of one it lacks adds it), `active`, `global` (settings key `environment`), the renderers' packed record (`gpu`) and its `hash`; an edit marks the room dirty (save with `lighting` `save`) and is one undo transaction |
-| `environment` (fog) | `haze` {`density`, `anisotropy`, `glow`} (room settings), `fog` {`enabled`, `density`, `height`, `offset`, `noise`, `scale`, `wind`, `color`, `fill`, `sky`}, `remove_fog`, `volumes` [{`id`, `remove`, `enabled`, `shape`, `name`, `pos`, `size`, `yaw`, `density`, `edge`, `color`, `fill`, `noise`}], `fog_time` (seconds, -1 live), `fog_global` | the same reply plus `haze`, `fog` (with the room's `floor`), `bounds`, `volumes`, `fog_global`, `fog_time` |
+| `environment` (fog) | `haze` {`density`, `anisotropy`, `glow`, `max_opacity`, `max_light`, `shafts`, `max_forward`} (room settings), `floor_grid`, `fog` {`enabled`, `density`, `height`, `offset`, `noise`, `scale`, `wind`, `color`, `fill`, `sky`}, `remove_fog`, `volumes` [{`id`, `remove`, `enabled`, `shape`, `name`, `pos`, `size`, `yaw`, `density`, `edge`, `color`, `fill`, `noise`}], `fog_time` (seconds, -1 live), `fog_global` | the same reply plus `haze`, `fog` (with the room's main `floor` and its `floor_grid` {`n`, `corner`, `cell`, `heights`}), `bounds`, `volumes`, `fog_global`, `fog_time` |
 | `lighting` | `action` (`layers`, `save`, `revert` {`id`}, `promote` {`ids`}, `reload` (as `lights` `reload`), `packs` {`packs`, `active`}, `discard_dangling`, `poll` (the live reload's check, now)) | the room's lighting layers (files, entries, version), the effective items with their layer badges, deleted ids, problems (dangling overrides), the user layer as it would be saved |
 | `fixtures` | `action` (`list`, `set` {`type`, `params`, `offset`, `fixture_radius`, `glow`, `enabled`, `review`}, `save`, `revert`, `regenerate` {`scope`}), `type`, `all` | the fixture catalog's types in the room (or one, or all), the room's typed actors and glows (`muted` 4: suppressed by the type); type edits apply live to every instance (`pc/docs/Fixture_Catalog.md`) |
 | `rooms` | | every zone and room read from the disc (zone, room, location, scene, entries, name, area), the current room, whether warped, the warp's phase |

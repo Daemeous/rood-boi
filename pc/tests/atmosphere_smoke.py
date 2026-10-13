@@ -6,8 +6,8 @@ ROOD_RENDERER (OpenGL: ptgi.c's traced march; Vulkan: the froxel volume), with
 the haze's light alone (RPC graphics {haze_debug}) for most checks:
 
 - the save room (zone 9 room 17, roofed): no generated fog or volumes there;
-  a ground fog's light follows its height (a base far below the floor leaves
-  almost nothing, a taller layer gives more); a fog volume lights only its
+  a ground fog's light follows its height (a layer 3 units tall leaves
+  little, a taller layer gives more); a fog volume lights only its
   bounds (smaller box: less, a sphere inside the box: less, removed: none);
   the settings save to the user layer as `env fog` / `fog <id>` lines and
   reload;
@@ -76,7 +76,7 @@ def main():
         return ok
 
     game = Game.launch(fast=True, card=str(out / "card1.mcd"), log=out / "game.log", extra_env=env, socket_path=socket)
-    game.call("environment", fog_global=1)  # ground fog is off by default for now
+    check(game.call("environment")["fog_global"] is True, "the ground fog and volumes are on by default (settings key fog)")
 
     def warp(zone, room):
         game.call("room_goto", zone=zone, room=room)
@@ -123,13 +123,13 @@ def main():
         check(nothing.mean() < 1.0, f"no haze, no fog: the haze's light is black ({nothing.mean():.2f})")
         game.call("environment", fog=EMISSIVE_FOG)
         base = view(shot("fog-floor"))
-        game.call("environment", fog={"offset": -400})
-        sunk = view(shot("fog-sunk"))
-        game.call("environment", fog={"offset": 0, "height": 96})
+        game.call("environment", fog={"height": 3})
+        thin = view(shot("fog-thin"))
+        game.call("environment", fog={"height": 96})
         tall = view(shot("fog-tall"))
         check(base.mean() > 3, f"a ground fog on the floor scatters light ({base.mean():.1f})")
-        check(sunk.mean() < base.mean() * 0.25, f"its density falls off with height: its base 400 units under the "
-                                                f"floor leaves {sunk.mean():.1f} (on the floor {base.mean():.1f})")
+        check(thin.mean() < base.mean() * 0.4, f"its density falls off with height: a layer 3 units tall on the floor "
+                                               f"(under each point) leaves {thin.mean():.1f} (32 tall: {base.mean():.1f})")
         check(tall.mean() > base.mean() * 1.3, f"a taller layer holds more ({tall.mean():.1f} vs {base.mean():.1f})")
         game.call("environment", remove_fog=True)
         centre = [(lo[0] + hi[0]) / 2, (floor if floor is not None else hi[1]) - 100, (lo[2] + hi[2]) / 2]
@@ -185,9 +185,12 @@ def main():
         check(e["fog"]["defined"] and badges.get("env:fog") == "G" and e["sun"]["defined"],
               f"the forest has a generated ground fog and moon (badge {badges.get('env:fog')})")
         if traced:
-            game.call("environment", haze={"density": 0.002, "anisotropy": 0.6}, remove_fog=True)
+            # The shafts at full contrast (haze_shafts 1: shadowed air loses all of the moon's light).
+            game.call("environment", haze={"density": 0.002, "anisotropy": 0.6, "shafts": 1}, remove_fog=True)
             game.call("graphics", haze_debug=1)
             on = view(shot("shafts-on", 150))
+            game.call("environment", haze={"shafts": 0.5})
+            limited = view(shot("shafts-limited", 150))
             game.call("environment", sun={"shadows": False})
             off = view(shot("shafts-off", 150))
             game.call("environment", sun={"shadows": True})
@@ -199,6 +202,9 @@ def main():
                   f"{off[mask].mean():.1f} unshadowed)")
             check(p10 < 0.8 and p90 > 0.9 and p90 - p10 > 0.15, f"shafts: lit air keeps its light, shadowed air loses it "
                                              f"(ratio to unshadowed: 10th percentile {p10:.2f}, 90th {p90:.2f})")
+            q10, q90 = np.percentile(limited[mask] / off[mask], [10, 90])
+            check(q10 > p10 + 0.05 and q90 - q10 < p90 - p10, f"haze_shafts 0.5 limits their contrast (10th percentile "
+                                                              f"{q10:.2f}, 90th {q90:.2f})")
             # Steady when nothing changes (the generated fog, its drift stopped).
             game.call("lighting", action="reload")
             game.call("environment", fog_time=5)

@@ -12,7 +12,15 @@
 #define ROOD_ATMOSPHERE_H
 
 #define PC_MEDIUM_VOLUMES 16
-#define PC_MEDIUM_VEC4S (8 + 5 * PC_MEDIUM_VOLUMES)
+#define PC_MEDIUM_LIMITS (8 + 5 * PC_MEDIUM_VOLUMES) /* 88: medium.glsl MEDIUM_LIMITS */
+#define PC_MEDIUM_FLOOR (PC_MEDIUM_LIMITS + 1) /* the ground fog's floor grid (2 vec4s, then its heights) */
+#define PC_MEDIUM_FLOOR_GRID 24 /* cells per side (scene_capture.h PC_SCENE_FLOOR_GRID) */
+#define PC_MEDIUM_FLOOR_DATA (PC_MEDIUM_FLOOR + 2)
+#define PC_MEDIUM_SIM (PC_MEDIUM_FLOOR_DATA + PC_MEDIUM_FLOOR_GRID * PC_MEDIUM_FLOOR_GRID / 8) /* 163: fog_sim.h */
+#define PC_MEDIUM_SIM_DATA (PC_MEDIUM_SIM + 1)
+/* 250 (the shaders' medium_[] arrays have this size) */
+#define PC_MEDIUM_VEC4S (PC_MEDIUM_SIM_DATA + (PC_FOG_SIM_CELLS + 11) / 12)
+#define PC_FOG_SIM_CELLS (32 * 32) /* fog_sim.h PC_FOG_SIM_GRID squared */
 
 typedef struct {
     float v[PC_MEDIUM_VEC4S][4]; /* layout: medium.glsl */
@@ -35,6 +43,13 @@ int pc_medium_has_fog(void);
 unsigned pc_medium_hash(void);
 /* The global switch for the ground fog and volumes (settings key `fog`). */
 extern int pc_fog_global;
+/* The atmosphere's limits (room settings haze_max_opacity, haze_max_light,
+ * haze_shafts; atmosphere.cpp): the most of the scene the haze, fog and
+ * volumes may hide along any ray, the most light they may scatter toward
+ * the eye (luminance), how much darker the sun's shadowed air is than its
+ * lit air (the shafts' contrast), forward scattering's peak (the phase
+ * function toward the moon; haze_max_forward). */
+extern float pc_haze_max_opacity, pc_haze_max_light, pc_haze_shafts, pc_haze_max_forward;
 /* The haze froxel cell in display pixels (settings key haze_cell, from
  * the lighting quality; Vulkan's traced haze). */
 extern int pc_haze_cell;

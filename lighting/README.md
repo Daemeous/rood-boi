@@ -131,16 +131,27 @@ env fog color=0.85,0.9,1 density=0.01 height=40 noise=0.7 scale=200 wind=9,0,3 f
 
 - Fog fields: `enabled` (1), `density` (extinction per world unit at its
   base; 0.003), `height` (scale height: the density falls by e every this many
-  units up; 48), `offset` (its base above the room's main floor, which the
-  game finds from the room's level faces; 0), `noise` (0..1, how much the
+  units up; 48), `offset` (its base above the floor under each point: the
+  room's lowest up-facing level face there, on a 24 x 24 top-down grid, so
+  it lies on the street and not on the roofs above it; 0), `noise` (0..1, how much the
   drifting wisps thin and thicken it; 0.6), `scale` (the wisps' size; 160),
-  `wind` (their drift, units per second, y down; 12,0,4), `color` (its albedo;
+  `wind` (their drift, world units per game second, y down; 4,0,1.5: mist creeps), `color` (its albedo;
   1,1,1), `fill` (light it scatters from everywhere, a radiance: keeps it
   visible where no light reaches; 0,0,0), `sky` (how much of the sky's light
   the haze and the fog scatter; 1).
 - The haze stays the room settings `haze_density` (uniform in the room's
   bounds), `haze_anisotropy` (forward scattering, also the fog's) and
   `haze_glow`.
+- Limits, also room settings (Details > Atmosphere; an area's mood may set
+  them): `haze_max_opacity` (0.55: the most of the scene the haze, the fog
+  and the volumes together may hide along any ray), `haze_max_light` (0.15:
+  the most light they may add toward the eye, a luminance, with a soft
+  knee), `haze_shafts` (0.5: the sun shafts' contrast; shadowed air keeps
+  1 - this of the sun's in-scattering), `haze_max_forward` (3: the peak of
+  forward scattering, so looking toward the moon cannot blow out the
+  picture; 0 none). Whatever the densities, the atmosphere never hides the
+  scene: `pc/tools/atmosphere_sweep.py` checks every room from several
+  angles.
 
 ## Fog volumes
 

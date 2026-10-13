@@ -200,14 +200,22 @@ void vs_overlay_getSp(int* sp) { *sp = 0; }
  * ROOD_PC). The GCC builtins avoid the SDK's smaller jmp_buf. */
 void* pc_title_jump[5];
 void* pc_battle_jump[5];
+/* ui/menu_bridge.c (battle builds): the modern menus end a session the jump
+ * leaves behind (a soft reset during the menu), weapon_slots.c forgets the
+ * battle it was in. */
+extern void pc_ui_menu_reset(void) __attribute__((weak));
 void vs_overlay_jumpToTitle(int* sp)
 {
     (void)sp;
+    if (pc_ui_menu_reset)
+        pc_ui_menu_reset();
     __builtin_longjmp(pc_title_jump, 1);
 }
 void vs_overlay_jumpToBattle(int* sp)
 {
     (void)sp;
+    if (pc_ui_menu_reset)
+        pc_ui_menu_reset();
     __builtin_longjmp(pc_battle_jump, 1);
 }
 void vs_overlay_wait(void) { }

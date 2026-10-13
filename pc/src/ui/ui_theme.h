@@ -10,6 +10,7 @@ struct Theme {
     unsigned bone = 0xFFD6E4EBu, ash = 0xFF86929Bu, dim = 0xFF535C64u;
     unsigned accent = 0xFF3C36B5u, accent_soft = 0x293C36B5u, gold = 0xFF4EA1C9u;
     unsigned hp = 0xFF5AA76Au, mp = 0xFFC4824Du, risk = 0xFF3C4ACFu;
+    unsigned up = 0xFF6AB879u, down = 0xFF4F61D0u; // stat deltas: better / worse
     // sizes in layout units (1280 x 720 or 960 x 720)
     float tab_size = 15, label_size = 11, name_size = 19, body_size = 14.5f, hint_size = 12;
     float margin_x = 56, top = 34, tab_height = 44, row_height = 46, rail_width = 448;

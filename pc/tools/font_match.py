@@ -707,6 +707,7 @@ LABEL_SPEC = {
         ("ENCHANTER", 159, 101, 218, 110), ("MP", 218, 101, 240, 110),
         ("ITEMS", 0, 112, 34, 122), ("BREAK", 35, 112, 72, 122), ("ARTS", 73, 112, 102, 122),
         ("CHAIN", 102, 112, 137, 122), ("DEFENSE", 150, 112, 198, 122),
+        ("\u2022", 192, 128, 197, 133),  # the L2 shortcut cross's connector dot (ui_text.c LABEL_DOT: a disc)
     ],
 }
 OUTLINE_MAX = 2  # CLUT indices 1-2: the outline (a column of only these separates touching words)
@@ -751,7 +752,10 @@ LABELS_H = ROOT / "pc/src/ui_labels.h"
 def labels(write):
     vram = np.load(WORK / "vram.npy")
     entries = label_boxes(vram)
-    rows = "\n".join(f'    {{ "{t}", {px}, {py}, {a}, {v0}, {b}, {v1}, 0x{h:08x}u }},'
+    def c_string(t):  # non-ASCII as UTF-8 escapes
+        return "".join(ch if ord(ch) < 128 else "".join(f"\\x{b:02x}" for b in ch.encode()) for ch in t)
+
+    rows = "\n".join(f'    {{ "{c_string(t)}", {px}, {py}, {a}, {v0}, {b}, {v1}, 0x{h:08x}u }},'
                      for t, px, py, a, v0, b, v1, h in entries)
     current = LABELS_H.read_text() if LABELS_H.exists() else ""
     if write:

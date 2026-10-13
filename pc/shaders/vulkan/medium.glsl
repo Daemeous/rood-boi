@@ -10,9 +10,15 @@
 #define MEDIUM_GLSL
 #define MEDIUM_VOLUMES 16
 #define MEDIUM_VOLUME_BASE 8
+#define MEDIUM_LIMITS 88
+#define MEDIUM_FLOOR 89
+#define MEDIUM_FLOOR_DATA 91
+#define MEDIUM_SIM 163
+#define MEDIUM_SIM_DATA 164
 // The record (pc_medium_gpu):
 //  0: haze density (per world unit, uniform in the room), phase g, time (s), volume count
-//  1: fog density at its base, scale height, base y (world, y down), noise amount (0..1)
+//  1: fog density at its base, scale height, base y (world, y down; with a floor grid: its offset above
+//     the floor), noise amount (0..1)
 //  2: fog albedo rgb, 1 / noise feature size
 //  3: fog fill rgb (light it scatters from everywhere), on
 //  4: wind xyz (world units per second), -
@@ -20,44 +26,151 @@
 //     everywhere; 0 in the traced haze, which samples the sky with occlusion), w its strength
 //  6, 7: the room's bounds (haze and ground fog fill them only)
 //  8 + 5 i: volume i: centre + density, half size + edge, albedo + noise, fill + -, cos/sin yaw + shape (1 sphere)
+//  88: limits (0: none): x the least transmittance along a ray (1 - the most opacity), y the most light it
+//      scatters toward the eye (luminance, a soft knee), z the sun's in-scattering in shadowed air (1 - the
+//      shafts' contrast), w the phase function's largest value (forward scattering toward the moon)
+//  89, 90: the ground fog's floor, a top-down grid over the room: x, z of its corner, cells per unit in x, z;
+//      y of height 0, units per step, cells per side, on
+//  91..162: the grid's heights, two 12-bit steps per float (a * 4096 + b), row by row (z), x within a row
+//  163: the interactive fog (fog_sim.h, prototype): x cells per side (0: none)
+//  164..249: its field over the simulated volume's footprint (the volume with fill.w 1), a density
+//      multiplier 0..2 in 8-bit steps, three per float (a * 65536 + b * 256 + c), row by row (its z)
 float medium_haze() { return MEDIUM(0).x; }
 float medium_g() { return MEDIUM(0).y; }
 int medium_volume_count() { return int(MEDIUM(0).w + 0.5); }
 bool medium_on() { return MEDIUM(0).x > 0.0 || MEDIUM(1).x > 0.0 || MEDIUM(0).w > 0.5; }
-// Henyey-Greenstein phase function times 4 pi (1 for isotropic scattering).
-float medium_phase(float mu, float g) { return (1.0 - g * g) / pow(max(1.0 + g * g + 2.0 * g * mu, 1e-4), 1.5); }
-float medium_hash(vec3 p) {
-    p = fract(p * 0.3183099 + vec3(0.1, 0.2, 0.3));
-    p *= 17.0;
-    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+// Henyey-Greenstein phase function times 4 pi (1 for isotropic scattering),
+// at most the record's cap: looking toward the moon through forward-
+// scattering haze must not blow out the picture.
+float medium_phase(float mu, float g) {
+    float p = (1.0 - g * g) / pow(max(1.0 + g * g + 2.0 * g * mu, 1e-4), 1.5);
+    return MEDIUM(MEDIUM_LIMITS).w > 0.0 ? min(p, MEDIUM(MEDIUM_LIMITS).w) : p;
 }
-float medium_value_noise(vec3 x) {
-    vec3 i = floor(x), f = fract(x);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(mix(medium_hash(i), medium_hash(i + vec3(1, 0, 0)), f.x),
-                   mix(medium_hash(i + vec3(0, 1, 0)), medium_hash(i + vec3(1, 1, 0)), f.x), f.y),
-               mix(mix(medium_hash(i + vec3(0, 0, 1)), medium_hash(i + vec3(1, 0, 1)), f.x),
-                   mix(medium_hash(i + vec3(0, 1, 1)), medium_hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+// The sun's in-scattering at a point of the air with the sun's visibility
+// v (0 shadowed .. 1 lit): the shafts' contrast is limited (the record's
+// floor: shadowed air keeps some of it, as multiple scattering would).
+float medium_sun_visibility(float v) { return mix(MEDIUM(MEDIUM_LIMITS).z, 1.0, v); }
+// One march step's transmittance e^(-extinction len), never letting the
+// ray's transmittance (so far: t) fall below the record's least: the
+// atmosphere can never hide the scene. Its light (1 - step) / extinction
+// stays consistent with it (the step ends where the limit is reached).
+float medium_step(float extinction, float len, float t) {
+    float s = exp(-extinction * len);
+    float least = MEDIUM(MEDIUM_LIMITS).x;
+    return least > 0.0 ? max(s, min(least / max(t, 1e-6), 1.0)) : s;
 }
-// Drifting noise, 0..1: two octaves carried by the wind at different
-// speeds (so the wisps change shape as they move), squashed vertically
-// (sheets of mist rather than blobs).
+// The light the medium scatters toward the eye, its luminance limited with
+// a soft knee (half the cap passes unchanged, the rest compresses toward it).
+vec3 medium_limit_light(vec3 c) {
+    float cap = MEDIUM(MEDIUM_LIMITS).y;
+    float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+    if (cap <= 0.0 || l <= cap * 0.5) return c;
+    float k = cap * 0.5;
+    return c * ((k + k * (1.0 - exp(-(l - k) / k))) / l);
+}
+// A ray's transmittance, the same limit (for passes that integrate it alone).
+float medium_limit_transmittance(float t) { return max(t, MEDIUM(MEDIUM_LIMITS).x); }
+// A random gradient per lattice point (an integer hash: no visible pattern,
+// no precision loss far from the origin).
+vec3 medium_gradient(ivec3 c) {
+    uvec3 v = uvec3(c + 65536) * 1664525u + 1013904223u;
+    v.x += v.y * v.z; v.y += v.z * v.x; v.z += v.x * v.y;
+    v ^= v >> 16u;
+    v.x += v.y * v.z; v.y += v.z * v.x; v.z += v.x * v.y;
+    return vec3(v & 0xFFFFu) * (2.0 / 65535.0) - 1.0;
+}
+// Gradient (Perlin) noise with a quintic fade, about -0.7..0.7: smooth,
+// without the blotches and grid of value noise.
+float medium_perlin(vec3 x) {
+    ivec3 i = ivec3(floor(x));
+    vec3 f = x - floor(x), u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+    float n000 = dot(medium_gradient(i), f), n100 = dot(medium_gradient(i + ivec3(1, 0, 0)), f - vec3(1, 0, 0));
+    float n010 = dot(medium_gradient(i + ivec3(0, 1, 0)), f - vec3(0, 1, 0));
+    float n110 = dot(medium_gradient(i + ivec3(1, 1, 0)), f - vec3(1, 1, 0));
+    float n001 = dot(medium_gradient(i + ivec3(0, 0, 1)), f - vec3(0, 0, 1));
+    float n101 = dot(medium_gradient(i + ivec3(1, 0, 1)), f - vec3(1, 0, 1));
+    float n011 = dot(medium_gradient(i + ivec3(0, 1, 1)), f - vec3(0, 1, 1));
+    float n111 = dot(medium_gradient(i + ivec3(1, 1, 1)), f - vec3(1, 1, 1));
+    return mix(mix(mix(n000, n100, u.x), mix(n010, n110, u.x), u.y), mix(mix(n001, n101, u.x), mix(n011, n111, u.x), u.y), u.z);
+}
+// Drifting wisps, 0..1 (mean about 0.5): three octaves of gradient noise
+// (fBm), the coordinates warped by one more slow octave (curling, wispy
+// shapes rather than round blobs), squashed vertically (sheets of mist).
+// The whole field drifts with the wind (world units per second); the finer
+// octaves drift a little faster and the warp evolves slowly, so the wisps
+// change shape gently as they move. Time is game time (atmosphere.cpp: it
+// stops with the game, follows fast-forward, frame-rate independent).
 float medium_noise(vec3 p) {
     float t = MEDIUM(0).z, s = MEDIUM(2).w;
     vec3 w = MEDIUM(4).xyz;
     vec3 q = (p - w * t) * s * vec3(1.0, 2.2, 1.0);
-    vec3 r = (p - w * (t * 1.7) + vec3(0.0, 3.0 * t, 0.0)) * s * vec3(2.03, 4.1, 2.03);
-    return 0.65 * medium_value_noise(q) + 0.35 * medium_value_noise(r + vec3(17.3, 5.1, 31.7));
+    float warp = medium_perlin(q * 0.5 + vec3(11.3, 5.7, 27.1) + vec3(0.0, 0.0, t * 0.015));
+    q += warp * vec3(0.9, 0.35, 0.7);
+    float n = 0.55 * medium_perlin(q) + 0.3 * medium_perlin(q * 2.03 - w * (t * 0.15 * s) + vec3(17.3, 5.1, 31.7))
+        + 0.15 * medium_perlin(q * 4.11 - w * (t * 0.3 * s) + vec3(3.7, 41.9, 13.3));
+    return clamp(0.5 + 1.1 * n, 0.0, 1.0);
 }
 // A density's noise factor: mean about 1, 1 - amount .. 1 + amount.
 float medium_wisps(float n, float amount) { return mix(1.0, 2.0 * smoothstep(0.2, 0.8, n), amount); }
 bool medium_in_room(vec3 x) { return all(greaterThanEqual(x, MEDIUM(6).xyz)) && all(lessThanEqual(x, MEDIUM(7).xyz)); }
-// The ground fog's density without noise (y down: height above the base is base y - y).
+// One height of the floor grid (cell i, j), world y.
+float medium_floor_cell(int i, int j) {
+    int n = int(MEDIUM(MEDIUM_FLOOR + 1).z + 0.5);
+    int k = clamp(j, 0, n - 1) * n + clamp(i, 0, n - 1);
+    float v = MEDIUM(MEDIUM_FLOOR_DATA + k / 8)[(k / 2) & 3];
+    float a = floor(v / 4096.0);
+    float q = (k & 1) == 0 ? a : v - a * 4096.0;
+    return MEDIUM(MEDIUM_FLOOR + 1).x + q * MEDIUM(MEDIUM_FLOOR + 1).y;
+}
+// The ground fog's floor under x (world y, y down): the room's lowest floor
+// there (scene_capture.c pc_scene_floor_grid), bilinear between cells; the
+// room's main floor without a grid.
+float medium_floor(vec3 x) {
+    if (MEDIUM(MEDIUM_FLOOR + 1).w < 0.5) return MEDIUM(1).z;
+    vec2 c = (x.xz - MEDIUM(MEDIUM_FLOOR).xy) * MEDIUM(MEDIUM_FLOOR).zw - 0.5;
+    vec2 f = c - floor(c);
+    ivec2 i = ivec2(floor(c));
+    float a = mix(medium_floor_cell(i.x, i.y), medium_floor_cell(i.x + 1, i.y), f.x);
+    float b = mix(medium_floor_cell(i.x, i.y + 1), medium_floor_cell(i.x + 1, i.y + 1), f.x);
+    return mix(a, b, f.y);
+}
+// The ground fog's density without noise: thickest at its base, falling
+// off by e every scale height up (y down: the height above the base is
+// base y - y). With the floor grid its base is the floor under x raised by
+// its offset (MEDIUM(1).z), and under its base (under the lowest floor: the
+// void past a ledge, a pit the grid smooths over) it fades within one more
+// scale height, so no column holds an unbounded depth of it; without one
+// (RPC environment {floor_grid: 0}, no level face) the base is the room's
+// main floor and everything under it has the full density, as before.
 float medium_fog_base(vec3 x) {
     if (MEDIUM(1).x <= 0.0) return 0.0;
-    return MEDIUM(1).x * exp(-max(MEDIUM(1).z - x.y, 0.0) / max(MEDIUM(1).y, 1.0));
+    float height = max(MEDIUM(1).y, 1.0);
+    if (MEDIUM(MEDIUM_FLOOR + 1).w < 0.5) return MEDIUM(1).x * exp(-max(MEDIUM(1).z - x.y, 0.0) / height);
+    float up = medium_floor(x) - MEDIUM(1).z - x.y;
+    return MEDIUM(1).x * exp(up >= 0.0 ? -up / height : -max(-up - height, 0.0) / height);
 }
-// Volume i's density at x (its soft-edged shape, its noise; n < 0: not computed yet).
+// One value of the interactive fog's field (cell i, j).
+float medium_sim_cell(int i, int j) {
+    int n = int(MEDIUM(MEDIUM_SIM).x + 0.5);
+    int k = clamp(j, 0, n - 1) * n + clamp(i, 0, n - 1);
+    float v = MEDIUM(MEDIUM_SIM_DATA + k / 12)[(k / 3) & 3];
+    float a = floor(v / 65536.0), r = v - a * 65536.0, b = floor(r / 256.0);
+    int s = k - (k / 3) * 3;
+    float q = s == 0 ? a : s == 1 ? b : r - b * 256.0;
+    return q * (2.0 / 255.0);
+}
+// The interactive fog's multiplier at unit coordinates foot (-1..1 over the
+// volume's footprint), bilinear; 1 without a field.
+float medium_sim(vec2 foot) {
+    if (MEDIUM(MEDIUM_SIM).x < 0.5) return 1.0;
+    vec2 c = (foot * 0.5 + 0.5) * MEDIUM(MEDIUM_SIM).x - 0.5;
+    ivec2 i = ivec2(floor(c));
+    vec2 f = c - vec2(i);
+    return mix(mix(medium_sim_cell(i.x, i.y), medium_sim_cell(i.x + 1, i.y), f.x),
+               mix(medium_sim_cell(i.x, i.y + 1), medium_sim_cell(i.x + 1, i.y + 1), f.x), f.y);
+}
+// Volume i's density at x (its soft-edged shape, its noise, the interactive
+// fog's field; n < 0: not computed yet).
 float medium_volume(int i, vec3 x, inout float n) {
     int b = MEDIUM_VOLUME_BASE + 5 * i;
     vec4 a = MEDIUM(b), half_size = MEDIUM(b + 1), e = MEDIUM(b + 4);
@@ -71,6 +184,7 @@ float medium_volume(int i, vec3 x, inout float n) {
         if (n < 0.0) n = medium_noise(x);
         w *= medium_wisps(n, amount);
     }
+    if (MEDIUM(b + 3).w > 0.5) w *= medium_sim(r.xz);
     return a.w * w;
 }
 // The medium at x: returns the extinction (per world unit); scatter: the

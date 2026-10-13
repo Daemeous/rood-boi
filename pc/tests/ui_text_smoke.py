@@ -24,6 +24,12 @@ ui_text font, so nothing moves between the two images. Checks:
   from the font (RPC ui_text labels_drawn), never while it is original;
   HP drawn alone (RPC ui_text render) keeps its ink inside the label's box
   at the original's height;
+- the L2 shortcut cross (held L2 in the save room): its labels (ITEMS,
+  DEFENSE, CHAIN; BREAK ARTS when unlocked) and connector dots are drawn
+  from the font, the same frame changing only inside the boxes the game
+  drew; the dot drawn alone (RPC ui_text render) is a round disc in the
+  original's place: centred on the original dot, symmetric, lettering
+  colour inside a dark outline, inside its 6 x 6 box;
 - HUD digits (RPC ui_text render of each digit box): every digit of each
   size keeps at least the digits style's aspect (DIGITS_ASPECT, less a
   small tolerance) of the width/height it has at aspect 1 (the font's own
@@ -221,6 +227,46 @@ def check_label_render(game, work):
     check(5.5 <= height <= 8.0, f"label HP: lettering {height:.1f} PS1 pixels tall (the original's 7)")
 
 
+BATTLE_PAGE = 0x17  # the battle page (448, 256), 4-bit
+CLUT_CROSS = (220 << 6) | (976 >> 4)  # the L2 shortcut cross's labels and dots
+CROSS_WORDS = {"ITEMS", "DEFENSE", "CHAIN"}  # Break Arts may be locked on the card's save
+DOT = "\u2022"  # ui_labels.h's connector dot
+
+
+def check_cross(game, work, shots):
+    """The L2 shortcut cross: labels and dots from the font (frame-exact
+    against the original), and the dot drawn alone as a disc."""
+    game.call("input", buttons=["l2"], vsyncs=230)  # released after compare's frames
+    game.run(200)
+    step = game.read_symbol("D_800EBCE8", 1)[0]
+    if not check(step != 10, f"cross: the L2 shortcut cross is open (animation step {step})"):
+        return
+    compare(game, work, "cross", shots, "cross", "bright")
+    drawn = set(game.call("ui_text")["labels_drawn"])
+    check(CROSS_WORDS <= drawn and DOT in drawn, f"cross: labels and dots drawn from the font ({sorted(drawn)})")
+    texels = render(game, work, (BATTLE_PAGE, CLUT_CROSS, 192, 128, 197, 133), 8)
+    if not check(texels is not None and texels.shape == (48, 48), "cross dot: drawn alone from the font"):
+        game.run(150)
+        return
+    inside = bright(texels)
+    drawn_px = texels != 0
+    ys, xs = np.where(inside)
+    oy, ox = np.where(drawn_px)
+    # The original dot: lettering 2 x 2 at (194..195, 130..131) in a ring of outline, centred 3 PS1 pixels into
+    # the box each way (24 texels at 8x); the disc's centre within half a PS1 pixel of it.
+    cy, cx = ys.mean() + 0.5, xs.mean() + 0.5
+    check(abs(cx - 24) <= 4 and abs(cy - 24) <= 4,
+          f"cross dot: the disc is centred on the original dot ({cx / 8:.2f}, {cy / 8:.2f} of 6)")
+    wide, tall = xs.max() - xs.min() + 1, ys.max() - ys.min() + 1
+    check(abs(wide - tall) <= 1 and 12 <= wide <= 24,
+          f"cross dot: round, about the original's 2 PS1 pixels across ({wide / 8:.2f} x {tall / 8:.2f})")
+    sym = np.array_equal(inside, inside[::-1, :]) and np.array_equal(inside, inside[:, ::-1])
+    check(sym, "cross dot: the disc is symmetric")
+    check(oy.min() > 0 and ox.min() > 0 and oy.max() < 47 and ox.max() < 47 and (drawn_px & ~inside).any(),
+          "cross dot: an outline around it, inside the 6 x 6 box")
+    game.run(150)  # released: the cross closes
+
+
 def launch(work, card, label, extra=None):
     settings = work / "settings.cfg"
     env = {"ROOD_OUT": str(work), "ROOD_SETTINGS": str(settings), **(extra or {})}
@@ -245,7 +291,7 @@ def run_bubble(work, shots):
     try:
         g = game.call("graphics")
         check(g.get("ui_text") == "original", f"bubble: default ui_text original ({g.get('ui_text')})")
-        game.call("graphics", interpolate=False)
+        game.call("graphics", interpolate=False, aa="off")  # SMAA would blend beyond the glyph boxes
         game.wait_title()
         game.run(90)
         game.press("start", vsyncs=4, settle=90)
@@ -271,7 +317,7 @@ def run_save(work, card, shots):
     game = launch(work, copy, "save")
     settings = work / "settings.cfg"
     try:
-        game.call("graphics", interpolate=False)
+        game.call("graphics", interpolate=False, aa="off")  # SMAA would blend beyond the glyph boxes
         game.wait_title()
         game.run(90)
         game.press("start", vsyncs=4, settle=90)
@@ -287,6 +333,7 @@ def run_save(work, card, shots):
             check("HP" in drawn and "MP" in drawn, f"save: HUD labels drawn from the font ({drawn})")
             check_digits(game, work)
             check_label_render(game, work)
+            check_cross(game, work, shots)
             game.press("triangle", vsyncs=3, settle=60)
             game.press("circle", vsyncs=3, settle=60)
             game.press("circle", vsyncs=3, settle=60)  # Battle Abilities > Chain Abilities (information box)

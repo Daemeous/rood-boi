@@ -27,6 +27,12 @@ so the boxes can be checked to the pixel. Checks:
   xbox icons, the keyboard key caps;
 - rebinding: bind_key_circle c shows C, bind_pad_circle south the Xbox A,
   the defaults the first icons again;
+- the L2 shortcut cross: icons inside their cells, neighbours apart, the
+  family's icons and D-pad; its D-pad (button_prompts_dpad, default dim):
+  it is drawn with the arms the game reported usable as it drew the labels
+  (RPC button_prompts cross_actions; at least one on the save),
+  the same frame with every arm lit is exactly the whole D-pad (cross),
+  dim and lit change only pixels inside the D-pad's mask (dim only darker);
 - the quick manual's button sprites likewise; internal resolution 1 draws
   the icons as well;
 - native menus' images (pc_prompt_glyph); settings save and load;
@@ -141,7 +147,8 @@ def check_original(game, work, name):
     s = Shot(game, work, name + "-original", button_prompts="original")
     stats1 = game.call("ui_upscale")
     shown = s.info["shown"]
-    check(stats1["lookups"] == stats0["lookups"] and s.boxes == 0 and not shown["text"] and not shown["sprite"],
+    check(stats1["lookups"] == stats0["lookups"] and s.boxes == 0 and not shown["text"] and not shown["sprite"]
+          and shown["dpad"] is None,
           f"{name}: original sends nothing through the 2D atlas ({stats1['lookups'] - stats0['lookups']} lookups, "
           f"{s.boxes} box texels, shown {shown})")
     game.call("button_prompts", button_prompts="xbox")
@@ -175,7 +182,7 @@ def compare_modes(game, work, name, shots, kind, buttons):
         drawn = s.info["regions"] - before["regions"]
         check(s.info["failed"] == before["failed"],
               f"{name}: {mode}: {drawn} new {kind} regions drawn from icons, none fell back")
-        want = {b: EXPECTED[mode][b] for b in buttons}
+        want = {b: EXPECTED[mode][b] + "_outline" for b in buttons}  # the default style, color_outline
         check(s.info["shown"][kind] == want, f"{name}: {mode} shows {s.info['shown'][kind]} (want {want})")
     # auto: the device used last.
     s = Shot(game, work, name + "-auto-xbox", button_prompts="auto", device="xbox")
@@ -186,18 +193,188 @@ def compare_modes(game, work, name, shots, kind, buttons):
           and s.changed > 0 and s.outside == 0, f"{name}: auto after the keyboard draws key caps")
     # Rebinding: the icon shown follows the binding.
     s = Shot(game, work, name + "-rebound", bind={"bind_key_circle": "c"})
-    check(s.info["glyphs"]["circle"] == "keyboard_c" and s.info["shown"][kind].get("circle") == "keyboard_c"
+    check(s.info["glyphs"]["circle"] == "keyboard_c" and s.info["shown"][kind].get("circle") == "keyboard_c_outline"
           and s.changed > 0 and s.outside == 0,
           f"{name}: bind_key_circle c shows C (shown {s.info['shown'][kind].get('circle')})")
     save_pair(shots, f"{name}-keyboard-rebound", s)
     s = Shot(game, work, name + "-pad-rebound", button_prompts="xbox", bind={"bind_pad_circle": "south"})
-    check(s.info["shown"][kind].get("circle") == "xbox_button_a" and s.outside == 0,
+    check(s.info["shown"][kind].get("circle") == "xbox_button_a_outline" and s.outside == 0,
           f"{name}: bind_pad_circle south shows the Xbox A (shown {s.info['shown'][kind].get('circle')})")
     s = Shot(game, work, name + "-defaults", bind={"bind_key_circle": "z", "bind_pad_circle": "east"})
     check(s.info["shown"][kind] == shot["xbox"].info["shown"][kind] and s.outside == 0,
           f"{name}: the default bindings show the first xbox icons again")
     check_original(game, work, name + "-again")
     return shot
+
+
+# The L2 shortcut cross (BATTLE.PRG func_800C9FE8): the face-button diamond
+# (16 x 16 sprites, diagonal neighbours 9 PS1 pixels apart: their cells
+# overlap) and the D-pad (one 30 x 30 sprite), per family in the default
+# style (color_outline) and in solid.
+CROSS_FACES = {  # PS1 button -> (cell column on the page, glyph)
+    "playstation": {"triangle": "playstation_button_triangle", "square": "playstation_button_square",
+                    "circle": "playstation_button_circle", "cross": "playstation_button_cross"},
+    "xbox": {"triangle": "xbox_button_y", "square": "xbox_button_x", "circle": "xbox_button_b",
+             "cross": "xbox_button_a"},
+    "nintendo": {"triangle": "switch_button_x", "square": "switch_button_y", "circle": "switch_button_a",
+                 "cross": "switch_button_b"},
+    "keyboard": {"triangle": "keyboard_s", "square": "keyboard_a", "circle": "keyboard_z", "cross": "keyboard_x"},
+}
+CROSS_DPAD = {"playstation": "playstation_dpad", "xbox": "xbox_dpad", "nintendo": "switch_dpad",
+              "keyboard": "keyboard_arrows"}
+CELLS = ["triangle", "square", "circle", "cross"]  # the page's cells at (16 k, 128)
+
+
+def cross_geometry(game):
+    """Where the cross's sprites are on screen now, from the game's tables:
+    {button: (x, y)} for the 16 x 16 face sprites and the D-pad's (x, y)."""
+    step = game.read_symbol("D_800EBCE8", 1)[0]
+    steps = game.read_symbol("vs_battle_rowAnimationSteps", 16)
+    slide = int.from_bytes(steps[step:step + 1], "little", signed=True) if step < 16 else None
+    table = game.read_symbol("D_800EBC88", 16)
+    faces = {}
+    for k, button in enumerate(CELLS):
+        v = int.from_bytes(table[4 * k:4 * k + 4], "little")
+        faces[button] = (160 + (slide or 0) + int.from_bytes((v & 0xffff).to_bytes(2, "little"), "little", signed=True),
+                         v >> 16)
+    return step, slide, faces, (-(slide or 0) + 0x48, 0x66)
+
+
+def icon_mask(game, u0, v0, size, factor, scale):
+    m = game.call("button_prompts", mask=[u0, v0, u0 + size - 1, v0 + size - 1, factor, scale])["mask"]
+    if not m["w"]:
+        return None
+    return np.array([[c == "1" for c in row] for row in m["rows"]], bool)
+
+
+def place(canvas_shape, mask, x, y, scale):
+    canvas = np.zeros(canvas_shape, bool)
+    h, w = mask.shape
+    canvas[y * scale:y * scale + h, x * scale:x * scale + w] = mask
+    return canvas
+
+
+def cross_checks(game, work, shots):
+    """The shortcut cross: icons inside their cells with a margin, no two
+    neighbours touching (at the internal resolution and at 1x), the drawn
+    pixels exactly the icons' (frame-exact against a smaller size), the
+    family's icons and D-pad, and original unchanged."""
+    def held(name, **prompts):
+        game.call("input", buttons=["l2"], vsyncs=RECORD_VSYNCS + 40)
+        return Shot(game, work, name, **prompts)
+
+    game.call("input", buttons=["l2"], vsyncs=RECORD_VSYNCS * 3)
+    check_original(game, work, "cross")
+    step, slide, faces, dpad_xy = cross_geometry(game)
+    if not check(slide is not None and step != 10, f"cross: the L2 shortcut cross is open (animation step {step})"):
+        return
+    default = game.call("button_prompts")
+    check(default["style"] == "color_outline" and abs(default["scale"] - 0.7) < 1e-6,
+          f"cross: default style color_outline, scale 0.7 ({default['style']}, {default['scale']})")
+    for style in ["color_outline", "solid"]:
+        suffix = "_outline" if style == "color_outline" else ""
+        for family in CROSS_FACES:
+            name = f"cross-{style}-{family}"
+            s = held(name, button_prompts=family, style=style, scale=0.7)
+            check_shot(s, name, f"{family} {style}")
+            save_pair(shots, name, s)
+            want = {b: g + suffix for b, g in CROSS_FACES[family].items()}
+            dpad = CROSS_DPAD[family] + ("_none" if suffix else "")
+            check(s.info["shown"]["sprite"] == want and s.info["shown"]["dpad"] == dpad,
+                  f"{name}: shows {s.info['shown']['sprite']}, D-pad {s.info['shown']['dpad']} (want {want}, {dpad})")
+            sc = s.scale
+            masks = {b: icon_mask(game, 16 * k, 128, 16, sc, sc) for k, b in enumerate(CELLS)}
+            dmask = icon_mask(game, 184, 160, 30, sc, sc)
+            if not check(all(m is not None and m.shape == (16 * sc, 16 * sc) for m in masks.values())
+                         and dmask is not None, f"{name}: every cross icon has a mask"):
+                continue
+            # Inside the cell with at least 2 PS1 pixels of margin.
+            margin = 2 * sc
+            inside = all(not m[:margin].any() and not m[-margin:].any() and not m[:, :margin].any()
+                         and not m[:, -margin:].any() and m.any() for m in masks.values())
+            dm = 1 * sc
+            check(inside and dmask.any() and not dmask[:dm].any() and not dmask[-dm:].any()
+                  and not dmask[:, :dm].any() and not dmask[:, -dm:].any(),
+                  f"{name}: icons inside their cells with a margin of {margin} pixels (D-pad {dm})")
+            # Neighbours apart: no pixel within half a PS1 pixel of another icon.
+            shape = s.icons.shape[:2]
+            placed = {b: place(shape, masks[b], *faces[b], sc) for b in CELLS}
+            grown = {b: ndimage.binary_dilation(p, iterations=max(sc // 2, 1)) for b, p in placed.items()}
+            touching = [(a, b) for i, a in enumerate(CELLS) for b in CELLS[i + 1:] if (grown[a] & placed[b]).any()]
+            check(not touching, f"{name}: no two face icons within half a PS1 pixel ({touching})")
+            # At internal resolution 1 (one texel per pixel) none overlap either.
+            small = {b: icon_mask(game, 16 * k, 128, 16, 2, 1)[::2, ::2] for k, b in enumerate(CELLS)}
+            small_placed = {b: place((224, 320), small[b], *faces[b], 1) for b in CELLS}
+            overlap = [(a, b) for i, a in enumerate(CELLS) for b in CELLS[i + 1:]
+                       if (small_placed[a] & small_placed[b]).any()]
+            check(not overlap, f"{name}: at internal resolution 1 no two face icons share a pixel ({overlap})")
+            # Frame-exact: the same frame with smaller icons differs only
+            # where either size's icons are (nothing else is drawn).
+            t = held(name + "-small", scale=0.4)
+            union = np.zeros(shape, bool)
+            for k, b in enumerate(CELLS):
+                union |= placed[b] | place(shape, icon_mask(game, 16 * k, 128, 16, sc, sc), *faces[b], sc)
+            union |= place(shape, dmask, *dpad_xy, sc) | place(shape, icon_mask(game, 184, 160, 30, sc, sc), *dpad_xy, sc)
+            diff = np.any(s.icons != t.icons, axis=2)
+            check(diff.any() and not (diff & ~union).any(),
+                  f"{name}: scale 0.4 vs 0.7 changes {int(diff.sum())} pixels, all inside the icons' masks "
+                  f"({int((diff & ~union).sum())} outside)")
+            game.call("button_prompts", scale=0.7)
+    dpad_checks(game, work, shots, held, dpad_xy)
+    game.call("button_prompts", button_prompts="original", style="color_outline", dpad="dim")
+    game.call("input", buttons=["l2"], vsyncs=RECORD_VSYNCS * 2)
+    check_original(game, work, "cross-again")
+    game.run(90)  # released: the cross closes
+
+
+ARMS = ["up", "left", "right", "down"]  # button_prompts.c cross_actions bits
+
+
+def dpad_checks(game, work, shots, held, dpad_xy):
+    """The shortcut cross's D-pad modes on one recorded frame per family and
+    style: dim (the default) lights the arms the game reported usable, all
+    arms lit is the whole D-pad (cross) to the pixel, and dim and lit change
+    nothing outside the D-pad's icon (dim only darkens)."""
+    check(game.call("button_prompts")["dpad_mode"] == "dim", "cross: default D-pad mode dim")
+    for style in ["color_outline", "solid"]:
+        for family in CROSS_FACES:
+            name = f"dpad-{style}-{family}"
+            s = held(name, button_prompts=family, style=style, dpad="dim")
+            actions = s.info["cross_actions"]
+            lit = [a for k, a in enumerate(ARMS) if actions >> k & 1]
+            check(s.info["shown"]["dpad_arms"] == lit and lit, f"{name}: the arms with an action are lit "
+                  f"({s.info['shown']['dpad_arms']}, cross_actions {actions})")
+            sc = s.scale
+            shape = s.icons.shape[:2]
+
+            def dpad_mask():
+                return place(shape, icon_mask(game, 184, 160, 30, sc, sc), *dpad_xy, sc)
+
+            dim, dim_mask = s.icons, dpad_mask()
+            t = held(name + "-cross", dpad="cross")
+            cross, cross_mask = t.icons, dpad_mask()
+            check(differs(s.original, t.original) == 0, f"{name}: the frames recorded for each mode are the same "
+                  f"frame ({differs(s.original, t.original)} pixels differ in the original drawing)")
+            every = held(name + "-all-lit", dpad="dim", cross_actions=15).icons
+            check(np.array_equal(every, cross), f"{name}: every arm lit is the whole D-pad to the pixel "
+                  f"({differs(every, cross)} pixels differ)")
+            t = held(name + "-lit", dpad="lit", cross_actions=-1)
+            lit_image, lit_mask = t.icons, dpad_mask()
+            game.call("button_prompts", dpad="dim")
+            area = ndimage.binary_dilation(dim_mask | cross_mask | lit_mask, iterations=1)
+            luma = lambda im: im.astype(int) @ np.array([299, 587, 114])
+            for mode, image in (("dim", dim), ("lit", lit_image)):
+                diff = np.any(image != cross, axis=2)
+                check((diff.any() or actions == 15) and not (diff & ~area).any(),
+                      f"{name}: {mode} changes {int(diff.sum())} pixels of the same frame, all inside the D-pad "
+                      f"({int((diff & ~area).sum())} outside)")
+            darker = np.any(dim != cross, axis=2)
+            check(not darker.any() or (luma(dim)[darker] <= luma(cross)[darker]).all(),
+                  f"{name}: dim only darkens the arms without an action")
+            if shots:
+                side = np.concatenate([cross, np.full((cross.shape[0], 8, 3), 255, np.uint8), dim,
+                                       np.full((cross.shape[0], 8, 3), 255, np.uint8), lit_image], axis=1)
+                Image.fromarray(side).save(shots / f"{name}.png")
 
 
 def launch(work, card, label, extra=None):
@@ -239,6 +416,7 @@ def run(work, card, shots):
         game.run(400)
         if not check(bool(game.state().get("player")), "in the save room"):
             return
+        cross_checks(game, work, shots)
         game.press("triangle", vsyncs=3, settle=60)
         game.press("circle", vsyncs=3, settle=60)  # Battle Abilities: the information box names ○, △ and □
         compare_modes(game, work, "chain", shots, "text", ["circle", "triangle", "square"])
@@ -268,17 +446,21 @@ def run(work, card, shots):
               and b["icon"]["texture"] and b["icon"]["device"] == 4 and b["icon"]["generation"] != a["icon"]["generation"],
               f"native menus: pc_prompt_glyph images ({a['icon']}, {b['icon']})")
         # Settings: the mode and changed bindings persist.
-        game.call("button_prompts", button_prompts="nintendo", bind={"bind_key_cross": "space"})
+        game.call("button_prompts", button_prompts="nintendo", style="solid", scale=0.8,
+                  bind={"bind_key_cross": "space"})
         game.call("settings", action="save")
         text = settings.read_text()
         check("button_prompts nintendo" in text and "bind_key_cross space" in text
-              and "bind_key_circle" not in text, "settings: button_prompts and the changed binding saved")
-        game.call("button_prompts", button_prompts="original", bind={"bind_key_cross": "x"})
+              and "button_prompts_style solid" in text and "button_prompts_scale 0.8" in text
+              and "bind_key_circle" not in text, "settings: button_prompts, style, scale and the changed binding saved")
+        game.call("button_prompts", button_prompts="original", style="color_outline", scale=0.7,
+                  bind={"bind_key_cross": "x"})
         game.call("settings", action="load")
         p = game.call("button_prompts")
-        check(p["button_prompts"] == "nintendo" and p["bindings"]["cross"]["keys"] == ["space"],
-              "settings: they load back")
-        game.call("button_prompts", button_prompts="original", bind={"bind_key_cross": "x"})
+        check(p["button_prompts"] == "nintendo" and p["bindings"]["cross"]["keys"] == ["space"]
+              and p["style"] == "solid" and abs(p["scale"] - 0.8) < 1e-6, "settings: they load back")
+        game.call("button_prompts", button_prompts="original", style="color_outline", scale=0.7,
+                  bind={"bind_key_cross": "x"})
         game.run(4)
     finally:
         game.close()

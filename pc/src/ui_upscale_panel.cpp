@@ -87,6 +87,21 @@ extern "C" void pc_ui_upscale_panel(void)
     if (pc_button_prompts != PC_PROMPTS_ORIGINAL) {
         int family = pc_button_prompts_family();
         ImGui::TextDisabled("Showing %s", family ? pc_button_prompts_names[family] : "original");
+        static const char* styles[] = { "Solid", "Outline", "Colour solid", "Colour outline" };
+        ImGui::Combo("Prompt style", &pc_button_prompts_style, styles, PC_PROMPTS_STYLES);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Solid: a filled cap with the symbol knocked out. Outline: ring and symbol, no fill.\n"
+                              "Colour: the PlayStation and Xbox face buttons in their own colours (others neutral).");
+        ImGui::SliderFloat("Prompt size", &pc_button_prompts_scale, 0.4f, 1.0f, "%.2f of the cell");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("The 16 x 16 button sprites' icons fit in a circle this fraction of the cell across,\n"
+                              "centred where the original's is: 0.7 keeps the face-button diamond's neighbours apart.");
+        static const char* dpads[] = { "Whole D-pad", "Dim arms without an action", "Fill arms with an action" };
+        ImGui::Combo("Shortcut D-pad", &pc_button_prompts_dpad, dpads, PC_PROMPTS_DPADS);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("The L2 shortcut cross's D-pad. Whole D-pad: the family's D-pad in the prompt style.\n"
+                              "Dim: the arms with no usable action beside them dimmed. Fill: the arms with one\n"
+                              "filled (outline styles; solid styles dim the others' insides).");
     }
     bool subpixel = pc_ui_subpixel != 0;
     if (ImGui::Checkbox("Sub-pixel text placement", &subpixel))

@@ -27,6 +27,7 @@
 
 #include "imgui.h"
 #include "imgui_internal.h" /* the hovered window, for drops on the view */
+#include "ui/ui_shell.h" /* pc_ui_shell_wants_mouse */
 #include "dev_state.h"
 #include "ImGuizmo.h"
 #include "editor_overlays.h"
@@ -1376,7 +1377,9 @@ extern "C" void pc_lights_viewport(void)
     /* Fog volumes (atmosphere.cpp): outlines, the selected one's gizmo. */
     if (pc_atmosphere_viewport(v.view, v.projection, v.rect, draw))
         gizmo_busy = true;
-    if (io.WantCaptureMouse || gizmo_busy || drag.active || !ImGui::IsMouseClicked(ImGuiMouseButton_Left) || io.KeyAlt)
+    /* pc_ui_shell_wants_mouse: the modern menus over the game picture take the click */
+    if (io.WantCaptureMouse || pc_ui_shell_wants_mouse() || gizmo_busy || drag.active
+        || !ImGui::IsMouseClicked(ImGuiMouseButton_Left) || io.KeyAlt)
         return;
     float world[3], normal[3];
     if (probe_mode) {

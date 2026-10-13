@@ -346,8 +346,19 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
     case SDL_EVENT_MOUSE_BUTTON_UP:
     case SDL_EVENT_MOUSE_WHEEL:
-        if (!visible)
-            return 0;
+        if (!visible) {
+            /* The modern menus (pc/src/ui) take clicks and the wheel while
+             * they show; ui_draw hit-tests them against ImGui's pointer. A
+             * release always reaches ImGui: the click that closed the shell
+             * must not leave its button held there. */
+            if (!pc_ui_shell_drawn()) {
+                if (event->type == SDL_EVENT_MOUSE_BUTTON_UP)
+                    ImGui_ImplSDL3_ProcessEvent(&scaled);
+                return 0;
+            }
+            ImGui_ImplSDL3_ProcessEvent(&scaled);
+            return 1;
+        }
         ImGui_ImplSDL3_ProcessEvent(&scaled);
         return 1;
     default:
@@ -1475,8 +1486,9 @@ static void viewport_keys()
     /* Right mouse in the game view: fly from the game camera (as in UE);
      * the free camera stays until Play. */
     float mx = io.MousePos.x, my = io.MousePos.y;
+    /* The modern menus over the game picture have the pointer there. */
     bool in_view = mx >= pc_gl_view[0] && my >= pc_gl_view[1] && mx < pc_gl_view[0] + pc_gl_view[2]
-        && my < pc_gl_view[1] + pc_gl_view[3];
+        && my < pc_gl_view[1] + pc_gl_view[3] && !pc_ui_shell_wants_mouse();
     if (!pc_editor_active() && in_view && ImGui::IsMouseClicked(ImGuiMouseButton_Right) && pc_hw_active)
         pc_editor_toggle();
     if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) /* WASD fly, not shortcuts */

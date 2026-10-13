@@ -1,15 +1,20 @@
 #version 460
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_ray_query : require
-// Volumetric haze, step 1: in-scattered light per froxel (a cell of the
-// view frustum: GX x GY screen cells, GZ logarithmic depth slices, stored as
-// GZ tiles side by side in a 2D image), per unit of scattering: the medium's
-// density and colour are applied when the volume is integrated. Each froxel
-// samples a point in its cell (blue-noise jitter, R2 offsets per frame),
+// Volumetric haze, step 1: per froxel (a cell of the view frustum: GX x GY
+// screen cells, GZ logarithmic depth slices, stored as GZ tiles side by side
+// in a 2D image) the medium's light scattered toward the eye per unit length
+// (rgb: scattering x the light arriving + its own emission) and its
+// extinction (a), x 1000 (half floats), a + 1 (1: valid history). Each
+// froxel samples a point in its cell (blue-noise jitter, R2 offsets per frame),
 // picks one light or glow in proportion to its unshadowed light there and
 // traces one shadow ray, and the sun one more (its disc, its own phase
 // weight: shafts through arches and branches), then blends with its
-// reprojected history, so the haze is smooth and stable. It depends only on
+// reprojected history, so the haze is smooth and stable and each froxel
+// holds the medium's average over its cell: a fog layer or a volume's edge
+// thinner than a slice comes out as a smooth gradient, never as slices or
+// steps (the integrate pass no longer samples the medium at fixed points).
+// It depends only on
 // the camera, never on what is drawn, so effects and particles cannot cut
 // holes in it. Froxels where the medium cannot be (medium_maybe) skip it.
 layout(local_size_x = 8, local_size_y = 8) in;
@@ -25,7 +30,7 @@ layout(std140, binding = 4) uniform Haze {
     vec4 previous_rotation[3]; // previous world -> view (rows), w: translation
     vec4 previous_projection; // hx, hh, ofx, ofy
     vec4 previous_range; // znear, log(zfar / znear)
-    vec4 medium_[88]; // the room's medium (medium.glsl, atmosphere.h)
+    vec4 medium_[250]; // the room's medium (medium.glsl, atmosphere.h)
 } h;
 #define MEDIUM(i) h.medium_[i]
 #include "medium.glsl"
@@ -118,8 +123,8 @@ void main() {
                         + fract(vec2(0.7548777, 0.5698403) * float(frame & 4095u)));
         vec3 l = env_sun_sample(u2.x, u2.y);
         float th; int hit; vec2 bc;
-        if (env_sun_col.w < 0.5 || !trace(x, l, ENV_SUN_DISTANCE, true, l, 0.0, th, hit, bc))
-            light += env_sun_col.rgb * medium_phase(dot(dir, l), g_);
+        bool lit = env_sun_col.w < 0.5 || !trace(x, l, ENV_SUN_DISTANCE, true, l, 0.0, th, hit, bc);
+        light += env_sun_col.rgb * medium_phase(dot(dir, l), g_) * medium_sun_visibility(lit ? 1.0 : 0.0);
     }
     // The sky: one ray in a direction over the sphere (stratified the same
     // way); what blocks it (canopies, arches, walls) occludes it, so the air
@@ -151,5 +156,10 @@ void main() {
             }
         }
     }
-    imageStore(scatter_out, g, vec4(mix(previous.rgb, light, weight), 1.0));
+    vec3 scatter_ = vec3(0.0), emit_ = vec3(0.0);
+    float extinction = inside ? medium_at(x, scatter_, emit_) : 0.0;
+    vec4 here = extinction > 0.0 ? vec4((scatter_ * light + emit_) * 1000.0, extinction * 1000.0) : vec4(0.0);
+    if (any(isnan(here)) || any(isinf(here))) here = vec4(0.0);
+    vec4 blended = mix(vec4(previous.rgb, max(previous.a - 1.0, 0.0)), here, weight);
+    imageStore(scatter_out, g, vec4(blended.rgb, blended.a + 1.0));
 }

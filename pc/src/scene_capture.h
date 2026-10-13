@@ -43,6 +43,16 @@ int pc_scene_game_projection(float* h, float* ofx, float* ofy);
 /* The captured room's bounds, and its main floor's height (world y; 0: none). */
 void pc_scene_bounds(float lo[3], float hi[3]);
 int pc_scene_floor(float* y);
+/* The room's floor seen from above, a PC_SCENE_FLOOR_GRID x PC_SCENE_FLOOR_GRID
+ * grid over its bounds (x, z): per cell the lowest up-facing level face's
+ * height (world y; the street, not the roofs above it), each cell the
+ * lowest of its neighbours too (a street's edge is the street), cells
+ * without a floor from their neighbours. heights[j * N + i]: cell i in x, j
+ * in z; corner (lo_x, lo_z), cell size (cell_x, cell_z). Cached per capture.
+ * Returns 0 without a captured room (or no level face). The ground fog lies
+ * on it (atmosphere.cpp). */
+#define PC_SCENE_FLOOR_GRID 24
+int pc_scene_floor_grid(float heights[PC_SCENE_FLOOR_GRID * PC_SCENE_FLOOR_GRID], float corner[2], float cell[2]);
 #ifdef __cplusplus
 }
 #endif

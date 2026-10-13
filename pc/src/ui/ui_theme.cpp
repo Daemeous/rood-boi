@@ -42,6 +42,7 @@ bool theme_parse(const char* text, Theme& t, std::string* error)
         {"ground", &t.ground}, {"panel", &t.panel}, {"rule", &t.rule}, {"rule2", &t.rule2},
         {"bone", &t.bone}, {"ash", &t.ash}, {"dim", &t.dim}, {"accent", &t.accent},
         {"accent_soft", &t.accent_soft}, {"gold", &t.gold}, {"hp", &t.hp}, {"mp", &t.mp}, {"risk", &t.risk},
+        {"up", &t.up}, {"down", &t.down},
     };
     if (const prefab::Json* c = root.get("colors"))
         for (auto& e : colors)
@@ -140,3 +141,11 @@ const Theme& theme()
 }
 
 } // namespace ui
+
+// The ground colour's red, green and blue (0..255) for C (ashley_bridge.c
+// paints the model column's ground in it).
+extern "C" void pc_ui_theme_ground_rgb(int* r, int* g, int* b)
+{
+    unsigned c = ui::theme().ground; // 0xAABBGGRR
+    *r = (int)(c & 0xFF), *g = (int)((c >> 8) & 0xFF), *b = (int)((c >> 16) & 0xFF);
+}

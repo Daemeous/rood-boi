@@ -238,7 +238,7 @@ static const char* scaled_fragment_source =
     /* The room's medium (atmosphere.h pc_medium_gpu; medium.glsl): the haze,
      * the ground fog, the fog volumes (haze Low marches it; the traced haze's
      * transmittance). */
-    "uniform vec4 medium_[88];\n"
+    "uniform vec4 medium_[250];\n"
     "#define MEDIUM(i) medium_[i]\n" PC_GLSL_MEDIUM
     "float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }\n"
     "uniform float normal_smoothing;\n" /* radius in native pixels, 0 = flat faces */
@@ -360,26 +360,27 @@ static const char* scaled_fragment_source =
     "        }\n"
     "        if (env_sun_on())\n"
     "            here += env_sun_col.rgb * medium_phase(dot(dir, env_sun_dir.xyz), g)\n"
-    "                  * (env_mode.x == 0 ? env_sun_map_point(x, fract(jitter + float(k) * 0.618034)) : 1.0);\n"
-    "        float a = exp(-extinction * step_);\n"
+    "                  * (env_mode.x == 0 ? medium_sun_visibility(env_sun_map_point(x, fract(jitter + float(k) * 0.618034))) : 1.0);\n"
+    "        float a = medium_step(extinction, step_, transmittance);\n"
     "        sum += transmittance * (scatter * here + emit) * ((1.0 - a) / extinction);\n"
     "        transmittance *= a;\n"
     "    }\n"
-    "    return c * transmittance + sum;\n"
+    "    return c * transmittance + medium_limit_light(sum);\n"
     "}\n"
-    /* The medium's transmittance from the eye to `world` (deterministic: 12
-     * fixed steps), for the traced haze, whose light ptgi.c marched. */
+    /* The medium's transmittance from the eye to `world` (16 steps, offset
+     * per pixel by interleaved gradient noise: a fine dither, never the
+     * slices fixed steps leave), for the traced haze, whose light ptgi.c marched. */
     "float medium_transmittance(vec3 world) {\n"
     "    vec3 eye = inverse_rotation * -camera_translation;\n"
     "    vec3 v = world - eye; float length_ = length(v); vec3 dir = v / max(length_, 1e-3);\n"
     "    vec2 span = medium_span(eye, dir, length_);\n"
     "    if (!(span.y > span.x)) return 1.0;\n"
-    "    float step_ = (span.y - span.x) / 12.0, depth = 0.0;\n"
-    "    for (int k = 0; k < 12; k++) {\n"
+    "    float step_ = (span.y - span.x) / 16.0, depth = 0.0, jitter = ign(gl_FragCoord.xy + 5.0);\n"
+    "    for (int k = 0; k < 16; k++) {\n"
     "        vec3 scatter, emit;\n"
-    "        depth += medium_at(eye + dir * (span.x + (float(k) + 0.5) * step_), scatter, emit) * step_;\n"
+    "        depth += medium_at(eye + dir * (span.x + (float(k) + jitter) * step_), scatter, emit) * step_;\n"
     "    }\n"
-    "    return exp(-depth);\n"
+    "    return medium_limit_transmittance(exp(-depth));\n"
     "}\n"
     "vec3 world_at(ivec2 q, float z) {\n"
     "    vec2 s = (vec2(q) + 0.5) / float(scale) - vec2(rect.xy) - screen_offset;\n"

@@ -9,20 +9,29 @@
  *   sprite   the field UI page (768, 0), CLUT (944, 223), 16 x 16 cells at
  *            (0, 128): triangle, square, circle, cross, then L1, R1, L2, R2
  *            below (vs_mainmenu_renderButton, the quick manual's page keys,
- *            MENUF's PRESS BUTTON prompt, the name entry screen)
+ *            MENUF's PRESS BUTTON prompt, the name entry screen, the L2
+ *            shortcut cross's face-button diamond)
+ *   dpad     the same page and CLUT, 30 x 30 at (184, 160): the L2 shortcut
+ *            cross's D-pad (BATTLE.PRG func_800C9FE8), drawn as the
+ *            family's D-pad when the four directions are bound to one, its
+ *            arms dimmed or filled by which have a usable action beside
+ *            them (button_prompts_dpad; weapon_slots.c reports them)
  *
  * the region goes through the 2D atlas (ui_upscale.c) and its texels are
  * drawn again from an icon: the PS1 button's binding on the device used
  * last (or the forced family) names a glyph of Kenney's Input Prompts fonts
  * (pc/third_party/fonts/KenneyInputPrompts, with each font's name map), made
- * into a signed distance field by ui_text.c and fitted, centred, into the
- * original's ink box (text: one pixel larger, inside the cell). Text icons
- * take the original glyph's CLUT ramp (coverage -> index), so their colour,
- * brightness and translucency are the text's; sprite icons are a dark body
- * with the family's symbol colours and a dark rim, the symbol being the
- * glyph's holes. Placement, timing and size are the game's: only the texels
- * inside the box change. A key or element without an icon keeps the
- * original. */
+ * into a signed distance field by ui_text.c and fitted, centred on the
+ * original: text in its ink box (one pixel larger, inside the cell), sprites
+ * in a circle button_prompts_scale of the cell across (the shortcut cross's
+ * face-button diamond overlaps its cells: circles that do not meet keep any
+ * shape apart), the shortcut cross's D-pad in its arms' box. Text icons take
+ * the original glyph's CLUT ramp (coverage -> index), so their colour,
+ * brightness and translucency are the text's; sprite icons are the glyph
+ * alone (button_prompts_style: solid or outline glyphs, white or the
+ * family's colours), no backing. Placement and timing are the game's: only
+ * the texels inside the region change. A key or element without an icon
+ * keeps the original. */
 #define _POSIX_C_SOURCE 200809L
 #include "button_prompts.h"
 #include "boot_controller.h"
@@ -34,14 +43,51 @@
 int pc_button_prompts = PC_PROMPTS_AUTO;
 const char* const pc_button_prompts_names[PC_PROMPTS_MODES] = { "auto", "playstation", "xbox", "nintendo",
     "keyboard", "original" };
+int pc_button_prompts_style = PC_PROMPTS_STYLE_COLOR_OUTLINE;
+const char* const pc_button_prompts_style_names[PC_PROMPTS_STYLES] = { "solid", "outline", "color_solid",
+    "color_outline" };
+float pc_button_prompts_scale = 0.7f;
+int pc_button_prompts_dpad = PC_PROMPTS_DPAD_DIM;
+const char* const pc_button_prompts_dpad_names[PC_PROMPTS_DPADS] = { "cross", "dim", "lit" };
+/* Bit k: the cross's arm k (up, left, right, down) has a usable action;
+ * the RPC's stand-in (tests; -1: none). */
+static unsigned game_actions = 15;
+static int actions_override = -1;
+#define cross_actions (actions_override >= 0 ? (unsigned)actions_override : game_actions)
+void pc_button_prompts_cross_action(int arm, int usable)
+{
+    if (arm >= 0 && arm < 4)
+        game_actions = usable ? game_actions | 1u << arm : game_actions & ~(1u << arm);
+}
+void pc_button_prompts_cross_override(int arms) { actions_override = arms >= 0 && arms < 16 ? arms : -1; }
+static int outline_style(void)
+{
+    return pc_button_prompts_style == PC_PROMPTS_STYLE_OUTLINE || pc_button_prompts_style == PC_PROMPTS_STYLE_COLOR_OUTLINE;
+}
+static int colour_style(void)
+{
+    return pc_button_prompts_style == PC_PROMPTS_STYLE_COLOR_SOLID
+        || pc_button_prompts_style == PC_PROMPTS_STYLE_COLOR_OUTLINE;
+}
+static float scale_now(void)
+{
+    float k = pc_button_prompts_scale;
+    return k != k ? 0.7f : k < 0.4f ? 0.4f : k > 1.0f ? 1.0f : k;
+}
 
 static int device = PC_PROMPTS_KEYBOARD, device_variant;
 static long regions, failed;
 /* What each prompt on screen was drawn as since pc_button_prompts_shown_reset
  * (RPC button_prompts "shown"; tests): family << 24 | codepoint per PS1
  * button and context (0 text, 1 sprite), 0: not drawn. */
-static unsigned shown[PC_PAD_BUTTONS][2];
-void pc_button_prompts_shown_reset(void) { memset(shown, 0, sizeof shown); }
+static unsigned shown[PC_PAD_BUTTONS][2], shown_dpad;
+static int shown_arms = -1; /* the D-pad's lit arms (bits up, left, right, down; -1: the whole D-pad) */
+void pc_button_prompts_shown_reset(void)
+{
+    memset(shown, 0, sizeof shown);
+    shown_dpad = 0;
+    shown_arms = -1;
+}
 
 static void init_once(void)
 {
@@ -75,10 +121,18 @@ int pc_button_prompts_active(void) { return pc_button_prompts_family() != 0; }
 unsigned pc_button_prompts_generation(void)
 {
     static unsigned generation = 1, last_bind;
-    static int last_family = -1, last_variant;
+    static int last_family = -1, last_variant, last_style = -1, last_dpad = -1;
+    static unsigned last_actions = 15;
+    static float last_scale;
     int family = pc_button_prompts_family(), variant = variant_now();
-    if (family != last_family || variant != last_variant || pc_bind_generation != last_bind) {
+    /* The shortcut cross's usable arms change its D-pad (modes dim, lit). */
+    unsigned actions = pc_button_prompts_dpad == PC_PROMPTS_DPAD_CROSS ? last_actions : cross_actions;
+    if (family != last_family || variant != last_variant || pc_bind_generation != last_bind
+        || pc_button_prompts_style != last_style || scale_now() != last_scale || pc_button_prompts_dpad != last_dpad
+        || actions != last_actions) {
         last_family = family, last_variant = variant, last_bind = pc_bind_generation;
+        last_style = pc_button_prompts_style, last_scale = scale_now(), last_dpad = pc_button_prompts_dpad;
+        last_actions = actions;
         ++generation;
     }
     return generation;
@@ -228,11 +282,63 @@ static const char* glyph_for(int family, int variant, int button)
     return pc_bind_pad[button] == PC_PAD_NONE ? NULL : pad_glyph(family, variant, pc_bind_pad[button]);
 }
 
+/* The codepoint of `name` in the style drawn now: the outline styles take
+ * the glyph's _outline variant where the font has one (D-pad directions are
+ * _outline glyphs already: the pressed arm filled). */
+static unsigned styled_codepoint(int family, const char* name)
+{
+    if (!name)
+        return 0;
+    if (outline_style() && !strstr(name, "_outline")) {
+        char outline[64];
+        snprintf(outline, sizeof outline, "%s_outline", name);
+        unsigned cp = codepoint_of(family, outline);
+        if (cp)
+            return cp;
+    }
+    return codepoint_of(family, name);
+}
+
+/* The whole D-pad (the shortcut cross's four arms, one 30 x 30 sprite): the
+ * family's D-pad glyphs' base name when the four directions are bound to one
+ * (the arrow keys on the keyboard), else NULL (the original art). The font
+ * has <base> (solid), <base>_none (outline arms) and <base>_<dir>_outline
+ * (outline arms, that one filled). */
+static const char* dpad_base(int family)
+{
+    static const int directions[4] = { 12, 13, 14, 15 }; /* up, right, down, left */
+    if (family == PC_PROMPTS_KEYBOARD) {
+        static const SDL_Keycode arrows[4] = { SDLK_UP, SDLK_RIGHT, SDLK_DOWN, SDLK_LEFT };
+        for (int k = 0; k < 4; k++)
+            if (pc_bind_keys[directions[k]][0] != arrows[k])
+                return NULL;
+        return "keyboard_arrows";
+    }
+    static const int pads[4] = { SDL_GAMEPAD_BUTTON_DPAD_UP, SDL_GAMEPAD_BUTTON_DPAD_RIGHT,
+        SDL_GAMEPAD_BUTTON_DPAD_DOWN, SDL_GAMEPAD_BUTTON_DPAD_LEFT };
+    for (int k = 0; k < 4; k++)
+        if (pc_bind_pad[directions[k]] != pads[k])
+            return NULL;
+    static const char* const names[4] = { NULL, "playstation_dpad", "xbox_dpad", "switch_dpad" };
+    return family > 0 && family < 4 ? names[family] : NULL;
+}
+/* The D-pad's shape in the style drawn now: <base> or <base>_none. */
+static const char* dpad_glyph(int family)
+{
+    static char name[48];
+    const char* base = dpad_base(family);
+    if (!base)
+        return NULL;
+    snprintf(name, sizeof name, "%s%s", base, outline_style() ? "_none" : "");
+    return name;
+}
+static const char* const arm_names[4] = { "up", "left", "right", "down" };
+
 /* ---- the game's button pictographs and sprites ---- */
 
-enum { TEXT, SPRITE };
+enum { TEXT, SPRITE, DPAD };
 typedef struct {
-    int context, button;   /* TEXT / SPRITE; the PS1 button (pad bit index) */
+    int context, button;   /* TEXT / SPRITE / DPAD; the PS1 button (pad bit index; DPAD -1) */
     int cell_u, cell_v, cell; /* the cell in page texels and its size */
 } prompt_region;
 
@@ -266,6 +372,12 @@ static int identify(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v
         *r = (prompt_region){ SPRITE, sprite_buttons[(v0 - 128) / 16 * 4 + u0 / 16], u0 & ~15, v0 & ~15, 16 };
         return 1;
     }
+    /* BATTLE.PRG func_800C9FE8 (the L2 shortcut cross): the D-pad's four
+     * arms, 30 x 30 at (184, 160) of the same page and CLUT. */
+    if (page == 12 && cy == 223 && cx == 944 && u0 >= 184 && v0 >= 160 && u1 < 214 && v1 < 190) {
+        *r = (prompt_region){ DPAD, -1, 184, 160, 30 };
+        return 1;
+    }
     return 0;
 }
 
@@ -284,14 +396,46 @@ static int ink(const uint16_t* vram, int page_x, const prompt_region* r, int thr
 
 static const pc_ui_icon* icon_for(const prompt_region* r, int family, int variant, unsigned* codepoint)
 {
-    const char* name = glyph_for(family, variant, r->button);
-    *codepoint = name ? codepoint_of(family, name) : 0;
+    *codepoint = r->context == DPAD ? styled_codepoint(family, dpad_glyph(family))
+                                    : styled_codepoint(family, glyph_for(family, variant, r->button));
     if (!*codepoint)
         return NULL;
     char path[160];
     snprintf(path, sizeof path, KENNEY "%s.ttf", font_names[family]);
     int missing;
     return pc_ui_icon_glyph(path, *codepoint, &missing);
+}
+
+/* button_prompts_dpad dim / lit: which of the cross's arms have a usable
+ * action (*arms); for lit also their glyphs (<base>_<dir>_outline: the
+ * outline arms with that one filled; their union fills every lit arm).
+ * Returns how many glyphs (dim: 0), -1 in mode cross or when the font lacks
+ * one (the whole D-pad then). */
+static int dpad_lit(int family, const pc_ui_icon* lit[4], unsigned* arms)
+{
+    const char* base = dpad_base(family);
+    *arms = 0;
+    if (pc_button_prompts_dpad == PC_PROMPTS_DPAD_CROSS || !base)
+        return -1;
+    if (pc_button_prompts_dpad == PC_PROMPTS_DPAD_DIM) {
+        *arms = cross_actions & 15;
+        return 0;
+    }
+    char path[160];
+    snprintf(path, sizeof path, KENNEY "%s.ttf", font_names[family]);
+    int n = 0;
+    for (int k = 0; k < 4; k++) {
+        if (!(cross_actions >> k & 1))
+            continue;
+        char name[64];
+        snprintf(name, sizeof name, "%s_%s_outline", base, arm_names[k]);
+        unsigned cp = codepoint_of(family, name);
+        int missing;
+        if (!cp || !(lit[n] = pc_ui_icon_glyph(path, cp, &missing)))
+            return -1;
+        ++n, *arms |= 1u << k;
+    }
+    return n;
 }
 
 int pc_button_prompts_classify(const uint16_t* vram, unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1,
@@ -305,13 +449,26 @@ int pc_button_prompts_classify(const uint16_t* vram, unsigned tpage, unsigned cl
     int box[4];
     if (!ink(vram, (int)(tpage & 15) * 64, &r, r.context == TEXT ? 4 : 1, box))
         return 0;
-    if (r.context == SPRITE && (box[2] - box[0] < 10 || box[3] - box[1] < 10))
+    if (r.context != TEXT && (box[2] - box[0] < 10 || box[3] - box[1] < 10))
         return 0;
     unsigned codepoint;
     if (!icon_for(&r, family, variant_now(), &codepoint))
         return 0;
-    shown[r.button][r.context] = (unsigned)family << 24 | codepoint;
-    *key = (uint64_t)family << 48 ^ (uint64_t)codepoint << 16 ^ (uint64_t)r.context << 8 ^ (uint64_t)r.button;
+    /* The D-pad: its mode and which arms are lit are in the key too. */
+    unsigned lit_key = 0;
+    if (r.context == DPAD) {
+        const pc_ui_icon* lit[4];
+        unsigned arms;
+        int n = dpad_lit(family, lit, &arms);
+        lit_key = n >= 0 ? (unsigned)pc_button_prompts_dpad << 8 | arms << 4 : 0;
+        shown_dpad = (unsigned)family << 24 | codepoint;
+        shown_arms = n >= 0 ? (int)arms : -1;
+    } else
+        shown[r.button][r.context] = (unsigned)family << 24 | codepoint;
+    /* The style and size are in the key too (the same glyph drawn another way). */
+    *key = (uint64_t)family << 48 ^ (uint64_t)pc_button_prompts_style << 44
+         ^ (uint64_t)lrintf(scale_now() * 100) << 36 ^ (uint64_t)codepoint << 16 ^ (uint64_t)r.context << 8
+         ^ (uint64_t)(r.button & 0xff) ^ (uint64_t)lit_key << 52;
     return 1;
 }
 
@@ -333,9 +490,13 @@ static rgb mix(rgb a, rgb b, float t)
 }
 static rgb hex(unsigned v) { return (rgb){ (v >> 16 & 255) / 255.0f, (v >> 8 & 255) / 255.0f, (v & 255) / 255.0f }; }
 
-/* A sprite icon's symbol colour: the family's face colours, else light. */
-static rgb symbol_colour(int family, int element)
+/* An icon's colour: in the colour styles the family's face colours (the
+ * other buttons and families neutral), else neutral. */
+static rgb ink_colour(int family, int element)
 {
+    rgb neutral = hex(0xeeeee8);
+    if (!colour_style())
+        return neutral;
     if (family == PC_PROMPTS_PLAYSTATION)
         switch (element) {
         case SDL_GAMEPAD_BUTTON_NORTH:
@@ -358,37 +519,41 @@ static rgb symbol_colour(int family, int element)
         case SDL_GAMEPAD_BUTTON_NORTH:
             return hex(0xf8c830);
         }
-    return hex(0xe8e8e0);
+    return neutral;
 }
 
-#define MAX_GRID (16 * 8)
-/* kind: 1 inside the icon, 2 not; the uncovered pixels the border reaches
- * without crossing the icon become 0 (outside), the rest stay 2 (its holes:
- * the symbol). */
-static void find_holes(unsigned char* kind, int w, int h)
+/* The farthest inked point of an icon from its box's centre (field pixels):
+ * sprite icons are fitted by it, into a circle, so that any shape (round
+ * buttons, square key caps, wide shoulder tabs) keeps clear of neighbours
+ * whose circles do not meet. */
+static float icon_radius(const pc_ui_icon* icon)
 {
-    static int stack[MAX_GRID * 4 * MAX_GRID];
-    int top = 0;
-    for (int i = 0; i < w; i++)
-        for (int k = 0; k < 2; k++) {
-            int e = k ? (h - 1) * w + i : i;
-            if (kind[e] == 2)
-                kind[e] = 0, stack[top++] = e;
-        }
-    for (int i = 0; i < h; i++)
-        for (int k = 0; k < 2; k++) {
-            int e = i * w + (k ? w - 1 : 0);
-            if (kind[e] == 2)
-                kind[e] = 0, stack[top++] = e;
-        }
-    while (top) {
-        int q = stack[--top], x = q % w, y = q / w;
-        int next[4] = { x > 0 ? q - 1 : -1, x < w - 1 ? q + 1 : -1, y > 0 ? q - w : -1, y < h - 1 ? q + w : -1 };
-        for (int k = 0; k < 4; k++)
-            if (next[k] >= 0 && kind[next[k]] == 2)
-                kind[next[k]] = 0, stack[top++] = next[k];
-    }
+    static struct {
+        const pc_ui_icon* icon;
+        float radius;
+    } cache[64];
+    static int used;
+    for (int i = 0; i < used; i++)
+        if (cache[i].icon == icon)
+            return cache[i].radius;
+    float g[4];
+    pc_ui_icon_box(icon, g);
+    float cx = (g[0] + g[2]) * 0.5f, cy = (g[1] + g[3]) * 0.5f, step = fmaxf(g[2] - g[0], g[3] - g[1]) / 128;
+    float radius = 0;
+    for (float y = g[1]; y <= g[3]; y += step)
+        for (float x = g[0]; x <= g[2]; x += step)
+            if (pc_ui_icon_distance(icon, x, y) > 0) {
+                float r = hypotf(x - cx, y - cy);
+                radius = r > radius ? r : radius;
+            }
+    radius += step * 0.5f;
+    if (used == 64)
+        used = 0;
+    cache[used].icon = icon, cache[used].radius = radius, ++used;
+    return radius;
 }
+
+#define MAX_GRID (32 * 8)
 int pc_button_prompts_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1,
     int factor, int scale, uint32_t* out)
 {
@@ -402,11 +567,6 @@ int pc_button_prompts_render(const uint16_t* vram, unsigned tpage, unsigned clut
         ++failed;
         return 0;
     }
-    /* The target box: the original's ink (text: a pixel more each side). */
-    float t0 = (float)box[0], t1 = (float)box[1], t2 = (float)box[2], t3 = (float)box[3];
-    if (r.context == TEXT) {
-        t0 = fmaxf(t0 - 1, 0), t1 = fmaxf(t1 - 1, 0), t2 = fminf(t2 + 1, (float)r.cell), t3 = fminf(t3 + 1, (float)r.cell);
-    }
     float g[4];
     pc_ui_icon_box(icon, g);
     float gw = g[2] - g[0], gh = g[3] - g[1];
@@ -414,21 +574,68 @@ int pc_button_prompts_render(const uint16_t* vram, unsigned tpage, unsigned clut
         ++failed;
         return 0;
     }
-    float s = fminf((t2 - t0) / gw, (t3 - t1) / gh); /* original pixels per field pixel */
-    float cx_t = (t0 + t2) * 0.5f, cy_t = (t1 + t3) * 0.5f, cx_f = (g[0] + g[2]) * 0.5f, cy_f = (g[1] + g[3]) * 0.5f;
-    /* Coverage over the whole cell at the drawn resolution (1x: one per texel). */
+    float cx_f = (g[0] + g[2]) * 0.5f, cy_f = (g[1] + g[3]) * 0.5f;
+    /* The original's ink box: its centre is the icon's. */
+    float t0 = (float)box[0], t1 = (float)box[1], t2 = (float)box[2], t3 = (float)box[3];
+    float cx_t = (t0 + t2) * 0.5f, cy_t = (t1 + t3) * 0.5f;
+    float s; /* original pixels per field pixel */
+    if (r.context == TEXT) {
+        /* Text: the ink box and a pixel more each side, inside the cell. */
+        t0 = fmaxf(t0 - 1, 0), t1 = fmaxf(t1 - 1, 0), t2 = fminf(t2 + 1, (float)r.cell), t3 = fminf(t3 + 1, (float)r.cell);
+        s = fminf((t2 - t0) / gw, (t3 - t1) / gh);
+        cx_t = (t0 + t2) * 0.5f, cy_t = (t1 + t3) * 0.5f;
+    } else if (r.context == SPRITE) {
+        /* Sprites: inside a circle button_prompts_scale of the cell across,
+         * kept inside the cell. */
+        float radius = r.cell * scale_now() * 0.5f;
+        s = radius / icon_radius(icon);
+        cx_t = fminf(fmaxf(cx_t, radius), r.cell - radius), cy_t = fminf(fmaxf(cy_t, radius), r.cell - radius);
+    } else {
+        /* The D-pad: its arms' box, a little smaller with the scale. */
+        float k = fminf(1.0f, scale_now() + 0.1f);
+        s = fminf((t2 - t0) * k / gw, (t3 - t1) * k / gh);
+    }
+    /* The D-pad in modes dim and lit. lit: the lit arms' glyphs (same font,
+     * same origin: they line up with the shape); outline styles draw their
+     * union (lit arms filled, the others hollow), solid styles the whole
+     * shape, bright where the union is (lit arms and every arm's rim), dim
+     * inside the other arms. dim: the shape, each arm bright or dim by the
+     * arm it lies in (the crosses: quarters split along the diagonals
+     * through the shape's centre; the arrow keys: the top key, then the
+     * bottom row in thirds; the splits fall in gaps or at inner corners). */
+    const pc_ui_icon* lit[4];
+    unsigned arms = 0;
+    int lit_count = r.context == DPAD ? dpad_lit(family, lit, &arms) : -1;
+    int dim_mode = lit_count == 0 && pc_button_prompts_dpad == PC_PROMPTS_DPAD_DIM;
+    int lit_union = lit_count > 0 && outline_style(), lit_tint = !dim_mode && lit_count >= 0 && !outline_style();
+    float third = gw / 6;
+    /* Coverage over the whole cell at the drawn resolution (1x: one per
+     * texel; outlines a little bolder there so their strokes stay whole). */
     int res = scale < 2 ? 1 : factor, n = r.cell * res;
-    static float cover[MAX_GRID * MAX_GRID];
-    static unsigned char kind[MAX_GRID * MAX_GRID]; /* 0 outside, 1 inside, 2 hole */
+    float bias = res == 1 && r.context != TEXT && outline_style() ? 0.25f : 0.0f;
+    static float cover[MAX_GRID * MAX_GRID], bright[MAX_GRID * MAX_GRID];
     for (int y = 0; y < n; y++)
         for (int x = 0; x < n; x++) {
             float ox = (x + 0.5f) / res, oy = (y + 0.5f) / res;
-            float d = pc_ui_icon_distance(icon, cx_f + (ox - cx_t) / s, cy_f - (oy - cy_t) / s) * s;
-            float c = fminf(fmaxf(0.5f + d * res, 0.0f), 1.0f);
-            cover[y * n + x] = c;
-            kind[y * n + x] = c >= 0.5f ? 1 : 2;
+            float fx = cx_f + (ox - cx_t) / s, fy = cy_f - (oy - cy_t) / s;
+            float d = pc_ui_icon_distance(icon, fx, fy), dl = -1e4f;
+            for (int k = 0; k < lit_count; k++)
+                dl = fmaxf(dl, pc_ui_icon_distance(lit[k], fx, fy));
+            if (lit_union)
+                d = dl;
+            cover[y * n + x] = fminf(fmaxf(0.5f + (d * s + bias) * res, 0.0f), 1.0f);
+            float b = 1.0f;
+            if (lit_tint)
+                b = fminf(fmaxf(0.5f + dl * s * res, 0.0f), 1.0f);
+            else if (dim_mode) {
+                float dx = fx - cx_f, dy = fy - cy_f;
+                int arm = family == PC_PROMPTS_KEYBOARD ? (dy > 0 ? 0 : dx < -third ? 1 : dx > third ? 2 : 3)
+                        : fabsf(dx) > fabsf(dy)       ? (dx < 0 ? 1 : 2)
+                                                      : (dy > 0 ? 0 : 3);
+                b = (float)(arms >> arm & 1);
+            }
+            bright[y * n + x] = b;
         }
-    find_holes(kind, n, n);
     const uint16_t* lut = vram + (clut >> 6 & 511) * 1024 + (clut & 63) * 16;
     /* Text: the original glyph's ramp, index 1 up to the highest it uses. */
     int hi = 1, stp_votes = 0, opaque = 0;
@@ -440,10 +647,10 @@ int pc_button_prompts_render(const uint16_t* vram, unsigned tpage, unsigned clut
                 ++opaque, stp_votes += lut[i] >> 15;
         }
     uint16_t stp = opaque && stp_votes * 2 > opaque ? 0x8000 : 0;
-    int element = family == PC_PROMPTS_KEYBOARD ? -1 : pc_bind_pad[r.button];
-    rgb body = hex(0x404048), rim = hex(0x141418), symbol = symbol_colour(family, element);
-    if (family == PC_PROMPTS_KEYBOARD)
-        body = hex(0x48484c);
+    int element = family == PC_PROMPTS_KEYBOARD || r.context == DPAD ? -1 : pc_bind_pad[r.button];
+    /* Sprites: the icon alone, no backing; its anti-aliased edge (texels are
+     * opaque or not) darkens towards the dark the game's UI sits on. */
+    rgb colour = ink_colour(family, element), edge = hex(0x101014), dim = mix(colour, edge, 0.62f);
     int w = (u1 - u0 + 1) * factor, rows = (v1 - v0 + 1) * factor, rep = factor / res;
     for (int y = 0; y < rows; y++) {
         int gy = ((v0 - r.cell_v) * factor + y) / rep;
@@ -451,33 +658,35 @@ int pc_button_prompts_render(const uint16_t* vram, unsigned tpage, unsigned clut
             int gx = ((u0 - r.cell_u) * factor + x) / rep;
             uint32_t value = 0;
             if (gx < n && gy < n) {
-                int p = gy * n + gx;
-                float c = cover[p];
+                float c = cover[gy * n + gx];
                 if (r.context == TEXT) {
                     int index = c > 0.02f ? 1 + (int)lrintf(c * (hi - 1)) : 0;
                     value = index ? lut[index] : 0;
-                } else if (kind[p] == 2) {
-                    value = ps1(mix(symbol, body, c), stp);
-                } else if (kind[p] == 0) {
-                    value = c > 0.02f ? ps1(rim, stp) : 0;
-                } else {
-                    /* Inside: blend towards whatever it borders. */
-                    int hole = 0, outside = 0;
-                    for (int dy = -1; dy <= 1; dy++)
-                        for (int dx = -1; dx <= 1; dx++) {
-                            int qx = gx + dx, qy = gy + dy;
-                            if (qx < 0 || qy < 0 || qx >= n || qy >= n)
-                                continue;
-                            hole |= kind[qy * n + qx] == 2, outside |= kind[qy * n + qx] == 0;
-                        }
-                    value = ps1(hole ? mix(symbol, body, c) : outside ? mix(rim, body, c) : body, stp);
-                }
+                } else if (c >= 0.25f)
+                    value = ps1(mix(edge, mix(dim, colour, bright[gy * n + gx]), (c - 0.25f) / 0.75f), stp);
             }
             out[y * w + x] = value;
         }
     }
     ++regions;
     return 1;
+}
+
+int pc_button_prompts_mask(const uint16_t* vram, unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1,
+    int factor, int scale, unsigned char* mask)
+{
+    static uint32_t texels[MAX_GRID * MAX_GRID];
+    int w = (u1 - u0 + 1) * factor, h = (v1 - v0 + 1) * factor;
+    long regions_before = regions, failed_before = failed;
+    if (w <= 0 || h <= 0 || w > MAX_GRID || h > MAX_GRID
+        || !pc_button_prompts_render(vram, tpage, clut, u0, v0, u1, v1, factor, scale, texels)) {
+        regions = regions_before, failed = failed_before;
+        return 0;
+    }
+    regions = regions_before; /* not drawn: the counters are the game's */
+    for (int i = 0; i < w * h; i++)
+        mask[i] = texels[i] != 0;
+    return w * h;
 }
 
 /* ---- icons for native (ImGui) menus: prompt_glyphs.cpp ---- */
@@ -487,10 +696,9 @@ int pc_button_prompts_icon_rgba(int button, int size, uint32_t* rgba, int max_w,
     int family = pc_button_prompts_family(), variant = variant_now();
     if (!family)
         family = PC_PROMPTS_PLAYSTATION, variant = 0; /* original: the PlayStation's own buttons */
-    if (button < 0 || button >= PC_PAD_BUTTONS || size < 4 || size > MAX_GRID)
+    if (button < 0 || button >= PC_PAD_BUTTONS || size < 4 || size > 128)
         return 0;
-    const char* name = glyph_for(family, variant, button);
-    unsigned codepoint = name ? codepoint_of(family, name) : 0;
+    unsigned codepoint = styled_codepoint(family, glyph_for(family, variant, button));
     char path[160];
     snprintf(path, sizeof path, KENNEY "%s.ttf", font_names[family]);
     int missing;
@@ -505,35 +713,18 @@ int pc_button_prompts_icon_rgba(int button, int size, uint32_t* rgba, int max_w,
     /* Height `size` with a pixel of margin, width from the icon's aspect. */
     float s = (size - 2) / gh; /* image pixels per field pixel */
     int h = size, w = (int)ceilf(gw * s) + 2;
-    if (w > max_w || w > MAX_GRID * 4)
+    if (w > max_w || w > 128 * 4)
         return 0;
-    static float cover[MAX_GRID * 4 * MAX_GRID];
-    static unsigned char kind[MAX_GRID * 4 * MAX_GRID];
+    int element = family == PC_PROMPTS_KEYBOARD ? -1 : pc_bind_pad[button];
+    rgb col = ink_colour(family, element);
+    unsigned cr = (unsigned)lrintf(col.r * 255), cg = (unsigned)lrintf(col.g * 255), cb = (unsigned)lrintf(col.b * 255);
     for (int y = 0; y < h; y++)
         for (int x = 0; x < w; x++) {
             float fx = g[0] + (x + 0.5f - 1) / s, fy = g[3] - (y + 0.5f - 1) / s;
             float c = fminf(fmaxf(0.5f + pc_ui_icon_distance(icon, fx, fy) * s, 0.0f), 1.0f);
-            cover[y * w + x] = c;
-            kind[y * w + x] = c >= 0.5f ? 1 : 2;
+            unsigned a = (unsigned)lrintf(c * 255);
+            rgba[y * max_w + x] = cr | cg << 8 | cb << 16 | a << 24; /* ImGui's RGBA32 (straight alpha) */
         }
-    find_holes(kind, w, h);
-    int element = family == PC_PROMPTS_KEYBOARD ? -1 : pc_bind_pad[button];
-    rgb body = hex(family == PC_PROMPTS_KEYBOARD ? 0x48484c : 0x404048), symbol = symbol_colour(family, element);
-    for (int i = 0; i < w * h; i++) {
-        float c = cover[i], alpha = kind[i] == 0 ? c : 1.0f;
-        rgb col = kind[i] == 2 || kind[i] == 1 ? mix(symbol, body, c) : body;
-        if (kind[i] == 1) { /* inside: towards the symbol only next to a hole */
-            int x = i % w, y = i / w, hole = 0;
-            for (int dy = -1; dy <= 1; dy++)
-                for (int dx = -1; dx <= 1; dx++)
-                    if (x + dx >= 0 && y + dy >= 0 && x + dx < w && y + dy < h && kind[(y + dy) * w + x + dx] == 2)
-                        hole = 1;
-            col = hole ? mix(symbol, body, c) : body;
-        }
-        unsigned r = (unsigned)lrintf(col.r * 255), gg = (unsigned)lrintf(col.g * 255),
-                 b = (unsigned)lrintf(col.b * 255), a = (unsigned)lrintf(alpha * 255);
-        rgba[(i / w) * max_w + i % w] = r | gg << 8 | b << 16 | a << 24; /* ImGui's RGBA32 */
-    }
     *w_out = w, *h_out = h;
     return 1;
 }
@@ -556,6 +747,38 @@ int pc_button_prompts_setting(const char* key, const char* value)
                 name);
         return 1;
     }
+    if (!strcmp(key, "button_prompts_style")) {
+        char name[32] = "";
+        sscanf(value, "%31s", name);
+        int found = 0;
+        for (int k = 0; k < PC_PROMPTS_STYLES; k++)
+            if (!strcmp(name, pc_button_prompts_style_names[k]))
+                pc_button_prompts_style = k, found = 1;
+        if (!found)
+            fprintf(stderr, "[settings] button_prompts_style: unknown value '%s' (solid, outline, color_solid, "
+                            "color_outline)\n",
+                name);
+        return 1;
+    }
+    if (!strcmp(key, "button_prompts_dpad")) {
+        char name[32] = "";
+        sscanf(value, "%31s", name);
+        int found = 0;
+        for (int k = 0; k < PC_PROMPTS_DPADS; k++)
+            if (!strcmp(name, pc_button_prompts_dpad_names[k]))
+                pc_button_prompts_dpad = k, found = 1;
+        if (!found)
+            fprintf(stderr, "[settings] button_prompts_dpad: unknown value '%s' (cross, dim, lit)\n", name);
+        return 1;
+    }
+    if (!strcmp(key, "button_prompts_scale")) {
+        float k;
+        if (sscanf(value, "%f", &k) == 1 && k >= 0.4f && k <= 1.0f)
+            pc_button_prompts_scale = k;
+        else
+            fprintf(stderr, "[settings] button_prompts_scale: '%s' is not 0.4-1\n", value);
+        return 1;
+    }
     return pc_binding_setting(key, value);
 }
 
@@ -563,6 +786,9 @@ void pc_button_prompts_settings_write(FILE* f)
 {
     init_once();
     fprintf(f, "button_prompts %s\n", pc_button_prompts_names[pc_button_prompts]);
+    fprintf(f, "button_prompts_style %s\n", pc_button_prompts_style_names[pc_button_prompts_style]);
+    fprintf(f, "button_prompts_scale %g\n", (double)scale_now());
+    fprintf(f, "button_prompts_dpad %s\n", pc_button_prompts_dpad_names[pc_button_prompts_dpad]);
     pc_binding_settings_write(f);
 }
 
@@ -606,7 +832,29 @@ int pc_button_prompts_json(char* out, int size)
                     pc_pad_button_names[b], name);
         }
     }
-    if (used < size)
-        used += snprintf(out + used, (size_t)(size - used), "}}}");
+    /* "dpad": the shortcut cross's D-pad. */
+    const char* dpad = NULL;
+    for (int i = 0, fam = (int)(shown_dpad >> 24); fam > 0 && fam < 5 && i < map_sizes[fam]; i++)
+        if (maps[fam][i].codepoint == (shown_dpad & 0xffffff))
+            dpad = maps[fam][i].name;
+    {
+        /* "dpad_arms": the arms the D-pad was drawn lit (modes dim and lit),
+         * null for the whole D-pad. */
+        char arms[40] = "null";
+        if (shown_arms >= 0) {
+            int at = snprintf(arms, sizeof arms, "[");
+            for (int k = 0, any = 0; k < 4; k++)
+                if (shown_arms >> k & 1)
+                    at += snprintf(arms + at, sizeof arms - (size_t)at, "%s\"%s\"", any++ ? "," : "", arm_names[k]);
+            snprintf(arms + at, sizeof arms - (size_t)at, "]");
+        }
+        if (used < size)
+            used += snprintf(out + used, (size_t)(size - used),
+                "},\"dpad\":%s%s%s,\"dpad_arms\":%s},\"style\":\"%s\",\"scale\":%g,\"dpad_mode\":\"%s\","
+                "\"cross_actions\":%u}",
+                dpad ? "\"" : "", dpad ? dpad : "null", dpad ? "\"" : "", arms,
+                pc_button_prompts_style_names[pc_button_prompts_style], (double)scale_now(),
+                pc_button_prompts_dpad_names[pc_button_prompts_dpad], cross_actions);
+    }
     return used;
 }

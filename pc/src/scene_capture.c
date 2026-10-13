@@ -445,6 +445,125 @@ int pc_scene_floor(float* y)
     *y = cached;
     return cached_ok;
 }
+/* The floor seen from above (scene_capture.h). Up-facing: the room's
+ * polygons wind one way seen from their front (b - a) x (c - a) has +y (y
+ * down) on a floor seen from above, -y on a ceiling or an arch's underside;
+ * a room whose level faces all wind the other way takes them all. */
+int pc_scene_floor_grid(float heights[PC_SCENE_FLOOR_GRID * PC_SCENE_FLOOR_GRID], float corner[2], float cell[2])
+{
+    enum { N = PC_SCENE_FLOOR_GRID };
+    static float cached[N * N], cached_corner[2], cached_cell[2];
+    static int cached_serial = -1, cached_count = -1, cached_ok;
+    if (cached_serial != scene_serial || cached_count != triangle_count) {
+        cached_serial = scene_serial, cached_count = triangle_count, cached_ok = 0;
+        float lo[3], hi[3];
+        pc_scene_bounds(lo, hi);
+        cached_corner[0] = lo[0], cached_corner[1] = lo[2];
+        cached_cell[0] = fmaxf((hi[0] - lo[0]) / N, 1.0f), cached_cell[1] = fmaxf((hi[2] - lo[2]) / N, 1.0f);
+        static float lowest[N * N], grown[N * N];
+        static unsigned char has[N * N], next[N * N];
+        float up_area = 0, all_area = 0;
+        for (int pass = 0; pass < 2; ++pass) {
+            /* pass 0 counts; pass 1 rasterises (up-facing only, unless almost none are) */
+            int up_only = pass == 1 && up_area > all_area * 0.05f;
+            memset(has, 0, sizeof has);
+            for (int t = 0; t < triangle_count; ++t) {
+                const float *a = triangles[t].vertex[0].position, *b = triangles[t].vertex[1].position,
+                            *c = triangles[t].vertex[2].position;
+                float u[3] = { b[0] - a[0], b[1] - a[1], b[2] - a[2] }, v[3] = { c[0] - a[0], c[1] - a[1], c[2] - a[2] };
+                float n[3] = { u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0] };
+                float len = sqrtf(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+                if (len < 1e-3f || fabsf(n[1]) < 0.8f * len)
+                    continue; /* not level (stairs' treads and gentle slopes are) */
+                if (pass == 0) {
+                    all_area += len, up_area += n[1] > 0 ? len : 0;
+                    continue;
+                }
+                if (up_only && n[1] <= 0)
+                    continue;
+                /* the cells whose centre it covers, and the cells of its corners and centroid */
+                float y = (a[1] + b[1] + c[1]) / 3.0f;
+                float px[4] = { a[0], b[0], c[0], (a[0] + b[0] + c[0]) / 3 }, pz[4] = { a[2], b[2], c[2], (a[2] + b[2] + c[2]) / 3 };
+                int i0 = N, i1 = -1, j0 = N, j1 = -1;
+                for (int k = 0; k < 4; ++k) {
+                    int i = (int)((px[k] - lo[0]) / cached_cell[0]), j = (int)((pz[k] - lo[2]) / cached_cell[1]);
+                    i = i < 0 ? 0 : i >= N ? N - 1 : i, j = j < 0 ? 0 : j >= N ? N - 1 : j;
+                    i0 = i < i0 ? i : i0, i1 = i > i1 ? i : i1, j0 = j < j0 ? j : j0, j1 = j > j1 ? j : j1;
+                    int at = j * N + i;
+                    if (!has[at] || y > lowest[at])
+                        lowest[at] = y, has[at] = 1;
+                }
+                float area2 = u[0] * v[2] - u[2] * v[0]; /* twice the signed area in x, z */
+                if (fabsf(area2) < 1e-6f)
+                    continue;
+                for (int j = j0; j <= j1; ++j)
+                    for (int i = i0; i <= i1; ++i) {
+                        float x = lo[0] + (i + 0.5f) * cached_cell[0] - a[0], z = lo[2] + (j + 0.5f) * cached_cell[1] - a[2];
+                        float s = (x * v[2] - z * v[0]) / area2, r = (u[0] * z - u[2] * x) / area2;
+                        if (s < 0 || r < 0 || s + r > 1)
+                            continue;
+                        int at = j * N + i;
+                        if (!has[at] || y > lowest[at])
+                            lowest[at] = y, has[at] = 1;
+                    }
+            }
+        }
+        int any = 0;
+        for (int k = 0; k < N * N; ++k)
+            any |= has[k];
+        if (any) {
+            /* each cell the lowest of its 3 x 3 (cells with a floor) */
+            for (int j = 0; j < N; ++j)
+                for (int i = 0; i < N; ++i) {
+                    int at = j * N + i, found = 0;
+                    float y = 0;
+                    for (int dj = -1; dj <= 1; ++dj)
+                        for (int di = -1; di <= 1; ++di) {
+                            int x = i + di, z = j + dj;
+                            if (x < 0 || z < 0 || x >= N || z >= N || !has[z * N + x])
+                                continue;
+                            float h = lowest[z * N + x];
+                            if (!found || h > y)
+                                y = h, found = 1;
+                        }
+                    grown[at] = y, next[at] = (unsigned char)found;
+                }
+            /* cells still without one: the mean of their neighbours', growing outward */
+            for (int round = 0; round < 2 * N; ++round) {
+                int missing = 0;
+                memcpy(has, next, sizeof has);
+                for (int j = 0; j < N; ++j)
+                    for (int i = 0; i < N; ++i) {
+                        int at = j * N + i;
+                        if (has[at])
+                            continue;
+                        float sum = 0;
+                        int n = 0;
+                        for (int dj = -1; dj <= 1; ++dj)
+                            for (int di = -1; di <= 1; ++di) {
+                                int x = i + di, z = j + dj;
+                                if (x >= 0 && z >= 0 && x < N && z < N && has[z * N + x])
+                                    sum += grown[z * N + x], n++;
+                            }
+                        if (n)
+                            grown[at] = sum / n, next[at] = 1;
+                        else
+                            missing++;
+                    }
+                if (!missing)
+                    break;
+            }
+            memcpy(cached, grown, sizeof cached);
+            cached_ok = 1;
+        }
+    }
+    if (cached_ok) {
+        memcpy(heights, cached, sizeof cached);
+        corner[0] = cached_corner[0], corner[1] = cached_corner[1];
+        cell[0] = cached_cell[0], cell[1] = cached_cell[1];
+    }
+    return cached_ok;
+}
 /* Wavefront OBJ with per-vertex colours (x y z r g b) and a comment header
  * carrying the camera; texture page and CLUT per face as comments. */
 int pc_scene_dump(const char* path)

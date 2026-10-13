@@ -38,14 +38,16 @@ SCHEMA = {
         ("sun_tint", 3, "0", False), ("ambient", 3, "0.5", False),
         # The ground fog ("env fog"): pc/src/atmosphere.cpp.
         ("density", 5, "0.003", False), ("height", 1, "48", False), ("offset", 1, "0", False),
-        ("noise", 2, "0.6", False), ("scale", 1, "160", False), ("wind", 1, "12,0,4", False),
+        ("noise", 2, "0.6", False), ("scale", 1, "160", False), ("wind", 1, "4,0,1.5", False),
         ("fill", 3, "0,0,0", False), ("sky", 3, "1", False)]),
     # Fog volumes ("fog <id>"): pc/src/atmosphere.cpp.
     "fog": (False, 4, [
         ("name", -1, None, False), ("shape", -1, "box", False), ("pos", 1, None, False),
         ("size", 1, "256,128,256", False), ("yaw", 2, "0", False), ("density", 5, "0.004", False),
         ("edge", 2, "0.5", False), ("color", 3, "1,1,1", False), ("fill", 3, "0,0,0", False),
-        ("noise", 2, "0.5", False), ("enabled", 0, "1", False)]),
+        ("noise", 2, "0.5", False), ("enabled", 0, "1", False),
+        # the interactive fog (pc/src/fog_sim.h, prototype)
+        ("sim", 0, "0", False), ("sim_strength", 2, "1", False), ("sim_recover", 2, "3", False)]),
     "glow": (False, 4, [
         ("pos", 1, None, True), ("muted", 0, "0", False), ("intensity", 3, "1", False),
         ("tint", 3, "1,1,1", False), ("size", 2, "0", False), ("reach", 1, "0", False),

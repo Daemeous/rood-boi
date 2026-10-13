@@ -31,6 +31,40 @@ enum {
 extern int pc_button_prompts; /* PC_PROMPTS_* */
 extern const char* const pc_button_prompts_names[PC_PROMPTS_MODES];
 
+/* How the icons look (setting button_prompts_style): solid (a filled cap,
+ * the symbol knocked out), outline (ring and symbol, no fill), and both in
+ * the family's colours (PlayStation's teal triangle, red circle, blue cross
+ * and pink square; Xbox's A green, B red, X blue, Y yellow; the other
+ * families stay neutral). No backing behind any of them. */
+enum {
+    PC_PROMPTS_STYLE_SOLID = 0,
+    PC_PROMPTS_STYLE_OUTLINE = 1,
+    PC_PROMPTS_STYLE_COLOR_SOLID = 2,
+    PC_PROMPTS_STYLE_COLOR_OUTLINE = 3,
+    PC_PROMPTS_STYLES = 4
+};
+extern int pc_button_prompts_style; /* PC_PROMPTS_STYLE_* */
+extern const char* const pc_button_prompts_style_names[PC_PROMPTS_STYLES];
+/* Sprite icons' size (setting button_prompts_scale, 0.4-1): each fits in a
+ * circle this fraction of its 16 x 16 cell across, centred on the
+ * original's, so neighbours (the face-button diamond) never touch. */
+extern float pc_button_prompts_scale;
+/* The L2 shortcut cross's D-pad (setting button_prompts_dpad): cross (the
+ * family's whole D-pad in the style: solid, or outline arms), dim (the same,
+ * the arms with no usable action beside them dimmed) or lit (outline
+ * styles: the arms with a usable action filled, the others hollow; solid
+ * styles: those bright, the others' insides dim). */
+enum { PC_PROMPTS_DPAD_CROSS = 0, PC_PROMPTS_DPAD_DIM = 1, PC_PROMPTS_DPAD_LIT = 2, PC_PROMPTS_DPADS = 3 };
+extern int pc_button_prompts_dpad;
+extern const char* const pc_button_prompts_dpad_names[PC_PROMPTS_DPADS];
+/* The cross's arm `arm` (0 up, 1 left, 2 right, 3 down: BATTLE.PRG
+ * func_800C9FE8's label order, ids 4..7) has a usable action this frame
+ * (weapon_slots.c, as the game asks for each label). */
+void pc_button_prompts_cross_action(int arm, int usable);
+/* Tests (RPC button_prompts cross_actions): those arms (bits up, left, right,
+ * down) whatever the game reports; -1: the game's again. */
+void pc_button_prompts_cross_override(int arms);
+
 /* The device used last (boot_window.c keyboard, boot_gamepad.c gamepads):
  * family PC_PROMPTS_PLAYSTATION .. PC_PROMPTS_KEYBOARD; variant 3/4/5 for
  * PlayStation generations, 360 for the Xbox 360 (Start / Back glyphs). */
@@ -52,6 +86,12 @@ int pc_button_prompts_classify(const uint16_t* vram, unsigned tpage, unsigned cl
  * the atlas's factor drawn as one). 0 when it cannot be drawn. */
 int pc_button_prompts_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1,
     int factor, int scale, uint32_t* out);
+
+/* Tests (RPC button_prompts mask): which texels pc_button_prompts_render
+ * draws (1) for that region now, row by row into `mask`; its size, 0 when
+ * nothing is drawn from an icon there. */
+int pc_button_prompts_mask(const uint16_t* vram, unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1,
+    int factor, int scale, unsigned char* mask);
 
 /* Settings lines (project_settings.cpp): 1 when `key` was ours
  * (button_prompts and the bind_key_* / bind_pad_* bindings). */

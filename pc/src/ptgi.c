@@ -961,7 +961,7 @@ static const char* trace_source = SHADER_COMMON
     "#define env_horizon env_[3]\n"
     "#define env_ground env_[4]\n" PC_GLSL_ENVIRONMENT
     /* The room's medium (atmosphere.h pc_medium_gpu; medium.glsl). */
-    "uniform vec4 medium_[88];\n"
+    "uniform vec4 medium_[250];\n"
     "#define MEDIUM(i) medium_[i]\n" PC_GLSL_MEDIUM
     "uint rng = 0u;\n"
     "bool moving_only = false;\n"
@@ -1193,8 +1193,8 @@ static const char* trace_source = SHADER_COMMON
     "        vec3 here = vec3(0.0);\n"
     "        if (env_sun_on()) {\n" /* the sun's shafts */
     "            vec3 l = env_sun_sample(rand(), rand()); float th; int hit; vec2 bc;\n"
-    "            if (env_sun_col.w < 0.5 || !trace(x, l, ENV_SUN_DISTANCE, true, l, 0.0, th, hit, bc))\n"
-    "                here += env_sun_col.rgb * medium_phase(dot(dir, l), g);\n"
+    "            bool lit = env_sun_col.w < 0.5 || !trace(x, l, ENV_SUN_DISTANCE, true, l, 0.0, th, hit, bc);\n"
+    "            here += env_sun_col.rgb * medium_phase(dot(dir, l), g) * medium_sun_visibility(lit ? 1.0 : 0.0);\n"
     "        }\n"
     "        if (env_sky_on() && MEDIUM(5).w > 0.0) {\n" /* the sky, occluded (rt_haze.comp the same) */
     "            float z = 1.0 - 2.0 * rand(), s = sqrt(max(1.0 - z * z, 0.0)), a = 6.2831853 * rand();\n"
@@ -1202,7 +1202,7 @@ static const char* trace_source = SHADER_COMMON
     "            if (!trace(x, d, ENV_SUN_DISTANCE, true, d, 0.0, th, hit, bc))\n"
     "                here += env_sky(d) * MEDIUM(5).w * medium_phase(dot(dir, d), g);\n"
     "        }\n"
-    "        float a_ = exp(-extinction * step_);\n"
+    "        float a_ = medium_step(extinction, step_, transmittance);\n"
     "        float weights[48]; float all_ = 0.0;\n"
     "        for (int i = 0; i < sources && i < 48; i++) {\n"
     "            vec3 pos = i < light_count ? light_pos[i].xyz : emitter_pos[i - light_count].xyz;\n"
@@ -1223,7 +1223,7 @@ static const char* trace_source = SHADER_COMMON
     "        sum += transmittance * (scatter * here + emit) * ((1.0 - a_) / extinction);\n"
     "        transmittance *= a_;\n"
     "    }\n"
-    "    return sum;\n"
+    "    return medium_limit_light(sum);\n"
     "}\n"
     /* The lighting signature: noise-free centre rays to the shadow-casting
      * lights and (for the baked light) the emitters, one bit each. History
@@ -1514,13 +1514,18 @@ static const char* atrous_source =
     "            vec3 qn = imageLoad(normal, q).xyz;\n"
     "            vec4 qc = imageLoad(source, q);\n"
     "            float w = kernel[abs(x)] * kernel[abs(y)];\n"
+    /* The haze is an integral along the view ray, not a property of the
+     * surface: it blurs across polygons whatever their normals (normal
+     * weights left it faceted, one shade per polygon), only not across a
+     * big jump in distance (a silhouette). */
+    "            float wh = w * exp(-length(qp.xyz - p.xyz) / 240.0);\n"
     "            w *= pow(max(dot(n, qn), 0.0), 32.0);\n"
     "            w *= exp(-abs(dot(qp.xyz - p.xyz, n)) / 4.0);\n"
     "            float wv = w * exp(-abs(qc.a - c.a) / sigma_v);\n"
     "            vec4 qx = imageLoad(source_extra, q); float qe = qx.r;\n"
     "            float we = w * exp(-abs(qe - ce.r) / sigma_v);\n"
     "            esum += qe * we; eweight += we;\n"
-    "            if (qx.g >= 0.0) { hsum += qx.gba * w; hweight += w; }\n" /* -1: no haze sample yet */
+    "            if (qx.g >= 0.0) { hsum += qx.gba * wh; hweight += wh; }\n" /* -1: no haze sample yet */
     "            w *= exp(-abs(dot(qc.rgb, vec3(0.299, 0.587, 0.114)) - lum) / sigma_l);\n"
     "            sum += qc.rgb * w; weight += w; vsum += qc.a * wv; vweight += wv;\n"
     "        }\n"

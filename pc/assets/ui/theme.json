@@ -3,7 +3,8 @@
     "ground": "#110f0ef0", "panel": "#191614", "rule": "#2c2724", "rule2": "#3d3631",
     "bone": "#ebe4d6", "ash": "#9b9286", "dim": "#645c53",
     "accent": "#b5363c", "accent_soft": "#b5363c29", "gold": "#c9a14e",
-    "hp": "#6aa75a", "mp": "#4d82c4", "risk": "#cf4a3c"
+    "hp": "#6aa75a", "mp": "#4d82c4", "risk": "#cf4a3c",
+    "up": "#79b86a", "down": "#d0614f"
   },
   "sizes": {
     "tab": 15, "label": 11, "name": 19, "body": 14.5, "hint": 12,

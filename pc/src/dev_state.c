@@ -54,6 +54,23 @@ void pc_dev_state(struct pc_dev_state* out)
         out->facing = player->unk0.facing;
     }
 }
+/* Where the room's characters stand (world units; Ashley first): the actor
+ * slots D_800F4538[0..16] that point into guest RAM. For the interactive fog
+ * (fog_sim.cpp). Returns how many were written. */
+int pc_dev_actor_positions(float (*out)[3], int max)
+{
+    int n = 0;
+    for (int i = 0; i < 17 && n < max; i++) {
+        D_800F4538_t* actor = D_800F4538[i];
+        if (!guest_pointer(actor, sizeof *actor))
+            continue;
+        out[n][0] = actor->unk0.position.vx;
+        out[n][1] = actor->unk0.position.vy;
+        out[n][2] = actor->unk0.position.vz;
+        n++;
+    }
+    return n;
+}
 void pc_rpc_state(char* out, unsigned size)
 {
     struct pc_dev_state s = { 0 };

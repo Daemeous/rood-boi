@@ -7,8 +7,10 @@
  *
  * Compiled with the game headers (battle builds). Off unless the option
  * pc_qol_weapon_slots (settings key qol_weapon_slots, RPC weapon_slots
- * {enabled}, editor Graphics > Gameplay) is set; while it is off nothing here
- * touches the game. The src hooks (ROOD_PC):
+ * {enabled}, editor Graphics > Gameplay) is set; while it is off the field
+ * controls do nothing (the menus' Quick swap writes the slot bytes even with
+ * the option off: they are compatible with the unmodded game, see below, and
+ * the menus' model reload runs from this hook). The src hooks (ROOD_PC):
  *   vs_battle_exec (BATTLE 146C.c)  reads the pad through
  *                                   pc_weapon_slots_process_pad
  *   func_800C9FE8 (BATTLE 5BF94.c)  the L2 shortcut overlay asks
@@ -47,7 +49,11 @@
  * Version 2 of the mod marked any number of favourites with 1; migrate() gives
  * those weapons distinct slots (and clears values above 8). The Container's
  * save (MENU7 _copyContainer) remapped all 4 gem bytes of weapons and
- * shields as gem indices, which scrambled these bytes; it remaps 3 now. */
+ * shields as gem indices, which scrambled these bytes; it remaps 3 now.
+ *
+ * The modern menus (pc/src/ui/equip_bridge.c) use the exported helpers at the
+ * end: the model reload after a menu equip (no field mode change, sheathe or
+ * name box) and the quick slots' bytes; they work with the option off. */
 #include "common.h"
 #include "../../src/BATTLE/BATTLE.PRG/146C.h"
 #include "../../src/BATTLE/BATTLE.PRG/2842C.h"
@@ -67,12 +73,22 @@ extern u_char D_800EBCE8; /* L2 overlay slide: 10 hidden, 0 fully in */
 int func_8009E4B0(int); /* the actor is busy (an animation runs) */
 void func_800734C0(void); /* draw/sheathe toggle (the field's button) */
 void func_80073554(void); /* leave the L2 shortcut mode (6) for the field (1) */
+void func_800FA2CC(void); /* MAINMENU 224.c: actor 0 after the equip menu's model load (BATTLE data only) */
 int func_800C9EB8(int); /* L2 overlay: the label's sprite (0 = not drawn) */
 void func_800C9F98(int xy, int sprite); /* L2 overlay: a label's bullet */
 
 int pc_weapon_slots_process_pad(void);
+void pc_ui_menu_heartbeat(void); /* ui/menu_bridge.c: ends a shell session the menu stopped running */
 int pc_weapon_slots_label(int id);
 void pc_weapon_slots_json(char* out, unsigned size);
+int pc_weapon_slots_menu_models(vs_main_inventoryWeapon* w, vs_main_inventoryShield* shield);
+int pc_weapon_slots_menu_busy(void);
+int pc_weapon_slots_menu_can_load(void);
+void pc_weapon_slots_left_battle(void);
+int pc_weapon_slots_get(int weapon_index);
+int pc_weapon_slots_shield_for(int slot);
+void pc_weapon_slots_set(int slot, int weapon_index, int shield_index);
+void pc_weapon_slots_clear(int slot);
 
 extern int pc_qol_weapon_slots; /* project_settings.cpp */
 
@@ -114,6 +130,8 @@ static struct {
     int assign; /* the next slot button assigns the equipped weapon */
     int raw; /* physical D-pad bits (12..15) of the previous frame */
     int swaps, assigns; /* counters (RPC) */
+    int menu; /* a menu model reload is queued (pc_weapon_slots_menu_models) */
+    int in_battle; /* the battle loop ran since the last jump to the title or a battle */
 } s;
 
 #define SHIELD_SLOTS(shield) ((shield)->gems[3])
@@ -225,12 +243,66 @@ static vs_main_inventoryShield* shield_swap(vs_main_inventoryWeapon* w, int two)
     return want;
 }
 
+/* One load queue entry. direct: written in place at *q (the field swap's
+ * original way: it starts with the queue empty and writes entries 0, 1, 2
+ * field by field), else a zeroed entry through vs_battle_populateDataSlot
+ * (the first free one, as MENU3 _populateDataSlot). */
+static void queue_entry(vs_battle_objectData** q, int direct, int type, int index, int model, int material)
+{
+    vs_battle_objectData local;
+    vs_battle_objectData* e = direct ? *q : &local;
+
+    if (!direct)
+        vs_main_bzero(&local, sizeof local);
+    e->dataType = type;
+    e->index = index;
+    e->modelId = model;
+    if (type == 3)
+        psx_set(e->unk4, psx_get(vs_battle_characterState->unk48[index]));
+    e->actorId = 0;
+    if (type == 3) {
+        e->unk11 = 240 + index;
+        e->material = material;
+    }
+    if (direct)
+        ++*q;
+    else
+        vs_battle_populateDataSlot(&local);
+}
+
+/* _loadObjectData's queue for actor 0: the category's animations when they
+ * change, the weapon model slot freed, then the weapon's model (wep 0: none)
+ * and the shield's (NULL: none; index 1: wepId >= 96). */
+static void queue_models(int category, int wep, int material, vs_main_inventoryShield* shield, int direct)
+{
+    vs_battle_objectData* q = vs_battle_objectDataSlots;
+    int i;
+
+    if (D_800F4538[0]->unk5B1 != category) {
+        func_8009CC20(0, 0);
+        queue_entry(&q, direct, 7, 0, category, 0);
+    }
+
+    func_8009AA84(0);
+
+    for (;;) { /* the weapon's model, then the shield's */
+        if (wep) {
+            i = wep >= 96;
+            queue_entry(&q, direct, 3, i, wep, material);
+        }
+        if (shield == NULL)
+            break;
+        wep = (u_char)shield->base.wepId;
+        material = shield->base.material;
+        shield = NULL;
+    }
+}
+
 /* The equip menu's sequence (MENU3 _equipWeaponMenu and _loadObjectData) on
  * actor 0; the main loop processes the load queue. */
 static void begin_swap(vs_main_inventoryWeapon* w)
 {
     vs_main_inventoryBlade* blade = &vs_main_inventory.blades[w->blade - 1];
-    vs_battle_objectData* q = vs_battle_objectDataSlots;
     vs_main_inventoryShield* shield;
     int i;
     int category = (u_char)blade->category;
@@ -246,35 +318,7 @@ static void begin_swap(vs_main_inventoryWeapon* w)
 
     vs_battle_equipWeapon(w);
 
-    if (D_800F4538[0]->unk5B1 != category) {
-        func_8009CC20(0, 0);
-        q->dataType = 7;
-        q->index = 0;
-        q->modelId = category;
-        q->actorId = 0;
-        ++q;
-    }
-
-    func_8009AA84(0);
-
-    for (;;) { /* the weapon's model, then the shield's (index 1: wepId >= 96) */
-        if (wep) {
-            i = wep >= 96;
-            q->dataType = 3;
-            q->index = i;
-            q->modelId = wep;
-            psx_set(q->unk4, psx_get(vs_battle_characterState->unk48[i]));
-            q->actorId = 0;
-            q->unk11 = 240 + i;
-            q->material = material;
-            ++q;
-        }
-        if (shield == NULL)
-            break;
-        wep = (u_char)shield->base.wepId;
-        material = shield->base.material;
-        shield = NULL;
-    }
+    queue_models(category, wep, material, shield, 1);
 
     s.target = w;
     D_800F196C = 0; /* hold the world as the menu does (mode 0 does nothing) */
@@ -382,19 +426,31 @@ static void draw_small(const u_char* text, int xy, int max, int flags)
     }
 }
 
+/* button_prompts.c: the D-pad's arms with a usable action (its mode actions). */
+void pc_button_prompts_cross_action(int arm, int usable);
+
 /* func_800C9FE8 (the L2 overlay) asks for each label, ids 4..7 then 0..3. Not
  * in weapon mode: the game's answer. In weapon mode the label sprite is not
- * drawn (0): the bullet and the weapon's name are drawn here instead. */
+ * drawn (0): the bullet and the weapon's name are drawn here instead. Ids
+ * 4..7 sit by the D-pad's up, left, right and down arms: an arm has a usable
+ * action when its label is drawn bright (0x180; 0x140 is the dimmed one) or
+ * its slot holds a weapon. */
 int pc_weapon_slots_label(int id)
 {
     const u_char* t;
     vs_main_inventoryWeapon* w;
     int step;
 
-    if (!s.wmode)
-        return func_800C9EB8(id);
+    if (!s.wmode) {
+        int sprite = func_800C9EB8(id);
+        if (id >= 4)
+            pc_button_prompts_cross_action(id - 4, sprite == 0x180);
+        return sprite;
+    }
     t = labels[id];
     w = in_slot(t[5]);
+    if (id >= 4)
+        pc_button_prompts_cross_action(id - 4, w != NULL);
     step = (u_char)vs_battle_rowAnimationSteps[D_800EBCE8];
     if (id >= 4)
         step = -step;
@@ -454,6 +510,18 @@ static void slot_mode(int new_dpad)
     start_swap(w);
 }
 
+/* After a reload drained: the idle animation (1 sheathed, 101 drawn) on the
+ * category's table, the pose and the model flags. */
+static void finish_models(D_800F4538_t* a, int animation)
+{
+    a->unk187C = 0;
+    func_800A0204(0, animation, 0, 0);
+    func_800AFA28(a, &a->unkC54, 1);
+    vs_main_memcpy(&a->unk704, &a->unkC54, sizeof a->unk704);
+    a->unkC54.unk540 = 0;
+    func_8009D934(0, a->unk0.weaponDrawn, 2);
+}
+
 /* The swap state machine, one step per frame; 1 while it holds the frame. */
 static int swap_step(void)
 {
@@ -476,12 +544,7 @@ static int swap_step(void)
     /* The queue drained: restart the idle animation on the (maybe new)
      * category's table and refresh the pose and the model flags, as
      * func_800FA2CC does after the menu changed the weapon. */
-    a->unk187C = 0;
-    func_800A0204(0, 1, 0, 0);
-    func_800AFA28(a, &a->unkC54, 1);
-    vs_main_memcpy(&a->unk704, &a->unkC54, sizeof a->unk704);
-    a->unkC54.unk540 = 0;
-    func_8009D934(0, a->unk0.weaponDrawn, 2);
+    finish_models(a, 1);
     if (D_800F196C == 0) {
         if (s.redraw)
             func_800734C0(); /* draw the new weapon (mode 10) */
@@ -498,13 +561,21 @@ static int swap_step(void)
     return 0;
 }
 
+static void menu_step(void);
+
 /* vs_battle_exec's pad read. With the option off: vs_main_processPadState
- * alone (a swap that is under way still finishes). */
+ * alone (a swap that is under way still finishes). Every frame, with the
+ * option on or off: the modern menus' heartbeat and their model reload's
+ * progress (menu_step), so neither depends on the menu still running. */
 int pc_weapon_slots_process_pad(void)
 {
-    int ret = vs_main_processPadState();
+    int ret = vs_main_processPadState(); /* a soft reset leaves from here (longjmp to the title) */
     int dpad, new_dpad, mode, both;
     vs_battle_textBox* box;
+
+    s.in_battle = 1;
+    pc_ui_menu_heartbeat();
+    menu_step();
 
     if (!pc_qol_weapon_slots) {
         /* Never on: nothing here runs. Turned off: what was under way ends. */
@@ -585,9 +656,9 @@ void pc_weapon_slots_json(char* out, unsigned size)
     }
     p += sprintf(p,
         "{\"enabled\":%d,\"overlay\":%d,\"assign\":%d,\"loading\":%d,\"swaps\":%d,\"assigns\":%d,"
-        "\"field_mode\":%d,\"equipped\":%d,\"weapons\":[",
+        "\"field_mode\":%d,\"equipped\":%d,\"menu_reload\":%d,\"weapons\":[",
         pc_qol_weapon_slots != 0, s.wmode, s.assign, s.loading, s.swaps, s.assigns, (int)D_800F196C,
-        equipped_weapon());
+        equipped_weapon(), s.menu);
     for (i = 0; i < 8; ++i) {
         vs_main_inventoryWeapon* w = &vs_main_inventory.weapons[i];
         p += sprintf(p, "%s{\"blade\":%d,\"equipped\":%d,\"slot\":%d}", i ? "," : "", w->blade,
@@ -602,12 +673,162 @@ void pc_weapon_slots_json(char* out, unsigned size)
     p += sprintf(p, "]");
     /* What Ashley's battle record has on (the equip routines' result): the
      * inventory index of the weapon and the shield (0 none), the model's
-     * category. */
-    if (vs_battle_characterState && psx_get(vs_battle_characterState->unk3C) && D_800F4538[0]) {
+     * category. Only in battle: over the title they are a past battle's. */
+    if (s.in_battle && vs_battle_characterState && psx_get(vs_battle_characterState->unk3C) && D_800F4538[0]) {
         vs_battle_actor2* actor = psx_get(vs_battle_characterState->unk3C);
         p += sprintf(p, ",\"actor_weapon\":%d,\"actor_shield\":%d,\"actor_category\":%d,\"weapon_drawn\":%d",
             actor->weapon.index, actor->shield.index, D_800F4538[0]->unk5B1,
             vs_battle_characterState->weaponDrawn & 1);
     }
     sprintf(p, "}");
+}
+
+/* ---- Modern menus (pc/src/ui/equip_bridge.c) ---- */
+
+/* 1 when pc_weapon_slots_menu_models would queue now (no load or swap under
+ * way): the bridge asks before it changes any equipment. */
+int pc_weapon_slots_menu_can_load(void)
+{
+    return !(s.loading || s.menu || vs_battle_objectDataSlots[0].dataType != 0 || !D_800F4538[0]);
+}
+
+/* Reload actor 0's weapon and shield models after the caller equipped them
+ * (vs_battle_equipWeapon/Shield and the isEquipped flags, MENU3's order): w
+ * NULL is bare hands (category 10, no model), shield NULL none. Both model
+ * slots are reloaded, also for a shield change, where MENU3 _equipShieldMenu
+ * reloads only the shield's: the weapon's model and texture come back the
+ * same (ui_equip_smoke compares the model headers and actor 0 with the
+ * original's after each change), at the cost of one more queue entry. The
+ * field mode (D_800F196C) is left alone; the main
+ * loop drains the queue at the top level and pc_weapon_slots_menu_busy
+ * finishes. 0 when queued, -1 when a load or a swap is under way. */
+int pc_weapon_slots_menu_models(vs_main_inventoryWeapon* w, vs_main_inventoryShield* shield)
+{
+    vs_main_inventoryBlade* blade = w && w->blade ? &vs_main_inventory.blades[w->blade - 1] : NULL;
+
+    if (!pc_weapon_slots_menu_can_load())
+        return -1;
+    if (shield && !shield->base.id)
+        shield = NULL;
+    func_8009AA84(1); /* the shield's model slot (queue_models frees the weapon's) */
+    queue_models(blade ? (u_char)blade->category : 10, blade ? (u_char)blade->wepId : 0,
+        blade ? blade->material : 0, shield, 0);
+    s.menu = 1;
+    return 0;
+}
+
+/* A menu model reload's progress: on the frame the queue drains it runs the
+ * finish. The finish is the equip menu's own for actor 0 (MENU3
+ * _loadObjectData, queue drained: func_800FA2CC: the models' drawn flags, the
+ * idle (drawn: 101) set up in place), not the field swap's restart through
+ * func_800A0204: Ashley's animation state after the menu is then the
+ * original's (pc/tests/ui_equip_smoke.py compares it). Runs from
+ * process_pad every frame and from pc_weapon_slots_menu_busy (whichever
+ * comes first after the drain). */
+static void menu_step(void)
+{
+    if (!s.menu || vs_battle_objectDataSlots[0].dataType != 0)
+        return;
+    s.menu = 0;
+    if (D_800F4538[0])
+        func_800FA2CC();
+}
+
+/* The game left the battle loop (soft reset, title, ending: menu_bridge.c
+ * pc_ui_menu_reset): a menu reload queued before is not the next scene's
+ * actor 0's, its finish must not run there; until the battle loop runs again
+ * the battle records are stale (RPC weapon_slots leaves them out). */
+void pc_weapon_slots_left_battle(void)
+{
+    s.menu = 0;
+    s.in_battle = 0;
+}
+
+/* 1 while a menu model reload runs (the finish runs on the tick the queue
+ * drains, see menu_step). */
+int pc_weapon_slots_menu_busy(void)
+{
+    menu_step();
+    return s.menu;
+}
+
+/* The quick slot (1..8, 0 none) of inventory weapon weapon_index (0-based,
+ * vs_main_inventory.weapons[]). */
+int pc_weapon_slots_get(int weapon_index)
+{
+    vs_main_inventoryWeapon* w;
+
+    if (weapon_index < 0 || weapon_index >= 8)
+        return 0;
+    w = &vs_main_inventory.weapons[weapon_index];
+    return w->blade && w->gems[3] <= 8 ? w->gems[3] : 0;
+}
+
+/* The shield (0-based vs_main_inventory.shields[] index) of slot 1..8, or -1. */
+int pc_weapon_slots_shield_for(int slot)
+{
+    int i;
+
+    if (slot < 1 || slot > 8)
+        return -1;
+    for (i = 0; i < 8; ++i) {
+        vs_main_inventoryShield* shield = &vs_main_inventory.shields[i];
+        if ((SHIELD_SLOTS(shield) & SLOT_BIT(slot)) && shield->base.id)
+            return i;
+    }
+    return -1;
+}
+
+/* Slot n's shield bit on shield `index` only (-1: none). */
+static void bind_shield_index(int n, int index)
+{
+    int i;
+    for (i = 0; i < 8; ++i) {
+        vs_main_inventoryShield* shield = &vs_main_inventory.shields[i];
+        if (i == index)
+            SHIELD_SLOTS(shield) |= SLOT_BIT(n);
+        else
+            SHIELD_SLOTS(shield) &= ~SLOT_BIT(n);
+    }
+}
+
+/* Inventory weapon weapon_index (0-based) into slot 1..8 with shield
+ * shield_index (0-based; -1 none; ignored for a two-handed weapon), as
+ * assign() does: the weapon there loses the slot, the slot this weapon
+ * leaves loses its shield. No sound, no equip. */
+void pc_weapon_slots_set(int slot, int weapon_index, int shield_index)
+{
+    vs_main_inventoryWeapon* w;
+    vs_main_inventoryWeapon* other;
+
+    if (slot < 1 || slot > 8 || weapon_index < 0 || weapon_index >= 8)
+        return;
+    w = &vs_main_inventory.weapons[weapon_index];
+    if (!w->blade)
+        return;
+    if (shield_index < 0 || shield_index >= 8 || !vs_main_inventory.shields[shield_index].base.id || two_handed(w))
+        shield_index = -1;
+    if (w->gems[3] != slot) {
+        other = in_slot(slot);
+        if (other != NULL)
+            other->gems[3] = 0;
+        if (w->gems[3] >= 1 && w->gems[3] <= 8)
+            bind_shield_index(w->gems[3], -1);
+        w->gems[3] = slot;
+    }
+    bind_shield_index(slot, shield_index);
+    ++s.assigns;
+}
+
+/* Slot 1..8 empty: its weapon loses it, no shield is bound to it. */
+void pc_weapon_slots_clear(int slot)
+{
+    vs_main_inventoryWeapon* w;
+
+    if (slot < 1 || slot > 8)
+        return;
+    while ((w = in_slot(slot)) != NULL)
+        w->gems[3] = 0;
+    bind_shield_index(slot, -1);
+    ++s.assigns;
 }
