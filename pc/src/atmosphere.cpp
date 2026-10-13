@@ -31,7 +31,7 @@ int pc_room_settings_parse(const char* line);
 void pc_lights_mark_dirty(void);
 }
 
-int pc_fog_global = 1;
+int pc_fog_global = 0; /* off by default until the town washout is fixed (settings key fog 1) */
 int pc_haze_cell = 4;
 int pc_haze_debug;
 float pc_fog_time = -1; /* RPC environment {fog_time}: fixed seconds (-1: live) */

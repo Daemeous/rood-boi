@@ -76,6 +76,7 @@ def main():
         return ok
 
     game = Game.launch(fast=True, card=str(out / "card1.mcd"), log=out / "game.log", extra_env=env, socket_path=socket)
+    game.call("environment", fog_global=1)  # ground fog is off by default for now
 
     def warp(zone, room):
         game.call("room_goto", zone=zone, room=room)

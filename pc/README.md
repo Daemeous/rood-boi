@@ -580,7 +580,7 @@ These switches persist with File > Save settings:
 | `editor_snap_offset` | 64 | surface snapping's distance off the surface |
 | `light_animation` | 1 | light actors' flicker and pulse (0 holds them still) |
 | `environment` | 1 | the rooms' sun and sky (0: off in every room, for comparison; per room: Details > Atmosphere, "Sun and sky" below) |
-| `fog` | 1 | the rooms' ground fog and fog volumes (0: off in every room; per room: Details > Atmosphere, "Haze, ground fog, fog volumes and sun shafts" below) |
+| `fog` | 0 | the rooms' ground fog and fog volumes (off by default for now: some town rooms wash out at certain camera angles; 1: on; per room: Details > Atmosphere, "Haze, ground fog, fog volumes and sun shafts" below) |
 | `editor_cutaway`, `editor_cutaway_radius` | 1, 320 | See into rooms > Cut to focus (key C) and its radius at the focus |
 | `editor_cutaway_opacity` | 0.3 | share of a cut surface still drawn as a ghost, with its edges (0: a hole) |
 | `editor_cutaway_auto` | 1 | cut only while room surfaces hide the focus from the camera |
