@@ -180,6 +180,35 @@ slots are ported, none of the mod's other control changes.
 `pc/src/weapon_slots.c` documents the details; `pc/tests/weapon_slots_smoke.py`
 tests it (option off, swaps, assign mode, shields, saving and reloading).
 
+### Modern menus (in progress)
+
+`ui_menus 1` (settings, RPC `ui_menu {modern}`) replaces the game's top-level
+command list with a tabbed shell drawn by the PC runtime (`pc/src/ui`, design
+in `pc/docs/Modern_Menus.md`): L1/R1 switch tabs (Ashley, Equipment, Items,
+Abilities, Magick, Leá Monde, System; tabs with nothing unlocked yet are
+skipped), Up/Down move, Circle opens, Cross or Triangle close. Every row still
+opens the game's own screen for now (native screens replace them one by one),
+and the game keeps deciding what is allowed: a greyed row (e.g. Break arts
+with the weapon sheathed, Magick at 0 MP) says why in the card and still
+opens, as in the original, where the game's screen greys what is off. Only
+the Triangle menu is replaced: L2 shortcuts, loot, containers, the save
+point and ability-learned messages stay the game's own. System > Menus
+switches back to the original menus from the next open (the current menu
+session keeps the shell). Without the Dear ImGui overlay (backend init
+failed) the original menus are used. With the option off (the default) the
+game is unchanged.
+
+- `pc/src/ui/menu_bridge.c` (battle builds) takes over `func_800C930C`, the
+  top level, from one `#ifdef ROOD_PC` hook; `ui_shell.cpp` is the navigation
+  state (ctest `ui_shell_probe`), `ui_draw.cpp` draws it on Dear ImGui's
+  background draw list inside the game picture with the open fonts and the
+  button prompt icons.
+- Theme: `pc/assets/ui/theme.json` (colours, sizes, timings, font files;
+  reloaded live; `ROOD_UI_THEME` overrides the path).
+- `pc/tests/ui_menus_smoke.py`: off = the game's menu; the shell's tabs, an
+  original screen (Status) and back, System > Menus (from the next open), an
+  L2 shortcut (stays original), a greyed Break arts opening, closing, 16:9.
+
 ## Intro movie and CD drive
 
 The title's own movie code (`src/TITLE/TITLE.PRG/22C.c`) plays MOV/TITLE.STR
@@ -550,6 +579,7 @@ These switches persist with File > Save settings:
 | `editor_snap_highlight` | 128 | highlight radius around a snapped point (world units) |
 | `editor_snap_offset` | 64 | surface snapping's distance off the surface |
 | `light_animation` | 1 | light actors' flicker and pulse (0 holds them still) |
+| `environment` | 1 | the rooms' sun and sky (0: off in every room, for comparison; per room: Details > Atmosphere, "Sun and sky" below) |
 | `editor_cutaway`, `editor_cutaway_radius` | 1, 320 | See into rooms > Cut to focus (key C) and its radius at the focus |
 | `editor_cutaway_opacity` | 0.3 | share of a cut surface still drawn as a ghost, with its edges (0: a hole) |
 | `editor_cutaway_auto` | 1 | cut only while room surfaces hide the focus from the camera |
@@ -977,6 +1007,45 @@ captures a zone's rooms before and after, with close-ups and per-type
 contact sheets. These are game images: keep them local. Zone 9 is
 generated and committed so far.
 
+### Sun and sky (outdoor rooms)
+
+Rooms open to the sky (the town's streets, Snowfly Forest, the Keep's
+courtyard, the cathedral's roofs) have a **sun** (here mostly a moon) and a
+**sky**: `env sun` and `env sky` items of the room's lighting layers
+(`pc/src/environment.cpp`; format: [lighting/README.md](../lighting/README.md),
+"Environment"). The sun is a directional light (azimuth, elevation, colour,
+intensity, angular size for soft shadows, casts shadows); the sky is the
+radiance a ray brings back when it leaves the room (a zenith -> horizon ->
+ground gradient, optionally tinted around the sun). Roofed rooms have
+neither, so they look exactly as before.
+
+- **Ray tracing** (Vulkan ray queries, OpenGL compute; High/Ultra): the sun's
+  shadows are traced with its own rays every pixel (it never competes with
+  the room's lights in their sampling), and it lights every bounce of the
+  path tracer and every probe; GI rays that escape bring the sky, so sky
+  occlusion under arches and trees falls out of the trace (NRD keeps its
+  energy, the probes carry it).
+- **No traced shadows** (Low/Medium, Vulkan without ray queries): the sun gets
+  a shadow map (an orthographic 1024 x 1024 map of the room and characters,
+  `shadows.c` / `vk_shadows.c`, 8 rotated taps widened by its size); without
+  GI the sky becomes a subtle hemisphere ambient term (upward faces see more
+  of it; the screen-space AO darkens it).
+
+`pc/tools/generate_lighting.py` writes them into the generated layer for
+every room `pc/tools/outdoor.py` finds open to the sky (82 rooms): its floor's
+upward rays escape (>= 40 %), it has little modelled ceiling (< 0.3 x the
+floor) and its floor has baked vertex light, plus the decisions in
+`pc/assets/environment/outdoor.json` (the Undercity's unmodelled vaults
+are roofed). Defaults are moody: a low, cool, soft moon (intensity 0.7,
+35 degrees up, 2 degrees wide) and a dim overcast night sky, both leaning
+toward the hue of the room's own vertex light. Editor: Details >
+**Atmosphere** > "Sun and sky": every value live, Save area (Ctrl+S) writes
+the user layer (`override env:sun elevation=...`), and a sun gizmo in the
+view (drag the disc: horizontal turns it, vertical raises it). Settings key
+`environment` (0) switches every room's sun and sky off for comparison. RPC
+`environment`. Test: `pc/tests/sky_smoke.py`. Details and costs:
+[pc/docs/Vulkan_Renderer.md](docs/Vulkan_Renderer.md), "Sun and sky".
+
 ### Lighting quality presets
 
 Lighting has quality presets so lower-spec PCs run it (`pc/src/lighting_quality.cpp`):
@@ -1086,6 +1155,7 @@ thread once per vsync, so each method runs at a frame boundary:
 | `input` | `buttons` (name or list), `right_stick` (`[x, y]`, -1..1, down +y), `vsyncs` | hold PS1 buttons and/or the right stick (the camera); works unfocused |
 | `camera_stick` | the settings without `camera_stick_` (`enabled`, `speed`, ..., `r3_reset`, `idle_reset`, `keys`), `action` (`reset`) | the right-stick camera: settings and state (zoom, distances, collision hit, yaw) |
 | `weapon_slots` | `enabled` | the optional weapon slots (battle builds): the option, overlay/assign/swap state, field mode, each weapon's slot and each shield's slot bits, what Ashley's battle record has equipped |
+| `ui_menu` | `modern` | the modern menus (`pc/src/ui`, battle builds): sets `ui_menus`; the shell: visible, menus, tab, tabs, rows (id, label, enabled, reason when greyed, value), focused row |
 | `release` | | drop injected buttons |
 | `state` | | zone, room, start state, music, HP/MP, risk, Ashley's position |
 | `read` / `write` | `address`, `length` / `hex` | guest RAM and scratchpad (read also host data) |
@@ -1111,12 +1181,13 @@ thread once per vsync, so each method runs at a frame boundary:
 | `lights` | `action` (`suggest`, `save`, `reload`, `add` {`position`}), `select`, `baked` | the room's lights (zone, room, `dirty`, `loads`: layer loads so far, status); `reload` reads every lighting layer of the current room from disk at once (unsaved edits are dropped) instead of waiting for the editor's file poll (twice a second of wall-clock time, which fast stepping outpaces): scripts write a room file, call `reload`, then count frames. The poll keeps the files' times as read, so it does not load them again, and the renderers' history resets (path tracer, NRD, probes) follow a hash of the lights, so a changed light resets them once |
 | `prefabs` | `reload` | the prefab library (built-in and user), parameters and problems |
 | `editor_place` | `item` / `prefab` / `light`, `phase` (`begin`, `move`, `drop`, `cancel`, `double_click`, `state`), `x`/`y` or `u`/`v` | a drag from Place Actors, as the mouse would do it |
+| `environment` | `sun` {`enabled`, `azimuth`, `elevation`, `color`, `intensity`, `angle`, `shadows`}, `sky` {`enabled`, `zenith`, `horizon`, `ground`, `intensity`, `sun_tint`, `ambient`}, `remove` (`sun`, `sky`, `all`), `global` | the room's sun and sky (`defined`: the room has the item; setting a field of one it lacks adds it), `active`, `global` (settings key `environment`), the renderers' packed record (`gpu`) and its `hash`; an edit marks the room dirty (save with `lighting` `save`) and is one undo transaction |
 | `lighting` | `action` (`layers`, `save`, `revert` {`id`}, `promote` {`ids`}, `reload` (as `lights` `reload`), `packs` {`packs`, `active`}, `discard_dangling`, `poll` (the live reload's check, now)) | the room's lighting layers (files, entries, version), the effective items with their layer badges, deleted ids, problems (dangling overrides), the user layer as it would be saved |
 | `fixtures` | `action` (`list`, `set` {`type`, `params`, `offset`, `fixture_radius`, `glow`, `enabled`, `review`}, `save`, `revert`, `regenerate` {`scope`}), `type`, `all` | the fixture catalog's types in the room (or one, or all), the room's typed actors and glows (`muted` 4: suppressed by the type); type edits apply live to every instance (`pc/docs/Fixture_Catalog.md`) |
 | `rooms` | | every zone and room read from the disc (zone, room, location, scene, entries, name, area), the current room, whether warped, the warp's phase |
 | `room_goto` | `zone`, `room`, `entry`, `enemies`, `scripts`, `block_saves`, or `action` (`return`, `clear`, `cancel`, `status`) | ask the game to load a room (taken in the field loop); phase 0 idle, 1 requested, 2 loading, 3 arrived, 4 done |
 | `ending` | | developer jump: the field's next frame plays the ending (ENDING.PRG: credits, score and rank) and returns to the title, which offers the clear-data save; battle build |
-| `editor_undo` | `action` (`list`, `undo`, `redo`, `begin`, `end`, `jump`), `steps`, `name`, `done` | the undo history (`done`, names, `undo`/`redo` names, `open`); each editing request (`actors`, `glows`, `lights`, `editor_place`, `room_groups`, `uv_effects`, `editor_snap` with `apply`) is one transaction, `begin`/`end` hold one open across requests (a drag) |
+| `editor_undo` | `action` (`list`, `undo`, `redo`, `begin`, `end`, `jump`), `steps`, `name`, `done` | the undo history (`done`, names, `undo`/`redo` names, `open`); each editing request (`actors`, `glows`, `lights`, `environment`, `editor_place`, `room_groups`, `uv_effects`, `editor_snap` with `apply`) is one transaction, `begin`/`end` hold one open across requests (a drag) |
 | `editor_input` | `keys` (`delete`, `backspace`, `escape`, `enter`, `tab`, `f2`, a letter or digit), `text`, `ctrl`, `shift`, `focus` (`search`, `none`) | keys and text through SDL's event queue (the keyboard's path); replies `visible`, `want_text_input`, `item_active`, `gizmo` |
 | `editor_view` | `focus` | the cutaway's focus (`[x, y, z]` fixes it, null: automatic), whether it is `hidden` and how far the cut has faded in (`amount`) |
 | `quit` | | exit |

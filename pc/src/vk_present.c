@@ -6,6 +6,8 @@
 #define _POSIX_C_SOURCE 200809L
 #include "vk_hw.h"
 #include "light_list.h"
+#include "environment.h"
+int pc_vk_shadows_sun(const float dir[3], float matrix[16], float light[4], float tile[4]); /* vk_shadows.c */
 #include "vk_hooks.h"
 #include "vk_shaders.h"
 #include "dev_state.h"
@@ -114,6 +116,9 @@ typedef struct {
     float quality0[4];
     int quality1[4];
     float quality2[4];
+    pc_env_gpu env; /* the room's sun and sky (environment.h) */
+    int env_mode[4]; /* the sun's shadows (-2 traced, 0 its shadow map, -1 none), the sky's ambient term, any on */
+    float sun_matrix[16], sun_light[4], sun_tile[4]; /* its shadow map (vk_shadows.c) */
 } present_ubo;
 
 /* ---- swapchain ---- */
@@ -571,6 +576,15 @@ static void fill_present_ubo(present_ubo* u, int x, int y, int w, int h, int vie
     u->quality1[0] = pc_shadow_map_filter;
     u->quality1[1] = pc_lighting_ssao(gi);
     u->quality2[0] = pc_light_size;
+    /* The sun and sky: the trace weighs a shadow-casting sun into the visibility. */
+    u->env_mode[2] = pc_env_gpu_get(&u->env);
+    u->env_mode[0] = gi && pc_rt_shadows && u->env.sun_col[3] > 0.5f ? -2 : -1;
+    if (u->env_mode[0] == -1 && u->env.sun_col[3] > 0.5f
+        && pc_vk_shadows_sun(u->env.sun_dir, u->sun_matrix, u->sun_light, u->sun_tile))
+        u->env_mode[0] = 0; /* no traced visibility: the sun's shadow map */
+    if (!u->sun_tile[2])
+        u->sun_tile[2] = 1;
+    u->env_mode[1] = 0; /* the sky's ambient: set once the probe field is known */
 }
 
 /* ---- capture (RPC present_dump) ---- */
@@ -788,6 +802,8 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             pu->i1[2] |= (gi || probes == 3 ? 128 : 0) | (probes == 1 ? 64 : 0) | (probes == 3 ? 256 : 0)
                        | (probes && pc_gi_debug == 1 ? 2 : 0) | (probes && gi && pc_gi_debug != 1 ? 1 : 0);
             pu->quality0[0] = pc_gl_show_depth ? 0 : pc_lighting_low_haze_density(pu->haze_grid[3]);
+            /* The sky's ambient term where neither the path tracer nor the probes trace the sky. */
+            pu->env_mode[1] = pu->env.zenith[3] > 0.5f && !(gi && pc_gi_enabled) && !probes;
             int stage = 0;
             const vk_image* input = stage_begin(stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
             cmd = vk_cmd();

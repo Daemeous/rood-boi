@@ -113,6 +113,14 @@ def check_values(report, path, e, prefabs, settings):
             report("error", path, e.line, f"{e.id}: no such room setting (pc/src/room_settings.cpp)")
         if kind == "uv" and not (e.item.name.isdigit() and 1 <= int(e.item.name) <= 64):
             report("error", path, e.line, f"{e.id}: texture effects are numbered 1-64")
+    if kind == "env":
+        name = e.id.split(":", 1)[1]
+        if name not in lf.ENV_FIELDS:
+            report("error", path, e.line, f"{e.id}: the environment items are env:sun and env:sky")
+        else:
+            for key, _ in fields:
+                if lf.known_field(kind, key) and key not in lf.ENV_FIELDS[name]:
+                    report("error", path, e.line, f"{e.id}: '{key}' is not a field of the {name}")
     for key, value in fields:
         if not lf.known_field(kind, key):
             report("error", path, e.line, f"{e.id}: unknown key '{key}'")

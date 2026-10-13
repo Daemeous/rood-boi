@@ -29,6 +29,13 @@ SCHEMA = {
         ("glow", 1, None, True), ("glowkey", -1, None, False), ("fixture", 1, None, False),
         ("fixture_radius", 1, "16", False), ("fixture_shadows", 0, "0", False),
         ("fixture_type", -1, None, False), ("flame", 0, "0", False)]),
+    # The room's sun ("env sun") and sky ("env sky"): pc/src/environment.cpp.
+    "env": (False, 4, [
+        ("enabled", 0, "1", False), ("azimuth", 2, "180", False), ("elevation", 2, "45", False),
+        ("color", 3, "1,1,1", False), ("intensity", 3, "1", False), ("angle", 2, "0.53", False),
+        ("shadows", 0, "1", False), ("zenith", 3, "0.1,0.12,0.2", False),
+        ("horizon", 3, "0.25,0.25,0.3", False), ("ground", 3, "0.05,0.05,0.05", False),
+        ("sun_tint", 3, "0", False), ("ambient", 3, "0.5", False)]),
     "glow": (False, 4, [
         ("pos", 1, None, True), ("muted", 0, "0", False), ("intensity", 3, "1", False),
         ("tint", 3, "1,1,1", False), ("size", 2, "0", False), ("reach", 1, "0", False),
@@ -42,8 +49,12 @@ SCHEMA = {
     "uv": (False, 4, [("speed", 3, "1", False), ("freeze", 0, "0", False)]),
 }
 # What a define of each kind needs, and how many numbers a field takes.
-REQUIRED = {"light": ["pos"], "actor": ["prefab", "pos"], "set": ["value"], "glow": [], "uv": []}
-COUNTS = {"pos": 3, "dir": 3, "color": 3, "rot": 3, "glow": 3, "fixture": 3, "tint": 3, "size": None}
+REQUIRED = {"light": ["pos"], "actor": ["prefab", "pos"], "set": ["value"], "glow": [], "uv": [], "env": []}
+COUNTS = {"pos": 3, "dir": 3, "color": 3, "rot": 3, "glow": 3, "fixture": 3, "tint": 3, "size": None,
+          "zenith": 3, "horizon": 3, "ground": 3}
+# The env items a room may have, and the fields each takes.
+ENV_FIELDS = {"sun": ("enabled", "azimuth", "elevation", "color", "intensity", "angle", "shadows"),
+              "sky": ("enabled", "zenith", "horizon", "ground", "intensity", "sun_tint", "ambient")}
 LIGHT_TYPES = ("point", "spot", "rect")
 
 
@@ -370,7 +381,7 @@ def diff_one(below, desired, id):
         return Entry("define", id, item=d)
     if same_item(b, d):
         return None
-    if b.kind not in ("light", "actor"):
+    if b.kind not in ("light", "actor", "env"):
         return Entry("define", id, item=d)
     old = dict(b.fields)
     sets = [(k, v) for k, v in d.fields if not (k in old and (old[k] == v or volatile(d.kind, d.name, k)))]

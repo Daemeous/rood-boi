@@ -1,0 +1,11 @@
+{
+  "about": "Rooms open to the sky: decisions that override pc/tools/outdoor.py's measures (whole zones or single rooms, with the reason). Read by pc/tools/generate_lighting.py; see pc/docs/Vulkan_Renderer.md, 'Sun and sky'.",
+  "zones": [
+    { "zone": 47, "outdoor": false, "why": "Undercity: underground; its vaults are not modelled, so it measures as open" },
+    { "zone": 48, "outdoor": false, "why": "Undercity: underground; its vaults are not modelled, so it measures as open" },
+    { "zone": 49, "outdoor": false, "why": "Undercity: underground; its vaults are not modelled, so it measures as open" }
+  ],
+  "rooms": [
+    { "zone": 22, "room": 8, "outdoor": false, "why": "Great Cathedral B1: a basement room (its ceiling is not modelled)" }
+  ]
+}

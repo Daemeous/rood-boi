@@ -31,8 +31,9 @@ path tracer (`gi_method path`, Ultra) stays the reference.
      like a path vertex of the path tracer (`rt_trace.comp`'s `direct` and
      `emitted`: every dynamic light with a shadow ray, one glow picked by its
      unshadowed light, the baked bounce), plus the field itself at the hit
-     with `bounces >= 2` (multi-bounce through last update's atlases). Misses
-     bring nothing (no sky). Back faces (the room is NCLIP-culled, so its
+     with `bounces >= 2` (multi-bounce through last update's atlases), and
+     the room's sun (its own shadow ray, Vulkan_Renderer.md "Sun and
+     sky"). Misses bring the room's sky (nothing in a roofed room). Back faces (the room is NCLIP-culled, so its
      winding is reliable: front faces' `cross(b - a, c - a)` points along the
      ray) store -0.2 x their distance. Characters and props are not in the
      probes' scene (they would make the field flicker); their own contact and
@@ -172,4 +173,6 @@ light reset, room change refit, no crash / validation / shader errors.
   frame, or a compacted active list (the readback after classification).
 - Characters as probe blockers (optional mover BLASes) if their light leak
   through them shows in play.
-- Sky/outdoor rooms: misses bring no light (no sky colour yet).
+- Sky/outdoor rooms: done (2026-10-12): misses bring the room's sky, the sun
+  lights every hit (Vulkan_Renderer.md "Sun and sky"). Open-air probes leak
+  the sky a little more than the path tracer (1.4-1.5 x in Snowfly Forest).

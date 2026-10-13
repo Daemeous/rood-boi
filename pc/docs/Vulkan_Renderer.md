@@ -416,6 +416,89 @@ whose sphere is outside the view cone, x 1.5 for lights kept last frame
 (hysteresis: no popping as the camera moves). A clustered (tiled) GL
 present taking every light is not done.
 
+### Sun and sky (`environment.cpp`, `environment.glsl`)
+
+Outdoor rooms have a directional **sun** (the moon, mostly) and a **sky**
+(per room: `env sun` / `env sky` items of the lighting layers,
+lighting/README.md "Environment"; generated for rooms open to the sky by
+`pc/tools/outdoor.py` + `generate_lighting.py`; README "Sun and sky").
+The renderers read one packed record per frame, `pc_env_gpu_get`
+(environment.h): the direction toward the sun (world, y down) and its
+angular radius, its colour x intensity and whether it casts shadows, the
+sky's zenith / horizon / ground radiance x intensity, its sun tint and the
+ambient fallback's strength. It is appended to the trace UBO
+(`rt_lights.glsl` `Trace`: the path tracer, the haze, the probes), the
+present UBO and, on OpenGL, uniforms of ptgi.c's trace and the present;
+`pc/shaders/vulkan/environment.glsl` is the shared GLSL (OpenGL through
+`gl_shaders.py` `PC_GLSL_ENVIRONMENT`). A room without them: the record is
+zeros and nothing changes (the passes, branches and history hashes are as
+before).
+
+- **Not one of the lights.** The sun stays out of the light list and its
+  many-light sampling (`light_list.h`, `direct()`, `visibility()`), so it
+  always gets its own rays and never competes with a candle for one.
+  `rt_trace.comp` (and ptgi.c's GL trace, the same functions):
+  - *Direct light*: the present adds `sun colour x max(n.L, 0) x
+    visibility`. `visibility_with_sun()` folds the sun into the traced
+    visibility as one more term of the same ratio `sum(w V) / sum(w)` (its
+    weight: its unshadowed luminance at the pixel), with `shadow_samples`
+    rays to points of its disc (uniform over the cone of its angular
+    radius: soft shadows that widen with distance from the blocker); so the
+    present's single traced visibility covers the lights and the sun, and
+    where only the sun reaches (a street with no lantern) it is exactly the
+    sun's. The signature gets bit 19 (the sun's centre ray), so a moving
+    sun shadow (Ashley's) rejects history like a light's.
+  - *Bounces*: every path vertex gets `sun_light()` (one ray to its disc)
+    besides `direct()`; every probe ray's hit too (`probe_trace.glsl`).
+  - *Sky*: a GI ray that leaves the room returns `env_sky(d)` (zenith ->
+    horizon -> ground, plus `sun_tint` x the sun's colour around it; never
+    the sun's disc, which is sampled directly) times its throughput, so a
+    floor under an arch or a canopy sees less sky: sky occlusion is the
+    trace. NRD's hit distance counts such a miss as 4096 units. The probes'
+    misses store the sky's radiance (before: black), and `probe_state.comp`
+    gives the sun and sky a steady share of the probe's flicker scale (they
+    never flicker). The NRD and probe history hashes include the record, so
+    an edit restarts them once.
+- **Without traced shadows** (Low/Medium; Vulkan without ray queries; GL
+  without compute): the sun's **shadow map**, one 1024 x 1024 orthographic
+  map along the sun covering the room's bounding sphere, with the room and
+  this frame's casters (`shadows.c` `pc_shadow_sun_matrix` +
+  `pc_shadows_sun_update`; on Vulkan a tile below the cube rows of
+  `vk_shadows.c`'s atlas, drawn with the cube pipeline). The cube maps'
+  shader is reused: the "light" is a far point along the sun, and distance
+  to it grows monotonically along each texel's ray, so it compares as a
+  depth. Lookup: 8 rotated taps (`env_sun_map_visibility`), radius from the
+  sun's angular size, slope-scaled bias. Redrawn only when the room, the
+  casters or the sun change. Shadows Off: unshadowed. On OpenGL it needs a
+  17th texture unit (unit 16; every GL 4 driver has 32), else unshadowed.
+- **Sky without GI** (no path tracing and no probes): `env_ambient(n)`, a
+  hemisphere term (sky mean for upward faces, ground for downward, x
+  `ambient`, 0.5-0.6) times the screen-space AO where it is on. Subtle by
+  design: there is no occlusion beyond the AO.
+- Energy: a GI pixel's indirect light is the cosine-weighted mean radiance
+  arriving, so an open floor under a uniform sky of radiance L gets L x its
+  albedo; `pc/tests/sky_smoke.py` checks no surface exceeds the brightest
+  sky, that NRD's displayed light keeps the raw samples' mean (+9 % in the
+  forest) and that the probes bring the sky too (1.4-1.5 x the path
+  tracer's there: their usual over-estimate plus sky leaking between
+  probes in open air).
+- **Haze**: not lit by the sun yet; `env_sun_sample()` and the record are
+  in the haze's UBO already, so sun shafts are a candidate pick per froxel
+  plus its shadow ray in `rt_haze.comp` (next).
+
+Measured (RTX PRO 6000, `ROOD_PERF=1`, headless, scale 3, 300 frames after
+120 to settle; the generated moon and sky vs the settings key `environment`
+off in the same room):
+
+| Room, preset | GPU ms/frame off -> on | where |
+| --- | --- | --- |
+| Snowfly Forest (40/0), Ultra | 0.754 -> 0.816 (+0.06) | trace 0.064 -> 0.119 (sun rays per pixel and per bounce, sky misses) |
+| Rue Lejour (32/15), Ultra | 0.724 -> 0.757 (+0.03) | trace 0.050 -> 0.075 |
+| Snowfly Forest, Medium | 0.351 -> 0.411 (+0.06) | the probes now run (no lights there before: +0.04), the sun's map +0.01 |
+| Rue Lejour, Medium | 0.393 -> 0.409 (+0.02) | probe trace +0.002, the sun's map +0.01 (redrawn as Ashley moves) |
+
+NRD, the filters and the haze are unchanged (same images, same counts).
+
 ## Status (2026-10-11): NRD
 
 Measured on the NVIDIA RTX PRO 6000 (shared with other jobs: absolute
@@ -495,6 +578,11 @@ renderer stays opt-in until the user playtests it.
   shares the CPU's power and memory: numbers vary with machine load.
 
 ## Next
+
+- Sun and sky: the sun's shafts in the froxel haze (`rt_haze.comp`: the sun
+  as one more candidate with its own shadow ray); a time-of-day per zone if
+  the story's hours should show; cascades for the sun's shadow map in very
+  large rooms (one 1024 map covers the room's bounding sphere).
 
 - NRD: try RELAX with the lighting signature as history confidence
   (`IN_DIFF_CONFIDENCE`, a deterministic rejection); REBLUR or

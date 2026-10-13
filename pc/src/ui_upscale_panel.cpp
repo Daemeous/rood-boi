@@ -7,6 +7,7 @@
 #include "ui_text.h"
 #include "ui_bubbles.h"
 #include "button_prompts.h"
+#include "ui/ui_shell.h"
 
 extern "C" int pc_hw_scale, pc_hw_active;
 
@@ -36,6 +37,7 @@ extern "C" void pc_ui_upscale_panel(void)
                 s.gpu == 1 ? "Vulkan compute" : s.gpu == 2 ? "OpenGL compute" : "CPU", s.entries, s.frame_misses,
                 s.frame_ms + s.miss_ms);
     }
+    pc_ui_menus_editor_row(); /* modern menus (pc/src/ui) */
     static const char* text_modes[] = { "Original glyphs", "Modern fonts" };
     ImGui::Combo("Text", &pc_ui_text, text_modes, 2);
     if (ImGui::IsItemHovered())

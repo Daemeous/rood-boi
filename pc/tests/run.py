@@ -121,6 +121,9 @@ def suites(args, mode="egl"):
             Suite("fixture_lighting_smoke", [PY, str(TESTS / "fixture_lighting_smoke.py"), "--card", str(args.save)],
                   600, note="generated fixture lights: types, lit, shadow exclusion, glow links, suppressed glows, "
                             "live type edits, catalog save, regenerate (zone 9)"),
+            Suite("sky_smoke", [PY, str(TESTS / "sky_smoke.py"), "--card", str(args.save)], 600,
+                  note="sun and sky: roofed room unchanged, outdoor room's generated sun shadows and sky fill, "
+                       "energy, NRD, probes, shadow-map fallback, save/load, generated tags stable"),
             Suite("glow_stability_smoke", [PY, str(TESTS / "glow_stability_smoke.py"), "--card", str(args.save)], 600,
                   note="save point: one steady glow, stable id, overrides persist; prologue fight: effect glows unshadowed, smooth")]
           if args.save.exists() else []),
@@ -142,6 +145,10 @@ def suites(args, mode="egl"):
         *([Suite("weapon_slots_smoke", [PY, str(TESTS / "weapon_slots_smoke.py"), "--card", str(args.save)], 600,
                  note="QoL weapon slots: off = the game's L2 overlay; swaps, assign mode, shields, D-pad, drawn; "
                       "the mod's save bytes survive a save and reload")]
+          if args.save.exists() else []),
+        *([Suite("ui_menus_smoke", [PY, str(TESTS / "ui_menus_smoke.py"), "--card", str(args.save)], 300,
+                 note="modern menus: off = the game's menu; shell tabs, original Status and back, "
+                      "System > Menus from the next open, L2 shortcut stays original, greyed Break arts opens, close")]
           if args.save.exists() else []),
         Suite("flipped_sprite_smoke", [PY, str(TESTS / "flipped_sprite_smoke.py")], 180,
               note="textured quads (flipped sprites too) sample only their own texels: CPU, hardware 1x and 4x"),

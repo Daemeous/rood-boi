@@ -65,6 +65,13 @@ vec3 probe_direct(vec3 p, vec3 n) {
         if (trace(p + n * 1.5, l, d - max(3.0, light_up[i].w), true, n, 0.0, th, hit, bc)) continue;
         sum += light_col[i].rgb * a;
     }
+    // The room's sun (environment.glsl): its own shadow ray to a point of its disc.
+    if (env_sun_on()) {
+        vec3 l = env_sun_sample(rand(), rand());
+        float c = dot(n, l), th; int hit; vec2 bc;
+        if (c > 0.0 && !(env_sun_col.w > 0.5 && trace(p + n * 1.5, l, ENV_SUN_DISTANCE, true, n, 0.0, th, hit, bc)))
+            sum += env_sun_col.rgb * c;
+    }
     return sum + probe_emitted(p, n);
 }
 void main() {
@@ -80,7 +87,7 @@ void main() {
     rng = uint(r) * 1973u + uint(p) * 9277u + uint(pv_info.z) * 26699u;
     float t; int hit; vec2 bc;
     if (!trace(o, d, max_t, false, d, 0.0, t, hit, bc)) {
-        imageStore(ray_out, at, vec4(0.0, 0.0, 0.0, max_t)); // no sky: misses bring no light
+        imageStore(ray_out, at, vec4(env_sky(d), max_t)); // the sky's light (none in a roofed room)
         return;
     }
     Tri tri = tri_at(hit);

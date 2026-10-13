@@ -38,6 +38,8 @@ def write(path, text):
 GENERATED = """rood-lighting 2
 # generated: do not edit
 actor gen.candle.aaaa prefab=candle pos=100,-40,200 seed=3
+env sky zenith=0.07,0.09,0.16 ambient=0.6
+env sun azimuth=205 elevation=35 color=0.55,0.65,0.95 intensity=0.7 angle=2
 light gen.window.bbbb type=rect pos=0,-300,0 dir=0,0,1 color=0.6,0.7,1 intensity=2
 light gen.window.cccc type=rect pos=50,-300,0 dir=0,0,1
 """
@@ -50,6 +52,7 @@ override light:gen.window.gone intensity=1
 set haze_density value=0.0006
 """
 USER = """rood-lighting 2
+override env:sun elevation=50 !color
 override light:68ea4c1200a3f1 intensity=2
 override light:gen.window.cccc enabled=0
 light 68ea4c1300b2c4 type=spot pos=1,2,3 shadows=1
@@ -129,12 +132,16 @@ def run(args, tmp):
     check(eff["light:gen.window.bbbb"].get("intensity") == "3.5" and eff["light:gen.window.bbbb"].get("color") is None,
           "an override sets and unsets fields of a generated light")
     check(eff["light:gen.window.cccc"].get("enabled") == "0", "the user layer disables a generated light")
+    check(eff["env:sun"].get("elevation") == "50" and eff["env:sun"].get("color") is None
+          and eff["env:sun"].get("azimuth") == "205" and eff["env:sky"].get("ambient") == "0.6",
+          "the user layer overrides the generated sun field by field (the sky as generated)")
     check(eff["light:68ea4c1200a3f1"].get("intensity") == "2" and eff["light:68ea4c1200a3f1"].get("name") == "Hearth glow",
           "the user layer overrides an authored light")
     dangling = [line for line in s["problems"] if "light:gen.window.gone" in line]
     check(len(dangling) == 1 and "default/rooms:6" in dangling[0], f"a dangling override is reported with its place: {dangling}")
     check(any(p[2] == "light:gen.window.gone" for p in r.problems), "Python reports the same dangling override")
     badges = dict(line.split(" ", 1) for line in s["badges"])
+    check(badges.get("env:sun") == "G>U" and badges.get("env:sky") == "G", f"env badges ({badges.get('env:sun')})")
     check(badges.get("light:gen.window.bbbb") == "G>P" and badges.get("light:gen.window.cccc") == "G>U"
           and badges.get("light:68ea4c1200a3f1") == "P>U" and badges.get("light:68ea4c1300b2c4") == "U",
           f"badges name the layers ({badges})")
@@ -195,6 +202,8 @@ override light:nothing intensity=2
 set no_such_setting value=1
 light 68ea4c1200a3f3 type=sphere pos=1,2,3
 light  68ea4c1200a3f4   pos=1.00,2,3
+env moon intensity=1
+env sun zenith=1,1,1
 """)
     write(bad / "default/rooms/zone09_room99.txt", "rood-lighting 2\n")
     write(bad / "default/rooms/lights.txt", "rood-lighting 2\n")
@@ -203,7 +212,8 @@ light  68ea4c1200a3f4   pos=1.00,2,3
     report = result.stdout
     expect = ["pos takes 3 numbers", "unknown key 'colour'", "also on line 2", "'flame_hieght' is not a parameter",
               "dangling: override of light:nothing", "no such room setting", "type must be one of",
-              "not canonical", "room files are named", "override in a generated layer", "expected key=value"]
+              "not canonical", "room files are named", "override in a generated layer", "expected key=value",
+              "the environment items are env:sun and env:sky", "'zenith' is not a field of the sun"]
     if (ROOT / "data/SLUS_010.40").exists():
         expect.append("zone 9 room 99 is not a room of the game")
     for e in expect:

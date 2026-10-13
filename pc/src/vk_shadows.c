@@ -12,6 +12,9 @@
 
 #define SLOTS 4
 #define SIZE 512
+#define SUN_SIZE 1024 /* the sun's tile, below the cube rows */
+#define ATLAS_W (SIZE * 6)
+#define ATLAS_H (SIZE * SLOTS + SUN_SIZE)
 
 extern const float* pc_scene_positions(int* count);
 extern int pc_scene_serial(void);
@@ -29,9 +32,9 @@ static int cached_serial[SLOTS], cached_casters[SLOTS];
 static void init(void)
 {
     ready = -1;
-    if (!vk_image_create(&atlas, SIZE * 6, SIZE * SLOTS, VK_FORMAT_R32_SFLOAT,
+    if (!vk_image_create(&atlas, ATLAS_W, ATLAS_H, VK_FORMAT_R32_SFLOAT,
             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)
-        || !vk_image_create(&depth, SIZE * 6, SIZE * SLOTS, vk.depth_format, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT))
+        || !vk_image_create(&depth, ATLAS_W, ATLAS_H, vk.depth_format, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT))
         return;
     VkPushConstantRange range = { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, 80 };
     VkPipelineLayoutCreateInfo info = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -119,8 +122,8 @@ static void render(int slot, const float light[4])
         if (moving.data)
             memcpy(moving.data, caster_positions, (size_t)casters * 36);
     }
-    vk_attachments a = { .colors = { atlas.view }, .color_count = 1, .depth = depth.view, .width = SIZE * 6,
-        .height = SIZE * SLOTS };
+    vk_attachments a = { .colors = { atlas.view }, .color_count = 1, .depth = depth.view, .width = ATLAS_W,
+        .height = ATLAS_H };
     vk_begin_rendering(&a);
     VkCommandBuffer cmd = vk_cmd();
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
@@ -172,6 +175,78 @@ int pc_vk_shadows_update(int count, const float world[][4], const int* wants, in
         }
     }
     return used;
+}
+/* The sun's shadow map (shadows.c the same on OpenGL): one orthographic
+ * SUN_SIZE tile below the cube rows, drawn with the cube pipeline (the
+ * "light" a far point along the sun). Fills its lookup (matrix, far point
+ * and radius, tile x y size); 0 when unavailable. */
+void pc_shadow_sun_matrix(const float dir[3], float out[16], float light[4]); /* shadows.c */
+static float sun_cached[4];
+static int sun_serial = -1, sun_casters = -1;
+int pc_vk_shadows_sun(const float dir[3], float matrix[16], float light[4], float tile[4])
+{
+    if (!ready)
+        init();
+    if (ready <= 0)
+        return 0;
+    pc_shadow_sun_matrix(dir, matrix, light);
+    tile[0] = 0, tile[1] = (float)(SIZE * SLOTS), tile[2] = SUN_SIZE, tile[3] = 0;
+    int serial = pc_scene_serial(), casters, caster_serial, count;
+    const float* caster_positions = pc_hw_casters(&casters, &caster_serial);
+    float key[4] = { dir[0], dir[1], dir[2], light[3] };
+    if (sun_serial == serial && sun_casters == caster_serial && !memcmp(sun_cached, key, sizeof key))
+        return 1;
+    const float* positions = pc_scene_positions(&count);
+    if (!positions || !count)
+        return 0;
+    if (room_serial != serial) {
+        vk_buffer_destroy_later(&room);
+        if (!vk_buffer_create(&room, (VkDeviceSize)count * 36, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 1))
+            return 0;
+        memcpy(room.mapped, positions, (size_t)count * 36);
+        room_serial = serial;
+        room_vertices = count * 3;
+    }
+    vk_slice moving = { 0 };
+    if (casters) {
+        moving = vk_arena((VkDeviceSize)casters * 36, 16);
+        if (moving.data)
+            memcpy(moving.data, caster_positions, (size_t)casters * 36);
+    }
+    vk_attachments a = { .colors = { atlas.view }, .color_count = 1, .depth = depth.view, .width = ATLAS_W,
+        .height = ATLAS_H };
+    vk_begin_rendering(&a);
+    VkCommandBuffer cmd = vk_cmd();
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    vkCmdSetDepthTestEnable(cmd, VK_TRUE);
+    vkCmdSetDepthWriteEnable(cmd, VK_TRUE);
+    vkCmdSetDepthCompareOp(cmd, VK_COMPARE_OP_LESS);
+    VkRect2D rect = { { 0, SIZE * SLOTS }, { SUN_SIZE, SUN_SIZE } };
+    VkViewport viewport = { 0, (float)(SIZE * SLOTS), SUN_SIZE, SUN_SIZE, 0, 1 };
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+    vkCmdSetScissor(cmd, 0, 1, &rect);
+    VkClearAttachment clears[2] = { { VK_IMAGE_ASPECT_COLOR_BIT, 0, { .color = { .float32 = { 2, 2, 2, 2 } } } },
+        { VK_IMAGE_ASPECT_DEPTH_BIT, 0, { .depthStencil = { 1.0f, 0 } } } };
+    VkClearRect clear_rect = { rect, 0, 1 };
+    vkCmdClearAttachments(cmd, 2, clears, 1, &clear_rect);
+    struct {
+        float face[16], light[4];
+    } push;
+    memcpy(push.face, matrix, sizeof push.face);
+    memcpy(push.light, light, sizeof push.light);
+    vkCmdPushConstants(cmd, layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push, &push);
+    VkDeviceSize zero = 0;
+    vkCmdBindVertexBuffers(cmd, 0, 1, &room.buffer, &zero);
+    vkCmdDraw(cmd, (uint32_t)room_vertices, 1, 0, 0);
+    if (moving.data) {
+        vkCmdBindVertexBuffers(cmd, 0, 1, &moving.buffer, &moving.offset);
+        vkCmdDraw(cmd, (uint32_t)casters * 3, 1, 0, 0);
+    }
+    vk_end_rendering();
+    memcpy(sun_cached, key, sizeof key);
+    sun_serial = serial;
+    sun_casters = caster_serial;
+    return 1;
 }
 /* How many lights get shadow maps (the most important: light_list.h). */
 int pc_vk_shadows_slots(void) { return SLOTS; }

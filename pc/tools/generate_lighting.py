@@ -26,7 +26,11 @@ and writes lighting/<pack>/generated/zoneZZ_roomRR.txt (lighting/README.md):
   which have no glow);
 - every game glow that belongs to one catalogued fixture: "glow <key>
   fixture_type=T..." (cobwebs, floor arrows, decals, light shafts: their
-  class says suppress, so they stop counting as lights).
+  class says suppress, so they stop counting as lights);
+- for a room open to the sky (pc/tools/outdoor.py: measured from its
+  geometry and floor light, or decided in pc/assets/environment/outdoor.json),
+  its moon and sky: "env sun ..." and "env sky ..." (moody night defaults
+  leaning toward the room's own vertex light); roofed rooms get none.
 
 The type's parameters, light offset, fixture radius and glow treatment are
 not written: the game reads them from the catalog (pc/src/fixture_catalog.cpp)
@@ -47,6 +51,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fixture_lib as fl  # noqa: E402
 import lighting_format as lf  # noqa: E402
+import outdoor  # noqa: E402
 
 ROOT = fl.ROOT
 GLOW_MODES = ("leave", "drive", "suppress")
@@ -140,6 +145,7 @@ def zone_rooms(task):
     stats = collections.Counter()
     stats["by_type"] = collections.Counter()
     out = []
+    review = outdoor.load_review()
     try:
         vram, rooms = fl.zone_vram(disc, zone)
     except (OSError, KeyError, ValueError, IndexError):
@@ -149,6 +155,13 @@ def zone_rooms(task):
             continue
         r = fl.load_room(disc, zone, room, vram, name)
         items, notes = room_items(cat, r, stats)
+        # Open to the sky: the room's moon and sky (outdoor.py).
+        m = outdoor.measure(r)
+        is_outdoor, _ = outdoor.decide(m, zone, room, review)
+        if is_outdoor:
+            sun, sky = outdoor.environment(m, zone)
+            items += [lf.Item("env", "sun", sun), lf.Item("env", "sky", sky)]
+            stats["outdoor"] += 1
         out.append((room, room_text(zone, room, items) if items else None, notes, [it.id for it in items]))
     return out, stats
 
@@ -212,7 +225,8 @@ def main():
     by_type = ", ".join(f"{k} {v}" for k, v in sorted(stats["by_type"].items()))
     print(f"{stats['fixtures']} fixtures matched ({stats['rule']} by rule, {stats['unmatched']} unmatched); "
           f"{stats['actors']} actors ({stats['on']} on, {stats['off']} off by default; {stats['linked']} linked to "
-          f"a game glow); {stats['glows']} glows typed ({stats['suppressed']} suppressed)")
+          f"a game glow); {stats['glows']} glows typed ({stats['suppressed']} suppressed); "
+          f"{stats['outdoor']} rooms open to the sky (env sun, env sky)")
     if by_type and not args.quiet:
         print(f"actors by type: {by_type}")
     if args.dry_run or args.check:

@@ -31,6 +31,7 @@
 #include "ImGuizmo.h"
 #include "editor_overlays.h"
 #include "probe_gi.h"
+extern "C" void pc_env_draw(const float view[16], const float projection[16], const float rect[4]); /* environment.cpp */
 #include "fixture_catalog.h"
 #include "lights_internal.h"
 #include "lighting_quality.h"
@@ -1191,6 +1192,7 @@ extern "C" void pc_lights_viewport(void)
     bool snap_drag = (was_using && gizmo_operation == 0 && (modes & geometry_modes)) || (drag.active && (modes & geometry_modes));
     pc_overlay_draw(&ov, draw, snap_drag || (v_held && (modes & geometry_modes)));
     pc_probe_draw(ov.view, ov.projection, ov.rect, draw); /* probe GI visualisation (probe_overlay.cpp) */
+    pc_env_draw(ov.view, ov.projection, ov.rect); /* the sun direction gizmo (environment.cpp) */
     draw_cutaway_focus(v, draw);
     bool in_view = io.MousePos.x >= v.rect[0] && io.MousePos.y >= v.rect[1] && io.MousePos.x < v.rect[0] + v.rect[2]
         && io.MousePos.y < v.rect[1] + v.rect[3];

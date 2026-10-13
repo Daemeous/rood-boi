@@ -30,7 +30,25 @@ layout(std140, binding = 0) uniform Present {
     vec4 quality0;
     ivec4 quality1;
     vec4 quality2;
+    // The room's sun and sky (environment.h pc_env_gpu), and how they light
+    // here: x the sun's shadows (-2 traced: in gi.a, 0 its shadow map, -1
+    // none), y 1 the sky's ambient term (nothing traced carries the sky this
+    // frame), z 1 any on; the sun's shadow map (vk_shadows.c): its matrix,
+    // far point and radius, its tile in the atlas (x, y, size).
+    vec4 env_[5];
+    ivec4 env_mode;
+    mat4 env_sun_matrix_;
+    vec4 env_sun_light_;
+    vec4 env_sun_tile;
 } u;
+#define env_sun_dir u.env_[0]
+#define env_sun_col u.env_[1]
+#define env_zenith u.env_[2]
+#define env_horizon u.env_[3]
+#define env_ground u.env_[4]
+#define env_sun_matrix u.env_sun_matrix_
+#define env_sun_light u.env_sun_light_
+#define env_sun_texel (1.0 / u.env_sun_tile.z)
 // Every dynamic light (vk_present.c, any number: light_count), world space.
 struct Light {
     vec4 pos; // xyz, radius
@@ -50,7 +68,9 @@ layout(binding = 6) uniform sampler2D gi_tex;
 layout(binding = 7) uniform sampler2D gi_position;
 layout(binding = 8) uniform sampler2D gi_normal;
 layout(binding = 9) uniform sampler2D gi_extra;
-layout(binding = 11) uniform sampler2D shadow_atlas; // vk_shadows.c: SLOTS rows of six 512 x 512 cube faces
+layout(binding = 11) uniform sampler2D shadow_atlas; // vk_shadows.c: SLOTS rows of six 512 x 512 cube faces, the sun's tile
+#define ENV_SUN_MAP(st) texture(shadow_atlas, (u.env_sun_tile.xy + clamp(st, vec2(0.5 / u.env_sun_tile.z), vec2(1.0 - 0.5 / u.env_sun_tile.z)) * u.env_sun_tile.z) / vec2(textureSize(shadow_atlas, 0))).r
+#include "environment.glsl"
 layout(binding = 10) uniform sampler2D haze_volume; // GZ tiles of GX x GY: rgb in-scattered light, a transmittance
 // Probe GI (gi_method probes; vk_probes.inc): the volume (binding 12) and its atlases.
 #include "probe_volume.glsl"
@@ -310,7 +330,7 @@ void main() {
         return;
     }
     vec3 c = base(uv);
-    if ((light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || u.quality1.y != 0) && view_mode != 1) {
+    if ((light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || u.quality1.y != 0 || u.env_mode.z != 0) && view_mode != 1) {
         ivec2 q = texel(uv);
         vec4 n = texelFetch(normal_tex, q, 0);
         if (n.a > 0.5 && d > 0.0) { // lit 3D surface (not under UI): its view-space position
@@ -354,6 +374,13 @@ void main() {
                 }
                 sum += lights[i].col.rgb * a;
             }
+            // The sun: traced visibility (the trace weighs it into gi.a with the lights), else
+            // unshadowed (with the screen-space AO when on); the sky's ambient where nothing traces it.
+            if (env_sun_on())
+                sum += env_sun_unshadowed(world_normal) * (u.env_mode.x == -2 ? clamp(gi.a, 0.0, 1.0)
+                    : u.env_mode.x == 0 ? env_sun_map_visibility(world, world_normal, ign(gl_FragCoord.xy) * 6.2831853) : ao);
+            if (u.env_mode.y != 0)
+                sum += env_ambient(world_normal) * ao;
             if ((gi_on & 2) != 0) { color = vec4(min((gi.rgb + extra.gba) * gi_strength, vec3(1.0)), 1.0); return; }
             if ((gi_on & 8) != 0) { color = vec4(vec3(gi.a), 1.0); return; }
             if ((gi_on & 32) != 0) { color = vec4(vec3(baked_vis * ao), 1.0); return; }

@@ -34,6 +34,7 @@ by naming its id:
 | `glow` | `glow:<glow key>` | an override of one of the game's glows (the key the editor shows; `@x,y,z` for old position-only ones) |
 | `uv` | `uv:<1-64>` | an override of a room texture effect (speed, freeze) |
 | `set` | `set:<key>` | a per-room setting (`baked_lighting`, `haze_density`, ...: `pc/src/room_settings.cpp`) |
+| `env` | `env:sun`, `env:sky` | the room's sun (or moon) and sky (below, "Environment") |
 
 The editor makes ids from the time and a random part, so ids made by
 different people do not collide and sort in the order they were made.
@@ -90,11 +91,39 @@ item was deleted or regenerated under it). It is never dropped: the editor
 lists it under Outliner > Layers (and keeps it in your user layer until you
 discard it), RPC `lighting` reports it and the lint fails on it.
 
+## Environment
+
+A room open to the sky has `env sun` and `env sky` (`pc/src/environment.cpp`;
+rendering: pc/docs/Vulkan_Renderer.md, "Sun and sky"); a room without them
+has neither. The generator writes both for the rooms `pc/tools/outdoor.py`
+finds open to the sky; override them by id like any item
+(`override env:sun elevation=50`, `override env:sky enabled=0`,
+`delete env:sun`).
+
+```
+env sun azimuth=205 elevation=35 color=0.55,0.65,0.95 intensity=0.7 angle=2
+env sky zenith=0.07,0.09,0.16 horizon=0.17,0.18,0.23 ground=0.03,0.03,0.035 sun_tint=0.25 ambient=0.6
+```
+
+- Sun fields: `enabled` (1), `azimuth` (degrees, the compass direction it
+  shines from: 0 from +z, 90 from +x; 180), `elevation` (degrees above the
+  horizon; 45), `color` (1,1,1), `intensity` (1), `angle` (its angular
+  diameter in degrees: the shadows' softness; 0.53, the real sun's),
+  `shadows` (1).
+- Sky fields: `enabled` (1), `zenith`, `horizon`, `ground` (radiance
+  straight up, at the horizon and below it; 0.1,0.12,0.2 / 0.25,0.25,0.3 /
+  0.05,0.05,0.05), `intensity` (1, scales all three), `sun_tint` (0: how much
+  the sky around the sun takes its colour), `ambient` (0.5: the strength of
+  the hemisphere term that stands in for the sky where nothing traces it).
+- A sky radiance of 0.15 adds about 0.15 x the surface's albedo to an open
+  floor (the indirect light is the cosine-weighted mean radiance arriving).
+
 ## The generated layer
 
 `pc/tools/generate_lighting.py --zone N` writes the generated files from
 the fixture catalog and your disc (one actor per flame of every catalogued
-fixture, and the typed game glows). They are deterministic and sorted, and
+fixture, and the typed game glows; for rooms open to the sky, their sun and
+sky). They are deterministic and sorted, and
 regenerating keeps every id. Zone 9 is generated so far. To change how
 every candle of a type is lit, edit the type (editor: Details > *Edit
 type*, or the catalog), not the generated files.

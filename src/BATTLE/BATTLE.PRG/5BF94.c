@@ -2670,6 +2670,15 @@ void vs_battle_renderMenuItem(vs_battle_menuItem_t* menuItem)
 extern int D_800F4CC0;
 extern char D_800EBA78[];
 
+#ifdef ROOD_PC
+/* Modern menus (pc/src/ui/menu_bridge.c): the shell replaces the top level
+ * when the ui_menus setting is 1. */
+extern int pc_ui_menu_open(int mode);
+extern int pc_ui_menu_top(void);
+extern int pc_ui_menu_active(void);
+extern int pc_ui_menu_hide_rows(void);
+#endif
+
 int func_800C930C(int mode)
 {
     u_int selected = vs_battle_submenuStates[0];
@@ -2677,6 +2686,12 @@ int func_800C930C(int mode)
     u_int enabled = vs_main_settings.menuFlags;
     u_int mask;
     u_int conditions;
+
+#ifdef ROOD_PC
+    if (!mode && pc_ui_menu_active()) {
+        return pc_ui_menu_top();
+    }
+#endif
 
     if (mode) {
         if (mode == 2 && !vs_main_settings.cursorMemory) {
@@ -2687,6 +2702,12 @@ int func_800C930C(int mode)
         }
         vs_battle_submenuStates[0] = selected;
         vs_battle_rMemzero(vs_battle_menuItems, 0xB24);
+#ifdef ROOD_PC
+        if (pc_ui_menu_open(mode)) {
+            D_800F4CC0 = 0;
+            return 0;
+        }
+#endif
         mask = 9;
         for (mode = 0; mode < 10; ++mode) {
             if ((enabled >> mode) & 1) {
@@ -2826,7 +2847,11 @@ void func_800C97BC(void)
             }
         }
 
+#ifdef ROOD_PC
+        if (((var_s0 >= 0x1F) || (temp_s1 == 0)) && !pc_ui_menu_hide_rows()) {
+#else
         if ((var_s0 >= 0x1F) || (temp_s1 == 0)) {
+#endif
             for (i = 0; i < 10; ++i) {
                 vs_battle_renderMenuItem(var_s2);
                 ++var_s2;

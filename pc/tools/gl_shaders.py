@@ -22,6 +22,8 @@ SOURCES = ROOT / "pc/shaders/vulkan"
 # The probe GI (pc/src/probe_gi.inc) on OpenGL 4.3 compute.
 SHADERS = ["probe_trace_bvh.comp", "probe_blend.comp", "probe_state.comp", "ui_mmpx.comp"]
 FRAGMENTS = ["probe_common.glsl", "aa_geometry.glsl", "downsample.glsl", "ms_resolve.glsl",
+             # The room's sun and sky (ptgi.c's trace, gl_present.c's present).
+             "environment.glsl",
              # The reference SMAA shader (MIT, pc/third_party/smaa), used through its GLSL macros.
              "../../third_party/smaa/SMAA.hlsl"]
 INCLUDE = re.compile(r'^\s*#\s*include\s+"([^"]+)"\s*$')

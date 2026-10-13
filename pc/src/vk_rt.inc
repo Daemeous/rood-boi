@@ -105,6 +105,7 @@ typedef struct {
     float f0[4], f1[4];
     float f2[4]; /* lighting quality: traced AO radius (0 off), strength */
     int i3[4]; /* glows.c pc_glow_casts: emitters that may cast shadows */
+    pc_env_gpu env; /* the room's sun and sky (environment.h) */
 } vrt_trace_ubo;
 typedef struct {
     int rect[4], scale[4];
@@ -1044,6 +1045,7 @@ static int vrt_nrd(const float eye[3], int result, int result_extra)
     }
     float amounts[4] = { pc_gi_baked_bounce, pc_emitter_light, (float)pc_gi_bounces, (float)pc_nrd_glow };
     lights = vrt_hash(lights, amounts, sizeof amounts);
+    lights = vrt_hash(lights, &env_now, sizeof env_now); /* the sun and sky */
     float moved = 0, facing = 0;
     for (int k = 0; k < 3; k++) {
         moved += (eye[k] - vrt.nrd.eye[k]) * (eye[k] - vrt.nrd.eye[k]);
@@ -1159,6 +1161,7 @@ static void vrt_run(const float to_image[16], const float eye[3], float footprin
     u->f1[3] = pc_fog_glow;
     u->f2[0] = pc_lighting_ao_traced() ? pc_ao_radius : 0.0f;
     u->f2[1] = pc_ao_strength;
+    u->env = env_now;
     vk_descriptors d = { 0 };
     vk_descriptors_buffer(&d, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ubo.buffer, ubo.offset, sizeof *u);
     vk_descriptors_structure(&d, 1, vrt.tlas);
@@ -1276,8 +1279,9 @@ int pc_vk_gi_update(int x, int y, int w, int h, int replay)
     gather_lights();
     vrt_light_count = pc_lights_list(vrt_light_list, PC_LIGHTS_MAX);
     int lights = vrt_light_count || (pc_gi_baked_bounce > 0 && pc_gi_enabled);
+    gather_env(); /* the room's sun and sky: the passes run for them alone too */
     pc_baked_shadows_active = pc_baked_shadows && (emitter_count || pc_contact_radius > 0);
-    if (!(lights || pc_baked_shadows_active || (emitter_count && pc_emitter_light > 0) || ao))
+    if (!(lights || pc_baked_shadows_active || (emitter_count && pc_emitter_light > 0) || ao || env_active))
         return 0;
     vk_section("gi scene");
     if (!vrt_scene())

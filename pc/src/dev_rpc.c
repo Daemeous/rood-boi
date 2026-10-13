@@ -24,6 +24,9 @@
  *                                state, the field mode and each inventory
  *                                weapon's slot (gems[3]) and shield's slot
  *                                bits (battle builds)
+ *   ui_menu {modern}             modern menus (pc/src/ui): sets ui_menus,
+ *                                returns the shell (visible, menus, tab,
+ *                                tabs, rows, row; battle builds)
  *   release                      drop all injected buttons
  *   screenshot {path}            write the displayed frame as a PPM
  *   present_dump {path}          the next presented window image (as seen) as a PPM
@@ -356,6 +359,9 @@ extern int pc_scene_camera_get(float (*)[3], float*, float*, float*, float*) __a
 extern void pc_rpc_state(char* out, unsigned size) __attribute__((weak)); /* dev_state.c */
 extern int pc_qol_weapon_slots; /* project_settings.cpp */
 extern void pc_weapon_slots_json(char* out, unsigned size) __attribute__((weak)); /* weapon_slots.c */
+extern int pc_ui_menus; /* project_settings.cpp */
+extern void pc_ui_shell_json(char* out, unsigned size); /* ui/ui_shell.cpp */
+extern int pc_ui_menu_active(void) __attribute__((weak)); /* ui/menu_bridge.c (battle builds) */
 extern int pc_native_room __attribute__((weak)), pc_native_occlusion __attribute__((weak)),
     pc_native_actors __attribute__((weak)), pc_native_actor_order __attribute__((weak)),
     pc_native_blend __attribute__((weak)), pc_native_objects __attribute__((weak)),
@@ -803,6 +809,17 @@ static void handle_method(int fd, const char* request)
         if (params && bool_value(member(params, "enabled"), &flag))
             pc_qol_weapon_slots = flag;
         pc_weapon_slots_json(result, sizeof result);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "ui_menu")) {
+        /* Modern menus (pc/src/ui): {modern} sets ui_menus; the shell's state. */
+        int flag;
+        if (!pc_ui_menu_active) {
+            fail(fd, id, -32000, "ui_menu needs the battle build");
+            return;
+        }
+        if (params && bool_value(member(params, "modern"), &flag))
+            pc_ui_menus = flag;
+        pc_ui_shell_json(result, sizeof result);
         reply(fd, id, result);
     } else if (!strcmp(method, "release")) {
         memset(holds, 0, sizeof holds);
@@ -2113,6 +2130,26 @@ static void handle_method(int fd, const char* request)
             return;
         }
         reply(fd, id, result);
+    } else if (!strcmp(method, "environment")) {
+        /* The room's sun and sky (environment.cpp): read, set, remove. */
+        extern int pc_environment_rpc(const char* params, char* out, int size) __attribute__((weak));
+        if (!pc_environment_rpc) {
+            fail(fd, id, -32000, "environment needs the editor (hardware renderer)");
+            return;
+        }
+        static char args[LINE_MAX_BYTES];
+        const char* end = params ? value_end(params) : NULL;
+        if (params && end && (size_t)(end - params) < sizeof args) {
+            memcpy(args, params, (size_t)(end - params));
+            args[end - params] = 0;
+        } else {
+            strcpy(args, "{}");
+        }
+        if (pc_environment_rpc(args, result, sizeof result) < 0) {
+            fail(fd, id, -32000, result);
+            return;
+        }
+        reply(fd, id, result);
     } else if (!strcmp(method, "editor_undo")) {
         /* The editor's undo history (editor_undo.h): undo, redo (steps
          * times), list, begin/end (hold one transaction open across
@@ -2429,7 +2466,8 @@ static void handle_method(int fd, const char* request)
 static int edits(const char* method, const char* request)
 {
     if (!strcmp(method, "actors") || !strcmp(method, "glows") || !strcmp(method, "editor_place")
-        || !strcmp(method, "room_groups") || !strcmp(method, "uv_effects") || !strcmp(method, "lights"))
+        || !strcmp(method, "room_groups") || !strcmp(method, "uv_effects") || !strcmp(method, "lights")
+        || !strcmp(method, "environment"))
         return 1;
     if (!strcmp(method, "lighting")) { /* revert edits the room; the rest load or save it */
         const char* p = member(request, "params");

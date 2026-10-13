@@ -72,14 +72,15 @@ void pc_button_prompts_shown_reset(void);
  *
  *     pc_prompt_image g = pc_prompt_glyph(PC_PROMPT_CIRCLE, ImGui::GetFontSize());
  *     if (g.texture)
- *         draw->AddImage(ImTextureRef((ImTextureData*)g.texture), pos,
+ *         draw->AddImage(((ImTextureData*)g.texture)->GetTexRef(), pos,
  *             ImVec2(pos.x + g.w, pos.y + g.h), ImVec2(g.uv0[0], g.uv0[1]), ImVec2(g.uv1[0], g.uv1[1]));
  *
  * - pc_prompt_glyph(button, size_px): the icon of PS1 button `button`
  *   (PC_PROMPT_*, libetc pad bit index) for the device drawn now, `size_px`
  *   high (4..128; width from the icon's shape: key caps such as Enter are
- *   wider). texture is an ImTextureData* (wrap it in ImTextureRef: valid at
- *   once, before the backend has uploaded it); texture_id is the backend's
+ *   wider). texture is an ImTextureData* (use its GetTexRef(): valid at once,
+ *   before the backend has uploaded it; ImTextureRef(ptr) would pick the
+ *   legacy ImTextureID constructor and draw from the font atlas); texture_id is the backend's
  *   ImTextureID (GL texture name or VkDescriptorSet) once uploaded, else 0.
  *   texture NULL: no icon (an unbound button, or no ImGui context).
  *   In mode original the icons are the PlayStation family.

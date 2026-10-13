@@ -6,6 +6,8 @@ actor gen.t051.8cf94cbe6e name="glass_lamp T051" prefab=lantern pos=516,-392,800
 actor gen.t052.72a34114d8 name="glass_lamp T052" prefab=lantern pos=832,-360,116 rot=-90,0,0 seed=65446 glow=832,-361.8,116.1 glowkey=room:47a8a9e@832,-362,116 fixture=832,-360,116 fixture_type=T052
 actor gen.t058.2bb932bfcc name="window T058" prefab=window_light pos=704,-961.7,-928 rot=180,0,0 seed=85386 enabled=0 glow=704,-961.6,-928 glowkey=room:d6fd1ac@704,-962,-928 fixture=704,-961.7,-928 fixture_type=T058
 actor gen.t058.910403f5bd name="window T058" prefab=window_light pos=1344,-961.7,-928 rot=180,0,0 seed=12983 enabled=0 glow=1344,-961.6,-928 glowkey=room:500152c@1344,-962,-928 fixture=1344,-961.7,-928 fixture_type=T058
+env sky zenith=0.063,0.086,0.182 horizon=0.153,0.173,0.262 ground=0.027,0.029,0.04 sun_tint=0.25 ambient=0.6
+env sun azimuth=316 elevation=35 color=0.494,0.624,1.083 intensity=0.7 angle=2
 glow room:359f14d@672,-992,-1024 pos=672,-992,-1024 fixture_type=T059
 glow room:47a8a9e@832,-362,116 pos=832,-361.8,116.1 fixture_type=T052
 glow room:49337cd@1088,-402,1136 pos=1088,-401.8,1136 fixture_type=T051

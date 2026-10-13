@@ -40,6 +40,14 @@ const std::vector<KindSpec>& kinds()
                 { "fixture_radius", 1, "16", false }, { "fixture_shadows", 0, "0", false },
                 { "fixture_type", -1, nullptr, false }, { "flame", 0, "0", false } },
             true, 4 },
+        /* The room's sun ("env sun") and sky ("env sky"): environment.cpp. */
+        { "env",
+            { { "enabled", 0, "1", false }, { "azimuth", 2, "180", false }, { "elevation", 2, "45", false },
+                { "color", 3, "1,1,1", false }, { "intensity", 3, "1", false }, { "angle", 2, "0.53", false },
+                { "shadows", 0, "1", false }, { "zenith", 3, "0.1,0.12,0.2", false },
+                { "horizon", 3, "0.25,0.25,0.3", false }, { "ground", 3, "0.05,0.05,0.05", false },
+                { "sun_tint", 3, "0", false }, { "ambient", 3, "0.5", false } },
+            false, 4 },
         { "glow",
             { { "pos", 1, nullptr, true }, { "muted", 0, "0", false }, { "intensity", 3, "1", false },
                 { "tint", 3, "1,1,1", false }, { "size", 2, "0", false }, { "reach", 1, "0", false },
@@ -707,7 +715,7 @@ bool diff_one(const State& below, const State& desired, const std::string& id, E
     if (same_item(b->second, d->second))
         return false;
     const Item &x = b->second, &y = d->second;
-    if (x.kind != "light" && x.kind != "actor") {
+    if (x.kind != "light" && x.kind != "actor" && x.kind != "env") {
         out.verb = DEFINE;
         out.item = y;
         return true;

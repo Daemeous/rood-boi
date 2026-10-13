@@ -18,7 +18,14 @@ layout(std140, binding = 0) uniform Trace {
     vec4 f1; // baked_ambient, fog_density, fog_anisotropy, fog_glow
     vec4 f2; // ao_radius (0: no traced AO), ao_strength
     ivec4 i3; // glow_casts: emitters that may cast shadows (bit i; transient effects never do)
+    vec4 env_[5]; // the room's sun and sky (environment.h pc_env_gpu; environment.glsl)
 } u;
+#define env_sun_dir u.env_[0]
+#define env_sun_col u.env_[1]
+#define env_zenith u.env_[2]
+#define env_horizon u.env_[3]
+#define env_ground u.env_[4]
+#include "environment.glsl"
 #define eye u.eye_.xyz
 #define light_pos u.light_pos
 #define light_col u.light_col

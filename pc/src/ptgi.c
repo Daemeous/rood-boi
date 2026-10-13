@@ -28,6 +28,8 @@
 #include <time.h>
 #include "glow_overrides.h"
 #include "lighting_quality.h"
+#include "environment.h"
+#include "gl_shaders.h" /* PC_GLSL_ENVIRONMENT: the room's sun and sky (pc/shaders/vulkan/environment.glsl) */
 
 extern const float* pc_hw_casters(int* count, int* serial);
 extern const void* pc_hw_caster_surfaces(void);
@@ -950,6 +952,13 @@ static const char* trace_source = SHADER_COMMON
     "uniform float fog_glow;\n"       /* emitters' share in the haze (glows and baked lights) */
     "uniform vec3 room_lo, room_hi;\n" /* the haze fills the room's bounds only */
     "uniform int trace_debug;\n" /* 1 start normal, 2 first-hit distance (red: inside 8 units), 3 start position */
+    /* The room's sun and sky (environment.h pc_env_gpu; environment.glsl). */
+    "uniform vec4 env_[5];\n"
+    "#define env_sun_dir env_[0]\n"
+    "#define env_sun_col env_[1]\n"
+    "#define env_zenith env_[2]\n"
+    "#define env_horizon env_[3]\n"
+    "#define env_ground env_[4]\n" PC_GLSL_ENVIRONMENT
     "uint rng = 0u;\n"
     "bool moving_only = false;\n"
     "vec3 cosine_direction(vec3 n);\n"
@@ -1221,6 +1230,45 @@ static const char* trace_source = SHADER_COMMON
     "    }\n"
     "    return sig;\n"
     "}\n"
+    /* The room's sun and sky (rt_trace.comp the same): the sun's own rays,
+     * never competing with the lights; the sky for GI rays leaving the room. */
+    "vec3 sun_light(vec3 p, vec3 n) {\n"
+    "    if (!env_sun_on()) return vec3(0.0);\n"
+    "    vec3 l = env_sun_sample(rand(), rand());\n"
+    "    float c = dot(n, l);\n"
+    "    if (c <= 0.0) return vec3(0.0);\n"
+    "    float th; int hit; vec2 bc;\n"
+    "    if (env_sun_col.w > 0.5 && trace(p + n * 1.5, l, ENV_SUN_DISTANCE, true, n, 0.0, th, hit, bc)) return vec3(0.0);\n"
+    "    return env_sun_col.rgb * c;\n"
+    "}\n"
+    "float visibility_with_sun(vec3 p, vec3 n) {\n"
+    "    float v = visibility(p, n);\n"
+    "    float ws = env_sun_col.w > 0.5 ? max(dot(n, env_sun_dir.xyz), 0.0) * dot(env_sun_col.rgb, vec3(0.299, 0.587, 0.114)) : 0.0;\n"
+    "    if (ws <= 0.0) return v;\n"
+    "    float all_ = 0.0;\n" /* visibility()'s weights */
+    "    for (int i = 0; i < light_count; i++) {\n"
+    "        if (light_shadow[i] == 0) continue;\n"
+    "        vec3 to = light_pos[i].xyz - p; float d = length(to); vec3 l = to / max(d, 1e-3);\n"
+    "        float x = clamp(d / light_pos[i].w, 0.0, 1.0);\n"
+    "        float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);\n"
+    "        if (light_col[i].w > 1.5) a *= max(dot(-l, light_dir[i].xyz), 0.0);\n"
+    "        else if (light_col[i].w > 0.5) a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));\n"
+    "        all_ += max(a * dot(light_col[i].rgb, vec3(0.299, 0.587, 0.114)), 0.0) * float(shadow_samples);\n"
+    "    }\n"
+    "    float lit = 0.0;\n"
+    "    for (int s = 0; s < shadow_samples; s++) {\n"
+    "        vec3 l = env_sun_sample(rand(), rand());\n"
+    "        float th; int hit; vec2 bc;\n"
+    "        if (dot(n, l) > 0.0 && !trace(p, l, ENV_SUN_DISTANCE, true, n, 16.0, th, hit, bc)) lit += 1.0;\n"
+    "    }\n"
+    "    ws *= float(shadow_samples);\n"
+    "    return (v * all_ + lit / float(shadow_samples) * ws) / (all_ + ws);\n"
+    "}\n"
+    "uint sun_signature(vec3 p, vec3 n) {\n" /* bit 19: the sun's centre ray */
+    "    if (env_sun_col.w < 0.5 || !env_sun_on() || dot(n, env_sun_dir.xyz) <= 0.0) return 0u;\n"
+    "    float th; int hit; vec2 bc;\n"
+    "    return trace(p, env_sun_dir.xyz, ENV_SUN_DISTANCE, true, n, 16.0, th, hit, bc) ? 0u : 1u << 19;\n"
+    "}\n"
     "vec3 cosine_direction(vec3 n) {\n"
     "    float r1 = rand(), r2 = rand(), phi = 6.2831853 * r1, s = sqrt(r2);\n"
     "    vec3 t = normalize(cross(abs(n.y) < 0.9 ? vec3(0, 1, 0) : vec3(1, 0, 0), n)), b = cross(n, t);\n"
@@ -1244,13 +1292,16 @@ static const char* trace_source = SHADER_COMMON
     "        return;\n"
     "    }\n"
     "    vec3 total = vec3(0.0);\n"
-    "    float vis = shadows != 0 ? visibility(p + n * lift, n) : 1.0;\n"
+    "    float vis = shadows != 0 ? visibility_with_sun(p + n * lift, n) : 1.0;\n"
     "    for (int r = 0; r < (indirect != 0 ? rays : 0); r++) {\n"
     "        vec3 o = p + n * lift, nrm = n, throughput = vec3(1.0);\n"
     "        for (int b = 0; b < bounces; b++) {\n"
     "            vec3 d = cosine_direction(nrm);\n"
     "            float t; int hit; vec2 bc;\n"
-    "            if (!trace(o, d, 8192.0, false, nrm, b == 0 ? 16.0 : 0.0, t, hit, bc)) break;\n"
+    "            if (!trace(o, d, 8192.0, false, nrm, b == 0 ? 16.0 : 0.0, t, hit, bc)) {\n"
+    "                total += throughput * env_sky(d);\n" /* left the room: the sky (none indoors) */
+    "                break;\n"
+    "            }\n"
     "            Tri tri = tris[hit];\n"
     "            vec3 y = o + d * t;\n"
     "            vec3 ny = normalize(cross(tri.b.xyz - tri.a.xyz, tri.c.xyz - tri.a.xyz));\n"
@@ -1264,7 +1315,7 @@ static const char* trace_source = SHADER_COMMON
     /* Light leaving y toward us: its albedo times the light reaching it,
      * plus (optionally) its baked lighting as if emitted. */
     "            vec3 baked = (tri.info.w & 2u) != 0u ? albedo : min(albedo * vc * 2.0, 1.0);\n"
-    "            total += throughput * (albedo * direct(y + ny * 0.5, ny) + baked * baked_bounce);\n"
+    "            total += throughput * (albedo * (direct(y + ny * 0.5, ny) + sun_light(y + ny * 0.5, ny)) + baked * baked_bounce);\n"
     "            throughput *= albedo;\n"
     "            o = y + ny * 1.0; nrm = ny;\n"
     "        }\n"
@@ -1286,7 +1337,7 @@ static const char* trace_source = SHADER_COMMON
     "    if (isnan(bvis) || isinf(bvis)) bvis = 1.0;\n"
     "    if (any(isnan(fog)) || any(isinf(fog))) fog = vec3(-1.0);\n"
     "    imageStore(extra_out, g, vec4(bvis, fog));\n"
-    "    imageStore(signature_out, g, uvec4(lighting_signature(p + n * lift, n)));\n"
+    "    imageStore(signature_out, g, uvec4(lighting_signature(p + n * lift, n) | sun_signature(p + n * lift, n)));\n"
     "}\n";
 
 /* Surfaces from the game view's G-buffer: world position and normal of
@@ -1544,6 +1595,15 @@ static void dispatch(int w, int h)
 /* Lights for the passes (world space). */
 static float lp[16][4], lc[16][4], ld[16][4], lr[16][4], lu[16][4];
 static int light_shadows[16], light_count;
+/* The room's sun and sky this frame (environment.h): the passes run for them
+ * alone too (an outdoor room without lights). */
+static pc_env_gpu env_now;
+static int env_active;
+static int gather_env(void)
+{
+    env_active = pc_env_gpu_get(&env_now);
+    return env_active;
+}
 static int gather_lights(void)
 {
     memset(light_shadows, 0, sizeof light_shadows);
@@ -1606,6 +1666,7 @@ static GLuint run(gi_context* c, const float to_image[16], const float eye[3], f
     gl_Uniform1f(U(pr, "fog_glow"), pc_fog_glow);
     gl_Uniform3fv(U(pr, "room_lo"), 1, room_lo);
     gl_Uniform3fv(U(pr, "room_hi"), 1, room_hi);
+    gl_Uniform4fv(U(pr, "env_"), 5, &env_now.sun_dir[0]);
     gl_BindImageTexture(3, images[RAW_EXTRA], 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
     gl_BindImageTexture(4, images[SIGNATURE], 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32UI);
     dispatch(gw, gh);
@@ -1694,8 +1755,9 @@ static int ready(void)
     update_emitters();
     pc_scene_bounds(room_lo, room_hi);
     int lights = gather_lights();
+    gather_env();
     pc_baked_shadows_active = pc_baked_shadows && (emitter_count || pc_contact_radius > 0);
-    return lights || pc_baked_shadows_active || (emitter_count && pc_emitter_light > 0);
+    return lights || pc_baked_shadows_active || (emitter_count && pc_emitter_light > 0) || env_active;
 }
 
 static void probe_gl_update(void); /* probe_gi.inc */

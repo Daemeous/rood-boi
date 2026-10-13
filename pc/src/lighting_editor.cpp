@@ -12,6 +12,7 @@
 
 #include "imgui.h"
 #include "editor_undo.h"
+#include "environment_internal.h"
 #include "glow_overrides.h"
 #include "lighting_layers.h"
 #include "lights_internal.h"
@@ -89,6 +90,7 @@ State current_state()
     lighting::legacy_items(text, items);
     for (Item& it : items)
         s[it.id()] = it;
+    rood_env::add_items(s); /* the room's sun and sky (environment.cpp) */
     return s;
 }
 
@@ -125,6 +127,7 @@ void apply_state(const State& s, bool keep_order)
     }
     pc_room_settings_reset();
     pc_uv_effects_reset();
+    rood_env::reset();
     static pc_glow_override old[256], glows[256];
     int old_count = pc_gi_glows_get(old, 256), count = 0;
     for (const auto& kv : s) {
@@ -143,6 +146,8 @@ void apply_state(const State& s, bool keep_order)
             const std::string* v = it.get("value");
             if (v)
                 pc_room_settings_parse(("set " + it.name + " " + *v).c_str());
+        } else if (it.kind == "env") {
+            rood_env::apply_item(it);
         } else if (it.kind == "uv") {
             const std::string* speed = it.get("speed");
             const std::string* freeze = it.get("freeze");
@@ -444,7 +449,7 @@ void rood_lights::layers_outliner_header()
     int mine = (int)lighting::diff(room_layers.base, now).size();
     std::vector<std::string> gone; /* deleted here (in the base, not now) */
     for (const auto& kv : room_layers.base)
-        if (!now.count(kv.first) && kv.second.kind != "set" && kv.second.kind != "uv")
+        if (!now.count(kv.first) && kv.second.kind != "set" && kv.second.kind != "uv" && kv.second.kind != "env")
             gone.push_back(kv.first);
     int problems = (int)room_layers.problems.size();
     char title[160];

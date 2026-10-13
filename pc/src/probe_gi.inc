@@ -81,6 +81,7 @@ typedef struct {
     int i0[4], i1[4], i2[4];
     float f0[4], f1[4], f2[4]; /* f2: traced AO (off for the probes) */
     int i3[4]; /* glows.c pc_glow_casts */
+    pc_env_gpu env; /* the room's sun and sky (environment.h) */
 } probe_trace_ubo;
 
 static struct {
@@ -220,6 +221,8 @@ static int probe_begin(probe_volume_ubo* v, probe_trace_ubo* t, int root)
     h = probe_hash(h, probe.shadows, sizeof probe.shadows);
     float amounts[5] = { pc_gi_baked_bounce, pc_emitter_light, (float)pc_gi_bounces, (float)pc_glow_shadows, pc_light_size };
     h = probe_hash(h, amounts, sizeof amounts);
+    gather_env();
+    h = probe_hash(h, &env_now, sizeof env_now); /* the sun and sky */
     if (h != probe.light_hash && probe.updates) {
         /* A light moved, changed or was switched: converge again from a short
          * history (not from nothing: a dragged light stays smooth). */
@@ -296,6 +299,7 @@ static int probe_begin(probe_volume_ubo* v, probe_trace_ubo* t, int root)
     t->i3[0] = (int)pc_glow_casts;
     t->f0[0] = pc_light_size, t->f0[1] = pc_gi_baked_bounce, t->f0[2] = pc_emitter_light, t->f0[3] = pc_contact_radius;
     t->f1[0] = pc_baked_ambient;
+    t->env = env_now;
     return flags;
 }
 static void probe_end(void)
@@ -308,7 +312,7 @@ static void probe_end(void)
 /* Something to bounce: dynamic lights, glow light or baked bounce. */
 static int probe_has_light(void)
 {
-    return light_count || (emitter_count && pc_emitter_light > 0) || pc_gi_baked_bounce > 0;
+    return light_count || (emitter_count && pc_emitter_light > 0) || pc_gi_baked_bounce > 0 || gather_env();
 }
 
 /* ---- OpenGL 4.3 compute (ptgi.c's BVH: the room part, root room_root) ---- */

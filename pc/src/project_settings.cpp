@@ -28,10 +28,15 @@ extern int pc_native_room, pc_native_occlusion, pc_native_actors, pc_native_acto
 extern int pc_editor_hide_masks, pc_editor_game_cutaway, pc_editor_cutaway, pc_editor_cutaway_auto;
 extern float pc_editor_cutaway_radius, pc_editor_cutaway_opacity;
 extern int pc_lights_snap;
+extern int pc_env_global; /* environment.cpp */
 extern float pc_lights_snap_move, pc_lights_snap_angle;
 /* Gameplay options, read by the game side. qol_weapon_slots: the weapon
  * slots quick swap on L2 + R2 (weapon_slots.c, battle builds), off by default. */
 int pc_qol_weapon_slots;
+
+/* Modern menus (pc/src/ui, pc/docs/Modern_Menus.md): 0 the game's own
+ * menus, 1 the modern shell. Off by default until the screens are verified. */
+int pc_ui_menus;
 }
 #include "camera_stick.h" /* the right-stick camera (camera_stick_*) */
 #include "editor_overlays.h"
@@ -103,6 +108,7 @@ const Entry entries[] = {
     I("probe_budget", pc_probe_budget),
     I("probe_show", pc_probe_show),
     I("light_animation", rood_lights::animate),
+    I("environment", pc_env_global), /* the rooms' sun and sky (environment.cpp) */
     F("normal_smoothing", pc_normal_smoothing),
     I("gameplay_walls_ghost", pc_gameplay_walls_ghost),
     F("gameplay_walls_opacity", pc_gameplay_walls_opacity),
@@ -148,6 +154,7 @@ const Entry entries[] = {
     I("camera_stick_keys", pc_camera_stick_keys),
     /* Gameplay. */
     I("qol_weapon_slots", pc_qol_weapon_slots),
+    I("ui_menus", pc_ui_menus),
 };
 const char* path()
 {

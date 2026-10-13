@@ -39,6 +39,7 @@
 #include "lights_internal.h"
 #include "room_editor.h"
 #include "room_effects.h"
+#include "environment_internal.h"
 #include "platform.h"
 
 extern "C" {
@@ -59,6 +60,7 @@ struct Snapshot {
     std::vector<Light> lights;
     std::vector<prefab::Actor> actors;
     std::string room_settings, uv;
+    std::string environment; /* the room's sun and sky (part ROOM) */
     std::vector<pc_glow_override> glows;
     std::vector<uint8_t> groups;
     unsigned groups_id = 0; /* the room block the groups belong to */
@@ -116,6 +118,7 @@ void capture(Snapshot& s)
     s.lights = lights;
     s.actors = actors;
     s.room_settings = capture_text(pc_room_settings_write);
+    s.environment = rood_env::text();
     s.uv = capture_text(pc_uv_effects_write);
     static pc_glow_override glows[256];
     int n = pc_gi_glows_get(glows, 256);
@@ -205,7 +208,7 @@ unsigned difference(const Snapshot& a, const Snapshot& b, unsigned parts)
         d |= LIGHTS;
     if ((parts & ACTORS) && !same_list(a.actors, b.actors, same_actor))
         d |= ACTORS;
-    if ((parts & ROOM) && a.room_settings != b.room_settings)
+    if ((parts & ROOM) && (a.room_settings != b.room_settings || a.environment != b.environment))
         d |= ROOM;
     if ((parts & GLOWS) && !same_list(a.glows, b.glows, same_glow))
         d |= GLOWS;
@@ -325,6 +328,7 @@ void apply(const Snapshot& to, unsigned parts, const Snapshot& from)
     if (parts & ACTORS)
         actors = to.actors;
     if (parts & ROOM) {
+        rood_env::set_text(to.environment);
         pc_room_settings_reset();
         size_t at = 0;
         while (at < to.room_settings.size()) {

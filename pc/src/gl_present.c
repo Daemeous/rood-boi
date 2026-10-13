@@ -8,6 +8,7 @@
 #include "gl_api.h"
 #include "dev_state.h"
 #include "gl_shaders.h" /* PC_GLSL_PROBE_COMMON: the probe GI lookup (probe_gi.inc) */
+#include "environment.h"
 #include "lighting_quality.h"
 #include "antialias.h"
 #include <SDL3/SDL.h>
@@ -219,6 +220,20 @@ static const char* scaled_fragment_source =
     "uniform vec4 quality0;\n"
     "uniform ivec4 quality1;\n"
     "uniform vec4 quality2;\n"
+    /* The room's sun and sky (environment.h; vk scaled.frag the same): env_mode x the sun's
+     * shadows (-2 traced: in gi.a, 0 its shadow map, -1 none), y the sky's ambient term, z any on. */
+    "uniform vec4 env_[5];\n"
+    "uniform ivec4 env_mode;\n"
+    "uniform sampler2D sun_map;\n" /* shadows.c pc_shadows_sun_update */
+    "uniform mat4 env_sun_matrix;\n"
+    "uniform vec4 env_sun_light;\n"
+    "uniform float env_sun_texel;\n"
+    "#define ENV_SUN_MAP(st) texture(sun_map, st).r\n"
+    "#define env_sun_dir env_[0]\n"
+    "#define env_sun_col env_[1]\n"
+    "#define env_zenith env_[2]\n"
+    "#define env_horizon env_[3]\n"
+    "#define env_ground env_[4]\n" PC_GLSL_ENVIRONMENT
     "float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }\n"
     "uniform float normal_smoothing;\n" /* radius in native pixels, 0 = flat faces */
     /* Depth- and crease-aware average of nearby normals (screen space). */
@@ -427,7 +442,7 @@ static const char* scaled_fragment_source =
     "    }\n"
     "    vec3 c = base(uv);\n"
     "    bool haze_done = false;\n"
-    "    if ((light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || quality1.y != 0) && view_mode != 1) {\n"
+    "    if ((light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || quality1.y != 0 || env_mode.z != 0) && view_mode != 1) {\n"
     "        ivec2 q = texel(uv);\n"
     "        vec4 n = texelFetch(normal_tex, q, 0);\n"
     "        if (n.a > 0.5 && d > 0.0) {\n" /* lit 3D surface (not under UI): reconstruct its view-space position */
@@ -471,6 +486,12 @@ static const char* scaled_fragment_source =
     "                }\n"
     "                sum += light_col[i].rgb * a;\n"
     "            }\n"
+    /* The sun (traced visibility, else unshadowed with the screen-space AO) and the sky's ambient. */
+    "            if (env_sun_on())\n"
+    "                sum += env_sun_unshadowed(world_normal) * (env_mode.x == -2 ? clamp(gi.a, 0.0, 1.0)\n"
+    "                    : env_mode.x == 0 ? env_sun_map_visibility(world, world_normal, ign(gl_FragCoord.xy) * 6.2831853) : ao);\n"
+    "            if (env_mode.y != 0)\n"
+    "                sum += env_ambient(world_normal) * ao;\n"
     "            if ((gi_on & 2) != 0) { color = vec4(min(gi.rgb * gi_strength, vec3(1.0)), 1.0); return; }\n"
     "            if ((gi_on & 8) != 0) { color = vec4(vec3(gi.a), 1.0); return; }\n"
     "            if ((gi_on & 32) != 0) { color = vec4(vec3(baked_vis * ao), 1.0); return; }\n"
@@ -552,6 +573,8 @@ static GLint u_normal_smoothing;
 extern int pc_scene_camera_get(float (*)[3], float*, float*, float*, float*);
 extern int pc_shadows_update(int, const float (*)[4], const int*, int*);
 extern void pc_shadows_bind(int);
+extern int pc_shadows_sun_update(const float dir[3], float matrix[16], float light[4]);
+extern void pc_shadows_sun_bind(int unit);
 static GLint u_shade_tex, u_view_mode;
 int pc_gl_view_mode; /* editor view mode (see the present shader's view_mode) */
 static GLint u_normal_tex, u_albedo_tex, u_light_count, u_light_pos, u_light_col, u_light_dir,
@@ -562,7 +585,8 @@ extern GLuint pc_hw_shade_texture(void);
 extern void pc_lights_shadow_pick(int count, int* wants, int slots);
 extern int pc_lights_view(float (*)[4], float (*)[4], float (*)[4], float (*)[4], int*, float (*)[4],
     float (*)[4], int);
-static GLint u_light_right, u_light_up, u_quality0, u_quality1, u_quality2;
+static GLint u_light_right, u_light_up, u_quality0, u_quality1, u_quality2, u_env, u_env_mode, u_sun_map,
+    u_sun_matrix, u_sun_light, u_sun_texel;
 extern float pc_lights_baked;
 extern int pc_scene_camera_inverse(float inverse[3][3]);
 extern int pc_scene_projection(float*, float*, float*);
@@ -880,6 +904,12 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     u_quality0 = gl_GetUniformLocation(scaled_program, "quality0");
     u_quality1 = gl_GetUniformLocation(scaled_program, "quality1");
     u_quality2 = gl_GetUniformLocation(scaled_program, "quality2");
+    u_env = gl_GetUniformLocation(scaled_program, "env_");
+    u_env_mode = gl_GetUniformLocation(scaled_program, "env_mode");
+    u_sun_map = gl_GetUniformLocation(scaled_program, "sun_map");
+    u_sun_matrix = gl_GetUniformLocation(scaled_program, "env_sun_matrix");
+    u_sun_light = gl_GetUniformLocation(scaled_program, "env_sun_light");
+    u_sun_texel = gl_GetUniformLocation(scaled_program, "env_sun_texel");
     u_normal_smoothing = gl_GetUniformLocation(scaled_program, "normal_smoothing");
     for (int i = 0; i < 4; i++) {
         char name[16];
@@ -1447,6 +1477,32 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
                 gl_Uniform1i(u_gi_on, (gi ? (pc_gi_enabled ? (pc_gi_debug == 1 ? 2 : 1) : 0) | (pc_rt_shadows ? 4 : 0)
                         | (pc_gi_debug == 2 ? 8 : 0) | (pc_baked_shadows_active ? 16 : 0) | (pc_gi_debug == 3 ? 32 : 0) | 128 : 0)
                         | (probes ? 64 | (pc_gi_debug == 1 ? 2 : 0) : 0));
+                {
+                    /* The room's sun and sky: ptgi.c's trace weighs a shadow-casting sun into
+                     * the visibility; the sky's ambient where nothing traces the sky. */
+                    pc_env_gpu env;
+                    int env_on = pc_env_gpu_get(&env);
+                    int sun_mode = -1; /* unshadowed */
+                    if (env.sun_col[3] > 0.5f && gi && pc_rt_shadows)
+                        sun_mode = -2; /* traced */
+                    else if (env.sun_col[3] > 0.5f) { /* a shadow map (shadows.c) */
+                        float matrix[16], light[4];
+                        if (pc_shadows_sun_update(env.sun_dir, matrix, light)) {
+                            sun_mode = 0;
+                            gl_UseProgram(scaled_program); /* the map's pass used its own */
+                            gl_BindVertexArray(vertex_array);
+                            gl_Viewport(pc_gl_view[0], window_h - pc_gl_view[1] - view_h, view_w, view_h);
+                            gl_UniformMatrix4fv(u_sun_matrix, 1, GL_FALSE, matrix);
+                            gl_Uniform4fv(u_sun_light, 1, light);
+                            gl_Uniform1f(u_sun_texel, 1.0f / 1024.0f);
+                            pc_shadows_sun_bind(16);
+                            gl_Uniform1i(u_sun_map, 16);
+                        }
+                    }
+                    gl_Uniform4fv(u_env, 5, &env.sun_dir[0]);
+                    gl_Uniform4i(u_env_mode, sun_mode, env.zenith[3] > 0.5f && !(gi && pc_gi_enabled) && !probes,
+                        env_on, 0);
+                }
                 if (gi) {
                     GLuint gp, gn;
                     int gw, gh;

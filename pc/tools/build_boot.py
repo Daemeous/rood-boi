@@ -537,6 +537,7 @@ if battle:
         ("pc/src/dev_state.c", "dev_state"),
         ("pc/src/room_warp.c", "room_warp"),
         ("pc/src/weapon_slots.c", "weapon_slots"),
+        ("pc/src/ui/menu_bridge.c", "ui_menu_bridge"),
     ]
     sources += [
         (str(p.relative_to(root)), "battle_" + p.stem)
@@ -773,6 +774,7 @@ for source in [
     root / "pc/src/room_settings.cpp",
     root / "pc/src/lighting_layers.cpp",
     root / "pc/src/lighting_editor.cpp",
+    root / "pc/src/environment.cpp",
     root / "pc/src/room_browser.cpp",
     root / "pc/src/project_settings.cpp",
     root / "pc/src/lighting_quality.cpp",
@@ -781,12 +783,16 @@ for source in [
     root / "pc/src/editor_undo.cpp",
     root / "pc/src/probe_overlay.cpp",
     root / "pc/src/ui_upscale_panel.cpp",
+    root / "pc/src/ui/ui_shell.cpp",
+    root / "pc/src/ui/ui_theme.cpp",
+    root / "pc/src/ui/ui_draw.cpp",
     root / "pc/src/prompt_glyphs.cpp",
 ] + ([imgui / "backends/imgui_impl_vulkan.cpp", root / "pc/src/vk_overlay.cpp"] if arch64 else []):
     obj = out / ("imgui_" + source.stem + ".o")
     # The 64-bit pass always compiles, so every run reports every unit.
-    if arch64 or source.parent == root / "pc/src" or not obj.exists() or obj.stat().st_mtime < source.stat().st_mtime:
+    if arch64 or root / "pc/src" in source.parents or not obj.exists() or obj.stat().st_mtime < source.stat().st_mtime:
         compile_object(["g++", *cxx_flags, "-I" + str(imgui), "-I" + str(root / "pc/third_party/ImGuizmo/src"),
+            "-I" + str(root / "pc/src"),
             # imgui_impl_vulkan loads its entry points (vk_overlay.cpp hands it the loader)
             *(["-DIMGUI_IMPL_VULKAN_NO_PROTOTYPES"] if arch64 else []),
             *sdl_flags, "-c", str(source), "-o", str(obj)], source.relative_to(root), "c++")

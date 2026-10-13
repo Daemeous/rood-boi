@@ -22,6 +22,7 @@
 #include "lighting_quality.h"
 #include "editor_undo.h"
 #include "camera_stick.h"
+#include "ui/ui_shell.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl3.h"
 #include "ImGuizmo.h"
@@ -145,6 +146,9 @@ extern "C" void pc_overlay_init(SDL_Window* window, SDL_GLContext context)
 }
 
 extern "C" int pc_overlay_visible(void) { return active && visible; }
+/* Dear ImGui is up and draws each frame (the modern menus draw through it:
+ * pc/src/ui/menu_bridge.c keeps the original menus when it is not). */
+extern "C" int pc_overlay_active(void) { return active; }
 
 /* The free camera's mouse motion since the last call, while it holds the
  * mouse in relative mode; otherwise *dx, *dy are left alone and 0 returned. */
@@ -571,6 +575,7 @@ void pc_lights_global_settings(void);
 extern int pc_lights_snap;
 extern float pc_lights_snap_move, pc_lights_snap_angle;
 bool pc_room_settings_page(const char* page);
+bool pc_environment_page(void); /* environment.cpp: the room's sun and sky */
 void pc_lights_glows_outliner(const char* filter);
 bool pc_lights_glow_details(void);
 bool* pc_lights_probe_mode(void);
@@ -1395,7 +1400,8 @@ static void details(float x, float y, float w, float h, double frame_ms)
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Atmosphere", nullptr, select[2])) {
-            ImGui::SeparatorText("This room");
+            pc_environment_page(); /* marks the room dirty itself */
+            ImGui::SeparatorText("Haze (this room)");
             if (pc_room_settings_page("Atmosphere"))
                 pc_lights_mark_dirty();
             if (ImGui::Button("Save area"))
@@ -1572,6 +1578,7 @@ extern "C" void pc_overlay_frame(int width, int height)
     } else {
         memset(pc_gl_inset, 0, sizeof pc_gl_inset);
     }
+    pc_ui_draw_frame((float)dt); /* modern menus (pc/src/ui) over the game picture */
     ImGui::Render();
 #ifdef ROOD_VULKAN
     if (pc_vk_on())
