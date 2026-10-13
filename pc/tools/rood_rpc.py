@@ -37,6 +37,7 @@ import argparse
 import json
 import os
 import pathlib
+import secrets
 import socket
 import subprocess
 import sys
@@ -182,10 +183,40 @@ def is_tcp(path):
     return str(path).startswith("tcp:")
 
 
+def tcp_parts(path):
+    """(port, token or None) of tcp:PORT or tcp:PORT:TOKEN."""
+    port, _, token = str(path)[4:].partition(":")
+    return int(port), token or None
+
+
+def with_token(path):
+    """tcp:PORT with a fresh random token (tcp:PORT:TOKEN), so that only this client gets in;
+    other paths unchanged."""
+    if is_tcp(path) and tcp_parts(path)[1] is None:
+        return f"{path}:{secrets.token_hex(16)}"
+    return path
+
+
 def connect(path):
-    """A connected socket: a Unix socket path, or tcp:PORT on 127.0.0.1."""
+    """A connected socket: a Unix socket path, or tcp:PORT[:TOKEN] on 127.0.0.1 (the token is
+    sent as the first request, auth {token})."""
     if is_tcp(path):
-        return socket.create_connection(("127.0.0.1", int(str(path)[4:])))
+        port, token = tcp_parts(path)
+        sock = socket.create_connection(("127.0.0.1", port))
+        if token:
+            request = {"jsonrpc": "2.0", "id": 0, "method": "auth", "params": {"token": token}}
+            sock.sendall((json.dumps(request) + "\n").encode())
+            reply = b""
+            while not reply.endswith(b"\n"):
+                chunk = sock.recv(4096)
+                if not chunk:
+                    sock.close()
+                    raise RpcError("the game refused the RPC token")
+                reply += chunk
+            if "error" in json.loads(reply):
+                sock.close()
+                raise RpcError("the game refused the RPC token")
+        return sock
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     sock.connect(path)
     return sock
@@ -195,7 +226,7 @@ def listening(path):
     if not is_tcp(path):
         return os.path.exists(path)
     try:
-        connect(path).close()
+        socket.create_connection(("127.0.0.1", tcp_parts(path)[0])).close()
         return True
     except OSError:
         return False
@@ -222,7 +253,7 @@ class Game:
         pacing (vsync-exact RPC stepping is unaffected). snapshot: a save
         state (RPC snapshot save; pc/src/snapshot.c) to resume instead of
         booting: the game starts paused where it was saved."""
-        socket_path = socket_path or DEFAULT_SOCKET
+        socket_path = with_token(socket_path or DEFAULT_SOCKET)
         env = dict(os.environ, ROOD_RPC=socket_path, ROOD_CONTROLLER="none", ROOD_AUDIO=audio)
         env.setdefault("ROOD_GI", "0")  # path tracing is slow on software GL; tests opt in
         # The PS1 glyphs, whatever device the machine has (button_prompts_smoke opts in).
