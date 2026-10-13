@@ -1,6 +1,7 @@
 #version 450
 // FXAA (3.11-style), as gl_present.c's: find the edge through each pixel
 // from luma contrast, search along it for its ends, resample across it.
+// Alpha (the depth of field's blur radius) passes through.
 layout(location = 0) in vec2 uv;
 layout(location = 0) out vec4 color;
 layout(binding = 0) uniform sampler2D image;
@@ -14,13 +15,14 @@ void main() {
     // the y axis keeps the same neighbours in the same roles.
     vec2 st = uv;
     vec2 texel = vec2(pc.texel.x, -pc.texel.y);
-    vec3 middle = texture(image, st).rgb;
+    vec4 centre = texture(image, st);
+    vec3 middle = centre.rgb;
     float m = dot(middle, vec3(0.299, 0.587, 0.114));
     float n = luma(st + vec2(0.0, texel.y)), s = luma(st - vec2(0.0, texel.y));
     float e = luma(st + vec2(texel.x, 0.0)), w = luma(st - vec2(texel.x, 0.0));
     float high = max(m, max(max(n, s), max(e, w))), low = min(m, min(min(n, s), min(e, w)));
     float range = high - low;
-    if (range < max(0.0312, high * 0.125)) { color = vec4(middle, 1.0); return; }
+    if (range < max(0.0312, high * 0.125)) { color = vec4(middle, centre.a); return; }
     float nw = luma(st + vec2(-texel.x, texel.y)), ne = luma(st + texel);
     float sw = luma(st - texel), se = luma(st + vec2(texel.x, -texel.y));
     float horizontal = abs(-2.0 * w + nw + sw) + 2.0 * abs(-2.0 * m + n + s) + abs(-2.0 * e + ne + se);
@@ -54,5 +56,5 @@ void main() {
     sub = (-2.0 * sub + 3.0) * sub * sub;
     offset = max(offset, sub * sub * 0.75);
     vec2 p = st + (across_y ? vec2(0.0, offset * step_size) : vec2(offset * step_size, 0.0));
-    color = vec4(texture(image, p).rgb, 1.0);
+    color = vec4(texture(image, p).rgb, centre.a); // alpha: the blur radius for depth of field, after
 }

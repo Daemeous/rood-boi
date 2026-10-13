@@ -9,6 +9,7 @@
 // shadow maps), so a settings file from another machine also works.
 #include "lighting_quality.h"
 #include "probe_gi.h"
+#include "antialias.h"
 
 #include <ctype.h>
 #include <math.h>
@@ -21,7 +22,7 @@
 
 extern "C" {
 extern int pc_lights_enabled, pc_gi_enabled, pc_rt_shadows, pc_baked_shadows, pc_glow_shadows, pc_shadow_samples,
-    pc_gi_bounces, pc_gi_rays, pc_gi_denoise, pc_fog_steps, pc_hw_active, pc_gl_aa, pc_present_rate,
+    pc_gi_bounces, pc_gi_rays, pc_gi_denoise, pc_fog_steps, pc_hw_active, pc_present_rate,
     pc_hw_interpolate;
 extern float pc_gi_resolution, pc_shadow_softness, pc_fog_density, pc_shadow_history;
 extern int pc_gl_compute;
@@ -35,6 +36,9 @@ int pc_gi_denoiser_active(void) __attribute__((weak));
 int pc_probe_gi_available(void) __attribute__((weak));
 void pc_probe_panel(void) __attribute__((weak)); /* probe_overlay.cpp: the probe field's settings */
 extern float pc_shadow_motion_history __attribute__((weak)), pc_haze_history __attribute__((weak));
+int pc_aa_msaa_max(void) __attribute__((weak)); /* gpu_hw.c: the most MSAA samples this backend runs */
+extern int pc_hw_scale;
+extern int pc_gl_view[4], pc_gl_display[4]; /* the game image in the window, the display area it shows */
 extern int pc_nrd_glow __attribute__((weak)), pc_nrd_max_frames __attribute__((weak));
 }
 
@@ -391,6 +395,17 @@ extern "C" void pc_lighting_sync(void)
                                        : (pc_shadow_mode == PC_SHADOWS_TRACED ? PC_SHADOWS_MAPS : pc_shadow_mode);
     if (!initialised) {
         initialised = true;
+        /* Anti-aliasing (antialias.h): ROOD_AA, else the first run's pick for this GPU. */
+        const char* aa = getenv("ROOD_AA");
+        if (aa && *aa) {
+            if (!pc_aa_parse(aa))
+                fprintf(stderr, "[aa] ROOD_AA=%s: unknown (off, fxaa, smaa, msaa2/4/8, ssaa[factor], '+')\n", aa);
+        } else if (pc_aa_autodetect_pending) {
+            pc_lighting_caps_t c = caps_now();
+            pc_aa_parse(pc_aa_autodetect(c.integrated));
+            fprintf(stderr, "[aa] first run: %s GPU -> %s\n", c.integrated ? "integrated" : "discrete", pc_aa_string());
+        }
+        pc_aa_autodetect_pending = 0;
         const char* env = getenv("ROOD_LIGHTING_PRESET"); /* a preset name or "auto" */
         if (env && *env)
             pending = !strcmp(env, "auto") ? -2 : preset_by_name(env);
@@ -614,6 +629,7 @@ extern "C" void pc_perf_gpu_add(double ms)
 extern "C" void pc_gl_present_stats(unsigned*, double*, unsigned*, int) __attribute__((weak));
 extern "C" void pc_gi_cadence_stats(unsigned*, unsigned*, double*, int) __attribute__((weak));
 extern "C" int pc_gi_cadence_interval(void) __attribute__((weak));
+extern "C" int pc_vk_perf_sections_json(char*, int, int) __attribute__((weak)); /* vk_core.c: GPU sections */
 extern "C" float pc_gi_budget_effective(void) __attribute__((weak));
 /* "frames": timed frames (ROOD_PERF; frames still in flight are not timed);
  * "presents": every presented frame; "gpu_wait_ms": the CPU's total wait for
@@ -640,6 +656,8 @@ extern "C" int pc_perf_json(char* out, int size, int reset)
             reused, gi_ms, pc_gi_budget_effective ? pc_gi_budget_effective() : 0.0f,
             pc_gi_cadence_interval ? pc_gi_cadence_interval() : 1);
     }
+    if (pc_vk_perf_sections_json && n < size)
+        n += pc_vk_perf_sections_json(out + n, size - n, reset);
     if (n < size)
         n += snprintf(out + n, (size_t)(size - n), "}");
     if (reset)
@@ -715,6 +733,70 @@ bool preset_combo(const char* id, float width)
         ImGui::EndCombo();
     }
     return changed;
+}
+/* Anti-aliasing (antialias.h): a post-process filter, MSAA on the 3D and
+ * supersampling, each on its own; none of them filters the PS1's texels. */
+void antialiasing_panel()
+{
+    static const char* const posts[3] = { "Off", "FXAA", "SMAA" };
+    static const char* const post_help[3] = { "No post-process filter",
+        "FXAA on the lit image: cheap, smooths every contrast (texel steps and the HUD too)",
+        "SMAA 1x on the lit image, only where the geometry has an edge:\n"
+        "texels inside a surface and the 2D/UI stay exactly as drawn" };
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 7);
+    if (ImGui::BeginCombo("Anti-aliasing filter", posts[pc_gl_aa >= 0 && pc_gl_aa < 3 ? pc_gl_aa : 0])) {
+        for (int i = 0; i < 3; i++) {
+            if (ImGui::Selectable(posts[i], i == pc_gl_aa))
+                pc_gl_aa = i;
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+                ImGui::SetTooltip("%s", post_help[i]);
+        }
+        ImGui::EndCombo();
+    }
+    int max_samples = pc_aa_msaa_max ? pc_aa_msaa_max() : 0;
+    static const int counts[4] = { 0, 2, 4, 8 };
+    char preview[48];
+    snprintf(preview, sizeof preview, pc_aa_msaa > 1 ? "%dx" : "Off", pc_aa_msaa);
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 7);
+    if (ImGui::BeginCombo("MSAA (3D edges)", preview)) {
+        for (int i = 0; i < 4; i++) {
+            char item[48];
+            bool ok = counts[i] <= max_samples || counts[i] == 0;
+            snprintf(item, sizeof item, counts[i] ? "%dx%s" : "Off", counts[i], ok ? "" : " (not available)");
+            if (ImGui::Selectable(item, counts[i] == pc_aa_msaa, ok ? 0 : ImGuiSelectableFlags_Disabled))
+                pc_aa_msaa = counts[i];
+        }
+        ImGui::EndCombo();
+    }
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        ImGui::SetTooltip("Multisampled rooms, characters and effects: coverage only (one texel per pixel,\n"
+                          "so textures stay crisp); the 2D/UI is drawn as before.");
+    if (pc_aa_msaa > 1 && max_samples < pc_aa_msaa)
+        note(max_samples > 1 ? "This GPU/backend runs fewer samples." : "MSAA is not available here.");
+    static const float factors[5] = { 0, 1.5f, 2, 3, 4 };
+    snprintf(preview, sizeof preview, pc_aa_ssaa > 1 ? "%gx" : "Off", pc_aa_ssaa);
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 7);
+    if (ImGui::BeginCombo("Supersampling", preview)) {
+        for (int i = 0; i < 5; i++) {
+            char item[32];
+            snprintf(item, sizeof item, factors[i] > 0 ? "%gx" : "Off", factors[i]);
+            if (ImGui::Selectable(item, factors[i] == pc_aa_ssaa))
+                pc_aa_ssaa = factors[i];
+        }
+        ImGui::EndCombo();
+    }
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        ImGui::SetTooltip("Renders at this multiple of the view (internal resolution, up to 8x) and\n"
+                          "filters the lit image down. Costly: lighting runs at the internal resolution.");
+    if (pc_aa_ssaa > 1) {
+        static const char* const filters[3] = { "Area (box)", "Lanczos-3", "Bilinear" };
+        ImGui::SetNextItemWidth(ImGui::GetFontSize() * 7);
+        ImGui::Combo("Downsample filter", &pc_aa_downsample, filters, 3);
+        char text[160];
+        snprintf(text, sizeof text, "Internal resolution %dx; the view gets %.2fx per axis", pc_hw_scale,
+            pc_gl_view[3] > 0 ? (double)(pc_gl_display[3] > 0 ? pc_gl_display[3] : 240) * pc_hw_scale / pc_gl_view[3] : 0.0);
+        dim(text);
+    }
 }
 } // namespace
 
@@ -864,9 +946,7 @@ extern "C" void pc_lighting_panel(void)
     }
 
     ImGui::SeparatorText("Display (not part of the preset)");
-    checkbox("Anti-aliasing (FXAA)", &pc_gl_aa);
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-        ImGui::SetTooltip("FXAA on the final image (TAA later)");
+    antialiasing_panel();
     if (pc_hw_interpolate) {
         ImGui::SliderInt("Frame pacing (images per vsync)", &pc_present_rate, 1, 8);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))

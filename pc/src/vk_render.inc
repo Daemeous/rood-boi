@@ -167,37 +167,31 @@ typedef struct {
     float surface;
     int depth_pass, painter, semi_pass, surface_test;
     int uv_count; /* animated materials' table entries (binding 5) */
-    int pad;
+    int order; /* room lists: the instance's first polygon | sequence shift << 24 */
     float cut_focus[4], cut_scale[4]; /* the editor's cutaway (cutaway_params) */
     float instance_cut[4]; /* render_instance.cut at this draw's t, ghost edges */
+    float room_slack[2]; /* surface_test 4 (pc_native_room_slack) */
+    int room_order, layer_slack;
 } native_ubo;
 _Static_assert(offsetof(native_ubo, projection) == 48 && offsetof(native_ubo, rules) == 96
         && offsetof(native_ubo, split) == 144 && offsetof(native_ubo, objects) == 168
         && offsetof(native_ubo, window) == 188 && offsetof(native_ubo, surface_test) == 212
         && offsetof(native_ubo, uv_count) == 216 && offsetof(native_ubo, cut_focus) == 224 && offsetof(native_ubo, cut_scale) == 240
-        && offsetof(native_ubo, instance_cut) == 256,
+        && offsetof(native_ubo, instance_cut) == 256 && offsetof(native_ubo, room_slack) == 272
+        && offsetof(native_ubo, room_order) == 280 && offsetof(native_ubo, layer_slack) == 284,
     "native_ubo must match native_common.glsl's std140 layout");
 static VkDescriptorSetLayout vk_native_set;
 static VkPipelineLayout vk_native_layout;
-static VkPipeline vk_native_opaque, vk_native_depth_only, vk_native_blend[4];
-static int vk_native_ready = -1;
-static int vk_native_init(void)
+/* The list pipelines: [0] single-sampled, [1] multisampled at
+ * vk_native_ms_samples (MSAA, antialias.h; made when first needed). */
+static VkPipeline vk_native_opaque[2], vk_native_depth_only[2], vk_native_blend[2][4];
+static int vk_native_ready = -1, vk_native_ms_samples;
+static int vk_native_pipelines(int set, int samples)
 {
-    if (vk_native_ready >= 0)
-        return vk_native_ready;
-    vk_native_ready = 0;
-    VkDescriptorType types[6] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER };
-    vk_native_set = vk_push_layout(types, 6);
-    VkPipelineLayoutCreateInfo layout = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 1,
-        .pSetLayouts = &vk_native_set };
-    if (!vk_check(vkCreatePipelineLayout(vk.device, &layout, NULL, &vk_native_layout), "vkCreatePipelineLayout"))
-        return 0;
     VkShaderModule vs = vk_shader(vk_spv_native_vert, vk_spv_native_vert_size),
                    gs = vk_shader(vk_spv_native_geom, vk_spv_native_geom_size),
-                   fs = vk_shader(vk_spv_native_frag, vk_spv_native_frag_size);
+                   fs = set ? vk_shader(vk_spv_native_ms_frag, vk_spv_native_ms_frag_size) /* surfaces multisampled */
+                            : vk_shader(vk_spv_native_frag, vk_spv_native_frag_size);
     static const VkVertexInputBindingDescription binding = { 0, sizeof(mesh_vertex), VK_VERTEX_INPUT_RATE_VERTEX };
     static const VkVertexInputAttributeDescription attributes[7] = {
         { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(mesh_vertex, position) },
@@ -221,23 +215,57 @@ static int vk_native_init(void)
         .color_formats = formats,
         .depth_format = vk.depth_format,
         .write_masks = { 15, 15, 15, 15 },
-        .blend = -1 };
-    vk_native_opaque = vk_pipeline(&d);
+        .blend = -1,
+        .samples = samples };
+    vk_native_opaque[set] = vk_pipeline(&d);
     memset(d.write_masks, 0, sizeof d.write_masks);
-    vk_native_depth_only = vk_pipeline(&d);
+    vk_native_depth_only[set] = vk_pipeline(&d);
     d.write_masks[0] = 15;
     for (int m = 0; m < 4; m++) {
         d.blend = m;
-        vk_native_blend[m] = vk_pipeline(&d);
+        vk_native_blend[set][m] = vk_pipeline(&d);
     }
     vkDestroyShaderModule(vk.device, vs, NULL);
     vkDestroyShaderModule(vk.device, gs, NULL);
     vkDestroyShaderModule(vk.device, fs, NULL);
-    vk_native_ready = vk_native_opaque && vk_native_depth_only && vk_native_blend[0] && vk_native_blend[1]
-                   && vk_native_blend[2] && vk_native_blend[3];
+    return vk_native_opaque[set] && vk_native_depth_only[set] && vk_native_blend[set][0] && vk_native_blend[set][1]
+        && vk_native_blend[set][2] && vk_native_blend[set][3];
+}
+static int vk_native_init(void)
+{
+    if (vk_native_ready >= 0)
+        return vk_native_ready;
+    vk_native_ready = 0;
+    VkDescriptorType types[6] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER };
+    vk_native_set = vk_push_layout(types, 6);
+    VkPipelineLayoutCreateInfo layout = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = 1,
+        .pSetLayouts = &vk_native_set };
+    if (!vk_check(vkCreatePipelineLayout(vk.device, &layout, NULL, &vk_native_layout), "vkCreatePipelineLayout"))
+        return 0;
+    vk_native_ready = vk_native_pipelines(0, 1);
     if (!vk_native_ready)
         fprintf(stderr, "[vk] native list pipelines unavailable\n");
     return vk_native_ready;
+}
+/* The pipeline set for attachments with `samples` per pixel: 0 single, 1
+ * multisampled, -1 unavailable. */
+static int vk_native_set_for(int samples)
+{
+    if (samples <= 1)
+        return 0;
+    if (vk_native_ms_samples != samples) {
+        vkDeviceWaitIdle(vk.device);
+        VkPipeline* all[6] = { &vk_native_opaque[1], &vk_native_depth_only[1], &vk_native_blend[1][0],
+            &vk_native_blend[1][1], &vk_native_blend[1][2], &vk_native_blend[1][3] };
+        for (int i = 0; i < 6; i++)
+            if (*all[i])
+                vkDestroyPipeline(vk.device, *all[i], NULL), *all[i] = VK_NULL_HANDLE;
+        vk_native_ms_samples = vk_native_pipelines(1, samples) ? samples : 0;
+    }
+    return vk_native_ms_samples == samples ? 1 : -1;
 }
 
 /* ---- drawing ---- */
@@ -368,6 +396,8 @@ static const render_camera* vk_begin_draw(vk_draw_state* s, const draw_list* lis
     if (s->uv_effects.data)
         memcpy(s->uv_effects.data, table, (size_t)entries * sizeof *table);
     u->uv_count = s->uv_effects.data ? entries : 0;
+    u->room_slack[0] = pc_native_room_slack[0], u->room_slack[1] = pc_native_room_slack[1];
+    u->layer_slack = layer_slack(list);
     s->surface_depth = vk_hw.dummy_depth.view;
     s->surface_before = vk_hw.dummy_depth.view;
     return cam;
@@ -386,12 +416,16 @@ static void vk_draw_instances(vk_draw_state* s, const draw_list* list, const ren
     int painter = list->order_used > 0 && list->rules.objects && target->surface_before;
     s->ubo.painter = painter;
     if (!painter) {
+        int base = 0, shift = order_shift(list);
         for (int i = 0; i < list->count; i++) {
             if (list->instances[i].blend)
                 continue; /* wholly semi-transparent: drawn at translucent markers */
+            s->ubo.order = base | shift << 24;
             mesh_slot* mesh = vk_use_instance(s, list, &list->instances[i], target, cam, pass, interpolated);
-            if (mesh)
+            if (mesh) {
                 vkCmdDraw(cmd, (uint32_t)mesh->polygons * 4, 1, 0, 0);
+                base += mesh->polygons;
+            }
         }
     } else {
         /* PS1 order: each polygon paints over the ones before it; only the
@@ -442,6 +476,64 @@ static void vk_draw_instances(vk_draw_state* s, const draw_list* list, const ren
             }
         }
 }
+/* A room list in PS1 order (render.c draw_room_ordered): A, the nearest
+ * surface into the native surfaces' depth; B, colour and G-buffer with the
+ * order key as depth among the fragments on it; C, the real depth. */
+static int vk_draw_room_ordered(draw_list* list, const render_target* target)
+{
+    vk_draw_state s;
+    const render_camera* cam = vk_begin_draw(&s, list, target);
+    uv_trace_record(list, target->t);
+    int set = vk_native_set_for(vk_hw_token_samples(target->fbo));
+    const vk_attachments* surfaces = vk_hw_attachments(target->object_fbo);
+    const vk_attachments* frame = vk_hw_attachments(target->fbo);
+    const vk_image* surface = vk_hw_depth(target->surface_depth);
+    if (set < 0 || !surfaces || !frame || !surface)
+        return -1;
+    if (set) /* multisampled surfaces: unused bindings take a multisampled image too */
+        s.surface_depth = s.surface_before = vk_hw.ms_room.view;
+    int s_ = target->scale, x0 = target->clip[0] * s_, y0 = target->clip[1] * s_;
+    int x1 = (target->clip[0] + target->clip[2]) * s_, y1 = (target->clip[1] + target->clip[3]) * s_;
+    x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0;
+    x1 = x1 > vk_hw.width ? vk_hw.width : x1, y1 = y1 > vk_hw.height ? vk_hw.height : y1;
+    VkClearAttachment clear = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, { .depthStencil = { 1.0f, 0 } } };
+    VkClearRect rect = { { { x0, y0 }, { (uint32_t)(x1 > x0 ? x1 - x0 : 0), (uint32_t)(y1 > y0 ? y1 - y0 : 0) } }, 0, 1 };
+    int interpolated = 0;
+    /* A */
+    vk_begin_rendering(surfaces);
+    if (!vk_hw_viewport_scissor(target->clip))
+        return list->count;
+    VkCommandBuffer cmd = vk_cmd();
+    if (x1 > x0 && y1 > y0)
+        vkCmdClearAttachments(cmd, 1, &clear, 1, &rect);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_depth_only[set]);
+    vk_depth_state(1, VK_COMPARE_OP_LESS, 1);
+    vk_draw_instances(&s, list, target, cam, 0, &interpolated);
+    /* B */
+    vk_begin_rendering(frame);
+    vk_hw_viewport_scissor(target->clip);
+    cmd = vk_cmd();
+    if (x1 > x0 && y1 > y0)
+        vkCmdClearAttachments(cmd, 1, &clear, 1, &rect);
+    s.surface_depth = surface->view;
+    s.ubo.surface_test = 4;
+    s.ubo.room_order = 1;
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_opaque[set]);
+    vk_depth_state(1, VK_COMPARE_OP_LESS, 1);
+    vk_draw_instances(&s, list, target, cam, 1, &interpolated);
+    /* C */
+    s.ubo.surface_test = 0;
+    s.ubo.room_order = 0;
+    s.ubo.depth_pass = 1;
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_depth_only[set]);
+    vk_depth_state(1, VK_COMPARE_OP_ALWAYS, 1);
+    vk_draw_instances(&s, list, target, cam, 1, &interpolated);
+    if (target->count_stats)
+        counting.lists++;
+    else
+        counting.interpolated_instances += interpolated;
+    return list->count;
+}
 static int vk_draw_list(uint32_t id, const render_target* target)
 {
     draw_list* list = find_list(id);
@@ -450,6 +542,8 @@ static int vk_draw_list(uint32_t id, const render_target* target)
     int layered = list->rules.objects || list->rules.layered;
     if (layered && (!target->object_fbo || !target->surface_depth))
         return -1;
+    if (!layered && pc_native_room_order && target->object_fbo && target->surface_depth)
+        return vk_draw_room_ordered(list, target);
     vk_draw_state s;
     const render_camera* cam = vk_begin_draw(&s, list, target);
     uv_trace_record(list, target->t);
@@ -477,12 +571,27 @@ static int vk_draw_list(uint32_t id, const render_target* target)
         if (before)
             s.surface_before = before->view;
     }
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_opaque);
+    int set = vk_native_set_for(vk_hw_token_samples(layered ? target->object_fbo : target->fbo));
+    if (set < 0)
+        return -1;
+    if (set) /* multisampled surfaces: unused bindings take a multisampled image too */
+        s.surface_depth = s.surface_before = vk_hw.ms_room.view;
+    if (set && list->rules.objects && target->surface_before) {
+        const vk_image* before = vk_hw_depth(target->surface_before);
+        if (before)
+            s.surface_before = before->view;
+    }
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_opaque[set]);
     vk_depth_state(1, VK_COMPARE_OP_LESS, 1);
     int interpolated = 0;
+    if (layered && s.ubo.layer_slack)
+        s.ubo.layer_slack = 2; /* pass 1 writes the surfaces' depth */
     vk_draw_instances(&s, list, target, cam, 0, &interpolated);
+    s.ubo.layer_slack = layer_slack(list);
     if (layered) {
         /* Pass 2: the visible fragments' depth into the frame's depth. */
+        if (target->surface_sync) /* MSAA: pass 1's depth into the surfaces pass 2 reads */
+            target->surface_sync();
         const vk_attachments* frame = vk_hw_attachments(target->fbo);
         const vk_image* surface = vk_hw_depth(target->surface_depth);
         if (frame && surface) {
@@ -491,7 +600,7 @@ static int vk_draw_list(uint32_t id, const render_target* target)
             cmd = vk_cmd();
             s.surface_depth = surface->view;
             s.ubo.depth_pass = 1;
-            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_depth_only);
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_depth_only[set]);
             vk_depth_state(1, VK_COMPARE_OP_ALWAYS, 1);
             vk_draw_instances(&s, list, target, cam, 1, &interpolated);
             s.ubo.depth_pass = 0;
@@ -534,6 +643,11 @@ static int vk_draw_translucent(uint32_t id, int first, int count, const render_t
             index[k * 4 + c] = (entries[k] & 0xffff) * 4 + (unsigned)c;
     vk_draw_state s;
     const render_camera* cam = vk_begin_draw(&s, list, target);
+    int set = vk_native_set_for(vk_hw_token_samples(target->fbo));
+    if (set < 0)
+        return -1;
+    if (set)
+        s.surface_before = vk_hw.ms_room.view; /* unused, but of the multisampled kind */
     vk_begin_rendering(a);
     if (!vk_hw_viewport_scissor(target->clip))
         return 0;
@@ -576,14 +690,14 @@ static int vk_draw_translucent(uint32_t id, int first, int count, const render_t
         s.ubo.forced[1] = (flags[k] & RENDER_TRANSLUCENT_HALVE) != 0;
         /* Opaque texels (no STP bit) as opaque surfaces... */
         s.ubo.semi_pass = 1;
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_opaque);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_opaque[set]);
         vk_depth_state(1, VK_COMPARE_OP_ALWAYS, 1);
         if (vk_use_instance(&s, list, in, target, cam, 0, &interpolated))
             vkCmdDrawIndexed(cmd, (uint32_t)(run - k) * 4, 1, (uint32_t)k * 4, 0, 0);
         /* ...then the semi-transparent ones blended, keeping the depth and
          * the surface behind them. */
         s.ubo.semi_pass = 2;
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_blend[mode & 3]);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_blend[set][mode & 3]);
         vk_depth_state(1, VK_COMPARE_OP_ALWAYS, 0);
         if (vk_use_instance(&s, list, in, target, cam, 1, &interpolated))
             vkCmdDrawIndexed(cmd, (uint32_t)(run - k) * 4, 1, (uint32_t)k * 4, 0, 0);

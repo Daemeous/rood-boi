@@ -28,6 +28,11 @@ enum {
     VK_TOKEN_OBJECT = 5, /* object_fbo: live colours + room depth */
     VK_TOKEN_OBJECT_REPLAY = 6, /* object_replay_fbo: replay colours + room depth */
     VK_TOKEN_VRAM = 7, /* native_texture: native VRAM (R16_UINT) */
+    /* MSAA (antialias.h): the multisampled twins gpu_hw.c draws 3D into. */
+    VK_TOKEN_MS = 8, /* multisampled colours, G-buffer and depth */
+    VK_TOKEN_MS_OBJECT = 9, /* multisampled colours + the multisampled native surfaces' depth */
+    VK_TOKEN_MS_ROOM_DEPTH = 10, /* the multisampled native surfaces' depth */
+    VK_TOKEN_MS_BEFORE = 11, /* its copy from before an object list */
 };
 
 /* ---- gpu_hw.c -> vk_hw.c ---- */
@@ -50,6 +55,16 @@ int pc_vk_hw_pick(int x, int y, float* depth, unsigned char normal[4]);
 /* The live target over native rectangle x0..x1, y0..y1 at native resolution
  * (RGBA8, tightly packed), for VRAM readers (gpu_hw.c pc_hw_sync). */
 int pc_vk_hw_sync_read(int x0, int y0, int x1, int y1, unsigned char* pixels);
+/* MSAA (rectangles in scaled pixels, x1/y1 exclusive): the most samples the
+ * device runs (0: none); make the twins (`samples`, covering width x height
+ * from (0, 0)); load the live or replay target (`fbo`) into them (`room`:
+ * the native surfaces' depth too); resolve them back into it; and copy the
+ * multisampled surfaces' depth into the single-sampled one (sample 0). */
+int pc_vk_hw_ms_max(void);
+int pc_vk_hw_ms_make(int samples, int width, int height);
+void pc_vk_hw_ms_load(unsigned fbo, int x0, int y0, int x1, int y1, int room);
+void pc_vk_hw_ms_resolve(unsigned fbo, int x0, int y0, int x1, int y1);
+void pc_vk_hw_ms_sync_room(int x0, int y0, int x1, int y1);
 
 /* ---- render.c -> vk_render.inc ---- */
 uint32_t pc_vk_mesh_create(const void* vertices, size_t bytes);

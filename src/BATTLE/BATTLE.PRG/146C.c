@@ -24,6 +24,9 @@
 #include <memory.h>
 #include <rand.h>
 #include "pc/src/psx_types.h"
+#ifdef ROOD_PC
+#include "pc/src/widescreen.h"
+#endif
 
 typedef struct {
     u_char targetActor;
@@ -17812,13 +17815,25 @@ void func_8008FAC8(void)
             }
         }
         prim = psx_get(((vs_scratch_t*)0x1F800000)->unk0);
+#ifdef ROOD_PC
+        /* Widescreen: a 2D quad built from two projected points (4:3,
+         * compressed like the rest of the 2D; pc/src/widescreen.h). */
+        PC_GTE_UNNARROWED(
+            depth = RotTransPers((SVECTOR*)particle, (long*)&prim->x1, &dx, &dy));
+#else
         depth = RotTransPers((SVECTOR*)particle, (long*)&prim->x1, &dx, &dy);
+#endif
         if (((u_int)((u_short)prim->y1 - 1) >= 239) || (prim->x1 <= 0)
             || (prim->x1 >= 320) || (depth <= 64) || (depth >= 2048)) {
             continue;
         }
         particle->unk2 += 192;
+#ifdef ROOD_PC
+        PC_GTE_UNNARROWED(
+            depth = RotTransPers((SVECTOR*)particle, (long*)&prim->x2, &dx, &dy));
+#else
         depth = RotTransPers((SVECTOR*)particle, (long*)&prim->x2, &dx, &dy);
+#endif
         particle->unk2 -= 192;
         dx = (prim->x2 - prim->x1) / 32;
         dy = (prim->y2 - prim->y1) / 32;
@@ -17888,8 +17903,14 @@ void func_8008FDC4(void)
             }
             particle->unkE = 2;
             prim = psx_get(((vs_scratch_t*)0x1F800000)->unk0);
+#ifdef ROOD_PC
+            /* Widescreen: tiles (2D) at the projected point. */
+            PC_GTE_UNNARROWED(depth = RotTransPers((SVECTOR*)particle,
+                                  (psx_long*)&prim->x0, &projection, &flags));
+#else
             depth = RotTransPers(
                 (SVECTOR*)particle, (psx_long*)&prim->x0, &projection, &flags);
+#endif
             if (((u_short)(prim->x0 + 639) < 1599) && (depth < 2048)) {
                 if (depth > 4) {
                     x = prim->x0;
@@ -17947,8 +17968,13 @@ void func_8008FDC4(void)
             }
         } else {
             prim = psx_get(((vs_scratch_t*)0x1F800000)->unk0);
+#ifdef ROOD_PC
+            PC_GTE_UNNARROWED(depth = RotTransPers((SVECTOR*)particle,
+                                  (psx_long*)&prim->x0, &projection, &flags));
+#else
             depth = RotTransPers(
                 (SVECTOR*)particle, (psx_long*)&prim->x0, &projection, &flags);
+#endif
             if (((u_int)((u_short)prim->y0 - 1) < 239) && (prim->x0 > 0)
                 && (prim->x0 < 320) && (depth > 4)) {
                 setTile(prim);

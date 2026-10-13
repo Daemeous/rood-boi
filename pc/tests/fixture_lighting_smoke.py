@@ -25,7 +25,12 @@ fixture catalog (ROOD_FIXTURES), so nothing tracked is written, then:
   of what was written gives the same bytes); an instance override (by id)
   goes to the user layer as one override line; regenerate (the generator
   run by the game into the private packs) leaves the generated file as it
-  was (deterministic).
+  was (deterministic);
+- other zones: a torch room (zone 13 room 0), the town's street lanterns
+  (zone 48 room 5: their class lights cool) and the 67-candle hall (zone 26
+  room 0, reached through a made-up door): every generated actor is there
+  and lit; Vulkan takes every light (none left out), OpenGL keeps the most
+  important within its budget.
 """
 import argparse
 import os
@@ -74,6 +79,7 @@ def main():
         print(("ok:   " if ok else "FAIL: ") + message)
         if not ok:
             failures.append(message)
+        return ok
 
     game = Game.launch(fast=True, card=str(out / "card1.mcd"), log=out / "game.log", extra_env=env, socket_path=socket)
 
@@ -227,6 +233,41 @@ def main():
         live = actors_by_id()
         check(abs(live[one]["lights"][0]["intensity"] / live[one]["lights"][0]["factor"] - 0.4) < 1e-3,
               "the instance override survives regeneration")
+
+        # ---- other zones: torches, the town's street lanterns, the candle hall ----
+        vulkan = os.environ.get("ROOD_RENDERER") == "vulkan"
+        for zone, room, cell, what in ((13, 0, None, "torches and a brazier"), (48, 5, None, "a street lantern"),
+                                       (26, 0, [8, 0, 8, 0], "the 67-candle hall (no door: a made-up one)")):
+            kw = {"cell": cell} if cell else {}
+            game.call("room_goto", zone=zone, room=room, enemies=False, **kw)
+            for _ in range(90):
+                game.run(20)
+                if game.call("room_goto", action="status")["phase"] in (0, 4):
+                    break
+            game.run(60)
+            st = game.state()
+            if not check((st["zone"], st["room"]) == (zone, room), f"warped to zone {zone} room {room} ({what})"):
+                continue
+            gen = {i: it for i, it in generated(zone, room).items() if it.kind == "actor"}
+            reply = game.call("actors")
+            live = {a["id"]: a for a in reply["actors"]}
+            lit = [i for i, it in gen.items() if i in live and live[i]["lights"]
+                   and all(l["intensity"] > 0 for l in live[i]["lights"])]
+            on = [i for i, it in gen.items() if types[it.get("fixture_type")]["enabled"]]
+            check(gen and set(on) <= set(lit), f"zone {zone} room {room}: {len(gen)} generated actors, "
+                                               f"{len(lit)} lit ({what})")
+            if zone == 48:  # the street lanterns' class: cool light (cyan panes), not a warm flame
+                c = [live[i]["lights"][0]["color"] for i in lit if gen[i].get("fixture_type") in ("T013", "T014")]
+                check(c and all(x[2] > x[0] for x in c), f"street lanterns light cool ({[[round(v, 2) for v in x] for x in c]})")
+            game.run(4)
+            reply = game.call("actors")
+            wanted, dropped = reply["lights_wanted"], reply["dropped"]
+            if vulkan:
+                check(wanted >= len(on) and dropped == 0,
+                      f"Vulkan takes every light ({wanted} wanted, {dropped} left out)")
+            else:
+                check(wanted - dropped in (min(wanted, 16), min(wanted, 64)),
+                      f"OpenGL keeps the most important within its budget ({wanted} wanted, {dropped} left out)")
     finally:
         game.close()
     print(f"{len(failures)} failure(s)")

@@ -85,6 +85,27 @@ VRAM row in both, so `gl_FragCoord` and texel fetches agree); the window
 passes use top-down rows, and FXAA and the blur mirror their sample
 patterns in y so the result equals GL's.
 
+### Anti-aliasing
+
+`pc/README.md` "Anti-aliasing" describes the methods. On Vulkan: MSAA's
+twins are `vk_hw.ms` and `vk_hw.ms_room` (tokens `VK_TOKEN_MS`,
+`VK_TOKEN_MS_OBJECT`, `VK_TOKEN_MS_ROOM_DEPTH`; `vk_hw_token_samples`), with
+packet pipelines per sample count (2D ones with every sample at the pixel
+centre through `VkPipelineSampleLocationsStateCreateInfoEXT`; depth twins
+are created `SAMPLE_LOCATIONS_COMPATIBLE_DEPTH`) and a multisampled set of
+the native list pipelines (`vk_native_set_for`). Loading the twins is a
+fullscreen pass (`ms_load.frag`, `ms_depth.frag`), resolving another
+(`ms_resolve.frag`); the native surfaces' depth twin is copied into the
+single-sampled one by a rendering scope with a `SAMPLE_ZERO` depth resolve
+and nothing drawn. Usable counts: `vk.msaa_counts` (framebuffer and sampled
+colour/depth counts). The present chain (`vk_present.c`) is lit image ->
+FXAA or SMAA (`smaa_edges/weights/blend.frag`, the reference
+`SMAA.hlsl` with `SMAA_GLSL_4`; `vk_shaders.py` adds `pc/third_party/smaa`
+to the include path) -> blur -> downsample (`downsample.frag`) -> window,
+each pass into the next of two lit-sized images or, last, the window's
+view. `ROOD_PERF` sections: `draw` (everything before the GI: the VRAM
+target, native lists, MSAA load/resolve), `aa`, `blur`, `downsample`.
+
 ### Ray tracing (`vk_rt.inc`)
 
 The scene is `ptgi.c`'s (the captured room, the frame's characters, weapons
@@ -136,7 +157,8 @@ Passes (compute):
    whenever the camera turned or followed Ashley (tens of units, 40 % of
    the pixels mid-turn), settling only when the camera stopped.
 2. **Trace** (`rt_trace.comp`): shadow visibility of the shadow-casting
-   lights (spherical or rect area lights), indirect light, light from the
+   lights (spherical or rect area lights; any number of them: *Many
+   lights* below), indirect light, light from the
    glows (small spherical emitters, one picked per pixel in proportion to
    its unshadowed light; shadowed when "Glows cast shadows" is on),
    baked-light visibility (contact and glow shadows of characters) and the
@@ -250,7 +272,10 @@ device and command buffer as the rest of the frame (no readback):
   visibility, glow light) stay the filter's. With `nrd_glow` the glows'
   light goes through NRD too (and the extra term's glow becomes 0).
 - **History**: reset (`CLEAR_AND_RESTART`) on a resize, a new room capture,
-  a change of the lights (positions, colours, cones, shadows) or of the
+  a change of the lights (which lights, their type, reach and shadows, a
+  position moved by 32 units or more: not their flicker or sway, which
+  change every frame and until 2026-10-12 reset NRD on every update in any
+  room with a candle) or of the
   amounts that change the signal (baked bounce, emitter light, bounces), a
   camera cut (eye moved > 256 units or turned > ~37 degrees between
   updates), and after any update without NRD (denoiser switched). NRD's own
@@ -320,6 +345,76 @@ kept (displayed vs raw indirect within 15 %), consecutive updates differ
 the history, a GI resolution change re-creates NRD and it recovers, no
 validation messages. RPC `gi_dump {path, light: true}` dumps the raw and
 displayed indirect light and NRD's history length per GI pixel.
+
+### Many lights (`light_list.h`, `rt_lights.glsl`, `scaled.frag`)
+
+A room's fixtures can be dozens of lights (the octagonal candle hall, zone
+26 room 0, has 67 candles; a town square a dozen lanterns). The renderers
+used to take 16, the nearest the camera, which left whole walls of a hall
+unlit and popped lights on and off as the camera moved. On Vulkan with ray
+queries every light now counts, at a cost that stays nearly flat:
+
+- **One list**: `pc_lights_list` (lights.cpp) packs every enabled light of
+  the frame (plain lights, every light of every actor, the editor's ghosts)
+  into `pc_light_gpu` records (position and reach, colour times intensity
+  and type, direction and cone, rect extents and the light's own size, the
+  fixture's shadow skip, shadow flag), up to `PC_LIGHTS_MAX` (1024). Its
+  order is stable (the room file's), so per-pixel bits keyed on it (the
+  lighting signature) stay put from frame to frame. The present pass and
+  the trace each get it as a storage buffer from the frame arena (binding
+  16 of the present, 11 of the trace, 10 of the haze).
+- **Direct light, unshadowed** (`scaled.frag`): every light's falloff,
+  cosine and cone per pixel (ALU only; most lights are out of reach of a
+  given pixel and cost a compare).
+- **Shadows** (`visibility()` in `rt_trace.comp`): the present multiplies
+  the shadow casters' unshadowed sum by one traced visibility, the ratio
+  `sum(w_i V_i) / sum(w_i)` with `w_i` each caster's unshadowed luminance at
+  the pixel. When at most `EXACT_LIGHTS` (8) casters reach the pixel each
+  is traced `shadow_samples` times, as before (zone 9's rooms trace the
+  same rays). Past that, `8 x shadow_samples` shadow rays go to
+  casters picked in proportion to `w_i` (inversion of the running sum): an
+  unbiased estimate of the same ratio whose noise the temporal accumulation
+  and filter average out. Rays per pixel are bounded whatever the count.
+- **GI bounces** (`direct()`): up to 8 lights each traced; past that one
+  light per bounce hit, picked in proportion to its unshadowed light
+  (weighted reservoir sampling in one pass, weight `all / w_pick`).
+- **Haze** (`rt_haze.comp`): every light and glow is a candidate for the
+  froxel's single shadow ray, picked the same way in one pass (it used to
+  take the first 48 sources).
+- **Signature**: one bit per caster that reaches the pixel, the first 12 in
+  list order (with 12 or fewer lights in the room, one bit per caster as
+  before).
+- **Flicker**: the visibility is a ratio of the same lights' weights, so a
+  candle's flicker changes the unshadowed sum (exact, every frame) but
+  hardly the ratio; nothing is reused across frames that would smear it.
+  No reservoir reuse between pixels or frames (ReSTIR) is needed at these
+  counts; it is the next step if rooms ever hold hundreds of shadowed
+  lights.
+
+Measured (RTX, 1600x1200 window, scale 3, GI at 960x672, ROOD_PERF; RPC
+`actors {budget: 16}` gives the old cap for comparison):
+
+| Room | Lights | GPU ms/frame, 16 kept | all lights |
+| --- | --- | --- | --- |
+| zone 9 room 5 (candles, a fire) | 8 | 0.79 | 0.79 |
+| zone 26 room 0 (candle hall) | 67 | 1.32 | 1.55 |
+
+The difference in the hall is the present's unshadowed loop over 67 lights
+(+0.16 ms) and the trace's per-pixel weights (+0.09 ms); the shadow rays are
+the same. Temporal noise (mean absolute difference of two frames 4 vsyncs
+apart with the light animation frozen, 0-255): hall 0.21 with 16 lights,
+0.12 with all 67 (fewer lights switching in and out of view); zone 9 room 5
+0.29 before and after.
+
+Paths without ray queries keep a budget (lights.cpp): Vulkan's present takes
+every light unshadowed and renders shadow maps for the 4 most important
+casters (`pc_lights_shadow_pick`); OpenGL's present takes 64 (16 with its
+path-traced visibility, whose trace has 16 slots), the editor's GL view and
+the probes 16. Past a budget the most important are kept: brightness x
+(reach / distance from the camera)^2 (1 inside its reach), x 0.3 for a light
+whose sphere is outside the view cone, x 1.5 for lights kept last frame
+(hysteresis: no popping as the camera moves). A clustered (tiled) GL
+present taking every light is not done.
 
 ## Status (2026-10-11): NRD
 

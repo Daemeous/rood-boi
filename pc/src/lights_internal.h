@@ -141,6 +141,8 @@ void ensure_ids(); /* every light and actor has a unique id */
 void layers_load(int zone, int room); /* read the layers, fill the room's lights, actors, overrides */
 bool layers_save(); /* the user layer (status says what happened) */
 void layers_poll(); /* live reload when a layer changed on disk */
+unsigned layers_reload(); /* read the layers from disk now (RPC); returns layers_loads() */
+unsigned layers_loads(); /* layer loads so far (room entries and reloads) */
 /* Outliner: a row's layer badge (after the row's item) and its context
  * menu (Revert to the layers below, Promote to pack); `kind` light/actor/glow. */
 void layer_row(const std::string& id);

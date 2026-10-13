@@ -30,6 +30,8 @@
 #define _POSIX_C_SOURCE 200809L
 #include "gl_api.h"
 #include "ui_upscale.h"
+#include "ui_text.h" /* ui_text font: glyph regions drawn from a font instead of magnified */
+#include "button_prompts.h" /* button pictographs and sprites drawn from icon fonts */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -176,6 +178,7 @@ static uint32_t* magnify_cpu(const uint16_t* texels, int w, int h, int levels)
 typedef struct {
     uint64_t hash; /* content (0: empty slot) */
     uint16_t x, y, w, h; /* atlas origin and size (source texels) */
+    int text; /* drawn from a font (ui_text.c), not magnified */
 } entry;
 #define ENTRY_SLOTS 16384
 static entry entries[ENTRY_SLOTS];
@@ -212,6 +215,14 @@ typedef struct {
 #define MAX_PENDING 1024
 static pending_entry pending[MAX_PENDING];
 static int pending_count;
+/* Glyph regions drawn from a font (ui_text): their finished texels, uploaded
+ * into the last level as they are. */
+typedef struct {
+    int x, y, w, h;
+    uint32_t* texels;
+} pending_text;
+static pending_text pending_texts[MAX_PENDING];
+static int pending_text_count;
 static long frame_new_texels;
 
 static pc_ui_upscale_stats stats;
@@ -264,6 +275,8 @@ void pc_ui_upscale_frame(void)
     if (debug < 0)
         debug = getenv("ROOD_UI_DEBUG") ? atoi(getenv("ROOD_UI_DEBUG")) : 0;
     ++frame;
+    if (pc_ui_text)
+        pc_ui_text_warm(2.0); /* glyph fields ahead of use, a little each frame */
     frame_new_texels = 0;
     if (!frame_lookups_acc)
         return; /* an image without 2D: keep the last numbers */
@@ -273,6 +286,13 @@ void pc_ui_upscale_frame(void)
     stats.miss_ms = miss_ms_acc;
     frame_lookups_acc = frame_misses_acc = 0;
     frame_ms_acc = miss_ms_acc = 0;
+}
+/* The atlas factor for internal resolution `scale`, whatever uses it. */
+static int factor_for(int scale)
+{
+    if (scale < 2)
+        return 0;
+    return scale <= 2 ? 2 : scale <= 4 ? 4 : 8;
 }
 int pc_ui_upscale_factor(int scale)
 {
@@ -289,6 +309,9 @@ static void drop_all(void)
     entry_count = entry_texels = location_count = 0;
     shelf_count = shelf_bottom = 0;
     pending_count = 0;
+    for (int i = 0; i < pending_text_count; i++)
+        free(pending_texts[i].texels);
+    pending_text_count = 0;
 }
 static const char* full_reason = "requested";
 void pc_ui_upscale_reset(void)
@@ -431,7 +454,10 @@ static int make_atlas(int factor)
         backend == 1 ? "Vulkan compute" : backend == 2 ? "OpenGL compute" : "CPU");
     return 1;
 }
-int pc_ui_upscale_draw_factor(void) { return pc_ui_upscale == PC_UI_MMPX ? atlas_factor : 0; }
+int pc_ui_upscale_draw_factor(void)
+{
+    return pc_ui_upscale == PC_UI_MMPX || pc_ui_text || pc_button_prompts_active() ? atlas_factor : 0;
+}
 unsigned pc_ui_upscale_gl_texture(void) { return atlas_factor ? gl_levels[atlas_levels] : 0; }
 #ifdef ROOD_VULKAN
 void* pc_ui_upscale_vk_view(void) { return atlas_factor ? (void*)vk_levels[atlas_levels].view : NULL; }
@@ -519,8 +545,17 @@ static uint16_t decode_buffer[256 * 256];
 int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, unsigned window, int u0, int v0,
     int u1, int v1, int scale, int16_t offset[2])
 {
-    int factor = pc_ui_upscale_factor(scale);
-    if (!factor || !vram || (window & 0x3ff) || u0 < 0 || v0 < 0 || u1 > 255 || v1 > 255 || u1 < u0 || v1 < v0)
+    if (!vram || (window & 0x3ff) || u0 < 0 || v0 < 0 || u1 > 255 || v1 > 255 || u1 < u0 || v1 < v0)
+        return 0;
+    /* ui_text: a glyph the font draws (whatever ui_upscale is). */
+    uint64_t glyph_key = 0;
+    /* button_prompts: a PS1 button drawn as the bound key or gamepad button
+     * (at internal resolution 1 too: a 2x atlas whose blocks are uniform). */
+    int prompt = pc_button_prompts_classify(vram, tpage, clut, u0, v0, u1, v1, &glyph_key);
+    int text = prompt
+            || (pc_ui_text && factor_for(scale) && pc_ui_text_classify(vram, tpage, clut, u0, v0, u1, v1, &glyph_key));
+    int factor = prompt ? (scale < 2 ? 2 : factor_for(scale)) : text ? factor_for(scale) : pc_ui_upscale_factor(scale);
+    if (!factor)
         return 0;
     if (atlas_factor != factor && !make_atlas(factor))
         return 0;
@@ -537,11 +572,24 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
     uint64_t key = (uint64_t)((tpage & 0x1f) | (unsigned)depth << 5) << 48 | (uint64_t)(clut & 0xffff) << 32
                  | (uint64_t)u0 << 24 | (uint64_t)v0 << 16 | (uint64_t)u1 << 8 | (uint64_t)v1;
     key |= 1ull << 63;
+    if (prompt) {
+        /* What the prompts show changed (device, mode, bindings): every
+         * region's content is checked again (its hash names the icon). */
+        static unsigned prompt_generation;
+        if (prompt_generation != pc_button_prompts_generation()) {
+            prompt_generation = pc_button_prompts_generation();
+            pc_ui_upscale_tiles_changed(0xffffffffu);
+        }
+        key |= 1ull << 62 | 1ull << 61; /* page bits stop at 55; ui_text's generation below 61 */
+    } else if (text)
+        key |= 1ull << 62 | (uint64_t)(pc_ui_text_generation & 0x1f) << 56;
     /* Strips (an image drawn a few rows or columns at a time: the title
      * menu's waving labels) take their neighbours from the page as context:
      * clamped at a one-texel edge MMPX would see no shapes at all. */
     int region[4] = { u0, v0, u1, v1 };
-    if (v1 - v0 < 3)
+    if (text) /* drawn from the font: no context */
+        ;
+    else if (v1 - v0 < 3)
         v0 = v0 < CONTEXT ? 0 : v0 - CONTEXT, v1 = v1 + CONTEXT > 255 ? 255 : v1 + CONTEXT;
     if (u1 - u0 < 3)
         u0 = u0 < CONTEXT ? 0 : u0 - CONTEXT, u1 = u1 + CONTEXT > 255 ? 255 : u1 + CONTEXT;
@@ -603,6 +651,9 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
         }
     }
     uint64_t hash = decode(vram, tpage, clut, u0, v0, w, h, decode_buffer);
+    if (text) /* the glyph, where it sits in the page (strips of different glyphs can match) and the fonts */
+        hash = mix64(hash ^ glyph_key ^ ((uint64_t)u0 | (uint64_t)v0 << 8 | (uint64_t)u1 << 16 | (uint64_t)v1 << 24
+                                            | (uint64_t)(clut & 0xffff) << 32)) | 1;
     loc->stamp = generation;
     if (loc->hash && loc->hash != hash) {
         /* Content that changes on most frames (animations drawn into VRAM,
@@ -630,7 +681,8 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
     }
     if (!found) {
         long budget = backend > 0 ? (1l << 20) : (1l << 16);
-        if (frame_new_texels + (long)w * h > budget || pending_count == MAX_PENDING) {
+        if (frame_new_texels + (long)w * h > budget || pending_count == MAX_PENDING
+            || pending_text_count == MAX_PENDING) {
             ++stats.over_budget;
             loc->hash = 0; /* next frame */
             frame_ms_acc += now_ms() - start;
@@ -642,13 +694,29 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
             full_reason = "space";
             return -1;
         }
+        uint32_t* texels = NULL;
+        if (text) {
+            texels = malloc((size_t)w * factor * h * factor * sizeof *texels);
+            if (!texels
+                || !(prompt ? pc_button_prompts_render(vram, tpage, clut, u0, v0, u1, v1, factor, scale, texels)
+                            : pc_ui_text_render(vram, tpage, clut, u0, v0, u1, v1, factor, texels))) {
+                free(texels);
+                loc->hash = 0;
+                frame_ms_acc += now_ms() - start;
+                return 0; /* as the original */
+            }
+        }
         e->hash = hash, e->x = (uint16_t)x, e->y = (uint16_t)y, e->w = (uint16_t)w, e->h = (uint16_t)h;
+        e->text = text;
         ++entry_count;
         entry_texels += (long)w * h;
         frame_new_texels += (long)w * h;
         for (int r = 0; r < h; r++)
             memcpy(shadow + (size_t)(y + r) * atlas_w + x, decode_buffer + r * w, (size_t)w * 2);
-        pending[pending_count++] = (pending_entry){ x, y, w, h };
+        if (text)
+            pending_texts[pending_text_count++] = (pending_text){ x, y, w, h, texels };
+        else
+            pending[pending_count++] = (pending_entry){ x, y, w, h };
         ++stats.misses;
         ++frame_misses_acc;
         if (debug > 1)
@@ -766,25 +834,62 @@ static void prepare_gl(void)
     gl_BindTexture(GL_TEXTURE_2D, 0);
     gl_UseProgram(0);
 }
+/* Font-drawn glyph regions: their texels into the last level. */
+static void upload_texts(void)
+{
+    int f = atlas_factor;
+    for (int i = 0; i < pending_text_count; i++) {
+        const pending_text* p = &pending_texts[i];
+#ifdef ROOD_VULKAN
+        if (pc_vk_on()) {
+            size_t bytes = (size_t)p->w * f * p->h * f * 4;
+            vk_slice slice = vk_arena(bytes, 16);
+            if (slice.data) {
+                memcpy(slice.data, p->texels, bytes);
+                VkBufferImageCopy region = { .bufferOffset = slice.offset,
+                    .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+                    .imageOffset = { p->x * f, p->y * f, 0 },
+                    .imageExtent = { (uint32_t)(p->w * f), (uint32_t)(p->h * f), 1 } };
+                vkCmdCopyBufferToImage(vk_cmd(), slice.buffer, vk_levels[atlas_levels].image, VK_IMAGE_LAYOUT_GENERAL,
+                    1, &region);
+            }
+        } else
+#endif
+        {
+            gl_BindTexture(GL_TEXTURE_2D, gl_levels[atlas_levels]);
+            gl_PixelStorei(GL_UNPACK_ALIGNMENT, 4);
+            gl_PixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+            gl_TexSubImage2D(GL_TEXTURE_2D, 0, p->x * f, p->y * f, p->w * f, p->h * f, GL_RED_INTEGER, GL_UNSIGNED_INT,
+                p->texels);
+            gl_BindTexture(GL_TEXTURE_2D, 0);
+        }
+        free(p->texels);
+    }
+    pending_text_count = 0;
+}
 void pc_ui_upscale_prepare(void)
 {
-    if (!pending_count)
+    if (!pending_count && !pending_text_count)
         return;
     double start = now_ms();
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
         vk_end_rendering();
-        if (backend == 1)
+        if (pending_count && backend == 1)
             prepare_vulkan();
-        else
+        else if (pending_count)
             prepare_cpu();
+        upload_texts();
         vk_barrier();
     } else
 #endif
-    if (backend == 2)
-        prepare_gl();
-    else
-        prepare_cpu();
+    {
+        if (pending_count && backend == 2)
+            prepare_gl();
+        else if (pending_count)
+            prepare_cpu();
+        upload_texts();
+    }
     pending_count = 0;
     miss_ms_acc += now_ms() - start;
 }
@@ -823,7 +928,7 @@ int pc_ui_upscale_verify(long* mismatches, long* foreign)
     int checked = 0, f = atlas_factor;
     for (int s = 0; s < ENTRY_SLOTS; s++) {
         const entry* e = &entries[s];
-        if (!e->hash)
+        if (!e->hash || e->text) /* font-drawn glyphs are not MMPX */
             continue;
         uint16_t* texels = malloc((size_t)e->w * e->h * 2);
         uint32_t* gpu = malloc((size_t)e->w * f * e->h * f * 4);

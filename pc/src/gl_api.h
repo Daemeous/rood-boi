@@ -99,6 +99,8 @@
     X(GLsync, FenceSync, (GLenum, GLbitfield))                                              \
     X(GLenum, ClientWaitSync, (GLsync, GLbitfield, GLuint64))                               \
     X(void, DeleteSync, (GLsync))                                                           \
+    X(void, GetIntegerv, (GLenum, GLint*))                                                  \
+    X(void, TexImage2DMultisample, (GLenum, GLsizei, GLenum, GLsizei, GLsizei, GLboolean))  \
     X(const GLubyte*, GetString, (GLenum))
 
 /* OpenGL 4.3+ (compute shaders, storage buffers, images), for the path

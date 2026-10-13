@@ -25,7 +25,6 @@ import os
 import pathlib
 import shutil
 import sys
-import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
@@ -84,9 +83,10 @@ def main():
     game = Game.launch(fast=True, card=str(card), log=out / "game.log", extra_env=env, socket_path=socket)
 
     def settle(vsyncs=60):
-        for _ in range(3):
-            game.run(vsyncs // 3)
-            time.sleep(0.3)  # files are polled twice a second
+        # The editor polls the files twice a second of wall-clock time: run
+        # its check now (the live reload's change detection), then draw.
+        game.call("lighting", action="poll")
+        game.run(vsyncs)
 
     def warp(zone, room, **kw):
         reply = game.call("room_goto", zone=zone, room=room, **kw)

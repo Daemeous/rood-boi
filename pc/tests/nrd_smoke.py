@@ -75,9 +75,17 @@ try:
     eye = -np.linalg.solve(rotation, translation)
     forward = rotation[2] / np.linalg.norm(rotation[2])
     x, y, z = (eye + forward * 700).round().astype(int)
+    # The light in view comes first: with the pan's light (768 -600 836)
+    # first in the list, the Vulkan path tracer's indirect light from the
+    # second is ~0 (renderer bug, under investigation), which left this test
+    # comparing noise (raw ~0.0002) instead of the light.
     (lights / "zone01_room00.txt").write_text(
-        "light point 768 -600 836 1 0.75 0.45 2 1500 0 1 0 45 1 1\n"
-        f"light point {x} {y} {z} 1 0.85 0.6 2 3000 0 1 0 45 1 1\n")
+        f"light point {x} {y} {z} 1 0.85 0.6 2 3000 0 1 0 45 1 1\n"
+        "light point 768 -600 836 1 0.75 0.45 2 1500 0 1 0 45 1 1\n")
+    # Taken now (the editor's file poll is wall-clock time: under load the
+    # light could arrive after NRD's history had accumulated without it).
+    loaded = game.reload_lights()
+    check(len(loaded["lights"]) == 2, f"both test lights are loaded ({len(loaded['lights'])})")
     game.run(30)
     try:
         data, head = dump(game, "first")
@@ -119,7 +127,7 @@ try:
             shown_steps.append(np.abs(data[..., 4:7][both] - previous[..., 4:7][both]).mean())
         previous = data
     raw_mean, shown_mean = float(np.mean(raw_means)), float(np.mean(shown_means))
-    check(raw_mean > 1e-4, f"there is indirect light ({raw_mean:.4f})")
+    check(raw_mean > 0.01, f"there is indirect light from the test light ({raw_mean:.4f}; ~0.08 here)")
     check(abs(shown_mean - raw_mean) <= 0.15 * raw_mean,
           f"energy kept: displayed {shown_mean:.4f} vs raw {raw_mean:.4f}")
     ratio = float(np.mean(shown_steps) / max(np.mean(raw_steps), 1e-9))

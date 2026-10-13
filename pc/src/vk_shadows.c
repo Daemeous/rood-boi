@@ -173,5 +173,7 @@ int pc_vk_shadows_update(int count, const float world[][4], const int* wants, in
     }
     return used;
 }
+/* How many lights get shadow maps (the most important: light_list.h). */
+int pc_vk_shadows_slots(void) { return SLOTS; }
 /* The atlas for the present pass (a 1 x 1 dummy before the first use). */
 VkImageView pc_vk_shadows_view(void) { return ready > 0 ? atlas.view : vk_hw.dummy_color.view; }

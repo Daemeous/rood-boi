@@ -10,6 +10,9 @@
 #include <inline_c.h>
 #include "vs_inline_c.h"
 #include "pc/src/psx_types.h"
+#ifdef ROOD_PC
+#include "pc/src/widescreen.h"
+#endif
 
 typedef struct {
     char unk0;
@@ -735,7 +738,12 @@ void func_800C1DC4(D_800EB9B8_unk990* arg0)
         y += 4;
         func_800C02A8();
         gte_ldv0(&arg0->unk8);
+#ifdef ROOD_PC
+        /* Widescreen: the target line starts at this point (2D). */
+        PC_GTE_UNNARROWED(gte_rtps2());
+#else
         gte_rtps2();
+#endif
         gte_stsxy(&sxy);
         gte_stotz(&otz);
         if (arg0->unk4 < 160) {
@@ -1002,7 +1010,12 @@ void func_800C28AC(SVECTOR* position, int arg1)
     u_long* ot = psx_get(vs_scratch.unk4) - 4;
 
     gte_ldv0(position);
+#ifdef ROOD_PC
+    /* Widescreen: the target marker is 2D at this point. */
+    PC_GTE_UNNARROWED(gte_rtps2());
+#else
     gte_rtps2();
+#endif
     gte_stsxy(&xy);
 
     D_800EA6AC = (D_800EA6AC + 1) & 0xF;

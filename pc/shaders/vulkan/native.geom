@@ -13,18 +13,19 @@ layout(location = 3) flat in uvec4 g_uvf[];
 layout(location = 4) flat in uvec2 g_page[];
 layout(location = 5) flat in uint g_bias[];
 layout(location = 6) flat in uint g_effect[];
-layout(location = 0) noperspective out vec3 v_color_affine;
-layout(location = 1) noperspective out vec2 v_uv_affine;
-layout(location = 2) smooth out vec3 v_color_persp;
-layout(location = 3) smooth out vec2 v_uv_persp;
-layout(location = 4) smooth out float v_z;
+layout(location = 0) noperspective centroid out vec3 v_color_affine;
+layout(location = 1) noperspective centroid out vec2 v_uv_affine;
+layout(location = 2) smooth centroid out vec3 v_color_persp;
+layout(location = 3) smooth centroid out vec2 v_uv_persp;
+layout(location = 4) smooth centroid out float v_z;
 layout(location = 5) flat out uvec4 v_state; // flags, tpage, clut, 0
 layout(location = 6) flat out vec3 v_normal;
 layout(location = 7) flat out uvec4 v_bounds;
-layout(location = 8) smooth out vec3 v_view; // view space, rows' scales divided out (cutaway)
+layout(location = 8) smooth centroid out vec3 v_view; // view space, rows' scales divided out (cutaway)
 layout(location = 9) flat out int v_cut; // bit 0: the polygon stands between the eye and the cutaway focus;
                                          // bits 1-3: the triangle's real edges (opposite corner 0, 1, 2)
 layout(location = 10) noperspective out vec3 v_bary; // the corner weights (a cutaway ghost's edges)
+layout(location = 11) flat out uint v_order; // room polygons: PS1 draw order key (bucket << 10 | sequence; smaller paints later)
 vec3 p[4];
 vec2 uv[4];
 vec3 col[4];
@@ -35,6 +36,7 @@ vec3 n;
 float z_near = 0.0; // sprites: tested and written at their nearest point
 int cut = 0;
 int tri_edges = 7, corner = 0; // a quad's diagonal is no edge
+uint order_key = 0u;
 vec2 screen(vec3 q) { return vec2(u.offset.x + u.projection.x * q.x / q.z, u.offset.y + u.projection.y * q.y / q.z); }
 float nclip(vec2 a, vec2 b, vec2 c) { return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y); }
 void emit(int i) {
@@ -52,6 +54,7 @@ void emit(int i) {
     v_view = q * u.cut_scale.xyz;
     v_cut = cut | (tri_edges << 1);
     v_bary = vec3(corner == 0 ? 1.0 : 0.0, corner == 1 ? 1.0 : 0.0, corner == 2 ? 1.0 : 0.0);
+    v_order = order_key;
     EmitVertex();
 }
 void triangle(int a, int b, int c) {
@@ -189,6 +192,10 @@ void main() {
         if (bucket < u.rules.x) return;
         bucket += u.rules.w;
         if (bucket < u.rules.x || bucket >= u.rules.y) return;
+        // The PS1 paints the room back to front by bucket; within a bucket
+        // the polygon linked first paints last (linking at the bucket's head).
+        order_key = (uint(clamp(bucket, 0, 16383)) << 10)
+            | min(uint(((u.order & 0xffffff) + gl_PrimitiveIDIn) >> (u.order >> 24)), 1023u);
         // Distance UV halving, except for polygons the PS1 subdivides.
         bool subdivided = false;
         if (u.split.x != 0 && u.split.y - (sz >> 9) > 0 && zmin > 0.0) {

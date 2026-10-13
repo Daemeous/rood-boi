@@ -6,6 +6,7 @@
  * connect and disconnect at any time. */
 #define _POSIX_C_SOURCE 200809L
 #include "boot_controller.h"
+#include "button_prompts.h"
 #include <SDL3/SDL.h>
 #include <dirent.h>
 #include <stdio.h>
@@ -51,6 +52,43 @@ static int wanted(SDL_JoystickID id)
     return name && strstr(name, requested);
 }
 
+/* The button prompts' device (button_prompts.c; weak: the controller probe
+ * links without it): the prompt family of an SDL gamepad type (-1: the
+ * keyboard). Generic, Steam and GameCube pads get the Xbox labels SDL's
+ * standard layout uses. */
+extern void pc_button_prompts_device(int family, int variant) __attribute__((weak));
+static void prompts_device(int type)
+{
+    if (!pc_button_prompts_device)
+        return;
+    switch (type) {
+    case -1:
+        pc_button_prompts_device(PC_PROMPTS_KEYBOARD, 0);
+        break;
+    case SDL_GAMEPAD_TYPE_PS3:
+        pc_button_prompts_device(PC_PROMPTS_PLAYSTATION, 3);
+        break;
+    case SDL_GAMEPAD_TYPE_PS4:
+        pc_button_prompts_device(PC_PROMPTS_PLAYSTATION, 4);
+        break;
+    case SDL_GAMEPAD_TYPE_PS5:
+        pc_button_prompts_device(PC_PROMPTS_PLAYSTATION, 5);
+        break;
+    case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO:
+    case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_LEFT:
+    case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_RIGHT:
+    case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_PAIR:
+        pc_button_prompts_device(PC_PROMPTS_NINTENDO, 0);
+        break;
+    case SDL_GAMEPAD_TYPE_XBOX360:
+        pc_button_prompts_device(PC_PROMPTS_XBOX, 360);
+        break;
+    default:
+        pc_button_prompts_device(PC_PROMPTS_XBOX, 0);
+        break;
+    }
+}
+
 static void open_gamepad(SDL_JoystickID id)
 {
     pad = SDL_OpenGamepad(id);
@@ -59,9 +97,16 @@ static void open_gamepad(SDL_JoystickID id)
         return;
     }
     const char* path = SDL_GetGamepadPath(pad);
-    fprintf(stderr, "[controller] connected %s: %s (Circle/east confirms, Cross/south cancels)\n",
-        path ? path : "gamepad", SDL_GetGamepadName(pad) ? SDL_GetGamepadName(pad) : "gamepad");
+    fprintf(stderr, "[controller] connected %s: %s, type %s (Circle/east confirms, Cross/south cancels)\n",
+        path ? path : "gamepad", SDL_GetGamepadName(pad) ? SDL_GetGamepadName(pad) : "gamepad",
+        SDL_GetGamepadStringForType(SDL_GetGamepadType(pad)) ? SDL_GetGamepadStringForType(SDL_GetGamepadType(pad))
+                                                             : "unknown");
+    /* Button prompts: a gamepad just connected is the device in use until
+     * the keyboard is pressed. */
+    prompts_device(SDL_GetGamepadType(pad));
 }
+
+int pc_controller_type(void) { return pad ? (int)SDL_GetGamepadType(pad) : SDL_GAMEPAD_TYPE_UNKNOWN; }
 
 static void open_first(SDL_JoystickID except)
 {
@@ -112,7 +157,14 @@ void pc_controller_event(const SDL_Event* event)
         right_stick[0] = right_stick[1] = 0;
         fprintf(stderr, "[controller] disconnected\n");
         open_first(event->gdevice.which);
+        if (!pad)
+            prompts_device(-1);
     }
+    /* The last device used decides the button prompts (auto). */
+    if (pad && ((event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN && event->gbutton.which == SDL_GetGamepadID(pad))
+        || (event->type == SDL_EVENT_GAMEPAD_AXIS_MOTION && event->gaxis.which == SDL_GetGamepadID(pad)
+            && (event->gaxis.value > 16000 || event->gaxis.value < -16000))))
+        prompts_device(SDL_GetGamepadType(pad));
 }
 
 void pc_controller_poll(void)
@@ -129,11 +181,14 @@ void pc_controller_poll(void)
     for (int i = 0; i < SDL_GAMEPAD_AXIS_COUNT; i++)
         state.axes[i] = SDL_GetGamepadAxis(pad, (SDL_GamepadAxis)i);
     mask = pc_controller_mask(&state);
-    /* L3 + R3 together: fast-forward while held, instead of their own uses
-     * (R3 resets the camera). */
+    /* Both stick clicks together: fast-forward while held, instead of
+     * whatever PS1 buttons they are bound to (L3 and R3 by default; R3
+     * resets the camera). */
     fast_forward = state.buttons[SDL_GAMEPAD_BUTTON_LEFT_STICK] && state.buttons[SDL_GAMEPAD_BUTTON_RIGHT_STICK];
     if (fast_forward)
-        mask &= ~((1u << 9) | (1u << 10));
+        for (int i = 0; i < PC_PAD_BUTTONS; i++)
+            if (pc_bind_pad[i] == SDL_GAMEPAD_BUTTON_LEFT_STICK || pc_bind_pad[i] == SDL_GAMEPAD_BUTTON_RIGHT_STICK)
+                mask &= ~(1u << i);
     right_stick[0] = state.axes[SDL_GAMEPAD_AXIS_RIGHTX] / 32767.0f;
     right_stick[1] = state.axes[SDL_GAMEPAD_AXIS_RIGHTY] / 32767.0f;
 }

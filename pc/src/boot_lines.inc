@@ -12,6 +12,11 @@ static void line_segment(uint32_t a, uint32_t b, unsigned ca, unsigned cb, int s
     {
         int clip[4] = { clip_x, clip_y, clip_w, clip_h };
         pc_hw_set_2d(!pc_gte_log || !pc_gte_projected(x0, y0) || !pc_gte_projected(x1, y1));
+        {
+            const int ends[2][2] = { { x0, y0 }, { x1, y1 } };
+            if (narrowed_2d(ends, 2))
+                pc_hw_set_narrowed();
+        }
         pc_hw_line(x0 + draw_x, y0 + draw_y, x1 + draw_x, y1 + draw_y, ca, cb, semi, tpage, clip,
             mask_set);
         pc_hw_mark((x0 < x1 ? x0 : x1) + draw_x, (y0 < y1 ? y0 : y1) + draw_y,

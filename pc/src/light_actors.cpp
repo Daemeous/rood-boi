@@ -33,6 +33,9 @@ namespace rood_lights {
 bool fixture_type_details(int index); /* fixture_editor.cpp */
 }
 extern "C" int pc_lights_sample_actor(int index, double t, char* out, int size);
+extern "C" int pc_lights_dropped(void); /* lights.cpp: the renderer budget last frame */
+extern "C" int pc_lights_wanted(void);
+extern "C" int pc_lights_budget;
 
 namespace {
 const ImVec4 overridden_colour(1.0f, 0.78f, 0.3f, 1); /* as room settings' overrides */
@@ -1907,6 +1910,8 @@ int actors_method(const Json& params, char* out, int size)
         pc_lights_set_time(t->type == Json::Number ? t->number : -1);
     if (const Json* a = params.get("animate"))
         animate = a->type == Json::Bool ? a->boolean : a->number != 0;
+    if (const Json* b = params.get("budget")) /* the Vulkan paths' light cap (0: every light) */
+        pc_lights_budget = (int)b->number;
     std::string extra;
     auto index_of = [&](int* index) {
         const Json* j = params.get("index");
@@ -2068,7 +2073,9 @@ int actors_method(const Json& params, char* out, int size)
     }
     std::string text = "{\"zone\":" + std::to_string(zone) + ",\"room\":" + std::to_string(room) + ",\"dirty\":"
         + (dirty ? "true" : "false") + ",\"time\":" + num(light_time()) + ",\"animate\":" + (animate ? "true" : "false")
-        + ",\"selected\":" + std::to_string(selected_actor) + ",\"light_count\":" + std::to_string(lights.size()) + ",\"actors\":[";
+        + ",\"selected\":" + std::to_string(selected_actor) + ",\"light_count\":" + std::to_string(lights.size())
+        + ",\"lights_wanted\":" + std::to_string(pc_lights_wanted()) + ",\"dropped\":" + std::to_string(pc_lights_dropped()) + ",\"budget\":" + std::to_string(pc_lights_budget)
+        + ",\"actors\":[";
     for (int i = 0; i < (int)actors.size(); i++)
         text += (i ? "," : "") + actor_json(i);
     text += "]" + extra;

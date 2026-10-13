@@ -34,6 +34,12 @@ extern int pc_hw_active;
 int pc_native_room = 2; /* native without the reference packets (VRAM readers sync from the target) */
 int pc_native_actors = 2;
 int pc_native_actor_order = 1;
+/* Room lists resolve near-coplanar surfaces in the PS1's draw order
+ * (render_draw_list): a decal on a table, a notice on a wall. 0: plain
+ * depth test. The slack: how far behind the nearest room surface (relative,
+ * plus GTE units) a polygon still counts as lying on it. */
+int pc_native_room_order = 1;
+float pc_native_room_slack[2] = { 0.004f, 2.0f };
 int pc_native_occlusion = 1;
 int pc_native_blend = 1;
 int pc_native_objects = 1;
@@ -985,6 +991,73 @@ static int instance_palette(const draw_list* list, const list_instance* in, floa
             blend_transform(&was[b], &now[b], t, &out[b]);
     return 1;
 }
+/* Where list `id` draws in `target` (native VRAM pixels x, y, w, h within
+ * its drawing area; MSAA copies and syncs only that much): each instance's
+ * per-bone boxes of its polygons through the palette it is drawn with,
+ * projected. Returns 0 (with the whole drawing area) when that cannot be
+ * told (a vertex at or behind the eye), 1 otherwise (w = 0: nothing). */
+int render_list_screen_bounds(uint32_t id, const render_target* target, int out[4])
+{
+    memcpy(out, target->clip, 4 * sizeof(int));
+    draw_list* list = find_list(id);
+    if (!list)
+        return 0;
+    const render_camera* cam = target->camera ? target->camera : &list->camera;
+    float hx = cam->h * (list->camera.widescreen ? 0.75f : 1.0f);
+    float lo[2] = { 1e30f, 1e30f }, hi[2] = { -1e30f, -1e30f };
+    static float box[RENDER_MAX_BONES][6];
+    render_transform palette[RENDER_MAX_BONES];
+    for (int i = 0; i < list->count; i++) {
+        const list_instance* in = &list->instances[i];
+        mesh_slot* mesh = lookup(in->mesh);
+        if (!mesh || in->bones <= 0 || in->bones > RENDER_MAX_BONES)
+            continue;
+        for (int b = 0; b < in->bones; b++)
+            box[b][0] = box[b][1] = box[b][2] = 1e30f, box[b][3] = box[b][4] = box[b][5] = -1e30f;
+        for (int p = 0; p < mesh->polygons; p++) {
+            const render_polygon* poly = &mesh->cpu[p];
+            int corners = poly->flags & RENDER_POLY_QUAD ? 4 : 3;
+            for (int c = 0; c < corners; c++) {
+                int b = poly->bone[c] < in->bones ? poly->bone[c] : 0;
+                for (int k = 0; k < 3; k++) {
+                    box[b][k] = fminf(box[b][k], poly->position[c][k]);
+                    box[b][k + 3] = fmaxf(box[b][k + 3], poly->position[c][k]);
+                }
+            }
+        }
+        instance_palette(list, in, target->t, palette);
+        for (int b = 0; b < in->bones; b++) {
+            if (box[b][0] > box[b][3])
+                continue;
+            for (int c = 0; c < 8; c++) {
+                float m[3] = { box[b][(c & 1) ? 3 : 0], box[b][(c & 2) ? 4 : 1], box[b][(c & 4) ? 5 : 2] }, w[3], v[3];
+                for (int k = 0; k < 3; k++)
+                    w[k] = palette[b].rotation[k][0] * m[0] + palette[b].rotation[k][1] * m[1]
+                         + palette[b].rotation[k][2] * m[2] + palette[b].translation[k];
+                for (int k = 0; k < 3; k++)
+                    v[k] = cam->rotation[k][0] * w[0] + cam->rotation[k][1] * w[1] + cam->rotation[k][2] * w[2]
+                         + cam->translation[k];
+                if (v[2] <= 1.0f)
+                    return 0;
+                float sx = cam->ofx + hx * v[0] / v[2], sy = cam->ofy + cam->h * v[1] / v[2];
+                lo[0] = fminf(lo[0], sx), lo[1] = fminf(lo[1], sy);
+                hi[0] = fmaxf(hi[0], sx), hi[1] = fmaxf(hi[1], sy);
+            }
+        }
+    }
+    if (lo[0] > hi[0]) {
+        out[2] = out[3] = 0;
+        return 1;
+    }
+    /* Into the drawing area (the drawing offset), with a margin. */
+    int x0 = (int)floorf(lo[0]) + target->ox - 4, y0 = (int)floorf(lo[1]) + target->oy - 4;
+    int x1 = (int)ceilf(hi[0]) + target->ox + 4, y1 = (int)ceilf(hi[1]) + target->oy + 4;
+    const int* clip = target->clip;
+    x0 = x0 < clip[0] ? clip[0] : x0, y0 = y0 < clip[1] ? clip[1] : y0;
+    x1 = x1 > clip[0] + clip[2] ? clip[0] + clip[2] : x1, y1 = y1 > clip[1] + clip[3] ? clip[1] + clip[3] : y1;
+    out[0] = x0, out[1] = y0, out[2] = x1 > x0 ? x1 - x0 : 0, out[3] = y1 > y0 ? y1 - y0 : 0;
+    return 1;
+}
 /* The polygon's effective code and texture page in instance `in` (blend,
  * texture override), as the geometry shader computes them. */
 static unsigned effective_code(const list_instance* in, const render_polygon* poly)
@@ -1326,17 +1399,19 @@ static const char* geometry_source =
     "uniform ivec2 instance_blend;\n" /* on, tpage blend bits (render_instance.blend) */
     "uniform int translucent;\n" /* 0: opaque polygons only, 1: semi-transparent ones only, 2: all (effects) */
     "uniform ivec2 forced;\n" /* room translucent entries: decided by the game, UVs halved */
-    "noperspective out vec3 v_color_affine;\n"
-    "noperspective out vec2 v_uv_affine;\n"
-    "smooth out vec3 v_color_persp;\n"
-    "smooth out vec2 v_uv_persp;\n"
-    "smooth out float v_z;\n"
+    "uniform int order;\n" /* room lists: the instance's first polygon in the list | sequence shift << 24 */
+    "noperspective centroid out vec3 v_color_affine;\n"
+    "noperspective centroid out vec2 v_uv_affine;\n"
+    "smooth centroid out vec3 v_color_persp;\n"
+    "smooth centroid out vec2 v_uv_persp;\n"
+    "smooth centroid out float v_z;\n"
+    "flat out uint v_order;\n" /* room polygons: PS1 draw order key (bucket << 10 | sequence; smaller paints later) */
     "flat out uvec4 v_state;\n" /* flags, tpage, clut, 0 */
     "flat out vec3 v_normal;\n"
     "flat out uvec4 v_bounds;\n"
     "uniform vec4 cut_focus;\n" /* the editor's cutaway: focus (view space, rows' scales divided out), radius */
     "uniform vec4 cut_scale;\n" /* 1 / the view rows' scales; w: ghost coverage */
-    "smooth out vec3 v_view;\n"
+    "smooth centroid out vec3 v_view;\n"
     "flat out int v_cut;\n" /* bit 0: cut; bits 1-3: the triangle's real edges (opposite corner 0, 1, 2) */
     "noperspective out vec3 v_bary;\n" /* the corner weights (a ghost's edges) */
     "vec3 p[4];\n"
@@ -1349,6 +1424,7 @@ static const char* geometry_source =
     "float z_near = 0.0;\n" /* sprites: tested and written at their nearest point */
     "int cut = 0;\n"
     "int tri_edges = 7, corner = 0;\n" /* a quad's diagonal is no edge */
+    "uint order_key = 0u;\n"
     "vec2 screen(vec3 q) { return vec2(offset.x + projection.x * q.x / q.z, offset.y + projection.y * q.y / q.z); }\n"
     "float nclip(vec2 a, vec2 b, vec2 c) { return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y); }\n"
     "void emit(int i) {\n"
@@ -1365,6 +1441,7 @@ static const char* geometry_source =
     "    v_view = q * cut_scale.xyz;\n"
     "    v_cut = cut | (tri_edges << 1);\n"
     "    v_bary = vec3(corner == 0 ? 1.0 : 0.0, corner == 1 ? 1.0 : 0.0, corner == 2 ? 1.0 : 0.0);\n"
+    "    v_order = order_key;\n"
     "    EmitVertex();\n"
     "}\n"
     "void triangle(int a, int b, int c) {\n"
@@ -1507,6 +1584,10 @@ static const char* geometry_source =
     "    if (bucket < rules.x) return;\n"
     "    bucket += rules.w;\n"
     "    if (bucket < rules.x || bucket >= rules.y) return;\n"
+    /* The PS1 paints the room back to front by bucket; within a bucket the
+     * polygon linked first paints last (linking at the bucket's head). */
+    "    order_key = (uint(clamp(bucket, 0, 16383)) << 10)\n"
+    "        | min(uint(((order & 0xffffff) + gl_PrimitiveIDIn) >> (order >> 24)), 1023u);\n"
     /* Distance UV halving, except for polygons the PS1 subdivides (large
      * on screen and near: their leaves keep full UVs). */
     "    bool subdivided = false;\n"
@@ -1545,15 +1626,16 @@ static const char* geometry_source =
     "}\n";
 static const char* fragment_source =
     "#version 330 core\n"
-    "noperspective in vec3 v_color_affine;\n"
-    "noperspective in vec2 v_uv_affine;\n"
-    "smooth in vec3 v_color_persp;\n"
-    "smooth in vec2 v_uv_persp;\n"
-    "smooth in float v_z;\n"
+    "noperspective centroid in vec3 v_color_affine;\n"
+    "noperspective centroid in vec2 v_uv_affine;\n"
+    "smooth centroid in vec3 v_color_persp;\n"
+    "smooth centroid in vec2 v_uv_persp;\n"
+    "smooth centroid in float v_z;\n"
+    "flat in uint v_order;\n"
     "flat in uvec4 v_state;\n"
     "flat in vec3 v_normal;\n"
     "flat in uvec4 v_bounds;\n"
-    "smooth in vec3 v_view;\n"
+    "smooth centroid in vec3 v_view;\n"
     "flat in int v_cut;\n"
     "noperspective in vec3 v_bary;\n"
     "uniform vec4 cut_focus;\n"
@@ -1570,7 +1652,11 @@ static const char* fragment_source =
     "uniform int painter;\n" /* objects drawn in PS1 order (render_list_order) */
     "uniform sampler2D surface_before;\n" /* the native surfaces' depth before this list */
     "uniform int semi_pass;\n" /* translucent draws: 1 opaque texels only, 2 translucent texels only */
-    "uniform int surface_test;\n" /* translucent draws: hidden behind surface_depth (1 exact, 2 room tolerance, 3 decal slack) */
+    "uniform int surface_test;\n" /* translucent draws: hidden behind surface_depth (1 exact, 2 room tolerance, 3 decal slack);
+                                     * 4: a room list's ordered pass (near-coplanar slack, room_slack) */
+    "uniform vec2 room_slack;\n" /* surface_test 4: relative, absolute (GTE units) */
+    "uniform int room_order;\n" /* a room list's ordered pass: depth is the PS1 draw order key */
+    "uniform int layer_slack;\n" /* objects, other room blocks: tested room_slack nearer (1), and written so into the surfaces (2) */
     "uniform ivec4 uv_window[65];\n" /* animated materials: base u, v, size u, v */
     "uniform vec4 uv_shift[65];\n" /* interpolated offset still to come u, v; wrap period u, v */
     "layout(location = 0) out vec4 color;\n"
@@ -1644,22 +1730,29 @@ static const char* fragment_source =
     "        if (cover < bayer4(ivec2(gl_FragCoord.xy))) discard;\n"
     "    }\n"
     "    float depth = clamp(v_z / 65536.0, 0.0, 1.0);\n"
+    /* Objects and other room blocks are painted after the room surfaces
+     * they lie on (their buckets are nearer): tested as if room_slack
+     * nearer, so a model or floor marker on a surface wins as on the PS1. */
+    "    float tested = layer_slack != 0 ? max(depth * (1.0 - room_slack.x) - room_slack.y / 65536.0, 0.0) : depth;\n"
     /* PS1 order within a model: hidden only by what was drawn before the
      * model (the room, other models); its own polygons paint over each
      * other in the order drawn. */
-    "    if (painter != 0 && depth > texelFetch(surface_before, ivec2(gl_FragCoord.xy), 0).r)\n"
+    "    if (painter != 0 && tested > texelFetch(surface_before, ivec2(gl_FragCoord.xy), 0).r)\n"
     "        discard;\n"
-    "    if (depth_pass != 0 && painter == 0 && depth > texelFetch(surface_depth, ivec2(gl_FragCoord.xy), 0).r + 1.0 / 4194304.0)\n"
+    "    if (depth_pass != 0 && painter == 0 && tested > texelFetch(surface_depth, ivec2(gl_FragCoord.xy), 0).r + 1.0 / 4194304.0)\n"
     "        discard;\n"
     "    if (surface_test != 0) {\n"
     "        float surface_z = texelFetch(surface_depth, ivec2(gl_FragCoord.xy), 0).r;\n"
     /* Room translucent polygons lie on or against room surfaces (glass in
      * its frame, light over a floor): the packet path's room slack. */
-    "        if (surface_test == 1 ? depth > surface_z + 1.0 / 4194304.0\n"
+    "        if (surface_test == 1 ? tested > surface_z + 1.0 / 4194304.0\n"
     "            : surface_test == 2 ? surface_z < 1.0 && v_z > surface_z * 65536.0 * 1.002 + 1.0\n"
     /* Drop shadows and effects: the packet path's slack for things on or
      * against surfaces (decals, shadows on the floor). */
-    "                                : surface_z < 1.0 && v_z > surface_z * 65536.0 * 1.02 + 8.0)\n"
+    "            : surface_test == 3 ? surface_z < 1.0 && v_z > surface_z * 65536.0 * 1.02 + 8.0\n"
+    /* A room list's ordered pass: only fragments on (or within the slack
+     * of) the nearest room surface take part. */
+    "                                : v_z > surface_z * 65536.0 * (1.0 + room_slack.x) + room_slack.y)\n"
     "            discard;\n"
     "    }\n"
     "    uint code = v_state.x, tpage = v_state.y, clut = v_state.z;\n"
@@ -1710,12 +1803,12 @@ static const char* fragment_source =
     "    normal_out = vec4(normalize(v_normal) * 0.5 + 0.5, ghost ? 0.55 : surface);\n"
     "    albedo_out = vec4(albedo, 1.0);\n"
     "    shade_out = shade;\n"
-    "    gl_FragDepth = depth;\n"
+    "    gl_FragDepth = room_order != 0 ? float(v_order) / 16777215.0 : layer_slack == 2 ? tested : depth;\n"
     "}\n";
 static GLint u_bone_rotation, u_bone_translation, u_normal_matrix, u_projection, u_offset, u_rules, u_split, u_tint,
     u_clip_z, u_perspective, u_filtering, u_window, u_mask_set, u_vram, u_objects, u_zsf3, u_override_color,
     u_override_texture, u_surface, u_depth_pass, u_surface_depth, u_painter, u_surface_before, u_instance_blend,
-    u_translucent, u_forced, u_semi_pass, u_surface_test, u_cut_focus, u_cut_scale, u_instance_cut, u_uv_offset, u_uv_count, u_uv_window,
+    u_translucent, u_forced, u_semi_pass, u_surface_test, u_order, u_room_slack, u_room_order, u_layer_slack, u_cut_focus, u_cut_scale, u_instance_cut, u_uv_offset, u_uv_count, u_uv_window,
     u_uv_shift;
 static GLuint element_buffer; /* PS1 draw order, streamed per list */
 
@@ -1764,6 +1857,10 @@ static int ensure_program(void)
     U(forced);
     U(semi_pass);
     U(surface_test);
+    U(order);
+    U(room_slack);
+    U(room_order);
+    U(layer_slack);
     U(cut_focus);
     U(cut_scale);
     U(instance_cut);
@@ -1848,18 +1945,36 @@ static mesh_slot* use_instance(const draw_list* list, const list_instance* in, c
     gl_BindVertexArray(mesh->vao);
     return mesh;
 }
+/* The room order key's sequence (within a bucket): the list's polygons in
+ * the order the game walks them, shifted right to fit 10 bits. */
+static int order_shift(const draw_list* list)
+{
+    int total = 0, shift = 0;
+    for (int i = 0; i < list->count; i++) {
+        mesh_slot* mesh = lookup(list->instances[i].mesh);
+        if (mesh)
+            total += mesh->polygons;
+    }
+    while (shift < 20 && (total - 1) >> shift >= 1024)
+        ++shift;
+    return shift;
+}
 static void draw_instances(const draw_list* list, const render_target* target, const render_camera* cam, int pass,
     int* interpolated)
 {
     int painter = list->order_used > 0 && list->rules.objects && target->surface_before;
     gl_Uniform1i(u_painter, painter);
     if (!painter) {
+        int base = 0, shift = order_shift(list);
         for (int i = 0; i < list->count; i++) {
             if (list->instances[i].blend)
                 continue; /* wholly semi-transparent: drawn at translucent markers */
             mesh_slot* mesh = use_instance(list, &list->instances[i], target, cam, pass, interpolated);
-            if (mesh)
+            if (mesh) {
+                gl_Uniform1i(u_order, base | shift << 24);
                 gl_DrawArrays(GL_LINES_ADJACENCY, 0, mesh->polygons * 4);
+                base += mesh->polygons;
+            }
         }
     } else {
         /* PS1 order: each polygon paints over the ones before it (across
@@ -1924,6 +2039,12 @@ static void draw_instances(const draw_list* list, const render_target* target, c
         }
 }
 
+/* Objects and other room blocks lying on room surfaces (pc_native_room_order):
+ * 1 when they test with the slack. */
+static int layer_slack(const draw_list* list)
+{
+    return pc_native_room_order && (list->rules.objects || list->rules.layered) && !list->rules.effects;
+}
 /* State shared by list and translucent draws: framebuffer, viewport,
  * drawing area, program and the list's uniforms. */
 static const render_camera* begin_draw(const draw_list* list, const render_target* target, GLuint fbo)
@@ -1953,6 +2074,10 @@ static const render_camera* begin_draw(const draw_list* list, const render_targe
     gl_Uniform2i(u_forced, 0, 0);
     gl_Uniform1i(u_semi_pass, 0);
     gl_Uniform1i(u_surface_test, 0);
+    gl_Uniform1i(u_order, 0);
+    gl_Uniform1i(u_room_order, 0);
+    gl_Uniform2f(u_room_slack, pc_native_room_slack[0], pc_native_room_slack[1]);
+    gl_Uniform1i(u_layer_slack, layer_slack(list));
     gl_Uniform1i(u_perspective, target->perspective);
     gl_Uniform1i(u_filtering, target->filtering);
     gl_Uniform1ui(u_window, target->window);
@@ -1994,6 +2119,50 @@ static void end_draw(void)
     gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+static int draw_room_ordered(draw_list* list, const render_target* target)
+{
+    static const float far_depth = 1.0f;
+    const render_camera* cam = begin_draw(list, target, target->object_fbo);
+    uv_trace_record(list, target->t);
+    int interpolated = 0;
+    /* A: the nearest surface into the surfaces' depth. */
+    gl_ClearBufferfv(GL_DEPTH, 0, &far_depth);
+    gl_ColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    draw_instances(list, target, cam, 0, &interpolated);
+    gl_Disable(GL_SCISSOR_TEST);
+    if (target->surface_sync) /* MSAA: pass A's depth into the surfaces pass B reads */
+        target->surface_sync();
+    gl_Enable(GL_SCISSOR_TEST);
+    /* B: colour and G-buffer, PS1 order among the surfaces on it. */
+    gl_BindFramebuffer(GL_FRAMEBUFFER, target->fbo);
+    gl_ClearBufferfv(GL_DEPTH, 0, &far_depth);
+    gl_ColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    gl_ActiveTexture(GL_TEXTURE1);
+    gl_BindTexture(GL_TEXTURE_2D, target->surface_depth);
+    gl_ActiveTexture(GL_TEXTURE0);
+    gl_Uniform1i(u_surface_test, 4);
+    gl_Uniform1i(u_room_order, 1);
+    draw_instances(list, target, cam, 1, &interpolated);
+    gl_Uniform1i(u_surface_test, 0);
+    gl_Uniform1i(u_room_order, 0);
+    /* C: the real depth of the surfaces drawn. */
+    gl_ColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    gl_DepthFunc(GL_ALWAYS);
+    gl_Uniform1i(u_depth_pass, 1);
+    draw_instances(list, target, cam, 1, &interpolated);
+    gl_Uniform1i(u_depth_pass, 0);
+    gl_DepthFunc(GL_LESS);
+    gl_ColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    gl_ActiveTexture(GL_TEXTURE1);
+    gl_BindTexture(GL_TEXTURE_2D, 0);
+    gl_ActiveTexture(GL_TEXTURE0);
+    end_draw();
+    if (target->count_stats)
+        counting.lists++;
+    else
+        counting.interpolated_instances += interpolated;
+    return list->count;
+}
 /* Draw list `id` into the target (render_gl.h). A room list resets depth
  * over the drawing area first: in the ordering table, what came before it
  * is behind it. An object list (or a layered room list) is depth-tested
@@ -2011,6 +2180,16 @@ int render_draw_list(uint32_t id, const render_target* target)
     int layered = list->rules.objects || list->rules.layered;
     if (layered && (!target->object_fbo || !target->surface_depth))
         return -1;
+    /* A room list in PS1 order (pc_native_room_order): pass A finds the
+     * nearest room surface per pixel (the native surfaces' depth, through
+     * object_fbo); pass B paints the polygons on it (within the slack) with
+     * the PS1's draw order deciding between them (the order key as depth,
+     * smaller paints later); pass C writes the winning depth into the frame
+     * (what post effects, lighting and the copy to the surfaces read). Real
+     * occlusion stays per pixel; only near-coplanar surfaces (a document on
+     * a table, a notice on a wall) follow the ordering table. */
+    if (!layered && pc_native_room_order && target->object_fbo && target->surface_depth)
+        return draw_room_ordered(list, target);
     const render_camera* cam = begin_draw(list, target, layered ? target->object_fbo : target->fbo);
     uv_trace_record(list, target->t);
     if (!layered) {
@@ -2023,9 +2202,17 @@ int render_draw_list(uint32_t id, const render_target* target)
         gl_ActiveTexture(GL_TEXTURE0);
     }
     int interpolated = 0;
+    if (layered && layer_slack(list))
+        gl_Uniform1i(u_layer_slack, 2); /* pass 1 writes the surfaces' depth */
     draw_instances(list, target, cam, 0, &interpolated);
     if (layered) {
+        gl_Uniform1i(u_layer_slack, layer_slack(list));
         /* Pass 2: the visible fragments' depth into the frame's depth. */
+        if (target->surface_sync) { /* MSAA: pass 1's depth into the surfaces pass 2 reads */
+            gl_Disable(GL_SCISSOR_TEST);
+            target->surface_sync();
+            gl_Enable(GL_SCISSOR_TEST);
+        }
         gl_BindFramebuffer(GL_FRAMEBUFFER, target->fbo);
         gl_ColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
         gl_DepthFunc(GL_ALWAYS);

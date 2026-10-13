@@ -166,6 +166,9 @@ typedef struct {
     uint64_t serial; /* frames submitted so far */
     float timestamp_period;
     VkDeviceSize scratch_alignment; /* acceleration structure build scratch */
+    VkSampleCountFlags msaa_counts; /* multisampled colour + depth, drawn and sampled */
+    int sample_locations; /* VK_EXT_sample_locations enabled */
+    VkSampleCountFlags sample_location_counts; /* counts that take custom (pixel-centre) locations */
 } vk_context;
 extern vk_context vk;
 extern int pc_vk_active;
@@ -202,6 +205,8 @@ typedef struct {
     int width, height;
 } vk_image;
 int vk_image_create(vk_image* image, int width, int height, VkFormat format, VkImageUsageFlags usage);
+/* The same with `samples` per pixel (2, 4, 8: multisampled). */
+int vk_image_create_ms(vk_image* image, int width, int height, VkFormat format, VkImageUsageFlags usage, int samples);
 void vk_image_destroy(vk_image* image);
 void vk_image_destroy_later(vk_image* image);
 
@@ -268,6 +273,11 @@ typedef struct {
      * mode 0-3; 4: alpha "over" for the overlay-style passes). */
     unsigned write_masks[4];
     int blend;
+    /* Multisampling: samples per pixel (0/1 single), and with centre set
+     * every sample at the pixel centre (VK_EXT_sample_locations, when
+     * vk.sample_location_counts has the count): rasterised as if
+     * single-sampled, every sample written (2D in multisampled targets). */
+    int samples, centre;
     /* Depth test/write/compare are dynamic state. */
 } vk_pipeline_desc;
 VkPipeline vk_pipeline(const vk_pipeline_desc* desc);

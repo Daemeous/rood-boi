@@ -32,7 +32,8 @@
 extern "C" {
 extern int pc_hw_active, pc_hw_scale;
 int pc_hw_set_scale(int scale);
-extern int pc_gl_filter, pc_gl_aa, pc_gl_aspect, pc_gte_widescreen, pc_hw_perspective, pc_gl_show_depth;
+extern int pc_hw_scale_setting;
+extern int pc_gl_filter, pc_gl_aspect, pc_gte_widescreen, pc_hw_perspective, pc_gl_show_depth;
 extern int pc_post_flags, pc_hw_subpixel, pc_hw_interpolate, pc_hw_texture_filter, pc_interp_skeleton,
     pc_interp_holds, pc_interp_uv, pc_present_rate;
 extern int pc_post_focus_mode;
@@ -378,10 +379,11 @@ static void graphics_panel()
     if (ImGui::IsItemDeactivatedAfterEdit())
         apply_scale();
     if (pc_hw_active) {
-        int scale = pc_hw_scale;
+        int scale = pc_hw_scale_setting;
         if (ImGui::SliderInt("Internal resolution", &scale, 1, 8, "%dx"))
             pc_hw_set_scale(scale);
-        ImGui::Text("Render target %d x %d", 1024 * pc_hw_scale, 512 * pc_hw_scale);
+        ImGui::Text("Render target %d x %d%s", 1024 * pc_hw_scale, 512 * pc_hw_scale,
+            pc_hw_scale != pc_hw_scale_setting ? " (supersampling)" : "");
     } else {
 #ifdef ROOD_VULKAN
         if (pc_vk_on())
@@ -390,8 +392,11 @@ static void graphics_panel()
 #endif
             ImGui::TextDisabled("Hardware rasterizer off (ROOD_SCALE=0 or no OpenGL 3.3)");
     }
-    static const char* filters[] = { "Nearest", "Bilinear", "Supersample (SSAA)" };
-    ImGui::Combo("Filter", &pc_gl_filter, filters, 3); /* FXAA: Lighting quality > Display */
+    static const char* filters[] = { "Nearest", "Bilinear", "Box (texels under each pixel)" };
+    ImGui::Combo("Filter", &pc_gl_filter, filters, 3); /* anti-aliasing: Lighting quality > Display */
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        ImGui::SetTooltip("How the target's colours reach window pixels (lighting stays one texel per pixel);\n"
+                          "true supersampling: Lighting quality > Display > Supersampling");
     static const char* aspects[] = { "Native aspect", "Stretch to window", "Integer scale" };
     ImGui::Combo("Aspect", &pc_gl_aspect, aspects, 3);
     bool widescreen = pc_gte_widescreen != 0;
@@ -740,6 +745,13 @@ static void render_panel()
     bool occlusion = pc_native_occlusion != 0;
     if (ImGui::Checkbox("Native surfaces hide packets behind them", &occlusion))
         pc_native_occlusion = occlusion;
+    bool room_order = pc_native_room_order != 0;
+    if (ImGui::Checkbox("PS1 order for coplanar room surfaces", &room_order))
+        pc_native_room_order = room_order;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Room polygons lying on other room polygons (documents on a table, a notice on\n"
+                          "a wall, a rug on the floor) paint in the PS1's ordering-table order instead of\n"
+                          "z-fighting; occlusion stays per pixel beyond a small slack. Off: plain depth test.");
 }
 
 static void control_panel(double frame_ms)

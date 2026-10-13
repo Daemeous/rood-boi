@@ -13,14 +13,45 @@
 GTERegisters gteRegs;
 
 /* ROOD: widescreen projection and a log of projected screen positions.
- * pc_gte_widescreen scales projected X about OFX by 3/4 (16:9 Hor+); the
+ * pc_gte_widescreen scales projected X about the screen centre by 3/4 (16:9 Hor+); the
  * renderer then tells GTE-projected (3D) vertices from 2D ones by looking
  * their screen positions up in this short-lived log. */
 extern "C" {
 int pc_gte_widescreen;
-/* Set while the game projects screen furniture that the renderer anchors to
- * a screen edge (the area map): those projections are not narrowed. */
+/* Set while the game projects a point it places 2D at (labels and icons over
+ * characters, pc/src/widescreen.h): those projections are not narrowed (the
+ * renderer compresses that 2D like the rest). ROOD_WIDESCREEN_LAYOUT=0
+ * (pc_widescreen_layout, gpu_hw.c) narrows them too, as before. */
 int pc_gte_anchored;
+extern int pc_widescreen_layout __attribute__((weak));
+static int rood_narrow(void)
+{
+	return pc_gte_widescreen && !(pc_gte_anchored > 0 && (!&pc_widescreen_layout || pc_widescreen_layout != 0));
+}
+/* The screen's centre in GTE X (pc_display_env: half the display width).
+ * Narrowing is about it, not about OFX: a projection centred elsewhere (the
+ * menus draw Ashley left of the middle) keeps its place in the 4:3 layout,
+ * where the 2D compressed about the same centre expects it, and the view
+ * widens evenly on both sides. ROOD_WIDESCREEN_LAYOUT=0: about OFX (as
+ * before). */
+int pc_gte_centre = 160;
+static long long rood_centre16(void)
+{
+	if (&pc_widescreen_layout && pc_widescreen_layout == 0)
+		return (long long)C2_OFX;
+	return (long long)pc_gte_centre << 16;
+}
+/* OFX as a renderer projecting with H * 3/4 sees it in widescreen: centre +
+ * (OFX - centre) * 3/4, so sx = OFX' + 3/4 H x / z narrows about the centre
+ * like the GTE (room_native.c, actor_native.c, scene_capture.c). */
+float pc_gte_view_ofx(void)
+{
+	float ofx = (float)C2_OFX / 65536.0f;
+	if (!pc_gte_widescreen)
+		return ofx;
+	float c = (float)rood_centre16() / 65536.0f;
+	return c + (ofx - c) * 0.75f;
+}
 /* 256K slots, probed sixteen deep (a room re-projects each shared vertex for
  * every polygon using it, so a frame logs many entries per pixel; a shallower
  * table evicted entries still needed and dropped whole floor tiles to 2D for
@@ -60,7 +91,9 @@ static int rood_fresh(unsigned slot)
 int pc_gte_log = 1;
 static void rood_record_projection(int sx, int sy, int sz)
 {
-	if (!pc_gte_log)
+	/* (Widescreen keeps recording: the renderer leaves projected 2D packets
+	 * uncompressed, gpu_hw.c pc_hw_set_narrowed.) */
+	if (!pc_gte_log && !pc_gte_widescreen)
 		return;
 	unsigned key = ((unsigned)sx & 0xffff) | ((unsigned)sy << 16);
 	unsigned slot = (key * 2654435761u) >> ROOD_SLOT_SHIFT;
@@ -92,11 +125,22 @@ static void rood_record_projection(int sx, int sy, int sz)
 	rood_projected_depth[s] = (unsigned short)sz;
 	rood_projected_precise[s][0] = rood_last_precise[0];
 	rood_projected_precise[s][1] = rood_last_precise[1];
-	rood_projected_view[s][0] = C2_OFX;
+	/* (OFX as the scene camera reports it, pc_gte_view_ofx, when narrowed.) */
+	rood_projected_view[s][0] = rood_narrow() ? (int)(rood_centre16() + ((long long)C2_OFX - rood_centre16()) * 3 / 4) : C2_OFX;
 	rood_projected_view[s][1] = C2_OFY;
 	rood_projected_view[s][2] = C2_H;
 	rood_projected_caller[s] = pc_gte_caller;
 	rood_projected_age[s] = rood_generation;
+}
+/* A screen X the GTE narrowed (widescreen), as the 4:3 projection gives it:
+ * for 2D placed at a projected point (pc/src/widescreen.h). */
+int pc_gte_unnarrow_x(int sx)
+{
+	if (!pc_gte_widescreen || (&pc_widescreen_layout && pc_widescreen_layout == 0))
+		return sx;
+	int c = (int)(rood_centre16() >> 16);
+	int d = sx - c;
+	return c + (d >= 0 ? (d * 4 + 1) / 3 : -((-d * 4 + 1) / 3));
 }
 /* Advance once per drawn ordering table. */
 void pc_gte_new_generation(void)
@@ -549,16 +593,22 @@ int GTE_RotTransPers(int idx, int lm)
 	C2_SXY0 = C2_SXY1;
 	C2_SXY1 = C2_SXY2;
 	{
-		long long projected_x = (long long)C2_IR1 * h_over_sz3;
-		if (pc_gte_widescreen && !pc_gte_anchored)
-			projected_x = projected_x * 3 / 4; /* ROOD: 16:9 Hor+ */
-		C2_SX2 = Lm_G1(F((long long)C2_OFX + projected_x) >> 16);
+		long long sx = (long long)C2_OFX + (long long)C2_IR1 * h_over_sz3;
+		if (rood_narrow()) {
+			long long c = rood_centre16();
+			sx = c + (sx - c) * 3 / 4; /* ROOD: 16:9 Hor+ */
+		}
+		C2_SX2 = Lm_G1(F(sx) >> 16);
 	}
 	C2_SY2 = Lm_G2(F((long long)C2_OFY + ((long long)C2_IR2 * h_over_sz3)) >> 16);
 	{
 		float z = C2_SZ3 > 0 ? (float)C2_SZ3 : 1.0f;
-		float x = (float)C2_IR1 * (float)C2_H / z * (pc_gte_widescreen && !pc_gte_anchored ? 0.75f : 1.0f);
-		rood_last_precise[0] = (float)C2_OFX / 65536.0f + x;
+		float x = (float)C2_OFX / 65536.0f + (float)C2_IR1 * (float)C2_H / z;
+		if (rood_narrow()) {
+			float c = (float)rood_centre16() / 65536.0f;
+			x = c + (x - c) * 0.75f;
+		}
+		rood_last_precise[0] = x;
 		rood_last_precise[1] = (float)C2_OFY / 65536.0f + (float)C2_IR2 * (float)C2_H / z;
 	}
 	rood_record_projection(C2_SX2, C2_SY2, C2_SZ3);

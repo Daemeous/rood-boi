@@ -79,7 +79,20 @@ int main(int argc, char** argv)
     s.buttons[SDL_GAMEPAD_BUTTON_GUIDE] = s.buttons[SDL_GAMEPAD_BUTTON_TOUCHPAD] = 1;
     s.buttons[SDL_GAMEPAD_BUTTON_LEFT_PADDLE1] = s.buttons[SDL_GAMEPAD_BUTTON_MISC1] = 1;
     CHECK(pc_controller_mask(&s) == 0);
+    /* Bindings: Circle on south, Cross on none; keys. */
+    CHECK(pc_keyboard_bits(SDLK_Z) == (1u << 5) && pc_keyboard_bits(SDLK_C) == 0);
+    CHECK(pc_binding_setting("bind_pad_circle", "south") && pc_binding_setting("bind_pad_cross", "none"));
+    CHECK(pc_binding_setting("bind_key_circle", "c, return"));
+    memset(&s, 0, sizeof(s));
+    s.buttons[SDL_GAMEPAD_BUTTON_SOUTH] = 1;
+    CHECK(pc_controller_mask(&s) == (1u << 5));
+    s.buttons[SDL_GAMEPAD_BUTTON_SOUTH] = 0, s.buttons[SDL_GAMEPAD_BUTTON_EAST] = 1;
+    CHECK(pc_controller_mask(&s) == 0);
+    CHECK(pc_keyboard_bits(SDLK_C) == (1u << 5) && pc_keyboard_bits(SDLK_Z) == 0
+          && pc_keyboard_bits(SDLK_RETURN) == ((1u << 5) | (1u << 11)));
+    pc_bindings_reset();
+    CHECK(pc_keyboard_bits(SDLK_Z) == (1u << 5) && pc_controller_mask(&s) == (1u << 5));
     puts("PASS: positional gamepad mapping (east confirms, south cancels), shoulders, Start/Select, "
-         "stick clicks, stick dead zone, D-pad/stick overlap, triggers");
+         "stick clicks, stick dead zone, D-pad/stick overlap, triggers, rebinding");
     return 0;
 }

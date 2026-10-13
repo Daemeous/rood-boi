@@ -952,15 +952,16 @@ void func_800AEF94(MATRIX* camera)
                     extern int sprintf(char*, const char*, ...);
                     if (!reported++) {
                         char line[96];
-                        sprintf(line, "[actor] slot %d is attached to bone %d of empty slot %d", i,
+                        sprintf(line,
+                            "[actor] slot %d is attached to bone %d of empty slot %d", i,
                             actor->unk0.unk13, actor->unk0.unk12);
                         pc_log(line);
                     }
                     func_800B28A8(actor, &zero, 0U);
                 } else
 #endif
-                func_800B28A8(
-                    actor, &entries[actor->unk0.unk12]->bones[actor->unk0.unk13], 0U);
+                    func_800B28A8(
+                        actor, &entries[actor->unk0.unk12]->bones[actor->unk0.unk13], 0U);
             } else {
                 func_800B28A8(actor, camera, 0U);
                 attachmentId = actor->unk17FD;

@@ -81,7 +81,7 @@ typedef struct {
      * rows keep the GTE matrix's scales (X carries the pixel aspect). */
     float rotation[3][3], translation[3];
     float h, ofx, ofy; /* GTE H and screen offset (pixels) */
-    int widescreen; /* 16:9 Hor+: projected X * 3/4 about OFX (pc_gte_widescreen) */
+    int widescreen; /* 16:9 Hor+: H x * 3/4 (ofx: pc_gte_view_ofx, narrowed about the screen centre) */
 } render_camera;
 /* The PS1 rules room polygons follow (BATTLE/2EA3C.s): a polygon is kept when
  * its sort bucket (largest vertex depth >> 2, plus the instance's bias) lies
@@ -361,6 +361,15 @@ extern int pc_native_actor_order;
 /* Packets drawn after a native list are hidden where they are behind it
  * (with a small tolerance, so decals and drop shadows on the floor stay). */
 extern int pc_native_occlusion;
+/* Room lists (1, default): room polygons on or within a small slack of the
+ * nearest room surface paint in the PS1's ordering-table order (documents
+ * on a table, notices on walls, rugs) instead of z-fighting; real
+ * occlusion stays per pixel. 0: plain depth test. Settings key
+ * native_room_order, ROOD_NATIVE_ROOM_ORDER at startup, RPC graphics
+ * room_order (room_slack, room_slack_units
+ * tune pc_native_room_slack: relative, GTE units). */
+extern int pc_native_room_order;
+extern float pc_native_room_slack[2];
 /* Semi-transparent polygons of the native room and objects (the room's
  * window light and glass, characters' translucent records, the blended
  * builders func_800B516C/func_800B5C30): 0 legacy packets; 1 native

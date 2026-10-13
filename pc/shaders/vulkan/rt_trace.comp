@@ -6,6 +6,7 @@
 // shadows are on) and the lighting signature per GI pixel (ptgi.c's trace pass, with
 // hardware ray queries instead of the CPU-built BVH).
 layout(local_size_x = 8, local_size_y = 8) in;
+#define LIGHT_LIST 11
 #include "rt_lights.glsl"
 #include "rt_common.glsl"
 layout(binding = 4, rgba32f) uniform readonly image2D position_in; // world xyz, w 1 = surface, 2 = moving
@@ -58,59 +59,101 @@ vec3 emitted(vec3 p, vec3 n) {
     }
     return emitter_col[i].rgb * a * emitter_light * all_ / weights[i];
 }
-// Direct light from the dynamic lights at a world point, with shadow rays.
+// Many lights (pc/docs/Vulkan_Renderer.md): up to EXACT_LIGHTS lights that
+// reach a point are each traced, as before; past that, the shadow rays go to
+// lights picked in proportion to their unshadowed light there (weighted
+// reservoir sampling in one pass over the list), so the rays per pixel stay
+// flat however many lights the room has, and the denoisers (temporal
+// accumulation, NRD) average the rest.
+const int EXACT_LIGHTS = 8;
+vec3 jittered_centre(int i) {
+    vec3 centre = lpos(i).xyz;
+    if (lcol(i).w > 1.5) return centre + lright(i).xyz * (rand() * 2.0 - 1.0) + lup(i).xyz * (rand() * 2.0 - 1.0);
+    vec3 r = vec3(rand(), rand(), rand()) * 2.0 - 1.0;
+    return centre + normalize(r + 1e-4) * pow(rand(), 0.333) * point_size(i);
+}
+// Light i at p unshadowed, as luminance (the sampling weight).
+float light_weight(int i, vec3 p, vec3 n) {
+    vec3 l; float d;
+    return light_falloff(i, lpos(i).xyz, p, n, l, d) * dot(lcol(i).rgb, vec3(0.299, 0.587, 0.114));
+}
+// Direct light from one light at p through its shadow ray (0 when blocked).
+vec3 light_through(int i, vec3 p, vec3 n) {
+    vec3 l; float d, th; int hit; vec2 bc;
+    float a = light_falloff(i, jittered_centre(i), p, n, l, d);
+    if (a <= 0.0 || trace(p + n * 1.5, l, d - max(3.0, lup(i).w), true, n, 0.0, th, hit, bc)) return vec3(0.0);
+    return lcol(i).rgb * a;
+}
+// Direct light from the dynamic lights at a world point (GI bounces), with shadow rays.
 vec3 direct(vec3 p, vec3 n) {
     vec3 sum = vec3(0.0);
-    for (int i = 0; i < light_count; i++) {
-        vec3 centre = light_pos[i].xyz;
-        if (light_col[i].w > 1.5) {
-            vec3 rr = light_right[i].xyz, ru = light_up[i].xyz;
-            centre += rr * (rand() * 2.0 - 1.0) + ru * (rand() * 2.0 - 1.0);
-        } else {
-            centre += (vec3(rand(), rand(), rand()) - 0.5) * 2.0 * point_size(i);
+    if (light_count <= EXACT_LIGHTS) {
+        for (int i = 0; i < light_count; i++) sum += light_through(i, p, n);
+    } else { // one light, picked in proportion to its unshadowed light
+        float all_ = 0.0, w_pick = 0.0; int pick = -1;
+        for (int i = 0; i < light_count; i++) {
+            float w = light_weight(i, p, n);
+            if (w <= 0.0) continue;
+            all_ += w;
+            if (rand() * all_ < w) { pick = i; w_pick = w; }
         }
-        vec3 to = centre - p; float d = length(to); vec3 l = to / max(d, 1e-3);
-        float x = clamp(d / light_pos[i].w, 0.0, 1.0);
-        float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);
-        if (light_col[i].w > 1.5) a *= max(dot(-l, light_dir[i].xyz), 0.0);
-        else if (light_col[i].w > 0.5) a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));
-        if (a <= 0.0) continue;
-        float th; int hit; vec2 bc;
-        if (trace(p + n * 1.5, l, d - max(3.0, light_up[i].w), true, n, 0.0, th, hit, bc)) continue;
-        sum += light_col[i].rgb * a;
+        if (pick >= 0) sum = light_through(pick, p, n) * (all_ / w_pick);
     }
     return sum + emitted(p, n);
 }
-// Shadow visibility of the shadow-casting lights at a G-buffer surface:
-// each light's unshadowed contribution weights its traced visibility.
-float visibility(vec3 p, vec3 n) {
-    float lit = 0.0, all_ = 0.0;
-    for (int j = 0; j < light_count * shadow_samples; j++) {
-        int i = j / shadow_samples;
-        if (light_shadow(i) == 0) continue;
-        vec3 centre = light_pos[i].xyz;
-        vec3 to = centre - p; float d = length(to); vec3 l = to / max(d, 1e-3);
-        float x = clamp(d / light_pos[i].w, 0.0, 1.0);
-        float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);
-        if (light_col[i].w > 1.5) a *= max(dot(-l, light_dir[i].xyz), 0.0);
-        else if (light_col[i].w > 0.5) a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));
-        float w = a * dot(light_col[i].rgb, vec3(0.299, 0.587, 0.114));
-        if (w <= 0.0) continue;
-        if (light_col[i].w > 1.5) centre += light_right[i].xyz * (rand() * 2.0 - 1.0) + light_up[i].xyz * (rand() * 2.0 - 1.0);
-        else {
-            vec3 r = vec3(rand(), rand(), rand()) * 2.0 - 1.0;
-            centre += normalize(r + 1e-4) * pow(rand(), 0.333) * point_size(i);
-        }
-        to = centre - p; d = length(to); l = to / max(d, 1e-3);
-        float th; int hit; vec2 bc;
-        bool blocked = dot(n, l) <= 0.0;
-        if (!blocked && trace(p, l, d - max(3.0, light_up[i].w), true, n, 16.0, th, hit, bc)) {
-            blocked = true;
-            touched = touched || hit >= MOVER_BIT;
-        }
-        all_ += w; lit += blocked ? 0.0 : w;
+// One shadow ray from p to a point of light i: 1 lit, 0 blocked.
+float shadow_ray(int i, vec3 p, vec3 n) {
+    vec3 centre = jittered_centre(i);
+    vec3 to = centre - p; float d = length(to); vec3 l = to / max(d, 1e-3);
+    float th; int hit; vec2 bc;
+    if (dot(n, l) <= 0.0) return 0.0;
+    if (trace(p, l, d - max(3.0, lup(i).w), true, n, 16.0, th, hit, bc)) {
+        touched = touched || hit >= MOVER_BIT;
+        return 0.0;
     }
-    return all_ > 0.0 ? lit / all_ : 1.0;
+    return 1.0;
+}
+// Shadow visibility of the shadow-casting lights at a G-buffer surface:
+// each light's unshadowed contribution weights its traced visibility (the
+// present shader multiplies the lights' unshadowed sum by it). Few lights
+// reaching p: each traced shadow_samples times; many: EXACT_LIGHTS x
+// shadow_samples rays to lights picked in proportion to their weight (an
+// unbiased estimate of the same ratio).
+float visibility(vec3 p, vec3 n) {
+    float all_ = 0.0; int reaching = 0;
+    for (int i = 0; i < light_count; i++) {
+        if (light_shadow(i) == 0) continue;
+        float w = light_weight(i, p, n);
+        if (w > 0.0) { all_ += w; reaching++; }
+    }
+    if (all_ <= 0.0) return 1.0;
+    float lit = 0.0;
+    if (reaching <= EXACT_LIGHTS) {
+        for (int i = 0; i < light_count; i++) {
+            if (light_shadow(i) == 0) continue;
+            float w = light_weight(i, p, n);
+            if (w <= 0.0) continue;
+            float v = 0.0;
+            for (int s = 0; s < shadow_samples; s++) v += shadow_ray(i, p, n);
+            lit += w * v / float(shadow_samples);
+        }
+        return lit / all_;
+    }
+    int picks = EXACT_LIGHTS * shadow_samples;
+    for (int s = 0; s < picks; s++) { // a light by inversion of the weights' running sum
+        float pick = rand() * all_; int i = 0, last = -1;
+        for (; i < light_count; i++) {
+            if (light_shadow(i) == 0) continue;
+            float w = light_weight(i, p, n);
+            if (w <= 0.0) continue;
+            last = i;
+            pick -= w;
+            if (pick <= 0.0) break;
+        }
+        if (i >= light_count) i = last;
+        lit += shadow_ray(i, p, n);
+    }
+    return lit / float(picks);
 }
 // How much of the baked light reaches p past characters and props: their
 // contact occlusion, and their shadows from the emitters. 1 = all of it.
@@ -154,15 +197,18 @@ float baked_visibility(vec3 p, vec3 n, vec3 skip_n) {
 // lights and (for the baked light) the emitters, one bit each.
 uint lighting_signature(vec3 p, vec3 n) {
     uint sig = 0u; int bit = 0;
+    // (with many lights only those reaching p take a bit: the first 12 in the
+    // list's stable order, so a pixel keeps its bits from frame to frame)
     for (int i = 0; i < light_count && bit < 12; i++) {
         if (light_shadow(i) == 0) continue;
-        vec3 to = light_pos[i].xyz - p; float d = length(to);
+        vec3 to = lpos(i).xyz - p; float d = length(to);
         float th; int hit; vec2 bc;
-        if (d < light_pos[i].w && dot(n, to) > 0.0) {
-            if (!trace(p, to / max(d, 1e-3), d - max(3.0, light_up[i].w), true, n, 16.0, th, hit, bc)) sig |= 1u << bit;
+        bool reaches = d < lpos(i).w && dot(n, to) > 0.0;
+        if (reaches) {
+            if (!trace(p, to / max(d, 1e-3), d - max(3.0, lup(i).w), true, n, 16.0, th, hit, bc)) sig |= 1u << bit;
             else touched = touched || hit >= MOVER_BIT;
         }
-        bit++;
+        if (reaches || light_count <= 12) bit++;
     }
     if (baked_shadows != 0) {
         moving_only = true;

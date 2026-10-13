@@ -9,8 +9,8 @@
  * the RPC can be recorded too.)
  *
  * Both start with the process: a replay reproduces a session from boot, so it
- * needs the same memory card contents (pc/tools/record.bat copies the card
- * beside the recording) and the same game arguments (--skip-movies). Events are
+ * needs the same memory card contents (copy the card beside the recording)
+ * and the same game arguments (--skip-movies). Events are
  * keyed by vblank (pc_vsync_count), the game's own clock, so a replay is
  * frame-exact at any speed (--fast, fast-forward).
  *
@@ -73,8 +73,11 @@ static int start(void)
                 || (line[0] == 'S' && sscanf(line + 1, "%u %d %d", &e.vsync, &e.a, &e.b) == 3)) {
                 e.kind = line[0];
                 if (event_count == capacity) {
+                    input_event* grown = realloc(events, (capacity ? capacity * 2 : 1024) * sizeof *events);
+                    if (!grown)
+                        break;
+                    events = grown;
                     capacity = capacity ? capacity * 2 : 1024;
-                    events = realloc(events, capacity * sizeof *events);
                 }
                 events[event_count++] = e;
             }
@@ -176,8 +179,8 @@ int pc_input_stick(float out[2], int live_valid)
 }
 
 /* While recording or replaying (and after a replay), the game's scanline timer
- * reads 0 (boot_runtime.c func_800E45B4): the AI uses it as a per-frame time
- * budget, so measured host time would make a replay diverge. */
+ * reads virtual scanlines (boot_runtime.c func_800E45B4): the AI uses it as a
+ * per-frame time budget, so measured host time would make a replay diverge. */
 int pc_input_deterministic(void) { return start() > 0; }
 
 /* For the RPC: 0 off, 1 recording, 2 replaying, 3 replay over; the file; the replay's end. */

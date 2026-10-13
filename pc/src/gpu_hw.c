@@ -21,10 +21,17 @@
 #include "render_gl.h"
 #include "glow_overrides.h"
 #include "ui_upscale.h" /* 2D / UI texture magnification (MMPX) */
+#include "ui_text.h"    /* 2D / UI: glyphs drawn from fonts (ui_text) */
+#include "ui_bubbles.h" /* 2D / UI: joined lines, vector talk bubbles */
+extern void pc_ui_bubbles_frame(void) __attribute__((weak));
+#include "button_prompts.h" /* 2D / UI: button prompts drawn from icon fonts */
+#include "antialias.h" /* anti-aliasing: supersampling's scale, MSAA */
+#include "gl_shaders.h" /* PC_GLSL_MS_RESOLVE (pc/shaders/vulkan/ms_resolve.glsl) */
 #ifdef ROOD_VULKAN
 #include "vk_hooks.h" /* ROOD_RENDERER=vulkan: the GL calls below go to vk_hw.c */
 #endif
 extern int pc_present_rate; /* below */
+extern int pc_hw_scale_setting; /* below */
 extern float pc_present_phase;
 
 typedef struct {
@@ -41,7 +48,13 @@ typedef struct {
 
 /* FLAG_UI: a 2D texture region magnified into the UI atlas (pc_ui_upscale). */
 /* FLAG_CLAMP: 2D, texels kept inside the primitive's [uv_min, uv_max - 1]. */
-enum { FLAG_TEXTURED = 1, FLAG_RAW = 2, FLAG_SEMI = 4, FLAG_MASK = 8, FLAG_UI = 16, FLAG_CLAMP = 32 };
+/* FLAG_COVER: untextured 2D shape with coverage (anti-aliased edges, ui_bubbles.c):
+ * U is the coverage, 0..256, blended over what is drawn (BLEND_COVER). */
+enum { FLAG_TEXTURED = 1, FLAG_RAW = 2, FLAG_SEMI = 4, FLAG_MASK = 8, FLAG_UI = 16, FLAG_CLAMP = 32, FLAG_COVER = 64 };
+/* Batch blend for FLAG_COVER: colour over the target by coverage, the
+ * target's mask bit kept (above the PS1 modes 0-3 and their 2D + 4). */
+#define BLEND_COVER 12
+static uint32_t edge_generation; /* 2D polygon edges of this ordering table (pc_hw_line) */
 #define MAX_VERTICES 65536
 
 int pc_hw_active;
@@ -51,14 +64,30 @@ int pc_hw_scale = 1;
  * compressed here about the drawing area's centre so they keep their shape. */
 extern int pc_gte_widescreen;
 static int primitive_2d, primitive_room, primitive_cover;
+/* Widescreen: untextured 2D reaching the screen's right (1) or left (-1)
+ * edge (menu bars, title bars) stretches to that edge of the view from its
+ * compressed other end (pc_hw_set_bounds); primitive_span is its x0, x1. */
+static int primitive_extend;
+static float primitive_span[2];
+/* 2D whose vertices the GTE projected (narrowed) this frame although the
+ * projection log is off (pc_hw_set_narrowed): it is not compressed again. */
+static int primitive_narrowed;
 static uintptr_t current_packet; /* the GPU packet being drawn (pc_hw_set_packet) */
 static int primitive_uv_shift[2]; /* pc_hw_set_flipped_uv */
 void pc_hw_set_2d(int is_2d)
 {
     primitive_2d = is_2d;
     primitive_cover = 0;
+    primitive_extend = 0;
+    primitive_narrowed = 0;
     primitive_uv_shift[0] = primitive_uv_shift[1] = 0;
 }
+/* Widescreen with the projection log off (every 3D draw native): 2D packets
+ * whose vertices all came from the GTE this frame (the map screen's rooms,
+ * effects drawn as packets) are already narrowed by the projection; they
+ * keep their positions instead of being compressed a second time. */
+static int layout_enabled(void);
+void pc_hw_set_narrowed(void) { primitive_narrowed = layout_enabled(); }
 /* A flipped 2D sprite drawn as a polygon (U or V decreasing along X or Y,
  * no change along the other axis), as beetle-psx and DuckStation detect it.
  * The PS1 takes a pixel's texel at its top-left corner: a quad whose U runs
@@ -186,10 +215,63 @@ static void screen_copy_write(int sx, int sy, int dx, int dy, int w, int h, int 
         screen_list_add(screen_copies, &screen_copy_count, MAX_SCREEN_COPIES, &p);
     }
 }
+/* Widescreen layout of compressed 2D (ROOD_WIDESCREEN_LAYOUT=0 turns it off,
+ * for comparisons): it is clipped to the compressed drawing area, so what
+ * the game parks beyond the screen's edges (hidden by the PS1's drawing
+ * area) stays hidden instead of showing in the view's sides, and untextured
+ * shapes that reach one edge of the screen (menu and title bars running off
+ * its right side) stretch to that edge of the view. */
+int pc_widescreen_layout = -1;
+static int layout_enabled(void)
+{
+    if (pc_widescreen_layout < 0)
+        pc_widescreen_layout = !getenv("ROOD_WIDESCREEN_LAYOUT") || *getenv("ROOD_WIDESCREEN_LAYOUT") != '0';
+    return pc_widescreen_layout;
+}
+/* RPC widescreen_trace: log every 2D primitive of the next N ordering
+ * tables (bounds relative to the drawing area, how widescreen places it). */
+int pc_widescreen_trace;
+static int primitive_anchor;
+static void trace_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv, const int* clip)
+{
+    if (!pc_widescreen_trace)
+        return;
+    char texture[64] = "";
+    if (uv)
+        snprintf(texture, sizeof texture, " textured (page %d,%d depth %u, uv %d,%d-%d,%d)", (int)(tpage & 15) * 64,
+            (int)((tpage >> 4) & 1) * 256, (tpage >> 7) & 3, uv[0], uv[1], uv[2], uv[3]);
+    fprintf(stderr, "[widescreen trace] code 0x%02x (%d,%d)-(%d,%d) area %d,%d %dx%d%s: %s\n", code & 0xff,
+        x0 - clip[0], y0 - clip[1], x1 - clip[0], y1 - clip[1], clip[0], clip[1], clip[2], clip[3], texture,
+        primitive_narrowed ? "projected" : primitive_cover ? "cover"
+        : primitive_anchor ? (primitive_anchor == 1 ? "anchor left" : primitive_anchor == 2 ? "anchor right" : "fill")
+        : primitive_extend > 0 ? "extend right" : primitive_extend < 0 ? "extend left" : "compress");
+}
 void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv, const int* clip)
 {
-    if (!primitive_2d || !cover_enabled() || clip[2] <= 0 || clip[3] <= 0)
+    if (!primitive_2d || clip[2] <= 0 || clip[3] <= 0)
         return;
+    if (primitive_narrowed) {
+        trace_bounds(x0, y0, x1, y1, code, tpage, uv, clip);
+        return;
+    }
+    if (layout_enabled() && !uv) {
+        /* Reaching one edge (within a pixel; a bar's drop shadow runs a
+         * little past it) from at least a tenth of the screen away. */
+        int left = clip[0], right = clip[0] + clip[2], reach = clip[2] / 10;
+        if (x1 >= right - 1 && x0 > left + 1 && right - x0 >= reach)
+            primitive_extend = 1;
+        else if (x0 <= left + 1 && x1 < right - 1 && x1 - left >= reach)
+            primitive_extend = -1;
+        primitive_span[0] = (float)x0;
+        primitive_span[1] = (float)x1;
+    }
+    static int debug = -1, logged;
+    if (debug < 0)
+        debug = getenv("ROOD_WIDESCREEN_DEBUG") && *getenv("ROOD_WIDESCREEN_DEBUG") == '1';
+    if (!cover_enabled()) {
+        trace_bounds(x0, y0, x1, y1, code, tpage, uv, clip);
+        return;
+    }
     int tolerance = clip[2] / 64; /* 5 pixels at 320 */
     int wide = x0 <= clip[0] + tolerance && x1 >= clip[0] + clip[2] - tolerance;
     /* Untextured shapes reaching well past the top or bottom (wipes; fans
@@ -213,9 +295,24 @@ void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tp
         }
     }
     primitive_cover = wide || tall || backdrop || copy;
-    static int debug = -1, logged;
-    if (debug < 0)
-        debug = getenv("ROOD_WIDESCREEN_DEBUG") && *getenv("ROOD_WIDESCREEN_DEBUG") == '1';
+    if (primitive_cover)
+        primitive_extend = 0;
+    trace_bounds(x0, y0, x1, y1, code, tpage, uv, clip);
+    /* (Debug: 2D drawn compressed although it reaches well past the screen's
+     * sides, e.g. a full-screen effect in pieces.) */
+    if (debug && !primitive_cover && pc_gte_widescreen && (x0 < clip[0] - 8 || x1 > clip[0] + clip[2] + 8)
+        && x1 - x0 >= clip[2] / 4 && logged < 400) {
+        static int seen[64][5], seen_count;
+        int key[5] = { (int)code, x0 - clip[0], y0 - clip[1], x1 - clip[0], y1 - clip[1] };
+        for (int i = 0; i < seen_count; i++)
+            if (!memcmp(seen[i], key, sizeof key))
+                return;
+        memcpy(seen[seen_count], key, sizeof key);
+        seen_count = (seen_count + 1) % 64;
+        ++logged;
+        fprintf(stderr, "[widescreen] compressed 2D code 0x%02x (%d,%d)-(%d,%d) reaches past the screen (area %d,%d %dx%d)%s\n",
+            code & 0xff, key[1], key[2], key[3], key[4], clip[0], clip[1], clip[2], clip[3], uv ? " textured" : "");
+    }
     if (debug && primitive_cover && logged < 400) {
         static int seen[64][5], seen_count;
         int key[5] = { (int)code, x0 - clip[0], y0 - clip[1], x1 - clip[0], y1 - clip[1] };
@@ -454,8 +551,11 @@ int pc_hw_is_room_packet(const void* p)
  * ranges. Their primitives are scaled by 3/4 about that edge of the screen
  * instead of the drawing area's centre, so they keep their shape and sit at
  * the edges of the 16:9 picture. Nested ranges are allowed: the innermost
- * wins (PC_ANCHOR_NONE inside a range keeps the centred behaviour). */
-enum { PC_ANCHOR_NONE, PC_ANCHOR_LEFT, PC_ANCHOR_RIGHT };
+ * wins (PC_ANCHOR_NONE inside a range keeps the centred behaviour).
+ * PC_ANCHOR_FILL: a full-screen picture (a cutscene still) is magnified by
+ * 4/3 about the screen's centre instead, so it fills the 16:9 view in its
+ * own proportions (its top and bottom eighths fall outside). */
+enum { PC_ANCHOR_NONE, PC_ANCHOR_LEFT, PC_ANCHOR_RIGHT, PC_ANCHOR_FILL };
 #define MAX_ANCHOR_RANGES 32
 typedef struct {
     uintptr_t start, end;
@@ -463,10 +563,17 @@ typedef struct {
 } anchor_range;
 static anchor_range pending_anchors[MAX_ANCHOR_RANGES], active_anchors[MAX_ANCHOR_RANGES];
 static int pending_anchor_count, active_anchor_count;
-static int primitive_anchor; /* of the packet being drawn */
+/* primitive_anchor (above): of the packet being drawn */
 static float anchor_left, anchor_right; /* the screen's edges in VRAM X */
 void pc_hw_anchor_packets(const void* start, const void* end, int anchor)
 {
+    /* Ranges marked 0x10 belong to the widescreen layout fixes
+     * (pc/src/widescreen.h): off with them (ROOD_WIDESCREEN_LAYOUT=0). */
+    if (anchor & 0x10) {
+        if (!layout_enabled())
+            return;
+        anchor &= 0x0f;
+    }
     if (pending_anchor_count < MAX_ANCHOR_RANGES && end > start) {
         anchor_range* r = &pending_anchors[pending_anchor_count++];
         r->start = (uintptr_t)start;
@@ -507,6 +614,16 @@ static float anchor_x(float x)
  * shader tests 3D fragments against it inside occlusion_rect. */
 static int occlusion_on, occlusion_rect[4], surface_valid;
 static GLuint room_depth_texture, room_depth_fbo, object_fbo, object_replay_fbo, before_texture, before_fbo;
+/* MSAA (antialias.h; "MSAA" below): the scope (target_fbo or replay.fbo while
+ * its drawing area lives in the multisampled twins), its area (VRAM pixels
+ * x0, y0, x1, y1, exclusive) and its helpers. */
+static GLuint ms_scope;
+static int ms_rect[4];
+static void ms_end(void);
+static void ms_end_over(int x, int y, int w, int h);
+static int ms_touches(int x, int y, int w, int h);
+static int ms_holds(GLuint fbo, const int* clip);
+static GLuint ms_target(int object);
 
 /* Dynamic shadow casters: world-space triangles of opaque 3D primitives that
  * are not room geometry (characters, props), collected while an OT draws;
@@ -565,6 +682,8 @@ static int reconstruct_active(void)
 }
 void pc_hw_begin_ot(void)
 {
+    if (pc_widescreen_trace > 0 && !--pc_widescreen_trace)
+        fprintf(stderr, "[widescreen trace] end\n");
     pc_gte_log = !pc_hw_active || reconstruct_active();
     if (has_pending_translucent)
         flush(); /* the previous table's last translucent range */
@@ -584,6 +703,10 @@ void pc_hw_begin_ot(void)
     active_anchor_count = pending_anchor_count;
     pending_anchor_count = 0;
     primitive_anchor = PC_ANCHOR_NONE;
+    pc_hw_suppress = 0;
+    ++edge_generation;
+    if (pc_ui_bubbles_frame)
+        pc_ui_bubbles_frame();
     if (collect_count) {
         memcpy(caster_ready, caster_collect, (size_t)collect_count * 9 * sizeof(float));
         memcpy(surface_ready, surface_collect, (size_t)collect_count * sizeof *surface_ready);
@@ -623,6 +746,11 @@ int pc_hw_texture_filter;
 static int pending_depth[3], has_pending_depth;
 static float pending_precise[6];
 static int has_pending_precise;
+/* The next triangle's exact positions (and coverage blending), set by
+ * pc_hw_shape_triangle for shapes the port builds: joined lines, vector
+ * talk bubbles (ui_bubbles.c). */
+static float exact_xy[6];
+static int has_exact, exact_cover;
 /* Sub-pixel vertex positions (PGXP-style); off restores PS1 vertex snapping. */
 int pc_hw_subpixel = 1;
 void pc_hw_set_precise(const float* xy)
@@ -649,16 +777,16 @@ static const char* draw_vertex_source =
     "layout(location = 6) in uvec4 a_bounds;\n"
     "layout(location = 7) in ivec2 a_ui;\n"
     "uniform int perspective;\n" /* perspective-correct UVs/colours for 3D */
-    "noperspective out vec3 v_color_affine;\n"
-    "noperspective out vec2 v_uv_affine;\n"
-    "smooth out vec3 v_color_persp;\n"
-    "smooth out vec2 v_uv_persp;\n"
+    "noperspective centroid out vec3 v_color_affine;\n"
+    "noperspective centroid out vec2 v_uv_affine;\n"
+    "smooth centroid out vec3 v_color_persp;\n"
+    "smooth centroid out vec2 v_uv_persp;\n"
     "flat out uvec4 v_state;\n" /* flags, tpage, clut, window */
     "flat out vec4 v_normal;\n"
     "flat out uvec4 v_bounds;\n"
     "flat out ivec2 v_ui;\n"
-    "smooth out float v_z_persp;\n"
-    "noperspective out float v_z_affine;\n"
+    "smooth centroid out float v_z_persp;\n"
+    "noperspective centroid out float v_z_affine;\n"
     "void main() {\n"
     "    v_z_persp = v_z_affine = a_pos.z;\n"
     "    v_normal = a_normal;\n"
@@ -675,16 +803,16 @@ static const char* draw_vertex_source =
     "}\n";
 static const char* draw_fragment_source =
     "#version 330 core\n"
-    "noperspective in vec3 v_color_affine;\n"
-    "noperspective in vec2 v_uv_affine;\n"
-    "smooth in vec3 v_color_persp;\n"
-    "smooth in vec2 v_uv_persp;\n"
+    "noperspective centroid in vec3 v_color_affine;\n"
+    "noperspective centroid in vec2 v_uv_affine;\n"
+    "smooth centroid in vec3 v_color_persp;\n"
+    "smooth centroid in vec2 v_uv_persp;\n"
     "flat in uvec4 v_state;\n"
     "flat in vec4 v_normal;\n"
     "flat in uvec4 v_bounds;\n" /* u min, v min, u max, v max */
     "flat in ivec2 v_ui;\n"
-    "smooth in float v_z_persp;\n"
-    "noperspective in float v_z_affine;\n"
+    "smooth centroid in float v_z_persp;\n"
+    "noperspective centroid in float v_z_affine;\n"
     "uniform int perspective;\n"
     /* Behind a native list's surface (room_depth, SZ / 65536) by more than
      * a small tolerance: hidden. Depth here is exact per pixel when
@@ -779,6 +907,12 @@ static const char* draw_fragment_source =
     "    }\n"
     "    if ((pass == 1 && semi) || (pass == 2 && !semi)) discard;\n"
     "    color = vec4(c, float(mask));\n"
+    /* FLAG_COVER (untextured 2D shapes, BLEND_COVER): U is the coverage. */
+    "    if ((flags & 65u) == 64u) {\n"
+    "        float cover = clamp(v_uv.x / 256.0, 0.0, 1.0);\n"
+    "        if (cover < 0.002) discard;\n"
+    "        color = vec4(c, cover);\n"
+    "    }\n"
     "    bool lit = v_normal.w > 0.5;\n"
     /* a: 1 room surface, 0.75 something moving (character, prop), 0 unlit */
     "    normal_out = lit ? vec4(normalize(v_normal.xyz) * 0.5 + 0.5, v_normal.w > 0.9 ? 1.0 : 0.75) : vec4(0.0);\n"
@@ -912,6 +1046,7 @@ void pc_hw_init(const uint16_t* vram)
     if (scale < 1)
         return;
     pc_hw_scale = scale > 8 ? 8 : scale;
+    pc_hw_scale_setting = pc_hw_scale;
     native_vram = vram;
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
@@ -990,6 +1125,9 @@ natives:
         native = getenv("ROOD_NATIVE_OBJECTS");
         if (native)
             pc_native_objects = atoi(native) != 0;
+        native = getenv("ROOD_NATIVE_ROOM_ORDER");
+        if (native)
+            pc_native_room_order = atoi(native) != 0;
         native = getenv("ROOD_NATIVE_SHADOWS");
         if (native)
             pc_native_shadows = atoi(native) != 0;
@@ -1121,6 +1259,14 @@ static void set_blend(int mode)
 static void record_batch(void);
 static void draw_batch(GLuint fbo, const hw_vertex* vertices, int count, int blend, const int* clip)
 {
+    /* MSAA: inside the scope the twins take it (2D at the pixel centres). */
+    int centre = 0;
+    if (ms_holds(fbo, clip)) {
+        fbo = ms_target(0);
+        for (int i = 0; i < count && !centre; i++)
+            centre = vertices[i].z <= 0.0f;
+    } else if (ms_scope == fbo)
+        ms_end();
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
         pc_vk_hw_draw_batch(fbo, vertices, count, blend, clip, occlusion_on, occlusion_rect);
@@ -1156,12 +1302,29 @@ static void draw_batch(GLuint fbo, const hw_vertex* vertices, int count, int ble
         gl_ActiveTexture(GL_TEXTURE0);
     }
     gl_Disable(GL_BLEND);
+    if (centre) /* every sample written as single-sampled (coverage at the pixel centre) */
+        gl_Disable(GL_MULTISAMPLE);
     gl_Enable(GL_DEPTH_TEST); /* GL_ALWAYS: write depth in draw order, never reject */
     gl_DepthFunc(GL_ALWAYS);
     gl_DepthMask(GL_TRUE);
     if (blend < 0) {
         gl_Uniform1i(u_draw_pass, 0);
         gl_DrawArrays(GL_TRIANGLES, 0, count);
+    } else if (blend == BLEND_COVER) {
+        /* Coverage over the target (anti-aliased 2D shapes): colour only,
+         * the mask bit (alpha) and the surface behind kept, depth "UI". */
+        gl_Enable(GL_BLEND);
+        gl_BlendEquation(GL_FUNC_ADD);
+        gl_BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        gl_ColorMaski(0, GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+        gl_ColorMaski(1, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        gl_ColorMaski(2, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        gl_ColorMaski(3, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        gl_Uniform1i(u_draw_pass, 2);
+        gl_DrawArrays(GL_TRIANGLES, 0, count);
+        gl_Disable(GL_BLEND);
+        for (GLuint i = 0; i < 4; i++)
+            gl_ColorMaski(i, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     } else {
         gl_Uniform1i(u_draw_pass, 1);
         gl_DrawArrays(GL_TRIANGLES, 0, count);
@@ -1184,6 +1347,7 @@ static void draw_batch(GLuint fbo, const hw_vertex* vertices, int count, int ble
     }
     gl_DepthMask(GL_TRUE);
     gl_Disable(GL_DEPTH_TEST);
+    gl_Enable(GL_MULTISAMPLE);
     gl_BindVertexArray(0);
     gl_Disable(GL_SCISSOR_TEST);
     gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -1243,11 +1407,51 @@ static void record_triangle(const float* world, unsigned code, unsigned tpage, u
  * not kept for its kind (pc_native_room / pc_native_actors 2): the CPU
  * rasterizer may skip it (its area is then stale until pc_hw_sync). */
 static void mark_stale(const int* clip);
+enum { STALE_MISSING = 1, STALE_PLACED = 2 }; /* (stale_kinds, below) */
+static void mark_stale_kind(const int* clip, int kind);
+int pc_hw_suppress; /* the packet being drawn is left out here (ui_bubbles.h) */
+/* 2D polygon edges drawn in this ordering table (whole VRAM pixels): a
+ * joined line along one reaches it (pc_hw_line). Open addressing, cleared
+ * by generation at each table. */
+#define EDGE_SLOTS 8192
+static uint64_t edge_keys[EDGE_SLOTS];
+static uint32_t edge_generations[EDGE_SLOTS], edge_generation = 1;
+static uint64_t edge_key(int x0, int y0, int x1, int y1)
+{
+    uint32_t a = (uint32_t)(x0 & 0xFFFF) | (uint32_t)(y0 & 0xFFFF) << 16;
+    uint32_t b = (uint32_t)(x1 & 0xFFFF) | (uint32_t)(y1 & 0xFFFF) << 16;
+    return a < b ? (uint64_t)a << 32 | b : (uint64_t)b << 32 | a;
+}
+static int edge_find(uint64_t key, int add)
+{
+    uint32_t h = (uint32_t)((key * 0x9E3779B97F4A7C15ull) >> 40) & (EDGE_SLOTS - 1);
+    for (int probe = 0; probe < 32; probe++, h = (h + 1) & (EDGE_SLOTS - 1)) {
+        if (edge_generations[h] != edge_generation) {
+            if (add) {
+                edge_generations[h] = edge_generation;
+                edge_keys[h] = key;
+            }
+            return 0;
+        }
+        if (edge_keys[h] == key)
+            return 1;
+    }
+    return 0;
+}
+static void edge_note(int x0, int y0, int x1, int y1)
+{
+    if (pc_ui_lines == PC_UI_LINES_JOINED && pc_hw_scale > 1 && (x0 != x1 || y0 != y1))
+        edge_find(edge_key(x0, y0, x1, y1), 1);
+}
 int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage,
     unsigned clut, unsigned window, const int* clip, int mask_set, int mask_check)
 {
     if (!pc_hw_active)
         return 0;
+    if (pc_hw_suppress) {
+        has_pending_depth = has_pending_precise = 0;
+        return 0;
+    }
     if (mask_check && !report_mask_check++)
         fprintf(stderr, "[gpu] mask-bit test is not mirrored by the hardware path yet\n");
     int other = 0; /* neither room nor object packet: still reconstructed */
@@ -1311,12 +1515,26 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     }
     if (has_pending_translucent)
         flush();
+    /* Widescreen: what the target holds where this draws is not what the
+     * CPU rasterizer draws there (2D placed for the view, Hor+ 3D), so a
+     * texture sampling it (a screen copy of rows of the frame being drawn,
+     * as the memory-card screens' text box does) reads it back first, as
+     * it does for displayed frames (pc_hw_set_display). */
+    if (pc_gte_widescreen && layout_enabled())
+        mark_stale_kind(clip, STALE_PLACED);
     int textured = (code & 4) != 0, semi = (code & 2) != 0;
     /* Widescreen: an anchored primitive (HUD at a screen edge; its GTE
      * projections were not narrowed) scales about that edge, its drawing
      * area with it; other 2D compresses about the drawing area's centre,
      * except screen-covering 2D (pc_hw_set_bounds), which spans the view. */
-    int anchored = pc_gte_widescreen && primitive_anchor != PC_ANCHOR_NONE && !primitive_cover;
+    int fill = pc_gte_widescreen && primitive_anchor == PC_ANCHOR_FILL && !primitive_cover && layout_enabled();
+    int anchored = pc_gte_widescreen && primitive_anchor != PC_ANCHOR_NONE && primitive_anchor != PC_ANCHOR_FILL
+        && !primitive_cover;
+    int extend = pc_gte_widescreen && primitive_2d && !anchored && !fill && !primitive_cover ? primitive_extend : 0;
+    int compress = pc_gte_widescreen && primitive_2d && !anchored && !fill && !primitive_cover && !extend
+        && !primitive_narrowed;
+    float middle = clip[1] + clip[3] * 0.5f; /* PC_ANCHOR_FILL magnifies Y about it */
+    float centre = clip[0] + clip[2] * 0.5f;
     int area[4];
     if (anchored) {
         float left = anchor_x((float)clip[0]), right = anchor_x((float)(clip[0] + clip[2]));
@@ -1324,8 +1542,29 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
         area[1] = clip[1];
         area[2] = (int)ceilf(right) - area[0];
         area[3] = clip[3];
+    } else if ((compress || extend) && layout_enabled()) {
+        /* The drawing area compressed like its contents (an extended side
+         * reaches the view's edge). */
+        float left = extend < 0 ? (float)clip[0] : centre + (clip[0] - centre) * 0.75f;
+        float right = extend > 0 ? (float)(clip[0] + clip[2]) : centre + (clip[0] + clip[2] - centre) * 0.75f;
+        area[0] = (int)floorf(left + 0.001f);
+        area[1] = clip[1];
+        area[2] = (int)ceilf(right - 0.001f) - area[0];
+        area[3] = clip[3];
     } else
         memcpy(area, clip, sizeof area);
+    /* Extended: the far end compressed, the near edge of the screen at the
+     * view's edge, linearly in between. */
+    float extend_from = 0.0f, extend_scale = 1.0f;
+    if (extend > 0) {
+        float right = (float)(clip[0] + clip[2]);
+        extend_from = centre + (primitive_span[0] - centre) * 0.75f;
+        extend_scale = (right - extend_from) / (right - primitive_span[0]);
+    } else if (extend < 0) {
+        float left = (float)clip[0];
+        extend_from = centre + (primitive_span[1] - centre) * 0.75f;
+        extend_scale = (extend_from - left) / (primitive_span[1] - left);
+    }
     int depth[3] = { 0, 0, 0 };
     if (has_pending_depth && !primitive_2d)
         memcpy(depth, pending_depth, sizeof depth);
@@ -1338,6 +1577,8 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
      * replaces the depth and surface behind it, so post effects and lights
      * treat it as UI. */
     int blend = semi ? (int)((tpage >> 5) & 3) + (depth[0] | depth[1] | depth[2] ? 0 : 4) : -1;
+    if (exact_cover)
+        blend = BLEND_COVER;
     if (blend != batch_blend || memcmp(area, batch_clip, sizeof batch_clip)
         || batch_count + 3 > MAX_VERTICES) {
         flush();
@@ -1352,9 +1593,7 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
         }
     }
     uint8_t flags = (uint8_t)((textured ? FLAG_TEXTURED : 0) | (textured && (code & 1) ? FLAG_RAW : 0)
-        | (semi ? FLAG_SEMI : 0) | (mask_set ? FLAG_MASK : 0));
-    float centre = clip[0] + clip[2] * 0.5f;
-    int compress = pc_gte_widescreen && primitive_2d && !anchored && !primitive_cover;
+        | (semi || exact_cover ? FLAG_SEMI : 0) | (mask_set ? FLAG_MASK : 0) | (exact_cover ? FLAG_COVER : 0));
     /* Positions: unrounded for projected 3D vertices, else the packet's. */
     float pos[6];
     for (int i = 0; i < 6; i++)
@@ -1364,6 +1603,10 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     if (has_pending_precise && (!primitive_2d || pc_ui_subpixel) && pc_hw_subpixel)
         memcpy(pos, pending_precise, sizeof pos);
     has_pending_precise = 0;
+    /* Shapes the port builds itself (joined lines, vector bubbles): their
+     * own unrounded positions (pc_hw_shape_triangle). */
+    if (has_exact)
+        memcpy(pos, exact_xy, sizeof pos);
     /* View-space face normal from the projected vertices: invert the GTE
      * projection (sx = ofx + H x / z, X narrowed by 3/4 in widescreen). The
      * drawing area's origin is the framebuffer's screen origin. */
@@ -1431,6 +1674,9 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
         }
     }
     record_triangle(has_world ? world : NULL, code, tpage, clut, uv);
+    if (primitive_2d && !has_exact && !(depth[0] | depth[1] | depth[2]))
+        for (int i = 0; i < 3; i++)
+            edge_note(xy[i * 2], xy[i * 2 + 1], xy[(i + 1) % 3 * 2], xy[(i + 1) % 3 * 2 + 1]);
     /* 2D: a flipped sprite's coordinates (pc_hw_set_flipped_uv), and texels
      * kept inside the primitive (FLAG_CLAMP). */
     int texcoord[6];
@@ -1446,10 +1692,11 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
             bounds[k] = c < bounds[k] ? c : bounds[k];
             bounds[k + 2] = c > bounds[k + 2] ? c : bounds[k + 2];
         }
-    /* 2D: the texels it samples, magnified (MMPX). The far bound is an edge
+    /* 2D: the texels it samples, magnified (MMPX) or, for glyphs, drawn from
+     * a font (ui_text). The far bound is an edge
      * the rasterizer never reaches: [min, max - 1], as the shader clamps. */
     int16_t ui_offset[2] = { 0, 0 };
-    if (pc_ui_upscale) {
+    if (pc_ui_upscale || pc_ui_text || pc_button_prompts_active()) {
         pc_ui_upscale_draw_area(area);
         if (ui && textured && !(depth[0] | depth[1] | depth[2])) {
             int u1 = bounds[2] > bounds[0] ? bounds[2] - 1 : bounds[0], v1 = bounds[3] > bounds[1] ? bounds[3] - 1 : bounds[1];
@@ -1471,9 +1718,11 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     for (int i = 0; i < 3; i++) {
         hw_vertex* v = &batch[batch_count++];
         v->x = anchored ? (has_line_x ? line_x[i] : anchor_x(pos[i * 2]))
-            : compress  ? centre + (pos[i * 2] - centre) * 0.75f
-                        : pos[i * 2];
-        v->y = pos[i * 2 + 1];
+            : compress   ? centre + (pos[i * 2] - centre) * 0.75f
+            : extend > 0 ? extend_from + (pos[i * 2] - primitive_span[0]) * extend_scale
+            : extend < 0 ? extend_from - (primitive_span[1] - pos[i * 2]) * extend_scale
+                         : pos[i * 2];
+        v->y = fill ? middle + (pos[i * 2 + 1] - middle) * (4.0f / 3.0f) : pos[i * 2 + 1];
         v->z = (float)depth[i];
         v->r = (uint8_t)rgb[i * 3];
         v->g = (uint8_t)rgb[i * 3 + 1];
@@ -1518,9 +1767,11 @@ void pc_hw_rect(int x, int y, int w, int h, int u, int v, unsigned rgb, unsigned
         pc_hw_triangle(xy, uvs, colors, code, tpage, clut, window, clip, mask_set, mask_check);
     }
 }
-/* One-pixel-wide line segment as a quad (lines are never textured): span
- * the major axis end to end, including the end pixel, one pixel thick. */
-void pc_hw_line(int x0, int y0, int x1, int y1, unsigned c0, unsigned c1, int semi, unsigned tpage,
+/* ui_lines legacy: one-pixel-wide line segment as a quad (lines are never
+ * textured): span the major axis end to end, including the end pixel, one
+ * pixel thick (upscaled, its slanted ends leave gaps at polyline joins and
+ * miss the edges of polygons drawn along it). */
+static void line_legacy(int x0, int y0, int x1, int y1, unsigned c0, unsigned c1, int semi, unsigned tpage,
     const int* clip, int mask_set)
 {
     int dx = x1 - x0, dy = y1 - y0;
@@ -1539,7 +1790,7 @@ void pc_hw_line(int x0, int y0, int x1, int y1, unsigned c0, unsigned c1, int se
      * position and keep the line one pixel thick (scaling the quad would
      * thin vertical lines below a pixel). */
     float shift[4] = { 0, 0, 0, 0 };
-    int anchored = pc_gte_widescreen && primitive_anchor != PC_ANCHOR_NONE;
+    int anchored = pc_gte_widescreen && primitive_anchor != PC_ANCHOR_NONE && primitive_anchor != PC_ANCHOR_FILL;
     if (anchored) {
         float s0 = anchor_x(x0 + 0.5f) - 0.5f - (float)x0, s1 = anchor_x(x1 + 0.5f) - 0.5f - (float)x1;
         shift[0] = shift[2] = s0;
@@ -1562,6 +1813,165 @@ void pc_hw_line(int x0, int y0, int x1, int y1, unsigned c0, unsigned c1, int se
         }
         has_line_x = anchored && pc_hw_active;
         pc_hw_triangle(xy, uv, rgb, semi ? 2 : 0, tpage, 0, 0, clip, mask_set, 0);
+    }
+}
+
+/* A 2D triangle the port builds (joined lines, vector bubbles): unrounded
+ * positions (VRAM pixels, drawing offset applied), drawn through the
+ * packet path (widescreen placement, batching, recording). cover: coverage
+ * blending (FLAG_COVER), uv[0], uv[2], uv[4] each vertex's coverage 0..256;
+ * anchored_x: final X of each vertex for widescreen-anchored 2D (NULL:
+ * placed like the packet's other 2D). */
+static void shape_triangle(const float* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage,
+    unsigned clut, unsigned window, const int* clip, int mask_set, int cover, const float* anchored_x)
+{
+    int ixy[6];
+    for (int i = 0; i < 6; i++)
+        ixy[i] = (int)floorf(xy[i] + 0.5f);
+    memcpy(exact_xy, xy, sizeof exact_xy);
+    has_exact = 1;
+    exact_cover = cover;
+    if (anchored_x) {
+        memcpy(line_x, anchored_x, sizeof line_x);
+        has_line_x = pc_hw_active;
+    }
+    pc_hw_triangle(ixy, uv, rgb, code, tpage, clut, window, clip, mask_set, 0);
+    has_exact = exact_cover = has_line_x = 0;
+}
+void pc_hw_shape_triangle(const float* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage,
+    unsigned clut, unsigned window, const int* clip, int mask_set, int cover)
+{
+    pc_hw_set_packet(NULL);
+    shape_triangle(xy, uv, rgb, code, tpage, clut, window, clip, mask_set, cover, NULL);
+}
+int pc_ui_lines = 1;         /* PC_UI_LINES_*: joined (default) or legacy */
+const char* const pc_ui_lines_names[2] = { "legacy", "joined" };
+int pc_ui_outline_boost = 0; /* 2D lines this many output pixels thicker (0-3) */
+long pc_hw_lines_drawn;      /* line segments drawn here (RPC ui_bubbles: tests) */
+extern int pc_gl_view[4] __attribute__((weak)); /* the presented view (gl_present.c / vk_present.c) */
+static int display_rect[4];                     /* (below) */
+/* Native (VRAM) pixels per output pixel: the display area's height over the
+ * presented view's. */
+float pc_hw_native_per_output(void)
+{
+    int view_h = &pc_gl_view ? pc_gl_view[3] : 0, display_h = display_rect[3] > 0 ? display_rect[3] : 240;
+    return view_h > 0 ? (float)display_h / (float)view_h : 1.0f / (float)pc_hw_scale;
+}
+/* An axis-aligned quad (x0, y0)-(x1, y1) in one colour, or a general one
+ * (q: 4 corners, order 0 1 / 2 3) with per-corner colours. */
+static void line_quad(const float q[4][2], const int colors[4][3], int semi, unsigned tpage, const int* clip,
+    int mask_set, const float* anchor_shift, float ax0, float ax1)
+{
+    static const int order[2][3] = { { 0, 1, 2 }, { 1, 3, 2 } };
+    int uv[6] = { 0 };
+    for (int t = 0; t < 2; t++) {
+        float xy[6], ax[3];
+        int rgb[9];
+        for (int i = 0; i < 3; i++) {
+            const float* c = q[order[t][i]];
+            xy[i * 2] = c[0];
+            xy[i * 2 + 1] = c[1];
+            memcpy(rgb + i * 3, colors[order[t][i]], sizeof colors[0]);
+            if (anchor_shift) {
+                /* Widescreen-anchored HUD lines: each end's shift (one pixel
+                 * thick, as legacy), linearly in between. */
+                float f = ax1 != ax0 ? (c[0] - ax0) / (ax1 - ax0) : 0.0f;
+                f = f < 0 ? 0 : f > 1 ? 1 : f;
+                ax[i] = c[0] + anchor_shift[0] + (anchor_shift[1] - anchor_shift[0]) * f;
+            }
+        }
+        shape_triangle(xy, uv, rgb, semi ? 2 : 0, tpage, 0, 0, clip, mask_set, 0, anchor_shift ? ax : NULL);
+    }
+}
+/* A line segment (GP0 0x40-0x5F) at the internal resolution (ui_lines
+ * joined): what it covers at 1x, crisp at any scale and closed at joins.
+ *
+ * - The band: the pixel-centre line (end pixel included) one native pixel
+ *   across its minor axis, so 1x samples the CPU rasterizer's pixels (ties
+ *   round away from the start as it does) and 4x is the same line, scale
+ *   pixels thick.
+ * - Upscaled, a line along the edge of a 2D polygon drawn before it in
+ *   the same ordering table (the game outlines its talk bubbles' fill this
+ *   way) also reaches that edge, which runs through the pixels' corners: at
+ *   1x the edge's pixels are the line's, upscaled the fill's sliver showed
+ *   outside the line (light dots along the outline). Other lines keep one
+ *   pixel across.
+ * - Upscaled, each end pixel is drawn whole (what the PS1 covers there), so
+ *   segments meeting at a pixel join without notches whatever their angles.
+ *   Not for semi-transparent lines (the overlap would blend twice).
+ * - ui_outline_boost: every edge moved out by half the boost (output pixels). */
+void pc_hw_line(int x0, int y0, int x1, int y1, unsigned c0, unsigned c1, int semi, unsigned tpage,
+    const int* clip, int mask_set)
+{
+    if (pc_hw_suppress || !pc_hw_active)
+        return;
+    ++pc_hw_lines_drawn;
+    if (pc_ui_lines == PC_UI_LINES_LEGACY) {
+        line_legacy(x0, y0, x1, y1, c0, c1, semi, tpage, clip, mask_set);
+        return;
+    }
+    pc_hw_set_packet(NULL);
+    int dx = x1 - x0, dy = y1 - y0;
+    int xmajor = (dx < 0 ? -dx : dx) >= (dy < 0 ? -dy : dy);
+    int upscaled = pc_hw_scale > 1;
+    float boost = pc_ui_outline_boost > 0 ? (float)pc_ui_outline_boost * pc_hw_native_per_output() * 0.5f : 0.0f;
+    /* Major axis a, minor b. */
+    float a0 = (float)(xmajor ? x0 : y0), b0 = (float)(xmajor ? y0 : x0);
+    float a1 = (float)(xmajor ? x1 : y1), b1 = (float)(xmajor ? y1 : x1);
+    float da = a1 - a0, db = b1 - b0;
+    float slope = da != 0.0f ? db / da : 0.0f;
+    /* The CPU rasterizer rounds halves away from the start: shift the band
+     * that way by half the smallest step from a tie to a non-tie (1 / 2
+     * major steps), well above the GPU's sub-pixel snapping. */
+    float steps = fabsf(da) > 1.0f ? fabsf(da) : 1.0f;
+    float tie = db > 0 ? 0.5f / steps : db < 0 ? -0.5f / steps : 0.0f;
+    /* Upscaled, a hair wider (1/256 pixel) on both sides: where an edge of
+     * a polygon drawn along the line passes exactly through a sample, the
+     * line takes it, not the polygon. */
+    float hair = upscaled ? 1.0f / 256.0f : 0.0f;
+    /* Along the edge of a 2D polygon drawn before it (a fill it outlines),
+     * the band reaches the edge where it runs outside (slopes < 0). */
+    int edge = upscaled && slope < 0 && edge_find(edge_key(x0, y0, x1, y1), 0);
+    float up = 0.5f + boost + hair + (edge ? -0.5f * slope + fabsf(tie) : 0.0f), down = 0.5f + boost + hair;
+    float ends[2] = { a0 < a1 ? a0 : a1, (a0 > a1 ? a0 : a1) + 1.0f };
+    int colors[2][3];
+    for (int ch = 0; ch < 3; ch++) {
+        colors[0][ch] = (c0 >> (ch * 8)) & 255;
+        colors[1][ch] = (c1 >> (ch * 8)) & 255;
+    }
+    float q[4][2];
+    int qc[4][3];
+    for (int e = 0; e < 2; e++) {
+        float a = ends[e];
+        float centre = b0 + 0.5f + slope * (a - a0 - 0.5f) + tie;
+        float b[2] = { centre - up, centre + down };
+        const int* c = colors[(a0 <= a1) == (e == 0) ? 0 : 1];
+        for (int k = 0; k < 2; k++) {
+            float* v = q[e + k * 2];
+            v[0] = xmajor ? a : b[k];
+            v[1] = xmajor ? b[k] : a;
+            memcpy(qc[e + k * 2], c, sizeof qc[0]);
+        }
+    }
+    int anchored = pc_gte_widescreen && primitive_anchor != PC_ANCHOR_NONE && primitive_anchor != PC_ANCHOR_FILL;
+    float shift[2] = { 0, 0 };
+    if (anchored) {
+        shift[0] = anchor_x(x0 + 0.5f) - 0.5f - (float)x0;
+        shift[1] = anchor_x(x1 + 0.5f) - 0.5f - (float)x1;
+    }
+    float sx0 = (float)x0 + 0.5f, sx1 = (float)x1 + 0.5f;
+    line_quad(q, qc, semi, tpage, clip, mask_set, anchored ? shift : NULL, sx0, sx1);
+    if ((upscaled || boost > 0) && !semi) {
+        const int ends_xy[2][2] = { { x0, y0 }, { x1, y1 } };
+        for (int e = 0; e < (dx || dy ? 2 : 1); e++) {
+            float x = (float)ends_xy[e][0], y = (float)ends_xy[e][1];
+            float sq[4][2] = { { x - boost, y - boost }, { x + 1 + boost, y - boost }, { x - boost, y + 1 + boost },
+                { x + 1 + boost, y + 1 + boost } };
+            int sc[4][3];
+            for (int i = 0; i < 4; i++)
+                memcpy(sc[i], colors[e], sizeof sc[0]);
+            line_quad(sq, sc, 0, tpage, clip, mask_set, anchored ? shift : NULL, sx0, sx1);
+        }
     }
 }
 
@@ -1588,6 +1998,13 @@ static void fill_target(GLuint fbo, int x, int y, int w, int h, int r, int g, in
     if (occlusion_on && x < occlusion_rect[0] + occlusion_rect[2] && occlusion_rect[0] < x + w
         && y < occlusion_rect[1] + occlusion_rect[3] && occlusion_rect[1] < y + h)
         occlusion_on = 0;
+    if (ms_scope == fbo) { /* MSAA: a fill inside the scope clears the twins there */
+        int area[4] = { x, y, w, h };
+        if (ms_holds(fbo, area))
+            fbo = ms_target(0);
+        else
+            ms_end_over(x, y, w, h);
+    }
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
         pc_vk_hw_fill(fbo, x, y, w, h, r, g, b);
@@ -1608,16 +2025,21 @@ static void fill_target(GLuint fbo, int x, int y, int w, int h, int r, int g, in
     gl_Disable(GL_SCISSOR_TEST);
     gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
 }
+static int widescreen_screen_upload(int x, int y, int w, int h);
 /* Native VRAM rectangle (already written by the CPU) into the scaled target. */
 void pc_hw_upload(int x, int y, int w, int h)
 {
     if (!pc_hw_active || w <= 0 || h <= 0)
         return;
     flush();
+    if (ms_scope == target_fbo)
+        ms_end_over(x, y, w, h);
     record_write(x, y, w, h);
     screen_copy_write(0, 0, x, y, w, h, 0);
     pc_hw_mark(x, y, x + w - 1, y + h - 1);
     upload_tiles(dirty_tiles & tiles_for(x, y, x + w - 1, y + h - 1));
+    if (widescreen_screen_upload(x, y, w, h))
+        return;
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
         pc_vk_hw_upload_rect(x, y, w, h);
@@ -1656,6 +2078,8 @@ void pc_hw_copy(int sx, int sy, int dx, int dy, int w, int h)
     if (!pc_hw_active || w <= 0 || h <= 0)
         return;
     flush();
+    if (ms_scope == target_fbo && (ms_touches(sx, sy, w, h) || ms_touches(dx, dy, w, h)))
+        ms_end();
     record_write(dx, dy, w, h);
     screen_copy_write(sx, sy, dx, dy, w, h, 1);
     int s = pc_hw_scale;
@@ -1684,13 +2108,39 @@ void pc_hw_copy(int sx, int sy, int dx, int dy, int w, int h)
     gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+/* The internal resolution chosen (settings internal_resolution, the
+ * overlay, RPC scale); supersampling (antialias.h) may run pc_hw_scale
+ * above it, by the scale it last asked for. */
+int pc_hw_scale_setting = 4;
+static int supersample_scale;
+static int apply_scale(int scale);
+int pc_hw_set_scale(int scale)
+{
+    if (!pc_hw_active || scale < 1 || scale > 8)
+        return pc_hw_scale;
+    pc_hw_scale_setting = scale;
+    return apply_scale(supersample_scale > scale ? supersample_scale : scale);
+}
+/* Supersampling at a view `view_h` window pixels tall showing a display
+ * area `display_h` VRAM pixels tall: the scale it needs, or the setting
+ * again when it is off (the presenters, before drawing a frame). */
+void pc_hw_supersample(int view_h, int display_h)
+{
+    if (!pc_hw_active)
+        return;
+    supersample_scale = pc_aa_ssaa_scale(view_h, display_h);
+    int want = supersample_scale > pc_hw_scale_setting ? supersample_scale : pc_hw_scale_setting;
+    if (want != pc_hw_scale)
+        apply_scale(want);
+}
 /* Change the internal resolution at runtime: rebuild the targets and refill
  * them from native VRAM (one frame shows native-resolution content). */
-int pc_hw_set_scale(int scale)
+static int apply_scale(int scale)
 {
     if (!pc_hw_active || scale < 1 || scale > 8 || scale == pc_hw_scale)
         return pc_hw_scale;
     flush();
+    ms_end();
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
         occlusion_on = surface_valid = 0;
@@ -1742,6 +2192,335 @@ int pc_hw_set_scale(int scale)
     return scale;
 }
 
+/* ---- MSAA (antialias.h) ----
+ *
+ * The 3D is drawn into multisampled twins of the target (colours, G-buffer,
+ * depth, and the native surfaces' depth) over one drawing area at a time,
+ * "the scope": the first native list drawn in an area loads the target
+ * there into every sample; native lists, their translucent markers, and the
+ * fills and packets inside the area then draw into the twins (2D with every
+ * sample at the pixel centre: exactly as single-sampled); anything else
+ * that touches the area (VRAM copies and uploads, readers, the replay copy,
+ * a dump, presenting) first resolves it back (pc/shaders/vulkan/
+ * ms_resolve.glsl: averaged colour, one representative surface for the
+ * lighting). The fragment shaders run once per pixel (no sample shading),
+ * so textures stay one texel per pixel; only coverage is multisampled.
+ * Native surfaces' depth read as a texture (occlusion, an object list's
+ * second pass, translucent markers) stays single-sampled: kept in step
+ * (sample 0) whenever its twin changes. */
+static int ms_sync_clip[4]; /* the drawing area of the object list being drawn (surface_sync) */
+/* OpenGL's twins: textures, framebuffers and programs. */
+static GLuint ms_fbo, ms_object_fbo, ms_room_fbo, ms_textures[6], ms_load_program, ms_resolve_program;
+static GLint u_ms_load_textures[5], u_ms_resolve_textures[5], u_ms_resolve_samples;
+static int ms_gl_samples, ms_gl_width, ms_gl_height;
+static const char* ms_vertex_source =
+    "#version 330 core\n"
+    "void main() {\n"
+    "    vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);\n"
+    "    gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);\n"
+    "}\n";
+static const char* ms_load_source = /* pc/shaders/vulkan/ms_load.frag */
+    "#version 330 core\n"
+    "layout(location = 0) out vec4 color;\n"
+    "layout(location = 1) out vec4 normal_out;\n"
+    "layout(location = 2) out vec4 albedo_out;\n"
+    "layout(location = 3) out vec4 shade_out;\n"
+    "uniform sampler2D color_tex, normal_tex, albedo_tex, shade_tex, depth_tex;\n"
+    "void main() {\n"
+    "    ivec2 p = ivec2(gl_FragCoord.xy);\n"
+    "    color = texelFetch(color_tex, p, 0);\n"
+    "    normal_out = texelFetch(normal_tex, p, 0);\n"
+    "    albedo_out = texelFetch(albedo_tex, p, 0);\n"
+    "    shade_out = texelFetch(shade_tex, p, 0);\n"
+    "    gl_FragDepth = texelFetch(depth_tex, p, 0).r;\n"
+    "}\n";
+static const char* ms_resolve_source = /* pc/shaders/vulkan/ms_resolve.frag */
+    "#version 330 core\n"
+    "layout(location = 0) out vec4 color;\n"
+    "layout(location = 1) out vec4 normal_out;\n"
+    "layout(location = 2) out vec4 albedo_out;\n"
+    "layout(location = 3) out vec4 shade_out;\n"
+    "uniform sampler2DMS color_ms, normal_ms, albedo_ms, shade_ms, depth_ms;\n"
+    "uniform int samples;\n" PC_GLSL_MS_RESOLVE
+    "void main() {\n"
+    "    float depth;\n"
+    "    ms_resolve(ivec2(gl_FragCoord.xy), samples, color, normal_out, albedo_out, shade_out, depth);\n"
+    "    gl_FragDepth = depth;\n"
+    "}\n";
+static int gl_ms_max(void)
+{
+    static int max = -1;
+    if (max < 0) {
+        GLint color = 0, depth = 0;
+        gl_GetIntegerv(GL_MAX_COLOR_TEXTURE_SAMPLES, &color);
+        gl_GetIntegerv(GL_MAX_DEPTH_TEXTURE_SAMPLES, &depth);
+        int most = color < depth ? color : depth;
+        max = most >= 8 ? 8 : most >= 4 ? 4 : most >= 2 ? 2 : 0;
+    }
+    return max;
+}
+int pc_aa_msaa_max(void)
+{
+    if (!pc_hw_active)
+        return 0;
+#ifdef ROOD_VULKAN
+    if (pc_vk_on())
+        return pc_vk_hw_ms_max();
+#endif
+    return gl_ms_max();
+}
+/* The samples MSAA runs with now: the setting, halved until it runs here. */
+static int msaa_samples(void)
+{
+    int want = pc_aa_msaa, max = pc_aa_msaa_max();
+    while (want > max && want > 1)
+        want /= 2;
+    return want >= 2 ? want : 0;
+}
+/* RPC graphics msaa_active: the samples the 3D was last drawn with (0: off). */
+static int ms_drawn_samples;
+int pc_aa_msaa_active(void) { return msaa_samples() ? ms_drawn_samples : 0; }
+static int gl_ms_make(int samples, int width, int height)
+{
+    if (ms_gl_samples == samples && ms_gl_width >= width && ms_gl_height >= height)
+        return 1;
+    if (!ms_load_program) {
+        ms_load_program = pc_gl_program(ms_vertex_source, ms_load_source);
+        ms_resolve_program = pc_gl_program(ms_vertex_source, ms_resolve_source);
+        if (!ms_load_program || !ms_resolve_program)
+            return 0;
+        static const char* const loads[5] = { "color_tex", "normal_tex", "albedo_tex", "shade_tex", "depth_tex" };
+        static const char* const resolves[5] = { "color_ms", "normal_ms", "albedo_ms", "shade_ms", "depth_ms" };
+        for (int i = 0; i < 5; i++) {
+            u_ms_load_textures[i] = gl_GetUniformLocation(ms_load_program, loads[i]);
+            u_ms_resolve_textures[i] = gl_GetUniformLocation(ms_resolve_program, resolves[i]);
+        }
+        u_ms_resolve_samples = gl_GetUniformLocation(ms_resolve_program, "samples");
+    }
+    if (ms_fbo) {
+        gl_DeleteFramebuffers(1, &ms_fbo);
+        gl_DeleteFramebuffers(1, &ms_object_fbo);
+        gl_DeleteFramebuffers(1, &ms_room_fbo);
+        gl_DeleteTextures(6, ms_textures);
+        ms_fbo = ms_object_fbo = ms_room_fbo = 0;
+        ms_gl_samples = 0;
+    }
+    gl_GenTextures(6, ms_textures);
+    for (int i = 0; i < 6; i++) {
+        gl_BindTexture(GL_TEXTURE_2D_MULTISAMPLE, ms_textures[i]);
+        gl_TexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, i < 4 ? GL_RGBA8 : GL_DEPTH_COMPONENT24, width,
+            height, GL_TRUE);
+    }
+    gl_BindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+    GLuint fbos[3];
+    gl_GenFramebuffers(3, fbos);
+    ms_fbo = fbos[0], ms_object_fbo = fbos[1], ms_room_fbo = fbos[2];
+    int ok = 1;
+    for (int f = 0; f < 3; f++) {
+        gl_BindFramebuffer(GL_FRAMEBUFFER, fbos[f]);
+        if (f < 2) {
+            for (int i = 0; i < 4; i++)
+                gl_FramebufferTexture2D(GL_FRAMEBUFFER, all_buffers[i], GL_TEXTURE_2D_MULTISAMPLE, ms_textures[i], 0);
+            gl_DrawBuffers(4, all_buffers);
+        } else {
+            gl_DrawBuffer(GL_NONE);
+            gl_ReadBuffer(GL_NONE);
+        }
+        gl_FramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_MULTISAMPLE,
+            ms_textures[f == 0 ? 4 : 5], 0);
+        ok = ok && gl_CheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    }
+    gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
+    if (!ok) {
+        fprintf(stderr, "[gpu] %dx MSAA targets incomplete: MSAA off\n", samples);
+        return 0;
+    }
+    ms_gl_samples = samples, ms_gl_width = width, ms_gl_height = height;
+    return 1;
+}
+/* A fullscreen pass of `program` over scaled rectangle r into `fbo`. */
+static void gl_ms_pass(GLuint fbo, GLuint program, const int* r, int colours)
+{
+    gl_BindFramebuffer(GL_FRAMEBUFFER, fbo);
+    gl_Viewport(r[0], r[1], r[2] - r[0], r[3] - r[1]);
+    gl_Enable(GL_SCISSOR_TEST);
+    gl_Scissor(r[0], r[1], r[2] - r[0], r[3] - r[1]);
+    gl_Enable(GL_DEPTH_TEST);
+    gl_DepthFunc(GL_ALWAYS);
+    gl_DepthMask(GL_TRUE);
+    gl_Disable(GL_BLEND);
+    gl_ColorMask(colours, colours, colours, colours);
+    gl_UseProgram(program);
+    gl_BindVertexArray(empty_array);
+    gl_DrawArrays(GL_TRIANGLES, 0, 3);
+    gl_BindVertexArray(0);
+    gl_ColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    gl_Disable(GL_DEPTH_TEST);
+    gl_Disable(GL_SCISSOR_TEST);
+    gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+static void gl_ms_load(GLuint fbo, const int* r, int room)
+{
+    int is_replay = fbo == replay.fbo;
+    GLuint from[5] = { is_replay ? replay.color : target_texture, is_replay ? replay.normal : normal_texture,
+        is_replay ? replay.albedo : albedo_texture, is_replay ? replay.shade : shade_texture,
+        is_replay ? replay.depth : depth_texture };
+    gl_UseProgram(ms_load_program);
+    for (int i = 0; i < 5; i++) {
+        gl_ActiveTexture(GL_TEXTURE0 + i);
+        gl_BindTexture(GL_TEXTURE_2D, from[i]);
+        gl_Uniform1i(u_ms_load_textures[i], i);
+    }
+    gl_ms_pass(ms_fbo, ms_load_program, r, 1);
+    if (room) { /* the native surfaces' depth into its twin (only the depth is written) */
+        for (int i = 0; i < 5; i++) {
+            gl_ActiveTexture(GL_TEXTURE0 + i);
+            gl_BindTexture(GL_TEXTURE_2D, room_depth_texture);
+        }
+        gl_ms_pass(ms_room_fbo, ms_load_program, r, 0);
+    }
+    gl_ActiveTexture(GL_TEXTURE0);
+}
+static void gl_ms_resolve(GLuint fbo, const int* r)
+{
+    gl_UseProgram(ms_resolve_program);
+    for (int i = 0; i < 5; i++) {
+        gl_ActiveTexture(GL_TEXTURE0 + i);
+        gl_BindTexture(GL_TEXTURE_2D_MULTISAMPLE, ms_textures[i]);
+        gl_Uniform1i(u_ms_resolve_textures[i], i);
+    }
+    gl_Uniform1i(u_ms_resolve_samples, ms_gl_samples);
+    gl_ms_pass(fbo, ms_resolve_program, r, 1);
+    for (int i = 0; i < 5; i++) {
+        gl_ActiveTexture(GL_TEXTURE0 + i);
+        gl_BindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+    }
+    gl_ActiveTexture(GL_TEXTURE0);
+}
+/* Depth between framebuffers over scaled rectangle r (same sample counts:
+ * a copy; multisampled into single: a resolve). */
+static void gl_depth_blit(GLuint from, GLuint to, const int* r)
+{
+    gl_BindFramebuffer(GL_READ_FRAMEBUFFER, from);
+    gl_BindFramebuffer(GL_DRAW_FRAMEBUFFER, to);
+    gl_BlitFramebuffer(r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3], GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+/* The scope's area in scaled pixels. */
+static void ms_scaled(const int* r, int* out)
+{
+    int s = pc_hw_scale;
+    out[0] = r[0] * s, out[1] = r[1] * s, out[2] = r[2] * s, out[3] = r[3] * s;
+}
+/* Resolve the scope back into its target (nothing open: nothing to do). */
+static void ms_end(void)
+{
+    if (!ms_scope)
+        return;
+    int r[4];
+    ms_scaled(ms_rect, r);
+#ifdef ROOD_VULKAN
+    if (pc_vk_on()) {
+        if (surface_valid) /* the surfaces' twin into the single-sampled surfaces, once */
+            pc_vk_hw_ms_sync_room(r[0], r[1], r[2], r[3]);
+        pc_vk_hw_ms_resolve(ms_scope, r[0], r[1], r[2], r[3]);
+    } else
+#endif
+        gl_ms_resolve(ms_scope, r);
+    ms_scope = 0;
+}
+/* Whether native rectangle x, y, w, h touches the scope's area. */
+static int ms_touches(int x, int y, int w, int h)
+{
+    return ms_scope && x < ms_rect[2] && ms_rect[0] < x + w && y < ms_rect[3] && ms_rect[1] < y + h;
+}
+/* Resolve when native rectangle x, y, w, h touches the scope's area. */
+static void ms_end_over(int x, int y, int w, int h)
+{
+    if (ms_touches(x, y, w, h))
+        ms_end();
+}
+/* Draws into `fbo` over drawing area `clip`: whether they go into the
+ * twins (the scope is fbo's and holds clip). */
+static int ms_holds(GLuint fbo, const int* clip)
+{
+    return ms_scope && ms_scope == fbo && clip[0] >= ms_rect[0] && clip[1] >= ms_rect[1]
+        && clip[0] + clip[2] <= ms_rect[2] && clip[1] + clip[3] <= ms_rect[3];
+}
+/* 3D for `fbo` over `clip`: open (or keep) the scope there. Returns whether
+ * the draw goes into the twins. */
+static int ms_begin(GLuint fbo, const int* clip)
+{
+    int samples = msaa_samples();
+    if (!samples) {
+        ms_end();
+        return 0;
+    }
+    int x0 = clip[0] < 0 ? 0 : clip[0], y0 = clip[1] < 0 ? 0 : clip[1];
+    int x1 = clip[0] + clip[2] > 1024 ? 1024 : clip[0] + clip[2], y1 = clip[1] + clip[3] > 512 ? 512 : clip[1] + clip[3];
+    if (x1 <= x0 || y1 <= y0)
+        return 0;
+    int area[4] = { x0, y0, x1 - x0, y1 - y0 };
+    if (ms_holds(fbo, area))
+        return 1;
+    ms_end();
+    /* The twins cover the target from (0, 0) to past the area (64-pixel steps). */
+    int s = pc_hw_scale, w = ((x1 + 63) & ~63) * s, h = ((y1 + 63) & ~63) * s;
+    w = w > 1024 * s ? 1024 * s : w, h = h > 512 * s ? 512 * s : h;
+    /* At most 1 GiB of twins (four colour images, two depths): fewer samples past that. */
+    while (samples > 2 && (double)w * h * samples * 24 > 1073741824.0)
+        samples /= 2;
+    if ((double)w * h * samples * 24 > 1073741824.0)
+        return 0;
+    int made;
+#ifdef ROOD_VULKAN
+    if (pc_vk_on())
+        made = pc_vk_hw_ms_make(samples, w, h);
+    else
+#endif
+        made = gl_ms_make(samples, w, h);
+    if (!made)
+        return 0;
+    ms_rect[0] = x0, ms_rect[1] = y0, ms_rect[2] = x1, ms_rect[3] = y1;
+    int r[4];
+    ms_scaled(ms_rect, r);
+#ifdef ROOD_VULKAN
+    if (pc_vk_on())
+        pc_vk_hw_ms_load(fbo, r[0], r[1], r[2], r[3], surface_valid);
+    else
+#endif
+        gl_ms_load(fbo, r, surface_valid);
+    ms_scope = fbo;
+    ms_drawn_samples = samples;
+    return 1;
+}
+/* The twins' framebuffers (Vulkan tokens or GL names). */
+static GLuint ms_target(int object)
+{
+#ifdef ROOD_VULKAN
+    if (pc_vk_on())
+        return object ? VK_TOKEN_MS_OBJECT : VK_TOKEN_MS;
+#endif
+    return object ? ms_object_fbo : ms_fbo;
+}
+/* The native surfaces' depth twin into the single-sampled one (sample 0),
+ * over native rectangle clip. */
+static void ms_sync_room(const int* clip)
+{
+    int r[4] = { clip[0], clip[1], clip[0] + clip[2], clip[1] + clip[3] };
+    ms_scaled(r, r);
+#ifdef ROOD_VULKAN
+    if (pc_vk_on()) {
+        pc_vk_hw_ms_sync_room(r[0], r[1], r[2], r[3]);
+        return;
+    }
+#endif
+    r[2] = r[2] > ms_gl_width ? ms_gl_width : r[2], r[3] = r[3] > ms_gl_height ? ms_gl_height : r[3];
+    if (r[2] > r[0] && r[3] > r[1])
+        gl_depth_blit(ms_room_fbo, room_depth_fbo, r);
+}
+static void ms_surface_sync(void) { ms_sync_room(ms_sync_clip); }
+
 /* ---- native draw lists (render.c) ---- */
 
 static void record_native(uint32_t list, const int* clip, int ox, int oy, unsigned window, int mask);
@@ -1759,7 +2538,9 @@ static int draw_native(GLuint fbo, uint32_t list, const int* clip, int ox, int o
         return 0;
     if (dirty_tiles)
         upload_tiles(dirty_tiles);
+    int ms = ms_begin(fbo, clip); /* MSAA: into the multisampled twins */
     render_target target;
+    memset(&target, 0, sizeof target);
     target.scale = pc_hw_scale;
     memcpy(target.clip, clip, sizeof target.clip);
     target.ox = ox, target.oy = oy;
@@ -1768,17 +2549,41 @@ static int draw_native(GLuint fbo, uint32_t list, const int* clip, int ox, int o
     target.vram = native_texture;
     target.perspective = pc_hw_perspective;
     target.filtering = pc_hw_texture_filter;
-    target.fbo = fbo;
-    target.object_fbo = fbo == replay.fbo ? object_replay_fbo : object_fbo;
+    target.fbo = ms ? ms_target(0) : fbo;
+    target.object_fbo = ms ? ms_target(1) : fbo == replay.fbo ? object_replay_fbo : object_fbo;
     target.surface_depth = room_depth_texture;
     target.surface_before = 0;
+    target.camera = camera;
+    target.t = t;
+    /* MSAA: an object list's depth copies cover only where it draws. */
+    int area[4];
+    memcpy(area, clip, sizeof area);
+    if (ms && objects)
+        render_list_screen_bounds(list, &target, area);
+    /* MSAA: Vulkan's shaders read the surfaces' twins (sample 0); OpenGL's
+     * read the single-sampled surfaces, kept in step between an object
+     * list's passes. */
+    int ms_twins = 0;
+    if (ms) {
+#ifdef ROOD_VULKAN
+        if (pc_vk_on()) {
+            ms_twins = 1;
+            target.surface_depth = VK_TOKEN_MS_ROOM_DEPTH;
+        } else
+#endif
+        {
+            memcpy(ms_sync_clip, area, sizeof ms_sync_clip);
+            target.surface_sync = ms_surface_sync;
+        }
+    }
     if (objects == 1 && pc_native_actor_order) {
         /* The surfaces before this list, for its PS1-ordered instances. */
-        int s = pc_hw_scale, x0 = clip[0] * s, y0 = clip[1] * s, x1 = (clip[0] + clip[2]) * s,
-            y1 = (clip[1] + clip[3]) * s;
+        int s = pc_hw_scale, x0 = area[0] * s, y0 = area[1] * s, x1 = (area[0] + area[2]) * s,
+            y1 = (area[1] + area[3]) * s;
 #ifdef ROOD_VULKAN
         if (pc_vk_on())
-            pc_vk_hw_copy_depth(room_depth_fbo, before_fbo, x0, y0, x1, y1);
+            pc_vk_hw_copy_depth(ms_twins ? VK_TOKEN_MS_ROOM_DEPTH : room_depth_fbo,
+                ms_twins ? VK_TOKEN_MS_BEFORE : before_fbo, x0, y0, x1, y1);
         else
 #endif
         {
@@ -1788,9 +2593,11 @@ static int draw_native(GLuint fbo, uint32_t list, const int* clip, int ox, int o
             gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
         }
         target.surface_before = before_texture;
+#ifdef ROOD_VULKAN
+        if (ms_twins)
+            target.surface_before = VK_TOKEN_MS_BEFORE;
+#endif
     }
-    target.camera = camera;
-    target.t = t;
     target.count_stats = camera == NULL;
     int drawn = render_draw_list(list, &target);
     if (drawn < 0)
@@ -1800,8 +2607,22 @@ static int draw_native(GLuint fbo, uint32_t list, const int* clip, int ox, int o
     if (drawn > 0) {
         int s = pc_hw_scale, x0 = clip[0] * s, y0 = clip[1] * s, x1 = (clip[0] + clip[2]) * s,
             y1 = (clip[1] + clip[3]) * s;
+        if (ms) { /* the twins' depth into the surfaces' twin (OpenGL: and sample 0 into the surfaces) */
 #ifdef ROOD_VULKAN
-        if (pc_vk_on())
+            if (pc_vk_on())
+                pc_vk_hw_copy_depth(VK_TOKEN_MS, VK_TOKEN_MS_ROOM_DEPTH, x0, y0, x1, y1);
+            else
+#endif
+            {
+                int r[4] = { x0 < 0 ? 0 : x0, y0 < 0 ? 0 : y0, x1 > ms_gl_width ? ms_gl_width : x1,
+                    y1 > ms_gl_height ? ms_gl_height : y1 };
+                if (r[2] > r[0] && r[3] > r[1])
+                    gl_depth_blit(ms_fbo, ms_room_fbo, r);
+                ms_sync_room(clip);
+            }
+        } else
+#ifdef ROOD_VULKAN
+            if (pc_vk_on())
             pc_vk_hw_copy_depth(fbo, room_depth_fbo, x0, y0, x1, y1);
         else
 #endif
@@ -1903,8 +2724,12 @@ static int draw_translucent(GLuint fbo, uint32_t list, int first, int count, con
     target.vram = native_texture;
     target.perspective = pc_hw_perspective;
     target.filtering = pc_hw_texture_filter;
-    target.fbo = fbo;
+    target.fbo = ms_begin(fbo, clip) ? ms_target(0) : fbo; /* MSAA: into the twins */
     target.surface_depth = room_depth_texture;
+#ifdef ROOD_VULKAN
+    if (target.fbo != fbo && pc_vk_on())
+        target.surface_depth = VK_TOKEN_MS_ROOM_DEPTH; /* read multisampled (sample 0) */
+#endif
     target.camera = camera;
     target.t = t;
     target.count_stats = camera == NULL;
@@ -1960,9 +2785,18 @@ void pc_hw_native_translucent(uint32_t list, int first, int count, int ox, int o
  * what the window shows. */
 #define MAX_STALE 8
 static int stale_rects[MAX_STALE][4], stale_count;
+/* Why each is stale: STALE_MISSING, native VRAM lacks what native draws
+ * drew; STALE_PLACED, widescreen placed what is drawn there differently
+ * (2D compressed or spread over the view, Hor+ 3D). StoreImage reads back
+ * only the first: the CPU then reads 4:3 2D as the game drew it, so what it
+ * loads back after changing it (the title's copyright fading in over its
+ * background, its menu over its background) matches the 2D drawn by the
+ * game, compressed. */
+static int stale_kinds[MAX_STALE];
 static GLuint sync_fbo, sync_texture;
 int pc_hw_syncs; /* rectangles copied back (diagnostics) */
-static void mark_stale(const int* clip)
+static void mark_stale(const int* clip) { mark_stale_kind(clip, STALE_MISSING); }
+static void mark_stale_kind(const int* clip, int kind)
 {
     if (clip[2] <= 0 || clip[3] <= 0)
         return;
@@ -1973,10 +2807,13 @@ static void mark_stale(const int* clip)
         return;
     for (int i = 0; i < stale_count; i++) {
         int* r = stale_rects[i];
-        if (x0 >= r[0] && y0 >= r[1] && x1 <= r[0] + r[2] && y1 <= r[1] + r[3])
-            return; /* already stale */
+        if (x0 >= r[0] && y0 >= r[1] && x1 <= r[0] + r[2] && y1 <= r[1] + r[3]) {
+            stale_kinds[i] |= kind; /* already stale */
+            return;
+        }
         if (r[0] >= x0 && r[1] >= y0 && r[0] + r[2] <= x1 && r[1] + r[3] <= y1) {
             r[0] = x0, r[1] = y0, r[2] = x1 - x0, r[3] = y1 - y0; /* grows */
+            stale_kinds[i] |= kind;
             return;
         }
     }
@@ -1986,17 +2823,30 @@ static void mark_stale(const int* clip)
         int a0 = r[0] < x0 ? r[0] : x0, b0 = r[1] < y0 ? r[1] : y0;
         int a1 = r[0] + r[2] > x1 ? r[0] + r[2] : x1, b1 = r[1] + r[3] > y1 ? r[1] + r[3] : y1;
         r[0] = a0, r[1] = b0, r[2] = a1 - a0, r[3] = b1 - b0;
+        stale_kinds[MAX_STALE - 1] |= kind;
         return;
     }
+    stale_kinds[stale_count] = kind;
     int* r = stale_rects[stale_count++];
     r[0] = x0, r[1] = y0, r[2] = x1 - x0, r[3] = y1 - y0;
 }
-void pc_hw_sync(int x, int y, int w, int h)
+static void sync_kinds(int x, int y, int w, int h, int kinds);
+void pc_hw_sync(int x, int y, int w, int h) { sync_kinds(x, y, w, h, STALE_MISSING | STALE_PLACED); }
+/* StoreImage (boot_runtime.c): only what native VRAM lacks. */
+void pc_hw_sync_store(int x, int y, int w, int h)
+{
+    sync_kinds(x, y, w, h, layout_enabled() ? STALE_MISSING : STALE_MISSING | STALE_PLACED);
+}
+static void sync_kinds(int x, int y, int w, int h, int kinds)
 {
     if (!pc_hw_active || !stale_count || w <= 0 || h <= 0)
         return;
     for (int i = 0; i < stale_count;) {
         int* r = stale_rects[i];
+        if (!(stale_kinds[i] & kinds)) {
+            ++i;
+            continue;
+        }
         int x0 = x > r[0] ? x : r[0], y0 = y > r[1] ? y : r[1];
         int x1 = x + w < r[0] + r[2] ? x + w : r[0] + r[2], y1 = y + h < r[1] + r[3] ? y + h : r[1] + r[3];
         if (x1 <= x0 || y1 <= y0) {
@@ -2012,6 +2862,8 @@ void pc_hw_sync(int x, int y, int w, int h)
         /* Copy the whole stale rectangle back: it is then current. */
         x0 = r[0], y0 = r[1], x1 = r[0] + r[2], y1 = r[1] + r[3];
         flush();
+        if (ms_scope == target_fbo)
+            ms_end_over(x0, y0, x1 - x0, y1 - y0);
         static unsigned char pixels[1024 * 512 * 4];
 #ifdef ROOD_VULKAN
         if (pc_vk_on()) {
@@ -2053,6 +2905,7 @@ void pc_hw_sync(int x, int y, int w, int h)
         pc_ui_upscale_tiles_changed(tiles_for(x0, y0, x1 - 1, y1 - 1));
         ++pc_hw_syncs;
         memmove(r, stale_rects[i + 1], (size_t)(stale_count - i - 1) * sizeof stale_rects[0]);
+        memmove(&stale_kinds[i], &stale_kinds[i + 1], (size_t)(stale_count - i - 1) * sizeof stale_kinds[0]);
         --stale_count;
     }
 }
@@ -2066,7 +2919,7 @@ void pc_hw_stale_copy(int sx, int sy, int dx, int dy, int w, int h)
         const int* r = stale_rects[i];
         if (sx < r[0] + r[2] && r[0] < sx + w && sy < r[1] + r[3] && r[1] < sy + h) {
             int clip[4] = { dx, dy, w, h };
-            mark_stale(clip);
+            mark_stale_kind(clip, stale_kinds[i]);
             return;
         }
     }
@@ -2151,6 +3004,100 @@ static int recording_index, newest = 1, previous = 2;
 static unsigned arrival[3]; /* vsync each finished frame was presented at */
 static int display_rect[4]; /* the display area (pc_hw_set_display) */
 static int shown_rect[4];   /* the area presented: the display area, or B's area for its replay */
+/* Widescreen: a picture the game loads straight into a frame buffer (the
+ * title screen's background, loaded before the title's display is set;
+ * pc_hw_upload_mode 2) is copied 1:1 and would spread over the 16:9 view.
+ * At the first present that shows it, the display area is drawn again from
+ * native VRAM compressed about its centre like other 2D (the 2D the game
+ * drew over it since is compressed there too), the sides black, so it keeps
+ * its proportions. */
+static int picture_rect[4], picture_pending;
+/* Draw native VRAM rectangle (x, y, w, h) into the target compressed about
+ * the centre of screen area `screen` (as 2D; 15-bit texture pages are 256
+ * texels square from multiples of 64; black texels stay transparent). */
+static void draw_compressed_rect(int x, int y, int w, int h, const int* screen)
+{
+    int anchor = primitive_anchor;
+    primitive_anchor = PC_ANCHOR_NONE;
+    for (int ty = y; ty < y + h;) {
+        int py = ty & ~255, rows = (py + 256 < y + h ? py + 256 : y + h) - ty;
+        for (int tx = x; tx < x + w;) {
+            int px = tx & ~63, cols = x + w - tx;
+            cols = cols > 256 - (tx - px) ? 256 - (tx - px) : cols;
+            unsigned tpage = (unsigned)(px >> 6) | (unsigned)((py >> 8) << 4) | (2u << 7);
+            pc_hw_set_2d(1);
+            pc_hw_rect(tx, ty, cols, rows, tx - px, ty - py, 0x808080, 0x65, tpage, 0, 0, screen, 0, 0);
+            tx += cols;
+        }
+        ty += rows;
+    }
+    pc_hw_set_2d(0);
+    primitive_anchor = anchor;
+    flush();
+}
+/* Widescreen: the game code says what its next LoadImage is
+ * (pc_hw_upload_mode, pc/src/widescreen.h): 1, a 2D image loaded into the
+ * shown frame buffer (the title's copyright fading in), drawn compressed
+ * like other 2D instead of 1:1; 2, a picture loaded into a frame buffer
+ * before it is shown (the title's background), drawn compressed at the
+ * first present that shows it (widescreen_picture). */
+static int upload_mode;
+void pc_hw_upload_mode(int mode) { upload_mode = mode; }
+static int widescreen_screen_upload(int x, int y, int w, int h)
+{
+    int mode = upload_mode;
+    upload_mode = 0;
+    if (mode == 2) {
+        picture_rect[0] = x, picture_rect[1] = y, picture_rect[2] = w, picture_rect[3] = h;
+        picture_pending = pc_gte_widescreen && layout_enabled();
+        return 0; /* (1:1 until it is shown) */
+    }
+    const int* d = display_rect;
+    if (mode != 1 || !pc_gte_widescreen || !layout_enabled() || x < d[0] || y < d[1] || x + w > d[0] + d[2]
+        || y + h > d[1] + d[3])
+        return 0;
+    static int logged;
+    if (getenv("ROOD_WIDESCREEN_DEBUG") && logged++ < 40)
+        fprintf(stderr, "[widescreen] image loaded into the screen %d,%d %dx%d: drawn compressed\n", x, y, w, h);
+    int rect[4] = { x, y, w, h };
+    mark_stale_kind(rect, STALE_PLACED);
+    draw_compressed_rect(x, y, w, h, d);
+    return 1;
+}
+static void widescreen_picture(const int* d)
+{
+    const int* p = picture_rect;
+    /* Widescreen switched while the picture shows: drawn again (from native
+     * VRAM: the picture and the 2D the game drew over it) 1:1 or compressed. */
+    static int compressed;
+    int wanted = pc_gte_widescreen && layout_enabled();
+    if (d[2] <= 0 || d[3] <= 0 || p[2] <= 0)
+        return;
+    if (p[0] > d[0] || p[0] + p[2] < d[0] + d[2] || p[1] > d[1] + d[3] / 4 || p[1] + p[3] < d[1] + d[3] * 3 / 4) {
+        if (!picture_pending)
+            picture_rect[2] = 0; /* shown and left: forgotten */
+        return; /* not shown (yet) */
+    }
+    if (!picture_pending && wanted == compressed)
+        return;
+    picture_pending = 0;
+    compressed = wanted;
+    if (!wanted) {
+        flush();
+        pc_hw_upload(d[0], d[1], d[2], d[3]);
+        return;
+    }
+    int y0 = p[1] > d[1] ? p[1] : d[1], y1 = p[1] + p[3] < d[1] + d[3] ? p[1] + p[3] : d[1] + d[3];
+    static int logged;
+    if (getenv("ROOD_WIDESCREEN_DEBUG") && logged++ < 20)
+        fprintf(stderr, "[widescreen] picture loaded into the display %d,%d %dx%d: drawn compressed\n", p[0], p[1],
+            p[2], p[3]);
+    flush();
+    record_fill(d[0], y0, d[2], y1 - y0, 0, 0, 0);
+    fill_target(target_fbo, d[0], y0, d[2], y1 - y0, 0, 0, 0);
+    int clip[4] = { d[0], y0, d[2], y1 - y0 };
+    draw_compressed_rect(d[0], y0, d[2], y1 - y0, clip);
+}
 static int presenting_replay;
 static float present_blend = 1.0f; /* the replay's t while presenting_replay */
 /* The next triangles come from this GPU packet (boot_polygons.inc). */
@@ -2499,6 +3446,7 @@ static void project(const float r[3][3], const float t[3], const float* w, float
  * target: picture, G-buffer and depth, as B drew them. */
 static void copy_to_replay(int x0, int y0, int x1, int y1)
 {
+    ms_end(); /* MSAA: the live picture complete, the replay's twins drawn afresh */
     int s = pc_hw_scale;
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
@@ -2660,6 +3608,7 @@ static void replay_frame(const recording* a, const recording* b, float t)
 void pc_hw_set_display(int x, int y, int w, int h)
 {
     display_rect[0] = x, display_rect[1] = y, display_rect[2] = w, display_rect[3] = h;
+    widescreen_picture(display_rect);
     memcpy(shown_rect, display_rect, sizeof shown_rect);
     screen_display(x, y, w, h);
     /* Widescreen: the target's picture is not the CPU's (2D compressed or
@@ -2667,7 +3616,7 @@ void pc_hw_set_display(int x, int y, int w, int h)
      * (screen copies sampled as textures, StoreImage) takes it from the
      * target. */
     if (pc_gte_widescreen && cover_enabled())
-        mark_stale(display_rect);
+        mark_stale_kind(display_rect, STALE_PLACED);
 }
 /* Developer RPC (ui_upscale redraw): draw the newest recorded frame again,
  * as recorded (t = 1), into the replay target, so drawing options can be
@@ -2686,7 +3635,22 @@ int pc_hw_redraw(int area[4])
         return -1;
     memcpy(area, op->clip, 4 * sizeof(int));
     replay_frame(&recordings[previous], b, 1.0f);
+    ms_end();
     force_replay = 1; /* the next interpolated image is drawn afresh */
+    return 0;
+}
+/* Developer RPC (redraw {present: true}): pc_hw_redraw, then present that
+ * image (B's drawing area of the replay target) until the game draws a new
+ * frame: a paused game shows the same frame under each drawing option
+ * (anti-aliasing comparisons, aa_smoke.py). */
+static int redraw_shown, redraw_origin[2];
+int pc_hw_redraw_present(void)
+{
+    int area[4];
+    if (pc_hw_redraw(area))
+        return -1;
+    redraw_shown = 1;
+    redraw_origin[0] = area[0], redraw_origin[1] = area[1];
     return 0;
 }
 /* The display area (RPC ui_upscale reports it for crops of gpu_dump). */
@@ -2721,6 +3685,7 @@ GLuint pc_hw_target(void)
 static GLuint hw_target(void)
 {
     flush();
+    ms_end(); /* MSAA: the frame complete in the target */
     pc_ui_upscale_frame(); /* a presented image: the 2D cache's clock */
     presenting_replay = 0;
     memcpy(shown_rect, display_rect, sizeof shown_rect);
@@ -2740,6 +3705,13 @@ static GLuint hw_target(void)
         recording* next = recording_now();
         next->vertex_count = next->triangle_count = next->op_count = next->overflow = next->writes = 0;
         next->valid = 0;
+        redraw_shown = 0; /* a new frame: the redrawn one is history */
+    }
+    if (redraw_shown) { /* pc_hw_redraw_present */
+        shown_rect[0] = redraw_origin[0], shown_rect[1] = redraw_origin[1];
+        presenting_replay = 1;
+        present_blend = 1.0f;
+        return replay.color;
     }
     recording *a = &recordings[previous], *b = &recordings[newest];
     int matching = a->valid && b->valid && a->widescreen == b->widescreen && fabsf(a->h - b->h) < 0.25f * b->h;
@@ -2798,6 +3770,7 @@ static GLuint hw_target(void)
         || drawn_phase != pc_present_phase || force_replay) {
         force_replay = 0;
         replay_frame(a, b, t);
+        ms_end();
         drawn_slot = newest, drawn_vsync = vsync, drawn_arrival = arrival[newest], drawn_phase = pc_present_phase;
     }
     presenting_replay = 1;
@@ -2868,6 +3841,7 @@ int pc_hw_dump(const char* path, int replay_target)
     if (!pc_hw_active)
         return -1;
     flush();
+    ms_end();
 #ifdef ROOD_VULKAN
     if (pc_vk_on())
         return pc_vk_hw_dump(path, replay_target);
@@ -2900,6 +3874,7 @@ static int pick_pixel(int x, int y, unsigned char n[4], float* depth)
 {
     if (x < 0 || y < 0 || x >= 1024 * pc_hw_scale || y >= 512 * pc_hw_scale)
         return 0;
+    ms_end();
 #ifdef ROOD_VULKAN
     if (pc_vk_on())
         return pc_vk_hw_pick(x, y, depth, n);

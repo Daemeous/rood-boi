@@ -31,6 +31,10 @@
  *                                blend) of the next `count` presented images to a
  *                                binary file (pc/tools/anim_trace.py); no count:
  *                                the images still to trace
+ *   ui_bubbles {path}            vector talk bubbles (ui_bubbles.h): counters,
+ *                                line segments drawn, recent bubbles (shape,
+ *                                bounds drawn and the game's, outline);
+ *                                path N: bubble N's outline points
  *   gpu_dump {path, replay}      write the scaled hardware VRAM target as a PPM
  *                                (replay: the last interpolated frame's)
  *   gpu_draw {packet, texture_x, texture_y, texture_w, texture_h, texture,
@@ -57,8 +61,10 @@
  *                                dump: the field to a file (pc_probe_dump)
  *   scene_dump {path}            captured room as OBJ with vertex colours
  *   lights {action, baked}       room light list; action "suggest" (fit from
- *                                vertex colours), "save" or "add" (a point
- *                                light at position [x, y, z], selected);
+ *                                vertex colours), "save", "reload" (read the
+ *                                room's files from disk now, dropping unsaved
+ *                                edits; "loads" counts layer loads) or "add"
+ *                                (a point light at position [x, y, z], selected);
  *                                select: a light's index; baked lighting scale
  *   actors {action, ...}         light actors (prefab instances) in the room:
  *                                list (default); add {prefab, position | x, y
@@ -101,7 +107,11 @@
  *                                hold), present_rate (images per vsync, 1-8:
  *                                in-betweens at fractions of a vsync), aa (FXAA),
  *                                texture_filter, ui_upscale ("nearest" | "mmpx"),
- *                                ui_subpixel, post, drop_shadows; path-
+ *                                ui_subpixel, ui_text ("original" | "font"),
+ *                                ui_lines ("joined" | "legacy"),
+ *                                ui_outline_boost (0-3), ui_bubbles
+ *                                ("original" | "vector"), ui_bubble_outline,
+ *                                post, drop_shadows; path-
  *                                traced GI: gi, gi_debug, gi_denoise
  *                                (on/off), gi_denoiser ("nrd": NVIDIA NRD
  *                                RELAX for the indirect light, Vulkan built
@@ -125,7 +135,11 @@
  *                                (editor: 1 active, 2 all probes);
  *                                native_room (0 legacy room packets, 1 native
  *                                room meshes, 2 native without the reference
- *                                packets), native_occlusion, native_actors
+ *                                packets), native_occlusion, room_order
+ *                                (coplanar room surfaces in PS1 order;
+ *                                room_slack, room_slack_units: how far
+ *                                behind the nearest surface still counts as
+ *                                on it, relative and GTE units), native_actors
  *                                (0 legacy character/weapon/prop packets, 1
  *                                native meshes with bone palettes, 2 also
  *                                without the reference packets' CPU
@@ -241,6 +255,10 @@
 #include "editor_overlays.h"
 #include "probe_gi.h"
 #include "ui_upscale.h"
+#include "ui_text.h"
+#include "ui_bubbles.h"
+#include "button_prompts.h"
+#include "boot_controller.h" /* pc_pad_button_index */
 #include "camera_stick.h"
 /* The editor (editor_overlays.cpp, lights.cpp). */
 extern int pc_overlay_wire __attribute__((weak)), pc_overlay_points __attribute__((weak)),
@@ -267,6 +285,13 @@ extern int pc_hw_set_scale(int scale) __attribute__((weak));
 extern int pc_hw_active __attribute__((weak)), pc_hw_scale __attribute__((weak));
 extern int pc_gl_filter __attribute__((weak)), pc_gl_aspect __attribute__((weak));
 extern int pc_gl_aa __attribute__((weak));
+/* Anti-aliasing (antialias.h). */
+extern int pc_aa_parse(const char*) __attribute__((weak));
+extern const char* pc_aa_string(void) __attribute__((weak));
+extern int pc_aa_downsample __attribute__((weak)), pc_aa_geometry_edges __attribute__((weak));
+extern const char* const pc_aa_downsample_names[3] __attribute__((weak));
+extern int pc_aa_msaa_active(void) __attribute__((weak)); /* gpu_hw.c: samples the 3D is drawn with now */
+extern int pc_aa_msaa_max(void) __attribute__((weak)); /* gpu_hw.c: the most samples this backend runs */
 extern int pc_gl_finish __attribute__((weak));
 extern int pc_room_exact_depth __attribute__((weak));
 extern int pc_baked_estimate __attribute__((weak));
@@ -335,7 +360,8 @@ extern int pc_native_room __attribute__((weak)), pc_native_occlusion __attribute
     pc_native_actors __attribute__((weak)), pc_native_actor_order __attribute__((weak)),
     pc_native_blend __attribute__((weak)), pc_native_objects __attribute__((weak)),
     pc_native_shadows __attribute__((weak)), pc_native_effects __attribute__((weak)),
-    pc_reconstruct __attribute__((weak));
+    pc_reconstruct __attribute__((weak)), pc_native_room_order __attribute__((weak));
+extern float pc_native_room_slack[2] __attribute__((weak));
 extern int pc_gte_log __attribute__((weak));
 extern void render_stats_get(render_stats*) __attribute__((weak));
 
@@ -667,10 +693,12 @@ static void handle_method(int fd, const char* request)
     static char result[LINE_MAX_BYTES];
 
     if (!strcmp(method, "status")) {
+        extern int pc_display_masked __attribute__((weak)); /* SetDispMask(0) */
         snprintf(result, sizeof result,
-            "{\"vsync\":%u,\"battle_frame\":%u,\"paused\":%s,\"step_budget\":%ld,\"buttons\":%u}",
+            "{\"vsync\":%u,\"battle_frame\":%u,\"paused\":%s,\"step_budget\":%ld,\"buttons\":%u,"
+            "\"display_masked\":%s}",
             pc_vsync_count(), pc_battle_frame_count(), paused ? "true" : "false", step_budget,
-            pc_rpc_buttons());
+            pc_rpc_buttons(), &pc_display_masked && pc_display_masked ? "true" : "false");
         reply(fd, id, result);
     } else if (!strcmp(method, "pause")) {
         int value = 1;
@@ -811,6 +839,15 @@ static void handle_method(int fd, const char* request)
         int flag;
         if (params && bool_value(member(params, "widescreen"), &flag))
             pc_gte_widescreen = flag;
+        /* Widescreen fixes, off for before/after comparisons (gpu_hw.c). */
+        extern int pc_widescreen_cover __attribute__((weak)), pc_widescreen_layout __attribute__((weak));
+        if (params && bool_value(member(params, "widescreen_cover"), &flag) && &pc_widescreen_cover)
+            pc_widescreen_cover = flag;
+        if (params && bool_value(member(params, "widescreen_layout"), &flag) && &pc_widescreen_layout)
+            pc_widescreen_layout = flag;
+        extern int pc_widescreen_trace __attribute__((weak));
+        if (params && number_value(member(params, "widescreen_trace"), &n) && &pc_widescreen_trace && n >= 0)
+            pc_widescreen_trace = (int)n + 1; /* log the next N ordering tables' 2D */
         if (params && bool_value(member(params, "perspective"), &flag) && &pc_hw_perspective)
             pc_hw_perspective = flag;
         if (params && bool_value(member(params, "show_depth"), &flag) && &pc_gl_show_depth)
@@ -831,8 +868,25 @@ static void handle_method(int fd, const char* request)
             else if (number_value(member(params, "interp_uv"), &n) && n >= 0 && n <= 2)
                 pc_interp_uv = (int)n;
         }
-        if (params && bool_value(member(params, "aa"), &flag) && &pc_gl_aa)
-            pc_gl_aa = flag;
+        /* aa: true/false (FXAA/off, as before) or "msaa4+smaa" ... (antialias.h). */
+        if (params && bool_value(member(params, "aa"), &flag) && &pc_gl_aa) {
+            pc_gl_aa = flag ? 1 : 0;
+        } else if (params && pc_aa_parse) {
+            char text[64];
+            if (string_value(member(params, "aa"), text, sizeof text) && !pc_aa_parse(text)) {
+                fail(fd, id, -32602, "aa: off, fxaa, smaa, msaa2/4/8, ssaa[factor], joined by '+'");
+                return;
+            }
+        }
+        if (params && &pc_aa_downsample) {
+            char text[32];
+            if (string_value(member(params, "aa_downsample"), text, sizeof text))
+                for (int k = 0; k < 3; k++)
+                    if (!strcmp(text, pc_aa_downsample_names[k]))
+                        pc_aa_downsample = k;
+            if (bool_value(member(params, "aa_geometry_edges"), &flag))
+                pc_aa_geometry_edges = flag;
+        }
         if (params && bool_value(member(params, "finish"), &flag) && &pc_gl_finish)
             pc_gl_finish = flag;
         if (params && bool_value(member(params, "room_depth"), &flag) && &pc_room_exact_depth)
@@ -858,6 +912,32 @@ static void handle_method(int fd, const char* request)
                 pc_ui_subpixel = flag;
             else if (number_value(member(params, "ui_subpixel"), &n))
                 pc_ui_subpixel = n != 0;
+            /* ui_text "original" | "font" (or 0/1; ui_text.h). */
+            if (string_value(member(params, "ui_text"), name, sizeof name)) {
+                for (int k = 0; k < 2; k++)
+                    if (!strcmp(name, pc_ui_text_names[k]))
+                        pc_ui_text = k;
+            } else if (number_value(member(params, "ui_text"), &n) && n >= 0 && n <= 1)
+                pc_ui_text = (int)n;
+            /* ui_lines "joined" | "legacy", ui_outline_boost 0-3, ui_bubbles
+             * "original" | "vector", ui_bubble_outline (ui_bubbles.h). */
+            if (string_value(member(params, "ui_lines"), name, sizeof name)) {
+                for (int k = 0; k < 2; k++)
+                    if (!strcmp(name, pc_ui_lines_names[k]))
+                        pc_ui_lines = k;
+            } else if (number_value(member(params, "ui_lines"), &n) && n >= 0 && n <= 1)
+                pc_ui_lines = (int)n;
+            if (number_value(member(params, "ui_outline_boost"), &n) && n >= 0 && n <= 3)
+                pc_ui_outline_boost = (int)n;
+            if (string_value(member(params, "ui_bubbles"), name, sizeof name)) {
+                for (int k = 0; k < 2; k++)
+                    if (!strcmp(name, pc_ui_bubbles_names[k]))
+                        pc_ui_bubbles = k;
+            } else if (number_value(member(params, "ui_bubbles"), &n) && n >= 0 && n <= 1)
+                pc_ui_bubbles = (int)n;
+            double outline;
+            if (real_value(member(params, "ui_bubble_outline"), &outline) && outline >= 0.25 && outline <= 8)
+                pc_ui_bubble_outline = (float)outline;
         }
         if (&pc_gi_enabled && params) {
             double real;
@@ -940,6 +1020,18 @@ static void handle_method(int fd, const char* request)
                 pc_native_room = flag;
             if (bool_value(member(params, "native_occlusion"), &flag))
                 pc_native_occlusion = flag;
+            if (&pc_native_room_order) {
+                if (bool_value(member(params, "room_order"), &flag))
+                    pc_native_room_order = flag;
+                else if (number_value(member(params, "room_order"), &n))
+                    pc_native_room_order = n != 0;
+            }
+            if (pc_native_room_slack) {
+                if (number_value(member(params, "room_slack"), &n) && n >= 0 && n <= 0.1)
+                    pc_native_room_slack[0] = (float)n;
+                if (number_value(member(params, "room_slack_units"), &n) && n >= 0 && n <= 64)
+                    pc_native_room_slack[1] = (float)n;
+            }
         }
         if (params && &pc_native_actors) {
             if (number_value(member(params, "native_actors"), &n) && n >= 0 && n <= 2)
@@ -1096,6 +1188,7 @@ static void handle_method(int fd, const char* request)
         int used = snprintf(result, sizeof result,
             "{\"hardware\":%s,\"scale\":%d,\"filter\":%d,\"aspect\":%d,\"widescreen\":%s,"
             "\"perspective\":%s,\"show_depth\":%s,\"native_room\":%d,\"native_occlusion\":%s,"
+            "\"room_order\":%s,\"room_slack\":%g,\"room_slack_units\":%g,"
             "\"native_actors\":%d,\"actor_order\":%s,\"native_blend\":%d,\"native_objects\":%d,"
             "\"native_shadows\":%d,\"native_effects\":%d,\"reconstruct\":%d,\"gte_log\":%d,"
             "\"gi_denoiser\":\"%s\",\"gi_denoiser_active\":\"%s\",\"nrd_built\":%s,\"nrd_available\":%s,"
@@ -1103,7 +1196,10 @@ static void handle_method(int fd, const char* request)
             pc_hw_active ? "true" : "false", pc_hw_scale, pc_gl_filter, pc_gl_aspect,
             pc_gte_widescreen ? "true" : "false", pc_hw_perspective ? "true" : "false",
             pc_gl_show_depth ? "true" : "false", &pc_native_room ? pc_native_room : 0,
-            &pc_native_occlusion && pc_native_occlusion ? "true" : "false", &pc_native_actors ? pc_native_actors : 0,
+            &pc_native_occlusion && pc_native_occlusion ? "true" : "false",
+            &pc_native_room_order && pc_native_room_order ? "true" : "false",
+            pc_native_room_slack ? (double)pc_native_room_slack[0] : 0.0,
+            pc_native_room_slack ? (double)pc_native_room_slack[1] : 0.0, &pc_native_actors ? pc_native_actors : 0,
             &pc_native_actor_order && pc_native_actor_order ? "true" : "false",
             &pc_native_blend ? pc_native_blend : 0, &pc_native_objects ? pc_native_objects : 0,
             &pc_native_shadows ? pc_native_shadows : 0, &pc_native_effects ? pc_native_effects : 0,
@@ -1125,8 +1221,22 @@ static void handle_method(int fd, const char* request)
                         pc_probe_hysteresis, pc_probe_budget, pc_probe_show)
                 - 1;
         if (used < (int)sizeof result - 100)
-            used += snprintf(result + used - 1, sizeof result - used + 1, ",\"ui_upscale\":\"%s\",\"ui_subpixel\":%d}",
-                        pc_ui_upscale_names[pc_ui_upscale ? 1 : 0], pc_ui_subpixel)
+            used += snprintf(result + used - 1, sizeof result - used + 1, ",\"ui_upscale\":\"%s\",\"ui_subpixel\":%d,\"ui_text\":\"%s\"}",
+                        pc_ui_upscale_names[pc_ui_upscale ? 1 : 0], pc_ui_subpixel, pc_ui_text_names[pc_ui_text ? 1 : 0])
+                - 1;
+        if (used < (int)sizeof result - 160)
+            used += snprintf(result + used - 1, sizeof result - used + 1,
+                        ",\"ui_lines\":\"%s\",\"ui_outline_boost\":%d,\"ui_bubbles\":\"%s\",\"ui_bubble_outline\":%g}",
+                        pc_ui_lines_names[pc_ui_lines ? 1 : 0], pc_ui_outline_boost,
+                        pc_ui_bubbles_names[pc_ui_bubbles ? 1 : 0], pc_ui_bubble_outline)
+                - 1;
+        extern int pc_hw_scale_setting __attribute__((weak));
+        if (pc_aa_string && used < (int)sizeof result - 200)
+            used += snprintf(result + used - 1, sizeof result - used + 1,
+                        ",\"aa\":\"%s\",\"aa_downsample\":\"%s\",\"aa_geometry_edges\":%d,\"msaa_active\":%d,\"msaa_max\":%d,"
+                        "\"scale_setting\":%d}",
+                        pc_aa_string(), pc_aa_downsample_names[pc_aa_downsample], pc_aa_geometry_edges,
+                        pc_aa_msaa_active ? pc_aa_msaa_active() : 0, pc_aa_msaa_max ? pc_aa_msaa_max() : 0, &pc_hw_scale_setting ? pc_hw_scale_setting : 0)
                 - 1;
         for (int k = 0; k < editor_count && used < (int)sizeof result - 64; k++)
             used += editor_keys[k].flag
@@ -1142,6 +1252,167 @@ static void handle_method(int fd, const char* request)
         if (pc_lighting_json && used < (int)sizeof result - 4096) {
             used += pc_lighting_json(result + used - 1, (int)sizeof result - used) - 1;
             snprintf(result + used, sizeof result - used, "}");
+        }
+        reply(fd, id, result);
+    } else if (!strcmp(method, "ui_bubbles")) {
+        /* ui_bubbles.h: vector talk bubbles drawn, each recent bubble's
+         * shape, placement (outline bounds as drawn and the game's whole
+         * pixels) and outline; {path: N} adds bubble N's outline points. */
+        pc_ui_bubbles_stats st;
+        pc_ui_bubbles_get_stats(&st);
+        int used = snprintf(result, sizeof result,
+            "{\"ui_bubbles\":\"%s\",\"frames\":%ld,\"verified\":%ld,\"mismatched\":%ld,\"drawn\":%ld,"
+            "\"native_per_output\":%g,\"lines_drawn\":%ld,\"bubbles\":[",
+            pc_ui_bubbles_names[pc_ui_bubbles ? 1 : 0], st.frames, st.verified, st.mismatched, st.drawn,
+            pc_hw_native_per_output(), pc_hw_lines_drawn);
+        for (int i = 0; i < st.count && used < (int)sizeof result - 400; i++)
+            used += snprintf(result + used, sizeof result - used,
+                "%s{\"id\":%d,\"shape\":%d,\"flip\":%d,\"tail\":%d,\"points\":%d,\"bounds\":[%g,%g,%g,%g],"
+                "\"game_bounds\":[%d,%d,%d,%d],\"thickness\":%g,\"line_rgb\":%u}",
+                i ? "," : "", st.bubble[i].id, st.bubble[i].shape, st.bubble[i].flip, st.bubble[i].tail,
+                st.bubble[i].points, st.bubble[i].bounds[0], st.bubble[i].bounds[1], st.bubble[i].bounds[2],
+                st.bubble[i].bounds[3], st.bubble[i].game_bounds[0], st.bubble[i].game_bounds[1],
+                st.bubble[i].game_bounds[2], st.bubble[i].game_bounds[3], st.bubble[i].thickness,
+                st.bubble[i].line_rgb);
+        used += snprintf(result + used, sizeof result - used, "]");
+        long long which;
+        if (params && number_value(member(params, "path"), &which)) {
+            float pts[128][2];
+            int count = pc_ui_bubble_path((int)which, pts, 128);
+            used += snprintf(result + used, sizeof result - used, ",\"path\":[");
+            for (int i = 0; i < count && used < (int)sizeof result - 64; i++)
+                used += snprintf(result + used, sizeof result - used, "%s[%g,%g]", i ? "," : "", pts[i][0], pts[i][1]);
+            used += snprintf(result + used, sizeof result - used, "]");
+        }
+        snprintf(result + used, sizeof result - used, "}");
+        reply(fd, id, result);
+    } else if (!strcmp(method, "ui_text")) {
+        /* ui_text.h: the option, its styles (font, placement), fonts loaded,
+         * glyph fields made, regions and labels drawn; {style, font, stretch,
+         * slant, embolden, aspect} changes a style (as the settings keys do). */
+        char style[32], text[300];
+        if (params && string_value(member(params, "style"), style, sizeof style)) {
+            static const char* const keys[5] = { "font", "stretch", "slant", "embolden", "aspect" };
+            int known = 0;
+            for (int i = 0; i < PC_UI_TEXT_STYLES; i++)
+                known |= !strcmp(style, pc_ui_text_styles[i].name);
+            if (!known) {
+                fail(fd, id, -32602, "style: dialogue, menu, info or digits");
+                return;
+            }
+            for (int k = 0; k < 5; k++) {
+                char key[64];
+                double value;
+                snprintf(key, sizeof key, "ui_text_%s_%s", style, keys[k]);
+                if (k == 0 && string_value(member(params, "font"), text, sizeof text))
+                    pc_ui_text_setting(key, text);
+                else if (k && real_value(member(params, keys[k]), &value)) {
+                    snprintf(text, sizeof text, "%.6g", value);
+                    pc_ui_text_setting(key, text);
+                }
+            }
+        }
+        if (params && string_value(member(params, "ui_text"), style, sizeof style))
+            pc_ui_text_setting("ui_text", style);
+        /* {render: [tpage, clut, u0, v0, u1, v1], factor, path}: that 2D
+         * region drawn from the font as the atlas would (a glyph or a
+         * label; PS1 colours, little-endian u16, row by row) into PATH;
+         * the reply's "render" has its size (ok 0: not text). Tests. */
+        const char* render = params ? member(params, "render") : NULL;
+        int rendered = -1, rw = 0, rh = 0;
+        if (render) {
+            int r[6];
+            long long factor = 8;
+            char path[512];
+            number_value(member(params, "factor"), &factor);
+            if (sscanf(render, " [ %d , %d , %d , %d , %d , %d ]", &r[0], &r[1], &r[2], &r[3], &r[4], &r[5]) != 6
+                || r[2] < 0 || r[3] < 0 || r[4] > 255 || r[5] > 255 || r[4] < r[2] || r[5] < r[3] || factor < 1
+                || factor > 16 || !string_value(member(params, "path"), path, sizeof path)) {
+                fail(fd, id, -32602, "render needs [tpage, clut, u0, v0, u1, v1] in a page, factor 1-16 and path");
+                return;
+            }
+            extern const uint16_t* pc_hw_native_vram(void);
+            rw = (r[4] - r[2] + 1) * (int)factor, rh = (r[5] - r[3] + 1) * (int)factor;
+            uint32_t* texels = malloc((size_t)rw * rh * sizeof *texels);
+            const uint16_t* vram = pc_hw_native_vram();
+            rendered = texels && vram
+                    && pc_ui_text_render(vram, (unsigned)r[0], (unsigned)r[1], r[2], r[3], r[4], r[5], (int)factor,
+                        texels);
+            FILE* out = rendered ? fopen(path, "wb") : NULL;
+            for (int i = 0; out && i < rw * rh; i++) {
+                unsigned char b[2] = { (unsigned char)(texels[i] & 255), (unsigned char)(texels[i] >> 8 & 255) };
+                fwrite(b, 1, 2, out);
+            }
+            if (out)
+                fclose(out);
+            free(texels);
+        }
+        int used = pc_ui_text_json(result, (int)sizeof result);
+        if (rendered >= 0 && used > 1 && used < (int)sizeof result - 64)
+            snprintf(result + used - 1, sizeof result - used + 1, ",\"render\":{\"ok\":%d,\"w\":%d,\"h\":%d}}",
+                rendered, rw, rh);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "button_prompts")) {
+        /* button_prompts.h: {button_prompts: mode} sets the mode; {device:
+         * "keyboard" | "playstation" | "xbox" | "nintendo", variant} stands in
+         * for the device used last; {bind: {"bind_key_circle": "c",
+         * "bind_pad_circle": "south", ...}} applies binding settings lines. */
+        char text[96];
+        if (params && string_value(member(params, "button_prompts"), text, sizeof text)
+            && !pc_button_prompts_setting("button_prompts", text)) {
+            fail(fd, id, -32602, "button_prompts: auto, playstation, xbox, nintendo, keyboard or original");
+            return;
+        }
+        if (params && string_value(member(params, "device"), text, sizeof text)) {
+            long long variant = 0;
+            number_value(member(params, "variant"), &variant);
+            int family = 0;
+            for (int k = PC_PROMPTS_PLAYSTATION; k <= PC_PROMPTS_KEYBOARD; k++)
+                if (!strcmp(text, pc_button_prompts_names[k]))
+                    family = k;
+            if (!family) {
+                fail(fd, id, -32602, "device: playstation, xbox, nintendo or keyboard");
+                return;
+            }
+            pc_button_prompts_device(family, (int)variant);
+        }
+        int clear = 0;
+        if (params && bool_value(member(params, "clear_shown"), &clear) && clear)
+            pc_button_prompts_shown_reset();
+        const char* bind = params ? member(params, "bind") : NULL;
+        if (bind && *(bind = skip(bind)) == '{') {
+            const char* p = skip(bind + 1);
+            while (*p == '"') {
+                char key[64], value[96];
+                string_value(p, key, sizeof key);
+                p = skip(value_end(p));
+                if (*p != ':' || !string_value(skip(p + 1), value, sizeof value)) {
+                    fail(fd, id, -32602, "bind: an object of setting keys and string values");
+                    return;
+                }
+                if (strncmp(key, "bind_", 5) || !pc_button_prompts_setting(key, value)) {
+                    fail(fd, id, -32602, "bind: keys are bind_key_<button> or bind_pad_<button>");
+                    return;
+                }
+                p = skip(value_end(skip(p + 1)));
+                if (*p == ',')
+                    p = skip(p + 1);
+            }
+        }
+        int used = pc_button_prompts_json(result, (int)sizeof result);
+        /* {icon: button name, size}: the native menus' image (pc_prompt_glyph). */
+        extern pc_prompt_image pc_prompt_glyph(int, float) __attribute__((weak));
+        if (params && string_value(member(params, "icon"), text, sizeof text) && pc_prompt_glyph
+            && used < (int)sizeof result - 300) {
+            long long size = 24;
+            number_value(member(params, "size"), &size);
+            int button = pc_pad_button_index(text);
+            pc_prompt_image g = pc_prompt_glyph(button, (float)size);
+            snprintf(result + used - 1, sizeof result - used + 1,
+                ",\"icon\":{\"button\":%d,\"texture\":%s,\"w\":%g,\"h\":%g,\"uv0\":[%g,%g],\"uv1\":[%g,%g],"
+                "\"generation\":%u,\"device\":%d}}",
+                button, g.texture ? "true" : "false", g.w, g.h, g.uv0[0], g.uv0[1], g.uv1[0], g.uv1[1],
+                pc_button_prompts_generation(), pc_button_prompts_family());
         }
         reply(fd, id, result);
     } else if (!strcmp(method, "ui_upscale")) {
@@ -1250,6 +1521,15 @@ static void handle_method(int fd, const char* request)
         }
         pc_perf_json(result, (int)sizeof result, flag);
         reply(fd, id, result);
+    } else if (!strcmp(method, "redraw")) {
+        /* The newest frame drawn again as recorded with the current drawing options (MSAA, scale, ...)
+         * and presented until the game draws another (pause first): compare options on one frame. */
+        extern int pc_hw_redraw_present(void) __attribute__((weak));
+        if (!pc_hw_redraw_present || pc_hw_redraw_present()) {
+            fail(fd, id, -32000, "nothing recorded to redraw");
+            return;
+        }
+        reply(fd, id, "{}");
     } else if (!strcmp(method, "lighting_autodetect")) {
         /* The first-run rule for given capabilities (unit check): {ray_query, integrated}. */
         int rq = 0, integrated = 0;
@@ -1670,12 +1950,20 @@ static void handle_method(int fd, const char* request)
             pc_lights_suggest();
         else if (!strcmp(action, "save"))
             pc_lights_save();
-        else if (!strcmp(action, "add") && pc_lights_add) {
+        else if (!strcmp(action, "reload")) {
+            extern void pc_lights_reload_disk(void) __attribute__((weak));
+            if (pc_lights_reload_disk)
+                pc_lights_reload_disk();
+        } else if (!strcmp(action, "add")) {
             if (!at || sscanf(at, "[%f , %f , %f", &position[0], &position[1], &position[2]) != 3) {
                 fail(fd, id, -32602, "add needs position [x, y, z]");
                 return;
             }
-            pc_lights_add(position);
+            if (pc_lights_add)
+                pc_lights_add(position);
+        } else if (action[0]) {
+            fail(fd, id, -32602, "lights action: suggest, save, reload or add");
+            return;
         }
         if (params && number_value(member(params, "select"), &n) && pc_lights_select)
             pc_lights_select((int)n);
@@ -1752,6 +2040,21 @@ static void handle_method(int fd, const char* request)
                 pc_room_warp_scripts = flag;
             if (bool_value(member(params, "block_saves"), &flag))
                 pc_room_warp_block_saves = flag;
+            extern int pc_room_warp_cell[4] __attribute__((weak));
+            const char* cell = member(params, "cell");
+            if (cell && *cell == '[' && pc_room_warp_cell) {
+                long long v[4] = { -1, 0, 0, 0 };
+                const char* at = cell + 1;
+                for (int k = 0; k < 4; k++) {
+                    while (*at == ' ' || *at == ',')
+                        at++;
+                    if (*at != '-' && (*at < '0' || *at > '9'))
+                        break;
+                    v[k] = strtoll(at, (char**)&at, 10);
+                }
+                for (int k = 0; k < 4; k++)
+                    pc_room_warp_cell[k] = (int)v[k];
+            }
         }
         long long zone = -1, room = -1, entry = 0;
         int oz = -1, orr = -1;
@@ -2336,8 +2639,13 @@ void pc_rpc_poll(void)
     }
     while (paused && step_budget == 0) {
         struct timespec delay = { 0, 16000000 };
+        extern int pc_present_burst __attribute__((weak));
         pc_window_tick();
-        pc_window_redraw();
+        /* An armed present_dump burst takes stepped presents only: paused
+         * redraws (as many as the wall clock allows between RPC calls)
+         * would put repeated images into it. */
+        if (!&pc_present_burst || pc_present_burst <= 0)
+            pc_window_redraw();
         nanosleep(&delay, NULL);
         if (listener >= 0)
             service();

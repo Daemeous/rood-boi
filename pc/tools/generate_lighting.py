@@ -132,6 +132,27 @@ def room_text(zone, room, items):
     return lf.format_file(entries, comment)
 
 
+def zone_rooms(task):
+    """One zone's rooms (a worker): [(room, text or None, notes)] and stats."""
+    catalog, zone, rooms_wanted = task
+    cat = fl.load_catalog(catalog)
+    disc = fl.Disc()
+    stats = collections.Counter()
+    stats["by_type"] = collections.Counter()
+    out = []
+    try:
+        vram, rooms = fl.zone_vram(disc, zone)
+    except (OSError, KeyError, ValueError, IndexError):
+        return out, stats
+    for room, name in enumerate(rooms):
+        if not name or (rooms_wanted and room not in rooms_wanted):
+            continue
+        r = fl.load_room(disc, zone, room, vram, name)
+        items, notes = room_items(cat, r, stats)
+        out.append((room, room_text(zone, room, items) if items else None, notes, [it.id for it in items]))
+    return out, stats
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--zone", type=int, action="append", help="zones (repeatable; default every zone)")
@@ -142,34 +163,36 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="report what would change; write nothing")
     ap.add_argument("--check", action="store_true", help="exit 1 when a generated file is not up to date")
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument("--jobs", type=int, default=max(1, min(8, (os.cpu_count() or 2) // 2)),
+                    help="zones read in parallel (the output does not depend on it)")
     ap.add_argument("--gallery", metavar="DIR", help="then capture a before/after gallery (local only)")
     args = ap.parse_args()
-    cat = fl.load_catalog(args.catalog)
     disc = fl.Disc()
     zones = args.zone or disc.zones()
     out_dir = pathlib.Path(args.root) / args.pack / "generated"
     stats = collections.Counter()
     stats["by_type"] = collections.Counter()
     changed, written, removed, notes_all, rooms_seen = [], 0, 0, [], 0
-    for zone in zones:
-        try:
-            vram, rooms = fl.zone_vram(disc, zone)
-        except (OSError, KeyError, ValueError, IndexError):
-            continue
-        for room, name in enumerate(rooms):
-            if not name or (args.room and room not in args.room):
-                continue
-            r = fl.load_room(disc, zone, room, vram, name)
+    tasks = [(args.catalog, zone, args.room) for zone in zones]
+    if args.jobs > 1 and len(tasks) > 1:
+        import multiprocessing
+        with multiprocessing.Pool(min(args.jobs, len(tasks))) as pool:
+            results = pool.map(zone_rooms, tasks, chunksize=1)
+    else:
+        results = [zone_rooms(t) for t in tasks]
+    for zone, (rooms, zstats) in zip(zones, results):
+        by_type = zstats.pop("by_type")
+        stats.update(zstats)
+        stats["by_type"].update(by_type)
+        for room, new, notes, ids in rooms:
             rooms_seen += 1
-            items, notes = room_items(cat, r, stats)
             notes_all += notes
             path = out_dir / lf.room_file_name(zone, room)
             old = path.read_text(encoding="utf-8") if path.exists() else None
-            new = room_text(zone, room, items) if items else None
             if old == new:
                 continue
             before = {e.id for e in lf.parse_text(old).entries} if old else set()
-            after = {it.id for it in items}
+            after = set(ids)
             changed.append((path, len(after - before), len(before - after), len(before & after)))
             if args.dry_run or args.check:
                 continue

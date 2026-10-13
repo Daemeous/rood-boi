@@ -2012,6 +2012,7 @@ GLuint pc_gi_update_world(GLuint world_position, GLuint world_normal, int w, int
 }
 #include "probe_gi.inc" /* gi_method probes: the probe field (DDGI) */
 #ifdef ROOD_VULKAN
+#include "light_list.h"
 #include "vk_rt.inc" /* ROOD_RENDERER=vulkan: the same passes with ray queries */
 #endif
 /* The denoiser in effect (pc_gi_denoise without NRD where it cannot run). */

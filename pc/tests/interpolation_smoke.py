@@ -15,7 +15,6 @@ follows the interpolated picture, so it does not flicker either)."""
 import os
 import pathlib
 import sys
-import time
 
 import numpy as np
 
@@ -45,9 +44,10 @@ def burst(game, name):
     game.call("present_dump", path=str(base), count=COUNT)
     game.run(COUNT + 6)
     paths = [pathlib.Path(f"{base}.{i:04d}.ppm") for i in range(COUNT)]
-    deadline = time.monotonic() + 20
-    while not all(p.exists() for p in paths) and time.monotonic() < deadline:
-        game.run(1)  # bursts are written a few presents later
+    for _ in range(30):  # bursts are written a few presents later (on the game thread)
+        if all(p.exists() for p in paths):
+            break
+        game.run(1)
     frames = [load(p) for p in paths]
     for p in paths:
         p.unlink()
@@ -64,6 +64,10 @@ try:
     game.run(2490 - game.status()["vsync"])
     state = game.state()
     assert (state["zone"], state["room"]) == (1, 0), state
+    assert len(game.call("lights")["lights"]) == 1, "the test light is loaded with the room"
+    # Trace every present (OpenGL): the automatic cadence follows measured
+    # GPU time, so on a busy machine some presents would show older lighting.
+    game.call("graphics", gi_budget=0)
     game.call("graphics", interpolate=False)
     game.run(4)
     stepped = burst(game, "interp off")

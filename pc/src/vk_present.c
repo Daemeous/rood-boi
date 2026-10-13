@@ -5,18 +5,21 @@
  * swapchain. Settings are gl_present.c's (pc_gl_filter, pc_post_*, ...). */
 #define _POSIX_C_SOURCE 200809L
 #include "vk_hw.h"
+#include "light_list.h"
 #include "vk_hooks.h"
 #include "vk_shaders.h"
 #include "dev_state.h"
 #include "lighting_quality.h"
+#include "antialias.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+extern int pc_display_masked __attribute__((weak)); /* boot_sdk.c SetDispMask */
 extern int pc_display_rgb24, pc_hw_active, pc_hw_scale, pc_gte_widescreen, pc_hw_perspective;
-extern int pc_gl_filter, pc_gl_aspect, pc_gl_aa, pc_gl_show_depth, pc_gl_view_mode, pc_post_flags,
+extern int pc_gl_filter, pc_gl_aspect, pc_gl_show_depth, pc_gl_view_mode, pc_post_flags,
     pc_post_focus_mode;
 extern int pc_gl_view[4], pc_gl_display[4], pc_gl_inset[4];
 extern float pc_post_aperture, pc_post_focus, pc_post_dof_radius, pc_post_tilt[3], pc_post_fog[4],
@@ -31,6 +34,7 @@ extern void pc_hw_init(const uint16_t* vram);
 extern unsigned pc_hw_target(void);
 extern void pc_hw_present_done(void);
 extern void pc_hw_set_display(int x, int y, int w, int h);
+extern void pc_hw_supersample(int view_h, int display_h);
 extern void pc_hw_present_origin(int* x, int* y);
 extern const uint16_t* pc_native_vram(void);
 extern void pc_overlay_init(SDL_Window*, void*);
@@ -52,6 +56,7 @@ extern int pc_vk_probes_update(int x, int y, int w, int h, int replay) __attribu
 extern void pc_vk_probes_gi_bind(VkImageView views[4], int* w, int* h) __attribute__((weak));
 extern int pc_vk_probes_bind(vk_descriptors* d, int first) __attribute__((weak));
 extern int pc_vk_shadows_update(int count, const float world[][4], const int* wants, int* slot_out);
+extern int pc_vk_shadows_slots(void);
 extern VkImageView pc_vk_shadows_view(void);
 
 static SDL_Window* window;
@@ -67,11 +72,26 @@ typedef struct {
     vk_image image;
     int w, h;
 } view_target;
-static view_target blur_view, fxaa_view;
+/* The post chain's lit-sized images, used in turn (pass n writes chain[n & 1]). */
+static view_target chain[2];
+/* SMAA (antialias.h): its edges and blending weights at the lit image's
+ * size, and the reference lookup textures. */
+static vk_image smaa_edges, smaa_weights, smaa_area, smaa_search;
 
-static VkDescriptorSetLayout scaled_set, single_set;
-static VkPipelineLayout scaled_layout, blur_layout, fxaa_layout, vram_layout;
-static VkPipeline scaled_to_window, scaled_to_view, blur_to_window, blur_to_view, fxaa_pipeline, vram_pipeline;
+static VkDescriptorSetLayout scaled_set, single_set, triple_set;
+static VkPipelineLayout scaled_layout, blur_layout, fxaa_layout, vram_layout, smaa_layout, downsample_layout;
+static VkPipeline scaled_to_window, scaled_to_view, blur_to_window, blur_to_view, fxaa_pipeline, fxaa_to_view,
+    vram_pipeline, smaa_edges_pipeline, smaa_weights_pipeline, smaa_blend_to_window, smaa_blend_to_view,
+    downsample_pipeline;
+typedef struct {
+    float metrics[4]; /* 1 / width, 1 / height, width, height */
+    int rect[4]; /* the display area (VRAM pixels) */
+    int info[4]; /* scale, geometric edges only */
+} smaa_push;
+typedef struct {
+    float src_size[2], dst_size[2];
+    int filter;
+} downsample_push;
 
 #define WINDOW_FORMAT VK_FORMAT_R8G8B8A8_UNORM
 #define VIEW_FORMAT VK_FORMAT_R16G16B16A16_SFLOAT
@@ -86,9 +106,6 @@ typedef struct {
     float f1[4]; /* gi_strength, fog_density, shadow_softness, normal_smoothing */
     float tilt[4], fog[4], fog_range[4], room_lo[4], room_hi[4], projection[4], screen_offset[4];
     float inverse_rotation[3][4], normal_to_world[3][4], camera_translation[4];
-    float light_pos[16][4], light_col[16][4], light_right[16][4], light_up[16][4], light_dir[16][4],
-        light_world[16][4];
-    int light_shadow[16];
     int haze_grid[4]; /* the froxel volume (vk_rt.inc): GX, GY, GZ, on */
     float haze_range[4]; /* znear, log(zfar / znear) */
     /* Lighting quality (lighting_quality.cpp): unshadowed haze density,
@@ -196,6 +213,8 @@ static VkPipelineLayout make_layout(VkDescriptorSetLayout set, uint32_t push_byt
     vk_check(vkCreatePipelineLayout(vk.device, &info, NULL, &layout), "vkCreatePipelineLayout");
     return layout;
 }
+#define EDGES_FORMAT VK_FORMAT_R8G8_UNORM
+#define WEIGHTS_FORMAT VK_FORMAT_R8G8B8A8_UNORM
 static VkPipeline fullscreen(VkShaderModule vs, VkShaderModule fs, VkPipelineLayout layout, VkFormat format)
 {
     vk_pipeline_desc d = { .vertex = vs,
@@ -211,31 +230,47 @@ static VkPipeline fullscreen(VkShaderModule vs, VkShaderModule fs, VkPipelineLay
 }
 static int make_pipelines(void)
 {
-    VkDescriptorType scaled_types[16]; /* 12-15: the probe field (vk_probes.inc) */
-    for (int i = 0; i < 16; i++)
+    VkDescriptorType scaled_types[17]; /* 12-15: the probe field (vk_probes.inc); 16: the lights */
+    for (int i = 0; i < 17; i++)
         scaled_types[i] = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     scaled_types[0] = scaled_types[12] = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    scaled_set = vk_push_layout(scaled_types, 16);
+    scaled_types[16] = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    scaled_set = vk_push_layout(scaled_types, 17);
     single_set = vk_push_layout(&scaled_types[1], 1);
+    triple_set = vk_push_layout(&scaled_types[1], 3);
     scaled_layout = make_layout(scaled_set, 0);
     blur_layout = make_layout(single_set, 16);
     fxaa_layout = make_layout(single_set, 8);
     vram_layout = make_layout(single_set, 32);
+    smaa_layout = make_layout(triple_set, sizeof(smaa_push));
+    downsample_layout = make_layout(single_set, sizeof(downsample_push));
     VkShaderModule vs = vk_shader(vk_spv_fullscreen_vert, vk_spv_fullscreen_vert_size),
                    scaled = vk_shader(vk_spv_scaled_frag, vk_spv_scaled_frag_size),
                    blur = vk_shader(vk_spv_blur_frag, vk_spv_blur_frag_size),
                    fxaa = vk_shader(vk_spv_fxaa_frag, vk_spv_fxaa_frag_size),
-                   vram = vk_shader(vk_spv_present_vram_frag, vk_spv_present_vram_frag_size);
+                   vram = vk_shader(vk_spv_present_vram_frag, vk_spv_present_vram_frag_size),
+                   edges = vk_shader(vk_spv_smaa_edges_frag, vk_spv_smaa_edges_frag_size),
+                   weights = vk_shader(vk_spv_smaa_weights_frag, vk_spv_smaa_weights_frag_size),
+                   blend = vk_shader(vk_spv_smaa_blend_frag, vk_spv_smaa_blend_frag_size),
+                   down = vk_shader(vk_spv_downsample_frag, vk_spv_downsample_frag_size);
     scaled_to_window = fullscreen(vs, scaled, scaled_layout, WINDOW_FORMAT);
     scaled_to_view = fullscreen(vs, scaled, scaled_layout, VIEW_FORMAT);
     blur_to_window = fullscreen(vs, blur, blur_layout, WINDOW_FORMAT);
     blur_to_view = fullscreen(vs, blur, blur_layout, VIEW_FORMAT);
     fxaa_pipeline = fullscreen(vs, fxaa, fxaa_layout, WINDOW_FORMAT);
+    fxaa_to_view = fullscreen(vs, fxaa, fxaa_layout, VIEW_FORMAT);
     vram_pipeline = fullscreen(vs, vram, vram_layout, WINDOW_FORMAT);
-    VkShaderModule modules[5] = { vs, scaled, blur, fxaa, vram };
-    for (int i = 0; i < 5; i++)
+    smaa_edges_pipeline = fullscreen(vs, edges, smaa_layout, EDGES_FORMAT);
+    smaa_weights_pipeline = fullscreen(vs, weights, smaa_layout, WEIGHTS_FORMAT);
+    smaa_blend_to_window = fullscreen(vs, blend, smaa_layout, WINDOW_FORMAT);
+    smaa_blend_to_view = fullscreen(vs, blend, smaa_layout, VIEW_FORMAT);
+    downsample_pipeline = fullscreen(vs, down, downsample_layout, WINDOW_FORMAT);
+    VkShaderModule modules[9] = { vs, scaled, blur, fxaa, vram, edges, weights, blend, down };
+    for (int i = 0; i < 9; i++)
         vkDestroyShaderModule(vk.device, modules[i], NULL);
-    return scaled_to_window && scaled_to_view && blur_to_window && blur_to_view && fxaa_pipeline && vram_pipeline;
+    return scaled_to_window && scaled_to_view && blur_to_window && blur_to_view && fxaa_pipeline && fxaa_to_view
+        && vram_pipeline && smaa_edges_pipeline && smaa_weights_pipeline && smaa_blend_to_window && smaa_blend_to_view
+        && downsample_pipeline;
 }
 
 /* ---- window ---- */
@@ -336,6 +371,60 @@ static int ensure_window_image(void)
         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
             | VK_IMAGE_USAGE_SAMPLED_BIT);
 }
+static int ensure_image(vk_image* image, int w, int h, VkFormat format)
+{
+    if (image->image && image->width == w && image->height == h)
+        return 1;
+    vk_image_destroy_later(image);
+    return vk_image_create(image, w, h, format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+}
+/* SMAA's lookup textures, uploaded once (antialias.c). */
+static int smaa_upload(vk_image* image, VkFormat format, const unsigned char* data, int w, int h, int texel_bytes)
+{
+    if (!vk_image_create(image, w, h, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT))
+        return 0;
+    size_t bytes = (size_t)w * h * texel_bytes;
+    vk_slice staging = vk_arena(bytes, 16);
+    if (!staging.data)
+        return 0;
+    memcpy(staging.data, data, bytes);
+    vk_end_rendering();
+    VkBufferImageCopy region = { .bufferOffset = staging.offset,
+        .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .imageExtent = { (uint32_t)w, (uint32_t)h, 1 } };
+    vkCmdCopyBufferToImage(vk_cmd(), staging.buffer, image->image, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
+    vk_barrier();
+    return 1;
+}
+static int smaa_ready(void)
+{
+    static int state; /* 0 not yet, 1 ready, -1 failed */
+    if (!state) {
+        int aw, ah, sw, sh;
+        const unsigned char* area = pc_smaa_area_texture(&aw, &ah);
+        const unsigned char* search = pc_smaa_search_texture(&sw, &sh);
+        state = smaa_upload(&smaa_area, VK_FORMAT_R8G8_UNORM, area, aw, ah, 2)
+                && smaa_upload(&smaa_search, VK_FORMAT_R8_UNORM, search, sw, sh, 1)
+            ? 1
+            : -1;
+    }
+    return state > 0;
+}
+static void begin_single(const vk_image* image, int x, int y, int w, int h);
+/* Pass `stage` of the post chain renders into the window's view rectangle
+ * when it is the last of `stages`, else into the next lit-sized image;
+ * returns that image (the input of the pass after it). */
+static const vk_image* stage_begin(int stage, int stages, int lit_w, int lit_h, int view_x, int view_y, int view_w,
+    int view_h)
+{
+    if (stage + 1 >= stages) {
+        begin_single(&window_image, view_x, view_y, view_w, view_h);
+        return &window_image;
+    }
+    const vk_image* out = &chain[stage & 1].image;
+    begin_single(out, 0, 0, lit_w, lit_h);
+    return out;
+}
 static void begin_single(const vk_image* image, int x, int y, int w, int h)
 {
     vk_attachments a = { .colors = { image->view }, .color_count = 1, .width = image->width, .height = image->height };
@@ -378,13 +467,16 @@ static void update_view(int* out_w, int* out_h)
         area_x = area_y = 0, area_w = window_w, area_h = window_h;
     int view_w = area_w, view_h = area_h;
     if (pc_gl_aspect == 0 || pc_gl_aspect == 2) {
-        int aw = pc_gte_widescreen ? 16 : 4, ah = pc_gte_widescreen ? 9 : 3;
+        /* 4:3, or 16:9 when the GTE projects widescreen (Hor+); movie frames
+         * (24-bit display) are 4:3 pictures: pillarboxed in widescreen. */
+        int wide = pc_gte_widescreen && !pc_display_rgb24;
+        int aw = wide ? 16 : 4, ah = wide ? 9 : 3;
         view_h = area_w * ah / aw;
         if (view_h > area_h) {
             view_h = area_h;
             view_w = area_h * aw / ah;
         }
-        int base_w = pc_gte_widescreen ? 427 : 320;
+        int base_w = wide ? 427 : 320;
         if (pc_gl_aspect == 2 && view_w >= base_w && view_h >= 240) {
             int n = view_w / base_w < view_h / 240 ? view_w / base_w : view_h / 240;
             view_w = base_w * n;
@@ -398,6 +490,8 @@ static void update_view(int* out_w, int* out_h)
     *out_w = view_w, *out_h = view_h;
 }
 
+static pc_light_gpu present_lights[PC_LIGHTS_MAX];
+static int present_light_count;
 static void fill_present_ubo(present_ubo* u, int x, int y, int w, int h, int view_w, int view_h, int gi,
     int gi_w, int gi_h, const float lo[3], const float hi[3])
 {
@@ -411,18 +505,22 @@ static void fill_present_ubo(present_ubo* u, int x, int y, int w, int h, int vie
     u->tilt[0] = pc_post_tilt[0], u->tilt[1] = pc_post_tilt[1], u->tilt[2] = pc_post_tilt[2] * view_h / 720.0f;
     memcpy(u->fog, pc_post_fog, sizeof u->fog);
     u->fog_range[0] = pc_post_fog_range[0], u->fog_range[1] = pc_post_fog_range[1];
-    /* Lighting: world-space lights and the projection to invert. */
-    static int wants[16];
+    /* Lighting: world-space lights (every one: a storage buffer, binding
+     * 16) and the projection to invert. */
+    static float lp[PC_LIGHTS_MAX][4], lc[PC_LIGHTS_MAX][4], ld[PC_LIGHTS_MAX][4], lw[PC_LIGHTS_MAX][4],
+        lr[PC_LIGHTS_MAX][4], lu[PC_LIGHTS_MAX][4];
+    static int wants[PC_LIGHTS_MAX], slots[PC_LIGHTS_MAX];
     float hh, ox, oy;
     int count = 0;
     if (pc_scene_projection(&hh, &ox, &oy)) {
-        count = pc_lights_view(u->light_pos, u->light_col, u->light_dir, u->light_world, wants, u->light_right,
-            u->light_up, 16);
+        count = pc_lights_view(lp, lc, ld, lw, wants, lr, lu, PC_LIGHTS_MAX);
         if (gi && pc_rt_shadows)
             for (int i = 0; i < count; i++)
-                u->light_shadow[i] = wants[i] ? -2 : -1;
-        else /* no traced visibility: shadow maps (vk_shadows.c) */
-            pc_vk_shadows_update(count, (const float(*)[4])u->light_world, wants, u->light_shadow);
+                slots[i] = wants[i] ? -2 : -1;
+        else { /* no traced visibility: shadow maps (vk_shadows.c) for the most important casters */
+            pc_lights_shadow_pick(count, wants, pc_vk_shadows_slots());
+            pc_vk_shadows_update(count, (const float(*)[4])lw, wants, slots);
+        }
         float r[3][3], t[3], a, b, r_inverse[3][3];
         if (pc_scene_camera_get(r, t, &hh, &a, &b) && pc_scene_camera_inverse(r_inverse)) {
             for (int col = 0; col < 3; col++)
@@ -437,8 +535,17 @@ static void fill_present_ubo(present_ubo* u, int x, int y, int w, int h, int vie
         u->projection[1] = hh;
         u->screen_offset[0] = ox, u->screen_offset[1] = oy;
     }
-    for (int i = count; i < 16; i++)
-        u->light_shadow[i] = -1;
+    for (int i = 0; i < count; i++) {
+        pc_light_gpu* l = &present_lights[i];
+        memcpy(l->pos, lp[i], sizeof lp[i]);
+        memcpy(l->col, lc[i], sizeof lc[i]);
+        memcpy(l->dir, ld[i], sizeof ld[i]);
+        memcpy(l->right, lr[i], sizeof lr[i]);
+        memcpy(l->up, lu[i], sizeof lu[i]);
+        memcpy(l->world, lw[i], sizeof lw[i]);
+        l->info[0] = slots[i], l->info[1] = l->info[2] = l->info[3] = 0;
+    }
+    present_light_count = count;
     u->i1[0] = pc_gl_view_mode;
     u->i1[1] = count;
     u->i1[2] = gi ? (pc_gi_enabled ? (pc_gi_debug == 1 ? 2 : 1) : 0) | (pc_rt_shadows ? 4 : 0)
@@ -602,6 +709,11 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
         vk_frame_submit(VK_NULL_HANDLE, 0, VK_NULL_HANDLE);
         return;
     }
+    if (pc_hw_active && w > 0 && h > 0) { /* supersampling: the internal resolution the view needs */
+        int view_w, view_h;
+        update_view(&view_w, &view_h);
+        pc_hw_supersample(view_h, h);
+    }
     if (pc_hw_active)
         pc_hw_set_display(x, y, w, h);
     unsigned target = pc_hw_active ? pc_hw_target() : 0;
@@ -619,7 +731,7 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
     VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
     vkCmdClearColorImage(cmd, window_image.image, VK_IMAGE_LAYOUT_GENERAL, &black, 1, &range);
     vk_barrier();
-    if (w > 0 && h > 0) {
+    if (w > 0 && h > 0 && !(&pc_display_masked && pc_display_masked)) { /* SetDispMask(0): black */
         int view_w, view_h;
         update_view(&view_w, &view_h);
         pc_gl_display[0] = x, pc_gl_display[1] = y, pc_gl_display[2] = w, pc_gl_display[3] = h;
@@ -638,13 +750,34 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             int probes = !pc_gl_show_depth && pc_vk_probes_update ? pc_vk_probes_update(x, y, w, h, replay) : 0;
             if (probes == 3) /* the field at GI resolution, in place of a traced result */
                 pc_vk_probes_gi_bind(gi_views, &gi_w, &gi_h);
-            int blur = !pc_gl_show_depth && (pc_post_flags & 3) && ensure_view(&blur_view, view_w, view_h);
-            int fxaa = pc_gl_aa && ensure_view(&fxaa_view, view_w, view_h);
+            /* The post chain (antialias.h): the lit image -> [FXAA | SMAA] -> [depth of field blur]
+             * -> [supersampling's downsample] -> the window. The lit image is view-sized, or with
+             * supersampling as large as the display area at the internal resolution. */
+            int lit_w = view_w, lit_h = view_h, ssaa = 0;
+            if (pc_aa_ssaa > 1.0f && w * pc_hw_scale > view_w && h * pc_hw_scale > view_h)
+                ssaa = 1, lit_w = w * pc_hw_scale, lit_h = h * pc_hw_scale;
+            int post = pc_gl_aa == PC_AA_FXAA || (pc_gl_aa == PC_AA_SMAA && smaa_ready()) ? pc_gl_aa : PC_AA_OFF;
+            int blur = !pc_gl_show_depth && (pc_post_flags & 3);
+            int stages = 1 + (post != PC_AA_OFF) + blur + ssaa;
+            if ((stages > 1 && !ensure_view(&chain[0], lit_w, lit_h))
+                || (stages > 2 && !ensure_view(&chain[1], lit_w, lit_h)))
+                stages = 1, post = PC_AA_OFF, blur = ssaa = 0, lit_w = view_w, lit_h = view_h;
+            if (post == PC_AA_SMAA
+                && (!ensure_image(&smaa_edges, lit_w, lit_h, EDGES_FORMAT)
+                    || !ensure_image(&smaa_weights, lit_w, lit_h, WEIGHTS_FORMAT))) {
+                post = PC_AA_OFF;
+                stages = 1 + blur + ssaa;
+            }
             vk_slice ubo = vk_arena(sizeof(present_ubo), vk.properties.limits.minUniformBufferOffsetAlignment);
             if (!ubo.data)
                 goto overlay;
             vk_section("present");
-            fill_present_ubo(ubo.data, x, y, w, h, view_w, view_h, gi, gi_w, gi_h, lo, hi);
+            fill_present_ubo(ubo.data, x, y, w, h, lit_w, lit_h, gi, gi_w, gi_h, lo, hi);
+            VkDeviceSize light_bytes = (VkDeviceSize)(present_light_count ? present_light_count : 1) * sizeof(pc_light_gpu);
+            vk_slice light_slice = vk_arena(light_bytes, vk.properties.limits.minStorageBufferOffsetAlignment);
+            if (!light_slice.data)
+                goto overlay;
+            memcpy(light_slice.data, present_lights, (size_t)present_light_count * sizeof(pc_light_gpu));
             VkImageView haze_view = vk_hw.dummy_color.view;
             present_ubo* pu = ubo.data;
             if (gi && pc_vk_haze_bind && pc_vk_haze_bind(&haze_view, pu->haze_grid, pu->haze_range))
@@ -655,14 +788,10 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             pu->i1[2] |= (gi || probes == 3 ? 128 : 0) | (probes == 1 ? 64 : 0) | (probes == 3 ? 256 : 0)
                        | (probes && pc_gi_debug == 1 ? 2 : 0) | (probes && gi && pc_gi_debug != 1 ? 1 : 0);
             pu->quality0[0] = pc_gl_show_depth ? 0 : pc_lighting_low_haze_density(pu->haze_grid[3]);
-            /* Lit frame -> [depth-of-field blur] -> [FXAA] -> window. */
-            const vk_image* first = blur ? &blur_view.image : fxaa ? &fxaa_view.image : &window_image;
-            if (blur || fxaa)
-                begin_single(first, 0, 0, view_w, view_h);
-            else
-                begin_single(first, view_x, view_y, view_w, view_h);
+            int stage = 0;
+            const vk_image* input = stage_begin(stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
             cmd = vk_cmd();
-            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, blur || fxaa ? scaled_to_view : scaled_to_window);
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, stages > 1 ? scaled_to_view : scaled_to_window);
             vk_descriptors d = { 0 };
             vk_descriptors_buffer(&d, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ubo.buffer, ubo.offset, sizeof(present_ubo));
             vk_descriptors_image(&d, 1, t->color.view, vk.linear);
@@ -676,32 +805,94 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             vk_descriptors_image(&d, 11, pc_vk_shadows_view(), vk.linear);
             if (pc_vk_probes_bind)
                 pc_vk_probes_bind(&d, 12);
+            vk_descriptors_buffer(&d, 16, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, light_slice.buffer, light_slice.offset,
+                light_bytes);
             vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, scaled_layout);
             vkCmdDraw(cmd, 3, 1, 0, 0);
-            if (blur) {
-                if (fxaa)
-                    begin_single(&fxaa_view.image, 0, 0, view_w, view_h);
-                else
-                    begin_single(&window_image, view_x, view_y, view_w, view_h);
+            if (post != PC_AA_OFF)
+                vk_section("aa");
+            if (post == PC_AA_FXAA) {
+                const vk_image* source = input;
+                input = stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
                 cmd = vk_cmd();
-                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, fxaa ? blur_to_view : blur_to_window);
-                vk_descriptors_image(&d, 0, blur_view.image.view, vk.linear);
+                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, stage + 1 < stages ? fxaa_to_view : fxaa_pipeline);
+                vk_descriptors_image(&d, 0, source->view, vk.linear);
+                vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, fxaa_layout);
+                float push[2] = { 1.0f / lit_w, 1.0f / lit_h };
+                vkCmdPushConstants(cmd, fxaa_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                    sizeof push, push);
+                vkCmdDraw(cmd, 3, 1, 0, 0);
+            } else if (post == PC_AA_SMAA) {
+                const vk_image* source = input;
+                smaa_push push = { { 1.0f / lit_w, 1.0f / lit_h, (float)lit_w, (float)lit_h }, { x, y, w, h },
+                    { pc_hw_scale, pc_aa_geometry_edges && !pc_gl_show_depth, 0, 0 } };
+                /* 1: edges (the reference discards pixels without any: cleared first). */
+                begin_single(&smaa_edges, 0, 0, lit_w, lit_h);
+                cmd = vk_cmd();
+                VkClearAttachment none = { VK_IMAGE_ASPECT_COLOR_BIT, 0, { .color = { { 0, 0, 0, 0 } } } };
+                VkClearRect all = { { { 0, 0 }, { (uint32_t)lit_w, (uint32_t)lit_h } }, 0, 1 };
+                vkCmdClearAttachments(cmd, 1, &none, 1, &all);
+                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, smaa_edges_pipeline);
+                vk_descriptors e = { 0 };
+                vk_descriptors_image(&e, 0, source->view, vk.linear);
+                vk_descriptors_image(&e, 1, t->depth.view, vk.nearest);
+                vk_descriptors_image(&e, 2, t->normal.view, vk.nearest);
+                vk_descriptors_push(&e, VK_PIPELINE_BIND_POINT_GRAPHICS, smaa_layout);
+                vkCmdPushConstants(cmd, smaa_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                    sizeof push, &push);
+                vkCmdDraw(cmd, 3, 1, 0, 0);
+                /* 2: blending weights. */
+                begin_single(&smaa_weights, 0, 0, lit_w, lit_h);
+                cmd = vk_cmd();
+                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, smaa_weights_pipeline);
+                vk_descriptors wd = { 0 };
+                vk_descriptors_image(&wd, 0, smaa_edges.view, vk.linear);
+                vk_descriptors_image(&wd, 1, smaa_area.view, vk.linear);
+                vk_descriptors_image(&wd, 2, smaa_search.view, vk.nearest);
+                vk_descriptors_push(&wd, VK_PIPELINE_BIND_POINT_GRAPHICS, smaa_layout);
+                vkCmdPushConstants(cmd, smaa_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                    sizeof push, &push);
+                vkCmdDraw(cmd, 3, 1, 0, 0);
+                /* 3: neighbourhood blending. */
+                input = stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
+                cmd = vk_cmd();
+                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    stage + 1 < stages ? smaa_blend_to_view : smaa_blend_to_window);
+                vk_descriptors b = { 0 };
+                vk_descriptors_image(&b, 0, source->view, vk.linear);
+                vk_descriptors_image(&b, 1, smaa_weights.view, vk.linear);
+                vk_descriptors_image(&b, 2, smaa_weights.view, vk.linear); /* unused binding */
+                vk_descriptors_push(&b, VK_PIPELINE_BIND_POINT_GRAPHICS, smaa_layout);
+                vkCmdPushConstants(cmd, smaa_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                    sizeof push, &push);
+                vkCmdDraw(cmd, 3, 1, 0, 0);
+            }
+            if (blur) {
+                vk_section("blur");
+                const vk_image* source = input;
+                input = stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
+                cmd = vk_cmd();
+                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, stage + 1 < stages ? blur_to_view : blur_to_window);
+                vk_descriptors_image(&d, 0, source->view, vk.linear);
                 vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, blur_layout);
                 float most = pc_post_dof_radius > pc_post_tilt[2] ? pc_post_dof_radius : pc_post_tilt[2];
-                float push[4] = { (float)view_w, (float)view_h, most * view_h / 720.0f, 0 };
+                float push[4] = { (float)lit_w, (float)lit_h, most * lit_h / 720.0f, 0 };
                 vkCmdPushConstants(cmd, blur_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                     sizeof push, push);
                 vkCmdDraw(cmd, 3, 1, 0, 0);
             }
-            if (fxaa) {
-                begin_single(&window_image, view_x, view_y, view_w, view_h);
+            if (ssaa) {
+                vk_section("downsample");
+                const vk_image* source = input;
+                stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
                 cmd = vk_cmd();
-                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, fxaa_pipeline);
-                vk_descriptors_image(&d, 0, fxaa_view.image.view, vk.linear);
-                vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, fxaa_layout);
-                float push[2] = { 1.0f / view_w, 1.0f / view_h };
-                vkCmdPushConstants(cmd, fxaa_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-                    sizeof push, push);
+                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, downsample_pipeline);
+                vk_descriptors_image(&d, 0, source->view, vk.linear);
+                vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, downsample_layout);
+                downsample_push push = { { (float)lit_w, (float)lit_h }, { (float)view_w, (float)view_h },
+                    pc_aa_downsample };
+                vkCmdPushConstants(cmd, downsample_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                    sizeof push, &push);
                 vkCmdDraw(cmd, 3, 1, 0, 0);
             }
         } else {

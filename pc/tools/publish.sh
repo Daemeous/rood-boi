@@ -40,12 +40,15 @@ else
     deny='/home/|/tmp/claude|BEGIN [A-Z ]*PRIVATE KEY|gh[pousr]_[A-Za-z0-9]{20,}'
     extra="${PUBLISH_DENY:-$(git config publish.deny || true)}"
     [ -n "$extra" ] && deny="$deny|$extra"
-    # (this script is skipped: its own pattern list would match)
-    if git diff public main -- . ':!pc/tools/publish.sh' | grep '^+' | grep -inE "$deny"; then
+    # (this script is skipped: its own pattern list would match; -a: a stray
+    # non-UTF-8 byte must not turn grep into "binary file matches" and hide lines)
+    if git diff public main -- . ':!pc/tools/publish.sh' | grep -a '^+' | grep -ainE "$deny"; then
         echo "!! denied pattern in added lines" >&2; fail=1
     fi
     # No binaries or media: the repo ships code and data files only.
-    bins=$(git diff --numstat public main | awk '$1=="-"{print $3}')
+    # Vendored, licensed fonts are the only binaries allowed.
+    allow='^pc/third_party/fonts/[^/]+/[^/]+\.(ttf|otf)$'
+    bins=$(git diff --numstat public main | awk '$1=="-"{print $3}' | grep -vE "$allow" || true)
     media=$(git diff --name-only --diff-filter=AM public main |
         grep -iE '\.(png|jpe?g|webp|gif|bmp|ppm|tim|bin|iso|cue|chd|mcd|wav|xa|str|mpd|znd|shp|wep|seq|vab|vag|obj)$' || true)
     if [ -n "$bins$media" ]; then

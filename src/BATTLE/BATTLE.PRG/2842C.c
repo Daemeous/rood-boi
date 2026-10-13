@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <string.h>
 #include "pc/src/psx_types.h"
+#ifdef ROOD_PC
+#include "pc/src/widescreen.h"
+#endif
 
 typedef struct {
     psx_ptr(int) unk0;
@@ -1745,7 +1748,12 @@ void func_800941FC(void)
             position.vx += label->unk0;
             position.vy += label->unk2;
             position.vz += label->unk4;
+#ifdef ROOD_PC
+            PC_GTE_UNNARROWED(
+                visible = RotTransPers(&position, (psx_long*)screen, &p, &flag));
+#else
             visible = RotTransPers(&position, (psx_long*)screen, &p, &flag);
+#endif
             if (screen[0] < 32) {
                 screen[0] = 32;
             }
@@ -1759,7 +1767,12 @@ void func_800941FC(void)
                 screen[1] = 200;
             }
         } else if (label->unk8.u8[0] == 3) {
+#ifdef ROOD_PC
+            PC_GTE_UNNARROWED(
+                visible = RotTransPers((SVECTOR*)label, (psx_long*)screen, &p, &flag));
+#else
             visible = RotTransPers((SVECTOR*)label, (psx_long*)screen, &p, &flag);
+#endif
         } else {
             visible = 1;
         }
@@ -1830,7 +1843,12 @@ void func_800941FC(void)
             }
             break;
         case 4:
+#ifdef ROOD_PC
+            /* Widescreen: beside the status display, at the left edge. */
+            PC_ANCHOR_PACKETS(PC_ANCHOR_LEFT_EDGE, func_800958A4(44, 48, label));
+#else
             func_800958A4(44, 48, label);
+#endif
             label->unkB += vs_gametime_tickspeed / 2;
             if (label->unkB >= 46) {
                 label->unk8.u8[0] = 0;
@@ -1838,7 +1856,11 @@ void func_800941FC(void)
             }
             break;
         case 5:
+#ifdef ROOD_PC
+            PC_ANCHOR_PACKETS(PC_ANCHOR_LEFT_EDGE, func_80095A4C(44, 64, label));
+#else
             func_80095A4C(44, 64, label);
+#endif
             label->unkB += vs_gametime_tickspeed / 2;
             if (label->unkB >= 91) {
                 label->unk8.u8[0] = 0;
@@ -1849,7 +1871,11 @@ void func_800941FC(void)
             if (label->unk6 >= 0) {
                 break;
             }
+#ifdef ROOD_PC
+            PC_ANCHOR_PACKETS(PC_ANCHOR_LEFT_EDGE, func_8009695C(8, 172, label));
+#else
             func_8009695C(8, 172, label);
+#endif
             if (D_800F1BA4 != 0) {
                 break;
             }
@@ -2398,7 +2424,11 @@ void func_80095C18(int actor, int kind)
             SetRotMatrix(&((vs_scratch_t*)0x1F800000)->viewMatrix);
             SetTransMatrix(&((vs_scratch_t*)0x1F800000)->viewMatrix);
             other.vy -= 64;
+#ifdef ROOD_PC
+            PC_GTE_UNNARROWED(RotTransPers(&other, (psx_long*)&position, &depth, &side));
+#else
             RotTransPers(&other, (psx_long*)&position, &depth, &side);
+#endif
             ot = psx_get(((vs_scratch_t*)0x1F800000)->unk4);
             position.vx -= 8;
             position.vy -= 8;

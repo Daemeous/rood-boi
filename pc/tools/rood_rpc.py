@@ -208,6 +208,8 @@ class Game:
         socket_path = socket_path or DEFAULT_SOCKET
         env = dict(os.environ, ROOD_RPC=socket_path, ROOD_CONTROLLER="none", ROOD_AUDIO=audio)
         env.setdefault("ROOD_GI", "0")  # path tracing is slow on software GL; tests opt in
+        # The PS1 glyphs, whatever device the machine has (button_prompts_smoke opts in).
+        env.setdefault("ROOD_BUTTON_PROMPTS", "original")
         env.setdefault("ROOD_CARD1", card or str(OUT / "test-card1.mcd"))
         if card:
             env["ROOD_CARD1"] = card
@@ -284,20 +286,42 @@ class Game:
     def pause(self, paused=True):
         return self.call("pause", paused=paused)
 
-    def wait_paused(self, timeout=120):
-        deadline = time.monotonic() + timeout
+    STALL = 90  # seconds without a vsync before a step counts as hung
+
+    def wait_paused(self, timeout=None, stall=None):
+        """Wait for the step to finish. A step may take as long as the
+        machine needs (path tracing under load): it fails only when the game
+        stops advancing (no vsync for `stall` seconds, default STALL: a
+        hang), or after `timeout` seconds in all when one is given."""
+        stall = stall or self.STALL
+        start = moved = time.monotonic()
+        last = None
         while True:
             s = self.status()
             if s["paused"] and s["step_budget"] == 0:
                 return s
-            if time.monotonic() > deadline:
-                raise RpcError("timed out waiting for the step to finish")
+            now = time.monotonic()
+            if s["vsync"] != last:
+                last, moved = s["vsync"], now
+            elif now - moved > stall:
+                raise RpcError(f"the step stopped advancing: no vsync for {stall} s at vsync {last} "
+                               f"({s['step_budget']} to go; hung?)")
+            if timeout is not None and now - start > timeout:
+                raise RpcError(f"timed out waiting for the step to finish ({timeout} s)")
             time.sleep(0.01)
 
     def run(self, vsyncs):
-        """Run exactly `vsyncs` vsyncs, then stay paused."""
+        """Run exactly `vsyncs` vsyncs, then stay paused (no wall-clock
+        limit while the game advances; see wait_paused)."""
         self.call("step", vsyncs=vsyncs)
-        return self.wait_paused(timeout=max(30, vsyncs / 30))
+        return self.wait_paused()
+
+    def reload_lights(self):
+        """Read the current room's lighting files from disk now (RPC lights
+        {action: reload}): call it right after writing a room file instead
+        of waiting for the editor's twice-a-second poll. Returns the lights
+        reply (its "loads" counts the room's layer loads)."""
+        return self.call("lights", action="reload")
 
     def press(self, buttons, vsyncs=4, settle=8):
         """Hold buttons for `vsyncs`, then run `settle` more vsyncs released."""

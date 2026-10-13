@@ -298,7 +298,7 @@ Continue to load from the memory card.
 | J / L, I / K, O | camera: turn, zoom, reset (the right stick and R3 on a gamepad) |
 | Escape or F1 | open/close the editor |
 | F2 | free camera (opens the editor) |
-| ` (backtick) | fast-forward while held (L3 + R3 together on a gamepad) |
+| ` (backtick) | fast-forward while held (both stick clicks, L3 + R3, on a gamepad) |
 
 **Gamepads** are SDL 3 gamepads (SDL's controller database; extra mappings
 from `SDL_GAMECONTROLLERCONFIG` or a `gamecontrollerdb.txt` in `pc/user/`).
@@ -461,6 +461,10 @@ decompilation.
   [Vagrant Story QoL mod](https://github.com/eremtsov/rood-reverse) (CC0); its
   optional weapon slots quick swap (L2 + R2) is ported from it
   ([`pc/README.md`](pc/README.md#weapon-slots-optional)).
+- **[Kenney](https://kenney.nl)** made the
+  [Input Prompts](https://kenney.nl/assets/input-prompts) icons (CC0) that the
+  button prompts draw for keyboards and PlayStation, Xbox and Nintendo
+  controllers ([`pc/README.md`](pc/README.md#button-prompts)).
 - Thanks also to every other rood-reverse contributor, and to the projects and
   people credited in the upstream section below.
 

@@ -23,13 +23,18 @@ layout(std140, binding = 0) uniform Draw {
     int depth_pass; // 200: objects, pass 2: depth of the visible fragments only
     int painter; // 204: objects drawn in PS1 order
     int semi_pass; // 208: translucent draws: 1 opaque texels only, 2 translucent texels only
-    int surface_test; // 212: translucent draws: hidden behind surface_depth (1 exact, 2 room tolerance, 3 decal slack)
+    int surface_test; // 212: translucent draws: hidden behind surface_depth (1 exact, 2 room tolerance, 3 decal slack);
+                      // 4: a room list's ordered pass (near-coplanar slack, room_slack)
     int uv_count; // 216: entries of the animated materials' table (binding 5; 0 is none)
+    int order; // 220: room lists: the instance's first polygon in the list | sequence shift << 24
     // 224: the editor's cutaway (room lists, free camera): the focus in view
     // space with the rows' scales divided out (xyz), radius (w; 0: off)
     vec4 cut_focus;
     vec4 cut_scale; // 240: 1 / the view rows' scales (xyz); share of a cut surface's pixels kept (w; 1 none cut)
     vec4 instance_cut; // 256: render_instance.cut: share of the instance's pixels left out (x), ghost edges (y)
+    vec2 room_slack; // 272: surface_test 4: relative, absolute (GTE units)
+    int room_order; // 280: a room list's ordered pass: depth is the PS1 draw order key
+    int layer_slack; // 284: objects, other room blocks: tested room_slack nearer (1), and written so into the surfaces (2)
 } u;
 // Animated materials (render_list_uv_effects), entry 0 none: the UV offset
 // the game's effect writes this frame (offset.xy), its window (base u, v,

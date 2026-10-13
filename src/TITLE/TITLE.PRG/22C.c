@@ -14,6 +14,9 @@
 #include <libspu.h>
 #include <strings.h>
 #include <sys/file.h>
+#ifdef ROOD_PC
+#include "pc/src/widescreen.h"
+#endif
 
 static void _playNewGameSfx(void)
 {
@@ -3824,6 +3827,9 @@ static void _copyTitleBgData(void)
     }
     DrawSync(0);
     setRECT(&rect, 480, 0, 544, 512);
+#ifdef ROOD_PC
+    PC_UPLOAD_AS(PC_UPLOAD_SCREEN_PICTURE); /* widescreen: compressed once shown */
+#endif
     LoadImage(&rect, data);
     DrawSync(0);
     setRECT(&rect, 0, 448, 544, 64);
@@ -3973,6 +3979,9 @@ static void _fadeInMenuCopyright(u_short* arg0, int textBlendFactor)
     VSync(2);
     vs_main_processPadState();
     setRECT(&rect, 678, 376, 180, 24);
+#ifdef ROOD_PC
+    PC_UPLOAD_AS(PC_UPLOAD_SCREEN_IMAGE); /* widescreen: compressed like the 2D */
+#endif
     LoadImage(&rect, (u_long*)dst);
     DrawSync(0);
 }

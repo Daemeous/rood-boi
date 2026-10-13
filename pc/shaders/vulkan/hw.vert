@@ -13,15 +13,15 @@ layout(push_constant) uniform Push {
     int perspective, filtering, occlusion, pass;
     int ui_scale;
 } pc;
-layout(location = 0) noperspective out vec3 v_color_affine;
-layout(location = 1) noperspective out vec2 v_uv_affine;
-layout(location = 2) smooth out vec3 v_color_persp;
-layout(location = 3) smooth out vec2 v_uv_persp;
+layout(location = 0) noperspective centroid out vec3 v_color_affine;
+layout(location = 1) noperspective centroid out vec2 v_uv_affine;
+layout(location = 2) smooth centroid out vec3 v_color_persp;
+layout(location = 3) smooth centroid out vec2 v_uv_persp;
 layout(location = 4) flat out uvec4 v_state;
 layout(location = 5) flat out vec4 v_normal;
 layout(location = 6) flat out uvec4 v_bounds;
-layout(location = 7) smooth out float v_z_persp;
-layout(location = 8) noperspective out float v_z_affine;
+layout(location = 7) smooth centroid out float v_z_persp;
+layout(location = 8) noperspective centroid out float v_z_affine;
 layout(location = 9) flat out ivec2 v_ui;
 void main() {
     v_z_persp = v_z_affine = a_pos.z;

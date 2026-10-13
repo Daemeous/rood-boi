@@ -16,8 +16,9 @@ How to build and play it is in the README ("Platform support", "Windows").
 `python3 pc/tools/build_boot.py --target windows` (on Linux or in WSL2;
 implies `--arch 64`) writes `pc/build/win64/rood.exe`, a static executable
 with no DLLs to ship. `pc/tools/windows_dist.py DIR` assembles a folder to
-play from (the executable, `play.bat`, `data/`, the lighting packs and
-`pc/assets`).
+play from (the executable without its debug information, `play.bat`,
+`data/`, the lighting packs, `pc/assets`, the fonts in `pc/third_party/fonts`
+and the licences of the statically linked code in `licenses/`).
 
 ### Twin objects
 

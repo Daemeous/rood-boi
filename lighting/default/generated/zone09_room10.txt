@@ -4,5 +4,5 @@ actor gen.t001.36e6283a87 name="candle T001" prefab=candle pos=248,-688,1800 see
 actor gen.t001.6375f18208 name="candle T001" prefab=candle pos=392,-688,1800 seed=7649 fixture=392,-688,1800 fixture_type=T001
 actor gen.t002.3bcff94729 name="candle T002" prefab=candle pos=648,-560,832 rot=90,0,0 seed=5364 fixture=648,-560,832 fixture_type=T002
 actor gen.t002.b8468f22ed name="candle T002" prefab=candle pos=-8,-560,832 rot=-90,0,0 seed=33637 fixture=-8,-560,832 fixture_type=T002
-actor gen.t008.ea24cfcd21 name="torch_flame T008" prefab=torch pos=320,-440,304 seed=83365 fixture=320,-440,304 fixture_type=T008
+actor gen.t008.ea24cfcd21 name="lantern T008" prefab=lantern pos=320,-440,304 seed=83365 fixture=320,-440,304 fixture_type=T008
 actor gen.t028.ebbbd46760 name="lantern T028" prefab=lantern pos=-24,-416,1088 rot=-81.87,0,0 seed=98531 fixture=-24,-416,1088 fixture_type=T028

@@ -289,6 +289,8 @@ static unsigned polygon_command(const uint32_t* p, unsigned available)
         pc_hw_sync_texture(tpage, clut, texture_window, u0, v0, u1, v1);
     }
     pc_hw_set_2d(!projected);
+    if (!projected && narrowed_2d((const int (*)[2])screen, count))
+        pc_hw_set_narrowed();
     if (!projected && textured) {
         int xy[6] = { vertex[0].x, vertex[0].y, vertex[1].x, vertex[1].y, vertex[2].x, vertex[2].y };
         int uv[6] = { vertex[0].u, vertex[0].v, vertex[1].u, vertex[1].v, vertex[2].u, vertex[2].v };

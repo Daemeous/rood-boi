@@ -90,7 +90,7 @@ double-sided flag), the ordering-table range (largest vertex SZ >> 2 plus the
 bias, within the room's near/far buckets), and the distance UV halving
 (beyond the LOD bucket: UVs >> 1, texture page - 1, unless the PS1 would
 subdivide the polygon). It then projects exactly as the GTE projects
-(`sx = OFX + H x / z`, X * 3/4 about OFX in widescreen) into the scaled VRAM
+(`sx = OFX + H x / z`, X * 3/4 about the screen centre in widescreen) into the scaled VRAM
 target, with real near-plane clipping instead of the PS1's near-polygon
 subdivision, and writes per-pixel depth as GTE SZ / 65536, the encoding the
 packet path and the present pass use. The G-buffer outputs (colour,
@@ -114,6 +114,59 @@ are more than a small tolerance behind it (`z > room * 1.02 + 8`,
 `pc_native_occlusion`, editor checkbox), so the PS1's per-polygon painter's
 order becomes per-pixel for characters against the room while decals and
 drop shadows on the floor stay. Packets keep their own (PS1-like) depth.
+
+Coplanar room surfaces (`pc_native_room_order`, default 1; RPC `graphics
+room_order`, settings key `native_room_order`, editor Diagnostics checkbox):
+the PS1 had no depth buffer, so a room polygon lying on another one (the
+documents on the council table in the attract cutscene, notices on the
+walls of Rue Lejour, rugs) won by the ordering table: the larger table
+polygon has the larger largest-vertex SZ, sits in a farther bucket and is
+painted first. Depth-tested, the two z-fight (whole-unit vertex snapping
+puts the paper a fraction behind the wood or in front of it, per pixel). A
+room list therefore draws in three passes (`draw_room_ordered`,
+`vk_draw_room_ordered`):
+
+1. depth only into the native surfaces' depth (`object_fbo`): the nearest
+   room surface per pixel, D;
+2. colour and G-buffer into the frame, only fragments within the slack of D
+   (`v_z <= D * (1 + 0.004) + 2`, `pc_native_room_slack`, RPC `room_slack`,
+   `room_slack_units`; `surface_test` 4), depth-tested on the PS1 draw
+   order key instead of depth: `bucket << 10 | sequence` (bucket = largest
+   SZ >> 2 plus the instance bias, as the range test computes it; sequence =
+   the polygon's index in the list's walk, scaled into 10 bits; smaller paints
+   later, so it wins: nearer bucket, and within a bucket the polygon linked
+   first, as linking at the bucket's head does);
+3. depth only into the frame with the fragments at D (the objects' pass 2),
+   so the frame's depth, the copy to `room_depth`, lighting, PTGI, haze and
+   DoF see the real nearest depth, never the key.
+
+Real occlusion stays per pixel beyond the slack (about 4 units at a typical
+depth of 500), so walls, furniture and floors that merely meet keep exact
+edges; at contact lines a pixel-wide strip can follow the ordering table as
+on the PS1. MSAA runs the same passes on the twins (OpenGL syncs pass 1's
+depth to the single-sampled surfaces as between an object list's passes;
+Vulkan reads the multisampled twin). Regression test `coplanar_order_smoke`
+(attract cutscene papers against the packet path's ordering-table picture,
+stable over game frames, MSAA; with a memory card the forge's coals on the
+floor in Workshop "Metal Works", zone 45, and the notices of Rue Lejour,
+zone 32 room 15, at eight camera yaws).
+
+Objects and other room blocks (layered lists: floor markers) are painted
+after the room surfaces they lie on, so with `pc_native_room_order` they
+test against the native surfaces as if the same slack nearer
+(`layer_slack`: pass 1 writes that depth into the surfaces, pass 2 and
+their translucent polygons compare it, the frame keeps the real depth): a
+model resting on a table or a marker on the floor wins there as on the
+PS1. Effects lists keep their own decal slack.
+
+Survey (all 364 rooms with doors, arrival view, `room_order` off/on on the
+same redrawn frame): 96 rooms change anywhere, by up to ~1850 pixels at
+960 x 720 (Rue Mal Fallde and Rue Lejour: notices and the black shells
+that cover the floor beyond the play area; workshops: coals in the forges,
+cloth on shelves); elsewhere single-pixel contact lines. A wider slack
+(2% + 8) changes at most 264 more pixels per room (foliage, contact lines),
+so the default stays narrow: interpenetrations deeper than the slack (a
+hanging pelt pushed into a wall) still clip per pixel.
 
 Frame interpolation: a list draw is recorded as an operation of the frame's
 draw stream (list id, drawing area, offset). The replay redraws it from the

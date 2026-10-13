@@ -162,8 +162,14 @@ flags = [
 # GCC 14+ rejects the decompilation's K&R-style prototypes and loose pointer
 # conversions (GCC 15 also defaults to C23, where f() takes no arguments):
 # keep the GNU C17 dialect and GCC 13's warnings-not-errors.
+def gcc_major(compiler):
+    # "13", "14.2.0", or MinGW's "13-posix"
+    version = subprocess.run([compiler, "-dumpversion"], capture_output=True, text=True).stdout
+    return int(re.match(r"\d+", version).group())
+
+
 c_only_flags = ["-std=gnu17"]
-if int(subprocess.run(["gcc", "-dumpversion"], capture_output=True, text=True).stdout.split(".")[0]) >= 14:
+if gcc_major("gcc") >= 14:
     c_only_flags.append("-fpermissive")
 flags += c_only_flags
 if arch64:
@@ -189,6 +195,7 @@ arch64_results = []
 # each symbol edit made to an ELF object is repeated on its twin, and the
 # twins are what rood.exe links.
 MINGW = "x86_64-w64-mingw32-"
+mingw_permissive = win and gcc_major(MINGW + "gcc-posix") >= 14
 win_include = out / "win_include"
 if win:
     # Vulkan headers (platform-neutral; vk_platform.h handles _WIN32) without
@@ -208,6 +215,10 @@ def win_command(args):
     """A host gcc/g++ command as its MinGW-w64 equivalent (output .obj)."""
     tool = {"gcc": MINGW + "gcc-posix", "g++": MINGW + "g++-posix"}[args[0]]
     command = [tool]
+    # The host's -fpermissive follows the host gcc's version; MinGW's own
+    # version decides for the twin (GCC 13 warns that it is C++-only).
+    if args[0] == "gcc" and mingw_permissive:
+        command.append("-fpermissive")
     rest = iter(args[1:])
     for a in rest:
         if a in ("-m64", "-fpie", "-fno-pie", "-fpermissive"):
@@ -689,9 +700,11 @@ for name in ["runtime", "window", "controller", "gamepad"]:
     obj = out / (name + ".o")
     compile_object(["gcc", *flags, *sdl_flags, "-c", f"pc/src/boot_{name}.c", "-o", str(obj)], f"pc/src/boot_{name}.c")
     objects.append(obj)
-for name in ["audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "room_catalog"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []):
+for name in ["audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "room_catalog"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []):
     obj = out / (name + ".o")
-    compile_object(["gcc", *flags, *sdl_flags, "-c", f"pc/src/{name}.c", "-o", str(obj)], f"pc/src/{name}.c")
+    # ui_text rasterizes fonts with the stb_truetype that Dear ImGui vendors.
+    extra = ["-Ipc/third_party/imgui"] if name == "ui_text" else []
+    compile_object(["gcc", *flags, *sdl_flags, *extra, "-c", f"pc/src/{name}.c", "-o", str(obj)], f"pc/src/{name}.c")
     objects.append(obj)
 if not arch64:
     # Gamepad mapping test, and --hardware to report a connected gamepad.
@@ -768,6 +781,7 @@ for source in [
     root / "pc/src/editor_undo.cpp",
     root / "pc/src/probe_overlay.cpp",
     root / "pc/src/ui_upscale_panel.cpp",
+    root / "pc/src/prompt_glyphs.cpp",
 ] + ([imgui / "backends/imgui_impl_vulkan.cpp", root / "pc/src/vk_overlay.cpp"] if arch64 else []):
     obj = out / ("imgui_" + source.stem + ".o")
     # The 64-bit pass always compiles, so every run reports every unit.

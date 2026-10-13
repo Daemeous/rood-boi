@@ -54,6 +54,34 @@ layout(std140, binding = 0) uniform Trace {
 #define glow_casts u.i3.x
 // Emitter i's light may be shadowed (glows.c pc_glow_casts: not a transient effect's).
 bool glow_casts_shadow(int i) { return ((glow_casts >> i) & 1) != 0; }
+#ifdef LIGHT_LIST
+// Every dynamic light (vk_rt.inc vrt_light_list, any number: light_count of
+// them), in a storage buffer: the path tracer samples them per pixel instead
+// of looping over a fixed few (pc/docs/Vulkan_Renderer.md, many lights).
+struct Light { vec4 pos, col, dir, right, up; ivec4 info; }; // info.x: casts shadows
+layout(std430, binding = LIGHT_LIST) readonly buffer LightList { Light lights_[]; };
+vec4 lpos(int i) { return lights_[i].pos; }
+vec4 lcol(int i) { return lights_[i].col; }
+vec4 ldir(int i) { return lights_[i].dir; }
+vec4 lright(int i) { return lights_[i].right; }
+vec4 lup(int i) { return lights_[i].up; }
+int light_shadow(int i) { return lights_[i].info.x; }
+#else
+vec4 lpos(int i) { return light_pos[i]; }
+vec4 lcol(int i) { return light_col[i]; }
+vec4 ldir(int i) { return light_dir[i]; }
+vec4 lright(int i) { return light_right[i]; }
+vec4 lup(int i) { return light_up[i]; }
 int light_shadow(int i) { return u.light_shadow_[i >> 2][i & 3]; }
+#endif
 // A point or spot light's emitting radius: its own (light_right.w, light actors) or the room's light size.
-float point_size(int i) { return light_right[i].w > 0.0 ? light_right[i].w : light_size; }
+float point_size(int i) { return lright(i).w > 0.0 ? lright(i).w : light_size; }
+// Light i's unshadowed light at p (normal n, centre `centre`): falloff, cosine, spot cone / rect facing.
+float light_falloff(int i, vec3 centre, vec3 p, vec3 n, out vec3 l, out float d) {
+    vec3 to = centre - p; d = length(to); l = to / max(d, 1e-3);
+    float x = clamp(d / lpos(i).w, 0.0, 1.0);
+    float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);
+    if (lcol(i).w > 1.5) a *= max(dot(-l, ldir(i).xyz), 0.0);
+    else if (lcol(i).w > 0.5) a *= smoothstep(ldir(i).w, mix(ldir(i).w, 1.0, 0.25), dot(-l, ldir(i).xyz));
+    return a;
+}
