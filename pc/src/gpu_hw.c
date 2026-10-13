@@ -30,6 +30,7 @@ extern void pc_ui_bubbles_frame(void) __attribute__((weak));
 #ifdef ROOD_VULKAN
 #include "vk_hooks.h" /* ROOD_RENDERER=vulkan: the GL calls below go to vk_hw.c */
 #endif
+extern void pc_settings_env_override(const char* key) __attribute__((weak)); /* project_settings.cpp */
 extern int pc_present_rate; /* below */
 extern int pc_hw_scale_setting; /* below */
 extern float pc_present_phase;
@@ -668,6 +669,10 @@ static uint32_t texture_tag(unsigned tpage, unsigned clut)
 }
 static int has_pending_translucent;
 static void flush(void);
+/* ui_text_layout line (ui_text.h): glyph sprites buffered until something
+ * else is drawn, then laid out as lines (text_run_flush, below). */
+static int text_piece_count, text_emitting;
+static void text_run_flush(void);
 /* The reconstruction of 3D from packets (the GTE projection log and its
  * lookups, room depth records, caster capture from projected packets,
  * nearest-triangle matching for interpolation, which all follow from packets
@@ -682,6 +687,8 @@ static int reconstruct_active(void)
 }
 void pc_hw_begin_ot(void)
 {
+    if (text_piece_count && !text_emitting)
+        text_run_flush(); /* the previous table's last text */
     if (pc_widescreen_trace > 0 && !--pc_widescreen_trace)
         fprintf(stderr, "[widescreen trace] end\n");
     pc_gte_log = !pc_hw_active || reconstruct_active();
@@ -739,8 +746,9 @@ static GLuint draw_program, upload_program, vertex_buffer, vertex_array, empty_a
 static GLint u_draw_occlusion, u_draw_occlusion_rect, u_draw_room_depth;
 static GLint u_draw_filtering, u_draw_pass, u_draw_vram, u_draw_perspective, u_upload_vram, u_upload_rect, u_upload_scale;
 static GLint u_draw_ui_scale, u_draw_ui_atlas;
-/* Perspective-correct texturing (off by default: the PS1 maps affinely). */
-int pc_hw_perspective;
+/* Perspective-correct texturing: on by default (settings perspective_textures;
+ * ROOD_PERSPECTIVE=0 or 0 there restores the PS1's affine mapping). */
+int pc_hw_perspective = 1;
 /* Bilinear texture filtering on 3D surfaces (off: the PS1 samples nearest). */
 int pc_hw_texture_filter;
 static int pending_depth[3], has_pending_depth;
@@ -751,6 +759,19 @@ static int has_pending_precise;
  * talk bubbles (ui_bubbles.c). */
 static float exact_xy[6];
 static int has_exact, exact_cover;
+/* A laid-out glyph's quad (text_run_flush): its unrounded positions and its
+ * image's atlas origin (ui_text_layout line). */
+static float text_xy[6];
+static int has_text_xy, text_use_image;
+static int16_t text_offset[2];
+/* Text drawn two ways in one recorded frame, so redraws (RPC ui_upscale
+ * redraw) compare the layouts and the original on the very same frame: the
+ * original glyph sprites (drawn while line layout is off) and the laid-out
+ * quads (drawn while it is on), tagged in the vertices' texture window word
+ * (bits 0-19 are the window) and filtered by draw_batch. */
+#define TEXT_TAG_GLYPH (1u << 30)
+#define TEXT_TAG_LINE (1u << 31)
+static uint32_t triangle_tag;
 /* Sub-pixel vertex positions (PGXP-style); off restores PS1 vertex snapping. */
 int pc_hw_subpixel = 1;
 void pc_hw_set_precise(const float* xy)
@@ -1047,6 +1068,8 @@ void pc_hw_init(const uint16_t* vram)
         return;
     pc_hw_scale = scale > 8 ? 8 : scale;
     pc_hw_scale_setting = pc_hw_scale;
+    if (setting && pc_settings_env_override)
+        pc_settings_env_override("internal_resolution"); /* not saved as the user's (project_settings.cpp) */
     native_vram = vram;
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
@@ -1111,32 +1134,59 @@ natives:
 #endif
     {
         const char* rate = getenv("ROOD_PRESENT_RATE");
-        if (rate)
+        if (rate) {
             pc_present_rate = atoi(rate) < 1 ? 1 : atoi(rate) > 8 ? 8 : atoi(rate);
+            if (pc_settings_env_override)
+                pc_settings_env_override("present_rate");
+        }
         const char* native = getenv("ROOD_NATIVE_ROOM");
-        if (native)
+        if (native) {
             pc_native_room = atoi(native) < 0 ? 0 : atoi(native) > 2 ? 2 : atoi(native);
+            if (pc_settings_env_override)
+                pc_settings_env_override("native_room");
+        }
         native = getenv("ROOD_NATIVE_ACTORS");
-        if (native)
+        if (native) {
             pc_native_actors = atoi(native) < 0 ? 0 : atoi(native) > 2 ? 2 : atoi(native);
+            if (pc_settings_env_override)
+                pc_settings_env_override("native_actors");
+        }
         native = getenv("ROOD_NATIVE_BLEND");
-        if (native)
+        if (native) {
             pc_native_blend = atoi(native) != 0;
+            if (pc_settings_env_override)
+                pc_settings_env_override("native_blend");
+        }
         native = getenv("ROOD_NATIVE_OBJECTS");
-        if (native)
+        if (native) {
             pc_native_objects = atoi(native) != 0;
+            if (pc_settings_env_override)
+                pc_settings_env_override("native_objects");
+        }
         native = getenv("ROOD_NATIVE_ROOM_ORDER");
-        if (native)
+        if (native) {
             pc_native_room_order = atoi(native) != 0;
+            if (pc_settings_env_override)
+                pc_settings_env_override("native_room_order");
+        }
         native = getenv("ROOD_NATIVE_SHADOWS");
-        if (native)
+        if (native) {
             pc_native_shadows = atoi(native) != 0;
+            if (pc_settings_env_override)
+                pc_settings_env_override("native_shadows");
+        }
         native = getenv("ROOD_NATIVE_EFFECTS");
-        if (native)
+        if (native) {
             pc_native_effects = atoi(native) != 0;
+            if (pc_settings_env_override)
+                pc_settings_env_override("native_effects");
+        }
         native = getenv("ROOD_RECONSTRUCT");
-        if (native)
+        if (native) {
             pc_reconstruct = atoi(native) != 0;
+            if (pc_settings_env_override)
+                pc_settings_env_override("reconstruct");
+        }
     }
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
@@ -1259,6 +1309,26 @@ static void set_blend(int mode)
 static void record_batch(void);
 static void draw_batch(GLuint fbo, const hw_vertex* vertices, int count, int blend, const int* clip)
 {
+    /* Text drawn two ways (TEXT_TAG_*): the way the options choose now. */
+    {
+        uint32_t drop = pc_ui_text_layout_on(pc_hw_scale) && pc_ui_upscale_draw_factor() ? TEXT_TAG_GLYPH
+                                                                                          : TEXT_TAG_LINE;
+        int i = 0;
+        while (i < count && !(vertices[i].window & drop))
+            i += 3;
+        if (i < count) {
+            static hw_vertex kept[MAX_VERTICES];
+            int n = 0;
+            for (i = 0; i + 2 < count; i += 3)
+                if (!(vertices[i].window & drop)) {
+                    memcpy(kept + n, vertices + i, 3 * sizeof *kept);
+                    n += 3;
+                }
+            if (!n)
+                return;
+            vertices = kept, count = n;
+        }
+    }
     /* MSAA: inside the scope the twins take it (2D at the pixel centres). */
     int centre = 0;
     if (ms_holds(fbo, clip)) {
@@ -1367,6 +1437,8 @@ static void record_translucent(uint32_t list, int first, int count, const int* c
     int mask);
 static void flush(void)
 {
+    if (text_piece_count && !text_emitting)
+        text_run_flush(); /* buffered text first: it was drawn before what follows */
     if (batch_count) {
         record_batch();
         pc_ui_upscale_prepare(); /* the magnified 2D regions it samples */
@@ -1446,6 +1518,8 @@ static void edge_note(int x0, int y0, int x1, int y1)
 int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage,
     unsigned clut, unsigned window, const int* clip, int mask_set, int mask_check)
 {
+    if (text_piece_count && !text_emitting)
+        text_run_flush(); /* buffered text was drawn before this */
     if (!pc_hw_active)
         return 0;
     if (pc_hw_suppress) {
@@ -1607,6 +1681,8 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
      * own unrounded positions (pc_hw_shape_triangle). */
     if (has_exact)
         memcpy(pos, exact_xy, sizeof pos);
+    if (has_text_xy)
+        memcpy(pos, text_xy, sizeof pos);
     /* View-space face normal from the projected vertices: invert the GTE
      * projection (sx = ofx + H x / z, X narrowed by 3/4 in widescreen). The
      * drawing area's origin is the framebuffer's screen origin. */
@@ -1674,7 +1750,7 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
         }
     }
     record_triangle(has_world ? world : NULL, code, tpage, clut, uv);
-    if (primitive_2d && !has_exact && !(depth[0] | depth[1] | depth[2]))
+    if (primitive_2d && !has_exact && !has_text_xy && !(depth[0] | depth[1] | depth[2]))
         for (int i = 0; i < 3; i++)
             edge_note(xy[i * 2], xy[i * 2 + 1], xy[(i + 1) % 3 * 2], xy[(i + 1) % 3 * 2 + 1]);
     /* 2D: a flipped sprite's coordinates (pc_hw_set_flipped_uv), and texels
@@ -1698,8 +1774,12 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     int16_t ui_offset[2] = { 0, 0 };
     if (pc_ui_upscale || pc_ui_text || pc_button_prompts_active()) {
         pc_ui_upscale_draw_area(area);
-        if (ui && textured && !(depth[0] | depth[1] | depth[2])) {
-            int u1 = bounds[2] > bounds[0] ? bounds[2] - 1 : bounds[0], v1 = bounds[3] > bounds[1] ? bounds[3] - 1 : bounds[1];
+        if (has_text_xy && text_use_image && textured) {
+            /* A laid-out glyph: its image, looked up by text_run_flush. */
+            ui_offset[0] = text_offset[0], ui_offset[1] = text_offset[1];
+            flags |= FLAG_UI;
+        } else if (ui && textured && !(depth[0] | depth[1] | depth[2])) {
+            int u1 =bounds[2] > bounds[0] ? bounds[2] - 1 : bounds[0], v1 = bounds[3] > bounds[1] ? bounds[3] - 1 : bounds[1];
             int found = pc_ui_upscale_lookup(native_vram, tpage, clut, window, bounds[0], bounds[1], u1, v1, pc_hw_scale,
                 ui_offset);
             if (found < 0) {
@@ -1733,7 +1813,7 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
         v->tpage = (uint16_t)tpage;
         memcpy(&v->nx, normal, 4);
         v->clut = (uint16_t)clut;
-        v->window = window;
+        v->window = window | triangle_tag;
         v->uv_min[0] = (uint8_t)bounds[0], v->uv_min[1] = (uint8_t)bounds[1];
         v->uv_max[0] = (uint8_t)bounds[2], v->uv_max[1] = (uint8_t)bounds[3];
         v->ui[0] = ui_offset[0], v->ui[1] = ui_offset[1];
@@ -1747,7 +1827,193 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     return 0;
 }
 /* Rectangle (sprite or tile) as two triangles; uv spans the rectangle 1:1. */
+static void rect_triangles(int x, int y, int w, int h, int u, int v, unsigned rgb, unsigned code,
+    unsigned tpage, unsigned clut, unsigned window, const int* clip, int mask_set, int mask_check);
+
+/* ---- ui_text_layout line: runs of glyph sprites laid out as lines ----
+ *
+ * While line layout is on (ui_text.h), a 2D sprite that is (a strip of) a
+ * dialogue or menu glyph is drawn as itself, tagged TEXT_TAG_GLYPH (drawn
+ * only while the layout is off: redraws of the same frame compare), and
+ * buffered with the drawing state it was drawn in. The next primitive of
+ * any other kind (or the end of the batch) ends the run: ui_text.c lays its
+ * glyphs out as lines and each piece is drawn again as its laid-out quad,
+ * tagged TEXT_TAG_LINE, in its order and state, before that primitive. */
+#define TEXT_PIECES 4096
+typedef struct {
+    pc_ui_text_piece_info info;
+    unsigned rgb, code, window;
+    int mask_set, mask_check;
+    int is_2d, room, cover, extend, narrowed, anchor, uv_shift[2];
+    float span[2];
+    int sprite; /* a sprite (else a scaled quad) */
+} text_piece;
+static text_piece text_pieces[TEXT_PIECES];
+
+/* A quad's two triangles at unrounded corners (x0, y0)-(x1, y1) over texels
+ * (u0, v0)-(u1, v1) (exclusive ends), in the current state; `image`: from
+ * the laid-out glyph image at text_offset, else as any 2D region. */
+static void text_quad(float x0, float y0, float x1, float y1, int u0, int v0, int u1, int v1, int image,
+    const text_piece* p)
+{
+    float corners[4][2] = { { x0, y0 }, { x1, y0 }, { x0, y1 }, { x1, y1 } };
+    int texels[4][2] = { { u0, v0 }, { u1, v0 }, { u0, v1 }, { u1, v1 } };
+    static const int order[2][3] = { { 0, 1, 2 }, { 1, 3, 2 } };
+    int colors[9];
+    for (int k = 0; k < 9; k++)
+        colors[k] = (p->rgb >> ((k % 3) * 8)) & 255;
+    pc_hw_set_packet(NULL);
+    for (int t = 0; t < 2; t++) {
+        int xy[6], uv[6];
+        for (int k = 0; k < 3; k++) {
+            int c = order[t][k];
+            text_xy[k * 2] = corners[c][0], text_xy[k * 2 + 1] = corners[c][1];
+            xy[k * 2] = (int)floorf(corners[c][0] + 0.5f), xy[k * 2 + 1] = (int)floorf(corners[c][1] + 0.5f);
+            uv[k * 2] = texels[c][0], uv[k * 2 + 1] = texels[c][1];
+        }
+        has_text_xy = 1;
+        text_use_image = image;
+        pc_hw_triangle(xy, uv, colors, p->code, p->info.tpage, p->info.clut, p->window, p->info.clip, p->mask_set,
+            p->mask_check);
+        has_text_xy = text_use_image = 0;
+    }
+}
+
+static void text_run_flush(void)
+{
+    if (!text_piece_count || text_emitting)
+        return;
+    int count = text_piece_count;
+    text_piece_count = 0;
+    text_emitting = 1;
+    /* The state of whatever is being drawn now, restored after. */
+    int was_2d = primitive_2d, was_room = primitive_room, was_cover = primitive_cover, was_extend = primitive_extend;
+    int was_narrowed = primitive_narrowed, was_anchor = primitive_anchor, was_suppress = pc_hw_suppress;
+    int was_shift[2] = { primitive_uv_shift[0], primitive_uv_shift[1] };
+    float was_span[2] = { primitive_span[0], primitive_span[1] };
+    uintptr_t was_packet = current_packet;
+    int was_line_x = has_line_x, was_exact = has_exact, was_cover_exact = exact_cover;
+    int was_depth = has_pending_depth, was_precise = has_pending_precise;
+    float saved_line_x[3], saved_exact[6], saved_precise[6];
+    int saved_depth[3];
+    memcpy(saved_line_x, line_x, sizeof saved_line_x);
+    memcpy(saved_exact, exact_xy, sizeof saved_exact);
+    memcpy(saved_precise, pending_precise, sizeof saved_precise);
+    memcpy(saved_depth, pending_depth, sizeof saved_depth);
+
+    static pc_ui_text_piece_info infos[TEXT_PIECES];
+    static pc_ui_text_quad quads[TEXT_PIECES];
+    for (int i = 0; i < count; i++)
+        infos[i] = text_pieces[i].info;
+    pc_ui_text_layout_run(native_vram, infos, count, pc_hw_scale, quads);
+    triangle_tag = TEXT_TAG_LINE;
+    pc_hw_suppress = 0;
+    for (int i = 0; i < count; i++) {
+        const text_piece* p = &text_pieces[i];
+        const pc_ui_text_quad* q = &quads[i];
+        primitive_2d = p->is_2d, primitive_room = p->room, primitive_cover = p->cover;
+        primitive_extend = p->extend, primitive_narrowed = p->narrowed, primitive_anchor = p->anchor;
+        primitive_uv_shift[0] = p->uv_shift[0], primitive_uv_shift[1] = p->uv_shift[1];
+        primitive_span[0] = p->span[0], primitive_span[1] = p->span[1];
+        has_line_x = has_exact = exact_cover = has_pending_depth = has_pending_precise = 0;
+        const pc_ui_text_piece_info* in = &p->info;
+        int found = 0;
+        if (q->image >= 0) {
+            found = pc_ui_upscale_lookup_image(q->image, pc_hw_scale, text_offset);
+            if (found < 0) { /* the atlas is full: as pc_hw_triangle does */
+                flush();
+                pc_ui_upscale_reset();
+                forget_recordings();
+                found = pc_ui_upscale_lookup_image(q->image, pc_hw_scale, text_offset);
+            }
+        }
+        if (found > 0)
+            text_quad(q->x, q->y, q->x + q->w * q->k, q->y + (q->row1 - q->row0) * q->k, 0, q->row0, q->w, q->row1, 1,
+                p);
+        else if (p->sprite) /* not laid out: the original */
+            rect_triangles((int)in->x, (int)in->y, 12, in->h, in->u, in->v, p->rgb, p->code, in->tpage, in->clut,
+                p->window, in->clip, p->mask_set, p->mask_check);
+        else
+            text_quad(in->x, in->y, in->x + 12 * in->k, in->y + in->h * in->k, in->u, in->v, in->u + 12,
+                in->v + in->h, 0, p);
+    }
+    triangle_tag = 0;
+    primitive_2d = was_2d, primitive_room = was_room, primitive_cover = was_cover, primitive_extend = was_extend;
+    primitive_narrowed = was_narrowed, primitive_anchor = was_anchor, pc_hw_suppress = was_suppress;
+    primitive_uv_shift[0] = was_shift[0], primitive_uv_shift[1] = was_shift[1];
+    primitive_span[0] = was_span[0], primitive_span[1] = was_span[1];
+    current_packet = was_packet;
+    has_line_x = was_line_x, has_exact = was_exact, exact_cover = was_cover_exact;
+    has_pending_depth = was_depth, has_pending_precise = was_precise;
+    memcpy(line_x, saved_line_x, sizeof saved_line_x);
+    memcpy(exact_xy, saved_exact, sizeof saved_exact);
+    memcpy(pending_precise, saved_precise, sizeof saved_precise);
+    memcpy(pending_depth, saved_depth, sizeof saved_depth);
+    text_emitting = 0;
+}
+
+/* Buffer a piece (the drawing state now is its own) and start drawing its
+ * original tagged TEXT_TAG_GLYPH (pc_hw_text_piece_done ends that). */
+static void text_piece_add(const pc_ui_text_piece_info* info, int sprite, unsigned rgb, unsigned code,
+    unsigned window, int mask_set, int mask_check)
+{
+    if (text_piece_count == TEXT_PIECES)
+        text_run_flush();
+    text_piece* p = &text_pieces[text_piece_count++];
+    p->info = *info;
+    p->sprite = sprite;
+    p->rgb = rgb, p->code = code, p->window = window, p->mask_set = mask_set, p->mask_check = mask_check;
+    p->is_2d = primitive_2d, p->room = primitive_room, p->cover = primitive_cover, p->extend = primitive_extend;
+    p->narrowed = primitive_narrowed, p->anchor = primitive_anchor;
+    p->uv_shift[0] = primitive_uv_shift[0], p->uv_shift[1] = primitive_uv_shift[1];
+    p->span[0] = primitive_span[0], p->span[1] = primitive_span[1];
+    text_emitting = 1; /* (the original does not end the run) */
+    triangle_tag = TEXT_TAG_GLYPH;
+}
+void pc_hw_text_piece_done(void)
+{
+    triangle_tag = 0;
+    text_emitting = 0;
+}
+/* A 2D textured quad (boot_polygons.inc), corners in order 0 1 / 2 3 at
+ * unrounded screen positions: 1 when it is a scaled glyph cell the layout
+ * takes (its triangles, drawn next, are the original: the caller then calls
+ * pc_hw_text_piece_done). */
+int pc_hw_text_quad(const float* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage, unsigned clut,
+    unsigned window, const int* clip, int mask_set, int mask_check)
+{
+    if (text_emitting || !pc_hw_active || pc_hw_suppress || !(code & 4) || !pc_ui_text_layout_on(pc_hw_scale))
+        return 0;
+    float x0 = xy[0], y0 = xy[1], x1 = xy[6], y1 = xy[7];
+    if (xy[2] != x1 || xy[3] != y0 || xy[4] != x0 || xy[5] != y1 || x1 <= x0 || y1 <= y0)
+        return 0; /* not an axis-aligned rectangle */
+    int u0 = uv[0], v0 = uv[1];
+    if (uv[2] != u0 + 12 || uv[3] != v0 || uv[4] != u0 || uv[5] != v0 + 12 || uv[6] != u0 + 12 || uv[7] != v0 + 12)
+        return 0; /* not a whole cell, upright */
+    float k = (x1 - x0) / 12.0f;
+    if (fabsf((y1 - y0) / 12.0f - k) > 0.01f * k || !pc_ui_text_piece(native_vram, tpage, clut, u0, v0, 12, 12))
+        return 0;
+    pc_ui_text_piece_info info = { x0, y0, k, u0, v0, 12, tpage, clut, { clip[0], clip[1], clip[2], clip[3] } };
+    text_piece_add(&info, 0, (unsigned)(rgb[0] | rgb[1] << 8 | rgb[2] << 16), code, window, mask_set, mask_check);
+    return 1;
+}
+
 void pc_hw_rect(int x, int y, int w, int h, int u, int v, unsigned rgb, unsigned code,
+    unsigned tpage, unsigned clut, unsigned window, const int* clip, int mask_set, int mask_check)
+{
+    if (!text_emitting && pc_hw_active && !pc_hw_suppress && (code & 4) && pc_ui_text_layout_on(pc_hw_scale)
+        && pc_ui_text_piece(native_vram, tpage, clut, u, v, w, h)) {
+        pc_ui_text_piece_info info = { (float)x, (float)y, 1.0f, u, v, h, tpage, clut,
+            { clip[0], clip[1], clip[2], clip[3] } };
+        text_piece_add(&info, 1, rgb, code, window, mask_set, mask_check);
+        rect_triangles(x, y, w, h, u, v, rgb, code, tpage, clut, window, clip, mask_set, mask_check);
+        pc_hw_text_piece_done();
+        return;
+    }
+    rect_triangles(x, y, w, h, u, v, rgb, code, tpage, clut, window, clip, mask_set, mask_check);
+}
+
+static void rect_triangles(int x, int y, int w, int h, int u, int v, unsigned rgb, unsigned code,
     unsigned tpage, unsigned clut, unsigned window, const int* clip, int mask_set, int mask_check)
 {
     int xy[6], uvs[6], colors[9];

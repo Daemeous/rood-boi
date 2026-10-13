@@ -540,6 +540,7 @@ if battle:
         ("pc/src/ui/menu_bridge.c", "ui_menu_bridge"),
         ("pc/src/ui/equip_bridge.c", "ui_equip_bridge"),
         ("pc/src/ui/ashley_bridge.c", "ui_ashley_bridge"),
+        ("pc/src/ui/game_options.c", "ui_game_options"),
     ]
     sources += [
         (str(p.relative_to(root)), "battle_" + p.stem)
@@ -788,10 +789,12 @@ for source in [
     root / "pc/src/probe_overlay.cpp",
     root / "pc/src/ui_upscale_panel.cpp",
     root / "pc/src/ui/ui_shell.cpp",
+    root / "pc/src/ui/ui_settings.cpp",
     root / "pc/src/ui/ui_theme.cpp",
     root / "pc/src/ui/ui_draw.cpp",
     root / "pc/src/ui/ui_equip_draw.cpp",
     root / "pc/src/ui/ui_ashley_draw.cpp",
+    root / "pc/src/ui/ui_system_draw.cpp",
     root / "pc/src/prompt_glyphs.cpp",
 ] + ([imgui / "backends/imgui_impl_vulkan.cpp", root / "pc/src/vk_overlay.cpp"] if arch64 else []):
     obj = out / ("imgui_" + source.stem + ".o")

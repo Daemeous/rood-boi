@@ -13,6 +13,7 @@
 #include "lighting_quality.h"
 #include "antialias.h"
 #include <SDL3/SDL.h>
+#include <math.h> /* powf: brightness */
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -815,6 +816,7 @@ int pc_gl_view[4], pc_gl_display[4];
 extern int pc_gte_widescreen;
 extern int pc_hw_perspective;
 extern void pc_overlay_init(SDL_Window*, SDL_GLContext);
+extern void pc_settings_env_override(const char* key) __attribute__((weak)); /* project_settings.cpp */
 extern void pc_overlay_frame(int, int);
 extern int pc_editor_separate(void) __attribute__((weak));
 extern void pc_editor_render(int, int) __attribute__((weak));
@@ -983,11 +985,21 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     pc_hw_init(pc_native_vram());
     pc_overlay_init(win, context);
     /* Perspective-correct textures are the default (ROOD_PERSPECTIVE=0
-     * restores the PS1's affine mapping); 16:9 is opt-in (ROOD_WIDESCREEN=1). */
+     * restores the PS1's affine mapping); 16:9 is opt-in (ROOD_WIDESCREEN=1).
+     * The variables apply only when set: the settings (just loaded by
+     * pc_overlay_init) keep their widescreen / perspective_textures. */
     const char* widescreen = getenv("ROOD_WIDESCREEN");
-    pc_gte_widescreen = widescreen && *widescreen == '1';
+    if (widescreen && *widescreen) {
+        pc_gte_widescreen = *widescreen == '1';
+        if (pc_settings_env_override)
+            pc_settings_env_override("widescreen"); /* not saved as the user's (project_settings.cpp) */
+    }
     const char* perspective = getenv("ROOD_PERSPECTIVE");
-    pc_hw_perspective = !(perspective && *perspective == '0');
+    if (perspective && *perspective) {
+        pc_hw_perspective = *perspective != '0';
+        if (pc_settings_env_override)
+            pc_settings_env_override("perspective_textures");
+    }
     return win;
 }
 
@@ -1023,12 +1035,19 @@ static int ensure_view_target(view_target* v, int w, int h) { return ensure_targ
 /* Pass `stage` of the post chain draws into the window's view (the last of
  * `stages`) or the next lit-sized image; returns that image's texture (the
  * next pass's input). */
+static view_target brightness_target; /* the chain's last image before the brightness curve, view-sized RGBA16F */
+static int brightness_stage; /* this frame's chain ends with the brightness curve (below) */
 static GLuint stage_begin(int stage, int stages, int lit_w, int lit_h, int view_x, int view_y, int view_w, int view_h)
 {
     if (stage + 1 >= stages) {
         gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
         gl_Viewport(view_x, view_y, view_w, view_h);
         return 0;
+    }
+    if (brightness_stage && stage + 2 >= stages) { /* settings brightness: its 16-bit input, view-sized */
+        gl_BindFramebuffer(GL_FRAMEBUFFER, brightness_target.fbo);
+        gl_Viewport(0, 0, view_w, view_h);
+        return brightness_target.texture;
     }
     view_target* v = &chain[stage & 1];
     gl_BindFramebuffer(GL_FRAMEBUFFER, v->fbo);
@@ -1102,6 +1121,61 @@ static int downsample_ready(void)
     }
     return state > 0;
 }
+/* ---- Brightness (settings brightness 0..100, System > Display) ----
+ * 50 leaves the picture untouched: no pass runs (bit-identical). Otherwise
+ * the post chain gets one more stage: what would have gone to the window
+ * (the lit image after anti-aliasing, blur and supersampling's downsample,
+ * or the VRAM picture) goes to a view-sized 16-bit float image instead, and
+ * brightness.glsl's curve draws that into the window, so the curve runs
+ * before the 8-bit rounding (no posterized darks). Its slope at black is
+ * 2.5^((brightness - 50) / 50): 2.5 at 100, 0.4 at 0. It is the game's
+ * picture only (3D, the game's own 2D and menus, movies): the overlay drawn
+ * after it (modern menus, editor, developer panels) and the letterbox bars
+ * keep their colours. vk_present.c does the same. */
+int pc_present_brightness = 50;
+int pc_brightness_get(void) { return pc_present_brightness; }
+void pc_brightness_set(int value) { pc_present_brightness = value < 0 ? 0 : value > 100 ? 100 : value; }
+float pc_present_brightness_factor(void) { return powf(2.5f, (pc_present_brightness - 50) / 50.0f); }
+static const char* brightness_fragment_source =
+    "#version 330 core\n"
+    "out vec4 color;\n"
+    "uniform sampler2D image;\n"
+    "uniform ivec2 origin;\n"
+    "uniform float factor;\n" PC_GLSL_BRIGHTNESS
+    "void main() { color = vec4(brightness(texelFetch(image, ivec2(gl_FragCoord.xy) - origin, 0).rgb, factor), 1.0); }\n";
+static GLuint brightness_program;
+static GLint u_brightness_origin, u_brightness_factor;
+/* 1: this frame's post chain ends with the brightness stage (made on first use). */
+static int brightness_on(int view_w, int view_h)
+{
+    static int state; /* 0 not yet, 1 ready, -1 failed */
+    if (pc_present_brightness == 50 || state < 0 || view_w <= 0 || view_h <= 0)
+        return 0;
+    if (!state) {
+        brightness_program = pc_gl_program(vertex_source, brightness_fragment_source);
+        state = brightness_program ? 1 : -1;
+        if (!brightness_program) {
+            fprintf(stderr, "[gl] brightness unavailable (its shader did not build)\n");
+            return 0;
+        }
+        u_brightness_origin = gl_GetUniformLocation(brightness_program, "origin");
+        u_brightness_factor = gl_GetUniformLocation(brightness_program, "factor");
+        gl_UseProgram(brightness_program);
+        gl_Uniform1i(gl_GetUniformLocation(brightness_program, "image"), 0);
+    }
+    return ensure_view_target(&brightness_target, view_w, view_h);
+}
+/* The last stage: the 16-bit image through the curve into the window's view. */
+static void brightness_draw(int view_x, int view_y)
+{
+    gl_UseProgram(brightness_program);
+    gl_ActiveTexture(GL_TEXTURE0);
+    gl_BindTexture(GL_TEXTURE_2D, brightness_target.texture);
+    gl_Uniform2i(u_brightness_origin, view_x, view_y);
+    gl_Uniform1f(u_brightness_factor, pc_present_brightness_factor());
+    gl_DrawArrays(GL_TRIANGLES, 0, 3);
+}
+
 /* Focal depth (GTE SZ) for depth of field; 0 lets the shader pick (auto).
  * On Ashley: her chest's depth, eased so focus pulls rather than snaps. */
 static float focus_depth(void)
@@ -1410,6 +1484,8 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
         int lit_w = view_w, lit_h = view_h, ssaa = 0;
         if (target && pc_aa_ssaa > 1.0f && w * pc_hw_scale > view_w && h * pc_hw_scale > view_h && downsample_ready())
             ssaa = 1, lit_w = w * pc_hw_scale, lit_h = h * pc_hw_scale;
+        /* Settings brightness: one more stage (below); set up before this frame binds its programs and textures. */
+        brightness_stage = brightness_on(view_w, view_h);
         gl_ActiveTexture(GL_TEXTURE0);
         gl_BindVertexArray(vertex_array);
         if (target) {
@@ -1620,6 +1696,7 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
             post = PC_AA_OFF;
             stages = 1 + blur + ssaa;
         }
+        stages += brightness_stage;
         int view_x = pc_gl_view[0], view_y = window_h - pc_gl_view[1] - view_h;
         int stage = 0;
         GLuint input = stage_begin(stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
@@ -1695,6 +1772,10 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
             gl_Uniform2f(u_down_dst_size, (float)view_w, (float)view_h);
             gl_Uniform1i(u_down_filter, pc_aa_downsample);
             gl_DrawArrays(GL_TRIANGLES, 0, 3);
+        }
+        if (brightness_stage) { /* settings brightness (above) */
+            stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
+            brightness_draw(view_x, view_y);
         }
         gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
         gl_BindVertexArray(0);

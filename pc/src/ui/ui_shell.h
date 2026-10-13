@@ -79,8 +79,8 @@ int pc_ui_shell_row(int i, const char** label, const char** help, const char** v
     const char** reason);
 int pc_ui_shell_focus(void);
 /* What the current tab shows: PC_UI_SCREEN_COMMANDS (rows above), or a native
- * screen: PC_UI_SCREEN_EQUIPMENT, PC_UI_SCREEN_ASHLEY. */
-enum { PC_UI_SCREEN_COMMANDS = 0, PC_UI_SCREEN_EQUIPMENT = 1, PC_UI_SCREEN_ASHLEY = 2 };
+ * screen: PC_UI_SCREEN_EQUIPMENT, PC_UI_SCREEN_ASHLEY, PC_UI_SCREEN_SYSTEM. */
+enum { PC_UI_SCREEN_COMMANDS = 0, PC_UI_SCREEN_EQUIPMENT = 1, PC_UI_SCREEN_ASHLEY = 2, PC_UI_SCREEN_SYSTEM = 3 };
 int pc_ui_shell_screen(void);
 
 /* The Ashley screen: a summary with rows weapon, shield, condition, then one
@@ -126,7 +126,9 @@ int pc_ui_shell_drawn(void);
  * the last click count, wheels add up. */
 enum {
     PC_UI_MOUSE_NONE, PC_UI_MOUSE_TAB, PC_UI_MOUSE_SUB, PC_UI_MOUSE_ROW, PC_UI_MOUSE_SLOT, PC_UI_MOUSE_LIST,
-    PC_UI_MOUSE_QUICK, PC_UI_MOUSE_BUTTON
+    PC_UI_MOUSE_QUICK, PC_UI_MOUSE_BUTTON,
+    PC_UI_MOUSE_PAGE,   /* System: an entry of the list (pc_ui_shell_system_item) */
+    PC_UI_MOUSE_SETTING /* System: a row of the page on the card */
 };
 void pc_ui_shell_mouse(int kind, int index, int clicked, float wheel);
 
@@ -150,6 +152,39 @@ const pc_ui_equipment* pc_ui_shell_equipment(void);
 /* Row r of the open pick list: the candidate, or null ("No shield" first in the
  * quick shield step, or past the end). */
 const pc_ui_item* pc_ui_shell_list_item(int r);
+
+/* The System screen (pc/src/ui/ui_settings.h has the pages): a list on the
+ * left, the game's own screens first (Data, Options, Score, Quick manual;
+ * Circle opens them, as the command rows do), then the settings pages. Circle
+ * (or Right) on a page enters it: Up/Down move between its rows, Left/Right
+ * change the focused row (key repeat), Circle runs an action, starts a
+ * binding capture or steps a choice, Cross goes back to the list. While a
+ * capture listens (pc_ui_settings_capture_button() >= 0) the shell ignores
+ * its input (a right click or a click on the prompt cancels it). Leaving a
+ * page, the tab or the menu (any way: close, an original screen, abandon)
+ * cancels a capture and saves what changed (pc_ui_settings_flush). */
+typedef struct {
+    int items;    /* list entries */
+    int games;    /* the first `games` entries are the game's screens; the rest pages 0.. */
+    int item;     /* focused entry */
+    int page;     /* the settings page the card shows (entered, or the focused entry's); -1: a game entry */
+    int entered;  /* the page's rows have the focus (else the list) */
+    int row;      /* the page's focused row (kept while in the list) */
+    int rows;     /* the page's rows (pc_ui_settings_rows) */
+    int capture;  /* the PS1 button a capture listens for, -1 none */
+} pc_ui_system_view;
+void pc_ui_shell_system_view(pc_ui_system_view* v);
+/* List entry i: id ("data", "graphics"), label, help, enabled, reason (greyed: why).
+ * Returns 0 past the end. */
+int pc_ui_shell_system_item(int i, const char** id, const char** label, const char** help, int* enabled,
+    const char** reason);
+/* Pointer on a value (applied at the next tick, the last call wins): row
+ * `row` of the page the card shows changes by `delta` steps (arrows, wheel),
+ * or, with set, to `value` (a slider drag: its number; a toggle or choice
+ * clicked: its index). set 2: a drag still in progress
+ * (pc_ui_settings_preview); the drag's end sends its last value with set 1.
+ * Enters the page when the list had the focus. */
+void pc_ui_shell_system_value(int row, int delta, double value, int set);
 
 #ifdef __cplusplus
 }

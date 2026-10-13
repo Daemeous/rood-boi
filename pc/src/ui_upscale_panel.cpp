@@ -46,6 +46,13 @@ extern "C" void pc_ui_upscale_panel(void)
                           "each style (pc/tools/font_match.py): talk bubbles, menus, the information box, HUD\n"
                           "numbers and labels. Needs internal resolution 2x or more.");
     if (pc_ui_text == PC_UI_TEXT_FONT) {
+        static const char* layout_modes[] = { "Per glyph (original cells)", "Lines (font spacing)" };
+        ImGui::Combo("Text layout", &pc_ui_text_layout, layout_modes, 2);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Lines: each line of dialogue and menu text set with the font's own spacing and\n"
+                              "kerning from where the game starts it, descenders below the line, never running\n"
+                              "past the game's own letters (tightened where the font is wider). Per glyph:\n"
+                              "each letter drawn inside the original's 12-pixel cell at the game's advance.");
         pc_ui_text_stats t;
         pc_ui_text_get_stats(&t);
         if (pc_hw_scale < 2)

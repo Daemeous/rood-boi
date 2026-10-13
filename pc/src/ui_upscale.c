@@ -277,6 +277,7 @@ void pc_ui_upscale_frame(void)
     ++frame;
     if (pc_ui_text)
         pc_ui_text_warm(2.0); /* glyph fields ahead of use, a little each frame */
+    pc_ui_text_frame();
     frame_new_texels = 0;
     if (!frame_lookups_acc)
         return; /* an image without 2D: keep the last numbers */
@@ -731,6 +732,65 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
     return 1;
 }
 
+/* A laid-out glyph's image (ui_text.c, ui_text_layout line): not a VRAM
+ * region but texels the font draws, cached by their content key. */
+int pc_ui_upscale_lookup_image(int image, int scale, int16_t offset[2])
+{
+    uint64_t key;
+    int w, h, factor = factor_for(scale);
+    if (!factor || !pc_ui_text_image_key(image, &key, &w, &h))
+        return 0;
+    if (atlas_factor != factor && !make_atlas(factor))
+        return 0;
+    if (backend == -2)
+        return 0;
+    double start = now_ms();
+    ++stats.lookups;
+    ++frame_lookups_acc;
+    uint64_t hash = mix64(key ^ 0x6c61796f7574ull) | 1;
+    int found;
+    entry* e = find_entry(hash, w, h, &found);
+    if (!e) {
+        frame_ms_acc += now_ms() - start;
+        full_reason = "entries";
+        return -1;
+    }
+    if (!found) {
+        long budget = backend > 0 ? (1l << 20) : (1l << 16);
+        if (frame_new_texels + (long)w * h > budget || pending_text_count == MAX_PENDING) {
+            ++stats.over_budget;
+            frame_ms_acc += now_ms() - start;
+            return 0;
+        }
+        int x, y;
+        if (!allocate(w, h, &x, &y)) {
+            frame_ms_acc += now_ms() - start;
+            full_reason = "space";
+            return -1;
+        }
+        uint32_t* texels = malloc((size_t)w * factor * h * factor * sizeof *texels);
+        if (!texels || !pc_ui_text_image_render(image, factor, texels)) {
+            free(texels);
+            frame_ms_acc += now_ms() - start;
+            return 0;
+        }
+        e->hash = hash, e->x = (uint16_t)x, e->y = (uint16_t)y, e->w = (uint16_t)w, e->h = (uint16_t)h;
+        e->text = 1;
+        ++entry_count;
+        entry_texels += (long)w * h;
+        frame_new_texels += (long)w * h;
+        for (int r = 0; r < h; r++) /* (the shadow copy: nothing of VRAM) */
+            memset(shadow + (size_t)(y + r) * atlas_w + x, 0, (size_t)w * 2);
+        pending_texts[pending_text_count++] = (pending_text){ x, y, w, h, texels };
+        ++stats.misses;
+        ++frame_misses_acc;
+    } else
+        ++stats.hits;
+    offset[0] = (int16_t)e->x, offset[1] = (int16_t)e->y;
+    frame_ms_acc += now_ms() - start;
+    return 1;
+}
+
 /* ---- magnifying what was looked up ---- */
 
 static void prepare_cpu(void)
@@ -984,6 +1044,21 @@ void pc_ui_precise_quad(const void* packet, const float* corners)
                          | (uint32_t)(uint16_t)(int16_t)floorf(corners[i * 2 + 1]) << 16;
         precise[s].f[i * 2] = corners[i * 2], precise[s].f[i * 2 + 1] = corners[i * 2 + 1];
     }
+}
+/* The recorded corners whatever pc_ui_subpixel is (ui_text_layout line
+ * places scaled glyphs from them). */
+int pc_ui_precise_find(const void* packet, const unsigned* xy, int count, float* corners)
+{
+    if (count != 4)
+        return 0;
+    unsigned s = (unsigned)(((uintptr_t)packet >> 2) * 2654435761u) & (PRECISE_SLOTS - 1);
+    if (precise[s].packet != (uintptr_t)packet)
+        return 0;
+    for (int i = 0; i < 4; i++)
+        if (precise[s].xy[i] != xy[i])
+            return 0;
+    memcpy(corners, precise[s].f, sizeof precise[s].f);
+    return 1;
 }
 int pc_ui_precise_lookup(const void* packet, const unsigned* xy, int count, float* corners)
 {

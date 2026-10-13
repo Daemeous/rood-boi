@@ -2,8 +2,9 @@
 // list, inside the game picture (pc_gl_view), in 1280x720 / 960x720 layout
 // units. The tabs, the command rows and their card, the hints and the pointer
 // are here; screens with their own layout draw in their own files
-// (ui_equip_draw.cpp).
+// (ui_equip_draw.cpp, ui_ashley_draw.cpp, ui_system_draw.cpp).
 #include "ui/ui_draw_internal.h"
+#include "ui/ui_settings.h"
 #include "button_prompts.h"
 #include "imgui_internal.h" /* ImTextCharFromUtf8 */
 #include <cmath>
@@ -379,6 +380,8 @@ extern "C" int pc_ui_shell_wants_mouse(void)
 
 extern "C" void pc_ui_draw_frame(float dt)
 {
+    // the System pages' save debounce (ui_settings.cpp): every frame, shell up or not
+    pc_ui_settings_tick(ImGui::GetTime());
     if (!pc_ui_shell_drawn() || pc_gl_view[2] <= 0 || pc_gl_view[3] <= 0) {
         last_tab = -1; // the next open places the ink and focus at once
         forced = false; // a test pointer is for a shown shell only
@@ -474,6 +477,8 @@ extern "C" void pc_ui_draw_frame(float dt)
         draw_equipment(f, t, top, dt, fresh, m, out);
     else if (pc_ui_shell_screen() == PC_UI_SCREEN_ASHLEY)
         draw_ashley(f, t, top, dt, fresh, model, m, out);
+    else if (pc_ui_shell_screen() == PC_UI_SCREEN_SYSTEM)
+        draw_system(f, t, top, dt, fresh, m, out);
     else
         draw_commands(f, t, top, dt, fresh, m, out);
     draw_footer(f, t, out, held, m);

@@ -40,6 +40,11 @@ extern void pc_hw_set_packet(const void*);
 extern int pc_hw_is_room_packet(const void*);
 extern int pc_hw_room_depth(const void*, const unsigned*, int, int*) __attribute__((weak)); /* absent in unit probes */
 extern int pc_ui_precise_lookup(const void*, const unsigned*, int, float*) __attribute__((weak)); /* ui_upscale.c */
+extern int pc_ui_precise_find(const void*, const unsigned*, int, float*) __attribute__((weak)); /* ui_upscale.c */
+/* ui_text_layout line (gpu_hw.c): scaled glyph quads laid out with their lines. */
+extern int pc_hw_text_quad(const float*, const int*, const int*, unsigned, unsigned, unsigned, unsigned, const int*,
+    int, int) __attribute__((weak));
+extern void pc_hw_text_piece_done(void) __attribute__((weak));
 /* Room polygon depths from room_geometry.c (1) or the projection log (0). */
 int pc_room_exact_depth = 1;
 /* Widescreen HUD anchoring of the packet about to draw (gpu_hw.c). */

@@ -24,6 +24,63 @@ static int running, primed;
 static FILE* wav;
 static uint32_t wav_frames;
 
+/* Master volume (settings master_volume 0..100, System > Audio): a gain on
+ * what leaves the game (the device stream and a ROOD_AUDIO=wav recording),
+ * (volume / 100)^2 so equal steps sound about even. Changes ramp over 20 ms
+ * (no clicks). At 100 the samples pass untouched (bit-identical). */
+enum { GAIN_RAMP = 882 };
+static int master_volume = 100;
+int pc_master_volume_get(void) { return __atomic_load_n(&master_volume, __ATOMIC_RELAXED); }
+void pc_master_volume_set(int volume)
+{
+    __atomic_store_n(&master_volume, volume < 0 ? 0 : volume > 100 ? 100 : volume, __ATOMIC_RELAXED);
+}
+static float master_target(void)
+{
+    float v = pc_master_volume_get() / 100.0f;
+    return v * v;
+}
+/* Scales `count` stereo frames in place; *gain is the stream's current gain
+ * (one per consumer thread), moved toward the target per frame. A stream
+ * starts at the target (GAIN_UNSET: no samples yet), so a saved low volume
+ * never begins with a ramp down from full, whichever of the settings and the
+ * audio comes up first. */
+#define GAIN_UNSET -1.0f
+static void master_gain(short* frames, int count, float* gain)
+{
+    float target = master_target();
+    if (*gain == GAIN_UNSET)
+        *gain = target;
+    if (*gain == 1.0f && target == 1.0f)
+        return;
+    const float step = 1.0f / GAIN_RAMP;
+    for (int i = 0; i < count; ++i) {
+        if (*gain < target)
+            *gain = *gain + step < target ? *gain + step : target;
+        else if (*gain > target)
+            *gain = *gain - step > target ? *gain - step : target;
+        for (int c = 0; c < 2; ++c) {
+            float v = frames[i * 2 + c] * *gain;
+            frames[i * 2 + c] = (short)(v > 32767.0f ? 32767 : v < -32768.0f ? -32768 : (int)(v < 0 ? v - 0.5f : v + 0.5f));
+        }
+    }
+}
+static float device_gain = GAIN_UNSET, wav_gain = GAIN_UNSET; /* each its consumer thread's */
+static float device_gain_seen = GAIN_UNSET;                    /* device_gain, published for the RPC */
+/* RPC (system): the gain now (after the ramp): the recording's, else the device stream's (the target before
+ * any sample went out). */
+float pc_master_gain(void)
+{
+    float g;
+    if (wav)
+        g = wav_gain; /* the game thread's own */
+    else
+        __atomic_load(&device_gain_seen, &g, __ATOMIC_RELAXED);
+    return g == GAIN_UNSET ? master_target() : g;
+}
+/* RPC (system): frames recorded so far (ROOD_AUDIO=wav; tests find a moment in the file). */
+unsigned pc_audio_output_recorded(void) { return wav_frames; }
+
 static void wav_header(void)
 {
     uint32_t bytes = wav_frames * 4;
@@ -38,7 +95,16 @@ static void wav_header(void)
 void pc_audio_output_push(const short* frames, int count)
 {
     if (wav) {
-        fwrite(frames, 4, count, wav);
+        if (wav_gain != 1.0f || master_target() != 1.0f) { /* (also the first block: GAIN_UNSET) */
+            short scaled[BLOCK * 2];
+            for (int done = 0; done < count; done += BLOCK) {
+                int n = count - done < BLOCK ? count - done : BLOCK;
+                memcpy(scaled, frames + done * 2, (size_t)n * 4);
+                master_gain(scaled, n, &wav_gain);
+                fwrite(scaled, 4, n, wav);
+            }
+        } else
+            fwrite(frames, 4, count, wav);
         wav_frames += count;
         if (!(wav_frames % 44100 < (uint32_t)count))
             return;
@@ -82,6 +148,8 @@ static void SDLCALL feed(void* user, SDL_AudioStream* stream, int additional, in
         if (head == tail)
             primed = 0;
         pthread_mutex_unlock(&lock);
+        master_gain(block, BLOCK, &device_gain);
+        __atomic_store(&device_gain_seen, &device_gain, __ATOMIC_RELAXED);
         if (!SDL_PutAudioStreamData(stream, block, sizeof(block))) {
             fprintf(stderr, "[audio] SDL audio write failed (%s); audio stopped\n", SDL_GetError());
             running = 0;

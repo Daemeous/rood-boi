@@ -168,6 +168,14 @@ def suites(args, mode="egl"):
                  note="Ashley tab: summary = RAM (stats, limbs, effects), live model shown/turned (stick, drag, "
                       "no auto-turn), tabs/Status/weapon change, world and camera restored, 16:9, soft reset")]
           if args.save.exists() else []),
+        *([Suite("ui_system_smoke", [PY, str(TESTS / "ui_system_smoke.py"), "--card", str(args.save)], 300,
+                 note="System screen through the shell: a row per settings page live + saved (debounce, Cross), "
+                      "greyed rows, slider drag, binding capture (blocks navigation, Esc, pad, reset), Data, relaunch")]
+          if args.save.exists() else []),
+        Suite("system_settings_smoke", [PY, str(TESTS / "system_settings_smoke.py"),
+                                        *(["--card", str(args.save)] if args.save.exists() else [])], 360,
+              note="System settings: brightness, master volume (WAV), window mode, binding capture (SDL events; "
+                   "key works in the field), saved and back after a relaunch with widescreen / perspective kept"),
         Suite("flipped_sprite_smoke", [PY, str(TESTS / "flipped_sprite_smoke.py")], 180,
               note="textured quads (flipped sprites too) sample only their own texels: CPU, hardware 1x and 4x"),
         Suite("ui_lines_smoke", [PY, str(TESTS / "ui_lines_smoke.py")], 420,

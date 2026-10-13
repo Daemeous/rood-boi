@@ -27,6 +27,16 @@
  *   ui_menu {modern}             modern menus (pc/src/ui): sets ui_menus,
  *                                returns the shell (visible, menus, tab,
  *                                tabs, rows, row; battle builds)
+ *   system {window_mode, master_volume, brightness, bind, key, pad, down}
+ *                                System settings (pc/src/ui/ui_settings.h hooks):
+ *                                set window_mode (windowed | borderless |
+ *                                fullscreen), master_volume, brightness; bind
+ *                                "circle" starts the Bindings page's capture for
+ *                                that button; key "m" / pad "east" with down
+ *                                pushes that SDL event (real input path);
+ *                                returns the values, the window's state, the
+ *                                audio gain (frames recorded with ROOD_AUDIO=wav)
+ *                                and the capture state
  *   release                      drop all injected buttons
  *   screenshot {path}            write the displayed frame as a PPM
  *   present_dump {path}          the next presented window image (as seen) as a PPM
@@ -263,6 +273,7 @@
 #include "button_prompts.h"
 #include "boot_controller.h" /* pc_pad_button_index */
 #include "camera_stick.h"
+#include "ui/ui_settings.h" /* system: the Bindings page */
 /* The editor (editor_overlays.cpp, lights.cpp). */
 extern int pc_overlay_wire __attribute__((weak)), pc_overlay_points __attribute__((weak)),
     pc_overlay_actor_wire __attribute__((weak)), pc_overlay_snap_show __attribute__((weak)),
@@ -958,6 +969,13 @@ static void handle_method(int fd, const char* request)
                         pc_ui_text = k;
             } else if (number_value(member(params, "ui_text"), &n) && n >= 0 && n <= 1)
                 pc_ui_text = (int)n;
+            /* ui_text_layout "line" | "glyph" (or 1/0). */
+            if (string_value(member(params, "ui_text_layout"), name, sizeof name)) {
+                for (int k = 0; k < 2; k++)
+                    if (!strcmp(name, pc_ui_text_layout_names[k]))
+                        pc_ui_text_layout = k;
+            } else if (number_value(member(params, "ui_text_layout"), &n) && n >= 0 && n <= 1)
+                pc_ui_text_layout = (int)n;
             /* ui_lines "joined" | "legacy", ui_outline_boost 0-3, ui_bubbles
              * "original" | "vector", ui_bubble_outline (ui_bubbles.h). */
             if (string_value(member(params, "ui_lines"), name, sizeof name)) {
@@ -1265,8 +1283,10 @@ static void handle_method(int fd, const char* request)
                         pc_probe_hysteresis, pc_probe_budget, pc_probe_show)
                 - 1;
         if (used < (int)sizeof result - 100)
-            used += snprintf(result + used - 1, sizeof result - used + 1, ",\"ui_upscale\":\"%s\",\"ui_subpixel\":%d,\"ui_text\":\"%s\"}",
-                        pc_ui_upscale_names[pc_ui_upscale ? 1 : 0], pc_ui_subpixel, pc_ui_text_names[pc_ui_text ? 1 : 0])
+            used += snprintf(result + used - 1, sizeof result - used + 1,
+                        ",\"ui_upscale\":\"%s\",\"ui_subpixel\":%d,\"ui_text\":\"%s\",\"ui_text_layout\":\"%s\"}",
+                        pc_ui_upscale_names[pc_ui_upscale ? 1 : 0], pc_ui_subpixel, pc_ui_text_names[pc_ui_text ? 1 : 0],
+                        pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0])
                 - 1;
         if (used < (int)sizeof result - 160)
             used += snprintf(result + used - 1, sizeof result - used + 1,
@@ -1358,6 +1378,25 @@ static void handle_method(int fd, const char* request)
         }
         if (params && string_value(member(params, "ui_text"), style, sizeof style))
             pc_ui_text_setting("ui_text", style);
+        if (params && string_value(member(params, "layout"), style, sizeof style))
+            pc_ui_text_setting("ui_text_layout", style);
+        /* {lines: PATH}: the lines laid out in the newest frame that drew
+         * text (ui_text_layout line), as JSON into PATH. Tests. */
+        long lines_bytes = -1;
+        {
+            char path[512];
+            if (params && string_value(member(params, "lines"), path, sizeof path)) {
+                int cap = 8 << 20;
+                char* text_out = malloc((size_t)cap);
+                FILE* out = text_out ? fopen(path, "wb") : NULL;
+                if (out) {
+                    lines_bytes = pc_ui_text_lines_json(text_out, cap);
+                    fwrite(text_out, 1, (size_t)lines_bytes, out);
+                    fclose(out);
+                }
+                free(text_out);
+            }
+        }
         /* {render: [tpage, clut, u0, v0, u1, v1], factor, path}: that 2D
          * region drawn from the font as the atlas would (a glyph or a
          * label; PS1 colours, little-endian u16, row by row) into PATH;
@@ -1393,8 +1432,11 @@ static void handle_method(int fd, const char* request)
         }
         int used = pc_ui_text_json(result, (int)sizeof result);
         if (rendered >= 0 && used > 1 && used < (int)sizeof result - 64)
-            snprintf(result + used - 1, sizeof result - used + 1, ",\"render\":{\"ok\":%d,\"w\":%d,\"h\":%d}}",
-                rendered, rw, rh);
+            used += snprintf(result + used - 1, sizeof result - used + 1,
+                        ",\"render\":{\"ok\":%d,\"w\":%d,\"h\":%d}}", rendered, rw, rh)
+                  - 1;
+        if (lines_bytes >= 0 && used > 1 && used < (int)sizeof result - 64)
+            snprintf(result + used - 1, sizeof result - used + 1, ",\"lines_bytes\":%ld}", lines_bytes);
         reply(fd, id, result);
     } else if (!strcmp(method, "button_prompts")) {
         /* button_prompts.h: {button_prompts: mode} sets the mode; {device:
@@ -1592,6 +1634,59 @@ static void handle_method(int fd, const char* request)
                     regions[k][1], regions[k][2], regions[k][3], regions[k][4]);
             snprintf(result + used, sizeof result - used, "]}");
         }
+        reply(fd, id, result);
+    } else if (!strcmp(method, "system")) {
+        /* System settings that live outside project_settings' variables (window mode: boot_window.c, master
+         * volume: audio_output.c, brightness: gl_present.c) and the binding capture. */
+        extern int pc_window_mode_get(void), pc_master_volume_get(void), pc_brightness_get(void);
+        extern void pc_window_mode_set(int), pc_master_volume_set(int), pc_brightness_set(int);
+        extern int pc_window_mode_json(char*, int), pc_capture_json(char*, int);
+        extern int pc_window_inject_key(const char*, int), pc_window_inject_pad(const char*, int);
+        extern float pc_master_gain(void);
+        extern unsigned pc_audio_output_recorded(void);
+        static const char* const modes[3] = { "windowed", "borderless", "fullscreen" };
+        char text[32];
+        int flag = 1;
+        if (params && string_value(member(params, "window_mode"), text, sizeof text))
+            for (int k = 0; k < 3; k++)
+                if (!strcmp(text, modes[k]))
+                    pc_window_mode_set(k);
+        if (params && number_value(member(params, "master_volume"), &n))
+            pc_master_volume_set((int)n);
+        if (params && number_value(member(params, "brightness"), &n))
+            pc_brightness_set((int)n);
+        if (params && string_value(member(params, "bind"), text, sizeof text)) {
+            char row_id[48];
+            snprintf(row_id, sizeof row_id, "bind_%s", text);
+            int rows = pc_ui_settings_rows(PC_UI_SETTINGS_BINDINGS), started = 0;
+            for (int r = 0; r < rows && !started; r++) {
+                pc_ui_setting_row row;
+                if (pc_ui_settings_row(PC_UI_SETTINGS_BINDINGS, r, &row) && !strcmp(row.id, row_id))
+                    started = pc_ui_settings_activate(PC_UI_SETTINGS_BINDINGS, r);
+            }
+            if (!started) {
+                fail(fd, id, -32000, "no binding capture for that button");
+                return;
+            }
+        }
+        if (params)
+            bool_value(member(params, "down"), &flag);
+        if (params && string_value(member(params, "key"), text, sizeof text) && pc_window_inject_key(text, flag)) {
+            fail(fd, id, -32602, "key: a settings key name (bind_key_*)");
+            return;
+        }
+        if (params && string_value(member(params, "pad"), text, sizeof text) && pc_window_inject_pad(text, flag)) {
+            fail(fd, id, -32602, "pad: a gamepad element name (bind_pad_*)");
+            return;
+        }
+        char window_json[512], capture_json[512];
+        pc_window_mode_json(window_json, sizeof window_json);
+        pc_capture_json(capture_json, sizeof capture_json);
+        snprintf(result, sizeof result,
+            "{\"window_mode\":\"%s\",\"master_volume\":%d,\"gain\":%g,\"audio_recorded\":%u,\"brightness\":%d,"
+            "\"window\":%s,\"capture\":%s}",
+            modes[pc_window_mode_get() % 3], pc_master_volume_get(), pc_master_gain(), pc_audio_output_recorded(),
+            pc_brightness_get(), window_json, capture_json);
         reply(fd, id, result);
     } else if (!strcmp(method, "settings")) {
         /* The user settings file (ROOD_SETTINGS): {action: "save" | "load"}. */

@@ -1,13 +1,16 @@
 // Modern menu shell: tabs, rows, focus and the game's result protocol
 // (pc/docs/Modern_Menus.md). Pure state; drawing is ui_draw.cpp.
 #include "ui/ui_shell.h"
+#include "ui/ui_settings.h"
 #include <cstdio>
 #include <cstring>
 #include <string>
 
+extern "C" const char* pc_settings_status(void);
+
 namespace {
 
-enum RowKind { ROW_COMMAND, ROW_MENUS_SETTING };
+enum RowKind { ROW_COMMAND };
 struct RowDef {
     const char* id;
     const char* label;
@@ -16,14 +19,14 @@ struct RowDef {
     int command; // ROW_COMMAND: the original command index
 };
 enum Screen { SCREEN_COMMANDS = PC_UI_SCREEN_COMMANDS, SCREEN_EQUIPMENT = PC_UI_SCREEN_EQUIPMENT,
-    SCREEN_ASHLEY = PC_UI_SCREEN_ASHLEY };
+    SCREEN_ASHLEY = PC_UI_SCREEN_ASHLEY, SCREEN_SYSTEM = PC_UI_SCREEN_SYSTEM };
 struct TabDef {
     const char* id;
     const char* title;
     RowDef rows[6];
     int count;
     Screen screen = SCREEN_COMMANDS; // SCREEN_COMMANDS: the rows; else a native screen with its own state
-    int command = -1; // native screen: the original command that gates it (menuFlags, unselectable)
+    int command = -1; // native screen: the original command that gates it (menuFlags, unselectable); -1 none
 };
 
 const TabDef TABS[] = {
@@ -37,13 +40,8 @@ const TabDef TABS[] = {
          {"break_arts", "Break arts", "Weapon techniques paid for with HP.", ROW_COMMAND, 1}}, 2},
     {"magick", "Magick", {{"magick", "Magick", "Cast spells from your grimoires.", ROW_COMMAND, 0}}, 1},
     {"lea_monde", "Le\xc3\xa1 Monde", {{"map", "Map", "Where you are and where you have been.", ROW_COMMAND, 5}}, 1},
-    {"system", "System",
-        {{"data", "Data", "Save and load.", ROW_COMMAND, 6},
-         {"options", "Options", "The game's options.", ROW_COMMAND, 7},
-         {"score", "Score", "Titles, gazette, records, encyclopaedia.", ROW_COMMAND, 8},
-         {"manual", "Quick manual", "How chains, risk and the workshop work.", ROW_COMMAND, 9},
-         {"menus", "Menus", "Modern or the game's original menus (from the next time the menu opens).",
-          ROW_MENUS_SETTING, -1}}, 5},
+    // native screen: the game's own System screens and the settings pages (ui_settings.cpp)
+    {"system", "System", {}, 0, SCREEN_SYSTEM, -1},
 };
 const int TAB_COUNT = sizeof TABS / sizeof TABS[0];
 
@@ -71,6 +69,10 @@ struct Mouse {
     int hover_kind = PC_UI_MOUSE_NONE, hover_index = 0;
     int click_kind = PC_UI_MOUSE_NONE, click_index = 0;
     float wheel = 0;
+    // System: a value the pointer changed (pc_ui_shell_system_value)
+    bool value = false, value_set = false, value_preview = false;
+    int value_row = 0, value_delta = 0;
+    double value_number = 0;
 };
 
 const int QUEUE = 16;
@@ -87,6 +89,11 @@ struct State {
     Mouse mouse;
     pc_ui_ashley ash = {};
     int ash_row = 0;         // PC_UI_ASH_*
+    struct {
+        int item = 0;  // focused list entry
+        int page = -1; // the entered settings page; -1: the list has the focus
+        int row[PC_UI_SETTINGS_PAGES] = {};
+    } sys;
     int ash_shown = -1;      // effect chips the drawing fits, -1 all
     float drag_x = 0, drag_y = 0; // model drag since the bridge last took it
 } s;
@@ -146,7 +153,7 @@ int shown_rows(int tab, int* out)
 bool tab_has_rows(int tab)
 {
     if (TABS[tab].screen != SCREEN_COMMANDS)
-        return (s.commands.enabled >> TABS[tab].command) & 1;
+        return TABS[tab].command < 0 || ((s.commands.enabled >> TABS[tab].command) & 1);
     int rows[6];
     return shown_rows(tab, rows) > 0;
 }
@@ -528,6 +535,194 @@ void ashley_json(std::string& j)
     j += buf;
 }
 
+// ---- System ----
+// The game's own screens at the top of the list (original commands 6-9).
+const RowDef SYSTEM_GAME[] = {
+    {"data", "Data", "Save and load.", ROW_COMMAND, 6},
+    {"options", "Options (original)", "The game's own Options screen.", ROW_COMMAND, 7},
+    {"score", "Score", "Titles, gazette, records, encyclopaedia.", ROW_COMMAND, 8},
+    {"manual", "Quick manual", "How chains, risk and the workshop work.", ROW_COMMAND, 9},
+};
+const int SYSTEM_GAMES = sizeof SYSTEM_GAME / sizeof SYSTEM_GAME[0];
+const char* const PAGE_HELP[PC_UI_SETTINGS_PAGES] = {
+    "Lighting, resolution, anti-aliasing and the 3D picture.",
+    "Widescreen, scaling, the window and brightness.",
+    "Volume and the game's sound output.",
+    "Menus, text, 2D upscaling and button prompts.",
+    "The right stick camera and vibration.",
+    "Keys and gamepad buttons for each PlayStation button.",
+    "Quality-of-life options and the game's own options.",
+};
+bool on_system() { return TABS[s.tab].screen == SCREEN_SYSTEM; }
+// The game entries shown now (menuFlags), as indices into SYSTEM_GAME.
+int sys_games(int* out)
+{
+    int n = 0;
+    for (int i = 0; i < SYSTEM_GAMES; ++i)
+        if (row_shown(SYSTEM_GAME[i]))
+            out[n++] = i;
+    return n;
+}
+int sys_items()
+{
+    int g[SYSTEM_GAMES];
+    return sys_games(g) + pc_ui_settings_pages();
+}
+// The settings page of list entry `item`, -1 for a game entry.
+int sys_item_page(int item)
+{
+    int g[SYSTEM_GAMES];
+    int games = sys_games(g);
+    return item >= games ? item - games : -1;
+}
+// The page the card shows: the entered one, else the focused entry's (-1: a game entry).
+int sys_shown_page() { return s.sys.page >= 0 ? s.sys.page : sys_item_page(s.sys.item); }
+bool capturing() { return pc_ui_settings_capture_button() >= 0; }
+// Keep the focus on the list and the page's rows (rows come and go with other settings).
+int sys_clamp()
+{
+    int n = sys_items();
+    if (s.sys.item >= n)
+        s.sys.item = n ? n - 1 : 0;
+    if (s.sys.item < 0)
+        s.sys.item = 0;
+    int page = sys_shown_page();
+    if (page < 0)
+        return 0;
+    int rows = pc_ui_settings_rows(page);
+    int& r = s.sys.row[page];
+    if (r >= rows)
+        r = rows ? rows - 1 : 0;
+    if (r < 0)
+        r = 0;
+    return rows;
+}
+// Out of the page (Cross, another tab, the menu closing, an original screen):
+// a capture that listens is cancelled and what changed is saved.
+void sys_leave()
+{
+    if (capturing())
+        pc_ui_settings_capture_done(-1, 0);
+    pc_ui_settings_flush();
+    s.sys.page = -1;
+}
+void sys_enter(int page)
+{
+    s.sys.page = page;
+    sys_clamp();
+}
+// Circle (or Right) on the list. Returns the game's result (n > 0: an original screen).
+int sys_list_confirm()
+{
+    int page = sys_item_page(s.sys.item);
+    if (page >= 0) {
+        sys_enter(page);
+        return 0;
+    }
+    int g[SYSTEM_GAMES];
+    sys_games(g);
+    sys_leave();
+    s.visible = false; // the game shows the original screen; it reopens the shell after
+    return SYSTEM_GAME[g[s.sys.item]].command + 1;
+}
+// Circle on a row: actions run, bindings start a capture, choices and toggles step.
+void sys_row_confirm(int page, int row)
+{
+    pc_ui_setting_row r;
+    if (!pc_ui_settings_row(page, row, &r))
+        return;
+    if (r.kind == PC_UI_SET_ACTION || r.kind == PC_UI_SET_BINDING)
+        pc_ui_settings_activate(page, row);
+    else if (r.kind == PC_UI_SET_CHOICE || r.kind == PC_UI_SET_TOGGLE)
+        pc_ui_settings_change(page, row, 1);
+    sys_clamp();
+}
+int system_tick(const pc_ui_input* in)
+{
+    int n = sys_items();
+    sys_clamp();
+    if (s.sys.page < 0) {
+        if (in->repeat & PC_UI_DOWN)
+            s.sys.item = (s.sys.item + 1) % n;
+        if (in->repeat & PC_UI_UP)
+            s.sys.item = (s.sys.item + n - 1) % n;
+        if ((in->pressed & PC_UI_CONFIRM) || ((in->pressed & PC_UI_RIGHT) && sys_item_page(s.sys.item) >= 0))
+            return sys_list_confirm();
+        return 0;
+    }
+    int page = s.sys.page;
+    int rows = sys_clamp();
+    if (!rows)
+        return 0;
+    int& row = s.sys.row[page];
+    if (in->repeat & PC_UI_DOWN)
+        row = (row + 1) % rows;
+    if (in->repeat & PC_UI_UP)
+        row = (row + rows - 1) % rows;
+    int delta = ((in->repeat & PC_UI_RIGHT) ? 1 : 0) - ((in->repeat & PC_UI_LEFT) ? 1 : 0);
+    if (delta) {
+        pc_ui_settings_change(page, row, delta);
+        sys_clamp();
+    }
+    if (in->pressed & PC_UI_CONFIRM)
+        sys_row_confirm(page, row);
+    return 0;
+}
+// The PS1 button's binding row id ("bind_triangle"), "" when none.
+const char* capture_row_id()
+{
+    int button = pc_ui_settings_capture_button();
+    if (button < 0)
+        return "";
+    pc_ui_setting_row r;
+    for (int i = 0, n = pc_ui_settings_rows(PC_UI_SETTINGS_BINDINGS); i < n; ++i)
+        if (pc_ui_settings_row(PC_UI_SETTINGS_BINDINGS, i, &r) && r.kind == PC_UI_SET_BINDING && r.button == button)
+            return r.id;
+    return "";
+}
+void system_json(std::string& j)
+{
+    int page = sys_shown_page();
+    char buf[96];
+    j += ",\"system\":{\"mode\":\"";
+    j += s.sys.page >= 0 ? "page" : "list";
+    j += "\",\"item\":\"";
+    const char *id, *label, *help, *reason;
+    int enabled;
+    if (pc_ui_shell_system_item(s.sys.item, &id, &label, &help, &enabled, &reason))
+        j += id;
+    j += "\",\"page\":\"";
+    j += page >= 0 ? pc_ui_settings_page_id(page) : "";
+    j += "\",\"row\":\"";
+    int rows = page >= 0 ? pc_ui_settings_rows(page) : 0;
+    pc_ui_setting_row r;
+    if (rows && pc_ui_settings_row(page, s.sys.row[page], &r))
+        j += r.id;
+    j += "\",\"rows\":[";
+    static const char* const kinds[] = {"choice", "toggle", "slider", "action", "binding", "info"};
+    for (int i = 0; i < rows; ++i) {
+        if (!pc_ui_settings_row(page, i, &r))
+            break;
+        j += i ? ",{\"id\":\"" : "{\"id\":\"";
+        j += escape(r.id) + "\",\"label\":\"" + escape(r.label) + "\",\"kind\":\"";
+        j += r.kind >= 0 && r.kind <= PC_UI_SET_INFO ? kinds[r.kind] : "";
+        j += "\",\"value\":\"" + escape(r.value) + "\",\"enabled\":";
+        j += r.enabled ? "true" : "false";
+        if (r.reason[0])
+            j += ",\"reason\":\"" + escape(r.reason) + "\"";
+        j += "}";
+    }
+    std::snprintf(buf, sizeof buf, "],\"capture\":\"%s\",\"dirty\":%s,\"saves\":%d,", capture_row_id(),
+        pc_ui_settings_dirty() ? "true" : "false", pc_ui_settings_saves());
+    j += buf;
+    const char* note = pc_ui_settings_note();               // a binding swap's (3 s)
+    const char* refused = pc_ui_settings_capture_note();    // a reserved key pressed during the capture
+    j += "\"note\":\"" + escape(note ? note : "") + "\",\"capture_note\":\"" + escape(refused ? refused : "")
+        + "\",\"status\":\"";
+    const char* status = pc_settings_status();
+    j += escape(status ? status : "") + "\"}";
+}
+
 // ---- Mouse ----
 // Focus what the pointer is on (hover, or the click's target). False when that
 // target is not on screen now (another mode or tab, past the end).
@@ -563,6 +758,18 @@ bool mouse_focus(int kind, int index)
             return false;
         e.cursor = index;
         return true;
+    case PC_UI_MOUSE_PAGE: // hover moves the list's focus only while it has it
+        if (!on_system() || s.sys.page >= 0 || index < 0 || index >= sys_items())
+            return false;
+        s.sys.item = index;
+        return true;
+    case PC_UI_MOUSE_SETTING: {
+        int page = s.sys.page;
+        if (!on_system() || page < 0 || index < 0 || index >= pc_ui_settings_rows(page))
+            return false;
+        s.sys.row[page] = index;
+        return true;
+    }
     default:
         return false;
     }
@@ -573,6 +780,30 @@ bool apply_mouse(pc_ui_input& in)
 {
     Mouse m = s.mouse;
     s.mouse.hover_kind = s.mouse.click_kind = PC_UI_MOUSE_NONE;
+    s.mouse.value = false;
+    if (capturing()) { // a capture listens: only a right click (Back) or a click on the prompt cancels it
+        s.mouse.wheel = 0;
+        if (m.click_kind == PC_UI_MOUSE_BUTTON && ((unsigned)m.click_index & PC_UI_BACK))
+            pc_ui_settings_capture_done(-1, 0);
+        return true;
+    }
+    if (m.value && on_system()) { // a value under the pointer: the tick's whole action
+        int page = sys_shown_page();
+        if (page < 0 || m.value_row < 0 || m.value_row >= pc_ui_settings_rows(page))
+            return true;
+        if (s.sys.page < 0)
+            sys_enter(page);
+        s.sys.row[page] = m.value_row;
+        if (m.value_set && m.value_preview)
+            pc_ui_settings_preview(page, m.value_row, m.value_number);
+        else if (m.value_set)
+            pc_ui_settings_set(page, m.value_row, m.value_number);
+        else if (m.value_delta)
+            pc_ui_settings_change(page, m.value_row, m.value_delta);
+        sys_clamp();
+        s.mouse.wheel = 0;
+        return true;
+    }
     // one list step per tick; what is left (fast wheels, trackpad fractions) waits
     if (s.mouse.wheel >= 1)
         in.repeat |= PC_UI_UP, s.mouse.wheel -= 1;
@@ -586,6 +817,7 @@ bool apply_mouse(pc_ui_input& in)
     case PC_UI_MOUSE_TAB:
         if (m.click_index < 0 || m.click_index >= TAB_COUNT || m.click_index == s.tab || !tab_has_rows(m.click_index))
             return false;
+        sys_leave();
         s.tab = m.click_index;
         equip_base();
         s.drag_x = s.drag_y = 0;
@@ -604,6 +836,30 @@ bool apply_mouse(pc_ui_input& in)
         in.repeat |= bits;
         return false;
     }
+    case PC_UI_MOUSE_PAGE: { // another entry while a page has the focus: out of it, then as Circle there
+        if (!on_system() || m.click_index < 0 || m.click_index >= sys_items())
+            return false;
+        if (s.sys.page >= 0) {
+            if (sys_item_page(m.click_index) == s.sys.page)
+                return false; // the page already entered
+            sys_leave();
+        }
+        s.sys.item = m.click_index;
+        in.pressed |= PC_UI_CONFIRM, in.repeat |= PC_UI_CONFIRM;
+        return false;
+    }
+    case PC_UI_MOUSE_SETTING: // a row of the page shown: enters it (the list had the focus) or confirms it
+        if (!on_system() || s.sys.page < 0) {
+            int page = on_system() ? sys_shown_page() : -1;
+            if (page >= 0 && m.click_index >= 0 && m.click_index < pc_ui_settings_rows(page)) {
+                sys_enter(page);
+                s.sys.row[page] = m.click_index;
+            }
+            return true;
+        }
+        if (mouse_focus(m.click_kind, m.click_index))
+            in.pressed |= PC_UI_CONFIRM, in.repeat |= PC_UI_CONFIRM;
+        return false;
     default:
         if (mouse_focus(m.click_kind, m.click_index))
             in.pressed |= PC_UI_CONFIRM, in.repeat |= PC_UI_CONFIRM;
@@ -623,7 +879,7 @@ extern "C" void pc_ui_shell_mouse(int kind, int index, int clicked, float wheel)
         else
             s.mouse.hover_kind = kind, s.mouse.hover_index = index;
     }
-    if (wheel == wheel) { // not NaN
+    if (wheel == wheel && !capturing()) { // not NaN
         s.mouse.wheel += wheel;
         if (s.mouse.wheel > 8)
             s.mouse.wheel = 8;
@@ -665,11 +921,14 @@ extern "C" void pc_ui_shell_open(const pc_ui_commands* commands, int remember)
     s.mouse = Mouse();
     s.drag_x = s.drag_y = 0;
     s.ash_shown = -1; // until the Ashley screen is drawn again
+    s.sys.page = -1; // the System screen opens on its list
     if (!remember) {
         s.tab = 0;
         std::memset(s.row, 0, sizeof s.row);
         s.eq = Equip();
         s.ash_row = 0;
+        s.sys.item = 0;
+        std::memset(s.sys.row, 0, sizeof s.sys.row);
     }
     equip_base(); // a pick list never survives the shell closing
     for (int t = 0; t < TAB_COUNT; ++t)
@@ -680,6 +939,10 @@ extern "C" void pc_ui_shell_open(const pc_ui_commands* commands, int remember)
 
 extern "C" void pc_ui_shell_close(void)
 {
+    // the bridge's close and abandon paths (menu_bridge.c abandon, pc_ui_menu_reset) come here; a
+    // shell that is not up has no page open (a capture the RPC started stays)
+    if (s.visible || s.holding)
+        sys_leave();
     s.visible = false;
     s.drag_x = s.drag_y = 0;
     s.holding = false;
@@ -695,11 +958,19 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
     const pc_ui_input* in = &mixed;
     if (apply_mouse(mixed))
         return 0;
+    if (capturing()) // a binding capture listens: no navigation until it ends
+        return 0;
     bool equipment = TABS[s.tab].screen == SCREEN_EQUIPMENT;
     // Cross steps back out of a pick list; at the top it closes, as Triangle does
     if ((in->pressed & PC_UI_BACK) && !(in->pressed & PC_UI_EXIT) && equipment && equip_back())
         return 0;
+    // Cross steps back out of a settings page to the System list
+    if ((in->pressed & PC_UI_BACK) && !(in->pressed & PC_UI_EXIT) && on_system() && s.sys.page >= 0) {
+        sys_leave();
+        return 0;
+    }
     if (in->pressed & (PC_UI_BACK | PC_UI_EXIT)) {
+        sys_leave();
         s.visible = false;
         s.drag_x = s.drag_y = 0;
         return -1;
@@ -711,6 +982,7 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
     if (in->pressed & PC_UI_TAB_PREV)
         s.tab = step_tab(s.tab, -1);
     if (s.tab != was) {
+        sys_leave();  // out of a settings page: saved
         equip_base(); // leaving (or entering) the Equipment tab drops its pick list
         s.drag_x = s.drag_y = 0;
         return 0;
@@ -721,6 +993,8 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
         equip_tick(in);
         return 0;
     }
+    if (TABS[s.tab].screen == SCREEN_SYSTEM)
+        return system_tick(in);
     int rows[6];
     int n = clamp_row(s.tab);
     shown_rows(s.tab, rows);
@@ -733,10 +1007,6 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
     if (!(in->pressed & PC_UI_CONFIRM))
         return 0;
     const RowDef& r = TABS[s.tab].rows[rows[s.row[s.tab]]];
-    if (r.kind == ROW_MENUS_SETTING) {
-        pc_ui_menus = !pc_ui_menus;
-        return 0;
-    }
     // Greyed rows open too, as in the original top level: the game's own
     // screen greys what is off inside (MENU0, MENU1...) and the player can browse.
     s.visible = false; // the game shows the original screen; it reopens the shell after
@@ -755,31 +1025,50 @@ extern "C" void pc_ui_shell_json(char* out, unsigned size)
     j += ",\"tab\":\"" + std::string(t.id) + "\",\"tabs\":[";
     for (int i = 0; i < TAB_COUNT; ++i)
         j += (i ? ",\"" : "\"") + std::string(TABS[i].id) + "\"";
-    int rows[6];
-    int n = shown_rows(s.tab, rows);
+    // rows: the command rows, or the System list's entries
     j += "],\"rows\":[";
-    for (int i = 0; i < n; ++i) {
-        const RowDef& r = t.rows[rows[i]];
-        char buf[64];
-        std::snprintf(buf, sizeof buf, "%s{\"id\":\"%s\",\"enabled\":%s", i ? "," : "", r.id,
-            row_enabled(r) ? "true" : "false");
-        j += buf;
-        j += ",\"label\":\"" + escape(r.label) + "\"";
-        if (const char* why = row_reason(r))
-            j += ",\"reason\":\"" + escape(why) + "\"";
-        if (r.kind == ROW_MENUS_SETTING)
-            j += std::string(",\"value\":\"") + (pc_ui_menus ? "Modern" : "Original") + "\"";
-        j += "}";
+    const char *id, *label, *help, *reason, *focus_id = "";
+    int enabled;
+    if (t.screen == SCREEN_SYSTEM) {
+        sys_clamp();
+        for (int i = 0; pc_ui_shell_system_item(i, &id, &label, &help, &enabled, &reason); ++i) {
+            j += i ? ",{\"id\":\"" : "{\"id\":\"";
+            j += std::string(id) + "\",\"enabled\":" + (enabled ? "true" : "false");
+            j += ",\"label\":\"" + escape(label) + "\"";
+            if (reason)
+                j += ",\"reason\":\"" + escape(reason) + "\"";
+            j += "}";
+            if (i == s.sys.item)
+                focus_id = id;
+        }
+    } else {
+        int rows[6];
+        int n = shown_rows(s.tab, rows);
+        for (int i = 0; i < n; ++i) {
+            const RowDef& r = t.rows[rows[i]];
+            j += i ? ",{\"id\":\"" : "{\"id\":\"";
+            j += std::string(r.id) + "\",\"enabled\":" + (row_enabled(r) ? "true" : "false");
+            j += ",\"label\":\"" + escape(r.label) + "\"";
+            if (const char* why = row_reason(r))
+                j += ",\"reason\":\"" + escape(why) + "\"";
+            j += "}";
+        }
+        if (n)
+            focus_id = t.rows[rows[s.row[s.tab]]].id;
     }
     j += "],\"row\":\"";
-    j += n ? t.rows[rows[s.row[s.tab]]].id : "";
+    j += focus_id;
     j += "\",\"screen\":\"";
-    j += t.screen == SCREEN_EQUIPMENT ? "equipment" : t.screen == SCREEN_ASHLEY ? "ashley" : "commands";
+    j += t.screen == SCREEN_EQUIPMENT ? "equipment" : t.screen == SCREEN_ASHLEY ? "ashley"
+        : t.screen == SCREEN_SYSTEM                                            ? "system"
+                                                                                : "commands";
     j += "\"";
     if (t.screen == SCREEN_EQUIPMENT)
         equip_json(j);
     else if (t.screen == SCREEN_ASHLEY)
         ashley_json(j);
+    else if (t.screen == SCREEN_SYSTEM)
+        system_json(j);
     j += "}";
     std::snprintf(out, size, "%s", j.c_str());
 }
@@ -800,7 +1089,7 @@ extern "C" int pc_ui_shell_row(int i, const char** label, const char** help, con
     const RowDef& r = TABS[s.tab].rows[rows[i]];
     *label = r.label;
     *help = r.help;
-    *value = r.kind == ROW_MENUS_SETTING ? (pc_ui_menus ? "Modern" : "Original") : nullptr;
+    *value = nullptr;
     *enabled = row_enabled(r);
     *reason = row_reason(r);
     return 1;
@@ -861,4 +1150,50 @@ extern "C" void pc_ui_shell_model_turn(float* yaw_delta, float* pitch_delta)
     *yaw_delta = on_ashley() ? s.drag_x : 0;
     *pitch_delta = on_ashley() ? s.drag_y : 0;
     s.drag_x = s.drag_y = 0;
+}
+
+extern "C" void pc_ui_shell_system_view(pc_ui_system_view* v)
+{
+    int g[SYSTEM_GAMES];
+    v->rows = sys_clamp();
+    v->items = sys_items();
+    v->games = sys_games(g);
+    v->item = s.sys.item;
+    v->page = sys_shown_page();
+    v->entered = s.sys.page >= 0;
+    v->row = v->page >= 0 ? s.sys.row[v->page] : 0;
+    v->capture = pc_ui_settings_capture_button();
+}
+extern "C" int pc_ui_shell_system_item(int i, const char** id, const char** label, const char** help, int* enabled,
+    const char** reason)
+{
+    int g[SYSTEM_GAMES];
+    int games = sys_games(g);
+    if (i < 0 || i >= games + pc_ui_settings_pages())
+        return 0;
+    if (i < games) {
+        const RowDef& r = SYSTEM_GAME[g[i]];
+        *id = r.id, *label = r.label, *help = r.help;
+        *enabled = row_enabled(r);
+        *reason = row_reason(r);
+        return 1;
+    }
+    int page = i - games;
+    *id = pc_ui_settings_page_id(page);
+    *label = pc_ui_settings_page_title(page);
+    *help = PAGE_HELP[page];
+    *enabled = 1;
+    *reason = nullptr;
+    return 1;
+}
+extern "C" void pc_ui_shell_system_value(int row, int delta, double value, int set)
+{
+    if (!s.visible || capturing() || value != value)
+        return;
+    s.mouse.value = true;
+    s.mouse.value_row = row;
+    s.mouse.value_delta = delta;
+    s.mouse.value_number = value;
+    s.mouse.value_set = set != 0;
+    s.mouse.value_preview = set == 2;
 }

@@ -1,5 +1,6 @@
 // The modern menu shell's navigation (pc/src/ui/ui_shell.cpp) without the game.
 #include "ui/ui_shell.h"
+#include "ui/ui_settings.h"
 #include "ui/ui_theme.h"
 #include <cstdio>
 #include <cstring>
@@ -8,6 +9,124 @@
 int pc_ui_menus = 1;
 static int failures;
 #define CHECK(c) do { if (!(c)) { std::printf("FAIL %s:%d %s\n", __FILE__, __LINE__, #c); ++failures; } } while (0)
+
+// ---- A stand-in settings model (ui_settings.h) ----
+// Pages of rows "p<page>_<row>"; Interface row 0 is the Menus choice (pc_ui_menus),
+// Display row 0 a toggle that shows row 2 (a "shown while" row), Bindings rows are
+// bindings (Circle starts a capture), the last Controls row an action.
+namespace fake {
+int rows[PC_UI_SETTINGS_PAGES] = {5, 2, 1, 3, 4, 3, 2};
+int value[PC_UI_SETTINGS_PAGES][8];
+bool extra = true;   // Display: the third row shows
+int capture = -1;    // PS1 button
+int capture_done_kind = -9;
+int flushes, saves, changes, sets, activations, previews;
+double preview_value;
+bool dirty;
+double set_value;
+const char* const IDS[PC_UI_SETTINGS_PAGES] = {"graphics", "display", "audio", "interface", "controls", "bindings",
+    "gameplay"};
+int kind(int page, int row)
+{
+    if (page == PC_UI_SETTINGS_BINDINGS)
+        return PC_UI_SET_BINDING;
+    if (page == PC_UI_SETTINGS_CONTROLS && row == rows[page] - 1)
+        return PC_UI_SET_ACTION;
+    if (page == PC_UI_SETTINGS_GRAPHICS && row == 1)
+        return PC_UI_SET_SLIDER;
+    return page == PC_UI_SETTINGS_DISPLAY && row == 0 ? PC_UI_SET_TOGGLE : PC_UI_SET_CHOICE;
+}
+int count(int page) { return rows[page] + (page == PC_UI_SETTINGS_DISPLAY && extra ? 1 : 0); }
+void reset()
+{
+    std::memset(value, 0, sizeof value);
+    extra = true;
+    capture = -1;
+    capture_done_kind = -9;
+    flushes = saves = changes = sets = activations = previews = 0;
+    dirty = false;
+}
+} // namespace fake
+extern "C" {
+int pc_ui_settings_pages(void) { return PC_UI_SETTINGS_PAGES; }
+const char* pc_ui_settings_page_title(int page) { return fake::IDS[page]; }
+const char* pc_ui_settings_page_id(int page) { return fake::IDS[page]; }
+int pc_ui_settings_rows(int page) { return page >= 0 && page < PC_UI_SETTINGS_PAGES ? fake::count(page) : 0; }
+int pc_ui_settings_row(int page, int row, pc_ui_setting_row* out)
+{
+    static char ids[PC_UI_SETTINGS_PAGES][8][16];
+    if (row < 0 || row >= pc_ui_settings_rows(page))
+        return 0;
+    std::memset(out, 0, sizeof *out);
+    std::snprintf(ids[page][row], sizeof ids[page][row], "p%d_%d", page, row);
+    out->id = page == PC_UI_SETTINGS_INTERFACE && row == 0 ? "ui_menus" : ids[page][row];
+    out->label = out->id;
+    out->help = "";
+    out->kind = fake::kind(page, row);
+    out->enabled = !(page == PC_UI_SETTINGS_GRAPHICS && row == 4); // greyed
+    if (!out->enabled)
+        std::snprintf(out->reason, sizeof out->reason, "Needs the hardware renderer");
+    out->button = page == PC_UI_SETTINGS_BINDINGS ? row : -1;
+    out->index = page == PC_UI_SETTINGS_INTERFACE && row == 0 ? pc_ui_menus : fake::value[page][row];
+    std::snprintf(out->value, sizeof out->value, "%d", out->index);
+    return 1;
+}
+int pc_ui_settings_change(int page, int row, int delta)
+{
+    ++fake::changes;
+    if (page == PC_UI_SETTINGS_GRAPHICS && row == 4)
+        return 0;
+    if (page == PC_UI_SETTINGS_INTERFACE && row == 0)
+        pc_ui_menus = !pc_ui_menus;
+    else
+        fake::value[page][row] += delta;
+    if (page == PC_UI_SETTINGS_DISPLAY && row == 0)
+        fake::extra = !fake::extra;
+    fake::dirty = true;
+    return 1;
+}
+int pc_ui_settings_saves(void) { return fake::saves; }
+const char* pc_ui_settings_note(void) { return nullptr; }
+const char* pc_ui_settings_capture_note(void) { return nullptr; }
+int pc_ui_settings_preview(int page, int row, double value)
+{
+    ++fake::previews;
+    fake::preview_value = value;
+    (void)page, (void)row;
+    return 1;
+}
+int pc_ui_settings_set(int page, int row, double value)
+{
+    ++fake::sets;
+    fake::set_value = value;
+    fake::value[page][row] = (int)value;
+    fake::dirty = true;
+    return 1;
+}
+int pc_ui_settings_activate(int page, int row)
+{
+    ++fake::activations;
+    if (fake::kind(page, row) == PC_UI_SET_BINDING)
+        fake::capture = row;
+    return 1;
+}
+void pc_ui_settings_flush(void)
+{
+    ++fake::flushes;
+    if (fake::dirty)
+        ++fake::saves;
+    fake::dirty = false;
+}
+int pc_ui_settings_dirty(void) { return fake::dirty; }
+int pc_ui_settings_capture_button(void) { return fake::capture; }
+int pc_ui_settings_capture_done(int kind, int)
+{
+    fake::capture_done_kind = kind;
+    fake::capture = -1;
+    return -1;
+}
+const char* pc_settings_status(void) { return "Saved settings to settings.cfg"; }
+}
 
 static int tick(unsigned buttons)
 {
@@ -576,21 +695,21 @@ static void mouse_tests()
     tick(0);
     pc_ui_shell_equip_view(&v);
     CHECK(v.mode == PC_UI_EQ_QUICK && !v.pending);
-    // hover and the wheel on the command rows
+    // hover and the wheel on the System list
     pc_ui_shell_mouse(PC_UI_MOUSE_TAB, 6, 1, 0); // System
     tick(0);
     CHECK(json_has("\"tab\":\"system\""));
-    pc_ui_shell_mouse(PC_UI_MOUSE_ROW, 2, 0, 0);
+    pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 2, 0, 0);
     tick(0);
     CHECK(json_has("\"row\":\"score\""));
     pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, -1);
     tick(0);
     CHECK(json_has("\"row\":\"manual\""));
-    // a click on a row opens its command (Quick manual = 9 -> 10)
-    pc_ui_shell_mouse(PC_UI_MOUSE_ROW, 3, 1, 0);
+    // a click on a game entry opens its command (Quick manual = 9 -> 10)
+    pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 3, 1, 0);
     CHECK(tick(0) == 10);
     // closed: the pointer is ignored, nothing is left over at the next open
-    pc_ui_shell_mouse(PC_UI_MOUSE_ROW, 0, 1, 0);
+    pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 0, 1, 0);
     pc_ui_shell_open(&all, 1);
     CHECK(tick(0) == 0);
     CHECK(json_has("\"row\":\"manual\""));
@@ -622,6 +741,214 @@ static void mouse_tests()
     CHECK(!pc_ui_shell_drawn());
 }
 
+// The System screen: list, pages, focus, capture, saving.
+static void system_tests()
+{
+    pc_ui_commands all = {0x3FF, 0, 0};
+    fake::reset();
+    pc_ui_shell_open(&all, 0);
+    tick(PC_UI_TAB_PREV); // Ashley wraps to System
+    CHECK(json_has("\"tab\":\"system\""));
+    CHECK(json_has("\"screen\":\"system\""));
+    CHECK(pc_ui_shell_screen() == PC_UI_SCREEN_SYSTEM);
+    pc_ui_system_view v;
+    pc_ui_shell_system_view(&v);
+    CHECK(v.items == 11 && v.games == 4 && v.item == 0 && v.page == -1 && !v.entered && v.capture == -1);
+    CHECK(json_has("\"system\":{\"mode\":\"list\",\"item\":\"data\",\"page\":\"\""));
+    CHECK(json_has("\"status\":\"Saved settings to settings.cfg\""));
+    // the game's entries follow menuFlags (Score not unlocked: bit 8)
+    {
+        pc_ui_commands no_score = {0x3FF & ~(1u << 8), 0, 0};
+        pc_ui_shell_open(&no_score, 1);
+        pc_ui_shell_system_view(&v);
+        CHECK(v.items == 10 && v.games == 3);
+        CHECK(!json_has("\"id\":\"score\""));
+        pc_ui_shell_open(&all, 1);
+    }
+    // Down to Graphics (entry 4): the card previews its rows; Right enters it
+    for (int i = 0; i < 4; ++i) tick(PC_UI_DOWN);
+    pc_ui_shell_system_view(&v);
+    CHECK(v.page == PC_UI_SETTINGS_GRAPHICS && !v.entered && v.rows == 5);
+    CHECK(json_has("\"page\":\"graphics\",\"row\":\"p0_0\",\"rows\":[{\"id\":\"p0_0\""));
+    tick(PC_UI_RIGHT);
+    pc_ui_shell_system_view(&v);
+    CHECK(v.entered && v.page == PC_UI_SETTINGS_GRAPHICS && v.row == 0);
+    CHECK(fake::changes == 0); // entering changes nothing
+    // Up wraps to the last row; Left/Right change it with key repeat (repeat bits)
+    tick(PC_UI_UP);
+    CHECK(json_has("\"row\":\"p0_4\""));
+    CHECK(json_has("\"enabled\":false,\"reason\":\"Needs the hardware renderer\""));
+    tick(PC_UI_UP);
+    pc_ui_input rep = {0, PC_UI_RIGHT}; // a repeat, no new press
+    pc_ui_shell_tick(&rep);
+    pc_ui_shell_tick(&rep);
+    CHECK(fake::value[0][3] == 2 && fake::changes == 2);
+    tick(PC_UI_LEFT);
+    CHECK(fake::value[0][3] == 1);
+    // Circle on a choice steps it; Cross back to the list saves (once)
+    tick(PC_UI_CONFIRM);
+    CHECK(fake::value[0][3] == 2);
+    CHECK(fake::saves == 0 && fake::dirty);
+    int flushes = fake::flushes;
+    tick(PC_UI_BACK);
+    CHECK(fake::saves == 1 && fake::flushes == flushes + 1 && !fake::dirty);
+    pc_ui_shell_system_view(&v);
+    CHECK(!v.entered && v.page == PC_UI_SETTINGS_GRAPHICS && v.row == 3); // the row is remembered
+    CHECK(pc_ui_shell_visible());
+    // focus clamp: Display's third row goes away when its first row turns off
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    pc_ui_shell_system_view(&v);
+    CHECK(v.page == PC_UI_SETTINGS_DISPLAY && v.row == 2 && v.rows == 3);
+    fake::extra = false; // changed elsewhere (the editor): the focus follows
+    pc_ui_shell_system_view(&v);
+    CHECK(v.rows == 2 && v.row == 1);
+    tick(PC_UI_UP);
+    tick(PC_UI_RIGHT); // the toggle: the extra row comes back, the focus stays on row 0
+    pc_ui_shell_system_view(&v);
+    CHECK(v.rows == 3 && v.row == 0);
+    tick(PC_UI_RIGHT);
+    pc_ui_shell_system_view(&v);
+    CHECK(v.rows == 2 && v.row == 0);
+    // a tab change leaves the page: saved, back on the list at the next visit
+    int saves = fake::saves;
+    tick(PC_UI_TAB_NEXT);
+    CHECK(fake::saves == saves + 1);
+    CHECK(json_has("\"tab\":\"ashley\""));
+    tick(PC_UI_TAB_PREV);
+    pc_ui_shell_system_view(&v);
+    CHECK(!v.entered && v.page == PC_UI_SETTINGS_DISPLAY);
+    // Bindings: Circle starts a capture; navigation, tabs and closing are ignored while it listens
+    tick(PC_UI_DOWN); tick(PC_UI_DOWN); tick(PC_UI_DOWN); tick(PC_UI_DOWN); // Audio Interface Controls Bindings
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN); // Cross binding row
+    tick(PC_UI_CONFIRM);
+    CHECK(fake::capture == 1);
+    CHECK(json_has("\"capture\":\"p5_1\""));
+    pc_ui_shell_system_view(&v);
+    CHECK(v.capture == 1);
+    CHECK(tick(PC_UI_DOWN | PC_UI_TAB_NEXT | PC_UI_EXIT | PC_UI_BACK) == 0);
+    pc_ui_shell_mouse(PC_UI_MOUSE_TAB, 0, 1, 0);
+    pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, -1);
+    CHECK(tick(0) == 0);
+    pc_ui_shell_system_view(&v);
+    CHECK(json_has("\"tab\":\"system\"") && v.entered && v.row == 1 && pc_ui_shell_visible());
+    // the capture ends (the window code delivered a key): navigation again
+    fake::capture = -1;
+    tick(PC_UI_DOWN);
+    pc_ui_shell_system_view(&v);
+    CHECK(v.row == 2);
+    // a right click (Back) cancels a capture
+    tick(PC_UI_CONFIRM);
+    CHECK(fake::capture == 2);
+    pc_ui_shell_mouse(PC_UI_MOUSE_BUTTON, PC_UI_BACK, 1, 0);
+    CHECK(tick(0) == 0);
+    CHECK(fake::capture == -1 && fake::capture_done_kind == -1);
+    pc_ui_shell_system_view(&v);
+    CHECK(v.entered); // the cancel was the whole click
+    // closing the menu cancels a capture and saves
+    tick(PC_UI_CONFIRM);
+    fake::dirty = true;
+    saves = fake::saves;
+    fake::capture_done_kind = -9;
+    pc_ui_shell_close(); // the bridge's abandon path
+    CHECK(fake::capture == -1 && fake::capture_done_kind == -1 && fake::saves == saves + 1);
+    // Triangle (once the capture is over) closes and saves too
+    pc_ui_shell_open(&all, 1);
+    pc_ui_shell_system_view(&v);
+    CHECK(!v.entered && v.page == PC_UI_SETTINGS_BINDINGS); // opens on the list
+    tick(PC_UI_CONFIRM);
+    fake::dirty = true;
+    saves = fake::saves;
+    CHECK(tick(PC_UI_EXIT) == -1);
+    CHECK(fake::saves == saves + 1);
+    // an original screen from the list saves first
+    pc_ui_shell_open(&all, 0);
+    tick(PC_UI_TAB_PREV);
+    fake::dirty = true;
+    saves = fake::saves;
+    CHECK(tick(PC_UI_CONFIRM) == 7); // Data (6)
+    CHECK(fake::saves == saves + 1);
+    // Controls' action runs on Circle
+    pc_ui_shell_open(&all, 1);
+    for (int i = 0; i < 8; ++i) tick(PC_UI_DOWN); // Data -> Controls (entry 8)
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_UP); // the last row: the action
+    int acts = fake::activations;
+    tick(PC_UI_CONFIRM);
+    CHECK(fake::activations == acts + 1);
+    tick(PC_UI_BACK);
+
+    // ---- the pointer ----
+    // hover on the list moves its focus; a click on a page enters it
+    pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 4, 0, 0);
+    tick(0);
+    CHECK(json_has("\"item\":\"graphics\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 5, 1, 0);
+    tick(0);
+    pc_ui_shell_system_view(&v);
+    CHECK(v.entered && v.page == PC_UI_SETTINGS_DISPLAY);
+    // hover on the list does nothing while a page is open; hover on a row focuses it
+    pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 6, 0, 0);
+    tick(0);
+    pc_ui_shell_system_view(&v);
+    CHECK(v.entered && v.page == PC_UI_SETTINGS_DISPLAY && v.item == 5);
+    pc_ui_shell_mouse(PC_UI_MOUSE_SETTING, 1, 0, 0);
+    tick(0);
+    pc_ui_shell_system_view(&v);
+    CHECK(v.entered && v.page == PC_UI_SETTINGS_DISPLAY && v.row == 1);
+    // the wheel moves the row focus inside a page
+    pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, 1);
+    tick(0);
+    pc_ui_shell_system_view(&v);
+    CHECK(v.row == 0);
+    // an arrow (value delta) or a slider drag (value set) changes the row and focuses it
+    int changes = fake::changes;
+    pc_ui_shell_system_value(1, -1, 0, 0);
+    tick(0);
+    CHECK(fake::changes == changes + 1 && fake::value[1][1] == -1);
+    pc_ui_shell_system_view(&v);
+    CHECK(v.row == 1);
+    // a click on another page leaves this one (saved) and enters that one
+    fake::dirty = true;
+    saves = fake::saves;
+    pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 4, 1, 0);
+    tick(0);
+    pc_ui_shell_system_view(&v);
+    CHECK(v.entered && v.page == PC_UI_SETTINGS_GRAPHICS && fake::saves == saves + 1);
+    // from the list, a value on the previewed page enters it on that row
+    tick(PC_UI_BACK);
+    pc_ui_shell_system_value(1, 0, 42.5, 1);
+    tick(0);
+    pc_ui_shell_system_view(&v);
+    CHECK(v.entered && v.row == 1 && fake::sets == 1 && fake::set_value == 42.5);
+    // a drag in progress previews (the model applies costly sliders when it ends, with set 1)
+    pc_ui_shell_system_value(1, 0, 3.0, 2);
+    tick(0);
+    CHECK(fake::previews == 1 && fake::preview_value == 3.0 && fake::sets == 1);
+    // a click on a row of the previewed page enters the page on that row (no change)
+    tick(PC_UI_BACK);
+    changes = fake::changes;
+    pc_ui_shell_mouse(PC_UI_MOUSE_SETTING, 3, 1, 0);
+    tick(0);
+    pc_ui_shell_system_view(&v);
+    CHECK(v.entered && v.row == 3 && fake::changes == changes);
+    // inside the page, a click on a row confirms it (a choice steps)
+    pc_ui_shell_mouse(PC_UI_MOUSE_SETTING, 3, 1, 0);
+    tick(0);
+    CHECK(fake::changes == changes + 1);
+    // a value for a row past the end is ignored
+    changes = fake::changes;
+    pc_ui_shell_system_value(9, 1, 0, 0);
+    tick(0);
+    CHECK(fake::changes == changes);
+    pc_ui_shell_close();
+    fake::reset();
+    pc_ui_menus = 1;
+}
+
 int main()
 {
     pc_ui_commands all = {0x3FF, 0, 0};
@@ -640,17 +967,28 @@ int main()
     tick(PC_UI_TAB_PREV);
     tick(PC_UI_TAB_PREV);
     CHECK(json_has("\"tab\":\"system\""));
-    // System rows: Data, Options, Score, Quick manual, Menus; Down x1 = Options (7) -> 8
+    // System list: Data, Options, Score, Quick manual, then the pages; Down x1 = Options (7) -> 8
     tick(PC_UI_DOWN);
     CHECK(tick(PC_UI_CONFIRM) == 8);
     pc_ui_shell_open(&all, 1);
-    // the Menus row switches the setting, the shell stays
-    tick(PC_UI_DOWN); tick(PC_UI_DOWN); tick(PC_UI_DOWN);
-    CHECK(json_has("\"row\":\"menus\""));
+    // Interface > Menus switches the setting, the shell stays; leaving the page saves
+    fake::reset();
+    for (int i = 0; i < 6; ++i) tick(PC_UI_DOWN); // Options -> Interface (4 games, then 7 pages)
+    CHECK(json_has("\"row\":\"interface\""));
     CHECK(tick(PC_UI_CONFIRM) == 0);
+    CHECK(json_has("\"mode\":\"page\""));
+    CHECK(json_has("\"page\":\"interface\",\"row\":\"ui_menus\""));
+    CHECK(tick(PC_UI_RIGHT) == 0);
     CHECK(pc_ui_menus == 0);
+    CHECK(fake::dirty && fake::saves == 0);
+    CHECK(tick(PC_UI_BACK) == 0); // out of the page: saved, the shell stays
+    CHECK(fake::saves == 1 && pc_ui_shell_visible());
+    CHECK(json_has("\"mode\":\"list\""));
     tick(PC_UI_CONFIRM);
+    tick(PC_UI_LEFT);
     CHECK(pc_ui_menus == 1);
+    tick(PC_UI_BACK);
+    CHECK(fake::saves == 2);
     // not remembered: back to Ashley
     pc_ui_shell_open(&all, 0);
     CHECK(json_has("\"tab\":\"ashley\""));
@@ -747,6 +1085,7 @@ int main()
     }
     equipment_tests();
     mouse_tests();
+    system_tests();
     ashley_tests();
     std::printf(failures ? "ui_shell_probe: %d failures\n" : "ui_shell_probe: ok\n", failures);
     return failures != 0;

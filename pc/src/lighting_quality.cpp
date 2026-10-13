@@ -22,6 +22,7 @@
 #include "imgui_internal.h" /* ImHashStr, OpenPopupEx: opening the toolbar's combo by request */
 
 extern "C" {
+void pc_settings_env_override(const char* key) __attribute__((weak)); /* project_settings.cpp */
 extern int pc_lights_enabled, pc_gi_enabled, pc_rt_shadows, pc_baked_shadows, pc_glow_shadows, pc_shadow_samples,
     pc_gi_bounces, pc_gi_rays, pc_gi_denoise, pc_fog_steps, pc_hw_active, pc_present_rate,
     pc_hw_interpolate;
@@ -284,6 +285,7 @@ void resolve(int preset, double out[], const pc_lighting_caps_t& c)
 double snapshot[64];
 bool have_snapshot;
 int pending = -1; /* a preset to apply on the next sync; -2 auto-detect; -1 none */
+bool env_preset; /* `pending` came from ROOD_LIGHTING_PRESET */
 bool initialised;
 int file_preset = -1; /* lighting_preset read from the settings file */
 int last_gi_enabled = -1, last_rt_shadows = -1;
@@ -403,6 +405,8 @@ extern "C" void pc_lighting_sync(void)
         if (aa && *aa) {
             if (!pc_aa_parse(aa))
                 fprintf(stderr, "[aa] ROOD_AA=%s: unknown (off, fxaa, smaa, msaa2/4/8, ssaa[factor], '+')\n", aa);
+            else if (pc_settings_env_override)
+                pc_settings_env_override("aa"); /* not saved as the user's (project_settings.cpp) */
         } else if (pc_aa_autodetect_pending) {
             pc_lighting_caps_t c = caps_now();
             pc_aa_parse(pc_aa_autodetect(c.integrated));
@@ -410,8 +414,10 @@ extern "C" void pc_lighting_sync(void)
         }
         pc_aa_autodetect_pending = 0;
         const char* env = getenv("ROOD_LIGHTING_PRESET"); /* a preset name or "auto" */
-        if (env && *env)
+        if (env && *env) {
             pending = !strcmp(env, "auto") ? -2 : preset_by_name(env);
+            env_preset = pending != -1;
+        }
         if (pending == -1) { /* no settings file, no request: the built-in values */
             pc_lighting_preset = matching_preset(caps_now());
             take_snapshot();
@@ -432,6 +438,12 @@ extern "C" void pc_lighting_sync(void)
         if (preset == PC_PRESET_CUSTOM)
             take_snapshot();
         fprintf(stderr, "[lighting] quality preset %s\n", preset_labels[pc_lighting_preset]);
+        if (env_preset && pc_settings_env_override) { /* ROOD_LIGHTING_PRESET: not saved as the user's */
+            env_preset = false;
+            pc_settings_env_override("lighting_preset");
+            for (int i = 0; i < key_count; i++)
+                pc_settings_env_override(keys[i].name);
+        }
     }
     derive_switches();
     if (pc_lighting_preset != PC_PRESET_CUSTOM && have_snapshot)

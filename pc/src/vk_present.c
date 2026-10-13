@@ -41,6 +41,7 @@ extern void pc_hw_supersample(int view_h, int display_h);
 extern void pc_hw_present_origin(int* x, int* y);
 extern const uint16_t* pc_native_vram(void);
 extern void pc_overlay_init(SDL_Window*, void*);
+extern void pc_settings_env_override(const char* key) __attribute__((weak)); /* project_settings.cpp */
 extern void pc_overlay_frame(int, int);
 extern int pc_overlay_active(void) __attribute__((weak));
 extern void pc_vk_overlay_render(VkCommandBuffer cmd);
@@ -341,10 +342,19 @@ SDL_Window* pc_vk_create_window(const char* title, int width, int height)
     pc_vk_active = 1;
     pc_hw_init(pc_native_vram());
     pc_overlay_init(win, NULL);
+    /* As gl_present.c: the variables apply only when set (the settings keep theirs). */
     const char* widescreen = getenv("ROOD_WIDESCREEN");
-    pc_gte_widescreen = widescreen && *widescreen == '1';
+    if (widescreen && *widescreen) {
+        pc_gte_widescreen = *widescreen == '1';
+        if (pc_settings_env_override)
+            pc_settings_env_override("widescreen"); /* not saved as the user's (project_settings.cpp) */
+    }
     const char* perspective = getenv("ROOD_PERSPECTIVE");
-    pc_hw_perspective = !(perspective && *perspective == '0');
+    if (perspective && *perspective) {
+        pc_hw_perspective = *perspective != '0';
+        if (pc_settings_env_override)
+            pc_settings_env_override("perspective_textures");
+    }
     fprintf(stderr, "[vk] presenting %s\n", swapchain ? "to a swapchain" : "offscreen (headless)");
     return win;
 }
@@ -421,12 +431,18 @@ static void begin_single(const vk_image* image, int x, int y, int w, int h);
 /* Pass `stage` of the post chain renders into the window's view rectangle
  * when it is the last of `stages`, else into the next lit-sized image;
  * returns that image (the input of the pass after it). */
+static int brightness_stage; /* this frame's chain ends with the brightness curve (brightness_on) */
+static view_target brightness_input; /* its input: the chain's last image, view-sized 16-bit float */
 static const vk_image* stage_begin(int stage, int stages, int lit_w, int lit_h, int view_x, int view_y, int view_w,
     int view_h)
 {
     if (stage + 1 >= stages) {
         begin_single(&window_image, view_x, view_y, view_w, view_h);
         return &window_image;
+    }
+    if (brightness_stage && stage + 2 >= stages) { /* settings brightness: its 16-bit input, view-sized */
+        begin_single(&brightness_input.image, 0, 0, view_w, view_h);
+        return &brightness_input.image;
     }
     const vk_image* out = &chain[stage & 1].image;
     begin_single(out, 0, 0, lit_w, lit_h);
@@ -444,6 +460,64 @@ static void begin_single(const vk_image* image, int x, int y, int w, int h)
     vkCmdSetDepthTestEnable(cmd, VK_FALSE);
     vkCmdSetDepthWriteEnable(cmd, VK_FALSE);
     vkCmdSetDepthCompareOp(cmd, VK_COMPARE_OP_ALWAYS);
+}
+
+/* Brightness (settings brightness; gl_present.c's brightness block, the
+ * same rule): at 50 nothing runs; otherwise the post chain gets one more
+ * stage: what would have gone to the window goes to a view-sized 16-bit
+ * float image (brightness_input), drawn into the window's view through
+ * brightness.frag. The pipelines are made on first use: the curve's, and
+ * the downsample and native-VRAM passes into the 16-bit format (the other
+ * passes have theirs already). */
+extern int pc_present_brightness;
+extern float pc_present_brightness_factor(void);
+static VkPipelineLayout brightness_layout;
+static VkPipeline brightness_pipeline, downsample_to_view, vram_to_view;
+static int brightness_on(int view_w, int view_h)
+{
+    static int state; /* 0 not yet, 1 ready, -1 failed */
+    if (pc_present_brightness == 50 || state < 0 || view_w <= 0 || view_h <= 0)
+        return 0;
+    if (!state) {
+        VkShaderModule vs = vk_shader(vk_spv_fullscreen_vert, vk_spv_fullscreen_vert_size),
+                       fs = vk_shader(vk_spv_brightness_frag, vk_spv_brightness_frag_size),
+                       down = vk_shader(vk_spv_downsample_frag, vk_spv_downsample_frag_size),
+                       vram = vk_shader(vk_spv_present_vram_frag, vk_spv_present_vram_frag_size);
+        brightness_layout = make_layout(single_set, 16);
+        if (vs && fs && down && vram && brightness_layout) {
+            brightness_pipeline = fullscreen(vs, fs, brightness_layout, WINDOW_FORMAT);
+            downsample_to_view = fullscreen(vs, down, downsample_layout, VIEW_FORMAT);
+            vram_to_view = fullscreen(vs, vram, vram_layout, VIEW_FORMAT);
+        }
+        VkShaderModule modules[4] = { vs, fs, down, vram };
+        for (int i = 0; i < 4; i++)
+            if (modules[i])
+                vkDestroyShaderModule(vk.device, modules[i], NULL);
+        state = brightness_pipeline && downsample_to_view && vram_to_view ? 1 : -1;
+        if (state < 0) {
+            fprintf(stderr, "[vk] brightness unavailable (its pipelines did not build)\n");
+            return 0;
+        }
+    }
+    return ensure_view(&brightness_input, view_w, view_h);
+}
+/* The last stage: brightness_input through the curve into the window's view. */
+static void brightness_draw(int view_x, int view_y, int view_w, int view_h)
+{
+    vk_section("brightness");
+    begin_single(&window_image, view_x, view_y, view_w, view_h);
+    VkCommandBuffer cmd = vk_cmd();
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, brightness_pipeline);
+    vk_descriptors d = { 0 };
+    vk_descriptors_image(&d, 0, brightness_input.image.view, vk.nearest);
+    vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, brightness_layout);
+    struct {
+        int origin[2];
+        float factor, unused;
+    } push = { { view_x, view_y }, pc_present_brightness_factor(), 0 };
+    vkCmdPushConstants(cmd, brightness_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+        sizeof push, &push);
+    vkCmdDraw(cmd, 3, 1, 0, 0);
 }
 
 /* Focal depth (as gl_present.c's focus_depth). */
@@ -753,6 +827,7 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
         update_view(&view_w, &view_h);
         pc_gl_display[0] = x, pc_gl_display[1] = y, pc_gl_display[2] = w, pc_gl_display[3] = h;
         int view_x = pc_gl_view[0], view_y = pc_gl_view[1];
+        brightness_stage = brightness_on(view_w, view_h); /* settings brightness: one more stage (above) */
         if (target) {
             const vk_target* t = target == VK_TOKEN_REPLAY ? &vk_hw.replay : &vk_hw.live;
             int replay = target == VK_TOKEN_REPLAY;
@@ -785,6 +860,7 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
                 post = PC_AA_OFF;
                 stages = 1 + blur + ssaa;
             }
+            stages += brightness_stage;
             vk_slice ubo = vk_arena(sizeof(present_ubo), vk.properties.limits.minUniformBufferOffsetAlignment);
             if (!ubo.data)
                 goto overlay;
@@ -910,7 +986,8 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
                 const vk_image* source = input;
                 stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
                 cmd = vk_cmd();
-                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, downsample_pipeline);
+                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    stage + 1 < stages ? downsample_to_view : downsample_pipeline);
                 vk_descriptors_image(&d, 0, source->view, vk.linear);
                 vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, downsample_layout);
                 downsample_push push = { { (float)lit_w, (float)lit_h }, { (float)view_w, (float)view_h },
@@ -931,9 +1008,12 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
                     .imageExtent = { 1024, 512, 1 } };
                 vkCmdCopyBufferToImage(cmd, staging.buffer, present_vram.image, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
                 vk_barrier();
-                begin_single(&window_image, view_x, view_y, view_w, view_h);
+                if (brightness_stage) /* settings brightness: into its 16-bit input */
+                    begin_single(&brightness_input.image, 0, 0, view_w, view_h);
+                else
+                    begin_single(&window_image, view_x, view_y, view_w, view_h);
                 cmd = vk_cmd();
-                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vram_pipeline);
+                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, brightness_stage ? vram_to_view : vram_pipeline);
                 vk_descriptors d = { 0 };
                 vk_descriptors_image(&d, 0, present_vram.view, vk.nearest);
                 vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, vram_layout);
@@ -943,6 +1023,8 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
                 vkCmdDraw(cmd, 3, 1, 0, 0);
             }
         }
+        if (brightness_stage) /* settings brightness (above) */
+            brightness_draw(view_x, view_y, view_w, view_h);
     }
 overlay:
     pc_overlay_frame(window_w, window_h);

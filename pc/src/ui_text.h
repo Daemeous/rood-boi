@@ -7,7 +7,8 @@
  * are replaced, at the internal resolution, from a signed distance field of
  * the font's glyph placed on the original glyph (its baseline, cap height
  * and ink centre, measured from the game's VRAM) and mapped through the
- * same CLUT ramp the original glyph uses. It goes through the 2D atlas of
+ * same CLUT ramp the original glyph uses (dialogue and menu lines set again
+ * with the font's own spacing: ui_text_layout). It goes through the 2D atlas of
  * ui_upscale.c (internal resolution 2x and up). */
 #ifndef ROOD_UI_TEXT_H
 #define ROOD_UI_TEXT_H
@@ -52,10 +53,63 @@ int pc_ui_text_classify(const uint16_t* vram, unsigned tpage, unsigned clut, int
 int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1,
     int factor, uint32_t* out);
 
+/* String-level layout (ui_text_layout; README "2D / UI"). line (default):
+ * the glyphs of a line of dialogue or menu text (talk bubbles, menus, the
+ * information box) are set with the font's own advances and kerning from
+ * where the game starts the line, each glyph drawn whole (descenders below
+ * the original 12-pixel cell), never past the game's own glyph positions by
+ * more than a pixel (tightened, never overlapping, when the font is wider).
+ * glyph: each glyph drawn inside its original cell (the earlier way). */
+enum { PC_UI_TEXT_LAYOUT_GLYPH = 0, PC_UI_TEXT_LAYOUT_LINE = 1 };
+extern int pc_ui_text_layout;
+extern const char* const pc_ui_text_layout_names[2];
+/* Whether line layout applies now (ui_text font, layout line, internal
+ * resolution 2x and up). */
+int pc_ui_text_layout_on(int scale);
+
+/* gpu_hw.c hands the layout every 2D sprite that is a whole-width piece of a
+ * dialogue or menu glyph (a 12 x 12 cell, or one of the 12 x 1 strips menu
+ * rows are drawn in), and every axis-aligned quad drawing a whole cell
+ * scaled (a talk bubble's text while it zooms), while it is on, buffered
+ * until something else is drawn: a run of pieces drawn one after another,
+ * laid out together. */
+int pc_ui_text_piece(const uint16_t* vram, unsigned tpage, unsigned clut, int u, int v, int w, int h);
+typedef struct {
+    float x, y;        /* the piece's top-left on screen (drawing offset applied) */
+    float k;           /* screen pixels per texel (1 for sprites) */
+    int u, v, h;       /* its first texel, its height in texels */
+    unsigned tpage, clut;
+    int clip[4];       /* its drawing area */
+} pc_ui_text_piece_info;
+typedef struct {
+    int image;      /* the glyph's image (pc_ui_text_image_*), -1: draw the original piece */
+    float x, y;     /* the quad's top-left on screen (PS1 pixels) */
+    float k;        /* screen pixels per image texel */
+    int w;          /* its width in image texels */
+    int row0, row1; /* the image rows it draws: [row0, row1), screen y = y + (row - row0) * k */
+} pc_ui_text_quad;
+/* Lay out `count` pieces (in drawing order); out[i] is piece i's quad.
+ * `scale`: internal resolution (positions snap to its pixels). */
+void pc_ui_text_layout_run(const uint16_t* vram, const pc_ui_text_piece_info* pieces, int count, int scale,
+    pc_ui_text_quad* out);
+/* A laid-out glyph's image (valid until the next pc_ui_text_layout_run):
+ * its content key and size in texels, and its texels at `factor` (PS1
+ * colours, 0 transparent). */
+int pc_ui_text_image_key(int image, uint64_t* key, int* w, int* h);
+int pc_ui_text_image_render(int image, int factor, uint32_t* out);
+/* JSON (RPC ui_text {lines: true}): the lines laid out in the newest frame
+ * that drew text: per glyph its character, the original glyph's position,
+ * advance and ink, the laid-out pen and ink (screen PS1 pixels; ink per
+ * image row as [row, x0, x1]), and per line its baseline. */
+int pc_ui_text_lines_json(char* out, int size);
+
 /* Make the distance fields of the characters the styles can show, at most
  * `budget_ms` of CPU per call (once per presented frame while ui_text is
  * font), so text appearing later does not stall a frame making them. */
 void pc_ui_text_warm(double budget_ms);
+
+/* A new presented frame (ui_upscale.c): the next layout starts the lines report afresh. */
+void pc_ui_text_frame(void);
 
 /* Settings lines (project_settings.cpp): 1 when `key` was one of ours. */
 int pc_ui_text_setting(const char* key, const char* value);

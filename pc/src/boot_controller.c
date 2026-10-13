@@ -53,7 +53,7 @@ unsigned pc_controller_mask(const PcControllerState* s)
         int e = pc_bind_pad[i];
         if (e >= 0 && e < SDL_GAMEPAD_BUTTON_COUNT ? s->buttons[e] != 0
             : e >= PC_PAD_AXIS(0) && e < PC_PAD_AXIS(SDL_GAMEPAD_AXIS_COUNT)
-                ? s->axes[e - PC_PAD_AXIS(0)] > 8000 /* the triggers (L2 / R2 by default) */
+                ? s->axes[e - PC_PAD_AXIS(0)] > PC_TRIGGER_PRESSED /* the triggers (L2 / R2 by default) */
                 : 0)
             result |= 1u << i;
     }

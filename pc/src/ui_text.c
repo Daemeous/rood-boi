@@ -21,9 +21,11 @@
  * its x) and centred on the original glyph's ink, then mapped through the
  * original glyph's own CLUT ramp (coverage 0..1 -> CLUT index 1..max, or
  * 2..max inside a one-pixel outline of index 1), so colours, brightness,
- * gradients, translucency and the colour key are the game's. Positions,
- * advances, line breaks and timing never change: the game still draws the
- * same primitives at the same places. Characters a font lacks, and the
+ * gradients, translucency and the colour key are the game's. Line breaks and
+ * timing never change. With ui_text_layout glyph the positions and advances
+ * do not either (each glyph inside its original cell); with line (the
+ * default) dialogue and menu text is set line by line with the font's own
+ * spacing ("string-level layout" below). Characters a font lacks, and the
  * pictographs (button symbols, arrows, notes), stay original.
  *
  * Words the game draws as pictures (HP, MP, COMMAND, MENU, INFORMATION,
@@ -148,6 +150,9 @@ typedef struct {
     unsigned char* sdf; /* NULL: the font lacks it */
     int w, h, xoff, yoff;
     float x0, x1, top, bottom; /* outline box in field pixels (y up from the baseline) */
+    float* profile;            /* ui_text_layout line: per field row from profile_y0 up, the ink's left and
+                                * right (pairs; left > right: no ink), made at first use */
+    int profile_y0, profile_rows;
 } glyph_field;
 #define GLYPH_SLOTS 2048
 static glyph_field glyphs[GLYPH_SLOTS];
@@ -194,8 +199,10 @@ static font_file* font_for(const char* path)
 static void drop_glyphs(void)
 {
     for (int i = 0; i < GLYPH_SLOTS; i++)
-        if (glyphs[i].sdf)
+        if (glyphs[i].sdf) {
             stbtt_FreeSDF(glyphs[i].sdf, NULL);
+            free(glyphs[i].profile);
+        }
     memset(glyphs, 0, sizeof glyphs);
     glyph_count = 0;
     stats.glyphs = 0;
@@ -848,6 +855,465 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
     return 1;
 }
 
+/* ---- string-level layout (ui_text_layout line) ----
+ *
+ * The game sets its text glyph by glyph in 12 x 12 cells at its own
+ * advances (vs_battle_characterWidths: about 6 pixels a letter for menus and
+ * the information box, proportional for talk bubbles). A font's letters in
+ * those slots are unevenly spaced (narrow letters float in wide slots), wide
+ * ones collide and descenders have to be squeezed into the cell. Here the
+ * glyphs of a line are set again with the font's own advances and kerning:
+ *
+ * - a run: the glyph sprites gpu_hw.c buffers while nothing else is drawn
+ *   (a text box's glyphs share one ordering-table slot; menu rows come as 12
+ *   strips per glyph, one per row, each with its own brightness);
+ * - glyphs: the strips of one cell at one place are one glyph;
+ * - lines: glyphs of one style at one cell top in one drawing area, by x;
+ *   a gap of more than three spaces, or an overlap, starts a new segment
+ *   (columns, separately placed strings);
+ * - a segment starts where the game's first glyph's ink starts; each next
+ *   pen is the previous pen + the font's advance, + its kerning or the font's
+ *   space (widened, WORD_SPACE) for every space the game left (a gap of 3
+ *   pixels or more, 6 each);
+ * - it never runs ahead of the game: a glyph's ink ends at most SLACK
+ *   pixels after the original glyph's ink (the font tightened where it is
+ *   wider);
+ * - letters never touch: on every row a glyph's ink stays MIN_GAP from the
+ *   previous one's (row by row, so slanted and kerned pairs may share
+ *   columns; at these sizes a script face's joins would otherwise run
+ *   letters together); this wins over the tightening;
+ * - each glyph is drawn whole: below the cell (descenders) and beyond its
+ *   slot, as the game's own sprite would (same colour, brightness, blending,
+ *   rows of a strip-drawn glyph each with that strip's brightness, the rows
+ *   below the cell with the last strip's).
+ *
+ * A glyph's place depends only on the glyphs before it on its line, so text
+ * the game types out letter by letter never moves: each glyph appears where
+ * it will stay, when the game draws it. Positions snap to the internal
+ * resolution's pixels; images are cached in the 2D atlas by content. */
+int pc_ui_text_layout = PC_UI_TEXT_LAYOUT_LINE;
+const char* const pc_ui_text_layout_names[2] = { "glyph", "line" };
+#define SLACK 1.0f   /* PS1 pixels a glyph's ink may end after the original's */
+#define MIN_GAP 0.5f /* PS1 pixels at least between neighbours' ink on any row */
+#define DESCENT_ROWS 6 /* rows below the 12-pixel cell a glyph may reach */
+/* The font's space widened: the game's words stand a whole letter apart, and
+ * at these sizes (8-pixel capitals) a text face's own space reads as none. */
+#define WORD_SPACE 1.5f
+
+int pc_ui_text_layout_on(int scale)
+{
+    return pc_ui_text == PC_UI_TEXT_FONT && pc_ui_text_layout == PC_UI_TEXT_LAYOUT_LINE && scale >= 2;
+}
+
+int pc_ui_text_piece(const uint16_t* vram, unsigned tpage, unsigned clut, int u, int v, int w, int h)
+{
+    glyph_info g;
+    if (!vram || w != 12 || h < 1 || h > 12 || !identify(tpage, clut, u, v, u + w - 1, v + h - 1, &g))
+        return 0;
+    if ((g.style != PC_UI_TEXT_DIALOGUE && g.style != PC_UI_TEXT_MENU) || u != g.box_u)
+        return 0;
+    const pc_ui_text_style* st = &pc_ui_text_styles[g.style];
+    return field(g.style, st->small_caps ? upper(g.codepoint) : g.codepoint) && field(g.style, 'H');
+}
+
+typedef struct {
+    glyph_info g;
+    const glyph_field* f;
+    font_file* font;
+    int index;               /* the font's glyph (advance, kerning) */
+    unsigned drawn;          /* its codepoint (the capital for a small capital) */
+    float s, sx;             /* vertical / horizontal scale (PS1 pixels per field pixel) */
+    float base, pivot;       /* baseline and slant pivot rows in the cell */
+    float adv, x0, x1, desc; /* advance, ink extent from the pen and depth below the baseline (PS1 pixels) */
+    int ink[4];              /* the original glyph's ink in its cell */
+    int hi;                  /* the highest CLUT index the original uses */
+} glyph_metrics;
+
+static int metrics(const uint16_t* vram, unsigned tpage, unsigned clut, int u, int v, int h, glyph_metrics* m)
+{
+    memset(m, 0, sizeof *m);
+    if (!identify(tpage, clut, u, v, u + 11, v + h - 1, &m->g))
+        return 0;
+    const glyph_info* g = &m->g;
+    const pc_ui_text_style* st = &pc_ui_text_styles[g->style];
+    int small = st->small_caps && upper(g->codepoint) != g->codepoint;
+    m->drawn = small ? upper(g->codepoint) : g->codepoint;
+    m->f = field(g->style, m->drawn);
+    const glyph_field* cap = field(g->style, 'H');
+    m->font = font_for(st->font);
+    int page_x = (int)(tpage & 15) * 64, ref[4], xbox[4];
+    if (!m->f || !cap || !m->font || cap->top <= 0
+        || !ink(vram, page_x, g->box_u, g->box_v, g->box_w, g->box_h, g->threshold, m->ink)
+        || !ink(vram, page_x, g->ref_u, g->ref_v, g->ref_w, g->ref_h, g->threshold, ref))
+        return 0;
+    float base = (float)ref[3], height = (float)(ref[3] - ref[1]);
+    if (small && ink(vram, page_x, g->small_u, g->small_v, 12, 12, g->threshold, xbox))
+        base = (float)xbox[3], height = (float)(xbox[3] - xbox[1]);
+    if (height < 1)
+        return 0;
+    m->s = height / cap->top;
+    m->sx = m->s * st->stretch;
+    m->base = base;
+    m->pivot = base - height * 0.5f;
+    m->index = stbtt_FindGlyphIndex(&m->font->info, (int)m->drawn);
+    int advance, bearing;
+    stbtt_GetGlyphHMetrics(&m->font->info, m->index, &advance, &bearing);
+    m->adv = advance * m->font->scale * m->sx;
+    m->x0 = m->f->x0 * m->sx, m->x1 = m->f->x1 * m->sx;
+    m->desc = m->f->bottom < 0 ? -m->f->bottom * m->s : 0.0f;
+    for (int y = 0; y < g->box_h; y++)
+        for (int x = 0; x < g->box_w; x++) {
+            int i = page_index(vram, page_x, g->box_u + x, g->box_v + y);
+            m->hi = i > m->hi ? i : m->hi;
+        }
+    return 1;
+}
+
+/* A laid-out glyph's image: the glyph at its pen (texel column `left`), cell
+ * rows from the top (rows below 12: under the cell). */
+typedef struct {
+    int style;
+    unsigned drawn;
+    float s, sx, base, pivot, slant, bold;
+    int left, w, h, lo, hi;
+    uint16_t lut[16];
+} text_image;
+
+#define RUN_GLYPHS 1024
+typedef struct {
+    glyph_metrics m;
+    float x, top, k;   /* the original glyph's left and its cell's top on screen, screen pixels per texel */
+    int clip[4];
+    unsigned tpage, clut;
+    int ok;            /* metrics known */
+    float pen;         /* laid out (screen pixels) */
+    int image;
+} run_glyph;
+static run_glyph run[RUN_GLYPHS];
+static text_image images[RUN_GLYPHS];
+static int image_count;
+
+/* The lines report (RPC ui_text lines): the newest frame's laid-out glyphs. */
+#define REPORT_GLYPHS 1024
+typedef struct {
+    int line, segment;     /* line and segment (a run of glyphs set together) numbers in the frame */
+    unsigned codepoint;
+    float x, top, k;       /* the original glyph: left, cell top, scale */
+    int advance;           /* the game's advance (texels) */
+    float ink[4];          /* its ink (screen) */
+    float pen, quad_x;     /* laid out: the pen and the image's left edge on screen */
+    text_image image;
+} report_glyph;
+static report_glyph report[REPORT_GLYPHS];
+static int report_count, report_lines, report_segments, report_stale = 1;
+void pc_ui_text_frame(void) { report_stale = 1; }
+
+/* A glyph's ink per field row (field pixels from its origin). */
+static const float* profile(glyph_field* g)
+{
+    if (!g->profile) {
+        int y0 = (int)floorf(g->bottom) - 1, rows = (int)ceilf(g->top) + 2 - y0;
+        float* p = malloc(sizeof *p * 2 * (size_t)(rows > 0 ? rows : 1));
+        if (!p)
+            return NULL;
+        for (int r = 0; r < rows; r++) {
+            float lo = 1e9f, hi = -1e9f;
+            for (float x = g->x0 - 2; x <= g->x1 + 2; x += 0.25f)
+                if (distance_at(g, x, y0 + r + 0.5f) > 0)
+                    lo = fminf(lo, x), hi = fmaxf(hi, x);
+            p[r * 2] = lo, p[r * 2 + 1] = hi;
+        }
+        g->profile_y0 = y0, g->profile_rows = rows;
+        g->profile = p;
+    }
+    return g->profile;
+}
+/* The least pen distance (texels) from glyph p to the next glyph q at which
+ * their ink stays MIN_GAP apart on every row (both sheared alike: the slant
+ * cancels on a row, only the rows' places in each glyph differ). */
+static float apart(const glyph_metrics* p, const glyph_metrics* q, float slant)
+{
+    glyph_field *fp = (glyph_field*)p->f, *fq = (glyph_field*)q->f;
+    const float *a = profile(fp), *b = profile(fq);
+    float need = p->x1 - q->x0 + MIN_GAP; /* (without profiles: the boxes) */
+    if (!a || !b)
+        return need;
+    need = -1e9f;
+    for (float yo = 0.125f; yo < 12 + DESCENT_ROWS; yo += 0.25f) {
+        int ra = (int)floorf((p->base - yo) / p->s) - fp->profile_y0;
+        int rb = (int)floorf((q->base - yo) / q->s) - fq->profile_y0;
+        if (ra < 0 || rb < 0 || ra >= fp->profile_rows || rb >= fq->profile_rows || a[ra * 2] > a[ra * 2 + 1]
+            || b[rb * 2] > b[rb * 2 + 1])
+            continue;
+        float shift_p = slant * (p->pivot - yo), shift_q = slant * (q->pivot - yo);
+        float right = a[ra * 2 + 1] * p->sx + shift_p, left = b[rb * 2] * q->sx + shift_q;
+        need = fmaxf(need, right - left + MIN_GAP);
+    }
+    return need > -1e8f ? need : p->x1 - q->x0 + MIN_GAP;
+}
+
+static int glyph_order(const void* a, const void* b)
+{
+    const run_glyph *p = &run[*(const int*)a], *q = &run[*(const int*)b];
+    if (p->m.g.style != q->m.g.style)
+        return p->m.g.style - q->m.g.style;
+    if (p->k != q->k)
+        return p->k < q->k ? -1 : 1;
+    if (p->top != q->top)
+        return p->top < q->top ? -1 : 1;
+    int c = memcmp(p->clip, q->clip, sizeof p->clip);
+    if (c)
+        return c;
+    if (p->x != q->x)
+        return p->x < q->x ? -1 : 1;
+    return *(const int*)a - *(const int*)b;
+}
+
+static float snap(float x, int scale) { return floorf(x * scale + 0.5f) / scale; }
+
+void pc_ui_text_layout_run(const uint16_t* vram, const pc_ui_text_piece_info* pieces, int count, int scale,
+    pc_ui_text_quad* out)
+{
+    int glyphs = 0, last = -1;
+    static int of_piece[4096];
+    image_count = 0;
+    if (report_stale)
+        report_count = report_lines = report_segments = 0, report_stale = 0;
+    /* Glyphs: the pieces of one cell at one place. */
+    for (int i = 0; i < count; i++) {
+        const pc_ui_text_piece_info* p = &pieces[i];
+        out[i].image = -1;
+        of_piece[i & 4095] = -1;
+        glyph_info g;
+        if (i >= 4096 || !identify(p->tpage, p->clut, p->u, p->v, p->u + 11, p->v + p->h - 1, &g))
+            continue;
+        float top = p->y - (p->v - g.box_v) * p->k;
+        int found = -1;
+        for (int k = last >= 0 ? last : glyphs - 1, n = 0; n < glyphs; n++, k = k ? k - 1 : glyphs - 1) {
+            const run_glyph* r = &run[k];
+            if (r->x == p->x && r->top == top && r->k == p->k && r->m.g.box_u == g.box_u && r->m.g.box_v == g.box_v
+                && r->m.g.style == g.style && r->clut == p->clut && r->tpage == p->tpage
+                && !memcmp(r->clip, p->clip, sizeof r->clip)) {
+                found = k;
+                break;
+            }
+        }
+        if (found < 0) {
+            if (glyphs == RUN_GLYPHS)
+                continue;
+            run_glyph* r = &run[glyphs];
+            memset(r, 0, sizeof *r);
+            r->ok = metrics(vram, p->tpage, p->clut, g.box_u, g.box_v, 12, &r->m);
+            r->x = p->x, r->top = top, r->k = p->k, r->tpage = p->tpage, r->clut = p->clut;
+            r->m.g = g; /* (identity even when the metrics failed) */
+            memcpy(r->clip, p->clip, sizeof r->clip);
+            r->image = -1;
+            found = glyphs++;
+        }
+        last = found;
+        of_piece[i] = found;
+    }
+    /* Lines and segments, each set from its start (in texels of the
+     * glyphs' cells: k screen pixels each). */
+    static int order[RUN_GLYPHS];
+    for (int k = 0; k < glyphs; k++)
+        order[k] = k;
+    qsort(order, (size_t)glyphs, sizeof *order, glyph_order);
+    for (int a = 0; a < glyphs;) {
+        int b = a + 1;
+        const run_glyph* first = &run[order[a]];
+        while (b < glyphs && run[order[b]].m.g.style == first->m.g.style && run[order[b]].top == first->top
+            && run[order[b]].k == first->k && !memcmp(run[order[b]].clip, first->clip, sizeof first->clip))
+            ++b;
+        const pc_ui_text_style* st = &pc_ui_text_styles[first->m.g.style];
+        float bold = st->embolden * SDF_EM, k = first->k;
+        run_glyph* prev = NULL;
+        for (int j = a; j < b; j++) {
+            run_glyph* r = &run[order[j]];
+            if (!r->ok) {
+                prev = NULL; /* drawn as the original: the next glyph starts afresh */
+                continue;
+            }
+            const glyph_metrics* m = &r->m;
+            int advance = m->g.advance ? m->g.advance : 12;
+            /* Ink ends at most SLACK after the original's. */
+            float cap = r->x + (m->ink[2] + SLACK - m->x1) * k;
+            if (prev) {
+                const glyph_metrics* q = &prev->m;
+                float gap = (r->x - prev->x) / k - (q->g.advance ? q->g.advance : 12);
+                if (gap < -1.5f || gap > 18.5f)
+                    prev = NULL; /* another string or a column */
+                else {
+                    int spaces = gap >= 2.5f ? (int)lrintf(gap / 6.0f) : 0;
+                    float pen = prev->pen + q->adv * k;
+                    if (spaces) {
+                        int space = stbtt_FindGlyphIndex(&m->font->info, ' '), w, lsb;
+                        stbtt_GetGlyphHMetrics(&m->font->info, space, &w, &lsb);
+                        pen += spaces * w * m->font->scale * fmaxf(q->sx, m->sx) * WORD_SPACE * k;
+                    } else if (q->font == m->font)
+                        pen += stbtt_GetGlyphKernAdvance(&m->font->info, q->index, m->index) * m->font->scale
+                             * (q->sx + m->sx) * 0.5f * k;
+                    /* Tightened where the font runs ahead, never into the previous glyph. */
+                    r->pen = fmaxf(fminf(pen, cap), prev->pen + apart(q, m, st->slant) * k);
+                }
+            }
+            if (!prev) { /* a segment's first glyph: its ink starts where the original's does */
+                r->pen = r->x + (m->ink[0] - m->x0) * k;
+                ++report_segments;
+            }
+            prev = r;
+            /* Its image. */
+            text_image* im = &images[image_count];
+            memset(im, 0, sizeof *im);
+            im->style = m->g.style;
+            im->drawn = m->drawn;
+            im->s = m->s, im->sx = m->sx, im->base = m->base, im->pivot = m->pivot;
+            im->slant = st->slant, im->bold = bold;
+            float lean_lo = fminf(0.0f, st->slant * (m->pivot - (12 + DESCENT_ROWS))),
+                  lean_hi = fmaxf(0.0f, st->slant * m->pivot);
+            im->left = (int)ceilf(-(m->x0 + lean_lo)) + 2;
+            im->w = im->left + (int)ceilf(m->x1 + lean_hi) + 2;
+            im->h = (int)ceilf(m->base + m->desc + 1.0f);
+            im->h = im->h < 12 ? 12 : im->h > 12 + DESCENT_ROWS ? 12 + DESCENT_ROWS : im->h;
+            im->lo = 1;
+            im->hi = m->hi < 1 ? 1 : m->hi;
+            if (im->w <= 0 || im->w > 255)
+                continue;
+            const uint16_t* lut = vram + (r->clut >> 6 & 511) * 1024 + (r->clut & 63) * 16;
+            memcpy(im->lut, lut, sizeof im->lut);
+            r->image = image_count++;
+            if (report_count < REPORT_GLYPHS) {
+                report_glyph* e = &report[report_count++];
+                e->line = report_lines, e->segment = report_segments;
+                e->codepoint = m->g.codepoint;
+                e->x = r->x, e->top = r->top, e->k = k, e->advance = advance;
+                e->ink[0] = r->x + m->ink[0] * k, e->ink[1] = r->top + m->ink[1] * k;
+                e->ink[2] = r->x + m->ink[2] * k, e->ink[3] = r->top + m->ink[3] * k;
+                e->pen = r->pen;
+                e->quad_x = snap(r->pen - im->left * k, scale);
+                e->image = *im;
+            }
+        }
+        ++report_lines;
+        a = b;
+    }
+    /* Each piece's quad: its rows of its glyph's image (the cell's last row
+     * also draws the rows below the cell). */
+    for (int i = 0; i < count && i < 4096; i++) {
+        int j = of_piece[i];
+        if (j < 0 || run[j].image < 0)
+            continue;
+        const run_glyph* r = &run[j];
+        const text_image* im = &images[r->image];
+        pc_ui_text_quad* q = &out[i];
+        q->image = r->image;
+        q->k = r->k;
+        q->x = snap(r->pen - im->left * r->k, scale);
+        q->y = pieces[i].y;
+        q->w = im->w;
+        q->row0 = pieces[i].v - r->m.g.box_v;
+        q->row1 = q->row0 + pieces[i].h;
+        if (q->row1 >= 12)
+            q->row1 = im->h;
+    }
+}
+
+static uint64_t image_hash(const text_image* im)
+{
+    const unsigned char* b = (const unsigned char*)im;
+    uint64_t h = 1469598103934665603ull ^ pc_ui_text_generation;
+    for (size_t i = 0; i < sizeof *im; i++)
+        h = (h ^ b[i]) * 1099511628211ull;
+    return h | 1;
+}
+
+int pc_ui_text_image_key(int image, uint64_t* key, int* w, int* h)
+{
+    if (image < 0 || image >= image_count)
+        return 0;
+    *key = image_hash(&images[image]);
+    *w = images[image].w, *h = images[image].h;
+    return 1;
+}
+
+/* Coverage of image `im` at texel point (xo, yo) as a signed distance (PS1 pixels, positive inside). */
+static float image_distance(const text_image* im, const glyph_field* f, float xo, float yo)
+{
+    float up = im->base - yo, shift = im->slant * (im->pivot - yo);
+    float fx = (xo - im->left - shift) / im->sx, fy = up / im->s;
+    return (distance_at(f, fx, fy) + im->bold) * im->s;
+}
+
+static int draw_image(const text_image* im, int factor, uint32_t* out)
+{
+    const glyph_field* f = field(im->style, im->drawn);
+    if (!f)
+        return 0;
+    int w = im->w * factor, rows = im->h * factor;
+    float inv = 1.0f / factor;
+    for (int y = 0; y < rows; y++) {
+        float yo = (y + 0.5f) * inv;
+        for (int x = 0; x < w; x++) {
+            float d = image_distance(im, f, (x + 0.5f) * inv, yo);
+            float c = 0.5f + d * factor;
+            int index = c > 0.02f ? im->lo + (int)lrintf(fminf(c, 1.0f) * (im->hi - im->lo)) : 0;
+            out[y * w + x] = index ? im->lut[index] : 0;
+        }
+    }
+    return 1;
+}
+
+int pc_ui_text_image_render(int image, int factor, uint32_t* out)
+{
+    if (image < 0 || image >= image_count || !draw_image(&images[image], factor, out)) {
+        ++stats.failed;
+        return 0;
+    }
+    ++stats.regions;
+    return 1;
+}
+
+int pc_ui_text_lines_json(char* out, int size)
+{
+    int used = snprintf(out, (size_t)size, "{\"layout\":\"%s\",\"lines\":[",
+        pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0]);
+    int line = -1;
+    for (int i = 0; i < report_count && used < size - 256; i++) {
+        const report_glyph* e = &report[i];
+        float k = e->k;
+        if (e->line != line) {
+            used += snprintf(out + used, (size_t)(size - used),
+                "%s{\"style\":\"%s\",\"top\":%.3f,\"k\":%.4f,\"base\":%.3f,\"glyphs\":[", line >= 0 ? "]}," : "",
+                pc_ui_text_styles[e->image.style].name, e->top, k, e->top + e->image.base * k);
+            line = e->line;
+        } else
+            out[used++] = ',';
+        /* The laid-out ink, per half image row (sampled at 8 per texel across). */
+        const glyph_field* f = field(e->image.style, e->image.drawn);
+        used += snprintf(out + used, (size_t)(size - used),
+            "{\"c\":%u,\"seg\":%d,\"x\":%.3f,\"advance\":%d,\"ink\":[%.3f,%.3f,%.3f,%.3f],\"pen\":%.3f,"
+            "\"left\":%.3f,\"rows\":[",
+            e->codepoint, e->segment, e->x, e->advance, e->ink[0], e->ink[1], e->ink[2], e->ink[3], e->pen, e->quad_x);
+        int first = 1;
+        for (int row = 0; f && row < e->image.h * 2 && used < size - 128; row++) {
+            float lo = 1e9f, hi = -1e9f;
+            for (int x = 0; x < e->image.w * 8; x++)
+                if (image_distance(&e->image, f, (x + 0.5f) / 8, (row + 0.5f) / 2) > 0) {
+                    lo = fminf(lo, (float)x), hi = fmaxf(hi, (float)x + 1);
+                }
+            if (hi > lo) {
+                used += snprintf(out + used, (size_t)(size - used), "%s[%.3f,%.3f,%.3f]", first ? "" : ",",
+                    e->top + (row + 0.5f) / 2 * k, e->quad_x + lo / 8 * k, e->quad_x + hi / 8 * k);
+                first = 0;
+            }
+        }
+        used += snprintf(out + used, (size_t)(size - used), "]}");
+    }
+    if (used < size - 8)
+        used += snprintf(out + used, (size_t)(size - used), "%s]}", line >= 0 ? "]}" : "");
+    return used < size ? used : size - 1;
+}
+
 void pc_ui_text_warm(double budget_ms)
 {
     static unsigned generation;
@@ -887,6 +1353,14 @@ int pc_ui_text_setting(const char* key, const char* value)
                 pc_ui_text = k;
         return 1;
     }
+    if (!strcmp(key, "ui_text_layout")) { /* line | glyph (or 1 / 0) */
+        char name[32] = "";
+        sscanf(value, "%31s", name);
+        for (int k = 0; k < 2; k++)
+            if (!strcmp(name, pc_ui_text_layout_names[k]) || (name[0] == '0' + k && !name[1]))
+                pc_ui_text_layout = k;
+        return 1;
+    }
     if (strncmp(key, "ui_text_", 8))
         return 0;
     for (int i = 0; i < PC_UI_TEXT_STYLES; i++) {
@@ -920,6 +1394,7 @@ int pc_ui_text_setting(const char* key, const char* value)
 void pc_ui_text_settings_write(FILE* f)
 {
     fprintf(f, "ui_text %s\n", pc_ui_text_names[pc_ui_text ? 1 : 0]);
+    fprintf(f, "ui_text_layout %s\n", pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0]);
     /* Only what differs from the built-in choice. */
     for (int i = 0; i < PC_UI_TEXT_STYLES; i++) {
         const pc_ui_text_style *st = &pc_ui_text_styles[i], *d = &defaults[i];
@@ -940,9 +1415,10 @@ void pc_ui_text_get_stats(pc_ui_text_stats* s) { *s = stats; }
 
 int pc_ui_text_json(char* out, int size)
 {
-    int used = snprintf(out, (size_t)size, "{\"ui_text\":\"%s\",\"regions\":%ld,\"labels\":%ld,\"failed\":%ld,"
-                                           "\"fonts\":%d,\"glyphs\":%d,\"field_ms\":%.1f,\"styles\":[",
-        pc_ui_text_names[pc_ui_text ? 1 : 0], stats.regions, stats.labels, stats.failed, stats.fonts, stats.glyphs,
+    int used = snprintf(out, (size_t)size, "{\"ui_text\":\"%s\",\"layout\":\"%s\",\"regions\":%ld,\"labels\":%ld,"
+                                           "\"failed\":%ld,\"fonts\":%d,\"glyphs\":%d,\"field_ms\":%.1f,\"styles\":[",
+        pc_ui_text_names[pc_ui_text ? 1 : 0], pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0], stats.regions,
+        stats.labels, stats.failed, stats.fonts, stats.glyphs,
         stats.field_ms);
     for (int i = 0; i < PC_UI_TEXT_STYLES && used < size; i++) {
         const pc_ui_text_style* st = &pc_ui_text_styles[i];

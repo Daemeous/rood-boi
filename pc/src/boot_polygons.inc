@@ -312,8 +312,28 @@ static unsigned polygon_command(const uint32_t* p, unsigned available)
     }
     pc_hw_set_room(room);
     pc_hw_set_packet(p);
+    /* ui_text_layout line: a scaled glyph cell (a zooming talk bubble's
+     * text) is laid out with its line (gpu_hw.c); its triangles below are
+     * then the original, drawn while the layout is off. */
+    int text_piece = 0;
+    if (!projected && textured && count == 4 && pc_hw_text_quad) {
+        float fxy[8];
+        int fuv[8];
+        if (!(pc_ui_precise_find && pc_ui_precise_find(p, packet_xy, count, fxy)))
+            for (int i = 0; i < 4; ++i)
+                fxy[i * 2] = (float)vertex[i].x - draw_x, fxy[i * 2 + 1] = (float)vertex[i].y - draw_y;
+        for (int i = 0; i < 4; ++i) {
+            fxy[i * 2] += draw_x, fxy[i * 2 + 1] += draw_y;
+            fuv[i * 2] = vertex[i].u, fuv[i * 2 + 1] = vertex[i].v;
+        }
+        int clip[4] = { clip_x, clip_y, clip_w, clip_h };
+        text_piece = pc_hw_text_quad(fxy, fuv, vertex[0].color, code, tpage, clut, texture_window, clip, mask_set,
+            mask_check);
+    }
     triangle(vertex[0], vertex[1], vertex[2], code, clut);
     if (count == 4)
         triangle(vertex[1], vertex[2], vertex[3], code, clut);
+    if (text_piece)
+        pc_hw_text_piece_done();
     return words;
 }

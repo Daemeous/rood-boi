@@ -18,7 +18,17 @@ ui_text font, so nothing moves between the two images. Checks:
   drawn from a font (none fell back), and each text block's ink keeps the
   original's extent within two PS1 pixels (the layout is the game's);
 - original after font: the frame drawn with ui_text original again equals
-  the first original drawing;
+  the first original drawing (those checks with ui_text_layout glyph);
+- line layout (ui_text_layout line, the default; the bubble, the next
+  bubble with a comma and a period, the menu rows and information box): one
+  recorded frame drawn original, glyph by glyph and as lines (RPC ui_text
+  lines reports each laid-out glyph's ink row by row): only the lines
+  change, neighbours' ink never comes within a quarter pixel on any row, the
+  nearest approach between letters of a word deviates at most
+  SPACING_SPREAD, each line starts where the game's does (0.75 px) and never
+  runs past its end (1.5 px), descenders reach below the baseline drawn whole
+  and deeper than in the cells; a bubble typing out shows each glyph, frame
+  by frame, at the place it keeps (reveal order);
 - fixed labels (text baked into images): with ui_text font the HUD's HP and
   MP, the menu's header and the information box's INFORMATION are drawn
   from the font (RPC ui_text labels_drawn), never while it is original;
@@ -42,6 +52,7 @@ ui_text font, so nothing moves between the two images. Checks:
 
 --shots keeps side-by-side images (game imagery: keep it out of git)."""
 import argparse
+import json
 import os
 import pathlib
 import shutil
@@ -92,8 +103,9 @@ def ink(image, polarity):
 
 
 def compare(game, work, name, shots, label, polarity):
-    """Original and font drawings of the same frame."""
-    game.call("graphics", ui_text="font")
+    """Original and font drawings of the same frame (glyph by glyph in the
+    original cells: ui_text_layout glyph; compare_lines checks line layout)."""
+    game.call("graphics", ui_text="font", ui_text_layout="glyph")
     game.call("ui_upscale", mask=str(work / "mask.pgm"))  # clear
     game.run(6)  # frames drawn with the font (the mask accumulates)
     game.call("ui_upscale", mask=str(work / "mask.pgm"))
@@ -145,6 +157,177 @@ def compare(game, work, name, shots, label, polarity):
         if image.width > 1600:
             image = image.resize((1600, image.height * 1600 // image.width), Image.LANCZOS)
         image.save(shots / f"{label}-{name}.jpg", quality=82)
+
+
+def lines_report(game, work):
+    """RPC ui_text lines: the lines laid out in the newest frame that drew
+    text (per glyph: the original's place, advance and ink; the laid-out pen
+    and ink per half row, [y, x0, x1], screen PS1 pixels)."""
+    path = work / "lines.json"
+    game.call("ui_text", lines=str(path))
+    report = json.loads(path.read_text())
+    path.unlink()
+    return report["lines"]
+
+
+def drawn_ink(g):
+    """A laid-out glyph's ink extent from its rows: x0, x1, deepest y."""
+    rows = g["rows"]
+    return min(r[1] for r in rows), max(r[2] for r in rows), max(r[0] for r in rows) + 0.25
+
+
+def segments(lines):
+    """Each run of glyphs set together (a line or a column of it), by x."""
+    out = {}
+    for line in lines:
+        for g in line["glyphs"]:
+            if g["rows"]:
+                out.setdefault(g["seg"], (line, []))[1].append(g)
+    return [(line, sorted(gs, key=lambda g: g["x"])) for line, gs in out.values()]
+
+
+DESCENDERS = set(map(ord, "gjpqy"))
+SPACING_SPREAD = 0.75  # PS1 pixels: the standard deviation of the gaps between letters of a word
+
+
+def compare_lines(game, work, name, shots, label, polarity):
+    """ui_text_layout line on one recorded frame, drawn original, glyph by
+    glyph and as lines (the frame holds both kinds of quads): what the lines
+    change stays on the lines, letters never touch, spacing is even,
+    descenders reach below the baseline undistorted, every line starts where
+    the game's does and never runs past its end."""
+    game.call("graphics", ui_text="font", ui_text_layout="line")
+    game.run(6)
+    lines = [line for line in lines_report(game, work) if line["style"] in ("dialogue", "menu")]
+    if not check(bool(lines), f"{label} {name}: lines laid out ({len(lines)})"):
+        return
+
+    def draw(text, layout, suffix):
+        game.call("graphics", ui_text=text, ui_text_layout=layout)
+        path = work / f"{name}-{suffix}.ppm"
+        info = game.call("ui_upscale", redraw=str(path))
+        image = np.asarray(Image.open(path))
+        path.unlink()
+        return image, info
+
+    original, info = draw("original", "line", "original")
+    glyph, _ = draw("font", "glyph", "glyph")
+    line, _ = draw("font", "line", "line")
+    again, _ = draw("original", "line", "again")
+    game.call("graphics", ui_text="font", ui_text_layout="line")
+    scale = original.shape[1] // 1024
+    x, y, w, h = info["area"]
+    x0, y0, x1, y1 = max(x, 0), max(y, 0), min(x + w, 1024), min(y + h, 512)
+
+    def crop(image):
+        return image[y0 * scale:y1 * scale, x0 * scale:x1 * scale]
+
+    a, b, c, d = crop(original), crop(glyph), crop(line), crop(again)
+    check(np.array_equal(a, d), f"{label} {name}: original after line layout draws the same picture")
+    moved = int(np.any(b != c, axis=2).sum())
+    check(moved > 0, f"{label} {name}: line layout changes the glyph-by-glyph picture ({moved} pixels)")
+    # What changes is on the lines: each glyph's original cell and its laid-out ink (a pixel around).
+    allowed = np.zeros((y1 - y0, x1 - x0), bool)
+    for ln in lines:
+        k = ln["k"]
+        for g in ln["glyphs"]:
+            boxes = [(g["x"], ln["top"], g["x"] + 12 * k, ln["top"] + 12 * k)]
+            if g["rows"]:
+                gx0, gx1, deep = drawn_ink(g)
+                boxes.append((gx0, min(r[0] for r in g["rows"]), gx1, deep))
+            for bx0, by0, bx1, by1 in boxes:
+                allowed[max(int(np.floor(by0)) - 1 - y0, 0):max(int(np.ceil(by1)) + 1 - y0, 0),
+                        max(int(np.floor(bx0)) - 1 - x0, 0):max(int(np.ceil(bx1)) + 1 - x0, 0)] = True
+    big = np.repeat(np.repeat(allowed, scale, axis=0), scale, axis=1)
+    outside = int((np.any(b != c, axis=2) & ~big).sum())
+    check(outside == 0, f"{label} {name}: nothing but the lines changes from glyph by glyph ({outside} pixels)")
+    # Neighbours' ink never meets (row by row: slanted letters may share columns), and the gaps
+    # between the letters of a word are even.
+    overlaps, gaps, starts, ends = [], [], [], []
+    for ln, gs in segments(lines):
+        k = ln["k"]
+        for p, q in zip(gs, gs[1:]):
+            left = {round(r[0] * 4): r[2] for r in p["rows"]}
+            shared = [r[1] - left[round(r[0] * 4)] for r in q["rows"] if round(r[0] * 4) in left]
+            if shared:
+                overlaps.append(min(shared) / k)
+            spaced = (q["x"] - p["x"]) / k - p["advance"] >= 2.5
+            if not spaced and shared:  # the nearest approach of a letter to the next
+                gaps.append(min(shared) / k)
+        starts.append(abs(drawn_ink(gs[0])[0] - gs[0]["ink"][0]) / k)
+        ends.append((drawn_ink(gs[-1])[1] - gs[-1]["ink"][2]) / k)
+    check(not overlaps or min(overlaps) >= 0.25,
+          f"{label} {name}: letters never touch ({len(overlaps)} neighbours, narrowest gap "
+          f"{min(overlaps, default=0):.2f} PS1 pixels)")
+    if len(gaps) >= 4:
+        spread = float(np.std(gaps))
+        check(spread <= SPACING_SPREAD,
+              f"{label} {name}: even spacing between letters (nearest approach {np.mean(gaps):.2f} PS1 pixels, "
+              f"deviation {spread:.2f}, at most {SPACING_SPREAD})")
+    check(max(starts) <= 0.75 and max(ends) <= 1.5,
+          f"{label} {name}: {len(starts)} lines start where the game's do (within {max(starts):.2f} PS1 pixels) "
+          f"and never run past their ends (at most {max(ends):.2f} past; at most {-min(ends):.1f} shorter)")
+    # Descenders below the baseline, drawn whole.
+    ia, ib, ic = ink(a, polarity), ink(b, polarity), ink(c, polarity)
+    found = deeper = whole = 0
+    for ln in lines:
+        k = ln["k"]
+        for g in ln["glyphs"]:
+            if g["c"] not in DESCENDERS or not g["rows"] or ln["style"] != "menu":
+                continue
+            gx0, gx1, deep = drawn_ink(g)
+            found += 1
+            if deep < ln["base"] + 1.0 * k:
+                continue
+            cols = slice(int((gx0 - x0) * scale), int(np.ceil((gx1 - x0) * scale)))
+            rows = slice(int((ln["base"] - y0) * scale), int(np.ceil((deep + 1 - y0) * scale)))
+            below_line, below_glyph = np.where(ic[rows, cols])[0], np.where(ib[rows, cols])[0]
+            if len(below_line) and below_line.max() / scale >= deep - ln["base"] - 1.0:
+                whole += 1
+            if len(below_line) and (not len(below_glyph) or below_line.max() > below_glyph.max()):
+                deeper += 1
+    if found:
+        check(whole == found and deeper == found,
+              f"{label} {name}: {found} descenders reach below the baseline, drawn whole ({whole}) and deeper than "
+              f"in the cells ({deeper})")
+    if shots:
+        side = np.concatenate([a, np.full((a.shape[0], 8, 3), 255, np.uint8), b,
+                               np.full((a.shape[0], 8, 3), 255, np.uint8), c], axis=1)
+        image = Image.fromarray(side)
+        if image.width > 2400:
+            image = image.resize((2400, image.height * 2400 // image.width), Image.LANCZOS)
+        image.save(shots / f"{label}-{name}-lines.jpg", quality=85)
+
+
+def check_reveal(game, work, frames=90):
+    """A talk bubble typing out (line layout): every frame's glyphs of a line
+    are the first ones of the finished line, each at the place it keeps."""
+    game.call("graphics", ui_text="font", ui_text_layout="line")
+    history = []
+    for _ in range(frames):
+        game.run(1)
+        frame = {}
+        for line in lines_report(game, work):
+            if line["style"] != "dialogue" or not line["glyphs"]:
+                continue
+            base = line["glyphs"][0]["x"]  # (the game draws into two buffers: places relative to the line)
+            frame[(round(line["top"], 2), round(base % 320, 2))] = [
+                (round(g["x"] - base, 3), round(g["pen"] - base, 3), g["c"]) for g in line["glyphs"]]
+        history.append(frame)
+    final = history[-1]
+    counts = sorted({len(glyphs) for frame in history for key, glyphs in frame.items() if key in final})
+    def same(glyphs, kept):  # (to float rounding: the two buffers are 320 pixels apart)
+        return len(glyphs) <= len(kept) and all(
+            c == d and abs(x - u) < 0.01 and abs(p - q) < 0.01 for (x, p, c), (u, q, d) in zip(glyphs, kept))
+
+    moved = [(n, key, glyphs, final[key][:len(glyphs)]) for n, frame in enumerate(history)
+             for key, glyphs in frame.items() if key in final and not same(glyphs, final[key])]
+    stable = not moved
+    if moved:
+        print("moved:", moved[0])
+    text = " / ".join("".join(chr(c) for _, _, c in glyphs) for glyphs in final.values())
+    check(len(counts) >= 4 and stable,
+          f"reveal: a bubble types out ({len(counts)} lengths seen, '{text}'), each glyph appearing where it stays")
 
 
 UI_PAGE = 12  # the field UI page (768, 0), 4-bit
@@ -291,6 +474,7 @@ def run_bubble(work, shots):
     try:
         g = game.call("graphics")
         check(g.get("ui_text") == "original", f"bubble: default ui_text original ({g.get('ui_text')})")
+        check(g.get("ui_text_layout") == "line", f"bubble: default ui_text_layout line ({g.get('ui_text_layout')})")
         game.call("graphics", interpolate=False, aa="off")  # SMAA would blend beyond the glyph boxes
         game.wait_title()
         game.run(90)
@@ -303,6 +487,10 @@ def run_bubble(work, shots):
               f"bubble: while ui_text is original nothing uses the 2D atlas ({s['lookups']} lookups, "
               f"{t['regions']} font regions)")
         compare(game, work, "bubble", shots, "dialogue", "dark")
+        compare_lines(game, work, "bubble", shots, "dialogue", "dark")
+        game.press("circle", vsyncs=3, settle=0)  # the next line ("Not yet, sir.") types out
+        check_reveal(game, work)
+        compare_lines(game, work, "bubble2", shots, "dialogue", "dark")
         styles = {st["name"]: st for st in game.call("ui_text")["styles"]}
         check(styles["dialogue"]["loaded"] is True, "bubble: the dialogue font is loaded")
     finally:
@@ -338,6 +526,7 @@ def run_save(work, card, shots):
             game.press("circle", vsyncs=3, settle=60)
             game.press("circle", vsyncs=3, settle=60)  # Battle Abilities > Chain Abilities (information box)
             compare(game, work, "menu", shots, "menu", "bright")
+            compare_lines(game, work, "menu", shots, "menu", "bright")
             drawn = game.call("ui_text")["labels_drawn"]
             check("MENU" in drawn and "INFORMATION" in drawn, f"save: menu labels drawn from the font ({drawn})")
             styles = {st["name"]: st for st in game.call("ui_text")["styles"]}
@@ -356,6 +545,13 @@ def run_save(work, card, shots):
         game.call("graphics", ui_text="original")
         game.call("settings", action="load")
         check(game.call("graphics")["ui_text"] == "font", "save: ui_text loads back")
+        game.call("graphics", ui_text_layout="glyph")
+        game.call("settings", action="save")
+        check("ui_text_layout glyph" in settings.read_text(), "save: ui_text_layout saved")
+        game.call("graphics", ui_text_layout="line")
+        game.call("settings", action="load")
+        check(game.call("graphics")["ui_text_layout"] == "glyph", "save: ui_text_layout loads back")
+        game.call("graphics", ui_text_layout="line")
         game.call("graphics", ui_text="original")
         game.run(4)
     finally:

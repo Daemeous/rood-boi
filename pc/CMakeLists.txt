@@ -71,6 +71,19 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_include_directories(controller_probe PRIVATE src third_party/SDL3/include)
     target_compile_options(controller_probe PRIVATE -Wall -Wextra -Werror)
     add_test(NAME controller_probe COMMAND controller_probe)
+    # Modern menus, System tab: the settings pages (pc/src/ui/ui_settings.cpp)
+    # against stubs; once with the game options bridge, once without it and
+    # with the later features' hooks.
+    foreach(variant IN ITEMS ui_settings_probe ui_settings_probe_hooks)
+        add_executable(${variant} tests/ui_settings_probe.cpp tests/ui_settings_stubs.cpp src/ui/ui_settings.cpp
+            src/antialias.c src/camera_stick.c src/boot_controller.c)
+        target_include_directories(${variant} PRIVATE src tests third_party/SDL3/include)
+        target_compile_features(${variant} PRIVATE cxx_std_17)
+        target_compile_options(${variant} PRIVATE -Wall -Wextra -Werror)
+        target_link_libraries(${variant} PRIVATE m)
+        add_test(NAME ${variant} COMMAND ${variant})
+    endforeach()
+    target_compile_definitions(ui_settings_probe_hooks PRIVATE UI_SETTINGS_PROBE_HOOKS)
 endif()
 
 # The right-stick camera's logic (camera_stick.c) against a fake game camera.

@@ -19,6 +19,11 @@ unsigned pc_controller_mask(const PcControllerState*);
 #define PC_BIND_KEYS 2              /* keys per PS1 button */
 #define PC_PAD_AXIS(axis) (100 + (axis)) /* a gamepad element that is an axis (the triggers) */
 #define PC_PAD_NONE (-1)
+/* A trigger bound to a PS1 button presses it past PC_TRIGGER_PRESSED (of
+ * 32767); a binding capture takes a trigger past half way and gives it back
+ * to the game once it is at or below PC_TRIGGER_PRESSED again (boot_window.c). */
+#define PC_TRIGGER_PRESSED 8000
+#define PC_TRIGGER_CAPTURE 16384
 extern const char* const pc_pad_button_names[PC_PAD_BUTTONS];
 extern SDL_Keycode pc_bind_keys[PC_PAD_BUTTONS][PC_BIND_KEYS]; /* 0: none */
 extern int pc_bind_pad[PC_PAD_BUTTONS]; /* SDL_GamepadButton, PC_PAD_AXIS(trigger) or PC_PAD_NONE */

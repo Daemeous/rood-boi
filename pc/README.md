@@ -643,6 +643,7 @@ pixel's corner as the PS1 does, not one past the image (`pc_hw_set_flipped_uv`).
 | `ui_upscale` | `nearest` | `nearest`: the PS1's blocks (original). `mmpx`: MMPX (McGuire & Gagiu 2021), the style-preserving pixel-art magnifier: curves, diagonals and corners reconstructed, palette, transparency and one-pixel details kept exactly |
 | `ui_subpixel` | 0 | text glyphs drawn where the game places them in 16.16 fixed point instead of whole pixels (even spacing while talk bubbles zoom open and shut) |
 | `ui_text` | `original` | `original`: the PS1's glyphs. `font`: the game's text drawn from open-licensed fonts (below) at the internal resolution (2x and up) |
+| `ui_text_layout` | `line` | with `ui_text font`: `line` sets each line of dialogue and menu text (talk bubbles, menus, the information box) with the font's own spacing and kerning (below); `glyph`: each glyph inside the original's 12-pixel cell at the game's advance, for comparison |
 | `ui_text_<style>_font`, `_stretch`, `_slant`, `_embolden`, `_aspect` | the chosen fonts | per style (`dialogue`, `menu`, `info`, `digits`): a TrueType file (relative to the repository root), horizontal scale, added shear, distance-field offset in em (bolder > 0), and for `digits` the least share of the font's own width/height a digit size may be condensed to (0.78; 0: any); saved only when changed |
 | `ui_lines` | `joined` | 2D lines (GP0 0x40-0x5F: the map, the minimap, the targeting sphere, talk bubble outlines) at the internal resolution. `joined`: one PS1 pixel thick at any scale, joins closed, no light dots along outlines (below). `legacy`: the earlier one-pixel quads, for comparison |
 | `ui_outline_boost` | 0 | 2D lines (and vector bubble outlines) 0-3 output pixels thicker: a bolder inked look |
@@ -705,6 +706,36 @@ of index 1 for the outlined styles), so palettes and the colour key are the
 game's. Characters a font lacks and the pictographs (button symbols,
 arrows, notes, stars) stay original. While a bubble zooms, its
 glyphs are sampled nearest from the atlas like MMPX's.
+
+**Lines (`ui_text_layout line`, the default).** The game sets its text a
+glyph at a time in 12 x 12 cells at its own advances (about 6 pixels a
+letter in menus and the information box, proportional in talk bubbles). A
+font's letters in those slots space unevenly (an i floats in a wide slot,
+wide letters collide, a period lands on the letter before it) and descenders
+must be squeezed into the cell. So dialogue and menu text is set again a line
+at a time (`pc/src/ui_text.c`, "string-level layout"): the glyph sprites the
+game draws one after another (a text box's glyphs, a menu row's 12 one-pixel
+strips per glyph, a zooming bubble's scaled glyph quads) are held back by the
+hardware path until something else is drawn, grouped into lines (one style,
+one cell top, one drawing area; a gap of more than three spaces or an overlap
+starts a new segment: columns, separately placed strings) and each segment is
+set from where the game's first letter's ink starts with the font's advances
+and kerning, its spaces (each 6-pixel space the game left) the font's space
+widened by half. A letter never runs past the game's own letter by more than
+a pixel (tightened where the font is wider), and on every row its ink stays
+half a pixel from its neighbour's (that wins). Each glyph is drawn whole, its
+descenders below the cell, in the original sprite's colour, brightness and
+blending (a strip-drawn menu glyph row by row with each strip's brightness, the
+rows below the cell with the last strip's). A letter's place depends only on
+the letters before it, so text the game types out never moves: each letter
+appears where it stays, when the game draws it. Line breaks, colours,
+timing and the menu cursor are the game's; lines start where the game's do
+and end where the font's spacing takes them (usually a little shorter). The
+original glyph sprites and the laid-out quads are both recorded for each
+frame, so a redraw of the same frame can show either (RPC `ui_upscale
+redraw` after `graphics {ui_text_layout}`). RPC `ui_text {lines: PATH}` writes
+the lines laid out in the newest frame (each glyph's original place, advance
+and ink, its laid-out pen and ink row by row) for tests.
 
 **Labels.** Words the game draws as pictures rather than glyphs are known
 by place (`pc/src/ui_labels.h`: the texture page, the word's box in it and
@@ -923,7 +954,14 @@ its lighting layers (next section); Save area writes your user layer
 post effects, path tracer quality, shared lighting, `lighting_packs`) are
 saved from the editor (File > Save settings, Ctrl+Shift+S) to the file named
 by `ROOD_SETTINGS` (`pc/run-game.sh` uses `pc/user/settings.cfg`; tests leave
-it unset) and loaded at startup. Both kinds of file are data: edits made
+it unset) and loaded at startup; a save writes `<file>.tmp` and puts it in
+place, so the file is never half-written. Environment variables that
+override a saved key for one run (`ROOD_WIDESCREEN`, `ROOD_PERSPECTIVE`,
+`ROOD_SCALE`, `ROOD_AA`, `ROOD_LIGHTING_PRESET`, `ROOD_GI=0`,
+`ROOD_PRESENT_RATE`, `ROOD_NATIVE_*`, `ROOD_RECONSTRUCT`) are not saved as
+yours: a save keeps that key as the file had it, unless you changed the
+setting since (`ROOD_GI=0`'s keys: unless changed in the System tab). Both
+kinds of file are data: edits made
 outside the game (by hand, by a script, by `git pull`) take effect live
 within half a second. `pc/user` is user content and git-ignored. The RPC
 `graphics` method sets the renderer options and `gpu_dump` writes the scaled
@@ -1261,11 +1299,11 @@ thread once per vsync, so each method runs at a frame boundary:
 | `present_dump` | `path`, `count` | the next presented window image (as seen, after scaling and post-processing) as a PPM; with `count`, that many consecutive images to `<path>.0000.ppm`, ... (written a few presents later on the game thread). While a burst is armed, a paused game does not redraw, so a burst holds stepped presents only |
 | `gpu_dump` | `path` | the whole scaled hardware VRAM target as a PPM |
 | `gpu_draw` | `packet` (GP0 words, hex), `texture` (hex texels) with `texture_x/y/w/h`, `area_x/y/w/h`, `offset_x/y` | tests: load texels, set the drawing area, draw the commands on both rasterizers (`flipped_sprite_smoke.py`) |
-| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_trace` N), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `ui_lines` (`joined`/`legacy`), `ui_outline_boost`, `ui_bubbles` (`original`/`vector`), `ui_bubble_outline`, `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample` | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
+| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_trace` N), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `ui_text_layout` (`line`/`glyph`), `ui_lines` (`joined`/`legacy`), `ui_outline_boost`, `ui_bubbles` (`original`/`vector`), `ui_bubble_outline`, `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample` | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
 | `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
 | `button_prompts` | `button_prompts` (mode), `device` (`playstation`/`xbox`/`nintendo`/`keyboard`, as a device used last would set it) with `variant` (3/4/5 PlayStation, 360 Xbox), `bind` (`{"bind_key_circle": "c", "bind_pad_circle": "south"}`), `icon` (a button name) with `size`, `clear_shown`, `style`, `scale`, `dpad` (`cross`/`dim`/`lit`), `cross_actions` (0-15: the shortcut cross's usable arms, bits up, left, right, down, whatever the game reports; -1 the game's), `mask` | the mode, the family drawn, the device, `generation`, the glyph each PS1 button shows, the bindings, `shown` (the icon each prompt on screen was drawn with since `clear_shown`, `text` and `sprite`, the shortcut cross's `dpad` and its lit `dpad_arms`), `style`, `scale`, `dpad_mode`, `cross_actions`, regions drawn from icons (`regions`) and fallen back (`failed`); `icon` adds the native menus' image (`pc_prompt_glyph`: size, uv) |
 | `ui_bubbles` | `path` (N) | vector talk bubbles: frames reported, verified, fallen back (`mismatched`), drawn; line segments the hardware path drew (`lines_drawn`); native pixels per output pixel; the recent bubbles (shape, flip, tail, outline bounds drawn and the game's whole-pixel points, thickness); `path`: bubble N's outline points |
-| `ui_text` | `ui_text` (`original`/`font`), `style` with `font`, `stretch`, `slant`, `embolden`, `aspect`; `render` ([tpage, clut, u0, v0, u1, v1]) with `factor`, `path` | the text fonts: option, each style (font, placement, `loaded`), fonts loaded, glyph fields made, glyph regions drawn from fonts (`regions`, of them `labels`) and fallen back (`failed`), the labels drawn (`labels_drawn`); a `style` with values changes it as the `ui_text_<style>_*` settings do; `render` draws that region from the font into `path` (little-endian PS1 colours) and adds its size |
+| `ui_text` | `ui_text` (`original`/`font`), `layout` (`line`/`glyph`), `lines` (path: the newest frame's laid-out lines as JSON), `style` with `font`, `stretch`, `slant`, `embolden`, `aspect`; `render` ([tpage, clut, u0, v0, u1, v1]) with `factor`, `path` | the text fonts: option, each style (font, placement, `loaded`), fonts loaded, glyph fields made, glyph regions drawn from fonts (`regions`, of them `labels`) and fallen back (`failed`), the labels drawn (`labels_drawn`); a `style` with values changes it as the `ui_text_<style>_*` settings do; `render` draws that region from the font into `path` (little-endian PS1 colours) and adds its size |
 | `redraw` | | the newest frame drawn again as recorded with the current options (MSAA, ...) and presented until the game draws another: pause first, then compare options on one frame (`aa_smoke.py`) |
 | `settings` | `action` (`save`, `load`) | the `ROOD_SETTINGS` file (a loaded preset applies at once) |
 | `perf` | `reset` | GPU time per presented frame since the last reset (`ROOD_PERF=1`; Vulkan timestamps, GL timer queries; Vulkan adds `sections`: ms per frame of `draw`, `present`, `aa`, `downsample`, the GI passes); GL adds `presents`, `gpu_wait_ms` (CPU waits for frames in flight), `gi_traced`/`gi_reused`, `gi_gpu_ms`, `gi_budget_ms`, `gi_interval` (path tracer cadence) |

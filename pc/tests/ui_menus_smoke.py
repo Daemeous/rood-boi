@@ -10,7 +10,8 @@ From a copy of the card (skipped without one), in the save room:
   - Square on Ashley opens the original Status (MENU4); Cross returns to
     the shell on the same tab; Triangle closes the menu (currentMenu 0x3F) and
     the field runs again
-  - System > Menus switches ui_menus off from inside the shell, from the next
+  - System > Options (original) opens the game's Options screen; Cross returns
+  - System > Interface > Menus switches ui_menus off from inside the shell, from the next
     open: Status and back keeps the shell for the rest of this menu session;
     the next Triangle opens the game's own menu
   - the shell takes only the top level: an L2 shortcut (L2 + Up, misc items:
@@ -118,14 +119,36 @@ def main():
         check(current_menu() == 0 and s["visible"] and s["tab"] == "ashley",
               f"Cross returns to the shell on Ashley ({current_menu():#x}, {s})")
 
-        # System > Menus switches ui_menus off from inside the shell
+        # System > Interface > Menus switches ui_menus off from inside the shell
         game.press("l1", vsyncs=3, settle=10)
         check(shell()["tab"] == "system", "L1 wraps to System")
+        # the game's own screens stay in the list: Options (original) opens MENU8 (command 7)
         for _ in range(4):
+            if shell()["row"] == "options":
+                break
             game.press("down", vsyncs=3, settle=6)
-        check(shell()["row"] == "menus", "the Menus row")
+        game.press("circle", vsyncs=3, settle=120)
+        check(current_menu() == (8 | 0x40) and not shell()["visible"],
+              f"System > Options (original) opens the game's Options ({current_menu():#x})")
+        shot("options_original")
+        game.press("cross", vsyncs=3, settle=120)
+        s = shell()
+        check(current_menu() == 0 and s["visible"] and s["tab"] == "system" and s["row"] == "options",
+              f"Cross returns to the System list on Options ({current_menu():#x}, {s['tab']}, {s['row']})")
+        for _ in range(12):
+            if shell()["row"] == "interface":
+                break
+            game.press("down", vsyncs=3, settle=6)
+        check(shell()["row"] == "interface", "the Interface page in the System list")
         game.press("circle", vsyncs=3, settle=10)
-        check(shell()["menus"] == "original", "Circle on Menus: original from the next open")
+        s = shell()
+        check(s["system"]["mode"] == "page" and s["system"]["row"] == "ui_menus",
+              f"Circle enters Interface on its Menus row ({s['system']['mode']}, {s['system']['row']})")
+        game.press("right", vsyncs=3, settle=10)
+        check(shell()["menus"] == "original", "Right on Menus: original from the next open")
+        game.press("cross", vsyncs=3, settle=10)
+        s = shell()
+        check(s["visible"] and s["system"]["mode"] == "list", "Cross: back to the System list, the shell stays")
         # the rest of this session keeps the shell: R1 wraps to Ashley, Status, back
         game.press("r1", vsyncs=3, settle=10)
         game.press("square", vsyncs=3, settle=120)

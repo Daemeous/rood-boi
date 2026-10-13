@@ -12,6 +12,7 @@
 #include "boot_controller.h"
 #include "camera_stick.h"
 #include "button_prompts.h"
+#include "ui/ui_settings.h" /* binding capture: PC_UI_CAPTURE_* */
 #ifdef ROOD_VULKAN
 #include "vk_hooks.h" /* ROOD_RENDERER=vulkan: vk_present.c */
 #endif
@@ -30,7 +31,11 @@ extern SDL_Window* pc_gl_create_window(const char*, int, int);
 extern void pc_gl_resize(int, int);
 extern void pc_gl_present(const uint16_t*, int, int, int, int);
 extern int pc_overlay_event(const SDL_Event*);
+extern void pc_ui_settings_flush(void) __attribute__((weak)); /* ui_settings.cpp */
 int pc_window_enabled;
+static void window_mode_apply(void); /* window_mode, below */
+static int capture_filter(const SDL_Event* event); /* binding capture, below */
+static void capture_tick(void);
 #ifdef ROOD_VULKAN
 #define PC_VK_ACTIVE pc_vk_on()
 #else
@@ -139,6 +144,7 @@ void pc_window_init(int enabled, int run_fast)
     int version = SDL_GetVersion();
     fprintf(stderr, "[window] SDL %d.%d.%d, %s video\n", SDL_VERSIONNUM_MAJOR(version),
         SDL_VERSIONNUM_MINOR(version), SDL_VERSIONNUM_MICRO(version), SDL_GetCurrentVideoDriver());
+    window_mode_apply(); /* a saved window_mode (settings, loaded while the presenter started) */
 }
 /* The PS1 buttons a key presses (the bindings, boot_controller.c; defaults
  * in README "Controls"). */
@@ -172,7 +178,8 @@ unsigned pc_window_buttons(void)
 {
     /* Developer RPC input (dev_rpc.c) applies even while unfocused. */
     unsigned keys = buttons | (pc_camera_stick_keys && (camera_keys & 16) ? 1u << 10 : 0);
-    unsigned result = pc_input_buttons(focused ? keys | pc_controller_buttons() : 0, pc_rpc_buttons());
+    unsigned pad = capture_filter(NULL) ? 0 : pc_controller_buttons(); /* a binding capture takes the pad */
+    unsigned result = pc_input_buttons(focused ? keys | pad : 0, pc_rpc_buttons());
     /* R3 resets the right-stick camera instead (camera_stick.c). */
     return pc_camera_stick_buttons(result);
 }
@@ -196,12 +203,18 @@ void pc_window_tick(void)
         return;
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+        /* A binding capture (System > Bindings) takes keys and pad buttons first. */
+        if (capture_filter(&event))
+            continue;
         /* The developer overlay (F1) takes the events it uses. */
         if ((pc_gl_active || PC_VK_ACTIVE) && pc_overlay_event(&event))
             continue;
         switch (event.type) {
         case SDL_EVENT_QUIT:
         case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+            /* A settings change still waiting for its debounced save (System) is saved first. */
+            if (pc_ui_settings_flush)
+                pc_ui_settings_flush();
             exit(0);
         case SDL_EVENT_WINDOW_FOCUS_LOST:
             buttons = camera_keys = 0;
@@ -240,6 +253,7 @@ void pc_window_tick(void)
         }
     }
     pc_controller_poll();
+    capture_tick();
     if (fast_forward_held())
         deadline.tv_sec = 0; /* pace again from now when it is released */
     else if (!fast) {
@@ -323,4 +337,229 @@ void pc_window_frame(const uint16_t* vram, int x, int y, int w, int h)
         if (!reported++)
             fprintf(stderr, "[window] cannot draw the software surface: %s\n", SDL_GetError());
     }
+}
+
+/* ---- Window mode (settings window_mode windowed | borderless | fullscreen;
+ * System > Display) ----
+ * Borderless: fullscreen at the desktop's mode (SDL_SetWindowFullscreenMode
+ * NULL). Fullscreen: exclusive, the display mode closest to the desktop's
+ * resolution and refresh rate. On Wayland exclusive modes are emulated (the
+ * compositor scales): it looks the same as borderless; on X11 it depends on
+ * the window manager. Windowed: the size the window had before it went
+ * fullscreen. Requested before the window exists (the settings load while
+ * the presenter starts), the mode applies when it does. Size changes reach
+ * the presenters as SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED (above). */
+static const char* const window_mode_names[3] = { "windowed", "borderless", "fullscreen" };
+static int window_mode, window_mode_applied, window_mode_failed; /* failed: the mode that did not apply + 1 */
+static int windowed_w, windowed_h;
+int pc_window_mode_get(void) { return window_mode; }
+void pc_window_mode_set(int mode)
+{
+    window_mode = mode < 0 ? 0 : mode > 2 ? 2 : mode;
+    window_mode_apply();
+}
+static void window_mode_apply(void)
+{
+    if (!window || window_mode == window_mode_applied)
+        return;
+    if (window_mode_applied == 0)
+        SDL_GetWindowSize(window, &windowed_w, &windowed_h);
+    int ok;
+    if (window_mode == 0) {
+        ok = SDL_SetWindowFullscreen(window, false);
+        if (ok && windowed_w > 0 && windowed_h > 0)
+            SDL_SetWindowSize(window, windowed_w, windowed_h);
+    } else {
+        SDL_DisplayMode exclusive;
+        const SDL_DisplayMode* mode = NULL;
+        if (window_mode == 2) {
+            SDL_DisplayID display = SDL_GetDisplayForWindow(window);
+            const SDL_DisplayMode* desktop = SDL_GetDesktopDisplayMode(display);
+            if (desktop
+                && SDL_GetClosestFullscreenDisplayMode(display, desktop->w, desktop->h, desktop->refresh_rate, true,
+                    &exclusive))
+                mode = &exclusive;
+        }
+        ok = SDL_SetWindowFullscreenMode(window, mode) && SDL_SetWindowFullscreen(window, true);
+    }
+    /* A failed switch keeps the mode the window has (what the settings
+     * save); the RPC reports which mode failed. */
+    window_mode_failed = ok ? 0 : window_mode + 1;
+    if (!ok) {
+        fprintf(stderr, "[window] cannot switch to %s: %s\n", window_mode_names[window_mode], SDL_GetError());
+        window_mode = window_mode_applied;
+        return;
+    }
+    window_mode_applied = window_mode;
+}
+/* RPC (system): the mode (the last that applied), the last failed switch and what the window reports. */
+int pc_window_mode_json(char* out, int size)
+{
+    SDL_WindowFlags flags = window ? SDL_GetWindowFlags(window) : 0;
+    const SDL_DisplayMode* exclusive = window ? SDL_GetWindowFullscreenMode(window) : NULL;
+    int w = 0, h = 0;
+    if (window)
+        SDL_GetWindowSize(window, &w, &h);
+    return snprintf(out, size,
+        "{\"mode\":\"%s\",\"failed\":%s,\"failed_mode\":\"%s\",\"fullscreen\":%s,\"exclusive\":%s,\"size\":[%d,%d],"
+        "\"windowed_size\":[%d,%d],\"video\":\"%s\"}",
+        window_mode_names[window_mode], window_mode_failed ? "true" : "false",
+        window_mode_failed ? window_mode_names[window_mode_failed - 1] : "",
+        flags & SDL_WINDOW_FULLSCREEN ? "true" : "false", exclusive ? "true" : "false", w, h, windowed_w, windowed_h,
+        window ? SDL_GetCurrentVideoDriver() : "");
+}
+
+/* ---- Binding capture (System > Bindings, ui_settings.cpp) ----
+ * pc_ui_capture_begin: the next key press or gamepad button (or trigger past
+ * half way) goes to pc_ui_settings_capture_done instead of the game and the
+ * overlay. Keys without a settings name are ignored and reserved keys
+ * (pc_ui_settings_key_reserved: the prompt says why) refused, and the
+ * capture goes on; Escape cancels. A capture started from the gamepad (the
+ * last device used) cancels after 5 s without gamepad input, as a pad has no
+ * Escape. Releases pass through (keys held before the capture let go
+ * normally). The input that ended the capture stays the capture's until it
+ * is released: the captured (or Escape) key's auto-repeats and text, and the
+ * captured pad element (now bound to a PS1 button, they would press it). */
+extern int pc_ui_settings_capture_done(int kind, int code);
+extern int pc_ui_settings_capture_button(void);
+extern int pc_ui_settings_capture_refuse(int kind, int code);
+extern const char* pc_ui_settings_capture_note(void);
+static int capturing, capture_pad, last_input_pad, capture_last = -3;
+static Uint64 capture_since;
+static int pad_held = PC_PAD_NONE; /* the captured gamepad element, until released */
+static SDL_Keycode key_held;      /* the key that ended the capture, until released */
+int pc_ui_capture_begin(void)
+{
+    if (!window)
+        return 0;
+    capturing = 1;
+    capture_pad = last_input_pad;
+    capture_since = SDL_GetTicks();
+    return 1;
+}
+static void capture_end(int kind, int code)
+{
+    capturing = 0;
+    capture_last = pc_ui_settings_capture_done(kind, code);
+}
+static int is_trigger(int axis) { return axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER || axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER; }
+/* With an event: 1 when the capture took it. Without: 1 while the gamepad
+ * belongs to the capture (pc_window_buttons). */
+static int capture_filter(const SDL_Event* e)
+{
+    /* The settings ended it (the menu closed, the shell cancelled). */
+    if (capturing && pc_ui_settings_capture_button() < 0)
+        capturing = 0;
+    if (!e)
+        return capturing || pad_held != PC_PAD_NONE;
+    switch (e->type) {
+    case SDL_EVENT_KEY_DOWN:
+        last_input_pad = 0;
+        if (key_held && e->key.key == key_held)
+            return 1; /* the captured key, still held: its repeats */
+        if (!capturing)
+            return 0;
+        if (!e->key.repeat && e->key.key == SDLK_ESCAPE) {
+            key_held = SDLK_ESCAPE;
+            capture_end(-1, 0);
+        } else if (!e->key.repeat && pc_key_name(e->key.key)
+            && !pc_ui_settings_capture_refuse(PC_UI_CAPTURE_KEY, (int)e->key.key)) {
+            key_held = e->key.key;
+            capture_end(PC_UI_CAPTURE_KEY, (int)e->key.key);
+        }
+        return 1;
+    case SDL_EVENT_KEY_UP:
+        if (key_held && e->key.key == key_held)
+            key_held = 0;
+        return 0;
+    case SDL_EVENT_TEXT_INPUT:
+        return capturing || key_held;
+    case SDL_EVENT_WINDOW_FOCUS_LOST: /* its release goes elsewhere */
+        key_held = 0;
+        return 0;
+    case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+        last_input_pad = 1;
+        if (!capturing)
+            return 0;
+        pad_held = e->gbutton.button;
+        capture_end(PC_UI_CAPTURE_PAD, e->gbutton.button);
+        return 1;
+    case SDL_EVENT_GAMEPAD_BUTTON_UP:
+        if (pad_held == e->gbutton.button)
+            pad_held = PC_PAD_NONE;
+        return 0;
+    case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+        if (e->gaxis.value > 16000 || e->gaxis.value < -16000)
+            last_input_pad = 1;
+        /* Released where the game stops counting it pressed (boot_controller.c). */
+        if (pad_held == PC_PAD_AXIS(e->gaxis.axis) && e->gaxis.value <= PC_TRIGGER_PRESSED)
+            pad_held = PC_PAD_NONE;
+        if (!capturing)
+            return 0;
+        if (is_trigger(e->gaxis.axis) && e->gaxis.value > PC_TRIGGER_CAPTURE) {
+            pad_held = PC_PAD_AXIS(e->gaxis.axis);
+            capture_end(PC_UI_CAPTURE_PAD, PC_PAD_AXIS(e->gaxis.axis));
+        } else if (e->gaxis.value > 16000 || e->gaxis.value < -16000)
+            capture_since = SDL_GetTicks(); /* the pad is in use: not idle */
+        return 1;
+    case SDL_EVENT_GAMEPAD_REMOVED:
+        pad_held = PC_PAD_NONE;
+        return 0;
+    default:
+        return 0;
+    }
+}
+static void capture_tick(void)
+{
+    if (capturing && pc_ui_settings_capture_button() < 0)
+        capturing = 0;
+    if (capturing && capture_pad && SDL_GetTicks() - capture_since > 5000)
+        capture_end(-1, 0);
+}
+/* RPC (system): the capture's state (key_held / pad_held: what ended it, still held; refused: why the last key
+ * pressed was refused); the last result (pc_ui_settings_capture_done: the other button swapped, -1 none or
+ * cancelled, -2 refused; -3 none yet). */
+int pc_capture_json(char* out, int size)
+{
+    const char* refused = capturing ? pc_ui_settings_capture_note() : NULL; /* (its reasons have no quotes) */
+    return snprintf(out, size,
+        "{\"listening\":%s,\"button\":%d,\"pad_timeout\":%s,\"pad_held\":%d,\"key_held\":\"%s\",\"refused\":\"%s\","
+        "\"last\":%d}",
+        capturing ? "true" : "false", capturing ? pc_ui_settings_capture_button() : -1, capture_pad ? "true" : "false",
+        pad_held, key_held && pc_key_name(key_held) ? pc_key_name(key_held) : "", refused ? refused : "",
+        capture_last);
+}
+/* RPC (system): a key or gamepad event pushed into SDL's queue as if the
+ * device sent it (tests; the capture and the game read it as real input). */
+int pc_window_inject_key(const char* name, int down)
+{
+    SDL_Keycode key = pc_key_from_name(name);
+    if (!window || !key)
+        return -1;
+    SDL_Event e;
+    memset(&e, 0, sizeof e);
+    e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+    e.key.windowID = SDL_GetWindowID(window);
+    e.key.key = key;
+    e.key.scancode = SDL_GetScancodeFromKey(key, NULL);
+    e.key.down = down != 0;
+    return SDL_PushEvent(&e) ? 0 : -1;
+}
+int pc_window_inject_pad(const char* name, int down)
+{
+    int element = pc_pad_element_from_name(name);
+    if (!window || element < 0)
+        return -1;
+    SDL_Event e;
+    memset(&e, 0, sizeof e);
+    if (element >= PC_PAD_AXIS(0)) {
+        e.type = SDL_EVENT_GAMEPAD_AXIS_MOTION;
+        e.gaxis.axis = (Uint8)(element - PC_PAD_AXIS(0));
+        e.gaxis.value = down ? 32767 : 0;
+    } else {
+        e.type = down ? SDL_EVENT_GAMEPAD_BUTTON_DOWN : SDL_EVENT_GAMEPAD_BUTTON_UP;
+        e.gbutton.button = (Uint8)element;
+        e.gbutton.down = down != 0;
+    }
+    return SDL_PushEvent(&e) ? 0 : -1;
 }

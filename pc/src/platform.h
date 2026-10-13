@@ -14,6 +14,19 @@
 #define PC_MTIME_NS(st) ((long long)(st).st_mtim.tv_sec * 1000000000LL + (st).st_mtim.tv_nsec)
 #endif
 
+/* Puts `temp` in place of `path` (replacing it), as one step where the
+ * system allows: rename on POSIX; on Windows MoveFileEx (rename there fails
+ * when the target exists), else remove and rename. 0 on success. */
+static inline int pc_replace_file(const char* temp, const char* path)
+{
+#ifdef _WIN32
+    if (MoveFileExA(temp, path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+        return 0;
+    remove(path);
+#endif
+    return rename(temp, path);
+}
+
 /* Calls write(f) and returns what it wrote, malloc'd (*size bytes, plus a
  * NUL), or NULL. */
 static inline char* pc_capture_file(void (*write)(FILE*), size_t* size)

@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <map>
+#include <string>
 
 extern "C" {
 extern int pc_gl_filter, pc_gl_aspect, pc_gte_widescreen, pc_hw_perspective, pc_hw_subpixel,
@@ -55,6 +57,20 @@ extern bool pc_lights_show_gizmos;
 namespace rood_lights {
 extern int animate; /* light actors' flicker and pulse (lights.cpp) */
 }
+
+/* System > Display / Audio (pc/src/ui/ui_settings.h hooks): window_mode
+ * windowed | borderless | fullscreen (boot_window.c), master_volume 0..100
+ * (audio_output.c), brightness 0..100, 50 unchanged (gl_present.c). Applied
+ * live through their setters; weak for builds without them. */
+extern "C" {
+int pc_window_mode_get(void) __attribute__((weak));
+void pc_window_mode_set(int mode) __attribute__((weak));
+int pc_master_volume_get(void) __attribute__((weak));
+void pc_master_volume_set(int volume) __attribute__((weak));
+int pc_brightness_get(void) __attribute__((weak));
+void pc_brightness_set(int value) __attribute__((weak));
+}
+static const char* const window_mode_names[3] = { "windowed", "borderless", "fullscreen" };
 
 namespace {
 struct Entry {
@@ -262,6 +278,30 @@ int apply_line(const char* line, int* scale, bool now)
             lighting::set_active_pack(value);
         return 1;
     }
+    if (!strcmp(key, "window_mode")) { /* windowed | borderless | fullscreen (or 0 / 1 / 2); else ignored */
+        char name[32] = "", extra[2];
+        if (sscanf(rest, "%31s %1s", name, extra) != 1) {
+            fprintf(stderr, "[settings] window_mode: expected windowed, borderless or fullscreen\n");
+            return 1;
+        }
+        for (int k = 0; k < 3; k++)
+            if ((!strcmp(name, window_mode_names[k]) || (name[0] == '0' + k && !name[1])) && pc_window_mode_set)
+                pc_window_mode_set(k);
+        return 1;
+    }
+    if (!strcmp(key, "master_volume") || !strcmp(key, "brightness")) { /* 0..100 (clamped); else ignored */
+        int value;
+        char extra[2];
+        if (sscanf(rest, "%d %1s", &value, extra) != 1) {
+            fprintf(stderr, "[settings] %s: expected a number from 0 to 100\n", key);
+            return 1;
+        }
+        if (key[0] == 'm' && pc_master_volume_set)
+            pc_master_volume_set(value);
+        else if (key[0] == 'b' && pc_brightness_set)
+            pc_brightness_set(value);
+        return 1;
+    }
     if (!strcmp(key, "drop_shadows")) {
         if (&pc_drop_shadow_mode)
             pc_drop_shadow_mode = atoi(rest);
@@ -291,6 +331,61 @@ int apply_line(const char* line, int* scale, bool now)
 }
 } // namespace
 
+/* ---- Environment overrides ----
+ * Some environment variables override a saved key for this run
+ * (ROOD_WIDESCREEN, ROOD_PERSPECTIVE, ROOD_SCALE, ROOD_AA,
+ * ROOD_LIGHTING_PRESET, ROOD_GI=0, ROOD_PRESENT_RATE, ROOD_NATIVE_*,
+ * ROOD_RECONSTRUCT). The code that applies one calls
+ * pc_settings_env_override(key) right after: a save then writes the key as
+ * the file had it (or leaves it out when the file did not have it), so the
+ * override never becomes the user's setting. Unless the setting changed
+ * since: when the line it would write differs from the one the variable gave
+ * (any change, from System, the editor or the RPC), or System changed it
+ * (pc_settings_touched; also a change back to the variable's value). Keys
+ * whose value the variable only sets indirectly (ROOD_GI=0, marked in
+ * pc_settings_load) use pc_settings_env_override_flag: they keep the file's
+ * value unless System changes them. */
+extern "C" void pc_settings_write(FILE* f);
+namespace {
+struct EnvOverride {
+    std::string line; /* the key's line right after the variable applied ("": compare nothing) */
+};
+std::map<std::string, EnvOverride> env_overrides;
+std::map<std::string, std::string> file_lines; /* key -> its line in the file, as last loaded */
+std::string line_key(const std::string& line)
+{
+    size_t end = line.find_first_of(" \t");
+    return line.substr(0, end);
+}
+/* The key's line(s) as pc_settings_write gives them now ("" when it writes none). */
+std::string current_line(const char* key)
+{
+    size_t size = 0;
+    char* text = pc_capture_file(pc_settings_write, &size);
+    std::string found;
+    for (const char* p = text; p && *p;) {
+        const char* end = strchr(p, '\n');
+        std::string line(p, end ? (size_t)(end - p) : strlen(p));
+        if (line_key(line) == key)
+            found = line;
+        p = end ? end + 1 : p + line.size();
+    }
+    free(text);
+    return found;
+}
+} // namespace
+extern "C" void pc_settings_env_override(const char* key)
+{
+    if (!env_overrides.count(key))
+        env_overrides[key].line = current_line(key);
+}
+extern "C" void pc_settings_env_override_flag(const char* key)
+{
+    if (!env_overrides.count(key))
+        env_overrides[key].line.clear();
+}
+extern "C" void pc_settings_touched(const char* key) { env_overrides.erase(key); }
+
 extern "C" const char* pc_settings_status(void) { return status; }
 extern "C" const char* pc_settings_path(void) { return path(); }
 
@@ -300,6 +395,12 @@ extern "C" void pc_settings_load(void)
     const char* file = path();
     if (!file)
         return;
+    /* ROOD_GI=0 (ptgi.c) turns the path tracer off when it first starts, and lighting_quality.cpp derives
+     * these keys from that: marked here, whether or not the tracer ever starts this run. */
+    const char* gi = getenv("ROOD_GI");
+    if (gi && *gi == '0')
+        for (const char* key : { "gi_method", "shadows", "characters_shadow_baked" })
+            pc_settings_env_override_flag(key);
     FILE* f = fopen(file, "r");
     loaded_mtime = mtime_of(file);
     if (!f) {
@@ -310,7 +411,13 @@ extern "C" void pc_settings_load(void)
     }
     char line[512];
     int applied = 0, scale = 0, aa_seen = 0;
+    file_lines.clear();
     while (fgets(line, sizeof line, f)) {
+        std::string text = line;
+        while (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
+            text.pop_back();
+        if (!text.empty() && text[0] != '#')
+            file_lines[line_key(text)] = text; /* the environment overrides' saved values (above) */
         applied += apply_line(line, &scale, false);
         aa_seen |= !strncmp(line, "aa ", 3) || !strncmp(line, "antialiasing ", 13);
     }
@@ -340,6 +447,12 @@ extern "C" void pc_settings_write(FILE* f)
     fprintf(f, "ui_bubbles %s\n", pc_ui_bubbles_names[pc_ui_bubbles ? 1 : 0]);
     pc_button_prompts_settings_write(f);
     fprintf(f, "gameplay_walls %s\n", pc_gameplay_walls ? "smart" : "original");
+    if (pc_window_mode_get)
+        fprintf(f, "window_mode %s\n", window_mode_names[pc_window_mode_get() % 3]);
+    if (pc_master_volume_get)
+        fprintf(f, "master_volume %d\n", pc_master_volume_get());
+    if (pc_brightness_get)
+        fprintf(f, "brightness %d\n", pc_brightness_get());
     fprintf(f, "lighting_packs %s\n", lighting::packs_setting().c_str());
     fprintf(f, "lighting_active_pack %s\n", lighting::active_pack_setting().c_str());
     for (const Entry& e : entries) {
@@ -388,14 +501,42 @@ extern "C" void pc_settings_save(void)
         *slash = 0;
         pc_mkdir(dir);
     }
-    FILE* f = fopen(file, "w");
+    /* The lines, with the environment's overrides put back to the file's values (above). */
+    size_t size = 0;
+    char* text = pc_capture_file(pc_settings_write, &size);
+    std::string body;
+    for (const char* p = text; p && *p;) {
+        const char* end = strchr(p, '\n');
+        std::string line(p, end ? (size_t)(end - p) : strlen(p));
+        p = end ? end + 1 : p + line.size();
+        auto o = env_overrides.find(line_key(line));
+        if (o != env_overrides.end()) {
+            if (o->second.line.empty() || o->second.line == line) {
+                auto saved = file_lines.find(o->first);
+                if (saved != file_lines.end())
+                    body += saved->second + "\n";
+                continue;
+            }
+            env_overrides.erase(o); /* changed since: the user's now */
+        }
+        body += line + "\n";
+    }
+    free(text);
+    /* Written whole to <file>.tmp, then put in place (never a half-written file). */
+    std::string temp = std::string(file) + ".tmp";
+    FILE* f = fopen(temp.c_str(), "w");
     if (!f) {
-        snprintf(status, sizeof status, "Cannot write %s", file);
+        snprintf(status, sizeof status, "Cannot write %s", temp.c_str());
         return;
     }
     fprintf(f, "# rood-boi user settings (pc/src/project_settings.cpp); per-room values live in lighting/ and pc/user/lighting\n");
-    pc_settings_write(f);
-    fclose(f);
+    bool ok = fwrite(body.data(), 1, body.size(), f) == body.size();
+    ok = fclose(f) == 0 && ok;
+    if (!ok || pc_replace_file(temp.c_str(), file)) {
+        remove(temp.c_str());
+        snprintf(status, sizeof status, "Cannot write %s", file);
+        return;
+    }
     loaded_mtime = mtime_of(file);
     snprintf(status, sizeof status, "Saved settings to %s", file);
 }

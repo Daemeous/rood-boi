@@ -127,6 +127,8 @@ void draw_equipment(const Frame& f, const ui::Theme& t, float top, float dt, boo
 // drawn in pc_ui_draw_model_column's rect (the backdrop leaves that rect open then).
 void draw_ashley(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, bool model_shown, Pointer& m,
     ScreenOut& out);
+// The System tab's body (ui_system_draw.cpp): the list, the page's card, a capture's prompt.
+void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
 // The Ashley screen's model column (layout units x, y, w, h) on a W-wide layout.
 void model_column(const ui::Theme& t, float W, float out[4]);
 // The right card's width (16:9: 396, 4:3: 344).

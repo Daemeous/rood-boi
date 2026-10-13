@@ -101,6 +101,30 @@ The System tab edits the same variables as the editor and `settings.cfg`
   options (simple map, ability timing, weapon/armor status, cursor memory,
   information, puzzle mode, sound), written to `vs_main_settings`.
 
+Implemented (phase 4) with these differences from the plan:
+
+- A binding capture started from the gamepad cancels after 5 s without
+  gamepad input (a pad has no Escape; Back/Select is a bindable button, so
+  it does not cancel). A capture from the keyboard waits until Esc or a
+  click.
+- Square for "default value" on a row is not implemented (Bindings has a
+  Reset to defaults row).
+- Reserved keys are refused at capture with the reason in the prompt: Esc,
+  F1, F2 (the editor), Alt and Super (the desktop), J L I K O while the
+  camera keys are on. A swap that moves a key or gamepad element to another
+  button says so on the status line for 3 s ("M moved from Circle to
+  Triangle; Circle gets S").
+- The key that ended a capture stays the capture's until released (its
+  auto-repeat and text never reach the game), as does a captured gamepad
+  element.
+- Internal resolution applies when a pointer drag ends (the number follows
+  the drag); Left/Right apply at once.
+- Brightness is a curve with a finite slope at black, run on the post
+  chain's 16-bit float image before the window's 8-bit rounding (no extra
+  pass at 50).
+- A window mode switch that fails keeps the window's mode (the one saved);
+  the `system` RPC reports the failure.
+
 Fallback: switching Menus to Original takes effect the next time the menu
 opens. It is also reachable from the editor (Graphics panel) and
 `settings.cfg`, so a broken modern screen can never lock the player out.
@@ -184,6 +208,27 @@ All new code in `pc/src/ui/`. Game-side changes only under `#ifdef ROOD_PC`;
    the HUD.
 
 The bottleneck is verification (action parity, playtesting feel), not code.
+
+### HUD backlog (user ideas, not started)
+
+**Contextual action prompt bar** (bottom right; prompt icon + spaced caps verb in the label font, no panel or a very subtle one; follows button_prompts style and bindings). The game has no "can interact" indicator: field buttons are resolved at press time in `vs_battle_exec` (BATTLE 146C.c, field case `D_800F196C == 1`). The bar runs the same side-effect-free probes each frame:
+
+| Context | Game state to read | Prompts |
+| --- | --- | --- |
+| Crate in front / carrying | `func_800A38E0(0) >= 0` (3A1A0.c); status `func_800A0BE0(0)` bit 0x80000 carrying | Cross PUSH / LIFT / DROP; no Square JUMP while carrying |
+| NPC | actor-cone probe `func_800A3760(0, 0xA0, 0x80)` with `actor->unk24 == 4` | Cross TALK |
+| Examine | type-4 event in tile mode (`func_80074860`, `func_800BEC58` 4A0A8.c) — needs a side-effect-free copy of the condition evaluator | Cross EXAMINE |
+| Door | `func_800748B8(0)` section-A door; `lock.state` 0 open, 1/3 needs `keyOrSigil` (`vs_battle_itemIdIsInInventory`, sigil state flags) | Cross OPEN / UNLOCK / LOCKED |
+| Chest | `func_80074950(0)` (facing, not yet opened `unk10+0x3C0`, height match); `keyOrSigil` lock | Cross OPEN |
+| Save point / magic circle | `func_8008A4FC()` save-point id; Save allowed when `stateFlags.unkA7 == 0`; Teleport when `unkB5 != 0` and a `savePointStates` entry | Triangle MENU (Save / Teleport) |
+| Workshop | `vs_battle_inWorkshop()` (146C.c) | Triangle MENU (Assemble / Repair / Combine) |
+| Weapon drawn | `vs_battle_characterState->weaponDrawn & 1` | Circle ATTACK, Cross SHEATHE; sheathed: Circle DRAW |
+| Hanging | status 0x100000 | (no draw / first-person) |
+| L2 shortcuts | `vs_battle_isSpellClassUnlocked`, `_breakArtsUnlocked`, `vs_battle_chainAbilitiesUnlocked` (5BF94.c) | slots greyed when empty |
+
+Gaps: `func_80075554` (undecompiled, per-frame field events), `D_800F196C` values unnamed.
+
+**Vector limb-condition figure:** replace the blocky bottom-left limb sprite with an authored vector figure whose regions take the game's live limb-condition colours (`vs_battle_getLimbStatus`, `D_800EBC54`).
 
 ## Ownership (agreed with the main session, 2026-10-12)
 

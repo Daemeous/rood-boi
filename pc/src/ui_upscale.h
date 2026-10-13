@@ -30,6 +30,10 @@ int pc_ui_upscale_factor(int scale);
  * pc_ui_upscale_reset and asks again. */
 int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, unsigned window, int u0, int v0,
     int u1, int v1, int scale, int16_t offset[2]);
+/* A laid-out glyph's image (ui_text.h pc_ui_text_quad.image): as
+ * pc_ui_upscale_lookup, offset[] its atlas origin (its texels start at
+ * u, v = 0, 0). */
+int pc_ui_upscale_lookup_image(int image, int scale, int16_t offset[2]);
 /* Record the work for regions looked up since the last call (before a draw
  * samples them). */
 void pc_ui_upscale_prepare(void);
