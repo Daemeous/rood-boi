@@ -70,7 +70,7 @@ void _initSpellChoice(void);
 int _spellChosen(int index);
 void _setSpellChosen(int index, int chosen);
 int _chosenSpellCount(void);
-void _dropUnlearnedSpells(void);
+int _spellId(int index);
 
 /* The menu module (menu.c -> ENDING/CALLOMNU.BIN): only menus use it, so it's loaded into the
  * gap between MENU3.PRG/MENU0.PRG's end and the heap (0x8010C000) while they're open. Larger
