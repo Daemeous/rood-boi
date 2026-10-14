@@ -26,6 +26,7 @@
  * A snapshot only resumes in the binary that wrote it (a hash of its code
  * is checked). Linux only; elsewhere the RPC reports it unavailable. */
 #define _GNU_SOURCE
+#include "platform.h" /* pc_replace_file */
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -308,7 +309,7 @@ static int write_file(const char* path, uintptr_t sp, char* error, int esize)
     free(log);
     ok = ok && write_chunk(f, CHUNK_END, NULL, NULL, 0);
     ok = !fclose(f) && ok;
-    if (!ok || rename(part, path)) {
+    if (!ok || pc_replace_file(part, path)) {
         remove(part);
         snprintf(error, (size_t)esize, "writing %s failed", path);
         return -1;
