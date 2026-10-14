@@ -461,6 +461,19 @@ static void _markSpells(int school, int* rowTypes)
     }
 }
 
+/* Choosing a spell in the MAGIC menu makes the choice the player's: the defaults Ashley hasn't
+ * learned yet are dropped, so they can't turn up later on top of the player's 8. */
+static void _dropUnlearnedSpells(void)
+{
+    int i;
+
+    for (i = 0; i < SPELL_COUNT; ++i) {
+        if (_spellChosen(i) && !ACTION_UNLOCKED(_spellId(i))) {
+            _setSpellChosen(i, 0);
+        }
+    }
+}
+
 /* Square on a spell in a school's list (id < 0: a spell with levels) */
 static void _toggleSpell(int id)
 {
