@@ -6486,7 +6486,6 @@ vs_battle_actor* func_800774FC(int arg0, int arg1, int bladeWepId, int bladeMate
 }
 
 extern u_char D_8004FE88[];
-extern vs_battle_charInitData* D_800F188C;
 
 vs_battle_actor* func_800775C0(
     int id, mpdEnemySpawn* spawn, vs_battle_charInitData* init, int flags)
@@ -6587,7 +6586,7 @@ vs_battle_actor* func_800775C0(
             if (D_8004FE88[(u_char)init->unk2]) {
                 object.dataType = 1;
                 object.index = id + 4;
-                object.modelId = (u_char)D_800F188C[zudIndex].unk2 + 1;
+                object.modelId = (u_char)psx_get(_zoneContext.zndEnemies)[zudIndex].unk0[2] + 1;
                 psx_set(object.unk4, psx_get(actor->unk48[0]));
                 object.actorId = id;
                 object.unk11 = 0xFC;
