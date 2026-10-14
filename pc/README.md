@@ -734,7 +734,7 @@ pixel's corner as the PS1 does, not one past the image (`pc_hw_set_flipped_uv`).
 | `ui_upscale` | `nearest` | `nearest`: the PS1's blocks (original). `mmpx`: MMPX (McGuire & Gagiu 2021), the style-preserving pixel-art magnifier: curves, diagonals and corners reconstructed, palette, transparency and one-pixel details kept exactly |
 | `ui_subpixel` | 0 | text glyphs drawn where the game places them in 16.16 fixed point instead of whole pixels (even spacing while talk bubbles zoom open and shut) |
 | `ui_text` | `original` | `original`: the PS1's glyphs. `font`: the game's text drawn from open-licensed fonts (below) at the internal resolution (2x and up) |
-| `ui_text_layout` | `line` | with `ui_text font`: `line` sets each line of dialogue and menu text (talk bubbles, menus, the information box) with the font's own spacing and kerning (below); `glyph`: each glyph inside the original's 12-pixel cell at the game's advance, for comparison |
+| `ui_text_layout` | `glyph` | with `ui_text font` (`line` is off by default for now: the save/load screen splits words): `line` sets each line of dialogue and menu text (talk bubbles, menus, the information box) with the font's own spacing and kerning (below); `glyph`: each glyph inside the original's 12-pixel cell at the game's advance, for comparison |
 | `ui_text_bubble_align` | `centre` | with `ui_text_layout line`, talk bubbles only (menus and the information box stay left): `centre` centres each line within the original line's extent, `left` starts it where the game does |
 | `ui_text_<style>_font`, `_stretch`, `_slant`, `_embolden`, `_aspect` | the chosen fonts | per style (`dialogue`, `menu`, `info`, `digits`): a TrueType file (relative to the repository root), horizontal scale, added shear, distance-field offset in em (bolder > 0), and for `digits` the least share of the font's own width/height a digit size may be condensed to (0.78; 0: any); saved only when changed |
 | `ui_lines` | `joined` | 2D lines (GP0 0x40-0x5F: the map, the minimap, the targeting sphere, talk bubble outlines) at the internal resolution. `joined`: one PS1 pixel thick at any scale, joins closed, no light dots along outlines (below). `legacy`: the earlier one-pixel quads, for comparison |
@@ -799,7 +799,7 @@ game's. Characters a font lacks and the pictographs (button symbols,
 arrows, notes, stars) stay original. While a bubble zooms, its
 glyphs are sampled nearest from the atlas like MMPX's.
 
-**Lines (`ui_text_layout line`, the default).** The game sets its text a
+**Lines (`ui_text_layout line`, off by default for now).** The game sets its text a
 glyph at a time in 12 x 12 cells at its own advances (about 6 pixels a
 letter in menus and the information box, proportional in talk bubbles). A
 font's letters in those slots space unevenly (an i floats in a wide slot,

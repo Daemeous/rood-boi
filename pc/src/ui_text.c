@@ -893,7 +893,7 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
  * the game types out letter by letter never moves: each glyph appears where
  * it will stay, when the game draws it. Positions snap to the internal
  * resolution's pixels; images are cached in the 2D atlas by content. */
-int pc_ui_text_layout = PC_UI_TEXT_LAYOUT_LINE;
+int pc_ui_text_layout = PC_UI_TEXT_LAYOUT_GLYPH; /* line: some screens (save/load) split words; off by default until fixed */
 const char* const pc_ui_text_layout_names[2] = { "glyph", "line" };
 int pc_ui_text_bubble_align = PC_UI_TEXT_ALIGN_CENTRE;
 const char* const pc_ui_text_bubble_align_names[2] = { "left", "centre" };

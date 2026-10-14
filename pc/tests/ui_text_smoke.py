@@ -19,7 +19,7 @@ ui_text font, so nothing moves between the two images. Checks:
   original's extent within two PS1 pixels (the layout is the game's);
 - original after font: the frame drawn with ui_text original again equals
   the first original drawing (those checks with ui_text_layout glyph);
-- line layout (ui_text_layout line, the default; the bubble, the next
+- line layout (ui_text_layout line, set explicitly; the bubble, the next
   bubble with a comma and a period, the menu rows and information box): one
   recorded frame drawn original, glyph by glyph and as lines (RPC ui_text
   lines reports each laid-out glyph's ink row by row): only the lines
@@ -488,7 +488,7 @@ def run_bubble(work, shots):
     try:
         g = game.call("graphics")
         check(g.get("ui_text") == "original", f"bubble: default ui_text original ({g.get('ui_text')})")
-        check(g.get("ui_text_layout") == "line", f"bubble: default ui_text_layout line ({g.get('ui_text_layout')})")
+        check(g.get("ui_text_layout") == "glyph", f"bubble: default ui_text_layout glyph ({g.get('ui_text_layout')})")
         check(g.get("ui_text_bubble_align") == "centre",
               f"bubble: default ui_text_bubble_align centre ({g.get('ui_text_bubble_align')})")
         game.call("graphics", interpolate=False, aa="off")  # SMAA would blend beyond the glyph boxes
