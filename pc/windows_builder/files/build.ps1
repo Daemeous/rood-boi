@@ -109,6 +109,23 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $registered = @(& wsl.exe --list --quiet) | ForEach-Object { $_.Trim([char]0, ' ') }
+# WSL remembers where the build's Ubuntu was set up. If that folder was moved, deleted or replaced
+# (say, by unpacking a newer builder somewhere else), its disk is gone and WSL can't start it:
+# forget it, so it's set up again in this folder.
+if ($registered -contains $Distro) {
+    $entry = Get-ChildItem "HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss" -ErrorAction SilentlyContinue |
+        ForEach-Object { Get-ItemProperty $_.PSPath } | Where-Object { $_.DistributionName -eq $Distro } |
+        Select-Object -First 1
+    if ($entry -and $entry.BasePath) {
+        $base = $entry.BasePath -replace '^\\\\\?\\', ''
+        if (-not (Test-Path -LiteralPath (Join-Path $base "ext4.vhdx"))) {
+            Say "The build's Ubuntu was set up in $base, which isn't there any more"
+            Say "(the folder was moved, deleted or replaced). Setting it up again in this folder."
+            & wsl.exe --unregister $Distro | Out-Null
+            $registered = @($registered | Where-Object { $_ -ne $Distro })
+        }
+    }
+}
 if ($registered -notcontains $Distro) {
     $free = (Get-PSDrive -Name ($Root.Substring(0, 1))).Free
     if ($free -lt 20GB) {
