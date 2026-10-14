@@ -724,6 +724,25 @@ static void camera_stick_panel()
     ImGui::Unindent();
 }
 
+extern "C" int pc_qol_map_invert, pc_qol_fp_invert_y; /* project_settings.cpp */
+/* Graphics > Controls: the map screen's panning and the first-person view's
+ * up/down (the game reads them; off by default). */
+static void look_panel()
+{
+    ImGui::Separator();
+    bool map = pc_qol_map_invert != 0;
+    if (ImGui::Checkbox("Invert map panning", &map))
+        pc_qol_map_invert = map;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("The map screen pans the other way on both axes (D-pad, left stick, arrow keys).");
+    bool fp = pc_qol_fp_invert_y != 0;
+    if (ImGui::Checkbox("Invert first-person up/down", &fp))
+        pc_qol_fp_invert_y = fp;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("In the first-person view (Start) up looks down and down looks up, on the D-pad and the\n"
+                          "right stick. The right stick always looks around there; left/right are not inverted.");
+}
+
 extern "C" int pc_qol_weapon_slots; /* project_settings.cpp; weapon_slots.c */
 extern "C" int pc_skip_intro;       /* project_settings.cpp; boot_runtime.c */
 /* Graphics > Gameplay: optional gameplay changes, all off by default. */
@@ -1479,8 +1498,10 @@ static void details(float x, float y, float w, float h, double frame_ms)
                 pc_lighting_panel();
             if (ImGui::CollapsingHeader("Display and rendering", ImGuiTreeNodeFlags_DefaultOpen))
                 graphics_panel();
-            if (ImGui::CollapsingHeader("Controls"))
+            if (ImGui::CollapsingHeader("Controls")) {
                 camera_stick_panel();
+                look_panel();
+            }
             if (ImGui::CollapsingHeader("Gameplay"))
                 gameplay_panel();
             ImGui::EndTabItem();

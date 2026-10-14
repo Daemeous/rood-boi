@@ -22,7 +22,8 @@ one) into its save room (zone 9 room 17) and checks:
   (checked here against the captured room, independently of the C);
 - R3 turns back to the grid and zoom 1 without entering the first-person
   view; with R3 reset off, R3 is the game's (first-person view), where the
-  stick does nothing;
+  stick looks around (camera_stick.c pc_camera_stick_first_person) and the
+  follow camera does not tick;
 - with Vulkan ray tracing (64-bit, ROOD_RENDERER=vulkan), the G-buffer's
   world positions lie on the room surfaces while the stick turns the camera
   (the RT camera follows the picture's: no sliding shadows);
@@ -373,7 +374,8 @@ def main():
         check(moved & 0x1FF and y & 0x1FF == 0, f"idle reset after 1 s: {moved:#05x} -> {y:#05x}")
         game.call("camera_stick", idle_reset=0)
 
-        # R3 reset off: R3 is the game's first-person view; the stick does nothing there.
+        # R3 reset off: R3 is the game's first-person view; the stick looks around there, the follow
+        # camera does not tick (camera_options_smoke.py tests the directions).
         game.call("camera_stick", r3_reset=False)
         game.press("r3", vsyncs=3, settle=60)
         state = game_state()
@@ -381,12 +383,12 @@ def main():
             check(False, f"R3 (reset off) enters the first-person view (state {state})")
         else:
             before = spherical()
-            c0 = cam()["ticks"]
+            c0, looks = cam()["ticks"], cam()["fp_looks"]
             game.call("input", right_stick=[1, 1], vsyncs=60)
             game.run(60)
             after = spherical()
-            check(after == before and cam()["ticks"] == c0,
-                  f"first-person view (state {state}): the stick leaves the game's camera alone")
+            check(after != before and cam()["ticks"] == c0 and cam()["fp_looks"] > looks,
+                  f"first-person view (state {state}): the stick looks around, the follow camera does not tick")
             for _ in range(4):
                 game.press("r3", vsyncs=3, settle=60)
                 if game_state()[0] == 1:

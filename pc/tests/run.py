@@ -146,6 +146,9 @@ def suites(args, mode="egl"):
             Suite("camera_stick_smoke", [PY, str(TESTS / "camera_stick_smoke.py"), "--card", str(args.save)], 300,
                   note="right-stick camera: continuous yaw, facing masks, L1/R1, zoom limits, walls, R3, "
                        "first-person/targeting, RT camera (Vulkan), opening's scripted camera unchanged"),
+            Suite("camera_options_smoke", [PY, str(TESTS / "camera_options_smoke.py"), "--card", str(args.save)],
+                  300, note="map panning and first-person up/down inversions off and on; the right stick looks "
+                            "around in first person; R3 leaves it"),
             Suite("editor_snap_smoke", [PY, str(TESTS / "editor_snap_smoke.py"), "--card", str(args.save)], 300,
                   note="editor overlays (edges, points) and point/edge/surface snapping in the save room"),
             Suite("room_browser_smoke", [PY, str(TESTS / "room_browser_smoke.py"), "--card", str(args.save)], 300,

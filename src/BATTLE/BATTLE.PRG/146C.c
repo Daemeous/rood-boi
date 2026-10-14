@@ -3142,17 +3142,26 @@ int func_8006EBF8(void)
     return v;
 }
 
+/* First-person up/down, inverted by the PC port's setting qol_fp_invert_y
+ * (project_settings.cpp); the original's directions in the PS1 build. */
+#ifdef ROOD_PC
+extern int pc_qol_fp_invert_y;
+#define FP_INVERT_Y pc_qol_fp_invert_y
+#else
+#define FP_INVERT_Y 0
+#endif
+
 void func_8006EC7C(void)
 {
     func_8006EBF8_t sp10;
     int temp_a1;
     int var_a0;
 
-    if (vs_main_buttonsPreviousState & PADLup) {
+    if (vs_main_buttonsPreviousState & (FP_INVERT_Y ? PADLdown : PADLup)) {
         vs_battle_cameraCurrentSpherical.values.pitch =
             (vs_battle_cameraCurrentSpherical.values.pitch - 32) % ONE;
     }
-    if (vs_main_buttonsPreviousState & PADLdown) {
+    if (vs_main_buttonsPreviousState & (FP_INVERT_Y ? PADLup : PADLdown)) {
         vs_battle_cameraCurrentSpherical.values.pitch =
             (vs_battle_cameraCurrentSpherical.values.pitch + 32) % ONE;
     }
@@ -3184,9 +3193,27 @@ void func_8006EC7C(void)
                 temp_a1 -= 64;
             }
             vs_battle_cameraCurrentSpherical.values.pitch =
-                (vs_battle_cameraCurrentSpherical.values.pitch + (temp_a1 / 3)) % ONE;
+                (vs_battle_cameraCurrentSpherical.values.pitch
+                    + (FP_INVERT_Y ? -(temp_a1 / 3) : (temp_a1 / 3)))
+                % ONE;
         }
     }
+#ifdef ROOD_PC
+    {
+        /* The right stick looks around (pc/src/camera_stick.c): this frame's
+         * yaw and pitch steps, signed as the D-pad's (Right: yaw up, Down:
+         * pitch up). */
+        extern void pc_camera_stick_first_person(int* yaw, int* pitch) __attribute__((weak));
+        if (pc_camera_stick_first_person) {
+            int yaw, pitch;
+            pc_camera_stick_first_person(&yaw, &pitch);
+            vs_battle_cameraCurrentSpherical.values.yaw =
+                (vs_battle_cameraCurrentSpherical.values.yaw + yaw) % ONE;
+            vs_battle_cameraCurrentSpherical.values.pitch =
+                (vs_battle_cameraCurrentSpherical.values.pitch + (FP_INVERT_Y ? -pitch : pitch)) % ONE;
+        }
+    }
+#endif
 
     if (vs_battle_cameraCurrentSpherical.values.pitch > 896) {
         vs_battle_cameraCurrentSpherical.values.pitch = 896;

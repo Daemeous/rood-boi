@@ -112,6 +112,14 @@ in the editor, `camera_stick_*` in the settings file, RPC `camera_stick`.
 | Select | Tab | the game's near/far distance toggle (the zoom scales it) |
 | Start | Enter | the game's first-person view (R3 too when "R3 resets the camera" is off) |
 
+In the first-person view (Start) the right stick (J/L/I/K) looks around,
+always: the original reads only an analog pad's stick there, which the PC
+pad never is, so the stick did nothing. Right looks right, up looks up
+(`qol_fp_invert_y` below turns that over, as it does for the D-pad), with
+this camera's dead zone, curve and speed; `camera_stick` and its
+inversions are about the follow camera and do not apply. There R3 is the
+game's again: it leaves the view, as Start and Cross do.
+
 | Setting | Default | |
 | --- | --- | --- |
 | `camera_stick` | 1 | the stick turns and zooms |
@@ -125,6 +133,15 @@ in the editor, `camera_stick_*` in the settings file, RPC `camera_stick`.
 | `camera_stick_r3_reset` | 1 | R3 resets the camera (off: R3 is the game's) |
 | `camera_stick_idle_reset` | 0 | seconds without stick input before the camera resets itself (0 off) |
 | `camera_stick_keys` | 1 | the keyboard keys above |
+| `qol_map_invert` | 0 | the map screen pans the other way on both axes (D-pad, the left stick the game reads as the D-pad, arrow keys) |
+| `qol_fp_invert_y` | 0 | in the first-person view up looks down and down looks up (D-pad and right stick; left and right unchanged) |
+
+The two `qol_` options come from eremtsov's QoL mod (CC0) and are off by
+default: editor Graphics > Controls, the modern menus' System > Controls,
+RPC `camera_options {map_invert, fp_invert_y}`. The game tests them where
+it reads the direction (MENU5 `_menuManager`, BATTLE `func_8006EC7C`);
+the PS1 build keeps the original's directions (`make` still matches).
+`pc/tests/camera_options_smoke.py` tests them and the first-person stick.
 
 The stick turns the game's own camera yaw, so the cutaway walls (facing
 masks), Ashley's camera-relative movement and room entries follow it; it
@@ -1653,7 +1670,8 @@ redraws at about 60 Hz, and after each request):
 | `pause` | `paused` (default true) | stop or resume at vsync boundaries |
 | `step` | `vsyncs` | run exactly N vsyncs, then pause |
 | `input` | `buttons` (name or list), `right_stick` (`[x, y]`, -1..1, down +y), `vsyncs` | hold PS1 buttons and/or the right stick (the camera); works unfocused |
-| `camera_stick` | the settings without `camera_stick_` (`enabled`, `speed`, ..., `r3_reset`, `idle_reset`, `keys`), `action` (`reset`) | the right-stick camera: settings and state (zoom, distances, collision hit, yaw) |
+| `camera_stick` | the settings without `camera_stick_` (`enabled`, `speed`, ..., `r3_reset`, `idle_reset`, `keys`), `action` (`reset`) | the right-stick camera: settings and state (zoom, distances, collision hit, yaw; the first-person look: `first_person`, `fp_looks`, `fp_step`) |
+| `camera_options` | `map_invert`, `fp_invert_y` | the optional map panning and first-person up/down inversions (settings `qol_map_invert`, `qol_fp_invert_y`) |
 | `weapon_slots` | `enabled` | the optional weapon slots (battle builds): the option, overlay/assign/swap state, field mode, each weapon's slot and each shield's slot bits, what Ashley's battle record has equipped |
 | `ui_menu` | `modern`, `pointer` | the modern menus (`pc/src/ui`, battle builds): sets `ui_menus`; `model_heap_extra` (bytes, tests: the Ashley model's heap check asks for that much more); `pointer {x, y, click, right, wheel}` is the next drawn frame's mouse in layout units (1280 or 960 x 720; hit tests as a moved pointer); the shell: visible, holding (closed, a result held during a model load, still drawn), menus, tab, tabs, rows (id, label, enabled, reason when greyed, value), focused row, the Equipment screen |
 | `release` | | drop injected buttons |

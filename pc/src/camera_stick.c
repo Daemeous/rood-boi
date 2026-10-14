@@ -28,7 +28,15 @@
  * entries and scripted cameras keep their own distances, and while the game
  * holds the camera (no unlocked turn input for a few frames) the zoom eases
  * back to 1. With the stick untouched and the zoom at 1 nothing changes:
- * the game runs exactly as the original. */
+ * the game runs exactly as the original.
+ *
+ * The first-person view (BATTLE func_8006EC7C, field mode 7) has no follow
+ * camera (func_8006E158 does not run there) and ignores the right stick of
+ * a digital pad: pc_camera_stick_first_person turns the stick into yaw and
+ * pitch steps on top of the D-pad's, always (not behind the camera_stick
+ * switch, which is about the follow camera), with this camera's dead zone,
+ * curve and speed. While that view runs, R3 is the game's again (it leaves
+ * the view). */
 #include "camera_stick.h"
 #include <math.h>
 #include <stdio.h>
@@ -76,6 +84,10 @@ static struct {
     float desired, hit;
     int ticks, turns, resets;
     int stick_yaw, stick_yaw_valid; /* the yaw the stick last wrote */
+    /* First-person look (pc_camera_stick_first_person). */
+    unsigned fp_vsync;
+    int fp_ticked, fp_looks, fp_yaw, fp_pitch;
+    float fp_fraction[2];
 } s = { .zoom = 1, .zoom_applied = 1, .room_zoom_max = 1.5f, .hit = -1 };
 
 static unsigned now(void) { return pc_vsync_count ? pc_vsync_count() : 0; }
@@ -140,11 +152,21 @@ int pc_camera_stick_reset_target(int yaw, int* direction)
 
 void pc_camera_stick_reset(void) { s.reset = 1; }
 
+/* The first-person view ran within the last game frame or two (it calls
+ * pc_camera_stick_first_person every game frame). */
+static int first_person(void) { return s.fp_ticked && now() - s.fp_vsync <= 3; }
+
 unsigned pc_camera_stick_buttons(unsigned buttons)
 {
     if (!pc_camera_stick || !pc_camera_stick_r3)
         return buttons;
     int down = (buttons & R3_BIT) != 0;
+    if (first_person()) {
+        /* In the first-person view R3 is the game's (it leaves the view, as
+         * Start and Cross do): no follow camera to reset there. */
+        s.r3_down = down;
+        return buttons;
+    }
     if (down && !s.r3_down) {
         s.r3_latched = 1;
         s.r3_vsync = now();
@@ -306,6 +328,33 @@ void pc_camera_stick_turn(void* spherical)
     camera->values.yaw &= ~7;
 }
 
+void pc_camera_stick_first_person(int* yaw, int* pitch)
+{
+    unsigned t = now();
+    unsigned gap = t - s.fp_vsync;
+    if (!s.fp_ticked || gap > 8) { /* entering the view: no carry from before */
+        s.fp_fraction[0] = s.fp_fraction[1] = 0;
+        gap = 2;
+    }
+    s.fp_ticked = 1;
+    s.fp_vsync = t;
+    float dt = (gap < 1 ? 1 : gap) / 59.94f;
+    float v[2];
+    read_stick(v);
+    /* The follow camera's dead zone, curve and speed; not its inversions
+     * (turning and zooming): right looks right, down looks down. */
+    float rate = pc_camera_stick_speed * (4096.0f / 360.0f) * dt;
+    s.fp_fraction[0] += pc_camera_stick_shape(v[0], pc_camera_stick_deadzone, pc_camera_stick_curve) * rate;
+    s.fp_fraction[1] += pc_camera_stick_shape(v[1], pc_camera_stick_deadzone, pc_camera_stick_curve) * rate;
+    *yaw = (int)s.fp_fraction[0];
+    *pitch = (int)s.fp_fraction[1];
+    s.fp_fraction[0] -= (float)*yaw;
+    s.fp_fraction[1] -= (float)*pitch;
+    s.fp_yaw = *yaw, s.fp_pitch = *pitch;
+    if (*yaw || *pitch)
+        s.fp_looks++;
+}
+
 /* Room triangles the camera may not pass beyond: drawn under this frame's
  * facing mask (the cutaway walls are not drawn, so passing them shows
  * nothing wrong), not disabled (0x1100) and not the alternate set. */
@@ -413,12 +462,14 @@ int pc_camera_stick_json(char* out, int size)
         "\"active\":%d,\"locked\":%d,\"stick\":[%g,%g],\"shaped\":[%g,%g],\"rate\":%g,"
         "\"zoom_target\":%g,\"zoom_applied\":%g,\"room_zoom_max\":%g,\"room_extent\":%g,"
         "\"game_distance\":%d,\"desired\":%g,\"hit\":%g,\"arm\":%g,\"distance\":%d,\"pitch\":%d,\"yaw\":%d,"
-        "\"offset\":%d,\"ticks\":%d,\"turns\":%d,\"resets\":%d,\"vsyncs_since_tick\":%u,\"stick_yaw\":%d}",
+        "\"offset\":%d,\"ticks\":%d,\"turns\":%d,\"resets\":%d,\"vsyncs_since_tick\":%u,\"stick_yaw\":%d,"
+        "\"first_person\":%d,\"fp_looks\":%d,\"fp_step\":[%d,%d]}",
         pc_camera_stick, pc_camera_stick_speed, pc_camera_stick_deadzone, pc_camera_stick_curve,
         pc_camera_stick_invert_x, pc_camera_stick_invert_y, pc_camera_stick_zoom, pc_camera_stick_zoom_speed,
         pc_camera_stick_zoom_min, pc_camera_stick_zoom_max, pc_camera_stick_zoom_pitch, pc_camera_stick_collision,
         pc_camera_stick_r3, pc_camera_stick_idle_reset, pc_camera_stick_keys, active, s.locked, s.stick[0],
         s.stick[1], s.shaped[0], s.shaped[1], s.rate, s.zoom, s.zoom_applied, s.room_zoom_max, s.room_extent,
         s.game_distance, s.desired, s.hit, s.arm, s.placed_distance, s.placed_pitch, s.placed_yaw, s.offset,
-        s.ticks, s.turns, s.resets, s.ticked ? t - s.last_tick : 0, s.stick_yaw_valid ? s.stick_yaw : -1);
+        s.ticks, s.turns, s.resets, s.ticked ? t - s.last_tick : 0, s.stick_yaw_valid ? s.stick_yaw : -1,
+        first_person(), s.fp_looks, s.fp_yaw, s.fp_pitch);
 }

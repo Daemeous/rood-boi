@@ -45,8 +45,13 @@ void pc_camera_stick_turn(void* spherical);
  * camera's look-at point (VECTOR, 20.12 fixed). */
 void pc_camera_stick_place(void* values, const int* look_at);
 /* The PS1 pad bits of this vsync (boot_window.c): R3 goes to the camera
- * when it resets with R3. */
+ * when it resets with R3 (not in the first-person view: R3 leaves it). */
 unsigned pc_camera_stick_buttons(unsigned buttons);
+/* BATTLE func_8006EC7C (the first-person view), once per game frame: the
+ * right stick's yaw and pitch steps for this frame, signed as the D-pad's
+ * (Right: yaw up; Down: pitch up; the game applies qol_fp_invert_y). Not
+ * behind the camera_stick switch: the stick has nothing else to do there. */
+void pc_camera_stick_first_person(int* yaw, int* pitch);
 /* Reset now (R3, the editor's button, RPC). */
 void pc_camera_stick_reset(void);
 /* RPC camera_stick: the state as a JSON object. */
