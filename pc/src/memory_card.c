@@ -146,7 +146,7 @@ static void save(struct card* card)
         fprintf(stderr, "[card] cannot write %s: %s\n", temp, strerror(errno));
         return;
     }
-    if (rename(temp, card->path))
+    if (pc_replace_file(temp, card->path))
         fprintf(stderr, "[card] cannot replace %s: %s\n", card->path, strerror(errno));
 }
 

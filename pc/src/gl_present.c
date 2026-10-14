@@ -5,6 +5,7 @@
  * boot_window.c. ROOD_RENDERER=software (or x11, its old name) forces that
  * fallback. */
 #define _POSIX_C_SOURCE 200809L
+#include "platform.h" /* pc_replace_file */
 #include "gl_api.h"
 #include "dev_state.h"
 #include "gl_shaders.h" /* PC_GLSL_PROBE_COMMON: the probe GI lookup (probe_gi.inc) */
@@ -1227,7 +1228,7 @@ void pc_write_ppm_atomic(const char* name, const unsigned char* pixels, int w, i
     free(row);
     fclose(f);
     remove(name); /* Windows' rename does not replace */
-    rename(part, name);
+    pc_replace_file(part, name);
 }
 static void write_capture(const char* name, const unsigned char* pixels, int w, int h)
 {
