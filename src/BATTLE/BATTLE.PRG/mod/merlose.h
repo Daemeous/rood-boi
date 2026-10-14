@@ -539,6 +539,48 @@ static void _updateWeaponDrawn(vs_battle_actor* callo)
     }
 }
 
+/* --- Her animations ---------------------------------------------------------------------------
+ * A jump asks for Ashley's common-set slots (take-off 47, mid-air 48, apex 49, falling 50,
+ * landing 51), but her set is laid out differently: she has nothing in 47, 48 and 50 (she kept
+ * her idle pose in the air), and her 51 is an exaggerated hit reaction (an upper-body flip on
+ * landing). Give her own mid-air (21) and falling (22) poses, and land in her idle (1); 51 only
+ * right after a jump, as other code may use her 51 for that hit reaction. */
+static u_char _lastAnimSlot;
+
+int vs_mod_animSlot(void* actor, int id)
+{
+    int last;
+
+    if ((_calloSlot == 0) || (actor != D_800F4538[_calloSlot]) || (id == 0)) {
+        return id;
+    }
+    last = _lastAnimSlot;
+    _lastAnimSlot = id;
+    switch (id) {
+    case 47:
+    case 48:
+        return 21;
+    case 50:
+        return 22;
+    case 51:
+        if ((last >= 47) && (last <= 50)) {
+            return 1;
+        }
+        break;
+    }
+    return id;
+}
+
+#ifndef VS_CALLO
+/* Patch edition: the animation lookup's calls come here (tools/mod/build_mod.py battle) */
+int func_800AD494(void*, int, u_short**);
+
+int vs_mod_animLookup(void* actor, int id, u_short** out)
+{
+    return func_800AD494(actor, vs_mod_animSlot(actor, id), out);
+}
+#endif
+
 int vs_mod_frame(void)
 {
     int result = func_80088554();
