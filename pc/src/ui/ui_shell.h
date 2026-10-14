@@ -80,9 +80,9 @@ int pc_ui_shell_row(int i, const char** label, const char** help, const char** v
 int pc_ui_shell_focus(void);
 /* What the current tab shows: PC_UI_SCREEN_COMMANDS (rows above), or a native
  * screen: PC_UI_SCREEN_EQUIPMENT, PC_UI_SCREEN_ASHLEY, PC_UI_SCREEN_SYSTEM,
- * PC_UI_SCREEN_ABILITIES. */
+ * PC_UI_SCREEN_ABILITIES, PC_UI_SCREEN_MAGICK. */
 enum { PC_UI_SCREEN_COMMANDS = 0, PC_UI_SCREEN_EQUIPMENT = 1, PC_UI_SCREEN_ASHLEY = 2, PC_UI_SCREEN_SYSTEM = 3,
-       PC_UI_SCREEN_ABILITIES = 4 };
+       PC_UI_SCREEN_ABILITIES = 4, PC_UI_SCREEN_MAGICK = 5 };
 int pc_ui_shell_screen(void);
 
 /* The Ashley screen: a summary with rows weapon, shield, condition, then one
@@ -134,7 +134,9 @@ enum {
     PC_UI_MOUSE_ABIL_SLOT, /* Abilities, Chain / Defense: a button's slot 0..2 */
     PC_UI_MOUSE_ABIL_ROW,  /* Abilities, Chain / Defense: a row of the learned list */
     PC_UI_MOUSE_ART_CATEGORY, /* Abilities, Break Arts: a category (1..10, not the rail row) */
-    PC_UI_MOUSE_ART        /* Abilities, Break Arts: an art 0..3 of the focused category */
+    PC_UI_MOUSE_ART,       /* Abilities, Break Arts: an art 0..3 of the focused category */
+    PC_UI_MOUSE_SPELL,     /* Magick: a row of the sub-tab's list (a spell, or a Teleport destination) */
+    PC_UI_MOUSE_SPELL_LEVEL /* Magick: a level 0..3 of the focused levelled spell (a click picks it, no cast) */
 };
 void pc_ui_shell_mouse(int kind, int index, int clicked, float wheel);
 
@@ -200,6 +202,39 @@ void pc_ui_shell_abilities_view(pc_ui_abilities_view* v);
 /* The bridge sets the snapshot each tick before pc_ui_shell_tick (copied). */
 void pc_ui_shell_set_abilities(const pc_ui_abilities* a);
 const pc_ui_abilities* pc_ui_shell_abilities(void);
+
+/* The Magick screen. Sub-tabs (L2/R2; a click on PC_UI_MOUSE_SUB index i =
+ * the i-th shown): the schools with a spell learned (Warlock, Shaman,
+ * Sorcerer, Enchanter, the snapshot's unlocked) and Teleport once the game
+ * has it (the snapshot's teleport); the tab itself shows while the game has
+ * the Magick command (menuFlags bit 0), with no sub-tab when nothing is
+ * learned yet. One list per sub-tab: Up/Down move (wrapping); on a levelled
+ * spell Left/Right pick its level (LV1..LVn, no wrap; one level kept for all
+ * of them, as the original's LV cursor: taken from the snapshot's
+ * level_memory at every open, lowered to a focused spell's last level and
+ * kept so; the bridge writes it back to the game). Circle queues
+ * PC_UI_REQ_SPELL_CAST {item = the level's action id} or
+ * PC_UI_REQ_TELEPORT {slot = the save point}: the bridge checks it as MENU0
+ * does and, accepted, hands it to the
+ * game and ends the menu (menu_bridge.c close_for_cast), else buzzes. Square
+ * opens the original Magick screen (result 1). Cross closes. Teleport's
+ * cursor starts on the circle the player stands on at every open (as the
+ * original's list does); the spell lists keep theirs (a cancelled target
+ * reopens the shell on the spell). */
+enum { PC_UI_MG_TELEPORT = PC_UI_SCHOOLS }; /* sub-tab kinds: PC_UI_SCHOOL_* or this */
+typedef struct {
+    int subs;                            /* sub-tabs shown */
+    int sub_kind[PC_UI_SCHOOLS + 1];     /* PC_UI_SCHOOL_* or PC_UI_MG_TELEPORT, each */
+    int sub;                             /* the current one's index */
+    int kind;                            /* its kind (-1: none shown) */
+    int cursor;                          /* the list's row */
+    int rows;                            /* the list's rows */
+    int level;                           /* the focused spell's level 0..levels-1 (0: not levelled) */
+} pc_ui_magick_view;
+void pc_ui_shell_magick_view(pc_ui_magick_view* v);
+/* The bridge sets the snapshot each tick before pc_ui_shell_tick (copied). */
+void pc_ui_shell_set_magick(const pc_ui_magick* m);
+const pc_ui_magick* pc_ui_shell_magick(void);
 
 /* The System screen (pc/src/ui/ui_settings.h has the pages): a list on the
  * left, the game's own screens first (Data, Options, Score, Quick manual;

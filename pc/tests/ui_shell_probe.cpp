@@ -1146,6 +1146,208 @@ static void abilities_tests()
     pc_ui_shell_close();
 }
 
+// The Magick screen: sub-tabs per school learned and Teleport, the LV picker, casting and teleporting.
+static pc_ui_magick magick_model()
+{
+    pc_ui_magick m = {};
+    m.valid = 1;
+    m.mp = 30, m.mp_max = 40;
+    // Warlock: Solid Shock (97), Explosion (106) with LV1-3; Shaman: Heal (130); Sorcerer, Enchanter: nothing
+    m.schools[0].unlocked = 1;
+    m.schools[0].count = 2;
+    pc_ui_spell& a = m.schools[0].spells[0];
+    a.id = 97, a.mp = 5, a.levels = 1;
+    std::snprintf(a.name, sizeof a.name, "Solid Shock");
+    a.level[0] = {97, 5, 1, ""};
+    pc_ui_spell& b = m.schools[0].spells[1];
+    b.id = 106, b.mp = 8, b.levels = 3;
+    std::snprintf(b.name, sizeof b.name, "Explosion");
+    b.level[0] = {106, 8, 1, ""};
+    b.level[1] = {107, 16, 1, ""};
+    b.level[2] = {108, 32, 0, "Not enough MP."};
+    m.schools[1].unlocked = 1;
+    m.schools[1].count = 1;
+    pc_ui_spell& c = m.schools[1].spells[0];
+    c.id = 130, c.mp = 6, c.levels = 1;
+    std::snprintf(c.name, sizeof c.name, "Heal");
+    c.level[0] = {130, 6, 0, "Silenced: spells cannot be cast."};
+    // Teleport: three circles found, the player on the second (cost 15)
+    m.teleport = 1, m.teleport_enabled = 1;
+    m.destination_count = 3;
+    const int points[3] = {0, 3, 7}, costs[3] = {27, 15, 31};
+    for (int i = 0; i < 3; ++i) {
+        pc_ui_destination& d = m.destinations[i];
+        d.point = points[i], d.cost = costs[i], d.current = costs[i] == 15, d.usable = costs[i] <= 30;
+        std::snprintf(d.name, sizeof d.name, "Circle%d", points[i]);
+    }
+    std::snprintf(m.destinations[2].reason, sizeof m.destinations[2].reason, "Not enough MP.");
+    return m;
+}
+static void magick_tests()
+{
+    pc_ui_commands all = {0x3FF, 0, 0};
+    pc_ui_magick m = magick_model();
+    pc_ui_shell_open(&all, 0);
+    pc_ui_shell_set_magick(&m);
+    for (int i = 0; i < 4; ++i) tick(PC_UI_TAB_NEXT); // Ashley Equipment Items Abilities Magick
+    CHECK(json_has("\"tab\":\"magick\"") && json_has("\"screen\":\"magick\""));
+    CHECK(pc_ui_shell_screen() == PC_UI_SCREEN_MAGICK);
+    CHECK(json_has("\"subs\":[\"warlock\",\"shaman\",\"teleport\"],\"sub\":\"warlock\",\"cursor\":0,\"rows\":2"));
+    CHECK(json_has("\"focus\":97"));
+    pc_ui_magick_view v;
+    pc_ui_shell_magick_view(&v);
+    CHECK(v.subs == 3 && v.kind == PC_UI_SCHOOL_WARLOCK && v.cursor == 0 && v.rows == 2 && v.level == 0);
+    // Left/Right on a spell without levels: nothing
+    tick(PC_UI_RIGHT);
+    CHECK(json_has("\"level\":0,\"focus\":97"));
+    // Circle: a cast request, the shell stays until the bridge takes it
+    CHECK(tick(PC_UI_CONFIRM) == 0 && pc_ui_shell_visible());
+    pc_ui_request r = pop();
+    CHECK(r.kind == PC_UI_REQ_SPELL_CAST && r.item == 97);
+    CHECK(queue_empty());
+    // the levelled spell: Right picks LV2, LV3, stops at LV3; Left back; Circle casts the level's id
+    tick(PC_UI_DOWN);
+    CHECK(json_has("\"cursor\":1,\"rows\":2,\"level\":0,\"focus\":106"));
+    tick(PC_UI_RIGHT);
+    tick(PC_UI_RIGHT);
+    tick(PC_UI_RIGHT);
+    CHECK(json_has("\"level\":2,\"focus\":108"));
+    tick(PC_UI_LEFT);
+    CHECK(json_has("\"level\":1,\"focus\":107"));
+    tick(PC_UI_CONFIRM);
+    r = pop();
+    CHECK(r.kind == PC_UI_REQ_SPELL_CAST && r.item == 107);
+    // the level is kept on the other row but shown as LV1 there (no levels); Down wraps
+    tick(PC_UI_DOWN);
+    CHECK(json_has("\"cursor\":0,\"rows\":2,\"level\":0,\"focus\":97"));
+    tick(PC_UI_UP);
+    CHECK(json_has("\"level\":1,\"focus\":107"));
+    // a greyed level is still asked (the bridge buzzes)
+    tick(PC_UI_RIGHT);
+    tick(PC_UI_CONFIRM);
+    r = pop();
+    CHECK(r.kind == PC_UI_REQ_SPELL_CAST && r.item == 108);
+    CHECK(json_has("\"reason\":\"Not enough MP.\""));
+    // the cursor survives a reopen (back after a cancelled target); the level is the game's LV
+    // picker memory (cursorMemories[12], which the bridge wrote while the spell was focused)
+    pc_ui_shell_close();
+    m.level_memory = 2;
+    pc_ui_shell_open(&all, 1);
+    pc_ui_shell_set_magick(&m);
+    CHECK(json_has("\"sub\":\"warlock\",\"cursor\":1,\"rows\":2,\"level\":2,\"focus\":108"));
+    // the game's memory wins at an open (the original screen may have moved it), once per open
+    pc_ui_shell_close();
+    m.level_memory = 0;
+    pc_ui_shell_open(&all, 1);
+    pc_ui_shell_set_magick(&m);
+    CHECK(json_has("\"cursor\":1,\"rows\":2,\"level\":0,\"focus\":106"));
+    tick(PC_UI_RIGHT);
+    pc_ui_shell_set_magick(&m);
+    CHECK(json_has("\"level\":1,\"focus\":107"));
+    pc_ui_shell_close();
+    m.level_memory = 2;
+    pc_ui_shell_open(&all, 1);
+    pc_ui_shell_set_magick(&m);
+    CHECK(json_has("\"level\":2,\"focus\":108"));
+    // a focused spell with fewer levels lowers the level and keeps it (levelledSpellInit)
+    {
+        pc_ui_magick two = m;
+        two.schools[0].spells[1].levels = 2;
+        pc_ui_shell_set_magick(&two);
+        CHECK(json_has("\"level\":1,\"focus\":107"));
+        pc_ui_shell_magick_view(&v);
+        CHECK(v.level == 1);
+        pc_ui_shell_set_magick(&m);
+        CHECK(json_has("\"level\":1,\"focus\":107"));
+        tick(PC_UI_RIGHT);
+    }
+    CHECK(json_has("\"level\":2,\"focus\":108"));
+    // R2: Shaman, its own cursor; Circle on a silenced spell is still asked
+    tick(PC_UI_SUB_NEXT);
+    CHECK(json_has("\"sub\":\"shaman\",\"cursor\":0,\"rows\":1"));
+    tick(PC_UI_CONFIRM);
+    r = pop();
+    CHECK(r.kind == PC_UI_REQ_SPELL_CAST && r.item == 130);
+    // R2: Teleport, on the current circle; Circle asks for that save point
+    tick(PC_UI_SUB_NEXT);
+    CHECK(json_has("\"sub\":\"teleport\",\"cursor\":1,\"rows\":3,\"level\":0,\"focus\":3"));
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    r = pop();
+    CHECK(r.kind == PC_UI_REQ_TELEPORT && r.slot == 7);
+    CHECK(queue_empty());
+    // R2 wraps to Warlock, L2 back to Teleport
+    tick(PC_UI_SUB_NEXT);
+    CHECK(json_has("\"sub\":\"warlock\""));
+    tick(PC_UI_SUB_PREV);
+    CHECK(json_has("\"sub\":\"teleport\",\"cursor\":2"));
+    // a new open puts Teleport's cursor on the current circle again
+    pc_ui_shell_open(&all, 1);
+    pc_ui_shell_set_magick(&m);
+    CHECK(json_has("\"sub\":\"teleport\",\"cursor\":1"));
+    // Square: the original Magick (command 0 -> 1); Cross closes
+    CHECK(tick(PC_UI_ALT) == 1 && !pc_ui_shell_visible());
+    pc_ui_shell_open(&all, 1);
+    pc_ui_shell_set_magick(&m);
+    CHECK(tick(PC_UI_BACK) == -1 && !pc_ui_shell_visible());
+    // the sub-tabs follow the snapshot: no Teleport, a school learned later
+    pc_ui_magick fewer = m;
+    fewer.teleport = 0;
+    fewer.schools[1].unlocked = 0;
+    fewer.schools[3].unlocked = 1;
+    fewer.schools[3].count = 1;
+    fewer.schools[3].spells[0] = m.schools[1].spells[0];
+    pc_ui_shell_open(&all, 1);
+    pc_ui_shell_set_magick(&fewer);
+    CHECK(json_has("\"subs\":[\"warlock\",\"enchanter\"],\"sub\":\"warlock\""));
+    // nothing learned and no Teleport: no sub-tab, Circle asks for nothing, Square still opens the original
+    pc_ui_magick none = {};
+    none.valid = 1;
+    pc_ui_shell_set_magick(&none);
+    CHECK(json_has("\"subs\":[],\"sub\":\"\"") && json_has("\"focus\":-1"));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    CHECK(queue_empty());
+    CHECK(tick(PC_UI_ALT) == 1);
+    // the tab follows menuFlags bit 0 (the Magick command)
+    pc_ui_commands no_magic = {0x3FF & ~1u, 0, 0};
+    pc_ui_shell_open(&no_magic, 0);
+    for (int i = 0; i < 4; ++i) tick(PC_UI_TAB_NEXT);
+    CHECK(json_has("\"tab\":\"lea_monde\""));
+    // mouse: a sub-tab click (index among the shown), hover a row focuses, a click casts, a level click picks
+    m.level_memory = 0; // the game's LV picker on LV1
+    pc_ui_shell_open(&all, 0);
+    pc_ui_shell_set_magick(&m);
+    for (int i = 0; i < 4; ++i) tick(PC_UI_TAB_NEXT);
+    CHECK(json_has("\"tab\":\"magick\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_SUB, 0, 1, 0);
+    tick(0);
+    CHECK(json_has("\"sub\":\"warlock\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_SPELL, 0, 0, 0);
+    tick(0);
+    CHECK(json_has("\"cursor\":0,") && queue_empty());
+    pc_ui_shell_mouse(PC_UI_MOUSE_SPELL, 1, 1, 0);
+    tick(0);
+    r = pop();
+    CHECK(r.kind == PC_UI_REQ_SPELL_CAST && r.item == 106 && json_has("\"cursor\":1,"));
+    pc_ui_shell_mouse(PC_UI_MOUSE_SPELL_LEVEL, 2, 1, 0);
+    tick(0);
+    CHECK(json_has("\"level\":2,\"focus\":108") && queue_empty());
+    pc_ui_shell_mouse(PC_UI_MOUSE_SPELL_LEVEL, 3, 1, 0); // past its levels: nothing
+    tick(0);
+    CHECK(json_has("\"level\":2,\"focus\":108") && queue_empty());
+    pc_ui_shell_mouse(PC_UI_MOUSE_SPELL, 5, 1, 0); // past the end: nothing
+    tick(0);
+    CHECK(queue_empty());
+    pc_ui_shell_mouse(PC_UI_MOUSE_SUB, 2, 1, 0);
+    tick(0);
+    pc_ui_shell_mouse(PC_UI_MOUSE_SPELL, 0, 1, 0);
+    tick(0);
+    r = pop();
+    CHECK(r.kind == PC_UI_REQ_TELEPORT && r.slot == 0);
+    pc_ui_shell_close();
+}
+
 int main()
 {
     pc_ui_commands all = {0x3FF, 0, 0};
@@ -1189,22 +1391,22 @@ int main()
     // not remembered: back to Ashley
     pc_ui_shell_open(&all, 0);
     CHECK(json_has("\"tab\":\"ashley\""));
-    // Magick unselectable (MP 0: mask bit 0x20): greyed with a reason, and confirm still opens
-    // the game's Magick (command 0 -> 1), as the original top level does
-    pc_ui_commands no_magic = {0x3FF, 1, 0x20};
-    pc_ui_shell_open(&no_magic, 0);
-    for (int i = 0; i < 4; ++i) tick(PC_UI_TAB_NEXT); // Ashley Equipment Items Abilities Magick
-    CHECK(json_has("\"tab\":\"magick\""));
+    // Items unselectable (carrying a cube: mask bit 2): greyed with a reason, and confirm still opens
+    // the game's Items (command 3 -> 4), as the original top level does
+    pc_ui_commands no_items = {0x3FF, 8, 0x02};
+    pc_ui_shell_open(&no_items, 0);
+    for (int i = 0; i < 2; ++i) tick(PC_UI_TAB_NEXT); // Ashley Equipment Items
+    CHECK(json_has("\"tab\":\"items\""));
     CHECK(json_has("\"enabled\":false"));
-    CHECK(json_has("\"reason\":\"Not enough MP.\""));
-    CHECK(tick(PC_UI_CONFIRM) == 1);
+    CHECK(json_has("\"reason\":\"Not while carrying a cube.\""));
+    CHECK(tick(PC_UI_CONFIRM) == 4);
     CHECK(!pc_ui_shell_visible());
-    // the reason follows the game's order (lowest bit the command cares about): hanging (4) before MP (0x20)
-    pc_ui_commands hanging = {0x3FF, 1, 0x24};
+    // the reason follows the game's order (lowest bit the command cares about): cube (2) before hanging (4)
+    pc_ui_commands hanging = {0x3FF, 8, 0x06};
     pc_ui_shell_open(&hanging, 1);
-    CHECK(json_has("\"reason\":\"Not while hanging from a ledge.\""));
-    // a bit Magick does not care about (8, battle mode) gives the general reason
-    pc_ui_commands other = {0x3FF, 1, 0x08};
+    CHECK(json_has("\"reason\":\"Not while carrying a cube.\""));
+    // a bit Items does not care about (8, battle mode) gives the general reason
+    pc_ui_commands other = {0x3FF, 8, 0x08};
     pc_ui_shell_open(&other, 1);
     CHECK(json_has("\"reason\":\"Not usable right now"));
     // selectable rows carry no reason
@@ -1285,6 +1487,7 @@ int main()
     system_tests();
     ashley_tests();
     abilities_tests();
+    magick_tests();
     std::printf(failures ? "ui_shell_probe: %d failures\n" : "ui_shell_probe: ok\n", failures);
     return failures != 0;
 }

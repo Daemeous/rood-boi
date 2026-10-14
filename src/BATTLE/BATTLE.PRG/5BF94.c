@@ -3393,6 +3393,12 @@ void func_800CA9C0(void* arg0)
     ClearOTag(D_800F51B8, 0x22);
 }
 
+#ifdef ROOD_PC
+/* Modern menus (pc/src/ui/menu_bridge.c): the cancelled target's action was
+ * handed to the game by the shell, not by an original screen. */
+extern int pc_ui_menu_cast_cancelled(void) __attribute__((weak));
+#endif
+
 void func_800CAB40(void)
 {
     D_800F4E98.unk2 = 0;
@@ -3400,6 +3406,14 @@ void func_800CAB40(void)
     if (vs_battle_shortcutInvoked == 5) {
         vs_battle_menuState.currentMenu = 4;
         vs_mainMenu_miscItemsShortcutMenu(2);
+#ifdef ROOD_PC
+    } else if (pc_ui_menu_cast_cancelled && pc_ui_menu_cast_cancelled()) {
+        /* No original screen to return to: back to the top level as an
+         * original screen returns there (MAINMENU func_800FAA5C), which the
+         * shell takes on its remembered tab and row (func_800C930C(1)). */
+        vs_battle_menuState.currentMenu = 0;
+        func_800C930C(1);
+#endif
     } else {
         vs_battle_menuState.currentMenu = vs_battle_menuState.returnState;
         vs_battle_submenuStates[vs_battle_menuState.returnState & 0xF] =

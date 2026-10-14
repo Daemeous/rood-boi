@@ -18,8 +18,15 @@ phase 3 (Ashley: summary, live model turned by the right stick or a drag,
 Square = the original Status; `ui_ashley_smoke`), phase 4 (System: settings
 pages and the game's options; `ui_system_smoke`) and phase 5 (Abilities:
 Chain / Defense mapping equal to the original's, Break Arts with locked arts
-and kills to go, native casting; `ui_abilities_smoke`) landed.
-Plans: `pc/docs/plans/`. Next: phase 6 (Items and Magick).
+and kills to go, native casting, a cancelled target back in the shell;
+`ui_abilities_smoke`) landed. Phase 6a landed: a target cancelled after a
+cast from the shell (Break Arts, Magick) returns to the shell on the same
+row, not to the original screen (one from the original screen still returns
+there), and the native Magick tab (schools, spells with MP and description,
+the LV picker sharing the original's level memory, greyed spells with their
+reason, casting through the game's targeting) with Teleport (destinations
+with their MP cost, the spirit paling; `ui_magick_smoke`).
+Plans: `pc/docs/plans/`. Next: phase 6b (Items).
 
 | Phase | Screens |
 | --- | --- |

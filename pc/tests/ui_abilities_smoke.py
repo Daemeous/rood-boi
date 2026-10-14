@@ -45,12 +45,15 @@ Shell-only checks (process b, after the parity list):
   - loading: a second art learned, cursor memory on; the shell reopens on it
     while MAINMENU still loads: the art says "Loading…" and a click on it is
     refused (the shell stays, D_800F4E98 untouched); usable once resident
-  - cancel: that art cast, Cross on the target: the original Break Arts list
-    (currentMenu 0x42) on the equipped category (menu item 10's icon) with
-    the cast art's row highlighted (the list's cursor memory); View Arts there,
-    the dagger's list, Cross: the shell on Abilities > Break Arts; the first
-    art cast and cancelled: the equipped category's list again (not the
-    dagger's: MENU1's weapon type, ROOD_PC in 30.c), row 0; Cross: the shell.
+  - cancel (BATTLE func_800CAB40, ROOD_PC): that art cast, Cross on the
+    target: the shell again (currentMenu 0, never the original list 0x42) on
+    Abilities > Break Arts, the equipped category, the cast art focused; the
+    first art cast and cancelled the same way; cast once more from there and
+    confirmed: HP drops by the cost
+  - the original list (Square on the shell's Break Arts: MENU1, 0x42): its own
+    cast writes the same hand-off as the shell's; its cancel goes back to that
+    list (not the shell: the shell did not hand it over) with the cast art's
+    row highlighted; Cross there: the shell on Abilities > Break Arts.
     Triangle closes (0x3F), and after all that Triangle opens and closes the
     menu normally (no stuck 0x1F)
   - mouse (RPC ui_menu pointer, layout units, the real hit tests): hover a
@@ -559,19 +562,9 @@ def arts_checks(b, check):
 
     # cast and confirm
     cast(b, check, art0)
-    hp1 = b.hp()
-    F = b.sym["D_800F196C"]
-    for _ in range(6):  # the target cursor takes Circle once it is up: until targeting ends
-        g.press("circle", vsyncs=3, settle=4)
-        if b.wait(lambda: g.read(F, 1)[0] != TARGETING, 40, "", step=2, quiet=True) is not None:
-            break
-    b.wait(lambda: b.hp() != hp1, 60, "", step=2, quiet=True)
-    g.run(4)
-    check(b.hp() == hp1 - cost, f"confirmed: HP {hp1} -> {b.hp()} (cost {cost})")
-    g.run(200)  # the art plays
-    b.shot("confirmed")
+    confirm(b, check, cost, "confirmed")
 
-    # a second art of the equipped category learned (the cancel's list has two rows and View Arts)
+    # a second art of the equipped category learned (the original list has two rows and View Arts)
     art1 = art0 + 1
     v = g.read(acts + art1 * ACTION + ACTION_UNLOCKED, 1)[0]
     g.write(acts + art1 * ACTION + ACTION_UNLOCKED, bytes([v | 0x80]))
@@ -615,21 +608,16 @@ def arts_checks(b, check):
         b.pointer(-1, -1)
     b.wait(lambda: b.ab()["categories"][cat - 1]["arts"][1]["usable"], 120, "art 1 usable once MAINMENU is resident")
 
-    # cast art 1 and cancel: the original Break Arts list on the equipped category, art 1 highlighted
+    # cast art 1 and cancel: the shell again, art 1 focused (not MENU1's list)
     cancel(b, check, art1, 1, cat, "cast after loading")
-    # View Arts there, another category (the dagger's), Cross: the shell
-    rows = range(20, 23)  # art 0, art 1, View Arts
-    b.nav(rows, 22)
-    g.press("circle", vsyncs=3, settle=10)
-    b.wait_ready(20)
-    b.nav(range(20, 30), 20)  # the dagger row
-    g.press("circle", vsyncs=3, settle=10)
-    b.wait_ready(20)
-    icon = b.item_icon(10)
-    check(icon == DAGGER, f"View Arts: the dagger's list (item 10 icon {icon})")
-    back_to_shell(b, check)
-    # cast art 0 and cancel: the list is the equipped category's again, art 0 highlighted
-    cancel(b, check, art0, 0, cat, "after View Arts")
+    # cast art 0 from there and cancel: the shell on art 0
+    cancel(b, check, art0, 0, cat, "second cancel")
+    # cast art 0 once more from the reopened shell: confirmed
+    cast(b, check, art0, 0)
+    confirm(b, check, cost, "cast after the cancels, confirmed")
+
+    # the original list (Square): MENU1's own cast and cancel come back to MENU1's list
+    original_cancel(b, check, art1, 1, cat)
     back_to_shell(b, check)
     b.shell_close()
     check(b.menu() == CLOSED, f"Triangle closes ({b.menu():#x})")
@@ -647,26 +635,93 @@ def arts_checks(b, check):
                                            f"currentMenu {b.menu():#x})")
 
 
+def target(b, button, done):
+    """Press `button` on the target cursor (it takes presses once it is up) until done()."""
+    for _ in range(6):
+        b.g.press(button, vsyncs=3, settle=4)
+        n = b.wait(done, 40, "", step=2, quiet=True)
+        if n is not None:
+            return n
+    return None
+
+
+def confirm(b, check, cost, what):
+    """Circle on the target (until targeting ends): HP drops by the cost."""
+    g = b.g
+    hp1 = b.hp()
+    F = b.sym["D_800F196C"]
+    target(b, "circle", lambda: g.read(F, 1)[0] != TARGETING)
+    b.wait(lambda: b.hp() != hp1, 60, "", step=2, quiet=True)
+    g.run(4)
+    check(b.hp() == hp1 - cost, f"{what}: HP {hp1} -> {b.hp()} (cost {cost})")
+    g.run(200)  # the art plays
+    b.shot(what.replace(" ", "-").replace(",", ""))
+
+
 def cancel(b, check, art, row, cat, what):
-    """Cast `art` (row `row` of the list), Cross on the target: the original Break Arts list
-    (currentMenu 0x42) on category `cat` with that row highlighted."""
+    """Cast `art` (row `row` of the list) from the shell, Cross on the target: the shell
+    again on Abilities > Break Arts, category `cat`, that art focused; no original screen."""
     g = b.g
     b.shell_open("arts")
     cast(b, check, art, row)
     hp1 = b.hp()
-    n = None
+    seen = set()
+
+    def back():
+        seen.add(b.menu())
+        return b.ui()["visible"] and b.menu() == 0
     for _ in range(6):  # the target cursor takes Cross once it is up
-        g.press("cross", vsyncs=3, settle=4)
-        n = b.wait(lambda: b.menu() == BREAK_ARTS, 40, "", step=2, quiet=True)
+        g.press("cross", vsyncs=3, settle=0)
+        n = b.wait(back, 40, "", quiet=True)
         if n is not None:
             break
+    g.run(4)
+    s = b.ui()
+    ab = s.get("abilities") or {}
     check(b.hp() == hp1, f"{what}: cancelled, no HP spent ({hp1} -> {b.hp()})")
-    check(n is not None and not b.ui()["visible"], f"{what}: target cancelled: the original Break Arts list "
-                                                   f"(currentMenu {b.menu():#x})")
-    b.wait_ready(20 + row)
+    check(n is not None and BREAK_ARTS not in seen and b.menu() == 0,
+          f"{what}: target cancelled: the shell, no original screen (currentMenu {b.menu():#x}, "
+          f"seen {sorted(hex(m) for m in seen)}, D_800F196C {g.read(b.sym['D_800F196C'], 1)[0]}, "
+          f"menuItems {b.ptr(b.sym['vs_battle_menuItems']):#x})")
+    check(s.get("visible") and s.get("tab") == "abilities" and ab.get("sub") == "arts"
+          and ab.get("mode") == "arts" and ab.get("category") == cat and ab.get("art") == row,
+          f"{what}: on {s.get('tab')} > {ab.get('sub')}, mode {ab.get('mode')}, category {ab.get('category')} "
+          f"({cat}), art {ab.get('art')} ({row})")
+    g.run(20)
+    hud = g.read(b.sym["D_800EB9AF"], 1)[0]
+    check(hud == 1 and b.ui()["visible"], f"{what}: the field HUD slid out for the shell (D_800EB9AF {hud})")
+    b.shot(f"cancel-shell-{row}")
+
+
+def original_cancel(b, check, art, row, cat):
+    """Square on the shell's Break Arts: the original list (MENU1); its row `row` (`art`), Circle:
+    the same hand-off as the shell's; Cross on the target: that list again, the row highlighted."""
+    g = b.g
+    b.shell_open("arts")
+    g.press("square", vsyncs=3, settle=4)
+    b.wait(lambda: b.menu() == BREAK_ARTS and not b.ui()["visible"], 120, "the original Break Arts list")
+    b.wait_ready(20)
+    g.run(10)
     rows = list(range(20, 20 + b.ab_rows(cat) + 1))
+    b.nav(rows, 20 + row)
+    F = b.sym["D_800F196C"]
+    g.press("circle", vsyncs=3, settle=1)
+    n = b.wait(lambda: g.read(F, 1)[0] == TARGETING and b.menu() == CLOSED, 300, "", step=2, quiet=True)
+    e = g.read(b.sym["D_800F4E98"], 8)
+    ms = g.read(b.sym["vs_battle_menuState"], 3)
+    unk2, ability = struct.unpack("<hi", e[2:8])
+    check(n is not None and ability == art and unk2 == 6 and ms[2] == 5 and ms[1] == BREAK_ARTS,
+          f"original list: cast {ability} ({art}), unk2 {unk2}, executeAbilityType {ms[2]}, "
+          f"returnState {ms[1]:#x}, targeting {n is not None}")
+    g.run(20)
+    hp1 = b.hp()
+    n = target(b, "cross", lambda: b.menu() == BREAK_ARTS)
+    check(b.hp() == hp1 and n is not None and not b.ui()["visible"],
+          f"original list: target cancelled: that list again, not the shell (currentMenu {b.menu():#x}, "
+          f"shell visible {b.ui()['visible']}, HP {hp1} -> {b.hp()})")
+    b.wait_ready(20 + row)
     icon, sel = b.item_icon(10), b.selected(rows)
-    check(icon == cat and sel == 20 + row, f"{what}: the list is category {icon} ({cat}), row {sel} highlighted "
+    check(icon == cat and sel == 20 + row, f"original list: category {icon} ({cat}), row {sel} highlighted "
                                            f"({20 + row}: the cast art)")
     b.shot(f"cancel-original-{row}")
 
@@ -693,7 +748,7 @@ def cast(b, check, art, row=0):
     for _ in range(4):
         if b.ab()["art"] == row:
             break
-        g.press("down", vsyncs=3, settle=4)
+        g.press("down" if b.ab()["art"] < row else "up", vsyncs=3, settle=4)
     ab = b.ab()
     x = ab["categories"][ab["category"] - 1]["arts"][row]
     if not check(x["id"] == art and x["usable"], f"the art {x['id']} is usable before the cast "

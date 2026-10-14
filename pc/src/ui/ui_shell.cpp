@@ -19,7 +19,8 @@ struct RowDef {
     int command; // ROW_COMMAND: the original command index
 };
 enum Screen { SCREEN_COMMANDS = PC_UI_SCREEN_COMMANDS, SCREEN_EQUIPMENT = PC_UI_SCREEN_EQUIPMENT,
-    SCREEN_ASHLEY = PC_UI_SCREEN_ASHLEY, SCREEN_SYSTEM = PC_UI_SCREEN_SYSTEM, SCREEN_ABILITIES = PC_UI_SCREEN_ABILITIES };
+    SCREEN_ASHLEY = PC_UI_SCREEN_ASHLEY, SCREEN_SYSTEM = PC_UI_SCREEN_SYSTEM, SCREEN_ABILITIES = PC_UI_SCREEN_ABILITIES,
+    SCREEN_MAGICK = PC_UI_SCREEN_MAGICK };
 struct TabDef {
     const char* id;
     const char* title;
@@ -38,7 +39,9 @@ const TabDef TABS[] = {
     // native screen: sub-tabs Chain and Defense (command 2, Battle Abilities) and Break Arts (command 1),
     // each shown once the game has unlocked its command (menuFlags); Square opens the original screen
     {"abilities", "Abilities", {}, 0, SCREEN_ABILITIES, -1},
-    {"magick", "Magick", {{"magick", "Magick", "Cast spells from your grimoires.", ROW_COMMAND, 0}}, 1},
+    // native screen: sub-tabs per school learned and Teleport; Square opens the original Magick (command 0,
+    // which gates the tab)
+    {"magick", "Magick", {}, 0, SCREEN_MAGICK, 0},
     {"lea_monde", "Le\xc3\xa1 Monde", {{"map", "Map", "Where you are and where you have been.", ROW_COMMAND, 5}}, 1},
     // native screen: the game's own System screens and the settings pages (ui_settings.cpp)
     {"system", "System", {}, 0, SCREEN_SYSTEM, -1},
@@ -85,6 +88,15 @@ struct Abil {
     int art = 0;                          // focused art 0..3
 };
 
+// Magick screen: sub-tabs PC_UI_SCHOOL_* / PC_UI_MG_TELEPORT, one list each.
+struct Magic {
+    int kind = PC_UI_SCHOOL_WARLOCK;      // the sub-tab (kept as its kind: the shown set changes)
+    int cursor[PC_UI_SCHOOLS + 1] = {};   // each list's row
+    int level = 0;                        // the LV picker's level (one for every levelled spell)
+    bool placed = false;                  // Teleport's cursor was put on the current circle since the open
+    bool seeded = false;                  // level was taken from the game's (level_memory) since the open
+};
+
 const int QUEUE = 16;
 struct State {
     bool visible = false;
@@ -106,6 +118,8 @@ struct State {
     } sys;
     Abil ab;
     pc_ui_abilities ab_model = {};
+    Magic mg;
+    pc_ui_magick mg_model = {};
     int ash_shown = -1;      // effect chips the drawing fits, -1 all
     float drag_x = 0, drag_y = 0; // model drag since the bridge last took it
 } s;
@@ -1037,6 +1051,201 @@ void abilities_json(std::string& j)
     j += "]}";
 }
 
+// ---- Magick ----
+const int MAGICK_COMMAND = 0;
+const char* const MG_SUB_IDS[PC_UI_SCHOOLS + 1] = {"warlock", "shaman", "sorcerer", "enchanter", "teleport"};
+bool on_magick() { return TABS[s.tab].screen == SCREEN_MAGICK; }
+// The sub-tabs shown, in order: the schools with a spell learned, then Teleport.
+int mg_subs(int* out)
+{
+    int n = 0;
+    if (!s.mg_model.valid)
+        return 0;
+    for (int k = 0; k < PC_UI_SCHOOLS; ++k)
+        if (s.mg_model.schools[k].unlocked)
+            out[n++] = k;
+    if (s.mg_model.teleport)
+        out[n++] = PC_UI_MG_TELEPORT;
+    return n;
+}
+// The current sub-tab's index among the shown ones; puts the kind on a shown one.
+int mg_sub_index()
+{
+    int subs[PC_UI_SCHOOLS + 1], n = mg_subs(subs);
+    for (int i = 0; i < n; ++i)
+        if (subs[i] == s.mg.kind)
+            return i;
+    if (n)
+        s.mg.kind = subs[0];
+    return 0;
+}
+int mg_rows(int kind)
+{
+    const pc_ui_magick& m = s.mg_model;
+    int n = kind == PC_UI_MG_TELEPORT                ? m.destination_count
+        : kind >= 0 && kind < PC_UI_SCHOOLS ? m.schools[kind].count
+                                            : 0;
+    int max = kind == PC_UI_MG_TELEPORT ? PC_UI_SAVE_POINTS : PC_UI_SCHOOL_SPELLS;
+    return n < 0 ? 0 : n > max ? max : n;
+}
+// The focused spell (null on Teleport or an empty list).
+const pc_ui_spell* mg_spell()
+{
+    int k = s.mg.kind;
+    if (k < 0 || k >= PC_UI_SCHOOLS || s.mg.cursor[k] >= mg_rows(k))
+        return nullptr;
+    return &s.mg_model.schools[k].spells[s.mg.cursor[k]];
+}
+int mg_levels(const pc_ui_spell* e)
+{
+    return !e ? 1 : e->levels < 1 ? 1 : e->levels > PC_UI_SPELL_LEVELS ? PC_UI_SPELL_LEVELS : e->levels;
+}
+// The focused spell's level shown (the kept level, within its levels).
+int mg_level()
+{
+    int n = mg_levels(mg_spell());
+    return n > 1 ? (s.mg.level < 0 ? 0 : s.mg.level >= n ? n - 1 : s.mg.level) : 0;
+}
+void mg_clamp()
+{
+    mg_sub_index();
+    for (int k = 0; k <= PC_UI_SCHOOLS; ++k) {
+        int n = mg_rows(k);
+        if (s.mg.cursor[k] >= n)
+            s.mg.cursor[k] = n ? n - 1 : 0;
+        if (s.mg.cursor[k] < 0)
+            s.mg.cursor[k] = 0;
+    }
+    if (s.mg.level < 0 || s.mg.level >= PC_UI_SPELL_LEVELS)
+        s.mg.level = 0;
+    // a focused levelled spell keeps the level within its own and writes it
+    // back, as the original's picker does when it opens (levelledSpellInit)
+    int n = mg_levels(mg_spell());
+    if (n > 1 && s.mg.level >= n)
+        s.mg.level = n - 1;
+}
+// Teleport's list starts on the circle the player stands on (cost 15), once per open.
+void mg_place()
+{
+    const pc_ui_magick& m = s.mg_model;
+    if (s.mg.placed || !m.valid || !m.teleport)
+        return;
+    s.mg.placed = true;
+    for (int i = 0; i < mg_rows(PC_UI_MG_TELEPORT); ++i)
+        if (m.destinations[i].current) {
+            s.mg.cursor[PC_UI_MG_TELEPORT] = i;
+            break;
+        }
+}
+// Circle on the focused row: a cast or teleport request (the bridge checks it).
+void mg_confirm()
+{
+    int k = s.mg.kind;
+    if (!s.mg_model.valid || !mg_rows(k))
+        return;
+    if (k == PC_UI_MG_TELEPORT) {
+        push(PC_UI_REQ_TELEPORT, s.mg_model.destinations[s.mg.cursor[k]].point, 0, 0);
+        return;
+    }
+    const pc_ui_spell* e = mg_spell();
+    if (e)
+        push(PC_UI_REQ_SPELL_CAST, 0, e->level[mg_level()].id, 0);
+}
+int magick_tick(const pc_ui_input* in)
+{
+    if (in->pressed & PC_UI_ALT) { // the original Magick screen (command 0 -> result 1)
+        s.visible = false; // the game shows its screen; it reopens the shell after
+        s.drag_x = s.drag_y = 0;
+        return MAGICK_COMMAND + 1;
+    }
+    int subs[PC_UI_SCHOOLS + 1], n = mg_subs(subs);
+    if (!n)
+        return 0;
+    mg_clamp();
+    if (in->pressed & (PC_UI_SUB_NEXT | PC_UI_SUB_PREV)) {
+        int i = mg_sub_index(), dir = (in->pressed & PC_UI_SUB_NEXT) ? 1 : -1;
+        s.mg.kind = subs[(i + dir + n) % n];
+        return 0;
+    }
+    int k = s.mg.kind, rows = mg_rows(k);
+    int& cur = s.mg.cursor[k];
+    if (rows && (in->repeat & PC_UI_DOWN))
+        cur = (cur + 1) % rows;
+    if (rows && (in->repeat & PC_UI_UP))
+        cur = (cur + rows - 1) % rows;
+    int levels = mg_levels(mg_spell());
+    if (levels > 1) { // the original's LV picker: Left/Right, no wrap
+        int l = mg_level();
+        if ((in->repeat & PC_UI_RIGHT) && l < levels - 1)
+            s.mg.level = l + 1;
+        if ((in->repeat & PC_UI_LEFT) && l > 0)
+            s.mg.level = l - 1;
+    }
+    if (in->pressed & PC_UI_CONFIRM)
+        mg_confirm();
+    return 0;
+}
+void magick_json(std::string& j)
+{
+    const pc_ui_magick& m = s.mg_model;
+    char buf[256];
+    int subs[PC_UI_SCHOOLS + 1], n = mg_subs(subs);
+    mg_clamp();
+    int k = s.mg.kind;
+    j += ",\"magick\":{\"valid\":";
+    j += m.valid ? "true" : "false";
+    j += ",\"subs\":[";
+    for (int i = 0; i < n; ++i)
+        j += std::string(i ? ",\"" : "\"") + MG_SUB_IDS[subs[i]] + "\"";
+    const pc_ui_spell* e = n ? mg_spell() : nullptr;
+    std::snprintf(buf, sizeof buf,
+        "],\"sub\":\"%s\",\"cursor\":%d,\"rows\":%d,\"level\":%d,\"focus\":%d,\"mp\":%d,\"mp_max\":%d,\"mask\":%u",
+        n ? MG_SUB_IDS[k] : "", s.mg.cursor[k], n ? mg_rows(k) : 0, mg_level(),
+        !n || !mg_rows(k)        ? -1
+            : k == PC_UI_MG_TELEPORT ? m.destinations[s.mg.cursor[k]].point
+            : e                      ? e->level[mg_level()].id
+                                     : -1,
+        m.mp,
+        m.mp_max, m.mask);
+    j += buf;
+    j += ",\"schools\":[";
+    for (int c = 0; c < PC_UI_SCHOOLS; ++c) {
+        const pc_ui_school& sc = m.schools[c];
+        j += std::string(c ? ",{\"id\":\"" : "{\"id\":\"") + MG_SUB_IDS[c] + "\",\"unlocked\":";
+        j += sc.unlocked ? "true" : "false";
+        j += ",\"name\":\"" + escape(sc.name) + "\",\"help\":\"" + escape(sc.help) + "\",\"spells\":[";
+        for (int i = 0; i < mg_rows(c); ++i) {
+            const pc_ui_spell& sp = sc.spells[i];
+            std::snprintf(buf, sizeof buf, "%s{\"id\":%d,\"mp\":%d,\"levels\":%d,\"usable\":%s,\"name\":\"", i ? "," : "",
+                sp.id, sp.mp, mg_levels(&sp), sp.level[0].usable ? "true" : "false");
+            j += buf;
+            j += escape(sp.name) + "\",\"help\":\"" + escape(sp.help) + "\",\"reason\":\"" + escape(sp.level[0].reason)
+                + "\",\"level\":[";
+            for (int l = 0; l < mg_levels(&sp); ++l) {
+                const pc_ui_spell_level& v = sp.level[l];
+                std::snprintf(buf, sizeof buf, "%s{\"id\":%d,\"mp\":%d,\"usable\":%s,\"reason\":\"", l ? "," : "", v.id,
+                    v.mp, v.usable ? "true" : "false");
+                j += buf;
+                j += escape(v.reason) + "\"}";
+            }
+            j += "]}";
+        }
+        j += "]}";
+    }
+    std::snprintf(buf, sizeof buf, "],\"teleport\":{\"exists\":%s,\"enabled\":%s,\"help\":\"",
+        m.teleport ? "true" : "false", m.teleport_enabled ? "true" : "false");
+    j += buf;
+    j += escape(m.teleport_help) + "\",\"reason\":\"" + escape(m.teleport_reason) + "\",\"destinations\":[";
+    for (int i = 0; i < mg_rows(PC_UI_MG_TELEPORT); ++i) {
+        const pc_ui_destination& d = m.destinations[i];
+        std::snprintf(buf, sizeof buf, "%s{\"point\":%d,\"cost\":%d,\"current\":%s,\"usable\":%s,\"name\":\"",
+            i ? "," : "", d.point, d.cost, d.current ? "true" : "false", d.usable ? "true" : "false");
+        j += buf;
+        j += escape(d.name) + "\",\"help\":\"" + escape(d.help) + "\",\"reason\":\"" + escape(d.reason) + "\"}";
+    }
+    j += "]}}";
+}
+
 // ---- Mouse ----
 // Focus what the pointer is on (hover, or the click's target). False when that
 // target is not on screen now (another mode or tab, past the end).
@@ -1108,6 +1317,13 @@ bool mouse_focus(int kind, int index)
             return false;
         s.ab.art = index;
         return true;
+    case PC_UI_MOUSE_SPELL: {
+        int subs[PC_UI_SCHOOLS + 1];
+        if (!on_magick() || !mg_subs(subs) || index < 0 || index >= mg_rows(s.mg.kind))
+            return false;
+        s.mg.cursor[s.mg.kind] = index;
+        return true;
+    }
     default:
         return false;
     }
@@ -1148,6 +1364,17 @@ bool ab_click_zone(int kind, int index)
     default:
         return false;
     }
+}
+// A click on a level of the focused levelled spell picks it (no cast); true when it did.
+bool mg_click_level(int kind, int index)
+{
+    if (kind != PC_UI_MOUSE_SPELL_LEVEL || !on_magick())
+        return false;
+    int subs[PC_UI_SCHOOLS + 1];
+    int levels = mg_subs(subs) ? mg_levels(mg_spell()) : 1;
+    if (levels > 1 && index >= 0 && index < levels)
+        s.mg.level = index;
+    return true;
 }
 // Fold the pointer since the last tick into this tick's input. True when a
 // click switched a tab or sub-tab (that is the tick's whole action).
@@ -1199,6 +1426,13 @@ bool apply_mouse(pc_ui_input& in)
         s.drag_x = s.drag_y = 0;
         return true;
     case PC_UI_MOUSE_SUB:
+        if (on_magick()) { // the i-th shown sub-tab
+            int subs[PC_UI_SCHOOLS + 1], n = mg_subs(subs);
+            if (m.click_index < 0 || m.click_index >= n || subs[m.click_index] == s.mg.kind)
+                return false;
+            s.mg.kind = subs[m.click_index];
+            return true;
+        }
         if (on_abilities()) { // the i-th shown sub-tab
             int subs[3], n = ab_subs(subs);
             if (m.click_index < 0 || m.click_index >= n || (subs[m.click_index] == s.ab.kind
@@ -1246,7 +1480,7 @@ bool apply_mouse(pc_ui_input& in)
             in.pressed |= PC_UI_CONFIRM, in.repeat |= PC_UI_CONFIRM;
         return false;
     default:
-        if (ab_click_zone(m.click_kind, m.click_index))
+        if (ab_click_zone(m.click_kind, m.click_index) || mg_click_level(m.click_kind, m.click_index))
             return true;
         if (mouse_focus(m.click_kind, m.click_index))
             in.pressed |= PC_UI_CONFIRM, in.repeat |= PC_UI_CONFIRM;
@@ -1317,7 +1551,10 @@ extern "C" void pc_ui_shell_open(const pc_ui_commands* commands, int remember)
         s.sys.item = 0;
         std::memset(s.sys.row, 0, sizeof s.sys.row);
         s.ab = Abil();
+        s.mg = Magic();
     }
+    s.mg.placed = false; // Teleport starts on the current circle at every open (the original's list does)
+    s.mg.seeded = false; // the level is the game's LV picker memory at every open (it may have moved it)
     equip_base(); // a pick list never survives the shell closing
     ab_unpick();
     for (int t = 0; t < TAB_COUNT; ++t)
@@ -1392,6 +1629,8 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
         return system_tick(in);
     if (on_abilities())
         return abilities_tick(in);
+    if (on_magick())
+        return magick_tick(in);
     int rows[6];
     int n = clamp_row(s.tab);
     shown_rows(s.tab, rows);
@@ -1459,6 +1698,7 @@ extern "C" void pc_ui_shell_json(char* out, unsigned size)
     j += t.screen == SCREEN_EQUIPMENT ? "equipment" : t.screen == SCREEN_ASHLEY ? "ashley"
         : t.screen == SCREEN_SYSTEM                                            ? "system"
         : t.screen == SCREEN_ABILITIES                                         ? "abilities"
+        : t.screen == SCREEN_MAGICK                                            ? "magick"
                                                                                 : "commands";
     j += "\"";
     if (t.screen == SCREEN_EQUIPMENT)
@@ -1469,6 +1709,8 @@ extern "C" void pc_ui_shell_json(char* out, unsigned size)
         system_json(j);
     else if (t.screen == SCREEN_ABILITIES)
         abilities_json(j);
+    else if (t.screen == SCREEN_MAGICK)
+        magick_json(j);
     j += "}";
     std::snprintf(out, size, "%s", j.c_str());
 }
@@ -1618,4 +1860,26 @@ extern "C" void pc_ui_shell_abilities_view(pc_ui_abilities_view* v)
     v->category_row = ab_category_row();
     v->art = s.ab.art;
     ab_order(v->order);
+}
+
+extern "C" void pc_ui_shell_set_magick(const pc_ui_magick* m)
+{
+    s.mg_model = *m;
+    if (!s.mg.seeded && m->valid) {
+        s.mg.seeded = true;
+        s.mg.level = m->level_memory;
+    }
+    mg_place();
+    mg_clamp();
+}
+extern "C" const pc_ui_magick* pc_ui_shell_magick(void) { return &s.mg_model; }
+extern "C" void pc_ui_shell_magick_view(pc_ui_magick_view* v)
+{
+    mg_clamp();
+    v->subs = mg_subs(v->sub_kind);
+    v->sub = mg_sub_index();
+    v->kind = v->subs ? s.mg.kind : -1;
+    v->cursor = v->subs ? s.mg.cursor[s.mg.kind] : 0;
+    v->rows = v->subs ? mg_rows(s.mg.kind) : 0;
+    v->level = v->subs ? mg_level() : 0;
 }

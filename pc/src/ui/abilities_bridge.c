@@ -56,11 +56,11 @@
  *              menu_bridge.c closes the shell and ends the menu as MENU1
  *              does (close_for_cast: 0x7F at once, no _quitDelay) and BATTLE
  *              func_800735F8 runs the art (unk2 6: func_80072EC4,
- *              targeting). Cancelling the target (func_800CAB40) reopens
- *              currentMenu = returnState with submenu state 5: the original
- *              Break Arts list (MENU1 artsInitWithTitle, on the equipped
- *              weapon's category: ROOD_PC in 30.c; the cast art highlighted),
- *              whose Cross returns to the top level (the shell).
+ *              targeting). Cancelling the target (func_800CAB40) returns
+ *              to the top level, not to returnState (MENU1's list): the
+ *              shell again on Abilities > Break Arts with the art focused
+ *              (menu_bridge.c pc_ui_menu_cast_cancelled). A cast from the
+ *              original list (Square) is MENU1's own and goes back there.
  * Only BATTLE and main routines and data are used (MAINMENU may not be
  * loaded yet). The description tables are static copies of MENU1's and
  * MENU2's generated string assets (the overlays' own copies are their data,
@@ -84,6 +84,7 @@ int pc_ui_abilities_request(const pc_ui_request* r);
 int pc_ui_abilities_cast_taken(void);
 void pc_ui_abilities_cast(int go);
 int pc_ui_equip_busy(void); /* equip_bridge.c: a weapon / shield model reload runs */
+int pc_ui_magick_cast_taken(void); /* magick_bridge.c: one hand-off per tick */
 
 /* MENU2.PRG battleAbilities and MENU1.PRG strings, under our own names. */
 static u_short ability_text[] = {
@@ -422,8 +423,9 @@ int pc_ui_abilities_request(const pc_ui_request* r)
     /* ART_CAST: the shell still up (it returned no result this tick), MAINMENU
      * resident (the close below skips its load and the background's release,
      * which the menu's first frames still do), no model reload of the
-     * Equipment screen in flight, one cast per tick */
-    if (cast_id || !pc_ui_shell_visible() || !resident || pc_ui_equip_busy() || !art_castable(r->item)) {
+     * Equipment screen in flight, one hand-off per tick (Magick's too) */
+    if (cast_id || pc_ui_magick_cast_taken() || !pc_ui_shell_visible() || !resident || pc_ui_equip_busy()
+        || !art_castable(r->item)) {
         vs_battle_playInvalidSfx();
         return 1;
     }
@@ -441,9 +443,11 @@ int pc_ui_abilities_cast_taken(void) { return cast_id != 0; }
  * MENU1 vs_menu1_exec: artsMenu (executeAbility, executeAbilityType 5), then
  * executeArt (unk2 6, returnState = currentMenu 2 | 0x40); the list's
  * confirm keeps the row in its cursor memory (MAINMENU 58EC.c, submenu id
- * category + 11, row and page 0), which the reopened list after a target
- * cancel uses (artsInitWithTitle forces cursor memory); the top level's
- * cursor is on Break Arts (command 1) as when MENU1 was opened from it. */
+ * category + 11, row and page 0), which the original list reads when it
+ * opens later with cursor memory on; the top level's cursor is on Break
+ * Arts (command 1) as when MENU1 was opened from it. The game state is
+ * MENU1's hand-off byte for byte; only the target cancel differs (the shell
+ * comes back, menu_bridge.c pc_ui_menu_cast_cancelled). */
 void pc_ui_abilities_cast(int go)
 {
     int id = cast_id, category;

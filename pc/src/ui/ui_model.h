@@ -40,12 +40,14 @@ typedef struct {
 } pc_ui_equipment;
 
 enum { PC_UI_REQ_NONE, PC_UI_REQ_EQUIP, PC_UI_REQ_QUICK_SET, PC_UI_REQ_QUICK_CLEAR, PC_UI_REQ_CANDIDATES,
-       PC_UI_REQ_ABIL_MAP, PC_UI_REQ_ART_CAST };
+       PC_UI_REQ_ABIL_MAP, PC_UI_REQ_ART_CAST, PC_UI_REQ_SPELL_CAST, PC_UI_REQ_TELEPORT };
 typedef struct {
     int kind;
-    int slot;      /* EQUIP/CANDIDATES: PC_UI_SLOT_*; QUICK_*: 0..7; ABIL_MAP: button 0 Circle, 1 Triangle, 2 Square */
+    int slot;      /* EQUIP/CANDIDATES: PC_UI_SLOT_*; QUICK_*: 0..7; ABIL_MAP: button 0 Circle, 1 Triangle, 2 Square;
+                    * TELEPORT: the save point 0..47 */
     int item;      /* EQUIP: inventory index, -1 = take off; QUICK_SET: weapon inventory index;
-                    * ABIL_MAP, ART_CAST: the action id (vs_main_actions index) */
+                    * ABIL_MAP, ART_CAST, SPELL_CAST: the action id (vs_main_actions index; a levelled
+                    * spell's level: its own id, base + 0..3) */
     int shield;    /* QUICK_SET: shield inventory index, -1 none; ABIL_MAP: PC_UI_ABIL_CHAIN / _DEFENSE */
 } pc_ui_request;
 
@@ -99,6 +101,57 @@ typedef struct {
     int risk, hp, hp_max;
     pc_ui_art_category categories[PC_UI_ART_CATEGORIES];
 } pc_ui_abilities;
+
+/* The Magick tab (magick_bridge.c fills it every tick while it shows). The
+ * four schools in the game's order (Warlock, Shaman, Sorcerer, Enchanter:
+ * BATTLE vs_battle_<school>SpellIds), each with the spells learned
+ * (vs_main_actions[id].unlocked) in that order, as MENU0 lists them; then
+ * Teleport (MENU0 _teleportMenu): the save points found, in save point order. */
+enum { PC_UI_SCHOOLS = 4, PC_UI_SCHOOL_SPELLS = 18, PC_UI_SPELL_LEVELS = 4, PC_UI_SAVE_POINTS = 48 };
+enum { PC_UI_SCHOOL_WARLOCK, PC_UI_SCHOOL_SHAMAN, PC_UI_SCHOOL_SORCERER, PC_UI_SCHOOL_ENCHANTER };
+typedef struct {
+    int id;                 /* action id (a levelled spell's LVn: base + n - 1) */
+    int mp;                 /* MP cost (the action's) */
+    int usable;             /* castable now (MENU0's checks for this level) */
+    char reason[64];        /* not usable: why ("" otherwise) */
+} pc_ui_spell_level;
+typedef struct {
+    int id;                 /* action id (LV1 of a levelled spell) */
+    char name[32];          /* UTF-8 */
+    char help[200];         /* UTF-8 description (MENU0's: element; kind; targets, then the effect) */
+    int mp;                 /* LV1's MP cost */
+    int levels;             /* 1, or a levelled Warlock spell's levels learned 2..4 (MENU0's LV picker) */
+    pc_ui_spell_level level[PC_UI_SPELL_LEVELS]; /* [0..levels-1]; [0] is the row's own state */
+} pc_ui_spell;
+typedef struct {
+    int unlocked;           /* a spell of the school is learned (vs_battle_isSpellClassUnlocked) */
+    char name[24];          /* UTF-8 ("Warlock") */
+    char help[160];         /* UTF-8: MENU0's school description, or its "not learned yet" line */
+    int count;
+    pc_ui_spell spells[PC_UI_SCHOOL_SPELLS];
+} pc_ui_school;
+typedef struct {
+    int point;              /* the save point 0..47 (vs_main_stateFlags.savePointStates index) */
+    char name[32];          /* UTF-8 */
+    char help[96];          /* UTF-8: where it is, or the game's spirit paling line (state 2) */
+    int cost;               /* MP (MENU0 _getTeleportCost) */
+    int current;            /* the nearest one (cost 15: the circle the player stands on) */
+    int usable;
+    char reason[64];
+} pc_ui_destination;
+typedef struct {
+    int valid;
+    int mp, mp_max;
+    unsigned mask;          /* the menu's disable mask D_800F4EA0 & 0xB7 (greys every spell) */
+    int level_memory;       /* MENU0's LV picker level, cursorMemories[12] (seeds the shell's level at an open) */
+    pc_ui_school schools[PC_UI_SCHOOLS];
+    int teleport;           /* the Teleport row exists (vs_main_stateFlags.unkB5 != 0) */
+    int teleport_enabled;   /* MENU0's row is selectable */
+    char teleport_help[96]; /* UTF-8: MENU0's row description */
+    char teleport_reason[64]; /* not enabled: why */
+    int destination_count;
+    pc_ui_destination destinations[PC_UI_SAVE_POINTS];
+} pc_ui_magick;
 
 /* The Ashley tab (ashley_bridge.c fills it every tick). */
 enum { PC_UI_LIMBS = 6, PC_UI_EFFECTS = 32 };

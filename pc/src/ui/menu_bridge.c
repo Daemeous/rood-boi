@@ -8,6 +8,9 @@
  *                             func_800C97BC before MAINMENU.PRG is loaded,
  *                             MAINMENU vs_mainMenu_exec after)
  *   func_800C97BC             hides the original rows (pc_ui_menu_hide_rows)
+ *   func_800CAB40             a target cancelled: back to the top level
+ *                             instead of the original screen when the shell
+ *                             handed the action over (pc_ui_menu_cast_cancelled)
  *
  * The top level opens with func_800C930C(2) when the menu opens (BATTLE
  * func_800CACD0, cursor memory per the game's option) and with
@@ -33,6 +36,7 @@ static char hud_saved; /* D_800EB9AF before the shell set it */
 static int held;       /* a shell result waiting for a model reload (pc_ui_menu_top), 0 none */
 static unsigned frames;    /* battle frames (pc_ui_menu_heartbeat) */
 static unsigned top_frame; /* frames at the last open or top-level tick */
+static int cast_shell; /* the action in the game's hands came from the shell (close_for_cast) */
 
 /* MAINMENU.PRG is resident and drives the top level (vs_battle_loadMenuPrg,
  * 5BF94.c): BATTLE func_800C97BC ticks the top level itself until MAINMENU
@@ -72,6 +76,12 @@ void pc_ui_abilities_refresh(void);
 int pc_ui_abilities_cast_taken(void);
 void pc_ui_abilities_cast(int go);
 
+/* magick_bridge.c: the Magick screen's game side */
+void pc_ui_magick_fill(int mainmenu);
+void pc_ui_magick_refresh(void);
+int pc_ui_magick_cast_taken(void);
+void pc_ui_magick_cast(int go);
+
 /* ashley_bridge.c: the Ashley tab's game side */
 void pc_ui_ashley_open(void);
 void pc_ui_ashley_fill(void);
@@ -94,7 +104,7 @@ static void abandon(void)
     if (hud_hidden && D_800EB9AF == 1)
         D_800EB9AF = hud_saved;
     hud_hidden = 0;
-    shell_open = closing = held = settle = 0;
+    shell_open = closing = held = settle = cast_shell = 0;
 }
 
 /* Every battle frame (BATTLE vs_battle_exec's pad read, through
@@ -105,6 +115,11 @@ static void abandon(void)
 void pc_ui_menu_heartbeat(void)
 {
     ++frames;
+    /* the shell's action ended (its target confirmed, or no target): the
+     * game frees the menu's rows (func_800CB114) only then, a cancel keeps
+     * them */
+    if (cast_shell && vs_battle_menuItems == 0)
+        cast_shell = 0;
     if (!shell_open && !held && !hud_hidden && !pc_ui_shell_drawn())
         return;
     if (frames - top_frame < STALE_FRAMES && (vs_battle_menuState.currentMenu & 0x3F) == 0)
@@ -121,6 +136,7 @@ void pc_ui_menu_reset(void)
     if (shell_open || held || hud_hidden || pc_ui_shell_drawn())
         abandon();
     pc_weapon_slots_left_battle();
+    cast_shell = 0;
 }
 
 /* dev_overlay.cpp: Dear ImGui runs (the shell draws through it). Weak: a
@@ -177,6 +193,11 @@ int pc_ui_menu_open(int mode)
     held = 0;
     if (mode == 2)
         session = pc_ui_menus != 0; /* System > Menus applies from the next open */
+    /* only a return (mode 1: a cancelled target's func_800CAB40, an original
+     * screen's func_800FAA5C) can follow a shell hand-off; any other open is a
+     * new menu session with no action of the last one out */
+    if (mode != 1)
+        cast_shell = 0;
     shell_open = top && session && pc_overlay_active && pc_overlay_active();
     if (!shell_open) {
         pc_ui_ashley_model_close();
@@ -191,6 +212,7 @@ int pc_ui_menu_open(int mode)
     c = commands();
     pc_ui_shell_open(&c, mode != 2 || vs_main_settings.cursorMemory);
     pc_ui_abilities_fill(mainmenu_resident()); /* the shell may open on the Abilities screen */
+    pc_ui_magick_fill(mainmenu_resident());    /* or on Magick */
     settle = 2; /* the press that opened (or returned to) the menu is not the shell's */
     return 1;
 }
@@ -246,8 +268,15 @@ static int deliver(int r)
  * MAINMENU vs_mainMenu_exec then skips that frame's render as after MENU1's
  * return, ROOD_PC in C48.c). Only while MAINMENU is resident (the bridge
  * refuses a cast before): 0x7F skips vs_battle_loadMenuPrg, whose pending
- * load and background release would be left behind. */
-static int close_for_cast(void)
+ * load and background release would be left behind.
+ *
+ * The hand-off's returnState names the original screen (MENU1 for an art);
+ * cast_shell records that the shell made it instead, so a target cancelled
+ * reopens the shell where it was (pc_ui_menu_cast_cancelled). Every
+ * hand-off of the shell (Break Arts, Magick's spells and teleport; Items with
+ * unk2 8) ends the menu through here; target 0 for a hand-off without a
+ * target (teleport: MENU0's exit is the same 0x7F, nothing to cancel). */
+static int close_for_cast(int target)
 {
     pc_ui_ashley_model_close();
     show_hud();
@@ -258,7 +287,28 @@ static int close_for_cast(void)
     if (D_800F4FDB == 0)
         func_8007E0A8(26, 3, 6);
     vs_battle_menuState.currentMenu = 0x7F;
+    cast_shell = target;
     return 0;
+}
+
+/* BATTLE func_800CAB40, a target cancelled (not the misc items shortcut's):
+ * 1 when the action came from the shell, which then gets the top level
+ * back instead of the hand-off's original screen: func_800CAB40 sets
+ * currentMenu 0 and calls func_800C930C(1), as an original screen does when
+ * it returns there (MAINMENU func_800FAA5C), and pc_ui_menu_open(1) shows
+ * the shell on the tab, sub-tab and row it closed on (a return keeps them).
+ * The rest is the game's own cancel: the menu's resources back
+ * (func_8007DFF0, the counterpart of close_for_cast's func_8007E0A8), its
+ * rows still allocated (func_800CB114 runs only when an action ends),
+ * MAINMENU resident (nothing loaded while targeting: vs_battle_loadMenuPrg(0)
+ * passes at once), the disable mask D_800F4EA0 kept from the menu's open as
+ * for any return to the top level. The flag is spent here either way. */
+int pc_ui_menu_cast_cancelled(void)
+{
+    int from_shell = cast_shell && vs_battle_menuItems != 0
+        && (vs_battle_menuState.currentMenu & 0x3F) == 0x3F;
+    cast_shell = 0;
+    return from_shell;
 }
 
 /* func_800C930C(0) while the shell owns the top level: the game's protocol
@@ -296,6 +346,7 @@ int pc_ui_menu_top(void)
     busy = pc_ui_equip_begin(resident);
     pc_ui_ashley_fill();
     pc_ui_abilities_fill(resident);
+    pc_ui_magick_fill(resident);
     if (held) {
         pc_ui_ashley_model_tick(0, 1);
         vs_mainMenu_setMenuCommand(menuActionNone);
@@ -315,17 +366,21 @@ int pc_ui_menu_top(void)
     r = pc_ui_shell_tick(&in);
     pc_ui_equip_requests();
     pc_ui_abilities_refresh();
-    /* a break art was accepted (refused while a result is out, a model reload
-     * runs or MAINMENU is not resident, so never held): handed to the game
-     * and the menu closes for it. A result on the same tick (it cannot
-     * happen: the bridge refuses once the shell has hidden) drops it. */
-    if (pc_ui_abilities_cast_taken()) {
+    pc_ui_magick_refresh();
+    /* a break art, a spell or a teleport was accepted (refused while a result
+     * is out, a model reload runs or MAINMENU is not resident, so never held;
+     * one per tick, the bridges refuse a second): handed to the game and the
+     * menu closes for it. A result on the same tick (it cannot happen: the
+     * bridges refuse once the shell has hidden) drops it. */
+    if (pc_ui_abilities_cast_taken() || pc_ui_magick_cast_taken()) {
+        int teleport = pc_ui_magick_cast_taken() == 2;
         pc_ui_abilities_cast(r == 0);
+        pc_ui_magick_cast(r == 0);
         if (r == 0) {
             pc_ui_shell_close();
             pc_ui_ashley_model_tick(resident, 0); /* torn down: the shell is gone */
             vs_mainMenu_setMenuCommand(menuActionNone);
-            return close_for_cast();
+            return close_for_cast(!teleport);
         }
     }
     /* Ashley's model: built, drawn or torn down for what the shell shows now

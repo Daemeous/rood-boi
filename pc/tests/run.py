@@ -206,6 +206,10 @@ def suites(args, mode="egl"):
                  note="Abilities tab: Chain/Defense mapping = the original MENU2 screen's bytes (set, move, replace, "
                       "off; list, pick, mouse), learned lists, break arts states and greyed reasons, cast and cancel")]
           if args.save.exists() else []),
+        *([Suite("ui_magick_smoke", [PY, str(TESTS / "ui_magick_smoke.py"), "--card", str(args.save)], 300,
+                 note="Magick tab: snapshot = RAM (schools, learned spells, MP costs, levels), Heal's hand-off = "
+                      "the original MENU0's, cast and cancel, LV2 (Right / chip), greyed (MP, silence), Teleport")]
+          if args.save.exists() else []),
         *([Suite("ui_system_smoke", [PY, str(TESTS / "ui_system_smoke.py"), "--card", str(args.save)], 300,
                  note="System screen through the shell: a row per settings page live + saved (debounce, Cross), "
                       "greyed rows, slider drag, binding capture (blocks navigation, Esc, pad, reset), Data, relaunch")]

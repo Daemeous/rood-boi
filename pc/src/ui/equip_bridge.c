@@ -5,7 +5,8 @@
  *                           the snapshot (ui_model.h) for pc_ui_shell_set_equipment
  *   pc_ui_shell_tick()
  *   pc_ui_equip_requests()  drains pc_ui_shell_pop_request and executes (the
- *                           Abilities screen's requests go to abilities_bridge.c)
+ *                           Abilities and Magick screens' requests go to
+ *                           abilities_bridge.c and magick_bridge.c)
  *
  * Equipping is MENU3's (16C.c) own sequence on the resident BATTLE routines,
  * in its order:
@@ -53,6 +54,7 @@ void pc_weapon_slots_set(int slot, int weapon_index, int shield_index);
 void pc_weapon_slots_clear(int slot);
 
 int pc_ui_abilities_request(const pc_ui_request* r); /* abilities_bridge.c */
+int pc_ui_magick_request(const pc_ui_request* r);    /* magick_bridge.c */
 
 int pc_ui_equip_begin(int resident);
 void pc_ui_equip_requests(void);
@@ -630,8 +632,10 @@ void pc_ui_equip_requests(void)
                 changed = 1;
             }
             break;
-        default: /* PC_UI_REQ_CANDIDATES: the list is filled every tick; the Abilities screen's are its bridge's */
-            pc_ui_abilities_request(&r);
+        default: /* PC_UI_REQ_CANDIDATES: the list is filled every tick; the Abilities and Magick screens'
+                  * are their bridges' */
+            if (!pc_ui_abilities_request(&r))
+                pc_ui_magick_request(&r);
             break;
         }
     }

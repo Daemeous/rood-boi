@@ -2,7 +2,7 @@
 // list, inside the game picture (pc_gl_view), in 1280x720 / 960x720 layout
 // units. The tabs, the command rows and their card, the hints and the pointer
 // are here; screens with their own layout draw in their own files
-// (ui_equip_draw.cpp, ui_ashley_draw.cpp, ui_system_draw.cpp, ui_abilities_draw.cpp).
+// (ui_equip_draw.cpp, ui_ashley_draw.cpp, ui_system_draw.cpp, ui_abilities_draw.cpp, ui_magick_draw.cpp).
 #include "ui/ui_draw_internal.h"
 #include "ui/ui_settings.h"
 #include "button_prompts.h"
@@ -484,6 +484,8 @@ extern "C" void pc_ui_draw_frame(float dt)
         draw_system(f, t, top, dt, fresh, m, out);
     else if (pc_ui_shell_screen() == PC_UI_SCREEN_ABILITIES)
         draw_abilities(f, t, top, dt, fresh, m, out);
+    else if (pc_ui_shell_screen() == PC_UI_SCREEN_MAGICK)
+        draw_magick(f, t, top, dt, fresh, m, out);
     else
         draw_commands(f, t, top, dt, fresh, m, out);
     draw_footer(f, t, out, held, m);

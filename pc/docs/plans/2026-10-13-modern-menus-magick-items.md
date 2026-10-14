@@ -1,0 +1,46 @@
+# Modern Menus — Phase 6: Magick and Items Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Native Magick (four schools + Teleport) and Items tabs. Casting, teleporting and using items hand off to the game's own executor; cancelling a target returns to the modern menu on the same tab and row (also for Break Arts, replacing phase 5's "original list once"). Listing, details, discard (incl. quantity), discard all, sort and move/merge are native.
+
+Delivered in two merge requests: **6a** (cancel-to-shell hook + Magick + Teleport) and **6b** (Items).
+
+**Architecture:** As phase 5: battle-side bridges (`magick_bridge.c`, `items_bridge.c`) fill plain-C snapshots and execute requests; the shell gets screens; draw files per screen. Hand-offs reuse `close_for_cast` (menu_bridge.c) and the residency / one-hand-off-per-tick guards from `abilities_bridge.c`. The cancel hook: a `#ifdef ROOD_PC` branch in BATTLE `func_800CAB40` (5BF94.c ~3396) — when the hand-off came from the modern shell (a bridge-owned flag, e.g. `pc_ui_menu_cast_pending()`), set things up so the top level reopens (`currentMenu = 0` path that calls `func_800C930C(1)` → `pc_ui_menu_open(1)`) with the shell's remembered tab/row, instead of `currentMenu = returnState`.
+
+**Ground rules:** as earlier phases (branch, merge main first, ROOD_PC + commit-check, three builds + decl, `run.py -j 2` one at a time, never build in the main checkout, no personal paths / emails / other-project names / game data in commits, scan before merge requests; don't touch other agents' files).
+
+**Facts (research brief):**
+- Close/exec: `func_800FAA5C` (C48.c:315); `func_800735F8(D_800F4E98)` (146C.c:4908): unk2 6/7/8 → `func_80072EC4(0, (u_short)executeAbility.s32)` (targeting), 10 → teleport. `D_800F18EC_t` (5BF94.h:150-164).
+- Target cancel `func_800CAB40` (5BF94.c:3396): unk2 = 0; shortcut 5 → misc shortcut reopen; else `currentMenu = returnState`, `vs_battle_submenuStates[returnState & 0xF] = executeAbilityType`.
+- Items consumed only on completion (`func_80070F28`, 146C.c:4010-4015; `vs_battle_decreaseMiscCount` from `vs_battle_miscItemInvoked`).
+- Masks: Magic 0xB7, Items 7 (`D_800F4EA0`, func_800CABE0); `vs_battle_getActionFlags(0,id)`: 1 busy, 2 can't afford, 4 not unlocked / status / sheathed.
+- **Magick:** spell tables `vs_battle_warlockSpellIds` (18; levelled bases 0x6A, 0x6E … 0x82, LV2–4 = base+1..3), `shamanSpellIds` (6), `sorcererSpellIds` (18), `enchanterSpellIds` (8) (BATTLE data); school unlocked `vs_battle_isSpellClassUnlocked(i)`; visible spells `vs_main_actions[id].unlocked`; names: Warlock from MENU0 `magic` strings `INDEX_warlockSpells + i`, others `vs_main_actions[id].name`; descriptions `INDEX_<school>SpellDescs + i`; MP cost shown `vs_main_actions[id].cost`, greyed by `getActionFlags != 0` or `D_800F4EA0 & 0xB7`. Levelled picker LV1–4 (84.c:259-495). Hand-off: `executeAbility.s32 = id; executeAbilityType = 6/8/10/12; unk2 = 7; returnState = 0x41`. Cursor memories `[(7..10)*2]`.
+- **Teleport:** row exists when `vs_main_stateFlags.unkB5 != 0`; disabled when no `savePointStates[0..47]` set, `unkB5 == 2`, or `func_8008A4FC() == 0`; destinations = save points with state ≠ 0, names `teleportation locations[i*2]` / desc `[i*2+1]` (state 2 → disabled text); cost `_getTeleportCost(i)` (84.c:117) = 15 + 4 × distance via `_savePointData[48]` + `savePointCosts` (copy the MENU0 tables) and `vs_battle_getCurrentRoomId()`; row disabled when state 2 or MP < cost; hand-off `unk2 = 0xA`, `executeAbility.s32 = room | ((data>>16)&0x1F)<<9 | ((data>>24)&0x1F)<<14 | cost<<19`, close (no target, no cancel).
+- **Items:** categories Weapon 0 … Misc 6 (+ Manage 7); capacities {8,16,16,8,16,48,64}; misc `{u_short id; char count; char index}`, merge cap 100. Use (misc only): `action = vs_mainMenu_miscItemToActionMap[id-323]` (2D10.c:1581; copy the table), levelled grimoires +1 per unlocked level up to 3; greyed when `id > 457` (keys 458–465, sigils 466–470), `getActionFlags & 2`, or `D_800F4EA0 & 7`. Hand-off: `vs_battle_miscItemInvoked = indices[row]-1; executeAbility.u16[0] = action; u16[1] = id; executeAbilityType = 13; unk2 = 8; returnState = 0x44`. Discard rules + `vs_mainMenu_initItem` semantics (2D10.c:1043: zero struct keep `.index`; weapon clears its blade/grip/gems; shield its gems) then rebuild indices; quantity discard; discard all (misc); sort (`_sortItems` items1.h:1077: repeated max, stable, negated keys for category/material/damage type/id; per-category stat lists incl. the shifted table names); move/merge (items2.h:579-611). Descriptions: ITEMHELP.BIN (read from the disc like ITEMNAME in `item_names.c`; gems `id-261+121`, accessories `id-223+610`, misc `id-323+183`; equipment rows from printf templates — show stats instead).
+- Weapon quick-swap: discarding a weapon/shield referenced by `weapon_slots` must clear its slot.
+
+## Part 6a — cancel hook + Magick + Teleport
+
+### Task A1: Cancel-to-shell hook
+- [ ] Bridge flag set when a modern-menu hand-off is made (Break Arts now, Magick/Items later), cleared on completion/close/abandon/reset; ROOD_PC branch in `func_800CAB40`: if the flag is set, reopen the top level (the same state the game uses to return to the top level: set `currentMenu` so that MAINMENU calls `func_800C930C(1)`; find the exact sequence; MAINMENU may need to reload) and clear the hand-off; the shell reopens on the remembered tab/row (no original screen). Remove phase 5's MENU1 cursor-memory/category workarounds only if they become dead (keep the MENU1 ROOD_PC fix if still reachable via Square → original screen → cast). Update `ui_abilities_smoke` (cancel → shell on Abilities > Break Arts with the art focused). commit-check.
+
+### Task A2: Magick snapshot + bridge + shell screen
+- [ ] `pc_ui_magick` snapshot (schools[4] {unlocked, spells[] {id(s), name, help, mp, levels (1 or up to 4) with per-level id/unlocked/usable/reason}}, teleport {exists, enabled, reason, destinations[48] {name, help, cost, usable, current}}, mp, mp_max). Requests: `SPELL_CAST {id}` (MENU0 checks + hand-off), `TELEPORT {index}`. Shell: sub-tabs Warlock / Shaman / Sorcerer / Enchanter / Teleport (only unlocked/existing; L2/R2), spell list, LV picker (Left/Right on a levelled spell), Square = original Magick screen. Probe.
+
+### Task A3: Magick drawing
+- [ ] Per the prototype's Magick tab: school sub-tabs, MP meter, spell rows (name, LV badge, MP cost; red when unaffordable), card (description incl. target text, MP cost, reason when greyed), Teleport list (destination, cost, current marker, disabled reasons). 4:3 + 16:9; mouse.
+
+### Task A4: Test `ui_magick_smoke.py` + 6a merge request
+- [ ] Hand-off parity: the same spell chosen through the original MENU0 (ui_menus off) and the shell → identical `D_800F4E98`, `vs_battle_menuState` fields (except the shell-owned flag), cursor memory; cast completes (MP drops by the cost); cancel → shell on the same spell; levelled spell LV3; greyed: silence (status bits in RAM), MP 0; Teleport: cost table vs `_getTeleportCost` re-implemented in Python from the copied tables, hand-off packing, the teleport happens (room changes) when standing on a circle (set up in RAM or skip with a note if not reachable in the save room). Review + fixes + merge-request checks + merge request.
+
+## Part 6b — Items
+
+### Task B1: Items snapshot + bridge
+- [ ] `pc_ui_items` (per category rows {inventory index, name, sub line, count, equipped/part-of-set/not-discardable flags, usable + reason, sort keys}, capacities, misc help from ITEMHELP). Requests: `ITEM_USE`, `ITEM_DISCARD {cat, slot, n}`, `ITEM_DISCARD_ALL`, `ITEM_SORT {cat, stat}`, `ITEM_MOVE {cat, from, to}` (swap/merge). Port `initItem`, discard rules, sort (exact algorithm + stat lists), merge; rebuild indices (reuse equip_bridge's port); clear quick-swap slots on discarded weapons/shields.
+
+### Task B2: Items shell + drawing
+- [ ] Category chips (L2/R2), capacity, rows, details card per kind (equipment: stats via `vs_battle_apply*`; gems/accessories/misc: ITEMHELP description), actions menu (Use / Discard / Discard all / Sort / Move) with confirm and quantity picker (Up/Down count, Left/Right step), Square details; mouse.
+
+### Task B3: Test `ui_items_smoke.py` + 6b merge request
+- [ ] Parity against the original MENU3 for discard (struct bytes + indices incl. weapon with gems), quantity discard, discard all, sort (every stat for one category + misc by id/count), move/merge (≤ 100 and > 100), Use hand-off fields and completion (count decreases; HP restored), cancel → shell on the item; keys/sigils not usable/discardable; quick-swap slot cleared on discard. Review + fixes + merge-request checks + merge request.

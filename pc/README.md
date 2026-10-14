@@ -226,8 +226,20 @@ arts: learned ones with HP cost and description, the rest as "???" with the
 kills still to go. Circle on a usable art of the equipped weapon closes the
 menu and casts it through the game's own targeting; a greyed art says why
 (weapon sheathed, not enough HP, another weapon type). Cancelling the target
-opens the original Break Arts list once, as the game does; Cross there comes
-back to the shell.
+returns to the menu, on the same art (Square opens the original Break Arts
+list, whose own casts return there, as in the game).
+
+The Magick tab is native: a sub-tab per school with a spell learned (L2 /
+R2), each listing its spells with MP cost and description. Levelled spells
+show their LV1-LV4 picker (Left / Right or a click; the level is the game's
+own, so it carries over to the original screen and the next open). Circle
+closes the menu and casts through the game's targeting; a greyed spell says
+why (not enough MP, silenced, carrying a cube). Cancelling the target
+returns to the menu on the same spell. Once the game has Teleport it is a
+sub-tab too: the Circles of Magic found, each with its MP cost, the one
+Ashley stands on first; Circle teleports (only while standing on a circle,
+and not past the spirit paling). Square opens the game's original Magick
+screen.
 
 - `pc/src/ui/menu_bridge.c` (battle builds) takes over `func_800C930C`, the
   top level, from one `#ifdef ROOD_PC` hook; `ui_shell.cpp` is the navigation
@@ -245,9 +257,15 @@ back to the shell.
   camera and freeze state given back, 16:9, a soft reset.
 - `pc/tests/ui_abilities_smoke.py`: Chain / Defense assignments byte-for-byte
   equal to the original menu's, the lists and Break Arts against RAM, greyed
-  arts with their reason, casting (confirm and cancel: the original list on
-  the equipped category with the cast art highlighted), no cast while the
-  menu is still loading.
+  arts with their reason, casting (confirm; cancel: the shell on the same
+  art, while a cast from the original list returns to that list), no cast
+  while the menu is still loading.
+- `pc/tests/ui_magick_smoke.py`: a spell's hand-off byte-for-byte equal to
+  the original Magick screen's, the schools and spells against RAM, the LV
+  picker (its level kept across opens and clamped as the original's), greyed
+  spells (MP, MP 0 at the open, silence) refused, cancel back to the shell
+  (and to the original screen for its own casts), Teleport costs, packing
+  and the teleport itself against MENU0's code.
 
 ## Intro movie and CD drive
 
