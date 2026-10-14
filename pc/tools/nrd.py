@@ -74,9 +74,19 @@ def ensure(mode=None, quiet=False):
     if (BUILD / "CMakeCache.txt").exists() and not (BUILD / "build.ninja").exists() and generator:
         generator = []  # keep the generator an earlier configure chose
     ok = shutil.which("cmake") is not None
+    options = []
+    if os.name == "nt":
+        # A Windows host (MSYS2) builds NRD with MinGW-w64 directly: the Vulkan
+        # path only needs its SPIR-V, not the DXIL/DXBC shaders (whose fxc
+        # comes with the Windows SDK), and MathLib needs the abs() shim.
+        shim = BUILD / "abs_overloads.h"
+        shim.write_text(ABS_SHIM)
+        options = ["-DNRD_EMBEDS_DXIL_SHADERS=OFF", "-DNRD_EMBEDS_DXBC_SHADERS=OFF", "-DSHADERMAKE_FIND_FXC=OFF",
+                   f"-DCMAKE_CXX_FLAGS=-include {shim.as_posix()}"]
     with open(log, "w") as out:
         if ok:
-            ok = subprocess.run(["cmake", "-S", str(SOURCE), "-B", str(BUILD), *generator, "-DCMAKE_BUILD_TYPE=Release"],
+            ok = subprocess.run(["cmake", "-S", str(SOURCE), "-B", str(BUILD), *generator, "-DCMAKE_BUILD_TYPE=Release",
+                                 *options],
                                 stdout=out, stderr=subprocess.STDOUT).returncode == 0
         if ok:
             ok = subprocess.run(["cmake", "--build", str(BUILD), "--parallel", str(min(os.cpu_count() or 4, 8))],
@@ -102,6 +112,9 @@ def ensure(mode=None, quiet=False):
 
 WIN_BUILD = ROOT / "pc/build/nrd_win"
 MINGW = "x86_64-w64-mingw32-"
+# MathLib calls abs() on floats unqualified; MinGW's C++ headers leave
+# only C's int abs() global (glibc's also bring std::abs's overloads).
+ABS_SHIM = "#include <cstdlib>\n#include <cmath>\nusing std::abs;\n"
 
 
 def ensure_windows(paths, quiet=False):
@@ -113,6 +126,8 @@ def ensure_windows(paths, quiet=False):
     the Windows {"include", "libraries"}, or None."""
     if not paths:
         return None
+    if os.name == "nt":
+        return paths  # ensure() built it with MinGW-w64 already
     stamp = _stamp() + "\n" + "\n".join(paths["libraries"])
     stamp_file = WIN_BUILD / "rood-nrd.stamp"
     libraries = [str(WIN_BUILD / pathlib.Path(p).name) for p in paths["libraries"]]
@@ -125,10 +140,8 @@ def ensure_windows(paths, quiet=False):
     if not quiet:
         print("NRD: compiling for Windows (MinGW-w64)", flush=True)
     WIN_BUILD.mkdir(parents=True, exist_ok=True)
-    # MathLib calls abs() on floats unqualified; MinGW's C++ headers leave
-    # only C's int abs() global (glibc's also bring std::abs's overloads).
     shim = WIN_BUILD / "abs_overloads.h"
-    shim.write_text("#include <cstdlib>\n#include <cmath>\nusing std::abs;\n")
+    shim.write_text(ABS_SHIM)
     for library, target in zip(paths["libraries"], ["NRD", "ShaderMakeBlob"]):
         commands = subprocess.run(["ninja", "-C", str(BUILD), "-t", "commands", target], capture_output=True,
                                   text=True, check=True).stdout.splitlines()
