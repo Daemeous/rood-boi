@@ -35,7 +35,8 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, symbols  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
 CLOSED = 0x3F
@@ -68,13 +69,8 @@ def main():
         if not ok:
             failures.append(message)
 
-    game = Game.launch(fast=True, card=str(card), log=out / "game.log", extra_env=env)
+    game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env)
     try:
-        game.wait_title()
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         state = game.state()
         if (state["zone"], state["room"]) != (9, 17):
             print(f"FAIL: not in the save room after Continue: {state}")

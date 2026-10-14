@@ -41,7 +41,8 @@ from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 
 PRESETS = ["original", "low", "medium", "high", "ultra"]
 # The presets as lighting_quality.cpp defines them: value choices in order of
@@ -120,7 +121,7 @@ def capture(game, path, timeout=60):
                     return image
         except (OSError, ValueError):
             pass
-        time.sleep(0.05)
+        time.sleep(0.005)
     raise RuntimeError(f"no complete frame in {timeout} s")
 
 
@@ -169,9 +170,8 @@ def main():
                "ROOD_PERF": "1", "ROOD_SETTINGS": str(settings), **extra}
         socket = os.environ.get("ROOD_RPC") or f"/tmp/rood-presets-{os.getpid()}.sock"
         print(f"== {name} ==", flush=True)
-        game = Game.launch(fast=True, card=str(card), log=out / f"game-{name}.log", extra_env=env, socket_path=socket)
+        game = launch_at("save_room", card=card, fast=True, log=out / f"game-{name}.log", extra_env=env, socket_path=socket)
         try:
-            game.wait_title()
             g = game.call("graphics")
             caps = g["lighting_caps"]
             print(f"caps {caps}", flush=True)
@@ -202,10 +202,6 @@ def main():
             check(("gi_method:probes" in why) != bool(caps["probes"]), f"{name}: probes {caps['probes']}")
 
             # The save room with a light by Ashley.
-            game.press("start", vsyncs=4, settle=90)
-            for _ in range(3):  # Continue, the card, its first save
-                game.press("circle", vsyncs=3, settle=90)
-            game.run(400)
             state = game.state()
             player = state.get("player")
             if not player or not game.call("scene")["triangles"]:

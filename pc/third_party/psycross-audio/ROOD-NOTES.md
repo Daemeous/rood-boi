@@ -40,3 +40,10 @@ saturated to 16 bits instead of wrapped.
 
 The remaining files (SPU core, ADPCM, Gaussian interpolation table, ADSR,
 reference reverb and resampler) are as in the fork apart from comment edits.
+
+## rood-boi changes: save states
+
+`SPUCore::SaveState` / `LoadState` (end of `PsyX_SPUCore.cpp`) write and read
+the core's Exact-renderer state as bytes for the port's save states
+(`pc/src/snapshot.c`, through `pc/src/audio_spu.cpp`). The Ideal/Reference
+renderers' resampler and reverb histories are not saved (LoadState resets them).

@@ -43,7 +43,8 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 import golden_frames as gf  # noqa: E402
 
 OFF = {"editor_hide_masks": False, "editor_game_cutaway": False, "editor_cutaway": False}
@@ -88,7 +89,7 @@ def main():
     lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-", dir=out))  # no per-room lights
     env = {"ROOD_WINDOW": gf.WINDOW, "ROOD_LIGHTS": str(lights), "ROOD_GI": "0", "ROOD_SCALE": "2"}
     os.environ.pop("ROOD_SETTINGS", None)
-    game = Game.launch(fast=True, card=str(card), log=out / "game.log", extra_env=env)
+    game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env)
     failures = []
     stats = {}
 
@@ -111,12 +112,7 @@ def main():
         return image
 
     try:
-        game.wait_title()
         game.call("graphics", **{**gf.DEFAULTS, "scale": 2})
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         state = game.state()
         player = state.get("player")
         if not player or not game.call("scene")["triangles"]:

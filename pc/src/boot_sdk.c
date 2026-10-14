@@ -50,7 +50,7 @@ int pc_display_masked;
 extern char* getenv(const char*);
 void SetDispMask(int mask)
 {
-    static int honour = -1;
+    static int honour __attribute__((section(".data.rood_host"))) = -1; /* host setting: not saved state */
     if (honour < 0)
         honour = !getenv("ROOD_DISPLAY_MASK") || *getenv("ROOD_DISPLAY_MASK") != '0';
     pc_display_masked = honour && !mask;

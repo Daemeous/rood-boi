@@ -442,6 +442,14 @@ public:
     // ---- Direct access for tests/tools -------------------------------------
     const SPUVoiceState& GetVoiceState(int voiceIndex) const { return m_voices[voiceIndex]; }
 
+    // ---- Save states (rood-boi, pc/src/snapshot.c) ---------------------------
+    // The state the Exact renderer runs on (RAM, voices, allocator, transfer,
+    // volumes, reverb, noise, CD input) as bytes. The Ideal/Reference
+    // renderers' resampler and reverb histories are not included: LoadState
+    // resets them, as Reset() does.
+    void SaveState(std::vector<uint8_t>& out) const;
+    bool LoadState(const uint8_t* data, size_t size);
+
     // 512-entry documented Gaussian interpolation table (exposed for tests).
     static const int16_t* GaussTable();
     static double EvaluateIdealGaussian(const int16_t taps[4], uint32_t pitchCounter);

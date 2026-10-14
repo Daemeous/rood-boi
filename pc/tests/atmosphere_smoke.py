@@ -29,7 +29,8 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 from editor_cutaway_smoke import default_card  # noqa: E402
 import lighting_format as lf  # noqa: E402
 
@@ -75,7 +76,8 @@ def main():
             failures.append(message)
         return ok
 
-    game = Game.launch(fast=True, card=str(out / "card1.mcd"), log=out / "game.log", extra_env=env, socket_path=socket)
+    game = launch_at("save_room", card=out / "card1.mcd", fast=True, log=out / "game.log", extra_env=env,
+                     socket_path=socket)
     check(game.call("environment")["fog_global"] is True, "the ground fog and volumes are on by default (settings key fog)")
 
     def warp(zone, room):
@@ -99,11 +101,6 @@ def main():
         return image[int(h * 0.12):int(h * 0.78)]
 
     try:
-        game.wait_title()
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         st = game.state()
         if (st["zone"], st["room"]) != ROOFED and not warp(*ROOFED):
             check(False, f"in the save room (zone {st['zone']} room {st['room']})")

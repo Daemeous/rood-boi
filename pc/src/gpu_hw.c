@@ -2422,6 +2422,20 @@ void pc_hw_supersample(int view_h, int display_h)
     if (want != pc_hw_scale)
         apply_scale(want);
 }
+/* A save state was resumed (snapshot.c): native VRAM is the saved game's.
+ * Refill the target from it (what was drawn at the internal resolution
+ * shows at native resolution until the game draws it again) and forget
+ * what was recorded for the previous frame (interpolation). */
+void pc_hw_resync(void)
+{
+    if (!pc_hw_active)
+        return;
+    flush();
+    ms_end();
+    forget_recordings();
+    dirty_tiles = 0xffffffffu;
+    pc_hw_upload(0, 0, 1024, 512);
+}
 /* Change the internal resolution at runtime: rebuild the targets and refill
  * them from native VRAM (one frame shows native-resolution content). */
 static int apply_scale(int scale)

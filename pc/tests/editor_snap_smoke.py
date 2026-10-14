@@ -40,7 +40,8 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 import golden_frames as gf  # noqa: E402
 from editor_cutaway_smoke import default_card, pose_looking_at  # noqa: E402
 
@@ -81,7 +82,7 @@ def main():
     settings.write_text("editor_snap_point 1\neditor_snap_highlight 96\neditor_occluded_opacity 0.3\n")
     env = {"ROOD_WINDOW": "1280x720", "ROOD_LIGHTS": str(lights), "ROOD_GI": "0", "ROOD_SCALE": "2",
            "ROOD_SETTINGS": str(settings)}
-    game = Game.launch(fast=True, card=str(card), log=out / "game.log", extra_env=env)
+    game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env)
     failures = []
 
     def check(ok, message):
@@ -99,17 +100,12 @@ def main():
         return image
 
     try:
-        game.wait_title()
         graphics = game.call("graphics")
         check(graphics.get("editor_snap_point") == 1 and graphics.get("editor_snap_highlight") == 96
               and abs(graphics.get("editor_occluded_opacity", 0) - 0.3) < 1e-6,
               "settings file keys load (editor_snap_point, editor_snap_highlight, editor_occluded_opacity)")
         game.call("graphics", **{**gf.DEFAULTS, "scale": 2, **OVERLAYS_OFF, "editor_snap_highlight": 128,
                                  "editor_hide_masks": True, "editor_game_cutaway": True, "editor_cutaway": False})
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         state = game.state()
         player = state.get("player")
         if not player or not game.call("scene")["triangles"]:

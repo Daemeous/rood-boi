@@ -20,12 +20,25 @@ Headless rendering (rood_rpc.headless_mode): egl renders on a GPU without an X
 server (SDL offscreen + EGL device), xvfb on a private Xvfb with software GL.
 X11-input suites (window_smoke) always use Xvfb.
 
+Save states (pc/tests/checkpoints.py, pc/src/snapshot.c): suites that start
+from a test checkpoint (the card's save room, New Game after the opening
+pan, ...) resume a save state of it instead of booting. snapshot_equivalence
+runs first: it makes them for this build in pc/build/test-snapshots/ and
+proves each exact against booting (game state and frames); one that is not
+stays unused and its suites boot. Suites about the boot path always boot.
+    python3 pc/tests/run.py --no-snapshots  every suite boots (ROOD_TEST_SNAPSHOTS=0)
+
+Suites start longest first by the last run's times (<out>/durations.json).
+--profile adds <suite>/rpc-profile.txt and python.prof (profile_report.py).
+
 The game binaries are not rebuilt here (pc/tools/build_boot.py --battle, and
 without --battle for rood_boot); a warning names stale ones. Exit status 0
 when every selected suite passed.
 """
 import argparse
 import fcntl
+import hashlib
+import json
 import os
 import pathlib
 import re
@@ -45,6 +58,20 @@ import rood_rpc  # noqa: E402
 TESTS = ROOT / "pc/tests"
 OUT = ROOT / "pc/build/tests"  # --out
 PY = sys.executable
+# --profile: run a Python suite under cProfile, keeping its exit status
+# (python -m cProfile swallows SystemExit).
+PROFILED = """import cProfile, os, runpy, sys
+out, sys.argv = sys.argv[1], sys.argv[2:]
+sys.path.insert(0, os.path.dirname(os.path.abspath(sys.argv[0])))
+profile, code = cProfile.Profile(), 0
+try:
+    profile.runcall(runpy.run_path, sys.argv[0], run_name="__main__")
+except SystemExit as e:
+    code = e.code
+finally:
+    profile.dump_stats(out)
+sys.exit(code)
+"""
 
 
 class Suite:
@@ -79,6 +106,10 @@ def suites(args, mode="egl"):
               note="CMake probes in pc/build"),
         Suite("lighting_lint", [PY, str(ROOT / "pc/tools/lighting_lint.py")], 60, binary=None,
               note="lighting packs in lighting/: syntax, keys, ids, dangling overrides, rooms"),
+        Suite("snapshot_equivalence", [PY, str(TESTS / "snapshot_equivalence.py")]
+              + (["--card", str(args.save)] if args.save.exists() else []), 600,
+              note="save states: booting to each test checkpoint and resuming its snapshot give identical "
+                   "game state and frames; makes the checkpoints' save states (first job)"),
         Suite("rpc_smoke", [PY, str(TESTS / "rpc_smoke.py")], 180),
         Suite("gi_smoke", [PY, str(TESTS / "gi_smoke.py")], 300),
         Suite("rt_camera_smoke", [PY, str(TESTS / "rt_camera_smoke.py")], 300,
@@ -245,10 +276,82 @@ def stale_binaries(selected):
     return out
 
 
+# Suites that start from a test checkpoint (checkpoints.launch_at): they wait
+# while snapshot_equivalence makes the save states, so it runs first beside
+# a suite that does not.
+CHECKPOINT_SUITES = {
+    "probe_gi_smoke", "animation_smoke", "editor_cutaway_smoke", "editor_undo_smoke", "facing_cutaway_smoke",
+    "camera_stick_smoke", "editor_snap_smoke", "room_browser_smoke", "route_continuation_smoke", "ending_smoke",
+    "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
+    "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "weapon_slots_smoke", "ui_menus_smoke",
+    "ui_lines_smoke", "ui_text_smoke", "button_prompts_smoke", "coplanar_order_smoke", "atmosphere_smoke",
+    "fog_sim_smoke", "ui_ashley_smoke", "ui_equip_smoke", "ui_system_smoke", "ui_abilities_smoke",
+}
+
+
+def file_hash(path, h=None):
+    h = h or hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h
+
+
+def snapshot_cache(config):
+    """pc/build/test-snapshots/<config>-<hash of the game binary and the
+    disc data>: the checkpoints' save states for this build (older builds'
+    directories of the config are removed)."""
+    h = file_hash(rood_rpc.BINARY)
+    for data in (ROOT / "data/SLUS_010.40", ROOT / "disks/SLUS-01040.bin"):
+        if data.exists():
+            st = data.stat()
+            h.update(f"{data.name} {st.st_size} {st.st_mtime_ns}".encode())
+    base = ROOT / "pc/build/test-snapshots"
+    directory = base / f"{config}-{h.hexdigest()[:16]}"
+    if base.exists():
+        for old in base.glob(f"{config}-*"):
+            if old != directory:
+                shutil.rmtree(old, ignore_errors=True)
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def schedule(selected, timings, config):
+    """Longest first by the last run's times (a quarter of the timeout for a
+    suite without one), so the lanes finish together; snapshot_equivalence
+    first, beside the longest suite that does not wait for its save states."""
+    try:
+        known = json.loads(timings.read_text()).get(config, {})
+    except (OSError, ValueError):
+        known = {}
+    items = sorted(enumerate(selected), key=lambda item: -known.get(item[1].name, item[1].timeout / 4))
+    first = [item for item in items if item[1].name == "snapshot_equivalence"]
+    rest = [item for item in items if item[1].name != "snapshot_equivalence"]
+    if first:
+        free = next((item for item in rest if item[1].name not in CHECKPOINT_SUITES), None)
+        if free:
+            rest.remove(free)
+            rest.insert(0, free)
+    return first + rest
+
+
+def record_durations(timings, config, results):
+    try:
+        data = json.loads(timings.read_text())
+    except (OSError, ValueError):
+        data = {}
+    data.setdefault(config, {}).update({name: round(elapsed, 1) for name, (result, elapsed, _, _) in results.items()
+                                        if result != "SKIP"})
+    timings.write_text(json.dumps(data, indent=1, sort_keys=True) + "\n")
+
+
 def run_suite(suite, index, args, mode, results, lock):
     out = OUT / suite.name.replace(":", "-")
     if suite.name.startswith("soak"):
         suite.command += ["--out", str(out / "soak")]
+    command = suite.command
+    if args.profile and command[0] == PY:  # the test's own Python time too (python.prof)
+        command = [PY, "-c", PROFILED, str(out / "python.prof")] + command[1:]
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
@@ -266,6 +369,9 @@ def run_suite(suite, index, args, mode, results, lock):
         ROOD_BUTTON_PROMPTS="original",  # the PS1 glyphs (button_prompts_smoke opts in)
         ROOD_AUDIO=f"wav:{out / 'audio.wav'}" if suite.name.startswith("input:") else "none",
         PYTHONUNBUFFERED="1",
+        **({"ROOD_RPC_PROFILE": str(out / "rpc-profile.txt")} if args.profile else {}),
+        # Save states of the test checkpoints (checkpoints.py), or none.
+        **({"ROOD_TEST_SNAPSHOT_DIR": str(args.snapshot_dir)} if args.snapshot_dir else {"ROOD_TEST_SNAPSHOTS": "0"}),
         # llvmpipe (Xvfb, or EGL without a GPU) otherwise takes every core per game.
         LP_NUM_THREADS=os.environ.get("LP_NUM_THREADS", "4"),
     )
@@ -277,7 +383,7 @@ def run_suite(suite, index, args, mode, results, lock):
             env[key] = os.environ[key]
     start = time.monotonic()
     with log.open("w") as output:
-        p = subprocess.Popen(suite.command, cwd=ROOT, env=env, stdout=output, stderr=subprocess.STDOUT,
+        p = subprocess.Popen(command, cwd=ROOT, env=env, stdout=output, stderr=subprocess.STDOUT,
                              start_new_session=True)
         try:
             status = p.wait(timeout=suite.timeout)
@@ -292,6 +398,8 @@ def run_suite(suite, index, args, mode, results, lock):
                 pass
             p.wait()
     elapsed = time.monotonic() - start
+    if suite.name == "snapshot_equivalence" and args.snapshot_dir:
+        (args.snapshot_dir / "building").unlink(missing_ok=True)  # the checkpoints' tests may go on
     pathlib.Path(env["ROOD_RPC"]).unlink(missing_ok=True)
     text = log.read_text(errors="replace").strip().splitlines()
     summary = next((line for line in reversed(text) if line.startswith(("PASS", "FAIL", "SKIP", "AssertionError",
@@ -308,6 +416,8 @@ def main():
     parser.add_argument("-j", "--jobs", type=int, default=max(1, min(6, (os.cpu_count() or 4) // 4)),
                         help="suites at once (default: CPUs / 4, at most 6)")
     parser.add_argument("--list", action="store_true")
+    parser.add_argument("--profile", action="store_true",
+                        help="log every RPC call's time (<suite>/rpc-profile.txt; pc/tests/profile_report.py)")
     parser.add_argument("--headless", choices=["egl", "xvfb"], help="default: $ROOD_HEADLESS, else egl if it works")
     parser.add_argument("--soak-frames", type=int, default=3000, help="vsyncs of soak play (default 3000)")
     parser.add_argument("--save", type=pathlib.Path, default=default_save(),
@@ -320,6 +430,10 @@ def main():
     parser.add_argument("--renderer", choices=["gl", "vulkan"],
                         default="vulkan" if os.environ.get("ROOD_RENDERER") == "vulkan" else "gl",
                         help="gl (default) or vulkan (64-bit; sets ROOD_RENDERER)")
+    parser.add_argument("--no-snapshots", action="store_true",
+                        default=os.environ.get("ROOD_TEST_SNAPSHOTS", "1") == "0",
+                        help="boot every suite from scratch: no save states of the test checkpoints "
+                             "(also ROOD_TEST_SNAPSHOTS=0)")
     args = parser.parse_args()
     if args.renderer == "vulkan":
         os.environ["ROOD_RENDERER"] = "vulkan"
@@ -362,14 +476,30 @@ def main():
     print(f"{len(selected)} suites, {args.jobs} at a time; logs in {OUT}/<suite>/output.log",
           flush=True)
 
+    config = f"{args.arch}-{args.renderer}-{mode}"
+    args.snapshot_dir = None
+    if not args.no_snapshots:
+        args.snapshot_dir = snapshot_cache(config)
+        if any(s.name == "snapshot_equivalence" for s in selected):
+            (args.snapshot_dir / "building").write_text("run.py: snapshot_equivalence is making the cache\n")
+        print(f"save states of the test checkpoints: {os.path.relpath(args.snapshot_dir, ROOT)} "
+              "(--no-snapshots boots every suite)")
+    else:
+        print("save states off: every suite boots")
+
     results, lock = {}, threading.Lock()
     start = time.monotonic()
-    # Longest first so the slow suites do not start last.
-    order = sorted(enumerate(selected), key=lambda item: -item[1].timeout)
-    with ThreadPoolExecutor(args.jobs) as pool:
-        for index, suite in order:
-            pool.submit(run_suite, suite, index, args, mode, results, lock)
+    timings = OUT / "durations.json"
+    order = schedule(selected, timings, config)
+    try:
+        with ThreadPoolExecutor(args.jobs) as pool:
+            for index, suite in order:
+                pool.submit(run_suite, suite, index, args, mode, results, lock)
+    finally:
+        if args.snapshot_dir:
+            (args.snapshot_dir / "building").unlink(missing_ok=True)
     total = time.monotonic() - start
+    record_durations(timings, config, results)
 
     print()
     width = max(len(s.name) for s in selected)

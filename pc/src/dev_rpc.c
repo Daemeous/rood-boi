@@ -7,9 +7,14 @@
  * line. Requests are serviced on the game thread from pc_tick (once per
  * vsync), so every method runs at a frame boundary with no locking. Methods:
  *
- *   status                       counters, pause state, display, start state
+ *   status                       counters (vsync, battle frame, presents: images
+ *                                presented), pause state, display, start state
  *   pause {paused}               stop (or resume) the game at vsync boundaries
  *   step {vsyncs}                run N vsyncs, then pause again
+ *   wait {timeout_ms}            reply (as status) once the game is paused with
+ *                                no step left, or after timeout_ms (default
+ *                                1000, at most 60000): a step's end without
+ *                                polling status (rood_rpc.Game.wait_paused)
  *   input {buttons, vsyncs}      hold buttons ("circle", "up", ...) for N vsyncs;
  *         {right_stick: [x, y]}  and/or hold the right stick (-1..1, down +y)
  *   camera_stick {...}           the right-stick camera (camera_stick.c):
@@ -260,6 +265,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <poll.h>
 #endif
 #include "pc_paths.h"
 #include "room_effects.h"
@@ -393,8 +399,25 @@ static int listener_tcp; /* ROOD_RPC=tcp:PORT */
 static struct client {
     int fd;
     size_t used;
+    int waiting;          /* a deferred "wait" reply is owed (wait_id) */
+    long long wait_until; /* its deadline, rpc_now_ms() */
+    char wait_id[64];
     char buffer[LINE_MAX_BYTES];
 } clients[MAX_CLIENTS];
+static struct client* current_client; /* the client whose request handle() runs */
+static int handled_since_redraw; /* a request was served since the last paused redraw */
+/* RPC snapshot save (snapshot.c): the pending request. */
+extern int pc_snapshot_available(void);
+extern int pc_snapshot_point(const char* path, char* error, int size);
+extern int pc_snapshot_hash(char* out, int size);
+static struct client* snapshot_client;
+static char snapshot_id[64], snapshot_path[1024];
+static long long rpc_now_ms(void)
+{
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (long long)now.tv_sec * 1000 + now.tv_nsec / 1000000;
+}
 
 /* Socket calls: POSIX descriptors, or Winsock sockets (kept in the same
  * int fields; Windows socket handles fit 32 bits). */
@@ -591,6 +614,42 @@ static void fail(int fd, const char* id, int code, const char* message)
 
 /* ---- methods ---- */
 
+unsigned pc_rpc_buttons(void);
+static void status_json(char* out, size_t size)
+{
+    extern int pc_display_masked __attribute__((weak)); /* SetDispMask(0) */
+    extern unsigned pc_presents __attribute__((weak)); /* gl_present.c: images presented */
+    snprintf(out, size,
+        "{\"vsync\":%u,\"battle_frame\":%u,\"paused\":%s,\"step_budget\":%ld,\"buttons\":%u,"
+        "\"display_masked\":%s,\"presents\":%u}",
+        pc_vsync_count(), pc_battle_frame_count(), paused ? "true" : "false", step_budget,
+        pc_rpc_buttons(), &pc_display_masked && pc_display_masked ? "true" : "false",
+        &pc_presents ? pc_presents : 0u);
+}
+/* Deferred "wait" replies: owed once the step is over (paused, no budget)
+ * or the deadline passed. */
+static void serve_waiters(void)
+{
+    long long now = -1;
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        struct client* c = &clients[i];
+        if (c->fd < 0 || !c->waiting)
+            continue;
+        if (!(paused && step_budget == 0)) {
+            if (now < 0)
+                now = rpc_now_ms();
+            if (now < c->wait_until)
+                continue;
+        }
+        char result[256];
+        status_json(result, sizeof result);
+        c->waiting = 0;
+        rpc_set_blocking(c->fd, 1);
+        reply(c->fd, c->wait_id, result);
+        rpc_set_blocking(c->fd, 0);
+    }
+}
+
 static const struct {
     const char* name;
     unsigned bit;
@@ -713,13 +772,45 @@ static void handle_method(int fd, const char* request)
     static char result[LINE_MAX_BYTES];
 
     if (!strcmp(method, "status")) {
-        extern int pc_display_masked __attribute__((weak)); /* SetDispMask(0) */
-        snprintf(result, sizeof result,
-            "{\"vsync\":%u,\"battle_frame\":%u,\"paused\":%s,\"step_budget\":%ld,\"buttons\":%u,"
-            "\"display_masked\":%s}",
-            pc_vsync_count(), pc_battle_frame_count(), paused ? "true" : "false", step_budget,
-            pc_rpc_buttons(), &pc_display_masked && pc_display_masked ? "true" : "false");
+        status_json(result, sizeof result);
         reply(fd, id, result);
+    } else if (!strcmp(method, "snapshot")) {
+        char action[32] = "save";
+        if (params)
+            string_value(member(params, "action"), action, sizeof action);
+        if (!strcmp(action, "hash")) {
+            pc_snapshot_hash(result, (int)sizeof result);
+            reply(fd, id, result);
+        } else if (!strcmp(action, "available")) {
+            reply(fd, id, pc_snapshot_available() ? "{\"available\":true}" : "{\"available\":false}");
+        } else if (!strcmp(action, "save")) {
+            if (!pc_snapshot_available()) {
+                fail(fd, id, -32000, "save states are unavailable in this process (see the log)");
+                return;
+            }
+            if (!params || !string_value(member(params, "path"), snapshot_path, sizeof snapshot_path)
+                || !snapshot_path[0] || !current_client || strlen(id) >= sizeof snapshot_id) {
+                fail(fd, id, -32602, "snapshot save needs a path");
+                return;
+            }
+            /* Taken by pc_rpc_poll once this request's handling is over (on
+             * the game stack, between frames); the reply comes from there. */
+            snapshot_client = current_client;
+            strcpy(snapshot_id, id);
+        } else
+            fail(fd, id, -32602, "snapshot action: save, hash or available");
+    } else if (!strcmp(method, "wait")) {
+        long long timeout = 1000;
+        if (params && number_value(member(params, "timeout_ms"), &n))
+            timeout = n < 0 ? 0 : n > 60000 ? 60000 : n;
+        if (!current_client || strlen(id) >= sizeof current_client->wait_id) {
+            fail(fd, id, -32602, "wait: request id too long");
+            return;
+        }
+        current_client->waiting = 1;
+        current_client->wait_until = rpc_now_ms() + timeout;
+        strcpy(current_client->wait_id, id);
+        serve_waiters(); /* at once when the game is paused already */
     } else if (!strcmp(method, "pause")) {
         int value = 1;
         if (params)
@@ -2800,6 +2891,7 @@ static void service(void)
         }
         clients[i].fd = fd;
         clients[i].used = 0;
+        clients[i].waiting = 0;
     }
     for (int i = 0; i < MAX_CLIENTS; i++) {
         struct client* c = &clients[i];
@@ -2827,8 +2919,12 @@ static void service(void)
             }
             /* Blocking writes for the reply; requests are small and local. */
             rpc_set_blocking(c->fd, 1);
-            if (*skip(c->buffer))
+            current_client = c;
+            if (*skip(c->buffer)) {
                 handle(c->fd, c->buffer);
+                handled_since_redraw = 1;
+            }
+            current_client = NULL;
             rpc_set_blocking(c->fd, 0);
             size_t rest = c->used - (size_t)(newline + 1 - c->buffer);
             memmove(c->buffer, newline + 1, rest);
@@ -2840,6 +2936,71 @@ static void service(void)
             c->used = 0;
         }
     }
+    serve_waiters();
+}
+
+/* Sleep until a client (or a new connection) has something to read, or ms
+ * milliseconds pass: requests are served as they arrive while paused. */
+static void wait_for_requests(int ms)
+{
+    if (ms <= 0)
+        return;
+    if (listener < 0) {
+        struct timespec delay = { 0, (long)ms * 1000000L };
+        nanosleep(&delay, NULL);
+        return;
+    }
+#ifdef _WIN32
+    fd_set readable;
+    FD_ZERO(&readable);
+    FD_SET((SOCKET)listener, &readable);
+    for (int i = 0; i < MAX_CLIENTS; i++)
+        if (clients[i].fd >= 0)
+            FD_SET((SOCKET)clients[i].fd, &readable);
+    struct timeval timeout = { 0, ms * 1000 };
+    select(0, &readable, NULL, NULL, &timeout);
+#else
+    struct pollfd fds[MAX_CLIENTS + 1];
+    int count = 0;
+    fds[count++] = (struct pollfd) { .fd = listener, .events = POLLIN };
+    for (int i = 0; i < MAX_CLIENTS; i++)
+        if (clients[i].fd >= 0)
+            fds[count++] = (struct pollfd) { .fd = clients[i].fd, .events = POLLIN };
+    poll(fds, (nfds_t)count, ms);
+#endif
+}
+
+/* A pending RPC snapshot save, taken here on the game stack (between
+ * frames, in pc_tick). In the process that resumes the file the call
+ * returns again (pc_snapshot_point gives 1): no request is pending there,
+ * and the game stays paused (pc_rpc_restored). */
+static void take_snapshot(void)
+{
+    if (!snapshot_client)
+        return;
+    struct client* c = snapshot_client;
+    snapshot_client = NULL;
+    char error[256] = "";
+    int status = pc_snapshot_point(snapshot_path, error, (int)sizeof error);
+    if (status == 1 || c->fd < 0)
+        return;
+    rpc_set_blocking(c->fd, 1);
+    if (status == 0) {
+        char result[1200];
+        snprintf(result, sizeof result, "{\"saved\":\"%s\",\"vsync\":%u}", json_str(snapshot_path),
+            pc_vsync_count());
+        reply(c->fd, snapshot_id, result);
+    } else
+        fail(c->fd, snapshot_id, -32000, error);
+    rpc_set_blocking(c->fd, 0);
+}
+/* snapshot.c: this process resumed a save state; serve RPC, stay paused. */
+void pc_rpc_restored(void)
+{
+    if (!initialized)
+        open_listener();
+    paused = 1;
+    step_budget = 0;
 }
 
 /* Pause control shared with the developer overlay (dev_overlay.cpp). */
@@ -2868,22 +3029,35 @@ void pc_rpc_poll(void)
         --stick_vsyncs;
     if (listener >= 0)
         service();
+    take_snapshot();
     if (paused && step_budget > 0) {
         --step_budget;
         return;
     }
+    /* Paused: the window (and overlay) redraws at about 60 Hz, and after
+     * every request served, so each request still sees the frame its
+     * predecessor's change produced (editor transactions, graphics
+     * settings); a request is served as soon as it arrives instead of
+     * after a fixed 16 ms sleep. */
+    long long next_redraw = 0;
     while (paused && step_budget == 0) {
-        struct timespec delay = { 0, 16000000 };
         extern int pc_present_burst __attribute__((weak));
-        pc_window_tick();
-        /* An armed present_dump burst takes stepped presents only: paused
-         * redraws (as many as the wall clock allows between RPC calls)
-         * would put repeated images into it. */
-        if (!&pc_present_burst || pc_present_burst <= 0)
-            pc_window_redraw();
-        nanosleep(&delay, NULL);
+        long long now = rpc_now_ms();
+        if (now >= next_redraw || handled_since_redraw) {
+            handled_since_redraw = 0;
+            pc_window_tick();
+            /* An armed present_dump burst takes stepped presents only: paused
+             * redraws (as many as the wall clock allows between RPC calls)
+             * would put repeated images into it. */
+            if (!&pc_present_burst || pc_present_burst <= 0)
+                pc_window_redraw();
+            now = rpc_now_ms();
+            next_redraw = now + 16;
+        }
+        wait_for_requests((int)(next_redraw - now));
         if (listener >= 0)
             service();
+        take_snapshot();
     }
     if (paused && step_budget > 0)
         --step_budget;

@@ -32,14 +32,14 @@ import os
 import pathlib
 import shutil
 import sys
-import time
 
 import numpy as np
 from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT, Game, wait_for_file  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 
 WINDOW = "960x720"
 # The council table's wide shot, vsyncs after the title menu is ready.
@@ -58,10 +58,7 @@ def grab(game, path, timeout=20):
     ppm = path.with_suffix(".ppm")
     ppm.unlink(missing_ok=True)
     game.call("present_dump", path=str(ppm))
-    deadline = time.monotonic() + timeout
-    while not (ppm.exists() and ppm.stat().st_size) and time.monotonic() < deadline:
-        time.sleep(0.03)
-    time.sleep(0.15)
+    wait_for_file(ppm, timeout)  # complete once it exists (written, then renamed)
     image = np.asarray(Image.open(ppm).convert("RGB")).astype(np.int16)
     ppm.unlink()
     return image
@@ -70,7 +67,7 @@ def grab(game, path, timeout=20):
 def redrawn(game, path, **graphics):
     game.call("graphics", **graphics)
     game.call("redraw")
-    time.sleep(0.15)
+    game.wait_presents(2)  # the paused game redraws with the new settings
     return grab(game, path)
 
 
@@ -104,13 +101,8 @@ def rooms(args, out, env, socket, check, save):
     shutil.copyfile(args.card, card)
     (out / "lights").mkdir(exist_ok=True)
     env = dict(env, ROOD_LIGHTS=str(out / "lights"), ROOD_LIGHTING=str(out / "packs"))
-    game = Game.launch(fast=True, card=str(card), log=out / "game-rooms.log", extra_env=env, socket_path=socket)
+    game = launch_at("save_room", card=card, fast=True, log=out / "game-rooms.log", extra_env=env, socket_path=socket)
     try:
-        game.wait_title()
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         game.call("graphics", aa="off", gi=False)
         for zone, room, note in ROOMS:
             game.call("room_goto", zone=zone, room=room)

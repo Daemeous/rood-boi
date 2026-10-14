@@ -1343,11 +1343,14 @@ n-fold; `pc/tests/gi_lag_smoke.py` covers both.
 
 Set `ROOD_RPC=/path/to/socket` and the game listens on that Unix socket (mode
 0600) for JSON-RPC 2.0, one object per line. Requests are serviced on the game
-thread once per vsync, so each method runs at a frame boundary:
+thread once per vsync, so each method runs at a frame boundary; while the game
+is paused a request is served as soon as it arrives (the paused window still
+redraws at about 60 Hz, and after each request):
 
 | Method | Params | Result |
 | --- | --- | --- |
-| `status` | | vsync and battle-frame counters, pause state, injected buttons, `display_masked` (SetDispMask(0)) |
+| `status` | | vsync and battle-frame counters, pause state, injected buttons, `display_masked` (SetDispMask(0)), `presents` (images presented) |
+| `wait` | `timeout_ms` (default 1000, at most 60000) | the `status` reply, sent once the game is paused with no step left (or at the timeout): a step's end without polling |
 | `pause` | `paused` (default true) | stop or resume at vsync boundaries |
 | `step` | `vsyncs` | run exactly N vsyncs, then pause |
 | `input` | `buttons` (name or list), `right_stick` (`[x, y]`, -1..1, down +y), `vsyncs` | hold PS1 buttons and/or the right stick (the camera); works unfocused |
@@ -1389,6 +1392,7 @@ thread once per vsync, so each method runs at a frame boundary:
 | `editor_undo` | `action` (`list`, `undo`, `redo`, `begin`, `end`, `jump`), `steps`, `name`, `done` | the undo history (`done`, names, `undo`/`redo` names, `open`); each editing request (`actors`, `glows`, `lights`, `environment`, `editor_place`, `room_groups`, `uv_effects`, `editor_snap` with `apply`) is one transaction, `begin`/`end` hold one open across requests (a drag) |
 | `editor_input` | `keys` (`delete`, `backspace`, `escape`, `enter`, `tab`, `f2`, a letter or digit), `text`, `ctrl`, `shift`, `focus` (`search`, `none`) | keys and text through SDL's event queue (the keyboard's path); replies `visible`, `want_text_input`, `item_active`, `gizmo` |
 | `editor_view` | `focus` | the cutaway's focus (`[x, y, z]` fixes it, null: automatic), whether it is `hidden` and how far the cut has faded in (`amount`) |
+| `snapshot` | `action` (`save` {`path`}, `hash`, `available`) | save states (`pc/src/snapshot.c`, Linux): `save` writes the whole game state at this vsync to `path` (reply once written); `hash` gives FNV-1a hashes of guest RAM, scratchpad, I/O page, native game statics, overlay statics and VRAM. `ROOD_SNAPSHOT=path` at launch resumes such a file (same binary only), paused |
 | `quit` | | exit |
 
 Button names: `up down left right cross circle square triangle l1 r1 l2 r2 l3 r3
@@ -1405,6 +1409,10 @@ need. `run(n)` waits as long as the game keeps advancing (a loaded machine
 path tracing on OpenGL can take seconds per vsync) and fails when no vsync
 passes for `Game.STALL` seconds (a hang). `reload_lights()` is RPC `lights`
 `reload`: tests that write room lighting files call it right after writing. `rood_rpc.py headless` prints the mode and GPU this machine gets.
+`wait_presents(n)` waits for n more presented images (after a graphics change,
+instead of a sleep); `present_dump` images appear under their name only when
+complete. `Game.launch(snapshot=path)` resumes a save state.
+`ROOD_RPC_PROFILE=path` logs every call's time (`run.py --profile`).
 `pc/tests/rpc_smoke.py` covers it.
 
 Crashes print `[crash]` and a `[stack]` line; `kill -USR1 <pid>` prints the
@@ -1454,7 +1462,8 @@ python3 pc/tests/run.py --list
 
 | Suite | Covers |
 | --- | --- |
-| `ctest` | the CMake probes in `pc/build` (configure it once, below) |
+| `ctest` | the CMake probes in `pc/build` (configure it once, below); `fixture_catalog` keeps the whole-disc scan and generation result for identical inputs in `pc/build/fixture-check/` (the determinism re-run always runs; `ROOD_FIXTURE_CHECK_CACHE=0` recomputes) |
+| `snapshot_equivalence` | save states resume exactly at every test checkpoint (below; first job) |
 | `rpc_smoke`, `gi_smoke`, `movie_smoke` | RPC control, path tracer, intro movie |
 | `room_smoke`, `opening_smoke`, `scene_smoke` | checkpoint frames without a window |
 | `window_smoke` | real X11 key and close events (always on Xvfb) |
@@ -1473,7 +1482,40 @@ display") and your settings, lights and saves never leak in. The table lists
 each suite's result, time and log; the exit status is nonzero when any suite
 failed (`SKIP` does not count). The runner does not build the game: rebuild
 with `pc/tools/build_boot.py --battle` (and without `--battle` for
-`window_smoke`'s `rood_boot`) first; it warns about stale binaries.
+`window_smoke`'s `rood_boot`) first; it warns about stale binaries. Suites
+start longest first by the last run's times (`<out>/durations.json`), so the
+lanes finish together; `--profile` logs each suite's RPC calls and Python
+time (`pc/tests/profile_report.py <out>` shows where the time went).
+
+**Save states for the test checkpoints.** Most suites start from one of a
+few game states (`pc/tests/checkpoints.py`): the card's save room after
+Continue (`save_room`), New Game after the opening pan (`opening`), the
+opening's first talk bubble (`first_bubble`), the title menu. They call
+`checkpoints.launch_at(name, ...)`, which resumes a save state of the
+checkpoint (`pc/src/snapshot.c`: guest memory, the native game statics, the
+SPU, the game's stack; the renderer and every other host system start fresh
+and rebuild from the game state) and runs a 16-vsync warm-up into it, or
+boots and plays the checkpoint's input when there is no valid save state.
+The first job, `snapshot_equivalence`, makes them for this build in
+`pc/build/test-snapshots/<arch>-<renderer>-<mode>-<hash of the binary and
+disc>/` and proves each exact: it boots to the checkpoint (deterministic
+scanlines, `ROOD_DETERMINISTIC=1`; interpolation off), saves, plays on, then
+resumes the save state in a new process and requires identical guest RAM,
+scratchpad, I/O page, VRAM and overlay statics at the checkpoint and every
+vsync of the next 40, the same presented frames, and byte-identical end
+states (native game statics and SPU too; `pc/tests/snapshot_diff.py`) after
+a field menu open and close. A checkpoint that fails stays unused: its suites
+boot. Suites whose subject is the boot path itself keep booting (`input:*`,
+`soak`, `soak:save`, `window_smoke`, `movie_smoke`, `opening_smoke`,
+`room_smoke`, `scene_smoke`, `interpolation_smoke`, `golden_frames`, `rpc_smoke`,
+`gi_smoke`, `widescreen_smoke`: title, idle cutscene and Continue), and so do
+run-ups no other suite shares (`aa_smoke`'s opening card, the attract scene of
+`coplanar_order_smoke`, `ui_upscale_smoke`'s title, the prologue fight of
+`glow_stability_smoke`, `camera_stick_smoke`'s opening, `widescreen_scene_smoke`
+(launched in 16:9), `ui_system_smoke`'s relaunch, `system_settings_smoke`). Host settings a suite
+used to set before its run-up are set at the checkpoint. `--no-snapshots`
+(or `ROOD_TEST_SNAPSHOTS=0`) boots every suite: the same suites must pass
+both ways. Run on their own (without `run.py`), suites boot.
 
 **Headless rendering** (`ROOD_HEADLESS`, or `run.py --headless`):
 

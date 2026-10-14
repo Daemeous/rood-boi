@@ -28,7 +28,8 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 import lighting_format as lf  # noqa: E402
 
 GENERATED = """rood-lighting 2
@@ -80,7 +81,7 @@ def main():
     # The save room's pack lighting goes in before launch (Ashley's spot
     # comes later; any point in the room will do for the layers).
     pack_room(9, 17, 448, 0, 576)
-    game = Game.launch(fast=True, card=str(card), log=out / "game.log", extra_env=env, socket_path=socket)
+    game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env, socket_path=socket)
 
     def settle(vsyncs=60):
         # The editor polls the files twice a second of wall-clock time: run
@@ -117,11 +118,6 @@ def main():
             pass
 
     try:
-        game.wait_title()
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         state = game.state()
         home = (state["zone"], state["room"])
         check(state.get("player") is not None and game.call("scene")["triangles"] > 0,

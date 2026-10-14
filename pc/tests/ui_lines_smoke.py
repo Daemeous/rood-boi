@@ -47,6 +47,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 from rood_rpc import OUT, Game, symbols  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 
 failures = []
 
@@ -311,12 +312,8 @@ def zoom(game, out, mode):
     """New Game to the opening's first talk bubble, through its zoom: per box
     state, the drawn bubble (RPC) and its paper's bounds in the picture."""
     sym = symbols()
+    # The game is at checkpoints.py's first_bubble (New Game, Circle, 2200 vsyncs).
     game.call("graphics", scale=4, ui_bubbles=mode)
-    game.wait_title()
-    game.run(90)
-    game.press("start", vsyncs=4, settle=90)
-    game.press("circle", vsyncs=3, settle=60)
-    game.run(2200)
     frames = {}
     for _ in range(240):
         _, state = box_state(game, sym)
@@ -472,14 +469,14 @@ def main():
     finally:
         game.close()
     log_clean(game, "synthetic")
-    game = Game.launch(fast=True, log=out / "original.log", socket_path=socket, extra_env=env)
+    game = launch_at("first_bubble", fast=True, log=out / "original.log", socket_path=socket, extra_env=env)
     try:
         game.call("graphics", interpolate=False)
         original = zoom(game, out, "original")
     finally:
         game.close()
     log_clean(game, "original bubble")
-    game = Game.launch(fast=True, log=out / "bubble.log", socket_path=socket, extra_env=env)
+    game = launch_at("first_bubble", fast=True, log=out / "bubble.log", socket_path=socket, extra_env=env)
     try:
         game.call("graphics", interpolate=False)
         bubble(game, out, args.shots, original)

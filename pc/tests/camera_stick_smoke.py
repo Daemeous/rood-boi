@@ -45,6 +45,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
 from rood_rpc import OUT, Game, symbols  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 import golden_frames as gf  # noqa: E402
 
 FACING = 0x1F800010  # scratch: facing mask (low byte), first-person view (bit 16)
@@ -187,7 +188,7 @@ def main():
     env = {"ROOD_WINDOW": gf.WINDOW, "ROOD_LIGHTS": str(lights), "ROOD_GI": "1" if VULKAN else "0",
            "ROOD_SCALE": "2"}
     os.environ.pop("ROOD_SETTINGS", None)
-    game = Game.launch(fast=True, card=str(card), log=out / "game.log", extra_env=env)
+    game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env)
     failures = []
     sym = symbols()
 
@@ -253,13 +254,8 @@ def main():
         return yaws
 
     try:
-        game.wait_title()
         game.call("graphics", **{**gf.DEFAULTS, "scale": 2, "interpolate": True,
                                  "editor_hide_masks": True, "editor_game_cutaway": True, "editor_cutaway": True})
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         s = game.state()
         if (s["zone"], s["room"]) != (9, 17) or not s.get("player"):
             print(f"FAIL: not in the save room after Continue: zone {s['zone']} room {s['room']}")

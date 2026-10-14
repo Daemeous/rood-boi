@@ -41,6 +41,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
 from rood_rpc import OUT, Game  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 from editor_cutaway_smoke import default_card  # noqa: E402
 
 FRAMES = 90
@@ -53,10 +54,19 @@ def fight(out, socket, check):
     game = Game.launch(fast=True, log=out / "fight.log", extra_env=env, socket_path=socket)
     try:
         game.wait_title()
-        game.call("graphics", gi=True, glow_shadows=True)
+        # Path tracing only for the fight: it starts 1000 vsyncs before (its
+        # history and the glows' smoothing settle in far fewer), not for the
+        # 12000-vsync opening on the way (the path tracer's own tests cover it).
+        game.call("graphics", gi=False, glow_shadows=True)
         game.press("start")
+        traced = False
         while game.status()["vsync"] < 12000:  # New Game; dialogue and the walk to the fight
+            if not traced and game.status()["vsync"] >= 11000:
+                game.call("graphics", gi=True, glow_shadows=True)
+                traced = True
             game.press("circle", 2, 100)
+        if not traced:
+            game.call("graphics", gi=True, glow_shadows=True)
         state = game.state()
         print(f"fight: zone {state['zone']} room {state['room']} at vsync {game.status()['vsync']}")
         rows = []
@@ -123,13 +133,8 @@ def main():
             failures.append(message)
 
     def launch(name):
-        game = Game.launch(fast=True, card=str(card), log=out / f"{name}.log", extra_env=env, socket_path=socket)
-        game.wait_title()
+        game = launch_at("save_room", card=card, fast=True, log=out / f"{name}.log", extra_env=env, socket_path=socket)
         game.call("graphics", gi=True)
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         return game
 
     def save_point(reply):

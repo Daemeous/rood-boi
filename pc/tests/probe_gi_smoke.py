@@ -26,7 +26,8 @@ import sys
 import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
-from rood_rpc import OUT, Game, RpcError  # noqa: E402
+from rood_rpc import OUT, RpcError  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 
 VULKAN = os.environ.get("ROOD_RENDERER") == "vulkan"
 lights = pathlib.Path(os.environ.get("ROOD_LIGHTS") or OUT / "probe-lights")
@@ -103,17 +104,15 @@ def screenshot_mean(game, name):
     return float(image[int(image.shape[0] * 0.4):].mean())  # below the dialog box
 
 
-game = Game.launch(extra_env={"ROOD_GI": "1", "ROOD_LIGHTS": str(lights)}, fast=True)
+# New Game, after the opening pan (checkpoints.py: booted, or its save state).
+game = launch_at("opening", extra_env={"ROOD_GI": "1", "ROOD_LIGHTS": str(lights)}, fast=True)
 try:
-    game.wait_title()
     graphics = game.call("graphics")
     caps = graphics.get("lighting_caps", {})
     if not caps.get("probes"):
         print(f"SKIP: no probe GI on this renderer ({caps})")
         game.close()
         sys.exit(77)
-    game.press("start")
-    game.run(3300 - game.status()["vsync"])  # after the opening pan
     state = game.state()
     assert (state["zone"], state["room"]) == (1, 0), state
     camera = game.call("scene")["camera"]

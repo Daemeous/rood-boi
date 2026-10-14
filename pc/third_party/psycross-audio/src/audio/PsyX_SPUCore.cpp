@@ -6,6 +6,7 @@
 
 #include <string.h>
 #include <algorithm>
+#include <type_traits>
 #include <cmath>
 
 namespace PsyX
@@ -1875,6 +1876,93 @@ void SPUCore::RenderFramesDouble(double* outInterleavedLR, int frameCount)
         RenderHighRateSubframe(&outInterleavedLR[f * 2], &outInterleavedLR[f * 2 + 1]);
         m_nativePhase = (m_nativePhase + 1u) % oversample;
     }
+}
+
+// ---- Save states (rood-boi) --------------------------------------------------
+namespace
+{
+template <typename T> void put(std::vector<uint8_t>& out, const T& value)
+{
+    static_assert(std::is_trivially_copyable<T>::value, "save states copy plain data");
+    const uint8_t* p = reinterpret_cast<const uint8_t*>(&value);
+    out.insert(out.end(), p, p + sizeof(T));
+}
+struct Reader
+{
+    const uint8_t* p;
+    size_t left;
+    template <typename T> bool get(T& value)
+    {
+        static_assert(std::is_trivially_copyable<T>::value, "save states copy plain data");
+        if (left < sizeof(T))
+            return false;
+        memcpy(&value, p, sizeof(T));
+        p += sizeof(T);
+        left -= sizeof(T);
+        return true;
+    }
+};
+const uint32_t kStateMagic = 0x53505531u; // "SPU1"
+} // namespace
+
+#define SPU_STATE_FIELDS(X)                                                                        \
+    X(m_ram) X(m_voices) X(m_malloc.initialized) X(m_malloc.heapBase) X(m_malloc.heapEnd)          \
+    X(m_malloc.maxRecords) X(m_transferStartAddr) X(m_transferCurAddr) X(m_transferMode)           \
+    X(m_masterVolL) X(m_masterVolR) X(m_masterVolModeL) X(m_masterVolModeR) X(m_curMasterVolL)    \
+    X(m_curMasterVolR) X(m_masterSweepCounterL) X(m_masterSweepCounterR) X(m_muted)              \
+    X(m_reverbMasterEnable) X(m_reverbAttr) X(m_reverb) X(m_noiseClock) X(m_noiseTimer)           \
+    X(m_noiseLevel) X(m_cdEnable) X(m_cdReverb) X(m_cdVolL) X(m_cdVolR) X(m_xaMasterGainQ16)      \
+    X(m_xaMasterGain) X(m_lastCdFrame) X(m_renderer) X(m_clipMode) X(m_nativePhase)              \
+    X(m_highRateVoiceSamples) X(m_highRateVoiceSteps) X(m_highRateCdL) X(m_highRateCdR)
+
+void SPUCore::SaveState(std::vector<uint8_t>& out) const
+{
+    out.clear();
+    put(out, kStateMagic);
+    put(out, static_cast<uint32_t>(sizeof(*this)));
+#define PUT_FIELD(f) put(out, f);
+    SPU_STATE_FIELDS(PUT_FIELD)
+#undef PUT_FIELD
+    put(out, static_cast<uint32_t>(m_malloc.blocks.size()));
+    for (const SPUMallocState::Block& b : m_malloc.blocks)
+        put(out, b);
+    put(out, static_cast<uint32_t>(m_cdQueue.size()));
+    for (const CdFrame& f : m_cdQueue)
+        put(out, f);
+    put(out, static_cast<uint32_t>(m_cdQueueDouble.size()));
+    for (const CdFrameDouble& f : m_cdQueueDouble)
+        put(out, f);
+}
+
+bool SPUCore::LoadState(const uint8_t* data, size_t size)
+{
+    Reader in = { data, size };
+    uint32_t magic = 0, layout = 0, count = 0;
+    if (!in.get(magic) || magic != kStateMagic || !in.get(layout) || layout != sizeof(*this))
+        return false;
+    Reset(); // the alternative renderers' histories restart
+#define GET_FIELD(f) if (!in.get(f)) return false;
+    SPU_STATE_FIELDS(GET_FIELD)
+#undef GET_FIELD
+    if (!in.get(count))
+        return false;
+    m_malloc.blocks.resize(count);
+    for (SPUMallocState::Block& b : m_malloc.blocks)
+        if (!in.get(b))
+            return false;
+    if (!in.get(count))
+        return false;
+    m_cdQueue.resize(count);
+    for (CdFrame& f : m_cdQueue)
+        if (!in.get(f))
+            return false;
+    if (!in.get(count))
+        return false;
+    m_cdQueueDouble.resize(count);
+    for (CdFrameDouble& f : m_cdQueueDouble)
+        if (!in.get(f))
+            return false;
+    return in.left == 0;
 }
 
 } // namespace PsyX

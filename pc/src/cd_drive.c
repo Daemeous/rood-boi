@@ -104,6 +104,16 @@ static int open_disc(void)
     return 1;
 }
 
+/* snapshot.c restored the drive's state from another process: its FILE*
+ * was that process's; open our own (each read seeks first). */
+void pc_cd_restored(void)
+{
+    int had = cd.disc != NULL;
+    cd.disc = NULL;
+    if (had)
+        open_disc();
+}
+
 static unsigned char status(void)
 {
     return StatStandby | (cd.reading ? StatRead : 0);

@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <algorithm>
+#include <vector>
 #include <cstdlib>
 
 using PsyX::SPUCore;
@@ -250,3 +251,45 @@ extern "C" void pc_spu_push_cd(const short* frames, int count)
 }
 extern "C" int pc_spu_cd_pending(void) { return static_cast<int>(spu().GetPendingCdFrameCount()); }
 extern "C" void pc_spu_clear_cd(void) { spu().ClearCdQueue(); }
+
+/* Save states (snapshot.c): the core's state plus this adapter's register
+ * mirror (what the next pc_spu_sync_registers sends depends on it). */
+struct adapter_state {
+    bool last_valid[24];
+    uint16_t last_regs[24][8], last_mode[6], last_main[2], last_control;
+};
+static std::vector<uint8_t> saved;
+extern "C" int pc_spu_state_size(void)
+{
+    spu().SaveState(saved);
+    return static_cast<int>(saved.size() + sizeof(adapter_state));
+}
+extern "C" void pc_spu_state_save(void* out)
+{
+    adapter_state a;
+    memcpy(a.last_valid, last_valid, sizeof last_valid);
+    memcpy(a.last_regs, last_regs, sizeof last_regs);
+    memcpy(a.last_mode, last_mode, sizeof last_mode);
+    memcpy(a.last_main, last_main, sizeof last_main);
+    a.last_control = last_control;
+    memcpy(out, &a, sizeof a);
+    memcpy(static_cast<uint8_t*>(out) + sizeof a, saved.data(), saved.size()); /* from pc_spu_state_size */
+    saved.clear();
+    saved.shrink_to_fit();
+}
+extern "C" int pc_spu_state_load(const void* in, int size)
+{
+    if (size < static_cast<int>(sizeof(adapter_state)))
+        return 0;
+    const uint8_t* bytes = static_cast<const uint8_t*>(in);
+    if (!spu().LoadState(bytes + sizeof(adapter_state), static_cast<size_t>(size) - sizeof(adapter_state)))
+        return 0;
+    adapter_state a;
+    memcpy(&a, bytes, sizeof a);
+    memcpy(last_valid, a.last_valid, sizeof last_valid);
+    memcpy(last_regs, a.last_regs, sizeof last_regs);
+    memcpy(last_mode, a.last_mode, sizeof last_mode);
+    memcpy(last_main, a.last_main, sizeof last_main);
+    last_control = a.last_control;
+    return 1;
+}

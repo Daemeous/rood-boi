@@ -25,7 +25,8 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 
 # ENDING.PRG's data in guest RAM (build/data/ENDING/ENDING.PRG.elf).
 CREDITS_DONE = 0x800DC188  # u8: the credits loop ends
@@ -65,8 +66,9 @@ def main():
             failures.append(message)
         return ok
 
-    game = Game.launch(fast=True, card=str(card), log=out / "game.log", socket_path=socket,
-                       extra_env={"ROOD_GI": "0"})
+    # Continue from the card's first save (checkpoints.py: booted, or its save state).
+    game = launch_at("save_room", card=card, fast=True, log=out / "game.log", socket_path=socket,
+                     extra_env={"ROOD_GI": "0"})
 
     def log():
         return pathlib.Path(game.log).read_text(errors="replace")
@@ -86,6 +88,10 @@ def main():
             evidence.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(path, evidence / path.name)
         return mean(path)
+
+    def in_field():
+        state = game.state()
+        return state.get("player") is not None and not state.get("game_over")
 
     def continue_save():
         game.press("start", vsyncs=4, settle=90)
@@ -126,9 +132,8 @@ def main():
         return result
 
     try:
-        game.wait_title()
         first = second = None
-        if check(continue_save(), "continued the save with Ashley in the field"):
+        if check(in_field(), "continued the save with Ashley in the field"):
             first = ending(1)
         if first and not failures:
             game.pause()

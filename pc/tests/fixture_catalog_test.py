@@ -21,6 +21,7 @@ With the disc (ROOD_DISC or disks/SLUS-01040.bin):
   identical files) and the committed generated files are up to date.
 """
 import argparse
+import hashlib
 import json
 import os
 import pathlib
@@ -29,6 +30,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
@@ -172,38 +174,92 @@ def generated_files(cat):
     return sorted(zones)
 
 
+# The scan and the whole-disc generation are pure functions of their inputs
+# (the tools, catalog, prefabs, lighting packs and the disc image): a passing
+# result is kept under pc/build/fixture-check/<hash of the inputs>.json and
+# stands for identical inputs (ROOD_FIXTURE_CHECK_CACHE=0 recomputes). The
+# determinism check always runs: a second generation, in another process
+# with other parallelism, against the full run's (kept) file hashes.
+CACHE = ROOT / "pc/build/fixture-check"
+
+
+def inputs_key(zones, disc):
+    h = hashlib.sha256()
+    files = [pathlib.Path(__file__)]
+    for d, pattern in (("pc/tools", "*.py"), ("pc/assets/fixtures", "**/*"), ("pc/assets/prefabs", "**/*"),
+                       ("lighting", "**/*")):
+        files += sorted(p for p in (ROOT / d).glob(pattern) if p.is_file())
+    for p in files:
+        h.update(str(p.relative_to(ROOT)).encode() + b"\0" + p.read_bytes() + b"\0")
+    st = os.stat(disc)
+    h.update(f"{os.path.abspath(disc)} {st.st_size} {st.st_mtime_ns} {zones} {sys.version}".encode())
+    return h.hexdigest()
+
+
+def generate(root, zones, jobs):
+    r = subprocess.run([sys.executable, str(ROOT / "pc/tools/generate_lighting.py"), "--quiet", "--root", str(root),
+                        "--jobs", jobs, *[a for z in zones for a in ("--zone", str(z))]], capture_output=True, text=True)
+    last = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr[-300:]
+    return r.returncode, last, {p.name: p.read_bytes() for p in sorted((root / "default/generated").glob("*.txt"))}
+
+
 def with_disc(zones):
     try:
-        fl.Disc()
+        disc = fl.Disc().path
     except OSError as error:
         print(f"note: no disc image ({error}): scan and generator not checked")
         return
-    args = [a for z in zones for a in ("--zone", str(z))]
-    r = subprocess.run([sys.executable, str(ROOT / "pc/tools/fixture_scan.py"), "--check", *args],
-                       capture_output=True, text=True)
-    last = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr[-300:]
-    check(r.returncode == 0 and "unmatched 0" in last and "by rule" in last and ", 0 by rule" in last,
-          f"scan: every fixture matches one type exactly ({last})")
     # Every zone once (zones in parallel), then a second run of a few zones
     # with other parallelism (a candle room, torches, the 67-candle hall, the
     # town's street lanterns) must give the same bytes.
     again = [z for z in (9, 13, 26, 48) if z in zones] or zones[:1]
+    key = inputs_key(zones, disc)
+    cached = CACHE / f"{key[:32]}.json"
+    use_cache = os.environ.get("ROOD_FIXTURE_CHECK_CACHE", "1") != "0"
+    record = None
+    if use_cache and cached.exists():
+        try:
+            record = json.loads(cached.read_text())
+        except ValueError:
+            record = None
     with tempfile.TemporaryDirectory() as tmp:
-        outs = []
-        for n, (which, jobs) in enumerate(((zones, "8"), (again, "1"))):
-            root = pathlib.Path(tmp) / f"run{n}"
-            r = subprocess.run([sys.executable, str(ROOT / "pc/tools/generate_lighting.py"), "--quiet", "--root", str(root),
-                                "--jobs", jobs, *[a for z in which for a in ("--zone", str(z))]],
+        if record and record.get("key") == key:
+            print(f"note: scan and full generation: the passing result of {record['when']} for these exact inputs "
+                  f"(tools, catalog, prefabs, lighting packs, disc; {cached.relative_to(ROOT)})")
+            for message in record["passed"]:
+                check(True, message + " [same inputs as a passing run]")
+            full = record["hashes"]
+        else:
+            failed_before = len(failures)
+            passed = []
+
+            def keep(ok, message):
+                check(ok, message)
+                if ok:
+                    passed.append(message)
+
+            args = [a for z in zones for a in ("--zone", str(z))]
+            r = subprocess.run([sys.executable, str(ROOT / "pc/tools/fixture_scan.py"), "--check", *args],
                                capture_output=True, text=True)
-            check(r.returncode == 0, f"generator run {n + 1}: {r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr[-300:]}")
-            outs.append({p.name: p.read_bytes() for p in sorted((root / "default/generated").glob("*.txt"))})
-        first = {k: v for k, v in outs[0].items() if int(k[4:6]) in again}
-        check(first == outs[1] and outs[1], f"the generator is deterministic (zones {again}: {len(outs[1])} files "
-                                            "identical, in parallel and not)")
-        committed = {p.name: p.read_bytes() for p in sorted((ROOT / "lighting/default/generated").glob("*.txt"))
-                     if int(p.name[4:6]) in zones}
-        check(committed == outs[0], f"the committed generated files are up to date ({len(committed)} files in "
-              f"{len(zones)} zones; regenerate: pc/tools/generate_lighting.py)")
+            last = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr[-300:]
+            keep(r.returncode == 0 and "unmatched 0" in last and "by rule" in last and ", 0 by rule" in last,
+                 f"scan: every fixture matches one type exactly ({last})")
+            code, last, files = generate(pathlib.Path(tmp) / "run0", zones, "8")
+            keep(code == 0, f"generator run 1: {last}")
+            committed = {p.name: p.read_bytes() for p in sorted((ROOT / "lighting/default/generated").glob("*.txt"))
+                         if int(p.name[4:6]) in zones}
+            keep(committed == files, f"the committed generated files are up to date ({len(committed)} files in "
+                 f"{len(zones)} zones; regenerate: pc/tools/generate_lighting.py)")
+            full = {k: hashlib.sha256(v).hexdigest() for k, v in files.items() if int(k[4:6]) in again}
+            if len(failures) == failed_before and use_cache:
+                CACHE.mkdir(parents=True, exist_ok=True)
+                cached.write_text(json.dumps({"key": key, "when": time.strftime("%Y-%m-%d %H:%M"),
+                                              "passed": passed, "hashes": full}, indent=1) + "\n")
+        code, last, files = generate(pathlib.Path(tmp) / "run1", again, "1")
+        check(code == 0, f"generator run 2: {last}")
+        second = {k: hashlib.sha256(v).hexdigest() for k, v in files.items()}
+        check(second == full and second, f"the generator is deterministic (zones {again}: {len(second)} files "
+                                         "identical, in parallel and not)")
         shutil.rmtree(tmp, ignore_errors=True)
 
 

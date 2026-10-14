@@ -39,7 +39,8 @@ import numpy as np
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 from lighting_presets_smoke import capture, default_card  # noqa: E402
 
 
@@ -80,7 +81,7 @@ def main():
     if args.unlimited:
         env["ROOD_FRAMES_IN_FLIGHT"] = "0"
     socket = os.environ.get("ROOD_RPC") or f"/tmp/rood-gilag-{os.getpid()}.sock"
-    game = Game.launch(fast=True, card=str(card), log=out / "game.log", extra_env=env, socket_path=socket)
+    game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env, socket_path=socket)
 
     def shot(name):
         path = out / f"{name}.png"
@@ -93,15 +94,10 @@ def main():
         return image, took
 
     try:
-        game.wait_title()
         caps = game.call("graphics")["lighting_caps"]
         if not caps["traced"]:
             print(f"SKIP: no GL compute path tracer here ({caps})")
             return 77
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         state = game.state()
         player = state.get("player")
         if not player or not game.call("scene")["triangles"]:

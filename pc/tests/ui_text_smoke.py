@@ -67,6 +67,7 @@ from scipy import ndimage
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
+from checkpoints import launch_at  # noqa: E402
 from rood_rpc import OUT, Game  # noqa: E402
 
 failures = []
@@ -461,13 +462,15 @@ def check_cross(game, work, shots):
     game.run(150)  # released: the cross closes
 
 
-def launch(work, card, label, extra=None):
+def launch(work, card, label, extra=None, checkpoint=None):
     settings = work / "settings.cfg"
     env = {"ROOD_OUT": str(work), "ROOD_SETTINGS": str(settings), **(extra or {})}
     if os.environ.get("ROOD_RENDERER") == "vulkan" and os.environ.get("VK_LAYER_PATH"):
         env.setdefault("ROOD_VK_VALIDATE", "1")
-    return Game.launch(socket_path=f"/tmp/rood-text-{os.getpid()}-{label}.sock", log=str(work / f"{label}.log"),
-                       extra_env=env, card=str(card) if card else None, fast=True)
+    kwargs = dict(socket_path=f"/tmp/rood-text-{os.getpid()}-{label}.sock", log=str(work / f"{label}.log"),
+                  extra_env=env, card=str(card) if card else None, fast=True)
+    # A test checkpoint (checkpoints.py): booted, or its validated save state.
+    return launch_at(checkpoint, **kwargs) if checkpoint else Game.launch(**kwargs)
 
 
 def log_clean(game, label):
@@ -481,7 +484,7 @@ def log_clean(game, label):
 
 def run_bubble(work, shots):
     """New Game: the opening's first talk bubble."""
-    game = launch(work, None, "bubble")
+    game = launch(work, None, "bubble", checkpoint="first_bubble")  # New Game, Circle, 2200 vsyncs
     try:
         g = game.call("graphics")
         check(g.get("ui_text") == "original", f"bubble: default ui_text original ({g.get('ui_text')})")
@@ -489,11 +492,7 @@ def run_bubble(work, shots):
         check(g.get("ui_text_bubble_align") == "centre",
               f"bubble: default ui_text_bubble_align centre ({g.get('ui_text_bubble_align')})")
         game.call("graphics", interpolate=False, aa="off")  # SMAA would blend beyond the glyph boxes
-        game.wait_title()
-        game.run(90)
-        game.press("start", vsyncs=4, settle=90)
-        game.press("circle", vsyncs=3, settle=60)
-        game.run(2400)  # the duke's first line waits for a button
+        game.run(200)  # the duke's first line waits for a button
         s = game.call("ui_upscale")
         t = game.call("ui_text")
         check(s["lookups"] == 0 and t["regions"] == 0,
@@ -519,16 +518,10 @@ def run_save(work, card, shots):
     """The save room: HUD, then the in-game menu."""
     copy = work / "card.mcd"
     shutil.copyfile(card, copy)
-    game = launch(work, copy, "save")
+    game = launch(work, copy, "save", checkpoint="save_room")
     settings = work / "settings.cfg"
     try:
         game.call("graphics", interpolate=False, aa="off")  # SMAA would blend beyond the glyph boxes
-        game.wait_title()
-        game.run(90)
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         if check(bool(game.state().get("player")), "save: in the save room"):
             s = game.call("ui_upscale")
             check(s["lookups"] == 0, f"save: ui_text original leaves 2D alone ({s['lookups']} lookups)")

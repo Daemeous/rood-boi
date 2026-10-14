@@ -56,7 +56,8 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 import golden_frames as gf  # noqa: E402
 
 FRAMES = 16  # captured frames per run (every game frame: 2 vsyncs apart)
@@ -93,21 +94,15 @@ class Run:
         self.lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-", dir=self.out))  # no per-room lights
         full_env = {"ROOD_WINDOW": WINDOW, "ROOD_LIGHTS": str(self.lights), "ROOD_GI": "0", "ROOD_SCALE": "1", **env}
         os.environ.pop("ROOD_SETTINGS", None)
-        self.game = Game.launch(fast=True, card=str(card), log=self.out / "game.log", extra_env=full_env)
+        self.game = launch_at("save_room", card=card, fast=True, log=self.out / "game.log", extra_env=full_env)
         self.native_room = native_room
         self.keep = args.out is not None
 
     def enter(self):
         game = self.game
-        game.wait_title()
+        # The checkpoint pressed Continue on a fixed phase of the vsync count
+        # (the game draws every 2-4 vsyncs; golden_frames.py).
         game.call("graphics", **GRAPHICS, native_room=self.native_room)
-        # Inputs on a fixed phase of the vsync count (the game draws every
-        # 2-4 vsyncs; golden_frames.py).
-        game.run(8 - game.status()["vsync"] % 8)
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         state = game.state()
         return state.get("player") and (state.get("zone"), state.get("room")) == (9, 17), state
 

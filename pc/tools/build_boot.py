@@ -286,9 +286,32 @@ def compile_object(args, source, kind="c", win_args=None):
     return result.returncode == 0 and compile_twin(win_args or args, source, kind)
 
 
+def state_sections(obj):
+    """Save states (pc/src/snapshot.c): the object's .data/.bss join the
+    sections rood_state_data / rood_state_bss, which a snapshot saves and
+    restores whole. For the game's own units and the host units whose statics
+    are game state (the SDK layer, CPU rasterizer and VRAM, GTE, CD drive,
+    MDEC, XA, the libspu layer). Variables placed in .data.rood_host (host
+    configuration read from the environment) stay out. The Windows twins keep
+    their sections (no save states there)."""
+    renames = []
+    for line in run(["readelf", "-SW", str(obj)], capture_output=True, text=True).stdout.splitlines():
+        section = re.match(r"\s*\[\s*\d+\]\s+(\.(data|bss)(\.\S+)?)\s+\w+\s+\w+\s+\w+\s+(\w+)", line)
+        if section and int(section.group(4), 16) and "rood_host" not in section.group(1):
+            renames.append(f"--rename-section={section.group(1)}=rood_state_{section.group(2)}")
+    if renames:
+        run(["objcopy", *renames, str(obj)])
+
+
+# Host units whose statics are game state (state_sections).
+STATE_HOST_UNITS = {"runtime", "cd_drive", "mdec", "xa_audio", "audio_libspu", "gte", "libgte", "inline"}
+
+
 def compile_generated(args):
-    """A generated table: both objects must build."""
+    """A generated table (game data: saved with the game state): both
+    objects must build."""
     run(args)
+    state_sections(args[args.index("-o") + 1])
     if win:
         run(win_command(args))
 
@@ -700,17 +723,23 @@ for source, name in sources:
                     win_overlay_statics.setdefault(overlay_file, set()).add(kind)
             if renames:
                 run([MINGW + "objcopy", *renames, str(twin(obj))])
+    else:
+        state_sections(obj)
     objects.append(obj)
     game_objects.append(obj)
 for name in ["runtime", "window", "controller", "gamepad"]:
     obj = out / (name + ".o")
-    compile_object(["gcc", *flags, *sdl_flags, "-c", f"pc/src/boot_{name}.c", "-o", str(obj)], f"pc/src/boot_{name}.c")
+    if compile_object(["gcc", *flags, *sdl_flags, "-c", f"pc/src/boot_{name}.c", "-o", str(obj)], f"pc/src/boot_{name}.c") \
+            and name in STATE_HOST_UNITS:
+        state_sections(obj)
     objects.append(obj)
-for name in ["audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "room_catalog", "ui/item_names"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []):
+for name in ["audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "room_catalog", "ui/item_names", "snapshot"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []):
     obj = out / (name.replace("/", "_") + ".o")
     # ui_text rasterizes fonts with the stb_truetype that Dear ImGui vendors.
     extra = ["-Ipc/third_party/imgui"] if name == "ui_text" else []
-    compile_object(["gcc", *flags, *sdl_flags, *extra, "-c", f"pc/src/{name}.c", "-o", str(obj)], f"pc/src/{name}.c")
+    if compile_object(["gcc", *flags, *sdl_flags, *extra, "-c", f"pc/src/{name}.c", "-o", str(obj)], f"pc/src/{name}.c") \
+            and name in STATE_HOST_UNITS:
+        state_sections(obj)
     objects.append(obj)
 if not arch64:
     # Gamepad mapping test, and --hardware to report a connected gamepad.
@@ -834,7 +863,7 @@ for name, compiler, source, extra in [
     ),
 ]:
     obj = out / (name + ".o")
-    compile_object(
+    if compile_object(
         [
             compiler,
             *[f for f in flags if compiler != "g++" or f not in ["-fgnu89-inline", *c_only_flags]],
@@ -849,7 +878,8 @@ for name, compiler, source, extra in [
         ],
         f"pc/third_party/psycross/{source}",
         "c" if compiler == "gcc" else "c++",
-    )
+    ) and name in STATE_HOST_UNITS:
+        state_sections(obj)
     objects.append(obj)
 if arch64:
     from lp64_report import write_report
@@ -1154,7 +1184,9 @@ for library in ([
             parts = line.split()
             if len(parts) >= 3:
                 libc.add(parts[2].split("@")[0])
-libc.update({"_GLOBAL_OFFSET_TABLE_", "__dso_handle", "__data_start", "_end"})  # linker-provided
+libc.update({"_GLOBAL_OFFSET_TABLE_", "__dso_handle", "__data_start", "_end", "__executable_start", "etext",
+             "__start_rood_state_data", "__stop_rood_state_data", "__start_rood_state_bss",
+             "__stop_rood_state_bss"})  # linker-provided (snapshot.c: code hash, state sections)
 libc.update({"pc_overlay_statics", "pc_overlay_statics_count"})  # generated before linking
 missing = undefined - defined - libc
 # Function-pointer tables in BATTLE data hold guest code addresses. Rehome a
@@ -1415,6 +1447,7 @@ def lp64_native_imports():
                       + "\n".join(definitions) + "\n")
     obj = out / "native_imports.o"
     run(["gcc", *flags, "-c", str(source), "-o", str(obj)])
+    state_sections(obj)  # game data (save states); overlay regions keep their rood_ovl_ sections
     if win:
         # PE: no .type directive; overlay data goes to its grouped section.
         text = source.read_text()

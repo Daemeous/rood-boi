@@ -671,20 +671,12 @@ typedef struct {
     char name[420];
     int w, h;
 } capture;
+/* gl_present.c: written beside the name, then renamed (complete when it exists). */
+extern void pc_write_ppm_atomic(const char* name, const unsigned char* pixels, int w, int h, int stride, int flip);
+extern unsigned pc_presents;
 static void write_capture(const char* name, const unsigned char* rgba, int w, int h)
 {
-    FILE* f = fopen(name, "wb");
-    if (!f)
-        return;
-    fprintf(f, "P6\n%d %d\n255\n", w, h);
-    unsigned char* row = malloc((size_t)w * 3);
-    for (int y = 0; y < h && row; y++) {
-        for (int x = 0; x < w; x++)
-            memcpy(row + x * 3, rgba + ((size_t)y * w + x) * 4, 3);
-        fwrite(row, 1, (size_t)w * 3, f);
-    }
-    free(row);
-    fclose(f);
+    pc_write_ppm_atomic(name, rgba, w, h, 4, 0);
 }
 static void capture_done(void* context)
 {
@@ -696,6 +688,7 @@ static void capture_done(void* context)
 static int burst_index;
 static void capture_present(void)
 {
+    ++pc_presents;
     if (!pc_present_capture[0])
         return;
     int w = window_image.width, h = window_image.height;

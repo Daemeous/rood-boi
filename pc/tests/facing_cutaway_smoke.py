@@ -61,7 +61,8 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, symbols  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 import golden_frames as gf  # noqa: E402
 
 FACING = 0x1F800010  # scratch: the facing mask (low byte), first-person view (bit 16)
@@ -121,7 +122,7 @@ def main():
     lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-", dir=out))  # no per-room lights
     env = {"ROOD_WINDOW": gf.WINDOW, "ROOD_LIGHTS": str(lights), "ROOD_GI": "0", "ROOD_SCALE": "2"}
     os.environ.pop("ROOD_SETTINGS", None)
-    game = Game.launch(fast=True, card=str(card), log=out / "game.log", extra_env=env)
+    game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env)
     failures = []
 
     def check(ok, message):
@@ -284,12 +285,7 @@ def main():
         check(not mismatched(facing, gs), "room 13: back to original, the mask decides alone")
 
     try:
-        game.wait_title()
         game.call("graphics", **GRAPHICS)
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         zone, room, player = where()
         if (zone, room) != (9, 17) or not player:
             print(f"FAIL: not in the save room after Continue: zone {zone} room {room}")

@@ -38,7 +38,8 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, symbols  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 
 WEAPON, SHIELD, BLADE = 32, 48, 44  # inventory record sizes (vs_main_inventory_t)
 SHIELDS, BLADES = 0x100, 0x280  # offsets in vs_main_inventory
@@ -84,12 +85,7 @@ def main():
             failures.append(message)
 
     def launch(name):
-        game = Game.launch(fast=True, card=str(card), log=out / f"{name}.log", extra_env=env)
-        game.wait_title()
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
+        game = launch_at("save_room", card=card, fast=True, log=out / f"{name}.log", extra_env=env)
         return game
 
     game = launch("game")

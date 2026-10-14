@@ -27,7 +27,8 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
 from anim_trace import analyse, read  # noqa: E402
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 
 failures = []
 
@@ -52,10 +53,8 @@ def trace(game, name, count, action=None):
 
 
 def held_poses():
-    game = Game.launch(fast=True)
+    game = launch_at("opening", fast=True)  # New Game, after the opening pan (checkpoints.py)
     try:
-        game.wait_title()
-        game.press("start")
         game.run(4000 - game.status()["vsync"])
         game.call("graphics", interp_holds=False)
         game.run(4)
@@ -78,7 +77,7 @@ def held_poses():
 def fast_rotations(card):
     scratch = OUT / "animation-card.mcd"
     shutil.copy(card, scratch)
-    game = Game.launch(fast=True, card=str(scratch))
+    game = launch_at("save_room", card=scratch, fast=True)  # Continue from the card (checkpoints.py)
 
     def attack():
         game.press("circle", 3, 40)  # battle mode: the weapon is drawn
@@ -87,11 +86,6 @@ def fast_rotations(card):
         game.press("cross", 3, 40)  # back out of battle mode
 
     try:
-        game.wait_title()
-        game.press("start", 4, 90)
-        for _ in range(3):
-            game.press("circle", 3, 90)
-        game.run(300)
         game.call("graphics", interp_skeleton=False)
         linear = trace(game, "linear", 180, attack)
         game.call("graphics", interp_skeleton=True)

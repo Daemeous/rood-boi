@@ -44,7 +44,8 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, RpcError  # noqa: E402
+from rood_rpc import OUT, RpcError  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 import golden_frames as gf  # noqa: E402
 from editor_cutaway_smoke import default_card, pose_looking_at  # noqa: E402
 
@@ -83,7 +84,7 @@ def main():
     socket = f"/tmp/rood-actors-{os.getpid()}.sock"  # sun_path is short; worktree paths are long
     if os.environ.get("ROOD_RPC"):
         socket = os.environ["ROOD_RPC"]
-    game = Game.launch(fast=True, card=str(card), log=out / "game.log", extra_env=env, socket_path=socket)
+    game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env, socket_path=socket)
     failures = []
 
     def check(ok, message):
@@ -112,7 +113,6 @@ def main():
         return image
 
     try:
-        game.wait_title()
         library = game.call("prefabs")
         ids = [p["id"] for p in library["prefabs"]]
         check({"candle", "torch", "lantern", "fireplace", "window_light", "magic_glow"} <= set(ids)
@@ -122,10 +122,6 @@ def main():
                                  "editor_hide_masks": True, "editor_game_cutaway": True, "editor_cutaway": False,
                                  "gi": True, "rt_shadows": True, "editor_snap_point": False, "editor_snap_edge": False,
                                  "editor_snap_surface": False})
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         state = game.state()
         player = state.get("player")
         if not player or not game.call("scene")["triangles"]:

@@ -37,7 +37,8 @@ from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 
 SHEET_W, SHEET_H = 448, 256  # SPMCIMG.BIN: 7 x 8 images of 64 x 32, 8-bit
 CLUT0_COLUMNS = {1, 2, 3, 4}  # locations 0-31; the rest (and the icons) use CLUT 1
@@ -123,7 +124,7 @@ def main():
     lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-", dir=out))
     env = {"ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(lights), "ROOD_GI": "0", "ROOD_SCALE": "2"}
     os.environ.pop("ROOD_SETTINGS", None)
-    game = Game.launch(fast=True, card=str(card), log=out / "game.log", extra_env=env)
+    game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env)
     failures = []
 
     def check(ok, message):
@@ -132,12 +133,7 @@ def main():
             failures.append(message)
 
     try:
-        game.wait_title()
         game.call("graphics", interpolate=True, present_rate=1)
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         state = game.state()
         if not state.get("player"):
             print(f"FAIL: no room with Ashley after Continue: {state}")

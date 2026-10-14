@@ -26,7 +26,8 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 
 GATE = 3
 
@@ -57,7 +58,7 @@ def main():
         if not ok:
             failures.append(message)
 
-    game = Game.launch(fast=True, card=str(card), log=out / "game.log", extra_env=env, socket_path=socket)
+    game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env, socket_path=socket)
     ptr = 8 if os.environ.get("ROOD_ARCH") == "64" else 4
 
     def u32(address):
@@ -67,11 +68,6 @@ def main():
         return int.from_bytes(game.read_symbol("pc_route_continuations", 4), "little")
 
     try:
-        game.wait_title(timeout=120)
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         check(game.state().get("player") is not None, "continued into gameplay")
         reply = game.call("room_goto", zone=9, room=5, enemies=True, scripts=False)
         check(reply["ok"], f"warp requested: {reply.get('message')}")

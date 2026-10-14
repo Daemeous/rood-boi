@@ -68,7 +68,8 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, symbols  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
 CLOSED = 0x3F
@@ -129,14 +130,9 @@ class Session:
 
     def __init__(self, name, out, card, env, shots):
         self.name, self.out, self.shots = name, out, shots
-        self.g = Game.launch(fast=True, card=str(card), log=out / f"{name}.log", extra_env=env)
+        # Continue from the card (checkpoints.py: booted, or its validated save state).
+        self.g = launch_at("save_room", card=card, fast=True, log=out / f"{name}.log", extra_env=env)
         self.sym = symbols()
-        g = self.g
-        g.wait_title()
-        g.press("start", vsyncs=4, settle=90)
-        for _ in range(3):
-            g.press("circle", vsyncs=3, settle=90)
-        g.run(400)
 
     def close(self):
         self.g.close()

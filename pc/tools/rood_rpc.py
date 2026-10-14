@@ -59,6 +59,7 @@ DEFAULT_SOCKET = os.environ.get("ROOD_RPC", "tcp:47323" if WINDOWS else str(ROOT
 OUT = pathlib.Path(os.environ.get("ROOD_OUT") or ROOT / "pc/build/boot")
 _symbols = None
 _headless = None
+PROFILE = os.environ.get("ROOD_RPC_PROFILE")  # Game.call timing log (profile_report.py)
 
 
 def symbols():
@@ -79,6 +80,19 @@ def symbols():
 
 class RpcError(RuntimeError):
     pass
+
+
+def wait_for_file(path, timeout=10):
+    """True once `path` exists and is not empty. The game writes its images
+    (present_dump) beside the name and renames them, so an existing image is
+    complete: no settling sleep needed."""
+    path = pathlib.Path(path)
+    deadline = time.monotonic() + timeout
+    while not (path.exists() and path.stat().st_size > 0):
+        if time.monotonic() > deadline:
+            return False
+        time.sleep(0.003)
+    return True
 
 
 def egl_probe(device=None):
@@ -194,17 +208,20 @@ class Game:
         self.display = os.environ.get("DISPLAY")
         self.processes = list(processes)
         self.next_id = 0
+        self.has_wait = None  # the game answers "wait" (wait_paused)
         self.sock = connect(path)
         self.file = self.sock.makefile("rwb")
 
     # ---- launching ----
     @classmethod
     def launch(cls, window=False, card=None, audio="none", socket_path=None, log=None, extra_env=None,
-               movies=False, headless=None, fast=False, args=()):
+               movies=False, headless=None, fast=False, args=(), snapshot=None):
         """Start the game with RPC enabled; headless unless window=True
         (`headless`: "egl" or "xvfb", default headless_mode()). The intro
         movie is skipped unless movies=True; fast=True drops the 59.94 Hz
-        pacing (vsync-exact RPC stepping is unaffected)."""
+        pacing (vsync-exact RPC stepping is unaffected). snapshot: a save
+        state (RPC snapshot save; pc/src/snapshot.c) to resume instead of
+        booting: the game starts paused where it was saved."""
         socket_path = socket_path or DEFAULT_SOCKET
         env = dict(os.environ, ROOD_RPC=socket_path, ROOD_CONTROLLER="none", ROOD_AUDIO=audio)
         env.setdefault("ROOD_GI", "0")  # path tracing is slow on software GL; tests opt in
@@ -215,6 +232,8 @@ class Game:
             env["ROOD_CARD1"] = card
         env.setdefault("ROOD_CARD2", str(OUT / "test-card2-absent.mcd"))
         env.update(extra_env or {})
+        if snapshot:
+            env["ROOD_SNAPSHOT"] = str(snapshot)
         processes = []
         if not window and not WINDOWS:
             mode = headless or headless_mode()[0]
@@ -233,13 +252,17 @@ class Game:
             [str(BINARY), "--window"] + ([] if movies else ["--skip-movies"]) + (["--fast"] if fast else [])
             + list(args), cwd=ROOT, env=env, stdout=log_file, stderr=subprocess.STDOUT)
         processes.insert(0, game)
-        deadline = time.monotonic() + 30
+        start = time.monotonic()
+        deadline = start + 30
         while not listening(socket_path):
             if game.poll() is not None or time.monotonic() > deadline:
                 for p in processes:
                     p.kill()
                 raise RpcError("game did not open the RPC socket; see " + log_file.name)
             time.sleep(0.05)
+        if PROFILE:
+            with open(PROFILE, "a") as f:
+                f.write(f"{start:.4f} {time.monotonic() - start:.4f} launch - {os.getpid()}\n")
         instance = cls(socket_path, processes)
         instance.log = log_file.name
         instance.display = env.get("DISPLAY")
@@ -262,6 +285,25 @@ class Game:
 
     # ---- protocol ----
     def call(self, method, **params):
+        if PROFILE:
+            return self._profiled_call(method, params)
+        return self._call(method, params)
+
+    def _profiled_call(self, method, params):
+        """ROOD_RPC_PROFILE=path: one line per call (start, seconds, method,
+        the test's file:line), for pc/tests/profile_report.py."""
+        frame = sys._getframe(2)
+        while frame and frame.f_code.co_filename == __file__:
+            frame = frame.f_back
+        site = f"{pathlib.Path(frame.f_code.co_filename).name}:{frame.f_lineno}" if frame else "?"
+        start = time.monotonic()
+        try:
+            return self._call(method, params)
+        finally:
+            with open(PROFILE, "a") as f:
+                f.write(f"{start:.4f} {time.monotonic() - start:.4f} {method} {site} {os.getpid()}\n")
+
+    def _call(self, method, params):
         self.next_id += 1
         request = {"jsonrpc": "2.0", "id": self.next_id, "method": method}
         if params:
@@ -297,7 +339,19 @@ class Game:
         start = moved = time.monotonic()
         last = None
         while True:
-            s = self.status()
+            # "wait" replies as soon as the step is over (or after a second):
+            # no status polling. Older games without it: status every 10 ms.
+            if self.has_wait is not False:
+                try:
+                    s = self.call("wait", timeout_ms=1000)
+                    self.has_wait = True
+                except RpcError as e:
+                    if self.has_wait or "method" not in str(e):
+                        raise
+                    self.has_wait = False
+                    continue
+            else:
+                s = self.status()
             if s["paused"] and s["step_budget"] == 0:
                 return s
             now = time.monotonic()
@@ -308,7 +362,8 @@ class Game:
                                f"({s['step_budget']} to go; hung?)")
             if timeout is not None and now - start > timeout:
                 raise RpcError(f"timed out waiting for the step to finish ({timeout} s)")
-            time.sleep(0.01)
+            if not self.has_wait:
+                time.sleep(0.01)
 
     def run(self, vsyncs):
         """Run exactly `vsyncs` vsyncs, then stay paused (no wall-clock
@@ -358,17 +413,24 @@ class Game:
         if ppm.exists():
             ppm.unlink()
         self.call("present_dump", path=str(ppm.resolve()))
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            if ppm.exists() and ppm.stat().st_size > 0:
-                time.sleep(0.05)
-                break
-            time.sleep(0.02)
-        else:
+        if not wait_for_file(ppm, timeout):
             raise RpcError("no frame presented")
         subprocess.run(["convert", str(ppm), str(path)], check=True)
         ppm.unlink()
         return path
+
+    def wait_presents(self, count=2, timeout=10):
+        """Wait until the game has presented `count` more images (a paused
+        game redraws about 60 times a second): after a graphics change,
+        instead of sleeping. Returns at once on games without the counter."""
+        start = self.status().get("presents")
+        if start is None:
+            return
+        deadline = time.monotonic() + timeout
+        while self.status()["presents"] < start + count:
+            if time.monotonic() > deadline:
+                raise RpcError(f"no present for {timeout} s")
+            time.sleep(0.002)
 
     def window_screenshot(self, path):
         """Grab the presented window (after scaling/post-processing) from the X server

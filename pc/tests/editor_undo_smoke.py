@@ -36,7 +36,8 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 import golden_frames as gf  # noqa: E402
 
 
@@ -70,7 +71,7 @@ def main():
     env = {"ROOD_WINDOW": "1280x720", "ROOD_LIGHTS": str(lights), "ROOD_GI": "1", "ROOD_SCALE": "2"}
     os.environ.pop("ROOD_SETTINGS", None)
     socket = os.environ.get("ROOD_RPC") or f"/tmp/rood-undo-{os.getpid()}.sock"  # sun_path is short
-    game = Game.launch(fast=True, card=str(card), log=out / "game.log", extra_env=env, socket_path=socket)
+    game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env, socket_path=socket)
     failures = []
 
     def check(ok, message):
@@ -99,13 +100,8 @@ def main():
         return next((g for g in game.call("glows")["glows"] if g["id"] == glow_id), None)
 
     try:
-        game.wait_title()
         game.call("graphics", **{**gf.DEFAULTS, "scale": 2, "editor_cutaway": False, "gi": True})
         check(game.call("graphics")["editor_snap_move"] == 8, "grid snapping defaults to 8 units")
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         state = game.state()
         player = state.get("player")
         if not player or not game.call("scene")["triangles"]:

@@ -1204,15 +1204,34 @@ static float focus_depth(void)
 char pc_present_capture[400];
 int pc_present_burst;
 static int burst_index;
-static void write_capture(const char* name, const unsigned char* pixels, int w, int h)
+/* Presented images so far (RPC status "presents": tests wait for a redraw
+ * with it instead of sleeping). */
+unsigned pc_presents;
+/* The image appears under its name only when complete (written beside it,
+ * then renamed), so a test can read it as soon as it exists. */
+void pc_write_ppm_atomic(const char* name, const unsigned char* pixels, int w, int h, int stride, int flip)
 {
-    FILE* f = fopen(name, "wb");
+    char part[440];
+    snprintf(part, sizeof part, "%s.part", name);
+    FILE* f = fopen(part, "wb");
     if (!f)
         return;
     fprintf(f, "P6\n%d %d\n255\n", w, h);
-    for (int y = h - 1; y >= 0; y--)
-        fwrite(pixels + (size_t)y * w * 3, 1, (size_t)w * 3, f);
+    unsigned char* row = malloc((size_t)w * 3);
+    for (int i = 0; i < h && row; i++) {
+        const unsigned char* src = pixels + (size_t)(flip ? h - 1 - i : i) * w * stride;
+        for (int x = 0; x < w; x++)
+            memcpy(row + x * 3, src + (size_t)x * stride, 3);
+        fwrite(row, 1, (size_t)w * 3, f);
+    }
+    free(row);
     fclose(f);
+    remove(name); /* Windows' rename does not replace */
+    rename(part, name);
+}
+static void write_capture(const char* name, const unsigned char* pixels, int w, int h)
+{
+    pc_write_ppm_atomic(name, pixels, w, h, 3, 1);
 }
 /* A burst reads back through a ring of pixel-pack buffers and writes each
  * image a few frames later, so capturing does not stall on the GPU and
@@ -1241,6 +1260,7 @@ static void drain_capture(int slot)
 }
 static void capture_present(void)
 {
+    ++pc_presents;
     int slot = capture_next;
     if (!pc_present_capture[0]) {
         /* Finish a burst's images still in flight. */

@@ -31,7 +31,6 @@ import os
 import pathlib
 import sys
 import tempfile
-import time
 
 import numpy as np
 from PIL import Image
@@ -39,7 +38,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT, Game, wait_for_file  # noqa: E402
 import golden_frames as gf  # noqa: E402
 
 WINDOW = "1440x1080"
@@ -54,10 +53,7 @@ def capture(game, path, timeout=20):
     ppm = path.with_suffix(".ppm")
     ppm.unlink(missing_ok=True)
     game.call("present_dump", path=str(ppm))
-    deadline = time.monotonic() + timeout
-    while not (ppm.exists() and ppm.stat().st_size) and time.monotonic() < deadline:
-        time.sleep(0.05)
-    time.sleep(0.2)
+    wait_for_file(ppm, timeout)  # complete once it exists (written, then renamed)
     image = np.asarray(Image.open(ppm).convert("RGB")).astype(np.int16)
     ppm.unlink()
     return image
@@ -65,9 +61,9 @@ def capture(game, path, timeout=20):
 
 def redrawn(game, path, base, **graphics):
     game.call("graphics", **{**base, **graphics})
-    time.sleep(0.1)
+    game.wait_presents(2)  # the paused game redraws with the new settings
     game.call("redraw")
-    time.sleep(0.3)
+    game.wait_presents(2)
     return capture(game, path)
 
 

@@ -18,6 +18,7 @@
  * shade. */
 #define _POSIX_C_SOURCE 200809L
 #include "render_gl.h"
+#include "snapshot.h"
 #include "room_editor.h"
 #include <math.h>
 #include <stddef.h>
@@ -356,7 +357,9 @@ typedef struct {
     int uv_effect_count;
 } draw_list;
 static draw_list lists[LIST_RING];
-static uint32_t next_id = 1;
+/* List ids are written into the game's packets (render_list_link): saved
+ * with the game state so a resumed save state writes the same packets. */
+static uint32_t next_id PC_SAVED_STATE = 1;
 static GLuint program;
 static int program_failed;
 

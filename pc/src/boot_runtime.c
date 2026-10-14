@@ -16,6 +16,7 @@
 #include <ucontext.h>
 #endif
 static uint16_t vram[1024 * 512];
+extern void pc_snapshot_resume_if_requested(void) __attribute__((weak)); /* snapshot.c (ROOD_SNAPSHOT) */
 const uint16_t* pc_native_vram(void) { return vram; }
 /* Hardware rasterizer mirror (gpu_hw.c); no-ops until a GL context exists. */
 extern void pc_hw_mark(int, int, int, int);
@@ -107,7 +108,7 @@ void pc_log(const char* message) { fprintf(stderr, "[boot] %s\n", message); }
 /* ROOD_SYNC_DEBUG: who reads VRAM back (StoreImage callers). */
 void pc_store_image_debug(int x, int y, int w, int h, const void* caller)
 {
-    static int debug = -1;
+    static int debug __attribute__((section(".data.rood_host"))) = -1; /* host setting: not saved state */
     if (debug < 0)
         debug = getenv("ROOD_SYNC_DEBUG") != NULL;
     if (debug)
@@ -210,7 +211,7 @@ void pc_present(void)
     fclose(f);
     /* Debug aid: ROOD_SNAP_EVERY=N copies the displayed frame to
      * snap-<battle frame>.ppm in ROOD_OUT (pc/build/boot) every N battle frames. */
-    static int snap_every = -1;
+    static int snap_every __attribute__((section(".data.rood_host"))) = -1; /* host setting */
     static unsigned snapped;
     if (snap_every < 0)
         snap_every = getenv("ROOD_SNAP_EVERY") ? atoi(getenv("ROOD_SNAP_EVERY")) : 0;
@@ -357,22 +358,45 @@ static void run_game_on_low_stack(void)
 #else
 static ucontext_t game_context, host_context;
 static void run_game(void) { vs_main_exec(); }
-static void run_game_on_low_stack(void)
+/* The game's stack at a fixed address (both word sizes), reserved in main
+ * before the window: a save state (snapshot.c) holds the game's stack and
+ * resumes it in a new process, where every saved frame pointer and return
+ * address must mean the same. Elsewhere (taken) only snapshots are lost. */
+#define GAME_STACK_BASE 0x60000000u
+#define GAME_STACK_SIZE (64u << 20)
+static char* game_stack;
+static int game_stack_fixed;
+static void reserve_game_stack(void)
 {
-    if (sizeof(void*) == 4) {
-        vs_main_exec();
+    void* p = mmap((void*)(uintptr_t)GAME_STACK_BASE, GAME_STACK_SIZE, PROT_READ | PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0);
+    if (p != MAP_FAILED && (uintptr_t)p == GAME_STACK_BASE) {
+        game_stack = p;
+        game_stack_fixed = 1;
         return;
     }
-    size_t size = 64u << 20;
-    void* stack = mmap(NULL, size, PROT_READ | PROT_WRITE,
-        MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_32BIT, -1, 0);
-    if (stack == MAP_FAILED || (uintptr_t)stack + size > 0x80000000u) {
+    if (p != MAP_FAILED)
+        munmap(p, GAME_STACK_SIZE); /* an old kernel's hint, not the address */
+    fprintf(stderr, "[snapshot] game stack: 0x%x is taken; save states are off\n", GAME_STACK_BASE);
+    p = mmap(NULL, GAME_STACK_SIZE, PROT_READ | PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | (sizeof(void*) == 8 ? MAP_32BIT : 0), -1, 0);
+    if (p == MAP_FAILED || (uintptr_t)p + GAME_STACK_SIZE > 0x80000000u) {
         perror("game stack below 2 GB");
         exit(1);
     }
+    game_stack = p;
+}
+/* snapshot.c: the stack's range (NULL when it is not at its fixed address). */
+char* pc_game_stack(size_t* size)
+{
+    *size = GAME_STACK_SIZE;
+    return game_stack_fixed ? game_stack : NULL;
+}
+static void run_game_on_low_stack(void)
+{
     getcontext(&game_context);
-    game_context.uc_stack.ss_sp = stack;
-    game_context.uc_stack.ss_size = size;
+    game_context.uc_stack.ss_sp = game_stack;
+    game_context.uc_stack.ss_size = GAME_STACK_SIZE;
     game_context.uc_link = &host_context;
     makecontext(&game_context, run_game, 0);
     swapcontext(&host_context, &game_context);
@@ -460,6 +484,8 @@ int main(int argc, char** argv)
         fprintf(stderr, "game stack below 2 GB: no free range\n");
         return 1;
     }
+#else
+    reserve_game_stack();
 #endif
     pc_window_init(window, fast);
     pc_audio_output_start();
@@ -486,6 +512,8 @@ int main(int argc, char** argv)
     pc_log(window ? "backend: keyboard/gamepad input, file-backed memory cards (pc/save)"
                   : "backend: disconnected controllers, file-backed memory cards (pc/save)");
     pc_overlay_statics_init();
+    if (pc_snapshot_resume_if_requested)
+        pc_snapshot_resume_if_requested(); /* ROOD_SNAPSHOT: does not return (snapshot.c) */
     run_game_on_low_stack();
     return 0;
 }
@@ -889,11 +917,24 @@ void pc_finish_room_checkpoint(void)
  * monotonic time since VSync, not emulated PS1 hardware-counter precision.
  * The AI reads it as a per-frame time budget, and VSync(1) waits poll it: input
  * recording and replay (input_record.c) read virtual scanlines instead, a fixed
- * step per read from each vblank, so a replay does what the recording did. */
+ * step per read from each vblank, so a replay does what the recording did.
+ * ROOD_DETERMINISTIC=1 reads them too without a recording: two runs given
+ * the same vsync-exact input then reach the same game state (the save-state
+ * equivalence test, pc/tests/snapshot_equivalence.py, compares them). */
 extern int pc_input_deterministic(void) __attribute__((weak));
+static int deterministic_scanlines(void)
+{
+    /* Host configuration, not game state: outside the saved sections. */
+    static int env __attribute__((section(".data.rood_host"))) = -1;
+    if (env < 0) {
+        const char* value = getenv("ROOD_DETERMINISTIC");
+        env = value && *value && strcmp(value, "0");
+    }
+    return env || (pc_input_deterministic && pc_input_deterministic());
+}
 int func_800E45B4(void)
 {
-    if (pc_input_deterministic && pc_input_deterministic()) {
+    if (deterministic_scanlines()) {
         static unsigned lines, vblank;
         if (vblank != vsyncs) {
             vblank = vsyncs;

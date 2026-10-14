@@ -52,7 +52,8 @@ from scipy import ndimage
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
+from checkpoints import launch_at  # noqa: E402
 
 failures = []
 
@@ -382,8 +383,8 @@ def launch(work, card, label, extra=None):
     env = {"ROOD_OUT": str(work), "ROOD_SETTINGS": str(settings), "ROOD_BUTTON_PROMPTS": "", **(extra or {})}
     if os.environ.get("ROOD_RENDERER") == "vulkan" and os.environ.get("VK_LAYER_PATH"):
         env.setdefault("ROOD_VK_VALIDATE", "1")
-    return Game.launch(socket_path=f"/tmp/rood-prompts-{os.getpid()}-{label}.sock", log=str(work / f"{label}.log"),
-                       extra_env=env, card=str(card), fast=True)
+    return launch_at("save_room", card=card, socket_path=f"/tmp/rood-prompts-{os.getpid()}-{label}.sock",
+                     log=str(work / f"{label}.log"), extra_env=env, fast=True)
 
 
 def log_clean(game, label):
@@ -408,12 +409,6 @@ def run(work, card, shots):
         # No anti-aliasing: SMAA blends along whole edges, so an icon would
         # change pixels beyond its box; the boxes are checked exactly.
         game.call("graphics", interpolate=False, aa="off")
-        game.wait_title()
-        game.run(90)
-        game.press("start", vsyncs=4, settle=90)
-        for _ in range(3):  # Continue, the card, its first save
-            game.press("circle", vsyncs=3, settle=90)
-        game.run(400)
         if not check(bool(game.state().get("player")), "in the save room"):
             return
         cross_checks(game, work, shots)
