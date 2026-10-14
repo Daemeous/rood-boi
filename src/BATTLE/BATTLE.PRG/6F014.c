@@ -294,7 +294,9 @@ extern _loadFileContext _plgLoadContext;
 extern u_long* D_800F56A0;
 extern int _plgEntryPointCount;
 extern effectExec D_800F56A8[];
+#ifndef ROOD_PC
 extern func_800CF0E8_t* D_800F5798;
+#endif
 extern D_800F569C_t D_800F57A0;
 extern int D_800F5874;
 extern func_800DEEA4_t2* D_800F5878[];
@@ -316,7 +318,15 @@ void func_800D7814(void)
     D_800F5684 = 0;
     psx_set(D_800F57A0.curveBlock, NULL);
     psx_set(D_800F57A0.unkD0, D_800F53C0);
+#ifndef ROOD_PC
     D_800F5798 = &D_800F5230;
+#else
+    /* D_800F5798 is D_800F56C8.unkD0 (0x800F56C8 + 0xD0), a 4-byte guest
+     * pointer. Declared as a host pointer, the LP64 build gives it a native
+     * 8-byte slot of its own, so the store never reached the struct and
+     * func_800D5A98 (a timed spawn: Explosion) read a null unkD0. */
+    psx_set(D_800F56C8.unkD0, &D_800F5230);
+#endif
     func_800D7890(0);
     func_800D8060(&D_800EC4BC);
 }

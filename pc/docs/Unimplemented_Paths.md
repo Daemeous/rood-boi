@@ -96,7 +96,7 @@ Unless the notes say otherwise, a hit on any of these means corrupt data, or a s
 | boot_runtime.c:359/371/374 | negative disc LBA / disc read failed / unsupported sector format | a | the disc image is missing or broken |
 | boot_runtime.c:388 | display dimensions | a | |
 | boot_runtime.c:488 | truncated VRAM copy | a | |
-| boot_runtime.c:564/569 | truncated sprite packet / sprite dimensions | a | |
+| boot_runtime.c:564 | truncated sprite packet | a | (the sprite dimensions stop is gone: the size is masked to 10 / 9 bits as on the GPU, which MENU0's LV picker relies on) |
 | boot_runtime.c:645/647 | OT pointer outside mapped memory / OT cycle | a | |
 | boot_runtime.c:761 | (context) `pc_require_native_callback` | a | a callback field holds a non-native address. Used for the actor movement callback and 573B8.c |
 | boot_runtime.c:775 | effect-specific PLG callback relocation | a | every PLG effect entry resolves natively (`pc_plg_effect_unresolved` is all 0), so this is now a build-time guard |

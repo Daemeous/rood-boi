@@ -297,6 +297,16 @@ void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tp
             copy = dx >= -40 && dx <= 40 && dy >= -16 && dy <= 16; /* (the map ripples by up to 32) */
         }
     }
+    /* 2D of the 3D view (PC_ANCHOR_SCENE) keeps its place among the rest of
+     * the view: a polygon of it never stands for the screen, however large
+     * (the background sphere's triangles reach far past the top and bottom;
+     * drawn uncompressed they left gaps between them and the compressed
+     * ones). A screen-wide rectangle in it is a clear (the black tile behind
+     * the sky panorama) and covers the view. */
+    if (primitive_anchor == PC_ANCHOR_SCENE) {
+        tall = backdrop = copy = 0;
+        wide = wide && (code & 0xe0) == 0x60;
+    }
     primitive_cover = wide || tall || backdrop || copy || primitive_anchor == PC_ANCHOR_COVER;
     if (primitive_cover || primitive_anchor == PC_ANCHOR_SCENE)
         primitive_extend = 0;

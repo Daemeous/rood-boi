@@ -430,6 +430,26 @@ the PS1 wherever its set ends inside the 4:3 frame. The renderer's own sky
 radiance (Sun and sky, below) lights surfaces and the haze; it never paints
 pixels where nothing is drawn, so the sides are never filled with it.
 
+The field never clears its frame buffer (`PutDrawEnv` with `isbg` 0): its
+clear is the background sphere (`pc_background_packets` in
+`pc/src/boot_sdk.c`, the game's `func_8009820C`), a gradient about the camera
+(black indoors, a room's fog or sky colours elsewhere) drawn as 2D behind the
+set, radius about 410 screen pixels, so it covers any view. In widescreen
+its triangles are kept as far past the 4:3 sides as the view reaches and
+drawn as `PC_ANCHOR_SCENE` 2D (a polygon in a scene range never counts as
+screen-covering; a screen-wide rectangle there, the black tile behind the
+panorama, still does). Before, it was culled at the 4:3 sides and drawn
+compressed into the middle, its triangles reaching past the top or bottom
+uncompressed: where no set reached, mostly in the 16:9 sides, pixels were
+never drawn and kept the picture drawn there two frames before, so rain
+streaks piled up and edges smeared as the camera moved ("trails"; also with
+interpolation, which starts from that frame). Diagnostic:
+`ROOD_UNDRAWN_DEBUG=1` or RPC `graphics undrawn_debug` fills each new drawing
+area magenta in the hardware target first, so any pixel a frame does not
+draw shows magenta (the field draws everything; menus over a held picture
+show magenta by design). `pc/tests/widescreen_undrawn_smoke.py` checks the
+opening at 16:9 with it; `graphics widescreen_scene` off is its control.
+
 `SetDispMask(0)` shows black until `SetDispMask(1)`, as on the PS1 (it
 blanks the display while the game loads, e.g. skipping the idle cutscene);
 `ROOD_DISPLAY_MASK=0` ignores it, RPC `status` reports `display_masked`.
@@ -1382,7 +1402,7 @@ redraws at about 60 Hz, and after each request):
 | `present_dump` | `path`, `count` | the next presented window image (as seen, after scaling and post-processing) as a PPM; with `count`, that many consecutive images to `<path>.0000.ppm`, ... (written a few presents later on the game thread). While a burst is armed, a paused game does not redraw, so a burst holds stepped presents only |
 | `gpu_dump` | `path` | the whole scaled hardware VRAM target as a PPM |
 | `gpu_draw` | `packet` (GP0 words, hex), `texture` (hex texels) with `texture_x/y/w/h`, `area_x/y/w/h`, `offset_x/y` | tests: load texels, set the drawing area, draw the commands on both rasterizers (`flipped_sprite_smoke.py`) |
-| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_scene`, `widescreen_trace` N), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `ui_text_layout` (`line`/`glyph`), `ui_text_bubble_align` (`centre`/`left`), `ui_lines` (`joined`/`legacy`), `ui_outline_boost`, `ui_bubbles` (`original`/`vector`), `ui_bubble_outline`, `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample` | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
+| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_scene`, `widescreen_trace` N, `undrawn_debug`), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `ui_text_layout` (`line`/`glyph`), `ui_text_bubble_align` (`centre`/`left`), `ui_lines` (`joined`/`legacy`), `ui_outline_boost`, `ui_bubbles` (`original`/`vector`), `ui_bubble_outline`, `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample` | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
 | `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
 | `button_prompts` | `button_prompts` (mode), `device` (`playstation`/`xbox`/`nintendo`/`keyboard`, as a device used last would set it) with `variant` (3/4/5 PlayStation, 360 Xbox), `bind` (`{"bind_key_circle": "c", "bind_pad_circle": "south"}`), `icon` (a button name) with `size`, `clear_shown`, `style`, `scale`, `dpad` (`cross`/`dim`/`lit`), `cross_actions` (0-15: the shortcut cross's usable arms, bits up, left, right, down, whatever the game reports; -1 the game's), `mask` | the mode, the family drawn, the device, `generation`, the glyph each PS1 button shows, the bindings, `shown` (the icon each prompt on screen was drawn with since `clear_shown`, `text` and `sprite`, the shortcut cross's `dpad` and its lit `dpad_arms`), `style`, `scale`, `dpad_mode`, `cross_actions`, regions drawn from icons (`regions`) and fallen back (`failed`); `icon` adds the native menus' image (`pc_prompt_glyph`: size, uv) |
 | `ui_bubbles` | `path` (N) | vector talk bubbles: frames reported, verified, fallen back (`mismatched`), drawn; line segments the hardware path drew (`lines_drawn`); native pixels per output pixel; the recent bubbles (shape, flip, tail, outline bounds drawn and the game's whole-pixel points, thickness); `path`: bubble N's outline points |

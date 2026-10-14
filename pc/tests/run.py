@@ -183,6 +183,9 @@ def suites(args, mode="egl"):
         Suite("widescreen_scene_smoke", [PY, str(TESTS / "widescreen_scene_smoke.py")]
               + (["--card", str(args.save)] if args.save.exists() else []), 420,
               note="16:9: the sky panorama and weather motes fill the view's sides (opening's manor; forest)"),
+        Suite("widescreen_undrawn_smoke", [PY, str(TESTS / "widescreen_undrawn_smoke.py")], 420,
+              note="16:9: every pixel of the view drawn every frame through the opening (no trails); "
+                   "the background sphere's old placement left the sides undrawn"),
         *([Suite("save_menu_smoke", [PY, str(TESTS / "save_menu_smoke.py"), "--card", str(args.save)], 300,
                  note="DATA > LOAD slot images = disc data decode, on interpolated frames too (CLUT swaps)")]
           if args.save.exists() else []),
@@ -193,6 +196,10 @@ def suites(args, mode="egl"):
         *([Suite("ui_menus_smoke", [PY, str(TESTS / "ui_menus_smoke.py"), "--card", str(args.save)], 300,
                  note="modern menus: off = the game's menu; shell tabs, original Status and back, "
                       "System > Menus from the next open, L2 shortcut stays original, greyed Break arts opens, close")]
+          if args.save.exists() else []),
+        *([Suite("menu0_levelled_smoke", [PY, str(TESTS / "menu0_levelled_smoke.py"), "--card", str(args.save)], 300,
+                 note="original Magic menu, levelled Warlock spell: LV picker with '--' boxes (GPU sprite size "
+                      "masked as on hardware), LV1 and LV2 cast: hand-off id, MP drops by the cost")]
           if args.save.exists() else []),
         *([Suite("ui_equip_smoke", [PY, str(TESTS / "ui_equip_smoke.py"), "--card", str(args.save)], 900,
                  note="Equipment screen: same RAM as the original equip page (MENU3) for weapon/shield/armor/"

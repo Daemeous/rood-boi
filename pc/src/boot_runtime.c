@@ -730,9 +730,18 @@ static void commands(uint32_t* p, unsigned n)
                 pc_unimplemented("truncated sprite packet");
             int x = (int16_t)p[i + 1] + draw_x, y = (int16_t)(p[i + 1] >> 16) + draw_y;
             unsigned wh = size == 0 ? p[i + words - 1] : size == 1 ? 0x10001u : size == 2 ? 0x80008u : 0x100010u;
-            unsigned w = wh & 0xffff, h = wh >> 16;
-            if (w > 1024 || h > 512)
-                pc_unimplemented("sprite dimensions");
+            /* The GPU keeps 10 bits of the width and 9 of the height (PSX-SPX,
+             * as DuckStation decodes them). The game relies on it: MENU0's LV
+             * picker overwrites a "--" sprite's texpage word with 0x64602000
+             * (84.c, levelledSpell), so the GPU reads a sprite from there whose
+             * size word is the real one's UV/CLUT (0x37FE70C0: 192x510, at
+             * y 0x6400, off screen). */
+            unsigned w = wh & 0x3ff, h = (wh >> 16) & 0x1ff;
+            if (w != (wh & 0xffff) || h != wh >> 16) {
+                static int reported;
+                if (!reported++)
+                    fprintf(stderr, "[gpu] sprite size 0x%08x masked to %ux%u as on hardware\n", wh, w, h);
+            }
             unsigned uv = tex ? p[i + 2] : 0;
             if (tex && pc_hw_sync_texture)
                 pc_hw_sync_texture(tpage, uv >> 16, texture_window, uv & 255, (uv >> 8) & 255,

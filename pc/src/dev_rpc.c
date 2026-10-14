@@ -990,6 +990,10 @@ static void handle_method(int fd, const char* request)
 
         if (params && bool_value(member(params, "widescreen_scene"), &flag) && &pc_widescreen_scene)
             pc_widescreen_scene = flag;
+        /* Diagnostic: pixels a frame does not draw show magenta (boot_sdk.c PutDrawEnv). */
+        extern int pc_undrawn_debug __attribute__((weak));
+        if (params && bool_value(member(params, "undrawn_debug"), &flag) && &pc_undrawn_debug)
+            pc_undrawn_debug = flag;
         extern int pc_widescreen_trace __attribute__((weak));
         if (params && number_value(member(params, "widescreen_trace"), &n) && &pc_widescreen_trace && n >= 0)
             pc_widescreen_trace = (int)n + 1; /* log the next N ordering tables' 2D */

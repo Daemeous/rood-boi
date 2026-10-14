@@ -12,6 +12,7 @@ extern void pc_vram_clear(int, int, int, int, int, int, int);
 extern void pc_unimplemented(const char*);
 extern void pc_tick(void);
 #include "audio.h"
+#include "widescreen.h"
 /* Weak so the standalone GTE/GPU probes link without the audio objects. */
 #pragma weak pc_audio_set_tick
 #pragma weak pc_audio_enable_tick
@@ -264,14 +265,27 @@ void SetDrawArea(DR_AREA* p, RECT* r)
 /* The editor's free camera sees past what the game's camera covers; the game
  * never clears, so clear each new draw area black while it flies. */
 extern int pc_live_camera_active(void) __attribute__((weak));
+/* Diagnostic (ROOD_UNDRAWN_DEBUG=1, RPC graphics undrawn_debug): each new
+ * drawing area is filled magenta in the hardware target only (VRAM and the
+ * game are untouched), so pixels a frame does not draw show magenta instead
+ * of the picture drawn there two frames before. The field redraws its whole
+ * screen every frame (the background sphere, pc_background_packets, then
+ * the set): any magenta there is a hole (widescreen_undrawn_smoke.py).
+ * Screens that draw over a held picture (menus) show magenta by design. */
+int pc_undrawn_debug = -1;
+extern void pc_hw_fill(int x, int y, int w, int h, int r, int g, int b) __attribute__((weak));
 DRAWENV* PutDrawEnv(DRAWENV* e)
 {
     pc_draw_env(
         e->clip.x, e->clip.y, e->clip.w, e->clip.h, e->ofs[0], e->ofs[1], e->tpage);
+    if (pc_undrawn_debug < 0)
+        pc_undrawn_debug = getenv("ROOD_UNDRAWN_DEBUG") && *getenv("ROOD_UNDRAWN_DEBUG") == '1';
     if (e->isbg)
         pc_vram_clear(e->clip.x, e->clip.y, e->clip.w, e->clip.h, e->r0, e->g0, e->b0);
     else if (pc_live_camera_active && pc_live_camera_active())
         pc_vram_clear(e->clip.x, e->clip.y, e->clip.w, e->clip.h, 0, 0, 0);
+    else if (pc_undrawn_debug && pc_hw_fill)
+        pc_hw_fill(e->clip.x, e->clip.y, e->clip.w, e->clip.h, 255, 0, 255);
     return e;
 }
 void DrawPrim(void* p) { pc_draw_packet(p, 0); }
@@ -719,10 +733,24 @@ void func_80098648(VECTOR* position, VECTOR* angles, MATRIX* result)
 }
 
 /* 2EA3C.s background mesh: 34 packed vertices, then 64 indexed G3 triangles.
- * These coordinates are transformed without perspective, as in the original. */
+ * These coordinates are transformed without perspective, as in the original.
+ *
+ * It is the field's only clear: a gradient sphere about the camera (radius
+ * ~410 screen pixels, so it covers the whole screen) drawn as 2D behind
+ * everything; the game never clears the frame buffer (PutDrawEnv isbg 0).
+ * Widescreen (port): its triangles are kept as far past the 4:3 sides as the
+ * 16:9 view reaches and drawn as 2D of the 3D view (PC_ANCHOR_SCENE:
+ * compressed like the narrowed 3D, clipped to the whole view). Before, they
+ * were culled at the 4:3 sides and drawn compressed into the middle (or, the
+ * ones reaching past the top or bottom, uncompressed as screen effects), so
+ * parts of the view, mostly its sides, were never drawn where no set
+ * reaches: they kept the picture drawn there two frames before, which
+ * smeared as the camera moved ("trails"). 4:3 is unchanged. */
 unsigned* pc_background_packets(
     unsigned* mesh, unsigned* packet, unsigned* ot, int transformed[34][4])
 {
+    int margin = PC_WIDESCREEN_MARGIN;
+    unsigned* first = packet;
     for (int i = 0; i < 34; ++i) {
         MTC2(mesh[0], 0);
         MTC2(mesh[1], 1);
@@ -748,8 +776,8 @@ unsigned* pc_background_packets(
         }
         if (v[0][2] <= 0 && v[1][2] <= 0 && v[2][2] <= 0)
             continue;
-        if ((x[0] < 0 && x[1] < 0 && x[2] < 0)
-            || (x[0] >= 320 && x[1] >= 320 && x[2] >= 320)
+        if ((x[0] < -margin && x[1] < -margin && x[2] < -margin)
+            || (x[0] >= 320 + margin && x[1] >= 320 + margin && x[2] >= 320 + margin)
             || (y[0] < 0 && y[1] < 0 && y[2] < 0)
             || (y[0] >= 224 && y[1] >= 224 && y[2] >= 224))
             continue;
@@ -762,6 +790,8 @@ unsigned* pc_background_packets(
         packet += 7;
     }
     *ot = head;
+    if (pc_gte_widescreen && pc_hw_anchor_packets && packet > first)
+        pc_hw_anchor_packets(first, packet, PC_ANCHOR_SCENE);
     return packet;
 }
 void func_8009820C(void* mesh)
