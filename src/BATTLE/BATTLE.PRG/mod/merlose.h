@@ -476,6 +476,14 @@ int vs_mod_frame(void)
         _respawnPending = 0;
         _respawnCallo();
     }
+    /* The prologue ended in this room (callo.c _lateJoin): join now, outside its scene */
+    if (_lateJoin && !D_800EB9AF && !_awayForScene && (_calloActor() == NULL)
+        && (vs_battle_getStateFlag(PROGRESS_FLAG) >= PROLOGUE_OVER)) {
+        vs_mod_spawnCallo();
+        if (_calloActor() != NULL) {
+            _unskipPending = 1;
+        }
+    }
     if (!D_800EB9AF && (_calloActor() != NULL)) {
         _push();
     } else {
