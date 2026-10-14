@@ -78,6 +78,13 @@ parser.add_argument(
     action="store_true",
     help="with --callo: the bonus wheel after a boss spins as in the original, instead of being chosen",
 )
+parser.add_argument(
+    "--coff",
+    action="store_true",
+    help="--target windows: compile only the MinGW-w64 objects and run the "
+    "symbol analysis on them (no ELF twins, no host gcc); the only mode on a "
+    "Windows host (MSYS2)",
+)
 parsed = parser.parse_args()
 win = parsed.target == "windows"
 # COFF-only: the analysis reads the PE/COFF objects themselves with MinGW's
