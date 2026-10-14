@@ -74,7 +74,6 @@ int _spellIndex(int id);
 void _initSpellChoice(void);
 int _spellChosen(int index);
 void _setSpellChosen(int index, int chosen);
-int _chosenSpellCount(void);
 int _spellId(int index);
 
 /* The menu module (menu.c -> ENDING/CALLOMNU.BIN): only menus use it, so it's loaded into the
