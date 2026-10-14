@@ -15031,6 +15031,8 @@ void func_80089114(void)
     u_int max;
 
     if (D_800F18E0 == 0) {
+        /* No enemies or objects (workshops, small rooms): she joins anyway */
+        VS_CALLO_CALL(vs_mod_spawnCallo());
         return;
     }
 
