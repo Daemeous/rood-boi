@@ -64,12 +64,17 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 # The DWARF dumps: binutils' readelf for the Linux build's ELF objects; for the
-# Windows build's COFF twins, MinGW's objdump (same output format). Chosen by
-# --windows, passed to the worker processes through the environment.
-WINDOWS = bool(__import__("os").environ.get("DECL_MISMATCH_WINDOWS"))
-DUMP_INFO = (["x86_64-w64-mingw32-objdump", "--dwarf=info", "--dwarf-depth=100"] if WINDOWS
-             else ["readelf", "--debug-dump=info", "--dwarf-depth=100"])
-DUMP_LINE = ["x86_64-w64-mingw32-objdump", "--dwarf=rawline"] if WINDOWS else ["readelf", "--debug-dump=line"]
+# Windows build's COFF twins, MinGW's objdump (same output format). --windows
+# switches them in this process and in each worker (use_dump_tools).
+DUMP_INFO = ["readelf", "--debug-dump=info", "--dwarf-depth=100"]
+DUMP_LINE = ["readelf", "--debug-dump=line"]
+
+
+def use_dump_tools(windows):
+    global DUMP_INFO, DUMP_LINE
+    if windows:
+        DUMP_INFO = ["x86_64-w64-mingw32-objdump", "--dwarf=info", "--dwarf-depth=100"]
+        DUMP_LINE = ["x86_64-w64-mingw32-objdump", "--dwarf=rawline"]
 
 # Generated objects whose C types are not the game's (address-only externs,
 # native import regions, fail-fast traps): never definitions or declarations.
@@ -545,11 +550,7 @@ def main():
     parser.add_argument("--benign", action="store_true", help="also print known benign mismatches")
     parser.add_argument("--json", help="write every finding here")
     args = parser.parse_args()
-    if args.windows and not WINDOWS:
-        # The workers read DUMP_INFO at import: re-run with the choice in the environment
-        import os
-        os.execve(sys.executable, [sys.executable, *sys.argv],
-                  dict(os.environ, DECL_MISMATCH_WINDOWS="1"))
+    use_dump_tools(args.windows)
     build = args.build or ("pc/build/win64" if args.windows else "pc/build/boot64")
 
     objects = objects_of(ROOT / build, args.windows)
@@ -557,7 +558,8 @@ def main():
         sys.exit(f"no objects in {build}: run python3 pc/tools/build_boot.py "
                  f"{'--target windows' if args.windows else '--arch 64'} first")
     entries = collections.defaultdict(list)  # linker name -> [(object, entry)]
-    with concurrent.futures.ProcessPoolExecutor(args.jobs) as pool:
+    with concurrent.futures.ProcessPoolExecutor(args.jobs, initializer=use_dump_tools,
+                                                initargs=(args.windows,)) as pool:
         for stem, found in pool.map(scan, objects):
             for entry in found:
                 entries[entry[1]].append((stem, entry))
@@ -601,7 +603,7 @@ def main():
 
     # Imports that are a field of another import (pc/tools/lp64_alias_scan.py):
     # one moved to a native slot, the other at its PS1 address.
-    alias_imports = ROOT / args.build / "lp64_imports.json"
+    alias_imports = ROOT / build / "lp64_imports.json"
     if alias_imports.exists():
         import lp64_alias_scan
 
