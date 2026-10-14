@@ -8437,14 +8437,6 @@ void func_800D6AEC(D_800F53B8_t* arg0, int arg1)
     int var_s1;
 
     for (var_s1 = 0; var_s1 < psx_get(arg0->unkD1C.unk30)->unk0; var_s1++) {
-#ifdef ROOD_PC
-        /* An event can end the effect and free its timeline (func_800D4EC0) while this loop
-         * runs. The PS1 then reads zeros through the NULL (low RAM): the loop ends, and the
-         * frame counter it bumps below is in unused low RAM. Stop the same way. */
-        if (psx_get(arg0->unkD1C.unk30) == NULL) {
-            return;
-        }
-#endif
         if ((psx_get(arg0->unkD1C.unk30)->unk4 >> var_s1) & 1) {
             int temp;
             func_800D5780_t* temp_a1 =
@@ -8497,12 +8489,16 @@ void func_800D6AEC(D_800F53B8_t* arg0, int arg1)
                 psx_get(arg0->unkD1C.unk30)->unk4 &= ~(1 << var_s1);
             }
         }
-    }
 #ifdef ROOD_PC
-    if (psx_get(arg0->unkD1C.unk30) == NULL) {
-        return;
-    }
+        /* An event can end the effect and free its timeline (func_800D4EC0)
+         * while this loop runs; the loop's own test would then read it
+         * through NULL (the guard at the top of the body came too late).
+         * The PS1 reads its low RAM there; natively, stop the update here. */
+        if (psx_get(arg0->unkD1C.unk30) == NULL) {
+            return;
+        }
 #endif
+    }
     if (!(psx_get(arg0->unkD1C.unk30)->unk1 & 1)) {
         psx_get(arg0->unkD1C.unk30)->unk2++;
     }
