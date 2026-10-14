@@ -616,6 +616,8 @@ if ZIG:
 toolchain = tool_identity(stamp_tools)
 build_stamp = Stamp(root, out, {
     "battle": battle, "no_audio": no_audio, "arch": parsed.arch, "target": parsed.target, "coff": coff,
+    # the Merlose mod's options change the game units' defines
+    "callo": [parsed.callo, parsed.random_stat_items, parsed.spin_bonus_wheel],
     "nrd": [nrd and nrd["libraries"], win_nrd and win_nrd["libraries"]], "toolchain": toolchain,
 })
 stamp_trees = [("src", None), ("include", None), ("config", None), ("build", None), ("pc/src", None),
