@@ -106,6 +106,7 @@ typedef struct {
     float f2[4]; /* lighting quality: traced AO radius (0 off), strength */
     int i3[4]; /* glows.c pc_glow_casts: emitters that may cast shadows */
     pc_env_gpu env; /* the room's sun and sky (environment.h) */
+    float emitter_shape[32][4]; /* glows.c: a column glow's half axis and radius (0: a sphere) */
 } vrt_trace_ubo;
 typedef struct {
     int rect[4], scale[4];
@@ -170,9 +171,9 @@ static int vrt_init(void)
     vrt.skin_set = vk_push_layout(skin, 5);
     vrt.skin_layout = vrt_layout(vrt.skin_set, 32);
     vrt.skin = vrt_compute(vk_spv_rt_skin_comp, vk_spv_rt_skin_comp_size, vrt.skin_layout);
-    VkDescriptorType haze[11] = { U, A, B, T, U, S, T, S, S, B, B }; /* 10: the light list */
+    VkDescriptorType haze[12] = { U, A, B, T, U, S, T, S, S, B, B, T }; /* 10: the light list; 11: the medium's texture */
     VkDescriptorType integrate[3] = { U, S, S };
-    vrt.haze_set = vk_push_layout(haze, 11);
+    vrt.haze_set = vk_push_layout(haze, 12);
     vrt.integrate_set = vk_push_layout(integrate, 3);
     vrt.haze_layout = vrt_layout(vrt.haze_set, 0);
     vrt.integrate_layout = vrt_layout(vrt.integrate_set, 0);
@@ -848,6 +849,7 @@ static void vrt_copy(int from, int to)
     vkCmdCopyImage(vk_cmd(), vrt.images[from].image, VK_IMAGE_LAYOUT_GENERAL, vrt.images[to].image,
         VK_IMAGE_LAYOUT_GENERAL, 1, &region);
 }
+VkImageView pc_vk_medium_texture(void); /* vk_present.c */
 typedef struct {
     int grid[4];
     float depth_range[4], projection[4], inverse_rotation[3][4], camera_translation[4];
@@ -930,6 +932,7 @@ static void vrt_haze(vk_slice trace_ubo)
     hu->medium = medium;
     int out = vrt.haze_current ^ 1;
     vk_section("haze");
+    VkImageView medium_view = pc_vk_medium_texture(); /* the detail noise, the interactive fog's fields */
     vk_descriptors d = { 0 };
     vk_descriptors_buffer(&d, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, trace_ubo.buffer, trace_ubo.offset,
         sizeof(vrt_trace_ubo));
@@ -943,6 +946,7 @@ static void vrt_haze(vk_slice trace_ubo)
     vrt_bind_movers(&d, 9, -1);
     vk_descriptors_buffer(&d, 10, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, vrt_lights_slice.buffer, vrt_lights_slice.offset,
         vrt_lights_bytes);
+    vk_descriptors_image(&d, 11, medium_view, vk.linear);
     vrt_haze_dispatch(vrt.haze, vrt.haze_layout, &d, gx * HAZE_SLICES, gy);
     vrt_integrate_ubo* iu = is.data;
     memset(iu, 0, sizeof *iu);
@@ -1151,6 +1155,7 @@ static void vrt_run(const float to_image[16], const float eye[3], float footprin
     memcpy(vrt_lights_slice.data, vrt_light_list, (size_t)vrt_light_count * sizeof(pc_light_gpu));
     memcpy(u->emitter_pos, emitter_pos, sizeof emitter_pos);
     memcpy(u->emitter_col, emitter_col, sizeof emitter_col);
+    memcpy(u->emitter_shape, emitter_shape, sizeof emitter_shape);
     memcpy(u->room_lo, room_lo, sizeof room_lo);
     memcpy(u->room_hi, room_hi, sizeof room_hi);
     u->i0[0] = vrt_light_count;
@@ -1303,6 +1308,7 @@ int pc_vk_gi_update(int x, int y, int w, int h, int replay)
         return 0;
     float res = pc_gi_resolution < 0.25f ? 0.25f : pc_gi_resolution > 4 ? 4 : pc_gi_resolution;
     int gw = (int)(w * res + 0.5f), gh = (int)(h * res + 0.5f);
+    gi_display_size[0] = w, gi_display_size[1] = h; /* pc_gi_probe_world (ptgi.c) */
     vrt_images(gw, gh);
     float hx = hh * (pc_gte_widescreen ? 0.75f : 1.0f);
     /* Surfaces from the G-buffer. */

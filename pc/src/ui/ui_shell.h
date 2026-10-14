@@ -80,9 +80,9 @@ int pc_ui_shell_row(int i, const char** label, const char** help, const char** v
 int pc_ui_shell_focus(void);
 /* What the current tab shows: PC_UI_SCREEN_COMMANDS (rows above), or a native
  * screen: PC_UI_SCREEN_EQUIPMENT, PC_UI_SCREEN_ASHLEY, PC_UI_SCREEN_SYSTEM,
- * PC_UI_SCREEN_ABILITIES, PC_UI_SCREEN_MAGICK. */
+ * PC_UI_SCREEN_ABILITIES, PC_UI_SCREEN_MAGICK, PC_UI_SCREEN_ITEMS. */
 enum { PC_UI_SCREEN_COMMANDS = 0, PC_UI_SCREEN_EQUIPMENT = 1, PC_UI_SCREEN_ASHLEY = 2, PC_UI_SCREEN_SYSTEM = 3,
-       PC_UI_SCREEN_ABILITIES = 4, PC_UI_SCREEN_MAGICK = 5 };
+       PC_UI_SCREEN_ABILITIES = 4, PC_UI_SCREEN_MAGICK = 5, PC_UI_SCREEN_ITEMS = 6 };
 int pc_ui_shell_screen(void);
 
 /* The Ashley screen: a summary with rows weapon, shield, condition, then one
@@ -136,7 +136,10 @@ enum {
     PC_UI_MOUSE_ART_CATEGORY, /* Abilities, Break Arts: a category (1..10, not the rail row) */
     PC_UI_MOUSE_ART,       /* Abilities, Break Arts: an art 0..3 of the focused category */
     PC_UI_MOUSE_SPELL,     /* Magick: a row of the sub-tab's list (a spell, or a Teleport destination) */
-    PC_UI_MOUSE_SPELL_LEVEL /* Magick: a level 0..3 of the focused levelled spell (a click picks it, no cast) */
+    PC_UI_MOUSE_SPELL_LEVEL, /* Magick: a level 0..3 of the focused levelled spell (a click picks it, no cast) */
+    PC_UI_MOUSE_ITEM,      /* Items: a row of the category's list (hover focuses it where the list has the
+                            * focus: list, move, details; a click elsewhere goes back to the list on it) */
+    PC_UI_MOUSE_ITEM_MENU  /* Items: a row of the open menu (actions, Yes / No, sort stats) */
 };
 void pc_ui_shell_mouse(int kind, int index, int clicked, float wheel);
 
@@ -235,6 +238,75 @@ void pc_ui_shell_magick_view(pc_ui_magick_view* v);
 /* The bridge sets the snapshot each tick before pc_ui_shell_tick (copied). */
 void pc_ui_shell_set_magick(const pc_ui_magick* m);
 const pc_ui_magick* pc_ui_shell_magick(void);
+
+/* The Items screen (gated on the Items command, menuFlags bit 3; the
+ * original Items menu is MENU3). Categories (L2/R2, wrapping; a click on
+ * PC_UI_MOUSE_SUB index = the category): weapons, blades, grips, shields,
+ * armor, gems, misc (PC_UI_IC_*), each with its capacity. LIST: Up/Down move
+ * (wrapping); Circle opens the row's action menu; Square shows the row's
+ * details (DETAILS: Up/Down still move, Circle opens the actions, Square or
+ * Cross go back); an empty category's Circle offers the original screen only.
+ * ACTIONS, as the original offers them per category (greyed with the
+ * original's reason; with the menu's disable mask everything but the
+ * original screen is greyed): Use (misc: PC_UI_REQ_ITEM_USE {misc, row}; the
+ * bridge hands it to the game and ends the menu, a cancelled target reopens
+ * the shell on the item), Search (blades, grips, gems in a set: the parent
+ * weapon / shield focused in its category; the shell's own), Discard (count
+ * 2 or more: QUANTITY first: Up/Down change the count by the step, Left/Right
+ * pick the step 1 / 10 / 100, Left past 100 jumps to all, Right past 1 to
+ * none, Circle goes on (none: back to the list, PC_UI_REQ_ITEM_CANCEL), then
+ * CONFIRM Yes / No, opening on No as the original's: Yes
+ * PC_UI_REQ_ITEM_DISCARD {cat, row, count}, No PC_UI_REQ_ITEM_CANCEL), Discard
+ * all (misc: CONFIRM, then PC_UI_REQ_ITEM_DISCARD_ALL), Sort (SORT: the
+ * category's stats, Circle PC_UI_REQ_ITEM_SORT {cat, row, stat}), Move (MOVE:
+ * Up/Down pick the target row, Circle PC_UI_REQ_ITEM_MOVE {cat, from, to}:
+ * swap, or a misc merge), and Original screen (result 4: the original Items
+ * menu, also the way to its Options > Setup). A refused Use (greyed, or the
+ * bridge refuses it) keeps the action menu with its reason. Cross steps back
+ * one level (out of a menu: to ACTIONS, the picker or the list; the
+ * original's picker and Yes / No go straight back to the list); in the list
+ * it closes, as Triangle does everywhere (in the picker too, as the
+ * original's Triangle). Every request but Move carries the row's inventory
+ * index as seen, Move the moved row's (ui_model.h; the bridge refuses a stale
+ * one), and the bridge plays the original's sounds (refused: the invalid
+ * sound) and leaves the cursor memories the original leaves. */
+enum { PC_UI_IT_LIST, PC_UI_IT_ACTIONS, PC_UI_IT_QUANTITY, PC_UI_IT_CONFIRM, PC_UI_IT_SORT, PC_UI_IT_MOVE,
+       PC_UI_IT_DETAILS };
+enum { PC_UI_ITA_USE, PC_UI_ITA_SEARCH, PC_UI_ITA_DISCARD, PC_UI_ITA_DISCARD_ALL, PC_UI_ITA_SORT, PC_UI_ITA_MOVE,
+       PC_UI_ITA_ORIGINAL, PC_UI_ITA_COUNT };
+typedef struct {
+    int category;                 /* PC_UI_IC_* */
+    int mode;                     /* PC_UI_IT_* */
+    int cursor;                   /* the list's row (MOVE: the target row); 0 when empty */
+    int rows;                     /* the category's rows */
+    int capacity;                 /* the category's capacity */
+    const pc_ui_item_row* row;    /* the focused row, or null (empty) */
+    int locked;                   /* the menu's disable mask greys the list (browse only) */
+    const char* reason;           /* why locked, or null */
+    int actions;                  /* ACTIONS (and the modes after it): the menu's entries */
+    int action_kind[PC_UI_ITA_COUNT];       /* PC_UI_ITA_* */
+    int action_enabled[PC_UI_ITA_COUNT];
+    const char* action_label[PC_UI_ITA_COUNT];
+    const char* action_reason[PC_UI_ITA_COUNT]; /* greyed: why, else null */
+    int action;                   /* the focused entry */
+    int confirm_kind;             /* CONFIRM: PC_UI_ITA_DISCARD or PC_UI_ITA_DISCARD_ALL */
+    int confirm;                  /* CONFIRM: 0 Yes, 1 No */
+    const char* prompt;           /* CONFIRM: the original's question */
+    int count, count_max, step;   /* QUANTITY (and CONFIRM after it): the count, the stack, step 0..2 (1/10/100) */
+    int sort;                     /* SORT: the focused stat's row in the category's list */
+    int move_from;                /* MOVE: the row being moved, -1 otherwise */
+} pc_ui_items_view;
+void pc_ui_shell_items_view(pc_ui_items_view* v);
+/* The bridge sets the snapshot each tick before pc_ui_shell_tick (copied). */
+void pc_ui_shell_set_items(const pc_ui_items* m);
+/* Only the details card (the rest of the snapshot is unchanged since the
+ * last pc_ui_shell_set_items: the bridge's refresh after the tick). */
+void pc_ui_shell_set_items_details(const pc_ui_item_details* d);
+const pc_ui_items* pc_ui_shell_items(void);
+/* The row the details card is for (the bridge fills pc_ui_items.details for
+ * it): the focused row's category and inventory index while the Items screen
+ * is up and the list has rows. Returns 0 otherwise. */
+int pc_ui_shell_items_focus(int* category, int* inventory);
 
 /* The System screen (pc/src/ui/ui_settings.h has the pages): a list on the
  * left, the game's own screens first (Data, Options, Score, Quick manual;

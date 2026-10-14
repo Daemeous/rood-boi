@@ -55,6 +55,13 @@ enum { FLAG_TEXTURED = 1, FLAG_RAW = 2, FLAG_SEMI = 4, FLAG_MASK = 8, FLAG_UI = 
 /* Batch blend for FLAG_COVER: colour over the target by coverage, the
  * target's mask bit kept (above the PS1 modes 0-3 and their 2D + 4). */
 #define BLEND_COVER 12
+/* Batch blend for a screen fade (pc_hw_triangle: a full-screen flat
+ * subtractive 2D quad, the door fade of BATTLE _drawScreenTransition): it
+ * subtracts from the 2D under it only (depth "UI"); the 3D keeps its depth
+ * and surface (so it stays lit) and the presenter fades it after lighting
+ * and post-processing (pc_hw_present_fade, the grade pass). */
+#define BLEND_FADE 13
+static void record_fade(float amount, const float rect[4]);
 static uint32_t edge_generation; /* 2D polygon edges of this ordering table (pc_hw_line) */
 #define MAX_VERTICES 65536
 
@@ -1414,6 +1421,18 @@ static void draw_batch(GLuint fbo, const hw_vertex* vertices, int count, int ble
     if (blend < 0) {
         gl_Uniform1i(u_draw_pass, 0);
         gl_DrawArrays(GL_TRIANGLES, 0, count);
+    } else if (blend == BLEND_FADE) {
+        /* A screen fade: subtracted from the 2D/UI under it (depth 0) only. */
+        set_blend(2);
+        gl_DepthFunc(GL_EQUAL);
+        gl_DepthMask(GL_FALSE);
+        for (GLuint i = 1; i < 4; i++)
+            gl_ColorMaski(i, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        gl_Uniform1i(u_draw_pass, 2);
+        gl_DrawArrays(GL_TRIANGLES, 0, count);
+        gl_Disable(GL_BLEND);
+        for (GLuint i = 1; i < 4; i++)
+            gl_ColorMaski(i, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     } else if (blend == BLEND_COVER) {
         /* Coverage over the target (anti-aliased 2D shapes): colour only,
          * the mask bit (alpha) and the surface behind kept, depth "UI". */
@@ -1548,6 +1567,19 @@ static void edge_note(int x0, int y0, int x1, int y1)
 {
     if (pc_ui_lines == PC_UI_LINES_JOINED && pc_hw_scale > 1 && (x0 != x1 || y0 != y1))
         edge_find(edge_key(x0, y0, x1, y1), 1);
+}
+/* A triangle of a full-screen fade: one flat grey over the whole drawing area. */
+static int screen_fade(const int* xy, const int* rgb, const int* clip)
+{
+    for (int k = 1; k < 9; k++)
+        if (rgb[k] != rgb[0])
+            return 0;
+    int x0 = xy[0], x1 = xy[0], y0 = xy[1], y1 = xy[1];
+    for (int k = 1; k < 3; k++) {
+        x0 = xy[k * 2] < x0 ? xy[k * 2] : x0, x1 = xy[k * 2] > x1 ? xy[k * 2] : x1;
+        y0 = xy[k * 2 + 1] < y0 ? xy[k * 2 + 1] : y0, y1 = xy[k * 2 + 1] > y1 ? xy[k * 2 + 1] : y1;
+    }
+    return rgb[0] > 0 && x0 <= clip[0] && y0 <= clip[1] && x1 >= clip[0] + clip[2] - 1 && y1 >= clip[1] + clip[3] - 1;
 }
 int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage,
     unsigned clut, unsigned window, const int* clip, int mask_set, int mask_check)
@@ -1686,6 +1718,8 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     int blend = semi ? (int)((tpage >> 5) & 3) + (depth[0] | depth[1] | depth[2] ? 0 : 4) : -1;
     if (exact_cover)
         blend = BLEND_COVER;
+    else if (blend == 2 + 4 && !textured && screen_fade(xy, rgb, clip))
+        blend = BLEND_FADE; /* recorded with where it lands (below) */
     if (blend != batch_blend || memcmp(area, batch_clip, sizeof batch_clip)
         || batch_count + 3 > MAX_VERTICES) {
         flush();
@@ -1850,6 +1884,14 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
         v->uv_min[0] = (uint8_t)bounds[0], v->uv_min[1] = (uint8_t)bounds[1];
         v->uv_max[0] = (uint8_t)bounds[2], v->uv_max[1] = (uint8_t)bounds[3];
         v->ui[0] = ui_offset[0], v->ui[1] = ui_offset[1];
+    }
+    if (blend == BLEND_FADE) { /* the fade and the part of the drawing area it covers (widescreen: the view, or not) */
+        const hw_vertex* t = &batch[batch_count - 3];
+        float rect[4] = { (fminf(t[0].x, fminf(t[1].x, t[2].x)) - clip[0]) / clip[2],
+            (fminf(t[0].y, fminf(t[1].y, t[2].y)) - clip[1]) / clip[3],
+            (fmaxf(t[0].x, fmaxf(t[1].x, t[2].x)) - clip[0]) / clip[2],
+            (fmaxf(t[0].y, fmaxf(t[1].y, t[2].y)) - clip[1]) / clip[3] };
+        record_fade(rgb[0] / 255.0f, rect);
     }
     if (flags & FLAG_UI) {
         const hw_vertex* t = &batch[batch_count - 3];
@@ -2837,15 +2879,46 @@ static void ms_surface_sync(void) { ms_sync_room(ms_sync_clip); }
 /* ---- native draw lists (render.c) ---- */
 
 static void record_native(uint32_t list, const int* clip, int ox, int oy, unsigned window, int mask);
+/* An object list reached before any room list of its ordering table (a
+ * world-frozen menu draws its model over 2D only: MENU4's Status, the
+ * modern menu's Ashley tab): nothing 3D was drawn before it, so the native
+ * surfaces are empty (far) over its drawing area, as a room list would
+ * leave them before its first polygon. The model then draws natively (at
+ * the internal resolution, anti-aliased, interpolated) instead of as 2D
+ * packets. A room list after it in the same table paints over it, as on the
+ * PS1. */
+static void empty_surfaces(const int* clip)
+{
+    int s = pc_hw_scale, x0 = clip[0] * s, y0 = clip[1] * s, x1 = (clip[0] + clip[2]) * s,
+        y1 = (clip[1] + clip[3]) * s;
+    ms_end(); /* MSAA: the next scope loads the cleared surfaces into its twin */
+#ifdef ROOD_VULKAN
+    if (pc_vk_on())
+        pc_vk_hw_clear_depth(room_depth_fbo, x0, y0, x1, y1);
+    else
+#endif
+    {
+        static const float far_depth = 1.0f;
+        gl_BindFramebuffer(GL_FRAMEBUFFER, room_depth_fbo);
+        gl_Enable(GL_SCISSOR_TEST);
+        gl_Scissor(x0, y0, x1 - x0, y1 - y0);
+        gl_ClearBufferfv(GL_DEPTH, 0, &far_depth);
+        gl_Disable(GL_SCISSOR_TEST);
+        gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+    surface_valid = 1;
+}
 /* Draw list `list` into `fbo` (the live or the replay target), then keep a
  * room list's depth as the native surfaces (occlusion, object lists). An
- * object list needs those surfaces from earlier in the same ordering table
- * (else its model stays packets). `t` blends palettes (replays). Returns
- * whether the list drew. */
+ * object list tests against those surfaces from earlier in the same
+ * ordering table (none yet: empty_surfaces). `t` blends palettes (replays).
+ * Returns whether the list drew. */
 static int draw_native(GLuint fbo, uint32_t list, const int* clip, int ox, int oy, unsigned window, int mask,
     const render_camera* camera, float t)
 {
     int objects = render_list_objects(list); /* 1 objects, 2 another room block (layered) */
+    if (objects == 1 && !surface_valid && pc_native_room && pc_native_actors)
+        empty_surfaces(clip);
     if (objects < 0 || (objects && !surface_valid) || (objects == 1 && !pc_native_actors)
         || (objects == 2 && !pc_native_objects))
         return 0;
@@ -3307,6 +3380,7 @@ typedef struct {
     int write_rects[16][5]; /* x, y, w, h, ops drawn before it */
     float r[3][3], t[3], h, ofx, ofy;
     int widescreen, valid;
+    float fade, fade_rect[4]; /* a screen fade's amount (0..1; record_fade) and where it covers */
     uint32_t slots[MATCH_SLOTS]; /* surface -> start of its run in by_surface + 1 */
     int by_surface[MAX_RECORDED_VERTICES / 3], grouped; /* keyed triangles sorted by surface */
 } recording;
@@ -3419,6 +3493,26 @@ void pc_hw_set_packet(const void* packet)
     current_packet = (uintptr_t)packet;
 }
 static recording* recording_now(void) { return &recordings[recording_index]; }
+/* The frame being drawn has a screen fade of this amount (the largest). */
+static void record_fade(float amount, const float rect[4])
+{
+    recording* rec = recording_now();
+    if (rec->fade <= 0)
+        memcpy(rec->fade_rect, rect, sizeof rec->fade_rect);
+    for (int k = 0; k < 2; k++) {
+        rec->fade_rect[k] = fminf(rec->fade_rect[k], fmaxf(rect[k], 0.0f));
+        rec->fade_rect[k + 2] = fmaxf(rec->fade_rect[k + 2], fminf(rect[k + 2], 1.0f));
+    }
+    rec->fade = amount > rec->fade ? amount : rec->fade;
+}
+static float present_fade, present_fade_rect[4]; /* the shown picture's (hw_target) */
+/* The shown picture's screen fade (0: none) and where it lands (u0, v0, u1, v1 of the display area). */
+float pc_hw_present_fade(float rect[4])
+{
+    if (rect)
+        memcpy(rect, present_fade_rect, sizeof present_fade_rect);
+    return present_fade;
+}
 static void record_triangle(const float* world, unsigned code, unsigned tpage, unsigned clut, const int* uv)
 {
     recording* rec = recording_now();
@@ -3602,6 +3696,24 @@ static int recording_camera(const recording* rec, float r[3][3], float t[3], flo
     int overlap;
     render_camera camera;
     uint32_t list = recording_room_list(rec, everywhere, &overlap);
+    /* No room (a world-frozen menu's model over 2D): its object lists'
+     * camera, which the replay draws them with; lists drawn with different
+     * cameras are not interpolated (shown as drawn). */
+    if (!list) {
+        render_camera other;
+        for (int o = 0; o < rec->op_count; o++) {
+            uint32_t id = (uint32_t)rec->ops[o].first;
+            if (rec->ops[o].fill != 2 || render_list_objects(id) != 1)
+                continue;
+            if (!list) {
+                list = id;
+                if (!render_list_camera(list, &camera))
+                    return 0;
+            } else if (id != list && (!render_list_camera(id, &other)
+                                         || memcmp(&other, &camera, sizeof camera)))
+                return 0;
+        }
+    }
     if (list && render_list_camera(list, &camera)) {
         memcpy(r, camera.rotation, sizeof camera.rotation);
         memcpy(t, camera.translation, sizeof camera.translation);
@@ -3995,6 +4107,10 @@ GLuint pc_hw_target(void)
     }
     return target;
 }
+/* Game frames finished so far: the frame a presented picture shows (film
+ * grain's seed, post.h: the same on interpolated presents and redraws). */
+static unsigned frame_serial;
+unsigned pc_hw_frame_serial(void) { return frame_serial; }
 static GLuint hw_target(void)
 {
     flush();
@@ -4011,15 +4127,19 @@ static GLuint hw_target(void)
         report_other();
         memset(&packet_stats, 0, sizeof packet_stats);
         finish_recording(now);
+        ++frame_serial;
         previous = newest;
         newest = recording_index;
         arrival[newest] = vsync;
         recording_index = 3 - previous - newest;
         recording* next = recording_now();
         next->vertex_count = next->triangle_count = next->op_count = next->overflow = next->writes = 0;
+        next->fade = 0;
         next->valid = 0;
         redraw_shown = 0; /* a new frame: the redrawn one is history */
     }
+    present_fade = recordings[newest].fade; /* the newest frame's screen fade (interpolated below) */
+    memcpy(present_fade_rect, recordings[newest].fade_rect, sizeof present_fade_rect);
     if (redraw_shown) { /* pc_hw_redraw_present */
         shown_rect[0] = redraw_origin[0], shown_rect[1] = redraw_origin[1];
         presenting_replay = 1;
@@ -4088,6 +4208,7 @@ static GLuint hw_target(void)
     }
     presenting_replay = 1;
     present_blend = t;
+    present_fade = recordings[previous].fade + (recordings[newest].fade - recordings[previous].fade) * t;
     return replay.color;
 }
 /* The object lists (characters, weapons, props) of the frame being

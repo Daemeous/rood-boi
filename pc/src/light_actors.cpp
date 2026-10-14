@@ -1799,7 +1799,10 @@ std::string glow_json(const pc_glow_info& g)
         + (g.traced ? "true" : "false") + ",\"category\":\""
         + (g.category == PC_GLOW_FIXTURE ? "fixture" : g.category == PC_GLOW_MAGIC ? "magic" : "effect")
         + "\",\"casts_shadows\":" + (g.casts_shadows ? "true" : "false")
-        + ",\"fixture_type\":" + (g.fixture_type[0] ? prefab::json_quote(g.fixture_type) : "null") + "}";
+        + ",\"fixture_type\":" + (g.fixture_type[0] ? prefab::json_quote(g.fixture_type) : "null")
+        + ",\"shape\":{\"kind\":\"" + (g.shape[3] > 0 ? "column" : g.shape[3] < 0 ? "solid" : "sphere")
+        + "\",\"centre\":" + vec_json(g.shape_centre) + ",\"half_axis\":" + vec_json(g.shape)
+        + ",\"radius\":" + num(g.shape[3] != 0 ? fabsf(g.shape[3]) : g.color[3]) + "}}";
 }
 std::string glows_json()
 {
@@ -1837,6 +1840,8 @@ int glows_method(const Json& params, char* out, int size)
     };
     std::string action = params.get("action") && params.get("action")->type == Json::String ? params.get("action")->string : "list";
     uint32_t id = 0;
+    if (const Json* s = params.get("shapes")) /* enclosing glows: 0 spheres, 1 columns, 2 solid columns */
+        pc_glow_shapes = s->number < 0 ? 0 : s->number > 2 ? 2 : (int)s->number;
     if (const Json* s = params.get("smoothing")) /* every category's */
         for (int c = 0; c < 3; c++)
             pc_glow_category[c][4] = (float)s->number;
@@ -1869,6 +1874,10 @@ int glows_method(const Json& params, char* out, int size)
             o->size = (float)v->number;
         if (const Json* v = params.get("reach"))
             o->reach = (float)v->number;
+        if (const Json* v = params.get("shape"); v && v->type == Json::String)
+            o->shape = v->string == "sphere" ? PC_GLOW_SHAPE_SPHERE
+                : v->string == "column"      ? PC_GLOW_SHAPE_COLUMN
+                                             : PC_GLOW_SHAPE_AUTO;
         dirty = true;
     } else if (action == "reset") {
         if (!id_of(&id))

@@ -359,6 +359,17 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
     if (ms)
         for (int i = 0; i < count && !centre; i++)
             centre = ((const hw_vertex*)vertices)[i].z <= 0.0f;
+    if (blend == 13) { /* BLEND_FADE (a screen fade): subtracted from the 2D/UI under it (depth 0) only */
+        vkCmdSetDepthCompareOp(cmd, VK_COMPARE_OP_EQUAL);
+        vkCmdSetDepthWriteEnable(cmd, VK_FALSE);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ms ? ms_blend[centre][2] : blend_pipelines[2]);
+        vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, draw_layout);
+        push.pass = 2;
+        vkCmdPushConstants(cmd, draw_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push,
+            &push);
+        vkCmdDraw(cmd, (uint32_t)count, 1, 0, 0);
+        return;
+    }
     if (blend == 12) { /* BLEND_COVER (2D shapes): one blended pass, depth "UI" */
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ms ? ms_cover : cover_pipeline);
         vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, draw_layout);
@@ -482,6 +493,18 @@ void pc_vk_hw_copy_depth(unsigned from, unsigned to, int x0, int y0, int x1, int
     vk_barrier();
     if (ms)
         vk_section("draw");
+}
+void pc_vk_hw_clear_depth(unsigned token, int x0, int y0, int x1, int y1)
+{
+    const vk_image* depth = vk_hw_depth(token);
+    if (!depth || !clamp_rect(&x0, &y0, &x1, &y1))
+        return;
+    vk_attachments a = { .depth = depth->view, .width = vk_hw.width, .height = vk_hw.height };
+    vk_begin_rendering(&a);
+    VkClearAttachment clear = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, { .depthStencil = { 1.0f, 0 } } };
+    VkClearRect rect = { { { x0, y0 }, { (uint32_t)(x1 - x0), (uint32_t)(y1 - y0) } }, 0, 1 };
+    vkCmdClearAttachments(vk_cmd(), 1, &clear, 1, &rect);
+    vk_end_rendering();
 }
 void pc_vk_hw_replay_copy(int x0, int y0, int x1, int y1)
 {

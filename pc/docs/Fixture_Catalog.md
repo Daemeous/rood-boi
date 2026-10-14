@@ -93,6 +93,13 @@ emitter, and the small meshes touching it (24 units, at most 320 units and
   - `glow`: what happens to the game glow the fixture's polygons make.
     `drive` links it, so its emission flickers with the light. `suppress`
     means it is not a light. `leave` leaves it alone.
+  - `glow_shape` (optional): the glow's emitting shape. `auto` (the
+    default) is a column when its polygons enclose room for a character
+    and stand on the floor, else a small sphere; `sphere` always the
+    sphere; `column` the column of its polygons whenever one fits (a flat
+    group: a solid disc). The save point class says `column`: a character
+    standing in it hides only part of its light ([Glows.md](Glows.md),
+    "Enclosing glows").
   - `haze: true` flags the shafts as a future source for the volumetric
     haze; nothing reads it yet.
 
@@ -109,7 +116,7 @@ emitter, and the small meshes touching it (24 units, at most 320 units and
     model.
   - Optional overrides of the class: `prefab`, `params`, `offset` (the
     light's offset from the flame centre, in the fixture's frame: x right,
-    y down, z forward), `fixture_radius`, `glow`, `enabled`.
+    y down, z forward), `fixture_radius`, `glow`, `glow_shape`, `enabled`.
 - **Matching** (`fixture_lib.match`):
   - A fixture matches a type when its emitter signature is one of the
     type's, its polygon count is in range and its sorted extents are within

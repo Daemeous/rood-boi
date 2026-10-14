@@ -1,0 +1,18 @@
+{
+  "title": "Cinematic",
+  "description": "Filmic tone curve, a soft convolution glare, gentle vignette, slight lens fringes and fine grain.",
+  "values": {
+    "tonemapper": "aces",
+    "tonemap_white": 6,
+    "exposure": 1.5,
+    "bloom_intensity": 0.35,
+    "bloom_threshold": 0.75,
+    "bloom_size": 1.2,
+    "vignette": 0.35,
+    "grain": 0.2,
+    "grain_size": 1.6,
+    "chromatic_aberration": 0.8,
+    "chromatic_aberration_start": 0.35,
+    "contrast": [1, 1, 1, 1.05]
+  }
+}

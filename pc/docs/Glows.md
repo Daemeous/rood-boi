@@ -215,6 +215,102 @@ The candle and torch flame sprites are camera-facing room planes (flag
 0x400), which the scene capture skips, so they make no glow at all. Their
 light comes from the generated actors.
 
+## Enclosing glows: standing in a save point (2026-10-13)
+
+GitHub issue 2 (Daemeous): "Save points can presently have their light
+blocked by just standing in them". With Ashley in the circle, the room went
+dark around him. The save point's glow was a sphere of radius 8 at the area-weighted centre of
+its polygons (446, -94, 574 in the save room), 94 units above the floor:
+inside Ashley's chest. Every shadow ray to it from the room hit him, so its
+light and its share of the baked light (the characters' glow shadows on the
+baked light, `baked_visibility`) were gone everywhere it reached. The
+reporter's workaround, an emitting size of 32, kept the light but blurred
+every shadow.
+
+The save point's glowing polygons are an octagonal column 128 units wide
+(corners 64-68 units from its axis) and 224 high, around a 128-unit sigil
+quad on the floor (34 triangles). Its light comes from that column's side.
+A character in it hides only the part of the side behind him, as seen from
+a point in the room, and still shadows the floor beyond him.
+
+- **Shape** (`glows.c fit_column`, once per room capture): a room group's
+  upright polygons (normal within 45 degrees of horizontal) give a vertical
+  column. The axis runs through the middle of their bounds, from their
+  lowest to their highest corner, and the radius is their corners' mean
+  distance from the axis. For the save point: centre (448, -112, 576), half
+  height 112, radius 63. A group of mostly flat polygons fits a solid disc
+  of its area. A column **encloses** when a character fits in it and it
+  stands on the floor: radius at least 24, at least 96 high, upright
+  polygons in at least 6 of 8 sectors around the axis, and a room polygon
+  under the middle of its foot (`pc_scene_triangle_at`). Such a glow is a
+  column without being asked.
+- **Which glows**: an offline pass over every room (the same rules on
+  `fixture_lib.glow_groups`) finds the 39 save points (types T053-T055,
+  all r 63, h 224), and one light shaft that stands on a street (zone 32 room 3,
+  T235, not a light: its type suppresses it). Nothing else qualifies.
+  Hanging glass street lanterns (T013/T014, octagons r 26, h 57) are too
+  small and hang in the air, the other shafts float, and floor decals and
+  arrows are flat. Candles, torches, braziers and fireplaces cannot hold a
+  character. Their flame sprites make no glow (their light comes from light
+  actors), and their glows are small spheres at the flame, where the fixture
+  itself stops a character.
+- **Choice**: `shape` of a glow override (`auto`, `sphere`, `column`; room
+  file `shape=`, editor Details > Shape, RPC `glows set {shape}`), else its
+  fixture type's `glow_shape` (the catalog's `save_point` class says
+  `column`), else auto. An override's emitting size is the column's radius.
+  RPC `glows {shapes: 0}` (or `ROOD_GLOW_SHAPES=0`) makes every glow a
+  sphere again, as before (comparisons), and 2 makes the columns solid.
+- **Tracers**: a third array beside `emitter_pos`/`emitter_col`,
+  `emitter_shape` (half axis, radius: > 0 the column's side, < 0 a solid
+  disc or cylinder, 0 the old sphere). It is at the end of
+  `rt_lights.glsl`'s Trace block (`vrt_trace_ubo`, `probe_trace_ubo`), plus
+  a GL uniform. `emitter_sample` picks a point on the shape for the glow
+  light, the glow shadows on the baked light, the haze and the probes, on
+  GL and Vulkan alike. The emitter position becomes the column's centre.
+  The lighting signature's noise-free ray goes to the column's nearest
+  point (`emitter_nearest`), so it is not blocked by a character standing in
+  the column. Shadow rays stop 2 units short of the sampled point instead of a sphere's radius.
+
+### Options compared (save room, Ashley at the centre, the edge (40 off the axis) and outside (100 off))
+
+How much of the room's light stays with glow shadows on against off
+(mean of the frame without the HUD, Ashley's position written into his
+record; Vulkan Ultra, 64-bit, RTX PRO 6000):
+
+| Glow | centre | edge | outside | Ashley's shadow outside |
+| --- | --- | --- | --- | --- |
+| sphere r 8 (before) | 0.56 | 0.99 | 1.00 | crisp, long |
+| sphere r 32 (the workaround) | 0.90 | 0.98 | 1.00 | faint, soft |
+| sphere r 44 | 0.95 | 0.98 | 1.00 | faint |
+| column side r 63 (**default**) | 0.91 | 0.92 | 0.98 | soft: its feet, a wedge behind him |
+| column side r 32 | 0.87 | 0.91 | 1.00 | soft |
+| solid column r 63 | 0.89 | 0.94 | 0.99 | soft |
+
+The baked light's visibility on the floor around the circle (RPC
+`gi_probe` at world points, rings 96 and 160 units from the axis) with
+Ashley at the centre: about 0.45 before (every direction), 0.86-0.93 with
+the column. With him just outside, the floor straight behind him reads
+0.71-0.74 against 0.99-1.0 to his sides. GL (32- and 64-bit, the GL path
+tracer and probe GI) gives the same within 0.03. Low and Original are
+unchanged (their glows cast no shadows). Medium's glows cast no shadows by
+default either; with glow shadows switched on, its probe GI's light goes
+0.85 -> 0.97.
+
+The column's side is the default. It is the glow's real shape, it keeps
+the most light of the shapes the size of the save point, and its shadows
+are as soft as a 128-unit-wide light makes them. The soft shadows are the
+price of standing in a light this big: any emitter Ashley cannot cover
+must be wider than him. The sphere options are not the glow's shape. A
+sphere large enough to stick out of Ashley floats at chest height.
+`shape=sphere` plus a size, or a smaller column radius, are there for
+anyone who prefers crisper shadows over the light.
+
+Test: `pc/tests/save_point_glow_smoke.py` (run.py suite
+`save_point_glow_smoke`). It checks the column, a shape override saved by
+key, and, at High and Ultra, the floor's visibility and the frame's light
+with Ashley at the centre (and that the old sphere fails), and his shadow
+behind him at the edge and outside.
+
 ## Limits and next steps
 
 - Categories come from the source: a spell drawn with unattached world
@@ -228,8 +324,8 @@ light comes from the generated actors.
   units). Effects drawn from packets only have their texture as source.
 - A spread source's grid cells do not follow a moving fire; a carried torch
   is a compact source and is followed.
-- Long room groups (the save point's 160-unit column) are a single point
-  light at their centre (strength 4); an elongated (capsule) emitter would
-  light along its length.
+- Long room groups are a single point light at their centre (strength 4),
+  except enclosing columns (the save points: "Enclosing glows" above), whose
+  light comes from their whole side.
 - Names are a guess from colour and size (warm: candle/torch/fire by size;
   blue: magic glow).

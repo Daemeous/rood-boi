@@ -55,10 +55,15 @@ void pc_weapon_slots_clear(int slot);
 
 int pc_ui_abilities_request(const pc_ui_request* r); /* abilities_bridge.c */
 int pc_ui_magick_request(const pc_ui_request* r);    /* magick_bridge.c */
+int pc_ui_items_request(const pc_ui_request* r);     /* items_bridge.c */
 
 int pc_ui_equip_begin(int resident);
 void pc_ui_equip_requests(void);
 int pc_ui_equip_busy(void);
+/* for items_bridge.c */
+int pc_ui_item_record_id(int category, int i);
+void pc_ui_items_rebuild(int category);
+void pc_ui_equip_describe(int kind, int index, pc_ui_item* out);
 
 #define N_WEAPONS 8
 #define N_SHIELDS 8
@@ -450,6 +455,26 @@ static void rebuild_indices(int category)
     }
 }
 
+/* items_bridge.c: the same list order and record ids for the Items tab. */
+int pc_ui_item_record_id(int category, int i) { return item_id(category, i); }
+void pc_ui_items_rebuild(int category) { rebuild_indices(category); }
+
+/* items_bridge.c's details card: weapon (kind 0), shield (1) or armor /
+ * accessory (2) inventory record `index`, as this screen describes it (the
+ * equipped one's current values from Ashley's record). */
+void pc_ui_equip_describe(int kind, int index, pc_ui_item* out)
+{
+    vs_battle_actor2* actor = ashley();
+    if (kind == 0 && index >= 0 && index < N_WEAPONS && vs_main_inventory.weapons[index].blade)
+        weapon_item(out, index, actor);
+    else if (kind == 1 && index >= 0 && index < N_SHIELDS && vs_main_inventory.shields[index].base.id)
+        shield_item(out, index, actor);
+    else if (kind == 2 && index >= 0 && index < N_ARMOR && vs_main_inventory.armor[index].id)
+        armor_item(out, index, actor);
+    else
+        blank(out);
+}
+
 int pc_ui_equip_begin(int mainmenu)
 {
     pc_ui_equip_view view;
@@ -632,10 +657,10 @@ void pc_ui_equip_requests(void)
                 changed = 1;
             }
             break;
-        default: /* PC_UI_REQ_CANDIDATES: the list is filled every tick; the Abilities and Magick screens'
-                  * are their bridges' */
-            if (!pc_ui_abilities_request(&r))
-                pc_ui_magick_request(&r);
+        default: /* PC_UI_REQ_CANDIDATES: the list is filled every tick; the Abilities, Magick and Items
+                  * screens' are their bridges' */
+            if (!pc_ui_abilities_request(&r) && !pc_ui_magick_request(&r))
+                pc_ui_items_request(&r);
             break;
         }
     }

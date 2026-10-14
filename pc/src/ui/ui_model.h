@@ -40,15 +40,27 @@ typedef struct {
 } pc_ui_equipment;
 
 enum { PC_UI_REQ_NONE, PC_UI_REQ_EQUIP, PC_UI_REQ_QUICK_SET, PC_UI_REQ_QUICK_CLEAR, PC_UI_REQ_CANDIDATES,
-       PC_UI_REQ_ABIL_MAP, PC_UI_REQ_ART_CAST, PC_UI_REQ_SPELL_CAST, PC_UI_REQ_TELEPORT };
+       PC_UI_REQ_ABIL_MAP, PC_UI_REQ_ART_CAST, PC_UI_REQ_SPELL_CAST, PC_UI_REQ_TELEPORT,
+       PC_UI_REQ_ITEM_USE, PC_UI_REQ_ITEM_DISCARD, PC_UI_REQ_ITEM_DISCARD_ALL, PC_UI_REQ_ITEM_SORT,
+       PC_UI_REQ_ITEM_MOVE, PC_UI_REQ_ITEM_CANCEL };
 typedef struct {
     int kind;
     int slot;      /* EQUIP/CANDIDATES: PC_UI_SLOT_*; QUICK_*: 0..7; ABIL_MAP: button 0 Circle, 1 Triangle, 2 Square;
-                    * TELEPORT: the save point 0..47 */
+                    * TELEPORT: the save point 0..47; ITEM_*: the category PC_UI_IC_* */
     int item;      /* EQUIP: inventory index, -1 = take off; QUICK_SET: weapon inventory index;
                     * ABIL_MAP, ART_CAST, SPELL_CAST: the action id (vs_main_actions index; a levelled
-                    * spell's level: its own id, base + 0..3) */
-    int shield;    /* QUICK_SET: shield inventory index, -1 none; ABIL_MAP: PC_UI_ABIL_CHAIN / _DEFENSE */
+                    * spell's level: its own id, base + 0..3); ITEM_USE / _DISCARD / _DISCARD_ALL /
+                    * _SORT / _CANCEL: the list row (position in the category's list) the actions are
+                    * for; ITEM_MOVE: the row moved (from) */
+    int shield;    /* QUICK_SET: shield inventory index, -1 none; ABIL_MAP: PC_UI_ABIL_CHAIN / _DEFENSE;
+                    * ITEM_USE / _DISCARD / _DISCARD_ALL / _SORT / _CANCEL: the row's inventory index as
+                    * the screen saw it (refused when the row holds another record now; -1: not
+                    * checked); ITEM_MOVE: the target row (to) */
+    int count;     /* ITEM_DISCARD: how many (misc with a count of 2 or more: 1..count; else ignored);
+                    * ITEM_SORT: the stat id (one of the category's sort_stats); ITEM_MOVE: the moved
+                    * row's inventory index as the screen saw it (as shield above); ITEM_CANCEL: what
+                    * was left: 0 the quantity picker with none, 1 Discard's Yes / No on No, 2 Discard
+                    * all's on No (the leave sound and the cursor memories the original leaves) */
 } pc_ui_request;
 
 /* The Abilities tab (abilities_bridge.c fills it every tick while the shell
@@ -152,6 +164,77 @@ typedef struct {
     int destination_count;
     pc_ui_destination destinations[PC_UI_SAVE_POINTS];
 } pc_ui_magick;
+
+/* The Items tab (items_bridge.c fills it every tick while it shows). The
+ * seven bag categories in the game's order (MENU3 / MAINMENU itemCategory*:
+ * weapons, blades, grips, shields, armor, gems, misc) and each one's list in
+ * the game's order (vs_main_inventoryIndices, rebuilt as MENU3's Items menu
+ * rebuilds it whenever it lists); per row what the original list and its
+ * action menu show (MENU3 items2.h _populateItemRows / _itemNavigation
+ * populateActions). One flat rows array: category c's rows are
+ * rows[first[c] .. first[c] + count[c] - 1]. */
+enum { PC_UI_ITEM_CATEGORIES = 7, PC_UI_ITEM_ROWS = 8 + 16 + 16 + 8 + 16 + 48 + 64, PC_UI_SORT_STATS = 24,
+       PC_UI_STAT_NAMES = 57 };
+enum { PC_UI_IC_WEAPON, PC_UI_IC_BLADE, PC_UI_IC_GRIP, PC_UI_IC_SHIELD, PC_UI_IC_ARMOR, PC_UI_IC_GEM, PC_UI_IC_MISC };
+enum { PC_UI_MARK_NONE, PC_UI_MARK_EQUIPPED, PC_UI_MARK_SET }; /* the original row's icon (0xCA00 / 0xCC00) */
+typedef struct {
+    int inventory;          /* the record (0-based index into the category's inventory array) */
+    int id;                 /* the record's item id (a weapon: its blade's record index + 1, MAINMENU _getItemId) */
+    char name[48];          /* UTF-8 (a weapon: its own name) */
+    char sub[64];           /* UTF-8: what kind of thing it is (material, category, grip kind, body part; "" misc) */
+    char help[200];         /* UTF-8: the original's description (blades, grips, gems, accessories, misc; ""
+                             * for weapons, shields and armor, whose original line is stats: see details) */
+    int count;              /* misc: the stack's count; else 0 */
+    int mark;               /* PC_UI_MARK_*: equipped (worn, or part of the equipped weapon / shield) or part
+                             * of a weapon / shield in the bag */
+    int material;           /* 1.. (the original row's material icon), 0 none */
+    int parent_category;    /* blades, grips, gems in a set: PC_UI_IC_WEAPON or PC_UI_IC_SHIELD; -1 none (Search) */
+    int parent;             /* its inventory index, -1 none */
+    int discard;            /* Discard is selectable */
+    char discard_reason[96];/* not: the original's line (equipped, part of a set, cannot be discarded) */
+    int discard_all;        /* misc: Discard all is selectable */
+    char discard_all_reason[96];
+    int action;             /* misc: the action Use hands over (MAINMENU vs_mainMenu_miscItemToActionMap, a
+                             * levelled grimoire's highest learned level); else 0 */
+    int usable;             /* misc: Use is selectable */
+    char use_reason[96];    /* misc, not usable: why (the original's line) */
+} pc_ui_item_row;
+typedef struct {
+    int valid;              /* filled for the focused row (the shell's pc_ui_shell_items_focus) */
+    int category, inventory;
+    pc_ui_item stats;       /* name, material, DP / PP, STR / INT / AGL, classes, affinities, damage type and
+                             * hands (weapons, blades), as the original status page computes them
+                             * (vs_battle_apply* / vs_battle_copyInventory*Stats) */
+    int types[3];           /* blunt, edged, piercing (grips, shields, armor, gems) */
+    int range;              /* weapons, blades */
+    int risk;               /* weapons, blades: the RISK cost */
+    int blade_category;     /* weapons, blades: 1 dagger .. 9 crossbow */
+    int grip_category;      /* grips: 1 short .. 4 crossbow */
+    int armor_category;     /* armor: 1 shield .. 7 accessory (the record's category) */
+    int gem_slots;          /* weapons (their grip), grips, shields */
+    int gem_count;          /* gems set in it */
+    char gems[3][48];       /* their names (UTF-8) */
+    char blade[48], grip[48]; /* weapons: their parts' names (UTF-8) */
+} pc_ui_item_details;
+typedef struct {
+    int valid;
+    unsigned mask;          /* the menu's disable mask D_800F4EA0 & 7 (the original greys every row) */
+    int locked;             /* mask set: browse only */
+    char locked_reason[96]; /* why */
+    int count[PC_UI_ITEM_CATEGORIES];
+    int capacity[PC_UI_ITEM_CATEGORIES];
+    int first[PC_UI_ITEM_CATEGORIES];
+    pc_ui_item_row rows[PC_UI_ITEM_ROWS];
+    /* Sort: per category the original's stat list (MENU3 items1.h _sortItems sortStats[category], in its
+     * menu order), and every stat's name and description (ITEMHELP sortRange + (stat - 2) * 2) */
+    int sort_count[PC_UI_ITEM_CATEGORIES];
+    unsigned char sort_stats[PC_UI_ITEM_CATEGORIES][PC_UI_SORT_STATS];
+    char stat_name[PC_UI_STAT_NAMES][32];
+    char stat_help[PC_UI_STAT_NAMES][96];
+    char no_search[96];     /* the original's Search line outside a set (ITEMHELP invalidSearch) */
+    char discard_prompt[3][128]; /* its confirm questions: one (0), a quantity (1), all (2) (discardConfirm + n) */
+    pc_ui_item_details details;
+} pc_ui_items;
 
 /* The Ashley tab (ashley_bridge.c fills it every tick). */
 enum { PC_UI_LIMBS = 6, PC_UI_EFFECTS = 32 };

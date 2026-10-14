@@ -1,0 +1,20 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+// Forward FFT of each row (bloom_fft.glsl): the domain (rgb in xyz) or the
+// kernel (in x) -> its row spectra.
+#include "bloom_fft.glsl"
+layout(binding = 0, rgba32f) uniform readonly image2D source;
+layout(binding = 1, rgba32f) uniform writeonly image2D spectrum;
+void main()
+{
+    int y = int(gl_WorkGroupID.x);
+    uint t = gl_LocalInvocationID.x;
+    for (uint i = t; i < uint(pc.n); i += 256u) {
+        vec4 c = imageLoad(source, ivec2(int(i), y));
+        line[reversed(i)] = vec4(c.r, c.g, c.b, 0.0);
+    }
+    barrier();
+    fft(false);
+    for (uint i = t; i < uint(pc.n); i += 256u)
+        imageStore(spectrum, ivec2(int(i), y), line[i]);
+}

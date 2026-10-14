@@ -134,6 +134,8 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
 void draw_abilities(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
 // The Magick tab's body (ui_magick_draw.cpp): school / Teleport sub-tabs, the list, the card.
 void draw_magick(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
+// The Items tab's body (ui_items_draw.cpp): category chips, the list, the open menu, the card.
+void draw_items(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
 // The Ashley screen's model column (layout units x, y, w, h) on a W-wide layout.
 void model_column(const ui::Theme& t, float W, float out[4]);
 // The right card's width (16:9: 396, 4:3: 344).

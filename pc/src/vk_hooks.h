@@ -46,6 +46,8 @@ void pc_vk_hw_upload_rect(int x, int y, int w, int h);
 void pc_vk_hw_copy(int sx, int sy, int dx, int dy, int w, int h);
 /* Depth rectangle (scaled pixels, x1/y1 exclusive) between depth tokens. */
 void pc_vk_hw_copy_depth(unsigned from, unsigned to, int x0, int y0, int x1, int y1);
+/* A depth token's rectangle (scaled pixels, x1/y1 exclusive) to far (1). */
+void pc_vk_hw_clear_depth(unsigned token, int x0, int y0, int x1, int y1);
 /* The live target's colours and depth over a rectangle (scaled pixels) into
  * the replay target. */
 void pc_vk_hw_replay_copy(int x0, int y0, int x1, int y1);

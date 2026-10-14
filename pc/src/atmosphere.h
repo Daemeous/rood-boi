@@ -16,11 +16,27 @@
 #define PC_MEDIUM_FLOOR (PC_MEDIUM_LIMITS + 1) /* the ground fog's floor grid (2 vec4s, then its heights) */
 #define PC_MEDIUM_FLOOR_GRID 24 /* cells per side (scene_capture.h PC_SCENE_FLOOR_GRID) */
 #define PC_MEDIUM_FLOOR_DATA (PC_MEDIUM_FLOOR + 2)
-#define PC_MEDIUM_SIM (PC_MEDIUM_FLOOR_DATA + PC_MEDIUM_FLOOR_GRID * PC_MEDIUM_FLOOR_GRID / 8) /* 163: fog_sim.h */
-#define PC_MEDIUM_SIM_DATA (PC_MEDIUM_SIM + 1)
-/* 250 (the shaders' medium_[] arrays have this size) */
-#define PC_MEDIUM_VEC4S (PC_MEDIUM_SIM_DATA + (PC_FOG_SIM_CELLS + 11) / 12)
-#define PC_FOG_SIM_CELLS (32 * 32) /* fog_sim.h PC_FOG_SIM_GRID squared */
+/* 163: the medium's texture (pc_medium_texture: the interactive fog's
+ * fields, the detail noise): x the fields' cells per side, y the texture's
+ * width and height, z its depth, w 1 (bound) */
+#define PC_MEDIUM_SIM (PC_MEDIUM_FLOOR_DATA + PC_MEDIUM_FLOOR_GRID * PC_MEDIUM_FLOOR_GRID / 8)
+#define PC_MEDIUM_DETAIL (PC_MEDIUM_SIM + 1) /* 164: x 1 / the detail noise's period (world units); yzw the main light's direction (self-shadowing) */
+/* 165 (the shaders' medium_[] arrays have this size) */
+#define PC_MEDIUM_VEC4S (PC_MEDIUM_DETAIL + 1)
+
+/* The medium's texture, one RGBA8 3D texture every pass that samples the
+ * medium binds (medium.glsl MEDIUM_TEX): PC_MEDIUM_TEX_SIZE x
+ * PC_MEDIUM_TEX_SIZE x PC_MEDIUM_TEX_DEPTH texels, x fastest. Slices
+ * 0..PC_MEDIUM_TEX_NOISE-1 are a tileable 3D detail noise (64 texels a
+ * period, its first row, column and slice repeated at 64 so trilinear
+ * filtering with clamping tiles; r the noise, g the same half a period
+ * over); then one slice per simulated volume, its field (fog_sim.h,
+ * PC_FOG_SIM_GRID^2 in the corner): r density / 2, g b its velocity in
+ * world x, z (128 + v / 160 x 127 world units per second). */
+#define PC_MEDIUM_TEX_SIZE 65
+#define PC_MEDIUM_TEX_NOISE 65
+#define PC_MEDIUM_TEX_LAYERS 4 /* fog_sim.h PC_FOG_SIM_MAX */
+#define PC_MEDIUM_TEX_DEPTH (PC_MEDIUM_TEX_NOISE + PC_MEDIUM_TEX_LAYERS)
 
 typedef struct {
     float v[PC_MEDIUM_VEC4S][4]; /* layout: medium.glsl */
@@ -43,6 +59,17 @@ int pc_medium_has_fog(void);
 unsigned pc_medium_hash(void);
 /* The global switch for the ground fog and volumes (settings key `fog`). */
 extern int pc_fog_global;
+/* The interactive fog's global weights per source (settings keys
+ * fog_disturb_player, fog_disturb_actors, fog_disturb_attacks,
+ * fog_disturb_spells: 1, 1, 0, 0; 0 off), the most simulated volumes per
+ * room (fog_sim_budget 4). A volume's disturb_* fields override them. */
+extern float pc_fog_disturb[4];
+extern int pc_fog_sim_budget;
+/* The medium's texture (above): its texels, and a serial that changes when
+ * they do (renderers upload the field slices then). */
+const unsigned char* pc_medium_texture(unsigned* serial);
+/* Once per game vsync (boot_runtime.c pc_tick): the interactive fog steps. */
+void pc_fog_vsync(void);
 /* The atmosphere's limits (room settings haze_max_opacity, haze_max_light,
  * haze_shafts; atmosphere.cpp): the most of the scene the haze, fog and
  * volumes may hide along any ray, the most light they may scatter toward

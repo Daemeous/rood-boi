@@ -12,6 +12,7 @@
 #include "atmosphere.h"
 #include "lighting_quality.h"
 #include "antialias.h"
+#include "post.h"
 #include <SDL3/SDL.h>
 #include <math.h> /* powf: brightness */
 #include <stdint.h>
@@ -166,10 +167,11 @@ static const char* scaled_fragment_source =
     "uniform vec2 view;\n" /* viewport size in window pixels */
     "uniform int show_depth;\n"
     "uniform sampler2D depth_tex;\n"
-    "uniform int post;\n" /* bit 0 depth of field, 1 tilt-shift, 2 fog */
+    "uniform int post;\n" /* bit 0 depth of field, 1 tilt-shift, 2 fog, 3 HDR out (the grade pass tone maps) */
     "uniform float focus_sz;\n" /* 0 = auto (screen centre) */
     "uniform float dof_radius;\n" /* maximum blur radius in window pixels */
     "uniform float aperture;\n" /* blur growth away from the focal plane */
+    "uniform float near_blur;\n" /* the share of it in front of the focal plane */
     "uniform vec3 tilt;\n" /* band centre (0..1 from top), half width, radius */
     "uniform vec4 fog;\n" /* rgb colour, a = density */
     "uniform vec2 fog_range;\n" /* SZ where fog starts and saturates */
@@ -239,8 +241,10 @@ static const char* scaled_fragment_source =
     /* The room's medium (atmosphere.h pc_medium_gpu; medium.glsl): the haze,
      * the ground fog, the fog volumes (haze Low marches it; the traced haze's
      * transmittance). */
-    "uniform vec4 medium_[250];\n"
-    "#define MEDIUM(i) medium_[i]\n" PC_GLSL_MEDIUM
+    "uniform vec4 medium_[165];\n"
+    "#define MEDIUM(i) medium_[i]\n"
+    "uniform sampler3D medium_tex;\n" /* atmosphere.h pc_medium_texture (pc_gl_medium_texture) */
+    "#define MEDIUM_TEX medium_tex\n" PC_GLSL_MEDIUM
     "float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }\n"
     "uniform float normal_smoothing;\n" /* radius in native pixels, 0 = flat faces */
     /* Depth- and crease-aware average of nearby normals (screen space). */
@@ -550,14 +554,15 @@ static const char* scaled_fragment_source =
     "                haze_done = true;\n"
     "            }\n"
     /* Soft shoulder above 0.8 instead of clipping at white (lit pixels only). */
-    "            c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c));\n"
+    "            if ((post & 8) == 0) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c));\n"
     "            if (any(isnan(c)) || any(isinf(c))) c = base(uv);\n" /* never a black hole */
     "        }\n"
     "    }\n"
     "    bool ui = d * 65536.0 < 0.5;\n"
     "    if (quality0.x > 0.0 && !haze_done && !ui && d < 1.0 && view_mode != 1)\n" /* unlit 3D pixels */
     "        c = low_haze(c, world_at(texel(uv), d * 65536.0));\n"
-    "    if (post == 0 || ui) { color = vec4(min(c, vec3(1.0)), ui ? 9999.0 : 0.0); return; }\n"
+    "    vec3 out_c = (post & 8) != 0 && !ui ? max(c, vec3(0.0)) : min(c, vec3(1.0));\n"
+    "    if ((post & 7) == 0 || ui) { color = vec4(out_c, ui ? 9999.0 : 0.0); return; }\n"
     "    float sz = d >= 1.0 ? 65535.0 : d * 65536.0;\n"
     "    if ((post & 4) != 0) {\n"
     "        float f = clamp((sz - fog_range.x) / max(fog_range.y - fog_range.x, 1.0), 0.0, 1.0);\n"
@@ -577,12 +582,13 @@ static const char* scaled_fragment_source =
     "            focus = n > 0.0 ? exp2(sum / n) : 1024.0;\n"
     "        }\n"
     "        coc = dof_radius * clamp(aperture * (1.0 - focus / sz), -1.0, 1.0);\n"
+    "        if (coc < 0.0) coc *= near_blur;\n"
     "    }\n"
     "    if ((post & 2) != 0) {\n"
     "        float t = tilt.z * smoothstep(tilt.y, tilt.y + 0.25, abs(uv.y - tilt.x));\n"
     "        coc = abs(coc) >= t ? coc : t;\n"
     "    }\n"
-    "    color = vec4(min(c, vec3(1.0)), coc);\n"
+    "    color = vec4((post & 8) != 0 ? max(c, vec3(0.0)) : min(c, vec3(1.0)), coc);\n"
     "}\n";
 static GLuint scaled_program;
 static GLint u_scaled_rect, u_scaled_scale, u_scaled_target, u_scaled_filtered, u_scaled_view;
@@ -621,7 +627,39 @@ extern GLuint pc_hw_shade_texture(void);
 extern void pc_lights_shadow_pick(int count, int* wants, int slots);
 extern int pc_lights_view(float (*)[4], float (*)[4], float (*)[4], float (*)[4], int*, float (*)[4],
     float (*)[4], int);
-static GLint u_medium;
+static GLint u_medium, u_medium_tex;
+/* The medium's texture (atmosphere.h pc_medium_texture: the detail noise,
+ * the interactive fog's fields) for the present's Low haze and ptgi.c's
+ * traced haze: uploaded whole once, then its field slices when they change. */
+GLuint pc_gl_medium_texture(void)
+{
+    static GLuint texture;
+    static unsigned uploaded;
+    unsigned serial;
+    const unsigned char* texels = pc_medium_texture(&serial);
+    const int s = PC_MEDIUM_TEX_SIZE;
+    if (!texture) {
+        gl_GenTextures(1, &texture);
+        gl_BindTexture(GL_TEXTURE_3D, texture);
+        gl_TexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        gl_TexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        gl_TexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        gl_TexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        gl_TexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+        gl_PixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        gl_TexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, s, s, PC_MEDIUM_TEX_DEPTH, 0, GL_RGBA, GL_UNSIGNED_BYTE, texels);
+        gl_PixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        uploaded = serial;
+    } else if (serial != uploaded) {
+        gl_BindTexture(GL_TEXTURE_3D, texture);
+        gl_PixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        gl_TexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, PC_MEDIUM_TEX_NOISE, s, s, PC_MEDIUM_TEX_LAYERS, GL_RGBA,
+            GL_UNSIGNED_BYTE, texels + (size_t)s * s * 4 * PC_MEDIUM_TEX_NOISE);
+        gl_PixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        uploaded = serial;
+    }
+    return texture;
+}
 static GLint u_light_right, u_light_up, u_quality0, u_quality1, u_quality2, u_env, u_env_mode, u_sun_map,
     u_sun_matrix, u_sun_light, u_sun_texel;
 extern float pc_lights_baked;
@@ -639,11 +677,12 @@ static const char* blur_fragment_source =
     "uniform sampler2D lit;\n"
     "uniform vec2 view;\n"
     "uniform float max_radius;\n"
+    "uniform int keep_mask;\n" /* a grade pass follows: alpha 9999 stays on 2D/UI */
     "const float golden = 2.39996323;\n"
     "void main() {\n"
     "    vec2 st = vec2(uv.x, 1.0 - uv.y);\n" /* framebuffer rows count from the bottom */
     "    vec4 c0 = texture(lit, st);\n"
-    "    if (c0.a > 9000.0) { color = vec4(c0.rgb, 1.0); return; }\n"
+    "    if (c0.a > 9000.0) { color = vec4(c0.rgb, keep_mask != 0 ? 9999.0 : 1.0); return; }\n"
     "    float r0 = abs(c0.a), radius = r0;\n"
     /* Blurred foreground nearby may cover this pixel: look for it. */
     "    for (int i = 0; i < 12; i++) {\n"
@@ -795,15 +834,9 @@ typedef struct {
 } view_target;
 static view_target chain[2], smaa_edges, smaa_weights;
 static GLint u_scaled_show_depth, u_scaled_depth, u_post, u_focus, u_dof_radius, u_tilt, u_fog, u_fog_range;
-/* Post effects (developer overlay / RPC). */
-int pc_post_flags; /* 1 depth of field, 2 tilt-shift, 4 fog */
-/* Depth of field focus: 0 on Ashley, 1 auto (screen centre), 2 the manual
- * depth pc_post_focus. Aperture: how fast blur grows off the focal plane
- * (macro photography is large). */
-int pc_post_focus_mode;
-float pc_post_aperture = 4;
-float pc_post_focus = 0, pc_post_dof_radius = 8, pc_post_tilt[3] = { 0.55f, 0.12f, 6 };
-float pc_post_fog[4] = { 0.05f, 0.04f, 0.06f, 0.6f }, pc_post_fog_range[2] = { 600, 4000 };
+/* Post effects: this present's resolved profile (post.h, post_profile.cpp). */
+static pc_post_frame post_frame;
+static GLint u_near_blur, u_blur_keep;
 extern GLuint pc_hw_depth_texture(void);
 int pc_gl_show_depth;
 /* Presentation settings: filter 0 nearest, 1 bilinear, 2 supersample (default:
@@ -941,6 +974,7 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     u_shadow_softness = gl_GetUniformLocation(scaled_program, "shadow_softness");
     u_quality0 = gl_GetUniformLocation(scaled_program, "quality0");
     u_medium = gl_GetUniformLocation(scaled_program, "medium_");
+    u_medium_tex = gl_GetUniformLocation(scaled_program, "medium_tex");
     u_quality1 = gl_GetUniformLocation(scaled_program, "quality1");
     u_quality2 = gl_GetUniformLocation(scaled_program, "quality2");
     u_env = gl_GetUniformLocation(scaled_program, "env_");
@@ -958,9 +992,11 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     u_focus = gl_GetUniformLocation(scaled_program, "focus_sz");
     u_dof_radius = gl_GetUniformLocation(scaled_program, "dof_radius");
     u_aperture = gl_GetUniformLocation(scaled_program, "aperture");
+    u_near_blur = gl_GetUniformLocation(scaled_program, "near_blur");
     u_blur_lit = gl_GetUniformLocation(blur_program, "lit");
     u_blur_view = gl_GetUniformLocation(blur_program, "view");
     u_blur_radius = gl_GetUniformLocation(blur_program, "max_radius");
+    u_blur_keep = gl_GetUniformLocation(blur_program, "keep_mask");
     u_fxaa_image = gl_GetUniformLocation(fxaa_program, "image");
     u_fxaa_texel = gl_GetUniformLocation(fxaa_program, "texel");
     u_tilt = gl_GetUniformLocation(scaled_program, "tilt");
@@ -1121,6 +1157,8 @@ static int downsample_ready(void)
     }
     return state > 0;
 }
+#include "post_gl.inc" /* the post stack: grade pass, Gaussian bloom, meter */
+
 /* ---- Brightness (settings brightness 0..100, System > Display) ----
  * 50 leaves the picture untouched: no pass runs (bit-identical). Otherwise
  * the post chain gets one more stage: what would have gone to the window
@@ -1174,27 +1212,6 @@ static void brightness_draw(int view_x, int view_y)
     gl_Uniform2i(u_brightness_origin, view_x, view_y);
     gl_Uniform1f(u_brightness_factor, pc_present_brightness_factor());
     gl_DrawArrays(GL_TRIANGLES, 0, 3);
-}
-
-/* Focal depth (GTE SZ) for depth of field; 0 lets the shader pick (auto).
- * On Ashley: her chest's depth, eased so focus pulls rather than snaps. */
-static float focus_depth(void)
-{
-    static float eased;
-    if (pc_post_focus_mode == 2)
-        return pc_post_focus;
-    struct pc_dev_state s;
-    float r[3][3], t[3], h, ox, oy;
-    if (pc_post_focus_mode != 0 || !pc_dev_state || !pc_scene_camera_get(r, t, &h, &ox, &oy))
-        return 0;
-    pc_dev_state(&s);
-    if (!s.has_player)
-        return 0;
-    float target = r[2][0] * s.x + r[2][1] * (s.y - 96) + r[2][2] * s.z + t[2];
-    if (target <= 16)
-        return 0;
-    eased = eased > 0 ? eased + (target - eased) * 0.2f : target;
-    return eased;
 }
 
 /* RPC present_dump: the next presented window image goes to this PPM
@@ -1484,6 +1501,9 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
     if (pc_hw_active)
         pc_hw_set_display(x, y, w, h);
     GLuint target = pc_hw_active ? pc_hw_target() : 0;
+    pc_post_frame_get(&post_frame); /* the post profile for this present */
+    /* The grade pass's programs, made now (not between the present shader's uniforms). */
+    int grade_ready = post_frame.grade && pc_hw_active && post_ready();
     /* 24-bit display (movie frames from the MDEC): the scaled target only
      * holds 15-bit pixels, so present native VRAM. */
     if (pc_display_rgb24)
@@ -1524,13 +1544,16 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
             gl_Uniform1i(u_scaled_filtered, pc_gl_filter);
             gl_Uniform2f(u_scaled_view, (float)lit_w, (float)lit_h);
             gl_Uniform1i(u_scaled_show_depth, pc_gl_show_depth);
-            gl_Uniform1i(u_post, pc_post_flags);
-            gl_Uniform1f(u_focus, focus_depth());
-            gl_Uniform1f(u_dof_radius, pc_post_dof_radius * lit_h / 720.0f);
-            gl_Uniform1f(u_aperture, pc_post_aperture);
-            gl_Uniform3f(u_tilt, pc_post_tilt[0], pc_post_tilt[1], pc_post_tilt[2] * lit_h / 720.0f);
-            gl_Uniform4f(u_fog, pc_post_fog[0], pc_post_fog[1], pc_post_fog[2], pc_post_fog[3]);
-            gl_Uniform2f(u_fog_range, pc_post_fog_range[0], pc_post_fog_range[1]);
+            const pc_post_frame* pf = &post_frame;
+            /* 8: HDR out, when the grade pass (below) runs and tone maps (post.h hdr). */
+            gl_Uniform1i(u_post, pf->flags | (pf->hdr && !pc_gl_show_depth && grade_ready ? 8 : 0));
+            gl_Uniform1f(u_focus, pf->focus_sz);
+            gl_Uniform1f(u_dof_radius, pf->dof_radius * lit_h / 720.0f);
+            gl_Uniform1f(u_aperture, pf->aperture);
+            gl_Uniform1f(u_near_blur, pf->near_blur);
+            gl_Uniform3f(u_tilt, pf->tilt[0], pf->tilt[1], pf->tilt[2] * lit_h / 720.0f);
+            gl_Uniform4f(u_fog, pf->fog[0], pf->fog[1], pf->fog[2], pf->fog[3]);
+            gl_Uniform2f(u_fog_range, pf->fog_range[0], pf->fog_range[1]);
             {
                 /* Lighting: world-space lights and the projection to invert. */
                 /* Up to GL_LIGHTS lights (the most important past that: lights.cpp);
@@ -1609,6 +1632,10 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
                         /* the uniform haze alone with nothing to light it would only darken: as before, none */
                         && (traced_haze || count > 0 || pc_env_gpu_get(&(pc_env_gpu){ 0 }) || pc_medium_has_fog());
                     gl_Uniform4fv(u_medium, PC_MEDIUM_VEC4S, &medium.v[0][0]);
+                    gl_ActiveTexture(GL_TEXTURE17);
+                    gl_BindTexture(GL_TEXTURE_3D, pc_gl_medium_texture());
+                    gl_Uniform1i(u_medium_tex, 17);
+                    gl_ActiveTexture(GL_TEXTURE0);
                 }
                 gl_Uniform4f(u_quality0, medium_on && !traced_haze ? 1.0f : 0.0f, pc_fog_anisotropy, pc_ao_radius,
                     pc_ao_strength);
@@ -1705,16 +1732,21 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
         /* The post chain (antialias.h): the lit image -> [FXAA | SMAA] -> [depth of field blur] ->
          * [supersampling's downsample] -> the window. */
         int post = target && (pc_gl_aa == PC_AA_FXAA || (pc_gl_aa == PC_AA_SMAA && smaa_ready())) ? pc_gl_aa : PC_AA_OFF;
-        int blur = target && !pc_gl_show_depth && (pc_post_flags & 3);
-        int stages = 1 + (post != PC_AA_OFF) + blur + ssaa;
+        int blur = target && !pc_gl_show_depth && (post_frame.flags & 3);
+        /* The post stack's grade pass (post.h): only when an effect is on; never on the depth view. */
+        int grade = target && !pc_gl_show_depth && grade_ready;
+        pc_post_active_grade = grade;
+        if (!grade)
+            pc_post_active_bloom = 0;
+        int stages = 1 + (post != PC_AA_OFF) + blur + grade + ssaa;
         if ((stages > 1 && !ensure_view_target(&chain[0], lit_w, lit_h))
             || (stages > 2 && !ensure_view_target(&chain[1], lit_w, lit_h)))
-            stages = 1, post = PC_AA_OFF, blur = ssaa = 0; /* (lit_w/h only matter with stages > 1) */
+            stages = 1, post = PC_AA_OFF, blur = ssaa = grade = 0; /* (lit_w/h only matter with stages > 1) */
         if (post == PC_AA_SMAA
             && (!ensure_target_format(&smaa_edges, lit_w, lit_h, GL_RG8)
                 || !ensure_target_format(&smaa_weights, lit_w, lit_h, GL_RGBA8))) {
             post = PC_AA_OFF;
-            stages = 1 + blur + ssaa;
+            stages = 1 + blur + grade + ssaa;
         }
         stages += brightness_stage;
         int view_x = pc_gl_view[0], view_y = window_h - pc_gl_view[1] - view_h;
@@ -1778,9 +1810,16 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
             gl_BindTexture(GL_TEXTURE_2D, source);
             gl_Uniform1i(u_blur_lit, 0);
             gl_Uniform2f(u_blur_view, (float)lit_w, (float)lit_h);
-            float most = pc_post_dof_radius > pc_post_tilt[2] ? pc_post_dof_radius : pc_post_tilt[2];
+            float most = post_frame.dof_radius > post_frame.tilt[2] ? post_frame.dof_radius : post_frame.tilt[2];
             gl_Uniform1f(u_blur_radius, most * lit_h / 720.0f);
+            gl_Uniform1i(u_blur_keep, grade);
             gl_DrawArrays(GL_TRIANGLES, 0, 3);
+        }
+        if (grade) {
+            GLuint source = input;
+            input = stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
+            int last = stage + 1 >= stages;
+            gl_grade(&post_frame, source, lit_w, lit_h, view_w, view_h, last ? view_x : 0, last ? view_y : 0, last);
         }
         if (ssaa) {
             GLuint source = input;

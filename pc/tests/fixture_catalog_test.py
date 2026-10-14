@@ -64,6 +64,8 @@ def schema(cat, prefabs):
             problems.append(f"class {name}: prefab {c.get('prefab')} not in pc/assets/prefabs")
         if c.get("glow") not in ("leave", "drive", "suppress"):
             problems.append(f"class {name}: glow {c.get('glow')}")
+        if c.get("glow_shape", "auto") not in ("auto", "sphere", "column"):
+            problems.append(f"class {name}: glow_shape {c.get('glow_shape')}")
         for k in c.get("params", {}):
             if k not in prefabs.get(c.get("prefab"), set()):
                 problems.append(f"class {name}: {k} is not a parameter of {c.get('prefab')}")
@@ -108,7 +110,8 @@ def schema(cat, prefabs):
     walk(cat)
     allowed = set(cat["classes"]) | set(prefabs) | {"none", "leave", "drive", "suppress", "high", "medium", "low",
                                                     "scan", "new", "checked", "fire", "lamp", "magic", "window",
-                                                    "shaft", "decal", "non", "other"}
+                                                    "shaft", "decal", "non", "other",
+                                                    "auto", "sphere", "column"}  # glow_shape
     odd = sorted(w for w in words if w not in allowed and not re.fullmatch(r"T\d{3}", w))
     check(not odd, f"only our own words, ids and hashes in the catalog ({odd[:8]})")
     check(fl.json_write(cat) + "\n" == text, "the catalog is in canonical form (as fixture_lib and the editor write it)")

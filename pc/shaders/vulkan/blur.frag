@@ -7,12 +7,13 @@ layout(binding = 0) uniform sampler2D lit;
 layout(push_constant) uniform Push {
     vec2 view;
     float max_radius;
+    float keep_mask; // a grade pass follows: alpha 9999 stays on 2D/UI
 } pc;
 const float golden = 2.39996323;
 void main() {
     vec2 st = uv; // the intermediate image's rows count from the top, as uv does
     vec4 c0 = texture(lit, st);
-    if (c0.a > 9000.0) { color = vec4(c0.rgb, 1.0); return; }
+    if (c0.a > 9000.0) { color = vec4(c0.rgb, pc.keep_mask != 0.0 ? 9999.0 : 1.0); return; }
     float r0 = abs(c0.a), radius = r0;
     for (int i = 0; i < 12; i++) {
         float a = float(i) * 0.5236;

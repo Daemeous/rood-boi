@@ -1183,3 +1183,58 @@ After the fixes: HAZARD 0, REVIEW 0, benign 34. Not covered: calls through
 function pointers and casts at the call site (no declaration DIE), units the
 port does not compile (ENDING), and alias views that are not in any
 prototype (the audit's struct tables cover those).
+
+**Import aliases across the native move (2026-10-13).** splat names words
+inside structs and arrays separately, so units often reach one guest word
+under two import names. `build_boot.py --arch 64` moves an import whose
+declared type holds host pointers to a native 8-byte slot, while a struct
+import whose pointers are `psx_ptr` stays at its PS1 address: if one name is a
+field of the other, they become two storages. The levelled-spell crash was
+one (`D_800F5798` = `D_800F56C8.unkD0`, fixed in 6F014.c). The mover already
+refuses the other direction (a guest import inside a moved region) and merges
+overlapping moved imports.
+
+`pc/tools/lp64_alias_scan.py` checks the whole class. `build_boot.py --arch 64`
+now writes its view of every data import to `pc/build/boot64/lp64_imports.json`
+(PS1 address, overlay group, moved or not, each object's DWARF type with its
+PS1 size, pointer kind and flattened field offsets from `import_types.py`).
+The scanner reports every import inside another import's PS1 extent (largest
+complete declaration) in the same group: HAZARD when exactly one of the two
+moved; REVIEW (with `--review`) when both stay guest but the alias is larger
+than the field it lands on or reads a `psx_ptr` field as an integer. Imports
+of overlays never loaded together (two PLGs at one address, different
+`name__overlay` renames) are skipped; `EXTENTS` overrides a container whose
+declaration is larger than the data the game reaches through it
+(`SfxSoundChannels[12]` is really 2 channels after `D_80035910[10]`: 25AC.c
+indexes `SfxSoundChannels[-10..1]`). `decl_mismatch.py` runs it and counts its
+HAZARDs (keep `--review` at HAZARD 0); `run.py` runs
+`pc/tests/lp64_alias_scan_test.py` (synthetic cases always, the 64-bit build's
+JSON when present).
+
+First run: 2 HAZARD (after the two sound-channel false positives above), both
+fixed under `ROOD_PC` in 146C.c by going through `_zoneContext` and no longer
+referencing the alias (commit-check "All files match"):
+
+- *`D_800F188C` = `_zoneContext.zndEnemies`* (+0xC). `func_800775C0` reads the
+  second model id of a two-model enemy (SHP ids flagged in `D_8004FE88`: Ghost
+  26, Wraith 71, Guildenstern 79/175) through it; on LP64 the native slot was
+  never written, so entering any room with a Ghost (Catacombs, Sanctum)
+  segfaulted at 146C.c:6584.
+- *`D_800F18E4` = `_zoneContext.mpdEnemies`* (+0x64). `func_8008A3A0` (leaving
+  a room) frees the room's spawn table through it; on LP64 it read NULL, so
+  every room with enemies leaked its table from the game heap (13 blocks per
+  Catacombs round trip).
+
+`pc/tests/two_model_enemy_smoke.py` (suite `two_model_enemy_smoke`) warps from
+the save to the Lamenting Mother (zone 13 room 4, one Ghost): a two-model actor
+(`unk40` = 2), frames drawn, 300 vsyncs played, and the heap's free total equal
+on each of three returns from room 1. Without the fixes the 64-bit build
+crashes there; with only the first, the free total drops 13 blocks per return.
+
+The 9 REVIEW items are LP64-neutral (both names stay guest, same bytes):
+over-declared sound tables (`D_80035910`, `D_80036770`, `g_InstrumentInfo`,
+`D_80037790`), `D_8005046C` (int over `D_80050468.frames`), `_dsControlBuf`
+(over `vs_main_disk.cdLoc`), `D_800F18C8` (24 bytes from `_zoneContext.unk48`
+on), `D_800F4438`, `D_800F5234`. Not covered: containers declared only as
+incomplete arrays (no extent), and aliases created by pointer arithmetic
+rather than a second import name.

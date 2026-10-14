@@ -96,6 +96,8 @@ void apply_fields(Type& t, const Json& j, bool own)
         t.prefab = p->string, mark("prefab");
     if (const Json* g = j.get("glow"))
         t.glow = glow_of(g, t.glow), mark("glow");
+    if (const Json* g = j.get("glow_shape"); g && g->type == Json::String)
+        t.glow_shape = g->string == "sphere" ? 1 : g->string == "column" ? 2 : 0, mark("glow_shape");
     if (const Json* e = j.get("enabled"); e && e->type == Json::Bool)
         t.enabled = e->boolean, mark("enabled");
     if (const Json* h = j.get("haze"); h && h->type == Json::Bool)
@@ -384,4 +386,9 @@ extern "C" int pc_fixture_glow_mode(const char* type)
 {
     const fixtures::Type* t = type ? fixtures::find(type) : nullptr;
     return t ? t->glow : -1;
+}
+extern "C" int pc_fixture_glow_shape(const char* type)
+{
+    const fixtures::Type* t = type ? fixtures::find(type) : nullptr;
+    return t ? t->glow_shape : 0;
 }

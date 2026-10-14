@@ -30,9 +30,11 @@ layout(std140, binding = 4) uniform Haze {
     vec4 previous_rotation[3]; // previous world -> view (rows), w: translation
     vec4 previous_projection; // hx, hh, ofx, ofy
     vec4 previous_range; // znear, log(zfar / znear)
-    vec4 medium_[250]; // the room's medium (medium.glsl, atmosphere.h)
+    vec4 medium_[165]; // the room's medium (medium.glsl, atmosphere.h)
 } h;
 #define MEDIUM(i) h.medium_[i]
+layout(binding = 11) uniform sampler3D medium_tex; // the medium's texture (atmosphere.h pc_medium_texture)
+#define MEDIUM_TEX medium_tex
 #include "medium.glsl"
 layout(binding = 5, rgba16f) uniform writeonly image2D scatter_out;
 layout(binding = 6) uniform sampler2D history;
@@ -63,8 +65,8 @@ vec3 source_light(int i, vec3 x, out vec3 l, out float d) {
         else centre += (vec3(rand(), rand(), rand()) - 0.5) * 2.0 * point_size(i);
     } else {
         int e = i - light_count; pos = emitter_pos[e]; col = emitter_col[e].rgb * fog_glow;
-        vec3 r = vec3(rand(), rand(), rand()) * 2.0 - 1.0;
-        centre = pos.xyz + normalize(r + 1e-4) * pow(rand(), 0.333) * abs(emitter_col[e].w);
+        float a = rand(), b = rand(), c = rand();
+        centre = emitter_sample(e, vec4(a, b, c, rand())); // its sphere or column (rt_lights.glsl)
     }
     vec3 to = centre - x; d = length(to); l = to / max(d, 1e-3);
     float f = clamp(d / pos.w, 0.0, 1.0);

@@ -172,7 +172,7 @@ static void shields()
 }
 static pc_ui_request pop()
 {
-    pc_ui_request r = {PC_UI_REQ_NONE, 0, 0, 0};
+    pc_ui_request r = {PC_UI_REQ_NONE, 0, 0, 0, 0};
     if (!pc_ui_shell_pop_request(&r))
         r.kind = PC_UI_REQ_NONE;
     return r;
@@ -1348,6 +1348,328 @@ static void magick_tests()
     pc_ui_shell_close();
 }
 
+
+// ---- Items ----
+static pc_ui_items items_model_storage;
+static pc_ui_items& items_model()
+{
+    pc_ui_items& m = items_model_storage;
+    m = pc_ui_items();
+    m.valid = 1;
+    static const int caps[PC_UI_ITEM_CATEGORIES] = {8, 16, 16, 8, 16, 48, 64};
+    static const int counts[PC_UI_ITEM_CATEGORIES] = {2, 1, 0, 0, 0, 1, 3};
+    int n = 0;
+    for (int c = 0; c < PC_UI_ITEM_CATEGORIES; ++c) {
+        m.capacity[c] = caps[c];
+        m.first[c] = n;
+        m.count[c] = counts[c];
+        for (int r = 0; r < counts[c]; ++r) {
+            pc_ui_item_row& e = m.rows[n++];
+            e.inventory = r + 2;
+            e.id = 100 + c * 10 + r;
+            e.parent = e.parent_category = -1;
+            std::snprintf(e.name, sizeof e.name, "c%dr%d", c, r);
+            e.discard = 1;
+        }
+        m.sort_count[c] = c == PC_UI_IC_MISC ? 2 : 3;
+        m.sort_stats[c][0] = 0;
+        m.sort_stats[c][1] = c == PC_UI_IC_MISC ? 56 : 8;
+        m.sort_stats[c][2] = 9;
+    }
+    // weapons: row 0 equipped (not discardable); blades: row 0 in weapon 1 (row 1 of weapons)
+    m.rows[0].mark = PC_UI_MARK_EQUIPPED;
+    m.rows[0].discard = 0;
+    std::snprintf(m.rows[0].discard_reason, sizeof m.rows[0].discard_reason, "Equipped.");
+    pc_ui_item_row& blade = m.rows[m.first[PC_UI_IC_BLADE]];
+    blade.mark = PC_UI_MARK_SET;
+    blade.discard = 0;
+    blade.parent_category = PC_UI_IC_WEAPON;
+    blade.parent = m.rows[1].inventory;
+    // misc: a stack of 25 (usable), a single (not usable: MP), a key (nothing)
+    pc_ui_item_row* misc = &m.rows[m.first[PC_UI_IC_MISC]];
+    misc[0].count = 25, misc[0].usable = 1, misc[0].discard_all = 1, misc[0].action = 0xE0;
+    misc[1].count = 1, misc[1].discard_all = 1;
+    std::snprintf(misc[1].use_reason, sizeof misc[1].use_reason, "Not enough MP.");
+    misc[2].count = 1, misc[2].discard = 0;
+    std::snprintf(misc[2].use_reason, sizeof misc[2].use_reason, "Cannot use.");
+    std::snprintf(misc[2].discard_reason, sizeof misc[2].discard_reason, "Cannot discard.");
+    std::snprintf(misc[2].discard_all_reason, sizeof misc[2].discard_all_reason, "Cannot discard.");
+    std::snprintf(m.stat_name[0], sizeof m.stat_name[0], "Kind");
+    std::snprintf(m.stat_name[56], sizeof m.stat_name[56], "Quantity");
+    std::snprintf(m.no_search, sizeof m.no_search, "Not part of anything.");
+    for (int i = 0; i < 3; ++i)
+        std::snprintf(m.discard_prompt[i], sizeof m.discard_prompt[i], "Discard %d?", i);
+    return m;
+}
+static bool item_req(int kind, int cat, int item_, int shield, int count = 0)
+{
+    pc_ui_request r = pop();
+    bool ok = r.kind == kind && r.slot == cat && r.item == item_ && r.shield == shield && r.count == count;
+    if (!ok)
+        std::printf("  item request: kind %d slot %d item %d shield %d count %d\n", r.kind, r.slot, r.item, r.shield,
+            r.count);
+    return ok;
+}
+static void items_tests()
+{
+    pc_ui_commands all = {0x3FF, 0, 0};
+    pc_ui_shell_open(&all, 0);
+    pc_ui_shell_set_items(&items_model());
+    for (int i = 0; i < 2; ++i) tick(PC_UI_TAB_NEXT); // Ashley Equipment Items
+    CHECK(json_has("\"tab\":\"items\"") && json_has("\"screen\":\"items\""));
+    CHECK(pc_ui_shell_screen() == PC_UI_SCREEN_ITEMS);
+    CHECK(json_has("\"category\":\"weapons\",\"mode\":\"list\",\"cursor\":0,\"rows\":2,\"capacity\":8,\"inventory\":2"));
+    int cat, inv;
+    CHECK(pc_ui_shell_items_focus(&cat, &inv) && cat == PC_UI_IC_WEAPON && inv == 2);
+    // Down / Up wrap
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    CHECK(json_has("\"cursor\":0,"));
+    tick(PC_UI_UP);
+    CHECK(json_has("\"cursor\":1,\"rows\":2"));
+    // R2 / L2 categories (wrapping, empty ones too)
+    tick(PC_UI_SUB_PREV);
+    CHECK(json_has("\"category\":\"misc\",\"mode\":\"list\",\"cursor\":0,\"rows\":3,\"capacity\":64"));
+    tick(PC_UI_SUB_NEXT);
+    CHECK(json_has("\"category\":\"weapons\",\"mode\":\"list\",\"cursor\":1"));
+    // the equipped weapon: Discard greyed with the reason (asked anyway: the bridge buzzes); no Use
+    tick(PC_UI_UP);
+    CHECK(tick(PC_UI_CONFIRM) == 0 && json_has("\"mode\":\"actions\""));
+    CHECK(json_has("\"actions\":[{\"id\":\"discard\",\"enabled\":false,\"reason\":\"Equipped.\"},{\"id\":\"sort\","
+                   "\"enabled\":true},{\"id\":\"move\",\"enabled\":true},{\"id\":\"original\",\"enabled\":true}]"));
+    tick(PC_UI_CONFIRM);
+    CHECK(item_req(PC_UI_REQ_ITEM_DISCARD, PC_UI_IC_WEAPON, 0, 2));
+    CHECK(json_has("\"mode\":\"actions\""));
+    // Move: the target row, Circle swaps (from 0 to 1); the cursor stays on the target
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    CHECK(json_has("\"action\":2"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"move\"") && json_has("\"move_from\":0"));
+    pc_ui_items_view v;
+    pc_ui_shell_items_view(&v);
+    CHECK(v.mode == PC_UI_IT_MOVE && v.move_from == 0 && v.actions == 4 && v.action_kind[2] == PC_UI_ITA_MOVE);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(item_req(PC_UI_REQ_ITEM_MOVE, PC_UI_IC_WEAPON, 0, 1, 2)); // the moved row's inventory index as seen
+    CHECK(json_has("\"mode\":\"list\",\"cursor\":1"));
+    // Move onto itself: nothing
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM);
+    CHECK(queue_empty() && json_has("\"mode\":\"list\""));
+    // Sort: the category's stats; Circle sorts by the stat id (the row and its inventory index as seen)
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM); // weapon 1: discard (enabled), sort...: row 1 is Sort
+    CHECK(json_has("\"mode\":\"sort\"") && json_has("\"sort\":{\"cursor\":0,\"stats\":[{\"stat\":0,\"name\":\"Kind\"}"));
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(item_req(PC_UI_REQ_ITEM_SORT, PC_UI_IC_WEAPON, 1, 3, 8));
+    // Cross steps back: sort -> actions -> list; in the list it closes
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"sort\""));
+    CHECK(tick(PC_UI_BACK) == 0 && json_has("\"mode\":\"actions\""));
+    CHECK(tick(PC_UI_BACK) == 0 && json_has("\"mode\":\"list\""));
+    // a non-misc discard: Yes / No (it opens on No, as the original's), Yes asks for it (count 1 is ignored by
+    // the bridge); No asks for the leave sound
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"confirm\"") && json_has("\"confirm\":{\"kind\":\"discard\",\"yes\":false,\"prompt\":\"Discard 0?\"}"));
+    tick(PC_UI_CONFIRM); // No
+    CHECK(item_req(PC_UI_REQ_ITEM_CANCEL, PC_UI_IC_WEAPON, 1, 3, 1) && json_has("\"mode\":\"list\""));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_UP);
+    CHECK(json_has("\"yes\":true"));
+    tick(PC_UI_CONFIRM); // Yes
+    CHECK(item_req(PC_UI_REQ_ITEM_DISCARD, PC_UI_IC_WEAPON, 1, 3, 1));
+    // Square: details (Up/Down still move, Square back); the focus follows
+    tick(PC_UI_ALT);
+    CHECK(json_has("\"mode\":\"details\""));
+    tick(PC_UI_UP);
+    CHECK(pc_ui_shell_items_focus(&cat, &inv) && inv == 2);
+    tick(PC_UI_ALT);
+    CHECK(json_has("\"mode\":\"list\""));
+    // Search: a blade in a weapon focuses the weapon
+    tick(PC_UI_SUB_NEXT);
+    CHECK(json_has("\"category\":\"blades\""));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"actions\":[{\"id\":\"search\",\"enabled\":true}"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"category\":\"weapons\",\"mode\":\"list\",\"cursor\":1"));
+    // misc: Use (asks the bridge), the quantity picker, discard all
+    tick(PC_UI_SUB_PREV);
+    CHECK(json_has("\"category\":\"misc\",\"mode\":\"list\",\"cursor\":0"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"actions\":[{\"id\":\"use\",\"enabled\":true},{\"id\":\"discard\",\"enabled\":true},"
+                   "{\"id\":\"discard_all\",\"enabled\":true},{\"id\":\"sort\",\"enabled\":true},{\"id\":\"move\","
+                   "\"enabled\":true},{\"id\":\"original\",\"enabled\":true}]"));
+    CHECK(tick(PC_UI_CONFIRM) == 0 && pc_ui_shell_visible());
+    CHECK(item_req(PC_UI_REQ_ITEM_USE, PC_UI_IC_MISC, 0, 2));
+    CHECK(json_has("\"mode\":\"actions\"")); // the bridge closes the menu for it; refused, the menu stays
+    tick(PC_UI_BACK);
+    // the quantity picker (_discardMenu): starts at 0 step 1
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"quantity\"") && json_has("\"quantity\":{\"count\":0,\"max\":25,\"step\":1}"));
+    tick(PC_UI_DOWN); // below 0: nothing
+    CHECK(json_has("\"count\":0,"));
+    tick(PC_UI_UP);
+    tick(PC_UI_UP);
+    CHECK(json_has("\"count\":2,\"max\":25,\"step\":1"));
+    tick(PC_UI_LEFT); // step 10
+    tick(PC_UI_UP);
+    tick(PC_UI_UP);
+    CHECK(json_has("\"count\":22,\"max\":25,\"step\":10"));
+    tick(PC_UI_UP); // 32 > 25: nothing
+    CHECK(json_has("\"count\":22,"));
+    tick(PC_UI_LEFT); // step 100
+    tick(PC_UI_LEFT); // past 100: all
+    CHECK(json_has("\"count\":25,\"max\":25,\"step\":100"));
+    tick(PC_UI_RIGHT);
+    tick(PC_UI_RIGHT);
+    CHECK(json_has("\"count\":25,\"max\":25,\"step\":1"));
+    tick(PC_UI_RIGHT); // past 1: none
+    CHECK(json_has("\"count\":0,\"max\":25,\"step\":1"));
+    tick(PC_UI_CONFIRM); // none: back to the list (the bridge plays the leave sound)
+    CHECK(item_req(PC_UI_REQ_ITEM_CANCEL, PC_UI_IC_MISC, 0, 2, 0) && json_has("\"mode\":\"list\""));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_UP);
+    tick(PC_UI_UP);
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    // the original's discardMultipleConfirm asks discardConfirm (0), not the picker's own message (1)
+    CHECK(json_has("\"mode\":\"confirm\"") && json_has("\"prompt\":\"Discard 0?\""));
+    CHECK(tick(PC_UI_BACK) == 0 && json_has("\"mode\":\"quantity\"") && json_has("\"count\":3,"));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(item_req(PC_UI_REQ_ITEM_DISCARD, PC_UI_IC_MISC, 0, 2, 3));
+    // discard all
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"confirm\":{\"kind\":\"discard_all\",\"yes\":false,\"prompt\":\"Discard 2?\"}"));
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(item_req(PC_UI_REQ_ITEM_DISCARD_ALL, PC_UI_IC_MISC, 0, 2));
+    // the single without MP: Use greyed with the reason (asked anyway); discard straight to Yes / No
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"actions\":[{\"id\":\"use\",\"enabled\":false,\"reason\":\"Not enough MP.\"}"));
+    tick(PC_UI_CONFIRM);
+    CHECK(item_req(PC_UI_REQ_ITEM_USE, PC_UI_IC_MISC, 1, 3));
+    CHECK(json_has("\"mode\":\"actions\"") && json_has("\"action\":0")); // refused: the menu stays, the reason shown
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"confirm\"") && json_has("\"prompt\":\"Discard 0?\""));
+    tick(PC_UI_BACK);
+    CHECK(json_has("\"mode\":\"actions\""));
+    tick(PC_UI_BACK);
+    // a key: nothing selectable but the original screen
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("{\"id\":\"use\",\"enabled\":false,\"reason\":\"Cannot use.\"},{\"id\":\"discard\",\"enabled\":false,"
+                   "\"reason\":\"Cannot discard.\"},{\"id\":\"discard_all\",\"enabled\":false,\"reason\":\"Cannot discard.\"}"));
+    tick(PC_UI_BACK);
+    // misc sort: by id or quantity (56)
+    tick(PC_UI_CONFIRM);
+    for (int i = 0; i < 3; ++i) tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(item_req(PC_UI_REQ_ITEM_SORT, PC_UI_IC_MISC, 2, 4, 56));
+    // an empty category: only the original screen
+    tick(PC_UI_SUB_NEXT);
+    tick(PC_UI_SUB_NEXT);
+    tick(PC_UI_SUB_NEXT);
+    CHECK(json_has("\"category\":\"grips\",\"mode\":\"list\",\"cursor\":0,\"rows\":0"));
+    CHECK(!pc_ui_shell_items_focus(&cat, &inv));
+    tick(PC_UI_ALT);
+    CHECK(json_has("\"mode\":\"list\""));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"actions\":[{\"id\":\"original\",\"enabled\":true}]"));
+    CHECK(tick(PC_UI_CONFIRM) == 4 && !pc_ui_shell_visible());
+    // reopened (a return): the category and row are kept, the menu is not; the misc cursor survives a
+    // cancelled Use (the shell comes back on the item)
+    pc_ui_shell_open(&all, 1);
+    CHECK(json_has("\"category\":\"grips\",\"mode\":\"list\""));
+    tick(PC_UI_SUB_NEXT);
+    tick(PC_UI_SUB_NEXT);
+    tick(PC_UI_SUB_NEXT);
+    tick(PC_UI_SUB_NEXT);
+    tick(PC_UI_UP); // the key's row 2 -> 1
+    tick(PC_UI_CONFIRM);
+    pc_ui_shell_close();
+    pc_ui_shell_open(&all, 1);
+    CHECK(json_has("\"category\":\"misc\",\"mode\":\"list\",\"cursor\":1"));
+    // locked (the snapshot's mask): every action greyed with its reason but the original screen
+    {
+        pc_ui_items& m = items_model();
+        m.locked = 1;
+        m.mask = 2;
+        std::snprintf(m.locked_reason, sizeof m.locked_reason, "Not while carrying a cube.");
+        for (int i = 0; i < PC_UI_ITEM_ROWS; ++i) {
+            m.rows[i].discard = m.rows[i].discard_all = m.rows[i].usable = 0;
+            std::snprintf(m.rows[i].use_reason, sizeof m.rows[i].use_reason, "Not while carrying a cube.");
+            std::snprintf(m.rows[i].discard_reason, sizeof m.rows[i].discard_reason, "Not while carrying a cube.");
+        }
+        pc_ui_shell_set_items(&m);
+        CHECK(json_has("\"locked\":true") && json_has("\"reason\":\"Not while carrying a cube.\""));
+        tick(PC_UI_CONFIRM);
+        CHECK(json_has("{\"id\":\"sort\",\"enabled\":false,\"reason\":\"Not while carrying a cube.\"},{\"id\":\"move\","
+                       "\"enabled\":false,\"reason\":\"Not while carrying a cube.\"},{\"id\":\"original\",\"enabled\":true}"));
+        tick(PC_UI_BACK);
+        pc_ui_shell_set_items(&items_model());
+    }
+    // mouse: a category chip, a row (hover focuses, click opens the actions), a menu row (click selects)
+    pc_ui_shell_mouse(PC_UI_MOUSE_SUB, PC_UI_IC_WEAPON, 1, 0);
+    tick(0);
+    CHECK(json_has("\"category\":\"weapons\",\"mode\":\"list\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_ITEM, 1, 0, 0);
+    tick(0);
+    CHECK(json_has("\"cursor\":1,"));
+    pc_ui_shell_mouse(PC_UI_MOUSE_ITEM, 0, 1, 0);
+    tick(0);
+    CHECK(json_has("\"mode\":\"actions\",\"cursor\":0"));
+    pc_ui_shell_mouse(PC_UI_MOUSE_ITEM_MENU, 1, 1, 0); // Sort
+    tick(0);
+    CHECK(json_has("\"mode\":\"sort\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_ITEM, 1, 1, 0); // a list row while a menu is open: back to the list on it
+    tick(0);
+    CHECK(json_has("\"mode\":\"list\",\"cursor\":1"));
+    CHECK(queue_empty());
+    // the list shrinks under the cursor (an item used up): clamped
+    {
+        pc_ui_items& m = items_model();
+        m.count[PC_UI_IC_WEAPON] = 1;
+        pc_ui_shell_set_items(&m);
+        CHECK(json_has("\"category\":\"weapons\",\"mode\":\"list\",\"cursor\":0,\"rows\":1"));
+    }
+    // Triangle closes from a menu too
+    tick(PC_UI_CONFIRM);
+    CHECK(tick(PC_UI_EXIT) == -1);
+    // and from the quantity picker, as the original's (Cross goes back one level instead)
+    pc_ui_shell_open(&all, 1);
+    tick(PC_UI_SUB_PREV);
+    tick(PC_UI_UP); // the stack of 25 (the misc cursor was kept on row 1)
+    CHECK(json_has("\"category\":\"misc\",\"mode\":\"list\",\"cursor\":0"));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"quantity\""));
+    CHECK(tick(PC_UI_EXIT) == -1 && !pc_ui_shell_visible() && queue_empty());
+}
+
 int main()
 {
     pc_ui_commands all = {0x3FF, 0, 0};
@@ -1391,14 +1713,17 @@ int main()
     // not remembered: back to Ashley
     pc_ui_shell_open(&all, 0);
     CHECK(json_has("\"tab\":\"ashley\""));
-    // Items unselectable (carrying a cube: mask bit 2): greyed with a reason, and confirm still opens
-    // the game's Items (command 3 -> 4), as the original top level does
+    // Items unselectable (carrying a cube: mask bit 2): browse only with a reason (before the bridge's
+    // snapshot: the command row's), and the original Items stays reachable (command 3 -> 4), as the
+    // original top level opens it
     pc_ui_commands no_items = {0x3FF, 8, 0x02};
     pc_ui_shell_open(&no_items, 0);
     for (int i = 0; i < 2; ++i) tick(PC_UI_TAB_NEXT); // Ashley Equipment Items
     CHECK(json_has("\"tab\":\"items\""));
-    CHECK(json_has("\"enabled\":false"));
+    CHECK(json_has("\"locked\":true"));
     CHECK(json_has("\"reason\":\"Not while carrying a cube.\""));
+    CHECK(tick(PC_UI_CONFIRM) == 0 && json_has("\"mode\":\"actions\""));
+    CHECK(json_has("\"actions\":[{\"id\":\"original\",\"enabled\":true}]"));
     CHECK(tick(PC_UI_CONFIRM) == 4);
     CHECK(!pc_ui_shell_visible());
     // the reason follows the game's order (lowest bit the command cares about): cube (2) before hanging (4)
@@ -1488,6 +1813,7 @@ int main()
     ashley_tests();
     abilities_tests();
     magick_tests();
+    items_tests();
     std::printf(failures ? "ui_shell_probe: %d failures\n" : "ui_shell_probe: ok\n", failures);
     return failures != 0;
 }

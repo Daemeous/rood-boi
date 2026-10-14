@@ -14,19 +14,20 @@ int pc_vk_shadows_sun(const float dir[3], float matrix[16], float light[4], floa
 #include "dev_state.h"
 #include "lighting_quality.h"
 #include "antialias.h"
+#include "post.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 extern int pc_display_masked __attribute__((weak)); /* boot_sdk.c SetDispMask */
 extern int pc_display_rgb24, pc_hw_active, pc_hw_scale, pc_gte_widescreen, pc_hw_perspective;
-extern int pc_gl_filter, pc_gl_aspect, pc_gl_show_depth, pc_gl_view_mode, pc_post_flags,
-    pc_post_focus_mode;
+extern int pc_gl_filter, pc_gl_aspect, pc_gl_show_depth, pc_gl_view_mode;
 extern int pc_gl_view[4], pc_gl_display[4], pc_gl_inset[4];
-extern float pc_post_aperture, pc_post_focus, pc_post_dof_radius, pc_post_tilt[3], pc_post_fog[4],
-    pc_post_fog_range[2];
+static pc_post_frame post_frame; /* this present's resolved post profile (post.h) */
+static int post_hdr; /* the present shader's post bit 8: HDR out, the grade pass tone maps */
 extern float pc_shadow_softness, pc_normal_smoothing, pc_lights_baked;
 extern int pc_rt_shadows, pc_gi_enabled, pc_gi_debug, pc_baked_shadows_active;
 extern float pc_gi_strength, pc_fog_density, pc_fog_anisotropy, pc_light_size;
@@ -238,12 +239,12 @@ static VkPipeline fullscreen(VkShaderModule vs, VkShaderModule fs, VkPipelineLay
 }
 static int make_pipelines(void)
 {
-    VkDescriptorType scaled_types[17]; /* 12-15: the probe field (vk_probes.inc); 16: the lights */
-    for (int i = 0; i < 17; i++)
+    VkDescriptorType scaled_types[18]; /* 12-15: the probe field (vk_probes.inc); 16: the lights; 17: the medium's texture */
+    for (int i = 0; i < 18; i++)
         scaled_types[i] = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     scaled_types[0] = scaled_types[12] = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     scaled_types[16] = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    scaled_set = vk_push_layout(scaled_types, 17);
+    scaled_set = vk_push_layout(scaled_types, 18);
     single_set = vk_push_layout(&scaled_types[1], 1);
     triple_set = vk_push_layout(&scaled_types[1], 3);
     scaled_layout = make_layout(scaled_set, 0);
@@ -395,6 +396,55 @@ static int ensure_image(vk_image* image, int w, int h, VkFormat format)
     vk_image_destroy_later(image);
     return vk_image_create(image, w, h, format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 }
+/* The medium's texture (atmosphere.h pc_medium_texture: the detail noise,
+ * the interactive fog's fields), for the present pass's Low haze and the
+ * traced haze (vk_rt.inc): uploaded whole once, then its field slices when
+ * they change (once a vsync at most). Call outside a render pass. */
+VkImageView pc_vk_medium_texture(void)
+{
+    /* One image per frame in flight: the slot's last frame has finished
+     * when it records again, so an upload needs no wait for earlier reads,
+     * and only the passes after it wait for the copy (not a full barrier:
+     * the fields change every vsync while the fog moves). */
+    static vk_image images[VK_FRAMES];
+    static unsigned uploaded[VK_FRAMES];
+    static int whole[VK_FRAMES];
+    vk_image* image = &images[vk.frame];
+    unsigned serial;
+    const unsigned char* texels = pc_medium_texture(&serial);
+    if (!image->image) {
+        if (!vk_image_create_3d(image, PC_MEDIUM_TEX_SIZE, PC_MEDIUM_TEX_SIZE, PC_MEDIUM_TEX_DEPTH, VK_FORMAT_R8G8B8A8_UNORM,
+                VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT))
+            return VK_NULL_HANDLE;
+        whole[vk.frame] = 1;
+    }
+    if (whole[vk.frame] || serial != uploaded[vk.frame]) {
+        int z0 = whole[vk.frame] ? 0 : PC_MEDIUM_TEX_NOISE, depth = PC_MEDIUM_TEX_DEPTH - z0;
+        size_t slice = (size_t)PC_MEDIUM_TEX_SIZE * PC_MEDIUM_TEX_SIZE * 4, bytes = slice * depth; /* RGBA8 */
+        vk_slice staging = vk_arena(bytes, 16);
+        if (staging.data) {
+            memcpy(staging.data, texels + slice * z0, bytes);
+            vk_end_rendering();
+            VkCommandBuffer cmd = vk_cmd();
+            VkBufferImageCopy region = { .bufferOffset = staging.offset,
+                .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+                .imageOffset = { 0, 0, z0 },
+                .imageExtent = { PC_MEDIUM_TEX_SIZE, PC_MEDIUM_TEX_SIZE, (uint32_t)depth } };
+            vkCmdCopyBufferToImage(cmd, staging.buffer, image->image, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
+            VkMemoryBarrier2 copied = { .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+                .srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
+                .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+                .dstAccessMask = VK_ACCESS_2_SHADER_SAMPLED_READ_BIT };
+            VkDependencyInfo dependency = { .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                .memoryBarrierCount = 1,
+                .pMemoryBarriers = &copied };
+            vkCmdPipelineBarrier2(cmd, &dependency);
+            whole[vk.frame] = 0, uploaded[vk.frame] = serial;
+        }
+    }
+    return image->view;
+}
 /* SMAA's lookup textures, uploaded once (antialias.c). */
 static int smaa_upload(vk_image* image, VkFormat format, const unsigned char* data, int w, int h, int texel_bytes)
 {
@@ -520,25 +570,8 @@ static void brightness_draw(int view_x, int view_y, int view_w, int view_h)
     vkCmdDraw(cmd, 3, 1, 0, 0);
 }
 
-/* Focal depth (as gl_present.c's focus_depth). */
-static float focus_depth(void)
-{
-    static float eased;
-    if (pc_post_focus_mode == 2)
-        return pc_post_focus;
-    struct pc_dev_state s;
-    float r[3][3], t[3], h, ox, oy;
-    if (pc_post_focus_mode != 0 || !pc_dev_state || !pc_scene_camera_get(r, t, &h, &ox, &oy))
-        return 0;
-    pc_dev_state(&s);
-    if (!s.has_player)
-        return 0;
-    float target = r[2][0] * s.x + r[2][1] * (s.y - 96) + r[2][2] * s.z + t[2];
-    if (target <= 16)
-        return 0;
-    eased = eased > 0 ? eased + (target - eased) * 0.2f : target;
-    return eased;
-}
+#include "post_vk.inc" /* the post stack: grade pass, Gaussian and convolution bloom, meter */
+
 /* The game image's rectangle in the window (as gl_present.c's update_view). */
 static void update_view(int* out_w, int* out_h)
 {
@@ -578,14 +611,16 @@ static void fill_present_ubo(present_ubo* u, int x, int y, int w, int h, int vie
 {
     memset(u, 0, sizeof *u);
     u->rect[0] = x, u->rect[1] = y, u->rect[2] = w, u->rect[3] = h;
-    u->i0[0] = pc_hw_scale, u->i0[1] = pc_gl_filter, u->i0[2] = pc_gl_show_depth, u->i0[3] = pc_post_flags;
+    const pc_post_frame* pf = &post_frame;
+    u->i0[0] = pc_hw_scale, u->i0[1] = pc_gl_filter, u->i0[2] = pc_gl_show_depth, u->i0[3] = pf->flags | post_hdr;
     u->view[0] = (float)view_w, u->view[1] = (float)view_h;
-    u->f0[0] = focus_depth();
-    u->f0[1] = pc_post_dof_radius * view_h / 720.0f;
-    u->f0[2] = pc_post_aperture;
-    u->tilt[0] = pc_post_tilt[0], u->tilt[1] = pc_post_tilt[1], u->tilt[2] = pc_post_tilt[2] * view_h / 720.0f;
-    memcpy(u->fog, pc_post_fog, sizeof u->fog);
-    u->fog_range[0] = pc_post_fog_range[0], u->fog_range[1] = pc_post_fog_range[1];
+    u->f0[0] = pf->focus_sz;
+    u->f0[1] = pf->dof_radius * view_h / 720.0f;
+    u->f0[2] = pf->aperture;
+    u->tilt[0] = pf->tilt[0], u->tilt[1] = pf->tilt[1], u->tilt[2] = pf->tilt[2] * view_h / 720.0f;
+    u->tilt[3] = pf->near_blur; /* scaled.frag: the share of the blur in front of the focal plane */
+    memcpy(u->fog, pf->fog, sizeof u->fog);
+    u->fog_range[0] = pf->fog_range[0], u->fog_range[1] = pf->fog_range[1];
     /* Lighting: world-space lights (every one: a storage buffer, binding
      * 16) and the projection to invert. */
     static float lp[PC_LIGHTS_MAX][4], lc[PC_LIGHTS_MAX][4], ld[PC_LIGHTS_MAX][4], lw[PC_LIGHTS_MAX][4],
@@ -801,6 +836,7 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
     if (pc_hw_active)
         pc_hw_set_display(x, y, w, h);
     unsigned target = pc_hw_active ? pc_hw_target() : 0;
+    pc_post_frame_get(&post_frame); /* the post profile for this present */
     /* 24-bit display (movie frames): the scaled target only holds 15-bit
      * pixels, so present native VRAM. */
     if (pc_display_rgb24)
@@ -842,16 +878,22 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             if (pc_aa_ssaa > 1.0f && w * pc_hw_scale > view_w && h * pc_hw_scale > view_h)
                 ssaa = 1, lit_w = w * pc_hw_scale, lit_h = h * pc_hw_scale;
             int post = pc_gl_aa == PC_AA_FXAA || (pc_gl_aa == PC_AA_SMAA && smaa_ready()) ? pc_gl_aa : PC_AA_OFF;
-            int blur = !pc_gl_show_depth && (pc_post_flags & 3);
-            int stages = 1 + (post != PC_AA_OFF) + blur + ssaa;
+            int blur = !pc_gl_show_depth && (post_frame.flags & 3);
+            /* The post stack's grade pass (post.h): only when an effect is on; never on the depth view. */
+            int grade = !pc_gl_show_depth && post_frame.grade && post_vk_ready();
+            pc_post_active_grade = grade;
+            if (!grade)
+                pc_post_active_bloom = 0;
+            post_hdr = grade && post_frame.hdr ? 8 : 0;
+            int stages = 1 + (post != PC_AA_OFF) + blur + grade + ssaa;
             if ((stages > 1 && !ensure_view(&chain[0], lit_w, lit_h))
                 || (stages > 2 && !ensure_view(&chain[1], lit_w, lit_h)))
-                stages = 1, post = PC_AA_OFF, blur = ssaa = 0, lit_w = view_w, lit_h = view_h;
+                stages = 1, post = PC_AA_OFF, blur = ssaa = grade = post_hdr = 0, lit_w = view_w, lit_h = view_h;
             if (post == PC_AA_SMAA
                 && (!ensure_image(&smaa_edges, lit_w, lit_h, EDGES_FORMAT)
                     || !ensure_image(&smaa_weights, lit_w, lit_h, WEIGHTS_FORMAT))) {
                 post = PC_AA_OFF;
-                stages = 1 + blur + ssaa;
+                stages = 1 + blur + grade + ssaa;
             }
             stages += brightness_stage;
             vk_slice ubo = vk_arena(sizeof(present_ubo), vk.properties.limits.minUniformBufferOffsetAlignment);
@@ -873,6 +915,7 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
              * rgb is the field (or zero, per pixel), plus the glows. */
             pu->i1[2] |= (gi || probes == 3 ? 128 : 0) | (probes == 1 ? 64 : 0) | (probes == 3 ? 256 : 0)
                        | (probes && pc_gi_debug == 1 ? 2 : 0) | (probes && gi && pc_gi_debug != 1 ? 1 : 0);
+            VkImageView medium_view = pc_vk_medium_texture(); /* before the pass begins: may upload */
             /* Haze Low (or High where nothing traced it this frame): the room's
              * medium marched per pixel, unshadowed but for the sun's map. */
             pu->quality0[0] = !pc_gl_show_depth && !pu->haze_grid[3]
@@ -900,6 +943,7 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
                 pc_vk_probes_bind(&d, 12);
             vk_descriptors_buffer(&d, 16, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, light_slice.buffer, light_slice.offset,
                 light_bytes);
+            vk_descriptors_image(&d, 17, medium_view, vk.linear);
             vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, scaled_layout);
             vkCmdDraw(cmd, 3, 1, 0, 0);
             if (post != PC_AA_OFF)
@@ -968,11 +1012,18 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
                 vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, stage + 1 < stages ? blur_to_view : blur_to_window);
                 vk_descriptors_image(&d, 0, source->view, vk.linear);
                 vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, blur_layout);
-                float most = pc_post_dof_radius > pc_post_tilt[2] ? pc_post_dof_radius : pc_post_tilt[2];
-                float push[4] = { (float)lit_w, (float)lit_h, most * lit_h / 720.0f, 0 };
+                float most = post_frame.dof_radius > post_frame.tilt[2] ? post_frame.dof_radius : post_frame.tilt[2];
+                float push[4] = { (float)lit_w, (float)lit_h, most * lit_h / 720.0f, grade ? 1.0f : 0.0f };
                 vkCmdPushConstants(cmd, blur_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                     sizeof push, push);
                 vkCmdDraw(cmd, 3, 1, 0, 0);
+            }
+            if (grade) {
+                const vk_image* source = input;
+                input = stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
+                int last = stage + 1 >= stages;
+                vk_grade(&post_frame, source, lit_w, lit_h, view_w, view_h, input, last ? view_x : 0, last ? view_y : 0,
+                    last);
             }
             if (ssaa) {
                 vk_section("downsample");

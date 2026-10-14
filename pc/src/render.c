@@ -40,6 +40,10 @@ int pc_native_actor_order = 1;
  * depth test. The slack: how far behind the nearest room surface (relative,
  * plus GTE units) a polygon still counts as lying on it. */
 int pc_native_room_order = 1;
+/* The PS1 switches far room polygons to the half-size texture on the page
+ * before (distance UV halving). 0: always the full texture (crisp at any
+ * internal scale); 1: as the PS1. */
+int pc_room_texture_lod = 0;
 float pc_native_room_slack[2] = { 0.004f, 2.0f };
 int pc_native_occlusion = 1;
 int pc_native_blend = 1;

@@ -139,6 +139,9 @@ void draw_icon(void* draw_list, float x, float y, float size, const std::string&
 /* lighting_editor.cpp: the room's lighting layers (lighting_layers.h). */
 void ensure_ids(); /* every light and actor has a unique id */
 void layers_load(int zone, int room); /* read the layers, fill the room's lights, actors, overrides */
+/* Leaving a room with unsaved edits: keep them for this session; entering
+ * it again puts them back on top of its layers (still unsaved). */
+void layers_stash();
 bool layers_save(); /* the user layer (status says what happened) */
 void layers_poll(); /* live reload when a layer changed on disk */
 unsigned layers_reload(); /* read the layers from disk now (RPC); returns layers_loads() */

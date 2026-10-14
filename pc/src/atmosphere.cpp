@@ -9,7 +9,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
+#include <stdint.h>
 #include <time.h>
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <functional>
+#include <thread>
 #include <string>
 #include <vector>
 
@@ -17,6 +24,7 @@
 #include "ImGuizmo.h"
 #include "editor_overlays.h"
 #include "editor_undo.h"
+#include "dev_state.h"
 #include "environment.h"
 #include "environment_internal.h"
 #include "fog_sim.h"
@@ -31,6 +39,7 @@ unsigned pc_vsync_count(void) __attribute__((weak)); /* game time */
 extern float pc_fog_anisotropy, pc_fog_density;
 int pc_room_settings_parse(const char* line);
 void pc_lights_mark_dirty(void);
+int pc_lights_snap_at(float x, float y, unsigned modes, int apply, pc_snap_result* out); /* lights.cpp */
 }
 
 int pc_fog_global = 1; /* settings key fog: 0 switches every room's ground fog and volumes off */
@@ -51,8 +60,15 @@ int pc_haze_cell = 4;
 int pc_haze_debug;
 float pc_fog_time = -1; /* RPC environment {fog_time}: fixed seconds (-1: live) */
 
-static_assert(PC_FOG_SIM_GRID * PC_FOG_SIM_GRID == PC_FOG_SIM_CELLS, "atmosphere.h: the field's size");
-static_assert(PC_MEDIUM_VEC4S == 250, "the shaders' medium_[] arrays");
+/* The interactive fog's global weights per source (atmosphere.h): Ashley,
+ * the other actors, attacks, spells (settings fog_disturb_*). */
+float pc_fog_disturb[4] = { 1, 1, 0, 0 };
+int pc_fog_sim_budget = PC_FOG_SIM_MAX; /* settings fog_sim_budget */
+static const char* const DISTURB_KEYS[4] = { "disturb_player", "disturb_actors", "disturb_attacks", "disturb_spells" };
+
+static_assert(PC_FOG_SIM_MAX == PC_MEDIUM_TEX_LAYERS, "atmosphere.h: a texture layer per simulated volume");
+static_assert(PC_FOG_SIM_GRID < PC_MEDIUM_TEX_SIZE, "atmosphere.h: a field fits a slice");
+static_assert(PC_MEDIUM_VEC4S == 165, "the shaders' medium_[] arrays");
 namespace {
 const float DEG = 3.14159265f / 180.0f;
 
@@ -80,10 +96,33 @@ struct Volume {
     float color[3] = { 1, 1, 1 };
     float fill[3] = { 0, 0, 0 };
     float noise = 0.5f;
-    /* The interactive fog (fog_sim.h, prototype): the characters part it. */
+    /* The interactive fog (fog_sim.h): the characters, attacks and spells part it. */
     bool sim = false;
     float sim_strength = 1, sim_recover = 3;
+    float sim_footprint = 1, sim_trail = 1, sim_wind = 1;
+    float detail = 0.5f; /* the detail noise at its soft edges and the field's (0..1) */
+    float sim_swirl = 0; /* vorticity: the parted fog curls into eddies (0..4) */
+    float shadow = 0; /* self-shadowing: its dense parts shade themselves from the main light (0..2) */
+    float disturb[4] = { -1, -1, -1, -1 }; /* per source (DISTURB_KEYS); -1: the global weight */
+    std::string preset; /* the fields not written come from it (fog_presets.json) */
+    int layer = -1; /* its field's slice of the medium texture this vsync (-1: none) */
 };
+/* Fog presets (pc/assets/environment/fog_presets.json; ROOD_FOG_PRESETS):
+ * named sets of a volume's fields (lighting values as text). */
+struct Preset {
+    std::string id, name, why;
+    std::vector<std::pair<std::string, std::string>> fields;
+    const std::string* get(const std::string& key) const
+    {
+        for (const auto& f : fields)
+            if (f.first == key)
+                return &f.second;
+        return nullptr;
+    }
+};
+std::vector<Preset> presets;
+bool presets_loaded;
+std::string presets_status;
 Fog fog;
 std::vector<Volume> volumes;
 int selected = -1;
@@ -140,6 +179,192 @@ int volumes_on()
         n += v.enabled && v.density > 0;
     return n;
 }
+
+/* ---- presets ---- */
+std::string presets_path()
+{
+    const char* e = getenv("ROOD_FOG_PRESETS");
+    return e && *e ? e : "pc/assets/environment/fog_presets.json";
+}
+bool read_text(const std::string& path, std::string& out)
+{
+    FILE* f = fopen(path.c_str(), "rb");
+    if (!f)
+        return false;
+    char buffer[4096];
+    size_t n;
+    out.clear();
+    while ((n = fread(buffer, 1, sizeof buffer, f)) > 0)
+        out.append(buffer, n);
+    fclose(f);
+    return true;
+}
+std::string json_text(const prefab::Json& j)
+{
+    if (j.type == prefab::Json::String)
+        return j.string;
+    if (j.type == prefab::Json::Bool)
+        return j.boolean ? "1" : "0";
+    if (j.type == prefab::Json::Number)
+        return lighting::format_number(j.number, 6);
+    return "";
+}
+void load_presets()
+{
+    presets_loaded = true;
+    presets.clear();
+    std::string text, error;
+    prefab::Json root;
+    if (!read_text(presets_path(), text)) {
+        presets_status = "no presets file (" + presets_path() + ")";
+        return;
+    }
+    if (!prefab::json_parse(text.c_str(), root, &error)) {
+        presets_status = presets_path() + ": " + error;
+        fprintf(stderr, "[atmosphere] %s\n", presets_status.c_str());
+        return;
+    }
+    if (const prefab::Json* list = root.get("presets"))
+        for (const auto& m : list->members) {
+            Preset p;
+            p.id = m.first;
+            for (const auto& f : m.second.members) {
+                if (f.first == "name")
+                    p.name = f.second.string;
+                else if (f.first == "why")
+                    p.why = f.second.string;
+                else if (lighting::preset_field("fog", f.first))
+                    p.fields.emplace_back(f.first, lighting::canonical_value("fog", f.first, json_text(f.second)));
+            }
+            if (p.name.empty())
+                p.name = p.id;
+            presets.push_back(p);
+        }
+    presets_status = std::to_string(presets.size()) + " presets (" + presets_path() + ")";
+}
+const Preset* find_preset(const std::string& id)
+{
+    if (!presets_loaded)
+        load_presets();
+    for (const Preset& p : presets)
+        if (p.id == id)
+            return &p;
+    return nullptr;
+}
+/* A field of a fog item: as written, else its preset's, else the schema's default. */
+std::string fog_field(const lighting::Item& it, const Preset* preset, const char* key)
+{
+    if (const std::string* v = it.get(key))
+        return *v;
+    if (preset)
+        if (const std::string* v = preset->get(key))
+            return *v;
+    return lighting::field_default("fog", key);
+}
+/* A volume's preset fields as text (lighting values). */
+std::vector<std::pair<std::string, std::string>> volume_fields(const Volume& v)
+{
+    std::vector<std::pair<std::string, std::string>> f = {
+        { "shape", v.sphere ? "sphere" : "box" },
+        { "size", vec3(v.size, 1) },
+        { "density", num(v.density, 5) },
+        { "edge", num(v.edge, 2) },
+        { "color", vec3(v.color, 3) },
+        { "fill", vec3(v.fill, 3) },
+        { "noise", num(v.noise, 2) },
+        { "sim", v.sim ? "1" : "0" },
+        { "sim_strength", num(v.sim_strength, 2) },
+        { "sim_recover", num(v.sim_recover, 2) },
+        { "sim_footprint", num(v.sim_footprint, 2) },
+        { "sim_trail", num(v.sim_trail, 2) },
+        { "sim_wind", num(v.sim_wind, 2) },
+        { "detail", num(v.detail, 2) },
+        { "sim_swirl", num(v.sim_swirl, 2) },
+        { "shadow", num(v.shadow, 2) },
+    };
+    for (int s = 0; s < 4; s++)
+        f.emplace_back(DISTURB_KEYS[s], num(v.disturb[s] < 0 ? -1 : v.disturb[s], 2));
+    return f;
+}
+/* Read a volume's preset fields from text (an item's, through its preset). */
+void volume_from_fields(Volume& v, const std::function<std::string(const char*)>& get)
+{
+    v.sphere = get("shape") == "sphere";
+    auto f1 = [&](const char* k) { return (float)atof(get(k).c_str()); };
+    auto f3 = [&](const char* k, float* out) {
+        float x[3];
+        if (sscanf(get(k).c_str(), "%f,%f,%f", &x[0], &x[1], &x[2]) == 3)
+            memcpy(out, x, sizeof x);
+    };
+    f3("size", v.size);
+    v.density = f1("density");
+    v.edge = f1("edge");
+    f3("color", v.color);
+    f3("fill", v.fill);
+    v.noise = f1("noise");
+    v.sim = f1("sim") != 0;
+    v.sim_strength = f1("sim_strength");
+    v.sim_recover = f1("sim_recover");
+    v.sim_footprint = f1("sim_footprint");
+    v.sim_trail = f1("sim_trail");
+    v.sim_wind = f1("sim_wind");
+    v.detail = f1("detail");
+    v.sim_swirl = f1("sim_swirl");
+    v.shadow = f1("shadow");
+    for (int s = 0; s < 4; s++) {
+        float w = f1(DISTURB_KEYS[s]);
+        v.disturb[s] = w < 0 ? -1 : w;
+    }
+}
+/* Apply a preset to a volume: every preset field takes the preset's value
+ * (the schema's default where the preset has none). */
+void apply_preset(Volume& v, const Preset& p)
+{
+    v.preset = p.id;
+    volume_from_fields(v, [&](const char* key) -> std::string {
+        const std::string* x = p.get(key);
+        return x ? *x : lighting::field_default("fog", key);
+    });
+}
+/* Write (or replace) preset `id` with the volume's fields. */
+bool save_preset(const std::string& id, const std::string& name, const Volume& v, std::string* message)
+{
+    std::string text, error;
+    prefab::Json root = prefab::Json::object();
+    if (read_text(presets_path(), text) && !prefab::json_parse(text.c_str(), root, &error)) {
+        *message = presets_path() + ": " + error;
+        return false;
+    }
+    if (!root.get("presets"))
+        root.set("presets", prefab::Json::object());
+    prefab::Json p = prefab::Json::object();
+    const Preset* old = find_preset(id);
+    p.set("name", prefab::Json::str(name.empty() ? id : name));
+    if (old && !old->why.empty())
+        p.set("why", prefab::Json::str(old->why));
+    for (const auto& f : volume_fields(v)) {
+        if (f.second == lighting::canonical_value("fog", f.first, lighting::field_default("fog", f.first))
+            && f.first != "sim")
+            continue; /* defaults stay out (sim always says) */
+        double x;
+        char* end;
+        x = strtod(f.second.c_str(), &end);
+        p.set(f.first.c_str(), *end == 0 && !f.second.empty() ? prefab::Json::num(x) : prefab::Json::str(f.second));
+    }
+    root.get("presets")->set(id.c_str(), p);
+    std::string out = prefab::json_write(root) + "\n";
+    FILE* f = fopen(presets_path().c_str(), "wb");
+    if (!f || fwrite(out.data(), 1, out.size(), f) != out.size()) {
+        if (f)
+            fclose(f);
+        *message = "cannot write " + presets_path();
+        return false;
+    }
+    fclose(f);
+    load_presets();
+    *message = "Saved preset " + id + " (" + presets_path() + ")";
+    return true;
+}
 } // namespace
 
 namespace rood_atmo {
@@ -174,21 +399,18 @@ bool apply_item(const lighting::Item& it)
         if (const std::string* n = it.get("name"))
             v.name = *n;
         v.enabled = get1(it, "enabled") != 0;
-        const std::string* shape = it.get("shape");
-        v.sphere = shape && *shape == "sphere";
         get3(it, "pos", v.pos);
-        get3(it, "size", v.size);
         v.yaw = get1(it, "yaw");
-        v.density = get1(it, "density");
-        v.edge = get1(it, "edge");
-        get3(it, "color", v.color);
-        get3(it, "fill", v.fill);
-        v.noise = get1(it, "noise");
-        v.sim = get1(it, "sim") != 0;
-        v.sim_strength = get1(it, "sim_strength");
-        v.sim_recover = get1(it, "sim_recover");
+        if (const std::string* p = it.get("preset"))
+            v.preset = *p;
+        const Preset* preset = v.preset.empty() ? nullptr : find_preset(v.preset);
+        if (!v.preset.empty() && !preset)
+            fprintf(stderr, "[atmosphere] fog %s: unknown preset '%s' (its fields as written)\n", v.id.c_str(),
+                v.preset.c_str());
+        volume_from_fields(v, [&](const char* key) { return fog_field(it, preset, key); });
         for (Volume& o : volumes)
             if (o.id == v.id) {
+                v.layer = o.layer;
                 o = v;
                 return true;
             }
@@ -223,19 +445,23 @@ void add_items(lighting::State& s)
         it.kind = "fog", it.name = v.id;
         if (!v.name.empty())
             it.set("name", v.name);
-        it.set("shape", v.sphere ? "sphere" : "box");
         it.set("pos", vec3(v.pos, 1));
-        it.set("size", vec3(v.size, 1));
         it.set("yaw", num(v.yaw, 2));
-        it.set("density", num(v.density, 5));
-        it.set("edge", num(v.edge, 2));
-        it.set("color", vec3(v.color, 3));
-        it.set("fill", vec3(v.fill, 3));
-        it.set("noise", num(v.noise, 2));
         it.set("enabled", v.enabled ? "1" : "0");
-        it.set("sim", v.sim ? "1" : "0");
-        it.set("sim_strength", num(v.sim_strength, 2));
-        it.set("sim_recover", num(v.sim_recover, 2));
+        /* With a preset: only what differs from it (a preset edit updates
+         * every volume using it). An unknown preset keeps every value. */
+        const Preset* preset = v.preset.empty() ? nullptr : find_preset(v.preset);
+        if (!v.preset.empty())
+            it.set("preset", v.preset);
+        for (const auto& f : volume_fields(v)) {
+            if (preset) {
+                const std::string* p = preset->get(f.first);
+                std::string base = p ? *p : lighting::field_default("fog", f.first);
+                if (lighting::canonical_value("fog", f.first, f.second) == lighting::canonical_value("fog", f.first, base))
+                    continue;
+            }
+            it.set(f.first.c_str(), f.second);
+        }
         lighting::canonicalize(it);
         s[it.id()] = it;
     }
@@ -249,6 +475,240 @@ extern "C" int pc_medium_has_fog(void)
 {
     rood_lights::track_room();
     return pc_fog_global && pc_lights_enabled && pc_haze_quality != PC_HAZE_OFF && (fog_on() || volumes_on());
+}
+
+/* ---- the medium's texture: detail noise and the fields ---- */
+
+namespace {
+const int TS = PC_MEDIUM_TEX_SIZE, PERIOD = PC_MEDIUM_TEX_SIZE - 1;
+unsigned char medium_tex[PC_MEDIUM_TEX_SIZE * PC_MEDIUM_TEX_SIZE * PC_MEDIUM_TEX_DEPTH * 4]; /* RGBA8 */
+unsigned medium_tex_serial;
+bool medium_tex_noise; /* the noise is in (the main thread's view) */
+std::atomic<bool> noise_done { false }; /* the background thread finished it */
+std::string layer_ids[PC_MEDIUM_TEX_LAYERS];
+
+inline size_t texel(int x, int y, int z) { return (((size_t)z * TS + y) * TS + x) * 4; }
+const float VMAX = 160; /* world units per second: a field's velocity at 0 and 255 */
+uint32_t hash3(int x, int y, int z, uint32_t seed)
+{
+    uint32_t h = seed ^ (uint32_t)x * 0x8da6b343u ^ (uint32_t)y * 0xd8163841u ^ (uint32_t)z * 0xcb1ab31fu;
+    h ^= h >> 16, h *= 0x7feb352du, h ^= h >> 15, h *= 0x846ca68bu, h ^= h >> 16;
+    return h;
+}
+float unit(uint32_t h) { return (h & 0xffffff) / 16777215.0f; }
+/* Tileable gradient noise: `cells` lattice cells over the period. */
+float perlin(float x, float y, float z, int cells, uint32_t seed)
+{
+    int xi = (int)floorf(x), yi = (int)floorf(y), zi = (int)floorf(z);
+    float fx = x - xi, fy = y - yi, fz = z - zi;
+    auto fade = [](float t) { return t * t * t * (t * (t * 6 - 15) + 10); };
+    auto grad = [&](int i, int j, int k, float dx, float dy, float dz) {
+        uint32_t h = hash3(((i % cells) + cells) % cells, ((j % cells) + cells) % cells, ((k % cells) + cells) % cells, seed);
+        float gx = unit(h) * 2 - 1, gy = unit(h * 0x9e3779b9u + 1) * 2 - 1, gz = unit(h * 0x85ebca6bu + 7) * 2 - 1;
+        return gx * dx + gy * dy + gz * dz;
+    };
+    float u = fade(fx), v = fade(fy), w = fade(fz);
+    float a = grad(xi, yi, zi, fx, fy, fz) * (1 - u) + grad(xi + 1, yi, zi, fx - 1, fy, fz) * u;
+    float b = grad(xi, yi + 1, zi, fx, fy - 1, fz) * (1 - u) + grad(xi + 1, yi + 1, zi, fx - 1, fy - 1, fz) * u;
+    float c = grad(xi, yi, zi + 1, fx, fy, fz - 1) * (1 - u) + grad(xi + 1, yi, zi + 1, fx - 1, fy, fz - 1) * u;
+    float d = grad(xi, yi + 1, zi + 1, fx, fy - 1, fz - 1) * (1 - u) + grad(xi + 1, yi + 1, zi + 1, fx - 1, fy - 1, fz - 1) * u;
+    return (a * (1 - v) + b * v) * (1 - w) + (c * (1 - v) + d * v) * w;
+}
+/* Tileable cellular (Worley) noise: 1 at a feature point, 0 a cell away. */
+float worley(float x, float y, float z, int cells, uint32_t seed)
+{
+    int xi = (int)floorf(x), yi = (int)floorf(y), zi = (int)floorf(z);
+    float best = 9;
+    for (int k = -1; k <= 1; k++)
+        for (int j = -1; j <= 1; j++)
+            for (int i = -1; i <= 1; i++) {
+                int a = xi + i, b = yi + j, c = zi + k;
+                uint32_t h = hash3(((a % cells) + cells) % cells, ((b % cells) + cells) % cells, ((c % cells) + cells) % cells, seed);
+                float px = a + unit(h), py = b + unit(h * 0x9e3779b9u + 3), pz = c + unit(h * 0x85ebca6bu + 5);
+                float dx = px - x, dy = py - y, dz = pz - z;
+                best = fminf(best, dx * dx + dy * dy + dz * dz);
+            }
+    return fmaxf(1.0f - sqrtf(best), 0.0f);
+}
+/* The detail noise (generated once, by this code; nothing is shipped):
+ * Perlin-Worley, three octaves of each over a 64-texel period (billowy
+ * cells with soft gradient-noise edges, as volumetric clouds use),
+ * normalised to mean 0.5. */
+void make_noise()
+{
+    double started = now_seconds();
+    std::vector<float> v((size_t)PERIOD * PERIOD * PERIOD);
+    double sum = 0, sq = 0;
+    for (int z = 0; z < PERIOD; z++)
+        for (int y = 0; y < PERIOD; y++)
+            for (int x = 0; x < PERIOD; x++) {
+                float p = 0, w = 0, amp = 0.5f, wamp = 0.625f;
+                int cells = 4;
+                for (int o = 0; o < 3; o++, cells *= 2, amp *= 0.5f) {
+                    float s = (float)cells / PERIOD;
+                    p += amp * perlin(x * s, y * s, z * s, cells, 17u + o);
+                    w += wamp * worley(x * s, y * s, z * s, cells, 101u + o);
+                    wamp = o == 0 ? 0.25f : 0.125f;
+                }
+                float p01 = fminf(fmaxf(p / 0.875f * 0.9f + 0.5f, 0.0f), 1.0f);
+                float pw = fminf(fmaxf((p01 - (w - 1.0f)) / (2.0f - w) , 0.0f), 1.0f); /* remap(p, w - 1, 1, 0, 1) */
+                float value = pw * 0.5f + w * 0.5f;
+                v[((size_t)z * PERIOD + y) * PERIOD + x] = value;
+                sum += value, sq += (double)value * value;
+            }
+    double n = (double)v.size(), mean = sum / n, sd = sqrt(fmax(sq / n - mean * mean, 1e-9));
+    for (int z = 0; z < TS; z++)
+        for (int y = 0; y < TS; y++)
+            for (int x = 0; x < TS; x++) {
+                /* r: the noise; g: the same half a period over (a second, independent-looking
+                 * sample for the flow's two phases); b: the gradient-noise part alone */
+                unsigned char* out = &medium_tex[texel(x, y, z)];
+                for (int c = 0; c < 2; c++) {
+                    int o = c * PERIOD / 2;
+                    float value = v[((size_t)((z + o) % PERIOD) * PERIOD + (y + o) % PERIOD) * PERIOD + (x + o) % PERIOD];
+                    float t = 0.5f + (float)((value - mean) / (4 * sd)); /* +-2 sd over 0..1 */
+                    out[c] = (unsigned char)lroundf(fminf(fmaxf(t, 0.0f), 1.0f) * 255.0f);
+                }
+                out[2] = 128, out[3] = 255;
+            }
+    fprintf(stderr, "[atmosphere] detail noise (64^3 Perlin-Worley) made in %.0f ms (in the background)\n",
+        (now_seconds() - started) * 1000);
+    noise_done = true;
+}
+/* Made on a thread from start-up: never inside a game frame (the game's AI
+ * budgets its frame by the time since the vsync: a 0.17 s stall there
+ * changed what the enemies did). */
+struct NoiseStarter {
+    NoiseStarter() { std::thread(make_noise).detach(); }
+} noise_starter;
+/* A layer at rest (density 1: 127.5, as 128; no velocity: 128). */
+void layer_rest(int layer)
+{
+    memset(&medium_tex[texel(0, 0, PC_MEDIUM_TEX_NOISE + layer)], 128, (size_t)TS * TS * 4);
+}
+/* A field: r its density / 2, g b its velocity (world x, z: 128 + v / VMAX x 127). */
+void layer_write(int layer, const float* field, const float* velocity)
+{
+    for (int j = 0; j < PC_FOG_SIM_GRID; j++)
+        for (int i = 0; i < PC_FOG_SIM_GRID; i++) {
+            int k = j * PC_FOG_SIM_GRID + i;
+            unsigned char* out = &medium_tex[texel(i, j, PC_MEDIUM_TEX_NOISE + layer)];
+            out[0] = (unsigned char)lroundf(fminf(fmaxf(field[k] * 0.5f, 0.0f), 1.0f) * 255.0f);
+            for (int c = 0; c < 2; c++)
+                out[1 + c] = (unsigned char)lroundf(fminf(fmaxf(128.0f + velocity[k * 2 + c] / VMAX * 127.0f, 0.0f), 255.0f));
+            out[3] = 255;
+        }
+}
+float volume_weight(const Volume& v, int source)
+{
+    return v.disturb[source] >= 0 ? v.disturb[source] : fmaxf(pc_fog_disturb[source], 0.0f);
+}
+rood_fog_sim::Frame frame_of(const Volume& v)
+{
+    rood_fog_sim::Frame f;
+    for (int k = 0; k < 3; k++)
+        f.pos[k] = v.pos[k], f.half[k] = fmaxf(v.size[k] * 0.5f, 1.0f),
+        f.wind[k] = (fog_on() ? fog.wind[k] : Fog().wind[k]) * v.sim_wind;
+    f.yaw_cos = cosf(v.yaw * DEG), f.yaw_sin = sinf(v.yaw * DEG);
+    f.strength = v.sim_strength, f.recover = v.sim_recover;
+    f.footprint = v.sim_footprint, f.trail = v.sim_trail, f.swirl = v.sim_swirl;
+    for (int s = 0; s < 4; s++)
+        f.weight[s] = volume_weight(v, s);
+    f.weight[rood_fog_sim::GHOST] = 1;
+    return f;
+}
+bool simulated(const Volume& v) { return v.sim && v.enabled && v.density > 0; }
+} // namespace
+
+extern "C" const unsigned char* pc_medium_texture(unsigned* serial)
+{
+    if (!medium_tex_noise) {
+        while (!noise_done) /* only if asked within ~0.2 s of start-up */
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        medium_tex_noise = true;
+        for (int l = 0; l < PC_MEDIUM_TEX_LAYERS; l++)
+            layer_rest(l);
+        medium_tex_serial++;
+    }
+    *serial = medium_tex_serial;
+    return medium_tex;
+}
+
+/* Once per game vsync (pc_tick): the simulated volumes step (the first
+ * fog_sim_budget of the room, in the room's order), their fields go to the
+ * texture's layers. */
+static void fog_tick(void)
+{
+    for (Volume& v : volumes)
+        v.layer = -1;
+    if (!pc_fog_global || !pc_lights_enabled || pc_haze_quality == PC_HAZE_OFF || !pc_vsync_count)
+        return;
+    unsigned vsync = rood_fog_sim::clock(pc_vsync_count());
+    rood_fog_sim::begin_vsync(vsync);
+    int layer = 0, budget = pc_fog_sim_budget < 0 ? 0 : pc_fog_sim_budget > PC_FOG_SIM_MAX ? PC_FOG_SIM_MAX : pc_fog_sim_budget;
+    bool changed = false;
+    int shown = 0;
+    for (Volume& v : volumes) {
+        if (!v.enabled || v.density <= 0 || shown >= PC_MEDIUM_VOLUMES)
+            continue;
+        shown++;
+        if (!simulated(v) || layer >= budget)
+            continue;
+        bool moved = rood_fog_sim::step(v.id.c_str(), frame_of(v), vsync);
+        const float* field = rood_fog_sim::field(v.id.c_str());
+        if (field && (moved || layer_ids[layer] != v.id)) {
+            if (!medium_tex_noise) {
+                unsigned s;
+                pc_medium_texture(&s);
+            }
+            static float velocity[PC_FOG_SIM_GRID * PC_FOG_SIM_GRID * 2];
+            rood_fog_sim::velocity_world(v.id.c_str(), frame_of(v), velocity);
+            layer_write(layer, field, velocity);
+            layer_ids[layer] = v.id;
+            changed = true;
+        }
+        v.layer = layer++;
+    }
+    for (int l = layer; l < PC_MEDIUM_TEX_LAYERS; l++)
+        if (!layer_ids[l].empty()) {
+            layer_ids[l].clear();
+            layer_rest(l);
+            changed = true;
+        }
+    if (changed)
+        medium_tex_serial++;
+    rood_fog_sim::end_vsync(vsync);
+}
+extern "C" void pc_fog_vsync(void)
+{
+    rood_lights::track_room();
+    fog_tick();
+}
+/* The editor's live preview: while the game is paused (the editor's free
+ * camera, Pause) and the Atmosphere tab shows, the fog keeps stepping on
+ * the wall clock (extra ticks of its own clock), so the ghost, the stamps
+ * and every change show at once. */
+extern "C" int pc_rpc_is_paused(void) __attribute__((weak));
+static void fog_preview(void)
+{
+    static double last = -1, owed = 0;
+    double now = now_seconds();
+    bool any = false;
+    for (const Volume& v : volumes)
+        any |= v.sim && v.enabled;
+    if (!any || !pc_rpc_is_paused || !pc_rpc_is_paused() || last < 0 || now - last > 0.5) {
+        last = now, owed = 0;
+        return;
+    }
+    owed += now - last;
+    last = now;
+    for (int k = 0; owed >= 1 / 59.94 && k < 4; k++) {
+        owed -= 1 / 59.94;
+        rood_fog_sim::preview_tick();
+        fog_tick();
+    }
+    if (owed > 0.1)
+        owed = 0;
 }
 
 extern "C" int pc_medium_gpu_get(pc_medium_gpu* out, float haze_density, const float room_lo[3], const float room_hi[3])
@@ -302,34 +762,12 @@ extern "C" int pc_medium_gpu_get(pc_medium_gpu* out, float haze_density, const f
         for (int k = 0; k < 3; k++)
             m[4][k] = Fog().wind[k];
     int n = 0;
-    bool simulated = false;
     if (fogs)
         for (const Volume& v : volumes) {
             if (!v.enabled || v.density <= 0 || n >= PC_MEDIUM_VOLUMES)
                 continue;
-            /* The first simulated volume carries the field (prototype: one per room). */
-            if (v.sim && !simulated) {
-                simulated = true;
-                rood_fog_sim::Frame f;
-                for (int k = 0; k < 3; k++)
-                    f.pos[k] = v.pos[k], f.half[k] = fmaxf(v.size[k] * 0.5f, 1.0f),
-                    f.wind[k] = fog_on() ? fog.wind[k] : Fog().wind[k];
-                f.yaw_cos = cosf(v.yaw * DEG), f.yaw_sin = sinf(v.yaw * DEG);
-                f.strength = v.sim_strength, f.recover = v.sim_recover;
-                rood_fog_sim::step(v.id.c_str(), f, pc_vsync_count ? pc_vsync_count() : 0);
-                if (const float* field = rood_fog_sim::field(v.id.c_str())) {
-                    m[n * 5 + 8 + 3][3] = 1; /* this volume samples the field */
-                    m[PC_MEDIUM_SIM][0] = PC_FOG_SIM_GRID;
-                    float* data = m[PC_MEDIUM_SIM_DATA];
-                    for (int k = 0; k < PC_FOG_SIM_GRID * PC_FOG_SIM_GRID; k += 3) {
-                        int q[3] = { 0, 0, 0 };
-                        for (int s = 0; s < 3 && k + s < PC_FOG_SIM_GRID * PC_FOG_SIM_GRID; s++)
-                            q[s] = (int)lroundf(fminf(fmaxf(field[k + s] * 0.5f, 0.0f), 1.0f) * 255.0f);
-                        data[k / 3] = (float)(q[0] * 65536 + q[1] * 256 + q[2]); /* exact: below 2^24 */
-                    }
-                }
-            }
             float(*b)[4] = m + 8 + 5 * n;
+            b[4][3] = fminf(fmaxf(v.detail, 0.0f), 1.0f);
             for (int k = 0; k < 3; k++) {
                 b[0][k] = v.pos[k];
                 b[1][k] = fmaxf(v.size[k] * 0.5f, 1.0f);
@@ -339,10 +777,19 @@ extern "C" int pc_medium_gpu_get(pc_medium_gpu* out, float haze_density, const f
             b[0][3] = v.density;
             b[1][3] = fminf(fmaxf(v.edge, 0.001f), 1.0f);
             b[2][3] = fminf(fmaxf(v.noise, 0.0f), 1.0f);
-            b[4][0] = cosf(v.yaw * DEG), b[4][1] = sinf(v.yaw * DEG), b[4][2] = v.sphere ? 1.0f : 0.0f;
+            /* its field's layer of the texture + 1 (pc_fog_vsync; 0 none), + 8 for a sphere */
+            bool field = v.sim && v.layer >= 0 && v.layer < PC_MEDIUM_TEX_LAYERS && layer_ids[v.layer] == v.id;
+            b[3][3] = (float)(field ? v.layer + 1 : 0) + (v.sphere ? 8.0f : 0.0f);
+            b[4][0] = cosf(v.yaw * DEG), b[4][1] = sinf(v.yaw * DEG), b[4][2] = fminf(fmaxf(v.shadow, 0.0f), 2.0f);
             n++;
         }
     m[0][3] = (float)n;
+    if (n > 0) { /* the texture (every pass that samples the volumes binds it) */
+        float* t = m[PC_MEDIUM_SIM];
+        t[0] = PC_FOG_SIM_GRID, t[1] = PC_MEDIUM_TEX_SIZE, t[2] = PC_MEDIUM_TEX_DEPTH, t[3] = 1;
+        /* the detail noise's period: about three wisp sizes (512 units at the default 160) */
+        m[PC_MEDIUM_DETAIL][0] = 1.0f / (fmaxf(fog.defined ? fog.scale : 160.0f, 8.0f) * 3.2f);
+    }
     /* The limits: so the atmosphere can never hide the scene or blow it out. */
     float* lim = m[PC_MEDIUM_LIMITS];
     lim[0] = 1.0f - fminf(fmaxf(pc_haze_max_opacity, 0.0f), 1.0f);
@@ -354,9 +801,15 @@ extern "C" int pc_medium_gpu_get(pc_medium_gpu* out, float haze_density, const f
      * its mean radiance, about half of it blocked (walls, canopies). */
     pc_env_gpu env;
     m[5][3] = sky;
-    if (pc_env_gpu_get(&env) && env.zenith[3] > 0.5f)
+    bool env_on = pc_env_gpu_get(&env) != 0;
+    if (env_on && env.zenith[3] > 0.5f)
         for (int k = 0; k < 3; k++)
             m[5][k] = (env.zenith[k] + 2 * env.horizon[k] + env.ground[k]) * 0.25f * sky * 0.5f;
+    /* The volumes' self-shadowing: toward the sun or moon, else from above (y down). */
+    bool sun = env_on && env.sun_col[0] + env.sun_col[1] + env.sun_col[2] > 0;
+    m[PC_MEDIUM_DETAIL][1] = sun ? env.sun_dir[0] : 0.0f;
+    m[PC_MEDIUM_DETAIL][2] = sun ? env.sun_dir[1] : -1.0f;
+    m[PC_MEDIUM_DETAIL][3] = sun ? env.sun_dir[2] : 0.0f;
     return m[0][0] > 0 || m[1][0] > 0 || n > 0;
 }
 
@@ -389,6 +842,113 @@ bool color_row(const char* label, float* rgb)
 {
     return ImGui::ColorEdit3(label, rgb, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
 }
+/* The highest up-facing room surface under (x, z) at or below world y
+ * `from` (y down: its y >= from); with none, the nearest one above it.
+ * Brute force over the captured room's triangles (a few rays). */
+int floor_under(float x, float z, float from, float* out)
+{
+    int count = 0;
+    const scene_triangle* t = pc_scene_triangle_data(&count);
+    bool below = false, above = false;
+    float best_below = 1e30f, best_above = -1e30f;
+    for (int i = 0; t && i < count; i++) {
+        const float *a = t[i].vertex[0].position, *b = t[i].vertex[1].position, *c = t[i].vertex[2].position;
+        float e1[3] = { b[0] - a[0], b[1] - a[1], b[2] - a[2] }, e2[3] = { c[0] - a[0], c[1] - a[1], c[2] - a[2] };
+        float ny = e1[2] * e2[0] - e1[0] * e2[2]; /* the normal's y (sign: winding) */
+        float nx = e1[1] * e2[2] - e1[2] * e2[1], nz = e1[0] * e2[1] - e1[1] * e2[0];
+        float len = sqrtf(nx * nx + ny * ny + nz * nz);
+        if (len < 1e-6f || fabsf(ny) / len < 0.5f)
+            continue; /* walls and steep slopes are no floor */
+        /* barycentric in x, z */
+        float d = e1[0] * e2[2] - e1[2] * e2[0];
+        if (fabsf(d) < 1e-6f)
+            continue;
+        float px = x - a[0], pz = z - a[2];
+        float u = (px * e2[2] - pz * e2[0]) / d, v = (e1[0] * pz - e1[2] * px) / d;
+        if (u < -1e-4f || v < -1e-4f || u + v > 1 + 1e-4f)
+            continue;
+        float y = a[1] + u * e1[1] + v * e2[1];
+        if (y >= from)
+            below = true, best_below = fminf(best_below, y);
+        else
+            above = true, best_above = fmaxf(best_above, y);
+    }
+    if (below)
+        *out = best_below;
+    else if (above)
+        *out = best_above;
+    return below ? 1 : above ? 2 : 0; /* 1: below, 2: only above */
+}
+/* Drop to floor (End): the volume's bottom face rests on the highest floor
+ * under its centre and its footprint's corners. */
+bool drop_to_floor(Volume& v)
+{
+    float half[3] = { v.size[0] * 0.5f, v.size[1] * 0.5f, v.size[2] * 0.5f };
+    if (v.sphere)
+        half[0] *= 0.7f, half[2] *= 0.7f;
+    float c = cosf(v.yaw * DEG), s = sinf(v.yaw * DEG);
+    float from = v.pos[1] - half[1] - 64; /* a little above its top */
+    /* the highest floor below any of the points (it rests on the floor, never
+     * sinks into it); points over a pit or a ledge with nothing below are left
+     * out; only when no point has a floor below, the nearest one above */
+    float best = 1e30f, up = -1e30f;
+    bool any = false, any_up = false;
+    static const float pts[5][2] = { { 0, 0 }, { 0.9f, 0.9f }, { -0.9f, 0.9f }, { 0.9f, -0.9f }, { -0.9f, -0.9f } };
+    for (const auto& q : pts) {
+        float lx = q[0] * half[0], lz = q[1] * half[2];
+        float x = v.pos[0] + c * lx + s * lz, z = v.pos[2] - s * lx + c * lz; /* the inverse turn (medium.glsl) */
+        float y;
+        int hit = floor_under(x, z, from, &y);
+        if (hit == 1)
+            best = fminf(best, y), any = true;
+        else if (hit == 2)
+            up = fmaxf(up, y), any_up = true;
+    }
+    if (!any && !any_up)
+        return false;
+    v.pos[1] = (any ? best : up) - half[1];
+    return true;
+}
+/* Fit to floor area: the volume's footprint becomes the level floor around
+ * its centre (the room's floor grid cells within 12 units of the height
+ * under it, connected to it), turned square to the room, dropped onto it. */
+bool fit_to_floor(Volume& v)
+{
+    const int n = PC_SCENE_FLOOR_GRID;
+    static float heights[PC_SCENE_FLOOR_GRID * PC_SCENE_FLOOR_GRID];
+    float corner[2], cell[2];
+    if (!pc_scene_floor_grid(heights, corner, cell))
+        return false;
+    int i0 = (int)floorf((v.pos[0] - corner[0]) / cell[0]), j0 = (int)floorf((v.pos[2] - corner[1]) / cell[1]);
+    if (i0 < 0 || j0 < 0 || i0 >= n || j0 >= n)
+        return false;
+    float h0 = heights[j0 * n + i0];
+    std::vector<char> seen(n * n, 0);
+    std::vector<int> stack = { j0 * n + i0 };
+    seen[j0 * n + i0] = 1;
+    int lo[2] = { i0, j0 }, hi[2] = { i0, j0 };
+    while (!stack.empty()) {
+        int k = stack.back();
+        stack.pop_back();
+        int i = k % n, j = k / n;
+        lo[0] = std::min(lo[0], i), lo[1] = std::min(lo[1], j), hi[0] = std::max(hi[0], i), hi[1] = std::max(hi[1], j);
+        const int di[4] = { 1, -1, 0, 0 }, dj[4] = { 0, 0, 1, -1 };
+        for (int e = 0; e < 4; e++) {
+            int a = i + di[e], b = j + dj[e];
+            if (a < 0 || b < 0 || a >= n || b >= n || seen[b * n + a] || fabsf(heights[b * n + a] - h0) > 12)
+                continue;
+            seen[b * n + a] = 1;
+            stack.push_back(b * n + a);
+        }
+    }
+    v.yaw = 0;
+    v.pos[0] = corner[0] + (lo[0] + hi[0] + 1) * 0.5f * cell[0];
+    v.pos[2] = corner[1] + (lo[1] + hi[1] + 1) * 0.5f * cell[1];
+    v.size[0] = (hi[0] - lo[0] + 1) * cell[0];
+    v.size[2] = (hi[1] - lo[1] + 1) * cell[1];
+    v.pos[1] = h0 - v.size[1] * 0.5f; /* on that floor (Drop to floor would rest it on the highest point under it) */
+    return true;
+}
 /* A new volume in front of the camera: on the surface under the view's
  * centre (its bottom on it), else nowhere. */
 bool add_volume()
@@ -410,10 +970,214 @@ bool add_volume()
 }
 } // namespace
 
+namespace {
+bool show_field = true; /* the selected volume's field on its floor in the view */
+bool ghost_mode; /* the surface point under the mouse is a source (preview) */
+const char* const SOURCE_LABELS[4] = { "Ashley", "Other characters", "Attacks", "Spells" };
+const char* const SOURCE_TIPS[4] = {
+    "Ashley clears it around her feet and leaves a wake when she moves.",
+    "Enemies and other characters do the same (their own footprint sizes).",
+    "Weapon swings (any actor's, chain steps too) swirl an arc in front of the swinger.",
+    "Spells and items burst it where they land; casting pushes a ring around the caster.",
+};
+/* The preset row: pick one (it sets the preset's fields), save the
+ * volume's fields as a preset. */
+bool preset_ui(Volume& v)
+{
+    bool changed = false;
+    if (!presets_loaded)
+        load_presets();
+    const Preset* current = v.preset.empty() ? nullptr : find_preset(v.preset);
+    std::string label = v.preset.empty() ? "(none)" : current ? current->name : v.preset + " (missing)";
+    if (ImGui::BeginCombo("Preset", label.c_str())) {
+        if (ImGui::Selectable("(none)", v.preset.empty())) {
+            v.preset.clear(); /* keeps the values: they are written out in full now */
+            changed = true;
+        }
+        for (const Preset& p : presets) {
+            if (ImGui::Selectable(p.name.c_str(), p.id == v.preset)) {
+                apply_preset(v, p);
+                changed = true;
+                pc_undo_hint("Apply fog preset");
+            }
+            if (ImGui::IsItemHovered() && !p.why.empty())
+                ImGui::SetTooltip("%s", p.why.c_str());
+        }
+        ImGui::EndCombo();
+    }
+    tooltip("Named looks (pc/assets/environment/fog_presets.json). Picking one sets the volume's look and\n"
+            "interaction to it; the volume then saves only what you change after (so editing the preset\n"
+            "updates every volume using it). (none) keeps the values and writes them all.");
+    if (current) {
+        if (ImGui::SmallButton("Reset to preset")) {
+            apply_preset(v, *current);
+            changed = true;
+            pc_undo_hint("Reset to fog preset");
+        }
+        ImGui::SameLine();
+    }
+    static char preset_id[64];
+    static std::string message;
+    if (ImGui::SmallButton("Save as preset...")) {
+        snprintf(preset_id, sizeof preset_id, "%s", v.preset.c_str());
+        ImGui::OpenPopup("save_fog_preset");
+    }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Reload presets")) {
+        load_presets();
+        message = presets_status;
+    }
+    if (ImGui::BeginPopup("save_fog_preset")) {
+        ImGui::InputText("Name", preset_id, sizeof preset_id);
+        ImGui::TextDisabled("lowercase_with_underscores; an existing one is replaced");
+        if (ImGui::Button("Save") && preset_id[0]) {
+            std::string id = preset_id;
+            for (char& c : id)
+                c = c == ' ' ? '_' : (char)tolower((unsigned char)c);
+            std::string name = preset_id;
+            if (const Preset* old = find_preset(id))
+                name = old->name;
+            if (save_preset(id, name, v, &message)) {
+                v.preset = id;
+                changed = true;
+            }
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+    if (!message.empty())
+        ImGui::TextDisabled("%s", message.c_str());
+    return changed;
+}
+/* A source weight row: this volume's own weight or the global one. */
+bool weight_row(Volume& v, int s)
+{
+    bool changed = false;
+    ImGui::PushID(s);
+    bool own = v.disturb[s] >= 0;
+    if (ImGui::Checkbox("##own", &own)) {
+        v.disturb[s] = own ? fmaxf(pc_fog_disturb[s], 0.0f) : -1;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Its own weight here (else the global one: Interactive fog, all rooms)");
+    ImGui::SameLine();
+    if (own) {
+        changed |= ImGui::SliderFloat(SOURCE_LABELS[s], &v.disturb[s], 0, 2, v.disturb[s] <= 0 ? "off" : "%.2f");
+    } else {
+        ImGui::BeginDisabled();
+        float g = pc_fog_disturb[s];
+        ImGui::SliderFloat(SOURCE_LABELS[s], &g, 0, 2, g <= 0 ? "off (global)" : "%.2f (global)");
+        ImGui::EndDisabled();
+    }
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("%s\n0: off.", SOURCE_TIPS[s]);
+    ImGui::PopID();
+    return changed;
+}
+/* The selected volume's interaction: on/off, how it parts and settles, each
+ * source's weight, the preview tools. */
+bool interaction_ui(Volume& v)
+{
+    bool changed = false;
+    ImGui::SeparatorText("Interaction");
+    changed |= ImGui::Checkbox("Characters, attacks and spells part it", &v.sim);
+    tooltip("Interactive fog: sources clear it, push it around and leave a soft wake that drifts with the\n"
+            "wind and settles back. Up to fog_sim_budget (4) volumes per room; it only ticks while a\n"
+            "source is in or near it.");
+    ImGui::BeginDisabled(!v.sim);
+    changed |= ImGui::SliderFloat("Strength", &v.sim_strength, 0, 2, "%.2f");
+    tooltip("How much a source clears (1: a character standing still keeps a fifth of the fog at its feet).");
+    changed |= ImGui::SliderFloat("Recovery time", &v.sim_recover, 0.3f, 12, "%.1f s");
+    tooltip("How long the fog takes to settle back.");
+    changed |= ImGui::SliderFloat("Footprint", &v.sim_footprint, 0.25f, 3, "x %.2f");
+    tooltip("Scale on every source's size (a character's is its drop shadow's radius).");
+    changed |= ImGui::SliderFloat("Trail", &v.sim_trail, 0, 3, "%.2f");
+    tooltip("How much of a source's motion the fog takes and how long it keeps it: 0 a hole without a\n"
+            "wake, 1 a short wake, 3 long swirling trails.");
+    changed |= ImGui::SliderFloat("Wind", &v.sim_wind, 0, 4, "x %.2f");
+    changed |= ImGui::SliderFloat("Swirl", &v.sim_swirl, 0, 4, "%.2f");
+    tooltip("Vorticity: what is pushed curls into eddies and rolls (an incompressible flow) instead of\n"
+            "spreading out; 0 a plain soft wake. Costs a little more CPU while it moves.");
+    tooltip("How much the room's fog wind (env fog wind) carries the parted fog (0: still air).");
+    ImGui::EndDisabled();
+    changed |= ImGui::SliderFloat("Detail", &v.detail, 0, 1, "%.2f");
+    tooltip("Billows and fine wisps from a baked 3D noise, carried along by the flow: they follow the\n"
+            "wake and the swirls (0: smooth).");
+    changed |= ImGui::SliderFloat("Self-shadow", &v.shadow, 0, 2, "%.2f");
+    tooltip("Its dense parts shade themselves from the main light (the sun or moon; from above without\n"
+            "one): dark cores, lit rims. 0: evenly lit mist.");
+    ImGui::BeginDisabled(!v.sim);
+    ImGui::TextDisabled("Sources (ticked: this volume's own weight)");
+    for (int s = 0; s < 4; s++)
+        changed |= weight_row(v, s);
+    ImGui::Checkbox("Show the field", &show_field);
+    tooltip("Its density on its floor in the view: red cleared, blue piled.");
+    ImGui::SameLine();
+    ImGui::Checkbox("Ghost at the mouse", &ghost_mode);
+    tooltip("The surface point under the mouse parts the fog like a character (a preview without\n"
+            "walking). The game must be running: the fog steps on game time.");
+    struct pc_dev_state st;
+    memset(&st, 0, sizeof st);
+    if (pc_dev_state)
+        pc_dev_state(&st);
+    ImGui::BeginDisabled(!st.has_player);
+    static const char* names[rood_fog_sim::SHAPES] = { "Burst", "Ring", "Swing", "Vortex" };
+    for (int shape = 0; shape < rood_fog_sim::SHAPES; shape++) {
+        if (shape)
+            ImGui::SameLine();
+        if (ImGui::SmallButton(names[shape])) {
+            rood_fog_sim::Event e;
+            e.source = rood_fog_sim::GHOST, e.shape = shape;
+            e.pos[0] = (float)st.x, e.pos[1] = (float)st.y, e.pos[2] = (float)st.z;
+            float a = st.facing * (6.2831853f / 4096);
+            e.dir[0] = -sinf(a), e.dir[1] = -cosf(a);
+            e.radius = shape == rood_fog_sim::BURST ? 130 : shape == rood_fog_sim::SWING ? 95 : 110;
+            e.frames = shape == rood_fog_sim::SWING ? 12 : 18;
+            rood_fog_sim::emit(e);
+        }
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("at Ashley (stamps, whatever the weights)");
+    ImGui::EndDisabled();
+    rood_fog_sim::Stats s;
+    if (rood_fog_sim::stats(v.id.c_str(), &s))
+        ImGui::TextDisabled("field: least %.2f, mean %.3f, %s, %d source%s, %u steps, %.3f ms", s.least, s.mean,
+            s.awake ? "ticking" : "at rest", s.actors, s.actors == 1 ? "" : "s", s.steps, s.ms);
+    else if (v.sim)
+        ImGui::TextDisabled("%s", v.layer < 0 ? "not simulated (over the room's budget, the fog off, or no source yet)"
+                                             : "no field yet");
+    if (ImGui::SmallButton("Settle now"))
+        rood_fog_sim::reset();
+    ImGui::EndDisabled();
+    return changed;
+}
+/* Every room: the global weights (settings fog_disturb_*), the budget. */
+void global_interaction_ui()
+{
+    if (!ImGui::TreeNode("Interactive fog: all rooms"))
+        return;
+    static const char* keys[4] = { "player", "actors", "attacks", "spells" };
+    for (int s = 0; s < 4; s++) {
+        ImGui::SliderFloat(SOURCE_LABELS[s], &pc_fog_disturb[s], 0, 2, pc_fog_disturb[s] <= 0 ? "off" : "%.2f");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s\nSettings key fog_disturb_%s (File > Save settings); a volume's own weight wins. 0: off.",
+                SOURCE_TIPS[s], keys[s]);
+    }
+    ImGui::SliderInt("Simulated volumes per room", &pc_fog_sim_budget, 0, PC_FOG_SIM_MAX);
+    tooltip("Settings key fog_sim_budget: the first this many interactive volumes of a room simulate.");
+    unsigned attacks, spells;
+    rood_fog_sim::event_counts(&attacks, &spells);
+    ImGui::TextDisabled("seen this session: %u attacks, %u spells", attacks, spells);
+    ImGui::TreePop();
+}
+} // namespace
+
 /* Returns true when something changed (environment.cpp's page marks the room). */
 bool pc_atmosphere_page(void)
 {
     page_frame = ImGui::GetFrameCount();
+    fog_preview();
     bool changed = false;
     ImGui::PushID("atmosphere");
     ImGui::SeparatorText("Ground fog (this room)");
@@ -482,6 +1246,21 @@ bool pc_atmosphere_page(void)
         ImGui::RadioButton("Size", &operation, 1);
         ImGui::SameLine();
         ImGui::RadioButton("Turn", &operation, 2);
+        bool end = !ImGui::GetIO().WantTextInput && ImGui::IsKeyPressed(ImGuiKey_End, false);
+        if (ImGui::Button("Drop to floor (End)") || end) {
+            pc_undo_hint("Drop fog volume to floor");
+            changed |= drop_to_floor(v);
+        }
+        tooltip("Moves it down (or up) so its bottom face rests on the floor under it: the highest floor under\n"
+                "its centre and its footprint's corners. While moving it with the gizmo, the editor's snapping\n"
+                "(point, edge, midpoint, surface) puts its bottom face on the target.");
+        ImGui::SameLine();
+        if (ImGui::Button("Fit to floor area")) {
+            pc_undo_hint("Fit fog volume to floor area");
+            changed |= fit_to_floor(v);
+        }
+        tooltip("Its footprint becomes the level floor around its centre (the room's floor grid: the cells\n"
+                "connected to the one under it, within 12 units of its height), square to the room, on the floor.");
         changed |= ImGui::Checkbox("Enabled", &v.enabled);
         ImGui::SameLine();
         int shape = v.sphere;
@@ -498,14 +1277,8 @@ bool pc_atmosphere_page(void)
         changed |= ImGui::SliderFloat("Wisps", &v.noise, 0, 1, "%.2f");
         changed |= color_row("Colour", v.color);
         changed |= color_row("Fill light", v.fill);
-        changed |= ImGui::Checkbox("Characters part it (prototype)", &v.sim);
-        tooltip("Interactive fog: Ashley and the enemies clear it around their feet and leave a soft wake\n"
-                "that drifts with the wind and settles back (one volume per room; off by default).");
-        if (v.sim) {
-            changed |= ImGui::SliderFloat("Parting", &v.sim_strength, 0, 2, "%.2f");
-            tooltip("How much a character clears (1: its footprint at a fifth of the fog standing still).");
-            changed |= ImGui::SliderFloat("Settles in", &v.sim_recover, 0.3f, 12, "%.1f s");
-        }
+        changed |= preset_ui(v);
+        changed |= interaction_ui(v);
         char name[96];
         snprintf(name, sizeof name, "%s", v.name.c_str());
         if (ImGui::InputText("Name", name, sizeof name)) {
@@ -520,6 +1293,7 @@ bool pc_atmosphere_page(void)
         }
         ImGui::PopID();
     }
+    global_interaction_ui();
     bool alone = pc_haze_debug != 0;
     if (ImGui::Checkbox("Show the haze alone", &alone))
         pc_haze_debug = alone;
@@ -540,8 +1314,11 @@ bool pc_atmosphere_viewport(const float view[16], const float projection[16], co
     bool page = ImGui::GetFrameCount() - page_frame <= 1;
     if (selected >= (int)volumes.size())
         selected = -1;
-    if (!page && selected < 0)
+    if (!page && selected < 0) {
+        if (ghost_mode)
+            rood_fog_sim::ghost(false, nullptr);
         return false;
+    }
     ImDrawList* draw = (ImDrawList*)draw_list;
     auto project = [&](const float w[3], ImVec2& out) {
         float v[4], c[4];
@@ -609,6 +1386,50 @@ bool pc_atmosphere_viewport(const float view[16], const float projection[16], co
                 draw->AddText(ImVec2(c.x + 6, c.y - 6), col, label);
             }
         }
+    /* The selected volume's field on its floor: red cleared, blue piled. */
+    if (show_field && selected >= 0 && volumes[selected].sim)
+        if (const float* field = rood_fog_sim::field(volumes[selected].id.c_str())) {
+            const Volume& v = volumes[selected];
+            const int n = PC_FOG_SIM_GRID;
+            for (int j = 0; j < n; j++)
+                for (int i = 0; i < n; i++) {
+                    float d = field[j * n + i];
+                    if (fabsf(d - 1.0f) < 0.02f)
+                        continue;
+                    float x0 = (float)i / n * 2 - 1, x1 = (float)(i + 1) / n * 2 - 1;
+                    float z0 = (float)j / n * 2 - 1, z1 = (float)(j + 1) / n * 2 - 1;
+                    float p[4][3];
+                    corner(v, x0, 1, z0, p[0]), corner(v, x1, 1, z0, p[1]), corner(v, x1, 1, z1, p[2]),
+                        corner(v, x0, 1, z1, p[3]);
+                    ImVec2 q[4];
+                    if (!project(p[0], q[0]) || !project(p[1], q[1]) || !project(p[2], q[2]) || !project(p[3], q[3]))
+                        continue;
+                    float a = fminf(fabsf(d - 1.0f) * 1.6f, 1.0f);
+                    ImU32 col = d < 1 ? IM_COL32(255, 70, 50, (int)(a * 150)) : IM_COL32(60, 120, 255, (int)(a * 150));
+                    draw->AddQuadFilled(q[0], q[1], q[2], q[3], col);
+                }
+        }
+    /* The ghost: the surface under the mouse is a source (while the
+     * Atmosphere tab shows and no gizmo has the mouse). */
+    {
+        static bool ghost_was;
+        bool on = false;
+        ImVec2 mouse = ImGui::GetIO().MousePos;
+        if (ghost_mode && page && mouse.x >= rect[0] && mouse.y >= rect[1] && mouse.x < rect[0] + rect[2]
+            && mouse.y < rect[1] + rect[3] && !ImGuizmo::IsOver() && !ImGuizmo::IsUsing()) {
+            rood_lights::Placement where;
+            if (rood_lights::place_compute("light:point", mouse.x, mouse.y, PC_SNAP_MODE_SURFACE, where)) {
+                rood_fog_sim::ghost(true, where.surface);
+                ImVec2 c;
+                if (project(where.surface, c))
+                    draw->AddCircle(c, 9, IM_COL32(255, 255, 255, 200), 16, 1.5f);
+                on = true;
+            }
+        }
+        if (!on && ghost_was)
+            rood_fog_sim::ghost(false, nullptr);
+        ghost_was = on;
+    }
     if (selected < 0 || rood_lights::selected >= 0 || rood_lights::selected_actor >= 0)
         return false;
     Volume& v = volumes[selected];
@@ -627,6 +1448,20 @@ bool pc_atmosphere_viewport(const float view[16], const float projection[16], co
             v.yaw = atan2f(-x[2], x[0]) / DEG;
         pc_lights_mark_dirty();
         pc_undo_hint(operation == 0 ? "Move fog volume" : operation == 1 ? "Size fog volume" : "Turn fog volume");
+    }
+    /* Moving with the editor's snapping on (the lights' point, edge,
+     * midpoint and surface modes): the bottom face's centre goes to the
+     * target under the cursor (a surface: the bottom face on it). */
+    unsigned modes = pc_snap_modes(0);
+    if (operation == 0 && ImGuizmo::IsUsing() && modes) {
+        ImVec2 mouse = ImGui::GetIO().MousePos;
+        pc_snap_result target;
+        int type = pc_lights_snap_at(mouse.x, mouse.y, modes, 0, &target);
+        if (type) {
+            const float* at = type == PC_SNAP_SURFACE ? target.surface : target.position;
+            v.pos[0] = at[0], v.pos[1] = at[1] - v.size[1] * 0.5f, v.pos[2] = at[2];
+            pc_lights_mark_dirty();
+        }
     }
     return ImGuizmo::IsOver() || ImGuizmo::IsUsing();
 }
@@ -661,6 +1496,23 @@ void read_bool(const prefab::Json& o, const char* key, bool* out)
 }
 void read_volume(const prefab::Json& o, Volume& v)
 {
+    if (const prefab::Json* j = o.get("preset")) { /* first: the fields given with it win */
+        if (j->string.empty())
+            v.preset.clear();
+        else if (const Preset* p = find_preset(j->string))
+            apply_preset(v, *p);
+        else
+            v.preset = j->string;
+    }
+    read_num(o, "sim_footprint", &v.sim_footprint);
+    read_num(o, "sim_trail", &v.sim_trail);
+    read_num(o, "sim_wind", &v.sim_wind);
+    read_num(o, "detail", &v.detail);
+    read_num(o, "sim_swirl", &v.sim_swirl);
+    read_num(o, "shadow", &v.shadow);
+    for (int s = 0; s < 4; s++)
+        if (const prefab::Json* j = o.get(DISTURB_KEYS[s]))
+            v.disturb[s] = j->type == prefab::Json::Null || j->number < 0 ? -1 : (float)j->number;
     read_bool(o, "enabled", &v.enabled);
     if (const prefab::Json* j = o.get("shape"))
         v.sphere = j->string == "sphere";
@@ -699,6 +1551,46 @@ bool rpc(const prefab::Json& params)
     if (const prefab::Json* r = params.get("sim_reset"))
         if (r->type == prefab::Json::Bool ? r->boolean : r->number != 0)
             rood_fog_sim::reset();
+    /* The interactive fog's global weights (settings fog_disturb_*), its budget. */
+    if (const prefab::Json* d = params.get("disturb")) {
+        static const char* keys[4] = { "player", "actors", "attacks", "spells" };
+        for (int s = 0; s < 4; s++)
+            read_num(*d, keys[s], &pc_fog_disturb[s]);
+    }
+    if (const prefab::Json* b = params.get("sim_budget"))
+        pc_fog_sim_budget = (int)b->number;
+    if (params.get("presets_reload"))
+        load_presets();
+    /* A stamp (as the game's attacks and spells make; source "attack",
+     * "spell" or "ghost": weight 1 everywhere). */
+    if (const prefab::Json* st = params.get("stamp")) {
+        rood_fog_sim::Event e;
+        if (const prefab::Json* j = st->get("shape")) {
+            int shape = rood_fog_sim::shape_from_name(j->string.c_str());
+            e.shape = shape < 0 ? rood_fog_sim::BURST : shape;
+        }
+        if (const prefab::Json* j = st->get("source"))
+            e.source = j->string == "spell" ? rood_fog_sim::SPELLS
+                : j->string == "ghost"      ? rood_fog_sim::GHOST
+                                            : rood_fog_sim::ATTACKS;
+        read_vec(st->get("pos"), e.pos, 3);
+        read_vec(st->get("dir"), e.dir, 2);
+        read_num(*st, "radius", &e.radius);
+        read_num(*st, "strength", &e.strength);
+        float frames = (float)e.frames;
+        read_num(*st, "frames", &frames);
+        e.frames = frames < 1 ? 1 : (int)frames;
+        rood_fog_sim::emit(e);
+    }
+    /* The preview actor: [x, y, z] (on there), or false/null (off). */
+    if (const prefab::Json* g = params.get("ghost")) {
+        float p[3] = { 0, 0, 0 };
+        if (g->type == prefab::Json::Array && g->items.size() == 3) {
+            read_vec(g, p, 3);
+            rood_fog_sim::ghost(true, p);
+        } else
+            rood_fog_sim::ghost(false, p);
+    }
     if (const prefab::Json* g = params.get("floor_grid"))
         pc_fog_floor_grid = g->type == prefab::Json::Bool ? g->boolean : g->number != 0;
     if (const prefab::Json* hz = params.get("haze")) { /* the room settings haze_density, haze_anisotropy, haze_glow, ... */
@@ -750,6 +1642,12 @@ bool rpc(const prefab::Json& params)
             read_volume(o, volumes[at]);
             changed = true;
         }
+    /* The editor's Drop to floor (End) and Fit to floor area, by id. */
+    for (const char* key : { "drop_volume", "fit_volume" })
+        if (const prefab::Json* d = params.get(key))
+            for (Volume& v : volumes)
+                if (v.id == d->string && (key[0] == 'd' ? drop_to_floor(v) : fit_to_floor(v)))
+                    changed = true;
     if (const prefab::Json* sel = params.get("select_volume")) { /* the editor's selection (its gizmo) */
         selected = -1;
         for (int i = 0; i < (int)volumes.size(); i++)
@@ -788,24 +1686,46 @@ std::string json()
             + ",\"yaw\":" + num(v.yaw, 2) + ",\"density\":" + num(v.density, 5) + ",\"edge\":" + num(v.edge, 2)
             + ",\"color\":" + jvec(v.color, 3) + ",\"fill\":" + jvec(v.fill, 3) + ",\"noise\":" + num(v.noise, 2)
             + ",\"sim\":" + jbool(v.sim) + ",\"sim_strength\":" + num(v.sim_strength, 2)
-            + ",\"sim_recover\":" + num(v.sim_recover, 2) + "}";
+            + ",\"sim_recover\":" + num(v.sim_recover, 2) + ",\"sim_footprint\":" + num(v.sim_footprint, 2)
+            + ",\"sim_trail\":" + num(v.sim_trail, 2) + ",\"sim_wind\":" + num(v.sim_wind, 2)
+            + ",\"detail\":" + num(v.detail, 2) + ",\"sim_swirl\":" + num(v.sim_swirl, 2) + ",\"shadow\":"
+            + num(v.shadow, 2) + ",\"preset\":" + prefab::json_quote(v.preset)
+            + ",\"layer\":" + std::to_string(v.layer);
+        for (int k = 0; k < 4; k++)
+            s += ",\"" + std::string(DISTURB_KEYS[k]) + "\":" + num(v.disturb[k], 2);
+        s += "}";
     }
-    float least, mean, at_player;
-    int actors;
-    rood_fog_sim::stats(&least, &mean, &at_player, &actors);
-    std::string sim_id;
-    for (const Volume& v : volumes)
-        if (v.sim && v.enabled && rood_fog_sim::field(v.id.c_str())) {
-            sim_id = v.id;
-            break;
-        }
-    s += "],\"sim\":";
-    if (sim_id.empty())
-        return s + "null";
-    return s + "{\"id\":" + prefab::json_quote(sim_id) + ",\"n\":" + std::to_string(PC_FOG_SIM_GRID)
-        + ",\"least\":" + num(least, 3) + ",\"mean\":" + num(mean, 3) + ",\"at_player\":" + num(at_player, 3)
-        + ",\"actors\":" + std::to_string(actors)
-        + (sim_field_reply ? ",\"field\":" + jvec(rood_fog_sim::field(sim_id.c_str()), PC_FOG_SIM_GRID * PC_FOG_SIM_GRID) : "")
-        + "}";
+    /* Every simulated volume's field (the first also as `sim`, as before). */
+    std::string sims, first;
+    for (const Volume& v : volumes) {
+        rood_fog_sim::Stats st;
+        if (!v.sim || !v.enabled || !rood_fog_sim::stats(v.id.c_str(), &st))
+            continue;
+        std::string one = "{\"id\":" + prefab::json_quote(v.id) + ",\"n\":" + std::to_string(PC_FOG_SIM_GRID)
+            + ",\"layer\":" + std::to_string(v.layer) + ",\"least\":" + num(st.least, 3) + ",\"mean\":"
+            + num(st.mean, 3) + ",\"at_player\":" + num(st.at_player, 3) + ",\"actors\":" + std::to_string(st.actors)
+            + ",\"awake\":" + jbool(st.awake) + ",\"steps\":" + std::to_string(st.steps) + ",\"ms\":" + num(st.ms, 4)
+            + (sim_field_reply ? ",\"field\":" + jvec(rood_fog_sim::field(v.id.c_str()), PC_FOG_SIM_GRID * PC_FOG_SIM_GRID)
+                               : "")
+            + "}";
+        if (first.empty())
+            first = one;
+        sims += (sims.empty() ? "" : ",") + one;
+    }
+    unsigned attacks, spells;
+    rood_fog_sim::event_counts(&attacks, &spells);
+    int bodies, phase, type;
+    rood_fog_sim::sources(&bodies, &phase, &type);
+    if (!presets_loaded)
+        load_presets();
+    std::string names;
+    for (const Preset& p : presets)
+        names += (names.empty() ? "" : ",") + prefab::json_quote(p.id);
+    return s + "],\"sim\":" + (first.empty() ? "null" : first) + ",\"sims\":[" + sims + "],\"disturb\":{\"player\":"
+        + num(pc_fog_disturb[0], 2) + ",\"actors\":" + num(pc_fog_disturb[1], 2) + ",\"attacks\":"
+        + num(pc_fog_disturb[2], 2) + ",\"spells\":" + num(pc_fog_disturb[3], 2) + "},\"sim_budget\":"
+        + std::to_string(pc_fog_sim_budget) + ",\"events\":{\"attacks\":" + std::to_string(attacks) + ",\"spells\":"
+        + std::to_string(spells) + ",\"sources\":" + std::to_string(bodies) + ",\"phase\":" + std::to_string(phase)
+        + ",\"type\":" + std::to_string(type) + "},\"presets\":[" + names + "]";
 }
 } // namespace rood_atmo

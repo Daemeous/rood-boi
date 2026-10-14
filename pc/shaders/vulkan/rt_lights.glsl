@@ -19,6 +19,7 @@ layout(std140, binding = 0) uniform Trace {
     vec4 f2; // ao_radius (0: no traced AO), ao_strength
     ivec4 i3; // glow_casts: emitters that may cast shadows (bit i; transient effects never do)
     vec4 env_[5]; // the room's sun and sky (environment.h pc_env_gpu; environment.glsl)
+    vec4 emitter_shape_[32]; // xyz half axis, w radius of a column glow (> 0 its side, < 0 solid); 0: the sphere
 } u;
 #define env_sun_dir u.env_[0]
 #define env_sun_col u.env_[1]
@@ -61,6 +62,42 @@ layout(std140, binding = 0) uniform Trace {
 #define glow_casts u.i3.x
 // Emitter i's light may be shadowed (glows.c pc_glow_casts: not a transient effect's).
 bool glow_casts_shadow(int i) { return ((glow_casts >> i) & 1) != 0; }
+// Emitter i's emitting shape (glows.c; pc/docs/Glows.md, "Enclosing glows"):
+// a small sphere (radius emitter_col.w) at emitter_pos, or a column around
+// it (emitter_shape_: half axis, radius): the glowing side of a column a
+// character can stand in (the save point), or a solid disc / cylinder (w < 0,
+// a glowing circle on the floor). A character inside a column hides only the
+// part of it behind them, where a point at its centre was hidden from
+// everywhere (the room went dark around Ashley standing in a save point).
+bool emitter_is_column(int i) { return u.emitter_shape_[i].w != 0.0; }
+// A point of emitter i's shape from four uniform random numbers.
+vec3 emitter_sample(int i, vec4 r) {
+    vec4 shape = u.emitter_shape_[i];
+    if (shape.w == 0.0) {
+        vec3 v = r.xyz * 2.0 - 1.0;
+        return emitter_pos[i].xyz + normalize(v + 1e-4) * pow(r.w, 0.333) * abs(emitter_col[i].w);
+    }
+    float h = length(shape.xyz);
+    vec3 a = h > 1e-3 ? shape.xyz / h : vec3(0.0, 1.0, 0.0);
+    vec3 t = normalize(cross(abs(a.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0), a)), b = cross(a, t);
+    float phi = 6.2831853 * r.x, radius = shape.w > 0.0 ? shape.w : -shape.w * sqrt(r.y);
+    return emitter_pos[i].xyz + shape.xyz * (2.0 * r.z - 1.0) + (t * cos(phi) + b * sin(phi)) * radius;
+}
+// The point of emitter i's shape nearest p (noise-free: the lighting
+// signature's rays): the sphere's centre, the column's near side.
+vec3 emitter_nearest(int i, vec3 p) {
+    vec4 shape = u.emitter_shape_[i];
+    if (shape.w == 0.0) return emitter_pos[i].xyz;
+    vec3 c = emitter_pos[i].xyz, v = p - c;
+    float h2 = dot(shape.xyz, shape.xyz);
+    vec3 on_axis = c + shape.xyz * (h2 > 1e-6 ? clamp(dot(v, shape.xyz) / h2, -1.0, 1.0) : 0.0);
+    vec3 out_ = p - on_axis;
+    float r = length(out_);
+    return r > 1e-3 ? on_axis + out_ / r * min(abs(shape.w), r) : on_axis;
+}
+// How far short of the sampled point a shadow ray stops (the emitter's own
+// polygons are not blockers): a sphere's radius, a few units on a column.
+float emitter_gap(int i) { return u.emitter_shape_[i].w != 0.0 ? 2.0 : abs(emitter_col[i].w); }
 #ifdef LIGHT_LIST
 // Every dynamic light (vk_rt.inc vrt_light_list, any number: light_count of
 // them), in a storage buffer: the path tracer samples them per pixel instead

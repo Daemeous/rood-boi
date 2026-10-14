@@ -82,6 +82,13 @@ void pc_ui_magick_refresh(void);
 int pc_ui_magick_cast_taken(void);
 void pc_ui_magick_cast(int go);
 
+/* items_bridge.c: the Items screen's game side */
+void pc_ui_items_session(int fresh);
+void pc_ui_items_fill(int mainmenu);
+void pc_ui_items_refresh(void);
+int pc_ui_items_cast_taken(void);
+void pc_ui_items_cast(int go);
+
 /* ashley_bridge.c: the Ashley tab's game side */
 void pc_ui_ashley_open(void);
 void pc_ui_ashley_fill(void);
@@ -213,6 +220,8 @@ int pc_ui_menu_open(int mode)
     pc_ui_shell_open(&c, mode != 2 || vs_main_settings.cursorMemory);
     pc_ui_abilities_fill(mainmenu_resident()); /* the shell may open on the Abilities screen */
     pc_ui_magick_fill(mainmenu_resident());    /* or on Magick */
+    pc_ui_items_session(mode == 2);            /* a new menu: the next Items screen is an entry */
+    pc_ui_items_fill(mainmenu_resident());     /* or on Items */
     settle = 2; /* the press that opened (or returned to) the menu is not the shell's */
     return 1;
 }
@@ -347,6 +356,7 @@ int pc_ui_menu_top(void)
     pc_ui_ashley_fill();
     pc_ui_abilities_fill(resident);
     pc_ui_magick_fill(resident);
+    pc_ui_items_fill(resident);
     if (held) {
         pc_ui_ashley_model_tick(0, 1);
         vs_mainMenu_setMenuCommand(menuActionNone);
@@ -367,15 +377,17 @@ int pc_ui_menu_top(void)
     pc_ui_equip_requests();
     pc_ui_abilities_refresh();
     pc_ui_magick_refresh();
-    /* a break art, a spell or a teleport was accepted (refused while a result
+    pc_ui_items_refresh();
+    /* a break art, a spell, a teleport or an item's Use was accepted (refused while a result
      * is out, a model reload runs or MAINMENU is not resident, so never held;
      * one per tick, the bridges refuse a second): handed to the game and the
      * menu closes for it. A result on the same tick (it cannot happen: the
      * bridges refuse once the shell has hidden) drops it. */
-    if (pc_ui_abilities_cast_taken() || pc_ui_magick_cast_taken()) {
+    if (pc_ui_abilities_cast_taken() || pc_ui_magick_cast_taken() || pc_ui_items_cast_taken()) {
         int teleport = pc_ui_magick_cast_taken() == 2;
         pc_ui_abilities_cast(r == 0);
         pc_ui_magick_cast(r == 0);
+        pc_ui_items_cast(r == 0);
         if (r == 0) {
             pc_ui_shell_close();
             pc_ui_ashley_model_tick(resident, 0); /* torn down: the shell is gone */

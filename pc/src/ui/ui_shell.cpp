@@ -20,7 +20,7 @@ struct RowDef {
 };
 enum Screen { SCREEN_COMMANDS = PC_UI_SCREEN_COMMANDS, SCREEN_EQUIPMENT = PC_UI_SCREEN_EQUIPMENT,
     SCREEN_ASHLEY = PC_UI_SCREEN_ASHLEY, SCREEN_SYSTEM = PC_UI_SCREEN_SYSTEM, SCREEN_ABILITIES = PC_UI_SCREEN_ABILITIES,
-    SCREEN_MAGICK = PC_UI_SCREEN_MAGICK };
+    SCREEN_MAGICK = PC_UI_SCREEN_MAGICK, SCREEN_ITEMS = PC_UI_SCREEN_ITEMS };
 struct TabDef {
     const char* id;
     const char* title;
@@ -35,7 +35,9 @@ const TabDef TABS[] = {
     {"ashley", "Ashley", {}, 0, SCREEN_ASHLEY, 4},
     // native screen; the original equip page stays reachable through Items (same command)
     {"equipment", "Equipment", {}, 0, SCREEN_EQUIPMENT, 3},
-    {"items", "Items", {{"items", "Items", "Use, sort and discard what you carry.", ROW_COMMAND, 3}}, 1},
+    // native screen: the bag by category (command 3, which gates the tab, as for Equipment); the original Items
+    // menu stays reachable through the action menu's "Original screen"
+    {"items", "Items", {}, 0, SCREEN_ITEMS, 3},
     // native screen: sub-tabs Chain and Defense (command 2, Battle Abilities) and Break Arts (command 1),
     // each shown once the game has unlocked its command (menuFlags); Square opens the original screen
     {"abilities", "Abilities", {}, 0, SCREEN_ABILITIES, -1},
@@ -97,6 +99,19 @@ struct Magic {
     bool seeded = false;                  // level was taken from the game's (level_memory) since the open
 };
 
+// Items screen: the category, each category's row, the mode and its menus' state.
+struct It {
+    int category = PC_UI_IC_WEAPON;
+    int cursor[PC_UI_ITEM_CATEGORIES] = {};
+    int mode = PC_UI_IT_LIST;
+    int action = 0;                       // the action menu's row
+    int confirm_kind = PC_UI_ITA_DISCARD; // what the Yes / No confirms
+    int confirm = 1;                      // 0 Yes, 1 No (it opens on No, as _discardMenu's Yes / No does)
+    int count = 0, count_max = 0, step = 0; // the quantity picker
+    int sort = 0;                         // the sort list's row
+    int move_from = -1;                   // MOVE: the row being moved
+};
+
 const int QUEUE = 16;
 struct State {
     bool visible = false;
@@ -120,15 +135,17 @@ struct State {
     pc_ui_abilities ab_model = {};
     Magic mg;
     pc_ui_magick mg_model = {};
+    It it;
+    pc_ui_items it_model = {};
     int ash_shown = -1;      // effect chips the drawing fits, -1 all
     float drag_x = 0, drag_y = 0; // model drag since the bridge last took it
 } s;
 
-void push(int kind, int slot, int item, int shield)
+void push(int kind, int slot, int item, int shield, int count = 0)
 {
     if (s.q_count == QUEUE)
         return; // the bridge drains every tick; a full queue drops the newest
-    s.queue[(s.q_head + s.q_count++) % QUEUE] = {kind, slot, item, shield};
+    s.queue[(s.q_head + s.q_count++) % QUEUE] = {kind, slot, item, shield, count};
 }
 
 bool row_shown(const RowDef& r)
@@ -1246,6 +1263,416 @@ void magick_json(std::string& j)
     j += "]}}";
 }
 
+// ---- Items ----
+const int ITEMS_COMMAND = 3;
+const RowDef ITEMS_GATE = {"items", "Items", "", ROW_COMMAND, ITEMS_COMMAND};
+const char* const IT_CATEGORY_IDS[PC_UI_ITEM_CATEGORIES] = {"weapons", "blades", "grips", "shields", "armor", "gems",
+    "misc"};
+const char* const IT_MODE_IDS[] = {"list", "actions", "quantity", "confirm", "sort", "move", "details"};
+const char* const IT_ACTION_IDS[PC_UI_ITA_COUNT] = {"use", "search", "discard", "discard_all", "sort", "move",
+    "original"};
+const char* const IT_ACTION_LABELS[PC_UI_ITA_COUNT] = {"Use", "Search", "Discard", "Discard all", "Sort", "Move",
+    "Original screen"};
+const int IT_STEPS[3] = {1, 10, 100}; // _discardMenu discardSteps
+bool on_items() { return TABS[s.tab].screen == SCREEN_ITEMS; }
+int it_category()
+{
+    if (s.it.category < 0 || s.it.category >= PC_UI_ITEM_CATEGORIES)
+        s.it.category = 0;
+    return s.it.category;
+}
+int it_rows(int c)
+{
+    const pc_ui_items& m = s.it_model;
+    if (!m.valid || c < 0 || c >= PC_UI_ITEM_CATEGORIES)
+        return 0;
+    int n = m.count[c], first = m.first[c];
+    if (n < 0 || first < 0 || first > PC_UI_ITEM_ROWS)
+        return 0;
+    return n > PC_UI_ITEM_ROWS - first ? PC_UI_ITEM_ROWS - first : n;
+}
+const pc_ui_item_row* it_row(int c, int r)
+{
+    if (r < 0 || r >= it_rows(c))
+        return nullptr;
+    return &s.it_model.rows[s.it_model.first[c] + r];
+}
+// Browse only: the snapshot says the mask greys the list (or, before it arrives, the command row does).
+bool it_locked() { return s.it_model.valid ? s.it_model.locked != 0 : !row_enabled(ITEMS_GATE); }
+const char* it_lock_reason()
+{
+    if (!it_locked())
+        return nullptr;
+    return s.it_model.valid && s.it_model.locked_reason[0] ? s.it_model.locked_reason : row_reason(ITEMS_GATE);
+}
+int it_sorts(int c)
+{
+    int n = s.it_model.valid && c >= 0 && c < PC_UI_ITEM_CATEGORIES ? s.it_model.sort_count[c] : 0;
+    return n < 0 ? 0 : n > PC_UI_SORT_STATS ? PC_UI_SORT_STATS : n;
+}
+// The focused row's action menu, as the original offers it (populateActions) plus Move and the original screen.
+struct ItAction {
+    int kind;
+    bool enabled;
+    const char* reason;
+};
+int it_actions(ItAction* out)
+{
+    int c = it_category(), n = 0;
+    const pc_ui_item_row* r = it_row(c, s.it.cursor[c]);
+    const char* lock = it_lock_reason();
+    if (r) {
+        if (c == PC_UI_IC_MISC)
+            out[n++] = {PC_UI_ITA_USE, r->usable != 0, r->usable ? nullptr : r->use_reason};
+        if (c == PC_UI_IC_BLADE || c == PC_UI_IC_GRIP || c == PC_UI_IC_GEM) {
+            bool ok = !lock && r->parent >= 0;
+            out[n++] = {PC_UI_ITA_SEARCH, ok, ok ? nullptr : lock ? lock : s.it_model.no_search};
+        }
+        out[n++] = {PC_UI_ITA_DISCARD, r->discard != 0, r->discard ? nullptr : r->discard_reason};
+        if (c == PC_UI_IC_MISC)
+            out[n++] = {PC_UI_ITA_DISCARD_ALL, r->discard_all != 0, r->discard_all ? nullptr : r->discard_all_reason};
+        out[n++] = {PC_UI_ITA_SORT, !lock && it_sorts(c) > 0, lock};
+        bool two = it_rows(c) >= 2;
+        out[n++] = {PC_UI_ITA_MOVE, !lock && two, lock ? lock : two ? nullptr : "Nothing else here to move it to."};
+    }
+    out[n++] = {PC_UI_ITA_ORIGINAL, true, nullptr};
+    return n;
+}
+void it_clamp()
+{
+    It& t = s.it;
+    int c = it_category();
+    for (int k = 0; k < PC_UI_ITEM_CATEGORIES; ++k) {
+        int n = it_rows(k);
+        if (t.cursor[k] >= n)
+            t.cursor[k] = n ? n - 1 : 0;
+        if (t.cursor[k] < 0)
+            t.cursor[k] = 0;
+    }
+    int rows = it_rows(c);
+    if (!rows && t.mode != PC_UI_IT_ACTIONS)
+        t.mode = PC_UI_IT_LIST; // the list emptied under a sub-mode
+    if (t.mode == PC_UI_IT_MOVE && (t.move_from < 0 || t.move_from >= rows))
+        t.mode = PC_UI_IT_LIST;
+    ItAction a[PC_UI_ITA_COUNT];
+    int n = it_actions(a);
+    if (t.action >= n || t.action < 0)
+        t.action = 0;
+    if (t.sort >= it_sorts(c) || t.sort < 0)
+        t.sort = 0;
+}
+// Out of any menu onto the list (a tab switch, a category switch, an open).
+void it_base()
+{
+    s.it.mode = PC_UI_IT_LIST;
+    s.it.move_from = -1;
+}
+// The focused row's inventory index as the screen sees it (the bridge refuses a stale request).
+int it_inventory()
+{
+    const pc_ui_item_row* r = it_row(it_category(), s.it.cursor[it_category()]);
+    return r ? r->inventory : -1;
+}
+// The Yes / No's question: _discardMenu's discardConfirm + discardType for a single item (0) or discard all
+// (2); after the quantity picker its discardMultipleConfirm asks discardConfirm (0) too (discardConfirm + 1 is
+// the picker's own message).
+int it_prompt() { return s.it.confirm_kind == PC_UI_ITA_DISCARD_ALL ? 2 : 0; }
+// Cross: one step back; false in the list (the shell closes). Divergence: the original's quantity picker and
+// Yes / No go back to the list on Cross; here they go back one level (the action menu, the picker).
+bool it_back()
+{
+    It& t = s.it;
+    switch (t.mode) {
+    case PC_UI_IT_ACTIONS:
+    case PC_UI_IT_DETAILS:
+        it_base();
+        return true;
+    case PC_UI_IT_QUANTITY:
+    case PC_UI_IT_SORT:
+    case PC_UI_IT_MOVE:
+        t.mode = PC_UI_IT_ACTIONS;
+        t.move_from = -1;
+        return true;
+    case PC_UI_IT_CONFIRM:
+        t.mode = t.confirm_kind == PC_UI_ITA_DISCARD && t.count_max >= 2 ? PC_UI_IT_QUANTITY : PC_UI_IT_ACTIONS;
+        return true;
+    default:
+        return false;
+    }
+}
+// Circle on an action. Returns a result for the game (the original screen), else 0.
+int it_do(const ItAction& a)
+{
+    It& t = s.it;
+    int c = it_category(), row = t.cursor[c];
+    const pc_ui_item_row* r = it_row(c, row);
+    switch (a.kind) {
+    case PC_UI_ITA_ORIGINAL:
+        s.visible = false; // the game shows its screen; it reopens the shell after
+        s.drag_x = s.drag_y = 0;
+        it_base();
+        return ITEMS_COMMAND + 1;
+    case PC_UI_ITA_USE:
+        // usable or not, the bridge checks it as MENU3 does and closes the menu to use it; refused, it buzzes
+        // and the action menu stays with the reason, as the original's unselectable Use row
+        push(PC_UI_REQ_ITEM_USE, c, row, it_inventory());
+        return 0;
+    case PC_UI_ITA_SEARCH:
+        if (!a.enabled || !r)
+            return 0;
+        for (int k = 0; k < it_rows(r->parent_category); ++k)
+            if (it_row(r->parent_category, k)->inventory == r->parent) {
+                t.category = r->parent_category;
+                t.cursor[t.category] = k;
+                break;
+            }
+        it_base();
+        return 0;
+    case PC_UI_ITA_DISCARD:
+        if (!a.enabled) { // the bridge buzzes
+            push(PC_UI_REQ_ITEM_DISCARD, c, row, it_inventory(), 0);
+            return 0;
+        }
+        t.confirm_kind = PC_UI_ITA_DISCARD;
+        t.confirm = 1;
+        t.count_max = c == PC_UI_IC_MISC && r ? r->count : 1;
+        t.count = t.count_max >= 2 ? 0 : 1;
+        t.step = 0;
+        t.mode = t.count_max >= 2 ? PC_UI_IT_QUANTITY : PC_UI_IT_CONFIRM;
+        return 0;
+    case PC_UI_ITA_DISCARD_ALL:
+        if (!a.enabled) {
+            push(PC_UI_REQ_ITEM_DISCARD_ALL, c, row, it_inventory());
+            return 0;
+        }
+        t.confirm_kind = PC_UI_ITA_DISCARD_ALL;
+        t.confirm = 1;
+        t.count_max = t.count = r ? r->count : 0;
+        t.mode = PC_UI_IT_CONFIRM;
+        return 0;
+    case PC_UI_ITA_SORT:
+        if (a.enabled) {
+            t.mode = PC_UI_IT_SORT;
+            t.sort = 0;
+        }
+        return 0;
+    case PC_UI_ITA_MOVE:
+        if (a.enabled) {
+            t.mode = PC_UI_IT_MOVE;
+            t.move_from = row;
+        }
+        return 0;
+    default:
+        return 0;
+    }
+}
+// _discardMenu determineDiscardAmount's keys (items1.h): Up/Down by the step when it stays in 0..max;
+// Left a bigger step (past 100: all), Right a smaller one (past 1: none).
+void it_quantity(const pc_ui_input* in)
+{
+    It& t = s.it;
+    int dir = ((in->repeat & PC_UI_UP) ? 1 : 0) - ((in->repeat & PC_UI_DOWN) ? 1 : 0);
+    int next = t.count + dir * IT_STEPS[t.step];
+    if (dir && next >= 0 && next <= t.count_max)
+        t.count = next;
+    dir = ((in->repeat & PC_UI_LEFT) ? 1 : 0) - ((in->repeat & PC_UI_RIGHT) ? 1 : 0);
+    if (dir == 1) {
+        if (t.step == 2)
+            t.count = t.count_max;
+        else
+            ++t.step;
+    } else if (dir == -1) {
+        if (t.step == 0)
+            t.count = 0;
+        else
+            --t.step;
+    }
+}
+int items_tick(const pc_ui_input* in)
+{
+    It& t = s.it;
+    it_clamp();
+    int c = it_category(), rows = it_rows(c);
+    if (in->pressed & (PC_UI_SUB_NEXT | PC_UI_SUB_PREV)) {
+        int dir = (in->pressed & PC_UI_SUB_NEXT) ? 1 : -1;
+        t.category = (c + dir + PC_UI_ITEM_CATEGORIES) % PC_UI_ITEM_CATEGORIES;
+        it_base();
+        return 0;
+    }
+    int& cur = t.cursor[c];
+    ItAction acts[PC_UI_ITA_COUNT];
+    int n = it_actions(acts);
+    switch (t.mode) {
+    case PC_UI_IT_LIST:
+    case PC_UI_IT_DETAILS:
+        if (rows && (in->repeat & PC_UI_DOWN))
+            cur = (cur + 1) % rows;
+        if (rows && (in->repeat & PC_UI_UP))
+            cur = (cur + rows - 1) % rows;
+        if (in->pressed & PC_UI_ALT) {
+            t.mode = t.mode == PC_UI_IT_DETAILS || !rows ? PC_UI_IT_LIST : PC_UI_IT_DETAILS;
+            return 0;
+        }
+        if (in->pressed & PC_UI_CONFIRM) {
+            t.mode = PC_UI_IT_ACTIONS;
+            t.action = 0;
+        }
+        return 0;
+    case PC_UI_IT_ACTIONS:
+        if (in->repeat & PC_UI_DOWN)
+            t.action = (t.action + 1) % n;
+        if (in->repeat & PC_UI_UP)
+            t.action = (t.action + n - 1) % n;
+        if (in->pressed & PC_UI_CONFIRM)
+            return it_do(acts[t.action]);
+        return 0;
+    case PC_UI_IT_QUANTITY:
+        if (in->pressed & PC_UI_CONFIRM) {
+            if (t.count == 0) { // none: the original leaves the picker (back to the list, the leave sound)
+                push(PC_UI_REQ_ITEM_CANCEL, c, cur, it_inventory(), 0);
+                it_base();
+            } else {
+                t.mode = PC_UI_IT_CONFIRM;
+                t.confirm = 1;
+            }
+            return 0;
+        }
+        it_quantity(in);
+        return 0;
+    case PC_UI_IT_CONFIRM:
+        if (in->repeat & (PC_UI_DOWN | PC_UI_UP))
+            t.confirm = !t.confirm;
+        if (in->pressed & PC_UI_CONFIRM) {
+            if (t.confirm == 0) {
+                if (t.confirm_kind == PC_UI_ITA_DISCARD_ALL)
+                    push(PC_UI_REQ_ITEM_DISCARD_ALL, c, cur, it_inventory());
+                else
+                    push(PC_UI_REQ_ITEM_DISCARD, c, cur, it_inventory(), t.count);
+            } else { // No: the leave sound (the bridge), back to the list as the original
+                push(PC_UI_REQ_ITEM_CANCEL, c, cur, it_inventory(), t.confirm_kind == PC_UI_ITA_DISCARD_ALL ? 2 : 1);
+            }
+            it_base();
+        }
+        return 0;
+    case PC_UI_IT_SORT: {
+        int k = it_sorts(c);
+        if (k && (in->repeat & PC_UI_DOWN))
+            t.sort = (t.sort + 1) % k;
+        if (k && (in->repeat & PC_UI_UP))
+            t.sort = (t.sort + k - 1) % k;
+        if ((in->pressed & PC_UI_CONFIRM) && k) {
+            push(PC_UI_REQ_ITEM_SORT, c, cur, it_inventory(), s.it_model.sort_stats[c][t.sort]);
+            it_base();
+        }
+        return 0;
+    }
+    case PC_UI_IT_MOVE:
+        if (rows && (in->repeat & PC_UI_DOWN))
+            cur = (cur + 1) % rows;
+        if (rows && (in->repeat & PC_UI_UP))
+            cur = (cur + rows - 1) % rows;
+        if (in->pressed & PC_UI_CONFIRM) {
+            const pc_ui_item_row* from = it_row(c, t.move_from);
+            if (cur != t.move_from && from)
+                push(PC_UI_REQ_ITEM_MOVE, c, t.move_from, cur, from->inventory);
+            it_base(); // the cursor stays on the target row, as the original's list does
+        }
+        return 0;
+    default:
+        it_base();
+        return 0;
+    }
+}
+void items_json(std::string& j)
+{
+    const pc_ui_items& m = s.it_model;
+    const It& t = s.it;
+    char buf[320];
+    it_clamp();
+    int c = it_category(), rows = it_rows(c);
+    std::snprintf(buf, sizeof buf,
+        ",\"items\":{\"valid\":%s,\"locked\":%s,\"category\":\"%s\",\"mode\":\"%s\",\"cursor\":%d,\"rows\":%d,"
+        "\"capacity\":%d,\"inventory\":%d,\"mask\":%u",
+        m.valid ? "true" : "false", it_locked() ? "true" : "false", IT_CATEGORY_IDS[c], IT_MODE_IDS[t.mode],
+        t.cursor[c], rows, m.valid ? m.capacity[c] : 0, it_inventory(), m.mask);
+    j += buf;
+    if (const char* why = it_lock_reason())
+        j += ",\"reason\":\"" + escape(why) + "\"";
+    j += ",\"categories\":[";
+    for (int k = 0; k < PC_UI_ITEM_CATEGORIES; ++k) {
+        std::snprintf(buf, sizeof buf, "%s{\"id\":\"%s\",\"count\":%d,\"capacity\":%d}", k ? "," : "",
+            IT_CATEGORY_IDS[k], it_rows(k), m.valid ? m.capacity[k] : 0);
+        j += buf;
+    }
+    j += "],\"list\":[";
+    for (int r = 0; r < rows; ++r) {
+        const pc_ui_item_row& e = *it_row(c, r);
+        std::snprintf(buf, sizeof buf,
+            "%s{\"row\":%d,\"inventory\":%d,\"id\":%d,\"count\":%d,\"mark\":%d,\"material\":%d,\"parent_category\":%d,"
+            "\"parent\":%d,\"discard\":%s,\"discard_all\":%s,\"usable\":%s,\"action\":%d,\"name\":\"",
+            r ? "," : "", r, e.inventory, e.id, e.count, e.mark, e.material, e.parent_category, e.parent,
+            e.discard ? "true" : "false", e.discard_all ? "true" : "false", e.usable ? "true" : "false", e.action);
+        j += buf;
+        j += escape(e.name) + "\",\"sub\":\"" + escape(e.sub) + "\",\"help\":\"" + escape(e.help) +
+            "\",\"discard_reason\":\"" + escape(e.discard_reason) + "\",\"discard_all_reason\":\"" +
+            escape(e.discard_all_reason) + "\",\"use_reason\":\"" + escape(e.use_reason) + "\"}";
+    }
+    j += "]";
+    if (t.mode != PC_UI_IT_LIST && t.mode != PC_UI_IT_DETAILS) {
+        ItAction a[PC_UI_ITA_COUNT];
+        int n = it_actions(a);
+        std::snprintf(buf, sizeof buf, ",\"action\":%d,\"actions\":[", t.action);
+        j += buf;
+        for (int i = 0; i < n; ++i) {
+            j += std::string(i ? "," : "") + "{\"id\":\"" + IT_ACTION_IDS[a[i].kind] + "\",\"enabled\":" +
+                (a[i].enabled ? "true" : "false");
+            if (a[i].reason)
+                j += ",\"reason\":\"" + escape(a[i].reason) + "\"";
+            j += "}";
+        }
+        j += "]";
+    }
+    if (t.mode == PC_UI_IT_QUANTITY || t.mode == PC_UI_IT_CONFIRM) {
+        std::snprintf(buf, sizeof buf, ",\"quantity\":{\"count\":%d,\"max\":%d,\"step\":%d}", t.count, t.count_max,
+            IT_STEPS[t.step]);
+        j += buf;
+    }
+    if (t.mode == PC_UI_IT_CONFIRM) {
+        std::snprintf(buf, sizeof buf, ",\"confirm\":{\"kind\":\"%s\",\"yes\":%s,\"prompt\":\"",
+            IT_ACTION_IDS[t.confirm_kind], t.confirm == 0 ? "true" : "false");
+        j += buf;
+        j += escape(m.discard_prompt[it_prompt()]) + "\"}";
+    }
+    if (t.mode == PC_UI_IT_SORT) {
+        std::snprintf(buf, sizeof buf, ",\"sort\":{\"cursor\":%d,\"stats\":[", t.sort);
+        j += buf;
+        for (int i = 0; i < it_sorts(c); ++i) {
+            int st = m.sort_stats[c][i];
+            std::snprintf(buf, sizeof buf, "%s{\"stat\":%d,\"name\":\"", i ? "," : "", st);
+            j += buf;
+            j += (st < PC_UI_STAT_NAMES ? escape(m.stat_name[st]) : std::string()) + "\"}";
+        }
+        j += "]}";
+    }
+    if (t.mode == PC_UI_IT_MOVE) {
+        std::snprintf(buf, sizeof buf, ",\"move_from\":%d", t.move_from);
+        j += buf;
+    }
+    const pc_ui_item_details& d = m.details;
+    if (d.valid && rows && d.category == c && d.inventory == it_inventory()) {
+        std::snprintf(buf, sizeof buf,
+            ",\"details\":{\"inventory\":%d,\"dp\":%d,\"dp_max\":%d,\"pp\":%d,\"pp_max\":%d,\"str\":%d,\"int\":%d,"
+            "\"agl\":%d,\"types\":[%d,%d,%d],\"range\":%d,\"risk\":%d,\"blade_category\":%d,\"grip_category\":%d,"
+            "\"armor_category\":%d,\"gem_slots\":%d,\"gems\":%d",
+            d.inventory, d.stats.dp, d.stats.dp_max, d.stats.pp, d.stats.pp_max, d.stats.str, d.stats.intel,
+            d.stats.agl, d.types[0], d.types[1], d.types[2], d.range, d.risk, d.blade_category, d.grip_category,
+            d.armor_category, d.gem_slots, d.gem_count);
+        j += buf;
+        j += ",\"name\":\"" + escape(d.stats.name) + "\",\"material\":\"" + escape(d.stats.material) + "\"}";
+    }
+    j += "}";
+}
+
 // ---- Mouse ----
 // Focus what the pointer is on (hover, or the click's target). False when that
 // target is not on screen now (another mode or tab, past the end).
@@ -1324,6 +1751,34 @@ bool mouse_focus(int kind, int index)
         s.mg.cursor[s.mg.kind] = index;
         return true;
     }
+    case PC_UI_MOUSE_ITEM: // where the list has the focus (the list, details, a move's target)
+        if (!on_items() || index < 0 || index >= it_rows(it_category())
+            || (s.it.mode != PC_UI_IT_LIST && s.it.mode != PC_UI_IT_DETAILS && s.it.mode != PC_UI_IT_MOVE))
+            return false;
+        s.it.cursor[it_category()] = index;
+        return true;
+    case PC_UI_MOUSE_ITEM_MENU: {
+        if (!on_items() || index < 0)
+            return false;
+        It& t = s.it;
+        if (t.mode == PC_UI_IT_ACTIONS) {
+            ItAction a[PC_UI_ITA_COUNT];
+            if (index >= it_actions(a))
+                return false;
+            t.action = index;
+        } else if (t.mode == PC_UI_IT_CONFIRM) {
+            if (index > 1)
+                return false;
+            t.confirm = index;
+        } else if (t.mode == PC_UI_IT_SORT) {
+            if (index >= it_sorts(it_category()))
+                return false;
+            t.sort = index;
+        } else {
+            return false;
+        }
+        return true;
+    }
     default:
         return false;
     }
@@ -1364,6 +1819,17 @@ bool ab_click_zone(int kind, int index)
     default:
         return false;
     }
+}
+// Items: a click on a list row while a menu is open goes back to the list on that row (no confirm); true when
+// it did.
+bool it_click_zone(int kind, int index)
+{
+    if (kind != PC_UI_MOUSE_ITEM || !on_items() || s.it.mode == PC_UI_IT_LIST || s.it.mode == PC_UI_IT_DETAILS
+        || s.it.mode == PC_UI_IT_MOVE || index < 0 || index >= it_rows(it_category()))
+        return false;
+    it_base();
+    s.it.cursor[it_category()] = index;
+    return true;
 }
 // A click on a level of the focused levelled spell picks it (no cast); true when it did.
 bool mg_click_level(int kind, int index)
@@ -1423,9 +1889,18 @@ bool apply_mouse(pc_ui_input& in)
         s.tab = m.click_index;
         equip_base();
         ab_unpick();
+        it_base();
         s.drag_x = s.drag_y = 0;
         return true;
     case PC_UI_MOUSE_SUB:
+        if (on_items()) { // a category
+            if (m.click_index < 0 || m.click_index >= PC_UI_ITEM_CATEGORIES
+                || (m.click_index == s.it.category && s.it.mode == PC_UI_IT_LIST))
+                return false;
+            s.it.category = m.click_index;
+            it_base();
+            return true;
+        }
         if (on_magick()) { // the i-th shown sub-tab
             int subs[PC_UI_SCHOOLS + 1], n = mg_subs(subs);
             if (m.click_index < 0 || m.click_index >= n || subs[m.click_index] == s.mg.kind)
@@ -1480,7 +1955,8 @@ bool apply_mouse(pc_ui_input& in)
             in.pressed |= PC_UI_CONFIRM, in.repeat |= PC_UI_CONFIRM;
         return false;
     default:
-        if (ab_click_zone(m.click_kind, m.click_index) || mg_click_level(m.click_kind, m.click_index))
+        if (ab_click_zone(m.click_kind, m.click_index) || mg_click_level(m.click_kind, m.click_index)
+            || it_click_zone(m.click_kind, m.click_index))
             return true;
         if (mouse_focus(m.click_kind, m.click_index))
             in.pressed |= PC_UI_CONFIRM, in.repeat |= PC_UI_CONFIRM;
@@ -1552,11 +2028,13 @@ extern "C" void pc_ui_shell_open(const pc_ui_commands* commands, int remember)
         std::memset(s.sys.row, 0, sizeof s.sys.row);
         s.ab = Abil();
         s.mg = Magic();
+        s.it = It();
     }
     s.mg.placed = false; // Teleport starts on the current circle at every open (the original's list does)
     s.mg.seeded = false; // the level is the game's LV picker memory at every open (it may have moved it)
     equip_base(); // a pick list never survives the shell closing
     ab_unpick();
+    it_base(); // nor an Items menu (a cancelled Use comes back on the item's row)
     for (int t = 0; t < TAB_COUNT; ++t)
         clamp_row(t);
     if (!tab_has_rows(s.tab))
@@ -1595,6 +2073,9 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
         return 0;
     if (ab_takes_triangle() && (in->pressed & PC_UI_EXIT) && !(in->pressed & PC_UI_BACK))
         return abilities_tick(in);
+    // Items: Cross steps back out of a menu or the details
+    if ((in->pressed & PC_UI_BACK) && !(in->pressed & PC_UI_EXIT) && on_items() && it_back())
+        return 0;
     // Cross steps back out of a settings page to the System list
     if ((in->pressed & PC_UI_BACK) && !(in->pressed & PC_UI_EXIT) && on_system() && s.sys.page >= 0) {
         sys_leave();
@@ -1616,6 +2097,7 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
         sys_leave();  // out of a settings page: saved
         equip_base(); // leaving (or entering) the Equipment tab drops its pick list
         ab_unpick();
+        it_base();
         s.drag_x = s.drag_y = 0;
         return 0;
     }
@@ -1631,6 +2113,8 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
         return abilities_tick(in);
     if (on_magick())
         return magick_tick(in);
+    if (on_items())
+        return items_tick(in);
     int rows[6];
     int n = clamp_row(s.tab);
     shown_rows(s.tab, rows);
@@ -1699,6 +2183,7 @@ extern "C" void pc_ui_shell_json(char* out, unsigned size)
         : t.screen == SCREEN_SYSTEM                                            ? "system"
         : t.screen == SCREEN_ABILITIES                                         ? "abilities"
         : t.screen == SCREEN_MAGICK                                            ? "magick"
+        : t.screen == SCREEN_ITEMS                                             ? "items"
                                                                                 : "commands";
     j += "\"";
     if (t.screen == SCREEN_EQUIPMENT)
@@ -1711,6 +2196,8 @@ extern "C" void pc_ui_shell_json(char* out, unsigned size)
         abilities_json(j);
     else if (t.screen == SCREEN_MAGICK)
         magick_json(j);
+    else if (t.screen == SCREEN_ITEMS)
+        items_json(j);
     j += "}";
     std::snprintf(out, size, "%s", j.c_str());
 }
@@ -1882,4 +2369,55 @@ extern "C" void pc_ui_shell_magick_view(pc_ui_magick_view* v)
     v->cursor = v->subs ? s.mg.cursor[s.mg.kind] : 0;
     v->rows = v->subs ? mg_rows(s.mg.kind) : 0;
     v->level = v->subs ? mg_level() : 0;
+}
+
+extern "C" void pc_ui_shell_set_items(const pc_ui_items* m)
+{
+    s.it_model = *m;
+    it_clamp();
+}
+extern "C" void pc_ui_shell_set_items_details(const pc_ui_item_details* d) { s.it_model.details = *d; }
+extern "C" const pc_ui_items* pc_ui_shell_items(void) { return &s.it_model; }
+extern "C" int pc_ui_shell_items_focus(int* category, int* inventory)
+{
+    if (!s.visible || !on_items())
+        return 0;
+    int c = it_category(), inv = it_inventory();
+    if (inv < 0)
+        return 0;
+    *category = c;
+    *inventory = inv;
+    return 1;
+}
+extern "C" void pc_ui_shell_items_view(pc_ui_items_view* v)
+{
+    it_clamp();
+    const It& t = s.it;
+    int c = it_category();
+    std::memset(v, 0, sizeof *v);
+    v->category = c;
+    v->mode = t.mode;
+    v->cursor = t.cursor[c];
+    v->rows = it_rows(c);
+    v->capacity = s.it_model.valid ? s.it_model.capacity[c] : 0;
+    v->row = it_row(c, t.cursor[c]);
+    v->locked = it_locked();
+    v->reason = it_lock_reason();
+    ItAction a[PC_UI_ITA_COUNT];
+    v->actions = it_actions(a);
+    for (int i = 0; i < v->actions; ++i) {
+        v->action_kind[i] = a[i].kind;
+        v->action_enabled[i] = a[i].enabled;
+        v->action_label[i] = IT_ACTION_LABELS[a[i].kind];
+        v->action_reason[i] = a[i].reason && a[i].reason[0] ? a[i].reason : nullptr;
+    }
+    v->action = t.action;
+    v->confirm_kind = t.confirm_kind;
+    v->confirm = t.confirm;
+    v->prompt = s.it_model.discard_prompt[it_prompt()];
+    v->count = t.count;
+    v->count_max = t.count_max;
+    v->step = t.step;
+    v->sort = t.sort;
+    v->move_from = t.mode == PC_UI_IT_MOVE ? t.move_from : -1;
 }

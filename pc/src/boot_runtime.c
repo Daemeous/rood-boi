@@ -841,6 +841,7 @@ static struct timespec last_vsync;
 
 extern void pc_rpc_poll(void);
 extern void pc_cd_tick(void) __attribute__((weak));
+extern void pc_fog_vsync(void) __attribute__((weak)); /* atmosphere.cpp: the interactive fog steps */
 static unsigned vsyncs;
 unsigned pc_vsync_count(void) { return vsyncs; }
 unsigned pc_battle_frame_count(void) { return battle_frames; }
@@ -874,6 +875,8 @@ void pc_tick(void)
 {
     ++vsyncs;
     pc_rpc_poll();
+    if (pc_fog_vsync)
+        pc_fog_vsync(); /* once per game vsync, after the RPC's changes, before the frame */
     pc_window_tick();
     if (pc_cd_tick)
         pc_cd_tick(); /* before the audio: this field's XA sectors */
@@ -893,9 +896,15 @@ void pc_tick(void)
     }
 }
 
+/* What the game is in, for host features that only belong in play (post.h:
+ * depth of field): 1 the title (from boot, and again on every return to it,
+ * boot_sdk.c vs_overlay_jumpToTitle), 2 an attract demo (the title's idle
+ * cutscenes, modes 3 and 4), 0 a game started from the title. */
+int pc_game_phase = 1;
 void pc_title_start(int state)
 {
     fprintf(stderr, "[title] starting mode %d (0=new game, 3/4=idle cutscene)\n", state);
+    pc_game_phase = state == 3 || state == 4 ? 2 : 0;
 }
 void pc_title_selection(int item)
 {

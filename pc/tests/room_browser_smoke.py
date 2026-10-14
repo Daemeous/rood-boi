@@ -14,7 +14,10 @@ holds a generated and an authored layer for two rooms, then:
   "rooms seen" bits are untouched, saving is refused while warped; editing
   there saves to the user layer (version 2, the diff from the packs),
   revert and Promote work;
-- return to the save room ends the warped state; no crash.
+- return to the save room ends the warped state;
+- a warp with the room's scripts into zone 32 room 0: its entry event
+  moves on to room 1 (an animation whose event SEQ the script unloaded);
+- no crash.
 
     python3 pc/tests/room_browser_smoke.py --card pc/save/card1.mcd [--out DIR] [--evidence DIR]
 
@@ -246,6 +249,26 @@ def main():
         check((st["zone"], st["room"]) == home and not status["warped"], f"Return goes home and ends the warped state ({status})")
         check(game.call("scene")["triangles"] > 0, "the home room renders")
         evidence("room-browser-home")
+
+        # A warp with the room's scripts: zone 32 room 0's entry event plays
+        # an animation from its event SEQ, unloads that SEQ while Ashley still
+        # plays it, then moves to room 1 (this used to crash the room change).
+        # The cutscene holds the field afterwards, so this goes last.
+        if (32, 0) in listed and listed[(32, 0)]["entries"]:
+            where = None
+            try:
+                game.call("room_goto", zone=32, room=0, scripts=True)
+                for _ in range(80):
+                    game.run(20)
+                    st = game.state()
+                    where = (st["zone"], st["room"])
+                    if where == (32, 1):
+                        break
+                game.run(60)
+                alive = game.state()["zone"] == 32
+            except OSError:  # the game is gone
+                alive = False
+            check(where == (32, 1) and alive, f"zone 32 room 0's entry event moves on to room 1 ({where})")
     finally:
         game.close()
     log = pathlib.Path(game.log).read_text(errors="replace")

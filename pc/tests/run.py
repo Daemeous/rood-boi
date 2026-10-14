@@ -10,7 +10,7 @@
 
 Suites: the CTest probes (pc/build), the RPC and checkpoint smokes, the X11
 window smoke, every input case in start_button_smoke.sh, golden frames and
-short soaks (from New Game, and from a copy of pc/save/card1.mcd when present). Each runs in its own process group with a private output
+short soaks (from New Game, and from the pinned test card pc/build/test-card1.mcd, a copy of pc/save/card1.mcd made once; $ROOD_TEST_CARD overrides). Each runs in its own process group with a private output
 directory pc/build/tests/<suite>/ (ROOD_OUT: game log, frames, scratch memory
 cards, its output.log), RPC socket, X display (rood_rpc.start_xvfb) and an
 empty lights and prefab directories (ROOD_LIGHTS, ROOD_PREFABS), so parallel runs cannot collide and the
@@ -106,6 +106,9 @@ def suites(args, mode="egl"):
               note="CMake probes in pc/build"),
         Suite("lighting_lint", [PY, str(ROOT / "pc/tools/lighting_lint.py")], 60, binary=None,
               note="lighting packs in lighting/: syntax, keys, ids, dangling overrides, rooms"),
+        Suite("lp64_alias_scan", [PY, str(TESTS / "lp64_alias_scan_test.py")], 60, binary=None,
+              note="no data import is a field of another across the LP64 native move "
+                   "(pc/tools/lp64_alias_scan.py on pc/build/boot64; synthetic cases always)"),
         Suite("snapshot_equivalence", [PY, str(TESTS / "snapshot_equivalence.py")]
               + (["--card", str(args.save)] if args.save.exists() else []), 600,
               note="save states: booting to each test checkpoint and resuming its snapshot give identical "
@@ -145,6 +148,9 @@ def suites(args, mode="egl"):
             Suite("route_continuation_smoke", [PY, str(TESTS / "route_continuation_smoke.py"), "--card",
                                                str(args.save)], 300,
                   note="enemies holding a room link (gate) continue their route (L800DF8A4) in zone 9 room 5"),
+            Suite("two_model_enemy_smoke", [PY, str(TESTS / "two_model_enemy_smoke.py"), "--card", str(args.save)],
+                  300, note="a Ghost (two-model enemy, zone 13 room 4) through _zoneContext.zndEnemies; leaving a "
+                            "room frees its spawn table (game heap steady); the LP64 import aliases"),
             Suite("ending_smoke", [PY, str(TESTS / "ending_smoke.py"), "--card", str(args.save)], 600,
                   note="ENDING.PRG twice from the save: credits, skip, MISSION COMPLETE rank screen, title"),
             Suite("light_actors_smoke", [PY, str(TESTS / "light_actors_smoke.py"), "--card", str(args.save)], 300,
@@ -166,7 +172,10 @@ def suites(args, mode="egl"):
                   note="interactive fog prototype (sim=1, off by default): Ashley clears her footprint, a wake "
                        "when walking, settles back"),
             Suite("glow_stability_smoke", [PY, str(TESTS / "glow_stability_smoke.py"), "--card", str(args.save)], 600,
-                  note="save point: one steady glow, stable id, overrides persist; prologue fight: effect glows unshadowed, smooth")]
+                  note="save point: one steady glow, stable id, overrides persist; prologue fight: effect glows unshadowed, smooth"),
+            Suite("save_point_glow_smoke", [PY, str(TESTS / "save_point_glow_smoke.py"), "--card", str(args.save)], 600,
+                  note="standing in a save point keeps its light (its glow is the column's side); Ashley still "
+                       "shadows the floor behind him (High, Ultra)")]
           if args.save.exists() else []),
         *([Suite("lighting_presets_smoke", [PY, str(TESTS / "lighting_presets_smoke.py"), "--card", str(args.save)],
                  600, note="lighting quality presets apply, render and persist; the backend's reduced form too"),
@@ -217,6 +226,10 @@ def suites(args, mode="egl"):
                  note="Magick tab: snapshot = RAM (schools, learned spells, MP costs, levels), Heal's hand-off = "
                       "the original MENU0's, cast and cancel, LV2 (Right / chip), greyed (MP, silence), Teleport")]
           if args.save.exists() else []),
+        *([Suite("ui_items_smoke", [PY, str(TESTS / "ui_items_smoke.py"), "--card", str(args.save)], 300,
+                 note="Items tab: same inventory bytes as the original MENU3 for discard (refused, gems, quantity, "
+                      "all), sort, move/merge; Use's hand-off, completed and cancelled; keys; quick slot; mouse")]
+          if args.save.exists() else []),
         *([Suite("ui_system_smoke", [PY, str(TESTS / "ui_system_smoke.py"), "--card", str(args.save)], 300,
                  note="System screen through the shell: a row per settings page live + saved (debounce, Cross), "
                       "greyed rows, slider drag, binding capture (blocks navigation, Esc, pad, reset), Data, relaunch")]
@@ -242,6 +255,11 @@ def suites(args, mode="egl"):
                       "the glyph boxes; auto follows the device; rebinding changes the icon; 1x; settings")]
           if args.save.exists() else []),
         *input_cases(scale),
+        Suite("transition_fade_smoke", [PY, str(TESTS / "transition_fade_smoke.py"), "--card", str(args.save)], 600,
+              note="door and cross-zone fades darken the lit picture monotonically to black and back (no unlit pop)"),
+        Suite("post_smoke", [PY, str(TESTS / "post_smoke.py"), "--card", str(args.save)], 600,
+              note="post stack: each effect changes only the 3D, defaults neutral, presets, profiles save/load and "
+                   "blend, lens blur only in field play (not title, attract, cutscene, menu)"),
         Suite("aa_smoke", [PY, str(TESTS / "aa_smoke.py")], 300,
               note="anti-aliasing: each method renders, smooths edges, keeps texels and 2D; interpolation"),
         Suite("coplanar_order_smoke", [PY, str(TESTS / "coplanar_order_smoke.py"),
@@ -259,14 +277,30 @@ def suites(args, mode="egl"):
 
 
 def default_save():
-    """pc/save/card1.mcd here, else in the main checkout (from a worktree)."""
-    path = ROOT / "pc/save/card1.mcd"
-    if not path.exists():
-        common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=ROOT,
-                                capture_output=True, text=True).stdout.strip()
-        if common:
-            path = pathlib.Path(common).parent / "pc/save/card1.mcd"
-    return path
+    """The tests' own pinned card: $ROOD_TEST_CARD, else pc/build/test-card1.mcd
+    (here, else in the main checkout), never the player's live card. The pin is
+    made once from pc/save/card1.mcd (a copy; replace it to re-pin); suites that
+    expect the save room need a card saved there."""
+    env = os.environ.get("ROOD_TEST_CARD")
+    if env:
+        return pathlib.Path(env)
+    roots = [ROOT]
+    common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=ROOT,
+                            capture_output=True, text=True).stdout.strip()
+    if common and pathlib.Path(common).parent != ROOT:
+        roots.append(pathlib.Path(common).parent)
+    for root in roots:
+        pinned = root / "pc/build/test-card1.mcd"
+        if pinned.exists():
+            return pinned
+    for root in roots:
+        live = root / "pc/save/card1.mcd"
+        if live.exists():
+            pinned = root / "pc/build/test-card1.mcd"
+            pinned.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(live, pinned)
+            return pinned
+    return ROOT / "pc/build/test-card1.mcd"
 
 
 def stale_binaries(selected):
@@ -296,7 +330,9 @@ CHECKPOINT_SUITES = {
     "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
     "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "weapon_slots_smoke", "ui_menus_smoke",
     "ui_lines_smoke", "ui_text_smoke", "button_prompts_smoke", "coplanar_order_smoke", "atmosphere_smoke",
-    "fog_sim_smoke", "ui_ashley_smoke", "ui_equip_smoke", "ui_system_smoke", "ui_abilities_smoke",
+    "fog_sim_smoke", "save_point_glow_smoke", "ui_ashley_smoke", "ui_equip_smoke", "ui_system_smoke",
+    "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "post_smoke",
+    "transition_fade_smoke",
 }
 
 

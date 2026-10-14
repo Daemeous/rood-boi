@@ -502,7 +502,7 @@ NRD, the filters and the haze are unchanged (same images, same counts).
 ### Haze, ground fog and sun shafts (`atmosphere.cpp`, `medium.glsl`)
 
 The air of a room is one participating medium, packed per frame by
-`pc_medium_gpu_get` (`atmosphere.h`: 250 vec4s, the last 87 the interactive fog prototype's field; `medium.glsl` reads them
+`pc_medium_gpu_get` (`atmosphere.h`: 165 vec4s, plus one small 3D texture, `pc_medium_texture`: the detail noise and the interactive fog's fields, binding 11 of `rt_haze` and 17 of `scaled.frag`; `medium.glsl` reads them
 through the includer's `MEDIUM(i)`; appended to the haze's and the
 integrate pass's UBOs and the present UBO, uniforms `medium_` on OpenGL):
 

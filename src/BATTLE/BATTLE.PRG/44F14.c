@@ -496,6 +496,26 @@ void func_800AE47C(D_800F4538_t* arg0)
     void* var_a3;
 
     u_char** v0 = psx_to_ptr(u_char**, func_800AD494(arg0, arg0->animationId, &sp10));
+#ifdef ROOD_PC
+    /* The animation's sequence can be gone: an event script unloads its event
+     * SEQ slot while Ashley still plays one of its animations (220+), then
+     * changes room (zone 32, room 0 to 1), whose animation reset lands here.
+     * The PS1 reads the script through NULL from low RAM; natively that faults.
+     * This catches up the old animation's root motion (ops 0x24-0x27), so
+     * there is nothing to catch up without its sequence. */
+    if (v0 == NULL || sp10 == NULL) {
+        static int reported;
+        extern void pc_log(const char*);
+        extern int sprintf(char*, const char*, ...);
+        if (!reported++) {
+            char line[96];
+            sprintf(line, "[actor] slot %d: animation %d has no sequence loaded",
+                arg0->unk0.unkF, arg0->animationId);
+            pc_log(line);
+        }
+        return;
+    }
+#endif
     u_char* temp_a3 = psx_load(u_char*, v0); /* func_800AD494_t.unk0: a 4-byte address */
     temp_a3 += sp10[2];
 

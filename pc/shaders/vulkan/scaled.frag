@@ -13,7 +13,7 @@ layout(std140, binding = 0) uniform Present {
     vec4 view_; // viewport size in window pixels
     vec4 f0; // focus_sz, dof_radius, aperture, baked
     vec4 f1; // gi_strength, fog_density, shadow_softness, normal_smoothing
-    vec4 tilt_; // band centre (0..1 from top), half width, radius
+    vec4 tilt_; // band centre (0..1 from top), half width, radius; w: near blur share
     vec4 fog_; // rgb colour, a = density
     vec4 fog_range_; // SZ where fog starts and saturates
     vec4 room_lo_, room_hi_;
@@ -42,9 +42,11 @@ layout(std140, binding = 0) uniform Present {
     vec4 env_sun_tile;
     // The room's medium for the unshadowed haze (haze Low; quality0.x 1):
     // the uniform haze, the ground fog, the fog volumes (medium.glsl).
-    vec4 medium_[250];
+    vec4 medium_[165];
 } u;
 #define MEDIUM(i) u.medium_[i]
+layout(binding = 17) uniform sampler3D medium_tex; // the medium's texture (atmosphere.h pc_medium_texture)
+#define MEDIUM_TEX medium_tex
 #include "medium.glsl"
 #define env_sun_dir u.env_[0]
 #define env_sun_col u.env_[1]
@@ -417,7 +419,7 @@ void main() {
             if (u.haze_grid.w != 0) { c = hazed(c, q, d); haze_done = true; }
             else if (u.quality0.x > 0.0) { c = low_haze(c, world); haze_done = true; }
             // Soft shoulder above 0.8 instead of clipping at white (lit pixels only).
-            c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c));
+            if ((post & 8) == 0) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c)); // 8: HDR out
             if (any(isnan(c)) || any(isinf(c))) c = base(uv);
         }
     }
@@ -427,7 +429,8 @@ void main() {
     if (u.haze_grid.w != 0 && !haze_done && !ui && d < 1.0 && view_mode != 1) c = hazed(c, texel(uv), d);
     else if (u.quality0.x > 0.0 && !haze_done && !ui && d < 1.0 && view_mode != 1)
         c = low_haze(c, world_at(texel(uv), d * 65536.0));
-    if (post == 0 || ui) { color = vec4(min(c, vec3(1.0)), ui ? 9999.0 : 0.0); return; }
+    vec3 out_c = (post & 8) != 0 && !ui ? max(c, vec3(0.0)) : min(c, vec3(1.0));
+    if ((post & 7) == 0 || ui) { color = vec4(out_c, ui ? 9999.0 : 0.0); return; }
     float sz = d >= 1.0 ? 65535.0 : d * 65536.0;
     if ((post & 4) != 0) {
         float f = clamp((sz - fog_range.x) / max(fog_range.y - fog_range.x, 1.0), 0.0, 1.0);
@@ -447,10 +450,11 @@ void main() {
             focus = n > 0.0 ? exp2(sum / n) : 1024.0;
         }
         coc = dof_radius * clamp(aperture * (1.0 - focus / sz), -1.0, 1.0);
+        if (coc < 0.0) coc *= u.tilt_.w; // the share in front of the focal plane (post.h near_blur)
     }
     if ((post & 2) != 0) {
         float t = tilt.z * smoothstep(tilt.y, tilt.y + 0.25, abs(uv.y - tilt.x));
         coc = abs(coc) >= t ? coc : t;
     }
-    color = vec4(min(c, vec3(1.0)), coc);
+    color = vec4((post & 8) != 0 ? max(c, vec3(0.0)) : min(c, vec3(1.0)), coc);
 }

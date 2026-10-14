@@ -25,6 +25,10 @@
     X(void, TexSubImage2D, (GLenum, GLint, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum,   \
                               const void*))                                                 \
     X(void, PixelStorei, (GLenum, GLint))                                                   \
+    X(void, TexImage3D, (GLenum, GLint, GLint, GLsizei, GLsizei, GLsizei, GLint, GLenum,     \
+                           GLenum, const void*))                                            \
+    X(void, TexSubImage3D, (GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei,   \
+                              GLenum, GLenum, const void*))                                 \
     X(GLuint, CreateShader, (GLenum))                                                       \
     X(void, ShaderSource, (GLuint, GLsizei, const GLchar* const*, const GLint*))            \
     X(void, CompileShader, (GLuint))                                                        \

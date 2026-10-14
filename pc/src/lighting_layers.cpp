@@ -58,13 +58,20 @@ const std::vector<KindSpec>& kinds()
                 { "size", 1, "256,128,256", false }, { "yaw", 2, "0", false }, { "density", 5, "0.004", false },
                 { "edge", 2, "0.5", false }, { "color", 3, "1,1,1", false }, { "fill", 3, "0,0,0", false },
                 { "noise", 2, "0.5", false }, { "enabled", 0, "1", false },
-                /* the interactive fog (fog_sim.h, prototype) */
-                { "sim", 0, "0", false }, { "sim_strength", 2, "1", false }, { "sim_recover", 2, "3", false } },
+                /* the interactive fog (fog_sim.h): the characters, attacks and spells part it */
+                { "sim", 0, "0", false }, { "sim_strength", 2, "1", false }, { "sim_recover", 2, "3", false },
+                { "sim_footprint", 2, "1", false }, { "sim_trail", 2, "1", false }, { "sim_wind", 2, "1", false },
+                { "detail", 2, "0.5", false }, { "sim_swirl", 2, "0", false }, { "shadow", 2, "0", false },
+                /* each source's weight here (-1: the global setting fog_disturb_*) */
+                { "disturb_player", 2, "-1", false }, { "disturb_actors", 2, "-1", false },
+                { "disturb_attacks", 2, "-1", false }, { "disturb_spells", 2, "-1", false },
+                /* a named preset (pc/assets/environment/fog_presets.json) for the fields not written */
+                { "preset", -1, nullptr, false } },
             false, 4 },
         { "glow",
             { { "pos", 1, nullptr, true }, { "muted", 0, "0", false }, { "intensity", 3, "1", false },
                 { "tint", 3, "1,1,1", false }, { "size", 2, "0", false }, { "reach", 1, "0", false },
-                { "fixture_type", -1, nullptr, false } },
+                { "fixture_type", -1, nullptr, false }, { "shape", -1, "auto", false } },
             false, 4 },
         { "light",
             { { "name", -1, nullptr, false }, { "type", -1, "point", false }, { "pos", 1, nullptr, false },
@@ -72,6 +79,9 @@ const std::vector<KindSpec>& kinds()
                 { "radius", 1, "600", false }, { "cone", 2, "45", false }, { "size", 1, "128,128", false },
                 { "shadows", 0, "0", false }, { "enabled", 0, "1", false } },
             false, 4 },
+        /* Post-processing profiles ("post room", "post cutscene", "post event.<id>"): post_profile.cpp.
+         * Open: any post field (its value checked there), `preset` a named profile under them. */
+        { "post", { { "preset", -1, nullptr, false } }, true, 4 },
         { "set", { { "value", 6, nullptr, false } }, false, 6 },
         { "uv", { { "speed", 3, "1", false }, { "freeze", 0, "0", false } }, false, 4 },
     };
@@ -208,13 +218,29 @@ void Item::erase(const std::string& key)
         fields.end());
 }
 
+bool preset_field(const std::string& kind, const std::string& key)
+{
+    if (kind != "fog")
+        return false;
+    for (const char* k : { "shape", "size", "density", "edge", "color", "fill", "noise", "sim", "sim_strength",
+             "sim_recover", "sim_footprint", "sim_trail", "sim_wind", "detail", "sim_swirl", "shadow", "disturb_player", "disturb_actors",
+             "disturb_attacks", "disturb_spells" })
+        if (key == k)
+            return true;
+    return false;
+}
+
 void canonicalize(Item& item)
 {
     Fields out;
+    /* A fog volume with a preset keeps the values it writes even when they
+     * are the schema's defaults: they differ from its preset's. */
+    bool preset = item.kind == "fog" && item.get("preset");
     for (const auto& f : item.fields) {
         std::string v = canonical_value(item.kind, f.first, f.second);
         const FieldSpec* spec = field_spec(item.kind, f.first);
-        if (spec && spec->def && v == canonical_value(item.kind, f.first, spec->def))
+        if (spec && spec->def && v == canonical_value(item.kind, f.first, spec->def)
+            && !(preset && preset_field(item.kind, f.first)))
             continue;
         out.emplace_back(f.first, v);
     }
@@ -728,7 +754,7 @@ bool diff_one(const State& below, const State& desired, const std::string& id, E
     if (same_item(b->second, d->second))
         return false;
     const Item &x = b->second, &y = d->second;
-    if (x.kind != "light" && x.kind != "actor" && x.kind != "env" && x.kind != "fog") {
+    if (x.kind != "light" && x.kind != "actor" && x.kind != "env" && x.kind != "fog" && x.kind != "post") {
         out.verb = DEFINE;
         out.item = y;
         return true;
@@ -1274,6 +1300,11 @@ void legacy_items(const std::string& text, std::vector<Item>& out)
                 sscanf(tp + 14, "%15s", t);
             if (t[0])
                 it.set("fixture_type", t);
+            char shape[16] = "";
+            if (const char* sp = strstr(c, " shape="))
+                sscanf(sp + 7, "%15s", shape);
+            if (shape[0])
+                it.set("shape", shape); /* glows.c: sphere, column (auto: as found) */
             canonicalize(it);
             out.push_back(it);
             continue;

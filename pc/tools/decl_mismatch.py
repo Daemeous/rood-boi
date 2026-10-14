@@ -30,6 +30,10 @@ Severity:
           longs (an alias view that may not be converted), a pointer vs a
           larger struct, a different parameter count.
 
+It also runs pc/tools/lp64_alias_scan.py: a data import that is a field of
+another import (D_800F5798 = D_800F56C8.unkD0) where one of the two moved to
+a native LP64 slot and the other stayed at its PS1 address (HAZARD).
+
 Known benign mismatches are listed in BENIGN below with the reason; they are
 reported as "benign" and do not fail the check.
 
@@ -565,6 +569,26 @@ def main():
                     "declaration": {"object": obj, "where": entry[6], "type": entry[5]},
                     "against": {"object": reference[0], "where": ref_entry[6], "type": ref_entry[5], "is": basis},
                 })
+
+    # Imports that are a field of another import (pc/tools/lp64_alias_scan.py):
+    # one moved to a native slot, the other at its PS1 address.
+    alias_imports = ROOT / args.build / "lp64_imports.json"
+    if alias_imports.exists():
+        import lp64_alias_scan
+
+        for f in lp64_alias_scan.scan(json.loads(alias_imports.read_text()), review=True):
+            findings.append({
+                "symbol": f["member"],
+                "severity": f["severity"],
+                "benign_reason": lp64_alias_scan.BENIGN.get(f["member"]),
+                "message": f"aliases {f['where']}: {f['why']} (lp64_alias_scan)",
+                "declaration": {"object": ", ".join(f["objects"]), "where": f["member"],
+                                "type": ", ".join(f["member_types"])},
+                "against": {"object": f["group"], "where": f["container"], "type": ", ".join(f["container_types"]),
+                            "is": "container"},
+            })
+    else:
+        print(f"note: {alias_imports.relative_to(ROOT)} is missing (older build): import alias check skipped")
 
     shown = {"HAZARD"} | ({"REVIEW"} if args.review else set()) | ({"benign"} if args.benign else set())
     counts = collections.Counter(f["severity"] for f in findings)

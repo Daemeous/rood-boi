@@ -23,6 +23,8 @@ SOURCES = ROOT / "pc/shaders/vulkan"
 SHADERS = ["probe_trace_bvh.comp", "probe_blend.comp", "probe_state.comp", "ui_mmpx.comp"]
 FRAGMENTS = ["probe_common.glsl", "aa_geometry.glsl", "downsample.glsl", "ms_resolve.glsl",
              "brightness.glsl",  # the brightness setting (gl_present.c)
+             "post_grade.glsl",  # the post stack's grade pass (gl_present.c)
+             "post_bloom.glsl",  # the post stack's Gaussian bloom and exposure meter (gl_present.c)
              # The room's sun and sky (ptgi.c's trace, gl_present.c's present).
              "environment.glsl",
              # The room's medium: haze, ground fog, fog volumes (ptgi.c's haze, gl_present.c's Low haze).

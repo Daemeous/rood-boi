@@ -35,11 +35,8 @@ extern int pc_hw_active, pc_hw_scale;
 int pc_hw_set_scale(int scale);
 extern int pc_hw_scale_setting;
 extern int pc_gl_filter, pc_gl_aspect, pc_gte_widescreen, pc_hw_perspective, pc_gl_show_depth;
-extern int pc_post_flags, pc_hw_subpixel, pc_hw_interpolate, pc_hw_texture_filter, pc_interp_skeleton,
+extern int pc_hw_subpixel, pc_hw_interpolate, pc_hw_texture_filter, pc_interp_skeleton,
     pc_interp_holds, pc_interp_uv, pc_present_rate;
-extern int pc_post_focus_mode;
-extern float pc_post_aperture;
-extern float pc_post_focus, pc_post_dof_radius, pc_post_tilt[3], pc_post_fog[4], pc_post_fog_range[2];
 unsigned pc_vsync_count(void);
 unsigned pc_battle_frame_count(void);
 void pc_rpc_set_paused(int paused);
@@ -684,32 +681,8 @@ static void gameplay_panel()
                           "Slots are saved in the same bytes as the mod, so memory cards stay interchangeable.");
 }
 
-static void post_panel()
-{
-    if (!pc_hw_active)
-        return;
-    ImGui::CheckboxFlags("Depth of field", &pc_post_flags, 1);
-    if (pc_post_flags & 1) {
-        ImGui::Combo("Focus", &pc_post_focus_mode, "On Ashley\0Screen centre\0Manual depth\0");
-        if (pc_post_focus_mode == 2)
-            ImGui::SliderFloat("Focus depth", &pc_post_focus, 64, 8000, "%.0f", ImGuiSliderFlags_Logarithmic);
-        ImGui::SliderFloat("Aperture", &pc_post_aperture, 0.25f, 16, "%.2f", ImGuiSliderFlags_Logarithmic);
-        ImGui::SliderFloat("Maximum blur", &pc_post_dof_radius, 0, 24, "%.1f px");
-        ImGui::TextDisabled("A wide aperture with focus on Ashley gives the miniature/macro look.");
-    }
-    ImGui::CheckboxFlags("Tilt-shift", &pc_post_flags, 2);
-    if (pc_post_flags & 2) {
-        ImGui::SliderFloat("Band centre", &pc_post_tilt[0], 0, 1);
-        ImGui::SliderFloat("Band half width", &pc_post_tilt[1], 0, 0.5f);
-        ImGui::SliderFloat("Tilt blur", &pc_post_tilt[2], 0, 16, "%.1f px");
-    }
-    ImGui::CheckboxFlags("Depth fog", &pc_post_flags, 4);
-    if (pc_post_flags & 4) {
-        ImGui::ColorEdit3("Fog colour", pc_post_fog);
-        ImGui::SliderFloat("Fog amount", &pc_post_fog[3], 0, 1);
-        ImGui::DragFloatRange2("Fog range (SZ)", &pc_post_fog_range[0], &pc_post_fog_range[1], 10, 0, 65535, "%.0f");
-    }
-}
+extern "C" void pc_post_panel(void); /* post_profile.cpp */
+static void post_panel() { pc_post_panel(); }
 
 static void game_panel()
 {
@@ -768,6 +741,13 @@ static void render_panel()
         ImGui::SetTooltip("Room polygons lying on other room polygons (documents on a table, a notice on\n"
                           "a wall, a rug on the floor) paint in the PS1's ordering-table order instead of\n"
                           "z-fighting; occlusion stays per pixel beyond a small slack. Off: plain depth test.");
+    extern int pc_room_texture_lod;
+    bool lod = pc_room_texture_lod != 0;
+    if (ImGui::Checkbox("PS1 half-size textures in the distance", &lod))
+        pc_room_texture_lod = lod;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("The PS1 draws far room polygons with a half-size copy of their texture (the\n"
+                          "page before). Off (default): always the full texture, crisp at any distance.");
 }
 
 static void control_panel(double frame_ms)

@@ -486,6 +486,8 @@ extern "C" void pc_ui_draw_frame(float dt)
         draw_abilities(f, t, top, dt, fresh, m, out);
     else if (pc_ui_shell_screen() == PC_UI_SCREEN_MAGICK)
         draw_magick(f, t, top, dt, fresh, m, out);
+    else if (pc_ui_shell_screen() == PC_UI_SCREEN_ITEMS)
+        draw_items(f, t, top, dt, fresh, m, out);
     else
         draw_commands(f, t, top, dt, fresh, m, out);
     draw_footer(f, t, out, held, m);

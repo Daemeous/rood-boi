@@ -25,8 +25,15 @@ row, not to the original screen (one from the original screen still returns
 there), and the native Magick tab (schools, spells with MP and description,
 the LV picker sharing the original's level memory, greyed spells with their
 reason, casting through the game's targeting) with Teleport (destinations
-with their MP cost, the spirit paling; `ui_magick_smoke`).
-Plans: `pc/docs/plans/`. Next: phase 6b (Items).
+with their MP cost, the spirit paling; `ui_magick_smoke`). Phase 6b landed:
+the native Items tab (categories, list with marks and quantities, details;
+the original's actions per category: Use through the game's targeting with a
+cancel back to the shell, Search, Discard with the quantity picker, Discard
+all, Sort by the original's stats; Move: swap, misc stacks merge), its
+changes and cursor memories equal to the original Items menu's
+(`ui_items_smoke`). Phase 6 is complete.
+Plans: `pc/docs/plans/`. Next: phase 7+ (Workshop, Container, Loot, the Data
+frame, the Map frame, Score, Title), then the HUD.
 
 | Phase | Screens |
 | --- | --- |
@@ -84,7 +91,7 @@ Prototype (private, placeholder data): the "Riskbreaker Menus" artifact.
 | Ashley | Rank; HP/MP/RISK; weapon and shield (DP/PP, material, type); STR/INT/AGL; condition per limb; status effects with timers | Focus explains (class/affinity, limb effects, ailment cures); confirm jumps to Equipment or to the curing item |
 | Equipment › Gear | 8 slots (weapon, shield, head, body, arms, legs, accessory) with DP; quick-swap badge on weapons | Confirm opens the bag for that slot; the card compares candidate vs equipped (STR/INT/AGL/DP deltas, class and affinity bars with the current value marked); confirm equips |
 | Equipment › Quick swap | 8 slots laid out like the pad (face-button diamond, D-pad diamond), weapon + shield each, equipped marker | Confirm: pick any weapon from the bag (need not be equipped), then a shield or none for one-handed weapons; Square clears; a weapon lives in one slot (picking it elsewhere moves it) |
-| Items | Category chips (L2/R2), capacity, list with quantities | Use, discard, details |
+| Items | Category chips (L2/R2), capacity, list with quantities and equipped / part-of-a-set marks; Square: details | Circle: the original's actions per category (Use, Search, Discard with a quantity picker, Discard all, Sort by the original's stats), plus Move (swap, misc stacks merge up to 100) and "Original screen" (the original Items menu, also its Setup); every change is the original menu's own, byte for byte |
 | Abilities | Chain / Defense: 3 button slots + learned list with RISK cost; Break arts by weapon type with kills to the next art | Assign an ability to a button (swaps if already mapped) |
 | Magick | Warlock / Shaman / Sorcerer / Enchanter / Teleport; MP; cost per spell | Cast (target picked in the field as today) |
 | Leá Monde | Visited areas, legend, frame around the game's own 3D map | Open the map |
