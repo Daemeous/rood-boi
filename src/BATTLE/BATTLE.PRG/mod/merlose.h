@@ -30,6 +30,19 @@ vs_battle_actor* _calloActor(void)
  * copied back to the inventory when the menu opens (vs_mainMenu_initInventory). Do the same
  * for her, but only where the inventory slot still holds that item per her loadout: her items
  * can be dropped or disassembled while she wears them, and the slot reused. */
+/* A workshop repair raises the inventory copy's DP/PP while she wears the item; durability only
+ * goes up that way, so a higher inventory value is a repair: take it, before the copy below
+ * would put her worn value back over it. */
+static void _pullRepair(u_short* live, u_short* liveTotal, u_short inventory)
+{
+    if (inventory > *live) {
+        *live = inventory;
+    }
+    if ((liveTotal != NULL) && (inventory > *liveTotal)) {
+        *liveTotal = inventory;
+    }
+}
+
 void _saveCalloGear(vs_battle_actor* callo)
 {
     u_char* loadout = LOADOUT;
@@ -47,18 +60,28 @@ void _saveCalloGear(vs_battle_actor* callo)
         weapon = &vs_main_inventory.weapons[slot - 1];
         if ((weapon->blade != 0)
             && (vs_main_inventory.blades[weapon->blade - 1].id == stats->weapon.blade.id)) {
+            _pullRepair(&stats->weapon.blade.currentDp, &stats->weapon.currentDp,
+                vs_main_inventory.blades[weapon->blade - 1].currentDp);
+            _pullRepair(&stats->weapon.blade.currentPp, &stats->weapon.currentPp,
+                vs_main_inventory.blades[weapon->blade - 1].currentPp);
             vs_battle_copyUiWeaponStats(weapon, &stats->weapon);
         }
     }
     slot = stats->shield.index;
     if ((slot != 0) && (slot <= 8) && (loadout[loadoutShield] == slot)
         && (vs_main_inventory.shields[slot - 1].base.id == stats->shield.base.id)) {
+        _pullRepair(&stats->shield.base.currentDp, &stats->shield.currentDp,
+            vs_main_inventory.shields[slot - 1].base.currentDp);
+        _pullRepair(&stats->shield.base.currentPp, &stats->shield.currentPp,
+            vs_main_inventory.shields[slot - 1].base.currentPp);
         vs_battle_copyUiShieldStats(&vs_main_inventory.shields[slot - 1], &stats->shield);
     }
     for (i = 0; i < 6; ++i) {
         slot = stats->limbs[i].armor.index;
         if ((slot != 0) && (slot <= 16) && (loadout[loadoutArmor + i * 2] == slot)
             && (vs_main_inventory.armor[slot - 1].id == stats->limbs[i].armor.armor.id)) {
+            _pullRepair(&stats->limbs[i].armor.armor.currentDp, &stats->limbs[i].armor.currentDp,
+                vs_main_inventory.armor[slot - 1].currentDp);
             vs_battle_copyUiArmorStats(&vs_main_inventory.armor[slot - 1], &stats->limbs[i].armor);
         }
     }
