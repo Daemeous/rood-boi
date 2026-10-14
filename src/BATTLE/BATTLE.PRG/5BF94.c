@@ -1482,6 +1482,19 @@ int vs_battle_selectTextBox(u_char boxMask)
     return 0;
 }
 
+#ifdef ROOD_PC
+/* ui_text_layout line (pc/src/ui_text.c): each character this printer sets. */
+extern void pc_text_glyph(void* const* commands, int count, int glyph, int x, int y,
+    int next_x, int advance) __attribute__((weak));
+static void pc_text_char(
+    void* const* commands, int count, int glyph, int x, int y, int advance)
+{
+    if (pc_text_glyph)
+        pc_text_glyph(
+            commands, count, glyph, x << 16, y << 16, (x + advance) << 16, advance);
+}
+#endif
+
 #pragma vsstring(start)
 
 int vs_battle_getTextLineLength(char* str)
@@ -1515,6 +1528,9 @@ int vs_battle_printVariableWidthFontChar(u_int glyphId, int x, int y, u_long* ot
     u_long* sprite;
 
     if (glyphId == ' ') {
+#ifdef ROOD_PC
+        pc_text_char(NULL, 0, -1, x, y, 6);
+#endif
         return x + 6;
     }
 
@@ -1526,6 +1542,10 @@ int vs_battle_printVariableWidthFontChar(u_int glyphId, int x, int y, u_long* ot
     glyphCol = glyphId % 21;
     sprite[4] = ((glyphCol * 0xC) | (glyphRow * 0xC00)
                  | ((((((D_800F4CB8 * 0x10) + 0x340) >> 4) & 0x3F) | 0x3780) << 0x10));
+#ifdef ROOD_PC
+    pc_text_char((void* const[]) { sprite + 2 }, 1, glyphId, x, y,
+        vs_battle_characterWidths[glyphId]);
+#endif
     return x + vs_battle_characterWidths[glyphId];
 }
 

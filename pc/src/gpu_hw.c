@@ -55,6 +55,11 @@ enum { FLAG_TEXTURED = 1, FLAG_RAW = 2, FLAG_SEMI = 4, FLAG_MASK = 8, FLAG_UI = 
 /* Batch blend for FLAG_COVER: colour over the target by coverage, the
  * target's mask bit kept (above the PS1 modes 0-3 and their 2D + 4). */
 #define BLEND_COVER 12
+/* Batch blends for text and icons from distance texels (ui_text.h), + the
+ * PS1 mode (0-3) of a semi-transparent primitive or 4: anti-aliased by
+ * coverage at the target's pixels (draw_batch: the solid pixels' G-buffer
+ * and depth as UI, then the colour over by coverage, the mask bit kept). */
+#define BLEND_TEXT 16
 /* Batch blend for a screen fade (pc_hw_triangle: a full-screen flat
  * subtractive 2D quad, the door fade of BATTLE _drawScreenTransition): it
  * subtracts from the 2D under it only (depth "UI"); the 3D keeps its depth
@@ -786,7 +791,7 @@ extern int pc_scene_projection(float* h, float* ofx, float* ofy);
 static GLuint draw_program, upload_program, vertex_buffer, vertex_array, empty_array;
 static GLint u_draw_occlusion, u_draw_occlusion_rect, u_draw_room_depth;
 static GLint u_draw_filtering, u_draw_pass, u_draw_vram, u_draw_perspective, u_upload_vram, u_upload_rect, u_upload_scale;
-static GLint u_draw_ui_scale, u_draw_ui_atlas;
+static GLint u_draw_ui_scale, u_draw_ui_atlas, u_draw_text_factor;
 /* Perspective-correct texturing: on by default (settings perspective_textures;
  * ROOD_PERSPECTIVE=0 or 0 there restores the PS1's affine mapping). */
 int pc_hw_perspective = 1;
@@ -805,12 +810,15 @@ static int has_exact, exact_cover;
 static float text_xy[6];
 static int has_text_xy, text_use_image;
 static int16_t text_offset[2];
-/* Text drawn two ways in one recorded frame, so redraws (RPC ui_upscale
+static int text_bounds[4]; /* the image's texels (0, 0, w, h) */
+/* Text drawn three ways in one recorded frame, so redraws (RPC ui_upscale
  * redraw) compare the layouts and the original on the very same frame: the
- * original glyph sprites (drawn while line layout is off) and the laid-out
- * quads (drawn while it is on), tagged in the vertices' texture window word
- * (bits 0-19 are the window) and filtered by draw_batch. */
-#define TEXT_TAG_GLYPH (1u << 30)
+ * original glyph sprites (drawn while the layout is off: ui_text original,
+ * 1x), the glyphs laid out each in its cell (ui_text_layout glyph) and as
+ * lines (line), tagged in the vertices' texture window word (bits 0-19 are
+ * the window) and filtered by draw_batch. */
+#define TEXT_TAG_GLYPH (1u << 29)
+#define TEXT_TAG_CELL (1u << 30)
 #define TEXT_TAG_LINE (1u << 31)
 static uint32_t triangle_tag;
 /* Sub-pixel vertex positions (PGXP-style); off restores PS1 vertex snapping. */
@@ -887,6 +895,9 @@ static const char* draw_fragment_source =
      * block at ui_scale per texel, clamped to the region; 0: nearest. */
     "uniform int ui_scale;\n"
     "uniform usampler2D ui_atlas;\n"
+    /* Text from distance texels (BLEND_TEXT, passes 3-5): the colour pass's
+     * alpha factor for the PS1 mode (B/2 + F/2: 0.5, B + F/4: 0.25). */
+    "uniform float text_factor;\n"
     "layout(location = 0) out vec4 color;\n"
     "layout(location = 1) out vec4 normal_out;\n"
     "layout(location = 2) out vec4 albedo_out;\n"
@@ -909,7 +920,11 @@ static const char* draw_fragment_source =
     "    return fetch(tx + int(u), ty + int(v));\n"
     "}\n"
     "vec3 rgb(uint t) { return vec3(float(t & 31u), float((t >> 5) & 31u), float((t >> 10) & 31u)); }\n"
+    PC_GLSL_TEXT_DIST
     "void main() {\n"
+    /* A pixel's footprint in texels (text from distance texels: edges one pixel wide). */
+    "    vec2 footprint = fwidth(perspective != 0 ? v_uv_persp : v_uv_affine);\n"
+    "    float text_alpha = -1.0;\n"
     "    if (occlusion != 0 && v_z_affine > 0.0 && all(greaterThanEqual(gl_FragCoord.xy, occlusion_rect.xy))\n"
     "        && all(lessThan(gl_FragCoord.xy, occlusion_rect.zw))) {\n"
     "        float room = texelFetch(room_depth, ivec2(gl_FragCoord.xy), 0).r * 65536.0;\n"
@@ -929,18 +944,27 @@ static const char* draw_fragment_source =
     "    vec4 shade = vec4(v_color, 0.5);\n"
     "    if ((flags & 1u) != 0u) {\n"
     "        uint t;\n"
+    "        vec3 texel;\n"
     "        if ((flags & 16u) != 0u && ui_scale > 0) {\n"
     "            ivec2 lo = ivec2(v_bounds.xy), hi = max(ivec2(v_bounds.zw) - 1, lo);\n"
     "            ivec2 q = clamp(ivec2(floor(v_uv * float(ui_scale) + 0.0001)), lo * ui_scale, (hi + 1) * ui_scale - 1);\n"
     "            t = texelFetch(ui_atlas, q + v_ui * ui_scale, 0).r;\n"
+    "            texel = rgb(t);\n"
+    "            if ((t & 0x80000000u) != 0u) {\n" /* text: anti-aliased by its distance */
+    "                ivec2 o = v_ui * ui_scale;\n"
+    "                float d = text_distance(ui_atlas, v_uv * float(ui_scale) + vec2(o), lo * ui_scale + o,\n"
+    "                    (hi + 1) * ui_scale - 1 + o);\n"
+    "                text_alpha = text_colour(t, d, max(max(footprint.x, footprint.y), 1.0 / 64.0), clut, texel, t);\n"
+    "                if (text_alpha < 0.002) discard;\n"
+    "            }\n"
     "        } else {\n"
     "            ivec2 q = ivec2(floor(v_uv + 0.0001));\n"
     /* FLAG_CLAMP (2D): the texels the PS1 samples, [min, max - 1]; the far
      * edge is never reached (finer samples than whole pixels would take it). */
     "            if ((flags & 32u) != 0u) q = clamp(q, ivec2(v_bounds.xy), max(ivec2(v_bounds.zw) - 1, ivec2(v_bounds.xy)));\n"
     "            t = texel_at(uint(q.x) & 255u, uint(q.y) & 255u, tpage, clut, win);\n"
+    "            texel = rgb(t);\n"
     "        }\n"
-    "        vec3 texel = rgb(t);\n"
     "        if (filtering != 0 && v_normal.w > 0.5) {\n"
     /* Bilinear between the four nearest texels, kept inside the primitive's
      * texel bounds (pages are atlases); transparent texels drop out and the
@@ -968,7 +992,14 @@ static const char* draw_fragment_source =
     "        shade = (flags & 2u) != 0u ? vec4(vec3(128.0 / 255.0), 1.0) : vec4(v_color, 1.0);\n"
     "    }\n"
     "    if ((pass == 1 && semi) || (pass == 2 && !semi)) discard;\n"
+    /* Text: 3 its solid pixels' G-buffer and depth (opaque texels, half
+     * covered and more), 4 its opaque texels' colour, 5 its translucent
+     * texels' colour, by coverage (texels of a recorded frame redrawn with
+     * ui_text original: whole). */
+    "    if ((pass == 3 && (semi || (text_alpha >= 0.0 && text_alpha < 0.5))) || (pass == 4 && semi)\n"
+    "        || (pass == 5 && !semi)) discard;\n"
     "    color = vec4(c, float(mask));\n"
+    "    if (pass >= 4) color.a = (text_alpha < 0.0 ? 1.0 : text_alpha) * (pass == 5 ? text_factor : 1.0);\n"
     /* FLAG_COVER (untextured 2D shapes, BLEND_COVER): U is the coverage. */
     "    if ((flags & 65u) == 64u) {\n"
     "        float cover = clamp(v_uv.x / 256.0, 0.0, 1.0);\n"
@@ -1140,6 +1171,7 @@ void pc_hw_init(const uint16_t* vram)
     u_draw_room_depth = gl_GetUniformLocation(draw_program, "room_depth");
     u_draw_ui_scale = gl_GetUniformLocation(draw_program, "ui_scale");
     u_draw_ui_atlas = gl_GetUniformLocation(draw_program, "ui_atlas");
+    u_draw_text_factor = gl_GetUniformLocation(draw_program, "text_factor");
     gl_UseProgram(draw_program);
     gl_Uniform1i(u_draw_room_depth, 1); /* never unit 0 (the VRAM usampler) */
     gl_Uniform1i(u_draw_ui_atlas, 2);
@@ -1350,10 +1382,12 @@ static void set_blend(int mode)
 static void record_batch(void);
 static void draw_batch(GLuint fbo, const hw_vertex* vertices, int count, int blend, const int* clip)
 {
-    /* Text drawn two ways (TEXT_TAG_*): the way the options choose now. */
+    /* Text drawn three ways (TEXT_TAG_*): the way the options choose now. */
     {
-        uint32_t drop = pc_ui_text_layout_on(pc_hw_scale) && pc_ui_upscale_draw_factor() ? TEXT_TAG_GLYPH
-                                                                                          : TEXT_TAG_LINE;
+        uint32_t drop = !(pc_ui_text_layout_on(pc_hw_scale) && pc_ui_upscale_draw_factor())
+                          ? TEXT_TAG_CELL | TEXT_TAG_LINE
+                          : pc_ui_text_layout == PC_UI_TEXT_LAYOUT_LINE ? TEXT_TAG_GLYPH | TEXT_TAG_CELL
+                                                                        : TEXT_TAG_GLYPH | TEXT_TAG_LINE;
         int i = 0;
         while (i < count && !(vertices[i].window & drop))
             i += 3;
@@ -1421,6 +1455,34 @@ static void draw_batch(GLuint fbo, const hw_vertex* vertices, int count, int ble
     if (blend < 0) {
         gl_Uniform1i(u_draw_pass, 0);
         gl_DrawArrays(GL_TRIANGLES, 0, count);
+    } else if (blend >= BLEND_TEXT) {
+        /* Text from distance texels: its solid pixels (opaque texels half
+         * covered and more) mark the G-buffer and depth as UI, as 2D does;
+         * then its colour over the target by coverage (the mask bit kept),
+         * opaque texels "over", translucent ones by the PS1 mode. */
+        int mode = blend - BLEND_TEXT;
+        gl_ColorMaski(0, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        gl_Uniform1i(u_draw_pass, 3);
+        gl_DrawArrays(GL_TRIANGLES, 0, count);
+        gl_DepthMask(GL_FALSE);
+        gl_ColorMaski(0, GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+        for (GLuint i = 1; i < 4; i++)
+            gl_ColorMaski(i, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        gl_Enable(GL_BLEND);
+        gl_BlendEquation(GL_FUNC_ADD);
+        gl_BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        gl_Uniform1i(u_draw_pass, 4);
+        gl_DrawArrays(GL_TRIANGLES, 0, count);
+        if (mode < 4) {
+            gl_BlendEquation(mode == 2 ? GL_FUNC_REVERSE_SUBTRACT : GL_FUNC_ADD);
+            gl_BlendFunc(GL_SRC_ALPHA, mode == 0 ? GL_ONE_MINUS_SRC_ALPHA : GL_ONE);
+            gl_Uniform1f(u_draw_text_factor, mode == 0 ? 0.5f : mode == 3 ? 0.25f : 1.0f);
+            gl_Uniform1i(u_draw_pass, 5);
+            gl_DrawArrays(GL_TRIANGLES, 0, count);
+        }
+        gl_Disable(GL_BLEND);
+        for (GLuint i = 0; i < 4; i++)
+            gl_ColorMaski(i, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     } else if (blend == BLEND_FADE) {
         /* A screen fade: subtracted from the 2D/UI under it (depth 0) only. */
         set_blend(2);
@@ -1488,24 +1550,226 @@ static int draw_translucent(GLuint fbo, uint32_t list, int first, int count, con
     unsigned window, int mask, const render_camera* camera, float t);
 static void record_translucent(uint32_t list, int first, int count, const int* clip, int ox, int oy, unsigned window,
     int mask);
+static int overlay_on, overlay_count;
+static void overlay_hold(void);
+static void overlay_bake_under(const hw_vertex* v, int count, const int* clip);
+static int overlay_bake_rect(int x0, int y0, int x1, int y1);
+static void overlay_bake_all(void);
 static void flush(void)
 {
     if (text_piece_count && !text_emitting)
         text_run_flush(); /* buffered text first: it was drawn before what follows */
     if (batch_count) {
-        record_batch();
         pc_ui_upscale_prepare(); /* the magnified 2D regions it samples */
-        draw_batch(target_fbo, batch, batch_count, batch_blend, batch_clip);
+        if (overlay_on && batch_blend >= BLEND_TEXT)
+            overlay_hold(); /* text: at the window's resolution, unless something comes over it */
+        else {
+            overlay_bake_under(batch, batch_count, batch_clip);
+            record_batch();
+            draw_batch(target_fbo, batch, batch_count, batch_blend, batch_clip);
+        }
         batch_count = 0;
     }
     if (has_pending_translucent) {
         has_pending_translucent = 0;
         const typeof(pending_translucent)* t = &pending_translucent;
+        overlay_bake_rect(t->clip[0], t->clip[1], t->clip[0] + t->clip[2], t->clip[1] + t->clip[3]);
         if (draw_translucent(target_fbo, t->list, t->first, t->count, t->clip, t->ox, t->oy, t->window, t->mask, NULL,
                 1.0f))
             record_translucent(t->list, t->first, t->count, t->clip, t->ox, t->oy, t->window, t->mask);
     }
 }
+/* ---- text at the window's resolution (ui_text_overlay) ----
+ *
+ * Text and icons from distance texels (BLEND_TEXT) drawn into the target
+ * are anti-aliased at the internal resolution; a window larger than that
+ * scales them up again (4x internal in a window six times the PS1's: a
+ * pixel and a half each, nearest). With the overlay on and the window finer
+ * than the target, such batches are held back instead (overlay[]) and drawn
+ * by the presenters at the window's own resolution over the finished
+ * picture (pc_hw_text_overlay). The order of drawing stays the game's: a
+ * held-back triangle is drawn into the target ("baked", recorded with the
+ * frame where it is drawn) as soon as anything else would draw where it is
+ * (a primitive, a fill, an upload or copy, a native list) or anything reads
+ * that area (a copy's source, a readback to native VRAM); one nothing came
+ * near is still on top of the picture at the end of the frame, so drawing
+ * it last, finer, is the same picture. Redraws of a recorded frame (RPC
+ * ui_upscale redraw) draw the held-back text into it, dumps of the target
+ * bake it first. */
+#define OVERLAY_MAX 32768 /* triangles (each glyph three times: the original sprite, in its cell, as lines) */
+typedef struct {
+    hw_vertex v[3];
+    int clip[4];      /* its drawing area */
+    int blend;        /* BLEND_TEXT + mode */
+    int box[4];       /* x0, y0, x1, y1 (exclusive): where it can draw, VRAM pixels, a pixel around */
+} overlay_triangle;
+static overlay_triangle overlay[OVERLAY_MAX];
+static uint64_t overlay_cells[32]; /* 32 rows of 64 columns of 16 x 16 VRAM pixels: any held there */
+static uint8_t overlay_pick[OVERLAY_MAX];
+static long overlay_baked, overlay_presented; /* triangles (RPC ui_text: tests) */
+static void record_vertices(const hw_vertex* v, int count, int blend, const int* clip, int triangles);
+static void unrecord_triangles(int count);
+
+static void overlay_cells_set(const int* b)
+{
+    for (int r = b[1] >> 4; r <= (b[3] - 1) >> 4 && r < 32; r++)
+        for (int c = b[0] >> 4; c <= (b[2] - 1) >> 4 && c < 64; c++)
+            if (r >= 0 && c >= 0)
+                overlay_cells[r] |= 1ull << c;
+}
+static int overlay_cells_hit(int x0, int y0, int x1, int y1)
+{
+    x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0, x1 = x1 > 1024 ? 1024 : x1, y1 = y1 > 512 ? 512 : y1;
+    if (x1 <= x0 || y1 <= y0)
+        return 0;
+    uint64_t columns = 0;
+    for (int c = x0 >> 4; c <= (x1 - 1) >> 4; c++)
+        columns |= 1ull << c;
+    for (int r = y0 >> 4; r <= (y1 - 1) >> 4; r++)
+        if (overlay_cells[r] & columns)
+            return 1;
+    return 0;
+}
+/* Draw the picked triangles (overlay_pick) into `fbo`, in their order, a
+ * batch per run of one blend and drawing area; `record`: as part of the
+ * frame being recorded (where they are drawn now). */
+static void overlay_draw_picked(GLuint fbo, int record)
+{
+    static hw_vertex v[MAX_VERTICES];
+    int n = 0, blend = 0, clip[4] = { 0, 0, 0, 0 };
+    for (int i = 0; i <= overlay_count; i++) {
+        const overlay_triangle* o = i < overlay_count && overlay_pick[i] ? &overlay[i] : NULL;
+        if (i < overlay_count && !o)
+            continue;
+        if (n && (!o || o->blend != blend || memcmp(o->clip, clip, sizeof clip) || n + 3 > MAX_VERTICES)) {
+            if (record)
+                record_vertices(v, n, blend, clip, 1);
+            pc_ui_upscale_prepare();
+            draw_batch(fbo, v, n, blend, clip);
+            n = 0;
+        }
+        if (!o)
+            break;
+        blend = o->blend;
+        memcpy(clip, o->clip, sizeof clip);
+        memcpy(v + n, o->v, sizeof o->v);
+        n += 3;
+    }
+}
+/* Remove the picked triangles. */
+static void overlay_remove_picked(void)
+{
+    int kept = 0;
+    memset(overlay_cells, 0, sizeof overlay_cells);
+    for (int i = 0; i < overlay_count; i++) {
+        if (overlay_pick[i])
+            continue;
+        if (kept != i)
+            overlay[kept] = overlay[i];
+        overlay_cells_set(overlay[kept].box);
+        ++kept;
+    }
+    overlay_count = kept;
+}
+/* Bake the held-back triangles that may draw inside (x0, y0)-(x1, y1); 0
+ * when none. */
+static int overlay_bake_rect(int x0, int y0, int x1, int y1)
+{
+    if (!overlay_count || !overlay_cells_hit(x0, y0, x1, y1))
+        return 0;
+    int any = 0;
+    for (int i = 0; i < overlay_count; i++) {
+        const int* b = overlay[i].box;
+        overlay_pick[i] = b[0] < x1 && x0 < b[2] && b[1] < y1 && y0 < b[3];
+        any |= overlay_pick[i];
+    }
+    if (any) {
+        for (int i = 0; i < overlay_count; i++)
+            overlay_baked += overlay_pick[i];
+        overlay_draw_picked(target_fbo, 1);
+        overlay_remove_picked();
+    }
+    return any;
+}
+static void overlay_bake_all(void)
+{
+    if (overlay_count)
+        overlay_bake_rect(-4096, -4096, 4096, 4096);
+}
+/* Before `count` vertices draw in drawing area `clip`: bake what they reach. */
+static void overlay_bake_under(const hw_vertex* v, int count, const int* clip)
+{
+    if (!overlay_count)
+        return;
+    int cx0 = clip[0], cy0 = clip[1], cx1 = clip[0] + clip[2], cy1 = clip[1] + clip[3];
+    if (!overlay_cells_hit(cx0, cy0, cx1, cy1))
+        return;
+    memset(overlay_pick, 0, (size_t)overlay_count);
+    int any = 0;
+    for (int t = 0; t + 2 < count; t += 3) {
+        float x0 = fminf(v[t].x, fminf(v[t + 1].x, v[t + 2].x)), x1 = fmaxf(v[t].x, fmaxf(v[t + 1].x, v[t + 2].x));
+        float y0 = fminf(v[t].y, fminf(v[t + 1].y, v[t + 2].y)), y1 = fmaxf(v[t].y, fmaxf(v[t + 1].y, v[t + 2].y));
+        int b[4] = { (int)floorf(x0), (int)floorf(y0), (int)ceilf(x1) + 1, (int)ceilf(y1) + 1 };
+        b[0] = b[0] > cx0 ? b[0] : cx0, b[1] = b[1] > cy0 ? b[1] : cy0;
+        b[2] = b[2] < cx1 ? b[2] : cx1, b[3] = b[3] < cy1 ? b[3] : cy1;
+        if (b[2] <= b[0] || b[3] <= b[1] || !overlay_cells_hit(b[0], b[1], b[2], b[3]))
+            continue;
+        for (int i = 0; i < overlay_count; i++) {
+            const int* o = overlay[i].box;
+            if (!overlay_pick[i] && o[0] < b[2] && b[0] < o[2] && o[1] < b[3] && b[1] < o[3])
+                overlay_pick[i] = 1, any = 1;
+        }
+    }
+    if (any) {
+        for (int i = 0; i < overlay_count; i++)
+            overlay_baked += overlay_pick[i];
+        overlay_draw_picked(target_fbo, 1);
+        overlay_remove_picked();
+    }
+}
+/* Hold back the current batch (BLEND_TEXT) instead of drawing it. */
+static void overlay_hold(void)
+{
+    int triangles = batch_count / 3;
+    if (overlay_count + triangles > OVERLAY_MAX)
+        overlay_bake_all(); /* (full: what is held is drawn) */
+    if (overlay_count + triangles > OVERLAY_MAX) {
+        record_batch();
+        draw_batch(target_fbo, batch, batch_count, batch_blend, batch_clip);
+        return;
+    }
+    for (int t = 0; t < triangles; t++) {
+        overlay_triangle* o = &overlay[overlay_count++];
+        memcpy(o->v, batch + t * 3, sizeof o->v);
+        memcpy(o->clip, batch_clip, sizeof o->clip);
+        o->blend = batch_blend;
+        float x0 = fminf(o->v[0].x, fminf(o->v[1].x, o->v[2].x)), x1 = fmaxf(o->v[0].x, fmaxf(o->v[1].x, o->v[2].x));
+        float y0 = fminf(o->v[0].y, fminf(o->v[1].y, o->v[2].y)), y1 = fmaxf(o->v[0].y, fmaxf(o->v[1].y, o->v[2].y));
+        o->box[0] = (int)floorf(x0) - 1, o->box[1] = (int)floorf(y0) - 1;
+        o->box[2] = (int)ceilf(x1) + 1, o->box[3] = (int)ceilf(y1) + 1;
+        /* (never past its drawing area) */
+        o->box[0] = o->box[0] > batch_clip[0] ? o->box[0] : batch_clip[0];
+        o->box[1] = o->box[1] > batch_clip[1] ? o->box[1] : batch_clip[1];
+        o->box[2] = o->box[2] < batch_clip[0] + batch_clip[2] ? o->box[2] : batch_clip[0] + batch_clip[2];
+        o->box[3] = o->box[3] < batch_clip[1] + batch_clip[3] ? o->box[3] : batch_clip[1] + batch_clip[3];
+        overlay_cells_set(o->box);
+    }
+    unrecord_triangles(triangles); /* (recorded where they are baked, if they are) */
+}
+/* Whether to hold text back (at each present, for the view presented): the
+ * overlay on, text or icons from fonts, and the window finer than the
+ * target. Turned off, what is held is drawn. */
+static void overlay_update(void)
+{
+    float per_output = pc_hw_native_per_output();
+    int on = pc_ui_text_overlay && pc_hw_active && (pc_ui_text || pc_button_prompts_active() || pc_ui_bubbles)
+          && per_output > 0
+          && 1.0f / per_output > (float)pc_hw_scale * 1.01f;
+    if (!on && overlay_on)
+        overlay_bake_all();
+    overlay_on = on;
+}
+
 /* Native VRAM columns a texture page spans by depth (4, 8, 15/16 bit). */
 static uint32_t sampled_tiles(unsigned tpage, unsigned clut)
 {
@@ -1712,6 +1976,52 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
         ++packet_stats.legacy_other_triangles;
         note_other(code, tpage);
     }
+    /* 2D: a flipped sprite's coordinates (pc_hw_set_flipped_uv), and texels
+     * kept inside the primitive (FLAG_CLAMP). */
+    int texcoord[6], ui_flags = 0;
+    for (int i = 0; i < 6; i++)
+        texcoord[i] = uv[i] + (textured ? primitive_uv_shift[i & 1] : 0);
+    if (textured && !(depth[0] | depth[1] | depth[2]))
+        ui_flags |= FLAG_CLAMP;
+    int bounds[4] = { 255, 255, 0, 0 };
+    for (int i = 0; i < 3; i++)
+        for (int k = 0; k < 2; k++) {
+            int c = texcoord[i * 2 + k] < 0 ? 0 : texcoord[i * 2 + k] > 255 ? 255 : texcoord[i * 2 + k];
+            bounds[k] = c < bounds[k] ? c : bounds[k];
+            bounds[k + 2] = c > bounds[k + 2] ? c : bounds[k + 2];
+        }
+    /* 2D: the texels it samples, magnified (MMPX) or, for text and icons,
+     * drawn from a font (ui_text, button_prompts: distance texels, drawn
+     * anti-aliased in batches of their own, BLEND_TEXT). The far bound is an
+     * edge the rasterizer never reaches: [min, max - 1], as the shader clamps. */
+    int16_t ui_offset[2] = { 0, 0 };
+    int distance = 0;
+    if (pc_ui_upscale || pc_ui_text || pc_button_prompts_active() || pc_ui_bubbles) {
+        pc_ui_upscale_draw_area(area);
+        if (has_text_xy && text_use_image && textured) {
+            /* A laid-out glyph: its image, looked up by text_run_flush. */
+            ui_offset[0] = text_offset[0], ui_offset[1] = text_offset[1];
+            memcpy(bounds, text_bounds, sizeof bounds); /* (the whole image: its strips sample across rows) */
+            ui_flags |= FLAG_UI;
+            distance = 1;
+        } else if (ui && textured && !(depth[0] | depth[1] | depth[2])) {
+            int u1 =bounds[2] > bounds[0] ? bounds[2] - 1 : bounds[0], v1 = bounds[3] > bounds[1] ? bounds[3] - 1 : bounds[1];
+            int found = pc_ui_upscale_lookup(native_vram, tpage, clut, window, bounds[0], bounds[1], u1, v1, pc_hw_scale,
+                ui_offset);
+            if (found < 0) {
+                /* The atlas is full: draw what uses it, then start it afresh
+                 * (recorded frames sample it: no replays of them). */
+                flush();
+                pc_ui_upscale_reset();
+                forget_recordings();
+                found = pc_ui_upscale_lookup(native_vram, tpage, clut, window, bounds[0], bounds[1], u1, v1, pc_hw_scale,
+                    ui_offset);
+            }
+            if (found > 0)
+                ui_flags |= FLAG_UI;
+            distance = found == 2;
+        }
+    }
     /* Blend mode, + 4 for translucent screen furniture (no depth): that
      * replaces the depth and surface behind it, so post effects and lights
      * treat it as UI. */
@@ -1720,6 +2030,8 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
         blend = BLEND_COVER;
     else if (blend == 2 + 4 && !textured && screen_fade(xy, rgb, clip))
         blend = BLEND_FADE; /* recorded with where it lands (below) */
+    if (distance)
+        blend = BLEND_TEXT + (semi ? (int)((tpage >> 5) & 3) : 4);
     if (blend != batch_blend || memcmp(area, batch_clip, sizeof batch_clip)
         || batch_count + 3 > MAX_VERTICES) {
         flush();
@@ -1734,7 +2046,8 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
         }
     }
     uint8_t flags = (uint8_t)((textured ? FLAG_TEXTURED : 0) | (textured && (code & 1) ? FLAG_RAW : 0)
-        | (semi || exact_cover ? FLAG_SEMI : 0) | (mask_set ? FLAG_MASK : 0) | (exact_cover ? FLAG_COVER : 0));
+        | (semi || exact_cover ? FLAG_SEMI : 0) | (mask_set ? FLAG_MASK : 0) | (exact_cover ? FLAG_COVER : 0)
+        | ui_flags);
     /* Positions: unrounded for projected 3D vertices, else the packet's. */
     float pos[6];
     for (int i = 0; i < 6; i++)
@@ -1820,48 +2133,7 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     if (primitive_2d && !has_exact && !has_text_xy && !(depth[0] | depth[1] | depth[2]))
         for (int i = 0; i < 3; i++)
             edge_note(xy[i * 2], xy[i * 2 + 1], xy[(i + 1) % 3 * 2], xy[(i + 1) % 3 * 2 + 1]);
-    /* 2D: a flipped sprite's coordinates (pc_hw_set_flipped_uv), and texels
-     * kept inside the primitive (FLAG_CLAMP). */
-    int texcoord[6];
-    for (int i = 0; i < 6; i++)
-        texcoord[i] = uv[i] + (textured ? primitive_uv_shift[i & 1] : 0);
     uv = texcoord;
-    if (textured && !(depth[0] | depth[1] | depth[2]))
-        flags |= FLAG_CLAMP;
-    int bounds[4] = { 255, 255, 0, 0 };
-    for (int i = 0; i < 3; i++)
-        for (int k = 0; k < 2; k++) {
-            int c = uv[i * 2 + k] < 0 ? 0 : uv[i * 2 + k] > 255 ? 255 : uv[i * 2 + k];
-            bounds[k] = c < bounds[k] ? c : bounds[k];
-            bounds[k + 2] = c > bounds[k + 2] ? c : bounds[k + 2];
-        }
-    /* 2D: the texels it samples, magnified (MMPX) or, for glyphs, drawn from
-     * a font (ui_text). The far bound is an edge
-     * the rasterizer never reaches: [min, max - 1], as the shader clamps. */
-    int16_t ui_offset[2] = { 0, 0 };
-    if (pc_ui_upscale || pc_ui_text || pc_button_prompts_active()) {
-        pc_ui_upscale_draw_area(area);
-        if (has_text_xy && text_use_image && textured) {
-            /* A laid-out glyph: its image, looked up by text_run_flush. */
-            ui_offset[0] = text_offset[0], ui_offset[1] = text_offset[1];
-            flags |= FLAG_UI;
-        } else if (ui && textured && !(depth[0] | depth[1] | depth[2])) {
-            int u1 =bounds[2] > bounds[0] ? bounds[2] - 1 : bounds[0], v1 = bounds[3] > bounds[1] ? bounds[3] - 1 : bounds[1];
-            int found = pc_ui_upscale_lookup(native_vram, tpage, clut, window, bounds[0], bounds[1], u1, v1, pc_hw_scale,
-                ui_offset);
-            if (found < 0) {
-                /* The atlas is full: draw what uses it, then start it afresh
-                 * (recorded frames sample it: no replays of them). */
-                flush();
-                pc_ui_upscale_reset();
-                forget_recordings();
-                found = pc_ui_upscale_lookup(native_vram, tpage, clut, window, bounds[0], bounds[1], u1, v1, pc_hw_scale,
-                    ui_offset);
-            }
-            if (found > 0)
-                flags |= FLAG_UI;
-        }
-    }
     for (int i = 0; i < 3; i++) {
         hw_vertex* v = &batch[batch_count++];
         v->x = anchored ? (has_line_x ? line_x[i] : anchor_x(pos[i * 2]))
@@ -1954,6 +2226,43 @@ static void text_quad(float x0, float y0, float x1, float y1, int u0, int v0, in
     }
 }
 
+/* Each buffered piece drawn as its laid-out quad (or, not laid out, as the
+ * original), in its order and drawing state. */
+static void text_emit(int count, const pc_ui_text_quad* quads)
+{
+    for (int i = 0; i < count; i++) {
+        const text_piece* p = &text_pieces[i];
+        const pc_ui_text_quad* q = &quads[i];
+        primitive_2d = p->is_2d, primitive_room = p->room, primitive_cover = p->cover;
+        primitive_extend = p->extend, primitive_narrowed = p->narrowed, primitive_anchor = p->anchor;
+        primitive_uv_shift[0] = p->uv_shift[0], primitive_uv_shift[1] = p->uv_shift[1];
+        primitive_span[0] = p->span[0], primitive_span[1] = p->span[1];
+        has_line_x = has_exact = exact_cover = has_pending_depth = has_pending_precise = 0;
+        const pc_ui_text_piece_info* in = &p->info;
+        int found = 0;
+        if (q->image >= 0) {
+            found = pc_ui_upscale_lookup_image(q->image, pc_hw_scale, text_offset);
+            if (found < 0) { /* the atlas is full: as pc_hw_triangle does */
+                flush();
+                pc_ui_upscale_reset();
+                forget_recordings();
+                found = pc_ui_upscale_lookup_image(q->image, pc_hw_scale, text_offset);
+            }
+        }
+        if (found > 0) {
+            text_bounds[0] = text_bounds[1] = 0, text_bounds[2] = q->w, text_bounds[3] = q->h;
+            text_quad(q->x, q->y, q->x + q->w * q->k, q->y + (q->row1 - q->row0) * q->k, 0, q->row0, q->w, q->row1, 1,
+                p);
+        }
+        else if (p->sprite) /* not laid out: the original */
+            rect_triangles((int)in->x, (int)in->y, 12, in->h, in->u, in->v, p->rgb, p->code, in->tpage, in->clut,
+                p->window, in->clip, p->mask_set, p->mask_check);
+        else
+            text_quad(in->x, in->y, in->x + 12 * in->k, in->y + in->h * in->k, in->u, in->v, in->u + 12,
+                in->v + in->h, 0, p);
+    }
+}
+
 static void text_run_flush(void)
 {
     if (!text_piece_count || text_emitting)
@@ -1980,37 +2289,12 @@ static void text_run_flush(void)
     static pc_ui_text_quad quads[TEXT_PIECES];
     for (int i = 0; i < count; i++)
         infos[i] = text_pieces[i].info;
-    pc_ui_text_layout_run(native_vram, infos, count, pc_hw_scale, quads);
-    triangle_tag = TEXT_TAG_LINE;
     pc_hw_suppress = 0;
-    for (int i = 0; i < count; i++) {
-        const text_piece* p = &text_pieces[i];
-        const pc_ui_text_quad* q = &quads[i];
-        primitive_2d = p->is_2d, primitive_room = p->room, primitive_cover = p->cover;
-        primitive_extend = p->extend, primitive_narrowed = p->narrowed, primitive_anchor = p->anchor;
-        primitive_uv_shift[0] = p->uv_shift[0], primitive_uv_shift[1] = p->uv_shift[1];
-        primitive_span[0] = p->span[0], primitive_span[1] = p->span[1];
-        has_line_x = has_exact = exact_cover = has_pending_depth = has_pending_precise = 0;
-        const pc_ui_text_piece_info* in = &p->info;
-        int found = 0;
-        if (q->image >= 0) {
-            found = pc_ui_upscale_lookup_image(q->image, pc_hw_scale, text_offset);
-            if (found < 0) { /* the atlas is full: as pc_hw_triangle does */
-                flush();
-                pc_ui_upscale_reset();
-                forget_recordings();
-                found = pc_ui_upscale_lookup_image(q->image, pc_hw_scale, text_offset);
-            }
-        }
-        if (found > 0)
-            text_quad(q->x, q->y, q->x + q->w * q->k, q->y + (q->row1 - q->row0) * q->k, 0, q->row0, q->w, q->row1, 1,
-                p);
-        else if (p->sprite) /* not laid out: the original */
-            rect_triangles((int)in->x, (int)in->y, 12, in->h, in->u, in->v, p->rgb, p->code, in->tpage, in->clut,
-                p->window, in->clip, p->mask_set, p->mask_check);
-        else
-            text_quad(in->x, in->y, in->x + 12 * in->k, in->y + in->h * in->k, in->u, in->v, in->u + 12,
-                in->v + in->h, 0, p);
+    /* Each glyph in its cell (ui_text_layout glyph), then as lines (line). */
+    for (int mode = PC_UI_TEXT_LAYOUT_GLYPH; mode <= PC_UI_TEXT_LAYOUT_LINE; mode++) {
+        pc_ui_text_layout_run(native_vram, infos, count, pc_hw_scale, mode, quads);
+        triangle_tag = mode == PC_UI_TEXT_LAYOUT_LINE ? TEXT_TAG_LINE : TEXT_TAG_CELL;
+        text_emit(count, quads);
     }
     triangle_tag = 0;
     primitive_2d = was_2d, primitive_room = was_room, primitive_cover = was_cover, primitive_extend = was_extend;
@@ -2029,6 +2313,9 @@ static void text_run_flush(void)
 
 /* Buffer a piece (the drawing state now is its own) and start drawing its
  * original tagged TEXT_TAG_GLYPH (pc_hw_text_piece_done ends that). */
+/* The command word of the sprite or polygon being drawn (boot_runtime.c):
+ * which printer string a glyph piece belongs to (ui_text.c). */
+extern const void* pc_gpu_command __attribute__((weak));
 static void text_piece_add(const pc_ui_text_piece_info* info, int sprite, unsigned rgb, unsigned code,
     unsigned window, int mask_set, int mask_check)
 {
@@ -2036,6 +2323,7 @@ static void text_piece_add(const pc_ui_text_piece_info* info, int sprite, unsign
         text_run_flush();
     text_piece* p = &text_pieces[text_piece_count++];
     p->info = *info;
+    pc_ui_text_piece_call(&pc_gpu_command ? pc_gpu_command : NULL, &p->info);
     p->sprite = sprite;
     p->rgb = rgb, p->code = code, p->window = window, p->mask_set = mask_set, p->mask_check = mask_check;
     p->is_2d = primitive_2d, p->room = primitive_room, p->cover = primitive_cover, p->extend = primitive_extend;
@@ -2328,6 +2616,7 @@ void pc_hw_fill(int x, int y, int w, int h, int r, int g, int b)
     if (!pc_hw_active || w <= 0 || h <= 0)
         return;
     flush();
+    overlay_bake_rect(x, y, x + w, y + h);
     record_fill(x, y, w, h, r, g, b);
     screen_copy_write(0, 0, x, y, w, h, 0);
     fill_target(target_fbo, x, y, w, h, r, g, b);
@@ -2373,6 +2662,7 @@ void pc_hw_upload(int x, int y, int w, int h)
     if (!pc_hw_active || w <= 0 || h <= 0)
         return;
     flush();
+    overlay_bake_rect(x, y, x + w, y + h);
     if (ms_scope == target_fbo)
         ms_end_over(x, y, w, h);
     record_write(x, y, w, h);
@@ -2419,6 +2709,8 @@ void pc_hw_copy(int sx, int sy, int dx, int dy, int w, int h)
     if (!pc_hw_active || w <= 0 || h <= 0)
         return;
     flush();
+    overlay_bake_rect(sx, sy, sx + w, sy + h); /* what it reads */
+    overlay_bake_rect(dx, dy, dx + w, dy + h);
     if (ms_scope == target_fbo && (ms_touches(sx, sy, w, h) || ms_touches(dx, dy, w, h)))
         ms_end();
     record_write(dx, dy, w, h);
@@ -2495,6 +2787,7 @@ static int apply_scale(int scale)
     if (!pc_hw_active || scale < 1 || scale > 8 || scale == pc_hw_scale)
         return pc_hw_scale;
     flush();
+    overlay_bake_all(); /* (into the old target: the game draws its text again) */
     ms_end();
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
@@ -3077,6 +3370,7 @@ void pc_hw_native_marker(uint32_t list, int ox, int oy, const int* clip, unsigne
         if (drawn_lists[i] == list)
             return;
     flush();
+    overlay_bake_rect(clip[0], clip[1], clip[0] + clip[2], clip[1] + clip[3]);
     if (!draw_native(target_fbo, list, clip, ox, oy, window, mask, NULL, 1.0f))
         return; /* an object list that could not draw: its packets draw */
     record_native(list, clip, ox, oy, window, mask);
@@ -3248,6 +3542,7 @@ static void sync_kinds(int x, int y, int w, int h, int kinds)
         /* Copy the whole stale rectangle back: it is then current. */
         x0 = r[0], y0 = r[1], x1 = r[0] + r[2], y1 = r[1] + r[3];
         flush();
+        overlay_bake_rect(x0, y0, x1, y1);
         if (ms_scope == target_fbo)
             ms_end_over(x0, y0, x1 - x0, y1 - y0);
         static unsigned char pixels[1024 * 512 * 4];
@@ -3532,12 +3827,37 @@ static void record_triangle(const float* world, unsigned code, unsigned tpage, u
     t->surface = h;
     t->keyed = current_packet != 0 && !primitive_room; /* the room never moves */
 }
-static void record_batch(void)
+static void record_batch(void) { record_vertices(batch, batch_count, batch_blend, batch_clip, 0); }
+/* Held-back text leaves the frame's triangle records (the current batch's,
+ * the last ones recorded). */
+static void unrecord_triangles(int count)
 {
     recording* rec = recording_now();
-    if (rec->vertex_count + batch_count > MAX_RECORDED_VERTICES || rec->op_count >= MAX_RECORDED_OPS) {
+    rec->triangle_count = rec->triangle_count >= count ? rec->triangle_count - count : 0;
+}
+/* A batch of `count` vertices drawn now; `triangles`: their 2D triangle
+ * records too, before those of the batch being gathered (text held back
+ * and drawn later: overlay_draw_picked). */
+static void record_vertices(const hw_vertex* batch, int batch_count, int batch_blend, const int* batch_clip,
+    int triangles)
+{
+    recording* rec = recording_now();
+    if (rec->vertex_count + batch_count > MAX_RECORDED_VERTICES || rec->op_count >= MAX_RECORDED_OPS
+        || (triangles && rec->triangle_count + batch_count / 3 > MAX_RECORDED_VERTICES / 3)) {
         rec->overflow = 1;
         return;
+    }
+    if (triangles) {
+        int at = rec->vertex_count / 3, n = batch_count / 3, ahead = rec->triangle_count - at;
+        if (ahead < 0)
+            ahead = 0, at = rec->triangle_count;
+        memmove(&rec->triangles[at + n], &rec->triangles[at], (size_t)ahead * sizeof *rec->triangles);
+        for (int i = 0; i < n; i++) {
+            recorded_triangle* t = &rec->triangles[at + i];
+            memset(t, 0, sizeof *t);
+            t->surface = 0x7e47u; /* (2D: never matched between frames) */
+        }
+        rec->triangle_count += n;
     }
     recorded_op* op = &rec->ops[rec->op_count++];
     op->fill = 0;
@@ -4047,6 +4367,7 @@ void pc_hw_set_display(int x, int y, int w, int h)
  * as recorded (t = 1), into the replay target, so drawing options can be
  * compared on the very same frame. `area`: the drawing area it covers. */
 static int force_replay;
+static int redraw_text = 1; /* pc_hw_redraw draws the held-back text into the picture */
 int pc_hw_redraw(int area[4])
 {
     if (!pc_hw_active)
@@ -4060,6 +4381,10 @@ int pc_hw_redraw(int area[4])
         return -1;
     memcpy(area, op->clip, 4 * sizeof(int));
     replay_frame(&recordings[previous], b, 1.0f);
+    if (overlay_count && redraw_text) { /* text held back for the window: drawn into the picture (as it would be) */
+        memset(overlay_pick, 1, (size_t)overlay_count);
+        overlay_draw_picked(replay.fbo, 0);
+    }
     ms_end();
     force_replay = 1; /* the next interpolated image is drawn afresh */
     return 0;
@@ -4072,12 +4397,190 @@ static int redraw_shown, redraw_origin[2];
 int pc_hw_redraw_present(void)
 {
     int area[4];
-    if (pc_hw_redraw(area))
+    redraw_text = 0; /* (presented: the overlay draws it, at the window's resolution) */
+    int failed = pc_hw_redraw(area);
+    redraw_text = 1;
+    if (failed)
         return -1;
     redraw_shown = 1;
     redraw_origin[0] = area[0], redraw_origin[1] = area[1];
     return 0;
 }
+/* ---- the text overlay, presented (gl_present.c, vk_present.c) ---- */
+static const char* overlay_vertex_source =
+    "#version 330 core\n"
+    "layout(location = 0) in vec3 a_pos;\n"
+    "layout(location = 1) in uvec4 a_color;\n"
+    "layout(location = 2) in uvec2 a_uv;\n"
+    "layout(location = 3) in uvec2 a_page;\n"
+    "layout(location = 4) in uint a_window;\n"
+    "layout(location = 6) in uvec4 a_bounds;\n"
+    "layout(location = 7) in ivec2 a_ui;\n"
+    "uniform vec4 rect;\n" /* the presented area: x, y, width, height (VRAM pixels) */
+    "out vec3 v_color;\n"
+    "out vec2 v_uv;\n"
+    "flat out uvec4 v_state;\n"
+    "flat out uvec4 v_bounds;\n"
+    "flat out ivec2 v_ui;\n"
+    "void main() {\n"
+    "    v_color = vec3(a_color.rgb) / 255.0;\n"
+    "    v_uv = vec2(a_uv);\n"
+    "    v_state = uvec4(a_color.a, a_page, a_window);\n"
+    "    v_bounds = a_bounds;\n"
+    "    v_ui = a_ui;\n"
+    "    vec2 p = (a_pos.xy - rect.xy) / rect.zw;\n"
+    "    gl_Position = vec4(p.x * 2.0 - 1.0, 1.0 - p.y * 2.0, 0.0, 1.0);\n" /* the area's top row at the top */
+    "}\n";
+static const char* overlay_fragment_source =
+    "#version 330 core\n"
+    "in vec3 v_color;\n"
+    "in vec2 v_uv;\n"
+    "flat in uvec4 v_state;\n"
+    "flat in uvec4 v_bounds;\n"
+    "flat in ivec2 v_ui;\n"
+    "uniform usampler2D vram;\n"
+    "uniform usampler2D ui_atlas;\n"
+    "uniform int ui_scale;\n"
+    "uniform int pass;\n" /* 4: opaque texels "over", 5: translucent texels by the PS1 mode */
+    "uniform float text_factor;\n"
+    "out vec4 color;\n"
+    "uint fetch(int x, int y) { return texelFetch(vram, ivec2(x & 1023, y & 511), 0).r; }\n"
+    "vec3 rgb(uint t) { return vec3(float(t & 31u), float((t >> 5) & 31u), float((t >> 10) & 31u)); }\n"
+    PC_GLSL_TEXT_DIST
+    "void main() {\n"
+    "    vec2 footprint = fwidth(v_uv);\n"
+    "    uint flags = v_state.x, clut = v_state.z;\n"
+    "    ivec2 lo = ivec2(v_bounds.xy), hi = max(ivec2(v_bounds.zw) - 1, lo);\n"
+    "    int s = ui_scale;\n"
+    "    ivec2 o = v_ui * s;\n"
+    "    ivec2 q = clamp(ivec2(floor(v_uv * float(s) + 0.0001)), lo * s, (hi + 1) * s - 1);\n"
+    "    uint t = texelFetch(ui_atlas, q + o, 0).r;\n"
+    "    if ((t & 0x80000000u) == 0u) discard;\n"
+    "    float d = text_distance(ui_atlas, v_uv * float(s) + vec2(o), lo * s + o, (hi + 1) * s - 1 + o);\n"
+    "    vec3 texel;\n"
+    "    float alpha = text_colour(t, d, max(max(footprint.x, footprint.y), 1.0 / 256.0), clut, texel, t);\n"
+    "    if (alpha < 0.002 || t == 0u) discard;\n"
+    "    bool semi = (flags & 4u) != 0u && (t & 0x8000u) != 0u;\n"
+    "    if ((pass == 4 && semi) || (pass == 5 && !semi)) discard;\n"
+    "    vec3 c = (flags & 2u) != 0u ? texel / 31.0 : min(texel * v_color * (255.0 / 128.0), 31.0) / 31.0;\n"
+    "    color = vec4(c, alpha * (pass == 5 ? text_factor : 1.0));\n"
+    "}\n";
+static GLuint overlay_program;
+static GLint u_overlay_rect, u_overlay_scale, u_overlay_pass, u_overlay_factor;
+/* One run of held-back triangles of one blend, over the presented picture
+ * (GL: the bound framebuffer and viewport; clip: the drawing area, window
+ * pixels from the view's top-left). */
+static void overlay_present_gl(const hw_vertex* v, int count, int blend, const float* rect, const float* clip)
+{
+    if (!overlay_program) {
+        static int failed;
+        if (failed)
+            return;
+        overlay_program = pc_gl_program(overlay_vertex_source, overlay_fragment_source);
+        if (!overlay_program) {
+            failed = 1;
+            fprintf(stderr, "[gl] text overlay unavailable (its shader did not build)\n");
+            return;
+        }
+        u_overlay_rect = gl_GetUniformLocation(overlay_program, "rect");
+        u_overlay_scale = gl_GetUniformLocation(overlay_program, "ui_scale");
+        u_overlay_pass = gl_GetUniformLocation(overlay_program, "pass");
+        u_overlay_factor = gl_GetUniformLocation(overlay_program, "text_factor");
+        gl_UseProgram(overlay_program);
+        gl_Uniform1i(gl_GetUniformLocation(overlay_program, "vram"), 0);
+        gl_Uniform1i(gl_GetUniformLocation(overlay_program, "ui_atlas"), 2);
+    }
+    GLint view[4];
+    gl_GetIntegerv(GL_VIEWPORT, view);
+    gl_UseProgram(overlay_program);
+    gl_ActiveTexture(GL_TEXTURE0);
+    gl_BindTexture(GL_TEXTURE_2D, native_texture);
+    gl_ActiveTexture(GL_TEXTURE2);
+    gl_BindTexture(GL_TEXTURE_2D, pc_ui_upscale_gl_texture());
+    gl_ActiveTexture(GL_TEXTURE0);
+    gl_Uniform4f(u_overlay_rect, rect[0], rect[1], rect[2], rect[3]);
+    gl_Uniform1i(u_overlay_scale, pc_ui_upscale_draw_factor());
+    gl_BindVertexArray(vertex_array);
+    gl_BindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+    gl_BufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(count * sizeof(hw_vertex)), v, GL_STREAM_DRAW);
+    gl_Disable(GL_DEPTH_TEST);
+    gl_Enable(GL_SCISSOR_TEST);
+    int x0 = (int)floorf(clip[0]), x1 = (int)ceilf(clip[2]), y0 = (int)floorf(clip[1]), y1 = (int)ceilf(clip[3]);
+    gl_Scissor(view[0] + x0, view[1] + view[3] - y1, x1 - x0, y1 - y0); /* (GL: rows from the bottom) */
+    gl_Enable(GL_BLEND);
+    gl_BlendEquation(GL_FUNC_ADD);
+    gl_BlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+    gl_Uniform1i(u_overlay_pass, 4);
+    gl_DrawArrays(GL_TRIANGLES, 0, count);
+    int mode = blend - BLEND_TEXT;
+    if (mode < 4) {
+        gl_BlendEquation(mode == 2 ? GL_FUNC_REVERSE_SUBTRACT : GL_FUNC_ADD);
+        gl_BlendFuncSeparate(GL_SRC_ALPHA, mode == 0 ? GL_ONE_MINUS_SRC_ALPHA : GL_ONE, GL_ZERO, GL_ONE);
+        gl_Uniform1f(u_overlay_factor, mode == 0 ? 0.5f : mode == 3 ? 0.25f : 1.0f);
+        gl_Uniform1i(u_overlay_pass, 5);
+        gl_DrawArrays(GL_TRIANGLES, 0, count);
+        gl_BlendEquation(GL_FUNC_ADD);
+    }
+    gl_Disable(GL_BLEND);
+    gl_Disable(GL_SCISSOR_TEST);
+    gl_BindVertexArray(0);
+    gl_UseProgram(0);
+}
+
+/* The held-back text inside the presented area, at the window's resolution
+ * (the presenters, before the brightness curve: into the bound framebuffer
+ * and viewport, GL; into the open rendering, view (view_x, view_y) view_w x
+ * view_h of the window image, or of the brightness input with to_view,
+ * Vulkan). */
+void pc_hw_text_overlay(int view_x, int view_y, int view_w, int view_h, int to_view)
+{
+    if (!pc_hw_active || !overlay_count || view_w <= 0 || view_h <= 0 || shown_rect[2] <= 0 || shown_rect[3] <= 0)
+        return;
+    const int* r = shown_rect;
+    float rect[4] = { (float)r[0], (float)r[1], (float)r[2], (float)r[3] };
+    uint32_t drop = pc_ui_text == PC_UI_TEXT_FONT ? (pc_ui_text_layout == PC_UI_TEXT_LAYOUT_LINE ? TEXT_TAG_GLYPH | TEXT_TAG_CELL
+                                                                                                 : TEXT_TAG_GLYPH | TEXT_TAG_LINE)
+                                                  : TEXT_TAG_CELL | TEXT_TAG_LINE;
+    static hw_vertex v[MAX_VERTICES];
+    int n = 0, blend = 0, clip[4] = { 0, 0, 0, 0 };
+    for (int i = 0; i <= overlay_count; i++) {
+        const overlay_triangle* o = i < overlay_count ? &overlay[i] : NULL;
+        if (o && (o->box[2] <= r[0] || o->box[0] >= r[0] + r[2] || o->box[3] <= r[1] || o->box[1] >= r[1] + r[3]
+                     || (o->v[0].window & drop)))
+            continue;
+        if (n && (!o || o->blend != blend || memcmp(o->clip, clip, sizeof clip) || n + 3 > MAX_VERTICES)) {
+            /* The drawing area in window pixels from the view's top-left. */
+            float sx = view_w / rect[2], sy = view_h / rect[3];
+            float area[4] = { (clip[0] - rect[0]) * sx, (clip[1] - rect[1]) * sy, (clip[0] + clip[2] - rect[0]) * sx,
+                (clip[1] + clip[3] - rect[1]) * sy };
+            area[0] = fmaxf(area[0], 0), area[1] = fmaxf(area[1], 0);
+            area[2] = fminf(area[2], (float)view_w), area[3] = fminf(area[3], (float)view_h);
+            if (area[2] > area[0] && area[3] > area[1]) {
+#ifdef ROOD_VULKAN
+                if (pc_vk_on())
+                    pc_vk_hw_text_overlay(v, n, blend - BLEND_TEXT, rect, area, view_x, view_y, to_view);
+                else
+#endif
+                    overlay_present_gl(v, n, blend, rect, area);
+                overlay_presented += n / 3;
+            }
+            n = 0;
+        }
+        if (!o)
+            break;
+        blend = o->blend;
+        memcpy(clip, o->clip, sizeof clip);
+        memcpy(v + n, o->v, sizeof o->v);
+        n += 3;
+    }
+    (void)view_x, (void)view_y, (void)to_view;
+}
+int pc_hw_text_overlay_held(void) { return overlay_on ? overlay_count : -1; }
+void pc_hw_text_overlay_stats(long* held, long* baked, long* presented)
+{
+    *held = overlay_on ? overlay_count : -1, *baked = overlay_baked, *presented = overlay_presented;
+}
+
 /* The display area (RPC ui_upscale reports it for crops of gpu_dump). */
 void pc_hw_display_rect(int r[4]) { memcpy(r, display_rect, sizeof display_rect); }
 /* After pc_hw_target: the origin of the area to present from the target it
@@ -4113,6 +4616,7 @@ static unsigned frame_serial;
 unsigned pc_hw_frame_serial(void) { return frame_serial; }
 static GLuint hw_target(void)
 {
+    overlay_update(); /* (for this view: whether the next frame's text is held back) */
     flush();
     ms_end(); /* MSAA: the frame complete in the target */
     pc_ui_upscale_frame(); /* a presented image: the 2D cache's clock */
@@ -4275,6 +4779,8 @@ int pc_hw_dump(const char* path, int replay_target)
     if (!pc_hw_active)
         return -1;
     flush();
+    if (!replay_target)
+        overlay_bake_all(); /* (the target as the game drew it) */
     ms_end();
 #ifdef ROOD_VULKAN
     if (pc_vk_on())

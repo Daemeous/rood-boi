@@ -27,6 +27,14 @@ const char* pc_ui_material_name(int material);
 const char* pc_ui_item_help(int index);
 /* How many entries the table has (0: not readable). */
 int pc_ui_item_help_count(void);
+/* ITEMNAME.BIN's record `id` as the game has it (24 bytes, the game's
+ * encoding; vs_mainMenu_itemNames + id), NULL when out of range or not
+ * readable. Valid until exit. */
+const unsigned char* pc_ui_item_name_bytes(int id);
+/* The whole of disc file `path` ("MENU/BLADE.SYD") into a new malloc'd
+ * buffer (*out, *size; the caller frees it); 0 when it cannot be read. Read
+ * into host memory only, never written anywhere. */
+int pc_ui_disc_read(const char* path, unsigned char** out, unsigned* size);
 
 #ifdef __cplusplus
 }

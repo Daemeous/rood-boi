@@ -750,6 +750,11 @@ These switches persist with File > Save settings:
 | `fog_disturb_player`, `fog_disturb_actors` | 1, 1 | interactive fog: how much Ashley and the other characters (enemies, NPCs) part interactive fog volumes (0 off; a volume's own `disturb_*` wins; "Interactive fog" below) |
 | `fog_disturb_attacks`, `fog_disturb_spells` | 0, 0 | the same for weapon swings (any actor's, chain steps too) and spells/items (casting and where they land); off until tried |
 | `fog_sim_budget` | 4 | the most interactive (simulated) fog volumes per room (0-4; the first ones in the room's order) |
+| `fog_volume_render` | 1 | the fog volumes' own renderer (0: inside the haze as before; "Fog volumes' own renderer" below) |
+| `fog_volume_resolution`, `fog_volume_steps`, `fog_volume_steps_gl` | 0.5, 48, 20 | its march image per internal pixel (Vulkan), samples per ray (Vulkan, OpenGL) |
+| `fog_volume_history` | 0.06 | the least weight of a new frame in its temporal accumulation (lower: steadier, slower) |
+| `fog_volume_ambient`, `fog_volume_glow`, `fog_volume_scattering`, `fog_volume_halo` | 1, 0.6, 0.5, 2 | its ambient light, the glows' light, the multiple-scattering octave, extra light near a light |
+| `fog_volume_shadows` | 1 | the scene shadows the volumes' lights (Vulkan ray queries) |
 | `editor_cutaway`, `editor_cutaway_radius` | 1, 320 | See into rooms > Cut to focus (key C) and its radius at the focus |
 | `editor_cutaway_opacity` | 0.3 | share of a cut surface still drawn as a ghost, with its edges (0: a hole) |
 | `editor_cutaway_auto` | 1 | cut only while room surfaces hide the focus from the camera |
@@ -789,13 +794,14 @@ pixel's corner as the PS1 does, not one past the image (`pc_hw_set_flipped_uv`).
 | --- | --- | --- |
 | `ui_upscale` | `nearest` | `nearest`: the PS1's blocks (original). `mmpx`: MMPX (McGuire & Gagiu 2021), the style-preserving pixel-art magnifier: curves, diagonals and corners reconstructed, palette, transparency and one-pixel details kept exactly |
 | `ui_subpixel` | 0 | text glyphs drawn where the game places them in 16.16 fixed point instead of whole pixels (even spacing while talk bubbles zoom open and shut) |
-| `ui_text` | `original` | `original`: the PS1's glyphs. `font`: the game's text drawn from open-licensed fonts (below) at the internal resolution (2x and up) |
-| `ui_text_layout` | `glyph` | with `ui_text font` (`line` is off by default for now: the save/load screen splits words): `line` sets each line of dialogue and menu text (talk bubbles, menus, the information box) with the font's own spacing and kerning (below); `glyph`: each glyph inside the original's 12-pixel cell at the game's advance, for comparison |
+| `ui_text` | `original` | `original`: the PS1's glyphs. `font`: the game's text drawn anti-aliased from open-licensed fonts (below), at any internal resolution |
+| `ui_text_overlay` | `auto` | `auto`: while the window is finer than the internal resolution, text and button icons from fonts are drawn at the window's own resolution over the picture (below); `off`: into the picture at the internal resolution |
+| `ui_text_layout` | `glyph` | with `ui_text font`: `line` sets each string the game prints (talk bubbles, menus, the information box, the memory card screens) with the font's own spacing and kerning (below); `glyph`: each glyph in the original's 12-pixel cell at the game's advance, its descenders drawn whole below the cell |
 | `ui_text_bubble_align` | `centre` | with `ui_text_layout line`, talk bubbles only (menus and the information box stay left): `centre` centres each line within the original line's extent, `left` starts it where the game does |
 | `ui_text_<style>_font`, `_stretch`, `_slant`, `_embolden`, `_aspect` | the chosen fonts | per style (`dialogue`, `menu`, `info`, `digits`): a TrueType file (relative to the repository root), horizontal scale, added shear, distance-field offset in em (bolder > 0), and for `digits` the least share of the font's own width/height a digit size may be condensed to (0.78; 0: any); saved only when changed |
 | `ui_lines` | `joined` | 2D lines (GP0 0x40-0x5F: the map, the minimap, the targeting sphere, talk bubble outlines) at the internal resolution. `joined`: one PS1 pixel thick at any scale, joins closed, no light dots along outlines (below). `legacy`: the earlier one-pixel quads, for comparison |
 | `ui_outline_boost` | 0 | 2D lines (and vector bubble outlines) 0-3 output pixels thicker: a bolder inked look |
-| `ui_bubbles` | `original` | `original`: talk bubbles drawn from the game's packets. `vector`: each bubble the game builds drawn as one smooth shape (below) |
+| `ui_bubbles` | `original` | `original`: talk bubbles drawn from the game's packets. `vector`: each bubble the game builds drawn as one smooth shape, the emote bubbles over actors too (below) |
 | `ui_bubble_outline` | 1 | `vector`: the outline's thickness in PS1 pixels (0.25-8; the overlay offers 0.5-4) |
 
 Nothing is shipped: each region a 2D primitive samples (texture page, CLUT,
@@ -821,9 +827,10 @@ ported from the authors' MIT-licensed reference ([THIRD_PARTY.md](../THIRD_PARTY
 **Text in modern fonts (`ui_text font`).** The game keeps drawing its text
 exactly as on the PS1 (which characters, where, colours, brightness
 gradients, translucency, when a bubble types out or zooms); only the texels
-of each glyph's box are drawn again at the internal resolution from a font
-(`pc/src/ui_text.c`), through the same 2D atlas as MMPX, whatever
-`ui_upscale` is. A 2D region is a glyph by its page, CLUT and texel
+of each glyph's box are drawn again from a font (`pc/src/ui_text.c`),
+through the same 2D atlas as MMPX, whatever `ui_upscale` is (at least four
+atlas texels a PS1 pixel while text or icons come from fonts, at internal
+resolution 1 too). A 2D region is a glyph by its page, CLUT and texel
 rectangle:
 
 | Style | Where the game draws it | Font (`pc/third_party/fonts`) |
@@ -840,8 +847,10 @@ Each glyph is a signed distance field (64 pixels per em) made with stb_truetype
 the original glyph: the original's baseline and
 cap height (measured from the game's VRAM on its H; digits on 0; small
 capitals on its x), centred on the original glyph's ink, a per-style
-horizontal scale, descenders squeezed into the 12-pixel cell as the PS1
-faces do. The HUD's digit boxes are narrow (five texels of ink between
+horizontal scale. Dialogue and menu glyphs are drawn whole, their
+descenders below the 12-pixel cell (up to six rows; `ui_text_layout glyph`
+too: each glyph laid out in its own cell, below); the other styles' (no
+descenders but the label words') stay in their boxes. The HUD's digit boxes are narrow (five texels of ink between
 outlines) and old-style figures are round: fitted to the original's height
 the large size (7 x 12) would be condensed to about 0.6 of the font's own
 proportions (stretched tall), so each size shares one scale at which its
@@ -852,26 +861,69 @@ advances (5 and 6) never touch. Its coverage is mapped through the original glyp
 (index 1 up to the highest index the glyph uses; inside a one-pixel outline
 of index 1 for the outlined styles), so palettes and the colour key are the
 game's. Characters a font lacks and the pictographs (button symbols,
-arrows, notes, stars) stay original. While a bubble zooms, its
-glyphs are sampled nearest from the atlas like MMPX's.
+arrows, notes, stars) stay original.
+
+**Anti-aliased at any resolution.** The atlas does not hold a glyph's
+colours but its *distance texels* (`pc/src/ui_text.h`): the signed distance
+to the glyph's edge in PS1 pixels and how to colour it (the original's CLUT
+ramp, the outlined styles' index 1 outline, a label's two colours, a button
+icon's own colour). The 2D shaders (`pc/shaders/vulkan/text_dist.glsl`,
+shared by OpenGL and Vulkan) sample the distance bilinearly and draw the
+edge one pixel wide wherever it lands, coverage blended over what is behind
+(an opaque texel "over", a translucent one by its PS1 mode scaled by the
+coverage; the mask bit kept): text batches (`gpu_hw.c` `BLEND_TEXT`) draw
+their solid pixels' G-buffer and depth as UI as 2D does, then their colour.
+Talk bubbles zooming, laid-out lines between pixels and the 1x picture all
+stay smooth.
+
+**At the window's resolution (`ui_text_overlay auto`).** Drawn into the
+picture, text is as fine as the internal resolution, and a window larger than
+that scales the picture up again (4x internal in a window six times the
+PS1's: each pixel a pixel and a half, nearest). So while the window is finer
+than the target, text and icon batches are held back and the presenters
+draw them at the window's own resolution over the finished picture, before
+the brightness curve (`pc_hw_text_overlay`, GL and Vulkan, `pc/shaders/vulkan/text_overlay.*`).
+The game's drawing order is kept: a held-back triangle is drawn into the
+picture ("baked", recorded with the frame where it is drawn) as soon as
+anything else would draw where it is (a primitive, a fill, an upload or
+copy, a native draw list) or read that area (a copy's source, a readback);
+one nothing came near is still on top of the picture at the end of the
+frame, so drawing it last, finer, is the same picture. Fades and anything
+the game draws over text therefore show the text at the internal resolution
+for those frames. Interpolated images draw the held-back text of the frame
+they show; redraws of a recorded frame (RPC `ui_upscale redraw`) and dumps
+of the target (`gpu_dump`) include it. RPC `ui_text` reports `overlay`
+(triangles held now, -1 when not holding; baked and presented counts; the
+presented view).
 
 **Lines (`ui_text_layout line`, off by default for now).** The game sets its text a
 glyph at a time in 12 x 12 cells at its own advances (about 6 pixels a
 letter in menus and the information box, proportional in talk bubbles). A
 font's letters in those slots space unevenly (an i floats in a wide slot,
-wide letters collide, a period lands on the letter before it) and descenders
-must be squeezed into the cell. So dialogue and menu text is set again a line
-at a time (`pc/src/ui_text.c`, "string-level layout"): the glyph sprites the
-game draws one after another (a text box's glyphs, a menu row's 12 one-pixel
-strips per glyph, a zooming bubble's scaled glyph quads) are held back by the
-hardware path until something else is drawn, grouped into lines (one style,
-one cell top, one drawing area; a gap of more than three spaces or an overlap
-starts a new segment: columns, separately placed strings) and each segment is
-set from where the game's first letter's ink starts with the font's advances
-and kerning, its spaces (each 6-pixel space the game left) the font's space
-widened by half. A letter never runs past the game's own letter by more than
+wide letters collide, a period lands on the letter before it). So dialogue
+and menu text is set again a string at a time (`pc/src/ui_text.c`,
+"string-level layout"). The game's text printers report each character they
+set (hooks under `ROOD_PC`: `vs_battle_printVariableWidthFontChar` for text
+boxes and most menus, `vs_mainMenu_renderRowLabel` for menu rows, MENU7's and
+TITLE's own `_printCharacter` for the memory card screens, with their own
+advances, `pc/src/fixed_font.c` for zooming bubbles): characters set one
+after another on one line, each where the previous one left the pen (or a
+few spaces on), are one string, and the printer's own advance tells its
+spaces from its letters. The glyph sprites the game draws one after another
+(a text box's glyphs, a menu row's 12 one-pixel strips per glyph, a zooming
+bubble's scaled glyph quads) are held back by the hardware path until
+something else is drawn and grouped into lines (one style, one cell top, one
+drawing area); a string's glyphs on a line (a gap of more than three spaces
+or an overlap still starts a new segment) are set from where the game's
+first letter's ink starts with the font's advances and kerning, its spaces
+(each 6-pixel space the game left) the font's space widened by half. A glyph
+no printer reported is laid out glyph by glyph instead (as `ui_text_layout
+glyph`); RPC `ui_text {lines}` counts them (`unexplained`, none on the
+screens the test visits). A letter never runs past the game's own letter by more than
 a pixel (tightened where the font is wider), and on every row its ink stays
-half a pixel from its neighbour's (that wins). Each glyph is drawn whole, its
+half a pixel from its neighbour's (that wins); a string the font would still
+run past the game's last letter by more than a pixel is condensed until it
+ends there. Each glyph is drawn whole, its
 descenders below the cell, in the original sprite's colour, brightness and
 blending (a strip-drawn menu glyph row by row with each strip's brightness, the
 rows below the cell with the last strip's). A letter's place depends only on
@@ -887,9 +939,9 @@ walks the box's page as the game's printer does, every character counted):
 it is set in full and the drawn letters take their places in it, so they
 still never move as more appear. A line no box explains (a zooming bubble
 draws whole lines) is centred as drawn. The
-original glyph sprites and the laid-out quads are both recorded for each
-frame, so a redraw of the same frame can show either (RPC `ui_upscale
-redraw` after `graphics {ui_text_layout}`). RPC `ui_text {lines: PATH}` writes
+original glyph sprites and both layouts' quads are recorded for each
+frame, so a redraw of the same frame can show any (RPC `ui_upscale
+redraw` after `graphics {ui_text, ui_text_layout}`). RPC `ui_text {lines: PATH}` writes
 the lines laid out in the newest frame (each glyph's original place, advance
 and ink, its laid-out pen and ink row by row) for tests.
 
@@ -1037,6 +1089,24 @@ are the game's frame by frame; with `ui_subpixel` the vertices come from the
 unrounded 16.16 rectangle (smooth zoom). The CPU rasterizer still draws the
 packets, so native VRAM is the PS1's. `ROOD_UI_DEBUG=5` prints each bubble's
 points, outline and polygons.
+
+**Emote bubbles.** The small bubbles over actors (NPCs in scenes, enemies)
+are images: BATTLE.PRG `func_80095C18` draws a balloon (the speech balloon,
+a spiky shout balloon, or surprise strokes; a quad mirrored by the side the
+actor stands on) from the battle page (448, 256), CLUT (992, 220), with one
+to three dots, a '!' or a heart in it, or a '?' alone. Each of those images
+(by its place and a hash of its CLUT indices, so a page holding something
+else stays as it is) is drawn again through the 2D atlas as distance texels
+(`pc/src/ui_emotes.c`): with `ui_bubbles vector` the balloons and strokes as
+smooth shapes like the talk bubbles (the image's silhouette smoothed, its
+pixel steps rounded off, an anti-aliased outline a PS1 pixel wide in the
+image's own outline colour, the inside the image's light fill, its paper
+texture nearest); with `ui_text font` the dots as discs (the dark ink's area,
+centre and colour) and the '!' and '?' from the dialogue font (the talk
+bubbles' lettering) fitted to the original's ink box (the '?' inside its dark
+outline). The heart is a pictograph and stays the game's. RPC `ui_bubbles`
+counts the images drawn again (`emotes`); `ROOD_UI_DEBUG=5` prints each
+image's CLUT indices and hash.
 
 ### Lighting the room's fixtures, light actors and Place Actors
 
@@ -1303,11 +1373,15 @@ density, colour, fill light and wisps) for local mist. Format:
   second (slow by default: mist creeps; it stops with the game); each
   froxel holds the medium's average over its cell, so thin layers and
   volume edges never show slices or steps.
-- **Stable**: blue-noise jitter per froxel stratified over frames, a
-  reprojected temporal blend, a low-resolution volume (`haze_cell` display
-  pixels per cell: Ultra 2, High 3) upsampled by depth (each pixel reads the
-  volume at its own depth, so PS1 texels stay sharp: nothing is blurred
-  across the image).
+- **Stable**: blue-noise jitter per froxel stratified over frames, every
+  random choice of a froxel (its point, the light it picks, the point on it,
+  the sun's and the sky's rays) cycling through 16 frames, so a still
+  picture converges and stays still; a reprojected temporal blend with a
+  long history while the camera is still (each new frame 4 %) and a short
+  one while it moves; a 3 x 3 x 3 filter over the cells (depth too); a
+  low-resolution volume (`haze_cell` display pixels per cell: Ultra 2, High
+  3) upsampled by depth (each pixel reads the volume at its own depth, so
+  PS1 texels stay sharp: nothing is blurred across the image).
 - **Never hides the scene**: whatever the densities, along any ray the
   atmosphere hides at most `haze_max_opacity` (0.55) of the scene, adds at
   most `haze_max_light` (0.15, soft knee) of light, forward scattering
@@ -1334,6 +1408,61 @@ density, colour, fill light and wisps) for local mist. Format:
   `haze_cell`}. Test: `pc/tests/atmosphere_smoke.py`. Costs:
   [pc/docs/Vulkan_Renderer.md](docs/Vulkan_Renderer.md), "Haze, ground fog
   and sun shafts".
+
+#### Fog volumes' own renderer
+
+Hand-placed fog volumes (the first 8 of a room) are not part of the haze's
+coarse froxel volume: their own renderer marches each of them per pixel,
+lights them with the lights that matter to them and gives them their own
+limits (`pc/shaders/vulkan/fog_volume.glsl`, Vulkan `pc/src/vk_fogvol.inc`,
+OpenGL `gl_present.c`; design and numbers:
+[pc/docs/plans/2026-10-14-fog-volume-renderer.md](docs/plans/2026-10-14-fog-volume-renderer.md)).
+Dense, billowing smoke lit and coloured by the fire in it is the target.
+
+- **Density**: the volume's shape (boxes with rounded corners, spheres)
+  and height profile (`taper`) times the interactive fog's field times the
+  baked Perlin-Worley detail noise, two octaves carried along by the
+  field's flow (`detail`, `detail_size`), sampled at every step of the march.
+- **Lighting**: per sample, its six most important lights (lights, glows:
+  fires, torches, the save point's column; `fog_volume_glow`) and the sun or
+  moon with a forward-scattering phase function (`phase`) and a cheap
+  multiple-scattering octave (`fog_volume_scattering`), a halo near each
+  light (`fog_volume_halo`: a fire glows in its smoke), an ambient term
+  from the room's baked light around it and the sky (`ambient`,
+  `fog_volume_ambient`: fog in a dark room is dim grey, not black), its fill
+  and its own glow (`glow`, `glow_core`: smoke lit from within). Shadows:
+  Vulkan keeps a 32^3 grid per volume of the transmittance toward each of
+  its lights, the sun and the ambient term (its own density: dark cores,
+  lit rims; with ray queries the scene's too: Ashley's shadow in the fog of
+  a fire behind her), half of it updated a frame; OpenGL estimates each
+  shadow from the volume's mean density over its depth toward the light.
+- **Sampling**: Vulkan marches at `fog_volume_resolution` (0.5) of the
+  internal resolution, `fog_volume_steps` (48) samples over the parts of
+  the ray inside volumes (empty space skipped), up to the scene's depth
+  (fog in front of geometry hides it, behind it is hidden); blue-noise
+  offsets on a 16-frame cycle; reprojected temporal accumulation (rejected
+  where the scene behind changed: disocclusion, a character moving across),
+  clamped to the neighbourhood, down to `fog_volume_history` (0.06) a frame;
+  a depth-aware 3 x 3 filter; a joint bilateral upsample in the present, in
+  linear light before the haze, the post effects and the UI. OpenGL marches
+  per pixel in the present (`fog_volume_steps_gl` 20), its offsets fixed per
+  pixel.
+- **Limits**: exempt from the room's haze limits (`haze_max_opacity`,
+  `haze_max_light`: they stay for the generated haze and ground fog); per
+  volume `opacity` (the most it hides along a ray, 1) and `brightness`.
+- **Cost** (Vulkan RT, 1440 x 1080, Ultra): about 0.5 ms a frame with one
+  large volume (grid 0.07, march 0.38, temporal 0.02), 0.7 ms with two.
+- **Settings**: `fog_volume_render` (1; 0 puts the volumes back in the haze,
+  as before), `fog_volume_resolution`, `fog_volume_steps`,
+  `fog_volume_steps_gl`, `fog_volume_history`, `fog_volume_ambient`,
+  `fog_volume_glow`, `fog_volume_scattering`, `fog_volume_halo`,
+  `fog_volume_shadows` (the scene's shadows with ray queries). Editor:
+  Atmosphere > a volume > "Look (its own renderer)", and "Volume renderer"
+  below the list (with a debug view). RPC `environment` {`fog_volumes`:
+  {`render`, `resolution`, `steps`, `steps_gl`, `history`, `ambient`,
+  `glow`, `scattering`, `halo`, `shadows`, `debug` (1 their light alone, 2
+  their transmittance)}}; the reply's `fog_volumes` adds `drawn` (per volume
+  its lights and ambient). Test: `pc/tests/fog_volume_smoke.py`.
 
 #### Interactive fog
 
@@ -1535,7 +1664,7 @@ redraws at about 60 Hz, and after each request):
 | `gpu_dump` | `path` | the whole scaled hardware VRAM target as a PPM |
 | `gi_probe` | `u`, `v` (display area, 0-1), or `x`, `y`, `z` (a world point: where it is on screen) | the game view's last GI result there (GL and Vulkan): `indirect`, shadow `visibility`, `baked_visibility` (characters' contact and glow shadows on the baked light), `extra` (Vulkan: glow light; GL: haze), and the `u`, `v` it read |
 | `gpu_draw` | `packet` (GP0 words, hex), `texture` (hex texels) with `texture_x/y/w/h`, `area_x/y/w/h`, `offset_x/y` | tests: load texels, set the drawing area, draw the commands on both rasterizers (`flipped_sprite_smoke.py`) |
-| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_scene`, `widescreen_trace` N, `undrawn_debug`), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `ui_text_layout` (`line`/`glyph`), `ui_text_bubble_align` (`centre`/`left`), `ui_lines` (`joined`/`legacy`), `ui_outline_boost`, `ui_bubbles` (`original`/`vector`), `ui_bubble_outline`, `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample` | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
+| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_scene`, `widescreen_trace` N, `undrawn_debug`), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `ui_text_layout` (`line`/`glyph`), `ui_text_bubble_align` (`centre`/`left`), `ui_text_overlay` (`auto`/`off`), `ui_lines` (`joined`/`legacy`), `ui_outline_boost`, `ui_bubbles` (`original`/`vector`), `ui_bubble_outline`, `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample` | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
 | `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
 | `button_prompts` | `button_prompts` (mode), `device` (`playstation`/`xbox`/`nintendo`/`keyboard`, as a device used last would set it) with `variant` (3/4/5 PlayStation, 360 Xbox), `bind` (`{"bind_key_circle": "c", "bind_pad_circle": "south"}`), `icon` (a button name) with `size`, `clear_shown`, `style`, `scale`, `dpad` (`cross`/`dim`/`lit`), `cross_actions` (0-15: the shortcut cross's usable arms, bits up, left, right, down, whatever the game reports; -1 the game's), `mask` | the mode, the family drawn, the device, `generation`, the glyph each PS1 button shows, the bindings, `shown` (the icon each prompt on screen was drawn with since `clear_shown`, `text` and `sprite`, the shortcut cross's `dpad` and its lit `dpad_arms`), `style`, `scale`, `dpad_mode`, `cross_actions`, regions drawn from icons (`regions`) and fallen back (`failed`); `icon` adds the native menus' image (`pc_prompt_glyph`: size, uv) |
 | `ui_bubbles` | `path` (N) | vector talk bubbles: frames reported, verified, fallen back (`mismatched`), drawn; line segments the hardware path drew (`lines_drawn`); native pixels per output pixel; the recent bubbles (shape, flip, tail, outline bounds drawn and the game's whole-pixel points, thickness); `path`: bubble N's outline points |
@@ -1555,7 +1684,7 @@ redraws at about 60 Hz, and after each request):
 | `editor_place` | `item` / `prefab` / `light`, `phase` (`begin`, `move`, `drop`, `cancel`, `double_click`, `state`), `x`/`y` or `u`/`v` | a drag from Place Actors, as the mouse would do it |
 | `post` | `layer` (`gameplay`, `cutscene`, `room`, `room_cutscene`), `set` {field: value}, `clear` ([fields] or `all`), `preset`, `context` (`auto`, `gameplay`, `cutscene`: preview), `stack`, `blend_time`, `fft_size`, `save_preset`, `snap` | post-processing profiles (docs/Post_Processing.md): `context`, `detected`, `event`, `lens_blur_off` (`title`, `attract`, `menu`, `no_player` or ""), `grade`, `bloom`, `ev`, `focus`, `flags`, `blend`, `target` and `shown` values, every layer, `presets` |
 | `environment` | `sun` {`enabled`, `azimuth`, `elevation`, `color`, `intensity`, `angle`, `shadows`}, `sky` {`enabled`, `zenith`, `horizon`, `ground`, `intensity`, `sun_tint`, `ambient`}, `remove` (`sun`, `sky`, `all`), `global` | the room's sun and sky (`defined`: the room has the item; setting a field of one it lacks adds it), `active`, `global` (settings key `environment`), the renderers' packed record (`gpu`) and its `hash`; an edit marks the room dirty (save with `lighting` `save`) and is one undo transaction |
-| `environment` (fog) | `haze` {`density`, `anisotropy`, `glow`, `max_opacity`, `max_light`, `shafts`, `max_forward`} (room settings), `floor_grid`, `fog` {`enabled`, `density`, `height`, `offset`, `noise`, `scale`, `wind`, `color`, `fill`, `sky`}, `remove_fog`, `volumes` [{`id`, `remove`, `enabled`, `shape`, `name`, `pos`, `size`, `yaw`, `density`, `edge`, `color`, `fill`, `noise`, `sim`, `sim_strength`, `sim_recover`, `sim_footprint`, `sim_trail`, `sim_wind`, `detail`, `disturb_player`, `disturb_actors`, `disturb_attacks`, `disturb_spells`, `preset`}], `fog_time` (seconds, -1 live), `fog_global`; the interactive fog: `disturb`, `sim_budget`, `stamp`, `ghost`, `sim_reset`, `sim_field`, `presets_reload` ("Interactive fog") | the same reply plus `haze`, `fog` (with the room's main `floor` and its `floor_grid` {`n`, `corner`, `cell`, `heights`}), `bounds`, `volumes`, `fog_global`, `fog_time`, `sim`, `sims`, `disturb`, `sim_budget`, `events`, `presets` |
+| `environment` (fog) | `haze` {`density`, `anisotropy`, `glow`, `max_opacity`, `max_light`, `shafts`, `max_forward`} (room settings), `floor_grid`, `fog` {`enabled`, `density`, `height`, `offset`, `noise`, `scale`, `wind`, `color`, `fill`, `sky`}, `remove_fog`, `volumes` [{`id`, `remove`, `enabled`, `shape`, `name`, `pos`, `size`, `yaw`, `density`, `edge`, `color`, `fill`, `noise`, `sim`, `sim_strength`, `sim_recover`, `sim_footprint`, `sim_trail`, `sim_wind`, `detail`, `opacity`, `brightness`, `phase`, `ambient`, `glow`, `glow_core`, `taper`, `detail_size`, `disturb_player`, `disturb_actors`, `disturb_attacks`, `disturb_spells`, `preset`}], `fog_time` (seconds, -1 live), `fog_global`; the interactive fog: `disturb`, `sim_budget`, `stamp`, `ghost`, `sim_reset`, `sim_field`, `presets_reload` ("Interactive fog"); `fog_volumes` {`render`, `resolution`, `steps`, `steps_gl`, `history`, `ambient`, `glow`, `scattering`, `halo`, `shadows`, `debug`} ("Fog volumes' own renderer") | the same reply plus `haze`, `fog` (with the room's main `floor` and its `floor_grid` {`n`, `corner`, `cell`, `heights`}), `bounds`, `volumes`, `fog_volumes` (with `drawn`), `fog_global`, `fog_time`, `sim`, `sims`, `disturb`, `sim_budget`, `events`, `presets` |
 | `lighting` | `action` (`layers`, `save`, `revert` {`id`}, `promote` {`ids`}, `reload` (as `lights` `reload`), `packs` {`packs`, `active`}, `discard_dangling`, `poll` (the live reload's check, now)) | the room's lighting layers (files, entries, version), the effective items with their layer badges, deleted ids, problems (dangling overrides), the user layer as it would be saved |
 | `fixtures` | `action` (`list`, `set` {`type`, `params`, `offset`, `fixture_radius`, `glow`, `enabled`, `review`}, `save`, `revert`, `regenerate` {`scope`}), `type`, `all` | the fixture catalog's types in the room (or one, or all), the room's typed actors and glows (`muted` 4: suppressed by the type); type edits apply live to every instance (`pc/docs/Fixture_Catalog.md`) |
 | `rooms` | | every zone and room read from the disc (zone, room, location, scene, entries, name, area), the current room, whether warped, the warp's phase |

@@ -30,6 +30,7 @@
 #include "fog_sim.h"
 #include "lighting_layers.h"
 #include "lighting_quality.h"
+#include "light_list.h"
 #include "lights_internal.h"
 #include "scene_capture.h"
 
@@ -63,6 +64,11 @@ float pc_fog_time = -1; /* RPC environment {fog_time}: fixed seconds (-1: live) 
 /* The interactive fog's global weights per source (atmosphere.h): Ashley,
  * the other actors, attacks, spells (settings fog_disturb_*). */
 float pc_fog_disturb[4] = { 1, 1, 0, 0 };
+/* The fog volumes' own renderer (atmosphere.h). */
+int pc_fog_volume_render = 1, pc_fog_volume_steps = 48, pc_fog_volume_steps_gl = 20, pc_fog_volume_debug,
+    pc_fog_volume_shadows = 1;
+float pc_fog_volume_resolution = 0.5f, pc_fog_volume_history = 0.06f, pc_fog_volume_ambient = 1, pc_fog_volume_glow = 0.6f,
+      pc_fog_volume_scattering = 0.5f, pc_fog_volume_halo = 2.0f;
 int pc_fog_sim_budget = PC_FOG_SIM_MAX; /* settings fog_sim_budget */
 static const char* const DISTURB_KEYS[4] = { "disturb_player", "disturb_actors", "disturb_attacks", "disturb_spells" };
 
@@ -104,6 +110,15 @@ struct Volume {
     float sim_swirl = 0; /* vorticity: the parted fog curls into eddies (0..4) */
     float shadow = 0; /* self-shadowing: its dense parts shade themselves from the main light (0..2) */
     float disturb[4] = { -1, -1, -1, -1 }; /* per source (DISTURB_KEYS); -1: the global weight */
+    /* Its own renderer (atmosphere.h pc_fogvol_gpu): exempt from the room's haze limits. */
+    float opacity = 1; /* the most of the scene it may hide along a ray (0..1) */
+    float brightness = 1; /* scale on the light it scatters and emits */
+    float phase = 0.3f; /* forward scattering (-0.9..0.9): brighter looking toward a light through it */
+    float ambient = 1; /* scale on its ambient light (the room's baked light around it, the sky) */
+    float glow[3] = { 0, 0, 0 }; /* light it emits per unit density (lit from within: a vat, embers) */
+    float glow_core = 0.5f; /* 0: the glow even through it; 1: gathered at its base */
+    float taper = 0; /* height profile: 0 even, 1 thinning toward its top */
+    float detail_size = 0; /* its billows' size (world units; 0: from the room's wisp size) */
     std::string preset; /* the fields not written come from it (fog_presets.json) */
     int layer = -1; /* its field's slice of the medium texture this vsync (-1: none) */
 };
@@ -281,6 +296,14 @@ std::vector<std::pair<std::string, std::string>> volume_fields(const Volume& v)
         { "detail", num(v.detail, 2) },
         { "sim_swirl", num(v.sim_swirl, 2) },
         { "shadow", num(v.shadow, 2) },
+        { "opacity", num(v.opacity, 2) },
+        { "brightness", num(v.brightness, 2) },
+        { "phase", num(v.phase, 2) },
+        { "ambient", num(v.ambient, 2) },
+        { "glow", vec3(v.glow, 3) },
+        { "glow_core", num(v.glow_core, 2) },
+        { "taper", num(v.taper, 2) },
+        { "detail_size", num(v.detail_size, 1) },
     };
     for (int s = 0; s < 4; s++)
         f.emplace_back(DISTURB_KEYS[s], num(v.disturb[s] < 0 ? -1 : v.disturb[s], 2));
@@ -311,6 +334,14 @@ void volume_from_fields(Volume& v, const std::function<std::string(const char*)>
     v.detail = f1("detail");
     v.sim_swirl = f1("sim_swirl");
     v.shadow = f1("shadow");
+    v.opacity = f1("opacity");
+    v.brightness = f1("brightness");
+    v.phase = f1("phase");
+    v.ambient = f1("ambient");
+    f3("glow", v.glow);
+    v.glow_core = f1("glow_core");
+    v.taper = f1("taper");
+    v.detail_size = f1("detail_size");
     for (int s = 0; s < 4; s++) {
         float w = f1(DISTURB_KEYS[s]);
         v.disturb[s] = w < 0 ? -1 : w;
@@ -784,6 +815,9 @@ extern "C" int pc_medium_gpu_get(pc_medium_gpu* out, float haze_density, const f
             n++;
         }
     m[0][3] = (float)n;
+    /* the first volumes are drawn by their own renderer (fog_volume.glsl), not the haze */
+    int first = pc_fog_volume_render ? (n < PC_FOGVOL_MAX ? n : PC_FOGVOL_MAX) : 0;
+    m[4][3] = (float)first;
     if (n > 0) { /* the texture (every pass that samples the volumes binds it) */
         float* t = m[PC_MEDIUM_SIM];
         t[0] = PC_FOG_SIM_GRID, t[1] = PC_MEDIUM_TEX_SIZE, t[2] = PC_MEDIUM_TEX_DEPTH, t[3] = 1;
@@ -810,7 +844,242 @@ extern "C" int pc_medium_gpu_get(pc_medium_gpu* out, float haze_density, const f
     m[PC_MEDIUM_DETAIL][1] = sun ? env.sun_dir[0] : 0.0f;
     m[PC_MEDIUM_DETAIL][2] = sun ? env.sun_dir[1] : -1.0f;
     m[PC_MEDIUM_DETAIL][3] = sun ? env.sun_dir[2] : 0.0f;
-    return m[0][0] > 0 || m[1][0] > 0 || n > 0;
+    return m[0][0] > 0 || m[1][0] > 0 || n > first;
+}
+
+/* ---- the fog volumes' own renderer (atmosphere.h pc_fogvol_gpu) ---- */
+
+namespace {
+/* The room's baked light around a volume (the ambient term that keeps fog
+ * in a dark room a dim grey, not black): the captured room's vertex
+ * colours (128 = the texture as is), weighted by area and by nearness to
+ * the volume, times a typical texture albedo. Cached per room capture and
+ * volume placement. */
+struct AmbientCache {
+    std::string id;
+    int serial = -1;
+    float pos[3] = { 0, 0, 0 }, size[3] = { 0, 0, 0 };
+    float rgb[3] = { 0, 0, 0 };
+};
+std::vector<AmbientCache> ambient_cache;
+void baked_ambient(const Volume& v, float out[3])
+{
+    int serial = pc_scene_serial();
+    for (AmbientCache& c : ambient_cache)
+        if (c.id == v.id && c.serial == serial && !memcmp(c.pos, v.pos, sizeof c.pos) && !memcmp(c.size, v.size, sizeof c.size)) {
+            memcpy(out, c.rgb, sizeof c.rgb);
+            return;
+        }
+    int count = 0;
+    const scene_triangle* t = pc_scene_triangle_data(&count);
+    double sum[3] = { 0, 0, 0 }, weight = 0;
+    float reach = fmaxf(fmaxf(v.size[0], v.size[1]), v.size[2]) * 0.75f + 256.0f;
+    for (int i = 0; t && i < count; i++) {
+        if (t[i].code & 2) /* glows: they are lights here */
+            continue;
+        const float *a = t[i].vertex[0].position, *b = t[i].vertex[1].position, *c = t[i].vertex[2].position;
+        float e1[3], e2[3], centre[3];
+        for (int k = 0; k < 3; k++)
+            e1[k] = b[k] - a[k], e2[k] = c[k] - a[k], centre[k] = (a[k] + b[k] + c[k]) / 3 - v.pos[k];
+        float cx = e1[1] * e2[2] - e1[2] * e2[1], cy = e1[2] * e2[0] - e1[0] * e2[2], cz = e1[0] * e2[1] - e1[1] * e2[0];
+        double area = 0.5 * sqrt((double)cx * cx + (double)cy * cy + (double)cz * cz);
+        double d2 = (double)centre[0] * centre[0] + (double)centre[1] * centre[1] + (double)centre[2] * centre[2];
+        double w = area / (1.0 + d2 / ((double)reach * reach));
+        for (int k = 0; k < 3; k++)
+            sum[k] += w * (t[i].vertex[0].rgb[k] + t[i].vertex[1].rgb[k] + t[i].vertex[2].rgb[k]) / (3.0 * 128.0);
+        weight += w;
+    }
+    for (int k = 0; k < 3; k++)
+        out[k] = weight > 0 ? (float)(sum[k] / weight) * 0.45f : 0.0f; /* x a typical texture's albedo */
+    AmbientCache c;
+    c.id = v.id, c.serial = serial;
+    memcpy(c.pos, v.pos, sizeof c.pos), memcpy(c.size, v.size, sizeof c.size), memcpy(c.rgb, out, sizeof c.rgb);
+    for (AmbientCache& o : ambient_cache)
+        if (o.id == v.id) {
+            o = c;
+            return;
+        }
+    if (ambient_cache.size() > 64)
+        ambient_cache.clear();
+    ambient_cache.push_back(c);
+}
+unsigned hash_words(unsigned h, const void* data, size_t bytes)
+{
+    const unsigned char* p = (const unsigned char*)data;
+    for (size_t i = 0; i < bytes; i++)
+        h = (h ^ p[i]) * 16777619u;
+    return h;
+}
+/* A volume's distance from a point (0 inside), through its turned frame. */
+float volume_distance(const Volume& v, const float p[3])
+{
+    float c = cosf(v.yaw * DEG), s = sinf(v.yaw * DEG), d[3] = { p[0] - v.pos[0], p[1] - v.pos[1], p[2] - v.pos[2] };
+    float local[3] = { c * d[0] - s * d[2], d[1], s * d[0] + c * d[2] }, out = 0;
+    for (int k = 0; k < 3; k++) {
+        float e = fabsf(local[k]) - fmaxf(v.size[k] * 0.5f, 1.0f);
+        out += e > 0 ? e * e : 0;
+    }
+    return sqrtf(out);
+}
+struct Candidate {
+    float pos[4], col[4], dir[4];
+    float importance;
+    unsigned key;
+};
+pc_light_gpu fogvol_lights[PC_LIGHTS_MAX];
+int fogvol_volume_lights[PC_FOGVOL_MAX];
+float fogvol_volume_light_rgb[PC_FOGVOL_MAX][PC_FOGVOL_LIGHTS][4]; /* each slot's colour and type (RPC) */
+float fogvol_volume_ambient[PC_FOGVOL_MAX][3];
+int fogvol_drawn;
+} // namespace
+
+extern "C" int pc_fogvol_gpu_get(pc_medium_gpu* medium, pc_fogvol_gpu* out, pc_fogvol_info* info, const float room_lo[3],
+    const float room_hi[3])
+{
+    memset(out, 0, sizeof *out);
+    if (info)
+        memset(info, 0, sizeof *info);
+    fogvol_drawn = 0;
+    if (!pc_fog_volume_render) {
+        memset(medium, 0, sizeof *medium);
+        return 0;
+    }
+    pc_medium_gpu_get(medium, 0, room_lo, room_hi);
+    int count = (int)(medium->v[4][3] + 0.5f);
+    if (count <= 0)
+        return 0;
+    /* The volumes the record holds, in its order (pc_medium_gpu_get). */
+    const Volume* drawn[PC_FOGVOL_MAX];
+    int n = 0;
+    for (const Volume& v : volumes)
+        if (v.enabled && v.density > 0 && n < count)
+            drawn[n++] = &v;
+    count = n;
+    /* Every light and glow: candidates for each volume's few. */
+    std::vector<Candidate> all;
+    int lights = pc_lights_list(fogvol_lights, PC_LIGHTS_MAX);
+    for (int i = 0; i < lights; i++) {
+        const pc_light_gpu& l = fogvol_lights[i];
+        Candidate c;
+        memcpy(c.pos, l.pos, sizeof c.pos), memcpy(c.col, l.col, sizeof c.col), memcpy(c.dir, l.dir, sizeof c.dir);
+        c.importance = 0;
+        int what[5] = { (int)floorf(l.pos[0] / 16), (int)floorf(l.pos[1] / 16), (int)floorf(l.pos[2] / 16), (int)l.col[3],
+            (int)(l.pos[3] / 16) };
+        c.key = hash_words(2166136261u, what, sizeof what) | 1u;
+        all.push_back(c);
+    }
+    static float gp[64][4], gc[64][4], gs[64][4];
+    int glows = pc_fog_glows(gp, gc, gs, 64);
+    for (int i = 0; i < glows; i++) {
+        Candidate c;
+        memcpy(c.pos, gp[i], sizeof c.pos);
+        for (int k = 0; k < 3; k++)
+            c.col[k] = gc[i][k] * pc_fog_volume_glow;
+        bool column = gs[i][3] != 0;
+        c.col[3] = column ? 4.0f : 3.0f;
+        c.dir[0] = column ? gs[i][0] : 0, c.dir[1] = column ? gs[i][1] : 0, c.dir[2] = column ? gs[i][2] : 0, c.dir[3] = 0;
+        c.importance = 0;
+        int what[5] = { (int)floorf(gp[i][0] / 16), (int)floorf(gp[i][1] / 16), (int)floorf(gp[i][2] / 16), 3 + column,
+            (int)(gp[i][3] / 16) };
+        c.key = hash_words(2166136261u, what, sizeof what) | 1u;
+        all.push_back(c);
+    }
+    pc_env_gpu env;
+    bool env_on = pc_env_gpu_get(&env) != 0;
+    bool sun = env_on && env.sun_col[0] + env.sun_col[1] + env.sun_col[2] > 0;
+    float(*f)[4] = out->v;
+    f[0][0] = (float)count;
+    f[0][1] = fmaxf(pc_fog_volume_halo, 0.0f);
+    if (sun) {
+        for (int k = 0; k < 3; k++)
+            f[1][k] = env.sun_col[k], f[2][k] = env.sun_dir[k];
+        f[1][3] = 1;
+    }
+    f[2][3] = fmaxf(pc_fog_volume_scattering, 0.0f);
+    float sky[3] = { 0, 0, 0 };
+    if (env_on && env.zenith[3] > 0.5f)
+        for (int k = 0; k < 3; k++)
+            sky[k] = (env.zenith[k] + 2 * env.horizon[k] + env.ground[k]) * 0.25f * (fog.defined ? fmaxf(fog.sky, 0.0f) : 1.0f)
+                * 0.5f;
+    float room_period = 1.0f / fmaxf(medium->v[PC_MEDIUM_DETAIL][0], 1e-6f);
+    /* stable slots: a light keeps last frame's slot while it stays among the chosen (no history restarts) */
+    static unsigned previous[PC_FOGVOL_MAX][PC_FOGVOL_LIGHTS];
+    for (int vi = 0; vi < count; vi++) {
+        const Volume& v = *drawn[vi];
+        float(*b)[4] = f + 3 + PC_FOGVOL_STRIDE * vi;
+        /* its most important lights: brightness x falloff at its nearest point */
+        std::vector<int> order;
+        for (int i = 0; i < (int)all.size(); i++) {
+            Candidate& c = all[i];
+            float d = volume_distance(v, c.pos);
+            float x = fminf(d / fmaxf(c.pos[3], 1.0f), 1.0f), a = (1 - x * x) * (1 - x * x);
+            c.importance = a * (0.2126f * c.col[0] + 0.7152f * c.col[1] + 0.0722f * c.col[2]);
+            if (c.importance > 1e-4f)
+                order.push_back(i);
+        }
+        std::stable_sort(order.begin(), order.end(), [&](int a, int c) { return all[a].importance > all[c].importance; });
+        int used = (int)order.size() < PC_FOGVOL_LIGHTS ? (int)order.size() : PC_FOGVOL_LIGHTS;
+        int slot_of[PC_FOGVOL_LIGHTS];
+        bool taken[PC_FOGVOL_LIGHTS] = { false };
+        for (int i = 0; i < used; i++) {
+            slot_of[i] = -1;
+            for (int s = 0; s < PC_FOGVOL_LIGHTS; s++)
+                if (!taken[s] && previous[vi][s] == all[order[i]].key) {
+                    slot_of[i] = s, taken[s] = true;
+                    break;
+                }
+        }
+        for (int i = 0; i < used; i++)
+            if (slot_of[i] < 0)
+                for (int s = 0; s < PC_FOGVOL_LIGHTS; s++)
+                    if (!taken[s]) {
+                        slot_of[i] = s, taken[s] = true;
+                        break;
+                    }
+        unsigned keys[PC_FOGVOL_LIGHTS] = { 0 };
+        int top = 0;
+        for (int i = 0; i < used; i++) {
+            const Candidate& c = all[order[i]];
+            int s = slot_of[i];
+            keys[s] = c.key;
+            top = s + 1 > top ? s + 1 : top;
+            memcpy(b[4 + 3 * s], c.pos, sizeof c.pos);
+            memcpy(b[5 + 3 * s], c.col, sizeof c.col);
+            memcpy(b[6 + 3 * s], c.dir, sizeof c.dir);
+        }
+        memcpy(previous[vi], keys, sizeof keys);
+        fogvol_volume_lights[vi] = used;
+        for (int s = 0; s < PC_FOGVOL_LIGHTS; s++)
+            memcpy(fogvol_volume_light_rgb[vi][s], b[5 + 3 * s], sizeof fogvol_volume_light_rgb[vi][s]);
+        b[0][0] = fminf(fmaxf(v.opacity, 0.0f), 1.0f);
+        b[0][1] = fmaxf(v.brightness, 0.0f);
+        b[0][2] = fminf(fmaxf(v.phase, -0.9f), 0.9f);
+        b[0][3] = (float)top;
+        for (int k = 0; k < 3; k++)
+            b[1][k] = fmaxf(v.glow[k], 0.0f);
+        b[1][3] = fminf(fmaxf(v.glow_core, 0.0f), 1.0f);
+        float baked[3];
+        baked_ambient(v, baked);
+        float scale = fmaxf(pc_fog_volume_ambient, 0.0f) * fmaxf(v.ambient, 0.0f);
+        for (int k = 0; k < 3; k++)
+            b[2][k] = fogvol_volume_ambient[vi][k] = (baked[k] + sky[k]) * scale;
+        b[2][3] = fminf(fmaxf(v.taper, 0.0f), 1.0f);
+        b[3][0] = 1.0f / fmaxf(v.detail_size > 0 ? v.detail_size : room_period * 0.6f, 8.0f);
+        b[3][1] = 0.5f + fminf(fmaxf(v.shadow, 0.0f), 4.0f);
+        b[3][3] = (float)vi; /* its slab of the light grid */
+        if (info) {
+            memcpy(info->keys[vi], keys, sizeof keys);
+            info->keys[vi][6] = sun ? hash_words(2166136261u, env.sun_dir, 3 * sizeof(float)) | 1u : 0;
+            info->keys[vi][7] = 1;
+            float shape[15] = { v.pos[0], v.pos[1], v.pos[2], v.size[0], v.size[1], v.size[2], v.yaw, v.density, v.edge,
+                v.shadow, v.detail, (float)v.sphere, v.taper, v.opacity, v.noise };
+            info->shape[vi] = hash_words(2166136261u, shape, sizeof shape) | 1u;
+        }
+    }
+    if (info)
+        info->count = count;
+    fogvol_drawn = count;
+    return count;
 }
 
 extern "C" unsigned pc_medium_hash(void)
@@ -1277,6 +1546,27 @@ bool pc_atmosphere_page(void)
         changed |= ImGui::SliderFloat("Wisps", &v.noise, 0, 1, "%.2f");
         changed |= color_row("Colour", v.color);
         changed |= color_row("Fill light", v.fill);
+        if (pc_fog_volume_render) {
+            ImGui::SeparatorText("Look (its own renderer)");
+            changed |= ImGui::SliderFloat("Opacity", &v.opacity, 0, 1, "%.2f");
+            tooltip("The most of the scene it may hide along a ray (1: solid). Volumes are exempt from the\n"
+                    "room's haze limits (haze_max_opacity, haze_max_light); this and Brightness replace them.");
+            changed |= ImGui::SliderFloat("Brightness", &v.brightness, 0, 4, "%.2f");
+            tooltip("Scale on the light it scatters and emits.");
+            changed |= ImGui::SliderFloat("Forward scattering", &v.phase, -0.9f, 0.9f, "%.2f");
+            tooltip("How much brighter it is looking toward a light through it (0: the same from every side).");
+            changed |= ImGui::SliderFloat("Ambient", &v.ambient, 0, 4, "%.2f");
+            tooltip("Scale on its ambient light: the room's baked light around it and the sky, so it reads as\n"
+                    "dim grey in a dark room, not black (all volumes: settings fog_volume_ambient).");
+            changed |= color_row("Glow", v.glow);
+            tooltip("Light it emits per unit of density: smoke lit from within (a vat, embers, a fire's base).");
+            changed |= ImGui::SliderFloat("Glow at its base", &v.glow_core, 0, 1, "%.2f");
+            tooltip("0: the glow even through it; 1: gathered at its base, fading upward.");
+            changed |= ImGui::SliderFloat("Taper", &v.taper, 0, 1, "%.2f");
+            tooltip("Height profile: 0 a box's even density, 1 thinning toward its top (rolling ground fog).");
+            changed |= ImGui::SliderFloat("Billow size", &v.detail_size, 0, 1024, v.detail_size > 0 ? "%.0f" : "auto");
+            tooltip("The size of its billows (the detail noise's period, world units; 0: from the room's wisp size).");
+        }
         changed |= preset_ui(v);
         changed |= interaction_ui(v);
         char name[96];
@@ -1302,6 +1592,27 @@ bool pc_atmosphere_page(void)
     if (ImGui::Checkbox("Ground fog and volumes on (all rooms)", &global))
         pc_fog_global = global;
     tooltip("Switches every room's ground fog and fog volumes off for comparison (settings key fog).");
+    bool own = pc_fog_volume_render != 0;
+    if (ImGui::Checkbox("Volumes' own renderer", &own))
+        pc_fog_volume_render = own;
+    tooltip("Volumes ray marched per pixel with their own lights, shadows and ambient light (settings\n"
+            "fog_volume_render); off: inside the room's haze as before (coarser, under its limits).");
+    if (own && ImGui::TreeNode("Volume renderer")) {
+        ImGui::SliderFloat("Resolution", &pc_fog_volume_resolution, 0.25f, 1, "%.2f");
+        tooltip("Its march pixels per internal pixel (Vulkan; 0.5: half; settings fog_volume_resolution).");
+        ImGui::SliderInt("Steps", &pc_fog_volume_steps, 8, 128);
+        tooltip("Samples per ray through the volumes (Vulkan; OpenGL: fog_volume_steps_gl).");
+        ImGui::SliderFloat("History", &pc_fog_volume_history, 0.02f, 1, "%.2f");
+        tooltip("The least weight of a new frame in its temporal accumulation (lower: steadier, slower).");
+        ImGui::SliderFloat("Ambient (all)", &pc_fog_volume_ambient, 0, 4, "%.2f");
+        ImGui::SliderFloat("Glows' light", &pc_fog_volume_glow, 0, 4, "%.2f");
+        tooltip("How much the glows (fires, torches, the save point) light the volumes.");
+        ImGui::SliderFloat("Multiple scattering", &pc_fog_volume_scattering, 0, 1, "%.2f");
+        ImGui::SliderFloat("Halo near lights", &pc_fog_volume_halo, 0, 8, "%.2f");
+        tooltip("Extra light in the fog close to a light (within about 100 units): a fire glows in its smoke.");
+        ImGui::Combo("Debug view", &pc_fog_volume_debug, "Off\0Their light alone\0Their transmittance\0");
+        ImGui::TreePop();
+    }
     ImGui::PopID();
     return changed;
 }
@@ -1529,6 +1840,14 @@ void read_volume(const prefab::Json& o, Volume& v)
     read_bool(o, "sim", &v.sim);
     read_num(o, "sim_strength", &v.sim_strength);
     read_num(o, "sim_recover", &v.sim_recover);
+    read_num(o, "opacity", &v.opacity);
+    read_num(o, "brightness", &v.brightness);
+    read_num(o, "phase", &v.phase);
+    read_num(o, "ambient", &v.ambient);
+    read_vec(o.get("glow"), v.glow, 3);
+    read_num(o, "glow_core", &v.glow_core);
+    read_num(o, "taper", &v.taper);
+    read_num(o, "detail_size", &v.detail_size);
 }
 } // namespace
 
@@ -1559,6 +1878,26 @@ bool rpc(const prefab::Json& params)
     }
     if (const prefab::Json* b = params.get("sim_budget"))
         pc_fog_sim_budget = (int)b->number;
+    /* The fog volumes' renderer (settings fog_volume_*; debug: 1 their light alone, 2 their transmittance). */
+    if (const prefab::Json* fv = params.get("fog_volumes")) {
+        float x;
+        struct {
+            const char* key;
+            int* value;
+        } ints[] = { { "render", &pc_fog_volume_render }, { "steps", &pc_fog_volume_steps },
+            { "steps_gl", &pc_fog_volume_steps_gl }, { "debug", &pc_fog_volume_debug }, { "shadows", &pc_fog_volume_shadows } };
+        for (auto& k : ints) {
+            x = (float)*k.value;
+            read_num(*fv, k.key, &x);
+            *k.value = (int)x;
+        }
+        read_num(*fv, "resolution", &pc_fog_volume_resolution);
+        read_num(*fv, "history", &pc_fog_volume_history);
+        read_num(*fv, "ambient", &pc_fog_volume_ambient);
+        read_num(*fv, "glow", &pc_fog_volume_glow);
+        read_num(*fv, "scattering", &pc_fog_volume_scattering);
+        read_num(*fv, "halo", &pc_fog_volume_halo);
+    }
     if (params.get("presets_reload"))
         load_presets();
     /* A stamp (as the game's attacks and spells make; source "attack",
@@ -1690,7 +2029,10 @@ std::string json()
             + ",\"sim_trail\":" + num(v.sim_trail, 2) + ",\"sim_wind\":" + num(v.sim_wind, 2)
             + ",\"detail\":" + num(v.detail, 2) + ",\"sim_swirl\":" + num(v.sim_swirl, 2) + ",\"shadow\":"
             + num(v.shadow, 2) + ",\"preset\":" + prefab::json_quote(v.preset)
-            + ",\"layer\":" + std::to_string(v.layer);
+            + ",\"layer\":" + std::to_string(v.layer) + ",\"opacity\":" + num(v.opacity, 2) + ",\"brightness\":"
+            + num(v.brightness, 2) + ",\"phase\":" + num(v.phase, 2) + ",\"ambient\":" + num(v.ambient, 2)
+            + ",\"glow\":" + jvec(v.glow, 3) + ",\"glow_core\":" + num(v.glow_core, 2) + ",\"taper\":"
+            + num(v.taper, 2) + ",\"detail_size\":" + num(v.detail_size, 1);
         for (int k = 0; k < 4; k++)
             s += ",\"" + std::string(DISTURB_KEYS[k]) + "\":" + num(v.disturb[k], 2);
         s += "}";
@@ -1721,7 +2063,22 @@ std::string json()
     std::string names;
     for (const Preset& p : presets)
         names += (names.empty() ? "" : ",") + prefab::json_quote(p.id);
-    return s + "],\"sim\":" + (first.empty() ? "null" : first) + ",\"sims\":[" + sims + "],\"disturb\":{\"player\":"
+    /* The fog volumes' renderer: its settings, what it drew in the last frame (lights, ambient per volume). */
+    std::string drawn;
+    for (int i = 0; pc_fog_volume_render && i < fogvol_drawn; i++) {
+        std::string slots;
+        for (int s = 0; s < PC_FOGVOL_LIGHTS; s++)
+            slots += (s ? "," : "") + jvec(fogvol_volume_light_rgb[i][s], 4);
+        drawn += (i ? "," : "") + std::string("{\"lights\":") + std::to_string(fogvol_volume_lights[i])
+            + ",\"slots\":[" + slots + "],\"ambient\":" + jvec(fogvol_volume_ambient[i], 3) + "}";
+    }
+    s += "],\"fog_volumes\":{\"render\":" + jbool(pc_fog_volume_render) + ",\"resolution\":"
+        + num(pc_fog_volume_resolution, 3) + ",\"steps\":" + std::to_string(pc_fog_volume_steps) + ",\"steps_gl\":"
+        + std::to_string(pc_fog_volume_steps_gl) + ",\"history\":" + num(pc_fog_volume_history, 3) + ",\"ambient\":"
+        + num(pc_fog_volume_ambient, 3) + ",\"glow\":" + num(pc_fog_volume_glow, 3) + ",\"scattering\":"
+        + num(pc_fog_volume_scattering, 3) + ",\"halo\":" + num(pc_fog_volume_halo, 3) + ",\"shadows\":" + jbool(pc_fog_volume_shadows) + ",\"debug\":"
+        + std::to_string(pc_fog_volume_debug) + ",\"drawn\":[" + drawn + "]";
+    return s + "},\"sim\":" + (first.empty() ? "null" : first) + ",\"sims\":[" + sims + "],\"disturb\":{\"player\":"
         + num(pc_fog_disturb[0], 2) + ",\"actors\":" + num(pc_fog_disturb[1], 2) + ",\"attacks\":"
         + num(pc_fog_disturb[2], 2) + ",\"spells\":" + num(pc_fog_disturb[3], 2) + "},\"sim_budget\":"
         + std::to_string(pc_fog_sim_budget) + ",\"events\":{\"attacks\":" + std::to_string(attacks) + ",\"spells\":"

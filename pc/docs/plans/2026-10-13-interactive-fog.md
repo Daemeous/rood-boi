@@ -427,7 +427,10 @@ supersedes the numbers above where they differ.
 - **Limits**: thick smoke still obeys `haze_max_opacity` (0.55) and
   `haze_max_light` (0.15) per ray; an author who wants it solid raises them
   for the room (the evidence frames used 0.85 / 0.35). Dark rooms make dark
-  fog: it is lit by the room's lights (and its `fill`).
+  fog: it is lit by the room's lights (and its `fill`). (Superseded
+  2026-10-14: volumes have their own renderer, exempt from these limits,
+  with their own opacity, more lights, shadows and an ambient term:
+  [2026-10-14-fog-volume-renderer.md](2026-10-14-fog-volume-renderer.md).)
 - **Emitters** (vents, cracks, a pour or rise direction, rate) are the
   follow-up: not built.
 - **Snapping**: *Drop to floor* (button, **End**, RPC `drop_volume`):

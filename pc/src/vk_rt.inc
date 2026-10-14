@@ -31,7 +31,7 @@ int pc_nrd_max_frames = 30; /* RELAX's maximum accumulated frames */
  * rt_haze_integrate.comp), stored as slices side by side in 2D images. */
 #define HAZE_SLICES 64
 #define HAZE_NEAR 16.0f
-float pc_haze_history = 0.1f; /* weight of each new froxel sample (temporal blend) */
+float pc_haze_history = 0.04f; /* weight of each new froxel sample while still (temporal blend; more while the camera moves) */
 /* Frames of shadow history where a moving blocker touches the visibility. */
 float pc_shadow_motion_history = 6.0f;
 /* Custom index bit of mover instances (their triangles are in the mover buffer). */
@@ -1561,4 +1561,5 @@ static int vrt_trace_cpu(const float o[3], const float d[3], float tmax, float* 
         *t_out = best_t;
     return flags;
 }
+#include "vk_fogvol.inc" /* the fog volumes' own renderer */
 #include "vk_probes.inc" /* gi_method probes on Vulkan */

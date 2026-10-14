@@ -23,6 +23,7 @@
 #include "editor_undo.h"
 #include "camera_stick.h"
 #include "ui/ui_shell.h"
+#include "ui/ui_workshop.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl3.h"
 #include "ImGuizmo.h"
@@ -271,6 +272,35 @@ extern "C" int pc_overlay_input(const char* keys, const char* text, int ctrl, in
     return 0;
 }
 
+/* The modern menus' name field (Items > Workshop: a weapon's name) takes the
+ * keyboard while it shows and the editor is closed (ui/ui_workshop.h). */
+static bool shell_typing() { return !visible && pc_ui_workshop_typing(); }
+static bool shell_text_on; /* text input started for it */
+/* Typing is armed once no key is held after the field opened: the press that
+ * opened it (a key bound to Circle, Enter) neither types nor, held, repeats
+ * into the field (an auto-repeated Enter would be Done at once). */
+static bool shell_text_armed;
+static void shell_text_input()
+{
+    bool want = shell_typing();
+    if (want != shell_text_on && overlay_window) {
+        if (want)
+            SDL_StartTextInput(overlay_window);
+        else if (!visible) /* the editor manages it while it shows */
+            SDL_StopTextInput(overlay_window);
+        shell_text_on = want;
+        shell_text_armed = false;
+    }
+    if (shell_text_on && !shell_text_armed) {
+        int n = 0;
+        const bool* keys = SDL_GetKeyboardState(&n);
+        bool held = false;
+        for (int i = 0; keys && i < n && !held; ++i)
+            held = keys[i];
+        shell_text_armed = !held;
+    }
+}
+
 // Returns 1 when the event belongs to the overlay (game input should ignore it).
 extern "C" int pc_overlay_event(const SDL_Event* event)
 {
@@ -291,6 +321,29 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
     case SDL_EVENT_KEY_UP: {
         bool down = event->type == SDL_EVENT_KEY_DOWN;
         SDL_Keycode key = event->key.key;
+        /* The name field: its editing keys, and no key press reaches the
+         * game (the characters come as text input); a release still does,
+         * so a button the field's opening press held is let go. F1 still
+         * opens the editor. */
+        if (shell_typing() && key != SDLK_F1) {
+            if (down && shell_text_armed) {
+                int k = key == SDLK_BACKSPACE ? PC_UI_WSK_BACKSPACE
+                    : key == SDLK_DELETE      ? PC_UI_WSK_DELETE
+                    : key == SDLK_LEFT        ? PC_UI_WSK_LEFT
+                    : key == SDLK_RIGHT       ? PC_UI_WSK_RIGHT
+                    : key == SDLK_HOME        ? PC_UI_WSK_HOME
+                    : key == SDLK_END         ? PC_UI_WSK_END
+                    : key == SDLK_RETURN || key == SDLK_KP_ENTER ? PC_UI_WSK_ENTER
+                    : key == SDLK_ESCAPE      ? PC_UI_WSK_ESCAPE
+                                              : -1;
+                /* Done and back act on a press, never on its auto-repeat */
+                if (event->key.repeat && (k == PC_UI_WSK_ENTER || k == PC_UI_WSK_ESCAPE))
+                    k = -1;
+                if (k >= 0)
+                    pc_ui_workshop_key(k);
+            }
+            return down;
+        }
         /* A field being typed in (a number or a name) takes every key: Escape
          * cancels the edit there instead of closing the editor, and no
          * editor shortcut fires (viewport_keys and the free camera check the
@@ -328,6 +381,11 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
     }
     case SDL_EVENT_TEXT_INPUT:
     case SDL_EVENT_TEXT_EDITING:
+        if (!visible && shell_typing()) {
+            if (event->type == SDL_EVENT_TEXT_INPUT && shell_text_armed)
+                pc_ui_workshop_text(event->text.text);
+            return 1;
+        }
         if (!visible)
             return 0;
         ImGui_ImplSDL3_ProcessEvent(event);
@@ -1571,6 +1629,7 @@ extern "C" void pc_overlay_frame(int width, int height)
         memset(pc_gl_inset, 0, sizeof pc_gl_inset);
     }
     pc_ui_draw_frame((float)dt); /* modern menus (pc/src/ui) over the game picture */
+    shell_text_input();
     ImGui::Render();
 #ifdef ROOD_VULKAN
     if (pc_vk_on())

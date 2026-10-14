@@ -169,3 +169,12 @@ const char* pc_ui_item_help(int index)
 }
 
 int pc_ui_item_help_count(void) { return load_help() ? (int)help_count : 0; }
+
+const unsigned char* pc_ui_item_name_bytes(int id)
+{
+    if (id < 0 || id >= RECORDS || !load())
+        return NULL;
+    return table + id * RECORD;
+}
+
+int pc_ui_disc_read(const char* path, unsigned char** out, unsigned* size) { return read_file(path, out, size); }

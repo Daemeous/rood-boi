@@ -2,6 +2,7 @@
 // (pc/docs/Modern_Menus.md). Pure state; drawing is ui_draw.cpp.
 #include "ui/ui_shell.h"
 #include "ui/ui_settings.h"
+#include "ui/ui_workshop.h"
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -110,6 +111,7 @@ struct It {
     int count = 0, count_max = 0, step = 0; // the quantity picker
     int sort = 0;                         // the sort list's row
     int move_from = -1;                   // MOVE: the row being moved
+    bool ws = false;                      // the Workshop sub-tab (after misc; ui_workshop.cpp) is the current one
 };
 
 const int QUEUE = 16;
@@ -141,11 +143,17 @@ struct State {
     float drag_x = 0, drag_y = 0; // model drag since the bridge last took it
 } s;
 
-void push(int kind, int slot, int item, int shield, int count = 0)
+void push_request(const pc_ui_request& r)
 {
     if (s.q_count == QUEUE)
         return; // the bridge drains every tick; a full queue drops the newest
-    s.queue[(s.q_head + s.q_count++) % QUEUE] = {kind, slot, item, shield, count};
+    s.queue[(s.q_head + s.q_count++) % QUEUE] = r;
+}
+void push(int kind, int slot, int item, int shield, int count = 0)
+{
+    pc_ui_request r = {};
+    r.kind = kind, r.slot = slot, r.item = item, r.shield = shield, r.count = count;
+    push_request(r);
 }
 
 bool row_shown(const RowDef& r)
@@ -1361,11 +1369,16 @@ void it_clamp()
     if (t.sort >= it_sorts(c) || t.sort < 0)
         t.sort = 0;
 }
-// Out of any menu onto the list (a tab switch, a category switch, an open).
-void it_base()
+// Out of any menu onto the list (a tab switch, a category switch, the shell closing; leave: the player
+// leaves, so a Workshop flow left tells the bridge what the original does then; an open only resets).
+void it_base(bool leave = true)
 {
     s.it.mode = PC_UI_IT_LIST;
     s.it.move_from = -1;
+    if (leave)
+        pc_ui_ws_leave(); // a flow never survives a tab switch, a category switch or the shell closing
+    else
+        pc_ui_ws_reset();
 }
 // The focused row's inventory index as the screen sees it (the bridge refuses a stale request).
 int it_inventory()
@@ -1382,6 +1395,8 @@ int it_prompt() { return s.it.confirm_kind == PC_UI_ITA_DISCARD_ALL ? 2 : 0; }
 bool it_back()
 {
     It& t = s.it;
+    if (t.ws)
+        return pc_ui_ws_back() != 0;
     switch (t.mode) {
     case PC_UI_IT_ACTIONS:
     case PC_UI_IT_DETAILS:
@@ -1493,10 +1508,19 @@ int items_tick(const pc_ui_input* in)
     It& t = s.it;
     it_clamp();
     int c = it_category(), rows = it_rows(c);
-    if (in->pressed & (PC_UI_SUB_NEXT | PC_UI_SUB_PREV)) {
+    // L2 / R2: the categories and the Workshop after misc (wrapping); inside a Workshop flow they are its own
+    if ((in->pressed & (PC_UI_SUB_NEXT | PC_UI_SUB_PREV)) && (!t.ws || pc_ui_ws_base())) {
         int dir = (in->pressed & PC_UI_SUB_NEXT) ? 1 : -1;
-        t.category = (c + dir + PC_UI_ITEM_CATEGORIES) % PC_UI_ITEM_CATEGORIES;
+        int k = (t.ws ? PC_UI_ITEM_CATEGORIES : c) + dir;
+        k = (k + PC_UI_ITEM_CATEGORIES + 1) % (PC_UI_ITEM_CATEGORIES + 1);
+        t.ws = k == PC_UI_ITEM_CATEGORIES;
+        if (!t.ws)
+            t.category = k;
         it_base();
+        return 0;
+    }
+    if (t.ws) {
+        pc_ui_ws_tick(in);
         return 0;
     }
     int& cur = t.cursor[c];
@@ -1590,6 +1614,16 @@ void items_json(std::string& j)
     char buf[320];
     it_clamp();
     int c = it_category(), rows = it_rows(c);
+    if (t.ws) { // the Workshop: its own members
+        static char ws[1 << 17];
+        std::snprintf(buf, sizeof buf, ",\"items\":{\"valid\":%s,\"locked\":%s,\"category\":\"workshop\"",
+            m.valid ? "true" : "false", it_locked() ? "true" : "false");
+        j += buf;
+        pc_ui_ws_json(ws, sizeof ws);
+        j += ws;
+        j += "}";
+        return;
+    }
     std::snprintf(buf, sizeof buf,
         ",\"items\":{\"valid\":%s,\"locked\":%s,\"category\":\"%s\",\"mode\":\"%s\",\"cursor\":%d,\"rows\":%d,"
         "\"capacity\":%d,\"inventory\":%d,\"mask\":%u",
@@ -1751,14 +1785,20 @@ bool mouse_focus(int kind, int index)
         s.mg.cursor[s.mg.kind] = index;
         return true;
     }
+    case PC_UI_MOUSE_WS_ROW:
+    case PC_UI_MOUSE_WS_ENTRY:
+    case PC_UI_MOUSE_WS_SLOT:
+    case PC_UI_MOUSE_WS_GRID:
+    case PC_UI_MOUSE_WS_CONFIRM:
+        return on_items() && s.it.ws && pc_ui_ws_mouse_focus(kind, index);
     case PC_UI_MOUSE_ITEM: // where the list has the focus (the list, details, a move's target)
-        if (!on_items() || index < 0 || index >= it_rows(it_category())
+        if (!on_items() || s.it.ws || index < 0 || index >= it_rows(it_category())
             || (s.it.mode != PC_UI_IT_LIST && s.it.mode != PC_UI_IT_DETAILS && s.it.mode != PC_UI_IT_MOVE))
             return false;
         s.it.cursor[it_category()] = index;
         return true;
     case PC_UI_MOUSE_ITEM_MENU: {
-        if (!on_items() || index < 0)
+        if (!on_items() || s.it.ws || index < 0)
             return false;
         It& t = s.it;
         if (t.mode == PC_UI_IT_ACTIONS) {
@@ -1824,7 +1864,9 @@ bool ab_click_zone(int kind, int index)
 // it did.
 bool it_click_zone(int kind, int index)
 {
-    if (kind != PC_UI_MOUSE_ITEM || !on_items() || s.it.mode == PC_UI_IT_LIST || s.it.mode == PC_UI_IT_DETAILS
+    if (kind >= PC_UI_MOUSE_WS_ROW && kind <= PC_UI_MOUSE_WS_CONFIRM) // the Workshop's: a click that does it all
+        return on_items() && s.it.ws && pc_ui_ws_mouse_click(kind, index);
+    if (kind != PC_UI_MOUSE_ITEM || !on_items() || s.it.ws || s.it.mode == PC_UI_IT_LIST || s.it.mode == PC_UI_IT_DETAILS
         || s.it.mode == PC_UI_IT_MOVE || index < 0 || index >= it_rows(it_category()))
         return false;
     it_base();
@@ -1893,11 +1935,16 @@ bool apply_mouse(pc_ui_input& in)
         s.drag_x = s.drag_y = 0;
         return true;
     case PC_UI_MOUSE_SUB:
-        if (on_items()) { // a category
-            if (m.click_index < 0 || m.click_index >= PC_UI_ITEM_CATEGORIES
-                || (m.click_index == s.it.category && s.it.mode == PC_UI_IT_LIST))
+        if (on_items()) { // a category, or the Workshop (index PC_UI_ITEM_CATEGORIES)
+            if (m.click_index < 0 || m.click_index > PC_UI_ITEM_CATEGORIES)
                 return false;
-            s.it.category = m.click_index;
+            bool ws = m.click_index == PC_UI_ITEM_CATEGORIES;
+            if (ws ? s.it.ws && pc_ui_ws_base()
+                   : !s.it.ws && m.click_index == s.it.category && s.it.mode == PC_UI_IT_LIST)
+                return false;
+            s.it.ws = ws;
+            if (!ws)
+                s.it.category = m.click_index;
             it_base();
             return true;
         }
@@ -2034,7 +2081,7 @@ extern "C" void pc_ui_shell_open(const pc_ui_commands* commands, int remember)
     s.mg.seeded = false; // the level is the game's LV picker memory at every open (it may have moved it)
     equip_base(); // a pick list never survives the shell closing
     ab_unpick();
-    it_base(); // nor an Items menu (a cancelled Use comes back on the item's row)
+    it_base(false); // nor an Items menu (a cancelled Use comes back on the item's row)
     for (int t = 0; t < TAB_COUNT; ++t)
         clamp_row(t);
     if (!tab_has_rows(s.tab))
@@ -2073,9 +2120,12 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
         return 0;
     if (ab_takes_triangle() && (in->pressed & PC_UI_EXIT) && !(in->pressed & PC_UI_BACK))
         return abilities_tick(in);
-    // Items: Cross steps back out of a menu or the details
+    // Items: Cross steps back out of a menu or the details (the Workshop: out of its flow)
     if ((in->pressed & PC_UI_BACK) && !(in->pressed & PC_UI_EXIT) && on_items() && it_back())
         return 0;
+    // the Workshop's name field: L1 / R1 move its cursor (no tab switch)
+    if (on_items() && s.it.ws && pc_ui_ws_takes_tabs() && !(in->pressed & (PC_UI_BACK | PC_UI_EXIT)))
+        return items_tick(in);
     // Cross steps back out of a settings page to the System list
     if ((in->pressed & PC_UI_BACK) && !(in->pressed & PC_UI_EXIT) && on_system() && s.sys.page >= 0) {
         sys_leave();
@@ -2083,6 +2133,8 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
     }
     if (in->pressed & (PC_UI_BACK | PC_UI_EXIT)) {
         sys_leave();
+        if (on_items() && s.it.ws)
+            pc_ui_ws_leave(); // Triangle out of a Workshop flow (the bridge drains after this tick)
         s.visible = false;
         s.drag_x = s.drag_y = 0;
         return -1;
@@ -2198,6 +2250,12 @@ extern "C" void pc_ui_shell_json(char* out, unsigned size)
         magick_json(j);
     else if (t.screen == SCREEN_ITEMS)
         items_json(j);
+    // a direct session's screen (the Loot screen: ui_loot.cpp), while it shows
+    if (pc_ui_loot_visible()) {
+        static char loot[1 << 16];
+        pc_ui_loot_json(loot, sizeof loot);
+        j += loot;
+    }
     j += "}";
     std::snprintf(out, size, "%s", j.c_str());
 }
@@ -2380,7 +2438,7 @@ extern "C" void pc_ui_shell_set_items_details(const pc_ui_item_details* d) { s.i
 extern "C" const pc_ui_items* pc_ui_shell_items(void) { return &s.it_model; }
 extern "C" int pc_ui_shell_items_focus(int* category, int* inventory)
 {
-    if (!s.visible || !on_items())
+    if (!s.visible || !on_items() || s.it.ws)
         return 0;
     int c = it_category(), inv = it_inventory();
     if (inv < 0)
@@ -2421,3 +2479,10 @@ extern "C" void pc_ui_shell_items_view(pc_ui_items_view* v)
     v->sort = t.sort;
     v->move_from = t.mode == PC_UI_IT_MOVE ? t.move_from : -1;
 }
+
+extern "C" int pc_ui_shell_workshop_shown(void) { return on_items() && s.it.ws; }
+extern "C" void pc_ui_shell_push(int kind, int slot, int item, int shield, int count)
+{
+    push(kind, slot, item, shield, count);
+}
+extern "C" void pc_ui_shell_push_request(const pc_ui_request* r) { push_request(*r); }

@@ -580,7 +580,7 @@ def main():
             findings.append({
                 "symbol": f["member"],
                 "severity": f["severity"],
-                "benign_reason": lp64_alias_scan.BENIGN.get(f["member"]),
+                "benign_reason": f["benign_reason"],
                 "message": f"aliases {f['where']}: {f['why']} (lp64_alias_scan)",
                 "declaration": {"object": ", ".join(f["objects"]), "where": f["member"],
                                 "type": ", ".join(f["member_types"])},

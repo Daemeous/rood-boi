@@ -50,6 +50,10 @@ SCHEMA = {
         ("sim", 0, "0", False), ("sim_strength", 2, "1", False), ("sim_recover", 2, "3", False),
         ("sim_footprint", 2, "1", False), ("sim_trail", 2, "1", False), ("sim_wind", 2, "1", False),
         ("detail", 2, "0.5", False), ("sim_swirl", 2, "0", False), ("shadow", 2, "0", False),
+        # its own renderer (pc/src/atmosphere.h pc_fogvol_gpu): its look, exempt from the room's haze limits
+        ("opacity", 2, "1", False), ("brightness", 2, "1", False), ("phase", 2, "0.3", False),
+        ("ambient", 2, "1", False), ("glow", 3, "0,0,0", False), ("glow_core", 2, "0.5", False),
+        ("taper", 2, "0", False), ("detail_size", 1, "0", False),
         # each source's weight here (-1: the global setting fog_disturb_*)
         ("disturb_player", 2, "-1", False), ("disturb_actors", 2, "-1", False),
         ("disturb_attacks", 2, "-1", False), ("disturb_spells", 2, "-1", False),
@@ -153,7 +157,8 @@ def _rank(kind, key):
 
 # The fields a fog preset (pc/assets/environment/fog_presets.json) can give a volume.
 PRESET_FIELDS = ("shape", "size", "density", "edge", "color", "fill", "noise", "sim", "sim_strength",
-                 "sim_recover", "sim_footprint", "sim_trail", "sim_wind", "detail", "sim_swirl", "shadow", "disturb_player",
+                 "sim_recover", "sim_footprint", "sim_trail", "sim_wind", "detail", "sim_swirl", "shadow", "opacity",
+                 "brightness", "phase", "ambient", "glow", "glow_core", "taper", "detail_size", "disturb_player",
                  "disturb_actors", "disturb_attacks", "disturb_spells")
 
 

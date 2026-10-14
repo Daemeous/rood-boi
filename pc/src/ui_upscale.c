@@ -32,6 +32,7 @@
 #include "ui_upscale.h"
 #include "ui_text.h" /* ui_text font: glyph regions drawn from a font instead of magnified */
 #include "button_prompts.h" /* button pictographs and sprites drawn from icon fonts */
+#include "ui_bubbles.h" /* emote bubbles drawn as shapes and fonts (ui_emotes.c) */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -288,19 +289,22 @@ void pc_ui_upscale_frame(void)
     frame_lookups_acc = frame_misses_acc = 0;
     frame_ms_acc = miss_ms_acc = 0;
 }
-/* The atlas factor for internal resolution `scale`, whatever uses it. */
+/* The atlas factor for internal resolution `scale`, whatever uses it: the
+ * next power of two at or above the scale (3x samples a 4x atlas). Text and
+ * icons (ui_text, button_prompts: distance texels, drawn anti-aliased at
+ * any resolution, the window's too) take at least 4 a texel, at 1x too. */
 static int factor_for(int scale)
 {
-    if (scale < 2)
-        return 0;
-    return scale <= 2 ? 2 : scale <= 4 ? 4 : 8;
+    int f = scale < 2 ? 0 : scale <= 2 ? 2 : scale <= 4 ? 4 : 8;
+    if ((pc_ui_text || pc_button_prompts_active() || pc_ui_bubbles) && f < 4)
+        f = 4;
+    return f;
 }
 int pc_ui_upscale_factor(int scale)
 {
     if (pc_ui_upscale != PC_UI_MMPX || scale < 2)
         return 0;
-    /* The next power of two at or above the scale (3x samples a 4x atlas). */
-    return scale <= 2 ? 2 : scale <= 4 ? 4 : 8;
+    return factor_for(scale);
 }
 
 static void drop_all(void)
@@ -457,7 +461,7 @@ static int make_atlas(int factor)
 }
 int pc_ui_upscale_draw_factor(void)
 {
-    return pc_ui_upscale == PC_UI_MMPX || pc_ui_text || pc_button_prompts_active() ? atlas_factor : 0;
+    return pc_ui_upscale == PC_UI_MMPX || pc_ui_text || pc_button_prompts_active() || pc_ui_bubbles ? atlas_factor : 0;
 }
 unsigned pc_ui_upscale_gl_texture(void) { return atlas_factor ? gl_levels[atlas_levels] : 0; }
 #ifdef ROOD_VULKAN
@@ -553,9 +557,12 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
     /* button_prompts: a PS1 button drawn as the bound key or gamepad button
      * (at internal resolution 1 too: a 2x atlas whose blocks are uniform). */
     int prompt = pc_button_prompts_classify(vram, tpage, clut, u0, v0, u1, v1, &glyph_key);
-    int text = prompt
-            || (pc_ui_text && factor_for(scale) && pc_ui_text_classify(vram, tpage, clut, u0, v0, u1, v1, &glyph_key));
-    int factor = prompt ? (scale < 2 ? 2 : factor_for(scale)) : text ? factor_for(scale) : pc_ui_upscale_factor(scale);
+    /* ui_bubbles vector, ui_text font: the emote bubbles over actors. */
+    int emote = !prompt && (pc_ui_bubbles || pc_ui_text)
+             && pc_ui_emote_classify(vram, tpage, clut, u0, v0, u1, v1, &glyph_key);
+    int text = prompt || emote
+            || (pc_ui_text && pc_ui_text_classify(vram, tpage, clut, u0, v0, u1, v1, &glyph_key));
+    int factor = text ? factor_for(scale) : pc_ui_upscale_factor(scale);
     if (!factor)
         return 0;
     if (atlas_factor != factor && !make_atlas(factor))
@@ -636,7 +643,7 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
         ++stats.hits;
         offset[0] = loc->x, offset[1] = loc->y;
         frame_ms_acc += now_ms() - start;
-        return 1;
+        return text ? 2 : 1;
     }
     /* Render-to-texture (the framebuffer as a texture) is not UI art. */
     {
@@ -699,8 +706,9 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
         if (text) {
             texels = malloc((size_t)w * factor * h * factor * sizeof *texels);
             if (!texels
-                || !(prompt ? pc_button_prompts_render(vram, tpage, clut, u0, v0, u1, v1, factor, scale, texels)
-                            : pc_ui_text_render(vram, tpage, clut, u0, v0, u1, v1, factor, texels))) {
+                || !(prompt  ? pc_button_prompts_render(vram, tpage, clut, u0, v0, u1, v1, factor, scale, texels)
+                     : emote ? pc_ui_emote_render(vram, tpage, clut, u0, v0, u1, v1, factor, texels)
+                             : pc_ui_text_render(vram, tpage, clut, u0, v0, u1, v1, factor, texels))) {
                 free(texels);
                 loc->hash = 0;
                 frame_ms_acc += now_ms() - start;
@@ -729,7 +737,7 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
     loc->x = (int16_t)(e->x - u0), loc->y = (int16_t)(e->y - v0);
     offset[0] = loc->x, offset[1] = loc->y;
     frame_ms_acc += now_ms() - start;
-    return 1;
+    return text ? 2 : 1;
 }
 
 /* A laid-out glyph's image (ui_text.c, ui_text_layout line): not a VRAM
@@ -788,7 +796,7 @@ int pc_ui_upscale_lookup_image(int image, int scale, int16_t offset[2])
         ++stats.hits;
     offset[0] = (int16_t)e->x, offset[1] = (int16_t)e->y;
     frame_ms_acc += now_ms() - start;
-    return 1;
+    return 2;
 }
 
 /* ---- magnifying what was looked up ---- */

@@ -528,7 +528,9 @@ integrate pass's UBOs and the present UBO, uniforms `medium_` on OpenGL):
   visible lattice, and drifted at 6-12 units/s of wall-clock time);
 - up to 16 **fog volumes** (`fog <id>`): boxes (turned about y) or
   ellipsoids, a smoothstep edge over `edge` of their half size, their own
-  wisps;
+  wisps; the first 8 are drawn by their own renderer (record 4.w: the
+  first volume the haze passes include; below, "Fog volumes' own
+  renderer"), the rest by the haze;
 - per point: extinction, a scattering colour (density x albedo) and an
   emission (each part's `fill` light, and where nothing traces the sky its
   mean radiance x `sky` x 0.5 for the cover it does not see);
@@ -572,6 +574,14 @@ Traced (haze High; Vulkan ray queries, or OpenGL compute in `ptgi.c`):
   where the medium cannot be (`medium_maybe`, its noise at its peak) skip
   everything. History: the reprojected previous volume; it restarts when
   the medium's items or the sun change (`pc_medium_hash`, `pc_env_hash`).
+  Every random choice (the jitter, the light picked, the point on it, the
+  sun's and the sky's rays) cycles through 16 frames and the history keeps
+  96 % a frame while the froxel stays put (`pc_haze_history` 0.04; up to
+  30 % new as it moves over 1.5 cells): a still picture converges to the
+  cycle's average and stays still (2026-10-14 playtest: ground fog
+  shimmered with the camera, the wind and the fog's time all still; frame
+  to frame change 0.12 -> 0.03 of 255 on average, 99.9th percentile 2.0 ->
+  0.7, Undercity West, `fog_volume_smoke`).
 - The froxel stores the medium's own contribution, not just the light:
   rgb = scattering x the light arriving + emission per unit length, a =
   extinction (both x 1000 for half floats; a + 1 marks valid history),
@@ -580,7 +590,7 @@ Traced (haze High; Vulkan ray queries, or OpenGL compute in `ptgi.c`):
   over its cell**.
 - `rt_haze_integrate.comp` walks each column front to back, one
   Beer-Lambert step per slice with that average (a 3 x 3 tent over the
-  neighbouring cells first): `T x L x (1 - e^(-ext d)) / ext`,
+  neighbouring cells and a 1-2-1 over the neighbouring slices first): `T x L x (1 - e^(-ext d)) / ext`,
   transmittance `e^(-ext d)`, the limits applied. The present samples it at
   each pixel's depth (bilinear in the cell, linear between slices):
   depth-aware by construction, and the PS1 texels are never filtered.
@@ -594,6 +604,41 @@ Traced (haze High; Vulkan ray queries, or OpenGL compute in `ptgi.c`):
   distance: with the GI's normal weights it showed one shade per polygon);
   the present applies the transmittance from 16 steps of the same medium,
   offset per pixel by interleaved gradient noise (fixed steps left slices).
+
+Fog volumes' own renderer (`vk_fogvol.inc`, `fog_volume.glsl`; every
+quality with haze on; design: `pc/docs/plans/2026-10-14-fog-volume-renderer.md`):
+
+- `fogvol_light[_rt].comp`: per volume (up to 8) a 32^3 grid over its
+  turned box, two RGBA16F 3D images (32 x 32 x 256: one 32-slice slab a
+  volume) of the transmittance toward its six lights (a: 0-3, b: 4, 5), the
+  sun or moon and an ambient term (b.zw): 8 steps of its full density
+  toward each, 6 in two of eight mostly-upward directions a frame for the
+  ambient; with this frame's acceleration structure (the path tracer ran)
+  an any-hit ray to each light and the sun. Half the cells a frame (a
+  checkerboard), each at a jittered point, blended (35 %); a volume's change
+  or a light changing slot restarts its cells (`pc_fogvol_info`).
+- `fogvol_march.comp`: an RGBA16F image at `fog_volume_resolution` of the
+  internal resolution (light, transmittance) and an RGBA32F one (the scene
+  depth it marched to, where its light comes from): the ray's parts inside
+  the volumes (box/sphere intersections, merged), `fog_volume_steps`
+  samples spread over them, offset by interleaved gradient noise + the
+  golden ratio x (frame mod 16), up to the depth under the pixel (the
+  scaled target's; 2D and nothing drawn: the volumes' far side); per
+  sample each volume's density (`fv_density`), its lights through the grid
+  (`fv_shade`: Schlick phase, a multiple-scattering octave with g / 2 and
+  the square root of the transmittance, a halo near each light, the
+  ambient x (0.5 + 0.5 its grid term), fill, glow), Beer-Lambert, its own
+  opacity cap; it stops under 0.3 % transmittance.
+- `fogvol_temporal.comp`: the march filtered over its 3 x 3 neighbours of
+  a similar depth; the fog point reprojected into the previous camera; the
+  history there (bilinear) unless the scene depth behind it is not what
+  this pixel's scene point had (6 % + 6 units: disocclusion, a character
+  moving across), clamped to the neighbourhood's mean +- 1.25-4 sigma
+  (wider while still), weight max(1 / frames, `fog_volume_history`) up to
+  64 frames; ping-pong images.
+- `scaled.frag` `fogvol_at`: the 2 x 2 march pixels around each pixel,
+  bilinear x exp(-|depth difference| / (3 % + 4)), the closest depth when
+  none matches; `c x T + L` before the haze (bindings 18, 19).
 
 Low (Medium preset; Vulkan without ray queries; nothing traced this frame):
 `low_haze` in `scaled.frag` / `gl_present.c`, 8 IGN-jittered steps of the

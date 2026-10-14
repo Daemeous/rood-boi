@@ -32,6 +32,9 @@ extern int pc_env_global; /* environment.cpp */
 extern int pc_fog_global; /* atmosphere.cpp */
 extern float pc_fog_disturb[4]; /* atmosphere.cpp: the interactive fog's weights per source */
 extern int pc_fog_sim_budget;
+extern int pc_fog_volume_render, pc_fog_volume_steps, pc_fog_volume_steps_gl, pc_fog_volume_shadows; /* atmosphere.cpp */
+extern float pc_fog_volume_resolution, pc_fog_volume_history, pc_fog_volume_ambient, pc_fog_volume_glow,
+    pc_fog_volume_scattering, pc_fog_volume_halo;
 extern float pc_lights_snap_move, pc_lights_snap_angle;
 /* Gameplay options, read by the game side. qol_weapon_slots: the weapon
  * slots quick swap on L2 + R2 (weapon_slots.c, battle builds), off by default. */
@@ -127,6 +130,17 @@ const Entry entries[] = {
     F("fog_disturb_attacks", pc_fog_disturb[2]),
     F("fog_disturb_spells", pc_fog_disturb[3]),
     I("fog_sim_budget", pc_fog_sim_budget), /* the most simulated volumes per room (0..4) */
+    /* The fog volumes' own renderer (atmosphere.h): on, its resolution, samples, history, light. */
+    I("fog_volume_render", pc_fog_volume_render),
+    F("fog_volume_resolution", pc_fog_volume_resolution),
+    I("fog_volume_steps", pc_fog_volume_steps),
+    I("fog_volume_steps_gl", pc_fog_volume_steps_gl),
+    F("fog_volume_history", pc_fog_volume_history),
+    F("fog_volume_ambient", pc_fog_volume_ambient),
+    F("fog_volume_glow", pc_fog_volume_glow),
+    F("fog_volume_scattering", pc_fog_volume_scattering),
+    F("fog_volume_halo", pc_fog_volume_halo),
+    I("fog_volume_shadows", pc_fog_volume_shadows),
     F("normal_smoothing", pc_normal_smoothing),
     I("gameplay_walls_ghost", pc_gameplay_walls_ghost),
     F("gameplay_walls_opacity", pc_gameplay_walls_opacity),

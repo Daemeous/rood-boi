@@ -193,13 +193,14 @@ Pointer read_pointer(const Frame& f)
 {
     Pointer m;
     ImGuiIO& io = ImGui::GetIO();
+    bool shown = pc_ui_loot_visible() || (pc_ui_shell_visible() && !pc_ui_shell_holding());
     if (forced) {
         forced = false;
-        if (pc_ui_shell_holding() || !pc_ui_shell_visible())
+        if (!shown)
             return m;
         return forced_pointer;
     }
-    if (pc_ui_shell_holding() || !pc_ui_shell_visible() || !ImGui::IsMousePosValid()
+    if (!shown || !ImGui::IsMousePosValid()
         || ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemActive())
         return m;
     m.ok = true;
@@ -220,18 +221,45 @@ void send_pointer(const Pointer& m)
 {
     if (!m.ok)
         return;
+    // the Loot screen (a direct session) has the pointer while it shows
+    void (*mouse)(int, int, int, float) = pc_ui_loot_visible() ? pc_ui_loot_mouse : pc_ui_shell_mouse;
     if (m.kind != PC_UI_MOUSE_NONE)
         ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
     if (m.right) { // right click: back, as Cross
-        pc_ui_shell_mouse(PC_UI_MOUSE_BUTTON, PC_UI_BACK, 1, 0);
+        mouse(PC_UI_MOUSE_BUTTON, PC_UI_BACK, 1, 0);
         return;
     }
     if (m.clicked && m.kind != PC_UI_MOUSE_NONE)
-        pc_ui_shell_mouse(m.kind, m.index, 1, m.wheel);
+        mouse(m.kind, m.index, 1, m.wheel);
     else if (m.moved && m.kind != PC_UI_MOUSE_NONE)
-        pc_ui_shell_mouse(m.kind, m.index, 0, m.wheel);
+        mouse(m.kind, m.index, 0, m.wheel);
     else if (m.wheel != 0)
-        pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, m.wheel);
+        mouse(PC_UI_MOUSE_NONE, 0, 0, m.wheel);
+}
+
+// The Loot screen (a direct session: no tabs): the backdrop, its title where
+// the tabs go, its body (ui_loot_draw.cpp) and the footer.
+void draw_footer(const Frame& f, const ui::Theme& t, const ScreenOut& out, bool held, Pointer& m);
+bool direct_shown = false; // the Loot screen was drawn last frame
+void draw_direct(const Frame& f, const ui::Theme& t, float dt)
+{
+    Pointer m = read_pointer(f);
+    ImVec2 v0((float)pc_gl_view[0], (float)pc_gl_view[1]);
+    ImVec2 v1((float)(pc_gl_view[0] + pc_gl_view[2]), (float)(pc_gl_view[1] + pc_gl_view[3]));
+    f.dl->AddRectFilled(v0, v1, t.ground);
+    const char* title = pc_ui_loot_model()->chest ? "CHEST" : "LOOT";
+    float y = t.top + 13;
+    float w = text(f, fonts.label, t.tab_size, t.margin_x, y, t.bone, title, 0.3f);
+    float base = t.top + t.tab_height;
+    f.dl->AddLine(f.p(t.margin_x, base), f.p(f.W - t.margin_x, base), t.rule, f.s(1));
+    f.dl->AddRectFilled(f.p(t.margin_x, base - 1), f.p(t.margin_x + w, base + 1), t.accent);
+    text_right(f, fonts.label, t.label_size, f.W - t.margin_x, y + 3, t.dim, "GADGET BAG", 0.26f);
+    ScreenOut out;
+    draw_loot(f, t, base + 22, dt, !direct_shown, m, out);
+    draw_footer(f, t, out, false, m);
+    send_pointer(m);
+    direct_shown = true;
+    last_tab = -1; // the shell after it places its ink at once
 }
 
 // The command rows (left rail) and the focused row's card (right).
@@ -374,7 +402,8 @@ extern "C" void pc_ui_draw_model_column(float out[4])
 
 extern "C" int pc_ui_shell_wants_mouse(void)
 {
-    if (!pc_ui_shell_drawn() || pc_gl_view[2] <= 0 || pc_gl_view[3] <= 0 || !ImGui::IsMousePosValid())
+    if ((!pc_ui_shell_drawn() && !pc_ui_loot_visible()) || pc_gl_view[2] <= 0 || pc_gl_view[3] <= 0
+        || !ImGui::IsMousePosValid())
         return 0;
     ImVec2 p = ImGui::GetIO().MousePos;
     return p.x >= pc_gl_view[0] && p.y >= pc_gl_view[1] && p.x < pc_gl_view[0] + pc_gl_view[2]
@@ -385,8 +414,9 @@ extern "C" void pc_ui_draw_frame(float dt)
 {
     // the System pages' save debounce (ui_settings.cpp): every frame, shell up or not
     pc_ui_settings_tick(ImGui::GetTime());
-    if (!pc_ui_shell_drawn() || pc_gl_view[2] <= 0 || pc_gl_view[3] <= 0) {
+    if ((!pc_ui_shell_drawn() && !pc_ui_loot_visible()) || pc_gl_view[2] <= 0 || pc_gl_view[3] <= 0) {
         last_tab = -1; // the next open places the ink and focus at once
+        direct_shown = false;
         forced = false; // a test pointer is for a shown shell only
         return;
     }
@@ -399,6 +429,11 @@ extern "C" void pc_ui_draw_frame(float dt)
     f.k = std::fmin(pc_gl_view[2] / f.W, pc_gl_view[3] / 720.0f);
     f.ox = (float)pc_gl_view[0] + (pc_gl_view[2] - f.W * f.k) * 0.5f;
     f.oy = (float)pc_gl_view[1] + (pc_gl_view[3] - 720.0f * f.k) * 0.5f;
+    if (pc_ui_loot_visible()) {
+        draw_direct(f, t, dt);
+        return;
+    }
+    direct_shown = false;
     Pointer m = read_pointer(f);
     bool held = pc_ui_shell_holding() && !pc_ui_shell_visible();
 

@@ -136,6 +136,16 @@ void draw_abilities(const Frame& f, const ui::Theme& t, float top, float dt, boo
 void draw_magick(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
 // The Items tab's body (ui_items_draw.cpp): category chips, the list, the open menu, the card.
 void draw_items(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
+// The Items tab's Workshop sub-tab (ui_workshop_draw.cpp), below the chips from `top`: the commands, the open
+// flow, the preview card.
+void draw_workshop(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
+// The Loot screen's body (ui_loot_draw.cpp), below its title from `top`: the
+// bag's capacities, the loot list, the compare card, the menus and the
+// Organize inventory panel.
+void draw_loot(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
+// The Items list's icon for a row of `category` (ui_items_draw.cpp): its id, sub line and name pick it.
+void bag_icon(const Frame& f, int category, int id, const char* sub, const char* name, float cx, float cy, float size,
+    unsigned col);
 // The Ashley screen's model column (layout units x, y, w, h) on a W-wide layout.
 void model_column(const ui::Theme& t, float W, float out[4]);
 // The right card's width (16:9: 396, 4:3: 344).

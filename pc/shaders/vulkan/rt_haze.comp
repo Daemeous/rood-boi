@@ -80,10 +80,17 @@ void main() {
     if (g.x >= h.grid.x * h.grid.z || g.y >= h.grid.y) return;
     int k = g.x / h.grid.x;
     ivec3 cell = ivec3(g.x - k * h.grid.x, g.y, k);
-    rng = uint(g.x) * 1973u + uint(g.y) * 9277u + frame * 26699u;
+    // Every random choice (the jitter, the light picked, the point on it, the
+    // sun's and the sky's rays) cycles through CYCLE frames: a froxel's
+    // samples are a fixed, stratified set the history averages, so a still
+    // picture converges and stays still (a random sequence never settled:
+    // the haze shimmered with the camera, the fog and the wind all still).
+    const uint CYCLE = 16u;
+    uint phase = frame % CYCLE;
+    rng = uint(g.x) * 1973u + uint(g.y) * 9277u + phase * 26699u;
     // Blue-noise jitter in the cell: interleaved gradient noise over the
     // froxels, shifted by the R3 sequence each frame (stratified over time).
-    vec3 r3 = fract(vec3(0.8191725, 0.6710436, 0.5497005) * float(frame & 4095u));
+    vec3 r3 = fract(vec3(0.8191725, 0.6710436, 0.5497005) * float(phase));
     vec2 p = vec2(g) + vec2(float(k) * 5.3, float(k) * 2.9);
     vec3 jitter = fract(vec3(medium_ign(p), medium_ign(p + vec2(47.0, 17.0)), medium_ign(p + vec2(13.0, 59.0))) + r3);
     vec3 x = world_of(vec3(cell) + jitter);
@@ -122,7 +129,7 @@ void main() {
     // haze is lit: shafts.
     if (inside && env_sun_on()) {
         vec2 u2 = fract(vec2(medium_ign(p + vec2(71.0, 3.0)), medium_ign(p + vec2(5.0, 83.0)))
-                        + fract(vec2(0.7548777, 0.5698403) * float(frame & 4095u)));
+                        + fract(vec2(0.7548777, 0.5698403) * float(phase)));
         vec3 l = env_sun_sample(u2.x, u2.y);
         float th; int hit; vec2 bc;
         bool lit = env_sun_col.w < 0.5 || !trace(x, l, ENV_SUN_DISTANCE, true, l, 0.0, th, hit, bc);
@@ -133,7 +140,7 @@ void main() {
     // under cover stays dark and the shafts keep their contrast.
     if (inside && env_sky_on() && MEDIUM(5).w > 0.0) {
         vec2 u2 = fract(vec2(medium_ign(p + vec2(23.0, 41.0)), medium_ign(p + vec2(67.0, 29.0)))
-                        + fract(vec2(0.5698403, 0.7548777) * float(frame & 4095u)));
+                        + fract(vec2(0.5698403, 0.7548777) * float(phase)));
         float z = 1.0 - 2.0 * u2.x, s = sqrt(max(1.0 - z * z, 0.0)), a = 6.2831853 * u2.y;
         vec3 d = vec3(s * cos(a), z, s * sin(a));
         float th; int hit; vec2 bc;
@@ -154,7 +161,11 @@ void main() {
                 log(v.z / h.previous_range.x) / h.previous_range.y * float(h.grid.z));
             if (all(greaterThanEqual(c, vec3(0.0))) && all(lessThan(c, vec3(h.grid.xyz)))) {
                 previous = sample_history(c);
-                if (!any(isnan(previous)) && previous.a > 0.5) weight = h.camera_translation.w;
+                // a long history while still (the cycle's samples averaged), a short one
+                // while the camera moves (no smearing): by how far the froxel moved, in cells
+                float moved = length(c - (vec3(cell) + 0.5));
+                if (!any(isnan(previous)) && previous.a > 0.5)
+                    weight = mix(h.camera_translation.w, max(h.camera_translation.w, 0.3), smoothstep(0.15, 1.5, moved));
             }
         }
     }

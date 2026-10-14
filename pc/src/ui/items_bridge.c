@@ -116,6 +116,7 @@
 #include "../../../src/SLUS_010.40/main.h"
 #include "build/assets/MENU/ITEMHELP.BIN.h"
 #include "build/assets/MENU/MENU3.PRG/menuText.h"
+#include "inventory_ops.h"
 #include "item_names.h"
 #include "ui_shell.h"
 #include <limits.h>
@@ -230,104 +231,8 @@ static void help_text(char* out, int size, int index) { copy_text(out, size, pc_
 
 /* ---- MENU3 / MAINMENU, ported ---- */
 
-/* MAINMENU vs_mainMenu_initItem (2D10.c:1043): the record zeroed but for its
- * own index; a weapon's blade, grip and gems first, a shield's gems. index:
- * 1-based, as the original takes it. */
-static void init_item(int itemCategory, int index)
-{
-    int i;
-
-    switch (itemCategory) {
-    case PC_UI_IC_WEAPON: {
-        vs_main_inventoryWeapon* weapon = &vs_main_inventory.weapons[index - 1];
-
-        /* Divergence: a blade or grip index 0 (a corrupt save; never in a
-         * valid one) is skipped, MAINMENU would clear the record before the
-         * first. */
-        if (weapon->blade != 0) {
-            init_item(PC_UI_IC_BLADE, weapon->blade);
-        }
-        if (weapon->grip != 0) {
-            init_item(PC_UI_IC_GRIP, weapon->grip);
-        }
-
-        for (i = 0; i < 3; ++i) {
-            int gem = weapon->gems[i];
-
-            if (gem != 0) {
-                init_item(PC_UI_IC_GEM, gem);
-            }
-        }
-
-        vs_battle_rMemzero(weapon, sizeof *weapon);
-
-        weapon->index = index;
-        break;
-    }
-
-    case PC_UI_IC_BLADE: {
-        vs_main_inventoryBlade* blade = &vs_main_inventory.blades[index - 1];
-
-        vs_battle_rMemzero(blade, sizeof *blade);
-
-        blade->index = index;
-        break;
-    }
-
-    case PC_UI_IC_GRIP: {
-        vs_main_inventoryGrip* grip = &vs_main_inventory.grips[index - 1];
-
-        vs_battle_rMemzero(grip, sizeof *grip);
-
-        grip->index = index;
-        break;
-    }
-
-    case PC_UI_IC_SHIELD: {
-        vs_main_inventoryShield* shield = &vs_main_inventory.shields[index - 1];
-
-        for (i = 0; i < 3; ++i) {
-            int gem = shield->gems[i];
-
-            if (gem != 0) {
-                init_item(PC_UI_IC_GEM, gem);
-            }
-        }
-
-        vs_battle_rMemzero(shield, sizeof *shield);
-
-        shield->index = index;
-        break;
-    }
-
-    case PC_UI_IC_ARMOR: {
-        vs_main_inventoryArmor* armor = &vs_main_inventory.armor[index - 1];
-
-        vs_battle_rMemzero(armor, sizeof *armor);
-
-        armor->index = index;
-        break;
-    }
-
-    case PC_UI_IC_GEM: {
-        vs_main_inventoryGem* gem = &vs_main_inventory.gems[index - 1];
-
-        vs_battle_rMemzero(gem, sizeof *gem);
-
-        gem->index = index;
-        break;
-    }
-
-    case PC_UI_IC_MISC: {
-        vs_main_inventoryMisc* misc = &vs_main_inventory.misc[index - 1];
-
-        vs_battle_rMemzero(misc, sizeof *misc);
-
-        misc->index = index;
-        break;
-    }
-    }
-}
+/* MAINMENU vs_mainMenu_initItem: inventory_ops.c pc_inv_init_item. */
+#define init_item pc_inv_init_item
 
 /* MENU3 items2.h _getParentWeaponIndex (11): the weapon (1-based) a blade,
  * grip or gem is part of, 0 none. */
@@ -832,7 +737,12 @@ static void move_item(int itemCategory, int rowCount, int i)
             vs_main_inventory.misc[row - 1].count = vs_main_inventory.misc[var_a1_2 - 1].count - 100;
             vs_main_inventory.misc[var_a1_2 - 1].count = 100;
         } else {
-            init_item(PC_UI_IC_MISC, row); /* _ITEMMENU: the target's record */
+            /* _ITEMMENU (MENU3): the target's record; the moved one keeps the
+             * sum. The Loot screen's Organize panel uses this too, where
+             * MENUB's copy (items2.h without _ITEMMENU) initialises the moved
+             * record, the one holding the sum (the original loses the moved
+             * stack): a deliberate difference, loot_bridge.c */
+            init_item(PC_UI_IC_MISC, row);
         }
     } else {
         indices[i - 1] = var_a1_2;
@@ -1560,3 +1470,22 @@ void pc_ui_items_cast(int go)
     D_800F4E98.unk2 = 8;
     vs_battle_menuState.returnState = TOP_LEVEL_ITEMS;
 }
+
+/* loot_bridge.c (the Loot screen's Organize panel: MENUB hands the bag to
+ * the same Items menu, items2.h _itemNavigation, whose entry rebuilds every
+ * list): the bag as the Items screen lists it, every list rebuilt first,
+ * MAINMENU's residency for the requests that follow (pc_ui_items_request:
+ * ITEM_DISCARD, ITEM_DISCARD_ALL, ITEM_CANCEL as the Items screen sends
+ * them). */
+const pc_ui_items* pc_ui_items_bag(int mainmenu)
+{
+    use.taken = 0;
+    resident = mainmenu;
+    changed();
+    return &snap;
+}
+
+
+/* loot_bridge.c: the details card of record `index` of category c of
+ * vs_main_inventory (the Items screen's, as fill_details computes it). */
+void pc_ui_items_describe(int c, int index, pc_ui_item_details* d) { fill_details(d, c, index); }

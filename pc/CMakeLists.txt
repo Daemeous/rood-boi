@@ -44,7 +44,9 @@ add_test(NAME fixture_catalog COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOUR
     --probe $<TARGET_FILE:fixture_probe>)
 set_tests_properties(fixture_catalog PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..)
 # Modern menus: the shell's navigation (pc/src/ui/ui_shell.cpp) without the game.
-add_executable(ui_shell_probe tests/ui_shell_probe.cpp src/ui/ui_shell.cpp src/ui/ui_theme.cpp src/light_prefabs.cpp)
+add_executable(ui_shell_probe tests/ui_shell_probe.cpp src/ui/ui_shell.cpp src/ui/ui_loot.cpp src/ui/ui_workshop.cpp
+    src/ui/ui_theme.cpp
+    src/light_prefabs.cpp)
 target_include_directories(ui_shell_probe PRIVATE src)
 target_compile_features(ui_shell_probe PRIVATE cxx_std_17)
 target_compile_options(ui_shell_probe PRIVATE -Wall -Wextra -Werror)

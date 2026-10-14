@@ -138,12 +138,12 @@ def suites(args, mode="egl"):
                   note="undo/redo transactions (actors, glows, groups), Delete, no shortcuts while typing"),
             Suite("facing_cutaway_smoke", [PY, str(TESTS / "facing_cutaway_smoke.py"), "--card", str(args.save)], 300,
                   note="game camera cutaway walls: native = packet path at 8 yaws, during turns (save room, room 13)"),
-            Suite("camera_stick_smoke", [PY, str(TESTS / "camera_stick_smoke.py"), "--card", str(args.save)], 600,
+            Suite("camera_stick_smoke", [PY, str(TESTS / "camera_stick_smoke.py"), "--card", str(args.save)], 300,
                   note="right-stick camera: continuous yaw, facing masks, L1/R1, zoom limits, walls, R3, "
                        "first-person/targeting, RT camera (Vulkan), opening's scripted camera unchanged"),
             Suite("editor_snap_smoke", [PY, str(TESTS / "editor_snap_smoke.py"), "--card", str(args.save)], 300,
                   note="editor overlays (edges, points) and point/edge/surface snapping in the save room"),
-            Suite("room_browser_smoke", [PY, str(TESTS / "room_browser_smoke.py"), "--card", str(args.save)], 600,
+            Suite("room_browser_smoke", [PY, str(TESTS / "room_browser_smoke.py"), "--card", str(args.save)], 300,
                   note="Room Browser: rooms from the disc, warps across zones and back; lighting layers in the game"),
             Suite("route_continuation_smoke", [PY, str(TESTS / "route_continuation_smoke.py"), "--card",
                                                str(args.save)], 300,
@@ -151,29 +151,32 @@ def suites(args, mode="egl"):
             Suite("two_model_enemy_smoke", [PY, str(TESTS / "two_model_enemy_smoke.py"), "--card", str(args.save)],
                   300, note="a Ghost (two-model enemy, zone 13 room 4) through _zoneContext.zndEnemies; leaving a "
                             "room frees its spawn table (game heap steady); the LP64 import aliases"),
-            Suite("ending_smoke", [PY, str(TESTS / "ending_smoke.py"), "--card", str(args.save)], 600,
+            Suite("ending_smoke", [PY, str(TESTS / "ending_smoke.py"), "--card", str(args.save)], 300,
                   note="ENDING.PRG twice from the save: credits, skip, MISSION COMPLETE rank screen, title"),
             Suite("light_actors_smoke", [PY, str(TESTS / "light_actors_smoke.py"), "--card", str(args.save)], 300,
                   note="Place Actors drag and drop, light actor prefabs, overrides, flicker, glow links (save room)"),
             Suite("fixture_lighting_smoke", [PY, str(TESTS / "fixture_lighting_smoke.py"), "--card", str(args.save)],
                   600, note="generated fixture lights: types, lit, shadow exclusion, glow links, suppressed glows, "
                             "live type edits, catalog save, regenerate (zone 9)"),
-            Suite("sky_smoke", [PY, str(TESTS / "sky_smoke.py"), "--card", str(args.save)], 600,
+            Suite("sky_smoke", [PY, str(TESTS / "sky_smoke.py"), "--card", str(args.save)], 300,
                   note="sun and sky: roofed room unchanged, outdoor room's generated sun shadows and sky fill, "
                        "energy, NRD, probes, shadow-map fallback, save/load, generated tags stable"),
-            Suite("atmosphere_smoke", [PY, str(TESTS / "atmosphere_smoke.py"), "--card", str(args.save)], 600,
+            Suite("atmosphere_smoke", [PY, str(TESTS / "atmosphere_smoke.py"), "--card", str(args.save)], 300,
                   note="haze, ground fog, fog volumes: fog follows height, volumes keep to their bounds, save/load, "
                        "generated forest fog, the moon's shafts in the haze, steady frame to frame"),
             Suite("atmosphere_sweep", [PY, str(ROOT / "pc/tools/atmosphere_sweep.py"), "--quick", "--card",
-                                       str(args.save)], 600,
+                                       str(args.save)], 300,
                   note="atmosphere never washes out the view: town, forest, Undercity rooms at several camera "
                        "angles and toward the moon (full sweep: pc/tools/atmosphere_sweep.py)"),
             Suite("fog_sim_smoke", [PY, str(TESTS / "fog_sim_smoke.py"), "--card", str(args.save)], 300,
                   note="interactive fog prototype (sim=1, off by default): Ashley clears her footprint, a wake "
                        "when walking, settles back"),
+            Suite("fog_volume_smoke", [PY, str(TESTS / "fog_volume_smoke.py"), "--card", str(args.save)], 420,
+                  note="fog volumes' own renderer: thick (opacity >= 0.9), its own opacity cap, depth, a light "
+                       "brightens and tints it, dim grey not black in a dark room, still frames steady (haze too)"),
             Suite("glow_stability_smoke", [PY, str(TESTS / "glow_stability_smoke.py"), "--card", str(args.save)], 600,
                   note="save point: one steady glow, stable id, overrides persist; prologue fight: effect glows unshadowed, smooth"),
-            Suite("save_point_glow_smoke", [PY, str(TESTS / "save_point_glow_smoke.py"), "--card", str(args.save)], 600,
+            Suite("save_point_glow_smoke", [PY, str(TESTS / "save_point_glow_smoke.py"), "--card", str(args.save)], 300,
                   note="standing in a save point keeps its light (its glow is the column's side); Ashley still "
                        "shadows the floor behind him (High, Ultra)")]
           if args.save.exists() else []),
@@ -198,7 +201,7 @@ def suites(args, mode="egl"):
         *([Suite("save_menu_smoke", [PY, str(TESTS / "save_menu_smoke.py"), "--card", str(args.save)], 300,
                  note="DATA > LOAD slot images = disc data decode, on interpolated frames too (CLUT swaps)")]
           if args.save.exists() else []),
-        *([Suite("weapon_slots_smoke", [PY, str(TESTS / "weapon_slots_smoke.py"), "--card", str(args.save)], 600,
+        *([Suite("weapon_slots_smoke", [PY, str(TESTS / "weapon_slots_smoke.py"), "--card", str(args.save)], 300,
                  note="QoL weapon slots: off = the game's L2 overlay; swaps, assign mode, shields, D-pad, drawn; "
                       "the mod's save bytes survive a save and reload")]
           if args.save.exists() else []),
@@ -229,6 +232,16 @@ def suites(args, mode="egl"):
         *([Suite("ui_items_smoke", [PY, str(TESTS / "ui_items_smoke.py"), "--card", str(args.save)], 300,
                  note="Items tab: same inventory bytes as the original MENU3 for discard (refused, gems, quantity, "
                       "all), sort, move/merge; Use's hand-off, completed and cancelled; keys; quick slot; mouse")]
+          if args.save.exists() else []),
+        *([Suite("ui_loot_smoke", [PY, str(TESTS / "ui_loot_smoke.py"), "--card", str(args.save)], 300,
+                 note="Loot screen (direct entry 12): same bag, indices, key flags, result, heap, HUD / world flags "
+                      "and Items memories as the original MENUB for take, take all, keys, leave, the save room's "
+                      "real chest, chests, disassemble (weapon, shield), consolidate, organize (discard, quantity, "
+                      "merge, sort), difficulty filter, two lists, No paths; mouse; soft reset")]
+          if args.save.exists() else []),
+        *([Suite("ui_workshop_smoke", [PY, str(TESTS / "ui_workshop_smoke.py"), "--card", str(args.save)], 300,
+                 note="Items > Workshop: same bag, indices and MENUC cursor memories as the original Setup screen "
+                      "(MENUC / MENU8) for repair, gems, disassemble (equipped too), assemble, rename, combine x3")]
           if args.save.exists() else []),
         *([Suite("ui_system_smoke", [PY, str(TESTS / "ui_system_smoke.py"), "--card", str(args.save)], 300,
                  note="System screen through the shell: a row per settings page live + saved (debounce, Cross), "
@@ -330,9 +343,9 @@ CHECKPOINT_SUITES = {
     "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
     "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "weapon_slots_smoke", "ui_menus_smoke",
     "ui_lines_smoke", "ui_text_smoke", "button_prompts_smoke", "coplanar_order_smoke", "atmosphere_smoke",
-    "fog_sim_smoke", "save_point_glow_smoke", "ui_ashley_smoke", "ui_equip_smoke", "ui_system_smoke",
-    "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "post_smoke",
-    "transition_fade_smoke",
+    "fog_sim_smoke", "fog_volume_smoke", "save_point_glow_smoke", "ui_ashley_smoke", "ui_equip_smoke",
+    "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "post_smoke",
+    "transition_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke",
 }
 
 

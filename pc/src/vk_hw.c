@@ -6,6 +6,7 @@
 #include "vk_hooks.h"
 #include "vk_shaders.h"
 #include "ui_upscale.h"
+#include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,11 +30,26 @@ typedef struct {
 static VkDescriptorSetLayout draw_set, upload_set;
 static VkPipelineLayout draw_layout, upload_layout;
 static VkPipeline opaque_pipeline, blend_pipelines[4], cover_pipeline, upload_pipeline;
+/* Text from distance texels (gpu_hw.c BLEND_TEXT): its solid pixels' G-buffer
+ * and depth (colour untouched), its colour added / subtracted by coverage
+ * ("over": cover_pipeline). */
+static VkPipeline text_solid_pipeline, text_add_pipeline, text_sub_pipeline;
 static vk_attachments live_attachments, replay_attachments, object_attachments, object_replay_attachments;
 /* MSAA: the twins' attachments, the packet pipelines at their sample count
  * ([1]: 2D, every sample at the pixel centre), and load/resolve. */
 static vk_attachments ms_attachments, ms_object_attachments;
 static VkPipeline ms_opaque[2], ms_blend[2][4], ms_cover; /* ms_cover: BLEND_COVER, at the pixel centre */
+static VkPipeline ms_text_solid, ms_text_add, ms_text_sub; /* BLEND_TEXT, at the pixel centre */
+/* The text overlay (pc_vk_hw_text_overlay): into the window image ([0]) or
+ * the brightness input ([1]), over / added / subtracted by coverage. */
+static VkDescriptorSetLayout overlay_set;
+static VkPipelineLayout overlay_layout;
+static VkPipeline overlay_pipelines[2][3];
+typedef struct {
+    float rect[4];
+    int pass, ui_scale;
+    float text_factor;
+} overlay_push;
 static VkDescriptorSetLayout ms_set;
 static VkPipelineLayout ms_layout;
 static VkPipeline ms_load_pipeline, ms_depth_pipeline, ms_resolve_pipeline, ms_sync_pipeline;
@@ -43,6 +59,7 @@ typedef struct {
     float occlusion_rect[4];
     int perspective, filtering, occlusion, pass;
     int ui_scale; /* the UI atlas's magnification (ui_upscale.c), 0: none */
+    float text_factor; /* text's translucent pass: the PS1 mode's alpha factor */
 } draw_push;
 typedef struct {
     int rect[4];
@@ -252,6 +269,12 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
      * colour only (the mask bit in alpha and the G-buffer kept). */
     cover_pipeline = target_pipeline(vs, fs, draw_layout, &binding, attributes, 8,
         VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 4, 0x0007);
+    text_solid_pipeline = target_pipeline(vs, fs, draw_layout, &binding, attributes, 8,
+        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xfff0);
+    text_add_pipeline = target_pipeline(vs, fs, draw_layout, &binding, attributes, 8,
+        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 5, 0x0007);
+    text_sub_pipeline = target_pipeline(vs, fs, draw_layout, &binding, attributes, 8,
+        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 6, 0x0007);
     VkShaderModule uvs = vk_shader(vk_spv_upload_vert, vk_spv_upload_vert_size),
                    ufs = vk_shader(vk_spv_upload_frag, vk_spv_upload_frag_size);
     upload_pipeline = target_pipeline(uvs, ufs, upload_layout, NULL, NULL, 0, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
@@ -260,7 +283,8 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
     vkDestroyShaderModule(vk.device, fs, NULL);
     vkDestroyShaderModule(vk.device, uvs, NULL);
     vkDestroyShaderModule(vk.device, ufs, NULL);
-    if (!opaque_pipeline || !upload_pipeline || !cover_pipeline)
+    if (!opaque_pipeline || !upload_pipeline || !cover_pipeline || !text_solid_pipeline || !text_add_pipeline
+        || !text_sub_pipeline)
         return 0;
     for (int m = 0; m < 4; m++)
         if (!blend_pipelines[m])
@@ -359,6 +383,33 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
     if (ms)
         for (int i = 0; i < count && !centre; i++)
             centre = ((const hw_vertex*)vertices)[i].z <= 0.0f;
+    if (blend >= 16) { /* BLEND_TEXT (+ the PS1 mode, 4: opaque): text from distance texels */
+        int mode = blend - 16;
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ms ? ms_text_solid : text_solid_pipeline);
+        vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, draw_layout);
+        push.pass = 3;
+        vkCmdPushConstants(cmd, draw_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push,
+            &push);
+        vkCmdDraw(cmd, (uint32_t)count, 1, 0, 0);
+        vkCmdSetDepthWriteEnable(cmd, VK_FALSE);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ms ? ms_cover : cover_pipeline);
+        push.pass = 4;
+        vkCmdPushConstants(cmd, draw_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push,
+            &push);
+        vkCmdDraw(cmd, (uint32_t)count, 1, 0, 0);
+        if (mode < 4) {
+            VkPipeline p = mode == 0 ? (ms ? ms_cover : cover_pipeline)
+                         : mode == 2 ? (ms ? ms_text_sub : text_sub_pipeline)
+                                     : (ms ? ms_text_add : text_add_pipeline);
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, p);
+            push.pass = 5;
+            push.text_factor = mode == 0 ? 0.5f : mode == 3 ? 0.25f : 1.0f;
+            vkCmdPushConstants(cmd, draw_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                sizeof push, &push);
+            vkCmdDraw(cmd, (uint32_t)count, 1, 0, 0);
+        }
+        return;
+    }
     if (blend == 13) { /* BLEND_FADE (a screen fade): subtracted from the 2D/UI under it (depth 0) only */
         vkCmdSetDepthCompareOp(cmd, VK_COMPARE_OP_EQUAL);
         vkCmdSetDepthWriteEnable(cmd, VK_FALSE);
@@ -394,6 +445,94 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
         push.pass = 2;
         vkCmdPushConstants(cmd, draw_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push,
             &push);
+        vkCmdDraw(cmd, (uint32_t)count, 1, 0, 0);
+    }
+}
+
+/* ---- the text overlay (gpu_hw.c pc_hw_text_overlay) ---- */
+
+static int overlay_ready(void)
+{
+    static int state; /* 0 not yet, 1 ready, -1 failed */
+    if (state)
+        return state > 0;
+    state = -1;
+    VkDescriptorType types[2] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
+    overlay_set = vk_push_layout(types, 2);
+    VkPushConstantRange range = { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(overlay_push) };
+    VkPipelineLayoutCreateInfo info = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = 1,
+        .pSetLayouts = &overlay_set,
+        .pushConstantRangeCount = 1,
+        .pPushConstantRanges = &range };
+    if (!vk_check(vkCreatePipelineLayout(vk.device, &info, NULL, &overlay_layout), "vkCreatePipelineLayout"))
+        return 0;
+    VkShaderModule vs = vk_shader(vk_spv_text_overlay_vert, vk_spv_text_overlay_vert_size),
+                   fs = vk_shader(vk_spv_text_overlay_frag, vk_spv_text_overlay_frag_size);
+    /* The presenters' formats (vk_present.c): the window image, the 16-bit brightness input. */
+    static const VkFormat formats[2] = { VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R16G16B16A16_SFLOAT };
+    static const int blends[3] = { 4, 5, 6 };
+    int ok = vs && fs;
+    for (int f = 0; f < 2 && ok; f++)
+        for (int b = 0; b < 3 && ok; b++) {
+            vk_pipeline_desc d = { .vertex = vs,
+                .fragment = fs,
+                .layout = overlay_layout,
+                .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+                .binding = &binding,
+                .attributes = attributes,
+                .attribute_count = 8,
+                .color_count = 1,
+                .color_formats = &formats[f],
+                .depth_format = VK_FORMAT_UNDEFINED,
+                .write_masks = { 7 },
+                .blend = blends[b] };
+            overlay_pipelines[f][b] = vk_pipeline(&d);
+            ok = overlay_pipelines[f][b] != VK_NULL_HANDLE;
+        }
+    if (vs)
+        vkDestroyShaderModule(vk.device, vs, NULL);
+    if (fs)
+        vkDestroyShaderModule(vk.device, fs, NULL);
+    if (!ok)
+        fprintf(stderr, "[vk] text overlay unavailable (its pipelines did not build)\n");
+    state = ok ? 1 : -1;
+    return ok;
+}
+
+void pc_vk_hw_text_overlay(const void* vertices, int count, int mode, const float* rect, const float* clip, int view_x,
+    int view_y, int to_view)
+{
+    VkImageView atlas = (VkImageView)pc_ui_upscale_vk_view();
+    if (count <= 0 || !atlas || !overlay_ready())
+        return;
+    vk_slice slice = vk_arena((VkDeviceSize)count * sizeof(hw_vertex), 16);
+    if (!slice.data)
+        return;
+    memcpy(slice.data, vertices, (size_t)count * sizeof(hw_vertex));
+    VkCommandBuffer cmd = vk_cmd();
+    int ox = to_view ? 0 : view_x, oy = to_view ? 0 : view_y;
+    int x0 = (int)floorf(clip[0]), y0 = (int)floorf(clip[1]), x1 = (int)ceilf(clip[2]), y1 = (int)ceilf(clip[3]);
+    VkRect2D scissor = { { ox + x0, oy + y0 }, { (uint32_t)(x1 - x0), (uint32_t)(y1 - y0) } };
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+    vkCmdBindVertexBuffers(cmd, 0, 1, &slice.buffer, &slice.offset);
+    vk_descriptors d = { 0 };
+    vk_descriptors_image(&d, 0, vk_hw.vram.view, vk.nearest);
+    vk_descriptors_image(&d, 1, atlas, vk.nearest);
+    overlay_push push = { { rect[0], rect[1], rect[2], rect[3] }, 4, pc_ui_upscale_draw_factor(), 1.0f };
+    int f = to_view ? 1 : 0;
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, overlay_pipelines[f][0]);
+    vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, overlay_layout);
+    vkCmdPushConstants(cmd, overlay_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push,
+        &push);
+    vkCmdDraw(cmd, (uint32_t)count, 1, 0, 0);
+    if (mode < 4) {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+            overlay_pipelines[f][mode == 0 ? 0 : mode == 2 ? 2 : 1]);
+        push.pass = 5;
+        push.text_factor = mode == 0 ? 0.5f : mode == 3 ? 0.25f : 1.0f;
+        vkCmdPushConstants(cmd, overlay_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+            sizeof push, &push);
         vkCmdDraw(cmd, (uint32_t)count, 1, 0, 0);
     }
 }
@@ -618,6 +757,11 @@ static int ms_make_pipelines(int samples)
     if (ms_cover)
         vkDestroyPipeline(vk.device, ms_cover, NULL);
     ms_cover = VK_NULL_HANDLE;
+    VkPipeline text[3] = { ms_text_solid, ms_text_add, ms_text_sub };
+    for (int i = 0; i < 3; i++)
+        if (text[i])
+            vkDestroyPipeline(vk.device, text[i], NULL);
+    ms_text_solid = ms_text_add = ms_text_sub = VK_NULL_HANDLE;
     memset(ms_opaque, 0, sizeof ms_opaque);
     memset(ms_blend, 0, sizeof ms_blend);
     ms_load_pipeline = ms_depth_pipeline = ms_resolve_pipeline = ms_sync_pipeline = VK_NULL_HANDLE;
@@ -657,7 +801,13 @@ static int ms_make_pipelines(int samples)
     }
     ms_cover = target_pipeline_ms(vs, fs, draw_layout, &binding, attributes, 8, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 4,
         0x0007, samples, 1);
-    ok = ok && ms_cover;
+    ms_text_solid = target_pipeline_ms(vs, fs, draw_layout, &binding, attributes, 8,
+        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xfff0, samples, 1);
+    ms_text_add = target_pipeline_ms(vs, fs, draw_layout, &binding, attributes, 8, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        5, 0x0007, samples, 1);
+    ms_text_sub = target_pipeline_ms(vs, fs, draw_layout, &binding, attributes, 8, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        6, 0x0007, samples, 1);
+    ok = ok && ms_cover && ms_text_solid && ms_text_add && ms_text_sub;
     /* Load: every sample of the twins (the shader runs once per pixel). */
     ms_load_pipeline = target_pipeline_ms(fullscreen, load, ms_layout, NULL, NULL, 0,
         VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xffff, samples, 0);

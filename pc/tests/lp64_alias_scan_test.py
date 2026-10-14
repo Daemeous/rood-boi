@@ -77,14 +77,40 @@ def main():
     check(not any("plg" in f["member"] or f["member"] == "D_80070008" for f in findings),
           "synthetic: imports of overlays never loaded together are ignored", failures)
 
+    # A 16-byte view over a 4-byte field (both guest) is a REVIEW until it is
+    # listed in REVIEWED; the listing never silences a HAZARD.
+    imports = synthetic()
+    imports["D_800F56C8_view"] = entry(0x800F56C8, False, [declaration("int [4]", 16, 16)])
+    view = [f for f in lp64_alias_scan.scan(imports, review=True) if f["member"] == "D_800F56C8_view"]
+    check([f["severity"] for f in view] == ["REVIEW"], "synthetic: a view wider than its field is a REVIEW",
+          failures)
+    saved = dict(lp64_alias_scan.REVIEWED)
+    lp64_alias_scan.REVIEWED.update({("D_800F56C8_view", "D_800F56C8"): "test", ("D_800F5798", "D_800F56C8"): "test"})
+    try:
+        findings = lp64_alias_scan.scan(imports, review=True)
+    finally:
+        lp64_alias_scan.REVIEWED.clear()
+        lp64_alias_scan.REVIEWED.update(saved)
+    severity = {f["member"]: f["severity"] for f in findings}
+    check(severity.get("D_800F56C8_view") == "benign" and severity.get("D_800F5798") == "HAZARD",
+          "synthetic: a REVIEWED pair is benign, a REVIEWED HAZARD still reports", failures)
+
     path = ROOT / args.build / "lp64_imports.json"
     if path.exists():
         imports = json.loads(path.read_text())
-        real = [f for f in lp64_alias_scan.scan(imports) if f["severity"] == "HAZARD"]
+        findings = lp64_alias_scan.scan(imports, review=True)
+        real = [f for f in findings if f["severity"] == "HAZARD"]
         for f in real:
             print(f"     {f['member']} = {f['where']}: {f['why']}")
         check(not real, f"{args.build}: no import aliases a field of another across the LP64 move "
                         f"({len(imports)} data imports)", failures)
+        review = [f for f in findings if f["severity"] == "REVIEW"]
+        for f in review:
+            print(f"     {f['member']} = {f['where']}: {f['why']}")
+        check(not review, f"{args.build}: every REVIEW is fixed or listed in REVIEWED", failures)
+        stale = set(lp64_alias_scan.REVIEWED) - {(f["member"], f["container"]) for f in findings}
+        check(not stale, f"{args.build}: every REVIEWED entry still matches a finding {sorted(stale) or ''}",
+              failures)
     else:
         print(f"skip {path} is missing (no 64-bit build)")
 

@@ -391,6 +391,36 @@ static const char* scaled_fragment_source =
     "    vec2 s = (vec2(q) + 0.5) / float(scale) - vec2(rect.xy) - screen_offset;\n"
     "    return inverse_rotation * (vec3(s.x * z / projection.x, s.y * z / projection.y, z) - camera_translation);\n"
     "}\n"
+    /* The fog volumes' own renderer (atmosphere.h pc_fogvol_gpu; fog_volume.glsl), OpenGL's lower
+     * quality: marched per pixel in this pass (fogvol_.y steps), the sample offset blue noise fixed per
+     * pixel (a still picture stays still), each light's shadow an analytic estimate (the volume's mean
+     * density over its depth toward the light) instead of Vulkan's light grid. */
+    "uniform vec4 fogvol_[179];\n"
+    "uniform ivec4 fogvol_on;\n" /* x on, y steps, z the debug view (1 their light alone, 2 their transmittance) */
+    "#define FOGVOL(i) fogvol_[i]\n" PC_GLSL_FOG_VOLUME
+    "void fv_shadows(int v, vec3 x, vec3 r, out vec4 ta, out vec4 tb) {\n"
+    "    int f = fv_base(v);\n"
+    "    float sigma = MEDIUM(fv_medium(v)).w * 0.6 * FOGVOL(f + 3).y * (1.0 - 0.5 * FOGVOL(f + 2).w), t[8];\n"
+    "    int lights = int(FOGVOL(f).w + 0.5);\n"
+    "    for (int i = 0; i < 6; i++) {\n"
+    "        t[i] = 1.0;\n"
+    "        if (i >= lights) continue;\n"
+    "        vec3 l; float dist;\n"
+    "        fv_light(v, i, x, l, dist);\n"
+    "        t[i] = exp(-sigma * max(min(fv_hit(v, x, l, dist).y, dist), 0.0));\n"
+    "    }\n"
+    "    t[6] = FOGVOL(1).w > 0.5 ? exp(-sigma * max(fv_hit(v, x, FOGVOL(2).xyz, 1e6).y, 0.0)) : 1.0;\n"
+    "    t[7] = exp(-sigma * max(fv_hit(v, x, vec3(0.0, -1.0, 0.0), 1e6).y, 0.0));\n"
+    "    ta = vec4(t[0], t[1], t[2], t[3]); tb = vec4(t[4], t[5], t[6], t[7]);\n"
+    "}\n"
+    /* The volumes between the eye and depth d (SZ / 65536) at target texel q: rgb light, a transmittance. */
+    "vec4 fogvol_at(ivec2 q, float d) {\n"
+    "    bool far = d >= 1.0 || d * 65536.0 < 0.5;\n"
+    "    vec3 eye = inverse_rotation * -camera_translation, ray = world_at(q, 1.0) - eye;\n"
+    "    float stretch = length(ray), fog_t;\n"
+    "    return fv_march(eye, ray / max(stretch, 1e-9), far ? 1e6 : d * 65536.0 * stretch, ign(gl_FragCoord.xy + 31.0), fogvol_on.y, fog_t);\n"
+    "}\n"
+    "vec3 fogvol_apply(vec3 c, ivec2 q, float d) { vec4 f = fogvol_at(q, d); return c * f.a + f.rgb; }\n"
     "vec3 base(vec2 u) {\n"
     "    vec2 size = vec2(rect.zw * scale);\n"
     "    if (filtered == 2) {\n" /* average every target texel under this window pixel */
@@ -471,17 +501,24 @@ static const char* scaled_fragment_source =
     "              : vec4(vec3(1.0 - clamp((log2(sz) - 6.0) / 8.0, 0.0, 1.0)), 1.0);\n"
     "        return;\n"
     "    }\n"
+    "    if (fogvol_on.z != 0) {\n" /* fog_volume_debug (scaled.frag the same) */
+    "        bool ui_ = d * 65536.0 < 0.5;\n"
+    "        vec4 f = ui_ || fogvol_on.x == 0 ? vec4(0.0, 0.0, 0.0, 1.0) : fogvol_at(texel(uv), d);\n"
+    "        color = vec4(fogvol_on.z == 2 ? vec3(clamp(f.a, 0.0, 1.0)) : min(f.rgb, vec3(1.0)), ui_ ? 9999.0 : 0.0);\n"
+    "        return;\n"
+    "    }\n"
     "    if (quality1.z != 0) {\n" /* haze_debug: the haze's light alone (scaled.frag the same) */
     "        bool ui_ = d * 65536.0 < 0.5; vec3 hz = vec3(0.0);\n"
     "        if (!ui_ && (gi_on & 128) != 0 && fog_density > 0.0) {\n" /* traced (ptgi.c): its GI pixel */
     "            vec2 display = (vec2(texel(uv)) + 0.5) / float(scale) - vec2(rect.xy);\n"
     "            hz = max(texelFetch(gi_extra, clamp(ivec2(display / vec2(rect.zw) * vec2(gi_size)), ivec2(0), gi_size - 1), 0).gba, vec3(0.0));\n"
     "        } else if (!ui_ && quality0.x > 0.0) hz = low_haze(vec3(0.0), world_at(texel(uv), min(d, 0.999) * 65536.0));\n"
+    "        if (!ui_ && fogvol_on.x != 0) hz += fogvol_apply(vec3(0.0), texel(uv), d);\n"
     "        color = vec4(min(hz, vec3(1.0)), ui_ ? 9999.0 : 0.0);\n"
     "        return;\n"
     "    }\n"
     "    vec3 c = base(uv);\n"
-    "    bool haze_done = false;\n"
+    "    bool haze_done = false, fogvol_done = false;\n"
     "    if ((light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || quality1.y != 0 || env_mode.z != 0) && view_mode != 1) {\n"
     "        ivec2 q = texel(uv);\n"
     "        vec4 n = texelFetch(normal_tex, q, 0);\n"
@@ -545,6 +582,7 @@ static const char* scaled_fragment_source =
     "            if (view_mode == 5) { color = vec4(world_normal * 0.5 + 0.5, 1.0); return; }\n"
     "            if (view_mode == 2) { c = vertex_light * 0.5; albedo = vec3(0.5); }\n"
     "            c = c * baked * baked_vis * ao + albedo * sum;\n"
+    "            if (fogvol_on.x != 0) { c = fogvol_apply(c, q, d); fogvol_done = true; }\n" /* the fog volumes, then the haze */
     "            if ((gi_on & 128) != 0 && fog_density > 0.0) {\n" /* the traced haze (ptgi.c) between the eye and the surface */
     "                float transmittance_ = medium_transmittance(world);\n"
     "                c = c * transmittance_ + max(extra.gba, vec3(0.0));\n"
@@ -559,6 +597,7 @@ static const char* scaled_fragment_source =
     "        }\n"
     "    }\n"
     "    bool ui = d * 65536.0 < 0.5;\n"
+    "    if (fogvol_on.x != 0 && !fogvol_done && !ui && view_mode != 1) c = fogvol_apply(c, texel(uv), d);\n" /* unlit, and where nothing is drawn */
     "    if (quality0.x > 0.0 && !haze_done && !ui && d < 1.0 && view_mode != 1)\n" /* unlit 3D pixels */
     "        c = low_haze(c, world_at(texel(uv), d * 65536.0));\n"
     "    vec3 out_c = (post & 8) != 0 && !ui ? max(c, vec3(0.0)) : min(c, vec3(1.0));\n"
@@ -627,7 +666,7 @@ extern GLuint pc_hw_shade_texture(void);
 extern void pc_lights_shadow_pick(int count, int* wants, int slots);
 extern int pc_lights_view(float (*)[4], float (*)[4], float (*)[4], float (*)[4], int*, float (*)[4],
     float (*)[4], int);
-static GLint u_medium, u_medium_tex;
+static GLint u_medium, u_medium_tex, u_fogvol, u_fogvol_on;
 /* The medium's texture (atmosphere.h pc_medium_texture: the detail noise,
  * the interactive fog's fields) for the present's Low haze and ptgi.c's
  * traced haze: uploaded whole once, then its field slices when they change. */
@@ -843,6 +882,7 @@ int pc_gl_show_depth;
  * box-filters the scaled target down to the window, i.e. SSAA); aspect 0
  * native, 1 stretch, 2 integer scale. */
 int pc_gl_filter = 2, pc_gl_aspect;
+extern void pc_hw_text_overlay(int view_x, int view_y, int view_w, int view_h, int to_view);
 /* Where the game image was last drawn (window pixels, top-left origin) and
  * the native display area it shows, for the lights editor's projection. */
 int pc_gl_view[4], pc_gl_display[4];
@@ -975,6 +1015,8 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     u_quality0 = gl_GetUniformLocation(scaled_program, "quality0");
     u_medium = gl_GetUniformLocation(scaled_program, "medium_");
     u_medium_tex = gl_GetUniformLocation(scaled_program, "medium_tex");
+    u_fogvol = gl_GetUniformLocation(scaled_program, "fogvol_");
+    u_fogvol_on = gl_GetUniformLocation(scaled_program, "fogvol_on");
     u_quality1 = gl_GetUniformLocation(scaled_program, "quality1");
     u_quality2 = gl_GetUniformLocation(scaled_program, "quality2");
     u_env = gl_GetUniformLocation(scaled_program, "env_");
@@ -1632,6 +1674,15 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
                         /* the uniform haze alone with nothing to light it would only darken: as before, none */
                         && (traced_haze || count > 0 || pc_env_gpu_get(&(pc_env_gpu){ 0 }) || pc_medium_has_fog());
                     gl_Uniform4fv(u_medium, PC_MEDIUM_VEC4S, &medium.v[0][0]);
+                    /* the fog volumes' own renderer: their lighting (their shapes are in the medium above) */
+                    static pc_medium_gpu fv_medium;
+                    static pc_fogvol_gpu fv;
+                    int fv_count = pc_gl_show_depth ? 0 : pc_fogvol_gpu_get(&fv_medium, &fv, NULL, lo, hi);
+                    if (fv_count > 0 && memcmp(fv_medium.v[8], medium.v[8], sizeof(float) * 4 * 5 * PC_FOGVOL_MAX))
+                        gl_Uniform4fv(u_medium, PC_MEDIUM_VEC4S, &fv_medium.v[0][0]); /* (no haze record this frame) */
+                    gl_Uniform4fv(u_fogvol, PC_FOGVOL_VEC4S, &fv.v[0][0]);
+                    gl_Uniform4i(u_fogvol_on, fv_count > 0, pc_fog_volume_steps_gl < 4 ? 4 : pc_fog_volume_steps_gl > 128 ? 128 : pc_fog_volume_steps_gl,
+                        pc_fog_volume_debug, 0);
                     gl_ActiveTexture(GL_TEXTURE17);
                     gl_BindTexture(GL_TEXTURE_3D, pc_gl_medium_texture());
                     gl_Uniform1i(u_medium_tex, 17);
@@ -1831,6 +1882,16 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
             gl_Uniform2f(u_down_dst_size, (float)view_w, (float)view_h);
             gl_Uniform1i(u_down_filter, pc_aa_downsample);
             gl_DrawArrays(GL_TRIANGLES, 0, 3);
+        }
+        /* Text held back for the window's resolution (gpu_hw.c ui_text_overlay), over the picture, before the
+         * brightness curve. */
+        if (target) { /* (into the chain's last image, its view as the viewport) */
+            gl_BindFramebuffer(GL_FRAMEBUFFER, brightness_stage ? brightness_target.fbo : 0);
+            if (brightness_stage)
+                gl_Viewport(0, 0, view_w, view_h);
+            else
+                gl_Viewport(view_x, view_y, view_w, view_h);
+            pc_hw_text_overlay(view_x, view_y, view_w, view_h, brightness_stage);
         }
         if (brightness_stage) { /* settings brightness (above) */
             stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);

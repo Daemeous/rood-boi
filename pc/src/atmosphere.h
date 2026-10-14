@@ -42,6 +42,29 @@ typedef struct {
     float v[PC_MEDIUM_VEC4S][4]; /* layout: medium.glsl */
 } pc_medium_gpu;
 
+/* The hand-placed fog volumes' own renderer (pc/shaders/vulkan/
+ * fog_volume.glsl; pc/docs/plans/2026-10-14-fog-volume-renderer.md): the
+ * first PC_FOGVOL_MAX enabled volumes of the room are marched per pixel by
+ * it (Vulkan: vk_fogvol.inc, OpenGL: gl_present.c) instead of going
+ * through the haze's froxels, lit by up to PC_FOGVOL_LIGHTS lights each
+ * (lights, glows), the sun or moon and an ambient term, and are exempt from
+ * the room's haze limits (their own opacity and brightness instead). */
+#define PC_FOGVOL_MAX 8
+#define PC_FOGVOL_LIGHTS 6
+#define PC_FOGVOL_STRIDE (4 + 3 * PC_FOGVOL_LIGHTS)
+#define PC_FOGVOL_VEC4S (3 + PC_FOGVOL_MAX * PC_FOGVOL_STRIDE) /* 179: fog_volume.glsl FV_VEC4S */
+typedef struct {
+    float v[PC_FOGVOL_VEC4S][4]; /* layout: fog_volume.glsl */
+} pc_fogvol_gpu;
+/* What the renderers' history depends on per volume: an identity per light
+ * slot (0..5 its lights, 6 the sun, 7 the ambient term; 0 none) and of the
+ * volume's shape (a change restarts that slot's or volume's history). */
+typedef struct {
+    unsigned keys[PC_FOGVOL_MAX][8];
+    unsigned shape[PC_FOGVOL_MAX];
+    int count;
+} pc_fogvol_info;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -51,6 +74,31 @@ extern "C" {
  * the volumes come with it unless the haze quality is off. Returns 1 when
  * anything is in it (else the record is zeros: no medium). */
 int pc_medium_gpu_get(pc_medium_gpu* out, float haze_density, const float room_lo[3], const float room_hi[3]);
+/* The fog volumes' renderer's records: `medium` the room's medium (as
+ * pc_medium_gpu_get, its volumes 0..count-1 the renderer's), `out` their
+ * lighting (fog_volume.glsl), `info` (may be NULL) what their history
+ * depends on. Returns the number of volumes it draws (0: none, or the
+ * renderer is off: they are in the haze). */
+int pc_fogvol_gpu_get(pc_medium_gpu* medium, pc_fogvol_gpu* out, pc_fogvol_info* info, const float room_lo[3],
+    const float room_hi[3]);
+/* Settings (project_settings.cpp): fog_volume_render (1: the volumes' own
+ * renderer; 0: in the haze as before), fog_volume_resolution (its march
+ * pixels per internal pixel, Vulkan: 0.25..1), fog_volume_steps (samples per
+ * ray; OpenGL fog_volume_steps_gl), fog_volume_history (the least weight of
+ * a new frame in its temporal accumulation), fog_volume_ambient (scale on
+ * the ambient term), fog_volume_glow (the glows' light in the volumes),
+ * fog_volume_scattering (the multiple-scattering octave), fog_volume_halo (extra
+ * light in the fog near a light: a fire glows in its smoke), fog_volume_shadows
+ * (1: the scene shadows the volumes' lights with ray queries, Vulkan RT);
+ * the debug view (RPC environment {fog_volumes: {debug}}: 1 their light
+ * alone, 2 their transmittance). */
+extern int pc_fog_volume_render, pc_fog_volume_steps, pc_fog_volume_steps_gl, pc_fog_volume_debug, pc_fog_volume_shadows;
+extern float pc_fog_volume_resolution, pc_fog_volume_history, pc_fog_volume_ambient, pc_fog_volume_glow,
+    pc_fog_volume_scattering, pc_fog_volume_halo;
+/* The glows this frame for the fog volumes' lights (ptgi.c: updated once a
+ * present): position + radius of influence, colour + emitting radius, a
+ * column's half axis + radius (0: a sphere). Returns their count. */
+int pc_fog_glows(float (*pos)[4], float (*col)[4], float (*shape)[4], int max);
 /* Whether the room has a ground fog or volumes (so the haze passes run
  * even with the haze density at 0). */
 int pc_medium_has_fog(void);

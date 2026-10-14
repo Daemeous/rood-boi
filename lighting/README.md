@@ -174,7 +174,17 @@ fog 68ea4c1200a3f1 name="Cellar mist" shape=sphere pos=320,-60,640 size=400,120,
   half size; 0.5), `color` (albedo; 1,1,1), `fill` (0,0,0), `noise` (0.5; the
   wisps drift with the room's fog wind), `enabled` (1).
 - A room renders up to 16 enabled volumes; they add to the haze and the
-  ground fog and may reach past the room's bounds.
+  ground fog and may reach past the room's bounds. The first 8 are drawn by
+  their own renderer (pc/README.md, "Fog volumes' own renderer"; settings
+  `fog_volume_render` 0: all in the haze), exempt from the room's haze
+  limits, with these fields for their look: `opacity` (1: the most of the
+  scene it may hide along a ray), `brightness` (1), `phase` (0.3: forward
+  scattering, brighter looking toward a light through it), `ambient` (1:
+  scale on its ambient light, the room's baked light around it and the
+  sky), `glow` (0,0,0: light it emits per unit density, smoke lit from
+  within), `glow_core` (0.5: 0 the glow even through it, 1 gathered at its
+  base), `taper` (0: height profile, 1 thinning toward its top), `detail_size`
+  (0: its billows' size in world units; 0 from the room's wisp size).
 - **Interactive** (pc/README.md, "Interactive fog"): `sim` (0; 1: the
   characters, attacks and spells part it), `sim_strength` (1: how much a
   source clears), `sim_recover` (3 s to settle back), `sim_footprint` (1:
@@ -182,7 +192,8 @@ fog 68ea4c1200a3f1 name="Cellar mist" shape=sphere pos=320,-60,640 size=400,120,
   motion it takes and keeps), `sim_wind` (1: scale on the room's fog wind),
   `detail` (0.5: billows and fine wisps, carried along by its flow),
   `sim_swirl` (0: eddies, up to 4), `shadow` (0: self-shadowing toward the
-  sun or moon, up to 2), `disturb_player`, `disturb_actors`, `disturb_attacks`,
+  sun or moon, up to 2; in the volumes' own renderer it is always
+  self-shadowed toward every light, by 0.5 + `shadow` times its depth), `disturb_player`, `disturb_actors`, `disturb_attacks`,
   `disturb_spells` (-1: the global settings `fog_disturb_*`; 0 off). The
   first four interactive volumes of a room (`fog_sim_budget`) simulate.
 - **Presets**: `preset=<name>` names one of

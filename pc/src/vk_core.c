@@ -1053,7 +1053,7 @@ static VkPipelineColorBlendAttachmentState blend_state(int blend, unsigned mask)
     if (blend < 0 || !mask)
         return s;
     s.blendEnable = VK_TRUE;
-    s.colorBlendOp = s.alphaBlendOp = blend == 2 ? VK_BLEND_OP_REVERSE_SUBTRACT : VK_BLEND_OP_ADD;
+    s.colorBlendOp = s.alphaBlendOp = blend == 2 || blend == 6 ? VK_BLEND_OP_REVERSE_SUBTRACT : VK_BLEND_OP_ADD;
     switch (blend) {
     case 0: /* B/2 + F/2 */
         s.srcColorBlendFactor = s.srcAlphaBlendFactor = VK_BLEND_FACTOR_CONSTANT_ALPHA;
@@ -1068,6 +1068,11 @@ static VkPipelineColorBlendAttachmentState blend_state(int blend, unsigned mask)
         s.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         s.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         s.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        break;
+    case 5: /* B + F * alpha */
+    case 6: /* B - F * alpha */
+        s.srcColorBlendFactor = s.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        s.dstColorBlendFactor = s.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         break;
     default: /* B + F, B - F */
         s.srcColorBlendFactor = s.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;

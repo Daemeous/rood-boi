@@ -62,6 +62,10 @@ const std::vector<KindSpec>& kinds()
                 { "sim", 0, "0", false }, { "sim_strength", 2, "1", false }, { "sim_recover", 2, "3", false },
                 { "sim_footprint", 2, "1", false }, { "sim_trail", 2, "1", false }, { "sim_wind", 2, "1", false },
                 { "detail", 2, "0.5", false }, { "sim_swirl", 2, "0", false }, { "shadow", 2, "0", false },
+                /* its own renderer (atmosphere.h pc_fogvol_gpu): its look, exempt from the room's haze limits */
+                { "opacity", 2, "1", false }, { "brightness", 2, "1", false }, { "phase", 2, "0.3", false },
+                { "ambient", 2, "1", false }, { "glow", 3, "0,0,0", false }, { "glow_core", 2, "0.5", false },
+                { "taper", 2, "0", false }, { "detail_size", 1, "0", false },
                 /* each source's weight here (-1: the global setting fog_disturb_*) */
                 { "disturb_player", 2, "-1", false }, { "disturb_actors", 2, "-1", false },
                 { "disturb_attacks", 2, "-1", false }, { "disturb_spells", 2, "-1", false },
@@ -223,7 +227,8 @@ bool preset_field(const std::string& kind, const std::string& key)
     if (kind != "fog")
         return false;
     for (const char* k : { "shape", "size", "density", "edge", "color", "fill", "noise", "sim", "sim_strength",
-             "sim_recover", "sim_footprint", "sim_trail", "sim_wind", "detail", "sim_swirl", "shadow", "disturb_player", "disturb_actors",
+             "sim_recover", "sim_footprint", "sim_trail", "sim_wind", "detail", "sim_swirl", "shadow", "opacity", "brightness",
+             "phase", "ambient", "glow", "glow_core", "taper", "detail_size", "disturb_player", "disturb_actors",
              "disturb_attacks", "disturb_spells" })
         if (key == k)
             return true;

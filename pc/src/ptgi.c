@@ -844,8 +844,11 @@ int pc_gi_fixture_triangles(const float p[3], float radius, float (*out)[9], int
 }
 
 extern const uint32_t* pc_hw_emissive_sources(void);
+extern unsigned pc_presents; /* gl_present.c: images presented */
+static unsigned emitters_present = ~0u; /* the present the emitters were last gathered in */
 static void update_emitters(void)
 {
+    emitters_present = pc_presents;
     enum { MAX_GLOWS = 8192 };
     static glow glows[MAX_GLOWS];
     int n = 0, room_count, effect_count;
@@ -904,6 +907,19 @@ static void update_emitters(void)
      * overrides, mutes, solo and linked light actors applied. */
     emitter_count = pc_glows_update(glows, n, (const float (*)[4])bp, (const float (*)[4])bc, unexplained, emitter_pos,
         emitter_col, emitter_shape, MAX_EMITTERS);
+}
+
+/* The glows for the fog volumes' lights (atmosphere.h): this present's,
+ * gathered here when nothing else (the path tracer, the probes) did. */
+int pc_fog_glows(float (*pos)[4], float (*col)[4], float (*shape)[4], int max)
+{
+    if (emitters_present != pc_presents)
+        update_emitters();
+    int n = emitter_count < max ? emitter_count : max;
+    memcpy(pos, emitter_pos, (size_t)n * sizeof emitter_pos[0]);
+    memcpy(col, emitter_col, (size_t)n * sizeof emitter_col[0]);
+    memcpy(shape, emitter_shape, (size_t)n * sizeof emitter_shape[0]);
+    return n;
 }
 
 /* ---- shaders ---- */

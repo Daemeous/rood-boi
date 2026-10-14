@@ -14,6 +14,7 @@
     X(void, Disable, (GLenum))                                                              \
     X(void, Scissor, (GLint, GLint, GLsizei, GLsizei))                                      \
     X(void, BlendFunc, (GLenum, GLenum))                                                    \
+    X(void, BlendFuncSeparate, (GLenum, GLenum, GLenum, GLenum))                            \
     X(void, BlendEquation, (GLenum))                                                        \
     X(void, BlendColor, (GLfloat, GLfloat, GLfloat, GLfloat))                               \
     X(void, ColorMask, (GLboolean, GLboolean, GLboolean, GLboolean))                        \

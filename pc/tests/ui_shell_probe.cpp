@@ -1,6 +1,7 @@
 // The modern menu shell's navigation (pc/src/ui/ui_shell.cpp) without the game.
 #include "ui/ui_shell.h"
 #include "ui/ui_settings.h"
+#include "ui/ui_workshop.h"
 #include "ui/ui_theme.h"
 #include <cstdio>
 #include <cstring>
@@ -172,7 +173,7 @@ static void shields()
 }
 static pc_ui_request pop()
 {
-    pc_ui_request r = {PC_UI_REQ_NONE, 0, 0, 0, 0};
+    pc_ui_request r = {};
     if (!pc_ui_shell_pop_request(&r))
         r.kind = PC_UI_REQ_NONE;
     return r;
@@ -1410,6 +1411,543 @@ static bool item_req(int kind, int cat, int item_, int shield, int count = 0)
             r.count);
     return ok;
 }
+
+// ---- The Loot screen (ui_loot.cpp; a direct session, no tabs) ----
+static void loot_tick(unsigned buttons)
+{
+    pc_ui_input in = {buttons, buttons};
+    pc_ui_loot_tick(&in);
+}
+static pc_ui_request loot_pop()
+{
+    pc_ui_request r = {};
+    if (!pc_ui_loot_pop_request(&r))
+        r.kind = PC_UI_REQ_NONE;
+    return r;
+}
+static bool loot_req(int kind, int slot, int item_, int shield, int count = -99)
+{
+    pc_ui_request r = loot_pop();
+    return r.kind == kind && r.slot == slot && r.item == item_ && r.shield == shield && (count == -99 || r.count == count);
+}
+static bool loot_empty_queue() { return loot_pop().kind == PC_UI_REQ_NONE; }
+static pc_ui_loot loot_model(int keys, int claimed, int chest)
+{
+    static pc_ui_loot m;
+    m = pc_ui_loot();
+    m.valid = 1;
+    m.chest = chest;
+    m.claimed = claimed;
+    m.keys = keys;
+    m.count = 3;
+    const char* names[3] = {"Tovarisch", "Cure Root", "Iron Key"};
+    const int cats[3] = {PC_UI_IC_WEAPON, PC_UI_IC_MISC, PC_UI_IC_MISC};
+    for (int i = 0; i < 3; ++i) {
+        pc_ui_loot_row& e = m.rows[i];
+        e.category = cats[i];
+        e.record = i == 2 ? 1 : 0;
+        std::snprintf(e.name, sizeof e.name, "%s", names[i]);
+        e.fits = i != 0; // the weapon has no room
+        e.key = i == 2;
+        e.organize = i == 0 ? PC_UI_LOOT_ORG_DISASSEMBLE : i == 1 ? PC_UI_LOOT_ORG_CONSOLIDATE : PC_UI_LOOT_ORG_NONE;
+    }
+    std::snprintf(m.leave_rest, sizeof m.leave_rest, "Items remain. Leave them?");
+    std::snprintf(m.leave_untouched, sizeof m.leave_untouched, "Discard all items?");
+    std::snprintf(m.keys_text, sizeof m.keys_text, "You cannot discard Iron Key.");
+    std::snprintf(m.disassemble_ask, sizeof m.disassemble_ask, "Disassemble Tovarisch?");
+    for (int c = 0; c < PC_UI_ITEM_CATEGORIES; ++c)
+        m.bag_capacity[c] = 8;
+    return m;
+}
+static bool loot_has(const char* needle)
+{
+    static char buf[1 << 16];
+    pc_ui_loot_json(buf, sizeof buf);
+    return std::strstr(buf, needle) != nullptr;
+}
+
+// ---- The Workshop (Items > Workshop: ui_workshop.cpp) ----
+static pc_ui_workshop ws_storage;
+static pc_ui_workshop& ws_model()
+{
+    pc_ui_workshop& m = ws_storage;
+    m = pc_ui_workshop();
+    m.valid = 1;
+    m.workshop = 6;
+    m.materials = 0xFE;
+    for (int i = 0; i < PC_UI_WS_ACTIONS; ++i)
+        m.action_enabled[i] = 1, m.action_reason[i] = -1;
+    auto row = [](pc_ui_ws_row& r, int inv, const char* name) {
+        r = pc_ui_ws_row();
+        r.inventory = inv;
+        r.id = inv + 1;
+        r.parent = -1;
+        r.gems[0] = r.gems[1] = r.gems[2] = -1;
+        std::snprintf(r.name, sizeof r.name, "%s", name);
+    };
+    m.count[PC_UI_WSL_WEAPONS] = 2;
+    row(m.weapons[0], 0, "Fandango");
+    m.weapons[0].mark = PC_UI_MARK_EQUIPPED;
+    m.weapons[0].gem_slots = 2;
+    row(m.weapons[1], 2, "Tovarisch");
+    for (int i = 0; i < PC_UI_WS_NAME_LEN; ++i)
+        m.weapons[1].field[i] = i < 2 ? (unsigned char)(10 + i) : 0x8F; // "AB"
+    m.count[PC_UI_WSL_BLADES] = 2;
+    row(m.blades[0], 0, "Broad Sword");
+    m.blades[0].parent = 0;
+    m.blades[0].material_ok = 1;
+    row(m.blades[1], 1, "Hand Axe");
+    m.blades[1].material_ok = 1;
+    m.blades[1].grips_ok = 1; // grip row 0 fits
+    m.count[PC_UI_WSL_GRIPS] = 1;
+    row(m.grips[0], 1, "Wooden Grip");
+    m.grips[0].gem_slots = 1;
+    m.count[PC_UI_WSL_SHIELDS] = 1;
+    row(m.shields[0], 0, "Buckler");
+    m.shields[0].gem_slots = 1; // no gem: not to disassemble
+    m.count[PC_UI_WSL_ARMOR] = 2;
+    row(m.armor[0], 6, "Leather Glove");
+    m.armor[0].material_ok = 1;
+    row(m.armor[1], 7, "Silver Glove"); // a material this workshop does not work
+    m.count[PC_UI_WSL_GEMS] = 2;
+    row(m.gems[0], 0, "Feldspar");
+    row(m.gems[1], 1, "Pyrite");
+    std::snprintf(m.text[25], sizeof m.text[25], "No gems attached to this shield.");
+    std::snprintf(m.text[49], sizeof m.text[49], "Only one item of this category is listed.");
+    std::snprintf(m.text[51], sizeof m.text[51], "You cannot carry any more weapons.");
+    std::snprintf(m.text[22], sizeof m.text[22], "Armor of this material cannot be altered at this workshop.");
+    m.grid[0][0] = 10, m.grid[0][1] = 11, m.grid[2][1] = 37;
+    std::snprintf(m.glyph[10], sizeof m.glyph[10], "A");
+    std::snprintf(m.glyph[11], sizeof m.glyph[11], "B");
+    std::snprintf(m.glyph[37], sizeof m.glyph[37], "b");
+    std::snprintf(m.glyph[0x8F], sizeof m.glyph[0x8F], " ");
+    return m;
+}
+static bool ws_req(int kind, int slot, int item_, int shield, int count = 0)
+{
+    pc_ui_request r = pop();
+    bool ok = r.kind == kind && r.slot == slot && r.item == item_ && r.shield == shield && r.count == count;
+    if (!ok)
+        std::printf("  workshop request: kind %d slot %d item %d shield %d count %d\n", r.kind, r.slot, r.item,
+            r.shield, r.count);
+    return ok;
+}
+
+static void workshop_tests()
+{
+    pc_ui_commands all = {0x3FF, 0, 0};
+    pc_ui_shell_open(&all, 0);
+    pc_ui_shell_set_items(&items_model());
+    pc_ui_workshop_set(&ws_model());
+    for (int i = 0; i < 2; ++i) tick(PC_UI_TAB_NEXT);
+    // L2 from weapons: the Workshop (after misc); R2 back to weapons; a click on its chip
+    tick(PC_UI_SUB_PREV);
+    CHECK(pc_ui_shell_workshop_shown() && json_has("\"category\":\"workshop\"") && json_has("\"mode\":\"rows\""));
+    int cat, inv;
+    CHECK(!pc_ui_shell_items_focus(&cat, &inv));
+    tick(PC_UI_SUB_NEXT);
+    CHECK(!pc_ui_shell_workshop_shown() && json_has("\"category\":\"weapons\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_SUB, PC_UI_ITEM_CATEGORIES, 1, 0);
+    tick(0);
+    CHECK(pc_ui_shell_workshop_shown());
+    // a greyed command buzzes, with its reason
+    pc_ui_workshop& m = ws_storage;
+    m.action_enabled[PC_UI_WSA_ASSEMBLE] = 0;
+    m.action_reason[PC_UI_WSA_ASSEMBLE] = 51;
+    pc_ui_workshop_set(&m);
+    CHECK(json_has("{\"id\":\"assemble\",\"label\":\"Assemble\",\"enabled\":false,\"reason\":\"You cannot carry"));
+    tick(PC_UI_CONFIRM);
+    CHECK(ws_req(PC_UI_REQ_WS_SOUND, 2, 0, 0) && json_has("\"mode\":\"rows\""));
+    m.action_enabled[PC_UI_WSA_ASSEMBLE] = 1;
+    pc_ui_workshop_set(&m);
+    // Assemble: blade, grip, gem, Next, the name (typed), Done
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"assemble\",\"flow\":\"assemble\"") && json_has("\"slots\":2,\"finish\":false"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"pick\"") && json_has("\"pick\":\"blade\""));
+    CHECK(json_has("{\"entry\":0,\"list\":\"\",\"inventory\":-1,\"enabled\":false")); // the placeholder
+    CHECK(json_has("{\"entry\":1,\"list\":\"blades\",\"inventory\":1,\"enabled\":true")); // the free blade only
+    tick(PC_UI_DOWN);
+    int key[6];
+    CHECK(pc_ui_shell_workshop_wanted(key) && key[0] == PC_UI_WSA_ASSEMBLE && key[1] == 1 && key[2] == -1);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"assemble\"") && json_has("\"cursor\":1") && json_has("\"blade\":1,"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"pick\":\"grip\"") && json_has("{\"entry\":1,\"list\":\"grips\",\"inventory\":1,\"enabled\":true"));
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"slots\":4,\"finish\":true") && json_has("\"cursor\":2") && json_has("\"grip\":1,"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"pick\":\"gem\"") && json_has("{\"entry\":2,\"list\":\"gems\",\"inventory\":1"));
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"gems\":[0,-1,-1]") && json_has("\"cursor\":3"));
+    CHECK(pc_ui_shell_workshop_wanted(key) && key[3] == 1); // gem record 0 + 1 in slot 0
+    // the picked gem again: it comes out (the slot's own first in its list)
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("{\"entry\":0,\"list\":\"gems\",\"inventory\":0,\"enabled\":true,\"current\":true"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"gems\":[-1,-1,-1]") && json_has("\"cursor\":2"));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM); // gem 0 again
+    tick(PC_UI_CONFIRM); // Next
+    CHECK(json_has("\"mode\":\"name\"") && json_has("\"assembling\":true,\"text\":\"\""));
+    CHECK(pc_ui_workshop_typing());
+    pc_ui_workshop_text("A\xe2\x98\x83" "b"); // a snowman is not in the grid
+    CHECK(json_has("\"cursor\":2,\"grid\":[0,0],\"assembling\":true,\"text\":\"Ab\""));
+    pc_ui_workshop_key(PC_UI_WSK_LEFT);
+    pc_ui_workshop_key(PC_UI_WSK_BACKSPACE);
+    CHECK(json_has("\"cursor\":0,") && json_has("\"text\":\"b\""));
+    tick(PC_UI_CONFIRM); // the grid's 'A' over the 'b' at the cursor (MENU8 overwrites), the cursor on
+    CHECK(json_has("\"cursor\":1,\"grid\":[0,0],\"assembling\":true,\"text\":\"A\""));
+    pc_ui_workshop_text("b"); // the keyboard inserts
+    CHECK(json_has("\"cursor\":2,") && json_has("\"text\":\"Ab\""));
+    tick(PC_UI_TAB_PREV); // L1: the cursor, not the tab
+    tick(PC_UI_TAB_PREV);
+    tick(PC_UI_CONFIRM); // 'A' over 'A'
+    CHECK(json_has("\"tab\":\"items\"") && json_has("\"cursor\":1,") && json_has("\"text\":\"Ab\""));
+    for (int i = 0; i < 25; ++i) // the last place: the cursor stays, each character overwrites it
+        tick(PC_UI_TAB_NEXT);
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"cursor\":19,") && json_has(("\"text\":\"Ab" + std::string(17, ' ') + "A\"").c_str()));
+    pc_ui_workshop_key(PC_UI_WSK_DELETE); // the character at the cursor out
+    CHECK(json_has("\"cursor\":19,") && json_has("\"text\":\"Ab\""));
+    tick(PC_UI_UP); // past the grid's top: Delete, Done
+    tick(PC_UI_RIGHT);
+    CHECK(json_has("\"grid\":[9,1]"));
+    tick(PC_UI_CONFIRM);
+    {
+        // the request carries the name (MENU8's buffer)
+        pc_ui_request ar = pop();
+        CHECK(ar.kind == PC_UI_REQ_WS_ASSEMBLE && ar.slot == 1 && ar.item == 1 && ar.shield == 1
+              && ar.name[0] == 10 && ar.name[1] == 37 && ar.name[2] == 0x8F && ar.name[19] == 0x8F);
+        CHECK(json_has("\"mode\":\"rows\""));
+        // refused: back on the name, as typed
+        pc_ui_workshop_refused();
+        CHECK(json_has("\"mode\":\"name\"") && json_has("\"text\":\"Ab\"") && json_has("\"message\":\""));
+        pc_ui_workshop_key(PC_UI_WSK_ENTER);
+        ar = pop();
+        CHECK(ar.kind == PC_UI_REQ_WS_ASSEMBLE && ar.name[0] == 10 && json_has("\"mode\":\"rows\""));
+    }
+    // Rename: the field opens on the weapon's name; Escape backs out to the list
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"target\",\"flow\":\"rename\""));
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"assembling\":false,\"text\":\"AB\""));
+    pc_ui_workshop_key(PC_UI_WSK_ESCAPE);
+    CHECK(json_has("\"mode\":\"target\"") && ws_req(PC_UI_REQ_WS_SOUND, 0, 0, 0));
+    tick(PC_UI_CONFIRM);
+    pc_ui_workshop_key(PC_UI_WSK_ENTER);
+    CHECK(ws_req(PC_UI_REQ_WS_RENAME, 0, 2, -1) && json_has("\"mode\":\"target\""));
+    tick(PC_UI_BACK);
+    CHECK(ws_req(PC_UI_REQ_WS_SOUND, 0, 0, 0) && json_has("\"mode\":\"rows\""));
+    // Disassemble: weapons, then the shield (no gems: greyed); Yes / No opens on No
+    tick(PC_UI_UP);
+    CHECK(json_has("\"row\":2"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("{\"entry\":2,\"list\":\"shields\",\"inventory\":0,\"enabled\":false") &&
+          json_has("\"reason\":\"No gems attached to this shield.\""));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"confirm\"") && json_has("\"confirm\":{\"kind\":\"disassemble\",\"yes\":false"));
+    tick(PC_UI_CONFIRM); // No
+    CHECK(ws_req(PC_UI_REQ_WS_SOUND, 0, 0, 0) && json_has("\"mode\":\"target\""));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(ws_req(PC_UI_REQ_WS_DISASSEMBLE, 0, 0, 0) && json_has("\"mode\":\"target\""));
+    tick(PC_UI_BACK);
+    pop();
+    // Combine: shields greyed (one); armor: a material not worked here buzzes
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"flow\":\"combine\"") && json_has("\"category\":1,\"count\":1,\"label\":\"Shields\",\"reason\":"
+                                                        "\"Only one item"));
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"combine\"") && json_has("\"combine\":2"));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    CHECK(json_has("{\"entry\":2,\"list\":\"armor\",\"inventory\":7,\"enabled\":false"));
+    tick(PC_UI_CONFIRM);
+    CHECK(ws_req(PC_UI_REQ_WS_SOUND, 2, 0, 0) && json_has("\"mode\":\"pick\""));
+    tick(PC_UI_BACK);
+    pop();
+    tick(PC_UI_BACK);
+    pop();
+    // blades: both picked, Combine asks on No
+    tick(PC_UI_UP);
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"combine\":0"));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"first\":0,") && json_has("\"cursor\":1"));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"second\":1") && json_has("\"finish\":true") && json_has("\"cursor\":2"));
+    CHECK(pc_ui_shell_workshop_wanted(key) && key[0] == PC_UI_WSA_COMBINE && key[1] == 0 && key[2] == 0 && key[3] == 1);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"confirm\":{\"kind\":\"combine\",\"yes\":false"));
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(ws_req(PC_UI_REQ_WS_COMBINE, 0, 0, 1) && json_has("\"mode\":\"rows\",\"flow\":\"\",\"row\":5"));
+    // Repair opens on Yes; a refused request shows a line
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"confirm\":{\"kind\":\"repair\",\"yes\":true"));
+    tick(PC_UI_CONFIRM);
+    CHECK(ws_req(PC_UI_REQ_WS_REPAIR, 0, 0, 0) && json_has("\"mode\":\"rows\""));
+    pc_ui_workshop_refused(); // back on the Yes / No that sent it
+    CHECK(json_has("\"message\":\"") && json_has("\"confirm\":{\"kind\":\"repair\",\"yes\":true"));
+    tick(PC_UI_BACK);
+    CHECK(ws_req(PC_UI_REQ_WS_SOUND, 0, 0, 0) && json_has("\"mode\":\"rows\""));
+    // a click on a command while a flow is open: back on it, no confirm
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"target\",\"flow\":\"rename\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_WS_ROW, PC_UI_WSA_REPAIR, 1, 0);
+    tick(0);
+    CHECK(json_has("\"mode\":\"rows\",\"flow\":\"\",\"row\":4"));
+    pc_ui_shell_mouse(PC_UI_MOUSE_WS_ROW, PC_UI_WSA_REPAIR, 1, 0);
+    tick(0);
+    CHECK(json_has("\"confirm\":{\"kind\":\"repair\""));
+    // Cross: back, then the shell closes from the commands
+    tick(PC_UI_BACK);
+    pop();
+    // Gems on the equipped Fandango (2 slots): Attach with no pick changes nothing (flags 0)
+    while (!json_has("\"mode\":\"rows\",\"flow\":\"\",\"row\":1"))
+        tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"target\",\"flow\":\"gems\""));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"slots\"") && json_has("\"slots\":3"));
+    tick(PC_UI_UP); // Attach
+    tick(PC_UI_CONFIRM);
+    {
+        pc_ui_request g = pop();
+        CHECK(g.kind == PC_UI_REQ_WS_GEMS && g.slot == 0 && g.item == 0 && g.shield == 0 && g.count == 0
+              && g.flags == 0 && json_has("\"mode\":\"target\""));
+    }
+    // a pick (and out again: the same gems) still counts as an edit: the original attached it live
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM); // slot 0: its pick list
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM); // Feldspar in
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM); // the slot's own: out again
+    CHECK(json_has("\"gems\":[-1,-1,-1]"));
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM); // Attach
+    {
+        pc_ui_request g = pop();
+        CHECK(g.kind == PC_UI_REQ_WS_GEMS && g.shield == 0 && g.flags == PC_UI_WS_EDITED);
+    }
+    // Cross out of the slots: the leave sound and GEMS_LEAVE (the original's _attachGems(targetGems))
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_BACK);
+    CHECK(ws_req(PC_UI_REQ_WS_GEMS_LEAVE, 0, 0, 0, 0) && ws_req(PC_UI_REQ_WS_SOUND, 0, 0, 0)
+          && json_has("\"mode\":\"target\""));
+    // ... from a gem pick list over them, a click on a command: the same
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"pick\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_WS_ROW, PC_UI_WSA_REPAIR, 1, 0);
+    tick(0);
+    CHECK(ws_req(PC_UI_REQ_WS_GEMS_LEAVE, 0, 0, 0, 0) && json_has("\"mode\":\"rows\""));
+    // ... Triangle closing the menu from the slots: the same, before the shell hides
+    while (!json_has("\"mode\":\"rows\",\"flow\":\"\",\"row\":1"))
+        tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"slots\""));
+    CHECK(tick(PC_UI_EXIT) == -1 && !pc_ui_shell_visible());
+    CHECK(ws_req(PC_UI_REQ_WS_GEMS_LEAVE, 0, 0, 0, 0) && pop().kind == PC_UI_REQ_NONE);
+    pc_ui_shell_close();
+    while (pop().kind != PC_UI_REQ_NONE) {
+    }
+}
+
+static void loot_tests()
+{
+    pc_ui_loot_open();
+    CHECK(pc_ui_loot_visible() && pc_ui_loot_focus() == -1);
+    pc_ui_loot lm = loot_model(1, 0, 0);
+    pc_ui_loot_set(&lm);
+    CHECK(loot_has(",\"loot\":{\"valid\":true,\"chest\":false,\"mode\":\"list\",\"cursor\":0,\"rows\":3"));
+    CHECK(pc_ui_loot_focus() == 0);
+    // Up wraps to the last row, Down back
+    loot_tick(PC_UI_UP);
+    CHECK(pc_ui_loot_focus() == 2);
+    loot_tick(PC_UI_DOWN);
+    CHECK(pc_ui_loot_focus() == 0);
+    // Circle on a row with no room: Organize (the select sound), its own action first
+    loot_tick(PC_UI_CONFIRM);
+    CHECK(loot_req(PC_UI_REQ_LOOT_SOUND, 1, 0, 0) && loot_empty_queue());
+    CHECK(loot_has("\"mode\":\"organize\"") && loot_has("\"menu\":0,\"entries\":[\"disassemble\",\"organize\"]"));
+    // Disassemble asks on Yes; Yes sends it for the row and its record
+    loot_tick(PC_UI_CONFIRM);
+    CHECK(loot_req(PC_UI_REQ_LOOT_SOUND, 1, 0, 0));
+    CHECK(loot_has("\"mode\":\"confirm\"") && loot_has("\"ask\":\"disassemble\",\"yes\":true,\"text\":\"Disassemble Tovarisch?\""));
+    loot_tick(PC_UI_CONFIRM);
+    CHECK(loot_req(PC_UI_REQ_LOOT_DISASSEMBLE, PC_UI_IC_WEAPON, 0, 0) && loot_empty_queue());
+    CHECK(loot_has("\"mode\":\"list\""));
+    // Organize inventory: the bag panel (BAG 1 for the row's category); Cross closes it (BAG 0)
+    loot_tick(PC_UI_CONFIRM);
+    loot_pop();
+    loot_tick(PC_UI_DOWN);
+    loot_tick(PC_UI_CONFIRM);
+    CHECK(loot_req(PC_UI_REQ_LOOT_SOUND, 1, 0, 0) && loot_req(PC_UI_REQ_LOOT_BAG, 1, PC_UI_IC_WEAPON, -1));
+    CHECK(loot_has("\"mode\":\"bag\"") && loot_has("\"bag_panel\":{\"category\":\"weapons\",\"cursor\":0,\"rows\":0"));
+    {
+        static pc_ui_items bag;
+        bag = pc_ui_items();
+        bag.valid = 1;
+        bag.count[PC_UI_IC_MISC] = 2;
+        bag.first[PC_UI_IC_MISC] = 0;
+        std::snprintf(bag.rows[0].name, sizeof bag.rows[0].name, "Cure Root");
+        bag.rows[0].inventory = 4, bag.rows[0].count = 12, bag.rows[0].discard = 1, bag.rows[0].discard_all = 1;
+        std::snprintf(bag.rows[1].name, sizeof bag.rows[1].name, "Silver Key");
+        bag.rows[1].inventory = 7, bag.rows[1].count = 1;
+        std::snprintf(bag.discard_prompt[2], sizeof bag.discard_prompt[2], "Discard all?");
+        std::snprintf(bag.discard_prompt[1], sizeof bag.discard_prompt[1], "How many?");
+        pc_ui_loot_set_bag(&bag);
+        loot_tick(PC_UI_SUB_PREV); // weapons -> misc: the game's current category follows
+        CHECK(loot_req(PC_UI_REQ_LOOT_BAG, 1, PC_UI_IC_MISC, -1) && loot_empty_queue());
+        CHECK(loot_has("\"bag_panel\":{\"category\":\"misc\",\"cursor\":0,\"rows\":2"));
+        // Circle: the row's actions (MENUB's Items menu: Discard, Discard all, Sort; Move)
+        loot_tick(PC_UI_DOWN);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_has("\"mode\":\"bag_actions\"") && loot_has("\"actions\":[{\"id\":\"discard\",\"enabled\":false},"
+                                                                 "{\"id\":\"discard_all\",\"enabled\":false},"
+                                                                 "{\"id\":\"sort\",\"enabled\":false},"
+                                                                 "{\"id\":\"move\",\"enabled\":true}]"));
+        // a key: Discard not selectable (sent: the bridge buzzes), the menu stays
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_req(PC_UI_REQ_ITEM_DISCARD, PC_UI_IC_MISC, 1, 7, 0) && loot_has("\"mode\":\"bag_actions\""));
+        loot_tick(PC_UI_BACK);
+        CHECK(loot_empty_queue() && loot_has("\"mode\":\"bag\""));
+        // a stack: Discard all asks on No; No cancels (what 2), Yes discards it
+        loot_tick(PC_UI_UP);
+        loot_tick(PC_UI_CONFIRM);
+        loot_tick(PC_UI_DOWN);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_has("\"mode\":\"bag_confirm\"") && loot_has("\"ask\":\"discard_all\",\"yes\":false,\"text\":\"Discard all?\""));
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_req(PC_UI_REQ_ITEM_CANCEL, PC_UI_IC_MISC, 0, 4, 2) && loot_has("\"mode\":\"bag\""));
+        loot_tick(PC_UI_CONFIRM);
+        loot_tick(PC_UI_DOWN);
+        loot_tick(PC_UI_CONFIRM);
+        loot_tick(PC_UI_UP);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_req(PC_UI_REQ_ITEM_DISCARD_ALL, PC_UI_IC_MISC, 0, 4) && loot_has("\"mode\":\"bag\""));
+        // Discard on a stack: the quantity picker (Up by the step, Left a bigger step, past the stack refused)
+        loot_tick(PC_UI_CONFIRM);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_has("\"mode\":\"bag_quantity\"") && loot_has("\"count\":0,\"count_max\":12,\"step\":0"));
+        loot_tick(PC_UI_UP);
+        loot_tick(PC_UI_UP);
+        loot_tick(PC_UI_UP);
+        loot_tick(PC_UI_LEFT);
+        loot_tick(PC_UI_UP);
+        CHECK(loot_has("\"count\":3,\"count_max\":12,\"step\":1"));
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_has("\"mode\":\"bag_confirm\"") && loot_has("\"ask\":\"discard\",\"yes\":false"));
+        loot_tick(PC_UI_UP);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_req(PC_UI_REQ_ITEM_DISCARD, PC_UI_IC_MISC, 0, 4, 3) && loot_has("\"mode\":\"bag\""));
+        // none: the picker left (ITEM_CANCEL what 0)
+        loot_tick(PC_UI_CONFIRM);
+        loot_tick(PC_UI_CONFIRM);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_req(PC_UI_REQ_ITEM_CANCEL, PC_UI_IC_MISC, 0, 4, 0) && loot_has("\"mode\":\"bag\""));
+        // Move: the row, then its target (the moved row's record checked)
+        loot_tick(PC_UI_CONFIRM);
+        loot_tick(PC_UI_UP);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_has("\"mode\":\"bag_move\"") && loot_has("\"move_from\":0"));
+        loot_tick(PC_UI_DOWN);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_req(PC_UI_REQ_ITEM_MOVE, PC_UI_IC_MISC, 0, 1, 4) && loot_has("\"mode\":\"bag\""));
+        loot_tick(PC_UI_UP);
+    }
+    loot_tick(PC_UI_BACK);
+    CHECK(loot_req(PC_UI_REQ_LOOT_BAG, 0, PC_UI_IC_MISC, -1) && loot_has("\"mode\":\"list\""));
+    // Circle on a row that fits takes it; Square takes all
+    loot_tick(PC_UI_DOWN);
+    loot_tick(PC_UI_CONFIRM);
+    CHECK(loot_req(PC_UI_REQ_LOOT_TAKE, PC_UI_IC_MISC, 1, 0));
+    loot_tick(PC_UI_ALT);
+    CHECK(loot_req(PC_UI_REQ_LOOT_TAKE_ALL, 0, 0, -1) && loot_empty_queue());
+    // Cross with a key in the list: Leave pressed, then the message; any button back (the leave sound)
+    loot_tick(PC_UI_BACK);
+    CHECK(loot_req(PC_UI_REQ_LOOT_LEAVE, 0, 0, 0, 0));
+    CHECK(loot_has("\"mode\":\"message\"") && loot_has("\"ask\":\"keys\""));
+    loot_tick(PC_UI_ALT);
+    CHECK(loot_req(PC_UI_REQ_LOOT_SOUND, 0, 0, 0) && loot_has("\"mode\":\"list\""));
+    // no key, something taken: Leave asks (itemsRemaining) on No; Yes leaves
+    lm = loot_model(0, 1, 0);
+    pc_ui_loot_set(&lm);
+    loot_tick(PC_UI_BACK);
+    CHECK(loot_req(PC_UI_REQ_LOOT_LEAVE, 0, 0, 0, 0));
+    CHECK(loot_has("\"ask\":\"leave\",\"yes\":false,\"text\":\"Items remain. Leave them?\""));
+    loot_tick(PC_UI_BACK); // No (Cross): back
+    CHECK(loot_req(PC_UI_REQ_LOOT_SOUND, 0, 0, 0) && loot_has("\"mode\":\"list\""));
+    loot_tick(PC_UI_BACK);
+    loot_pop();
+    loot_tick(PC_UI_UP);
+    loot_tick(PC_UI_CONFIRM);
+    CHECK(loot_req(PC_UI_REQ_LOOT_LEAVE, 0, 0, 0, 1));
+    // nothing taken: discardAllConfirm; a chest untouched: no question (the bridge ends it)
+    lm = loot_model(0, 0, 0);
+    pc_ui_loot_set(&lm);
+    loot_tick(PC_UI_BACK);
+    loot_pop();
+    CHECK(loot_has("\"text\":\"Discard all items?\""));
+    loot_tick(PC_UI_BACK);
+    loot_pop();
+    lm = loot_model(0, 0, 1);
+    pc_ui_loot_set(&lm);
+    loot_tick(PC_UI_BACK);
+    CHECK(loot_req(PC_UI_REQ_LOOT_LEAVE, 0, 0, 0, 0) && loot_has("\"mode\":\"list\""));
+    // an empty list: the game's line, any button leaves
+    lm = pc_ui_loot();
+    lm.valid = 1;
+    std::snprintf(lm.empty, sizeof lm.empty, "Nothing in the chest.");
+    pc_ui_loot_set(&lm);
+    loot_tick(0);
+    CHECK(loot_has("\"mode\":\"message\"") && loot_has("\"ask\":\"empty\""));
+    loot_tick(PC_UI_EXIT);
+    CHECK(loot_req(PC_UI_REQ_LOOT_LEAVE, 0, 0, 0, 0));
+    // the mouse: a row click focuses and takes; a click elsewhere on a message is any button
+    lm = loot_model(0, 0, 0);
+    pc_ui_loot_open();
+    pc_ui_loot_set(&lm);
+    pc_ui_loot_mouse(PC_UI_MOUSE_LOOT_ROW, 1, 1, 0);
+    loot_tick(0);
+    CHECK(pc_ui_loot_focus() == 1 && loot_req(PC_UI_REQ_LOOT_TAKE, PC_UI_IC_MISC, 1, 0));
+    pc_ui_loot_mouse(PC_UI_MOUSE_BUTTON, PC_UI_ALT, 1, 0);
+    loot_tick(0);
+    CHECK(loot_req(PC_UI_REQ_LOOT_TAKE_ALL, 0, 0, -1));
+    // the shell's JSON carries the screen while it shows; closed: gone
+    CHECK(json_has(",\"loot\":{"));
+    pc_ui_loot_close();
+    CHECK(!pc_ui_loot_visible() && !json_has(",\"loot\":{"));
+}
+
 static void items_tests()
 {
     pc_ui_commands all = {0x3FF, 0, 0};
@@ -1428,8 +1966,11 @@ static void items_tests()
     tick(PC_UI_UP);
     CHECK(json_has("\"cursor\":1,\"rows\":2"));
     // R2 / L2 categories (wrapping, empty ones too)
+    tick(PC_UI_SUB_PREV); // weapons -> the Workshop (after misc) -> misc
+    CHECK(pc_ui_shell_workshop_shown());
     tick(PC_UI_SUB_PREV);
     CHECK(json_has("\"category\":\"misc\",\"mode\":\"list\",\"cursor\":0,\"rows\":3,\"capacity\":64"));
+    tick(PC_UI_SUB_NEXT);
     tick(PC_UI_SUB_NEXT);
     CHECK(json_has("\"category\":\"weapons\",\"mode\":\"list\",\"cursor\":1"));
     // the equipped weapon: Discard greyed with the reason (asked anyway: the bridge buzzes); no Use
@@ -1503,6 +2044,7 @@ static void items_tests()
     tick(PC_UI_CONFIRM);
     CHECK(json_has("\"category\":\"weapons\",\"mode\":\"list\",\"cursor\":1"));
     // misc: Use (asks the bridge), the quantity picker, discard all
+    tick(PC_UI_SUB_PREV); // the Workshop
     tick(PC_UI_SUB_PREV);
     CHECK(json_has("\"category\":\"misc\",\"mode\":\"list\",\"cursor\":0"));
     tick(PC_UI_CONFIRM);
@@ -1592,6 +2134,7 @@ static void items_tests()
     tick(PC_UI_SUB_NEXT);
     tick(PC_UI_SUB_NEXT);
     tick(PC_UI_SUB_NEXT);
+    tick(PC_UI_SUB_NEXT); // misc -> the Workshop -> weapons -> blades -> grips
     CHECK(json_has("\"category\":\"grips\",\"mode\":\"list\",\"cursor\":0,\"rows\":0"));
     CHECK(!pc_ui_shell_items_focus(&cat, &inv));
     tick(PC_UI_ALT);
@@ -1660,6 +2203,7 @@ static void items_tests()
     CHECK(tick(PC_UI_EXIT) == -1);
     // and from the quantity picker, as the original's (Cross goes back one level instead)
     pc_ui_shell_open(&all, 1);
+    tick(PC_UI_SUB_PREV); // the Workshop
     tick(PC_UI_SUB_PREV);
     tick(PC_UI_UP); // the stack of 25 (the misc cursor was kept on row 1)
     CHECK(json_has("\"category\":\"misc\",\"mode\":\"list\",\"cursor\":0"));
@@ -1814,6 +2358,8 @@ int main()
     abilities_tests();
     magick_tests();
     items_tests();
+    loot_tests();
+    workshop_tests();
     std::printf(failures ? "ui_shell_probe: %d failures\n" : "ui_shell_probe: ok\n", failures);
     return failures != 0;
 }

@@ -31,7 +31,15 @@
  *                                bits (battle builds)
  *   ui_menu {modern}             modern menus (pc/src/ui): sets ui_menus,
  *                                returns the shell (visible, menus, tab,
- *                                tabs, rows, row; battle builds)
+ *                                tabs, rows, row; loot while the Loot screen
+ *                                shows; battle builds); {text, key}: typed
+ *                                into the Workshop's name field as the
+ *                                keyboard types (key: backspace, delete,
+ *                                left, right, home, end, enter, escape)
+ *   loot {hex, chest}            tests: open the loot menu as the game does
+ *                                (whole 0x220-byte vs_battle_loot lists, as
+ *                                after a battle; chest: the first as a
+ *                                chest's); only while no menu is open
  *   system {window_mode, master_volume, brightness, bind, key, pad, down}
  *                                System settings (pc/src/ui/ui_settings.h hooks):
  *                                set window_mode (windowed | borderless |
@@ -946,7 +954,90 @@ static void handle_method(int fd, const char* request)
             bool_value(member(pointer, "down"), &down);
             pc_ui_draw_pointer((float)x, (float)y, click, right, (float)wheel, down);
         }
+        /* {text, key}: the Workshop's name field, as typed on the keyboard (ui/ui_workshop.cpp) */
+        extern void pc_ui_workshop_text(const char* utf8) __attribute__((weak));
+        extern void pc_ui_workshop_key(int key) __attribute__((weak));
+        char typed[128];
+        if (params && string_value(member(params, "text"), typed, sizeof typed) && pc_ui_workshop_text)
+            pc_ui_workshop_text(typed);
+        if (params && string_value(member(params, "key"), typed, sizeof typed) && pc_ui_workshop_key) {
+            static const char* const keys[] = { "backspace", "delete", "left", "right", "home", "end", "enter",
+                "escape" };
+            for (int k = 0; k < (int)(sizeof keys / sizeof keys[0]); ++k)
+                if (!strcmp(typed, keys[k]))
+                    pc_ui_workshop_key(k);
+        }
+        /* {reequip: true}: tests re-equip the equipped weapon and shield from their records
+         * (ui/workshop_bridge.c pc_ui_workshop_debug_reequip; only with no menu open) */
+        extern int pc_ui_workshop_debug_reequip(void) __attribute__((weak));
+        if (params && bool_value(member(params, "reequip"), &flag) && flag && pc_ui_workshop_debug_reequip
+            && pc_ui_workshop_debug_reequip() < 0) {
+            fail(fd, id, -32000, "reequip: a menu is open");
+            return;
+        }
         pc_ui_shell_json(result, sizeof result);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "loot")) {
+        /* Tests: the loot menu opened as the game opens it (ui/loot_bridge.c
+         * pc_ui_loot_debug_open): hex = loot lists of 0x220 bytes each (BATTLE
+         * vs_battle_loot), chest = open the first as a chest's. Only while no
+         * menu is open. */
+        extern int pc_ui_loot_debug_open(const unsigned char* data, int nodes, int chest) __attribute__((weak));
+        enum { LOOT_BYTES = 0x220, LOOT_MAX = 8 };
+        static char hex[2 * LOOT_BYTES * LOOT_MAX + 2];
+        static unsigned char data[LOOT_BYTES * LOOT_MAX];
+        int chest = 0;
+        size_t length;
+        if (!pc_ui_loot_debug_open) {
+            fail(fd, id, -32000, "loot needs the battle build");
+            return;
+        }
+        if (!params || !string_value(member(params, "hex"), hex, sizeof hex) || !(length = strlen(hex) / 2)
+            || strlen(hex) % (2 * LOOT_BYTES)) {
+            fail(fd, id, -32602, "loot needs hex: whole loot lists of 0x220 bytes (at most 8)");
+            return;
+        }
+        for (size_t i = 0; i < length; i++) {
+            unsigned byte;
+            if (sscanf(hex + 2 * i, "%2x", &byte) != 1) {
+                fail(fd, id, -32602, "bad hex");
+                return;
+            }
+            data[i] = (unsigned char)byte;
+        }
+        bool_value(member(params, "chest"), &chest);
+        snprintf(result, sizeof result, "{\"opened\":%s}",
+            pc_ui_loot_debug_open(data, (int)(length / LOOT_BYTES), chest) ? "true" : "false");
+        reply(fd, id, result);
+    } else if (!strcmp(method, "chest")) {
+        /* Tests: the room's chests (ui/loot_bridge.c pc_ui_loot_debug_chest);
+         * open = index opens that one through the field's own chest flow
+         * (func_80074050, as the field's Cross at a chest). */
+        extern int pc_ui_loot_debug_chest(int index, int out[12]) __attribute__((weak));
+        extern int pc_ui_loot_debug_chest_open(int index) __attribute__((weak));
+        int v[12], n, open = -1, len;
+        long long number;
+        if (!pc_ui_loot_debug_chest) {
+            fail(fd, id, -32000, "chest needs the battle build");
+            return;
+        }
+        if (params && number_value(member(params, "open"), &number))
+            open = (int)number;
+        if (open >= 0) {
+            snprintf(result, sizeof result, "{\"opened\":%s}", pc_ui_loot_debug_chest_open(open) ? "true" : "false");
+            reply(fd, id, result);
+            return;
+        }
+        n = pc_ui_loot_debug_chest(-1, v);
+        len = snprintf(result, sizeof result, "{\"field_free\":%s,\"chests\":[", v[11] ? "true" : "false");
+        for (int i = 0; i < n && len < (int)sizeof result - 256; ++i) {
+            pc_ui_loot_debug_chest(i, v);
+            len += snprintf(result + len, sizeof result - len,
+                "%s{\"index\":%d,\"x\":%d,\"z\":%d,\"floor\":%d,\"flag\":%d,\"opened\":%d,\"key\":%d,"
+                "\"weapon\":%d,\"shield\":%d,\"armor\":%d,\"gem\":%d,\"misc\":%d}",
+                i ? "," : "", i, v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10]);
+        }
+        snprintf(result + len, sizeof result - len, "]}");
         reply(fd, id, result);
     } else if (!strcmp(method, "release")) {
         memset(holds, 0, sizeof holds);
@@ -1077,6 +1168,11 @@ static void handle_method(int fd, const char* request)
                         pc_ui_text_layout = k;
             } else if (number_value(member(params, "ui_text_layout"), &n) && n >= 0 && n <= 1)
                 pc_ui_text_layout = (int)n;
+            /* ui_text_overlay "auto" | "off" (or 1/0). */
+            if (string_value(member(params, "ui_text_overlay"), name, sizeof name))
+                pc_ui_text_setting("ui_text_overlay", name);
+            else if (number_value(member(params, "ui_text_overlay"), &n) && n >= 0 && n <= 1)
+                pc_ui_text_overlay = (int)n;
             /* ui_text_bubble_align "left" | "centre" (or 0/1). */
             if (string_value(member(params, "ui_text_bubble_align"), name, sizeof name))
                 pc_ui_text_setting("ui_text_bubble_align", name);
@@ -1398,10 +1494,11 @@ static void handle_method(int fd, const char* request)
         if (used < (int)sizeof result - 100)
             used += snprintf(result + used - 1, sizeof result - used + 1,
                         ",\"ui_upscale\":\"%s\",\"ui_subpixel\":%d,\"ui_text\":\"%s\",\"ui_text_layout\":\"%s\","
-                        "\"ui_text_bubble_align\":\"%s\"}",
+                        "\"ui_text_bubble_align\":\"%s\",\"ui_text_overlay\":\"%s\"}",
                         pc_ui_upscale_names[pc_ui_upscale ? 1 : 0], pc_ui_subpixel, pc_ui_text_names[pc_ui_text ? 1 : 0],
                         pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0],
-                        pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0])
+                        pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0],
+                        pc_ui_text_overlay_names[pc_ui_text_overlay ? 1 : 0])
                 - 1;
         if (used < (int)sizeof result - 160)
             used += snprintf(result + used - 1, sizeof result - used + 1,
@@ -1454,6 +1551,12 @@ static void handle_method(int fd, const char* request)
                 st.bubble[i].game_bounds[2], st.bubble[i].game_bounds[3], st.bubble[i].thickness,
                 st.bubble[i].line_rgb);
         used += snprintf(result + used, sizeof result - used, "]");
+        {
+            long balloons, dots, marks; /* emote bubbles drawn again (ui_emotes.c) */
+            pc_ui_emote_stats(&balloons, &dots, &marks);
+            used += snprintf(result + used, sizeof result - used,
+                ",\"emotes\":{\"balloons\":%ld,\"dots\":%ld,\"marks\":%ld}", balloons, dots, marks);
+        }
         long long which;
         if (params && number_value(member(params, "path"), &which)) {
             float pts[128][2];
@@ -1538,6 +1641,8 @@ static void handle_method(int fd, const char* request)
             rendered = texels && vram
                     && pc_ui_text_render(vram, (unsigned)r[0], (unsigned)r[1], r[2], r[3], r[4], r[5], (int)factor,
                         texels);
+            if (rendered) /* distance texels as the PS1 colours drawn at that factor */
+                pc_ui_text_resolve(vram, (unsigned)r[1], texels, rw * rh, (int)factor, -1.0f);
             FILE* out = rendered ? fopen(path, "wb") : NULL;
             for (int i = 0; out && i < rw * rh; i++) {
                 unsigned char b[2] = { (unsigned char)(texels[i] & 255), (unsigned char)(texels[i] >> 8 & 255) };
@@ -1548,6 +1653,24 @@ static void handle_method(int fd, const char* request)
             free(texels);
         }
         int used = pc_ui_text_json(result, (int)sizeof result);
+        {
+            /* The text overlay (gpu_hw.c): triangles held back now (-1: not holding), drawn into the
+             * picture since (baked) and presented at the window's resolution; the presented view in
+             * the window (x, y from its top-left, width, height). */
+            extern void pc_hw_text_overlay_stats(long*, long*, long*) __attribute__((weak));
+            extern int pc_gl_view[4] __attribute__((weak));
+            long held = -1, baked = 0, presented = 0;
+            if (pc_hw_text_overlay_stats)
+                pc_hw_text_overlay_stats(&held, &baked, &presented);
+            int view[4] = { 0, 0, 0, 0 };
+            if (&pc_gl_view)
+                memcpy(view, pc_gl_view, sizeof view);
+            if (used > 1 && used < (int)sizeof result - 160)
+                used += snprintf(result + used - 1, sizeof result - used + 1,
+                            ",\"overlay\":{\"held\":%ld,\"baked\":%ld,\"presented\":%ld,\"view\":[%d,%d,%d,%d]}}",
+                            held, baked, presented, view[0], view[1], view[2], view[3])
+                      - 1;
+        }
         if (rendered >= 0 && used > 1 && used < (int)sizeof result - 64)
             used += snprintf(result + used - 1, sizeof result - used + 1,
                         ",\"render\":{\"ok\":%d,\"w\":%d,\"h\":%d}}", rendered, rw, rh)

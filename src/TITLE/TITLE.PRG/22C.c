@@ -1383,6 +1383,20 @@ static int _fileMenuElementsActive(void)
     return i == 10;
 }
 
+#ifdef ROOD_PC
+/* ui_text_layout line (pc/src/ui_text.c): each character this printer sets (DrawPrim:
+ * drawn at once). */
+extern void pc_text_glyph(void* const* commands, int count, int glyph, int x, int y,
+    int next_x, int advance) __attribute__((weak));
+static void pc_text_char(
+    void* const* commands, int count, int glyph, int x, int y, int advance)
+{
+    if (pc_text_glyph)
+        pc_text_glyph(
+            commands, count, glyph, x << 16, y << 16, (x + advance) << 16, advance);
+}
+#endif
+
 static int _printCharacter(u_int c, int x, int y, int clut)
 {
     static int glyphWidths[] = { 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
@@ -1405,6 +1419,10 @@ static int _printCharacter(u_int c, int x, int y, int clut)
     if ((c >> 8) == 14) {
         return x + (char)c;
     }
+#ifdef ROOD_PC
+    if (c == vs_char_space)
+        pc_text_char(NULL, 0, -1, x, y, glyphWidths[c]);
+#endif
     if (c != vs_char_space) {
         DrawSync(0);
         _primBuf.tag = vs_getTag(_primBuf.prim.sprt, primAddrNull);
@@ -1415,6 +1433,10 @@ static int _printCharacter(u_int c, int x, int y, int clut)
         _primBuf.prim.sprt.wh = vs_getWH(12, 12);
         _primBuf.prim.sprt.u0v0clut =
             vs_getUV0Clut((c % 21) * 12, (c / 21) * 12, clut * 16 + 896, 222);
+#ifdef ROOD_PC
+        pc_text_char((void* const[]) { &_primBuf.prim.sprt.r0g0b0code }, 1, c, x, y,
+            glyphWidths[c]);
+#endif
         DrawPrim(&_primBuf);
     }
     return x + glyphWidths[c];

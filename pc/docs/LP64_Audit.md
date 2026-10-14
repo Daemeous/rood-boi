@@ -1231,10 +1231,47 @@ the save to the Lamenting Mother (zone 13 room 4, one Ghost): a two-model actor
 on each of three returns from room 1. Without the fixes the 64-bit build
 crashes there; with only the first, the free total drops 13 blocks per return.
 
-The 9 REVIEW items are LP64-neutral (both names stay guest, same bytes):
-over-declared sound tables (`D_80035910`, `D_80036770`, `g_InstrumentInfo`,
-`D_80037790`), `D_8005046C` (int over `D_80050468.frames`), `_dsControlBuf`
-(over `vs_main_disk.cdLoc`), `D_800F18C8` (24 bytes from `_zoneContext.unk48`
-on), `D_800F4438`, `D_800F5234`. Not covered: containers declared only as
-incomplete arrays (no extent), and aliases created by pointer arithmetic
-rather than a second import name.
+The first run also left 9 REVIEW items. None is an LP64 bug: in every pair
+neither name moved (the 64-bit binary resolves all 18 names to their PS1
+addresses, checked with `nm` against `symbol_addrs.txt`/the splat names), so
+both names are the same guest bytes on every build, and no pointer field is
+reached through a host-pointer declaration. Resolved (`--review` now ends at
+REVIEW 0; `lp64_alias_scan_test.py` fails on any new REVIEW, and on a stale
+`REVIEWED` entry):
+
+- *`D_80035910` = `g_PushedMusicConfig+0x80`, `D_80036770` =
+  `D_800366F0+0x80`, `g_InstrumentInfo` = `D_800366F0+0x98`*: container type
+  too large. `FSoundChannelConfig` was declared 0xA0 bytes with
+  `unk80..unk9C`, which no code touches; the game saves and restores a config
+  with 0x80-byte copies (`Sound_memcpy32(&g_PushedMusicConfig, &D_800366F0,
+  0x80)`) and the next objects start at +0x80. Fixed in `sound.h` (0x80,
+  `PSX_ASSERT_SIZE` updated); commit-check matches.
+- *`D_80037790` = `D_80037788+0x8`*: container type wrong. `D_80037788` was an
+  `FSoundCommandParams` (24 bytes) but only its first word is used: the field
+  sequence queued by sound command 0x14, started once the music stops. Now a
+  one-word `D_80037788_t` (`PendingSequence`, a guest address held as `u_int`)
+  in 25AC.c; `D_80037790` is the real parameter block. Commit-check matches.
+- *`D_8005046C` = `D_80050468+0x4`* (`int` over `frames..hours`): reviewed,
+  `REVIEWED` in the scanner. 5BF94.c hands the four timer bytes to
+  `_renderTimer(int*)` as one word; no pointers.
+- *`_dsControlBuf` = `vs_main_disk.cdLoc`* (`char[11]` over `cdLoc.minute`):
+  reviewed. main.c writes the CD mode (0 or 0x80) to `cdLoc.minute` and passes
+  `_dsControlBuf`, the same byte, to `DsControlB(DslSetmode, ...)`, which reads
+  `param[0]` only (pc/src/cd_drive.c and libds).
+- *`D_800F18C8` = `_zoneContext+0x48`* (24 bytes): reviewed. 146C.c's view of
+  `unk48..unk54` as shorts plus `mpdCdFile`/`mpdData` as ints; its one write to
+  a pointer field is `unk14 = 0` (`mpdData` = NULL after the room data is
+  freed). `psx_ptr` fields are 4-byte guest addresses, so the int write is the
+  NULL psx_ptr on both builds.
+- *`D_800F4438` = `D_800F2458+0x1FE0`* (`VECTOR` over a `u_short`): reviewed.
+  `D_800F4438` is the shared scale vector after the 63 bone matrices
+  (`D_800F3C58[63]`); 30DB0.c's `D_800F2458_t.unk1FE0` only spells the offset
+  of its `vx` low half for a matching `u_short` load.
+- *`D_800F5234` = `D_800F5230+0x4`* (`D_800F53B8_t3` over `unk4`): reviewed.
+  `func_800CEF74` only takes its address and `+0xC`, and `func_800CE714` reads
+  the two 12-byte records there (bytes 0x4..0x1B of the effect parameter
+  block): a position inside the block, not an object of its own, and its
+  pointer fields are never read through this name.
+
+Not covered: containers declared only as incomplete arrays (no extent), and
+aliases created by pointer arithmetic rather than a second import name.

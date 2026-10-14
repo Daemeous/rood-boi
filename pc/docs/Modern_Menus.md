@@ -32,6 +32,27 @@ cancel back to the shell, Search, Discard with the quantity picker, Discard
 all, Sort by the original's stats; Move: swap, misc stacks merge), its
 changes and cursor memories equal to the original Items menu's
 (`ui_items_smoke`). Phase 6 is complete.
+Phase 7a: the native Loot screen (after a battle with drops and at a chest:
+the game's direct entry 12, MENUB, handed to the shell by the
+`pc_ui_direct_tick` hook in MAINMENU). Take, Take all, Leave, keys, the
+difficulty filter, Organize (Disassemble for weapons and shields,
+Consolidate, Organize inventory with MENUB's Items menu actions: Discard with
+the quantity picker, Discard all, Sort, Move) leave the bag, its lists, the
+key and chest flags, the loot result, the heap, the HUD / world flags and
+the Items menu memories as MENUB leaves them (`ui_loot_smoke`, including the
+save room's real chest through the field's own chest flow). Deliberate
+differences: the shell slides the field HUD out while it shows (the flag is
+given back at the end only while it is still the shell's); after Organize
+inventory closes, D_800EB9B0 is left at 0x200000, also after the session
+(the panel's own HUD restore writes 0, the shell's slide-out sets it again;
+harmless: it is the HUD's slide offset, which slides back in from there); the Items menu opens
+on the drop's category, not on the Manage page MENUB shows without cursor
+memory; a Move of a misc stack onto another of the same item that fits in
+one never loses items: the merge is the Items menu's (MENU3: the sum kept),
+where MENUB's copy of the Items menu initialises the stack moved, the one
+holding the sum, so the original keeps only the target's count
+(`ui_loot_smoke` checks both sides of this one difference). A direct session that is not ticked for a
+while stays as it is (only the game leaving its menu or a reset ends it).
 Plans: `pc/docs/plans/`. Next: phase 7+ (Workshop, Container, Loot, the Data
 frame, the Map frame, Score, Title), then the HUD.
 

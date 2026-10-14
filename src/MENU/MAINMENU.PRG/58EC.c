@@ -1211,6 +1211,19 @@ static void _renderBackground(int brightness)
     }
 }
 
+#ifdef ROOD_PC
+/* ui_text_layout line (pc/src/ui_text.c): each character this printer sets. */
+extern void pc_text_glyph(void* const* commands, int count, int glyph, int x, int y,
+    int next_x, int advance) __attribute__((weak));
+static void pc_text_char(
+    void* const* commands, int count, int glyph, int x, int y, int advance)
+{
+    if (pc_text_glyph)
+        pc_text_glyph(
+            commands, count, glyph, x << 16, y << 16, (x + advance) << 16, advance);
+}
+#endif
+
 #pragma vsstring(start)
 int vs_mainMenu_renderRowLabel(
     u_int character, int x, vs_battle_menuItem_t* menuItem, u_long* before)
@@ -1221,10 +1234,16 @@ int vs_mainMenu_renderRowLabel(
     int new_var;
 
     int s7 = character >> 0x1F;
+#ifdef ROOD_PC
+    void* strips[12];
+#endif
     character &= 0xFFFF;
     new_var = vs_char_nonPrinting;
 
     if ((character < new_var) && (character == ' ')) {
+#ifdef ROOD_PC
+        pc_text_char(NULL, 0, -1, x, menuItem->y, 6);
+#endif
         do {
             do {
                 return x + 6;
@@ -1248,8 +1267,15 @@ int vs_mainMenu_renderRowLabel(
         prim[4] = uvClut;
         prim[1] = vs_getTpage(832, 0, clut4Bit, semiTransparencyFull, 0);
         uvClut += 256;
+#ifdef ROOD_PC
+        strips[i] = prim + 2;
+#endif
     }
 
+#ifdef ROOD_PC
+    pc_text_char(strips, 12, character & 0x1FF, x, menuItem->y,
+        vs_battle_characterWidths[character]);
+#endif
     return x + vs_battle_characterWidths[character];
 }
 #pragma vsstring(end)

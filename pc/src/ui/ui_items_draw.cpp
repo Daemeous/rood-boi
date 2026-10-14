@@ -28,6 +28,7 @@
 // nothing here changes it except through the pointer (Pointer hits, applied
 // at the shell's next tick).
 #include "ui/ui_draw_internal.h"
+#include "ui/ui_workshop.h"
 #include "button_prompts.h"
 #include <cstdio>
 #include <cstring>
@@ -296,6 +297,16 @@ float chips(const Frame& f, const ui::Theme& t, float x0, float x1, float y, con
         if (on)
             f.dl->AddRectFilled(f.p(x, y + 21), f.p(x + w + nw, y + 23), t.accent);
         x += w + nw + 24;
+    }
+    { // the Workshop (ui_workshop_draw.cpp), after misc
+        const char* name = "WORKSHOP";
+        float w = measure(f, fonts.label, size, name, 0.26f);
+        bool on = v.category == PC_UI_ITEM_CATEGORIES;
+        bool over = m.hit(PC_UI_MOUSE_SUB, PC_UI_ITEM_CATEGORIES, x - 8, y - 8, x + w + 8, y + 23);
+        f.dl->AddLine(f.p(x - 13, y), f.p(x - 13, y + 14), t.rule2, f.s(1));
+        text(f, fonts.label, size, x, y, on ? t.bone : over ? t.ash : t.dim, name, 0.26f);
+        if (on)
+            f.dl->AddRectFilled(f.p(x, y + 21), f.p(x + w, y + 23), t.accent);
     }
     f.dl->AddLine(f.p(x0, y + 22), f.p(x1, y + 22), t.rule, f.s(1));
     float cy = y + 6, gx = x1;
@@ -935,6 +946,16 @@ void draw_items(const Frame& f, const ui::Theme& t, float top, float dt, bool fr
     const pc_ui_items& g = *pc_ui_shell_items();
     pc_ui_items_view v;
     pc_ui_shell_items_view(&v);
+    static bool workshop_was = false; // the Workshop showed on the last frame
+    if (pc_ui_shell_workshop_shown()) { // the Workshop sub-tab: its own body under the chips
+        v.category = PC_UI_ITEM_CATEGORIES;
+        float y = chips(f, t, t.margin_x, f.W - t.margin_x, top, g, v, m) + 14;
+        draw_workshop(f, t, y, dt, fresh || !workshop_was, m, out);
+        workshop_was = true;
+        anim.category = -1;
+        return;
+    }
+    workshop_was = false;
     const int c = v.category;
     bool reset = fresh || anim.category != c;
     // the card widens in DETAILS for things with stats
@@ -1041,6 +1062,16 @@ void draw_items(const Frame& f, const ui::Theme& t, float top, float dt, bool fr
     out.hint(PC_PROMPT_TRIANGLE, -1, "Exit menu", PC_UI_EXIT);
     out.crumb = crumb;
     anim.category = c, anim.mode = v.mode;
+}
+
+void bag_icon(const Frame& f, int category, int id, const char* sub, const char* name, float cx, float cy, float size,
+    unsigned col)
+{
+    pc_ui_item_row e = {};
+    e.id = id;
+    std::snprintf(e.sub, sizeof e.sub, "%s", sub ? sub : "");
+    std::snprintf(e.name, sizeof e.name, "%s", name ? name : "");
+    item_icon(f, row_icon(category, e), cx, cy, size, col);
 }
 
 } // namespace uidraw

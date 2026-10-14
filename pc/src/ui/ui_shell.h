@@ -341,6 +341,98 @@ int pc_ui_shell_system_item(int i, const char** id, const char** label, const ch
  * Enters the page when the list had the focus. */
 void pc_ui_shell_system_value(int row, int delta, double value, int set);
 
+/* The Loot screen (ui_loot.cpp): a direct session, not a tab. The game opens
+ * MENUB itself (after a battle with drops, at a chest: vs_mainMenu_exec's
+ * direct entry 12); menu_bridge.c's pc_ui_direct_tick hands it to
+ * loot_bridge.c, which opens this screen, sets its snapshot every tick, ticks
+ * it and carries out its requests. Drawn alone (title "Loot" or "Chest", no
+ * tab bar).
+ *
+ * LIST: Up/Down move (wrapping); Circle takes the focused row
+ * (PC_UI_REQ_LOOT_TAKE) when the bag has room for it, else opens ORGANIZE
+ * (the select sound): the row's own action first when it has one
+ * (Disassemble: weapons and shields; Consolidate: misc but keys), then
+ * Organize inventory; Circle on Disassemble / Consolidate asks (CONFIRM, on
+ * Yes as the original's) and sends PC_UI_REQ_LOOT_DISASSEMBLE / _CONSOLIDATE
+ * on Yes; Organize inventory opens BAG (PC_UI_REQ_LOOT_BAG 1, item the
+ * category): the bag by category (L2/R2, L1/R1 or Left/Right: each change
+ * PC_UI_REQ_LOOT_BAG 1 with the new category; Up/Down). Circle on a row
+ * opens BAG_ACTIONS, the actions MENUB's Items menu offers (items2.h
+ * populateActions, its Use never selectable left out): Discard, Discard all
+ * (misc), Sort, Move. Discard asks (BAG_CONFIRM, on No as the Items
+ * screen's; PC_UI_REQ_ITEM_DISCARD), a misc stack of two or more first
+ * through the quantity picker (BAG_QUANTITY: Up/Down by the step, Left/Right
+ * the step; none: PC_UI_REQ_ITEM_CANCEL); Discard all asks for the stack
+ * (PC_UI_REQ_ITEM_DISCARD_ALL); No: PC_UI_REQ_ITEM_CANCEL. Sort lists the
+ * category's stats (BAG_SORT: PC_UI_REQ_ITEM_SORT). Move (BAG_MOVE): Up/Down
+ * to the target, Circle (PC_UI_REQ_ITEM_MOVE; misc stacks of the same item
+ * merge as the Items screen's do, the sum kept: MENUB's own merge loses the
+ * moved stack, see loot_bridge.c). Cross backs
+ * out one level; in BAG it closes the panel (PC_UI_REQ_LOOT_BAG 0). Square
+ * takes everything the bag has room for (PC_UI_REQ_LOOT_TAKE_ALL). Cross
+ * (PC_UI_REQ_LOOT_LEAVE 0; the bridge plays the leave sound and ends the
+ * session at once when nothing is left, or at a chest nothing was taken
+ * from) asks to leave the rest (CONFIRM on No: Yes PC_UI_REQ_LOOT_LEAVE 1),
+ * or, with a key or sigil in the list, says it cannot be left (MESSAGE, any
+ * button). A list that came empty shows the game's line (MESSAGE): any
+ * button leaves. Cross backs out of every menu (the leave sound:
+ * PC_UI_REQ_LOOT_SOUND 0). The bridge ends the session (the shell closes);
+ * the shell never returns a result. */
+enum { PC_UI_LOOT_LIST, PC_UI_LOOT_ORGANIZE, PC_UI_LOOT_CONFIRM, PC_UI_LOOT_MESSAGE, PC_UI_LOOT_BAG,
+       PC_UI_LOOT_BAG_CONFIRM, PC_UI_LOOT_BAG_ACTIONS, PC_UI_LOOT_BAG_QUANTITY, PC_UI_LOOT_BAG_SORT,
+       PC_UI_LOOT_BAG_MOVE };
+/* The Organize panel's modes (BAG and the modes after it). */
+#define PC_UI_LOOT_IN_BAG(mode) ((mode) == PC_UI_LOOT_BAG || (mode) >= PC_UI_LOOT_BAG_CONFIRM)
+enum { PC_UI_LOOT_BAG_ACTION_MAX = 4 };
+enum { PC_UI_LOOT_ASK_DISASSEMBLE, PC_UI_LOOT_ASK_CONSOLIDATE, PC_UI_LOOT_ASK_LEAVE, PC_UI_LOOT_ASK_KEYS,
+       PC_UI_LOOT_ASK_EMPTY };
+typedef struct {
+    int mode;          /* PC_UI_LOOT_* */
+    int cursor;        /* the list's row (0 when empty) */
+    int rows;          /* the list's rows */
+    const pc_ui_loot_row* row; /* the focused row, or null */
+    int menu;          /* ORGANIZE: the focused entry; CONFIRM / BAG_CONFIRM: 0 Yes, 1 No */
+    int menu_rows;     /* ORGANIZE: its entries (1 or 2) */
+    int menu_kind[2];  /* ORGANIZE: each entry's PC_UI_LOOT_ORG_* (NONE: Organize inventory) */
+    int ask;           /* CONFIRM / MESSAGE: PC_UI_LOOT_ASK_* */
+    const char* text;  /* CONFIRM / MESSAGE / BAG_CONFIRM: the game's line */
+    int bag_category;  /* BAG: PC_UI_IC_* */
+    int bag_cursor;    /* BAG: the category's row */
+    int bag_rows;      /* BAG: the category's rows */
+    /* BAG_ACTIONS: the actions (PC_UI_ITA_DISCARD, _DISCARD_ALL, _SORT, _MOVE), whether each can be chosen
+     * and why not (the bag row's reason, or null); menu is the focused one */
+    int bag_actions;
+    int bag_action_kind[PC_UI_LOOT_BAG_ACTION_MAX];
+    int bag_action_enabled[PC_UI_LOOT_BAG_ACTION_MAX];
+    const char* bag_action_reason[PC_UI_LOOT_BAG_ACTION_MAX];
+    int confirm_kind;  /* BAG_CONFIRM: PC_UI_ITA_DISCARD or PC_UI_ITA_DISCARD_ALL */
+    int count, count_max, step; /* BAG_QUANTITY / BAG_CONFIRM: the quantity, the stack, the step (0 1, 1 10, 2 100) */
+    int sort;          /* BAG_SORT: the focused stat's row (pc_ui_items sort_stats) */
+    int move_from;     /* BAG_MOVE: the row being moved (bag_cursor is the target), else -1 */
+} pc_ui_loot_view;
+void pc_ui_loot_open(void);
+void pc_ui_loot_close(void);
+int pc_ui_loot_visible(void);
+/* One game frame of the screen (requests queued). */
+void pc_ui_loot_tick(const pc_ui_input* input);
+/* The bridge's snapshot (copied), and the bag for BAG (copied; the Items
+ * screen's snapshot: pc_ui_items). */
+void pc_ui_loot_set(const pc_ui_loot* m);
+const pc_ui_loot* pc_ui_loot_model(void);
+void pc_ui_loot_set_bag(const pc_ui_items* bag);
+const pc_ui_items* pc_ui_loot_bag(void);
+void pc_ui_loot_view_get(pc_ui_loot_view* v);
+/* The focused row (for the bridge's details card); -1 when none. */
+int pc_ui_loot_focus(void);
+int pc_ui_loot_pop_request(pc_ui_request* out);
+/* Mouse, as pc_ui_shell_mouse: PC_UI_MOUSE_LOOT_ROW (a list row), _LOOT_MENU
+ * (an entry of the open menu or Yes / No), _LOOT_BAG (a bag row), _SUB (a bag
+ * category), _BUTTON (bits). */
+void pc_ui_loot_mouse(int kind, int index, int clicked, float wheel);
+enum { PC_UI_MOUSE_LOOT_ROW = 100, PC_UI_MOUSE_LOOT_MENU, PC_UI_MOUSE_LOOT_BAG };
+/* The screen as JSON members (",\"loot\":{...}" appended to out; RPC ui_menu). */
+void pc_ui_loot_json(char* out, unsigned size);
+
 #ifdef __cplusplus
 }
 #endif

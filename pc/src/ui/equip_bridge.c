@@ -56,10 +56,15 @@ void pc_weapon_slots_clear(int slot);
 int pc_ui_abilities_request(const pc_ui_request* r); /* abilities_bridge.c */
 int pc_ui_magick_request(const pc_ui_request* r);    /* magick_bridge.c */
 int pc_ui_items_request(const pc_ui_request* r);     /* items_bridge.c */
+int pc_ui_workshop_request(const pc_ui_request* r);  /* workshop_bridge.c */
 
 int pc_ui_equip_begin(int resident);
 void pc_ui_equip_requests(void);
 int pc_ui_equip_busy(void);
+void pc_ui_equip_unequip_weapon(void);
+void pc_ui_equip_unequip_shield(void);
+void pc_ui_equip_models_mark(void);
+void pc_ui_equip_models_reload(void);
 /* for items_bridge.c */
 int pc_ui_item_record_id(int category, int i);
 void pc_ui_items_rebuild(int category);
@@ -542,6 +547,30 @@ static models_t models_now(void)
     return m;
 }
 
+/* workshop_bridge.c: MAINMENU vs_mainMenu_unequipWeapon / Shield, and the
+ * actor's models reloaded as after an equip here when the weapon's or the
+ * shield's model changed since pc_ui_equip_models_mark (the busy hold of
+ * the Equipment screen follows: while it loads, every result of the shell is
+ * held and nothing else equips). */
+static models_t marked;
+void pc_ui_equip_unequip_weapon(void) { unequip_weapon(); }
+void pc_ui_equip_unequip_shield(void) { unequip_shield(); }
+void pc_ui_equip_models_mark(void) { marked = models_now(); }
+void pc_ui_equip_models_reload(void)
+{
+    models_t after = models_now();
+    int k, item;
+    if (marked.wep == after.wep && marked.category == after.category && marked.material == after.material
+        && marked.shield == after.shield && marked.shield_material == after.shield_material)
+        return;
+    k = equipped_weapon();
+    item = equipped_shield();
+    if (pc_weapon_slots_menu_models(k >= 0 ? &vs_main_inventory.weapons[k] : NULL,
+            item >= 0 ? &vs_main_inventory.shields[item] : NULL)
+        == 0)
+        loading = 1;
+}
+
 /* MENU3 _equipWeaponMenu / _equipShieldMenu, then the models. item: inventory
  * index, -1 take off. Returns 1 when done. */
 static int equip_hands(int slot, int item)
@@ -659,8 +688,8 @@ void pc_ui_equip_requests(void)
             break;
         default: /* PC_UI_REQ_CANDIDATES: the list is filled every tick; the Abilities, Magick and Items
                   * screens' are their bridges' */
-            if (!pc_ui_abilities_request(&r) && !pc_ui_magick_request(&r))
-                pc_ui_items_request(&r);
+            if (!pc_ui_abilities_request(&r) && !pc_ui_magick_request(&r) && !pc_ui_items_request(&r))
+                pc_ui_workshop_request(&r);
             break;
         }
     }

@@ -24,7 +24,8 @@
 //     the floor), noise amount (0..1)
 //  2: fog albedo rgb, 1 / noise feature size
 //  3: fog fill rgb (light it scatters from everywhere), on
-//  4: wind xyz (world units per second), -
+//  4: wind xyz (world units per second), w the first volume the haze passes include (the ones before it
+//     are drawn by their own renderer, fog_volume.glsl: atmosphere.cpp pc_fog_volume_render)
 //  5: rgb the sky's light where nothing traces it (mean radiance, half blocked: in-scattered
 //     everywhere; 0 in the traced haze, which samples the sky with occlusion), w its strength
 //  6, 7: the room's bounds (haze and ground fog fill them only)
@@ -44,7 +45,9 @@
 float medium_haze() { return MEDIUM(0).x; }
 float medium_g() { return MEDIUM(0).y; }
 int medium_volume_count() { return int(MEDIUM(0).w + 0.5); }
-bool medium_on() { return MEDIUM(0).x > 0.0 || MEDIUM(1).x > 0.0 || MEDIUM(0).w > 0.5; }
+// The first volume the haze passes include (the ones before it have their own renderer).
+int medium_volume_first() { return int(MEDIUM(4).w + 0.5); }
+bool medium_on() { return MEDIUM(0).x > 0.0 || MEDIUM(1).x > 0.0 || MEDIUM(0).w > MEDIUM(4).w + 0.5; }
 // Henyey-Greenstein phase function times 4 pi (1 for isotropic scattering),
 // at most the record's cap: looking toward the moon through forward-
 // scattering haze must not blow out the picture.
@@ -179,8 +182,8 @@ float medium_detail_tex(vec3 q, int channel) {
 // flow (world x, z units per second) as a flow map does: two samples
 // advected over staggered 2.5 s cycles, cross-faded, so the billows follow
 // the wake and the swirls without stretching forever.
-float medium_detail(vec3 x, vec2 flow) {
-    float s = MEDIUM(MEDIUM_DETAIL).x, time = MEDIUM(0).z;
+float medium_detail_s(vec3 x, vec2 flow, float s) {
+    float time = MEDIUM(0).z;
     vec3 q = (x - MEDIUM(4).xyz * time * 1.3) * s * vec3(1.0, 2.0, 1.0) + vec3(0.0, 0.0, time * 0.01);
     if (dot(flow, flow) < 0.25) return medium_detail_tex(q, 0);
     const float cycle = 2.5;
@@ -189,6 +192,7 @@ float medium_detail(vec3 x, vec2 flow) {
     float a = medium_detail_tex(q - f * p0, 0), b = medium_detail_tex(q - f * p1, 1);
     return mix(a, b, abs(2.0 * p0 - 1.0));
 }
+float medium_detail(vec3 x, vec2 flow) { return medium_detail_s(x, flow, MEDIUM(MEDIUM_DETAIL).x); }
 #endif
 // A value 0..1 (a soft edge's, a cleared footprint's) eroded by the detail
 // noise d (0..1) where it is in between: fine wisps on a coarse shape.
@@ -277,7 +281,7 @@ float medium_at(vec3 x, out vec3 scatter, out vec3 emit) {
         }
     }
     int count = medium_volume_count();
-    for (int i = 0; i < count && i < MEDIUM_VOLUMES; i++) {
+    for (int i = medium_volume_first(); i < count && i < MEDIUM_VOLUMES; i++) {
         float d = medium_volume(i, x, n);
         if (d <= 0.0) continue;
         int b = MEDIUM_VOLUME_BASE + 5 * i;
@@ -301,7 +305,7 @@ vec2 medium_span(vec3 origin, vec3 direction, float len) {
         if (b > a) { enter = a; leave = b; }
     }
     int count = medium_volume_count();
-    for (int i = 0; i < count && i < MEDIUM_VOLUMES; i++) {
+    for (int i = medium_volume_first(); i < count && i < MEDIUM_VOLUMES; i++) {
         int b_ = MEDIUM_VOLUME_BASE + 5 * i;
         float r = length(MEDIUM(b_ + 1).xyz);
         vec3 t0 = (MEDIUM(b_).xyz - r - origin) * inv, t1 = (MEDIUM(b_).xyz + r - origin) * inv;
@@ -319,7 +323,7 @@ float medium_ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.0671105
 bool medium_maybe(vec3 x) {
     if (medium_in_room(x) && (MEDIUM(0).x > 0.0 || medium_fog_base(x) * (1.0 + MEDIUM(1).w) > 1e-7)) return true;
     int count = medium_volume_count();
-    for (int i = 0; i < count && i < MEDIUM_VOLUMES; i++) {
+    for (int i = medium_volume_first(); i < count && i < MEDIUM_VOLUMES; i++) {
         int b = MEDIUM_VOLUME_BASE + 5 * i;
         vec3 r = abs(x - MEDIUM(b).xyz);
         float reach = length(MEDIUM(b + 1).xyz);

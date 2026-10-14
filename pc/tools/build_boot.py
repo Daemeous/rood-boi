@@ -580,6 +580,9 @@ if battle:
         ("pc/src/ui/abilities_bridge.c", "ui_abilities_bridge"),
         ("pc/src/ui/magick_bridge.c", "ui_magick_bridge"),
         ("pc/src/ui/items_bridge.c", "ui_items_bridge"),
+        ("pc/src/ui/inventory_ops.c", "ui_inventory_ops"),
+        ("pc/src/ui/loot_bridge.c", "ui_loot_bridge"),
+        ("pc/src/ui/workshop_bridge.c", "ui_workshop_bridge"),
         ("pc/src/ui/game_options.c", "ui_game_options"),
     ]
     sources += [
@@ -748,7 +751,7 @@ for name in ["runtime", "window", "controller", "gamepad"]:
             and name in STATE_HOST_UNITS:
         state_sections(obj)
     objects.append(obj)
-for name in ["audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "room_catalog", "ui/item_names", "snapshot"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []):
+for name in ["audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "ui/item_names", "snapshot"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []):
     obj = out / (name.replace("/", "_") + ".o")
     # ui_text rasterizes fonts with the stb_truetype that Dear ImGui vendors.
     extra = ["-Ipc/third_party/imgui"] if name == "ui_text" else []
@@ -845,6 +848,10 @@ for source in [
     root / "pc/src/ui/ui_abilities_draw.cpp",
     root / "pc/src/ui/ui_magick_draw.cpp",
     root / "pc/src/ui/ui_items_draw.cpp",
+    root / "pc/src/ui/ui_loot.cpp",
+    root / "pc/src/ui/ui_loot_draw.cpp",
+    root / "pc/src/ui/ui_workshop.cpp",
+    root / "pc/src/ui/ui_workshop_draw.cpp",
     root / "pc/src/prompt_glyphs.cpp",
 ] + ([imgui / "backends/imgui_impl_vulkan.cpp", root / "pc/src/vk_overlay.cpp"] if arch64 else []):
     obj = out / ("imgui_" + source.stem + ".o")

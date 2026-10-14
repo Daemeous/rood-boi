@@ -626,6 +626,9 @@ static uint16_t texture(int u, int v, unsigned clut)
     }
     return vram[((clut >> 6) & 511) * 1024 + (((clut & 63) * 16 + val) & 1023)];
 }
+/* The command word of the sprite or polygon the hardware path is being
+ * handed (gpu_hw.c: which game string a glyph belongs to, ui_text.c). */
+const void* pc_gpu_command;
 #include "boot_polygons.inc"
 #include "boot_lines.inc"
 
@@ -751,8 +754,10 @@ static void commands(uint32_t* p, unsigned n)
                 pc_hw_set_2d(1); /* sprites and tiles are screen-space */
                 int texels[4] = { (int)(uv & 255), (int)((uv >> 8) & 255), (int)(uv & 255) + (int)w - 1, (int)((uv >> 8) & 255) + (int)h - 1 };
                 pc_hw_set_bounds(x, y, x + (int)w, y + (int)h, code, tpage, tex ? texels : NULL, clip);
+                pc_gpu_command = p + i;
                 pc_hw_rect(x, y, (int)w, (int)h, uv & 255, (uv >> 8) & 255, p[i] & 0xffffff, code,
                     tpage, uv >> 16, texture_window, clip, mask_set, mask_check);
+                pc_gpu_command = NULL;
                 pc_hw_mark(x, y, x + (int)w - 1, y + (int)h - 1);
             }
             for (unsigned yy = 0; yy < h; yy++)

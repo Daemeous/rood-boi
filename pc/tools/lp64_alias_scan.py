@@ -46,6 +46,30 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 # (member import, reason). Reviewed hazards that cannot misbehave.
 BENIGN = {}
 
+# (member import, container import): reason. Reviewed REVIEW findings: both
+# names stay at the PS1 address (the same bytes on every build) and the member
+# is a deliberate wider view of the container's data, not a wrong declaration
+# (wrong declarations are fixed instead; pc/docs/LP64_Audit.md, "Import
+# aliases"). Only REVIEWs are silenced: a HAZARD for the pair still reports.
+REVIEWED = {
+    ("D_8005046C", "D_80050468"):
+        "5BF94.c passes the battle timer's frames/seconds/minutes/hours bytes to _renderTimer(int*) "
+        "as one word; plain bytes, no pointers",
+    ("_dsControlBuf", "vs_main_disk"):
+        "the DslSetmode parameter: main.c stores the mode in vs_main_disk.cdLoc.minute and passes "
+        "_dsControlBuf (that byte) to DsControlB, which reads only param[0] (pc/src/cd_drive.c)",
+    ("D_800F18C8", "_zoneContext"):
+        "146C.c's view of _zoneContext+0x48..0x5f: shorts over unk48..unk54, unk10/unk14 over "
+        "mpdCdFile/mpdData (4-byte psx_ptr); its only pointer-field write is unk14 = 0 (mpdData = NULL "
+        "after the free)",
+    ("D_800F4438", "D_800F2458"):
+        "the shared scale VECTOR after the 63 bone matrices (D_800F3C58[63]); 30DB0.c's "
+        "D_800F2458.unk1FE0 is the low half of its vx (a u_short load that matches); no pointers",
+    ("D_800F5234", "D_800F5230"):
+        "func_800CEF74 only takes its address and +0xc; func_800CE714 reads the 12-byte records there "
+        "(bytes 0x4..0x1b of the effect parameter block D_800F5230); no pointers are read through it",
+}
+
 # Containers whose declaration is larger than the data the game addresses
 # through them: (PS1 extent in bytes, reason).
 EXTENTS = {
@@ -149,13 +173,16 @@ def scan(imports, review=False):
                         severity = "REVIEW"
                 if not severity:
                     continue
+                reason = None
                 if severity == "HAZARD" and member in BENIGN:
-                    severity, why = "benign", BENIGN[member]
+                    severity, reason = "benign", BENIGN[member]
+                elif severity == "REVIEW" and (member, container) in REVIEWED:
+                    severity, reason = "benign", REVIEWED[member, container]
                 if severity == "REVIEW" and not review:
                     continue
                 findings.append({
                     "severity": severity, "member": member, "container": container, "offset": offset,
-                    "where": where, "why": why, "group": group or "main",
+                    "where": where, "why": why, "benign_reason": reason, "group": group or "main",
                     "member_types": declared_types(other), "container_types": declared_types(entry),
                     "objects": sorted({d["object"] for d in other["declarations"]}),
                 })
@@ -178,8 +205,13 @@ def main():
     order = {"HAZARD": 0, "REVIEW": 1, "benign": 2}
     for f in sorted(findings, key=lambda f: (order[f["severity"]], f["container"], f["offset"])):
         print(f"{f['severity']:6} {f['member']} = {f['where']} [{f['group']}]: {f['why']}")
+        if f["benign_reason"]:
+            print(f"       reviewed: {f['benign_reason']}")
         print(f"       {f['member']}: {', '.join(f['member_types'])} in {', '.join(f['objects'])}")
         print(f"       {f['container']}: {', '.join(f['container_types'])}")
+    seen = {(f["member"], f["container"]) for f in findings}
+    for member, container in sorted(set(REVIEWED) - seen):
+        print(f"note: REVIEWED entry {member} in {container} no longer matches a finding: remove it")
     counts = {k: sum(f["severity"] == k for f in findings) for k in order}
     print(f"lp64_alias_scan: {len(imports)} data imports; HAZARD {counts['HAZARD']}"
           + (f", REVIEW {counts['REVIEW']}" if args.review else "") + f", benign {counts['benign']}")

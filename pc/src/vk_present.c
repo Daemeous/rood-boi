@@ -46,6 +46,7 @@ extern void pc_settings_env_override(const char* key) __attribute__((weak)); /* 
 extern void pc_overlay_frame(int, int);
 extern int pc_overlay_active(void) __attribute__((weak));
 extern void pc_vk_overlay_render(VkCommandBuffer cmd);
+extern void pc_hw_text_overlay(int view_x, int view_y, int view_w, int view_h, int to_view);
 extern int pc_lights_view(float (*)[4], float (*)[4], float (*)[4], float (*)[4], int*, float (*)[4], float (*)[4],
     int);
 extern int pc_scene_camera_get(float (*)[3], float*, float*, float*, float*);
@@ -55,6 +56,9 @@ extern int pc_scene_projection(float*, float*, float*);
 extern int pc_vk_gi_update(int x, int y, int w, int h, int replay) __attribute__((weak));
 extern void pc_vk_gi_bind(VkImageView views[4], int* w, int* h, float lo[3], float hi[3]) __attribute__((weak));
 extern int pc_vk_haze_bind(VkImageView* view, int grid[4], float range[2]) __attribute__((weak));
+/* The fog volumes' own renderer (vk_fogvol.inc): its passes for this frame, then its result. */
+extern int pc_vk_fogvol_update(int x, int y, int w, int h, int replay, int traced) __attribute__((weak));
+extern int pc_vk_fogvol_bind(VkImageView* light, VkImageView* aux, int size[2], float scale[2]) __attribute__((weak));
 /* Probe GI (vk_probes.inc): update the field before the present pass (1: sample it per pixel, 2: it
  * went into the traced GI result); bind it (bindings 12-15). */
 extern int pc_vk_probes_update(int x, int y, int w, int h, int replay) __attribute__((weak));
@@ -123,6 +127,8 @@ typedef struct {
     int env_mode[4]; /* the sun's shadows (-2 traced, 0 its shadow map, -1 none), the sky's ambient term, any on */
     float sun_matrix[16], sun_light[4], sun_tile[4]; /* its shadow map (vk_shadows.c) */
     pc_medium_gpu medium; /* the unshadowed haze (haze Low): the room's medium (medium.glsl) */
+    int fogvol[4]; /* the fog volumes' renderer (vk_fogvol.inc): its image's size, on, the debug view */
+    float fogvol_scale[4]; /* its pixels per display pixel */
 } present_ubo;
 
 /* ---- swapchain ---- */
@@ -239,12 +245,13 @@ static VkPipeline fullscreen(VkShaderModule vs, VkShaderModule fs, VkPipelineLay
 }
 static int make_pipelines(void)
 {
-    VkDescriptorType scaled_types[18]; /* 12-15: the probe field (vk_probes.inc); 16: the lights; 17: the medium's texture */
-    for (int i = 0; i < 18; i++)
+    /* 12-15: the probe field (vk_probes.inc); 16: the lights; 17: the medium's texture; 18, 19: the fog volumes */
+    VkDescriptorType scaled_types[20];
+    for (int i = 0; i < 20; i++)
         scaled_types[i] = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     scaled_types[0] = scaled_types[12] = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     scaled_types[16] = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    scaled_set = vk_push_layout(scaled_types, 18);
+    scaled_set = vk_push_layout(scaled_types, 20);
     single_set = vk_push_layout(&scaled_types[1], 1);
     triple_set = vk_push_layout(&scaled_types[1], 3);
     scaled_layout = make_layout(scaled_set, 0);
@@ -871,6 +878,7 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             int probes = !pc_gl_show_depth && pc_vk_probes_update ? pc_vk_probes_update(x, y, w, h, replay) : 0;
             if (probes == 3) /* the field at GI resolution, in place of a traced result */
                 pc_vk_probes_gi_bind(gi_views, &gi_w, &gi_h);
+            int fogvol = !pc_gl_show_depth && pc_vk_fogvol_update ? pc_vk_fogvol_update(x, y, w, h, replay, gi) : 0;
             /* The post chain (antialias.h): the lit image -> [FXAA | SMAA] -> [depth of field blur]
              * -> [supersampling's downsample] -> the window. The lit image is view-sized, or with
              * supersampling as large as the display area at the internal resolution. */
@@ -944,6 +952,12 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             vk_descriptors_buffer(&d, 16, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, light_slice.buffer, light_slice.offset,
                 light_bytes);
             vk_descriptors_image(&d, 17, medium_view, vk.linear);
+            VkImageView fogvol_light = vk_hw.dummy_color.view, fogvol_aux = vk_hw.dummy_color.view;
+            if (fogvol && pc_vk_fogvol_bind(&fogvol_light, &fogvol_aux, pu->fogvol, pu->fogvol_scale))
+                pu->fogvol[2] = 1;
+            pu->fogvol[3] = pc_gl_show_depth ? 0 : pc_fog_volume_debug; /* (nothing drawn: black, clear) */
+            vk_descriptors_image(&d, 18, fogvol_light, vk.nearest);
+            vk_descriptors_image(&d, 19, fogvol_aux, vk.nearest);
             vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, scaled_layout);
             vkCmdDraw(cmd, 3, 1, 0, 0);
             if (post != PC_AA_OFF)
@@ -1040,6 +1054,13 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
                     sizeof push, &push);
                 vkCmdDraw(cmd, 3, 1, 0, 0);
             }
+            /* Text held back for the window's resolution (gpu_hw.c ui_text_overlay), over the picture, before
+             * the brightness curve (into the chain's last image, its view as the viewport). */
+            if (brightness_stage)
+                begin_single(&brightness_input.image, 0, 0, view_w, view_h);
+            else
+                begin_single(&window_image, view_x, view_y, view_w, view_h);
+            pc_hw_text_overlay(view_x, view_y, view_w, view_h, brightness_stage);
         } else {
             /* Native VRAM: upload it whole (as the GL path does each frame). */
             vk_slice staging = vk_arena(1024 * 512 * 2, 16);
