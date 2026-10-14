@@ -541,10 +541,13 @@ static void _updateWeaponDrawn(vs_battle_actor* callo)
 
 /* --- Her animations ---------------------------------------------------------------------------
  * A jump asks for Ashley's common-set slots (take-off 47, mid-air 48, apex 49, falling 50,
- * landing 51), but her set is laid out differently: she has nothing in 47, 48 and 50 (she kept
- * her idle pose in the air), and her 51 is an exaggerated hit reaction (an upper-body flip on
- * landing). Give her own mid-air (21) and falling (22) poses, and land in her idle (1); 51 only
- * right after a jump, as other code may use her 51 for that hit reaction. */
+ * landing 51), single-frame poses all, but her set is laid out differently: she has nothing in
+ * 47, 48 and 50 (she kept her idle pose in the air), her 49 is a 17-frame animation and her 51 an
+ * exaggerated hit reaction (an upper-body flip on landing), and the jump code reads whatever it
+ * gets as a one-frame pose (multi-frame ones fling her limbs about). Her own one-frame poses,
+ * matched by eye in the viewer: take-off 23 (anim 8), mid-air 21 (6), apex 26 (10), falling 22
+ * (7), landing 24 (9). 49 and 51 only right after the jump's own slots, as other code may use
+ * her animations there. */
 static u_char _lastAnimSlot;
 
 int vs_mod_animSlot(void* actor, int id)
@@ -558,13 +561,19 @@ int vs_mod_animSlot(void* actor, int id)
     _lastAnimSlot = id;
     switch (id) {
     case 47:
+        return 23; /* take-off */
     case 48:
-        return 21;
+        return 21; /* mid-air */
+    case 49:
+        if ((last == 47) || (last == 48)) {
+            return 26; /* apex */
+        }
+        break;
     case 50:
-        return 22;
+        return 22; /* fall */
     case 51:
         if ((last >= 47) && (last <= 50)) {
-            return 1;
+            return 24; /* landing */
         }
         break;
     }
