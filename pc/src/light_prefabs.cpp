@@ -1033,7 +1033,7 @@ bool Library::save_user(const std::string& id, const Json& json, std::string* er
     std::string text = json_write(json) + "\n";
     fwrite(text.data(), 1, text.size(), f);
     fclose(f);
-    if (rename(temp.c_str(), path.c_str())) {
+    if (pc_replace_file(temp.c_str(), path.c_str())) {
         if (error)
             *error = "cannot write " + path + ": " + strerror(errno);
         return false;
@@ -1046,7 +1046,7 @@ bool Library::revert_user(const std::string& id, std::string* error)
 {
     configure(*this);
     std::string path = user_dir + "/" + id + ".json";
-    if (rename(path.c_str(), (path + ".bak").c_str())) {
+    if (pc_replace_file(path.c_str(), (path + ".bak").c_str())) {
         if (error)
             *error = "cannot move " + path + " aside: " + strerror(errno);
         return false;
