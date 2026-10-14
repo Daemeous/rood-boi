@@ -578,13 +578,17 @@ void _setSpellChosen(int index, int chosen)
     }
 }
 
+/* Only spells Ashley has learned count towards her limit: the MAGIC menu lists only those, so
+ * a chosen spell he hasn't learned yet (the defaults, early on) could never be taken off. */
 int _chosenSpellCount(void)
 {
     int count = 0;
     int i;
 
     for (i = 0; i < SPELL_COUNT; ++i) {
-        count += _spellChosen(i);
+        if (_spellChosen(i) && ACTION_UNLOCKED(_spellId(i))) {
+            ++count;
+        }
     }
     return count;
 }
