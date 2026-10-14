@@ -30,17 +30,29 @@ vs_battle_actor* _calloActor(void)
  * copied back to the inventory when the menu opens (vs_mainMenu_initInventory). Do the same
  * for her, but only where the inventory slot still holds that item per her loadout: her items
  * can be dropped or disassembled while she wears them, and the slot reused. */
-/* A workshop repair raises the inventory copy's DP/PP while she wears the item; durability only
- * goes up that way, so a higher inventory value is a repair: take it, before the copy below
- * would put her worn value back over it. */
-static void _pullRepair(u_short* live, u_short* liveTotal, u_short inventory)
+/* A workshop repair changes the inventory copy's DP/PP while she wears the item. What this
+ * function last wrote there is remembered: if the inventory value has changed since, it was
+ * changed outside (a repair), so she takes it before the copy below would put her worn value
+ * back over it. Otherwise her values win (wear and PP use in battle). */
+enum { SAVED_BLADE_DP, SAVED_BLADE_PP, SAVED_SHIELD_DP, SAVED_SHIELD_PP, SAVED_ARMOR_DP };
+static u_short _savedDurability[SAVED_ARMOR_DP + 6] = { 0 }; /* initialised: .data, aligned (see callo.c) */
+static u_char _savedValid[SAVED_ARMOR_DP + 6];
+
+static void _pullRepair(int which, u_short* live, u_short* liveTotal, u_short* inventory)
 {
-    if (inventory > *live) {
-        *live = inventory;
+    if (_savedValid[which] && (*inventory != _savedDurability[which])) {
+        *live = *inventory;
+        if (liveTotal != NULL) {
+            *liveTotal = *inventory;
+        }
     }
-    if ((liveTotal != NULL) && (inventory > *liveTotal)) {
-        *liveTotal = inventory;
-    }
+}
+
+/* After the copy: what the inventory now holds */
+static void _noteSaved(int which, u_short value)
+{
+    _savedDurability[which] = value;
+    _savedValid[which] = 1;
 }
 
 void _saveCalloGear(vs_battle_actor* callo)
@@ -60,29 +72,34 @@ void _saveCalloGear(vs_battle_actor* callo)
         weapon = &vs_main_inventory.weapons[slot - 1];
         if ((weapon->blade != 0)
             && (vs_main_inventory.blades[weapon->blade - 1].id == stats->weapon.blade.id)) {
-            _pullRepair(&stats->weapon.blade.currentDp, &stats->weapon.currentDp,
-                vs_main_inventory.blades[weapon->blade - 1].currentDp);
-            _pullRepair(&stats->weapon.blade.currentPp, &stats->weapon.currentPp,
-                vs_main_inventory.blades[weapon->blade - 1].currentPp);
+            _pullRepair(SAVED_BLADE_DP, &stats->weapon.blade.currentDp, &stats->weapon.currentDp,
+                &vs_main_inventory.blades[weapon->blade - 1].currentDp);
+            _pullRepair(SAVED_BLADE_PP, &stats->weapon.blade.currentPp, &stats->weapon.currentPp,
+                &vs_main_inventory.blades[weapon->blade - 1].currentPp);
             vs_battle_copyUiWeaponStats(weapon, &stats->weapon);
+            _noteSaved(SAVED_BLADE_DP, vs_main_inventory.blades[weapon->blade - 1].currentDp);
+            _noteSaved(SAVED_BLADE_PP, vs_main_inventory.blades[weapon->blade - 1].currentPp);
         }
     }
     slot = stats->shield.index;
     if ((slot != 0) && (slot <= 8) && (loadout[loadoutShield] == slot)
         && (vs_main_inventory.shields[slot - 1].base.id == stats->shield.base.id)) {
-        _pullRepair(&stats->shield.base.currentDp, &stats->shield.currentDp,
-            vs_main_inventory.shields[slot - 1].base.currentDp);
-        _pullRepair(&stats->shield.base.currentPp, &stats->shield.currentPp,
-            vs_main_inventory.shields[slot - 1].base.currentPp);
+        _pullRepair(SAVED_SHIELD_DP, &stats->shield.base.currentDp, &stats->shield.currentDp,
+            &vs_main_inventory.shields[slot - 1].base.currentDp);
+        _pullRepair(SAVED_SHIELD_PP, &stats->shield.base.currentPp, &stats->shield.currentPp,
+            &vs_main_inventory.shields[slot - 1].base.currentPp);
         vs_battle_copyUiShieldStats(&vs_main_inventory.shields[slot - 1], &stats->shield);
+        _noteSaved(SAVED_SHIELD_DP, vs_main_inventory.shields[slot - 1].base.currentDp);
+        _noteSaved(SAVED_SHIELD_PP, vs_main_inventory.shields[slot - 1].base.currentPp);
     }
     for (i = 0; i < 6; ++i) {
         slot = stats->limbs[i].armor.index;
         if ((slot != 0) && (slot <= 16) && (loadout[loadoutArmor + i * 2] == slot)
             && (vs_main_inventory.armor[slot - 1].id == stats->limbs[i].armor.armor.id)) {
-            _pullRepair(&stats->limbs[i].armor.armor.currentDp, &stats->limbs[i].armor.currentDp,
-                vs_main_inventory.armor[slot - 1].currentDp);
+            _pullRepair(SAVED_ARMOR_DP + i, &stats->limbs[i].armor.armor.currentDp,
+                &stats->limbs[i].armor.currentDp, &vs_main_inventory.armor[slot - 1].currentDp);
             vs_battle_copyUiArmorStats(&vs_main_inventory.armor[slot - 1], &stats->limbs[i].armor);
+            _noteSaved(SAVED_ARMOR_DP + i, vs_main_inventory.armor[slot - 1].currentDp);
         }
     }
     slot = stats->accessory.index;
