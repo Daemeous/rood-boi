@@ -60,6 +60,9 @@ extern u_char _awayForScene; /* merlose.h */
  * packs uninitialised (.bss) statics byte by byte, as ASPSX did, so an int there can land on
  * an odd address (DuckStation then rounds the access down onto a neighbouring variable). */
 int _calloSlot = 0; /* where she last spawned (0: not yet) */
+/* The room loaded during the prologue: the Wine Cellar's first room sets the flag in its
+ * opening scene, after the load, so she joins there once it is set (vs_mod_frame). */
+u_char _lateJoin;
 
 void vs_mod_spawnCallo(void)
 {
@@ -73,7 +76,12 @@ void vs_mod_spawnCallo(void)
     vs_main_inventoryBlade* blade;
     vs_main_inventoryShield* shield;
 
-    if ((vs_battle_getStateFlag(PROGRESS_FLAG) < PROLOGUE_OVER) || _awayForScene) {
+    _lateJoin = 0;
+    if (vs_battle_getStateFlag(PROGRESS_FLAG) < PROLOGUE_OVER) {
+        _lateJoin = 1;
+        return;
+    }
+    if (_awayForScene) {
         return;
     }
 
