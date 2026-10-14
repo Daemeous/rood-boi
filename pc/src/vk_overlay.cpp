@@ -36,6 +36,7 @@ extern "C" int pc_vk_overlay_init(void)
     info.Device = vk.device;
     info.QueueFamily = vk.queue_family;
     info.Queue = vk.queue;
+    info.PipelineCache = vk.pipeline_cache; /* persisted between runs (vk_core.c) */
     info.DescriptorPoolSize = 64;
     info.MinImageCount = 2;
     info.ImageCount = VK_FRAMES + 1;

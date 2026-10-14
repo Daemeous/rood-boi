@@ -725,6 +725,7 @@ static void camera_stick_panel()
 }
 
 extern "C" int pc_qol_weapon_slots; /* project_settings.cpp; weapon_slots.c */
+extern "C" int pc_skip_intro;       /* project_settings.cpp; boot_runtime.c */
 /* Graphics > Gameplay: optional gameplay changes, all off by default. */
 static void gameplay_panel()
 {
@@ -737,6 +738,12 @@ static void gameplay_panel()
                           "Select: assign mode (the next slot button stores the equipped weapon there);\n"
                           "Start: the equipped shield into every one-handed slot; R2 + Select: store / remove.\n"
                           "Slots are saved in the same bytes as the mod, so memory cards stay interchangeable.");
+    bool skip = pc_skip_intro != 0;
+    if (ImGui::Checkbox("Skip intro (from the next start)", &skip))
+        pc_skip_intro = skip;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Start at the title without the publisher and developer logos and the opening movie\n"
+                          "(settings skip_intro). Later titles, such as after the idle demo, play as the original.");
 }
 
 extern "C" void pc_post_panel(void); /* post_profile.cpp */

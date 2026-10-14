@@ -3612,6 +3612,15 @@ static void _displayPublisherAndDeveloper()
     int var_a3_2;
     int i;
 
+#ifdef ROOD_PC_BOOT_DIAGNOSTIC
+    {
+        extern int pc_skip_logos;
+        if (pc_skip_logos) {
+            return;
+        }
+    }
+#endif
+
     setRECT(&rect, 0, 0, 320, 512);
     ClearImage(&rect, 0, 0, 0);
     _drawImage(vs_getXY(320, 64), publisher_clut, vs_getWH(16, 1));

@@ -1600,6 +1600,11 @@ static void handle_method(int fd, const char* request)
             pc_ui_text_setting("ui_text_layout", style);
         if (params && string_value(member(params, "bubble_align"), style, sizeof style))
             pc_ui_text_setting("ui_text_bubble_align", style);
+        {
+            int forget = 0;
+            if (params && bool_value(member(params, "forget_signs"), &forget) && forget)
+                pc_ui_text_forget_signs();
+        }
         /* {lines: PATH}: the lines laid out in the newest frame that drew
          * text (ui_text_layout line), as JSON into PATH. Tests. */
         long lines_bytes = -1;

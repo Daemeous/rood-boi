@@ -2095,12 +2095,15 @@ pc/run-game.sh
 python3 pc/tests/new_game_smoke.py --frames 4000 --advance-dialogue
 ```
 
-The launcher builds the battle-capable diagnostic (`--no-build` skips that)
+The launcher builds the battle-capable diagnostic (`--no-build` skips that;
+the build does nothing when nothing changed, `pc/tools/build_cache.py`)
 and opens the original title, on the NVIDIA GPU when there is one (PRIME
 offload; `ROOD_GPU=integrated` keeps the default GPU) with path-traced
 lighting on (`ROOD_GI=0` turns it off).
 Enter selects New Game; `z` is Circle/confirm and `x` is Cross. The launcher
-plays the intro movie (pass `--skip-movies` to skip it). The smoke-test option sends ordinary confirm input after each
+plays the intro movie (pass `--skip-movies` to skip it; the `skip_intro 1`
+setting, System > Gameplay > Skip intro, also skips the publisher and
+developer logos before the first title). The smoke-test option sends ordinary confirm input after each
 300-frame marker, allowing dialogue to advance without rewriting script state.
 
 SCREFF2 now has overlay-specific native function names, its original C tile and

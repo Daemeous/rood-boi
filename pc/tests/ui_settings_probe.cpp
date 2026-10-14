@@ -77,7 +77,7 @@ static void pages()
     CHECK(pc_ui_settings_rows(I) == 10);
     CHECK(pc_ui_settings_rows(C) == (game ? 14 : 13));
     CHECK(pc_ui_settings_rows(B) == 17);
-    CHECK(pc_ui_settings_rows(P) == (game ? 10 : 3));
+    CHECK(pc_ui_settings_rows(P) == (game ? 11 : 4));
     CHECK(pc_ui_settings_rows(-1) == 0 && pc_ui_settings_rows(7) == 0);
     pc_ui_setting_row r;
     CHECK(!pc_ui_settings_row(G, 99, &r));

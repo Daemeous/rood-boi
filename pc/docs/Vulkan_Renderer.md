@@ -16,12 +16,23 @@ default and unchanged until Vulkan has been playtested.
 | `ROOD_VK_VALIDATE=1` | Khronos validation layer (needs `VK_LAYER_PATH`; messages as `[vk] validation:`) |
 | `ROOD_VK_HEADLESS=1` | render offscreen even with a window system (the SDL offscreen driver always does) |
 | `ROOD_PERF=1` | adds `[perf] Vulkan GPU time per presented frame` (timestamps) |
+| `ROOD_VK_PIPELINE_CACHE=path` | the pipeline cache file (default `$XDG_CACHE_HOME` or `~/.cache`, `%LOCALAPPDATA%` on Windows: `rood-boi/vulkan-pipelines-<vendor>-<device>.bin`); `0` for none |
 | `ROOD_NRD=off` / `build_boot.py --arch 64 --nrd off` | build without NVIDIA NRD (see "NRD") |
 
 ## Architecture
 
 The Vulkan path reuses everything above the GL calls. Files:
 
+- Pipeline cache (`vk_core.c`): every pipeline (ours, NRD's, the overlay's)
+  is created through one `VkPipelineCache` whose data is kept between runs
+  (see `ROOD_VK_PIPELINE_CACHE`). The data's header (vendor, device, the
+  driver's cache UUID) is checked before use; a new driver version or shader
+  set (`VK_SHADERS_DIGEST`, `vk_shaders_digest.h` from `vk_shaders.py`)
+  starts it afresh. It is saved 120 frames after the last new pipeline, and
+  only when it grew. Without it (or the driver's own disk cache), a start
+  compiles about 2.4 s of pipelines before the first frame and 0.8 s more on
+  entering the first room (NRD, GI); with it, none. Pipelines that still
+  compile after the first frame log `[vk] pipeline created after frame N`.
 - `vk_core.c/.h`: Vulkan loaded through SDL (`SDL_Vulkan_GetVkGetInstanceProcAddr`,
   no link against libvulkan; SDL is built with `SDL_VULKAN` on for 64 bits),
   instance/device (1.3: dynamic rendering, synchronization2, push descriptors,

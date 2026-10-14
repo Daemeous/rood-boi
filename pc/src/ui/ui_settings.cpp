@@ -32,6 +32,7 @@ int pc_hw_set_scale(int scale);
 extern int pc_env_global;        /* environment.cpp: the rooms' sun and sky */
 extern int pc_lights_enabled;    /* lights.cpp: dynamic lights (lighting key dynamic_lights) */
 extern int pc_qol_weapon_slots;  /* project_settings.cpp; weapon_slots.c */
+extern int pc_skip_intro;        /* project_settings.cpp; boot_runtime.c */
 extern int pc_ui_menus;          /* project_settings.cpp; ui_shell */
 void pc_settings_save(void);
 void pc_settings_touched(const char* key) __attribute__((weak)); /* project_settings.cpp: the user's now */
@@ -496,6 +497,8 @@ void build()
                             return why;
                         return pc_gameplay_walls ? nullptr : "Needs Smart cutaway walls";
                     }));
+    p.push_back(toggle("skip_intro", "Skip intro",
+        "Start at the title, without the logos and the opening movie. From the next start.", &pc_skip_intro));
     p.push_back(game_option("map", "Map", "The small map in the corner: framed, plain or hidden. Saved with your game, not in settings.",
         PC_GAME_OPT_MAP, map, 3));
     p.push_back(game_option("ability_timing", "Ability timing",

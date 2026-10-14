@@ -96,7 +96,13 @@ def main():
           "synthetic: a REVIEWED pair is benign, a REVIEWED HAZARD still reports", failures)
 
     path = ROOT / args.build / "lp64_imports.json"
-    if path.exists():
+    # A 64-bit build older than the sources (a 32-bit suite run before the
+    # 64-bit rebuild) describes other code: skip the real-build half.
+    newest = max((q.stat().st_mtime for d in ("src", "include", "pc/src") for q in (ROOT / d).rglob("*.[ch]")),
+                 default=0)
+    if path.exists() and path.stat().st_mtime < newest:
+        print(f"skip {path} is older than the sources (rebuild with build_boot.py --arch 64)")
+    elif path.exists():
         imports = json.loads(path.read_text())
         findings = lp64_alias_scan.scan(imports, review=True)
         real = [f for f in findings if f["severity"] == "HAZARD"]

@@ -15,6 +15,11 @@ holds a generated and an authored layer for two rooms, then:
   there saves to the user layer (version 2, the diff from the packs),
   revert and Promote work;
 - return to the save room ends the warped state;
+- warps with the room's scripts and no enemies into rooms whose entry
+  event moves an enemy (13/4, 48/15, 49/2, 49/5): the enemies spawn benched
+  (hidden, out of the fight) and the event runs to its end;
+- a warp without the room's scripts still keeps its door scripts: 13/6's
+  rusted door answers Cross with its own event;
 - a warp with the room's scripts into zone 32 room 0: its entry event
   moves on to room 1 (an animation whose event SEQ the script unloaded);
 - no crash.
@@ -40,6 +45,11 @@ GENERATED = """rood-lighting 2
 actor gen.candle.0001 prefab=candle pos={x},{y},{z} seed=3
 light gen.lamp.0001 pos={x},{y},{z} intensity=0.8 radius=900
 """
+# Rooms whose entry event moves an enemy (scripts on, enemies off crashed).
+SCRIPTED_ENEMY_ROOMS = ((13, 4), (48, 15), (49, 2), (49, 5))
+# Zone 13 room 6: the rusted door (cell 4, 15; a door script) and the cell
+# in front of it, facing it (x, y, z, facing).
+RUSTED_DOOR_FRONT = (4, 0, 14, 2)
 AUTHORED = """rood-lighting 2
 # test: an authored layer (this comment stays when promoting)
 override light:gen.lamp.0001 intensity=1.6
@@ -249,6 +259,57 @@ def main():
         check((st["zone"], st["room"]) == home and not status["warped"], f"Return goes home and ends the warped state ({status})")
         check(game.call("scene")["triangles"] > 0, "the home room renders")
         evidence("room-browser-home")
+
+        # Room scripts on, enemies off: the rooms whose entry event moves an
+        # enemy (the Ghost in 13/4, ...). The enemies spawn, so the script
+        # finds them (it used to dereference a NULL actor: func_800A97EC,
+        # func_800A9988), and are benched: hidden, out of the fight.
+        ptr = 8 if os.environ.get("ROOD_ARCH") == "64" else 4
+        for where in SCRIPTED_ENEMY_ROOMS:
+            if where not in listed or not listed[where]["entries"]:
+                continue
+            seen = len(pathlib.Path(game.log).read_text(errors="replace"))
+            status, st = warp(*where, scripts=True, enemies=False)
+            arrived = st is not None and (st["zone"], st["room"]) == where
+            if arrived:
+                game.run(240)
+                st = game.state()
+            raw = game.read_symbol("vs_battle_actors", 16 * ptr)
+            slots = [j for j in range(2, 16) if int.from_bytes(raw[j * ptr:(j + 1) * ptr], "little")]
+            event = game.read_symbol("D_800F4C34", 1)[0]
+            new_log = pathlib.Path(game.log).read_text(errors="replace")[seen:]
+            check(arrived and (st["zone"], st["room"]) == where and event == 0 and slots and "benched" in new_log,
+                  f"scripts on, enemies off: zone {where[0]} room {where[1]}'s entry event runs to its end with "
+                  f"the enemies spawned and benched (slots {slots}, event state {event})")
+
+        # Scripts off keeps the door scripts (event id bit 0x8000): the
+        # rusted door in 13/6 still answers Cross with its own event
+        # (D_800F4BE0 2: a door-section script) instead of opening.
+        if (13, 6) in listed and listed[(13, 6)]["entries"]:
+            status, st = warp(13, 6, scripts=False, enemies=False, cell=list(RUSTED_DOOR_FRONT))
+            table = int.from_bytes(game.read_symbol("_mpdClearedSection", ptr), "little")
+            offsets = game.read(table, 32) if table else b""
+            kept = []
+            for k in range(16 if table else 0):
+                off = int.from_bytes(offsets[2 * k:2 * k + 2], "little")
+                if off == 0xFFFF:
+                    break
+                entry = game.read(table + off, 3)
+                kept.append(entry[1] | entry[2] << 8)
+            check(kept and all(e & 0x8000 for e in kept),
+                  f"scripts off: the trigger table keeps only door scripts ({[hex(e) for e in kept]})")
+            game.press("cross", vsyncs=4, settle=30)
+            event = game.read_symbol("D_800F4C34", 1)[0]
+            kind = int.from_bytes(game.read_symbol("D_800F4BE0", 2), "little")
+            st = game.state()
+            check(event != 0 and kind == 2 and (st["zone"], st["room"]) == (13, 6),
+                  f"the scripted door runs its door event (event state {event}, kind {kind})")
+            evidence("rusted-door")
+            for _ in range(10):  # its message: dismissed
+                if game.read_symbol("D_800F4C34", 1)[0] == 0:
+                    break
+                game.press("cross", vsyncs=4, settle=40)
+            check(game.read_symbol("D_800F4C34", 1)[0] == 0, "and its message closes")
 
         # A warp with the room's scripts: zone 32 room 0's entry event plays
         # an animation from its event SEQ, unloads that SEQ while Ashley still

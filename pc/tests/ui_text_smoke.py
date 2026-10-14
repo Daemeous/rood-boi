@@ -75,6 +75,11 @@ ui_text font, so nothing moves between the two images. Checks:
   small tolerance) of the width/height it has at aspect 1 (the font's own
   proportions), and neighbours at the game's advances (5 small, 6 large)
   never touch;
+- signs beside replaced text (RPC ui_text signs_drawn): the memory card
+  screens' (title and field) % and colons, drawn as the digits are, and
+  the equip screen's material letters are drawn from the font; the digits'
+  colon drawn alone (RPC ui_text render) is two dots, one above the other,
+  centred in and inside its 3 x 8 box;
 - settings: ui_text saves and loads (ROOD_SETTINGS); RPC ui_text style
   overrides apply;
 - no shader errors, Vulkan validation messages (ROOD_VK_VALIDATE where the
@@ -595,10 +600,12 @@ def run_screens(work, card, shots):
     game = launch(work, copy, "title", checkpoint="title")
     try:
         game.call("graphics", interpolate=False, aa="off")
+        game.call("ui_text", forget_signs=True)  # (only this screen's)
         game.press("start", vsyncs=4, settle=60)
         game.press("circle", vsyncs=4, settle=120)
         game.press("circle", vsyncs=4, settle=150)  # Continue > MEMORY CARD slot 1: its files
         check_printers(game, work, "title-load", shots)
+        check_signs(game, "title-load")
     finally:
         game.close()
     log_clean(game, "title")
@@ -611,6 +618,7 @@ def run_screens(work, card, shots):
             shutil.copyfile(card, copy)
             game = launch(work, copy, "screens", checkpoint="save_room")
             game.call("graphics", interpolate=False, aa="off")
+            game.call("ui_text", forget_signs=True)  # (only this screen's: not the boot's memory card screen)
         for step in steps:
             if step == "warp":
                 game.call("room_goto", zone=45, room=0)
@@ -626,6 +634,7 @@ def run_screens(work, card, shots):
             else:
                 game.press(step[0], vsyncs=3, settle=step[1])
         check_printers(game, work, name, shots)
+        check_signs(game, name)
     if game:
         game.close()
         log_clean(game, "screens")
@@ -730,6 +739,41 @@ def check_digits(game, work):
                   for a, b in zip(range(9), range(1, 10)))
         check(gap >= 1, f"digits {name}: neighbours at the game's advance {advance} never touch "
                         f"(narrowest gap {gap / factor:.2f} PS1 pixels)")
+
+
+# Signs beside replaced text, drawn from the font too (RPC ui_text signs_drawn): the memory card screens'
+# MAP:34% and times (the % from the info style's page, the colon from the digits'; both as the digits),
+# the equip screen's material letters (the card's Bronze, Wood and Leather).
+SIGNS = {"title-load": ":%", "load": ":%", "equip": "BWL"}
+
+
+def check_signs(game, name):
+    if name not in SIGNS:
+        return
+    drawn = game.call("ui_text")["signs_drawn"]
+    check(set(SIGNS[name]) == set(drawn),
+          f"{name}: these signs and only these drawn from the font as signs ({SIGNS[name]!r}: {drawn!r})")
+
+
+def check_colon_render(game, work):
+    """The digits' colon (3 x 8 at (248, 8)): two dots from the font, one
+    above the other, centred in the box, inside it."""
+    factor = 8
+    texels = render(game, work, (UI_PAGE, CLUT_DIGITS, 248, 8, 250, 15), factor)
+    if not check(texels is not None, "colon: drawn from the font"):
+        return
+    inside = bright(texels)
+    dots, count = ndimage.label(inside)
+    check(count == 2, f"colon: two dots ({count})")
+    if count != 2:
+        return
+    (ya, xa), (yb, xb) = ndimage.center_of_mass(inside, dots, [1, 2])
+    middle = texels.shape[1] / 2 - 0.5
+    check(abs(xa - middle) <= factor * 0.5 and abs(xb - middle) <= factor * 0.5 and abs(ya - yb) >= 2 * factor,
+          f"colon: the dots one above the other, centred ({xa / factor:.2f}, {xb / factor:.2f} of 3; "
+          f"{abs(ya - yb) / factor:.2f} apart)")
+    drawn = np.where(texels != 0)
+    check(drawn[0].min() > 0 and drawn[0].max() < texels.shape[0] - 1, "colon: inside its box")
 
 
 def check_label_render(game, work):
@@ -900,6 +944,7 @@ def run_save(work, card, shots):
             check("HP" in drawn and "MP" in drawn, f"save: HUD labels drawn from the font ({drawn})")
             check_digits(game, work)
             check_label_render(game, work)
+            check_colon_render(game, work)
             check_cross(game, work, shots)
             game.press("triangle", vsyncs=3, settle=60)
             game.press("circle", vsyncs=3, settle=60)

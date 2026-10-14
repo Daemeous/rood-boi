@@ -151,6 +151,8 @@ void pc_ui_text_settings_write(FILE* f);
 /* JSON object (RPC ui_text): option, styles, fonts loaded, glyphs cached,
  * regions drawn. */
 int pc_ui_text_json(char* out, int size);
+/* The json's signs_drawn starts again (RPC ui_text forget_signs: tests). */
+void pc_ui_text_forget_signs(void);
 typedef struct {
     long regions, failed; /* regions drawn from a font / that fell back to the original */
     long labels;          /* of those regions, fixed labels (text baked into images) */

@@ -127,6 +127,11 @@ def suites(args, mode="egl"):
               + (["--card", str(args.save)] if args.save.exists() else []), 300,
               note="character in-betweens: held poses, fast rotations, weapons in hand"),
         Suite("movie_smoke", [PY, str(TESTS / "movie_smoke.py")], 300),
+        Suite("skip_intro_smoke", [PY, str(TESTS / "skip_intro_smoke.py")], 300,
+              note="skip_intro 1: straight to the title (no logos, no movie), same title; off = the original start"),
+        Suite("build_noop_test", [PY, str(TESTS / "build_noop_test.py")], 120, binary=None,
+              note="build_boot.py: a second build with nothing changed does nothing (< 2 s); the build "
+                   "stamp and object cache notice edits, reverts, new files and option changes"),
         Suite("window_smoke", [PY, str(TESTS / "window_smoke.py")], 180, binary="rood_boot",
               note="X11 events on Xvfb"),
         Suite("room_smoke", [PY, str(TESTS / "room_smoke.py")], 120),
@@ -434,11 +439,13 @@ def run_suite(suite, index, args, mode, results, lock):
         **({"ROOD_TEST_SNAPSHOT_DIR": str(args.snapshot_dir)} if args.snapshot_dir else {"ROOD_TEST_SNAPSHOTS": "0"}),
         # llvmpipe (Xvfb, or EGL without a GPU) otherwise takes every core per game.
         LP_NUM_THREADS=os.environ.get("LP_NUM_THREADS", "4"),
+        # The Vulkan pipeline cache (vk_core.c) of the test runs, not the user's.
+        ROOD_VK_PIPELINE_CACHE=str(out.parent / "vk-pipelines.bin"),
     )
     for key in ("ROOD_EGL_DEVICE", "ROOD_NATIVE_ROOM", "ROOD_NATIVE_ACTORS", "ROOD_NATIVE_BLEND",
                 "ROOD_NATIVE_OBJECTS", "ROOD_NATIVE_SHADOWS", "ROOD_NATIVE_EFFECTS",
                 "ROOD_RECONSTRUCT", "ROOD_ARCH", "ROOD_RENDERER", "ROOD_VK_DEVICE", "ROOD_VK_VALIDATE",
-                "ROOD_VK_RT"):  # renderer choices to test under, binary
+                "ROOD_VK_RT", "ROOD_VK_PIPELINE_CACHE"):  # renderer choices to test under, binary
         if key in os.environ:
             env[key] = os.environ[key]
     start = time.monotonic()

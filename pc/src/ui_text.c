@@ -377,7 +377,36 @@ typedef struct {
     int ref_u, ref_v, ref_w, ref_h; /* the style's reference glyph (H, or 0) for cap height and baseline */
     int small_u, small_v;           /* its small capital x (dialogue) */
     int threshold;                  /* CLUT index counted as ink */
+    int symbol;                     /* a sign beside numbers: centred on the original's ink (no baseline of its own) */
 } glyph_info;
+
+/* Signs beside the HUD's numbers (ui_text_render's digits style): the memory
+ * card screens' MAP:34% and TIME 09:41:35 (MENU7.PRG, TITLE.PRG) take their
+ * ':' from the digits' page and their '%' (and the other signs a printer
+ * draws there) from the info style's small capitals, drawn at once
+ * (DrawPrim: pc_gpu_immediate) between the digits; the map screen's own
+ * percentages, set in the small capitals throughout, go through the ordering
+ * table and stay in the info style. Where the info style's own tables are
+ * not loaded (the title), the signs' places in its page (the game's table,
+ * BATTLE.PRG) are known here: */
+static const struct {
+    unsigned char code, u, v, w;
+} info_signs[] = {
+    { '%', 170, 76, 10 }, { ':', 224, 76, 4 }, { '/', 48, 76, 6 }, { '+', 162, 76, 8 },
+    { '-', 154, 76, 7 }, { '.', 242, 86, 4 },
+};
+extern int pc_gpu_immediate __attribute__((weak)); /* boot_runtime.c: drawn by DrawPrim, not an ordering table */
+static int digits_sign(int code, int u, int v, int w, glyph_info* g)
+{
+    g->style = PC_UI_TEXT_DIGITS;
+    g->codepoint = (unsigned)code;
+    g->box_u = u, g->box_v = v, g->box_w = w, g->box_h = 10;
+    g->advance = w;
+    g->ref_u = 0, g->ref_v = 0, g->ref_w = 6, g->ref_h = 10; /* the small digits' 0 */
+    g->threshold = 3;
+    g->symbol = 1;
+    return 1;
+}
 
 /* Not from the font: a disc the size and place of the original's (the HUD's
  * HP / MP separator), outlined like the digits. */
@@ -449,6 +478,10 @@ static int identify(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v
         return 1;
     }
     if (page == 12 && cy == 223 && cx == 864 && (v0 == 76 || v0 == 86) && v1 == v0 + 9) {
+        int immediate = &pc_gpu_immediate && pc_gpu_immediate;
+        for (size_t i = 0; i < sizeof info_signs / sizeof info_signs[0] && immediate; i++)
+            if (info_signs[i].u == u0 && info_signs[i].v == v0 && u1 == u0 + info_signs[i].w - 1)
+                return digits_sign(info_signs[i].code, u0, v0, info_signs[i].w, g);
         if (!small_tables_valid())
             return 0;
         for (int code = 0x21; code <= 0x5a; code++) {
@@ -466,6 +499,29 @@ static int identify(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v
             }
         }
         return 0;
+    }
+    if (page == 12 && cy == 223 && (cx == 912 || cx == 928) && (u0 == 216 || u0 == 224 || u0 == 232)
+        && (v0 == 200 || v0 == 208 || v0 == 216) && u1 == u0 + 6 && v1 == v0 + 6) {
+        /* An item's material letter beside its icon (MAINMENU.PRG's
+         * _renderItemMaterial: 7 x 7, material - 1 down columns of three
+         * from (216, 200)): Wood, Leather, Bronze, Iron, Hagane, Silver,
+         * Damascus, outlined in CLUT index 1 as the info style. */
+        int id = (u0 - 216) / 8 * 3 + (v0 - 200) / 8;
+        if (id > 6)
+            return 0;
+        g->style = PC_UI_TEXT_INFO;
+        g->codepoint = (unsigned char)"WLBIHSD"[id];
+        g->box_u = g->ref_u = u0, g->box_v = g->ref_v = v0, g->box_w = g->ref_w = 7, g->box_h = g->ref_h = 7;
+        g->advance = 7;
+        g->threshold = 2;
+        g->symbol = 1;
+        return 1;
+    }
+    if (page == 12 && cy == 223 && cx == 832 && u0 == 248 && v0 == 8 && u1 == 250 && v1 == 15) {
+        /* The digits' colon (3 x 8: the memory card screens' times). */
+        digits_sign(':', 248, 8, 3, g);
+        g->box_h = 8;
+        return 1;
     }
     if (page == 12 && cy == 223 && cx == 832 && u0 == 32 && u1 == 36 && v1 == 15 && (v0 == 11 || v0 == 9)) {
         /* The dot between current and maximum HP / MP (_renderDigit's
@@ -535,6 +591,8 @@ static unsigned upper(unsigned cp)
  * labels and stay original. */
 #define MAX_REGION_LABELS 8
 static uint64_t labels_drawn[(LABEL_COUNT + 63) / 64]; /* which labels were drawn from the font (RPC) */
+static char signs_drawn[32]; /* which signs (glyph_info.symbol) were drawn from the font (RPC) */
+void pc_ui_text_forget_signs(void) { memset(signs_drawn, 0, sizeof signs_drawn); }
 
 static int texel4(const uint16_t* vram, int page_x, int page_y, int u, int v)
 {
@@ -797,6 +855,12 @@ int pc_ui_text_classify(const uint16_t* vram, unsigned tpage, unsigned clut, int
     unsigned cp = st->small_caps ? upper(g.codepoint) : g.codepoint;
     if (cp != BULLET && !field(g.style, cp))
         return 0;
+    if (g.symbol && !strchr(signs_drawn, (int)g.codepoint) && strlen(signs_drawn) < sizeof signs_drawn - 1) {
+        signs_drawn[strlen(signs_drawn)] = (char)g.codepoint;
+        if (debug > 2) /* ROOD_UI_DEBUG=3: each sign the first time */
+            fprintf(stderr, "[ui] sign %c (%s): page %x clut %d,%d uv %d,%d..%d,%d\n", (char)g.codepoint, st->name,
+                tpage, (int)(clut & 63) * 16, (int)(clut >> 6 & 511), u0, v0, u1, v1);
+    }
     *key = (uint64_t)pc_ui_text_generation << 40 ^ (uint64_t)g.style << 36 ^ (uint64_t)g.codepoint << 8;
     return 1;
 }
@@ -854,8 +918,8 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
     }
     float s = height / cap; /* original pixels per field pixel */
     float room = st->outline ? g.box_w - 2.0f : fmaxf((float)(box[2] - box[0]), (float)g.advance) + 0.5f;
-    if (g.style == PC_UI_TEXT_DIGITS && !bullet && st->aspect > 0)
-        s = digit_scale(g.style, s, st->aspect, room);
+    if (g.style == PC_UI_TEXT_DIGITS && !bullet && st->aspect > 0) /* (a sign: the small digits' scale) */
+        s = digit_scale(g.style, s, st->aspect, g.symbol ? g.ref_w + 0.5f : room);
     float sx = s * st->stretch;
     if ((f->x1 - f->x0) * sx > room)
         sx = room / (f->x1 - f->x0);
@@ -863,6 +927,23 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
     float below = g.box_h - base - (st->outline ? 1.0f : 0.0f) - 0.1f, sd = s;
     if (-f->bottom * s > below && below > 0)
         sd = below / -f->bottom;
+    if (g.symbol) {
+        /* A sign: the digits' size, no taller than the original digits
+         * (the font's figures are old style: a % at its cap height towers
+         * over them) nor its own original ink, centred on that ink both
+         * ways (no descender squeezed). */
+        float tall = f->top - f->bottom, inked = fminf((float)(box[3] - box[1]), height) + 0.5f;
+        if (tall * s > inked && tall > 0)
+            s = inked / tall;
+        sx = s * st->stretch;
+        if ((f->x1 - f->x0) * sx > room)
+            sx = room / (f->x1 - f->x0);
+        sd = s;
+        if (strchr(":+-", (int)g.codepoint)) /* (signs off the baseline) */
+            base = (box[1] + box[3]) * 0.5f + (f->top + f->bottom) * 0.5f * s;
+        else /* on the original's baseline: its ink's foot, as the figures beside it */
+            base = (float)box[3] + f->bottom * s;
+    }
     float cx_t = (box[0] + box[2]) * 0.5f, cx_s = (f->x0 + f->x1) * 0.5f;
     if (st->outline) { /* the ink keeps a pixel from the box's edges (the outline; neighbours overlap them) */
         float half = (f->x1 - f->x0) * sx * 0.5f;
@@ -882,6 +963,39 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
     int lo = st->outline ? 2 : 1;
     if (hi < lo)
         hi = lo;
+    int mode = st->outline ? PC_UI_DIST_OUTLINED : PC_UI_DIST_RAMP;
+    if (g.symbol && g.style == PC_UI_TEXT_DIGITS) {
+        /* A sign from another CLUT (the info style's %): the digits'
+         * colours (their CLUT, 832,223: the small 0's brightest inside its
+         * outline, index 1) as the nearest of its own, a label's texels
+         * (outline into lettering). */
+        const uint16_t* own = vram + (clut >> 6 & 511) * 1024 + (clut & 63) * 16;
+        const uint16_t* digits = vram + 223 * 1024 + 832;
+        int top = 0;
+        for (int y = 0; y < 10; y++)
+            for (int x = 0; x < 6; x++) {
+                int i = page_index(vram, page_x, x, y);
+                top = i > top ? i : top;
+            }
+        if (own != digits && top > 1) {
+            int pick[2] = { 1, hi };
+            for (int k = 0; k < 2; k++) {
+                int want = digits[k ? top : 1], best = 1 << 30;
+                for (int i = 1; i < 16; i++) {
+                    int c = own[i], d = 0;
+                    if (!(c & 0x7fff) && c != want)
+                        continue;
+                    for (int b = 0; b < 15; b += 5) {
+                        int e = (c >> b & 31) - (want >> b & 31);
+                        d += e * e;
+                    }
+                    if (d < best)
+                        best = d, pick[k] = i;
+                }
+            }
+            mode = PC_UI_DIST_LABEL, lo = pick[0], hi = pick[1];
+        }
+    }
     int w = (u1 - u0 + 1) * factor, rows = (v1 - v0 + 1) * factor;
     float inv = 1.0f / factor;
     for (int y = 0; y < rows; y++) {
@@ -894,7 +1008,7 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
             float fx = cx_s + (xo - cx_t - shift) / sx;
             float d = bullet ? disc_r - hypotf(xo - disc_x, yo - disc_y) /* original pixels */
                              : (distance_at(f, fx, fy) + bold) * s;
-            out[y * w + x] = pc_ui_dist_texel(d, st->outline ? PC_UI_DIST_OUTLINED : PC_UI_DIST_RAMP, lo, hi, 0);
+            out[y * w + x] = pc_ui_dist_texel(d, mode, lo, hi, mode == PC_UI_DIST_LABEL);
         }
     }
     ++stats.regions;
@@ -1764,7 +1878,7 @@ int pc_ui_text_json(char* out, int size)
             used += snprintf(out + used, (size_t)(size - used), "%s\"%s\"", first ? "" : ",", labels[i].text);
             first = 0;
         }
-    if (used < size)
-        used += snprintf(out + used, (size_t)(size - used), "]}");
+    if (used < size) /* (signs: ASCII, none a quote or backslash) */
+        used += snprintf(out + used, (size_t)(size - used), "],\"signs_drawn\":\"%s\"}", signs_drawn);
     return used;
 }

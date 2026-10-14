@@ -589,18 +589,24 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
             pc_ui_upscale_tiles_changed(0xffffffffu);
         }
         key |= 1ull << 62 | 1ull << 61; /* page bits stop at 55; ui_text's generation below 61 */
-    } else if (text)
+    } else if (text) {
         key |= 1ull << 62 | (uint64_t)(pc_ui_text_generation & 0x1f) << 56;
+        /* A sign ui_text draws in one style or another by where it is
+         * printed (beside the digits, or in the info style's words) keeps a
+         * place for each: the style's low bit (bit 55 is free above the page). */
+        if (!emote)
+            key |= (glyph_key >> 36 & 1) << 55;
+    }
     /* Strips (an image drawn a few rows or columns at a time: the title
      * menu's waving labels) take their neighbours from the page as context:
      * clamped at a one-texel edge MMPX would see no shapes at all. */
     int region[4] = { u0, v0, u1, v1 };
-    if (text) /* drawn from the font: no context */
-        ;
-    else if (v1 - v0 < 3)
-        v0 = v0 < CONTEXT ? 0 : v0 - CONTEXT, v1 = v1 + CONTEXT > 255 ? 255 : v1 + CONTEXT;
-    if (u1 - u0 < 3)
-        u0 = u0 < CONTEXT ? 0 : u0 - CONTEXT, u1 = u1 + CONTEXT > 255 ? 255 : u1 + CONTEXT;
+    if (!text) { /* drawn from the font: no context (either way: the digits' colon is 3 wide) */
+        if (v1 - v0 < 3)
+            v0 = v0 < CONTEXT ? 0 : v0 - CONTEXT, v1 = v1 + CONTEXT > 255 ? 255 : v1 + CONTEXT;
+        if (u1 - u0 < 3)
+            u0 = u0 < CONTEXT ? 0 : u0 - CONTEXT, u1 = u1 + CONTEXT > 255 ? 255 : u1 + CONTEXT;
+    }
     if (u0 != region[0] || v0 != region[1] || u1 != region[2] || v1 != region[3]) {
         /* No context from a framebuffer next to the page. */
         int tx = (int)(tpage & 15) * 64, ty = (int)((tpage >> 4) & 1) * 256;

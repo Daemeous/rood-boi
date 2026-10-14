@@ -83,6 +83,9 @@ extern "C" {
     X(vkDestroyShaderModule)                                                                                           \
     X(vkCreatePipelineLayout)                                                                                          \
     X(vkDestroyPipelineLayout)                                                                                         \
+    X(vkCreatePipelineCache)                                                                                           \
+    X(vkDestroyPipelineCache)                                                                                          \
+    X(vkGetPipelineCacheData)                                                                                          \
     X(vkCreateGraphicsPipelines)                                                                                       \
     X(vkCreateComputePipelines)                                                                                        \
     X(vkDestroyPipeline)                                                                                               \
@@ -169,6 +172,7 @@ typedef struct {
     VkSampleCountFlags msaa_counts; /* multisampled colour + depth, drawn and sampled */
     int sample_locations; /* VK_EXT_sample_locations enabled */
     VkSampleCountFlags sample_location_counts; /* counts that take custom (pixel-centre) locations */
+    VkPipelineCache pipeline_cache; /* persisted between runs (vk_core.c); VK_NULL_HANDLE without one */
 } vk_context;
 extern vk_context vk;
 extern int pc_vk_active;
@@ -177,6 +181,10 @@ extern int pc_vk_active;
  * to OpenGL). */
 int vk_core_init(const char* const* instance_extensions, uint32_t extension_count);
 void vk_core_shutdown(void);
+/* Notes a pipeline created with vk.pipeline_cache outside vk_core.c (NRD,
+ * the overlay) taking `ns` nanoseconds, so the cache is saved once creation
+ * settles. */
+void vk_pipeline_cache_note(uint64_t ns);
 /* Report a failed call and return the condition. */
 int vk_check(VkResult result, const char* what);
 

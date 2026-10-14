@@ -39,6 +39,9 @@ extern float pc_lights_snap_move, pc_lights_snap_angle;
 /* Gameplay options, read by the game side. qol_weapon_slots: the weapon
  * slots quick swap on L2 + R2 (weapon_slots.c, battle builds), off by default. */
 int pc_qol_weapon_slots;
+/* skip_intro: start at the title, without the publisher and developer logos
+ * and the intro movie (boot_runtime.c); off by default (the original start). */
+int pc_skip_intro;
 
 /* Modern menus (pc/src/ui, pc/docs/Modern_Menus.md): 0 the game's own
  * menus, 1 the modern shell. Off by default until the screens are verified. */
@@ -186,6 +189,7 @@ const Entry entries[] = {
     I("camera_stick_keys", pc_camera_stick_keys),
     /* Gameplay. */
     I("qol_weapon_slots", pc_qol_weapon_slots),
+    I("skip_intro", pc_skip_intro),
     I("ui_menus", pc_ui_menus),
 };
 const char* path()

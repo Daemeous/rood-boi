@@ -173,7 +173,8 @@ extern "C" void pc_room_browser_window(void)
     if (ImGui::Checkbox("Enemies", &enemies))
         pc_room_warp_enemies = enemies;
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Warped-to rooms get their enemies (off: an empty room to light)");
+        ImGui::SetTooltip("Warped-to rooms get their enemies (off: an empty room to light; they are\n"
+                          "kept hidden and out of the fight, so the room's scripts still find them)");
     ImGui::SameLine();
     if (ImGui::Checkbox("Room scripts", &scripts))
         pc_room_warp_scripts = scripts;

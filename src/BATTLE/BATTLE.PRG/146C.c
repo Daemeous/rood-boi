@@ -15482,6 +15482,13 @@ void func_80089DC0(int arg0)
     }
 #endif
     func_80089114();
+#ifdef ROOD_PC
+    {
+        /* Its enemies are spawned: a warp with enemies off benches them. */
+        extern void pc_room_warp_room_spawned(void);
+        pc_room_warp_room_spawned();
+    }
+#endif
     func_800A35A8();
     func_80093FEC(0, 0, psx_get(vs_battle_characterState->unk3C)->statuses & 0x21000, 1);
     func_80086754(0x21000, psx_get(vs_battle_characterState->unk3C));
