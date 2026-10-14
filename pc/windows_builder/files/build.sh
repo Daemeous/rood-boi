@@ -28,6 +28,33 @@ install_deps() {
     touch $stamp
 }
 
+# The downloads need the internet. WSL sometimes can't look names up (a VPN, antivirus filtering,
+# or WSL's own DNS setup): then point this Ubuntu (only) at public DNS servers, which it keeps
+# until WSL restarts, and stop with a plain explanation if even that doesn't connect.
+ensure_network() {
+    local host=archive.ubuntu.com
+    if getent hosts $host > /dev/null 2>&1; then
+        return
+    fi
+    echo "This Ubuntu can't look up $host. Trying public DNS servers (Cloudflare, Google) for it."
+    rm -f /etc/resolv.conf
+    printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' > /etc/resolv.conf
+    if getent hosts $host > /dev/null 2>&1; then
+        echo "That worked."
+        return
+    fi
+    cat <<'EOF'
+
+PROBLEM: the build can't reach the internet from WSL (Windows' Linux), which it needs to
+download its tools. Common causes and fixes:
+  * A VPN: turn it off while building.
+  * Antivirus or firewall software blocking WSL: allow it, or pause it for the build.
+  * WSL's networking stuck: open PowerShell, run   wsl --shutdown   and try again.
+If none of these help, ask on the project's Issues page with your build.log.
+EOF
+    exit 1
+}
+
 if [ "$1" = deps ]; then
     install_deps "$2"
     exit 0
@@ -42,6 +69,7 @@ echo "=== $(date) ==="
 step() { echo; echo "== $* =="; }
 
 step "1/5 Build tools (first time only)"
+ensure_network
 install_deps "$TARGET"
 
 step "2/5 Source code ($REPO, $BRANCH)"

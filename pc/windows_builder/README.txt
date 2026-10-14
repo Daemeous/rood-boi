@@ -68,6 +68,10 @@ Run "Build rood-boi.bat" again: it downloads the latest code and rebuilds.
 IF SOMETHING GOES WRONG
 -----------------------
 * Everything the build prints is also in build.log in this folder.
+* "Temporary failure resolving" or "can't reach the internet": WSL can't get
+  online. Turn off any VPN, allow WSL in your antivirus or firewall, or run
+  "wsl --shutdown" in PowerShell and try again. (The builder already tries
+  public DNS servers by itself.)
 * "files don't match": your .bin isn't a clean USA image.
 * If the game doesn't start, look at rood-boi\rood.log.
 * "virtualization is disabled": turn it on in your PC's BIOS/UEFI settings
