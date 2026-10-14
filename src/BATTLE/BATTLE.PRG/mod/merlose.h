@@ -491,6 +491,12 @@ static u_char _weaponTimer;
 static vs_battle_actor* _weaponActor; /* the spawn last checked */
 static u_char _ashleyDrawn;           /* his weapon at the last check: a change is checked at once */
 static u_char _settleFrames;          /* frames since this spawn appeared, up to SPAWN_SETTLE */
+/* Her draw animations show the weapon only for the crossbow (Ashley's have a cue as his hand
+ * reaches it): show it that far in, or at the drawn idle pose, with func_8009D934's mode 2 (as
+ * the MERLOSE equip screen does at the end). */
+#define DRAW_SHOW_FRAMES 10
+#define ANIM_IDLE_DRAWN 101
+static u_char _drawFrames; /* frames into a draw whose weapon isn't shown yet; 0: none */
 
 static int _hostileNearby(void)
 {
@@ -521,6 +527,7 @@ static void _updateWeaponDrawn(vs_battle_actor* callo)
     if (want != (callo->weaponDrawn & 1)) {
         callo->weaponDrawn = (callo->weaponDrawn & ~1) | want;
         func_8009D934(_calloSlot, want, 1); /* with the animation and the weapon models */
+        _drawFrames = want; /* a draw: show the weapon partway in (vs_mod_frame) */
     }
 }
 
@@ -565,6 +572,16 @@ int vs_mod_frame(void)
         _respawnCallo();
     }
     callo = _calloActor();
+    if (_drawFrames != 0) {
+        if ((callo == NULL) || !(callo->weaponDrawn & 1)) {
+            _drawFrames = 0; /* gone, or put away again */
+        } else if ((D_800F4538[_calloSlot] != NULL)
+                   && ((++_drawFrames > DRAW_SHOW_FRAMES)
+                       || (D_800F4538[_calloSlot]->animationId == ANIM_IDLE_DRAWN))) {
+            _drawFrames = 0;
+            func_8009D934(_calloSlot, 1, 2);
+        }
+    }
     if ((callo != NULL) && (callo != _weaponActor)) {
         _weaponActor = callo; /* a new spawn: let her weapon load first */
         _settleFrames = 0;
