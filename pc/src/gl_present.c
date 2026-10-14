@@ -1227,7 +1227,6 @@ void pc_write_ppm_atomic(const char* name, const unsigned char* pixels, int w, i
     }
     free(row);
     fclose(f);
-    remove(name); /* Windows' rename does not replace */
     pc_replace_file(part, name);
 }
 static void write_capture(const char* name, const unsigned char* pixels, int w, int h)

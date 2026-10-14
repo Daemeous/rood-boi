@@ -124,6 +124,9 @@ def suites(args, mode="egl"):
               + (["--card", str(args.save)] if args.save.exists() else []), 300,
               note="character in-betweens: held poses, fast rotations, weapons in hand"),
         Suite("movie_smoke", [PY, str(TESTS / "movie_smoke.py")], 300),
+        Suite("replace_file_test", [PY, str(TESTS / "replace_file_test.py")], 300, binary=None,
+              note="saves replace their file again and again (pc_replace_file), natively and as a "
+                   "Windows build under Wine when installed"),
         Suite("window_smoke", [PY, str(TESTS / "window_smoke.py")], 180, binary="rood_boot",
               note="X11 events on Xvfb"),
         Suite("room_smoke", [PY, str(TESTS / "room_smoke.py")], 120),
