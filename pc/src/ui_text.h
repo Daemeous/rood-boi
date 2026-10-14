@@ -63,6 +63,13 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
 enum { PC_UI_TEXT_LAYOUT_GLYPH = 0, PC_UI_TEXT_LAYOUT_LINE = 1 };
 extern int pc_ui_text_layout;
 extern const char* const pc_ui_text_layout_names[2];
+/* ui_text_bubble_align (line layout, talk bubbles only; menus and the
+ * information box stay left): left, each line starts where the game starts
+ * it; centre (default), each line centred within the original line's extent
+ * (the whole line, from the game's text box, while it types out). */
+enum { PC_UI_TEXT_ALIGN_LEFT = 0, PC_UI_TEXT_ALIGN_CENTRE = 1 };
+extern int pc_ui_text_bubble_align;
+extern const char* const pc_ui_text_bubble_align_names[2];
 /* Whether line layout applies now (ui_text font, layout line, internal
  * resolution 2x and up). */
 int pc_ui_text_layout_on(int scale);

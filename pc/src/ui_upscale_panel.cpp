@@ -53,6 +53,15 @@ extern "C" void pc_ui_upscale_panel(void)
                               "kerning from where the game starts it, descenders below the line, never running\n"
                               "past the game's own letters (tightened where the font is wider). Per glyph:\n"
                               "each letter drawn inside the original's 12-pixel cell at the game's advance.");
+        if (pc_ui_text_layout == PC_UI_TEXT_LAYOUT_LINE) {
+            static const char* align_modes[] = { "Left (where the game starts them)", "Centred" };
+            ImGui::Combo("Bubble lines", &pc_ui_text_bubble_align, align_modes, 2);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Talk bubbles' lines (menus and the information box stay left). Left: each line\n"
+                                  "starts where the game starts it (set with the font's spacing it usually ends a\n"
+                                  "little short of the original). Centred: each line centred within the original\n"
+                                  "line's extent, letters still appearing where they stay as the bubble types out.");
+        }
         pc_ui_text_stats t;
         pc_ui_text_get_stats(&t);
         if (pc_hw_scale < 2)

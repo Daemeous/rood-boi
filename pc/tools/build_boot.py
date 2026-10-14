@@ -537,6 +537,7 @@ if battle:
         ("pc/src/dev_state.c", "dev_state"),
         ("pc/src/room_warp.c", "room_warp"),
         ("pc/src/weapon_slots.c", "weapon_slots"),
+        ("pc/src/text_lines.c", "text_lines"),
         ("pc/src/ui/menu_bridge.c", "ui_menu_bridge"),
         ("pc/src/ui/equip_bridge.c", "ui_equip_bridge"),
         ("pc/src/ui/ashley_bridge.c", "ui_ashley_bridge"),

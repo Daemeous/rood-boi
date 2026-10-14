@@ -980,6 +980,11 @@ static void handle_method(int fd, const char* request)
                         pc_ui_text_layout = k;
             } else if (number_value(member(params, "ui_text_layout"), &n) && n >= 0 && n <= 1)
                 pc_ui_text_layout = (int)n;
+            /* ui_text_bubble_align "left" | "centre" (or 0/1). */
+            if (string_value(member(params, "ui_text_bubble_align"), name, sizeof name))
+                pc_ui_text_setting("ui_text_bubble_align", name);
+            else if (number_value(member(params, "ui_text_bubble_align"), &n) && n >= 0 && n <= 1)
+                pc_ui_text_bubble_align = (int)n;
             /* ui_lines "joined" | "legacy", ui_outline_boost 0-3, ui_bubbles
              * "original" | "vector", ui_bubble_outline (ui_bubbles.h). */
             if (string_value(member(params, "ui_lines"), name, sizeof name)) {
@@ -1289,9 +1294,11 @@ static void handle_method(int fd, const char* request)
                 - 1;
         if (used < (int)sizeof result - 100)
             used += snprintf(result + used - 1, sizeof result - used + 1,
-                        ",\"ui_upscale\":\"%s\",\"ui_subpixel\":%d,\"ui_text\":\"%s\",\"ui_text_layout\":\"%s\"}",
+                        ",\"ui_upscale\":\"%s\",\"ui_subpixel\":%d,\"ui_text\":\"%s\",\"ui_text_layout\":\"%s\","
+                        "\"ui_text_bubble_align\":\"%s\"}",
                         pc_ui_upscale_names[pc_ui_upscale ? 1 : 0], pc_ui_subpixel, pc_ui_text_names[pc_ui_text ? 1 : 0],
-                        pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0])
+                        pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0],
+                        pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0])
                 - 1;
         if (used < (int)sizeof result - 160)
             used += snprintf(result + used - 1, sizeof result - used + 1,
@@ -1385,6 +1392,8 @@ static void handle_method(int fd, const char* request)
             pc_ui_text_setting("ui_text", style);
         if (params && string_value(member(params, "layout"), style, sizeof style))
             pc_ui_text_setting("ui_text_layout", style);
+        if (params && string_value(member(params, "bubble_align"), style, sizeof style))
+            pc_ui_text_setting("ui_text_bubble_align", style);
         /* {lines: PATH}: the lines laid out in the newest frame that drew
          * text (ui_text_layout line), as JSON into PATH. Tests. */
         long lines_bytes = -1;

@@ -27,7 +27,9 @@ ui_text font, so nothing moves between the two images. Checks:
   nearest approach between letters of a word deviates at most
   SPACING_SPREAD, each line starts where the game's does (0.75 px) and never
   runs past its end (1.5 px), descenders reach below the baseline drawn whole
-  and deeper than in the cells; a bubble typing out shows each glyph, frame
+  and deeper than in the cells; bubbles both left (ui_text_bubble_align left)
+  and centred on the game's line (centre); a bubble typing out, each way,
+  shows each glyph, frame
   by frame, at the place it keeps (reveal order);
 - fixed labels (text baked into images): with ui_text font the HUD's HP and
   MP, the menu's header and the information box's INFORMATION are drawn
@@ -190,13 +192,13 @@ DESCENDERS = set(map(ord, "gjpqy"))
 SPACING_SPREAD = 0.75  # PS1 pixels: the standard deviation of the gaps between letters of a word
 
 
-def compare_lines(game, work, name, shots, label, polarity):
+def compare_lines(game, work, name, shots, label, polarity, align="left"):
     """ui_text_layout line on one recorded frame, drawn original, glyph by
     glyph and as lines (the frame holds both kinds of quads): what the lines
     change stays on the lines, letters never touch, spacing is even,
     descenders reach below the baseline undistorted, every line starts where
     the game's does and never runs past its end."""
-    game.call("graphics", ui_text="font", ui_text_layout="line")
+    game.call("graphics", ui_text="font", ui_text_layout="line", ui_text_bubble_align=align)
     game.run(6)
     lines = [line for line in lines_report(game, work) if line["style"] in ("dialogue", "menu")]
     if not check(bool(lines), f"{label} {name}: lines laid out ({len(lines)})"):
@@ -254,8 +256,13 @@ def compare_lines(game, work, name, shots, label, polarity):
             spaced = (q["x"] - p["x"]) / k - p["advance"] >= 2.5
             if not spaced and shared:  # the nearest approach of a letter to the next
                 gaps.append(min(shared) / k)
-        starts.append(abs(drawn_ink(gs[0])[0] - gs[0]["ink"][0]) / k)
-        ends.append((drawn_ink(gs[-1])[1] - gs[-1]["ink"][2]) / k)
+        l0, l1, o0, o1 = drawn_ink(gs[0])[0], drawn_ink(gs[-1])[1], gs[0]["ink"][0], gs[-1]["ink"][2]
+        if ln["style"] == "dialogue" and align == "centre":  # centred on the original's extent
+            starts.append(abs((l0 + l1) - (o0 + o1)) / 2 / k)
+            ends.append(max(o0 - l0, l1 - o1) / k)
+        else:
+            starts.append(abs(l0 - o0) / k)
+            ends.append((l1 - o1) / k)
     check(not overlaps or min(overlaps) >= 0.25,
           f"{label} {name}: letters never touch ({len(overlaps)} neighbours, narrowest gap "
           f"{min(overlaps, default=0):.2f} PS1 pixels)")
@@ -264,8 +271,9 @@ def compare_lines(game, work, name, shots, label, polarity):
         check(spread <= SPACING_SPREAD,
               f"{label} {name}: even spacing between letters (nearest approach {np.mean(gaps):.2f} PS1 pixels, "
               f"deviation {spread:.2f}, at most {SPACING_SPREAD})")
+    where = "are centred on the game's" if align == "centre" and label == "dialogue" else "start where the game's do"
     check(max(starts) <= 0.75 and max(ends) <= 1.5,
-          f"{label} {name}: {len(starts)} lines start where the game's do (within {max(starts):.2f} PS1 pixels) "
+          f"{label} {name}: {len(starts)} lines {where} (within {max(starts):.2f} PS1 pixels) "
           f"and never run past their ends (at most {max(ends):.2f} past; at most {-min(ends):.1f} shorter)")
     # Descenders below the baseline, drawn whole.
     ia, ib, ic = ink(a, polarity), ink(b, polarity), ink(c, polarity)
@@ -296,13 +304,15 @@ def compare_lines(game, work, name, shots, label, polarity):
         image = Image.fromarray(side)
         if image.width > 2400:
             image = image.resize((2400, image.height * 2400 // image.width), Image.LANCZOS)
-        image.save(shots / f"{label}-{name}-lines.jpg", quality=85)
+        image.save(shots / f"{label}-{name}-lines-{align}.jpg", quality=85)
 
 
-def check_reveal(game, work, frames=90):
-    """A talk bubble typing out (line layout): every frame's glyphs of a line
-    are the first ones of the finished line, each at the place it keeps."""
-    game.call("graphics", ui_text="font", ui_text_layout="line")
+def check_reveal(game, work, frames=90, align="centre"):
+    """A talk bubble typing out (line layout, centred: the whole line comes
+    from the game's text box): every frame's glyphs of a line are the first
+    ones of the finished line, each at the place it keeps."""
+    game.call("graphics", ui_text="font", ui_text_layout="line", ui_text_bubble_align=align)
+    game.run(4)  # (frames laid out before the change)
     history = []
     for _ in range(frames):
         game.run(1)
@@ -327,7 +337,8 @@ def check_reveal(game, work, frames=90):
         print("moved:", moved[0])
     text = " / ".join("".join(chr(c) for _, _, c in glyphs) for glyphs in final.values())
     check(len(counts) >= 4 and stable,
-          f"reveal: a bubble types out ({len(counts)} lengths seen, '{text}'), each glyph appearing where it stays")
+          f"reveal ({align}): a bubble types out ({len(counts)} lengths seen, '{text}'), each glyph appearing where "
+          f"it stays")
 
 
 UI_PAGE = 12  # the field UI page (768, 0), 4-bit
@@ -475,6 +486,8 @@ def run_bubble(work, shots):
         g = game.call("graphics")
         check(g.get("ui_text") == "original", f"bubble: default ui_text original ({g.get('ui_text')})")
         check(g.get("ui_text_layout") == "line", f"bubble: default ui_text_layout line ({g.get('ui_text_layout')})")
+        check(g.get("ui_text_bubble_align") == "centre",
+              f"bubble: default ui_text_bubble_align centre ({g.get('ui_text_bubble_align')})")
         game.call("graphics", interpolate=False, aa="off")  # SMAA would blend beyond the glyph boxes
         game.wait_title()
         game.run(90)
@@ -487,10 +500,14 @@ def run_bubble(work, shots):
               f"bubble: while ui_text is original nothing uses the 2D atlas ({s['lookups']} lookups, "
               f"{t['regions']} font regions)")
         compare(game, work, "bubble", shots, "dialogue", "dark")
-        compare_lines(game, work, "bubble", shots, "dialogue", "dark")
+        compare_lines(game, work, "bubble", shots, "dialogue", "dark", "left")
+        compare_lines(game, work, "bubble", shots, "dialogue", "dark", "centre")
         game.press("circle", vsyncs=3, settle=0)  # the next line ("Not yet, sir.") types out
-        check_reveal(game, work)
-        compare_lines(game, work, "bubble2", shots, "dialogue", "dark")
+        check_reveal(game, work, align="left")
+        compare_lines(game, work, "bubble2", shots, "dialogue", "dark", "centre")
+        compare_lines(game, work, "bubble2", shots, "dialogue", "dark", "left")
+        game.press("circle", vsyncs=3, settle=0)  # and the next ("Put out the fires, ..."), centred
+        check_reveal(game, work, frames=450, align="centre")
         styles = {st["name"]: st for st in game.call("ui_text")["styles"]}
         check(styles["dialogue"]["loaded"] is True, "bubble: the dialogue font is loaded")
     finally:
@@ -526,7 +543,7 @@ def run_save(work, card, shots):
             game.press("circle", vsyncs=3, settle=60)
             game.press("circle", vsyncs=3, settle=60)  # Battle Abilities > Chain Abilities (information box)
             compare(game, work, "menu", shots, "menu", "bright")
-            compare_lines(game, work, "menu", shots, "menu", "bright")
+            compare_lines(game, work, "menu", shots, "menu", "bright", "centre")  # (menus stay left)
             drawn = game.call("ui_text")["labels_drawn"]
             check("MENU" in drawn and "INFORMATION" in drawn, f"save: menu labels drawn from the font ({drawn})")
             styles = {st["name"]: st for st in game.call("ui_text")["styles"]}
@@ -551,7 +568,14 @@ def run_save(work, card, shots):
         game.call("graphics", ui_text_layout="line")
         game.call("settings", action="load")
         check(game.call("graphics")["ui_text_layout"] == "glyph", "save: ui_text_layout loads back")
-        game.call("graphics", ui_text_layout="line")
+        game.call("graphics", ui_text_layout="line", ui_text_bubble_align="left")
+        game.call("settings", action="save")
+        check("ui_text_bubble_align left" in settings.read_text(), "save: ui_text_bubble_align saved")
+        game.call("graphics", ui_text_bubble_align="centre")
+        game.call("settings", action="load")
+        check(game.call("graphics")["ui_text_bubble_align"] == "left", "save: ui_text_bubble_align loads back")
+        check(game.call("ui_text", bubble_align="centre")["bubble_align"] == "centre",
+              "save: RPC ui_text bubble_align sets it")
         game.call("graphics", ui_text="original")
         game.run(4)
     finally:
