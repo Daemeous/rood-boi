@@ -66,6 +66,12 @@ static void show_hud(void)
     }
 }
 
+/* abilities_bridge.c: the Abilities screen's game side */
+void pc_ui_abilities_fill(int mainmenu);
+void pc_ui_abilities_refresh(void);
+int pc_ui_abilities_cast_taken(void);
+void pc_ui_abilities_cast(int go);
+
 /* ashley_bridge.c: the Ashley tab's game side */
 void pc_ui_ashley_open(void);
 void pc_ui_ashley_fill(void);
@@ -184,6 +190,7 @@ int pc_ui_menu_open(int mode)
     pc_ui_ashley_model_open(mode == 2);
     c = commands();
     pc_ui_shell_open(&c, mode != 2 || vs_main_settings.cursorMemory);
+    pc_ui_abilities_fill(mainmenu_resident()); /* the shell may open on the Abilities screen */
     settle = 2; /* the press that opened (or returned to) the menu is not the shell's */
     return 1;
 }
@@ -192,6 +199,7 @@ int pc_ui_menu_open(int mode)
 int pc_ui_equip_begin(int resident);
 void pc_ui_equip_requests(void);
 int pc_ui_equip_busy(void);
+
 
 /* The shell's result (-1 or n > 0) for the game: its sounds and the row the
  * original screen slides its title from. */
@@ -224,14 +232,44 @@ static int deliver(int r)
     return r;
 }
 
+/* A break art accepted (pc_ui_abilities_cast wrote MENU1's hand-off): the
+ * menu ends as MENU1 ends it for a cast, not through the top level's -1.
+ * MENU1 returns to MAINMENU with currentMenu 2, whose func_800FAA5C(2) gives
+ * back the menu's resources (func_8007E0A8(26, 3, 6) unless a shortcut
+ * opened it) and sets 0x7F: BATTLE func_800C97BC then hands D_800F4E98 to
+ * func_800735F8 (the art) on the next frame. The top level's -1 would go
+ * through 0x1F and MAINMENU's _quitDelay instead, whose counter the
+ * original never advances on a cast: a target cancelled reopens the menu
+ * (func_800CAB40) without reloading MAINMENU, so the next close would wait
+ * for a count it has passed. The select sound (MENU1's confirmed row), the
+ * shell's own cleanup as deliver's, then 0 (no result: currentMenu is set;
+ * MAINMENU vs_mainMenu_exec then skips that frame's render as after MENU1's
+ * return, ROOD_PC in C48.c). Only while MAINMENU is resident (the bridge
+ * refuses a cast before): 0x7F skips vs_battle_loadMenuPrg, whose pending
+ * load and background release would be left behind. */
+static int close_for_cast(void)
+{
+    pc_ui_ashley_model_close();
+    show_hud();
+    vs_battle_playMenuSelectSfx();
+    vs_battle_textBoxes[7].state = 0;
+    shell_open = 0;
+    closing = 1;
+    if (D_800F4FDB == 0)
+        func_8007E0A8(26, 3, 6);
+    vs_battle_menuState.currentMenu = 0x7F;
+    return 0;
+}
+
 /* func_800C930C(0) while the shell owns the top level: the game's protocol
  * (0 stay, -1 close, n > 0 open command n - 1).
  *
- * Per tick: the Ashley snapshot (pc_ui_ashley_fill) and the Equipment
- * snapshot (pc_ui_equip_begin; weapon and shield
- * equips wait until MAINMENU is resident, see mainmenu_resident) before the
- * shell's tick, its requests after it (drained
- * every tick, also on the tick the shell closed), then Ashley's model
+ * Per tick: the Ashley snapshot (pc_ui_ashley_fill), the Abilities snapshot
+ * (pc_ui_abilities_fill, while that screen shows) and the Equipment snapshot
+ * (pc_ui_equip_begin; weapon and shield equips and break arts wait until
+ * MAINMENU is resident, see mainmenu_resident) before the shell's tick, its
+ * requests after it (drained every tick, also on the tick the shell closed;
+ * pc_ui_abilities_refresh for a tab switched to Abilities), then Ashley's model
  * (pc_ui_ashley_model_tick: drawn while the Ashley tab shows, torn down
  * otherwise, so before any result is delivered).
  *
@@ -253,9 +291,11 @@ int pc_ui_menu_top(void)
     pc_ui_input in;
     int r;
     int busy;
+    int resident = mainmenu_resident();
     top_frame = frames;
-    busy = pc_ui_equip_begin(mainmenu_resident());
+    busy = pc_ui_equip_begin(resident);
     pc_ui_ashley_fill();
+    pc_ui_abilities_fill(resident);
     if (held) {
         pc_ui_ashley_model_tick(0, 1);
         vs_mainMenu_setMenuCommand(menuActionNone);
@@ -274,9 +314,23 @@ int pc_ui_menu_top(void)
     }
     r = pc_ui_shell_tick(&in);
     pc_ui_equip_requests();
+    pc_ui_abilities_refresh();
+    /* a break art was accepted (refused while a result is out, a model reload
+     * runs or MAINMENU is not resident, so never held): handed to the game
+     * and the menu closes for it. A result on the same tick (it cannot
+     * happen: the bridge refuses once the shell has hidden) drops it. */
+    if (pc_ui_abilities_cast_taken()) {
+        pc_ui_abilities_cast(r == 0);
+        if (r == 0) {
+            pc_ui_shell_close();
+            pc_ui_ashley_model_tick(resident, 0); /* torn down: the shell is gone */
+            vs_mainMenu_setMenuCommand(menuActionNone);
+            return close_for_cast();
+        }
+    }
     /* Ashley's model: built, drawn or torn down for what the shell shows now
      * (a result hid the shell: torn down here, before delivery) */
-    pc_ui_ashley_model_tick(mainmenu_resident(), 0);
+    pc_ui_ashley_model_tick(resident, 0);
     /* MAINMENU sets its "COMMAND" title every frame before calling the top
      * level; the shell has its own tabs, so the title slides away. */
     vs_mainMenu_setMenuCommand(menuActionNone);

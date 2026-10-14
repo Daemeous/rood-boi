@@ -171,6 +171,10 @@ def suites(args, mode="egl"):
                  note="Ashley tab: summary = RAM (stats, limbs, effects), live model shown/turned (stick, drag, "
                       "no auto-turn), tabs/Status/weapon change, world and camera restored, 16:9, soft reset")]
           if args.save.exists() else []),
+        *([Suite("ui_abilities_smoke", [PY, str(TESTS / "ui_abilities_smoke.py"), "--card", str(args.save)], 300,
+                 note="Abilities tab: Chain/Defense mapping = the original MENU2 screen's bytes (set, move, replace, "
+                      "off; list, pick, mouse), learned lists, break arts states and greyed reasons, cast and cancel")]
+          if args.save.exists() else []),
         *([Suite("ui_system_smoke", [PY, str(TESTS / "ui_system_smoke.py"), "--card", str(args.save)], 300,
                  note="System screen through the shell: a row per settings page live + saved (debounce, Cross), "
                       "greyed rows, slider drag, binding capture (blocks navigation, Esc, pad, reset), Data, relaunch")]

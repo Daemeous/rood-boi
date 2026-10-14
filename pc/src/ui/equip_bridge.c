@@ -4,7 +4,8 @@
  *   pc_ui_equip_begin()     the model reload's progress (once per tick), then
  *                           the snapshot (ui_model.h) for pc_ui_shell_set_equipment
  *   pc_ui_shell_tick()
- *   pc_ui_equip_requests()  drains pc_ui_shell_pop_request and executes
+ *   pc_ui_equip_requests()  drains pc_ui_shell_pop_request and executes (the
+ *                           Abilities screen's requests go to abilities_bridge.c)
  *
  * Equipping is MENU3's (16C.c) own sequence on the resident BATTLE routines,
  * in its order:
@@ -50,6 +51,8 @@ int pc_weapon_slots_get(int weapon_index);
 int pc_weapon_slots_shield_for(int slot);
 void pc_weapon_slots_set(int slot, int weapon_index, int shield_index);
 void pc_weapon_slots_clear(int slot);
+
+int pc_ui_abilities_request(const pc_ui_request* r); /* abilities_bridge.c */
 
 int pc_ui_equip_begin(int resident);
 void pc_ui_equip_requests(void);
@@ -627,7 +630,8 @@ void pc_ui_equip_requests(void)
                 changed = 1;
             }
             break;
-        default: /* PC_UI_REQ_CANDIDATES: the list is filled every tick */
+        default: /* PC_UI_REQ_CANDIDATES: the list is filled every tick; the Abilities screen's are its bridge's */
+            pc_ui_abilities_request(&r);
             break;
         }
     }

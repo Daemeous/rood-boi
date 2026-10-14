@@ -17,10 +17,11 @@ From a copy of the card (skipped without one), in the save room:
   - the shell takes only the top level: an L2 shortcut (L2 + Up, misc items:
     currentMenu 4, vs_battle_shortcutInvoked 5) shows the game's own list and
     the shell stays hidden during and after it
-  - greyed rows open, as the original does: with a break art unlocked in RAM
-    (this card has none) and the weapon sheathed, Abilities > Break arts is
-    greyed with a reason, Circle opens the game's Break Arts (MENU1) and Cross
-    returns to the shell
+  - Abilities > Break Arts: with break arts unlocked in RAM (this card has
+    none) and the weapon sheathed, the equipped weapon's learned art is not
+    usable and says why, Circle on it is refused (the menu stays), Square
+    opens the game's Break Arts (MENU1) and Cross returns to the shell on the
+    same sub-tab
   - 16:9 (graphics widescreen): the shell opens and closes the same way.
 The save room's container (zone 9 room 17) is not covered: reaching it needs
 walking Ashley to the chest, which blind RPC input does not do reliably."""
@@ -191,9 +192,9 @@ def main():
         game.press("triangle", vsyncs=3, settle=90)
         check(current_menu() == CLOSED, "and Triangle closes it")
 
-        # greyed rows open: unlock the first weapon type's break arts in RAM (vs_main_actions
-        # records of 52 bytes, unlocked = byte 13 bit 7; D_800EBD68[2..3] = the break arts
-        # range func_800CACD0 checks for the Break arts command)
+        # Break Arts: unlock the break arts in RAM (vs_main_actions records of 52 bytes, unlocked =
+        # byte 13 bit 7; D_800EBD68[2..3] = the break arts range func_800CACD0 checks for the
+        # Break Arts command)
         lo, hi = game.read(action_ranges + 2, 2)
         for a in range(lo, hi):
             b = game.read(actions + a * 52 + 13, 1)[0]
@@ -203,23 +204,30 @@ def main():
             if shell()["tab"] == "abilities":
                 break
             game.press("r1", vsyncs=3, settle=10)
-        for _ in range(2):
-            if shell()["row"] == "break_arts":
+        for _ in range(3):
+            if shell().get("abilities", {}).get("sub") == "arts":
                 break
-            game.press("down", vsyncs=3, settle=10)
-        s = shell()
-        row = next((r for r in s["rows"] if r["id"] == "break_arts"), None)
-        check(s["row"] == "break_arts" and row is not None and not row["enabled"] and row.get("reason"),
-              f"weapon sheathed: Break arts is greyed with a reason ({row})")
+            game.press("r2", vsyncs=3, settle=10)
+        ab = shell()["abilities"]
+        check(ab["sub"] == "arts" and ab["mode"] == "categories" and ab["category"] == ab["equipped_category"],
+              f"Abilities > Break Arts opens on the equipped weapon's arts ({ab['sub']}, {ab['mode']}, "
+              f"{ab['category']}, {ab['equipped_category']})")
+        game.press("circle", vsyncs=3, settle=10)
+        ab = shell()["abilities"]
+        art = ab["categories"][ab["category"] - 1]["arts"][0]
+        check(ab["mode"] == "arts" and art["state"] == "learned" and not art["usable"] and art["reason"],
+              f"weapon sheathed: the learned art is not usable and says why ({art['name']}, {art['reason']})")
         shot("break_arts")
-        game.press("circle", vsyncs=3, settle=120)
+        game.press("circle", vsyncs=3, settle=30)
+        check(current_menu() == 0 and shell()["visible"], f"Circle on it is refused: the menu stays ({current_menu():#x})")
+        game.press("square", vsyncs=3, settle=120)
         check(current_menu() == (2 | 0x40) and not shell()["visible"],
-              f"Circle on the greyed Break arts opens the game's Break Arts ({current_menu():#x})")
+              f"Square opens the game's Break Arts ({current_menu():#x})")
         shot("break_arts_open")
         game.press("cross", vsyncs=3, settle=120)
         s = shell()
-        check(current_menu() == 0 and s["visible"] and s["row"] == "break_arts",
-              f"Cross returns to the shell on Break arts ({current_menu():#x}, {s['row']})")
+        check(current_menu() == 0 and s["visible"] and s["abilities"]["sub"] == "arts",
+              f"Cross returns to the shell on Break Arts ({current_menu():#x}, {s['abilities']['sub']})")
         game.press("triangle", vsyncs=3, settle=90)
         check(current_menu() == CLOSED and not shell()["visible"], "Triangle closes the menu")
 

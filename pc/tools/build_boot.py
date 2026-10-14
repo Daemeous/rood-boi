@@ -540,6 +540,7 @@ if battle:
         ("pc/src/ui/menu_bridge.c", "ui_menu_bridge"),
         ("pc/src/ui/equip_bridge.c", "ui_equip_bridge"),
         ("pc/src/ui/ashley_bridge.c", "ui_ashley_bridge"),
+        ("pc/src/ui/abilities_bridge.c", "ui_abilities_bridge"),
         ("pc/src/ui/game_options.c", "ui_game_options"),
     ]
     sources += [
@@ -795,6 +796,7 @@ for source in [
     root / "pc/src/ui/ui_equip_draw.cpp",
     root / "pc/src/ui/ui_ashley_draw.cpp",
     root / "pc/src/ui/ui_system_draw.cpp",
+    root / "pc/src/ui/ui_abilities_draw.cpp",
     root / "pc/src/prompt_glyphs.cpp",
 ] + ([imgui / "backends/imgui_impl_vulkan.cpp", root / "pc/src/vk_overlay.cpp"] if arch64 else []):
     obj = out / ("imgui_" + source.stem + ".o")

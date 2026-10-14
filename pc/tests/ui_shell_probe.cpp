@@ -949,6 +949,203 @@ static void system_tests()
     pc_ui_menus = 1;
 }
 
+// The Abilities screen: sub-tabs by menuFlags, assigning chain / defense abilities, break arts.
+static pc_ui_abilities abilities_model()
+{
+    pc_ui_abilities a = {};
+    a.valid = 1;
+    a.equipped_category = 2; // sword
+    a.weapon_drawn = 1;
+    const int chain_ids[3] = {22, 23, 28}, defense_ids[2] = {40, 43};
+    for (int t = 0; t < 2; ++t) {
+        pc_ui_ability_list& l = a.lists[t];
+        l.count = t ? 2 : 3;
+        for (int i = 0; i < l.count; ++i) {
+            l.entries[i].id = t ? defense_ids[i] : chain_ids[i];
+            std::snprintf(l.entries[i].name, sizeof l.entries[i].name, "%s%d", t ? "Def" : "Chain", i);
+            l.entries[i].cost = i + 1;
+            l.entries[i].button = -1;
+        }
+        for (int b = 0; b < PC_UI_ABIL_BUTTONS; ++b)
+            l.slots[b] = -1, l.slot_ids[b] = 0;
+    }
+    // Chain1 on Triangle
+    a.lists[0].slots[1] = 1, a.lists[0].slot_ids[1] = 23, a.lists[0].entries[1].button = 1;
+    for (int c = 0; c < PC_UI_ART_CATEGORIES; ++c) {
+        pc_ui_art_category& k = a.categories[c];
+        std::snprintf(k.name, sizeof k.name, "CAT%d", c + 1);
+        for (int i = 0; i < PC_UI_ARTS; ++i) {
+            k.arts[i].id = 184 + c * 4 + i;
+            k.arts[i].state = PC_UI_ART_LOCKED;
+            k.arts[i].kills_to_go = 10 * (i + 1);
+        }
+    }
+    // the sword's first art learned and usable, the second pending; the dagger's first learned, not usable
+    a.categories[1].arts[0].state = PC_UI_ART_LEARNED, a.categories[1].arts[0].usable = 1;
+    a.categories[1].arts[1].state = PC_UI_ART_PENDING, a.categories[1].arts[1].kills_to_go = 0;
+    a.categories[0].arts[0].state = PC_UI_ART_LEARNED;
+    std::snprintf(a.categories[0].arts[0].reason, sizeof a.categories[0].arts[0].reason, "Only with a DAGGER in hand.");
+    return a;
+}
+static bool abil_req(int kind, int slot, int id, int type = 0)
+{
+    pc_ui_request r = pop();
+    return r.kind == kind && r.item == id && (kind != PC_UI_REQ_ABIL_MAP || (r.slot == slot && r.shield == type));
+}
+static void abilities_tests()
+{
+    pc_ui_commands all = {0x3FF, 0, 0};
+    pc_ui_abilities a = abilities_model();
+    pc_ui_shell_open(&all, 0);
+    pc_ui_shell_set_abilities(&a);
+    for (int i = 0; i < 3; ++i) tick(PC_UI_TAB_NEXT); // Ashley Equipment Items Abilities
+    CHECK(json_has("\"tab\":\"abilities\""));
+    CHECK(json_has("\"screen\":\"abilities\""));
+    CHECK(pc_ui_shell_screen() == PC_UI_SCREEN_ABILITIES);
+    CHECK(json_has("\"subs\":[\"chain\",\"defense\",\"arts\"],\"sub\":\"chain\",\"mode\":\"slots\""));
+    CHECK(json_has("{\"button\":\"triangle\",\"id\":23,\"entry\":1,\"name\":\"Chain1\"}"));
+    pc_ui_abilities_view v;
+    pc_ui_shell_abilities_view(&v);
+    CHECK(v.subs == 3 && v.kind == PC_UI_AB_CHAIN && v.mode == PC_UI_ABM_SLOTS && v.slot == 0);
+    // slots: Left/Right move, Circle opens the pick on what the button holds (Triangle: Chain1)
+    tick(PC_UI_RIGHT);
+    tick(PC_UI_CONFIRM);
+    pc_ui_shell_abilities_view(&v);
+    CHECK(v.mode == PC_UI_ABM_PICK && v.slot == 1 && v.cursor == 1);
+    CHECK(queue_empty());
+    tick(PC_UI_DOWN);
+    CHECK(tick(PC_UI_CONFIRM) == 0); // Chain2 -> Triangle, back on the slots
+    CHECK(abil_req(PC_UI_REQ_ABIL_MAP, 1, 28, PC_UI_ABIL_CHAIN));
+    pc_ui_shell_abilities_view(&v);
+    CHECK(v.mode == PC_UI_ABM_SLOTS && v.slot == 1);
+    // pick: Cross goes back to the slots without a request
+    tick(PC_UI_CONFIRM);
+    CHECK(tick(PC_UI_BACK) == 0 && pc_ui_shell_visible());
+    CHECK(queue_empty());
+    CHECK(json_has("\"mode\":\"slots\""));
+    // the list: the original's direct presses; Triangle maps (the menu stays), Square maps
+    tick(PC_UI_DOWN); // the cursor where the last pick left it (on Triangle's Chain1)
+    CHECK(json_has("\"mode\":\"list\",\"slot\":\"triangle\",\"cursor\":1"));
+    tick(PC_UI_UP);
+    CHECK(json_has("\"mode\":\"list\",\"slot\":\"triangle\",\"cursor\":0"));
+    CHECK(tick(PC_UI_CONFIRM) == 0);
+    CHECK(abil_req(PC_UI_REQ_ABIL_MAP, 0, 22, PC_UI_ABIL_CHAIN));
+    CHECK(tick(PC_UI_EXIT) == 0 && pc_ui_shell_visible());
+    CHECK(abil_req(PC_UI_REQ_ABIL_MAP, 1, 22, PC_UI_ABIL_CHAIN));
+    CHECK(tick(PC_UI_ALT) == 0 && pc_ui_shell_visible());
+    CHECK(abil_req(PC_UI_REQ_ABIL_MAP, 2, 22, PC_UI_ABIL_CHAIN));
+    // Down wraps in the list; Up on the first row goes back to the slots
+    tick(PC_UI_DOWN); tick(PC_UI_DOWN); tick(PC_UI_DOWN);
+    CHECK(json_has("\"mode\":\"list\",\"slot\":\"triangle\",\"cursor\":0"));
+    tick(PC_UI_UP);
+    CHECK(json_has("\"mode\":\"slots\""));
+    // Cross: list -> slots -> closes
+    tick(PC_UI_DOWN);
+    CHECK(tick(PC_UI_BACK) == 0 && json_has("\"mode\":\"slots\""));
+    CHECK(tick(PC_UI_BACK) == -1 && !pc_ui_shell_visible());
+    pc_ui_shell_open(&all, 1);
+    CHECK(json_has("\"tab\":\"abilities\"") && json_has("\"sub\":\"chain\""));
+    // Square on the slots: the original Battle Abilities (command 2 -> 3)
+    CHECK(tick(PC_UI_ALT) == 3 && !pc_ui_shell_visible());
+    pc_ui_shell_open(&all, 1);
+    // a pick list does not survive a reopen
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"pick\""));
+    pc_ui_shell_open(&all, 1);
+    CHECK(json_has("\"mode\":\"slots\""));
+    // R2: Defense; mapping there says so
+    tick(PC_UI_SUB_NEXT);
+    CHECK(json_has("\"sub\":\"defense\",\"mode\":\"slots\""));
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(abil_req(PC_UI_REQ_ABIL_MAP, 0, 43, PC_UI_ABIL_DEFENSE));
+    // nothing learned: no list, no pick
+    pc_ui_abilities none = a;
+    none.lists[1].count = 0;
+    pc_ui_shell_set_abilities(&none);
+    CHECK(json_has("\"sub\":\"defense\",\"mode\":\"slots\""));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    CHECK(json_has("\"mode\":\"slots\"") && queue_empty());
+    pc_ui_shell_set_abilities(&a);
+
+    // Break Arts: the rail starts with the equipped category
+    tick(PC_UI_SUB_NEXT);
+    CHECK(json_has("\"sub\":\"arts\",\"mode\":\"categories\""));
+    CHECK(json_has("\"order\":[2,1,3,4,5,6,7,8,9,10]"));
+    pc_ui_shell_abilities_view(&v);
+    CHECK(v.category == 2 && v.category_row == 0 && v.order[1] == 1);
+    CHECK(json_has("\"state\":\"pending\""));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"arts\""));
+    CHECK(tick(PC_UI_CONFIRM) == 0); // the learned art: a cast request, the shell stays until the bridge takes it
+    CHECK(abil_req(PC_UI_REQ_ART_CAST, 0, 188));
+    CHECK(pc_ui_shell_visible());
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM); // pending: nothing
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM); // locked: nothing
+    CHECK(queue_empty());
+    tick(PC_UI_LEFT);
+    CHECK(json_has("\"mode\":\"categories\""));
+    tick(PC_UI_DOWN); // the dagger (rail row 1)
+    CHECK(json_has("\"category\":1,"));
+    tick(PC_UI_RIGHT);
+    tick(PC_UI_CONFIRM); // learned, not usable: still asked (the bridge buzzes)
+    CHECK(abil_req(PC_UI_REQ_ART_CAST, 0, 184));
+    CHECK(json_has("\"reason\":\"Only with a DAGGER in hand.\""));
+    CHECK(tick(PC_UI_BACK) == 0 && json_has("\"mode\":\"categories\""));
+    // the arts survive a reopen (back from the original screen after a cancelled target)
+    tick(PC_UI_CONFIRM);
+    pc_ui_shell_close();
+    pc_ui_shell_open(&all, 1);
+    CHECK(json_has("\"sub\":\"arts\",\"mode\":\"arts\""));
+    // Square: the original Break Arts (command 1 -> 2)
+    CHECK(tick(PC_UI_ALT) == 2 && !pc_ui_shell_visible());
+
+    // sub-tabs follow menuFlags: no Break Arts (bit 1), only Break Arts (bit 2 clear)
+    pc_ui_commands no_arts = {0x3FF & ~2u, 0, 0};
+    pc_ui_shell_open(&no_arts, 1);
+    CHECK(json_has("\"subs\":[\"chain\",\"defense\"],\"sub\":\"chain\",\"mode\":\"slots\""));
+    pc_ui_commands only_arts = {0x3FF & ~4u, 0, 0};
+    pc_ui_shell_open(&only_arts, 1);
+    CHECK(json_has("\"subs\":[\"arts\"],\"sub\":\"arts\",\"mode\":\"categories\""));
+    tick(PC_UI_SUB_NEXT);
+    CHECK(json_has("\"sub\":\"arts\""));
+
+    // mouse: sub-tab clicks (index among the shown), a list row from the slots focuses it first
+    pc_ui_shell_open(&all, 1);
+    pc_ui_shell_mouse(PC_UI_MOUSE_SUB, 0, 1, 0);
+    tick(0);
+    CHECK(json_has("\"sub\":\"chain\",\"mode\":\"slots\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_ABIL_ROW, 2, 1, 0);
+    tick(0);
+    CHECK(json_has("\"mode\":\"list\",\"slot\":\"triangle\",\"cursor\":2") && queue_empty());
+    pc_ui_shell_mouse(PC_UI_MOUSE_ABIL_ROW, 2, 1, 0); // again: Circle there
+    tick(0);
+    CHECK(abil_req(PC_UI_REQ_ABIL_MAP, 0, 28, PC_UI_ABIL_CHAIN));
+    pc_ui_shell_mouse(PC_UI_MOUSE_ABIL_SLOT, 2, 1, 0); // a slot from the list: onto it
+    tick(0);
+    CHECK(json_has("\"mode\":\"slots\",\"slot\":\"square\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_ABIL_SLOT, 2, 1, 0); // again: its pick
+    tick(0);
+    CHECK(json_has("\"mode\":\"pick\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_SUB, 2, 1, 0);
+    tick(0);
+    CHECK(json_has("\"sub\":\"arts\",\"mode\":\"categories\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_ART_CATEGORY, 2, 1, 0); // the sword: its arts
+    tick(0);
+    CHECK(json_has("\"mode\":\"arts\"") && json_has("\"category\":2,\"art\":0"));
+    pc_ui_shell_mouse(PC_UI_MOUSE_ART, 0, 1, 0);
+    tick(0);
+    CHECK(abil_req(PC_UI_REQ_ART_CAST, 0, 188));
+    pc_ui_shell_mouse(PC_UI_MOUSE_ART_CATEGORY, 5, 1, 0); // another category while in the arts: its arts, no cast
+    tick(0);
+    CHECK(json_has("\"mode\":\"arts\"") && json_has("\"category\":5,\"art\":0") && queue_empty());
+    pc_ui_shell_close();
+}
+
 int main()
 {
     pc_ui_commands all = {0x3FF, 0, 0};
@@ -1013,12 +1210,12 @@ int main()
     // selectable rows carry no reason
     pc_ui_shell_open(&all, 1);
     CHECK(!json_has("\"reason\""));
-    // a command the game has not unlocked (menuFlags bit clear) hides its row: Abilities without Break arts
+    // a command the game has not unlocked (menuFlags bit clear) hides its part: Abilities without Break Arts
     pc_ui_commands no_arts = {0x3FF & ~2u, 0, 0};
     pc_ui_shell_open(&no_arts, 0);
     for (int i = 0; i < 3; ++i) tick(PC_UI_TAB_NEXT);
     CHECK(json_has("\"tab\":\"abilities\""));
-    CHECK(!json_has("break_arts"));
+    CHECK(json_has("\"subs\":[\"chain\",\"defense\"]"));
     // Back and Exit close
     CHECK(tick(PC_UI_BACK) == -1);
     CHECK(!pc_ui_shell_visible());
@@ -1087,6 +1284,7 @@ int main()
     mouse_tests();
     system_tests();
     ashley_tests();
+    abilities_tests();
     std::printf(failures ? "ui_shell_probe: %d failures\n" : "ui_shell_probe: ok\n", failures);
     return failures != 0;
 }

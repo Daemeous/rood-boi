@@ -39,13 +39,66 @@ typedef struct {
     int quick_enabled;                          /* the field's quick swap controls are on (settings key qol_weapon_slots) */
 } pc_ui_equipment;
 
-enum { PC_UI_REQ_NONE, PC_UI_REQ_EQUIP, PC_UI_REQ_QUICK_SET, PC_UI_REQ_QUICK_CLEAR, PC_UI_REQ_CANDIDATES };
+enum { PC_UI_REQ_NONE, PC_UI_REQ_EQUIP, PC_UI_REQ_QUICK_SET, PC_UI_REQ_QUICK_CLEAR, PC_UI_REQ_CANDIDATES,
+       PC_UI_REQ_ABIL_MAP, PC_UI_REQ_ART_CAST };
 typedef struct {
     int kind;
-    int slot;      /* EQUIP/CANDIDATES: PC_UI_SLOT_*; QUICK_*: 0..7 */
-    int item;      /* EQUIP: inventory index, -1 = take off; QUICK_SET: weapon inventory index */
-    int shield;    /* QUICK_SET: shield inventory index, -1 none */
+    int slot;      /* EQUIP/CANDIDATES: PC_UI_SLOT_*; QUICK_*: 0..7; ABIL_MAP: button 0 Circle, 1 Triangle, 2 Square */
+    int item;      /* EQUIP: inventory index, -1 = take off; QUICK_SET: weapon inventory index;
+                    * ABIL_MAP, ART_CAST: the action id (vs_main_actions index) */
+    int shield;    /* QUICK_SET: shield inventory index, -1 none; ABIL_MAP: PC_UI_ABIL_CHAIN / _DEFENSE */
 } pc_ui_request;
+
+/* The Abilities tab (abilities_bridge.c fills it every tick while the shell
+ * shows). Chain and defense abilities: the learned ones in the game's list
+ * order (BATTLE vs_battle_chainAbilityOffsets / defenseAbilityOffsets) and
+ * what the three buttons hold (vs_main_settings.mappedChainAbilities /
+ * mappedDefenseAbilities: 0 Circle, 1 Triangle, 2 Square). Break arts: the
+ * ten weapon categories in the game's order (1 dagger .. 9 crossbow, 10 bare
+ * hands), four arts each. */
+enum { PC_UI_ABILITIES = 14, PC_UI_ABIL_BUTTONS = 3, PC_UI_ART_CATEGORIES = 10, PC_UI_ARTS = 4 };
+enum { PC_UI_ABIL_CHAIN, PC_UI_ABIL_DEFENSE };
+enum { PC_UI_ART_LOCKED, PC_UI_ART_PENDING, PC_UI_ART_LEARNED };
+typedef struct {
+    int id;                 /* action id */
+    char name[32];          /* UTF-8 */
+    char help[200];         /* UTF-8 description (the original menu's) */
+    int cost;               /* RISK */
+    int button;             /* the button it is on: -1 none, 0 Circle, 1 Triangle, 2 Square */
+} pc_ui_ability;
+typedef struct {
+    int count;
+    pc_ui_ability entries[PC_UI_ABILITIES];
+    int slots[PC_UI_ABIL_BUTTONS];      /* per button: index into entries, -1 empty (or not a learned one) */
+    int slot_ids[PC_UI_ABIL_BUTTONS];   /* per button: the action id the settings hold, 0 none */
+} pc_ui_ability_list;
+typedef struct {
+    int id;                 /* action id (184 + (category - 1) * 4 + i) */
+    char name[32];          /* UTF-8; "" while locked (the screen shows "???") */
+    char help[200];         /* UTF-8 description; "" while locked */
+    int cost;               /* HP */
+    int state;              /* PC_UI_ART_*: pending = enough kills, learned after the next battle */
+    int kills_to_go;        /* locked: kills of this weapon type still needed (0 pending) */
+    int usable;             /* learned and castable now (MENU1's checks) */
+    char reason[64];        /* learned and not usable: why ("" otherwise) */
+} pc_ui_art;
+typedef struct {
+    char name[24];          /* UTF-8 ("Dagger") */
+    char help[160];         /* UTF-8: the category's description, or the game's "no arts" line */
+    int learned;            /* arts learned 0..4 */
+    int kills;              /* kills with this weapon type */
+    int next_kills;         /* kills to the next art, -1 all learned */
+    pc_ui_art arts[PC_UI_ARTS];
+} pc_ui_art_category;
+typedef struct {
+    int valid;
+    pc_ui_ability_list lists[2];        /* PC_UI_ABIL_CHAIN, PC_UI_ABIL_DEFENSE */
+    int next_ability_kills;             /* kills to the next battle ability, -1 all learned */
+    int equipped_category;              /* the drawn/equipped weapon's category 1..10, 0 unknown */
+    int weapon_drawn;
+    int risk, hp, hp_max;
+    pc_ui_art_category categories[PC_UI_ART_CATEGORIES];
+} pc_ui_abilities;
 
 /* The Ashley tab (ashley_bridge.c fills it every tick). */
 enum { PC_UI_LIMBS = 6, PC_UI_EFFECTS = 32 };

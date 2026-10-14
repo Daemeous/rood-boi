@@ -216,6 +216,19 @@ shield opens it on Equipment; Square opens the game's original Status screen.
 The model needs room in the game's heap and stays hidden while the editor's
 free camera is on (the screen says so).
 
+The Abilities tab is native: sub-tabs Chain, Defense and Break Arts (L2 / R2).
+Chain and Defense show the three button slots and the learned abilities with
+their RISK cost and description; Circle on a slot picks one for it, and
+Circle / Triangle / Square on a listed ability put it on that button
+(pressing its own button again takes it off), as the original menu does.
+Break Arts lists the weapon categories (the equipped one first) with their
+arts: learned ones with HP cost and description, the rest as "???" with the
+kills still to go. Circle on a usable art of the equipped weapon closes the
+menu and casts it through the game's own targeting; a greyed art says why
+(weapon sheathed, not enough HP, another weapon type). Cancelling the target
+opens the original Break Arts list once, as the game does; Cross there comes
+back to the shell.
+
 - `pc/src/ui/menu_bridge.c` (battle builds) takes over `func_800C930C`, the
   top level, from one `#ifdef ROOD_PC` hook; `ui_shell.cpp` is the navigation
   state (ctest `ui_shell_probe`), `ui_draw.cpp` draws it on Dear ImGui's
@@ -230,6 +243,11 @@ free camera is on (the screen says so).
   model (shown, turned by the stick and a drag, rebuilt after an equip, the
   heap check, the free camera), the original Status and back, the world's
   camera and freeze state given back, 16:9, a soft reset.
+- `pc/tests/ui_abilities_smoke.py`: Chain / Defense assignments byte-for-byte
+  equal to the original menu's, the lists and Break Arts against RAM, greyed
+  arts with their reason, casting (confirm and cancel: the original list on
+  the equipped category with the cast art highlighted), no cast while the
+  menu is still loading.
 
 ## Intro movie and CD drive
 

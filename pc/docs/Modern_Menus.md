@@ -15,8 +15,11 @@ Status: phase 1 (shell, bridge, theme, drawing, RPC `ui_menu`, HUD hidden),
 phase 2 (Equipment: Gear with compare, Quick swap from the bag, mouse;
 equips byte-for-byte equal to the original menu's, `ui_equip_smoke`) and
 phase 3 (Ashley: summary, live model turned by the right stick or a drag,
-Square = the original Status; `ui_ashley_smoke`) landed.
-Plans: `pc/docs/plans/`. Next: phase 4 (System settings).
+Square = the original Status; `ui_ashley_smoke`), phase 4 (System: settings
+pages and the game's options; `ui_system_smoke`) and phase 5 (Abilities:
+Chain / Defense mapping equal to the original's, Break Arts with locked arts
+and kills to go, native casting; `ui_abilities_smoke`) landed.
+Plans: `pc/docs/plans/`. Next: phase 6 (Items and Magick).
 
 | Phase | Screens |
 | --- | --- |

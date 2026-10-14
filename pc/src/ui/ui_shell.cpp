@@ -19,7 +19,7 @@ struct RowDef {
     int command; // ROW_COMMAND: the original command index
 };
 enum Screen { SCREEN_COMMANDS = PC_UI_SCREEN_COMMANDS, SCREEN_EQUIPMENT = PC_UI_SCREEN_EQUIPMENT,
-    SCREEN_ASHLEY = PC_UI_SCREEN_ASHLEY, SCREEN_SYSTEM = PC_UI_SCREEN_SYSTEM };
+    SCREEN_ASHLEY = PC_UI_SCREEN_ASHLEY, SCREEN_SYSTEM = PC_UI_SCREEN_SYSTEM, SCREEN_ABILITIES = PC_UI_SCREEN_ABILITIES };
 struct TabDef {
     const char* id;
     const char* title;
@@ -35,9 +35,9 @@ const TabDef TABS[] = {
     // native screen; the original equip page stays reachable through Items (same command)
     {"equipment", "Equipment", {}, 0, SCREEN_EQUIPMENT, 3},
     {"items", "Items", {{"items", "Items", "Use, sort and discard what you carry.", ROW_COMMAND, 3}}, 1},
-    {"abilities", "Abilities",
-        {{"battle_abilities", "Battle abilities", "Put chain and defense abilities on buttons.", ROW_COMMAND, 2},
-         {"break_arts", "Break arts", "Weapon techniques paid for with HP.", ROW_COMMAND, 1}}, 2},
+    // native screen: sub-tabs Chain and Defense (command 2, Battle Abilities) and Break Arts (command 1),
+    // each shown once the game has unlocked its command (menuFlags); Square opens the original screen
+    {"abilities", "Abilities", {}, 0, SCREEN_ABILITIES, -1},
     {"magick", "Magick", {{"magick", "Magick", "Cast spells from your grimoires.", ROW_COMMAND, 0}}, 1},
     {"lea_monde", "Le\xc3\xa1 Monde", {{"map", "Map", "Where you are and where you have been.", ROW_COMMAND, 5}}, 1},
     // native screen: the game's own System screens and the settings pages (ui_settings.cpp)
@@ -75,6 +75,16 @@ struct Mouse {
     double value_number = 0;
 };
 
+// Abilities screen: sub-tabs Chain / Defense / Break Arts (PC_UI_AB_*), modes PC_UI_ABM_*.
+struct Abil {
+    int kind = PC_UI_AB_CHAIN;            // the sub-tab (kept as its kind: the shown set changes)
+    int mode = PC_UI_ABM_SLOTS;
+    int slot[2] = {0, 0};                 // chain / defense: focused button 0..2
+    int cursor[2] = {0, 0};               // chain / defense: list row
+    int category = 0;                     // Break Arts: focused category 1..10, 0 = the equipped one when placed
+    int art = 0;                          // focused art 0..3
+};
+
 const int QUEUE = 16;
 struct State {
     bool visible = false;
@@ -94,6 +104,8 @@ struct State {
         int page = -1; // the entered settings page; -1: the list has the focus
         int row[PC_UI_SETTINGS_PAGES] = {};
     } sys;
+    Abil ab;
+    pc_ui_abilities ab_model = {};
     int ash_shown = -1;      // effect chips the drawing fits, -1 all
     float drag_x = 0, drag_y = 0; // model drag since the bridge last took it
 } s;
@@ -150,8 +162,13 @@ int shown_rows(int tab, int* out)
             out[n++] = i;
     return n;
 }
+int ab_subs(int* out);
 bool tab_has_rows(int tab)
 {
+    if (TABS[tab].screen == SCREEN_ABILITIES) {
+        int subs[3];
+        return ab_subs(subs) > 0;
+    }
     if (TABS[tab].screen != SCREEN_COMMANDS)
         return TABS[tab].command < 0 || ((s.commands.enabled >> TABS[tab].command) & 1);
     int rows[6];
@@ -723,6 +740,303 @@ void system_json(std::string& j)
     j += escape(status ? status : "") + "\"}";
 }
 
+// ---- Abilities ----
+// Chain and Defense: the Battle Abilities command (2); Break Arts: its command (1).
+const int BATTLE_ABILITIES_COMMAND = 2, BREAK_ARTS_COMMAND = 1;
+const char* const AB_SUB_IDS[3] = {"chain", "defense", "arts"};
+const char* const AB_MODE_IDS[] = {"slots", "list", "pick", "categories", "arts"};
+const char* const AB_BUTTON_IDS[PC_UI_ABIL_BUTTONS] = {"circle", "triangle", "square"};
+const char* const ART_STATE_IDS[] = {"locked", "pending", "learned"};
+// The sub-tabs the game has unlocked, in order (PC_UI_AB_*).
+int ab_subs(int* out)
+{
+    int n = 0;
+    if ((s.commands.enabled >> BATTLE_ABILITIES_COMMAND) & 1)
+        out[n++] = PC_UI_AB_CHAIN, out[n++] = PC_UI_AB_DEFENSE;
+    if ((s.commands.enabled >> BREAK_ARTS_COMMAND) & 1)
+        out[n++] = PC_UI_AB_ARTS;
+    return n;
+}
+bool on_abilities() { return TABS[s.tab].screen == SCREEN_ABILITIES; }
+int ab_base_mode(int kind) { return kind == PC_UI_AB_ARTS ? PC_UI_ABM_CATEGORIES : PC_UI_ABM_SLOTS; }
+// The current sub-tab's index among the shown ones; puts the kind on a shown one.
+int ab_sub_index()
+{
+    int subs[3], n = ab_subs(subs);
+    for (int i = 0; i < n; ++i)
+        if (subs[i] == s.ab.kind)
+            return i;
+    if (n) {
+        s.ab.kind = subs[0];
+        s.ab.mode = ab_base_mode(s.ab.kind);
+    }
+    return 0;
+}
+bool ab_chain_kind() { return s.ab.kind == PC_UI_AB_CHAIN || s.ab.kind == PC_UI_AB_DEFENSE; }
+// The list of the current chain / defense sub-tab (PC_UI_ABIL_CHAIN / _DEFENSE = the kind).
+const pc_ui_ability_list& ab_list() { return s.ab_model.lists[s.ab.kind == PC_UI_AB_DEFENSE ? 1 : 0]; }
+int ab_count()
+{
+    int n = ab_list().count;
+    return n < 0 ? 0 : n > PC_UI_ABILITIES ? PC_UI_ABILITIES : n;
+}
+// The rail's categories (1..10): the equipped one first, then the game's order.
+int ab_order(int* out)
+{
+    int eq = s.ab_model.equipped_category, n = 0;
+    if (eq >= 1 && eq <= PC_UI_ART_CATEGORIES)
+        out[n++] = eq;
+    for (int c = 1; c <= PC_UI_ART_CATEGORIES; ++c)
+        if (c != eq)
+            out[n++] = c;
+    return n;
+}
+int ab_category()
+{
+    if (s.ab.category < 1 || s.ab.category > PC_UI_ART_CATEGORIES) {
+        int order[PC_UI_ART_CATEGORIES];
+        ab_order(order);
+        s.ab.category = order[0];
+    }
+    return s.ab.category;
+}
+int ab_category_row()
+{
+    int order[PC_UI_ART_CATEGORIES], c = ab_category();
+    ab_order(order);
+    for (int i = 0; i < PC_UI_ART_CATEGORIES; ++i)
+        if (order[i] == c)
+            return i;
+    return 0;
+}
+const pc_ui_art_category& ab_cat() { return s.ab_model.categories[ab_category() - 1]; }
+void ab_clamp()
+{
+    ab_sub_index();
+    for (int t = 0; t < 2; ++t) {
+        int n = s.ab_model.lists[t].count;
+        n = n < 0 ? 0 : n > PC_UI_ABILITIES ? PC_UI_ABILITIES : n;
+        if (s.ab.cursor[t] >= n)
+            s.ab.cursor[t] = n ? n - 1 : 0;
+        if (s.ab.cursor[t] < 0)
+            s.ab.cursor[t] = 0;
+        if (s.ab.slot[t] < 0 || s.ab.slot[t] >= PC_UI_ABIL_BUTTONS)
+            s.ab.slot[t] = 0;
+    }
+    if (ab_chain_kind() && (s.ab.mode == PC_UI_ABM_LIST || s.ab.mode == PC_UI_ABM_PICK) && !ab_count())
+        s.ab.mode = PC_UI_ABM_SLOTS; // nothing learned (or the list went away)
+    if (s.ab.art < 0 || s.ab.art >= PC_UI_ARTS)
+        s.ab.art = 0;
+}
+// Out of a list onto the sub-tab's base.
+void ab_base() { s.ab.mode = ab_base_mode(s.ab.kind); }
+// A pick list (for one button) never survives the tab or the shell closing.
+void ab_unpick()
+{
+    if (s.ab.mode == PC_UI_ABM_PICK)
+        s.ab.mode = PC_UI_ABM_SLOTS;
+}
+// The Abilities screen takes Triangle itself: the learned list maps it (the original's direct presses).
+bool ab_takes_triangle() { return on_abilities() && ab_chain_kind() && s.ab.mode == PC_UI_ABM_LIST; }
+// Cross: one step back; false at a sub-tab's base (the shell closes).
+bool ab_back()
+{
+    if (s.ab.mode == PC_UI_ABM_LIST || s.ab.mode == PC_UI_ABM_PICK || s.ab.mode == PC_UI_ABM_ARTS) {
+        ab_base();
+        return true;
+    }
+    return false;
+}
+void ab_map(int button)
+{
+    const pc_ui_ability_list& l = ab_list();
+    int t = s.ab.kind == PC_UI_AB_DEFENSE ? 1 : 0;
+    if (!ab_count())
+        return;
+    push(PC_UI_REQ_ABIL_MAP, button, l.entries[s.ab.cursor[t]].id, t == 1 ? PC_UI_ABIL_DEFENSE : PC_UI_ABIL_CHAIN);
+}
+int ab_original() // Square: the original screen of the sub-tab (results: command + 1)
+{
+    s.visible = false; // the game shows its screen; it reopens the shell after
+    s.drag_x = s.drag_y = 0;
+    return (ab_chain_kind() ? BATTLE_ABILITIES_COMMAND : BREAK_ARTS_COMMAND) + 1;
+}
+int abilities_tick(const pc_ui_input* in)
+{
+    int subs[3], n = ab_subs(subs);
+    if (!n)
+        return 0;
+    ab_clamp();
+    if (in->pressed & (PC_UI_SUB_NEXT | PC_UI_SUB_PREV)) {
+        int i = ab_sub_index(), dir = (in->pressed & PC_UI_SUB_NEXT) ? 1 : -1;
+        s.ab.kind = subs[(i + dir + n) % n];
+        ab_base();
+        return 0;
+    }
+    Abil& a = s.ab;
+    if (ab_chain_kind()) {
+        int t = a.kind == PC_UI_AB_DEFENSE ? 1 : 0, count = ab_count();
+        int& slot = a.slot[t];
+        int& cur = a.cursor[t];
+        switch (a.mode) {
+        case PC_UI_ABM_SLOTS:
+            if (in->repeat & PC_UI_RIGHT)
+                slot = (slot + 1) % PC_UI_ABIL_BUTTONS;
+            if (in->repeat & PC_UI_LEFT)
+                slot = (slot + PC_UI_ABIL_BUTTONS - 1) % PC_UI_ABIL_BUTTONS;
+            if ((in->pressed & PC_UI_DOWN) && count)
+                a.mode = PC_UI_ABM_LIST;
+            if (in->pressed & PC_UI_ALT)
+                return ab_original();
+            if ((in->pressed & PC_UI_CONFIRM) && count) {
+                // the pick list opens on what the button holds
+                const pc_ui_ability_list& l = ab_list();
+                if (l.slots[slot] >= 0 && l.slots[slot] < count)
+                    cur = l.slots[slot];
+                a.mode = PC_UI_ABM_PICK;
+            }
+            break;
+        case PC_UI_ABM_LIST: // the original's style: Circle / Triangle / Square put the focused ability on that button
+            if (in->repeat & PC_UI_DOWN)
+                cur = (cur + 1) % count;
+            if (in->repeat & PC_UI_UP) {
+                if (cur == 0 && (in->pressed & PC_UI_UP))
+                    a.mode = PC_UI_ABM_SLOTS;
+                else if (cur > 0)
+                    --cur;
+            }
+            if (in->pressed & PC_UI_CONFIRM)
+                ab_map(0);
+            else if (in->pressed & PC_UI_EXIT)
+                ab_map(1);
+            else if (in->pressed & PC_UI_ALT)
+                ab_map(2);
+            break;
+        case PC_UI_ABM_PICK: // for the focused button
+            if (in->repeat & PC_UI_DOWN)
+                cur = (cur + 1) % count;
+            if (in->repeat & PC_UI_UP)
+                cur = (cur + count - 1) % count;
+            if (in->pressed & PC_UI_CONFIRM) {
+                ab_map(slot);
+                a.mode = PC_UI_ABM_SLOTS;
+            }
+            break;
+        default:
+            ab_base();
+            break;
+        }
+        return 0;
+    }
+    // Break Arts
+    if (in->pressed & PC_UI_ALT)
+        return ab_original();
+    int order[PC_UI_ART_CATEGORIES];
+    ab_order(order);
+    int row = ab_category_row();
+    switch (a.mode) {
+    case PC_UI_ABM_CATEGORIES:
+        if (in->repeat & PC_UI_DOWN)
+            a.category = order[(row + 1) % PC_UI_ART_CATEGORIES];
+        if (in->repeat & PC_UI_UP)
+            a.category = order[(row + PC_UI_ART_CATEGORIES - 1) % PC_UI_ART_CATEGORIES];
+        if (in->pressed & (PC_UI_CONFIRM | PC_UI_RIGHT)) {
+            a.mode = PC_UI_ABM_ARTS;
+            a.art = 0;
+        }
+        break;
+    case PC_UI_ABM_ARTS:
+        if (in->repeat & PC_UI_DOWN)
+            a.art = (a.art + 1) % PC_UI_ARTS;
+        if (in->repeat & PC_UI_UP)
+            a.art = (a.art + PC_UI_ARTS - 1) % PC_UI_ARTS;
+        if (in->pressed & PC_UI_LEFT)
+            ab_base();
+        else if (in->pressed & PC_UI_CONFIRM) {
+            // learned: the bridge checks it as MENU1 does (an unusable art buzzes) and closes the menu to cast
+            const pc_ui_art& art = ab_cat().arts[a.art];
+            if (s.ab_model.valid && art.state == PC_UI_ART_LEARNED)
+                push(PC_UI_REQ_ART_CAST, 0, art.id, 0);
+        }
+        break;
+    default:
+        ab_base();
+        break;
+    }
+    return 0;
+}
+void ability_json(std::string& j, const pc_ui_ability& e)
+{
+    char buf[96];
+    std::snprintf(buf, sizeof buf, "{\"id\":%d,\"cost\":%d,\"button\":\"%s\",\"name\":\"", e.id, e.cost,
+        e.button >= 0 && e.button < PC_UI_ABIL_BUTTONS ? AB_BUTTON_IDS[e.button] : "");
+    j += buf;
+    j += escape(e.name) + "\",\"help\":\"" + escape(e.help) + "\"}";
+}
+void abilities_json(std::string& j)
+{
+    const pc_ui_abilities& m = s.ab_model;
+    char buf[256];
+    int subs[3], n = ab_subs(subs);
+    ab_clamp();
+    j += ",\"abilities\":{\"valid\":";
+    j += m.valid ? "true" : "false";
+    j += ",\"subs\":[";
+    for (int i = 0; i < n; ++i)
+        j += std::string(i ? ",\"" : "\"") + AB_SUB_IDS[subs[i]] + "\"";
+    std::snprintf(buf, sizeof buf,
+        "],\"sub\":\"%s\",\"mode\":\"%s\",\"slot\":\"%s\",\"cursor\":%d,\"category\":%d,\"art\":%d,"
+        "\"next_ability_kills\":%d,\"equipped_category\":%d,\"weapon_drawn\":%s,\"risk\":%d,\"hp\":%d,\"hp_max\":%d",
+        n ? AB_SUB_IDS[s.ab.kind] : "", AB_MODE_IDS[s.ab.mode],
+        AB_BUTTON_IDS[s.ab.slot[s.ab.kind == PC_UI_AB_DEFENSE ? 1 : 0]],
+        s.ab.cursor[s.ab.kind == PC_UI_AB_DEFENSE ? 1 : 0], ab_category(), s.ab.art, m.next_ability_kills,
+        m.equipped_category, m.weapon_drawn ? "true" : "false", m.risk, m.hp, m.hp_max);
+    j += buf;
+    for (int t = 0; t < 2; ++t) {
+        const pc_ui_ability_list& l = m.lists[t];
+        int count = l.count < 0 ? 0 : l.count > PC_UI_ABILITIES ? PC_UI_ABILITIES : l.count;
+        j += t ? ",\"defense\":{\"slots\":[" : ",\"chain\":{\"slots\":[";
+        for (int b = 0; b < PC_UI_ABIL_BUTTONS; ++b) {
+            int e = l.slots[b];
+            std::snprintf(buf, sizeof buf, "%s{\"button\":\"%s\",\"id\":%d,\"entry\":%d,\"name\":\"", b ? "," : "",
+                AB_BUTTON_IDS[b], l.slot_ids[b], e >= 0 && e < count ? e : -1);
+            j += buf;
+            j += (e >= 0 && e < count ? escape(l.entries[e].name) : std::string()) + "\"}";
+        }
+        j += "],\"entries\":[";
+        for (int i = 0; i < count; ++i) {
+            if (i)
+                j += ",";
+            ability_json(j, l.entries[i]);
+        }
+        j += "]}";
+    }
+    int order[PC_UI_ART_CATEGORIES];
+    ab_order(order);
+    j += ",\"order\":[";
+    for (int i = 0; i < PC_UI_ART_CATEGORIES; ++i)
+        j += (i ? "," : "") + std::to_string(order[i]);
+    j += "],\"categories\":[";
+    for (int c = 0; c < PC_UI_ART_CATEGORIES; ++c) {
+        const pc_ui_art_category& k = m.categories[c];
+        std::snprintf(buf, sizeof buf, "%s{\"category\":%d,\"learned\":%d,\"kills\":%d,\"next_kills\":%d,\"name\":\"",
+            c ? "," : "", c + 1, k.learned, k.kills, k.next_kills);
+        j += buf;
+        j += escape(k.name) + "\",\"help\":\"" + escape(k.help) + "\",\"arts\":[";
+        for (int i = 0; i < PC_UI_ARTS; ++i) {
+            const pc_ui_art& a = k.arts[i];
+            int st = a.state >= 0 && a.state <= PC_UI_ART_LEARNED ? a.state : 0;
+            std::snprintf(buf, sizeof buf,
+                "%s{\"id\":%d,\"cost\":%d,\"state\":\"%s\",\"kills_to_go\":%d,\"usable\":%s,\"name\":\"", i ? "," : "",
+                a.id, a.cost, ART_STATE_IDS[st], a.kills_to_go, a.usable ? "true" : "false");
+            j += buf;
+            j += escape(a.name) + "\",\"help\":\"" + escape(a.help) + "\",\"reason\":\"" + escape(a.reason) + "\"}";
+        }
+        j += "]}";
+    }
+    j += "]}";
+}
+
 // ---- Mouse ----
 // Focus what the pointer is on (hover, or the click's target). False when that
 // target is not on screen now (another mode or tab, past the end).
@@ -770,6 +1084,67 @@ bool mouse_focus(int kind, int index)
         s.sys.row[page] = index;
         return true;
     }
+    case PC_UI_MOUSE_ABIL_SLOT: // hover moves the slots' focus while they have it
+        if (!on_abilities() || !ab_chain_kind() || s.ab.mode != PC_UI_ABM_SLOTS || index < 0
+            || index >= PC_UI_ABIL_BUTTONS)
+            return false;
+        s.ab.slot[s.ab.kind == PC_UI_AB_DEFENSE] = index;
+        return true;
+    case PC_UI_MOUSE_ABIL_ROW: // and the list's while it has it (browse or pick)
+        if (!on_abilities() || !ab_chain_kind() || (s.ab.mode != PC_UI_ABM_LIST && s.ab.mode != PC_UI_ABM_PICK)
+            || index < 0 || index >= ab_count())
+            return false;
+        s.ab.cursor[s.ab.kind == PC_UI_AB_DEFENSE] = index;
+        return true;
+    case PC_UI_MOUSE_ART_CATEGORY:
+        if (!on_abilities() || s.ab.kind != PC_UI_AB_ARTS || s.ab.mode != PC_UI_ABM_CATEGORIES || index < 1
+            || index > PC_UI_ART_CATEGORIES)
+            return false;
+        s.ab.category = index;
+        return true;
+    case PC_UI_MOUSE_ART:
+        if (!on_abilities() || s.ab.kind != PC_UI_AB_ARTS || s.ab.mode != PC_UI_ABM_ARTS || index < 0
+            || index >= PC_UI_ARTS)
+            return false;
+        s.ab.art = index;
+        return true;
+    default:
+        return false;
+    }
+}
+// A click on an Abilities target outside the zone that has the focus moves
+// the focus there (and onto the target) without confirming; true when it did.
+bool ab_click_zone(int kind, int index)
+{
+    if (!on_abilities())
+        return false;
+    Abil& a = s.ab;
+    int t = a.kind == PC_UI_AB_DEFENSE;
+    switch (kind) {
+    case PC_UI_MOUSE_ABIL_SLOT:
+        if (!ab_chain_kind() || a.mode == PC_UI_ABM_SLOTS || index < 0 || index >= PC_UI_ABIL_BUTTONS)
+            return false;
+        a.mode = PC_UI_ABM_SLOTS;
+        a.slot[t] = index;
+        return true;
+    case PC_UI_MOUSE_ABIL_ROW:
+        if (!ab_chain_kind() || a.mode != PC_UI_ABM_SLOTS || index < 0 || index >= ab_count())
+            return false;
+        a.mode = PC_UI_ABM_LIST;
+        a.cursor[t] = index;
+        return true;
+    case PC_UI_MOUSE_ART_CATEGORY: // another category while the arts have the focus: its arts
+        if (a.kind != PC_UI_AB_ARTS || a.mode != PC_UI_ABM_ARTS || index < 1 || index > PC_UI_ART_CATEGORIES)
+            return false;
+        if (index != a.category)
+            a.category = index, a.art = 0;
+        return true;
+    case PC_UI_MOUSE_ART:
+        if (a.kind != PC_UI_AB_ARTS || a.mode != PC_UI_ABM_CATEGORIES || index < 0 || index >= PC_UI_ARTS)
+            return false;
+        a.mode = PC_UI_ABM_ARTS;
+        a.art = index;
+        return true;
     default:
         return false;
     }
@@ -820,9 +1195,19 @@ bool apply_mouse(pc_ui_input& in)
         sys_leave();
         s.tab = m.click_index;
         equip_base();
+        ab_unpick();
         s.drag_x = s.drag_y = 0;
         return true;
     case PC_UI_MOUSE_SUB:
+        if (on_abilities()) { // the i-th shown sub-tab
+            int subs[3], n = ab_subs(subs);
+            if (m.click_index < 0 || m.click_index >= n || (subs[m.click_index] == s.ab.kind
+                    && s.ab.mode == ab_base_mode(s.ab.kind)))
+                return false;
+            s.ab.kind = subs[m.click_index];
+            ab_base();
+            return true;
+        }
         if (TABS[s.tab].screen != SCREEN_EQUIPMENT || (m.click_index != 0 && m.click_index != 1))
             return false;
         if (m.click_index == s.eq.sub && !picking())
@@ -861,6 +1246,8 @@ bool apply_mouse(pc_ui_input& in)
             in.pressed |= PC_UI_CONFIRM, in.repeat |= PC_UI_CONFIRM;
         return false;
     default:
+        if (ab_click_zone(m.click_kind, m.click_index))
+            return true;
         if (mouse_focus(m.click_kind, m.click_index))
             in.pressed |= PC_UI_CONFIRM, in.repeat |= PC_UI_CONFIRM;
         return false;
@@ -929,8 +1316,10 @@ extern "C" void pc_ui_shell_open(const pc_ui_commands* commands, int remember)
         s.ash_row = 0;
         s.sys.item = 0;
         std::memset(s.sys.row, 0, sizeof s.sys.row);
+        s.ab = Abil();
     }
     equip_base(); // a pick list never survives the shell closing
+    ab_unpick();
     for (int t = 0; t < TAB_COUNT; ++t)
         clamp_row(t);
     if (!tab_has_rows(s.tab))
@@ -964,6 +1353,11 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
     // Cross steps back out of a pick list; at the top it closes, as Triangle does
     if ((in->pressed & PC_UI_BACK) && !(in->pressed & PC_UI_EXIT) && equipment && equip_back())
         return 0;
+    // Abilities: Cross steps back out of a list; in the learned list Triangle is a button to map
+    if ((in->pressed & PC_UI_BACK) && !(in->pressed & PC_UI_EXIT) && on_abilities() && ab_back())
+        return 0;
+    if (ab_takes_triangle() && (in->pressed & PC_UI_EXIT) && !(in->pressed & PC_UI_BACK))
+        return abilities_tick(in);
     // Cross steps back out of a settings page to the System list
     if ((in->pressed & PC_UI_BACK) && !(in->pressed & PC_UI_EXIT) && on_system() && s.sys.page >= 0) {
         sys_leave();
@@ -984,6 +1378,7 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
     if (s.tab != was) {
         sys_leave();  // out of a settings page: saved
         equip_base(); // leaving (or entering) the Equipment tab drops its pick list
+        ab_unpick();
         s.drag_x = s.drag_y = 0;
         return 0;
     }
@@ -995,6 +1390,8 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
     }
     if (TABS[s.tab].screen == SCREEN_SYSTEM)
         return system_tick(in);
+    if (on_abilities())
+        return abilities_tick(in);
     int rows[6];
     int n = clamp_row(s.tab);
     shown_rows(s.tab, rows);
@@ -1061,6 +1458,7 @@ extern "C" void pc_ui_shell_json(char* out, unsigned size)
     j += "\",\"screen\":\"";
     j += t.screen == SCREEN_EQUIPMENT ? "equipment" : t.screen == SCREEN_ASHLEY ? "ashley"
         : t.screen == SCREEN_SYSTEM                                            ? "system"
+        : t.screen == SCREEN_ABILITIES                                         ? "abilities"
                                                                                 : "commands";
     j += "\"";
     if (t.screen == SCREEN_EQUIPMENT)
@@ -1069,6 +1467,8 @@ extern "C" void pc_ui_shell_json(char* out, unsigned size)
         ashley_json(j);
     else if (t.screen == SCREEN_SYSTEM)
         system_json(j);
+    else if (t.screen == SCREEN_ABILITIES)
+        abilities_json(j);
     j += "}";
     std::snprintf(out, size, "%s", j.c_str());
 }
@@ -1196,4 +1596,26 @@ extern "C" void pc_ui_shell_system_value(int row, int delta, double value, int s
     s.mouse.value_number = value;
     s.mouse.value_set = set != 0;
     s.mouse.value_preview = set == 2;
+}
+
+extern "C" void pc_ui_shell_set_abilities(const pc_ui_abilities* a)
+{
+    s.ab_model = *a;
+    ab_clamp();
+}
+extern "C" const pc_ui_abilities* pc_ui_shell_abilities(void) { return &s.ab_model; }
+extern "C" void pc_ui_shell_abilities_view(pc_ui_abilities_view* v)
+{
+    ab_clamp();
+    v->subs = ab_subs(v->sub_kind);
+    v->sub = ab_sub_index();
+    v->kind = s.ab.kind;
+    v->mode = s.ab.mode;
+    int t = s.ab.kind == PC_UI_AB_DEFENSE;
+    v->slot = s.ab.slot[t];
+    v->cursor = s.ab.cursor[t];
+    v->category = ab_category();
+    v->category_row = ab_category_row();
+    v->art = s.ab.art;
+    ab_order(v->order);
 }

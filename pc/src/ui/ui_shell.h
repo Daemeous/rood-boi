@@ -79,8 +79,10 @@ int pc_ui_shell_row(int i, const char** label, const char** help, const char** v
     const char** reason);
 int pc_ui_shell_focus(void);
 /* What the current tab shows: PC_UI_SCREEN_COMMANDS (rows above), or a native
- * screen: PC_UI_SCREEN_EQUIPMENT, PC_UI_SCREEN_ASHLEY, PC_UI_SCREEN_SYSTEM. */
-enum { PC_UI_SCREEN_COMMANDS = 0, PC_UI_SCREEN_EQUIPMENT = 1, PC_UI_SCREEN_ASHLEY = 2, PC_UI_SCREEN_SYSTEM = 3 };
+ * screen: PC_UI_SCREEN_EQUIPMENT, PC_UI_SCREEN_ASHLEY, PC_UI_SCREEN_SYSTEM,
+ * PC_UI_SCREEN_ABILITIES. */
+enum { PC_UI_SCREEN_COMMANDS = 0, PC_UI_SCREEN_EQUIPMENT = 1, PC_UI_SCREEN_ASHLEY = 2, PC_UI_SCREEN_SYSTEM = 3,
+       PC_UI_SCREEN_ABILITIES = 4 };
 int pc_ui_shell_screen(void);
 
 /* The Ashley screen: a summary with rows weapon, shield, condition, then one
@@ -128,7 +130,11 @@ enum {
     PC_UI_MOUSE_NONE, PC_UI_MOUSE_TAB, PC_UI_MOUSE_SUB, PC_UI_MOUSE_ROW, PC_UI_MOUSE_SLOT, PC_UI_MOUSE_LIST,
     PC_UI_MOUSE_QUICK, PC_UI_MOUSE_BUTTON,
     PC_UI_MOUSE_PAGE,   /* System: an entry of the list (pc_ui_shell_system_item) */
-    PC_UI_MOUSE_SETTING /* System: a row of the page on the card */
+    PC_UI_MOUSE_SETTING, /* System: a row of the page on the card */
+    PC_UI_MOUSE_ABIL_SLOT, /* Abilities, Chain / Defense: a button's slot 0..2 */
+    PC_UI_MOUSE_ABIL_ROW,  /* Abilities, Chain / Defense: a row of the learned list */
+    PC_UI_MOUSE_ART_CATEGORY, /* Abilities, Break Arts: a category (1..10, not the rail row) */
+    PC_UI_MOUSE_ART        /* Abilities, Break Arts: an art 0..3 of the focused category */
 };
 void pc_ui_shell_mouse(int kind, int index, int clicked, float wheel);
 
@@ -152,6 +158,48 @@ const pc_ui_equipment* pc_ui_shell_equipment(void);
 /* Row r of the open pick list: the candidate, or null ("No shield" first in the
  * quick shield step, or past the end). */
 const pc_ui_item* pc_ui_shell_list_item(int r);
+
+/* The Abilities screen. Sub-tabs (L2/R2; a click on PC_UI_MOUSE_SUB index i
+ * = the i-th shown): Chain and Defense once the game has unlocked Battle
+ * Abilities (menuFlags bit 2), Break Arts once Break Arts is (bit 1).
+ *
+ * Chain / Defense: the three buttons' slots (Circle, Triangle, Square) above
+ * the learned list. Slots: Left/Right move, Circle opens the list as a pick
+ * for that button (PICK: Circle puts the ability there, back to the slots;
+ * the one already there takes it off, as the original toggles), Down goes
+ * into the list, Square opens the original Battle Abilities screen (result
+ * 3). List (LIST, the original's own style): Circle / Triangle / Square put
+ * the focused ability on that button (Triangle does not close the menu
+ * here), Up on the first row goes back to the slots. Every assignment is a
+ * PC_UI_REQ_ABIL_MAP {slot = button, item = action id, shield =
+ * PC_UI_ABIL_CHAIN / _DEFENSE}; the bridge does what MENU2's _mapAbility does.
+ *
+ * Break Arts: the categories rail (the equipped category first) and the
+ * focused category's four arts. Circle / Right enters the arts, Left / Cross
+ * goes back; Circle on a learned art queues PC_UI_REQ_ART_CAST {item = id}:
+ * the bridge checks it as MENU1 does and, accepted, hands it to the game and
+ * ends the menu as MENU1 does (menu_bridge.c close_for_cast, after
+ * pc_ui_shell_close), else buzzes. Square opens the original Break Arts (result 2). Cross steps back
+ * out of a list; at a sub-tab's base it closes as everywhere. */
+enum { PC_UI_AB_CHAIN, PC_UI_AB_DEFENSE, PC_UI_AB_ARTS };
+enum { PC_UI_ABM_SLOTS, PC_UI_ABM_LIST, PC_UI_ABM_PICK, PC_UI_ABM_CATEGORIES, PC_UI_ABM_ARTS };
+typedef struct {
+    int subs;          /* sub-tabs shown */
+    int sub_kind[3];   /* PC_UI_AB_* of each */
+    int sub;           /* the current one's index */
+    int kind;          /* PC_UI_AB_* */
+    int mode;          /* PC_UI_ABM_* */
+    int slot;          /* Chain / Defense: the focused button 0..2 */
+    int cursor;        /* Chain / Defense: the list row */
+    int category;      /* Break Arts: the focused category 1..10 */
+    int category_row;  /* its row in the rail */
+    int art;           /* the focused art 0..3 */
+    int order[PC_UI_ART_CATEGORIES]; /* the rail: categories, the equipped one first */
+} pc_ui_abilities_view;
+void pc_ui_shell_abilities_view(pc_ui_abilities_view* v);
+/* The bridge sets the snapshot each tick before pc_ui_shell_tick (copied). */
+void pc_ui_shell_set_abilities(const pc_ui_abilities* a);
+const pc_ui_abilities* pc_ui_shell_abilities(void);
 
 /* The System screen (pc/src/ui/ui_settings.h has the pages): a list on the
  * left, the game's own screens first (Data, Options, Score, Quick manual;

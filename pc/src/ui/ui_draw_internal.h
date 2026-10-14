@@ -72,7 +72,7 @@ struct Pointer {
 // presses `bits` (PC_UI_*).
 struct Hint {
     int b0, b1; // PC_PROMPT_*, b1 -1 for none
-    const char* verb;
+    const char* verb; // "": an icon only, grouped with the hint after it
     unsigned bits;
 };
 struct ScreenOut {
@@ -129,6 +129,9 @@ void draw_ashley(const Frame& f, const ui::Theme& t, float top, float dt, bool f
     ScreenOut& out);
 // The System tab's body (ui_system_draw.cpp): the list, the page's card, a capture's prompt.
 void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
+// The Abilities tab's body (ui_abilities_draw.cpp): Chain / Defense (slots, learned list, card) and Break Arts
+// (categories, arts, card).
+void draw_abilities(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
 // The Ashley screen's model column (layout units x, y, w, h) on a W-wide layout.
 void model_column(const ui::Theme& t, float W, float out[4]);
 // The right card's width (16:9: 396, 4:3: 344).

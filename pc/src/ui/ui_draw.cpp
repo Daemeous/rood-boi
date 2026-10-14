@@ -2,7 +2,7 @@
 // list, inside the game picture (pc_gl_view), in 1280x720 / 960x720 layout
 // units. The tabs, the command rows and their card, the hints and the pointer
 // are here; screens with their own layout draw in their own files
-// (ui_equip_draw.cpp, ui_ashley_draw.cpp, ui_system_draw.cpp).
+// (ui_equip_draw.cpp, ui_ashley_draw.cpp, ui_system_draw.cpp, ui_abilities_draw.cpp).
 #include "ui/ui_draw_internal.h"
 #include "ui/ui_settings.h"
 #include "button_prompts.h"
@@ -310,19 +310,22 @@ void draw_footer(const Frame& f, const ui::Theme& t, const ScreenOut& out, bool 
     unsigned col = held ? t.dim : t.ash;
     for (int i = out.hint_count - 1; i >= 0; --i) {
         const Hint& h = out.hints[i];
+        // a hint without a verb is an icon of the group on its right ("○ △ □ SET ON THAT BUTTON")
         std::string verb = upper(h.verb);
         float right = hx;
-        float vw = measure(f, fonts.label, t.hint_size, verb.c_str(), 0.22f);
+        float vw = verb.empty() ? 0 : measure(f, fonts.label, t.hint_size, verb.c_str(), 0.22f);
+        float sp = verb.empty() ? 0 : 9;
         float gw1 = h.b1 >= 0 ? glyph(f, h.b1, icon, 0, 0, true) : 0;
         float gw0 = glyph(f, h.b0, icon, 0, 0, true);
-        float left = hx - vw - 9 - gw1 - (gw1 > 0 ? 3 : 0) - gw0;
+        float left = hx - vw - sp - gw1 - (gw1 > 0 ? 3 : 0) - gw0;
         bool over = m.over(left - 4, hy - 8, right + 4, hy + t.hint_size + 8);
         unsigned c = over ? t.bone : col;
         if (over)
             m.hit(PC_UI_MOUSE_BUTTON, (int)h.bits, left - 4, hy - 8, right + 4, hy + t.hint_size + 8);
         hx -= vw;
-        text(f, fonts.label, t.hint_size, hx, hy, c, verb.c_str(), 0.22f);
-        hx -= 9;
+        if (!verb.empty())
+            text(f, fonts.label, t.hint_size, hx, hy, c, verb.c_str(), 0.22f);
+        hx -= sp;
         if (h.b1 >= 0) {
             hx -= gw1;
             glyph(f, h.b1, icon, hx, cy);
@@ -330,7 +333,7 @@ void draw_footer(const Frame& f, const ui::Theme& t, const ScreenOut& out, bool 
         }
         hx -= gw0;
         glyph(f, h.b0, icon, hx, cy);
-        hx -= 26;
+        hx -= i > 0 && !out.hints[i - 1].verb[0] ? 8 : 26;
     }
     // the crumb: what fits left of the hints (the tail always shows)
     float x = t.margin_x;
@@ -479,6 +482,8 @@ extern "C" void pc_ui_draw_frame(float dt)
         draw_ashley(f, t, top, dt, fresh, model, m, out);
     else if (pc_ui_shell_screen() == PC_UI_SCREEN_SYSTEM)
         draw_system(f, t, top, dt, fresh, m, out);
+    else if (pc_ui_shell_screen() == PC_UI_SCREEN_ABILITIES)
+        draw_abilities(f, t, top, dt, fresh, m, out);
     else
         draw_commands(f, t, top, dt, fresh, m, out);
     draw_footer(f, t, out, held, m);

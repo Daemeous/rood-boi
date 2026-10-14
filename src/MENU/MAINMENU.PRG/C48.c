@@ -460,6 +460,15 @@ void vs_mainMenu_exec(int arg0)
 
         state = func_800C930C(0);
 
+#ifdef ROOD_PC
+        /* The modern menus handed a break art to the game and ended the menu
+         * as MENU1's cast does (pc/src/ui/menu_bridge.c close_for_cast):
+         * that frame's func_800FAA5C returns 1, nothing is rendered. */
+        if (state == 0 && menuState->currentMenu == 0x7F) {
+            return;
+        }
+#endif
+
         if (state != 0) {
             if (state > 0) {
                 state |= menuStateOpenedFromMainMenu;

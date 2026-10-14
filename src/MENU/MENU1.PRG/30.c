@@ -388,6 +388,15 @@ int vs_menu1_exec(u_char* state)
         break;
 
     case artsInitWithTitle:
+#ifdef ROOD_PC
+        /* Only a cancelled break art target comes here (BATTLE func_800CAB40),
+         * and on the PS1 weaponType is then the cast art's category, the
+         * equipped weapon's (no other can be cast). The modern menus cast
+         * without running this overlay (pc/src/ui/abilities_bridge.c), so
+         * weaponType is 0 (freshly loaded) or whatever View Arts last picked:
+         * the equipped weapon's. */
+        weaponType = vs_battle_characterState->equippedWeaponCategory;
+#endif
         _setMenuHeader();
         _weaponArtsMenu(weaponType | opt_forceCursorMemory);
         *state = artsMenu;
