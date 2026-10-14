@@ -63,6 +63,7 @@ int _calloSlot = 0; /* where she last spawned (0: not yet) */
 /* The room loaded during the prologue: the Wine Cellar's first room sets the flag in its
  * opening scene, after the load, so she joins there once it is set (vs_mod_frame). */
 u_char _lateJoin;
+u_char _calloSpawning;
 
 void vs_mod_spawnCallo(void)
 {
@@ -108,6 +109,7 @@ void vs_mod_spawnCallo(void)
     _giveStartingWeapon();
     shield = _loadoutShield();
     weapon = _loadoutWeapon();
+    _calloSpawning = slot; /* her animation set: vs_mod_animSet */
     if (weapon != NULL) {
         blade = &vs_main_inventory.blades[weapon->blade - 1];
         callo = func_800774FC(slot, CALLO_MODEL, blade->wepId, blade->material,
@@ -119,6 +121,7 @@ void vs_mod_spawnCallo(void)
             shield ? shield->base.wepId : 0, shield ? shield->base.material : 0, &position,
             CALLO_SPAWN_PARAM);
     }
+    _calloSpawning = 0;
     if (callo == NULL) {
         return;
     }
@@ -578,21 +581,6 @@ void _setSpellChosen(int index, int chosen)
     }
 }
 
-/* Only spells Ashley has learned count towards her limit: the MAGIC menu lists only those, so
- * a chosen spell he hasn't learned yet (the defaults, early on) could never be taken off. */
-int _chosenSpellCount(void)
-{
-    int count = 0;
-    int i;
-
-    for (i = 0; i < SPELL_COUNT; ++i) {
-        if (_spellChosen(i) && ACTION_UNLOCKED(_spellId(i))) {
-            ++count;
-        }
-    }
-    return count;
-}
-
 /* Where spells go in her action table (limb * 4 + slot): not her arms (limbs 0 and 1, which
  * hold her weapon attack). The AI cast buffs only from the other limbs: placed on an arm,
  * Prostasia etc. were never used while attack spells were. Template Heal is limb 3 slot 0. */
@@ -888,5 +876,28 @@ static char _merloseRow[] = "MERLOSE\0";
 static char _merloseRowDesc[] = "Equip|>6|Merlose\0";
 static char _merloseRowAbsent[] = "Merlose|>6|is|>6|not|>6|here\0";
 #pragma vsstring(end)
+
+/* The animation set her weapon category asks for (staff: her bare-hands set) */
+int vs_mod_animSet(int slot, int category)
+{
+    if ((slot != 0) && ((slot == _calloSpawning) || (slot == _calloSlot))) {
+        return CALLO_ANIM_SET(category);
+    }
+    return category;
+}
+
+#ifndef VS_CALLO
+/* Patch edition: the animation-set load at creation comes here (build_mod.py battle) */
+void func_800771E0(char*, int, int, int);
+
+void vs_mod_animSetLoad(char* actor, int slot, int a2, int a3)
+{
+    u_char category = actor[37];
+
+    actor[37] = vs_mod_animSet(slot, category);
+    func_800771E0(actor, slot, a2, a3);
+    actor[37] = category;
+}
+#endif
 
 #include "merlose.h"
