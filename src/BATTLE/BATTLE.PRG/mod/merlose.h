@@ -862,6 +862,18 @@ static int _hex(char* out, const u_char* bytes, int count)
     return count * 2;
 }
 
+/* Her chosen spells, for the RPC state (the MAGIC menu's own count is in menu.c) */
+static int _stateSpellCount(void)
+{
+    int count = 0;
+    int i;
+
+    for (i = 0; i < SPELL_COUNT; ++i) {
+        count += _spellChosen(i);
+    }
+    return count;
+}
+
 int vs_mod_describe(char* out)
 {
     vs_battle_actor* callo = _calloActor();
@@ -887,7 +899,7 @@ int vs_mod_describe(char* out)
         stats ? stats->maxHP : 0, stats ? stats->currentMP : 0, stats ? stats->maxMP : 0,
         callo ? callo->unk1C : 0, _awayForScene, _menuMode, vs_battle_getStateFlag(PROGRESS_FLAG),
         loadout[loadoutVersion] == LOADOUT_VERSION ? loadout[loadoutWeapon] : -1,
-        _chosenSpellCount(), _leashFrames, _respawnPending, actor, ai);
+        _stateSpellCount(), _leashFrames, _respawnPending, actor, ai);
     return used;
 }
 #endif
