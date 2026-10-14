@@ -8019,6 +8019,12 @@ int func_800D5A98(D_800F53B8_t* arg0, timedSpawnState* arg1, int arg2)
     }* event = (void*)psx_get(arg1->data);
     int result = 1;
 
+#ifdef ROOD_PC
+    /* An earlier event of this update freed the timeline (see func_800D6AEC) */
+    if (psx_get(arg0->unkD1C.unk30) == NULL) {
+        return result;
+    }
+#endif
     if (event->frame <= psx_get(arg0->unkD1C.unk30)->unk2) {
         if (arg1->index < ((func_800D6894_t*)psx_get(D_800F569C->unkD0))->unk2) {
             if (arg1->delay == 0) {
@@ -8451,6 +8457,14 @@ void func_800D6AEC(D_800F53B8_t* arg0, int arg1)
     int var_s1;
 
     for (var_s1 = 0; var_s1 < psx_get(arg0->unkD1C.unk30)->unk0; var_s1++) {
+#ifdef ROOD_PC
+        /* An event can end the effect and free its timeline (func_800D4EC0) while this loop
+         * runs. The PS1 then reads zeros through the NULL (low RAM): the loop ends, and the
+         * frame counter it bumps below is in unused low RAM. Stop the same way. */
+        if (psx_get(arg0->unkD1C.unk30) == NULL) {
+            return;
+        }
+#endif
         if ((psx_get(arg0->unkD1C.unk30)->unk4 >> var_s1) & 1) {
             int temp;
             func_800D5780_t* temp_a1 =
@@ -8495,10 +8509,20 @@ void func_800D6AEC(D_800F53B8_t* arg0, int arg1)
                 break;
             }
             if (temp == 0) {
+#ifdef ROOD_PC
+                if (psx_get(arg0->unkD1C.unk30) == NULL) {
+                    return;
+                }
+#endif
                 psx_get(arg0->unkD1C.unk30)->unk4 &= ~(1 << var_s1);
             }
         }
     }
+#ifdef ROOD_PC
+    if (psx_get(arg0->unkD1C.unk30) == NULL) {
+        return;
+    }
+#endif
     if (!(psx_get(arg0->unkD1C.unk30)->unk1 & 1)) {
         psx_get(arg0->unkD1C.unk30)->unk2++;
     }
