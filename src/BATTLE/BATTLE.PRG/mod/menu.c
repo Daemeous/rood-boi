@@ -300,7 +300,7 @@ static void _loadCalloAnimSet(int category)
     func_8009CC20(_calloSlot, 0);
     objData.dataType = 7;
     objData.index = _calloSlot;
-    objData.modelId = category;
+    objData.modelId = CALLO_ANIM_SET(category);
     objData.actorId = 0;
     vs_battle_populateDataSlot(&objData);
 }
@@ -341,8 +341,8 @@ static int _equipCallo(vs_battle_actor* callo, int category, int wepId, int mate
                 _newAnimSet = UNARMED_CATEGORY;
             }
         } else {
-            if (category != model->unk5B1) {
-                _newAnimSet = category;
+            if (CALLO_ANIM_SET(category) != model->unk5B1) {
+                _newAnimSet = CALLO_ANIM_SET(category);
             }
             func_8009AA84(_calloSlot * 2);
             if ((vs_battle_wepModels[_calloSlot * 2 + 1] != NULL) && _twoHanded(category)) {
@@ -459,6 +459,21 @@ static void _markSpells(int school, int* rowTypes)
             ++row;
         }
     }
+}
+
+/* Only spells Ashley has learned count towards her limit: the MAGIC menu lists only those, so
+ * a chosen spell he hasn't learned yet (the defaults, early on) could never be taken off. */
+static int _chosenSpellCount(void)
+{
+    int count = 0;
+    int i;
+
+    for (i = 0; i < SPELL_COUNT; ++i) {
+        if (_spellChosen(i) && ACTION_UNLOCKED(_spellId(i))) {
+            ++count;
+        }
+    }
+    return count;
 }
 
 /* Choosing a spell in the MAGIC menu makes the choice the player's: the defaults Ashley hasn't
