@@ -497,6 +497,13 @@ static u_char _settleFrames;          /* frames since this spawn appeared, up to
 #define DRAW_SHOW_FRAMES 10
 #define ANIM_IDLE_DRAWN 101
 static u_char _drawFrames; /* frames into a draw whose weapon isn't shown yet; 0: none */
+/* First person and the menus hide the HUD and, coming back, put every weapon model back in its
+ * default place (in hand, for her team), and running can skip a draw/sheathe animation's model
+ * change: re-apply her weapon's look (mode 2, no animation) a little after either. */
+#define HUD_RETURN_FRAMES 2
+#define SETTLE_FRAMES 40
+static u_char _refreshFrames; /* counts down to a re-apply; 0: none */
+static u_char _hudWasHidden;
 
 static int _hostileNearby(void)
 {
@@ -528,6 +535,7 @@ static void _updateWeaponDrawn(vs_battle_actor* callo)
         callo->weaponDrawn = (callo->weaponDrawn & ~1) | want;
         func_8009D934(_calloSlot, want, 1); /* with the animation and the weapon models */
         _drawFrames = want; /* a draw: show the weapon partway in (vs_mod_frame) */
+        _refreshFrames = SETTLE_FRAMES;
     }
 }
 
@@ -572,6 +580,16 @@ int vs_mod_frame(void)
         _respawnCallo();
     }
     callo = _calloActor();
+    if (D_800EB9AF) {
+        _hudWasHidden = 1;
+    } else if (_hudWasHidden) {
+        _hudWasHidden = 0;
+        _refreshFrames = HUD_RETURN_FRAMES;
+    }
+    if ((_refreshFrames != 0) && !D_800EB9AF && (--_refreshFrames == 0) && (callo != NULL)
+        && (D_800F4538[_calloSlot] != NULL) && (_settleFrames >= SPAWN_SETTLE)) {
+        func_8009D934(_calloSlot, callo->weaponDrawn & 1, 2);
+    }
     if (_drawFrames != 0) {
         if ((callo == NULL) || !(callo->weaponDrawn & 1)) {
             _drawFrames = 0; /* gone, or put away again */
