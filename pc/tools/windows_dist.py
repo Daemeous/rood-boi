@@ -16,6 +16,7 @@ are kept. Like data/, the result contains your own game data: keep it to
 yourself.
 """
 import argparse
+import os
 import pathlib
 import shutil
 import subprocess
@@ -55,7 +56,9 @@ def main():
     shutil.copy2(exe, dest / "rood.exe")
     # Without its debug information (over 100 MB); the fixed image base keeps
     # crash addresses valid for the unstripped build.
-    subprocess.run(["x86_64-w64-mingw32-strip", "--strip-debug", str(dest / "rood.exe")], check=True)
+    # (On a Windows host, MSYS2's MinGW-w64 tools have plain names.)
+    strip = "strip" if os.name == "nt" else "x86_64-w64-mingw32-strip"
+    subprocess.run([strip, "--strip-debug", str(dest / "rood.exe")], check=True)
     (dest / "play.bat").write_bytes(PLAY_BAT.replace("\n", "\r\n").encode())
     for tree in ["data", "lighting", "pc/assets", "pc/third_party/fonts"]:
         shutil.copytree(ROOT / tree, dest / tree, dirs_exist_ok=True)
@@ -64,6 +67,11 @@ def main():
     # runtime (winpthreads), all statically linked.
     licenses = dest / "licenses"
     licenses.mkdir(exist_ok=True)
+    mingw_licenses = [("mingw-w64.txt", "/usr/share/doc/mingw-w64-common/copyright")]
+    if os.name == "nt":  # MSYS2: <prefix>/share/licenses next to <prefix>/bin/gcc.exe
+        share = pathlib.Path(shutil.which("gcc") or ".").resolve().parents[1] / "share/licenses"
+        mingw_licenses = [("mingw-w64.txt", str(share / "crt/COPYING.MinGW-w64-runtime.txt")),
+                          ("winpthreads.txt", str(share / "winpthreads/COPYING"))]
     for name, source in [
         ("LICENSE.txt", "LICENSE"),
         ("THIRD_PARTY.md", "THIRD_PARTY.md"),
@@ -76,7 +84,7 @@ def main():
         ("NRD.txt", "pc/build/nrd/_deps/nrd-src/LICENSE.txt"),
         ("ShaderMake.txt", "pc/build/nrd/_deps/shadermake-src/LICENSE.txt"),
         ("MathLib.txt", "pc/build/nrd/_deps/mathlib-src/LICENSE.txt"),
-        ("mingw-w64.txt", "/usr/share/doc/mingw-w64-common/copyright"),
+        *mingw_licenses,
     ]:
         if (ROOT / source).exists():
             shutil.copy2(ROOT / source, licenses / name)
