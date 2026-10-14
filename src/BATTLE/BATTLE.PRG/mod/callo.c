@@ -593,6 +593,19 @@ int _chosenSpellCount(void)
     return count;
 }
 
+/* Choosing a spell in the MAGIC menu makes the choice the player's: the defaults Ashley hasn't
+ * learned yet are dropped, so they can't turn up later on top of the player's 8. */
+void _dropUnlearnedSpells(void)
+{
+    int i;
+
+    for (i = 0; i < SPELL_COUNT; ++i) {
+        if (_spellChosen(i) && !ACTION_UNLOCKED(_spellId(i))) {
+            _setSpellChosen(i, 0);
+        }
+    }
+}
+
 /* Where spells go in her action table (limb * 4 + slot): not her arms (limbs 0 and 1, which
  * hold her weapon attack). The AI cast buffs only from the other limbs: placed on an arm,
  * Prostasia etc. were never used while attack spells were. Template Heal is limb 3 slot 0. */

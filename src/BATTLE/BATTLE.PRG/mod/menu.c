@@ -481,6 +481,9 @@ static void _toggleSpell(int id)
         vs_battle_playInvalidSfx();
         return;
     }
+    if (chosen) {
+        _dropUnlearnedSpells();
+    }
     _setSpellChosen(index, chosen);
     vs_battle_playMenuSelectSfx();
 
