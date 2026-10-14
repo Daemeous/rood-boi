@@ -476,6 +476,54 @@ static void _push(void)
     _setPassable(1);
 }
 
+/* Weapon away out of combat: a drawn weapon loses PP every few seconds and slows HP/MP regen
+ * (the per-actor upkeep in 146C.c), and she's on the enemy team, which spawns with it drawn.
+ * Draw it when a hostile enemy (team 4, alive) is in the room; put it away once there has been
+ * none for SHEATHE_DELAY checks. func_8007C0AC(id, 2) toggles it with the animation. */
+#define WEAPON_CHECK_INTERVAL 30 /* frames */
+#define SHEATHE_DELAY 3          /* checks without an enemy: about 3 seconds */
+void func_8007C0AC(int, int);
+
+static u_char _weaponTimer;
+static u_char _calmChecks;
+
+static int _hostileNearby(void)
+{
+    vs_battle_actor* actor;
+    int i;
+
+    for (i = 1; i < 16; ++i) {
+        actor = vs_battle_actors[i];
+        if ((i == _calloSlot) || (actor == NULL) || (actor->unk1C != 4) || (psx_get(actor->unk3C) == NULL)) {
+            continue;
+        }
+        if (psx_get(actor->unk3C)->currentHP > 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void _updateWeaponDrawn(vs_battle_actor* callo)
+{
+    int drawn = callo->weaponDrawn & 1;
+
+    if (psx_get(callo->unk3C)->currentHP == 0) {
+        return;
+    }
+    if (_hostileNearby()) {
+        _calmChecks = 0;
+        if (!drawn) {
+            func_8007C0AC(_calloSlot, 2);
+        }
+        return;
+    }
+    if (drawn && (++_calmChecks >= SHEATHE_DELAY)) {
+        _calmChecks = 0;
+        func_8007C0AC(_calloSlot, 2);
+    }
+}
+
 int vs_mod_frame(void)
 {
     int result = func_80088554();
@@ -515,6 +563,13 @@ int vs_mod_frame(void)
     if (_respawnPending && !D_800EB9AF) {
         _respawnPending = 0;
         _respawnCallo();
+    }
+    if (++_weaponTimer >= WEAPON_CHECK_INTERVAL) {
+        _weaponTimer = 0;
+        callo = _calloActor();
+        if ((callo != NULL) && !D_800EB9AF && !_unskipPending && (D_800F4538[_calloSlot] != NULL)) {
+            _updateWeaponDrawn(callo);
+        }
     }
     /* The prologue ended in this room (callo.c _lateJoin): join now, outside its scene */
     if (_lateJoin && !D_800EB9AF && !_awayForScene && (_calloActor() == NULL)
