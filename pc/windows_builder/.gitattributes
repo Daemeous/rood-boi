@@ -4,3 +4,5 @@
 *.ini text eol=crlf
 *.txt text eol=crlf
 *.sh text eol=lf
+files/native-helpers/* text eol=lf
+*.py text eol=lf
