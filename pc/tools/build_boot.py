@@ -509,7 +509,7 @@ stamp_tools = ["gcc", "g++", "nm", "objcopy", "objdump", "readelf", "gdb", "mips
     + ([MINGW_GCC, MINGW_GXX] + [MINGW + t for t in ["objcopy", "objdump", "nm", "readelf", "windres"]] if win else [])
 toolchain = tool_identity(stamp_tools)
 build_stamp = Stamp(root, out, {
-    "battle": battle, "no_audio": no_audio, "arch": parsed.arch, "target": parsed.target,
+    "battle": battle, "no_audio": no_audio, "arch": parsed.arch, "target": parsed.target, "coff": coff,
     "nrd": [nrd and nrd["libraries"], win_nrd and win_nrd["libraries"]], "toolchain": toolchain,
 })
 stamp_trees = [("src", None), ("include", None), ("config", None), ("build", None), ("pc/src", None),
