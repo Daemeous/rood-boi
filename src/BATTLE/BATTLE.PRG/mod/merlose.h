@@ -479,13 +479,18 @@ static void _push(void)
 /* Her weapon follows the fight: drawn while a hostile enemy (team 4, alive) is in the room,
  * otherwise drawn or put away as Ashley's is. A drawn weapon loses PP every few seconds and slows
  * HP/MP regen (the per-actor upkeep in 146C.c), and she spawns with it drawn (enemy team), so a
- * new spawn is checked right away. func_8007C0AC(id, 2) toggles it with the animation. */
+ * new spawn is checked once her weapon has loaded. func_8009D934(id, drawn, 1) draws or sheathes
+ * with the animation and moves the weapon models (func_8007C0AC's mode 0 only changes the pose). */
 #define WEAPON_CHECK_INTERVAL 15 /* frames */
-void func_8007C0AC(int, int);
+/* After a spawn her weapon models are still loading (disc queue): a toggle before they arrive
+ * changes her pose, but the weapon then attaches in her hand. Wait this long first. */
+#define SPAWN_SETTLE 30 /* frames */
+void func_8009D934(int, int, int);
 
 static u_char _weaponTimer;
 static vs_battle_actor* _weaponActor; /* the spawn last checked */
 static u_char _ashleyDrawn;           /* his weapon at the last check: a change is checked at once */
+static u_char _settleFrames;          /* frames since this spawn appeared, up to SPAWN_SETTLE */
 
 static int _hostileNearby(void)
 {
@@ -514,7 +519,8 @@ static void _updateWeaponDrawn(vs_battle_actor* callo)
     _ashleyDrawn = vs_battle_actors[0]->weaponDrawn & 1;
     want = _hostileNearby() ? 1 : _ashleyDrawn;
     if (want != (callo->weaponDrawn & 1)) {
-        func_8007C0AC(_calloSlot, 2);
+        callo->weaponDrawn = (callo->weaponDrawn & ~1) | want;
+        func_8009D934(_calloSlot, want, 1); /* with the animation and the weapon models */
     }
 }
 
@@ -559,11 +565,18 @@ int vs_mod_frame(void)
         _respawnCallo();
     }
     callo = _calloActor();
-    if ((callo != NULL) && !D_800EB9AF && !_unskipPending && (D_800F4538[_calloSlot] != NULL)
-        && ((callo != _weaponActor) || ((vs_battle_actors[0]->weaponDrawn & 1) != _ashleyDrawn)
+    if ((callo != NULL) && (callo != _weaponActor)) {
+        _weaponActor = callo; /* a new spawn: let her weapon load first */
+        _settleFrames = 0;
+    }
+    if ((callo != NULL) && (_settleFrames < SPAWN_SETTLE)) {
+        if ((D_800F4538[_calloSlot] != NULL) && (++_settleFrames == SPAWN_SETTLE)) {
+            _weaponTimer = WEAPON_CHECK_INTERVAL; /* check now */
+        }
+    } else if ((callo != NULL) && !D_800EB9AF && !_unskipPending && (D_800F4538[_calloSlot] != NULL)
+        && (((vs_battle_actors[0]->weaponDrawn & 1) != _ashleyDrawn)
             || (++_weaponTimer >= WEAPON_CHECK_INTERVAL))) {
         _weaponTimer = 0;
-        _weaponActor = callo;
         _updateWeaponDrawn(callo);
     }
     /* The prologue ended in this room (callo.c _lateJoin): join now, outside its scene */
