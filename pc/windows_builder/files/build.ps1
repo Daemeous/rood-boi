@@ -1,6 +1,8 @@
 # rood-boi Windows builder: builds rood.exe from source against the player's own disc, in a
 # private WSL Ubuntu ("rood-boi-build") kept inside this folder. Started by "Build rood-boi.bat".
-param([string]$Dropped = "")
+# -Native: without WSL, in a private MSYS2 (Windows programs: make, bash, MinGW-w64 gcc) with a
+# portable Python and Windows builds of the PS1 tools, all kept in files\native.
+param([string]$Dropped = "", [switch]$Native)
 
 $ErrorActionPreference = "Stop"
 $env:WSL_UTF8 = "1"   # wsl.exe prints UTF-16 otherwise
@@ -93,6 +95,131 @@ if ((Get-Item $Disc).Length % 2352 -ne 0) { Fail "$(Split-Path -Leaf $Disc) isn'
 Say "Disc image: $(Split-Path -Leaf $Disc)"
 Say "(It has to be the unmodified USA release: no Zenith, Randomizer or other patches.)"
 Say ""
+
+# --- Native (no WSL) ------------------------------------------------------------------------
+$NativeToolsVersion = "1"
+$NativeToolsUrl = "https://github.com/Daemeous/rood-boi/releases/download/native-tools-$NativeToolsVersion/rood-boi-native-tools-$NativeToolsVersion.zip"
+$NativePackages = "make git unzip diffutils patch mingw-w64-x86_64-gcc mingw-w64-x86_64-binutils " +
+                  "mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-gdb mingw-w64-x86_64-vulkan-headers"
+$PythonVersion = "3.14.8"
+
+function Download([string]$Url, [string]$File) {
+    for ($try = 1; $try -le 4; $try++) {
+        try {
+            Invoke-WebRequest -Uri $Url -OutFile $File -UseBasicParsing
+            return
+        } catch {
+            if ($try -eq 4) {
+                Fail "Couldn't download $Url`n($($_.Exception.Message))`nCheck your internet connection (a VPN or antivirus can block it) and run this again."
+            }
+            Start-Sleep -Seconds (10 * $try)
+        }
+    }
+}
+
+if ($Native) {
+    $ProgressPreference = "SilentlyContinue"   # Invoke-WebRequest is very slow with its progress bar
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    # MSYS2 must live in a path without spaces or non-English letters.
+    $NativeDir = Join-Path $Here "native"
+    if ($NativeDir -notmatch '^[A-Za-z]:\\[A-Za-z0-9_.\\-]*$') {
+        $NativeDir = Join-Path $env:SystemDrive "rood-boi-build"
+        Say "This folder's path has spaces or special letters, which the build tools can't use, so"
+        Say "they go in $NativeDir instead (""Remove build tools.bat"" deletes them there too)."
+        Say ""
+    }
+    New-Item -ItemType Directory -Force -Path $NativeDir | Out-Null
+    Say "== 1/5 Build tools (first time only) =="
+    $Bash = Join-Path $NativeDir "msys64\usr\bin\bash.exe"
+    $env:MSYSTEM = "MINGW64"
+    $env:CHERE_INVOKING = "1"
+    # Runs a bash command; its output goes to the console (-Quiet: nowhere). The exit code is
+    # checked by the caller: PowerShell 5.1 would otherwise stop at a program's stderr messages.
+    function MSys([string]$Command, [switch]$Quiet) {
+        $ErrorActionPreference = "Continue"
+        if ($Quiet) { & $Bash -lc $Command *> $null } else { & $Bash -lc $Command | Out-Host }
+        return $LASTEXITCODE
+    }
+
+    if (-not (Test-Path $Bash)) {
+        $drive = $NativeDir.Substring(0, 1)
+        $free = (Get-PSDrive -Name $drive).Free
+        if ($free -lt 20GB) {
+            Fail ("The build needs about 20 GB free on drive {0}: (its tools and the build). Only {1:N0} GB is free." -f $drive, ($free / 1GB))
+        }
+        Say "Setting up the build tools (first time only: MSYS2, about 1 GB of downloads)."
+        Say "They live in $NativeDir and don't change anything else on your PC."
+        $sfx = Join-Path $NativeDir "msys2.sfx.exe"
+        Download "https://repo.msys2.org/distrib/msys2-x86_64-latest.sfx.exe" $sfx
+        & $sfx -y "-o$NativeDir" | Out-Null
+        Remove-Item $sfx
+        if (-not (Test-Path $Bash)) { Fail "Unpacking MSYS2 into $NativeDir failed." }
+        $null = MSys "exit 0" -Quiet   # MSYS2's first start sets up its keys and home folder
+    }
+    $packagesStamp = Join-Path $NativeDir "packages.txt"
+    if (-not (Test-Path $packagesStamp) -or (Get-Content $packagesStamp -Raw).Trim() -ne $NativePackages) {
+        Say "Installing the build tools into MSYS2 (first time only)..."
+        # Fewer downloads at once: the package mirrors refuse bursts ("error 429").
+        $null = MSys "sed -i 's/^#\?ParallelDownloads.*/ParallelDownloads = 2/' /etc/pacman.conf"
+        # MSYS2's first start sets up the keys that check its packages; done here too, in case that
+        # start was interrupted (pacman then calls every package list "invalid or corrupted").
+        $null = MSys "pacman-key --init > /dev/null 2>&1; pacman-key --populate msys2 > /dev/null 2>&1"
+        $ok = $false
+        for ($try = 1; $try -le 5 -and -not $ok; $try++) {
+            if ($try -gt 1) { $null = MSys "rm -f /var/lib/pacman/sync/*" }   # fetch fresh package lists
+            # Twice: the first update may replace MSYS2's own core, which needs a fresh start.
+            $null = MSys "pacman --noconfirm -Syuu > /dev/null 2>&1"
+            $null = MSys "pacman --noconfirm -Syuu > /dev/null 2>&1"
+            $ok = (MSys "pacman --noconfirm -S --needed $NativePackages > /tmp/pacman.log 2>&1 || { tail -5 /tmp/pacman.log; exit 1; }") -eq 0
+            if (-not $ok) { Say "(retrying in a moment)"; Start-Sleep -Seconds (20 * $try) }
+        }
+        if (-not $ok) { Fail "Installing the build tools failed (see the messages above). Run this again to retry." }
+        Set-Content -Path $packagesStamp -Value $NativePackages
+    }
+    $python = Join-Path $NativeDir "python\tools\python.exe"
+    if (-not (Test-Path $python)) {
+        Say "Getting Python $PythonVersion (portable)..."
+        $zip = Join-Path $NativeDir "python.zip"
+        Download "https://api.nuget.org/v3-flatcontainer/python/$PythonVersion/python.$PythonVersion.nupkg" $zip
+        Expand-Archive -Path $zip -DestinationPath (Join-Path $NativeDir "python") -Force
+        Remove-Item $zip
+    }
+    $toolsStamp = Join-Path $NativeDir "tools\version.txt"
+    if (-not (Test-Path $toolsStamp) -or (Get-Content $toolsStamp -Raw).Trim() -ne $NativeToolsVersion) {
+        Say "Getting the PS1 build tools (Windows builds of the PS1 compilers and binutils)..."
+        $zip = Join-Path $NativeDir "native-tools.zip"
+        if ($env:ROOD_NATIVE_TOOLS_ZIP) { Copy-Item $env:ROOD_NATIVE_TOOLS_ZIP $zip } else { Download $NativeToolsUrl $zip }
+        $tools = Join-Path $NativeDir "tools"
+        if (Test-Path $tools) { Remove-Item -Recurse -Force $tools }
+        Expand-Archive -Path $zip -DestinationPath $tools -Force
+        Remove-Item $zip
+        Set-Content -Path $toolsStamp -Value $NativeToolsVersion
+    }
+
+    $env:ROOD_NATIVE = $NativeDir
+    # The script and its arguments go to bash one by one (PowerShell 5.1 mangles quotes inside
+    # a single command string); the script converts the Windows paths itself.
+    $BuildArgs = @("-l", ((Join-Path $Here "build-native.sh") -replace '\\', '/'), $Root, $Disc,
+                   $Options["repository"], $Options["branch"],
+                   $(if ($Merlose) { "1" } else { "0" }),
+                   $(if (Yes "max_stat_items") { "1" } else { "0" }),
+                   $(if (Yes "choosable_bonus_wheel") { "1" } else { "0" }))
+    Say "Building. The first time takes 30-60 minutes; later builds are quicker."
+    Say "Everything is also written to build.log."
+    Say ""
+    $ErrorActionPreference = "Continue"
+    & $Bash @BuildArgs
+    $code = $LASTEXITCODE
+    $ErrorActionPreference = "Stop"
+    if ($code -ne 0) {
+        Fail "The build stopped (see the messages above, and build.log). Running the .bat again continues where it left off."
+    }
+    Say ""
+    Say "Done! To play, open the rood-boi folder here and double-click:"
+    Say "  play.bat         - the game"
+    if ($Merlose) { Say "  play-callo.bat   - the game with Merlose" }
+    exit 0
+}
 
 # --- WSL ------------------------------------------------------------------------------------
 & wsl.exe --status *> $null
