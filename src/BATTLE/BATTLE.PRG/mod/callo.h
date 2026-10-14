@@ -33,8 +33,13 @@ enum {
 };
 #define LOADOUT_BOW_GIVEN 1 /* VKP Standard Issue has been put in the inventory */
 #define LOADOUT_SPELLS_CHOSEN 2 /* loadoutSpells set (else _defaultSpells) */
-/* Weapon categories she has battle animations for: dagger, sword, axe/mace, crossbow */
-#define CALLO_WEAPON_CATEGORIES ((1 << 1) | (1 << 2) | (1 << 4) | (1 << 9))
+/* Weapon categories she can use: dagger, sword, axe/mace, crossbow (her own animation sets),
+ * and staff, which uses her bare-hands set (she has no 08_BT6) */
+#define STAFF_CATEGORY 6
+#define UNARMED_CATEGORY 10
+#define CALLO_WEAPON_CATEGORIES ((1 << 1) | (1 << 2) | (1 << 4) | (1 << STAFF_CATEGORY) | (1 << 9))
+#define CALLO_ANIM_SET(category) (((category) == STAFF_CATEGORY) ? UNARMED_CATEGORY : (category))
+extern u_char _calloSpawning; /* the slot she's being created in, 0 otherwise */
 
 /* vs_main_actions[] as it is in memory. Zenith shortens the names to 20 characters, so each
  * entry is 48 bytes instead of 52 and the table starts 4 bytes later (it fixes the game's own

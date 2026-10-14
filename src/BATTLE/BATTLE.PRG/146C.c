@@ -6507,7 +6507,7 @@ void func_800771E0(char* arg0, int arg1, int arg2, int arg3)
 #endif
         sp10.dataType = 7;
         sp10.index = arg1;
-        sp10.modelId = arg0[37];
+        sp10.modelId = VS_CALLO_HOOK(arg0[37], vs_mod_animSet(arg1, arg0[37])); /* staves */
         sp10.actorId = 0;
         vs_battle_populateDataSlot(&sp10);
     }
