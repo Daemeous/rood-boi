@@ -69,7 +69,7 @@ def main():
         if not callo.exists():
             raise SystemExit("pc/build/win64_callo/rood.exe is missing: run build_boot.py --target windows --callo")
         shutil.copy2(callo, dest / "rood-callo.exe")
-        subprocess.run(["x86_64-w64-mingw32-strip", "--strip-debug", str(dest / "rood-callo.exe")], check=True)
+        subprocess.run([strip, "--strip-debug", str(dest / "rood-callo.exe")], check=True)
         bat = PLAY_BAT.replace("rood.exe", "rood-callo.exe").replace("rood.log", "rood-callo.log")
         (dest / "play-callo.bat").write_bytes(bat.replace("\n", "\r\n").encode())
     for tree in ["data", "lighting", "pc/assets", "pc/third_party/fonts", "pc/plugins"]:
