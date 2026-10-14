@@ -70,8 +70,18 @@ parser.add_argument(
     action="store_true",
     help="with --callo: the bonus wheel after a boss spins as in the original, instead of being chosen",
 )
+parser.add_argument(
+    "--coff",
+    action="store_true",
+    help="--target windows: compile only the MinGW-w64 objects and run the "
+    "symbol analysis on them (no ELF twins, no host gcc); the only mode on a "
+    "Windows host (MSYS2)",
+)
 parsed = parser.parse_args()
 win = parsed.target == "windows"
+# COFF-only: the analysis reads the PE/COFF objects themselves with MinGW's
+# binutils, so the build needs no Linux toolchain (a native Windows host).
+coff = win and (parsed.coff or os.name == "nt")
 if win:
     parsed.arch = "64"
 arch64 = parsed.arch == "64"
@@ -89,14 +99,29 @@ out.mkdir(parents=True, exist_ok=True)
 # tree reads objects the first already renamed ("Unclassified import:
 # _fontTable__title") or half-written ones. The 64-bit Linux and Windows builds
 # also share pc/build/sdl3_64 and pc/build/nrd, so they share one lock.
-import fcntl
-
 lock = open(root / ("pc/build/build_boot-64.lock" if arch64 else "pc/build/build_boot-32.lock"), "w")
-try:
-    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-except BlockingIOError:
-    print(f"Waiting for another build_boot.py using {out.relative_to(root)}...", flush=True)
-    fcntl.flock(lock, fcntl.LOCK_EX)
+if os.name == "nt":
+    import msvcrt
+    import time
+
+    try:
+        msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+    except OSError:
+        print(f"Waiting for another build_boot.py using {out.relative_to(root)}...", flush=True)
+        while True:
+            try:
+                msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+                break
+            except OSError:
+                time.sleep(1)
+else:
+    import fcntl
+
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print(f"Waiting for another build_boot.py using {out.relative_to(root)}...", flush=True)
+        fcntl.flock(lock, fcntl.LOCK_EX)
 # Generated sources included by path from src/ ("pc/build/boot/x.inc"); the
 # 64-bit pass shadows that path with -iquote so the 32-bit tree is untouched.
 generated = out / "include/pc/build/boot" if arch64 else out
@@ -202,7 +227,12 @@ arch64_results = []
 # each symbol edit made to an ELF object is repeated on its twin, and the
 # twins are what rood.exe links.
 MINGW = "x86_64-w64-mingw32-"
-mingw_permissive = win and gcc_major(MINGW + "gcc-posix") >= 14
+# Ubuntu's MinGW-w64 compilers come in two thread models; the build uses the
+# POSIX one. On a Windows host (MSYS2's MINGW64) they are plain gcc and g++.
+MINGW_GCC, MINGW_GXX = MINGW + "gcc-posix", MINGW + "g++-posix"
+if os.name == "nt":
+    MINGW, MINGW_GCC, MINGW_GXX = "", "gcc", "g++"
+mingw_permissive = win and gcc_major(MINGW_GCC) >= 14
 win_include = out / "win_include"
 if win:
     # Vulkan headers (platform-neutral; vk_platform.h handles _WIN32) without
@@ -218,9 +248,31 @@ def twin(path):
     return pathlib.Path(path).with_suffix(".obj")
 
 
+# The objects the symbol analysis reads, and its binutils: the ELF objects, or
+# with --coff the COFF ones (name.obj) and MinGW-w64's tools.
+def aobj(path):
+    return twin(path) if coff else pathlib.Path(path)
+
+
+NM, OBJDUMP, READELF = ([MINGW + "nm"], [MINGW + "objdump"], [MINGW + "readelf"]) if coff \
+    else (["nm"], ["objdump"], ["readelf"])
+
+
+def defined_name(symbol, kind):
+    """The name an nm line ("<kind> <symbol>", kind uppercase) defines, or None.
+    COFF spells a weak definition .weak.<name>.<other symbol>; its absolute
+    ("A") form is a weak reference's default, not a definition."""
+    if not coff:
+        return symbol
+    weak = re.fullmatch(r"\.weak\.(\w+)\.\w+", symbol)
+    if weak:
+        return weak.group(1) if kind != "A" else None
+    return None if symbol.startswith(".") else symbol
+
+
 def win_command(args):
     """A host gcc/g++ command as its MinGW-w64 equivalent (output .obj)."""
-    tool = {"gcc": MINGW + "gcc-posix", "g++": MINGW + "g++-posix"}[args[0]]
+    tool = {"gcc": MINGW_GCC, "g++": MINGW_GXX}[args[0]]
     command = [tool]
     # The host's -fpermissive follows the host gcc's version; MinGW's own
     # version decides for the twin (GCC 13 warns that it is C++-only).
@@ -275,7 +327,8 @@ def compile_twin(args, source, kind="c"):
 
 def objcopy(args, obj):
     """Apply a symbol edit to an object and to its COFF twin."""
-    run(["objcopy", *args, str(obj)])
+    if not coff:
+        run(["objcopy", *args, str(obj)])
     if win:
         run([MINGW + "objcopy", *args, str(twin(obj))])
 
@@ -286,6 +339,8 @@ def compile_object(args, source, kind="c", win_args=None):
     if not arch64:
         sys.stderr.write(object_cache.compile(args, check=True).stderr)
         return True
+    if coff:
+        return compile_twin(win_args or args, source, kind)
     result = object_cache.compile(args)
     arch64_results.append((kind, str(source), result.returncode, result.stderr))
     if result.stderr and result.returncode == 0 and parsed.verbose:
@@ -301,6 +356,8 @@ def state_sections(obj):
     MDEC, XA, the libspu layer). Variables placed in .data.rood_host (host
     configuration read from the environment) stay out. The Windows twins keep
     their sections (no save states there)."""
+    if coff:
+        return
     renames = []
     for line in query(["readelf", "-SW", str(obj)]).splitlines():
         section = re.match(r"\s*\[\s*\d+\]\s+(\.(data|bss)(\.\S+)?)\s+\w+\s+\w+\s+\w+\s+(\w+)", line)
@@ -317,8 +374,9 @@ STATE_HOST_UNITS = {"runtime", "cd_drive", "mdec", "xa_audio", "audio_libspu", "
 def compile_generated(args):
     """A generated table (game data: saved with the game state): both
     objects must build."""
-    run(args)
-    state_sections(args[args.index("-o") + 1])
+    if not coff:
+        run(args)
+        state_sections(args[args.index("-o") + 1])
     if win:
         run(win_command(args))
 
@@ -334,12 +392,12 @@ sdl_library = sdl_build / "libSDL3.a"
 sdl_flags = ["-I" + str(sdl_source / "include")]
 # Shared GLSL for the OpenGL path (the probe GI's compute shaders, written
 # once in pc/shaders/vulkan) as C strings.
-run(["python3", "pc/tools/gl_shaders.py", "--out", str(out / "gl_shaders.h")])
+run([sys.executable, "pc/tools/gl_shaders.py", "--out", str(out / "gl_shaders.h")])
 sdl_flags.append("-I" + str(out))
 if arch64:
     # The Vulkan renderer (ROOD_RENDERER=vulkan, pc/docs/Vulkan_Renderer.md):
     # its shaders compiled to SPIR-V by the vendored glslang into a header.
-    run(["python3", "pc/tools/vk_shaders.py", "--out", str(out / "vk_shaders.h")])
+    run([sys.executable, "pc/tools/vk_shaders.py", "--out", str(out / "vk_shaders.h")])
     sdl_flags += ["-DROOD_VULKAN", "-I" + str(out)]
     # NVIDIA NRD (not vendored: its license is not CC0): fetched pinned and
     # built once into pc/build/nrd; None builds without it.
@@ -405,12 +463,13 @@ if arch_deps.exists() and not arch64:
     c_flags_32 += " -I" + str(sdl_build / "include32")
 sdl_args.append(f"-DCMAKE_C_FLAGS={c_flags_32}")
 stamp = sdl_build / "rood-configure.txt"
-if (not (sdl_build / "CMakeCache.txt").exists() or not stamp.exists()
+# --coff links only the Windows SDL below.
+if not coff and (not (sdl_build / "CMakeCache.txt").exists() or not stamp.exists()
                    or stamp.read_text() != "\n".join(sdl_args)):
     generator = ["-G", "Ninja"] if shutil.which("ninja") else []
     run(["cmake", "-S", str(sdl_source), "-B", str(sdl_build), *generator, *sdl_args], stdout=subprocess.DEVNULL)
     stamp.write_text("\n".join(sdl_args))
-if True:
+if not coff:
     run(["cmake", "--build", str(sdl_build), "--parallel", str(min(os.cpu_count() or 4, 8))], stdout=subprocess.DEVNULL)
 win_sdl_library = root / "pc/build/sdl3_win/libSDL3.a"
 if win:
@@ -419,8 +478,8 @@ if win:
     win_sdl_build = win_sdl_library.parent
     win_sdl_args = [
         "-DCMAKE_SYSTEM_NAME=Windows",
-        f"-DCMAKE_C_COMPILER={MINGW}gcc-posix",
-        f"-DCMAKE_CXX_COMPILER={MINGW}g++-posix",
+        f"-DCMAKE_C_COMPILER={MINGW_GCC}",
+        f"-DCMAKE_CXX_COMPILER={MINGW_GXX}",
         f"-DCMAKE_RC_COMPILER={MINGW}windres",
         "-DCMAKE_BUILD_TYPE=Release",
         "-DSDL_SHARED=OFF",
@@ -447,7 +506,7 @@ if win:
 from build_cache import ObjectCache, ResultCache, Stamp, tool_identity
 
 stamp_tools = ["gcc", "g++", "nm", "objcopy", "objdump", "readelf", "gdb", "mipsel-linux-gnu-ld", "docker"] \
-    + ([MINGW + t for t in ["gcc-posix", "g++-posix", "objcopy", "objdump", "nm", "windres"]] if win else [])
+    + ([MINGW_GCC, MINGW_GXX] + [MINGW + t for t in ["objcopy", "objdump", "nm", "readelf", "windres"]] if win else [])
 toolchain = tool_identity(stamp_tools)
 build_stamp = Stamp(root, out, {
     "battle": battle, "no_audio": no_audio, "arch": parsed.arch, "target": parsed.target,
@@ -608,7 +667,7 @@ if battle:
     from event_callbacks import generate_event_callbacks, generate_effect_callbacks
 
     symbol_text = run(
-        ["readelf", "-sW", str(out / "battle-symbols.elf")],
+        [*READELF, "-sW", str(out / "battle-symbols.elf")],
         capture_output=True,
         text=True,
     ).stdout
@@ -671,7 +730,7 @@ if battle:
         ("pc/src/ui/game_options.c", "ui_game_options"),
     ]
     sources += [
-        (str(p.relative_to(root)), "battle_" + p.stem)
+        (p.relative_to(root).as_posix(), "battle_" + p.stem)
         for p in sorted((root / "src/BATTLE/BATTLE.PRG").glob("*.c"))
     ]
     if parsed.callo:
@@ -679,19 +738,19 @@ if battle:
         # (menu.c, a separate file on the disc there) is linked in too (mod/callo.h).
         sources += [(f"src/BATTLE/BATTLE.PRG/mod/{n}.c", f"battle_mod_{n}") for n in ["callo", "menu"]]
     sources += [
-        (str(p.relative_to(root)), "init_" + p.stem)
+        (p.relative_to(root).as_posix(), "init_" + p.stem)
         for p in sorted((root / "src/BATTLE/INITBTL.PRG").glob("*.c"))
     ]
     # The main menu overlay (loaded at 0x800F9800 like the effect plugins);
     # its data stays in guest RAM where the original loader places it.
     sources += [
-        (str(p.relative_to(root)), "mainmenu_" + p.stem)
+        (p.relative_to(root).as_posix(), "mainmenu_" + p.stem)
         for p in sorted((root / "src/MENU/MAINMENU.PRG").glob("*.c"))
     ]
     # Submenu overlays MENU0-F share the 0x80102800 slot; their global names
     # are distinct, so they link side by side. Their data is defined in C.
     sources += [
-        (str(p.relative_to(root)), p.parent.name.split(".")[0].lower() + "_" + p.stem)
+        (p.relative_to(root).as_posix(), p.parent.name.split(".")[0].lower() + "_" + p.stem)
         for p in sorted((root / "src/MENU").glob("MENU?.PRG/*.c"))
     ]
     # The ending (credits, score and rank screens; main.c's
@@ -699,11 +758,11 @@ if battle:
     # MENUF reuses some of its global names, so its globals are prefixed
     # ending_ after compiling; its data stays in guest RAM like MAINMENU's.
     sources += [
-        (str(p.relative_to(root)), "ending_" + p.stem)
+        (p.relative_to(root).as_posix(), "ending_" + p.stem)
         for p in sorted((root / "src/ENDING/ENDING.PRG").glob("*.c"))
     ]
     sources += [
-        (str(p.relative_to(root)), "gpu_" + p.stem)
+        (p.relative_to(root).as_posix(), "gpu_" + p.stem)
         for p in sorted((root / "src/SLUS_010.40/libgpu").glob("P*.c"))
     ]
 if battle:
@@ -713,11 +772,11 @@ if battle:
     # guest RAM). pc/src/effects/plgNNN.c holds native-only translations.
     plg_sources = sorted((root / "src/EFFECT").glob("PLG*.BIN/*.c"))
     sources += [
-        (str(p.relative_to(root)), p.parent.name.split(".")[0].lower() + "_" + p.stem)
+        (p.relative_to(root).as_posix(), p.parent.name.split(".")[0].lower() + "_" + p.stem)
         for p in plg_sources
     ]
     sources += [
-        (str(p.relative_to(root)), p.stem.lower() + "_native")
+        (p.relative_to(root).as_posix(), p.stem.lower() + "_native")
         for p in sorted((root / "pc/src/effects").glob("plg*.c"))
     ]
 
@@ -747,7 +806,8 @@ game_cpp_flags = [
 # PS1 SDK layouts (packets, OT entries, GTE and environment types) must hold
 # on both architectures: a regression stops the build, --arch 64 included.
 for layout_pass in [[], ["-DPSX_SDK_LAYOUT_LIBDS"]]:
-    run(["gcc", *flags, *game_cpp_flags, *layout_pass, "-fsyntax-only", "pc/src/psx_sdk_layout.c"])
+    if not coff:
+        run(["gcc", *flags, *game_cpp_flags, *layout_pass, "-fsyntax-only", "pc/src/psx_sdk_layout.c"])
     if win:  # and under Windows' LLP64
         run(win_command(["gcc", *flags, *game_cpp_flags, *layout_pass, "-fsyntax-only", "pc/src/psx_sdk_layout.c"]))
 
@@ -766,33 +826,33 @@ for source, name in sources:
         f"-DMENUBGSZ={(root / 'build/assets/TITLE/TITLE.PRG/_titleScreenBg.rleRgb555.img.bin').stat().st_size}",
         source,
     ]
-    cpp = (subprocess.run if arch64 else run)(
+    cpp = None if coff else (subprocess.run if arch64 else run)(
         ["gcc", *cpp_args],
         capture_output=True,
         **({"cwd": root} if arch64 else {}),
     )
     win_pre = None
-    if win and not cpp.returncode:
+    if win and (coff or not cpp.returncode):
         # The twin is preprocessed by MinGW: the compiler's own macros
         # (__UINTPTR_TYPE__ is unsigned long long under LLP64) end up in the
         # source.
-        win_cpp = subprocess.run([MINGW + "gcc-posix", "-mno-ms-bitfields", "-D_WIN32_WINNT=0x0A00", *cpp_args],
+        win_cpp = subprocess.run([MINGW_GCC, "-mno-ms-bitfields", "-D_WIN32_WINNT=0x0A00", *cpp_args],
                                  capture_output=True, cwd=root)
         if win_cpp.returncode:
             arch64_results.append(("c", "win:" + source, win_cpp.returncode, win_cpp.stderr.decode(errors="replace")))
             continue
         win_pre = out / (name + ".win.i")
-        win_pre.write_bytes(lp64_longs(result_cache.run(["python3", "-m", "tools.etc.vsStringTransformer"], root,
+        win_pre.write_bytes(lp64_longs(result_cache.run([sys.executable, "-m", "tools.etc.vsStringTransformer"], root,
                                                         files=sorted((root / "tools/etc").glob("vsString*.py")),
                                                         input=win_cpp.stdout)))
-    if arch64 and cpp.returncode:  # record it and go on, like a compile error
+    if not coff and arch64 and cpp.returncode:  # record it and go on, like a compile error
         arch64_results.append(("c", source, cpp.returncode, cpp.stderr.decode(errors="replace")))
         continue
-    cpp = cpp.stdout
-    encoded = result_cache.run(["python3", "-m", "tools.etc.vsStringTransformer"], root,
-                               files=sorted((root / "tools/etc").glob("vsString*.py")), input=cpp)
     pre = out / (name + ".i")
-    pre.write_bytes(encoded)
+    if not coff:
+        encoded = result_cache.run([sys.executable, "-m", "tools.etc.vsStringTransformer"], root,
+                                   files=sorted((root / "tools/etc").glob("vsString*.py")), input=cpp.stdout)
+        pre.write_bytes(encoded)
     obj = out / (name + ".o")
     # main.c and MAINMENU statics that only other code calls (by address on
     # the PS1) must survive compilation to be exposed below.
@@ -807,7 +867,7 @@ for source, name in sources:
         overlay_file = "/".join(parts[1:3])
         key = re.sub(r"\W", "_", overlay_file).lower()
         renames = []
-        for line in query(["readelf", "-SW", str(obj)]).splitlines():
+        for line in [] if coff else query(["readelf", "-SW", str(obj)]).splitlines():
             section = re.match(r"\s*\[\s*\d+\]\s+(\.(data|bss)(\.\S+)?)\s+\w+\s+\w+\s+\w+\s+(\w+)", line)
             if section and int(section.group(4), 16):
                 kind = section.group(2)
@@ -868,12 +928,12 @@ if not arch64:
 # the compiler itself provides. Install g++-multilib to avoid the fallback.
 audio_vendor = root / "pc/third_party/psycross-audio"
 cxx_flags = ["-m64", "-O2", "-std=c++17", "-fpie", "-g"] if arch64 else ["-m32", "-O2", "-std=c++17", "-fno-pie", "-fno-pic", "-g"]
-probe_cxx = subprocess.run(
+probe_cxx = None if coff else subprocess.run(
     ["g++", *cxx_flags, "-x", "c++", "-fsyntax-only", "-"],
     input=b"#include <vector>\n",
     capture_output=True,
 )
-if probe_cxx.returncode:
+if probe_cxx and probe_cxx.returncode:
     fallback = out / "cxx32"
     (fallback / "bits").mkdir(parents=True, exist_ok=True)
     version = subprocess.run(["g++", "-dumpversion"], capture_output=True, text=True).stdout.strip()
@@ -1047,7 +1107,7 @@ for elf in [out / "main-symbols.elf", root / "build/data/TITLE/TITLE.PRG.elf"] +
     if battle
     else []
 ):
-    symbols = query(["readelf", "-sW", str(elf)])
+    symbols = query([*READELF, "-sW", str(elf)])
     for line in symbols.splitlines():
         parts = line.split()
         if (
@@ -1065,7 +1125,7 @@ ending_elf = root / "build/data/ENDING/ENDING.PRG.elf"
 if battle:
     # ENDING's names only fill gaps: where an earlier overlay uses one name
     # for other data (MENU9's _score), ENDING's objects get name__ending.
-    for line in query(["readelf", "-sW", str(ending_elf)]).splitlines():
+    for line in query([*READELF, "-sW", str(ending_elf)]).splitlines():
         parts = line.split()
         if len(parts) >= 8 and parts[3] in ("OBJECT", "FUNC", "NOTYPE") and parts[6] != "UND":
             if parts[3] == "FUNC":
@@ -1094,7 +1154,7 @@ if battle:
 overlay_data = {}
 for key, elf in overlay_elfs.items():
     overlay_data[key] = {}
-    for line in query(["readelf", "-sW", str(elf)]).splitlines():
+    for line in query([*READELF, "-sW", str(elf)]).splitlines():
         parts = line.split()
         if len(parts) >= 8 and parts[3] in ("OBJECT", "NOTYPE") and parts[6] != "UND":
             overlay_data[key][parts[7]] = int(parts[1], 16)
@@ -1112,15 +1172,15 @@ def object_overlay(obj):
 exposing = [out / "main.o"] + sorted(o for o in objects if o.stem.startswith("mainmenu_"))
 imported, defined_elsewhere = set(), set()
 for obj in objects:
-    for line in query(["nm", str(obj)]).splitlines():
+    for line in query([*NM, str(aobj(obj))]).splitlines():
         parts = line.split()
         if len(parts) == 2 and parts[0] == "U":
             imported.add(parts[1])
-        elif len(parts) == 3 and parts[1].isupper():
-            defined_elsewhere.add(parts[2])
+        elif len(parts) == 3 and parts[1].isupper() and defined_name(parts[2], parts[1]):
+            defined_elsewhere.add(defined_name(parts[2], parts[1]))
 local_owner = {}
 for obj in exposing:
-    for line in query(["nm", "--defined-only", str(obj)]).splitlines():
+    for line in query([*NM, "--defined-only", str(aobj(obj))]).splitlines():
         parts = line.split()
         if len(parts) == 3 and parts[1] == "t":
             local_owner.setdefault(parts[2], []).append(obj)
@@ -1134,20 +1194,22 @@ for obj in exposing:
 # renderTextures.h functions) become ending_<name>; main calls the entry point.
 ending_objects = [obj for obj in objects if object_overlay(obj) == "ending"]
 ending_globals = sorted({line.split()[2] for obj in ending_objects for line in
-    query(["nm", "--defined-only", "-g", str(obj)]).splitlines()
+    query([*NM, "--defined-only", "-g", str(aobj(obj))]).splitlines()
     if len(line.split()) == 3} - {"vs_ending_exec"})
 for obj in ending_objects:
     objcopy([f"--redefine-sym={n}=ending_{n}" for n in ending_globals], obj)
 natively_defined = set()
 for obj in objects:
-    for line in query(["nm", "--defined-only", "-g", str(obj)]).splitlines():
-        natively_defined.add(line.split()[-1])
+    for line in query([*NM, "--defined-only", "-g", str(aobj(obj))]).splitlines():
+        parts = line.split()
+        if len(parts) == 3 and defined_name(parts[2], parts[1]):
+            natively_defined.add(defined_name(parts[2], parts[1]))
 plg_functions = {}  # plg key -> {original name: prefixed name}
 for obj in objects:
     key = object_overlay(obj)
     if not key or not key.startswith("plg"):
         continue
-    own = [line.split() for line in query(["nm", "--defined-only", "-g", str(obj)]).splitlines()]
+    own = [line.split() for line in query([*NM, "--defined-only", "-g", str(aobj(obj))]).splitlines()]
     names = [parts[2] for parts in own if len(parts) == 3]
     if names:
         objcopy([f"--redefine-sym={n}={key}_{n}" for n in names], obj)
@@ -1207,14 +1269,34 @@ if battle:
 # Calls: i386 calls are PC32/PLT32 (data is R_386_32); on x86-64 data is
 # also PC32 (RIP-relative), so only PLT32 marks a call.
 call_relocation = r"R_X86_64_PLT32\s+(\w+)" if arch64 else r"R_386_(?:PC32|PLT32)\s+(\w+)"
+
+
+def called_names(obj):
+    """The names an object calls or jumps to. COFF has one relocation type for
+    calls and RIP-relative data (IMAGE_REL_AMD64_REL32), so there the
+    instruction holding the relocation decides: a call or a jump."""
+    if not coff:
+        return set(re.findall(call_relocation, query([*OBJDUMP, "-r", str(obj)])))
+    names, instruction = set(), ""
+    for line in query([*OBJDUMP, "-dr", "--no-show-raw-insn", str(twin(obj))]).splitlines():
+        relocation = re.match(r"\s+[0-9a-f]+: (IMAGE_REL_AMD64_\w+)\s+([\w.$@?]+)", line)
+        if relocation:
+            if relocation.group(1) == "IMAGE_REL_AMD64_REL32" and re.fullmatch(r"call\w*|j[a-z]+", instruction):
+                names.add(relocation.group(2))
+            continue
+        decoded = re.match(r"\s+[0-9a-f]+:\s+(\S+)", line)
+        if decoded:
+            instruction = decoded.group(1)
+    return names
+
+
 for obj in objects:
     key = object_overlay(obj)
     if key is None:
         continue
     renames = []
-    called = set(re.findall(call_relocation,
-        query(["objdump", "-r", str(obj)])))
-    for line in query(["nm", "-u", str(obj)]).splitlines():
+    called = called_names(obj)
+    for line in query([*NM, "-u", str(aobj(obj))]).splitlines():
         name = line.split()[-1]
         own = overlay_data[key].get(name)
         # PLG ELFs list every symbol (functions too) as NOTYPE, so for them
@@ -1234,16 +1316,15 @@ text_defined = set()
 undefined = set()
 calls = set()
 for obj in objects:
-    for line in query(["nm", str(obj)]).splitlines():
+    for line in query([*NM, str(aobj(obj))]).splitlines():
         parts = line.split()
         if len(parts) == 2 and parts[0] == "U":
             undefined.add(parts[1])
-        elif len(parts) == 3 and parts[1].isupper():
-            defined.add(parts[2])
+        elif len(parts) == 3 and parts[1].isupper() and defined_name(parts[2], parts[1]):
+            defined.add(defined_name(parts[2], parts[1]))
             if parts[1] == "T":
-                text_defined.add(parts[2])
-    relocs = query(["objdump", "-r", str(obj)])
-    calls.update(re.findall(call_relocation, relocs))
+                text_defined.add(defined_name(parts[2], parts[1]))
+    calls.update(called_names(obj))
 libc = {
     "__divdi3",
     "__udivdi3",
@@ -1296,21 +1377,36 @@ libc = {
     "__assert_fail",
 }
 # Host libraries the audio objects use (C++ runtime, threads, dlopen, math).
-gcc_lib = "/usr/lib/gcc/x86_64-linux-gnu/" + subprocess.run(["gcc", "-dumpversion"], capture_output=True, text=True).stdout.strip()
-for library in ([
-    "/usr/lib/x86_64-linux-gnu/libstdc++.so.6",
-    "/lib/x86_64-linux-gnu/libc.so.6",
-    "/lib/x86_64-linux-gnu/libm.so.6",
-    "/usr/lib/x86_64-linux-gnu/libc_nonshared.a",  # atexit, stat, ...
-    gcc_lib + "/libgcc.a",
-] if arch64 else [
-    "/usr/lib32/libstdc++.so.6",
-    "/lib/i386-linux-gnu/libc.so.6",
-    "/lib/i386-linux-gnu/libm.so.6",
-    gcc_lib + "/32/libgcc.a",
-]) + [str(sdl_library)] + (nrd["libraries"] if nrd else []):
+# Windows' system libraries, for rood.exe's link and --coff's scan.
+WIN_SYSTEM_LIBS = ["setupapi", "winmm", "imm32", "version", "ole32", "oleaut32", "uuid", "gdi32", "user32",
+                   "shell32", "advapi32", "cfgmgr32", "ws2_32", "dbghelp"]
+if coff:
+    # The MinGW-w64 runtime that g++ -static links (with the console startup
+    # objects: crt2.o has atexit), the system libraries rood.exe names, SDL and NRD.
+    def mingw_library(name):
+        return subprocess.run([MINGW_GXX, f"-print-file-name={name}"], capture_output=True,
+                              text=True).stdout.strip()
+    host_libraries = [mingw_library(f"lib{n}.a") for n in [
+        "stdc++", "gcc", "gcc_eh", "mingw32", "mingwex", "msvcrt", "moldname", "pthread", "winpthread",
+        "kernel32", *WIN_SYSTEM_LIBS]] + [mingw_library(n) for n in ["crt2.o", "crtbegin.o", "crtend.o"]] \
+        + [str(win_sdl_library)] + (win_nrd["libraries"] if win_nrd else [])
+else:
+    gcc_lib = "/usr/lib/gcc/x86_64-linux-gnu/" + subprocess.run(["gcc", "-dumpversion"], capture_output=True, text=True).stdout.strip()
+    host_libraries = ([
+        "/usr/lib/x86_64-linux-gnu/libstdc++.so.6",
+        "/lib/x86_64-linux-gnu/libc.so.6",
+        "/lib/x86_64-linux-gnu/libm.so.6",
+        "/usr/lib/x86_64-linux-gnu/libc_nonshared.a",  # atexit, stat, ...
+        gcc_lib + "/libgcc.a",
+    ] if arch64 else [
+        "/usr/lib32/libstdc++.so.6",
+        "/lib/i386-linux-gnu/libc.so.6",
+        "/lib/i386-linux-gnu/libm.so.6",
+        gcc_lib + "/32/libgcc.a",
+    ]) + [str(sdl_library)] + (nrd["libraries"] if nrd else [])
+for library in host_libraries:
     if os.path.exists(library):
-        for line in run(["nm", "-D" if library.endswith(".6") else "", "--defined-only", library] if library.endswith(".6") else ["nm", "--defined-only", library], capture_output=True, text=True).stdout.splitlines():
+        for line in run(["nm", "-D" if library.endswith(".6") else "", "--defined-only", library] if library.endswith(".6") else [*NM, "--defined-only", library], capture_output=True, text=True).stdout.splitlines():
             parts = line.split()
             if len(parts) >= 3:
                 libc.add(parts[2].split("@")[0])
@@ -1318,6 +1414,10 @@ libc.update({"_GLOBAL_OFFSET_TABLE_", "__dso_handle", "__data_start", "_end", "_
              "__start_rood_state_data", "__stop_rood_state_data", "__start_rood_state_bss",
              "__stop_rood_state_bss"})  # linker-provided (snapshot.c: code hash, state sections)
 libc.update({"pc_overlay_statics", "pc_overlay_statics_count"})  # generated before linking
+if coff:  # provided by the PE linker (ld's default script for PE+)
+    libc.update({"__ImageBase", "__image_base__", "__CTOR_LIST__", "__DTOR_LIST__", "_tls_index",
+                 "__RUNTIME_PSEUDO_RELOC_LIST__", "__RUNTIME_PSEUDO_RELOC_LIST_END__", "__data_start__",
+                 "__data_end__", "__bss_start__", "__bss_end__", "__end__", "_end"})
 missing = undefined - defined - libc
 # Function-pointer tables in BATTLE data hold guest code addresses. Rehome a
 # table natively when every word is a named function (or null): native C
@@ -1427,7 +1527,7 @@ def lp64_native_imports():
     users = {}  # import -> overlay keys of the objects that reference it
     for obj in objects:
         names = [line.split()[-1] for line in
-                 query(["nm", "-u", str(obj)]).splitlines()]
+                 query([*NM, "-u", str(aobj(obj))]).splitlines()]
         for n in names:
             users.setdefault(n, set()).add(object_overlay(obj))
         names = sorted({declared_name(n) for n in names if n in data})
@@ -1436,14 +1536,14 @@ def lp64_native_imports():
     scratch = pathlib.Path(tempfile.mkdtemp(prefix="import_types", dir=out))
     def query_types(item):
         obj, names = item
-        key = result_cache.key(["import_types", *names], [obj, root / "pc/tools/import_types.py"])
+        key = result_cache.key(["import_types", *names], [aobj(obj), root / "pc/tools/import_types.py"])
         cached = result_cache.get(key)
         if cached is not None:
             return obj, json.loads(cached)
         request, reply = scratch / (obj.stem + ".in.json"), scratch / (obj.stem + ".out.json")
         request.write_text(json.dumps(names))
-        subprocess.run(["gdb", "-batch", "-nx", str(obj), "-ex",
-                        f"python import sys; sys.argv = ['import_types', '{request}', '{reply}']",
+        subprocess.run(["gdb", "-batch", "-nx", str(aobj(obj)), "-ex",
+                        f"python import sys; sys.argv = ['import_types', {str(request)!r}, {str(reply)!r}]",
                         "-x", str(root / "pc/tools/import_types.py")],
                        cwd=root, check=True, capture_output=True)
         result_cache.put(key, reply.read_bytes())
@@ -1591,7 +1691,8 @@ def lp64_native_imports():
     source.write_text("/* Generated by build_boot.py --arch 64: data imports with an LP64 layout. */\n"
                       + "\n".join(definitions) + "\n")
     obj = out / "native_imports.o"
-    run(["gcc", *flags, "-c", str(source), "-o", str(obj)])
+    if not coff:
+        run(["gcc", *flags, "-c", str(source), "-o", str(obj)])
     state_sections(obj)  # game data (save states); overlay regions keep their rood_ovl_ sections
     if win:
         # PE: no .type directive; overlay data goes to its grouped section.
@@ -1638,18 +1739,18 @@ compile_generated(["gcc", *flags, "-c", str(out / "traps.c"), "-o", str(out / "t
 # Bounds of each overlay's native statics (linker-provided __start_/__stop_ of
 # the sections renamed above), for overlay_statics.c. Byte-identical PLG copies
 # (config/EFFECT/Makefile duplicate rules) load the same statics.
-statics_files = {f: f for f in overlay_statics}
+statics_files = {f: f for f in (win_overlay_statics if coff else overlay_statics)}
 makefile = (root / "config/EFFECT/Makefile").read_text().replace("\\\n", " ")
 for copies, original in re.findall(r"\$\(call PLGBINS,([\d ]+)\):\s*\$\(call PLGBINS,(\d+)\)", makefile):
     for copy in copies.split():
-        if f"EFFECT/PLG{original}.BIN" in overlay_statics:
+        if f"EFFECT/PLG{original}.BIN" in statics_files:
             statics_files[f"EFFECT/PLG{copy}.BIN"] = f"EFFECT/PLG{original}.BIN"
 statics_rows, statics_externs = [], []
 for path, owner in sorted(statics_files.items()):
     key = re.sub(r"\W", "_", owner).lower()
     bounds = []
     for kind in ["data", "bss"]:
-        if kind in overlay_statics[owner]:
+        if kind in (win_overlay_statics if coff else overlay_statics)[owner]:
             start, stop = f"__start_rood_ovl_{key}_{kind}", f"__stop_rood_ovl_{key}_{kind}"
             statics_externs += [start, stop]
             bounds += [start, stop]
@@ -1665,7 +1766,8 @@ for path, owner in sorted(statics_files.items()):
     + "    { 0 } };\n"
     + f"const int pc_overlay_statics_count = {len(statics_rows)};\n"
 )
-run(["gcc", *flags, "-c", str(out / "overlay_statics_table.c"), "-o", str(out / "overlay_statics_table.o")])
+if not coff:
+    run(["gcc", *flags, "-c", str(out / "overlay_statics_table.c"), "-o", str(out / "overlay_statics_table.o")])
 if win:
     # PE has no __start_/__stop_ section symbols: zero-length markers in
     # .data$..._a and _z bracket each overlay's sorted .data$..._m sections.
@@ -1727,7 +1829,7 @@ if win:
                                               sorted(weak_defs.items()) if name not in strong))
     exe = out / "rood.exe"
     run([
-        MINGW + "g++-posix",
+        MINGW_GXX,
         "-static",
         "-mconsole",
         # Native code and data below 4 GB at a fixed address (psx_ptr fields
@@ -1739,7 +1841,7 @@ if win:
         # Reproducible: no link time in the PE header, so an incremental and a clean build match.
         "-Wl,--no-insert-timestamp",
         # Files open in binary mode unless "t" is given, as on Linux.
-        subprocess.run([MINGW + "gcc-posix", "-print-file-name=binmode.o"], capture_output=True,
+        subprocess.run([MINGW_GCC, "-print-file-name=binmode.o"], capture_output=True,
                        text=True).stdout.strip(),
         *[str(twin(o)) for o in objects],
         str(twin(out / "traps.o")),
@@ -1748,8 +1850,7 @@ if win:
         str(out / "weak_defs.ld"),
         str(win_sdl_library),
         *(win_nrd["libraries"] if win_nrd else []),
-        "-lsetupapi", "-lwinmm", "-limm32", "-lversion", "-lole32", "-loleaut32", "-luuid",
-        "-lgdi32", "-luser32", "-lshell32", "-ladvapi32", "-lcfgmgr32", "-lws2_32", "-ldbghelp",
+        *[f"-l{n}" for n in WIN_SYSTEM_LIBS],
         "-o", str(exe),
     ])
     print(f"Built {exe}: {len(assign)} data imports, {len(traps)} fail-fast function imports")
