@@ -2982,6 +2982,7 @@ static void service(void)
             current_client = c;
             if (*skip(c->buffer) && !c->authed) {
                 if (!authenticate(c->fd, c->buffer)) {
+                    current_client = NULL;
                     rpc_close(c->fd);
                     c->fd = -1;
                     break;
@@ -2999,6 +3000,12 @@ static void service(void)
             c->buffer[c->used] = 0;
         }
         if (c->fd >= 0 && c->used == sizeof c->buffer - 1) {
+            if (!c->authed) {
+                /* Not yet authenticated: no reason to keep a slot for it. */
+                rpc_close(c->fd);
+                c->fd = -1;
+                continue;
+            }
             fail(c->fd, "null", -32700, "request line too long");
             c->used = 0;
         }

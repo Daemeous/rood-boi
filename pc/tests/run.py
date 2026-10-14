@@ -111,6 +111,8 @@ def suites(args, mode="egl"):
               note="save states: booting to each test checkpoint and resuming its snapshot give identical "
                    "game state and frames; makes the checkpoints' save states (first job)"),
         Suite("rpc_smoke", [PY, str(TESTS / "rpc_smoke.py")], 180),
+        Suite("rpc_tcp_token_smoke", [PY, str(TESTS / "rpc_tcp_token_smoke.py")], 180,
+              note="TCP RPC with a token: refused without it, with a wrong one, HTTP lines; never logged"),
         Suite("gi_smoke", [PY, str(TESTS / "gi_smoke.py")], 300),
         Suite("rt_camera_smoke", [PY, str(TESTS / "rt_camera_smoke.py")], 300,
               note="ray-traced surfaces follow the picture's camera (Vulkan)"),
