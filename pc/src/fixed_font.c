@@ -6,11 +6,17 @@ extern unsigned char vs_battle_characterWidths[];
 /* A 32-bit guest word holding the OT base (BATTLE 0x800F51B8). */
 extern unsigned D_800F51B8;
 extern void pc_ui_precise_quad(const void* packet, const float* corners) __attribute__((weak));
+/* ui_text_layout line (ui_text.c): which glyphs one string sets. */
+extern void pc_text_glyph(void* const* commands, int count, int glyph, int x, int y, int next_x, int advance)
+    __attribute__((weak));
 int pc_fixed_font_char(unsigned** cursor, int character, unsigned x, unsigned y,
     unsigned width, unsigned height, unsigned scale)
 {
-    if (character == 0x8f)
+    if (character == 0x8f) {
+        if (pc_text_glyph)
+            pc_text_glyph((void* const*)0, 0, -1, (int)x, (int)y, (int)(x + scale * 6), 6);
         return x + scale * 6;
+    }
     unsigned glyph = character + _fontTable * 189;
     /* The cursor is the scratchpad's 4-byte packet pointer. */
     unsigned* packet = psx_load(unsigned*, cursor);
@@ -35,6 +41,11 @@ int pc_fixed_font_char(unsigned** cursor, int character, unsigned x, unsigned y,
               y1 = (int)(y + height) / 65536.0f;
         float corners[8] = { x0, y0, x1, y0, x0, y1, x1, y1 };
         pc_ui_precise_quad(packet + 1, corners); /* the command, as the GPU walker sees it */
+    }
+    if (pc_text_glyph) {
+        void* command = packet + 1;
+        pc_text_glyph(&command, 1, (int)glyph, (int)x, (int)y, (int)(x + vs_battle_characterWidths[glyph] * scale),
+            vs_battle_characterWidths[glyph]);
     }
     *head = psx_to_int(unsigned, packet) & 0xffffff;
     psx_store(cursor, packet + 10);

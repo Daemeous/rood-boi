@@ -82,6 +82,17 @@ void pc_ui_magick_refresh(void);
 int pc_ui_magick_cast_taken(void);
 void pc_ui_magick_cast(int go);
 
+/* items_bridge.c: the Items screen's game side */
+void pc_ui_items_session(int fresh);
+void pc_ui_items_fill(int mainmenu);
+void pc_ui_items_refresh(void);
+int pc_ui_items_cast_taken(void);
+void pc_ui_items_cast(int go);
+
+/* workshop_bridge.c: the Items tab's Workshop sub-tab */
+void pc_ui_workshop_fill(int mainmenu);
+void pc_ui_workshop_refresh(void);
+
 /* ashley_bridge.c: the Ashley tab's game side */
 void pc_ui_ashley_open(void);
 void pc_ui_ashley_fill(void);
@@ -89,6 +100,67 @@ void pc_ui_ashley_model_open(int fresh);
 void pc_ui_ashley_model_tick(int resident, int held);
 void pc_ui_ashley_model_close(void);
 void pc_ui_ashley_model_forget(void);
+
+/* loot_bridge.c: the Loot screen's game side (direct entry 12) */
+int pc_ui_loot_begin(void);
+int pc_ui_loot_frame(const pc_ui_input* in);
+void pc_ui_loot_abandon(int reset);
+
+/* map_bridge.c: the Map frame around the game's map screen (MENU5) */
+void pc_ui_map_arm(void);
+int pc_ui_map_on(void);
+int pc_ui_map_end(void);
+void pc_ui_map_forget(void);
+
+/* manual_bridge.c: the System tab's Quick manual (ui_manual.h) */
+void pc_ui_manual_bridge_fill(int settling);
+void pc_ui_manual_bridge_refresh(void);
+void pc_ui_manual_bridge_abandon(void);
+void pc_ui_manual_bridge_reset(void);
+
+/* A direct entry the shell runs (pc_ui_direct_tick): its menu (0 none),
+ * ticks left that ignore the pad. */
+static struct {
+    int menu;
+    int settle;
+} direct;
+
+/* The field HUD back after a direct session (its end or an abandon): only if
+ * the flag is still the one the shell set (whatever set it since owns it
+ * now), as abandon() does for the top level. */
+static void direct_show_hud(void)
+{
+    if (hud_hidden && D_800EB9AF == 1)
+        D_800EB9AF = hud_saved;
+    hud_hidden = 0;
+}
+
+/* The session ends without its end: the game left its menu (reset 0: the
+ * game heap stays, the bridge gives its allocation back) or the game was
+ * reset (1: the heap is the next game's). */
+static void direct_abandon(int reset)
+{
+    if (direct.menu == 12)
+        pc_ui_loot_abandon(reset);
+    direct.menu = 0;
+    direct_show_hud();
+}
+
+/* The HUD flag D_800EB9AF as the game has it (the shell's slide-out aside):
+ * loot_bridge.c's Organize panel decides on it as MENUB does. */
+char pc_ui_menu_hud_game(void) { return hud_hidden ? hud_saved : D_800EB9AF; }
+
+/* After the game's own HUD calls of a direct session (loot_bridge.c, the
+ * Organize panel closing: func_800CB654(0), D_800EB9B0 0): what they set is
+ * the game's value now, and the HUD stays out while the shell shows. */
+void pc_ui_menu_hud_keep(void)
+{
+    if (hud_hidden && D_800EB9AF != 1) {
+        hud_saved = D_800EB9AF;
+        D_800EB9AF = 1;
+        D_800EB9B0 = 0x200000;
+    }
+}
 
 /* weapon_slots.c: the menu's model reload */
 void pc_weapon_slots_left_battle(void);
@@ -101,6 +173,7 @@ static void abandon(void)
 {
     pc_ui_ashley_model_close(); /* the world back before anything else runs */
     pc_ui_shell_close();
+    pc_ui_manual_bridge_abandon(); /* the Quick manual's store and its world freeze back */
     if (hud_hidden && D_800EB9AF == 1)
         D_800EB9AF = hud_saved;
     hud_hidden = 0;
@@ -110,11 +183,26 @@ static void abandon(void)
 /* Every battle frame (BATTLE vs_battle_exec's pad read, through
  * weapon_slots.c pc_weapon_slots_process_pad, before the menu runs): a
  * session whose top level has not been ticked for STALE_FRAMES frames, or
- * whose menu is no longer at the top level, has ended abnormally. */
+ * whose menu is no longer at the top level, has ended abnormally. A direct
+ * session ends abnormally only when the game left its menu: one that is not
+ * ticked for a while (the after-battle or chest flow not calling the menu
+ * on some frames) is the same session when the ticks come back (abandoning
+ * it would let its next tick, *state still 0, start it over: the drops
+ * copied again and the first allocation lost). */
 #define STALE_FRAMES 4
 void pc_ui_menu_heartbeat(void)
 {
     ++frames;
+    /* the game left a direct session's menu */
+    if (direct.menu && (vs_battle_menuState.currentMenu & 0x3F) != direct.menu)
+        direct_abandon(0);
+    if (direct.menu)
+        return; /* the top level is not this session's (its HUD flag is the direct session's) */
+    /* the Map frame ends once the game left its map screen (Triangle: 6, then
+     * 0x7F; anything else). A stale stamp never ends it: it only stops the
+     * drawing (ui_map.cpp pc_ui_map_visible). */
+    if (pc_ui_map_on() && (vs_battle_menuState.currentMenu & 0x3F) != 6)
+        pc_ui_map_end();
     /* the shell's action ended (its target confirmed, or no target): the
      * game frees the menu's rows (func_800CB114) only then, a cancel keeps
      * them */
@@ -132,7 +220,11 @@ void pc_ui_menu_heartbeat(void)
  * the session and a queued model reload's finish are not the next scene's. */
 void pc_ui_menu_reset(void)
 {
+    pc_ui_manual_bridge_reset(); /* nothing written: the game's memory is the next game's */
     pc_ui_ashley_model_forget(); /* the heap is the next game's: nothing to free */
+    pc_ui_map_forget();
+    if (direct.menu)
+        direct_abandon(1);
     if (shell_open || held || hud_hidden || pc_ui_shell_drawn())
         abandon();
     pc_weapon_slots_left_battle();
@@ -142,6 +234,10 @@ void pc_ui_menu_reset(void)
 /* dev_overlay.cpp: Dear ImGui runs (the shell draws through it). Weak: a
  * build without the overlay keeps the original menus. */
 extern int pc_overlay_active(void) __attribute__((weak));
+
+static unsigned map_buttons(unsigned pad);
+/* map_bridge.c: the Map frame's area list reads the pad as the shell does */
+unsigned pc_ui_map_buttons(unsigned pad) { return map_buttons(pad); }
 
 static unsigned map_buttons(unsigned pad)
 {
@@ -189,6 +285,8 @@ int pc_ui_menu_open(int mode)
     pc_ui_commands c;
     int top = (vs_battle_menuState.currentMenu & 0x3F) == 0 && !((u_int)D_800F4EA0 & 0x200)
         && vs_battle_shortcutInvoked == 0;
+    /* back from the map (Cross, or a tab clicked on its frame: that tab) */
+    int map_tab = pc_ui_map_end();
     closing = 0;
     held = 0;
     if (mode == 2)
@@ -202,6 +300,7 @@ int pc_ui_menu_open(int mode)
     if (!shell_open) {
         pc_ui_ashley_model_close();
         pc_ui_shell_close();
+        pc_ui_manual_bridge_abandon(); /* the close's manual events (store, world back) applied now */
         show_hud();
         return 0;
     }
@@ -211,8 +310,13 @@ int pc_ui_menu_open(int mode)
     pc_ui_ashley_model_open(mode == 2);
     c = commands();
     pc_ui_shell_open(&c, mode != 2 || vs_main_settings.cursorMemory);
+    if (map_tab >= 0)
+        pc_ui_shell_set_tab(map_tab);
     pc_ui_abilities_fill(mainmenu_resident()); /* the shell may open on the Abilities screen */
     pc_ui_magick_fill(mainmenu_resident());    /* or on Magick */
+    pc_ui_items_session(mode == 2);            /* a new menu: the next Items screen is an entry */
+    pc_ui_items_fill(mainmenu_resident());     /* or on Items */
+    pc_ui_workshop_fill(mainmenu_resident());  /* (its Workshop) */
     settle = 2; /* the press that opened (or returned to) the menu is not the shell's */
     return 1;
 }
@@ -245,6 +349,11 @@ static int deliver(int r)
             (char*)&vs_battle_menuStrings[vs_battle_menuStrings[cmd]])
             ->unselectable
             = (cmd == 0 && (mask & 0xB7)) || (cmd == 1 && (mask & 0x15F));
+        /* the map screen (MENU5): the shell draws its frame around it
+         * (map_bridge.c; MENU5 manages the HUD flag itself, as on the
+         * original path) */
+        if (r == 6 && session && pc_overlay_active && pc_overlay_active())
+            pc_ui_map_arm();
     } else if (r < 0) {
         vs_battle_playMenuLeaveSfx();
         vs_battle_textBoxes[7].state = 0;
@@ -347,6 +456,8 @@ int pc_ui_menu_top(void)
     pc_ui_ashley_fill();
     pc_ui_abilities_fill(resident);
     pc_ui_magick_fill(resident);
+    pc_ui_items_fill(resident);
+    pc_ui_workshop_fill(resident);
     if (held) {
         pc_ui_ashley_model_tick(0, 1);
         vs_mainMenu_setMenuCommand(menuActionNone);
@@ -359,23 +470,28 @@ int pc_ui_menu_top(void)
     }
     in.pressed = map_buttons(vs_main_buttonsPressed.all);
     in.repeat = map_buttons(vs_main_buttonRepeat) | in.pressed;
+    pc_ui_manual_bridge_fill(settle > 0); /* the Quick manual: the game's state, Square held and Start */
     if (settle > 0) {
         --settle;
         in.pressed = in.repeat = 0;
     }
     r = pc_ui_shell_tick(&in);
+    pc_ui_manual_bridge_refresh(); /* its events (an ORIGINAL before deliver(10) runs MENUE) */
     pc_ui_equip_requests();
     pc_ui_abilities_refresh();
     pc_ui_magick_refresh();
-    /* a break art, a spell or a teleport was accepted (refused while a result
+    pc_ui_items_refresh();
+    pc_ui_workshop_refresh();
+    /* a break art, a spell, a teleport or an item's Use was accepted (refused while a result
      * is out, a model reload runs or MAINMENU is not resident, so never held;
      * one per tick, the bridges refuse a second): handed to the game and the
      * menu closes for it. A result on the same tick (it cannot happen: the
      * bridges refuse once the shell has hidden) drops it. */
-    if (pc_ui_abilities_cast_taken() || pc_ui_magick_cast_taken()) {
+    if (pc_ui_abilities_cast_taken() || pc_ui_magick_cast_taken() || pc_ui_items_cast_taken()) {
         int teleport = pc_ui_magick_cast_taken() == 2;
         pc_ui_abilities_cast(r == 0);
         pc_ui_magick_cast(r == 0);
+        pc_ui_items_cast(r == 0);
         if (r == 0) {
             pc_ui_shell_close();
             pc_ui_ashley_model_tick(resident, 0); /* torn down: the shell is gone */
@@ -407,3 +523,63 @@ int pc_ui_menu_hide_rows(void)
         closing = 0;
     return shell_open || closing;
 }
+
+/* MAINMENU vs_mainMenu_exec, the direct entries (D_800F4EA0 & 0x200; C48.c,
+ * ROOD_PC, once the submenu has loaded): the game opened one of its menus
+ * straight (no top level): 12 the loot after a battle or at a chest (MENUB).
+ * Returns 1 when the shell runs it, with *result the submenu's protocol (0
+ * stay, 1 done: vs_mainMenu_exec's func_800FAA5C then ends the menu as after
+ * the original); 0 leaves the original to run (ui_menus off when the session
+ * opened, no overlay, an entry the shell has no screen for).
+ *
+ * The session is the shell's from its first tick (*state 0, as the
+ * original's start) to its end; ui_menus is read only there (a session never
+ * changes hands). *state stays 0 while the shell runs it (the original's
+ * would restart cleanly from there) and is 0 at the end as the original
+ * leaves it. Everything game-side is the entry's bridge (loot_bridge.c),
+ * which does what the original's submenu does to the game's state, including
+ * its world freeze and HUD (MENUB's loot list touches neither: only its
+ * Organize inventory panel does, see loot_bridge.c). The shell slides the
+ * field HUD out while it shows, as for the top level (hide_hud: presentation
+ * only, the flag back at the end; the bridge decides on the game's own value,
+ * pc_ui_menu_hud_game; back at the end only while it is still the shell's,
+ * direct_show_hud). A session whose menu the game left is abandoned
+ * (pc_ui_menu_heartbeat; one not ticked for a while resumes as it was), a
+ * soft reset drops it (pc_ui_menu_reset). Room for
+ * more entries: 13 (MENUC, the workshop) and 14 (MENUD) get a bridge each and
+ * a case here. */
+#define DIRECT_SETTLE 8 /* the press that opened the menu (and the original's slide-in) */
+int pc_ui_direct_tick(int selectedMenu, char* state, int* result)
+{
+    pc_ui_input in;
+    if (direct.menu && direct.menu != selectedMenu)
+        direct_abandon(0);
+    if (!direct.menu) {
+        if (*state != 0 || selectedMenu != 12)
+            return 0;
+        if (!pc_ui_menus || !pc_overlay_active || !pc_overlay_active())
+            return 0;
+        if (!pc_ui_loot_begin())
+            return 0;
+        direct.menu = selectedMenu;
+        direct.settle = DIRECT_SETTLE;
+        /* the field HUD slides out under the screen's backdrop, as for the
+         * shell (the original's loot list leaves it up: back at the end) */
+        hide_hud();
+    }
+    in.pressed = map_buttons(vs_main_buttonsPressed.all);
+    in.repeat = map_buttons(vs_main_buttonRepeat) | in.pressed;
+    if (direct.settle > 0) {
+        --direct.settle;
+        in.pressed = in.repeat = 0;
+    }
+    *state = 0;
+    *result = pc_ui_loot_frame(&in);
+    if (*result) {
+        direct.menu = 0;
+        direct_show_hud();
+    }
+    return 1;
+}
+
+int pc_ui_direct_active(void) { return direct.menu; }

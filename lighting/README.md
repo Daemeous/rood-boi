@@ -36,6 +36,7 @@ by naming its id:
 | `set` | `set:<key>` | a per-room setting (`baked_lighting`, `haze_density`, ...: `pc/src/room_settings.cpp`) |
 | `env` | `env:sun`, `env:sky`, `env:fog` | the room's sun (or moon), sky and ground fog (below, "Environment") |
 | `fog` | `fog:<14 hex digits>` | a fog volume: a box or sphere of mist (below, "Fog volumes") |
+| `post` | `post:room`, `post:cutscene`, `post:event.<id>` | the room's post-processing profile in play, in its cutscenes, in one event (fields: [pc/docs/Post_Processing.md](../pc/docs/Post_Processing.md); `preset=<name>` puts a named profile under the item's own fields; nothing is generated: every effect is off unless a layer sets it) |
 
 The editor makes ids from the time and a random part, so ids made by
 different people do not collide and sort in the order they were made.
@@ -77,8 +78,12 @@ uv 3 speed=0.5
   seed enabled glow glowkey fixture fixture_radius fixture_shadows
   fixture_type flame`, and any parameter of its prefab
   (`pc/assets/prefabs/*.json`) it overrides. Glow: `pos muted intensity
-  tint size reach fixture_type`. Texture effect: `speed freeze`. Setting:
-  `value`.
+  tint size reach fixture_type shape`; `shape=sphere|column` sets its
+  emitting shape (default `auto`: as its fixture type says, else a column
+  when it encloses room for a character, the save point's;
+  [pc/docs/Glows.md](../pc/docs/Glows.md) "Enclosing glows"), and `size` is
+  that sphere's or column's radius. Texture effect: `speed freeze`.
+  Setting: `value`.
 - `fixture_type=T002` (generated actors and glows) names a type of the
   fixture catalog (`pc/assets/fixtures/catalog.json`,
   [pc/docs/Fixture_Catalog.md](../pc/docs/Fixture_Catalog.md)). Such an
@@ -169,7 +174,37 @@ fog 68ea4c1200a3f1 name="Cellar mist" shape=sphere pos=320,-60,640 size=400,120,
   half size; 0.5), `color` (albedo; 1,1,1), `fill` (0,0,0), `noise` (0.5; the
   wisps drift with the room's fog wind), `enabled` (1).
 - A room renders up to 16 enabled volumes; they add to the haze and the
-  ground fog and may reach past the room's bounds.
+  ground fog and may reach past the room's bounds. The first 8 are drawn by
+  their own renderer (pc/README.md, "Fog volumes' own renderer"; settings
+  `fog_volume_render` 0: all in the haze), exempt from the room's haze
+  limits, with these fields for their look: `opacity` (1: the most of the
+  scene it may hide along a ray), `brightness` (1), `phase` (0.3: forward
+  scattering, brighter looking toward a light through it), `ambient` (1:
+  scale on its ambient light, the room's baked light around it and the
+  sky), `glow` (0,0,0: light it emits per unit density, smoke lit from
+  within), `glow_core` (0.5: 0 the glow even through it, 1 gathered at its
+  base), `taper` (0: height profile, 1 thinning toward its top), `detail_size`
+  (0: its billows' size in world units; 0 from the room's wisp size).
+- **Interactive** (pc/README.md, "Interactive fog"): `sim` (0; 1: the
+  characters, attacks and spells part it), `sim_strength` (1: how much a
+  source clears), `sim_recover` (3 s to settle back), `sim_footprint` (1:
+  scale on every source's size), `sim_trail` (1: how much of a source's
+  motion it takes and keeps), `sim_wind` (1: scale on the room's fog wind),
+  `detail` (0.5: billows and fine wisps, carried along by its flow),
+  `sim_swirl` (0: eddies, up to 4), `shadow` (0: self-shadowing toward the
+  sun or moon, up to 2; in the volumes' own renderer it is always
+  self-shadowed toward every light, by 0.5 + `shadow` times its depth), `disturb_player`, `disturb_actors`, `disturb_attacks`,
+  `disturb_spells` (-1: the global settings `fog_disturb_*`; 0 off). The
+  first four interactive volumes of a room (`fog_sim_budget`) simulate.
+- **Presets**: `preset=<name>` names one of
+  `pc/assets/environment/fog_presets.json`; every field the volume does not
+  write comes from it (the editor writes only what differs from the preset,
+  even a value equal to the schema default), so a preset edit updates every
+  volume using it. An unknown preset leaves the fields as written.
+
+```
+fog 7c1e0a9b3d55f2 name="Clearing mist" pos=320,-24,640 size=1200,72,900 yaw=15 sim_trail=1.5 preset=forest_floor
+```
 
 ## The generated layer
 

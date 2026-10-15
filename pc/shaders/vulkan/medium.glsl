@@ -5,7 +5,10 @@
 // Shared by the traced haze (Vulkan froxels rt_haze.comp and
 // rt_haze_integrate.comp, ptgi.c's OpenGL march) and the present passes'
 // unshadowed haze (scaled.frag, gl_present.c). The includer defines
-// MEDIUM(i), the i-th vec4 of the record. World space, y down.
+// MEDIUM(i), the i-th vec4 of the record, and MEDIUM_TEX, the medium's 3D
+// texture (atmosphere.h pc_medium_texture: the detail noise, the
+// interactive fog's fields), where it samples the volumes (without it they
+// have neither). World space, y down.
 #ifndef MEDIUM_GLSL
 #define MEDIUM_GLSL
 #define MEDIUM_VOLUMES 16
@@ -14,31 +17,37 @@
 #define MEDIUM_FLOOR 89
 #define MEDIUM_FLOOR_DATA 91
 #define MEDIUM_SIM 163
-#define MEDIUM_SIM_DATA 164
+#define MEDIUM_DETAIL 164
 // The record (pc_medium_gpu):
 //  0: haze density (per world unit, uniform in the room), phase g, time (s), volume count
 //  1: fog density at its base, scale height, base y (world, y down; with a floor grid: its offset above
 //     the floor), noise amount (0..1)
 //  2: fog albedo rgb, 1 / noise feature size
 //  3: fog fill rgb (light it scatters from everywhere), on
-//  4: wind xyz (world units per second), -
+//  4: wind xyz (world units per second), w the first volume the haze passes include (the ones before it
+//     are drawn by their own renderer, fog_volume.glsl: atmosphere.cpp pc_fog_volume_render)
 //  5: rgb the sky's light where nothing traces it (mean radiance, half blocked: in-scattered
 //     everywhere; 0 in the traced haze, which samples the sky with occlusion), w its strength
 //  6, 7: the room's bounds (haze and ground fog fill them only)
-//  8 + 5 i: volume i: centre + density, half size + edge, albedo + noise, fill + -, cos/sin yaw + shape (1 sphere)
+//  8 + 5 i: volume i: centre + density, half size + edge, albedo + noise, fill + its field's layer + 1 (0
+//      none; + 8 for a sphere), cos/sin yaw + self-shadowing strength + detail (0..1)
 //  88: limits (0: none): x the least transmittance along a ray (1 - the most opacity), y the most light it
 //      scatters toward the eye (luminance, a soft knee), z the sun's in-scattering in shadowed air (1 - the
 //      shafts' contrast), w the phase function's largest value (forward scattering toward the moon)
 //  89, 90: the ground fog's floor, a top-down grid over the room: x, z of its corner, cells per unit in x, z;
 //      y of height 0, units per step, cells per side, on
 //  91..162: the grid's heights, two 12-bit steps per float (a * 4096 + b), row by row (z), x within a row
-//  163: the interactive fog (fog_sim.h, prototype): x cells per side (0: none)
-//  164..249: its field over the simulated volume's footprint (the volume with fill.w 1), a density
-//      multiplier 0..2 in 8-bit steps, three per float (a * 65536 + b * 256 + c), row by row (its z)
+//  163: the medium's texture: x the interactive fog's cells per side, y its width and height (texels),
+//      z its depth, w 1 (0: none). Slices 0..64: tileable detail noise (64 a period, the first repeated);
+//      then one per simulated volume: its field (fog_sim.h) over its footprint, density / 2, in the corner
+//  164: x 1 / the detail noise's period (world units), yzw the main light's direction (toward it: the
+//      sun or moon, else up): the volumes' self-shadowing
 float medium_haze() { return MEDIUM(0).x; }
 float medium_g() { return MEDIUM(0).y; }
 int medium_volume_count() { return int(MEDIUM(0).w + 0.5); }
-bool medium_on() { return MEDIUM(0).x > 0.0 || MEDIUM(1).x > 0.0 || MEDIUM(0).w > 0.5; }
+// The first volume the haze passes include (the ones before it have their own renderer).
+int medium_volume_first() { return int(MEDIUM(4).w + 0.5); }
+bool medium_on() { return MEDIUM(0).x > 0.0 || MEDIUM(1).x > 0.0 || MEDIUM(0).w > MEDIUM(4).w + 0.5; }
 // Henyey-Greenstein phase function times 4 pi (1 for isotropic scattering),
 // at most the record's cap: looking toward the moon through forward-
 // scattering haze must not blow out the picture.
@@ -149,43 +158,105 @@ float medium_fog_base(vec3 x) {
     float up = medium_floor(x) - MEDIUM(1).z - x.y;
     return MEDIUM(1).x * exp(up >= 0.0 ? -up / height : -max(-up - height, 0.0) / height);
 }
-// One value of the interactive fog's field (cell i, j).
-float medium_sim_cell(int i, int j) {
-    int n = int(MEDIUM(MEDIUM_SIM).x + 0.5);
-    int k = clamp(j, 0, n - 1) * n + clamp(i, 0, n - 1);
-    float v = MEDIUM(MEDIUM_SIM_DATA + k / 12)[(k / 3) & 3];
-    float a = floor(v / 65536.0), r = v - a * 65536.0, b = floor(r / 256.0);
-    int s = k - (k / 3) * 3;
-    float q = s == 0 ? a : s == 1 ? b : r - b * 256.0;
-    return q * (2.0 / 255.0);
+// A volume's field layer + 1 (0: none) and its shape (record: fill.w =
+// layer + 1, + 8 for a sphere).
+int medium_volume_layer(int b) { float w = MEDIUM(b + 3).w; return int((w > 7.5 ? w - 8.0 : w) + 0.5); }
+bool medium_volume_sphere(int b) { return MEDIUM(b + 3).w > 7.5; }
+#ifdef MEDIUM_TEX
+// The interactive fog of layer `layer` at unit coordinates foot (-1..1 over
+// the volume's footprint), bilinear: x its density multiplier (0..2), yz
+// its velocity (world x, z units per second).
+vec3 medium_sim(int layer, vec2 foot) {
+    vec4 t = MEDIUM(MEDIUM_SIM);
+    vec2 c = clamp((foot * 0.5 + 0.5) * t.x, vec2(0.5), vec2(t.x - 0.5));
+    vec3 f = textureLod(MEDIUM_TEX, vec3(c / t.y, (65.0 + float(layer) + 0.5) / t.z), 0.0).rgb;
+    return vec3(f.r * 2.0, (f.gb * 255.0 - 128.0) * (160.0 / 127.0));
 }
-// The interactive fog's multiplier at unit coordinates foot (-1..1 over the
-// volume's footprint), bilinear; 1 without a field.
-float medium_sim(vec2 foot) {
-    if (MEDIUM(MEDIUM_SIM).x < 0.5) return 1.0;
-    vec2 c = (foot * 0.5 + 0.5) * MEDIUM(MEDIUM_SIM).x - 0.5;
-    ivec2 i = ivec2(floor(c));
-    vec2 f = c - vec2(i);
-    return mix(mix(medium_sim_cell(i.x, i.y), medium_sim_cell(i.x + 1, i.y), f.x),
-               mix(medium_sim_cell(i.x, i.y + 1), medium_sim_cell(i.x + 1, i.y + 1), f.x), f.y);
+float medium_detail_tex(vec3 q, int channel) {
+    vec4 t = MEDIUM(MEDIUM_SIM);
+    vec2 v = textureLod(MEDIUM_TEX, vec3((fract(q.xy) * 64.0 + 0.5) / t.y, (fract(q.z) * 64.0 + 0.5) / t.z), 0.0).rg;
+    return channel == 0 ? v.x : v.y;
+}
+// The detail noise at x (0..1, mean 0.5): the baked Perlin-Worley texture
+// drifting with the wind, evolving slowly; carried along by the fog's own
+// flow (world x, z units per second) as a flow map does: two samples
+// advected over staggered 2.5 s cycles, cross-faded, so the billows follow
+// the wake and the swirls without stretching forever.
+float medium_detail_s(vec3 x, vec2 flow, float s) {
+    float time = MEDIUM(0).z;
+    vec3 q = (x - MEDIUM(4).xyz * time * 1.3) * s * vec3(1.0, 2.0, 1.0) + vec3(0.0, 0.0, time * 0.01);
+    if (dot(flow, flow) < 0.25) return medium_detail_tex(q, 0);
+    const float cycle = 2.5;
+    float p0 = fract(time / cycle), p1 = fract(time / cycle + 0.5);
+    vec3 f = vec3(flow.x, 0.0, flow.y) * s * cycle;
+    float a = medium_detail_tex(q - f * p0, 0), b = medium_detail_tex(q - f * p1, 1);
+    return mix(a, b, abs(2.0 * p0 - 1.0));
+}
+float medium_detail(vec3 x, vec2 flow) { return medium_detail_s(x, flow, MEDIUM(MEDIUM_DETAIL).x); }
+#endif
+// A value 0..1 (a soft edge's, a cleared footprint's) eroded by the detail
+// noise d (0..1) where it is in between: fine wisps on a coarse shape.
+float medium_erode(float v, float d, float amount) {
+    float c = clamp(v, 0.0, 1.0);
+    return max(v + (d - 0.5) * amount * 3.0 * c * (1.0 - c), 0.0);
+}
+// Volume i's frame: x into its unit frame (r), the distance measure (> 1 outside).
+float medium_volume_frame(int b, vec3 x, out vec3 r) {
+    vec4 a = MEDIUM(b), half_size = MEDIUM(b + 1), e = MEDIUM(b + 4);
+    r = x - a.xyz;
+    r = vec3(e.x * r.x - e.y * r.z, r.y, e.y * r.x + e.x * r.z) / max(half_size.xyz, vec3(1.0)); // into its frame, unit size
+    return medium_volume_sphere(b) ? length(r) : max(max(abs(r.x), abs(r.y)), abs(r.z));
 }
 // Volume i's density at x (its soft-edged shape, its noise, the interactive
-// fog's field; n < 0: not computed yet).
+// fog's field, the detail; n < 0: not computed yet).
 float medium_volume(int i, vec3 x, inout float n) {
     int b = MEDIUM_VOLUME_BASE + 5 * i;
-    vec4 a = MEDIUM(b), half_size = MEDIUM(b + 1), e = MEDIUM(b + 4);
-    vec3 r = x - a.xyz;
-    r = vec3(e.x * r.x - e.y * r.z, r.y, e.y * r.x + e.x * r.z) / max(half_size.xyz, vec3(1.0)); // into its frame, unit size
-    float d = e.z > 0.5 ? length(r) : max(max(abs(r.x), abs(r.y)), abs(r.z));
+    vec3 r;
+    float d = medium_volume_frame(b, x, r);
     if (d >= 1.0) return 0.0;
-    float w = 1.0 - smoothstep(1.0 - clamp(half_size.w, 0.001, 1.0), 1.0, d);
+    float w = 1.0 - smoothstep(1.0 - clamp(MEDIUM(b + 1).w, 0.001, 1.0), 1.0, d);
     float amount = MEDIUM(b + 2).w;
     if (amount > 0.0) {
         if (n < 0.0) n = medium_noise(x);
         w *= medium_wisps(n, amount);
     }
-    if (MEDIUM(b + 3).w > 0.5) w *= medium_sim(r.xz);
-    return a.w * w;
+#ifdef MEDIUM_TEX
+    int layer = medium_volume_layer(b);
+    vec3 f = layer > 0 ? medium_sim(layer - 1, r.xz) : vec3(1.0, 0.0, 0.0);
+    float m = f.x, detail = MEDIUM(b + 4).w;
+    if (detail > 0.0 && MEDIUM(MEDIUM_SIM).w > 0.5) {
+        float dn = medium_detail(x, f.yz);
+        w = medium_erode(w, dn, detail);
+        m = m < 1.0 ? medium_erode(m, dn, detail) : m;
+        w *= mix(1.0, 0.15 + 1.7 * smoothstep(0.2, 0.8, dn), detail * 0.8); // billows (mean about 1)
+    }
+    w *= m;
+#endif
+    return MEDIUM(b).w * w;
+}
+// Volume i's density without its noise and detail (its self-shadowing).
+float medium_volume_coarse(int b, vec3 x) {
+    vec3 r;
+    float d = medium_volume_frame(b, x, r);
+    if (d >= 1.0) return 0.0;
+    float w = 1.0 - smoothstep(1.0 - clamp(MEDIUM(b + 1).w, 0.001, 1.0), 1.0, d);
+#ifdef MEDIUM_TEX
+    int layer = medium_volume_layer(b);
+    if (layer > 0) w *= medium_sim(layer - 1, r.xz).x;
+#endif
+    return MEDIUM(b).w * w;
+}
+// The share of the main light (the sun or moon, else from above) that
+// reaches x through volume i's own fog (its `shadow` strength): four steps
+// toward the light inside it. Dense parts get dark cores, their rims stay lit.
+float medium_volume_light(int b, vec3 x, float strength) {
+    vec3 l = MEDIUM(MEDIUM_DETAIL).yzw;
+    vec3 h = MEDIUM(b + 1).xyz;
+    float reach = min(max(max(h.x, h.y), h.z), h.y * 2.4 / max(abs(l.y), 0.2));
+    float step_ = reach * 0.25, depth = 0.0;
+    for (int k = 0; k < 4; k++)
+        depth += medium_volume_coarse(b, x + l * (step_ * (float(k) + 0.5)));
+    return exp(-depth * step_ * strength);
 }
 // The medium at x: returns the extinction (per world unit); scatter: the
 // scattering coefficient per colour (extinction x albedo); emit: the light
@@ -210,13 +281,14 @@ float medium_at(vec3 x, out vec3 scatter, out vec3 emit) {
         }
     }
     int count = medium_volume_count();
-    for (int i = 0; i < count && i < MEDIUM_VOLUMES; i++) {
+    for (int i = medium_volume_first(); i < count && i < MEDIUM_VOLUMES; i++) {
         float d = medium_volume(i, x, n);
         if (d <= 0.0) continue;
         int b = MEDIUM_VOLUME_BASE + 5 * i;
+        float lit = MEDIUM(b + 4).z > 0.0 ? medium_volume_light(b, x, MEDIUM(b + 4).z) : 1.0;
         extinction += d;
-        scatter += d * MEDIUM(b + 2).rgb;
-        emit += d * MEDIUM(b + 3).rgb;
+        scatter += d * MEDIUM(b + 2).rgb * lit;
+        emit += d * MEDIUM(b + 3).rgb * mix(1.0, lit, 0.6);
     }
     emit += scatter * MEDIUM(5).rgb;
     return extinction;
@@ -233,7 +305,7 @@ vec2 medium_span(vec3 origin, vec3 direction, float len) {
         if (b > a) { enter = a; leave = b; }
     }
     int count = medium_volume_count();
-    for (int i = 0; i < count && i < MEDIUM_VOLUMES; i++) {
+    for (int i = medium_volume_first(); i < count && i < MEDIUM_VOLUMES; i++) {
         int b_ = MEDIUM_VOLUME_BASE + 5 * i;
         float r = length(MEDIUM(b_ + 1).xyz);
         vec3 t0 = (MEDIUM(b_).xyz - r - origin) * inv, t1 = (MEDIUM(b_).xyz + r - origin) * inv;
@@ -251,7 +323,7 @@ float medium_ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.0671105
 bool medium_maybe(vec3 x) {
     if (medium_in_room(x) && (MEDIUM(0).x > 0.0 || medium_fog_base(x) * (1.0 + MEDIUM(1).w) > 1e-7)) return true;
     int count = medium_volume_count();
-    for (int i = 0; i < count && i < MEDIUM_VOLUMES; i++) {
+    for (int i = medium_volume_first(); i < count && i < MEDIUM_VOLUMES; i++) {
         int b = MEDIUM_VOLUME_BASE + 5 * i;
         vec3 r = abs(x - MEDIUM(b).xyz);
         float reach = length(MEDIUM(b + 1).xyz);

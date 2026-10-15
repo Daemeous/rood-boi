@@ -14,8 +14,10 @@
  * zone) or func_8007C5C0 (another zone: the zone file is loaded) with a
  * door record whose destination and arrival cell come from a real door
  * into the target room. While the new room loads (func_80089DC0, src hook
- * pc_room_warp_room_loaded) the warp can leave the room's enemies out and
- * its scripts unrun (no cutscene, no story flag set by entering), and the
+ * pc_room_warp_room_loaded, pc_room_warp_room_spawned) the warp can bench
+ * the room's enemies (spawned, so its scripts find them, but hidden and out
+ * of the fight whenever no event runs) and leave its scripts unrun (no
+ * cutscene, no story flag set by entering; door scripts stay), and the
  * map's "room seen" bits are put back afterwards. Saving can be refused
  * while warped (memory_card.c asks pc_room_warp_blocks_saving). */
 #include <stdio.h>
@@ -399,7 +401,7 @@ int pc_room_warp_take(int zone, int room, unsigned char door[12])
     warped = !(r->zone == origin_zone && r->room == origin_room);
     phase = WARP_LOADING;
     fprintf(stderr, "[warp] zone %d room %d -> zone %d room %d (door %d, from location %d)%s%s\n", zone, room, r->zone,
-        r->room, target_entry, r->from[target_entry], pc_room_warp_enemies ? "" : ", no enemies",
+        r->room, target_entry, r->from[target_entry], pc_room_warp_enemies ? "" : ", enemies benched",
         pc_room_warp_scripts ? "" : ", no room scripts");
     return 1;
 }
@@ -421,6 +423,12 @@ int pc_room_warp_finish(int zone, int room)
     snprintf(warp_message, sizeof warp_message, "Arrived in zone %d room %d", zone, room);
     fprintf(stderr, "[warp] %s\n", warp_message);
     return 1;
+}
+
+/* The game side benched an enemy (enemies off: room_warp.c). */
+void pc_room_warp_benched(int slot, int script_id)
+{
+    fprintf(stderr, "[warp] enemy in slot %d (script id %d) benched\n", slot, script_id);
 }
 
 /* 0 idle, 1 requested, 2 loading, 3 arrived, 4 done (until taken). */

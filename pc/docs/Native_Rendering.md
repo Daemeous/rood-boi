@@ -204,9 +204,23 @@ against (a drop shadow or effect behind a character is hidden there). With
 a PS1 order, the list's own polygons paint in that order instead (a copy of
 `room_depth` from before the list is the only test: `surface_before`). A
 second pass writes the visible fragments' depth into the frame's depth (what
-post effects read). An object list needs the room list from earlier in the
-same ordering table (else its model stays packets for that frame): with
-`pc_native_room` 0, characters stay packets.
+post effects read). An object list reached before any room list of its
+ordering table (a world-frozen menu's model over 2D: MENU3/MENU4/MENU9/
+MENUB's Ashley through MAINMENU's clone, the modern menu's Ashley tab) finds
+the surfaces empty: `room_depth` is cleared to far over its drawing area
+first, as a room list leaves it before its first polygon, so the model is
+native (internal resolution, MSAA, interpolated) instead of 2D packets; a
+room list after it in the same table paints over it, as on the PS1. Such a
+picture's camera (`pc_hw_view_camera`, what the lighting, haze and path
+tracing reconstruct world positions through) is then its object lists'
+camera, on live and interpolated images alike (before, live images used the
+scene's GTE camera and interpolated ones the menu's: the lighting moved on
+every other image, a flicker). The modern Ashley tab stands its clone at
+Ashley's place in the room and orbits it there, so the room's lights,
+shadows, GI and haze light it as they light him in the field, and asks for
+a detail view while it shows (`pc_hw_detail_view`: the internal resolution
+at least the window's, up to 8x; the setting back when the model goes).
+With `pc_native_room` 0, characters stay packets.
 
 Translucent draws (`render_draw_translucent`): a range of the sequence draws
 into the frame target with depth ALWAYS, in sequence order, each fragment
@@ -468,8 +482,7 @@ blended model is not submitted at all.
   range is reported with the list (`pc_hw_object_packets`), and once the
   list has drawn, the hardware path skips the range's opaque triangles, and
   with `pc_native_actors` 2 the CPU rasterizer skips them too. If the list
-  could not draw (no room list in that ordering table), the packets draw as
-  before, on both.
+  could not draw (`pc_native_room` 0), the packets draw as before, on both.
 - **Shadow casters**: a drawn object list's polygons (both faces, every
   polygon, world space, with their surfaces) replace the casters the packet
   path reconstructed from projected packets (`render_list_triangles`), so
@@ -499,8 +512,11 @@ Known differences and leftovers:
   native mesh uses each record's own flags.
 - Two-copy models cast two nearly coincident shadows (both copies are
   casters).
-- `pc_native_room` 0 (or a frame without the room list) keeps characters on
-  packets.
+- `pc_native_room` 0 keeps characters on packets. A frame without a room
+  list (menus that freeze the world and show a model) draws its object lists
+  over empty surfaces (above); its frame interpolation takes the object
+  lists' camera (`recording_camera`; lists with different cameras are not
+  interpolated).
 
 ## Drop shadows and particles (phase 2 step 4, `effect_native.c`)
 

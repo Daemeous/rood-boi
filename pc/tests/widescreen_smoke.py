@@ -332,7 +332,9 @@ def main():
     check(old.get("idle_zone") == 20 and new.get("idle_zone") == 20, "the idle cutscene plays (zone 20)")
     # (The sessions' cutscenes can run a few frames apart: each is judged on its own.)
     seams_old = [IDLE[i] for i, v in enumerate(old["idle"]) if v >= 3.0]
-    check(len(seams_old) >= 3, f"control: the title's and the cutscene's fades leave the sides bright at the "
+    # (Since the battle fades darken the lit picture (gpu_hw.c BLEND_FADE) instead of an unlit one, the
+    # control's seams are only the fade's own step at the borders: fewer frames reach the threshold.)
+    check(len(seams_old) >= 1, f"control: the title's and the cutscene's fades leave the sides bright at the "
                                f"4:3 borders ({len(seams_old)} frames, vsyncs {seams_old[:12]})")
     seams_new = [(IDLE[i], round(v, 1)) for i, v in enumerate(new["idle"]) if v >= 2.0]
     seams_new += [("skip", round(v, 1)) for v in new["skip"] if v >= 2.0]

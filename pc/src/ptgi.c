@@ -30,6 +30,7 @@
 #include "lighting_quality.h"
 #include "environment.h"
 #include "atmosphere.h" /* the haze, ground fog and fog volumes (pc_medium_gpu) */
+extern GLuint pc_gl_medium_texture(void); /* gl_present.c: the medium's texture */
 #include "gl_shaders.h" /* PC_GLSL_ENVIRONMENT: the room's sun and sky (pc/shaders/vulkan/environment.glsl) */
 
 extern const float* pc_hw_casters(int* count, int* serial);
@@ -422,6 +423,8 @@ static int update_scene(void)
 float pc_emitter_light = 0.25f; /* real light added by emitters */
 float pc_emitter_radius = 700.0f;
 static float emitter_pos[MAX_EMITTERS][4], emitter_col[MAX_EMITTERS][4];
+static float emitter_shape[MAX_EMITTERS][4]; /* a column glow's half axis and radius (0: a sphere; glows.c) */
+static float emitter_shadow[MAX_EMITTERS][4]; /* a column's shadows: core radius, baked weight, clear radius (glows.c) */
 static int emitter_count;
 extern const uint16_t* pc_native_vram(void);
 extern const float* pc_hw_emissives(int* count, const void** surfaces);
@@ -842,8 +845,11 @@ int pc_gi_fixture_triangles(const float p[3], float radius, float (*out)[9], int
 }
 
 extern const uint32_t* pc_hw_emissive_sources(void);
+extern unsigned pc_presents; /* gl_present.c: images presented */
+static unsigned emitters_present = ~0u; /* the present the emitters were last gathered in */
 static void update_emitters(void)
 {
+    emitters_present = pc_presents;
     enum { MAX_GLOWS = 8192 };
     static glow glows[MAX_GLOWS];
     int n = 0, room_count, effect_count;
@@ -901,7 +907,20 @@ static void update_emitters(void)
     /* Sources into glows (stable ids, smoothed), with the editor's
      * overrides, mutes, solo and linked light actors applied. */
     emitter_count = pc_glows_update(glows, n, (const float (*)[4])bp, (const float (*)[4])bc, unexplained, emitter_pos,
-        emitter_col, MAX_EMITTERS);
+        emitter_col, emitter_shape, emitter_shadow, MAX_EMITTERS);
+}
+
+/* The glows for the fog volumes' lights (atmosphere.h): this present's,
+ * gathered here when nothing else (the path tracer, the probes) did. */
+int pc_fog_glows(float (*pos)[4], float (*col)[4], float (*shape)[4], int max)
+{
+    if (emitters_present != pc_presents)
+        update_emitters();
+    int n = emitter_count < max ? emitter_count : max;
+    memcpy(pos, emitter_pos, (size_t)n * sizeof emitter_pos[0]);
+    memcpy(col, emitter_col, (size_t)n * sizeof emitter_col[0]);
+    memcpy(shape, emitter_shape, (size_t)n * sizeof emitter_shape[0]);
+    return n;
 }
 
 /* ---- shaders ---- */
@@ -940,6 +959,8 @@ static const char* trace_source = SHADER_COMMON
     "uniform int emitter_count;\n"
     "uniform vec4 emitter_pos[32];\n" /* xyz, radius of influence */
     "uniform vec4 emitter_col[32];\n" /* rgb, emitting sphere radius */
+    "uniform vec4 emitter_shape[32];\n" /* a column glow: half axis, radius (> 0 its side, < 0 solid); 0: the sphere */
+    "uniform vec4 emitter_shadow[32];\n" /* a column's shadows: x core radius, y baked weight, z clear radius */
     "uniform float emitter_light;\n"  /* real light added by emitters */
     "uniform int baked_shadows;\n"    /* characters shadow the baked light */
     "uniform float contact_radius;\n"
@@ -961,8 +982,10 @@ static const char* trace_source = SHADER_COMMON
     "#define env_horizon env_[3]\n"
     "#define env_ground env_[4]\n" PC_GLSL_ENVIRONMENT
     /* The room's medium (atmosphere.h pc_medium_gpu; medium.glsl). */
-    "uniform vec4 medium_[250];\n"
-    "#define MEDIUM(i) medium_[i]\n" PC_GLSL_MEDIUM
+    "uniform vec4 medium_[165];\n"
+    "#define MEDIUM(i) medium_[i]\n"
+    "uniform sampler3D medium_tex;\n" /* atmosphere.h pc_medium_texture (gl_present.c pc_gl_medium_texture) */
+    "#define MEDIUM_TEX medium_tex\n" PC_GLSL_MEDIUM
     "uint rng = 0u;\n"
     "bool moving_only = false;\n"
     "vec3 cosine_direction(vec3 n);\n"
@@ -1085,13 +1108,69 @@ static const char* trace_source = SHADER_COMMON
     "    }\n"
     "    return all_ > 0.0 ? lit / all_ : 1.0;\n"
     "}\n"
-    /* A point in emitter i's emitting sphere. */
-    "vec3 emitter_point(int i) {\n"
-    "    vec3 r = vec3(rand(), rand(), rand()) * 2.0 - 1.0;\n"
-    "    return emitter_pos[i].xyz + normalize(r + 1e-4) * pow(rand(), 0.333) * abs(emitter_col[i].w);\n"
+    /* A point of emitter i's shape (rt_lights.glsl emitter_sample the same):
+     * its small sphere, or a column around it (glows.c: the glowing side of
+     * a column a character can stand in, the save point's; w < 0 solid). */
+    "vec3 emitter_sample(int i, vec4 r) {\n"
+    "    vec4 shape = emitter_shape[i];\n"
+    "    if (shape.w == 0.0) {\n"
+    "        vec3 v = r.xyz * 2.0 - 1.0;\n"
+    "        return emitter_pos[i].xyz + normalize(v + 1e-4) * pow(r.w, 0.333) * abs(emitter_col[i].w);\n"
+    "    }\n"
+    "    float h = length(shape.xyz);\n"
+    "    vec3 a = h > 1e-3 ? shape.xyz / h : vec3(0.0, 1.0, 0.0);\n"
+    "    vec3 t = normalize(cross(abs(a.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0), a)), b = cross(a, t);\n"
+    "    float phi = 6.2831853 * r.x, radius = shape.w > 0.0 ? shape.w : -shape.w * sqrt(r.y);\n"
+    "    return emitter_pos[i].xyz + shape.xyz * (2.0 * r.z - 1.0) + (t * cos(phi) + b * sin(phi)) * radius;\n"
     "}\n"
+    "vec4 emitter_random() { float a = rand(), b = rand(), c = rand(); return vec4(a, b, c, rand()); }\n"
+    /* Shadows of a column's side (rt_lights.glsl the same): rays aim at a
+     * thinner core and end where they enter the column, so a character
+     * standing in it casts no shadow from it and one outside a clear soft one. */
+    "float emitter_column_entry(int i, vec3 p, vec3 dir) {\n"
+    "    vec4 shape = emitter_shape[i];\n"
+    "    float h = length(shape.xyz);\n"
+    "    vec3 a = h > 1e-3 ? shape.xyz / h : vec3(0.0, 1.0, 0.0), v = p - emitter_pos[i].xyz;\n"
+    "    vec3 pp = v - a * dot(v, a), dd = dir - a * dot(dir, a);\n"
+    "    float A = dot(dd, dd), B = dot(pp, dd), C = dot(pp, pp) - emitter_shadow[i].z * emitter_shadow[i].z;\n"
+    "    if (C <= 0.0) return 0.0;\n"
+    "    float disc = B * B - A * C;\n"
+    "    if (A < 1e-8 || B >= 0.0 || disc < 0.0) return 1e30;\n"
+    "    return (-B - sqrt(disc)) / A;\n"
+    "}\n"
+    "float emitter_shadow_ray(int i, vec3 p, vec4 r, out vec3 dir) {\n"
+    "    vec4 shape = emitter_shape[i];\n"
+    "    if (shape.w <= 0.0) {\n"
+    "        vec3 to = emitter_sample(i, r) - p; float d = length(to); dir = to / max(d, 1e-3);\n"
+    "        return d - (shape.w == 0.0 ? abs(emitter_col[i].w) : 2.0);\n"
+    "    }\n"
+    "    float h = length(shape.xyz);\n"
+    "    vec3 a = h > 1e-3 ? shape.xyz / h : vec3(0.0, 1.0, 0.0);\n"
+    "    vec3 t = normalize(cross(abs(a.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0), a)), b = cross(a, t);\n"
+    "    float phi = 6.2831853 * r.x;\n"
+    "    vec3 to = emitter_pos[i].xyz + shape.xyz * (2.0 * r.z - 1.0) + (t * cos(phi) + b * sin(phi)) * emitter_shadow[i].x - p;\n"
+    "    float d = length(to); dir = to / max(d, 1e-3);\n"
+    "    return min(d, emitter_column_entry(i, p, dir)) - 2.0;\n"
+    "}\n"
+    /* The same, noise-free (the signature's rays): the sphere's centre, the core's nearest point. */
+    "float emitter_shadow_nearest(int i, vec3 p, out vec3 dir) {\n"
+    "    vec4 shape = emitter_shape[i];\n"
+    "    vec3 target = emitter_pos[i].xyz;\n"
+    "    if (shape.w > 0.0) {\n"
+    "        vec3 v = p - target; float h2 = dot(shape.xyz, shape.xyz);\n"
+    "        vec3 on_axis = target + shape.xyz * (h2 > 1e-6 ? clamp(dot(v, shape.xyz) / h2, -1.0, 1.0) : 0.0);\n"
+    "        vec3 out_ = p - on_axis; float r = length(out_);\n"
+    "        target = r > 1e-3 ? on_axis + out_ / r * min(emitter_shadow[i].x, r) : on_axis;\n"
+    "    }\n"
+    "    vec3 to = target - p; float d = length(to); dir = to / max(d, 1e-3);\n"
+    "    if (shape.w > 0.0) return min(d, emitter_column_entry(i, p, dir)) - 2.0;\n"
+    "    return d - (shape.w == 0.0 ? abs(emitter_col[i].w) : 2.0);\n"
+    "}\n"
+    "vec3 shadow_dir; float shadow_reach;\n" /* the last emitter_falloff's shadow ray */
     "float emitter_falloff(int i, vec3 p, vec3 n, out vec3 l, out float d) {\n"
-    "    vec3 to = emitter_point(i) - p; d = length(to); l = to / max(d, 1e-3);\n"
+    "    vec4 r = emitter_random();\n"
+    "    vec3 to = emitter_sample(i, r) - p; d = length(to); l = to / max(d, 1e-3);\n"
+    "    shadow_reach = emitter_shadow_ray(i, p, r, shadow_dir);\n"
     "    float x = clamp(d / emitter_pos[i].w, 0.0, 1.0);\n"
     "    return (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);\n"
     "}\n"
@@ -1114,7 +1193,7 @@ static const char* trace_source = SHADER_COMMON
     "    if (weights[i] <= 0.0) return vec3(0.0);\n"
     "    vec3 l; float d, th; int hit; vec2 bc;\n"
     "    float a = emitter_falloff(i, p, n, l, d);\n"
-    "    if (a <= 0.0 || (glow_shadows != 0 && ((glow_casts >> i) & 1) != 0 && trace(p + n * 1.5, l, d - emitter_col[i].w - 2.0, true, n, 0.0, th, hit, bc))) return vec3(0.0);\n"
+    "    if (a <= 0.0 || (glow_shadows != 0 && ((glow_casts >> i) & 1) != 0 && shadow_reach > 2.0 && trace(p + n * 1.5, shadow_dir, shadow_reach - 2.0, true, n, 0.0, th, hit, bc))) return vec3(0.0);\n"
     "    return emitter_col[i].rgb * a * emitter_light * all_ / weights[i];\n" /* divided by the pick probability */
     "}\n"
     /* How much of the baked light reaches p past characters and props: their
@@ -1136,7 +1215,7 @@ static const char* trace_source = SHADER_COMMON
     "        vec3 to = emitter_pos[i].xyz - p; float d = length(to);\n"
     "        if (emitter_col[i].w >= 0.0 && (glow_shadows == 0 || ((glow_casts >> i) & 1) == 0)) { weights[i] = 0.0; continue; }\n" /* glows: no shadows unless asked */
     "        float x = clamp(d / emitter_pos[i].w, 0.0, 1.0);\n"
-    "        weights[i] = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, to / max(d, 1e-3)), 0.0) * dot(emitter_col[i].rgb, vec3(0.299, 0.587, 0.114));\n"
+    "        weights[i] = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, to / max(d, 1e-3)), 0.0) * (emitter_shadow[i].y > 0.0 ? emitter_shadow[i].y : dot(emitter_col[i].rgb, vec3(0.299, 0.587, 0.114)));\n"
     "        all_ += weights[i];\n"
     "    }\n"
     "    float shadowed = 0.0;\n"
@@ -1145,7 +1224,7 @@ static const char* trace_source = SHADER_COMMON
     "            float pick = rand() * all_; int i = 0;\n"
     "            for (; i < emitter_count - 1; i++) { pick -= weights[i]; if (pick <= 0.0) break; }\n"
     "            vec3 l; float d, th; int hit; vec2 bc;\n"
-    "            if (emitter_falloff(i, p, n, l, d) > 0.0 && trace(p, l, d - abs(emitter_col[i].w), true, skip_n, 0.0, th, hit, bc))\n"
+    "            if (emitter_falloff(i, p, n, l, d) > 0.0 && shadow_reach > 0.0 && trace(p, shadow_dir, shadow_reach, true, skip_n, 0.0, th, hit, bc))\n"
     "                shadowed += 1.0;\n"
     "        }\n"
     "        shadowed /= float(shadow_samples);\n"
@@ -1158,13 +1237,16 @@ static const char* trace_source = SHADER_COMMON
      * jittered step one source (dynamic light or emitter) is picked in
      * proportion to its unshadowed contribution and checked with a shadow
      * ray; attenuated by the haze between the step and the eye. */
+    "float haze_reach; vec3 haze_dir;\n" /* a column glow's shadow ray (< 0: to the sample) */
     "vec3 source_light(int i, vec3 x, out vec3 l, out float d) {\n"
     "    vec3 centre; vec4 pos; vec3 col;\n"
+    "    haze_reach = -1.0;\n"
     "    if (i < light_count) {\n"
     "        centre = light_pos[i].xyz; pos = light_pos[i]; col = light_col[i].rgb;\n"
     "        if (light_col[i].w > 1.5) centre += light_right[i].xyz * (rand() * 2.0 - 1.0) + light_up[i].xyz * (rand() * 2.0 - 1.0);\n"
     "    } else {\n"
-    "        int e = i - light_count; centre = emitter_point(e); pos = emitter_pos[e]; col = emitter_col[e].rgb * fog_glow;\n"
+    "        int e = i - light_count; vec4 r = emitter_random(); centre = emitter_sample(e, r); pos = emitter_pos[e]; col = emitter_col[e].rgb * fog_glow;\n"
+    "        if (emitter_shape[e].w > 0.0) haze_reach = max(emitter_shadow_ray(e, x, r, haze_dir), 0.0);\n"
     "    }\n"
     "    vec3 to = centre - x; d = length(to); l = to / max(d, 1e-3);\n"
     "    float f = clamp(d / pos.w, 0.0, 1.0);\n"
@@ -1217,7 +1299,9 @@ static const char* trace_source = SHADER_COMMON
     "            for (; i < sources - 1; i++) { pick -= weights[i]; if (pick <= 0.0) break; }\n"
     "            vec3 l; float d, th; int hit; vec2 bc;\n"
     "            vec3 c = source_light(i, x, l, d);\n"
-    "            if (weights[i] > 0.0 && !((i < light_count || ((glow_casts >> (i - light_count)) & 1) != 0) && trace(x, l, d - 2.0, true, l, 0.0, th, hit, bc)))\n"
+    "            bool column = haze_reach >= 0.0; vec3 sl = column ? haze_dir : l;\n"
+    "            if (weights[i] > 0.0 && !((i < light_count || ((glow_casts >> (i - light_count)) & 1) != 0)\n"
+    "                    && (column ? haze_reach > 0.0 && trace(x, sl, haze_reach, true, sl, 0.0, th, hit, bc) : trace(x, l, d - 2.0, true, l, 0.0, th, hit, bc))))\n"
     "                here += c * (all_ / weights[i]) * medium_phase(dot(dir, l), g);\n" /* phase x 4 pi: isotropic 1 */
     "        }\n"
     "        sum += transmittance * (scatter * here + emit) * ((1.0 - a_) / extinction);\n"
@@ -1245,7 +1329,8 @@ static const char* trace_source = SHADER_COMMON
     "            if (d >= emitter_pos[i].w || dot(n, to) <= 0.0 || ((glow_casts >> i) & 1) == 0) continue;\n" /* out of reach: no bit (cheap) */
     "            bit++;\n"
     "            float th; int hit; vec2 bc;\n"
-    "            if (d < emitter_pos[i].w && dot(n, to) > 0.0 && !trace(p, to / max(d, 1e-3), d - abs(emitter_col[i].w), true, n, 0.0, th, hit, bc))\n"
+    "            vec3 dir; float reach = emitter_shadow_nearest(i, p, dir);\n"
+    "            if (reach <= 0.0 || !trace(p, dir, reach, true, n, 0.0, th, hit, bc))\n"
     "                sig |= 1u << bit;\n"
     "        }\n"
     "        moving_only = false;\n"
@@ -1680,6 +1765,8 @@ static GLuint run(gi_context* c, const float to_image[16], const float eye[3], f
     gl_Uniform1i(U(pr, "caster_root"), caster_root);
     gl_Uniform4fv(U(pr, "emitter_pos"), MAX_EMITTERS, &emitter_pos[0][0]);
     gl_Uniform4fv(U(pr, "emitter_col"), MAX_EMITTERS, &emitter_col[0][0]);
+    gl_Uniform4fv(U(pr, "emitter_shape"), MAX_EMITTERS, &emitter_shape[0][0]);
+    gl_Uniform4fv(U(pr, "emitter_shadow"), MAX_EMITTERS, &emitter_shadow[0][0]);
     gl_Uniform1f(U(pr, "emitter_light"), pc_emitter_light);
     gl_Uniform1i(U(pr, "baked_shadows"), pc_baked_shadows);
     gl_Uniform1f(U(pr, "contact_radius"), pc_contact_radius);
@@ -1695,6 +1782,10 @@ static GLuint run(gi_context* c, const float to_image[16], const float eye[3], f
         medium.v[5][0] = medium.v[5][1] = medium.v[5][2] = 0; /* the march traces the sky */
         gl_Uniform1f(U(pr, "fog_density"), on ? 1.0f : 0.0f);
         gl_Uniform4fv(U(pr, "medium_"), PC_MEDIUM_VEC4S, &medium.v[0][0]);
+        gl_ActiveTexture(GL_TEXTURE3);
+        gl_BindTexture(GL_TEXTURE_3D, pc_gl_medium_texture());
+        gl_Uniform1i(U(pr, "medium_tex"), 3);
+        gl_ActiveTexture(GL_TEXTURE0);
     }
     gl_Uniform1i(U(pr, "fog_steps"), pc_fog_steps < 2 ? 2 : pc_fog_steps > 64 ? 64 : pc_fog_steps);
     gl_Uniform1f(U(pr, "fog_anisotropy"), pc_fog_anisotropy);
@@ -1894,11 +1985,15 @@ void pc_gi_cadence_stats(unsigned* traced, unsigned* reused, double* gi_ms, int 
 /* Game view: this frame's indirect light and shadow visibility for the
  * display area (x, y, w, h in VRAM), at GI resolution. Returns the texture
  * (rgb indirect irradiance, a visibility) or 0. */
+/* The display area's size of the last game-view GI update (GL or Vulkan):
+ * pc_gi_probe_world maps world points into it. */
+static int gi_display_size[2];
 GLuint pc_gi_update(int x, int y, int w, int h)
 {
     float r[3][3], t[3], hh, ox, oy, inverse[3][3];
     if (w <= 0 || h <= 0 || !ready() || !pc_scene_camera_get(r, t, &hh, &ox, &oy) || !pc_scene_camera_inverse(inverse))
         return 0;
+    gi_display_size[0] = w, gi_display_size[1] = h;
     gi_context* c = &game_context;
     float res = pc_gi_resolution < 0.25f ? 0.25f : pc_gi_resolution > 4 ? 4 : pc_gi_resolution;
     int gw = (int)(w * res + 0.5f), gh = (int)(h * res + 0.5f);
@@ -1991,6 +2086,27 @@ int pc_gi_probe(float u, float v, float out[8])
     gl_FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
     gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
     return 1;
+}
+
+/* RPC gi_probe {x, y, z}: the game view's GI result where world point p is
+ * on screen (the scene camera, as the surfaces are reconstructed: view =
+ * R p + T, display = offset + H view.xy / view.z), its (u, v) too. Tests
+ * read the shadows on the floor around a save point with it (GL and Vulkan
+ * alike). Returns 0 when p is behind the camera, off screen or without a
+ * result. */
+int pc_gi_probe_world(const float p[3], float out[8], float uv[2])
+{
+    float r[3][3], t[3], hh, ox, oy, v[3];
+    if (gi_display_size[0] <= 0 || !pc_scene_camera_get(r, t, &hh, &ox, &oy))
+        return 0;
+    for (int i = 0; i < 3; i++)
+        v[i] = r[i][0] * p[0] + r[i][1] * p[1] + r[i][2] * p[2] + t[i];
+    if (v[2] < 1.0f)
+        return 0;
+    float hx = hh * (pc_gte_widescreen ? 0.75f : 1.0f);
+    uv[0] = (ox + hx * v[0] / v[2]) / (float)gi_display_size[0];
+    uv[1] = (oy + hh * v[1] / v[2]) / (float)gi_display_size[1];
+    return pc_gi_probe(uv[0], uv[1], out);
 }
 
 /* Editor inspector: the nearest triangle a ray from o along d (unit) hits

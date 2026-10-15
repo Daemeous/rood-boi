@@ -86,6 +86,7 @@ int pc_ui_magick_request(const pc_ui_request* r);
 int pc_ui_magick_cast_taken(void);
 void pc_ui_magick_cast(int go);
 int pc_ui_abilities_cast_taken(void); /* abilities_bridge.c: one hand-off per tick */
+int pc_ui_items_cast_taken(void);     /* items_bridge.c */
 int pc_ui_equip_busy(void);           /* equip_bridge.c: a weapon / shield model reload runs */
 
 /* MENU0.PRG magic and teleportation, under our own names. */
@@ -460,7 +461,7 @@ int pc_ui_magick_request(const pc_ui_request* r)
     /* the shell still up (it returned no result this tick), MAINMENU resident
      * (in the usable flags), no model reload of the Equipment screen in
      * flight, one hand-off per tick */
-    if (cast.kind || pc_ui_abilities_cast_taken() || !pc_ui_shell_visible() || pc_ui_equip_busy() || !snap.valid) {
+    if (cast.kind || pc_ui_abilities_cast_taken() || pc_ui_items_cast_taken() || !pc_ui_shell_visible() || pc_ui_equip_busy() || !snap.valid) {
         vs_battle_playInvalidSfx();
         return 1;
     }

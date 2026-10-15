@@ -1183,3 +1183,95 @@ After the fixes: HAZARD 0, REVIEW 0, benign 34. Not covered: calls through
 function pointers and casts at the call site (no declaration DIE), units the
 port does not compile (ENDING), and alias views that are not in any
 prototype (the audit's struct tables cover those).
+
+**Import aliases across the native move (2026-10-13).** splat names words
+inside structs and arrays separately, so units often reach one guest word
+under two import names. `build_boot.py --arch 64` moves an import whose
+declared type holds host pointers to a native 8-byte slot, while a struct
+import whose pointers are `psx_ptr` stays at its PS1 address: if one name is a
+field of the other, they become two storages. The levelled-spell crash was
+one (`D_800F5798` = `D_800F56C8.unkD0`, fixed in 6F014.c). The mover already
+refuses the other direction (a guest import inside a moved region) and merges
+overlapping moved imports.
+
+`pc/tools/lp64_alias_scan.py` checks the whole class. `build_boot.py --arch 64`
+now writes its view of every data import to `pc/build/boot64/lp64_imports.json`
+(PS1 address, overlay group, moved or not, each object's DWARF type with its
+PS1 size, pointer kind and flattened field offsets from `import_types.py`).
+The scanner reports every import inside another import's PS1 extent (largest
+complete declaration) in the same group: HAZARD when exactly one of the two
+moved; REVIEW (with `--review`) when both stay guest but the alias is larger
+than the field it lands on or reads a `psx_ptr` field as an integer. Imports
+of overlays never loaded together (two PLGs at one address, different
+`name__overlay` renames) are skipped; `EXTENTS` overrides a container whose
+declaration is larger than the data the game reaches through it
+(`SfxSoundChannels[12]` is really 2 channels after `D_80035910[10]`: 25AC.c
+indexes `SfxSoundChannels[-10..1]`). `decl_mismatch.py` runs it and counts its
+HAZARDs (keep `--review` at HAZARD 0); `run.py` runs
+`pc/tests/lp64_alias_scan_test.py` (synthetic cases always, the 64-bit build's
+JSON when present).
+
+First run: 2 HAZARD (after the two sound-channel false positives above), both
+fixed under `ROOD_PC` in 146C.c by going through `_zoneContext` and no longer
+referencing the alias (commit-check "All files match"):
+
+- *`D_800F188C` = `_zoneContext.zndEnemies`* (+0xC). `func_800775C0` reads the
+  second model id of a two-model enemy (SHP ids flagged in `D_8004FE88`: Ghost
+  26, Wraith 71, Guildenstern 79/175) through it; on LP64 the native slot was
+  never written, so entering any room with a Ghost (Catacombs, Sanctum)
+  segfaulted at 146C.c:6584.
+- *`D_800F18E4` = `_zoneContext.mpdEnemies`* (+0x64). `func_8008A3A0` (leaving
+  a room) frees the room's spawn table through it; on LP64 it read NULL, so
+  every room with enemies leaked its table from the game heap (13 blocks per
+  Catacombs round trip).
+
+`pc/tests/two_model_enemy_smoke.py` (suite `two_model_enemy_smoke`) warps from
+the save to the Lamenting Mother (zone 13 room 4, one Ghost): a two-model actor
+(`unk40` = 2), frames drawn, 300 vsyncs played, and the heap's free total equal
+on each of three returns from room 1. Without the fixes the 64-bit build
+crashes there; with only the first, the free total drops 13 blocks per return.
+
+The first run also left 9 REVIEW items. None is an LP64 bug: in every pair
+neither name moved (the 64-bit binary resolves all 18 names to their PS1
+addresses, checked with `nm` against `symbol_addrs.txt`/the splat names), so
+both names are the same guest bytes on every build, and no pointer field is
+reached through a host-pointer declaration. Resolved (`--review` now ends at
+REVIEW 0; `lp64_alias_scan_test.py` fails on any new REVIEW, and on a stale
+`REVIEWED` entry):
+
+- *`D_80035910` = `g_PushedMusicConfig+0x80`, `D_80036770` =
+  `D_800366F0+0x80`, `g_InstrumentInfo` = `D_800366F0+0x98`*: container type
+  too large. `FSoundChannelConfig` was declared 0xA0 bytes with
+  `unk80..unk9C`, which no code touches; the game saves and restores a config
+  with 0x80-byte copies (`Sound_memcpy32(&g_PushedMusicConfig, &D_800366F0,
+  0x80)`) and the next objects start at +0x80. Fixed in `sound.h` (0x80,
+  `PSX_ASSERT_SIZE` updated); commit-check matches.
+- *`D_80037790` = `D_80037788+0x8`*: container type wrong. `D_80037788` was an
+  `FSoundCommandParams` (24 bytes) but only its first word is used: the field
+  sequence queued by sound command 0x14, started once the music stops. Now a
+  one-word `D_80037788_t` (`PendingSequence`, a guest address held as `u_int`)
+  in 25AC.c; `D_80037790` is the real parameter block. Commit-check matches.
+- *`D_8005046C` = `D_80050468+0x4`* (`int` over `frames..hours`): reviewed,
+  `REVIEWED` in the scanner. 5BF94.c hands the four timer bytes to
+  `_renderTimer(int*)` as one word; no pointers.
+- *`_dsControlBuf` = `vs_main_disk.cdLoc`* (`char[11]` over `cdLoc.minute`):
+  reviewed. main.c writes the CD mode (0 or 0x80) to `cdLoc.minute` and passes
+  `_dsControlBuf`, the same byte, to `DsControlB(DslSetmode, ...)`, which reads
+  `param[0]` only (pc/src/cd_drive.c and libds).
+- *`D_800F18C8` = `_zoneContext+0x48`* (24 bytes): reviewed. 146C.c's view of
+  `unk48..unk54` as shorts plus `mpdCdFile`/`mpdData` as ints; its one write to
+  a pointer field is `unk14 = 0` (`mpdData` = NULL after the room data is
+  freed). `psx_ptr` fields are 4-byte guest addresses, so the int write is the
+  NULL psx_ptr on both builds.
+- *`D_800F4438` = `D_800F2458+0x1FE0`* (`VECTOR` over a `u_short`): reviewed.
+  `D_800F4438` is the shared scale vector after the 63 bone matrices
+  (`D_800F3C58[63]`); 30DB0.c's `D_800F2458_t.unk1FE0` only spells the offset
+  of its `vx` low half for a matching `u_short` load.
+- *`D_800F5234` = `D_800F5230+0x4`* (`D_800F53B8_t3` over `unk4`): reviewed.
+  `func_800CEF74` only takes its address and `+0xC`, and `func_800CE714` reads
+  the two 12-byte records there (bytes 0x4..0x1B of the effect parameter
+  block): a position inside the block, not an object of its own, and its
+  pointer fields are never read through this name.
+
+Not covered: containers declared only as incomplete arrays (no extent), and
+aliases created by pointer arithmetic rather than a second import name.

@@ -1,0 +1,69 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+// Fog volumes, step 2 (vk_fogvol.inc): per pixel of the march image (half
+// the internal resolution by default, fog_volume_resolution) the volumes'
+// light and transmittance between the eye and the scene (its depth: fog in
+// front of geometry hides it, behind it is hidden), marched through the
+// volumes' bounds only (fog_volume.glsl), lit through the light grids
+// (fogvol_light.glsl). The sample offset is blue noise fixed per pixel,
+// stepping through a 16-frame cycle (stratified over time, never random
+// frame to frame), so the temporal pass converges and a still picture
+// stays still.
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(std140, binding = 0) uniform FogvolMarch {
+    ivec4 size; // march image w, h; frame; steps
+    ivec4 rect; // the display area in VRAM (x, y, w, h)
+    vec4 scale; // x internal scale (pc_hw_scale), y march pixels per display pixel (x), z (y), w grid cells per side
+    vec4 projection; // hx, hh, ofx, ofy
+    vec4 inverse_rotation[3]; // view -> world (columns)
+    vec4 camera_translation;
+    vec4 medium_[165];
+    vec4 fogvol_[179];
+} u;
+#define MEDIUM(i) u.medium_[i]
+layout(binding = 1) uniform sampler2D depth_tex; // the scaled target's depth (SZ / 65536; 0 2D/UI, 1 far)
+layout(binding = 2) uniform sampler3D medium_tex;
+#define MEDIUM_TEX medium_tex
+layout(binding = 3) uniform sampler3D grid_a; // fogvol_light.glsl
+layout(binding = 4) uniform sampler3D grid_b;
+layout(binding = 5, rgba16f) uniform writeonly image2D march_out; // rgb light, a transmittance
+layout(binding = 6, rgba32f) uniform writeonly image2D aux_out; // x scene view depth, y fog distance, z 1
+#define FOGVOL(i) u.fogvol_[i]
+#include "medium.glsl"
+#include "fog_volume.glsl"
+// The volume's light grid at its unit-frame point r (trilinear, inside its slab).
+void fv_shadows(int v, vec3 x, vec3 r, out vec4 ta, out vec4 tb) {
+    float slab = FOGVOL(fv_base(v) + 3).w;
+    if (slab < 0.0) { ta = vec4(1.0); tb = vec4(1.0); return; }
+    float G = u.scale.w;
+    vec3 c = clamp((r * 0.5 + 0.5) * G, vec3(0.5), vec3(G - 0.5));
+    vec3 uvw = vec3(c.xy / G, (c.z + slab * G) / (G * float(FV_MAX)));
+    ta = textureLod(grid_a, uvw, 0.0);
+    tb = textureLod(grid_b, uvw, 0.0);
+}
+float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy);
+    if (g.x >= u.size.x || g.y >= u.size.y) return;
+    // display coordinates of this pixel's centre; the target texel under it
+    vec2 display = (vec2(g) + 0.5) / u.scale.yz;
+    int s = int(u.scale.x + 0.5);
+    ivec2 q = clamp(ivec2(floor(display * float(s))), ivec2(0), u.rect.zw * s - 1) + u.rect.xy * s;
+    q = ivec2(q.x % (1024 * s), q.y % (512 * s));
+    float d = texelFetch(depth_tex, q, 0).r;
+    bool far = d >= 1.0 || d * 65536.0 < 0.5; // nothing drawn, or 2D (no depth): the fog's far side
+    float z = far ? 1e6 : d * 65536.0;
+    mat3 inv = mat3(u.inverse_rotation[0].xyz, u.inverse_rotation[1].xyz, u.inverse_rotation[2].xyz);
+    vec2 sv = display - u.projection.zw;
+    vec3 ray = inv * vec3(sv.x / u.projection.x, sv.y / u.projection.y, 1.0); // world per unit of view depth
+    float stretch = length(ray);
+    vec3 eye = -(inv * u.camera_translation.xyz), dir = ray / max(stretch, 1e-9);
+    float t_max = far ? 1e6 : z * stretch;
+    // blue noise per pixel, a 16-frame cycle of golden-ratio steps
+    float jitter = fract(ign(vec2(g)) + 0.618034 * float(u.size.z & 15));
+    float fog_t;
+    vec4 r = fv_count() > 0 ? fv_march(eye, dir, t_max, jitter, u.size.w, fog_t) : vec4(0.0, 0.0, 0.0, 1.0);
+    if (fv_count() == 0) fog_t = t_max;
+    imageStore(march_out, g, r);
+    imageStore(aux_out, g, vec4(z, min(fog_t, 1e6), 1.0, 0.0));
+}

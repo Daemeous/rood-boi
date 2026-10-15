@@ -42,9 +42,9 @@ extern "C" void pc_ui_upscale_panel(void)
     ImGui::Combo("Text", &pc_ui_text, text_modes, 2);
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Original: the PS1's glyphs. Modern fonts: the game's own text (same characters, places,\n"
-                          "colours and timing) drawn at the internal resolution from open-licensed fonts matched to\n"
-                          "each style (pc/tools/font_match.py): talk bubbles, menus, the information box, HUD\n"
-                          "numbers and labels. Needs internal resolution 2x or more.");
+                          "colours and timing) drawn anti-aliased from open-licensed fonts matched to each style\n"
+                          "(pc/tools/font_match.py): talk bubbles, menus, the information box, HUD numbers and\n"
+                          "labels.");
     if (pc_ui_text == PC_UI_TEXT_FONT) {
         static const char* layout_modes[] = { "Per glyph (original cells)", "Lines (font spacing)" };
         ImGui::Combo("Text layout", &pc_ui_text_layout, layout_modes, 2);
@@ -62,12 +62,16 @@ extern "C" void pc_ui_upscale_panel(void)
                                   "little short of the original). Centred: each line centred within the original\n"
                                   "line's extent, letters still appearing where they stay as the bubble types out.");
         }
+        static const char* overlay_modes[] = { "Off (internal resolution)", "Auto (window resolution)" };
+        ImGui::Combo("Text sharpness", &pc_ui_text_overlay, overlay_modes, 2);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Auto: while the window is finer than the internal resolution, text and button icons\n"
+                              "are drawn at the window's own resolution over the picture (anti-aliased edges one\n"
+                              "window pixel wide), unless something the game draws later covers them. Off: they\n"
+                              "are drawn into the picture at the internal resolution and scaled with it.");
         pc_ui_text_stats t;
         pc_ui_text_get_stats(&t);
-        if (pc_hw_scale < 2)
-            ImGui::TextDisabled("Internal resolution 1x: original glyphs");
-        else
-            ImGui::TextDisabled("%d fonts, %d glyphs, %ld regions drawn", t.fonts, t.glyphs, t.regions);
+        ImGui::TextDisabled("%d fonts, %d glyphs, %ld regions drawn", t.fonts, t.glyphs, t.regions);
         for (int i = 0; i < PC_UI_TEXT_STYLES; i++) {
             const char* file = strrchr(pc_ui_text_styles[i].font, '/');
             ImGui::TextDisabled("  %-8s %s", pc_ui_text_styles[i].name, file ? file + 1 : pc_ui_text_styles[i].font);

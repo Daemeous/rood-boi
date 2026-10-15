@@ -10,9 +10,28 @@ struct pc_dev_state {
     int game_over, intro_state; /* vs_main_stateFlags: Game Over screen up; prologue */
 };
 void pc_dev_state(struct pc_dev_state* out) __attribute__((weak));
-/* The room's characters' positions (world units; Ashley first), at most
- * `max`; returns how many (battle builds; weak elsewhere). */
-int pc_dev_actor_positions(float (*out)[3], int max) __attribute__((weak));
+/* The room's characters (battle builds; weak elsewhere), for the
+ * interactive fog (fog_sim.cpp): at most `max`, Ashley (slot 0) first;
+ * returns how many. */
+struct pc_dev_actor {
+    int slot; /* the actor slot D_800F4538[slot]: 0 Ashley */
+    float pos[3]; /* its feet, world units (y down) */
+    float radius; /* its drop shadow's radius (world units): its footprint */
+    int facing; /* 0..4095 */
+};
+int pc_dev_actors(struct pc_dev_actor* out, int max) __attribute__((weak));
+/* The battle action running now (one at a time, any actor; scene_submit.inc
+ * pc_battle_action): returns 0 when none. */
+struct pc_dev_action {
+    int actor; /* the performer's slot */
+    int action; /* vs_main_actions index */
+    int phase; /* _cameraMode: 5 an effect action casts, 7 a swing or a release starts, 8 a chain step, 9 ending */
+    int chain; /* the chain step */
+    int type; /* vs_main_actions type: 1 spell, 2 ability, 3 break art, 5 item, 6 base attack, 7 trap */
+    int plain; /* a plain attack (no effect) */
+    float aim[3]; /* its aim point, world units */
+};
+int pc_dev_battle_action(struct pc_dev_action* out) __attribute__((weak));
 #ifdef __cplusplus
 }
 #endif

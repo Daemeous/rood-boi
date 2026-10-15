@@ -25,8 +25,73 @@ row, not to the original screen (one from the original screen still returns
 there), and the native Magick tab (schools, spells with MP and description,
 the LV picker sharing the original's level memory, greyed spells with their
 reason, casting through the game's targeting) with Teleport (destinations
-with their MP cost, the spirit paling; `ui_magick_smoke`).
-Plans: `pc/docs/plans/`. Next: phase 6b (Items).
+with their MP cost, the spirit paling; `ui_magick_smoke`). Phase 6b landed:
+the native Items tab (categories, list with marks and quantities, details;
+the original's actions per category: Use through the game's targeting with a
+cancel back to the shell, Search, Discard with the quantity picker, Discard
+all, Sort by the original's stats; Move: swap, misc stacks merge), its
+changes and cursor memories equal to the original Items menu's
+(`ui_items_smoke`). Phase 6 is complete.
+Phase 7a: the native Loot screen (after a battle with drops and at a chest:
+the game's direct entry 12, MENUB, handed to the shell by the
+`pc_ui_direct_tick` hook in MAINMENU). Take, Take all, Leave, keys, the
+difficulty filter, Organize (Disassemble for weapons and shields,
+Consolidate, Organize inventory with MENUB's Items menu actions: Discard with
+the quantity picker, Discard all, Sort, Move) leave the bag, its lists, the
+key and chest flags, the loot result, the heap, the HUD / world flags and
+the Items menu memories as MENUB leaves them (`ui_loot_smoke`, including the
+save room's real chest through the field's own chest flow). Deliberate
+differences: the shell slides the field HUD out while it shows (the flag is
+given back at the end only while it is still the shell's); after Organize
+inventory closes, D_800EB9B0 is left at 0x200000, also after the session
+(the panel's own HUD restore writes 0, the shell's slide-out sets it again;
+harmless: it is the HUD's slide offset, which slides back in from there); the Items menu opens
+on the drop's category, not on the Manage page MENUB shows without cursor
+memory; a Move of a misc stack onto another of the same item that fits in
+one never loses items: the merge is the Items menu's (MENU3: the sum kept),
+where MENUB's copy of the Items menu initialises the stack moved, the one
+holding the sum, so the original keeps only the target's count
+(`ui_loot_smoke` checks both sides of this one difference). A direct session that is not ticked for a
+while stays as it is (only the game leaving its menu or a reset ends it).
+Phase 7b: the Map frame. Leá Monde > Map still runs the game's own map screen
+(MENU5): its pad, 3D map, markers and labels, sounds, VRAM, world freeze,
+HUD flags and exit codes are the original's. With the shell the screen gets
+native chrome around a cut-out of the picture: the tabs, a header (area,
+"Ashley is here", the room with ‹ › and the rooms seen, a JAMMED badge and
+the paling's line), a rail (compass, map completion, the visited areas with
+the shown area's rooms nested, a legend in the game's marker colours) and
+clickable prompts; MENU5's own controls help is not drawn. Circle's area
+list is native (MAINMENU's list ported: the same rows, window, wrap and
+cursor memories) inside MENU5's own state; the pointer (drag rotate, wheel
+zoom, middle drag pan, area / room rows, prompts, tabs, right click back)
+sends requests MENU5 applies at its own input point with its own statements
+and clamps (the pad wins). Map status, mapPaling, cursor memories, settings,
+menu state, HUD flags, the scene buffer, the field camera and MENU5's VRAM
+rects end equal to the original path's, and MENU5's own scene, room and
+camera after a switch, rooms and a turn, by pad and by pointer
+(`ui_map_smoke`). Plan: `pc/docs/plans/2026-10-14-modern-menus-map.md`.
+Phase 7c: the Quick manual. System > Quick manual is native (MENUE never
+runs for it): a rail of the 14 topics (the original list's window and its
+cursor memories, wrapping on a press) and a card with the focused topic's
+page: its text read from the disc's SMALL/HELPnn.HF0 at run time and set in
+the menus' label font, each segment where the original placed it (the
+original's column advances and wide gaps anchor; runs joined by a space
+flow), the face-button pictographs as prompt glyphs, the illustrations as
+the game's own pixels (HF1 blocks and CLUTs composited to textures, nearest
+scaled; their PlayStation button art drawn as the device's prompts on
+another device, recognised by pixel hash; a pad's D-pad stays the
+original's) and its rules, blinking where the original blinks. Up / Down a line,
+Square + Up / Down or Left / Right a page, Start the top, as MENUE; the
+pointer clicks topics, page chevrons and the scroll track and wheels a line
+a notch. Square opens the original MENUE on the same topic. The display
+state (last topic, a line per topic), cursorMemories[4] / [5], the submenu
+cursor and the world freeze equal the original path's, by pad and by
+pointer; the sounds the game plays (counted at `vs_main_playSfxDefault`)
+equal the original's by pad and the manual's requests by pad and pointer
+(`ui_manual_smoke`). Plan:
+`pc/docs/plans/2026-10-14-modern-menus-manual.md`.
+Plans: `pc/docs/plans/`. Next: phase 7+ (Container, the Data frame, Score,
+Title), then the HUD.
 
 | Phase | Screens |
 | --- | --- |
@@ -36,7 +101,7 @@ Plans: `pc/docs/plans/`. Next: phase 6b (Items).
 | 4 | System: settings pages + the game's options |
 | 5 | Abilities (chain/defense mapping, break arts) |
 | 6 | Items and Magick |
-| 7+ | Workshop, Container, Loot, Data, Map frame, Score, Title; then the HUD |
+| 7+ | Workshop and Loot (7a), Map frame (7b), Quick manual (7c), Container, Data, Score, Title; then the HUD |
 
 ## Goals
 
@@ -71,6 +136,13 @@ Prototype (private, placeholder data): the "Riskbreaker Menus" artifact.
 - **Colour** (theme tokens): near-black warm ground, warm off-white text,
   crimson accent for focus and the active tab, gold for condition/rank,
   green/blue/red for HP/MP/RISK, green/red for stat deltas.
+- **Opacity**: the ground over the game is see-through on every tab
+  (System > Interface > Menu opacity, settings `ui_menu_opacity` 0..1,
+  default 0.94 = the theme's ground alpha); panels scale with it
+  (`ui_theme.cpp` theme()). The Ashley tab's model view shows the world
+  behind the model through the presenters (the picture kept before the world
+  froze, under the same ground; `pc/docs/Post_Processing.md`), so it is as
+  see-through as the others; a long weapon is no longer cut at the column.
 - **Motion**: short (150-250 ms) eased transitions: tab underline slides,
   focus bar grows, a screen fades up 6 px on entry; none under reduced
   motion. The model never turns by itself; the right stick turns it.
@@ -84,15 +156,15 @@ Prototype (private, placeholder data): the "Riskbreaker Menus" artifact.
 | Ashley | Rank; HP/MP/RISK; weapon and shield (DP/PP, material, type); STR/INT/AGL; condition per limb; status effects with timers | Focus explains (class/affinity, limb effects, ailment cures); confirm jumps to Equipment or to the curing item |
 | Equipment › Gear | 8 slots (weapon, shield, head, body, arms, legs, accessory) with DP; quick-swap badge on weapons | Confirm opens the bag for that slot; the card compares candidate vs equipped (STR/INT/AGL/DP deltas, class and affinity bars with the current value marked); confirm equips |
 | Equipment › Quick swap | 8 slots laid out like the pad (face-button diamond, D-pad diamond), weapon + shield each, equipped marker | Confirm: pick any weapon from the bag (need not be equipped), then a shield or none for one-handed weapons; Square clears; a weapon lives in one slot (picking it elsewhere moves it) |
-| Items | Category chips (L2/R2), capacity, list with quantities | Use, discard, details |
+| Items | Category chips (L2/R2), capacity, list with quantities and equipped / part-of-a-set marks; Square: details | Circle: the original's actions per category (Use, Search, Discard with a quantity picker, Discard all, Sort by the original's stats), plus Move (swap, misc stacks merge up to 100) and "Original screen" (the original Items menu, also its Setup); every change is the original menu's own, byte for byte |
 | Abilities | Chain / Defense: 3 button slots + learned list with RISK cost; Break arts by weapon type with kills to the next art | Assign an ability to a button (swaps if already mapped) |
 | Magick | Warlock / Shaman / Sorcerer / Enchanter / Teleport; MP; cost per spell | Cast (target picked in the field as today) |
-| Leá Monde | Visited areas, legend, frame around the game's own 3D map | Open the map |
-| System | Game: Save, Load, Score, Quick manual. Settings: Graphics, Display, Interface, Controls, Gameplay | Settings change with left/right and apply at once |
+| Leá Monde | Map frame (native rail, legend, prompts; the game's 3D map) | Open the map; areas and rooms by pad or click; drag / wheel / middle drag turn, zoom and pan |
+| System | Game: Save, Load, Score, Quick manual (native reader: topics rail, page card). Settings: Graphics, Display, Interface, Controls, Gameplay | Settings change with left/right and apply at once; the manual scrolls by line or page, Square opens the original |
 
 Screens not yet replaced open as the game's own screens from the shell:
 Workshop (assemble, gems, disassemble, rename, repair, combine), Container,
-Loot, Score, Quick manual, Map internals, Results, Title, Game over. They
+Loot, Score, Map internals, Results, Title, Game over. They
 are replaced one by one later.
 
 ### System settings
@@ -107,7 +179,7 @@ The System tab edits the same variables as the editor and `settings.cfg`
   Button prompts (the main session's `button_prompts`, not a second
   setting), HUD (later).
 - Controls: right-stick camera and its options, vibration.
-- Gameplay: quick weapon slots (`qol_weapon_slots`) and the game's own
+- Gameplay: Skip intro (`skip_intro`, from the next start), quick weapon slots (`qol_weapon_slots`) and the game's own
   options (simple map, ability timing, weapon/armor status, cursor memory,
   information, puzzle mode, sound), written to `vs_main_settings`.
 
@@ -214,8 +286,9 @@ All new code in `pc/src/ui/`. Game-side changes only under `#ifdef ROOD_PC`;
 3. Ashley summary (~1/2 day).
 4. System settings (~1/2 day).
 5. Abilities, Items, Magick (~1/2 day each).
-6. Later: Workshop, Container, Loot, Data, Map frame, Score, Title; then
-   the HUD.
+6. Later: Workshop and Loot (7a, done), Map frame (7b, done), Quick manual
+   (7c, done), Container,
+   Data, Score, Title; then the HUD.
 
 The bottleneck is verification (action parity, playtesting feel), not code.
 

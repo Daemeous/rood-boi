@@ -95,6 +95,8 @@ extern int pc_qol_weapon_slots; /* project_settings.cpp */
 #define MSG_TICKS 150 /* how long the weapon name stays up (game ticks) */
 #define SHEATHE_TIMEOUT 90
 #define FIELD_MENU_CLOSED(m) (((m) & 0x3F) == 0x3F)
+/* A field menu (ITEMS, the main menu, ...) is open (post_profile.cpp: no depth of field in menus). */
+int pc_battle_field_menu_open(void) { return !FIELD_MENU_CLOSED(vs_battle_menuState.currentMenu); }
 
 /* Per overlay label id (0..3 the button group, 4..7 the D-pad group): text x,
  * y, bullet x, y, width budget in characters (6 px each), slot. Positions with

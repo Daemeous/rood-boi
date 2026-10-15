@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "lighting_quality.h"
+#include "platform.h"
+#include "vk_shaders_digest.h"
 
 #define VK_DEFINE(name) PFN_##name name;
 VK_GLOBAL_FUNCTIONS(VK_DEFINE)
@@ -46,6 +48,7 @@ static struct {
     VkCommandPool pool;
     VkCommandBuffer cmd;
     VkFence fence;
+    int submitted; /* the fence signals when this slot's commands finish (0: never submitted, or failed) */
     arena_chunk* chunks;
     int chunk_count, chunk_current;
     deferred* destroy;
@@ -105,6 +108,162 @@ static int format_ok(VkFormat format, VkFormatFeatureFlags needed)
     VkFormatProperties p;
     vkGetPhysicalDeviceFormatProperties(vk.gpu, format, &p);
     return (p.optimalTilingFeatures & needed) == needed;
+}
+
+/* ---- the pipeline cache ----
+ * Pipelines compile once per driver, device and shader set: the driver's
+ * pipeline cache data is kept between runs in the user's cache directory
+ * ($XDG_CACHE_HOME or ~/.cache, %LOCALAPPDATA% on Windows: rood-boi/
+ * vulkan-pipelines-<vendor>-<device>.bin; ROOD_VK_PIPELINE_CACHE=path
+ * chooses the file, =0 none). The data's own header (vendor, device, the
+ * driver's cache UUID) is checked before use, and a different driver
+ * version or shader set (VK_SHADERS_DIGEST) starts the cache afresh. Saved
+ * once pipeline creation has settled for 120 frames (vk_frame_submit), to a
+ * temporary file renamed over the old one. Only start-up time changes. */
+#define PIPELINE_CACHE_MAGIC "ROODVKPC"
+typedef struct {
+    char magic[8];
+    uint32_t version; /* 1 */
+    uint32_t driver_version;
+    char shaders[64]; /* VK_SHADERS_DIGEST */
+    uint64_t size; /* of the driver's data that follows */
+} pipeline_cache_prefix;
+static struct {
+    char path[1024];
+    int dirty, created;
+    uint64_t dirty_serial, ns, loaded; /* loaded: bytes read at start */
+} pipeline_cache;
+
+static int pipeline_cache_path(char* out, size_t size)
+{
+    const char* env = getenv("ROOD_VK_PIPELINE_CACHE");
+    if (env) {
+        if (!*env || !strcmp(env, "0"))
+            return 0;
+        snprintf(out, size, "%s", env);
+        return 1;
+    }
+    char dir[900];
+#ifdef _WIN32
+    const char* base = getenv("LOCALAPPDATA");
+    if (!base || !*base)
+        return 0;
+    snprintf(dir, sizeof dir, "%s/rood-boi", base);
+#else
+    const char *xdg = getenv("XDG_CACHE_HOME"), *home = getenv("HOME");
+    if (xdg && *xdg == '/') {
+        pc_mkdir(xdg);
+        snprintf(dir, sizeof dir, "%s/rood-boi", xdg);
+    } else if (home && *home) {
+        snprintf(dir, sizeof dir, "%s/.cache", home);
+        pc_mkdir(dir);
+        snprintf(dir, sizeof dir, "%s/.cache/rood-boi", home);
+    } else
+        return 0;
+#endif
+    pc_mkdir(dir);
+    snprintf(out, size, "%s/vulkan-pipelines-%04x-%04x.bin", dir, vk.properties.vendorID, vk.properties.deviceID);
+    return 1;
+}
+
+/* The driver's data is for this device and driver build. */
+static int pipeline_cache_data_ok(const unsigned char* data, uint64_t size)
+{
+    uint32_t header[4];
+    if (size < 16 + VK_UUID_SIZE)
+        return 0;
+    memcpy(header, data, sizeof header);
+    return header[0] >= 16 + VK_UUID_SIZE && header[1] == VK_PIPELINE_CACHE_HEADER_VERSION_ONE
+        && header[2] == vk.properties.vendorID && header[3] == vk.properties.deviceID
+        && !memcmp(data + 16, vk.properties.pipelineCacheUUID, VK_UUID_SIZE);
+}
+
+static void pipeline_cache_init(void)
+{
+    unsigned char* data = NULL;
+    uint64_t size = 0;
+    const char* why = "disabled (ROOD_VK_PIPELINE_CACHE=0)";
+    if (pipeline_cache_path(pipeline_cache.path, sizeof pipeline_cache.path)) {
+        FILE* f = fopen(pipeline_cache.path, "rb");
+        pipeline_cache_prefix p;
+        why = "none saved yet";
+        if (f && fread(&p, sizeof p, 1, f) == 1) {
+            why = "unrecognised file";
+            if (memcmp(p.magic, PIPELINE_CACHE_MAGIC, 8) || p.version != 1)
+                ;
+            else if (p.driver_version != vk.properties.driverVersion)
+                why = "the driver changed";
+            else if (memcmp(p.shaders, VK_SHADERS_DIGEST, sizeof p.shaders))
+                why = "the shaders changed";
+            else if (p.size && p.size < ((uint64_t)1 << 30) && (data = malloc((size_t)p.size))
+                     && fread(data, 1, (size_t)p.size, f) == p.size && pipeline_cache_data_ok(data, p.size))
+                size = p.size;
+            else
+                why = "not for this device";
+        }
+        if (f)
+            fclose(f);
+    } else
+        pipeline_cache.path[0] = 0;
+    VkPipelineCacheCreateInfo info = { .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
+        .initialDataSize = (size_t)size,
+        .pInitialData = size ? data : NULL };
+    if (vkCreatePipelineCache(vk.device, &info, NULL, &vk.pipeline_cache) != VK_SUCCESS) {
+        info.initialDataSize = 0, info.pInitialData = NULL, size = 0, why = "the driver refused the data";
+        if (vkCreatePipelineCache(vk.device, &info, NULL, &vk.pipeline_cache) != VK_SUCCESS)
+            vk.pipeline_cache = VK_NULL_HANDLE;
+    }
+    free(data);
+    pipeline_cache.loaded = size;
+    if (size)
+        fprintf(stderr, "[vk] pipeline cache: %llu bytes from %s\n", (unsigned long long)size, pipeline_cache.path);
+    else
+        fprintf(stderr, "[vk] pipeline cache: starting empty (%s)\n", why);
+}
+
+static void pipeline_cache_save(void)
+{
+    pipeline_cache.dirty = 0;
+    if (!vk.pipeline_cache || !pipeline_cache.path[0])
+        return;
+    size_t size = 0;
+    /* Entries are only added: the same size is the same data (every
+     * pipeline came from the cache), so it is not rewritten. */
+    if (vkGetPipelineCacheData(vk.device, vk.pipeline_cache, &size, NULL) != VK_SUCCESS || !size
+        || size == pipeline_cache.loaded)
+        return;
+    void* data = malloc(size);
+    if (!data || vkGetPipelineCacheData(vk.device, vk.pipeline_cache, &size, data) != VK_SUCCESS) {
+        free(data);
+        return;
+    }
+    pipeline_cache_prefix p = { .version = 1, .driver_version = vk.properties.driverVersion, .size = size };
+    memcpy(p.magic, PIPELINE_CACHE_MAGIC, 8);
+    memcpy(p.shaders, VK_SHADERS_DIGEST, sizeof p.shaders);
+    char temp[1100];
+    snprintf(temp, sizeof temp, "%s.%llx.tmp", pipeline_cache.path, (unsigned long long)SDL_GetTicksNS());
+    FILE* f = fopen(temp, "wb");
+    int ok = f && fwrite(&p, sizeof p, 1, f) == 1 && fwrite(data, 1, size, f) == size;
+    if (f && fclose(f))
+        ok = 0;
+    free(data);
+    if (ok && !pc_replace_file(temp, pipeline_cache.path)) {
+        pipeline_cache.loaded = size;
+        fprintf(stderr, "[vk] pipeline cache: saved %zu bytes (%d pipelines created in %.1f ms this run)\n", size,
+            pipeline_cache.created, pipeline_cache.ns * 1e-6);
+    } else
+        remove(temp);
+}
+
+void vk_pipeline_cache_note(uint64_t ns)
+{
+    pipeline_cache.created++;
+    pipeline_cache.ns += ns;
+    pipeline_cache.dirty = 1;
+    pipeline_cache.dirty_serial = vk.serial;
+    if (vk.serial && ns > 5000000) /* a hitch once frames are being presented */
+        fprintf(stderr, "[vk] pipeline created after frame %llu in %.1f ms\n", (unsigned long long)vk.serial,
+            ns * 1e-6);
 }
 
 int vk_core_init(const char* const* instance_extensions, uint32_t extension_count)
@@ -339,6 +498,7 @@ int vk_core_init(const char* const* instance_extensions, uint32_t extension_coun
     if (!vkCmdPushDescriptorSetKHR)
         return 0;
     vkGetDeviceQueue(vk.device, vk.queue_family, 0, &vk.queue);
+    pipeline_cache_init();
     if (ray_query) {
         VkPhysicalDeviceAccelerationStructurePropertiesKHR as_properties = {
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR };
@@ -417,6 +577,8 @@ void vk_core_shutdown(void)
     vkDeviceWaitIdle(vk.device);
     for (int i = 0; i < VK_FRAMES; i++)
         run_frame_done(i);
+    if (pipeline_cache.dirty)
+        pipeline_cache_save();
 }
 
 /* ---- memory ---- */
@@ -600,6 +762,62 @@ viewless:
         }
         vk_barrier();
     }
+    return 1;
+}
+int vk_image_create_3d(vk_image* image, int width, int height, int depth, VkFormat format, VkImageUsageFlags usage)
+{
+    memset(image, 0, sizeof *image);
+    VkImageCreateInfo info = { .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .imageType = VK_IMAGE_TYPE_3D,
+        .format = format,
+        .extent = { (uint32_t)width, (uint32_t)height, (uint32_t)depth },
+        .mipLevels = 1,
+        .arrayLayers = 1,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .tiling = VK_IMAGE_TILING_OPTIMAL,
+        .usage = usage,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED };
+    if (!vk_check(vkCreateImage(vk.device, &info, NULL, &image->image), "vkCreateImage 3D"))
+        return 0;
+    VkMemoryRequirements req;
+    vkGetImageMemoryRequirements(vk.device, image->image, &req);
+    int type = memory_type(req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+    VkMemoryAllocateInfo alloc = { .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .allocationSize = req.size,
+        .memoryTypeIndex = (uint32_t)type };
+    if (type < 0 || !vk_check(vkAllocateMemory(vk.device, &alloc, NULL, &image->memory), "vkAllocateMemory")) {
+        vkDestroyImage(vk.device, image->image, NULL);
+        image->image = VK_NULL_HANDLE;
+        return 0;
+    }
+    vkBindImageMemory(vk.device, image->image, image->memory, 0);
+    image->aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    VkImageViewCreateInfo view = { .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image = image->image,
+        .viewType = VK_IMAGE_VIEW_TYPE_3D,
+        .format = format,
+        .subresourceRange = { image->aspect, 0, 1, 0, 1 } };
+    if (!vk_check(vkCreateImageView(vk.device, &view, NULL, &image->view), "vkCreateImageView 3D"))
+        return 0;
+    image->format = format;
+    image->width = width;
+    image->height = height;
+    vk_end_rendering();
+    VkImageMemoryBarrier2 barrier = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+        .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+        .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = image->image,
+        .subresourceRange = { image->aspect, 0, 1, 0, 1 } };
+    VkDependencyInfo dependency = { .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+        .imageMemoryBarrierCount = 1,
+        .pImageMemoryBarriers = &barrier };
+    vkCmdPipelineBarrier2(vk_cmd(), &dependency);
     return 1;
 }
 void vk_image_destroy(vk_image* image)
@@ -815,25 +1033,47 @@ static void submit(VkSemaphore wait, VkPipelineStageFlags wait_stage, VkSemaphor
         .pCommandBuffers = &f->cmd,
         .signalSemaphoreCount = signal ? 1 : 0,
         .pSignalSemaphores = &signal };
-    vkResetFences(vk.device, 1, &f->fence);
-    VkResult result = vkQueueSubmit(vk.queue, 1, &info, f->fence);
-    if (result != VK_SUCCESS) {
-        fprintf(stderr, "[vk] vkQueueSubmit failed (%d)%s\n", (int)result,
-            result == VK_ERROR_DEVICE_LOST ? ": device lost" : "");
-        if (result == VK_ERROR_DEVICE_LOST)
-            abort();
+    f->submitted = 0;
+    if (!vk.lost) { /* a lost device takes no more work: the frame is dropped */
+        vkResetFences(vk.device, 1, &f->fence);
+        VkResult result = vkQueueSubmit(vk.queue, 1, &info, f->fence);
+        if (result == VK_SUCCESS)
+            f->submitted = 1;
+        else if (result == VK_ERROR_DEVICE_LOST)
+            vk_device_lost("vkQueueSubmit");
+        else
+            fprintf(stderr, "[vk] vkQueueSubmit failed (%d): frame dropped\n", (int)result);
     }
     ++vk.serial;
 }
+int pc_vk_device_lost(void) { return vk.lost; } /* RPC status */
+void vk_device_lost(const char* where)
+{
+    if (vk.lost)
+        return;
+    vk.lost = 1;
+    fprintf(stderr,
+        "[vk] device lost (%s): rendering stops, the game goes on (restart it to render again)\n", where);
+}
+/* The slot's last frame is finished (or will never be): its command pool,
+ * arena and deferred objects can be reused. Never fatal: a lost device (or a
+ * frame still not done after 30 s, a hung GPU) is noted (vk.lost) and the
+ * frames go on unsubmitted. */
 static void wait_slot(int slot)
 {
     typeof(frames[0])* f = &frames[slot];
-    VkResult result = vkWaitForFences(vk.device, 1, &f->fence, VK_TRUE, 10ull * 1000 * 1000 * 1000);
-    if (result != VK_SUCCESS) {
-        fprintf(stderr, "[vk] frame fence wait failed (%d)\n", (int)result);
-        if (result == VK_ERROR_DEVICE_LOST)
-            abort();
+    if (f->submitted && !vk.lost) {
+        VkResult result;
+        int waited = 0;
+        while ((result = vkWaitForFences(vk.device, 1, &f->fence, VK_TRUE, 10ull * 1000 * 1000 * 1000)) == VK_TIMEOUT
+            && (waited += 10) < 30)
+            fprintf(stderr, "[vk] frame fence: still waiting after %d s\n", waited);
+        if (result != VK_SUCCESS) {
+            fprintf(stderr, "[vk] frame fence wait failed (%d)\n", (int)result);
+            vk_device_lost(result == VK_TIMEOUT ? "a frame never finished" : "vkWaitForFences");
+        }
     }
+    f->submitted = 0;
     vkResetCommandPool(vk.device, f->pool, 0);
 }
 void vk_flush_wait(void)
@@ -956,6 +1196,8 @@ void vk_frame_submit(VkSemaphore wait, VkPipelineStageFlags wait_stage, VkSemaph
         }
     }
     run_frame_done(vk.frame);
+    if (pipeline_cache.dirty && vk.serial - pipeline_cache.dirty_serial >= 120)
+        pipeline_cache_save();
     typeof(frames[0])* f = &frames[vk.frame];
     for (int i = 0; i < f->chunk_count; i++)
         f->chunks[i].used = 0;
@@ -997,7 +1239,7 @@ static VkPipelineColorBlendAttachmentState blend_state(int blend, unsigned mask)
     if (blend < 0 || !mask)
         return s;
     s.blendEnable = VK_TRUE;
-    s.colorBlendOp = s.alphaBlendOp = blend == 2 ? VK_BLEND_OP_REVERSE_SUBTRACT : VK_BLEND_OP_ADD;
+    s.colorBlendOp = s.alphaBlendOp = blend == 2 || blend == 6 ? VK_BLEND_OP_REVERSE_SUBTRACT : VK_BLEND_OP_ADD;
     switch (blend) {
     case 0: /* B/2 + F/2 */
         s.srcColorBlendFactor = s.srcAlphaBlendFactor = VK_BLEND_FACTOR_CONSTANT_ALPHA;
@@ -1012,6 +1254,11 @@ static VkPipelineColorBlendAttachmentState blend_state(int blend, unsigned mask)
         s.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         s.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         s.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        break;
+    case 5: /* B + F * alpha */
+    case 6: /* B - F * alpha */
+        s.srcColorBlendFactor = s.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        s.dstColorBlendFactor = s.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         break;
     default: /* B + F, B - F */
         s.srcColorBlendFactor = s.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
@@ -1100,7 +1347,10 @@ VkPipeline vk_pipeline(const vk_pipeline_desc* d)
         .pDynamicState = &dynamic,
         .layout = d->layout };
     VkPipeline pipeline = VK_NULL_HANDLE;
-    vk_check(vkCreateGraphicsPipelines(vk.device, VK_NULL_HANDLE, 1, &info, NULL, &pipeline), "vkCreateGraphicsPipelines");
+    uint64_t start = SDL_GetTicksNS();
+    vk_check(vkCreateGraphicsPipelines(vk.device, vk.pipeline_cache, 1, &info, NULL, &pipeline),
+        "vkCreateGraphicsPipelines");
+    vk_pipeline_cache_note(SDL_GetTicksNS() - start);
     return pipeline;
 }
 VkPipeline vk_compute_pipeline(VkShaderModule module, VkPipelineLayout layout)
@@ -1112,7 +1362,10 @@ VkPipeline vk_compute_pipeline(VkShaderModule module, VkPipelineLayout layout)
             .pName = "main" },
         .layout = layout };
     VkPipeline pipeline = VK_NULL_HANDLE;
-    vk_check(vkCreateComputePipelines(vk.device, VK_NULL_HANDLE, 1, &info, NULL, &pipeline), "vkCreateComputePipelines");
+    uint64_t start = SDL_GetTicksNS();
+    vk_check(vkCreateComputePipelines(vk.device, vk.pipeline_cache, 1, &info, NULL, &pipeline),
+        "vkCreateComputePipelines");
+    vk_pipeline_cache_note(SDL_GetTicksNS() - start);
     return pipeline;
 }
 

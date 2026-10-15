@@ -77,6 +77,13 @@ PSX_ASSERT_SIZE(D_80039BC8_t, 0x10);
 
 #define AKAO_MAGIC 0x4F414B41 // 'AKAO'
 
+// A field-music sequence queued by sound command 0x14 (guest address), started
+// once the active music stops. Only this word is used; D_80037790 (the
+// parameters func_80018C30 queues with a command) starts 8 bytes on.
+typedef struct {
+    u_int PendingSequence;
+} D_80037788_t;
+
 typedef void (*FSoundCommandHandler)(FSoundCommandParams*);
 
 static int Sound_IsNotAkaoFile(int*);
@@ -147,7 +154,7 @@ extern char D_80039AF2;
 extern int D_8002F548;
 extern u_short D_8002F54C;
 extern int D_8002F550[];
-extern FSoundCommandParams D_80037788;
+extern D_80037788_t D_80037788;
 extern int D_80037898;
 extern int D_8003789C;
 extern int D_80039B00;
@@ -237,7 +244,7 @@ int func_80011E40(void)
             var_v1 |= 2;
         }
     }
-    if (D_80037788.Param1 != 0) {
+    if (D_80037788.PendingSequence != 0) {
         var_v1 |= 0x10;
     }
     if (g_Sound_VoiceSchedulerState.ActiveChannelMask != 0) {
@@ -1089,7 +1096,7 @@ void func_8001369C(void)
     g_pSecondaryMusicChannels = NULL;
     g_Sound_GlobalFlags.ControlLatches = 0;
     g_Sound_LfoPhase = 0;
-    D_80037788.Param1 = 0;
+    D_80037788.PendingSequence = 0;
     D_80036770.unk4 = 0;
     D_80036770.unk0 = 0;
     D_800377E0[2] = 0;
@@ -3793,7 +3800,7 @@ void func_8001852C(void)
     }
 
     g_pActiveMusicConfig->StatusFlags &= 0xFFFEFFFF;
-    *(int*)&D_80037788.Param1 = 0;
+    *(int*)&D_80037788.PendingSequence = 0;
 }
 
 void Sound_Cmd_11_StopAllMusic(FSoundCommandParams* in_Params)
@@ -4081,7 +4088,7 @@ u_int func_80018C30(u_int in_Command)
         }
         pData = psx_get(D_800378C0.unk0);
         g_pActiveMusicConfig->StatusFlags |= 0x10000;
-        D_80037788.Param1 = psx_to_int(u_int, pData);
+        D_80037788.PendingSequence = psx_to_int(u_int, pData);
         result = ((AkaoSeqHeader*)psx_get(D_800378C0.unk0))->id;
         break;
     }
@@ -4542,7 +4549,7 @@ psx_long func_80019A58(void)
             temp_v0->ActiveChannelMask = 0;
         }
     }
-    p = psx_to_ptr(u_short*, D_80037788.Param1);
+    p = psx_to_ptr(u_short*, D_80037788.PendingSequence);
     if (p != 0) {
         if (g_pActiveMusicConfig->ActiveChannelMask == 0) {
             D_80037800.Param1 = psx_to_int(u_int, p);
@@ -4555,7 +4562,7 @@ psx_long func_80019A58(void)
                 ++var_s2_2;
             }
 
-            D_80037788.Param1 = 0;
+            D_80037788.PendingSequence = 0;
         }
     }
     if (((D_80039B00 | g_pActiveMusicConfig->ActiveNoteMask | D_80037898) != 0)

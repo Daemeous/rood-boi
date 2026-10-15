@@ -34,6 +34,7 @@ extern int pc_gte_widescreen;
 extern int pc_hw_active;
 extern const void* pc_scene_room_data(void) __attribute__((weak));
 extern void pc_room_render_rules(int* near_bucket, int* far_bucket, int* lod_bucket) __attribute__((weak));
+extern int pc_room_texture_lod; /* render.c */
 extern void pc_hw_native_room_packets(const void* start, const void* end, uint32_t list) __attribute__((weak));
 
 typedef struct {
@@ -489,6 +490,8 @@ int pc_room_native_begin(const void* data, unsigned mode, const unsigned* first)
     render_rules rules = { 8, 0x7ff, 0x200, (int)(mode & 1) };
     if (pc_room_render_rules)
         pc_room_render_rules(&rules.near_bucket, &rules.far_bucket, &rules.lod_bucket);
+    if (!pc_room_texture_lod)
+        rules.lod_bucket = 1 << 20; /* past every bucket: no halving */
     rules.layered = !room;
     near_bucket = rules.near_bucket, far_bucket = rules.far_bucket;
     if (room) {

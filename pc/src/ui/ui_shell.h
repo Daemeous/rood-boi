@@ -62,14 +62,22 @@ int pc_ui_shell_wants_mouse(void);
  * layout units (1280 or 960 x 720), as moved there, instead of ImGui's; click
  * / right: a button went down; wheel in notches (positive = up); down: the
  * left button is held (a drag over the Ashley model turns it: pointers sent
- * with down, the first inside the model, then moved). */
-void pc_ui_draw_pointer(float x, float y, int click, int right, float wheel, int down);
+ * with down, the first inside the model, then moved); middle: the middle
+ * button is held (a drag over the Map frame's picture pans it); shift: Shift
+ * is held (a left drag over the Map frame's picture started with it pans). */
+void pc_ui_draw_pointer(float x, float y, int click, int right, float wheel, int down, int middle, int shift);
 /* The Ashley screen's model column in layout units (x, y, w, h), for the
  * current aspect (pc_gte_widescreen): where ashley_bridge.c centres the model. */
 void pc_ui_draw_model_column(float out[4]);
 /* The theme's ground colour (ui_theme.cpp), 0..255 per channel. */
 void pc_ui_theme_ground_rgb(int* r, int* g, int* b);
 
+
+/* The shell reopens on `tab` (the Map frame's tab click, menu_bridge.c),
+ * on that tab's remembered row; a tab with nothing to show is ignored. */
+void pc_ui_shell_set_tab(int tab);
+/* The tab L1 (dir -1) / R1 (+1) goes to from the current one. */
+int pc_ui_shell_step_tab(int dir);
 
 /* Read-only views for drawing (ui_draw.cpp). */
 int pc_ui_shell_tab(void);
@@ -80,9 +88,9 @@ int pc_ui_shell_row(int i, const char** label, const char** help, const char** v
 int pc_ui_shell_focus(void);
 /* What the current tab shows: PC_UI_SCREEN_COMMANDS (rows above), or a native
  * screen: PC_UI_SCREEN_EQUIPMENT, PC_UI_SCREEN_ASHLEY, PC_UI_SCREEN_SYSTEM,
- * PC_UI_SCREEN_ABILITIES, PC_UI_SCREEN_MAGICK. */
+ * PC_UI_SCREEN_ABILITIES, PC_UI_SCREEN_MAGICK, PC_UI_SCREEN_ITEMS. */
 enum { PC_UI_SCREEN_COMMANDS = 0, PC_UI_SCREEN_EQUIPMENT = 1, PC_UI_SCREEN_ASHLEY = 2, PC_UI_SCREEN_SYSTEM = 3,
-       PC_UI_SCREEN_ABILITIES = 4, PC_UI_SCREEN_MAGICK = 5 };
+       PC_UI_SCREEN_ABILITIES = 4, PC_UI_SCREEN_MAGICK = 5, PC_UI_SCREEN_ITEMS = 6 };
 int pc_ui_shell_screen(void);
 
 /* The Ashley screen: a summary with rows weapon, shield, condition, then one
@@ -136,7 +144,10 @@ enum {
     PC_UI_MOUSE_ART_CATEGORY, /* Abilities, Break Arts: a category (1..10, not the rail row) */
     PC_UI_MOUSE_ART,       /* Abilities, Break Arts: an art 0..3 of the focused category */
     PC_UI_MOUSE_SPELL,     /* Magick: a row of the sub-tab's list (a spell, or a Teleport destination) */
-    PC_UI_MOUSE_SPELL_LEVEL /* Magick: a level 0..3 of the focused levelled spell (a click picks it, no cast) */
+    PC_UI_MOUSE_SPELL_LEVEL, /* Magick: a level 0..3 of the focused levelled spell (a click picks it, no cast) */
+    PC_UI_MOUSE_ITEM,      /* Items: a row of the category's list (hover focuses it where the list has the
+                            * focus: list, move, details; a click elsewhere goes back to the list on it) */
+    PC_UI_MOUSE_ITEM_MENU  /* Items: a row of the open menu (actions, Yes / No, sort stats) */
 };
 void pc_ui_shell_mouse(int kind, int index, int clicked, float wheel);
 
@@ -236,6 +247,75 @@ void pc_ui_shell_magick_view(pc_ui_magick_view* v);
 void pc_ui_shell_set_magick(const pc_ui_magick* m);
 const pc_ui_magick* pc_ui_shell_magick(void);
 
+/* The Items screen (gated on the Items command, menuFlags bit 3; the
+ * original Items menu is MENU3). Categories (L2/R2, wrapping; a click on
+ * PC_UI_MOUSE_SUB index = the category): weapons, blades, grips, shields,
+ * armor, gems, misc (PC_UI_IC_*), each with its capacity. LIST: Up/Down move
+ * (wrapping); Circle opens the row's action menu; Square shows the row's
+ * details (DETAILS: Up/Down still move, Circle opens the actions, Square or
+ * Cross go back); an empty category's Circle offers the original screen only.
+ * ACTIONS, as the original offers them per category (greyed with the
+ * original's reason; with the menu's disable mask everything but the
+ * original screen is greyed): Use (misc: PC_UI_REQ_ITEM_USE {misc, row}; the
+ * bridge hands it to the game and ends the menu, a cancelled target reopens
+ * the shell on the item), Search (blades, grips, gems in a set: the parent
+ * weapon / shield focused in its category; the shell's own), Discard (count
+ * 2 or more: QUANTITY first: Up/Down change the count by the step, Left/Right
+ * pick the step 1 / 10 / 100, Left past 100 jumps to all, Right past 1 to
+ * none, Circle goes on (none: back to the list, PC_UI_REQ_ITEM_CANCEL), then
+ * CONFIRM Yes / No, opening on No as the original's: Yes
+ * PC_UI_REQ_ITEM_DISCARD {cat, row, count}, No PC_UI_REQ_ITEM_CANCEL), Discard
+ * all (misc: CONFIRM, then PC_UI_REQ_ITEM_DISCARD_ALL), Sort (SORT: the
+ * category's stats, Circle PC_UI_REQ_ITEM_SORT {cat, row, stat}), Move (MOVE:
+ * Up/Down pick the target row, Circle PC_UI_REQ_ITEM_MOVE {cat, from, to}:
+ * swap, or a misc merge), and Original screen (result 4: the original Items
+ * menu, also the way to its Options > Setup). A refused Use (greyed, or the
+ * bridge refuses it) keeps the action menu with its reason. Cross steps back
+ * one level (out of a menu: to ACTIONS, the picker or the list; the
+ * original's picker and Yes / No go straight back to the list); in the list
+ * it closes, as Triangle does everywhere (in the picker too, as the
+ * original's Triangle). Every request but Move carries the row's inventory
+ * index as seen, Move the moved row's (ui_model.h; the bridge refuses a stale
+ * one), and the bridge plays the original's sounds (refused: the invalid
+ * sound) and leaves the cursor memories the original leaves. */
+enum { PC_UI_IT_LIST, PC_UI_IT_ACTIONS, PC_UI_IT_QUANTITY, PC_UI_IT_CONFIRM, PC_UI_IT_SORT, PC_UI_IT_MOVE,
+       PC_UI_IT_DETAILS };
+enum { PC_UI_ITA_USE, PC_UI_ITA_SEARCH, PC_UI_ITA_DISCARD, PC_UI_ITA_DISCARD_ALL, PC_UI_ITA_SORT, PC_UI_ITA_MOVE,
+       PC_UI_ITA_ORIGINAL, PC_UI_ITA_COUNT };
+typedef struct {
+    int category;                 /* PC_UI_IC_* */
+    int mode;                     /* PC_UI_IT_* */
+    int cursor;                   /* the list's row (MOVE: the target row); 0 when empty */
+    int rows;                     /* the category's rows */
+    int capacity;                 /* the category's capacity */
+    const pc_ui_item_row* row;    /* the focused row, or null (empty) */
+    int locked;                   /* the menu's disable mask greys the list (browse only) */
+    const char* reason;           /* why locked, or null */
+    int actions;                  /* ACTIONS (and the modes after it): the menu's entries */
+    int action_kind[PC_UI_ITA_COUNT];       /* PC_UI_ITA_* */
+    int action_enabled[PC_UI_ITA_COUNT];
+    const char* action_label[PC_UI_ITA_COUNT];
+    const char* action_reason[PC_UI_ITA_COUNT]; /* greyed: why, else null */
+    int action;                   /* the focused entry */
+    int confirm_kind;             /* CONFIRM: PC_UI_ITA_DISCARD or PC_UI_ITA_DISCARD_ALL */
+    int confirm;                  /* CONFIRM: 0 Yes, 1 No */
+    const char* prompt;           /* CONFIRM: the original's question */
+    int count, count_max, step;   /* QUANTITY (and CONFIRM after it): the count, the stack, step 0..2 (1/10/100) */
+    int sort;                     /* SORT: the focused stat's row in the category's list */
+    int move_from;                /* MOVE: the row being moved, -1 otherwise */
+} pc_ui_items_view;
+void pc_ui_shell_items_view(pc_ui_items_view* v);
+/* The bridge sets the snapshot each tick before pc_ui_shell_tick (copied). */
+void pc_ui_shell_set_items(const pc_ui_items* m);
+/* Only the details card (the rest of the snapshot is unchanged since the
+ * last pc_ui_shell_set_items: the bridge's refresh after the tick). */
+void pc_ui_shell_set_items_details(const pc_ui_item_details* d);
+const pc_ui_items* pc_ui_shell_items(void);
+/* The row the details card is for (the bridge fills pc_ui_items.details for
+ * it): the focused row's category and inventory index while the Items screen
+ * is up and the list has rows. Returns 0 otherwise. */
+int pc_ui_shell_items_focus(int* category, int* inventory);
+
 /* The System screen (pc/src/ui/ui_settings.h has the pages): a list on the
  * left, the game's own screens first (Data, Options, Score, Quick manual;
  * Circle opens them, as the command rows do), then the settings pages. Circle
@@ -257,6 +337,8 @@ typedef struct {
     int capture;  /* the PS1 button a capture listens for, -1 none */
 } pc_ui_system_view;
 void pc_ui_shell_system_view(pc_ui_system_view* v);
+/* The System tab shows the Quick manual (ui_manual.h): ui_system_draw.cpp hands it the screen. */
+int pc_ui_shell_manual_shown(void);
 /* List entry i: id ("data", "graphics"), label, help, enabled, reason (greyed: why).
  * Returns 0 past the end. */
 int pc_ui_shell_system_item(int i, const char** id, const char** label, const char** help, int* enabled,
@@ -268,6 +350,123 @@ int pc_ui_shell_system_item(int i, const char** id, const char** label, const ch
  * (pc_ui_settings_preview); the drag's end sends its last value with set 1.
  * Enters the page when the list had the focus. */
 void pc_ui_shell_system_value(int row, int delta, double value, int set);
+
+/* The Loot screen (ui_loot.cpp): a direct session, not a tab. The game opens
+ * MENUB itself (after a battle with drops, at a chest: vs_mainMenu_exec's
+ * direct entry 12); menu_bridge.c's pc_ui_direct_tick hands it to
+ * loot_bridge.c, which opens this screen, sets its snapshot every tick, ticks
+ * it and carries out its requests. Drawn alone (title "Loot" or "Chest", no
+ * tab bar).
+ *
+ * LIST: Up/Down move (wrapping); Circle takes the focused row
+ * (PC_UI_REQ_LOOT_TAKE) when the bag has room for it, else opens ORGANIZE
+ * (the select sound): the row's own action first when it has one
+ * (Disassemble: weapons and shields; Consolidate: misc but keys), then
+ * Organize inventory; Circle on Disassemble / Consolidate asks (CONFIRM, on
+ * Yes as the original's) and sends PC_UI_REQ_LOOT_DISASSEMBLE / _CONSOLIDATE
+ * on Yes; Organize inventory opens BAG (PC_UI_REQ_LOOT_BAG 1, item the
+ * category): the bag by category (L2/R2, L1/R1 or Left/Right: each change
+ * PC_UI_REQ_LOOT_BAG 1 with the new category; Up/Down). Circle on a row
+ * opens BAG_ACTIONS, the actions MENUB's Items menu offers (items2.h
+ * populateActions, its Use never selectable left out): Discard, Discard all
+ * (misc), Sort, Move. Discard asks (BAG_CONFIRM, on No as the Items
+ * screen's; PC_UI_REQ_ITEM_DISCARD), a misc stack of two or more first
+ * through the quantity picker (BAG_QUANTITY: Up/Down by the step, Left/Right
+ * the step; none: PC_UI_REQ_ITEM_CANCEL); Discard all asks for the stack
+ * (PC_UI_REQ_ITEM_DISCARD_ALL); No: PC_UI_REQ_ITEM_CANCEL. Sort lists the
+ * category's stats (BAG_SORT: PC_UI_REQ_ITEM_SORT). Move (BAG_MOVE): Up/Down
+ * to the target, Circle (PC_UI_REQ_ITEM_MOVE; misc stacks of the same item
+ * merge as the Items screen's do, the sum kept: MENUB's own merge loses the
+ * moved stack, see loot_bridge.c). Cross backs
+ * out one level; in BAG it closes the panel (PC_UI_REQ_LOOT_BAG 0). Square
+ * takes everything the bag has room for (PC_UI_REQ_LOOT_TAKE_ALL). Cross
+ * (PC_UI_REQ_LOOT_LEAVE 0; the bridge plays the leave sound and ends the
+ * session at once when nothing is left, or at a chest nothing was taken
+ * from) asks to leave the rest (CONFIRM on No: Yes PC_UI_REQ_LOOT_LEAVE 1),
+ * or, with a key or sigil in the list, says it cannot be left (MESSAGE, any
+ * button). A list that came empty shows the game's line (MESSAGE): any
+ * button leaves. Cross backs out of every menu (the leave sound:
+ * PC_UI_REQ_LOOT_SOUND 0). The bridge ends the session (the shell closes);
+ * the shell never returns a result. */
+enum { PC_UI_LOOT_LIST, PC_UI_LOOT_ORGANIZE, PC_UI_LOOT_CONFIRM, PC_UI_LOOT_MESSAGE, PC_UI_LOOT_BAG,
+       PC_UI_LOOT_BAG_CONFIRM, PC_UI_LOOT_BAG_ACTIONS, PC_UI_LOOT_BAG_QUANTITY, PC_UI_LOOT_BAG_SORT,
+       PC_UI_LOOT_BAG_MOVE };
+/* The Organize panel's modes (BAG and the modes after it). */
+#define PC_UI_LOOT_IN_BAG(mode) ((mode) == PC_UI_LOOT_BAG || (mode) >= PC_UI_LOOT_BAG_CONFIRM)
+enum { PC_UI_LOOT_BAG_ACTION_MAX = 4 };
+enum { PC_UI_LOOT_ASK_DISASSEMBLE, PC_UI_LOOT_ASK_CONSOLIDATE, PC_UI_LOOT_ASK_LEAVE, PC_UI_LOOT_ASK_KEYS,
+       PC_UI_LOOT_ASK_EMPTY };
+typedef struct {
+    int mode;          /* PC_UI_LOOT_* */
+    int cursor;        /* the list's row (0 when empty) */
+    int rows;          /* the list's rows */
+    const pc_ui_loot_row* row; /* the focused row, or null */
+    int menu;          /* ORGANIZE: the focused entry; CONFIRM / BAG_CONFIRM: 0 Yes, 1 No */
+    int menu_rows;     /* ORGANIZE: its entries (1 or 2) */
+    int menu_kind[2];  /* ORGANIZE: each entry's PC_UI_LOOT_ORG_* (NONE: Organize inventory) */
+    int ask;           /* CONFIRM / MESSAGE: PC_UI_LOOT_ASK_* */
+    const char* text;  /* CONFIRM / MESSAGE / BAG_CONFIRM: the game's line */
+    int bag_category;  /* BAG: PC_UI_IC_* */
+    int bag_cursor;    /* BAG: the category's row */
+    int bag_rows;      /* BAG: the category's rows */
+    /* BAG_ACTIONS: the actions (PC_UI_ITA_DISCARD, _DISCARD_ALL, _SORT, _MOVE), whether each can be chosen
+     * and why not (the bag row's reason, or null); menu is the focused one */
+    int bag_actions;
+    int bag_action_kind[PC_UI_LOOT_BAG_ACTION_MAX];
+    int bag_action_enabled[PC_UI_LOOT_BAG_ACTION_MAX];
+    const char* bag_action_reason[PC_UI_LOOT_BAG_ACTION_MAX];
+    int confirm_kind;  /* BAG_CONFIRM: PC_UI_ITA_DISCARD or PC_UI_ITA_DISCARD_ALL */
+    int count, count_max, step; /* BAG_QUANTITY / BAG_CONFIRM: the quantity, the stack, the step (0 1, 1 10, 2 100) */
+    int sort;          /* BAG_SORT: the focused stat's row (pc_ui_items sort_stats) */
+    int move_from;     /* BAG_MOVE: the row being moved (bag_cursor is the target), else -1 */
+} pc_ui_loot_view;
+void pc_ui_loot_open(void);
+void pc_ui_loot_close(void);
+int pc_ui_loot_visible(void);
+/* One game frame of the screen (requests queued). */
+void pc_ui_loot_tick(const pc_ui_input* input);
+/* The bridge's snapshot (copied), and the bag for BAG (copied; the Items
+ * screen's snapshot: pc_ui_items). */
+void pc_ui_loot_set(const pc_ui_loot* m);
+const pc_ui_loot* pc_ui_loot_model(void);
+void pc_ui_loot_set_bag(const pc_ui_items* bag);
+const pc_ui_items* pc_ui_loot_bag(void);
+void pc_ui_loot_view_get(pc_ui_loot_view* v);
+/* The focused row (for the bridge's details card); -1 when none. */
+int pc_ui_loot_focus(void);
+int pc_ui_loot_pop_request(pc_ui_request* out);
+/* Mouse, as pc_ui_shell_mouse: PC_UI_MOUSE_LOOT_ROW (a list row), _LOOT_MENU
+ * (an entry of the open menu or Yes / No), _LOOT_BAG (a bag row), _SUB (a bag
+ * category), _BUTTON (bits). */
+void pc_ui_loot_mouse(int kind, int index, int clicked, float wheel);
+enum { PC_UI_MOUSE_LOOT_ROW = 100, PC_UI_MOUSE_LOOT_MENU, PC_UI_MOUSE_LOOT_BAG };
+
+/* The Map frame (map_frame.h, ui_map.cpp, ui_map_draw.cpp): the game's map
+ * screen (MENU5) with the shell's chrome around its picture. Pointer kinds
+ * for pc_ui_map_mouse: an area row (index: the scene id), a room row (the
+ * room index), the header's < > (index -1 / +1), the picture (drags, the
+ * wheel), a prompt (PC_UI_MAP_P_*), a tab (its index), the rail elsewhere
+ * (its wheel scrolls it). */
+enum { PC_UI_MOUSE_MAP_AREA = 120, PC_UI_MOUSE_MAP_ROOM, PC_UI_MOUSE_MAP_STEP, PC_UI_MOUSE_MAP_VIEW,
+       PC_UI_MOUSE_MAP_PROMPT, PC_UI_MOUSE_MAP_TAB, PC_UI_MOUSE_MAP_RAIL };
+enum { PC_UI_MAP_P_ROOM_PREV, PC_UI_MAP_P_ROOM_NEXT, PC_UI_MAP_P_ROTATE, PC_UI_MAP_P_ZOOM, PC_UI_MAP_P_RESET,
+       PC_UI_MAP_P_AREAS, PC_UI_MAP_P_HIDE, PC_UI_MAP_P_BACK, PC_UI_MAP_P_CLOSE, PC_UI_MAP_P_LIST_UP,
+       PC_UI_MAP_P_LIST_DOWN, PC_UI_MAP_P_LIST_TAB, PC_UI_MAP_P_LIST_SHOW, PC_UI_MAP_P_LIST_MAP,
+       PC_UI_MAP_P_LIST_CLOSE };
+/* The frame's picture (the cut-out MENU5's map shows through) in layout
+ * units (x, y, w, h) for the current aspect, and for a W-wide layout. */
+void pc_ui_map_column(float out[4]);
+void pc_ui_map_column_for(float W, float out[4]);
+/* The rail's wheel offset in lines from its automatic window, clamped to
+ * lo..hi; reset when another room or area is in focus. */
+float pc_ui_map_rail_scroll(float lo, float hi);
+void pc_ui_map_rail_scroll_reset(void);
+/* The frame's pointer targets as last drawn (JSON "hits", so tests click
+ * what is drawn): cleared at each draw, one per target. */
+void pc_ui_map_hits_clear(void);
+void pc_ui_map_hit_record(int kind, int index, float x0, float y0, float x1, float y1);
+/* The screen as JSON members (",\"loot\":{...}" appended to out; RPC ui_menu). */
+void pc_ui_loot_json(char* out, unsigned size);
 
 #ifdef __cplusplus
 }

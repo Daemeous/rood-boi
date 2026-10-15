@@ -30,4 +30,12 @@ void add_items(lighting::State& s);
 bool rpc(const prefab::Json& params); /* RPC environment {fog, volumes, ...}: true when the room changed */
 std::string json(); /* "fog":{...},"volumes":[...] for its reply */
 } // namespace rood_atmo
+
+/* The room's post-processing profiles (`post room`, `post cutscene`,
+ * `post event.<id>`): post_profile.cpp. rood_env's functions include them. */
+namespace rood_post {
+void reset();
+bool apply_item(const lighting::Item& it);
+void add_items(lighting::State& s);
+} // namespace rood_post
 #endif

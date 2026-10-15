@@ -6581,7 +6581,17 @@ vs_battle_actor* func_800775C0(
             if (D_8004FE88[(u_char)init->unk2]) {
                 object.dataType = 1;
                 object.index = id + 4;
+#ifndef ROOD_PC
                 object.modelId = (u_char)D_800F188C[zudIndex].unk2 + 1;
+#else
+                /* D_800F188C is _zoneContext.zndEnemies (0x800F1880 + 0xC),
+                 * a 4-byte guest pointer. Declared as a host pointer, the
+                 * LP64 build gives it a native slot of its own that nothing
+                 * writes (pc/tools/lp64_alias_scan.py). */
+                vs_battle_charInitData* zndEnemies =
+                    (vs_battle_charInitData*)psx_get(_zoneContext.zndEnemies);
+                object.modelId = (u_char)zndEnemies[zudIndex].unk2 + 1;
+#endif
                 psx_set(object.unk4, psx_get(actor->unk48[0]));
                 object.actorId = id;
                 object.unk11 = 0xFC;
@@ -15472,6 +15482,13 @@ void func_80089DC0(int arg0)
     }
 #endif
     func_80089114();
+#ifdef ROOD_PC
+    {
+        /* Its enemies are spawned: a warp with enemies off benches them. */
+        extern void pc_room_warp_room_spawned(void);
+        pc_room_warp_room_spawned();
+    }
+#endif
     func_800A35A8();
     func_80093FEC(0, 0, psx_get(vs_battle_characterState->unk3C)->statuses & 0x21000, 1);
     func_80086754(0x21000, psx_get(vs_battle_characterState->unk3C));
@@ -15591,9 +15608,17 @@ void func_8008A3A0(void)
     func_800BEB34();
     _setRoomSeen();
     func_8008ABF0(0);
+#ifndef ROOD_PC
     if (D_800F18E4 != NULL) {
         vs_main_freeHeap(D_800F18E4);
     }
+#else
+    /* D_800F18E4 is _zoneContext.mpdEnemies (0x800F1880 + 0x64): through
+     * its own native LP64 slot (never written) the buffer was never freed. */
+    if (psx_get(_zoneContext.mpdEnemies) != NULL) {
+        vs_main_freeHeap(psx_get(_zoneContext.mpdEnemies));
+    }
+#endif
     if (D_800F192C != NULL) {
         func_800E7454(D_800F192C);
     }

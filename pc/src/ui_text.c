@@ -22,10 +22,10 @@
  * original glyph's own CLUT ramp (coverage 0..1 -> CLUT index 1..max, or
  * 2..max inside a one-pixel outline of index 1), so colours, brightness,
  * gradients, translucency and the colour key are the game's. Line breaks and
- * timing never change. With ui_text_layout glyph the positions and advances
- * do not either (each glyph inside its original cell); with line (the
- * default) dialogue and menu text is set line by line with the font's own
- * spacing ("string-level layout" below). Characters a font lacks, and the
+ * timing never change. With ui_text_layout glyph (the default for now) the
+ * positions and advances do not either (each glyph in its original cell,
+ * descenders below it); with line dialogue and menu text is set string by
+ * string with the font's own spacing ("string-level layout" below). Characters a font lacks, and the
  * pictographs (button symbols, arrows, notes), stay original.
  *
  * Words the game draws as pictures (HP, MP, COMMAND, MENU, INFORMATION,
@@ -126,6 +126,61 @@ int pc_ui_text_decode(const unsigned char* text, int max_bytes, char* out, int o
         --n;
     out[n] = 0;
     return n;
+}
+
+/* ---- distance texels (ui_text.h) ---- */
+
+static uint32_t dist_bits(float d)
+{
+    long q = lrintf(fminf(fmaxf(d, PC_UI_DIST_FAR), -PC_UI_DIST_FAR - 1.0f / 256.0f) * 256.0f);
+    return (uint32_t)q & 0x3fffu;
+}
+uint32_t pc_ui_dist_texel(float d, int mode, int lo, int hi, int outlined)
+{
+    return 0x80000000u | (uint32_t)(mode & 3) << 28 | (outlined ? 1u << 27 : 0) | (uint32_t)(hi & 15) << 23
+         | (uint32_t)(lo & 15) << 19 | dist_bits(d);
+}
+uint32_t pc_ui_dist_direct(float d, uint16_t colour)
+{
+    return 0xc0000000u | (uint32_t)(colour >> 15) << 29 | (uint32_t)(colour & 0x7fff) << 14 | dist_bits(d);
+}
+
+static float clamp01(float x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+/* As the shaders: colours mixed in 5-bit steps (blend555, below). */
+static uint16_t blend555(uint16_t a, uint16_t b, float t);
+uint16_t pc_ui_dist_colour(uint32_t t, float d, const uint16_t* lut, float width, float* coverage)
+{
+    float body = clamp01(0.5f + d / width), outer = clamp01(0.5f + (d + 1.0f) / width);
+    *coverage = body;
+    if (!(t >> 31))
+        return (uint16_t)t;
+    if (t >> 30 & 1) /* direct */
+        return (uint16_t)((t >> 14 & 0x7fff) | (t >> 29 & 1) << 15);
+    int mode = (int)(t >> 28 & 3), hi = (int)(t >> 23 & 15), lo = (int)(t >> 19 & 15);
+    if (mode == PC_UI_DIST_LABEL) {
+        if (!(t >> 27 & 1))
+            return lut[hi];
+        *coverage = outer;
+        return blend555(lut[lo], lut[hi], body);
+    }
+    uint16_t b = lut[lo + (int)floorf(body * (float)(hi - lo) + 0.5f)];
+    if (mode == PC_UI_DIST_RAMP)
+        return b;
+    *coverage = outer;
+    return blend555(lut[1], b, body);
+}
+
+void pc_ui_text_resolve(const uint16_t* vram, unsigned clut, uint32_t* texels, int count, int factor, float least)
+{
+    const uint16_t* lut = vram + (clut >> 6 & 511) * 1024 + (clut & 63) * 16;
+    for (int i = 0; i < count; i++) {
+        float c;
+        uint32_t t = texels[i];
+        if (!(t >> 31))
+            continue;
+        uint16_t colour = pc_ui_dist_colour(t, pc_ui_dist_of(t), lut, 1.0f / (float)factor, &c);
+        texels[i] = c > (least >= 0 ? least : (t >> 30 & 1) ? 0.249f : 0.02f) ? colour : 0;
+    }
 }
 
 /* ---- fonts and glyph distance fields ---- */
@@ -322,7 +377,36 @@ typedef struct {
     int ref_u, ref_v, ref_w, ref_h; /* the style's reference glyph (H, or 0) for cap height and baseline */
     int small_u, small_v;           /* its small capital x (dialogue) */
     int threshold;                  /* CLUT index counted as ink */
+    int symbol;                     /* a sign beside numbers: centred on the original's ink (no baseline of its own) */
 } glyph_info;
+
+/* Signs beside the HUD's numbers (ui_text_render's digits style): the memory
+ * card screens' MAP:34% and TIME 09:41:35 (MENU7.PRG, TITLE.PRG) take their
+ * ':' from the digits' page and their '%' (and the other signs a printer
+ * draws there) from the info style's small capitals, drawn at once
+ * (DrawPrim: pc_gpu_immediate) between the digits; the map screen's own
+ * percentages, set in the small capitals throughout, go through the ordering
+ * table and stay in the info style. Where the info style's own tables are
+ * not loaded (the title), the signs' places in its page (the game's table,
+ * BATTLE.PRG) are known here: */
+static const struct {
+    unsigned char code, u, v, w;
+} info_signs[] = {
+    { '%', 170, 76, 10 }, { ':', 224, 76, 4 }, { '/', 48, 76, 6 }, { '+', 162, 76, 8 },
+    { '-', 154, 76, 7 }, { '.', 242, 86, 4 },
+};
+extern int pc_gpu_immediate __attribute__((weak)); /* boot_runtime.c: drawn by DrawPrim, not an ordering table */
+static int digits_sign(int code, int u, int v, int w, glyph_info* g)
+{
+    g->style = PC_UI_TEXT_DIGITS;
+    g->codepoint = (unsigned)code;
+    g->box_u = u, g->box_v = v, g->box_w = w, g->box_h = 10;
+    g->advance = w;
+    g->ref_u = 0, g->ref_v = 0, g->ref_w = 6, g->ref_h = 10; /* the small digits' 0 */
+    g->threshold = 3;
+    g->symbol = 1;
+    return 1;
+}
 
 /* Not from the font: a disc the size and place of the original's (the HUD's
  * HP / MP separator), outlined like the digits. */
@@ -394,6 +478,10 @@ static int identify(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v
         return 1;
     }
     if (page == 12 && cy == 223 && cx == 864 && (v0 == 76 || v0 == 86) && v1 == v0 + 9) {
+        int immediate = &pc_gpu_immediate && pc_gpu_immediate;
+        for (size_t i = 0; i < sizeof info_signs / sizeof info_signs[0] && immediate; i++)
+            if (info_signs[i].u == u0 && info_signs[i].v == v0 && u1 == u0 + info_signs[i].w - 1)
+                return digits_sign(info_signs[i].code, u0, v0, info_signs[i].w, g);
         if (!small_tables_valid())
             return 0;
         for (int code = 0x21; code <= 0x5a; code++) {
@@ -411,6 +499,29 @@ static int identify(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v
             }
         }
         return 0;
+    }
+    if (page == 12 && cy == 223 && (cx == 912 || cx == 928) && (u0 == 216 || u0 == 224 || u0 == 232)
+        && (v0 == 200 || v0 == 208 || v0 == 216) && u1 == u0 + 6 && v1 == v0 + 6) {
+        /* An item's material letter beside its icon (MAINMENU.PRG's
+         * _renderItemMaterial: 7 x 7, material - 1 down columns of three
+         * from (216, 200)): Wood, Leather, Bronze, Iron, Hagane, Silver,
+         * Damascus, outlined in CLUT index 1 as the info style. */
+        int id = (u0 - 216) / 8 * 3 + (v0 - 200) / 8;
+        if (id > 6)
+            return 0;
+        g->style = PC_UI_TEXT_INFO;
+        g->codepoint = (unsigned char)"WLBIHSD"[id];
+        g->box_u = g->ref_u = u0, g->box_v = g->ref_v = v0, g->box_w = g->ref_w = 7, g->box_h = g->ref_h = 7;
+        g->advance = 7;
+        g->threshold = 2;
+        g->symbol = 1;
+        return 1;
+    }
+    if (page == 12 && cy == 223 && cx == 832 && u0 == 248 && v0 == 8 && u1 == 250 && v1 == 15) {
+        /* The digits' colon (3 x 8: the memory card screens' times). */
+        digits_sign(':', 248, 8, 3, g);
+        g->box_h = 8;
+        return 1;
     }
     if (page == 12 && cy == 223 && cx == 832 && u0 == 32 && u1 == 36 && v1 == 15 && (v0 == 11 || v0 == 9)) {
         /* The dot between current and maximum HP / MP (_renderDigit's
@@ -480,6 +591,8 @@ static unsigned upper(unsigned cp)
  * labels and stay original. */
 #define MAX_REGION_LABELS 8
 static uint64_t labels_drawn[(LABEL_COUNT + 63) / 64]; /* which labels were drawn from the font (RPC) */
+static char signs_drawn[32]; /* which signs (glyph_info.symbol) were drawn from the font (RPC) */
+void pc_ui_text_forget_signs(void) { memset(signs_drawn, 0, sizeof signs_drawn); }
 
 static int texel4(const uint16_t* vram, int page_x, int page_y, int u, int v)
 {
@@ -538,6 +651,7 @@ typedef struct {
     float disc_x, disc_y, disc_r;
     uint16_t outline;       /* CLUT colour of the original's outline (0: none) */
     uint16_t body;          /* CLUT colour of the original's lettering */
+    int outline_index, body_index; /* their CLUT indices */
 } label_layout;
 
 static uint16_t blend555(uint16_t a, uint16_t b, float t)
@@ -593,6 +707,7 @@ static int label_layout_make(const uint16_t* vram, unsigned clut, const pc_ui_la
     int dark = outline_count[1] >= outline_count[2] ? 1 : 2;
     dark = outline_count[3] > outline_count[dark] ? 3 : dark;
     o->outline = outline_count[dark] ? lut[dark] : 0;
+    o->outline_index = dark;
     /* The lettering's colour, not its bevel, shading or banding (a font's
      * letters do not fall on the original's rows): the brightest colour the
      * word uses at least a third as often as its commonest. */
@@ -612,6 +727,7 @@ static int label_layout_make(const uint16_t* vram, unsigned clut, const pc_ui_la
     if (!pick || !lut[pick])
         return 0;
     o->body = lut[pick];
+    o->body_index = pick;
     if (!strcmp(l->text, LABEL_DOT)) {
         int by1 = top;
         for (int v = l->v0; v <= l->v1; v++)
@@ -676,7 +792,7 @@ static int render_labels(const uint16_t* vram, unsigned tpage, unsigned clut, in
         float yo = v0 + (y + 0.5f) * inv;
         for (int x = 0; x < w; x++) {
             float xo = u0 + (x + 0.5f) * inv;
-            uint32_t colour = 0;
+            uint32_t texel = pc_ui_dist_texel(PC_UI_DIST_FAR, PC_UI_DIST_LABEL, 0, 0, 0);
             float best = -1e9f;
             for (int k = 0; k < n; k++) {
                 const label_layout* o = &layouts[k];
@@ -700,14 +816,9 @@ static int render_labels(const uint16_t* vram, unsigned tpage, unsigned clut, in
                 if (d <= best)
                     continue;
                 best = d;
-                float c = 0.5f + d * factor;
-                uint16_t body = o->body;
-                if (c > 0.02f)
-                    colour = o->outline ? blend555(o->outline, body, fminf(c, 1.0f)) : c >= 0.5f ? body : 0;
-                else
-                    colour = o->outline && d > -1.0f ? o->outline : 0;
+                texel = pc_ui_dist_texel(d, PC_UI_DIST_LABEL, o->outline_index, o->body_index, o->outline != 0);
             }
-            out[y * w + x] = colour;
+            out[y * w + x] = texel;
         }
     }
     for (int k = 0; k < n; k++)
@@ -744,6 +855,12 @@ int pc_ui_text_classify(const uint16_t* vram, unsigned tpage, unsigned clut, int
     unsigned cp = st->small_caps ? upper(g.codepoint) : g.codepoint;
     if (cp != BULLET && !field(g.style, cp))
         return 0;
+    if (g.symbol && !strchr(signs_drawn, (int)g.codepoint) && strlen(signs_drawn) < sizeof signs_drawn - 1) {
+        signs_drawn[strlen(signs_drawn)] = (char)g.codepoint;
+        if (debug > 2) /* ROOD_UI_DEBUG=3: each sign the first time */
+            fprintf(stderr, "[ui] sign %c (%s): page %x clut %d,%d uv %d,%d..%d,%d\n", (char)g.codepoint, st->name,
+                tpage, (int)(clut & 63) * 16, (int)(clut >> 6 & 511), u0, v0, u1, v1);
+    }
     *key = (uint64_t)pc_ui_text_generation << 40 ^ (uint64_t)g.style << 36 ^ (uint64_t)g.codepoint << 8;
     return 1;
 }
@@ -801,8 +918,8 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
     }
     float s = height / cap; /* original pixels per field pixel */
     float room = st->outline ? g.box_w - 2.0f : fmaxf((float)(box[2] - box[0]), (float)g.advance) + 0.5f;
-    if (g.style == PC_UI_TEXT_DIGITS && !bullet && st->aspect > 0)
-        s = digit_scale(g.style, s, st->aspect, room);
+    if (g.style == PC_UI_TEXT_DIGITS && !bullet && st->aspect > 0) /* (a sign: the small digits' scale) */
+        s = digit_scale(g.style, s, st->aspect, g.symbol ? g.ref_w + 0.5f : room);
     float sx = s * st->stretch;
     if ((f->x1 - f->x0) * sx > room)
         sx = room / (f->x1 - f->x0);
@@ -810,6 +927,23 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
     float below = g.box_h - base - (st->outline ? 1.0f : 0.0f) - 0.1f, sd = s;
     if (-f->bottom * s > below && below > 0)
         sd = below / -f->bottom;
+    if (g.symbol) {
+        /* A sign: the digits' size, no taller than the original digits
+         * (the font's figures are old style: a % at its cap height towers
+         * over them) nor its own original ink, centred on that ink both
+         * ways (no descender squeezed). */
+        float tall = f->top - f->bottom, inked = fminf((float)(box[3] - box[1]), height) + 0.5f;
+        if (tall * s > inked && tall > 0)
+            s = inked / tall;
+        sx = s * st->stretch;
+        if ((f->x1 - f->x0) * sx > room)
+            sx = room / (f->x1 - f->x0);
+        sd = s;
+        if (strchr(":+-", (int)g.codepoint)) /* (signs off the baseline) */
+            base = (box[1] + box[3]) * 0.5f + (f->top + f->bottom) * 0.5f * s;
+        else /* on the original's baseline: its ink's foot, as the figures beside it */
+            base = (float)box[3] + f->bottom * s;
+    }
     float cx_t = (box[0] + box[2]) * 0.5f, cx_s = (f->x0 + f->x1) * 0.5f;
     if (st->outline) { /* the ink keeps a pixel from the box's edges (the outline; neighbours overlap them) */
         float half = (f->x1 - f->x0) * sx * 0.5f;
@@ -829,7 +963,39 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
     int lo = st->outline ? 2 : 1;
     if (hi < lo)
         hi = lo;
-    const uint16_t* lut = vram + (clut >> 6 & 511) * 1024 + (clut & 63) * 16;
+    int mode = st->outline ? PC_UI_DIST_OUTLINED : PC_UI_DIST_RAMP;
+    if (g.symbol && g.style == PC_UI_TEXT_DIGITS) {
+        /* A sign from another CLUT (the info style's %): the digits'
+         * colours (their CLUT, 832,223: the small 0's brightest inside its
+         * outline, index 1) as the nearest of its own, a label's texels
+         * (outline into lettering). */
+        const uint16_t* own = vram + (clut >> 6 & 511) * 1024 + (clut & 63) * 16;
+        const uint16_t* digits = vram + 223 * 1024 + 832;
+        int top = 0;
+        for (int y = 0; y < 10; y++)
+            for (int x = 0; x < 6; x++) {
+                int i = page_index(vram, page_x, x, y);
+                top = i > top ? i : top;
+            }
+        if (own != digits && top > 1) {
+            int pick[2] = { 1, hi };
+            for (int k = 0; k < 2; k++) {
+                int want = digits[k ? top : 1], best = 1 << 30;
+                for (int i = 1; i < 16; i++) {
+                    int c = own[i], d = 0;
+                    if (!(c & 0x7fff) && c != want)
+                        continue;
+                    for (int b = 0; b < 15; b += 5) {
+                        int e = (c >> b & 31) - (want >> b & 31);
+                        d += e * e;
+                    }
+                    if (d < best)
+                        best = d, pick[k] = i;
+                }
+            }
+            mode = PC_UI_DIST_LABEL, lo = pick[0], hi = pick[1];
+        }
+    }
     int w = (u1 - u0 + 1) * factor, rows = (v1 - v0 + 1) * factor;
     float inv = 1.0f / factor;
     for (int y = 0; y < rows; y++) {
@@ -842,13 +1008,7 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
             float fx = cx_s + (xo - cx_t - shift) / sx;
             float d = bullet ? disc_r - hypotf(xo - disc_x, yo - disc_y) /* original pixels */
                              : (distance_at(f, fx, fy) + bold) * s;
-            float c = 0.5f + d * factor;
-            int index = 0;
-            if (c > 0.02f)
-                index = lo + (int)lrintf(fminf(c, 1.0f) * (hi - lo));
-            else if (st->outline && d > -1.0f)
-                index = 1;
-            out[y * w + x] = index ? lut[index] : 0;
+            out[y * w + x] = pc_ui_dist_texel(d, mode, lo, hi, mode == PC_UI_DIST_LABEL);
         }
     }
     ++stats.regions;
@@ -860,17 +1020,23 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
  * The game sets its text glyph by glyph in 12 x 12 cells at its own
  * advances (vs_battle_characterWidths: about 6 pixels a letter for menus and
  * the information box, proportional for talk bubbles). A font's letters in
- * those slots are unevenly spaced (narrow letters float in wide slots), wide
- * ones collide and descenders have to be squeezed into the cell. Here the
- * glyphs of a line are set again with the font's own advances and kerning:
+ * those slots are unevenly spaced (narrow letters float in wide slots) and
+ * wide ones collide. Here the glyphs of each string the game prints are set
+ * again with the font's own advances and kerning:
  *
+ * - strings: the game's printers report each character they set
+ *   (pc_text_glyph: its sprites' command words, its place and the printer's
+ *   own advance); characters set one after another on a line, each where the
+ *   previous one left the pen, are one string;
  * - a run: the glyph sprites gpu_hw.c buffers while nothing else is drawn
  *   (a text box's glyphs share one ordering-table slot; menu rows come as 12
  *   strips per glyph, one per row, each with its own brightness);
- * - glyphs: the strips of one cell at one place are one glyph;
+ * - glyphs: the strips of one cell at one place are one glyph, with its
+ *   string (pc_ui_text_piece_call); a glyph no printer reported is placed in
+ *   its own cell (place_in_cell, as ui_text_layout glyph places every glyph);
  * - lines: glyphs of one style at one cell top in one drawing area, by x;
- *   a gap of more than three spaces, or an overlap, starts a new segment
- *   (columns, separately placed strings);
+ *   a segment is one string's glyphs (a gap of more than three spaces after
+ *   the printer's advance, or an overlap, starts another: columns);
  * - a segment starts where the game's first glyph's ink starts; each next
  *   pen is the previous pen + the font's advance, + its kerning or the font's
  *   space (widened, WORD_SPACE) for every space the game left (a gap of 3
@@ -881,9 +1047,12 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
  * - letters never touch: on every row a glyph's ink stays MIN_GAP from the
  *   previous one's (row by row, so slanted and kerned pairs may share
  *   columns; at these sizes a script face's joins would otherwise run
- *   letters together); this wins over the tightening;
- * - talk bubbles (ui_text_bubble_align centre) are then centred within the
- *   original line's extent, on the whole line (centre_segments);
+ *   letters together); this wins over the tightening, and a segment that
+ *   then still ends more than SLACK after the game's is condensed until it
+ *   does not (fit_segment);
+ * - talk bubbles are set on their whole line (from the text box) and, with
+ *   ui_text_bubble_align centre, centred within its original extent
+ *   (bubble_segments);
  * - each glyph is drawn whole: below the cell (descenders) and beyond its
  *   slot, as the game's own sprite would (same colour, brightness, blending,
  *   rows of a strip-drawn glyph each with that strip's brightness, the rows
@@ -893,9 +1062,11 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
  * the game types out letter by letter never moves: each glyph appears where
  * it will stay, when the game draws it. Positions snap to the internal
  * resolution's pixels; images are cached in the 2D atlas by content. */
-int pc_ui_text_layout = PC_UI_TEXT_LAYOUT_GLYPH; /* line: some screens (save/load) split words; off by default until fixed */
+int pc_ui_text_layout = PC_UI_TEXT_LAYOUT_GLYPH; /* (line: the default once tested on the user's screens) */
 const char* const pc_ui_text_layout_names[2] = { "glyph", "line" };
 int pc_ui_text_bubble_align = PC_UI_TEXT_ALIGN_CENTRE;
+int pc_ui_text_overlay = PC_UI_TEXT_OVERLAY_AUTO;
+const char* const pc_ui_text_overlay_names[2] = { "off", "auto" };
 const char* const pc_ui_text_bubble_align_names[2] = { "left", "centre" };
 #define SLACK 1.0f   /* PS1 pixels a glyph's ink may end after the original's */
 #define MIN_GAP 0.5f /* PS1 pixels at least between neighbours' ink on any row */
@@ -904,9 +1075,81 @@ const char* const pc_ui_text_bubble_align_names[2] = { "left", "centre" };
  * at these sizes (8-pixel capitals) a text face's own space reads as none. */
 #define WORD_SPACE 1.5f
 
-int pc_ui_text_layout_on(int scale)
+int pc_ui_text_layout_on(int scale) { return pc_ui_text == PC_UI_TEXT_FONT && scale >= 1; }
+
+/* The printers' characters (pc_text_glyph): by each sprite's command word,
+ * kept for a few vsyncs (packets are built and drawn in the same frame). */
+#define CALL_SLOTS 8192
+#define CALL_PROBES 32
+#define CALL_AGE 16 /* vsyncs */
+typedef struct {
+    const void* command;
+    unsigned stamp;    /* vsync it was set at */
+    unsigned string;
+    int glyph, strip;  /* glyph index (0-377); strip: its row (-1: the whole cell) */
+    int x, y;          /* the packet's position (pixels before the drawing offset; a strip's first row) */
+    float advance;     /* texels */
+} text_call;
+static text_call calls[CALL_SLOTS];
+static struct {
+    int valid, y, next_x;
+    unsigned string;
+} pen;
+static unsigned string_serial;
+extern unsigned pc_vsync_count(void) __attribute__((weak));
+static unsigned call_now(void) { return pc_vsync_count ? pc_vsync_count() : 0; }
+
+static text_call* call_slot(const void* command, int insert)
 {
-    return pc_ui_text == PC_UI_TEXT_FONT && pc_ui_text_layout == PC_UI_TEXT_LAYOUT_LINE && scale >= 2;
+    unsigned now = call_now(), s = (unsigned)(((uintptr_t)command >> 2) * 2654435761u) & (CALL_SLOTS - 1);
+    text_call* free_slot = NULL;
+    for (int probe = 0; probe < CALL_PROBES; probe++, s = (s + 1) & (CALL_SLOTS - 1)) {
+        text_call* c = &calls[s];
+        if (c->command == command)
+            return c;
+        if (!c->command) {
+            if (!free_slot)
+                free_slot = c;
+            break; /* never used: the end of the chain */
+        }
+        if (!free_slot && now - c->stamp > CALL_AGE)
+            free_slot = c;
+    }
+    return insert ? (free_slot ? free_slot : &calls[s]) : NULL;
+}
+
+void pc_text_glyph(void* const* commands, int count, int glyph, int x, int y, int next_x, int advance)
+{
+    /* One string: on the line the previous character was set on, where it
+     * left the pen (a space or two of offset, 0xFA, allowed either way). */
+    int d = x - pen.next_x;
+    if (!pen.valid || y != pen.y || d < -(3 << 16) || d > (30 << 16))
+        pen.string = ++string_serial ? string_serial : ++string_serial;
+    pen.valid = 1, pen.y = y, pen.next_x = next_x;
+    for (int i = 0; i < count && glyph >= 0; i++) {
+        text_call* c = call_slot(commands[i], 1);
+        c->command = commands[i];
+        c->stamp = call_now();
+        c->string = pen.string;
+        c->glyph = glyph, c->strip = count > 1 ? i : -1;
+        c->x = x >> 16, c->y = y >> 16;
+        c->advance = (float)advance;
+    }
+}
+
+int pc_ui_text_piece_call(const void* command, pc_ui_text_piece_info* info)
+{
+    info->string = 0, info->advance = 0;
+    const text_call* c = command ? call_slot(command, 0) : NULL;
+    if (!c || call_now() - c->stamp > CALL_AGE)
+        return 0;
+    const uint32_t* w = command;
+    int x = (int16_t)(w[1] & 0xffff), y = (int16_t)(w[1] >> 16), u = (int)(w[2] & 255), v = (int)(w[2] >> 8 & 255);
+    int row = c->strip < 0 ? 0 : c->strip;
+    if (x != c->x || y != c->y + row || u != c->glyph % 21 * 12 || v != c->glyph / 21 * 12 + row)
+        return 0; /* another packet at that address since */
+    info->string = c->string, info->advance = c->advance;
+    return 1;
 }
 
 int pc_ui_text_piece(const uint16_t* vram, unsigned tpage, unsigned clut, int u, int v, int w, int h)
@@ -980,7 +1223,6 @@ typedef struct {
     unsigned drawn;
     float s, sx, base, pivot, slant, bold;
     int left, w, h, lo, hi;
-    uint16_t lut[16];
 } text_image;
 
 #define RUN_GLYPHS 1024
@@ -990,9 +1232,12 @@ typedef struct {
     int clip[4];
     unsigned tpage, clut;
     int ok;            /* metrics known */
+    unsigned string;   /* the printer's string (0: unknown: drawn glyph by glyph) */
+    float advance;     /* the printer's advance after it (texels) */
     float pen;         /* laid out (screen pixels) */
+    float sx;          /* its horizontal scale as laid out (PS1 pixels per field pixel) */
     int image;
-    int seg;           /* its segment in the line (set_pens) */
+    int seg;           /* its segment in the line (set_pens; 0: placed in its own cell) */
 } run_glyph;
 static run_glyph run[RUN_GLYPHS];
 static text_image images[RUN_GLYPHS];
@@ -1004,13 +1249,15 @@ typedef struct {
     int line, segment;     /* line and segment (a run of glyphs set together) numbers in the frame */
     unsigned codepoint;
     float x, top, k;       /* the original glyph: left, cell top, scale */
-    int advance;           /* the game's advance (texels) */
+    float advance;         /* the printer's advance (texels) */
+    unsigned string;       /* the printer's string */
     float ink[4];          /* its ink (screen) */
     float pen, quad_x;     /* laid out: the pen and the image's left edge on screen */
     text_image image;
 } report_glyph;
 static report_glyph report[REPORT_GLYPHS];
 static int report_count, report_lines, report_segments, report_stale = 1;
+static int report_unexplained; /* glyphs no printer reported (drawn glyph by glyph) */
 void pc_ui_text_frame(void) { report_stale = 1; }
 
 /* A glyph's ink per field row (field pixels from its origin). */
@@ -1074,27 +1321,46 @@ static int glyph_order(const void* a, const void* b)
     return *(const int*)a - *(const int*)b;
 }
 
-static float snap(float x, int scale) { return floorf(x * scale + 0.5f) / scale; }
+/* A glyph in its own cell (ui_text_layout glyph, and glyphs no printer
+ * reported): placed as pc_ui_text_render places it (centred on the
+ * original's ink, condensed to the game's advance where wider), but drawn
+ * whole: its descenders below the cell. */
+static void place_in_cell(run_glyph* r)
+{
+    const glyph_metrics* m = &r->m;
+    float advance = r->advance > 0 ? r->advance : m->g.advance ? (float)m->g.advance : 12.0f;
+    float room = fmaxf((float)(m->ink[2] - m->ink[0]), advance) + 0.5f, wide = m->f->x1 - m->f->x0;
+    r->sx = wide * m->sx > room ? room / wide : m->sx;
+    float cx_t = (m->ink[0] + m->ink[2]) * 0.5f, cx_s = (m->f->x0 + m->f->x1) * 0.5f;
+    r->pen = r->x + (cx_t - cx_s * r->sx) * r->k;
+    r->seg = 0;
+}
 
-/* The pens of one line's glyphs (by x), segment by segment (r->seg). */
-static void set_pens(run_glyph* const* line, int n, float slant)
+/* The pens of one line's glyphs (by x), segment by segment (r->seg, from
+ * seg0 + 1); PC_UI_TEXT_LAYOUT_GLYPH: each in its own cell. */
+static void set_pens(run_glyph* const* line, int n, float slant, int mode, int seg0)
 {
     run_glyph* prev = NULL;
-    int segment = 0;
+    int segment = seg0;
     for (int j = 0; j < n; j++) {
         run_glyph* r = line[j];
-        if (!r->ok) {
-            prev = NULL; /* drawn as the original: the next glyph starts afresh */
+        if (!r->ok)
+            continue;
+        if (!r->string || mode == PC_UI_TEXT_LAYOUT_GLYPH) {
+            prev = NULL; /* in its cell: the next glyph starts afresh */
+            place_in_cell(r);
             continue;
         }
+        r->sx = r->m.sx;
         const glyph_metrics* m = &r->m;
         float k = r->k;
         /* Ink ends at most SLACK after the original's. */
         float cap = r->x + (m->ink[2] + SLACK - m->x1) * k;
         if (prev) {
             const glyph_metrics* q = &prev->m;
-            float gap = (r->x - prev->x) / k - (q->g.advance ? q->g.advance : 12);
-            if (gap < -1.5f || gap > 18.5f)
+            /* The printer's own advance: what is left over are its spaces. */
+            float gap = (r->x - prev->x) / k - prev->advance;
+            if (prev->string != r->string || gap < -1.5f || gap > 18.5f)
                 prev = NULL; /* another string or a column */
             else {
                 int spaces = gap >= 2.5f ? (int)lrintf(gap / 6.0f) : 0;
@@ -1129,22 +1395,47 @@ static float centring(run_glyph* const* line, int a, int b)
     return ((o0 + o1) - (l0 + l1)) * 0.5f;
 }
 
+/* A glyph's metrics `c` times as wide. */
+static void condense(glyph_metrics* m, float c)
+{
+    m->sx *= c, m->adv *= c, m->x0 *= c, m->x1 *= c;
+}
+
+/* Segment [a, b) (set) condensed until its ink ends at most SLACK after the
+ * original's: where the font's letters are wider than the game's, keeping
+ * them from touching (apart) can run a line long. */
+static void fit_segment(run_glyph* const* line, int a, int b, float slant)
+{
+    for (int pass = 0; pass < 6; pass++) {
+        const run_glyph *p = line[a], *q = line[b - 1];
+        float end = q->x + (q->m.ink[2] + SLACK) * q->k;
+        float l0 = p->pen + p->m.x0 * p->k, l1 = q->pen + q->m.x1 * q->k;
+        if (l1 <= end + 0.01f || l1 <= l0)
+            return;
+        float c = fmaxf((end - l0) / (l1 - l0), 0.5f);
+        for (int j = a; j < b; j++)
+            condense(&line[j]->m, c);
+        set_pens(line + a, b - a, slant, PC_UI_TEXT_LAYOUT_LINE, line[a]->seg - 1);
+    }
+}
+
 /* The game's whole line (text_lines.c, battle builds): each glyph's index
  * and x, from the text box that draws it. */
 extern int pc_text_box_line(int x, int y, int glyph, int* glyphs, int* xs, int max) __attribute__((weak));
 
-/* Each segment of a talk bubble's line centred within the original's
- * extent of its glyphs. A bubble types its page out letter by letter, so the
- * glyphs drawn are often only the start of the line: the whole line comes
- * from the game's text box (the page walked as the game walks it) and is set
- * in full, so each letter is centred where it will stay. A line no box
- * explains (a zooming bubble draws whole lines) is centred as drawn. */
-static void centre_segments(const uint16_t* vram, run_glyph* const* line, int n, float slant)
+/* Talk bubbles: each segment of a line fitted (fit_segment) and, with
+ * ui_text_bubble_align centre, centred within the original's extent of its
+ * glyphs. A bubble types its page out letter by letter, so the glyphs drawn
+ * are often only the start of the line: the whole line comes from the
+ * game's text box (the page walked as the game walks it) and is set and
+ * fitted in full, so each letter is drawn where it will stay. A line no box
+ * explains (a zooming bubble draws whole lines) is set as drawn. */
+static void bubble_segments(const uint16_t* vram, run_glyph* const* line, int n, float slant, int centre)
 {
     static run_glyph whole[128];
     static run_glyph* list[128];
     for (int a = 0; a < n;) {
-        if (!line[a]->ok) {
+        if (!line[a]->ok || !line[a]->seg) {
             ++a;
             continue;
         }
@@ -1152,8 +1443,8 @@ static void centre_segments(const uint16_t* vram, run_glyph* const* line, int n,
         while (b < n && line[b]->ok && line[b]->seg == line[a]->seg)
             ++b;
         const run_glyph* first = line[a];
-        float shift = centring(line, a, b);
-        int ids[128], xs[128], count = 0;
+        int ids[128], xs[128], count = 0, done = 0;
+        float shift = 0;
         if (pc_text_box_line && first->k == 1.0f && a == 0)
             count = pc_text_box_line((int)first->x - first->clip[0], (int)first->top - first->clip[1],
                 first->m.g.box_v / 12 * 21 + first->m.g.box_u / 12, ids, xs, 128);
@@ -1161,8 +1452,8 @@ static void centre_segments(const uint16_t* vram, run_glyph* const* line, int n,
         for (int j = 0; prefix && j < b - a; j++)
             prefix = ids[j] == line[a + j]->m.g.box_v / 12 * 21 + line[a + j]->m.g.box_u / 12
                   && xs[j] + first->clip[0] == (int)line[a + j]->x;
-        if (prefix && count > b - a) {
-            /* The rest of the line, set as the drawn glyphs are. */
+        if (prefix) {
+            /* The whole line, set as the drawn glyphs are. */
             int m = 0;
             for (int j = 0; j < count; j++) {
                 run_glyph* r = &whole[m];
@@ -1172,17 +1463,31 @@ static void centre_segments(const uint16_t* vram, run_glyph* const* line, int n,
                     memset(r, 0, sizeof *r);
                     r->ok = metrics(vram, first->tpage, first->clut, ids[j] % 21 * 12, ids[j] / 21 * 12, 12, &r->m);
                     r->x = (float)(xs[j] + first->clip[0]), r->top = first->top, r->k = 1.0f;
+                    r->string = first->string;
+                    r->advance = r->m.g.advance ? (float)r->m.g.advance : 12.0f; /* (the game's table: a text box) */
                     if (!r->ok)
                         break; /* (a pictograph: the line as far as it is set) */
                 }
                 list[m++] = r;
             }
-            set_pens(list, m, slant);
+            set_pens(list, m, slant, PC_UI_TEXT_LAYOUT_LINE, 0);
             int end = 1;
             while (end < m && list[end]->seg == list[0]->seg)
                 ++end;
-            if (end >= b - a)
-                shift = centring(list, 0, end);
+            if (end >= b - a) {
+                fit_segment(list, 0, end, slant);
+                for (int j = 0; j < b - a; j++) {
+                    line[a + j]->m = list[j]->m;
+                    line[a + j]->sx = list[j]->sx;
+                    line[a + j]->pen = list[j]->pen;
+                }
+                shift = centre ? centring(list, 0, end) : 0.0f;
+                done = 1;
+            }
+        }
+        if (!done) {
+            fit_segment(line, a, b, slant);
+            shift = centre ? centring(line, a, b) : 0.0f;
         }
         for (int j = a; j < b; j++)
             line[j]->pen += shift;
@@ -1190,14 +1495,15 @@ static void centre_segments(const uint16_t* vram, run_glyph* const* line, int n,
     }
 }
 
-void pc_ui_text_layout_run(const uint16_t* vram, const pc_ui_text_piece_info* pieces, int count, int scale,
+void pc_ui_text_layout_run(const uint16_t* vram, const pc_ui_text_piece_info* pieces, int count, int scale, int mode,
     pc_ui_text_quad* out)
 {
     int glyphs = 0, last = -1;
     static int of_piece[4096];
+    int reported = mode == (pc_ui_text_layout ? PC_UI_TEXT_LAYOUT_LINE : PC_UI_TEXT_LAYOUT_GLYPH);
     image_count = 0;
-    if (report_stale)
-        report_count = report_lines = report_segments = 0, report_stale = 0;
+    if (report_stale && reported)
+        report_count = report_lines = report_segments = report_unexplained = 0, report_stale = 0;
     /* Glyphs: the pieces of one cell at one place. */
     for (int i = 0; i < count; i++) {
         const pc_ui_text_piece_info* p = &pieces[i];
@@ -1224,11 +1530,14 @@ void pc_ui_text_layout_run(const uint16_t* vram, const pc_ui_text_piece_info* pi
             memset(r, 0, sizeof *r);
             r->ok = metrics(vram, p->tpage, p->clut, g.box_u, g.box_v, 12, &r->m);
             r->x = p->x, r->top = top, r->k = p->k, r->tpage = p->tpage, r->clut = p->clut;
+            r->string = p->string, r->advance = p->advance;
             r->m.g = g; /* (identity even when the metrics failed) */
             memcpy(r->clip, p->clip, sizeof r->clip);
             r->image = -1;
             found = glyphs++;
         }
+        if (run[found].string != p->string)
+            run[found].string = 0; /* its pieces disagree: glyph by glyph */
         last = found;
         of_piece[i] = found;
     }
@@ -1249,51 +1558,60 @@ void pc_ui_text_layout_run(const uint16_t* vram, const pc_ui_text_piece_info* pi
         float bold = st->embolden * SDF_EM, k = first->k;
         for (int j = a; j < b; j++)
             line[j - a] = &run[order[j]];
-        set_pens(line, b - a, st->slant);
-        if (first->m.g.style == PC_UI_TEXT_DIALOGUE && pc_ui_text_bubble_align == PC_UI_TEXT_ALIGN_CENTRE)
-            centre_segments(vram, line, b - a, st->slant);
+        set_pens(line, b - a, st->slant, mode, 0);
+        if (mode == PC_UI_TEXT_LAYOUT_LINE && first->m.g.style == PC_UI_TEXT_DIALOGUE)
+            bubble_segments(vram, line, b - a, st->slant, pc_ui_text_bubble_align == PC_UI_TEXT_ALIGN_CENTRE);
+        else if (mode == PC_UI_TEXT_LAYOUT_LINE)
+            for (int j = 0; j < b - a;) { /* each segment fitted */
+                int e = j + 1;
+                if (line[j]->ok && line[j]->seg) {
+                    while (e < b - a && line[e]->ok && line[e]->seg == line[j]->seg)
+                        ++e;
+                    fit_segment(line, j, e, st->slant);
+                }
+                j = e;
+            }
         int segment = -1;
         for (int j = a; j < b; j++) {
             run_glyph* r = &run[order[j]];
+            if (r->ok && !r->string && reported)
+                ++report_unexplained;
             if (!r->ok)
-                continue;
-            if (r->seg != segment)
+                continue; /* (a pictograph: its pieces draw the original) */
+            if (r->seg != segment || !r->seg)
                 segment = r->seg, ++report_segments;
             const glyph_metrics* m = &r->m;
-            int advance = m->g.advance ? m->g.advance : 12;
             /* Its image. */
             text_image* im = &images[image_count];
             memset(im, 0, sizeof *im);
             im->style = m->g.style;
             im->drawn = m->drawn;
-            im->s = m->s, im->sx = m->sx, im->base = m->base, im->pivot = m->pivot;
+            im->s = m->s, im->sx = r->sx, im->base = m->base, im->pivot = m->pivot;
             im->slant = st->slant, im->bold = bold;
             float lean_lo = fminf(0.0f, st->slant * (m->pivot - (12 + DESCENT_ROWS))),
                   lean_hi = fmaxf(0.0f, st->slant * m->pivot);
-            im->left = (int)ceilf(-(m->x0 + lean_lo)) + 2;
-            im->w = im->left + (int)ceilf(m->x1 + lean_hi) + 2;
+            im->left = (int)ceilf(-(m->f->x0 * r->sx + lean_lo)) + 2;
+            im->w = im->left + (int)ceilf(m->f->x1 * r->sx + lean_hi) + 2;
             im->h = (int)ceilf(m->base + m->desc + 1.0f);
             im->h = im->h < 12 ? 12 : im->h > 12 + DESCENT_ROWS ? 12 + DESCENT_ROWS : im->h;
             im->lo = 1;
             im->hi = m->hi < 1 ? 1 : m->hi;
             if (im->w <= 0 || im->w > 255)
                 continue;
-            const uint16_t* lut = vram + (r->clut >> 6 & 511) * 1024 + (r->clut & 63) * 16;
-            memcpy(im->lut, lut, sizeof im->lut);
             r->image = image_count++;
-            if (report_count < REPORT_GLYPHS) {
+            if (reported && report_count < REPORT_GLYPHS) {
                 report_glyph* e = &report[report_count++];
                 e->line = report_lines, e->segment = report_segments;
                 e->codepoint = m->g.codepoint;
-                e->x = r->x, e->top = r->top, e->k = k, e->advance = advance;
+                e->x = r->x, e->top = r->top, e->k = k, e->advance = r->advance, e->string = r->string;
                 e->ink[0] = r->x + m->ink[0] * k, e->ink[1] = r->top + m->ink[1] * k;
                 e->ink[2] = r->x + m->ink[2] * k, e->ink[3] = r->top + m->ink[3] * k;
                 e->pen = r->pen;
-                e->quad_x = snap(r->pen - im->left * k, scale);
+                e->quad_x = r->pen - im->left * k;
                 e->image = *im;
             }
         }
-        ++report_lines;
+        report_lines += reported;
         a = b;
     }
 
@@ -1308,9 +1626,9 @@ void pc_ui_text_layout_run(const uint16_t* vram, const pc_ui_text_piece_info* pi
         pc_ui_text_quad* q = &out[i];
         q->image = r->image;
         q->k = r->k;
-        q->x = snap(r->pen - im->left * r->k, scale);
+        q->x = r->pen - im->left * r->k;
         q->y = pieces[i].y;
-        q->w = im->w;
+        q->w = im->w, q->h = im->h;
         q->row0 = pieces[i].v - r->m.g.box_v;
         q->row1 = q->row0 + pieces[i].h;
         if (q->row1 >= 12)
@@ -1353,12 +1671,9 @@ static int draw_image(const text_image* im, int factor, uint32_t* out)
     float inv = 1.0f / factor;
     for (int y = 0; y < rows; y++) {
         float yo = (y + 0.5f) * inv;
-        for (int x = 0; x < w; x++) {
-            float d = image_distance(im, f, (x + 0.5f) * inv, yo);
-            float c = 0.5f + d * factor;
-            int index = c > 0.02f ? im->lo + (int)lrintf(fminf(c, 1.0f) * (im->hi - im->lo)) : 0;
-            out[y * w + x] = index ? im->lut[index] : 0;
-        }
+        for (int x = 0; x < w; x++)
+            out[y * w + x] = pc_ui_dist_texel(image_distance(im, f, (x + 0.5f) * inv, yo), PC_UI_DIST_RAMP, im->lo,
+                im->hi, 0);
     }
     return 1;
 }
@@ -1375,9 +1690,10 @@ int pc_ui_text_image_render(int image, int factor, uint32_t* out)
 
 int pc_ui_text_lines_json(char* out, int size)
 {
-    int used = snprintf(out, (size_t)size, "{\"layout\":\"%s\",\"bubble_align\":\"%s\",\"lines\":[",
+    int used = snprintf(out, (size_t)size,
+        "{\"layout\":\"%s\",\"bubble_align\":\"%s\",\"unexplained\":%d,\"lines\":[",
         pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0],
-        pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0]);
+        pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0], report_unexplained);
     int line = -1;
     for (int i = 0; i < report_count && used < size - 256; i++) {
         const report_glyph* e = &report[i];
@@ -1392,9 +1708,9 @@ int pc_ui_text_lines_json(char* out, int size)
         /* The laid-out ink, per half image row (sampled at 8 per texel across). */
         const glyph_field* f = field(e->image.style, e->image.drawn);
         used += snprintf(out + used, (size_t)(size - used),
-            "{\"c\":%u,\"seg\":%d,\"x\":%.3f,\"advance\":%d,\"ink\":[%.3f,%.3f,%.3f,%.3f],\"pen\":%.3f,"
+            "{\"c\":%u,\"seg\":%d,\"str\":%u,\"x\":%.3f,\"advance\":%g,\"ink\":[%.3f,%.3f,%.3f,%.3f],\"pen\":%.3f,"
             "\"left\":%.3f,\"rows\":[",
-            e->codepoint, e->segment, e->x, e->advance, e->ink[0], e->ink[1], e->ink[2], e->ink[3], e->pen, e->quad_x);
+            e->codepoint, e->segment, e->string, e->x, (double)e->advance, e->ink[0], e->ink[1], e->ink[2], e->ink[3], e->pen, e->quad_x);
         int first = 1;
         for (int row = 0; f && row < e->image.h * 2 && used < size - 128; row++) {
             float lo = 1e9f, hi = -1e9f;
@@ -1464,6 +1780,14 @@ int pc_ui_text_setting(const char* key, const char* value)
                 pc_ui_text_bubble_align = k;
         return 1;
     }
+    if (!strcmp(key, "ui_text_overlay")) { /* auto | off (or 1 / 0) */
+        char name[32] = "";
+        sscanf(value, "%31s", name);
+        for (int k = 0; k < 2; k++)
+            if (!strcmp(name, pc_ui_text_overlay_names[k]) || (name[0] == '0' + k && !name[1]))
+                pc_ui_text_overlay = k;
+        return 1;
+    }
     if (!strcmp(key, "ui_text_layout")) { /* line | glyph (or 1 / 0) */
         char name[32] = "";
         sscanf(value, "%31s", name);
@@ -1507,6 +1831,7 @@ void pc_ui_text_settings_write(FILE* f)
     fprintf(f, "ui_text %s\n", pc_ui_text_names[pc_ui_text ? 1 : 0]);
     fprintf(f, "ui_text_layout %s\n", pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0]);
     fprintf(f, "ui_text_bubble_align %s\n", pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0]);
+    fprintf(f, "ui_text_overlay %s\n", pc_ui_text_overlay_names[pc_ui_text_overlay ? 1 : 0]);
     /* Only what differs from the built-in choice. */
     for (int i = 0; i < PC_UI_TEXT_STYLES; i++) {
         const pc_ui_text_style *st = &pc_ui_text_styles[i], *d = &defaults[i];
@@ -1553,7 +1878,7 @@ int pc_ui_text_json(char* out, int size)
             used += snprintf(out + used, (size_t)(size - used), "%s\"%s\"", first ? "" : ",", labels[i].text);
             first = 0;
         }
-    if (used < size)
-        used += snprintf(out + used, (size_t)(size - used), "]}");
+    if (used < size) /* (signs: ASCII, none a quote or backslash) */
+        used += snprintf(out + used, (size_t)(size - used), "],\"signs_drawn\":\"%s\"}", signs_drawn);
     return used;
 }

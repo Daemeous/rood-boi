@@ -123,6 +123,8 @@ def main():
     env = {"ROOD_WINDOW": gf.WINDOW, "ROOD_LIGHTS": str(lights), "ROOD_GI": "0", "ROOD_SCALE": "2"}
     os.environ.pop("ROOD_SETTINGS", None)
     game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env)
+    # The packet path keeps the PS1's distance UV halving: compare like with like.
+    game.call("graphics", room_texture_lod=1)
     failures = []
 
     def check(ok, message):

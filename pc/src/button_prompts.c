@@ -609,10 +609,11 @@ int pc_button_prompts_render(const uint16_t* vram, unsigned tpage, unsigned clut
     int dim_mode = lit_count == 0 && pc_button_prompts_dpad == PC_PROMPTS_DPAD_DIM;
     int lit_union = lit_count > 0 && outline_style(), lit_tint = !dim_mode && lit_count >= 0 && !outline_style();
     float third = gw / 6;
-    /* Coverage over the whole cell at the drawn resolution (1x: one per
-     * texel; outlines a little bolder there so their strokes stay whole). */
-    int res = scale < 2 ? 1 : factor, n = r.cell * res;
-    float bias = res == 1 && r.context != TEXT && outline_style() ? 0.25f : 0.0f;
+    /* Distances over the whole cell at the atlas's resolution (PS1 pixels;
+     * at 1x outlines a little bolder so their strokes stay whole), drawn
+     * anti-aliased (distance texels, ui_text.h). */
+    int res = factor, n = r.cell * res;
+    float bias = scale < 2 && r.context != TEXT && outline_style() ? 0.25f : 0.0f;
     static float cover[MAX_GRID * MAX_GRID], bright[MAX_GRID * MAX_GRID];
     for (int y = 0; y < n; y++)
         for (int x = 0; x < n; x++) {
@@ -623,7 +624,7 @@ int pc_button_prompts_render(const uint16_t* vram, unsigned tpage, unsigned clut
                 dl = fmaxf(dl, pc_ui_icon_distance(lit[k], fx, fy));
             if (lit_union)
                 d = dl;
-            cover[y * n + x] = fminf(fmaxf(0.5f + (d * s + bias) * res, 0.0f), 1.0f);
+            cover[y * n + x] = d * s + bias; /* (a distance) */
             float b = 1.0f;
             if (lit_tint)
                 b = fminf(fmaxf(0.5f + dl * s * res, 0.0f), 1.0f);
@@ -648,24 +649,18 @@ int pc_button_prompts_render(const uint16_t* vram, unsigned tpage, unsigned clut
         }
     uint16_t stp = opaque && stp_votes * 2 > opaque ? 0x8000 : 0;
     int element = family == PC_PROMPTS_KEYBOARD || r.context == DPAD ? -1 : pc_bind_pad[r.button];
-    /* Sprites: the icon alone, no backing; its anti-aliased edge (texels are
-     * opaque or not) darkens towards the dark the game's UI sits on. */
+    /* Sprites: the icon alone, no backing, in its colour (dim arms dimmer). */
     rgb colour = ink_colour(family, element), edge = hex(0x101014), dim = mix(colour, edge, 0.62f);
-    int w = (u1 - u0 + 1) * factor, rows = (v1 - v0 + 1) * factor, rep = factor / res;
+    int w = (u1 - u0 + 1) * factor, rows = (v1 - v0 + 1) * factor;
     for (int y = 0; y < rows; y++) {
-        int gy = ((v0 - r.cell_v) * factor + y) / rep;
+        int gy = (v0 - r.cell_v) * factor + y;
         for (int x = 0; x < w; x++) {
-            int gx = ((u0 - r.cell_u) * factor + x) / rep;
-            uint32_t value = 0;
-            if (gx < n && gy < n) {
-                float c = cover[gy * n + gx];
-                if (r.context == TEXT) {
-                    int index = c > 0.02f ? 1 + (int)lrintf(c * (hi - 1)) : 0;
-                    value = index ? lut[index] : 0;
-                } else if (c >= 0.25f)
-                    value = ps1(mix(edge, mix(dim, colour, bright[gy * n + gx]), (c - 0.25f) / 0.75f), stp);
-            }
-            out[y * w + x] = value;
+            int gx = (u0 - r.cell_u) * factor + x;
+            float d = gx < n && gy < n ? cover[gy * n + gx] : PC_UI_DIST_FAR;
+            out[y * w + x] = r.context == TEXT
+                               ? pc_ui_dist_texel(d, PC_UI_DIST_RAMP, 1, hi, 0)
+                               : pc_ui_dist_direct(d, ps1(mix(dim, colour, gx < n && gy < n ? bright[gy * n + gx] : 1.0f),
+                                     stp));
         }
     }
     ++regions;
@@ -684,6 +679,7 @@ int pc_button_prompts_mask(const uint16_t* vram, unsigned tpage, unsigned clut, 
         return 0;
     }
     regions = regions_before; /* not drawn: the counters are the game's */
+    pc_ui_text_resolve(vram, clut, texels, w * h, factor, 0.0f); /* any coverage: what the pixels may show */
     for (int i = 0; i < w * h; i++)
         mask[i] = texels[i] != 0;
     return w * h;
