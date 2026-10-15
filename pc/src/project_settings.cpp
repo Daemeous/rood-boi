@@ -56,6 +56,11 @@ int pc_ui_menus;
  * default is the theme's own ground alpha (0xF0): the menus' look before the
  * setting. */
 float pc_ui_menu_opacity = 0.94f;
+/* Modern menus: the backdrop and panel colour (System > Interface > Menu
+ * tint; ui/ui_tint.h, ui/ui_theme.cpp theme()). 0 Lea Monde = the theme
+ * file's own colours (the default). */
+int pc_ui_menu_tint;                         /* PC_UI_TINT_* */
+int pc_ui_menu_tint_custom[3] = { 8, 7, 7 }; /* Custom's colour, 0..31 per channel */
 }
 #include "camera_stick.h" /* the right-stick camera (camera_stick_*) */
 #include "editor_overlays.h"
@@ -69,6 +74,7 @@ float pc_ui_menu_opacity = 0.94f;
 #include "antialias.h" /* aa (msaa4+smaa ...), aa_downsample */
 #include "lighting_layers.h" /* lighting_packs, lighting_active_pack */
 #include "platform.h"
+#include "ui/ui_tint.h" /* ui_menu_tint lea_monde | classic | ... | custom, ui_menu_tint_custom r g b */
 #include "post.h" /* post_* (post profiles; the old post_flags, focus_mode, ... still load) */
 extern bool pc_lights_show_gizmos;
 namespace rood_lights {
@@ -335,6 +341,26 @@ int apply_line(const char* line, int* scale, bool now)
             pc_brightness_set(value);
         return 1;
     }
+    if (!strcmp(key, "ui_menu_tint")) { /* lea_monde | classic | slate | crimson | verdant | custom (or 0..5) */
+        char name[32] = "", extra[2];
+        int tint = sscanf(rest, "%31s %1s", name, extra) == 1 ? pc_ui_tint_from_name(name) : -1;
+        if (tint < 0)
+            fprintf(stderr, "[settings] ui_menu_tint: expected lea_monde, classic, slate, crimson, verdant or custom\n");
+        else
+            pc_ui_menu_tint = tint;
+        return 1;
+    }
+    if (!strcmp(key, "ui_menu_tint_custom")) { /* r g b, 0..31 each (clamped) */
+        int rgb[3];
+        char extra[2];
+        if (sscanf(rest, "%d %d %d %1s", &rgb[0], &rgb[1], &rgb[2], extra) != 3) {
+            fprintf(stderr, "[settings] ui_menu_tint_custom: expected red, green and blue from 0 to 31\n");
+            return 1;
+        }
+        for (int c = 0; c < 3; c++)
+            pc_ui_menu_tint_custom[c] = rgb[c] < 0 ? 0 : rgb[c] > PC_UI_TINT_MAX ? PC_UI_TINT_MAX : rgb[c];
+        return 1;
+    }
     if (!strcmp(key, "drop_shadows")) {
         if (&pc_drop_shadow_mode)
             pc_drop_shadow_mode = atoi(rest);
@@ -480,6 +506,9 @@ extern "C" void pc_settings_write(FILE* f)
     fprintf(f, "ui_bubbles %s\n", pc_ui_bubbles_names[pc_ui_bubbles ? 1 : 0]);
     pc_button_prompts_settings_write(f);
     fprintf(f, "gameplay_walls %s\n", pc_gameplay_walls ? "smart" : "original");
+    fprintf(f, "ui_menu_tint %s\n", pc_ui_tint_id(pc_ui_tint_current()));
+    fprintf(f, "ui_menu_tint_custom %d %d %d\n", pc_ui_menu_tint_custom[0], pc_ui_menu_tint_custom[1],
+        pc_ui_menu_tint_custom[2]);
     if (pc_window_mode_get)
         fprintf(f, "window_mode %s\n", window_mode_names[pc_window_mode_get() % 3]);
     if (pc_master_volume_get)

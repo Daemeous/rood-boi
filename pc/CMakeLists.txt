@@ -47,7 +47,7 @@ set_tests_properties(fixture_catalog PROPERTIES WORKING_DIRECTORY ${CMAKE_CURREN
 add_executable(ui_shell_probe tests/ui_shell_probe.cpp src/ui/ui_shell.cpp src/ui/ui_loot.cpp src/ui/ui_workshop.cpp
     src/ui/ui_map.cpp
     src/ui/ui_manual.cpp src/ui/manual_parse.c
-    src/ui/ui_theme.cpp
+    src/ui/ui_theme.cpp src/ui/ui_tint.cpp
     src/light_prefabs.cpp)
 target_include_directories(ui_shell_probe PRIVATE src)
 target_compile_features(ui_shell_probe PRIVATE cxx_std_17)
@@ -98,7 +98,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     # with the later features' hooks.
     foreach(variant IN ITEMS ui_settings_probe ui_settings_probe_hooks)
         add_executable(${variant} tests/ui_settings_probe.cpp tests/ui_settings_stubs.cpp src/ui/ui_settings.cpp
-            src/antialias.c src/camera_stick.c src/boot_controller.c)
+            src/ui/ui_tint.cpp src/antialias.c src/camera_stick.c src/boot_controller.c)
         target_include_directories(${variant} PRIVATE src tests third_party/SDL3/include)
         target_compile_features(${variant} PRIVATE cxx_std_17)
         target_compile_options(${variant} PRIVATE -Wall -Wextra -Werror)

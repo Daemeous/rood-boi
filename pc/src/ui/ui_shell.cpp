@@ -4,6 +4,7 @@
 #include "ui/map_frame.h"
 #include "ui/ui_manual.h"
 #include "ui/ui_settings.h"
+#include "ui/ui_theme.h"
 #include "ui/ui_workshop.h"
 #include <cstdio>
 #include <cstring>
@@ -794,6 +795,11 @@ void system_json(std::string& j)
         j += r.enabled ? "true" : "false";
         if (r.reason[0])
             j += ",\"reason\":\"" + escape(r.reason) + "\"";
+        if (r.swatch) {
+            std::snprintf(buf, sizeof buf, ",\"swatch\":\"#%02x%02x%02x\"", r.swatch_rgb[0], r.swatch_rgb[1],
+                r.swatch_rgb[2]);
+            j += buf;
+        }
         j += "}";
     }
     std::snprintf(buf, sizeof buf, "],\"capture\":\"%s\",\"dirty\":%s,\"saves\":%d,", capture_row_id(),
@@ -2311,6 +2317,7 @@ extern "C" void pc_ui_shell_json(char* out, unsigned size)
     static char map[1 << 15];
     pc_ui_map_json(map, sizeof map);
     j += map;
+    ui::theme_json(j); // the colours shown (menu tint), every screen
     j += "}";
     std::snprintf(out, size, "%s", j.c_str());
 }

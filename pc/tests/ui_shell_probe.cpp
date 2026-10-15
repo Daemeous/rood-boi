@@ -6,6 +6,8 @@
 #include "ui/ui_manual.h"
 #include "ui/manual_parse.h"
 #include "ui/ui_theme.h"
+#include "ui/ui_tint.h"
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -14,6 +16,9 @@
 int pc_ui_menus = 1;
 extern "C" float pc_ui_menu_opacity;
 float pc_ui_menu_opacity = 0.94f; // project_settings.cpp (ui_theme.cpp theme())
+extern "C" int pc_ui_menu_tint, pc_ui_menu_tint_custom[3];
+int pc_ui_menu_tint = 0, pc_ui_menu_tint_custom[3] = {8, 7, 7}; // project_settings.cpp (ui_tint.h)
+extern "C" int pc_ui_menu_backdrop(float rgba[4]);              // ui_theme.cpp
 static int failures;
 #define CHECK(c) do { if (!(c)) { std::printf("FAIL %s:%d %s\n", __FILE__, __LINE__, #c); ++failures; } } while (0)
 
@@ -159,6 +164,127 @@ static pc_ui_item item(const char* name, int inventory, int str, int dp, int two
     return it;
 }
 static pc_ui_equipment equipment;
+// Menu tint (ui_theme.cpp tint_theme / theme()): sRGB relative luminance and contrast of ImU32 colours.
+static float lum(unsigned c)
+{
+    float l = 0;
+    const float w[3] = {0.2126f, 0.7152f, 0.0722f};
+    for (int i = 0; i < 3; ++i) {
+        float v = (float)((c >> (8 * i)) & 0xFF) / 255.0f;
+        l += w[i] * (v <= 0.04045f ? v / 12.92f : std::pow((v + 0.055f) / 1.055f, 2.4f));
+    }
+    return l;
+}
+static float contrast_of(unsigned a, unsigned b)
+{
+    float x = lum(a), y = lum(b);
+    return (std::fmax(x, y) + 0.05f) / (std::fmin(x, y) + 0.05f);
+}
+// How far the selection wash (accent_soft over the opaque panel) stands from the panel (sRGB distance).
+static float wash_of(unsigned soft, unsigned panel)
+{
+    float a = (float)(soft >> 24) / 255.0f, d = 0;
+    for (int i = 0; i < 3; ++i) {
+        float x = ((float)((soft >> (8 * i)) & 0xFF) - (float)((panel >> (8 * i)) & 0xFF)) * a;
+        d += x * x;
+    }
+    return std::sqrt(d);
+}
+static bool near_rgb(unsigned c, int r, int g, int b)
+{
+    return std::abs((int)(c & 0xFF) - r) <= 1 && std::abs((int)((c >> 8) & 0xFF) - g) <= 1
+        && std::abs((int)((c >> 16) & 0xFF) - b) <= 1;
+}
+static void tint_tests()
+{
+    float saved_opacity = pc_ui_menu_opacity;
+    pc_ui_menu_opacity = 0.94f;
+    pc_ui_menu_tint = PC_UI_TINT_LEA_MONDE;
+    ui::Theme file; // the theme file's colours (theme.json matches the defaults)
+    const ui::Theme& lea = ui::theme();
+    // Leá Monde: the theme untouched (the menus' look before the setting)
+    CHECK(lea.ground == 0xF00E0F11u && lea.panel == file.panel && lea.rule == file.rule && lea.rule2 == file.rule2);
+    CHECK(lea.dim == file.dim && lea.ash == file.ash && lea.stage == 0xFF0E0F11u);
+    CHECK(lea.accent == file.accent && lea.accent_soft == file.accent_soft);
+    int lea_rgb[3]; // Leá Monde's sliders: the theme file's ground (#110f0e) as v * 31 / 64
+    pc_ui_tint_rgb(PC_UI_TINT_LEA_MONDE, lea_rgb);
+    CHECK(lea_rgb[0] == 8 && lea_rgb[1] == 7 && lea_rgb[2] == 7);
+    // Classic: deep navy #081134, the shades above it (spec values within 1)
+    pc_ui_menu_tint = PC_UI_TINT_CLASSIC;
+    const ui::Theme& c = ui::theme();
+    CHECK((c.ground & 0xFFFFFFu) == 0x341108u && (c.ground >> 24) == 0xF0u);
+    CHECK(near_rgb(c.panel, 14, 23, 60) && near_rgb(c.rule, 29, 38, 82) && near_rgb(c.rule2, 42, 51, 99));
+    CHECK(c.dim == file.dim && c.ash == file.ash && c.bone == file.bone && c.accent == file.accent);
+    CHECK(c.accent_soft == file.accent_soft);
+    CHECK((c.stage & 0xFFFFFFu) == (c.ground & 0xFFFFFFu) && (c.panel >> 24) == (file.panel >> 24));
+    std::string j;
+    ui::theme_json(j);
+    CHECK(j.find("\"tint\":\"classic\",\"tint_rgb\":[4,8,25]") != std::string::npos);
+    CHECK(j.find("\"ground\":\"#081134f0\"") != std::string::npos);
+    // the backdrop the presenters draw behind the Ashley model
+    float rgba[4];
+    CHECK(pc_ui_menu_backdrop(rgba) == 1);
+    CHECK(std::fabs(rgba[0] - 8 / 255.0f) < 1e-6f && std::fabs(rgba[2] - 52 / 255.0f) < 1e-6f);
+    CHECK(std::fabs(rgba[3] - 240 / 255.0f) < 1e-6f);
+    // opacity: the ground's alpha; stage the tinted ground, opaque
+    pc_ui_menu_opacity = 0.5f;
+    CHECK((ui::theme().ground >> 24) == 128u && (ui::theme().ground & 0xFFFFFFu) == 0x341108u);
+    CHECK(ui::theme().stage == (0x341108u | ((unsigned)(255.0f * 0.5f * 255.0f / 240.0f + 0.5f) << 24)));
+    pc_ui_menu_opacity = 0.94f;
+    // every preset and the corners: ground < panel < rule < rule2, readable dim and ash
+    const int customs[][3] = {{0, 0, 0}, {31, 31, 31}, {31, 0, 0}, {0, 0, 31}, {0, 31, 0}, {31, 31, 0}, {16, 2, 30}};
+    const float dim0 = contrast_of(file.dim, file.panel | 0xFF000000u);
+    const float ash0 = contrast_of(file.ash, file.panel | 0xFF000000u);
+    const float accent0 = contrast_of(file.accent, file.panel | 0xFF000000u);
+    const float wash0 = wash_of(file.accent_soft, file.panel | 0xFF000000u);
+    for (int k = 1; k < PC_UI_TINTS + 7; ++k) {
+        if (k < PC_UI_TINT_CUSTOM)
+            pc_ui_menu_tint = k;
+        else if (k > PC_UI_TINT_CUSTOM) {
+            pc_ui_menu_tint = PC_UI_TINT_CUSTOM;
+            for (int ch = 0; ch < 3; ++ch)
+                pc_ui_menu_tint_custom[ch] = customs[k - PC_UI_TINT_CUSTOM - 1][ch];
+        } else
+            continue;
+        const ui::Theme& x = ui::theme(); // the cache follows the custom colour
+        bool order = lum(x.ground) < lum(x.panel) && lum(x.panel) < lum(x.rule) && lum(x.rule) < lum(x.rule2);
+        float dim = contrast_of(x.dim, x.panel | 0xFF000000u), ash = contrast_of(x.ash, x.panel | 0xFF000000u);
+        bool readable = dim >= std::fmin(2.4f, dim0) - 0.01f && ash >= std::fmin(4.5f, ash0) - 0.01f;
+        bool dark = lum(x.ground) <= 0.0215f; // the cap (0.02) and rounding
+        // the selection: the accent's marks and the wash stand out as on the theme's own panel (Crimson,
+        // 31 0 0: a red wash on a red panel lifts toward bone)
+        float accent = contrast_of(x.accent, x.panel | 0xFF000000u), wash = wash_of(x.accent_soft, x.panel | 0xFF000000u);
+        bool selected = accent >= std::fmin(2.5f, accent0) - 0.01f && wash >= wash0 - 0.5f;
+        CHECK(order && readable && dark && selected);
+        if (!(order && readable && dark && selected))
+            std::printf("  tint %d custom %d %d %d: ground %08x panel %08x dim %.2f ash %.2f accent %.2f wash %.1f\n",
+                k, pc_ui_menu_tint_custom[0], pc_ui_menu_tint_custom[1], pc_ui_menu_tint_custom[2], x.ground, x.panel,
+                (double)dim, (double)ash, (double)accent, (double)wash);
+    }
+    // Crimson and 31 0 0: the wash lifted (it was a red on red), its alpha kept; the accent itself unchanged
+    pc_ui_menu_tint = PC_UI_TINT_CRIMSON;
+    CHECK(ui::theme().accent_soft != file.accent_soft && (ui::theme().accent_soft >> 24) == (file.accent_soft >> 24));
+    CHECK(ui::theme().accent == file.accent);
+    pc_ui_menu_tint = PC_UI_TINT_CUSTOM;
+    pc_ui_menu_tint_custom[0] = 31, pc_ui_menu_tint_custom[1] = 0, pc_ui_menu_tint_custom[2] = 0;
+    CHECK(ui::theme().accent_soft != file.accent_soft
+        && wash_of(ui::theme().accent_soft, ui::theme().panel | 0xFF000000u) >= wash0 - 0.5f);
+    // the cache: a custom channel changes the theme on the next call
+    pc_ui_menu_tint = PC_UI_TINT_CUSTOM;
+    pc_ui_menu_tint_custom[0] = 0, pc_ui_menu_tint_custom[1] = 0, pc_ui_menu_tint_custom[2] = 20;
+    unsigned before = ui::theme().ground;
+    pc_ui_menu_tint_custom[0] = 20;
+    CHECK(ui::theme().ground != before && (ui::theme().ground & 0xFF) > (before & 0xFF));
+    // white: capped dark grey
+    pc_ui_menu_tint_custom[0] = pc_ui_menu_tint_custom[1] = pc_ui_menu_tint_custom[2] = 31;
+    CHECK(near_rgb(ui::theme().ground, 39, 39, 39));
+    // back to the default: identical again
+    pc_ui_menu_tint = PC_UI_TINT_LEA_MONDE;
+    pc_ui_menu_tint_custom[0] = 8, pc_ui_menu_tint_custom[1] = 7, pc_ui_menu_tint_custom[2] = 7;
+    CHECK(ui::theme().ground == 0xF00E0F11u && ui::theme().panel == file.panel);
+    pc_ui_menu_opacity = saved_opacity;
+}
+
 static void no_candidates()
 {
     equipment.slot = -1;
@@ -3076,6 +3202,7 @@ int main()
         CHECK(ui::theme_parse("{\"colors\":{\"up\":\"#010203\",\"down\":\"#040506\"}}", t, &err));
         CHECK(t.up == 0xFF030201u && t.down == 0xFF060504u);
     }
+    tint_tests();
     equipment_tests();
     mouse_tests();
     system_tests();

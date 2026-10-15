@@ -143,6 +143,31 @@ Prototype (private, placeholder data): the "Riskbreaker Menus" artifact.
   behind the model through the presenters (the picture kept before the world
   froze, under the same ground; `pc/docs/Post_Processing.md`), so it is as
   see-through as the others; a long weapon is no longer cut at the column.
+- **Tint**: System > Interface > Menu tint recolours the backdrop and panels,
+  as older RPGs let you set the window colour. Presets: Leá Monde (the
+  theme file untouched: the default), Classic (deep navy), Slate, Crimson,
+  Verdant, and Custom; Tint red / green / blue sliders 0..31 (the PlayStation's
+  5-bit colour) show the current colour, and moving one copies it into
+  Custom and switches to Custom (picking a preset only sets the sliders;
+  Custom remembers its colour). Settings `ui_menu_tint` (id or 0..5) and
+  `ui_menu_tint_custom r g b`. The derivation (`ui_theme.cpp` tint_theme,
+  pure, probed): ground = v * 64 / 31 per channel, darkened in linear light
+  to a relative luminance of at most 0.02 (a white tint gives #272727);
+  panel, rule and rule2 keep their offsets above the theme's ground, each
+  channel's offset weighted by 1 + 0.35 * (v / mean - 1) (0.6..1.4) so they
+  lean a little toward the hue and ground < panel < rule < rule2 always
+  holds; dim and ash mix toward ash / bone in tenths only if their contrast
+  on the panel would fall below 2.4 / 4.5 (or the theme's own, if lower);
+  likewise the accent below 2.5, and the selection wash (accent_soft over
+  the panel) when it stands nearer the panel (sRGB distance) than on the
+  theme's own (a red wash on Crimson or a red Custom); text, gold, bars and
+  prompts keep their colours. Leá Monde's sliders and chip read the theme
+  file's live ground (v * 31 / 64), so a nudge after a theme.json edit
+  starts from that colour. It is applied
+  before the opacity, so `stage`, the Ashley tab's presenter backdrop
+  (`pc_ui_menu_backdrop`) and model tile (`pc_ui_theme_ground_rgb`) follow
+  it at any opacity, 4:3 or 16:9. The row shows the vivid colour as a chip;
+  RPC `ui_menu` reports the shown colours under `theme`.
 - **Motion**: short (150-250 ms) eased transitions: tab underline slides,
   focus bar grows, a screen fades up 6 px on entry; none under reduced
   motion. The model never turns by itself; the right stick turns it.

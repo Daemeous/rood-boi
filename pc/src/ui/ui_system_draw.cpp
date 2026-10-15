@@ -125,9 +125,22 @@ void draw_value(const Frame& f, const ui::Theme& t, const pc_ui_setting_row& r, 
         bool right_over = hit_ok && r.enabled && m.over(x1 - aw, cy - 18, x1 + 4, cy + 18);
         chevron(f, x0 + 8, cy, -1, left_over ? t.accent : arrow);
         chevron(f, x1 - 8, cy, 1, right_over ? t.accent : arrow);
-        std::string v = fit(f, fonts.name, size, r.value, x1 - x0 - aw * 2 - 8);
+        float chip = r.swatch ? 16 : 0, gap = r.swatch ? 8 : 0; // a colour row's chip before the value
+        std::string v = fit(f, fonts.name, size, r.value, x1 - x0 - aw * 2 - 8 - (r.swatch ? chip + gap + 2 : 0));
         float w = measure(f, fonts.name, size, v.c_str());
-        text(f, fonts.name, size, (x0 + x1 - w) * 0.5f, cy - size * 0.5f - 2, col, v.c_str());
+        float tx = (x0 + x1 - w + chip + gap) * 0.5f;
+        if (r.swatch) {
+            // the vivid tint, as classic window-colour screens show it (the menus show the dark result)
+            unsigned c = 0xFF000000u | (unsigned)r.swatch_rgb[0] | ((unsigned)r.swatch_rgb[1] << 8)
+                | ((unsigned)r.swatch_rgb[2] << 16);
+            unsigned edge = focused ? t.ash : t.rule2;
+            if (!r.enabled)
+                c = fade(c, 0.5f), edge = fade(edge, 0.5f);
+            float cx0 = tx - gap - chip;
+            f.dl->AddRectFilled(f.p(cx0, cy - chip * 0.5f), f.p(cx0 + chip, cy + chip * 0.5f), c, f.s(3));
+            f.dl->AddRect(f.p(cx0, cy - chip * 0.5f), f.p(cx0 + chip, cy + chip * 0.5f), edge, f.s(3), 0, f.s(1));
+        }
+        text(f, fonts.name, size, tx, cy - size * 0.5f - 2, col, v.c_str());
         if ((left_over || right_over) && m.clicked) {
             pc_ui_shell_system_value(i, left_over ? -1 : 1, 0, 0);
             m.clicked = false;

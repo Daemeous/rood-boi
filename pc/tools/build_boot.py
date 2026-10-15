@@ -903,6 +903,7 @@ for source in [
     root / "pc/src/ui/ui_shell.cpp",
     root / "pc/src/ui/ui_settings.cpp",
     root / "pc/src/ui/ui_theme.cpp",
+    root / "pc/src/ui/ui_tint.cpp",
     root / "pc/src/ui/ui_draw.cpp",
     root / "pc/src/ui/ui_equip_draw.cpp",
     root / "pc/src/ui/ui_ashley_draw.cpp",

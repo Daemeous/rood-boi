@@ -55,7 +55,7 @@ screen fade still applies; auto exposure keeps its adaptation for after; RPC
 `post` reports `menu_model`). While the modern menu is up, every present of
 the world keeps the chain's finished picture (before game text and the
 brightness curve); a model-view present shows that picture, under the menu's
-ground colour at `ui_menu_opacity`, in place of the tile's 2D pixels, in the
+ground colour (tinted: `ui_menu_tint`) at `ui_menu_opacity`, in place of the tile's 2D pixels, in the
 present shader before anti-aliasing. So the model is never graded, and the
 world behind it keeps the post it was shown with, as on the other tabs.
 `pc/tests/ui_ashley_stability_smoke.py` checks both with a strong profile.

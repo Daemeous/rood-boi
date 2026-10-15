@@ -16,6 +16,7 @@ typedef struct {
     int entries; /* doors into it (arrival points; 0: reached by an event or a fall) */
     unsigned char door[PC_ROOM_ENTRIES][12]; /* the door records leading here */
     int from[PC_ROOM_ENTRIES]; /* the location each door is in */
+    int floor_w, floor_h; /* its floor grid in cells (collision map), 0: unknown */
 } pc_room_info;
 
 int pc_rooms_count(void) __attribute__((weak)); /* builds the list once (tens of ms) */
@@ -25,6 +26,8 @@ int pc_rooms_json(char* out, int size) __attribute__((weak));
 
 /* Ask for a warp (taken in the field loop); 0 and `why` when refused. */
 int pc_room_warp_request(int zone, int room, int entry, char* why, int size) __attribute__((weak));
+/* Whether RPC room_goto's arrival cell (when one is given) is on the room's floor. */
+int pc_room_warp_cell_valid(int zone, int room, char* why, int size) __attribute__((weak));
 void pc_room_warp_cancel(void) __attribute__((weak));
 /* 0 idle, 1 requested, 2 loading, 3 arrived (fading in), 4 done (until acknowledged). */
 int pc_room_warp_phase(void) __attribute__((weak));

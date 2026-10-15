@@ -18,6 +18,9 @@ int pc_hw_active = 1, pc_hw_scale_setting = 4, pc_gl_filter = 2, pc_gl_aspect, p
 int pc_env_global = 1, pc_lights_enabled = 1, pc_qol_weapon_slots, pc_skip_intro, pc_ui_menus;
 int pc_qol_map_invert, pc_qol_fp_invert_y;
 float pc_ui_menu_opacity = 0.94f;
+int pc_ui_menu_tint, pc_ui_menu_tint_custom[3] = {8, 7, 7};
+// ui_theme.cpp: the theme file's ground (#110f0e), Lea Monde's colour (ui_tint.cpp)
+void pc_ui_theme_file_ground_rgb(int* r, int* g, int* b) { *r = 0x11, *g = 0x0f, *b = 0x0e; }
 int pc_lighting_preset = PC_PRESET_HIGH, pc_gi_method = PC_GI_PROBES, pc_shadow_mode = PC_SHADOWS_MAPS,
     pc_haze_quality = PC_HAZE_LOW, pc_ao = 1;
 int pc_ui_text, pc_ui_upscale, pc_ui_subpixel, pc_ui_lines = 1, pc_ui_outline_boost, pc_ui_bubbles;

@@ -2622,6 +2622,14 @@ static void handle_method(int fd, const char* request)
             }
             if (params)
                 number_value(member(params, "entry"), &entry);
+            /* A cell off the room's floor would crash the arrival: an error. */
+            extern int pc_room_warp_cell_valid(int, int, char*, int) __attribute__((weak));
+            extern int pc_room_warp_cell[4] __attribute__((weak));
+            if (pc_room_warp_cell_valid && !pc_room_warp_cell_valid((int)zone, (int)room, why, sizeof why)) {
+                pc_room_warp_cell[0] = -1;
+                fail(fd, id, -32602, why);
+                return;
+            }
             ok = pc_room_browser_go ? pc_room_browser_go((int)zone, (int)room, (int)entry, why, sizeof why)
                                     : pc_room_warp_request((int)zone, (int)room, (int)entry, why, sizeof why);
         }

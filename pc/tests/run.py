@@ -132,14 +132,14 @@ def suites(args, mode="egl"):
               + (["--card", str(args.save)] if args.save.exists() else []), 300,
               note="character in-betweens: held poses, fast rotations, weapons in hand"),
         Suite("movie_smoke", [PY, str(TESTS / "movie_smoke.py")], 300),
-        Suite("replace_file_test", [PY, str(TESTS / "replace_file_test.py")], 300, binary=None,
-              note="saves replace their file again and again (pc_replace_file), natively and as a "
-                   "Windows build under Wine when installed"),
         Suite("skip_intro_smoke", [PY, str(TESTS / "skip_intro_smoke.py")], 300,
               note="skip_intro 1: straight to the title (no logos, no movie), same title; off = the original start"),
         Suite("build_noop_test", [PY, str(TESTS / "build_noop_test.py")], 120, binary=None,
               note="build_boot.py: a second build with nothing changed does nothing (< 2 s); the build "
                    "stamp and object cache notice edits, reverts, new files and option changes"),
+        Suite("replace_file_test", [PY, str(TESTS / "replace_file_test.py")], 300, binary=None,
+              note="saves replace their file again and again (pc_replace_file), natively and as a "
+                   "Windows build under Wine when installed"),
         Suite("window_smoke", [PY, str(TESTS / "window_smoke.py")], 180, binary="rood_boot",
               note="X11 events on Xvfb"),
         Suite("room_smoke", [PY, str(TESTS / "room_smoke.py")], 120),

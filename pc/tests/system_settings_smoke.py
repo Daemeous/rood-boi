@@ -24,7 +24,8 @@ First run, with ROOD_SETTINGS on a fresh file and audio recorded to a WAV:
     game, and afterwards "m" opens the menu in the field
   - the file holds every value (and widescreen 1 / perspective_textures 0)
 Second run with the same file (no ROOD_WIDESCREEN / ROOD_PERSPECTIVE): every
-value is back. Third run with ROOD_WIDESCREEN=0 ROOD_PERSPECTIVE=1: they apply,
+value is back; hand-written ui_menu_tint 1 / ui_menu_tint_custom 40 -3 9 load
+as Classic with the channels clamped to 0..31 (and save as classic, 31 0 9). Third run with ROOD_WIDESCREEN=0 ROOD_PERSPECTIVE=1: they apply,
 a save keeps the file's widescreen / perspective_textures (environment
 overrides are never saved as the user's), until the setting is changed.
 Without the card, the field part is skipped."""
@@ -271,7 +272,10 @@ def main():
         check(len(frames) >= d and peaks[0] > 0 and peaks[2] > 0, f"the save room's music is recorded ({peaks})")
         check(peaks[1] == 0, f"master_volume 0 silences the output after the ramp ({peaks[1]})")
 
-    # ---- second run: the same file ----
+    # ---- second run: the same file (with a hand-written menu tint: a digit and out-of-range channels) ----
+    text = "".join(line + "\n" for line in settings.read_text().splitlines()
+                   if not line.startswith("ui_menu_tint"))
+    settings.write_text(text + "ui_menu_tint 1\nui_menu_tint_custom 40 -3 9\n")
     game = Game.launch(fast=True, card=str(card) if have_card else None, log=out / "game2.log", extra_env=env)
     try:
         game.wait_title()
@@ -281,8 +285,16 @@ def main():
         g = game.call("graphics")
         check(g["widescreen"] and not g["perspective"],
               f"relaunch: widescreen 1, perspective_textures 0 kept ({g['widescreen']}, {g['perspective']})")
+        sym = symbols()
+        tint = struct.unpack("<i", game.read(sym["pc_ui_menu_tint"], 4))[0]
+        custom = list(struct.unpack("<3i", game.read(sym["pc_ui_menu_tint_custom"], 12)))
+        check(tint == 1 and custom == [31, 0, 9],
+              f"ui_menu_tint 1: Classic; ui_menu_tint_custom 40 -3 9 clamped to [31, 0, 9] ({tint}, {custom})")
         game.call("settings", action="save")
         saved = settings_lines(settings)
+        check(saved.get("ui_menu_tint") == "classic" and saved.get("ui_menu_tint_custom") == "31 0 9",
+              f"saved ui_menu_tint classic, ui_menu_tint_custom 31 0 9 ({saved.get('ui_menu_tint')}, "
+              f"{saved.get('ui_menu_tint_custom')})")
         if have_card:
             check(saved.get("bind_key_triangle", "").split(",")[0] == "m"
                   and saved.get("bind_pad_circle") == "lefttrigger", "relaunch: the bindings are back")

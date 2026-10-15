@@ -55,6 +55,8 @@ typedef struct {
     char keys[48];     /* binding: the keys ("Z, Return"; "None") */
     char pad[32];      /* binding: the gamepad element ("East"; "None") */
     int game_option;   /* 1: the game's option, saved with the game, not in settings.cfg */
+    int swatch;        /* choice: a colour chip shown with the value (Menu tint); 0: none */
+    unsigned char swatch_rgb[3]; /* its colour, 0..255 */
 } pc_ui_setting_row;
 
 int pc_ui_settings_pages(void);

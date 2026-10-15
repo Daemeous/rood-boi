@@ -27,9 +27,19 @@ struct Theme {
 // Parse theme JSON over `t` (missing keys keep their values). False on a syntax or value error.
 bool theme_parse(const char* text, Theme& t, std::string* error);
 // The live theme: pc/assets/ui/theme.json, reloaded when it changes (checked at most twice a second),
-// with the menus' opacity applied (settings ui_menu_opacity, 0..1: the ground's alpha, the backdrop over
-// the game; panels' fills scale with it from the theme's own, opaque at the theme's ground alpha or above).
+// tinted (settings ui_menu_tint, tint_theme; Lea Monde keeps the file's colours) and with the menus' opacity
+// applied (settings ui_menu_opacity, 0..1: the ground's alpha, the backdrop over the game; panels' fills
+// scale with it from the theme's own, opaque at the theme's ground alpha or above).
 const Theme& theme();
+// Recolour the theme's backgrounds toward a tint (0..31 per channel; ui_tint.h): the ground becomes the tint
+// (v * 64 / 31, luminance capped so text keeps its contrast); panel, rule and rule2 keep their offsets above
+// the ground (the hierarchy), leaning lightly toward the tint's hue; dim and ash lift toward bone only where
+// their contrast on the panel would drop; the accent (marks) and accent_soft (the selection wash) likewise lift
+// toward bone only where the tint would hide them (contrast under 2.5, a wash nearer the panel than on the
+// theme's own). Alphas, text, gold and bars are kept.
+void tint_theme(Theme& t, const int rgb31[3]);
+// The theme as shown (tint, colours) for the RPC: appends ,"theme":{...}.
+void theme_json(std::string& j);
 // The opacity the theme file's ground gives (its alpha / 255): ui_menu_opacity's default.
 float theme_opacity();
 

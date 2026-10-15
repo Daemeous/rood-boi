@@ -14,6 +14,7 @@ extern "C" {
 #include "button_prompts.h"
 #include "camera_stick.h"
 #include "lighting_quality.h"
+#include "ui/ui_tint.h"
 #include "ui_settings_stubs.h"
 #include <cstdio>
 #include <cstring>
@@ -74,7 +75,8 @@ static void pages()
     CHECK(pc_ui_settings_rows(G) == 15);
     CHECK(pc_ui_settings_rows(D) == 8); // Images per vsync shows: interpolation is on
     CHECK(pc_ui_settings_rows(A) == (game ? 2 : 1));
-    CHECK(pc_ui_settings_rows(I) == 11); // with Menu opacity
+    CHECK(pc_ui_settings_rows(I) == 15); // with Menu opacity, Menu tint, Tint red, green, blue
+    CHECK(find(I, "ui_menu_tint") == 2 && find(I, "ui_menu_tint_b") == 5);
     CHECK(pc_ui_settings_rows(C) == (game ? 16 : 15));
     // the look inversions after the stick camera (qol_fp_invert_y, qol_map_invert)
     CHECK(find(C, "qol_fp_invert_y") == find(C, "reset_camera") + 1 && find(C, "qol_map_invert") == find(C, "reset_camera") + 2);
@@ -400,6 +402,63 @@ static void bindings()
     }
 }
 
+static bool rgb_is(int page, int r, int g, int b)
+{
+    return value(page, "ui_menu_tint_r") == std::to_string(r) && value(page, "ui_menu_tint_g") == std::to_string(g)
+        && value(page, "ui_menu_tint_b") == std::to_string(b);
+}
+static bool swatch_is(const pc_ui_setting_row& r, int red, int green, int blue)
+{
+    return r.swatch && r.swatch_rgb[0] == red && r.swatch_rgb[1] == green && r.swatch_rgb[2] == blue;
+}
+
+// Menu tint: presets set the sliders; a slider makes the tint Custom with the shown colour.
+static void tint()
+{
+    pc_ui_settings_flush();
+    CHECK(value(I, "ui_menu_tint") == "Le\xc3\xa1 Monde" && rgb_is(I, 8, 7, 7));
+    pc_ui_setting_row t = row(I, "ui_menu_tint");
+    CHECK(t.kind == PC_UI_SET_CHOICE && t.count == PC_UI_TINTS && swatch_is(t, 66, 58, 58));
+    pc_ui_setting_row red = row(I, "ui_menu_tint_r");
+    CHECK(red.kind == PC_UI_SET_SLIDER && red.min == 0 && red.max == 31 && red.step == 1 && !red.swatch);
+    CHECK(change(I, "ui_menu_tint", 1) == 1 && pc_ui_menu_tint == PC_UI_TINT_CLASSIC);
+    CHECK(value(I, "ui_menu_tint") == "Classic" && rgb_is(I, 4, 8, 25) && pc_ui_settings_dirty());
+    CHECK(swatch_is(row(I, "ui_menu_tint"), 33, 66, 206));
+    char buf[16384];
+    pc_ui_settings_json(I, buf, sizeof buf);
+    CHECK(std::strstr(buf, "\"swatch\":\"#2142ce\""));
+    // a slider: Custom, from the preset's colour
+    CHECK(change(I, "ui_menu_tint_r", 1) == 1 && pc_ui_menu_tint == PC_UI_TINT_CUSTOM);
+    CHECK(pc_ui_menu_tint_custom[0] == 5 && pc_ui_menu_tint_custom[1] == 8 && pc_ui_menu_tint_custom[2] == 25);
+    CHECK(value(I, "ui_menu_tint") == "Custom" && rgb_is(I, 5, 8, 25));
+    // presets around it; Custom comes back with its colour
+    CHECK(change(I, "ui_menu_tint", -1) == 1 && pc_ui_menu_tint == PC_UI_TINT_VERDANT && rgb_is(I, 3, 10, 6));
+    CHECK(change(I, "ui_menu_tint", 1) == 1 && pc_ui_menu_tint == PC_UI_TINT_CUSTOM && rgb_is(I, 5, 8, 25));
+    // the same value: no change, the preset stays
+    pc_ui_settings_set(I, find(I, "ui_menu_tint"), PC_UI_TINT_CLASSIC);
+    CHECK(pc_ui_settings_set(I, find(I, "ui_menu_tint_b"), 25) == 0 && pc_ui_menu_tint == PC_UI_TINT_CLASSIC);
+    // clamped; Custom
+    CHECK(pc_ui_settings_set(I, find(I, "ui_menu_tint_b"), 40) == 1 && pc_ui_menu_tint == PC_UI_TINT_CUSTOM);
+    CHECK(rgb_is(I, 4, 8, 31) && pc_ui_menu_tint_custom[2] == 31);
+    // at the top: no change
+    CHECK(change(I, "ui_menu_tint_b", 1) == 0 && pc_ui_menu_tint_custom[2] == 31);
+    CHECK(change(I, "ui_menu_tint_g", -1) == 1 && rgb_is(I, 4, 7, 31));
+    // the custom colour's swatch
+    CHECK(swatch_is(row(I, "ui_menu_tint"), 33, 58, 255));
+    // back to the default
+    pc_ui_settings_set(I, find(I, "ui_menu_tint"), PC_UI_TINT_LEA_MONDE);
+    pc_ui_menu_tint_custom[0] = 8, pc_ui_menu_tint_custom[1] = 7, pc_ui_menu_tint_custom[2] = 7;
+    CHECK(value(I, "ui_menu_tint") == "Le\xc3\xa1 Monde");
+    pc_ui_settings_flush();
+    // the module's names
+    CHECK(pc_ui_tint_from_name("crimson") == PC_UI_TINT_CRIMSON && pc_ui_tint_from_name("5") == PC_UI_TINT_CUSTOM);
+    CHECK(pc_ui_tint_from_name("blue") == -1 && pc_ui_tint_from_name("6") == -1 && pc_ui_tint_from_name("") == -1);
+    CHECK(!std::strcmp(pc_ui_tint_id(PC_UI_TINT_LEA_MONDE), "lea_monde") && pc_ui_tint_id(PC_UI_TINTS) == nullptr);
+    pc_ui_menu_tint = 9; // out of range: Leá Monde
+    CHECK(pc_ui_tint_current() == PC_UI_TINT_LEA_MONDE);
+    pc_ui_menu_tint = 0;
+}
+
 static void json()
 {
     char buf[16384];
@@ -426,6 +485,7 @@ int main()
     saving();
     game_options();
     bindings();
+    tint();
     json();
     if (failures) {
         std::printf("ui_settings_probe: %d failure(s)\n", failures);

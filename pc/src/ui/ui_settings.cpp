@@ -5,6 +5,7 @@
 // ui_upscale_panel.cpp) and saves settings.cfg debounced.
 #include "ui/ui_settings.h"
 #include "ui/game_options.h"
+#include "ui/ui_tint.h"
 #include "antialias.h"
 #include <SDL3/SDL_gamepad.h> /* before boot_controller.h: SDL keeps its own linkage */
 #include <SDL3/SDL_keycode.h>
@@ -68,6 +69,7 @@ using Shown = bool (*)(const Row&);
 using ChoiceWhy = const char* (*)(const Row&, int);
 using Run = void (*)(const Row&);
 using Info = void (*)(const Row&, char*, int);
+using Swatch = void (*)(const Row&, unsigned char*);
 
 struct Row {
     const char* id;
@@ -96,6 +98,7 @@ struct Row {
     ChoiceWhy choice_why = nullptr;
     Run run = nullptr;
     Info info = nullptr;
+    Swatch swatch = nullptr; // choice: a colour chip shown with the value
     bool saved = true;   // a change marks settings.cfg dirty
     bool game = false;   // the game's option
     bool hook = false;   // reads and writes through a hook that may be missing (then greyed, showing `def`)
@@ -392,6 +395,45 @@ void build()
     u.push_back(fslider("ui_menu_opacity", "Menu opacity",
         "How much the modern menus' backdrop and panels hide the game behind them. 1 is solid.",
         &pc_ui_menu_opacity, 0, 1, 0.02f, "%.2f"));
+    {
+        Row r = choice("ui_menu_tint", "Menu tint",
+            "The colour of the modern menus' backdrop and panels. Le\xc3\xa1 Monde is the theme's own; Custom is the "
+            "colour from the sliders below.",
+            &pc_ui_menu_tint, pc_ui_tint_names(), PC_UI_TINTS);
+        r.swatch = [](const Row&, unsigned char* rgb) {
+            int c[3];
+            pc_ui_tint_effective(c);
+            pc_ui_tint_swatch(c, rgb);
+        };
+        u.push_back(r);
+        static const char* const channel_ids[3] = {"ui_menu_tint_r", "ui_menu_tint_g", "ui_menu_tint_b"};
+        static const char* const channel_labels[3] = {"Tint red", "Tint green", "Tint blue"};
+        static const char* const channel_help[3] = {
+            "The tint's red, 0 to 31 as on the PlayStation. Changing it makes the tint Custom.",
+            "The tint's green, 0 to 31 as on the PlayStation. Changing it makes the tint Custom.",
+            "The tint's blue, 0 to 31 as on the PlayStation. Changing it makes the tint Custom."};
+        for (int c = 0; c < 3; c++) {
+            Row s = slider(channel_ids[c], channel_labels[c], channel_help[c], 0, PC_UI_TINT_MAX, 1, "%d");
+            s.integer = true, s.arg = c;
+            s.getf = [](const Row& r) {
+                int rgb[3];
+                pc_ui_tint_effective(rgb);
+                return (float)rgb[r.arg];
+            };
+            // the shown colour becomes Custom's, with this channel changed (a preset's values are kept)
+            s.setf = [](const Row& r, float v) {
+                if (pc_ui_tint_current() != PC_UI_TINT_CUSTOM) {
+                    int rgb[3];
+                    pc_ui_tint_effective(rgb);
+                    for (int k = 0; k < 3; k++)
+                        pc_ui_menu_tint_custom[k] = rgb[k];
+                    pc_ui_menu_tint = PC_UI_TINT_CUSTOM;
+                }
+                pc_ui_menu_tint_custom[r.arg] = (int)std::lround(v);
+            };
+            u.push_back(s);
+        }
+    }
     u.push_back(choice("ui_text", "Text", "The game's text drawn from modern fonts at full resolution.", &pc_ui_text,
         text, 2)
                     .grey(need_hw));
@@ -761,6 +803,10 @@ extern "C" int pc_ui_settings_row(int page, int row, pc_ui_setting_row* out)
     out->button = -1;
     out->index = -1;
     out->game_option = r->game;
+    if (r->swatch) {
+        out->swatch = 1;
+        r->swatch(*r, out->swatch_rgb);
+    }
     const char* why = r->why ? r->why(*r) : nullptr;
     out->enabled = why == nullptr;
     if (why)
@@ -1121,6 +1167,11 @@ extern "C" int pc_ui_settings_json(int page, char* out, int size)
         else
             extra[0] = 0;
         s += extra;
+        if (r.swatch) {
+            std::snprintf(extra, sizeof extra, ",\"swatch\":\"#%02x%02x%02x\"", r.swatch_rgb[0], r.swatch_rgb[1],
+                r.swatch_rgb[2]);
+            s += extra;
+        }
         if (r.game_option)
             s += ",\"game\":true";
         s += "}";

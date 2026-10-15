@@ -463,6 +463,16 @@ void func_800A97EC(int arg0, func_8006EBF8_t_fields* arg1, int arg2, int arg3)
 
     D_800F4538_t* actor = D_800F4538[arg0];
 
+#ifdef ROOD_PC
+    /* A room entered out of story order can run an entry script that walks
+     * an enemy the room never spawned (its spawn entry is hidden by a story
+     * flag), so the slot is empty. The PS1 reads and writes low RAM through
+     * the null pointer and carries on; the actor does not exist, so skip
+     * the move. */
+    if (actor == NULL) {
+        return;
+    }
+#endif
     if (arg2 == 0 && arg3 == 0) {
 
         func_800AA290(arg0, arg1, -1, 0);
@@ -563,6 +573,12 @@ void func_800A9988(int arg0, SVECTOR* arg1, int arg2, int arg3)
     int var_a3;
 
     temp_s0 = D_800F4538[arg0];
+#ifdef ROOD_PC
+    /* Empty actor slot: see func_800A97EC. */
+    if (temp_s0 == NULL) {
+        return;
+    }
+#endif
     if ((arg2 == 0) && (arg3 == 0)) {
         temp_a2 = arg1->pad;
         if (temp_a2 == 0x8000) {

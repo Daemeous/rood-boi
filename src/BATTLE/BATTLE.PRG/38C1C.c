@@ -203,6 +203,13 @@ int func_800A1720(int arg0, int arg1, int* arg2, int* arg3)
     }
 
     if (arg1 == 0xFD) {
+#ifdef ROOD_PC
+        /* Empty slot: see func_800A17BC (PS1 address 0 at 0x80000000). */
+        if (D_800F4538[arg0] == NULL) {
+            arg2[6] = ((D_800F4538_t*)0x80000000)->unk0.position.vy;
+            return 0;
+        }
+#endif
         arg2[6] = D_800F4538[arg0]->unk0.position.vy;
     }
 
@@ -216,7 +223,19 @@ int func_800A17BC(int arg0, int arg1, void* arg2, int* arg3)
     vs_battle_wepModels_t* model;
     int _[22] __attribute__((unused));
 
+#ifdef ROOD_PC
+    {
+        /* An effect can follow an actor slot that is empty (a room entered
+         * out of story order: its entry script addresses an enemy the room
+         * never spawned). func_800A1DE8 then returns NULL and the PS1 copies
+         * the matrix from physical address 0, which the host maps at
+         * 0x80000000. */
+        MATRIX* matrix = func_800A1DE8(arg0, arg1, &D_800F49B8);
+        *(MATRIX*)arg2 = matrix != NULL ? *matrix : *(MATRIX*)0x80000000;
+    }
+#else
     *(MATRIX*)arg2 = *func_800A1DE8(arg0, arg1, &D_800F49B8);
+#endif
 
     actor = D_800F4538[arg0];
     if (actor == NULL) {

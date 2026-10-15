@@ -31,18 +31,28 @@ in the save room with ui_menus on; Triangle, L1 (System). One row per page:
     ground colour to the world showing through (measured against the
     picture at 0.94 and the ground); the Ashley tab with its model is
     see-through too (the model column's empty left strip off the ground
-    colour: the presenter's backdrop; before, an opaque cut-out)
+    colour: the presenter's backdrop; before, an opaque cut-out).
+    Menu tint (ui_menu_tint, measured at opacity 1, dragged past the bar's
+    end): Lea Monde by default (the theme's ground, a swatch, sliders
+    8/7/7); Right steps Classic, Slate, Crimson, Verdant (pc_ui_menu_tint,
+    the sliders, the RPC theme's ground; Classic and Crimson measured in the
+    left margin); Right on Blue makes it Custom (3, 10, 7) and a pointer drag
+    sets Red to about 15; Left / Right on the tint row: Verdant, then Custom
+    with its colour back; saved ui_menu_tint custom / ui_menu_tint_custom;
+    the Ashley tab's model column shows the tinted ground
   - Controls: Turn speed Right adds 15 deg/s (camera_stick RPC, saved);
     Reset camera (after a stick turn): the camera resets once the menu closes
   - Bindings: a capture blocks navigation (Triangle does not close the menu,
     Down does not move); Escape cancels it; a pushed gamepad trigger binds
     Circle; Reset to defaults puts both back; Circle on Triangle + a pushed
     "m" binds it (bind_key_triangle m saved); in the field "m" opens the menu
-  - Display: Widescreen On: pc_gl_view is 16:9, widescreen 1 saved; Window
+  - Display: Widescreen On: pc_gl_view is 16:9 (its outermost 32 px column
+    the tinted ground), widescreen 1 saved; Window
     Right = Borderless (system RPC, saved)
   - Game group: Data opens the game's own Data screen; Cross comes back to
     the System list on Data
 Relaunch with the same file: the values are back (live variables and RPCs,
+the menu tint Custom with its colour,
 brightness still its default 50), and a save writes the same file.
 --out keeps screenshots (game imagery: keep it out of git)."""
 import argparse
@@ -72,6 +82,13 @@ SLIDER_X0, SLIDER_X1 = 632, 786  # the slider bar
 TOGGLE_ON_X = 868
 STYLES = ["Solid", "Outline", "Colour solid", "Colour outline"]  # Prompt style (ui_settings.cpp)
 STYLE_NAMES = ["solid", "outline", "color_solid", "color_outline"]  # button_prompts_style (button_prompts.c)
+# Menu tint presets after Lea Monde (ui_tint.cpp): name, 0..31 colour, the menus' ground (ui_theme.cpp tint_theme)
+TINTS = [("Classic", (4, 8, 25), "#081134"), ("Slate", (7, 8, 10), "#0e1115"), ("Crimson", (14, 3, 4), "#1d0608"),
+         ("Verdant", (3, 10, 6), "#06150c")]
+
+
+def hex_rgb(text):
+    return tuple(int(text[i:i + 2], 16) for i in (1, 3, 5))
 
 
 def settings_lines(path):
@@ -191,6 +208,14 @@ def main():
                 return rows()[row_id]
             press("down", settle=2)
         raise Timeout(f"row {row_id} ({sysv()['row']})")
+
+    def settle(seconds=0.8):
+        """Let the page's scroll animation finish: it runs on real time, and a
+        focus move stops it where it was (the pointer's row positions assume
+        the page at its top: settle on the first row)."""
+        t0 = time.time()
+        while time.time() - t0 < seconds:
+            game.run(4)
 
     def leave():
         press("cross")
@@ -357,8 +382,9 @@ def main():
               and read_int(game, "pc_button_prompts_style")[0] == style_index,
               f"Right on Prompt style: {style['value']} -> {new_style} (pc_button_prompts_style {style_index})")
         # Menu opacity: the backdrop over the game and the panels (ui_theme.cpp theme())
+        import numpy as np
+
         def picture(name):
-            import numpy as np
             from PIL import Image
             path = game.present_screenshot(out / f"{name}.png")
             image = np.asarray(Image.open(path).convert("RGB")).astype(np.int16)
@@ -371,6 +397,8 @@ def main():
             import numpy as np
             return float(np.abs(image[y:y + 120, x:x + 32] - np.array(GROUND)).mean())
 
+        goto_row("ui_menus")  # the page scrolled to its top (the pointer's row positions below)
+        settle()
         r = goto_row("ui_menu_opacity")
         check(r["enabled"] and r["value"] == "0.94" and abs(read_float(game, "pc_ui_menu_opacity") - 0.94) < 1e-4,
               f"Interface: Menu opacity 0.94 by default ({r['value']})")
@@ -412,6 +440,99 @@ def main():
         strip = float(np.abs(ashley[my + 8:my + int(mh * 0.95), mx + 4:mx + 48] - np.array(GROUND)).mean())
         check(strip > 6, f"Ashley tab see-through at {opacity:.2f}: the model column's empty left strip "
                          f"off the ground colour by {strip:.1f} (before: an opaque cut-out, 0)")
+        for _ in range(12):
+            if shell()["tab"] == "system":
+                break
+            press("l1", settle=8)
+        check(shell()["tab"] == "system", f"back to System ({shell()['tab']})")
+        enter("interface")
+        # Menu tint (ui_tint.cpp, ui_theme.cpp tint_theme): measured with the backdrop opaque
+        goto_row("ui_menus")
+        settle()
+        y = CARD_ROW_Y0 + CARD_ROW_STEP * row_index("ui_menu_opacity")
+        ptr(SLIDER_X0 + 10, y, down=True)
+        ptr(SLIDER_X1 + 6, y, down=True)
+        ptr(SLIDER_X1 + 6, y, down=False)
+        opacity = read_float(game, "pc_ui_menu_opacity")
+        check(opacity == 1.0, f"a pointer drag past the bar's end: opacity 1 ({opacity:g})")
+
+        def margin(image):
+            """The left margin's mean colour (32 x 120 at 8, 300; 960 x 720: layout = pixels)."""
+            return image[300:420, 8:40].reshape(-1, 3).mean(axis=0)
+
+        def dist(a, b):
+            return float(np.abs(np.array(a, dtype=float) - np.array(b, dtype=float)).max())
+
+        def tint_rgb():
+            return tuple(int(rows()[f"ui_menu_tint_{c}"]["value"]) for c in "rgb")
+
+        r = goto_row("ui_menu_tint")
+        theme = shell()["theme"]
+        image = picture("tint_lea_monde")
+        check(r["value"] == "Le\u00e1 Monde" and r.get("swatch") and theme["tint"] == "lea_monde"
+              and theme["ground"][:7] == "#%02x%02x%02x" % tuple(GROUND) and tint_rgb() == (8, 7, 7)
+              and dist(margin(image), GROUND) < 6,
+              f"Menu tint: Le\u00e1 Monde by default, the theme's ground {theme['ground']} (margin "
+              f"{margin(image).round(1)}), sliders {tint_rgb()}, swatch {r.get('swatch')}")
+        for k, (name, rgb, ground) in enumerate(TINTS):
+            press("right")
+            theme = shell()["theme"]
+            ok = (rows()["ui_menu_tint"]["value"] == name and read_int(game, "pc_ui_menu_tint")[0] == k + 1
+                  and tint_rgb() == rgb and theme["ground"][:7] == ground)
+            note = ""
+            if name in ("Classic", "Crimson"):
+                game.run(4)
+                m = margin(picture(f"tint_{name.lower()}"))
+                ok = ok and dist(m, hex_rgb(ground)) < 6 and dist(m, GROUND) > 10
+                if name == "Classic":
+                    ok = ok and m[2] - m[0] > 30
+                note = f", margin {m.round(1)}"
+            check(ok, f"Right: {name} {rgb}, ground {theme['ground']} (want {ground}{note})")
+        # a slider: Custom, from the shown preset's colour
+        goto_row("ui_menu_tint_b")
+        press("right")
+        custom = read_int(game, "pc_ui_menu_tint_custom", 3)
+        check(tint_rgb() == (3, 10, 7) and rows()["ui_menu_tint"]["value"] == "Custom"
+              and read_int(game, "pc_ui_menu_tint")[0] == 5 and custom == [3, 10, 7],
+              f"Right on Blue: 6 -> 7, the tint Custom ({tint_rgb()}, pc_ui_menu_tint_custom {custom})")
+        goto_row("ui_menus")
+        settle()
+        y = CARD_ROW_Y0 + CARD_ROW_STEP * row_index("ui_menu_tint_r")
+        ptr(SLIDER_X0 + 10, y, down=True)
+        ptr(SLIDER_X0 + (SLIDER_X1 - SLIDER_X0) * 0.5, y, down=True)
+        ptr(SLIDER_X0 + (SLIDER_X1 - SLIDER_X0) * 0.5, y, down=False)
+        red = tint_rgb()[0]
+        ground = hex_rgb(shell()["theme"]["ground"])
+        check(red in (15, 16) and rows()["ui_menu_tint"]["value"] == "Custom" and ground[0] > ground[2],
+              f"a pointer drag to Red's middle: {red}, still Custom, the ground red ({shell()['theme']['ground']})")
+        custom = (red, 10, 7)
+        goto_row("ui_menu_tint")
+        press("left")
+        check(rows()["ui_menu_tint"]["value"] == "Verdant" and tint_rgb() == (3, 10, 6),
+              f"Left on Menu tint: Verdant ({tint_rgb()})")
+        press("right")
+        check(rows()["ui_menu_tint"]["value"] == "Custom" and tint_rgb() == custom,
+              f"Right: Custom again with its colour {custom} ({tint_rgb()})")
+        tinted = hex_rgb(shell()["theme"]["ground"])
+        shot("tint_custom")
+        wait_clean()
+        saved = settings_lines(settings)
+        check(saved.get("ui_menu_tint") == "custom" and saved.get("ui_menu_tint_custom") == "%d %d %d" % custom,
+              f"saved ui_menu_tint custom, ui_menu_tint_custom {custom} ({saved.get('ui_menu_tint')}, "
+              f"{saved.get('ui_menu_tint_custom')})")
+        # the Ashley tab follows: the presenter's backdrop behind the model
+        leave()
+        for _ in range(12):
+            if shell()["tab"] == "ashley":
+                break
+            press("r1", settle=8)
+        wait(lambda: (shell().get("ashley") or {}).get("model") == 2, "the Ashley model", limit=80)
+        game.run(10)
+        ashley = picture("tint_ashley")
+        mx, my, mw, mh = (int(v) for v in shell()["ashley"]["model_rect"])
+        strip = ashley[my + 8:my + int(mh * 0.95), mx + 4:mx + 48].reshape(-1, 3).mean(axis=0)
+        check(dist(strip, tinted) < 6 and dist(strip, GROUND) > 10,
+              f"Ashley tab: the model column's empty strip in the tint {tinted} ({strip.round(1)})")
         for _ in range(12):
             if shell()["tab"] == "system":
                 break
@@ -494,6 +615,16 @@ def main():
         check(rows()["widescreen"]["value"] == "On" and game.call("graphics")["widescreen"]
               and abs(aspect - 16 / 9) < 0.01, f"Right: widescreen on, pc_gl_view 16:9 ({view})")
         shot("display_169")
+        # the tint at 16:9: the view's outermost column is the tinted backdrop (opacity 1)
+        leave()
+        game.run(10)
+        wide = picture("tint_169")
+        vx, vy, vw, vh = view_aspect(game)[1]
+        top = wide.shape[0] - vy - vh  # pc_gl_view is GL's (bottom-left origin)
+        column = wide[top + vh * 2 // 5:top + vh * 3 // 5, vx:vx + 32].reshape(-1, 3).mean(axis=0)
+        check(dist(column, tinted) < 6, f"16:9: the outermost 32 px column in the tint {tinted} ({column.round(1)}, "
+                                        f"view {vx},{vy} {vw}x{vh}, image {wide.shape[1]}x{wide.shape[0]})")
+        enter("display")
         # (after the screenshot: the headless offscreen driver keeps the old drawable size in borderless)
         r = goto_row("window_mode")
         check(r["enabled"] and r["value"] == "Windowed", f"Window: Windowed ({r})")
@@ -562,6 +693,9 @@ def main():
             relaunched = read_float(game, "pc_ui_menu_opacity")
             check(abs(relaunched - float(first["ui_menu_opacity"])) < 1e-3,
                   f"relaunch: menu opacity {first['ui_menu_opacity']} ({relaunched:.3f})")
+            tint, custom_now = read_int(game, "pc_ui_menu_tint")[0], read_int(game, "pc_ui_menu_tint_custom", 3)
+            check(tint == 5 and " ".join(map(str, custom_now)) == first.get("ui_menu_tint_custom"),
+                  f"relaunch: menu tint Custom {custom_now} ({tint}, {first.get('ui_menu_tint_custom')})")
             check(abs(game.call("camera_stick")["speed"] - float(first["camera_stick_speed"])) < 1e-3,
                   "relaunch: turn speed")
             game.call("settings", action="save")

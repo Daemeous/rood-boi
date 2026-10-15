@@ -226,9 +226,11 @@ static int build_catalog(void)
             unsigned char* lengths = read_bytes(mpd, room_offset, 0x60);
             if (!lengths)
                 continue;
-            unsigned at = room_offset + 0x60, door_at = 0, door_len = 0, scene_at = 0;
+            unsigned at = room_offset + 0x60, door_at = 0, door_len = 0, scene_at = 0, floor_at = 0;
             for (int s = 0; s < 24; s++) {
                 unsigned len = le32(lengths + 4 * s);
+                if (s == 1 && len >= 4)
+                    floor_at = at; /* the collision map: width, height (cells) */
                 if (s == 3)
                     door_at = at, door_len = len;
                 if (s == 10 && len >= 0x52)
@@ -242,6 +244,14 @@ static int build_catalog(void)
                     int id = (short)le16(scene);
                     self->scene = id >= 0 && id < 32 ? id : -1;
                     free(scene);
+                }
+            }
+            if (self && floor_at && floor_at + 4 <= mpd_size) {
+                unsigned char* grid = read_bytes(mpd, floor_at, 4);
+                if (grid) {
+                    self->floor_w = (short)le16(grid);
+                    self->floor_h = (short)le16(grid + 2);
+                    free(grid);
                 }
             }
             if (!door_len || door_len > 12 * 64 || door_at + door_len > mpd_size)
@@ -345,6 +355,29 @@ static char warp_message[200];
  * reached by a fall); x < 0: a real door. Cleared by each request taken. */
 int pc_room_warp_cell[4] = { -1, 0, 0, 0 };
 
+/* Whether pc_room_warp_cell (when given) is on the room's floor grid: the
+ * arrival looks its cell up (func_80074B14 -> func_8008B764), which is NULL
+ * off the grid (x >= width or z >= height) and for levels 2 and up
+ * (platforms: none to stand on here). 0 and `why` when it is not. */
+int pc_room_warp_cell_valid(int zone, int room, char* why, int size)
+{
+    pc_rooms_count();
+    const pc_room_info* r = room_at(zone, room);
+    if (!r || pc_room_warp_cell[0] < 0)
+        return 1;
+    int x = pc_room_warp_cell[0], y = pc_room_warp_cell[1], z = pc_room_warp_cell[2];
+    if (r->floor_w <= 0 || r->floor_h <= 0) {
+        snprintf(why, size, "zone %d room %d: its floor grid could not be read (no cell warps)", zone, room);
+        return 0;
+    }
+    if (x >= r->floor_w || z < 0 || z >= r->floor_h || y < 0 || y > 1) {
+        snprintf(why, size, "cell [%d, %d, %d] is outside zone %d room %d's floor (x 0-%d, y 0-1, z 0-%d)", x, y, z,
+            zone, room, r->floor_w - 1, r->floor_h - 1);
+        return 0;
+    }
+    return 1;
+}
+
 /* Request a warp (the field loop takes it); 0 when refused (`why`). */
 int pc_room_warp_request(int zone, int room, int entry, char* why, int size)
 {
@@ -360,6 +393,10 @@ int pc_room_warp_request(int zone, int room, int entry, char* why, int size)
     }
     if (phase == WARP_LOADING || phase == WARP_ARRIVED) {
         snprintf(why, size, "a warp is under way");
+        return 0;
+    }
+    if (!pc_room_warp_cell_valid(zone, room, why, size)) {
+        pc_room_warp_cell[0] = -1;
         return 0;
     }
     target = (int)(r - rooms);
@@ -382,6 +419,15 @@ int pc_room_warp_take(int zone, int room, unsigned char door[12])
     if (phase != WARP_PENDING)
         return 0;
     const pc_room_info* r = &rooms[target];
+    char why[160];
+    if (!pc_room_warp_cell_valid(r->zone, r->room, why, sizeof why)) {
+        /* (set after the request was checked) */
+        snprintf(warp_message, sizeof warp_message, "Warp refused: %s", why);
+        fprintf(stderr, "[warp] %s\n", warp_message);
+        pc_room_warp_cell[0] = -1;
+        phase = WARP_IDLE;
+        return 0;
+    }
     if (!warped)
         origin_zone = zone, origin_room = room;
     if (pc_room_warp_cell[0] >= 0) { /* a made-up door onto the cell (as the game's pit falls make one) */
@@ -475,8 +521,9 @@ int pc_rooms_json(char* out, int size)
         now_zone, now_room, warped ? "true" : "false", phase);
     for (int i = 0; i < n && used + 300 < cap; i++) {
         const pc_room_info* r = &rooms[i];
-        used += (size_t)snprintf(out + used, cap - used, "%s{\"zone\":%d,\"room\":%d,\"location\":%d,\"scene\":%d,\"entries\":%d,\"name\":",
-            i ? "," : "", r->zone, r->room, r->location, r->scene, r->entries);
+        used += (size_t)snprintf(out + used, cap - used, "%s{\"zone\":%d,\"room\":%d,\"location\":%d,\"scene\":%d,\"entries\":%d,"
+            "\"floor\":[%d,%d],\"name\":",
+            i ? "," : "", r->zone, r->room, r->location, r->scene, r->entries, r->floor_w, r->floor_h);
         json_text(out, cap, &used, r->name);
         used += (size_t)snprintf(out + used, cap - used, ",\"area\":");
         json_text(out, cap, &used, r->area);

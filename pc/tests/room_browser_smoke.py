@@ -20,6 +20,12 @@ holds a generated and an authored layer for two rooms, then:
   (hidden, out of the fight) and the event runs to its end;
 - a warp without the room's scripts still keeps its door scripts: 13/6's
   rusted door answers Cross with its own event;
+- a cell off the room's floor (x or z past the room's floor grid, y past
+  1) is refused with an RPC error and nothing is warped;
+- rooms entered out of story order (story flag 187 at 40): 31/0's entry
+  event addresses an enemy whose spawn entry the flag hides (slot 2 stays
+  empty) and 40/13's event moves and tracks actors that are not there;
+  both events run to their end (scripts on, enemies off and on);
 - a warp with the room's scripts into zone 32 room 0: its entry event
   moves on to room 1 (an animation whose event SEQ the script unloaded);
 - no crash.
@@ -36,7 +42,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT  # noqa: E402
+from rood_rpc import OUT, RpcError  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 import lighting_format as lf  # noqa: E402
 
@@ -47,6 +53,12 @@ light gen.lamp.0001 pos={x},{y},{z} intensity=0.8 radius=900
 """
 # Rooms whose entry event moves an enemy (scripts on, enemies off crashed).
 SCRIPTED_ENEMY_ROOMS = ((13, 4), (48, 15), (49, 2), (49, 5))
+# Rooms entered out of story order (story flag 187 past 35 hides 31/0's
+# spawn entry for slot 2, which its entry script still moves): (zone, room),
+# enemies (room_goto's enemies stays set: off last, as zone 32 room 0's
+# check expects).
+OUT_OF_ORDER_FLAG = (187, 40)
+OUT_OF_ORDER_ROOMS = (((40, 13), True), ((31, 0), False))
 # Zone 13 room 6: the rusted door (cell 4, 15; a door script) and the cell
 # in front of it, facing it (x, y, z, facing).
 RUSTED_DOOR_FRONT = (4, 0, 14, 2)
@@ -260,6 +272,27 @@ def main():
         check(game.call("scene")["triangles"] > 0, "the home room renders")
         evidence("room-browser-home")
 
+        # A cell off the room's floor: the arrival looks the cell up
+        # (func_80074B14 -> func_8008B764, NULL off the grid) and crashed;
+        # now the request is an RPC error and nothing is warped.
+        grid = next((r for r in rooms["rooms"] if r["entries"] and r["floor"][0] > 0 and r["floor"][1] > 0
+                     and (r["zone"], r["room"]) != home), None)
+        check(grid is not None, f"rooms report their floor grids ({grid and grid['floor']})")
+        if grid:
+            w, d = grid["floor"]
+            for cell in ([w, 0, 0, 0], [0, 0, d, 0], [0, 2, 0, 0]):
+                try:
+                    game.call("room_goto", zone=grid["zone"], room=grid["room"], cell=cell)
+                    refused = None
+                except RpcError as e:
+                    refused = str(e)
+                status = game.call("room_goto", action="status")
+                check(refused is not None and "outside" in refused and status["phase"] != 1,
+                      f"cell {cell} off zone {grid['zone']} room {grid['room']}'s {w} x {d} floor: refused ({refused})")
+            game.run(60)
+            st = game.state()
+            check((st["zone"], st["room"]) == home, "and the game stays where it is")
+
         # Room scripts on, enemies off: the rooms whose entry event moves an
         # enemy (the Ghost in 13/4, ...). The enemies spawn, so the script
         # finds them (it used to dereference a NULL actor: func_800A97EC,
@@ -310,6 +343,52 @@ def main():
                     break
                 game.press("cross", vsyncs=4, settle=40)
             check(game.read_symbol("D_800F4C34", 1)[0] == 0, "and its message closes")
+
+        # Rooms entered out of story order: the entry events address actors
+        # the rooms never spawned (the PS1 reads low RAM through the empty
+        # slot and carries on): func_800A97EC / func_800A9988 skip the move,
+        # an effect on the empty slot reads the PS1's address 0. The events
+        # (dialogue: buttons) run to their end.
+        def drive_event(limit=400):
+            for k in range(limit):
+                game.run(20)
+                event = game.read_symbol("D_800F4C34", 1)[0]
+                if event == 0 and game.call("room_goto", action="status")["phase"] in (0, 4):
+                    return True
+                if event:
+                    game.press("cross" if k % 2 else "circle", vsyncs=6, settle=20)
+            return False
+
+        flag_id, flag_value = OUT_OF_ORDER_FLAG
+        # (the events set story flags too: all are put back afterwards)
+        saved_flags = [game.call("state_flag", id=i)["value"] for i in range(0x440)]
+        game.call("state_flag", id=flag_id, value=flag_value)
+        for where, enemies in OUT_OF_ORDER_ROOMS:
+            if where not in listed or not listed[where]["entries"]:
+                continue
+            ended = alive = False
+            empty = None
+            try:
+                reply = game.call("room_goto", zone=where[0], room=where[1], scripts=True, enemies=enemies)
+                for _ in range(60):  # the room loads
+                    game.run(20)
+                    if game.call("room_goto", action="status")["phase"] >= 3:
+                        break
+                raw = game.read_symbol("D_800F4538", 16 * ptr)  # what the script ops read
+                empty = int.from_bytes(raw[2 * ptr:3 * ptr], "little") == 0
+                ended = reply["ok"] and drive_event()
+                game.run(60)
+                alive = game.state()["zone"] in (where[0],)
+            except (OSError, RpcError):  # the game is gone
+                pass
+            note = f", slot 2 empty: {empty}" if where == (31, 0) else ""
+            check(ended and alive and (empty or where != (31, 0)),
+                  f"out of story order (flag {flag_id} = {flag_value}), scripts on, enemies "
+                  f"{'on' if enemies else 'off'}: zone {where[0]} room {where[1]}'s entry event runs to its end{note}")
+        changed = [i for i in range(0x440) if game.call("state_flag", id=i)["value"] != saved_flags[i]]
+        print(f"story flags the out-of-order events changed (put back): {changed}")
+        for i in changed:
+            game.call("state_flag", id=i, value=saved_flags[i])
 
         # A warp with the room's scripts: zone 32 room 0's entry event plays
         # an animation from its event SEQ, unloads that SEQ while Ashley still

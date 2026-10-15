@@ -901,7 +901,7 @@ def run_bubble(work, shots):
     try:
         g = game.call("graphics")
         check(g.get("ui_text") == "original", f"bubble: default ui_text original ({g.get('ui_text')})")
-        check(g.get("ui_text_layout") == "glyph", f"bubble: default ui_text_layout glyph ({g.get('ui_text_layout')})")
+        check(g.get("ui_text_layout") == "line", f"bubble: default ui_text_layout line ({g.get('ui_text_layout')})")
         check(g.get("ui_text_bubble_align") == "centre",
               f"bubble: default ui_text_bubble_align centre ({g.get('ui_text_bubble_align')})")
         game.call("graphics", interpolate=False, aa="off")  # SMAA would blend beyond the glyph boxes
