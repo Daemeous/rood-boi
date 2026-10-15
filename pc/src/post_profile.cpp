@@ -38,6 +38,7 @@ extern int pc_game_phase __attribute__((weak)); /* boot_runtime.c: 1 title, 2 at
 extern int pc_battle_field_menu_open(void) __attribute__((weak)); /* weapon_slots.c (battle builds) */
 extern int pc_ui_menu_active(void) __attribute__((weak)); /* ui/menu_bridge.c: the modern menus */
 extern float pc_hw_present_fade(float rect[4]) __attribute__((weak)); /* gpu_hw.c: the shown picture's screen fade */
+extern int pc_hw_present_menu_model(void) __attribute__((weak)); /* gpu_hw.c: the shown picture is the menu's model view */
 extern int pc_hw_active;
 void pc_lights_mark_dirty(void);
 void pc_settings_save(void);
@@ -601,6 +602,7 @@ const char* lens_blur_gate(int context)
     return s.has_player ? "" : "no_player";
 }
 const char* gate_now = "";
+bool frame_menu_model; /* the last present showed the menu's model view (neutral; RPC post menu_model) */
 
 Values resolve(int context)
 {
@@ -916,6 +918,15 @@ extern "C" void pc_post_frame_get(pc_post_frame* out)
     int context = effective_context();
     bool cut = camera_cut();
     Values t = resolve(context);
+    /* The modern menu's Ashley model view (ui/ashley_bridge.c; gpu_hw.c tags the frames that hold it): the
+     * model is the only 3D in the picture (the world is frozen and not drawn; the presenters show the
+     * held picture of the world behind it, post-processed when it was shown). The model shows as it is:
+     * every field neutral (no grade, bloom, vignette, grain, aberration, ...), switched at once both ways.
+     * The game's screen fade still applies (below). */
+    static bool last_menu_model;
+    bool menu_model = pc_hw_present_menu_model && pc_hw_present_menu_model();
+    if (menu_model)
+        t = defaults();
     /* Blend toward a changed target: from what shows now, over blend_time; snap on a camera cut
      * that comes with a context change (a cutscene starting on a cut), on the first frame, and
      * when the master switch changed. */
@@ -923,7 +934,10 @@ extern "C" void pc_post_frame_get(pc_post_frame* out)
     /* Only a room change or a context change blends; an edit (settings, the editor, RPC) applies at once. */
     bool scene_change = context != last_context || rood_lights::zone != last_zone || rood_lights::room != last_room;
     last_zone = rood_lights::zone, last_room = rood_lights::room;
-    bool snap = !started || pc_post_stack != last_stack || (cut && context != last_context) || blend_time <= 0;
+    bool snap = !started || pc_post_stack != last_stack || (cut && context != last_context) || blend_time <= 0
+        || menu_model != last_menu_model;
+    last_menu_model = menu_model;
+    frame_menu_model = menu_model;
     if (!same(t, target) && !scene_change && !blending)
         snap = true;
     if (!same(t, target)) {
@@ -1016,7 +1030,7 @@ extern "C" void pc_post_frame_get(pc_post_frame* out)
             ev_auto = fabsf(want - ev_auto) <= step ? want : ev_auto + (want > ev_auto ? step : -step);
         }
         ev += ev_auto;
-    } else
+    } else if (!menu_model) /* (the menu's model view keeps the world's adaptation for after it) */
         ev_auto = 0;
     f.exposure_scale = exp2f(ev);
     pc_post_active_ev = ev;
@@ -1478,7 +1492,7 @@ extern "C" int pc_post_rpc(const char* params_text, char* out, int size)
                                                                                : "none")
         + ",\"fft_available\":" + (pc_post_fft_available ? "true" : "false") + ",\"fft_size\":"
         + std::to_string(pc_post_fft_size) + ",\"ev\":" + number(pc_post_active_ev) + ",\"focus\":"
-        + number(frame.focus_sz) + ",\"fade\":" + number(frame.fade) + ",\"flags\":" + std::to_string(frame.flags) + ",\"lut\":{\"size\":"
+        + number(frame.focus_sz) + ",\"fade\":" + number(frame.fade) + ",\"menu_model\":" + (frame_menu_model ? "true" : "false") + ",\"flags\":" + std::to_string(frame.flags) + ",\"lut\":{\"size\":"
         + std::to_string(lut_size) + ",\"error\":" + jstr(lut_error) + "},\"zone\":" + std::to_string(rood_lights::zone)
         + ",\"room\":" + std::to_string(rood_lights::room) + ",\"target\":" + values_json(target)
         + ",\"shown\":" + values_json(shown) + ",\"layers\":{\"gameplay\":" + layer_json(user_gameplay)

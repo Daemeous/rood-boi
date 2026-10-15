@@ -66,6 +66,8 @@ def schema(cat, prefabs):
             problems.append(f"class {name}: glow {c.get('glow')}")
         if c.get("glow_shape", "auto") not in ("auto", "sphere", "column"):
             problems.append(f"class {name}: glow_shape {c.get('glow_shape')}")
+        if not 0 <= c.get("glow_shadow_core", 0.25) <= 1:
+            problems.append(f"class {name}: glow_shadow_core {c.get('glow_shadow_core')}")
         for k in c.get("params", {}):
             if k not in prefabs.get(c.get("prefab"), set()):
                 problems.append(f"class {name}: {k} is not a parameter of {c.get('prefab')}")

@@ -33,7 +33,8 @@ bytes), vs_main_inventoryIndices (176 bytes), D_800F4E98 bytes 0..3 (unk0,
 unk2: the loot's result, 1 when something was taken or nothing was left)
 and the keys' state flags (key id + 438) are compared byte for byte. The
 sessions:
-  1 take one (the weapon; in the shell: a mouse click on its row), leave the
+  1 take one (the weapon; in the shell: a mouse click on its row, real SDL
+    mouse events through the overlay's filter), leave the
     rest (Cross, Yes: itemsRemaining)
   2 take all with a key (Square: armor, Cure Root, a key; its flag set; the
     list empties: the session ends)
@@ -647,7 +648,12 @@ def shell_session(b, s, check):
             b.s_row(st[1])
             n = b.lt().get("rows")
             if st[1] == 0 and name.startswith("1"):  # the mouse: a click on the row takes it
-                b.ui(pointer={"x": LIST_X, "y": LIST_Y0 + ROW_H // 2, "click": True})
+                # real SDL mouse events (system mouse; 960x720 window: layout units are pixels), through the
+                # overlay's event filter as a player's click (the ui_menu pointer RPC would bypass it)
+                xy = [LIST_X, LIST_Y0 + ROW_H // 2]
+                b.g.call("system", mouse=xy, button=1, down=True)
+                b.g.run(3)
+                b.g.call("system", mouse=xy, button=1, down=False)
                 b.g.run(6)
             else:
                 b.press("circle", settle=4)

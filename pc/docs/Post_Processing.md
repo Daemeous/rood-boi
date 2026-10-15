@@ -44,6 +44,22 @@ those pixels as they are; bloom and chromatic aberration never take light
 from them. Movies (24-bit display) are presented from VRAM without any of
 this. The overlay (modern menus, editor) is drawn afterwards.
 
+### The modern menu's Ashley model
+
+The Ashley tab freezes the world and has the game draw Ashley's model alone
+over a flat 2D tile (`pc/src/ui/ashley_bridge.c`). `gpu_hw.c` tags those
+frames (`pc_hw_frame_menu_model`, set right after the battle loop's
+DrawOTag), and a present that shows one (`pc_hw_present_menu_model`) runs
+every field neutral (no grade, bloom, vignette, grain, aberration; the
+screen fade still applies; auto exposure keeps its adaptation for after; RPC
+`post` reports `menu_model`). While the modern menu is up, every present of
+the world keeps the chain's finished picture (before game text and the
+brightness curve); a model-view present shows that picture, under the menu's
+ground colour at `ui_menu_opacity`, in place of the tile's 2D pixels, in the
+present shader before anti-aliasing. So the model is never graded, and the
+world behind it keeps the post it was shown with, as on the other tabs.
+`pc/tests/ui_ashley_stability_smoke.py` checks both with a strong profile.
+
 With a tonemapper other than `none` the lit image keeps light above 1 (the
 present shader's post bit 8 skips its shoulder and clamp) for the tone curve.
 
@@ -83,9 +99,15 @@ frame's fade amount (interpolated with the frame on interpolated presents,
 step of the grade pass, which runs for it whatever the profile, over the part
 of the view the quad covers (all of it; in widescreen without the cover fix,
 the 4:3 middle). 2D drawn
-after the fade (in front of it) stays unfaded, as on the PS1.
-`pc/tests/transition_fade_smoke.py` follows a door and a cross-zone
-transition frame by frame.
+after the fade (in front of it) stays unfaded, as on the PS1. What fills and
+uploads left (far depth: a backdrop the game uploaded, such as the title's)
+is no 3D either: the quad is drawn a second time at far depth, so it fades
+there too (the title's 64 subtractions after Continue, over a picture the
+game no longer redraws, darken its uploaded backdrop as on the PS1; the grade
+pass also subtracts the frame's amount there, a few levels per frame, not
+accumulated). `pc/tests/transition_fade_smoke.py` follows a door and a cross-zone
+transition frame by frame; `pc/tests/title_fade_smoke.py` the title's fade
+against the software rasteriser.
 
 ### Film grain
 

@@ -62,14 +62,22 @@ int pc_ui_shell_wants_mouse(void);
  * layout units (1280 or 960 x 720), as moved there, instead of ImGui's; click
  * / right: a button went down; wheel in notches (positive = up); down: the
  * left button is held (a drag over the Ashley model turns it: pointers sent
- * with down, the first inside the model, then moved). */
-void pc_ui_draw_pointer(float x, float y, int click, int right, float wheel, int down);
+ * with down, the first inside the model, then moved); middle: the middle
+ * button is held (a drag over the Map frame's picture pans it); shift: Shift
+ * is held (a left drag over the Map frame's picture started with it pans). */
+void pc_ui_draw_pointer(float x, float y, int click, int right, float wheel, int down, int middle, int shift);
 /* The Ashley screen's model column in layout units (x, y, w, h), for the
  * current aspect (pc_gte_widescreen): where ashley_bridge.c centres the model. */
 void pc_ui_draw_model_column(float out[4]);
 /* The theme's ground colour (ui_theme.cpp), 0..255 per channel. */
 void pc_ui_theme_ground_rgb(int* r, int* g, int* b);
 
+
+/* The shell reopens on `tab` (the Map frame's tab click, menu_bridge.c),
+ * on that tab's remembered row; a tab with nothing to show is ignored. */
+void pc_ui_shell_set_tab(int tab);
+/* The tab L1 (dir -1) / R1 (+1) goes to from the current one. */
+int pc_ui_shell_step_tab(int dir);
 
 /* Read-only views for drawing (ui_draw.cpp). */
 int pc_ui_shell_tab(void);
@@ -329,6 +337,8 @@ typedef struct {
     int capture;  /* the PS1 button a capture listens for, -1 none */
 } pc_ui_system_view;
 void pc_ui_shell_system_view(pc_ui_system_view* v);
+/* The System tab shows the Quick manual (ui_manual.h): ui_system_draw.cpp hands it the screen. */
+int pc_ui_shell_manual_shown(void);
 /* List entry i: id ("data", "graphics"), label, help, enabled, reason (greyed: why).
  * Returns 0 past the end. */
 int pc_ui_shell_system_item(int i, const char** id, const char** label, const char** help, int* enabled,
@@ -430,6 +440,31 @@ int pc_ui_loot_pop_request(pc_ui_request* out);
  * category), _BUTTON (bits). */
 void pc_ui_loot_mouse(int kind, int index, int clicked, float wheel);
 enum { PC_UI_MOUSE_LOOT_ROW = 100, PC_UI_MOUSE_LOOT_MENU, PC_UI_MOUSE_LOOT_BAG };
+
+/* The Map frame (map_frame.h, ui_map.cpp, ui_map_draw.cpp): the game's map
+ * screen (MENU5) with the shell's chrome around its picture. Pointer kinds
+ * for pc_ui_map_mouse: an area row (index: the scene id), a room row (the
+ * room index), the header's < > (index -1 / +1), the picture (drags, the
+ * wheel), a prompt (PC_UI_MAP_P_*), a tab (its index), the rail elsewhere
+ * (its wheel scrolls it). */
+enum { PC_UI_MOUSE_MAP_AREA = 120, PC_UI_MOUSE_MAP_ROOM, PC_UI_MOUSE_MAP_STEP, PC_UI_MOUSE_MAP_VIEW,
+       PC_UI_MOUSE_MAP_PROMPT, PC_UI_MOUSE_MAP_TAB, PC_UI_MOUSE_MAP_RAIL };
+enum { PC_UI_MAP_P_ROOM_PREV, PC_UI_MAP_P_ROOM_NEXT, PC_UI_MAP_P_ROTATE, PC_UI_MAP_P_ZOOM, PC_UI_MAP_P_RESET,
+       PC_UI_MAP_P_AREAS, PC_UI_MAP_P_HIDE, PC_UI_MAP_P_BACK, PC_UI_MAP_P_CLOSE, PC_UI_MAP_P_LIST_UP,
+       PC_UI_MAP_P_LIST_DOWN, PC_UI_MAP_P_LIST_TAB, PC_UI_MAP_P_LIST_SHOW, PC_UI_MAP_P_LIST_MAP,
+       PC_UI_MAP_P_LIST_CLOSE };
+/* The frame's picture (the cut-out MENU5's map shows through) in layout
+ * units (x, y, w, h) for the current aspect, and for a W-wide layout. */
+void pc_ui_map_column(float out[4]);
+void pc_ui_map_column_for(float W, float out[4]);
+/* The rail's wheel offset in lines from its automatic window, clamped to
+ * lo..hi; reset when another room or area is in focus. */
+float pc_ui_map_rail_scroll(float lo, float hi);
+void pc_ui_map_rail_scroll_reset(void);
+/* The frame's pointer targets as last drawn (JSON "hits", so tests click
+ * what is drawn): cleared at each draw, one per target. */
+void pc_ui_map_hits_clear(void);
+void pc_ui_map_hit_record(int kind, int index, float x0, float y0, float x1, float y1);
 /* The screen as JSON members (",\"loot\":{...}" appended to out; RPC ui_menu). */
 void pc_ui_loot_json(char* out, unsigned size);
 

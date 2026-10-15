@@ -83,6 +83,7 @@ typedef struct {
     int i3[4]; /* glows.c pc_glow_casts */
     pc_env_gpu env; /* the room's sun and sky (environment.h) */
     float emitter_shape[32][4]; /* glows.c: a column glow's half axis and radius (0: a sphere) */
+    float emitter_shadow[32][4]; /* glows.c: x a column's shadow core radius */
 } probe_trace_ubo;
 
 static struct {
@@ -293,6 +294,7 @@ static int probe_begin(probe_volume_ubo* v, probe_trace_ubo* t, int root)
     memcpy(t->emitter_pos, emitter_pos, sizeof emitter_pos);
     memcpy(t->emitter_col, emitter_col, sizeof emitter_col);
     memcpy(t->emitter_shape, emitter_shape, sizeof emitter_shape);
+    memcpy(t->emitter_shadow, emitter_shadow, sizeof emitter_shadow);
     memcpy(t->room_lo, room_lo, sizeof room_lo);
     memcpy(t->room_hi, room_hi, sizeof room_hi);
     t->i0[0] = probe.count, t->i0[1] = 1, t->i0[3] = 1;

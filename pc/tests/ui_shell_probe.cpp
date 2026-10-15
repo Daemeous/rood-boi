@@ -1,13 +1,19 @@
 // The modern menu shell's navigation (pc/src/ui/ui_shell.cpp) without the game.
 #include "ui/ui_shell.h"
+#include "ui/map_frame.h"
 #include "ui/ui_settings.h"
 #include "ui/ui_workshop.h"
+#include "ui/ui_manual.h"
+#include "ui/manual_parse.h"
 #include "ui/ui_theme.h"
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <vector>
 
 int pc_ui_menus = 1;
+extern "C" float pc_ui_menu_opacity;
+float pc_ui_menu_opacity = 0.94f; // project_settings.cpp (ui_theme.cpp theme())
 static int failures;
 #define CHECK(c) do { if (!(c)) { std::printf("FAIL %s:%d %s\n", __FILE__, __LINE__, #c); ++failures; } } while (0)
 
@@ -706,14 +712,17 @@ static void mouse_tests()
     pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, -1);
     tick(0);
     CHECK(json_has("\"row\":\"manual\""));
-    // a click on a game entry opens its command (Quick manual = 9 -> 10)
-    pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 3, 1, 0);
-    CHECK(tick(0) == 10);
+    pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, 1);
+    tick(0);
+    CHECK(json_has("\"row\":\"score\""));
+    // a click on a game entry opens its command (Score = 8 -> 9; the Quick manual is native: see manual_tests)
+    pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 2, 1, 0);
+    CHECK(tick(0) == 9);
     // closed: the pointer is ignored, nothing is left over at the next open
     pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 0, 1, 0);
     pc_ui_shell_open(&all, 1);
     CHECK(tick(0) == 0);
-    CHECK(json_has("\"row\":\"manual\""));
+    CHECK(json_has("\"row\":\"score\""));
     // a tab without rows is not clicked into (no Magick unlocked: bit 0)
     pc_ui_commands early = {0x3FF & ~1u, 0, 0};
     pc_ui_shell_open(&early, 1);
@@ -1781,6 +1790,143 @@ static void workshop_tests()
     }
 }
 
+// The Map frame's pure state (ui_map.cpp): the mailbox MENU5 empties at its
+// input point, the pointer's requests, the JSON block, the shell's set_tab.
+// The vsync counter the frame's freshness reads (boot_runtime.c in the game).
+static unsigned probe_vsync;
+extern "C" unsigned pc_vsync_count(void) { return probe_vsync; }
+static bool map_json_has(const char* needle)
+{
+    static char buf[1 << 15];
+    pc_ui_map_json(buf, sizeof buf);
+    return std::strstr(buf, needle) != nullptr;
+}
+static void map_tests()
+{
+    pc_ui_map_model* m = pc_ui_map_state();
+    pc_ui_map_req r;
+    std::memset(m, 0, sizeof *m);
+    CHECK(map_json_has(",\"map\":null"));
+    CHECK(!pc_ui_map_visible());
+    pc_ui_map_post(PC_UI_MAP_REQ_RESET, 0, 0); // nothing framed: dropped
+    CHECK(!pc_ui_map_take(&r, 1));
+    CHECK(map_json_has("\"busy\":1") == false); // no block to show it in
+    // armed: the "loading" block
+    m->armed = 1;
+    CHECK(map_json_has("\"state\":\"loading\""));
+    CHECK(pc_ui_map_visible()); // armed, no stamp yet (no vsync counter here: 0 vsyncs ago)
+    // a framed run at processInput
+    m->armed = 0, m->framed = 1, m->run = 3, m->stamped = 1, m->published = 1, m->exec_state = 7, m->menu_state = 1;
+    CHECK(map_json_has("\"state\":\"ready\""));
+    CHECK(map_json_has("\"focus\":\"map\""));
+    CHECK(pc_ui_map_visible());
+    // freshness: chrome only while MENU5 stamped at most 8 vsyncs ago (a stalled
+    // run never leaves chrome over the world); armed: 30 vsyncs before a stamp
+    m->stamp = 100, probe_vsync = 108;
+    CHECK(pc_ui_map_visible());
+    probe_vsync = 109;
+    CHECK(!pc_ui_map_visible());
+    m->framed = 0, m->armed = 1, m->armed_vsync = 100, probe_vsync = 130;
+    CHECK(pc_ui_map_visible());
+    probe_vsync = 131;
+    CHECK(!pc_ui_map_visible());
+    m->framed = 1, m->armed = 0, m->stamp = probe_vsync = 0;
+    pc_ui_map_post(PC_UI_MAP_REQ_AREA, 4, 0);
+    pc_ui_map_post(PC_UI_MAP_REQ_RESET, 0, 0); // one discrete request at a time: busy
+    CHECK(map_json_has("\"busy\":2,")); // the request before any run, and this one
+    CHECK(pc_ui_map_take(&r, 1) && r.kind == PC_UI_MAP_REQ_AREA && r.a == 4);
+    CHECK(!pc_ui_map_take(&r, 1));
+    // rotate / zoom / pan add up; one kind per take
+    pc_ui_map_post(PC_UI_MAP_REQ_ORBIT, 16, -8);
+    pc_ui_map_post(PC_UI_MAP_REQ_ORBIT, 8, 0);
+    pc_ui_map_post(PC_UI_MAP_REQ_ZOOM, -64, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ORBIT && r.a == 24 && r.b == -8);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ZOOM && r.a == -64);
+    CHECK(!pc_ui_map_take(&r, 0));
+    CHECK(map_json_has("\"req_seq\":4,\"applied_seq\":4"));
+    // the pointer: a left drag rotates 8 a layout unit, the wheel zooms 64 a
+    // notch (up: closer), a middle drag pans a game pixel per 3 units, handed
+    // to MENU5 in its own steps of 4 (the rest kept)
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_VIEW, 0, 0, 0, 2, -1, 1, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ORBIT && r.a == 16 && r.b == -8);
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_VIEW, 0, 0, 1, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ZOOM && r.a == -64);
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_VIEW, 0, 0, 0, 12, 21, 2, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_PAN && r.a == 4 && r.b == 4);
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_VIEW, 0, 0, 0, -3, 3, 2, 0); // what was left over adds up
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_PAN && r.a == 0 && r.b == 4);
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_VIEW, 0, 0, 0, -6, 0, 2, 0); // -2 kept: less than a step
+    CHECK(!pc_ui_map_take(&r, 0));
+    pc_ui_map_drop(); // a remainder under a step is not a dropped request
+    CHECK(map_json_has("\"busy\":2,"));
+    // the shown area's row: nothing; another area's: a switch
+    m->scene = 6;
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_AREA, 6, 1, 0, 0, 0, 0, 0);
+    CHECK(!pc_ui_map_take(&r, 1));
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_AREA, 7, 1, 0, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 1) && r.kind == PC_UI_MAP_REQ_AREA && r.a == 7);
+    // the Zoom prompt: in until the near clamp, then out until the far one
+    m->distance = 768;
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_PROMPT, PC_UI_MAP_P_ZOOM, 1, 0, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ZOOM && r.a == -64);
+    m->distance = 512;
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_PROMPT, PC_UI_MAP_P_ZOOM, 1, 0, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ZOOM && r.a == 64);
+    m->distance = 768;
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_PROMPT, PC_UI_MAP_P_ZOOM, 1, 0, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ZOOM && r.a == 64);
+    m->distance = 1024;
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_PROMPT, PC_UI_MAP_P_ZOOM, 1, 0, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ZOOM && r.a == -64);
+    // framed: the bridge's frame of that run (MENU5's latch alone is not)
+    CHECK(pc_ui_map_framed(3) && !pc_ui_map_framed(2));
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_ROOM, 5, 1, 0, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 1) && r.kind == PC_UI_MAP_REQ_ROOM && r.a == 5);
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_PROMPT, PC_UI_MAP_P_CLOSE, 1, 0, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 1) && r.kind == PC_UI_MAP_REQ_QUIT && r.a == 2);
+    pc_ui_map_mouse(PC_UI_MOUSE_NONE, 0, 0, 0, 0, 0, 0, 1); // right click: back to the shell
+    CHECK(pc_ui_map_take(&r, 1) && r.kind == PC_UI_MAP_REQ_QUIT && r.a == 1);
+    // a paled area takes no camera request
+    m->paled = 1;
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_VIEW, 0, 0, 0, 2, 2, 1, 0);
+    CHECK(!pc_ui_map_take(&r, 0));
+    m->paled = 0;
+    // not at processInput (an area switching): dropped
+    m->menu_state = 4;
+    CHECK(map_json_has("\"state\":\"switching\""));
+    pc_ui_map_post(PC_UI_MAP_REQ_STEP, 1, 0);
+    CHECK(!pc_ui_map_take(&r, 1));
+    // the list: its own requests (pad bits, an area, a tab); Right click = its Cross
+    m->menu_state = 2, m->list.open = 1, m->list.count = 2;
+    CHECK(map_json_has("\"state\":\"list\""));
+    CHECK(map_json_has("\"focus\":\"list\""));
+    pc_ui_map_mouse(PC_UI_MOUSE_NONE, 0, 0, 0, 0, 0, 0, 1);
+    CHECK(pc_ui_map_take(&r, 1) && r.kind == PC_UI_MAP_REQ_PAD && r.a == (int)PC_UI_BACK);
+    pc_ui_map_post(PC_UI_MAP_REQ_RESET, 0, 0); // the map's own: not while the list has the focus
+    CHECK(!pc_ui_map_take(&r, 1));
+    // a request of an earlier run is never applied
+    m->menu_state = 1, m->list.open = 0;
+    pc_ui_map_post(PC_UI_MAP_REQ_HIDE, 0, 0);
+    m->run = 4;
+    CHECK(!pc_ui_map_take(&r, 1));
+    // closing
+    m->finished = 1;
+    CHECK(map_json_has("\"state\":\"closing\""));
+    std::memset(m, 0, sizeof *m);
+    pc_ui_map_reset_mailbox();
+    CHECK(map_json_has(",\"map\":null"));
+    // the shell reopens on a tab (a tab clicked on the frame): that tab, its remembered row
+    for (int i = 0; i < pc_ui_shell_tab_count(); ++i) {
+        pc_ui_shell_set_tab(i);
+        CHECK(pc_ui_shell_tab() == i);
+    }
+    int keep = pc_ui_shell_tab();
+    pc_ui_shell_set_tab(-1);
+    pc_ui_shell_set_tab(99);
+    CHECK(pc_ui_shell_tab() == keep);
+    CHECK(pc_ui_shell_step_tab(1) == (keep + 1) % pc_ui_shell_tab_count());
+}
+
 static void loot_tests()
 {
     pc_ui_loot_open();
@@ -2214,6 +2360,585 @@ static void items_tests()
     CHECK(tick(PC_UI_EXIT) == -1 && !pc_ui_shell_visible() && queue_empty());
 }
 
+// ---- The Quick manual (System > Quick manual: ui_manual.cpp, manual_parse.c) ----
+// 494.c _setMenuRows' window over rowCount rows (9 shown), as written.
+static void ref_seed(int rowCount, int highlightedRow, int* cm4, int* cm5)
+{
+    if ((rowCount < 9) || (highlightedRow < 8)) {
+        *cm4 = highlightedRow, *cm5 = 0;
+    } else if (highlightedRow >= (rowCount - 8)) {
+        *cm4 = highlightedRow - (rowCount - 9), *cm5 = rowCount - 9;
+    } else {
+        *cm4 = 4, *cm5 = highlightedRow - 4;
+    }
+}
+// 58EC.c vs_mainmenu_setMenuRows' normalisation of the memories (cursor memory on), rowInfo 1.
+static void ref_normalise(int rowCount, int rowInfo, int* row, int* page)
+{
+    int i = *row, p = *page, t = rowCount - 10 + rowInfo;
+    if (t < 0) {
+        i += p, p = 0;
+        if (i >= rowCount)
+            i = 0;
+    } else {
+        if (t < p) {
+            if (i + p >= rowCount)
+                i = 0, p = 0;
+            else
+                i += p - t, p = t;
+        }
+        int v = p < t;
+        if (p > 0 && i == 0)
+            i = 1, p -= 1, v = p < t;
+        if (v && i == 9 - rowInfo)
+            i -= 1, p += 1;
+    }
+    *row = i, *page = p;
+}
+// 58EC.c case 17's Up / Down, as written (char page arithmetic included).
+static void ref_list(int count, int info, int* sel, int* page, unsigned rep, unsigned press)
+{
+    if (rep & PC_UI_UP) {
+        if (count <= 10 - info) {
+            if (*sel == 0) *sel = count - 1; else --*sel;
+        } else if (*page == 0) {
+            if (*sel == 0) {
+                if (press & PC_UI_UP)
+                    *sel = 9 - info, *page = (signed char)(info + (count + 246));
+            } else --*sel;
+        } else if (*sel == 1) --*page;
+        else --*sel;
+    }
+    if (rep & PC_UI_DOWN) {
+        if (count <= 10 - info) {
+            if (*sel == count - 1) *sel = 0; else ++*sel;
+        } else if (*page == count + (info - 10)) {
+            if (*sel == 9 - info) {
+                if (press & PC_UI_DOWN)
+                    *sel = 0, *page = 0;
+            } else ++*sel;
+        } else if (*sel == 8 - info) ++*page;
+        else ++*sel;
+    }
+}
+
+// Synthetic page files.
+struct Bytes {
+    std::string b;
+    void u8(int v) { b += (char)(v & 0xFF); }
+    void u16(int v) { u8(v), u8(v >> 8); }
+    void u32(unsigned v) { u16((int)(v & 0xFFFF)), u16((int)(v >> 16)); }
+    void pad4() { while (b.size() % 4) u8(0); }
+    void put16(size_t at, int v) { b[at] = (char)(v & 0xFF), b[at + 1] = (char)((v >> 8) & 0xFF); }
+    void put32(size_t at, unsigned v) { put16(at, (int)(v & 0xFFFF)), put16(at + 2, (int)(v >> 16)); }
+};
+static void anim(Bytes& o, int enabled, int mask, int duration, int repeat)
+{
+    o.u16(enabled), o.u16(mask), o.u16(duration), o.u16(repeat);
+    for (int i = 0; i < 4; ++i) o.u16(0);
+}
+static std::string synth_hf0()
+{
+    const std::vector<std::vector<int>> lines = {
+        {0x8F, 0x8F, 10, 37, 0x8F, 38, 0xE7},                                       // "  Ab c"
+        {0xFB, 1, 33, 0xFA, 10, 34, 0xFB, 2, 0xAE, 0xB7, 0xB3, 0xEE, 5, 0xE9, 0xB6, 0xE7}, // X, Y, codes
+        {0xE7},
+    };
+    Bytes o;
+    o.u32(0), o.u32(0), o.u32(0), o.u32(0);
+    // text at 16: n, offsets (halfwords from 16), strings
+    size_t base = o.b.size();
+    o.u16((int)lines.size());
+    size_t offs = o.b.size();
+    for (size_t i = 0; i < lines.size(); ++i) o.u16(0);
+    for (size_t i = 0; i < lines.size(); ++i) {
+        if ((o.b.size() - base) % 2) o.u8(0xEB);
+        o.put16(offs + i * 2, (int)((o.b.size() - base) / 2));
+        for (int c : lines[i]) o.u8(c);
+    }
+    o.pad4();
+    unsigned spr = (unsigned)(o.b.size() - 16);
+    o.put32(0, spr);
+    // sprites: 8bpp 16 x 16 (blocks 0, 1; CLUT 0) blinking, 4bpp 16 x 16 (block 1; CLUT 1), the first again,
+    // one with a bad block id
+    size_t sb = o.b.size();
+    o.u16(4);
+    size_t soffs = o.b.size();
+    for (int i = 0; i < 4; ++i) o.u16(0);
+    struct S { int en, x, y, w, h, colors, clut; std::vector<int> blocks; };
+    S ss[4] = {{1, 3, 4, 16, 16, 256, 0, {0, 1}}, {0, 40, 13, 16, 16, 16, 1, {1}}, {0, 80, 26, 16, 16, 256, 0, {0, 1}},
+        {0, 0, 0, 8, 16, 256, 0, {99}}};
+    for (int i = 0; i < 4; ++i) {
+        o.put16(soffs + i * 2, (int)((o.b.size() - sb) / 2));
+        anim(o, ss[i].en, 0x0005, 1, 1);
+        o.u16(ss[i].x), o.u16(ss[i].y), o.u16(ss[i].w), o.u16(ss[i].h), o.u16((int)ss[i].blocks.size());
+        o.u16(ss[i].colors), o.u16(ss[i].clut);
+        for (int bl : ss[i].blocks) o.u16(bl);
+    }
+    o.pad4();
+    unsigned lin = (unsigned)(o.b.size() - sb);
+    o.put32(4, lin);
+    o.u16(1);
+    anim(o, 0, 0, 0, 0);
+    o.u16(0), o.u16(6), o.u16(300), o.u16(6), o.u8(0), o.u8(128), o.u8(255), o.u8(0);
+    o.put32(8, 28 + 2);
+    return o.b;
+}
+static std::string synth_hf1()
+{
+    Bytes o;
+    o.u32(2), o.u32(2);
+    for (int i = 0; i < 128; ++i) o.u8(i == 1 ? 17 : 0); // block 0: pixel (1, 0) = 17 (CLUT line 1, entry 1)
+    for (int i = 0; i < 128; ++i) o.u8(3);               // block 1: 3 (8bpp: line 0 entry 3; 4bpp: 3, 0)
+    for (int i = 0; i < 16; ++i) o.u16(i == 3 ? 0x001F : 0); // line 0: 0 transparent, 3 red
+    for (int i = 0; i < 16; ++i) o.u16(i == 1 ? 0x7C00 : i == 3 ? 0x03E0 : 0); // line 1: 1 blue, 3 green
+    return o.b;
+}
+
+static std::vector<pc_ui_manual_event> manual_events()
+{
+    std::vector<pc_ui_manual_event> v;
+    pc_ui_manual_event e;
+    while (pc_ui_manual_take(&e))
+        v.push_back(e);
+    return v;
+}
+static int count_kind(const std::vector<pc_ui_manual_event>& v, int kind)
+{
+    int n = 0;
+    for (auto& e : v) n += e.kind == kind;
+    return n;
+}
+static const pc_ui_manual_event* find_kind(const std::vector<pc_ui_manual_event>& v, int kind)
+{
+    for (auto& e : v)
+        if (e.kind == kind)
+            return &e;
+    return nullptr;
+}
+// The bridge's fill: lines per topic (40: line_count 30), the game's scroll and current topic.
+static unsigned short manual_scroll[14];
+static int manual_lc[14], manual_loaded[14];
+static void manual_fill(int cursor_memory, int current)
+{
+    pc_ui_manual_fill(cursor_memory, current, manual_scroll, manual_lc, manual_loaded);
+}
+// What the bridge does with the events (the scroll memory), then a tick.
+static void manual_apply(const std::vector<pc_ui_manual_event>& v, int* current)
+{
+    for (auto& e : v) {
+        if (e.kind == PC_UI_MEV_SCROLL) manual_scroll[e.a] = (unsigned short)e.b;
+        if (e.kind == PC_UI_MEV_LIST_STORE) *current = e.c;
+        if (e.kind == PC_UI_MEV_OPEN && e.a) { std::memset(manual_scroll, 0, sizeof manual_scroll); *current = 0; }
+        if (e.kind == PC_UI_MEV_ORIGINAL) *current = e.a;
+    }
+}
+static int mtick(unsigned pressed, unsigned repeat = 0, int square = 0, int start = 0)
+{
+    pc_ui_manual_buttons(square, start);
+    pc_ui_input in = {pressed, repeat | pressed};
+    return pc_ui_shell_tick(&in);
+}
+static void manual_view(pc_ui_manual_view* v) { pc_ui_manual_view_get(v); }
+// The shell on System > Quick manual's row (entry 3: Data, Options, Score, Quick manual).
+static void manual_row()
+{
+    pc_ui_commands all = {0x3FF, 0, 0};
+    pc_ui_shell_open(&all, 0);
+    tick(PC_UI_TAB_PREV);
+    for (int i = 0; i < 3; ++i) tick(PC_UI_DOWN);
+    manual_events();
+}
+
+static void manual_tests()
+{
+    // ---- the original's rules ----
+    for (int r = 0; r < 14; ++r) {
+        int a4, a5, b4, b5;
+        pc_ui_manual_seed(r, &a4, &a5);
+        ref_seed(14, r, &b4, &b5);
+        CHECK(a4 == b4 && a5 == b5);
+        int n4 = b4, n5 = b5;
+        ref_normalise(14, 1, &n4, &n5);
+        CHECK(n4 == b4 && n5 == b5); // setMenuRows keeps the seed (14 rows)
+        CHECK(a4 + a5 == r && a4 >= 0 && a4 <= 8 && a5 >= 0 && a5 <= 5);
+    }
+    {
+        unsigned seed = 12345;
+        int row = 0, page = 0, rr = 0, rp = 0;
+        for (int i = 0; i < 1000; ++i) {
+            seed = seed * 1103515245u + 12345u;
+            unsigned bits = seed >> 16;
+            unsigned rep = bits & 3, press = rep & (bits >> 2);
+            int before = row + page;
+            int changed = pc_ui_manual_list_step(&row, &page, rep & PC_UI_UP, press & PC_UI_UP, rep & PC_UI_DOWN,
+                press & PC_UI_DOWN);
+            ref_list(14, 1, &rr, &rp, rep, press);
+            CHECK(row == rr && page == rp);
+            CHECK(changed == (row + page != before));
+            CHECK(row >= 0 && row <= 8 && page >= 0 && page <= 5);
+        }
+        row = page = 0;
+        for (int i = 0; i < 8; ++i) pc_ui_manual_list_step(&row, &page, 0, 0, 1, 0);
+        CHECK(row == 7 && page == 1);
+        row = page = 0;
+        CHECK(!pc_ui_manual_list_step(&row, &page, 1, 0, 0, 0) && row == 0 && page == 0); // a repeat clamps
+        CHECK(pc_ui_manual_list_step(&row, &page, 1, 1, 0, 0) && row == 8 && page == 5);  // a press wraps
+        CHECK(!pc_ui_manual_list_step(&row, &page, 0, 0, 1, 0) && row == 8 && page == 5);
+        CHECK(pc_ui_manual_list_step(&row, &page, 0, 0, 1, 1) && row == 0 && page == 0);
+    }
+    const int ns[] = {0, 9, 10, 11, 37, 220}, lcs[] = {0, 0, 0, 10, 30, 210};
+    for (int i = 0; i < 6; ++i)
+        CHECK(pc_ui_manual_line_count(ns[i]) == lcs[i] && lcs[i] / 10 + 1 == (i < 3 ? 1 : i == 3 ? 2 : i == 4 ? 4 : 22));
+    {
+        int sc = 0;
+        CHECK(!pc_ui_manual_step(&sc, 30, 0, 0, 1, 0, 0, 0) && sc == 0);  // a repeat at the top clamps
+        CHECK(pc_ui_manual_step(&sc, 30, 0, 0, 1, 1, 0, 0) && sc == 30);  // a press wraps to the end
+        CHECK(!pc_ui_manual_step(&sc, 30, 0, 0, 0, 0, 1, 0) && sc == 30);
+        CHECK(pc_ui_manual_step(&sc, 30, 0, 0, 0, 0, 1, 1) && sc == 0);
+        CHECK(pc_ui_manual_step(&sc, 30, 0, 0, 0, 0, 1, 0) && sc == 1);
+        sc = 0;
+        CHECK(!pc_ui_manual_step(&sc, 0, 0, 0, 1, 1, 0, 0) && sc == 0); // no wrap without a second page
+        CHECK(!pc_ui_manual_step(&sc, 0, 0, 0, 0, 0, 1, 1) && sc == 0);
+        CHECK(!pc_ui_manual_step(&sc, 0, 1, 0, 1, 1, 0, 0) && sc == 0);
+        sc = 13; // Square from mid-page: page 1 -> 2 (snapped)
+        CHECK(pc_ui_manual_step(&sc, 30, 1, 0, 0, 0, 1, 0) && sc == 20);
+        sc = 3;
+        CHECK(pc_ui_manual_step(&sc, 30, 1, 0, 0, 0, 1, 0) && sc == 10);
+        sc = 3; // page 0, Up pressed: the last page
+        CHECK(pc_ui_manual_step(&sc, 30, 1, 0, 1, 1, 0, 0) && sc == 30);
+        CHECK(pc_ui_manual_step(&sc, 30, 1, 0, 0, 0, 1, 1) && sc == 0);
+        sc = 35;
+        CHECK(pc_ui_manual_step(&sc, 30, 1, 0, 1, 0, 0, 0) && sc == 20);
+        sc = 17; // Start wins, no sound
+        CHECK(!pc_ui_manual_step(&sc, 30, 1, 1, 1, 1, 1, 1) && sc == 0);
+    }
+    {
+        pc_ui_manual_anim a = {1, 0x0005, 1, 0, 0, 0, 0, 0};
+        int seq[18];
+        for (int i = 0; i < 18; ++i) seq[i] = pc_ui_manual_anim_step(&a);
+        CHECK(seq[0] == 0 && seq[1] == 1 && seq[2] == 0 && seq[3] == 1 && seq[15] == 1 && seq[16] == 1 && seq[17] == 1);
+        pc_ui_manual_anim b = {1, (short)0x8001, 2, 1, 0, 0, 0, 0};
+        int hid[40];
+        for (int i = 0; i < 40; ++i) hid[i] = pc_ui_manual_anim_step(&b);
+        CHECK(hid[0] == 0 && hid[1] == 0 && hid[2] == 1 && hid[29] == 1 && hid[30] == 0 && hid[31] == 0 && hid[32] == 0
+              && hid[33] == 0 && hid[34] == 1); // frame 15 (0x8000) shown, then frame 0 again (repeat)
+    }
+    // ---- the files ----
+    {
+        std::string h0 = synth_hf0(), h1 = synth_hf1();
+        unsigned char widths[378];
+        std::memset(widths, 5, sizeof widths);
+        widths[37] = 4; // 'b'
+        pc_ui_manual_topic t;
+        CHECK(pc_ui_manual_parse((const unsigned char*)h0.data(), (unsigned)h0.size(), (const unsigned char*)h1.data(),
+            (unsigned)h1.size(), widths, 378, &t));
+        CHECK(t.ok && t.lines == 3 && t.line_count == 0 && t.pages == 1);
+        CHECK(t.line_first[0] == 0 && t.line_first[1] == 2 && t.line_first[2] == 7 && t.line_first[3] == 7);
+        const pc_ui_manual_run* r = t.runs;
+        CHECK(r[0].kind == PC_UI_MANUAL_WORD && r[0].x == 12 && r[0].w == 9 && r[0].len == 2 && h0[r[0].off] == 10);
+        CHECK(r[1].kind == PC_UI_MANUAL_WORD && r[1].x == 27 && r[1].w == 5 && r[1].len == 1);
+        CHECK(r[2].kind == PC_UI_MANUAL_WORD && r[2].x == 0 && r[2].colour == 1 && r[2].len == 1);
+        CHECK(r[3].kind == PC_UI_MANUAL_WORD && r[3].x == 15 && r[3].colour == 1);
+        CHECK(r[4].kind == PC_UI_MANUAL_GLYPH && r[4].glyph == 0 && r[4].x == 20 && r[4].colour == 2);
+        CHECK(r[5].kind == PC_UI_MANUAL_STAR && r[5].x == 25);
+        CHECK(r[6].kind == PC_UI_MANUAL_ARROW && r[6].glyph == 1 && r[6].x == 30);
+        // joins: the line's first run and after two spaces or an FA advance apart, one space, touching
+        CHECK(r[0].gap == PC_UI_MANUAL_GAP_APART && r[1].gap == PC_UI_MANUAL_GAP_SPACE);
+        CHECK(r[2].gap == PC_UI_MANUAL_GAP_APART && r[3].gap == PC_UI_MANUAL_GAP_APART);
+        CHECK(r[4].gap == PC_UI_MANUAL_GAP_NONE && r[5].gap == PC_UI_MANUAL_GAP_NONE && r[6].gap == PC_UI_MANUAL_GAP_NONE);
+        CHECK(t.unknown == 3 + 1); // EE, E9, the Lv. sign; the bad block id
+        CHECK(t.nsprites == 4 && t.ntex == 3 && t.sprites[2].tex == t.sprites[0].tex);
+        CHECK(t.sprites[0].a.enabled == 1 && t.sprites[0].x == 3 && t.sprites[0].y == 4);
+        const unsigned char* p8 = t.rgba[t.sprites[0].tex];
+        CHECK(p8[3] == 0);                                    // (0, 0): 0 -> 0x0000, transparent
+        CHECK(p8[4 + 2] == 255 && p8[4 + 0] == 0 && p8[4 + 3] == 255); // (1, 0): 17 -> line 1 entry 1, blue
+        CHECK(p8[8 * 4] == 255 && p8[8 * 4 + 1] == 0 && p8[8 * 4 + 3] == 255); // (8, 0): block 1, 3 -> red
+        const unsigned char* p4 = t.rgba[t.sprites[1].tex];
+        CHECK(p4[1] == 255 && p4[0] == 0 && p4[3] == 255);    // 4bpp: nibble 3 -> line 1 entry 3, green
+        CHECK(p4[4 + 3] == 0);                                // the high nibble 0: transparent
+        CHECK(t.nrules == 1 && t.rules[0].x1 == 300 && t.rules[0].y0 == 6 && t.rules[0].g == 128 && t.rules[0].b == 255);
+        // button art: none here (the retail images' hashes only); the hash is FNV-1a 64 of w, h and the pixels
+        CHECK(t.tex_art && t.tex_art[0] == -1 && t.tex_art[1] == -1 && t.tex_art[2] == -1);
+        const unsigned char px1[4] = {1, 2, 3, 255};
+        CHECK(pc_ui_manual_art_hash(px1, 1, 1) == 0xd7b93253beb54dd4ull && pc_ui_manual_button_art(px1, 1, 1) == -1);
+        CHECK(pc_ui_manual_button_art(nullptr, 16, 16) == -1);
+        pc_ui_manual_free(&t);
+        CHECK(!t.ok && !t.runs);
+        // every truncation: parsed or refused, never read past the buffer (ASan builds check it)
+        int refused = 0;
+        for (size_t n = 0; n <= h0.size(); ++n) {
+            std::vector<unsigned char> cut(h0.begin(), h0.begin() + (long)n);
+            pc_ui_manual_topic c;
+            if (!pc_ui_manual_parse(cut.data(), (unsigned)n, (const unsigned char*)h1.data(), (unsigned)h1.size(),
+                    widths, 378, &c))
+                ++refused;
+            else
+                CHECK(c.unknown > 0 || n == h0.size());
+            pc_ui_manual_free(&c);
+        }
+        for (size_t n = 0; n <= h1.size(); n += 7) {
+            std::vector<unsigned char> cut(h1.begin(), h1.begin() + (long)n);
+            pc_ui_manual_topic c;
+            CHECK(pc_ui_manual_parse((const unsigned char*)h0.data(), (unsigned)h0.size(), cut.data(), (unsigned)n,
+                widths, 378, &c));
+            pc_ui_manual_free(&c);
+        }
+        CHECK(refused > 0);
+        pc_ui_manual_topic none;
+        CHECK(!pc_ui_manual_parse(nullptr, 0, nullptr, 0, widths, 378, &none));
+    }
+
+    // ---- the shell ----
+    for (int i = 0; i < 14; ++i)
+        manual_lc[i] = 30, manual_loaded[i] = 1, manual_scroll[i] = 0;
+    manual_scroll[5] = 12;
+    int current = 5;
+    pc_ui_manual_view v;
+    manual_row();
+    manual_fill(1, current);
+    CHECK(json_has("\"row\":\"manual\"") && json_has("\"manual\":null"));
+    // Circle: the topics on the remembered topic; the shell stays; OPEN (select) and the window
+    CHECK(mtick(PC_UI_CONFIRM) == 0 && pc_ui_shell_visible() && pc_ui_shell_manual_shown());
+    auto ev = manual_events();
+    CHECK(ev.size() == 2 && ev[0].kind == PC_UI_MEV_OPEN && ev[0].a == 0 && ev[1].kind == PC_UI_MEV_LIST_STORE
+          && ev[1].a == 5 && ev[1].b == 0 && ev[1].c == 5);
+    CHECK(json_has("\"manual\":{\"mode\":\"topics\",\"topic\":5,\"row\":5,\"page_top\":0,\"line\":12,"));
+    CHECK(json_has("\"sfx\":{\"change\":0,\"select\":1,\"leave\":0}"));
+    for (const char* key : {"\"lines\":", "\"line_count\":30", "\"pages\":4", "\"loaded\":1", "\"k\":", "\"size\":",
+             "\"overflow\":", "\"unknown\":", "\"page_lines\":[", "\"sprites\":", "\"rules\":", "\"hidden\":",
+             "\"hits\":[", "\"label\":", "\"desc\":"})
+        CHECK(json_has(key));
+    // Down x3: rows 6, 7, then the window scrolls (row 7, page 1): topic 8, three change sounds
+    for (int i = 0; i < 3; ++i) mtick(PC_UI_DOWN);
+    manual_view(&v);
+    CHECK(v.mode == PC_UI_MANUAL_LIST && v.topic == 8 && v.row == 7 && v.page == 1);
+    ev = manual_events();
+    CHECK(count_kind(ev, PC_UI_MEV_SOUND) == 3 && ev[0].a == 2);
+    // Circle: reading topic 8 (its window stored, currentManual 8, the select sound)
+    mtick(PC_UI_CONFIRM);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(ev.size() == 2 && ev[0].kind == PC_UI_MEV_LIST_STORE && ev[0].a == 7 && ev[0].b == 1 && ev[0].c == 8
+          && ev[1].kind == PC_UI_MEV_SOUND && ev[1].a == 1 && current == 8);
+    CHECK(json_has("\"mode\":\"reading\",\"topic\":8"));
+    // Down: a line (change, the scroll written); Square held + Down: a page; Start: the top (no sound)
+    mtick(PC_UI_DOWN);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(ev.size() == 2 && ev[0].kind == PC_UI_MEV_SOUND && ev[0].a == 2 && ev[1].kind == PC_UI_MEV_SCROLL
+          && ev[1].a == 8 && ev[1].b == 1);
+    mtick(PC_UI_DOWN, 0, 1);
+    manual_view(&v);
+    CHECK(v.line == 10 && v.square_held);
+    mtick(0, 0, 0, 1);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    manual_view(&v);
+    CHECK(v.line == 0 && count_kind(ev, PC_UI_MEV_SOUND) == 1); // Square + Down's change only
+    // Up pressed at the top wraps to the last position; a repeat does not
+    mtick(0, PC_UI_UP);
+    manual_view(&v);
+    CHECK(v.line == 0);
+    mtick(PC_UI_UP);
+    manual_view(&v);
+    CHECK(v.line == 30 && json_has("\"line\":30,\"lines\":0,\"line_count\":30,\"page\":4,\"pages\":4"));
+    // Right on the last page (pressed): the first; Left (a repeat): no wrap
+    mtick(PC_UI_RIGHT);
+    manual_view(&v);
+    CHECK(v.line == 0);
+    mtick(0, PC_UI_LEFT);
+    manual_view(&v);
+    CHECK(v.line == 0);
+    mtick(0, PC_UI_RIGHT);
+    manual_view(&v);
+    CHECK(v.line == 10);
+    // Square pressed while reading: the page mode only, never the original screen
+    CHECK(mtick(PC_UI_ALT, 0, 1) == 0 && pc_ui_shell_visible());
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(!find_kind(ev, PC_UI_MEV_ORIGINAL));
+    // Circle: back to the topics (select), the window re-seeded from topic 8 (row 3, page 5)
+    mtick(PC_UI_CONFIRM);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    manual_view(&v);
+    CHECK(v.mode == PC_UI_MANUAL_LIST && v.topic == 8 && v.row == 3 && v.page == 5);
+    CHECK(find_kind(ev, PC_UI_MEV_SOUND) && find_kind(ev, PC_UI_MEV_SOUND)->a == 1);
+    CHECK(find_kind(ev, PC_UI_MEV_LIST_STORE) && find_kind(ev, PC_UI_MEV_LIST_STORE)->a == 3);
+    CHECK(manual_scroll[8] == 10);
+    // the line is remembered per topic: read 8 again
+    mtick(PC_UI_CONFIRM);
+    manual_view(&v);
+    CHECK(v.mode == PC_UI_MANUAL_READ && v.line == 10);
+    manual_events();
+    // Cross: reading -> topics (leave) -> the System list on the manual row (leave, CLOSE)
+    mtick(PC_UI_BACK);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_LIST && find_kind(ev, PC_UI_MEV_SOUND)->a == 0
+          && !find_kind(ev, PC_UI_MEV_CLOSE));
+    mtick(PC_UI_BACK);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_OFF && pc_ui_shell_visible());
+    CHECK(ev.size() == 3 && ev[0].kind == PC_UI_MEV_LIST_STORE && ev[0].c == 8 && ev[1].kind == PC_UI_MEV_SOUND
+          && ev[1].a == 0 && ev[2].kind == PC_UI_MEV_CLOSE);
+    CHECK(json_has("\"row\":\"manual\"") && json_has("\"manual\":null"));
+    CHECK(json_has("\"mode\":\"list\",\"item\":\"manual\""));
+    // Circle + Cross in one frame: Circle wins (58EC.c case 17 checks Circle before Cross; 494.c leaves the
+    // page on either, with the select sound when Circle was pressed)
+    manual_fill(1, current);
+    mtick(PC_UI_CONFIRM);
+    manual_events();
+    mtick(PC_UI_CONFIRM | PC_UI_BACK);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_READ && pc_ui_shell_visible() && !find_kind(ev, PC_UI_MEV_CLOSE)
+          && count_kind(ev, PC_UI_MEV_SOUND) == 1 && find_kind(ev, PC_UI_MEV_SOUND)->a == 1);
+    mtick(PC_UI_CONFIRM | PC_UI_BACK);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_LIST && count_kind(ev, PC_UI_MEV_SOUND) == 1
+          && find_kind(ev, PC_UI_MEV_SOUND)->a == 1 && !find_kind(ev, PC_UI_MEV_CLOSE));
+    mtick(PC_UI_BACK);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_OFF && pc_ui_shell_visible() && find_kind(ev, PC_UI_MEV_CLOSE));
+    // Triangle closes from both modes, no sound of the manual's (deliver -1 plays it)
+    manual_fill(1, current);
+    mtick(PC_UI_CONFIRM);
+    manual_events();
+    CHECK(mtick(PC_UI_EXIT) == -1 && !pc_ui_shell_visible());
+    ev = manual_events();
+    CHECK(count_kind(ev, PC_UI_MEV_SOUND) == 0 && count_kind(ev, PC_UI_MEV_CLOSE) == 1
+          && count_kind(ev, PC_UI_MEV_LIST_STORE) == 1 && pc_ui_manual_mode() == PC_UI_MANUAL_OFF);
+    manual_row();
+    manual_fill(1, current);
+    mtick(PC_UI_CONFIRM);
+    mtick(PC_UI_CONFIRM);
+    manual_events();
+    CHECK(mtick(PC_UI_EXIT, PC_UI_DOWN) == -1);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(count_kind(ev, PC_UI_MEV_SOUND) == 1 && ev[0].kind == PC_UI_MEV_SOUND && ev[0].a == 2); // the step's change
+    CHECK(count_kind(ev, PC_UI_MEV_CLOSE) == 1 && manual_scroll[8] == 11);
+    // Square on the System row: the original MENUE (result 10) on the game's topic
+    manual_row();
+    manual_fill(1, current);
+    CHECK(mtick(PC_UI_ALT) == 10 && !pc_ui_shell_visible());
+    ev = manual_events();
+    CHECK(ev.size() == 1 && ev[0].kind == PC_UI_MEV_ORIGINAL && ev[0].a == 8);
+    // Square on the topics: the store, CLOSE, then ORIGINAL on the focused topic
+    manual_row();
+    manual_fill(1, current);
+    mtick(PC_UI_CONFIRM);
+    mtick(PC_UI_UP);
+    manual_events();
+    CHECK(mtick(PC_UI_ALT) == 10 && !pc_ui_shell_visible() && pc_ui_manual_mode() == PC_UI_MANUAL_OFF);
+    ev = manual_events();
+    CHECK(ev.size() == 3 && ev[0].kind == PC_UI_MEV_LIST_STORE && ev[0].c == 7 && ev[1].kind == PC_UI_MEV_CLOSE
+          && ev[2].kind == PC_UI_MEV_ORIGINAL && ev[2].a == 7);
+    // cursor memory off: OPEN zeroes, the topics start on 0 with every line at 0
+    manual_row();
+    manual_fill(0, 9);
+    mtick(PC_UI_CONFIRM);
+    ev = manual_events();
+    manual_view(&v);
+    CHECK(ev[0].kind == PC_UI_MEV_OPEN && ev[0].a == 1 && v.topic == 0 && v.row == 0 && v.page == 0);
+    for (int i = 0; i < 14; ++i) CHECK(pc_ui_manual_line_of(i) == 0);
+    // a tab switch leaves (the store, CLOSE once); so does pc_ui_shell_close; forget drops everything
+    mtick(PC_UI_CONFIRM);
+    manual_events();
+    mtick(PC_UI_TAB_NEXT);
+    ev = manual_events();
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_OFF && count_kind(ev, PC_UI_MEV_CLOSE) == 1
+          && count_kind(ev, PC_UI_MEV_SCROLL) == 1);
+    manual_row();
+    manual_fill(1, 2);
+    mtick(PC_UI_CONFIRM);
+    manual_events();
+    pc_ui_shell_close();
+    ev = manual_events();
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_OFF && count_kind(ev, PC_UI_MEV_CLOSE) == 1);
+    pc_ui_shell_close();
+    CHECK(manual_events().empty());
+    manual_row();
+    mtick(PC_UI_CONFIRM);
+    pc_ui_manual_forget();
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_OFF && manual_events().empty());
+    pc_ui_shell_close();
+    CHECK(manual_events().empty());
+    // ---- the pointer ----
+    manual_row();
+    for (int i = 0; i < 14; ++i) manual_scroll[i] = 0;
+    manual_fill(1, 0);
+    mtick(PC_UI_CONFIRM);
+    manual_events();
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_TOPIC, 11, 0, 0); // hover: the focus walks there (the window follows)
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.topic == 11 && v.row + v.page == 11 && v.row >= 1 && v.row <= 8);
+    ev = manual_events();
+    CHECK(count_kind(ev, PC_UI_MEV_SOUND) == 1);
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_TOPIC, 2, 1, 0); // a click: that topic, read
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.mode == PC_UI_MANUAL_READ && v.topic == 2);
+    manual_events();
+    pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, -1); // the wheel: a line a notch
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.line == 1);
+    pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, 1);
+    mtick(0);
+    pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, 1);
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.line == 0); // clamps (no wrap)
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_PAGE, 1, 1, 0);
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.line == 10);
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_PAGE, -1, 1, 0);
+    mtick(0);
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_PAGE, -1, 1, 0);
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.line == 0);
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_SCROLL, 25, 1, 0);
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.line == 25);
+    ev = manual_events();
+    CHECK(count_kind(ev, PC_UI_MEV_SOUND) == 5); // wheel down, up (the second clamps), page +1, -1 (the second clamps), the track
+    // not loaded: content clicks are ignored
+    manual_loaded[2] = 0;
+    manual_fill(1, 2);
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_PAGE, -1, 1, 0);
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.line == 25);
+    manual_loaded[2] = 1;
+    manual_fill(1, 2);
+    // a rail click on another topic while reading: that topic
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_TOPIC, 6, 1, 0);
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.mode == PC_UI_MANUAL_READ && v.topic == 6);
+    // a right click: back (Cross)
+    pc_ui_shell_mouse(PC_UI_MOUSE_BUTTON, PC_UI_BACK, 1, 0);
+    mtick(0);
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_LIST);
+    // the canvas in the topics: read
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_CANVAS, 0, 1, 0);
+    mtick(0);
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_READ);
+    pc_ui_shell_close();
+    manual_events();
+    CHECK(json_has("\"manual\":null") || !pc_ui_shell_visible());
+}
+
 int main()
 {
     pc_ui_commands all = {0x3FF, 0, 0};
@@ -2360,6 +3085,8 @@ int main()
     items_tests();
     loot_tests();
     workshop_tests();
+    map_tests();
+    manual_tests();
     std::printf(failures ? "ui_shell_probe: %d failures\n" : "ui_shell_probe: ok\n", failures);
     return failures != 0;
 }

@@ -74,7 +74,7 @@ static void pages()
     CHECK(pc_ui_settings_rows(G) == 15);
     CHECK(pc_ui_settings_rows(D) == 8); // Images per vsync shows: interpolation is on
     CHECK(pc_ui_settings_rows(A) == (game ? 2 : 1));
-    CHECK(pc_ui_settings_rows(I) == 10);
+    CHECK(pc_ui_settings_rows(I) == 11); // with Menu opacity
     CHECK(pc_ui_settings_rows(C) == (game ? 16 : 15));
     // the look inversions after the stick camera (qol_fp_invert_y, qol_map_invert)
     CHECK(find(C, "qol_fp_invert_y") == find(C, "reset_camera") + 1 && find(C, "qol_map_invert") == find(C, "reset_camera") + 2);

@@ -100,6 +100,9 @@ emitter, and the small meshes touching it (24 units, at most 320 units and
     group: a solid disc). The save point class says `column`: a character
     standing in it hides only part of its light ([Glows.md](Glows.md),
     "Enclosing glows").
+  - `glow_shadow_core` (optional): a column glow's shadow rays aim at a
+    core this fraction of its radius (default 0.25): smaller, crisper
+    shadows of characters beside it.
   - `haze: true` flags the shafts as a future source for the volumetric
     haze; nothing reads it yet.
 

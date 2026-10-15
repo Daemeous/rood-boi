@@ -51,6 +51,11 @@ int pc_qol_map_invert, pc_qol_fp_invert_y;
 /* Modern menus (pc/src/ui, pc/docs/Modern_Menus.md): 0 the game's own
  * menus, 1 the modern shell. Off by default until the screens are verified. */
 int pc_ui_menus;
+/* Modern menus: the opacity of their backdrop over the game and their panels
+ * (System > Interface > Menu opacity; ui/ui_theme.cpp theme()), 0..1. The
+ * default is the theme's own ground alpha (0xF0): the menus' look before the
+ * setting. */
+float pc_ui_menu_opacity = 0.94f;
 }
 #include "camera_stick.h" /* the right-stick camera (camera_stick_*) */
 #include "editor_overlays.h"
@@ -198,6 +203,7 @@ const Entry entries[] = {
     I("qol_weapon_slots", pc_qol_weapon_slots),
     I("skip_intro", pc_skip_intro),
     I("ui_menus", pc_ui_menus),
+    F("ui_menu_opacity", pc_ui_menu_opacity),
 };
 const char* path()
 {

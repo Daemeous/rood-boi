@@ -8,7 +8,9 @@
  * vsync), so every method runs at a frame boundary with no locking. Methods:
  *
  *   status                       counters (vsync, battle frame, presents: images
- *                                presented), pause state, display, start state
+ *                                presented, window_presents: of them, those that
+ *                                reached a real window; device_lost: Vulkan
+ *                                stopped rendering), pause state, display, start state
  *   pause {paused}               stop (or resume) the game at vsync boundaries
  *   step {vsyncs}                run N vsyncs, then pause again
  *   wait {timeout_ms}            reply (as status) once the game is paused with
@@ -46,7 +48,9 @@
  *                                (whole 0x220-byte vs_battle_loot lists, as
  *                                after a battle; chest: the first as a
  *                                chest's); only while no menu is open
- *   system {window_mode, master_volume, brightness, bind, key, pad, down}
+ *   system {window_mode, master_volume, brightness, bind, key, pad, down,
+ *           mouse: [x, y], button}   (mouse: window pixels, button 1-3 with
+ *                                down, or 0: a wheel step of `wheel`)
  *                                System settings (pc/src/ui/ui_settings.h hooks):
  *                                set window_mode (windowed | borderless |
  *                                fullscreen), master_volume, brightness; bind
@@ -396,7 +400,8 @@ extern int pc_qol_map_invert, pc_qol_fp_invert_y; /* project_settings.cpp */
 extern void pc_weapon_slots_json(char* out, unsigned size) __attribute__((weak)); /* weapon_slots.c */
 extern int pc_ui_menus; /* project_settings.cpp */
 extern void pc_ui_shell_json(char* out, unsigned size); /* ui/ui_shell.cpp */
-extern void pc_ui_draw_pointer(float x, float y, int click, int right, float wheel, int down); /* ui/ui_draw.cpp */
+extern void pc_ui_draw_pointer(float x, float y, int click, int right, float wheel, int down, int middle,
+    int shift); /* ui/ui_draw.cpp */
 extern int pc_ui_menu_active(void) __attribute__((weak)); /* ui/menu_bridge.c (battle builds) */
 extern int pc_native_room __attribute__((weak)), pc_native_occlusion __attribute__((weak)),
     pc_native_actors __attribute__((weak)), pc_native_actor_order __attribute__((weak)),
@@ -592,6 +597,17 @@ static void send_line(int fd, const char* text)
         length -= (size_t)n;
     }
 }
+/* Sounds played through vs_main_playSfxDefault (main.c's ROOD_PC hook: every menu sound, the original
+ * screens' and the native menus' alike), counted for the smokes' sound parity (RPC sfx). */
+static unsigned sfx_menu[32], sfx_other;
+void pc_sfx_played(int bank, int id)
+{
+    if (bank == 0x7E && id >= 0 && id < 32)
+        ++sfx_menu[id];
+    else
+        ++sfx_other;
+}
+
 static void reply(int fd, const char* id, const char* result)
 {
     static char line[LINE_MAX_BYTES + 256];
@@ -636,12 +652,15 @@ static void status_json(char* out, size_t size)
 {
     extern int pc_display_masked __attribute__((weak)); /* SetDispMask(0) */
     extern unsigned pc_presents __attribute__((weak)); /* gl_present.c: images presented */
+    extern unsigned pc_window_presents __attribute__((weak)); /* gl_present.c: images that reached the window */
+    extern int pc_vk_device_lost(void) __attribute__((weak)); /* vk_core.c */
     snprintf(out, size,
         "{\"vsync\":%u,\"battle_frame\":%u,\"paused\":%s,\"step_budget\":%ld,\"buttons\":%u,"
-        "\"display_masked\":%s,\"presents\":%u}",
+        "\"display_masked\":%s,\"presents\":%u,\"window_presents\":%u,\"device_lost\":%s}",
         pc_vsync_count(), pc_battle_frame_count(), paused ? "true" : "false", step_budget,
         pc_rpc_buttons(), &pc_display_masked && pc_display_masked ? "true" : "false",
-        &pc_presents ? pc_presents : 0u);
+        &pc_presents ? pc_presents : 0u, &pc_window_presents ? pc_window_presents : 0u,
+        pc_vk_device_lost && pc_vk_device_lost() ? "true" : "false");
 }
 /* Deferred "wait" replies: owed once the step is over (paused, no budget)
  * or the deadline passed. */
@@ -658,7 +677,7 @@ static void serve_waiters(void)
             if (now < c->wait_until)
                 continue;
         }
-        char result[256];
+        char result[384];
         status_json(result, sizeof result);
         c->waiting = 0;
         rpc_set_blocking(c->fd, 1);
@@ -956,20 +975,23 @@ static void handle_method(int fd, const char* request)
         extern int pc_ui_ashley_heap_extra __attribute__((weak));
         if (params && number_value(member(params, "model_heap_extra"), &n) && &pc_ui_ashley_heap_extra)
             pc_ui_ashley_heap_extra = n < 0 ? 0 : n > 0x7FFFFFF ? 0x7FFFFFF : (int)n;
-        /* {pointer: {x, y, click, right, wheel, down}}: the next drawn frame's
-         * pointer in layout units (hit tests as a moved mouse; down: the left
-         * button held, drags; ui_draw.cpp) */
+        /* {pointer: {x, y, click, right, wheel, down, middle, shift}}: the next
+         * drawn frame's pointer in layout units (hit tests as a moved mouse;
+         * down: the left button held, middle: the middle one, drags; shift:
+         * Shift held; ui_draw.cpp) */
         const char* pointer = params ? member(params, "pointer") : NULL;
         if (pointer) {
             double x = -1, y = -1, wheel = 0;
-            int click = 0, right = 0, down = 0;
+            int click = 0, right = 0, down = 0, middle = 0, shift = 0;
             real_value(member(pointer, "x"), &x);
             real_value(member(pointer, "y"), &y);
             real_value(member(pointer, "wheel"), &wheel);
             bool_value(member(pointer, "click"), &click);
             bool_value(member(pointer, "right"), &right);
             bool_value(member(pointer, "down"), &down);
-            pc_ui_draw_pointer((float)x, (float)y, click, right, (float)wheel, down);
+            bool_value(member(pointer, "middle"), &middle);
+            bool_value(member(pointer, "shift"), &shift);
+            pc_ui_draw_pointer((float)x, (float)y, click, right, (float)wheel, down, middle, shift);
         }
         /* {text, key}: the Workshop's name field, as typed on the keyboard (ui/ui_workshop.cpp) */
         extern void pc_ui_workshop_text(const char* utf8) __attribute__((weak));
@@ -1904,6 +1926,7 @@ static void handle_method(int fd, const char* request)
         extern void pc_window_mode_set(int), pc_master_volume_set(int), pc_brightness_set(int);
         extern int pc_window_mode_json(char*, int), pc_capture_json(char*, int);
         extern int pc_window_inject_key(const char*, int), pc_window_inject_pad(const char*, int);
+        extern int pc_window_inject_mouse(float, float, int, int);
         extern float pc_master_gain(void);
         extern unsigned pc_audio_output_recorded(void);
         static const char* const modes[3] = { "windowed", "borderless", "fullscreen" };
@@ -1941,6 +1964,30 @@ static void handle_method(int fd, const char* request)
             fail(fd, id, -32602, "pad: a gamepad element name (bind_pad_*)");
             return;
         }
+        const char* mouse = params ? member(params, "mouse") : NULL;
+        if (mouse) {
+            double xy[2] = { 0, 0 }, button = 1, wheel = 0;
+            int got = 0;
+            const char* q = mouse;
+            while (*q == ' ' || *q == '[')
+                q++;
+            for (; got < 2 && *q; got++) {
+                char* end;
+                xy[got] = strtod(q, &end);
+                if (end == q)
+                    break;
+                q = end;
+                while (*q == ' ' || *q == ',')
+                    q++;
+            }
+            real_value(member(params, "button"), &button);
+            real_value(member(params, "wheel"), &wheel);
+            if (got < 2 || pc_window_inject_mouse((float)xy[0], (float)xy[1], (int)button,
+                               button == 0 ? (int)wheel : flag)) {
+                fail(fd, id, -32602, "mouse: [x, y] in window pixels");
+                return;
+            }
+        }
         char window_json[512], capture_json[512];
         pc_window_mode_json(window_json, sizeof window_json);
         pc_capture_json(capture_json, sizeof capture_json);
@@ -1971,6 +2018,23 @@ static void handle_method(int fd, const char* request)
             pc_lighting_sync(); /* a loaded preset applies now */
         const char* path = pc_settings_path();
         snprintf(result, sizeof result, "{\"status\":\"%s\",\"path\":\"%s\"}", pc_settings_status(), json_str(path));
+        reply(fd, id, result);
+    } else if (!strcmp(method, "sfx")) {
+        /* The sounds played since the last {reset: true}: bank 0x7E (the menus') by name, every id of it,
+         * and the other banks' total. */
+        int flag = 0, n;
+        if (params)
+            bool_value(member(params, "reset"), &flag);
+        n = snprintf(result, sizeof result,
+            "{\"change\":%u,\"select\":%u,\"leave\":%u,\"invalid\":%u,\"other\":%u,\"menu\":[", sfx_menu[4],
+            sfx_menu[5], sfx_menu[6], sfx_menu[7], sfx_other);
+        for (int k = 0; k < 32 && n > 0 && n < (int)sizeof result - 16; ++k)
+            n += snprintf(result + n, sizeof result - (size_t)n, k ? ",%u" : "%u", sfx_menu[k]);
+        snprintf(result + n, sizeof result - (size_t)n, "]}");
+        if (flag) {
+            memset(sfx_menu, 0, sizeof sfx_menu);
+            sfx_other = 0;
+        }
         reply(fd, id, result);
     } else if (!strcmp(method, "perf")) {
         /* GPU time per presented frame since the last {reset: true} (ROOD_PERF=1). */

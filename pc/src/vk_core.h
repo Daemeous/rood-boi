@@ -173,6 +173,11 @@ typedef struct {
     int sample_locations; /* VK_EXT_sample_locations enabled */
     VkSampleCountFlags sample_location_counts; /* counts that take custom (pixel-centre) locations */
     VkPipelineCache pipeline_cache; /* persisted between runs (vk_core.c); VK_NULL_HANDLE without one */
+    /* The device was lost (VK_ERROR_DEVICE_LOST, or a frame that never
+     * finished): frames are still recorded but no longer submitted or
+     * presented, so the game goes on (and can be saved or quit) without
+     * aborting. Restarting the game renders again. */
+    int lost;
 } vk_context;
 extern vk_context vk;
 extern int pc_vk_active;
@@ -185,6 +190,8 @@ void vk_core_shutdown(void);
  * the overlay) taking `ns` nanoseconds, so the cache is saved once creation
  * settles. */
 void vk_pipeline_cache_note(uint64_t ns);
+/* Note that the device was lost (vk.lost; logged once, `where` says which call saw it). */
+void vk_device_lost(const char* where);
 /* Report a failed call and return the condition. */
 int vk_check(VkResult result, const char* what);
 

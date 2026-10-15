@@ -18,7 +18,10 @@ user's settings, lights and saves never leak in.
 
 Headless rendering (rood_rpc.headless_mode): egl renders on a GPU without an X
 server (SDL offscreen + EGL device), xvfb on a private Xvfb with software GL.
-X11-input suites (window_smoke) always use Xvfb.
+X11-input suites (window_smoke) always use Xvfb. window_mode_smoke switches
+a real window (fullscreen on the desktop for a few seconds; the only way to
+reach the Vulkan swapchain) only when asked:
+    ROOD_TEST_DESKTOP=1 python3 pc/tests/run.py window_mode   (else headless)
 
 Save states (pc/tests/checkpoints.py, pc/src/snapshot.c): suites that start
 from a test checkpoint (the card's save room, New Game after the opening
@@ -229,6 +232,11 @@ def suites(args, mode="egl"):
                  note="Ashley tab: summary = RAM (stats, limbs, effects), live model shown/turned (stick, drag, "
                       "no auto-turn), tabs/Status/weapon change, world and camera restored, 16:9, soft reset")]
           if args.save.exists() else []),
+        *([Suite("ui_ashley_stability_smoke", [PY, str(TESTS / "ui_ashley_stability_smoke.py"), "--card",
+                       str(args.save)], 300,
+                 note="Ashley tab model, lit (GI, traced shadows, haze): every image shows it, no flicker "
+                      "still or turning (live and interpolated images lit alike), window-resolution detail view")]
+          if args.save.exists() else []),
         *([Suite("ui_abilities_smoke", [PY, str(TESTS / "ui_abilities_smoke.py"), "--card", str(args.save)], 300,
                  note="Abilities tab: Chain/Defense mapping = the original MENU2 screen's bytes (set, move, replace, "
                       "off; list, pick, mouse), learned lists, break arts states and greyed reasons, cast and cancel")]
@@ -247,6 +255,18 @@ def suites(args, mode="egl"):
                       "real chest, chests, disassemble (weapon, shield), consolidate, organize (discard, quantity, "
                       "merge, sort), difficulty filter, two lists, No paths; mouse; soft reset")]
           if args.save.exists() else []),
+        *([Suite("ui_map_smoke", [PY, str(TESTS / "ui_map_smoke.py"), "--card", str(args.save)], 300,
+                 note="Map frame (MENU5 with the shell's chrome): same map status, mapPaling, cursor memories, "
+                      "settings, menu / HUD state, scene buffer, camera and VRAM as the original map screen by pad "
+                      "and by pointer; areas, completion, pad and pointer limits, the area list, paling, close, "
+                      "soft resets, 16:9")]
+          if args.save.exists() else []),
+        *([Suite("ui_manual_smoke", [PY, str(TESTS / "ui_manual_smoke.py"), "--card", str(args.save)], 300,
+                 note="Quick manual (MENUE native): manualDisplayState, cursor memories, HUD/world flags, heap as "
+                      "the original by pad and pointer; sounds played = the original's (pad) and the manual's "
+                      "requests (pad, pointer); text = disc decode for 14 topics; sprite/rule counts, a blink, "
+                      "canvas pixels; button art as device prompts; 16:9; reset")]
+          if args.save.exists() else []),
         *([Suite("ui_workshop_smoke", [PY, str(TESTS / "ui_workshop_smoke.py"), "--card", str(args.save)], 300,
                  note="Items > Workshop: same bag, indices and MENUC cursor memories as the original Setup screen "
                       "(MENUC / MENU8) for repair, gems, disassemble (equipped too), assemble, rename, combine x3")]
@@ -259,6 +279,10 @@ def suites(args, mode="egl"):
                                         *(["--card", str(args.save)] if args.save.exists() else [])], 360,
               note="System settings: brightness, master volume (WAV), window mode, binding capture (SDL events; "
                    "key works in the field), saved and back after a relaunch with widescreen / perspective kept"),
+        Suite("window_mode_smoke", [PY, str(TESTS / "window_mode_smoke.py"),
+                                    *(["--card", str(args.save)] if args.save.exists() else [])], 300,
+              note="window mode cycled both ways twice (save room): no device loss, presents go on, windowed "
+                   "image = window size; real window (Vulkan swapchain) only with ROOD_TEST_DESKTOP=1, else headless"),
         Suite("flipped_sprite_smoke", [PY, str(TESTS / "flipped_sprite_smoke.py")], 180,
               note="textured quads (flipped sprites too) sample only their own texels: CPU, hardware 1x and 4x"),
         Suite("ui_lines_smoke", [PY, str(TESTS / "ui_lines_smoke.py")], 420,
@@ -278,6 +302,10 @@ def suites(args, mode="egl"):
         *input_cases(scale),
         Suite("transition_fade_smoke", [PY, str(TESTS / "transition_fade_smoke.py"), "--card", str(args.save)], 600,
               note="door and cross-zone fades darken the lit picture monotonically to black and back (no unlit pop)"),
+        Suite("title_fade_smoke", [PY, str(TESTS / "title_fade_smoke.py")]
+              + (["--card", str(args.save)] if args.save.exists() else []), 300,
+              note="the title's fade after Continue = the original frame by frame (4:3: no black box over the "
+                   "menu, the backdrop fades; 16:9 brightness)"),
         Suite("post_smoke", [PY, str(TESTS / "post_smoke.py"), "--card", str(args.save)], 600,
               note="post stack: each effect changes only the 3D, defaults neutral, presets, profiles save/load and "
                    "blend, lens blur only in field play (not title, attract, cutscene, menu)"),
@@ -351,9 +379,11 @@ CHECKPOINT_SUITES = {
     "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
     "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "weapon_slots_smoke", "ui_menus_smoke",
     "ui_lines_smoke", "ui_text_smoke", "button_prompts_smoke", "coplanar_order_smoke", "atmosphere_smoke",
-    "fog_sim_smoke", "fog_volume_smoke", "save_point_glow_smoke", "ui_ashley_smoke", "ui_equip_smoke",
+    "fog_sim_smoke", "fog_volume_smoke", "save_point_glow_smoke", "ui_ashley_smoke", "ui_ashley_stability_smoke",
+    "ui_equip_smoke",
     "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "post_smoke",
-    "transition_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke",
+    "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
+    "ui_map_smoke", "ui_manual_smoke",
 }
 
 
@@ -444,6 +474,10 @@ def run_suite(suite, index, args, mode, results, lock):
         LP_NUM_THREADS=os.environ.get("LP_NUM_THREADS", "4"),
         # The Vulkan pipeline cache (vk_core.c) of the test runs, not the user's.
         ROOD_VK_PIPELINE_CACHE=str(out.parent / "vk-pipelines.bin"),
+        # ROOD_TEST_DESKTOP=1: window_mode_smoke opens a real window (fullscreen for a few seconds) on this
+        # display; every other suite stays headless.
+        **({"ROOD_TEST_DESKTOP": "1", "ROOD_DESKTOP_DISPLAY": os.environ["DISPLAY"]}
+           if os.environ.get("ROOD_TEST_DESKTOP") == "1" and os.environ.get("DISPLAY") else {}),
     )
     for key in ("ROOD_EGL_DEVICE", "ROOD_NATIVE_ROOM", "ROOD_NATIVE_ACTORS", "ROOD_NATIVE_BLEND",
                 "ROOD_NATIVE_OBJECTS", "ROOD_NATIVE_SHADOWS", "ROOD_NATIVE_EFFECTS",

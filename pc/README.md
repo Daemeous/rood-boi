@@ -272,6 +272,32 @@ original's; greyed actions say why (equipped, part of a set, keys and
 sigils, not enough MP). Every change, its sounds and the menu's cursor
 memories are the original menu's own, checked against it.
 
+Leá Monde > Map opens the game's own map screen with the shell around it:
+the 3D map, its markers and labels stay the game's, in a cut-out between
+the tabs, a header (area, room, rooms seen, JAMMED behind a paling), a rail
+(compass, map completion, the visited areas with the shown area's rooms, a
+legend) and clickable prompts. The pad is the original's (L1 / R1 rooms,
+L2 rotate, R2 zoom, the D-pad pans, Start resets, Select hides the chrome,
+Circle the area list, Cross back to the shell, Triangle closes); the area
+list is drawn by the shell (L1 / R1 there switch tabs). The mouse drags to
+rotate, wheels to zoom, middle-drags to pan and clicks areas, rooms, prompts
+and tabs; the game applies them at its own input point with its own limits.
+
+System > Quick manual reads the game's own manual natively: the 14 topics in
+a rail, the focused topic's page in a card (its title, its line, the page:
+the text in the menus' fonts with each column where the game placed it, the
+face-button pictographs as your device's prompts, the game's illustrations
+and rules, read from the disc's `SMALL/HELPnn` files at run time), a page
+row and a scroll bar. Up / Down scroll a line, Left / Right (or Square held
+with Up / Down) a page, both wrapping on a press as the original does;
+Start goes to the top; Circle reads, Cross steps back, Triangle closes;
+Square opens the original screen. The mouse clicks topics, pages (the
+chevrons) and the scroll bar and wheels a line a notch. The last topic and
+each topic's line, the list's cursor memories, the world freeze and the
+sounds played are the original's (`ui_manual_smoke`). Off a PlayStation pad
+the illustrations' PlayStation buttons are drawn as your device's prompts
+too.
+
 - `pc/src/ui/menu_bridge.c` (battle builds) takes over `func_800C930C`, the
   top level, from one `#ifdef ROOD_PC` hook; `ui_shell.cpp` is the navigation
   state (ctest `ui_shell_probe`), `ui_draw.cpp` draws it on Dear ImGui's
@@ -303,6 +329,14 @@ memories are the original menu's own, checked against it.
   on), Use's hand-off and completion, a cancelled target back on the item,
   keys and sigils refused, the discarded weapon's quick-swap slot cleared,
   the mouse.
+- `pc/tests/ui_map_smoke.py`: persistent state (map status, cursor
+  memories, HUD, scene buffer, field camera, VRAM) after the open, an area
+  switch and the close, and MENU5's own statics (scene, room, camera, pan)
+  after the switch and after rooms and a turn, equal to the original path's
+  (by pad and by pointer); the frame's model against RAM (areas, completion
+  without its write), pad and pointer limits, the area list's window, wait
+  and cursor memories, paling, close (HUD, scene buffer, heap, VRAM), soft
+  resets, a lost frame (MENU5's own help and list), 16:9.
 
 ## Intro movie and CD drive
 
@@ -1673,7 +1707,7 @@ redraws at about 60 Hz, and after each request):
 | `camera_stick` | the settings without `camera_stick_` (`enabled`, `speed`, ..., `r3_reset`, `idle_reset`, `keys`), `action` (`reset`) | the right-stick camera: settings and state (zoom, distances, collision hit, yaw; the first-person look: `first_person`, `fp_looks`, `fp_step`) |
 | `camera_options` | `map_invert`, `fp_invert_y` | the optional map panning and first-person up/down inversions (settings `qol_map_invert`, `qol_fp_invert_y`) |
 | `weapon_slots` | `enabled` | the optional weapon slots (battle builds): the option, overlay/assign/swap state, field mode, each weapon's slot and each shield's slot bits, what Ashley's battle record has equipped |
-| `ui_menu` | `modern`, `pointer` | the modern menus (`pc/src/ui`, battle builds): sets `ui_menus`; `model_heap_extra` (bytes, tests: the Ashley model's heap check asks for that much more); `pointer {x, y, click, right, wheel}` is the next drawn frame's mouse in layout units (1280 or 960 x 720; hit tests as a moved pointer); the shell: visible, holding (closed, a result held during a model load, still drawn), menus, tab, tabs, rows (id, label, enabled, reason when greyed, value), focused row, the Equipment screen |
+| `ui_menu` | `modern`, `pointer` | the modern menus (`pc/src/ui`, battle builds): sets `ui_menus`; `model_heap_extra` (bytes, tests: the Ashley model's heap check asks for that much more); `pointer {x, y, click, right, wheel, down, middle}` is the next drawn frame's mouse in layout units (1280 or 960 x 720; hit tests as a moved pointer; down / middle: that button held, drags); the shell: visible, holding (closed, a result held during a model load, still drawn), menus, tab, tabs, rows (id, label, enabled, reason when greyed, value), focused row, the Equipment screen; `map` (the Map frame: state, MENU5's published scene / room / camera, areas, rooms, completion, the list's cursor, request counters, the drawn pointer targets `hits`, or null) and `map_heap_free`; `system.manual` (the Quick manual: mode topics / reading, topic, label, desc, row, page_top, line, lines, line_count, page, pages, loaded, square, k, size, overflow, unknown, the page's ten `page_lines`, sprites, rules, hidden, `art` (button-art sprites) and `art_prompts` (drawn as the device's prompts), the `sfx` counters, the drawn `hits`, or null; `system.manual_sfx`: the manual's requested sounds, on or off) |
 | `release` | | drop injected buttons |
 | `state` | | zone, room, start state, music, HP/MP, risk, Ashley's position |
 | `read` / `write` | `address`, `length` / `hex` | guest RAM and scratchpad (read also host data) |
@@ -1689,6 +1723,7 @@ redraws at about 60 Hz, and after each request):
 | `ui_text` | `ui_text` (`original`/`font`), `layout` (`line`/`glyph`), `bubble_align` (`centre`/`left`), `lines` (path: the newest frame's laid-out lines as JSON), `style` with `font`, `stretch`, `slant`, `embolden`, `aspect`; `render` ([tpage, clut, u0, v0, u1, v1]) with `factor`, `path` | the text fonts: option, each style (font, placement, `loaded`), fonts loaded, glyph fields made, glyph regions drawn from fonts (`regions`, of them `labels`) and fallen back (`failed`), the labels drawn (`labels_drawn`); a `style` with values changes it as the `ui_text_<style>_*` settings do; `render` draws that region from the font into `path` (little-endian PS1 colours) and adds its size |
 | `redraw` | | the newest frame drawn again as recorded with the current options (MSAA, ...) and presented until the game draws another: pause first, then compare options on one frame (`aa_smoke.py`) |
 | `settings` | `action` (`save`, `load`) | the `ROOD_SETTINGS` file (a loaded preset applies at once) |
+| `sfx` | `reset` | the sounds played through `vs_main_playSfxDefault` since the last reset (a `ROOD_PC` count in `main.c`): bank 0x7E's `change`, `select`, `leave`, `invalid`, every id of it (`menu`), the other banks' total (`other`) |
 | `perf` | `reset` | GPU time per presented frame since the last reset (`ROOD_PERF=1`; Vulkan timestamps, GL timer queries; Vulkan adds `sections`: ms per frame of `draw`, `present`, `aa`, `downsample`, the GI passes); GL adds `presents`, `gpu_wait_ms` (CPU waits for frames in flight), `gi_traced`/`gi_reused`, `gi_gpu_ms`, `gi_budget_ms`, `gi_interval` (path tracer cadence) |
 | `lighting_autodetect` | `ray_query`, `integrated` | the first-run preset for those capabilities |
 | `render_stats` | | native lists/instances/triangles and room triangles drawn from packets in the last frame |
@@ -1696,7 +1731,7 @@ redraws at about 60 Hz, and after each request):
 | `editor_overlay` | `points`, `edges`, `update` | overlay state (points and edges shown, hidden-line test, cost) and N shown points/edges with window pixels |
 | `editor_snap` | `x`, `y` (or `u`, `v`), `modes`, `apply`, `highlight`, `clear` | the snap target a light drag would find there, with the lit neighbours and their weights; `apply` moves the selected light |
 | `actors` | `action` (`list`, `add`, `set`, `remove`, `select`, `sample`, `suggest`, `light_fixture`, `attach`, `fixture_triangles`, `save`, `save_prefab`, `apply_prefab`, `from_lights`), `prefab`, `position` or `x`/`y` (`u`/`v`), `modes`, `params`, `reset`, `index`, `time`, `animate`, `glows` | light actors in the room (see `pc/src/dev_rpc.c`); `time` fixes the animation clock (null: live) |
-| `glows` | `action` (`list`, `select`, `set`, `reset`, `solo`), `id`, `enabled`, `intensity`, `tint`, `size`, `reach`, `shape` (`auto`, `sphere`, `column`), `smoothing`, `shapes` (0 every glow a sphere, 1 enclosing glows as columns, 2 solid columns: comparisons), `fragments` | the room's glows (`pc/src/glows.c`): id, key, name, category (fixture, magic, effect), casts_shadows, smoothed and raw position/colour, presence, traced, `shape` (`kind` sphere/column/solid, `centre`, `half_axis`, `radius`: what the tracers sample, [Glows.md](docs/Glows.md) "Enclosing glows"); the tracers' light `energy` (and `raw_energy` unsmoothed), per category (`categories`), `casts` (bit i: traced emitter i may cast shadows); select/set/reset/solo take fixtures and magic glows only; `smoothing` sets every kind's; `fragments: true` adds this update's glowing triangles and their glows |
+| `glows` | `action` (`list`, `select`, `set`, `reset`, `solo`), `id`, `enabled`, `intensity`, `tint`, `size`, `reach`, `shape` (`auto`, `sphere`, `column`), `smoothing`, `shapes` (0 every glow a sphere, 1 enclosing glows as columns, 2 solid columns: comparisons), `shadow_core`, `shadow_clear` (a column's shadow core and clear middle, fractions of its radius: 0.25, 0.4), `column_baked` (a column's weight in the baked light's shadows, 3; 0: its colour's), `fragments` | the room's glows (`pc/src/glows.c`): id, key, name, category (fixture, magic, effect), casts_shadows, smoothed and raw position/colour, presence, traced, `shape` (`kind` sphere/column/solid, `centre`, `half_axis`, `radius`, `shadow_core`: what the tracers sample, [Glows.md](docs/Glows.md) "Enclosing glows"); the tracers' light `energy` (and `raw_energy` unsmoothed), per category (`categories`), `casts` (bit i: traced emitter i may cast shadows); select/set/reset/solo take fixtures and magic glows only; `smoothing` sets every kind's; `fragments: true` adds this update's glowing triangles and their glows |
 | `lights` | `action` (`suggest`, `save`, `reload`, `add` {`position`}), `select`, `baked` | the room's lights (zone, room, `dirty`, `loads`: layer loads so far, status); `reload` reads every lighting layer of the current room from disk at once (unsaved edits are dropped) instead of waiting for the editor's file poll (twice a second of wall-clock time, which fast stepping outpaces): scripts write a room file, call `reload`, then count frames. The poll keeps the files' times as read, so it does not load them again, and the renderers' history resets (path tracer, NRD, probes) follow a hash of the lights, so a changed light resets them once |
 | `prefabs` | `reload` | the prefab library (built-in and user), parameters and problems |
 | `editor_place` | `item` / `prefab` / `light`, `phase` (`begin`, `move`, `drop`, `cancel`, `double_click`, `state`), `x`/`y` or `u`/`v` | a drag from Place Actors, as the mouse would do it |
@@ -1790,6 +1825,7 @@ python3 pc/tests/run.py --list
 | `editor_cutaway_smoke`, `editor_snap_smoke` | the free camera's view into the save room; the viewport overlays and snapping there (both need `pc/save/card1.mcd`) |
 | `golden_frames` | fixed scenes and camera poses against reference frames |
 | `transition_fade_smoke` | room transitions (a door in the card's zone, another zone): the fade darkens the lit picture monotonically to black and back, lit until black, the 3D keeping its depth (needs `pc/save/card1.mcd`) |
+| `title_fade_smoke` | the title's fade after Continue (New Game without a card) against the software rasteriser frame by frame: in 4:3 no black box over the menu and the backdrop fades; in 16:9 the brightness follows the original's |
 | `post_smoke` | the post stack: each effect changes the 3D as it should and leaves the 2D/UI exact, defaults neutral, presets, profile save/load, a room item, blending, auto exposure, the convolution bloom (Vulkan); depth of field stays off on the title, in the attract demo, the opening (a cutscene) and a field menu (field play needs `pc/save/card1.mcd`) |
 | `camera_stick_smoke` | the right-stick camera in the save room: continuous yaw proportional to the stick, facing masks, L1/R1, zoom limits, no camera behind drawn walls, R3, idle reset, first-person view and targeting sphere, the RT camera (Vulkan); the opening's scripted camera unchanged (needs `pc/save/card1.mcd`) |
 | `fixture_lighting_smoke` | generated fixture lights in zone 9: types, lit, shadow exclusion, glow links, suppressed glows, live type edits, catalog save, regenerate (needs `pc/save/card1.mcd`); the catalog's schema, round trip and generator determinism are the CTest `fixture_catalog` |

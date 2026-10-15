@@ -17,6 +17,7 @@ int pc_hw_active = 1, pc_hw_scale_setting = 4, pc_gl_filter = 2, pc_gl_aspect, p
     pc_hw_perspective = 1, pc_hw_subpixel = 1, pc_hw_interpolate = 1, pc_hw_texture_filter, pc_present_rate = 1;
 int pc_env_global = 1, pc_lights_enabled = 1, pc_qol_weapon_slots, pc_skip_intro, pc_ui_menus;
 int pc_qol_map_invert, pc_qol_fp_invert_y;
+float pc_ui_menu_opacity = 0.94f;
 int pc_lighting_preset = PC_PRESET_HIGH, pc_gi_method = PC_GI_PROBES, pc_shadow_mode = PC_SHADOWS_MAPS,
     pc_haze_quality = PC_HAZE_LOW, pc_ao = 1;
 int pc_ui_text, pc_ui_upscale, pc_ui_subpixel, pc_ui_lines = 1, pc_ui_outline_boost, pc_ui_bubbles;

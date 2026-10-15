@@ -267,9 +267,9 @@ a point in the room, and still shadows the floor beyond him.
   a GL uniform. `emitter_sample` picks a point on the shape for the glow
   light, the glow shadows on the baked light, the haze and the probes, on
   GL and Vulkan alike. The emitter position becomes the column's centre.
-  The lighting signature's noise-free ray goes to the column's nearest
-  point (`emitter_nearest`), so it is not blocked by a character standing in
-  the column. Shadow rays stop 2 units short of the sampled point instead of a sphere's radius.
+  The light's sample sets its cosine and falloff; its shadow ray is
+  `emitter_shadow`'s (below), and so is the lighting signature's
+  noise-free ray (`emitter_shadow_nearest`).
 
 ### Options compared (save room, Ashley at the centre, the edge (40 off the axis) and outside (100 off))
 
@@ -282,7 +282,7 @@ record; Vulkan Ultra, 64-bit, RTX PRO 6000):
 | sphere r 8 (before) | 0.56 | 0.99 | 1.00 | crisp, long |
 | sphere r 32 (the workaround) | 0.90 | 0.98 | 1.00 | faint, soft |
 | sphere r 44 | 0.95 | 0.98 | 1.00 | faint |
-| column side r 63 (**default**) | 0.91 | 0.92 | 0.98 | soft: its feet, a wedge behind him |
+| column side r 63 (**default**, before the core below) | 0.91 | 0.92 | 0.98 | soft: its feet, a wedge behind him (too faint in play: "Visible shadows") |
 | column side r 32 | 0.87 | 0.91 | 1.00 | soft |
 | solid column r 63 | 0.89 | 0.94 | 0.99 | soft |
 
@@ -305,11 +305,58 @@ sphere large enough to stick out of Ashley floats at chest height.
 `shape=sphere` plus a size, or a smaller column radius, are there for
 anyone who prefers crisper shadows over the light.
 
+### Visible shadows (playtest, 2026-10-14)
+
+The user played save room 29/0 on 64-bit Vulkan (Custom: path traced GI,
+NRD, traced shadows, glow shadows, haze High) and saw no shadow of Ashley
+beside the save point. Measured in the presented frame there (glow shadows
+on against off, the floor 1 and 2 body lengths (112 units) behind him, the
+GI probe's screen position of those points): 12-15% and 6-7% darker. The
+old sphere gave only 5-17% in that room too. Two things kept it faint:
+
+- **The shadow rays went to the whole 128-unit-wide side**, so beyond
+  Ashley the floor still saw most of it (a penumbra, no umbra).
+- **The glow's share of the baked light was small.** The baked light's
+  shadow term weighs each glow by its colour (`near = w / (w + 0.1)`, at
+  most `1 - baked_ambient` = 0.65). The save point in 29/0 is found by
+  dimmer scrolling texels than the one in 9/17 (luminance 0.07 against
+  0.34), so even a full block darkened the floor by about 20%. The blue
+  patch on the floor around it is all its own baked light, though.
+
+Now (`rt_lights.glsl emitter_shadow`, the GL shader the same, the haze
+and the probes too):
+
+- **Core**: a shadow ray aims at the same point of a core a quarter of
+  the column's radius (16 units) as the light's sample. The light (its
+  cosine and falloff) still comes from the whole side. Beside the column,
+  Ashley now hides most of what a point behind him sees: a soft shadow
+  with a real middle.
+- **Clear middle**: the ray stops where it enters a cylinder 0.4 of the
+  radius (25 units) round the axis. A character standing in the middle of
+  the circle blocks none of the light: the room stays lit (29/0 keeps
+  0.94, 9/17 0.91-0.93). One anywhere else in the circle shadows the floor
+  beyond him (the edge, 40 off the axis: 44% darker).
+- **Baked share**: a column's weight in the baked light's shadow term is
+  `3 x` its presence and category intensity instead of its colour (the
+  `emitter_shadow_.y` channel), so near it the term reaches its full
+  `1 - baked_ambient`.
+
+Measured in the presented frame (same method): 29/0 beside the save
+point 36-38% darker 1 body length behind him and 36-40% at 2; 9/17 40-44%
+and 38-40% (Vulkan; GL 33-36% in 29/0, 36-43% in 9/17). Each change alone gave at most 22-30% in 29/0. Knobs: RPC
+`glows {shadow_core, shadow_clear, column_baked}` (fractions of the
+radius, and the weight; 1 / 0 / 0 restores the first column's shadows,
+except that a character in the middle now never darkens the room). A
+fixture type can set its own `glow_shadow_core` (the catalog).
+
 Test: `pc/tests/save_point_glow_smoke.py` (run.py suite
-`save_point_glow_smoke`). It checks the column, a shape override saved by
-key, and, at High and Ultra, the floor's visibility and the frame's light
-with Ashley at the centre (and that the old sphere fails), and his shadow
-behind him at the edge and outside.
+`save_point_glow_smoke`, with the pinned card). It checks the column, a
+shape override saved by key, and, at High and Ultra, the floor's
+visibility and the frame's light with Ashley at the centre (and that the
+old sphere fails). It checks his shadow behind him at the edge and
+outside, also in the presented frame at 1 and 2 body lengths (at least
+30% darker). In 29/0 (`room_goto`) it checks the same visible shadow on
+both sides and the light kept with him in the circle.
 
 ## Limits and next steps
 
