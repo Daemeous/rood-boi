@@ -16,6 +16,7 @@ Exit status 0 when every check passed.
 """
 import argparse
 import json
+import atexit
 import os
 import pathlib
 import socket
@@ -57,6 +58,15 @@ class Run:
                    ROOD_CARD1=str(card), ROOD_CARD2=str(self.out / "card2-absent.mcd"), ROOD_OUT=str(self.out),
                    ROOD_GI=os.environ.get("ROOD_GI", "0"))
         env.pop("ROOD_SETTINGS", None)
+        # Headless as rood_rpc runs it ($ROOD_HEADLESS: egl, or a private Xvfb), not on the
+        # desktop's display (WSLg's can drop the connection mid-run).
+        if os.environ.get("ROOD_HEADLESS"):
+            mode, _ = rood_rpc.headless_mode()
+            if mode == "egl":
+                rood_rpc.headless_env(mode, env)
+            else:
+                xvfb, env["DISPLAY"] = rood_rpc.start_xvfb()
+                atexit.register(xvfb.kill)
         self.process = subprocess.Popen([args.exe, "--window", "--skip-movies"] + (["--fast"] if args.fast else []),
                                         cwd=args.dir, env=env, stdout=subprocess.DEVNULL,
                                         stderr=open(self.log_path, "w"))
