@@ -381,6 +381,8 @@ typedef struct {
     int areaFlags[2];
 } vs_main_mapStatus_t;
 
+/* The bag as saves (and the new game's starting bag) hold it; the bag itself is
+ * vs_main_inventory_t (VS_INVENTORY_* counts, func_8006B57C_t.h). */
 typedef struct {
     vs_main_inventoryWeapon weapons[8];
     vs_main_inventoryShield shields[8]; // 0x100
@@ -389,7 +391,21 @@ typedef struct {
     vs_main_inventoryArmor armor[16]; // 0x640
     vs_main_inventoryGem gems[48]; // 0x8C0
     vs_main_inventoryMisc misc[64]; // 0xE00
+} vs_main_savedInventory_t;
+
+#ifdef VS_BIG_INVENTORY
+typedef struct {
+    vs_main_inventoryWeapon weapons[VS_INVENTORY_WEAPONS];
+    vs_main_inventoryShield shields[VS_INVENTORY_SHIELDS];
+    vs_main_inventoryBlade blades[VS_INVENTORY_BLADES];
+    vs_main_inventoryGrip grips[VS_INVENTORY_GRIPS];
+    vs_main_inventoryArmor armor[VS_INVENTORY_ARMOR];
+    vs_main_inventoryGem gems[VS_INVENTORY_GEMS];
+    vs_main_inventoryMisc misc[VS_INVENTORY_MISC];
 } vs_main_inventory_t;
+#else
+typedef vs_main_savedInventory_t vs_main_inventory_t;
+#endif
 
 typedef struct {
     char unk0;
@@ -489,6 +505,11 @@ extern int vs_main_startState;
 extern vs_main_artsStatus_t vs_main_artsStatus;
 extern int D_80060064;
 extern D_80060068_t D_80060068;
+#ifdef VS_BIG_INVENTORY
+/* The bag and its order lists in RAM the game never uses (config/big_inventory_addrs.txt). */
+#define vs_main_inventory vs_main_bigInventory
+#define vs_main_inventoryIndices vs_main_bigInventoryIndices
+#endif
 extern vs_main_inventory_t vs_main_inventory;
 extern _mpdRoomDoorSection_t D_80061068;
 extern vs_Gametime_t vs_main_gametime;

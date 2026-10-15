@@ -80,7 +80,16 @@ void vs_menuD_initUiShield(vs_battle_uiShield* target, vs_main_inventoryShield* 
 static u_short _menuText[] = {
 #include "build/assets/MENU/MENUD.PRG/menuText.vsString"
 };
+/* The container's layout (vs_menu_containerData, and its order lists) */
 static u_short _containerItemCapacities[] = { 32, 64, 64, 32, 64, 192, 256, 2 };
+/* How many items it may hold: all of it, or with the bigger bag less the slots its extra half
+ * is saved in (VS_CONTAINER_*, func_8006B57C_t.h) */
+#ifdef VS_BIG_INVENTORY
+static u_short _containerItemLimits[] = { VS_CONTAINER_WEAPONS, VS_CONTAINER_BLADES,
+    VS_CONTAINER_GRIPS, VS_CONTAINER_SHIELDS, VS_CONTAINER_ARMOR, VS_CONTAINER_GEMS, 256, 2 };
+#else
+#define _containerItemLimits _containerItemCapacities
+#endif
 
 static u_short* _getContainerIndicesOffset(int itemCategory, vs_menu_container* container)
 {
@@ -235,7 +244,7 @@ static int _getEmptyContainerSlot(int itemCategory, vs_menu_containerData* conta
 {
     int i;
 
-    for (i = 0; i < _containerItemCapacities[itemCategory]; ++i) {
+    for (i = 0; i < _containerItemLimits[itemCategory]; ++i) {
         if (_getContainerItemId(itemCategory, i, container) == 0) {
             break;
         }
@@ -303,9 +312,11 @@ static int _copyContainerItem(int itemCategory, vs_menu_containerData* targetCon
         vs_main_inventoryWeapon* source = &sourceContainer->weapons[sourceSlot];
         vs_main_inventoryWeapon* target = &targetContainer->weapons[targetSlot];
 
-        if (((itemCount != 32)
-                && (_countContainerItems(itemCategoryBlade, targetContainer) != 64))
-            && (_countContainerItems(itemCategoryGrip, targetContainer) != 64)) {
+        if (((itemCount != VS_CONTAINER_WEAPONS)
+                && (_countContainerItems(itemCategoryBlade, targetContainer)
+                    != VS_CONTAINER_BLADES))
+            && (_countContainerItems(itemCategoryGrip, targetContainer)
+                != VS_CONTAINER_GRIPS)) {
 
             subItemCount = 0;
 
@@ -316,7 +327,7 @@ static int _copyContainerItem(int itemCategory, vs_menu_containerData* targetCon
             }
 
             if ((_countContainerItems(itemCategoryGem, targetContainer) + subItemCount)
-                > 192) {
+                > VS_CONTAINER_GEMS) {
                 break;
             }
 
@@ -347,7 +358,7 @@ static int _copyContainerItem(int itemCategory, vs_menu_containerData* targetCon
         vs_main_inventoryBlade* source = &sourceContainer->blades[sourceSlot];
         vs_main_inventoryBlade* target = &targetContainer->blades[targetSlot];
 
-        if (itemCount == 64) {
+        if (itemCount == VS_CONTAINER_BLADES) {
             break;
         }
 
@@ -364,7 +375,7 @@ static int _copyContainerItem(int itemCategory, vs_menu_containerData* targetCon
         vs_main_inventoryGrip* source = &sourceContainer->grips[sourceSlot];
         vs_main_inventoryGrip* target = &targetContainer->grips[targetSlot];
 
-        if (itemCount == 64) {
+        if (itemCount == VS_CONTAINER_GRIPS) {
             break;
         }
 
@@ -381,7 +392,7 @@ static int _copyContainerItem(int itemCategory, vs_menu_containerData* targetCon
         vs_main_inventoryShield* source = &sourceContainer->shields[sourceSlot];
         vs_main_inventoryShield* target = &targetContainer->shields[targetSlot];
 
-        if (itemCount == 32) {
+        if (itemCount == VS_CONTAINER_SHIELDS) {
             break;
         }
 
@@ -394,7 +405,7 @@ static int _copyContainerItem(int itemCategory, vs_menu_containerData* targetCon
         }
 
         if ((_countContainerItems(itemCategoryGem, targetContainer) + subItemCount)
-            > 192) {
+            > VS_CONTAINER_GEMS) {
             break;
         }
 
@@ -419,7 +430,7 @@ static int _copyContainerItem(int itemCategory, vs_menu_containerData* targetCon
         vs_main_inventoryArmor* source = &sourceContainer->armor[sourceSlot];
         vs_main_inventoryArmor* target = &targetContainer->armor[targetSlot];
 
-        if (itemCount == 64) {
+        if (itemCount == VS_CONTAINER_ARMOR) {
             break;
         }
 
@@ -435,7 +446,7 @@ static int _copyContainerItem(int itemCategory, vs_menu_containerData* targetCon
         vs_main_inventoryGem* source = &sourceContainer->gems[sourceSlot];
         vs_main_inventoryGem* target = &targetContainer->gems[targetSlot];
 
-        if (itemCount == 192) {
+        if (itemCount == VS_CONTAINER_GEMS) {
             break;
         }
 
@@ -505,7 +516,7 @@ static void _defragmentContainerItems(int itemCategory, vs_menu_container* conta
     u_short* indexOffset;
 
     indexOffset = _getContainerIndicesOffset(itemCategory, container);
-    capacity = _containerItemCapacities[itemCategory];
+    capacity = _containerItemLimits[itemCategory];
 
     for (i = 0; i < capacity; ++i) {
         source = indexOffset[i];
@@ -573,20 +584,13 @@ static void _copyInventoryToContainer(void)
         }
     }
 
-    vs_battle_memcpy(
-        container->data.weapons, inventory->weapons, sizeof container->data.weapons / 4);
-    vs_battle_memcpy(
-        container->data.blades, inventory->blades, sizeof container->data.blades / 4);
-    vs_battle_memcpy(
-        container->data.grips, inventory->grips, sizeof container->data.grips / 4);
-    vs_battle_memcpy(
-        container->data.shields, inventory->shields, sizeof container->data.shields / 4);
-    vs_battle_memcpy(
-        container->data.armor, inventory->armor, sizeof container->data.armor / 4);
-    vs_battle_memcpy(
-        container->data.gems, inventory->gems, sizeof container->data.gems / 4);
-    vs_battle_memcpy(
-        container->data.misc, inventory->misc, sizeof container->data.misc / 4);
+    vs_battle_memcpy(container->data.weapons, inventory->weapons, sizeof inventory->weapons);
+    vs_battle_memcpy(container->data.blades, inventory->blades, sizeof inventory->blades);
+    vs_battle_memcpy(container->data.grips, inventory->grips, sizeof inventory->grips);
+    vs_battle_memcpy(container->data.shields, inventory->shields, sizeof inventory->shields);
+    vs_battle_memcpy(container->data.armor, inventory->armor, sizeof inventory->armor);
+    vs_battle_memcpy(container->data.gems, inventory->gems, sizeof inventory->gems);
+    vs_battle_memcpy(container->data.misc, inventory->misc, sizeof inventory->misc);
 }
 
 static void _copyContainerToInventory(void)
@@ -1564,7 +1568,7 @@ static void _copyEquipmentByStat(int arg0, int arg1)
     u_short* temp_s7;
 
     var_s6 = 0;
-    temp_s5 = _containerItemCapacities[arg0];
+    temp_s5 = _containerItemLimits[arg0];
 
     {
         u_short sp40[temp_s5];
@@ -1957,7 +1961,7 @@ void func_80106504(void)
             ((0x64 + 0xC * i) << 16) | 0x70,
             _countContainerItems(i, &vs_menu_inventoryStorage->unk105B0.data));
         vs_battle_renderTextRaw(D_80109A10[i], ((0x64 + 0xC * i) << 16) | 0xA0, NULL);
-        func_80106464(_containerItemCapacities[i], ((0x64 + 0xC * i) << 16) | 0xF8,
+        func_80106464(_containerItemLimits[i], ((0x64 + 0xC * i) << 16) | 0xF8,
             _countContainerItems(i, &vs_menu_inventoryStorage->unkC430.data));
     }
 }
@@ -1993,7 +1997,7 @@ int func_801066DC(int arg0, int arg1)
         arg1 + (temp_s0 + _countContainerItems(arg0, &vs_menu_inventoryStorage->unk87B0));
 
     if (D_80109A7A != 0) {
-        return _containerItemCapacities[arg0] < temp_s1;
+        return _containerItemLimits[arg0] < temp_s1;
     }
     return vs_mainMenu_inventoryItemCapacities[arg0] < temp_s1;
 }
@@ -2235,7 +2239,7 @@ int func_80106C64(int itemCategory, char** text, int* rowTypes, char* textBuf)
             }
         } else {
 
-            for (i = 0; i < _containerItemCapacities[itemCategory]; ++i, c += 0x60) {
+            for (i = 0; i < _containerItemLimits[itemCategory]; ++i, c += 0x60) {
                 itemIndex = indices[i];
 
                 if (itemIndex == 0) {
@@ -3268,7 +3272,7 @@ int vs_menuD_exec(u_char* arg0)
                 } else {
                     menuItem->max = D_80109A7A != 0
                                       ? vs_mainMenu_inventoryItemCapacities[itemCategory]
-                                      : _containerItemCapacities[itemCategory];
+                                      : _containerItemLimits[itemCategory];
                     menuItem->count =
                         _countContainerItems(itemCategory, &vs_menuD_containerData->data);
                 }
@@ -3343,7 +3347,7 @@ int vs_menuD_exec(u_char* arg0)
             temp_a2 =
                 temp_s0_2 + _countContainerItems(s3, &vs_menu_inventoryStorage->unk87B0);
             if (D_80109A7A != 0) {
-                var_a0 = _containerItemCapacities[s3];
+                var_a0 = _containerItemLimits[s3];
             } else {
                 var_a0 = vs_mainMenu_inventoryItemCapacities[s3];
             }

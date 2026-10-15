@@ -79,6 +79,13 @@ parser.add_argument(
     help="with --callo: the bonus wheel after a boss spins as in the original, instead of being chosen",
 )
 parser.add_argument(
+    "--big-inventory",
+    choices=["container"],
+    help="with --callo: the bigger bag (VS_BIG_INVENTORY, src/BATTLE/BATTLE.PRG/mod/inventory.h): "
+    "twice the equipment, its extra half saved in the container's last slots ('container'); "
+    "builds into *_callo_biginv",
+)
+parser.add_argument(
     "--coff",
     action="store_true",
     help="--target windows: compile only the MinGW-w64 objects and run the "
@@ -101,6 +108,10 @@ root = pathlib.Path(__file__).resolve().parents[2]
 out = root / ("pc/build/win64" if win else "pc/build/boot64" if arch64 else "pc/build/boot")
 if parsed.callo:
     out = out.with_name(out.name + "_callo")
+if parsed.big_inventory:
+    if not parsed.callo:
+        parser.error("--big-inventory goes with --callo")
+    out = out.with_name(out.name + "_biginv")
 out.mkdir(parents=True, exist_ok=True)
 # One build at a time per output tree: every run recompiles the objects and then
 # renames symbols in place (name -> name__overlay), so a second run in the same
@@ -652,7 +663,7 @@ build_stamp = Stamp(root, out, {
     "battle": battle, "no_audio": no_audio, "arch": parsed.arch, "target": parsed.target, "coff": coff,
     "debug_compress": debug_compress,
     # the Merlose mod's options change the game units' defines
-    "callo": [parsed.callo, parsed.random_stat_items, parsed.spin_bonus_wheel],
+    "callo": [parsed.callo, parsed.random_stat_items, parsed.spin_bonus_wheel, parsed.big_inventory],
     "nrd": [nrd and nrd["libraries"], win_nrd and win_nrd["libraries"]], "toolchain": toolchain,
 })
 stamp_trees = [("src", None), ("include", None), ("config", None), ("build", None), ("pc/src", None),
@@ -968,6 +979,8 @@ game_cpp_flags = [
     *(["-DVS_CALLO"] if parsed.callo else []),
     *(["-DVS_SELECTABLE_ROULETTE"] if parsed.callo and not parsed.spin_bonus_wheel else []),
     *(["-DVS_CALLO_RANDOM_STAT_ITEMS"] if parsed.callo and parsed.random_stat_items else []),
+    # The bigger bag (1: VS_BIG_INVENTORY_CONTAINER)
+    *(["-DVS_BIG_INVENTORY=1"] if parsed.big_inventory == "container" else []),
     # psx_ptr/psx_get/PSX_SIZE/PSX_ASSERT_* in every game unit; on 32 bits
     # they expand to the original pointers and literals.
     "-include",
@@ -1307,6 +1320,11 @@ if arch64:
 # SDK/function imports are explicit fail-fast traps. Data imports retain original
 # addresses into the private disc image. Never emit a callable MIPS address.
 addresses = {}
+if parsed.big_inventory:  # the bigger bag's RAM, the same as the PS1's
+    for name, value in re.findall(
+        r"^(\w+)\s*=\s*(0x[0-9A-Fa-f]+)", (root / "config/big_inventory_addrs.txt").read_text(), re.M
+    ):
+        addresses[name] = int(value, 16)
 for config in ["SLUS_010.40", "TITLE/TITLE.PRG", "BATTLE/BATTLE.PRG"]:
     for p in [
         root / f"config/{config}/symbol_addrs.txt",

@@ -731,14 +731,14 @@ static int _getWeaponStatValue(int stat, vs_battle_uiWeapon* weapon)
 static void _sortWeapons(int stat)
 {
     vs_battle_uiWeapon uiWeapon;
-    char sortedIndices[8];
+    char sortedIndices[VS_INVENTORY_WEAPONS];
     int i;
     int sortedPos;
 
     vs_main_inventoryWeapon* weapon = vs_main_inventory.weapons;
     char* indices = vs_main_inventoryIndices.weapons;
 
-    vs_battle_rMemzero(sortedIndices, 8);
+    vs_battle_rMemzero(sortedIndices, VS_INVENTORY_WEAPONS);
 
     sortedPos = 0;
 
@@ -746,7 +746,7 @@ static void _sortWeapons(int stat)
         int index;
         int maxValue = -INT_MAX - 1;
 
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
             index = indices[i];
 
             if (index != 0) {
@@ -766,7 +766,7 @@ static void _sortWeapons(int stat)
             break;
         }
 
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
             index = indices[i];
 
             if (index != 0) {
@@ -781,7 +781,7 @@ static void _sortWeapons(int stat)
         }
     }
 
-    vs_battle_memcpy(indices, sortedIndices, 8);
+    vs_battle_memcpy(indices, sortedIndices, VS_INVENTORY_WEAPONS);
 }
 
 /**
@@ -827,7 +827,7 @@ static int _getShieldStatValue(int stat, vs_battle_uiShield* shield)
 static void _sortShields(int stat)
 {
     vs_battle_uiShield uiShield;
-    char sortedIndices[8];
+    char sortedIndices[VS_INVENTORY_SHIELDS];
     int i;
     int sortedPos;
 
@@ -842,7 +842,7 @@ static void _sortShields(int stat)
         int index;
         int maxValue = -INT_MAX - 1;
 
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < VS_INVENTORY_SHIELDS; ++i) {
             int value;
             index = indices[i];
 
@@ -862,7 +862,7 @@ static void _sortShields(int stat)
             break;
         }
 
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < VS_INVENTORY_SHIELDS; ++i) {
             index = indices[i];
 
             if (index != 0) {
@@ -877,7 +877,7 @@ static void _sortShields(int stat)
         }
     }
 
-    vs_battle_memcpy(indices, sortedIndices, 8);
+    vs_battle_memcpy(indices, sortedIndices, VS_INVENTORY_SHIELDS);
 }
 
 /**
