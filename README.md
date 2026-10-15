@@ -431,7 +431,9 @@ build compiles every unit twice, for Linux (the analysis) and with MinGW-w64
 
 The developer RPC takes `ROOD_RPC=tcp:PORT` on Windows (a loopback TCP port:
 Windows' Python has no Unix sockets); `pc/tools/rood_rpc.py` connects to it
-from Windows or WSL. The Linux-only test harness (`pc/tests`, Xvfb/EGL
+from Windows or WSL. Any local program can reach that port: on a shared
+machine use `ROOD_RPC=tcp:PORT:TOKEN`, which requires the token (rood_rpc.py
+sends it when the address includes it). The Linux-only test harness (`pc/tests`, Xvfb/EGL
 headless runs) does not run on Windows.
 
 ### macOS

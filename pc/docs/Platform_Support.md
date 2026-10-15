@@ -125,7 +125,11 @@ The Linux link is skipped; the Linux 64-bit build itself is unchanged.
   `pc/tools/rood_rpc.py` connects to `tcp:` addresses and defaults to
   `tcp:47323` on Windows. A TCP port can be reached by any local program,
   web pages' requests included, so a line that is not a JSON object (an HTTP
-  request line) closes the connection.
+  request line) closes the connection, and `ROOD_RPC=tcp:PORT:TOKEN` makes
+  every connection authenticate first (`auth {token}`; anything else closes
+  it). `rood_rpc.py` sends the token from the address, and `Game.launch()`
+  makes up a random one. Without a token, use TCP on single-user machines
+  only: the RPC can write the game's memory and files.
 - **NRD.** `pc/tools/nrd.py`'s `ensure_windows()` compiles NRD and
   ShaderMakeBlob with MinGW by replaying the Linux NRD build's own compile
   commands (`ninja -t commands`), with its SPIR-V shaders (`_Shaders`, the

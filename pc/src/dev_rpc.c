@@ -3,10 +3,17 @@
  * Enabled only when ROOD_RPC names a socket path; the socket is created with
  * mode 0600. ROOD_RPC=tcp:PORT listens on 127.0.0.1:PORT instead (Windows
  * has no Unix sockets for Python clients); lines that are not JSON objects
- * close such a connection. Each request is one JSON object per line and each response is one
- * line. Requests are serviced on the game thread from pc_tick (once per
- * vsync), so every method runs at a frame boundary with no locking. Methods:
+ * close such a connection. Any local program can reach a TCP port, so
+ * ROOD_RPC=tcp:PORT:TOKEN makes each connection's first request auth {token}
+ * with that token (anything else closes it); rood_rpc.py does this, and
+ * Game.launch() makes up a token. Without a token, TCP is for single-user
+ * machines only. Each request is one JSON object per line and each response
+ * is one line. Requests are serviced on the game thread from pc_tick (once
+ * per vsync), so every method runs at a frame boundary with no locking.
+ * Methods:
  *
+ *   auth {token}                 a TCP connection's first request when
+ *                                ROOD_RPC=tcp:PORT:TOKEN
  *   status                       counters (vsync, battle frame, presents: images
  *                                presented, window_presents: of them, those that
  *                                reached a real window; device_lost: Vulkan
@@ -411,8 +418,10 @@ extern void render_stats_get(render_stats*) __attribute__((weak));
 
 static int listener = -1, initialized;
 static int listener_tcp; /* ROOD_RPC=tcp:PORT */
+static char tcp_token[129]; /* ROOD_RPC=tcp:PORT:TOKEN; empty: no auth */
 static struct client {
     int fd;
+    int authed; /* 0 until a TCP connection sends auth {token} */
     size_t used;
     int waiting;          /* a deferred "wait" reply is owed (wait_id) */
     long long wait_until; /* its deadline, rpc_now_ms() */
@@ -3017,14 +3026,55 @@ static void handle(int fd, const char* request)
     }
 }
 
-/* ROOD_RPC=tcp:PORT: a TCP listener on the loopback interface only, for
- * Windows (whose Python has no AF_UNIX) or any client that prefers TCP. */
+/* Equal strings, in a time that doesn't depend on where they differ. */
+static int same_secret(const char* a, const char* b)
+{
+    size_t la = strlen(a), lb = strlen(b);
+    unsigned char diff = (unsigned char)(la != lb);
+    for (size_t i = 0; i < la; i++)
+        diff |= (unsigned char)(a[i] ^ b[i % (lb ? lb : 1)]);
+    return !diff;
+}
+
+/* A TCP connection's first request: auth {token}. 1 when it may go on. */
+static int authenticate(int fd, const char* request)
+{
+    char method[16] = "", token[sizeof tcp_token] = "", id[64] = "null";
+    const char* idv = member(request, "id");
+    const char* e = idv ? value_end(idv) : NULL;
+    if (e && (size_t)(e - idv) < sizeof id) {
+        memcpy(id, idv, (size_t)(e - idv));
+        id[e - idv] = 0;
+    }
+    const char* params = member(request, "params");
+    string_value(member(request, "method"), method, sizeof method);
+    string_value(params ? member(params, "token") : NULL, token, sizeof token);
+    if (strcmp(method, "auth") || !same_secret(token, tcp_token)) {
+        fail(fd, id, -32001, "authentication required: send auth {token} first (ROOD_RPC=tcp:PORT:TOKEN)");
+        return 0;
+    }
+    reply(fd, id, "{\"ok\":true}");
+    return 1;
+}
+
+/* ROOD_RPC=tcp:PORT[:TOKEN]: a TCP listener on the loopback interface only,
+ * for Windows (whose Python has no AF_UNIX) or any client that prefers TCP. */
 static void open_tcp_listener(const char* spec)
 {
     char* end;
     unsigned long port = strtoul(spec + 4, &end, 10);
+    if (*end == ':') {
+        size_t length = strlen(end + 1);
+        if (!length || length >= sizeof tcp_token) {
+            fprintf(stderr, "[rpc] ROOD_RPC=tcp:PORT:TOKEN: the token takes 1-%d characters\n",
+                (int)sizeof tcp_token - 1);
+            return;
+        }
+        memcpy(tcp_token, end + 1, length + 1);
+        end += length + 1;
+    }
     if (*end || !port || port > 65535) {
-        fprintf(stderr, "[rpc] ROOD_RPC=%s: expected tcp:PORT\n", spec);
+        fprintf(stderr, "[rpc] ROOD_RPC=tcp:PORT: expected tcp:PORT or tcp:PORT:TOKEN\n");
         return;
     }
 #ifdef _WIN32
@@ -3058,7 +3108,12 @@ static void open_tcp_listener(const char* spec)
     listener_tcp = 1;
     for (int i = 0; i < MAX_CLIENTS; i++)
         clients[i].fd = -1;
-    fprintf(stderr, "[rpc] listening on tcp:127.0.0.1:%lu\n", port);
+    if (tcp_token[0])
+        fprintf(stderr, "[rpc] listening on tcp:127.0.0.1:%lu (token required)\n", port);
+    else
+        fprintf(stderr, "[rpc] listening on tcp:127.0.0.1:%lu (no token: any local program can "
+                        "connect; ROOD_RPC=tcp:PORT:TOKEN requires one)\n",
+            port);
 }
 
 static void open_listener(void)
@@ -3123,6 +3178,7 @@ static void service(void)
         clients[i].fd = fd;
         clients[i].used = 0;
         clients[i].waiting = 0;
+        clients[i].authed = !listener_tcp || !tcp_token[0];
     }
     for (int i = 0; i < MAX_CLIENTS; i++) {
         struct client* c = &clients[i];
@@ -3151,7 +3207,15 @@ static void service(void)
             /* Blocking writes for the reply; requests are small and local. */
             rpc_set_blocking(c->fd, 1);
             current_client = c;
-            if (*skip(c->buffer)) {
+            if (*skip(c->buffer) && !c->authed) {
+                if (!authenticate(c->fd, c->buffer)) {
+                    current_client = NULL;
+                    rpc_close(c->fd);
+                    c->fd = -1;
+                    break;
+                }
+                c->authed = 1;
+            } else if (*skip(c->buffer)) {
                 handle(c->fd, c->buffer);
                 handled_since_redraw = 1;
             }
@@ -3163,6 +3227,12 @@ static void service(void)
             c->buffer[c->used] = 0;
         }
         if (c->fd >= 0 && c->used == sizeof c->buffer - 1) {
+            if (!c->authed) {
+                /* Not yet authenticated: no reason to keep a slot for it. */
+                rpc_close(c->fd);
+                c->fd = -1;
+                continue;
+            }
             fail(c->fd, "null", -32700, "request line too long");
             c->used = 0;
         }
