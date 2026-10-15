@@ -43,6 +43,12 @@ target_compile_options(fixture_probe PRIVATE -Wall -Wextra -Werror)
 add_test(NAME fixture_catalog COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixture_catalog_test.py
     --probe $<TARGET_FILE:fixture_probe>)
 set_tests_properties(fixture_catalog PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..)
+# The editor's selection model and picking math (pc/src/editor_selection.cpp, editor_picking.cpp) without the game.
+add_executable(selection_probe tests/selection_probe.cpp src/editor_selection.cpp src/editor_picking.cpp)
+target_include_directories(selection_probe PRIVATE src)
+target_compile_features(selection_probe PRIVATE cxx_std_17)
+target_compile_options(selection_probe PRIVATE -Wall -Wextra -Werror)
+add_test(NAME selection_probe COMMAND selection_probe)
 # Modern menus: the shell's navigation (pc/src/ui/ui_shell.cpp) without the game.
 add_executable(ui_shell_probe tests/ui_shell_probe.cpp src/ui/ui_shell.cpp src/ui/ui_loot.cpp src/ui/ui_workshop.cpp
     src/ui/ui_map.cpp

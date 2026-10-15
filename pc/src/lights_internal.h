@@ -97,7 +97,9 @@ extern std::vector<Ghost> ghosts;
 
 /* light_actors.cpp */
 void actors_outliner(const char* filter);
-bool actor_details();
+/* Details: a kind's own tools under its schema fields (editor_schema.cpp). */
+void light_details_extra(int index); /* lights.cpp: Duplicate, Delete, Create prefab */
+void actor_details_extra(int index); /* the prefab line, Reset all, fixture, glow, its lights, actions */
 void glow_details_actions();
 void glows_outliner_actions();
 void place_panel();

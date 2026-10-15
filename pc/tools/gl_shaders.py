@@ -31,6 +31,8 @@ FRAGMENTS = ["probe_common.glsl", "aa_geometry.glsl", "downsample.glsl", "ms_res
              "environment.glsl",
              # The room's medium: haze, ground fog, fog volumes (ptgi.c's haze, gl_present.c's Low haze).
              "medium.glsl",
+             # The menu's model view: its studio light (gl_present.c's present).
+             "menu_studio.glsl",
              # The hand-placed fog volumes' own renderer (gl_present.c's per-pixel march).
              "fog_volume.glsl",
              # The reference SMAA shader (MIT, pc/third_party/smaa), used through its GLSL macros.

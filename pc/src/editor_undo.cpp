@@ -35,6 +35,8 @@
 #include "imgui.h"
 #include "ImGuizmo.h"
 #include "editor_undo.h"
+#include "editor_scene.h"
+#include "editor_selection.h"
 #include "glow_overrides.h"
 #include "lights_internal.h"
 #include "room_editor.h"
@@ -65,10 +67,7 @@ struct Snapshot {
     std::vector<uint8_t> groups;
     unsigned groups_id = 0; /* the room block the groups belong to */
     std::map<std::string, std::string> settings; /* key -> the rest of its line */
-    int selected = -1, selected_actor = -1;
-    bool glow_selected = false;
-    uint32_t glow_id = 0;
-    std::vector<int> multi;
+    std::vector<rood_selection::Ref> selection; /* the editor's selection (editor_selection.h) */
 };
 struct Transaction {
     std::string name;
@@ -133,9 +132,7 @@ void capture(Snapshot& s)
     }
     s.groups_id = id;
     parse_settings(capture_text(pc_settings_write), s.settings);
-    s.selected = selected, s.selected_actor = selected_actor;
-    s.glow_selected = glow_selected, s.glow_id = glow_id;
-    s.multi = multi;
+    s.selection = rood_selection::items();
 }
 
 bool same_light(const Light& a, const Light& b)
@@ -371,18 +368,9 @@ void apply(const Snapshot& to, unsigned parts, const Snapshot& from)
                 text += k + " " + to.settings.at(k) + "\n";
         pc_settings_apply(text.c_str());
     }
-    /* The selection the state had (when it still names something). */
-    select_none();
-    if (to.glow_selected)
-        select_glow_id(to.glow_id);
-    else if (to.selected_actor >= 0 && to.selected_actor < (int)actors.size())
-        select_actor(to.selected_actor);
-    else if (to.selected >= 0 && to.selected < (int)lights.size()) {
-        select_light(to.selected);
-        for (int i : to.multi)
-            if (i >= 0 && i < (int)lights.size())
-                multi.push_back(i);
-    }
+    /* The selection the state had (references to what it no longer has drop out). */
+    rood_selection::set_all(to.selection, rood_selection::FROM_UNDO);
+    rood_scene::refresh();
     if (solo >= (int)lights.size())
         solo = -1;
     if (solo_actor >= (int)actors.size())

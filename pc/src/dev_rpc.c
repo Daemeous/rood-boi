@@ -206,6 +206,9 @@
  *                                follow it),
  *                                actor_order (native characters paint
  *                                themselves in PS1 order, else depth-test),
+ *                                menu_studio (the menu's model view lit by
+ *                                its own studio light, 1 default; 0 the
+ *                                game's colours and the room's light),
  *                                native_blend (0 semi-transparent room and
  *                                object polygons from packets, 1 native at
  *                                translucent markers), native_objects (0
@@ -257,9 +260,24 @@
  *                                through the window's event queue (as typed),
  *                                text typed, keyboard focus ("search": the
  *                                Outliner's search field, "none")
- *   editor_ui {visible, help, tab}  open or close the editor (as Esc/F1) and its
- *                                Keyboard shortcuts window; tab "outliner" or
- *                                "place" (Place Actors) beside it; returns the states
+ *   editor_ui {visible, help, tab, details}  open or close the editor (as
+ *                                Esc/F1) and its Keyboard shortcuts window; tab
+ *                                "outliner" or "place" (Place Actors) beside it;
+ *                                details: a Details tab by name (details,
+ *                                lighting, inspector, atmosphere, post, graphics,
+ *                                emissive, diagnostics); replies the states and
+ *                                the Details tab shown
+ *   editor_select {action, ids, source, x, y | u, v, shift, ctrl, ...}  the
+ *                                editor's selection (editor_scene.cpp): list,
+ *                                set / add / toggle / remove {ids}, clear;
+ *                                replies the selection, its primary, the
+ *                                Outliner's row, the hidden set and every
+ *                                object with its window pixel
+ *   editor_schema {action, id, values, fields}  the editor's property schema
+ *                                (editor_schema.cpp): kinds, lint, get {id},
+ *                                set {id, values}, reset {id, fields}; ui
+ *                                (Details' state: its object, fields, their
+ *                                window rectangles, the value ladder)
  *   editor_overlay {points, edges, update}  the viewport overlays' state
  *                                (room points and edges shown, the occlusion
  *                                test, the last frame's cost) and up to N
@@ -1623,6 +1641,15 @@ static void handle_method(int fd, const char* request)
             &pc_nrd_glow && pc_nrd_glow ? "true" : "false");
         if (&pc_emissive && used < (int)sizeof result - 64)
             used += snprintf(result + used - 1, sizeof result - used + 1, ",\"emissive\":%g}", (double)pc_emissive) - 1;
+        extern int pc_hw_menu_studio __attribute__((weak)); /* gpu_hw.c */
+        if (&pc_hw_menu_studio) {
+            if (params && bool_value(member(params, "menu_studio"), &flag))
+                pc_hw_menu_studio = flag;
+            else if (params && number_value(member(params, "menu_studio"), &n))
+                pc_hw_menu_studio = n != 0;
+            if (used < (int)sizeof result - 64)
+                used += snprintf(result + used - 1, sizeof result - used + 1, ",\"menu_studio\":%d}", pc_hw_menu_studio) - 1;
+        }
         if (&pc_gameplay_walls && used < (int)sizeof result - 200)
             used += snprintf(result + used - 1, sizeof result - used + 1,
                         ",\"gameplay_walls\":\"%s\",\"gameplay_walls_ghost\":%d,\"gameplay_walls_opacity\":%g,"
@@ -2335,6 +2362,7 @@ static void handle_method(int fd, const char* request)
         extern int pc_overlay_set_help(int) __attribute__((weak));
         extern int pc_overlay_set_tab(int) __attribute__((weak));
         extern int pc_overlay_set_details_tab(const char*) __attribute__((weak));
+        extern const char* pc_overlay_details_tab(void) __attribute__((weak));
         extern void pc_lighting_open_menu(void) __attribute__((weak));
         int flag = -1, help = -1, tab = -1, menu = 0;
         char tab_name[32] = "";
@@ -2360,8 +2388,32 @@ static void handle_method(int fd, const char* request)
         }
         int open = pc_overlay_set_visible(flag);
         int shown = pc_overlay_set_tab ? pc_overlay_set_tab(tab) : 0;
-        snprintf(result, sizeof result, "{\"visible\":%s,\"help\":%s,\"tab\":\"%s\"}", open ? "true" : "false",
-            pc_overlay_set_help && pc_overlay_set_help(help) ? "true" : "false", shown ? "place" : "outliner");
+        snprintf(result, sizeof result, "{\"visible\":%s,\"help\":%s,\"tab\":\"%s\",\"details\":\"%s\"}",
+            open ? "true" : "false", pc_overlay_set_help && pc_overlay_set_help(help) ? "true" : "false",
+            shown ? "place" : "outliner", pc_overlay_details_tab ? pc_overlay_details_tab() : "");
+        reply(fd, id, result);
+    } else if (!strcmp(method, "editor_select") || !strcmp(method, "editor_schema")) {
+        /* The editor's selection (editor_scene.cpp) and property schema
+         * (editor_schema.cpp); they parse the params object themselves. */
+        extern int pc_editor_select_rpc(const char*, char*, int) __attribute__((weak));
+        extern int pc_editor_schema_rpc(const char*, char*, int) __attribute__((weak));
+        int (*handler)(const char*, char*, int) = !strcmp(method, "editor_select") ? pc_editor_select_rpc : pc_editor_schema_rpc;
+        if (!handler) {
+            fail(fd, id, -32000, "needs the editor");
+            return;
+        }
+        static char args[LINE_MAX_BYTES];
+        const char* end = params ? value_end(params) : NULL;
+        if (params && end && (size_t)(end - params) < sizeof args) {
+            memcpy(args, params, (size_t)(end - params));
+            args[end - params] = 0;
+        } else {
+            strcpy(args, "{}");
+        }
+        if (handler(args, result, sizeof result) < 0) {
+            fail(fd, id, -32000, result);
+            return;
+        }
         reply(fd, id, result);
     } else if (!strcmp(method, "editor_overlay")) {
         extern int pc_lights_tools_view(pc_overlay_view*, pc_overlay_pick*) __attribute__((weak));
@@ -3162,7 +3214,8 @@ static int edits(const char* method, const char* request)
 {
     if (!strcmp(method, "actors") || !strcmp(method, "glows") || !strcmp(method, "editor_place")
         || !strcmp(method, "room_groups") || !strcmp(method, "uv_effects") || !strcmp(method, "lights")
-        || !strcmp(method, "environment"))
+        || !strcmp(method, "environment") || !strcmp(method, "editor_select")
+        || !strcmp(method, "editor_schema"))
         return 1;
     if (!strcmp(method, "lighting")) { /* revert edits the room; the rest load or save it */
         const char* p = member(request, "params");

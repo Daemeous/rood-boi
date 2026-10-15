@@ -136,7 +136,8 @@ typedef struct {
     int fogvol[4]; /* the fog volumes' renderer (vk_fogvol.inc): its image's size, on, the debug view */
     float fogvol_scale[4]; /* its pixels per display pixel */
     /* The modern menu's model view (gl_present.c "The modern menu's backdrop"): the ground colour and
-     * opacity; mode (0 off, 1 the ground alone, 2 the kept picture at binding 20 under it). */
+     * opacity; mode (0 off, 1 the ground alone, 2 the kept picture at binding 20 under it); [1] the
+     * model's studio light (menu_studio.glsl). */
     float backdrop_color[4];
     int backdrop[4];
 } present_ubo;
@@ -607,6 +608,7 @@ static int brightness_on(int view_w, int view_h)
 extern int pc_ui_menu_active(void) __attribute__((weak));            /* ui/menu_bridge.c */
 extern int pc_ui_menu_backdrop(float rgba[4]) __attribute__((weak)); /* ui/ui_theme.cpp: ground, opacity */
 extern int pc_hw_present_menu_model(void) __attribute__((weak));     /* gpu_hw.c */
+extern int pc_hw_present_menu_studio(void) __attribute__((weak));    /* gpu_hw.c: its studio light */
 static view_target backdrop;
 static int backdrop_valid;
 static unsigned backdrop_keeps; /* pictures kept so far */
@@ -623,6 +625,7 @@ static VkImageView backdrop_fill(present_ubo* u)
         rgba[3] = 1;
     memcpy(u->backdrop_color, rgba, sizeof rgba);
     u->backdrop[0] = mode;
+    u->backdrop[1] = pc_hw_present_menu_studio && pc_hw_present_menu_studio(); /* scaled.frag menu_studio */
     return mode == 2 ? backdrop.image.view : vk_hw.dummy_color.view;
 }
 static void backdrop_keep(int view_x, int view_y, int view_w, int view_h)

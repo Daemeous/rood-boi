@@ -39,8 +39,9 @@
  *           would build our view from it) and the game heap has one free
  *           block for the whole clone (heap_need: func_800F9A78 uses its
  *           allocations unchecked, so a full heap would crash it): freeze,
- *           build, stand the clone at Ashley's place (place_clone: lit by
- *           the room as he is) and ask for the window's resolution
+ *           build, stand the clone at Ashley's place (place_clone), drop
+ *           the game's rim copy (no_rim_copy: the studio light has its own)
+ *           and ask for the window's resolution
  *           (pc_hw_detail_view, given back at teardown). Otherwise no model
  *           (the screen draws its normal backdrop and says why). The first
  *           tick does not draw (as MENU4's skipped frame).
@@ -354,11 +355,13 @@ static void place_camera(void)
 }
 
 /* The clone where Ashley stands (func_800F9CB0 puts it at the world's
- * origin, and MENU4's camera looks there). The renderer lights the model in
- * world space, as the field: the room's lights, shadows, global
- * illumination and haze about Ashley's place light the clone as they light
- * him (the origin is anywhere in a room, often outside it: dark, or in a
- * wall). The orbit (place_camera) circles the same place. */
+ * origin, and MENU4's camera looks there). The renderer lights the model
+ * with its studio light (pc_hw_present_menu_studio); with that off
+ * (RPC graphics menu_studio 0) in world space, as the field: the room's
+ * lights, shadows, global illumination and haze about Ashley's place light
+ * the clone as they light him (the origin is anywhere in a room, often
+ * outside it: dark, or in a wall). The orbit (place_camera) circles the same
+ * place. */
 static void place_clone(void)
 {
     D_800F4538_t* clone = D_800F4538[1];
@@ -372,6 +375,22 @@ static void place_clone(void)
     clone->unk0.position.vx = model.spot.vx;
     clone->unk0.position.vy = model.spot.vy;
     clone->unk0.position.vz = model.spot.vz;
+}
+
+/* The game's rim: func_800F9CB0 gives the clone a second copy of itself
+ * (func_8009F940: unk17FD 1, unk6F4 = 2, -2, 2 world units off and 16 + 48
+ * ordering-table entries behind; func_800F9EB8 draws it after the clone in
+ * its own colour), a lit edge where it peeks out. At the window's
+ * resolution it reads as bright slivers, and the renderer lights the model
+ * with a studio rig of its own (gpu_hw.c pc_hw_present_menu_studio,
+ * menu_studio.glsl) with its own rim: the copy goes, as the game itself
+ * drops it (30DB0.c: unk17FD 1 back to 0). */
+extern int pc_hw_menu_studio __attribute__((weak)); /* gpu_hw.c */
+static void no_rim_copy(void)
+{
+    D_800F4538_t* clone = D_800F4538[1];
+    if (clone && clone->unk17FD == 1 && &pc_hw_menu_studio && pc_hw_menu_studio)
+        clone->unk17FD = 0;
 }
 
 /* A full-screen tile behind everything this frame (the ordering table's
@@ -647,6 +666,7 @@ void pc_ui_ashley_model_tick(int resident, int held)
         D_800EB9AE = 1;
         func_800F9A24(0);
         place_clone();
+        no_rim_copy();
         /* Drawn from the next tick at the window's resolution: this frame
          * (the back tile only) takes the change. */
         if (pc_hw_detail_view)

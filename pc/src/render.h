@@ -73,6 +73,10 @@ render_mesh render_mesh_transient(const render_polygon* polygons, int count);
 int render_mesh_update(render_mesh mesh, const render_polygon* polygons, int count);
 void render_mesh_destroy(render_mesh mesh);
 int render_mesh_polygons(render_mesh mesh); /* -1 when the handle is stale */
+/* Emissive texels limited to some surfaces (emissive.cpp, pc/docs/Emissive.md
+ * Scope): per polygon, the scope bits of the entries it may glow with
+ * (bits[i] for polygon i; NULL: none). Kept across render_mesh_update. */
+int render_mesh_emissive_scope(render_mesh mesh, const uint16_t* bits);
 
 /* ---- cameras and lists ---- */
 
@@ -275,6 +279,8 @@ void render_emit_tag(uint32_t* source, uint32_t* mesh);
 /* Inside a render_triangle_sink: the polygon the triangle belongs to (its
  * four UVs: the texture's UV box, emissive_editor.cpp). */
 const render_polygon* render_emit_polygon(void);
+/* ... and its index in its mesh. */
+int render_emit_polygon_index(void);
 
 /* Blend two palettes of one model (bones each) at t as frame interpolation
  * does (pc_interp_skeleton: rotations through the skeleton found in them;

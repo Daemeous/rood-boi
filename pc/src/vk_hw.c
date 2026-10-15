@@ -727,9 +727,11 @@ int pc_vk_hw_pick(int x, int y, float* depth, unsigned char normal[4])
     return 1;
 }
 /* VRAM readers of a stale rectangle (gpu_hw.c pc_hw_sync): the live target
- * scaled down to native pixels (nearest, as GL's blit) and read back. */
+ * (replay: the replay target, for a replayed batch that samples the frame's
+ * own picture) scaled down to native pixels (nearest, as GL's blit) and read
+ * back. */
 static vk_image sync_image;
-int pc_vk_hw_sync_read(int x0, int y0, int x1, int y1, unsigned char* pixels)
+int pc_vk_hw_sync_read(int replay, int x0, int y0, int x1, int y1, unsigned char* pixels)
 {
     if (x1 <= x0 || y1 <= y0)
         return 0;
@@ -743,7 +745,8 @@ int pc_vk_hw_sync_read(int x0, int y0, int x1, int y1, unsigned char* pixels)
         .srcOffsets = { { x0 * s, y0 * s, 0 }, { x1 * s, y1 * s, 1 } },
         .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
         .dstOffsets = { { x0, y0, 0 }, { x1, y1, 1 } } };
-    vkCmdBlitImage(vk_cmd(), vk_hw.live.color.image, VK_IMAGE_LAYOUT_GENERAL, sync_image.image, VK_IMAGE_LAYOUT_GENERAL,
+    vkCmdBlitImage(vk_cmd(), (replay ? &vk_hw.replay : &vk_hw.live)->color.image, VK_IMAGE_LAYOUT_GENERAL,
+        sync_image.image, VK_IMAGE_LAYOUT_GENERAL,
         1, &blit, VK_FILTER_NEAREST);
     return vk_read_image(&sync_image, VK_IMAGE_ASPECT_COLOR_BIT, x0, y0, x1 - x0, y1 - y0, pixels, 4);
 }

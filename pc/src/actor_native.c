@@ -49,6 +49,8 @@ extern int pc_gte_widescreen;
 extern int pc_hw_active;
 extern void pc_hw_object_packets(const void* start, const void* end, uint32_t list) __attribute__((weak));
 extern void render_count_object_mesh_built(void);
+/* emissive.cpp: the model a mesh draws (its content hash: emissive scopes). */
+extern void pc_emissive_model_mesh(uint32_t mesh, uint32_t model) __attribute__((weak));
 extern int pc_live_camera_active(void) __attribute__((weak));
 
 typedef struct {
@@ -386,6 +388,8 @@ static model_mesh* mesh_for(const void* object, const void* model, int kind, uin
             bone_of[cursor] = (unsigned char)bone;
     }
     c->mesh = build_mesh(&m, kind, bone_of, &c->bones, &c->sort, &c->polygons, &c->semi);
+    if (c->mesh && pc_emissive_model_mesh)
+        pc_emissive_model_mesh(c->mesh, hash);
     render_count_object_mesh_built();
     return c;
 }

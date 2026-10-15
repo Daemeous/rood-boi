@@ -23,8 +23,30 @@ game paused, the frame redrawn with each setting (RPC redraw).
 - editor: a mask made over RPC on a texture picked in the view (a rect and a
   CLUT index set) marks texels, is saved to the user file, and after a
   reload from disk marks the same texels with the same emission;
+- scopes: an entry on the forge bed's texture (sampled by a dozen polygons)
+  lights every one of them; "show other uses" (RPC emissive surfaces) counts
+  them, and each one visible in the view changes on screen exactly when it is
+  counted; limited to one picked polygon only that one changes (the others,
+  same texels, stay as without it), then two; a room scope of another room
+  marks nothing, of this one everything; saved and reloaded the scope is the
+  same; a light entry limited to a polygon is a light only there; a mask on
+  Ashley's texture limited to another model shows nowhere, to hers again on
+  her;
+- filtered light: the coals narrowed to their hottest CLUT index (a few
+  percent of the bed's texels) still make light triangles with light;
+- painted maps (pc/docs/Materials.md): an entry on the floor's texture with
+  a painted emissive map glows nowhere without the map; exporting its
+  reference writes reference.png (RGBA, the texture's size) into the export
+  folder and an empty map into the user layer, and refuses pc/assets; a
+  rect painted over RPC glows exactly there (picks across the floor: a
+  texel glows when it is painted), the map file holds the same pixels and
+  so does a reload; an imported PNG (grayscale, and an alpha-only one)
+  replaces it, one of another size is refused; a map written straight to
+  disk is picked up while the game runs; with "light" the painted floor
+  adds light triangles;
 - --trace (or ROOD_RENDERER=vulkan): with path traced GI (Ultra) the hood
-  and wall above the forge get brighter when the coals glow (their light).
+  and wall above the forge get brighter when the coals glow (their light),
+  and still when the coals are narrowed to their hottest index.
 """
 import argparse
 import json
@@ -93,6 +115,312 @@ def show_platforms(game):
     game.write(symbols()["D_800F1D6E"], b"\x01")
 
 
+def entry_of(game, eid):
+    for e in game.call("emissive")["entries"]:
+        if e["id"] == eid:
+            return e
+    return None
+
+
+def block(changed, x, y, r=4):
+    return int(changed[max(0, y - r):y + r + 1, max(0, x - r):x + r + 1].sum())
+
+
+def scope_tests(game, out, check, trace):
+    """Scopes on the forge bed's texture (45/0, the game's camera, paused): see the module docstring."""
+    def shot(name):
+        redraw(game)
+        return frame(game, out / name)
+
+    if trace:  # exact pictures: the original preset (no temporal effects)
+        preset = game.call("graphics").get("lighting_preset")
+        game.call("graphics", lighting_preset="original")
+    e4 = entry_of(game, "E004")
+    game.call("emissive", action="set", id="E004", enabled=False)
+    test = {"id": "U910", "name": "scope test", "match": e4["match"], "mask": {}, "color": [0.4, 1, 0.4],
+            "strength": 3, "light": 0}
+    game.call("emissive", action="set", entry=test)
+    game.run(4)
+    listing = game.call("emissive", action="surfaces", id="U910")
+    lit = [u for u in listing["surfaces"] if u["allowed"] and u["glowing"] > 0]
+    check(len(lit) >= 3, f"the forge bed's texture lies on several surfaces ({len(lit)} light up)")
+    # the surfaces visible in the view: a screen point where a pick finds that very polygon
+    visible = {}
+    for u in lit:
+        for x, y in u.get("screen", []):
+            p = game.call("emissive", action="pick", x=x, y=y)
+            if p.get("valid") and p["surface"].get("polygon") == u["polygon"] and u["polygon"] not in visible:
+                visible[u["polygon"]] = (int(x), int(y))
+    check(len(visible) >= 2, f"two or more of them visible ({len(visible)})")
+    if len(visible) < 2:
+        return
+    first = next(iter(visible))
+    ax, ay = visible[first]
+    others = [k for k in visible if k != first and abs(visible[k][0] - ax) + abs(visible[k][1] - ay) >= 24]
+    check(bool(others), "another one apart from the first")
+    if not others:
+        return
+    second = others[0]
+    bx, by = visible[second]
+    game.call("emissive", action="pick", x=ax, y=ay)  # the picked surface (the editor's)
+    # From here the paused frame is only redrawn (no game frame: the bed's VRAM animation and Ashley stay put).
+    listing = game.call("emissive", action="surfaces", id="U910")
+    check(listing["affected"] == len(lit) and listing["other"] == len(lit) - 1,
+          f"show other uses: {listing['affected']} surfaces lit, {listing['other']} besides the picked one "
+          f"(expected {len(lit)}, {len(lit) - 1})")
+    game.call("emissive", action="set", id="U910", enabled=False)
+    off = shot("scope-off.png")
+    game.call("emissive", action="set", id="U910", enabled=True)
+    on = shot("scope-everywhere.png")
+    changed = (on != off).any(2)
+    wrong = [k for k in visible if (block(changed, *visible[k]) > 0) != True]  # noqa: E712
+    check(not wrong, f"unlimited: every visible surface it counts changes on screen ({len(visible)} checked, "
+          f"{len(wrong)} wrong: {wrong})")
+
+    # limited to the picked polygon
+    picked = game.call("emissive", action="scope_pick", id="U910")
+    check(picked.get("added") and picked.get("scope", {}).get("surfaces") == [{"room": [45, 0], "polygons": [first]}],
+          f"limit to the picked surface: scope {picked.get('scope')}")
+    scoped = shot("scope-one.png")
+    listing = game.call("emissive", action="surfaces", id="U910")
+    check(listing["affected"] == 1 and listing["other"] == 0 and listing["excluded"] == len(lit) - 1,
+          f"limited: show other uses counts {listing['affected']} lit, {listing['other']} other, "
+          f"{listing['excluded']} left out (expected 1, 0, {len(lit) - 1})")
+    changed = (scoped != off).any(2)
+    a_changed, b_changed = block(changed, ax, ay), block(changed, bx, by, 2)
+    check(a_changed > 0 and b_changed == 0, f"limited to polygon {first}: it changes ({a_changed} pixels), polygon "
+          f"{second} with the same texels does not ({b_changed})")
+    stray = [k for k in visible if k != first and block(changed, *visible[k], 2) > 0]
+    check(not stray, f"no other visible surface changes ({stray})")
+    p = game.call("emissive", action="pick", x=bx, y=by)
+    check(p.get("glows") and not p.get("glows_here"), f"the other surface's texel glows as a texture but not there "
+          f"(glows {p.get('glows')}, glows_here {p.get('glows_here')})")
+    # add the second one (a click on it with Limit to picked surfaces)
+    game.call("emissive", action="scope_pick", id="U910")
+    two = shot("scope-two.png")
+    listing = game.call("emissive", action="surfaces", id="U910")
+    check(listing["affected"] == 2 and listing["other"] == 0,
+          f"two picked surfaces: {listing['affected']} lit, {listing['other']} other")
+    changed = (two != off).any(2)
+    check(block(changed, ax, ay) > 0 and block(changed, bx, by) > 0, "both picked surfaces change")
+
+    # saved and reloaded: the same scope, the same counts
+    scope = entry_of(game, "U910")["scope"]
+    game.call("emissive", action="save")
+    game.call("emissive", action="reload")
+    game.run(4)
+    again = entry_of(game, "U910")
+    listing2 = game.call("emissive", action="surfaces", id="U910")
+    check(again and again.get("scope") == scope and listing2["affected"] == 2,
+          f"saved and reloaded: scope {again and again.get('scope')}, {listing2['affected']} lit")
+
+    # rooms (the paused frame redrawn: no game frame in between, the bed's VRAM animation stays put)
+    game.call("emissive", action="set", id="U910", scope={}, enabled=False)
+    off = shot("scope-off-again.png")
+    game.call("emissive", action="set", id="U910", enabled=True)
+    on = shot("scope-everywhere-again.png")
+    game.call("emissive", action="set", id="U910", scope={"rooms": [[45, 1]]})
+    elsewhere = shot("scope-room-elsewhere.png")  # (surfaces after a redraw: the map is rebuilt at the sync)
+    listing = game.call("emissive", action="surfaces", id="U910")
+    check(np.array_equal(elsewhere, off) and listing["affected"] == 0,
+          f"limited to another room: nothing here ({int((elsewhere != off).any(2).sum())} pixels, "
+          f"{listing['affected']} lit)")
+    game.call("emissive", action="set", id="U910", scope={"rooms": [[45, 0]]})
+    here = shot("scope-room-here.png")
+    listing = game.call("emissive", action="surfaces", id="U910")
+    check(np.array_equal(here, on) and listing["affected"] == len(lit),
+          f"limited to this room: as unlimited ({int((here != on).any(2).sum())} pixels differ, "
+          f"{listing['affected']} lit)")
+
+    # a light limited to one polygon is a light there only
+    game.call("emissive", action="set", id="U910", light=1, scope={"surfaces": [{"room": [45, 0], "polygons": [first]}]})
+    game.run(4)
+    lights = game.call("emissive", action="lights")["triangles"]
+    glowing = {t["polygon"] for t in lights if t["glowing"] > 0}
+    check(glowing == {first}, f"a light limited to polygon {first} lights from it only ({sorted(glowing)})")
+
+    game.call("emissive", action="remove", id="U910")
+    game.call("emissive", action="remove", id="E004")  # the curated coals as shipped
+    game.call("emissive", action="save")
+    game.run(2)
+
+    # models: a mask on Ashley's texture
+    model = None
+    for y in range(200, 760, 40):
+        for x in range(480, 800, 40):
+            p = game.call("emissive", action="pick", x=x, y=y)
+            if p.get("valid") and p["surface"]["kind"] == "model" and not p.get("entry"):
+                model = (x, y, p)
+                break
+        if model:
+            break
+    check(model is not None, "a character's texture picked in the view")
+    if model:
+        x, y, p = model
+        made = game.call("emissive", action="new")
+        mid = made["id"]
+        game.call("emissive", action="set", id=mid, color=[1, 0.2, 1], strength=3, enabled=False)
+        moff = shot("model-off.png")
+        results = {}
+        for name, scope in (("everywhere", {}), ("another model", {"models": ["00000000"]}),
+                            ("her model", {"models": [p["surface"]["model"]]})):
+            game.call("emissive", action="set", id=mid, enabled=True, scope=scope)
+            results[name] = block((shot(f"model-{name.replace(' ', '-')}.png") != moff).any(2), x, y)
+        check(results["everywhere"] > 0 and results["another model"] == 0 and results["her model"] > 0,
+              f"a mask on {p['surface']['model']}'s texture: everywhere / another model / hers: {results}")
+        game.call("emissive", action="remove", id=mid)
+        game.call("emissive", action="save")
+    if trace and preset:
+        game.call("graphics", lighting_preset=preset)
+
+
+def painted_tests(game, out, lights_dir, check):
+    """Painted maps on the floor texture under the screen centre (45/0, the game's camera)."""
+    from rood_rpc import RpcError
+
+    floor = None  # the room texture under most of the lower half of the view
+    counts, found = {}, {}
+    for y in range(560, 940, 40):
+        for x in range(160, 1120, 80):
+            p = game.call("emissive", action="pick", x=x, y=y)
+            if p.get("valid") and p.get("room") and not p.get("entry") and p["surface"]["kind"] == "room":
+                counts[p["key"]] = counts.get(p["key"], 0) + 1
+                found.setdefault(p["key"], p)
+    if counts:
+        floor = found[max(counts, key=counts.get)]
+    check(floor is not None, "painted maps: the floor's texture picked")
+    if not floor:
+        return
+    key, (w, h) = floor["key"], floor["size"]
+    box, tpage, clut = floor["box"], floor["tpage"], floor["clut"]
+    entry = {"id": "U920", "name": "painted", "match": [{"key": key, "size": [w, h]}], "mask": {"map": "emissive"},
+             "color": [1, 0.6, 0.2], "strength": 3, "light": 0}
+    game.call("emissive", action="set", entry=entry)
+    game.run(4)
+    state = game.call("emissive", action="materials", key=key)
+    problems = [q for q in state["problems"] if q["entry"] == "U920"]
+    check(problems and "no emissive map" in problems[0]["problem"], f"without its map nothing glows ({problems})")
+
+    exports = out / "exports"
+    try:
+        game.call("emissive", action="export_reference", key=key, dir="pc/assets/materials")
+        refused = False
+    except RpcError as e:
+        refused = "refusing" in str(e)
+    check(refused, "the reference export refuses pc/assets")
+    written = game.call("emissive", action="export_reference", key=key, dir=str(exports))["written"]
+    reference = exports / key / "reference.png"
+    template = lights_dir / "materials" / key / "emissive.png"
+    ok = reference.exists() and template.exists()
+    if ok:
+        ref, tmpl = Image.open(reference), Image.open(template)
+        ok = ref.size == (w, h) and ref.mode == "RGBA" and tmpl.size == (w, h) and tmpl.mode == "L" \
+            and not np.asarray(tmpl).any()
+    check(ok, f"export: the reference ({w} x {h} RGBA) in the export folder, an empty map in the user layer ({written})")
+
+    # the texture's colours (a texel of colour 0 is transparent: it never glows)
+    tex = game.call("emissive", action="texture", tpage=tpage, clut=clut, box=box)
+    palette = tex["palette"]
+    solid = np.array([[bool(palette and any(palette[i]) or (not palette and i)) for i in row] for row in tex["indices"]])
+
+    def texel_glows(x, y):
+        return game.call("emissive", action="texel", u=box[0] + x, v=box[1] + y, tpage=tpage, clut=clut)["glows"]
+
+    def solid_in(x0, y0, x1, y1):
+        """A texel of the region [x0, x1) x [y0, y1) that is not transparent."""
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                if solid[y, x]:
+                    return x, y
+        return x0, y0
+
+    def screen_mismatches(expected):
+        """Picks across the floor: a picked texel of this texture glows exactly when `expected(x, y)`."""
+        seen = wrong = 0
+        for sy in range(560, 940, 24):
+            for sx in range(200, 1100, 48):
+                q = game.call("emissive", action="pick", x=sx, y=sy)
+                if not q.get("valid") or q.get("key") != key:
+                    continue
+                tx, ty = q["texel"]
+                seen += 1
+                wrong += bool(q["glows"]) != (expected(tx, ty) and solid[ty, tx])
+        return seen, wrong
+
+    # paint over RPC: the top-left quarter
+    qw, qh = max(1, w // 2), max(1, h // 2)
+    game.call("emissive", action="paint", key=key, fill=0, rects=[[0, 0, qw, qh, 255]])
+    redraw(game)
+    inside = lambda x, y: x < qw and y < qh  # noqa: E731
+    painted_texel, unpainted_texel = solid_in(0, 0, qw, qh), solid_in(qw, qh, w, h)
+    check(texel_glows(*painted_texel) and not texel_glows(*unpainted_texel),
+          "painted: a painted texel glows, an unpainted one not")
+    seen, wrong = screen_mismatches(inside)
+    check(seen >= 5 and wrong == 0, f"painted: across the floor every picked texel glows exactly when painted "
+          f"({seen} picks, {wrong} wrong)")
+    expected = np.zeros((h, w), np.uint8)
+    expected[:qh, :qw] = 255
+    on_disk = np.asarray(Image.open(template))
+    check(on_disk.shape == (h, w) and np.array_equal(on_disk, expected), "painted: the map file holds those pixels")
+    game.call("emissive", action="save")
+    game.call("emissive", action="reload")
+    redraw(game)
+    seen2, wrong2 = screen_mismatches(inside)
+    check(texel_glows(*painted_texel) and not texel_glows(*unpainted_texel) and wrong2 == 0,
+          f"painted: saved and reloaded, the same texels glow ({seen2} picks, {wrong2} wrong)")
+
+    # import: the right half, grayscale; then an alpha-only image (black, painted in the alpha)
+    right = np.zeros((h, w), np.uint8)
+    right[:, w // 2:] = 200
+    gray = out / "paint-right.png"
+    Image.fromarray(right, "L").save(gray)
+    game.call("emissive", action="import_map", key=key, path=str(gray))
+    redraw(game)
+    left, right_texel = solid_in(0, 0, w // 2, h), solid_in(w // 2, 0, w, h)
+    check(texel_glows(*right_texel) and not texel_glows(*left), "import: a grayscale PNG replaces the map")
+    alpha = np.zeros((h, w, 4), np.uint8)
+    alpha[h // 2:, :, 3] = 255
+    alpha_png = out / "paint-alpha.png"
+    Image.fromarray(alpha, "RGBA").save(alpha_png)
+    game.call("emissive", action="import_map", key=key, path=str(alpha_png))
+    redraw(game)
+    top, bottom = solid_in(0, 0, w, h // 2), solid_in(0, h // 2, w, h)
+    check(texel_glows(*bottom) and not texel_glows(*top), "import: an alpha-only PNG is its alpha")
+    wrong_size = out / "paint-wrong.png"
+    Image.fromarray(np.zeros((h + 1, w + 1), np.uint8), "L").save(wrong_size)
+    try:
+        game.call("emissive", action="import_map", key=key, path=str(wrong_size))
+        refused = False
+    except RpcError as e:
+        refused = "the texture is" in str(e)
+    check(refused, "import: a PNG of another size is refused")
+
+    # live: the map written straight to disk (an outside editor) is picked up while the game runs
+    Image.fromarray(np.full((h, w), 255, np.uint8), "L").save(template)
+    game.run(150)
+    redraw(game)
+    check(texel_glows(*top) and texel_glows(*left), "live: a map saved by another program is reloaded")
+
+    # light: the painted floor is a light (more light triangles with light)
+    def lit():
+        return sum(1 for t in game.call("emissive", action="lights")["triangles"] if t["glowing"] > 0)
+    before = lit()
+    game.call("emissive", action="set", id="U920", light=1)
+    game.run(4)
+    after = lit()
+    check(after > before, f"light: the painted floor adds light triangles ({before} -> {after})")
+    game.call("emissive", action="remove", id="U920")
+    game.call("emissive", action="save")
+    game.run(2)
+
+
+def narrow_coals(game):
+    """The coals (E004) narrowed to their hottest CLUT index: (the index, the share of the bed's texels)."""
+    game.call("emissive", action="set", id="E004", mask={"indices": [15]}, light=1)
+    game.run(4)
+    return game.call("emissive", action="lights")["triangles"]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--card", default=os.environ.get("ROOD_TEST_CARD") or str(ROOT / "pc/build/test-card1.mcd"))
@@ -111,6 +439,7 @@ def main():
     user = out / "emissive-user.json"
     user.unlink(missing_ok=True)
     env = {"ROOD_LIGHTS": str(lights), "ROOD_EMISSIVE_USER": str(user), "ROOD_SCALE": "2",
+           "ROOD_MATERIAL_EXPORTS": str(out / "exports"),
            "ROOD_WINDOW": "1280x960", "ROOD_GI": "1" if trace else "0"}
     socket = os.environ.get("ROOD_RPC") or f"/tmp/rood-emissive-{os.getpid()}.sock"
     failures = []
@@ -215,6 +544,22 @@ def main():
             check(halo >= 0.3, f"with bloom on, the coals bloom: +{halo:.2f} levels around them")
             game.call("post", layer="gameplay", clear="all", snap=True)
             game.call("graphics", emissive=1)
+
+        # ---- scopes, "show other uses"
+        scope_tests(game, out, check, trace)
+
+        # ---- painted maps
+        painted_tests(game, out, lights, check)
+
+        # ---- filtered light: the coals narrowed to a few texels are still a light
+        tris = narrow_coals(game)
+        lit = [t for t in tris if t["glowing"] > 0]
+        share = max((t["glowing"] / t["texels"] for t in lit), default=0)
+        check(lit and share < 0.25 and all(sum(t["rgb"]) > 0 for t in lit),
+              f"the coals narrowed to index 15: {len(lit)} light triangles with light, the hottest "
+              f"{share:.0%} of a triangle's texels (a 15-point grid often missed them)")
+        game.call("emissive", action="remove", id="E004")
+        game.run(2)
         if trace:
             # ---- the ray-traced light: the forge's surroundings (the coals left out), path traced (Ultra)
             preset = game.call("graphics").get("lighting_preset")
@@ -231,6 +576,19 @@ def main():
             lift = float(lum1[near].mean() - lum0[near].mean())
             check(lift >= max(0.3, 10 * noise), f"the forge lights the hood and wall above it: "
                   f"{lum0[near].mean():.2f} -> {lum1[near].mean():.2f} (+{lift:.2f} levels; frame noise {noise:.3f})")
+            # narrowed to their hottest index (a few percent of the texels): still a light (light 1 against 0;
+            # the coals glow on screen the same either way)
+            narrowed = {}
+            for weight in (0, 1):
+                narrow_coals(game)
+                game.call("emissive", action="set", id="E004", light=weight)
+                game.run(SETTLE * 3)
+                narrowed[weight] = np.mean([frame(game, out / f"trace-narrow-{weight}-{k}.png").mean(2)
+                                            for k in range(4)], axis=0)
+            nlift = float(narrowed[1][near].mean() - narrowed[0][near].mean())
+            check(nlift >= max(0.15, 5 * noise), f"the coals narrowed to index 15 still light the hood: "
+                  f"+{nlift:.2f} levels (light 1 against 0; frame noise {noise:.3f})")
+            game.call("emissive", action="remove", id="E004")
             if preset:
                 game.call("graphics", lighting_preset=preset)
 

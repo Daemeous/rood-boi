@@ -623,6 +623,36 @@ static void ashley_tests()
     CHECK(json_has("\"row\":\"shield\""));
     tick(PC_UI_DOWN);
     CHECK(json_has("\"row\":\"condition\"") && pc_ui_shell_ashley_row() == PC_UI_ASH_CONDITION);
+    // Condition: the panel as a whole is titled "Condition · <the worst part's state>" with a summary, never
+    // a part (before: the worst part's name, "R.ARM · Damaged", whatever was focused); a part (the pointer on
+    // it, or Left / Right) is titled with its name, its line its HP
+    CHECK(json_has("\"limb\":-1,\"details\":\"Condition \xc2\xb7 Damaged\",\"details_line\":\"1 of 2 parts hurt; "
+                   "the worst is R.ARM (Damaged).\""));
+    tick(PC_UI_RIGHT);
+    CHECK(pc_ui_shell_ashley_limb() == 0 && json_has("\"limb\":0,\"details\":\"R.ARM \xc2\xb7 Damaged\""));
+    tick(PC_UI_RIGHT);
+    CHECK(json_has("\"details\":\"HEAD \xc2\xb7 Excellent\",\"details_line\":\"HEAD: 40 / 40 HP, Excellent.\""));
+    tick(PC_UI_RIGHT); // past the last part: the panel again
+    CHECK(pc_ui_shell_ashley_limb() == -1 && json_has("\"details\":\"Condition \xc2\xb7 Damaged\""));
+    tick(PC_UI_LEFT);
+    CHECK(pc_ui_shell_ashley_limb() == 1);
+    pc_ui_shell_mouse(PC_UI_MOUSE_ROW, PC_UI_ASH_CONDITION, 0, 0); // the pointer on the panel, off the parts
+    tick(0);
+    CHECK(pc_ui_shell_ashley_limb() == -1 && json_has("\"details\":\"Condition \xc2\xb7 Damaged\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_LIMB, 0, 0, 0); // on a part
+    tick(0);
+    CHECK(pc_ui_shell_ashley_limb() == 0 && json_has("\"details\":\"R.ARM \xc2\xb7 Damaged\""));
+    tick(PC_UI_UP); // another row: no part, no Condition text
+    CHECK(pc_ui_shell_ashley_limb() == -1 && json_has("\"row\":\"shield\",\"limb\":-1,\"details\":\"\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_LIMB, 1, 0, 0); // a part from another row: Condition, that part
+    tick(0);
+    CHECK(pc_ui_shell_ashley_row() == PC_UI_ASH_CONDITION && pc_ui_shell_ashley_limb() == 1);
+    pc_ui_shell_mouse(PC_UI_MOUSE_LIMB, 7, 0, 0); // past the parts: nothing
+    tick(0);
+    CHECK(pc_ui_shell_ashley_limb() == 1);
+    tick(PC_UI_UP);
+    tick(PC_UI_DOWN);
+    CHECK(json_has("\"row\":\"condition\",\"limb\":-1"));
     tick(PC_UI_DOWN);
     CHECK(json_has("\"row\":\"effect0\""));
     tick(PC_UI_DOWN);

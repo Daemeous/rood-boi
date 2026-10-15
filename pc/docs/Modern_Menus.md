@@ -187,6 +187,14 @@ Prototype (private, placeholder data): the "Riskbreaker Menus" artifact.
   behind the model through the presenters (the picture kept before the world
   froze, under the same ground; `pc/docs/Post_Processing.md`), so it is as
   see-through as the others; a long weapon is no longer cut at the column.
+  The model itself is lit by a studio rig of its own (key, fill, ambient,
+  rim; `menu_studio.glsl`), the same in every room, with the texture's
+  colours as they are (no room light, no game rim copy; Native_Rendering.md).
+- **Condition card**: the Condition panel as a whole titles the card
+  "Condition · <the worst part's state>" (the game's terms: Critical,
+  Damaged, Wounded, Good, Excellent) with a summary of the parts; a body
+  part under the pointer, or stepped to with Left / Right on the row,
+  titles it with that part and its HP (`pc_ui_ashley_condition_text`).
 - **Tint**: System > Interface > Menu tint recolours the backdrop and panels,
   as older RPGs let you set the window colour. Presets: Leá Monde (the
   theme file untouched: the default), Classic (deep navy), Slate, Crimson,

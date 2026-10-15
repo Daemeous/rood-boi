@@ -45,7 +45,11 @@ describes the API (`pc/src/render.h`, `render.c`), the first user (the room,
   (the model's texture slot; the polygon keeps its own blend bits).
 - **Object rules** (`render_rules.objects`, BATTLE/4B16C.s): a polygon is
   culled when its first triangle's NCLIP is <= 0 (no quad fallback, except
-  double-sided records), sorted by its average depth (quads (SZ0..3) >> 4,
+  double-sided records) and it does not face the camera at the positions it
+  is drawn at either (a triangle whose NCLIP on the unrounded screen
+  positions is > 0 is kept: a sliver with a whole-pixel NCLIP of 0 covers no
+  pixel on the PS1 but leaves a hole at higher internal resolutions, e.g.
+  Ashley's nose, eyelids and jaw line, and the sword's edges), sorted by its average depth (quads (SZ0..3) >> 4,
   triangles AVSZ3 with the game's ZSF3) plus its own bias, kept below
   bucket 0x7c0; non-planar "split" quads pick their diagonal from the GTE
   OP of the projected corners as `split_quad` does and cull each half. No
@@ -196,6 +200,19 @@ R1 turn 0.00/8.6 -> 2.4-6.5 rising with the turn's speed. Regression test
 `interpolation_smoke`. Discrete changes (a cutaway wall hidden, 2D
 sprites) still step: the interpolated image shows B's state.
 
+2D batches that sample what their own frame drew (texels inside an
+earlier draw's area: the original Status and Equip screens redraw the rows
+under their information line from the frame buffer every frame) sampled
+the target as drawn so far when drawn live (`pc_hw_sync`), but the replay
+redrew them from native VRAM: the CPU's 4:3 picture, whose 2D is not
+compressed at 16:9. Every in-between image then showed a smeared copy of
+"INFORMATION" to its left and dashes right of the stat lines (issue #8).
+The replay now gives such a batch (`op_feedback`) the replay target as
+replayed so far over its texels (`replay_sample_own`: read back at native
+resolution and uploaded into the sampled copy of VRAM, then native VRAM
+again after the draw). Regression test `interp_menu_2d_smoke` (16:9,
+`present_rate` 1 and 3).
+
 Object lists (characters): drawn into the colour target and G-buffer with
 `room_depth` (the native surfaces so far: the room, then earlier object
 lists) as their depth buffer, so they are hidden exactly by the room and by
@@ -216,10 +233,17 @@ tracing reconstruct world positions through) is then its object lists'
 camera, on live and interpolated images alike (before, live images used the
 scene's GTE camera and interpolated ones the menu's: the lighting moved on
 every other image, a flicker). The modern Ashley tab stands its clone at
-Ashley's place in the room and orbits it there, so the room's lights,
-shadows, GI and haze light it as they light him in the field, and asks for
-a detail view while it shows (`pc_hw_detail_view`: the internal resolution
-at least the window's, up to 8x; the setting back when the model goes).
+Ashley's place in the room and orbits it there and asks for a detail view
+while it shows (`pc_hw_detail_view`: the internal resolution at least the
+window's, up to 8x; the setting back when the model goes). Its frames
+(`pc_hw_present_menu_model`) are lit by a studio rig of their own
+(`pc_hw_present_menu_studio`, `pc/shaders/vulkan/menu_studio.glsl` in both
+presenters: the texture's colour under a key, a fill, an ambient and a rim
+in view space), not by the room's lights, GI and haze nor by the game's
+colours for the model; the bridge leaves out the offset copy MAINMENU draws
+behind the clone as a rim (`no_rim_copy`). RPC `graphics menu_studio` 0
+gives back the game's colours, the rim copy (at the next build) and the
+room's light.
 With `pc_native_room` 0, characters stay packets.
 
 Translucent draws (`render_draw_translucent`): a range of the sequence draws

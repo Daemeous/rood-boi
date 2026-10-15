@@ -86,6 +86,7 @@ int pc_ui_menu_tint_custom[3] = { 8, 7, 7 }; /* Custom's colour, 0..31 per chann
 #include "platform.h"
 #include "ui/ui_tint.h" /* ui_menu_tint lea_monde | classic | ... | custom, ui_menu_tint_custom r g b */
 #include "post.h" /* post_* (post profiles; the old post_flags, focus_mode, ... still load) */
+#include "editor_selection.h" /* editor_hidden_<zone>_<room>: objects hidden in the editor */
 extern bool pc_lights_show_gizmos;
 namespace rood_lights {
 extern int animate; /* light actors' flicker and pulse (lights.cpp) */
@@ -322,7 +323,10 @@ int apply_line(const char* line, int* scale, bool now)
     if (!strcmp(key, "lighting_packs") || !strcmp(key, "lighting_active_pack")) {
         /* Comma-separated pack names, lowest first (lighting/README.md). */
         std::string value = rest;
-        size_t a = value.find_first_not_of(" \t"), b = value.find_last_not_of(" \t\r\n");
+        /* The same blanks at both ends: an empty value ("lighting_active_pack \n",
+         * as saved when no pack is active) is "", not "\n" (that changed the
+         * lighting config, and the room reloaded and lost its undo history). */
+        size_t a = value.find_first_not_of(" \t\r\n"), b = value.find_last_not_of(" \t\r\n");
         value = a == std::string::npos ? std::string() : value.substr(a, b - a + 1);
         if (!strcmp(key, "lighting_packs"))
             lighting::set_packs(value);
@@ -379,6 +383,8 @@ int apply_line(const char* line, int* scale, bool now)
             pc_drop_shadow_mode = atoi(rest);
         return 0;
     }
+    if (!strncmp(key, "editor_hidden_", 14)) /* editor state: objects hidden in a room (editor_selection.h) */
+        return rood_selection::parse_hidden(key, rest) ? 1 : 0;
     int applied = 0;
     for (const Entry& e : entries) {
         if (strcmp(e.key, key))
@@ -482,6 +488,7 @@ extern "C" void pc_settings_load(void)
         return;
     }
     char line[512];
+    rood_selection::clear_hidden(); /* the file's sets replace them */
     int applied = 0, scale = 0, aa_seen = 0;
     file_lines.clear();
     while (fgets(line, sizeof line, f)) {
@@ -543,6 +550,7 @@ extern "C" void pc_settings_write(FILE* f)
         }
         fputc('\n', f);
     }
+    rood_selection::write_hidden(f);
 }
 
 /* Apply settings lines now (the editor's undo: the lines that differ, a

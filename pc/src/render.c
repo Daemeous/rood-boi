@@ -63,13 +63,15 @@ typedef struct {
     uint8_t r, g, b, code;
     uint8_t u, v, flags, bone;
     uint16_t tpage, clut;
-    uint8_t bias, uv_effect, pad[2];
+    uint8_t bias, uv_effect;
+    uint16_t emissive_scope; /* emissive texels: the polygon's scope bits (render_mesh_emissive_scope) */
 } mesh_vertex;
 typedef struct {
     uint32_t generation; /* odd while live */
     GLuint vao, vbo;
     int polygons, triangles;
     render_polygon* cpu; /* the polygons (world-space triangles for the path tracer) */
+    uint16_t* scope; /* per polygon: emissive scope bits (NULL: none) */
 } mesh_slot;
 static mesh_slot* meshes;
 static int mesh_count, live_meshes, live_polygons, mesh_updates;
@@ -102,7 +104,7 @@ static void face_normal(const render_polygon* p, float n[3])
         n[k] = length > 0 ? n[k] / length : 0;
 }
 /* Four vertices per polygon (triangles repeat their last). */
-static mesh_vertex* mesh_vertices(const render_polygon* polygons, int count)
+static mesh_vertex* mesh_vertices(const render_polygon* polygons, int count, const uint16_t* scope)
 {
     mesh_vertex* vertices = calloc((size_t)count * 4, sizeof *vertices);
     if (!vertices)
@@ -133,6 +135,7 @@ static mesh_vertex* mesh_vertices(const render_polygon* polygons, int count)
             v->tpage = p->tpage, v->clut = p->clut;
             v->bias = p->bias;
             v->uv_effect = p->uv_effect;
+            v->emissive_scope = scope ? scope[i] : 0;
         }
     }
     return vertices;
@@ -157,7 +160,7 @@ render_mesh render_mesh_create(const render_polygon* polygons, int count)
         meshes = grown;
         memset(&meshes[mesh_count++], 0, sizeof *meshes);
     }
-    mesh_vertex* vertices = mesh_vertices(polygons, count);
+    mesh_vertex* vertices = mesh_vertices(polygons, count, NULL);
     render_polygon* cpu = malloc((size_t)count * sizeof *cpu);
     if (!vertices || !cpu) {
         free(vertices);
@@ -197,6 +200,8 @@ render_mesh render_mesh_create(const render_polygon* polygons, int count)
     gl_VertexAttribIPointer(5, 1, GL_UNSIGNED_BYTE, sizeof(mesh_vertex), (void*)offsetof(mesh_vertex, bias));
     gl_EnableVertexAttribArray(6);
     gl_VertexAttribIPointer(6, 1, GL_UNSIGNED_BYTE, sizeof(mesh_vertex), (void*)offsetof(mesh_vertex, uv_effect));
+    gl_EnableVertexAttribArray(7);
+    gl_VertexAttribIPointer(7, 1, GL_UNSIGNED_SHORT, sizeof(mesh_vertex), (void*)offsetof(mesh_vertex, emissive_scope));
     gl_BindVertexArray(0);
     gl_BindBuffer(GL_ARRAY_BUFFER, 0);
 #ifdef ROOD_VULKAN
@@ -206,6 +211,7 @@ created:
     slot->generation = ((slot->generation + 1) | 1) & 0xffff;
     slot->polygons = count;
     slot->cpu = cpu;
+    slot->scope = NULL;
     slot->triangles = 0;
     for (int i = 0; i < count; i++)
         slot->triangles += polygons[i].flags & RENDER_POLY_QUAD ? 2 : 1;
@@ -226,7 +232,7 @@ int render_mesh_update(render_mesh mesh, const render_polygon* polygons, int cou
         for (int k = 0; k < 4; k++)
             if (polygons[i].bone[k] >= RENDER_MAX_BONES)
                 return 0;
-    mesh_vertex* vertices = mesh_vertices(polygons, count);
+    mesh_vertex* vertices = mesh_vertices(polygons, count, slot->scope);
     if (!vertices)
         return 0;
     size_t bytes = (size_t)count * 4 * sizeof *vertices;
@@ -251,6 +257,44 @@ int render_mesh_update(render_mesh mesh, const render_polygon* polygons, int cou
     ++mesh_updates;
     return 1;
 }
+/* Emissive scopes (emissive.cpp): the vertices again with the polygons'
+ * scope bits (the polygons stay). */
+int render_mesh_emissive_scope(render_mesh mesh, const uint16_t* bits)
+{
+    mesh_slot* slot = lookup(mesh);
+    if (!slot || !slot->cpu)
+        return 0;
+    if (!bits && !slot->scope)
+        return 1;
+    if (bits) {
+        if (!slot->scope && !(slot->scope = malloc((size_t)slot->polygons * sizeof *slot->scope)))
+            return 0;
+        memcpy(slot->scope, bits, (size_t)slot->polygons * sizeof *slot->scope);
+    } else {
+        free(slot->scope);
+        slot->scope = NULL;
+    }
+    mesh_vertex* vertices = mesh_vertices(slot->cpu, slot->polygons, slot->scope);
+    if (!vertices)
+        return 0;
+    size_t bytes = (size_t)slot->polygons * 4 * sizeof *vertices;
+#ifdef ROOD_VULKAN
+    if (pc_vk_on()) {
+        uint32_t vbo = pc_vk_mesh_create(vertices, bytes);
+        free(vertices);
+        if (!vbo)
+            return 0;
+        pc_vk_mesh_destroy(slot->vbo);
+        slot->vbo = vbo;
+        return 1;
+    }
+#endif
+    gl_BindBuffer(GL_ARRAY_BUFFER, slot->vbo);
+    gl_BufferData(GL_ARRAY_BUFFER, (GLsizeiptr)bytes, vertices, GL_STATIC_DRAW);
+    gl_BindBuffer(GL_ARRAY_BUFFER, 0);
+    free(vertices);
+    return 1;
+}
 void render_mesh_destroy(render_mesh mesh)
 {
     mesh_slot* slot = lookup(mesh);
@@ -269,6 +313,8 @@ void render_mesh_destroy(render_mesh mesh)
     slot->vao = slot->vbo = 0;
     free(slot->cpu);
     slot->cpu = NULL;
+    free(slot->scope);
+    slot->scope = NULL;
     slot->generation = (slot->generation + 1) & 0xffff; /* even: free */
     --live_meshes;
     live_polygons -= slot->polygons;
@@ -1143,12 +1189,14 @@ static int sprite_corners(const draw_list* list, const render_polygon* poly, con
 }
 static uint32_t emit_source, emit_mesh;
 static const render_polygon* emit_polygon;
+static int emit_index;
 void render_emit_tag(uint32_t* source, uint32_t* mesh)
 {
     *source = emit_source;
     *mesh = emit_mesh;
 }
 const render_polygon* render_emit_polygon(void) { return emit_polygon; }
+int render_emit_polygon_index(void) { return emit_index; }
 static int emit_triangles(uint32_t id, int translucent, render_triangle_sink emit, void* context)
 {
     draw_list* list = find_list(id);
@@ -1181,7 +1229,7 @@ static int emit_triangles(uint32_t id, int translucent, render_triangle_sink emi
                                 + x->rotation[k][2] * poly->position[v][2] + x->translation[k];
             }
             unsigned tpage = effective_tpage(in, poly), clut = effective_clut(in, poly);
-            emit_source = poly->source, emit_mesh = in->mesh, emit_polygon = poly;
+            emit_source = poly->source, emit_mesh = in->mesh, emit_polygon = poly, emit_index = p;
             static const int corners[2][3] = { { 0, 1, 2 }, { 1, 3, 2 } };
             for (int t = 0; t < (count == 4 ? 2 : 1); t++) {
                 float tri[9];
@@ -1380,6 +1428,7 @@ static const char* vertex_source =
     "layout(location = 4) in uvec2 a_page;\n" /* tpage, clut */
     "layout(location = 5) in uint a_bias;\n" /* ordering-table bias (objects) */
     "layout(location = 6) in uint a_effect;\n" /* animated material (uv_offset entry, 0: none) */
+    "layout(location = 7) in uint a_scope;\n" /* emissive scope bits (render_mesh_emissive_scope) */
     "uniform mat3 bone_rotation[64];\n" /* model -> GTE view, per bone */
     "uniform vec3 bone_translation[64];\n"
     "out vec3 g_pos;\n" /* GTE view space, before the GTE's truncation */
@@ -1389,10 +1438,12 @@ static const char* vertex_source =
     "flat out uvec2 g_page;\n"
     "flat out uint g_bias;\n"
     "flat out uint g_effect;\n"
+    "flat out uint g_scope;\n"
     "void main() {\n"
     "    uint b = min(a_uvf.w, 63u);\n"
     "    g_pos = bone_rotation[b] * a_pos + bone_translation[b];\n"
     "    g_normal = a_normal; g_color = a_color; g_uvf = a_uvf; g_page = a_page; g_bias = a_bias; g_effect = a_effect;\n"
+    "    g_scope = a_scope;\n"
     "}\n";
 static const char* geometry_source =
     "#version 330 core\n"
@@ -1405,6 +1456,7 @@ static const char* geometry_source =
     "flat in uvec2 g_page[];\n"
     "flat in uint g_bias[];\n"
     "flat in uint g_effect[];\n"
+    "flat in uint g_scope[];\n"
     "uniform ivec4 uv_offset[65];\n" /* animated materials: the UV offset per entry (render_list_uv_effects) */
     "uniform int uv_count;\n" /* entries (0 is none) */
     "uniform mat3 normal_matrix;\n" /* room: inverse transpose of the model-view rotation */
@@ -1458,7 +1510,7 @@ static const char* geometry_source =
     "    v_color_affine = v_color_persp = col[i] / 255.0;\n"
     "    v_uv_affine = v_uv_persp = uv[i];\n"
     "    v_z = q.z - z_near;\n"
-    "    v_state = uvec4(pcode & 7u, tpage, clut, effect | (halved << 8));\n"
+    "    v_state = uvec4(pcode & 7u, tpage, clut, effect | (halved << 8) | (g_scope[0] << 16));\n"
     "    v_normal = n;\n"
     "    v_view = q * cut_scale.xyz;\n"
     "    v_cut = cut | (tri_edges << 1);\n"
@@ -1476,6 +1528,13 @@ static const char* geometry_source =
      * positions; behind the camera, the sign of det(p0, p1, p2). */
     "float facing(int a, int b, int c, float zmin) {\n"
     "    return zmin > 0.0 ? nclip(s[a], s[b], s[c]) : dot(cross(p[b] - p[a], p[c] - p[a]), p[a]);\n"
+    "}\n"
+    /* The same on the unrounded screen positions the polygon is drawn at:
+     * objects keep a polygon the PS1 culls when it faces the camera here
+     * (a sliver whose whole-pixel NCLIP is 0, a hole at higher internal
+     * resolutions; it covers no pixel on the PS1). */
+    "float facing_exact(int a, int b, int c, float zmin) {\n"
+    "    return zmin > 0.0 ? nclip(screen(p[a]), screen(p[b]), screen(p[c])) : facing(a, b, c, zmin);\n"
     "}\n"
     /* The editor's cutaway (room lists, free camera): a polygon whose
      * plane separates the eye from the focus stands between them; the
@@ -1495,7 +1554,7 @@ static const char* geometry_source =
     "int sz(int i) { return int(clamp(p[i].z, 0.0, 65535.0)); }\n"
     /* Object rules (BATTLE/4B16C.s func_800B3CF0/func_800B4594). */
     "void object_triangle(int a, int b, int c, float zmin, int bias) {\n"
-    "    if (facing(a, b, c, zmin) <= 0.0) return;\n"
+    "    if (facing(a, b, c, zmin) <= 0.0 && facing_exact(a, b, c, zmin) <= 0.0) return;\n"
     "    if (((zsf3 * (sz(a) + sz(b) + sz(c))) >> 12) + bias >= rules.y) return;\n"
     "    triangle(a, b, c);\n"
     "}\n"
@@ -1524,11 +1583,13 @@ static const char* geometry_source =
     "        else { object_triangle(0, 1, 3, zmin, bias); object_triangle(0, 3, 2, zmin, bias); }\n"
     "        return;\n"
     "    }\n"
-    "    if (!twosided && facing(0, 1, 2, zmin) <= 0.0) return;\n"
+    "    bool kept = twosided || facing(0, 1, 2, zmin) > 0.0;\n"
+    "    bool first = kept || facing_exact(0, 1, 2, zmin) > 0.0, second = quad && (kept || facing_exact(1, 3, 2, zmin) > 0.0);\n"
+    "    if (!first && !second) return;\n"
     "    int depth = quad ? (sz(0) + sz(1) + sz(2) + sz(3)) >> 4 : (zsf3 * (sz(0) + sz(1) + sz(2))) >> 12;\n"
     "    if (depth + bias >= rules.y) return;\n"
-    "    triangle(0, 1, 2);\n"
-    "    if (quad) triangle(1, 3, 2);\n"
+    "    if (first) triangle(0, 1, 2);\n"
+    "    if (second) triangle(1, 3, 2);\n"
     "}\n"
     /* A screen-aligned sprite (RENDER_POLY_SPRITE): the centre projected as
      * the GTE projects it, the corners at their screen offsets scaled by
@@ -1824,7 +1885,7 @@ static const char* fragment_source =
     "        shade = (code & 1u) != 0u ? vec4(vec3(128.0 / 255.0), 1.0) : vec4(v_color, 1.0);\n"
     /* Emissive texels (emissive.glsl): never darkened; the shade carries the emission. */
     "        if (emissive_on != 0) {\n"
-    "            vec3 em = emissive_texel(at.x & 255u, at.y & 255u, tpage, window, t);\n"
+    "            vec3 em = emissive_texel(at.x & 255u, at.y & 255u, tpage, window, t, v_state.w >> 16);\n"
     "            if (any(greaterThan(em, vec3(0.0)))) { c = max(c, min(em, vec3(1.0))); shade = vec4(min(em * 0.5, vec3(1.0)), 0.25); }\n"
     "        }\n"
     "    }\n"

@@ -104,6 +104,17 @@ const pc_ui_ashley* pc_ui_shell_ashley(void);
 /* Focused row (PC_UI_ASH_*) and the number of rows. */
 int pc_ui_shell_ashley_row(void);
 int pc_ui_shell_ashley_rows(void);
+/* On the Condition row: the body part focused (a limb index: hovered with the
+ * pointer, PC_UI_MOUSE_LIMB, or stepped to with Left / Right), -1 the panel as
+ * a whole. */
+int pc_ui_shell_ashley_limb(void);
+/* The card's text for the Condition row: the panel as a whole (limb -1:
+ * "Condition · <the worst part's state>", a summary of the parts) or one part
+ * ("<part> · <state>", its HP). The game's terms (vs_battle_getLimbStatus):
+ * Critical, Damaged, Wounded, Good, Excellent. */
+const char* pc_ui_limb_state_name(int state);
+void pc_ui_ashley_condition_text(const pc_ui_ashley* a, int limb, char* title, int title_size, char* line,
+    int line_size);
 /* The drawing reports how many effect chips fit (the rest are a "+N"): only
  * those are rows. -1 (the default, also after open): all of them. */
 void pc_ui_shell_ashley_effects_shown(int n);
@@ -147,7 +158,8 @@ enum {
     PC_UI_MOUSE_SPELL_LEVEL, /* Magick: a level 0..3 of the focused levelled spell (a click picks it, no cast) */
     PC_UI_MOUSE_ITEM,      /* Items: a row of the category's list (hover focuses it where the list has the
                             * focus: list, move, details; a click elsewhere goes back to the list on it) */
-    PC_UI_MOUSE_ITEM_MENU  /* Items: a row of the open menu (actions, Yes / No, sort stats) */
+    PC_UI_MOUSE_ITEM_MENU, /* Items: a row of the open menu (actions, Yes / No, sort stats) */
+    PC_UI_MOUSE_LIMB       /* Ashley: a body part of the Condition panel (pc_ui_shell_ashley_limb) */
 };
 void pc_ui_shell_mouse(int kind, int index, int clicked, float wheel);
 

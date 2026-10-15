@@ -29,7 +29,10 @@ extern "C" {
 extern float pc_emissive;
 
 #define PC_EMISSIVE_MAP_W 4096
-#define PC_EMISSIVE_MAP_H 516 /* 512 rows of cells, 4 rows of slot parameters */
+/* 512 rows of cells (slots), 4 rows of slot parameters, 512 rows of the
+ * cells' amounts (a painted map's value, else 255). */
+#define PC_EMISSIVE_MAP_H 1028
+#define PC_EMISSIVE_AMOUNT_ROW 516
 /* The shade target's alpha marking an emissive texel (its rgb: emission / 2). */
 #define PC_EMISSIVE_SHADE_ALPHA 0.25f
 
@@ -39,6 +42,12 @@ void pc_emissive_note_instance(uint32_t mesh, const void* polygons, int count, i
     unsigned clut);
 /* render.c: the mesh is gone (its uses go with it). */
 void pc_emissive_mesh_gone(uint32_t mesh);
+/* Scopes (pc/docs/Emissive.md): room_native.c built a mesh of the current
+ * room's geometry block at byte `offset` of the room data (polygon i lies at
+ * offset + 8 + 32 i, quads 40 bytes each after the triangles);
+ * actor_native.c built a mesh of the model whose content hash is `model`. */
+void pc_emissive_room_mesh(uint32_t mesh, unsigned offset, unsigned tris, unsigned quads);
+void pc_emissive_model_mesh(uint32_t mesh, uint32_t model);
 /* gpu_hw.c: native VRAM changed in these 64 x 256 tiles (16 x 2). */
 void pc_emissive_vram_dirty(uint32_t tiles);
 /* Before a frame's first draw: matches new uses, rebuilds the map when

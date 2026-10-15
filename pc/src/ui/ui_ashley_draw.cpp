@@ -166,12 +166,15 @@ float condition(const Frame& f, const ui::Theme& t, float x0, float x1, float y,
     }
     cy += 14 + 12;
     const float gap = 22, cw = (xr - x - gap) / 2;
+    int focused = pc_ui_shell_ashley_limb();
     for (int i = 0; i < n; ++i) {
         const pc_ui_limb& l = a.limbs[i];
         int s = clamp_state(l.state);
         float lx = x + (i % 2) * (cw + gap), ly = cy + (i / 2) * LIMB_ROW;
+        m.hit(PC_UI_MOUSE_LIMB, i, lx - 4, ly - 4, lx + cw + 4, ly + LIMB_ROW - 6); // the part (over the panel's hit)
         float sw = text_right(f, fonts.data, 11.5f, lx + cw, ly, limb_colour(t, s), LIMB_STATES[s]);
-        text(f, fonts.label, 12, lx, ly - 1, t.ash, fit(f, fonts.label, 12, l.name, cw - sw - 8, 0.05f).c_str(), 0.05f);
+        text(f, fonts.label, 12, lx, ly - 1, i == focused ? t.bone : t.ash,
+            fit(f, fonts.label, 12, l.name, cw - sw - 8, 0.05f).c_str(), 0.05f);
         track(f, t, lx, lx + cw, ly + 17, frac(l.hp, l.hp_max), limb_colour(t, s));
     }
     f.dl->AddLine(f.p(x0, y + h), f.p(x1, y + h), t.rule, f.s(1));
@@ -333,15 +336,16 @@ void inspector(const Frame& f, const ui::Theme& t, const Card& c, float bottom, 
                 13.5f);
         }
     } else if (row == PC_UI_ASH_CONDITION) {
-        label(f, t, x, y, "Condition");
+        // the panel as a whole, or the body part focused in it (the shell's text: its JSON says the same)
+        int limb = pc_ui_shell_ashley_limb();
+        char head[96], line[192];
+        pc_ui_ashley_condition_text(&a, limb, head, sizeof head, line, sizeof line);
+        label(f, t, x, y, limb >= 0 ? "Condition \xc2\xb7 Body part" : "Condition \xc2\xb7 Overall");
         y += 13 + 8;
-        int wl = worst_limb(a);
-        std::string head = "Unhurt";
-        if (wl >= 0 && a.limbs[wl].state < PC_UI_LIMB_EXCELLENT)
-            head = std::string(a.limbs[wl].name) + DOT + LIMB_STATES[clamp_state(a.limbs[wl].state)];
-        text(f, fonts.name, title, x, y, t.bone, fit(f, fonts.name, title, head.c_str(), w).c_str());
-        y += title + 6 + 10;
-        // every limb: name, HP, state (two columns when compact)
+        text(f, fonts.name, title, x, y, t.bone, fit(f, fonts.name, title, head, w).c_str());
+        y += title + 6 + 8;
+        y += paragraph(f, t, x, y, w, t.ash, line, 13.5f) + 8;
+        // every limb: name, HP, state (two columns when compact); the focused one in the bright colour
         int n = a.limb_count < 0 ? 0 : a.limb_count > PC_UI_LIMBS ? PC_UI_LIMBS : a.limb_count;
         int cols = compact ? 2 : 1;
         float gap = 24, cw = (w - (cols - 1) * gap) / cols, rh = compact ? 20 : 23;
@@ -352,7 +356,7 @@ void inspector(const Frame& f, const ui::Theme& t, const Card& c, float bottom, 
             float sw = text_right(f, fonts.data, 12, lx + cw, ly, limb_colour(t, s), LIMB_STATES[s]);
             float hw = text_right(f, fonts.data, 12, lx + cw - sw - (compact ? 10 : 18), ly, t.bone,
                 (num(l.hp) + " / " + num(l.hp_max)).c_str());
-            text(f, fonts.data, 12, lx, ly, t.ash, fit(f, fonts.data, 12, l.name, cw - sw - hw - 28).c_str());
+            text(f, fonts.data, 12, lx, ly, i == limb ? t.bone : t.ash, fit(f, fonts.data, 12, l.name, cw - sw - hw - 28).c_str());
         }
         y += ((n + cols - 1) / cols) * rh;
         if (!compact) {

@@ -999,7 +999,7 @@ static const char* draw_fragment_source =
      * darkened; the G-buffer's shade carries the emission (a 0.25, rgb / 2). */
     "        if (emissive_on != 0 && v_normal.w > 0.5 && (flags & 16u) == 0u) {\n"
     "            ivec2 eq = ivec2(floor(v_uv + 0.0001));\n"
-    "            vec3 em = emissive_texel(uint(eq.x) & 255u, uint(eq.y) & 255u, tpage, win, t);\n"
+    "            vec3 em = emissive_texel(uint(eq.x) & 255u, uint(eq.y) & 255u, tpage, win, t, 0u);\n" /* packets: no scope bits */
     "            if (any(greaterThan(em, vec3(0.0)))) { c = max(c, min(em, vec3(1.0))); shade = vec4(min(em * 0.5, vec3(1.0)), 0.25); }\n"
     "        }\n"
     "    }\n"
@@ -1347,12 +1347,12 @@ void pc_hw_mark(int x0, int y0, int x1, int y1)
         pc_emissive_vram_dirty(tiles);
     }
 }
-static void upload_tiles(uint32_t tiles)
+/* The sampled copy of VRAM: `tiles` from `vram` (1024 x 512 halfwords). */
+static void upload_tiles_from(const uint16_t* vram, uint32_t tiles)
 {
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
-        pc_vk_hw_upload_tiles(native_vram, tiles);
-        dirty_tiles &= ~tiles;
+        pc_vk_hw_upload_tiles(vram, tiles);
         return;
     }
 #endif
@@ -1363,9 +1363,13 @@ static void upload_tiles(uint32_t tiles)
         if (tiles & (1u << tile)) {
             int x = (tile & 15) * 64, y = (tile >> 4) * 256;
             gl_TexSubImage2D(GL_TEXTURE_2D, 0, x, y, 64, 256, GL_RED_INTEGER, GL_UNSIGNED_SHORT,
-                native_vram + y * 1024 + x);
+                vram + y * 1024 + x);
         }
     gl_PixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+}
+static void upload_tiles(uint32_t tiles)
+{
+    upload_tiles_from(native_vram, tiles);
     dirty_tiles &= ~tiles;
 }
 
@@ -3620,6 +3624,49 @@ static void mark_stale_kind(const int* clip, int kind)
     r[0] = x0, r[1] = y0, r[2] = x1 - x0, r[3] = y1 - y0;
 }
 static void sync_kinds(int x, int y, int w, int h, int kinds);
+/* The colour of `fbo` (the live target, or the replay's) over the native
+ * rectangle (x0, y0)-(x1, y1), exclusive, scaled down to native pixels
+ * (nearest, as GL's blit) into `pixels` (RGBA8 rows of x1 - x0). */
+static void read_native_pixels(GLuint fbo, int x0, int y0, int x1, int y1, unsigned char* pixels)
+{
+#ifdef ROOD_VULKAN
+    if (pc_vk_on()) {
+        pc_vk_hw_sync_read(fbo == replay.fbo, x0, y0, x1, y1, pixels);
+        return;
+    }
+#endif
+    if (!sync_fbo) {
+        gl_GenTextures(1, &sync_texture);
+        gl_BindTexture(GL_TEXTURE_2D, sync_texture);
+        gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        gl_TexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1024, 512, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        gl_GenFramebuffers(1, &sync_fbo);
+        gl_BindFramebuffer(GL_FRAMEBUFFER, sync_fbo);
+        gl_FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sync_texture, 0);
+    }
+    int s = pc_hw_scale;
+    gl_BindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+    gl_ReadBuffer(GL_COLOR_ATTACHMENT0);
+    gl_BindFramebuffer(GL_DRAW_FRAMEBUFFER, sync_fbo);
+    gl_BlitFramebuffer(x0 * s, y0 * s, x1 * s, y1 * s, x0, y0, x1, y1, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    gl_BindFramebuffer(GL_READ_FRAMEBUFFER, sync_fbo);
+    gl_PixelStorei(GL_PACK_ALIGNMENT, 1);
+    gl_ReadPixels(x0, y0, x1 - x0, y1 - y0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+/* RGBA8 rows (read_native_pixels) into 1024-wide 16-bit VRAM rows: 5 bits per
+ * channel as the CPU rasterizer quantizes, the mask bit from alpha. */
+static void pixels_to_vram(const unsigned char* pixels, int x0, int y0, int x1, int y1, uint16_t* vram)
+{
+    for (int row = 0; row < y1 - y0; row++) {
+        const unsigned char* src = pixels + (size_t)row * (x1 - x0) * 4;
+        uint16_t* dst = vram + (size_t)(y0 + row) * 1024 + x0;
+        for (int col = 0; col < x1 - x0; col++, src += 4)
+            dst[col] = (uint16_t)((src[0] >> 3) | ((src[1] >> 3) << 5) | ((src[2] >> 3) << 10)
+                | (src[3] >= 128 ? 0x8000 : 0));
+    }
+}
 void pc_hw_sync(int x, int y, int w, int h) { sync_kinds(x, y, w, h, STALE_MISSING | STALE_PLACED); }
 /* StoreImage (boot_runtime.c): only what native VRAM lacks. */
 void pc_hw_sync_store(int x, int y, int w, int h)
@@ -3655,42 +3702,8 @@ static void sync_kinds(int x, int y, int w, int h, int kinds)
         if (ms_scope == target_fbo)
             ms_end_over(x0, y0, x1 - x0, y1 - y0);
         static unsigned char pixels[1024 * 512 * 4];
-#ifdef ROOD_VULKAN
-        if (pc_vk_on()) {
-            pc_vk_hw_sync_read(x0, y0, x1, y1, pixels);
-            goto read;
-        }
-#endif
-        if (!sync_fbo) {
-            gl_GenTextures(1, &sync_texture);
-            gl_BindTexture(GL_TEXTURE_2D, sync_texture);
-            gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            gl_TexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1024, 512, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-            gl_GenFramebuffers(1, &sync_fbo);
-            gl_BindFramebuffer(GL_FRAMEBUFFER, sync_fbo);
-            gl_FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sync_texture, 0);
-        }
-        int s = pc_hw_scale;
-        gl_BindFramebuffer(GL_READ_FRAMEBUFFER, target_fbo);
-        gl_ReadBuffer(GL_COLOR_ATTACHMENT0);
-        gl_BindFramebuffer(GL_DRAW_FRAMEBUFFER, sync_fbo);
-        gl_BlitFramebuffer(x0 * s, y0 * s, x1 * s, y1 * s, x0, y0, x1, y1, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-        gl_BindFramebuffer(GL_READ_FRAMEBUFFER, sync_fbo);
-        gl_PixelStorei(GL_PACK_ALIGNMENT, 1);
-        gl_ReadPixels(x0, y0, x1 - x0, y1 - y0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-        gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
-#ifdef ROOD_VULKAN
-    read:;
-#endif
-        uint16_t* vram = (uint16_t*)(uintptr_t)native_vram;
-        for (int row = 0; row < y1 - y0; row++) {
-            const unsigned char* src = pixels + (size_t)row * (x1 - x0) * 4;
-            uint16_t* dst = vram + (size_t)(y0 + row) * 1024 + x0;
-            for (int col = 0; col < x1 - x0; col++, src += 4)
-                dst[col] = (uint16_t)((src[0] >> 3) | ((src[1] >> 3) << 5) | ((src[2] >> 3) << 10)
-                    | (src[3] >= 128 ? 0x8000 : 0));
-        }
+        read_native_pixels(target_fbo, x0, y0, x1, y1, pixels);
+        pixels_to_vram(pixels, x0, y0, x1, y1, (uint16_t*)(uintptr_t)native_vram);
         dirty_tiles |= tiles_for(x0, y0, x1 - 1, y1 - 1); /* the sampled copy follows */
         pc_ui_upscale_tiles_changed(tiles_for(x0, y0, x1 - 1, y1 - 1));
         pc_emissive_vram_dirty(tiles_for(x0, y0, x1 - 1, y1 - 1));
@@ -3925,6 +3938,12 @@ void pc_hw_frame_menu_model(int on)
         recording_now()->menu_model = on != 0;
 }
 int pc_hw_present_menu_model(void) { return pc_hw_active && present_menu_model; }
+/* The model view's lighting (menu_studio.glsl): 1 (default) its own studio
+ * light in place of the room's and of the game's colours for the model (the
+ * vertex colours; ashley_bridge.c leaves out the offset copy the game draws
+ * as a rim); 0 the game's, lit by the room (RPC graphics menu_studio). */
+int pc_hw_menu_studio = 1;
+int pc_hw_present_menu_studio(void) { return pc_hw_menu_studio && pc_hw_present_menu_model(); }
 /* The shown picture's screen fade (0: none) and where it lands (u0, v0, u1, v1 of the display area). */
 float pc_hw_present_fade(float rect[4])
 {
@@ -4355,6 +4374,59 @@ static void copy_to_replay(int x0, int y0, int x1, int y1)
     gl_DrawBuffers(4, all_buffers);
     gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
 }
+/* A 2D batch of `b` that samples what `b` drew before it (its texels inside
+ * an earlier draw's area): the game copies parts of its own picture (the
+ * original Status screen redraws the rows under its information line from
+ * the frame buffer each frame). Drawn live, it sampled the target as drawn
+ * so far (pc_hw_sync), widescreen's compressed 2D included. */
+static int op_feedback(const recording* b, int o)
+{
+    const recorded_op* op = &b->ops[o];
+    const int16_t* r = op->texels;
+    if (op->fill || op->has_world || r[2] <= r[0] || r[3] <= r[1])
+        return 0;
+    for (int k = 0; k < o; k++) {
+        const recorded_op* p = &b->ops[k];
+        int c[4] = { p->clip[0], p->clip[1], p->clip[0] + p->clip[2], p->clip[1] + p->clip[3] };
+        if (!p->fill) /* (a batch: where it drew, inside its drawing area) */
+            for (int i = 0; i < 2; i++) {
+                c[i] = p->bounds[i] > c[i] ? p->bounds[i] : c[i];
+                c[i + 2] = p->bounds[i + 2] < c[i + 2] ? p->bounds[i + 2] : c[i + 2];
+            }
+        if (c[0] < r[2] && r[0] < c[2] && c[1] < r[3] && r[1] < c[3])
+            return 1;
+    }
+    return 0;
+}
+/* For a replayed op_feedback batch: the sampled copy of VRAM over its texels
+ * becomes the replay target as replayed so far (what the live draw sampled,
+ * with this replay's moved 3D), as pc_hw_sync makes it for the live one.
+ * Redrawn from native VRAM instead (the CPU's 4:3 picture: 2D not
+ * compressed; or a newer frame's drawing), it drew misplaced copies of the
+ * text at 16:9. Returns the tiles to upload from native VRAM again after
+ * the draw. */
+static uint32_t replay_sample_own(const int16_t* texels)
+{
+    int x0 = texels[0] < 0 ? 0 : texels[0], y0 = texels[1] < 0 ? 0 : texels[1];
+    int x1 = texels[2] > 1024 ? 1024 : texels[2], y1 = texels[3] > 512 ? 512 : texels[3];
+    if (x1 <= x0 || y1 <= y0)
+        return 0;
+    if (ms_scope == replay.fbo)
+        ms_end_over(x0, y0, x1 - x0, y1 - y0);
+    static unsigned char pixels[1024 * 512 * 4];
+    static uint16_t vram[1024 * 512];
+    read_native_pixels(replay.fbo, x0, y0, x1, y1, pixels);
+    uint32_t tiles = tiles_for(x0, y0, x1 - 1, y1 - 1);
+    for (int tile = 0; tile < 32; tile++)
+        if (tiles & (1u << tile)) {
+            int x = (tile & 15) * 64, y = (tile >> 4) * 256;
+            for (int row = 0; row < 256; row++)
+                memcpy(vram + (y + row) * 1024 + x, native_vram + (y + row) * 1024 + x, 64 * sizeof *vram);
+        }
+    pixels_to_vram(pixels, x0, y0, x1, y1, vram);
+    upload_tiles_from(vram, tiles);
+    return tiles;
+}
 /* Draw B as it would look at fraction `t` of the way from A. */
 static void replay_frame(const recording* a, const recording* b, float t)
 {
@@ -4481,7 +4553,10 @@ static void replay_frame(const recording* a, const recording* b, float t)
                 }
             }
         }
+        uint32_t own = op_feedback(b, o) ? replay_sample_own(op->texels) : 0;
         draw_batch(replay.fbo, scratch, op->count, op->blend, op->clip);
+        if (own)
+            upload_tiles(own); /* (native VRAM again) */
     }
     occlusion_on = occlusion_was;
     surface_valid = surface_was;

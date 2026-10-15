@@ -182,6 +182,7 @@ static const char* scaled_fragment_source =
     "uniform sampler2D backdrop_tex;\n"
     "uniform vec4 backdrop_color;\n"
     "uniform int backdrop_mode;\n"
+    "uniform int menu_studio_on;\n" /* the model view's studio light (menu_studio.glsl) */
     "uniform sampler2D normal_tex;\n" /* G-buffer: view normal (a = lit 3D surface) */
     "uniform sampler2D albedo_tex;\n"
     "uniform sampler2D shade_tex;\n" /* vertex colour; a: 1 textured, 0.5 untextured */
@@ -251,7 +252,7 @@ static const char* scaled_fragment_source =
     "uniform vec4 medium_[165];\n"
     "#define MEDIUM(i) medium_[i]\n"
     "uniform sampler3D medium_tex;\n" /* atmosphere.h pc_medium_texture (pc_gl_medium_texture) */
-    "#define MEDIUM_TEX medium_tex\n" PC_GLSL_MEDIUM
+    "#define MEDIUM_TEX medium_tex\n" PC_GLSL_MEDIUM PC_GLSL_MENU_STUDIO
     "float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }\n"
     "uniform float normal_smoothing;\n" /* radius in native pixels, 0 = flat faces */
     /* Depth- and crease-aware average of nearby normals (screen space). */
@@ -535,7 +536,22 @@ static const char* scaled_fragment_source =
     "        vec4 es = texelFetch(shade_tex, texel(uv), 0);\n"
     "        if (abs(es.a - 0.25) < 0.05 && d > 0.0) { em_px = true; em = es.rgb * 2.0; }\n"
     "    }\n"
-    "    if ((light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || quality1.y != 0 || env_mode.z != 0) && view_mode != 1) {\n"
+    /* The menu's model view: its own studio light (menu_studio.glsl), not the room's. */
+    "    if (menu_studio_on != 0 && view_mode == 0) {\n"
+    "        ivec2 q = texel(uv);\n"
+    "        vec4 n = texelFetch(normal_tex, q, 0);\n"
+    "        if (n.a > 0.5 && d > 0.0) {\n"
+    "            float z = texelFetch(depth_tex, q, 0).r * 65536.0;\n"
+    "            vec2 s = (vec2(q) + 0.5) / float(scale) - vec2(rect.xy) - screen_offset;\n"
+    "            vec3 p = vec3(s.x * z / projection.x, s.y * z / projection.y, z);\n"
+    "            c = menu_studio(texelFetch(albedo_tex, q, 0).rgb, smooth_normal(q, normalize(n.xyz * 2.0 - 1.0), z), p);\n"
+    "            if (em_px) c = max(c, em);\n"
+    "            else if ((post & 8) == 0) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c));\n"
+    "            if (any(isnan(c)) || any(isinf(c))) c = base(uv);\n"
+    "            lit_done = haze_done = fogvol_done = true;\n"
+    "        }\n"
+    "    }\n"
+    "    if (!lit_done && (light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || quality1.y != 0 || env_mode.z != 0) && view_mode != 1) {\n"
     "        ivec2 q = texel(uv);\n"
     "        vec4 n = texelFetch(normal_tex, q, 0);\n"
     "        if (n.a > 0.5 && d > 0.0) {\n" /* lit 3D surface (not under UI): reconstruct its view-space position */
@@ -896,7 +912,7 @@ typedef struct {
 } view_target;
 static view_target chain[2], smaa_edges, smaa_weights;
 static GLint u_scaled_show_depth, u_scaled_depth, u_post, u_focus, u_dof_radius, u_tilt, u_fog, u_fog_range;
-static GLint u_backdrop_tex, u_backdrop_color, u_backdrop_mode;
+static GLint u_backdrop_tex, u_backdrop_color, u_backdrop_mode, u_menu_studio_on;
 /* Post effects: this present's resolved profile (post.h, post_profile.cpp). */
 static pc_post_frame post_frame;
 static GLint u_near_blur, u_blur_keep;
@@ -1071,6 +1087,7 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     u_backdrop_tex = gl_GetUniformLocation(scaled_program, "backdrop_tex");
     u_backdrop_color = gl_GetUniformLocation(scaled_program, "backdrop_color");
     u_backdrop_mode = gl_GetUniformLocation(scaled_program, "backdrop_mode");
+    u_menu_studio_on = gl_GetUniformLocation(scaled_program, "menu_studio_on");
     u_rect = gl_GetUniformLocation(program, "rect");
     u_vram = gl_GetUniformLocation(program, "vram");
     u_rgb24 = gl_GetUniformLocation(program, "rgb24");
@@ -1290,6 +1307,7 @@ static int brightness_on(int view_w, int view_h)
 extern int pc_ui_menu_active(void) __attribute__((weak));               /* ui/menu_bridge.c */
 extern int pc_ui_menu_backdrop(float rgba[4]) __attribute__((weak));    /* ui/ui_theme.cpp: ground, opacity */
 extern int pc_hw_present_menu_model(void) __attribute__((weak));        /* gpu_hw.c */
+extern int pc_hw_present_menu_studio(void) __attribute__((weak));       /* gpu_hw.c: its studio light */
 static view_target backdrop;
 static int backdrop_valid;
 static unsigned backdrop_keeps; /* pictures kept so far (each world present while the menu is up) */
@@ -1307,6 +1325,7 @@ static int backdrop_bind(void)
     if (mode == 1)
         rgba[3] = 1;
     gl_Uniform1i(u_backdrop_mode, mode);
+    gl_Uniform1i(u_menu_studio_on, pc_hw_present_menu_studio && pc_hw_present_menu_studio());
     gl_Uniform4f(u_backdrop_color, rgba[0], rgba[1], rgba[2], rgba[3]);
     gl_Uniform1i(u_backdrop_tex, 18);
     gl_ActiveTexture(GL_TEXTURE18);

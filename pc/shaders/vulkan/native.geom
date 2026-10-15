@@ -13,12 +13,13 @@ layout(location = 3) flat in uvec4 g_uvf[];
 layout(location = 4) flat in uvec2 g_page[];
 layout(location = 5) flat in uint g_bias[];
 layout(location = 6) flat in uint g_effect[];
+layout(location = 7) flat in uint g_scope[];
 layout(location = 0) noperspective centroid out vec3 v_color_affine;
 layout(location = 1) noperspective centroid out vec2 v_uv_affine;
 layout(location = 2) smooth centroid out vec3 v_color_persp;
 layout(location = 3) smooth centroid out vec2 v_uv_persp;
 layout(location = 4) smooth centroid out float v_z;
-layout(location = 5) flat out uvec4 v_state; // flags, tpage, clut, 0
+layout(location = 5) flat out uvec4 v_state; // flags, tpage, clut, effect | halved << 8 | emissive scope bits << 16
 layout(location = 6) flat out vec3 v_normal;
 layout(location = 7) flat out uvec4 v_bounds;
 layout(location = 8) smooth centroid out vec3 v_view; // view space, rows' scales divided out (cutaway)
@@ -49,7 +50,7 @@ void emit(int i) {
     v_color_affine = v_color_persp = col[i] / 255.0;
     v_uv_affine = v_uv_persp = uv[i];
     v_z = q.z - z_near;
-    v_state = uvec4(pcode & 7u, tpage, clut, effect | (halved << 8));
+    v_state = uvec4(pcode & 7u, tpage, clut, effect | (halved << 8) | (g_scope[0] << 16));
     v_normal = n;
     v_view = q * u.cut_scale.xyz;
     v_cut = cut | (tri_edges << 1);
@@ -67,6 +68,13 @@ void triangle(int a, int b, int c) {
 // positions; behind the camera, the sign of det(p0, p1, p2).
 float facing(int a, int b, int c, float zmin) {
     return zmin > 0.0 ? nclip(s[a], s[b], s[c]) : dot(cross(p[b] - p[a], p[c] - p[a]), p[a]);
+}
+// The same on the unrounded screen positions the polygon is drawn at:
+// objects keep a polygon the PS1 culls when it faces the camera here (a
+// sliver whose whole-pixel NCLIP is 0, a hole at higher internal
+// resolutions; it covers no pixel on the PS1). render.c the same.
+float facing_exact(int a, int b, int c, float zmin) {
+    return zmin > 0.0 ? nclip(screen(p[a]), screen(p[b]), screen(p[c])) : facing(a, b, c, zmin);
 }
 // The editor's cutaway (room lists, free camera): a polygon whose plane
 // separates the eye from the focus stands between them; the fragment
@@ -87,7 +95,7 @@ void cutaway_test(bool quad) {
 int sz(int i) { return int(clamp(p[i].z, 0.0, 65535.0)); }
 // Object rules (BATTLE/4B16C.s func_800B3CF0/func_800B4594).
 void object_triangle(int a, int b, int c, float zmin, int bias) {
-    if (facing(a, b, c, zmin) <= 0.0) return;
+    if (facing(a, b, c, zmin) <= 0.0 && facing_exact(a, b, c, zmin) <= 0.0) return;
     if (((u.zsf3 * (sz(a) + sz(b) + sz(c))) >> 12) + bias >= u.rules.y) return;
     triangle(a, b, c);
 }
@@ -116,11 +124,13 @@ void objects_main(uint flags, bool quad, bool twosided) {
         else { object_triangle(0, 1, 3, zmin, bias); object_triangle(0, 3, 2, zmin, bias); }
         return;
     }
-    if (!twosided && facing(0, 1, 2, zmin) <= 0.0) return;
+    bool kept = twosided || facing(0, 1, 2, zmin) > 0.0;
+    bool first = kept || facing_exact(0, 1, 2, zmin) > 0.0, second = quad && (kept || facing_exact(1, 3, 2, zmin) > 0.0);
+    if (!first && !second) return;
     int depth = quad ? (sz(0) + sz(1) + sz(2) + sz(3)) >> 4 : (u.zsf3 * (sz(0) + sz(1) + sz(2))) >> 12;
     if (depth + bias >= u.rules.y) return;
-    triangle(0, 1, 2);
-    if (quad) triangle(1, 3, 2);
+    if (first) triangle(0, 1, 2);
+    if (second) triangle(1, 3, 2);
 }
 // A screen-aligned sprite (RENDER_POLY_SPRITE): the centre projected as the
 // GTE projects it, the corners at their screen offsets scaled by the depth

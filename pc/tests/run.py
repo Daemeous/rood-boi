@@ -128,6 +128,10 @@ def suites(args, mode="egl"):
               note="probe GI: converges, energy vs path traced, stable, no wall leak, light/room changes"),
         Suite("interpolation_smoke", [PY, str(TESTS / "interpolation_smoke.py")], 180,
               note="interpolated frames move the camera (opening pan)"),
+        *([Suite("interp_menu_2d_smoke", [PY, str(TESTS / "interp_menu_2d_smoke.py"), "--card", str(args.save)],
+                 300, note="16:9, interpolation on (present_rate 1 and 3): original Status and Equip affinity "
+                           "in-between images keep the game's 2D (no stray glyphs or lines; issue #8)")]
+          if args.save.exists() else []),
         Suite("animation_smoke", [PY, str(TESTS / "animation_smoke.py")]
               + (["--card", str(args.save)] if args.save.exists() else []), 300,
               note="character in-betweens: held poses, fast rotations, weapons in hand"),
@@ -149,6 +153,13 @@ def suites(args, mode="egl"):
                  note="free camera sees into the save room; game camera unchanged"),
             Suite("editor_undo_smoke", [PY, str(TESTS / "editor_undo_smoke.py"), "--card", str(args.save)], 300,
                   note="undo/redo transactions (actors, glows, groups), Delete, no shortcuts while typing"),
+            Suite("editor_selection_smoke", [PY, str(TESTS / "editor_selection_smoke.py"), "--card", str(args.save)],
+                  420, note="editor selection: RPC, clicks (lights, actors, glows, fog volumes by ray), Shift/Ctrl, "
+                            "box select, Outliner scroll, Details follows, hide/isolate, copy/paste/duplicate, "
+                            "delete, F"),
+            Suite("editor_schema_smoke", [PY, str(TESTS / "editor_schema_smoke.py"), "--card", str(args.save)], 420,
+                  note="property schema: lint, RPC get/set/reset per kind (lights, actors, fog presets), Details drawn "
+                       "from it (categories, search, lock, reset arrow), the value ladder (middle-drag, Esc)"),
             Suite("facing_cutaway_smoke", [PY, str(TESTS / "facing_cutaway_smoke.py"), "--card", str(args.save)], 300,
                   note="game camera cutaway walls: native = packet path at 8 yaws, during turns (save room, room 13)"),
             Suite("camera_stick_smoke", [PY, str(TESTS / "camera_stick_smoke.py"), "--card", str(args.save)], 300,
@@ -198,7 +209,8 @@ def suites(args, mode="egl"):
             Suite("emissive_smoke", [PY, str(TESTS / "emissive_smoke.py"), "--card", str(args.save)], 420,
                   note="emissive texels: 0 is the picture without them (pixel-identical), marked panes glow and "
                        "nothing else changes, curated entries found in their rooms, editor mask saved and "
-                       "reloaded; Vulkan: the windows light the wall (path traced)"),
+                       "reloaded, scopes (room, surfaces, models) and show other uses, filtered masks still "
+                       "lights; Vulkan: the coals light the hood (path traced), narrowed too"),
             Suite("save_point_glow_smoke", [PY, str(TESTS / "save_point_glow_smoke.py"), "--card", str(args.save)], 300,
                   note="standing in a save point keeps its light (its glow is the column's side); Ashley still "
                        "shadows the floor behind him (High, Ultra)")]
@@ -256,6 +268,11 @@ def suites(args, mode="egl"):
                        str(args.save)], 300,
                  note="Ashley tab model, lit (GI, traced shadows, haze): every image shows it, no flicker "
                       "still or turning (live and interpolated images lit alike), window-resolution detail view")]
+          if args.save.exists() else []),
+        *([Suite("ui_ashley_detail_smoke", [PY, str(TESTS / "ui_ashley_detail_smoke.py"), "--card",
+                       str(args.save)], 300,
+                 note="Ashley tab model at 4x, 8 views: studio light on, the game's rim copy left out, no thin "
+                      "holes in the clone alone (object culling at drawn positions), no bright slivers inside it")]
           if args.save.exists() else []),
         *([Suite("ui_ashley_backdrop_smoke", [PY, str(TESTS / "ui_ashley_backdrop_smoke.py"), "--card",
                        str(args.save)], 300,
@@ -408,7 +425,7 @@ def stale_binaries(selected):
 # while snapshot_equivalence makes the save states, so it runs first beside
 # a suite that does not.
 CHECKPOINT_SUITES = {
-    "probe_gi_smoke", "animation_smoke", "editor_cutaway_smoke", "editor_undo_smoke", "facing_cutaway_smoke",
+    "probe_gi_smoke", "animation_smoke", "editor_cutaway_smoke", "editor_undo_smoke", "editor_selection_smoke", "editor_schema_smoke", "facing_cutaway_smoke",
     "camera_stick_smoke", "editor_snap_smoke", "room_browser_smoke", "route_continuation_smoke", "ending_smoke",
     "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
     "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "weapon_slots_smoke", "ui_menus_smoke",
@@ -418,7 +435,7 @@ CHECKPOINT_SUITES = {
     "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "post_smoke",
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
-    "ui_ashley_backdrop_smoke", "ui_data_smoke",
+    "ui_ashley_backdrop_smoke", "ui_data_smoke", "interp_menu_2d_smoke", "ui_ashley_detail_smoke",
 }
 
 

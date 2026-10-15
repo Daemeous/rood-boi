@@ -46,13 +46,22 @@ else
         echo "!! denied pattern in added lines" >&2; fail=1
     fi
     # No binaries or media: the repo ships code and data files only.
-    # Vendored, licensed fonts are the only binaries allowed.
-    allow='^pc/third_party/fonts/[^/]+/[^/]+\.(ttf|otf)$'
+    # Vendored, licensed fonts are the only binaries allowed, and hand-made
+    # material maps (pc/docs/Materials.md), which must pass their own check.
+    maps='^pc/assets/materials/[^/]+/[^/]+\.png$'
+    allow="^pc/third_party/fonts/[^/]+/[^/]+\.(ttf|otf)$|$maps"
     bins=$(git diff --numstat public main | awk '$1=="-"{print $3}' | grep -vE "$allow" || true)
     media=$(git diff --name-only --diff-filter=AM public main |
-        grep -iE '\.(png|jpe?g|webp|gif|bmp|ppm|tim|bin|iso|cue|chd|mcd|wav|xa|str|mpd|znd|shp|wep|seq|vab|vag|obj)$' || true)
+        grep -iE '\.(png|jpe?g|webp|gif|bmp|ppm|tim|bin|iso|cue|chd|mcd|wav|xa|str|mpd|znd|shp|wep|seq|vab|vag|obj)$' |
+        grep -vE "$maps" || true)
     if [ -n "$bins$media" ]; then
         echo "!! binary or media files:" >&2; printf '%s\n' $bins $media >&2; fail=1
+    fi
+    # Material maps: <texture key>/<allowed channel>.png, single-channel
+    # grayscale only (a texture's own colours, the game's art, never ship).
+    added_maps=$(git diff --name-only --diff-filter=AM public main | grep -E "$maps" || true)
+    if [ -n "$added_maps" ] && ! python3 pc/tools/check_material_maps.py --rev main $added_maps; then
+        echo "!! material maps must be pc/assets/materials/<key>/<channel>.png, single-channel grayscale" >&2; fail=1
     fi
     [ "$fail" = 0 ] || { echo "leak scan failed; nothing published" >&2; exit 1; }
     echo "leak scan clean"
