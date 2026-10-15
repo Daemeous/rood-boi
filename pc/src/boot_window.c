@@ -550,6 +550,38 @@ int pc_window_inject_key(const char* name, int down)
     e.key.down = down != 0;
     return SDL_PushEvent(&e) ? 0 : -1;
 }
+/* RPC (system mouse): the pointer moved to window pixel (x, y), then a
+ * button (1 left, 2 middle, 3 right) pressed or released there, or with
+ * button 0 a wheel step (`down` > 0 up, < 0 down), pushed into SDL's queue
+ * as the mouse would send them (tests: the overlay's event filter and ImGui
+ * see real input, unlike the ui_menu pointer RPC). */
+int pc_window_inject_mouse(float x, float y, int button, int down)
+{
+    if (!window)
+        return -1;
+    SDL_Event e;
+    memset(&e, 0, sizeof e);
+    e.type = SDL_EVENT_MOUSE_MOTION;
+    e.motion.windowID = SDL_GetWindowID(window);
+    e.motion.x = x, e.motion.y = y;
+    if (!SDL_PushEvent(&e))
+        return -1;
+    memset(&e, 0, sizeof e);
+    if (button == 0) {
+        e.type = SDL_EVENT_MOUSE_WHEEL;
+        e.wheel.windowID = SDL_GetWindowID(window);
+        e.wheel.y = (float)down;
+        e.wheel.mouse_x = x, e.wheel.mouse_y = y;
+    } else {
+        e.type = down ? SDL_EVENT_MOUSE_BUTTON_DOWN : SDL_EVENT_MOUSE_BUTTON_UP;
+        e.button.windowID = SDL_GetWindowID(window);
+        e.button.button = (Uint8)button;
+        e.button.down = down != 0;
+        e.button.clicks = 1;
+        e.button.x = x, e.button.y = y;
+    }
+    return SDL_PushEvent(&e) ? 0 : -1;
+}
 int pc_window_inject_pad(const char* name, int down)
 {
     int element = pc_pad_element_from_name(name);

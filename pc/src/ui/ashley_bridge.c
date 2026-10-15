@@ -378,8 +378,12 @@ static void place_clone(void)
  * back slot, where MENU4 _drawMenuBackground links its picture): frozen, the
  * world draws nothing and the frame buffer keeps old frames (the model would
  * smear as it turns). Full width, so it covers the 16:9 view too (gpu_hw.c).
- * The theme's ground colour (ui_theme.cpp); the shell's opaque backdrop
- * covers everything outside the model column. */
+ * The theme's ground colour (ui_theme.cpp). The presenters show the
+ * picture of the world they kept under the menu's ground in place of this
+ * tile (gl_present.c "The modern menu's backdrop"; frames tagged through
+ * pc_ui_ashley_ot_model), so the tab is see-through like the others; the
+ * tile itself shows only when no picture was kept. */
+static int ot_model; /* this tick's ordering table holds the tile (and the model): pc_ui_ashley_ot_model */
 static void clear_behind(void)
 {
     u_long* prim = psx_get(vs_scratch.unk0);
@@ -394,6 +398,21 @@ static void clear_behind(void)
     prim[3] = vs_getWH(320, 240);
     *back = (psx_to_int(u_long, prim) << 8) >> 8;
     psx_set(vs_scratch.unk0, prim + 4);
+    ot_model = 1;
+}
+
+/* The battle loop drew an ordering table (boot_runtime.c
+ * pc_battle_frame_complete, right after its DrawOTag): 1 when it was one of
+ * the model view's (the tile, the model), once. gpu_hw.c tags that frame:
+ * presents that show it run the post stack neutral (the model is the only
+ * 3D in it) and show the held picture of the world where the tile is
+ * (gl_present.c / vk_present.c backdrop), so the tab is see-through like the
+ * others while the post stack never touches the model. */
+int pc_ui_ashley_ot_model(void)
+{
+    int on = ot_model;
+    ot_model = 0;
+    return on;
 }
 
 static float clampf(float v, float lo, float hi) { return v < lo ? lo : v > hi ? hi : v; }

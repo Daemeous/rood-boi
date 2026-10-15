@@ -175,6 +175,11 @@ static const char* scaled_fragment_source =
     "uniform vec3 tilt;\n" /* band centre (0..1 from top), half width, radius */
     "uniform vec4 fog;\n" /* rgb colour, a = density */
     "uniform vec2 fog_range;\n" /* SZ where fog starts and saturates */
+    /* The modern menu's model view (backdrop_frame below): 2D pixels show the held picture of the world
+     * (mode 2) or the ground (mode 1) under the menu's ground colour (rgb) at its opacity (a). */
+    "uniform sampler2D backdrop_tex;\n"
+    "uniform vec4 backdrop_color;\n"
+    "uniform int backdrop_mode;\n"
     "uniform sampler2D normal_tex;\n" /* G-buffer: view normal (a = lit 3D surface) */
     "uniform sampler2D albedo_tex;\n"
     "uniform sampler2D shade_tex;\n" /* vertex colour; a: 1 textured, 0.5 untextured */
@@ -597,6 +602,9 @@ static const char* scaled_fragment_source =
     "        }\n"
     "    }\n"
     "    bool ui = d * 65536.0 < 0.5;\n"
+    "    if (ui && backdrop_mode != 0)\n" /* the menu's model view: the world behind, under the ground */
+    "        c = mix(backdrop_mode == 2 ? texture(backdrop_tex, vec2(uv.x, 1.0 - uv.y)).rgb : backdrop_color.rgb,\n"
+    "            backdrop_color.rgb, backdrop_color.a);\n"
     "    if (fogvol_on.x != 0 && !fogvol_done && !ui && view_mode != 1) c = fogvol_apply(c, texel(uv), d);\n" /* unlit, and where nothing is drawn */
     "    if (quality0.x > 0.0 && !haze_done && !ui && d < 1.0 && view_mode != 1)\n" /* unlit 3D pixels */
     "        c = low_haze(c, world_at(texel(uv), d * 65536.0));\n"
@@ -873,6 +881,7 @@ typedef struct {
 } view_target;
 static view_target chain[2], smaa_edges, smaa_weights;
 static GLint u_scaled_show_depth, u_scaled_depth, u_post, u_focus, u_dof_radius, u_tilt, u_fog, u_fog_range;
+static GLint u_backdrop_tex, u_backdrop_color, u_backdrop_mode;
 /* Post effects: this present's resolved profile (post.h, post_profile.cpp). */
 static pc_post_frame post_frame;
 static GLint u_near_blur, u_blur_keep;
@@ -1044,6 +1053,9 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     u_tilt = gl_GetUniformLocation(scaled_program, "tilt");
     u_fog = gl_GetUniformLocation(scaled_program, "fog");
     u_fog_range = gl_GetUniformLocation(scaled_program, "fog_range");
+    u_backdrop_tex = gl_GetUniformLocation(scaled_program, "backdrop_tex");
+    u_backdrop_color = gl_GetUniformLocation(scaled_program, "backdrop_color");
+    u_backdrop_mode = gl_GetUniformLocation(scaled_program, "backdrop_mode");
     u_rect = gl_GetUniformLocation(program, "rect");
     u_vram = gl_GetUniformLocation(program, "vram");
     u_rgb24 = gl_GetUniformLocation(program, "rgb24");
@@ -1246,6 +1258,67 @@ static int brightness_on(int view_w, int view_h)
     return ensure_view_target(&brightness_target, view_w, view_h);
 }
 /* The last stage: the 16-bit image through the curve into the window's view. */
+/* ---- The modern menu's backdrop (Ashley tab) ----
+ * While the menu's Ashley model shows, the world is frozen and not drawn: the
+ * frame holds the model (the only 3D) over a flat 2D tile (ui/ashley_bridge.c
+ * clear_behind; gpu_hw.c tags those frames, pc_hw_present_menu_model). So
+ * the tab is see-through like the others, every present while the modern
+ * menu is up and shows the world keeps its finished picture (after the post
+ * chain, before game text and the brightness curve: what the window shows
+ * there), and a present of the model view puts that picture under the
+ * menu's ground colour and opacity in place of the tile's 2D pixels, in the
+ * present shader, before anti-aliasing (the model's edges blend with the
+ * world). The post stack runs neutral on those presents (post_profile.cpp),
+ * so the model is never graded while the picture behind keeps the post it
+ * was shown with. The shell then draws no ground of its own there
+ * (ui_draw.cpp). */
+extern int pc_ui_menu_active(void) __attribute__((weak));               /* ui/menu_bridge.c */
+extern int pc_ui_menu_backdrop(float rgba[4]) __attribute__((weak));    /* ui/ui_theme.cpp: ground, opacity */
+extern int pc_hw_present_menu_model(void) __attribute__((weak));        /* gpu_hw.c */
+static view_target backdrop;
+static int backdrop_valid;
+/* Before the present shader's draw: 0 not the model view; 1 the ground alone (no picture kept); 2 the
+ * picture kept (bound to unit 18). */
+static int backdrop_bind(void)
+{
+    float rgba[4] = { 0, 0, 0, 1 };
+    int mode = 0;
+    if (pc_hw_present_menu_model && pc_hw_present_menu_model() && pc_ui_menu_backdrop && pc_ui_menu_backdrop(rgba))
+        mode = backdrop_valid ? 2 : 1;
+    if (mode == 1)
+        rgba[3] = 1;
+    gl_Uniform1i(u_backdrop_mode, mode);
+    gl_Uniform4f(u_backdrop_color, rgba[0], rgba[1], rgba[2], rgba[3]);
+    gl_Uniform1i(u_backdrop_tex, 18);
+    gl_ActiveTexture(GL_TEXTURE18);
+    gl_BindTexture(GL_TEXTURE_2D, mode == 2 ? backdrop.texture : 0);
+    gl_ActiveTexture(GL_TEXTURE0);
+    return mode;
+}
+/* After the post chain: keep the finished picture of the world while the modern menu is up (read from
+ * the chain's last image: the brightness curve's input, or the window's view). */
+static void backdrop_keep(int view_x, int view_y, int view_w, int view_h)
+{
+    if (!pc_ui_menu_active || !pc_ui_menu_active()) {
+        backdrop_valid = 0;
+        if (backdrop.fbo) { /* the menu closed: give the picture's memory back */
+            gl_DeleteFramebuffers(1, &backdrop.fbo);
+            gl_DeleteTextures(1, &backdrop.texture);
+            backdrop.fbo = backdrop.texture = 0;
+            backdrop.w = backdrop.h = 0;
+        }
+        return;
+    }
+    if ((pc_hw_present_menu_model && pc_hw_present_menu_model()) || !ensure_view_target(&backdrop, view_w, view_h))
+        return;
+    gl_BindFramebuffer(GL_READ_FRAMEBUFFER, brightness_stage ? brightness_target.fbo : 0);
+    gl_BindFramebuffer(GL_DRAW_FRAMEBUFFER, backdrop.fbo);
+    int x = brightness_stage ? 0 : view_x, y = brightness_stage ? 0 : view_y;
+    gl_BlitFramebuffer(x, y, x + view_w, y + view_h, 0, 0, view_w, view_h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
+    backdrop_valid = 1;
+}
+
 static void brightness_draw(int view_x, int view_y)
 {
     gl_UseProgram(brightness_program);
@@ -1600,6 +1673,7 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
             gl_Uniform3f(u_tilt, pf->tilt[0], pf->tilt[1], pf->tilt[2] * lit_h / 720.0f);
             gl_Uniform4f(u_fog, pf->fog[0], pf->fog[1], pf->fog[2], pf->fog[3]);
             gl_Uniform2f(u_fog_range, pf->fog_range[0], pf->fog_range[1]);
+            backdrop_bind(); /* the menu's model view: the world behind it (above) */
             {
                 /* Lighting: world-space lights and the projection to invert. */
                 /* Up to GL_LIGHTS lights (the most important past that: lights.cpp);
@@ -1887,6 +1961,9 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
             gl_Uniform1i(u_down_filter, pc_aa_downsample);
             gl_DrawArrays(GL_TRIANGLES, 0, 3);
         }
+        /* The modern menu's backdrop: keep this picture of the world (backdrop_keep, above). */
+        if (target && !pc_gl_show_depth)
+            backdrop_keep(view_x, view_y, view_w, view_h);
         /* Text held back for the window's resolution (gpu_hw.c ui_text_overlay), over the picture, before the
          * brightness curve. */
         if (target) { /* (into the chain's last image, its view as the viewport) */

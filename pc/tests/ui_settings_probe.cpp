@@ -74,7 +74,7 @@ static void pages()
     CHECK(pc_ui_settings_rows(G) == 15);
     CHECK(pc_ui_settings_rows(D) == 8); // Images per vsync shows: interpolation is on
     CHECK(pc_ui_settings_rows(A) == (game ? 2 : 1));
-    CHECK(pc_ui_settings_rows(I) == 10);
+    CHECK(pc_ui_settings_rows(I) == 11); // with Menu opacity
     CHECK(pc_ui_settings_rows(C) == (game ? 14 : 13));
     CHECK(pc_ui_settings_rows(B) == 17);
     CHECK(pc_ui_settings_rows(P) == (game ? 11 : 4));

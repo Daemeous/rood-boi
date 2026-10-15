@@ -31,6 +31,17 @@ path-traced GI, traced shadows, haze high; ROOD_GI=1), ui_menus on, 4:3 in a
     raises it to the window's (720 lines over the display's 240 or 224:
     3x or 4x) while the model shows;
     R1 (Equipment, the model freed) gives the setting back (1x).
+  - the post stack never touches the model, the picture behind it keeps its
+    post (gpu_hw.c pc_hw_present_menu_model, post_profile.cpp, the
+    presenters' menu backdrop): ui_menu_opacity 0.3 (settings load), a
+    strong gameplay profile (exposure, ACES, full grain and vignette,
+    bloom, chromatic aberration, no saturation) on before the menu opens;
+    with the model shown, the model column of the paused picture is the
+    same with that profile and with none (before: graded, about every
+    model pixel changed); the model column's empty left strip (the gap
+    between list and card on Equipment) shows the world behind as the Equipment tab shows it with the strong profile,
+    much closer to that than to Equipment without it (before: the opaque
+    ground colour).
 --out keeps the crops (game imagery: keep it out of git)."""
 import argparse
 import os
@@ -82,6 +93,90 @@ def flicks(a, b, c):
     return n / total
 
 
+STRONG_POST = {"exposure": 1, "tonemapper": "aces", "grain": 1, "vignette": 1, "bloom_intensity": 2,
+               "chromatic_aberration": 5, "saturation": [1, 1, 1, 0]}
+OPACITY = 0.3
+
+
+def presented(g, path):
+    """The paused game's next presented image (redrawn with the current settings) as an int array."""
+    import numpy as np
+    from PIL import Image
+    g.wait_presents(3)
+    ppm = pathlib.Path(path).with_suffix(".ppm")
+    ppm.unlink(missing_ok=True)
+    g.call("present_dump", path=str(ppm.resolve()))
+    for _ in range(200):
+        if ppm.exists():
+            break
+        g.wait_presents(1)
+    image = np.asarray(Image.open(ppm).convert("RGB")).astype(np.int16)
+    ppm.unlink()
+    return image
+
+
+def post_model(g, out, settings, rect, ui, wait, close, check, keep):
+    """The model is drawn without the post stack; the world behind it keeps it (see the docstring)."""
+    import numpy as np
+    from PIL import Image
+    settings.write_text(SETTINGS + f"ui_menu_opacity {OPACITY}\n")
+    g.call("settings", action="load")
+    g.call("ui_menu", modern=True)
+    g.call("post", layer="gameplay", clear="all", set=STRONG_POST, snap=True)
+    g.run(20)
+
+    def tab(name):
+        for _ in range(8):
+            if ui().get("tab") == name:
+                return
+            g.press("l1", vsyncs=3, settle=6)
+
+    g.press("triangle", vsyncs=3, settle=2)
+    wait(lambda: ui().get("visible"), 100, "the menu")
+    tab("equipment")
+    g.run(20)
+    other_strong = presented(g, out / "post-equipment-strong")
+    g.call("post", layer="gameplay", clear="all", snap=True)
+    other_neutral = presented(g, out / "post-equipment-neutral")
+    g.call("post", layer="gameplay", clear="all", set=STRONG_POST, snap=True)
+    g.run(4)
+    tab("ashley")
+    wait(lambda: (ui().get("ashley") or {}).get("model") == 2, 300, "the Ashley model")
+    g.run(8)
+    model_strong = presented(g, out / "post-model-strong")
+    info = g.call("post")
+    g.call("post", layer="gameplay", clear="all", snap=True)
+    model_neutral = presented(g, out / "post-model-neutral")
+    if keep:
+        for name, image in (("equipment-strong", other_strong), ("equipment-neutral", other_neutral),
+                            ("model-strong", model_strong), ("model-neutral", model_neutral)):
+            Image.fromarray(image.astype(np.uint8)).save(out / f"post-{name}.png")
+    x, y, w, h = (int(v) for v in rect)  # 960x720 window: layout units are pixels
+    col_s, col_n = model_strong[y:y + h, x:x + w], model_neutral[y:y + h, x:x + w]
+    d = np.abs(col_s - col_n).max(axis=2)
+    check(info.get("menu_model") is True and d.mean() < 0.5 and np.percentile(d, 99.9) <= 4,
+          f"post stack off the model: the model column with the strong profile = without (mean difference "
+          f"{d.mean():.2f}, 99.9th percentile {np.percentile(d, 99.9):.0f}, {np.mean(d > 8):.2%} of it more than 8; "
+          f"post RPC menu_model {info.get('menu_model')})")
+    # The model column's left strip (x + 4 .. x + 48, its upper 95%: no model; on Equipment the gap between
+    # the list and the card, 4:3): the Ashley tab shows the world behind as the Equipment tab does, with the
+    # strong profile's post on it.
+    box = (slice(y + 8, y + int(h * 0.95)), slice(x + 4, x + 48))
+    m = model_strong[box].astype(np.float32)
+    es = float(np.abs(m - other_strong[box]).mean())
+    en = float(np.abs(m - other_neutral[box]).mean())
+    apart = float(np.abs(other_strong[box] - other_neutral[box]).mean())
+    check(es < 12 and es < 0.5 * en and apart > 8,  # (film grain differs from game frame to game frame)
+          f"the world behind the model keeps its post, as on the Equipment tab (opacity {OPACITY}): the column's "
+          f"left strip against Equipment with the strong profile {es:.1f}, without {en:.1f} (those two apart "
+          f"{apart:.1f})")
+    close()
+    g.call("post", layer="gameplay", clear="all", snap=True)
+    settings.write_text(SETTINGS)
+    g.call("settings", action="load")
+    g.call("ui_menu", modern=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--card", default=str(default_card()))
@@ -121,7 +216,7 @@ def main():
                 if pred():
                     return
                 g.run(1)
-            raise TimeoutError(what)
+            raise TimeoutError(f"{what}: {ui()}")
 
         def open_tab():
             g.press("triangle", vsyncs=3, settle=2)
@@ -225,6 +320,8 @@ def main():
               f"{freed['scale']}x on Equipment (want 1x)")
         close()
         g.call("graphics", scale=4)
+        g.run(10)
+        post_model(g, out, settings, rect, ui, wait, close, check, args.out)
     finally:
         g.close()
     if failures:

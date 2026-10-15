@@ -1026,8 +1026,14 @@ void pc_opening_image_ready(int image)
     if (image == 26)
         opening_ready = 1;
 }
+/* ui/ashley_bridge.c (battle builds): whether the ordering table just drawn
+ * holds the modern menu's Ashley model; gpu_hw.c tags the frame with it. */
+extern int pc_ui_ashley_ot_model(void) __attribute__((weak));
+extern void pc_hw_frame_menu_model(int on) __attribute__((weak));
 void pc_battle_frame_complete(void)
 {
+    if (pc_ui_ashley_ot_model && pc_hw_frame_menu_model)
+        pc_hw_frame_menu_model(pc_ui_ashley_ot_model());
     ++battle_frames;
     if (battle_frames % 300 == 0)
         fprintf(

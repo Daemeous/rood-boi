@@ -106,6 +106,18 @@ int pc_ui_loot_begin(void);
 int pc_ui_loot_frame(const pc_ui_input* in);
 void pc_ui_loot_abandon(int reset);
 
+/* map_bridge.c: the Map frame around the game's map screen (MENU5) */
+void pc_ui_map_arm(void);
+int pc_ui_map_on(void);
+int pc_ui_map_end(void);
+void pc_ui_map_forget(void);
+
+/* manual_bridge.c: the System tab's Quick manual (ui_manual.h) */
+void pc_ui_manual_bridge_fill(int settling);
+void pc_ui_manual_bridge_refresh(void);
+void pc_ui_manual_bridge_abandon(void);
+void pc_ui_manual_bridge_reset(void);
+
 /* A direct entry the shell runs (pc_ui_direct_tick): its menu (0 none),
  * ticks left that ignore the pad. */
 static struct {
@@ -161,6 +173,7 @@ static void abandon(void)
 {
     pc_ui_ashley_model_close(); /* the world back before anything else runs */
     pc_ui_shell_close();
+    pc_ui_manual_bridge_abandon(); /* the Quick manual's store and its world freeze back */
     if (hud_hidden && D_800EB9AF == 1)
         D_800EB9AF = hud_saved;
     hud_hidden = 0;
@@ -185,6 +198,11 @@ void pc_ui_menu_heartbeat(void)
         direct_abandon(0);
     if (direct.menu)
         return; /* the top level is not this session's (its HUD flag is the direct session's) */
+    /* the Map frame ends once the game left its map screen (Triangle: 6, then
+     * 0x7F; anything else). A stale stamp never ends it: it only stops the
+     * drawing (ui_map.cpp pc_ui_map_visible). */
+    if (pc_ui_map_on() && (vs_battle_menuState.currentMenu & 0x3F) != 6)
+        pc_ui_map_end();
     /* the shell's action ended (its target confirmed, or no target): the
      * game frees the menu's rows (func_800CB114) only then, a cancel keeps
      * them */
@@ -202,7 +220,9 @@ void pc_ui_menu_heartbeat(void)
  * the session and a queued model reload's finish are not the next scene's. */
 void pc_ui_menu_reset(void)
 {
+    pc_ui_manual_bridge_reset(); /* nothing written: the game's memory is the next game's */
     pc_ui_ashley_model_forget(); /* the heap is the next game's: nothing to free */
+    pc_ui_map_forget();
     if (direct.menu)
         direct_abandon(1);
     if (shell_open || held || hud_hidden || pc_ui_shell_drawn())
@@ -214,6 +234,10 @@ void pc_ui_menu_reset(void)
 /* dev_overlay.cpp: Dear ImGui runs (the shell draws through it). Weak: a
  * build without the overlay keeps the original menus. */
 extern int pc_overlay_active(void) __attribute__((weak));
+
+static unsigned map_buttons(unsigned pad);
+/* map_bridge.c: the Map frame's area list reads the pad as the shell does */
+unsigned pc_ui_map_buttons(unsigned pad) { return map_buttons(pad); }
 
 static unsigned map_buttons(unsigned pad)
 {
@@ -261,6 +285,8 @@ int pc_ui_menu_open(int mode)
     pc_ui_commands c;
     int top = (vs_battle_menuState.currentMenu & 0x3F) == 0 && !((u_int)D_800F4EA0 & 0x200)
         && vs_battle_shortcutInvoked == 0;
+    /* back from the map (Cross, or a tab clicked on its frame: that tab) */
+    int map_tab = pc_ui_map_end();
     closing = 0;
     held = 0;
     if (mode == 2)
@@ -274,6 +300,7 @@ int pc_ui_menu_open(int mode)
     if (!shell_open) {
         pc_ui_ashley_model_close();
         pc_ui_shell_close();
+        pc_ui_manual_bridge_abandon(); /* the close's manual events (store, world back) applied now */
         show_hud();
         return 0;
     }
@@ -283,6 +310,8 @@ int pc_ui_menu_open(int mode)
     pc_ui_ashley_model_open(mode == 2);
     c = commands();
     pc_ui_shell_open(&c, mode != 2 || vs_main_settings.cursorMemory);
+    if (map_tab >= 0)
+        pc_ui_shell_set_tab(map_tab);
     pc_ui_abilities_fill(mainmenu_resident()); /* the shell may open on the Abilities screen */
     pc_ui_magick_fill(mainmenu_resident());    /* or on Magick */
     pc_ui_items_session(mode == 2);            /* a new menu: the next Items screen is an entry */
@@ -320,6 +349,11 @@ static int deliver(int r)
             (char*)&vs_battle_menuStrings[vs_battle_menuStrings[cmd]])
             ->unselectable
             = (cmd == 0 && (mask & 0xB7)) || (cmd == 1 && (mask & 0x15F));
+        /* the map screen (MENU5): the shell draws its frame around it
+         * (map_bridge.c; MENU5 manages the HUD flag itself, as on the
+         * original path) */
+        if (r == 6 && session && pc_overlay_active && pc_overlay_active())
+            pc_ui_map_arm();
     } else if (r < 0) {
         vs_battle_playMenuLeaveSfx();
         vs_battle_textBoxes[7].state = 0;
@@ -436,11 +470,13 @@ int pc_ui_menu_top(void)
     }
     in.pressed = map_buttons(vs_main_buttonsPressed.all);
     in.repeat = map_buttons(vs_main_buttonRepeat) | in.pressed;
+    pc_ui_manual_bridge_fill(settle > 0); /* the Quick manual: the game's state, Square held and Start */
     if (settle > 0) {
         --settle;
         in.pressed = in.repeat = 0;
     }
     r = pc_ui_shell_tick(&in);
+    pc_ui_manual_bridge_refresh(); /* its events (an ORIGINAL before deliver(10) runs MENUE) */
     pc_ui_equip_requests();
     pc_ui_abilities_refresh();
     pc_ui_magick_refresh();

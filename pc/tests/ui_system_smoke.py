@@ -24,7 +24,14 @@ in the save room with ui_menus on; Triangle, L1 (System). One row per page:
     qol_weapon_slots 1 saved); Map Right = Simple (vs_main_settings.simpleMap 1)
   - Interface: Prompt style greyed while Button prompts are the original
     glyphs (the first run's pick here); Right on Button prompts, then Right
-    on Prompt style steps it (pc_button_prompts_style, saved)
+    on Prompt style steps it (pc_button_prompts_style, saved); Menu opacity
+    (ui_menu_opacity, default 0.94: the menus' look before the setting):
+    Left steps it to 0.92 (pc_ui_menu_opacity, saved); a pointer drag to the
+    bar's first fifth sets about 0.2: the backdrop left of the rail goes from the
+    ground colour to the world showing through (measured against the
+    picture at 0.94 and the ground); the Ashley tab with its model is
+    see-through too (the model column's empty left strip off the ground
+    colour: the presenter's backdrop; before, an opaque cut-out)
   - Controls: Turn speed Right adds 15 deg/s (camera_stick RPC, saved);
     Reset camera (after a stick turn): the camera resets once the menu closes
   - Bindings: a capture blocks navigation (Triangle does not close the menu,
@@ -53,6 +60,7 @@ sys.path.insert(0, str(ROOT / "pc/tests"))
 from rood_rpc import OUT, Game, symbols  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
+from ui_ashley_smoke import GROUND  # noqa: E402  (the theme's ground colour)
 
 CLOSED = 0x3F
 SIMPLE_MAP, MONO_SOUND = 9, 10  # vs_main_settings_t (src/SLUS_010.40/main.h)
@@ -110,6 +118,9 @@ def main():
 
     def read_int(game, name, count=1):
         return list(struct.unpack(f"<{count}i", game.read(sym[name], 4 * count)))
+
+    def read_float(game, name):
+        return struct.unpack("<f", game.read(sym[name], 4))[0]
 
     def view_aspect(game):
         x, y, w, h = read_int(game, "pc_gl_view", 4)
@@ -345,6 +356,68 @@ def main():
         check(style["enabled"] and style_index == (STYLES.index(style["value"]) + 1) % len(STYLES)
               and read_int(game, "pc_button_prompts_style")[0] == style_index,
               f"Right on Prompt style: {style['value']} -> {new_style} (pc_button_prompts_style {style_index})")
+        # Menu opacity: the backdrop over the game and the panels (ui_theme.cpp theme())
+        def picture(name):
+            import numpy as np
+            from PIL import Image
+            path = game.present_screenshot(out / f"{name}.png")
+            image = np.asarray(Image.open(path).convert("RGB")).astype(np.int16)
+            if not args.out:
+                path.unlink()
+            return image
+
+        def off_ground(image, x, y):
+            """Mean distance from the theme's ground colour of a 32 x 120 patch (960 x 720: layout = pixels)."""
+            import numpy as np
+            return float(np.abs(image[y:y + 120, x:x + 32] - np.array(GROUND)).mean())
+
+        r = goto_row("ui_menu_opacity")
+        check(r["enabled"] and r["value"] == "0.94" and abs(read_float(game, "pc_ui_menu_opacity") - 0.94) < 1e-4,
+              f"Interface: Menu opacity 0.94 by default ({r['value']})")
+        solid = picture("opacity_094")
+        press("left")
+        check(rows()["ui_menu_opacity"]["value"] == "0.92"
+              and abs(read_float(game, "pc_ui_menu_opacity") - 0.92) < 1e-4,
+              f"Left: 0.92 ({rows()['ui_menu_opacity']['value']}, {read_float(game, 'pc_ui_menu_opacity'):.3f})")
+        y = CARD_ROW_Y0 + CARD_ROW_STEP * row_index("ui_menu_opacity")
+        ptr(SLIDER_X0 + 10, y, down=True)
+        ptr(SLIDER_X0 + (SLIDER_X1 - SLIDER_X0) * 0.2, y, down=True)
+        ptr(SLIDER_X0 + (SLIDER_X1 - SLIDER_X0) * 0.2, y, down=False)
+        opacity = read_float(game, "pc_ui_menu_opacity")
+        check(0.1 < opacity < 0.3, f"a pointer drag to the bar's first fifth: about 0.2 ({opacity:.2f}, "
+                                   f"{rows()['ui_menu_opacity']['value']})")
+        game.run(4)
+        thin = picture("opacity_low")
+        before, after = off_ground(solid, 8, 300), off_ground(thin, 8, 300)
+        import numpy as np
+        moved = float(np.abs(thin[300:420, 8:40] - solid[300:420, 8:40]).mean())
+        check(before < 6 and after > before + 8 and moved > 8,
+              f"the backdrop shows the world at {opacity:.2f}: off the ground colour {before:.1f} -> {after:.1f}, "
+              f"changed {moved:.1f} (left margin, 32 x 120)")
+        wait_clean()
+        saved_opacity = settings_lines(settings).get("ui_menu_opacity")
+        check(saved_opacity is not None and abs(float(saved_opacity) - opacity) < 1e-3,
+              f"saved ui_menu_opacity {opacity:g} ({saved_opacity})")
+        # the Ashley tab, its model shown: see-through as well
+        leave()
+        for _ in range(12):
+            if shell()["tab"] == "ashley":
+                break
+            press("r1", settle=8)
+        wait(lambda: (shell().get("ashley") or {}).get("model") == 2, "the Ashley model", limit=80)
+        game.run(10)
+        ashley = picture("opacity_low_ashley")
+        mx, my, mw, mh = (int(v) for v in shell()["ashley"]["model_rect"])
+        import numpy as np
+        strip = float(np.abs(ashley[my + 8:my + int(mh * 0.95), mx + 4:mx + 48] - np.array(GROUND)).mean())
+        check(strip > 6, f"Ashley tab see-through at {opacity:.2f}: the model column's empty left strip "
+                         f"off the ground colour by {strip:.1f} (before: an opaque cut-out, 0)")
+        for _ in range(12):
+            if shell()["tab"] == "system":
+                break
+            press("l1", settle=8)
+        check(shell()["tab"] == "system", f"back to System ({shell()['tab']})")
+        enter("interface")
         leave()
         saved_style = settings_lines(settings).get("button_prompts_style")
         check(saved_style == STYLE_NAMES[style_index],
@@ -486,6 +559,9 @@ def main():
             check(read_int(game, "pc_button_prompts_style")[0] == style_index,
                   f"relaunch: prompt style {STYLES[style_index]}")
             check(read_int(game, "pc_lighting_preset")[0] == 1, "relaunch: lighting quality Low")
+            relaunched = read_float(game, "pc_ui_menu_opacity")
+            check(abs(relaunched - float(first["ui_menu_opacity"])) < 1e-3,
+                  f"relaunch: menu opacity {first['ui_menu_opacity']} ({relaunched:.3f})")
             check(abs(game.call("camera_stick")["speed"] - float(first["camera_stick_speed"])) < 1e-3,
                   "relaunch: turn speed")
             game.call("settings", action="save")

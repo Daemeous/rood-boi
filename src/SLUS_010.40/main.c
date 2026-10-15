@@ -9952,7 +9952,15 @@ void vs_main_playSfx(int arg0, long id, int arg2, int arg3)
     }
 }
 
-void vs_main_playSfxDefault(int arg0, int id) { vs_main_playSfx(arg0, id, 0x80, 0x7F); }
+void vs_main_playSfxDefault(int arg0, int id)
+{
+#ifdef ROOD_PC
+    /* dev_rpc.c: counted for the smokes (RPC sfx) */
+    extern void pc_sfx_played(int bank, int id);
+    pc_sfx_played(arg0, id);
+#endif
+    vs_main_playSfx(arg0, id, 0x80, 0x7F);
+}
 
 int vs_main_computeSfxPan(int coords, int z)
 {

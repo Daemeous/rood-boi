@@ -260,6 +260,10 @@ void draw_capture(const Frame& f, const ui::Theme& t, int button, const char* la
 
 void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out)
 {
+    if (pc_ui_shell_manual_shown()) { // the Quick manual has the screen (ui_manual_draw.cpp)
+        draw_manual(f, t, top, dt, fresh, m, out);
+        return;
+    }
     pc_ui_system_view v;
     pc_ui_shell_system_view(&v);
     bool capture = v.capture >= 0;
@@ -280,7 +284,8 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
 
     // ---- the list ----
     float lx = t.margin_x, lw = list_width(f.W), y = top;
-    const char *id, *label, *help, *reason, *focus_label = "", *focus_help = "", *focus_reason = nullptr;
+    const char *id, *label, *help, *reason, *focus_label = "", *focus_help = "", *focus_reason = nullptr,
+                                               *focus_id = "";
     int enabled;
     for (int i = 0; pc_ui_shell_system_item(i, &id, &label, &help, &enabled, &reason); ++i) {
         if (i == 0 || i == v.games) {
@@ -301,7 +306,7 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
         if (i >= v.games)
             chevron(f, lx + lw - 16, y + ENTRY_H * 0.5f, 1, focus ? t.ash : t.dim, 0.8f);
         if (focus)
-            focus_label = label, focus_help = help, focus_reason = reason;
+            focus_label = label, focus_help = help, focus_reason = reason, focus_id = id;
         y += ENTRY_H;
     }
 
@@ -316,7 +321,9 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
         float h = paragraph(f, t, x0, top + 60, x1 - x0, t.ash, focus_help);
         float by = top + 60 + h + 14;
         f.dl->AddLine(f.p(x0, by), f.p(x1, by), t.rule, f.s(1));
-        uidraw::label(f, t, x0, by + 14, "Opens the game's own screen", t.dim);
+        bool manual = !std::strcmp(focus_id, "manual"); // read here (ui_manual_draw.cpp); Square: the original
+        uidraw::label(f, t, x0, by + 14, manual ? "Read here, or on the game's own screen" : "Opens the game's own screen",
+            t.dim);
         by += 38;
         if (focus_reason) {
             f.dl->AddRectFilled(f.p(x0, by), f.p(x0 + 2, by + t.body_size + 4), t.gold);
@@ -324,7 +331,9 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
         }
         card_end(f, t, card, by + 10);
         out.crumb += std::string(" > ") + focus_label;
-        out.hint(PC_PROMPT_CIRCLE, -1, "Open", PC_UI_CONFIRM);
+        out.hint(PC_PROMPT_CIRCLE, -1, manual ? "Read" : "Open", PC_UI_CONFIRM);
+        if (manual)
+            out.hint(PC_PROMPT_SQUARE, -1, "Original screen", PC_UI_ALT);
         out.hint(PC_PROMPT_CROSS, -1, "Close", PC_UI_BACK);
         out.hint(PC_PROMPT_TRIANGLE, -1, "Exit menu", PC_UI_EXIT);
         anim.page = -1;

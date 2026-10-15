@@ -621,7 +621,7 @@ void diamond(const Frame& f, const ui::Theme& t, float x0, float y0, int first, 
     const pc_ui_equip_view& v, Pointer& m)
 {
     const float W = 440, H = 50, gap = 6, cw = (W - 2 * gap) / 3;
-    unsigned stage = t.ground | 0xFF000000u;
+    unsigned stage = t.stage; // the ground as a panel (opaque at the theme's opacity; ui_menu_opacity)
     for (int i = first; i < first + 4; ++i) {
         float x = x0 + DIAMOND[i][0] * (cw + gap), y = y0 + DIAMOND[i][1] * (H + gap);
         bool on = v.mode == PC_UI_EQ_QUICK && v.quick == i, empty = e.quick_weapon[i] < 0;

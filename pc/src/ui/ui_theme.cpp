@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <time.h>
 
+extern "C" float pc_ui_menu_opacity; // project_settings.cpp: settings ui_menu_opacity
+
 namespace ui {
 namespace {
 
@@ -93,9 +95,13 @@ bool theme_parse(const char* text, Theme& t, std::string* error)
     return true;
 }
 
-const Theme& theme()
+namespace {
+// The theme file as last parsed; *serial counts the parses that changed it.
+const Theme& loaded(int* serial)
 {
     static Theme current;
+    static int parses;
+    *serial = parses;
     // the file's stamp (mtime in ns + size) as last loaded; only a good parse records it, so a
     // bad edit is retried at the next poll and two saves in the same second both reload
     static long long stamp_ns = -1, stamp_size = -1, failed_ns = -1, failed_size = -1;
@@ -132,6 +138,7 @@ const Theme& theme()
     std::string error;
     if (theme_parse(text.c_str(), next, &error)) {
         current = next;
+        *serial = ++parses;
         stamp_ns = ns, stamp_size = (long long)st.st_size;
     } else if (ns != failed_ns || (long long)st.st_size != failed_size) {
         fprintf(stderr, "[ui] %s: %s (theme kept)\n", path, error.c_str()); /* once per version */
@@ -139,8 +146,51 @@ const Theme& theme()
     }
     return current;
 }
+} // namespace
+
+float theme_opacity()
+{
+    int serial;
+    return (float)(loaded(&serial).ground >> 24) / 255.0f;
+}
+
+const Theme& theme()
+{
+    static Theme shown;
+    static float shown_opacity = -1;
+    static int shown_serial = -1;
+    int serial;
+    const Theme& t = loaded(&serial);
+    float o = pc_ui_menu_opacity;
+    o = std::isfinite(o) ? std::fmin(std::fmax(o, 0.0f), 1.0f) : 1.0f;
+    if (serial == shown_serial && o == shown_opacity)
+        return shown;
+    shown = t;
+    shown_opacity = o;
+    shown_serial = serial;
+    unsigned own = t.ground >> 24; // the theme's ground alpha (240: the menus' look before the setting)
+    float k = own ? o * 255.0f / (float)own : 1.0f;
+    auto alpha = [](unsigned c, float a) {
+        a = std::fmin(std::fmax(a, 0.0f), 255.0f);
+        return (c & 0x00FFFFFFu) | ((unsigned)(a + 0.5f) << 24);
+    };
+    shown.ground = alpha(t.ground, o * 255.0f);
+    shown.panel = alpha(t.panel, (float)(t.panel >> 24) * k);
+    shown.stage = alpha(t.ground, 255.0f * k);
+    return shown;
+}
 
 } // namespace ui
+
+// The modern menus' backdrop for the presenters (gl_present.c / vk_present.c, the Ashley tab's model
+// view): the ground colour (0..1) and its alpha, the menu's opacity. 1 when there is one.
+extern "C" int pc_ui_menu_backdrop(float rgba[4])
+{
+    unsigned c = ui::theme().ground; // 0xAABBGGRR
+    for (int i = 0; i < 4; ++i)
+        rgba[i] = (float)((c >> (8 * i)) & 0xFF) / 255.0f;
+    return 1;
+}
 
 // The ground colour's red, green and blue (0..255) for C (ashley_bridge.c
 // paints the model column's ground in it).

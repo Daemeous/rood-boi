@@ -3714,6 +3714,7 @@ typedef struct {
     float r[3][3], t[3], h, ofx, ofy;
     int widescreen, valid;
     float fade, fade_rect[4]; /* a screen fade's amount (0..1; record_fade) and where it covers */
+    int menu_model; /* the modern menu's Ashley model view (pc_hw_frame_menu_model) */
     uint32_t slots[MATCH_SLOTS]; /* surface -> start of its run in by_surface + 1 */
     int by_surface[MAX_RECORDED_VERTICES / 3], grouped; /* keyed triangles sorted by surface */
 } recording;
@@ -3839,6 +3840,19 @@ static void record_fade(float amount, const float rect[4])
     rec->fade = amount > rec->fade ? amount : rec->fade;
 }
 static float present_fade, present_fade_rect[4]; /* the shown picture's (hw_target) */
+/* The modern menu's Ashley model view (ui/ashley_bridge.c): the frame just
+ * drawn (its ordering table) is the menu's model alone over a flat 2D tile,
+ * the world frozen and not drawn. Tagged per frame, so what a present shows
+ * decides: the post stack runs neutral on it (post_profile.cpp) and the
+ * presenters put the held picture of the world behind the model (gl_present.c
+ * / vk_present.c backdrop) on exactly the presents that show such a frame. */
+static int present_menu_model;
+void pc_hw_frame_menu_model(int on)
+{
+    if (pc_hw_active)
+        recording_now()->menu_model = on != 0;
+}
+int pc_hw_present_menu_model(void) { return pc_hw_active && present_menu_model; }
 /* The shown picture's screen fade (0: none) and where it lands (u0, v0, u1, v1 of the display area). */
 float pc_hw_present_fade(float rect[4])
 {
@@ -4692,11 +4706,13 @@ static GLuint hw_target(void)
         recording* next = recording_now();
         next->vertex_count = next->triangle_count = next->op_count = next->overflow = next->writes = 0;
         next->fade = 0;
+        next->menu_model = 0;
         next->valid = 0;
         redraw_shown = 0; /* a new frame: the redrawn one is history */
     }
     present_fade = recordings[newest].fade; /* the newest frame's screen fade (interpolated below) */
     memcpy(present_fade_rect, recordings[newest].fade_rect, sizeof present_fade_rect);
+    present_menu_model = recordings[newest].menu_model;
     if (redraw_shown) { /* pc_hw_redraw_present */
         shown_rect[0] = redraw_origin[0], shown_rect[1] = redraw_origin[1];
         presenting_replay = 1;
@@ -4819,7 +4835,7 @@ static void forget_recordings(void)
     for (int i = 0; i < 3; i++) {
         recording* rec = &recordings[i];
         rec->vertex_count = rec->triangle_count = rec->op_count = rec->overflow = rec->writes = 0;
-        rec->valid = 0;
+        rec->valid = rec->menu_model = 0;
     }
 }
 

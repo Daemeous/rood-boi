@@ -1,6 +1,8 @@
 // Modern menu shell: tabs, rows, focus and the game's result protocol
 // (pc/docs/Modern_Menus.md). Pure state; drawing is ui_draw.cpp.
 #include "ui/ui_shell.h"
+#include "ui/map_frame.h"
+#include "ui/ui_manual.h"
 #include "ui/ui_settings.h"
 #include "ui/ui_workshop.h"
 #include <cstdio>
@@ -597,7 +599,7 @@ const RowDef SYSTEM_GAME[] = {
     {"data", "Data", "Save and load.", ROW_COMMAND, 6},
     {"options", "Options (original)", "The game's own Options screen.", ROW_COMMAND, 7},
     {"score", "Score", "Titles, gazette, records, encyclopaedia.", ROW_COMMAND, 8},
-    {"manual", "Quick manual", "How chains, risk and the workshop work.", ROW_COMMAND, 9},
+    {"manual", "Quick manual", "The game's own guide: controls, battle, magic and maps.", ROW_COMMAND, 9},
 };
 const int SYSTEM_GAMES = sizeof SYSTEM_GAME / sizeof SYSTEM_GAME[0];
 const char* const PAGE_HELP[PC_UI_SETTINGS_PAGES] = {
@@ -657,6 +659,7 @@ int sys_clamp()
 // a capture that listens is cancelled and what changed is saved.
 void sys_leave()
 {
+    pc_ui_manual_leave(); // out of the Quick manual too (its store events and the freeze back)
     if (capturing())
         pc_ui_settings_capture_done(-1, 0);
     pc_ui_settings_flush();
@@ -677,6 +680,10 @@ int sys_list_confirm()
     }
     int g[SYSTEM_GAMES];
     sys_games(g);
+    if (!std::strcmp(SYSTEM_GAME[g[s.sys.item]].id, "manual")) {
+        pc_ui_manual_enter(); // the native Quick manual (ui_manual.cpp); Square opens the original
+        return 0;
+    }
     sys_leave();
     s.visible = false; // the game shows the original screen; it reopens the shell after
     return SYSTEM_GAME[g[s.sys.item]].command + 1;
@@ -693,11 +700,32 @@ void sys_row_confirm(int page, int row)
         pc_ui_settings_change(page, row, 1);
     sys_clamp();
 }
+// The System list's entry is the Quick manual's row.
+bool sys_on_manual()
+{
+    int g[SYSTEM_GAMES];
+    int games = sys_games(g);
+    return s.sys.page < 0 && s.sys.item < games && !std::strcmp(SYSTEM_GAME[g[s.sys.item]].id, "manual");
+}
 int system_tick(const pc_ui_input* in)
 {
+    if (pc_ui_manual_mode()) { // the Quick manual has the screen
+        int r = pc_ui_manual_tick(in);
+        if (r) { // Square: the original MENUE on the manual's topic
+            sys_leave();
+            s.visible = false;
+        }
+        return r;
+    }
     int n = sys_items();
     sys_clamp();
     if (s.sys.page < 0) {
+        if ((in->pressed & PC_UI_ALT) && sys_on_manual()) { // Square: the original Quick manual (MENUE)
+            pc_ui_manual_original();
+            sys_leave();
+            s.visible = false;
+            return 10;
+        }
         if (in->repeat & PC_UI_DOWN)
             s.sys.item = (s.sys.item + 1) % n;
         if (in->repeat & PC_UI_UP)
@@ -776,7 +804,9 @@ void system_json(std::string& j)
     j += "\"note\":\"" + escape(note ? note : "") + "\",\"capture_note\":\"" + escape(refused ? refused : "")
         + "\",\"status\":\"";
     const char* status = pc_settings_status();
-    j += escape(status ? status : "") + "\"}";
+    j += escape(status ? status : "") + "\"";
+    pc_ui_manual_json(j);
+    j += "}";
 }
 
 // ---- Abilities ----
@@ -1791,6 +1821,11 @@ bool mouse_focus(int kind, int index)
     case PC_UI_MOUSE_WS_GRID:
     case PC_UI_MOUSE_WS_CONFIRM:
         return on_items() && s.it.ws && pc_ui_ws_mouse_focus(kind, index);
+    case PC_UI_MOUSE_MANUAL_TOPIC:
+    case PC_UI_MOUSE_MANUAL_CANVAS:
+    case PC_UI_MOUSE_MANUAL_PAGE:
+    case PC_UI_MOUSE_MANUAL_SCROLL:
+        return on_system() && pc_ui_manual_mouse_focus(kind, index);
     case PC_UI_MOUSE_ITEM: // where the list has the focus (the list, details, a move's target)
         if (!on_items() || s.it.ws || index < 0 || index >= it_rows(it_category())
             || (s.it.mode != PC_UI_IT_LIST && s.it.mode != PC_UI_IT_DETAILS && s.it.mode != PC_UI_IT_MOVE))
@@ -2001,6 +2036,13 @@ bool apply_mouse(pc_ui_input& in)
         if (mouse_focus(m.click_kind, m.click_index))
             in.pressed |= PC_UI_CONFIRM, in.repeat |= PC_UI_CONFIRM;
         return false;
+    case PC_UI_MOUSE_MANUAL_TOPIC: // the Quick manual's: a click that does it all (or nothing)
+    case PC_UI_MOUSE_MANUAL_CANVAS:
+    case PC_UI_MOUSE_MANUAL_PAGE:
+    case PC_UI_MOUSE_MANUAL_SCROLL:
+        if (on_system())
+            pc_ui_manual_mouse_click(m.click_kind, m.click_index);
+        return true;
     default:
         if (ab_click_zone(m.click_kind, m.click_index) || mg_click_level(m.click_kind, m.click_index)
             || it_click_zone(m.click_kind, m.click_index))
@@ -2065,6 +2107,7 @@ extern "C" void pc_ui_shell_open(const pc_ui_commands* commands, int remember)
     s.mouse = Mouse();
     s.drag_x = s.drag_y = 0;
     s.ash_shown = -1; // until the Ashley screen is drawn again
+    pc_ui_manual_leave(); // a manual left open by a session that ended without its close (nothing when off)
     s.sys.page = -1; // the System screen opens on its list
     if (!remember) {
         s.tab = 0;
@@ -2126,6 +2169,14 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
     // the Workshop's name field: L1 / R1 move its cursor (no tab switch)
     if (on_items() && s.it.ws && pc_ui_ws_takes_tabs() && !(in->pressed & (PC_UI_BACK | PC_UI_EXIT)))
         return items_tick(in);
+    // the Quick manual: Cross steps back (reading -> topics -> the System list); Triangle closes, the
+    // page's step of that frame first (the original's order)
+    if ((in->pressed & PC_UI_BACK) && !(in->pressed & PC_UI_EXIT) && on_system() && pc_ui_manual_mode()) {
+        pc_ui_manual_back(in);
+        return 0;
+    }
+    if ((in->pressed & PC_UI_EXIT) && on_system())
+        pc_ui_manual_exit_step(in);
     // Cross steps back out of a settings page to the System list
     if ((in->pressed & PC_UI_BACK) && !(in->pressed & PC_UI_EXIT) && on_system() && s.sys.page >= 0) {
         sys_leave();
@@ -2256,9 +2307,22 @@ extern "C" void pc_ui_shell_json(char* out, unsigned size)
         pc_ui_loot_json(loot, sizeof loot);
         j += loot;
     }
+    // the Map frame (ui_map.cpp): its block while armed or framed, else null
+    static char map[1 << 15];
+    pc_ui_map_json(map, sizeof map);
+    j += map;
     j += "}";
     std::snprintf(out, size, "%s", j.c_str());
 }
+
+extern "C" void pc_ui_shell_set_tab(int tab)
+{
+    if (tab < 0 || tab >= TAB_COUNT || !tab_has_rows(tab))
+        return;
+    s.tab = tab;
+    clamp_row(tab);
+}
+extern "C" int pc_ui_shell_step_tab(int dir) { return step_tab(s.tab, dir < 0 ? -1 : 1); }
 
 /* For ui_draw.cpp: read-only views of the state. */
 extern "C" int pc_ui_shell_tab(void) { return s.tab; }
@@ -2481,6 +2545,7 @@ extern "C" void pc_ui_shell_items_view(pc_ui_items_view* v)
 }
 
 extern "C" int pc_ui_shell_workshop_shown(void) { return on_items() && s.it.ws; }
+extern "C" int pc_ui_shell_manual_shown(void) { return s.visible && on_system() && pc_ui_manual_mode() != 0; }
 extern "C" void pc_ui_shell_push(int kind, int slot, int item, int shield, int count)
 {
     push(kind, slot, item, shield, count);

@@ -23,6 +23,7 @@
 #include "editor_undo.h"
 #include "camera_stick.h"
 #include "ui/ui_shell.h"
+#include "ui/map_frame.h"
 #include "ui/ui_workshop.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl3.h"
@@ -403,10 +404,12 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
     case SDL_EVENT_MOUSE_WHEEL:
         if (!visible) {
             /* The modern menus (pc/src/ui) take clicks and the wheel while
-             * they show; ui_draw hit-tests them against ImGui's pointer. A
-             * release always reaches ImGui: the click that closed the shell
-             * must not leave its button held there. */
-            if (!pc_ui_shell_drawn()) {
+             * they show (the shell, the Map frame, the Loot screen: as
+             * ui_draw.cpp pc_ui_shell_wants_mouse); ui_draw hit-tests them
+             * against ImGui's pointer. A release always reaches ImGui: the
+             * click that closed the shell must not leave its button held
+             * there. */
+            if (!pc_ui_shell_drawn() && !pc_ui_map_visible() && !pc_ui_loot_visible()) {
                 if (event->type == SDL_EVENT_MOUSE_BUTTON_UP)
                     ImGui_ImplSDL3_ProcessEvent(&scaled);
                 return 0;

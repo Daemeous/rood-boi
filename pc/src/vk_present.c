@@ -133,6 +133,10 @@ typedef struct {
     pc_medium_gpu medium; /* the unshadowed haze (haze Low): the room's medium (medium.glsl) */
     int fogvol[4]; /* the fog volumes' renderer (vk_fogvol.inc): its image's size, on, the debug view */
     float fogvol_scale[4]; /* its pixels per display pixel */
+    /* The modern menu's model view (gl_present.c "The modern menu's backdrop"): the ground colour and
+     * opacity; mode (0 off, 1 the ground alone, 2 the kept picture at binding 20 under it). */
+    float backdrop_color[4];
+    int backdrop[4];
 } present_ubo;
 
 /* ---- swapchain ---- */
@@ -250,13 +254,14 @@ static VkPipeline fullscreen(VkShaderModule vs, VkShaderModule fs, VkPipelineLay
 }
 static int make_pipelines(void)
 {
-    /* 12-15: the probe field (vk_probes.inc); 16: the lights; 17: the medium's texture; 18, 19: the fog volumes */
-    VkDescriptorType scaled_types[20];
-    for (int i = 0; i < 20; i++)
+    /* 12-15: the probe field (vk_probes.inc); 16: the lights; 17: the medium's texture; 18, 19: the fog volumes;
+     * 20: the menu's backdrop (backdrop_keep) */
+    VkDescriptorType scaled_types[21];
+    for (int i = 0; i < 21; i++)
         scaled_types[i] = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     scaled_types[0] = scaled_types[12] = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     scaled_types[16] = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    scaled_set = vk_push_layout(scaled_types, 20);
+    scaled_set = vk_push_layout(scaled_types, 21);
     single_set = vk_push_layout(&scaled_types[1], 1);
     triple_set = vk_push_layout(&scaled_types[1], 3);
     scaled_layout = make_layout(scaled_set, 0);
@@ -416,7 +421,8 @@ static int ensure_view(view_target* v, int w, int h)
     vk_image_destroy_later(&v->image);
     v->w = v->h = 0;
     if (!vk_image_create(&v->image, w, h, VIEW_FORMAT,
-            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT))
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                | VK_IMAGE_USAGE_TRANSFER_SRC_BIT /* (backdrop_keep reads the brightness input) */))
         return 0;
     v->w = w, v->h = h;
     return 1;
@@ -591,6 +597,52 @@ static int brightness_on(int view_w, int view_h)
         }
     }
     return ensure_view(&brightness_input, view_w, view_h);
+}
+/* The modern menu's backdrop (Ashley tab; gl_present.c "The modern menu's backdrop" says why and how):
+ * every present while the modern menu is up and shows the world keeps the chain's finished picture
+ * (before game text and the brightness curve); a present of the menu's model view shows it, under the
+ * menu's ground colour and opacity, where the frame has 2D (the present shader, binding 20). */
+extern int pc_ui_menu_active(void) __attribute__((weak));            /* ui/menu_bridge.c */
+extern int pc_ui_menu_backdrop(float rgba[4]) __attribute__((weak)); /* ui/ui_theme.cpp: ground, opacity */
+extern int pc_hw_present_menu_model(void) __attribute__((weak));     /* gpu_hw.c */
+static view_target backdrop;
+static int backdrop_valid;
+/* The present shader's backdrop fields and its image (binding 20). */
+static VkImageView backdrop_fill(present_ubo* u)
+{
+    float rgba[4] = { 0, 0, 0, 1 };
+    int mode = 0;
+    if (pc_hw_present_menu_model && pc_hw_present_menu_model() && pc_ui_menu_backdrop && pc_ui_menu_backdrop(rgba))
+        mode = backdrop_valid ? 2 : 1;
+    if (mode == 1)
+        rgba[3] = 1;
+    memcpy(u->backdrop_color, rgba, sizeof rgba);
+    u->backdrop[0] = mode;
+    return mode == 2 ? backdrop.image.view : vk_hw.dummy_color.view;
+}
+static void backdrop_keep(int view_x, int view_y, int view_w, int view_h)
+{
+    if (!pc_ui_menu_active || !pc_ui_menu_active()) {
+        backdrop_valid = 0;
+        if (backdrop.image.image) { /* the menu closed: give the picture's memory back */
+            vk_image_destroy_later(&backdrop.image);
+            backdrop.w = backdrop.h = 0;
+        }
+        return;
+    }
+    if ((pc_hw_present_menu_model && pc_hw_present_menu_model()) || !ensure_view(&backdrop, view_w, view_h))
+        return;
+    const vk_image* from = brightness_stage ? &brightness_input.image : &window_image;
+    int x = brightness_stage ? 0 : view_x, y = brightness_stage ? 0 : view_y;
+    vk_end_rendering();
+    VkImageBlit region = { .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .srcOffsets = { { x, y, 0 }, { x + view_w, y + view_h, 1 } },
+        .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .dstOffsets = { { 0, 0, 0 }, { view_w, view_h, 1 } } };
+    vkCmdBlitImage(vk_cmd(), from->image, VK_IMAGE_LAYOUT_GENERAL, backdrop.image.image, VK_IMAGE_LAYOUT_GENERAL, 1,
+        &region, VK_FILTER_NEAREST);
+    vk_barrier();
+    backdrop_valid = 1;
 }
 /* The last stage: brightness_input through the curve into the window's view. */
 static void brightness_draw(int view_x, int view_y, int view_w, int view_h)
@@ -1015,6 +1067,7 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             pu->fogvol[3] = pc_gl_show_depth ? 0 : pc_fog_volume_debug; /* (nothing drawn: black, clear) */
             vk_descriptors_image(&d, 18, fogvol_light, vk.nearest);
             vk_descriptors_image(&d, 19, fogvol_aux, vk.nearest);
+            vk_descriptors_image(&d, 20, backdrop_fill(pu), vk.linear); /* the menu's model view (above) */
             vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, scaled_layout);
             vkCmdDraw(cmd, 3, 1, 0, 0);
             if (post != PC_AA_OFF)
@@ -1111,6 +1164,9 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
                     sizeof push, &push);
                 vkCmdDraw(cmd, 3, 1, 0, 0);
             }
+            /* The modern menu's backdrop: keep this picture of the world (backdrop_keep, above). */
+            if (!pc_gl_show_depth)
+                backdrop_keep(view_x, view_y, view_w, view_h);
             /* Text held back for the window's resolution (gpu_hw.c ui_text_overlay), over the picture, before
              * the brightness curve (into the chain's last image, its view as the viewport). */
             if (brightness_stage)

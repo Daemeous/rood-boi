@@ -47,7 +47,12 @@ layout(std140, binding = 0) uniform Present {
     // light alone, 2 their transmittance); its pixels per display pixel.
     ivec4 fogvol;
     vec4 fogvol_scale;
+    // The modern menu's model view (vk_present.c backdrop_keep): 2D pixels show the kept picture of the
+    // world (backdrop.x 2) or the ground (1) under the menu's ground colour (rgb) at its opacity (a).
+    vec4 backdrop_color;
+    ivec4 backdrop;
 } u;
+layout(binding = 20) uniform sampler2D backdrop_tex;
 #define MEDIUM(i) u.medium_[i]
 layout(binding = 17) uniform sampler3D medium_tex; // the medium's texture (atmosphere.h pc_medium_texture)
 #define MEDIUM_TEX medium_tex
@@ -467,6 +472,9 @@ void main() {
         }
     }
     bool ui = d * 65536.0 < 0.5;
+    if (ui && u.backdrop.x != 0) // the menu's model view: the world behind, under the ground
+        c = mix(u.backdrop.x == 2 ? texture(backdrop_tex, uv).rgb : u.backdrop_color.rgb, u.backdrop_color.rgb,
+            u.backdrop_color.a);
     // Unlit 3D pixels (effects, particles, glows) get the same haze as their
     // neighbours: no dark cut-outs around them. The fog volumes also cover
     // where nothing is drawn (their far side).

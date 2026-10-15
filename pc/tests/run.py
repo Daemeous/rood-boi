@@ -252,6 +252,18 @@ def suites(args, mode="egl"):
                       "real chest, chests, disassemble (weapon, shield), consolidate, organize (discard, quantity, "
                       "merge, sort), difficulty filter, two lists, No paths; mouse; soft reset")]
           if args.save.exists() else []),
+        *([Suite("ui_map_smoke", [PY, str(TESTS / "ui_map_smoke.py"), "--card", str(args.save)], 300,
+                 note="Map frame (MENU5 with the shell's chrome): same map status, mapPaling, cursor memories, "
+                      "settings, menu / HUD state, scene buffer, camera and VRAM as the original map screen by pad "
+                      "and by pointer; areas, completion, pad and pointer limits, the area list, paling, close, "
+                      "soft resets, 16:9")]
+          if args.save.exists() else []),
+        *([Suite("ui_manual_smoke", [PY, str(TESTS / "ui_manual_smoke.py"), "--card", str(args.save)], 300,
+                 note="Quick manual (MENUE native): manualDisplayState, cursor memories, HUD/world flags, heap as "
+                      "the original by pad and pointer; sounds played = the original's (pad) and the manual's "
+                      "requests (pad, pointer); text = disc decode for 14 topics; sprite/rule counts, a blink, "
+                      "canvas pixels; button art as device prompts; 16:9; reset")]
+          if args.save.exists() else []),
         *([Suite("ui_workshop_smoke", [PY, str(TESTS / "ui_workshop_smoke.py"), "--card", str(args.save)], 300,
                  note="Items > Workshop: same bag, indices and MENUC cursor memories as the original Setup screen "
                       "(MENUC / MENU8) for repair, gems, disassemble (equipped too), assemble, rename, combine x3")]
@@ -368,6 +380,7 @@ CHECKPOINT_SUITES = {
     "ui_equip_smoke",
     "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "post_smoke",
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
+    "ui_map_smoke", "ui_manual_smoke",
 }
 
 

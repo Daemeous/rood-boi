@@ -45,12 +45,32 @@ add_test(NAME fixture_catalog COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOUR
 set_tests_properties(fixture_catalog PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..)
 # Modern menus: the shell's navigation (pc/src/ui/ui_shell.cpp) without the game.
 add_executable(ui_shell_probe tests/ui_shell_probe.cpp src/ui/ui_shell.cpp src/ui/ui_loot.cpp src/ui/ui_workshop.cpp
+    src/ui/ui_map.cpp
+    src/ui/ui_manual.cpp src/ui/manual_parse.c
     src/ui/ui_theme.cpp
     src/light_prefabs.cpp)
 target_include_directories(ui_shell_probe PRIVATE src)
 target_compile_features(ui_shell_probe PRIVATE cxx_std_17)
 target_compile_options(ui_shell_probe PRIVATE -Wall -Wextra -Werror)
 add_test(NAME ui_shell_probe COMMAND ui_shell_probe)
+# The same under AddressSanitizer / UBSan where the toolchain has them: the
+# Quick manual's file parser (manual_parse.c) on truncated page files.
+include(CheckCXXSourceCompiles)
+set(CMAKE_REQUIRED_FLAGS "-fsanitize=address,undefined")
+set(CMAKE_REQUIRED_LINK_OPTIONS "-fsanitize=address,undefined")
+check_cxx_source_compiles("int main() { return 0; }" ROOD_HAVE_ASAN)
+unset(CMAKE_REQUIRED_FLAGS)
+unset(CMAKE_REQUIRED_LINK_OPTIONS)
+if(ROOD_HAVE_ASAN)
+    get_target_property(probe_sources ui_shell_probe SOURCES)
+    add_executable(ui_shell_probe_asan ${probe_sources})
+    target_include_directories(ui_shell_probe_asan PRIVATE src)
+    target_compile_features(ui_shell_probe_asan PRIVATE cxx_std_17)
+    target_compile_options(ui_shell_probe_asan PRIVATE -Wall -Wextra -Werror -fsanitize=address,undefined
+        -fno-sanitize-recover=all)
+    target_link_options(ui_shell_probe_asan PRIVATE -fsanitize=address,undefined)
+    add_test(NAME ui_shell_probe_asan COMMAND ui_shell_probe_asan)
+endif()
 add_custom_target(boot
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/build_boot.py
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
