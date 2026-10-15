@@ -26,6 +26,9 @@ long pc_psx_rename(const char*, const char*);
 long erase(const char*);
 struct DIRENTRY* firstfile(const char*, struct DIRENTRY*);
 struct DIRENTRY* nextfile(struct DIRENTRY*);
+void pc_memory_card_set_path(int slot, const char* path);
+const char* pc_memory_card_path_setting(int slot);
+void pc_memory_card_describe(int slot, char* out, unsigned size);
 
 static unsigned long last_event;
 static long last_spec;
@@ -152,8 +155,55 @@ static int format_case(const char* name, const char* magic, int magic_size, long
     return 0;
 }
 
+/* The settings' card path (card1): quotes dropped, the card swapped only once
+ * no file is open on it, "default" back to pc/save, and ROOD_CARD1 winning. */
+static int path_setting_case(void)
+{
+    char a[] = "/tmp/rood-card-a-XXXXXX", b[] = "/tmp/rood-card-b-XXXXXX";
+    close(mkstemp(a));
+    close(mkstemp(b));
+    unlink(a);
+    unlink(b);
+    pid_t child = fork();
+    if (child == 0) {
+        unsetenv("ROOD_CARD1");
+        char quoted[64], info[700];
+        struct DIRENTRY entry;
+        snprintf(quoted, sizeof quoted, "  \"%s\"\r\n", a);
+        pc_memory_card_set_path(0, quoted);
+        if (strcmp(pc_memory_card_path_setting(0), a))
+            _exit(1);
+        long fd = pc_psx_open("bu00:BASLUS-01040VAG1", 0x200 | 1 << 16);
+        if (fd < 0 || pc_psx_close(fd) != fd)
+            _exit(2);
+        fd = pc_psx_open("bu00:BASLUS-01040VAG1", 1); /* open: the swap waits */
+        pc_memory_card_set_path(0, b);
+        if (!firstfile("bu00:*", &entry) || strcmp(entry.name, "BASLUS-01040VAG1"))
+            _exit(3);
+        pc_psx_close(fd);
+        pc_memory_card_describe(0, info, sizeof info); /* closed: now card b, not on disk yet */
+        if (firstfile("bu00:*", &entry) || !strstr(info, b) || !strstr(info, "new card"))
+            _exit(4);
+        setenv("ROOD_CARD1", a, 1);
+        pc_memory_card_set_path(0, "default");
+        pc_memory_card_describe(0, info, sizeof info);
+        if (pc_memory_card_path_setting(0)[0] || !strstr(info, a) || !strstr(info, "ROOD_CARD1")
+            || !firstfile("bu00:*", &entry))
+            _exit(5);
+        _exit(0);
+    }
+    int status;
+    CHECK(child > 0 && waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0);
+    unlink(a);
+    unlink(b);
+    puts("PASS: card path setting (quotes, swap once no file is open, default, ROOD_CARD1 wins)");
+    return 0;
+}
+
 int main(void)
 {
+    if (path_setting_case())
+        return 1;
     if (format_case("DexDrive .gme card: saved in place, header kept and its directory copy updated",
             "123-456-STD", 11, 0xF40, 1)
         || format_case("VGS .mem card: saved in place, header kept", "VgsM", 4, 0x40, 1)

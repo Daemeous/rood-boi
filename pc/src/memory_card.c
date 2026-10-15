@@ -4,9 +4,12 @@
  *
  * Each slot is a 128 KiB PS1 card image, so saves can move between this port
  * and an emulator:
- *   slot 1: $ROOD_CARD1 or pc/save/card1.mcd (always inserted; created on
- *           the first write)
- *   slot 2: $ROOD_CARD2 or pc/save/card2.mcd (inserted only if it exists)
+ *   slot 1: $ROOD_CARD1, else the settings' card1, else pc/save/card1.mcd
+ *           (always inserted; created on the first write)
+ *   slot 2: $ROOD_CARD2, else the settings' card2, else pc/save/card2.mcd
+ *           (inserted only if it exists)
+ * A changed path (the settings file, or the overlay's File > Memory cards...) swaps the
+ * card in once no file is open on that slot.
  * The format is recognised from the file's size and first bytes, not its name,
  * and a card is written back in the format it was read in:
  *   raw image (.mcd/.mcr/.srm/.ddf), 128 KiB starting "MC": read and written;
@@ -72,7 +75,7 @@ static const struct {
 #define MAX_HEADER 0xF40
 
 static struct card {
-    int loaded, present, writable;
+    int loaded, present, writable, swap, fresh; /* fresh: no file yet */
     enum card_format format;
     char path[512];
     unsigned char header[MAX_HEADER];
@@ -179,20 +182,42 @@ static enum card_format load_image(struct card* card, FILE* f)
     return FORMAT_UNKNOWN;
 }
 
+/* card1 / card2 from the settings (project_settings.cpp); "" for the default. */
+static char setting_paths[2][512];
+static const char* chosen_path(int slot)
+{
+    const char* path = getenv(slot ? "ROOD_CARD2" : "ROOD_CARD1");
+    if (path && *path)
+        return path;
+    if (setting_paths[slot][0])
+        return setting_paths[slot];
+    return slot ? "pc/save/card2.mcd" : "pc/save/card1.mcd";
+}
+static int files_open(int slot)
+{
+    for (int fd = 0; fd < 16; fd++)
+        if (files[fd].used && files[fd].slot == slot)
+            return 1;
+    return 0;
+}
+
 static struct card* slot_card(int slot)
 {
     if (slot < 0 || slot > 1)
         return NULL;
     struct card* card = &cards[slot];
+    if (card->swap && !files_open(slot)) {
+        card->swap = 0;
+        card->loaded = 0;
+    }
     if (!card->loaded) {
         card->loaded = 1;
-        const char* path = getenv(slot ? "ROOD_CARD2" : "ROOD_CARD1");
-        snprintf(card->path, sizeof card->path, "%s",
-            path && *path ? path : slot ? "pc/save/card2.mcd" : "pc/save/card1.mcd");
+        snprintf(card->path, sizeof card->path, "%s", chosen_path(slot));
         FILE* f = fopen(card->path, "rb");
         card->present = slot == 0 || f;
         card->format = FORMAT_RAW;
         card->writable = 1;
+        card->fresh = !f;
         if (f) {
             card->format = load_image(card, f);
             fclose(f);
@@ -227,6 +252,52 @@ static int read_only(struct card* card, const char* what)
 /* libcard ports are 0x00 (slot 1) and 0x10 (slot 2). */
 static struct card* port_card(psx_long port) { return slot_card((port >> 4) & 1); }
 
+/* ---- The settings' card1 / card2 (project_settings.cpp), File > Memory cards... ---- */
+
+/* A path, "" or "default" for pc/save/cardN.mcd; quotes around it are dropped
+ * (Windows' "Copy as path" adds them). */
+void pc_memory_card_set_path(int slot, const char* path)
+{
+    if (slot < 0 || slot > 1 || !path)
+        return;
+    while (*path == ' ' || *path == '\t')
+        path++;
+    char value[512];
+    snprintf(value, sizeof value, "%s", path);
+    size_t n = strlen(value);
+    while (n && strchr(" \t\r\n", value[n - 1]))
+        value[--n] = 0;
+    if (n >= 2 && value[0] == '"' && value[n - 1] == '"') {
+        memmove(value, value + 1, n - 2);
+        value[n - 2] = 0;
+    }
+    if (!strcmp(value, "default"))
+        value[0] = 0;
+    if (!strcmp(value, setting_paths[slot]))
+        return;
+    snprintf(setting_paths[slot], sizeof setting_paths[slot], "%s", value);
+    if (cards[slot].loaded)
+        cards[slot].swap = 1;
+}
+const char* pc_memory_card_path_setting(int slot) { return slot == 0 || slot == 1 ? setting_paths[slot] : ""; }
+
+/* The slot's card in one line: its file, format and state. */
+void pc_memory_card_describe(int slot, char* out, unsigned size)
+{
+    const char* env = getenv(slot ? "ROOD_CARD2" : "ROOD_CARD1");
+    const char* note = env && *env ? (slot ? " (ROOD_CARD2 overrides the setting)" : " (ROOD_CARD1 overrides the setting)") : "";
+    struct card* card = slot_card(slot);
+    if (!card)
+        snprintf(out, size, "Not inserted: no file at %s%s", chosen_path(slot), note);
+    else if (card->format == FORMAT_UNKNOWN)
+        snprintf(out, size, "%s: not a card image this reads (left alone; saves refused)%s", card->path, note);
+    else if (card->fresh)
+        snprintf(out, size, "%s: new card, created on the first save%s", card->path, note);
+    else
+        snprintf(out, size, "%s: %s%s%s", card->path, formats[card->format].name,
+            card->writable ? "" : ", read only", note);
+}
+
 static void save(struct card* card)
 {
     char temp[600];
@@ -254,6 +325,8 @@ static void save(struct card* card)
     }
     if (pc_replace_file(temp, card->path))
         fprintf(stderr, "[card] cannot replace %s: %s\n", card->path, strerror(errno));
+    else
+        card->fresh = 0;
 }
 
 /* "bu00:NAME" -> slot index and NAME; NULL for other devices. */
