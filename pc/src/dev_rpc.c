@@ -43,6 +43,13 @@
  *                                triggers: 0 Modern, 1 Original) and
  *                                qol_fp_invert_y (first-person up/down):
  *                                sets them, replies all three
+ *   button_roles {confirm_cross, field_cross_attack}  settings
+ *                                qol_confirm_cross and qol_field_cross_attack
+ *                                (button_roles.c, battle builds): sets them;
+ *                                replies them, the game's context now
+ *                                (menus, field, targeting, game), whether
+ *                                Circle and Cross are exchanged there (swap)
+ *                                and each role's button
  *   weapon_slots {enabled}       the QoL weapon slots (weapon_slots.c,
  *                                settings key qol_weapon_slots): sets the
  *                                option; replies it, the overlay/assign/swap
@@ -420,6 +427,8 @@ extern int pc_scene_camera_get(float (*)[3], float*, float*, float*, float*) __a
 extern void pc_rpc_state(char* out, unsigned size) __attribute__((weak)); /* dev_state.c */
 extern int pc_qol_weapon_slots; /* project_settings.cpp */
 extern int pc_qol_map_invert, pc_qol_fp_invert_y, pc_qol_map_controls; /* project_settings.cpp */
+extern int pc_qol_confirm_cross, pc_qol_field_cross_attack; /* project_settings.cpp */
+extern void pc_button_roles_json(char* out) __attribute__((weak)); /* button_roles.c */
 extern void pc_weapon_slots_json(char* out, unsigned size) __attribute__((weak)); /* weapon_slots.c */
 extern int pc_ui_menus; /* project_settings.cpp */
 extern void pc_ui_shell_json(char* out, unsigned size); /* ui/ui_shell.cpp */
@@ -1003,6 +1012,19 @@ static void handle_method(int fd, const char* request)
             pc_qol_fp_invert_y = flag;
         snprintf(result, sizeof result, "{\"map_invert\":%d,\"map_controls\":%d,\"fp_invert_y\":%d}",
             pc_qol_map_invert != 0, pc_qol_map_controls, pc_qol_fp_invert_y != 0);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "button_roles")) {
+        /* Circle and Cross exchanged by the game's context (button_roles.c). */
+        int flag;
+        if (!pc_button_roles_json) {
+            fail(fd, id, -32000, "button_roles needs the battle build");
+            return;
+        }
+        if (params && bool_value(member(params, "confirm_cross"), &flag))
+            pc_qol_confirm_cross = flag;
+        if (params && bool_value(member(params, "field_cross_attack"), &flag))
+            pc_qol_field_cross_attack = flag;
+        pc_button_roles_json(result);
         reply(fd, id, result);
     } else if (!strcmp(method, "weapon_slots")) {
         /* The QoL weapon slots (weapon_slots.c): the option and the state. */

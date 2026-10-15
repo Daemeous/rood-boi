@@ -159,8 +159,9 @@ A quick weapon swap ported from eremtsov's
 [Vagrant Story QoL mod](https://github.com/eremtsov/rood-reverse) (CC0; the
 `qol-mod-classic` branch, which adds only this feature). **Off by default**:
 settings key `qol_weapon_slots 1`, editor Graphics > Gameplay, RPC
-`weapon_slots {enabled}`. With it off the game is unchanged. Only the weapon
-slots are ported, none of the mod's other control changes.
+`weapon_slots {enabled}`. With it off the game is unchanged. The mod's other
+control changes are separate options (the look inversions under
+[Right-stick camera](#right-stick-camera), [Cross confirms](#cross-confirms-optional)).
 
 | Input | Keyboard | Does |
 | --- | --- | --- |
@@ -225,6 +226,40 @@ after the wind-up. Frame-interpolation extra presents pause meanwhile, and
 the audio stays in real time: what the device has no room for is dropped,
 with a short fade at each cut. `pc/src/boot_window.c` has the details. The
 game cannot take input during the wind-up, so nothing becomes harder.
+
+### Cross confirms (optional)
+
+Two button-role options from the same QoL mod, **both off by default** and
+independent of each other; both on are the mod's default controls. Editor
+Graphics > Controls, the modern menus' System > Controls, RPC
+`button_roles {confirm_cross, field_cross_attack}`.
+
+| Setting | On |
+| --- | --- |
+| `qol_confirm_cross` | Cross confirms and Circle cancels in menus and their screens, dialogues, the title, saving and loading, shops and workshops, loot, the L2 shortcut lists, the modern menus (the native Data screen and the map included; the map's Modern stick and trigger controls have no Circle or Cross) |
+| `qol_field_cross_attack` | in the field Cross draws the weapon and attacks, Circle interacts with the world and sheathes |
+
+Targeting (choosing what an attack, a spell or an item hits) confirms with
+Cross when either option is on: it is a menu confirm and the attack's
+second press. The buttons stay the game's own where they are not a confirm
+or an attack: the chain and defense abilities while an action runs (on
+Circle, Triangle and Square as the player put them), the L2 shortcut
+overlay, the first-person view (Cross, R3 or Start leave it) and the Battle
+Abilities lists (the original's and the modern Abilities tab's, where
+Circle, Triangle and Square put the ability on that button).
+
+How: the game's code is untouched. `pc/src/button_roles.c` exchanges the
+Circle and Cross bits of the pad word the game reads (keys, gamepad and RPC
+input alike, `boot_window.c` `pc_window_buttons`) when the game's own state
+says the context calls for it: the field mode `D_800F196C` (1 the field, 2
+an action with `_cameraMode` 1-3 targeting, 6 the L2 overlay, 7 first
+person), the open menu and its state (`vs_battle_menuState`,
+`vs_battle_submenuStates`) and, outside the battle loop, the menus. A
+button keeps the role it was pressed with until it is released. The modern
+menus read the same pad word, and their prompt icons follow through
+`pc_prompt_glyph`; the game's own button sprites and the ○ / × in its text
+are the button prompts' (`button_prompts.c`) and keep showing the PS1
+button. `pc/tests/button_roles_smoke.py` tests it.
 
 ### Modern menus (in progress)
 
@@ -1798,6 +1833,7 @@ redraws at about 60 Hz, and after each request):
 | `camera_stick` | the settings without `camera_stick_` (`enabled`, `speed`, ..., `r3_reset`, `idle_reset`, `keys`), `action` (`reset`) | the right-stick camera: settings and state (zoom, distances, collision hit, yaw; the first-person look: `first_person`, `fp_looks`, `fp_step`) |
 | `camera_options` | `map_invert`, `map_controls`, `fp_invert_y` | the optional map panning and first-person up/down inversions and the map's stick controls (settings `qol_map_invert`, `qol_map_controls` 0 Modern / 1 Original, `qol_fp_invert_y`) |
 | `skip_charging` | `mode` (0..2 or `off`, `fast`, `skip`), `reset` | battle charging (settings `qol_skip_charging`): the mode, whether the last vsync charged and its `_cameraMode` (`charging`, `phase`), and the counters since the last reset: charging `sequences`, their `vsyncs` and wall `ms` (`reset: true` zeroes them after the reply) |
+| `button_roles` | `confirm_cross`, `field_cross_attack` | the optional button roles (battle builds; settings `qol_confirm_cross`, `qol_field_cross_attack`): both options, the game's context now (`menus`, `field`, `targeting`, `game`), whether Circle and Cross are exchanged there (`swap`) and each role's button (`confirm`, `cancel`, `attack`, `interact`, `target`) |
 | `weapon_slots` | `enabled` | the optional weapon slots (battle builds): the option, overlay/assign/swap state, field mode, each weapon's slot and each shield's slot bits, what Ashley's battle record has equipped |
 | `ui_menu` | `modern`, `pointer` | the modern menus (`pc/src/ui`, battle builds): sets `ui_menus`; `model_heap_extra` (bytes, tests: the Ashley model's heap check asks for that much more); `pointer {x, y, click, right, wheel, down, middle}` is the next drawn frame's mouse in layout units (1280 or 960 x 720; hit tests as a moved pointer; down / middle: that button held, drags); the shell: visible, holding (closed, a result held during a model load, still drawn), menus, tab, tabs, rows (id, label, enabled, reason when greyed, value), focused row, the Equipment screen; `theme` (the colours shown: `tint` id, `tint_rgb` 0..31, `ground`, `panel`, `stage` as #rrggbbaa, `rule`, `rule2`, `dim`, `ash`); `system.rows[].swatch` (#rrggbb: Menu tint's colour chip); `map` (the Map frame: state, MENU5's published scene / room / camera, areas, rooms, completion, the list's cursor, request counters, the drawn pointer targets `hits`, or null) and `map_heap_free`; `system.manual` (the Quick manual: mode topics / reading, topic, label, desc, row, page_top, line, lines, line_count, page, pages, loaded, square, k, size, overflow, unknown, the page's ten `page_lines`, sprites, rules, hidden, `art` (button-art sprites) and `art_prompts` (drawn as the device's prompts), the `sfx` counters, the drawn `hits`, or null; `system.manual_sfx`: the manual's requested sounds, on or off); `data` (the native Data screen while armed or framed, else null: run, phase ops / card / files / prompt / wait / busy, state, op, save_ok, at_point, in_battle, warp_blocked, cursor, card, file, page, cancelled, ops_row, msg, msg_text, prompt, progress, fade, files_valid, files[] (state, generation, time, saves, hp, mp, location, clear, map, current, newest, name), cards (per card: -1 not checked, -2 no card, else its saves), card_sel, journey, goal {kind, a, auto}, seq, presses, busy_drops, rejected, expired, menu7_gated, settling, hover, the drawn `hits`); `backdrop_kept` (0 / 1: the presenter holds a picture of the world for the Ashley tab's model) and `backdrop_built` ([keep count, count the wait asked for] when the Ashley model was last built; [-1, 0] none yet) |
 | `card` | `fail_writes`, `unformatted` | tests that save (battle builds): `fail_writes` refuses the card's writes, `unformatted` makes the cards read as unformatted until one is formatted; answers `writes` (data writes so far), `fail_writes`, `unformatted` |

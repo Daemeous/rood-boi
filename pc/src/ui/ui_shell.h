@@ -39,6 +39,10 @@ int pc_ui_shell_tick(const pc_ui_input* input);
 void pc_ui_shell_close(void);
 /* The shell is up (opened and not closed). */
 int pc_ui_shell_visible(void);
+/* The focused screen takes Circle, Triangle and Square as the buttons to put
+ * an ability on (Abilities' learned list, as the original's own screen):
+ * button_roles.c leaves Circle and Cross as they are there. */
+int pc_ui_shell_face_buttons(void);
 /* The open shell as JSON (RPC ui_menu). */
 void pc_ui_shell_json(char* out, unsigned size);
 /* Equipment screen data (the bridge sets it each tick before pc_ui_shell_tick;

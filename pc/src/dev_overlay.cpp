@@ -752,6 +752,28 @@ static void look_panel()
                           "right stick. The right stick always looks around there; left/right are not inverted.");
 }
 
+extern "C" int pc_qol_confirm_cross, pc_qol_field_cross_attack; /* project_settings.cpp */
+/* Graphics > Controls: Circle and Cross exchanged where the game confirms or
+ * attacks (button_roles.c; off by default). */
+static void button_roles_panel()
+{
+    ImGui::Separator();
+    bool confirm = pc_qol_confirm_cross != 0;
+    if (ImGui::Checkbox("Cross confirms, Circle cancels (menus)", &confirm))
+        pc_qol_confirm_cross = confirm;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("From eremtsov's QoL mod. Menus, dialogues, the title, saving and loading, shops and\n"
+                          "targeting confirm with Cross and cancel with Circle. Field actions, the L2 shortcuts,\n"
+                          "the first-person view and the ability lists keep their buttons.");
+    bool field = pc_qol_field_cross_attack != 0;
+    if (ImGui::Checkbox("Cross attacks, Circle interacts (field)", &field))
+        pc_qol_field_cross_attack = field;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("From eremtsov's QoL mod. In the field Cross draws the weapon and attacks (and confirms\n"
+                          "the target); Circle talks, opens and sheathes. Chain and defense abilities keep\n"
+                          "Circle, Triangle and Square.");
+}
+
 extern "C" int pc_qol_weapon_slots; /* project_settings.cpp; weapon_slots.c */
 extern "C" int pc_skip_intro;       /* project_settings.cpp; boot_runtime.c */
 extern "C" int pc_qol_skip_charging; /* project_settings.cpp; boot_window.c */
@@ -1516,6 +1538,7 @@ static void details(float x, float y, float w, float h, double frame_ms)
             if (ImGui::CollapsingHeader("Controls")) {
                 camera_stick_panel();
                 look_panel();
+                button_roles_panel();
             }
             if (ImGui::CollapsingHeader("Gameplay"))
                 gameplay_panel();

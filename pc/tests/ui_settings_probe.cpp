@@ -22,7 +22,7 @@ extern "C" {
 
 extern "C" {
 extern int pc_hw_active, pc_hw_interpolate, pc_hw_scale_setting, pc_gl_aspect, pc_gte_widescreen, pc_ui_menus,
-    pc_gameplay_walls, pc_button_prompts, pc_qol_map_invert, pc_qol_map_controls, pc_qol_skip_charging;
+    pc_gameplay_walls, pc_button_prompts, pc_qol_map_invert, pc_qol_map_controls, pc_qol_skip_charging, pc_qol_confirm_cross;
 extern float pc_emissive;
 }
 
@@ -84,7 +84,7 @@ static void pages()
     CHECK(pc_ui_settings_rows(A) == (game ? 2 : 1));
     CHECK(pc_ui_settings_rows(I) == 15); // with Menu opacity, Menu tint, Tint red, green, blue
     CHECK(find(I, "ui_menu_tint") == 2 && find(I, "ui_menu_tint_b") == 5);
-    CHECK(pc_ui_settings_rows(C) == (game ? 17 : 16));
+    CHECK(pc_ui_settings_rows(C) == (game ? 19 : 18));
     // the look inversions after the stick camera (qol_fp_invert_y, qol_map_invert)
     CHECK(find(C, "qol_fp_invert_y") == find(C, "reset_camera") + 1 && find(C, "qol_map_invert") == find(C, "reset_camera") + 2);
     CHECK(value(C, "qol_map_invert") == "Off" && change(C, "qol_map_invert", 1) == 1 && pc_qol_map_invert == 1);
@@ -94,6 +94,11 @@ static void pages()
     CHECK(value(C, "qol_map_controls") == "Modern" && change(C, "qol_map_controls", 1) == 1
         && pc_qol_map_controls == 1 && value(C, "qol_map_controls") == "Original");
     pc_qol_map_controls = 0;
+    // then the button roles (qol_confirm_cross, qol_field_cross_attack)
+    CHECK(find(C, "qol_confirm_cross") == find(C, "qol_map_controls") + 1
+        && find(C, "qol_field_cross_attack") == find(C, "qol_map_controls") + 2);
+    CHECK(value(C, "qol_confirm_cross") == "Off" && change(C, "qol_confirm_cross", 1) == 1 && pc_qol_confirm_cross == 1);
+    pc_qol_confirm_cross = 0;
     CHECK(pc_ui_settings_rows(B) == 17);
     CHECK(pc_ui_settings_rows(P) == (game ? 12 : 5));
     // battle charging after the weapon quick slots: Off, Fast, Skip

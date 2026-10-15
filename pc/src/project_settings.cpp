@@ -57,6 +57,11 @@ int pc_qol_map_controls;
  * displayed field, the game logic unchanged (boot_window.c): 0 off (the
  * original pace, default), 1 Fast (4x), 2 Skip (as fast as the machine runs). */
 int pc_qol_skip_charging;
+/* qol_confirm_cross: Cross confirms and Circle cancels in menus and dialogs;
+ * qol_field_cross_attack: in the field Cross draws the weapon and attacks,
+ * Circle interacts and sheathes. Off by default; button_roles.c exchanges the
+ * two buttons in the pad word where the game's context calls for it. */
+int pc_qol_confirm_cross, pc_qol_field_cross_attack;
 
 /* Modern menus (pc/src/ui, pc/docs/Modern_Menus.md): 0 the game's own
  * menus, 1 the modern shell. Off by default until the screens are verified. */
@@ -217,6 +222,8 @@ const Entry entries[] = {
     I("qol_map_invert", pc_qol_map_invert),
     I("qol_map_controls", pc_qol_map_controls),
     I("qol_fp_invert_y", pc_qol_fp_invert_y),
+    I("qol_confirm_cross", pc_qol_confirm_cross),
+    I("qol_field_cross_attack", pc_qol_field_cross_attack),
     /* Gameplay. */
     I("qol_weapon_slots", pc_qol_weapon_slots),
     I("qol_skip_charging", pc_qol_skip_charging), /* 0 off, 1 fast, 2 skip */
