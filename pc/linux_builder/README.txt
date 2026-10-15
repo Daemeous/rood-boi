@@ -52,6 +52,41 @@ you build again. On a laptop with an NVIDIA GPU the game uses it
 automatically (ROOD_GPU=integrated keeps the default GPU).
 
 
+SAVES AND MEMORY CARDS
+----------------------
+rood-boi saves to PS1 memory card files, the same kind emulators use:
+* Slot 1: rood-boi/pc/save/card1.mcd (made on your first save)
+* Slot 2: rood-boi/pc/save/card2.mcd (only if that file exists)
+
+To use another card file: in the game press F1 (or Escape), open the
+Graphics tab, then "Memory cards". Type or paste the file's path for a
+slot, click Use, then "Save settings" at the top so it's remembered.
+"Default" goes back to pc/save. (Or edit the card1 / card2 lines in
+rood-boi/pc/user/settings.cfg.) Switch cards outside the save and load
+screens.
+
+Card files it can use:
+* .mcd, .mcr, .srm - raw card images (DuckStation, ePSXe, PCSX,
+  RetroArch Beetle PSX, MemcardRex): loads and saves.
+* .gme (DexDrive) and .mem / .vgs (Connectix VGS): loads and saves, and
+  keeps the file in its own format.
+* .vmp (PSP / PS Vita): loads only; saving is refused.
+Any other file is left alone: the slot shows an empty card and saving
+fails, so a wrong path can't damage anything.
+
+Playing your emulator saves: point a slot at the emulator's card, e.g.
+DuckStation's
+  ~/.local/share/duckstation/memcards/Vagrant Story (USA)_1.mcd
+(Flatpak: ~/.var/app/org.duckstation.DuckStation/data/duckstation/memcards).
+Don't have the same card file open in rood-boi and an emulator at the
+same time: each keeps its own copy and whichever saves last wins. The
+safe way is to copy the card into rood-boi/pc/save and point the slot at
+the copy.
+
+Single-save files (.mcs, .psx, .mcb, .ps1 ...) aren't cards: put them on
+a card file first, e.g. with MemcardRex.
+
+
 OPTIONS (the builder asks)
 --------------------------
 The builder starts by asking which of these you want:
