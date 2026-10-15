@@ -379,7 +379,7 @@ static void func_800F9CCC(void)
     bladeWepId = 0;
     bladeIndex = 0;
 
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
         if (vs_main_inventory.weapons[i].isEquipped != 0) {
             bladeIndex = i + 1;
             bladeWepId =
@@ -392,7 +392,7 @@ static void func_800F9CCC(void)
     shieldWepId = 0;
     shieldIndex = 0;
 
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_SHIELDS; ++i) {
         if (vs_main_inventory.shields[i].isEquipped != 0) {
             shieldIndex = i + 1;
             shieldWepId = vs_main_inventory.shields[i].base.wepId;
@@ -435,7 +435,7 @@ static void func_800F9CCC(void)
         vs_battle_applyArmor(
             &psx_get(vs_battle_characterState->unk3C)->limbs[i].armor, NULL);
 
-        for (j = 0; j < 16; ++j) {
+        for (j = 0; j < VS_INVENTORY_ARMOR; ++j) {
             if (vs_main_inventory.armor[j].limb == i + 1) {
                 vs_battle_applyArmor(
                     &psx_get(vs_battle_characterState->unk3C)->limbs[i].armor,
@@ -446,7 +446,7 @@ static void func_800F9CCC(void)
 
     vs_battle_applyAccessory(&psx_get(vs_battle_characterState->unk3C)->accessory, NULL);
 
-    for (i = 0; i < 16; ++i) {
+    for (i = 0; i < VS_INVENTORY_ARMOR; ++i) {
         if (vs_main_inventory.armor[i].limb == 7) {
             vs_battle_applyAccessory(&psx_get(vs_battle_characterState->unk3C)->accessory,
                 &vs_main_inventory.armor[i]);
