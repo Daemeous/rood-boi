@@ -16,9 +16,6 @@ extern int pc_gl_filter, pc_gl_aspect, pc_gte_widescreen, pc_hw_perspective, pc_
     pc_hw_interpolate, pc_hw_texture_filter, pc_hw_scale, pc_hw_scale_setting, pc_interp_skeleton, pc_interp_holds, pc_interp_uv,
     pc_present_rate;
 int pc_hw_set_scale(int scale);
-extern int pc_post_flags, pc_post_focus_mode;
-extern float pc_post_aperture, pc_post_focus, pc_post_dof_radius, pc_post_tilt[3], pc_post_fog[4],
-    pc_post_fog_range[2];
 extern int pc_gi_enabled, pc_rt_shadows, pc_baked_shadows, pc_shadow_samples, pc_gi_bounces, pc_gi_rays,
     pc_fog_steps, pc_gi_denoise, pc_baked_estimate, pc_glow_shadows;
 extern float pc_shadow_history, pc_gi_resolution;
@@ -26,20 +23,34 @@ extern int pc_lights_enabled;
 extern float pc_shadow_softness, pc_normal_smoothing;
 extern int pc_drop_shadow_mode __attribute__((weak)); // battle builds (actor_shadow.c)
 extern int pc_native_room, pc_native_occlusion, pc_native_actors, pc_native_actor_order, pc_native_blend,
-    pc_native_objects, pc_native_shadows, pc_native_effects, pc_reconstruct, pc_native_room_order;
+    pc_native_objects, pc_native_shadows, pc_native_effects, pc_reconstruct, pc_native_room_order,
+    pc_room_texture_lod;
 extern int pc_editor_hide_masks, pc_editor_game_cutaway, pc_editor_cutaway, pc_editor_cutaway_auto;
 extern float pc_editor_cutaway_radius, pc_editor_cutaway_opacity;
 extern int pc_lights_snap;
 extern int pc_env_global; /* environment.cpp */
 extern int pc_fog_global; /* atmosphere.cpp */
+extern float pc_fog_disturb[4]; /* atmosphere.cpp: the interactive fog's weights per source */
+extern int pc_fog_sim_budget;
+extern int pc_fog_volume_render, pc_fog_volume_steps, pc_fog_volume_steps_gl, pc_fog_volume_shadows; /* atmosphere.cpp */
+extern float pc_fog_volume_resolution, pc_fog_volume_history, pc_fog_volume_ambient, pc_fog_volume_glow,
+    pc_fog_volume_scattering, pc_fog_volume_halo;
 extern float pc_lights_snap_move, pc_lights_snap_angle;
 /* Gameplay options, read by the game side. qol_weapon_slots: the weapon
  * slots quick swap on L2 + R2 (weapon_slots.c, battle builds), off by default. */
 int pc_qol_weapon_slots;
+/* skip_intro: start at the title, without the publisher and developer logos
+ * and the intro movie (boot_runtime.c); off by default (the original start). */
+int pc_skip_intro;
 
 /* Modern menus (pc/src/ui, pc/docs/Modern_Menus.md): 0 the game's own
  * menus, 1 the modern shell. Off by default until the screens are verified. */
 int pc_ui_menus;
+/* Modern menus: the opacity of their backdrop over the game and their panels
+ * (System > Interface > Menu opacity; ui/ui_theme.cpp theme()), 0..1. The
+ * default is the theme's own ground alpha (0xF0): the menus' look before the
+ * setting. */
+float pc_ui_menu_opacity = 0.94f;
 }
 #include "camera_stick.h" /* the right-stick camera (camera_stick_*) */
 #include "editor_overlays.h"
@@ -53,6 +64,7 @@ int pc_ui_menus;
 #include "antialias.h" /* aa (msaa4+smaa ...), aa_downsample */
 #include "lighting_layers.h" /* lighting_packs, lighting_active_pack */
 #include "platform.h"
+#include "post.h" /* post_* (post profiles; the old post_flags, focus_mode, ... still load) */
 extern bool pc_lights_show_gizmos;
 namespace rood_lights {
 extern int animate; /* light actors' flicker and pulse (lights.cpp) */
@@ -102,6 +114,7 @@ const Entry entries[] = {
     I("native_room", pc_native_room),
     I("native_occlusion", pc_native_occlusion),
     I("native_room_order", pc_native_room_order),
+    I("room_texture_lod", pc_room_texture_lod),
     I("native_actors", pc_native_actors),
     I("native_actor_order", pc_native_actor_order),
     I("native_blend", pc_native_blend),
@@ -109,14 +122,6 @@ const Entry entries[] = {
     I("native_shadows", pc_native_shadows),
     I("native_effects", pc_native_effects),
     I("reconstruct", pc_reconstruct),
-    I("post_flags", pc_post_flags),
-    I("focus_mode", pc_post_focus_mode),
-    F("aperture", pc_post_aperture),
-    F("focus_depth", pc_post_focus),
-    F("dof_radius", pc_post_dof_radius),
-    FN("tilt_shift", pc_post_tilt, 3),
-    FN("depth_fog", pc_post_fog, 4),
-    FN("depth_fog_range", pc_post_fog_range, 2),
     I("baked_estimate", pc_baked_estimate),
     F("shadow_history", pc_shadow_history),
     I("haze_steps", pc_fog_steps),
@@ -127,6 +132,23 @@ const Entry entries[] = {
     I("light_animation", rood_lights::animate),
     I("environment", pc_env_global), /* the rooms' sun and sky (environment.cpp) */
     I("fog", pc_fog_global), /* the rooms' ground fog and fog volumes (atmosphere.cpp) */
+    /* The interactive fog (fog_sim.h): each disturbance source's weight (0 off; a volume's disturb_* override). */
+    F("fog_disturb_player", pc_fog_disturb[0]),
+    F("fog_disturb_actors", pc_fog_disturb[1]),
+    F("fog_disturb_attacks", pc_fog_disturb[2]),
+    F("fog_disturb_spells", pc_fog_disturb[3]),
+    I("fog_sim_budget", pc_fog_sim_budget), /* the most simulated volumes per room (0..4) */
+    /* The fog volumes' own renderer (atmosphere.h): on, its resolution, samples, history, light. */
+    I("fog_volume_render", pc_fog_volume_render),
+    F("fog_volume_resolution", pc_fog_volume_resolution),
+    I("fog_volume_steps", pc_fog_volume_steps),
+    I("fog_volume_steps_gl", pc_fog_volume_steps_gl),
+    F("fog_volume_history", pc_fog_volume_history),
+    F("fog_volume_ambient", pc_fog_volume_ambient),
+    F("fog_volume_glow", pc_fog_volume_glow),
+    F("fog_volume_scattering", pc_fog_volume_scattering),
+    F("fog_volume_halo", pc_fog_volume_halo),
+    I("fog_volume_shadows", pc_fog_volume_shadows),
     F("normal_smoothing", pc_normal_smoothing),
     I("gameplay_walls_ghost", pc_gameplay_walls_ghost),
     F("gameplay_walls_opacity", pc_gameplay_walls_opacity),
@@ -172,7 +194,9 @@ const Entry entries[] = {
     I("camera_stick_keys", pc_camera_stick_keys),
     /* Gameplay. */
     I("qol_weapon_slots", pc_qol_weapon_slots),
+    I("skip_intro", pc_skip_intro),
     I("ui_menus", pc_ui_menus),
+    F("ui_menu_opacity", pc_ui_menu_opacity),
 };
 const char* path()
 {
@@ -215,6 +239,8 @@ int apply_line(const char* line, int* scale, bool now)
         return 1;
     }
     if (pc_lighting_settings_parse(key, rest))
+        return 1;
+    if (pc_post_settings_parse(key, rest))
         return 1;
     if (!strcmp(key, "aa")) { /* off | fxaa | smaa, msaa2/4/8, ssaa[factor], joined by '+' */
         char text[64] = "";
@@ -453,6 +479,7 @@ extern "C" void pc_settings_write(FILE* f)
         fprintf(f, "master_volume %d\n", pc_master_volume_get());
     if (pc_brightness_get)
         fprintf(f, "brightness %d\n", pc_brightness_get());
+    pc_post_settings_write(f);
     fprintf(f, "lighting_packs %s\n", lighting::packs_setting().c_str());
     fprintf(f, "lighting_active_pack %s\n", lighting::active_pack_setting().c_str());
     for (const Entry& e : entries) {

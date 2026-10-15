@@ -17,12 +17,12 @@ layout(binding = 15) uniform sampler2D probe_data;
 layout(binding = 4, rgba16f) uniform writeonly image2D ray_out;
 
 bool touched = false; // rt_trace.comp's moving-blocker flag (unused here)
-vec3 probe_emitter_point(int i) {
-    vec3 r = vec3(rand(), rand(), rand()) * 2.0 - 1.0;
-    return emitter_pos[i].xyz + normalize(r + 1e-4) * pow(rand(), 0.333) * abs(emitter_col[i].w);
-}
+vec3 probe_shadow_dir; float probe_shadow_reach; // the last falloff's shadow ray (rt_lights.glsl emitter_shadow)
 float probe_emitter_falloff(int i, vec3 p, vec3 n, out vec3 l, out float d) {
-    vec3 to = probe_emitter_point(i) - p; d = length(to); l = to / max(d, 1e-3);
+    float a = rand(), b = rand(), c = rand();
+    vec4 r = vec4(a, b, c, rand());
+    vec3 to = emitter_sample(i, r) - p; d = length(to); l = to / max(d, 1e-3); // its sphere or column
+    probe_shadow_reach = emitter_shadow(i, p, r, probe_shadow_dir);
     float x = clamp(d / emitter_pos[i].w, 0.0, 1.0);
     return (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);
 }
@@ -45,7 +45,7 @@ vec3 probe_emitted(vec3 p, vec3 n) {
     vec3 l; float d, th; int hit; vec2 bc;
     float a = probe_emitter_falloff(i, p, n, l, d);
     if (a <= 0.0) return vec3(0.0);
-    if (glow_shadows != 0 && glow_casts_shadow(i) && trace(p + n * 1.5, l, d - emitter_col[i].w - 2.0, true, n, 0.0, th, hit, bc)) return vec3(0.0);
+    if (glow_shadows != 0 && glow_casts_shadow(i) && probe_shadow_reach > 2.0 && trace(p + n * 1.5, probe_shadow_dir, probe_shadow_reach - 2.0, true, n, 0.0, th, hit, bc)) return vec3(0.0);
     return emitter_col[i].rgb * a * emitter_light * all_ / weights[i];
 }
 // rt_trace.comp direct(): the dynamic lights with a shadow ray each, plus the glows.

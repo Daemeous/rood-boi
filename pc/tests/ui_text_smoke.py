@@ -20,7 +20,8 @@ ui_text font, so nothing moves between the two images. Checks:
 - original after font: the frame drawn with ui_text original again equals
   the first original drawing (those checks with ui_text_layout glyph);
 - line layout (ui_text_layout line, set explicitly; the bubble, the next
-  bubble with a comma and a period, the menu rows and information box): one
+  bubble with a comma and a period, the menu rows and information box, and
+  the screens below): one
   recorded frame drawn original, glyph by glyph and as lines (RPC ui_text
   lines reports each laid-out glyph's ink row by row): only the lines
   change, neighbours' ink never comes within a quarter pixel on any row, the
@@ -31,6 +32,33 @@ ui_text font, so nothing moves between the two images. Checks:
   and centred on the game's line (centre); a bubble typing out, each way,
   shows each glyph, frame
   by frame, at the place it keeps (reveal order);
+- the game's printers (pc_text_glyph): on the memory card screens (the
+  title's Continue, TITLE.PRG, and the field's DATA > LOAD, MENU7.PRG: their
+  own printers and advances, BATTLE.PRG's table not loaded at the title),
+  the status screen, the equipment list, the setup menu in a workshop, the
+  quick manual and one of its pages, and the magic menu in battle mode, every
+  dialogue and menu glyph drawn belongs to a string a printer reported (none
+  unexplained), and words stay whole: letters the game set next to each
+  other stay close (at most WORD_GAP) and each space it left stays a space
+  (at least WORD_GAP), with the line checks above (descenders whole both
+  ways: glyph by glyph no longer cuts them at the cell);
+- text at the window's resolution (ui_text_overlay auto; the title's memory
+  card screen in a 1920 x 1440 window, six times the PS1's): at internal
+  resolution 4 text is held back and presented at the window's resolution,
+  the same paused frame presented with the overlay off differs only on the
+  text (each pixel of the window maps to a VRAM pixel the 2D path drew text
+  into, a pixel around), and it is nearer (OVERLAY_NEARER of the mean
+  difference on the text) to the picture drawn at internal resolution 6 (the
+  window's own) than the 4x picture is; internal resolution 1 too (font text
+  at 1x); 16:9 likewise; ui_text original holds nothing back and presents
+  the same picture either way (frame-exact); in the save room with frame
+  interpolation the HUD's held-back numbers present the same on every image;
+- emote bubbles over actors (BATTLE.PRG func_80095C18, pc/src/ui_emotes.c;
+  every kind forced on the opening's actors: D_800F2260, D_800F2270): with
+  ui_text font and ui_bubbles vector the same recorded frame changes only
+  inside the regions the 2D path drew from shapes and fonts, the balloons,
+  dots and marks are drawn again (RPC ui_bubbles emotes), and with both
+  options off none is;
 - fixed labels (text baked into images): with ui_text font the HUD's HP and
   MP, the menu's header and the information box's INFORMATION are drawn
   from the font (RPC ui_text labels_drawn), never while it is original;
@@ -47,6 +75,11 @@ ui_text font, so nothing moves between the two images. Checks:
   small tolerance) of the width/height it has at aspect 1 (the font's own
   proportions), and neighbours at the game's advances (5 small, 6 large)
   never touch;
+- signs beside replaced text (RPC ui_text signs_drawn): the memory card
+  screens' (title and field) % and colons, drawn as the digits are, and
+  the equip screen's material letters are drawn from the font; the digits'
+  colon drawn alone (RPC ui_text render) is two dots, one above the other,
+  centred in and inside its 3 x 8 box;
 - settings: ui_text saves and loads (ROOD_SETTINGS); RPC ui_text style
   overrides apply;
 - no shader errors, Vulkan validation messages (ROOD_VK_VALIDATE where the
@@ -68,7 +101,7 @@ from scipy import ndimage
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 from checkpoints import launch_at  # noqa: E402
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT, Game, symbols  # noqa: E402
 
 failures = []
 
@@ -97,6 +130,13 @@ def redraw(game, work, mode, name):
     image = np.asarray(Image.open(path))
     path.unlink()
     return image, info
+
+
+def local_ink(image, rows, cols, contrast=40):
+    """Text ink against the background around it (the median), bright or
+    dark: a region mostly of background (below a baseline)."""
+    luma = image[rows, cols, :3].astype(int) @ np.array([299, 587, 114]) // 1000
+    return np.abs(luma - np.median(luma)) > contrast
 
 
 def ink(image, polarity):
@@ -190,6 +230,7 @@ def segments(lines):
 
 
 DESCENDERS = set(map(ord, "gjpqy"))
+DESCENT_ROWS = 6  # ui_text.c: rows below the 12-pixel cell a glyph may reach
 SPACING_SPREAD = 0.75  # PS1 pixels: the standard deviation of the gaps between letters of a word
 
 
@@ -229,12 +270,13 @@ def compare_lines(game, work, name, shots, label, polarity, align="left"):
     check(np.array_equal(a, d), f"{label} {name}: original after line layout draws the same picture")
     moved = int(np.any(b != c, axis=2).sum())
     check(moved > 0, f"{label} {name}: line layout changes the glyph-by-glyph picture ({moved} pixels)")
-    # What changes is on the lines: each glyph's original cell and its laid-out ink (a pixel around).
+    # What changes is on the lines: each glyph's original cell with the rows below it its descender reaches
+    # glyph by glyph (DESCENT_ROWS), and its laid-out ink (a pixel around).
     allowed = np.zeros((y1 - y0, x1 - x0), bool)
     for ln in lines:
         k = ln["k"]
         for g in ln["glyphs"]:
-            boxes = [(g["x"], ln["top"], g["x"] + 12 * k, ln["top"] + 12 * k)]
+            boxes = [(g["x"], ln["top"], g["x"] + 12 * k, ln["top"] + (12 + DESCENT_ROWS) * k)]
             if g["rows"]:
                 gx0, gx1, deep = drawn_ink(g)
                 boxes.append((gx0, min(r[0] for r in g["rows"]), gx1, deep))
@@ -276,9 +318,10 @@ def compare_lines(game, work, name, shots, label, polarity, align="left"):
     check(max(starts) <= 0.75 and max(ends) <= 1.5,
           f"{label} {name}: {len(starts)} lines {where} (within {max(starts):.2f} PS1 pixels) "
           f"and never run past their ends (at most {max(ends):.2f} past; at most {-min(ends):.1f} shorter)")
-    # Descenders below the baseline, drawn whole.
+    # Descenders below the baseline, drawn whole, as lines and glyph by glyph (no longer cut at the cell).
     ia, ib, ic = ink(a, polarity), ink(b, polarity), ink(c, polarity)
     found = deeper = whole = 0
+    shallow = []
     for ln in lines:
         k = ln["k"]
         for g in ln["glyphs"]:
@@ -290,15 +333,22 @@ def compare_lines(game, work, name, shots, label, polarity, align="left"):
                 continue
             cols = slice(int((gx0 - x0) * scale), int(np.ceil((gx1 - x0) * scale)))
             rows = slice(int((ln["base"] - y0) * scale), int(np.ceil((deep + 1 - y0) * scale)))
-            below_line, below_glyph = np.where(ic[rows, cols])[0], np.where(ib[rows, cols])[0]
+            # Glyph by glyph the descender is in the glyph's own cell's columns (a few pixels from the line's).
+            near = slice(max(int((g["x"] - 2 * k - x0) * scale), 0), int(np.ceil((g["x"] + 14 * k - x0) * scale)))
+            below_line, below_glyph = np.where(local_ink(c, rows, cols))[0], np.where(local_ink(b, rows, near))[0]
             if len(below_line) and below_line.max() / scale >= deep - ln["base"] - 1.0:
                 whole += 1
-            if len(below_line) and (not len(below_glyph) or below_line.max() > below_glyph.max()):
+            # (within a PS1 pixel: a glyph condensed into its cell has a thinner tail, a j's fades sooner)
+            if len(below_line) and len(below_glyph) and below_glyph.max() >= below_line.max() - scale:
                 deeper += 1
+            else:
+                shallow.append((chr(g["c"]), round(ln["top"]), round(g["x"]),
+                                int(below_line.max()) if len(below_line) else None,
+                                int(below_glyph.max()) if len(below_glyph) else None))
     if found:
         check(whole == found and deeper == found,
-              f"{label} {name}: {found} descenders reach below the baseline, drawn whole ({whole}) and deeper than "
-              f"in the cells ({deeper})")
+              f"{label} {name}: {found} descenders reach below the baseline drawn whole, as lines ({whole}) and "
+              f"glyph by glyph ({deeper}{'; not: ' + str(shallow) if shallow else ''})")
     if shots:
         side = np.concatenate([a, np.full((a.shape[0], 8, 3), 255, np.uint8), b,
                                np.full((a.shape[0], 8, 3), 255, np.uint8), c], axis=1)
@@ -306,6 +356,288 @@ def compare_lines(game, work, name, shots, label, polarity, align="left"):
         if image.width > 2400:
             image = image.resize((2400, image.height * 2400 // image.width), Image.LANCZOS)
         image.save(shots / f"{label}-{name}-lines-{align}.jpg", quality=85)
+
+
+LETTER_GAP = 2.25  # PS1 pixels: letters and digits of a word at most this far apart
+WORD_GAP = 2.5  # and words at least this far
+
+
+def check_words(lines, label):
+    """Words stay whole: on each line (by x), letters and digits the game set
+    without a space between them (their gap after the printer's advance
+    under half a space) keep their ink within LETTER_GAP of each other (on
+    the rows they share, or between their ink boxes: an F's arm over an a;
+    punctuation, ' / : ., may stand further off); neighbours with a space at
+    least WORD_GAP apart on every row they share."""
+    worst_word, worst_space, pairs = 0.0, 1e9, 0
+    for ln in lines:
+        k = ln["k"]
+        gs = sorted((g for g in ln["glyphs"] if g["rows"]), key=lambda g: g["x"])
+        for p, q in zip(gs, gs[1:]):
+            if p["str"] != q["str"]:
+                continue
+            left = {round(r[0] * 4): r[2] for r in p["rows"]}
+            shared = [r[1] - left[round(r[0] * 4)] for r in q["rows"] if round(r[0] * 4) in left]
+            if not shared:
+                continue
+            gap = min(shared) / k
+            pairs += 1
+            if (q["x"] - p["x"]) / k - p["advance"] < 3:
+                if chr(p["c"]).isalnum() and chr(q["c"]).isalnum():
+                    boxes = (drawn_ink(q)[0] - drawn_ink(p)[1]) / k
+                    worst_word = max(worst_word, min(gap, boxes))
+            else:
+                worst_space = min(worst_space, gap)
+    check(pairs > 0 and worst_word <= LETTER_GAP and (worst_space == 1e9 or worst_space >= WORD_GAP),
+          f"{label}: words stay whole ({pairs} neighbours; widest gap in a word {worst_word:.2f}, narrowest space "
+          f"{worst_space if worst_space < 1e9 else 0:.2f} PS1 pixels)")
+
+
+# Screens of the game's other printers (from the save room; "warp": the workshop "Metal Works", zone 45 room 0;
+# ("pick", ROW): the cursor moved to the menu row reading ROW, then Circle).
+SCREENS = [
+    ("status", [("triangle", 90), ("pick", "STATUS", 120)]),
+    ("equip", [("triangle", 90), ("pick", "ITEMS", 90), ("pick", "EQUIP", 120)]),
+    ("load", [("triangle", 90), ("pick", "DATA", 90), ("pick", "LOAD", 150), ("pick", "MEMORYCARDslot1", 150)]),
+    ("manual", [("triangle", 90), ("pick", "QUICKMANUAL", 150)]),
+    ("manual-page", [("pick", "BASICCONTROLS", 150)]),  # (continues the quick manual)
+    ("workshop", ["warp", ("triangle", 90), ("pick", "ITEMS", 90), ("pick", "SETUP", 120)]),
+    ("battle", [("circle", 90), ("triangle", 90), ("pick", "BATTLEABILITIES", 90),
+                ("pick", "CHAINABILITIES", 120)]),  # battle mode
+]
+
+
+def pick(game, work, row, settle):
+    """Move the menu cursor (the yellow hand left of the selected row) to the
+    row reading `row` (RPC ui_text lines: each line's text and place), then
+    Circle."""
+    for _ in range(16):
+        game.call("graphics", ui_text="font", ui_text_layout="line")
+        game.run(2)
+        lines = [ln for ln in lines_report(game, work) if ln["style"] == "menu" and ln["glyphs"]]
+        rows = {"".join(chr(g["c"]) for g in sorted(ln["glyphs"], key=lambda g: g["x"])): ln for ln in lines}
+        if row not in rows:
+            break
+        image, info = redraw(game, work, "font", "pick")
+        scale = image.shape[1] // 1024
+        r, g, b = (image[..., k].astype(int) for k in range(3))
+        target = rows[row]
+        # The hand is a triangle above-left of the selected row, its tip on the row's middle; the levels above
+        # keep theirs further left (the game draws into two buffers 320 pixels apart: the report's and the
+        # redrawn frame may be either).
+        x0 = min(gl["x"] for gl in target["glyphs"]) % 320
+        hand = (r > 180) & (g > 110) & (b < 100) & (r - b > 110)
+        near = np.zeros(hand.shape, bool)
+        for buffer in (0, 320):
+            near[:, max(int((buffer + x0 - 16) * scale), 0):int((buffer + x0) * scale)] = True
+        ys = np.where(hand & near)[0]
+        if not len(ys):
+            game.run(10)  # (no hand yet: the menu still sliding in)
+            continue
+        y = float(ys.max()) / scale  # its tip
+        selected = min(lines, key=lambda ln: abs(ln["top"] + 8 - y))
+        if selected is target:
+            game.press("circle", vsyncs=3, settle=settle)
+            return True
+        game.press("down" if selected["top"] < target["top"] else "up", vsyncs=3, settle=20)
+    check(False, f"menu row {row} picked")
+    return False
+
+
+def check_printers(game, work, name, shots):
+    """One screen: every glyph a printer's (none unexplained), words whole,
+    and the line checks (compare_lines)."""
+    game.call("graphics", ui_text="font", ui_text_layout="line")
+    game.run(6)
+    path = work / "lines.json"
+    game.call("ui_text", lines=str(path))
+    report = json.loads(path.read_text())
+    path.unlink()
+    lines = [line for line in report["lines"] if line["style"] in ("dialogue", "menu")]
+    text = " / ".join("".join(chr(g["c"]) for g in sorted(line["glyphs"], key=lambda g: g["x"])) for line in lines)
+    check(bool(lines) and report["unexplained"] == 0,
+          f"{name}: every glyph belongs to a printer's string ({report['unexplained']} unexplained; '{text[:120]}')")
+    check_words(lines, name)
+    compare_lines(game, work, name, shots, "menu", "bright", "left")
+
+
+OVERLAY_WINDOW = (1920, 1440)
+OVERLAY_NEARER = 0.6  # the overlay's mean difference on the text from the 6x picture, at most this share of the 4x's
+
+
+def present(game, work, name):
+    game.wait_presents(3)
+    path = work / f"{name}.png"
+    game.present_screenshot(path)
+    image = np.asarray(Image.open(path).convert("RGB")).astype(int)
+    path.unlink()
+    return image
+
+
+def text_mask(game, work, image_shape, mask):
+    """Window pixels over VRAM pixels the 2D path drew text into (a pixel
+    around): the presented view (RPC ui_text overlay view) maps the display
+    area (RPC ui_upscale display)."""
+    vx, vy, vw, vh = game.call("ui_text")["overlay"]["view"]
+    dx, dy, dw, dh = game.call("ui_upscale")["display"]
+    grown = ndimage.binary_dilation(mask, iterations=1)
+    ys, xs = np.mgrid[0:image_shape[0], 0:image_shape[1]]
+    inside = (xs >= vx) & (xs < vx + vw) & (ys >= vy) & (ys < vy + vh)
+    u = np.clip(dx + ((xs - vx) * dw) // max(vw, 1), 0, 1023)
+    v = np.clip(dy + ((ys - vy) * dh) // max(vh, 1), 0, 511)
+    return inside & grown[v, u]
+
+
+def run_overlay(work, card, shots):
+    """ui_text_overlay at a window six times the PS1's."""
+    copy = work / "card.mcd"
+    shutil.copyfile(card, copy)
+    extra = {"ROOD_WINDOW": f"{OVERLAY_WINDOW[0]}x{OVERLAY_WINDOW[1]}", "ROOD_SCALE": "4"}
+    game = launch(work, copy, "overlay", extra, checkpoint="title")
+    try:
+        game.call("graphics", interpolate=False, aa="off")
+        game.press("start", vsyncs=4, settle=60)
+        game.press("circle", vsyncs=4, settle=120)
+        game.press("circle", vsyncs=4, settle=150)  # Continue > MEMORY CARD slot 1: its files
+        check(game.call("graphics")["ui_text_overlay"] == "auto", "overlay: default ui_text_overlay auto")
+        # Original: nothing held back, the same picture either way.
+        game.call("graphics", ui_text="original", ui_text_overlay="auto")
+        game.run(8)
+        held = game.call("ui_text")["overlay"]["held"]
+        first = present(game, work, "overlay-original-auto")
+        game.call("graphics", ui_text_overlay="off")
+        again = present(game, work, "overlay-original-off")
+        check(held == -1 and np.array_equal(first, again),
+              f"overlay: ui_text original holds nothing back (held {held}) and presents the same picture "
+              f"({int(np.any(first != again, axis=2).sum())} pixels differ)")
+
+        def drawn(scale, widescreen=False):
+            """A frame at internal resolution `scale` with the overlay on, then off (the same paused frame)."""
+            game.call("graphics", ui_text="font", ui_text_layout="line", ui_text_overlay="auto", scale=scale,
+                      widescreen=widescreen)
+            game.call("ui_upscale", mask=str(work / "mask.pgm"))  # clear
+            game.run(8)
+            game.call("ui_upscale", mask=str(work / "mask.pgm"))
+            mask = np.asarray(Image.open(work / "mask.pgm")) > 0
+            on = present(game, work, f"overlay-{scale}x-on")
+            stats = game.call("ui_text")["overlay"]
+            region = text_mask(game, work, on.shape, mask)
+            game.call("graphics", ui_text_overlay="off")
+            off = present(game, work, f"overlay-{scale}x-off")
+            return on, off, stats, region
+
+        def only_text(label, on, off, region):
+            diff = np.any(on != off, axis=2)
+            outside = int((diff & ~region).sum())
+            check(diff.any() and outside == 0, f"overlay {label}: presented at the window's resolution, the same "
+                  f"frame changes only on the text ({int(diff.sum())} pixels, {outside} outside)")
+
+        a4, o4, stats, region = drawn(4)
+        check(stats["held"] > 0, f"overlay 4x: text held back for the window ({stats['held']} triangles)")
+        only_text("4x", a4, o4, region)
+        game.call("graphics", ui_text_overlay="off", scale=6)
+        game.run(8)
+        o6 = present(game, work, "overlay-6x-off")
+        held6 = game.call("ui_text")["overlay"]["held"]
+        check(held6 == -1, f"overlay 6x: the target as fine as the window: nothing held back ({held6})")
+
+        def error(image):
+            return float(np.abs(image - o6).sum(axis=2)[region].mean())
+
+        check(error(a4) <= OVERLAY_NEARER * error(o4),
+              f"overlay 4x: nearer the 6x picture on the text ({error(a4):.2f} vs {error(o4):.2f} at 4x)")
+        a1, o1, stats, region1 = drawn(1)
+        check(stats["held"] > 0, f"overlay 1x: font text held back for the window ({stats['held']} triangles)")
+        only_text("1x", a1, o1, region1)
+        # (text something drew over is drawn into the 1x picture: nearer than the 4x picture, not by as much)
+        check(error(a1) < error(o4),
+              f"overlay 1x: nearer the 6x picture on the text ({error(a1):.2f}) than the 4x picture ({error(o4):.2f})")
+        w4, wo4, stats, region_w = drawn(4, widescreen=True)
+        check(stats["held"] > 0 and stats["view"][2] * 9 == stats["view"][3] * 16,
+              f"overlay 16:9: text held back ({stats['held']}) in a 16:9 view ({stats['view']})")
+        only_text("16:9", w4, wo4, region_w)
+        game.call("graphics", widescreen=False)
+        if shots:
+            for name, image in (("4x-overlay", a4), ("4x-off", o4), ("6x-off", o6), ("1x-overlay", a1)):
+                Image.fromarray(image.astype(np.uint8)).save(shots / f"overlay-{name}.png")
+    finally:
+        game.close()
+    log_clean(game, "overlay")
+    # Frame interpolation: images between the game's frames keep the held-back HUD numbers.
+    shutil.copyfile(card, copy)
+    game = launch(work, copy, "overlay-field", extra, checkpoint="save_room")
+    try:
+        game.call("graphics", interpolate=True, present_rate=1, aa="off", ui_text="font", ui_text_overlay="auto")
+        game.call("ui_upscale", mask=str(work / "mask.pgm"))  # clear
+        game.run(10)
+        game.call("ui_upscale", mask=str(work / "mask.pgm"))
+        mask = np.asarray(Image.open(work / "mask.pgm")) > 0
+        images = []
+        for _ in range(4):
+            game.run(1)
+            images.append(present(game, work, "overlay-field"))
+        stats = game.call("ui_text")["overlay"]
+        vx, vy, vw, vh = stats["view"]
+        # The HUD's lettering (HP / MP and their numbers, top left): its bright pixels on the first image
+        # (the scene behind its edges moves between images).
+        hud = text_mask(game, work, images[0].shape, mask)
+        hud[vy + vh // 6:] = False
+        hud[:, vx + vw // 2:] = False
+        lettering = hud & (images[0] @ np.array([299, 587, 114]) > 180000)
+        worst = max(int(np.abs(image - images[0])[lettering].max()) for image in images[1:])
+        check(stats["held"] > 0 and lettering.sum() > 1000 and worst <= 8,
+              f"overlay: interpolated images keep the held-back HUD text ({stats['held']} triangles held, "
+              f"{int(lettering.sum())} lettering pixels, worst change {worst})")
+    finally:
+        game.close()
+    log_clean(game, "overlay-field")
+
+
+def run_screens(work, card, shots):
+    """The title's memory card screen, then each screen of SCREENS."""
+    copy = work / "card.mcd"
+    shutil.copyfile(card, copy)
+    game = launch(work, copy, "title", checkpoint="title")
+    try:
+        game.call("graphics", interpolate=False, aa="off")
+        game.call("ui_text", forget_signs=True)  # (only this screen's)
+        game.press("start", vsyncs=4, settle=60)
+        game.press("circle", vsyncs=4, settle=120)
+        game.press("circle", vsyncs=4, settle=150)  # Continue > MEMORY CARD slot 1: its files
+        check_printers(game, work, "title-load", shots)
+        check_signs(game, "title-load")
+    finally:
+        game.close()
+    log_clean(game, "title")
+    game = None
+    for name, steps in SCREENS:
+        if not name.startswith("manual-"):  # (a page continues the screen before)
+            if game:
+                game.close()
+                log_clean(game, "screens")
+            shutil.copyfile(card, copy)
+            game = launch(work, copy, "screens", checkpoint="save_room")
+            game.call("graphics", interpolate=False, aa="off")
+            game.call("ui_text", forget_signs=True)  # (only this screen's: not the boot's memory card screen)
+        for step in steps:
+            if step == "warp":
+                game.call("room_goto", zone=45, room=0)
+                for _ in range(60):
+                    game.run(20)
+                    if game.call("room_goto", action="status")["phase"] in (0, 4):
+                        break
+                game.run(60)
+                check((game.state()["zone"], game.state()["room"]) == (45, 0), f"{name}: in the workshop")
+                continue
+            if step[0] == "pick":
+                pick(game, work, step[1], step[2])
+            else:
+                game.press(step[0], vsyncs=3, settle=step[1])
+        check_printers(game, work, name, shots)
+        check_signs(game, name)
+    if game:
+        game.close()
+        log_clean(game, "screens")
 
 
 def check_reveal(game, work, frames=90, align="centre"):
@@ -409,6 +741,41 @@ def check_digits(game, work):
                         f"(narrowest gap {gap / factor:.2f} PS1 pixels)")
 
 
+# Signs beside replaced text, drawn from the font too (RPC ui_text signs_drawn): the memory card screens'
+# MAP:34% and times (the % from the info style's page, the colon from the digits'; both as the digits),
+# the equip screen's material letters (the card's Bronze, Wood and Leather).
+SIGNS = {"title-load": ":%", "load": ":%", "equip": "BWL"}
+
+
+def check_signs(game, name):
+    if name not in SIGNS:
+        return
+    drawn = game.call("ui_text")["signs_drawn"]
+    check(set(SIGNS[name]) == set(drawn),
+          f"{name}: these signs and only these drawn from the font as signs ({SIGNS[name]!r}: {drawn!r})")
+
+
+def check_colon_render(game, work):
+    """The digits' colon (3 x 8 at (248, 8)): two dots from the font, one
+    above the other, centred in the box, inside it."""
+    factor = 8
+    texels = render(game, work, (UI_PAGE, CLUT_DIGITS, 248, 8, 250, 15), factor)
+    if not check(texels is not None, "colon: drawn from the font"):
+        return
+    inside = bright(texels)
+    dots, count = ndimage.label(inside)
+    check(count == 2, f"colon: two dots ({count})")
+    if count != 2:
+        return
+    (ya, xa), (yb, xb) = ndimage.center_of_mass(inside, dots, [1, 2])
+    middle = texels.shape[1] / 2 - 0.5
+    check(abs(xa - middle) <= factor * 0.5 and abs(xb - middle) <= factor * 0.5 and abs(ya - yb) >= 2 * factor,
+          f"colon: the dots one above the other, centred ({xa / factor:.2f}, {xb / factor:.2f} of 3; "
+          f"{abs(ya - yb) / factor:.2f} apart)")
+    drawn = np.where(texels != 0)
+    check(drawn[0].min() > 0 and drawn[0].max() < texels.shape[0] - 1, "colon: inside its box")
+
+
 def check_label_render(game, work):
     """HP alone: ink inside its box, at the original's height."""
     texels = render(game, work, (UI_PAGE, CLUT_LABELS, 144, 0, 159, 8), 8)
@@ -482,6 +849,52 @@ def log_clean(game, label):
         print("\n".join(line for line in log.splitlines() if "validation" in line or "crash" in line)[:4000])
 
 
+def run_emotes(work, shots):
+    """The emote bubbles, each kind, on the opening's actors."""
+    game = launch(work, None, "emotes", checkpoint="first_bubble")
+    try:
+        game.call("graphics", interpolate=False, aa="off", ui_text="original", ui_bubbles="original")
+        game.run(200)
+        kinds = symbols()["D_800F2260"]
+        game.write(symbols()["D_800F2270"], bytes(4))  # (the scene keeps them off)
+        before = game.call("ui_bubbles")["emotes"]
+        for kind in range(1, 8):
+            game.write(kinds, bytes([0] + [kind] * 15))
+            game.call("graphics", ui_text="original", ui_bubbles="original")
+            game.run(4)
+            plain, info = redraw(game, work, "original", f"emote-{kind}-plain")
+            if kind == 1:
+                check(game.call("ui_bubbles")["emotes"] == before,
+                      f"emotes: nothing drawn again while ui_text and ui_bubbles are original ({before})")
+            game.call("graphics", ui_text="font", ui_bubbles="vector")
+            game.call("ui_upscale", mask=str(work / "mask.pgm"))  # clear
+            game.run(4)
+            game.call("ui_upscale", mask=str(work / "mask.pgm"))
+            mask = np.asarray(Image.open(work / "mask.pgm")) > 0
+            game.call("graphics", ui_bubbles="vector")
+            drawn, _ = redraw(game, work, "font", f"emote-{kind}")
+            game.call("graphics", ui_bubbles="original")
+            again, _ = redraw(game, work, "original", f"emote-{kind}-again")
+            scale = drawn.shape[1] // 1024
+            big = np.repeat(np.repeat(ndimage.binary_dilation(mask, iterations=1), scale, 0), scale, 1)
+            diff = np.any(drawn != again, axis=2)
+            check(diff.any() and not (diff & ~big).any(),
+                  f"emotes {kind}: shapes and fonts change only the regions drawn from them ({int(diff.sum())} pixels, "
+                  f"{int((diff & ~big).sum())} outside)")
+            x, y, w, h = info["area"]
+            crop = (slice(y * scale, (y + h) * scale), slice(x * scale, (x + w) * scale))
+            if shots:
+                Image.fromarray(np.concatenate([again[crop], drawn[crop]], axis=1)).save(shots / f"emote-{kind}.png")
+            del plain
+        game.write(kinds, bytes(16))
+        after = game.call("ui_bubbles")["emotes"]
+        check(after["balloons"] > before["balloons"] and after["dots"] > before["dots"]
+              and after["marks"] > before["marks"], f"emotes: balloons, dots and marks drawn again ({after})")
+    finally:
+        game.close()
+    log_clean(game, "emotes")
+
+
 def run_bubble(work, shots):
     """New Game: the opening's first talk bubble."""
     game = launch(work, None, "bubble", checkpoint="first_bubble")  # New Game, Circle, 2200 vsyncs
@@ -531,6 +944,7 @@ def run_save(work, card, shots):
             check("HP" in drawn and "MP" in drawn, f"save: HUD labels drawn from the font ({drawn})")
             check_digits(game, work)
             check_label_render(game, work)
+            check_colon_render(game, work)
             check_cross(game, work, shots)
             game.press("triangle", vsyncs=3, settle=60)
             game.press("circle", vsyncs=3, settle=60)
@@ -588,8 +1002,11 @@ def main():
     work.mkdir(parents=True, exist_ok=True)
     (work / "settings.cfg").unlink(missing_ok=True)
     run_bubble(work, args.shots)
+    run_emotes(work, args.shots)
     if card:
         run_save(work, card, args.shots)
+        run_screens(work, card, args.shots)
+        run_overlay(work, card, args.shots)
     else:
         print("note: no memory card: the talk bubble only")
     if failures:

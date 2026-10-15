@@ -1,0 +1,18 @@
+{
+  "title": "Film",
+  "description": "AgX tone curve, warm white balance, lifted blacks and visible grain: a printed-film look.",
+  "values": {
+    "tonemapper": "agx",
+    "tonemap_white": 8,
+    "exposure": 0.2,
+    "temperature": 5600,
+    "contrast": [1, 1, 1, 1.15],
+    "shadows_offset": [0.004, 0.002, 0, 0],
+    "bloom_intensity": 0.2,
+    "bloom_method": "gaussian",
+    "grain": 0.45,
+    "grain_size": 2,
+    "grain_highlights": 0.3,
+    "vignette": 0.25
+  }
+}

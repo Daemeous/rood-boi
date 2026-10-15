@@ -8,7 +8,9 @@
  * vsync), so every method runs at a frame boundary with no locking. Methods:
  *
  *   status                       counters (vsync, battle frame, presents: images
- *                                presented), pause state, display, start state
+ *                                presented, window_presents: of them, those that
+ *                                reached a real window; device_lost: Vulkan
+ *                                stopped rendering), pause state, display, start state
  *   pause {paused}               stop (or resume) the game at vsync boundaries
  *   step {vsyncs}                run N vsyncs, then pause again
  *   wait {timeout_ms}            reply (as status) once the game is paused with
@@ -31,8 +33,18 @@
  *                                bits (battle builds)
  *   ui_menu {modern}             modern menus (pc/src/ui): sets ui_menus,
  *                                returns the shell (visible, menus, tab,
- *                                tabs, rows, row; battle builds)
- *   system {window_mode, master_volume, brightness, bind, key, pad, down}
+ *                                tabs, rows, row; loot while the Loot screen
+ *                                shows; battle builds); {text, key}: typed
+ *                                into the Workshop's name field as the
+ *                                keyboard types (key: backspace, delete,
+ *                                left, right, home, end, enter, escape)
+ *   loot {hex, chest}            tests: open the loot menu as the game does
+ *                                (whole 0x220-byte vs_battle_loot lists, as
+ *                                after a battle; chest: the first as a
+ *                                chest's); only while no menu is open
+ *   system {window_mode, master_volume, brightness, bind, key, pad, down,
+ *           mouse: [x, y], button}   (mouse: window pixels, button 1-3 with
+ *                                down, or 0: a wheel step of `wheel`)
  *                                System settings (pc/src/ui/ui_settings.h hooks):
  *                                set window_mode (windowed | borderless |
  *                                fullscreen), master_volume, brightness; bind
@@ -153,7 +165,7 @@
  *                                (editor: 1 active, 2 all probes);
  *                                native_room (0 legacy room packets, 1 native
  *                                room meshes, 2 native without the reference
- *                                packets), native_occlusion, room_order
+ *                                packets), native_occlusion, room_order, room_texture_lod
  *                                (coplanar room surfaces in PS1 order;
  *                                room_slack, room_slack_units: how far
  *                                behind the nearest surface still counts as
@@ -349,7 +361,8 @@ extern int pc_lighting_autodetect(int, int) __attribute__((weak));
 extern const char* pc_lighting_preset_name(int) __attribute__((weak));
 extern int pc_perf_json(char*, int, int) __attribute__((weak));
 extern int pc_hw_perspective __attribute__((weak)), pc_gl_show_depth __attribute__((weak));
-extern int pc_post_flags __attribute__((weak));
+extern void pc_post_set_flags(int) __attribute__((weak)); /* post_profile.cpp */
+extern int pc_post_rpc(const char*, char*, int) __attribute__((weak));
 extern float pc_normal_smoothing __attribute__((weak));
 extern int pc_hw_subpixel __attribute__((weak));
 extern int pc_hw_interpolate __attribute__((weak));
@@ -380,13 +393,15 @@ extern int pc_qol_weapon_slots; /* project_settings.cpp */
 extern void pc_weapon_slots_json(char* out, unsigned size) __attribute__((weak)); /* weapon_slots.c */
 extern int pc_ui_menus; /* project_settings.cpp */
 extern void pc_ui_shell_json(char* out, unsigned size); /* ui/ui_shell.cpp */
-extern void pc_ui_draw_pointer(float x, float y, int click, int right, float wheel, int down); /* ui/ui_draw.cpp */
+extern void pc_ui_draw_pointer(float x, float y, int click, int right, float wheel, int down, int middle,
+    int shift); /* ui/ui_draw.cpp */
 extern int pc_ui_menu_active(void) __attribute__((weak)); /* ui/menu_bridge.c (battle builds) */
 extern int pc_native_room __attribute__((weak)), pc_native_occlusion __attribute__((weak)),
     pc_native_actors __attribute__((weak)), pc_native_actor_order __attribute__((weak)),
     pc_native_blend __attribute__((weak)), pc_native_objects __attribute__((weak)),
     pc_native_shadows __attribute__((weak)), pc_native_effects __attribute__((weak)),
-    pc_reconstruct __attribute__((weak)), pc_native_room_order __attribute__((weak));
+    pc_reconstruct __attribute__((weak)), pc_native_room_order __attribute__((weak)),
+    pc_room_texture_lod __attribute__((weak));
 extern float pc_native_room_slack[2] __attribute__((weak));
 extern int pc_gte_log __attribute__((weak));
 extern void render_stats_get(render_stats*) __attribute__((weak));
@@ -575,6 +590,17 @@ static void send_line(int fd, const char* text)
         length -= (size_t)n;
     }
 }
+/* Sounds played through vs_main_playSfxDefault (main.c's ROOD_PC hook: every menu sound, the original
+ * screens' and the native menus' alike), counted for the smokes' sound parity (RPC sfx). */
+static unsigned sfx_menu[32], sfx_other;
+void pc_sfx_played(int bank, int id)
+{
+    if (bank == 0x7E && id >= 0 && id < 32)
+        ++sfx_menu[id];
+    else
+        ++sfx_other;
+}
+
 static void reply(int fd, const char* id, const char* result)
 {
     static char line[LINE_MAX_BYTES + 256];
@@ -619,12 +645,15 @@ static void status_json(char* out, size_t size)
 {
     extern int pc_display_masked __attribute__((weak)); /* SetDispMask(0) */
     extern unsigned pc_presents __attribute__((weak)); /* gl_present.c: images presented */
+    extern unsigned pc_window_presents __attribute__((weak)); /* gl_present.c: images that reached the window */
+    extern int pc_vk_device_lost(void) __attribute__((weak)); /* vk_core.c */
     snprintf(out, size,
         "{\"vsync\":%u,\"battle_frame\":%u,\"paused\":%s,\"step_budget\":%ld,\"buttons\":%u,"
-        "\"display_masked\":%s,\"presents\":%u}",
+        "\"display_masked\":%s,\"presents\":%u,\"window_presents\":%u,\"device_lost\":%s}",
         pc_vsync_count(), pc_battle_frame_count(), paused ? "true" : "false", step_budget,
         pc_rpc_buttons(), &pc_display_masked && pc_display_masked ? "true" : "false",
-        &pc_presents ? pc_presents : 0u);
+        &pc_presents ? pc_presents : 0u, &pc_window_presents ? pc_window_presents : 0u,
+        pc_vk_device_lost && pc_vk_device_lost() ? "true" : "false");
 }
 /* Deferred "wait" replies: owed once the step is over (paused, no budget)
  * or the deadline passed. */
@@ -641,7 +670,7 @@ static void serve_waiters(void)
             if (now < c->wait_until)
                 continue;
         }
-        char result[256];
+        char result[384];
         status_json(result, sizeof result);
         c->waiting = 0;
         rpc_set_blocking(c->fd, 1);
@@ -929,22 +958,108 @@ static void handle_method(int fd, const char* request)
         extern int pc_ui_ashley_heap_extra __attribute__((weak));
         if (params && number_value(member(params, "model_heap_extra"), &n) && &pc_ui_ashley_heap_extra)
             pc_ui_ashley_heap_extra = n < 0 ? 0 : n > 0x7FFFFFF ? 0x7FFFFFF : (int)n;
-        /* {pointer: {x, y, click, right, wheel, down}}: the next drawn frame's
-         * pointer in layout units (hit tests as a moved mouse; down: the left
-         * button held, drags; ui_draw.cpp) */
+        /* {pointer: {x, y, click, right, wheel, down, middle, shift}}: the next
+         * drawn frame's pointer in layout units (hit tests as a moved mouse;
+         * down: the left button held, middle: the middle one, drags; shift:
+         * Shift held; ui_draw.cpp) */
         const char* pointer = params ? member(params, "pointer") : NULL;
         if (pointer) {
             double x = -1, y = -1, wheel = 0;
-            int click = 0, right = 0, down = 0;
+            int click = 0, right = 0, down = 0, middle = 0, shift = 0;
             real_value(member(pointer, "x"), &x);
             real_value(member(pointer, "y"), &y);
             real_value(member(pointer, "wheel"), &wheel);
             bool_value(member(pointer, "click"), &click);
             bool_value(member(pointer, "right"), &right);
             bool_value(member(pointer, "down"), &down);
-            pc_ui_draw_pointer((float)x, (float)y, click, right, (float)wheel, down);
+            bool_value(member(pointer, "middle"), &middle);
+            bool_value(member(pointer, "shift"), &shift);
+            pc_ui_draw_pointer((float)x, (float)y, click, right, (float)wheel, down, middle, shift);
+        }
+        /* {text, key}: the Workshop's name field, as typed on the keyboard (ui/ui_workshop.cpp) */
+        extern void pc_ui_workshop_text(const char* utf8) __attribute__((weak));
+        extern void pc_ui_workshop_key(int key) __attribute__((weak));
+        char typed[128];
+        if (params && string_value(member(params, "text"), typed, sizeof typed) && pc_ui_workshop_text)
+            pc_ui_workshop_text(typed);
+        if (params && string_value(member(params, "key"), typed, sizeof typed) && pc_ui_workshop_key) {
+            static const char* const keys[] = { "backspace", "delete", "left", "right", "home", "end", "enter",
+                "escape" };
+            for (int k = 0; k < (int)(sizeof keys / sizeof keys[0]); ++k)
+                if (!strcmp(typed, keys[k]))
+                    pc_ui_workshop_key(k);
+        }
+        /* {reequip: true}: tests re-equip the equipped weapon and shield from their records
+         * (ui/workshop_bridge.c pc_ui_workshop_debug_reequip; only with no menu open) */
+        extern int pc_ui_workshop_debug_reequip(void) __attribute__((weak));
+        if (params && bool_value(member(params, "reequip"), &flag) && flag && pc_ui_workshop_debug_reequip
+            && pc_ui_workshop_debug_reequip() < 0) {
+            fail(fd, id, -32000, "reequip: a menu is open");
+            return;
         }
         pc_ui_shell_json(result, sizeof result);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "loot")) {
+        /* Tests: the loot menu opened as the game opens it (ui/loot_bridge.c
+         * pc_ui_loot_debug_open): hex = loot lists of 0x220 bytes each (BATTLE
+         * vs_battle_loot), chest = open the first as a chest's. Only while no
+         * menu is open. */
+        extern int pc_ui_loot_debug_open(const unsigned char* data, int nodes, int chest) __attribute__((weak));
+        enum { LOOT_BYTES = 0x220, LOOT_MAX = 8 };
+        static char hex[2 * LOOT_BYTES * LOOT_MAX + 2];
+        static unsigned char data[LOOT_BYTES * LOOT_MAX];
+        int chest = 0;
+        size_t length;
+        if (!pc_ui_loot_debug_open) {
+            fail(fd, id, -32000, "loot needs the battle build");
+            return;
+        }
+        if (!params || !string_value(member(params, "hex"), hex, sizeof hex) || !(length = strlen(hex) / 2)
+            || strlen(hex) % (2 * LOOT_BYTES)) {
+            fail(fd, id, -32602, "loot needs hex: whole loot lists of 0x220 bytes (at most 8)");
+            return;
+        }
+        for (size_t i = 0; i < length; i++) {
+            unsigned byte;
+            if (sscanf(hex + 2 * i, "%2x", &byte) != 1) {
+                fail(fd, id, -32602, "bad hex");
+                return;
+            }
+            data[i] = (unsigned char)byte;
+        }
+        bool_value(member(params, "chest"), &chest);
+        snprintf(result, sizeof result, "{\"opened\":%s}",
+            pc_ui_loot_debug_open(data, (int)(length / LOOT_BYTES), chest) ? "true" : "false");
+        reply(fd, id, result);
+    } else if (!strcmp(method, "chest")) {
+        /* Tests: the room's chests (ui/loot_bridge.c pc_ui_loot_debug_chest);
+         * open = index opens that one through the field's own chest flow
+         * (func_80074050, as the field's Cross at a chest). */
+        extern int pc_ui_loot_debug_chest(int index, int out[12]) __attribute__((weak));
+        extern int pc_ui_loot_debug_chest_open(int index) __attribute__((weak));
+        int v[12], n, open = -1, len;
+        long long number;
+        if (!pc_ui_loot_debug_chest) {
+            fail(fd, id, -32000, "chest needs the battle build");
+            return;
+        }
+        if (params && number_value(member(params, "open"), &number))
+            open = (int)number;
+        if (open >= 0) {
+            snprintf(result, sizeof result, "{\"opened\":%s}", pc_ui_loot_debug_chest_open(open) ? "true" : "false");
+            reply(fd, id, result);
+            return;
+        }
+        n = pc_ui_loot_debug_chest(-1, v);
+        len = snprintf(result, sizeof result, "{\"field_free\":%s,\"chests\":[", v[11] ? "true" : "false");
+        for (int i = 0; i < n && len < (int)sizeof result - 256; ++i) {
+            pc_ui_loot_debug_chest(i, v);
+            len += snprintf(result + len, sizeof result - len,
+                "%s{\"index\":%d,\"x\":%d,\"z\":%d,\"floor\":%d,\"flag\":%d,\"opened\":%d,\"key\":%d,"
+                "\"weapon\":%d,\"shield\":%d,\"armor\":%d,\"gem\":%d,\"misc\":%d}",
+                i ? "," : "", i, v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10]);
+        }
+        snprintf(result + len, sizeof result - len, "]}");
         reply(fd, id, result);
     } else if (!strcmp(method, "release")) {
         memset(holds, 0, sizeof holds);
@@ -1075,6 +1190,11 @@ static void handle_method(int fd, const char* request)
                         pc_ui_text_layout = k;
             } else if (number_value(member(params, "ui_text_layout"), &n) && n >= 0 && n <= 1)
                 pc_ui_text_layout = (int)n;
+            /* ui_text_overlay "auto" | "off" (or 1/0). */
+            if (string_value(member(params, "ui_text_overlay"), name, sizeof name))
+                pc_ui_text_setting("ui_text_overlay", name);
+            else if (number_value(member(params, "ui_text_overlay"), &n) && n >= 0 && n <= 1)
+                pc_ui_text_overlay = (int)n;
             /* ui_text_bubble_align "left" | "centre" (or 0/1). */
             if (string_value(member(params, "ui_text_bubble_align"), name, sizeof name))
                 pc_ui_text_setting("ui_text_bubble_align", name);
@@ -1171,8 +1291,8 @@ static void handle_method(int fd, const char* request)
             else if (bool_value(member(params, "probe_show"), &flag))
                 pc_probe_show = flag;
         }
-        if (params && number_value(member(params, "post"), &n) && &pc_post_flags)
-            pc_post_flags = (int)n & 7;
+        if (params && number_value(member(params, "post"), &n) && pc_post_set_flags)
+            pc_post_set_flags((int)n & 7); /* the user's gameplay layer (post.h) */
         double value;
         const char* v = params ? member(params, "normal_smoothing") : NULL;
         if (v && sscanf(v, "%lf", &value) == 1 && &pc_normal_smoothing)
@@ -1191,6 +1311,12 @@ static void handle_method(int fd, const char* request)
                     pc_native_room_order = flag;
                 else if (number_value(member(params, "room_order"), &n))
                     pc_native_room_order = n != 0;
+            }
+            if (&pc_room_texture_lod) {
+                if (bool_value(member(params, "room_texture_lod"), &flag))
+                    pc_room_texture_lod = flag;
+                else if (number_value(member(params, "room_texture_lod"), &n))
+                    pc_room_texture_lod = n != 0;
             }
             if (pc_native_room_slack) {
                 if (number_value(member(params, "room_slack"), &n) && n >= 0 && n <= 0.1)
@@ -1390,10 +1516,11 @@ static void handle_method(int fd, const char* request)
         if (used < (int)sizeof result - 100)
             used += snprintf(result + used - 1, sizeof result - used + 1,
                         ",\"ui_upscale\":\"%s\",\"ui_subpixel\":%d,\"ui_text\":\"%s\",\"ui_text_layout\":\"%s\","
-                        "\"ui_text_bubble_align\":\"%s\"}",
+                        "\"ui_text_bubble_align\":\"%s\",\"ui_text_overlay\":\"%s\"}",
                         pc_ui_upscale_names[pc_ui_upscale ? 1 : 0], pc_ui_subpixel, pc_ui_text_names[pc_ui_text ? 1 : 0],
                         pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0],
-                        pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0])
+                        pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0],
+                        pc_ui_text_overlay_names[pc_ui_text_overlay ? 1 : 0])
                 - 1;
         if (used < (int)sizeof result - 160)
             used += snprintf(result + used - 1, sizeof result - used + 1,
@@ -1446,6 +1573,12 @@ static void handle_method(int fd, const char* request)
                 st.bubble[i].game_bounds[2], st.bubble[i].game_bounds[3], st.bubble[i].thickness,
                 st.bubble[i].line_rgb);
         used += snprintf(result + used, sizeof result - used, "]");
+        {
+            long balloons, dots, marks; /* emote bubbles drawn again (ui_emotes.c) */
+            pc_ui_emote_stats(&balloons, &dots, &marks);
+            used += snprintf(result + used, sizeof result - used,
+                ",\"emotes\":{\"balloons\":%ld,\"dots\":%ld,\"marks\":%ld}", balloons, dots, marks);
+        }
         long long which;
         if (params && number_value(member(params, "path"), &which)) {
             float pts[128][2];
@@ -1489,6 +1622,11 @@ static void handle_method(int fd, const char* request)
             pc_ui_text_setting("ui_text_layout", style);
         if (params && string_value(member(params, "bubble_align"), style, sizeof style))
             pc_ui_text_setting("ui_text_bubble_align", style);
+        {
+            int forget = 0;
+            if (params && bool_value(member(params, "forget_signs"), &forget) && forget)
+                pc_ui_text_forget_signs();
+        }
         /* {lines: PATH}: the lines laid out in the newest frame that drew
          * text (ui_text_layout line), as JSON into PATH. Tests. */
         long lines_bytes = -1;
@@ -1530,6 +1668,8 @@ static void handle_method(int fd, const char* request)
             rendered = texels && vram
                     && pc_ui_text_render(vram, (unsigned)r[0], (unsigned)r[1], r[2], r[3], r[4], r[5], (int)factor,
                         texels);
+            if (rendered) /* distance texels as the PS1 colours drawn at that factor */
+                pc_ui_text_resolve(vram, (unsigned)r[1], texels, rw * rh, (int)factor, -1.0f);
             FILE* out = rendered ? fopen(path, "wb") : NULL;
             for (int i = 0; out && i < rw * rh; i++) {
                 unsigned char b[2] = { (unsigned char)(texels[i] & 255), (unsigned char)(texels[i] >> 8 & 255) };
@@ -1540,6 +1680,24 @@ static void handle_method(int fd, const char* request)
             free(texels);
         }
         int used = pc_ui_text_json(result, (int)sizeof result);
+        {
+            /* The text overlay (gpu_hw.c): triangles held back now (-1: not holding), drawn into the
+             * picture since (baked) and presented at the window's resolution; the presented view in
+             * the window (x, y from its top-left, width, height). */
+            extern void pc_hw_text_overlay_stats(long*, long*, long*) __attribute__((weak));
+            extern int pc_gl_view[4] __attribute__((weak));
+            long held = -1, baked = 0, presented = 0;
+            if (pc_hw_text_overlay_stats)
+                pc_hw_text_overlay_stats(&held, &baked, &presented);
+            int view[4] = { 0, 0, 0, 0 };
+            if (&pc_gl_view)
+                memcpy(view, pc_gl_view, sizeof view);
+            if (used > 1 && used < (int)sizeof result - 160)
+                used += snprintf(result + used - 1, sizeof result - used + 1,
+                            ",\"overlay\":{\"held\":%ld,\"baked\":%ld,\"presented\":%ld,\"view\":[%d,%d,%d,%d]}}",
+                            held, baked, presented, view[0], view[1], view[2], view[3])
+                      - 1;
+        }
         if (rendered >= 0 && used > 1 && used < (int)sizeof result - 64)
             used += snprintf(result + used - 1, sizeof result - used + 1,
                         ",\"render\":{\"ok\":%d,\"w\":%d,\"h\":%d}}", rendered, rw, rh)
@@ -1751,6 +1909,7 @@ static void handle_method(int fd, const char* request)
         extern void pc_window_mode_set(int), pc_master_volume_set(int), pc_brightness_set(int);
         extern int pc_window_mode_json(char*, int), pc_capture_json(char*, int);
         extern int pc_window_inject_key(const char*, int), pc_window_inject_pad(const char*, int);
+        extern int pc_window_inject_mouse(float, float, int, int);
         extern float pc_master_gain(void);
         extern unsigned pc_audio_output_recorded(void);
         static const char* const modes[3] = { "windowed", "borderless", "fullscreen" };
@@ -1788,6 +1947,30 @@ static void handle_method(int fd, const char* request)
             fail(fd, id, -32602, "pad: a gamepad element name (bind_pad_*)");
             return;
         }
+        const char* mouse = params ? member(params, "mouse") : NULL;
+        if (mouse) {
+            double xy[2] = { 0, 0 }, button = 1, wheel = 0;
+            int got = 0;
+            const char* q = mouse;
+            while (*q == ' ' || *q == '[')
+                q++;
+            for (; got < 2 && *q; got++) {
+                char* end;
+                xy[got] = strtod(q, &end);
+                if (end == q)
+                    break;
+                q = end;
+                while (*q == ' ' || *q == ',')
+                    q++;
+            }
+            real_value(member(params, "button"), &button);
+            real_value(member(params, "wheel"), &wheel);
+            if (got < 2 || pc_window_inject_mouse((float)xy[0], (float)xy[1], (int)button,
+                               button == 0 ? (int)wheel : flag)) {
+                fail(fd, id, -32602, "mouse: [x, y] in window pixels");
+                return;
+            }
+        }
         char window_json[512], capture_json[512];
         pc_window_mode_json(window_json, sizeof window_json);
         pc_capture_json(capture_json, sizeof capture_json);
@@ -1818,6 +2001,23 @@ static void handle_method(int fd, const char* request)
             pc_lighting_sync(); /* a loaded preset applies now */
         const char* path = pc_settings_path();
         snprintf(result, sizeof result, "{\"status\":\"%s\",\"path\":\"%s\"}", pc_settings_status(), json_str(path));
+        reply(fd, id, result);
+    } else if (!strcmp(method, "sfx")) {
+        /* The sounds played since the last {reset: true}: bank 0x7E (the menus') by name, every id of it,
+         * and the other banks' total. */
+        int flag = 0, n;
+        if (params)
+            bool_value(member(params, "reset"), &flag);
+        n = snprintf(result, sizeof result,
+            "{\"change\":%u,\"select\":%u,\"leave\":%u,\"invalid\":%u,\"other\":%u,\"menu\":[", sfx_menu[4],
+            sfx_menu[5], sfx_menu[6], sfx_menu[7], sfx_other);
+        for (int k = 0; k < 32 && n > 0 && n < (int)sizeof result - 16; ++k)
+            n += snprintf(result + n, sizeof result - (size_t)n, k ? ",%u" : "%u", sfx_menu[k]);
+        snprintf(result + n, sizeof result - (size_t)n, "]}");
+        if (flag) {
+            memset(sfx_menu, 0, sizeof sfx_menu);
+            sfx_other = 0;
+        }
         reply(fd, id, result);
     } else if (!strcmp(method, "perf")) {
         /* GPU time per presented frame since the last {reset: true} (ROOD_PERF=1). */
@@ -2129,19 +2329,27 @@ static void handle_method(int fd, const char* request)
     } else if (!strcmp(method, "gi_probe")) {
         /* The inspector's GI probe at (u, v) of the display area. */
         extern int pc_gi_probe(float u, float v, float out[8]) __attribute__((weak));
-        double pu = 0.5, pv = 0.5;
-        float out[8];
-        if (params) {
+        /* {x, y, z}: where that world point is on screen (ptgi.c) */
+        extern int pc_gi_probe_world(const float p[3], float out[8], float uv[2]) __attribute__((weak));
+        double pu = 0.5, pv = 0.5, wx, wy, wz;
+        float out[8], uv[2];
+        int world = params && real_value(member(params, "x"), &wx) && real_value(member(params, "y"), &wy)
+            && real_value(member(params, "z"), &wz);
+        if (params && !world) {
             real_value(member(params, "u"), &pu);
             real_value(member(params, "v"), &pv);
         }
-        if (!pc_gi_probe || !pc_gi_probe((float)pu, (float)pv, out)) {
+        uv[0] = (float)pu, uv[1] = (float)pv;
+        float p[3] = { world ? (float)wx : 0, world ? (float)wy : 0, world ? (float)wz : 0 };
+        if (world ? !pc_gi_probe_world || !pc_gi_probe_world(p, out, uv)
+                  : !pc_gi_probe || !pc_gi_probe((float)pu, (float)pv, out)) {
             fail(fd, id, -32000, "no GI result");
             return;
         }
         snprintf(result, sizeof result,
-            "{\"indirect\":[%.4f,%.4f,%.4f],\"visibility\":%.4f,\"baked_visibility\":%.4f,\"extra\":[%.4f,%.4f,%.4f]}",
-            out[0], out[1], out[2], out[3], out[4], out[5], out[6], out[7]);
+            "{\"indirect\":[%.4f,%.4f,%.4f],\"visibility\":%.4f,\"baked_visibility\":%.4f,\"extra\":[%.4f,%.4f,%.4f],"
+            "\"u\":%.4f,\"v\":%.4f}",
+            out[0], out[1], out[2], out[3], out[4], out[5], out[6], out[7], uv[0], uv[1]);
         reply(fd, id, result);
     } else if (!strcmp(method, "gi_dump")) {
         /* Vulkan: the last GI update's world positions and shadow
@@ -2418,6 +2626,25 @@ static void handle_method(int fd, const char* request)
             strcpy(args, "{}");
         }
         if (pc_lighting_rpc(args, result, sizeof result) < 0) {
+            fail(fd, id, -32000, result);
+            return;
+        }
+        reply(fd, id, result);
+    } else if (!strcmp(method, "post")) {
+        /* Post-processing profiles and the post stack (post_profile.cpp, post.h). */
+        if (!pc_post_rpc) {
+            fail(fd, id, -32000, "post needs the editor (hardware renderer)");
+            return;
+        }
+        static char args[LINE_MAX_BYTES];
+        const char* end = params ? value_end(params) : NULL;
+        if (params && end && (size_t)(end - params) < sizeof args) {
+            memcpy(args, params, (size_t)(end - params));
+            args[end - params] = 0;
+        } else {
+            strcpy(args, "{}");
+        }
+        if (pc_post_rpc(args, result, sizeof result) < 0) {
             fail(fd, id, -32000, result);
             return;
         }

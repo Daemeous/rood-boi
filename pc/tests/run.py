@@ -10,7 +10,7 @@
 
 Suites: the CTest probes (pc/build), the RPC and checkpoint smokes, the X11
 window smoke, every input case in start_button_smoke.sh, golden frames and
-short soaks (from New Game, and from a copy of pc/save/card1.mcd when present). Each runs in its own process group with a private output
+short soaks (from New Game, and from the pinned test card pc/build/test-card1.mcd, a copy of pc/save/card1.mcd made once; $ROOD_TEST_CARD overrides). Each runs in its own process group with a private output
 directory pc/build/tests/<suite>/ (ROOD_OUT: game log, frames, scratch memory
 cards, its output.log), RPC socket, X display (rood_rpc.start_xvfb) and an
 empty lights and prefab directories (ROOD_LIGHTS, ROOD_PREFABS), so parallel runs cannot collide and the
@@ -18,7 +18,10 @@ user's settings, lights and saves never leak in.
 
 Headless rendering (rood_rpc.headless_mode): egl renders on a GPU without an X
 server (SDL offscreen + EGL device), xvfb on a private Xvfb with software GL.
-X11-input suites (window_smoke) always use Xvfb.
+X11-input suites (window_smoke) always use Xvfb. window_mode_smoke switches
+a real window (fullscreen on the desktop for a few seconds; the only way to
+reach the Vulkan swapchain) only when asked:
+    ROOD_TEST_DESKTOP=1 python3 pc/tests/run.py window_mode   (else headless)
 
 Save states (pc/tests/checkpoints.py, pc/src/snapshot.c): suites that start
 from a test checkpoint (the card's save room, New Game after the opening
@@ -106,6 +109,9 @@ def suites(args, mode="egl"):
               note="CMake probes in pc/build"),
         Suite("lighting_lint", [PY, str(ROOT / "pc/tools/lighting_lint.py")], 60, binary=None,
               note="lighting packs in lighting/: syntax, keys, ids, dangling overrides, rooms"),
+        Suite("lp64_alias_scan", [PY, str(TESTS / "lp64_alias_scan_test.py")], 60, binary=None,
+              note="no data import is a field of another across the LP64 native move "
+                   "(pc/tools/lp64_alias_scan.py on pc/build/boot64; synthetic cases always)"),
         Suite("snapshot_equivalence", [PY, str(TESTS / "snapshot_equivalence.py")]
               + (["--card", str(args.save)] if args.save.exists() else []), 600,
               note="save states: booting to each test checkpoint and resuming its snapshot give identical "
@@ -127,6 +133,11 @@ def suites(args, mode="egl"):
         Suite("replace_file_test", [PY, str(TESTS / "replace_file_test.py")], 300, binary=None,
               note="saves replace their file again and again (pc_replace_file), natively and as a "
                    "Windows build under Wine when installed"),
+        Suite("skip_intro_smoke", [PY, str(TESTS / "skip_intro_smoke.py")], 300,
+              note="skip_intro 1: straight to the title (no logos, no movie), same title; off = the original start"),
+        Suite("build_noop_test", [PY, str(TESTS / "build_noop_test.py")], 120, binary=None,
+              note="build_boot.py: a second build with nothing changed does nothing (< 2 s); the build "
+                   "stamp and object cache notice edits, reverts, new files and option changes"),
         Suite("window_smoke", [PY, str(TESTS / "window_smoke.py")], 180, binary="rood_boot",
               note="X11 events on Xvfb"),
         Suite("room_smoke", [PY, str(TESTS / "room_smoke.py")], 120),
@@ -138,38 +149,47 @@ def suites(args, mode="egl"):
                   note="undo/redo transactions (actors, glows, groups), Delete, no shortcuts while typing"),
             Suite("facing_cutaway_smoke", [PY, str(TESTS / "facing_cutaway_smoke.py"), "--card", str(args.save)], 300,
                   note="game camera cutaway walls: native = packet path at 8 yaws, during turns (save room, room 13)"),
-            Suite("camera_stick_smoke", [PY, str(TESTS / "camera_stick_smoke.py"), "--card", str(args.save)], 600,
+            Suite("camera_stick_smoke", [PY, str(TESTS / "camera_stick_smoke.py"), "--card", str(args.save)], 300,
                   note="right-stick camera: continuous yaw, facing masks, L1/R1, zoom limits, walls, R3, "
                        "first-person/targeting, RT camera (Vulkan), opening's scripted camera unchanged"),
             Suite("editor_snap_smoke", [PY, str(TESTS / "editor_snap_smoke.py"), "--card", str(args.save)], 300,
                   note="editor overlays (edges, points) and point/edge/surface snapping in the save room"),
-            Suite("room_browser_smoke", [PY, str(TESTS / "room_browser_smoke.py"), "--card", str(args.save)], 600,
+            Suite("room_browser_smoke", [PY, str(TESTS / "room_browser_smoke.py"), "--card", str(args.save)], 300,
                   note="Room Browser: rooms from the disc, warps across zones and back; lighting layers in the game"),
             Suite("route_continuation_smoke", [PY, str(TESTS / "route_continuation_smoke.py"), "--card",
                                                str(args.save)], 300,
                   note="enemies holding a room link (gate) continue their route (L800DF8A4) in zone 9 room 5"),
-            Suite("ending_smoke", [PY, str(TESTS / "ending_smoke.py"), "--card", str(args.save)], 600,
+            Suite("two_model_enemy_smoke", [PY, str(TESTS / "two_model_enemy_smoke.py"), "--card", str(args.save)],
+                  300, note="a Ghost (two-model enemy, zone 13 room 4) through _zoneContext.zndEnemies; leaving a "
+                            "room frees its spawn table (game heap steady); the LP64 import aliases"),
+            Suite("ending_smoke", [PY, str(TESTS / "ending_smoke.py"), "--card", str(args.save)], 300,
                   note="ENDING.PRG twice from the save: credits, skip, MISSION COMPLETE rank screen, title"),
             Suite("light_actors_smoke", [PY, str(TESTS / "light_actors_smoke.py"), "--card", str(args.save)], 300,
                   note="Place Actors drag and drop, light actor prefabs, overrides, flicker, glow links (save room)"),
             Suite("fixture_lighting_smoke", [PY, str(TESTS / "fixture_lighting_smoke.py"), "--card", str(args.save)],
                   600, note="generated fixture lights: types, lit, shadow exclusion, glow links, suppressed glows, "
                             "live type edits, catalog save, regenerate (zone 9)"),
-            Suite("sky_smoke", [PY, str(TESTS / "sky_smoke.py"), "--card", str(args.save)], 600,
+            Suite("sky_smoke", [PY, str(TESTS / "sky_smoke.py"), "--card", str(args.save)], 300,
                   note="sun and sky: roofed room unchanged, outdoor room's generated sun shadows and sky fill, "
                        "energy, NRD, probes, shadow-map fallback, save/load, generated tags stable"),
-            Suite("atmosphere_smoke", [PY, str(TESTS / "atmosphere_smoke.py"), "--card", str(args.save)], 600,
+            Suite("atmosphere_smoke", [PY, str(TESTS / "atmosphere_smoke.py"), "--card", str(args.save)], 300,
                   note="haze, ground fog, fog volumes: fog follows height, volumes keep to their bounds, save/load, "
                        "generated forest fog, the moon's shafts in the haze, steady frame to frame"),
             Suite("atmosphere_sweep", [PY, str(ROOT / "pc/tools/atmosphere_sweep.py"), "--quick", "--card",
-                                       str(args.save)], 600,
+                                       str(args.save)], 300,
                   note="atmosphere never washes out the view: town, forest, Undercity rooms at several camera "
                        "angles and toward the moon (full sweep: pc/tools/atmosphere_sweep.py)"),
             Suite("fog_sim_smoke", [PY, str(TESTS / "fog_sim_smoke.py"), "--card", str(args.save)], 300,
                   note="interactive fog prototype (sim=1, off by default): Ashley clears her footprint, a wake "
                        "when walking, settles back"),
+            Suite("fog_volume_smoke", [PY, str(TESTS / "fog_volume_smoke.py"), "--card", str(args.save)], 420,
+                  note="fog volumes' own renderer: thick (opacity >= 0.9), its own opacity cap, depth, a light "
+                       "brightens and tints it, dim grey not black in a dark room, still frames steady (haze too)"),
             Suite("glow_stability_smoke", [PY, str(TESTS / "glow_stability_smoke.py"), "--card", str(args.save)], 600,
-                  note="save point: one steady glow, stable id, overrides persist; prologue fight: effect glows unshadowed, smooth")]
+                  note="save point: one steady glow, stable id, overrides persist; prologue fight: effect glows unshadowed, smooth"),
+            Suite("save_point_glow_smoke", [PY, str(TESTS / "save_point_glow_smoke.py"), "--card", str(args.save)], 300,
+                  note="standing in a save point keeps its light (its glow is the column's side); Ashley still "
+                       "shadows the floor behind him (High, Ultra)")]
           if args.save.exists() else []),
         *([Suite("lighting_presets_smoke", [PY, str(TESTS / "lighting_presets_smoke.py"), "--card", str(args.save)],
                  600, note="lighting quality presets apply, render and persist; the backend's reduced form too"),
@@ -192,7 +212,7 @@ def suites(args, mode="egl"):
         *([Suite("save_menu_smoke", [PY, str(TESTS / "save_menu_smoke.py"), "--card", str(args.save)], 300,
                  note="DATA > LOAD slot images = disc data decode, on interpolated frames too (CLUT swaps)")]
           if args.save.exists() else []),
-        *([Suite("weapon_slots_smoke", [PY, str(TESTS / "weapon_slots_smoke.py"), "--card", str(args.save)], 600,
+        *([Suite("weapon_slots_smoke", [PY, str(TESTS / "weapon_slots_smoke.py"), "--card", str(args.save)], 300,
                  note="QoL weapon slots: off = the game's L2 overlay; swaps, assign mode, shields, D-pad, drawn; "
                       "the mod's save bytes survive a save and reload")]
           if args.save.exists() else []),
@@ -212,6 +232,11 @@ def suites(args, mode="egl"):
                  note="Ashley tab: summary = RAM (stats, limbs, effects), live model shown/turned (stick, drag, "
                       "no auto-turn), tabs/Status/weapon change, world and camera restored, 16:9, soft reset")]
           if args.save.exists() else []),
+        *([Suite("ui_ashley_stability_smoke", [PY, str(TESTS / "ui_ashley_stability_smoke.py"), "--card",
+                       str(args.save)], 300,
+                 note="Ashley tab model, lit (GI, traced shadows, haze): every image shows it, no flicker "
+                      "still or turning (live and interpolated images lit alike), window-resolution detail view")]
+          if args.save.exists() else []),
         *([Suite("ui_abilities_smoke", [PY, str(TESTS / "ui_abilities_smoke.py"), "--card", str(args.save)], 300,
                  note="Abilities tab: Chain/Defense mapping = the original MENU2 screen's bytes (set, move, replace, "
                       "off; list, pick, mouse), learned lists, break arts states and greyed reasons, cast and cancel")]
@@ -219,6 +244,32 @@ def suites(args, mode="egl"):
         *([Suite("ui_magick_smoke", [PY, str(TESTS / "ui_magick_smoke.py"), "--card", str(args.save)], 300,
                  note="Magick tab: snapshot = RAM (schools, learned spells, MP costs, levels), Heal's hand-off = "
                       "the original MENU0's, cast and cancel, LV2 (Right / chip), greyed (MP, silence), Teleport")]
+          if args.save.exists() else []),
+        *([Suite("ui_items_smoke", [PY, str(TESTS / "ui_items_smoke.py"), "--card", str(args.save)], 300,
+                 note="Items tab: same inventory bytes as the original MENU3 for discard (refused, gems, quantity, "
+                      "all), sort, move/merge; Use's hand-off, completed and cancelled; keys; quick slot; mouse")]
+          if args.save.exists() else []),
+        *([Suite("ui_loot_smoke", [PY, str(TESTS / "ui_loot_smoke.py"), "--card", str(args.save)], 300,
+                 note="Loot screen (direct entry 12): same bag, indices, key flags, result, heap, HUD / world flags "
+                      "and Items memories as the original MENUB for take, take all, keys, leave, the save room's "
+                      "real chest, chests, disassemble (weapon, shield), consolidate, organize (discard, quantity, "
+                      "merge, sort), difficulty filter, two lists, No paths; mouse; soft reset")]
+          if args.save.exists() else []),
+        *([Suite("ui_map_smoke", [PY, str(TESTS / "ui_map_smoke.py"), "--card", str(args.save)], 300,
+                 note="Map frame (MENU5 with the shell's chrome): same map status, mapPaling, cursor memories, "
+                      "settings, menu / HUD state, scene buffer, camera and VRAM as the original map screen by pad "
+                      "and by pointer; areas, completion, pad and pointer limits, the area list, paling, close, "
+                      "soft resets, 16:9")]
+          if args.save.exists() else []),
+        *([Suite("ui_manual_smoke", [PY, str(TESTS / "ui_manual_smoke.py"), "--card", str(args.save)], 300,
+                 note="Quick manual (MENUE native): manualDisplayState, cursor memories, HUD/world flags, heap as "
+                      "the original by pad and pointer; sounds played = the original's (pad) and the manual's "
+                      "requests (pad, pointer); text = disc decode for 14 topics; sprite/rule counts, a blink, "
+                      "canvas pixels; button art as device prompts; 16:9; reset")]
+          if args.save.exists() else []),
+        *([Suite("ui_workshop_smoke", [PY, str(TESTS / "ui_workshop_smoke.py"), "--card", str(args.save)], 300,
+                 note="Items > Workshop: same bag, indices and MENUC cursor memories as the original Setup screen "
+                      "(MENUC / MENU8) for repair, gems, disassemble (equipped too), assemble, rename, combine x3")]
           if args.save.exists() else []),
         *([Suite("ui_system_smoke", [PY, str(TESTS / "ui_system_smoke.py"), "--card", str(args.save)], 300,
                  note="System screen through the shell: a row per settings page live + saved (debounce, Cross), "
@@ -228,6 +279,10 @@ def suites(args, mode="egl"):
                                         *(["--card", str(args.save)] if args.save.exists() else [])], 360,
               note="System settings: brightness, master volume (WAV), window mode, binding capture (SDL events; "
                    "key works in the field), saved and back after a relaunch with widescreen / perspective kept"),
+        Suite("window_mode_smoke", [PY, str(TESTS / "window_mode_smoke.py"),
+                                    *(["--card", str(args.save)] if args.save.exists() else [])], 300,
+              note="window mode cycled both ways twice (save room): no device loss, presents go on, windowed "
+                   "image = window size; real window (Vulkan swapchain) only with ROOD_TEST_DESKTOP=1, else headless"),
         Suite("flipped_sprite_smoke", [PY, str(TESTS / "flipped_sprite_smoke.py")], 180,
               note="textured quads (flipped sprites too) sample only their own texels: CPU, hardware 1x and 4x"),
         Suite("ui_lines_smoke", [PY, str(TESTS / "ui_lines_smoke.py")], 420,
@@ -245,6 +300,15 @@ def suites(args, mode="egl"):
                       "the glyph boxes; auto follows the device; rebinding changes the icon; 1x; settings")]
           if args.save.exists() else []),
         *input_cases(scale),
+        Suite("transition_fade_smoke", [PY, str(TESTS / "transition_fade_smoke.py"), "--card", str(args.save)], 600,
+              note="door and cross-zone fades darken the lit picture monotonically to black and back (no unlit pop)"),
+        Suite("title_fade_smoke", [PY, str(TESTS / "title_fade_smoke.py")]
+              + (["--card", str(args.save)] if args.save.exists() else []), 300,
+              note="the title's fade after Continue = the original frame by frame (4:3: no black box over the "
+                   "menu, the backdrop fades; 16:9 brightness)"),
+        Suite("post_smoke", [PY, str(TESTS / "post_smoke.py"), "--card", str(args.save)], 600,
+              note="post stack: each effect changes only the 3D, defaults neutral, presets, profiles save/load and "
+                   "blend, lens blur only in field play (not title, attract, cutscene, menu)"),
         Suite("aa_smoke", [PY, str(TESTS / "aa_smoke.py")], 300,
               note="anti-aliasing: each method renders, smooths edges, keeps texels and 2D; interpolation"),
         Suite("coplanar_order_smoke", [PY, str(TESTS / "coplanar_order_smoke.py"),
@@ -262,14 +326,30 @@ def suites(args, mode="egl"):
 
 
 def default_save():
-    """pc/save/card1.mcd here, else in the main checkout (from a worktree)."""
-    path = ROOT / "pc/save/card1.mcd"
-    if not path.exists():
-        common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=ROOT,
-                                capture_output=True, text=True).stdout.strip()
-        if common:
-            path = pathlib.Path(common).parent / "pc/save/card1.mcd"
-    return path
+    """The tests' own pinned card: $ROOD_TEST_CARD, else pc/build/test-card1.mcd
+    (here, else in the main checkout), never the player's live card. The pin is
+    made once from pc/save/card1.mcd (a copy; replace it to re-pin); suites that
+    expect the save room need a card saved there."""
+    env = os.environ.get("ROOD_TEST_CARD")
+    if env:
+        return pathlib.Path(env)
+    roots = [ROOT]
+    common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=ROOT,
+                            capture_output=True, text=True).stdout.strip()
+    if common and pathlib.Path(common).parent != ROOT:
+        roots.append(pathlib.Path(common).parent)
+    for root in roots:
+        pinned = root / "pc/build/test-card1.mcd"
+        if pinned.exists():
+            return pinned
+    for root in roots:
+        live = root / "pc/save/card1.mcd"
+        if live.exists():
+            pinned = root / "pc/build/test-card1.mcd"
+            pinned.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(live, pinned)
+            return pinned
+    return ROOT / "pc/build/test-card1.mcd"
 
 
 def stale_binaries(selected):
@@ -299,7 +379,11 @@ CHECKPOINT_SUITES = {
     "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
     "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "weapon_slots_smoke", "ui_menus_smoke",
     "ui_lines_smoke", "ui_text_smoke", "button_prompts_smoke", "coplanar_order_smoke", "atmosphere_smoke",
-    "fog_sim_smoke", "ui_ashley_smoke", "ui_equip_smoke", "ui_system_smoke", "ui_abilities_smoke",
+    "fog_sim_smoke", "fog_volume_smoke", "save_point_glow_smoke", "ui_ashley_smoke", "ui_ashley_stability_smoke",
+    "ui_equip_smoke",
+    "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "post_smoke",
+    "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
+    "ui_map_smoke", "ui_manual_smoke",
 }
 
 
@@ -388,11 +472,17 @@ def run_suite(suite, index, args, mode, results, lock):
         **({"ROOD_TEST_SNAPSHOT_DIR": str(args.snapshot_dir)} if args.snapshot_dir else {"ROOD_TEST_SNAPSHOTS": "0"}),
         # llvmpipe (Xvfb, or EGL without a GPU) otherwise takes every core per game.
         LP_NUM_THREADS=os.environ.get("LP_NUM_THREADS", "4"),
+        # The Vulkan pipeline cache (vk_core.c) of the test runs, not the user's.
+        ROOD_VK_PIPELINE_CACHE=str(out.parent / "vk-pipelines.bin"),
+        # ROOD_TEST_DESKTOP=1: window_mode_smoke opens a real window (fullscreen for a few seconds) on this
+        # display; every other suite stays headless.
+        **({"ROOD_TEST_DESKTOP": "1", "ROOD_DESKTOP_DISPLAY": os.environ["DISPLAY"]}
+           if os.environ.get("ROOD_TEST_DESKTOP") == "1" and os.environ.get("DISPLAY") else {}),
     )
     for key in ("ROOD_EGL_DEVICE", "ROOD_NATIVE_ROOM", "ROOD_NATIVE_ACTORS", "ROOD_NATIVE_BLEND",
                 "ROOD_NATIVE_OBJECTS", "ROOD_NATIVE_SHADOWS", "ROOD_NATIVE_EFFECTS",
                 "ROOD_RECONSTRUCT", "ROOD_ARCH", "ROOD_RENDERER", "ROOD_VK_DEVICE", "ROOD_VK_VALIDATE",
-                "ROOD_VK_RT"):  # renderer choices to test under, binary
+                "ROOD_VK_RT", "ROOD_VK_PIPELINE_CACHE"):  # renderer choices to test under, binary
         if key in os.environ:
             env[key] = os.environ[key]
     start = time.monotonic()

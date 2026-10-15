@@ -23,6 +23,8 @@
 #include "editor_undo.h"
 #include "camera_stick.h"
 #include "ui/ui_shell.h"
+#include "ui/map_frame.h"
+#include "ui/ui_workshop.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl3.h"
 #include "ImGuizmo.h"
@@ -35,11 +37,8 @@ extern int pc_hw_active, pc_hw_scale;
 int pc_hw_set_scale(int scale);
 extern int pc_hw_scale_setting;
 extern int pc_gl_filter, pc_gl_aspect, pc_gte_widescreen, pc_hw_perspective, pc_gl_show_depth;
-extern int pc_post_flags, pc_hw_subpixel, pc_hw_interpolate, pc_hw_texture_filter, pc_interp_skeleton,
+extern int pc_hw_subpixel, pc_hw_interpolate, pc_hw_texture_filter, pc_interp_skeleton,
     pc_interp_holds, pc_interp_uv, pc_present_rate;
-extern int pc_post_focus_mode;
-extern float pc_post_aperture;
-extern float pc_post_focus, pc_post_dof_radius, pc_post_tilt[3], pc_post_fog[4], pc_post_fog_range[2];
 unsigned pc_vsync_count(void);
 unsigned pc_battle_frame_count(void);
 void pc_rpc_set_paused(int paused);
@@ -274,6 +273,35 @@ extern "C" int pc_overlay_input(const char* keys, const char* text, int ctrl, in
     return 0;
 }
 
+/* The modern menus' name field (Items > Workshop: a weapon's name) takes the
+ * keyboard while it shows and the editor is closed (ui/ui_workshop.h). */
+static bool shell_typing() { return !visible && pc_ui_workshop_typing(); }
+static bool shell_text_on; /* text input started for it */
+/* Typing is armed once no key is held after the field opened: the press that
+ * opened it (a key bound to Circle, Enter) neither types nor, held, repeats
+ * into the field (an auto-repeated Enter would be Done at once). */
+static bool shell_text_armed;
+static void shell_text_input()
+{
+    bool want = shell_typing();
+    if (want != shell_text_on && overlay_window) {
+        if (want)
+            SDL_StartTextInput(overlay_window);
+        else if (!visible) /* the editor manages it while it shows */
+            SDL_StopTextInput(overlay_window);
+        shell_text_on = want;
+        shell_text_armed = false;
+    }
+    if (shell_text_on && !shell_text_armed) {
+        int n = 0;
+        const bool* keys = SDL_GetKeyboardState(&n);
+        bool held = false;
+        for (int i = 0; keys && i < n && !held; ++i)
+            held = keys[i];
+        shell_text_armed = !held;
+    }
+}
+
 // Returns 1 when the event belongs to the overlay (game input should ignore it).
 extern "C" int pc_overlay_event(const SDL_Event* event)
 {
@@ -294,6 +322,29 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
     case SDL_EVENT_KEY_UP: {
         bool down = event->type == SDL_EVENT_KEY_DOWN;
         SDL_Keycode key = event->key.key;
+        /* The name field: its editing keys, and no key press reaches the
+         * game (the characters come as text input); a release still does,
+         * so a button the field's opening press held is let go. F1 still
+         * opens the editor. */
+        if (shell_typing() && key != SDLK_F1) {
+            if (down && shell_text_armed) {
+                int k = key == SDLK_BACKSPACE ? PC_UI_WSK_BACKSPACE
+                    : key == SDLK_DELETE      ? PC_UI_WSK_DELETE
+                    : key == SDLK_LEFT        ? PC_UI_WSK_LEFT
+                    : key == SDLK_RIGHT       ? PC_UI_WSK_RIGHT
+                    : key == SDLK_HOME        ? PC_UI_WSK_HOME
+                    : key == SDLK_END         ? PC_UI_WSK_END
+                    : key == SDLK_RETURN || key == SDLK_KP_ENTER ? PC_UI_WSK_ENTER
+                    : key == SDLK_ESCAPE      ? PC_UI_WSK_ESCAPE
+                                              : -1;
+                /* Done and back act on a press, never on its auto-repeat */
+                if (event->key.repeat && (k == PC_UI_WSK_ENTER || k == PC_UI_WSK_ESCAPE))
+                    k = -1;
+                if (k >= 0)
+                    pc_ui_workshop_key(k);
+            }
+            return down;
+        }
         /* A field being typed in (a number or a name) takes every key: Escape
          * cancels the edit there instead of closing the editor, and no
          * editor shortcut fires (viewport_keys and the free camera check the
@@ -331,6 +382,11 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
     }
     case SDL_EVENT_TEXT_INPUT:
     case SDL_EVENT_TEXT_EDITING:
+        if (!visible && shell_typing()) {
+            if (event->type == SDL_EVENT_TEXT_INPUT && shell_text_armed)
+                pc_ui_workshop_text(event->text.text);
+            return 1;
+        }
         if (!visible)
             return 0;
         ImGui_ImplSDL3_ProcessEvent(event);
@@ -348,10 +404,12 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
     case SDL_EVENT_MOUSE_WHEEL:
         if (!visible) {
             /* The modern menus (pc/src/ui) take clicks and the wheel while
-             * they show; ui_draw hit-tests them against ImGui's pointer. A
-             * release always reaches ImGui: the click that closed the shell
-             * must not leave its button held there. */
-            if (!pc_ui_shell_drawn()) {
+             * they show (the shell, the Map frame, the Loot screen: as
+             * ui_draw.cpp pc_ui_shell_wants_mouse); ui_draw hit-tests them
+             * against ImGui's pointer. A release always reaches ImGui: the
+             * click that closed the shell must not leave its button held
+             * there. */
+            if (!pc_ui_shell_drawn() && !pc_ui_map_visible() && !pc_ui_loot_visible()) {
                 if (event->type == SDL_EVENT_MOUSE_BUTTON_UP)
                     ImGui_ImplSDL3_ProcessEvent(&scaled);
                 return 0;
@@ -670,6 +728,7 @@ static void camera_stick_panel()
 }
 
 extern "C" int pc_qol_weapon_slots; /* project_settings.cpp; weapon_slots.c */
+extern "C" int pc_skip_intro;       /* project_settings.cpp; boot_runtime.c */
 /* Graphics > Gameplay: optional gameplay changes, all off by default. */
 static void gameplay_panel()
 {
@@ -682,34 +741,16 @@ static void gameplay_panel()
                           "Select: assign mode (the next slot button stores the equipped weapon there);\n"
                           "Start: the equipped shield into every one-handed slot; R2 + Select: store / remove.\n"
                           "Slots are saved in the same bytes as the mod, so memory cards stay interchangeable.");
+    bool skip = pc_skip_intro != 0;
+    if (ImGui::Checkbox("Skip intro (from the next start)", &skip))
+        pc_skip_intro = skip;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Start at the title without the publisher and developer logos and the opening movie\n"
+                          "(settings skip_intro). Later titles, such as after the idle demo, play as the original.");
 }
 
-static void post_panel()
-{
-    if (!pc_hw_active)
-        return;
-    ImGui::CheckboxFlags("Depth of field", &pc_post_flags, 1);
-    if (pc_post_flags & 1) {
-        ImGui::Combo("Focus", &pc_post_focus_mode, "On Ashley\0Screen centre\0Manual depth\0");
-        if (pc_post_focus_mode == 2)
-            ImGui::SliderFloat("Focus depth", &pc_post_focus, 64, 8000, "%.0f", ImGuiSliderFlags_Logarithmic);
-        ImGui::SliderFloat("Aperture", &pc_post_aperture, 0.25f, 16, "%.2f", ImGuiSliderFlags_Logarithmic);
-        ImGui::SliderFloat("Maximum blur", &pc_post_dof_radius, 0, 24, "%.1f px");
-        ImGui::TextDisabled("A wide aperture with focus on Ashley gives the miniature/macro look.");
-    }
-    ImGui::CheckboxFlags("Tilt-shift", &pc_post_flags, 2);
-    if (pc_post_flags & 2) {
-        ImGui::SliderFloat("Band centre", &pc_post_tilt[0], 0, 1);
-        ImGui::SliderFloat("Band half width", &pc_post_tilt[1], 0, 0.5f);
-        ImGui::SliderFloat("Tilt blur", &pc_post_tilt[2], 0, 16, "%.1f px");
-    }
-    ImGui::CheckboxFlags("Depth fog", &pc_post_flags, 4);
-    if (pc_post_flags & 4) {
-        ImGui::ColorEdit3("Fog colour", pc_post_fog);
-        ImGui::SliderFloat("Fog amount", &pc_post_fog[3], 0, 1);
-        ImGui::DragFloatRange2("Fog range (SZ)", &pc_post_fog_range[0], &pc_post_fog_range[1], 10, 0, 65535, "%.0f");
-    }
-}
+extern "C" void pc_post_panel(void); /* post_profile.cpp */
+static void post_panel() { pc_post_panel(); }
 
 static void game_panel()
 {
@@ -768,6 +809,13 @@ static void render_panel()
         ImGui::SetTooltip("Room polygons lying on other room polygons (documents on a table, a notice on\n"
                           "a wall, a rug on the floor) paint in the PS1's ordering-table order instead of\n"
                           "z-fighting; occlusion stays per pixel beyond a small slack. Off: plain depth test.");
+    extern int pc_room_texture_lod;
+    bool lod = pc_room_texture_lod != 0;
+    if (ImGui::Checkbox("PS1 half-size textures in the distance", &lod))
+        pc_room_texture_lod = lod;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("The PS1 draws far room polygons with a half-size copy of their texture (the\n"
+                          "page before). Off (default): always the full texture, crisp at any distance.");
 }
 
 static void control_panel(double frame_ms)
@@ -1591,6 +1639,7 @@ extern "C" void pc_overlay_frame(int width, int height)
         memset(pc_gl_inset, 0, sizeof pc_gl_inset);
     }
     pc_ui_draw_frame((float)dt); /* modern menus (pc/src/ui) over the game picture */
+    shell_text_input();
     ImGui::Render();
 #ifdef ROOD_VULKAN
     if (pc_vk_on())

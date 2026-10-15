@@ -54,22 +54,35 @@ void pc_dev_state(struct pc_dev_state* out)
         out->facing = player->unk0.facing;
     }
 }
-/* Where the room's characters stand (world units; Ashley first): the actor
- * slots D_800F4538[0..16] that point into guest RAM. For the interactive fog
- * (fog_sim.cpp). Returns how many were written. */
-int pc_dev_actor_positions(float (*out)[3], int max)
+/* The room's characters (dev_state.h): the actor slots D_800F4538[0..16]
+ * that point into guest RAM; the radius is their drop shadow's
+ * (shadowRadius, the field actor_shadow.c reads at 0x64c). */
+int pc_dev_actors(struct pc_dev_actor* out, int max)
 {
     int n = 0;
     for (int i = 0; i < 17 && n < max; i++) {
         D_800F4538_t* actor = D_800F4538[i];
         if (!guest_pointer(actor, sizeof *actor))
             continue;
-        out[n][0] = actor->unk0.position.vx;
-        out[n][1] = actor->unk0.position.vy;
-        out[n][2] = actor->unk0.position.vz;
+        out[n].slot = i;
+        out[n].pos[0] = actor->unk0.position.vx;
+        out[n].pos[1] = actor->unk0.position.vy;
+        out[n].pos[2] = actor->unk0.position.vz;
+        out[n].radius = actor->shadowRadius;
+        out[n].facing = actor->unk0.facing & 0xfff;
         n++;
     }
     return n;
+}
+/* scene_submit.inc (in BATTLE's 146C.c, which knows the action record). */
+extern int pc_battle_action(int* actor, int* action, int* phase, int* chain, int* type, int* plain, int aim[3]);
+int pc_dev_battle_action(struct pc_dev_action* out)
+{
+    int aim[3];
+    if (!pc_battle_action(&out->actor, &out->action, &out->phase, &out->chain, &out->type, &out->plain, aim))
+        return 0;
+    out->aim[0] = (float)aim[0], out->aim[1] = (float)aim[1], out->aim[2] = (float)aim[2];
+    return 1;
 }
 void pc_rpc_state(char* out, unsigned size)
 {

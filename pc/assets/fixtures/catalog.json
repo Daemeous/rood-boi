@@ -136,7 +136,8 @@
       "params": { "height": 0 },
       "fixture_radius": 24,
       "enabled": false,
-      "glow": "leave"
+      "glow": "leave",
+      "glow_shape": "column"
     },
     "magic_glow": {
       "family": "magic",

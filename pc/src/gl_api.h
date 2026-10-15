@@ -14,6 +14,7 @@
     X(void, Disable, (GLenum))                                                              \
     X(void, Scissor, (GLint, GLint, GLsizei, GLsizei))                                      \
     X(void, BlendFunc, (GLenum, GLenum))                                                    \
+    X(void, BlendFuncSeparate, (GLenum, GLenum, GLenum, GLenum))                            \
     X(void, BlendEquation, (GLenum))                                                        \
     X(void, BlendColor, (GLfloat, GLfloat, GLfloat, GLfloat))                               \
     X(void, ColorMask, (GLboolean, GLboolean, GLboolean, GLboolean))                        \
@@ -25,6 +26,10 @@
     X(void, TexSubImage2D, (GLenum, GLint, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum,   \
                               const void*))                                                 \
     X(void, PixelStorei, (GLenum, GLint))                                                   \
+    X(void, TexImage3D, (GLenum, GLint, GLint, GLsizei, GLsizei, GLsizei, GLint, GLenum,     \
+                           GLenum, const void*))                                            \
+    X(void, TexSubImage3D, (GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei,   \
+                              GLenum, GLenum, const void*))                                 \
     X(GLuint, CreateShader, (GLenum))                                                       \
     X(void, ShaderSource, (GLuint, GLsizei, const GLchar* const*, const GLint*))            \
     X(void, CompileShader, (GLuint))                                                        \

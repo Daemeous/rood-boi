@@ -2,6 +2,7 @@
 #ifdef ROOD_PC
 #include "pc/src/psx_types.h"
 #include "pc/src/widescreen.h"
+#include "pc/src/ui/map_frame.h"
 #endif
 #include "src/SLUS_010.40/main.h"
 #include "src/SLUS_010.40/31724.h"
@@ -40,6 +41,25 @@ static void _buildYawMatrix(MATRIX* arg0, short arg1);
 static void _buildPitchMatrix(MATRIX* arg0, short arg1);
 static void _darkenBackground(void);
 static void _applyPalingScreenEffect(void);
+
+#ifdef ROOD_PC
+/* Modern menus, the native Map frame (pc/src/ui/map_bridge.c, map_frame.h):
+ * with ui_menus modern the shell's Map row opens this screen as before and
+ * the shell draws its chrome around the game's own 3D map. _pcFramed is
+ * latched at the start of a run (state 3) and is 0 on the original path,
+ * where every hook below falls through to the original statements. */
+static int _pcFramed;
+static int _pcRun;
+/* the bridge lost the frame with the list open: MENU5's own list starts */
+static int _pcListLost;
+static int _pcFramedNow(void);
+static int _pcMapSelection(void);
+static u_short* _pcPalingText; /* _renderScreen's _paling, for the frame's header */
+static void _pcPublish(void);
+static int _pcApply(int phase, int padActive);
+static void _pcListOpen(void);
+static void _pcSetRoom(int roomIndex);
+#endif
 
 /**
  * Renders the map controls based on availability.
@@ -252,8 +272,16 @@ int vs_menu5_exec(u_char* state)
     static int _ __attribute__((unused));
     static RECT menuBgBackRects[2];
 
+#ifdef ROOD_PC
+    pc_ui_map_frame_stamp(*state);
+#endif
+
     switch (*state) {
     case init:
+#ifdef ROOD_PC
+        _pcFramed = pc_ui_map_frame_begin(++_pcRun);
+        _pcListLost = 0;
+#endif
         _currentMapRow = -1;
         menuBgBackup = vs_main_allocHeapR(0xB600);
         menuBgBackRects[0].x = 768;
@@ -356,6 +384,12 @@ int vs_menu5_exec(u_char* state)
         break;
 
     case 10:
+#ifdef ROOD_PC
+        if (_pcFramed) {
+            pc_ui_map_frame_finish(D_80108D38);
+        }
+        _pcFramed = 0;
+#endif
         if (D_80108D38 == 2) {
             vs_battle_menuState.currentMenu = 6;
         }
@@ -580,6 +614,16 @@ static int _menuManager(void)
             _setNextAction(_triggerHideUi == 0);
         }
 
+#ifdef ROOD_PC
+        /* The frame's discrete requests (an area, a room, the view reset, hide,
+         * back, a tab): one per frame, only when no button went down. */
+        if (_pcFramedNow() && vs_main_buttonsPressed.all == 0 && _pcApply(0, 0)) {
+            _menuCommandsState = 5;
+            _renderScreen();
+            break;
+        }
+#endif
+
         if (vs_main_buttonsPressed.all & PADRright) {
             var_s2 = 5;
 
@@ -592,7 +636,13 @@ static int _menuManager(void)
                 _setNextAction(1);
             }
 
-            _mapSelectionMenu(1);
+#ifdef ROOD_PC
+            /* the frame's own area list (map_bridge.c), not the menu rows */
+            if (_pcFramedNow()) {
+                _pcListOpen();
+            } else
+#endif
+                _mapSelectionMenu(1);
 
         } else if (vs_main_buttonsPressed.all & (PADRup | PADRdown)) {
 
@@ -789,6 +839,15 @@ static int _menuManager(void)
             }
         }
 
+#ifdef ROOD_PC
+        /* The frame's drag and wheel (rotate, zoom, pan): one per frame; the
+         * pad wins (while it moves the view or a button went down they are
+         * dropped, 0 returned). */
+        if (_pcFramedNow() && _menuState == processInput) {
+            var_s2 |= _pcApply(1, var_s2 | vs_main_buttonsPressed.all);
+        }
+#endif
+
         _menuCommandsState = var_s2;
 
         _renderScreen();
@@ -797,7 +856,12 @@ static int _menuManager(void)
     case displayMapMenu:
         _renderScreen();
 
-        _selectedMap = new_var2 = _mapSelectionMenu(0);
+        _selectedMap = new_var2 =
+#ifdef ROOD_PC
+            _pcMapSelection();
+#else
+            _mapSelectionMenu(0);
+#endif
 
         if (new_var2 == -1) {
             break;
@@ -808,6 +872,13 @@ static int _menuManager(void)
 
             vs_battle_dismissTextBox(0);
 
+#ifdef ROOD_PC
+        } else if (new_var2 == -4) {
+            /* the frame's list left for a tab: Cross with the tab kept (map_bridge.c) */
+            _menuState = quit;
+
+            vs_battle_dismissTextBox(0);
+#endif
         } else if (new_var2 == -2) {
             _menuState = processInput;
 
@@ -893,6 +964,12 @@ static int _menuManager(void)
 
     _smoothMapToCenterpoint(vs_battle_sceneBuffer);
 
+#ifdef ROOD_PC
+    if (_pcFramedNow()) {
+        _pcPublish();
+    }
+#endif
+
     return 0;
 }
 
@@ -918,8 +995,14 @@ static void _renderScreen(void)
     int scene;
 
 #ifdef ROOD_PC
-    /* Widescreen: the controls help and the compass hug the left edge. */
-    PC_ANCHOR_PACKETS(PC_ANCHOR_LEFT_EDGE, _drawUIControls());
+    _pcPalingText = _paling;
+    /* Widescreen: the controls help and the compass hug the left edge. The
+     * Map frame draws its own controls, compass and JAMMING (ui_map_draw.cpp)
+     * and leaves text box 0 where it was created (under its footer). */
+    if (!_pcFramedNow()) {
+        pc_ui_map_note_controls();
+        PC_ANCHOR_PACKETS(PC_ANCHOR_LEFT_EDGE, _drawUIControls());
+    }
 #else
     _drawUIControls();
 #endif
@@ -2505,3 +2588,251 @@ static int func_8010839C(int arg0, int arg1, int arg2)
     }
     return vs_main_stateFlags.unk33F[arg0] < 2;
 }
+
+#ifdef ROOD_PC
+/* The Map frame's side of MENU5 (pc/src/ui/map_bridge.c). Everything here is
+ * MENU5's own statements, run at MENU5's own input point (processInput), so
+ * the game state ends as the pad would leave it. */
+
+/* Framed only while both sides agree: MENU5's latch and the bridge's frame of
+ * this run. A save state brings MENU5's statics back but not the host's
+ * model; then MENU5 falls back to its own controls help and list for the
+ * rest of the run (its list initialised when it was open). */
+static int _pcFramedNow(void)
+{
+    if (_pcFramed && !pc_ui_map_framed(_pcRun)) {
+        _pcFramed = 0;
+        _pcListLost = _menuState == 2; /* displayMapMenu */
+    }
+    return _pcFramed;
+}
+
+/* displayMapMenu's list: the frame's, or MENU5's own. */
+static int _pcMapSelection(void)
+{
+    if (_pcFramedNow()) {
+        return pc_ui_map_frame_list();
+    }
+    if (_pcListLost) {
+        _pcListLost = 0;
+        return _mapSelectionMenu(1);
+    }
+    return _mapSelectionMenu(0);
+}
+
+/* What the frame draws, read once per _menuManager frame (no writes). */
+static void _pcPublish(void)
+{
+    pc_ui_map_game g;
+    vs_battle_scene* scene = vs_battle_sceneBuffer;
+
+    g.exec_state = 7;
+    g.menu_state = _menuState;
+    g.scene = _currentScene;
+    g.scene_row = _currentSceneRow;
+    g.room = _currentRoomIndex;
+    g.is_current_scene = _isCurrentScene;
+    g.yaw = _cameraAngles.vy;
+    g.pitch = _cameraAngles.vx;
+    g.yaw0 = _cameraAngles.vz;
+    g.distance = _cameraDistance;
+    g.gx = _geomOffsetX;
+    g.gy = _geomOffsetY;
+    g.hide_ui = _triggerHideUi;
+    g.is_paling = _isPaling;
+    g.paled = vs_main_stateFlags.mapPaling[_currentScene];
+    g.quit_state = _quitState;
+    g.cmd_state = _menuCommandsState;
+    g.room_count = scene != NULL ? scene->roomCount : 0;
+    g.rooms = scene != NULL ? scene->rooms : NULL;
+    g.room_names = _roomNamesTable;
+    g.paling_text = _pcPalingText;
+    pc_ui_map_frame_publish(&g);
+}
+
+/* A visited room of the shown area (room rows, the frame's < >): as R1 / L1
+ * end (_updateRoomIndex: the step sound; _setCenterpoint, 773-783; the room
+ * name's text box, 785-787). */
+static void _pcSetRoom(int roomIndex)
+{
+    vs_battle_scene* scene = vs_battle_sceneBuffer;
+
+    if (roomIndex < 0 || roomIndex >= scene->roomCount
+        || scene->rooms[roomIndex].visited == 0 || roomIndex == _currentRoomIndex) {
+        return;
+    }
+    vs_main_playSfxDefault(0x7E, 0xB);
+    _currentRoomIndex = roomIndex;
+    _setCenterpoint(vs_battle_sceneBuffer, _currentRoomIndex);
+    vs_battle_setTextBox(0, _roomNamesTable[_currentRoomIndex].name);
+}
+
+/* Start (processInput 712-721): the view and the room back to the opening's. */
+static void _pcResetView(void)
+{
+    _geomOffsetX = 0;
+    _geomOffsetY = 0;
+    _cameraDistance = ONE * 3 / 16;
+    _cameraAngles.vx = 0x238;
+    _cameraAngles.vy = 0x800 - *(u_short*)getScratchAddr(22);
+    _currentRoomIndex = _getCurrentRoomIndex(vs_battle_sceneBuffer);
+
+    _snapMapToRoom(vs_battle_sceneBuffer, _currentRoomIndex);
+}
+
+/* Circle's area list (_mapSelectionMenu's init, 1009-1044, and
+ * _configureMapMenu, 133-163): the same rows, the same current row, the
+ * same cursor memories written; the list itself is the frame's
+ * (map_bridge.c, MAINMENU 58EC.c's rows list ported), so no menu rows are
+ * set up (vs_mainmenu_setMenuRows' cursorMemory save / restore nets zero). */
+static void _pcListOpen(void)
+{
+    int ids[32];
+    int count = 0;
+    int currentMap = 0;
+    int highlight;
+    int i;
+
+    for (i = 1; i < 32; ++i) {
+        if (vs_main_mapStatus.areaFlags[i >> 5] & (1 << (i & 0x1F))) {
+            _sceneRowIdMap[count] = i;
+            ids[count] = i;
+            if (_currentScene == i) {
+                currentMap = count;
+            }
+            ++count;
+        }
+    }
+    if (count == 0) { /* _mapSelectionMenu returns -2 before configuring */
+        pc_ui_map_frame_list_open(ids, 0, 0x80, 0, 0);
+        return;
+    }
+    if (_currentSceneRow == 0) {
+        currentMap = 0x80;
+    }
+    if (_currentMapRow == -1) {
+        _currentMapRow = currentMap;
+    }
+    highlight = 0x80;
+    if (!(currentMap & 0x80) && _currentMapRow < count) {
+        highlight = _currentMapRow;
+    }
+    currentMap &= 0x7F;
+    if ((count < 9) || (currentMap < 8)) {
+        D_800F4EE8.cursorMemories[0] = currentMap;
+        D_800F4EE8.cursorMemories[1] = 0;
+    } else if (currentMap >= (count - 8)) {
+        D_800F4EE8.cursorMemories[0] = currentMap - (count - 9);
+        D_800F4EE8.cursorMemories[1] = count - 9;
+    } else {
+        D_800F4EE8.cursorMemories[0] = 4;
+        D_800F4EE8.cursorMemories[1] = currentMap - 4;
+    }
+    pc_ui_map_frame_list_open(ids, count, highlight, D_800F4EE8.cursorMemories[0],
+        D_800F4EE8.cursorMemories[1]);
+}
+
+/* The frame's requests (map_frame.h), from processInput. Phase 0: one
+ * discrete request (returns 1 when one was taken: the frame's input this
+ * frame). Phase 1: one rotate, zoom or pan (returns the controls state the
+ * pad's would set: 3 rotate, 2 zoom, 0 pan), dropped while the pad moves the
+ * view (padActive or a camera button / the right stick held). */
+static int _pcApply(int phase, int padActive)
+{
+    pc_ui_map_req req;
+    vs_battle_scene* scene = vs_battle_sceneBuffer;
+    int roomIndex = _currentRoomIndex;
+    int i;
+
+    if (phase == 0) {
+        if (!pc_ui_map_frame_take(&req, 1)) {
+            return 0;
+        }
+        switch (req.kind) {
+        case PC_UI_MAP_REQ_AREA:
+        case PC_UI_MAP_REQ_LIST:
+            /* Circle (583-595); an area's row is then confirmed by the list */
+            vs_main_playSfxDefault(0x7E, 5);
+            _menuState = 2; /* displayMapMenu */
+            if (_hideUi != 0) {
+                _hideUi = 0;
+                _setNextAction(1);
+            }
+            _pcListOpen();
+            return 1;
+        case PC_UI_MAP_REQ_QUIT:
+        case PC_UI_MAP_REQ_TAB:
+            /* Cross / Triangle (597-607); a tab is Cross with the tab kept */
+            vs_main_playSfxDefault(0x7E, 6);
+            if (req.kind == PC_UI_MAP_REQ_QUIT && req.a == 2) {
+                _quitState = 2;
+            }
+            _menuState = 3; /* quit */
+            vs_battle_dismissTextBox(0);
+            return 1;
+        case PC_UI_MAP_REQ_HIDE:
+            _triggerHideUi ^= 1; /* Select (547) */
+            return 1;
+        }
+        if (vs_main_stateFlags.mapPaling[_currentScene] != 0) {
+            return 1; /* a paled area takes nothing else (609) */
+        }
+        switch (req.kind) {
+        case PC_UI_MAP_REQ_ROOM:
+            _pcSetRoom(req.a);
+            break;
+        case PC_UI_MAP_REQ_STEP:
+            /* R1 / L1 (773-787); _updateRoomIndex never ends without a visited room */
+            for (i = 0; i < scene->roomCount; ++i) {
+                if (scene->rooms[i].visited != 0) {
+                    break;
+                }
+            }
+            if (i < scene->roomCount) {
+                _updateRoomIndex(req.a > 0 ? 1 : -1);
+                _setCenterpoint(vs_battle_sceneBuffer, _currentRoomIndex);
+                if (roomIndex != _currentRoomIndex) {
+                    vs_battle_setTextBox(0, _roomNamesTable[_currentRoomIndex].name);
+                }
+            }
+            break;
+        case PC_UI_MAP_REQ_RESET:
+            _pcResetView();
+            break;
+        }
+        return 1;
+    }
+
+    if (padActive
+        || (vs_main_buttonsPreviousState
+            & (PADL1 | PADR1 | PADL2 | PADR2 | PADstart | PADLup | PADLdown | PADLleft
+                | PADLright))
+        || ABS(vs_main_stickPosBuf.rStickX - 128) > 64
+        || ABS(vs_main_stickPosBuf.rStickY - 128) > 64) {
+        while (pc_ui_map_frame_take(&req, 0)) { }
+        return 0;
+    }
+    if (!pc_ui_map_frame_take(&req, 0)) {
+        return 0;
+    }
+    switch (req.kind) {
+    case PC_UI_MAP_REQ_ORBIT: /* the left stick / L2 (615-680) */
+        _cameraAngles.vy += req.a;
+        i = _cameraAngles.vx + req.b;
+        _cameraAngles.vx = i < 0 ? 0 : i > 1024 ? 1024 : i;
+        return 3;
+    case PC_UI_MAP_REQ_ZOOM: /* R2 (681-711) */
+        i = _cameraDistance + req.a;
+        _cameraDistance = i < ONE / 8 ? ONE / 8 : i > ONE / 4 ? ONE / 4 : i;
+        return 2;
+    case PC_UI_MAP_REQ_PAN: /* the right stick / D-pad (723-771): steps of 4, so
+                             * the D-pad's check-then-add still stops at the clamps */
+        i = _geomOffsetX + req.a / 4 * 4;
+        _geomOffsetX = i < -96 ? -96 : i > 96 ? 96 : i;
+        i = _geomOffsetY + req.b / 4 * 4;
+        _geomOffsetY = i < -80 ? -80 : i > 80 ? 80 : i;
+        return 0;
+    }
+    return 0;
+}
+#endif

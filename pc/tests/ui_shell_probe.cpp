@@ -1,12 +1,19 @@
 // The modern menu shell's navigation (pc/src/ui/ui_shell.cpp) without the game.
 #include "ui/ui_shell.h"
+#include "ui/map_frame.h"
 #include "ui/ui_settings.h"
+#include "ui/ui_workshop.h"
+#include "ui/ui_manual.h"
+#include "ui/manual_parse.h"
 #include "ui/ui_theme.h"
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <vector>
 
 int pc_ui_menus = 1;
+extern "C" float pc_ui_menu_opacity;
+float pc_ui_menu_opacity = 0.94f; // project_settings.cpp (ui_theme.cpp theme())
 static int failures;
 #define CHECK(c) do { if (!(c)) { std::printf("FAIL %s:%d %s\n", __FILE__, __LINE__, #c); ++failures; } } while (0)
 
@@ -172,7 +179,7 @@ static void shields()
 }
 static pc_ui_request pop()
 {
-    pc_ui_request r = {PC_UI_REQ_NONE, 0, 0, 0};
+    pc_ui_request r = {};
     if (!pc_ui_shell_pop_request(&r))
         r.kind = PC_UI_REQ_NONE;
     return r;
@@ -705,14 +712,17 @@ static void mouse_tests()
     pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, -1);
     tick(0);
     CHECK(json_has("\"row\":\"manual\""));
-    // a click on a game entry opens its command (Quick manual = 9 -> 10)
-    pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 3, 1, 0);
-    CHECK(tick(0) == 10);
+    pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, 1);
+    tick(0);
+    CHECK(json_has("\"row\":\"score\""));
+    // a click on a game entry opens its command (Score = 8 -> 9; the Quick manual is native: see manual_tests)
+    pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 2, 1, 0);
+    CHECK(tick(0) == 9);
     // closed: the pointer is ignored, nothing is left over at the next open
     pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 0, 1, 0);
     pc_ui_shell_open(&all, 1);
     CHECK(tick(0) == 0);
-    CHECK(json_has("\"row\":\"manual\""));
+    CHECK(json_has("\"row\":\"score\""));
     // a tab without rows is not clicked into (no Magick unlocked: bit 0)
     pc_ui_commands early = {0x3FF & ~1u, 0, 0};
     pc_ui_shell_open(&early, 1);
@@ -1348,6 +1358,1587 @@ static void magick_tests()
     pc_ui_shell_close();
 }
 
+
+// ---- Items ----
+static pc_ui_items items_model_storage;
+static pc_ui_items& items_model()
+{
+    pc_ui_items& m = items_model_storage;
+    m = pc_ui_items();
+    m.valid = 1;
+    static const int caps[PC_UI_ITEM_CATEGORIES] = {8, 16, 16, 8, 16, 48, 64};
+    static const int counts[PC_UI_ITEM_CATEGORIES] = {2, 1, 0, 0, 0, 1, 3};
+    int n = 0;
+    for (int c = 0; c < PC_UI_ITEM_CATEGORIES; ++c) {
+        m.capacity[c] = caps[c];
+        m.first[c] = n;
+        m.count[c] = counts[c];
+        for (int r = 0; r < counts[c]; ++r) {
+            pc_ui_item_row& e = m.rows[n++];
+            e.inventory = r + 2;
+            e.id = 100 + c * 10 + r;
+            e.parent = e.parent_category = -1;
+            std::snprintf(e.name, sizeof e.name, "c%dr%d", c, r);
+            e.discard = 1;
+        }
+        m.sort_count[c] = c == PC_UI_IC_MISC ? 2 : 3;
+        m.sort_stats[c][0] = 0;
+        m.sort_stats[c][1] = c == PC_UI_IC_MISC ? 56 : 8;
+        m.sort_stats[c][2] = 9;
+    }
+    // weapons: row 0 equipped (not discardable); blades: row 0 in weapon 1 (row 1 of weapons)
+    m.rows[0].mark = PC_UI_MARK_EQUIPPED;
+    m.rows[0].discard = 0;
+    std::snprintf(m.rows[0].discard_reason, sizeof m.rows[0].discard_reason, "Equipped.");
+    pc_ui_item_row& blade = m.rows[m.first[PC_UI_IC_BLADE]];
+    blade.mark = PC_UI_MARK_SET;
+    blade.discard = 0;
+    blade.parent_category = PC_UI_IC_WEAPON;
+    blade.parent = m.rows[1].inventory;
+    // misc: a stack of 25 (usable), a single (not usable: MP), a key (nothing)
+    pc_ui_item_row* misc = &m.rows[m.first[PC_UI_IC_MISC]];
+    misc[0].count = 25, misc[0].usable = 1, misc[0].discard_all = 1, misc[0].action = 0xE0;
+    misc[1].count = 1, misc[1].discard_all = 1;
+    std::snprintf(misc[1].use_reason, sizeof misc[1].use_reason, "Not enough MP.");
+    misc[2].count = 1, misc[2].discard = 0;
+    std::snprintf(misc[2].use_reason, sizeof misc[2].use_reason, "Cannot use.");
+    std::snprintf(misc[2].discard_reason, sizeof misc[2].discard_reason, "Cannot discard.");
+    std::snprintf(misc[2].discard_all_reason, sizeof misc[2].discard_all_reason, "Cannot discard.");
+    std::snprintf(m.stat_name[0], sizeof m.stat_name[0], "Kind");
+    std::snprintf(m.stat_name[56], sizeof m.stat_name[56], "Quantity");
+    std::snprintf(m.no_search, sizeof m.no_search, "Not part of anything.");
+    for (int i = 0; i < 3; ++i)
+        std::snprintf(m.discard_prompt[i], sizeof m.discard_prompt[i], "Discard %d?", i);
+    return m;
+}
+static bool item_req(int kind, int cat, int item_, int shield, int count = 0)
+{
+    pc_ui_request r = pop();
+    bool ok = r.kind == kind && r.slot == cat && r.item == item_ && r.shield == shield && r.count == count;
+    if (!ok)
+        std::printf("  item request: kind %d slot %d item %d shield %d count %d\n", r.kind, r.slot, r.item, r.shield,
+            r.count);
+    return ok;
+}
+
+// ---- The Loot screen (ui_loot.cpp; a direct session, no tabs) ----
+static void loot_tick(unsigned buttons)
+{
+    pc_ui_input in = {buttons, buttons};
+    pc_ui_loot_tick(&in);
+}
+static pc_ui_request loot_pop()
+{
+    pc_ui_request r = {};
+    if (!pc_ui_loot_pop_request(&r))
+        r.kind = PC_UI_REQ_NONE;
+    return r;
+}
+static bool loot_req(int kind, int slot, int item_, int shield, int count = -99)
+{
+    pc_ui_request r = loot_pop();
+    return r.kind == kind && r.slot == slot && r.item == item_ && r.shield == shield && (count == -99 || r.count == count);
+}
+static bool loot_empty_queue() { return loot_pop().kind == PC_UI_REQ_NONE; }
+static pc_ui_loot loot_model(int keys, int claimed, int chest)
+{
+    static pc_ui_loot m;
+    m = pc_ui_loot();
+    m.valid = 1;
+    m.chest = chest;
+    m.claimed = claimed;
+    m.keys = keys;
+    m.count = 3;
+    const char* names[3] = {"Tovarisch", "Cure Root", "Iron Key"};
+    const int cats[3] = {PC_UI_IC_WEAPON, PC_UI_IC_MISC, PC_UI_IC_MISC};
+    for (int i = 0; i < 3; ++i) {
+        pc_ui_loot_row& e = m.rows[i];
+        e.category = cats[i];
+        e.record = i == 2 ? 1 : 0;
+        std::snprintf(e.name, sizeof e.name, "%s", names[i]);
+        e.fits = i != 0; // the weapon has no room
+        e.key = i == 2;
+        e.organize = i == 0 ? PC_UI_LOOT_ORG_DISASSEMBLE : i == 1 ? PC_UI_LOOT_ORG_CONSOLIDATE : PC_UI_LOOT_ORG_NONE;
+    }
+    std::snprintf(m.leave_rest, sizeof m.leave_rest, "Items remain. Leave them?");
+    std::snprintf(m.leave_untouched, sizeof m.leave_untouched, "Discard all items?");
+    std::snprintf(m.keys_text, sizeof m.keys_text, "You cannot discard Iron Key.");
+    std::snprintf(m.disassemble_ask, sizeof m.disassemble_ask, "Disassemble Tovarisch?");
+    for (int c = 0; c < PC_UI_ITEM_CATEGORIES; ++c)
+        m.bag_capacity[c] = 8;
+    return m;
+}
+static bool loot_has(const char* needle)
+{
+    static char buf[1 << 16];
+    pc_ui_loot_json(buf, sizeof buf);
+    return std::strstr(buf, needle) != nullptr;
+}
+
+// ---- The Workshop (Items > Workshop: ui_workshop.cpp) ----
+static pc_ui_workshop ws_storage;
+static pc_ui_workshop& ws_model()
+{
+    pc_ui_workshop& m = ws_storage;
+    m = pc_ui_workshop();
+    m.valid = 1;
+    m.workshop = 6;
+    m.materials = 0xFE;
+    for (int i = 0; i < PC_UI_WS_ACTIONS; ++i)
+        m.action_enabled[i] = 1, m.action_reason[i] = -1;
+    auto row = [](pc_ui_ws_row& r, int inv, const char* name) {
+        r = pc_ui_ws_row();
+        r.inventory = inv;
+        r.id = inv + 1;
+        r.parent = -1;
+        r.gems[0] = r.gems[1] = r.gems[2] = -1;
+        std::snprintf(r.name, sizeof r.name, "%s", name);
+    };
+    m.count[PC_UI_WSL_WEAPONS] = 2;
+    row(m.weapons[0], 0, "Fandango");
+    m.weapons[0].mark = PC_UI_MARK_EQUIPPED;
+    m.weapons[0].gem_slots = 2;
+    row(m.weapons[1], 2, "Tovarisch");
+    for (int i = 0; i < PC_UI_WS_NAME_LEN; ++i)
+        m.weapons[1].field[i] = i < 2 ? (unsigned char)(10 + i) : 0x8F; // "AB"
+    m.count[PC_UI_WSL_BLADES] = 2;
+    row(m.blades[0], 0, "Broad Sword");
+    m.blades[0].parent = 0;
+    m.blades[0].material_ok = 1;
+    row(m.blades[1], 1, "Hand Axe");
+    m.blades[1].material_ok = 1;
+    m.blades[1].grips_ok = 1; // grip row 0 fits
+    m.count[PC_UI_WSL_GRIPS] = 1;
+    row(m.grips[0], 1, "Wooden Grip");
+    m.grips[0].gem_slots = 1;
+    m.count[PC_UI_WSL_SHIELDS] = 1;
+    row(m.shields[0], 0, "Buckler");
+    m.shields[0].gem_slots = 1; // no gem: not to disassemble
+    m.count[PC_UI_WSL_ARMOR] = 2;
+    row(m.armor[0], 6, "Leather Glove");
+    m.armor[0].material_ok = 1;
+    row(m.armor[1], 7, "Silver Glove"); // a material this workshop does not work
+    m.count[PC_UI_WSL_GEMS] = 2;
+    row(m.gems[0], 0, "Feldspar");
+    row(m.gems[1], 1, "Pyrite");
+    std::snprintf(m.text[25], sizeof m.text[25], "No gems attached to this shield.");
+    std::snprintf(m.text[49], sizeof m.text[49], "Only one item of this category is listed.");
+    std::snprintf(m.text[51], sizeof m.text[51], "You cannot carry any more weapons.");
+    std::snprintf(m.text[22], sizeof m.text[22], "Armor of this material cannot be altered at this workshop.");
+    m.grid[0][0] = 10, m.grid[0][1] = 11, m.grid[2][1] = 37;
+    std::snprintf(m.glyph[10], sizeof m.glyph[10], "A");
+    std::snprintf(m.glyph[11], sizeof m.glyph[11], "B");
+    std::snprintf(m.glyph[37], sizeof m.glyph[37], "b");
+    std::snprintf(m.glyph[0x8F], sizeof m.glyph[0x8F], " ");
+    return m;
+}
+static bool ws_req(int kind, int slot, int item_, int shield, int count = 0)
+{
+    pc_ui_request r = pop();
+    bool ok = r.kind == kind && r.slot == slot && r.item == item_ && r.shield == shield && r.count == count;
+    if (!ok)
+        std::printf("  workshop request: kind %d slot %d item %d shield %d count %d\n", r.kind, r.slot, r.item,
+            r.shield, r.count);
+    return ok;
+}
+
+static void workshop_tests()
+{
+    pc_ui_commands all = {0x3FF, 0, 0};
+    pc_ui_shell_open(&all, 0);
+    pc_ui_shell_set_items(&items_model());
+    pc_ui_workshop_set(&ws_model());
+    for (int i = 0; i < 2; ++i) tick(PC_UI_TAB_NEXT);
+    // L2 from weapons: the Workshop (after misc); R2 back to weapons; a click on its chip
+    tick(PC_UI_SUB_PREV);
+    CHECK(pc_ui_shell_workshop_shown() && json_has("\"category\":\"workshop\"") && json_has("\"mode\":\"rows\""));
+    int cat, inv;
+    CHECK(!pc_ui_shell_items_focus(&cat, &inv));
+    tick(PC_UI_SUB_NEXT);
+    CHECK(!pc_ui_shell_workshop_shown() && json_has("\"category\":\"weapons\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_SUB, PC_UI_ITEM_CATEGORIES, 1, 0);
+    tick(0);
+    CHECK(pc_ui_shell_workshop_shown());
+    // a greyed command buzzes, with its reason
+    pc_ui_workshop& m = ws_storage;
+    m.action_enabled[PC_UI_WSA_ASSEMBLE] = 0;
+    m.action_reason[PC_UI_WSA_ASSEMBLE] = 51;
+    pc_ui_workshop_set(&m);
+    CHECK(json_has("{\"id\":\"assemble\",\"label\":\"Assemble\",\"enabled\":false,\"reason\":\"You cannot carry"));
+    tick(PC_UI_CONFIRM);
+    CHECK(ws_req(PC_UI_REQ_WS_SOUND, 2, 0, 0) && json_has("\"mode\":\"rows\""));
+    m.action_enabled[PC_UI_WSA_ASSEMBLE] = 1;
+    pc_ui_workshop_set(&m);
+    // Assemble: blade, grip, gem, Next, the name (typed), Done
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"assemble\",\"flow\":\"assemble\"") && json_has("\"slots\":2,\"finish\":false"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"pick\"") && json_has("\"pick\":\"blade\""));
+    CHECK(json_has("{\"entry\":0,\"list\":\"\",\"inventory\":-1,\"enabled\":false")); // the placeholder
+    CHECK(json_has("{\"entry\":1,\"list\":\"blades\",\"inventory\":1,\"enabled\":true")); // the free blade only
+    tick(PC_UI_DOWN);
+    int key[6];
+    CHECK(pc_ui_shell_workshop_wanted(key) && key[0] == PC_UI_WSA_ASSEMBLE && key[1] == 1 && key[2] == -1);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"assemble\"") && json_has("\"cursor\":1") && json_has("\"blade\":1,"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"pick\":\"grip\"") && json_has("{\"entry\":1,\"list\":\"grips\",\"inventory\":1,\"enabled\":true"));
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"slots\":4,\"finish\":true") && json_has("\"cursor\":2") && json_has("\"grip\":1,"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"pick\":\"gem\"") && json_has("{\"entry\":2,\"list\":\"gems\",\"inventory\":1"));
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"gems\":[0,-1,-1]") && json_has("\"cursor\":3"));
+    CHECK(pc_ui_shell_workshop_wanted(key) && key[3] == 1); // gem record 0 + 1 in slot 0
+    // the picked gem again: it comes out (the slot's own first in its list)
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("{\"entry\":0,\"list\":\"gems\",\"inventory\":0,\"enabled\":true,\"current\":true"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"gems\":[-1,-1,-1]") && json_has("\"cursor\":2"));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM); // gem 0 again
+    tick(PC_UI_CONFIRM); // Next
+    CHECK(json_has("\"mode\":\"name\"") && json_has("\"assembling\":true,\"text\":\"\""));
+    CHECK(pc_ui_workshop_typing());
+    pc_ui_workshop_text("A\xe2\x98\x83" "b"); // a snowman is not in the grid
+    CHECK(json_has("\"cursor\":2,\"grid\":[0,0],\"assembling\":true,\"text\":\"Ab\""));
+    pc_ui_workshop_key(PC_UI_WSK_LEFT);
+    pc_ui_workshop_key(PC_UI_WSK_BACKSPACE);
+    CHECK(json_has("\"cursor\":0,") && json_has("\"text\":\"b\""));
+    tick(PC_UI_CONFIRM); // the grid's 'A' over the 'b' at the cursor (MENU8 overwrites), the cursor on
+    CHECK(json_has("\"cursor\":1,\"grid\":[0,0],\"assembling\":true,\"text\":\"A\""));
+    pc_ui_workshop_text("b"); // the keyboard inserts
+    CHECK(json_has("\"cursor\":2,") && json_has("\"text\":\"Ab\""));
+    tick(PC_UI_TAB_PREV); // L1: the cursor, not the tab
+    tick(PC_UI_TAB_PREV);
+    tick(PC_UI_CONFIRM); // 'A' over 'A'
+    CHECK(json_has("\"tab\":\"items\"") && json_has("\"cursor\":1,") && json_has("\"text\":\"Ab\""));
+    for (int i = 0; i < 25; ++i) // the last place: the cursor stays, each character overwrites it
+        tick(PC_UI_TAB_NEXT);
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"cursor\":19,") && json_has(("\"text\":\"Ab" + std::string(17, ' ') + "A\"").c_str()));
+    pc_ui_workshop_key(PC_UI_WSK_DELETE); // the character at the cursor out
+    CHECK(json_has("\"cursor\":19,") && json_has("\"text\":\"Ab\""));
+    tick(PC_UI_UP); // past the grid's top: Delete, Done
+    tick(PC_UI_RIGHT);
+    CHECK(json_has("\"grid\":[9,1]"));
+    tick(PC_UI_CONFIRM);
+    {
+        // the request carries the name (MENU8's buffer)
+        pc_ui_request ar = pop();
+        CHECK(ar.kind == PC_UI_REQ_WS_ASSEMBLE && ar.slot == 1 && ar.item == 1 && ar.shield == 1
+              && ar.name[0] == 10 && ar.name[1] == 37 && ar.name[2] == 0x8F && ar.name[19] == 0x8F);
+        CHECK(json_has("\"mode\":\"rows\""));
+        // refused: back on the name, as typed
+        pc_ui_workshop_refused();
+        CHECK(json_has("\"mode\":\"name\"") && json_has("\"text\":\"Ab\"") && json_has("\"message\":\""));
+        pc_ui_workshop_key(PC_UI_WSK_ENTER);
+        ar = pop();
+        CHECK(ar.kind == PC_UI_REQ_WS_ASSEMBLE && ar.name[0] == 10 && json_has("\"mode\":\"rows\""));
+    }
+    // Rename: the field opens on the weapon's name; Escape backs out to the list
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"target\",\"flow\":\"rename\""));
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"assembling\":false,\"text\":\"AB\""));
+    pc_ui_workshop_key(PC_UI_WSK_ESCAPE);
+    CHECK(json_has("\"mode\":\"target\"") && ws_req(PC_UI_REQ_WS_SOUND, 0, 0, 0));
+    tick(PC_UI_CONFIRM);
+    pc_ui_workshop_key(PC_UI_WSK_ENTER);
+    CHECK(ws_req(PC_UI_REQ_WS_RENAME, 0, 2, -1) && json_has("\"mode\":\"target\""));
+    tick(PC_UI_BACK);
+    CHECK(ws_req(PC_UI_REQ_WS_SOUND, 0, 0, 0) && json_has("\"mode\":\"rows\""));
+    // Disassemble: weapons, then the shield (no gems: greyed); Yes / No opens on No
+    tick(PC_UI_UP);
+    CHECK(json_has("\"row\":2"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("{\"entry\":2,\"list\":\"shields\",\"inventory\":0,\"enabled\":false") &&
+          json_has("\"reason\":\"No gems attached to this shield.\""));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"confirm\"") && json_has("\"confirm\":{\"kind\":\"disassemble\",\"yes\":false"));
+    tick(PC_UI_CONFIRM); // No
+    CHECK(ws_req(PC_UI_REQ_WS_SOUND, 0, 0, 0) && json_has("\"mode\":\"target\""));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(ws_req(PC_UI_REQ_WS_DISASSEMBLE, 0, 0, 0) && json_has("\"mode\":\"target\""));
+    tick(PC_UI_BACK);
+    pop();
+    // Combine: shields greyed (one); armor: a material not worked here buzzes
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"flow\":\"combine\"") && json_has("\"category\":1,\"count\":1,\"label\":\"Shields\",\"reason\":"
+                                                        "\"Only one item"));
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"combine\"") && json_has("\"combine\":2"));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    CHECK(json_has("{\"entry\":2,\"list\":\"armor\",\"inventory\":7,\"enabled\":false"));
+    tick(PC_UI_CONFIRM);
+    CHECK(ws_req(PC_UI_REQ_WS_SOUND, 2, 0, 0) && json_has("\"mode\":\"pick\""));
+    tick(PC_UI_BACK);
+    pop();
+    tick(PC_UI_BACK);
+    pop();
+    // blades: both picked, Combine asks on No
+    tick(PC_UI_UP);
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"combine\":0"));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"first\":0,") && json_has("\"cursor\":1"));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"second\":1") && json_has("\"finish\":true") && json_has("\"cursor\":2"));
+    CHECK(pc_ui_shell_workshop_wanted(key) && key[0] == PC_UI_WSA_COMBINE && key[1] == 0 && key[2] == 0 && key[3] == 1);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"confirm\":{\"kind\":\"combine\",\"yes\":false"));
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(ws_req(PC_UI_REQ_WS_COMBINE, 0, 0, 1) && json_has("\"mode\":\"rows\",\"flow\":\"\",\"row\":5"));
+    // Repair opens on Yes; a refused request shows a line
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"confirm\":{\"kind\":\"repair\",\"yes\":true"));
+    tick(PC_UI_CONFIRM);
+    CHECK(ws_req(PC_UI_REQ_WS_REPAIR, 0, 0, 0) && json_has("\"mode\":\"rows\""));
+    pc_ui_workshop_refused(); // back on the Yes / No that sent it
+    CHECK(json_has("\"message\":\"") && json_has("\"confirm\":{\"kind\":\"repair\",\"yes\":true"));
+    tick(PC_UI_BACK);
+    CHECK(ws_req(PC_UI_REQ_WS_SOUND, 0, 0, 0) && json_has("\"mode\":\"rows\""));
+    // a click on a command while a flow is open: back on it, no confirm
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"target\",\"flow\":\"rename\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_WS_ROW, PC_UI_WSA_REPAIR, 1, 0);
+    tick(0);
+    CHECK(json_has("\"mode\":\"rows\",\"flow\":\"\",\"row\":4"));
+    pc_ui_shell_mouse(PC_UI_MOUSE_WS_ROW, PC_UI_WSA_REPAIR, 1, 0);
+    tick(0);
+    CHECK(json_has("\"confirm\":{\"kind\":\"repair\""));
+    // Cross: back, then the shell closes from the commands
+    tick(PC_UI_BACK);
+    pop();
+    // Gems on the equipped Fandango (2 slots): Attach with no pick changes nothing (flags 0)
+    while (!json_has("\"mode\":\"rows\",\"flow\":\"\",\"row\":1"))
+        tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"target\",\"flow\":\"gems\""));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"slots\"") && json_has("\"slots\":3"));
+    tick(PC_UI_UP); // Attach
+    tick(PC_UI_CONFIRM);
+    {
+        pc_ui_request g = pop();
+        CHECK(g.kind == PC_UI_REQ_WS_GEMS && g.slot == 0 && g.item == 0 && g.shield == 0 && g.count == 0
+              && g.flags == 0 && json_has("\"mode\":\"target\""));
+    }
+    // a pick (and out again: the same gems) still counts as an edit: the original attached it live
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM); // slot 0: its pick list
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM); // Feldspar in
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM); // the slot's own: out again
+    CHECK(json_has("\"gems\":[-1,-1,-1]"));
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM); // Attach
+    {
+        pc_ui_request g = pop();
+        CHECK(g.kind == PC_UI_REQ_WS_GEMS && g.shield == 0 && g.flags == PC_UI_WS_EDITED);
+    }
+    // Cross out of the slots: the leave sound and GEMS_LEAVE (the original's _attachGems(targetGems))
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_BACK);
+    CHECK(ws_req(PC_UI_REQ_WS_GEMS_LEAVE, 0, 0, 0, 0) && ws_req(PC_UI_REQ_WS_SOUND, 0, 0, 0)
+          && json_has("\"mode\":\"target\""));
+    // ... from a gem pick list over them, a click on a command: the same
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"pick\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_WS_ROW, PC_UI_WSA_REPAIR, 1, 0);
+    tick(0);
+    CHECK(ws_req(PC_UI_REQ_WS_GEMS_LEAVE, 0, 0, 0, 0) && json_has("\"mode\":\"rows\""));
+    // ... Triangle closing the menu from the slots: the same, before the shell hides
+    while (!json_has("\"mode\":\"rows\",\"flow\":\"\",\"row\":1"))
+        tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"slots\""));
+    CHECK(tick(PC_UI_EXIT) == -1 && !pc_ui_shell_visible());
+    CHECK(ws_req(PC_UI_REQ_WS_GEMS_LEAVE, 0, 0, 0, 0) && pop().kind == PC_UI_REQ_NONE);
+    pc_ui_shell_close();
+    while (pop().kind != PC_UI_REQ_NONE) {
+    }
+}
+
+// The Map frame's pure state (ui_map.cpp): the mailbox MENU5 empties at its
+// input point, the pointer's requests, the JSON block, the shell's set_tab.
+// The vsync counter the frame's freshness reads (boot_runtime.c in the game).
+static unsigned probe_vsync;
+extern "C" unsigned pc_vsync_count(void) { return probe_vsync; }
+static bool map_json_has(const char* needle)
+{
+    static char buf[1 << 15];
+    pc_ui_map_json(buf, sizeof buf);
+    return std::strstr(buf, needle) != nullptr;
+}
+static void map_tests()
+{
+    pc_ui_map_model* m = pc_ui_map_state();
+    pc_ui_map_req r;
+    std::memset(m, 0, sizeof *m);
+    CHECK(map_json_has(",\"map\":null"));
+    CHECK(!pc_ui_map_visible());
+    pc_ui_map_post(PC_UI_MAP_REQ_RESET, 0, 0); // nothing framed: dropped
+    CHECK(!pc_ui_map_take(&r, 1));
+    CHECK(map_json_has("\"busy\":1") == false); // no block to show it in
+    // armed: the "loading" block
+    m->armed = 1;
+    CHECK(map_json_has("\"state\":\"loading\""));
+    CHECK(pc_ui_map_visible()); // armed, no stamp yet (no vsync counter here: 0 vsyncs ago)
+    // a framed run at processInput
+    m->armed = 0, m->framed = 1, m->run = 3, m->stamped = 1, m->published = 1, m->exec_state = 7, m->menu_state = 1;
+    CHECK(map_json_has("\"state\":\"ready\""));
+    CHECK(map_json_has("\"focus\":\"map\""));
+    CHECK(pc_ui_map_visible());
+    // freshness: chrome only while MENU5 stamped at most 8 vsyncs ago (a stalled
+    // run never leaves chrome over the world); armed: 30 vsyncs before a stamp
+    m->stamp = 100, probe_vsync = 108;
+    CHECK(pc_ui_map_visible());
+    probe_vsync = 109;
+    CHECK(!pc_ui_map_visible());
+    m->framed = 0, m->armed = 1, m->armed_vsync = 100, probe_vsync = 130;
+    CHECK(pc_ui_map_visible());
+    probe_vsync = 131;
+    CHECK(!pc_ui_map_visible());
+    m->framed = 1, m->armed = 0, m->stamp = probe_vsync = 0;
+    pc_ui_map_post(PC_UI_MAP_REQ_AREA, 4, 0);
+    pc_ui_map_post(PC_UI_MAP_REQ_RESET, 0, 0); // one discrete request at a time: busy
+    CHECK(map_json_has("\"busy\":2,")); // the request before any run, and this one
+    CHECK(pc_ui_map_take(&r, 1) && r.kind == PC_UI_MAP_REQ_AREA && r.a == 4);
+    CHECK(!pc_ui_map_take(&r, 1));
+    // rotate / zoom / pan add up; one kind per take
+    pc_ui_map_post(PC_UI_MAP_REQ_ORBIT, 16, -8);
+    pc_ui_map_post(PC_UI_MAP_REQ_ORBIT, 8, 0);
+    pc_ui_map_post(PC_UI_MAP_REQ_ZOOM, -64, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ORBIT && r.a == 24 && r.b == -8);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ZOOM && r.a == -64);
+    CHECK(!pc_ui_map_take(&r, 0));
+    CHECK(map_json_has("\"req_seq\":4,\"applied_seq\":4"));
+    // the pointer: a left drag rotates 8 a layout unit, the wheel zooms 64 a
+    // notch (up: closer), a middle drag pans a game pixel per 3 units, handed
+    // to MENU5 in its own steps of 4 (the rest kept)
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_VIEW, 0, 0, 0, 2, -1, 1, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ORBIT && r.a == 16 && r.b == -8);
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_VIEW, 0, 0, 1, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ZOOM && r.a == -64);
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_VIEW, 0, 0, 0, 12, 21, 2, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_PAN && r.a == 4 && r.b == 4);
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_VIEW, 0, 0, 0, -3, 3, 2, 0); // what was left over adds up
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_PAN && r.a == 0 && r.b == 4);
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_VIEW, 0, 0, 0, -6, 0, 2, 0); // -2 kept: less than a step
+    CHECK(!pc_ui_map_take(&r, 0));
+    pc_ui_map_drop(); // a remainder under a step is not a dropped request
+    CHECK(map_json_has("\"busy\":2,"));
+    // the shown area's row: nothing; another area's: a switch
+    m->scene = 6;
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_AREA, 6, 1, 0, 0, 0, 0, 0);
+    CHECK(!pc_ui_map_take(&r, 1));
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_AREA, 7, 1, 0, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 1) && r.kind == PC_UI_MAP_REQ_AREA && r.a == 7);
+    // the Zoom prompt: in until the near clamp, then out until the far one
+    m->distance = 768;
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_PROMPT, PC_UI_MAP_P_ZOOM, 1, 0, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ZOOM && r.a == -64);
+    m->distance = 512;
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_PROMPT, PC_UI_MAP_P_ZOOM, 1, 0, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ZOOM && r.a == 64);
+    m->distance = 768;
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_PROMPT, PC_UI_MAP_P_ZOOM, 1, 0, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ZOOM && r.a == 64);
+    m->distance = 1024;
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_PROMPT, PC_UI_MAP_P_ZOOM, 1, 0, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 0) && r.kind == PC_UI_MAP_REQ_ZOOM && r.a == -64);
+    // framed: the bridge's frame of that run (MENU5's latch alone is not)
+    CHECK(pc_ui_map_framed(3) && !pc_ui_map_framed(2));
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_ROOM, 5, 1, 0, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 1) && r.kind == PC_UI_MAP_REQ_ROOM && r.a == 5);
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_PROMPT, PC_UI_MAP_P_CLOSE, 1, 0, 0, 0, 0, 0);
+    CHECK(pc_ui_map_take(&r, 1) && r.kind == PC_UI_MAP_REQ_QUIT && r.a == 2);
+    pc_ui_map_mouse(PC_UI_MOUSE_NONE, 0, 0, 0, 0, 0, 0, 1); // right click: back to the shell
+    CHECK(pc_ui_map_take(&r, 1) && r.kind == PC_UI_MAP_REQ_QUIT && r.a == 1);
+    // a paled area takes no camera request
+    m->paled = 1;
+    pc_ui_map_mouse(PC_UI_MOUSE_MAP_VIEW, 0, 0, 0, 2, 2, 1, 0);
+    CHECK(!pc_ui_map_take(&r, 0));
+    m->paled = 0;
+    // not at processInput (an area switching): dropped
+    m->menu_state = 4;
+    CHECK(map_json_has("\"state\":\"switching\""));
+    pc_ui_map_post(PC_UI_MAP_REQ_STEP, 1, 0);
+    CHECK(!pc_ui_map_take(&r, 1));
+    // the list: its own requests (pad bits, an area, a tab); Right click = its Cross
+    m->menu_state = 2, m->list.open = 1, m->list.count = 2;
+    CHECK(map_json_has("\"state\":\"list\""));
+    CHECK(map_json_has("\"focus\":\"list\""));
+    pc_ui_map_mouse(PC_UI_MOUSE_NONE, 0, 0, 0, 0, 0, 0, 1);
+    CHECK(pc_ui_map_take(&r, 1) && r.kind == PC_UI_MAP_REQ_PAD && r.a == (int)PC_UI_BACK);
+    pc_ui_map_post(PC_UI_MAP_REQ_RESET, 0, 0); // the map's own: not while the list has the focus
+    CHECK(!pc_ui_map_take(&r, 1));
+    // a request of an earlier run is never applied
+    m->menu_state = 1, m->list.open = 0;
+    pc_ui_map_post(PC_UI_MAP_REQ_HIDE, 0, 0);
+    m->run = 4;
+    CHECK(!pc_ui_map_take(&r, 1));
+    // closing
+    m->finished = 1;
+    CHECK(map_json_has("\"state\":\"closing\""));
+    std::memset(m, 0, sizeof *m);
+    pc_ui_map_reset_mailbox();
+    CHECK(map_json_has(",\"map\":null"));
+    // the shell reopens on a tab (a tab clicked on the frame): that tab, its remembered row
+    for (int i = 0; i < pc_ui_shell_tab_count(); ++i) {
+        pc_ui_shell_set_tab(i);
+        CHECK(pc_ui_shell_tab() == i);
+    }
+    int keep = pc_ui_shell_tab();
+    pc_ui_shell_set_tab(-1);
+    pc_ui_shell_set_tab(99);
+    CHECK(pc_ui_shell_tab() == keep);
+    CHECK(pc_ui_shell_step_tab(1) == (keep + 1) % pc_ui_shell_tab_count());
+}
+
+static void loot_tests()
+{
+    pc_ui_loot_open();
+    CHECK(pc_ui_loot_visible() && pc_ui_loot_focus() == -1);
+    pc_ui_loot lm = loot_model(1, 0, 0);
+    pc_ui_loot_set(&lm);
+    CHECK(loot_has(",\"loot\":{\"valid\":true,\"chest\":false,\"mode\":\"list\",\"cursor\":0,\"rows\":3"));
+    CHECK(pc_ui_loot_focus() == 0);
+    // Up wraps to the last row, Down back
+    loot_tick(PC_UI_UP);
+    CHECK(pc_ui_loot_focus() == 2);
+    loot_tick(PC_UI_DOWN);
+    CHECK(pc_ui_loot_focus() == 0);
+    // Circle on a row with no room: Organize (the select sound), its own action first
+    loot_tick(PC_UI_CONFIRM);
+    CHECK(loot_req(PC_UI_REQ_LOOT_SOUND, 1, 0, 0) && loot_empty_queue());
+    CHECK(loot_has("\"mode\":\"organize\"") && loot_has("\"menu\":0,\"entries\":[\"disassemble\",\"organize\"]"));
+    // Disassemble asks on Yes; Yes sends it for the row and its record
+    loot_tick(PC_UI_CONFIRM);
+    CHECK(loot_req(PC_UI_REQ_LOOT_SOUND, 1, 0, 0));
+    CHECK(loot_has("\"mode\":\"confirm\"") && loot_has("\"ask\":\"disassemble\",\"yes\":true,\"text\":\"Disassemble Tovarisch?\""));
+    loot_tick(PC_UI_CONFIRM);
+    CHECK(loot_req(PC_UI_REQ_LOOT_DISASSEMBLE, PC_UI_IC_WEAPON, 0, 0) && loot_empty_queue());
+    CHECK(loot_has("\"mode\":\"list\""));
+    // Organize inventory: the bag panel (BAG 1 for the row's category); Cross closes it (BAG 0)
+    loot_tick(PC_UI_CONFIRM);
+    loot_pop();
+    loot_tick(PC_UI_DOWN);
+    loot_tick(PC_UI_CONFIRM);
+    CHECK(loot_req(PC_UI_REQ_LOOT_SOUND, 1, 0, 0) && loot_req(PC_UI_REQ_LOOT_BAG, 1, PC_UI_IC_WEAPON, -1));
+    CHECK(loot_has("\"mode\":\"bag\"") && loot_has("\"bag_panel\":{\"category\":\"weapons\",\"cursor\":0,\"rows\":0"));
+    {
+        static pc_ui_items bag;
+        bag = pc_ui_items();
+        bag.valid = 1;
+        bag.count[PC_UI_IC_MISC] = 2;
+        bag.first[PC_UI_IC_MISC] = 0;
+        std::snprintf(bag.rows[0].name, sizeof bag.rows[0].name, "Cure Root");
+        bag.rows[0].inventory = 4, bag.rows[0].count = 12, bag.rows[0].discard = 1, bag.rows[0].discard_all = 1;
+        std::snprintf(bag.rows[1].name, sizeof bag.rows[1].name, "Silver Key");
+        bag.rows[1].inventory = 7, bag.rows[1].count = 1;
+        std::snprintf(bag.discard_prompt[2], sizeof bag.discard_prompt[2], "Discard all?");
+        std::snprintf(bag.discard_prompt[1], sizeof bag.discard_prompt[1], "How many?");
+        pc_ui_loot_set_bag(&bag);
+        loot_tick(PC_UI_SUB_PREV); // weapons -> misc: the game's current category follows
+        CHECK(loot_req(PC_UI_REQ_LOOT_BAG, 1, PC_UI_IC_MISC, -1) && loot_empty_queue());
+        CHECK(loot_has("\"bag_panel\":{\"category\":\"misc\",\"cursor\":0,\"rows\":2"));
+        // Circle: the row's actions (MENUB's Items menu: Discard, Discard all, Sort; Move)
+        loot_tick(PC_UI_DOWN);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_has("\"mode\":\"bag_actions\"") && loot_has("\"actions\":[{\"id\":\"discard\",\"enabled\":false},"
+                                                                 "{\"id\":\"discard_all\",\"enabled\":false},"
+                                                                 "{\"id\":\"sort\",\"enabled\":false},"
+                                                                 "{\"id\":\"move\",\"enabled\":true}]"));
+        // a key: Discard not selectable (sent: the bridge buzzes), the menu stays
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_req(PC_UI_REQ_ITEM_DISCARD, PC_UI_IC_MISC, 1, 7, 0) && loot_has("\"mode\":\"bag_actions\""));
+        loot_tick(PC_UI_BACK);
+        CHECK(loot_empty_queue() && loot_has("\"mode\":\"bag\""));
+        // a stack: Discard all asks on No; No cancels (what 2), Yes discards it
+        loot_tick(PC_UI_UP);
+        loot_tick(PC_UI_CONFIRM);
+        loot_tick(PC_UI_DOWN);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_has("\"mode\":\"bag_confirm\"") && loot_has("\"ask\":\"discard_all\",\"yes\":false,\"text\":\"Discard all?\""));
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_req(PC_UI_REQ_ITEM_CANCEL, PC_UI_IC_MISC, 0, 4, 2) && loot_has("\"mode\":\"bag\""));
+        loot_tick(PC_UI_CONFIRM);
+        loot_tick(PC_UI_DOWN);
+        loot_tick(PC_UI_CONFIRM);
+        loot_tick(PC_UI_UP);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_req(PC_UI_REQ_ITEM_DISCARD_ALL, PC_UI_IC_MISC, 0, 4) && loot_has("\"mode\":\"bag\""));
+        // Discard on a stack: the quantity picker (Up by the step, Left a bigger step, past the stack refused)
+        loot_tick(PC_UI_CONFIRM);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_has("\"mode\":\"bag_quantity\"") && loot_has("\"count\":0,\"count_max\":12,\"step\":0"));
+        loot_tick(PC_UI_UP);
+        loot_tick(PC_UI_UP);
+        loot_tick(PC_UI_UP);
+        loot_tick(PC_UI_LEFT);
+        loot_tick(PC_UI_UP);
+        CHECK(loot_has("\"count\":3,\"count_max\":12,\"step\":1"));
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_has("\"mode\":\"bag_confirm\"") && loot_has("\"ask\":\"discard\",\"yes\":false"));
+        loot_tick(PC_UI_UP);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_req(PC_UI_REQ_ITEM_DISCARD, PC_UI_IC_MISC, 0, 4, 3) && loot_has("\"mode\":\"bag\""));
+        // none: the picker left (ITEM_CANCEL what 0)
+        loot_tick(PC_UI_CONFIRM);
+        loot_tick(PC_UI_CONFIRM);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_req(PC_UI_REQ_ITEM_CANCEL, PC_UI_IC_MISC, 0, 4, 0) && loot_has("\"mode\":\"bag\""));
+        // Move: the row, then its target (the moved row's record checked)
+        loot_tick(PC_UI_CONFIRM);
+        loot_tick(PC_UI_UP);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_has("\"mode\":\"bag_move\"") && loot_has("\"move_from\":0"));
+        loot_tick(PC_UI_DOWN);
+        loot_tick(PC_UI_CONFIRM);
+        CHECK(loot_req(PC_UI_REQ_ITEM_MOVE, PC_UI_IC_MISC, 0, 1, 4) && loot_has("\"mode\":\"bag\""));
+        loot_tick(PC_UI_UP);
+    }
+    loot_tick(PC_UI_BACK);
+    CHECK(loot_req(PC_UI_REQ_LOOT_BAG, 0, PC_UI_IC_MISC, -1) && loot_has("\"mode\":\"list\""));
+    // Circle on a row that fits takes it; Square takes all
+    loot_tick(PC_UI_DOWN);
+    loot_tick(PC_UI_CONFIRM);
+    CHECK(loot_req(PC_UI_REQ_LOOT_TAKE, PC_UI_IC_MISC, 1, 0));
+    loot_tick(PC_UI_ALT);
+    CHECK(loot_req(PC_UI_REQ_LOOT_TAKE_ALL, 0, 0, -1) && loot_empty_queue());
+    // Cross with a key in the list: Leave pressed, then the message; any button back (the leave sound)
+    loot_tick(PC_UI_BACK);
+    CHECK(loot_req(PC_UI_REQ_LOOT_LEAVE, 0, 0, 0, 0));
+    CHECK(loot_has("\"mode\":\"message\"") && loot_has("\"ask\":\"keys\""));
+    loot_tick(PC_UI_ALT);
+    CHECK(loot_req(PC_UI_REQ_LOOT_SOUND, 0, 0, 0) && loot_has("\"mode\":\"list\""));
+    // no key, something taken: Leave asks (itemsRemaining) on No; Yes leaves
+    lm = loot_model(0, 1, 0);
+    pc_ui_loot_set(&lm);
+    loot_tick(PC_UI_BACK);
+    CHECK(loot_req(PC_UI_REQ_LOOT_LEAVE, 0, 0, 0, 0));
+    CHECK(loot_has("\"ask\":\"leave\",\"yes\":false,\"text\":\"Items remain. Leave them?\""));
+    loot_tick(PC_UI_BACK); // No (Cross): back
+    CHECK(loot_req(PC_UI_REQ_LOOT_SOUND, 0, 0, 0) && loot_has("\"mode\":\"list\""));
+    loot_tick(PC_UI_BACK);
+    loot_pop();
+    loot_tick(PC_UI_UP);
+    loot_tick(PC_UI_CONFIRM);
+    CHECK(loot_req(PC_UI_REQ_LOOT_LEAVE, 0, 0, 0, 1));
+    // nothing taken: discardAllConfirm; a chest untouched: no question (the bridge ends it)
+    lm = loot_model(0, 0, 0);
+    pc_ui_loot_set(&lm);
+    loot_tick(PC_UI_BACK);
+    loot_pop();
+    CHECK(loot_has("\"text\":\"Discard all items?\""));
+    loot_tick(PC_UI_BACK);
+    loot_pop();
+    lm = loot_model(0, 0, 1);
+    pc_ui_loot_set(&lm);
+    loot_tick(PC_UI_BACK);
+    CHECK(loot_req(PC_UI_REQ_LOOT_LEAVE, 0, 0, 0, 0) && loot_has("\"mode\":\"list\""));
+    // an empty list: the game's line, any button leaves
+    lm = pc_ui_loot();
+    lm.valid = 1;
+    std::snprintf(lm.empty, sizeof lm.empty, "Nothing in the chest.");
+    pc_ui_loot_set(&lm);
+    loot_tick(0);
+    CHECK(loot_has("\"mode\":\"message\"") && loot_has("\"ask\":\"empty\""));
+    loot_tick(PC_UI_EXIT);
+    CHECK(loot_req(PC_UI_REQ_LOOT_LEAVE, 0, 0, 0, 0));
+    // the mouse: a row click focuses and takes; a click elsewhere on a message is any button
+    lm = loot_model(0, 0, 0);
+    pc_ui_loot_open();
+    pc_ui_loot_set(&lm);
+    pc_ui_loot_mouse(PC_UI_MOUSE_LOOT_ROW, 1, 1, 0);
+    loot_tick(0);
+    CHECK(pc_ui_loot_focus() == 1 && loot_req(PC_UI_REQ_LOOT_TAKE, PC_UI_IC_MISC, 1, 0));
+    pc_ui_loot_mouse(PC_UI_MOUSE_BUTTON, PC_UI_ALT, 1, 0);
+    loot_tick(0);
+    CHECK(loot_req(PC_UI_REQ_LOOT_TAKE_ALL, 0, 0, -1));
+    // the shell's JSON carries the screen while it shows; closed: gone
+    CHECK(json_has(",\"loot\":{"));
+    pc_ui_loot_close();
+    CHECK(!pc_ui_loot_visible() && !json_has(",\"loot\":{"));
+}
+
+static void items_tests()
+{
+    pc_ui_commands all = {0x3FF, 0, 0};
+    pc_ui_shell_open(&all, 0);
+    pc_ui_shell_set_items(&items_model());
+    for (int i = 0; i < 2; ++i) tick(PC_UI_TAB_NEXT); // Ashley Equipment Items
+    CHECK(json_has("\"tab\":\"items\"") && json_has("\"screen\":\"items\""));
+    CHECK(pc_ui_shell_screen() == PC_UI_SCREEN_ITEMS);
+    CHECK(json_has("\"category\":\"weapons\",\"mode\":\"list\",\"cursor\":0,\"rows\":2,\"capacity\":8,\"inventory\":2"));
+    int cat, inv;
+    CHECK(pc_ui_shell_items_focus(&cat, &inv) && cat == PC_UI_IC_WEAPON && inv == 2);
+    // Down / Up wrap
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    CHECK(json_has("\"cursor\":0,"));
+    tick(PC_UI_UP);
+    CHECK(json_has("\"cursor\":1,\"rows\":2"));
+    // R2 / L2 categories (wrapping, empty ones too)
+    tick(PC_UI_SUB_PREV); // weapons -> the Workshop (after misc) -> misc
+    CHECK(pc_ui_shell_workshop_shown());
+    tick(PC_UI_SUB_PREV);
+    CHECK(json_has("\"category\":\"misc\",\"mode\":\"list\",\"cursor\":0,\"rows\":3,\"capacity\":64"));
+    tick(PC_UI_SUB_NEXT);
+    tick(PC_UI_SUB_NEXT);
+    CHECK(json_has("\"category\":\"weapons\",\"mode\":\"list\",\"cursor\":1"));
+    // the equipped weapon: Discard greyed with the reason (asked anyway: the bridge buzzes); no Use
+    tick(PC_UI_UP);
+    CHECK(tick(PC_UI_CONFIRM) == 0 && json_has("\"mode\":\"actions\""));
+    CHECK(json_has("\"actions\":[{\"id\":\"discard\",\"enabled\":false,\"reason\":\"Equipped.\"},{\"id\":\"sort\","
+                   "\"enabled\":true},{\"id\":\"move\",\"enabled\":true},{\"id\":\"original\",\"enabled\":true}]"));
+    tick(PC_UI_CONFIRM);
+    CHECK(item_req(PC_UI_REQ_ITEM_DISCARD, PC_UI_IC_WEAPON, 0, 2));
+    CHECK(json_has("\"mode\":\"actions\""));
+    // Move: the target row, Circle swaps (from 0 to 1); the cursor stays on the target
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    CHECK(json_has("\"action\":2"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"move\"") && json_has("\"move_from\":0"));
+    pc_ui_items_view v;
+    pc_ui_shell_items_view(&v);
+    CHECK(v.mode == PC_UI_IT_MOVE && v.move_from == 0 && v.actions == 4 && v.action_kind[2] == PC_UI_ITA_MOVE);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(item_req(PC_UI_REQ_ITEM_MOVE, PC_UI_IC_WEAPON, 0, 1, 2)); // the moved row's inventory index as seen
+    CHECK(json_has("\"mode\":\"list\",\"cursor\":1"));
+    // Move onto itself: nothing
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM);
+    CHECK(queue_empty() && json_has("\"mode\":\"list\""));
+    // Sort: the category's stats; Circle sorts by the stat id (the row and its inventory index as seen)
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM); // weapon 1: discard (enabled), sort...: row 1 is Sort
+    CHECK(json_has("\"mode\":\"sort\"") && json_has("\"sort\":{\"cursor\":0,\"stats\":[{\"stat\":0,\"name\":\"Kind\"}"));
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(item_req(PC_UI_REQ_ITEM_SORT, PC_UI_IC_WEAPON, 1, 3, 8));
+    // Cross steps back: sort -> actions -> list; in the list it closes
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"sort\""));
+    CHECK(tick(PC_UI_BACK) == 0 && json_has("\"mode\":\"actions\""));
+    CHECK(tick(PC_UI_BACK) == 0 && json_has("\"mode\":\"list\""));
+    // a non-misc discard: Yes / No (it opens on No, as the original's), Yes asks for it (count 1 is ignored by
+    // the bridge); No asks for the leave sound
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"confirm\"") && json_has("\"confirm\":{\"kind\":\"discard\",\"yes\":false,\"prompt\":\"Discard 0?\"}"));
+    tick(PC_UI_CONFIRM); // No
+    CHECK(item_req(PC_UI_REQ_ITEM_CANCEL, PC_UI_IC_WEAPON, 1, 3, 1) && json_has("\"mode\":\"list\""));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_UP);
+    CHECK(json_has("\"yes\":true"));
+    tick(PC_UI_CONFIRM); // Yes
+    CHECK(item_req(PC_UI_REQ_ITEM_DISCARD, PC_UI_IC_WEAPON, 1, 3, 1));
+    // Square: details (Up/Down still move, Square back); the focus follows
+    tick(PC_UI_ALT);
+    CHECK(json_has("\"mode\":\"details\""));
+    tick(PC_UI_UP);
+    CHECK(pc_ui_shell_items_focus(&cat, &inv) && inv == 2);
+    tick(PC_UI_ALT);
+    CHECK(json_has("\"mode\":\"list\""));
+    // Search: a blade in a weapon focuses the weapon
+    tick(PC_UI_SUB_NEXT);
+    CHECK(json_has("\"category\":\"blades\""));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"actions\":[{\"id\":\"search\",\"enabled\":true}"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"category\":\"weapons\",\"mode\":\"list\",\"cursor\":1"));
+    // misc: Use (asks the bridge), the quantity picker, discard all
+    tick(PC_UI_SUB_PREV); // the Workshop
+    tick(PC_UI_SUB_PREV);
+    CHECK(json_has("\"category\":\"misc\",\"mode\":\"list\",\"cursor\":0"));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"actions\":[{\"id\":\"use\",\"enabled\":true},{\"id\":\"discard\",\"enabled\":true},"
+                   "{\"id\":\"discard_all\",\"enabled\":true},{\"id\":\"sort\",\"enabled\":true},{\"id\":\"move\","
+                   "\"enabled\":true},{\"id\":\"original\",\"enabled\":true}]"));
+    CHECK(tick(PC_UI_CONFIRM) == 0 && pc_ui_shell_visible());
+    CHECK(item_req(PC_UI_REQ_ITEM_USE, PC_UI_IC_MISC, 0, 2));
+    CHECK(json_has("\"mode\":\"actions\"")); // the bridge closes the menu for it; refused, the menu stays
+    tick(PC_UI_BACK);
+    // the quantity picker (_discardMenu): starts at 0 step 1
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"quantity\"") && json_has("\"quantity\":{\"count\":0,\"max\":25,\"step\":1}"));
+    tick(PC_UI_DOWN); // below 0: nothing
+    CHECK(json_has("\"count\":0,"));
+    tick(PC_UI_UP);
+    tick(PC_UI_UP);
+    CHECK(json_has("\"count\":2,\"max\":25,\"step\":1"));
+    tick(PC_UI_LEFT); // step 10
+    tick(PC_UI_UP);
+    tick(PC_UI_UP);
+    CHECK(json_has("\"count\":22,\"max\":25,\"step\":10"));
+    tick(PC_UI_UP); // 32 > 25: nothing
+    CHECK(json_has("\"count\":22,"));
+    tick(PC_UI_LEFT); // step 100
+    tick(PC_UI_LEFT); // past 100: all
+    CHECK(json_has("\"count\":25,\"max\":25,\"step\":100"));
+    tick(PC_UI_RIGHT);
+    tick(PC_UI_RIGHT);
+    CHECK(json_has("\"count\":25,\"max\":25,\"step\":1"));
+    tick(PC_UI_RIGHT); // past 1: none
+    CHECK(json_has("\"count\":0,\"max\":25,\"step\":1"));
+    tick(PC_UI_CONFIRM); // none: back to the list (the bridge plays the leave sound)
+    CHECK(item_req(PC_UI_REQ_ITEM_CANCEL, PC_UI_IC_MISC, 0, 2, 0) && json_has("\"mode\":\"list\""));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_UP);
+    tick(PC_UI_UP);
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    // the original's discardMultipleConfirm asks discardConfirm (0), not the picker's own message (1)
+    CHECK(json_has("\"mode\":\"confirm\"") && json_has("\"prompt\":\"Discard 0?\""));
+    CHECK(tick(PC_UI_BACK) == 0 && json_has("\"mode\":\"quantity\"") && json_has("\"count\":3,"));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(item_req(PC_UI_REQ_ITEM_DISCARD, PC_UI_IC_MISC, 0, 2, 3));
+    // discard all
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"confirm\":{\"kind\":\"discard_all\",\"yes\":false,\"prompt\":\"Discard 2?\"}"));
+    tick(PC_UI_UP);
+    tick(PC_UI_CONFIRM);
+    CHECK(item_req(PC_UI_REQ_ITEM_DISCARD_ALL, PC_UI_IC_MISC, 0, 2));
+    // the single without MP: Use greyed with the reason (asked anyway); discard straight to Yes / No
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"actions\":[{\"id\":\"use\",\"enabled\":false,\"reason\":\"Not enough MP.\"}"));
+    tick(PC_UI_CONFIRM);
+    CHECK(item_req(PC_UI_REQ_ITEM_USE, PC_UI_IC_MISC, 1, 3));
+    CHECK(json_has("\"mode\":\"actions\"") && json_has("\"action\":0")); // refused: the menu stays, the reason shown
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"confirm\"") && json_has("\"prompt\":\"Discard 0?\""));
+    tick(PC_UI_BACK);
+    CHECK(json_has("\"mode\":\"actions\""));
+    tick(PC_UI_BACK);
+    // a key: nothing selectable but the original screen
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("{\"id\":\"use\",\"enabled\":false,\"reason\":\"Cannot use.\"},{\"id\":\"discard\",\"enabled\":false,"
+                   "\"reason\":\"Cannot discard.\"},{\"id\":\"discard_all\",\"enabled\":false,\"reason\":\"Cannot discard.\"}"));
+    tick(PC_UI_BACK);
+    // misc sort: by id or quantity (56)
+    tick(PC_UI_CONFIRM);
+    for (int i = 0; i < 3; ++i) tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(item_req(PC_UI_REQ_ITEM_SORT, PC_UI_IC_MISC, 2, 4, 56));
+    // an empty category: only the original screen
+    tick(PC_UI_SUB_NEXT);
+    tick(PC_UI_SUB_NEXT);
+    tick(PC_UI_SUB_NEXT);
+    tick(PC_UI_SUB_NEXT); // misc -> the Workshop -> weapons -> blades -> grips
+    CHECK(json_has("\"category\":\"grips\",\"mode\":\"list\",\"cursor\":0,\"rows\":0"));
+    CHECK(!pc_ui_shell_items_focus(&cat, &inv));
+    tick(PC_UI_ALT);
+    CHECK(json_has("\"mode\":\"list\""));
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"actions\":[{\"id\":\"original\",\"enabled\":true}]"));
+    CHECK(tick(PC_UI_CONFIRM) == 4 && !pc_ui_shell_visible());
+    // reopened (a return): the category and row are kept, the menu is not; the misc cursor survives a
+    // cancelled Use (the shell comes back on the item)
+    pc_ui_shell_open(&all, 1);
+    CHECK(json_has("\"category\":\"grips\",\"mode\":\"list\""));
+    tick(PC_UI_SUB_NEXT);
+    tick(PC_UI_SUB_NEXT);
+    tick(PC_UI_SUB_NEXT);
+    tick(PC_UI_SUB_NEXT);
+    tick(PC_UI_UP); // the key's row 2 -> 1
+    tick(PC_UI_CONFIRM);
+    pc_ui_shell_close();
+    pc_ui_shell_open(&all, 1);
+    CHECK(json_has("\"category\":\"misc\",\"mode\":\"list\",\"cursor\":1"));
+    // locked (the snapshot's mask): every action greyed with its reason but the original screen
+    {
+        pc_ui_items& m = items_model();
+        m.locked = 1;
+        m.mask = 2;
+        std::snprintf(m.locked_reason, sizeof m.locked_reason, "Not while carrying a cube.");
+        for (int i = 0; i < PC_UI_ITEM_ROWS; ++i) {
+            m.rows[i].discard = m.rows[i].discard_all = m.rows[i].usable = 0;
+            std::snprintf(m.rows[i].use_reason, sizeof m.rows[i].use_reason, "Not while carrying a cube.");
+            std::snprintf(m.rows[i].discard_reason, sizeof m.rows[i].discard_reason, "Not while carrying a cube.");
+        }
+        pc_ui_shell_set_items(&m);
+        CHECK(json_has("\"locked\":true") && json_has("\"reason\":\"Not while carrying a cube.\""));
+        tick(PC_UI_CONFIRM);
+        CHECK(json_has("{\"id\":\"sort\",\"enabled\":false,\"reason\":\"Not while carrying a cube.\"},{\"id\":\"move\","
+                       "\"enabled\":false,\"reason\":\"Not while carrying a cube.\"},{\"id\":\"original\",\"enabled\":true}"));
+        tick(PC_UI_BACK);
+        pc_ui_shell_set_items(&items_model());
+    }
+    // mouse: a category chip, a row (hover focuses, click opens the actions), a menu row (click selects)
+    pc_ui_shell_mouse(PC_UI_MOUSE_SUB, PC_UI_IC_WEAPON, 1, 0);
+    tick(0);
+    CHECK(json_has("\"category\":\"weapons\",\"mode\":\"list\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_ITEM, 1, 0, 0);
+    tick(0);
+    CHECK(json_has("\"cursor\":1,"));
+    pc_ui_shell_mouse(PC_UI_MOUSE_ITEM, 0, 1, 0);
+    tick(0);
+    CHECK(json_has("\"mode\":\"actions\",\"cursor\":0"));
+    pc_ui_shell_mouse(PC_UI_MOUSE_ITEM_MENU, 1, 1, 0); // Sort
+    tick(0);
+    CHECK(json_has("\"mode\":\"sort\""));
+    pc_ui_shell_mouse(PC_UI_MOUSE_ITEM, 1, 1, 0); // a list row while a menu is open: back to the list on it
+    tick(0);
+    CHECK(json_has("\"mode\":\"list\",\"cursor\":1"));
+    CHECK(queue_empty());
+    // the list shrinks under the cursor (an item used up): clamped
+    {
+        pc_ui_items& m = items_model();
+        m.count[PC_UI_IC_WEAPON] = 1;
+        pc_ui_shell_set_items(&m);
+        CHECK(json_has("\"category\":\"weapons\",\"mode\":\"list\",\"cursor\":0,\"rows\":1"));
+    }
+    // Triangle closes from a menu too
+    tick(PC_UI_CONFIRM);
+    CHECK(tick(PC_UI_EXIT) == -1);
+    // and from the quantity picker, as the original's (Cross goes back one level instead)
+    pc_ui_shell_open(&all, 1);
+    tick(PC_UI_SUB_PREV); // the Workshop
+    tick(PC_UI_SUB_PREV);
+    tick(PC_UI_UP); // the stack of 25 (the misc cursor was kept on row 1)
+    CHECK(json_has("\"category\":\"misc\",\"mode\":\"list\",\"cursor\":0"));
+    tick(PC_UI_CONFIRM);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_CONFIRM);
+    CHECK(json_has("\"mode\":\"quantity\""));
+    CHECK(tick(PC_UI_EXIT) == -1 && !pc_ui_shell_visible() && queue_empty());
+}
+
+// ---- The Quick manual (System > Quick manual: ui_manual.cpp, manual_parse.c) ----
+// 494.c _setMenuRows' window over rowCount rows (9 shown), as written.
+static void ref_seed(int rowCount, int highlightedRow, int* cm4, int* cm5)
+{
+    if ((rowCount < 9) || (highlightedRow < 8)) {
+        *cm4 = highlightedRow, *cm5 = 0;
+    } else if (highlightedRow >= (rowCount - 8)) {
+        *cm4 = highlightedRow - (rowCount - 9), *cm5 = rowCount - 9;
+    } else {
+        *cm4 = 4, *cm5 = highlightedRow - 4;
+    }
+}
+// 58EC.c vs_mainmenu_setMenuRows' normalisation of the memories (cursor memory on), rowInfo 1.
+static void ref_normalise(int rowCount, int rowInfo, int* row, int* page)
+{
+    int i = *row, p = *page, t = rowCount - 10 + rowInfo;
+    if (t < 0) {
+        i += p, p = 0;
+        if (i >= rowCount)
+            i = 0;
+    } else {
+        if (t < p) {
+            if (i + p >= rowCount)
+                i = 0, p = 0;
+            else
+                i += p - t, p = t;
+        }
+        int v = p < t;
+        if (p > 0 && i == 0)
+            i = 1, p -= 1, v = p < t;
+        if (v && i == 9 - rowInfo)
+            i -= 1, p += 1;
+    }
+    *row = i, *page = p;
+}
+// 58EC.c case 17's Up / Down, as written (char page arithmetic included).
+static void ref_list(int count, int info, int* sel, int* page, unsigned rep, unsigned press)
+{
+    if (rep & PC_UI_UP) {
+        if (count <= 10 - info) {
+            if (*sel == 0) *sel = count - 1; else --*sel;
+        } else if (*page == 0) {
+            if (*sel == 0) {
+                if (press & PC_UI_UP)
+                    *sel = 9 - info, *page = (signed char)(info + (count + 246));
+            } else --*sel;
+        } else if (*sel == 1) --*page;
+        else --*sel;
+    }
+    if (rep & PC_UI_DOWN) {
+        if (count <= 10 - info) {
+            if (*sel == count - 1) *sel = 0; else ++*sel;
+        } else if (*page == count + (info - 10)) {
+            if (*sel == 9 - info) {
+                if (press & PC_UI_DOWN)
+                    *sel = 0, *page = 0;
+            } else ++*sel;
+        } else if (*sel == 8 - info) ++*page;
+        else ++*sel;
+    }
+}
+
+// Synthetic page files.
+struct Bytes {
+    std::string b;
+    void u8(int v) { b += (char)(v & 0xFF); }
+    void u16(int v) { u8(v), u8(v >> 8); }
+    void u32(unsigned v) { u16((int)(v & 0xFFFF)), u16((int)(v >> 16)); }
+    void pad4() { while (b.size() % 4) u8(0); }
+    void put16(size_t at, int v) { b[at] = (char)(v & 0xFF), b[at + 1] = (char)((v >> 8) & 0xFF); }
+    void put32(size_t at, unsigned v) { put16(at, (int)(v & 0xFFFF)), put16(at + 2, (int)(v >> 16)); }
+};
+static void anim(Bytes& o, int enabled, int mask, int duration, int repeat)
+{
+    o.u16(enabled), o.u16(mask), o.u16(duration), o.u16(repeat);
+    for (int i = 0; i < 4; ++i) o.u16(0);
+}
+static std::string synth_hf0()
+{
+    const std::vector<std::vector<int>> lines = {
+        {0x8F, 0x8F, 10, 37, 0x8F, 38, 0xE7},                                       // "  Ab c"
+        {0xFB, 1, 33, 0xFA, 10, 34, 0xFB, 2, 0xAE, 0xB7, 0xB3, 0xEE, 5, 0xE9, 0xB6, 0xE7}, // X, Y, codes
+        {0xE7},
+    };
+    Bytes o;
+    o.u32(0), o.u32(0), o.u32(0), o.u32(0);
+    // text at 16: n, offsets (halfwords from 16), strings
+    size_t base = o.b.size();
+    o.u16((int)lines.size());
+    size_t offs = o.b.size();
+    for (size_t i = 0; i < lines.size(); ++i) o.u16(0);
+    for (size_t i = 0; i < lines.size(); ++i) {
+        if ((o.b.size() - base) % 2) o.u8(0xEB);
+        o.put16(offs + i * 2, (int)((o.b.size() - base) / 2));
+        for (int c : lines[i]) o.u8(c);
+    }
+    o.pad4();
+    unsigned spr = (unsigned)(o.b.size() - 16);
+    o.put32(0, spr);
+    // sprites: 8bpp 16 x 16 (blocks 0, 1; CLUT 0) blinking, 4bpp 16 x 16 (block 1; CLUT 1), the first again,
+    // one with a bad block id
+    size_t sb = o.b.size();
+    o.u16(4);
+    size_t soffs = o.b.size();
+    for (int i = 0; i < 4; ++i) o.u16(0);
+    struct S { int en, x, y, w, h, colors, clut; std::vector<int> blocks; };
+    S ss[4] = {{1, 3, 4, 16, 16, 256, 0, {0, 1}}, {0, 40, 13, 16, 16, 16, 1, {1}}, {0, 80, 26, 16, 16, 256, 0, {0, 1}},
+        {0, 0, 0, 8, 16, 256, 0, {99}}};
+    for (int i = 0; i < 4; ++i) {
+        o.put16(soffs + i * 2, (int)((o.b.size() - sb) / 2));
+        anim(o, ss[i].en, 0x0005, 1, 1);
+        o.u16(ss[i].x), o.u16(ss[i].y), o.u16(ss[i].w), o.u16(ss[i].h), o.u16((int)ss[i].blocks.size());
+        o.u16(ss[i].colors), o.u16(ss[i].clut);
+        for (int bl : ss[i].blocks) o.u16(bl);
+    }
+    o.pad4();
+    unsigned lin = (unsigned)(o.b.size() - sb);
+    o.put32(4, lin);
+    o.u16(1);
+    anim(o, 0, 0, 0, 0);
+    o.u16(0), o.u16(6), o.u16(300), o.u16(6), o.u8(0), o.u8(128), o.u8(255), o.u8(0);
+    o.put32(8, 28 + 2);
+    return o.b;
+}
+static std::string synth_hf1()
+{
+    Bytes o;
+    o.u32(2), o.u32(2);
+    for (int i = 0; i < 128; ++i) o.u8(i == 1 ? 17 : 0); // block 0: pixel (1, 0) = 17 (CLUT line 1, entry 1)
+    for (int i = 0; i < 128; ++i) o.u8(3);               // block 1: 3 (8bpp: line 0 entry 3; 4bpp: 3, 0)
+    for (int i = 0; i < 16; ++i) o.u16(i == 3 ? 0x001F : 0); // line 0: 0 transparent, 3 red
+    for (int i = 0; i < 16; ++i) o.u16(i == 1 ? 0x7C00 : i == 3 ? 0x03E0 : 0); // line 1: 1 blue, 3 green
+    return o.b;
+}
+
+static std::vector<pc_ui_manual_event> manual_events()
+{
+    std::vector<pc_ui_manual_event> v;
+    pc_ui_manual_event e;
+    while (pc_ui_manual_take(&e))
+        v.push_back(e);
+    return v;
+}
+static int count_kind(const std::vector<pc_ui_manual_event>& v, int kind)
+{
+    int n = 0;
+    for (auto& e : v) n += e.kind == kind;
+    return n;
+}
+static const pc_ui_manual_event* find_kind(const std::vector<pc_ui_manual_event>& v, int kind)
+{
+    for (auto& e : v)
+        if (e.kind == kind)
+            return &e;
+    return nullptr;
+}
+// The bridge's fill: lines per topic (40: line_count 30), the game's scroll and current topic.
+static unsigned short manual_scroll[14];
+static int manual_lc[14], manual_loaded[14];
+static void manual_fill(int cursor_memory, int current)
+{
+    pc_ui_manual_fill(cursor_memory, current, manual_scroll, manual_lc, manual_loaded);
+}
+// What the bridge does with the events (the scroll memory), then a tick.
+static void manual_apply(const std::vector<pc_ui_manual_event>& v, int* current)
+{
+    for (auto& e : v) {
+        if (e.kind == PC_UI_MEV_SCROLL) manual_scroll[e.a] = (unsigned short)e.b;
+        if (e.kind == PC_UI_MEV_LIST_STORE) *current = e.c;
+        if (e.kind == PC_UI_MEV_OPEN && e.a) { std::memset(manual_scroll, 0, sizeof manual_scroll); *current = 0; }
+        if (e.kind == PC_UI_MEV_ORIGINAL) *current = e.a;
+    }
+}
+static int mtick(unsigned pressed, unsigned repeat = 0, int square = 0, int start = 0)
+{
+    pc_ui_manual_buttons(square, start);
+    pc_ui_input in = {pressed, repeat | pressed};
+    return pc_ui_shell_tick(&in);
+}
+static void manual_view(pc_ui_manual_view* v) { pc_ui_manual_view_get(v); }
+// The shell on System > Quick manual's row (entry 3: Data, Options, Score, Quick manual).
+static void manual_row()
+{
+    pc_ui_commands all = {0x3FF, 0, 0};
+    pc_ui_shell_open(&all, 0);
+    tick(PC_UI_TAB_PREV);
+    for (int i = 0; i < 3; ++i) tick(PC_UI_DOWN);
+    manual_events();
+}
+
+static void manual_tests()
+{
+    // ---- the original's rules ----
+    for (int r = 0; r < 14; ++r) {
+        int a4, a5, b4, b5;
+        pc_ui_manual_seed(r, &a4, &a5);
+        ref_seed(14, r, &b4, &b5);
+        CHECK(a4 == b4 && a5 == b5);
+        int n4 = b4, n5 = b5;
+        ref_normalise(14, 1, &n4, &n5);
+        CHECK(n4 == b4 && n5 == b5); // setMenuRows keeps the seed (14 rows)
+        CHECK(a4 + a5 == r && a4 >= 0 && a4 <= 8 && a5 >= 0 && a5 <= 5);
+    }
+    {
+        unsigned seed = 12345;
+        int row = 0, page = 0, rr = 0, rp = 0;
+        for (int i = 0; i < 1000; ++i) {
+            seed = seed * 1103515245u + 12345u;
+            unsigned bits = seed >> 16;
+            unsigned rep = bits & 3, press = rep & (bits >> 2);
+            int before = row + page;
+            int changed = pc_ui_manual_list_step(&row, &page, rep & PC_UI_UP, press & PC_UI_UP, rep & PC_UI_DOWN,
+                press & PC_UI_DOWN);
+            ref_list(14, 1, &rr, &rp, rep, press);
+            CHECK(row == rr && page == rp);
+            CHECK(changed == (row + page != before));
+            CHECK(row >= 0 && row <= 8 && page >= 0 && page <= 5);
+        }
+        row = page = 0;
+        for (int i = 0; i < 8; ++i) pc_ui_manual_list_step(&row, &page, 0, 0, 1, 0);
+        CHECK(row == 7 && page == 1);
+        row = page = 0;
+        CHECK(!pc_ui_manual_list_step(&row, &page, 1, 0, 0, 0) && row == 0 && page == 0); // a repeat clamps
+        CHECK(pc_ui_manual_list_step(&row, &page, 1, 1, 0, 0) && row == 8 && page == 5);  // a press wraps
+        CHECK(!pc_ui_manual_list_step(&row, &page, 0, 0, 1, 0) && row == 8 && page == 5);
+        CHECK(pc_ui_manual_list_step(&row, &page, 0, 0, 1, 1) && row == 0 && page == 0);
+    }
+    const int ns[] = {0, 9, 10, 11, 37, 220}, lcs[] = {0, 0, 0, 10, 30, 210};
+    for (int i = 0; i < 6; ++i)
+        CHECK(pc_ui_manual_line_count(ns[i]) == lcs[i] && lcs[i] / 10 + 1 == (i < 3 ? 1 : i == 3 ? 2 : i == 4 ? 4 : 22));
+    {
+        int sc = 0;
+        CHECK(!pc_ui_manual_step(&sc, 30, 0, 0, 1, 0, 0, 0) && sc == 0);  // a repeat at the top clamps
+        CHECK(pc_ui_manual_step(&sc, 30, 0, 0, 1, 1, 0, 0) && sc == 30);  // a press wraps to the end
+        CHECK(!pc_ui_manual_step(&sc, 30, 0, 0, 0, 0, 1, 0) && sc == 30);
+        CHECK(pc_ui_manual_step(&sc, 30, 0, 0, 0, 0, 1, 1) && sc == 0);
+        CHECK(pc_ui_manual_step(&sc, 30, 0, 0, 0, 0, 1, 0) && sc == 1);
+        sc = 0;
+        CHECK(!pc_ui_manual_step(&sc, 0, 0, 0, 1, 1, 0, 0) && sc == 0); // no wrap without a second page
+        CHECK(!pc_ui_manual_step(&sc, 0, 0, 0, 0, 0, 1, 1) && sc == 0);
+        CHECK(!pc_ui_manual_step(&sc, 0, 1, 0, 1, 1, 0, 0) && sc == 0);
+        sc = 13; // Square from mid-page: page 1 -> 2 (snapped)
+        CHECK(pc_ui_manual_step(&sc, 30, 1, 0, 0, 0, 1, 0) && sc == 20);
+        sc = 3;
+        CHECK(pc_ui_manual_step(&sc, 30, 1, 0, 0, 0, 1, 0) && sc == 10);
+        sc = 3; // page 0, Up pressed: the last page
+        CHECK(pc_ui_manual_step(&sc, 30, 1, 0, 1, 1, 0, 0) && sc == 30);
+        CHECK(pc_ui_manual_step(&sc, 30, 1, 0, 0, 0, 1, 1) && sc == 0);
+        sc = 35;
+        CHECK(pc_ui_manual_step(&sc, 30, 1, 0, 1, 0, 0, 0) && sc == 20);
+        sc = 17; // Start wins, no sound
+        CHECK(!pc_ui_manual_step(&sc, 30, 1, 1, 1, 1, 1, 1) && sc == 0);
+    }
+    {
+        pc_ui_manual_anim a = {1, 0x0005, 1, 0, 0, 0, 0, 0};
+        int seq[18];
+        for (int i = 0; i < 18; ++i) seq[i] = pc_ui_manual_anim_step(&a);
+        CHECK(seq[0] == 0 && seq[1] == 1 && seq[2] == 0 && seq[3] == 1 && seq[15] == 1 && seq[16] == 1 && seq[17] == 1);
+        pc_ui_manual_anim b = {1, (short)0x8001, 2, 1, 0, 0, 0, 0};
+        int hid[40];
+        for (int i = 0; i < 40; ++i) hid[i] = pc_ui_manual_anim_step(&b);
+        CHECK(hid[0] == 0 && hid[1] == 0 && hid[2] == 1 && hid[29] == 1 && hid[30] == 0 && hid[31] == 0 && hid[32] == 0
+              && hid[33] == 0 && hid[34] == 1); // frame 15 (0x8000) shown, then frame 0 again (repeat)
+    }
+    // ---- the files ----
+    {
+        std::string h0 = synth_hf0(), h1 = synth_hf1();
+        unsigned char widths[378];
+        std::memset(widths, 5, sizeof widths);
+        widths[37] = 4; // 'b'
+        pc_ui_manual_topic t;
+        CHECK(pc_ui_manual_parse((const unsigned char*)h0.data(), (unsigned)h0.size(), (const unsigned char*)h1.data(),
+            (unsigned)h1.size(), widths, 378, &t));
+        CHECK(t.ok && t.lines == 3 && t.line_count == 0 && t.pages == 1);
+        CHECK(t.line_first[0] == 0 && t.line_first[1] == 2 && t.line_first[2] == 7 && t.line_first[3] == 7);
+        const pc_ui_manual_run* r = t.runs;
+        CHECK(r[0].kind == PC_UI_MANUAL_WORD && r[0].x == 12 && r[0].w == 9 && r[0].len == 2 && h0[r[0].off] == 10);
+        CHECK(r[1].kind == PC_UI_MANUAL_WORD && r[1].x == 27 && r[1].w == 5 && r[1].len == 1);
+        CHECK(r[2].kind == PC_UI_MANUAL_WORD && r[2].x == 0 && r[2].colour == 1 && r[2].len == 1);
+        CHECK(r[3].kind == PC_UI_MANUAL_WORD && r[3].x == 15 && r[3].colour == 1);
+        CHECK(r[4].kind == PC_UI_MANUAL_GLYPH && r[4].glyph == 0 && r[4].x == 20 && r[4].colour == 2);
+        CHECK(r[5].kind == PC_UI_MANUAL_STAR && r[5].x == 25);
+        CHECK(r[6].kind == PC_UI_MANUAL_ARROW && r[6].glyph == 1 && r[6].x == 30);
+        // joins: the line's first run and after two spaces or an FA advance apart, one space, touching
+        CHECK(r[0].gap == PC_UI_MANUAL_GAP_APART && r[1].gap == PC_UI_MANUAL_GAP_SPACE);
+        CHECK(r[2].gap == PC_UI_MANUAL_GAP_APART && r[3].gap == PC_UI_MANUAL_GAP_APART);
+        CHECK(r[4].gap == PC_UI_MANUAL_GAP_NONE && r[5].gap == PC_UI_MANUAL_GAP_NONE && r[6].gap == PC_UI_MANUAL_GAP_NONE);
+        CHECK(t.unknown == 3 + 1); // EE, E9, the Lv. sign; the bad block id
+        CHECK(t.nsprites == 4 && t.ntex == 3 && t.sprites[2].tex == t.sprites[0].tex);
+        CHECK(t.sprites[0].a.enabled == 1 && t.sprites[0].x == 3 && t.sprites[0].y == 4);
+        const unsigned char* p8 = t.rgba[t.sprites[0].tex];
+        CHECK(p8[3] == 0);                                    // (0, 0): 0 -> 0x0000, transparent
+        CHECK(p8[4 + 2] == 255 && p8[4 + 0] == 0 && p8[4 + 3] == 255); // (1, 0): 17 -> line 1 entry 1, blue
+        CHECK(p8[8 * 4] == 255 && p8[8 * 4 + 1] == 0 && p8[8 * 4 + 3] == 255); // (8, 0): block 1, 3 -> red
+        const unsigned char* p4 = t.rgba[t.sprites[1].tex];
+        CHECK(p4[1] == 255 && p4[0] == 0 && p4[3] == 255);    // 4bpp: nibble 3 -> line 1 entry 3, green
+        CHECK(p4[4 + 3] == 0);                                // the high nibble 0: transparent
+        CHECK(t.nrules == 1 && t.rules[0].x1 == 300 && t.rules[0].y0 == 6 && t.rules[0].g == 128 && t.rules[0].b == 255);
+        // button art: none here (the retail images' hashes only); the hash is FNV-1a 64 of w, h and the pixels
+        CHECK(t.tex_art && t.tex_art[0] == -1 && t.tex_art[1] == -1 && t.tex_art[2] == -1);
+        const unsigned char px1[4] = {1, 2, 3, 255};
+        CHECK(pc_ui_manual_art_hash(px1, 1, 1) == 0xd7b93253beb54dd4ull && pc_ui_manual_button_art(px1, 1, 1) == -1);
+        CHECK(pc_ui_manual_button_art(nullptr, 16, 16) == -1);
+        pc_ui_manual_free(&t);
+        CHECK(!t.ok && !t.runs);
+        // every truncation: parsed or refused, never read past the buffer (ASan builds check it)
+        int refused = 0;
+        for (size_t n = 0; n <= h0.size(); ++n) {
+            std::vector<unsigned char> cut(h0.begin(), h0.begin() + (long)n);
+            pc_ui_manual_topic c;
+            if (!pc_ui_manual_parse(cut.data(), (unsigned)n, (const unsigned char*)h1.data(), (unsigned)h1.size(),
+                    widths, 378, &c))
+                ++refused;
+            else
+                CHECK(c.unknown > 0 || n == h0.size());
+            pc_ui_manual_free(&c);
+        }
+        for (size_t n = 0; n <= h1.size(); n += 7) {
+            std::vector<unsigned char> cut(h1.begin(), h1.begin() + (long)n);
+            pc_ui_manual_topic c;
+            CHECK(pc_ui_manual_parse((const unsigned char*)h0.data(), (unsigned)h0.size(), cut.data(), (unsigned)n,
+                widths, 378, &c));
+            pc_ui_manual_free(&c);
+        }
+        CHECK(refused > 0);
+        pc_ui_manual_topic none;
+        CHECK(!pc_ui_manual_parse(nullptr, 0, nullptr, 0, widths, 378, &none));
+    }
+
+    // ---- the shell ----
+    for (int i = 0; i < 14; ++i)
+        manual_lc[i] = 30, manual_loaded[i] = 1, manual_scroll[i] = 0;
+    manual_scroll[5] = 12;
+    int current = 5;
+    pc_ui_manual_view v;
+    manual_row();
+    manual_fill(1, current);
+    CHECK(json_has("\"row\":\"manual\"") && json_has("\"manual\":null"));
+    // Circle: the topics on the remembered topic; the shell stays; OPEN (select) and the window
+    CHECK(mtick(PC_UI_CONFIRM) == 0 && pc_ui_shell_visible() && pc_ui_shell_manual_shown());
+    auto ev = manual_events();
+    CHECK(ev.size() == 2 && ev[0].kind == PC_UI_MEV_OPEN && ev[0].a == 0 && ev[1].kind == PC_UI_MEV_LIST_STORE
+          && ev[1].a == 5 && ev[1].b == 0 && ev[1].c == 5);
+    CHECK(json_has("\"manual\":{\"mode\":\"topics\",\"topic\":5,\"row\":5,\"page_top\":0,\"line\":12,"));
+    CHECK(json_has("\"sfx\":{\"change\":0,\"select\":1,\"leave\":0}"));
+    for (const char* key : {"\"lines\":", "\"line_count\":30", "\"pages\":4", "\"loaded\":1", "\"k\":", "\"size\":",
+             "\"overflow\":", "\"unknown\":", "\"page_lines\":[", "\"sprites\":", "\"rules\":", "\"hidden\":",
+             "\"hits\":[", "\"label\":", "\"desc\":"})
+        CHECK(json_has(key));
+    // Down x3: rows 6, 7, then the window scrolls (row 7, page 1): topic 8, three change sounds
+    for (int i = 0; i < 3; ++i) mtick(PC_UI_DOWN);
+    manual_view(&v);
+    CHECK(v.mode == PC_UI_MANUAL_LIST && v.topic == 8 && v.row == 7 && v.page == 1);
+    ev = manual_events();
+    CHECK(count_kind(ev, PC_UI_MEV_SOUND) == 3 && ev[0].a == 2);
+    // Circle: reading topic 8 (its window stored, currentManual 8, the select sound)
+    mtick(PC_UI_CONFIRM);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(ev.size() == 2 && ev[0].kind == PC_UI_MEV_LIST_STORE && ev[0].a == 7 && ev[0].b == 1 && ev[0].c == 8
+          && ev[1].kind == PC_UI_MEV_SOUND && ev[1].a == 1 && current == 8);
+    CHECK(json_has("\"mode\":\"reading\",\"topic\":8"));
+    // Down: a line (change, the scroll written); Square held + Down: a page; Start: the top (no sound)
+    mtick(PC_UI_DOWN);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(ev.size() == 2 && ev[0].kind == PC_UI_MEV_SOUND && ev[0].a == 2 && ev[1].kind == PC_UI_MEV_SCROLL
+          && ev[1].a == 8 && ev[1].b == 1);
+    mtick(PC_UI_DOWN, 0, 1);
+    manual_view(&v);
+    CHECK(v.line == 10 && v.square_held);
+    mtick(0, 0, 0, 1);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    manual_view(&v);
+    CHECK(v.line == 0 && count_kind(ev, PC_UI_MEV_SOUND) == 1); // Square + Down's change only
+    // Up pressed at the top wraps to the last position; a repeat does not
+    mtick(0, PC_UI_UP);
+    manual_view(&v);
+    CHECK(v.line == 0);
+    mtick(PC_UI_UP);
+    manual_view(&v);
+    CHECK(v.line == 30 && json_has("\"line\":30,\"lines\":0,\"line_count\":30,\"page\":4,\"pages\":4"));
+    // Right on the last page (pressed): the first; Left (a repeat): no wrap
+    mtick(PC_UI_RIGHT);
+    manual_view(&v);
+    CHECK(v.line == 0);
+    mtick(0, PC_UI_LEFT);
+    manual_view(&v);
+    CHECK(v.line == 0);
+    mtick(0, PC_UI_RIGHT);
+    manual_view(&v);
+    CHECK(v.line == 10);
+    // Square pressed while reading: the page mode only, never the original screen
+    CHECK(mtick(PC_UI_ALT, 0, 1) == 0 && pc_ui_shell_visible());
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(!find_kind(ev, PC_UI_MEV_ORIGINAL));
+    // Circle: back to the topics (select), the window re-seeded from topic 8 (row 3, page 5)
+    mtick(PC_UI_CONFIRM);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    manual_view(&v);
+    CHECK(v.mode == PC_UI_MANUAL_LIST && v.topic == 8 && v.row == 3 && v.page == 5);
+    CHECK(find_kind(ev, PC_UI_MEV_SOUND) && find_kind(ev, PC_UI_MEV_SOUND)->a == 1);
+    CHECK(find_kind(ev, PC_UI_MEV_LIST_STORE) && find_kind(ev, PC_UI_MEV_LIST_STORE)->a == 3);
+    CHECK(manual_scroll[8] == 10);
+    // the line is remembered per topic: read 8 again
+    mtick(PC_UI_CONFIRM);
+    manual_view(&v);
+    CHECK(v.mode == PC_UI_MANUAL_READ && v.line == 10);
+    manual_events();
+    // Cross: reading -> topics (leave) -> the System list on the manual row (leave, CLOSE)
+    mtick(PC_UI_BACK);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_LIST && find_kind(ev, PC_UI_MEV_SOUND)->a == 0
+          && !find_kind(ev, PC_UI_MEV_CLOSE));
+    mtick(PC_UI_BACK);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_OFF && pc_ui_shell_visible());
+    CHECK(ev.size() == 3 && ev[0].kind == PC_UI_MEV_LIST_STORE && ev[0].c == 8 && ev[1].kind == PC_UI_MEV_SOUND
+          && ev[1].a == 0 && ev[2].kind == PC_UI_MEV_CLOSE);
+    CHECK(json_has("\"row\":\"manual\"") && json_has("\"manual\":null"));
+    CHECK(json_has("\"mode\":\"list\",\"item\":\"manual\""));
+    // Circle + Cross in one frame: Circle wins (58EC.c case 17 checks Circle before Cross; 494.c leaves the
+    // page on either, with the select sound when Circle was pressed)
+    manual_fill(1, current);
+    mtick(PC_UI_CONFIRM);
+    manual_events();
+    mtick(PC_UI_CONFIRM | PC_UI_BACK);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_READ && pc_ui_shell_visible() && !find_kind(ev, PC_UI_MEV_CLOSE)
+          && count_kind(ev, PC_UI_MEV_SOUND) == 1 && find_kind(ev, PC_UI_MEV_SOUND)->a == 1);
+    mtick(PC_UI_CONFIRM | PC_UI_BACK);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_LIST && count_kind(ev, PC_UI_MEV_SOUND) == 1
+          && find_kind(ev, PC_UI_MEV_SOUND)->a == 1 && !find_kind(ev, PC_UI_MEV_CLOSE));
+    mtick(PC_UI_BACK);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_OFF && pc_ui_shell_visible() && find_kind(ev, PC_UI_MEV_CLOSE));
+    // Triangle closes from both modes, no sound of the manual's (deliver -1 plays it)
+    manual_fill(1, current);
+    mtick(PC_UI_CONFIRM);
+    manual_events();
+    CHECK(mtick(PC_UI_EXIT) == -1 && !pc_ui_shell_visible());
+    ev = manual_events();
+    CHECK(count_kind(ev, PC_UI_MEV_SOUND) == 0 && count_kind(ev, PC_UI_MEV_CLOSE) == 1
+          && count_kind(ev, PC_UI_MEV_LIST_STORE) == 1 && pc_ui_manual_mode() == PC_UI_MANUAL_OFF);
+    manual_row();
+    manual_fill(1, current);
+    mtick(PC_UI_CONFIRM);
+    mtick(PC_UI_CONFIRM);
+    manual_events();
+    CHECK(mtick(PC_UI_EXIT, PC_UI_DOWN) == -1);
+    ev = manual_events();
+    manual_apply(ev, &current);
+    CHECK(count_kind(ev, PC_UI_MEV_SOUND) == 1 && ev[0].kind == PC_UI_MEV_SOUND && ev[0].a == 2); // the step's change
+    CHECK(count_kind(ev, PC_UI_MEV_CLOSE) == 1 && manual_scroll[8] == 11);
+    // Square on the System row: the original MENUE (result 10) on the game's topic
+    manual_row();
+    manual_fill(1, current);
+    CHECK(mtick(PC_UI_ALT) == 10 && !pc_ui_shell_visible());
+    ev = manual_events();
+    CHECK(ev.size() == 1 && ev[0].kind == PC_UI_MEV_ORIGINAL && ev[0].a == 8);
+    // Square on the topics: the store, CLOSE, then ORIGINAL on the focused topic
+    manual_row();
+    manual_fill(1, current);
+    mtick(PC_UI_CONFIRM);
+    mtick(PC_UI_UP);
+    manual_events();
+    CHECK(mtick(PC_UI_ALT) == 10 && !pc_ui_shell_visible() && pc_ui_manual_mode() == PC_UI_MANUAL_OFF);
+    ev = manual_events();
+    CHECK(ev.size() == 3 && ev[0].kind == PC_UI_MEV_LIST_STORE && ev[0].c == 7 && ev[1].kind == PC_UI_MEV_CLOSE
+          && ev[2].kind == PC_UI_MEV_ORIGINAL && ev[2].a == 7);
+    // cursor memory off: OPEN zeroes, the topics start on 0 with every line at 0
+    manual_row();
+    manual_fill(0, 9);
+    mtick(PC_UI_CONFIRM);
+    ev = manual_events();
+    manual_view(&v);
+    CHECK(ev[0].kind == PC_UI_MEV_OPEN && ev[0].a == 1 && v.topic == 0 && v.row == 0 && v.page == 0);
+    for (int i = 0; i < 14; ++i) CHECK(pc_ui_manual_line_of(i) == 0);
+    // a tab switch leaves (the store, CLOSE once); so does pc_ui_shell_close; forget drops everything
+    mtick(PC_UI_CONFIRM);
+    manual_events();
+    mtick(PC_UI_TAB_NEXT);
+    ev = manual_events();
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_OFF && count_kind(ev, PC_UI_MEV_CLOSE) == 1
+          && count_kind(ev, PC_UI_MEV_SCROLL) == 1);
+    manual_row();
+    manual_fill(1, 2);
+    mtick(PC_UI_CONFIRM);
+    manual_events();
+    pc_ui_shell_close();
+    ev = manual_events();
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_OFF && count_kind(ev, PC_UI_MEV_CLOSE) == 1);
+    pc_ui_shell_close();
+    CHECK(manual_events().empty());
+    manual_row();
+    mtick(PC_UI_CONFIRM);
+    pc_ui_manual_forget();
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_OFF && manual_events().empty());
+    pc_ui_shell_close();
+    CHECK(manual_events().empty());
+    // ---- the pointer ----
+    manual_row();
+    for (int i = 0; i < 14; ++i) manual_scroll[i] = 0;
+    manual_fill(1, 0);
+    mtick(PC_UI_CONFIRM);
+    manual_events();
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_TOPIC, 11, 0, 0); // hover: the focus walks there (the window follows)
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.topic == 11 && v.row + v.page == 11 && v.row >= 1 && v.row <= 8);
+    ev = manual_events();
+    CHECK(count_kind(ev, PC_UI_MEV_SOUND) == 1);
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_TOPIC, 2, 1, 0); // a click: that topic, read
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.mode == PC_UI_MANUAL_READ && v.topic == 2);
+    manual_events();
+    pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, -1); // the wheel: a line a notch
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.line == 1);
+    pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, 1);
+    mtick(0);
+    pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, 1);
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.line == 0); // clamps (no wrap)
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_PAGE, 1, 1, 0);
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.line == 10);
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_PAGE, -1, 1, 0);
+    mtick(0);
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_PAGE, -1, 1, 0);
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.line == 0);
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_SCROLL, 25, 1, 0);
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.line == 25);
+    ev = manual_events();
+    CHECK(count_kind(ev, PC_UI_MEV_SOUND) == 5); // wheel down, up (the second clamps), page +1, -1 (the second clamps), the track
+    // not loaded: content clicks are ignored
+    manual_loaded[2] = 0;
+    manual_fill(1, 2);
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_PAGE, -1, 1, 0);
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.line == 25);
+    manual_loaded[2] = 1;
+    manual_fill(1, 2);
+    // a rail click on another topic while reading: that topic
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_TOPIC, 6, 1, 0);
+    mtick(0);
+    manual_view(&v);
+    CHECK(v.mode == PC_UI_MANUAL_READ && v.topic == 6);
+    // a right click: back (Cross)
+    pc_ui_shell_mouse(PC_UI_MOUSE_BUTTON, PC_UI_BACK, 1, 0);
+    mtick(0);
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_LIST);
+    // the canvas in the topics: read
+    pc_ui_shell_mouse(PC_UI_MOUSE_MANUAL_CANVAS, 0, 1, 0);
+    mtick(0);
+    CHECK(pc_ui_manual_mode() == PC_UI_MANUAL_READ);
+    pc_ui_shell_close();
+    manual_events();
+    CHECK(json_has("\"manual\":null") || !pc_ui_shell_visible());
+}
+
 int main()
 {
     pc_ui_commands all = {0x3FF, 0, 0};
@@ -1391,14 +2982,17 @@ int main()
     // not remembered: back to Ashley
     pc_ui_shell_open(&all, 0);
     CHECK(json_has("\"tab\":\"ashley\""));
-    // Items unselectable (carrying a cube: mask bit 2): greyed with a reason, and confirm still opens
-    // the game's Items (command 3 -> 4), as the original top level does
+    // Items unselectable (carrying a cube: mask bit 2): browse only with a reason (before the bridge's
+    // snapshot: the command row's), and the original Items stays reachable (command 3 -> 4), as the
+    // original top level opens it
     pc_ui_commands no_items = {0x3FF, 8, 0x02};
     pc_ui_shell_open(&no_items, 0);
     for (int i = 0; i < 2; ++i) tick(PC_UI_TAB_NEXT); // Ashley Equipment Items
     CHECK(json_has("\"tab\":\"items\""));
-    CHECK(json_has("\"enabled\":false"));
+    CHECK(json_has("\"locked\":true"));
     CHECK(json_has("\"reason\":\"Not while carrying a cube.\""));
+    CHECK(tick(PC_UI_CONFIRM) == 0 && json_has("\"mode\":\"actions\""));
+    CHECK(json_has("\"actions\":[{\"id\":\"original\",\"enabled\":true}]"));
     CHECK(tick(PC_UI_CONFIRM) == 4);
     CHECK(!pc_ui_shell_visible());
     // the reason follows the game's order (lowest bit the command cares about): cube (2) before hanging (4)
@@ -1488,6 +3082,11 @@ int main()
     ashley_tests();
     abilities_tests();
     magick_tests();
+    items_tests();
+    loot_tests();
+    workshop_tests();
+    map_tests();
+    manual_tests();
     std::printf(failures ? "ui_shell_probe: %d failures\n" : "ui_shell_probe: ok\n", failures);
     return failures != 0;
 }

@@ -46,10 +46,20 @@ void pc_vk_hw_upload_rect(int x, int y, int w, int h);
 void pc_vk_hw_copy(int sx, int sy, int dx, int dy, int w, int h);
 /* Depth rectangle (scaled pixels, x1/y1 exclusive) between depth tokens. */
 void pc_vk_hw_copy_depth(unsigned from, unsigned to, int x0, int y0, int x1, int y1);
+/* A depth token's rectangle (scaled pixels, x1/y1 exclusive) to far (1). */
+void pc_vk_hw_clear_depth(unsigned token, int x0, int y0, int x1, int y1);
 /* The live target's colours and depth over a rectangle (scaled pixels) into
  * the replay target. */
 void pc_vk_hw_replay_copy(int x0, int y0, int x1, int y1);
 int pc_vk_hw_dump(const char* path, int replay);
+/* The text overlay (gpu_hw.c pc_hw_text_overlay): `count` vertices of
+ * distance-texel text, PS1 mode `mode` (4: opaque), over the presented
+ * picture in the rendering open now: the view at (view_x, view_y) of the
+ * window image, or of the brightness input (to_view, 16-bit float, from 0,
+ * 0); rect: the presented VRAM area; clip: the drawing area in pixels from
+ * the view's top-left (x0, y0, x1, y1). */
+void pc_vk_hw_text_overlay(const void* vertices, int count, int mode, const float* rect, const float* clip, int view_x,
+    int view_y, int to_view);
 /* Normal (RGBA8) and depth (0..1) of the live target at scaled pixel x, y. */
 int pc_vk_hw_pick(int x, int y, float* depth, unsigned char normal[4]);
 /* The live target over native rectangle x0..x1, y0..y1 at native resolution

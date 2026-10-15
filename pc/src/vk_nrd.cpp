@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <SDL3/SDL_timer.h>
 
 extern "C" char pc_nrd_tune[160];
 char pc_nrd_tune[160];
@@ -219,7 +220,9 @@ int create(int w, int h)
         ci.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
         ci.stage.module = module;
         ci.stage.pName = desc.shaderEntryPoint;
-        VkResult result = vkCreateComputePipelines(vk.device, VK_NULL_HANDLE, 1, &ci, nullptr, &p.pipeline);
+        uint64_t start = SDL_GetTicksNS();
+        VkResult result = vkCreateComputePipelines(vk.device, vk.pipeline_cache, 1, &ci, nullptr, &p.pipeline);
+        vk_pipeline_cache_note(SDL_GetTicksNS() - start);
         vkDestroyShaderModule(vk.device, module, nullptr);
         s.pipelines.push_back(p);
         if (!vk_check(result, "NRD pipeline"))

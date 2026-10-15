@@ -81,11 +81,14 @@ void reset()
     sun = Sun();
     sky = Sky();
     rood_atmo::reset();
+    rood_post::reset();
 }
 
 bool apply_item(const lighting::Item& it)
 {
     if (rood_atmo::apply_item(it)) /* env fog, fog volumes */
+        return true;
+    if (rood_post::apply_item(it)) /* post room, post cutscene, post event.<id> */
         return true;
     if (it.kind != "env")
         return false;
@@ -145,6 +148,7 @@ void add_items(lighting::State& s)
         s[it.id()] = it;
     }
     rood_atmo::add_items(s);
+    rood_post::add_items(s);
 }
 
 /* Undo snapshots (editor_undo.cpp): the items as lines, and back. */

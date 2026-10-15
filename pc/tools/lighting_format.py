@@ -46,23 +46,37 @@ SCHEMA = {
         ("size", 1, "256,128,256", False), ("yaw", 2, "0", False), ("density", 5, "0.004", False),
         ("edge", 2, "0.5", False), ("color", 3, "1,1,1", False), ("fill", 3, "0,0,0", False),
         ("noise", 2, "0.5", False), ("enabled", 0, "1", False),
-        # the interactive fog (pc/src/fog_sim.h, prototype)
-        ("sim", 0, "0", False), ("sim_strength", 2, "1", False), ("sim_recover", 2, "3", False)]),
+        # the interactive fog (pc/src/fog_sim.h): the characters, attacks and spells part it
+        ("sim", 0, "0", False), ("sim_strength", 2, "1", False), ("sim_recover", 2, "3", False),
+        ("sim_footprint", 2, "1", False), ("sim_trail", 2, "1", False), ("sim_wind", 2, "1", False),
+        ("detail", 2, "0.5", False), ("sim_swirl", 2, "0", False), ("shadow", 2, "0", False),
+        # its own renderer (pc/src/atmosphere.h pc_fogvol_gpu): its look, exempt from the room's haze limits
+        ("opacity", 2, "1", False), ("brightness", 2, "1", False), ("phase", 2, "0.3", False),
+        ("ambient", 2, "1", False), ("glow", 3, "0,0,0", False), ("glow_core", 2, "0.5", False),
+        ("taper", 2, "0", False), ("detail_size", 1, "0", False),
+        # each source's weight here (-1: the global setting fog_disturb_*)
+        ("disturb_player", 2, "-1", False), ("disturb_actors", 2, "-1", False),
+        ("disturb_attacks", 2, "-1", False), ("disturb_spells", 2, "-1", False),
+        # a named preset (pc/assets/environment/fog_presets.json) for the fields not written
+        ("preset", -1, None, False)]),
     "glow": (False, 4, [
         ("pos", 1, None, True), ("muted", 0, "0", False), ("intensity", 3, "1", False),
         ("tint", 3, "1,1,1", False), ("size", 2, "0", False), ("reach", 1, "0", False),
-        ("fixture_type", -1, None, False)]),
+        ("fixture_type", -1, None, False), ("shape", -1, "auto", False)]),
     "light": (False, 4, [
         ("name", -1, None, False), ("type", -1, "point", False), ("pos", 1, None, False),
         ("dir", 4, "0,1,0", False), ("color", 3, "1,0.75,0.45", False), ("intensity", 3, "1", False),
         ("radius", 1, "600", False), ("cone", 2, "45", False), ("size", 1, "128,128", False),
         ("shadows", 0, "0", False), ("enabled", 0, "1", False)]),
+    # Post-processing profiles ("post room", "post cutscene", "post event.<id>"): pc/src/post_profile.cpp.
+    # Open: any post field (checked there), `preset` a named profile under them.
+    "post": (True, 4, [("preset", -1, None, False)]),
     "set": (False, 6, [("value", 6, None, False)]),
     "uv": (False, 4, [("speed", 3, "1", False), ("freeze", 0, "0", False)]),
 }
 # What a define of each kind needs, and how many numbers a field takes.
 REQUIRED = {"light": ["pos"], "actor": ["prefab", "pos"], "set": ["value"], "glow": [], "uv": [], "env": [],
-            "fog": ["pos"]}
+            "fog": ["pos"], "post": []}
 COUNTS = {"pos": 3, "dir": 3, "color": 3, "rot": 3, "glow": 3, "fixture": 3, "tint": 3, "size": None,
           "zenith": 3, "horizon": 3, "ground": 3, "wind": 3, "fill": 3}
 # The env items a room may have, and the fields each takes.
@@ -141,13 +155,24 @@ def _rank(kind, key):
     return 1000
 
 
+# The fields a fog preset (pc/assets/environment/fog_presets.json) can give a volume.
+PRESET_FIELDS = ("shape", "size", "density", "edge", "color", "fill", "noise", "sim", "sim_strength",
+                 "sim_recover", "sim_footprint", "sim_trail", "sim_wind", "detail", "sim_swirl", "shadow", "opacity",
+                 "brightness", "phase", "ambient", "glow", "glow_core", "taper", "detail_size", "disturb_player",
+                 "disturb_actors", "disturb_attacks", "disturb_spells")
+
+
 def canonicalize(kind, fields):
-    """fields: list of (key, value) -> canonical list (order, values, defaults dropped)."""
+    """fields: list of (key, value) -> canonical list (order, values, defaults dropped; a fog volume
+    with a preset keeps its preset fields even at their defaults: they differ from the preset's)."""
     out = {}
+    fields = list(fields)
+    preset = kind == "fog" and any(key == "preset" for key, _ in fields)
     for key, value in fields:
         v = canonical_value(kind, key, value)
         f = _spec(kind, key)
-        if f and f[2] is not None and v == canonical_value(kind, key, f[2]):
+        if f and f[2] is not None and v == canonical_value(kind, key, f[2]) \
+                and not (preset and key in PRESET_FIELDS):
             out.pop(key, None)
             continue
         out[key] = v
@@ -396,7 +421,7 @@ def diff_one(below, desired, id):
         return Entry("define", id, item=d)
     if same_item(b, d):
         return None
-    if b.kind not in ("light", "actor", "env", "fog"):
+    if b.kind not in ("light", "actor", "env", "fog", "post"):
         return Entry("define", id, item=d)
     old = dict(b.fields)
     sets = [(k, v) for k, v in d.fields if not (k in old and (old[k] == v or volatile(d.kind, d.name, k)))]

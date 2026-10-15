@@ -19,20 +19,22 @@ extern int pc_ui_upscale;  /* PC_UI_*; nearest keeps the original look */
 extern int pc_ui_subpixel; /* text glyphs keep their unrounded 16.16 placement (else whole pixels) */
 extern const char* const pc_ui_upscale_names[2];
 
-/* The atlas magnification for internal resolution `scale` (2, 4 or 8), or 0
- * when 2D is not magnified (nearest, scale 1). */
+/* The atlas magnification for internal resolution `scale` (2, 4 or 8; at
+ * least 4 while text or icons come from fonts), or 0 when 2D is not
+ * magnified (nearest, scale 1). */
 int pc_ui_upscale_factor(int scale);
 /* A 2D textured primitive samples texels [u0, u1] x [v0, v1] (inclusive) of
  * page `tpage` / CLUT `clut`: 1 with offset[] (atlas origin - u0/v0, in
  * texels; the shader multiplies by the factor) when its magnified copy is
- * (or will be, by pc_ui_upscale_prepare) in the atlas; 0 to sample it
+ * (or will be, by pc_ui_upscale_prepare) in the atlas, 2 when that is text
+ * or an icon drawn from a font (distance texels, ui_text.h); 0 to sample it
  * nearest; -1 when the atlas is full: the caller draws what it queued, calls
  * pc_ui_upscale_reset and asks again. */
 int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, unsigned window, int u0, int v0,
     int u1, int v1, int scale, int16_t offset[2]);
 /* A laid-out glyph's image (ui_text.h pc_ui_text_quad.image): as
- * pc_ui_upscale_lookup, offset[] its atlas origin (its texels start at
- * u, v = 0, 0). */
+ * pc_ui_upscale_lookup (2: found), offset[] its atlas origin (its texels
+ * start at u, v = 0, 0). */
 int pc_ui_upscale_lookup_image(int image, int scale, int16_t offset[2]);
 /* Record the work for regions looked up since the last call (before a draw
  * samples them). */

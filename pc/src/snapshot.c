@@ -9,6 +9,7 @@
  *    rood_state_data / rood_state_bss; the overlays' statics are their
  *    rood_ovl_* sections (overlay_statics.c);
  *  - the software SPU (audio_spu.cpp: the sound driver reads envelopes back);
+ *  - the interactive fog's fields (fog_sim.cpp: host state that follows the game);
  *  - the game's call stack and registers: the game runs on a stack at a fixed
  *    address (boot_runtime.c), and a snapshot is taken at one place, inside
  *    the paused RPC loop (pc_tick, between frames). Its used part is saved
@@ -165,6 +166,11 @@ extern const uint16_t* pc_native_vram(void);
 extern int pc_spu_state_size(void) __attribute__((weak));
 extern void pc_spu_state_save(void* out) __attribute__((weak));
 extern int pc_spu_state_load(const void* in, int size) __attribute__((weak));
+/* fog_sim.cpp: the interactive fog's fields (host state, but it follows the
+ * game: a resumed run's fog continues where the saved one was). */
+extern int pc_fog_state_size(void) __attribute__((weak));
+extern void pc_fog_state_save(void* out) __attribute__((weak));
+extern int pc_fog_state_load(const void* in, int size) __attribute__((weak));
 extern void pc_cd_restored(void) __attribute__((weak));   /* cd_drive.c: reopen the disc */
 extern void pc_hw_resync(void) __attribute__((weak));     /* gpu_hw.c: the target from native VRAM */
 extern void pc_rpc_restored(void) __attribute__((weak));  /* dev_rpc.c: listen, paused */
@@ -214,7 +220,7 @@ static uint64_t code_hash(void) { return fnv(__executable_start, (size_t)(etext 
 /* ---- the file ---- */
 #define MAGIC "ROODSNAP"
 #define VERSION 1
-enum { CHUNK_END, CHUNK_MEMORY, CHUNK_SPU, CHUNK_LOG };
+enum { CHUNK_END, CHUNK_MEMORY, CHUNK_SPU, CHUNK_LOG, CHUNK_FOG };
 typedef struct {
     char magic[8];
     uint32_t version, pointer_size;
@@ -301,6 +307,16 @@ static int write_file(const char* path, uintptr_t sp, char* error, int esize)
             ok = write_chunk(f, CHUNK_SPU, NULL, spu, (uint64_t)size);
         }
         free(spu);
+    }
+    if (ok && pc_fog_state_size) {
+        int size = pc_fog_state_size();
+        void* fog = malloc((size_t)size + 1);
+        ok = fog != NULL;
+        if (ok) {
+            pc_fog_state_save(fog);
+            ok = write_chunk(f, CHUNK_FOG, NULL, fog, (uint64_t)size);
+        }
+        free(fog);
     }
     size_t log_size;
     char* log = read_log(&log_size);
@@ -396,6 +412,10 @@ void pc_snapshot_resume_if_requested(void)
         } else if (c.tag == CHUNK_SPU) {
             if (!pc_spu_state_load || !pc_spu_state_load(data, (int)c.size))
                 fail(path, "the SPU state does not fit");
+            free(data);
+        } else if (c.tag == CHUNK_FOG) {
+            if (pc_fog_state_load && !pc_fog_state_load(data, (int)c.size))
+                fprintf(stderr, "[snapshot] the interactive fog's state does not fit: it starts at rest\n");
             free(data);
         } else if (c.tag == CHUNK_LOG) {
             fprintf(stderr, "[snapshot] the log of the run that saved %s:\n", path);

@@ -19,6 +19,12 @@ From a copy of the card (skipped without one), in the save room, ui_menus on,
     column shows the model (a torso sample at the column's centre, 45% down,
     is not the ground colour) over the theme's ground colour (a sample inset
     from the column's top left corner)
+  - the model is native (render_stats: object lists drawn, no object packet
+    triangles left to the 2D path: before, a frame without a room list kept
+    it as 2D packets, no internal resolution/MSAA) and interpolated: in a
+    present_dump burst of the model column, with frame interpolation off
+    (the control) every other image repeats the one before (30 fps game
+    frames on a 60 Hz display); on, none does (each image an in-between)
   - the heap check: with ui_menu {model_heap_extra} asking for more than the
     heap has, the tab shows no model (model 0, model_blocked "heap", the
     world not frozen, slot 1 empty); back to 0, the model is built
@@ -333,6 +339,50 @@ class Test:
                    f"ground colour {GROUND})")
         return p
 
+    def burst_repeats(self, rect, count=14):
+        """Presented images in a row (present_dump burst): how many repeat the
+        one before in the model column (the first two skipped: a burst can
+        repeat while it starts), and the mean differences."""
+        from PIL import Image, ImageChops, ImageStat
+        g = self.g
+        base = self.out / "burst"
+        paths = [pathlib.Path(f"{base}.{i:04d}.ppm") for i in range(count)]
+        for q in paths:
+            q.unlink(missing_ok=True)
+        g.call("present_dump", path=str(base.resolve()), count=count)
+        g.run(count + 6)
+        for _ in range(40):  # written a few presents later
+            if all(q.exists() for q in paths):
+                break
+            g.run(1)
+        crops = []
+        for q in paths:
+            pic = Picture(q, False)
+            crops.append(pic.box(rect))
+            q.unlink()
+        diffs = [sum(ImageStat.Stat(ImageChops.difference(a, b)).mean) / 3 for a, b in zip(crops, crops[1:])][2:]
+        return sum(d < 0.005 for d in diffs), diffs
+
+    def native_and_smooth(self):
+        """The model is drawn by the native renderer and interpolated."""
+        g, check = self.g, self.check
+        g.run(4)
+        st = g.call("render_stats")
+        check(st["object_lists"] >= 1 and st["legacy_object_triangles"] == 0,
+              f"the model is native: {st['object_lists']} object lists, {st['legacy_object_triangles']} object "
+              f"triangles left to packets ({st['skipped_object_triangles']} covered)")
+        rect = self.ash()["model_rect"]
+        g.call("graphics", interpolate=False)
+        g.run(4)
+        stepped, d_off = self.burst_repeats(rect)
+        g.call("graphics", interpolate=True)
+        g.run(4)
+        smooth, d_on = self.burst_repeats(rect)
+        check(stepped >= 4 and smooth == 0,
+              f"interpolated: images repeating the one before in the model column, interpolation off "
+              f"{stepped} (the control), on {smooth} (off {' '.join(f'{d:.2f}' for d in d_off)}; "
+              f"on {' '.join(f'{d:.2f}' for d in d_on)})")
+
     def stick_turn(self, wide, before, name):
         g = self.g
         yaw0 = self.ash()["model_yaw"]
@@ -365,6 +415,7 @@ class Test:
         self.data_checks()
 
         p = self.model_shown(False, "ashley")
+        self.native_and_smooth()
         a = self.ash()
         yaw, pitch = a["model_yaw"], a["model_pitch"]
         g.run(60)

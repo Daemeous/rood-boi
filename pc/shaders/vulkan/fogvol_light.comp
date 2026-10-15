@@ -1,0 +1,7 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+// Fog volumes' light grid without ray queries: the volumes' own shadows
+// only (fogvol_light.glsl; vk_fogvol.inc picks fogvol_light_rt.comp when
+// the scene's acceleration structure is there this frame).
+#define FV_VEC4S_ 179
+#include "fogvol_light.glsl"

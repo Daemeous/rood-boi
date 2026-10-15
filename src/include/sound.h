@@ -483,16 +483,11 @@ typedef struct {
     u_short TimerLower;
     u_short TimerLowerCurrent;
     u_short TimerTopCurrent;
-    int unk80;
-    int unk84;
-    int unk88;
-    int unk8C;
-    int unk90;
-    int unk94;
-    int unk98;
-    int unk9C;
 } FSoundChannelConfig;
-PSX_ASSERT_SIZE(FSoundChannelConfig, 0xa0);
+// 0x80 bytes: the config is saved and restored with 0x80-byte copies, and the
+// next objects start there (g_PushedMusicConfig + 0x80 = D_80035910,
+// D_800366F0 + 0x80 = D_80036770).
+PSX_ASSERT_SIZE(FSoundChannelConfig, 0x80);
 
 typedef struct {
     u_int Param1;

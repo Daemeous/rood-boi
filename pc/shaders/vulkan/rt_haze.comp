@@ -30,9 +30,11 @@ layout(std140, binding = 4) uniform Haze {
     vec4 previous_rotation[3]; // previous world -> view (rows), w: translation
     vec4 previous_projection; // hx, hh, ofx, ofy
     vec4 previous_range; // znear, log(zfar / znear)
-    vec4 medium_[250]; // the room's medium (medium.glsl, atmosphere.h)
+    vec4 medium_[165]; // the room's medium (medium.glsl, atmosphere.h)
 } h;
 #define MEDIUM(i) h.medium_[i]
+layout(binding = 11) uniform sampler3D medium_tex; // the medium's texture (atmosphere.h pc_medium_texture)
+#define MEDIUM_TEX medium_tex
 #include "medium.glsl"
 layout(binding = 5, rgba16f) uniform writeonly image2D scatter_out;
 layout(binding = 6) uniform sampler2D history;
@@ -55,16 +57,23 @@ vec4 sample_history(vec3 c) {
     vec4 b = texture(history, (xy + vec2(k1 * tile.x, 0.0)) / size);
     return mix(a, b, f);
 }
+// A column glow's shadow ray for the last source_light (rt_lights.glsl
+// emitter_shadow: to its core, up to its side); reach < 0: the ray to the sample.
+vec3 haze_shadow_dir; float haze_shadow_reach;
 vec3 source_light(int i, vec3 x, out vec3 l, out float d) {
     vec3 centre; vec4 pos; vec3 col;
+    haze_shadow_reach = -1.0;
     if (i < light_count) {
         centre = lpos(i).xyz; pos = lpos(i); col = lcol(i).rgb;
         if (lcol(i).w > 1.5) centre += lright(i).xyz * (rand() * 2.0 - 1.0) + lup(i).xyz * (rand() * 2.0 - 1.0);
         else centre += (vec3(rand(), rand(), rand()) - 0.5) * 2.0 * point_size(i);
     } else {
         int e = i - light_count; pos = emitter_pos[e]; col = emitter_col[e].rgb * fog_glow;
-        vec3 r = vec3(rand(), rand(), rand()) * 2.0 - 1.0;
-        centre = pos.xyz + normalize(r + 1e-4) * pow(rand(), 0.333) * abs(emitter_col[e].w);
+        float a = rand(), b = rand(), c = rand();
+        vec4 r = vec4(a, b, c, rand());
+        centre = emitter_sample(e, r); // its sphere or column (rt_lights.glsl)
+        if (u.emitter_shape_[e].w > 0.0)
+            haze_shadow_reach = max(emitter_shadow(e, x, r, haze_shadow_dir), 0.0);
     }
     vec3 to = centre - x; d = length(to); l = to / max(d, 1e-3);
     float f = clamp(d / pos.w, 0.0, 1.0);
@@ -78,10 +87,17 @@ void main() {
     if (g.x >= h.grid.x * h.grid.z || g.y >= h.grid.y) return;
     int k = g.x / h.grid.x;
     ivec3 cell = ivec3(g.x - k * h.grid.x, g.y, k);
-    rng = uint(g.x) * 1973u + uint(g.y) * 9277u + frame * 26699u;
+    // Every random choice (the jitter, the light picked, the point on it, the
+    // sun's and the sky's rays) cycles through CYCLE frames: a froxel's
+    // samples are a fixed, stratified set the history averages, so a still
+    // picture converges and stays still (a random sequence never settled:
+    // the haze shimmered with the camera, the fog and the wind all still).
+    const uint CYCLE = 16u;
+    uint phase = frame % CYCLE;
+    rng = uint(g.x) * 1973u + uint(g.y) * 9277u + phase * 26699u;
     // Blue-noise jitter in the cell: interleaved gradient noise over the
     // froxels, shifted by the R3 sequence each frame (stratified over time).
-    vec3 r3 = fract(vec3(0.8191725, 0.6710436, 0.5497005) * float(frame & 4095u));
+    vec3 r3 = fract(vec3(0.8191725, 0.6710436, 0.5497005) * float(phase));
     vec2 p = vec2(g) + vec2(float(k) * 5.3, float(k) * 2.9);
     vec3 jitter = fract(vec3(medium_ign(p), medium_ign(p + vec2(47.0, 17.0)), medium_ign(p + vec2(13.0, 59.0))) + r3);
     vec3 x = world_of(vec3(cell) + jitter);
@@ -111,7 +127,10 @@ void main() {
             vec3 l; float d, th; int hit; vec2 bc;
             vec3 c = source_light(i, x, l, d);
             // transient effects' light is never shadowed (glow_casts)
-            if ((i >= light_count && !glow_casts_shadow(i - light_count)) || !trace(x, l, d - 2.0, true, l, 0.0, th, hit, bc))
+            bool column = haze_shadow_reach >= 0.0; // a column glow's side: to its core, up to the side
+            vec3 sl = column ? haze_shadow_dir : l;
+            if ((i >= light_count && !glow_casts_shadow(i - light_count)) || (column && haze_shadow_reach <= 0.0)
+                || !trace(x, sl, column ? haze_shadow_reach : d - 2.0, true, sl, 0.0, th, hit, bc))
                 light = c * (all_ / w_pick) * medium_phase(dot(dir, l), g_);
         }
     }
@@ -120,7 +139,7 @@ void main() {
     // haze is lit: shafts.
     if (inside && env_sun_on()) {
         vec2 u2 = fract(vec2(medium_ign(p + vec2(71.0, 3.0)), medium_ign(p + vec2(5.0, 83.0)))
-                        + fract(vec2(0.7548777, 0.5698403) * float(frame & 4095u)));
+                        + fract(vec2(0.7548777, 0.5698403) * float(phase)));
         vec3 l = env_sun_sample(u2.x, u2.y);
         float th; int hit; vec2 bc;
         bool lit = env_sun_col.w < 0.5 || !trace(x, l, ENV_SUN_DISTANCE, true, l, 0.0, th, hit, bc);
@@ -131,7 +150,7 @@ void main() {
     // under cover stays dark and the shafts keep their contrast.
     if (inside && env_sky_on() && MEDIUM(5).w > 0.0) {
         vec2 u2 = fract(vec2(medium_ign(p + vec2(23.0, 41.0)), medium_ign(p + vec2(67.0, 29.0)))
-                        + fract(vec2(0.5698403, 0.7548777) * float(frame & 4095u)));
+                        + fract(vec2(0.5698403, 0.7548777) * float(phase)));
         float z = 1.0 - 2.0 * u2.x, s = sqrt(max(1.0 - z * z, 0.0)), a = 6.2831853 * u2.y;
         vec3 d = vec3(s * cos(a), z, s * sin(a));
         float th; int hit; vec2 bc;
@@ -152,7 +171,11 @@ void main() {
                 log(v.z / h.previous_range.x) / h.previous_range.y * float(h.grid.z));
             if (all(greaterThanEqual(c, vec3(0.0))) && all(lessThan(c, vec3(h.grid.xyz)))) {
                 previous = sample_history(c);
-                if (!any(isnan(previous)) && previous.a > 0.5) weight = h.camera_translation.w;
+                // a long history while still (the cycle's samples averaged), a short one
+                // while the camera moves (no smearing): by how far the froxel moved, in cells
+                float moved = length(c - (vec3(cell) + 0.5));
+                if (!any(isnan(previous)) && previous.a > 0.5)
+                    weight = mix(h.camera_translation.w, max(h.camera_translation.w, 0.3), smoothstep(0.15, 1.5, moved));
             }
         }
     }

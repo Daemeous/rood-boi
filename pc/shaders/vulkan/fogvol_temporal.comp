@@ -1,0 +1,95 @@
+#version 450
+// Fog volumes, step 3 (vk_fogvol.inc): temporal accumulation of the march.
+// Each pixel's fog point (where its light comes from) is reprojected into
+// the previous camera; its history is taken there unless the scene behind
+// it changed (disocclusion: the depth there is not what this pixel's scene
+// point had; a character moved across it), clamped to this frame's
+// neighbourhood (wider when nothing moves, so a still picture keeps its
+// history and does not flicker), and blended with a weight of 1 / (frames
+// it has accumulated) down to fog_volume_history. The new sample is first
+// filtered over its 3 x 3 neighbours of a similar depth (a spatial filter
+// that never mixes fog in front of an edge with fog behind it).
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(std140, binding = 0) uniform FogvolTemporal {
+    ivec4 size; // w, h, history valid, -
+    vec4 params; // x the least weight of a new sample, y march pixels per display pixel (x), z (y), w the largest history (frames)
+    vec4 projection; // hx, hh, ofx, ofy (this camera)
+    vec4 inverse_rotation[3]; // this camera: view -> world (columns)
+    vec4 camera_translation;
+    vec4 previous_rotation[3]; // previous world -> view (rows), w translation
+    vec4 previous_projection; // hx, hh, ofx, ofy
+} u;
+layout(binding = 1, rgba16f) uniform readonly image2D march_in;
+layout(binding = 2, rgba32f) uniform readonly image2D aux_in;
+layout(binding = 3) uniform sampler2D history; // rgb light, a transmittance (linear)
+layout(binding = 4) uniform sampler2D history_aux; // x scene depth, y fog distance, z frames (nearest)
+layout(binding = 5, rgba16f) uniform writeonly image2D history_out;
+layout(binding = 6, rgba32f) uniform writeonly image2D aux_out;
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy);
+    if (g.x >= u.size.x || g.y >= u.size.y) return;
+    vec4 aux = imageLoad(aux_in, g);
+    float z = aux.x;
+    // spatial: 3 x 3 tent over neighbours at a similar depth; the neighbourhood's moments
+    vec4 sum = vec4(0.0), m1 = vec4(0.0), m2 = vec4(0.0);
+    float wsum = 0.0, n = 0.0;
+    for (int dy = -1; dy <= 1; dy++)
+        for (int dx = -1; dx <= 1; dx++) {
+            ivec2 p = clamp(g + ivec2(dx, dy), ivec2(0), u.size.xy - 1);
+            vec4 c = imageLoad(march_in, p);
+            float zn = imageLoad(aux_in, p).x;
+            float w = float((2 - abs(dx)) * (2 - abs(dy))) * exp(-abs(zn - z) / (0.02 * min(z, zn) + 4.0));
+            sum += c * w; wsum += w;
+            m1 += c; m2 += c * c; n += 1.0;
+        }
+    vec4 current = sum / max(wsum, 1e-6);
+    vec4 mean = m1 / n, sigma = sqrt(max(m2 / n - mean * mean, vec4(0.0)));
+    // reprojection of the fog point (or the scene point where there is no fog)
+    mat3 inv = mat3(u.inverse_rotation[0].xyz, u.inverse_rotation[1].xyz, u.inverse_rotation[2].xyz);
+    vec2 display = (vec2(g) + 0.5) / u.params.yz;
+    vec2 sv = display - u.projection.zw;
+    vec3 ray = inv * vec3(sv.x / u.projection.x, sv.y / u.projection.y, 1.0);
+    float stretch = length(ray);
+    vec3 eye = -(inv * u.camera_translation.xyz), dir = ray / max(stretch, 1e-9);
+    float fog_t = min(aux.y, z * stretch);
+    float frames = 1.0, motion = 1e3;
+    vec4 previous = current;
+    bool valid = false;
+    if (u.size.z != 0) {
+        vec3 x = eye + dir * fog_t, xs = eye + dir * min(z * stretch, 1e6);
+        vec3 v = vec3(dot(u.previous_rotation[0].xyz, x) + u.previous_rotation[0].w,
+                      dot(u.previous_rotation[1].xyz, x) + u.previous_rotation[1].w,
+                      dot(u.previous_rotation[2].xyz, x) + u.previous_rotation[2].w);
+        float vs = dot(u.previous_rotation[2].xyz, xs) + u.previous_rotation[2].w; // the scene point's previous depth
+        if (v.z > 1.0) {
+            vec2 s = vec2(u.previous_projection.x * v.x / v.z, u.previous_projection.y * v.y / v.z) + u.previous_projection.zw;
+            vec2 c = s * u.params.yz; // previous march pixels
+            if (all(greaterThanEqual(c, vec2(0.0))) && all(lessThan(c, vec2(u.size.xy)))) {
+                vec4 ha = texelFetch(history_aux, ivec2(c), 0);
+                bool far_now = z >= 1e5, far_then = ha.x >= 1e5;
+                bool same = far_now ? far_then : (!far_then && abs(ha.x - vs) <= 0.06 * vs + 6.0);
+                if (same && ha.z > 0.5) {
+                    previous = texture(history, c / vec2(u.size.xy));
+                    frames = ha.z;
+                    motion = length(c - (vec2(g) + 0.5));
+                    valid = true;
+                }
+            }
+        }
+    }
+    vec4 result = current;
+    float count = 1.0;
+    if (valid && !any(isnan(previous))) {
+        // wider box while still (the history is the better estimate), tight while moving
+        float still = exp(-motion * motion * 4.0);
+        float gamma = mix(1.25, 4.0, still);
+        vec4 lo = mean - gamma * sigma - 0.002, hi = mean + gamma * sigma + 0.002;
+        previous = clamp(previous, lo, hi);
+        count = min(frames + 1.0, u.params.w);
+        float alpha = max(1.0 / count, u.params.x);
+        result = mix(previous, current, alpha);
+    }
+    if (any(isnan(result)) || any(isinf(result))) result = current;
+    imageStore(history_out, g, result);
+    imageStore(aux_out, g, vec4(z, aux.y, count, 1.0));
+}

@@ -18,6 +18,7 @@
  * ui_bubble_outline native pixels thick (ui_bubbles.c). */
 #ifndef ROOD_UI_BUBBLES_H
 #define ROOD_UI_BUBBLES_H
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,6 +56,18 @@ void pc_bubble_frame(int id, const void* box, const void* shape, const void* sta
 void pc_ui_bubble_packet(const void* packet, int draw_x, int draw_y, const int* clip);
 /* A new ordering table (pc_hw_begin_ot). */
 void pc_ui_bubbles_frame(void);
+
+/* Emote bubbles (ui_emotes.c: BATTLE.PRG func_80095C18's bubbles over
+ * actors): whether 2D region [u0, u1] x [v0, v1] of page `tpage` / CLUT
+ * `clut` is one of their images drawn again now (balloons with ui_bubbles
+ * vector, the dots, '!' and '?' with ui_text font), *key its cache key; and
+ * its distance texels (ui_text.h) at `factor` per texel. */
+int pc_ui_emote_classify(const uint16_t* vram, unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1,
+    uint64_t* key);
+int pc_ui_emote_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1,
+    int factor, uint32_t* out);
+/* Emote images drawn again (atlas entries made): balloons, dots, marks. */
+void pc_ui_emote_stats(long* balloons, long* dots, long* marks);
 
 typedef struct {
     long frames, verified, mismatched, drawn;

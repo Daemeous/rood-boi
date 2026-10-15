@@ -4,6 +4,7 @@
 // are here; screens with their own layout draw in their own files
 // (ui_equip_draw.cpp, ui_ashley_draw.cpp, ui_system_draw.cpp, ui_abilities_draw.cpp, ui_magick_draw.cpp).
 #include "ui/ui_draw_internal.h"
+#include "ui/map_frame.h"
 #include "ui/ui_settings.h"
 #include "button_prompts.h"
 #include "imgui_internal.h" /* ImTextCharFromUtf8 */
@@ -15,6 +16,8 @@
 extern "C" int pc_gl_view[4];
 extern "C" int pc_gte_widescreen;
 extern "C" unsigned pc_vsync_count(void) __attribute__((weak));
+// gpu_hw.c: the presented picture is the Ashley tab's model view (the presenter shows the world behind it)
+extern "C" int pc_hw_present_menu_model(void) __attribute__((weak));
 
 namespace uidraw {
 
@@ -95,7 +98,7 @@ float approach(float cur, float target, float dt, float seconds)
     return cur + (target - cur) * a;
 }
 
-float glyph(const Frame& f, int button, float size, float x, float cy, bool measure_only)
+float glyph(const Frame& f, int button, float size, float x, float cy, bool measure_only, unsigned tint)
 {
     pc_prompt_image g = pc_prompt_glyph(button, f.s(size));
     if (!g.texture || g.h <= 0)
@@ -105,7 +108,7 @@ float glyph(const Frame& f, int button, float size, float x, float cy, bool meas
         // ImTextureRef has no ImTextureData* constructor (a pointer would
         // become a raw ImTextureID through the legacy void* one): GetTexRef.
         f.dl->AddImage(((ImTextureData*)g.texture)->GetTexRef(), f.p(x, cy - h * 0.5f), f.p(x + w, cy + h * 0.5f),
-            ImVec2(g.uv0[0], g.uv0[1]), ImVec2(g.uv1[0], g.uv1[1]));
+            ImVec2(g.uv0[0], g.uv0[1]), ImVec2(g.uv1[0], g.uv1[1]), tint);
     return w;
 }
 
@@ -187,19 +190,87 @@ int last_tab = -1;
 bool forced = false; // pc_ui_draw_pointer: the next frame's pointer
 Pointer forced_pointer;
 
+} // namespace
+
+// The tab strip (the shell's, and the Map frame's with its own pointer
+// kinds: a click is a request for the map screen). steps_lit false: the
+// L1 / R1 icons dimmed (the pad's L1 / R1 do something else there; the
+// clicks still step). Returns its base line.
+float uidraw::draw_tabs(const Frame& f, const ui::Theme& t, int cur, Pointer& m, float dt, bool map, bool steps_lit)
+{
+    float left = t.margin_x + 44, right = f.W - t.margin_x - 44, y = t.top + 13;
+    enum { MAX_TABS = 16 };
+    int n = pc_ui_shell_tab_count();
+    if (n > MAX_TABS)
+        n = MAX_TABS;
+    std::string titles[MAX_TABS];
+    float widths[MAX_TABS], total = 0;
+    for (int i = 0; i < n; ++i) {
+        titles[i] = upper(pc_ui_shell_tab_title(i));
+        total += widths[i] = measure(f, fonts.label, t.tab_size, titles[i].c_str(), 0.3f);
+    }
+    float gap = n > 1 ? ((right - left) - total) / (n - 1) : 0, x = left;
+    for (int i = 0; i < n; ++i) {
+        bool over = m.hit(map ? (int)PC_UI_MOUSE_MAP_TAB : (int)PC_UI_MOUSE_TAB, i, x - gap * 0.5f, t.top,
+            x + widths[i] + gap * 0.5f, t.top + t.tab_height);
+        if (map && i != cur)
+            pc_ui_map_hit_record(PC_UI_MOUSE_MAP_TAB, i, x - gap * 0.5f, t.top, x + widths[i] + gap * 0.5f,
+                t.top + t.tab_height);
+        if (map && i == cur && over)
+            m.kind = PC_UI_MOUSE_NONE; // the tab the map is on: nothing to do
+        text(f, fonts.label, t.tab_size, x, y, i == cur ? t.bone : over ? t.ash : t.dim, titles[i].c_str(), 0.3f);
+        if (i == cur) {
+            if (last_tab < 0)
+                ink_x = x, ink_w = widths[i];
+            ink_x = approach(ink_x, x, dt, t.tab_slide);
+            ink_w = approach(ink_w, widths[i], dt, t.tab_slide);
+        }
+        x += widths[i] + gap;
+    }
+    float base = t.top + t.tab_height;
+    f.dl->AddLine(f.p(t.margin_x, base), f.p(f.W - t.margin_x, base), t.rule, f.s(1));
+    f.dl->AddRectFilled(f.p(ink_x, base - 1), f.p(ink_x + ink_w, base + 1), t.accent);
+    float tab_cy = y + t.tab_size * 0.5f + 1;
+    unsigned step_tint = steps_lit ? 0xFFFFFFFFu : (t.dim | 0xFF000000u), step_text = steps_lit ? t.ash : t.dim;
+    float lw = glyph(f, PC_PROMPT_L1, 20, 0, 0, true);
+    if (map)
+        m.hit(PC_UI_MOUSE_MAP_TAB, pc_ui_shell_step_tab(-1), t.margin_x - 6, t.top, t.margin_x + 34, t.top + t.tab_height);
+    else
+        m.hit(PC_UI_MOUSE_BUTTON, PC_UI_TAB_PREV, t.margin_x - 6, t.top, t.margin_x + 34, t.top + t.tab_height);
+    if (lw > 0)
+        glyph(f, PC_PROMPT_L1, 20, t.margin_x + (34 - lw) * 0.5f, tab_cy, false, step_tint);
+    else
+        text(f, fonts.data, 10, t.margin_x, y + 3, step_text, "L1");
+    float rw = glyph(f, PC_PROMPT_R1, 20, 0, 0, true);
+    if (map)
+        m.hit(PC_UI_MOUSE_MAP_TAB, pc_ui_shell_step_tab(1), f.W - t.margin_x - 34, t.top, f.W - t.margin_x + 6,
+            t.top + t.tab_height);
+    else
+        m.hit(PC_UI_MOUSE_BUTTON, PC_UI_TAB_NEXT, f.W - t.margin_x - 34, t.top, f.W - t.margin_x + 6,
+            t.top + t.tab_height);
+    if (rw > 0)
+        glyph(f, PC_PROMPT_R1, 20, f.W - t.margin_x - 34 + (34 - rw) * 0.5f, tab_cy, false, step_tint);
+    else
+        text(f, fonts.data, 10, f.W - t.margin_x - 14, y + 3, step_text, "R1");
+    return base;
+}
+
+namespace {
+
 // The pointer from ImGui's IO in layout units; nothing while an editor
 // window or widget has it, or while the shell is held (not ticked).
 Pointer read_pointer(const Frame& f)
 {
     Pointer m;
     ImGuiIO& io = ImGui::GetIO();
+    bool shown = pc_ui_loot_visible() || pc_ui_map_visible() || (pc_ui_shell_visible() && !pc_ui_shell_holding());
     if (forced) {
         forced = false;
-        if (pc_ui_shell_holding() || !pc_ui_shell_visible())
+        if (!shown)
             return m;
         return forced_pointer;
     }
-    if (pc_ui_shell_holding() || !pc_ui_shell_visible() || !ImGui::IsMousePosValid()
+    if (!shown || !ImGui::IsMousePosValid()
         || ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemActive())
         return m;
     m.ok = true;
@@ -208,6 +279,8 @@ Pointer read_pointer(const Frame& f)
     m.moved = io.MouseDelta.x != 0 || io.MouseDelta.y != 0;
     m.clicked = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
     m.down = ImGui::IsMouseDown(ImGuiMouseButton_Left);
+    m.middle = ImGui::IsMouseDown(ImGuiMouseButton_Middle);
+    m.shift = io.KeyShift;
     m.right = ImGui::IsMouseClicked(ImGuiMouseButton_Right);
     m.wheel = io.MouseWheel;
     return m;
@@ -220,18 +293,45 @@ void send_pointer(const Pointer& m)
 {
     if (!m.ok)
         return;
+    // the Loot screen (a direct session) has the pointer while it shows
+    void (*mouse)(int, int, int, float) = pc_ui_loot_visible() ? pc_ui_loot_mouse : pc_ui_shell_mouse;
     if (m.kind != PC_UI_MOUSE_NONE)
         ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
     if (m.right) { // right click: back, as Cross
-        pc_ui_shell_mouse(PC_UI_MOUSE_BUTTON, PC_UI_BACK, 1, 0);
+        mouse(PC_UI_MOUSE_BUTTON, PC_UI_BACK, 1, 0);
         return;
     }
     if (m.clicked && m.kind != PC_UI_MOUSE_NONE)
-        pc_ui_shell_mouse(m.kind, m.index, 1, m.wheel);
+        mouse(m.kind, m.index, 1, m.wheel);
     else if (m.moved && m.kind != PC_UI_MOUSE_NONE)
-        pc_ui_shell_mouse(m.kind, m.index, 0, m.wheel);
+        mouse(m.kind, m.index, 0, m.wheel);
     else if (m.wheel != 0)
-        pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, m.wheel);
+        mouse(PC_UI_MOUSE_NONE, 0, 0, m.wheel);
+}
+
+// The Loot screen (a direct session: no tabs): the backdrop, its title where
+// the tabs go, its body (ui_loot_draw.cpp) and the footer.
+void draw_footer(const Frame& f, const ui::Theme& t, const ScreenOut& out, bool held, Pointer& m);
+bool direct_shown = false; // the Loot screen was drawn last frame
+void draw_direct(const Frame& f, const ui::Theme& t, float dt)
+{
+    Pointer m = read_pointer(f);
+    ImVec2 v0((float)pc_gl_view[0], (float)pc_gl_view[1]);
+    ImVec2 v1((float)(pc_gl_view[0] + pc_gl_view[2]), (float)(pc_gl_view[1] + pc_gl_view[3]));
+    f.dl->AddRectFilled(v0, v1, t.ground);
+    const char* title = pc_ui_loot_model()->chest ? "CHEST" : "LOOT";
+    float y = t.top + 13;
+    float w = text(f, fonts.label, t.tab_size, t.margin_x, y, t.bone, title, 0.3f);
+    float base = t.top + t.tab_height;
+    f.dl->AddLine(f.p(t.margin_x, base), f.p(f.W - t.margin_x, base), t.rule, f.s(1));
+    f.dl->AddRectFilled(f.p(t.margin_x, base - 1), f.p(t.margin_x + w, base + 1), t.accent);
+    text_right(f, fonts.label, t.label_size, f.W - t.margin_x, y + 3, t.dim, "GADGET BAG", 0.26f);
+    ScreenOut out;
+    draw_loot(f, t, base + 22, dt, !direct_shown, m, out);
+    draw_footer(f, t, out, false, m);
+    send_pointer(m);
+    direct_shown = true;
+    last_tab = -1; // the shell after it places its ink at once
 }
 
 // The command rows (left rail) and the focused row's card (right).
@@ -353,13 +453,16 @@ void draw_footer(const Frame& f, const ui::Theme& t, const ScreenOut& out, bool 
 
 } // namespace
 
-extern "C" void pc_ui_draw_pointer(float x, float y, int click, int right, float wheel, int down)
+extern "C" void pc_ui_draw_pointer(float x, float y, int click, int right, float wheel, int down, int middle,
+    int shift)
 {
     forced = true;
     forced_pointer = Pointer();
     forced_pointer.ok = true;
     forced_pointer.rpc = true;
     forced_pointer.down = down != 0;
+    forced_pointer.middle = middle != 0;
+    forced_pointer.shift = shift != 0;
     forced_pointer.x = x, forced_pointer.y = y;
     forced_pointer.moved = true;
     forced_pointer.clicked = click != 0;
@@ -374,7 +477,8 @@ extern "C" void pc_ui_draw_model_column(float out[4])
 
 extern "C" int pc_ui_shell_wants_mouse(void)
 {
-    if (!pc_ui_shell_drawn() || pc_gl_view[2] <= 0 || pc_gl_view[3] <= 0 || !ImGui::IsMousePosValid())
+    if ((!pc_ui_shell_drawn() && !pc_ui_loot_visible() && !pc_ui_map_visible()) || pc_gl_view[2] <= 0
+        || pc_gl_view[3] <= 0 || !ImGui::IsMousePosValid())
         return 0;
     ImVec2 p = ImGui::GetIO().MousePos;
     return p.x >= pc_gl_view[0] && p.y >= pc_gl_view[1] && p.x < pc_gl_view[0] + pc_gl_view[2]
@@ -385,8 +489,10 @@ extern "C" void pc_ui_draw_frame(float dt)
 {
     // the System pages' save debounce (ui_settings.cpp): every frame, shell up or not
     pc_ui_settings_tick(ImGui::GetTime());
-    if (!pc_ui_shell_drawn() || pc_gl_view[2] <= 0 || pc_gl_view[3] <= 0) {
+    if ((!pc_ui_shell_drawn() && !pc_ui_loot_visible() && !pc_ui_map_visible()) || pc_gl_view[2] <= 0
+        || pc_gl_view[3] <= 0) {
         last_tab = -1; // the next open places the ink and focus at once
+        direct_shown = false;
         forced = false; // a test pointer is for a shown shell only
         return;
     }
@@ -399,80 +505,47 @@ extern "C" void pc_ui_draw_frame(float dt)
     f.k = std::fmin(pc_gl_view[2] / f.W, pc_gl_view[3] / 720.0f);
     f.ox = (float)pc_gl_view[0] + (pc_gl_view[2] - f.W * f.k) * 0.5f;
     f.oy = (float)pc_gl_view[1] + (pc_gl_view[3] - 720.0f * f.k) * 0.5f;
+    if (pc_ui_loot_visible()) {
+        draw_direct(f, t, dt);
+        return;
+    }
+    direct_shown = false;
     Pointer m = read_pointer(f);
+    // the Map frame: the game's map screen with the shell's chrome around it
+    // (ui_map_draw.cpp), while its MENU5 run is fresh
+    if (pc_ui_map_visible() && !pc_ui_shell_drawn()) {
+        int tab = pc_ui_shell_tab();
+        draw_map_frame(f, t, dt, m);
+        last_tab = tab;
+        return;
+    }
     bool held = pc_ui_shell_holding() && !pc_ui_shell_visible();
 
-    // backdrop over the game picture (the ground colour, a little see-through).
-    // While Ashley's model shows, the bridge has the game paint its picture
-    // in the ground colour and draw the model in the model column
-    // (ashley_bridge.c clear_behind): the column stays open (the model at full
-    // strength) and the backdrop around it is opaque, so what the model
-    // reaches past its column (a long weapon) is hidden under the rail and
-    // the card. Only while the bridge's snapshot is fresh (filled within the
-    // last few vsyncs: the game ticks every 1 to 4): a snapshot left over from
-    // ticks that stopped running must not uncover the live world.
+    // backdrop over the game picture: the ground colour at the menus' opacity (ui_menu_opacity; ui_theme.cpp).
+    // The Ashley tab's model view: the bridge freezes the world and has the game draw the model alone
+    // over a flat tile (ashley_bridge.c clear_behind); the presenter puts the picture of the world it
+    // kept before under this same ground, in place of the tile, around the model (gl_present.c "The
+    // modern menu's backdrop"; the post stack runs neutral on those pictures, so the model is never
+    // graded). While the presented picture is one of those (gpu_hw.c pc_hw_present_menu_model) the
+    // ground is already there: none here, the model at full strength, the tab as see-through as the
+    // others. The drag works only while the bridge's snapshot is fresh (filled within the last few
+    // vsyncs: the game ticks every 1 to 4).
     const pc_ui_ashley* ash = pc_ui_shell_ashley();
     bool fresh_snapshot = !pc_vsync_count || pc_vsync_count() - ash->tick <= 8;
     bool model = pc_ui_shell_visible() && pc_ui_shell_screen() == PC_UI_SCREEN_ASHLEY && ash->model == 2
         && fresh_snapshot && ash->model_rect[2] > 0 && ash->model_rect[3] > 0;
     ImVec2 v0((float)pc_gl_view[0], (float)pc_gl_view[1]);
     ImVec2 v1((float)(pc_gl_view[0] + pc_gl_view[2]), (float)(pc_gl_view[1] + pc_gl_view[3]));
-    if (model) {
-        const float* r = ash->model_rect;
-        ImVec2 c0 = f.p(r[0], r[1]), c1 = f.p(r[0] + r[2], r[1] + r[3]);
-        c0 = ImVec2(std::floor(c0.x), std::floor(c0.y)), c1 = ImVec2(std::floor(c1.x), std::floor(c1.y));
-        unsigned solid = t.ground | 0xFF000000u;
-        f.dl->AddRectFilled(v0, ImVec2(v1.x, c0.y), solid);                // above
-        f.dl->AddRectFilled(ImVec2(v0.x, c1.y), v1, solid);                // below
-        f.dl->AddRectFilled(ImVec2(v0.x, c0.y), ImVec2(c0.x, c1.y), solid); // left
-        f.dl->AddRectFilled(ImVec2(c1.x, c0.y), ImVec2(v1.x, c1.y), solid); // right
-        drag_model(m, ash->model_rect);
-    } else {
+    if (!(pc_hw_present_menu_model && pc_hw_present_menu_model()))
         f.dl->AddRectFilled(v0, v1, t.ground);
+    if (model)
+        drag_model(m, ash->model_rect);
+    else
         mouse_drag.on = rpc_drag.on = false;
-    }
 
     // tabs
-    float left = t.margin_x + 44, right = f.W - t.margin_x - 44, y = t.top + 13;
-    enum { MAX_TABS = 16 };
-    int n = pc_ui_shell_tab_count(), cur = pc_ui_shell_tab();
-    if (n > MAX_TABS)
-        n = MAX_TABS;
-    std::string titles[MAX_TABS];
-    float widths[MAX_TABS], total = 0;
-    for (int i = 0; i < n; ++i) {
-        titles[i] = upper(pc_ui_shell_tab_title(i));
-        total += widths[i] = measure(f, fonts.label, t.tab_size, titles[i].c_str(), 0.3f);
-    }
-    float gap = n > 1 ? ((right - left) - total) / (n - 1) : 0, x = left;
-    for (int i = 0; i < n; ++i) {
-        bool over = m.hit(PC_UI_MOUSE_TAB, i, x - gap * 0.5f, t.top, x + widths[i] + gap * 0.5f, t.top + t.tab_height);
-        text(f, fonts.label, t.tab_size, x, y, i == cur ? t.bone : over ? t.ash : t.dim, titles[i].c_str(), 0.3f);
-        if (i == cur) {
-            if (last_tab < 0)
-                ink_x = x, ink_w = widths[i];
-            ink_x = approach(ink_x, x, dt, t.tab_slide);
-            ink_w = approach(ink_w, widths[i], dt, t.tab_slide);
-        }
-        x += widths[i] + gap;
-    }
-    float base = t.top + t.tab_height;
-    f.dl->AddLine(f.p(t.margin_x, base), f.p(f.W - t.margin_x, base), t.rule, f.s(1));
-    f.dl->AddRectFilled(f.p(ink_x, base - 1), f.p(ink_x + ink_w, base + 1), t.accent);
-    float tab_cy = y + t.tab_size * 0.5f + 1;
-    float lw = glyph(f, PC_PROMPT_L1, 20, 0, 0, true);
-    m.hit(PC_UI_MOUSE_BUTTON, PC_UI_TAB_PREV, t.margin_x - 6, t.top, t.margin_x + 34, t.top + t.tab_height);
-    if (lw > 0)
-        glyph(f, PC_PROMPT_L1, 20, t.margin_x + (34 - lw) * 0.5f, tab_cy);
-    else
-        text(f, fonts.data, 10, t.margin_x, y + 3, t.ash, "L1");
-    float rw = glyph(f, PC_PROMPT_R1, 20, 0, 0, true);
-    m.hit(PC_UI_MOUSE_BUTTON, PC_UI_TAB_NEXT, f.W - t.margin_x - 34, t.top, f.W - t.margin_x + 6, t.top + t.tab_height);
-    if (rw > 0)
-        glyph(f, PC_PROMPT_R1, 20, f.W - t.margin_x - 34 + (34 - rw) * 0.5f, tab_cy);
-    else
-        text(f, fonts.data, 10, f.W - t.margin_x - 14, y + 3, t.ash, "R1");
-
+    int cur = pc_ui_shell_tab();
+    float base = draw_tabs(f, t, cur, m, dt, false);
     float top = base + 22;
     bool fresh = cur != last_tab;
     ScreenOut out;
@@ -486,6 +559,8 @@ extern "C" void pc_ui_draw_frame(float dt)
         draw_abilities(f, t, top, dt, fresh, m, out);
     else if (pc_ui_shell_screen() == PC_UI_SCREEN_MAGICK)
         draw_magick(f, t, top, dt, fresh, m, out);
+    else if (pc_ui_shell_screen() == PC_UI_SCREEN_ITEMS)
+        draw_items(f, t, top, dt, fresh, m, out);
     else
         draw_commands(f, t, top, dt, fresh, m, out);
     draw_footer(f, t, out, held, m);

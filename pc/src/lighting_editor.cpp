@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -81,9 +82,10 @@ State current_state()
     for (int i = 0; i < n; i++) {
         const pc_glow_override& o = glows[i];
         char line[256];
-        snprintf(line, sizeof line, "glow %.1f %.1f %.1f %d %.3f %.3f %.3f %.3f %.2f %.1f%s%s%s%s\n", o.position[0],
+        const char* shape = o.shape == PC_GLOW_SHAPE_SPHERE ? " shape=sphere" : o.shape == PC_GLOW_SHAPE_COLUMN ? " shape=column" : "";
+        snprintf(line, sizeof line, "glow %.1f %.1f %.1f %d %.3f %.3f %.3f %.3f %.2f %.1f%s%s%s%s%s\n", o.position[0],
             o.position[1], o.position[2], o.muted, o.intensity, o.tint[0], o.tint[1], o.tint[2], o.size, o.reach,
-            o.key[0] ? " key=" : "", o.key, o.fixture_type[0] ? " fixture_type=" : "", o.fixture_type);
+            o.key[0] ? " key=" : "", o.key, o.fixture_type[0] ? " fixture_type=" : "", o.fixture_type, shape);
         text += line;
     }
     std::vector<Item> items;
@@ -146,7 +148,7 @@ void apply_state(const State& s, bool keep_order)
             const std::string* v = it.get("value");
             if (v)
                 pc_room_settings_parse(("set " + it.name + " " + *v).c_str());
-        } else if (it.kind == "env" || it.kind == "fog") {
+        } else if (it.kind == "env" || it.kind == "fog" || it.kind == "post") {
             rood_env::apply_item(it);
         } else if (it.kind == "uv") {
             const std::string* speed = it.get("speed");
@@ -179,6 +181,8 @@ void apply_state(const State& s, bool keep_order)
             num("reach", &o.reach, 1);
             if (const std::string* t = it.get("fixture_type"))
                 snprintf(o.fixture_type, sizeof o.fixture_type, "%s", t->c_str());
+            if (const std::string* sh = it.get("shape"))
+                o.shape = *sh == "sphere" ? PC_GLOW_SHAPE_SPHERE : *sh == "column" ? PC_GLOW_SHAPE_COLUMN : PC_GLOW_SHAPE_AUTO;
             if (it.name[0] != '@') {
                 snprintf(o.key, sizeof o.key, "%s", it.name.c_str());
                 for (int i = 0; i < old_count; i++)
@@ -302,11 +306,50 @@ std::string rood_lights::actor_item_id(int i)
     return i >= 0 && i < (int)actors.size() ? "actor:" + actors[i].id : std::string();
 }
 
+/* Unsaved edits of the rooms left this session (layers_stash), by room. */
+static std::map<std::pair<int, int>, std::vector<lighting::Entry>> stashed;
+
+void rood_lights::layers_stash()
+{
+    if (zone < 0)
+        return;
+    std::vector<lighting::Entry> edits = lighting::diff(room_layers.base, current_state());
+    for (const lighting::Entry& e : room_layers.user_dangling)
+        edits.push_back(e);
+    if (!edits.empty()) {
+        stashed[{ zone, room }] = edits;
+        fprintf(stderr, "[lights] zone %d room %d: %zu unsaved edits kept for when you come back\n", zone, room,
+            edits.size());
+    }
+}
+
 void rood_lights::layers_load(int z, int r)
 {
     lighting::load_room(room_layers, z, r);
     loaded_serial = lighting::config_serial();
     load_count++;
+    auto kept = stashed.find({ z, r });
+    if (kept != stashed.end()) {
+        /* Back in a room left with unsaved edits: they go on top of its
+         * layers as read now, still unsaved. */
+        State s = room_layers.base;
+        std::vector<lighting::Entry> dangling;
+        for (const lighting::Entry& e : kept->second) {
+            std::string problem;
+            if (!lighting::apply_entry(s, e, &problem))
+                dangling.push_back(e);
+        }
+        room_layers.user_dangling = dangling;
+        size_t count = kept->second.size();
+        stashed.erase(kept);
+        apply_state(s, false);
+        dirty = true;
+        frame_state_frame = -1;
+        report_problems();
+        snprintf(status, sizeof status, "Your unsaved edits here (%zu) are back (Save area keeps them)", count);
+        fprintf(stderr, "[lights] zone %d room %d: %zu unsaved edits put back\n", z, r, count);
+        return;
+    }
     apply_state(room_layers.loaded, false);
     frame_state_frame = -1;
     report_problems();
@@ -345,6 +388,7 @@ unsigned rood_lights::layers_reload()
     if (zone < 0)
         return load_count;
     dirty = false;
+    stashed.clear(); /* every room's kept edits too */
     layers_load(zone, room);
     pc_undo_reset();
     snprintf(status + strlen(status), sizeof status - strlen(status), " (reloaded)");

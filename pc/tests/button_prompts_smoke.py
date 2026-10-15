@@ -369,8 +369,9 @@ def dpad_checks(game, work, shots, held, dpad_xy):
                 check((diff.any() or actions == 15) and not (diff & ~area).any(),
                       f"{name}: {mode} changes {int(diff.sum())} pixels of the same frame, all inside the D-pad "
                       f"({int((diff & ~area).sum())} outside)")
+            # (to an 8-bit level: an edge pixel's coverage blends both the same, rounded once)
             darker = np.any(dim != cross, axis=2)
-            check(not darker.any() or (luma(dim)[darker] <= luma(cross)[darker]).all(),
+            check(not darker.any() or (luma(dim)[darker] <= luma(cross)[darker] + 1000).all(),
                   f"{name}: dim only darkens the arms without an action")
             if shots:
                 side = np.concatenate([cross, np.full((cross.shape[0], 8, 3), 255, np.uint8), dim,

@@ -167,9 +167,39 @@ void func_8008AC78(void)
     }
 }
 
+/* Host-only query for the interactive fog (dev_state.c pc_dev_battle_action,
+ * fog_sim.cpp): the battle action running now (D_800F196C 2), one at a time
+ * for every actor: its performer, action, phase (_cameraMode: 5 an effect
+ * action started casting, 7 a swing or a release started (func_80070278, once
+ * per swing, chain step and release), 8 a chain step succeeded, 9 ending),
+ * the chain step, its kind (vs_main_actions: type and unk2_0, 0 a plain
+ * attack) and its aim point (unk844, world units). */
+int pc_battle_action(int* actor, int* action, int* phase, int* chain, int* type, int* plain, int aim[3])
+{
+    D_800F19CC_t2* a;
+    if (D_800F196C != 2 || D_800F19CC == NULL)
+        return 0;
+    a = &D_800F19CC->unk854[D_800F19CC->unk0 & 3];
+    *actor = (u_char)a->unk4.unk0.targetActor;
+    *action = a->actionIndex;
+    *phase = (int)_cameraMode;
+    *chain = (int)D_800F19CC->unk0;
+    *type = a->actionIndex < 256 ? vs_main_actions[a->actionIndex].type : 0;
+    *plain = a->actionIndex < 256 ? vs_main_actions[a->actionIndex].unk2_0 == 0 : 1;
+    aim[0] = D_800F19CC->unk8.unk844.vx;
+    aim[1] = D_800F19CC->unk8.unk844.vy;
+    aim[2] = D_800F19CC->unk8.unk844.vz;
+    return 1;
+}
+
 /* Host-only queries for gameplay_walls.c (smart cutaway walls). */
 extern char D_800F4C34; /* the event runner's state (4A0A8.c): nonzero while an event loads or runs */
 int pc_battle_event_running(void) { return D_800F4C34 != 0; }
+/* The running event's id as func_800BEB10 gives it ((source << 12) | event file;
+ * source 0 the zone's event file, 1 the room's entry script, 2 a door's), or
+ * -1 when none runs (post_profile.cpp: `post event.<id>` items). */
+extern u_short D_800F4BE0;
+int pc_battle_event_id(void) { return D_800F4C34 != 0 ? (int)(u_short)((D_800F4BE0 << 12) | _evtFile) : -1; }
 /* The battle camera's target (weapon drawn, a target chosen: the point the
  * camera follows in its modes 1 and 3), as func_8007ACB0's caller reads it. */
 int pc_battle_camera_target(int position[3])
