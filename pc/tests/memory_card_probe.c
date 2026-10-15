@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -152,8 +153,37 @@ static int format_case(const char* name, const char* magic, int magic_size, long
     return 0;
 }
 
+/* A card that exists but can't be opened (no read permission): a blank card
+ * that refuses saves, so the file is never replaced by one. */
+static int unreadable_case(void)
+{
+    if (geteuid() == 0)
+        return 0; /* root reads it anyway */
+    char path[] = "/tmp/rood-card-unreadable-XXXXXX";
+    int temp = mkstemp(path);
+    close(temp);
+    static unsigned char file[0x20000], after[sizeof file];
+    blank_card(file);
+    CHECK(write_file(path, file, sizeof file) == sizeof file);
+    CHECK(chmod(path, 0200) == 0);
+    pid_t child = fork();
+    if (child == 0) {
+        setenv("ROOD_CARD1", path, 1);
+        _exit(pc_psx_open("bu00:BASLUS-01040VAG1", 0x200 | 3 << 16) == -1 && _card_format(0x00) == 0 ? 0 : 1);
+    }
+    int status;
+    CHECK(child > 0 && waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0);
+    CHECK(chmod(path, 0600) == 0);
+    CHECK(read_file(path, after, sizeof after) == sizeof after && !memcmp(after, file, sizeof file));
+    unlink(path);
+    printf("PASS: unreadable card file: saves refused, file untouched\n");
+    return 0;
+}
+
 int main(void)
 {
+    if (unreadable_case())
+        return 1;
     if (format_case("DexDrive .gme card: saved in place, header kept and its directory copy updated",
             "123-456-STD", 11, 0xF40, 1)
         || format_case("VGS .mem card: saved in place, header kept", "VgsM", 4, 0x40, 1)
