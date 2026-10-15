@@ -42,7 +42,8 @@ std::string upper(const char* s);
 float approach(float cur, float target, float dt, float seconds);
 // The prompt icon of PS1 button `button` (PC_PROMPT_*) `size` high with its
 // left edge at x, centred on cy; returns its width (0: no icon). measure_only draws nothing.
-float glyph(const Frame& f, int button, float size, float x, float cy, bool measure_only = false);
+float glyph(const Frame& f, int button, float size, float x, float cy, bool measure_only = false,
+    unsigned tint = 0xFFFFFFFFu);
 // A small rotating arc (loading) centred at (cx, cy).
 void spinner(const Frame& f, float cx, float cy, float r, unsigned col);
 // colour with its alpha multiplied by a (0..1)
@@ -55,6 +56,8 @@ struct Pointer {
     float x = 0, y = 0;
     bool moved = false, clicked = false, right = false;
     bool down = false; // the left button is held (drags)
+    bool middle = false; // the middle button is held (the Map frame's pan drag)
+    bool shift = false;  // Shift is held (the Map frame: a left drag started with it pans)
     bool rpc = false;  // a test pointer (pc_ui_draw_pointer)
     float wheel = 0;
     int kind = PC_UI_MOUSE_NONE, index = 0;
@@ -129,11 +132,30 @@ void draw_ashley(const Frame& f, const ui::Theme& t, float top, float dt, bool f
     ScreenOut& out);
 // The System tab's body (ui_system_draw.cpp): the list, the page's card, a capture's prompt.
 void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
+// The System tab's Quick manual (ui_manual_draw.cpp): the topics, the page card (draw_system hands it over).
+void draw_manual(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
 // The Abilities tab's body (ui_abilities_draw.cpp): Chain / Defense (slots, learned list, card) and Break Arts
 // (categories, arts, card).
 void draw_abilities(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
 // The Magick tab's body (ui_magick_draw.cpp): school / Teleport sub-tabs, the list, the card.
 void draw_magick(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
+// The Items tab's body (ui_items_draw.cpp): category chips, the list, the open menu, the card.
+void draw_items(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
+// The Items tab's Workshop sub-tab (ui_workshop_draw.cpp), below the chips from `top`: the commands, the open
+// flow, the preview card.
+void draw_workshop(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
+// The Loot screen's body (ui_loot_draw.cpp), below its title from `top`: the
+// bag's capacities, the loot list, the compare card, the menus and the
+// Organize inventory panel.
+void draw_loot(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
+// The Items list's icon for a row of `category` (ui_items_draw.cpp): its id, sub line and name pick it.
+void bag_icon(const Frame& f, int category, int id, const char* sub, const char* name, float cx, float cy, float size,
+    unsigned col);
+// The tab strip with `cur` lit (map: the Map frame's, its clicks are requests for the map screen); returns
+// its base line.
+float draw_tabs(const Frame& f, const ui::Theme& t, int cur, Pointer& m, float dt, bool map, bool steps_lit = true);
+// The Map frame (ui_map_draw.cpp): the chrome around the game's map screen (MENU5), its pointer included.
+void draw_map_frame(const Frame& f, const ui::Theme& t, float dt, Pointer& m);
 // The Ashley screen's model column (layout units x, y, w, h) on a W-wide layout.
 void model_column(const ui::Theme& t, float W, float out[4]);
 // The right card's width (16:9: 396, 4:3: 344).

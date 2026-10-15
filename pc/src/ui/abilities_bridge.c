@@ -85,6 +85,7 @@ int pc_ui_abilities_cast_taken(void);
 void pc_ui_abilities_cast(int go);
 int pc_ui_equip_busy(void); /* equip_bridge.c: a weapon / shield model reload runs */
 int pc_ui_magick_cast_taken(void); /* magick_bridge.c: one hand-off per tick */
+int pc_ui_items_cast_taken(void);  /* items_bridge.c */
 
 /* MENU2.PRG battleAbilities and MENU1.PRG strings, under our own names. */
 static u_short ability_text[] = {
@@ -424,7 +425,7 @@ int pc_ui_abilities_request(const pc_ui_request* r)
      * resident (the close below skips its load and the background's release,
      * which the menu's first frames still do), no model reload of the
      * Equipment screen in flight, one hand-off per tick (Magick's too) */
-    if (cast_id || pc_ui_magick_cast_taken() || !pc_ui_shell_visible() || !resident || pc_ui_equip_busy()
+    if (cast_id || pc_ui_magick_cast_taken() || pc_ui_items_cast_taken() || !pc_ui_shell_visible() || !resident || pc_ui_equip_busy()
         || !art_castable(r->item)) {
         vs_battle_playInvalidSfx();
         return 1;

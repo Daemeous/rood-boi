@@ -13,7 +13,7 @@ layout(std140, binding = 0) uniform Present {
     vec4 view_; // viewport size in window pixels
     vec4 f0; // focus_sz, dof_radius, aperture, baked
     vec4 f1; // gi_strength, fog_density, shadow_softness, normal_smoothing
-    vec4 tilt_; // band centre (0..1 from top), half width, radius
+    vec4 tilt_; // band centre (0..1 from top), half width, radius; w: near blur share
     vec4 fog_; // rgb colour, a = density
     vec4 fog_range_; // SZ where fog starts and saturates
     vec4 room_lo_, room_hi_;
@@ -42,9 +42,20 @@ layout(std140, binding = 0) uniform Present {
     vec4 env_sun_tile;
     // The room's medium for the unshadowed haze (haze Low; quality0.x 1):
     // the uniform haze, the ground fog, the fog volumes (medium.glsl).
-    vec4 medium_[250];
+    vec4 medium_[165];
+    // The fog volumes' own renderer (vk_fogvol.inc): its image's size, on, the debug view (1 their
+    // light alone, 2 their transmittance); its pixels per display pixel.
+    ivec4 fogvol;
+    vec4 fogvol_scale;
+    // The modern menu's model view (vk_present.c backdrop_keep): 2D pixels show the kept picture of the
+    // world (backdrop.x 2) or the ground (1) under the menu's ground colour (rgb) at its opacity (a).
+    vec4 backdrop_color;
+    ivec4 backdrop;
 } u;
+layout(binding = 20) uniform sampler2D backdrop_tex;
 #define MEDIUM(i) u.medium_[i]
+layout(binding = 17) uniform sampler3D medium_tex; // the medium's texture (atmosphere.h pc_medium_texture)
+#define MEDIUM_TEX medium_tex
 #include "medium.glsl"
 #define env_sun_dir u.env_[0]
 #define env_sun_col u.env_[1]
@@ -76,6 +87,8 @@ layout(binding = 9) uniform sampler2D gi_extra;
 layout(binding = 11) uniform sampler2D shadow_atlas; // vk_shadows.c: SLOTS rows of six 512 x 512 cube faces, the sun's tile
 #define ENV_SUN_MAP(st) texture(shadow_atlas, (u.env_sun_tile.xy + clamp(st, vec2(0.5 / u.env_sun_tile.z), vec2(1.0 - 0.5 / u.env_sun_tile.z)) * u.env_sun_tile.z) / vec2(textureSize(shadow_atlas, 0))).r
 #include "environment.glsl"
+layout(binding = 18) uniform sampler2D fogvol_light; // rgb the fog volumes' light, a their transmittance
+layout(binding = 19) uniform sampler2D fogvol_aux; // x the scene's view depth the march stopped at
 layout(binding = 10) uniform sampler2D haze_volume; // GZ tiles of GX x GY: rgb in-scattered light, a transmittance
 // Probe GI (gi_method probes; vk_probes.inc): the volume (binding 12) and its atlases.
 #include "probe_volume.glsl"
@@ -332,14 +345,50 @@ vec3 hazed(vec3 c, ivec2 q, float d) {
     vec4 h = haze_at((vec2(q) + 0.5) / float(scale) - vec2(rect.xy), d * 65536.0);
     return any(isnan(h)) ? c : c * clamp(h.a, 0.0, 1.0) + max(h.rgb, vec3(0.0));
 }
+// The fog volumes between the eye and view depth z at display position
+// `display`: their march image (a lower resolution) upsampled with a joint
+// bilateral filter (the 2 x 2 march pixels around, weighted bilinearly and
+// by how close the depth they marched to is to this pixel's; with none
+// close, the closest one), so fog never bleeds across an edge.
+vec4 fogvol_at(vec2 display, float z) {
+    vec2 sp = display * u.fogvol_scale.xy - 0.5;
+    ivec2 b = ivec2(floor(sp)), size = u.fogvol.xy;
+    vec2 f = sp - vec2(b);
+    vec4 sum = vec4(0.0), best = vec4(0.0, 0.0, 0.0, 1.0);
+    float weight = 0.0, best_dz = 1e30;
+    for (int y = 0; y <= 1; y++)
+        for (int x = 0; x <= 1; x++) {
+            ivec2 h = clamp(b + ivec2(x, y), ivec2(0), size - 1);
+            float zh = texelFetch(fogvol_aux, h, 0).x, dz = abs(zh - z);
+            vec4 c = texelFetch(fogvol_light, h, 0);
+            float w = (x == 1 ? f.x : 1.0 - f.x) * (y == 1 ? f.y : 1.0 - f.y) + 1e-3;
+            w *= exp(-dz / (0.03 * min(z, zh) + 4.0));
+            sum += c * w; weight += w;
+            if (dz < best_dz) { best_dz = dz; best = c; }
+        }
+    vec4 r = weight > 1e-4 ? sum / weight : best;
+    return any(isnan(r)) ? vec4(0.0, 0.0, 0.0, 1.0) : r;
+}
+vec3 fogvol_apply(vec3 c, ivec2 q, float d) {
+    bool far = d >= 1.0 || d * 65536.0 < 0.5;
+    vec4 f = fogvol_at((vec2(q) + 0.5) / float(scale) - vec2(rect.xy), far ? 1e6 : d * 65536.0);
+    return c * clamp(f.a, 0.0, 1.0) + max(f.rgb, vec3(0.0));
+}
 void main() {
     float d = depth_at(uv);
-    bool haze_done = false;
+    if (u.fogvol.w != 0) { // fog_volume_debug: 1 the volumes' light alone, 2 their transmittance
+        bool ui_ = d * 65536.0 < 0.5;
+        vec4 f = ui_ || u.fogvol.z == 0 ? vec4(0.0, 0.0, 0.0, 1.0) : fogvol_at((vec2(texel(uv)) + 0.5) / float(scale) - vec2(rect.xy), d >= 1.0 ? 1e6 : d * 65536.0);
+        color = vec4(u.fogvol.w == 2 ? vec3(clamp(f.a, 0.0, 1.0)) : min(f.rgb, vec3(1.0)), ui_ ? 9999.0 : 0.0);
+        return;
+    }
+    bool haze_done = false, fogvol_done = false;
     if (u.quality1.z != 0) { // haze_debug: the haze's light alone (over black; the far plane where nothing is drawn)
         bool ui_ = d * 65536.0 < 0.5;
         vec3 hz = vec3(0.0);
         if (!ui_ && u.haze_grid.w != 0) hz = hazed(vec3(0.0), texel(uv), min(d, 1.0));
         else if (!ui_ && u.quality0.x > 0.0) hz = low_haze(vec3(0.0), world_at(texel(uv), min(d, 0.999) * 65536.0));
+        if (!ui_ && u.fogvol.z != 0) hz += fogvol_apply(vec3(0.0), texel(uv), d);
         color = vec4(min(hz, vec3(1.0)), ui_ ? 9999.0 : 0.0);
         return;
     }
@@ -414,20 +463,27 @@ void main() {
             if (view_mode == 5) { color = vec4(world_normal * 0.5 + 0.5, 1.0); return; }
             if (view_mode == 2) { c = vertex_light * 0.5; albedo = vec3(0.5); }
             c = c * baked * baked_vis * ao + albedo * sum;
+            if (u.fogvol.z != 0) { c = fogvol_apply(c, q, d); fogvol_done = true; }
             if (u.haze_grid.w != 0) { c = hazed(c, q, d); haze_done = true; }
             else if (u.quality0.x > 0.0) { c = low_haze(c, world); haze_done = true; }
             // Soft shoulder above 0.8 instead of clipping at white (lit pixels only).
-            c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c));
+            if ((post & 8) == 0) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c)); // 8: HDR out
             if (any(isnan(c)) || any(isinf(c))) c = base(uv);
         }
     }
     bool ui = d * 65536.0 < 0.5;
+    if (ui && u.backdrop.x != 0) // the menu's model view: the world behind, under the ground
+        c = mix(u.backdrop.x == 2 ? texture(backdrop_tex, uv).rgb : u.backdrop_color.rgb, u.backdrop_color.rgb,
+            u.backdrop_color.a);
     // Unlit 3D pixels (effects, particles, glows) get the same haze as their
-    // neighbours: no dark cut-outs around them.
+    // neighbours: no dark cut-outs around them. The fog volumes also cover
+    // where nothing is drawn (their far side).
+    if (u.fogvol.z != 0 && !fogvol_done && !ui && view_mode != 1) c = fogvol_apply(c, texel(uv), d);
     if (u.haze_grid.w != 0 && !haze_done && !ui && d < 1.0 && view_mode != 1) c = hazed(c, texel(uv), d);
     else if (u.quality0.x > 0.0 && !haze_done && !ui && d < 1.0 && view_mode != 1)
         c = low_haze(c, world_at(texel(uv), d * 65536.0));
-    if (post == 0 || ui) { color = vec4(min(c, vec3(1.0)), ui ? 9999.0 : 0.0); return; }
+    vec3 out_c = (post & 8) != 0 && !ui ? max(c, vec3(0.0)) : min(c, vec3(1.0));
+    if ((post & 7) == 0 || ui) { color = vec4(out_c, ui ? 9999.0 : 0.0); return; }
     float sz = d >= 1.0 ? 65535.0 : d * 65536.0;
     if ((post & 4) != 0) {
         float f = clamp((sz - fog_range.x) / max(fog_range.y - fog_range.x, 1.0), 0.0, 1.0);
@@ -447,10 +503,11 @@ void main() {
             focus = n > 0.0 ? exp2(sum / n) : 1024.0;
         }
         coc = dof_radius * clamp(aperture * (1.0 - focus / sz), -1.0, 1.0);
+        if (coc < 0.0) coc *= u.tilt_.w; // the share in front of the focal plane (post.h near_blur)
     }
     if ((post & 2) != 0) {
         float t = tilt.z * smoothstep(tilt.y, tilt.y + 0.25, abs(uv.y - tilt.x));
         coc = abs(coc) >= t ? coc : t;
     }
-    color = vec4(min(c, vec3(1.0)), coc);
+    color = vec4((post & 8) != 0 ? max(c, vec3(0.0)) : min(c, vec3(1.0)), coc);
 }

@@ -13,8 +13,11 @@ layout(location = 8) noperspective centroid in float v_z_affine;
 layout(location = 9) flat in ivec2 v_ui; // FLAG_UI: atlas origin - v_bounds.xy, in texels
 layout(push_constant) uniform Push {
     vec4 occlusion_rect; // scaled pixels: x0, y0, x1, y1
-    int perspective, filtering, occlusion, pass; // pass: 0 all, 1 opaque texels only, 2 translucent texels only
+    int perspective, filtering, occlusion, pass; // pass: 0 all, 1 opaque texels only, 2 translucent texels only;
+    // text from distance texels (gpu_hw.c BLEND_TEXT): 3 its solid pixels' G-buffer and depth, 4 its opaque
+    // texels' colour, 5 its translucent texels' colour, by coverage
     int ui_scale; // the UI atlas's magnification (pc/src/ui_upscale.c), 0: none
+    float text_factor; // pass 5: the PS1 mode's alpha factor (B/2 + F/2: 0.5, B + F/4: 0.25)
 } pc;
 layout(binding = 0) uniform usampler2D vram;
 #ifdef SURFACE_MS // MSAA (hw_ms.frag): the native surfaces' depth multisampled, sample 0
@@ -28,7 +31,11 @@ layout(location = 1) out vec4 normal_out;
 layout(location = 2) out vec4 albedo_out;
 layout(location = 3) out vec4 shade_out;
 #include "vram.glsl"
+#include "text_dist.glsl"
 void main() {
+    // A pixel's footprint in texels (text from distance texels: edges one pixel wide).
+    vec2 footprint = fwidth(pc.perspective != 0 ? v_uv_persp : v_uv_affine);
+    float text_alpha = -1.0;
     // Behind a native list's surface (room_depth, SZ / 65536) by more than a
     // small tolerance: hidden.
     if (pc.occlusion != 0 && v_z_affine > 0.0 && all(greaterThanEqual(gl_FragCoord.xy, pc.occlusion_rect.xy))
@@ -48,18 +55,27 @@ void main() {
     vec4 shade = vec4(v_color, 0.5);
     if ((flags & 1u) != 0u) {
         uint t;
+        vec3 texel;
         if ((flags & 16u) != 0u && pc.ui_scale > 0) {
             // The texel's block in the atlas, clamped to the region ([min, max - 1]).
             ivec2 lo = ivec2(v_bounds.xy), hi = max(ivec2(v_bounds.zw) - 1, lo);
             ivec2 q = clamp(ivec2(floor(v_uv * float(pc.ui_scale) + 0.0001)), lo * pc.ui_scale, (hi + 1) * pc.ui_scale - 1);
             t = texelFetch(ui_atlas, q + v_ui * pc.ui_scale, 0).r;
+            texel = rgb(t);
+            if ((t & 0x80000000u) != 0u) { // text: anti-aliased by its distance
+                ivec2 o = v_ui * pc.ui_scale;
+                float d = text_distance(ui_atlas, v_uv * float(pc.ui_scale) + vec2(o), lo * pc.ui_scale + o,
+                    (hi + 1) * pc.ui_scale - 1 + o);
+                text_alpha = text_colour(t, d, max(max(footprint.x, footprint.y), 1.0 / 64.0), clut, texel, t);
+                if (text_alpha < 0.002) discard;
+            }
         } else {
             ivec2 q = ivec2(floor(v_uv + 0.0001));
             // FLAG_CLAMP (2D): the texels the PS1 samples, [min, max - 1].
             if ((flags & 32u) != 0u) q = clamp(q, ivec2(v_bounds.xy), max(ivec2(v_bounds.zw) - 1, ivec2(v_bounds.xy)));
             t = texel_at(uint(q.x) & 255u, uint(q.y) & 255u, tpage, clut, win);
+            texel = rgb(t);
         }
-        vec3 texel = rgb(t);
         if (pc.filtering != 0 && v_normal.w > 0.5) {
             vec2 p = v_uv - 0.5;
             vec2 f = fract(p);
@@ -84,7 +100,11 @@ void main() {
         shade = (flags & 2u) != 0u ? vec4(vec3(128.0 / 255.0), 1.0) : vec4(v_color, 1.0);
     }
     if ((pc.pass == 1 && semi) || (pc.pass == 2 && !semi)) discard;
+    // (texels of a recorded frame redrawn with ui_text original: whole)
+    if ((pc.pass == 3 && (semi || (text_alpha >= 0.0 && text_alpha < 0.5))) || (pc.pass == 4 && semi)
+        || (pc.pass == 5 && !semi)) discard;
     color = vec4(c, float(mask));
+    if (pc.pass >= 4) color.a = (text_alpha < 0.0 ? 1.0 : text_alpha) * (pc.pass == 5 ? pc.text_factor : 1.0);
     // FLAG_COVER (untextured 2D shapes, gpu_hw.c BLEND_COVER): U is the coverage.
     if ((flags & 65u) == 64u) {
         float cover = clamp(v_uv.x / 256.0, 0.0, 1.0);

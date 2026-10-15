@@ -92,6 +92,20 @@ def fixture_types():
 FIXTURE_TYPES = None
 
 
+_FOG_PRESETS = None
+
+
+def fog_presets():
+    """The fog volume presets' names (pc/assets/environment/fog_presets.json)."""
+    global _FOG_PRESETS
+    if _FOG_PRESETS is None:
+        try:
+            _FOG_PRESETS = set(json.loads((ROOT / "pc/assets/environment/fog_presets.json").read_text())["presets"])
+        except (OSError, ValueError, KeyError):
+            _FOG_PRESETS = set()
+    return _FOG_PRESETS
+
+
 def check_values(report, path, e, prefabs, settings):
     global FIXTURE_TYPES
     kind = e.id.split(":", 1)[0]
@@ -121,6 +135,11 @@ def check_values(report, path, e, prefabs, settings):
             for key, _ in fields:
                 if lf.known_field(kind, key) and key not in lf.ENV_FIELDS[name]:
                     report("error", path, e.line, f"{e.id}: '{key}' is not a field of the {name}")
+    if kind == "post":
+        name = e.id.split(":", 1)[1]
+        if not (name in ("room", "cutscene") or (name.startswith("event.") and name[6:].isdigit())):
+            report("error", path, e.line, f"{e.id}: post profiles are post:room, post:cutscene and post:event.<id>")
+        return  # the fields: pc/src/post_profile.cpp checks them (and logs unknown ones)
     for key, value in fields:
         if not lf.known_field(kind, key):
             report("error", path, e.line, f"{e.id}: unknown key '{key}'")
@@ -134,6 +153,11 @@ def check_values(report, path, e, prefabs, settings):
         if kind == "fog" and key == "shape":
             if value not in lf.FOG_SHAPES:
                 report("error", path, e.line, f"{e.id}: shape must be one of {', '.join(lf.FOG_SHAPES)}")
+            continue
+        if kind == "fog" and key == "preset":
+            if value not in fog_presets():
+                report("warning", path, e.line,
+                       f"{e.id}: preset '{value}' is not in pc/assets/environment/fog_presets.json (its fields as written)")
             continue
         if decimals < 0:
             continue

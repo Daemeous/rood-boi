@@ -1,0 +1,10 @@
+#version 460
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_ray_query : require
+// Fog volumes' light grid with ray queries (fogvol_light.glsl): the
+// volumes' own shadows and the scene's (walls, the characters) toward each
+// light and the sun or moon.
+#define FV_VEC4S_ 179
+#define FOGVOL_RT
+#include "rt_common.glsl"
+#include "fogvol_light.glsl"

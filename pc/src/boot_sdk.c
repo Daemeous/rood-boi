@@ -205,9 +205,12 @@ void* pc_battle_jump[5];
  * leaves behind (a soft reset during the menu), weapon_slots.c forgets the
  * battle it was in. */
 extern void pc_ui_menu_reset(void) __attribute__((weak));
+extern int pc_game_phase __attribute__((weak)); /* boot_runtime.c (saved in save states) */
 void vs_overlay_jumpToTitle(int* sp)
 {
     (void)sp;
+    if (&pc_game_phase)
+        pc_game_phase = 1; /* back to the title */
     if (pc_ui_menu_reset)
         pc_ui_menu_reset();
     __builtin_longjmp(pc_title_jump, 1);

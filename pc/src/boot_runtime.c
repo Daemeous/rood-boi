@@ -88,6 +88,12 @@ extern void pc_window_init(int, int);
 extern void pc_window_tick(void);
 extern void pc_window_frame(const uint16_t*, int, int, int, int);
 int pc_skip_movies;
+/* The publisher and developer logos before the first title (TITLE's
+ * _displayPublisherAndDeveloper); skipped with the intro movie when the
+ * skip_intro setting is on, for the first title only (pc_title_menu_ready). */
+int pc_skip_logos;
+static int intro_skipped_by_setting; /* 1: logos skipped; 2: and the movie (no --skip-movies) */
+extern int pc_skip_intro __attribute__((weak)); /* project_settings.cpp */
 int pc_room_checkpoint_requested;
 static int display_x, display_y, display_w = 320, display_h = 224;
 static int draw_x, draw_y, clip_x, clip_y, clip_w = 1024, clip_h = 512, tpage;
@@ -487,7 +493,12 @@ int main(int argc, char** argv)
 #else
     reserve_game_stack();
 #endif
-    pc_window_init(window, fast);
+    pc_window_init(window, fast); /* loads the settings (dev_overlay.cpp) */
+    if (&pc_skip_intro && pc_skip_intro) {
+        intro_skipped_by_setting = pc_skip_movies ? 1 : 2;
+        pc_skip_movies = pc_skip_logos = 1;
+        pc_log("skip_intro: starting at the title (no logos, no intro movie)");
+    }
     pc_audio_output_start();
     FILE* f = fopen("data/SLUS_010.40", "rb");
     if (!f) {
@@ -626,6 +637,12 @@ static uint16_t texture(int u, int v, unsigned clut)
     }
     return vram[((clut >> 6) & 511) * 1024 + (((clut & 63) * 16 + val) & 1023)];
 }
+/* The command word of the sprite or polygon the hardware path is being
+ * handed (gpu_hw.c: which game string a glyph belongs to, ui_text.c). */
+const void* pc_gpu_command;
+/* Set while a packet DrawPrim hands over is drawn (not an ordering table):
+ * ui_text.c tells the memory card screens' signs from the info style's. */
+int pc_gpu_immediate;
 #include "boot_polygons.inc"
 #include "boot_lines.inc"
 
@@ -751,8 +768,10 @@ static void commands(uint32_t* p, unsigned n)
                 pc_hw_set_2d(1); /* sprites and tiles are screen-space */
                 int texels[4] = { (int)(uv & 255), (int)((uv >> 8) & 255), (int)(uv & 255) + (int)w - 1, (int)((uv >> 8) & 255) + (int)h - 1 };
                 pc_hw_set_bounds(x, y, x + (int)w, y + (int)h, code, tpage, tex ? texels : NULL, clip);
+                pc_gpu_command = p + i;
                 pc_hw_rect(x, y, (int)w, (int)h, uv & 255, (uv >> 8) & 255, p[i] & 0xffffff, code,
                     tpage, uv >> 16, texture_window, clip, mask_set, mask_check);
+                pc_gpu_command = NULL;
                 pc_hw_mark(x, y, x + (int)w - 1, y + (int)h - 1);
             }
             for (unsigned yy = 0; yy < h; yy++)
@@ -812,7 +831,9 @@ void pc_draw_packet(void* data, int chain)
             int clip[4] = { clip_x, clip_y, clip_w, clip_h };
             pc_hw_native_translucent(list, first, count, draw_x, draw_y, clip, texture_window, (int)mask_set);
         }
+        pc_gpu_immediate = !chain;
         commands(p + 1, tag >> 24);
+        pc_gpu_immediate = 0;
         unsigned next = tag & 0xffffff;
         if (!chain || next == 0xffffff)
             return;
@@ -833,6 +854,12 @@ void pc_title_menu_ready(void)
 {
     pc_present();
     pc_log("TITLE MENU READY: original game entered title input loop");
+    if (intro_skipped_by_setting) {
+        /* Later titles (after the idle demo, the ending) play as the original. */
+        if (intro_skipped_by_setting == 2)
+            pc_skip_movies = 0;
+        intro_skipped_by_setting = pc_skip_logos = 0;
+    }
     if (stop_at_title)
         exit(0);
 }
@@ -841,6 +868,7 @@ static struct timespec last_vsync;
 
 extern void pc_rpc_poll(void);
 extern void pc_cd_tick(void) __attribute__((weak));
+extern void pc_fog_vsync(void) __attribute__((weak)); /* atmosphere.cpp: the interactive fog steps */
 static unsigned vsyncs;
 unsigned pc_vsync_count(void) { return vsyncs; }
 unsigned pc_battle_frame_count(void) { return battle_frames; }
@@ -874,6 +902,8 @@ void pc_tick(void)
 {
     ++vsyncs;
     pc_rpc_poll();
+    if (pc_fog_vsync)
+        pc_fog_vsync(); /* once per game vsync, after the RPC's changes, before the frame */
     pc_window_tick();
     if (pc_cd_tick)
         pc_cd_tick(); /* before the audio: this field's XA sectors */
@@ -893,9 +923,15 @@ void pc_tick(void)
     }
 }
 
+/* What the game is in, for host features that only belong in play (post.h:
+ * depth of field): 1 the title (from boot, and again on every return to it,
+ * boot_sdk.c vs_overlay_jumpToTitle), 2 an attract demo (the title's idle
+ * cutscenes, modes 3 and 4), 0 a game started from the title. */
+int pc_game_phase = 1;
 void pc_title_start(int state)
 {
     fprintf(stderr, "[title] starting mode %d (0=new game, 3/4=idle cutscene)\n", state);
+    pc_game_phase = state == 3 || state == 4 ? 2 : 0;
 }
 void pc_title_selection(int item)
 {
@@ -990,8 +1026,14 @@ void pc_opening_image_ready(int image)
     if (image == 26)
         opening_ready = 1;
 }
+/* ui/ashley_bridge.c (battle builds): whether the ordering table just drawn
+ * holds the modern menu's Ashley model; gpu_hw.c tags the frame with it. */
+extern int pc_ui_ashley_ot_model(void) __attribute__((weak));
+extern void pc_hw_frame_menu_model(int on) __attribute__((weak));
 void pc_battle_frame_complete(void)
 {
+    if (pc_ui_ashley_ot_model && pc_hw_frame_menu_model)
+        pc_hw_frame_menu_model(pc_ui_ashley_ot_model());
     ++battle_frames;
     if (battle_frames % 300 == 0)
         fprintf(

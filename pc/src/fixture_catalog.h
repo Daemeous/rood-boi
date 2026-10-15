@@ -32,6 +32,8 @@ struct Type {
     std::string id, cls, description, family, review, confidence;
     std::string prefab; /* "none": not a light */
     int glow = GLOW_LEAVE;
+    int glow_shape = 0; /* its glow's shape: 0 auto, 1 sphere, 2 column (glow_overrides.h PC_GLOW_SHAPE_*) */
+    float glow_shadow_core = -1; /* its column's shadows aim at a core this fraction of its radius (< 0: the default) */
     bool enabled = true, haze = false;
     float fixture_radius = 16;
     float offset[3] = { 0, 0, 0 }; /* light offset from the flame (x right, y down, z forward) */

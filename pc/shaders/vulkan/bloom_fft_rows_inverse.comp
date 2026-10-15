@@ -1,0 +1,21 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+// The inverse transform of each row (bloom_fft.glsl): the convolved picture
+// (red, green from the first complex number, blue from the second) into the
+// bloom result the grade pass samples.
+#include "bloom_fft.glsl"
+layout(binding = 0, rgba32f) uniform readonly image2D data;
+layout(binding = 1, rgba16f) uniform writeonly image2D result;
+void main()
+{
+    int y = int(gl_WorkGroupID.x);
+    uint t = gl_LocalInvocationID.x;
+    for (uint i = t; i < uint(pc.n); i += 256u)
+        line[reversed(i)] = imageLoad(data, ivec2(int(i), y));
+    barrier();
+    fft(true);
+    for (uint i = t; i < uint(pc.n); i += 256u) {
+        vec4 c = line[i] * pc.scale;
+        imageStore(result, ivec2(int(i), y), vec4(max(vec3(c.x, c.y, c.z), vec3(0.0)), 1.0));
+    }
+}

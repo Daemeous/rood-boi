@@ -44,12 +44,29 @@ float pc_glow_category[3][5] = {
 float pc_glow_energy, pc_glow_raw_energy, pc_glow_category_energy[3];
 int pc_glow_category_count[3];
 uint32_t pc_glow_casts;
+/* Enclosing glows as columns (fit_column): 0 never (every glow a sphere at
+ * its centre, as before), 1 their glowing side (default), 2 solid (RPC glows
+ * {shapes}; ROOD_GLOW_SHAPES; comparisons). */
+int pc_glow_shapes = -1;
+/* A column's shadows (rt_lights.glsl emitter_shadow): rays aim at a core
+ * this fraction of its radius (the fixture type's glow_shadow_core first;
+ * RPC glows {shadow_core}); the light still comes from the whole side. */
+float pc_glow_shadow_core = 0.25f;
+/* ... and stop where they enter its clear middle, this fraction of its
+ * radius: a character standing there hides none of its light (RPC glows
+ * {shadow_clear}). */
+float pc_glow_shadow_clear = 0.4f;
+/* A column's luminance in the baked light's shadow weights (0: its colour's;
+ * RPC glows {column_baked}). */
+float pc_glow_column_baked = 3.0f;
 extern float pc_emitter_radius;
 extern unsigned pc_vsync_count(void) __attribute__((weak));
 /* Light actors linked to a glow (lights.cpp): 1 drives its emission
  * (*scale, the actor's flicker), 2 suppresses it, 0 leaves it. */
 extern int pc_lights_glow_drive(const char* key, const float p[3], float* scale) __attribute__((weak));
 extern int pc_fixture_glow_mode(const char* type) __attribute__((weak));
+extern int pc_fixture_glow_shape(const char* type) __attribute__((weak));
+extern float pc_fixture_glow_shadow_core(const char* type) __attribute__((weak));
 
 #define MAX_TRACKS 160
 #define MAX_GROUPS 512
@@ -74,6 +91,9 @@ typedef struct {
     int traced;
     /* this update, after overrides */
     float out_rgb[3], out_size, out_reach;
+    float out_centre[3], out_shape[4]; /* where and what the tracers sample: its centre and sphere, or a column */
+    float out_shadow_core; /* a column's shadow core radius */
+    float out_baked_weight; /* a column's weight in the baked light's shadows (0: by its colour) */
     int muted, overridden;
     char fixture_type[16]; /* from its override (the generated layer) */
 } track;
@@ -88,6 +108,11 @@ typedef struct {
     uint32_t tag;
     int animated, triangles;
     float seeds[64][3]; /* those pieces' seeds */
+    /* Its column (fit_column): centre, half axis and radius (> 0 its side,
+     * < 0 a solid disc); has_column: one was fitted; encloses: a character
+     * can stand inside it (the save point). */
+    float column_centre[3], column[4];
+    int has_column, encloses;
 } room_group;
 static room_group groups[MAX_GROUPS];
 static int group_count, groups_serial = -1, save_point_room;
@@ -117,6 +142,106 @@ static float emitting_size(float area)
      * emitting sphere is a fraction of their extent. */
     float size = 0.15f * sqrtf(area);
     return size < 2 ? 2 : size > 8 ? 8 : size;
+}
+/* Enclosing glows (pc/docs/Glows.md): a room group a character can stand
+ * in (the save point: an octagonal column of light 128 units wide and 224
+ * high around a glowing sigil) cannot be a point at its centre, which is
+ * then inside the character: every shadow ray from the room to it hit them,
+ * and the room went dark around Ashley (GitHub issue 2). Such a group gets a
+ * vertical column the size of its glowing polygons, and the tracers sample
+ * its side (rt_lights.glsl emitter_sample): a character inside hides the
+ * part of it behind them, and still shadows what lies beyond them.
+ *
+ * Its upright polygons (normal within 45 degrees of horizontal) give the
+ * column: the axis through the middle of their bounds, from their lowest to
+ * their highest corner, the radius their corners' mean distance from the
+ * axis. A group of mostly flat polygons is a solid disc as large as their
+ * area (only when its fixture type or an override asks for a column). A
+ * column encloses (and is one without being asked) when a character fits
+ * in it and it stands on the floor: radius >= 24, at least 96 high, upright
+ * polygons in at least six of eight sectors around its axis, and a room
+ * polygon under the middle of its foot. Across the game's rooms that is
+ * the 39 save points and one light shaft standing on a street (zone 32
+ * room 3, fixture type T235, not a light: its type suppresses it); hanging
+ * glass lanterns are too small and in the air, other shafts float, glowing
+ * floor decals are flat. */
+#define COLUMN_MIN_RADIUS 24.0f
+#define COLUMN_MIN_HEIGHT 96.0f
+static void fit_column(room_group* g, int index, const scene_triangle* room, const int* glowing, int n)
+{
+    float lo[3] = { 1e30f, 1e30f, 1e30f }, hi[3] = { -1e30f, -1e30f, -1e30f };
+    float up_lo = 1e30f, up_hi = -1e30f, up_area = 0, flat_area = 0, flat_y = 0;
+    for (int a = 0; a < n; a++) {
+        if (triangle_group[glowing[a]] != index)
+            continue;
+        const scene_triangle* t = &room[glowing[a]];
+        float e1[3], e2[3], x[3];
+        for (int k = 0; k < 3; k++)
+            e1[k] = t->vertex[1].position[k] - t->vertex[0].position[k],
+            e2[k] = t->vertex[2].position[k] - t->vertex[0].position[k];
+        x[0] = e1[1] * e2[2] - e1[2] * e2[1], x[1] = e1[2] * e2[0] - e1[0] * e2[2], x[2] = e1[0] * e2[1] - e1[1] * e2[0];
+        float length = sqrtf(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]), area = 0.5f * length;
+        int upright = length > 1e-6f && fabsf(x[1]) < 0.7071f * length;
+        for (int j = 0; j < 3; j++)
+            for (int k = 0; k < 3; k++) {
+                float v = t->vertex[j].position[k];
+                lo[k] = fminf(lo[k], v), hi[k] = fmaxf(hi[k], v);
+                if (upright && k == 1)
+                    up_lo = fminf(up_lo, v), up_hi = fmaxf(up_hi, v);
+            }
+        if (upright)
+            up_area += area;
+        else {
+            flat_area += area;
+            flat_y += area * (t->vertex[0].position[1] + t->vertex[1].position[1] + t->vertex[2].position[1]) / 3.0f;
+        }
+    }
+    g->has_column = g->encloses = 0;
+    if (up_area + flat_area <= 0)
+        return;
+    float axis[2] = { 0.5f * (lo[0] + hi[0]), 0.5f * (lo[2] + hi[2]) };
+    int column = up_area >= flat_area;
+    float radius_sum = 0, radius_weight = 0;
+    unsigned sectors = 0; /* around its axis, of eight */
+    for (int a = 0; a < n; a++) {
+        if (triangle_group[glowing[a]] != index)
+            continue;
+        const scene_triangle* t = &room[glowing[a]];
+        float e1[3], e2[3], x[3];
+        for (int k = 0; k < 3; k++)
+            e1[k] = t->vertex[1].position[k] - t->vertex[0].position[k],
+            e2[k] = t->vertex[2].position[k] - t->vertex[0].position[k];
+        x[0] = e1[1] * e2[2] - e1[2] * e2[1], x[1] = e1[2] * e2[0] - e1[0] * e2[2], x[2] = e1[0] * e2[1] - e1[1] * e2[0];
+        float length = sqrtf(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]), area = 0.5f * length;
+        int upright = length > 1e-6f && fabsf(x[1]) < 0.7071f * length;
+        if (upright != column)
+            continue;
+        for (int j = 0; j < 3; j++) {
+            float dx = t->vertex[j].position[0] - axis[0], dz = t->vertex[j].position[2] - axis[1];
+            radius_sum += area * sqrtf(dx * dx + dz * dz), radius_weight += area;
+        }
+        float dx = (t->vertex[0].position[0] + t->vertex[1].position[0] + t->vertex[2].position[0]) / 3.0f - axis[0];
+        float dz = (t->vertex[0].position[2] + t->vertex[1].position[2] + t->vertex[2].position[2]) / 3.0f - axis[1];
+        if (dx * dx + dz * dz > 1.0f)
+            sectors |= 1u << ((int)floorf((atan2f(dz, dx) + 3.14159265f) / 6.2831853f * 8.0f) & 7);
+    }
+    if (column) {
+        float radius = radius_weight > 0 ? radius_sum / radius_weight : 0;
+        g->column_centre[0] = axis[0], g->column_centre[1] = 0.5f * (up_lo + up_hi), g->column_centre[2] = axis[1];
+        g->column[0] = g->column[2] = 0, g->column[1] = 0.5f * (up_hi - up_lo), g->column[3] = radius;
+        int around = 0;
+        for (int k = 0; k < 8; k++)
+            around += (sectors >> k) & 1;
+        float foot[3] = { axis[0], up_hi, axis[1] }; /* y grows downwards */
+        g->encloses = radius >= COLUMN_MIN_RADIUS && up_hi - up_lo >= COLUMN_MIN_HEIGHT && around >= 6
+            && pc_scene_triangle_at(foot, 16.0f) >= 0;
+    } else {
+        float radius = sqrtf(flat_area / 3.14159265f);
+        g->column_centre[0] = axis[0], g->column_centre[1] = flat_y / flat_area, g->column_centre[2] = axis[1];
+        g->column[0] = g->column[1] = g->column[2] = 0, g->column[3] = -radius;
+        g->encloses = 0;
+    }
+    g->has_column = fabsf(g->column[3]) > 0;
 }
 static void build_groups(void)
 {
@@ -242,6 +367,7 @@ static void build_groups(void)
         for (int k = 0; k < 3; k++)
             groups[g].centre[k] = sum[g][k] / groups[g].area;
         groups[g].size = emitting_size(groups[g].area);
+        fit_column(&groups[g], g, room, glowing, n);
     }
     /* The save point: its column and sigil scroll (room texture effect
      * type 2, which only save points use). */
@@ -256,9 +382,13 @@ static void build_groups(void)
     free(glowing);
     if (getenv("ROOD_GI_DEBUG"))
         for (int g = 0; g < group_count; g++)
-            fprintf(stderr, "[glows] room group %d: %d triangles at %.0f %.0f %.0f, area %.0f, strength %.0f%s\n", g,
-                groups[g].triangles, groups[g].centre[0], groups[g].centre[1], groups[g].centre[2], groups[g].area,
-                groups[g].strength, groups[g].animated ? ", animated" : "");
+            fprintf(stderr,
+                "[glows] room group %d: %d triangles at %.0f %.0f %.0f, area %.0f, strength %.0f%s; column at %.0f %.0f %.0f, "
+                "half height %.0f, radius %.0f%s\n",
+                g, groups[g].triangles, groups[g].centre[0], groups[g].centre[1], groups[g].centre[2], groups[g].area,
+                groups[g].strength, groups[g].animated ? ", animated" : "", groups[g].column_centre[0],
+                groups[g].column_centre[1], groups[g].column_centre[2], groups[g].column[1], groups[g].column[3],
+                groups[g].encloses ? " (encloses)" : "");
 }
 
 /* ---- naming ---- */
@@ -478,6 +608,11 @@ int pc_gi_glows_parse(const char* line)
     const char* type = strstr(line, " fixture_type=");
     if (type)
         sscanf(type + 14, "%15s", o.fixture_type);
+    const char* shape = strstr(line, " shape=");
+    if (shape)
+        o.shape = !strncmp(shape + 7, "sphere", 6) ? PC_GLOW_SHAPE_SPHERE
+            : !strncmp(shape + 7, "column", 6)     ? PC_GLOW_SHAPE_COLUMN
+                                                   : PC_GLOW_SHAPE_AUTO;
     if (override_count < MAX_OVERRIDES)
         overrides[override_count++] = o;
     return 1;
@@ -492,6 +627,8 @@ void pc_gi_glows_write(FILE* f)
             fprintf(f, " key=%s", o->key);
         if (o->fixture_type[0])
             fprintf(f, " fixture_type=%s", o->fixture_type);
+        if (o->shape == PC_GLOW_SHAPE_SPHERE || o->shape == PC_GLOW_SHAPE_COLUMN)
+            fprintf(f, " shape=%s", o->shape == PC_GLOW_SHAPE_SPHERE ? "sphere" : "column");
         fputc('\n', f);
     }
 }
@@ -769,9 +906,14 @@ static int by_score_desc(const void* a, const void* b)
     return x < y ? 1 : x > y ? -1 : 0;
 }
 int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*baked_pos)[4],
-    const float (*baked_col)[4], int baked_count, float emitter_pos[][4], float emitter_col[][4], int max)
+    const float (*baked_col)[4], int baked_count, float emitter_pos[][4], float emitter_col[][4],
+    float emitter_shape[][4], float emitter_shadow[][4], int max)
 {
     int snap = 0;
+    if (pc_glow_shapes < 0) {
+        const char* e = getenv("ROOD_GLOW_SHAPES");
+        pc_glow_shapes = e && *e ? atoi(e) : 1;
+    }
     if (pc_scene_serial() != groups_serial) {
         /* A new room: new groups, new glows; overrides find theirs again. */
         groups_serial = pc_scene_serial();
@@ -860,6 +1002,9 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
         t->overridden = 0;
         t->fixture_type[0] = 0;
         float scale = t->presence;
+        int shape = PC_GLOW_SHAPE_AUTO;
+        float core = pc_glow_shadow_core;
+        float size_override = 0;
         memcpy(t->out_rgb, t->rgb, sizeof t->out_rgb);
         t->out_size = t->origin == PC_GLOW_ORIGIN_BAKED ? t->obs_size : t->size;
         if (t->origin != PC_GLOW_ORIGIN_BAKED)
@@ -879,7 +1024,13 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
             for (int j = 0; j < 3; j++)
                 t->out_rgb[j] *= o->intensity * o->tint[j];
             if (o->size > 0 && t->out_size > 0)
-                t->out_size = o->size;
+                t->out_size = size_override = o->size;
+            if (o->shape != PC_GLOW_SHAPE_AUTO)
+                shape = o->shape;
+            else if (o->fixture_type[0] && pc_fixture_glow_shape)
+                shape = pc_fixture_glow_shape(o->fixture_type);
+            if (o->fixture_type[0] && pc_fixture_glow_shadow_core && pc_fixture_glow_shadow_core(o->fixture_type) >= 0)
+                core = pc_fixture_glow_shadow_core(o->fixture_type);
             if (o->reach > 0)
                 t->out_reach = o->reach;
         }
@@ -891,6 +1042,24 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
             else if (mode == 1)
                 scale *= drive;
         }
+        /* Its shape: a sphere at its centre, or the column of a group a
+         * character can stand in (the type's or the override's choice
+         * first; an override's size is the column's radius). */
+        memcpy(t->out_centre, t->pos, sizeof t->out_centre);
+        memset(t->out_shape, 0, sizeof t->out_shape);
+        t->out_shadow_core = 0;
+        const room_group* group = t->origin == PC_GLOW_ORIGIN_ROOM && t->group >= 0 && t->group < group_count
+            ? &groups[t->group] : NULL;
+        if (pc_glow_shapes > 0 && group && group->has_column
+            && (shape == PC_GLOW_SHAPE_COLUMN || (shape == PC_GLOW_SHAPE_AUTO && group->encloses))) {
+            memcpy(t->out_centre, group->column_centre, sizeof t->out_centre);
+            memcpy(t->out_shape, group->column, sizeof t->out_shape);
+            if (size_override > 0)
+                t->out_shape[3] = copysignf(size_override, t->out_shape[3]);
+            if (pc_glow_shapes == 2)
+                t->out_shape[3] = -fabsf(t->out_shape[3]);
+            t->out_shadow_core = fabsf(t->out_shape[3]) * (core < 0 ? 0 : core > 1 ? 1 : core);
+        }
         /* Its category's switch and multipliers. */
         const float* c = pc_glow_category[t->category >= 0 && t->category < 3 ? t->category : PC_GLOW_EFFECT];
         if (t->origin != PC_GLOW_ORIGIN_BAKED) {
@@ -901,6 +1070,11 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
         }
         for (int j = 0; j < 3; j++)
             t->out_rgb[j] *= scale;
+        /* A column's share of the baked light around it (its weight in the
+         * baked light's shadows, rt_trace.comp baked_visibility): the save
+         * point's baked light is its own, however dark the scrolling texels
+         * it was found by (a dim one only greyed the floor behind Ashley). */
+        t->out_baked_weight = t->out_shape[3] > 0 && pc_glow_column_baked > 0 ? pc_glow_column_baked * scale : 0;
         if (solo_alive && t->id != solo_id && !t->muted)
             t->muted = 2;
     }
@@ -941,8 +1115,14 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
         if (t->origin == PC_GLOW_ORIGIN_BAKED
             || (t->category != PC_GLOW_EFFECT && pc_glow_category[t->category][3] > 0.5f))
             pc_glow_casts |= 1u << out;
-        memcpy(emitter_pos[out], t->pos, 3 * sizeof(float));
+        memcpy(emitter_pos[out], t->out_centre, 3 * sizeof(float));
         emitter_pos[out][3] = t->out_reach;
+        memcpy(emitter_shape[out], t->out_shape, sizeof t->out_shape);
+        emitter_shadow[out][0] = t->out_shadow_core, emitter_shadow[out][1] = t->out_baked_weight;
+        emitter_shadow[out][2] = t->out_shape[3] > 0
+            ? fmaxf(t->out_shadow_core, t->out_shape[3] * (pc_glow_shadow_clear < 0 ? 0 : pc_glow_shadow_clear > 1 ? 1 : pc_glow_shadow_clear))
+            : 0;
+        emitter_shadow[out][3] = 0;
         float strength = track_strength(t) * cap;
         for (int j = 0; j < 3; j++)
             emitter_col[out][j] = t->out_rgb[j] * strength;
@@ -1004,6 +1184,9 @@ static void fill_info(const track* t, pc_glow_info* g)
     g->overridden = t->overridden;
     g->traced = t->traced;
     snprintf(g->fixture_type, sizeof g->fixture_type, "%s", t->fixture_type);
+    memcpy(g->shape_centre, t->out_centre, sizeof g->shape_centre);
+    memcpy(g->shape, t->out_shape, sizeof g->shape);
+    g->shadow_core = t->out_shadow_core;
 }
 int pc_gi_glow_list(pc_glow_info* out, int max)
 {

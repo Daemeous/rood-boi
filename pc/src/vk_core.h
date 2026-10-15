@@ -83,6 +83,9 @@ extern "C" {
     X(vkDestroyShaderModule)                                                                                           \
     X(vkCreatePipelineLayout)                                                                                          \
     X(vkDestroyPipelineLayout)                                                                                         \
+    X(vkCreatePipelineCache)                                                                                           \
+    X(vkDestroyPipelineCache)                                                                                          \
+    X(vkGetPipelineCacheData)                                                                                          \
     X(vkCreateGraphicsPipelines)                                                                                       \
     X(vkCreateComputePipelines)                                                                                        \
     X(vkDestroyPipeline)                                                                                               \
@@ -169,6 +172,12 @@ typedef struct {
     VkSampleCountFlags msaa_counts; /* multisampled colour + depth, drawn and sampled */
     int sample_locations; /* VK_EXT_sample_locations enabled */
     VkSampleCountFlags sample_location_counts; /* counts that take custom (pixel-centre) locations */
+    VkPipelineCache pipeline_cache; /* persisted between runs (vk_core.c); VK_NULL_HANDLE without one */
+    /* The device was lost (VK_ERROR_DEVICE_LOST, or a frame that never
+     * finished): frames are still recorded but no longer submitted or
+     * presented, so the game goes on (and can be saved or quit) without
+     * aborting. Restarting the game renders again. */
+    int lost;
 } vk_context;
 extern vk_context vk;
 extern int pc_vk_active;
@@ -177,6 +186,12 @@ extern int pc_vk_active;
  * to OpenGL). */
 int vk_core_init(const char* const* instance_extensions, uint32_t extension_count);
 void vk_core_shutdown(void);
+/* Notes a pipeline created with vk.pipeline_cache outside vk_core.c (NRD,
+ * the overlay) taking `ns` nanoseconds, so the cache is saved once creation
+ * settles. */
+void vk_pipeline_cache_note(uint64_t ns);
+/* Note that the device was lost (vk.lost; logged once, `where` says which call saw it). */
+void vk_device_lost(const char* where);
 /* Report a failed call and return the condition. */
 int vk_check(VkResult result, const char* what);
 
@@ -207,6 +222,8 @@ typedef struct {
 int vk_image_create(vk_image* image, int width, int height, VkFormat format, VkImageUsageFlags usage);
 /* The same with `samples` per pixel (2, 4, 8: multisampled). */
 int vk_image_create_ms(vk_image* image, int width, int height, VkFormat format, VkImageUsageFlags usage, int samples);
+/* A 3D image (sampled; GENERAL like the rest), not cleared. */
+int vk_image_create_3d(vk_image* image, int width, int height, int depth, VkFormat format, VkImageUsageFlags usage);
 void vk_image_destroy(vk_image* image);
 void vk_image_destroy_later(vk_image* image);
 

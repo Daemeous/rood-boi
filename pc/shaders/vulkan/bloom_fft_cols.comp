@@ -1,0 +1,41 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+// Each column (bloom_fft.glsl), in place: the forward transform (with the
+// row pass: the 2D spectrum); mode 0 stores it as the kernel's spectrum,
+// mode 1 multiplies it by the kernel's and transforms it back along the
+// column (the rows' inverse follows in bloom_fft_rows_inverse.comp).
+#include "bloom_fft.glsl"
+layout(binding = 0, rgba32f) uniform image2D data;
+layout(binding = 1, rgba32f) uniform image2D kernel_spectrum;
+void main()
+{
+    int x = int(gl_WorkGroupID.x);
+    uint t = gl_LocalInvocationID.x;
+    for (uint i = t; i < uint(pc.n); i += 256u)
+        line[reversed(i)] = imageLoad(data, ivec2(x, int(i)));
+    barrier();
+    fft(false);
+    if (pc.mode == 0) {
+        for (uint i = t; i < uint(pc.n); i += 256u)
+            imageStore(kernel_spectrum, ivec2(x, int(i)), line[i]);
+        return;
+    }
+    vec4 v[2];
+    for (uint k = 0u; k < 2u; k++) {
+        uint i = t + k * 256u;
+        if (i < uint(pc.n)) {
+            vec2 h = imageLoad(kernel_spectrum, ivec2(x, int(i))).xy;
+            v[k] = vec4(cmul(line[i].xy, h), cmul(line[i].zw, h));
+        }
+    }
+    barrier();
+    for (uint k = 0u; k < 2u; k++) {
+        uint i = t + k * 256u;
+        if (i < uint(pc.n))
+            line[reversed(i)] = v[k];
+    }
+    barrier();
+    fft(true);
+    for (uint i = t; i < uint(pc.n); i += 256u)
+        imageStore(data, ivec2(x, int(i)), line[i]);
+}

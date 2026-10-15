@@ -32,7 +32,9 @@ int pc_hw_set_scale(int scale);
 extern int pc_env_global;        /* environment.cpp: the rooms' sun and sky */
 extern int pc_lights_enabled;    /* lights.cpp: dynamic lights (lighting key dynamic_lights) */
 extern int pc_qol_weapon_slots;  /* project_settings.cpp; weapon_slots.c */
+extern int pc_skip_intro;        /* project_settings.cpp; boot_runtime.c */
 extern int pc_ui_menus;          /* project_settings.cpp; ui_shell */
+extern float pc_ui_menu_opacity; /* project_settings.cpp; ui_theme.cpp theme() */
 void pc_settings_save(void);
 void pc_settings_touched(const char* key) __attribute__((weak)); /* project_settings.cpp: the user's now */
 int pc_aa_msaa_max(void) __attribute__((weak)); /* gpu_hw.c */
@@ -386,6 +388,9 @@ void build()
     std::vector<Row>& u = pages[PC_UI_SETTINGS_INTERFACE];
     u.push_back(choice("ui_menus", "Menus", "The modern menus or the game's own, from the next time the menu opens.",
         &pc_ui_menus, menus, 2));
+    u.push_back(fslider("ui_menu_opacity", "Menu opacity",
+        "How much the modern menus' backdrop and panels hide the game behind them. 1 is solid.",
+        &pc_ui_menu_opacity, 0, 1, 0.02f, "%.2f"));
     u.push_back(choice("ui_text", "Text", "The game's text drawn from modern fonts at full resolution.", &pc_ui_text,
         text, 2)
                     .grey(need_hw));
@@ -496,6 +501,8 @@ void build()
                             return why;
                         return pc_gameplay_walls ? nullptr : "Needs Smart cutaway walls";
                     }));
+    p.push_back(toggle("skip_intro", "Skip intro",
+        "Start at the title, without the logos and the opening movie. From the next start.", &pc_skip_intro));
     p.push_back(game_option("map", "Map", "The small map in the corner: framed, plain or hidden. Saved with your game, not in settings.",
         PC_GAME_OPT_MAP, map, 3));
     p.push_back(game_option("ability_timing", "Ability timing",

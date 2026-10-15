@@ -1,0 +1,13 @@
+{
+  "title": "Clean modern",
+  "description": "Neutral tone mapping with a little sharpening and a subtle bloom; no grain, no lens effects.",
+  "values": {
+    "tonemapper": "neutral",
+    "tonemap_white": 4,
+    "exposure": 0.9,
+    "bloom_intensity": 0.15,
+    "bloom_threshold": 0.85,
+    "sharpen": 0.3,
+    "saturation": [1, 1, 1, 1.05]
+  }
+}

@@ -136,7 +136,10 @@ Optional check after `build_boot.py --arch 64` (seconds, <1 GB):
 declaration each 64-bit object was compiled with (its DWARF) against the
 definition the linker binds it to, and exits 1 on a wrong-size pointer/integer
 parameter, return, out-parameter pointee or data import (the class of the
-`func_800AD494` stack smash). See `LP64_Audit.md`, "Cross-unit declarations".
+`func_800AD494` stack smash), and any data import that is a field of another
+import where one moved to a native slot and the other did not
+(`pc/tools/lp64_alias_scan.py`). See `LP64_Audit.md`, "Cross-unit
+declarations" and "Import aliases across the native move".
 
 ## Phase 2: native 3D submission
 

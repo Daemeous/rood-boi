@@ -263,6 +263,10 @@ offload; `ROOD_GPU=integrated` keeps the default GPU).
 | `--no-build` | skip the build step and run the existing binary |
 | `--skip-movies` | (passed to the game) skip the intro movie |
 
+To start at the title every time (no publisher and developer logos, no intro
+movie), turn on System > Gameplay > Skip intro, or put `skip_intro 1` in
+`pc/user/settings.cfg`. It is off by default: the original start.
+
 The builds go to `pc/build/boot64/rood_battle_probe` (64-bit) and
 `pc/build/boot/rood_battle_probe` (32-bit). To build without running:
 `python3 pc/tools/build_boot.py --arch 64` (add `--nrd off` to skip NRD and its
@@ -272,9 +276,11 @@ download) or `python3 pc/tools/build_boot.py --battle` for 32-bit.
 building the Docker image takes a minute or two and step 3 under a minute;
 the first 64-bit build about 3 minutes (building the vendored SDL 3 and
 glslang, and fetching and compiling NRD); the first 32-bit build about 2
-minutes. Every later build takes about 1.5 minutes, even without changes
-(the builder re-links and re-checks the game's symbol imports each time):
-use `--no-build` to just play.
+minutes. A later build with nothing changed does nothing (well under a
+second: `pc/build/<tree>/build-stamp.json` records every input of the last
+complete build), and after a change only the units it touches recompile
+(a few seconds; `pc/tools/build_cache.py`). `build_boot.py --check` says
+whether a build would do anything. `--no-build` skips even the check.
 
 ## Run
 

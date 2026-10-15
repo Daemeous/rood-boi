@@ -33,6 +33,11 @@
 #include <libetc.h>
 #include <limits.h>
 
+#ifdef ROOD_PC
+/* pc/src/ui/menu_bridge.c: the modern menus run a direct entry (the loot) */
+extern int pc_ui_direct_tick(int selectedMenu, char* state, int* result);
+#endif
+
 vs_main_inventoryGem* vs_mainMenu_gems;
 vs_menu_inventoryStorage_t* vs_menu_inventoryStorage;
 vs_main_inventoryGrip* vs_mainMenu_grips;
@@ -362,7 +367,13 @@ void vs_mainMenu_exec(int arg0)
             submenuReturn = _quitDelay();
         } else if (D_800F4EA0 & 0x200) {
             if (menuLoaded) {
-                if (selectedMenu == 15) {
+#ifdef ROOD_PC
+                /* a direct entry the modern menus take over speaks the
+                 * submenu's protocol in its place (menu_bridge.c) */
+                if (pc_ui_direct_tick(selectedMenu, submenuState, &submenuReturn)) {
+                } else
+#endif
+                    if (selectedMenu == 15) {
                     submenuReturn = vs_menuF_exec(submenuState);
                 } else if (selectedMenu == 3) {
                     submenuReturn = vs_menu2_actionUnlock(submenuState);

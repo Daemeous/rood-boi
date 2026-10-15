@@ -23,13 +23,15 @@ vec3 cosine_direction(vec3 n) {
     vec3 t = normalize(cross(abs(n.y) < 0.9 ? vec3(0, 1, 0) : vec3(1, 0, 0), n)), b = cross(n, t);
     return normalize(t * cos(phi) * s + b * sin(phi) * s + n * sqrt(1.0 - r2));
 }
-// A point in emitter i's emitting sphere.
-vec3 emitter_point(int i) {
-    vec3 r = vec3(rand(), rand(), rand()) * 2.0 - 1.0;
-    return emitter_pos[i].xyz + normalize(r + 1e-4) * pow(rand(), 0.333) * abs(emitter_col[i].w);
-}
+// The last emitter_falloff's shadow ray (rt_lights.glsl emitter_shadow).
+vec3 shadow_dir; float shadow_reach;
+// A point of emitter i's emitting shape (rt_lights.glsl emitter_sample): its
+// light at p, and the shadow ray that goes with it.
 float emitter_falloff(int i, vec3 p, vec3 n, out vec3 l, out float d) {
-    vec3 to = emitter_point(i) - p; d = length(to); l = to / max(d, 1e-3);
+    float a = rand(), b = rand(), c = rand();
+    vec4 r = vec4(a, b, c, rand());
+    vec3 to = emitter_sample(i, r) - p; d = length(to); l = to / max(d, 1e-3);
+    shadow_reach = emitter_shadow(i, p, r, shadow_dir);
     float x = clamp(d / emitter_pos[i].w, 0.0, 1.0);
     return (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);
 }
@@ -53,7 +55,7 @@ vec3 emitted(vec3 p, vec3 n) {
     vec3 l; float d, th; int hit; vec2 bc;
     float a = emitter_falloff(i, p, n, l, d);
     if (a <= 0.0) return vec3(0.0);
-    if (glow_shadows != 0 && glow_casts_shadow(i) && trace(p + n * 1.5, l, d - emitter_col[i].w - 2.0, true, n, 0.0, th, hit, bc)) {
+    if (glow_shadows != 0 && glow_casts_shadow(i) && shadow_reach > 2.0 && trace(p + n * 1.5, shadow_dir, shadow_reach - 2.0, true, n, 0.0, th, hit, bc)) {
         touched = touched || hit >= MOVER_BIT;
         return vec3(0.0);
     }
@@ -173,7 +175,7 @@ float baked_visibility(vec3 p, vec3 n, vec3 skip_n) {
         vec3 to = emitter_pos[i].xyz - p; float d = length(to);
         if (emitter_col[i].w >= 0.0 && (glow_shadows == 0 || !glow_casts_shadow(i))) { weights[i] = 0.0; continue; }
         float x = clamp(d / emitter_pos[i].w, 0.0, 1.0);
-        weights[i] = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, to / max(d, 1e-3)), 0.0) * dot(emitter_col[i].rgb, vec3(0.299, 0.587, 0.114));
+        weights[i] = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, to / max(d, 1e-3)), 0.0) * (u.emitter_shadow_[i].y > 0.0 ? u.emitter_shadow_[i].y : dot(emitter_col[i].rgb, vec3(0.299, 0.587, 0.114))); // a column's share of the baked light: its own weight (glows.c)
         all_ += weights[i];
     }
     float shadowed = 0.0;
@@ -182,7 +184,7 @@ float baked_visibility(vec3 p, vec3 n, vec3 skip_n) {
             float pick = rand() * all_; int i = 0;
             for (; i < emitter_count - 1; i++) { pick -= weights[i]; if (pick <= 0.0) break; }
             vec3 l; float d, th; int hit; vec2 bc;
-            if (emitter_falloff(i, p, n, l, d) > 0.0 && trace(p, l, d - abs(emitter_col[i].w), true, skip_n, 0.0, th, hit, bc)) {
+            if (emitter_falloff(i, p, n, l, d) > 0.0 && shadow_reach > 0.0 && trace(p, shadow_dir, shadow_reach, true, skip_n, 0.0, th, hit, bc)) {
                 shadowed += 1.0;
                 touched = true;
             }
@@ -217,7 +219,9 @@ uint lighting_signature(vec3 p, vec3 n) {
             if (d >= emitter_pos[i].w || dot(n, to) <= 0.0 || !glow_casts_shadow(i)) continue;
             bit++;
             float th; int hit; vec2 bc;
-            if (!trace(p, to / max(d, 1e-3), d - abs(emitter_col[i].w), true, n, 0.0, th, hit, bc))
+            vec3 dir;
+            float reach = emitter_shadow_nearest(i, p, dir);
+            if (reach <= 0.0 || !trace(p, dir, reach, true, n, 0.0, th, hit, bc))
                 sig |= 1u << bit;
         }
         moving_only = false;

@@ -83,8 +83,11 @@ const char* field_default(const std::string& kind, const std::string& key);
  * parameter). */
 bool known_field(const std::string& kind, const std::string& key);
 bool known_kind(const std::string& kind);
-/* Canonical field order, values and defaults dropped. */
+/* Canonical field order, values and defaults dropped (a fog volume with a
+ * `preset` keeps its preset fields even at their defaults). */
 void canonicalize(Item& item);
+/* Whether a fog preset (pc/assets/environment/fog_presets.json) can give this field. */
+bool preset_field(const std::string& kind, const std::string& key);
 /* A fresh id name: 14 hex digits, time-ordered (seconds, counter, random). */
 std::string new_name();
 

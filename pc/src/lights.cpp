@@ -218,6 +218,8 @@ void rood_lights::track_room()
     memset(&s, 0, sizeof s);
     pc_dev_state(&s);
     if (s.zone != zone || s.room != room) {
+        if (dirty && zone >= 0)
+            layers_stash(); /* unsaved edits survive walking out and back in */
         zone = s.zone;
         room = s.room;
         load_room(zone, room);
@@ -2127,7 +2129,21 @@ extern "C" bool pc_lights_glow_details(void)
     changed |= ImGui::SliderFloat("Intensity", &shown.intensity, 0, 8, "%.2f");
     changed |= ImGui::ColorEdit3("Tint", shown.tint);
     changed |= ImGui::SliderFloat("Emitting size", &shown.size, 0, 64, shown.size > 0 ? "%.1f" : "as found");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        ImGui::SetTooltip("The radius of its emitting sphere, or of its column");
     changed |= ImGui::SliderFloat("Reach", &shown.reach, 0, 4000, shown.reach > 0 ? "%.0f" : "Glow reach");
+    {
+        /* Its shape (glows.c fit_column): a column for a group a character
+         * can stand in (the save point), so standing in it keeps its light. */
+        static const char* shapes[] = { "As found", "Sphere", "Column" };
+        changed |= ImGui::Combo("Shape", &shown.shape, shapes, 3);
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            ImGui::SetTooltip("As found: a column when its polygons enclose room for a character (the save point),\n"
+                              "else a sphere at its centre. A character inside a column hides only the part behind them.");
+        if (g.shape[3] != 0)
+            ImGui::TextDisabled("Column: %.0f high, radius %.0f%s", 2 * sqrtf(g.shape[0] * g.shape[0] + g.shape[1] * g.shape[1]
+                + g.shape[2] * g.shape[2]), fabsf(g.shape[3]), g.shape[3] < 0 ? " (solid)" : " (its side)");
+    }
     if (changed) {
         if (pc_glow_override* o = pc_gi_glow_override_id(glow_id, 1)) {
             pc_glow_override keep = *o;

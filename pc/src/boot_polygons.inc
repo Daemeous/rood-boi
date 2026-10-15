@@ -327,8 +327,10 @@ static unsigned polygon_command(const uint32_t* p, unsigned available)
             fuv[i * 2] = vertex[i].u, fuv[i * 2 + 1] = vertex[i].v;
         }
         int clip[4] = { clip_x, clip_y, clip_w, clip_h };
+        pc_gpu_command = p;
         text_piece = pc_hw_text_quad(fxy, fuv, vertex[0].color, code, tpage, clut, texture_window, clip, mask_set,
             mask_check);
+        pc_gpu_command = NULL;
     }
     triangle(vertex[0], vertex[1], vertex[2], code, clut);
     if (count == 4)
