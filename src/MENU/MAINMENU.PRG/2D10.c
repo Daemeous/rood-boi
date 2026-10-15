@@ -1024,7 +1024,7 @@ void vs_mainMenu_unequipWeapon(void)
 
     vs_battle_equipWeapon(NULL);
 
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
         vs_main_inventory.weapons[i].isEquipped = 0;
     }
 }
@@ -1035,7 +1035,7 @@ void vs_mainMenu_unequipShield(void)
 
     vs_battle_equipShield(NULL);
 
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_SHIELDS; ++i) {
         vs_main_inventory.shields[i].isEquipped = 0;
     }
 }
@@ -1592,7 +1592,9 @@ u_char vs_mainMenu_miscItemToActionMap[] = { 0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5,
 
 char (*vs_mainMenu_itemNames)[24] = NULL;
 
-u_char vs_mainMenu_inventoryItemCapacities[] = { 8, 16, 16, 8, 16, 48, 64, 2 };
+u_char vs_mainMenu_inventoryItemCapacities[] = { VS_INVENTORY_WEAPONS, VS_INVENTORY_BLADES,
+    VS_INVENTORY_GRIPS, VS_INVENTORY_SHIELDS, VS_INVENTORY_ARMOR, VS_INVENTORY_GEMS,
+    VS_INVENTORY_MISC, 2 };
 
 u_char* vs_mainMenu_inventoryIndices[] = { vs_main_inventoryIndices.weapons,
     vs_main_inventoryIndices.blades, vs_main_inventoryIndices.grips,

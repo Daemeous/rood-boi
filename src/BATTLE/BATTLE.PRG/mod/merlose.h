@@ -67,7 +67,7 @@ void _saveCalloGear(vs_battle_actor* callo)
         return;
     }
     slot = stats->weapon.index;
-    if ((slot != 0) && (slot <= 8) && (loadout[loadoutWeapon] == slot)
+    if ((slot != 0) && (slot <= VS_INVENTORY_WEAPONS) && (loadout[loadoutWeapon] == slot)
         && (stats->weapon.blade.id == loadout[loadoutWeapon + 1])) {
         weapon = &vs_main_inventory.weapons[slot - 1];
         if ((weapon->blade != 0)
@@ -82,7 +82,7 @@ void _saveCalloGear(vs_battle_actor* callo)
         }
     }
     slot = stats->shield.index;
-    if ((slot != 0) && (slot <= 8) && (loadout[loadoutShield] == slot)
+    if ((slot != 0) && (slot <= VS_INVENTORY_SHIELDS) && (loadout[loadoutShield] == slot)
         && (vs_main_inventory.shields[slot - 1].base.id == stats->shield.base.id)) {
         _pullRepair(SAVED_SHIELD_DP, &stats->shield.base.currentDp, &stats->shield.currentDp,
             &vs_main_inventory.shields[slot - 1].base.currentDp);
@@ -94,7 +94,7 @@ void _saveCalloGear(vs_battle_actor* callo)
     }
     for (i = 0; i < 6; ++i) {
         slot = stats->limbs[i].armor.index;
-        if ((slot != 0) && (slot <= 16) && (loadout[loadoutArmor + i * 2] == slot)
+        if ((slot != 0) && (slot <= VS_INVENTORY_ARMOR) && (loadout[loadoutArmor + i * 2] == slot)
             && (vs_main_inventory.armor[slot - 1].id == stats->limbs[i].armor.armor.id)) {
             _pullRepair(SAVED_ARMOR_DP + i, &stats->limbs[i].armor.armor.currentDp,
                 &stats->limbs[i].armor.currentDp, &vs_main_inventory.armor[slot - 1].currentDp);
@@ -103,7 +103,7 @@ void _saveCalloGear(vs_battle_actor* callo)
         }
     }
     slot = stats->accessory.index;
-    if ((slot != 0) && (slot <= 16) && (loadout[loadoutAccessory] == slot)
+    if ((slot != 0) && (slot <= VS_INVENTORY_ARMOR) && (loadout[loadoutAccessory] == slot)
         && (vs_main_inventory.armor[slot - 1].id == stats->accessory.accessory.id)) {
         vs_battle_copyUiAccessoryStats(&vs_main_inventory.armor[slot - 1], &stats->accessory);
     }

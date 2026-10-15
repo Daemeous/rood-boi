@@ -714,7 +714,13 @@ static void _initMenuHeader(int arg0)
     menuItem->targetPosition1 = 18;
 }
 
-static char _availableItems[64];
+/* A picker's item list: up to a category's count plus its "none"/current row */
+static char _availableItems[VS_INVENTORY_GEMS + 1 > 64 ? VS_INVENTORY_GEMS + 1 : 64];
+
+/* A picker's buffer: 100 bytes of text per row (the category's count plus one), then two
+ * string pointers per row */
+#define _PICKER_TEXT(count) (((count) + 1) * 100)
+#define _PICKER_SIZE(count) (_PICKER_TEXT(count) + ((count) + 1) * 2 * sizeof(char*))
 
 static int _assembleBladeMenu(int params)
 {
@@ -750,8 +756,8 @@ static int _assembleBladeMenu(int params)
     switch (state) {
     case 0:
         if (vs_mainmenu_ready() != 0) {
-            textBuf = vs_main_allocHeapR(0x6A4 + 0x22 * sizeof(char*));
-            menuText = textBuf + 0x6A4;
+            textBuf = vs_main_allocHeapR(_PICKER_SIZE(VS_INVENTORY_BLADES));
+            menuText = textBuf + _PICKER_TEXT(VS_INVENTORY_BLADES);
             if (blade == NULL) {
                 menuText[0] = (char*)&vs_mainMenu_menu12Text[VS_MENU12_BIN_OFFSET_blades];
                 menuText[1] =
@@ -764,7 +770,7 @@ static int _assembleBladeMenu(int params)
             bladeCount = 1;
             _availableItems[0] = bladeToAssemble;
 
-            for (i = 0; i < 16; ++i) {
+            for (i = 0; i < VS_INVENTORY_BLADES; ++i) {
                 itemId = vs_main_inventoryIndices.blades[i];
 
                 if ((itemId != 0) && (itemId != bladeToAssemble)) {
@@ -863,8 +869,8 @@ static int _assembleGripMenu(int params)
     switch (state) {
     case 0:
         if (vs_mainmenu_ready() != 0) {
-            textBuf = vs_main_allocHeapR(0x6A4 + 0x22 * sizeof(char*));
-            menuText = textBuf + 0x6A4;
+            textBuf = vs_main_allocHeapR(_PICKER_SIZE(VS_INVENTORY_GRIPS));
+            menuText = textBuf + _PICKER_TEXT(VS_INVENTORY_GRIPS);
             if (grip == NULL) {
                 menuText[0] = (char*)&vs_mainMenu_menu12Text[VS_MENU12_BIN_OFFSET_grips];
                 menuText[1] =
@@ -877,7 +883,7 @@ static int _assembleGripMenu(int params)
             gripCount = 1;
             _availableItems[0] = gripToAssemble;
 
-            for (i = 0; i < 16; ++i) {
+            for (i = 0; i < VS_INVENTORY_GRIPS; ++i) {
 
                 itemId = vs_main_inventoryIndices.grips[i];
 
@@ -974,8 +980,8 @@ static int _attachGem(int params)
     switch (state) {
     case 0:
         if (vs_mainmenu_ready() != 0) {
-            textBuf = vs_main_allocHeapR(0x1324 + 0x62 * sizeof(char*));
-            menuText = textBuf + 0x1324;
+            textBuf = vs_main_allocHeapR(_PICKER_SIZE(VS_INVENTORY_GEMS));
+            menuText = textBuf + _PICKER_TEXT(VS_INVENTORY_GEMS);
 
             if (gem == NULL) {
                 menuText[0] = (char*)&vs_mainMenu_menu12Text[VS_MENU12_BIN_OFFSET_gems];
@@ -989,7 +995,7 @@ static int _attachGem(int params)
             gemCount = 1;
             _availableItems[0] = gemToAttach;
 
-            for (i = 0; i < 48; ++i) {
+            for (i = 0; i < VS_INVENTORY_GEMS; ++i) {
 
                 itemId = vs_main_inventoryIndices.gems[i];
 
@@ -1554,9 +1560,9 @@ static int _attachGemsMenu(int arg0)
     static char targetGems[4];
     static u_char* attachedGems;
 
-    char textBuf[0x300];
-    char* menuText[16];
-    int rowTypes[8];
+    char textBuf[VS_INVENTORY_WEAPONS * 96]; /* as many shields as weapons */
+    char* menuText[VS_INVENTORY_WEAPONS * 2];
+    int rowTypes[VS_INVENTORY_WEAPONS];
     int var_s2;
     int j;
     int i;
@@ -1587,7 +1593,7 @@ static int _attachGemsMenu(int arg0)
 
         i = 0;
 
-        for (j = 0; j < 8; ++j) {
+        for (j = 0; j < VS_INVENTORY_WEAPONS; ++j) {
             char* new_var = textBuf;
             itemInfo = 0;
 
@@ -1967,8 +1973,8 @@ static int _disassembleMenu(int arg0)
     static char D_8010BC3D;
     static char isShield;
 
-    char* menuText[16];
-    int rowTypes[8];
+    char* menuText[VS_INVENTORY_WEAPONS * 2];
+    int rowTypes[VS_INVENTORY_WEAPONS];
     int confirmation;
     int count;
     int i;
@@ -1996,7 +2002,7 @@ static int _disassembleMenu(int arg0)
     case 1:
         if (vs_mainmenu_ready() != 0) {
             count = 0;
-            for (i = 0; i < 8; i++) {
+            for (i = 0; i < VS_INVENTORY_WEAPONS; i++) {
                 if (isShield != 0) {
                     selectedItem = vs_main_inventoryIndices.shields[i];
                     if (selectedItem != 0) {
@@ -2230,8 +2236,8 @@ static int _renameWeaponMenu(int arg0)
     static char D_8010BC49;
     static char _[2] __attribute__((unused));
 
-    char* menuText[16];
-    int rowTypes[8];
+    char* menuText[VS_INVENTORY_WEAPONS * 2];
+    int rowTypes[VS_INVENTORY_WEAPONS];
     int i;
     int itemId;
     vs_battle_menuItem_t* menuItem;
@@ -2255,7 +2261,7 @@ static int _renameWeaponMenu(int arg0)
     case 1:
         if (vs_mainmenu_ready() != 0) {
             int count = 0;
-            for (i = 0; i < 8; ++i) {
+            for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
                 itemId = vs_main_inventoryIndices.weapons[i];
                 if (itemId != 0) {
                     vs_mainMenu_setWeaponRowFromInventory(
@@ -2401,7 +2407,7 @@ static int _repairMenu(int arg0)
         vs_mainmenu_setInformationMessage(
             (char*)&vs_mainMenu_menu12Text[VS_MENU12_BIN_OFFSET_repairComplete]);
 
-        for (i = 0; i < 16; ++i) {
+        for (i = 0; i < VS_INVENTORY_BLADES; ++i) {
             new_var = vs_main_inventoryIndices.blades[i];
             if (new_var != 0) {
                 vs_main_inventoryBlade* blade = &vs_main_inventory.blades[new_var - 1];
@@ -2418,7 +2424,7 @@ static int _repairMenu(int arg0)
             }
         }
 
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
             new_var = vs_main_inventoryIndices.weapons[i];
             if (new_var != 0) {
                 vs_main_inventoryWeapon* weapon = &vs_main_inventory.weapons[new_var - 1];
@@ -2428,7 +2434,7 @@ static int _repairMenu(int arg0)
             }
         }
 
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < VS_INVENTORY_SHIELDS; ++i) {
             new_var = vs_main_inventoryIndices.shields[i];
             if (new_var != 0) {
                 vs_main_inventoryShield* shield = &vs_main_inventory.shields[new_var - 1];
@@ -2449,7 +2455,7 @@ static int _repairMenu(int arg0)
             }
         }
 
-        for (i = 0; i < 16; ++i) {
+        for (i = 0; i < VS_INVENTORY_ARMOR; ++i) {
             new_var = vs_main_inventoryIndices.armor[i];
             if (new_var != 0) {
                 vs_main_inventoryArmor* armor = &vs_main_inventory.armor[new_var - 1];
@@ -2650,8 +2656,8 @@ static int _selectBlade(int arg0)
             break;
         }
 
-        textBuf = vs_main_allocHeapR(0x6A4 + 0x22 * sizeof(char*));
-        menuText = (char**)(textBuf + 0x6A4);
+        textBuf = vs_main_allocHeapR(_PICKER_SIZE(VS_INVENTORY_BLADES));
+        menuText = (char**)(textBuf + _PICKER_TEXT(VS_INVENTORY_BLADES));
 
         if (blade == NULL) {
             menuText[0] = (char*)&vs_mainMenu_menu12Text[VS_MENU12_BIN_OFFSET_blade];
@@ -2665,7 +2671,7 @@ static int _selectBlade(int arg0)
         _availableItems[0] = itemId;
         count = 1;
 
-        for (i = 0; i < 16; ++i) {
+        for (i = 0; i < VS_INVENTORY_BLADES; ++i) {
 
             itemId = vs_main_inventoryIndices.blades[i];
 
@@ -3245,9 +3251,9 @@ static int _selectShields(int arg0)
     case 0:
         if (vs_mainmenu_ready() != 0) {
 
-            stringBuf = vs_main_allocHeapR(0x384 + 0x12 * sizeof(char*));
+            stringBuf = vs_main_allocHeapR(_PICKER_SIZE(VS_INVENTORY_SHIELDS));
 
-            menuText = stringBuf + 0x384;
+            menuText = stringBuf + _PICKER_TEXT(VS_INVENTORY_SHIELDS);
 
             if (shield == NULL) {
                 menuText[0] = (char*)&vs_mainMenu_menu12Text[VS_MENU12_BIN_OFFSET_shield];
@@ -3261,7 +3267,7 @@ static int _selectShields(int arg0)
             _availableItems[0] = itemId;
             rowType = 1;
 
-            for (i = 0; i < 8; ++i) {
+            for (i = 0; i < VS_INVENTORY_SHIELDS; ++i) {
 
                 itemId = vs_main_inventoryIndices.shields[i];
 
@@ -3819,8 +3825,8 @@ static int _initUiArmor(int arg0)
     case 0:
         if (vs_mainmenu_ready() != 0) {
             s0_2 = itemId;
-            temp_v0 = vs_main_allocHeapR(0x6A4 + 0x22 * sizeof(char*));
-            sp10 = (char**)(temp_v0 + 0x6A4);
+            temp_v0 = vs_main_allocHeapR(_PICKER_SIZE(VS_INVENTORY_ARMOR));
+            sp10 = (char**)(temp_v0 + _PICKER_TEXT(VS_INVENTORY_ARMOR));
             if (var_s2 == NULL) {
                 sp10[0] = (char*)&vs_mainMenu_menu12Text[VS_MENU12_BIN_OFFSET_armor];
                 sp10[1] =
@@ -3834,7 +3840,7 @@ static int _initUiArmor(int arg0)
             *_availableItems = s0_2;
             var_s4 = 1;
 
-            for (i = 0; i < 16; ++i) {
+            for (i = 0; i < VS_INVENTORY_ARMOR; ++i) {
                 itemId = vs_main_inventoryIndices.armor[i];
                 if ((itemId != 0) && (itemId != _combiningArmorIds[0])
                     && (itemId != _combiningArmorIds[1])) {
@@ -4192,7 +4198,7 @@ static int _countArmor(int arg0)
     int count = 0;
 
     if (arg0 == 2) {
-        for (i = 0; i < 16; ++i, ++armor) {
+        for (i = 0; i < VS_INVENTORY_ARMOR; ++i, ++armor) {
             int var_v1 = 0;
             if (armor->id != 0) {
                 var_v1 = armor->category != 7;
@@ -4331,7 +4337,7 @@ int vs_menuC_exec(u_char* state)
             }
 
             i = vs_mainMenu_getItemCount(0, 0);
-            if (i == 8) {
+            if (i == VS_INVENTORY_WEAPONS) {
                 menuText[1] =
                     (char*)&vs_mainMenu_menu12Text[VS_MENU12_BIN_OFFSET_weaponsFull];
                 vs_battle_rowTypeBuf[0] = 1;

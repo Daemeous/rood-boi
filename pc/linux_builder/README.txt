@@ -97,6 +97,12 @@ The builder starts by asking which of these you want:
 * Choose the bonus wheel reward: (Merlose builds) after a boss the bonus
   wheel does NOT spin: you pick the reward yourself with Down/Up and
   Circle. If you're not sure, answer N.
+* Bigger inventory: (Merlose builds, EXPERIMENTAL, may be unstable) twice
+  as many weapons, shields, blades, grips, armour and gems in your bag.
+  When you save, the extra items are kept in the last quarter of the
+  Container, so the Container holds a quarter less while it's on. Your
+  saves stay compatible: build again without it and the extra items are
+  in your Container. The new-style PC menus aren't available with it yet.
 Your answers are remembered (in "rood-boi options.ini"): the next build
 shows them and asks whether to keep them. Answer N there to change them.
 

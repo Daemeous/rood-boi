@@ -2734,7 +2734,7 @@ int func_800C930C(int mode)
             selected = (selected + 1) % 10;
         }
         vs_battle_submenuStates[0] = selected;
-        vs_battle_rMemzero(vs_battle_menuItems, 0xB24);
+        vs_battle_rMemzero(vs_battle_menuItems, 0xA60 + (VS_INVENTORY_GEMS + 1) * sizeof(int));
 #ifdef ROOD_PC
         if (pc_ui_menu_open(mode)) {
             D_800F4CC0 = 0;
@@ -3597,7 +3597,8 @@ int func_800CACD0(int menuState, int arg1)
 
             func_8007E180(6);
 
-            miscIndex = vs_main_allocHeapR(0xB24);
+            /* menu items, strings, then a row type per row of the longest item list (gems + 1) */
+            miscIndex = vs_main_allocHeapR(0xA60 + (VS_INVENTORY_GEMS + 1) * sizeof(int));
             var_a1 = vs_main_settings.menuFlags;
             vs_battle_stringBuf = miscIndex + 0xA00;
             vs_battle_menuItems = miscIndex;
