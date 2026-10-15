@@ -18,6 +18,8 @@
 #include "render.h"
 #include "scene_capture.h"
 #include "glow_overrides.h"
+#include "dev_state.h"
+#include "materials.h"
 
 extern "C" {
 float pc_emissive = 1.0f;
@@ -324,6 +326,36 @@ bool entry_from_json(const Json& j, Entry& e, std::string* error)
             e.mask.has_color = true;
             e.mask.lmin = luma[0], e.mask.lmax = luma[1];
         }
+        if (const Json* m = mask->get("map"); m && m->type == Json::String)
+            e.mask.map = m->string;
+    }
+    if (const Json* scope = j.get("scope"); scope && scope->type == Json::Object) {
+        if (const Json* rs = scope->get("rooms"); rs && rs->type == Json::Array)
+            for (const Json& r : rs->items) {
+                float v[2];
+                if (numbers(&r, v, 2))
+                    e.scope.rooms.push_back({ (int)v[0], (int)v[1] });
+            }
+        if (const Json* ss = scope->get("surfaces"); ss && ss->type == Json::Array)
+            for (const Json& s : ss->items) {
+                float room[2];
+                const Json* ps = s.type == Json::Object ? s.get("polygons") : nullptr;
+                if (!numbers(s.type == Json::Object ? s.get("room") : nullptr, room, 2) || !ps || ps->type != Json::Array)
+                    continue;
+                for (const Json& p : ps->items)
+                    if (p.type == Json::Number && p.number >= 0) {
+                        Surface f;
+                        f.zone = (int)room[0], f.room = (int)room[1], f.polygon = (uint32_t)p.number;
+                        if (std::find(e.scope.surfaces.begin(), e.scope.surfaces.end(), f) == e.scope.surfaces.end())
+                            e.scope.surfaces.push_back(f);
+                    }
+            }
+        if (const Json* ms = scope->get("models"); ms && ms->type == Json::Array)
+            for (const Json& m : ms->items) {
+                uint32_t model;
+                if (m.type == Json::String && parse_model_key(m.string, &model))
+                    e.scope.models.push_back(model);
+            }
     }
     if (e.id.empty()) {
         if (error)
@@ -390,7 +422,44 @@ Json entry_to_json(const Entry& e)
         mask.set("color_max", array_of({ (double)e.mask.cmax[0], (double)e.mask.cmax[1], (double)e.mask.cmax[2] }));
         mask.set("luma", array_of({ tidy(e.mask.lmin), tidy(e.mask.lmax) }));
     }
+    if (!e.mask.map.empty())
+        mask.set("map", Json::str(e.mask.map));
     j.set("mask", mask);
+    if (!e.scope.empty()) {
+        Json scope = Json::object();
+        if (!e.scope.rooms.empty()) {
+            Json rs = Json::array();
+            for (const auto& r : e.scope.rooms)
+                rs.items.push_back(array_of({ (double)r[0], (double)r[1] }));
+            scope.set("rooms", rs);
+        }
+        if (!e.scope.surfaces.empty()) {
+            /* grouped by room, polygons in order */
+            std::vector<Surface> sorted = e.scope.surfaces;
+            std::sort(sorted.begin(), sorted.end(), [](const Surface& a, const Surface& b) {
+                return std::make_tuple(a.zone, a.room, a.polygon) < std::make_tuple(b.zone, b.room, b.polygon);
+            });
+            Json ss = Json::array();
+            for (size_t i = 0; i < sorted.size();) {
+                Json s = Json::object(), ps = Json::array();
+                s.set("room", array_of({ (double)sorted[i].zone, (double)sorted[i].room }));
+                size_t k = i;
+                for (; k < sorted.size() && sorted[k].zone == sorted[i].zone && sorted[k].room == sorted[i].room; k++)
+                    ps.items.push_back(Json::num(sorted[k].polygon));
+                s.set("polygons", ps);
+                ss.items.push_back(s);
+                i = k;
+            }
+            scope.set("surfaces", ss);
+        }
+        if (!e.scope.models.empty()) {
+            Json ms = Json::array();
+            for (uint32_t m : e.scope.models)
+                ms.items.push_back(Json::str(model_key(m)));
+            scope.set("models", ms);
+        }
+        j.set("scope", scope);
+    }
     j.set("color", array_of({ tidy(e.color[0]), tidy(e.color[1]), tidy(e.color[2]) }));
     j.set("strength", Json::num(tidy(e.strength)));
     j.set("light", Json::num(tidy(e.light)));
@@ -451,6 +520,7 @@ static void merge()
 void reload()
 {
     std::string error;
+    materials::forget(); /* painted maps read again too */
     if (!load_file(catalog_path(), curated, error))
         fprintf(stderr, "[emissive] %s\n", error.c_str());
     std::string uerror;
@@ -472,6 +542,7 @@ static void ensure_loaded()
     /* Files edited by hand reload live (unsaved editor changes win). */
     if (++frames_since_check >= 60) {
         frames_since_check = 0;
+        materials::poll();
         if (!user_dirty() && (stamp(catalog_path()) != curated_stamp || stamp(user_path()) != user_stamp))
             reload();
     }
@@ -615,6 +686,26 @@ int dirty_row0 = 0, dirty_row1 = PC_EMISSIVE_MAP_H; /* the first upload clears t
 uint32_t map_generation = 1;
 int marked_uses, marked_cells;
 
+/* Native meshes the scopes know (room_native.c, actor_native.c): a mesh of
+ * the current room's geometry (its block's byte offset and triangle count:
+ * polygon i's offset follows), or a model's (its hash). `applied`: the
+ * scope bits per polygon render.c has (empty: none). */
+struct MeshInfo {
+    int kind = SURFACE_OTHER;
+    unsigned offset = 0, tris = 0, total = 0;
+    uint32_t model = 0;
+    std::vector<uint16_t> applied;
+};
+std::unordered_map<uint32_t, MeshInfo> mesh_info;
+std::unordered_set<uint32_t> scope_pending; /* meshes noted since the bits were last written */
+uint16_t slot_scope_bit[MAX_SLOTS]; /* per slot: its scope bit + 1 (0: everywhere it is marked) */
+int scope_zone = -1, scope_room = -1; /* the room the marks were written for */
+int scope_overflow; /* scoped entries left unmarked (more than 16 at once) */
+uint32_t light_dirty_tiles; /* VRAM tiles changed since the lights' emission was last integrated */
+uint32_t applied_materials; /* materials::generation() the marks were written with */
+std::vector<MapProblem> problems;
+uint32_t light_pages, marked_pages; /* bit per texture page (tpage & 31): a light entry's / any marked use */
+
 uint64_t use_key(unsigned page, unsigned clut, const uint8_t box[4])
 {
     return (uint64_t)page << 48 | (uint64_t)clut << 32 | (uint64_t)box[0] << 24 | (uint64_t)box[1] << 16
@@ -631,6 +722,74 @@ uint32_t tiles_of(unsigned page, const uint8_t box[4])
     return mask;
 }
 } // namespace
+
+/* ---------------------------------------------------------------- scopes */
+
+bool current_room(int* zone, int* room)
+{
+    struct pc_dev_state s;
+    memset(&s, 0, sizeof s);
+    if (pc_dev_state)
+        pc_dev_state(&s);
+    *zone = s.valid ? s.zone : -1, *room = s.valid ? s.room : -1;
+    return s.valid != 0;
+}
+bool in_room(const Scope& s, int zone, int room)
+{
+    if (s.rooms.empty())
+        return true;
+    for (const auto& r : s.rooms)
+        if (r[0] == zone && r[1] == room)
+            return true;
+    return false;
+}
+bool scope_allows(const Entry& e, int zone, int room, int kind, uint32_t polygon, uint32_t model)
+{
+    if (!in_room(e.scope, zone, room))
+        return false;
+    if (!e.scope.per_surface())
+        return true;
+    if (kind == SURFACE_ROOM)
+        for (const Surface& s : e.scope.surfaces)
+            if (s.polygon == polygon && s.zone == zone && s.room == room)
+                return true;
+    if (kind == SURFACE_MODEL)
+        for (uint32_t m : e.scope.models)
+            if (m == model)
+                return true;
+    return false;
+}
+int mesh_surface(uint32_t mesh, int index, uint32_t* polygon, uint32_t* model)
+{
+    *polygon = 0, *model = 0;
+    auto it = mesh_info.find(mesh);
+    if (it == mesh_info.end())
+        return SURFACE_OTHER;
+    const MeshInfo& m = it->second;
+    if (m.kind == SURFACE_MODEL) {
+        *model = m.model;
+        return SURFACE_MODEL;
+    }
+    if (m.kind == SURFACE_ROOM && index >= 0 && (unsigned)index < m.total) {
+        unsigned i = (unsigned)index;
+        *polygon = m.offset + 8 + (i < m.tris ? i * 32 : m.tris * 32 + (i - m.tris) * 40);
+        return SURFACE_ROOM;
+    }
+    return SURFACE_OTHER;
+}
+std::string model_key(uint32_t model)
+{
+    char text[16];
+    snprintf(text, sizeof text, "%08x", model);
+    return text;
+}
+bool parse_model_key(const std::string& s, uint32_t* model)
+{
+    if (s.size() != 8 || s.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos)
+        return false;
+    *model = (uint32_t)strtoul(s.c_str(), nullptr, 16);
+    return true;
+}
 
 const std::vector<UseInfo> use_list(bool compute_keys)
 {
@@ -654,6 +813,7 @@ const std::vector<UseInfo> use_list(bool compute_keys)
 }
 int marked_use_count() { return marked_uses; }
 int marked_cell_count() { return marked_cells; }
+int scope_overflow_count() { return scope_overflow; }
 
 /* Is texture-space texel (x, y) inside the entry's shapes (no shapes: the
  * whole texture)? */
@@ -711,21 +871,61 @@ static void write_params(float strength)
         s[10] = (uint8_t)std::clamp((int)lroundf((e.mask.has_color ? e.mask.lmin : 0.0f) * 255.0f), 0, 255);
         s[11] = (uint8_t)std::clamp((int)lroundf((e.mask.has_color ? e.mask.lmax : 1.0f) * 255.0f), 0, 255);
         s[12] = (uint8_t)((e.mask.has_indices ? 1 : 0) | (e.mask.has_color ? 2 : 0) | (e.light > 0 ? 4 : 0));
+        s[13] = (uint8_t)slot_scope_bit[i + 1]; /* 0: everywhere marked; else bit + 1 (emissive.glsl) */
         memcpy(s + 16, e.mask.indices, 32);
+    }
+}
+/* Which entries are marked in this room, and the scope bits of those limited
+ * to some surfaces or models (16 at once; more are left unmarked). */
+static void assign_scopes(std::vector<char>& active)
+{
+    const Catalog& c = catalog();
+    active.assign(c.entries.size(), 0);
+    memset(slot_scope_bit, 0, sizeof slot_scope_bit);
+    scope_overflow = 0;
+    std::vector<char> used(c.entries.size(), 0);
+    for (auto& kv : uses)
+        if (kv.second.entry >= 0 && kv.second.entry < (int)c.entries.size())
+            used[(size_t)kv.second.entry] = 1;
+    int bits = 0;
+    for (size_t i = 0; i < c.entries.size(); i++) {
+        const Entry& e = c.entries[i];
+        if (!used[i] || !in_room(e.scope, scope_zone, scope_room))
+            continue;
+        if (e.scope.per_surface()) {
+            bool here = !e.scope.models.empty();
+            for (const Surface& s : e.scope.surfaces)
+                here |= s.zone == scope_zone && s.room == scope_room;
+            if (!here)
+                continue; /* only surfaces of other rooms */
+            if (bits == 16) {
+                ++scope_overflow;
+                continue;
+            }
+            slot_scope_bit[i + 1] = (uint16_t)(++bits);
+        }
+        active[i] = 1;
     }
 }
 static void write_marks()
 {
     memset(the_map.data(), 0, (size_t)512 * PC_EMISSIVE_MAP_W);
+    memset(&the_map[(size_t)PC_EMISSIVE_AMOUNT_ROW * PC_EMISSIVE_MAP_W], 0, (size_t)512 * PC_EMISSIVE_MAP_W);
+    problems.clear();
+    applied_materials = materials::generation();
     const Catalog& c = catalog();
     marked_uses = marked_cells = 0;
     any_marks = false;
+    light_pages = marked_pages = 0;
+    current_room(&scope_zone, &scope_room);
+    std::vector<char> active;
+    assign_scopes(active);
     if (!marks_on)
         return; /* the setting is 0: nothing glows (matches are kept) */
     /* Entry order: a later entry wins where two cover the same texel. */
     std::vector<const Use*> order;
     for (auto& kv : uses)
-        if (kv.second.entry >= 0)
+        if (kv.second.entry >= 0 && kv.second.entry < (int)active.size() && active[(size_t)kv.second.entry])
             order.push_back(&kv.second);
     std::sort(order.begin(), order.end(), [](const Use* a, const Use* b) {
         return a->entry != b->entry ? a->entry < b->entry
@@ -738,14 +938,38 @@ static void write_marks()
         int tx = (int)(u->page & 15) * 64, ty = (int)((u->page >> 4) & 1) * 256;
         int depth = std::min((int)((u->page >> 7) & 3), 2);
         uint8_t slot = (uint8_t)(u->entry + 1);
+        /* A painted map: the texture's channel, texel for texel over its box. */
+        const materials::Channel* painted = nullptr;
+        int w = u->box[2] - u->box[0] + 1, h = u->box[3] - u->box[1] + 1;
+        if (!e.mask.map.empty()) {
+            painted = materials::channel(u->key, e.mask.map);
+            if (!painted || painted->w != w || painted->h != h) {
+                char text[96];
+                if (painted)
+                    snprintf(text, sizeof text, "its %s map is %d x %d, the texture %d x %d", e.mask.map.c_str(),
+                        painted->w, painted->h, w, h);
+                else
+                    snprintf(text, sizeof text, "no %s map", e.mask.map.c_str());
+                problems.push_back({ e.id, u->key, text });
+                continue; /* nothing glows without its map */
+            }
+        }
         ++marked_uses;
+        marked_pages |= 1u << (u->page & 31);
+        if (e.light > 0)
+            light_pages |= 1u << (u->page & 31);
         for (int v = u->box[1]; v <= u->box[3]; v++)
             for (int x = u->box[0]; x <= u->box[2]; x++) {
                 if (!mask_covers(e.mask, x - u->box[0] + m.ox, v - u->box[1] + m.oy))
                     continue;
-                uint8_t& cell = the_map[(size_t)(ty + v) * PC_EMISSIVE_MAP_W + ((tx * 4 + (x << depth)) & 4095)];
+                uint8_t amount = painted ? painted->values[(size_t)(v - u->box[1]) * w + (x - u->box[0])] : 255;
+                if (!amount)
+                    continue;
+                size_t at = (size_t)(ty + v) * PC_EMISSIVE_MAP_W + ((tx * 4 + (x << depth)) & 4095);
+                uint8_t& cell = the_map[at];
                 marked_cells += cell == 0;
                 cell = slot;
+                the_map[(size_t)PC_EMISSIVE_AMOUNT_ROW * PC_EMISSIVE_MAP_W + at] = amount;
             }
     }
     any_marks = marked_uses > 0;
@@ -801,6 +1025,7 @@ extern "C" void pc_emissive_note_instance(uint32_t mesh, const void* polygons, i
         return;
     std::vector<uint64_t>& list = instance_uses[ik];
     mesh_instances[mesh].push_back(ik);
+    scope_pending.insert(mesh);
     const render_polygon* p = (const render_polygon*)polygons;
     std::unordered_set<uint64_t> seen;
     for (int i = 0; i < count; i++) {
@@ -832,6 +1057,8 @@ extern "C" void pc_emissive_note_instance(uint32_t mesh, const void* polygons, i
 }
 extern "C" void pc_emissive_mesh_gone(uint32_t mesh)
 {
+    mesh_info.erase(mesh);
+    scope_pending.erase(mesh);
     auto mi = mesh_instances.find(mesh);
     if (mi == mesh_instances.end())
         return;
@@ -851,7 +1078,86 @@ extern "C" void pc_emissive_mesh_gone(uint32_t mesh)
     }
     mesh_instances.erase(mi);
 }
-extern "C" void pc_emissive_vram_dirty(uint32_t tiles) { dirty_tiles |= tiles; }
+extern "C" void pc_emissive_vram_dirty(uint32_t tiles) { dirty_tiles |= tiles, light_dirty_tiles |= tiles; }
+extern "C" void pc_emissive_room_mesh(uint32_t mesh, unsigned offset, unsigned tris, unsigned quads)
+{
+    if (!mesh)
+        return;
+    MeshInfo& m = mesh_info[mesh];
+    m.kind = SURFACE_ROOM;
+    m.offset = offset, m.tris = tris, m.total = tris + quads;
+    m.applied.clear();
+    scope_pending.insert(mesh);
+}
+extern "C" void pc_emissive_model_mesh(uint32_t mesh, uint32_t model)
+{
+    if (!mesh)
+        return;
+    MeshInfo& m = mesh_info[mesh];
+    m.kind = SURFACE_MODEL;
+    m.model = model;
+    m.applied.clear();
+    scope_pending.insert(mesh);
+}
+
+/* The scope bits of a mesh's polygons (empty: none set). */
+static void scope_bits(uint32_t mesh, const MeshInfo& info, std::vector<uint16_t>& out)
+{
+    out.clear();
+    const Catalog& c = catalog();
+    int n = render_mesh_polygons(mesh);
+    if (n <= 0)
+        return;
+    for (size_t i = 0; i < c.entries.size(); i++) {
+        if (!slot_scope_bit[i + 1])
+            continue;
+        uint16_t bit = (uint16_t)(1u << (slot_scope_bit[i + 1] - 1));
+        const Entry& e = c.entries[i];
+        if (info.kind == SURFACE_MODEL
+            && std::find(e.scope.models.begin(), e.scope.models.end(), info.model) != e.scope.models.end()) {
+            out.resize((size_t)n, 0);
+            for (uint16_t& b : out)
+                b |= bit;
+        }
+        if (info.kind != SURFACE_ROOM)
+            continue;
+        for (const Surface& f : e.scope.surfaces) {
+            if (f.zone != scope_zone || f.room != scope_room || f.polygon < info.offset + 8)
+                continue;
+            unsigned at = f.polygon - (info.offset + 8), index, quads = info.total - info.tris;
+            if (at < info.tris * 32 && !(at % 32))
+                index = at / 32;
+            else if (at >= info.tris * 32 && !((at - info.tris * 32) % 40) && (at - info.tris * 32) / 40 < quads)
+                index = info.tris + (at - info.tris * 32) / 40;
+            else
+                continue;
+            if ((int)index >= n)
+                continue;
+            out.resize((size_t)n, 0);
+            out[index] |= bit;
+        }
+    }
+}
+/* Writes the scope bits of every known mesh (all) or of those noted since. */
+static void apply_scopes(bool all)
+{
+    std::vector<uint16_t> bits;
+    auto apply = [&](uint32_t mesh) {
+        auto found = mesh_info.find(mesh);
+        if (found == mesh_info.end())
+            return;
+        scope_bits(mesh, found->second, bits);
+        if (bits != found->second.applied && render_mesh_emissive_scope(mesh, bits.empty() ? nullptr : bits.data()))
+            found->second.applied = bits;
+    };
+    if (all)
+        for (auto& kv : mesh_info)
+            apply(kv.first);
+    else
+        for (uint32_t mesh : scope_pending)
+            apply(mesh);
+    scope_pending.clear();
+}
 
 extern "C" int pc_emissive_sync(int* row0, int* row1)
 {
@@ -875,6 +1181,14 @@ extern "C" int pc_emissive_sync(int* row0, int* row1)
         params_changed = true;
     if ((strength > 0) != marks_on)
         marks_changed = true;
+    {
+        int zone, room;
+        current_room(&zone, &room);
+        if (zone != scope_zone || room != scope_room)
+            marks_changed = true; /* scoped entries follow the room */
+    }
+    if (materials::generation() != applied_materials)
+        marks_changed = true; /* a painted map changed on disk */
     /* A use that did not match yet is tried again when textures are
      * (re)loaded under it, and every frame when it has a catalogued size
      * (VRAM animations change its content: the floating blocks' circle). */
@@ -899,12 +1213,15 @@ extern "C" int pc_emissive_sync(int* row0, int* row1)
     if (marks_changed) {
         marks_on = strength > 0;
         write_marks();
-        dirty_row0 = std::min(dirty_row0, 0), dirty_row1 = std::max(dirty_row1, 512);
+        dirty_row0 = std::min(dirty_row0, 0), dirty_row1 = std::max(dirty_row1, PC_EMISSIVE_MAP_H);
         ++map_generation;
-    }
+        params_changed = true; /* the slots' scope bits */
+        apply_scopes(true);
+    } else if (!scope_pending.empty())
+        apply_scopes(false);
     if (params_changed || strength != applied_strength) {
         write_params(strength);
-        dirty_row0 = std::min(dirty_row0, 512), dirty_row1 = std::max(dirty_row1, PC_EMISSIVE_MAP_H);
+        dirty_row0 = std::min(dirty_row0, 512), dirty_row1 = std::max(dirty_row1, PC_EMISSIVE_AMOUNT_ROW);
         if (applied_strength != strength)
             ++map_generation;
         applied_strength = strength;
@@ -920,6 +1237,13 @@ extern "C" int pc_emissive_pending(void)
     float strength = std::clamp(pc_emissive, 0.0f, 4.0f);
     if (strength != applied_strength)
         return 1;
+    static int calls;
+    if (loaded && ++calls >= 30) {
+        calls = 0;
+        materials::poll(); /* maps painted outside (a paused game's redraws show them) */
+    }
+    if (loaded && materials::generation() != applied_materials)
+        return 1;
     return loaded && (applied_generation != catalog_generation || (strength > 0) != marks_on);
 }
 extern "C" int pc_emissive_active(void) { return any_marks && pc_emissive > 0; }
@@ -932,6 +1256,141 @@ int slot_at(unsigned u, unsigned v, unsigned tpage)
     int depth = std::min((int)((tpage >> 7) & 3), 2);
     return the_map[(size_t)(ty + (int)(v & 255)) * PC_EMISSIVE_MAP_W + ((tx * 4 + (int)((u & 255) << depth)) & 4095)];
 }
+int amount_at(unsigned u, unsigned v, unsigned tpage)
+{
+    int tx = (int)(tpage & 15) * 64, ty = (int)((tpage >> 4) & 1) * 256;
+    int depth = std::min((int)((tpage >> 7) & 3), 2);
+    return the_map[(size_t)(PC_EMISSIVE_AMOUNT_ROW + ty + (int)(v & 255)) * PC_EMISSIVE_MAP_W
+        + ((tx * 4 + (int)((u & 255) << depth)) & 4095)];
+}
+std::vector<MapProblem> map_problems() { return problems; }
+} // namespace emissive
+
+/* ---------------------------------------------------------------- lights */
+
+/* A light entry's glow is its triangles' emission, integrated over their
+ * texture area: every texel whose centre lies inside the triangle's UV
+ * triangle is looked at (its slot, the entry's scope, the per-texel
+ * filters), so a mask narrowed by its filters (or a few painted texels) to a
+ * small part of a large polygon still lights. The glow's colour is the
+ * glowing texels' mean emission times the light weight times their share of
+ * the triangle, counted as at least LIGHT_MIN_SHARE (a narrow slit of light
+ * is still a light; the weight scales it further). Sampling a fixed grid of
+ * 15 points per triangle, as this did before, found no glowing texel at all
+ * under a narrow filter: no light. */
+
+namespace emissive {
+namespace {
+/* Texels (u, v) of a UV triangle: those whose centres lie inside; a thin
+ * triangle (no texel centre inside) its 15-point barycentric grid. */
+template <typename F> void for_texels(const float uv[6], F&& visit)
+{
+    float u0 = uv[0], v0 = uv[1], u1 = uv[2], v1 = uv[3], u2 = uv[4], v2 = uv[5];
+    float area = (u1 - u0) * (v2 - v0) - (u2 - u0) * (v1 - v0);
+    int seen = 0;
+    if (fabsf(area) >= 0.5f) {
+        int x0 = std::max(0, (int)floorf(std::min({ u0, u1, u2 })));
+        int x1 = std::min(255, (int)ceilf(std::max({ u0, u1, u2 })));
+        int y0 = std::max(0, (int)floorf(std::min({ v0, v1, v2 })));
+        int y1 = std::min(255, (int)ceilf(std::max({ v0, v1, v2 })));
+        float inv = 1.0f / area;
+        for (int y = y0; y <= y1; y++)
+            for (int x = x0; x <= x1; x++) {
+                float px = (float)x + 0.5f, py = (float)y + 0.5f;
+                float b0 = ((u1 - px) * (v2 - py) - (u2 - px) * (v1 - py)) * inv;
+                float b1 = ((u2 - px) * (v0 - py) - (u0 - px) * (v2 - py)) * inv;
+                if (b0 >= -1e-4f && b1 >= -1e-4f && 1.0f - b0 - b1 >= -1e-4f) {
+                    visit(x, y);
+                    ++seen;
+                }
+            }
+    }
+    if (seen)
+        return;
+    static const unsigned char grid[15][2] = { { 0, 0 }, { 0, 1 }, { 0, 2 }, { 0, 3 }, { 0, 4 }, { 1, 0 }, { 1, 1 },
+        { 1, 2 }, { 1, 3 }, { 2, 0 }, { 2, 1 }, { 2, 2 }, { 3, 0 }, { 3, 1 }, { 4, 0 } };
+    for (const auto& g : grid) {
+        float w0 = g[0] / 4.0f, w1 = g[1] / 4.0f, w2 = 1.0f - w0 - w1;
+        visit((int)(w0 * u0 + w1 * u1 + w2 * u2) & 255, (int)(w0 * v0 + w1 * v1 + w2 * v2) & 255);
+    }
+}
+/* VRAM tiles a triangle's texels and CLUT lie in (pc_emissive_vram_dirty's). */
+uint32_t triangle_tiles(const float uv[6], unsigned tpage, unsigned clut)
+{
+    int box_i[4] = { 255, 255, 0, 0 };
+    for (int k = 0; k < 3; k++) {
+        int u = std::clamp((int)uv[k * 2], 0, 255), v = std::clamp((int)uv[k * 2 + 1], 0, 255);
+        box_i[0] = std::min(box_i[0], u), box_i[1] = std::min(box_i[1], v);
+        box_i[2] = std::max(box_i[2], std::min(255, u + 1)), box_i[3] = std::max(box_i[3], std::min(255, v + 1));
+    }
+    uint8_t box[4] = { (uint8_t)box_i[0], (uint8_t)box_i[1], (uint8_t)box_i[2], (uint8_t)box_i[3] };
+    uint32_t tiles = tiles_of(tpage & 0x19f, box);
+    int cx = (int)(clut & 63) * 16, cy = (int)((clut >> 6) & 511), width = ((tpage >> 7) & 3) == 1 ? 256 : 16;
+    for (int x = cx & ~63; x < cx + width && x < 1024; x += 64)
+        tiles |= 1u << (((cy >> 8) & 1) * 16 + (x >> 6));
+    return tiles;
+}
+} // namespace
+
+/* The emission of texel (u, v) under slot s (its entry's filters; the scope
+ * not tested): 1 when it glows. */
+int emission_at(unsigned u, unsigned v, unsigned tpage, unsigned clut, int s, float rgb[3])
+{
+    const Catalog& c = catalog();
+    if (s <= 0 || s > (int)c.entries.size())
+        return 0;
+    const Entry& e = c.entries[(size_t)s - 1];
+    unsigned index = 0;
+    uint16_t t = texel(u, v, tpage, clut, &index);
+    if (!t || !e.enabled || !filters_pass(e.mask, index, t, (tpage >> 7) & 3))
+        return 0;
+    /* As the shader: the strength byte (the setting folded in). */
+    const uint8_t* p = &the_map[(size_t)512 * PC_EMISSIVE_MAP_W + (size_t)s * 64];
+    float k = p[3] / 63.75f * amount_at(u, v, tpage) / 255.0f;
+    if (k <= 0)
+        return 0;
+    rgb[0] = (t & 31) / 31.0f * p[0] / 255.0f * k;
+    rgb[1] = ((t >> 5) & 31) / 31.0f * p[1] / 255.0f * k;
+    rgb[2] = ((t >> 10) & 31) / 31.0f * p[2] / 255.0f * k;
+    return 1;
+}
+/* A triangle's light texels (entries with light > 0 that `allowed`), with
+ * their emission when `emission`. */
+template <typename A>
+static TriangleLight integrate(const float uv[6], unsigned tpage, unsigned clut, bool emission, A&& allowed)
+{
+    TriangleLight out;
+    const Catalog& c = catalog();
+    if (!any_marks || !(light_pages & (1u << (tpage & 31))))
+        return out;
+    for_texels(uv, [&](int x, int y) {
+        ++out.texels;
+        int s = slot_at((unsigned)x, (unsigned)y, tpage);
+        if (!s || s > (int)c.entries.size())
+            return;
+        const Entry& e = c.entries[(size_t)s - 1];
+        if (e.light <= 0 || !e.enabled || !allowed(e))
+            return;
+        out.candidate = true;
+        float rgb[3];
+        if (emission && emission_at((unsigned)x, (unsigned)y, tpage, clut, s, rgb)) {
+            for (int k = 0; k < 3; k++)
+                out.sum[k] += rgb[k] * e.light;
+            out.amount += amount_at((unsigned)x, (unsigned)y, tpage) / 255.0f; /* a painted map's share */
+        }
+    });
+    return out;
+}
+void light_rgb(const TriangleLight& t, float rgb[3])
+{
+    if (t.amount <= 0 || t.texels <= 0) {
+        rgb[0] = rgb[1] = rgb[2] = 0;
+        return;
+    }
+    float share = std::min(std::max(t.amount / (float)t.texels, LIGHT_MIN_SHARE), 1.0f);
+    for (int k = 0; k < 3; k++)
+        rgb[k] = t.sum[k] / t.amount * share;
+}
 } // namespace emissive
 
 extern "C" int pc_emissive_texel(unsigned u, unsigned v, unsigned tpage, unsigned clut, float rgb[3], float* light)
@@ -939,110 +1398,154 @@ extern "C" int pc_emissive_texel(unsigned u, unsigned v, unsigned tpage, unsigne
     if (!any_marks)
         return 0;
     int s = slot_at(u, v, tpage);
-    if (!s || s > (int)catalog().entries.size())
+    float e[3];
+    if (!emission_at(u, v, tpage, clut, s, e))
         return 0;
-    const Entry& e = catalog().entries[s - 1];
-    unsigned index = 0;
-    uint16_t t = texel(u, v, tpage, clut, &index);
-    if (!t || !e.enabled || !filters_pass(e.mask, index, t, (tpage >> 7) & 3))
-        return 0;
-    /* As the shader: the strength byte (the setting folded in). */
-    const uint8_t* p = &the_map[(size_t)512 * PC_EMISSIVE_MAP_W + (size_t)s * 64];
-    float k = p[3] / 63.75f;
-    if (k <= 0)
-        return 0;
-    if (rgb) {
-        rgb[0] = (t & 31) / 31.0f * p[0] / 255.0f * k;
-        rgb[1] = ((t >> 5) & 31) / 31.0f * p[1] / 255.0f * k;
-        rgb[2] = ((t >> 10) & 31) / 31.0f * p[2] / 255.0f * k;
-    }
+    if (rgb)
+        memcpy(rgb, e, sizeof e);
     if (light)
-        *light = e.light;
+        *light = catalog().entries[(size_t)s - 1].light;
     return 1;
 }
 
-/* ---------------------------------------------------------------- room lights */
-
 namespace {
-int lights_scene = -1;
+/* Object triangles' emission by texture area and scope (characters, props,
+ * other room blocks: no stable index), cleared when the map or room changes,
+ * an area when VRAM under it does. */
+struct ObjectKey {
+    uint64_t a, b;
+    bool operator==(const ObjectKey& o) const { return a == o.a && b == o.b; }
+};
+struct ObjectKeyHash {
+    size_t operator()(const ObjectKey& k) const { return (size_t)(k.a * 0x9e3779b97f4a7c15ull ^ k.b); }
+};
+struct ObjectLight {
+    uint32_t tiles;
+    float rgb[3];
+    bool lit;
+};
+std::unordered_map<ObjectKey, ObjectLight, ObjectKeyHash> object_cache;
+uint32_t object_cache_map;
+int object_cache_zone = -1, object_cache_room = -1;
+
+/* ---- room triangles (the captured scene) */
+struct RoomLight {
+    int index; /* scene triangle */
+    uint32_t tiles;
+    bool fresh; /* rgb is current */
+    float rgb[3];
+    int texels; /* its texels, and the glowing share's amount */
+    float amount;
+};
+int lights_scene = -1, lights_uv = -1;
 uint32_t lights_map = 0, lights_serial = 1;
-std::vector<int> light_triangles; /* sorted scene triangle indices with light texels */
-std::vector<uint8_t> is_light_triangle;
-const unsigned char GRID[15][2] = { { 0, 0 }, { 0, 1 }, { 0, 2 }, { 0, 3 }, { 0, 4 }, { 1, 0 }, { 1, 1 }, { 1, 2 },
-    { 1, 3 }, { 2, 0 }, { 2, 1 }, { 2, 2 }, { 3, 0 }, { 3, 1 }, { 4, 0 } };
-void grid_uv(const scene_triangle* t, int j, unsigned* u, unsigned* v)
+std::vector<RoomLight> room_lights; /* sorted by index */
+std::vector<int> light_at; /* scene triangle -> room_lights entry, -1 */
+
+void scene_uv(const scene_triangle* t, float uv[6])
 {
-    float w0 = GRID[j][0] / 4.0f, w1 = GRID[j][1] / 4.0f, w2 = 1.0f - w0 - w1;
-    *u = (unsigned)(w0 * t->vertex[0].u + w1 * t->vertex[1].u + w2 * t->vertex[2].u);
-    *v = (unsigned)(w0 * t->vertex[0].v + w1 * t->vertex[1].v + w2 * t->vertex[2].v);
+    for (int j = 0; j < 3; j++)
+        uv[j * 2] = t->vertex[j].u, uv[j * 2 + 1] = t->vertex[j].v;
+}
+bool room_allows(const scene_triangle* t, const Entry& e)
+{
+    return scope_allows(e, scope_zone, scope_room, SURFACE_ROOM, t->polygon, 0);
 }
 void refresh_lights()
 {
-    int scene = pc_scene_serial();
+    int scene = pc_scene_serial(), uvs = pc_scene_uv_serial();
     uint32_t map = map_generation;
+    /* Emission again where the texels changed: VRAM under them (palette
+     * and VRAM animations) or their UVs (room texture effects). */
+    if (light_dirty_tiles) {
+        for (RoomLight& l : room_lights)
+            if (l.tiles & light_dirty_tiles)
+                l.fresh = false;
+        for (auto it = object_cache.begin(); it != object_cache.end();)
+            it = it->second.tiles & light_dirty_tiles ? object_cache.erase(it) : std::next(it);
+        light_dirty_tiles = 0;
+    }
+    if (uvs != lights_uv) {
+        lights_uv = uvs;
+        for (RoomLight& l : room_lights)
+            l.fresh = false;
+    }
     if (scene == lights_scene && map == lights_map)
         return;
     lights_scene = scene, lights_map = map;
     int count = 0;
     const scene_triangle* tris = pc_scene_triangle_data(&count);
-    std::vector<int> found;
-    is_light_triangle.assign((size_t)(count > 0 ? count : 0), 0);
-    const Catalog& c = catalog();
-    for (int i = 0; any_marks && i < count; i++) {
+    std::vector<RoomLight> found;
+    light_at.assign((size_t)(count > 0 ? count : 0), -1);
+    for (int i = 0; any_marks && light_pages && i < count; i++) {
         const scene_triangle* t = &tris[i];
         unsigned mode = (t->tpage >> 5) & 3;
         if ((t->code & 2) && (mode == 1 || mode == 3))
             continue; /* additive: a glow already */
-        for (int j = 0; j < 15; j++) {
-            unsigned u, v;
-            grid_uv(t, j, &u, &v);
-            int s = slot_at(u, v, t->tpage);
-            if (s && s <= (int)c.entries.size() && c.entries[s - 1].light > 0 && c.entries[s - 1].enabled) {
-                found.push_back(i);
-                is_light_triangle[(size_t)i] = 1;
-                break;
-            }
-        }
+        float uv[6];
+        scene_uv(t, uv);
+        if (!integrate(uv, t->tpage, t->clut, false, [&](const Entry& e) { return room_allows(t, e); }).candidate)
+            continue;
+        light_at[(size_t)i] = (int)found.size();
+        found.push_back({ i, triangle_tiles(uv, t->tpage, t->clut), false, { 0, 0, 0 }, 0, 0 });
     }
-    if (found != light_triangles) {
-        light_triangles.swap(found);
+    bool same = found.size() == room_lights.size();
+    for (size_t k = 0; same && k < found.size(); k++)
+        same = found[k].index == room_lights[k].index;
+    room_lights.swap(found);
+    if (!same)
         ++lights_serial;
-    }
 }
 } // namespace
 
 extern "C" uint32_t pc_emissive_light_serial(void)
 {
     refresh_lights();
-    return light_triangles.empty() ? 0 : lights_serial;
+    return room_lights.empty() ? 0 : lights_serial;
 }
 extern "C" int pc_emissive_room_light(int index, float rgb[3])
 {
     refresh_lights();
-    if (index < 0 || index >= (int)is_light_triangle.size() || !is_light_triangle[(size_t)index])
+    if (index < 0 || index >= (int)light_at.size() || light_at[(size_t)index] < 0)
         return 0;
     if (!rgb)
         return 1;
-    int count = 0;
-    const scene_triangle* t = &pc_scene_triangle_data(&count)[index];
-    float sum[3] = { 0, 0, 0 };
-    for (int j = 0; j < 15; j++) {
-        unsigned u, v;
-        grid_uv(t, j, &u, &v);
-        float e[3], light = 0;
-        if (pc_emissive_texel(u, v, t->tpage, t->clut, e, &light) && light > 0)
-            for (int k = 0; k < 3; k++)
-                sum[k] += e[k] * light;
+    RoomLight& l = room_lights[(size_t)light_at[(size_t)index]];
+    if (!l.fresh) {
+        int count = 0;
+        const scene_triangle* t = &pc_scene_triangle_data(&count)[index];
+        float uv[6];
+        scene_uv(t, uv);
+        TriangleLight tl = integrate(uv, t->tpage, t->clut, true, [&](const Entry& e) { return room_allows(t, e); });
+        light_rgb(tl, l.rgb);
+        l.texels = tl.texels, l.amount = tl.amount;
+        l.fresh = true;
     }
-    for (int k = 0; k < 3; k++)
-        rgb[k] = sum[k] / 15.0f;
+    memcpy(rgb, l.rgb, sizeof l.rgb);
     return 1;
 }
 namespace emissive {
 int light_triangle_count()
 {
     refresh_lights();
-    return (int)light_triangles.size();
+    return (int)room_lights.size();
+}
+std::vector<LightInfo> light_list()
+{
+    refresh_lights();
+    std::vector<LightInfo> out;
+    int count = 0;
+    const scene_triangle* tris = pc_scene_triangle_data(&count);
+    for (const RoomLight& l : room_lights) {
+        LightInfo i;
+        pc_emissive_room_light(l.index, i.rgb);
+        const RoomLight& now = room_lights[(size_t)light_at[(size_t)l.index]];
+        i.index = l.index;
+        i.polygon = l.index < count ? tris[l.index].polygon : 0;
+        i.texels = now.texels, i.amount = now.amount;
+        out.push_back(i);
+    }
+    return out;
 }
 } // namespace emissive
 
@@ -1057,36 +1560,40 @@ void object_sink(void* context, const float w[9], const uint8_t* /*rgb*/, const 
     unsigned tpage, unsigned clut)
 {
     ObjectSink* s = (ObjectSink*)context;
-    if (s->n >= s->max || !(code & 4))
+    if (s->n >= s->max || !(code & 4) || !(light_pages & (1u << (tpage & 31))))
         return;
-    /* The corners and the centre; a texel of a light entry under any. */
-    static const float bary[4][3] = { { 1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 }, { 1 / 3.0f, 1 / 3.0f, 1 / 3.0f } };
-    float sum[3] = { 0, 0, 0 };
-    int lit = 0;
-    for (int j = 0; j < 4; j++) {
-        unsigned u = (unsigned)(bary[j][0] * uv[0] + bary[j][1] * uv[2] + bary[j][2] * uv[4]);
-        unsigned v = (unsigned)(bary[j][0] * uv[1] + bary[j][1] * uv[3] + bary[j][2] * uv[5]);
-        float e[3], light = 0;
-        if (pc_emissive_texel(u, v, tpage, clut, e, &light) && light > 0) {
-            for (int k = 0; k < 3; k++)
-                sum[k] += e[k] * light;
-            lit++;
-        }
+    uint32_t source, mesh, polygon, model;
+    render_emit_tag(&source, &mesh);
+    int kind = mesh_surface(mesh, render_emit_polygon_index(), &polygon, &model);
+    ObjectKey key = { (uint64_t)tpage | (uint64_t)clut << 16 | (uint64_t)uv[0] << 32 | (uint64_t)uv[1] << 40
+            | (uint64_t)uv[2] << 48 | (uint64_t)uv[3] << 56,
+        (uint64_t)uv[4] | (uint64_t)uv[5] << 8 | (uint64_t)kind << 16 | (uint64_t)model << 24 };
+    auto found = object_cache.find(key);
+    if (found == object_cache.end()) {
+        float fuv[6];
+        for (int k = 0; k < 6; k++)
+            fuv[k] = uv[k];
+        TriangleLight tl = integrate(fuv, tpage, clut, true, [&](const Entry& e) {
+            return scope_allows(e, scope_zone, scope_room, kind, polygon, model);
+        });
+        ObjectLight l;
+        l.tiles = triangle_tiles(fuv, tpage, clut);
+        l.lit = tl.amount > 0;
+        light_rgb(tl, l.rgb);
+        found = object_cache.emplace(key, l).first;
     }
-    if (!lit)
+    if (!found->second.lit)
         return;
     pc_glow_fragment* f = &s->out[s->n++];
     float e1[3], e2[3], c[3];
     for (int k = 0; k < 3; k++) {
         e1[k] = w[3 + k] - w[k], e2[k] = w[6 + k] - w[k];
         f->p[k] = (w[k] + w[3 + k] + w[6 + k]) / 3.0f;
-        f->rgb[k] = sum[k] / 4.0f;
+        f->rgb[k] = found->second.rgb[k];
     }
     c[0] = e1[1] * e2[2] - e1[2] * e2[1], c[1] = e1[2] * e2[0] - e1[0] * e2[2], c[2] = e1[0] * e2[1] - e1[1] * e2[0];
     f->area = 0.5f * sqrtf(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
     f->weight = f->area * (0.299f * f->rgb[0] + 0.587f * f->rgb[1] + 0.114f * f->rgb[2]);
-    uint32_t source, mesh;
-    render_emit_tag(&source, &mesh);
     f->source = (uint32_t)PC_GLOW_ORIGIN_OBJECT << 28 | ((mesh * 0x9e3779b1u) & 0x0fffffffu);
 }
 bool any_object_lights()
@@ -1107,6 +1614,12 @@ extern "C" int pc_emissive_object_lights(void* fragments, int max)
     pc_glow_fragment* out = (pc_glow_fragment*)fragments;
     if (!any_marks || !pc_hw_present_all_lists || !any_object_lights())
         return 0;
+    refresh_lights(); /* VRAM changes drop cached areas */
+    if (object_cache_map != map_generation || object_cache_zone != scope_zone || object_cache_room != scope_room
+        || object_cache.size() > 65536) {
+        object_cache.clear();
+        object_cache_map = map_generation, object_cache_zone = scope_zone, object_cache_room = scope_room;
+    }
     uint32_t lists[64];
     int n = pc_hw_present_all_lists(lists, 64);
     ObjectSink s = { out, 0, max };
@@ -1115,3 +1628,100 @@ extern "C" int pc_emissive_object_lights(void* fragments, int max)
             render_list_triangles(lists[i], object_sink, &s);
     return s.n;
 }
+
+/* ---------------------------------------------------------------- surfaces of an entry */
+
+namespace emissive {
+namespace {
+struct UsesSearch {
+    int slot;
+    const Entry* e;
+    std::vector<SurfaceUse>* out;
+    std::unordered_map<uint64_t, size_t>* at;
+};
+void add_use(UsesSearch& s, int kind, uint32_t polygon, uint32_t model, uint32_t mesh, const float w[9],
+    const float uv[6], unsigned tpage, unsigned clut)
+{
+    int texels = 0, covered = 0, glowing = 0;
+    for_texels(uv, [&](int x, int y) {
+        ++texels;
+        if (slot_at((unsigned)x, (unsigned)y, tpage) != s.slot)
+            return;
+        ++covered;
+        float rgb[3];
+        glowing += emission_at((unsigned)x, (unsigned)y, tpage, clut, s.slot, rgb);
+    });
+    if (!covered)
+        return;
+    uint64_t key = kind == SURFACE_ROOM ? (uint64_t)polygon : (uint64_t)1 << 40 | mesh;
+    auto found = s.at->find(key);
+    if (found == s.at->end()) {
+        SurfaceUse u;
+        u.kind = kind, u.polygon = polygon, u.model = model, u.mesh = mesh;
+        for (int k = 0; k < 3; k++)
+            u.centre[k] = (w[k] + w[3 + k] + w[6 + k]) / 3.0f;
+        u.allowed = scope_allows(*s.e, scope_zone, scope_room, kind, polygon, model);
+        if (kind == SURFACE_ROOM)
+            u.listed = std::find(s.e->scope.surfaces.begin(), s.e->scope.surfaces.end(),
+                           Surface { scope_zone, scope_room, polygon })
+                != s.e->scope.surfaces.end();
+        else if (kind == SURFACE_MODEL)
+            u.listed = std::find(s.e->scope.models.begin(), s.e->scope.models.end(), model) != s.e->scope.models.end();
+        found = s.at->emplace(key, s.out->size()).first;
+        s.out->push_back(u);
+    }
+    SurfaceUse& u = (*s.out)[found->second];
+    u.texels += texels, u.covered += covered, u.glowing += glowing;
+    if (u.triangles.size() < 64) {
+        std::array<float, 9> t;
+        memcpy(t.data(), w, sizeof(float) * 9);
+        u.triangles.push_back(t);
+    }
+}
+void uses_sink(void* context, const float w[9], const uint8_t* /*rgb*/, const uint8_t uv[6], unsigned code,
+    unsigned tpage, unsigned clut)
+{
+    UsesSearch* s = (UsesSearch*)context;
+    if (!(code & 4) || !(marked_pages & (1u << (tpage & 31))))
+        return;
+    uint32_t source, mesh, polygon, model;
+    render_emit_tag(&source, &mesh);
+    int kind = mesh_surface(mesh, render_emit_polygon_index(), &polygon, &model);
+    float fuv[6];
+    for (int k = 0; k < 6; k++)
+        fuv[k] = uv[k];
+    add_use(*s, kind, polygon, model, mesh, w, fuv, tpage, clut);
+}
+} // namespace
+
+/* Every room polygon of the captured room and every object triangle drawn
+ * now whose texels lie under the entry's marks (its slot). */
+std::vector<SurfaceUse> surface_uses(const std::string& id)
+{
+    std::vector<SurfaceUse> out;
+    int index = index_of(id);
+    if (index < 0 || !any_marks)
+        return out;
+    std::unordered_map<uint64_t, size_t> at;
+    UsesSearch s = { index + 1, &catalog().entries[(size_t)index], &out, &at };
+    int count = 0;
+    const scene_triangle* tris = pc_scene_triangle_data(&count);
+    for (int i = 0; i < count; i++) {
+        const scene_triangle* t = &tris[i];
+        if (!(marked_pages & (1u << (t->tpage & 31))))
+            continue;
+        float uv[6], w[9];
+        for (int j = 0; j < 3; j++) {
+            uv[j * 2] = t->vertex[j].u, uv[j * 2 + 1] = t->vertex[j].v;
+            memcpy(w + j * 3, t->vertex[j].position, sizeof(float) * 3);
+        }
+        add_use(s, SURFACE_ROOM, t->polygon, 0, 0, w, uv, t->tpage, t->clut);
+    }
+    uint32_t lists[64];
+    int n = pc_hw_present_all_lists ? pc_hw_present_all_lists(lists, 64) : 0;
+    for (int i = 0; i < n; i++)
+        if (render_list_objects(lists[i]) > 0) /* the room's polygons are the scene's */
+            render_list_triangles(lists[i], uses_sink, &s);
+    return out;
+}
+} // namespace emissive

@@ -44,10 +44,15 @@ blocks), separate Save and Load rows in the shell.
   statement in 260.c, no prototype after the macros, never taken as a
   pointer); `pc_text_char` returns at once while gated.
 - H2 the wrapper `vs_menu7_dataMenu` (the original renamed `_pcDataMenu` by a
-  macro): state 3 latches (`pc_ui_data_frame_begin(++run)`), a save state
-  without the host's frame falls back to the original look, stamp, inject,
-  call, restore the pad, publish (`_pcPublish`), finish on return
-  (`PC_UI_DATA_CLOSED` when the call entered in state 14, else `_BACK`).
+  macro) calls `pc_ui_data_call_begin` / `_end` (data_bridge.c) with
+  `_pcStatics`, a const table of pointers to MENU7's statics
+  (`pc/src/ui/data_menu7.h`; 260.c checks the mirrored struct sizes): state
+  3 latches (`pc_ui_data_frame_begin(++run)`, `_pcRun` in 260.c so save
+  states keep it), a save state without the host's frame falls back to the
+  original look, stamp, inject, call, restore the pad, publish
+  (`menu7_publish`: message lookup, location names, the files), finish on
+  return (`PC_UI_DATA_CLOSED` when the call entered in state 14, else
+  `_BACK`).
 - H3 state 5 framed: `D_800F4E6B`, the row types and `func_8008A4DC(0)` kept;
   no `vs_mainmenu_setMenuRows`, no cursorMemory swap;
   `pc_ui_data_frame_ops(save_ok, at_point, in_battle)`. State 6 framed:

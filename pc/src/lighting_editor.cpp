@@ -13,6 +13,8 @@
 
 #include "imgui.h"
 #include "editor_undo.h"
+#include "editor_scene.h"
+#include "editor_selection.h"
 #include "environment_internal.h"
 #include "glow_overrides.h"
 #include "lighting_layers.h"
@@ -101,8 +103,6 @@ State current_state()
  * follow in id order. */
 void apply_state(const State& s, bool keep_order)
 {
-    std::string sel_light = selected >= 0 && selected < (int)lights.size() ? lights[selected].id : "";
-    std::string sel_actor = selected_actor >= 0 && selected_actor < (int)actors.size() ? actors[selected_actor].id : "";
     std::vector<Light> new_lights;
     std::vector<prefab::Actor> new_actors;
     std::set<std::string> placed;
@@ -197,13 +197,7 @@ void apply_state(const State& s, bool keep_order)
     pc_gi_glows_set(glows, count);
     lights = new_lights;
     actors = new_actors;
-    select_none();
-    for (size_t i = 0; i < lights.size(); i++)
-        if (!sel_light.empty() && lights[i].id == sel_light)
-            select_light((int)i);
-    for (size_t i = 0; i < actors.size(); i++)
-        if (!sel_actor.empty() && actors[i].id == sel_actor)
-            select_actor((int)i);
+    rood_scene::refresh(); /* the selection is by id: what is still here stays selected */
     if (solo >= (int)lights.size())
         solo = -1;
     if (solo_actor >= (int)actors.size())
@@ -566,17 +560,8 @@ extern "C" void pc_lighting_file_menu(void)
 {
     std::string pack = pack_name();
     std::vector<std::string> sel;
-    if (selected >= 0)
-        sel.push_back(light_item_id(selected));
-    for (int i : multi)
-        sel.push_back(light_item_id(i));
-    if (selected_actor >= 0)
-        sel.push_back(actor_item_id(selected_actor));
-    if (glow_selected) {
-        pc_glow_info g;
-        if (pc_gi_glow_get(glow_id, &g))
-            sel.push_back(std::string("glow:") + g.key);
-    }
+    for (const rood_selection::Ref& r : rood_selection::items())
+        sel.push_back(r.id);
     std::string label = "Promote room to pack '" + (pack.empty() ? std::string("(none)") : pack) + "'";
     if (ImGui::MenuItem(label.c_str(), nullptr, false, !pack.empty()))
         promote({});

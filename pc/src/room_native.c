@@ -36,6 +36,10 @@ extern const void* pc_scene_room_data(void) __attribute__((weak));
 extern void pc_room_render_rules(int* near_bucket, int* far_bucket, int* lod_bucket) __attribute__((weak));
 extern int pc_room_texture_lod; /* render.c */
 extern void pc_hw_native_room_packets(const void* start, const void* end, uint32_t list) __attribute__((weak));
+/* emissive.cpp: a mesh of the current room's geometry block at byte `offset`
+ * of the room data (its polygons' offsets: emissive scopes). */
+extern void pc_emissive_room_mesh(uint32_t mesh, unsigned offset, unsigned tris, unsigned quads)
+    __attribute__((weak));
 
 typedef struct {
     short m[3][3];
@@ -265,6 +269,8 @@ static group_mesh* mesh_for(room_block* b, unsigned offset, unsigned shift)
         int count = map ? decode_polygons(geometry, shift, &polygons, map, tags) : 0;
         if (count)
             mesh = render_mesh_create(polygons, count);
+        if (mesh && b->room && pc_emissive_room_mesh)
+            pc_emissive_room_mesh(mesh, offset, geometry[0], geometry[1]);
         free(polygons);
         free(tags);
     }

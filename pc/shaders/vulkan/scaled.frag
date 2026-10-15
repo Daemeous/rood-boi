@@ -50,13 +50,14 @@ layout(std140, binding = 0) uniform Present {
     // The modern menu's model view (vk_present.c backdrop_keep): 2D pixels show the kept picture of the
     // world (backdrop.x 2) or the ground (1) under the menu's ground colour (rgb) at its opacity (a).
     vec4 backdrop_color;
-    ivec4 backdrop;
+    ivec4 backdrop; // y: the model view's studio light (menu_studio.glsl)
 } u;
 layout(binding = 20) uniform sampler2D backdrop_tex;
 #define MEDIUM(i) u.medium_[i]
 layout(binding = 17) uniform sampler3D medium_tex; // the medium's texture (atmosphere.h pc_medium_texture)
 #define MEDIUM_TEX medium_tex
 #include "medium.glsl"
+#include "menu_studio.glsl"
 #define env_sun_dir u.env_[0]
 #define env_sun_col u.env_[1]
 #define env_zenith u.env_[2]
@@ -409,7 +410,22 @@ void main() {
         vec4 es = texelFetch(shade_tex, texel(uv), 0);
         if (abs(es.a - 0.25) < 0.05 && d > 0.0) { em_px = true; em = es.rgb * 2.0; }
     }
-    if ((light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || u.quality1.y != 0 || u.env_mode.z != 0) && view_mode != 1) {
+    // The menu's model view: its own studio light (menu_studio.glsl), not the room's.
+    if (u.backdrop.y != 0 && view_mode == 0) {
+        ivec2 q = texel(uv);
+        vec4 n = texelFetch(normal_tex, q, 0);
+        if (n.a > 0.5 && d > 0.0) {
+            float z = texelFetch(depth_tex, q, 0).r * 65536.0;
+            vec2 s = (vec2(q) + 0.5) / float(scale) - vec2(rect.xy) - screen_offset;
+            vec3 p = vec3(s.x * z / projection.x, s.y * z / projection.y, z);
+            c = menu_studio(texelFetch(albedo_tex, q, 0).rgb, smooth_normal(q, normalize(n.xyz * 2.0 - 1.0), z), p);
+            if (em_px) c = max(c, em);
+            else if ((post & 8) == 0) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c));
+            if (any(isnan(c)) || any(isinf(c))) c = base(uv);
+            lit_done = haze_done = fogvol_done = true;
+        }
+    }
+    if (!lit_done && (light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || u.quality1.y != 0 || u.env_mode.z != 0) && view_mode != 1) {
         ivec2 q = texel(uv);
         vec4 n = texelFetch(normal_tex, q, 0);
         if (n.a > 0.5 && d > 0.0) { // lit 3D surface (not under UI): its view-space position

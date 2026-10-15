@@ -11,7 +11,12 @@
 //  - rows 512-515: per slot 64 parameter bytes (slot s at byte s * 64):
 //    0-2 tint, 3 strength x 63.75 (the setting folded in), 4-6 / 7-9 colour
 //    range (5-bit), 10-11 luminance range x 255, 12 flags (1 CLUT index set,
-//    2 colour range), 16-47 the index set (256 bits).
+//    2 colour range, 4 a light), 13 scope: 0 everywhere the cells are
+//    marked, else bit + 1 of the polygon's scope bits that must be set (the
+//    entry is limited to some surfaces or models: emissive.cpp
+//    render_mesh_emissive_scope), 16-47 the index set (256 bits).
+//  - rows 516-1027: per cell its amount (a painted map's value, else 255),
+//    the emission's factor / 255.
 // Texels the shapes cover still pass the slot's filters here, per drawn
 // texel: CLUT animations and palette swaps keep exact masks.
 uint em_param(uint s, uint i)
@@ -21,8 +26,9 @@ uint em_param(uint s, uint i)
 }
 // The emission of texel (u, v) of `tpage` (texture window `win` applied as
 // texel_at applies it), whose colour is `t` (0x7fff-style 15-bit), in display
-// light (1 = the texel's own colour); zero where nothing glows.
-vec3 emissive_texel(uint u, uint v, uint tpage, uint win, uint t)
+// light (1 = the texel's own colour), drawn by a polygon with these scope
+// bits; zero where nothing glows.
+vec3 emissive_texel(uint u, uint v, uint tpage, uint win, uint t, uint scope)
 {
     uint mx = (win & 31u) * 8u, my = ((win >> 5) & 31u) * 8u;
     u = ((u & ~mx) | ((((win >> 10) & 31u) * 8u) & mx)) & 255u;
@@ -32,7 +38,9 @@ vec3 emissive_texel(uint u, uint v, uint tpage, uint win, uint t)
     uint s = texelFetch(emissive_map, ivec2((tx * 4 + int(u << depth)) & 4095, ty + int(v)), 0).r;
     if (s == 0u)
         return vec3(0.0);
-    uint flags = em_param(s, 12u);
+    uint flags = em_param(s, 12u), bit = em_param(s, 13u);
+    if (bit != 0u && ((scope >> (bit - 1u)) & 1u) == 0u)
+        return vec3(0.0);
     if ((flags & 1u) != 0u && depth < 2u) {
         uint index = depth == 0u ? (fetch(tx + int(u >> 2), ty + int(v)) >> ((u & 3u) * 4u)) & 15u
                                  : (fetch(tx + int(u >> 1), ty + int(v)) >> ((u & 1u) * 8u)) & 255u;
@@ -50,6 +58,7 @@ vec3 emissive_texel(uint u, uint v, uint tpage, uint win, uint t)
             return vec3(0.0);
     }
     vec3 tint = vec3(em_param(s, 0u), em_param(s, 1u), em_param(s, 2u)) / 255.0;
-    return vec3(c) / 31.0 * tint * (float(em_param(s, 3u)) / 63.75);
+    float amount = float(texelFetch(emissive_map, ivec2((tx * 4 + int(u << depth)) & 4095, 516 + ty + int(v)), 0).r) / 255.0;
+    return vec3(c) / 31.0 * tint * (float(em_param(s, 3u)) / 63.75 * amount);
 }
 #endif

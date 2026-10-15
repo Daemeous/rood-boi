@@ -195,7 +195,7 @@ static int vk_native_pipelines(int set, int samples)
                    fs = set ? vk_shader(vk_spv_native_ms_frag, vk_spv_native_ms_frag_size) /* surfaces multisampled */
                             : vk_shader(vk_spv_native_frag, vk_spv_native_frag_size);
     static const VkVertexInputBindingDescription binding = { 0, sizeof(mesh_vertex), VK_VERTEX_INPUT_RATE_VERTEX };
-    static const VkVertexInputAttributeDescription attributes[7] = {
+    static const VkVertexInputAttributeDescription attributes[8] = {
         { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(mesh_vertex, position) },
         { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(mesh_vertex, normal) },
         { 2, 0, VK_FORMAT_R8G8B8A8_UINT, offsetof(mesh_vertex, r) },
@@ -203,6 +203,7 @@ static int vk_native_pipelines(int set, int samples)
         { 4, 0, VK_FORMAT_R16G16_UINT, offsetof(mesh_vertex, tpage) },
         { 5, 0, VK_FORMAT_R8_UINT, offsetof(mesh_vertex, bias) },
         { 6, 0, VK_FORMAT_R8_UINT, offsetof(mesh_vertex, uv_effect) },
+        { 7, 0, VK_FORMAT_R16_UINT, offsetof(mesh_vertex, emissive_scope) },
     };
     static const VkFormat formats[4] = { VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT };
     vk_pipeline_desc d = { .vertex = vs,
@@ -212,7 +213,7 @@ static int vk_native_pipelines(int set, int samples)
         .topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY,
         .binding = &binding,
         .attributes = attributes,
-        .attribute_count = 7,
+        .attribute_count = 8,
         .color_count = 4,
         .color_formats = formats,
         .depth_format = vk.depth_format,

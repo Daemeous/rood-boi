@@ -19,6 +19,8 @@
 /pc/save/
 /pc/lights/
 /pc/user/
+# Textures exported as references for painting material maps: the game's art, local only
+/pc/exports/
 /tools/objdiff
 /.claude/
 .ruff_cache/

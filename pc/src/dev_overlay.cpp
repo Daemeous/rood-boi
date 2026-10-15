@@ -22,6 +22,10 @@
 #include "editor_overlays.h"
 #include "lighting_quality.h"
 #include "editor_undo.h"
+#include "editor_details.h"
+#include "editor_scene.h"
+#include "environment_internal.h"
+#include "editor_selection.h"
 #include "camera_stick.h"
 #include "ui/ui_shell.h"
 #include "ui/map_frame.h"
@@ -59,8 +63,24 @@ static bool active, visible;
 static bool show_help; /* Help > Keyboard shortcuts */
 static int outliner_tab_request = -1; /* Window menu / toolbar: 0 Outliner, 1 Place Actors */
 static bool place_tab_shown;
-static int details_tab_request = -1; /* RPC editor_ui {details}: a Details tab by name */
-static const char* const details_tabs[] = { "lighting", "inspector", "atmosphere", "post", "graphics", "diagnostics" };
+/* The Details tabs: the selection's Details first (it follows the
+ * selection), then the room-wide settings on their own tabs (RPC editor_ui
+ * {details}: by name). */
+enum DetailsTab {
+    TAB_DETAILS,
+    TAB_LIGHTING,
+    TAB_INSPECTOR,
+    TAB_ATMOSPHERE,
+    TAB_POST,
+    TAB_GRAPHICS,
+    TAB_EMISSIVE,
+    TAB_DIAGNOSTICS,
+    TAB_COUNT
+};
+static const char* const details_tabs[TAB_COUNT] = { "details", "lighting", "inspector", "atmosphere", "post", "graphics",
+    "emissive", "diagnostics" };
+static int details_tab_request = -1;
+static int details_tab_shown = TAB_DETAILS;
 extern "C" int pc_lights_place_cancel(void);
 extern "C" void pc_lights_place_panel(void);
 extern "C" void pc_lights_place_menu(void);
@@ -194,11 +214,13 @@ extern "C" int pc_overlay_set_tab(int tab)
 /* RPC editor_ui {details}: select a Details tab by name; returns 0 for none. */
 extern "C" int pc_overlay_set_details_tab(const char* name)
 {
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < TAB_COUNT; i++)
         if (!strcmp(name, details_tabs[i]))
             return details_tab_request = i, 1;
     return 0;
 }
+/* RPC editor_ui: the Details tab shown in the last frame. */
+extern "C" const char* pc_overlay_details_tab(void) { return details_tabs[details_tab_shown]; }
 /* RPC editor_ui: open (1) or close (0) the editor; -1 only reads. */
 extern "C" int pc_overlay_set_visible(int show)
 {
@@ -352,6 +374,9 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
          * editor shortcut fires (viewport_keys and the free camera check the
          * same). */
         bool typing = visible && io.WantTextInput;
+        /* Escape during a value ladder drag cancels it (editor_details.cpp). */
+        if (key == SDLK_ESCAPE && visible && down && !typing && rood_details::ladder_cancel())
+            return 1;
         /* Escape during a drag from Place Actors cancels the drag only. */
         if (key == SDLK_ESCAPE && visible && down && !typing && pc_lights_place_cancel())
             return 1;
@@ -644,8 +669,8 @@ void pc_lights_reload(void);
 const char* pc_lights_status(void);
 int* pc_lights_gizmo_operation(void);
 bool* pc_lights_show(void);
+bool* pc_atmosphere_show_volumes(void); /* atmosphere.cpp: Show > Fog volumes */
 void pc_lights_outliner(const char* filter);
-bool pc_lights_details(void);
 void pc_lights_global_settings(void);
 extern int pc_lights_snap;
 extern float pc_lights_snap_move, pc_lights_snap_angle;
@@ -910,8 +935,22 @@ static void edit_menu()
     if (ImGui::MenuItem(label, "Ctrl+Y", false, redo != nullptr))
         pc_undo_redo();
     ImGui::Separator();
-    if (ImGui::MenuItem("Delete", "Delete", false, pc_lights_has_selection() != 0))
-        pc_lights_delete_selection();
+    bool any = !rood_selection::empty();
+    if (ImGui::MenuItem("Copy", "Ctrl+C", false, any))
+        rood_scene::copy_selection();
+    if (ImGui::MenuItem("Paste", "Ctrl+V"))
+        rood_scene::paste_clipboard();
+    if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, any))
+        rood_scene::duplicate_selection();
+    if (ImGui::MenuItem("Delete", "Delete", false, any))
+        rood_scene::delete_selection();
+    ImGui::Separator();
+    if (ImGui::MenuItem("Hide selection", "H", false, any))
+        rood_scene::hide_selection();
+    if (ImGui::MenuItem("Hide unselected", "Shift+H", false, any))
+        rood_scene::isolate_selection();
+    if (ImGui::MenuItem("Show all", "Ctrl+H", false, rood_selection::any_hidden()))
+        rood_scene::unhide_all();
     int current, count = pc_undo_history(&current);
     if (ImGui::BeginMenu("Undo history", count > 0)) {
         if (ImGui::MenuItem("(the room as loaded)", nullptr, current == 0))
@@ -955,6 +994,7 @@ static void menu_bar(float* height)
     }
     if (ImGui::BeginMenu("View")) {
         ImGui::MenuItem("Lights and glows", nullptr, pc_lights_show());
+    ImGui::MenuItem("Fog volumes", nullptr, pc_atmosphere_show_volumes());
         show_toggle("Room wireframe", &pc_overlay_wire);
         show_toggle("Room points", &pc_overlay_points);
         show_toggle("Character wireframe", &pc_overlay_actor_wire);
@@ -1177,6 +1217,7 @@ static void show_toggle(const char* label, int* value)
 static void show_popup()
 {
     ImGui::MenuItem("Lights and glows", nullptr, pc_lights_show());
+    ImGui::MenuItem("Fog volumes", nullptr, pc_atmosphere_show_volumes());
     show_toggle("Room wireframe", &pc_overlay_wire);
     show_toggle("Room points", &pc_overlay_points);
     show_toggle("Character wireframe", &pc_overlay_actor_wire);
@@ -1345,7 +1386,13 @@ static void help_window()
         { "Editor", "Ctrl+R", "Room Browser: every zone and room; go to one" },
         { "Editor", "Ctrl+Z", "Undo (Edit menu: the action's name; the history covers this room visit)" },
         { "Editor", "Ctrl+Y / Ctrl+Shift+Z", "Redo" },
-        { "Editor", "Delete / Backspace", "Delete the selected light(s) or light actor" },
+        { "Editor", "Delete / Backspace", "Delete the selection (lights, light actors, fog volumes)" },
+        { "Editor", "Ctrl+C / Ctrl+V", "Copy the selection / paste it where it was copied (lighting items as text)" },
+        { "Editor", "Ctrl+D", "Duplicate the selection (64 units along x; the copies are selected)" },
+        { "Editor", "H / Shift+H / Ctrl+H", "Hide the selection / hide everything else / show everything (editor only)" },
+        { "Details", "Middle-drag (number)", "Value ladder: up/down picks steps of 10, 1, 0.1, 0.01; left/right adds them; Esc cancels" },
+        { "Details", "Reset arrow", "Back to the default, or the preset's or prefab's value" },
+        { "Details", "Lock", "Keep Details on its object while you select others" },
         { "Fields", "Click (number)", "Type a value (a drag scrubs it); sliders: double-click or Ctrl+click" },
         { "Fields", "Enter / Tab", "Commit the value / commit and move to the next field" },
         { "Fields", "Esc (typing)", "Cancel the edit (the editor stays open); no shortcut fires while typing" },
@@ -1357,10 +1404,12 @@ static void help_window()
         { "Camera", "RMB + wheel", "Flight speed" },
         { "Camera", "Alt + LMB drag", "Orbit" },
         { "Camera", "MMB drag", "Pan" },
-        { "Camera", "F", "Frame the selected light or glow" },
-        { "Lights", "Click", "Select a light, light actor (its icon or any of its lights) or glow" },
-        { "Lights", "Shift+click", "Move the selected light or actor to the surface (or the snapped point or edge)" },
-        { "Lights", "Ctrl+click", "Add the Place Actors item (a point light by default) at the surface (or the snapped point or edge)" },
+        { "Camera", "F", "Frame the selection (a light, actor, glow or fog volume)" },
+        { "Select", "Click", "Select a light, light actor (its icon or any of its lights), glow or fog volume (inside its outline)" },
+        { "Select", "Shift+click / Ctrl+click", "Add to the selection / add or take out (the view and the Outliner)" },
+        { "Select", "Drag on empty space", "Box select lights, light actors and fog volumes (Shift adds, Ctrl toggles); it may start in a fog volume" },
+        { "Lights", "Shift+click (empty)", "Move the selected light or actor to the surface (or the snapped point or edge)" },
+        { "Lights", "Ctrl+click (empty)", "Add the Place Actors item (a point light by default) at the surface (or the snapped point or edge); in an unselected fog volume too" },
         { "Lights", "Alt + drag gizmo", "Duplicate the light or actor (the copy stays behind)" },
         { "Fixtures", "L", "Light the fixture under the cursor (lantern, candle, torch: room polygons or its glow)" },
         { "Fixtures", "Click (Light fixture tool)", "Light the clicked fixture: an actor at its flame, its polygons casting no shadow from it" },
@@ -1369,7 +1418,6 @@ static void help_window()
         { "Place", "Esc (dragging)", "Cancel the drag (dropping off the view cancels too)" },
         { "Place", "Double-click in Place Actors", "Place at the surface under the view's centre" },
         { "Place", "Shift+1", "Show the Place Actors tab" },
-        { "Lights", "Ctrl+click (Outliner)", "Add a light to the selection (Create prefab)" },
         { "Tools", "W", "Move tool" },
         { "Tools", "E", "Rotate tool (aim spot and rect lights, turn actors)" },
         { "Tools", "I", "Inspect: click the view to probe a surface" },
@@ -1439,13 +1487,26 @@ static void outliner(float x, float y, float w, float h)
             }
             ImGui::InputTextWithHint("##search", "Search", filter, sizeof filter);
             ImGui::BeginChild("##outliner rows");
+            /* A selection made elsewhere opens its section (its row is then
+             * scrolled to: editor_scene.cpp row_drawn). */
+            if (rood_scene::scroll_due(rood_selection::KIND_LIGHT, rood_selection::KIND_ACTOR))
+                ImGui::SetNextItemOpen(true);
             if (ImGui::TreeNodeEx("Lights and actors (this room)", ImGuiTreeNodeFlags_DefaultOpen)) {
                 pc_lights_outliner(filter);
                 ImGui::TreePop();
             }
-            if ((pc_gl_compute || (&pc_vk_active && pc_vk_active))
-                && ImGui::TreeNodeEx("Glows (from the game)", ImGuiTreeNodeFlags_DefaultOpen)) {
-                pc_lights_glows_outliner(filter);
+            if (pc_gl_compute || (&pc_vk_active && pc_vk_active)) {
+                if (rood_scene::scroll_due(rood_selection::KIND_GLOW))
+                    ImGui::SetNextItemOpen(true);
+                if (ImGui::TreeNodeEx("Glows (from the game)", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    pc_lights_glows_outliner(filter);
+                    ImGui::TreePop();
+                }
+            }
+            if (rood_scene::scroll_due(rood_selection::KIND_VOLUME))
+                ImGui::SetNextItemOpen(true);
+            if (ImGui::TreeNodeEx("Fog volumes (this room)", ImGuiTreeNodeFlags_DefaultOpen)) {
+                rood_atmo::outliner(filter);
                 ImGui::TreePop();
             }
             if (ImGui::TreeNodeEx("Room groups")) {
@@ -1473,14 +1534,28 @@ static void details(float x, float y, float w, float h, double frame_ms)
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse
             | ImGuiWindowFlags_NoSavedSettings);
     ImGui::PushItemWidth(-ImGui::GetFontSize() * 13);
-    ImGuiTabItemFlags select[7] = {};
+    ImGuiTabItemFlags select[TAB_COUNT] = {};
+    /* Selection follows you: a new selection shows in Details, unless Details
+     * is locked or the change came from Details itself or from undo. */
+    static unsigned seen_serial;
+    if (rood_selection::serial() != seen_serial) {
+        seen_serial = rood_selection::serial();
+        rood_selection::Source s = rood_selection::last_source();
+        if (!rood_selection::empty() && !rood_selection::locked() && s != rood_selection::FROM_DETAILS
+            && s != rood_selection::FROM_UNDO)
+            details_tab_request = TAB_DETAILS;
+    }
     if (details_tab_request >= 0)
         select[details_tab_request] = ImGuiTabItemFlags_SetSelected;
     details_tab_request = -1;
     if (ImGui::BeginTabBar("details")) {
-        if (ImGui::BeginTabItem("Lighting", nullptr, select[0])) {
-            if (!pc_lights_details())
-                pc_lights_glow_details();
+        if (ImGui::BeginTabItem("Details", nullptr, select[TAB_DETAILS])) {
+            details_tab_shown = TAB_DETAILS;
+            rood_details::draw();
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Lighting", nullptr, select[TAB_LIGHTING])) {
+            details_tab_shown = TAB_LIGHTING;
             ImGui::SeparatorText("This room");
             if (pc_room_settings_page("Lighting"))
                 pc_lights_mark_dirty();
@@ -1507,11 +1582,13 @@ static void details(float x, float y, float w, float h, double frame_ms)
             }
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem("Inspector", nullptr, select[1])) {
+        if (ImGui::BeginTabItem("Inspector", nullptr, select[TAB_INSPECTOR])) {
+            details_tab_shown = TAB_INSPECTOR;
             pc_lights_inspector();
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem("Atmosphere", nullptr, select[2])) {
+        if (ImGui::BeginTabItem("Atmosphere", nullptr, select[TAB_ATMOSPHERE])) {
+            details_tab_shown = TAB_ATMOSPHERE;
             pc_environment_page(); /* marks the room dirty itself */
             ImGui::SeparatorText("Haze (this room)");
             if (pc_room_settings_page("Atmosphere"))
@@ -1520,11 +1597,13 @@ static void details(float x, float y, float w, float h, double frame_ms)
                 save_area();
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem("Post-processing", nullptr, select[3])) {
+        if (ImGui::BeginTabItem("Post-processing", nullptr, select[TAB_POST])) {
+            details_tab_shown = TAB_POST;
             post_panel();
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem("Graphics", nullptr, select[4])) {
+        if (ImGui::BeginTabItem("Graphics", nullptr, select[TAB_GRAPHICS])) {
+            details_tab_shown = TAB_GRAPHICS;
             if (ImGui::Button("Save settings"))
                 pc_settings_save();
             ImGui::SameLine();
@@ -1544,11 +1623,13 @@ static void details(float x, float y, float w, float h, double frame_ms)
                 gameplay_panel();
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem("Emissive", nullptr, select[6])) {
+        if (ImGui::BeginTabItem("Emissive", nullptr, select[TAB_EMISSIVE])) {
+            details_tab_shown = TAB_EMISSIVE;
             pc_emissive_panel(); /* emissive_editor.cpp: glowing textures */
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem("Diagnostics", nullptr, select[5])) {
+        if (ImGui::BeginTabItem("Diagnostics", nullptr, select[TAB_DIAGNOSTICS])) {
+            details_tab_shown = TAB_DIAGNOSTICS;
             if (pc_hw_active)
                 pc_editor_panel();
             if (pc_hw_active)
@@ -1563,14 +1644,11 @@ static void details(float x, float y, float w, float h, double frame_ms)
     ImGui::End();
 }
 
-/* Editor shortcuts. None fires while a field is being typed in (a number,
- * a name, a search: the keys are its text, Escape cancels it, Ctrl+Z is its
- * own undo); the view's tools only with the pointer over the view. */
-static void viewport_keys()
+/* The editor's shortcuts that work wherever the pointer is (the Outliner
+ * too): save, undo / redo, delete, hide, copy / paste / duplicate. */
+static void editor_shortcuts()
 {
     ImGuiIO& io = ImGui::GetIO();
-    if (io.WantTextInput || ImGui::IsAnyItemActive()) /* typing, or a slider or button held */
-        return;
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false)) {
         if (io.KeyShift)
             pc_settings_save();
@@ -1588,7 +1666,42 @@ static void viewport_keys()
      * (the Outliner too), as long as nothing is being typed. */
     if (!io.KeyCtrl && !io.KeyAlt
         && (ImGui::IsKeyPressed(ImGuiKey_Delete, false) || ImGui::IsKeyPressed(ImGuiKey_Backspace, false)))
-        pc_lights_delete_selection();
+        rood_scene::delete_selection();
+    /* Hiding, wherever the pointer is (editor state, never saved in the room):
+     * H the selection, Shift+H everything else, Ctrl+H shows everything. */
+    if (!io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_H, false)) {
+        if (io.KeyCtrl)
+            rood_scene::unhide_all();
+        else if (io.KeyShift)
+            rood_scene::isolate_selection();
+        else
+            rood_scene::hide_selection();
+    }
+    /* Copy, paste (where it was copied), duplicate (64 units along x). */
+    if (io.KeyCtrl && !io.KeyAlt && !io.KeyShift) {
+        if (ImGui::IsKeyPressed(ImGuiKey_C, false))
+            rood_scene::copy_selection();
+        if (ImGui::IsKeyPressed(ImGuiKey_V, false))
+            rood_scene::paste_clipboard();
+        if (ImGui::IsKeyPressed(ImGuiKey_D, false))
+            rood_scene::duplicate_selection();
+    }
+}
+
+/* Editor shortcuts. None fires while a field is being typed in (a number,
+ * a name, a search: the keys are its text, Escape cancels it, Ctrl+Z is its
+ * own undo) or while the camera flies; the view's tools only with the
+ * pointer over the view. */
+static void viewport_keys()
+{
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantTextInput || ImGui::IsAnyItemActive()) /* typing, or a slider or button held */
+        return;
+    /* Flying the camera (right mouse held in the view): the keys are WASD/QE
+     * and their modifiers, never editor shortcuts (Ctrl+D would duplicate). */
+    bool flying = pc_editor_flying() != 0;
+    if (!flying)
+        editor_shortcuts();
     if (io.WantCaptureMouse)
         return;
     /* Right mouse in the game view: fly from the game camera (as in UE);
@@ -1665,8 +1778,10 @@ extern "C" void pc_overlay_frame(int width, int height)
     if (visible && !was_visible)
         pc_undo_rebase();
     was_visible = visible;
-    if (visible)
+    if (visible) {
+        rood_scene::frame(); /* the selection follows the room's objects (editor_scene.cpp) */
         pc_undo_frame_begin();
+    }
     pc_room_browser_frame(); /* a warp arriving: the free camera and pause come back */
     if (visible) {
         float bar = 0, tools = 0;
@@ -1690,6 +1805,7 @@ extern "C" void pc_overlay_frame(int width, int height)
         if (pc_hw_active)
             pc_lights_viewport();
         viewport_keys();
+        rood_details::ladder_frame(); /* a value ladder being dragged (editor_details.cpp) */
         pc_lights_editor_windows();
         pc_room_browser_window();
         help_window();

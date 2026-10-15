@@ -3,6 +3,7 @@
 #include "ui/ui_shell.h"
 #include "ui/map_frame.h"
 #include "ui/data_frame.h"
+#include "ui/container_frame.h"
 #include "ui/ui_manual.h"
 #include "ui/ui_settings.h"
 #include "ui/ui_theme.h"
@@ -132,6 +133,7 @@ struct State {
     Mouse mouse;
     pc_ui_ashley ash = {};
     int ash_row = 0;         // PC_UI_ASH_*
+    int ash_limb = -1;       // on the Condition row: the body part focused, -1 the panel (pc_ui_shell_ashley_limb)
     struct {
         int item = 0;  // focused list entry
         int page = -1; // the entered settings page; -1: the list has the focus
@@ -497,6 +499,7 @@ int ash_effects()
 }
 // effect rows: the chips on screen
 int ash_rows() { return PC_UI_ASH_EFFECT + (s.ash_shown >= 0 && s.ash_shown < ash_effects() ? s.ash_shown : ash_effects()); }
+int ash_limbs() { return s.ash.limb_count < 0 ? 0 : s.ash.limb_count > PC_UI_LIMBS ? PC_UI_LIMBS : s.ash.limb_count; }
 void ash_clamp()
 {
     int n = ash_rows();
@@ -504,6 +507,8 @@ void ash_clamp()
         s.ash_row = n - 1;
     if (s.ash_row < 0)
         s.ash_row = 0;
+    if (s.ash_row != PC_UI_ASH_CONDITION || s.ash_limb >= ash_limbs())
+        s.ash_limb = -1;
 }
 bool on_ashley() { return s.visible && TABS[s.tab].screen == SCREEN_ASHLEY; }
 int tab_of(Screen screen)
@@ -542,6 +547,13 @@ int ashley_tick(const pc_ui_input* in)
         s.ash_row = (s.ash_row + 1) % n;
     if (in->repeat & PC_UI_UP)
         s.ash_row = (s.ash_row + n - 1) % n;
+    // Condition: Left / Right step through the body parts and back to the panel as a whole (-1)
+    if (s.ash_row == PC_UI_ASH_CONDITION && ash_limbs() > 0 && (in->repeat & (PC_UI_LEFT | PC_UI_RIGHT))) {
+        int k = ash_limbs() + 1, at = s.ash_limb + 1;
+        at = (in->repeat & PC_UI_RIGHT) ? (at + 1) % k : (at + k - 1) % k;
+        s.ash_limb = at - 1;
+    }
+    ash_clamp();
     if (in->pressed & PC_UI_CONFIRM)
         ash_confirm();
     return 0;
@@ -587,12 +599,18 @@ void ashley_json(std::string& j)
     std::snprintf(buf, sizeof buf,
         ",\"play\":\"%d:%02d:%02d\",\"model\":%d,\"model_rect\":[%g,%g,%g,%g],\"model_yaw\":%d,"
         "\"model_pitch\":%d,\"model_blocked\":\"%s\",\"heap_free\":%d,\"heap_need\":%d,\"effects_shown\":%d,"
-        "\"row\":\"%s\"}",
+        "\"row\":\"%s\",\"limb\":%d",
         a.play_h, a.play_m, a.play_s, a.model, a.model_rect[0], a.model_rect[1], a.model_rect[2], a.model_rect[3],
         a.model_yaw, a.model_pitch,
         a.model_blocked == PC_UI_MODEL_NO_HEAP ? "heap" : a.model_blocked == PC_UI_MODEL_FREE_CAMERA ? "free_camera" : "",
-        a.heap_free, a.heap_need, ash_rows() - PC_UI_ASH_EFFECT, ash_row_id(s.ash_row, id, sizeof id));
+        a.heap_free, a.heap_need, ash_rows() - PC_UI_ASH_EFFECT, ash_row_id(s.ash_row, id, sizeof id),
+        pc_ui_shell_ashley_limb());
     j += buf;
+    // the Condition card's title and first line (pc_ui_ashley_condition_text; "" on other rows)
+    char title[96] = "", line[192] = "";
+    if (s.ash_row == PC_UI_ASH_CONDITION)
+        pc_ui_ashley_condition_text(&a, pc_ui_shell_ashley_limb(), title, sizeof title, line, sizeof line);
+    j += ",\"details\":\"" + escape(title) + "\",\"details_line\":\"" + escape(line) + "\"}";
 }
 
 // ---- System ----
@@ -1757,6 +1775,7 @@ bool mouse_focus(int kind, int index)
             if (index < 0 || index >= ash_rows())
                 return false;
             s.ash_row = index;
+            s.ash_limb = -1; // (the Condition panel as a whole)
             return true;
         }
         if (equipment || index < 0 || index >= clamp_row(s.tab))
@@ -1764,6 +1783,12 @@ bool mouse_focus(int kind, int index)
         s.row[s.tab] = index;
         return true;
     }
+    case PC_UI_MOUSE_LIMB:
+        if (TABS[s.tab].screen != SCREEN_ASHLEY || index < 0 || index >= ash_limbs())
+            return false;
+        s.ash_row = PC_UI_ASH_CONDITION;
+        s.ash_limb = index;
+        return true;
     case PC_UI_MOUSE_SLOT:
         if (!equipment || e.mode != M_GEAR || index < 0 || index >= PC_UI_EQUIP_SLOTS)
             return false;
@@ -2121,6 +2146,7 @@ extern "C" void pc_ui_shell_open(const pc_ui_commands* commands, int remember)
         std::memset(s.row, 0, sizeof s.row);
         s.eq = Equip();
         s.ash_row = 0;
+        s.ash_limb = -1;
         s.sys.item = 0;
         std::memset(s.sys.row, 0, sizeof s.sys.row);
         s.ab = Abil();
@@ -2323,6 +2349,10 @@ extern "C" void pc_ui_shell_json(char* out, unsigned size)
     static char data[1 << 14];
     pc_ui_data_json(data, sizeof data);
     j += data;
+    // the native Container screen (ui_container.cpp): its block while its MENU7 run is latched, else null
+    static char container[1 << 16];
+    pc_ui_container_json(container, sizeof container);
+    j += container;
     ui::theme_json(j); // the colours shown (menu tint), every screen
     j += "}";
     std::snprintf(out, size, "%s", j.c_str());
@@ -2395,6 +2425,43 @@ extern "C" void pc_ui_shell_set_ashley(const pc_ui_ashley* a)
 }
 extern "C" const pc_ui_ashley* pc_ui_shell_ashley(void) { return &s.ash; }
 extern "C" int pc_ui_shell_ashley_row(void) { return s.ash_row; }
+extern "C" int pc_ui_shell_ashley_limb(void) { return s.ash_row == PC_UI_ASH_CONDITION ? s.ash_limb : -1; }
+extern "C" const char* pc_ui_limb_state_name(int state)
+{
+    static const char* const names[5] = {"Critical", "Damaged", "Wounded", "Good", "Excellent"};
+    return names[state < 0 ? 0 : state > 4 ? 4 : state];
+}
+extern "C" void pc_ui_ashley_condition_text(const pc_ui_ashley* a, int limb, char* title, int title_size, char* line,
+    int line_size)
+{
+    int n = a->limb_count < 0 ? 0 : a->limb_count > PC_UI_LIMBS ? PC_UI_LIMBS : a->limb_count;
+    if (limb >= 0 && limb < n) {
+        const pc_ui_limb& l = a->limbs[limb];
+        std::snprintf(title, title_size, "%s \xc2\xb7 %s", l.name, pc_ui_limb_state_name(l.state));
+        std::snprintf(line, line_size, "%s: %d / %d HP, %s.", l.name, l.hp, l.hp_max, pc_ui_limb_state_name(l.state));
+        return;
+    }
+    // the panel: the worst part's state (lowest state, then lowest share of its HP), how many are hurt
+    int worst = -1, hurt = 0;
+    for (int i = 0; i < n; ++i) {
+        const pc_ui_limb& l = a->limbs[i];
+        hurt += l.state < PC_UI_LIMB_EXCELLENT;
+        if (worst < 0 || l.state < a->limbs[worst].state
+            || (l.state == a->limbs[worst].state
+                && (long long)l.hp * (a->limbs[worst].hp_max > 0 ? a->limbs[worst].hp_max : 1)
+                    < (long long)a->limbs[worst].hp * (l.hp_max > 0 ? l.hp_max : 1)))
+            worst = i;
+    }
+    std::snprintf(title, title_size, "Condition \xc2\xb7 %s",
+        pc_ui_limb_state_name(worst >= 0 ? a->limbs[worst].state : PC_UI_LIMB_EXCELLENT));
+    if (!n)
+        std::snprintf(line, line_size, "No body parts to show.");
+    else if (!hurt)
+        std::snprintf(line, line_size, "Every part of the body is unhurt.");
+    else
+        std::snprintf(line, line_size, "%d of %d parts hurt; the worst is %s (%s).", hurt, n, a->limbs[worst].name,
+            pc_ui_limb_state_name(a->limbs[worst].state));
+}
 extern "C" int pc_ui_shell_ashley_rows(void) { return ash_rows(); }
 extern "C" void pc_ui_shell_ashley_effects_shown(int n)
 {

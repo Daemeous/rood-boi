@@ -64,9 +64,11 @@ void pc_vk_hw_text_overlay(const void* vertices, int count, int mode, const floa
     int view_y, int to_view);
 /* Normal (RGBA8) and depth (0..1) of the live target at scaled pixel x, y. */
 int pc_vk_hw_pick(int x, int y, float* depth, unsigned char normal[4]);
-/* The live target over native rectangle x0..x1, y0..y1 at native resolution
- * (RGBA8, tightly packed), for VRAM readers (gpu_hw.c pc_hw_sync). */
-int pc_vk_hw_sync_read(int x0, int y0, int x1, int y1, unsigned char* pixels);
+/* The live target (replay: the replay target) over native rectangle x0..x1,
+ * y0..y1 at native resolution (RGBA8, tightly packed), for VRAM readers
+ * (gpu_hw.c pc_hw_sync) and replayed batches that sample the frame's own
+ * picture. */
+int pc_vk_hw_sync_read(int replay, int x0, int y0, int x1, int y1, unsigned char* pixels);
 /* MSAA (rectangles in scaled pixels, x1/y1 exclusive): the most samples the
  * device runs (0: none); make the twins (`samples`, covering width x height
  * from (0, 0)); load the live or replay target (`fbo`) into them (`room`:

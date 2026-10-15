@@ -8,6 +8,7 @@ layout(location = 3) in uvec4 a_uvf; // u, v, polygon flags, bone
 layout(location = 4) in uvec2 a_page; // tpage, clut
 layout(location = 5) in uint a_bias; // ordering-table bias (objects)
 layout(location = 6) in uint a_effect; // animated material (uv_effects entry, 0: none)
+layout(location = 7) in uint a_scope; // emissive scope bits (render_mesh_emissive_scope)
 // Model -> GTE view per bone: three rotation columns, then the translation.
 layout(std430, binding = 1) readonly buffer Bones {
     vec4 bones[];
@@ -19,6 +20,7 @@ layout(location = 3) flat out uvec4 g_uvf;
 layout(location = 4) flat out uvec2 g_page;
 layout(location = 5) flat out uint g_bias;
 layout(location = 6) flat out uint g_effect;
+layout(location = 7) flat out uint g_scope;
 void main() {
     uint b = min(a_uvf.w, 63u);
     mat3 rotation = mat3(bones[b * 4u].xyz, bones[b * 4u + 1u].xyz, bones[b * 4u + 2u].xyz);
@@ -29,4 +31,5 @@ void main() {
     g_page = a_page;
     g_bias = a_bias;
     g_effect = a_effect;
+    g_scope = a_scope;
 }

@@ -161,8 +161,11 @@ env fog color=0.85,0.9,1 density=0.01 height=40 noise=0.7 scale=200 wind=9,0,3 f
 ## Fog volumes
 
 Local mist (a cellar's damp corner, a forest hollow, a sewer outlet):
-`fog <id>` items, placed in the editor (Details > Atmosphere > Fog volumes:
-Add volume, then the Move / Size / Turn gizmo) like lights.
+`fog <id>` items, placed in the editor (Details > Atmosphere: Add volume) and
+then edited like lights: click one in the view or the Outliner (Fog volumes)
+and its fields are in Details (Basics, Transform, Look, Interaction; the
+reset arrow goes back to its preset's value), with the Move / Size / Turn
+gizmo.
 
 ```
 fog 68ea4c1200a3f1 name="Cellar mist" shape=sphere pos=320,-60,640 size=400,120,300 yaw=30 density=0.006 fill=0.01,0.012,0.012

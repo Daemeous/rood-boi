@@ -19,6 +19,7 @@ drew it.
 | `pc/assets/emissive/catalog.json` | curated entries (hashes and numbers only) |
 | `pc/src/emissive.cpp` | catalog, texture uses and their content keys, the slot map, CPU evaluation, room and object lights |
 | `pc/src/emissive_editor.cpp` | picking a texture in the view, the editor panel, RPC `emissive` |
+| `pc/src/materials.cpp` | painted channel maps per texture ([Materials.md](Materials.md)) |
 | `pc/shaders/vulkan/emissive.glsl` | the per-texel test, shared by every draw shader (OpenGL splices it in as `PC_GLSL_EMISSIVE`) |
 | `pc/tests/emissive_smoke.py` | the test (run.py suite `emissive_smoke`) |
 
@@ -60,6 +61,9 @@ drew it.
   - `indices`: a CLUT index set (4- and 8-bit textures).
   - `color_min`, `color_max` (5-bit RGB) and `luma` `[lo, hi]` (0..1): the
     drawn texel's colour must lie in them.
+  - `map`: `"emissive"`: a painted map per texture, each texel's amount
+    (0..255) from `materials/<key>/emissive.png` of the matched texture
+    ([Materials.md](Materials.md)); with shapes and filters too, all apply.
   The shapes are where it can glow; the filters are tested per drawn texel,
   so palette animations and palette swaps keep exact masks.
 - **color** (tint), **strength**: the emission is texel colour x tint x
@@ -67,8 +71,63 @@ drew it.
   colour). Above 1 only matters for bloom (and HDR output).
 - **light**: 0, not a light (it glows on screen and blooms); above 0, its
   triangles are game glows with this weight (below).
+- **scope** (optional): where the entry applies (next section). Without
+  one it applies everywhere its textures are drawn.
 - `enabled`, `review` (`checked`, `new`), `note`, `where`: as in the fixture
   catalog.
+
+## Scope
+
+A mask lives in texture space, so every surface that samples those texels
+glows: the same stone texture around a lit window is also a patch of floor
+far below. A scope limits an entry to where it is meant:
+
+```json
+"scope": {
+  "rooms": [[45, 0]],
+  "surfaces": [{ "room": [45, 0], "polygons": [43444, 43484] }],
+  "models": ["4b8870d7"]
+}
+```
+
+- **rooms** `[zone, room]` (as the `state` RPC and the lights files name
+  rooms): the entry is marked only while the player is in one of them
+  (everything it would mark there: room, other room blocks, characters).
+- **surfaces**: room polygons, by their byte offset in the room's geometry
+  data (`scene_capture.h` `scene_triangle.polygon`; a quad is one polygon,
+  both its triangles). The offset is the game data's own, the same on every
+  visit and every load, independent of drawing order or VRAM; groups that
+  share one geometry block share its polygons.
+- **models**: characters, weapons and props, by the content hash of the
+  model's data (8 hex digits; `actor_native.c`: its kind, groups, vertices
+  and records, the hash its mesh cache keys on), the same for every copy of
+  the model in every room.
+- No scope, or an empty one: everywhere (the curated v1 entries). `rooms`
+  and the surface lists combine: with rooms, surfaces and models apply only
+  in those rooms; with surfaces or models, only those glow (a room polygon
+  in `surfaces` or a mesh of a model in `models`).
+
+How it is drawn: an entry limited to surfaces or models gets one of 16
+**scope bits** while it is marked (more such entries at once are left
+unmarked, and the editor says so); its slot carries the bit (parameter byte
+13). `room_native.c` and `actor_native.c` tell `emissive.cpp` which mesh
+draws which room geometry block or model (`pc_emissive_room_mesh`,
+`pc_emissive_model_mesh`); on a change of the catalog or the room each mesh
+gets its polygons' scope bits (`render_mesh_emissive_scope`: the vertices'
+`emissive_scope` field, otherwise padding, re-uploaded only then), and the
+native shaders pass them from the geometry stage to `emissive_texel`, which
+skips a scoped slot unless the polygon has its bit. The packet path (native
+room off) has no bits: scoped entries do not show there. The lights (room
+triangles, object triangles) apply the same scope on the CPU.
+
+Editor (Details > Emissive, the selected entry's **Scope**): *Limit to this
+room*; *Limit to picked surfaces*: while armed, each click in the view adds
+the room polygon (or the character's model) under it, a second click on it
+removes it; *Add / remove the picked surface*, *Clear surfaces*; **Show
+other uses** outlines in the view every other surface the entry lights
+(orange, pulsing; "N other surface(s) glow too (M in view)"), its scope's own
+surfaces (green) and those its scope leaves out (grey), so the side effects
+of a texture mask are visible before saving.
 
 A user entry with a curated id replaces it ("curated, with your changes");
 other ids (`U001`...) are added. Delete or *Revert to curated* in the
@@ -87,12 +146,14 @@ tried again every frame (VRAM animations) and when VRAM under it changes
 (`gpu_hw.c pc_hw_mark`: a texture loaded later). Uses are noted and matched
 whatever the setting, so turning it on shows the marks at once.
 
-**The slot map.** A VRAM-sized R8UI texture, 4096 x 516: rows 0-511 have
+**The slot map.** A VRAM-sized R8UI texture, 4096 x 1028: rows 0-511 have
 one cell per texel position (x = page x * 4 + u shifted by the page's colour
 depth, so 4-, 8- and 16-bit texels share one addressing), 0 or the slot of
 the entry whose shapes cover that texel where a matched use sits; rows
 512-515 hold each slot's parameters (tint, strength with the setting folded
-in, colour and luminance ranges, the 256-bit index set). The CPU rebuilds it
+in, colour and luminance ranges, the 256-bit index set, the scope bit);
+rows 516-1027 each cell's amount (a painted map's value, else 255: the
+emission's factor / 255; a painted 0 leaves the cell unmarked). The CPU rebuilds it
 when matches, the catalog or the setting change and uploads the rows that
 changed (`gpu_hw.c emissive_sync`, Vulkan `pc_vk_hw_upload_emissive`), before
 a game frame's first draw or at once on a change (a paused game's redraws
@@ -123,17 +184,37 @@ and unlit.
 
 **Lights** (`light` > 0). `ptgi.c update_emitters` adds glow fragments:
 
-- room triangles (the captured scene) with light texels: their 15-point
-  barycentric grid's mean emission x the light weight. `glows.c
-  build_groups` takes them into the room polygon groups (24-unit bound
-  unions, stable keys from polygon offsets) as additive polygons are, so an
-  emissive window is one glow per window, named, overridable and keyed like
-  any room glow. A change of the set of light triangles
-  (`pc_emissive_light_serial`) regroups.
+- room triangles (the captured scene) with light texels: every texel whose
+  centre lies inside the triangle's UV triangle is looked at (slot, scope,
+  filters); the fragment's colour is the glowing texels' mean emission x the
+  light weight x their share of the triangle's texels, the share counted as
+  at least 0.25 (`LIGHT_MIN_SHARE`). `glows.c build_groups` takes them into
+  the room polygon groups (24-unit bound unions, stable keys from polygon
+  offsets) as additive polygons are, so an emissive window is one glow per
+  window, named, overridable and keyed like any room glow. A change of the
+  set of light triangles (`pc_emissive_light_serial`) regroups. The
+  integration runs when the room, the catalog or the setting change, and
+  again for a triangle when VRAM under its texels or CLUT changes (palette
+  and VRAM animations) or room texture effects move its UVs.
 - object lists and other room blocks (characters, props, the floating
-  blocks): their triangles' corners and centre; object glows by mesh
-  (`PC_GLOW_ORIGIN_OBJECT`, effect category until promoted, as glows.c
-  treats additive object polygons).
+  blocks): the same integration per triangle, cached by texture area and
+  scope; object glows by mesh (`PC_GLOW_ORIGIN_OBJECT`, effect category
+  until promoted, as glows.c treats additive object polygons).
+
+Why filters lost the light (fixed 2026-10-15): the glow of a light
+triangle used to be the mean emission of 15 fixed barycentric points (4 for
+objects): the corners, the edges' quarter points and a few inside. With
+the whole texture glowing every point hits a glowing texel. A filter (CLUT
+indices, colour or luminance range) or a small rect that leaves only a few
+texels glowing (the bright top of a window jamb, the hottest embers) is
+missed by all 15 points on most triangles: their emission came out 0, the
+glow's weight (area x luminance) fell under glows.c's 1e-3 observation
+threshold and the light was gone, while the screen (per pixel) still
+showed the glow. Now every texel counts, so the light follows the glowing
+area exactly (the coals narrowed to their hottest index: 2-7% of a
+triangle's texels, still three light triangles), and the share's floor keeps
+a narrow strip a usable light whose strength the light weight (up to 4)
+scales.
 
 The glows' existing budget (32 traced, per-piece strength, smoothing,
 categories, shadows) applies unchanged; nothing new is traced per pixel, so
@@ -150,11 +231,25 @@ additive glows are left alone.
   - `list` (default): the entries (with `origin` curated / override / user
     and `marked`, the uses marked now), `active`, `marked_uses`,
     `marked_texels`, `light_triangles`, the two paths, `unsaved`;
+  - `surfaces {id}` (*Show other uses*): the surfaces the entry's marked
+    texels are on now (the room's polygons, models and other blocks drawn):
+    `kind`, `polygon` / `model`, `texels`, `covered` (under its shapes),
+    `glowing` (filters passed), `allowed` (its scope), `listed` (named by
+    its scope), `picked`, `centre`, `screen` (window pixels of its
+    triangles' centres in the view); `affected` (surfaces it lights),
+    `other` (besides the picked one and its scope's own), `excluded`
+    (left out by its scope);
+  - `scope_pick {id}`: the last pick's room polygon or model into the
+    entry's scope, or out of it when it is there (`added`);
+  - `lights`: the room triangles that are lights now: `rgb` (the glow
+    colour they give), `texels`, `glowing`; `luminance` summed;
   - `uses {keys, matched, stats, limit}`: the textures drawn (page, CLUT,
     box, key, entry; `stats`: mean colour and share of bright texels);
   - `pick {x, y}` (window pixel) or `{world: [x, y, z]}`: the textured
     native triangle there: key, size, page, CLUT, box, texel, CLUT index,
-    colour, clut key, entry, emission;
+    colour, clut key, entry, emission, `glows` (the texel, as a texture),
+    `surface` (`kind` room / model / other, `room`, `polygon` or `model`)
+    and `glows_here` (the entry's scope lets it glow on that surface);
   - `new` (an entry for the last pick), `set {entry}` (a whole entry; no id:
     a new `U###`) or `set {id, field: value...}` (merged into a copy in the
     user layer), `remove {id}`, `save` (the user file), `reload` (both files
@@ -216,8 +311,25 @@ a halo appears around them; Vulkan path traced: the hood above the forge
 gets brighter (their light); every curated entry is found in its room
 (32/3 with the floating blocks shown, 34/0 in the free camera, 45/0,
 53/21); a mask made over RPC on a picked texture is saved, reloaded and
-marks the same texels with the same emission. `ui_settings_probe` checks
-the menu row.
+marks the same texels with the same emission. Scopes: an entry on the
+forge bed's texture lights its 12 polygons; *show other uses* counts them
+and each one visible changes on screen exactly when counted; limited to one
+picked polygon only it changes (another polygon with the same texels stays
+as without the entry), then two; a room scope of another room marks
+nothing, of this room everything; the scope survives save and reload; a
+light limited to a polygon lights from it only; a mask on Ashley's texture
+limited to another model shows nowhere, to hers on her. Filtered light: the
+coals narrowed to CLUT index 15 (7% of a triangle's texels at most) are
+still light triangles with light, and with path tracing (Vulkan) still
+light the hood (light 1 against light 0). Painted maps: an entry on the
+floor's texture with a painted map glows nowhere without its map; the
+reference export writes the texture and an empty map and refuses
+`pc/assets`; a rect painted over RPC glows exactly there (picks across the
+floor), the file holds those pixels and so does a reload; imported PNGs
+(grayscale, alpha-only) replace it, another size is refused; a map saved
+from outside is reloaded while the game runs; with a light weight the
+painted floor adds light triangles. `ui_settings_probe` checks the menu
+row.
 
 ## Limits and next
 
@@ -227,8 +339,13 @@ the menu row.
 - A texture animated in VRAM needs each frame's key; one never seen is
   matched only on the frames listed. The editor picks one key at a time.
 - The mask is per VRAM location: another texture sampling the same texels
-  (it is the same image) glows too.
+  (it is the same image) glows too, unless the entry has a scope.
+- Where two entries' masks cover the same texel the later entry's slot
+  wins, also on surfaces its scope leaves out (they then show neither).
+- At most 16 entries limited to surfaces or models are marked at once.
 - The editor's free view (`editor_view.cpp`'s own shading) does not apply
   the emission; the game view does.
+- A painted map is per texture key: each animation frame of a texture
+  animated in VRAM needs its own map.
 - Next: window light shafts and fog emitters from light entries (their
   glows' positions and colours are there).

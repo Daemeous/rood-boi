@@ -38,6 +38,8 @@ bool pc_atmosphere_viewport(const float view[16], const float projection[16], co
 #include "lights_internal.h"
 #include "lighting_quality.h"
 #include "editor_undo.h"
+#include "editor_scene.h"
+#include "editor_selection.h"
 
 extern "C" {
 int pc_scene_camera_get(float rotation[3][3], float translation[3], float* h, float* ofx, float* ofy);
@@ -260,38 +262,38 @@ double rood_lights::light_time()
     return frame_time;
 }
 
+/* The selection lives in editor_selection.h (one set of typed references the
+ * viewport, Outliner, Details, undo and the RPC share); these keep their old
+ * meaning by replacing it, and editor_scene.cpp's publish keeps selected,
+ * selected_actor, multi and the glow's state in step with it. */
 void rood_lights::select_none()
 {
-    selected = selected_actor = -1;
-    glow_selected = false;
-    multi.clear();
+    rood_selection::clear(rood_selection::FROM_CODE);
+    rood_scene::publish();
 }
 void rood_lights::select_light(int index)
 {
-    select_none();
-    selected = index;
+    rood_selection::set(rood_scene::light_ref(index), rood_selection::FROM_CODE);
+    rood_scene::publish();
 }
 void rood_lights::select_actor(int index)
 {
-    select_none();
-    selected_actor = index;
+    rood_selection::set(rood_scene::actor_ref(index), rood_selection::FROM_CODE);
+    rood_scene::publish();
 }
 void rood_lights::select_glow(const float position[3])
 {
-    select_none();
-    glow_selected = true;
-    memcpy(glow_at, position, sizeof glow_at);
-    glow_id = pc_gi_glow_near(position, 96);
+    uint32_t id = pc_gi_glow_near(position, 96);
+    rood_selection::set(id ? rood_scene::glow_ref(id) : rood_scene::glow_ref_key("", position), rood_selection::FROM_CODE);
+    rood_scene::publish();
 }
 void rood_lights::select_glow_id(uint32_t id)
 {
-    pc_glow_info g;
-    if (!pc_gi_glow_get(id, &g))
+    rood_selection::Ref ref = rood_scene::glow_ref(id);
+    if (!ref)
         return;
-    select_none();
-    glow_selected = true;
-    glow_id = id;
-    memcpy(glow_at, g.position, sizeof glow_at);
+    rood_selection::set(ref, rood_selection::FROM_CODE);
+    rood_scene::publish();
 }
 const char* rood_lights::light_type_name(int type)
 {
@@ -885,6 +887,14 @@ struct Drag {
 } drag;
 bool drag_suppressed; /* cancelled with the button still held: no new drag until it is released */
 std::vector<Ghost> drag_ghost;
+/* A box select begun on empty space (or over a fog volume only): where it
+ * began, with which modifiers, and the volume under it then. */
+struct Marquee {
+    bool pending = false, dragging = false;
+    float x = 0, y = 0;
+    bool shift = false, ctrl = false;
+    rood_selection::Ref volume;
+} marquee;
 } // namespace
 
 static void update_drag()
@@ -1045,18 +1055,18 @@ static ImU32 light_colour(const float c[3], float alpha)
 }
 /* An actor in the view: its prefab's icon at the pivot, lines to its
  * lights (small dots), the lights' shapes, and their radii when selected.
- * Returns true when the pointer is over the pivot or one of its lights. */
-static bool draw_actor(const View& v, ImDrawList* draw, const prefab::Actor& a, bool is_selected, float alpha,
-    const char* label, ImVec2 mouse)
+ * With a reference, its pivot and its lights are its icons for picking
+ * (editor_scene.cpp; the pivot is its anchor). */
+static void draw_actor(const View& v, ImDrawList* draw, const prefab::Actor& a, bool is_selected, float alpha,
+    const char* label, const rood_selection::Ref* ref)
 {
     ImVec2 pivot;
     if (!view_project(v, a.position, pivot))
-        return false;
+        return;
     std::vector<prefab::EvalLight> ls;
     actor_lights(a, ls);
     const prefab::Prefab* p = prefab::library().find(a.prefab);
     float em = ImGui::GetStyle().FontScaleMain, icon = 11 * em;
-    bool hovered = false;
     float colour[3] = { 1, 0.8f, 0.5f };
     if (!ls.empty())
         memcpy(colour, ls[0].color, sizeof colour);
@@ -1072,8 +1082,8 @@ static bool draw_actor(const View& v, ImDrawList* draw, const prefab::Actor& a, 
         float r = 5 * em;
         draw->AddCircleFilled(q, r, light_colour(e.color, (e.enabled ? 1.0f : 0.35f) * alpha));
         draw->AddCircle(q, r + 1.5f, is_selected ? IM_COL32(255, 255, 0, (int)(255 * alpha)) : IM_COL32(0, 0, 0, (int)(180 * alpha)), 16, 1.5f);
-        float dx = mouse.x - q.x, dy = mouse.y - q.y;
-        hovered |= dx * dx + dy * dy < (r + 4) * (r + 4);
+        if (ref)
+            rood_scene::icon(*ref, q.x, q.y, r + 4, false);
     }
     /* The pivot: a rounded square holding the prefab's icon. */
     ImVec2 lo(pivot.x - icon, pivot.y - icon), hi(pivot.x + icon, pivot.y + icon);
@@ -1082,9 +1092,8 @@ static bool draw_actor(const View& v, ImDrawList* draw, const prefab::Actor& a, 
     draw->AddRect(lo, hi, is_selected ? IM_COL32(255, 255, 0, (int)(255 * alpha)) : p ? IM_COL32(0, 0, 0, (int)(200 * alpha)) : IM_COL32(255, 60, 60, 255), 4 * em, ImDrawFlags_None, 2.0f);
     if (label)
         draw->AddText(ImVec2(hi.x + 4, lo.y), IM_COL32(255, 255, 255, (int)(230 * alpha)), label);
-    float dx = mouse.x - pivot.x, dy = mouse.y - pivot.y;
-    hovered |= fabsf(dx) < icon + 3 && fabsf(dy) < icon + 3;
-    return hovered;
+    if (ref)
+        rood_scene::icon(*ref, pivot.x, pivot.y, icon + 3, true);
 }
 
 /* The drag from the Place Actors panel: the ghost where it would land
@@ -1110,7 +1119,7 @@ static void draw_place_drag(const View& v, const pc_overlay_view& ov, ImDrawList
             }
         }
         if (g.actor)
-            draw_actor(v, draw, g.a, true, 0.75f, nullptr, ImVec2(-1e9f, -1e9f));
+            draw_actor(v, draw, g.a, true, 0.75f, nullptr, nullptr);
         else {
             ImVec2 p;
             if (view_project(v, g.light.position, p)) {
@@ -1174,6 +1183,35 @@ static void draw_cutaway_focus(const View& v, ImDrawList* draw)
         draw->AddText(ImVec2(p.x + r * 1.6f, p.y - r * 1.6f), IM_COL32(170, 240, 255, 220), "focus (ghosting what hides it)");
 }
 
+/* A click on nothing in the view: Ctrl adds the Place panel's item there,
+ * Shift moves the selected light or actor there (the snapped point or edge,
+ * else off the surface), a plain click selects nothing. */
+static void empty_click(float x, float y, bool shift, bool ctrl)
+{
+    bool have_light = selected >= 0 && selected < (int)lights.size();
+    bool have_actor = selected_actor >= 0 && selected_actor < (int)actors.size();
+    Placement where;
+    if (ctrl) {
+        if (place_compute(place_item, x, y, 0, where))
+            place_commit(place_item, where);
+        return;
+    }
+    if (shift) {
+        std::string item = have_actor ? "prefab:" + actors[selected_actor].prefab : "light:point";
+        if (!(have_light || have_actor) || !place_compute(item, x, y, 0, where))
+            return;
+        pc_undo_hint(have_light ? "Move light to surface" : "Move actor to surface");
+        if (have_light)
+            memcpy(lights[selected].position, where.position, sizeof where.position);
+        else
+            memcpy(actors[selected_actor].position, where.position, sizeof where.position);
+        dirty = true;
+        return;
+    }
+    rood_selection::clear(rood_selection::FROM_VIEWPORT);
+    rood_scene::publish();
+}
+
 /* Draw and edit lights and actors in the scene (called with the overlay
  * open), over the viewport overlays (editor_overlays.cpp). Click an icon
  * to select (an actor's pivot or any of its lights selects the actor); drag
@@ -1189,6 +1227,7 @@ extern "C" void pc_lights_viewport(void)
     if (!tools_view(v))
         return;
     pc_overlay_view ov = overlay_view(v);
+    rood_scene::icons_begin();
     ImGuiIO& io = ImGui::GetIO();
     ImDrawList* draw = ImGui::GetBackgroundDrawList();
     bool v_held = !io.WantTextInput && ImGui::IsKeyDown(ImGuiKey_V);
@@ -1226,13 +1265,13 @@ extern "C" void pc_lights_viewport(void)
         was_using = false;
         return;
     }
-    int hovered = -1;
     for (size_t i = 0; i < lights.size(); i++) {
         const Light& l = lights[i];
         ImVec2 p;
-        if (!view_project(v, l.position, p))
+        if (rood_scene::light_hidden((int)i) || !view_project(v, l.position, p))
             continue;
-        bool is_selected = (int)i == selected || std::find(multi.begin(), multi.end(), (int)i) != multi.end();
+        rood_selection::Ref ref = rood_scene::light_ref((int)i);
+        bool is_selected = rood_selection::contains(ref);
         draw_light_shape(v, draw, l, is_selected ? IM_COL32(120, 220, 255, 220) : IM_COL32(120, 220, 255, 90));
         draw_sphere(v, draw, l.position, l.radius, is_selected ? IM_COL32(255, 230, 120, 200) : IM_COL32(255, 255, 255, 70),
             is_selected ? 2.0f : 1.0f);
@@ -1242,22 +1281,21 @@ extern "C" void pc_lights_viewport(void)
         char label[16];
         snprintf(label, sizeof label, "%zu", i + 1);
         draw->AddText(ImVec2(p.x + icon + 4, p.y - icon), IM_COL32(255, 255, 255, 230), label);
-        float dx = io.MousePos.x - p.x, dy = io.MousePos.y - p.y;
-        if (dx * dx + dy * dy < (icon + 4) * (icon + 4))
-            hovered = (int)i;
+        rood_scene::icon(ref, p.x, p.y, icon + 4, true);
     }
     /* Actors, then suggestion ghosts (dimmed). */
-    int hovered_actor = -1;
     for (size_t i = 0; i < actors.size(); i++) {
+        if (rood_scene::actor_hidden((int)i))
+            continue;
         const prefab::Prefab* p = prefab::library().find(actors[i].prefab);
         char label[96];
         snprintf(label, sizeof label, "%s %zu", p ? p->name.c_str() : actors[i].prefab.c_str(), i + 1);
-        if (draw_actor(v, draw, actors[i], (int)i == selected_actor, 1.0f, label, io.MousePos))
-            hovered_actor = (int)i;
+        rood_selection::Ref ref = rood_scene::actor_ref((int)i);
+        draw_actor(v, draw, actors[i], rood_selection::contains(ref), 1.0f, label, &ref);
     }
     for (const Ghost& g : ghosts)
         if (g.actor)
-            draw_actor(v, draw, g.a, false, 0.5f, nullptr, ImVec2(-1e9f, -1e9f));
+            draw_actor(v, draw, g.a, false, 0.5f, nullptr, nullptr);
     /* The selected actor's fixture: its polygons around the flame, outlined. */
     if (selected_actor >= 0 && selected_actor < (int)actors.size() && actors[selected_actor].fixture) {
         const prefab::Actor& a = actors[selected_actor];
@@ -1276,17 +1314,17 @@ extern "C" void pc_lights_viewport(void)
     /* The game's glows: diamonds in their colour at their smoothed centre
      * (they hold still while the sprites flicker); click to select (by id).
      * Glows that are out (their source drew nothing lately) are hollow. */
-    uint32_t hovered_glow = 0;
-    float hovered_glow_d = 1e30f;
     static pc_glow_info glows[160];
     int glow_count = pc_gi_glow_list(glows, 160);
     follow_glow();
     for (int i = 0; i < glow_count; i++) {
         const pc_glow_info& g = glows[i];
         ImVec2 p;
-        if (g.color[3] < 0 || g.category == PC_GLOW_EFFECT || !view_project(v, g.position, p))
+        if (g.color[3] < 0 || g.category == PC_GLOW_EFFECT || rood_scene::glow_hidden(g.key, g.position)
+            || !view_project(v, g.position, p))
             continue; /* effects: not selectable one by one */
-        bool is_selected = glow_selected && g.id == glow_id;
+        rood_selection::Ref ref = rood_scene::glow_ref_key(g.key, g.position);
+        bool is_selected = rood_selection::contains(ref);
         if (g.presence < 0.02f && !is_selected && !g.overridden)
             continue;
         float r = 8 * ImGui::GetStyle().FontScaleMain;
@@ -1297,9 +1335,7 @@ extern "C" void pc_lights_viewport(void)
         if (g.presence >= 0.02f)
             draw->AddConvexPolyFilled(d, 4, IM_COL32((int)shown[0], (int)shown[1], (int)shown[2], 230));
         draw->AddPolyline(d, 4, is_selected ? IM_COL32(255, 255, 0, 255) : IM_COL32(0, 0, 0, 200), ImDrawFlags_Closed, 2.0f);
-        float dx = io.MousePos.x - p.x, dy = io.MousePos.y - p.y;
-        if (dx * dx + dy * dy < (r + 4) * (r + 4) && dx * dx + dy * dy < hovered_glow_d)
-            hovered_glow_d = dx * dx + dy * dy, hovered_glow = g.id;
+        rood_scene::icon(ref, p.x, p.y, r + 4, true);
     }
     if (probe_valid)
         draw_probe(v, draw);
@@ -1365,9 +1401,13 @@ extern "C" void pc_lights_viewport(void)
         /* Alt+drag (as in UE): a copy stays where the light or actor was. */
         if (ImGuizmo::IsUsing() && !was_using && io.KeyAlt) {
             pc_undo_hint(have_light ? "Duplicate light (Alt+drag)" : "Duplicate actor (Alt+drag)");
-            if (have_light)
+            /* The copy gets its own id (the selection, by id, stays on the
+             * one being dragged; editor_scene.cpp assigns the new id). */
+            if (have_light) {
+                before_light.id.clear();
                 lights.push_back(before_light);
-            else {
+            } else {
+                before_actor.id.clear();
                 before_actor.seed = new_seed();
                 actors.push_back(before_actor);
             }
@@ -1380,6 +1420,37 @@ extern "C" void pc_lights_viewport(void)
     /* Fog volumes (atmosphere.cpp): outlines, the selected one's gizmo. */
     if (pc_atmosphere_viewport(v.view, v.projection, v.rect, draw))
         gizmo_busy = true;
+    /* A box select: drawn while the button is held; on release it selects
+     * what it encloses (Shift adds, Ctrl toggles), or, when the mouse hardly
+     * moved, it was a click on empty space. */
+    if (marquee.pending) {
+        ImVec2 a(marquee.x, marquee.y), b = io.MousePos;
+        if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+            marquee.dragging = true;
+        if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+            if (marquee.dragging) {
+                ImDrawList* front = ImGui::GetForegroundDrawList();
+                ImVec2 lo(fminf(a.x, b.x), fminf(a.y, b.y)), hi(fmaxf(a.x, b.x), fmaxf(a.y, b.y));
+                front->AddRectFilled(lo, hi, IM_COL32(120, 180, 255, 40));
+                front->AddRect(lo, hi, IM_COL32(120, 180, 255, 220), 0, 0, 1.5f);
+            }
+            return;
+        }
+        Marquee m = marquee;
+        marquee = Marquee();
+        if (m.dragging) {
+            rood_selection::box(rood_scene::in_box(m.x, m.y, b.x, b.y), m.shift, m.ctrl, rood_selection::FROM_VIEWPORT);
+            rood_scene::publish();
+        } else if (m.volume && (!m.ctrl || rood_selection::contains(m.volume))) {
+            /* A click inside a fog volume picks it (Shift adds; Ctrl takes a
+             * selected one out, else Ctrl+click still places on the surface). */
+            rood_selection::click(m.volume, m.shift, m.ctrl, rood_selection::FROM_VIEWPORT);
+            rood_scene::publish();
+        } else {
+            empty_click(m.x, m.y, m.shift, m.ctrl);
+        }
+        return;
+    }
     /* pc_ui_shell_wants_mouse: the modern menus over the game picture take the click */
     if (io.WantCaptureMouse || pc_ui_shell_wants_mouse() || gizmo_busy || drag.active
         || !ImGui::IsMouseClicked(ImGuiMouseButton_Left) || io.KeyAlt)
@@ -1399,60 +1470,34 @@ extern "C" void pc_lights_viewport(void)
         }
         return;
     }
-    if (fixture_mode && hovered < 0 && hovered_actor < 0) {
+    /* What is under the pointer: an icon (a light, an actor's pivot or one of
+     * its lights, a glow). */
+    rood_selection::Ref under = rood_scene::object_at(io.MousePos.x, io.MousePos.y);
+    bool on_light = under.kind == rood_selection::KIND_LIGHT || under.kind == rood_selection::KIND_ACTOR;
+    if (fixture_mode && !on_light) {
         /* The Light fixture tool: one click on a lantern, candle or glow. */
         light_fixture_at_pixel(io.MousePos.x, io.MousePos.y, "");
-    } else if (io.KeyCtrl && hovered < 0 && hovered_actor < 0) {
-        /* Ctrl+click: the Place panel's item here (a point light by default). */
-        Placement where;
-        if (place_compute(place_item, io.MousePos.x, io.MousePos.y, 0, where))
-            place_commit(place_item, where);
-    } else if (hovered >= 0) {
-        select_light(hovered);
-    } else if (hovered_actor >= 0) {
-        select_actor(hovered_actor);
-    } else if (hovered_glow) {
-        select_glow_id(hovered_glow);
-    } else if (io.KeyShift) {
-        /* Shift+click: move the selection to the point or edge snapped to,
-         * else off the surface (an actor's pivot onto it). */
-        std::string item = have_actor ? "prefab:" + actors[selected_actor].prefab : "light:point";
-        Placement where;
-        if (!(have_light || have_actor) || !place_compute(item, io.MousePos.x, io.MousePos.y, 0, where))
-            return;
-        pc_undo_hint(have_light ? "Move light to surface" : "Move actor to surface");
-        if (have_light)
-            memcpy(lights[selected].position, where.position, sizeof where.position);
-        else
-            memcpy(actors[selected_actor].position, where.position, sizeof where.position);
-        dirty = true;
+    } else if (under) {
+        /* Unreal's: a click selects, Shift adds, Ctrl toggles. */
+        rood_selection::click(under, io.KeyShift, io.KeyCtrl, rood_selection::FROM_VIEWPORT);
+        rood_scene::publish();
     } else {
-        select_none();
+        /* Empty space, or only a fog volume (a misty room's floor is inside
+         * one): a drag is a box select; on release without a drag, the fog
+         * volume a ray from the pixel enters first is picked, else it was a
+         * click on nothing (Ctrl places, Shift moves the selection there). */
+        marquee = Marquee();
+        marquee.pending = true;
+        marquee.x = io.MousePos.x, marquee.y = io.MousePos.y;
+        marquee.shift = io.KeyShift, marquee.ctrl = io.KeyCtrl;
+        marquee.volume = rood_scene::volume_at(ov, pick_for_snap, io.MousePos.x, io.MousePos.y);
     }
 }
 
-/* Selected light, actor or glow position for the editor's focus key (F). */
+/* The selection's primary for the editor's focus key (F) and the cutaway's focus. */
 extern "C" int pc_lights_selected_position(float out[3], float* radius)
 {
-    if (glow_selected) { /* a game glow: its position, a nominal radius */
-        memcpy(out, glow_at, sizeof glow_at);
-        *radius = 200;
-        return 1;
-    }
-    if (selected_actor >= 0 && selected_actor < (int)actors.size()) {
-        memcpy(out, actors[selected_actor].position, sizeof actors[selected_actor].position);
-        std::vector<prefab::EvalLight> ls;
-        actor_lights(actors[selected_actor], ls, false);
-        *radius = 200;
-        for (const prefab::EvalLight& e : ls)
-            *radius = fmaxf(*radius, fminf(e.radius, 600));
-        return 1;
-    }
-    if (selected < 0 || selected >= (int)lights.size())
-        return 0;
-    memcpy(out, lights[selected].position, sizeof lights[selected].position);
-    *radius = lights[selected].radius;
-    return 1;
+    return rood_scene::position(rood_selection::primary(), out, radius) ? 1 : 0;
 }
 
 /* Lights for the renderers, world space: the room's lights, then its
@@ -1528,7 +1573,7 @@ extern "C" int pc_lights_world(float position[][4], float color[][4], float dire
     candidates.clear();
     bool soloing = solo >= 0 || solo_actor >= 0;
     for (size_t i = 0; i < lights.size(); i++)
-        if (lights[i].enabled && (!soloing || (int)i == solo))
+        if (lights[i].enabled && (!soloing || (int)i == solo) && !rood_scene::light_hidden((int)i))
             candidates.push_back({ lights[i], 0, -1, 0, std::string() });
     /* The eye and view direction (the scene camera) for the importance. */
     float eye[3] = { 0, 0, 0 }, forward[3] = { 0, 0, 1 }, r[3][3], t[3], h, ox, oy, inverse[3][3];
@@ -1546,7 +1591,7 @@ extern "C" int pc_lights_world(float position[][4], float color[][4], float dire
     float cos_half = 1.0f / sqrtf(1 + tan_half * tan_half), sin_half = tan_half * cos_half;
     std::vector<prefab::EvalLight> evaluated;
     for (size_t i = 0; i < actors.size(); i++) {
-        if (!actors[i].enabled || (soloing && (int)i != solo_actor))
+        if (!actors[i].enabled || (soloing && (int)i != solo_actor) || rood_scene::actor_hidden((int)i))
             continue;
         actor_lights(actors[i], evaluated);
         int k = 0;
@@ -1772,20 +1817,15 @@ extern "C" void pc_lights_outliner(const char* filter)
         ImGui::ColorButton("##swatch", ImVec4(l.color[0], l.color[1], l.color[2], 1), ImGuiColorEditFlags_NoTooltip,
             ImVec2(ImGui::GetFontSize(), ImGui::GetFontSize()));
         ImGui::SameLine();
-        bool silent = !l.enabled || (solo >= 0 && solo != (int)i) || solo_actor >= 0; /* not lighting the scene */
+        rood_selection::Ref ref = rood_scene::light_ref((int)i);
+        bool hidden = rood_selection::hidden(ref);
+        bool silent = !l.enabled || (solo >= 0 && solo != (int)i) || solo_actor >= 0 || hidden; /* not lighting the scene */
         if (silent)
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-        bool in_multi = std::find(multi.begin(), multi.end(), (int)i) != multi.end();
-        if (ImGui::Selectable(label, (int)i == selected || in_multi)) {
-            if (ImGui::GetIO().KeyCtrl && selected >= 0 && selected != (int)i) {
-                if (in_multi)
-                    multi.erase(std::find(multi.begin(), multi.end(), (int)i));
-                else
-                    multi.push_back((int)i);
-            } else {
-                select_light((int)i);
-            }
-        }
+        std::string shown = hidden ? std::string(label) + "  [hidden]###" + label : std::string(label);
+        if (ImGui::Selectable(shown.c_str(), rood_selection::contains(ref)))
+            rood_scene::row_clicked(ref);
+        rood_scene::row_drawn(ref);
         if (silent)
             ImGui::PopStyleColor();
         layer_row(light_item_id((int)i)); /* layer badge, revert / promote menu */
@@ -1805,61 +1845,49 @@ extern "C" void pc_lights_outliner(const char* filter)
         suggest();
 }
 
-/* Details of the selected light. Returns false when nothing is selected. */
-extern "C" bool pc_lights_details(void)
+/* Details > a light's own actions under its fields (editor_schema.cpp
+ * draws those): Duplicate, Delete, and Create prefab from the selected
+ * lights (they are replaced by an actor of it). */
+void rood_lights::light_details_extra(int index)
 {
-    if (actor_details())
-        return true;
-    if (selected < 0 || selected >= (int)lights.size())
-        return false;
-    Light& l = lights[selected];
-    ImGui::PushID(selected);
-    ImGui::SeparatorText(l.type == 1 ? "Spot light" : l.type == 2 ? "Rect light" : "Point light");
-    const char* types[] = { "Point", "Spot", "Rect" };
-    dirty |= ImGui::Combo("Type", &l.type, types, 3);
-    dirty |= ImGui::Checkbox("Enabled", &l.enabled);
-    ImGui::SameLine();
-    dirty |= ImGui::Checkbox("Casts shadows", &l.shadows);
-    dirty |= ImGui::DragFloat3("Position", l.position, 2.0f);
-    dirty |= ImGui::ColorEdit3("Colour", l.color);
-    dirty |= ImGui::SliderFloat("Intensity", &l.intensity, 0, 8);
-    dirty |= ImGui::SliderFloat("Radius", &l.radius, 32, 4096, "%.0f", ImGuiSliderFlags_Logarithmic);
-    if (l.type != 0)
-        dirty |= ImGui::DragFloat3("Direction", l.direction, 0.01f, -1, 1);
-    if (l.type == 1)
-        dirty |= ImGui::SliderFloat("Cone", &l.cone, 5, 170, "%.0f deg");
-    if (l.type == 2)
-        dirty |= ImGui::DragFloat2("Size", l.size, 2.0f, 8, 4096, "%.0f");
+    if (index < 0 || index >= (int)lights.size())
+        return;
+    Light& l = lights[index];
+    ImGui::PushID(index);
     if (ImGui::Button("Duplicate")) {
-        pc_undo_hint((std::string("Duplicate ") + light_type_name(l.type) + " " + std::to_string(selected + 1)).c_str());
+        pc_undo_hint((std::string("Duplicate ") + light_type_name(l.type) + " " + std::to_string(index + 1)).c_str());
         Light copy = l;
+        copy.id.clear(); /* its own id: the selection (by id) goes to the copy */
         copy.position[0] += 64;
         lights.push_back(copy);
         select_light((int)lights.size() - 1);
         dirty = true;
+        ImGui::PopID();
+        return;
     }
     ImGui::SameLine();
     if (ImGui::Button("Delete")) {
-        pc_undo_hint((std::string("Delete ") + light_type_name(l.type) + " " + std::to_string(selected + 1)).c_str());
-        lights.erase(lights.begin() + selected);
-        if (solo == selected)
+        pc_undo_hint((std::string("Delete ") + light_type_name(l.type) + " " + std::to_string(index + 1)).c_str());
+        lights.erase(lights.begin() + index);
+        if (solo == index)
             solo = -1;
-        else if (solo > selected)
+        else if (solo > index)
             --solo;
         select_none();
         dirty = true;
         ImGui::PopID();
-        return true;
+        return;
     }
-    /* Create prefab from selection: this light (and any Ctrl+clicked in
-     * the Outliner) become a prefab, replaced here by an actor of it. */
+    /* Create prefab from selection: this light (and the other selected
+     * lights) become a prefab, replaced here by an actor of it. */
     ImGui::SameLine();
     static char name[64];
     if (ImGui::Button("Create prefab..."))
         ImGui::OpenPopup("create prefab");
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-        ImGui::SetTooltip("Make a prefab of the selected light%s (Ctrl+click more in the Outliner);\n"
-                          "they are replaced by an actor of it", multi.empty() ? "" : "s");
+        ImGui::SetTooltip("Make a prefab of the selected light%s (Shift or Ctrl+click adds more);\n"
+                          "they are replaced by an actor of it",
+            multi.empty() ? "" : "s");
     if (ImGui::BeginPopup("create prefab")) {
         ImGui::Text("Prefab from %zu light%s", multi.size() + 1, multi.empty() ? "" : "s");
         if (ImGui::IsWindowAppearing())
@@ -1877,7 +1905,6 @@ extern "C" bool pc_lights_details(void)
         ImGui::EndPopup();
     }
     ImGui::PopID();
-    return true;
 }
 
 /* Settings shared by every room (not saved per room). */
@@ -2084,12 +2111,14 @@ extern "C" void pc_lights_glows_outliner(const char* filter)
         ImGui::ColorButton("##c", ImVec4(fminf(g.color[0] / lit, 1), fminf(g.color[1] / lit, 1), fminf(g.color[2] / lit, 1), 1),
             ImGuiColorEditFlags_NoTooltip, ImVec2(ImGui::GetFontSize(), ImGui::GetFontSize()));
         ImGui::SameLine();
-        bool is_selected = glow_selected && g.id == glow_id;
+        rood_selection::Ref ref = rood_scene::glow_ref_key(g.key, g.position);
+        bool is_selected = rood_selection::contains(ref);
         bool silent = g.muted != 0 || g.presence < 0.02f;
         if (silent)
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
         if (ImGui::Selectable(label, is_selected))
-            select_glow_id(g.id);
+            rood_scene::row_clicked(ref);
+        rood_scene::row_drawn(ref);
         if (silent)
             ImGui::PopStyleColor();
         if (ImGui::IsItemHovered())

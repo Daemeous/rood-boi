@@ -19,6 +19,7 @@
 #include "glow_overrides.h"
 #include "lights_internal.h"
 #include "editor_undo.h"
+#include "editor_scene.h"
 
 using namespace rood_lights;
 using prefab::Actor;
@@ -38,7 +39,6 @@ extern "C" int pc_lights_wanted(void);
 extern "C" int pc_lights_budget;
 
 namespace {
-const ImVec4 overridden_colour(1.0f, 0.78f, 0.3f, 1); /* as room settings' overrides */
 
 /* ------------------------------------------------------------ icons */
 
@@ -613,50 +613,10 @@ int rood_lights::light_fixture_at_pixel(float x, float y, const std::string& pre
     }
     return light_fixture_at(where.surface, where.normal, prefab_id);
 }
-/* Delete (the key, Edit > Delete): the selected actor, or the selected
- * lights (with the ones Ctrl+clicked in the Outliner). Glows come from the
- * game: they can be muted, not deleted. Returns how many went. */
-extern "C" int pc_lights_delete_selection(void)
-{
-    track_room();
-    if (selected_actor >= 0 && selected_actor < (int)actors.size()) {
-        pc_undo_hint(("Delete " + actor_label(selected_actor)).c_str());
-        remove_actor(selected_actor);
-        snprintf(status, sizeof status, "Deleted the actor (unsaved; Ctrl+Z undoes)");
-        return 1;
-    }
-    if (selected >= 0 && selected < (int)lights.size()) {
-        std::vector<int> gone = multi;
-        gone.push_back(selected);
-        std::sort(gone.begin(), gone.end());
-        gone.erase(std::unique(gone.begin(), gone.end()), gone.end());
-        std::string name = gone.size() == 1
-            ? std::string("Delete ") + light_type_name(lights[selected].type) + " " + std::to_string(selected + 1)
-            : "Delete " + std::to_string(gone.size()) + " lights";
-        pc_undo_hint(name.c_str());
-        for (int k = (int)gone.size() - 1; k >= 0; k--) {
-            int i = gone[k];
-            if (i < 0 || i >= (int)lights.size())
-                continue;
-            lights.erase(lights.begin() + i);
-            if (solo == i)
-                solo = -1;
-            else if (solo > i)
-                --solo;
-        }
-        select_none();
-        dirty = true;
-        snprintf(status, sizeof status, "Deleted %zu light%s (unsaved; Ctrl+Z undoes)", gone.size(), gone.size() == 1 ? "" : "s");
-        return (int)gone.size();
-    }
-    if (glow_selected)
-        snprintf(status, sizeof status, "Glows come from the game: untick one in the Outliner to mute it");
-    return 0;
-}
-extern "C" int pc_lights_has_selection(void)
-{
-    return (selected_actor >= 0 && selected_actor < (int)actors.size()) || (selected >= 0 && selected < (int)lights.size());
-}
+/* Delete (the key, Edit > Delete): the whole selection (editor_scene.cpp);
+ * glows come from the game and are only muted. Returns how many went. */
+extern "C" int pc_lights_delete_selection(void) { return rood_scene::delete_selection(); }
+extern "C" int pc_lights_has_selection(void) { return !rood_selection::empty(); }
 /* L over the view (dev_overlay.cpp). */
 extern "C" int pc_lights_light_fixture(float x, float y) { return light_fixture_at_pixel(x, y, ""); }
 extern "C" bool* pc_lights_fixture_mode(void) { return &fixture_mode; }
@@ -885,15 +845,18 @@ void rood_lights::actors_outliner(const char* filter)
         draw_icon(ImGui::GetWindowDrawList(), at.x + em * 0.5f, at.y + em * 0.5f, em, "prefab:" + a.prefab, colour, 1);
         ImGui::SameLine();
         actor_lights(a, ls, false);
-        bool silent = !a.enabled || (solo_actor >= 0 && solo_actor != i) || solo >= 0;
+        rood_selection::Ref ref = rood_scene::actor_ref(i);
+        bool hidden = rood_selection::hidden(ref);
+        bool silent = !a.enabled || (solo_actor >= 0 && solo_actor != i) || solo >= 0 || hidden;
         if (silent)
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth
-            | (selected_actor == i ? ImGuiTreeNodeFlags_Selected : 0) | (ls.empty() ? ImGuiTreeNodeFlags_Leaf : 0);
-        bool open = ImGui::TreeNodeEx("##actor", flags, "%s%s%s", label.c_str(), a.overrides.empty() ? "" : " *",
-            a.fixture ? "  [fixture]" : "");
+            | (rood_selection::contains(ref) ? ImGuiTreeNodeFlags_Selected : 0) | (ls.empty() ? ImGuiTreeNodeFlags_Leaf : 0);
+        bool open = ImGui::TreeNodeEx("##actor", flags, "%s%s%s%s", label.c_str(), a.overrides.empty() ? "" : " *",
+            a.fixture ? "  [fixture]" : "", hidden ? "  [hidden]" : "");
         if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
-            select_actor(i);
+            rood_scene::row_clicked(ref);
+        rood_scene::row_drawn(ref);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
             ImGui::SetTooltip("%s at %.0f %.0f %.0f%s%s", a.prefab.c_str(), a.position[0], a.position[1], a.position[2],
                 a.overrides.empty() ? "" : "\n* overrides prefab parameters", a.glow_linked ? "\nlinked to a glow" : "");
@@ -906,7 +869,7 @@ void rood_lights::actors_outliner(const char* filter)
                     "Fixture at %.0f %.0f %.0f%s", a.fixture_at[0], a.fixture_at[1], a.fixture_at[2],
                     a.fixture_shadows ? "" : " (casts no shadow)");
                 if (ImGui::IsItemClicked())
-                    select_actor(i);
+                    rood_scene::row_clicked(ref);
             }
             for (size_t k = 0; k < ls.size(); k++) {
                 ImGui::PushID((int)k);
@@ -916,7 +879,7 @@ void rood_lights::actors_outliner(const char* filter)
                 ImGui::TreeNodeEx("##light", ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth,
                     "%s (%s)", ls[k].name.c_str(), light_type_name(ls[k].type));
                 if (ImGui::IsItemClicked())
-                    select_actor(i);
+                    rood_scene::row_clicked(ref);
                 ImGui::PopID();
             }
             ImGui::TreePop();
@@ -928,135 +891,33 @@ void rood_lights::actors_outliner(const char* filter)
 /* ------------------------------------------------------------ Details */
 
 namespace {
-/* One exposed parameter: its widget, highlighted when overridden, with a
- * reset arrow; right-click for options. Returns true when it changed. */
-bool param_row(const Prefab& p, Actor& a, const prefab::Param& q)
-{
-    const Value* override_value = a.override_of(q.key);
-    bool from_type = false;
-    Value base = prefab::inherited_param(p, a, q.key, &from_type); /* its fixture type's, else the prefab's */
-    Value v = override_value ? *override_value : base;
-    bool overridden = override_value != nullptr, changed = false;
-    ImGui::PushID(q.key.c_str());
-    if (overridden)
-        ImGui::PushStyleColor(ImGuiCol_Text, overridden_colour);
-    float width = ImGui::GetContentRegionAvail().x - ImGui::GetFontSize() * 1.6f;
-    ImGui::SetNextItemWidth(width * 0.55f);
-    std::string format = "%.2f";
-    if (q.type == prefab::PARAM_FLOAT) {
-        float span = q.max - q.min;
-        format = span >= 200 ? "%.0f" : span >= 20 ? "%.1f" : "%.2f";
-        if (!q.unit.empty())
-            format += " " + q.unit;
-        float x = v.x();
-        if (ImGui::SliderFloat(q.label.c_str(), &x, q.min, q.max, format.c_str(),
-                q.logarithmic ? ImGuiSliderFlags_Logarithmic : ImGuiSliderFlags_None)) {
-            v = Value::scalar(x);
-            changed = true;
-        }
-    } else if (q.type == prefab::PARAM_COLOR) {
-        float c[3] = { v.at(0), v.at(1), v.at(2) };
-        if (ImGui::ColorEdit3(q.label.c_str(), c)) {
-            v = Value::vec(c[0], c[1], c[2]);
-            changed = true;
-        }
-    } else if (q.type == prefab::PARAM_BOOL) {
-        bool b = v.x() > 0.5f;
-        if (ImGui::Checkbox(q.label.c_str(), &b)) {
-            v = Value::scalar(b ? 1.0f : 0.0f);
-            changed = true;
-        }
-    } else {
-        int i = (int)lroundf(v.x());
-        std::string items;
-        for (const std::string& o : q.options)
-            items += o + '\0';
-        items += '\0';
-        if (ImGui::Combo(q.label.c_str(), &i, items.c_str())) {
-            v = Value::scalar((float)i);
-            changed = true;
-        }
-    }
-    if (overridden)
-        ImGui::PopStyleColor();
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-        ImGui::SetTooltip("%s%s%s: %s%s", q.tooltip.c_str(), q.tooltip.empty() ? "" : "\n",
-            from_type ? ("Fixture type " + a.fixture_type).c_str() : "Prefab default", format_param(q, base).c_str(),
-            overridden ? " (overridden here)" : "\nChange it to override it for this actor");
-    if (changed) {
-        a.set_override(q.key, v);
-        dirty = true;
-    }
-    if (ImGui::BeginPopupContextItem("param")) {
-        if (ImGui::MenuItem(from_type ? "Reset to the fixture type's value" : "Reset to the prefab default", nullptr, false,
-                overridden)) {
-            a.clear_override(q.key);
-            dirty = true;
-        }
-        ImGui::EndPopup();
-    }
-    if (a.override_of(q.key)) {
-        ImGui::SameLine();
-        if (ImGui::ArrowButton("##reset", ImGuiDir_Left)) { /* UE's yellow reset arrow */
-            a.clear_override(q.key);
-            dirty = true;
-            changed = true;
-        }
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-            ImGui::SetTooltip("Reset to the %s (%s)", from_type ? "fixture type's value" : "prefab default",
-                format_param(q, base).c_str());
-    }
-    ImGui::PopID();
-    return changed;
-}
-
 std::string editing_prefab; /* the prefab editor's prefab (empty: closed) */
 } // namespace
 
-bool rood_lights::actor_details()
+/* Details > a light actor's own tools under its fields (editor_schema.cpp
+ * draws its transform and its prefab's parameters): the prefab, Reset all,
+ * the fixture, the glow link, its lights now, Duplicate / Break / Delete,
+ * the prefab's actions. */
+void rood_lights::actor_details_extra(int index)
 {
-    if (selected_actor < 0 || selected_actor >= (int)actors.size())
-        return false;
-    int index = selected_actor;
+    if (index < 0 || index >= (int)actors.size())
+        return;
     Actor& a = actors[index];
     const Prefab* p = prefab::library().find(a.prefab);
     ImGui::PushID(20000 + index);
-    ImGui::SeparatorText((actor_label(index) + "  (light actor)").c_str());
     if (!p) {
         ImGui::TextColored(ImVec4(1, 0.4f, 0.35f, 1), "Prefab '%s' not found (pc/assets/prefabs, %s)", a.prefab.c_str(),
             prefab::library().user_dir.c_str());
     } else {
-        ImGui::TextDisabled("Prefab %s: %s%s", p->id.c_str(), p->user ? (p->overrides_builtin ? "yours, over the built-in, " : "yours, ") : "built-in, ",
-            p->path.c_str());
+        ImGui::TextDisabled("Prefab %s: %s%s", p->id.c_str(),
+            p->user ? (p->overrides_builtin ? "yours, over the built-in, " : "yours, ") : "built-in, ", p->path.c_str());
         if (!p->error.empty())
             ImGui::TextColored(ImVec4(1, 0.4f, 0.35f, 1), "%s", p->error.c_str());
-    }
-    dirty |= ImGui::Checkbox("Enabled", &a.enabled);
-    ImGui::SeparatorText("Transform");
-    dirty |= ImGui::DragFloat3("Position", a.position, 2.0f, 0, 0, "%.1f");
-    dirty |= ImGui::DragFloat3("Rotation", a.rotation, 1.0f, -360, 360, "%.1f deg");
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-        ImGui::SetTooltip("Yaw, pitch, roll (degrees); the rotate tool (E) turns it in the view");
-    if (p) {
-        /* Parameters by group, in the prefab's order. */
-        std::vector<std::string> groups;
-        for (const prefab::Param& q : p->params)
-            if (std::find(groups.begin(), groups.end(), q.group) == groups.end())
-                groups.push_back(q.group);
-        for (const std::string& g : groups) {
-            ImGui::SeparatorText(g.empty() ? "Parameters" : g.c_str());
-            for (const prefab::Param& q : p->params)
-                if (q.group == g)
-                    param_row(*p, a, q);
+        if (!a.overrides.empty() && ImGui::SmallButton("Reset all to the prefab")) {
+            pc_undo_hint("Reset all to the prefab");
+            a.overrides.clear();
+            dirty = true;
         }
-        if (!a.overrides.empty()) {
-            if (ImGui::SmallButton("Reset all to the prefab")) {
-                a.overrides.clear();
-                dirty = true;
-            }
-            ImGui::SameLine();
-        }
-        ImGui::TextDisabled("Highlighted values override the prefab for this actor.");
     }
     ImGui::SeparatorText("Fixture");
     if (a.fixture) {
@@ -1154,6 +1015,7 @@ bool rood_lights::actor_details()
     if (ImGui::Button("Duplicate")) {
         pc_undo_hint(("Duplicate " + actor_label(index)).c_str());
         Actor copy = a;
+        copy.id.clear(); /* its own id: the selection (by id) goes to the copy */
         copy.position[0] += 64;
         copy.glow_linked = false;
         copy.glow_key.clear();
@@ -1162,7 +1024,7 @@ bool rood_lights::actor_details()
         select_actor((int)actors.size() - 1);
         dirty = true;
         ImGui::PopID();
-        return true;
+        return;
     }
     ImGui::SameLine();
     if (ImGui::Button("Break into lights")) {
@@ -1183,7 +1045,7 @@ bool rood_lights::actor_details()
         remove_actor(index);
         snprintf(status, sizeof status, "Replaced the actor by %zu plain lights (no animation)", ls.size());
         ImGui::PopID();
-        return true;
+        return;
     }
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
         ImGui::SetTooltip("Replace the actor by plain lights with its current values (no parameters or animation)");
@@ -1192,7 +1054,7 @@ bool rood_lights::actor_details()
         pc_undo_hint(("Delete " + actor_label(index)).c_str());
         remove_actor(index);
         ImGui::PopID();
-        return true;
+        return;
     }
     if (p) {
         ImGui::SeparatorText("Prefab");
@@ -1232,7 +1094,6 @@ bool rood_lights::actor_details()
             editing_prefab = p->id;
     }
     ImGui::PopID();
-    return true;
 }
 
 /* ------------------------------------------------------- prefab editor */
@@ -2078,9 +1939,12 @@ int actors_method(const Json& params, char* out, int size)
         const Json* list = params.get("lights");
         if (!name || !list || list->items.empty())
             return failure("from_lights needs name and lights [indices]", out, size);
-        select_light((int)list->items[0].number);
+        std::vector<rood_selection::Ref> refs;
         for (size_t k = 1; k < list->items.size(); k++)
-            multi.push_back((int)list->items[k].number);
+            refs.push_back(rood_scene::light_ref((int)list->items[k].number));
+        refs.push_back(rood_scene::light_ref((int)list->items[0].number)); /* the primary: the prefab's first light */
+        rood_selection::set_all(refs, rood_selection::FROM_RPC);
+        rood_scene::publish();
         if (!create_prefab_from_selection(name->string))
             return failure(status, out, size);
         extra += ",\"index\":" + std::to_string(selected_actor) + ",\"prefab\":" + prefab::json_quote(actors[selected_actor].prefab);

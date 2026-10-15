@@ -127,15 +127,16 @@ loading screen; Back reopens the shell on the System list (a tab click or L1
 other tabs (ui_menu_opacity). Saves byte-for-byte equal to the original
 screen's (pad and mouse), a load's blocks and the file it read (pad and
 mouse), the error paths and the exits (`ui_data_smoke`, card-safe through `card_fixtures.card_guard`).
-Follow-ups (still original; only Data's state 3 latches the frame): the
-save-room container (`vs_menu7_saveContainerMenu`, with the native
-Container / MENUD screen), Game Over's continue (`vs_menu7_gameOver`),
+Follow-ups (still original; only Data's state 3 and the Container's entry
+latch a frame): Game Over's continue (`vs_menu7_gameOver`),
 TITLE's Continue and the post-ending save (`TITLE 22C.c`); location
 thumbnails, save dates, a read-only card peek, a Damaged badge (MENU7 counts
 unreadable files as free blocks), separate Save and Load rows. Plan:
 `pc/docs/plans/2026-10-15-modern-menus-data.md`.
-Plans: `pc/docs/plans/`. Next: phase 7+ (Container, Score, Title), then the
-HUD.
+Phase 7e: the Container (the save room's container: the field opens it,
+BATTLE `func_800CB1C0`, MENU7 then MENUD). See "Container" below. Plan:
+`pc/docs/plans/2026-10-15-modern-menus-container.md`.
+Plans: `pc/docs/plans/`. Next: phase 7+ (Score, Title), then the HUD.
 
 | Phase | Screens |
 | --- | --- |
@@ -145,7 +146,111 @@ HUD.
 | 4 | System: settings pages + the game's options |
 | 5 | Abilities (chain/defense mapping, break arts) |
 | 6 | Items and Magick |
-| 7+ | Workshop and Loot (7a), Map frame (7b), Quick manual (7c), Data (7d), Container, Score, Title; then the HUD |
+| 7+ | Workshop and Loot (7a), Map frame (7b), Quick manual (7c), Data (7d), Container (7e), Score, Title; then the HUD |
+
+## Container (phase 7e)
+
+The save room's container is two overlays in sequence, hosted two ways
+(`pc/src/ui/container_frame.h`):
+
+- **MENU7** (`vs_menu7_saveContainerMenu`, 260.c) stays the only state
+  machine for its prompts ("Check the container?", containerWarn, the
+  cancel warning), the card read, `_copyContainer` and the save list
+  (`_showSaveMenu(2)`), its teardown and the free. It runs **framed** as the
+  Data screen's run does: its drawing gated (the Data macros plus
+  `vs_battle_drawCursor`, `_promptYesNo`'s cursor), its statics published
+  after every call, the player's native answers injected as single pad
+  presses (`data_plan.c` PROMPT_YESNO: Up until Yes is lit, then Circle; No
+  is Cross, never Triangle; never answered for the player; nothing while
+  the prompt animates). Its save list is the Data screen's own model and
+  planner in a **container mode** (no tabs, no chooser, the Container's
+  header; published as the save flow). Phases from MENU7's state: 1
+  PROMPT_CHECK, 2 / 3 / 6 / 8 / 9 BUSY, 4 WAIT (emptyCard: any button), 5
+  PROMPT_WARN, 7 and MENUD TRANSFER, 10 / 11 SAVE, 12 PROMPT_CANCEL, 13..16
+  CLOSING. The hooks: 260.c only (`ROOD_PC`, 15 lines: the cursor gate, the
+  original renamed `_pcContainerMenu`, the wrapper calling
+  `pc_ui_container_call_begin` / `_end` with `_pcStatics`).
+- **MENUD** (`vs_menuD_exec`, direct entry 14) is **ported**
+  (`container_ops.c`, `container_bridge.c`) on MENU7's own
+  `vs_menu_inventoryStorage`, with no card I/O, as Loot ports MENUB. Its
+  modes are the original's 1:1 (TOP: Remove / Store / End; LIST: 8 tabs,
+  the second pick (merge two misc stacks of one item to 100 and the rest,
+  else swap), the actions (Remove / Store with the original's reasons,
+  Search, Discard, Discard all, Sort), the amount picker, the details (L1 /
+  R1); CONFIRM: the commit), read from the pad as the original reads it
+  (repeat, the held L1 + Left rules), so every pad script has one native
+  equivalent and every write is the original's expression in the
+  original's order: the storage, the bag and its lists, containerEmpty, the
+  menu state, `vs_menuD_containerData` and the six `vs_mainMenu_*` pointers
+  (each tick, 234.c:3149), `vs_battle_rowTypeBuf`, and the cursor memories
+  at the original's points with MAINMENU's own row and action list
+  arithmetic (8 visible rows; `unk9E`, `unkA0`, the per-tab rows 0x51..0x58,
+  the action / sort / discard / commit menus' own).
+
+**The latch.** At MENU7's entry 0: `framed = ui_menus && the overlay`. MENUD
+is native iff the run is framed, so a flow never changes hands. MENU7's
+overlay statics restart when it reloads after MENUD (as on the PlayStation),
+so its latch is re-established from the host's frame at its state 8; a save
+state that brings back another run's latch runs the rest original.
+
+**The hand-back.** MENUD's state 6, always: `_copyContainerToInventory`, the
+container's lists defragmented, containerEmpty, `currentMenu = returnState`
+(7), `returnState = code + 2` (End: 5, the save; Cross at the top: 1, the
+cancel warning; Triangle anywhere: 0, the revert), `*state` 0; the direct
+session clears itself on that tick (menu 7 never routes through it).
+Abandoned (the game left 14 without a hand-back): dropped, nothing written,
+nothing freed (the heap is MENU7's). The frame ends when MENU7 returns, or
+when the game leaves menus 7 / 14 or clears `D_800F4EA0 & 0x400`
+(heartbeat); a soft reset forgets both layers.
+
+**What is hidden.** MAINMENU's `vs_mainMenu_hideMenu` is 1 from the latch to
+the end (MENU7's CONTAINER / YES / NO rows: `_renderMenuItems` still runs
+their slides), the value before is restored at the end, an abandon and a
+reset; the "MENU" command title is cleared each call; the information box's
+CAUTION header (text box 7, whose init and dismiss stay MENU7's) is none
+while framed; the HUD is out from the latch to the end.
+
+**Deviations.** MENUD's item texts (`vs_mainMenu_loadItemText` /
+`ensureItemTextUnloaded`) are not loaded (as Loot leaves MENUB's out; the
+names and descriptions come from the disc's ITEMNAME / ITEMHELP; the heap's
+free total at the close is compared between the original and native runs). The armor detail reads the container's
+record (the original reads `vs_main_inventory.armor` for its DP bar: display
+only, not reproduced). `unk4BB0` (MENUD's scratch for the misc stacking) is
+refreshed where the original refreshes it on its own logic, but the panel's
+slide-in timing is not reproduced: every read of it follows a fresh
+`func_801031A0` (checked against 234.c by the smoke test), so it is never
+read stale. `func_80106C64`'s row types: 0xCA00 (equipped) and 0xCC00
+(combined) rows can be picked; only 0xCC01 (a staged part on tab 7) cannot.
+
+**Screen.** The header (Container, the mode or the save room's name); TOP:
+the three rows and the summary table (the bag and the container per
+category, count / capacity, gold under half); LIST: the tab strip (16:9
+chips with counts; 4:3 icons and the current tab's label), the list (13
+rows, the original's marks: EQUIPPED, SET, the first pick), the right panel
+(the destination: what is there + staged / capacity, misc after stacking;
+the focused row's card: DP / PP, STR / INT / AGL, gem slots, the part's
+weapon or shield), menus as popovers by the row, the amount and the Yes /
+No's as centred cards; the prompts and the card wait as cards. A click is
+the pad sequence that does the same (a row: the cursor there, then Circle;
+a tab: one step at a time with each step's writes; a prompt's button: the
+planner's goal); a right click is Cross, the wheel Up / Down; hover writes
+nothing; clicks while MENU7 is busy are dropped and counted.
+
+RPC `ui_menu` "container" (while latched, else null): run, visible, phase,
+m7_state, session, handed_back, mode, dir, top, tab, rows_n, cursor, sel,
+page, list_active, picked, staged, prompt_yes, prompt_ready, location,
+location_name, prompt_text, wait_text, info, empty_text, confirm_text,
+gated, presses, busy_drops, rejected, requests, hide_saved, misc_after,
+misc_cap, discard {type, count, max, step}, detail {category, index, count,
+slot}, tab_count, tab_cap, bag_count, box_count, dest_count, dest_staged,
+dest_cap, menu {count, focus, entries[] {kind, enabled, label, desc}}, card,
+rows[] {c, slot, flags, id, count, name}, hover, the drawn `hits`. `data`
+carries `container` 1 for the save list. RPC `container {location}` opens
+the container as the field does (the room's save point by default); RPC
+`chest open=` also opens a container object (flag >= 64). Tests:
+`container_ops_probe` (no game), `data_plan_probe` (PROMPT_YESNO),
+`ui_shell_probe`, `ui_container_smoke` (card-safe: A original, B native by
+pad, C by mouse; S1 at MENUD's exit, S2 the saved cards, S3 the close).
 
 ## Goals
 
@@ -187,6 +292,14 @@ Prototype (private, placeholder data): the "Riskbreaker Menus" artifact.
   behind the model through the presenters (the picture kept before the world
   froze, under the same ground; `pc/docs/Post_Processing.md`), so it is as
   see-through as the others; a long weapon is no longer cut at the column.
+  The model itself is lit by a studio rig of its own (key, fill, ambient,
+  rim; `menu_studio.glsl`), the same in every room, with the texture's
+  colours as they are (no room light, no game rim copy; Native_Rendering.md).
+- **Condition card**: the Condition panel as a whole titles the card
+  "Condition · <the worst part's state>" (the game's terms: Critical,
+  Damaged, Wounded, Good, Excellent) with a summary of the parts; a body
+  part under the pointer, or stepped to with Left / Right on the row,
+  titles it with that part and its HP (`pc_ui_ashley_condition_text`).
 - **Tint**: System > Interface > Menu tint recolours the backdrop and panels,
   as older RPGs let you set the window colour. Presets: Leá Monde (the
   theme file untouched: the default), Classic (deep navy), Slate, Crimson,

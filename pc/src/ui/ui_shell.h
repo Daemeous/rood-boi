@@ -108,6 +108,17 @@ const pc_ui_ashley* pc_ui_shell_ashley(void);
 /* Focused row (PC_UI_ASH_*) and the number of rows. */
 int pc_ui_shell_ashley_row(void);
 int pc_ui_shell_ashley_rows(void);
+/* On the Condition row: the body part focused (a limb index: hovered with the
+ * pointer, PC_UI_MOUSE_LIMB, or stepped to with Left / Right), -1 the panel as
+ * a whole. */
+int pc_ui_shell_ashley_limb(void);
+/* The card's text for the Condition row: the panel as a whole (limb -1:
+ * "Condition · <the worst part's state>", a summary of the parts) or one part
+ * ("<part> · <state>", its HP). The game's terms (vs_battle_getLimbStatus):
+ * Critical, Damaged, Wounded, Good, Excellent. */
+const char* pc_ui_limb_state_name(int state);
+void pc_ui_ashley_condition_text(const pc_ui_ashley* a, int limb, char* title, int title_size, char* line,
+    int line_size);
 /* The drawing reports how many effect chips fit (the rest are a "+N"): only
  * those are rows. -1 (the default, also after open): all of them. */
 void pc_ui_shell_ashley_effects_shown(int n);
@@ -151,7 +162,8 @@ enum {
     PC_UI_MOUSE_SPELL_LEVEL, /* Magick: a level 0..3 of the focused levelled spell (a click picks it, no cast) */
     PC_UI_MOUSE_ITEM,      /* Items: a row of the category's list (hover focuses it where the list has the
                             * focus: list, move, details; a click elsewhere goes back to the list on it) */
-    PC_UI_MOUSE_ITEM_MENU  /* Items: a row of the open menu (actions, Yes / No, sort stats) */
+    PC_UI_MOUSE_ITEM_MENU, /* Items: a row of the open menu (actions, Yes / No, sort stats) */
+    PC_UI_MOUSE_LIMB       /* Ashley: a body part of the Condition panel (pc_ui_shell_ashley_limb) */
 };
 void pc_ui_shell_mouse(int kind, int index, int clicked, float wheel);
 
@@ -461,6 +473,13 @@ enum { PC_UI_MOUSE_MAP_AREA = 120, PC_UI_MOUSE_MAP_ROOM, PC_UI_MOUSE_MAP_STEP, P
 enum { PC_UI_MOUSE_DATA_OP = 140, PC_UI_MOUSE_DATA_CARD, PC_UI_MOUSE_DATA_FILE, PC_UI_MOUSE_DATA_YES,
        PC_UI_MOUSE_DATA_NO, PC_UI_MOUSE_DATA_STATUS, PC_UI_MOUSE_DATA_TAB, PC_UI_MOUSE_DATA_BUTTON,
        PC_UI_MOUSE_DATA_PANEL };
+/* The native Container screen's pointer targets (ui_container_draw.cpp, for
+ * pc_ui_ctr_mouse; container_frame.h): a top menu row (0..2), a list row, a tab
+ * (0..7), a menu entry, Yes / No, the amount's steppers (+1 / -1 the amount,
+ * +2 / -2 the step, 0 OK), the wait's Continue, a footer hint (its PC_UI_*
+ * bits), a panel (a click there does nothing). */
+enum { PC_UI_MOUSE_CTR_TOP = 160, PC_UI_MOUSE_CTR_ROW, PC_UI_MOUSE_CTR_TAB, PC_UI_MOUSE_CTR_MENU, PC_UI_MOUSE_CTR_YES,
+       PC_UI_MOUSE_CTR_NO, PC_UI_MOUSE_CTR_QTY, PC_UI_MOUSE_CTR_STATUS, PC_UI_MOUSE_CTR_BUTTON, PC_UI_MOUSE_CTR_PANEL };
 enum { PC_UI_MAP_P_ROOM_PREV, PC_UI_MAP_P_ROOM_NEXT, PC_UI_MAP_P_ROTATE, PC_UI_MAP_P_ZOOM, PC_UI_MAP_P_RESET,
        PC_UI_MAP_P_AREAS, PC_UI_MAP_P_HIDE, PC_UI_MAP_P_BACK, PC_UI_MAP_P_CLOSE, PC_UI_MAP_P_LIST_UP,
        PC_UI_MAP_P_LIST_DOWN, PC_UI_MAP_P_LIST_TAB, PC_UI_MAP_P_LIST_SHOW, PC_UI_MAP_P_LIST_MAP,

@@ -324,12 +324,78 @@ static void walks(void)
     }
 }
 
+/* PROMPT_YESNO (the Container's _promptYesNo and its card wait): a model of
+ * the prompt (Up / Down toggle the highlight, Circle answers the lit one,
+ * Cross answers No) walked by the planner. */
+static void yesno(void)
+{
+    unsigned p;
+    int lit, ready, waiting, real, kind, a, r;
+    /* never a press without a goal, nor while animating, nor with the real pad busy */
+    for (lit = 0; lit <= 1; ++lit)
+        for (ready = 0; ready <= 1; ++ready)
+            for (waiting = 0; waiting <= 1; ++waiting) {
+                pc_ui_data_goal g = goal(PC_UI_DATA_GOAL_NONE, 0);
+                r = pc_ui_data_plan_yesno(ready, lit, waiting, 0, &g, &p);
+                CHECK(r == PC_UI_DATA_PLAN_NONE && p == 0, "no goal: nothing (lit %d ready %d wait %d)", lit, ready,
+                    waiting);
+                for (kind = PC_UI_DATA_GOAL_ANSWER; kind <= PC_UI_DATA_GOAL_DISMISS; ++kind)
+                    for (a = 0; a <= 1; ++a)
+                        for (real = 0; real <= 1; ++real) {
+                            g = goal(kind, a);
+                            r = pc_ui_data_plan_yesno(ready, lit, waiting, real, &g, &p);
+                            if (real) {
+                                CHECK(r == PC_UI_DATA_PLAN_DROPPED && p == 0, "a real press clears the goal");
+                                continue;
+                            }
+                            if (!ready && !waiting) {
+                                CHECK(r == PC_UI_DATA_PLAN_NONE && p == 0 && g.kind == kind,
+                                    "animWait: no press, the goal kept (kind %d)", kind);
+                                continue;
+                            }
+                            if (waiting) {
+                                if (kind == PC_UI_DATA_GOAL_DISMISS)
+                                    CHECK(p == PC_UI_DATA_PRESS_CIRCLE, "wait: DISMISS is Circle");
+                                else if (kind == PC_UI_DATA_GOAL_ANSWER)
+                                    CHECK(r == PC_UI_DATA_PLAN_DROPPED && p == 0, "wait: an answer is refused");
+                                continue;
+                            }
+                            if (kind == PC_UI_DATA_GOAL_DISMISS) {
+                                CHECK(r == PC_UI_DATA_PLAN_DROPPED && p == 0, "prompt: DISMISS refused");
+                            } else if (a == 1) {
+                                CHECK(p == (lit ? (unsigned)PC_UI_DATA_PRESS_CIRCLE : (unsigned)PC_UI_DATA_PRESS_UP),
+                                    "Yes: Circle on Yes, else Up (lit %d: %u)", lit, p);
+                                CHECK(!(p & PC_UI_DATA_PRESS_CROSS), "Yes never presses Cross");
+                            } else {
+                                CHECK(p == PC_UI_DATA_PRESS_CROSS, "No: Cross (never Triangle), lit %d", lit);
+                            }
+                        }
+            }
+    /* a walk: No lit, Yes wanted: Up, an edge frame, Circle */
+    {
+        pc_ui_data_goal g = goal(PC_UI_DATA_GOAL_ANSWER, 1);
+        int lit_now = 0, presses = 0, circles = 0, i;
+        for (i = 0; i < 20 && g.kind; ++i) {
+            r = pc_ui_data_plan_yesno(i % 2 == 0, lit_now, 0, 0, &g, &p); /* every other call animates */
+            if (p & PC_UI_DATA_PRESS_UP)
+                lit_now = !lit_now, ++presses;
+            if (p & PC_UI_DATA_PRESS_CIRCLE) {
+                ++circles;
+                CHECK(lit_now, "Circle only with Yes lit");
+            }
+        }
+        CHECK(presses == 1 && circles == 1 && g.kind == PC_UI_DATA_GOAL_NONE, "Yes from No: one Up, one Circle (%d %d)",
+            presses, circles);
+    }
+}
+
 int main(void)
 {
     decode_formulas();
     phases();
     exhaustive();
     walks();
+    yesno();
     if (failures) {
         printf("data_plan_probe: %d failure(s)\n", failures);
         return 1;

@@ -147,7 +147,7 @@ void main() {
         shade = (code & 1u) != 0u ? vec4(vec3(128.0 / 255.0), 1.0) : vec4(v_color, 1.0);
         // Emissive texels (emissive.glsl): never darkened; the shade carries the emission.
         if (u.emissive != 0) {
-            vec3 em = emissive_texel(at.x & 255u, at.y & 255u, tpage, u.window, t);
+            vec3 em = emissive_texel(at.x & 255u, at.y & 255u, tpage, u.window, t, v_state.w >> 16);
             if (any(greaterThan(em, vec3(0.0)))) { c = max(c, min(em, vec3(1.0))); shade = vec4(min(em * 0.5, vec3(1.0)), 0.25); }
         }
     }

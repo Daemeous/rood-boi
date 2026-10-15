@@ -23,6 +23,10 @@
 #include "imgui.h"
 #include "ImGuizmo.h"
 #include "editor_overlays.h"
+#include "editor_picking.h"
+#include "editor_scene.h"
+#include "editor_schema.h"
+#include "editor_selection.h"
 #include "editor_undo.h"
 #include "dev_state.h"
 #include "environment.h"
@@ -187,11 +191,13 @@ float medium_time()
     return (float)fmod(game_seconds() - time_origin, 4096.0);
 }
 bool fog_on() { return fog.defined && fog.enabled && fog.density > 0; }
+/* A volume the renderers draw: on, with density, and not hidden in the editor (editor_scene.cpp). */
+bool drawn(const Volume& v) { return v.enabled && v.density > 0 && !rood_scene::volume_hidden_id(v.id); }
 int volumes_on()
 {
     int n = 0;
     for (const Volume& v : volumes)
-        n += v.enabled && v.density > 0;
+        n += drawn(v);
     return n;
 }
 
@@ -398,6 +404,38 @@ bool save_preset(const std::string& id, const std::string& name, const Volume& v
 }
 } // namespace
 
+namespace {
+/* A volume as its lighting item: with a preset, only what differs from it
+ * (a preset edit updates every volume using it). */
+lighting::Item item_of(Volume& v)
+{
+    if (v.id.empty())
+        v.id = lighting::new_name();
+    lighting::Item it;
+    it.kind = "fog", it.name = v.id;
+    if (!v.name.empty())
+        it.set("name", v.name);
+    it.set("pos", vec3(v.pos, 1));
+    it.set("yaw", num(v.yaw, 2));
+    it.set("enabled", v.enabled ? "1" : "0");
+    /* An unknown preset keeps every value. */
+    const Preset* preset = v.preset.empty() ? nullptr : find_preset(v.preset);
+    if (!v.preset.empty())
+        it.set("preset", v.preset);
+    for (const auto& f : volume_fields(v)) {
+        if (preset) {
+            const std::string* p = preset->get(f.first);
+            std::string base = p ? *p : lighting::field_default("fog", f.first);
+            if (lighting::canonical_value("fog", f.first, f.second) == lighting::canonical_value("fog", f.first, base))
+                continue;
+        }
+        it.set(f.first.c_str(), f.second);
+    }
+    lighting::canonicalize(it);
+    return it;
+}
+} // namespace
+
 namespace rood_atmo {
 
 void reset()
@@ -470,30 +508,7 @@ void add_items(lighting::State& s)
         s[it.id()] = it;
     }
     for (Volume& v : volumes) {
-        if (v.id.empty())
-            v.id = lighting::new_name();
-        lighting::Item it;
-        it.kind = "fog", it.name = v.id;
-        if (!v.name.empty())
-            it.set("name", v.name);
-        it.set("pos", vec3(v.pos, 1));
-        it.set("yaw", num(v.yaw, 2));
-        it.set("enabled", v.enabled ? "1" : "0");
-        /* With a preset: only what differs from it (a preset edit updates
-         * every volume using it). An unknown preset keeps every value. */
-        const Preset* preset = v.preset.empty() ? nullptr : find_preset(v.preset);
-        if (!v.preset.empty())
-            it.set("preset", v.preset);
-        for (const auto& f : volume_fields(v)) {
-            if (preset) {
-                const std::string* p = preset->get(f.first);
-                std::string base = p ? *p : lighting::field_default("fog", f.first);
-                if (lighting::canonical_value("fog", f.first, f.second) == lighting::canonical_value("fog", f.first, base))
-                    continue;
-            }
-            it.set(f.first.c_str(), f.second);
-        }
-        lighting::canonicalize(it);
+        lighting::Item it = item_of(v);
         s[it.id()] = it;
     }
 }
@@ -680,7 +695,7 @@ static void fog_tick(void)
     bool changed = false;
     int shown = 0;
     for (Volume& v : volumes) {
-        if (!v.enabled || v.density <= 0 || shown >= PC_MEDIUM_VOLUMES)
+        if (!drawn(v) || shown >= PC_MEDIUM_VOLUMES)
             continue;
         shown++;
         if (!simulated(v) || layer >= budget)
@@ -795,7 +810,7 @@ extern "C" int pc_medium_gpu_get(pc_medium_gpu* out, float haze_density, const f
     int n = 0;
     if (fogs)
         for (const Volume& v : volumes) {
-            if (!v.enabled || v.density <= 0 || n >= PC_MEDIUM_VOLUMES)
+            if (!drawn(v) || n >= PC_MEDIUM_VOLUMES)
                 continue;
             float(*b)[4] = m + 8 + 5 * n;
             b[4][3] = fminf(fmaxf(v.detail, 0.0f), 1.0f);
@@ -949,11 +964,11 @@ extern "C" int pc_fogvol_gpu_get(pc_medium_gpu* medium, pc_fogvol_gpu* out, pc_f
     if (count <= 0)
         return 0;
     /* The volumes the record holds, in its order (pc_medium_gpu_get). */
-    const Volume* drawn[PC_FOGVOL_MAX];
+    const Volume* drawn_list[PC_FOGVOL_MAX];
     int n = 0;
     for (const Volume& v : volumes)
-        if (v.enabled && v.density > 0 && n < count)
-            drawn[n++] = &v;
+        if (drawn(v) && n < count)
+            drawn_list[n++] = &v;
     count = n;
     /* Every light and glow: candidates for each volume's few. */
     std::vector<Candidate> all;
@@ -1005,7 +1020,7 @@ extern "C" int pc_fogvol_gpu_get(pc_medium_gpu* medium, pc_fogvol_gpu* out, pc_f
     /* stable slots: a light keeps last frame's slot while it stays among the chosen (no history restarts) */
     static unsigned previous[PC_FOGVOL_MAX][PC_FOGVOL_LIGHTS];
     for (int vi = 0; vi < count; vi++) {
-        const Volume& v = *drawn[vi];
+        const Volume& v = *drawn_list[vi];
         float(*b)[4] = f + 3 + PC_FOGVOL_STRIDE * vi;
         /* its most important lights: brightness x falloff at its nearest point */
         std::vector<int> order;
@@ -1233,8 +1248,8 @@ bool add_volume()
     memcpy(v.pos, where.surface, sizeof v.pos);
     v.pos[1] -= v.size[1] * 0.5f - 8; /* y down: its bottom just under the floor */
     volumes.push_back(v);
-    selected = (int)volumes.size() - 1;
-    rood_lights::select_none();
+    rood_selection::set(rood_scene::volume_ref((int)volumes.size() - 1), rood_selection::FROM_CODE);
+    rood_scene::publish();
     return true;
 }
 } // namespace
@@ -1318,68 +1333,14 @@ bool preset_ui(Volume& v)
         ImGui::TextDisabled("%s", message.c_str());
     return changed;
 }
-/* A source weight row: this volume's own weight or the global one. */
-bool weight_row(Volume& v, int s)
+int extras_frame = -100; /* the selected volume's Details tools last drawn (the ghost preview) */
+/* The interactive fog's preview tools (its sliders are Details fields:
+ * editor_schema.cpp): its field in the view, the ghost at the mouse,
+ * stamps at Ashley, its state. */
+void preview_tools(Volume& v)
 {
-    bool changed = false;
-    ImGui::PushID(s);
-    bool own = v.disturb[s] >= 0;
-    if (ImGui::Checkbox("##own", &own)) {
-        v.disturb[s] = own ? fmaxf(pc_fog_disturb[s], 0.0f) : -1;
-        changed = true;
-    }
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Its own weight here (else the global one: Interactive fog, all rooms)");
-    ImGui::SameLine();
-    if (own) {
-        changed |= ImGui::SliderFloat(SOURCE_LABELS[s], &v.disturb[s], 0, 2, v.disturb[s] <= 0 ? "off" : "%.2f");
-    } else {
-        ImGui::BeginDisabled();
-        float g = pc_fog_disturb[s];
-        ImGui::SliderFloat(SOURCE_LABELS[s], &g, 0, 2, g <= 0 ? "off (global)" : "%.2f (global)");
-        ImGui::EndDisabled();
-    }
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("%s\n0: off.", SOURCE_TIPS[s]);
-    ImGui::PopID();
-    return changed;
-}
-/* The selected volume's interaction: on/off, how it parts and settles, each
- * source's weight, the preview tools. */
-bool interaction_ui(Volume& v)
-{
-    bool changed = false;
-    ImGui::SeparatorText("Interaction");
-    changed |= ImGui::Checkbox("Characters, attacks and spells part it", &v.sim);
-    tooltip("Interactive fog: sources clear it, push it around and leave a soft wake that drifts with the\n"
-            "wind and settles back. Up to fog_sim_budget (4) volumes per room; it only ticks while a\n"
-            "source is in or near it.");
+    ImGui::SeparatorText("Interactive fog preview");
     ImGui::BeginDisabled(!v.sim);
-    changed |= ImGui::SliderFloat("Strength", &v.sim_strength, 0, 2, "%.2f");
-    tooltip("How much a source clears (1: a character standing still keeps a fifth of the fog at its feet).");
-    changed |= ImGui::SliderFloat("Recovery time", &v.sim_recover, 0.3f, 12, "%.1f s");
-    tooltip("How long the fog takes to settle back.");
-    changed |= ImGui::SliderFloat("Footprint", &v.sim_footprint, 0.25f, 3, "x %.2f");
-    tooltip("Scale on every source's size (a character's is its drop shadow's radius).");
-    changed |= ImGui::SliderFloat("Trail", &v.sim_trail, 0, 3, "%.2f");
-    tooltip("How much of a source's motion the fog takes and how long it keeps it: 0 a hole without a\n"
-            "wake, 1 a short wake, 3 long swirling trails.");
-    changed |= ImGui::SliderFloat("Wind", &v.sim_wind, 0, 4, "x %.2f");
-    changed |= ImGui::SliderFloat("Swirl", &v.sim_swirl, 0, 4, "%.2f");
-    tooltip("Vorticity: what is pushed curls into eddies and rolls (an incompressible flow) instead of\n"
-            "spreading out; 0 a plain soft wake. Costs a little more CPU while it moves.");
-    tooltip("How much the room's fog wind (env fog wind) carries the parted fog (0: still air).");
-    ImGui::EndDisabled();
-    changed |= ImGui::SliderFloat("Detail", &v.detail, 0, 1, "%.2f");
-    tooltip("Billows and fine wisps from a baked 3D noise, carried along by the flow: they follow the\n"
-            "wake and the swirls (0: smooth).");
-    changed |= ImGui::SliderFloat("Self-shadow", &v.shadow, 0, 2, "%.2f");
-    tooltip("Its dense parts shade themselves from the main light (the sun or moon; from above without\n"
-            "one): dark cores, lit rims. 0: evenly lit mist.");
-    ImGui::BeginDisabled(!v.sim);
-    ImGui::TextDisabled("Sources (ticked: this volume's own weight)");
-    for (int s = 0; s < 4; s++)
-        changed |= weight_row(v, s);
     ImGui::Checkbox("Show the field", &show_field);
     tooltip("Its density on its floor in the view: red cleared, blue piled.");
     ImGui::SameLine();
@@ -1419,7 +1380,6 @@ bool interaction_ui(Volume& v)
     if (ImGui::SmallButton("Settle now"))
         rood_fog_sim::reset();
     ImGui::EndDisabled();
-    return changed;
 }
 /* Every room: the global weights (settings fog_disturb_*), the budget. */
 void global_interaction_ui()
@@ -1493,96 +1453,12 @@ bool pc_atmosphere_page(void)
             pc_undo_hint("Add fog volume");
         }
     }
-    tooltip("A box of mist on the surface under the view's centre; move, size and turn it with the gizmo.");
+    tooltip("A box of mist on the surface under the view's centre, selected: its fields are in Details.");
     ImGui::SameLine();
     ImGui::Checkbox("Show in the view", &show_volumes);
-    for (int i = 0; i < (int)volumes.size(); i++) {
-        Volume& v = volumes[i];
-        char label[128];
-        snprintf(label, sizeof label, "%s %d%s%s##%s", v.sphere ? "Sphere" : "Box", i + 1, v.name.empty() ? "" : ": ",
-            v.name.c_str(), v.id.c_str());
-        if (ImGui::Selectable(label, i == selected)) {
-            selected = i == selected ? -1 : i;
-            if (selected >= 0)
-                rood_lights::select_none();
-        }
-    }
-    if (selected >= 0 && selected < (int)volumes.size()) {
-        Volume& v = volumes[selected];
-        ImGui::PushID(v.id.c_str());
-        ImGui::RadioButton("Move", &operation, 0);
-        ImGui::SameLine();
-        ImGui::RadioButton("Size", &operation, 1);
-        ImGui::SameLine();
-        ImGui::RadioButton("Turn", &operation, 2);
-        bool end = !ImGui::GetIO().WantTextInput && ImGui::IsKeyPressed(ImGuiKey_End, false);
-        if (ImGui::Button("Drop to floor (End)") || end) {
-            pc_undo_hint("Drop fog volume to floor");
-            changed |= drop_to_floor(v);
-        }
-        tooltip("Moves it down (or up) so its bottom face rests on the floor under it: the highest floor under\n"
-                "its centre and its footprint's corners. While moving it with the gizmo, the editor's snapping\n"
-                "(point, edge, midpoint, surface) puts its bottom face on the target.");
-        ImGui::SameLine();
-        if (ImGui::Button("Fit to floor area")) {
-            pc_undo_hint("Fit fog volume to floor area");
-            changed |= fit_to_floor(v);
-        }
-        tooltip("Its footprint becomes the level floor around its centre (the room's floor grid: the cells\n"
-                "connected to the one under it, within 12 units of its height), square to the room, on the floor.");
-        changed |= ImGui::Checkbox("Enabled", &v.enabled);
-        ImGui::SameLine();
-        int shape = v.sphere;
-        if (ImGui::Combo("Shape", &shape, "Box\0Sphere\0")) {
-            v.sphere = shape != 0;
-            changed = true;
-        }
-        changed |= ImGui::DragFloat3("Position", v.pos, 1.0f, -32768, 32768, "%.1f");
-        changed |= ImGui::DragFloat3("Size", v.size, 1.0f, 2, 8192, "%.1f");
-        changed |= ImGui::SliderFloat("Yaw", &v.yaw, -180, 180, "%.1f deg");
-        changed |= ImGui::SliderFloat("Density", &v.density, 0, 0.05f, "%.5f", ImGuiSliderFlags_Logarithmic);
-        changed |= ImGui::SliderFloat("Soft edge", &v.edge, 0.01f, 1, "%.2f");
-        tooltip("The part of its half size over which it fades out.");
-        changed |= ImGui::SliderFloat("Wisps", &v.noise, 0, 1, "%.2f");
-        changed |= color_row("Colour", v.color);
-        changed |= color_row("Fill light", v.fill);
-        if (pc_fog_volume_render) {
-            ImGui::SeparatorText("Look (its own renderer)");
-            changed |= ImGui::SliderFloat("Opacity", &v.opacity, 0, 1, "%.2f");
-            tooltip("The most of the scene it may hide along a ray (1: solid). Volumes are exempt from the\n"
-                    "room's haze limits (haze_max_opacity, haze_max_light); this and Brightness replace them.");
-            changed |= ImGui::SliderFloat("Brightness", &v.brightness, 0, 4, "%.2f");
-            tooltip("Scale on the light it scatters and emits.");
-            changed |= ImGui::SliderFloat("Forward scattering", &v.phase, -0.9f, 0.9f, "%.2f");
-            tooltip("How much brighter it is looking toward a light through it (0: the same from every side).");
-            changed |= ImGui::SliderFloat("Ambient", &v.ambient, 0, 4, "%.2f");
-            tooltip("Scale on its ambient light: the room's baked light around it and the sky, so it reads as\n"
-                    "dim grey in a dark room, not black (all volumes: settings fog_volume_ambient).");
-            changed |= color_row("Glow", v.glow);
-            tooltip("Light it emits per unit of density: smoke lit from within (a vat, embers, a fire's base).");
-            changed |= ImGui::SliderFloat("Glow at its base", &v.glow_core, 0, 1, "%.2f");
-            tooltip("0: the glow even through it; 1: gathered at its base, fading upward.");
-            changed |= ImGui::SliderFloat("Taper", &v.taper, 0, 1, "%.2f");
-            tooltip("Height profile: 0 a box's even density, 1 thinning toward its top (rolling ground fog).");
-            changed |= ImGui::SliderFloat("Billow size", &v.detail_size, 0, 1024, v.detail_size > 0 ? "%.0f" : "auto");
-            tooltip("The size of its billows (the detail noise's period, world units; 0: from the room's wisp size).");
-        }
-        changed |= preset_ui(v);
-        changed |= interaction_ui(v);
-        char name[96];
-        snprintf(name, sizeof name, "%s", v.name.c_str());
-        if (ImGui::InputText("Name", name, sizeof name)) {
-            v.name = name;
-            changed = true;
-        }
-        if (ImGui::SmallButton("Delete volume")) {
-            volumes.erase(volumes.begin() + selected);
-            selected = -1;
-            changed = true;
-            pc_undo_hint("Delete fog volume");
-        }
-        ImGui::PopID();
-    }
+    ImGui::TextDisabled("%d in this room: in the Outliner (Fog volumes); click one there or in the view\n"
+                        "to edit it in Details.",
+        (int)volumes.size());
     global_interaction_ui();
     bool alone = pc_haze_debug != 0;
     if (ImGui::Checkbox("Show the haze alone", &alone))
@@ -1617,19 +1493,16 @@ bool pc_atmosphere_page(void)
     return changed;
 }
 
-/* The volumes in the editor view (while the Atmosphere tab shows, or the
- * selected one), and the selected one's gizmo when no light or actor is
+/* The room's fog volumes in the editor view (Show > Fog volumes): outlines,
+ * the selected ones highlighted, each centre an anchor for box select and
+ * the RPC (a click picks a volume by a ray against its shape:
+ * editor_scene.cpp); the primary's gizmo when no light or actor is
  * selected. Returns true while the gizmo has the mouse. */
 bool pc_atmosphere_viewport(const float view[16], const float projection[16], const float rect[4], void* draw_list)
 {
-    bool page = ImGui::GetFrameCount() - page_frame <= 1;
+    bool tools = ImGui::GetFrameCount() - extras_frame <= 1; /* the selected volume's Details tools show */
     if (selected >= (int)volumes.size())
         selected = -1;
-    if (!page && selected < 0) {
-        if (ghost_mode)
-            rood_fog_sim::ghost(false, nullptr);
-        return false;
-    }
     ImDrawList* draw = (ImDrawList*)draw_list;
     auto project = [&](const float w[3], ImVec2& out) {
         float v[4], c[4];
@@ -1654,10 +1527,14 @@ bool pc_atmosphere_viewport(const float view[16], const float projection[16], co
     if (show_volumes)
         for (int i = 0; i < (int)volumes.size(); i++) {
             const Volume& v = volumes[i];
-            if (!page && i != selected)
+            if (rood_scene::volume_hidden_id(v.id))
                 continue;
-            ImU32 col = i == selected ? IM_COL32(255, 230, 120, 230) : IM_COL32(170, 200, 255, v.enabled ? 150 : 60);
-            float thick = i == selected ? 2.0f : 1.0f;
+            rood_selection::Ref ref = rood_scene::volume_ref(i);
+            bool chosen = rood_selection::contains(ref);
+            ImU32 col = i == selected ? IM_COL32(255, 230, 120, 230)
+                : chosen             ? IM_COL32(255, 230, 120, 140)
+                                     : IM_COL32(170, 200, 255, v.enabled ? 120 : 50);
+            float thick = chosen ? 2.0f : 1.0f;
             if (v.sphere) {
                 for (int axis = 0; axis < 3; axis++) {
                     ImVec2 pts[33];
@@ -1695,6 +1572,7 @@ bool pc_atmosphere_viewport(const float view[16], const float projection[16], co
                 char label[32];
                 snprintf(label, sizeof label, "fog %d", i + 1);
                 draw->AddText(ImVec2(c.x + 6, c.y - 6), col, label);
+                rood_scene::icon(ref, c.x, c.y, 0, true); /* box select and the RPC; a click picks it by a ray */
             }
         }
     /* The selected volume's field on its floor: red cleared, blue piled. */
@@ -1726,7 +1604,7 @@ bool pc_atmosphere_viewport(const float view[16], const float projection[16], co
         static bool ghost_was;
         bool on = false;
         ImVec2 mouse = ImGui::GetIO().MousePos;
-        if (ghost_mode && page && mouse.x >= rect[0] && mouse.y >= rect[1] && mouse.x < rect[0] + rect[2]
+        if (ghost_mode && tools && mouse.x >= rect[0] && mouse.y >= rect[1] && mouse.x < rect[0] + rect[2]
             && mouse.y < rect[1] + rect[3] && !ImGuizmo::IsOver() && !ImGuizmo::IsUsing()) {
             rood_lights::Placement where;
             if (rood_lights::place_compute("light:point", mouse.x, mouse.y, PC_SNAP_MODE_SURFACE, where)) {
@@ -1775,6 +1653,291 @@ bool pc_atmosphere_viewport(const float view[16], const float projection[16], co
         }
     }
     return ImGuizmo::IsOver() || ImGuizmo::IsUsing();
+}
+
+/* ---- the room's fog volumes for the editor (environment_internal.h) ---- */
+
+int rood_atmo::volume_count() { return (int)volumes.size(); }
+std::string rood_atmo::volume_id(int index)
+{
+    if (index < 0 || index >= (int)volumes.size())
+        return "";
+    if (volumes[index].id.empty())
+        volumes[index].id = lighting::new_name();
+    return "fog:" + volumes[index].id;
+}
+int rood_atmo::volume_index(const std::string& item_id)
+{
+    if (item_id.size() <= 4 || item_id.compare(0, 4, "fog:"))
+        return -1;
+    for (int i = 0; i < (int)volumes.size(); i++)
+        if (!item_id.compare(4, std::string::npos, volumes[i].id))
+            return i;
+    return -1;
+}
+std::string rood_atmo::volume_label(int index)
+{
+    if (index < 0 || index >= (int)volumes.size())
+        return "";
+    const Volume& v = volumes[index];
+    char label[128];
+    snprintf(label, sizeof label, "%s %d%s%s", v.sphere ? "Sphere" : "Box", index + 1, v.name.empty() ? "" : ": ",
+        v.name.c_str());
+    return label;
+}
+void rood_atmo::set_selected(int index) { selected = index >= 0 && index < (int)volumes.size() ? index : -1; }
+bool rood_atmo::volume_centre(int index, float out[3], float* radius)
+{
+    if (index < 0 || index >= (int)volumes.size())
+        return false;
+    const Volume& v = volumes[index];
+    memcpy(out, v.pos, sizeof v.pos);
+    *radius = 0.5f * sqrtf(v.size[0] * v.size[0] + v.size[1] * v.size[1] + v.size[2] * v.size[2]);
+    return true;
+}
+float rood_atmo::volume_hit(int index, const float origin[3], const float dir[3])
+{
+    if (index < 0 || index >= (int)volumes.size() || !show_volumes)
+        return -1;
+    const Volume& v = volumes[index];
+    if (rood_scene::volume_hidden_id(v.id)) /* hidden in the editor: not pickable */
+        return -1;
+    return rood_pick::volume_hit(origin, dir, v.pos, v.size, v.yaw, v.sphere);
+}
+bool rood_atmo::volumes_shown() { return show_volumes; }
+extern "C" bool* pc_atmosphere_show_volumes(void) { return &show_volumes; }
+lighting::Item rood_atmo::volume_item(int index) { return item_of(volumes[index]); }
+int rood_atmo::add_volume_item(const lighting::Item& item, const float offset[3])
+{
+    if (item.kind != "fog")
+        return -1;
+    lighting::Item copy = item;
+    copy.name = lighting::new_name();
+    if (!apply_item(copy))
+        return -1;
+    Volume& v = volumes.back();
+    for (int k = 0; k < 3; k++)
+        v.pos[k] += offset[k];
+    return (int)volumes.size() - 1;
+}
+void rood_atmo::remove_volume(int index)
+{
+    if (index < 0 || index >= (int)volumes.size())
+        return;
+    volumes.erase(volumes.begin() + index);
+    if (selected == index)
+        selected = -1;
+    else if (selected > index)
+        --selected;
+}
+/* Outliner rows for the room's fog volumes: the enabled box, click to
+ * select (Shift adds, Ctrl toggles), the layer badge. */
+void rood_atmo::outliner(const char* filter)
+{
+    if (volumes.empty()) {
+        ImGui::TextDisabled("None in this room (Details > Atmosphere: Add volume)");
+        return;
+    }
+    for (int i = 0; i < (int)volumes.size(); i++) {
+        Volume& v = volumes[i];
+        std::string label = volume_label(i);
+        if (filter && filter[0] && !strcasestr(label.c_str(), filter))
+            continue;
+        ImGui::PushID(i);
+        if (ImGui::Checkbox("##on", &v.enabled)) {
+            pc_lights_mark_dirty();
+            pc_undo_hint(v.enabled ? "Enable fog volume" : "Disable fog volume");
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Enabled");
+        ImGui::SameLine();
+        rood_selection::Ref ref = rood_scene::volume_ref(i);
+        bool hidden = rood_selection::hidden(ref);
+        bool silent = !v.enabled || hidden;
+        if (silent)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+        if (hidden)
+            label += "  [hidden]###" + volume_label(i);
+        if (ImGui::Selectable(label.c_str(), rood_selection::contains(ref)))
+            rood_scene::row_clicked(ref);
+        rood_scene::row_drawn(ref);
+        if (silent)
+            ImGui::PopStyleColor();
+        rood_lights::layer_row(ref.id); /* layer badge, revert / promote menu */
+        ImGui::PopID();
+    }
+}
+
+/* The fog volume's fields (editor_schema.h): defaults from the lighting
+ * schema (lighting_layers.cpp), so the two agree; what reset restores is the
+ * volume's preset's value where its preset has the field. */
+void rood_atmo::schema_kind(rood_schema::Kind& k)
+{
+    namespace rs = rood_schema;
+    using rs::Field;
+    using rs::Value;
+    k = rs::Kind();
+    k.name = "fog";
+    k.label = "Fog volume";
+    k.object = rood_selection::KIND_VOLUME;
+    k.closed = { "Look", "Interaction" };
+    k.extras = [](int i) { rood_atmo::details_extra(i); };
+    auto add = [&k](Field f) {
+        const char* text = lighting::field_default("fog", f.name);
+        if (*text)
+            f.def = rs::from_text(f.type, f.options, text);
+        if (lighting::preset_field("fog", f.name)) {
+            std::string key = f.name;
+            rs::Type type = f.type;
+            std::vector<std::string> options = f.options;
+            f.base = [key, type, options](int i) {
+                const Preset* p = volumes[i].preset.empty() ? nullptr : find_preset(volumes[i].preset);
+                const std::string* x = p ? p->get(key) : nullptr;
+                return rs::from_text(type, options, x ? *x : std::string(lighting::field_default("fog", key)));
+            };
+            f.base_source = [key](int i) -> const char* {
+                const Preset* p = volumes[i].preset.empty() ? nullptr : find_preset(volumes[i].preset);
+                return p && p->get(key) ? "preset" : "default";
+            };
+        }
+        k.fields.push_back(f);
+    };
+    auto scalar = [&add](Field f, float Volume::*m) {
+        f.get = [m](int i) { return Value::scalar(volumes[i].*m); };
+        f.set = [m](int i, const Value& v) { volumes[i].*m = v.x(); };
+        add(f);
+    };
+    auto triple = [&add](Field f, float (Volume::*m)[3]) {
+        f.get = [m](int i) {
+            const float* p = volumes[i].*m;
+            return Value::vec(p[0], p[1], p[2]);
+        };
+        f.set = [m](int i, const Value& v) {
+            float* p = volumes[i].*m;
+            for (int c = 0; c < 3; c++)
+                p[c] = v.at(c);
+        };
+        add(f);
+    };
+    auto flag = [&add](Field f, bool Volume::*m) {
+        f.get = [m](int i) { return Value::scalar(volumes[i].*m ? 1.0f : 0.0f); };
+        f.set = [m](int i, const Value& v) { volumes[i].*m = v.x() > 0.5f; };
+        add(f);
+    };
+    flag(rs::bool_field("enabled", "Enabled", "Basics", true), &Volume::enabled);
+    {
+        Field f = rs::enum_field("shape", "Shape", "Basics", { "Box", "Sphere" }, 0, "A box, or an ellipsoid of the same size");
+        f.get = [](int i) { return Value::scalar(volumes[i].sphere ? 1.0f : 0.0f); };
+        f.set = [](int i, const Value& v) { volumes[i].sphere = v.x() > 0.5f; };
+        add(f);
+    }
+    scalar(rs::number_field("density", "Density", "Basics", 0, 0.05f, 0.0001f, 0.004f, "/u", true,
+               "Extinction per world unit in its middle"),
+        &Volume::density);
+    scalar(rs::number_field("edge", "Soft edge", "Basics", 0.01f, 1, 0.01f, 0.5f, "", false,
+               "The part of its half size over which it fades out"),
+        &Volume::edge);
+    scalar(rs::number_field("noise", "Wisps", "Basics", 0, 1, 0.01f, 0.5f), &Volume::noise);
+    triple(rs::colour_field("color", "Colour", "Basics", 1, Value::vec(1, 1, 1), "Albedo: the share of each colour it scatters"),
+        &Volume::color);
+    triple(rs::colour_field("fill", "Fill light", "Basics", 4, Value::vec(0, 0, 0),
+               "Light it scatters from everywhere (radiance): keeps it visible where no light reaches"),
+        &Volume::fill);
+    {
+        Field f = rs::vec3_field("pos", "Position", "Transform", -32768, 32768, 1, Value::vec(0, 0, 0), "u", "Its centre");
+        f.resettable = false, f.shared = false;
+        triple(f, &Volume::pos);
+    }
+    triple(rs::vec3_field("size", "Size", "Transform", 2, 8192, 1, Value::vec(256, 128, 256), "u", "Full extents"),
+        &Volume::size);
+    scalar(rs::angle_field("yaw", "Yaw", "Transform", -180, 180, 0.5f, 0), &Volume::yaw);
+    scalar(rs::number_field("opacity", "Opacity", "Look", 0, 1, 0.01f, 1, "", false,
+               "The most of the scene it may hide along a ray (1: solid)"),
+        &Volume::opacity);
+    scalar(rs::number_field("brightness", "Brightness", "Look", 0, 4, 0.01f, 1, "", false, "Scale on the light it scatters and emits"),
+        &Volume::brightness);
+    scalar(rs::number_field("phase", "Forward scattering", "Look", -0.9f, 0.9f, 0.01f, 0.3f, "", false,
+               "How much brighter it is looking toward a light through it"),
+        &Volume::phase);
+    scalar(rs::number_field("ambient", "Ambient", "Look", 0, 4, 0.01f, 1, "", false,
+               "Scale on its ambient light (the room's baked light around it, the sky)"),
+        &Volume::ambient);
+    triple(rs::colour_field("glow", "Glow", "Look", 16, Value::vec(0, 0, 0), "Light it emits per unit of density"), &Volume::glow);
+    scalar(rs::number_field("glow_core", "Glow at its base", "Look", 0, 1, 0.01f, 0.5f), &Volume::glow_core);
+    scalar(rs::number_field("taper", "Taper", "Look", 0, 1, 0.01f, 0, "", false, "0 an even density, 1 thinning toward its top"),
+        &Volume::taper);
+    scalar(rs::number_field("detail_size", "Billow size", "Look", 0, 1024, 1, 0, "u", false,
+               "Its billows' size (0: from the room's wisp size)"),
+        &Volume::detail_size);
+    scalar(rs::number_field("detail", "Detail", "Look", 0, 1, 0.01f, 0.5f), &Volume::detail);
+    scalar(rs::number_field("shadow", "Self-shadow", "Look", 0, 2, 0.01f, 0), &Volume::shadow);
+    flag(rs::bool_field("sim", "Characters part it", "Interaction", false,
+             "Interactive fog: characters, attacks and spells clear it and leave a wake"),
+        &Volume::sim);
+    scalar(rs::number_field("sim_strength", "Strength", "Interaction", 0, 2, 0.01f, 1), &Volume::sim_strength);
+    scalar(rs::number_field("sim_recover", "Recovery time", "Interaction", 0.3f, 12, 0.1f, 3, "s"), &Volume::sim_recover);
+    scalar(rs::number_field("sim_footprint", "Footprint", "Interaction", 0.25f, 3, 0.01f, 1), &Volume::sim_footprint);
+    scalar(rs::number_field("sim_trail", "Trail", "Interaction", 0, 3, 0.01f, 1), &Volume::sim_trail);
+    scalar(rs::number_field("sim_wind", "Wind", "Interaction", 0, 4, 0.01f, 1), &Volume::sim_wind);
+    scalar(rs::number_field("sim_swirl", "Swirl", "Interaction", 0, 4, 0.01f, 0), &Volume::sim_swirl);
+    for (int s = 0; s < 4; s++) {
+        Field f = rs::number_field(DISTURB_KEYS[s], SOURCE_LABELS[s], "Interaction", -1, 2, 0.01f, -1, "", false, SOURCE_TIPS[s]);
+        f.tooltip += "\n-1: the global weight (Atmosphere > Interactive fog: all rooms)";
+        f.get = [s](int i) { return Value::scalar(volumes[i].disturb[s]); };
+        f.set = [s](int i, const Value& v) { volumes[i].disturb[s] = v.x() < 0 ? -1 : v.x(); };
+        add(f);
+    }
+}
+
+/* Details > a fog volume's own tools under its fields (editor_schema.cpp
+ * draws those): the gizmo's mode, Drop to floor and Fit to floor area, its
+ * name, its preset, the interactive fog's preview, Delete. */
+void rood_atmo::details_extra(int index)
+{
+    if (index < 0 || index >= (int)volumes.size())
+        return;
+    extras_frame = ImGui::GetFrameCount();
+    Volume& v = volumes[index];
+    bool changed = false;
+    ImGui::PushID(v.id.c_str());
+    ImGui::SeparatorText("Tools");
+    ImGui::RadioButton("Move", &operation, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("Size", &operation, 1);
+    ImGui::SameLine();
+    ImGui::RadioButton("Turn", &operation, 2);
+    bool end = !ImGui::GetIO().WantTextInput && ImGui::IsKeyPressed(ImGuiKey_End, false);
+    if (ImGui::Button("Drop to floor (End)") || end) {
+        pc_undo_hint("Drop fog volume to floor");
+        changed |= drop_to_floor(v);
+    }
+    tooltip("Moves it down (or up) so its bottom face rests on the floor under it: the highest floor under\n"
+            "its centre and its footprint's corners. While moving it with the gizmo, the editor's snapping\n"
+            "(point, edge, midpoint, surface) puts its bottom face on the target.");
+    ImGui::SameLine();
+    if (ImGui::Button("Fit to floor area")) {
+        pc_undo_hint("Fit fog volume to floor area");
+        changed |= fit_to_floor(v);
+    }
+    tooltip("Its footprint becomes the level floor around its centre (the room's floor grid: the cells\n"
+            "connected to the one under it, within 12 units of its height), square to the room, on the floor.");
+    char name[96];
+    snprintf(name, sizeof name, "%s", v.name.c_str());
+    if (ImGui::InputText("Name", name, sizeof name)) {
+        v.name = name;
+        changed = true;
+    }
+    changed |= preset_ui(v);
+    preview_tools(v);
+    if (ImGui::SmallButton("Delete volume")) {
+        pc_undo_hint("Delete fog volume");
+        remove_volume(index);
+        rood_scene::refresh();
+        changed = true;
+    }
+    ImGui::PopID();
+    if (changed)
+        pc_lights_mark_dirty();
 }
 
 /* ---- RPC environment {fog, volumes, fog_time} (environment.cpp calls these) ---- */
@@ -1988,12 +2151,12 @@ bool rpc(const prefab::Json& params)
                 if (v.id == d->string && (key[0] == 'd' ? drop_to_floor(v) : fit_to_floor(v)))
                     changed = true;
     if (const prefab::Json* sel = params.get("select_volume")) { /* the editor's selection (its gizmo) */
-        selected = -1;
+        int found = -1;
         for (int i = 0; i < (int)volumes.size(); i++)
             if (volumes[i].id == sel->string)
-                selected = i;
-        if (selected >= 0)
-            rood_lights::select_none();
+                found = i;
+        rood_selection::set(rood_scene::volume_ref(found), rood_selection::FROM_RPC);
+        rood_scene::publish();
     }
     return changed;
 }
