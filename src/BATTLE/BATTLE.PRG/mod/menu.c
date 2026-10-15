@@ -16,12 +16,12 @@
  * swapped for her loadout on entry; on leaving, her new loadout is read from the markers and
  * everything of Ashley's is put back. */
 
-static u_char _savedWeapons[8];
-static u_char _savedShields[8];
-static u_char _savedArmor[16];
-static char _ashleyWeaponEquipped[8];
-static char _ashleyShieldEquipped[8];
-static u_char _ashleyArmorLimb[16];
+static u_char _savedWeapons[VS_INVENTORY_WEAPONS];
+static u_char _savedShields[VS_INVENTORY_WEAPONS];
+static u_char _savedArmor[VS_INVENTORY_ARMOR];
+static char _ashleyWeaponEquipped[VS_INVENTORY_WEAPONS];
+static char _ashleyShieldEquipped[VS_INVENTORY_WEAPONS];
+static u_char _ashleyArmorLimb[VS_INVENTORY_ARMOR];
 static vs_battle_actor2* _ashleyStats = NULL; /* initialised: see _calloSlot in callo.c */
 static u_char _ashleyWeaponCategory;
 
@@ -54,7 +54,7 @@ static void _markLoadoutArmor(int offset, int limb)
     u_char* loadout = LOADOUT;
     int slot = loadout[offset];
 
-    if ((slot != 0) && (slot <= 16)
+    if ((slot != 0) && (slot <= VS_INVENTORY_ARMOR)
         && (vs_main_inventory.armor[slot - 1].id == loadout[offset + 1])) {
         vs_main_inventory.armor[slot - 1].limb = limb;
     }
@@ -70,11 +70,11 @@ static void _equipEnter(vs_battle_actor* callo)
 
     _dropSharedItems();
 
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
         _savedWeapons[i] = vs_main_inventoryIndices.weapons[i];
         _savedShields[i] = vs_main_inventoryIndices.shields[i];
     }
-    for (i = 0; i < 16; ++i) {
+    for (i = 0; i < VS_INVENTORY_ARMOR; ++i) {
         _savedArmor[i] = vs_main_inventoryIndices.armor[i];
     }
 
@@ -84,12 +84,12 @@ static void _equipEnter(vs_battle_actor* callo)
         if (loadout[loadoutVersion] != LOADOUT_VERSION) {
             return;
         }
-        _hideSlot(vs_main_inventoryIndices.weapons, 8, loadout[loadoutWeapon]);
-        _hideSlot(vs_main_inventoryIndices.shields, 8, loadout[loadoutShield]);
+        _hideSlot(vs_main_inventoryIndices.weapons, VS_INVENTORY_WEAPONS, loadout[loadoutWeapon]);
+        _hideSlot(vs_main_inventoryIndices.shields, VS_INVENTORY_WEAPONS, loadout[loadoutShield]);
         for (i = 0; i < 6; ++i) {
-            _hideSlot(vs_main_inventoryIndices.armor, 16, loadout[loadoutArmor + i * 2]);
+            _hideSlot(vs_main_inventoryIndices.armor, VS_INVENTORY_ARMOR, loadout[loadoutArmor + i * 2]);
         }
-        _hideSlot(vs_main_inventoryIndices.armor, 16, loadout[loadoutAccessory]);
+        _hideSlot(vs_main_inventoryIndices.armor, VS_INVENTORY_ARMOR, loadout[loadoutAccessory]);
         return;
     }
 
@@ -97,28 +97,28 @@ static void _equipEnter(vs_battle_actor* callo)
     _saveCalloGear(callo);
 
     /* Swap Ashley's markers out, hiding his items and weapons she has no animations for */
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
         weapon = &vs_main_inventory.weapons[i];
         _ashleyWeaponEquipped[i] = weapon->isEquipped;
         _ashleyShieldEquipped[i] = vs_main_inventory.shields[i].isEquipped;
         if (_ashleyWeaponEquipped[i]) {
-            _hideSlot(vs_main_inventoryIndices.weapons, 8, i + 1);
+            _hideSlot(vs_main_inventoryIndices.weapons, VS_INVENTORY_WEAPONS, i + 1);
         } else if (weapon->blade != 0) {
             blade = &vs_main_inventory.blades[weapon->blade - 1];
             if (!(CALLO_WEAPON_CATEGORIES & (1 << blade->category))) {
-                _hideSlot(vs_main_inventoryIndices.weapons, 8, i + 1);
+                _hideSlot(vs_main_inventoryIndices.weapons, VS_INVENTORY_WEAPONS, i + 1);
             }
         }
         if (_ashleyShieldEquipped[i]) {
-            _hideSlot(vs_main_inventoryIndices.shields, 8, i + 1);
+            _hideSlot(vs_main_inventoryIndices.shields, VS_INVENTORY_WEAPONS, i + 1);
         }
         weapon->isEquipped = 0;
         vs_main_inventory.shields[i].isEquipped = 0;
     }
-    for (i = 0; i < 16; ++i) {
+    for (i = 0; i < VS_INVENTORY_ARMOR; ++i) {
         _ashleyArmorLimb[i] = vs_main_inventory.armor[i].limb;
         if (_ashleyArmorLimb[i]) {
-            _hideSlot(vs_main_inventoryIndices.armor, 16, i + 1);
+            _hideSlot(vs_main_inventoryIndices.armor, VS_INVENTORY_ARMOR, i + 1);
         }
         vs_main_inventory.armor[i].limb = 0;
     }
@@ -162,7 +162,7 @@ static void _equipLeave(void)
 
         /* Read her new loadout from the markers. Nothing marked: her default weapon (the
          * bow) and armour, unless she wore none of it any more (taken off here). */
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
             if (vs_main_inventory.weapons[i].isEquipped) {
                 loadout[loadoutWeapon] = i + 1;
                 loadout[loadoutWeapon + 1] =
@@ -181,7 +181,7 @@ static void _equipLeave(void)
         if (stats->accessory.accessory.id == 0) {
             loadout[loadoutAccessory] = LOADOUT_EMPTY;
         }
-        for (i = 0; i < 16; ++i) {
+        for (i = 0; i < VS_INVENTORY_ARMOR; ++i) {
             part = vs_main_inventory.armor[i].limb;
             if ((part >= 1) && (part <= 6)) {
                 loadout[loadoutArmor + (part - 1) * 2] = i + 1;
@@ -193,11 +193,11 @@ static void _equipLeave(void)
         }
 
         /* Give Ashley his markers, stats and preview back */
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
             vs_main_inventory.weapons[i].isEquipped = _ashleyWeaponEquipped[i];
             vs_main_inventory.shields[i].isEquipped = _ashleyShieldEquipped[i];
         }
-        for (i = 0; i < 16; ++i) {
+        for (i = 0; i < VS_INVENTORY_ARMOR; ++i) {
             vs_main_inventory.armor[i].limb = _ashleyArmorLimb[i];
         }
         psx_set(vs_battle_characterState->unk3C, _ashleyStats);
@@ -208,11 +208,11 @@ static void _equipLeave(void)
     }
 
     if (_menuMode != 0) {
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
             vs_main_inventoryIndices.weapons[i] = _savedWeapons[i];
             vs_main_inventoryIndices.shields[i] = _savedShields[i];
         }
-        for (i = 0; i < 16; ++i) {
+        for (i = 0; i < VS_INVENTORY_ARMOR; ++i) {
             vs_main_inventoryIndices.armor[i] = _savedArmor[i];
         }
     }

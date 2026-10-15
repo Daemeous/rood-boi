@@ -37,12 +37,14 @@ show_choices() {
     if yes "$merlose"; then
         say "  stat-up items give +4: $(yesno "$maxstats")"
         say "  choose the bonus wheel reward: $(yesno "$wheel")"
+        say "  bigger inventory (experimental): $(yesno "$biginv")"
     fi
 }
 merlose=$(opt merlose) maxstats=$(opt max_stat_items) wheel=$(opt choosable_bonus_wheel)
+biginv=$(opt bigger_inventory)
 repo=$(opt repository https://github.com/Daemeous/rood-boi.git) branch=$(opt branch callo)
 keep=n
-if [ -n "$merlose" ] && { ! yes "$merlose" || { [ -n "$maxstats" ] && [ -n "$wheel" ]; }; }; then
+if [ -n "$merlose" ] && { ! yes "$merlose" || { [ -n "$maxstats" ] && [ -n "$wheel" ] && [ -n "$biginv" ]; }; }; then
     say "Last time you chose:"
     show_choices
     keep=$(ask "Keep these choices?")
@@ -51,7 +53,7 @@ fi
 if [ "$keep" != y ]; then
     say "Merlose companion mod (\"Two's A Riot\"): Merlose joins Ashley as an AI party member."
     say "You get play-callo.sh for it, next to the normal play.sh."
-    answer=$(ask "Build it too?"); merlose=$(yesno "$answer") maxstats=no wheel=no
+    answer=$(ask "Build it too?"); merlose=$(yesno "$answer") maxstats=no wheel=no biginv=no
     if yes "$merlose"; then
         say ""
         say "Stat-up items: the items that raise STR, INT, AGL, max HP or max MP for good"
@@ -62,6 +64,13 @@ if [ "$keep" != y ]; then
         say "With this, it DOESN'T spin: you choose the reward yourself with Down/Up and Circle."
         say "(If you're not sure, answer N: the game then plays as you know it.)"
         answer=$(ask "Choose the reward instead of spinning?"); wheel=$(yesno "$answer")
+        say ""
+        say "Bigger inventory (EXPERIMENTAL, may be unstable): twice as many weapons, shields,"
+        say "blades, grips, armour and gems in your bag. When you save, the extra items go in the"
+        say "last quarter of the Container, so the Container holds a quarter less while this is on."
+        say "Your saves keep working without it: build again with N and the extra items are in"
+        say "your Container. (The new-style PC menus aren't available with it yet.)"
+        answer=$(ask "Bigger inventory (experimental)?"); biginv=$(yesno "$answer")
     fi
     say ""
     cat > "$options" <<EOF
@@ -72,6 +81,7 @@ if [ "$keep" != y ]; then
 merlose = $merlose
 max_stat_items = $maxstats
 choosable_bonus_wheel = $wheel
+bigger_inventory = $biginv
 
 [advanced]
 ; Where the source code comes from. Leave these alone unless you know you want another one.
@@ -166,7 +176,7 @@ say "Everything is also written to build.log."
 $engine run --rm -i -v "$here:/work:z" -v "$disc:/disc.bin:ro,z" -v "$volume:/root" "$image" \
     bash /work/files/build.sh /work /disc.bin "$repo" "$branch" \
     "$(yes "$merlose" && echo 1 || echo 0)" "$(yes "$maxstats" && echo 1 || echo 0)" \
-    "$(yes "$wheel" && echo 1 || echo 0)" linux "$owner" ||
+    "$(yes "$wheel" && echo 1 || echo 0)" "$(yes "$biginv" && echo 1 || echo 0)" linux "$owner" ||
     fail "The build stopped (see the messages above, and build.log). Running this again continues where it left off."
 
 say ""

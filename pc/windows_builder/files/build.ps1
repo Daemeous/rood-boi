@@ -51,10 +51,12 @@ function Show-Choices {
     if (Yes "merlose") {
         Say ("  stat-up items give +4: " + (YesNo (Yes "max_stat_items")))
         Say ("  choose the bonus wheel reward: " + (YesNo (Yes "choosable_bonus_wheel")))
+        Say ("  bigger inventory (experimental): " + (YesNo (Yes "bigger_inventory")))
     }
 }
 $known = $Options.ContainsKey("merlose") -and (-not (Yes "merlose") -or
-         ($Options.ContainsKey("max_stat_items") -and $Options.ContainsKey("choosable_bonus_wheel")))
+         ($Options.ContainsKey("max_stat_items") -and $Options.ContainsKey("choosable_bonus_wheel") -and
+          $Options.ContainsKey("bigger_inventory")))
 $keep = $false
 if ($known) {
     Say "Last time you chose:"
@@ -76,9 +78,17 @@ if (-not $keep) {
         Say "With this, it DOESN'T spin: you choose the reward yourself with Down/Up and Circle."
         Say "(If you're not sure, answer N: the game then plays as you know it.)"
         $Options["choosable_bonus_wheel"] = YesNo (Ask "Choose the reward instead of spinning?")
+        Say ""
+        Say "Bigger inventory (EXPERIMENTAL, may be unstable): twice as many weapons, shields,"
+        Say "blades, grips, armour and gems in your bag. When you save, the extra items go in the"
+        Say "last quarter of the Container, so the Container holds a quarter less while this is on."
+        Say "Your saves keep working without it: build again with N and the extra items are in"
+        Say "your Container. (The new-style PC menus aren't available with it yet.)"
+        $Options["bigger_inventory"] = YesNo (Ask "Bigger inventory (experimental)?")
     } else {
         $Options["max_stat_items"] = "no"
         $Options["choosable_bonus_wheel"] = "no"
+        $Options["bigger_inventory"] = "no"
     }
     Say ""
     @("; rood-boi builder - your choices",
@@ -88,6 +98,7 @@ if (-not $keep) {
       "merlose = $($Options['merlose'])",
       "max_stat_items = $($Options['max_stat_items'])",
       "choosable_bonus_wheel = $($Options['choosable_bonus_wheel'])",
+      "bigger_inventory = $($Options['bigger_inventory'])",
       "",
       "[advanced]",
       "; Where the source code comes from. Leave these alone unless you know you want another one.",
@@ -249,7 +260,8 @@ if ($Native) {
                    $Options["repository"], $Options["branch"],
                    $(if ($Merlose) { "1" } else { "0" }),
                    $(if (Yes "max_stat_items") { "1" } else { "0" }),
-                   $(if (Yes "choosable_bonus_wheel") { "1" } else { "0" }))
+                   $(if (Yes "choosable_bonus_wheel") { "1" } else { "0" }),
+                   $(if (Yes "bigger_inventory") { "1" } else { "0" }))
     Say "Building. The first time takes 30-60 minutes; later builds are quicker."
     Say "Everything is also written to build.log."
     Say ""
@@ -324,7 +336,8 @@ $DiscL = Linux-Path $Disc
 $BuildArgs = @($Script, $OutDir, $DiscL, $Options["repository"], $Options["branch"],
           $(if ($Merlose) { "1" } else { "0" }),
           $(if (Yes "max_stat_items") { "1" } else { "0" }),
-          $(if (Yes "choosable_bonus_wheel") { "1" } else { "0" }))
+          $(if (Yes "choosable_bonus_wheel") { "1" } else { "0" }),
+          $(if (Yes "bigger_inventory") { "1" } else { "0" }))
 Say "Building. The first time takes 20-40 minutes and downloads about 1 GB of tools;"
 Say "later builds are quicker. Everything is also written to build.log."
 Say ""

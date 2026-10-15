@@ -1,0 +1,6 @@
+// The bigger bag (VS_BIG_INVENTORY, src/SLUS_010.40/main.h): RAM the game never uses, between
+// SLUS_010.40's end (0x80062000) and the PRG overlays (0x80068800). No code or data of the
+// original game, Zenith 1.94, the QoL mod or the Randomizer refers to it, and it stayed zero
+// in play (2026-10-15). The PC build gives these the same addresses.
+vs_main_bigInventory = 0x80062000; // size:0x1D00 (vs_main_inventory_t, doubled)
+vs_main_bigInventoryIndices = 0x80063D00; // size:0x120 (vs_main_inventoryIndices_t, doubled)

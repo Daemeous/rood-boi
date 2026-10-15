@@ -28,6 +28,14 @@
 #include "../fast_travel.h"
 #include <libetc.h>
 
+/* The modern menus don't know the bigger bag (VS_BIG_INVENTORY) yet: its builds keep the
+ * original menus whatever System > Menus says. */
+#ifdef VS_BIG_INVENTORY
+#define MODERN_MENUS 0
+#else
+#define MODERN_MENUS (pc_ui_menus != 0)
+#endif
+
 static int shell_open; /* the shell owns the top level (ticks in func_800C930C(0)) */
 static int closing;    /* the shell closed the menu; set until currentMenu is 0x3F */
 static int session;    /* ui_menus as it was when this menu session opened (mode 2) */
@@ -347,7 +355,7 @@ int pc_ui_menu_open(int mode)
     closing = 0;
     held = 0;
     if (mode == 2)
-        session = pc_ui_menus != 0; /* System > Menus applies from the next open */
+        session = MODERN_MENUS; /* System > Menus applies from the next open */
     /* only a return (mode 1: a cancelled target's func_800CAB40, an original
      * screen's func_800FAA5C) can follow a shell hand-off; any other open is a
      * new menu session with no action of the last one out */
@@ -636,7 +644,7 @@ int pc_ui_direct_tick(int selectedMenu, char* state, int* result)
         } else {
             if (selectedMenu != 12)
                 return 0;
-            if (!pc_ui_menus || !pc_overlay_active || !pc_overlay_active())
+            if (!MODERN_MENUS || !pc_overlay_active || !pc_overlay_active())
                 return 0;
             if (!pc_ui_loot_begin())
                 return 0;
