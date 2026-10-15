@@ -15,11 +15,14 @@
 #define MPD_ENEMY_SETTINGS(entry) ((u_char*)(entry) + 0x10) /* settings[8] */
 #define MPD_ENEMY_UNK26(entry) (((u_char*)(entry))[0x26])
 
-/* Her loadout lives in save flags 0x400-0x43F (vs_main_stateFlags.unk400): saved and loaded with
- * the game, and verified unused (no script can address flags >= 0x400; no code touches them).
+/* Her loadout lives in save flags 0x420-0x43A (in vs_main_stateFlags.unk400): saved and loaded
+ * with the game. No script can address flags >= 0x400, but chests' opened flags are 0x3C0 + the
+ * chest's number, and the maps' chests go up to 75 (0x40B), so the first 0x20 are off limits.
+ * Older versions kept it at 0x400, where it marked chests 64-75 as opened: _moveOldLoadout.
  * A new game zeroes them, meaning "use the defaults". Each piece is an inventory slot (1-based,
  * 0 = default) plus the item's id, so a slot that was emptied or reused is ignored. */
-#define LOADOUT ((u_char*)&vs_main_stateFlags + 0x400)
+#define LOADOUT ((u_char*)&vs_main_stateFlags + 0x420)
+#define OLD_LOADOUT ((u_char*)&vs_main_stateFlags + 0x400)
 #define LOADOUT_VERSION 'C'
 #define LOADOUT_EMPTY 0xFF /* armour/accessory slot left empty on purpose (0 = her default) */
 enum {
