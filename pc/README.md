@@ -83,9 +83,11 @@ inserted only when that file exists. Other files are chosen in the settings
 (`card1` / `card2`: a path, relative to the repository root unless absolute,
 quotes allowed; `default` for `pc/save`), which the overlay's File >
 Memory cards... edits and shows each slot's file, format and state in; a change
-swaps the card once no file is open on it. `ROOD_CARD1` / `ROOD_CARD2` win over
-the settings for that run. Save at a save point (Data > Save) and load from the
-title screen's Continue. `pc/save/` is ignored by git.
+swaps the card when the game next checks for one (opening Load or Save), never
+in the middle of a save, and one file is never inserted in both slots.
+`ROOD_CARD1` / `ROOD_CARD2` win over the settings for that run. Save at a save
+point (Data > Save) and load from the title screen's Continue. `pc/save/` is
+ignored by git.
 
 The format is recognised from the file's size and first bytes (not its
 extension), and a card is saved back in the format it was read in:

@@ -182,11 +182,16 @@ static int path_setting_case(void)
         if (!firstfile("bu00:*", &entry) || strcmp(entry.name, "BASLUS-01040VAG1"))
             _exit(3);
         pc_psx_close(fd);
-        pc_memory_card_describe(0, info, sizeof info); /* closed: now card b, not on disk yet */
+        pc_memory_card_describe(0, info, sizeof info); /* closed: still card a until the game's card check */
+        if (!firstfile("bu00:*", &entry) || !strstr(info, a) || !strstr(info, "next card check"))
+            _exit(6);
+        _card_info(0x00);
+        pc_memory_card_describe(0, info, sizeof info); /* checked: now card b, not on disk yet */
         if (firstfile("bu00:*", &entry) || !strstr(info, b) || !strstr(info, "new card"))
             _exit(4);
         setenv("ROOD_CARD1", a, 1);
         pc_memory_card_set_path(0, "default");
+        _card_info(0x00);
         pc_memory_card_describe(0, info, sizeof info);
         if (pc_memory_card_path_setting(0)[0] || !strstr(info, a) || !strstr(info, "ROOD_CARD1")
             || !firstfile("bu00:*", &entry))
@@ -197,7 +202,35 @@ static int path_setting_case(void)
     CHECK(child > 0 && waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0);
     unlink(a);
     unlink(b);
-    puts("PASS: card path setting (quotes, swap once no file is open, default, ROOD_CARD1 wins)");
+    puts("PASS: card path setting (quotes, swap at the card check once no file is open, default, ROOD_CARD1 wins)");
+    return 0;
+}
+
+/* Slot 2 set to slot 1's file: two images of one file would each undo the
+ * other's saves, so slot 2 stays empty and the file keeps slot 1's save. */
+static int same_file_case(void)
+{
+    char a[] = "/tmp/rood-card-same-XXXXXX";
+    close(mkstemp(a));
+    unlink(a);
+    pid_t child = fork();
+    if (child == 0) {
+        setenv("ROOD_CARD1", a, 1);
+        unsetenv("ROOD_CARD2");
+        long fd = pc_psx_open("bu00:BASLUS-01040VAG1", 0x200 | 1 << 16);
+        if (fd < 0 || pc_psx_close(fd) != fd)
+            _exit(1);
+        pc_memory_card_set_path(1, a);
+        _card_info(0x10);
+        if (last_spec != 0x0100 || pc_psx_open("bu10:BASLUS-01040VAG2", 0x200 | 1 << 16) != -1)
+            _exit(2);
+        struct DIRENTRY entry;
+        _exit(firstfile("bu00:*", &entry) && !strcmp(entry.name, "BASLUS-01040VAG1") ? 0 : 3);
+    }
+    int status;
+    CHECK(child > 0 && waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0);
+    unlink(a);
+    puts("PASS: one file in both slots: slot 2 left empty");
     return 0;
 }
 
@@ -230,7 +263,7 @@ static int unreadable_case(void)
 
 int main(void)
 {
-    if (path_setting_case() || unreadable_case())
+    if (path_setting_case() || same_file_case() || unreadable_case())
         return 1;
     if (format_case("DexDrive .gme card: saved in place, header kept and its directory copy updated",
             "123-456-STD", 11, 0xF40, 1)

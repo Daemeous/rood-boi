@@ -842,7 +842,8 @@ static void memory_cards_panel()
         ImGui::PopID();
     }
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-    ImGui::TextWrapped("The card is swapped when no save or load is running; Save settings keeps the choice.");
+    ImGui::TextWrapped("A new card is inserted when the game next checks the card (opening Load or Save), never "
+                       "during a save; Save settings keeps the choice.");
     ImGui::PopStyleColor();
     if (ImGui::Button("Save settings"))
         pc_settings_save();
