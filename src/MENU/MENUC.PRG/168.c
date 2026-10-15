@@ -2176,7 +2176,8 @@ static int _disassembleTopMenu(int arg0)
                         [i + VS_MENU12_BIN_INDEX_disassembleWeaponDesc]];
 
                 itemCount = vs_mainMenu_getItemCount((i != 0) * 3, NULL);
-                rowTypes[i] = (itemCount << 9) + 0x400000;
+                /* the count, and from bit 19 the capacity (as many shields as weapons) */
+                rowTypes[i] = (itemCount << 9) + (VS_INVENTORY_WEAPONS << 19);
 
                 if (itemCount == 0) {
                     text[i * 2 + 1] =
