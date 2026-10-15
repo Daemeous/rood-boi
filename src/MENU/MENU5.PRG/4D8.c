@@ -763,18 +763,22 @@ static int _menuManager(void)
                         }
 
                     } else {
-                        if ((vs_main_buttonsPreviousState & (MAP_PAN_INVERT ? PADLdown : PADLup))
+                        if ((vs_main_buttonsPreviousState
+                                & (MAP_PAN_INVERT ? PADLdown : PADLup))
                             && (_geomOffsetY > -80)) {
                             _geomOffsetY -= 4;
-                        } else if ((vs_main_buttonsPreviousState & (MAP_PAN_INVERT ? PADLup : PADLdown))
+                        } else if ((vs_main_buttonsPreviousState
+                                       & (MAP_PAN_INVERT ? PADLup : PADLdown))
                                    && (_geomOffsetY < 80)) {
                             _geomOffsetY += 4;
                         }
 
-                        if ((vs_main_buttonsPreviousState & (MAP_PAN_INVERT ? PADLright : PADLleft))
+                        if ((vs_main_buttonsPreviousState
+                                & (MAP_PAN_INVERT ? PADLright : PADLleft))
                             && (_geomOffsetX > -96)) {
                             _geomOffsetX -= 4;
-                        } else if ((vs_main_buttonsPreviousState & (MAP_PAN_INVERT ? PADLleft : PADLright))
+                        } else if ((vs_main_buttonsPreviousState
+                                       & (MAP_PAN_INVERT ? PADLleft : PADLright))
                                    && (_geomOffsetX < 96)) {
                             _geomOffsetX += 4;
                         }

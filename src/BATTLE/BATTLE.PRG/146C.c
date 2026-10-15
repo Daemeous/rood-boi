@@ -3203,14 +3203,17 @@ void func_8006EC7C(void)
         /* The right stick looks around (pc/src/camera_stick.c): this frame's
          * yaw and pitch steps, signed as the D-pad's (Right: yaw up, Down:
          * pitch up). */
-        extern void pc_camera_stick_first_person(int* yaw, int* pitch) __attribute__((weak));
+        extern void pc_camera_stick_first_person(int* yaw, int* pitch)
+            __attribute__((weak));
         if (pc_camera_stick_first_person) {
             int yaw, pitch;
             pc_camera_stick_first_person(&yaw, &pitch);
             vs_battle_cameraCurrentSpherical.values.yaw =
                 (vs_battle_cameraCurrentSpherical.values.yaw + yaw) % ONE;
             vs_battle_cameraCurrentSpherical.values.pitch =
-                (vs_battle_cameraCurrentSpherical.values.pitch + (FP_INVERT_Y ? -pitch : pitch)) % ONE;
+                (vs_battle_cameraCurrentSpherical.values.pitch
+                    + (FP_INVERT_Y ? -pitch : pitch))
+                % ONE;
         }
     }
 #endif
