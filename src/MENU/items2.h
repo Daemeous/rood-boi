@@ -232,9 +232,9 @@ static int _itemNavigation(int initialize)
     int* rowTypes;
     char** sp310;
 #else
-    char* menuText[128];
-    int rowTypes[64];
-    char* sp310[128];
+    char* menuText[VS_INVENTORY_MAX_ROWS * 2];
+    int rowTypes[VS_INVENTORY_MAX_ROWS];
+    char* sp310[VS_INVENTORY_MAX_ROWS * 2];
 #endif
     int rowCount;
     char* indices;
@@ -278,11 +278,13 @@ loop_1:
     case none:
     case init: {
 #ifdef _ITEMMENU
-        void* textBuf = vs_main_allocHeapR(0x1900 + 0x80 * sizeof(char*));
-        rowTypes = textBuf + 0x1800;
-        menuText = textBuf + 0x1900;
+        /* 96 bytes of text and an int per row, then two pointers per row */
+        void* textBuf = vs_main_allocHeapR(VS_INVENTORY_MAX_ROWS * (96 + 4)
+            + VS_INVENTORY_MAX_ROWS * 2 * sizeof(char*));
+        rowTypes = textBuf + VS_INVENTORY_MAX_ROWS * 96;
+        menuText = textBuf + VS_INVENTORY_MAX_ROWS * (96 + 4);
 #else
-        void* textBuf = vs_main_allocHeapR(64 * 96);
+        void* textBuf = vs_main_allocHeapR(VS_INVENTORY_MAX_ROWS * 96);
 #endif
 
         vs_mainMenu_freezeTabArrows = 1;
@@ -318,7 +320,7 @@ loop_1:
 
 #ifdef _ITEMMENU
         if (D_800F4EA0 & 7) {
-            for (i = 0; i < 64; ++i) {
+            for (i = 0; i < VS_INVENTORY_MAX_ROWS; ++i) {
                 rowTypes[i] |= 1;
             }
         }
@@ -431,7 +433,7 @@ loop_1:
 #ifdef _ITEMMENU
                 int* rowTypes;
 #else
-                int rowTypes[64];
+                int rowTypes[VS_INVENTORY_MAX_ROWS];
 #endif
                 int count;
 
@@ -440,11 +442,13 @@ loop_1:
                 }
 
 #ifdef _ITEMMENU
-                textBuf = vs_main_allocHeapR(0x1900 + 0x80 * sizeof(char*));
-                sp310 = textBuf + 0x1900;
-                rowTypes = textBuf + 0x1800;
+                /* as in init */
+                textBuf = vs_main_allocHeapR(VS_INVENTORY_MAX_ROWS * (96 + 4)
+                    + VS_INVENTORY_MAX_ROWS * 2 * sizeof(char*));
+                sp310 = textBuf + VS_INVENTORY_MAX_ROWS * (96 + 4);
+                rowTypes = textBuf + VS_INVENTORY_MAX_ROWS * 96;
 #else
-                textBuf = vs_main_allocHeapR(64 * 96);
+                textBuf = vs_main_allocHeapR(VS_INVENTORY_MAX_ROWS * 96);
 #endif
 
                 count = _populateItemRows(itemCategory, sp310, rowTypes, textBuf);
