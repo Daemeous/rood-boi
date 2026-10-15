@@ -243,6 +243,7 @@ def suites(args, mode="egl"):
         *([Suite("hud_label_solid_smoke", [PY, str(TESTS / "hud_label_solid_smoke.py"), "--card", str(args.save)],
                  300, note="HUD: the HP / MP labels drawn opaque like their digits (solid black outline, the field "
                            "not showing through), ui_text font and original")]
+          if args.save.exists() else []),
         *([Suite("button_roles_smoke", [PY, str(TESTS / "button_roles_smoke.py"), "--card", str(args.save)], 300,
                  note="QoL button roles: Cross confirms (settings file, title and loading, menus, the modern "
                       "menus' tabs), Cross attacks in the field; each alone, both, neither; the ability lists")]
