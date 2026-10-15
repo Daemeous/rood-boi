@@ -21,7 +21,7 @@ extern "C" {
 
 extern "C" {
 extern int pc_hw_active, pc_hw_interpolate, pc_hw_scale_setting, pc_gl_aspect, pc_gte_widescreen, pc_ui_menus,
-    pc_gameplay_walls, pc_button_prompts;
+    pc_gameplay_walls, pc_button_prompts, pc_qol_map_invert;
 }
 
 static int failures;
@@ -75,7 +75,11 @@ static void pages()
     CHECK(pc_ui_settings_rows(D) == 8); // Images per vsync shows: interpolation is on
     CHECK(pc_ui_settings_rows(A) == (game ? 2 : 1));
     CHECK(pc_ui_settings_rows(I) == 11); // with Menu opacity
-    CHECK(pc_ui_settings_rows(C) == (game ? 14 : 13));
+    CHECK(pc_ui_settings_rows(C) == (game ? 16 : 15));
+    // the look inversions after the stick camera (qol_fp_invert_y, qol_map_invert)
+    CHECK(find(C, "qol_fp_invert_y") == find(C, "reset_camera") + 1 && find(C, "qol_map_invert") == find(C, "reset_camera") + 2);
+    CHECK(value(C, "qol_map_invert") == "Off" && change(C, "qol_map_invert", 1) == 1 && pc_qol_map_invert == 1);
+    pc_qol_map_invert = 0;
     CHECK(pc_ui_settings_rows(B) == 17);
     CHECK(pc_ui_settings_rows(P) == (game ? 11 : 4));
     CHECK(pc_ui_settings_rows(-1) == 0 && pc_ui_settings_rows(7) == 0);

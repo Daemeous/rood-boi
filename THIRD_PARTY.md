@@ -59,6 +59,11 @@ the game.
   `src/mod/wswap.c` and the MENU7 Container fix), reimplemented for the
   native build with the same behaviour and save format. Released by its
   author under CC0 1.0, like rood-reverse. Only the weapon slots are ported.
+- **Map and first-person inversions** (settings `qol_map_invert`,
+  `qol_fp_invert_y`; MENU5 `_menuManager`, BATTLE `func_8006EC7C`): from the
+  same mod's default edition (branch `qol-mod`), made run-time options; the
+  right stick's first-person look is this port's own (the mod fed the stick
+  into the pad). CC0 1.0.
 - **MMPX** (`pc/src/ui_upscale.c` `pc_ui_mmpx2x`, `pc/shaders/vulkan/ui_mmpx.comp`):
   ported from the reference implementation of Morgan McGuire and Mara Gagiu,
   "MMPX Style-Preserving Pixel Art Magnification", JCGT 10(2), 2021

@@ -42,6 +42,11 @@ int pc_qol_weapon_slots;
 /* skip_intro: start at the title, without the publisher and developer logos
  * and the intro movie (boot_runtime.c); off by default (the original start). */
 int pc_skip_intro;
+/* qol_map_invert: the map screen pans the other way on both axes (MENU5);
+ * qol_fp_invert_y: up/down look the other way in the first-person view
+ * (BATTLE func_8006EC7C), the D-pad and the right stick alike. Off by
+ * default. */
+int pc_qol_map_invert, pc_qol_fp_invert_y;
 
 /* Modern menus (pc/src/ui, pc/docs/Modern_Menus.md): 0 the game's own
  * menus, 1 the modern shell. Off by default until the screens are verified. */
@@ -192,6 +197,8 @@ const Entry entries[] = {
     I("camera_stick_r3_reset", pc_camera_stick_r3),
     F("camera_stick_idle_reset", pc_camera_stick_idle_reset),
     I("camera_stick_keys", pc_camera_stick_keys),
+    I("qol_map_invert", pc_qol_map_invert),
+    I("qol_fp_invert_y", pc_qol_fp_invert_y),
     /* Gameplay. */
     I("qol_weapon_slots", pc_qol_weapon_slots),
     I("skip_intro", pc_skip_intro),

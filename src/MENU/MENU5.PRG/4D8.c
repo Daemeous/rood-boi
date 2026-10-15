@@ -24,6 +24,16 @@
 #include <libetc.h>
 #include <abs.h>
 
+/* Map panning on both axes, inverted by the PC port's setting qol_map_invert
+ * (project_settings.cpp); the original's directions in the PS1 build. */
+#ifdef ROOD_PC
+extern int pc_qol_map_invert;
+#define MAP_PAN_INVERT pc_qol_map_invert
+#else
+#define MAP_PAN_INVERT 0
+#endif
+#define MAP_PAN_STEP (MAP_PAN_INVERT ? -4 : 4)
+
 static int _loadArmFile(void);
 static int _menuManager(void);
 static void _snapMapToRoom(vs_battle_scene* scene, int roomId);
@@ -779,15 +789,15 @@ static int _menuManager(void)
                             ABS(rstickY) > 64)) {
 
                         if (rstickX < -64) {
-                            _geomOffsetX -= 4;
+                            _geomOffsetX -= MAP_PAN_STEP;
                         } else if (rstickX > 64) {
-                            _geomOffsetX += 4;
+                            _geomOffsetX += MAP_PAN_STEP;
                         }
 
                         if ((vs_main_stickPosBuf.rStickY - 128) < -64) {
-                            _geomOffsetY -= 4;
+                            _geomOffsetY -= MAP_PAN_STEP;
                         } else if ((vs_main_stickPosBuf.rStickY - 128) > 64) {
-                            _geomOffsetY += 4;
+                            _geomOffsetY += MAP_PAN_STEP;
                         }
 
                         if (_geomOffsetY < -80) {
@@ -803,18 +813,22 @@ static int _menuManager(void)
                         }
 
                     } else {
-                        if ((vs_main_buttonsPreviousState & PADLup)
+                        if ((vs_main_buttonsPreviousState
+                                & (MAP_PAN_INVERT ? PADLdown : PADLup))
                             && (_geomOffsetY > -80)) {
                             _geomOffsetY -= 4;
-                        } else if ((vs_main_buttonsPreviousState & PADLdown)
+                        } else if ((vs_main_buttonsPreviousState
+                                       & (MAP_PAN_INVERT ? PADLup : PADLdown))
                                    && (_geomOffsetY < 80)) {
                             _geomOffsetY += 4;
                         }
 
-                        if ((vs_main_buttonsPreviousState & PADLleft)
+                        if ((vs_main_buttonsPreviousState
+                                & (MAP_PAN_INVERT ? PADLright : PADLleft))
                             && (_geomOffsetX > -96)) {
                             _geomOffsetX -= 4;
-                        } else if ((vs_main_buttonsPreviousState & PADLright)
+                        } else if ((vs_main_buttonsPreviousState
+                                       & (MAP_PAN_INVERT ? PADLleft : PADLright))
                                    && (_geomOffsetX < 96)) {
                             _geomOffsetX += 4;
                         }

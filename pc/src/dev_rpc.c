@@ -31,7 +31,13 @@
  *                                invert_x, invert_y, zoom, zoom_speed,
  *                                zoom_min, zoom_max, zoom_pitch, collision,
  *                                r3_reset, idle_reset, keys), action "reset";
- *                                replies the settings and its state
+ *                                replies the settings and its state (with
+ *                                the first-person look: first_person,
+ *                                fp_looks, fp_step)
+ *   camera_options {map_invert, fp_invert_y}  settings qol_map_invert (the
+ *                                map screen's panning) and qol_fp_invert_y
+ *                                (first-person up/down): sets them, replies
+ *                                both
  *   weapon_slots {enabled}       the QoL weapon slots (weapon_slots.c,
  *                                settings key qol_weapon_slots): sets the
  *                                option; replies it, the overlay/assign/swap
@@ -397,6 +403,7 @@ extern void pc_scene_bounds(float*, float*) __attribute__((weak));
 extern int pc_scene_camera_get(float (*)[3], float*, float*, float*, float*) __attribute__((weak));
 extern void pc_rpc_state(char* out, unsigned size) __attribute__((weak)); /* dev_state.c */
 extern int pc_qol_weapon_slots; /* project_settings.cpp */
+extern int pc_qol_map_invert, pc_qol_fp_invert_y; /* project_settings.cpp */
 extern void pc_weapon_slots_json(char* out, unsigned size) __attribute__((weak)); /* weapon_slots.c */
 extern int pc_ui_menus; /* project_settings.cpp */
 extern void pc_ui_shell_json(char* out, unsigned size); /* ui/ui_shell.cpp */
@@ -941,6 +948,16 @@ static void handle_method(int fd, const char* request)
         if (!strcmp(action, "reset"))
             pc_camera_stick_reset();
         pc_camera_stick_json(result, sizeof result);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "camera_options")) {
+        /* Map panning and first-person up/down (MENU5, BATTLE func_8006EC7C). */
+        int flag;
+        if (params && bool_value(member(params, "map_invert"), &flag))
+            pc_qol_map_invert = flag;
+        if (params && bool_value(member(params, "fp_invert_y"), &flag))
+            pc_qol_fp_invert_y = flag;
+        snprintf(result, sizeof result, "{\"map_invert\":%d,\"fp_invert_y\":%d}", pc_qol_map_invert != 0,
+            pc_qol_fp_invert_y != 0);
         reply(fd, id, result);
     } else if (!strcmp(method, "weapon_slots")) {
         /* The QoL weapon slots (weapon_slots.c): the option and the state. */

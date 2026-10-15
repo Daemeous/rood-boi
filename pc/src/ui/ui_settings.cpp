@@ -33,6 +33,7 @@ extern int pc_env_global;        /* environment.cpp: the rooms' sun and sky */
 extern int pc_lights_enabled;    /* lights.cpp: dynamic lights (lighting key dynamic_lights) */
 extern int pc_qol_weapon_slots;  /* project_settings.cpp; weapon_slots.c */
 extern int pc_skip_intro;        /* project_settings.cpp; boot_runtime.c */
+extern int pc_qol_map_invert, pc_qol_fp_invert_y; /* project_settings.cpp; MENU5, BATTLE func_8006EC7C */
 extern int pc_ui_menus;          /* project_settings.cpp; ui_shell */
 extern float pc_ui_menu_opacity; /* project_settings.cpp; ui_theme.cpp theme() */
 void pc_settings_save(void);
@@ -467,6 +468,10 @@ void build()
         [](const Row&) { pc_camera_stick_reset(); })
                     .grey(need_stick)
                     .unsaved());
+    c.push_back(toggle("qol_fp_invert_y", "Invert first-person look",
+        "In the first-person view up looks down and down looks up (D-pad and right stick).", &pc_qol_fp_invert_y));
+    c.push_back(toggle("qol_map_invert", "Invert map panning", "The map screen pans the other way on both axes.",
+        &pc_qol_map_invert));
     c.push_back(game_option("vibration", "Vibration",
         "The game's vibration setting. Saved with your game, not in settings.", PC_GAME_OPT_VIBRATION, OFF_ON, 2));
 
