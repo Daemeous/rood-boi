@@ -35,8 +35,8 @@ HOW TO BUILD
 ------------
 1. Extract this archive somewhere with space, e.g. ~/Games/rood-boi-builder.
 2. Copy your Vagrant Story .bin and .cue into that folder.
-3. (Optional) Edit "rood-boi options.ini" to choose whether to include
-   Merlose and her extras (see OPTIONS).
+3. Have a look at OPTIONS below: the builder starts by asking which ones
+   you want.
 4. In a terminal, in that folder, run:
      ./build-rood-boi.sh
    (or right-click it in your file manager and run it in a terminal).
@@ -52,13 +52,18 @@ you build again. On a laptop with an NVIDIA GPU the game uses it
 automatically (ROOD_GPU=integrated keeps the default GPU).
 
 
-OPTIONS (rood-boi options.ini)
-------------------------------
-* merlose: also build the game with Callo Merlose as an AI companion.
-* max_stat_items: (Merlose builds) permanent stat-up items always give +4.
-* choosable_bonus_wheel: (Merlose builds) choose the bonus wheel reward
-  after a boss instead of spinning for it.
-Change a value, save, and run ./build-rood-boi.sh again.
+OPTIONS (the builder asks)
+--------------------------
+The builder starts by asking which of these you want:
+* Merlose: also build the game with Callo Merlose as an AI companion,
+  with its own play-callo file next to the normal one.
+* Always +4: (Merlose builds) permanent stat-up items always give +4
+  instead of a random +1 to +4.
+* Choose the bonus wheel reward: (Merlose builds) after a boss the bonus
+  wheel does NOT spin: you pick the reward yourself with Down/Up and
+  Circle. If you're not sure, answer N.
+Your answers are remembered (in "rood-boi options.ini"): the next build
+shows them and asks whether to keep them. Answer N there to change them.
 
 The QoL mod's weapon slots (L2 + R2 quick swap) are already part of
 rood-boi: turn them on in the editor (Escape or F1 in the game). Zenith,
