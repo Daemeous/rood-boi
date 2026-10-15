@@ -36,21 +36,67 @@ if ($Root -match '\\(Temp|AppData)\\') {
 }
 
 # --- Options --------------------------------------------------------------------------------
-$Options = @{ merlose = "no"; max_stat_items = "yes"; choosable_bonus_wheel = "yes";
-              repository = "https://github.com/Daemeous/rood-boi.git"; branch = "callo" }
+# Asked every time (nothing is chosen for the player); the answers are remembered in
+# "rood-boi options.ini", so the next build offers to keep them.
+$Options = @{ repository = "https://github.com/Daemeous/rood-boi.git"; branch = "callo" }
 if (Test-Path $OptionsFile) {
     foreach ($line in Get-Content $OptionsFile) {
         if ($line -match '^\s*([A-Za-z_]+)\s*=\s*(.*?)\s*$') { $Options[$Matches[1].ToLower()] = $Matches[2] }
     }
 }
 function Yes([string]$Name) { return $Options[$Name] -match '^(y|yes|on|true|1)$' }
-$Merlose = Yes "merlose"
-Say "Options (from rood-boi options.ini):"
-Say ("  Merlose companion mod: " + $(if ($Merlose) { "yes" } else { "no" }))
-if ($Merlose) {
-    Say ("  max stat items: " + $(if (Yes "max_stat_items") { "yes" } else { "no" }))
-    Say ("  choosable bonus wheel: " + $(if (Yes "choosable_bonus_wheel") { "yes" } else { "no" }))
+function YesNo([bool]$Value) { if ($Value) { "yes" } else { "no" } }
+function Show-Choices {
+    Say ("  Merlose companion mod:  " + (YesNo (Yes "merlose")))
+    if (Yes "merlose") {
+        Say ("  stat-up items give +4: " + (YesNo (Yes "max_stat_items")))
+        Say ("  choose the bonus wheel reward: " + (YesNo (Yes "choosable_bonus_wheel")))
+    }
 }
+$known = $Options.ContainsKey("merlose") -and (-not (Yes "merlose") -or
+         ($Options.ContainsKey("max_stat_items") -and $Options.ContainsKey("choosable_bonus_wheel")))
+$keep = $false
+if ($known) {
+    Say "Last time you chose:"
+    Show-Choices
+    $keep = Ask "Keep these choices?"
+    Say ""
+}
+if (-not $keep) {
+    Say "Merlose companion mod (""Two's A Riot""): Merlose joins Ashley as an AI party member."
+    Say "You get play-callo.bat for it, next to the normal play.bat."
+    $Options["merlose"] = YesNo (Ask "Build it too?")
+    if (Yes "merlose") {
+        Say ""
+        Say "Stat-up items: the items that raise STR, INT, AGL, max HP or max MP for good"
+        Say "normally give a random +1 to +4. With this, they always give +4."
+        $Options["max_stat_items"] = YesNo (Ask "Always +4?")
+        Say ""
+        Say "Bonus wheel: after a boss, the bonus wheel normally spins and stops on a reward."
+        Say "With this, it DOESN'T spin: you choose the reward yourself with Down/Up and Circle."
+        Say "(If you're not sure, answer N: the game then plays as you know it.)"
+        $Options["choosable_bonus_wheel"] = YesNo (Ask "Choose the reward instead of spinning?")
+    } else {
+        $Options["max_stat_items"] = "no"
+        $Options["choosable_bonus_wheel"] = "no"
+    }
+    Say ""
+    @("; rood-boi builder - your choices",
+      "; The builder asks these questions when it starts and remembers your answers here.",
+      "",
+      "[build]",
+      "merlose = $($Options['merlose'])",
+      "max_stat_items = $($Options['max_stat_items'])",
+      "choosable_bonus_wheel = $($Options['choosable_bonus_wheel'])",
+      "",
+      "[advanced]",
+      "; Where the source code comes from. Leave these alone unless you know you want another one.",
+      "repository = $($Options['repository'])",
+      "branch = $($Options['branch'])") | Set-Content -Path $OptionsFile -Encoding ASCII
+}
+$Merlose = Yes "merlose"
+Say "Building with:"
+Show-Choices
 Say ""
 
 # --- The disc image -------------------------------------------------------------------------
