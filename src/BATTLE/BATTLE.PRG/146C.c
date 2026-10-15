@@ -9845,7 +9845,7 @@ int vs_battle_itemIdIsInInventory(int id)
         if (i < 8) {
             switch (i) {
             case 0:
-                for (i = 0; i < 16; ++i) {
+                for (i = 0; i < VS_INVENTORY_BLADES; ++i) {
                     if (vs_main_inventory.blades[i].id == id) {
                         ret = 1;
                         break;
@@ -9853,7 +9853,7 @@ int vs_battle_itemIdIsInInventory(int id)
                 }
                 break;
             case 1:
-                for (i = 0; i < 16; ++i) {
+                for (i = 0; i < VS_INVENTORY_GRIPS; ++i) {
                     if (vs_main_inventory.grips[i].id == id) {
                         ret = 1;
                         break;
@@ -9861,7 +9861,7 @@ int vs_battle_itemIdIsInInventory(int id)
                 }
                 break;
             case 2:
-                for (i = 0; i < 16; ++i) {
+                for (i = 0; i < VS_INVENTORY_ARMOR; ++i) {
                     if (vs_main_inventory.armor[i].id == id) {
                         ret = 1;
                         break;
@@ -9869,7 +9869,7 @@ int vs_battle_itemIdIsInInventory(int id)
                 }
                 break;
             case 4:
-                for (i = 0; i < 48; ++i) {
+                for (i = 0; i < VS_INVENTORY_GEMS; ++i) {
                     if (vs_main_inventory.gems[i].id == id) {
                         ret = 1;
                         break;
