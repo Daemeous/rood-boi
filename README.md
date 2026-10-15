@@ -267,6 +267,11 @@ To start at the title every time (no publisher and developer logos, no intro
 movie), turn on System > Gameplay > Skip intro, or put `skip_intro 1` in
 `pc/user/settings.cfg`. It is off by default: the original start.
 
+To shorten the wind-up before spells, items and Break Arts take effect in
+battle, set System > Gameplay > Battle charging to Fast (4x) or Skip (full
+speed), or put `qol_skip_charging 1` (or `2`) in `pc/user/settings.cfg`. Off
+by default; the battle itself plays exactly the same, only faster to watch.
+
 The builds go to `pc/build/boot64/rood_battle_probe` (64-bit) and
 `pc/build/boot/rood_battle_probe` (32-bit). To build without running:
 `python3 pc/tools/build_boot.py --arch 64` (add `--nrd off` to skip NRD and its

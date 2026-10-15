@@ -22,7 +22,7 @@ extern "C" {
 
 extern "C" {
 extern int pc_hw_active, pc_hw_interpolate, pc_hw_scale_setting, pc_gl_aspect, pc_gte_widescreen, pc_ui_menus,
-    pc_gameplay_walls, pc_button_prompts, pc_qol_map_invert;
+    pc_gameplay_walls, pc_button_prompts, pc_qol_map_invert, pc_qol_skip_charging;
 }
 
 static int failures;
@@ -83,7 +83,13 @@ static void pages()
     CHECK(value(C, "qol_map_invert") == "Off" && change(C, "qol_map_invert", 1) == 1 && pc_qol_map_invert == 1);
     pc_qol_map_invert = 0;
     CHECK(pc_ui_settings_rows(B) == 17);
-    CHECK(pc_ui_settings_rows(P) == (game ? 11 : 4));
+    CHECK(pc_ui_settings_rows(P) == (game ? 12 : 5));
+    // battle charging after the weapon quick slots: Off, Fast, Skip
+    CHECK(find(P, "qol_skip_charging") == find(P, "qol_weapon_slots") + 1);
+    CHECK(value(P, "qol_skip_charging") == "Off" && change(P, "qol_skip_charging", 1) == 1 && pc_qol_skip_charging == 1
+        && value(P, "qol_skip_charging") == "Fast");
+    CHECK(change(P, "qol_skip_charging", 1) == 1 && pc_qol_skip_charging == 2 && value(P, "qol_skip_charging") == "Skip");
+    pc_qol_skip_charging = 0;
     CHECK(pc_ui_settings_rows(-1) == 0 && pc_ui_settings_rows(7) == 0);
     pc_ui_setting_row r;
     CHECK(!pc_ui_settings_row(G, 99, &r));

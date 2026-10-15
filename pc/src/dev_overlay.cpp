@@ -748,6 +748,7 @@ static void look_panel()
 
 extern "C" int pc_qol_weapon_slots; /* project_settings.cpp; weapon_slots.c */
 extern "C" int pc_skip_intro;       /* project_settings.cpp; boot_runtime.c */
+extern "C" int pc_qol_skip_charging; /* project_settings.cpp; boot_window.c */
 /* Graphics > Gameplay: optional gameplay changes, all off by default. */
 static void gameplay_panel()
 {
@@ -760,6 +761,11 @@ static void gameplay_panel()
                           "Select: assign mode (the next slot button stores the equipped weapon there);\n"
                           "Start: the equipped shield into every one-handed slot; R2 + Select: store / remove.\n"
                           "Slots are saved in the same bytes as the mod, so memory cards stay interchangeable.");
+    ImGui::Combo("Battle charging", &pc_qol_skip_charging, "Off\0Fast (4x)\0Skip (full speed)\0");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Settings qol_skip_charging. A spell's casting, an item's or a Break Art's wind-up before\n"
+                          "it takes effect runs at several game frames per displayed frame. Every frame still runs:\n"
+                          "damage, MP, items and enemy turns are exactly the original's; only the waiting is shorter.");
     bool skip = pc_skip_intro != 0;
     if (ImGui::Checkbox("Skip intro (from the next start)", &skip))
         pc_skip_intro = skip;

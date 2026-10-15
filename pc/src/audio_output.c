@@ -92,6 +92,17 @@ static void wav_header(void)
     fflush(wav);
 }
 
+/* Battle charging at several vsyncs per field (boot_window.c): the game makes
+ * audio faster than the device plays it, so a push that finds TURBO_LEVEL
+ * frames queued already is dropped (the sound stays in real time, without
+ * the latency a full ring would add); the next push fades in from the last
+ * sample kept (no click at the cut). A recording (ROOD_AUDIO=wav) keeps
+ * everything. */
+enum { TURBO_LEVEL = PREBUFFER, FADE = 64 };
+static int turbo, cut; /* (the game thread's) */
+static short last_kept[2];
+void pc_audio_output_turbo(int on) { turbo = on; }
+
 void pc_audio_output_push(const short* frames, int count)
 {
     if (wav) {
@@ -114,14 +125,28 @@ void pc_audio_output_push(const short* frames, int count)
     if (!running)
         return;
     pthread_mutex_lock(&lock);
+    if (turbo && head - tail >= TURBO_LEVEL) {
+        pthread_mutex_unlock(&lock);
+        cut = 1;
+        return;
+    }
     for (int i = 0; i < count; ++i) {
         if (head - tail >= RING)
             ++tail;
-        ring[(head % RING) * 2] = frames[i * 2];
-        ring[(head % RING) * 2 + 1] = frames[i * 2 + 1];
+        for (int c = 0; c < 2; ++c) {
+            int v = frames[i * 2 + c];
+            if (cut && i < FADE)
+                v = last_kept[c] + (v - last_kept[c]) * (i + 1) / FADE;
+            ring[(head % RING) * 2 + c] = (short)v;
+        }
         ++head;
     }
     pthread_mutex_unlock(&lock);
+    if (count > 0) {
+        cut = 0;
+        last_kept[0] = frames[(count - 1) * 2];
+        last_kept[1] = frames[(count - 1) * 2 + 1];
+    }
 }
 
 /* SDL's device thread asks for more: queue whole blocks until the stream

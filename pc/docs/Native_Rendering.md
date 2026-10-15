@@ -562,6 +562,20 @@ the interpolated camera (and the shadows' blended transforms).
   (`pc_drop_shadow_mode`: Auto turns them off while traced shadows cover
   characters, contact-only makes them small and faint), since the native
   draw is built from what the game computed.
+- **Moving platforms' shadows** (`func_8008CEB0`, `room_shadows.inc` calls
+  `pc_platform_shadow_native` after writing each square's packets): a room
+  with moving platforms (MPD section 12: lifts, the floating blocks with a
+  magic circle in Rue Vermillion) draws a flat square on the floor under
+  each, POLY_F4 after a B-F draw mode, its size and grey from the
+  platform's height above the floor (`shade`). Native: one quad mesh per
+  shade, an instance at the square's centre (the frame before's centre for
+  interpolation), one decided entry and marker per square at its bucket, in
+  the same effects list kind as drop shadows (`pc_native_shadows`,
+  `shadow_markers`). Before (2026-10-15), with the reconstruction retired,
+  the packet reached the hardware path as 2D: subtractive screen furniture
+  that replaced the surface under it, a hard black square on water. It is
+  still the PS1's hard-edged square, now subtracting from the lit picture
+  like the packet path with the reconstruction (`platform_shadow_smoke`).
 - **Particles** (`func_800D6E44`, `effect_particles.c` reports each node):
   a node's centre goes through the view (or a parent's) matrix and its
   textured quads (POLY_FT4) are placed around the projected centre in

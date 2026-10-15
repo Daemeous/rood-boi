@@ -33,6 +33,7 @@ int pc_hw_set_scale(int scale);
 extern int pc_env_global;        /* environment.cpp: the rooms' sun and sky */
 extern int pc_lights_enabled;    /* lights.cpp: dynamic lights (lighting key dynamic_lights) */
 extern int pc_qol_weapon_slots;  /* project_settings.cpp; weapon_slots.c */
+extern int pc_qol_skip_charging; /* project_settings.cpp; boot_window.c */
 extern int pc_skip_intro;        /* project_settings.cpp; boot_runtime.c */
 extern int pc_qol_map_invert, pc_qol_fp_invert_y; /* project_settings.cpp; MENU5, BATTLE func_8006EC7C */
 extern int pc_ui_menus;          /* project_settings.cpp; ui_shell */
@@ -537,6 +538,11 @@ void build()
     p.push_back(toggle("qol_weapon_slots", "Weapon quick slots",
         "Hold L2 + R2 to swap among 8 weapon slots. Stored like the QoL mod, so saves stay compatible.",
         &pc_qol_weapon_slots));
+    static const char* const charging[] = {"Off", "Fast", "Skip"};
+    p.push_back(choice("qol_skip_charging", "Battle charging",
+        "Spells, items and Break Arts wind up faster before they take effect: Fast 4x, Skip as fast as it runs. "
+        "The battle itself is unchanged.",
+        &pc_qol_skip_charging, charging, 3));
     p.push_back(choice("gameplay_walls", "Cutaway walls",
         "Smart: walls facing the camera stay unless they hide Ashley. Original: the PS1's.", &pc_gameplay_walls, walls,
         2)

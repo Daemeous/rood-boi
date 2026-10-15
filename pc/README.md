@@ -197,6 +197,34 @@ slots are ported, none of the mod's other control changes.
 `pc/src/weapon_slots.c` documents the details; `pc/tests/weapon_slots_smoke.py`
 tests it (option off, swaps, assign mode, shields, saving and reloading).
 
+### Battle charging (optional)
+
+Before a spell, an item or a Break Art takes effect, Ashley (or an enemy)
+winds up: the camera closes in, the casting effect plays (magic circle, the
+spell's name), then the release begins. That wind-up takes about 3.3 s
+(32-bit build: Solid Shock 196 vsyncs, a Cure Root 202, a Break Art 226). **Off by
+default**: settings key `qol_skip_charging` (0 off, 1 Fast, 2 Skip), System >
+Gameplay > Battle charging in the modern menus, editor Graphics > Gameplay,
+RPC `skip_charging {mode}`.
+
+- **Fast** runs the wind-up at 4 game vsyncs per displayed field (Solid
+  Shock's in 0.83 s).
+- **Skip** runs it unpaced, as fast as the machine renders it (at most 16x;
+  about 6x, 0.6 s, on the development machine).
+
+It is a host-side fast-forward of exactly that stretch, not a change to the
+game: every vsync still runs, so damage, MP, items used, enemy turns and the
+random numbers are the original's (`pc/tests/skip_charging_smoke.py` compares
+the whole game state after a spell and an item, off and on). The stretch is
+BATTLE's action state (`D_800F196C` 2) in `_cameraMode` 4..6 for an action with
+an effect (`vs_main_actions[id]` `unk2_0`: spells, Break Arts, items, enemy
+spells); plain attacks and Battle Abilities (chain and defence timing, which
+open in the release, `_cameraMode` 7) keep their pace, as does everything
+after the wind-up. Frame-interpolation extra presents pause meanwhile, and
+the audio stays in real time: what the device has no room for is dropped,
+with a short fade at each cut. `pc/src/boot_window.c` has the details. The
+game cannot take input during the wind-up, so nothing becomes harder.
+
 ### Modern menus (in progress)
 
 `ui_menus 1` (settings, RPC `ui_menu {modern}`) replaces the game's top-level
@@ -934,6 +962,26 @@ coverage; the mask bit kept): text batches (`gpu_hw.c` `BLEND_TEXT`) draw
 their solid pixels' G-buffer and depth as UI as 2D does, then their colour.
 Talk bubbles zooming, laid-out lines between pixels and the 1x picture all
 stay smooth.
+
+**Battle popups.** The numbers that pop up over Ashley and enemies (damage
+white, heal green, MP magenta and cyan: `BATTLE.PRG` `func_80094B0C`) draw
+the HUD's large digits as 8 x 12 quads, a column wider than the HUD's
+sprites; `ui_text font` recognises those quads as the same digits (a stat
+change's `-`, drawn 8 wide beside its word, as the info style's), so they
+come from the digits font with the HUD's outline, in the popup's own colour,
+with the game's bounce, rise, places and timing (only the glyphs change).
+`MISS` is the info style's letters already. RPC `ui_text` reports
+`popups_drawn` (the characters popups took from the font), `popup_glyphs`
+(how many primitives asked) and `popups` (the digits the newest frame drew
+and where, whichever `ui_text`); `forget_signs` starts them again
+(`pc/tests/damage_numbers_smoke.py`). **UI text scale:** one factor,
+`pc_ui_text_scale()` in `ui_text.c` (1: the original size), is where a
+future text-size setting goes; RPC `ui_text {scale}` (0.25-4, not saved)
+sets it for tests. With `ui_text font` it draws the popups (numbers with a
+stat change's sign and word, and `MISS`) that much larger about their
+middle: the popup's pieces follow one another in the ordering table, so
+where its first piece is drawn the rest give its extent (`boot_polygons.inc`,
+`pc_ui_text_popup_place`).
 
 **At the window's resolution (`ui_text_overlay auto`).** Drawn into the
 picture, text is as fine as the internal resolution, and a window larger than
@@ -1714,6 +1762,7 @@ redraws at about 60 Hz, and after each request):
 | `input` | `buttons` (name or list), `right_stick` (`[x, y]`, -1..1, down +y), `vsyncs` | hold PS1 buttons and/or the right stick (the camera); works unfocused |
 | `camera_stick` | the settings without `camera_stick_` (`enabled`, `speed`, ..., `r3_reset`, `idle_reset`, `keys`), `action` (`reset`) | the right-stick camera: settings and state (zoom, distances, collision hit, yaw; the first-person look: `first_person`, `fp_looks`, `fp_step`) |
 | `camera_options` | `map_invert`, `fp_invert_y` | the optional map panning and first-person up/down inversions (settings `qol_map_invert`, `qol_fp_invert_y`) |
+| `skip_charging` | `mode` (0..2 or `off`, `fast`, `skip`), `reset` | battle charging (settings `qol_skip_charging`): the mode, whether the last vsync charged and its `_cameraMode` (`charging`, `phase`), and the counters since the last reset: charging `sequences`, their `vsyncs` and wall `ms` (`reset: true` zeroes them after the reply) |
 | `weapon_slots` | `enabled` | the optional weapon slots (battle builds): the option, overlay/assign/swap state, field mode, each weapon's slot and each shield's slot bits, what Ashley's battle record has equipped |
 | `ui_menu` | `modern`, `pointer` | the modern menus (`pc/src/ui`, battle builds): sets `ui_menus`; `model_heap_extra` (bytes, tests: the Ashley model's heap check asks for that much more); `pointer {x, y, click, right, wheel, down, middle}` is the next drawn frame's mouse in layout units (1280 or 960 x 720; hit tests as a moved pointer; down / middle: that button held, drags); the shell: visible, holding (closed, a result held during a model load, still drawn), menus, tab, tabs, rows (id, label, enabled, reason when greyed, value), focused row, the Equipment screen; `theme` (the colours shown: `tint` id, `tint_rgb` 0..31, `ground`, `panel`, `stage` as #rrggbbaa, `rule`, `rule2`, `dim`, `ash`); `system.rows[].swatch` (#rrggbb: Menu tint's colour chip); `map` (the Map frame: state, MENU5's published scene / room / camera, areas, rooms, completion, the list's cursor, request counters, the drawn pointer targets `hits`, or null) and `map_heap_free`; `system.manual` (the Quick manual: mode topics / reading, topic, label, desc, row, page_top, line, lines, line_count, page, pages, loaded, square, k, size, overflow, unknown, the page's ten `page_lines`, sprites, rules, hidden, `art` (button-art sprites) and `art_prompts` (drawn as the device's prompts), the `sfx` counters, the drawn `hits`, or null; `system.manual_sfx`: the manual's requested sounds, on or off) |
 | `release` | | drop injected buttons |
@@ -1728,7 +1777,7 @@ redraws at about 60 Hz, and after each request):
 | `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
 | `button_prompts` | `button_prompts` (mode), `device` (`playstation`/`xbox`/`nintendo`/`keyboard`, as a device used last would set it) with `variant` (3/4/5 PlayStation, 360 Xbox), `bind` (`{"bind_key_circle": "c", "bind_pad_circle": "south"}`), `icon` (a button name) with `size`, `clear_shown`, `style`, `scale`, `dpad` (`cross`/`dim`/`lit`), `cross_actions` (0-15: the shortcut cross's usable arms, bits up, left, right, down, whatever the game reports; -1 the game's), `mask` | the mode, the family drawn, the device, `generation`, the glyph each PS1 button shows, the bindings, `shown` (the icon each prompt on screen was drawn with since `clear_shown`, `text` and `sprite`, the shortcut cross's `dpad` and its lit `dpad_arms`), `style`, `scale`, `dpad_mode`, `cross_actions`, regions drawn from icons (`regions`) and fallen back (`failed`); `icon` adds the native menus' image (`pc_prompt_glyph`: size, uv) |
 | `ui_bubbles` | `path` (N) | vector talk bubbles: frames reported, verified, fallen back (`mismatched`), drawn; line segments the hardware path drew (`lines_drawn`); native pixels per output pixel; the recent bubbles (shape, flip, tail, outline bounds drawn and the game's whole-pixel points, thickness); `path`: bubble N's outline points |
-| `ui_text` | `ui_text` (`original`/`font`), `layout` (`line`/`glyph`), `bubble_align` (`centre`/`left`), `lines` (path: the newest frame's laid-out lines as JSON), `style` with `font`, `stretch`, `slant`, `embolden`, `aspect`; `render` ([tpage, clut, u0, v0, u1, v1]) with `factor`, `path` | the text fonts: option, each style (font, placement, `loaded`), fonts loaded, glyph fields made, glyph regions drawn from fonts (`regions`, of them `labels`) and fallen back (`failed`), the labels drawn (`labels_drawn`); a `style` with values changes it as the `ui_text_<style>_*` settings do; `render` draws that region from the font into `path` (little-endian PS1 colours) and adds its size |
+| `ui_text` | `ui_text` (`original`/`font`), `layout` (`line`/`glyph`), `bubble_align` (`centre`/`left`), `lines` (path: the newest frame's laid-out lines as JSON), `style` with `font`, `stretch`, `slant`, `embolden`, `aspect`; `render` ([tpage, clut, u0, v0, u1, v1]) with `factor`, `path`; `scale` (the UI text scale, tests); `forget_signs` | the text fonts: option, each style (font, placement, `loaded`), fonts loaded, glyph fields made, glyph regions drawn from fonts (`regions`, of them `labels`) and fallen back (`failed`), the labels drawn (`labels_drawn`), signs and battle popups drawn from fonts (`signs_drawn`, `popups_drawn`, `popup_glyphs`), the newest frame's popup digits (`popups`: digit, x, y) and `scale`; a `style` with values changes it as the `ui_text_<style>_*` settings do; `render` draws that region from the font into `path` (little-endian PS1 colours) and adds its size |
 | `redraw` | | the newest frame drawn again as recorded with the current options (MSAA, ...) and presented until the game draws another: pause first, then compare options on one frame (`aa_smoke.py`) |
 | `settings` | `action` (`save`, `load`) | the `ROOD_SETTINGS` file (a loaded preset applies at once) |
 | `sfx` | `reset` | the sounds played through `vs_main_playSfxDefault` since the last reset (a `ROOD_PC` count in `main.c`): bank 0x7E's `change`, `select`, `leave`, `invalid`, every id of it (`menu`), the other banks' total (`other`) |

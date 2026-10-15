@@ -151,8 +151,19 @@ void pc_ui_text_settings_write(FILE* f);
 /* JSON object (RPC ui_text): option, styles, fonts loaded, glyphs cached,
  * regions drawn. */
 int pc_ui_text_json(char* out, int size);
-/* The json's signs_drawn starts again (RPC ui_text forget_signs: tests). */
+/* The json's signs_drawn, popups_drawn and popup_glyphs start again (RPC
+ * ui_text forget_signs: tests). */
 void pc_ui_text_forget_signs(void);
+
+/* The UI text scale: 1 draws text at the original's size. The one place it
+ * is read (a future setting sets it; RPC ui_text {scale} for tests, 0.25-4).
+ * Applied to the battle number popups (damage, heal, MP) with ui_text font. */
+float pc_ui_text_scale(void);
+void pc_ui_text_set_scale(float scale);
+/* boot_polygons.inc: a 2D quad's corners (xy: 0 1 / 2 3, the packet's pixels)
+ * moved to the UI text scale when its packet (`tag`: the ordering table's
+ * packet, its successors through `next`) is a popup digit; 0 otherwise. */
+int pc_ui_text_popup_place(const uint32_t* tag, const uint32_t* (*next)(const uint32_t*), float xy[8]);
 typedef struct {
     long regions, failed; /* regions drawn from a font / that fell back to the original */
     long labels;          /* of those regions, fixed labels (text baked into images) */

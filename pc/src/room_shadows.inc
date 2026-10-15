@@ -1,8 +1,20 @@
 /* Host-only object shadow submission, adapted from retained near-matching
  * .work/ultracode/r11-battle-b/ce15.c. See docs/decomp-blockers.md.
- * Original PS1 build keeps its assembly; runtime scene coverage is incomplete. */
+ * Original PS1 build keeps its assembly; runtime scene coverage is incomplete.
+ *
+ * The shadows of the room's moving platforms (section 12: lifts, floating
+ * blocks): a flat square on the floor under each, subtractive (B-F). The
+ * packets are built as the PS1 builds them; each square is also drawn
+ * natively in world space (effect_native.c pc_platform_shadow_native) at a
+ * translucent marker in its bucket, depth-tested against the native room
+ * and darkening what is drawn under it. Without that (native drop shadows
+ * off, no hardware path) the packets draw. */
+extern unsigned* pc_platform_shadow_native(int index, const int centre[3], int shade, unsigned* ot_entry,
+    unsigned* packet) __attribute__((weak));
+extern void pc_platform_shadows_end(const void* start, const void* end) __attribute__((weak));
 void func_8008CEB0(void)
 {
+    void* packets_start;
     SVECTOR vertices[4];
     psx_long interpolation;
     psx_long flags;
@@ -24,6 +36,7 @@ void func_8008CEB0(void)
         return;
     }
     object = psx_get(vs_battle_roomData.section12);
+    packets_start = psx_get(((vs_scratch_t*)0x1F800000)->unk0);
 
     count = vs_battle_roomData.header.section12Len / sizeof(_mpdRoomSection12);
     for (i = 0; i < count; ++i, ++object) {
@@ -75,6 +88,15 @@ void func_8008CEB0(void)
             AddPrim((u_long*)psx_get(((vs_scratch_t*)0x1F800000)->unk4) + depth, prim++);
             psx_set(((vs_scratch_t*)0x1F800000)->unk0, prim);
             _insertTPage(depth, 64);
+            if (pc_platform_shadow_native) {
+                int centre[3] = { object->unkA8 / ONE, height, object->unkB0 / ONE };
+                unsigned* end = pc_platform_shadow_native(i, centre, shade,
+                    (unsigned*)psx_get(((vs_scratch_t*)0x1F800000)->unk4) + depth,
+                    (unsigned*)psx_get(((vs_scratch_t*)0x1F800000)->unk0));
+                psx_set(((vs_scratch_t*)0x1F800000)->unk0, (void*)end);
+            }
         }
     }
+    if (pc_platform_shadows_end)
+        pc_platform_shadows_end(packets_start, psx_get(((vs_scratch_t*)0x1F800000)->unk0));
 }

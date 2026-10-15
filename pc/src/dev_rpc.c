@@ -44,6 +44,13 @@
  *                                state, the field mode and each inventory
  *                                weapon's slot (gems[3]) and shield's slot
  *                                bits (battle builds)
+ *   skip_charging {mode, reset}  battle charging (boot_window.c, settings
+ *                                key qol_skip_charging): mode 0 off, 1 fast,
+ *                                2 skip (or "off"/"fast"/"skip"); replies the
+ *                                mode, whether this vsync charges and its
+ *                                _cameraMode, and the counters (charging
+ *                                sequences seen, their vsyncs and wall ms;
+ *                                reset: true zeroes them after the reply)
  *   ui_menu {modern}             modern menus (pc/src/ui): sets ui_menus,
  *                                returns the shell (visible, menus, tab,
  *                                tabs, rows, row; loot while the Loot screen
@@ -970,6 +977,34 @@ static void handle_method(int fd, const char* request)
             pc_qol_weapon_slots = flag;
         pc_weapon_slots_json(result, sizeof result);
         reply(fd, id, result);
+    } else if (!strcmp(method, "skip_charging")) {
+        /* Battle charging at several vsyncs per field (boot_window.c). */
+        extern int pc_qol_skip_charging; /* project_settings.cpp */
+        extern void pc_charge_turbo_stats(int*, int*, unsigned*, unsigned*, double*, int);
+        char mode[16] = "";
+        int reset = 0, charging, phase;
+        unsigned sequences, vsyncs;
+        double ms;
+        if (params && number_value(member(params, "mode"), &n) && n >= 0 && n <= 2)
+            pc_qol_skip_charging = (int)n;
+        else if (params && string_value(member(params, "mode"), mode, sizeof mode)) {
+            static const char* const names[] = { "off", "fast", "skip" };
+            int i;
+            for (i = 0; i < 3 && strcmp(mode, names[i]); i++)
+                ;
+            if (i == 3) {
+                fail(fd, id, -32602, "skip_charging mode: 0..2 or off, fast, skip");
+                return;
+            }
+            pc_qol_skip_charging = i;
+        }
+        if (params)
+            bool_value(member(params, "reset"), &reset);
+        pc_charge_turbo_stats(&charging, &phase, &sequences, &vsyncs, &ms, reset);
+        snprintf(result, sizeof result,
+            "{\"mode\":%d,\"charging\":%d,\"phase\":%d,\"sequences\":%u,\"vsyncs\":%u,\"ms\":%.1f}",
+            pc_qol_skip_charging, charging, phase, sequences, vsyncs, ms);
+        reply(fd, id, result);
     } else if (!strcmp(method, "ui_menu")) {
         /* Modern menus (pc/src/ui): {modern} sets ui_menus; the shell's state. */
         int flag;
@@ -1648,6 +1683,11 @@ static void handle_method(int fd, const char* request)
             pc_ui_text_setting("ui_text_layout", style);
         if (params && string_value(member(params, "bubble_align"), style, sizeof style))
             pc_ui_text_setting("ui_text_bubble_align", style);
+        {
+            double scale; /* the UI text scale (no setting yet; tests) */
+            if (params && real_value(member(params, "scale"), &scale))
+                pc_ui_text_set_scale((float)scale);
+        }
         {
             int forget = 0;
             if (params && bool_value(member(params, "forget_signs"), &forget) && forget)

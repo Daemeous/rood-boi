@@ -164,6 +164,9 @@ def suites(args, mode="egl"):
             Suite("route_continuation_smoke", [PY, str(TESTS / "route_continuation_smoke.py"), "--card",
                                                str(args.save)], 300,
                   note="enemies holding a room link (gate) continue their route (L800DF8A4) in zone 9 room 5"),
+            Suite("platform_shadow_smoke", [PY, str(TESTS / "platform_shadow_smoke.py"), "--card", str(args.save)],
+                  300, note="a moving platform's square shadow (Rue Vermillion, zone 32 room 3) darkens the water "
+                            "under it like the packet path, not black"),
             Suite("two_model_enemy_smoke", [PY, str(TESTS / "two_model_enemy_smoke.py"), "--card", str(args.save)],
                   300, note="a Ghost (two-model enemy, zone 13 room 4) through _zoneContext.zndEnemies; leaving a "
                             "room frees its spawn table (game heap steady); the LP64 import aliases"),
@@ -228,6 +231,10 @@ def suites(args, mode="egl"):
         *([Suite("menu0_levelled_smoke", [PY, str(TESTS / "menu0_levelled_smoke.py"), "--card", str(args.save)], 300,
                  note="original Magic menu, levelled Warlock spell: LV picker with '--' boxes (GPU sprite size "
                       "masked as on hardware), LV1 and LV2 cast: hand-off id, MP drops by the cost")]
+          if args.save.exists() else []),
+        *([Suite("skip_charging_smoke", [PY, str(TESTS / "skip_charging_smoke.py"), "--card", str(args.save)], 600,
+                 note="battle charging off/fast/skip (paced): Solid Shock's and a Cure Root's wind-up charge the "
+                      "same vsyncs in 4x / full speed wall time; damage, MP, item and game state identical")]
           if args.save.exists() else []),
         *([Suite("ui_equip_smoke", [PY, str(TESTS / "ui_equip_smoke.py"), "--card", str(args.save)], 900,
                  note="Equipment screen: same RAM as the original equip page (MENU3) for weapon/shield/armor/"
@@ -300,6 +307,10 @@ def suites(args, mode="egl"):
                                 *(["--card", str(args.save)] if args.save.exists() else [])], 300,
               note="ui_text fonts: off = original path; bubble, HUD, menu change only inside glyph boxes, "
                    "text extents kept, settings"),
+        *([Suite("damage_numbers_smoke", [PY, str(TESTS / "damage_numbers_smoke.py"), "--card", str(args.save)], 300,
+                 note="battle number popups (poison damage, regen heal; a stat change): original = PS1 digits; "
+                      "font draws them in place, legible, the game's value; UI text scale 2 about their middle")]
+          if args.save.exists() else []),
         *([Suite("button_prompts_smoke", [PY, str(TESTS / "button_prompts_smoke.py"), "--card", str(args.save)], 400,
                  note="button prompts: original = PS1 glyphs; xbox/playstation/nintendo/keyboard icons only inside "
                       "the glyph boxes; auto follows the device; rebinding changes the icon; 1x; settings")]
@@ -388,7 +399,7 @@ CHECKPOINT_SUITES = {
     "ui_equip_smoke",
     "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "post_smoke",
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
-    "ui_map_smoke", "ui_manual_smoke",
+    "ui_map_smoke", "ui_manual_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
 }
 
 

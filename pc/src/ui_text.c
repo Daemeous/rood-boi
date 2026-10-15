@@ -12,7 +12,8 @@
  *             wide outlined capitals (RISK ZERO, COMMAND, NEXT), found
  *             through the game's own tables of its widths and positions
  *   digits    the same page, CLUT (832, 223): the HUD numbers, 6 x 10 and
- *             7 x 12 boxes from row 0
+ *             7 x 12 boxes from row 0; the large ones also as the 8 x 12
+ *             quads of the numbers that pop up in battle (damage, heal, MP)
  *
  * and its texels are drawn again at the atlas's resolution from the
  * style's font: a signed distance field per glyph (stb_truetype, made at
@@ -378,6 +379,7 @@ typedef struct {
     int small_u, small_v;           /* its small capital x (dialogue) */
     int threshold;                  /* CLUT index counted as ink */
     int symbol;                     /* a sign beside numbers: centred on the original's ink (no baseline of its own) */
+    int popup;                      /* a battle number popup's glyph (BATTLE.PRG func_80094B0C: damage, heal, MP) */
 } glyph_info;
 
 /* Signs beside the HUD's numbers (ui_text_render's digits style): the memory
@@ -484,9 +486,14 @@ static int identify(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v
                 return digits_sign(info_signs[i].code, u0, v0, info_signs[i].w, g);
         if (!small_tables_valid())
             return 0;
+        /* A stat change popping up in battle (BATTLE.PRG func_80094E18:
+         * STR -12) draws its sign as an 8 x 10 quad: the '-' (7 wide) with
+         * the column after it. */
+        int stat_sign = u0 == 154 && v0 == 76 && u1 == u0 + 7;
         for (int code = 0x21; code <= 0x5a; code++) {
             int u, v, w;
-            if (small_find(code, &u, &v, &w) && u == u0 && v == v0 && u1 == u0 + w - 1) {
+            if (small_find(code, &u, &v, &w) && u == u0 && v == v0
+                && (u1 == u0 + w - 1 || (stat_sign && code == '-'))) {
                 g->style = PC_UI_TEXT_INFO;
                 g->codepoint = (unsigned)code;
                 g->box_u = u, g->box_v = v, g->box_w = w, g->box_h = 10;
@@ -495,6 +502,7 @@ static int identify(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v
                     return 0;
                 g->ref_h = 10;
                 g->threshold = 4;
+                g->popup = stat_sign && code == '-';
                 return 1;
             }
         }
@@ -538,7 +546,7 @@ static int identify(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v
         int digit = -1, w = 0, h = 0, ref = 0;
         if (u0 <= 60 && u0 % 6 == 0 && u1 == u0 + 5 && v1 == 9)
             digit = u0 / 6, w = 6, h = 10, ref = 0; /* 10: the small digits' slash */
-        else if (u0 >= 64 && u0 < 144 && (u0 - 64) % 8 == 0 && u1 == u0 + 6 && v1 == 11)
+        else if (u0 >= 64 && u0 < 144 && (u0 - 64) % 8 == 0 && (u1 == u0 + 6 || u1 == u0 + 7) && v1 == 11)
             digit = (u0 - 64) / 8, w = 7, h = 12, ref = 64;
         if (digit < 0)
             return 0;
@@ -548,6 +556,11 @@ static int identify(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v
         g->advance = w;
         g->ref_u = ref, g->ref_v = 0, g->ref_w = w, g->ref_h = h;
         g->threshold = 3; /* coverage 0.2 of 9 */
+        /* The numbers that pop up over Ashley and enemies (damage, heal, MP:
+         * BATTLE.PRG func_80094B0C) draw the large digits as 8 x 12 quads
+         * (the column after the glyph too); the HUD's sprites are 7 wide.
+         * The same glyph, drawn into the wider region. */
+        g->popup = ref == 64 && u1 == u0 + 7;
         return 1;
     }
     return 0;
@@ -592,7 +605,16 @@ static unsigned upper(unsigned cp)
 #define MAX_REGION_LABELS 8
 static uint64_t labels_drawn[(LABEL_COUNT + 63) / 64]; /* which labels were drawn from the font (RPC) */
 static char signs_drawn[32]; /* which signs (glyph_info.symbol) were drawn from the font (RPC) */
-void pc_ui_text_forget_signs(void) { memset(signs_drawn, 0, sizeof signs_drawn); }
+/* Battle number popups' glyphs drawn from the font (RPC): which characters,
+ * and how many primitives (each frame's triangles) asked for one. */
+static char popups_drawn[32];
+static long popup_glyphs;
+void pc_ui_text_forget_signs(void)
+{
+    memset(signs_drawn, 0, sizeof signs_drawn);
+    memset(popups_drawn, 0, sizeof popups_drawn);
+    popup_glyphs = 0;
+}
 
 static int texel4(const uint16_t* vram, int page_x, int page_y, int u, int v)
 {
@@ -861,7 +883,129 @@ int pc_ui_text_classify(const uint16_t* vram, unsigned tpage, unsigned clut, int
             fprintf(stderr, "[ui] sign %c (%s): page %x clut %d,%d uv %d,%d..%d,%d\n", (char)g.codepoint, st->name,
                 tpage, (int)(clut & 63) * 16, (int)(clut >> 6 & 511), u0, v0, u1, v1);
     }
+    if (g.popup) {
+        ++popup_glyphs;
+        if (!strchr(popups_drawn, (int)g.codepoint) && strlen(popups_drawn) < sizeof popups_drawn - 1)
+            popups_drawn[strlen(popups_drawn)] = (char)g.codepoint;
+    }
     *key = (uint64_t)pc_ui_text_generation << 40 ^ (uint64_t)g.style << 36 ^ (uint64_t)g.codepoint << 8;
+    return 1;
+}
+
+/* ---- battle popups at the UI text scale ----
+ *
+ * The UI text scale (1: the original's size) is read here only
+ * (pc_ui_text_scale): a future setting sets it, the RPC ui_text {scale}
+ * does for tests. With ui_text font and a scale other than 1, what pops up
+ * over Ashley and enemies in battle is drawn that much larger about its
+ * middle, each piece one after another in the ordering table:
+ *
+ *   numbers   (damage, heal, MP: BATTLE.PRG func_80094B0C) one 8 x 12 quad
+ *             per digit, 6 pixels apart, left to right; a stat change
+ *             (func_80094E18: STR -12) then its sign and its word, left of
+ *             the digits;
+ *   MISS      (func_8009506C) its letters from the info style's page, right
+ *             to left, squashed and stretched vertically as it comes and goes.
+ *
+ * Where a popup's first piece is drawn, the pieces that follow it in the
+ * ordering table give its extent: its middle across, and down the middle of
+ * its last digit (the least of the bounce) or of its letters. Everything else
+ * (where, when, colours, motion, brightness) stays the game's. */
+static float text_scale = 1.0f;
+float pc_ui_text_scale(void) { return text_scale; }
+void pc_ui_text_set_scale(float scale) { text_scale = scale >= 0.25f && scale <= 4.0f ? scale : 1.0f; }
+
+enum { PIECE_NONE, PIECE_DIGIT, PIECE_SIGN, PIECE_WORD, PIECE_MISS };
+/* What a packet (its tag word) draws of a popup, and its rectangle (x0, y0,
+ * x1, y1: exclusive ends, the packet's pixels). */
+static int popup_piece(const uint32_t* tag, int r[4])
+{
+    if (!tag || (tag[0] >> 24) != 9 || ((tag[1] >> 24) & 0xfc) != 0x2c)
+        return PIECE_NONE; /* a textured four-point polygon, flat: POLY_FT4 */
+    unsigned clut = tag[3] >> 16, page = tag[5] >> 16 & 0x19f;
+    int u0 = (int)(tag[3] & 255), v0 = (int)(tag[3] >> 8 & 255), u1 = (int)(tag[9] & 255), v1 = (int)(tag[9] >> 8 & 255);
+    r[0] = (int16_t)(tag[2] & 0xffff), r[1] = (int16_t)(tag[2] >> 16);
+    r[2] = (int16_t)(tag[8] & 0xffff), r[3] = (int16_t)(tag[8] >> 16);
+    if ((int16_t)(tag[4] & 0xffff) != r[2] || (int16_t)(tag[4] >> 16) != r[1] || (int16_t)(tag[6] & 0xffff) != r[0]
+        || (int16_t)(tag[6] >> 16) != r[3] || r[2] <= r[0] || r[3] <= r[1])
+        return PIECE_NONE; /* an upright rectangle */
+    const unsigned digits = 223u << 6 | 832u >> 4, info = 223u << 6 | 864u >> 4;
+    if (page == 12 && clut == digits && u0 >= 64 && u0 < 144 && (u0 - 64) % 8 == 0 && v0 == 0 && u1 == u0 + 8
+        && v1 == 12 && r[2] - r[0] == 8 && r[3] - r[1] == 12)
+        return PIECE_DIGIT;
+    if (page == 12 && clut == info && (u0 == 154 || u0 == 162) && v0 == 76 && u1 == u0 + 8 && v1 == 86)
+        return PIECE_SIGN;
+    if (page == 0x17 && (clut == (220u << 6 | 976u >> 4) || clut == (220u << 6 | 960u >> 4)) && v1 == v0 + 12)
+        return PIECE_WORD;
+    if (page == 12 && clut == info && v0 == 86 && v1 == 96
+        && ((u0 == 100 && u1 == 111) || (u0 == 70 && u1 == 74) || (u0 == 160 && u1 == 169)))
+        return PIECE_MISS;
+    return PIECE_NONE;
+}
+
+/* The popup digits the newest ordering table drew (RPC ui_text popups:
+ * tests), whichever ui_text: the digit and the packet's top-left. */
+#define MAX_POPUP_DIGITS 16
+static struct {
+    char digit;
+    int x, y;
+} popup_digits[MAX_POPUP_DIGITS];
+static int popup_digit_count;
+static unsigned popup_digit_vsync;
+extern unsigned pc_vsync_count(void) __attribute__((weak));
+
+#define MAX_POPUP_PIECES 8
+int pc_ui_text_popup_place(const uint32_t* tag, const uint32_t* (*next)(const uint32_t*), float xy[8])
+{
+    static const uint32_t* members[MAX_POPUP_PIECES];
+    static int member_count;
+    static float anchor[2];
+    int r[4], kind = popup_piece(tag, r);
+    if (kind == PIECE_NONE)
+        return 0;
+    if (kind == PIECE_DIGIT) {
+        unsigned now = pc_vsync_count ? pc_vsync_count() : 0;
+        if (now != popup_digit_vsync)
+            popup_digit_count = 0, popup_digit_vsync = now;
+        if (popup_digit_count < MAX_POPUP_DIGITS) {
+            popup_digits[popup_digit_count].digit = (char)('0' + ((tag[3] & 255) - 64) / 8);
+            popup_digits[popup_digit_count].x = r[0], popup_digits[popup_digit_count].y = r[1];
+            ++popup_digit_count;
+        }
+    }
+    if (text_scale == 1.0f || pc_ui_text != PC_UI_TEXT_FONT)
+        return 0;
+    int known = 0;
+    for (int i = 0; i < member_count && !known; i++)
+        known = members[i] == tag;
+    if (!known) {
+        if (kind != PIECE_DIGIT && kind != PIECE_MISS)
+            return 0; /* (a sign or word drawn alone) */
+        /* A popup's first piece: it and the pieces after it. */
+        int box[4] = { r[0], r[1], r[2], r[3] }, last[4] = { r[0], r[1], r[2], r[3] }, q[4];
+        member_count = 0;
+        members[member_count++] = tag;
+        for (const uint32_t* p = next ? next(tag) : NULL; p && member_count < MAX_POPUP_PIECES; p = next(p)) {
+            int k = popup_piece(p, q);
+            if (kind == PIECE_DIGIT && k == PIECE_DIGIT && q[0] == last[0] + 6 && abs(q[1] - last[1]) <= 16)
+                memcpy(last, q, sizeof last); /* the next digit */
+            else if (kind == PIECE_DIGIT && (k == PIECE_SIGN || k == PIECE_WORD) && q[2] <= box[0] + 1
+                     && q[2] >= box[0] - 8)
+                ; /* a stat change's sign, then its word, left of what came before */
+            else if (kind == PIECE_MISS && k == PIECE_MISS && q[2] == box[0] && q[1] == box[1])
+                ; /* the next letter, left of the previous */
+            else
+                break;
+            members[member_count++] = p;
+            box[0] = q[0] < box[0] ? q[0] : box[0], box[2] = q[2] > box[2] ? q[2] : box[2];
+        }
+        anchor[0] = (box[0] + box[2]) * 0.5f;
+        anchor[1] = (last[1] + last[3]) * 0.5f;
+    }
+    for (int i = 0; i < 4; i++) {
+        xy[i * 2] = anchor[0] + (xy[i * 2] - anchor[0]) * text_scale;
+        xy[i * 2 + 1] = anchor[1] + (xy[i * 2 + 1] - anchor[1]) * text_scale;
+    }
     return 1;
 }
 
@@ -1879,6 +2023,13 @@ int pc_ui_text_json(char* out, int size)
             first = 0;
         }
     if (used < size) /* (signs: ASCII, none a quote or backslash) */
-        used += snprintf(out + used, (size_t)(size - used), "],\"signs_drawn\":\"%s\"}", signs_drawn);
+        used += snprintf(out + used, (size_t)(size - used),
+            "],\"signs_drawn\":\"%s\",\"popups_drawn\":\"%s\",\"popup_glyphs\":%ld,\"scale\":%g,\"popups\":[",
+            signs_drawn, popups_drawn, popup_glyphs, (double)pc_ui_text_scale());
+    for (int i = 0; i < popup_digit_count && used < size; i++)
+        used += snprintf(out + used, (size_t)(size - used), "%s[\"%c\",%d,%d]", i ? "," : "", popup_digits[i].digit,
+            popup_digits[i].x, popup_digits[i].y);
+    if (used < size)
+        used += snprintf(out + used, (size_t)(size - used), "]}");
     return used;
 }

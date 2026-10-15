@@ -192,6 +192,116 @@ unsigned* pc_shadow_native(const void* actor, const void* matrix, int light, con
     return end;
 }
 
+/* ---- moving platforms' shadows (room_shadows.inc, func_8008CEB0) ---- */
+
+/* The square under a room's moving platform (MPD section 12: lifts, floating
+ * blocks): POLY_F4, semi-transparent, flat grey, after a draw mode packet of
+ * B-F, so it darkens what is under it by its colour. Its size and colour
+ * follow `shade` (255 minus half the platform's height above the floor), so
+ * one mesh per shade, in the XZ plane about the square's centre. */
+static render_mesh platform_meshes[256];
+static render_mesh platform_mesh(int shade)
+{
+    if (platform_meshes[shade] && render_mesh_polygons(platform_meshes[shade]) == 1)
+        return platform_meshes[shade];
+    render_polygon p;
+    memset(&p, 0, sizeof p);
+    float r = (float)(32 + shade / 8); /* the game's half size */
+    static const signed char corners[4][2] = { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } }; /* its vertex order */
+    for (int k = 0; k < 4; k++) {
+        p.position[k][0] = corners[k][0] * r;
+        p.position[k][2] = corners[k][1] * r;
+        p.rgb[k][0] = p.rgb[k][1] = p.rgb[k][2] = (uint8_t)(shade / 2 + 16);
+    }
+    p.code = 0x2a; /* POLY_F4, semi-transparent */
+    p.tpage = 2 << 5; /* B-F (draw mode 0xE1000240) */
+    p.flags = RENDER_POLY_QUAD | RENDER_POLY_DOUBLE_SIDED; /* (the game culls nothing) */
+    platform_meshes[shade] = render_mesh_create(&p, 1);
+    return platform_meshes[shade];
+}
+/* By section 12 index: each square as last drawn (frame interpolation takes
+ * the frame before; tests read where it is: platform_shadow_smoke.py). */
+#define PLATFORM_RECORDS 16
+struct pc_platform_shadow_record {
+    uint32_t serial;
+    int32_t shade;
+    float centre[3];
+} pc_platform_shadow_records[PLATFORM_RECORDS];
+static uint32_t platform_list, platform_serial;
+
+/* One platform's square, `index` its section 12 entry, centred at `centre`
+ * (world), linked at `ot_entry` (its bucket) as the game links its packets:
+ * a translucent marker written at `packet`; returns the word after it (the
+ * packet itself when it stays a packet). */
+unsigned* pc_platform_shadow_native(int index, const int centre[3], int shade, unsigned* ot_entry, unsigned* packet)
+{
+    if (!pc_native_shadows || !pc_hw_active || shade < 0 || shade > 255)
+        return packet;
+    uint32_t serial = render_frame_serial();
+    if (platform_serial != serial || !platform_list) {
+        /* The first square of this frame: an effects list for them all. */
+        platform_serial = serial;
+        platform_list = 0;
+        render_camera camera;
+        if (!pc_native_camera(&camera))
+            return packet;
+        render_rules rules;
+        memset(&rules, 0, sizeof rules);
+        rules.far_bucket = 0x800;
+        rules.lod_bucket = 0x7fffffff;
+        rules.effects = RENDER_EFFECTS_SHADOWS;
+        platform_list = render_list_begin(&camera, &rules);
+        if (!platform_list)
+            return packet;
+    }
+    render_mesh mesh = platform_mesh(shade);
+    if (!mesh)
+        return packet;
+    render_transform now, previous;
+    memset(&now, 0, sizeof now);
+    for (int a = 0; a < 3; a++) {
+        now.rotation[a][a] = 1;
+        now.translation[a] = (float)centre[a];
+    }
+    previous = now;
+    int has_previous = 0;
+    if (index >= 0 && index < PLATFORM_RECORDS) {
+        if (pc_platform_shadow_records[index].serial == serial - 1) {
+            memcpy(previous.translation, pc_platform_shadow_records[index].centre, sizeof previous.translation);
+            has_previous = 1;
+        }
+        pc_platform_shadow_records[index].serial = serial;
+        pc_platform_shadow_records[index].shade = shade;
+        memcpy(pc_platform_shadow_records[index].centre, now.translation, sizeof now.translation);
+    }
+    render_instance instance;
+    memset(&instance, 0, sizeof instance);
+    instance.mesh = mesh;
+    instance.palette = &now;
+    instance.previous = has_previous ? &previous : NULL;
+    instance.bones = 1;
+    int count = render_list_translucent_count(platform_list);
+    if (count < 0)
+        return packet;
+    render_list_add(platform_list, &instance);
+    /* The instance's index in the list is the number of squares so far
+     * (one instance and one entry each). */
+    uint32_t entry = (uint32_t)count << 16;
+    uint8_t flag = RENDER_TRANSLUCENT_DECIDED; /* the game kept it (its depth range test) */
+    int first = render_list_translucent(platform_list, &entry, &flag, 1);
+    if (first < 0)
+        return packet;
+    return render_list_link_translucent(platform_list, first, 1, ot_entry, packet);
+}
+/* The walk is done: the squares' packets [start, end) are left to the list
+ * once its first marker draws. */
+void pc_platform_shadows_end(const void* start, const void* end)
+{
+    if (pc_hw_effect_packets)
+        pc_hw_effect_packets(start, end, platform_serial == render_frame_serial() ? platform_list : 0,
+            RENDER_EFFECTS_SHADOWS);
+}
+
 /* ---- particles ---- */
 
 #define MAX_SPRITES 4096

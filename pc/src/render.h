@@ -116,7 +116,7 @@ typedef struct {
     int effects;
 } render_rules;
 enum {
-    RENDER_EFFECTS_SHADOWS = 1, /* drop shadows (actor_shadow.c) */
+    RENDER_EFFECTS_SHADOWS = 1, /* drop shadows (actor_shadow.c), platforms' squares (room_shadows.inc) */
     RENDER_EFFECTS_SPRITES = 2, /* particles and effect sprites */
 };
 typedef struct {
@@ -381,7 +381,8 @@ extern int pc_native_blend;
  * (func_8008E19C's animated floor quads): 0 legacy packets; 1 native
  * layered lists. ROOD_NATIVE_OBJECTS sets it at startup. */
 extern int pc_native_objects;
-/* Drop shadows (actor_shadow.c, func_800B4B14): 0 legacy packets; 1 native
+/* Drop shadows (actor_shadow.c, func_800B4B14) and the squares under moving
+ * platforms (room_shadows.inc, func_8008CEB0): 0 legacy packets; 1 native
  * world-space triangles at translucent markers (their packets are still
  * built for the CPU's reference VRAM). ROOD_NATIVE_SHADOWS sets it. */
 extern int pc_native_shadows;

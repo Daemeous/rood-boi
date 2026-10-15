@@ -47,6 +47,8 @@ extern int pc_ui_precise_find(const void*, const unsigned*, int, float*) __attri
 extern int pc_hw_text_quad(const float*, const int*, const int*, unsigned, unsigned, unsigned, unsigned, const int*,
     int, int) __attribute__((weak));
 extern void pc_hw_text_piece_done(void) __attribute__((weak));
+/* ui_text.c: battle number popups at the UI text scale. */
+extern int pc_ui_text_popup_place(const uint32_t*, const uint32_t* (*)(const uint32_t*), float*) __attribute__((weak));
 /* Room polygon depths from room_geometry.c (1) or the projection log (0). */
 int pc_room_exact_depth = 1;
 /* Widescreen HUD anchoring of the packet about to draw (gpu_hw.c). */
@@ -644,6 +646,26 @@ const void* pc_gpu_command;
 /* Set while a packet DrawPrim hands over is drawn (not an ordering table):
  * ui_text.c tells the memory card screens' signs from the info style's. */
 int pc_gpu_immediate;
+/* The ordering table's packet being drawn (its tag word; NULL for DrawPrim's
+ * single packets) and the one linked after a packet (NULL at the end or
+ * outside guest memory): ui_text.c reads a popup number's following digits. */
+static const uint32_t* drawing_tag;
+static const uint32_t* next_packet(const uint32_t* tag)
+{
+    unsigned next = tag[0] & 0xffffff;
+    if (next == 0xffffff)
+        return NULL;
+    if (next < 0x200000)
+        return (const uint32_t*)(uintptr_t)(next | 0x80000000u);
+    if (sizeof(void*) == 4 && next >= 0x400000 && next < 0x1000000)
+        return (const uint32_t*)(uintptr_t)next;
+    return NULL;
+}
+static int round_px(float v)
+{
+    int i = (int)v;
+    return v - (float)i >= 0.5f ? i + 1 : v - (float)i < -0.5f ? i - 1 : i;
+}
 #include "boot_polygons.inc"
 #include "boot_lines.inc"
 
@@ -833,7 +855,9 @@ void pc_draw_packet(void* data, int chain)
             pc_hw_native_translucent(list, first, count, draw_x, draw_y, clip, texture_window, (int)mask_set);
         }
         pc_gpu_immediate = !chain;
+        drawing_tag = chain ? p : NULL;
         commands(p + 1, tag >> 24);
+        drawing_tag = NULL;
         pc_gpu_immediate = 0;
         unsigned next = tag & 0xffffff;
         if (!chain || next == 0xffffff)
@@ -899,6 +923,7 @@ extern float pc_present_phase __attribute__((weak));
 extern int pc_hw_interpolate __attribute__((weak));
 extern int pc_hw_active __attribute__((weak));
 extern void pc_window_wait_fraction(int k, int n) __attribute__((weak));
+extern int pc_window_turbo(void) __attribute__((weak)); /* boot_window.c: battle charging runs fast */
 void pc_tick(void)
 {
     ++vsyncs;
@@ -911,9 +936,10 @@ void pc_tick(void)
     pc_audio_frame();
     clock_gettime(CLOCK_MONOTONIC, &last_vsync);
     pc_window_frame(vram, display_x, display_y, display_w, display_h);
-    /* More images per vsync (frame interpolation at its fractions). */
+    /* More images per vsync (frame interpolation at its fractions); none
+     * while battle charging runs several vsyncs per field (boot_window.c). */
     if (&pc_present_rate && &pc_present_phase && pc_window_wait_fraction && &pc_hw_interpolate && &pc_hw_active
-        && pc_present_rate > 1 && pc_hw_interpolate && pc_hw_active) {
+        && pc_present_rate > 1 && pc_hw_interpolate && pc_hw_active && !(pc_window_turbo && pc_window_turbo())) {
         int rate = pc_present_rate > 8 ? 8 : pc_present_rate;
         for (int k = 1; k < rate; k++) {
             pc_window_wait_fraction(k, rate);

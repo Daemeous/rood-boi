@@ -47,6 +47,11 @@ int pc_skip_intro;
  * (BATTLE func_8006EC7C), the D-pad and the right stick alike. Off by
  * default. */
 int pc_qol_map_invert, pc_qol_fp_invert_y;
+/* qol_skip_charging: battle charging (a spell's casting, an item's or a
+ * Break Art's wind-up before it takes effect) runs at several vsyncs per
+ * displayed field, the game logic unchanged (boot_window.c): 0 off (the
+ * original pace, default), 1 Fast (4x), 2 Skip (as fast as the machine runs). */
+int pc_qol_skip_charging;
 
 /* Modern menus (pc/src/ui, pc/docs/Modern_Menus.md): 0 the game's own
  * menus, 1 the modern shell. Off by default until the screens are verified. */
@@ -207,6 +212,7 @@ const Entry entries[] = {
     I("qol_fp_invert_y", pc_qol_fp_invert_y),
     /* Gameplay. */
     I("qol_weapon_slots", pc_qol_weapon_slots),
+    I("qol_skip_charging", pc_qol_skip_charging), /* 0 off, 1 fast, 2 skip */
     I("skip_intro", pc_skip_intro),
     I("ui_menus", pc_ui_menus),
     F("ui_menu_opacity", pc_ui_menu_opacity),

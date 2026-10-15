@@ -288,6 +288,18 @@ static unsigned polygon_command(const uint32_t* p, unsigned available)
         }
         pc_hw_sync_texture(tpage, clut, texture_window, u0, v0, u1, v1);
     }
+    /* ui_text: a battle number popup's digit at the UI text scale (ui_text.c; scale 1: unchanged). */
+    if (!projected && textured && count == 4 && drawing_tag && drawing_tag + 1 == p && pc_ui_text_popup_place) {
+        float placed[8]; /* (as the packet's: without the drawing offset) */
+        for (int i = 0; i < 4; ++i)
+            placed[i * 2] = vertex[i].fx - draw_x, placed[i * 2 + 1] = vertex[i].fy - draw_y;
+        if (pc_ui_text_popup_place(drawing_tag, next_packet, placed))
+            for (int i = 0; i < 4; ++i) {
+                placed[i * 2] += draw_x, placed[i * 2 + 1] += draw_y;
+                vertex[i].fx = placed[i * 2], vertex[i].fy = placed[i * 2 + 1];
+                vertex[i].x = round_px(placed[i * 2]), vertex[i].y = round_px(placed[i * 2 + 1]);
+            }
+    }
     pc_hw_set_2d(!projected);
     if (!projected && narrowed_2d((const int (*)[2])screen, count))
         pc_hw_set_narrowed();
