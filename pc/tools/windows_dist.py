@@ -46,6 +46,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("destination", type=pathlib.Path)
     parser.add_argument("--disc", action="store_true", help="also copy disks/SLUS-01040.bin")
+    parser.add_argument("--callo-build", default="win64_callo",
+                        help="with --callo: the build_boot.py output folder under pc/build to take it from "
+                        "(win64_callo_biginv for --big-inventory)")
     parser.add_argument("--callo", action="store_true",
                         help="also add the Callo Merlose mod build (build_boot.py --target windows --callo) "
                         "as rood-callo.exe with play-callo.bat, sharing the folder's data and saves")
@@ -65,9 +68,9 @@ def main():
     subprocess.run([strip, "--strip-debug", str(dest / "rood.exe")], check=True)
     (dest / "play.bat").write_bytes(PLAY_BAT.replace("\n", "\r\n").encode())
     if args.callo:
-        callo = ROOT / "pc/build/win64_callo/rood.exe"
+        callo = ROOT / "pc/build" / args.callo_build / "rood.exe"
         if not callo.exists():
-            raise SystemExit("pc/build/win64_callo/rood.exe is missing: run build_boot.py --target windows --callo")
+            raise SystemExit(f"{callo} is missing: run build_boot.py --target windows --callo")
         shutil.copy2(callo, dest / "rood-callo.exe")
         subprocess.run([strip, "--strip-debug", str(dest / "rood-callo.exe")], check=True)
         bat = PLAY_BAT.replace("rood.exe", "rood-callo.exe").replace("rood.log", "rood-callo.log")

@@ -695,7 +695,7 @@ static int _copyBladeToInventory(vs_main_inventoryBlade* source, int weapon)
     while (blade->id != 0) {
         ++blade;
         ++index;
-        if (index == 16) {
+        if (index == VS_INVENTORY_BLADES) {
             return 0;
         }
     }
@@ -715,7 +715,7 @@ static int _copyGripToInventory(vs_main_inventoryGrip* source, int weaponIndex)
     while (grip->id != 0) {
         ++grip;
         ++index;
-        if (index == 16) {
+        if (index == VS_INVENTORY_GRIPS) {
             return 0;
         }
     }
@@ -735,7 +735,7 @@ static int _copyGemToInventory(vs_main_inventoryGem* source, int item)
     while (gem->id != 0) {
         ++gem;
         ++index;
-        if (index == 0x30) {
+        if (index == VS_INVENTORY_GEMS) {
             return 0;
         }
     }
@@ -755,7 +755,7 @@ static int _copyWeaponToInventory(vs_battle_lootedWeapon* arg0)
 
     while (slot->blade != 0) {
         ++slot;
-        if (++index == 8) {
+        if (++index == VS_INVENTORY_WEAPONS) {
             return 0;
         }
     }
@@ -784,7 +784,7 @@ static int _copyArmorToInventory(vs_main_inventoryArmor* source)
     while (armor->id != 0) {
         ++armor;
         ++index;
-        if (index == 16) {
+        if (index == VS_INVENTORY_ARMOR) {
             return 0;
         }
     }
@@ -805,7 +805,7 @@ static int _copyShieldToInventory(vs_battle_lootedShield* arg0)
     while (shield->base.id != 0) {
         ++shield;
         ++index;
-        if (index == 8) {
+        if (index == VS_INVENTORY_SHIELDS) {
             return 0;
         }
     }

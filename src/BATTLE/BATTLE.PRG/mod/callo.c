@@ -359,13 +359,13 @@ static void _giveStartingArmor(void)
         if (loadout[loadoutArmor + part * 2] != 0) {
             continue;
         }
-        for (from = 0; (from < 16) && (armor[from].limb != part + 1); ++from)
+        for (from = 0; (from < VS_INVENTORY_ARMOR) && (armor[from].limb != part + 1); ++from)
             ;
-        for (to = 0; (to < 16) && (armor[to].id != 0); ++to)
+        for (to = 0; (to < VS_INVENTORY_ARMOR) && (armor[to].id != 0); ++to)
             ;
-        for (entry = 0; (entry < 16) && (vs_main_inventoryIndices.armor[entry] != 0); ++entry)
+        for (entry = 0; (entry < VS_INVENTORY_ARMOR) && (vs_main_inventoryIndices.armor[entry] != 0); ++entry)
             ;
-        if ((from >= 16) || (to >= 16) || (entry >= 16)) {
+        if ((from >= VS_INVENTORY_ARMOR) || (to >= VS_INVENTORY_ARMOR) || (entry >= VS_INVENTORY_ARMOR)) {
             continue;
         }
         armor[to] = armor[from];
@@ -392,13 +392,13 @@ static void _giveStartingWeapon(void)
     if ((loadout[loadoutFlags] & LOADOUT_BOW_GIVEN) || (loadout[loadoutWeapon] != 0)) {
         return;
     }
-    for (w = 0; (w < 8) && (vs_main_inventory.weapons[w].blade != 0); ++w)
+    for (w = 0; (w < VS_INVENTORY_WEAPONS) && (vs_main_inventory.weapons[w].blade != 0); ++w)
         ;
-    for (b = 0; (b < 16) && (vs_main_inventory.blades[b].id != 0); ++b)
+    for (b = 0; (b < VS_INVENTORY_BLADES) && (vs_main_inventory.blades[b].id != 0); ++b)
         ;
-    for (g = 0; (g < 16) && (vs_main_inventory.grips[g].id != 0); ++g)
+    for (g = 0; (g < VS_INVENTORY_GRIPS) && (vs_main_inventory.grips[g].id != 0); ++g)
         ;
-    if ((w >= 8) || (b >= 16) || (g >= 16)) {
+    if ((w >= VS_INVENTORY_WEAPONS) || (b >= VS_INVENTORY_BLADES) || (g >= VS_INVENTORY_GRIPS)) {
         return; /* no room: try again at the next spawn */
     }
 
@@ -420,9 +420,9 @@ static void _giveStartingWeapon(void)
     for (i = 0; i < 24; ++i) {
         weapon->name[i] = _vkpWeapon.name[i];
     }
-    for (i = 0; (i < 8) && (vs_main_inventoryIndices.weapons[i] != 0); ++i)
+    for (i = 0; (i < VS_INVENTORY_WEAPONS) && (vs_main_inventoryIndices.weapons[i] != 0); ++i)
         ;
-    if (i < 8) {
+    if (i < VS_INVENTORY_WEAPONS) {
         vs_main_inventoryIndices.weapons[i] = w + 1;
     }
 
@@ -443,17 +443,17 @@ void _dropSharedItems(void)
         return;
     }
     slot = loadout[loadoutWeapon];
-    if ((slot != 0) && (slot <= 8) && vs_main_inventory.weapons[slot - 1].isEquipped) {
+    if ((slot != 0) && (slot <= VS_INVENTORY_WEAPONS) && vs_main_inventory.weapons[slot - 1].isEquipped) {
         loadout[loadoutWeapon] = 0;
     }
     slot = loadout[loadoutShield];
-    if ((slot != 0) && (slot <= 8) && vs_main_inventory.shields[slot - 1].isEquipped) {
+    if ((slot != 0) && (slot <= VS_INVENTORY_SHIELDS) && vs_main_inventory.shields[slot - 1].isEquipped) {
         loadout[loadoutShield] = 0;
     }
     /* The six armour pieces, then the accessory (loadoutAccessory follows them) */
     for (i = 0; i < 7; ++i) {
         slot = loadout[loadoutArmor + i * 2];
-        if ((slot != 0) && (slot <= 16) && vs_main_inventory.armor[slot - 1].limb) {
+        if ((slot != 0) && (slot <= VS_INVENTORY_ARMOR) && vs_main_inventory.armor[slot - 1].limb) {
             loadout[loadoutArmor + i * 2] = 0;
         }
     }
@@ -490,7 +490,7 @@ static void _applyLoadout(vs_battle_actor2* callo)
         slot = loadout[loadoutArmor + i * 2];
         if (slot == LOADOUT_EMPTY) {
             vs_battle_applyArmor(&callo->limbs[i].armor, NULL);
-        } else if ((slot != 0) && (slot <= 16)) {
+        } else if ((slot != 0) && (slot <= VS_INVENTORY_ARMOR)) {
             armor = &vs_main_inventory.armor[slot - 1];
             if (armor->id == loadout[loadoutArmor + i * 2 + 1]) {
                 vs_battle_applyArmor(&callo->limbs[i].armor, armor);
@@ -501,7 +501,7 @@ static void _applyLoadout(vs_battle_actor2* callo)
     slot = loadout[loadoutAccessory];
     if (slot == LOADOUT_EMPTY) {
         vs_battle_applyAccessory(&callo->accessory, NULL);
-    } else if ((slot != 0) && (slot <= 16)) {
+    } else if ((slot != 0) && (slot <= VS_INVENTORY_ARMOR)) {
         armor = &vs_main_inventory.armor[slot - 1];
         if (armor->id == loadout[loadoutAccessory + 1]) {
             vs_battle_applyAccessory(&callo->accessory, armor);

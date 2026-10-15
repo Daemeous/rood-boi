@@ -3,7 +3,8 @@
 # the Linux builder's container.
 #   build.sh deps <windows|linux>          install the packages (the Linux builder's image)
 #   build.sh <output dir> <disc .bin> <repository> <branch> <merlose 0/1>
-#            <max stat items 0/1> <choosable bonus wheel 0/1> [windows|linux] [chown uid:gid]
+#            <max stat items 0/1> <choosable bonus wheel 0/1> <bigger inventory 0/1>
+#            [windows|linux] [chown uid:gid]
 set -euo pipefail
 
 install_deps() {
@@ -60,7 +61,8 @@ if [ "$1" = deps ]; then
     exit 0
 fi
 
-OUT=$1 DISC=$2 REPO=$3 BRANCH=$4 MERLOSE=$5 MAXSTATS=$6 WHEEL=$7 TARGET=${8:-windows} OWNER=${9:-}
+OUT=$1 DISC=$2 REPO=$3 BRANCH=$4 MERLOSE=$5 MAXSTATS=$6 WHEEL=$7 BIGINV=${8:-0} TARGET=${9:-windows}
+OWNER=${10:-}
 SRC=/root/rood-boi
 PLAY="$OUT/rood-boi"
 exec > >(tee -a "$OUT/build.log") 2>&1
@@ -104,6 +106,11 @@ tail -2 /root/make.log
 callo=()
 [ "$MAXSTATS" = 1 ] || callo+=(--random-stat-items)
 [ "$WHEEL" = 1 ] || callo+=(--spin-bonus-wheel)
+callo_dir=_callo
+if [ "$BIGINV" = 1 ]; then  # the bigger bag (experimental)
+    callo+=(--big-inventory container)
+    callo_dir=_callo_biginv
+fi
 mkdir -p "$PLAY/disks"
 if [ "$TARGET" = windows ]; then
     step "4/5 rood.exe (this is the long part)"
@@ -112,7 +119,7 @@ if [ "$TARGET" = windows ]; then
     if [ "$MERLOSE" = 1 ]; then
         step "4/5 rood-callo.exe, with Merlose"
         python3 pc/tools/build_boot.py --target windows --callo "${callo[@]}"
-        dist+=(--callo)
+        dist+=(--callo --callo-build "win64$callo_dir")
     fi
     step "5/5 The play folder"
     if ! cmp -s disks/SLUS-01040.bin "$PLAY/disks/SLUS-01040.bin"; then
@@ -161,7 +168,7 @@ EOF
     }
     write_play play.sh rood rood.log
     if [ "$MERLOSE" = 1 ]; then
-        strip --strip-debug -o "$PLAY/rood-callo" pc/build/boot64_callo/rood_battle_probe
+        strip --strip-debug -o "$PLAY/rood-callo" "pc/build/boot64$callo_dir/rood_battle_probe"
         write_play play-callo.sh rood-callo rood-callo.log
     else
         rm -f "$PLAY/rood-callo" "$PLAY/play-callo.sh"

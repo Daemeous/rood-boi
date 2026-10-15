@@ -155,7 +155,7 @@ static int two_handed(vs_main_inventoryWeapon* w)
 static vs_main_inventoryWeapon* in_slot(int n)
 {
     int i;
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
         vs_main_inventoryWeapon* w = &vs_main_inventory.weapons[i];
         if (w->blade && w->gems[3] == n)
             return w;
@@ -167,7 +167,7 @@ static vs_main_inventoryWeapon* in_slot(int n)
 static int equipped_weapon(void)
 {
     int i, found = -1;
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
         if (vs_main_inventory.weapons[i].isEquipped && vs_main_inventory.weapons[i].blade)
             found = i;
     }
@@ -182,7 +182,7 @@ static void migrate(void)
 {
     vs_main_inventoryWeapon* w = vs_main_inventory.weapons;
     int i, k, g;
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
         g = w[i].gems[3];
         if (g > 8) {
             w[i].gems[3] = 0;
@@ -199,7 +199,7 @@ static void migrate(void)
 static void shield_bind(int n, int with)
 {
     int i;
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_SHIELDS; ++i) {
         vs_main_inventoryShield* shield = &vs_main_inventory.shields[i];
         if (with && shield->isEquipped)
             SHIELD_SLOTS(shield) |= SLOT_BIT(n);
@@ -213,7 +213,7 @@ static void shield_bind(int n, int with)
 static void shield_all(void)
 {
     int i;
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
         vs_main_inventoryWeapon* w = &vs_main_inventory.weapons[i];
         if (w->blade && !two_handed(w))
             shield_bind(w->gems[3], 1);
@@ -232,7 +232,7 @@ static vs_main_inventoryShield* shield_swap(vs_main_inventoryWeapon* w, int two)
     vs_main_inventoryShield* want = NULL;
     int i;
 
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_SHIELDS; ++i) {
         if (shields[i].isEquipped)
             on = &shields[i];
         if (!two && (SHIELD_SLOTS(&shields[i]) & SLOT_BIT(w->gems[3])) && shields[i].base.id)
@@ -240,7 +240,7 @@ static vs_main_inventoryShield* shield_swap(vs_main_inventoryWeapon* w, int two)
     }
     if (want == on)
         return NULL;
-    for (i = 0; i < 8; ++i)
+    for (i = 0; i < VS_INVENTORY_SHIELDS; ++i)
         shields[i].isEquipped = 0;
     if (want)
         want->isEquipped = 1;
@@ -315,7 +315,7 @@ static void begin_swap(vs_main_inventoryWeapon* w)
     int wep = (u_char)blade->wepId;
     int material = blade->material;
 
-    for (i = 0; i < 8; ++i)
+    for (i = 0; i < VS_INVENTORY_WEAPONS; ++i)
         vs_main_inventory.weapons[i].isEquipped = 0;
     w->isEquipped = 1;
 
@@ -668,13 +668,13 @@ void pc_weapon_slots_json(char* out, unsigned size)
         "\"field_mode\":%d,\"equipped\":%d,\"menu_reload\":%d,\"weapons\":[",
         pc_qol_weapon_slots != 0, s.wmode, s.assign, s.loading, s.swaps, s.assigns, (int)D_800F196C,
         equipped_weapon(), s.menu);
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
         vs_main_inventoryWeapon* w = &vs_main_inventory.weapons[i];
         p += sprintf(p, "%s{\"blade\":%d,\"equipped\":%d,\"slot\":%d}", i ? "," : "", w->blade,
             w->isEquipped != 0, w->gems[3]);
     }
     p += sprintf(p, "],\"shields\":[");
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_SHIELDS; ++i) {
         vs_main_inventoryShield* shield = &vs_main_inventory.shields[i];
         p += sprintf(p, "%s{\"id\":%d,\"equipped\":%d,\"slots\":%d}", i ? "," : "", shield->base.id,
             shield->isEquipped != 0, SHIELD_SLOTS(shield));
@@ -786,7 +786,7 @@ int pc_weapon_slots_shield_for(int slot)
 
     if (slot < 1 || slot > 8)
         return -1;
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_SHIELDS; ++i) {
         vs_main_inventoryShield* shield = &vs_main_inventory.shields[i];
         if ((SHIELD_SLOTS(shield) & SLOT_BIT(slot)) && shield->base.id)
             return i;
@@ -798,7 +798,7 @@ int pc_weapon_slots_shield_for(int slot)
 static void bind_shield_index(int n, int index)
 {
     int i;
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_SHIELDS; ++i) {
         vs_main_inventoryShield* shield = &vs_main_inventory.shields[i];
         if (i == index)
             SHIELD_SLOTS(shield) |= SLOT_BIT(n);

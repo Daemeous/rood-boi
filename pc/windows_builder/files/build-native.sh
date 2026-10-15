@@ -2,11 +2,12 @@
 # rood-boi builder, native Windows side: runs in the builder's own MSYS2 (MINGW64), without WSL.
 # Started by build.ps1 -Native, which has set up MSYS2, a portable Python and the PS1 build tools.
 #   build-native.sh <output dir> <disc .bin> <repository> <branch> <merlose 0/1>
-#                   <max stat items 0/1> <choosable bonus wheel 0/1>
+#                   <max stat items 0/1> <choosable bonus wheel 0/1> <bigger inventory 0/1>
 # Environment: ROOD_NATIVE = the folder with msys64, python and tools (Windows path).
 set -euo pipefail
 
 OUT=$(cygpath -u "$1") DISC=$(cygpath -u "$2") REPO=$3 BRANCH=$4 MERLOSE=$5 MAXSTATS=$6 WHEEL=$7
+BIGINV=${8:-0}
 NATIVE=$(cygpath -u "$ROOD_NATIVE")
 HERE=$(cd "$(dirname "$0")" && pwd)
 SRC=$NATIVE/rood-boi
@@ -79,6 +80,11 @@ tail -2 "$NATIVE/make.log"
 callo=()
 [ "$MAXSTATS" = 1 ] || callo+=(--random-stat-items)
 [ "$WHEEL" = 1 ] || callo+=(--spin-bonus-wheel)
+callo_build=win64_callo
+if [ "$BIGINV" = 1 ]; then  # the bigger bag (experimental)
+    callo+=(--big-inventory container)
+    callo_build=win64_callo_biginv
+fi
 mkdir -p "$PLAY/disks"
 step "4/5 rood.exe (this is the long part)"
 $VPY pc/tools/build_boot.py --target windows
@@ -86,7 +92,7 @@ dist=()
 if [ "$MERLOSE" = 1 ]; then
     step "4/5 rood-callo.exe, with Merlose"
     $VPY pc/tools/build_boot.py --target windows --callo "${callo[@]}"
-    dist+=(--callo)
+    dist+=(--callo --callo-build "$callo_build")
 fi
 step "5/5 The play folder"
 if ! cmp -s disks/SLUS-01040.bin "$PLAY/disks/SLUS-01040.bin"; then
