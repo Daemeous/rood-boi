@@ -14,21 +14,73 @@ say "============================"
 say ""
 
 # --- Options -----------------------------------------------------------------------------------
-opt() {  # <key> <default>
+# Asked every time (nothing is chosen for the player); the answers are remembered in
+# "rood-boi options.ini", so the next build offers to keep them.
+options="$here/rood-boi options.ini"
+opt() {  # <key> [default]
     local v
-    v=$(sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*\([^;]*\)/\1/p" "$here/rood-boi options.ini" 2>/dev/null |
+    v=$(sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*\([^;]*\)/\1/p" "$options" 2>/dev/null |
         tail -1 | tr -d '\r' | sed 's/[[:space:]]*$//')
-    printf '%s' "${v:-$2}"
+    printf '%s' "${v:-${2:-}}"
 }
 yes() { [[ "${1,,}" =~ ^(y|yes|on|true|1)$ ]]; }
-merlose=$(opt merlose yes) maxstats=$(opt max_stat_items yes) wheel=$(opt choosable_bonus_wheel yes)
+yesno() { yes "$1" && echo yes || echo no; }
+ask() {  # <question>: y or n
+    local a
+    while true; do
+        read -r -p "$1 [Y/N] " a || { printf '\nStopped before building.\n' >&2; exit 1; }
+        case "${a,,}" in y*) echo y; return ;; n*) echo n; return ;; esac
+    done
+}
+show_choices() {
+    say "  Merlose companion mod:  $(yesno "$merlose")"
+    if yes "$merlose"; then
+        say "  stat-up items give +4: $(yesno "$maxstats")"
+        say "  choose the bonus wheel reward: $(yesno "$wheel")"
+    fi
+}
+merlose=$(opt merlose) maxstats=$(opt max_stat_items) wheel=$(opt choosable_bonus_wheel)
 repo=$(opt repository https://github.com/Daemeous/rood-boi.git) branch=$(opt branch callo)
-say "Options (from rood-boi options.ini):"
-say "  Merlose companion mod: $(yes "$merlose" && echo yes || echo no)"
-if yes "$merlose"; then
-    say "  max stat items: $(yes "$maxstats" && echo yes || echo no)"
-    say "  choosable bonus wheel: $(yes "$wheel" && echo yes || echo no)"
+keep=n
+if [ -n "$merlose" ] && { ! yes "$merlose" || { [ -n "$maxstats" ] && [ -n "$wheel" ]; }; }; then
+    say "Last time you chose:"
+    show_choices
+    keep=$(ask "Keep these choices?")
+    say ""
 fi
+if [ "$keep" != y ]; then
+    say "Merlose companion mod (\"Two's A Riot\"): Merlose joins Ashley as an AI party member."
+    say "You get play-callo.sh for it, next to the normal play.sh."
+    answer=$(ask "Build it too?"); merlose=$(yesno "$answer") maxstats=no wheel=no
+    if yes "$merlose"; then
+        say ""
+        say "Stat-up items: the items that raise STR, INT, AGL, max HP or max MP for good"
+        say "normally give a random +1 to +4. With this, they always give +4."
+        answer=$(ask "Always +4?"); maxstats=$(yesno "$answer")
+        say ""
+        say "Bonus wheel: after a boss, the bonus wheel normally spins and stops on a reward."
+        say "With this, it DOESN'T spin: you choose the reward yourself with Down/Up and Circle."
+        say "(If you're not sure, answer N: the game then plays as you know it.)"
+        answer=$(ask "Choose the reward instead of spinning?"); wheel=$(yesno "$answer")
+    fi
+    say ""
+    cat > "$options" <<EOF
+; rood-boi builder - your choices
+; The builder asks these questions when it starts and remembers your answers here.
+
+[build]
+merlose = $merlose
+max_stat_items = $maxstats
+choosable_bonus_wheel = $wheel
+
+[advanced]
+; Where the source code comes from. Leave these alone unless you know you want another one.
+repository = $repo
+branch = $branch
+EOF
+fi
+say "Building with:"
+show_choices
 say ""
 
 # --- The disc image ----------------------------------------------------------------------------
