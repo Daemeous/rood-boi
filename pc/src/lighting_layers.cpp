@@ -606,7 +606,7 @@ bool write_file(const std::string& path, const std::string& text, std::string* e
     }
     bool ok = fwrite(text.data(), 1, text.size(), f) == text.size();
     ok = fclose(f) == 0 && ok;
-    if (!ok || rename(temp.c_str(), path.c_str())) {
+    if (!ok || pc_replace_file(temp.c_str(), path.c_str())) {
         unlink(temp.c_str());
         if (error)
             *error = "cannot write " + path;

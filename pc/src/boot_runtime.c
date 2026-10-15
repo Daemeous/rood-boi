@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include "audio.h"
 #include "pc_paths.h"
+#include "platform.h" /* pc_replace_file */
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -949,7 +950,7 @@ void pc_finish_room_checkpoint(void)
         pc_hw_sync(display_x, display_y, display_w, display_h);
         pc_present();
     }
-    if (rename(pc_out_path("loading.ppm"), pc_out_path("room-checkpoint.ppm"))) {
+    if (pc_replace_file(pc_out_path("loading.ppm"), pc_out_path("room-checkpoint.ppm"))) {
         perror("room checkpoint");
         exit(1);
     }
@@ -1048,7 +1049,7 @@ void pc_battle_frame_complete(void)
         pc_hw_sync(display_x, display_y, display_w, display_h);
         pc_present();
     }
-    if (rename(pc_out_path("loading.ppm"), pc_out_path("battle-checkpoint.ppm"))) {
+    if (pc_replace_file(pc_out_path("loading.ppm"), pc_out_path("battle-checkpoint.ppm"))) {
             perror("battle checkpoint");
             exit(1);
         }
@@ -1071,7 +1072,7 @@ void pc_battle_frame_complete(void)
         pc_hw_sync(display_x, display_y, display_w, display_h);
         pc_present();
     }
-    if (rename(pc_out_path("loading.ppm"), pc_out_path("opening-checkpoint.ppm"))) {
+    if (pc_replace_file(pc_out_path("loading.ppm"), pc_out_path("opening-checkpoint.ppm"))) {
         perror("opening checkpoint");
         exit(1);
     }

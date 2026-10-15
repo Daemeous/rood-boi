@@ -363,7 +363,7 @@ bool save(std::string* message)
         return false;
     }
     fclose(f);
-    if (rename(temp.c_str(), c.path.c_str())) {
+    if (pc_replace_file(temp.c_str(), c.path.c_str())) {
         if (message)
             *message = "cannot write " + c.path + ": " + strerror(errno);
         return false;
