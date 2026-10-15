@@ -2,11 +2,23 @@
  * makes (libcard _card_*, open/read/write/close/rename/erase and
  * firstfile/nextfile on "bu00:" and "bu10:").
  *
- * Each slot is a standard 128 KiB raw card image (.mcd), the format PS1
- * emulators use, so saves can move between this port and an emulator:
+ * Each slot is a 128 KiB PS1 card image, so saves can move between this port
+ * and an emulator:
  *   slot 1: $ROOD_CARD1 or pc/save/card1.mcd (always inserted; created on
  *           the first write)
  *   slot 2: $ROOD_CARD2 or pc/save/card2.mcd (inserted only if it exists)
+ * The format is recognised from the file's size and first bytes, not its name,
+ * and a card is written back in the format it was read in:
+ *   raw image (.mcd/.mcr/.srm/.ddf), 128 KiB starting "MC": read and written;
+ *   DexDrive (.gme), a 3904-byte header "123-456-STD" in front: read and
+ *     written (the header's copy of the directory is kept up to date);
+ *   VGS/Connectix (.mem/.vgs), a 64-byte header "VgsM" in front: read and
+ *     written (header kept);
+ *   PSP/PS Vita (.vmp), a 128-byte header "\0PMV" in front: read only (the
+ *     console checks a signature over the image that is not recomputed here).
+ * Any other file is never written: the slot shows a blank card that refuses
+ * saves, so a wrong path can't destroy it. A missing (or empty) file becomes a
+ * raw image on the first write.
  * Every operation completes immediately; asynchronous ones raise their
  * completion event at once. */
 #include "psx_types.h" /* psx_long: the SDK's 32-bit long on every build */
@@ -44,9 +56,26 @@ struct DIRENTRY {
     char system[4];
 };
 
+enum card_format { FORMAT_RAW, FORMAT_GME, FORMAT_VGS, FORMAT_VMP, FORMAT_UNKNOWN };
+static const struct {
+    const char* name;
+    unsigned header; /* bytes in front of the 128 KiB image */
+    const char* magic;
+    unsigned magic_size;
+    int writable;
+} formats[] = {
+    [FORMAT_RAW] = { "raw card image", 0, "MC", 2, 1 },
+    [FORMAT_GME] = { "DexDrive .gme", 0xF40, "123-456-STD", 11, 1 },
+    [FORMAT_VGS] = { "VGS .mem/.vgs", 0x40, "VgsM", 4, 1 },
+    [FORMAT_VMP] = { "PSP/PS Vita .vmp", 0x80, "\0PMV", 4, 0 },
+};
+#define MAX_HEADER 0xF40
+
 static struct card {
-    int loaded, present;
+    int loaded, present, writable;
+    enum card_format format;
     char path[512];
+    unsigned char header[MAX_HEADER];
     unsigned char image[CARD_SIZE];
 } cards[2];
 
@@ -124,6 +153,32 @@ static void format(struct card* card)
     memcpy(frame(card, 63), header, FRAME_SIZE);
 }
 
+/* Reads an open card file into card (header and image) and returns its
+ * format: the one whose total size and magic match, FORMAT_UNKNOWN for
+ * anything else. An empty file is a new raw image. */
+static enum card_format load_image(struct card* card, FILE* f)
+{
+    long size;
+    if (fseek(f, 0, SEEK_END) || (size = ftell(f)) < 0 || fseek(f, 0, SEEK_SET))
+        return FORMAT_UNKNOWN;
+    if (size == 0) {
+        format(card);
+        return FORMAT_RAW;
+    }
+    for (int i = 0; i < FORMAT_UNKNOWN; i++) {
+        unsigned header = formats[i].header;
+        if (size != (long)(header + CARD_SIZE))
+            continue;
+        if (fread(card->header, 1, header, f) != header || fread(card->image, 1, CARD_SIZE, f) != CARD_SIZE)
+            return FORMAT_UNKNOWN;
+        if (memcmp(header ? card->header : card->image, formats[i].magic, formats[i].magic_size)
+            || memcmp(card->image, "MC", 2))
+            return FORMAT_UNKNOWN;
+        return (enum card_format)i;
+    }
+    return FORMAT_UNKNOWN;
+}
+
 static struct card* slot_card(int slot)
 {
     if (slot < 0 || slot > 1)
@@ -136,18 +191,38 @@ static struct card* slot_card(int slot)
             path && *path ? path : slot ? "pc/save/card2.mcd" : "pc/save/card1.mcd");
         FILE* f = fopen(card->path, "rb");
         card->present = slot == 0 || f;
-        if (f && fread(card->image, 1, CARD_SIZE, f) == CARD_SIZE)
-            fprintf(stderr, "[card] slot %d: %s\n", slot + 1, card->path);
-        else if (card->present) {
-            if (f)
-                fprintf(stderr, "[card] slot %d: %s is not a 128 KiB card image; using a blank card\n",
-                    slot + 1, card->path);
-            format(card);
-        }
-        if (f)
+        card->format = FORMAT_RAW;
+        card->writable = 1;
+        if (f) {
+            card->format = load_image(card, f);
             fclose(f);
+            if (card->format == FORMAT_UNKNOWN) {
+                /* Never written: a wrong path must not destroy the file. */
+                card->writable = 0;
+                format(card);
+                fprintf(stderr,
+                    "[card] slot %d: %s is not a memory card image this port reads (raw .mcd/.mcr/.srm, "
+                    "DexDrive .gme, VGS .mem/.vgs, PSP/Vita .vmp); a blank card that refuses saves is "
+                    "inserted instead and the file is left alone\n",
+                    slot + 1, card->path);
+            } else {
+                card->writable = formats[card->format].writable;
+                fprintf(stderr, "[card] slot %d: %s (%s%s)\n", slot + 1, card->path, formats[card->format].name,
+                    card->writable ? "" : ", read only: saves are refused");
+            }
+        } else if (card->present)
+            format(card);
     }
     return card->present ? card : NULL;
+}
+
+/* Saves, renames, erases and formats on a card that is never written. */
+static int read_only(struct card* card, const char* what)
+{
+    if (card->writable)
+        return 0;
+    fprintf(stderr, "[card] %s refused: %s is read only\n", what, card->path);
+    return 1;
 }
 /* libcard ports are 0x00 (slot 1) and 0x10 (slot 2). */
 static struct card* port_card(psx_long port) { return slot_card((port >> 4) & 1); }
@@ -155,15 +230,25 @@ static struct card* port_card(psx_long port) { return slot_card((port >> 4) & 1)
 static void save(struct card* card)
 {
     char temp[600];
+    if (!card->writable)
+        return;
     char* slash = strrchr(card->path, '/');
     if (slash) {
         *slash = 0;
         pc_mkdir(card->path);
         *slash = '/';
     }
+    unsigned header = formats[card->format].header;
+    if (card->format == FORMAT_GME)
+        for (int block = 0; block < 15; block++) {
+            /* The DexDrive header's copy of each directory frame's state and next-block bytes */
+            card->header[22 + block] = frame(card, block + 1)[0];
+            card->header[38 + block] = frame(card, block + 1)[8];
+        }
     snprintf(temp, sizeof temp, "%s.tmp", card->path);
     FILE* f = fopen(temp, "wb");
-    if (!f || fwrite(card->image, 1, CARD_SIZE, f) != CARD_SIZE || fclose(f)) {
+    if (!f || fwrite(card->header, 1, header, f) != header || fwrite(card->image, 1, CARD_SIZE, f) != CARD_SIZE
+        || fclose(f)) {
         fprintf(stderr, "[card] cannot write %s: %s\n", temp, strerror(errno));
         return;
     }
@@ -255,7 +340,7 @@ psx_long _card_clear(psx_long port)
 psx_long _card_format(psx_long port)
 {
     struct card* card = port_card(port);
-    if (!card)
+    if (!card || read_only(card, "format"))
         return 0;
     format(card);
     save(card);
@@ -286,7 +371,7 @@ psx_long pc_psx_open(const char* path, psx_ulong mode)
         return -1;
     const char* name = parse(path, &slot);
     struct card* card = name ? slot_card(slot) : NULL;
-    if (!card)
+    if (!card || ((mode & (FILE_WRITE | FILE_CREATE)) && read_only(card, "open for writing")))
         return -1;
     for (fd = 0; fd < 16 && files[fd].used; fd++)
         ;
@@ -311,6 +396,8 @@ static psx_long transfer(psx_long fd, unsigned char* buffer, psx_long bytes, int
     if (fd < 0 || fd >= 16 || !files[fd].used || bytes < 0)
         return -1;
     struct card* card = slot_card(files[fd].slot);
+    if (writing && read_only(card, "write"))
+        return -1;
     psx_long done = 0;
     while (done < bytes && files[fd].position < files[fd].size) {
         psx_long position = files[fd].position;
@@ -362,7 +449,7 @@ psx_long pc_psx_rename(const char* from, const char* to)
     const char* new_name = parse(to, &other);
     struct card* card = old_name && new_name && slot == other ? slot_card(slot) : NULL;
     int block = card ? find(card, old_name) : -1;
-    if (block < 0 || strlen(new_name) > 20 || find(card, new_name) >= 0)
+    if (block < 0 || strlen(new_name) > 20 || find(card, new_name) >= 0 || read_only(card, "rename"))
         return 0;
     unsigned char* entry = frame(card, block + 1);
     memset(entry + 10, 0, 21);
@@ -379,7 +466,7 @@ psx_long erase(const char* path)
     const char* name = parse(path, &slot);
     struct card* card = name ? slot_card(slot) : NULL;
     int block = card ? find(card, name) : -1;
-    if (block < 0)
+    if (block < 0 || read_only(card, "erase"))
         return 0;
     release(card, block);
     save(card);
