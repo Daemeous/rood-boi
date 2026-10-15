@@ -76,12 +76,26 @@ still need hands-on validation. The intro movie plays before the title
 skips it. Remaining untranslated routines exit with a named `[UNIMPLEMENTED]`
 diagnostic.
 
-Memory cards are standard 128 KiB raw card images (`.mcd`, the format PS1
-emulators use), so saves move between this port and an emulator. Slot 1 is
-`pc/save/card1.mcd` (always inserted, created on the first save); slot 2 is
-`pc/save/card2.mcd` and is inserted only when that file exists. Override either
-with `ROOD_CARD1` / `ROOD_CARD2`. Save at a save point (Data > Save) and load
-from the title screen's Continue. `pc/save/` is ignored by git.
+Memory cards are PS1 card image files, as emulators keep them, so saves move
+between this port and an emulator. Slot 1 is `pc/save/card1.mcd` (always
+inserted, created on the first save); slot 2 is `pc/save/card2.mcd` and is
+inserted only when that file exists. Override either with `ROOD_CARD1` /
+`ROOD_CARD2`. Save at a save point (Data > Save) and load from the title
+screen's Continue. `pc/save/` is ignored by git.
+
+The format is recognised from the file's size and first bytes (not its
+extension), and a card is saved back in the format it was read in:
+
+| Format | Files | |
+|---|---|---|
+| Raw image, 128 KiB starting `MC` | `.mcd` `.mcr` `.srm` `.ddf` | read and written |
+| DexDrive, 3904-byte header `123-456-STD` | `.gme` | read and written (header kept, its directory copy updated) |
+| VGS / Connectix, 64-byte header `VgsM` | `.mem` `.vgs` | read and written (header kept) |
+| PSP / PS Vita, 128-byte header `\0PMV` | `.vmp` | read only (its signature is not recomputed) |
+
+Any other file is never written: the slot shows a blank card that refuses
+saves, and the log names the file, so a wrong path cannot destroy it. A
+missing or empty file becomes a raw image on the first save.
 
 For a deterministic headless title checkpoint:
 
