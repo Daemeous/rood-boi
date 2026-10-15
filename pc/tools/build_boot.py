@@ -1713,7 +1713,9 @@ if win:
         "-o", str(exe),
     ])
     print(f"Built {exe}: {len(assign)} data imports, {len(traps)} fail-fast function imports")
-    finish(exe, report, out / "report.json", out / "lp64_imports.json")
+    # The linked objects, for pc/tools/decl_mismatch.py --windows (it reads their COFF twins)
+    (out / "objects.txt").write_text("".join(f"{o.relative_to(root)}\n" for o in objects))
+    finish(exe, out / "objects.txt", report, out / "report.json", out / "lp64_imports.json")
     raise SystemExit(0)
 # The linked objects, for pc/tools/decl_mismatch.py (stale .o files in the
 # directory are not part of the program).
