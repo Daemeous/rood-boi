@@ -55,9 +55,9 @@ rood-boi saves to PS1 memory card files, the same kind emulators use:
 * Slot 1: rood-boi\pc\save\card1.mcd (made on your first save)
 * Slot 2: rood-boi\pc\save\card2.mcd (only if that file exists)
 
-To use another card file: in the game press F1 (or Escape), open the
-Graphics tab, then "Memory cards". Type or paste the file's path for a
-slot, click Use, then "Save settings" at the top so it's remembered.
+To use another card file: in the game press F1 (or Escape), then open the
+File menu, "Memory cards...". Type or paste the file's path for a slot,
+click Use, then "Save settings" in that window so it's remembered.
 "Default" goes back to pc\save. (Or edit the card1 / card2 lines in
 rood-boi\pc\user\settings.cfg.) Switch cards outside the save and load
 screens.

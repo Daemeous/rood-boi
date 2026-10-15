@@ -808,7 +808,8 @@ static void gameplay_panel()
 extern "C" void pc_memory_card_set_path(int slot, const char* path); /* memory_card.c */
 extern "C" const char* pc_memory_card_path_setting(int slot);
 extern "C" void pc_memory_card_describe(int slot, char* out, unsigned size);
-/* Graphics > Memory cards: the file each slot uses (settings card1 / card2). */
+/* File > Memory cards...: the file each slot uses (settings card1 / card2). */
+static bool show_memory_cards;
 static void memory_cards_panel()
 {
     static char edit[2][512];
@@ -840,7 +841,27 @@ static void memory_cards_panel()
         }
         ImGui::PopID();
     }
-    ImGui::TextDisabled("The card is swapped when no save or load is running; Save settings keeps the choice.");
+    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+    ImGui::TextWrapped("The card is swapped when no save or load is running; Save settings keeps the choice.");
+    ImGui::PopStyleColor();
+    if (ImGui::Button("Save settings"))
+        pc_settings_save();
+}
+
+static void memory_cards_window()
+{
+    if (!show_memory_cards)
+        return;
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_FirstUseEver,
+        ImVec2(0.5f, 0.5f));
+    /* Fixed width; the height follows the content (a long path adds lines). */
+    float width = ImGui::GetFontSize() * 40;
+    ImGui::SetNextWindowSizeConstraints(ImVec2(width, 0), ImVec2(width, io.DisplaySize.y));
+    if (ImGui::Begin("Memory cards", &show_memory_cards,
+            ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize))
+        memory_cards_panel();
+    ImGui::End();
 }
 
 extern "C" void pc_post_panel(void); /* post_profile.cpp */
@@ -1002,6 +1023,8 @@ static void menu_bar(float* height)
             pc_settings_save();
         if (ImGui::MenuItem("Reload settings"))
             pc_settings_load();
+        ImGui::Separator();
+        ImGui::MenuItem("Memory cards...", nullptr, &show_memory_cards);
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Edit")) {
@@ -1636,8 +1659,6 @@ static void details(float x, float y, float w, float h, double frame_ms)
             }
             if (ImGui::CollapsingHeader("Gameplay"))
                 gameplay_panel();
-            if (ImGui::CollapsingHeader("Memory cards"))
-                memory_cards_panel();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Emissive", nullptr, select[TAB_EMISSIVE])) {
@@ -1826,6 +1847,7 @@ extern "C" void pc_overlay_frame(int width, int height)
         pc_lights_editor_windows();
         pc_room_browser_window();
         help_window();
+        memory_cards_window();
         /* What the panels changed becomes a transaction (once released). */
         pc_undo_frame_end();
     } else {

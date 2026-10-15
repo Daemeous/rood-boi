@@ -81,8 +81,8 @@ between this port and an emulator. Slot 1 is `pc/save/card1.mcd` (always
 inserted, created on the first save); slot 2 is `pc/save/card2.mcd` and is
 inserted only when that file exists. Other files are chosen in the settings
 (`card1` / `card2`: a path, relative to the repository root unless absolute,
-quotes allowed; `default` for `pc/save`), which the overlay's Graphics >
-Memory cards edits and shows each slot's file, format and state in; a change
+quotes allowed; `default` for `pc/save`), which the overlay's File >
+Memory cards... edits and shows each slot's file, format and state in; a change
 swaps the card once no file is open on it. `ROOD_CARD1` / `ROOD_CARD2` win over
 the settings for that run. Save at a save point (Data > Save) and load from the
 title screen's Continue. `pc/save/` is ignored by git.

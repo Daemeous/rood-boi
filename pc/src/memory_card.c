@@ -8,7 +8,7 @@
  *           (always inserted; created on the first write)
  *   slot 2: $ROOD_CARD2, else the settings' card2, else pc/save/card2.mcd
  *           (inserted only if it exists)
- * A changed path (the settings file, or Graphics > Memory cards) swaps the
+ * A changed path (the settings file, or the overlay's File > Memory cards...) swaps the
  * card in once no file is open on that slot.
  * The format is recognised from the file's size and first bytes, not its name,
  * and a card is written back in the format it was read in:
@@ -252,7 +252,7 @@ static int read_only(struct card* card, const char* what)
 /* libcard ports are 0x00 (slot 1) and 0x10 (slot 2). */
 static struct card* port_card(psx_long port) { return slot_card((port >> 4) & 1); }
 
-/* ---- The settings' card1 / card2 (project_settings.cpp), Graphics > Memory cards ---- */
+/* ---- The settings' card1 / card2 (project_settings.cpp), File > Memory cards... ---- */
 
 /* A path, "" or "default" for pc/save/cardN.mcd; quotes around it are dropped
  * (Windows' "Copy as path" adds them). */
