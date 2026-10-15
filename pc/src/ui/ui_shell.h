@@ -469,6 +469,13 @@ enum { PC_UI_MOUSE_MAP_AREA = 120, PC_UI_MOUSE_MAP_ROOM, PC_UI_MOUSE_MAP_STEP, P
 enum { PC_UI_MOUSE_DATA_OP = 140, PC_UI_MOUSE_DATA_CARD, PC_UI_MOUSE_DATA_FILE, PC_UI_MOUSE_DATA_YES,
        PC_UI_MOUSE_DATA_NO, PC_UI_MOUSE_DATA_STATUS, PC_UI_MOUSE_DATA_TAB, PC_UI_MOUSE_DATA_BUTTON,
        PC_UI_MOUSE_DATA_PANEL };
+/* The native Container screen's pointer targets (ui_container_draw.cpp, for
+ * pc_ui_ctr_mouse; container_frame.h): a top menu row (0..2), a list row, a tab
+ * (0..7), a menu entry, Yes / No, the amount's steppers (+1 / -1 the amount,
+ * +2 / -2 the step, 0 OK), the wait's Continue, a footer hint (its PC_UI_*
+ * bits), a panel (a click there does nothing). */
+enum { PC_UI_MOUSE_CTR_TOP = 160, PC_UI_MOUSE_CTR_ROW, PC_UI_MOUSE_CTR_TAB, PC_UI_MOUSE_CTR_MENU, PC_UI_MOUSE_CTR_YES,
+       PC_UI_MOUSE_CTR_NO, PC_UI_MOUSE_CTR_QTY, PC_UI_MOUSE_CTR_STATUS, PC_UI_MOUSE_CTR_BUTTON, PC_UI_MOUSE_CTR_PANEL };
 enum { PC_UI_MAP_P_ROOM_PREV, PC_UI_MAP_P_ROOM_NEXT, PC_UI_MAP_P_ROTATE, PC_UI_MAP_P_ZOOM, PC_UI_MAP_P_RESET,
        PC_UI_MAP_P_AREAS, PC_UI_MAP_P_HIDE, PC_UI_MAP_P_BACK, PC_UI_MAP_P_CLOSE, PC_UI_MAP_P_LIST_UP,
        PC_UI_MAP_P_LIST_DOWN, PC_UI_MAP_P_LIST_TAB, PC_UI_MAP_P_LIST_SHOW, PC_UI_MAP_P_LIST_MAP,

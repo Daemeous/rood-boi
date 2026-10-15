@@ -112,6 +112,9 @@ int pc_ui_map_on(void);
 int pc_ui_map_end(void);
 void pc_ui_map_forget(void);
 
+/* container_bridge.c: the native Container screen (MENU7's container run framed, MENUD native) */
+#include "container_frame.h"
+
 /* data_bridge.c: the native Data screen around the game's save / load screen (MENU7) */
 void pc_ui_data_arm(void);
 int pc_ui_data_on(void);
@@ -148,8 +151,25 @@ static void direct_abandon(int reset)
 {
     if (direct.menu == 12)
         pc_ui_loot_abandon(reset);
+    if (direct.menu == 14) {
+        /* the container's MENUD session: dropped (nothing written, nothing freed: the
+         * storage is MENU7's); its frame keeps the HUD out until it ends */
+        pc_ui_container_abandon(reset);
+        direct.menu = 0;
+        return;
+    }
     direct.menu = 0;
     direct_show_hud();
+}
+
+/* container_bridge.c: the Container's MENU7 frame holds the field HUD out from its latch
+ * to its end (hide 1), then gives it back as a direct session's (hide 0). */
+void pc_ui_menu_frame_hud(int hide)
+{
+    if (hide)
+        hide_hud();
+    else
+        direct_show_hud();
 }
 
 /* The HUD flag D_800EB9AF as the game has it (the shell's slide-out aside):
@@ -202,6 +222,15 @@ void pc_ui_menu_heartbeat(void)
     /* the game left a direct session's menu */
     if (direct.menu && (vs_battle_menuState.currentMenu & 0x3F) != direct.menu)
         direct_abandon(0);
+    /* the Container's frame ends once the game left the container's menus (MENU7's 7 and
+     * MENUD's 14) or its 0x400 flag: hideMenu and the HUD back (pc_ui_container_end) */
+    if (pc_ui_container_on()) {
+        int menu = vs_battle_menuState.currentMenu & 0x3F;
+        if ((menu != 7 && menu != 14) || !((u_int)D_800F4EA0 & 0x400))
+            pc_ui_container_end();
+        else
+            return; /* the top level is not this session's */
+    }
     if (direct.menu)
         return; /* the top level is not this session's (its HUD flag is the direct session's) */
     /* the Data frame ends once the game left its Data screen (Close: 7, then
@@ -238,6 +267,7 @@ void pc_ui_menu_reset(void)
     pc_ui_ashley_model_forget(); /* the heap is the next game's: nothing to free */
     pc_ui_map_forget();
     pc_ui_data_forget(); /* (a load already ended it before its loading screen: 260.c) */
+    pc_ui_container_forget(); /* both layers forgotten, hideMenu 0 (no other write) */
     if (direct.menu)
         direct_abandon(1);
     if (shell_open || held || hud_hidden || pc_ui_shell_drawn())
@@ -583,17 +613,38 @@ int pc_ui_direct_tick(int selectedMenu, char* state, int* result)
     if (direct.menu && direct.menu != selectedMenu)
         direct_abandon(0);
     if (!direct.menu) {
-        if (*state != 0 || selectedMenu != 12)
+        if (*state != 0)
             return 0;
-        if (!pc_ui_menus || !pc_overlay_active || !pc_overlay_active())
-            return 0;
-        if (!pc_ui_loot_begin())
-            return 0;
-        direct.menu = selectedMenu;
-        direct.settle = DIRECT_SETTLE;
-        /* the field HUD slides out under the screen's backdrop, as for the
-         * shell (the original's loot list leaves it up: back at the end) */
-        hide_hud();
+        if (selectedMenu == 14) {
+            /* the container's transfer screen: native iff MENU7's run is framed (the
+             * frame already holds the HUD out); the settle eats MENU7's Yes press */
+            if (!pc_ui_container_framed() || !pc_ui_container_begin())
+                return 0;
+            direct.menu = 14;
+            direct.settle = DIRECT_SETTLE;
+        } else {
+            if (selectedMenu != 12)
+                return 0;
+            if (!pc_ui_menus || !pc_overlay_active || !pc_overlay_active())
+                return 0;
+            if (!pc_ui_loot_begin())
+                return 0;
+            direct.menu = selectedMenu;
+            direct.settle = DIRECT_SETTLE;
+            /* the field HUD slides out under the screen's backdrop, as for the
+             * shell (the original's loot list leaves it up: back at the end) */
+            hide_hud();
+        }
+    }
+    if (direct.menu == 14) {
+        int settling = direct.settle > 0;
+        if (settling)
+            --direct.settle;
+        *state = 0;
+        *result = 0;
+        if (pc_ui_container_frame(settling) == PC_UI_CTR_HANDED_BACK)
+            direct.menu = 0; /* MENU7 resumes (the HUD stays the frame's) */
+        return 1;
     }
     in.pressed = map_buttons(vs_main_buttonsPressed.all);
     in.repeat = map_buttons(vs_main_buttonRepeat) | in.pressed;

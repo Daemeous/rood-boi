@@ -99,6 +99,8 @@ float chip(const Frame& f, const ui::Theme& t, float xr, float y, const char* s,
 
 const char* phase_crumb(const pc_ui_data_model& d)
 {
+    if (d.container)
+        return "Container \xe2\x80\xba Save";
     return d.op == 1 ? "System \xe2\x80\xba Data \xe2\x80\xba Save" : d.op == 2 ? "System \xe2\x80\xba Data \xe2\x80\xba Load"
                                                                           : "System \xe2\x80\xba Data";
 }
@@ -399,25 +401,30 @@ void draw_data_frame(const Frame& f, const ui::Theme& t, float dt, Pointer& m, S
     ImVec2 v1((float)(pc_gl_view[0] + pc_gl_view[2]), (float)(pc_gl_view[1] + pc_gl_view[3]));
     f.dl->AddRectFilled(v0, v1, t.ground);
     bool ops = d.phase == PC_UI_DATA_PH_OPS;
-    draw_tabs(f, t, pc_ui_shell_tab(), m, dt, 2, ops);
+    if (d.container) // the Container's save list (container_bridge.c): its own title where the tabs go
+        container_title(f, t, "SAVE");
+    else
+        draw_tabs(f, t, pc_ui_shell_tab(), m, dt, 2, ops);
     f.dl->AddRect(f.p(L.px0, L.py0), f.p(L.px1, L.py1), t.rule, f.s(8), 0, f.s(1));
     hit(m, PC_UI_MOUSE_DATA_PANEL, 0, L.px0, L.py0, L.px1, L.py1);
 
     bool loading = !d.framed || !d.published || d.state < 6;
-    const char* title = d.op == 1 ? "Save game" : d.op == 2 ? "Load game" : "Data";
+    const char* title = d.container ? "Save the container" : d.op == 1 ? "Save game" : d.op == 2 ? "Load game" : "Data";
     const char* reason = save_reason(d);
     std::string play = "PLAY TIME " + hms(d.play_h, d.play_m, d.play_s);
 
     // ---- the header ----
     if (L.wide) {
         text(f, fonts.name, 34, 64, 100, t.bone, title);
-        segmented(f, t, d, 300, 106, 280, 40, m);
+        if (!d.container)
+            segmented(f, t, d, 300, 106, 280, 40, m);
         if (reason)
             text(f, fonts.label, 16, 300, 150, t.gold, reason, 0.02f);
         text_right(f, fonts.data, 18, L.W - 64, 116, t.ash, play.c_str());
     } else {
-        text(f, fonts.name, 28, 40, 102, t.bone, title);
-        segmented(f, t, d, 214, 104, 180, 36, m);
+        text(f, fonts.name, d.container ? 22 : 28, 40, d.container ? 108 : 102, t.bone, title);
+        if (!d.container)
+            segmented(f, t, d, 214, 104, 180, 36, m);
         if (reason)
             text(f, fonts.label, 13, 214, 144, t.gold, reason, 0.02f);
         card_pill(f, t, d, 1, 414, 100, 150, 46, true, m);
@@ -499,7 +506,8 @@ void draw_data_frame(const Frame& f, const ui::Theme& t, float dt, Pointer& m, S
     } else if (d.phase == PC_UI_DATA_PH_CARD || d.phase == PC_UI_DATA_PH_FILES) {
         out.hint(PC_PROMPT_CIRCLE, -1, "Confirm", PC_UI_CONFIRM);
         out.hint(PC_PROMPT_CROSS, -1, "Back", PC_UI_BACK);
-        out.hint(PC_PROMPT_L1, PC_PROMPT_R1, "Tabs", PC_UI_TAB_NEXT); // backs out, then that tab (data_bridge.c)
+        if (!d.container)
+            out.hint(PC_PROMPT_L1, PC_PROMPT_R1, "Tabs", PC_UI_TAB_NEXT); // backs out, then that tab (data_bridge.c)
     }
 }
 

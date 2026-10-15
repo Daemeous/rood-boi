@@ -50,6 +50,7 @@ static int charge_turbo; /* this vsync's game vsyncs per field (0: normal pace) 
 static unsigned charge_vsync, charge_seen; /* the last vsync judged; charging sequences seen */
 static unsigned charge_vsyncs;              /* vsyncs spent charging */
 static long long charge_ns;                 /* wall time they took */
+static long long charge_budget_ns;          /* the time their pacing allowed (load-independent) */
 static int charge_now, charge_phase;
 int pc_battle_charging(int* phase)
 {
@@ -61,12 +62,14 @@ int pc_battle_charging(int* phase)
     return on;
 }
 /* RPC skip_charging (dev_rpc.c): the counters, optionally reset. */
-void pc_charge_turbo_stats(int* charging, int* phase, unsigned* sequences, unsigned* vsyncs, double* ms, int reset)
+void pc_charge_turbo_stats(int* charging, int* phase, unsigned* sequences, unsigned* vsyncs, double* ms, double* budget_ms,
+    int reset)
 {
     *charging = charge_now, *phase = charge_phase, *sequences = charge_seen, *vsyncs = charge_vsyncs;
     *ms = charge_ns / 1e6;
+    *budget_ms = charge_budget_ns / 1e6;
     if (reset)
-        charge_seen = charge_vsyncs = 0, charge_ns = 0;
+        charge_seen = charge_vsyncs = 0, charge_ns = charge_budget_ns = 0;
 }
 /* Once per game vsync (pc_window_tick; paused redraws are not vsyncs):
  * whether this one is charging, and its pace. */
@@ -328,7 +331,10 @@ void pc_window_tick(void)
         clock_gettime(CLOCK_MONOTONIC, &now);
         if (!deadline.tv_sec)
             deadline = now;
-        deadline.tv_nsec += charge_turbo ? FIELD_NS / charge_turbo : FIELD_NS;
+        long long step = charge_turbo ? FIELD_NS / charge_turbo : FIELD_NS;
+        deadline.tv_nsec += step;
+        if (charge_now)
+            charge_budget_ns += step;
         if (deadline.tv_nsec >= 1000000000) {
             deadline.tv_nsec -= 1000000000;
             ++deadline.tv_sec;

@@ -318,6 +318,13 @@ def suites(args, mode="egl"):
                       "(pinned keystream), one write, overwrite No / Yes, load = the original's blocks, errors "
                       "(no card, corrupt, full, blank, refused, unformatted), exits; player cards hashed unchanged")]
           if args.save.exists() else []),
+        *([Suite("ui_container_smoke", [PY, str(TESTS / "ui_container_smoke.py"), "--card", str(args.save)], 2400,
+                 note="Container (MENU7 framed, MENUD native): at MENUD's exit the bag, the storage, containerEmpty, "
+                      "the menu state and pointers = the original's by pad (sorts, discard, merge / swap, staging, "
+                      "cancel warning and revert, no card: each checked done) and by mouse (Remove, prompts, "
+                      "save list), cursor memories = by pad; saved cards byte-identical (pinned keystream); "
+                      "soft resets; player cards hashed unchanged")]
+          if args.save.exists() else []),
         *([Suite("ui_system_smoke", [PY, str(TESTS / "ui_system_smoke.py"), "--card", str(args.save)], 300,
                  note="System screen through the shell: a row per settings page live + saved (debounce, Cross), "
                       "greyed rows, slider drag, binding capture (blocks navigation, Esc, pad, reset), Data, relaunch")]
@@ -435,7 +442,8 @@ CHECKPOINT_SUITES = {
     "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "post_smoke",
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
-    "ui_ashley_backdrop_smoke", "ui_data_smoke", "interp_menu_2d_smoke", "ui_ashley_detail_smoke",
+    "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
+    "ui_ashley_detail_smoke",
 }
 
 

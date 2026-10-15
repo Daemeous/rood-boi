@@ -54,6 +54,17 @@ enum { PC_UI_DATA_GOAL_AGE = 60, PC_UI_DATA_GOAL_LIFE = 600 };
 
 int pc_ui_data_plan(const pc_ui_data_snap* s, pc_ui_data_goal* g, unsigned* press_out);
 
+/* PROMPT_YESNO: MENU7's _promptYesNo (the Container's check, containerWarn and
+ * cancelWarning prompts) and its card wait (state 4: any button). ready:
+ * handleInput took the last call (it drew its cursor, no press in that call);
+ * yes_lit: Yes is highlighted; waiting: the wait shows. Goals: ANSWER(1) Up
+ * until Yes is lit, then Circle; ANSWER(0) and BACK: Cross (never Triangle:
+ * init 1 / 2 make it invalid); DISMISS (waiting): Circle. Nothing without a
+ * goal (a prompt is never answered for the player), nothing while animating
+ * (not ready), one press then a frame without one, a real press clears the
+ * goal (pc_ui_data_plan's rules). */
+int pc_ui_data_plan_yesno(int ready, int yes_lit, int waiting, int real, pc_ui_data_goal* g, unsigned* press_out);
+
 /* Whether a phase takes a goal kind (posts elsewhere are refused). */
 int pc_ui_data_accepts(int phase, int kind);
 
