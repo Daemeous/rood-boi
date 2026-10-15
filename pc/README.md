@@ -79,9 +79,13 @@ diagnostic.
 Memory cards are PS1 card image files, as emulators keep them, so saves move
 between this port and an emulator. Slot 1 is `pc/save/card1.mcd` (always
 inserted, created on the first save); slot 2 is `pc/save/card2.mcd` and is
-inserted only when that file exists. Override either with `ROOD_CARD1` /
-`ROOD_CARD2`. Save at a save point (Data > Save) and load from the title
-screen's Continue. `pc/save/` is ignored by git.
+inserted only when that file exists. Other files are chosen in the settings
+(`card1` / `card2`: a path, relative to the repository root unless absolute,
+quotes allowed; `default` for `pc/save`), which the overlay's Graphics >
+Memory cards edits and shows each slot's file, format and state in; a change
+swaps the card once no file is open on it. `ROOD_CARD1` / `ROOD_CARD2` win over
+the settings for that run. Save at a save point (Data > Save) and load from the
+title screen's Continue. `pc/save/` is ignored by git.
 
 The format is recognised from the file's size and first bytes (not its
 extension), and a card is saved back in the format it was read in:
