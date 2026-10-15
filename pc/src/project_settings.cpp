@@ -92,6 +92,9 @@ int pc_master_volume_get(void) __attribute__((weak));
 void pc_master_volume_set(int volume) __attribute__((weak));
 int pc_brightness_get(void) __attribute__((weak));
 void pc_brightness_set(int value) __attribute__((weak));
+/* card1 / card2: the memory card files (memory_card.c), "" for pc/save/cardN.mcd. */
+void pc_memory_card_set_path(int slot, const char* path);
+const char* pc_memory_card_path_setting(int slot);
 }
 static const char* const window_mode_names[3] = { "windowed", "borderless", "fullscreen" };
 
@@ -366,6 +369,10 @@ int apply_line(const char* line, int* scale, bool now)
             pc_drop_shadow_mode = atoi(rest);
         return 0;
     }
+    if (!strcmp(key, "card1") || !strcmp(key, "card2")) { /* the rest of the line: a path, spaces allowed */
+        pc_memory_card_set_path(key[4] - '1', rest);
+        return 1;
+    }
     int applied = 0;
     for (const Entry& e : entries) {
         if (strcmp(e.key, key))
@@ -515,6 +522,10 @@ extern "C" void pc_settings_write(FILE* f)
         fprintf(f, "master_volume %d\n", pc_master_volume_get());
     if (pc_brightness_get)
         fprintf(f, "brightness %d\n", pc_brightness_get());
+    for (int slot = 0; slot < 2; slot++) {
+        const char* card = pc_memory_card_path_setting(slot);
+        fprintf(f, "card%d %s\n", slot + 1, *card ? card : "default");
+    }
     pc_post_settings_write(f);
     fprintf(f, "lighting_packs %s\n", lighting::packs_setting().c_str());
     fprintf(f, "lighting_active_pack %s\n", lighting::active_pack_setting().c_str());

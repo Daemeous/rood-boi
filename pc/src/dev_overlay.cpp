@@ -768,6 +768,44 @@ static void gameplay_panel()
                           "(settings skip_intro). Later titles, such as after the idle demo, play as the original.");
 }
 
+extern "C" void pc_memory_card_set_path(int slot, const char* path); /* memory_card.c */
+extern "C" const char* pc_memory_card_path_setting(int slot);
+extern "C" void pc_memory_card_describe(int slot, char* out, unsigned size);
+/* Graphics > Memory cards: the file each slot uses (settings card1 / card2). */
+static void memory_cards_panel()
+{
+    static char edit[2][512];
+    static bool editing[2];
+    ImGui::TextWrapped("Card files as PS1 emulators keep them: raw .mcd/.mcr/.srm, DexDrive .gme and VGS .mem/.vgs "
+                       "are read and saved in their own format; PSP/PS Vita .vmp is read only. Any other file is "
+                       "left alone. A relative path starts in the rood-boi folder.");
+    for (int slot = 0; slot < 2; slot++) {
+        ImGui::PushID(slot);
+        ImGui::SeparatorText(slot ? "Slot 2" : "Slot 1");
+        char info[700];
+        pc_memory_card_describe(slot, info, sizeof info);
+        ImGui::TextWrapped("%s", info);
+        if (!editing[slot])
+            snprintf(edit[slot], sizeof edit[slot], "%s", pc_memory_card_path_setting(slot));
+        ImGui::SetNextItemWidth(-ImGui::GetFontSize() * 9);
+        if (ImGui::InputTextWithHint("##path", slot ? "pc/save/card2.mcd" : "pc/save/card1.mcd", edit[slot],
+                sizeof edit[slot]))
+            editing[slot] = true;
+        ImGui::SameLine();
+        if (ImGui::Button("Use")) {
+            pc_memory_card_set_path(slot, edit[slot]);
+            editing[slot] = false;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Default")) {
+            pc_memory_card_set_path(slot, "");
+            editing[slot] = false;
+        }
+        ImGui::PopID();
+    }
+    ImGui::TextDisabled("The card is swapped when no save or load is running; Save settings keeps the choice.");
+}
+
 extern "C" void pc_post_panel(void); /* post_profile.cpp */
 static void post_panel() { pc_post_panel(); }
 
@@ -1507,6 +1545,8 @@ static void details(float x, float y, float w, float h, double frame_ms)
             }
             if (ImGui::CollapsingHeader("Gameplay"))
                 gameplay_panel();
+            if (ImGui::CollapsingHeader("Memory cards"))
+                memory_cards_panel();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Diagnostics", nullptr, select[5])) {
