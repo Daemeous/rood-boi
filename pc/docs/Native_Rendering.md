@@ -210,8 +210,17 @@ MENUB's Ashley through MAINMENU's clone, the modern menu's Ashley tab) finds
 the surfaces empty: `room_depth` is cleared to far over its drawing area
 first, as a room list leaves it before its first polygon, so the model is
 native (internal resolution, MSAA, interpolated) instead of 2D packets; a
-room list after it in the same table paints over it, as on the PS1. With
-`pc_native_room` 0, characters stay packets.
+room list after it in the same table paints over it, as on the PS1. Such a
+picture's camera (`pc_hw_view_camera`, what the lighting, haze and path
+tracing reconstruct world positions through) is then its object lists'
+camera, on live and interpolated images alike (before, live images used the
+scene's GTE camera and interpolated ones the menu's: the lighting moved on
+every other image, a flicker). The modern Ashley tab stands its clone at
+Ashley's place in the room and orbits it there, so the room's lights,
+shadows, GI and haze light it as they light him in the field, and asks for
+a detail view while it shows (`pc_hw_detail_view`: the internal resolution
+at least the window's, up to 8x; the setting back when the model goes).
+With `pc_native_room` 0, characters stay packets.
 
 Translucent draws (`render_draw_translucent`): a range of the sequence draws
 into the frame target with depth ALWAYS, in sequence order, each fragment

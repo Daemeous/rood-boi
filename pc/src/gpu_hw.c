@@ -62,9 +62,10 @@ enum { FLAG_TEXTURED = 1, FLAG_RAW = 2, FLAG_SEMI = 4, FLAG_MASK = 8, FLAG_UI = 
 #define BLEND_TEXT 16
 /* Batch blend for a screen fade (pc_hw_triangle: a full-screen flat
  * subtractive 2D quad, the door fade of BATTLE _drawScreenTransition): it
- * subtracts from the 2D under it only (depth "UI"); the 3D keeps its depth
- * and surface (so it stays lit) and the presenter fades it after lighting
- * and post-processing (pc_hw_present_fade, the grade pass). */
+ * subtracts from the 2D under it (depth "UI") and from what fills and uploads
+ * left (far depth) only; the 3D keeps its depth and surface (so it stays
+ * lit) and the presenter fades it after lighting and post-processing
+ * (pc_hw_present_fade, the grade pass). */
 #define BLEND_FADE 13
 static void record_fade(float amount, const float rect[4]);
 static uint32_t edge_generation; /* 2D polygon edges of this ordering table (pc_hw_line) */
@@ -1484,7 +1485,8 @@ static void draw_batch(GLuint fbo, const hw_vertex* vertices, int count, int ble
         for (GLuint i = 0; i < 4; i++)
             gl_ColorMaski(i, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     } else if (blend == BLEND_FADE) {
-        /* A screen fade: subtracted from the 2D/UI under it (depth 0) only. */
+        /* A screen fade: subtracted from what is not 3D under it only
+         * (depth 0, and far: drawn twice, pc_hw_triangle). */
         set_blend(2);
         gl_DepthFunc(GL_EQUAL);
         gl_DepthMask(GL_FALSE);
@@ -2033,7 +2035,7 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     if (distance)
         blend = BLEND_TEXT + (semi ? (int)((tpage >> 5) & 3) : 4);
     if (blend != batch_blend || memcmp(area, batch_clip, sizeof batch_clip)
-        || batch_count + 3 > MAX_VERTICES) {
+        || batch_count + (blend == BLEND_FADE ? 6 : 3) > MAX_VERTICES) {
         flush();
         batch_blend = blend;
         memcpy(batch_clip, area, sizeof batch_clip);
@@ -2164,6 +2166,15 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
             (fmaxf(t[0].x, fmaxf(t[1].x, t[2].x)) - clip[0]) / clip[2],
             (fmaxf(t[0].y, fmaxf(t[1].y, t[2].y)) - clip[1]) / clip[3] };
         record_fade(rgb[0] / 255.0f, rect);
+        /* Again at far depth (z 65536: depth 1, what fills and uploads
+         * leave): a backdrop the game filled or uploaded (ClearImage,
+         * LoadImage) is no 3D either. Subtracted at depth 0 alone, the 2D
+         * drawn over it darkened while it kept its brightness. */
+        memcpy(&batch[batch_count], &batch[batch_count - 3], 3 * sizeof *batch);
+        for (int i = 0; i < 3; i++)
+            batch[batch_count + i].z = 65536.0f;
+        batch_count += 3;
+        record_triangle(NULL, code, tpage, clut, uv);
     }
     if (flags & FLAG_UI) {
         const hw_vertex* t = &batch[batch_count - 3];
@@ -2754,6 +2765,9 @@ int pc_hw_set_scale(int scale)
     pc_hw_scale_setting = scale;
     return apply_scale(supersample_scale > scale ? supersample_scale : scale);
 }
+/* A detail view (pc_hw_detail_view): one internal pixel per window pixel
+ * or finer, at the view size the presenters last gave. */
+static int detail_view, last_view_h, last_display_h;
 /* Supersampling at a view `view_h` window pixels tall showing a display
  * area `display_h` VRAM pixels tall: the scale it needs, or the setting
  * again when it is off (the presenters, before drawing a frame). */
@@ -2761,10 +2775,34 @@ void pc_hw_supersample(int view_h, int display_h)
 {
     if (!pc_hw_active)
         return;
+    last_view_h = view_h, last_display_h = display_h;
     supersample_scale = pc_aa_ssaa_scale(view_h, display_h);
+    if (detail_view && view_h > 0 && display_h > 0) {
+        int detail = (int)ceilf((float)view_h / (float)display_h - 0.01f);
+        detail = detail > 8 ? 8 : detail;
+        if (detail > supersample_scale)
+            supersample_scale = detail;
+    }
     int want = supersample_scale > pc_hw_scale_setting ? supersample_scale : pc_hw_scale_setting;
     if (want != pc_hw_scale)
         apply_scale(want);
+}
+/* A view that magnifies a small 3D subject (the modern menu's Ashley model
+ * fills a column of the screen; the field shows him a few dozen lines
+ * tall): while on, the internal resolution is at least the window's (up
+ * to 8x), so the model is drawn at the view's own resolution instead of
+ * being stretched from the setting's (a 4x target on a 2160-line window:
+ * 2.25 window pixels per internal pixel, soft texels and edges). The
+ * setting (and supersampling) come back when it is off. Applied at once,
+ * not at the next present: the frame drawn after the call is drawn at the
+ * new scale (a change refills the target from native VRAM). */
+void pc_hw_detail_view(int on)
+{
+    if (!pc_hw_active || detail_view == !!on)
+        return;
+    detail_view = !!on;
+    if (last_view_h > 0 && last_display_h > 0)
+        pc_hw_supersample(last_view_h, last_display_h);
 }
 /* A save state was resumed (snapshot.c): native VRAM is the saved game's.
  * Refill the target from it (what was drawn at the internal resolution
@@ -3983,15 +4021,16 @@ static int compare_surface(const void* a, const void* b)
     const recorded_triangle *p = &sort_base[*(const int*)a], *q = &sort_base[*(const int*)b];
     return p->surface < q->surface ? -1 : p->surface > q->surface;
 }
-/* The draw of `rec` (with `rooms`, its native room list draws only) with
- * the most area inside rect (x, y, w, h), or NULL. */
+/* The draw of `rec` (with `rooms` 1, its native room list draws only; 2,
+ * its native object lists only) with the most area inside rect (x, y, w,
+ * h), or NULL. */
 static const recorded_op* recording_op(const recording* rec, const int* rect, int rooms, int* overlap)
 {
     const recorded_op* best = NULL;
     *overlap = 0;
     for (int o = 0; o < rec->op_count; o++) {
         const recorded_op* op = &rec->ops[o];
-        if (rooms && (op->fill != 2 || render_list_objects((uint32_t)op->first) != 0))
+        if (rooms && (op->fill != 2 || render_list_objects((uint32_t)op->first) != (rooms == 2)))
             continue;
         const int* c = op->clip;
         int w = (c[0] + c[2] < rect[0] + rect[2] ? c[0] + c[2] : rect[0] + rect[2]) - (c[0] > rect[0] ? c[0] : rect[0]);
@@ -4140,6 +4179,19 @@ static const recording* shown_recording(int* replayed, uint32_t* room)
     int overlap_a = 0, overlap_b = 0;
     uint32_t room_b = recording_room_list(b, shown_rect, &overlap_b);
     uint32_t room_a = recording_room_list(a, shown_rect, &overlap_a);
+    /* No room in either (a world-frozen menu's model over 2D: the modern
+     * menu's Ashley tab, MENU4's Status): the object lists, drawn with the
+     * camera recording_camera gives the frame and its replay. Without
+     * this, live images were lit through the scene's GTE camera and
+     * interpolated ones through the replay's (the menu's): the lighting,
+     * haze and path tracing reconstructed the model at other places on
+     * every other image (the model flickered). */
+    if (!room_a && !room_b) {
+        const recorded_op* op_b = recording_op(b, shown_rect, 2, &overlap_b);
+        const recorded_op* op_a = recording_op(a, shown_rect, 2, &overlap_a);
+        room_b = op_b ? (uint32_t)op_b->first : 0;
+        room_a = op_a ? (uint32_t)op_a->first : 0;
+    }
     *replayed = 0;
     if (room_b && overlap_b >= overlap_a) {
         *replayed = presenting_replay;
@@ -4156,7 +4208,8 @@ static const recording* shown_recording(int* replayed, uint32_t* room)
  * capture's camera queries take it first): what reconstructs world
  * positions from its depth (lighting, path tracing, picking) must use it,
  * or surfaces move along the view rays and lateral to them while the camera
- * moves. 0 when no native room list drew the display area. */
+ * moves. 0 when no native room list (nor, without one, object list) drew
+ * the display area. */
 int pc_hw_view_camera(float r[3][3], float t[3], float* h, float* ofx, float* ofy)
 {
     int replayed;

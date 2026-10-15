@@ -2,13 +2,16 @@
 """Standing in a save point keeps its light, and Ashley still casts shadows
 from it (GitHub issue 2; pc/docs/Glows.md "Enclosing glows").
 
-    python3 pc/tests/save_point_glow_smoke.py [--card pc/save/card1.mcd] [--out DIR]
+    python3 pc/tests/save_point_glow_smoke.py [--card pc/build/test-card1.mcd] [--out DIR]
 
 The save point's glow was a small sphere at the centre of its column, which
 is inside Ashley when he stands in it: every shadow ray from the room hit
 him, and the room went dark around him. Its glow is now the column's
-glowing side (glows.c fit_column): standing inside hides only the part
-behind him.
+glowing side (glows.c fit_column), and its shadow rays aim at a thinner
+core and stop at the column's clear middle (rt_lights.glsl emitter_shadow):
+standing in the middle hides none of its light, and beside it Ashley casts
+a soft shadow that can be seen (a playtest in save room 29/0 found the
+first column's shadow too faint to see).
 
 Continues from a copy of the card (never the card itself; skipped without
 one) into its save room (zone 9 room 17, where Continue leaves Ashley
@@ -25,7 +28,12 @@ whichever renderer the run uses (GL or Vulkan), checks:
   with them off (whole picture, HUD left out);
 - Ashley just inside the edge and just outside the circle: the floor
   behind him (away from the column) is clearly darker than the floor to
-  the sides: his shadow.
+  the sides: his shadow; and in the presented frame, glow shadows on
+  against off, the floor 1 and 2 body lengths behind him is at least 30%
+  darker (where the GI probe puts those points on screen);
+- save room 29/0 (the playtest's; RPC room_goto), a dimmer save point:
+  the same visible shadow on both sides of it, and the room's light kept
+  with Ashley in the circle.
 
 --out keeps the frames (shadows on / off) and the logs."""
 import argparse
@@ -52,11 +60,17 @@ SETTLE = 90  # vsyncs for the traced light and its filters after a change
 KEEP = 0.85  # the light kept with Ashley in the circle (glow shadows on / off; the old sphere: ~0.56)
 VISIBLE = 0.80  # the baked light's mean visibility around the circle with Ashley inside (the old sphere: ~0.5)
 SHADOW = 0.10  # how much darker the floor behind him is than the floor to his sides
+BODY = 112  # Ashley's height: a body length
+VISIBLE_SHADOW = 0.30  # the final frame behind him, 1 and 2 body lengths, glow shadows on against off (measured 0.33-0.44)
+
+
+def luminance(path):
+    a = np.asarray(Image.open(path).convert("RGB"), dtype=np.float32)
+    return 0.299 * a[..., 0] + 0.587 * a[..., 1] + 0.114 * a[..., 2]
 
 
 def frame_luminance(path):
-    a = np.asarray(Image.open(path).convert("RGB"), dtype=np.float32)
-    lum = 0.299 * a[..., 0] + 0.587 * a[..., 1] + 0.114 * a[..., 2]
+    lum = luminance(path)
     h, w = lum.shape
     return lum[int(h * 0.15):int(h * 0.68), int(w * 0.15):int(w * 0.85)]  # the room, not the HUD
 
@@ -93,9 +107,52 @@ def main():
         game.call("graphics", widescreen=True)
         actor = struct.unpack("<I", game.read_symbol("D_800F4538", 4))[0]  # Ashley's record (dev_state.c)
 
+        axis = list(AXIS)
+
         def place(dx, dz):
             """Ashley at the axis + (dx, dz): his position (SVECTOR at 0x1C)."""
-            game.write(actor + 0x1C, struct.pack("<hhh", AXIS[0] + dx, 0, AXIS[1] + dz))
+            game.write(actor + 0x1C, struct.pack("<hhh", int(axis[0] + dx), 0, int(axis[1] + dz)))
+
+        def frame_shadow(name, dx, dz, tag):
+            """What the player sees: the presented frame with glow shadows on
+            against off, on the floor 1 and 2 body lengths behind Ashley
+            (along the line from the axis through him), where the GI probe
+            puts those points on screen."""
+            dist = math.hypot(dx, dz)
+            ux, uz = dx / dist, dz / dist
+            points, frames = {}, {}
+            for on in (True, False):
+                game.call("graphics", glow_shadows=on)
+                game.run(SETTLE)
+                path = out / f"{tag}-shadows-{'on' if on else 'off'}.png"
+                game.present_screenshot(path)
+                frames[on] = luminance(path)
+                if on:
+                    for k in (1, 2):
+                        d = dist + k * BODY
+                        try:
+                            points[k] = game.call("gi_probe", x=axis[0] + ux * d, y=0, z=axis[1] + uz * d)
+                        except Exception:
+                            points[k] = None
+            game.call("graphics", glow_shadows=True)
+            h, w = frames[True].shape
+            aspect = 16 / 9 if game.call("graphics").get("widescreen") else 4 / 3
+            dw = min(w, h * aspect)
+            dh = dw / aspect
+            ox, oy = (w - dw) / 2, (h - dh) / 2
+            for k in (1, 2):
+                q = points[k]
+                x, y = (int(ox + q["u"] * dw), int(oy + q["v"] * dh)) if q else (-99, -99)
+                if not (8 <= x < w - 8 and 8 <= y < h - 8):
+                    check(False, f"{name}: the floor {k} body length(s) behind him is on screen")
+                    continue
+                on_, off_ = frames[True][y - 6:y + 7, x - 6:x + 7].mean(), frames[False][y - 6:y + 7, x - 6:x + 7].mean()
+                if off_ < 10:
+                    check(False, f"{name}: the floor {k} body length(s) behind him is lit floor on screen ({off_:.0f})")
+                    continue
+                dark = 1 - on_ / off_
+                check(dark >= VISIBLE_SHADOW,
+                      f"{name}: his shadow is visible {k} body length(s) behind him ({dark:.0%} darker >= {VISIBLE_SHADOW:.0%})")
 
         def floor(radius, n=16):
             """The baked light's visibility at n floor points around the axis
@@ -180,12 +237,46 @@ def main():
             keep = float(frames[True].mean() / max(frames[False].mean(), 1e-3))
             check(keep >= KEEP, f"{preset}: the room keeps {keep:.2f} of its light with Ashley in the circle (>= {KEEP})")
             game.call("graphics", glow_shadows=True)
-            # Just inside the edge, and just outside the circle: his shadow.
+            # Inside near the edge, and just outside the circle: his shadow.
             for name, dx in (("edge", 40), ("outside", 100)):
                 place(dx, 0)
                 game.run(SETTLE)
                 shadow(f"{preset} {name}")
+                # (on the other side, -x: floor in view up to 2 body lengths behind him)
+                place(-dx, 0)
+                game.run(SETTLE)
+                frame_shadow(f"{preset} {name} (-x)", -dx, 0, f"{preset}-{name}")
             place(0, 0)
+        # The user's report (2026-10-14): save room 29/0, a dimmer save point
+        # glow, Ashley beside it: his shadow could not be seen.
+        game.call("graphics", lighting_preset=args.presets.split(",")[0])
+        game.call("room_goto", zone=29, room=0, enemies=False, scripts=False)
+        for _ in range(40):
+            game.run(20)
+            if game.call("room_goto", action="status")["phase"] in (0, 4):
+                break
+        game.run(60)
+        state = game.state()
+        save = [g for g in game.call("glows")["glows"] if g["name"].startswith("Save point glow")]
+        check((state["zone"], state["room"]) == (29, 0) and len(save) == 1 and save[0]["shape"]["kind"] == "column",
+              f"save room 29/0 and its save point column ({state['zone']}/{state['room']}, {len(save)})")
+        if save and (state["zone"], state["room"]) == (29, 0):
+            centre = save[0]["shape"]["centre"]
+            axis[0], axis[1] = centre[0], centre[2]
+            for name, dz in (("29/0 beside it", 100), ("29/0 the other side", -100)):
+                place(0, dz)
+                game.run(SETTLE)
+                frame_shadow(name, 0, dz, name.replace("/", "-").replace(" ", "-"))
+            place(0, 0)
+            frames = {}
+            for on in (False, True):
+                game.call("graphics", glow_shadows=on)
+                game.run(SETTLE)
+                path = out / f"29-0-centre-shadows-{'on' if on else 'off'}.png"
+                game.present_screenshot(path)
+                frames[on] = frame_luminance(path).mean()
+            keep = frames[True] / max(frames[False], 1e-3)
+            check(keep >= KEEP, f"29/0: the room keeps {keep:.2f} of its light with Ashley in the circle (>= {KEEP})")
     finally:
         game.close()
     if not args.out:

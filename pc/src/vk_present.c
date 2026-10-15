@@ -75,7 +75,11 @@ static VkFormat swapchain_format;
 static VkImage swapchain_images[8];
 static VkSemaphore acquired[VK_FRAMES], rendered[8];
 static uint32_t swapchain_count;
+static VkExtent2D swapchain_extent; /* its images' size: the window image's while there is a swapchain */
+/* stale: recreate the swapchain at the next frame's start (a size change,
+ * OUT_OF_DATE or SUBOPTIMAL). window_w/h: the window image's size. */
 static int swapchain_stale, window_w, window_h;
+extern unsigned pc_window_presents; /* gl_present.c: images that reached the window (RPC status) */
 static vk_image window_image, present_vram;
 typedef struct {
     vk_image image;
@@ -205,6 +209,7 @@ static int make_swapchain(void)
     if (!vk_check(vkCreateSwapchainKHR(vk.device, &info, NULL, &swapchain), "vkCreateSwapchainKHR"))
         return 0;
     swapchain_format = format.format;
+    swapchain_extent = extent;
     swapchain_count = 8;
     vkGetSwapchainImagesKHR(vk.device, swapchain, &swapchain_count, swapchain_images);
     VkSemaphoreCreateInfo semaphore = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
@@ -336,6 +341,8 @@ SDL_Window* pc_vk_create_window(const char* title, int width, int height)
         if (!supported || !make_swapchain()) {
             fprintf(stderr, "[vk] cannot present to this window; rendering offscreen\n");
             swapchain = VK_NULL_HANDLE;
+            vkDestroySurfaceKHR(vk.instance, surface, NULL); /* offscreen from now on (sizes from the events) */
+            surface = VK_NULL_HANDLE;
         }
     } else if (!headless)
         fprintf(stderr, "[vk] no Vulkan surface (%s); rendering offscreen\n", SDL_GetError());
@@ -366,11 +373,38 @@ SDL_Window* pc_vk_create_window(const char* title, int width, int height)
     fprintf(stderr, "[vk] presenting %s\n", swapchain ? "to a swapchain" : "offscreen (headless)");
     return win;
 }
+/* SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED (boot_window.c, between frames). With
+ * a swapchain only marks it stale: the next frame recreates it at the
+ * surface's extent, which is the window image's size from then on (the
+ * event can lag the surface, or carry a passing size, while the window
+ * switches to or from fullscreen). */
 void pc_vk_resize(int width, int height)
 {
-    window_w = width;
-    window_h = height;
-    swapchain_stale = 1;
+    if (!swapchain) {
+        window_w = width;
+        window_h = height;
+    }
+    if (surface && (!swapchain || (int)swapchain_extent.width != width || (int)swapchain_extent.height != height))
+        swapchain_stale = 1;
+}
+/* At the frame's start (nothing drawn into the window image yet): a stale
+ * swapchain is recreated (make_swapchain waits for the device to go idle
+ * first, so no frame in flight still uses the old one) and the window image
+ * takes its size. Every pass of the frame then draws at that size, and the
+ * blit to the swapchain image matches it exactly: a window image larger
+ * than the swapchain (the window image kept a fullscreen size while the
+ * surface was already back to windowed) wrote outside the swapchain image
+ * and lost the device. */
+static void sync_swapchain(void)
+{
+    if (!surface || vk.lost)
+        return;
+    if (swapchain_stale)
+        make_swapchain(); /* fails while the window has no area (minimised): stays stale, tried next frame */
+    if (swapchain) {
+        window_w = (int)swapchain_extent.width;
+        window_h = (int)swapchain_extent.height;
+    }
 }
 
 /* ---- present passes ---- */
@@ -764,25 +798,37 @@ static void capture_present(void)
 
 /* ---- the frame ---- */
 
+/* The window image to the swapchain. The swapchain is only ever recreated
+ * at a frame's start (sync_swapchain): here a frame whose window image does
+ * not match it (cannot happen, but a blit outside the swapchain image loses
+ * the device) or whose image cannot be acquired (OUT_OF_DATE: the window
+ * changed) is submitted without presenting, and the next frame recreates
+ * the swapchain. */
 static void present_to_swapchain(void)
 {
-    if (!surface || swapchain_stale) {
-        if (surface && swapchain_stale)
-            make_swapchain();
-    }
-    if (!swapchain) {
+    if (!swapchain || vk.lost || window_image.width != (int)swapchain_extent.width
+        || window_image.height != (int)swapchain_extent.height) {
+        if (swapchain && !vk.lost)
+            swapchain_stale = 1;
         vk_frame_submit(VK_NULL_HANDLE, 0, VK_NULL_HANDLE);
         return;
     }
     uint32_t index = 0;
     VkSemaphore wait = acquired[vk.frame];
-    VkResult result = vkAcquireNextImageKHR(vk.device, swapchain, UINT64_MAX, wait, VK_NULL_HANDLE, &index);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        swapchain_stale = 1;
-        vk_frame_submit(VK_NULL_HANDLE, 0, VK_NULL_HANDLE);
-        return;
-    }
-    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+    /* Bounded: a window being reconfigured may hold its images for a while. */
+    VkResult result
+        = vkAcquireNextImageKHR(vk.device, swapchain, 1000ull * 1000 * 1000, wait, VK_NULL_HANDLE, &index);
+    if (result == VK_SUBOPTIMAL_KHR)
+        swapchain_stale = 1; /* still presentable: present this one, recreate for the next frame */
+    else if (result != VK_SUCCESS) {
+        if (result == VK_ERROR_OUT_OF_DATE_KHR)
+            swapchain_stale = 1;
+        else if (result == VK_ERROR_DEVICE_LOST)
+            vk_device_lost("vkAcquireNextImageKHR");
+        else if (result != VK_TIMEOUT && result != VK_NOT_READY) {
+            fprintf(stderr, "[vk] vkAcquireNextImageKHR failed (%d): recreating the swapchain\n", (int)result);
+            swapchain_stale = 1;
+        }
         vk_frame_submit(VK_NULL_HANDLE, 0, VK_NULL_HANDLE);
         return;
     }
@@ -817,6 +863,8 @@ static void present_to_swapchain(void)
     vkCmdPipelineBarrier2(cmd, &dependency);
     VkSemaphore done = rendered[index];
     vk_frame_submit(wait, VK_PIPELINE_STAGE_TRANSFER_BIT, done);
+    if (vk.lost)
+        return; /* not submitted: nothing signals `done` */
     VkPresentInfoKHR present = { .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .waitSemaphoreCount = 1,
         .pWaitSemaphores = &done,
@@ -824,13 +872,22 @@ static void present_to_swapchain(void)
         .pSwapchains = &swapchain,
         .pImageIndices = &index };
     result = vkQueuePresentKHR(vk.queue, &present);
+    if (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR)
+        ++pc_window_presents;
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
         swapchain_stale = 1;
+    else if (result == VK_ERROR_DEVICE_LOST)
+        vk_device_lost("vkQueuePresentKHR");
+    else if (result != VK_SUCCESS) {
+        fprintf(stderr, "[vk] vkQueuePresentKHR failed (%d): recreating the swapchain\n", (int)result);
+        swapchain_stale = 1;
+    }
 }
 
 void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
 {
     pc_lighting_sync(); /* lighting quality: first-run preset, Custom on changes */
+    sync_swapchain(); /* a resize or window mode switch: the frame boundary */
     if (!ensure_window_image()) {
         vk_frame_submit(VK_NULL_HANDLE, 0, VK_NULL_HANDLE);
         return;

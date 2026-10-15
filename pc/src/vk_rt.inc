@@ -107,6 +107,7 @@ typedef struct {
     int i3[4]; /* glows.c pc_glow_casts: emitters that may cast shadows */
     pc_env_gpu env; /* the room's sun and sky (environment.h) */
     float emitter_shape[32][4]; /* glows.c: a column glow's half axis and radius (0: a sphere) */
+    float emitter_shadow[32][4]; /* glows.c: x a column's shadow core radius */
 } vrt_trace_ubo;
 typedef struct {
     int rect[4], scale[4];
@@ -1156,6 +1157,7 @@ static void vrt_run(const float to_image[16], const float eye[3], float footprin
     memcpy(u->emitter_pos, emitter_pos, sizeof emitter_pos);
     memcpy(u->emitter_col, emitter_col, sizeof emitter_col);
     memcpy(u->emitter_shape, emitter_shape, sizeof emitter_shape);
+    memcpy(u->emitter_shadow, emitter_shadow, sizeof emitter_shadow);
     memcpy(u->room_lo, room_lo, sizeof room_lo);
     memcpy(u->room_hi, room_hi, sizeof room_hi);
     u->i0[0] = vrt_light_count;

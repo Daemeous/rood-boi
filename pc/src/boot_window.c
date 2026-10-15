@@ -201,6 +201,7 @@ void pc_window_tick(void)
 {
     if (!window)
         return;
+    window_mode_apply(); /* a switch asked for since the last tick (pc_window_mode_set) */
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         /* A binding capture (System > Bindings) takes keys and pad buttons first. */
@@ -347,16 +348,20 @@ void pc_window_frame(const uint16_t* vram, int x, int y, int w, int h)
  * compositor scales): it looks the same as borderless; on X11 it depends on
  * the window manager. Windowed: the size the window had before it went
  * fullscreen. Requested before the window exists (the settings load while
- * the presenter starts), the mode applies when it does. Size changes reach
- * the presenters as SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED (above). */
+ * the presenter starts), the mode applies when it does. Otherwise a switch
+ * applies at the next frame boundary (pc_window_tick, before the events are
+ * read), never in the middle of a frame (the System menu sets it from the
+ * game's frame). Size changes reach the presenters as
+ * SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED (above); the Vulkan presenter
+ * recreates its swapchain at the start of the frame after (vk_present.c
+ * sync_swapchain). */
 static const char* const window_mode_names[3] = { "windowed", "borderless", "fullscreen" };
 static int window_mode, window_mode_applied, window_mode_failed; /* failed: the mode that did not apply + 1 */
 static int windowed_w, windowed_h;
 int pc_window_mode_get(void) { return window_mode; }
 void pc_window_mode_set(int mode)
 {
-    window_mode = mode < 0 ? 0 : mode > 2 ? 2 : mode;
-    window_mode_apply();
+    window_mode = mode < 0 ? 0 : mode > 2 ? 2 : mode; /* applied by the next pc_window_tick */
 }
 static void window_mode_apply(void)
 {

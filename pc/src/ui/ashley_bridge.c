@@ -39,13 +39,15 @@
  *           would build our view from it) and the game heap has one free
  *           block for the whole clone (heap_need: func_800F9A78 uses its
  *           allocations unchecked, so a full heap would crash it): freeze,
- *           build. Otherwise no model (the screen draws its normal backdrop
- *           and says why). The first tick does not draw (as MENU4's skipped
- *           frame).
+ *           build, stand the clone at Ashley's place (place_clone: lit by
+ *           the room as he is) and ask for the window's resolution
+ *           (pc_hw_detail_view, given back at teardown). Otherwise no model
+ *           (the screen draws its normal backdrop and says why). The first
+ *           tick does not draw (as MENU4's skipped frame).
  *   draw    every later tick: pump the load queue (frozen, the world does
  *           not), back up the world's camera, view matrix (and its copy
  *           D_8005E218), projection distance, then MENU4's orbit camera
- *           (_drawScreen, its xOffset 0) with
+ *           (_drawScreen, its xOffset 0, about the clone's place) with
  *           our yaw and pitch, our projection distance and a geometry offset
  *           that centres the model in the layout's model column
  *           (pc_ui_draw_model_column), func_8007ACB0 + func_800F9EB8, and the
@@ -94,6 +96,8 @@ extern int pc_live_camera_active(void) __attribute__((weak)); /* editor_view.cpp
 extern unsigned pc_vsync_count(void) __attribute__((weak));
 extern int pc_window_stick(float out[2]) __attribute__((weak)); /* gamepad right stick and keys */
 extern int pc_rpc_stick(float out[2]) __attribute__((weak));    /* RPC input {right_stick} */
+/* gpu_hw.c: the internal resolution at least the window's while the model shows */
+extern void pc_hw_detail_view(int on) __attribute__((weak));
 
 /* MENU4.PRG's status strings (120.c _statusStrings), under our own name. */
 static u_short status_text[] = {
@@ -121,6 +125,7 @@ static struct {
     vs_camera_t camera;
     int projection;
     char frozen, status_line; /* D_800F190C and D_800EB9AE before the build */
+    SVECTOR spot;      /* where the clone stands: Ashley's place in the room (place_clone) */
     int blocked;       /* PC_UI_MODEL_*: why there is no model */
     u_int need, largest; /* heap units (16 bytes): the clone's, the largest free block */
 } model = { 0, YAW_START };
@@ -327,7 +332,8 @@ static void restore_world_view(void)
 }
 
 /* The orbit camera: MENU4 _drawScreen with its xOffset 0 (the look-at point
- * on the model's axis), so the model sits at the geometry offset. */
+ * on the model's axis), so the model sits at the geometry offset; about the
+ * clone's place (place_clone), where MENU4 looks at the origin. */
 static void place_camera(void)
 {
     D_800F4538_t* clone = D_800F4538[1];
@@ -336,15 +342,36 @@ static void place_camera(void)
     int x = clone->menuCameraHeightOffset;
     int t;
 
-    camera->lookAt.vx = 0;
-    camera->lookAt.vy = -(x * ONE / 2);
-    camera->lookAt.vz = 0;
-    camera->position.vx = ((rcos(model.yaw) * rcos(model.pitch)) >> 0xA) * z;
+    camera->lookAt.vx = model.spot.vx * ONE;
+    camera->lookAt.vy = model.spot.vy * ONE - (x * ONE / 2);
+    camera->lookAt.vz = model.spot.vz * ONE;
+    camera->position.vx = camera->lookAt.vx + ((rcos(model.yaw) * rcos(model.pitch)) >> 0xA) * z;
     camera->position.vy = camera->lookAt.vy - rsin(model.pitch) * z * 4;
     t = ((rsin(model.yaw) * rcos(model.pitch)) >> 0xA) * z;
-    camera->position.vz = t;
+    camera->position.vz = camera->lookAt.vz + t;
     camera->angles.vx = camera->angles.vy = camera->angles.vz = 0;
     camera->farClip = ONE;
+}
+
+/* The clone where Ashley stands (func_800F9CB0 puts it at the world's
+ * origin, and MENU4's camera looks there). The renderer lights the model in
+ * world space, as the field: the room's lights, shadows, global
+ * illumination and haze about Ashley's place light the clone as they light
+ * him (the origin is anywhere in a room, often outside it: dark, or in a
+ * wall). The orbit (place_camera) circles the same place. */
+static void place_clone(void)
+{
+    D_800F4538_t* clone = D_800F4538[1];
+    D_800F4538_t* actor = D_800F4538[0];
+    model.spot.vx = model.spot.vy = model.spot.vz = 0;
+    if (!clone || !actor)
+        return;
+    model.spot.vx = actor->unk0.position.vx;
+    model.spot.vy = actor->unk0.position.vy;
+    model.spot.vz = actor->unk0.position.vz;
+    clone->unk0.position.vx = model.spot.vx;
+    clone->unk0.position.vy = model.spot.vy;
+    clone->unk0.position.vz = model.spot.vz;
 }
 
 /* A full-screen tile behind everything this frame (the ordering table's
@@ -467,6 +494,8 @@ void pc_ui_ashley_model_close(void)
         return;
     if (D_800F4538[1])
         func_800F9E0C();
+    if (pc_hw_detail_view)
+        pc_hw_detail_view(0);
     restore_world_view();
     func_8008A4DC(model.frozen);
     D_800EB9AE = model.status_line;
@@ -478,6 +507,8 @@ void pc_ui_ashley_model_close(void)
  * back. The view starts over at the next session. */
 void pc_ui_ashley_model_forget(void)
 {
+    if (model.state && pc_hw_detail_view)
+        pc_hw_detail_view(0);
     model.state = 0;
     model.blocked = PC_UI_MODEL_OK;
     model.yaw = YAW_START;
@@ -549,6 +580,11 @@ void pc_ui_ashley_model_tick(int resident, int held)
         func_8008A4DC(0);
         D_800EB9AE = 1;
         func_800F9A24(0);
+        place_clone();
+        /* Drawn from the next tick at the window's resolution: this frame
+         * (the back tile only) takes the change. */
+        if (pc_hw_detail_view)
+            pc_hw_detail_view(1);
         model.vsync = pc_vsync_count ? pc_vsync_count() : 0;
         model.state = 1; /* drawn from the next tick (MENU4 skips a frame too) */
         clear_behind();

@@ -1266,6 +1266,9 @@ static int burst_index;
 /* Presented images so far (RPC status "presents": tests wait for a redraw
  * with it instead of sleeping). */
 unsigned pc_presents;
+/* Images that reached the window: swapped (GL), vkQueuePresentKHR succeeded
+ * (vk_present.c). Headless Vulkan has none. RPC status "window_presents". */
+unsigned pc_window_presents;
 /* The image appears under its name only when complete (written beside it,
  * then renamed), so a test can read it as soon as it exists. */
 void pc_write_ppm_atomic(const char* name, const unsigned char* pixels, int w, int h, int stride, int flip)
@@ -1469,6 +1472,7 @@ static void swap(void)
 {
     SDL_GL_SwapWindow(window);
     ++presented_frames;
+    ++pc_window_presents;
     limit_frames_in_flight();
 }
 

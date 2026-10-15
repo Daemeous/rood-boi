@@ -83,9 +83,15 @@ frame's fade amount (interpolated with the frame on interpolated presents,
 step of the grade pass, which runs for it whatever the profile, over the part
 of the view the quad covers (all of it; in widescreen without the cover fix,
 the 4:3 middle). 2D drawn
-after the fade (in front of it) stays unfaded, as on the PS1.
-`pc/tests/transition_fade_smoke.py` follows a door and a cross-zone
-transition frame by frame.
+after the fade (in front of it) stays unfaded, as on the PS1. What fills and
+uploads left (far depth: a backdrop the game uploaded, such as the title's)
+is no 3D either: the quad is drawn a second time at far depth, so it fades
+there too (the title's 64 subtractions after Continue, over a picture the
+game no longer redraws, darken its uploaded backdrop as on the PS1; the grade
+pass also subtracts the frame's amount there, a few levels per frame, not
+accumulated). `pc/tests/transition_fade_smoke.py` follows a door and a cross-zone
+transition frame by frame; `pc/tests/title_fade_smoke.py` the title's fade
+against the software rasteriser.
 
 ### Film grain
 

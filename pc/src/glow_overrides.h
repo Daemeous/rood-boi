@@ -83,6 +83,7 @@ typedef struct {
     char fixture_type[16]; /* its fixture type (from the room's lighting layers), "" */
     float shape_centre[3]; /* where the tracers sample it: its centre, or its column's */
     float shape[4]; /* its column: half axis, radius (> 0 its side, < 0 solid); all 0: a sphere (color[3]) */
+    float shadow_core; /* its column's shadow core radius */
 } pc_glow_info;
 
 /* Every glow of the room visit, in id order (up to max). */
@@ -122,6 +123,8 @@ void pc_gi_glows_set(const pc_glow_override* in, int count);
 int pc_fixture_glow_mode(const char* type);
 /* Its glow shape (PC_GLOW_SHAPE_*; auto for an unknown type). */
 int pc_fixture_glow_shape(const char* type);
+/* Its column's shadow core (a fraction of its radius; < 0: not set). */
+float pc_fixture_glow_shadow_core(const char* type);
 
 /* Per category: enabled, intensity multiplier, reach multiplier, casts
  * shadows (forced off for effects), smoothing seconds (room settings
@@ -146,10 +149,16 @@ typedef struct {
  * at most max). Returns their count. */
 int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*baked_pos)[4],
     const float (*baked_col)[4], int baked_count, float emitter_pos[][4], float emitter_col[][4],
-    float emitter_shape[][4], int max);
+    float emitter_shape[][4], float emitter_shadow[][4], int max);
 /* Enclosing glows as columns: 0 never, 1 their glowing side, 2 solid
  * (glows.c; ROOD_GLOW_SHAPES, RPC glows {shapes}). */
 extern int pc_glow_shapes;
+/* Its shadows aim at a core this fraction of the column's radius (glows.c). */
+extern float pc_glow_shadow_core;
+/* ... and stop where they enter its clear middle (this fraction of its radius). */
+extern float pc_glow_shadow_clear;
+/* A column's luminance in the baked light's shadow weights (0: its colour's). */
+extern float pc_glow_column_baked;
 /* RPC: the last update's fragments, as JSON (debugging). */
 int pc_glows_fragments_json(char* out, int size);
 

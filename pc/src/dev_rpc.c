@@ -8,7 +8,9 @@
  * vsync), so every method runs at a frame boundary with no locking. Methods:
  *
  *   status                       counters (vsync, battle frame, presents: images
- *                                presented), pause state, display, start state
+ *                                presented, window_presents: of them, those that
+ *                                reached a real window; device_lost: Vulkan
+ *                                stopped rendering), pause state, display, start state
  *   pause {paused}               stop (or resume) the game at vsync boundaries
  *   step {vsyncs}                run N vsyncs, then pause again
  *   wait {timeout_ms}            reply (as status) once the game is paused with
@@ -629,12 +631,15 @@ static void status_json(char* out, size_t size)
 {
     extern int pc_display_masked __attribute__((weak)); /* SetDispMask(0) */
     extern unsigned pc_presents __attribute__((weak)); /* gl_present.c: images presented */
+    extern unsigned pc_window_presents __attribute__((weak)); /* gl_present.c: images that reached the window */
+    extern int pc_vk_device_lost(void) __attribute__((weak)); /* vk_core.c */
     snprintf(out, size,
         "{\"vsync\":%u,\"battle_frame\":%u,\"paused\":%s,\"step_budget\":%ld,\"buttons\":%u,"
-        "\"display_masked\":%s,\"presents\":%u}",
+        "\"display_masked\":%s,\"presents\":%u,\"window_presents\":%u,\"device_lost\":%s}",
         pc_vsync_count(), pc_battle_frame_count(), paused ? "true" : "false", step_budget,
         pc_rpc_buttons(), &pc_display_masked && pc_display_masked ? "true" : "false",
-        &pc_presents ? pc_presents : 0u);
+        &pc_presents ? pc_presents : 0u, &pc_window_presents ? pc_window_presents : 0u,
+        pc_vk_device_lost && pc_vk_device_lost() ? "true" : "false");
 }
 /* Deferred "wait" replies: owed once the step is over (paused, no budget)
  * or the deadline passed. */
@@ -651,7 +656,7 @@ static void serve_waiters(void)
             if (now < c->wait_until)
                 continue;
         }
-        char result[256];
+        char result[384];
         status_json(result, sizeof result);
         c->waiting = 0;
         rpc_set_blocking(c->fd, 1);

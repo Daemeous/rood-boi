@@ -410,7 +410,9 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
         }
         return;
     }
-    if (blend == 13) { /* BLEND_FADE (a screen fade): subtracted from the 2D/UI under it (depth 0) only */
+    if (blend == 13) {
+        /* BLEND_FADE (a screen fade): subtracted from what is not 3D under it
+         * only (depth 0, and far: drawn twice, gpu_hw.c pc_hw_triangle) */
         vkCmdSetDepthCompareOp(cmd, VK_COMPARE_OP_EQUAL);
         vkCmdSetDepthWriteEnable(cmd, VK_FALSE);
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ms ? ms_blend[centre][2] : blend_pipelines[2]);

@@ -48,6 +48,7 @@ static struct {
     VkCommandPool pool;
     VkCommandBuffer cmd;
     VkFence fence;
+    int submitted; /* the fence signals when this slot's commands finish (0: never submitted, or failed) */
     arena_chunk* chunks;
     int chunk_count, chunk_current;
     deferred* destroy;
@@ -1032,25 +1033,47 @@ static void submit(VkSemaphore wait, VkPipelineStageFlags wait_stage, VkSemaphor
         .pCommandBuffers = &f->cmd,
         .signalSemaphoreCount = signal ? 1 : 0,
         .pSignalSemaphores = &signal };
-    vkResetFences(vk.device, 1, &f->fence);
-    VkResult result = vkQueueSubmit(vk.queue, 1, &info, f->fence);
-    if (result != VK_SUCCESS) {
-        fprintf(stderr, "[vk] vkQueueSubmit failed (%d)%s\n", (int)result,
-            result == VK_ERROR_DEVICE_LOST ? ": device lost" : "");
-        if (result == VK_ERROR_DEVICE_LOST)
-            abort();
+    f->submitted = 0;
+    if (!vk.lost) { /* a lost device takes no more work: the frame is dropped */
+        vkResetFences(vk.device, 1, &f->fence);
+        VkResult result = vkQueueSubmit(vk.queue, 1, &info, f->fence);
+        if (result == VK_SUCCESS)
+            f->submitted = 1;
+        else if (result == VK_ERROR_DEVICE_LOST)
+            vk_device_lost("vkQueueSubmit");
+        else
+            fprintf(stderr, "[vk] vkQueueSubmit failed (%d): frame dropped\n", (int)result);
     }
     ++vk.serial;
 }
+int pc_vk_device_lost(void) { return vk.lost; } /* RPC status */
+void vk_device_lost(const char* where)
+{
+    if (vk.lost)
+        return;
+    vk.lost = 1;
+    fprintf(stderr,
+        "[vk] device lost (%s): rendering stops, the game goes on (restart it to render again)\n", where);
+}
+/* The slot's last frame is finished (or will never be): its command pool,
+ * arena and deferred objects can be reused. Never fatal: a lost device (or a
+ * frame still not done after 30 s, a hung GPU) is noted (vk.lost) and the
+ * frames go on unsubmitted. */
 static void wait_slot(int slot)
 {
     typeof(frames[0])* f = &frames[slot];
-    VkResult result = vkWaitForFences(vk.device, 1, &f->fence, VK_TRUE, 10ull * 1000 * 1000 * 1000);
-    if (result != VK_SUCCESS) {
-        fprintf(stderr, "[vk] frame fence wait failed (%d)\n", (int)result);
-        if (result == VK_ERROR_DEVICE_LOST)
-            abort();
+    if (f->submitted && !vk.lost) {
+        VkResult result;
+        int waited = 0;
+        while ((result = vkWaitForFences(vk.device, 1, &f->fence, VK_TRUE, 10ull * 1000 * 1000 * 1000)) == VK_TIMEOUT
+            && (waited += 10) < 30)
+            fprintf(stderr, "[vk] frame fence: still waiting after %d s\n", waited);
+        if (result != VK_SUCCESS) {
+            fprintf(stderr, "[vk] frame fence wait failed (%d)\n", (int)result);
+            vk_device_lost(result == VK_TIMEOUT ? "a frame never finished" : "vkWaitForFences");
+        }
     }
+    f->submitted = 0;
     vkResetCommandPool(vk.device, f->pool, 0);
 }
 void vk_flush_wait(void)

@@ -48,6 +48,17 @@ uint32_t pc_glow_casts;
  * its centre, as before), 1 their glowing side (default), 2 solid (RPC glows
  * {shapes}; ROOD_GLOW_SHAPES; comparisons). */
 int pc_glow_shapes = -1;
+/* A column's shadows (rt_lights.glsl emitter_shadow): rays aim at a core
+ * this fraction of its radius (the fixture type's glow_shadow_core first;
+ * RPC glows {shadow_core}); the light still comes from the whole side. */
+float pc_glow_shadow_core = 0.25f;
+/* ... and stop where they enter its clear middle, this fraction of its
+ * radius: a character standing there hides none of its light (RPC glows
+ * {shadow_clear}). */
+float pc_glow_shadow_clear = 0.4f;
+/* A column's luminance in the baked light's shadow weights (0: its colour's;
+ * RPC glows {column_baked}). */
+float pc_glow_column_baked = 3.0f;
 extern float pc_emitter_radius;
 extern unsigned pc_vsync_count(void) __attribute__((weak));
 /* Light actors linked to a glow (lights.cpp): 1 drives its emission
@@ -55,6 +66,7 @@ extern unsigned pc_vsync_count(void) __attribute__((weak));
 extern int pc_lights_glow_drive(const char* key, const float p[3], float* scale) __attribute__((weak));
 extern int pc_fixture_glow_mode(const char* type) __attribute__((weak));
 extern int pc_fixture_glow_shape(const char* type) __attribute__((weak));
+extern float pc_fixture_glow_shadow_core(const char* type) __attribute__((weak));
 
 #define MAX_TRACKS 160
 #define MAX_GROUPS 512
@@ -80,6 +92,8 @@ typedef struct {
     /* this update, after overrides */
     float out_rgb[3], out_size, out_reach;
     float out_centre[3], out_shape[4]; /* where and what the tracers sample: its centre and sphere, or a column */
+    float out_shadow_core; /* a column's shadow core radius */
+    float out_baked_weight; /* a column's weight in the baked light's shadows (0: by its colour) */
     int muted, overridden;
     char fixture_type[16]; /* from its override (the generated layer) */
 } track;
@@ -893,7 +907,7 @@ static int by_score_desc(const void* a, const void* b)
 }
 int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*baked_pos)[4],
     const float (*baked_col)[4], int baked_count, float emitter_pos[][4], float emitter_col[][4],
-    float emitter_shape[][4], int max)
+    float emitter_shape[][4], float emitter_shadow[][4], int max)
 {
     int snap = 0;
     if (pc_glow_shapes < 0) {
@@ -989,6 +1003,7 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
         t->fixture_type[0] = 0;
         float scale = t->presence;
         int shape = PC_GLOW_SHAPE_AUTO;
+        float core = pc_glow_shadow_core;
         float size_override = 0;
         memcpy(t->out_rgb, t->rgb, sizeof t->out_rgb);
         t->out_size = t->origin == PC_GLOW_ORIGIN_BAKED ? t->obs_size : t->size;
@@ -1014,6 +1029,8 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
                 shape = o->shape;
             else if (o->fixture_type[0] && pc_fixture_glow_shape)
                 shape = pc_fixture_glow_shape(o->fixture_type);
+            if (o->fixture_type[0] && pc_fixture_glow_shadow_core && pc_fixture_glow_shadow_core(o->fixture_type) >= 0)
+                core = pc_fixture_glow_shadow_core(o->fixture_type);
             if (o->reach > 0)
                 t->out_reach = o->reach;
         }
@@ -1030,6 +1047,7 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
          * first; an override's size is the column's radius). */
         memcpy(t->out_centre, t->pos, sizeof t->out_centre);
         memset(t->out_shape, 0, sizeof t->out_shape);
+        t->out_shadow_core = 0;
         const room_group* group = t->origin == PC_GLOW_ORIGIN_ROOM && t->group >= 0 && t->group < group_count
             ? &groups[t->group] : NULL;
         if (pc_glow_shapes > 0 && group && group->has_column
@@ -1040,6 +1058,7 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
                 t->out_shape[3] = copysignf(size_override, t->out_shape[3]);
             if (pc_glow_shapes == 2)
                 t->out_shape[3] = -fabsf(t->out_shape[3]);
+            t->out_shadow_core = fabsf(t->out_shape[3]) * (core < 0 ? 0 : core > 1 ? 1 : core);
         }
         /* Its category's switch and multipliers. */
         const float* c = pc_glow_category[t->category >= 0 && t->category < 3 ? t->category : PC_GLOW_EFFECT];
@@ -1051,6 +1070,11 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
         }
         for (int j = 0; j < 3; j++)
             t->out_rgb[j] *= scale;
+        /* A column's share of the baked light around it (its weight in the
+         * baked light's shadows, rt_trace.comp baked_visibility): the save
+         * point's baked light is its own, however dark the scrolling texels
+         * it was found by (a dim one only greyed the floor behind Ashley). */
+        t->out_baked_weight = t->out_shape[3] > 0 && pc_glow_column_baked > 0 ? pc_glow_column_baked * scale : 0;
         if (solo_alive && t->id != solo_id && !t->muted)
             t->muted = 2;
     }
@@ -1094,6 +1118,11 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
         memcpy(emitter_pos[out], t->out_centre, 3 * sizeof(float));
         emitter_pos[out][3] = t->out_reach;
         memcpy(emitter_shape[out], t->out_shape, sizeof t->out_shape);
+        emitter_shadow[out][0] = t->out_shadow_core, emitter_shadow[out][1] = t->out_baked_weight;
+        emitter_shadow[out][2] = t->out_shape[3] > 0
+            ? fmaxf(t->out_shadow_core, t->out_shape[3] * (pc_glow_shadow_clear < 0 ? 0 : pc_glow_shadow_clear > 1 ? 1 : pc_glow_shadow_clear))
+            : 0;
+        emitter_shadow[out][3] = 0;
         float strength = track_strength(t) * cap;
         for (int j = 0; j < 3; j++)
             emitter_col[out][j] = t->out_rgb[j] * strength;
@@ -1157,6 +1186,7 @@ static void fill_info(const track* t, pc_glow_info* g)
     snprintf(g->fixture_type, sizeof g->fixture_type, "%s", t->fixture_type);
     memcpy(g->shape_centre, t->out_centre, sizeof g->shape_centre);
     memcpy(g->shape, t->out_shape, sizeof g->shape);
+    g->shadow_core = t->out_shadow_core;
 }
 int pc_gi_glow_list(pc_glow_info* out, int max)
 {
