@@ -5,10 +5,11 @@ map screen keeps running and owning the pad; the shell draws its chrome
 around the 3D map and turns the pointer into requests MENU5 applies at its
 own input point.
 
-    python3 pc/tests/ui_map_smoke.py [--card pc/save/card1.mcd] [--out DIR]
+    python3 pc/tests/ui_map_smoke.py [--card pc/build/test-card1.mcd] [--out DIR]
         [--parity-only | --no-parity] [--diff-all]
 
-From copies of the card (skipped without one), in the save room, with a
+From copies of the card inside card_fixtures.card_guard (skipped without one;
+the player's cards fingerprinted before and after), in the save room, with a
 fixture: areas 1..13 visited (areaFlags) and every countable room seen
 (roomFlags |= vs_battle_mapCompletionFlags: an area bit without a seen room
 would hang MENU5's _updateRoomIndex), so the area list pages (more than 9).
@@ -82,7 +83,7 @@ sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
 from rood_rpc import OUT, BUILD, symbols  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
-from weapon_slots_smoke import default_card  # noqa: E402
+from card_fixtures import card_guard, default_save  # noqa: E402
 
 CLOSED = 0x3F
 MAP_MENU = 6 | 0x40
@@ -97,7 +98,7 @@ P_ROOM_NEXT, P_ZOOM, P_RESET, P_HIDE, P_LIST_UP, P_LIST_DOWN = 1, 3, 4, 6, 9, 10
 # overlays have their own _menuState, _cameraAngles, ...)
 MENU5_SECTION = "rood_ovl_menu_menu5_prg"
 MENU5_STATICS = ("_currentScene", "_currentRoomIndex", "_menuState", "_cameraAngles", "_cameraDistance",
-                 "_geomOffsetX", "_geomOffsetY", "_menuFramesCounter")
+                 "_geomOffsetX", "_geomOffsetY", "_menuFramesCounter", "_menuCommandsState")
 
 # Masked: (region, start, end, reason). Everything else must be equal. None
 # needed: every compared region ends equal on both paths, the cursor memories
@@ -437,6 +438,7 @@ def story_original(a, check, dumps, views):
     views.append(("switch", statics(m5)))
     rooms_and_turn(a)
     views.append(("turn", statics(a.menu5())))
+    controls_checks(a, check, framed=False, opened=True)  # (MENU5's statics compared above; the close below)
     g.press("cross", vsyncs=3, settle=120)
     check(a.current_menu() == 0, f"off: Cross back to the game's menu ({a.current_menu():#x})")
     g.press("triangle", vsyncs=3, settle=120)
@@ -515,6 +517,126 @@ def story_pointer(b2, check, dumps, views, turned, rooms):
 
 
 # ---- the frame checks (process B continues) ----
+def controls_checks(s, check, framed, opened=False):
+    """System > Controls "Map controls" (ui/map_pad.c; 4D8.c processInput): Modern, the right stick turns
+    and tilts (64 a map frame at full deflection, proportional past the deadzone), L2 or R2 alone zooms out /
+    in (analog with RPC triggers); Original, the PlayStation's stick code on the right stick (it pans 4 a
+    frame; L2 alone does nothing). Framed (ui_menus on, the shell's Map row) or MENU5 alone (off: opened,
+    the map already open; left open, the view reset)."""
+    g = s.game
+    tag = "controls (framed)" if framed else "controls (off)"
+    if framed and not opened:
+        s.open_shell_map()
+    m5 = s.wait_menu5(lambda m: m["menu_state"] == 1)
+    if not check(m5["menu_state"] == 1, f"{tag}: the map takes input ({m5['menu_state']})"):
+        return
+    g.call("camera_options", map_controls=0)
+    deadzone = g.call("camera_stick").get("deadzone", 0.15)
+
+    def cmd_state():
+        return struct.unpack("<h", g.read(s.m5["_menuCommandsState"], 2))[0]
+
+    def reset():
+        g.hold(["start"], 2)
+        g.run(8)
+        return s.menu5()
+
+    def stick(xy, vsyncs, during=None):
+        s.align()
+        before = s.menu5()
+        g.call("input", right_stick=list(xy), vsyncs=vsyncs)
+        g.run(vsyncs - 3)
+        state = cmd_state()
+        g.run(7)
+        return before, s.menu5(), state
+
+    # Modern: the right stick turns (x) and tilts (y), proportional to deflection past the deadzone
+    m0 = reset()
+    a, b, state = stick((1, 0), 40)
+    full = b["yaw"] - a["yaw"]
+    check(full >= 64 * 18 and full % 64 == 0 and state == 3 and b["pitch"] == a["pitch"] and b["geom"] == a["geom"],
+          f"{tag}: Modern: the right stick turns 64 a map frame at full deflection (yaw +{full} over 40 vsyncs, "
+          f"commands state {state}, pitch and pan unchanged)")
+    half = deadzone + (1 - deadzone) / 2
+    a, b, _ = stick((half, 0), 40)
+    ratio = (b["yaw"] - a["yaw"]) / full if full else 0
+    check(0.4 <= ratio <= 0.6, f"{tag}: Modern: half deflection past the deadzone turns at half speed "
+                               f"(stick {half:.3f}: yaw +{b['yaw'] - a['yaw']}, {ratio:.2f} of full)")
+    a, b, _ = stick((deadzone * 0.6, 0), 40)
+    check(b["yaw"] == a["yaw"], f"{tag}: Modern: inside the deadzone nothing ({b['yaw'] - a['yaw']})")
+    a, b, _ = stick((-1, 0), 20)
+    check(b["yaw"] < a["yaw"], f"{tag}: Modern: stick left turns the other way ({b['yaw'] - a['yaw']})")
+    m0 = reset()
+    a, b, _ = stick((0, -1), 8)
+    check(b["pitch"] > a["pitch"] and b["yaw"] == a["yaw"],
+          f"{tag}: Modern: stick up tilts the view up (pitch {a['pitch']} -> {b['pitch']})")
+    a, b, _ = stick((0, -1), 80)
+    check(b["pitch"] == 1024, f"{tag}: Modern: the pitch clamps at 1024 ({b['pitch']})")
+    a, b, _ = stick((0, 1), 80)
+    check(b["pitch"] == 0, f"{tag}: Modern: and at 0 ({b['pitch']})")
+    # L2 / R2 alone zoom out / in (ONE / 4 .. ONE / 8)
+    m0 = reset()
+    s.align()
+    g.call("input", buttons=["l2"], vsyncs=40)
+    g.run(30)
+    state = cmd_state()
+    g.run(14)
+    m = s.menu5()
+    check(m["distance"] > m0["distance"] and state == 2 and m["yaw"] == m0["yaw"] and m["pitch"] == m0["pitch"],
+          f"{tag}: Modern: L2 alone zooms out ({m0['distance']} -> {m['distance']}, commands state {state}: Zoom)")
+    g.hold(["l2"], 120)
+    g.run(4)
+    check(s.menu5()["distance"] == 1024, f"{tag}: Modern: L2 to 1024 ({s.menu5()['distance']})")
+    g.hold(["r2"], 160)
+    g.run(4)
+    check(s.menu5()["distance"] == 512, f"{tag}: Modern: R2 alone zooms in to 512 ({s.menu5()['distance']})")
+    # analog: half the trigger's travel, half the speed
+    m0 = reset()
+    s.align()
+    g.call("input", buttons=["r2"], triggers=[0, 1], vsyncs=20)
+    g.run(24)
+    full_zoom = m0["distance"] - s.menu5()["distance"]
+    m0 = reset()
+    s.align()
+    g.call("input", buttons=["r2"], triggers=[0, 0.5], vsyncs=20)
+    g.run(24)
+    half_zoom = m0["distance"] - s.menu5()["distance"]
+    check(full_zoom >= 16 * 9 and abs(half_zoom * 2 - full_zoom) <= 16,
+          f"{tag}: Modern: analog R2: half travel zooms at half speed ({half_zoom} vs {full_zoom} at full)")
+    # with the D-pad, MENU5's own: L2 + Right turns, no zoom
+    m0 = reset()
+    s.align()
+    g.hold(["l2", "right"], 4)
+    g.run(4)
+    m = s.menu5()
+    check(m["distance"] == m0["distance"] and m["yaw"] - m0["yaw"] in (64, 128),
+          f"{tag}: Modern: L2 + Right still turns, no zoom (yaw +{m['yaw'] - m0['yaw']}, distance "
+          f"{m0['distance']} -> {m['distance']})")
+
+    # Original: the PlayStation's stick code on the right stick
+    g.call("camera_options", map_controls=1)
+    m0 = reset()
+    a, b, _ = stick((1, 0), 20)
+    check(b["geom"][0] - a["geom"][0] >= 4 * 8 and (b["geom"][0] - a["geom"][0]) % 4 == 0 and b["yaw"] == a["yaw"],
+          f"{tag}: Original: the right stick pans 4 a frame (x {a['geom'][0]} -> {b['geom'][0]}, yaw unchanged)")
+    s.align()
+    g.hold(["l2"], 40)
+    g.run(4)
+    m = s.menu5()
+    check(m["distance"] == m0["distance"], f"{tag}: Original: L2 alone does nothing ({m['distance']})")
+    s.align()
+    g.call("input", buttons=["l2"], right_stick=[1, 0], vsyncs=8)
+    g.run(12)
+    m2 = s.menu5()
+    check(m2["yaw"] - m["yaw"] >= 128 and (m2["yaw"] - m["yaw"]) % 64 == 0,
+          f"{tag}: Original: L2 + right stick turns ({m2['yaw'] - m['yaw']})")
+    g.call("camera_options", map_controls=0)
+    reset()
+    if not opened:
+        g.press("triangle", vsyncs=3, settle=4)
+        check(s.wait_closed(), f"{tag}: Triangle closes")
+
+
 def frame_checks(b, check, ground):
     g = b.game
     import numpy as np  # noqa: F401
@@ -884,7 +1006,7 @@ def wide_checks(b, check, ground):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--card", default=str(default_card()))
+    parser.add_argument("--card", default=str(default_save()))
     parser.add_argument("--out", help="keep screenshots here")
     parser.add_argument("--parity-only", action="store_true", help="only the parity story")
     parser.add_argument("--no-parity", action="store_true", help="only the frame checks")
@@ -895,7 +1017,12 @@ def main():
         return 77
     out = pathlib.Path(args.out) if args.out else OUT / "ui_map"
     out.mkdir(parents=True, exist_ok=True)
-    card = out / "card1.mcd"
+    # the player's cards fingerprinted before and after (card_guard); each session on a fresh temp copy
+    with card_guard(out / "cards", source=args.card) as cards:
+        return run(args, out, cards.card1)
+
+
+def run(args, out, card):
     lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-", dir=out))
     env = {"ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(lights), "ROOD_GI": "0", "ROOD_DETERMINISTIC": "1"}
     os.environ.pop("ROOD_SETTINGS", None)
@@ -948,6 +1075,7 @@ def main():
             g.press("triangle", vsyncs=3, settle=4)
             b.wait_closed()
             frame_checks(b, check, ground)
+            controls_checks(b, check, framed=True)
             wide_checks(b, check, ground)
             robustness(b, check)
     finally:

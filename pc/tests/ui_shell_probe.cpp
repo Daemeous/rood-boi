@@ -1,6 +1,8 @@
 // The modern menu shell's navigation (pc/src/ui/ui_shell.cpp) without the game.
 #include "ui/ui_shell.h"
 #include "ui/map_frame.h"
+#include "ui/data_frame.h"
+#include "ui/data_plan.h"
 #include "ui/ui_settings.h"
 #include "ui/ui_workshop.h"
 #include "ui/ui_manual.h"
@@ -1927,6 +1929,156 @@ static bool map_json_has(const char* needle)
     pc_ui_map_json(buf, sizeof buf);
     return std::strstr(buf, needle) != nullptr;
 }
+// The native Data screen's pure state (ui_data.cpp): the goal mailbox by
+// phase (busy drops, refusals), the pointer's goals and soft highlight,
+// visibility by the stamp, MENU7's cursor decoded, the JSON block (files,
+// chips, phase, message).
+static bool data_json_has(const char* needle)
+{
+    static char buf[1 << 14];
+    pc_ui_data_json(buf, sizeof buf);
+    return std::strstr(buf, needle) != nullptr;
+}
+static void data_tests()
+{
+    pc_ui_data_model* d = pc_ui_data_state();
+    pc_ui_data_goal* g = pc_ui_data_goal_slot();
+    std::memset(d, 0, sizeof *d);
+    pc_ui_data_reset_mailbox();
+    CHECK(data_json_has(",\"data\":null"));
+    CHECK(!pc_ui_data_visible());
+    pc_ui_data_post(PC_UI_DATA_GOAL_OP, 1); // nothing framed: nothing
+    CHECK(g->kind == PC_UI_DATA_GOAL_NONE);
+    // armed: visible for 30 vsyncs without a stamp, busy (posts dropped)
+    probe_vsync = 100;
+    d->armed = 1, d->armed_vsync = 100;
+    CHECK(pc_ui_data_visible());
+    CHECK(data_json_has("\"phase\":\"busy\""));
+    pc_ui_data_post(PC_UI_DATA_GOAL_OP, 1);
+    CHECK(g->kind == 0 && d->busy_drops == 1);
+    probe_vsync = 131;
+    CHECK(!pc_ui_data_visible());
+    // framed, stamped: visible while the stamp is at most 8 vsyncs old
+    d->armed = 0, d->framed = 1, d->run = 3, d->stamped = 1, d->stamp = 131, d->published = 1;
+    d->state = 6;
+    d->phase = pc_ui_data_phase(6, 0, 0, 0, 0, 0);
+    CHECK(d->phase == PC_UI_DATA_PH_OPS);
+    CHECK(pc_ui_data_visible());
+    probe_vsync = 140;
+    CHECK(!pc_ui_data_visible());
+    probe_vsync = 135;
+    // the chooser: OP, BACK, CLOSE, TAB taken; a file refused
+    pc_ui_data_post(PC_UI_DATA_GOAL_FILE, 2);
+    CHECK(g->kind == 0 && d->rejected == 1);
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_OP, 2, 1, 0, 0);
+    CHECK(g->kind == PC_UI_DATA_GOAL_OP && g->a == 2);
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_OP, 1, 1, 0, 0); // a new post replaces it
+    CHECK(g->kind == PC_UI_DATA_GOAL_OP && g->a == 1);
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_TAB, 4, 1, 0, 0);
+    CHECK(g->kind == PC_UI_DATA_GOAL_TAB && g->a == 4);
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_BUTTON, PC_UI_EXIT, 1, 0, 0); // the Close hint
+    CHECK(g->kind == PC_UI_DATA_GOAL_CLOSE);
+    pc_ui_data_mouse(PC_UI_MOUSE_NONE, 0, 0, 0, 1); // a right click: back
+    CHECK(g->kind == PC_UI_DATA_GOAL_BACK);
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_PANEL, 0, 1, 0, 0); // the panel itself: nothing
+    CHECK(g->kind == PC_UI_DATA_GOAL_BACK);
+    // hover is visual only
+    pc_ui_data_reset_mailbox();
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_OP, 2, 0, 0, 0);
+    int hk, hi;
+    pc_ui_data_hover(&hk, &hi);
+    CHECK(hk == PC_UI_MOUSE_DATA_OP && hi == 2 && g->kind == 0);
+    // the file list: MENU7's cursor (24, slot * 40 + 62) on page 1 is file 2
+    d->state = 8;
+    d->cursor_xy = (102 << 16) | 24;
+    pc_ui_data_decode(d->cursor_xy, 72 - 40, &d->card, &d->file, &d->cancelled);
+    CHECK(d->file == 2 && d->card == -1 && d->cancelled == -1);
+    d->phase = pc_ui_data_phase(8, 1, 0, 0, d->cursor_xy, PC_UI_DATA_MSG_SELECT_FILE);
+    CHECK(d->phase == PC_UI_DATA_PH_FILES);
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_FILE, 4, 1, 0, 0);
+    CHECK(g->kind == PC_UI_DATA_GOAL_FILE && g->a == 4);
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_YES, 0, 1, 0, 0); // no prompt: refused, the file goal kept
+    CHECK(g->kind == PC_UI_DATA_GOAL_FILE && d->rejected == 2);
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_BUTTON, PC_UI_CONFIRM, 1, 0, 0); // the Confirm hint: MENU7's own file
+    CHECK(g->kind == PC_UI_DATA_GOAL_FILE && g->a == 2);
+    // the wheel walks MENU7's own cursor (MOVE: nothing confirmed; notches add up, clamped), no soft highlight
+    d->files_valid = 1;
+    pc_ui_data_reset_mailbox();
+    pc_ui_data_mouse(PC_UI_MOUSE_NONE, 0, 0, -1, 0);
+    pc_ui_data_hover(&hk, &hi);
+    CHECK(g->kind == PC_UI_DATA_GOAL_MOVE && g->a == 3 && hk == 0);
+    for (int i = 0; i < 4; ++i)
+        pc_ui_data_mouse(PC_UI_MOUSE_NONE, 0, 0, -1, 0);
+    CHECK(g->kind == PC_UI_DATA_GOAL_MOVE && g->a == 4);
+    pc_ui_data_mouse(PC_UI_MOUSE_NONE, 0, 0, 1, 0);
+    CHECK(g->kind == PC_UI_DATA_GOAL_MOVE && g->a == 3);
+    CHECK(data_json_has("\"goal\":{\"kind\":\"move\",\"a\":3"));
+    pc_ui_data_reset_mailbox();
+    d->cursor_xy = (62 << 16) | 24; // file 0 on page 0: the wheel up has nowhere to go
+    pc_ui_data_decode(d->cursor_xy, 72, &d->card, &d->file, &d->cancelled);
+    pc_ui_data_mouse(PC_UI_MOUSE_NONE, 0, 0, 1, 0);
+    CHECK(d->file == 0 && g->kind == 0);
+    d->phase = PC_UI_DATA_PH_CARD; // the wheel elsewhere: nothing
+    pc_ui_data_mouse(PC_UI_MOUSE_NONE, 0, 0, -1, 0);
+    CHECK(g->kind == 0);
+    d->phase = PC_UI_DATA_PH_FILES;
+    // a prompt: the dialog's focus is MENU7's cancelled; Yes / No are answers
+    d->cursor_xy = 26 << 16;
+    pc_ui_data_decode(d->cursor_xy, 72, &d->card, &d->file, &d->cancelled);
+    d->msg = PC_UI_DATA_MSG_OVERWRITE_PROMPT;
+    d->phase = pc_ui_data_phase(8, 1, 0, 0, d->cursor_xy, d->msg);
+    d->prompt = pc_ui_data_msg_prompt(d->msg);
+    CHECK(d->phase == PC_UI_DATA_PH_PROMPT && d->cancelled == 1 && d->prompt == PC_UI_DATA_PROMPT_OVERWRITE);
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_YES, 0, 1, 0, 0);
+    CHECK(g->kind == PC_UI_DATA_GOAL_ANSWER && g->a == 1);
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_NO, 0, 1, 0, 0);
+    CHECK(g->kind == PC_UI_DATA_GOAL_ANSWER && g->a == 0);
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_TAB, 2, 1, 0, 0); // a tab at a prompt: refused (never answered for the player)
+    CHECK(g->kind == PC_UI_DATA_GOAL_ANSWER);
+    // busy (saving): every post dropped and counted
+    unsigned drops = d->busy_drops;
+    d->progress_counter = 12, d->cursor_xy = 0;
+    d->phase = pc_ui_data_phase(8, 1, 12, 0, 0, PC_UI_DATA_MSG_SAVING);
+    CHECK(d->phase == PC_UI_DATA_PH_BUSY);
+    pc_ui_data_reset_mailbox();
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_FILE, 1, 1, 0, 0);
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_FILE, 1, 1, 0, 0);
+    CHECK(g->kind == 0 && d->busy_drops == drops + 2);
+    // a message waiting: Continue (the status bar) dismisses
+    d->progress_counter = 0, d->msg = PC_UI_DATA_MSG_SAVED;
+    d->phase = pc_ui_data_phase(8, 1, 0, 0, 0, d->msg);
+    CHECK(d->phase == PC_UI_DATA_PH_WAIT);
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_STATUS, 0, 1, 0, 0);
+    CHECK(g->kind == PC_UI_DATA_GOAL_DISMISS);
+    // the files and their chips in the JSON
+    std::memset(d->files, 0, sizeof d->files);
+    d->files[0].state = 0x17385CA9, d->files[0].generation = 5, d->files[0].current = 1;
+    d->files[0].h = 1, d->files[0].m = 2, d->files[0].s = 3, d->files[0].saves = 5, d->files[0].map = 3;
+    std::snprintf(d->files[0].name, sizeof d->files[0].name, "%s", "Blackmarket");
+    d->files[1].state = 1;
+    d->files[2].state = 2;
+    d->files[3].state = 0x17385CA9, d->files[3].generation = 7, d->files[3].newest = 1;
+    std::snprintf(d->msg_text, sizeof d->msg_text, "%s", "Saved \"here\".");
+    CHECK(data_json_has("\"phase\":\"wait\""));
+    CHECK(data_json_has("\"msg\":\"saved\""));
+    CHECK(data_json_has("\"msg_text\":\"Saved \\\"here\\\".\""));
+    CHECK(data_json_has("{\"i\":0,\"state\":389569705,\"generation\":5,\"time\":\"1:02:03\",\"saves\":5"));
+    CHECK(data_json_has("\"current\":true,\"newest\":false,\"name\":\"Blackmarket\"}"));
+    CHECK(data_json_has("{\"i\":3,\"state\":389569705,\"generation\":7"));
+    CHECK(data_json_has("\"goal\":{\"kind\":\"dismiss\""));
+    CHECK(data_json_has("\"cursor\":[0,0]"));
+    // finished: hidden, nothing taken
+    d->finished = 1;
+    CHECK(!pc_ui_data_visible());
+    pc_ui_data_reset_mailbox();
+    pc_ui_data_mouse(PC_UI_MOUSE_DATA_STATUS, 0, 1, 0, 0);
+    CHECK(g->kind == 0);
+    std::memset(d, 0, sizeof *d);
+    pc_ui_data_reset_mailbox();
+    CHECK(data_json_has(",\"data\":null"));
+    probe_vsync = 0;
+}
+
 static void map_tests()
 {
     pc_ui_map_model* m = pc_ui_map_state();
@@ -3213,6 +3365,7 @@ int main()
     loot_tests();
     workshop_tests();
     map_tests();
+    data_tests();
     manual_tests();
     std::printf(failures ? "ui_shell_probe: %d failures\n" : "ui_shell_probe: ok\n", failures);
     return failures != 0;

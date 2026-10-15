@@ -4,10 +4,11 @@ frames (the user's report: in the save point's DATA > LOAD menu, slot 1's
 location thumbnail was a white/blue blotch and the empty slots' "NO DATA"
 images grey streaks).
 
-    python3 pc/tests/save_menu_smoke.py [--card pc/save/card1.mcd] [--out DIR]
+    python3 pc/tests/save_menu_smoke.py [--card pc/build/test-card1.mcd] [--out DIR]
 
-Continues from a copy of the card (never the card itself; skipped without
-one, or without the disc's data/MENU files) to the save room and opens
+Continues from a copy of the card (never the card itself, inside
+card_fixtures.card_guard: the player's cards hashed before and after;
+skipped without one, or without the disc's data/MENU files) to the save room and opens
 DATA > LOAD > MEMORY CARD slot 1 (MENU7.PRG). Each slot's 64x32 image is an
 8-bit sprite from SPMCIMG.BIN (VRAM 800,256) drawn through the CLUT row at
 768,227: the menu stores that row, uploads the location's CLUT, draws the
@@ -27,8 +28,6 @@ CLUTs, as tools/data/MENU/SPMCIMG_BIN.py does) at the menu's brightness
 import argparse
 import os
 import pathlib
-import shutil
-import subprocess
 import sys
 import tempfile
 
@@ -39,6 +38,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
+from card_fixtures import card_guard, default_save  # noqa: E402
 
 SHEET_W, SHEET_H = 448, 256  # SPMCIMG.BIN: 7 x 8 images of 64 x 32, 8-bit
 CLUT0_COLUMNS = {1, 2, 3, 4}  # locations 0-31; the rest (and the icons) use CLUT 1
@@ -47,13 +47,8 @@ MAX_ERROR = 16.0  # mean |difference| per channel; cursor and labels overlap a f
 
 
 def default_card():
-    path = ROOT / "pc/save/card1.mcd"
-    if not path.exists():  # a worktree: the main checkout's card
-        common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=ROOT,
-                                capture_output=True, text=True).stdout.strip()
-        if common:
-            path = pathlib.Path(common).parent / "pc/save/card1.mcd"
-    return path
+    """The tests' pinned card (run.py default_save), never the player's."""
+    return default_save()
 
 
 def data_file(name):
@@ -119,8 +114,11 @@ def main():
     images = sheet_images()
     out = pathlib.Path(args.out) if args.out else OUT / "save_menu"
     out.mkdir(parents=True, exist_ok=True)
-    card = out / "card1.mcd"
-    shutil.copyfile(args.card, card)
+    with card_guard(out / "cards", source=args.card) as cards:
+        return run(args, out, cards.card1, images)
+
+
+def run(args, out, card, images):
     lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-", dir=out))
     env = {"ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(lights), "ROOD_GI": "0", "ROOD_SCALE": "2"}
     os.environ.pop("ROOD_SETTINGS", None)

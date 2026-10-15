@@ -252,17 +252,6 @@ unsigned run_colour(const ui::Theme& t, int c)
     return c == 0 ? t.bone : c == 1 ? t.gold : c == 2 ? t.accent : t.ash;
 }
 
-// A five-pointed star (the manual's note marker) centred at (cx, cy).
-void star(const Frame& f, float cx, float cy, float r, unsigned col)
-{
-    ImVec2 pts[10];
-    for (int i = 0; i < 10; ++i) {
-        float a = -1.5707963f + i * 0.62831853f, rr = i % 2 ? r * 0.42f : r;
-        pts[i] = f.p(cx + std::cos(a) * rr, cy + std::sin(a) * rr);
-    }
-    f.dl->AddConcavePolyFilled(pts, 10, col);
-}
-
 void chevron(const Frame& f, float cx, float cy, int dir, unsigned col)
 {
     float w = 2.5f * dir, h = 5;

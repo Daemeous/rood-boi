@@ -134,6 +134,7 @@ game's again: it leaves the view, as Start and Cross do.
 | `camera_stick_idle_reset` | 0 | seconds without stick input before the camera resets itself (0 off) |
 | `camera_stick_keys` | 1 | the keyboard keys above |
 | `qol_map_invert` | 0 | the map screen pans the other way on both axes (D-pad, the left stick the game reads as the D-pad, arrow keys) |
+| `qol_map_controls` | 0 | the map screen's right stick and triggers: 0 Modern (the right stick turns and tilts, L2 / R2 alone zoom out / in), 1 Original (the PlayStation's: L2 / R2 with the right stick, the right stick pans) |
 | `qol_fp_invert_y` | 0 | in the first-person view up looks down and down looks up (D-pad and right stick; left and right unchanged) |
 
 The two `qol_` options come from eremtsov's QoL mod (CC0) and are off by
@@ -316,6 +317,20 @@ list is drawn by the shell (L1 / R1 there switch tabs). The mouse drags to
 rotate, wheels to zoom, middle-drags to pan and clicks areas, rooms, prompts
 and tabs; the game applies them at its own input point with its own limits.
 
+System > Data is the game's own save / load screen drawn natively: Save |
+Load (Save says why it is off: not at a save point, in battle, after a Room
+Browser warp), the two memory cards (checked, how many saves, no card), this
+journey (what a save now records), the card's five saves (location, map %,
+saves, clear count, play time, HP / MP; Current, Newest, Temporary, Empty or
+New save), the game's message as a status line, its Yes / No prompts as a
+dialog (an overwrite shows this journey against the save it replaces), its
+progress sweep and the load's fade. The game's screen still makes every
+decision and does every card access: the pad is its own (Circle confirm,
+Cross back, Triangle closes from the Save / Load choice, L1 / R1 tabs
+there), and a click is turned into the presses the game would get (a save
+card: walk there and confirm; an overwrite still asks). The bytes a save
+writes and everything a load sets are the original screen's.
+
 System > Quick manual reads the game's own manual natively: the 14 topics in
 a rail, the focused topic's page in a card (its title, its line, the page:
 the text in the menus' fonts with each column where the game placed it, the
@@ -370,6 +385,18 @@ too.
   without its write), pad and pointer limits, the area list's window, wait
   and cursor memories, paling, close (HUD, scene buffer, heap, VRAM), soft
   resets, a lost frame (MENU5's own help and list), 16:9.
+- `pc/tests/ui_data_smoke.py`: the Data screen's saves byte-for-byte equal to
+  the original screen's by pad and by mouse (real SDL events), one write, the
+  overwrite's No and Yes, a load's blocks equal to the original's by pad and
+  by mouse (and the file read, by its play time), the error
+  paths (card 2 absent, a corrupt save, a full card, a blank card, writes
+  refused, an unformatted card), exits and cursor memories. Every test that
+  can save runs inside `pc/tests/card_fixtures.py`'s `card_guard` (also
+  `save_menu_smoke`, `ui_map_smoke`, `ui_ashley_backdrop_smoke`,
+  `hud_label_solid_smoke`): the player's `pc/save` cards are hashed before
+  and after (a change in another checkout's card names the games running
+  there: a save made while the test ran), `ROOD_CARD1` / `ROOD_CARD2` are
+  temp copies; the fixture cards are built there.
 
 ## Intro movie and CD drive
 
@@ -753,7 +780,15 @@ enabled, intensity, reach, cast shadows, smoothing (Details > Lighting >
 Game glows by kind; room settings `glow_<fixtures|magic|effects>_<enabled|
 intensity|reach|shadows|smoothing>` with project defaults; RPC `graphics`
 takes the same keys). A fixture's or magic glow's overrides (enabled,
-intensity, tint, size, reach) are saved with the room, by the glow's key. W/E pick the gizmo, I inspects, Ctrl+S saves the area;
+intensity, tint, size, reach) are saved with the room, by the glow's key.
+**Emissive texels** (window panes, the floating blocks' magic circle, forge
+coals; [docs/Emissive.md](docs/Emissive.md)): a curated catalog
+(`pc/assets/emissive/catalog.json`) and your own entries (`emissive.json` in
+the user lighting directory) mark parts of textures, matched by content,
+that are never darkened, feed bloom and, as lights, become glows; setting
+`emissive` (0..2, 0 off), Graphics > *Glowing surfaces*, Details > Emissive
+(pick a texture in the view, mask, tint, strength, light; save; copy JSON for
+the catalog), RPC `emissive` and `graphics emissive`. W/E pick the gizmo, I inspects, Ctrl+S saves the area;
 Help > Keyboard shortcuts (or the toolbar's `?`) lists every binding, with a
 search field.
 
@@ -1759,12 +1794,13 @@ redraws at about 60 Hz, and after each request):
 | `wait` | `timeout_ms` (default 1000, at most 60000) | the `status` reply, sent once the game is paused with no step left (or at the timeout): a step's end without polling |
 | `pause` | `paused` (default true) | stop or resume at vsync boundaries |
 | `step` | `vsyncs` | run exactly N vsyncs, then pause |
-| `input` | `buttons` (name or list), `right_stick` (`[x, y]`, -1..1, down +y), `vsyncs` | hold PS1 buttons and/or the right stick (the camera); works unfocused |
+| `input` | `buttons` (name or list), `right_stick` (`[x, y]`, -1..1, down +y), `triggers` (`[l2, r2]`, 0..1 past the press point), `vsyncs` | hold PS1 buttons and/or the right stick (the camera) and/or the triggers' analog travel (the map's zoom; the L2 / R2 bits come from `buttons`); works unfocused |
 | `camera_stick` | the settings without `camera_stick_` (`enabled`, `speed`, ..., `r3_reset`, `idle_reset`, `keys`), `action` (`reset`) | the right-stick camera: settings and state (zoom, distances, collision hit, yaw; the first-person look: `first_person`, `fp_looks`, `fp_step`) |
-| `camera_options` | `map_invert`, `fp_invert_y` | the optional map panning and first-person up/down inversions (settings `qol_map_invert`, `qol_fp_invert_y`) |
+| `camera_options` | `map_invert`, `map_controls`, `fp_invert_y` | the optional map panning and first-person up/down inversions and the map's stick controls (settings `qol_map_invert`, `qol_map_controls` 0 Modern / 1 Original, `qol_fp_invert_y`) |
 | `skip_charging` | `mode` (0..2 or `off`, `fast`, `skip`), `reset` | battle charging (settings `qol_skip_charging`): the mode, whether the last vsync charged and its `_cameraMode` (`charging`, `phase`), and the counters since the last reset: charging `sequences`, their `vsyncs` and wall `ms` (`reset: true` zeroes them after the reply) |
 | `weapon_slots` | `enabled` | the optional weapon slots (battle builds): the option, overlay/assign/swap state, field mode, each weapon's slot and each shield's slot bits, what Ashley's battle record has equipped |
-| `ui_menu` | `modern`, `pointer` | the modern menus (`pc/src/ui`, battle builds): sets `ui_menus`; `model_heap_extra` (bytes, tests: the Ashley model's heap check asks for that much more); `pointer {x, y, click, right, wheel, down, middle}` is the next drawn frame's mouse in layout units (1280 or 960 x 720; hit tests as a moved pointer; down / middle: that button held, drags); the shell: visible, holding (closed, a result held during a model load, still drawn), menus, tab, tabs, rows (id, label, enabled, reason when greyed, value), focused row, the Equipment screen; `theme` (the colours shown: `tint` id, `tint_rgb` 0..31, `ground`, `panel`, `stage` as #rrggbbaa, `rule`, `rule2`, `dim`, `ash`); `system.rows[].swatch` (#rrggbb: Menu tint's colour chip); `map` (the Map frame: state, MENU5's published scene / room / camera, areas, rooms, completion, the list's cursor, request counters, the drawn pointer targets `hits`, or null) and `map_heap_free`; `system.manual` (the Quick manual: mode topics / reading, topic, label, desc, row, page_top, line, lines, line_count, page, pages, loaded, square, k, size, overflow, unknown, the page's ten `page_lines`, sprites, rules, hidden, `art` (button-art sprites) and `art_prompts` (drawn as the device's prompts), the `sfx` counters, the drawn `hits`, or null; `system.manual_sfx`: the manual's requested sounds, on or off) |
+| `ui_menu` | `modern`, `pointer` | the modern menus (`pc/src/ui`, battle builds): sets `ui_menus`; `model_heap_extra` (bytes, tests: the Ashley model's heap check asks for that much more); `pointer {x, y, click, right, wheel, down, middle}` is the next drawn frame's mouse in layout units (1280 or 960 x 720; hit tests as a moved pointer; down / middle: that button held, drags); the shell: visible, holding (closed, a result held during a model load, still drawn), menus, tab, tabs, rows (id, label, enabled, reason when greyed, value), focused row, the Equipment screen; `theme` (the colours shown: `tint` id, `tint_rgb` 0..31, `ground`, `panel`, `stage` as #rrggbbaa, `rule`, `rule2`, `dim`, `ash`); `system.rows[].swatch` (#rrggbb: Menu tint's colour chip); `map` (the Map frame: state, MENU5's published scene / room / camera, areas, rooms, completion, the list's cursor, request counters, the drawn pointer targets `hits`, or null) and `map_heap_free`; `system.manual` (the Quick manual: mode topics / reading, topic, label, desc, row, page_top, line, lines, line_count, page, pages, loaded, square, k, size, overflow, unknown, the page's ten `page_lines`, sprites, rules, hidden, `art` (button-art sprites) and `art_prompts` (drawn as the device's prompts), the `sfx` counters, the drawn `hits`, or null; `system.manual_sfx`: the manual's requested sounds, on or off); `data` (the native Data screen while armed or framed, else null: run, phase ops / card / files / prompt / wait / busy, state, op, save_ok, at_point, in_battle, warp_blocked, cursor, card, file, page, cancelled, ops_row, msg, msg_text, prompt, progress, fade, files_valid, files[] (state, generation, time, saves, hp, mp, location, clear, map, current, newest, name), cards (per card: -1 not checked, -2 no card, else its saves), card_sel, journey, goal {kind, a, auto}, seq, presses, busy_drops, rejected, expired, menu7_gated, settling, hover, the drawn `hits`); `backdrop_kept` (0 / 1: the presenter holds a picture of the world for the Ashley tab's model) and `backdrop_built` ([keep count, count the wait asked for] when the Ashley model was last built; [-1, 0] none yet) |
+| `card` | `fail_writes`, `unformatted` | tests that save (battle builds): `fail_writes` refuses the card's writes, `unformatted` makes the cards read as unformatted until one is formatted; answers `writes` (data writes so far), `fail_writes`, `unformatted` |
 | `release` | | drop injected buttons |
 | `state` | | zone, room, start state, music, HP/MP, risk, Ashley's position |
 | `read` / `write` | `address`, `length` / `hex` | guest RAM and scratchpad (read also host data) |
@@ -1824,6 +1860,11 @@ passes for `Game.STALL` seconds (a hang). `reload_lights()` is RPC `lights`
 instead of a sleep); `present_dump` images appear under their name only when
 complete. `Game.launch(snapshot=path)` resumes a save state.
 `ROOD_RPC_PROFILE=path` logs every call's time (`run.py --profile`).
+RPC `card {fail_writes, unformatted}` is for tests that save: `fail_writes`
+refuses the card's writes (as a Room Browser warp does), `unformatted` makes
+the cards read as unformatted until one is formatted; it answers the number
+of data writes made so far (`writes`) and both flags. Tests that can save use temp copies of
+a card (`card_fixtures.card_guard`), never `pc/save`.
 `pc/tests/rpc_smoke.py` covers it.
 
 Crashes print `[crash]` and a `[stack]` line; `kill -USR1 <pid>` prints the

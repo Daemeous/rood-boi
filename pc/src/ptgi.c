@@ -27,6 +27,7 @@
 #include <string.h>
 #include <time.h>
 #include "glow_overrides.h"
+#include "emissive.h" /* emissive texels that are lights: room glows */
 #include "lighting_quality.h"
 #include "environment.h"
 #include "atmosphere.h" /* the haze, ground fog and fog volumes (pc_medium_gpu) */
@@ -869,6 +870,31 @@ static void update_emitters(void)
         add_glow(glows, &n, MAX_GLOWS, p, rgb, uv, t->tpage, t->clut, t->code | 4,
             (uint32_t)PC_GLOW_ORIGIN_ROOM << 28 | (uint32_t)i);
     }
+    /* Emissive texels marked as lights (emissive.h): their room triangles
+     * glow with the texels' emission (zero where none shows this frame),
+     * grouped as the additive ones are (glows.c build_groups). */
+    if (pc_emissive_light_serial())
+        for (int i = 0; i < room_count && n < MAX_GLOWS; i++) {
+            float e[3];
+            if (!pc_emissive_room_light(i, e))
+                continue;
+            const scene_triangle* t = &room[i];
+            float e1[3], e2[3], c[3];
+            glow* out = &glows[n++];
+            for (int k = 0; k < 3; k++) {
+                e1[k] = t->vertex[1].position[k] - t->vertex[0].position[k];
+                e2[k] = t->vertex[2].position[k] - t->vertex[0].position[k];
+                out->p[k] = (t->vertex[0].position[k] + t->vertex[1].position[k] + t->vertex[2].position[k]) / 3.0f;
+                out->rgb[k] = e[k];
+            }
+            c[0] = e1[1] * e2[2] - e1[2] * e2[1], c[1] = e1[2] * e2[0] - e1[0] * e2[2], c[2] = e1[0] * e2[1] - e1[1] * e2[0];
+            out->area = 0.5f * sqrtf(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
+            out->weight = out->area * (0.299f * e[0] + 0.587f * e[1] + 0.114f * e[2]);
+            out->source = (uint32_t)PC_GLOW_ORIGIN_ROOM << 28 | (uint32_t)i;
+        }
+    /* ... and on characters, props and other room blocks (object glows). */
+    if (pc_emissive_light_serial() || pc_emissive_active())
+        n += pc_emissive_object_lights(glows + n, MAX_GLOWS - n);
     const caster_surface* surfaces;
     const float* effects = pc_hw_emissives(&effect_count, (const void**)&surfaces);
     const uint32_t* sources = pc_hw_emissive_sources();

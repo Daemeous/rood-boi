@@ -46,6 +46,7 @@ set_tests_properties(fixture_catalog PROPERTIES WORKING_DIRECTORY ${CMAKE_CURREN
 # Modern menus: the shell's navigation (pc/src/ui/ui_shell.cpp) without the game.
 add_executable(ui_shell_probe tests/ui_shell_probe.cpp src/ui/ui_shell.cpp src/ui/ui_loot.cpp src/ui/ui_workshop.cpp
     src/ui/ui_map.cpp
+    src/ui/ui_data.cpp src/ui/data_plan.c
     src/ui/ui_manual.cpp src/ui/manual_parse.c
     src/ui/ui_theme.cpp src/ui/ui_tint.cpp
     src/light_prefabs.cpp)
@@ -114,6 +115,18 @@ target_include_directories(camera_stick_probe PRIVATE src)
 target_compile_options(camera_stick_probe PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(camera_stick_probe PRIVATE m)
 add_test(NAME camera_stick_probe COMMAND camera_stick_probe)
+
+# The map screen's right stick and triggers (ui/map_pad.c, Map controls Modern / Original).
+add_executable(map_pad_probe tests/map_pad_probe.c src/ui/map_pad.c)
+target_include_directories(map_pad_probe PRIVATE src/ui)
+target_compile_options(map_pad_probe PRIVATE -Wall -Wextra -Werror)
+add_test(NAME map_pad_probe COMMAND map_pad_probe)
+
+# The native Data screen's planner (ui/data_plan.c): goals to MENU7 pad presses, exhaustively.
+add_executable(data_plan_probe tests/data_plan_probe.c src/ui/data_plan.c)
+target_include_directories(data_plan_probe PRIVATE src/ui)
+target_compile_options(data_plan_probe PRIVATE -Wall -Wextra -Werror)
+add_test(NAME data_plan_probe COMMAND data_plan_probe)
 
 # Exercise the actual packet decoder without running game code or opening a window.
 add_library(gpu_probe_runtime OBJECT src/boot_runtime.c)

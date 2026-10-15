@@ -26,6 +26,7 @@
 extern void pc_ui_bubbles_frame(void) __attribute__((weak));
 #include "button_prompts.h" /* 2D / UI: button prompts drawn from icon fonts */
 #include "antialias.h" /* anti-aliasing: supersampling's scale, MSAA */
+#include "emissive.h" /* emissive texels: the slot map the draw shader reads */
 #include "gl_shaders.h" /* PC_GLSL_MS_RESOLVE (pc/shaders/vulkan/ms_resolve.glsl) */
 #ifdef ROOD_VULKAN
 #include "vk_hooks.h" /* ROOD_RENDERER=vulkan: the GL calls below go to vk_hw.c */
@@ -792,7 +793,7 @@ extern int pc_scene_projection(float* h, float* ofx, float* ofy);
 static GLuint draw_program, upload_program, vertex_buffer, vertex_array, empty_array;
 static GLint u_draw_occlusion, u_draw_occlusion_rect, u_draw_room_depth;
 static GLint u_draw_filtering, u_draw_pass, u_draw_vram, u_draw_perspective, u_upload_vram, u_upload_rect, u_upload_scale;
-static GLint u_draw_ui_scale, u_draw_ui_atlas, u_draw_text_factor;
+static GLint u_draw_ui_scale, u_draw_ui_atlas, u_draw_text_factor, u_draw_emissive_map, u_draw_emissive_on;
 /* Perspective-correct texturing: on by default (settings perspective_textures;
  * ROOD_PERSPECTIVE=0 or 0 there restores the PS1's affine mapping). */
 int pc_hw_perspective = 1;
@@ -899,6 +900,9 @@ static const char* draw_fragment_source =
     /* Text from distance texels (BLEND_TEXT, passes 3-5): the colour pass's
      * alpha factor for the PS1 mode (B/2 + F/2: 0.5, B + F/4: 0.25). */
     "uniform float text_factor;\n"
+    /* Emissive texels (emissive.h; lit 3D only): the slot map, on. */
+    "uniform usampler2D emissive_map;\n"
+    "uniform int emissive_on;\n"
     "layout(location = 0) out vec4 color;\n"
     "layout(location = 1) out vec4 normal_out;\n"
     "layout(location = 2) out vec4 albedo_out;\n"
@@ -921,7 +925,7 @@ static const char* draw_fragment_source =
     "    return fetch(tx + int(u), ty + int(v));\n"
     "}\n"
     "vec3 rgb(uint t) { return vec3(float(t & 31u), float((t >> 5) & 31u), float((t >> 10) & 31u)); }\n"
-    PC_GLSL_TEXT_DIST
+    PC_GLSL_TEXT_DIST PC_GLSL_EMISSIVE
     "void main() {\n"
     /* A pixel's footprint in texels (text from distance texels: edges one pixel wide). */
     "    vec2 footprint = fwidth(perspective != 0 ? v_uv_persp : v_uv_affine);\n"
@@ -991,6 +995,13 @@ static const char* draw_fragment_source =
     "        c = (flags & 2u) != 0u ? texel / 31.0 : min(texel * v_color * (255.0 / 128.0), 31.0) / 31.0;\n"
     "        albedo = texel / 31.0;\n"
     "        shade = (flags & 2u) != 0u ? vec4(vec3(128.0 / 255.0), 1.0) : vec4(v_color, 1.0);\n"
+    /* Emissive texels: at least their own colour x tint x strength, never
+     * darkened; the G-buffer's shade carries the emission (a 0.25, rgb / 2). */
+    "        if (emissive_on != 0 && v_normal.w > 0.5 && (flags & 16u) == 0u) {\n"
+    "            ivec2 eq = ivec2(floor(v_uv + 0.0001));\n"
+    "            vec3 em = emissive_texel(uint(eq.x) & 255u, uint(eq.y) & 255u, tpage, win, t);\n"
+    "            if (any(greaterThan(em, vec3(0.0)))) { c = max(c, min(em, vec3(1.0))); shade = vec4(min(em * 0.5, vec3(1.0)), 0.25); }\n"
+    "        }\n"
     "    }\n"
     "    if ((pass == 1 && semi) || (pass == 2 && !semi)) discard;\n"
     /* Text: 3 its solid pixels' G-buffer and depth (opaque texels, half
@@ -1173,9 +1184,12 @@ void pc_hw_init(const uint16_t* vram)
     u_draw_ui_scale = gl_GetUniformLocation(draw_program, "ui_scale");
     u_draw_ui_atlas = gl_GetUniformLocation(draw_program, "ui_atlas");
     u_draw_text_factor = gl_GetUniformLocation(draw_program, "text_factor");
+    u_draw_emissive_map = gl_GetUniformLocation(draw_program, "emissive_map");
+    u_draw_emissive_on = gl_GetUniformLocation(draw_program, "emissive_on");
     gl_UseProgram(draw_program);
     gl_Uniform1i(u_draw_room_depth, 1); /* never unit 0 (the VRAM usampler) */
     gl_Uniform1i(u_draw_ui_atlas, 2);
+    gl_Uniform1i(u_draw_emissive_map, 7);
     gl_UseProgram(0);
     u_upload_vram = gl_GetUniformLocation(upload_program, "vram");
     u_upload_rect = gl_GetUniformLocation(upload_program, "rect");
@@ -1330,6 +1344,7 @@ void pc_hw_mark(int x0, int y0, int x1, int y1)
         uint32_t tiles = tiles_for(x0, y0, x1, y1);
         dirty_tiles |= tiles;
         pc_ui_upscale_tiles_changed(tiles);
+        pc_emissive_vram_dirty(tiles);
     }
 }
 static void upload_tiles(uint32_t tiles)
@@ -1352,6 +1367,58 @@ static void upload_tiles(uint32_t tiles)
         }
     gl_PixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     dirty_tiles &= ~tiles;
+}
+
+/* ---- emissive texels ---- */
+
+/* The slot map (emissive.h, emissive.glsl): matched and uploaded before a
+ * game frame's first draw (replays draw with the newest). */
+static GLuint emissive_texture;
+static int emissive_shader_on;
+static uint32_t emissive_frame = 0xffffffffu;
+static void emissive_sync(void)
+{
+    uint32_t frame = render_frame_serial();
+    /* Once per game frame, and at once on a setting or catalog change (a
+     * paused game's redraws show it). */
+    if (frame == emissive_frame && !pc_emissive_pending())
+        return;
+    emissive_frame = frame;
+    int r0, r1;
+    emissive_shader_on = pc_emissive_sync(&r0, &r1);
+    const uint8_t* map = pc_emissive_map();
+#ifdef ROOD_VULKAN
+    if (pc_vk_on()) {
+        if (r1 > r0)
+            pc_vk_hw_upload_emissive(map, r0, r1);
+        return;
+    }
+#endif
+    if (!emissive_texture) {
+        gl_GenTextures(1, &emissive_texture);
+        gl_BindTexture(GL_TEXTURE_2D, emissive_texture);
+        gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        gl_TexImage2D(GL_TEXTURE_2D, 0, GL_R8UI, PC_EMISSIVE_MAP_W, PC_EMISSIVE_MAP_H, 0, GL_RED_INTEGER,
+            GL_UNSIGNED_BYTE, NULL);
+        r0 = 0, r1 = PC_EMISSIVE_MAP_H;
+    }
+    if (r1 > r0) {
+        gl_BindTexture(GL_TEXTURE_2D, emissive_texture);
+        gl_PixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        gl_TexSubImage2D(GL_TEXTURE_2D, 0, 0, r0, PC_EMISSIVE_MAP_W, r1 - r0, GL_RED_INTEGER, GL_UNSIGNED_BYTE,
+            map + (size_t)r0 * PC_EMISSIVE_MAP_W);
+        gl_PixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    }
+}
+/* For render.c's native lists: the map's texture (OpenGL) and whether the
+ * shaders should read it. */
+int pc_hw_emissive(unsigned* texture)
+{
+    emissive_sync();
+    if (texture)
+        *texture = emissive_texture;
+    return emissive_shader_on;
 }
 
 /* ---- batching ---- */
@@ -1413,6 +1480,7 @@ static void draw_batch(GLuint fbo, const hw_vertex* vertices, int count, int ble
             centre = vertices[i].z <= 0.0f;
     } else if (ms_scope == fbo)
         ms_end();
+    emissive_sync();
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
         pc_vk_hw_draw_batch(fbo, vertices, count, blend, clip, occlusion_on, occlusion_rect);
@@ -1436,7 +1504,10 @@ static void draw_batch(GLuint fbo, const hw_vertex* vertices, int count, int ble
         gl_Uniform1i(u_draw_ui_scale, atlas ? pc_ui_upscale_draw_factor() : 0);
         gl_ActiveTexture(GL_TEXTURE2);
         gl_BindTexture(GL_TEXTURE_2D, atlas ? atlas : native_texture);
+        gl_ActiveTexture(GL_TEXTURE7);
+        gl_BindTexture(GL_TEXTURE_2D, emissive_texture);
         gl_ActiveTexture(GL_TEXTURE0);
+        gl_Uniform1i(u_draw_emissive_on, emissive_shader_on);
     }
     gl_Uniform1i(u_draw_occlusion, occlusion_on);
     if (occlusion_on) {
@@ -3622,6 +3693,7 @@ static void sync_kinds(int x, int y, int w, int h, int kinds)
         }
         dirty_tiles |= tiles_for(x0, y0, x1 - 1, y1 - 1); /* the sampled copy follows */
         pc_ui_upscale_tiles_changed(tiles_for(x0, y0, x1 - 1, y1 - 1));
+        pc_emissive_vram_dirty(tiles_for(x0, y0, x1 - 1, y1 - 1));
         ++pc_hw_syncs;
         memmove(r, stale_rects[i + 1], (size_t)(stale_count - i - 1) * sizeof stale_rects[0]);
         memmove(&stale_kinds[i], &stale_kinds[i + 1], (size_t)(stale_count - i - 1) * sizeof stale_kinds[0]);
@@ -4801,6 +4873,28 @@ int pc_hw_present_lists(uint32_t* lists, int max, float* t)
     for (int o = 0; o < b->op_count && n < max; o++) {
         uint32_t id = (uint32_t)b->ops[o].first;
         if (b->ops[o].fill != 2 || render_list_objects(id) != 1)
+            continue;
+        int seen = 0;
+        for (int i = 0; i < n && !seen; i++)
+            seen = lists[i] == id;
+        if (!seen)
+            lists[n++] = id;
+    }
+    return n;
+}
+/* Every native list of the frame being presented (room, other room blocks,
+ * objects; not effects): the editor's texture picking (emissive_editor.cpp). */
+int pc_hw_present_all_lists(uint32_t* lists, int max)
+{
+    int replayed;
+    uint32_t room;
+    const recording* b = shown_recording(&replayed, &room);
+    if (!b)
+        b = &recordings[newest];
+    int n = 0;
+    for (int o = 0; o < b->op_count && n < max; o++) {
+        uint32_t id = (uint32_t)b->ops[o].first;
+        if (b->ops[o].fill != 2 || render_list_objects(id) < 0 || render_list_effects(id) != 0)
             continue;
         int seen = 0;
         for (int i = 0; i < n && !seen; i++)

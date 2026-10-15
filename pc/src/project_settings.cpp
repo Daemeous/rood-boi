@@ -29,6 +29,7 @@ extern int pc_editor_hide_masks, pc_editor_game_cutaway, pc_editor_cutaway, pc_e
 extern float pc_editor_cutaway_radius, pc_editor_cutaway_opacity;
 extern int pc_lights_snap;
 extern int pc_env_global; /* environment.cpp */
+extern float pc_emissive; /* emissive.cpp: glowing surfaces' strength (0 off) */
 extern int pc_fog_global; /* atmosphere.cpp */
 extern float pc_fog_disturb[4]; /* atmosphere.cpp: the interactive fog's weights per source */
 extern int pc_fog_sim_budget;
@@ -47,6 +48,10 @@ int pc_skip_intro;
  * (BATTLE func_8006EC7C), the D-pad and the right stick alike. Off by
  * default. */
 int pc_qol_map_invert, pc_qol_fp_invert_y;
+/* qol_map_controls: the map screen's right stick and triggers (map_pad.h):
+ * 0 Modern (default: the right stick turns and tilts, L2 / R2 zoom), 1
+ * Original (the PlayStation's: L2 / R2 + right stick, the stick pans). */
+int pc_qol_map_controls;
 /* qol_skip_charging: battle charging (a spell's casting, an item's or a
  * Break Art's wind-up before it takes effect) runs at several vsyncs per
  * displayed field, the game logic unchanged (boot_window.c): 0 off (the
@@ -147,6 +152,7 @@ const Entry entries[] = {
     I("probe_show", pc_probe_show),
     I("light_animation", rood_lights::animate),
     I("environment", pc_env_global), /* the rooms' sun and sky (environment.cpp) */
+    F("emissive", pc_emissive), /* glowing surfaces (emissive.cpp, pc/docs/Emissive.md): strength 0..2, 0 off */
     I("fog", pc_fog_global), /* the rooms' ground fog and fog volumes (atmosphere.cpp) */
     /* The interactive fog (fog_sim.h): each disturbance source's weight (0 off; a volume's disturb_* override). */
     F("fog_disturb_player", pc_fog_disturb[0]),
@@ -209,6 +215,7 @@ const Entry entries[] = {
     F("camera_stick_idle_reset", pc_camera_stick_idle_reset),
     I("camera_stick_keys", pc_camera_stick_keys),
     I("qol_map_invert", pc_qol_map_invert),
+    I("qol_map_controls", pc_qol_map_controls),
     I("qol_fp_invert_y", pc_qol_fp_invert_y),
     /* Gameplay. */
     I("qol_weapon_slots", pc_qol_weapon_slots),

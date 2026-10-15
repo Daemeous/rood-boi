@@ -172,13 +172,15 @@ typedef struct {
     float instance_cut[4]; /* render_instance.cut at this draw's t, ghost edges */
     float room_slack[2]; /* surface_test 4 (pc_native_room_slack) */
     int room_order, layer_slack;
+    int emissive; /* emissive texels: the slot map (binding 6) is read */
 } native_ubo;
 _Static_assert(offsetof(native_ubo, projection) == 48 && offsetof(native_ubo, rules) == 96
         && offsetof(native_ubo, split) == 144 && offsetof(native_ubo, objects) == 168
         && offsetof(native_ubo, window) == 188 && offsetof(native_ubo, surface_test) == 212
         && offsetof(native_ubo, uv_count) == 216 && offsetof(native_ubo, cut_focus) == 224 && offsetof(native_ubo, cut_scale) == 240
         && offsetof(native_ubo, instance_cut) == 256 && offsetof(native_ubo, room_slack) == 272
-        && offsetof(native_ubo, room_order) == 280 && offsetof(native_ubo, layer_slack) == 284,
+        && offsetof(native_ubo, room_order) == 280 && offsetof(native_ubo, layer_slack) == 284
+        && offsetof(native_ubo, emissive) == 288,
     "native_ubo must match native_common.glsl's std140 layout");
 static VkDescriptorSetLayout vk_native_set;
 static VkPipelineLayout vk_native_layout;
@@ -236,10 +238,11 @@ static int vk_native_init(void)
     if (vk_native_ready >= 0)
         return vk_native_ready;
     vk_native_ready = 0;
-    VkDescriptorType types[6] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    VkDescriptorType types[7] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER };
-    vk_native_set = vk_push_layout(types, 6);
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
+    vk_native_set = vk_push_layout(types, 7);
     VkPipelineLayoutCreateInfo layout = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = 1,
         .pSetLayouts = &vk_native_set };
@@ -362,6 +365,7 @@ static mesh_slot* vk_use_instance(vk_draw_state* s, const draw_list* list, const
     vk_descriptors_image(&d, 4, s->surface_before, vk.nearest);
     vk_descriptors_buffer(&d, 5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, s->uv_effects.buffer, s->uv_effects.offset,
         (VkDeviceSize)(s->ubo.uv_count > 0 ? s->ubo.uv_count : 1) * sizeof(uv_effect_gpu));
+    vk_descriptors_image(&d, 6, vk_hw.emissive.view, vk.nearest);
     vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_layout);
     return mesh;
 }
@@ -376,6 +380,7 @@ static const render_camera* vk_begin_draw(vk_draw_state* s, const draw_list* lis
     u->normal_matrix[0][0] = u->normal_matrix[1][1] = u->normal_matrix[2][2] = 1;
     u->perspective = target->perspective;
     u->filtering = target->filtering;
+    u->emissive = pc_hw_emissive(NULL);
     u->window = target->window;
     u->mask_set = target->mask_set;
     float hx = cam->h * (list->camera.widescreen ? 0.75f : 1.0f);

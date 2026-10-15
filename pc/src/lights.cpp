@@ -554,6 +554,7 @@ bool game_pick(ImVec2 mouse, float world[3], float normal[3])
 }
 } // namespace
 
+extern "C" int pc_emissive_viewport_click(float x, float y) __attribute__((weak));
 /* The editor view (editor_view.cpp) supplies its own view while active. */
 extern "C" int pc_editor_separate(void) __attribute__((weak));
 extern "C" int pc_editor_view(float view[16], float projection[16], float rect[4]) __attribute__((weak));
@@ -1384,6 +1385,9 @@ extern "C" void pc_lights_viewport(void)
         || !ImGui::IsMouseClicked(ImGuiMouseButton_Left) || io.KeyAlt)
         return;
     float world[3], normal[3];
+    /* The emissive panel's texture picker (emissive_editor.cpp) takes the click when armed. */
+    if (pc_emissive_viewport_click && pc_emissive_viewport_click(io.MousePos.x, io.MousePos.y))
+        return;
     if (probe_mode) {
         if (v.pick(io.MousePos, world, normal)) {
             probe_valid = true;

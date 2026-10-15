@@ -147,6 +147,16 @@ void label(const Frame& f, const ui::Theme& t, float x, float y, const char* s, 
     text(f, fonts.label, t.label_size, x, y, col ? col : t.ash, upper(s).c_str(), 0.26f);
 }
 
+void star(const Frame& f, float cx, float cy, float r, unsigned col)
+{
+    ImVec2 pts[10];
+    for (int i = 0; i < 10; ++i) {
+        float a = -1.5707963f + i * 0.62831853f, rr = i % 2 ? r * 0.42f : r;
+        pts[i] = f.p(cx + std::cos(a) * rr, cy + std::sin(a) * rr);
+    }
+    f.dl->AddConcavePolyFilled(pts, 10, col);
+}
+
 namespace {
 
 int stat(const pc_ui_item& it, int k) { return k == 0 ? it.str : k == 1 ? it.intel : it.agl; }

@@ -1,0 +1,101 @@
+{
+  "format": 1,
+  "about": "Emissive texels (pc/docs/Emissive.md): textures matched by content key, parametric masks in texture space. Hashes and numbers only.",
+  "entries": [
+    {
+      "id": "E001",
+      "name": "Magic circle on the floating blocks",
+      "where": "zone 32 room 3 and the other rooms with floating blocks (the moving platforms' tops)",
+      "match": [
+        { "key": "1a7a9a0083", "size": [31, 31] },
+        { "key": "cb0bfa6a81", "size": [31, 31] },
+        { "key": "789d8b070b", "size": [31, 31] },
+        { "key": "0dc55d7442", "size": [31, 31] },
+        { "key": "036c1f39e7", "size": [31, 31] }
+      ],
+      "mask": {
+        "indices": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+      },
+      "color": [1, 1, 1],
+      "strength": 1.25,
+      "light": 0.6,
+      "review": "checked",
+      "note": "4-bit, index 0 is the block's dark ground; the circle is a VRAM animation of five frames (one key each)"
+    },
+    {
+      "id": "E002",
+      "name": "Lattice window panes (town houses)",
+      "where": "zone 34 room 0, zone 35 room 0 (high windows)",
+      "match": [
+        { "key": "cd41b7751f", "size": [47, 63] },
+        { "key": "2cd3ec747d", "size": [47, 55], "offset": [0, 8] },
+        { "key": "9a84da203c", "size": [47, 47], "offset": [0, 16] },
+        { "key": "e3ab7cde4b", "size": [47, 7], "offset": [0, 24] }
+      ],
+      "mask": {
+        "indices": [0]
+      },
+      "color": [1, 0.97, 0.9],
+      "strength": 1.25,
+      "light": 1,
+      "review": "checked",
+      "note": "index 0 is the white pane, the bars are not lit"
+    },
+    {
+      "id": "E003",
+      "name": "Octagonal window (town houses)",
+      "where": "zone 34 room 0",
+      "match": [
+        { "key": "f1d3ff8443", "size": [1, 1], "clut": "95bcbf36a8" }
+      ],
+      "mask": {
+        "indices": [0]
+      },
+      "color": [1, 0.97, 0.9],
+      "strength": 1.25,
+      "light": 0.5,
+      "review": "checked",
+      "note": "a single white texel stretched over the window: only with this palette (a 1 x 1 key alone is too common)"
+    },
+    {
+      "id": "E004",
+      "name": "Forge coals (workshops)",
+      "where": "zones 43-47 room 0 (the forge's bed)",
+      "match": [
+        { "key": "381844b9c2", "size": [33, 31] },
+        { "key": "010f253840", "size": [33, 31] },
+        { "key": "a5093cc91c", "size": [33, 31] },
+        { "key": "facb3aeb8a", "size": [33, 31] },
+        { "key": "767480c2c3", "size": [31, 31], "offset": [32, 0] },
+        { "key": "28d9216215", "size": [31, 31], "offset": [32, 0] },
+        { "key": "1095ec4f34", "size": [31, 31], "offset": [32, 0] },
+        { "key": "b86f16f59b", "size": [31, 31], "offset": [32, 0] }
+      ],
+      "mask": {
+        "indices": [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+      },
+      "color": [1, 0.9, 0.75],
+      "strength": 1.6,
+      "light": 1,
+      "review": "checked",
+      "note": "indices 5-15 are the ember ramp, 0-4 the grey ash; the bed is a VRAM animation of four frames (one key each)"
+    },
+    {
+      "id": "E005",
+      "name": "Magic crates' glyphs and edges",
+      "where": "zone 53 (Limestone Quarry) room 21 and other crate puzzles",
+      "match": [
+        { "key": "dc51f82ff7", "size": [32, 32] },
+        { "key": "eaecfa1949", "size": [32, 32], "offset": [32, 0] }
+      ],
+      "mask": {
+        "indices": [10, 11, 12, 13, 14, 15]
+      },
+      "color": [1, 1, 1],
+      "strength": 1.4,
+      "light": 0.4,
+      "review": "checked",
+      "note": "8 x 8 texel sides and top of the movable crates: indices 10-15 are the blue glow lines and the white glyph"
+    }
+  ]
+}

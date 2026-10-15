@@ -195,6 +195,10 @@ def suites(args, mode="egl"):
                        "brightens and tints it, dim grey not black in a dark room, still frames steady (haze too)"),
             Suite("glow_stability_smoke", [PY, str(TESTS / "glow_stability_smoke.py"), "--card", str(args.save)], 600,
                   note="save point: one steady glow, stable id, overrides persist; prologue fight: effect glows unshadowed, smooth"),
+            Suite("emissive_smoke", [PY, str(TESTS / "emissive_smoke.py"), "--card", str(args.save)], 420,
+                  note="emissive texels: 0 is the picture without them (pixel-identical), marked panes glow and "
+                       "nothing else changes, curated entries found in their rooms, editor mask saved and "
+                       "reloaded; Vulkan: the windows light the wall (path traced)"),
             Suite("save_point_glow_smoke", [PY, str(TESTS / "save_point_glow_smoke.py"), "--card", str(args.save)], 300,
                   note="standing in a save point keeps its light (its glow is the column's side); Ashley still "
                        "shadows the floor behind him (High, Ultra)")]
@@ -224,6 +228,10 @@ def suites(args, mode="egl"):
                  note="QoL weapon slots: off = the game's L2 overlay; swaps, assign mode, shields, D-pad, drawn; "
                       "the mod's save bytes survive a save and reload")]
           if args.save.exists() else []),
+        *([Suite("hud_label_solid_smoke", [PY, str(TESTS / "hud_label_solid_smoke.py"), "--card", str(args.save)],
+                 300, note="HUD: the HP / MP labels drawn opaque like their digits (solid black outline, the field "
+                           "not showing through), ui_text font and original")]
+          if args.save.exists() else []),
         *([Suite("ui_menus_smoke", [PY, str(TESTS / "ui_menus_smoke.py"), "--card", str(args.save)], 300,
                  note="modern menus: off = the game's menu; shell tabs, original Status and back, "
                       "System > Menus from the next open, L2 shortcut stays original, greyed Break arts opens, close")]
@@ -248,6 +256,11 @@ def suites(args, mode="egl"):
                        str(args.save)], 300,
                  note="Ashley tab model, lit (GI, traced shadows, haze): every image shows it, no flicker "
                       "still or turning (live and interpolated images lit alike), window-resolution detail view")]
+          if args.save.exists() else []),
+        *([Suite("ui_ashley_backdrop_smoke", [PY, str(TESTS / "ui_ashley_backdrop_smoke.py"), "--card",
+                       str(args.save)], 300,
+                 note="Ashley tab opened first, low ui_menu_opacity: a world picture kept (backdrop_kept), the "
+                      "world behind as on Equipment; back from the original Status: no HUD in the picture")]
           if args.save.exists() else []),
         *([Suite("ui_abilities_smoke", [PY, str(TESTS / "ui_abilities_smoke.py"), "--card", str(args.save)], 300,
                  note="Abilities tab: Chain/Defense mapping = the original MENU2 screen's bytes (set, move, replace, "
@@ -282,6 +295,11 @@ def suites(args, mode="egl"):
         *([Suite("ui_workshop_smoke", [PY, str(TESTS / "ui_workshop_smoke.py"), "--card", str(args.save)], 300,
                  note="Items > Workshop: same bag, indices and MENUC cursor memories as the original Setup screen "
                       "(MENUC / MENU8) for repair, gems, disassemble (equipped too), assemble, rename, combine x3")]
+          if args.save.exists() else []),
+        *([Suite("ui_data_smoke", [PY, str(TESTS / "ui_data_smoke.py"), "--card", str(args.save)], 600,
+                 note="Data screen (MENU7 under a native frame): save bytes = the original's by pad and by mouse "
+                      "(pinned keystream), one write, overwrite No / Yes, load = the original's blocks, errors "
+                      "(no card, corrupt, full, blank, refused, unformatted), exits; player cards hashed unchanged")]
           if args.save.exists() else []),
         *([Suite("ui_system_smoke", [PY, str(TESTS / "ui_system_smoke.py"), "--card", str(args.save)], 300,
                  note="System screen through the shell: a row per settings page live + saved (debounce, Cross), "
@@ -395,11 +413,12 @@ CHECKPOINT_SUITES = {
     "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
     "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "weapon_slots_smoke", "ui_menus_smoke",
     "ui_lines_smoke", "ui_text_smoke", "button_prompts_smoke", "coplanar_order_smoke", "atmosphere_smoke",
-    "fog_sim_smoke", "fog_volume_smoke", "save_point_glow_smoke", "ui_ashley_smoke", "ui_ashley_stability_smoke",
+    "fog_sim_smoke", "fog_volume_smoke", "save_point_glow_smoke", "emissive_smoke", "ui_ashley_smoke", "ui_ashley_stability_smoke",
     "ui_equip_smoke",
     "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "post_smoke",
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
-    "ui_map_smoke", "ui_manual_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
+    "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
+    "ui_ashley_backdrop_smoke", "ui_data_smoke",
 }
 
 

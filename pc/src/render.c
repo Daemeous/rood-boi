@@ -20,6 +20,10 @@
 #include "render_gl.h"
 #include "snapshot.h"
 #include "room_editor.h"
+#include "emissive.h"
+#include "gl_shaders.h" /* PC_GLSL_EMISSIVE (pc/shaders/vulkan/emissive.glsl) */
+/* gpu_hw.c: the emissive slot map is current (its OpenGL texture); the shaders read it. */
+int pc_hw_emissive(unsigned* texture);
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -252,6 +256,7 @@ void render_mesh_destroy(render_mesh mesh)
     mesh_slot* slot = lookup(mesh);
     if (!slot)
         return;
+    pc_emissive_mesh_gone(mesh);
 #ifdef ROOD_VULKAN
     if (pc_vk_on())
         pc_vk_mesh_destroy(slot->vbo);
@@ -814,6 +819,14 @@ void render_list_add(uint32_t id, const render_instance* instance)
         memcpy(palette->rotation, instance->rotation, sizeof palette->rotation);
         memcpy(palette->translation, instance->translation, sizeof palette->translation);
     }
+    /* Emissive texels: the textures this instance draws (not effects:
+     * transient meshes rebuilt every frame). */
+    if (!list->rules.effects) {
+        mesh_slot* slot = lookup(instance->mesh);
+        if (slot && slot->cpu)
+            pc_emissive_note_instance(instance->mesh, slot->cpu, slot->polygons, instance->override, instance->tpage,
+                instance->clut);
+    }
     list_instance* in = &list->instances[list->count++];
     in->mesh = instance->mesh;
     in->bias = instance->bias;
@@ -1129,11 +1142,13 @@ static int sprite_corners(const draw_list* list, const render_polygon* poly, con
     return 1;
 }
 static uint32_t emit_source, emit_mesh;
+static const render_polygon* emit_polygon;
 void render_emit_tag(uint32_t* source, uint32_t* mesh)
 {
     *source = emit_source;
     *mesh = emit_mesh;
 }
+const render_polygon* render_emit_polygon(void) { return emit_polygon; }
 static int emit_triangles(uint32_t id, int translucent, render_triangle_sink emit, void* context)
 {
     draw_list* list = find_list(id);
@@ -1166,7 +1181,7 @@ static int emit_triangles(uint32_t id, int translucent, render_triangle_sink emi
                                 + x->rotation[k][2] * poly->position[v][2] + x->translation[k];
             }
             unsigned tpage = effective_tpage(in, poly), clut = effective_clut(in, poly);
-            emit_source = poly->source, emit_mesh = in->mesh;
+            emit_source = poly->source, emit_mesh = in->mesh, emit_polygon = poly;
             static const int corners[2][3] = { { 0, 1, 2 }, { 1, 3, 2 } };
             for (int t = 0; t < (count == 4 ? 2 : 1); t++) {
                 float tri[9];
@@ -1664,6 +1679,8 @@ static const char* fragment_source =
     "uniform vec2 room_slack;\n" /* surface_test 4: relative, absolute (GTE units) */
     "uniform int room_order;\n" /* a room list's ordered pass: depth is the PS1 draw order key */
     "uniform int layer_slack;\n" /* objects, other room blocks: tested room_slack nearer (1), and written so into the surfaces (2) */
+    "uniform usampler2D emissive_map;\n" /* emissive texels' slot map (emissive.glsl) */
+    "uniform int emissive_on;\n"
     "uniform ivec4 uv_window[65];\n" /* animated materials: base u, v, size u, v */
     "uniform vec4 uv_shift[65];\n" /* interpolated offset still to come u, v; wrap period u, v */
     "layout(location = 0) out vec4 color;\n"
@@ -1686,6 +1703,7 @@ static const char* fragment_source =
     "    return fetch(tx + int(u), ty + int(v));\n"
     "}\n"
     "vec3 rgb(uint t) { return vec3(float(t & 31u), float((t >> 5) & 31u), float((t >> 10) & 31u)); }\n"
+    PC_GLSL_EMISSIVE
     /* An animated material between game frames: texels past the effect's
      * window wrap back by its period (the game's scroll wraps there). */
     "ivec2 uv_wrap(ivec2 t, uint e, float k) {\n"
@@ -1804,6 +1822,11 @@ static const char* fragment_source =
     "        c = (code & 1u) != 0u ? texel / 31.0 : min(texel * v_color * (255.0 / 128.0), 31.0) / 31.0;\n"
     "        albedo = texel / 31.0;\n"
     "        shade = (code & 1u) != 0u ? vec4(vec3(128.0 / 255.0), 1.0) : vec4(v_color, 1.0);\n"
+    /* Emissive texels (emissive.glsl): never darkened; the shade carries the emission. */
+    "        if (emissive_on != 0) {\n"
+    "            vec3 em = emissive_texel(at.x & 255u, at.y & 255u, tpage, window, t);\n"
+    "            if (any(greaterThan(em, vec3(0.0)))) { c = max(c, min(em, vec3(1.0))); shade = vec4(min(em * 0.5, vec3(1.0)), 0.25); }\n"
+    "        }\n"
     "    }\n"
     "    if ((semi_pass == 1 && semi) || (semi_pass == 2 && !semi)) discard;\n"
     "    color = vec4(c, float(mask));\n"
@@ -1816,7 +1839,7 @@ static GLint u_bone_rotation, u_bone_translation, u_normal_matrix, u_projection,
     u_clip_z, u_perspective, u_filtering, u_window, u_mask_set, u_vram, u_objects, u_zsf3, u_override_color,
     u_override_texture, u_surface, u_depth_pass, u_surface_depth, u_painter, u_surface_before, u_instance_blend,
     u_translucent, u_forced, u_semi_pass, u_surface_test, u_order, u_room_slack, u_room_order, u_layer_slack, u_cut_focus, u_cut_scale, u_instance_cut, u_uv_offset, u_uv_count, u_uv_window,
-    u_uv_shift;
+    u_uv_shift, u_emissive_map, u_emissive_on;
 static GLuint element_buffer; /* PS1 draw order, streamed per list */
 
 static int ensure_program(void)
@@ -1850,6 +1873,8 @@ static int ensure_program(void)
     U(window);
     U(mask_set);
     U(vram);
+    U(emissive_map);
+    U(emissive_on);
     U(objects);
     U(zsf3);
     U(override_color);
@@ -2067,12 +2092,18 @@ static const render_camera* begin_draw(const draw_list* list, const render_targe
     gl_Enable(GL_DEPTH_TEST);
     gl_DepthFunc(GL_LESS);
     gl_Disable(GL_BLEND);
+    unsigned emissive_texture = 0;
+    int emissive_on = pc_hw_emissive(&emissive_texture);
     gl_UseProgram(program);
     gl_ActiveTexture(GL_TEXTURE1); /* never the depth attached for pass 1 */
     gl_BindTexture(GL_TEXTURE_2D, 0);
+    gl_ActiveTexture(GL_TEXTURE7);
+    gl_BindTexture(GL_TEXTURE_2D, emissive_texture);
     gl_ActiveTexture(GL_TEXTURE0);
     gl_BindTexture(GL_TEXTURE_2D, target->vram);
     gl_Uniform1i(u_vram, 0);
+    gl_Uniform1i(u_emissive_map, 7);
+    gl_Uniform1i(u_emissive_on, emissive_on);
     gl_Uniform1i(u_surface_depth, 1);
     gl_Uniform1i(u_surface_before, 2);
     gl_Uniform1i(u_depth_pass, 0);

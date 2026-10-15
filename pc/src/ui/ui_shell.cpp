@@ -2,6 +2,7 @@
 // (pc/docs/Modern_Menus.md). Pure state; drawing is ui_draw.cpp.
 #include "ui/ui_shell.h"
 #include "ui/map_frame.h"
+#include "ui/data_frame.h"
 #include "ui/ui_manual.h"
 #include "ui/ui_settings.h"
 #include "ui/ui_theme.h"
@@ -2317,6 +2318,10 @@ extern "C" void pc_ui_shell_json(char* out, unsigned size)
     static char map[1 << 15];
     pc_ui_map_json(map, sizeof map);
     j += map;
+    // the native Data screen (ui_data.cpp): its block while armed or framed, else null
+    static char data[1 << 14];
+    pc_ui_data_json(data, sizeof data);
+    j += data;
     ui::theme_json(j); // the colours shown (menu tint), every screen
     j += "}";
     std::snprintf(out, size, "%s", j.c_str());

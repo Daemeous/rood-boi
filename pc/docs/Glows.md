@@ -358,6 +358,15 @@ outside, also in the presented frame at 1 and 2 body lengths (at least
 30% darker). In 29/0 (`room_goto`) it checks the same visible shadow on
 both sides and the light kept with him in the circle.
 
+## Emissive texels as glows (2026-10-15)
+
+Texels marked emissive in the emissive catalog ([Emissive.md](Emissive.md))
+with a `light` weight join the glows: their room triangles become room
+polygon groups as additive polygons do (one glow per window, stable keys),
+and light texels on characters, props and other room blocks become object
+glows by mesh. Their colour is the texels' emission times the weight; the
+budget, smoothing, categories and shadows are the glows' own.
+
 ## Limits and next steps
 
 - Categories come from the source: a spell drawn with unattached world

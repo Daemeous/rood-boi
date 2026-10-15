@@ -31,11 +31,13 @@ extern int pc_hw_active, pc_hw_scale_setting, pc_gl_filter, pc_gl_aspect, pc_gte
     pc_hw_subpixel, pc_hw_interpolate, pc_hw_texture_filter, pc_present_rate;
 int pc_hw_set_scale(int scale);
 extern int pc_env_global;        /* environment.cpp: the rooms' sun and sky */
+extern float pc_emissive;        /* emissive.cpp: glowing surfaces' strength, 0 off */
 extern int pc_lights_enabled;    /* lights.cpp: dynamic lights (lighting key dynamic_lights) */
 extern int pc_qol_weapon_slots;  /* project_settings.cpp; weapon_slots.c */
 extern int pc_qol_skip_charging; /* project_settings.cpp; boot_window.c */
 extern int pc_skip_intro;        /* project_settings.cpp; boot_runtime.c */
 extern int pc_qol_map_invert, pc_qol_fp_invert_y; /* project_settings.cpp; MENU5, BATTLE func_8006EC7C */
+extern int pc_qol_map_controls;                   /* project_settings.cpp; map_pad.h */
 extern int pc_ui_menus;          /* project_settings.cpp; ui_shell */
 extern float pc_ui_menu_opacity; /* project_settings.cpp; ui_theme.cpp theme() */
 void pc_settings_save(void);
@@ -313,6 +315,13 @@ void build()
     g.push_back(toggle("environment", "Sun and sky", "Sunlight, moonlight and sky light in outdoor rooms.",
         &pc_env_global)
                     .grey(need_hw));
+    {
+        Row r = fslider("emissive", "Glowing surfaces",
+            "Window light, magic circles and lava glow: never darkened, they bloom and light the room. Off: as the PS1 drew them.",
+            &pc_emissive, 0, 2, 0.1f, "%.1f");
+        r.zero = "Off";
+        g.push_back(r.grey(need_hw));
+    }
 
     // Display
     static const char* const aspects[] = {"Keep aspect", "Stretch to window", "Integer scale"};
@@ -515,6 +524,11 @@ void build()
         "In the first-person view up looks down and down looks up (D-pad and right stick).", &pc_qol_fp_invert_y));
     c.push_back(toggle("qol_map_invert", "Invert map panning", "The map screen pans the other way on both axes.",
         &pc_qol_map_invert));
+    static const char* const MAP_CONTROLS[] = { "Modern", "Original" };
+    c.push_back(choice("qol_map_controls", "Map controls",
+        "Modern: the right stick turns and tilts the map, L2 and R2 zoom, the left stick pans. Original: the "
+        "PlayStation's (L2 or R2 with the right stick, the right stick pans).",
+        &pc_qol_map_controls, MAP_CONTROLS, 2));
     c.push_back(game_option("vibration", "Vibration",
         "The game's vibration setting. Saved with your game, not in settings.", PC_GAME_OPT_VIBRATION, OFF_ON, 2));
 

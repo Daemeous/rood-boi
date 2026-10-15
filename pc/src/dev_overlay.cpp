@@ -12,6 +12,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "emissive.h"
 #include "imgui.h"
 #include "imgui_internal.h" /* ClearActiveID (RPC editor_input) */
 #include "dev_state.h"
@@ -24,6 +25,7 @@
 #include "camera_stick.h"
 #include "ui/ui_shell.h"
 #include "ui/map_frame.h"
+#include "ui/data_frame.h"
 #include "ui/ui_workshop.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl3.h"
@@ -409,7 +411,7 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
              * against ImGui's pointer. A release always reaches ImGui: the
              * click that closed the shell must not leave its button held
              * there. */
-            if (!pc_ui_shell_drawn() && !pc_ui_map_visible() && !pc_ui_loot_visible()) {
+            if (!pc_ui_shell_drawn() && !pc_ui_map_visible() && !pc_ui_loot_visible() && !pc_ui_data_visible()) {
                 if (event->type == SDL_EVENT_MOUSE_BUTTON_UP)
                     ImGui_ImplSDL3_ProcessEvent(&scaled);
                 return 0;
@@ -448,6 +450,10 @@ static void update_relative_mouse()
 extern "C" void pc_ui_upscale_panel(void);
 static void graphics_panel()
 {
+    ImGui::SliderFloat("Glowing surfaces", &pc_emissive, 0.0f, 2.0f, pc_emissive <= 0 ? "Off" : "%.2f");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        ImGui::SetTooltip("Emissive texels (window light, magic circles, lava): never darkened, they feed bloom\n"
+                          "and, as lights, the ray-traced light. 0: the original picture. Details > Emissive edits them.");
     ImGui::SliderFloat("Overlay scale", &ui_scale, 0.75f, 4.0f, "%.2fx");
     if (ImGui::IsItemDeactivatedAfterEdit())
         apply_scale();
@@ -1445,7 +1451,7 @@ static void details(float x, float y, float w, float h, double frame_ms)
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse
             | ImGuiWindowFlags_NoSavedSettings);
     ImGui::PushItemWidth(-ImGui::GetFontSize() * 13);
-    ImGuiTabItemFlags select[6] = {};
+    ImGuiTabItemFlags select[7] = {};
     if (details_tab_request >= 0)
         select[details_tab_request] = ImGuiTabItemFlags_SetSelected;
     details_tab_request = -1;
@@ -1513,6 +1519,10 @@ static void details(float x, float y, float w, float h, double frame_ms)
             }
             if (ImGui::CollapsingHeader("Gameplay"))
                 gameplay_panel();
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Emissive", nullptr, select[6])) {
+            pc_emissive_panel(); /* emissive_editor.cpp: glowing textures */
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Diagnostics", nullptr, select[5])) {

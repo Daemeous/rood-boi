@@ -3,6 +3,7 @@
  * to draw; this file only draws it, in the order it is asked to. */
 #define _POSIX_C_SOURCE 200809L
 #include "vk_hw.h"
+#include "emissive.h"
 #include "vk_hooks.h"
 #include "vk_shaders.h"
 #include "ui_upscale.h"
@@ -60,6 +61,7 @@ typedef struct {
     int perspective, filtering, occlusion, pass;
     int ui_scale; /* the UI atlas's magnification (ui_upscale.c), 0: none */
     float text_factor; /* text's translucent pass: the PS1 mode's alpha factor */
+    int emissive; /* emissive texels: the slot map (binding 3) is read */
 } draw_push;
 typedef struct {
     int rect[4];
@@ -234,14 +236,17 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
     if (!make_targets(scale)
         || !vk_image_create(&vk_hw.vram, 1024, 512, VK_FORMAT_R16_UINT,
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+        || !vk_image_create(&vk_hw.emissive, PC_EMISSIVE_MAP_W, PC_EMISSIVE_MAP_H, VK_FORMAT_R8_UINT,
+            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
         || !vk_image_create(&vk_hw.dummy_depth, 1, 1, vk.depth_format,
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
         || !vk_image_create(&vk_hw.dummy_color, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT,
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT))
         return 0;
-    VkDescriptorType draw_types[3] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
-    draw_set = vk_push_layout(draw_types, 3);
+    VkDescriptorType draw_types[4] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
+    draw_set = vk_push_layout(draw_types, 4);
     upload_set = vk_push_layout(draw_types, 1);
     VkPushConstantRange draw_range = { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(draw_push) };
     VkPipelineLayoutCreateInfo layout = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -341,7 +346,30 @@ void pc_vk_hw_upload_tiles(const uint16_t* vram, uint32_t tiles)
     vk_barrier();
 }
 
+/* Emissive texels' slot map (emissive.h): rows [row0, row1) of the CPU copy. */
+void pc_vk_hw_upload_emissive(const uint8_t* map, int row0, int row1)
+{
+    if (row1 <= row0 || !vk_hw.emissive.image)
+        return;
+    vk_end_rendering();
+    VkDeviceSize bytes = (VkDeviceSize)(row1 - row0) * PC_EMISSIVE_MAP_W;
+    vk_slice slice = vk_arena(bytes, 16);
+    if (!slice.data)
+        return;
+    memcpy(slice.data, map + (size_t)row0 * PC_EMISSIVE_MAP_W, (size_t)bytes);
+    VkBufferImageCopy region = { .bufferOffset = slice.offset,
+        .bufferRowLength = PC_EMISSIVE_MAP_W,
+        .bufferImageHeight = (uint32_t)(row1 - row0),
+        .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .imageOffset = { 0, row0, 0 },
+        .imageExtent = { PC_EMISSIVE_MAP_W, (uint32_t)(row1 - row0), 1 } };
+    vkCmdCopyBufferToImage(vk_cmd(), slice.buffer, vk_hw.emissive.image, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
+    vk_barrier();
+}
+
 /* ---- packet batches ---- */
+
+int pc_hw_emissive(unsigned* texture); /* gpu_hw.c: the slot map is current; shaders read it */
 
 void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blend, const int* clip, int occlusion,
     const int* occlusion_rect)
@@ -364,8 +392,9 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
     vk_descriptors_image(&d, 1, fbo == VK_TOKEN_MS ? vk_hw.ms_room.view : vk_hw.room_depth.view, vk.nearest);
     VkImageView atlas = (VkImageView)pc_ui_upscale_vk_view();
     vk_descriptors_image(&d, 2, atlas ? atlas : vk_hw.vram.view, vk.nearest);
+    vk_descriptors_image(&d, 3, vk_hw.emissive.view, vk.nearest);
     draw_push push = { .perspective = pc_hw_perspective, .filtering = pc_hw_texture_filter, .occlusion = occlusion,
-        .ui_scale = atlas ? pc_ui_upscale_draw_factor() : 0 };
+        .ui_scale = atlas ? pc_ui_upscale_draw_factor() : 0, .emissive = pc_hw_emissive(NULL) };
     if (occlusion) {
         int s = vk_hw.scale;
         push.occlusion_rect[0] = (float)(occlusion_rect[0] * s);

@@ -507,8 +507,11 @@ static u_int clone_units(void)
 }
 
 /* Free the clone and give the world back. */
+static void backdrop_reset(void);
+
 void pc_ui_ashley_model_close(void)
 {
+    backdrop_reset(); /* every session (and a return from an original screen) waits its full time */
     if (!model.state)
         return;
     if (D_800F4538[1])
@@ -526,6 +529,7 @@ void pc_ui_ashley_model_close(void)
  * back. The view starts over at the next session. */
 void pc_ui_ashley_model_forget(void)
 {
+    backdrop_reset(); /* a soft reset inside the wait: the next game's first session waits afresh */
     if (model.state && pc_hw_detail_view)
         pc_hw_detail_view(0);
     model.state = 0;
@@ -566,6 +570,45 @@ static void publish(void)
     pc_ui_shell_set_ashley(&snap);
 }
 
+/* The presenters keep a picture of the world on each world present while
+ * the menu is up and show it, under the menu's ground at its opacity,
+ * behind the model (gl_present.c / vk_present.c "The modern menu's
+ * backdrop"); once the model is built every frame is the model's and none
+ * is kept. So the build waits (at most BACKDROP_WAIT ticks) for a picture
+ * taken with the field HUD slid out: two kept after the last tick that
+ * drew the HUD (a present may show an earlier tick's frame). Without it a
+ * menu opened straight onto this tab, or back from an original screen
+ * (MAINMENU resident: the build on the first tick), showed the ground
+ * alone (opaque, whatever ui_menu_opacity) or the HUD in the picture. */
+extern int pc_hw_active __attribute__((weak));                          /* gpu_hw.c */
+extern int pc_gl_menu_backdrop_kept(void) __attribute__((weak));       /* 0: none, else a count */
+extern int pc_vk_menu_backdrop_kept(void) __attribute__((weak));
+enum { BACKDROP_WAIT = 20 };
+static int backdrop_ticks, backdrop_need;
+static int backdrop_seen;              /* the keep count backdrop_ready last saw */
+static int built_kept = -1, built_need; /* at the last model build (RPC ui_menu backdrop_built; -1: none yet) */
+static void backdrop_reset(void) { backdrop_ticks = backdrop_need = 0; }
+static int backdrop_ready(void)
+{
+    int kept = (pc_gl_menu_backdrop_kept ? pc_gl_menu_backdrop_kept() : 0)
+             + (pc_vk_menu_backdrop_kept ? pc_vk_menu_backdrop_kept() : 0);
+    backdrop_seen = kept;
+    if (!&pc_hw_active || !pc_hw_active || ++backdrop_ticks > BACKDROP_WAIT)
+        return 1; /* (no presenter: nothing to keep) */
+    if (D_800EB9B0 != 0x200000)
+        backdrop_need = kept + 2;
+    return kept && kept >= backdrop_need;
+}
+
+/* Tests (RPC ui_menu backdrop_built): the presenter's keep count and the
+ * count the wait asked for when the model was last built (kept -1: none
+ * built yet). A build over a kept, HUD-free picture has kept >= need > 0. */
+void pc_ui_ashley_backdrop_built(int* kept, int* need)
+{
+    *kept = built_kept;
+    *need = built_need;
+}
+
 /* Every top-level tick, after the shell's (menu_bridge.c pc_ui_menu_top):
  * resident: MAINMENU drives the menu; held: a shell result waits. */
 void pc_ui_ashley_model_tick(int resident, int held)
@@ -576,15 +619,19 @@ void pc_ui_ashley_model_tick(int resident, int held)
     if (!pc_ui_shell_wants_model() || held || live) {
         model.blocked = live ? PC_UI_MODEL_FREE_CAMERA : PC_UI_MODEL_OK;
         pc_ui_ashley_model_close(); /* publishes when there was a model */
+        backdrop_reset();
         publish();
         return;
     }
     pc_ui_draw_model_column(model.rect);
     if (!model.state) {
-        if (!resident || !pc_weapon_slots_menu_can_load() || D_800F4538[1] || !D_800F4538[0]) {
+        if (!resident || !pc_weapon_slots_menu_can_load() || D_800F4538[1] || !D_800F4538[0]
+            || !backdrop_ready()) {
             publish();
             return;
         }
+        built_kept = backdrop_seen, built_need = backdrop_need;
+        backdrop_reset();
         model.need = clone_units();
         model.largest = heap_largest();
         if (model.largest < model.need) { /* the build would run out of heap: none (tried again next tick) */

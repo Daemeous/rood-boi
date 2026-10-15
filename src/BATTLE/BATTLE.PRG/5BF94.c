@@ -2965,9 +2965,19 @@ void _renderStatBar(int colorIndex, int current, int max)
             xy += (u_short)-7 | ((u_short)-2 << 0x10);
         }
         vs_battle_renderValue(1, xy, current, NULL);
+#ifdef ROOD_PC
+        /* The label (HP, MP, RISK) as an opaque sprite, like its digits: the
+         * original's semi-transparent one (0x180: GP0 0x66) blends its
+         * outline (CLUT entry 1, black with STP) half with the field, so the
+         * lettering's outline looks see-through beside the digits' solid one. */
+        vs_battle_setSpriteDefaultTexPage(0x80, D_800EBBEC[colorIndex] - D_800EB9B0,
+            D_800EBBFC[colorIndex] | 0x90000, prim)[4] =
+            D_800EBC00[colorIndex] | 0x37F60000;
+#else
         vs_battle_setSpriteDefaultTexPage(0x180, D_800EBBEC[colorIndex] - D_800EB9B0,
             D_800EBBFC[colorIndex] | 0x90000, prim)[4] =
             D_800EBC00[colorIndex] | 0x37F60000;
+#endif
     }
 }
 

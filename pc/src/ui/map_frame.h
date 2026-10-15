@@ -68,6 +68,10 @@ void pc_ui_map_frame_finish(int quit_state);
 /* 1 while the bridge frames run `run` (MENU5's latch alone is not enough: a
  * save state restores it without the host's model). */
 int pc_ui_map_framed(int run);
+/* processInput, after MENU5's own input (not on a paled area, not leaving):
+ * the right stick and the triggers by System > Controls "Map controls"
+ * (map_pad.h), framed or not; returns the commands state. */
+int pc_ui_map_pad(int cmd, short* pitch, short* yaw, int* distance, int* gx, int* gy);
 /* _renderScreen drew MENU5's own controls help (_drawUIControls): counted
  * (ui_menu JSON "map_controls"; never while framed). */
 void pc_ui_map_note_controls(void);

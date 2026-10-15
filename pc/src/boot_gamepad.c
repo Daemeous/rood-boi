@@ -17,6 +17,7 @@ static SDL_Gamepad* pad;
 static unsigned mask;
 static int fast_forward; /* L3 + R3 held (boot_window.c) */
 static float right_stick[2]; /* -1..1, SDL's direction (down is +y) */
+static float triggers[2];    /* L2, R2: their axis' travel past the press point (0..1), -1 not an axis */
 static const char* requested;
 static char requested_event[300];
 
@@ -173,6 +174,7 @@ void pc_controller_poll(void)
         mask = 0;
         fast_forward = 0;
         right_stick[0] = right_stick[1] = 0;
+        triggers[0] = triggers[1] = -1;
         return;
     }
     PcControllerState state;
@@ -191,12 +193,21 @@ void pc_controller_poll(void)
                 mask &= ~(1u << i);
     right_stick[0] = state.axes[SDL_GAMEPAD_AXIS_RIGHTX] / 32767.0f;
     right_stick[1] = state.axes[SDL_GAMEPAD_AXIS_RIGHTY] / 32767.0f;
+    for (int i = 0; i < 2; i++) { /* (pad bits 0 and 1: L2, R2) */
+        int e = pc_bind_pad[i] - PC_PAD_AXIS(0);
+        float t = (float)((e >= 0 && e < SDL_GAMEPAD_AXIS_COUNT ? state.axes[e] : 0) - PC_TRIGGER_PRESSED)
+                / (32767 - PC_TRIGGER_PRESSED);
+        triggers[i] = e < 0 || e >= SDL_GAMEPAD_AXIS_COUNT ? -1 : t < 0 ? 0 : t > 1 ? 1 : t;
+    }
 }
 
 unsigned pc_controller_buttons(void) { return mask; }
 int pc_controller_fast_forward(void) { return fast_forward; }
 /* The right stick (the PS1 pad stays digital: the camera reads it,
  * camera_stick.c); 0 without a gamepad. */
+/* L2 (0) or R2 (1) bound to an axis: how far past the press point it is
+ * (0..1; the map's zoom, ui/map_bridge.c); -1: a button, or no gamepad. */
+float pc_controller_trigger(int which) { return which == 0 || which == 1 ? triggers[which] : -1; }
 void pc_controller_right_stick(float out[2])
 {
     out[0] = right_stick[0] < -1 ? -1 : right_stick[0];

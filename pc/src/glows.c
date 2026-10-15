@@ -24,6 +24,7 @@
  *   tracers get up to 32 glows (strongest, with hysteresis), in id order. */
 #define _GNU_SOURCE
 #include "glow_overrides.h"
+#include "emissive.h" /* emissive texels that are lights (their room triangles glow) */
 #include "room_effects.h"
 #include "scene_capture.h"
 #include <math.h>
@@ -116,6 +117,7 @@ typedef struct {
 } room_group;
 static room_group groups[MAX_GROUPS];
 static int group_count, groups_serial = -1, save_point_room;
+static uint32_t groups_emissive; /* pc_emissive_light_serial() the groups were built with */
 static int* triangle_group; /* per room triangle: its group, -1 */
 static int triangle_group_size;
 
@@ -260,7 +262,7 @@ static void build_groups(void)
     int n = 0;
     for (int i = 0; i < count; i++) {
         triangle_group[i] = -1;
-        if (additive_room(&room[i]))
+        if (additive_room(&room[i]) || pc_emissive_room_light(i, NULL))
             glowing[n++] = i;
     }
     for (int a = 0; a < n; a++)
@@ -914,9 +916,11 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
         const char* e = getenv("ROOD_GLOW_SHAPES");
         pc_glow_shapes = e && *e ? atoi(e) : 1;
     }
-    if (pc_scene_serial() != groups_serial) {
-        /* A new room: new groups, new glows; overrides find theirs again. */
+    if (pc_scene_serial() != groups_serial || pc_emissive_light_serial() != groups_emissive) {
+        /* A new room (or other emissive lights): new groups, new glows;
+         * overrides find theirs again. */
         groups_serial = pc_scene_serial();
+        groups_emissive = pc_emissive_light_serial();
         build_groups();
         track_count = 0;
         spread_count = 0;

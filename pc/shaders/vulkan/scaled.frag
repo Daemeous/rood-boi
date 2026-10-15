@@ -400,6 +400,15 @@ void main() {
         return;
     }
     vec3 c = base(uv);
+    // Emissive texels (post bit 16; emissive.h): the shade target's alpha 0.25
+    // marks them, its rgb is their emission / 2. Kept above the lit result
+    // (never darkened), above 1 for bloom when the grade pass runs (bit 32).
+    bool em_px = false, lit_done = false;
+    vec3 em = vec3(0.0);
+    if ((post & 16) != 0 && view_mode != 1) {
+        vec4 es = texelFetch(shade_tex, texel(uv), 0);
+        if (abs(es.a - 0.25) < 0.05 && d > 0.0) { em_px = true; em = es.rgb * 2.0; }
+    }
     if ((light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || u.quality1.y != 0 || u.env_mode.z != 0) && view_mode != 1) {
         ivec2 q = texel(uv);
         vec4 n = texelFetch(normal_tex, q, 0);
@@ -463,15 +472,19 @@ void main() {
             if (view_mode == 5) { color = vec4(world_normal * 0.5 + 0.5, 1.0); return; }
             if (view_mode == 2) { c = vertex_light * 0.5; albedo = vec3(0.5); }
             c = c * baked * baked_vis * ao + albedo * sum;
+            if (em_px) c = max(c, em);
+            lit_done = true;
             if (u.fogvol.z != 0) { c = fogvol_apply(c, q, d); fogvol_done = true; }
             if (u.haze_grid.w != 0) { c = hazed(c, q, d); haze_done = true; }
             else if (u.quality0.x > 0.0) { c = low_haze(c, world); haze_done = true; }
             // Soft shoulder above 0.8 instead of clipping at white (lit pixels only).
-            if ((post & 8) == 0) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c)); // 8: HDR out
+            if ((post & 8) == 0 && !em_px) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c)); // 8: HDR out
             if (any(isnan(c)) || any(isinf(c))) c = base(uv);
         }
     }
     bool ui = d * 65536.0 < 0.5;
+    if (em_px && !lit_done) c = max(c, em); // unlit: the raster's colour has it up to 1
+    bool over = (post & 8) != 0 || (em_px && (post & 32) != 0);
     if (ui && u.backdrop.x != 0) // the menu's model view: the world behind, under the ground
         c = mix(u.backdrop.x == 2 ? texture(backdrop_tex, uv).rgb : u.backdrop_color.rgb, u.backdrop_color.rgb,
             u.backdrop_color.a);
@@ -482,7 +495,7 @@ void main() {
     if (u.haze_grid.w != 0 && !haze_done && !ui && d < 1.0 && view_mode != 1) c = hazed(c, texel(uv), d);
     else if (u.quality0.x > 0.0 && !haze_done && !ui && d < 1.0 && view_mode != 1)
         c = low_haze(c, world_at(texel(uv), d * 65536.0));
-    vec3 out_c = (post & 8) != 0 && !ui ? max(c, vec3(0.0)) : min(c, vec3(1.0));
+    vec3 out_c = over && !ui ? max(c, vec3(0.0)) : min(c, vec3(1.0));
     if ((post & 7) == 0 || ui) { color = vec4(out_c, ui ? 9999.0 : 0.0); return; }
     float sz = d >= 1.0 ? 65535.0 : d * 65536.0;
     if ((post & 4) != 0) {
@@ -509,5 +522,5 @@ void main() {
         float t = tilt.z * smoothstep(tilt.y, tilt.y + 0.25, abs(uv.y - tilt.x));
         coc = abs(coc) >= t ? coc : t;
     }
-    color = vec4((post & 8) != 0 ? max(c, vec3(0.0)) : min(c, vec3(1.0)), coc);
+    color = vec4(over ? max(c, vec3(0.0)) : min(c, vec3(1.0)), coc);
 }

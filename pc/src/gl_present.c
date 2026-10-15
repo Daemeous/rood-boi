@@ -14,6 +14,7 @@
 #include "lighting_quality.h"
 #include "antialias.h"
 #include "post.h"
+#include "emissive.h"
 #include <SDL3/SDL.h>
 #include <math.h> /* powf: brightness */
 #include <stdint.h>
@@ -524,7 +525,16 @@ static const char* scaled_fragment_source =
     "        return;\n"
     "    }\n"
     "    vec3 c = base(uv);\n"
-    "    bool haze_done = false, fogvol_done = false;\n"
+    "    bool haze_done = false, fogvol_done = false, lit_done = false;\n"
+    /* Emissive texels (post bit 16; emissive.h): the shade target's alpha
+     * 0.25 marks them, its rgb is their emission / 2. Kept above the lit
+     * result (never darkened), above 1 for bloom when the grade pass runs
+     * (post bit 32). */
+    "    bool em_px = false; vec3 em = vec3(0.0);\n"
+    "    if ((post & 16) != 0 && view_mode != 1) {\n"
+    "        vec4 es = texelFetch(shade_tex, texel(uv), 0);\n"
+    "        if (abs(es.a - 0.25) < 0.05 && d > 0.0) { em_px = true; em = es.rgb * 2.0; }\n"
+    "    }\n"
     "    if ((light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || quality1.y != 0 || env_mode.z != 0) && view_mode != 1) {\n"
     "        ivec2 q = texel(uv);\n"
     "        vec4 n = texelFetch(normal_tex, q, 0);\n"
@@ -588,6 +598,8 @@ static const char* scaled_fragment_source =
     "            if (view_mode == 5) { color = vec4(world_normal * 0.5 + 0.5, 1.0); return; }\n"
     "            if (view_mode == 2) { c = vertex_light * 0.5; albedo = vec3(0.5); }\n"
     "            c = c * baked * baked_vis * ao + albedo * sum;\n"
+    "            if (em_px) c = max(c, em);\n"
+    "            lit_done = true;\n"
     "            if (fogvol_on.x != 0) { c = fogvol_apply(c, q, d); fogvol_done = true; }\n" /* the fog volumes, then the haze */
     "            if ((gi_on & 128) != 0 && fog_density > 0.0) {\n" /* the traced haze (ptgi.c) between the eye and the surface */
     "                float transmittance_ = medium_transmittance(world);\n"
@@ -598,18 +610,20 @@ static const char* scaled_fragment_source =
     "                haze_done = true;\n"
     "            }\n"
     /* Soft shoulder above 0.8 instead of clipping at white (lit pixels only). */
-    "            if ((post & 8) == 0) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c));\n"
+    "            if ((post & 8) == 0 && !em_px) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c));\n"
     "            if (any(isnan(c)) || any(isinf(c))) c = base(uv);\n" /* never a black hole */
     "        }\n"
     "    }\n"
     "    bool ui = d * 65536.0 < 0.5;\n"
+    "    if (em_px && !lit_done) c = max(c, em);\n" /* unlit: the raster's colour has it up to 1 */
+    "    bool over = (post & 8) != 0 || (em_px && (post & 32) != 0);\n"
     "    if (ui && backdrop_mode != 0)\n" /* the menu's model view: the world behind, under the ground */
     "        c = mix(backdrop_mode == 2 ? texture(backdrop_tex, vec2(uv.x, 1.0 - uv.y)).rgb : backdrop_color.rgb,\n"
     "            backdrop_color.rgb, backdrop_color.a);\n"
     "    if (fogvol_on.x != 0 && !fogvol_done && !ui && view_mode != 1) c = fogvol_apply(c, texel(uv), d);\n" /* unlit, and where nothing is drawn */
     "    if (quality0.x > 0.0 && !haze_done && !ui && d < 1.0 && view_mode != 1)\n" /* unlit 3D pixels */
     "        c = low_haze(c, world_at(texel(uv), d * 65536.0));\n"
-    "    vec3 out_c = (post & 8) != 0 && !ui ? max(c, vec3(0.0)) : min(c, vec3(1.0));\n"
+    "    vec3 out_c = over && !ui ? max(c, vec3(0.0)) : min(c, vec3(1.0));\n"
     "    if ((post & 7) == 0 || ui) { color = vec4(out_c, ui ? 9999.0 : 0.0); return; }\n"
     "    float sz = d >= 1.0 ? 65535.0 : d * 65536.0;\n"
     "    if ((post & 4) != 0) {\n"
@@ -636,7 +650,7 @@ static const char* scaled_fragment_source =
     "        float t = tilt.z * smoothstep(tilt.y, tilt.y + 0.25, abs(uv.y - tilt.x));\n"
     "        coc = abs(coc) >= t ? coc : t;\n"
     "    }\n"
-    "    color = vec4((post & 8) != 0 ? max(c, vec3(0.0)) : min(c, vec3(1.0)), coc);\n"
+    "    color = vec4(over ? max(c, vec3(0.0)) : min(c, vec3(1.0)), coc);\n"
     "}\n";
 static GLuint scaled_program;
 static GLint u_scaled_rect, u_scaled_scale, u_scaled_target, u_scaled_filtered, u_scaled_view;
@@ -1278,6 +1292,10 @@ extern int pc_ui_menu_backdrop(float rgba[4]) __attribute__((weak));    /* ui/ui
 extern int pc_hw_present_menu_model(void) __attribute__((weak));        /* gpu_hw.c */
 static view_target backdrop;
 static int backdrop_valid;
+static unsigned backdrop_keeps; /* pictures kept so far (each world present while the menu is up) */
+/* 0 while no picture of the world is kept for the model view, else the count of pictures kept so far
+ * (ashley_bridge.c waits for one taken with the HUD slid out; RPC ui_menu backdrop_kept). */
+int pc_gl_menu_backdrop_kept(void) { return backdrop_valid ? (int)(backdrop_keeps & 0x3FFFFFFF) + 1 : 0; }
 /* Before the present shader's draw: 0 not the model view; 1 the ground alone (no picture kept); 2 the
  * picture kept (bound to unit 18). */
 static int backdrop_bind(void)
@@ -1318,6 +1336,7 @@ static void backdrop_keep(int view_x, int view_y, int view_w, int view_h)
     gl_BlitFramebuffer(x, y, x + view_w, y + view_h, 0, 0, view_w, view_h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
     backdrop_valid = 1;
+    ++backdrop_keeps;
 }
 
 static void brightness_draw(int view_x, int view_y)
@@ -1665,7 +1684,8 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
             gl_Uniform1i(u_scaled_show_depth, pc_gl_show_depth);
             const pc_post_frame* pf = &post_frame;
             /* 8: HDR out, when the grade pass (below) runs and tone maps (post.h hdr). */
-            gl_Uniform1i(u_post, pf->flags | (pf->hdr && !pc_gl_show_depth && grade_ready ? 8 : 0));
+            gl_Uniform1i(u_post, pf->flags | (pf->hdr && !pc_gl_show_depth && grade_ready ? 8 : 0)
+                    | (pc_emissive_active() ? 16 : 0) | (!pc_gl_show_depth && grade_ready ? 32 : 0));
             gl_Uniform1f(u_focus, pf->focus_sz);
             gl_Uniform1f(u_dof_radius, pf->dof_radius * lit_h / 720.0f);
             gl_Uniform1f(u_aperture, pf->aperture);
@@ -1848,6 +1868,10 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
             gl_ActiveTexture(GL_TEXTURE1);
             gl_BindTexture(GL_TEXTURE_2D, pc_hw_depth_texture());
             gl_Uniform1i(u_scaled_depth, 1);
+            /* The shade target also marks emissive texels (post bit 16), lit or not. */
+            gl_ActiveTexture(GL_TEXTURE12);
+            gl_BindTexture(GL_TEXTURE_2D, pc_hw_shade_texture());
+            gl_Uniform1i(u_shade_tex, 12);
             gl_ActiveTexture(GL_TEXTURE0);
         } else {
             gl_BindTexture(GL_TEXTURE_2D, vram_texture);

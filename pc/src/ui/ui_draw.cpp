@@ -5,6 +5,7 @@
 // (ui_equip_draw.cpp, ui_ashley_draw.cpp, ui_system_draw.cpp, ui_abilities_draw.cpp, ui_magick_draw.cpp).
 #include "ui/ui_draw_internal.h"
 #include "ui/map_frame.h"
+#include "ui/data_frame.h"
 #include "ui/ui_settings.h"
 #include "button_prompts.h"
 #include "imgui_internal.h" /* ImTextCharFromUtf8 */
@@ -196,8 +197,10 @@ Pointer forced_pointer;
 // kinds: a click is a request for the map screen). steps_lit false: the
 // L1 / R1 icons dimmed (the pad's L1 / R1 do something else there; the
 // clicks still step). Returns its base line.
-float uidraw::draw_tabs(const Frame& f, const ui::Theme& t, int cur, Pointer& m, float dt, bool map, bool steps_lit)
+float uidraw::draw_tabs(const Frame& f, const ui::Theme& t, int cur, Pointer& m, float dt, int mode, bool steps_lit)
 {
+    bool map = mode == 1, data = mode == 2;
+    int tab_kind = map ? (int)PC_UI_MOUSE_MAP_TAB : data ? (int)PC_UI_MOUSE_DATA_TAB : (int)PC_UI_MOUSE_TAB;
     float left = t.margin_x + 44, right = f.W - t.margin_x - 44, y = t.top + 13;
     enum { MAX_TABS = 16 };
     int n = pc_ui_shell_tab_count();
@@ -211,13 +214,15 @@ float uidraw::draw_tabs(const Frame& f, const ui::Theme& t, int cur, Pointer& m,
     }
     float gap = n > 1 ? ((right - left) - total) / (n - 1) : 0, x = left;
     for (int i = 0; i < n; ++i) {
-        bool over = m.hit(map ? (int)PC_UI_MOUSE_MAP_TAB : (int)PC_UI_MOUSE_TAB, i, x - gap * 0.5f, t.top,
-            x + widths[i] + gap * 0.5f, t.top + t.tab_height);
+        bool over = m.hit(tab_kind, i, x - gap * 0.5f, t.top, x + widths[i] + gap * 0.5f, t.top + t.tab_height);
         if (map && i != cur)
             pc_ui_map_hit_record(PC_UI_MOUSE_MAP_TAB, i, x - gap * 0.5f, t.top, x + widths[i] + gap * 0.5f,
                 t.top + t.tab_height);
-        if (map && i == cur && over)
-            m.kind = PC_UI_MOUSE_NONE; // the tab the map is on: nothing to do
+        if (data)
+            pc_ui_data_hit_record(PC_UI_MOUSE_DATA_TAB, i, x - gap * 0.5f, t.top, x + widths[i] + gap * 0.5f,
+                t.top + t.tab_height);
+        if ((map || data) && i == cur && over)
+            m.kind = PC_UI_MOUSE_NONE; // the tab the frame is on: nothing to do
         text(f, fonts.label, t.tab_size, x, y, i == cur ? t.bone : over ? t.ash : t.dim, titles[i].c_str(), 0.3f);
         if (i == cur) {
             if (last_tab < 0)
@@ -233,8 +238,8 @@ float uidraw::draw_tabs(const Frame& f, const ui::Theme& t, int cur, Pointer& m,
     float tab_cy = y + t.tab_size * 0.5f + 1;
     unsigned step_tint = steps_lit ? 0xFFFFFFFFu : (t.dim | 0xFF000000u), step_text = steps_lit ? t.ash : t.dim;
     float lw = glyph(f, PC_PROMPT_L1, 20, 0, 0, true);
-    if (map)
-        m.hit(PC_UI_MOUSE_MAP_TAB, pc_ui_shell_step_tab(-1), t.margin_x - 6, t.top, t.margin_x + 34, t.top + t.tab_height);
+    if (map || data)
+        m.hit(tab_kind, pc_ui_shell_step_tab(-1), t.margin_x - 6, t.top, t.margin_x + 34, t.top + t.tab_height);
     else
         m.hit(PC_UI_MOUSE_BUTTON, PC_UI_TAB_PREV, t.margin_x - 6, t.top, t.margin_x + 34, t.top + t.tab_height);
     if (lw > 0)
@@ -242,8 +247,8 @@ float uidraw::draw_tabs(const Frame& f, const ui::Theme& t, int cur, Pointer& m,
     else
         text(f, fonts.data, 10, t.margin_x, y + 3, step_text, "L1");
     float rw = glyph(f, PC_PROMPT_R1, 20, 0, 0, true);
-    if (map)
-        m.hit(PC_UI_MOUSE_MAP_TAB, pc_ui_shell_step_tab(1), f.W - t.margin_x - 34, t.top, f.W - t.margin_x + 6,
+    if (map || data)
+        m.hit(tab_kind, pc_ui_shell_step_tab(1), f.W - t.margin_x - 34, t.top, f.W - t.margin_x + 6,
             t.top + t.tab_height);
     else
         m.hit(PC_UI_MOUSE_BUTTON, PC_UI_TAB_NEXT, f.W - t.margin_x - 34, t.top, f.W - t.margin_x + 6,
@@ -263,7 +268,8 @@ Pointer read_pointer(const Frame& f)
 {
     Pointer m;
     ImGuiIO& io = ImGui::GetIO();
-    bool shown = pc_ui_loot_visible() || pc_ui_map_visible() || (pc_ui_shell_visible() && !pc_ui_shell_holding());
+    bool shown = pc_ui_loot_visible() || pc_ui_map_visible() || pc_ui_data_visible()
+        || (pc_ui_shell_visible() && !pc_ui_shell_holding());
     if (forced) {
         forced = false;
         if (!shown)
@@ -309,10 +315,28 @@ void send_pointer(const Pointer& m)
         mouse(PC_UI_MOUSE_NONE, 0, 0, m.wheel);
 }
 
+// The Data frame's pointer: goals and the soft highlight (ui_data.cpp). A
+// footer hint is its button's verb.
+void send_data_pointer(const Pointer& m)
+{
+    if (!m.ok)
+        return;
+    int kind = m.kind == PC_UI_MOUSE_BUTTON ? (int)PC_UI_MOUSE_DATA_BUTTON : m.kind;
+    if (kind != PC_UI_MOUSE_NONE && kind != PC_UI_MOUSE_DATA_PANEL)
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    if (m.right)
+        pc_ui_data_mouse(PC_UI_MOUSE_NONE, 0, 0, 0, 1);
+    else if (m.clicked)
+        pc_ui_data_mouse(kind, m.index, 1, 0, 0);
+    else if (m.moved || m.wheel != 0)
+        pc_ui_data_mouse(kind, m.index, 0, m.wheel, 0);
+}
+
 // The Loot screen (a direct session: no tabs): the backdrop, its title where
 // the tabs go, its body (ui_loot_draw.cpp) and the footer.
 void draw_footer(const Frame& f, const ui::Theme& t, const ScreenOut& out, bool held, Pointer& m);
 bool direct_shown = false; // the Loot screen was drawn last frame
+bool data_shown = false;   // the Data screen was drawn last frame
 void draw_direct(const Frame& f, const ui::Theme& t, float dt)
 {
     Pointer m = read_pointer(f);
@@ -477,7 +501,8 @@ extern "C" void pc_ui_draw_model_column(float out[4])
 
 extern "C" int pc_ui_shell_wants_mouse(void)
 {
-    if ((!pc_ui_shell_drawn() && !pc_ui_loot_visible() && !pc_ui_map_visible()) || pc_gl_view[2] <= 0
+    if ((!pc_ui_shell_drawn() && !pc_ui_loot_visible() && !pc_ui_map_visible() && !pc_ui_data_visible())
+        || pc_gl_view[2] <= 0
         || pc_gl_view[3] <= 0 || !ImGui::IsMousePosValid())
         return 0;
     ImVec2 p = ImGui::GetIO().MousePos;
@@ -489,10 +514,12 @@ extern "C" void pc_ui_draw_frame(float dt)
 {
     // the System pages' save debounce (ui_settings.cpp): every frame, shell up or not
     pc_ui_settings_tick(ImGui::GetTime());
-    if ((!pc_ui_shell_drawn() && !pc_ui_loot_visible() && !pc_ui_map_visible()) || pc_gl_view[2] <= 0
+    if ((!pc_ui_shell_drawn() && !pc_ui_loot_visible() && !pc_ui_map_visible() && !pc_ui_data_visible())
+        || pc_gl_view[2] <= 0
         || pc_gl_view[3] <= 0) {
         last_tab = -1; // the next open places the ink and focus at once
         direct_shown = false;
+        data_shown = false;
         forced = false; // a test pointer is for a shown shell only
         return;
     }
@@ -517,8 +544,28 @@ extern "C" void pc_ui_draw_frame(float dt)
         int tab = pc_ui_shell_tab();
         draw_map_frame(f, t, dt, m);
         last_tab = tab;
+        data_shown = false;
         return;
     }
+    // the native Data screen: the game's save / load screen (MENU7) drawn
+    // natively from its published state (ui_data_draw.cpp), while fresh
+    if (pc_ui_data_visible() && !pc_ui_shell_drawn()) {
+        int tab = pc_ui_shell_tab();
+        ScreenOut out;
+        if (!data_shown)
+            last_tab = -1; // the tab ink at once
+        data_shown = true;
+        draw_data_frame(f, t, dt, m, out);
+        draw_footer(f, t, out, false, m);
+        if (out.fade > 0) // the load's fade over everything, the footer too
+            f.dl->AddRectFilled(ImVec2((float)pc_gl_view[0], (float)pc_gl_view[1]),
+                ImVec2((float)(pc_gl_view[0] + pc_gl_view[2]), (float)(pc_gl_view[1] + pc_gl_view[3])),
+                fade(0xFF000000u, out.fade));
+        send_data_pointer(m);
+        last_tab = tab;
+        return;
+    }
+    data_shown = false;
     bool held = pc_ui_shell_holding() && !pc_ui_shell_visible();
 
     // backdrop over the game picture: the ground colour at the menus' opacity (ui_menu_opacity; ui_theme.cpp).

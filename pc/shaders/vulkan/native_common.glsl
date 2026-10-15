@@ -35,6 +35,7 @@ layout(std140, binding = 0) uniform Draw {
     vec2 room_slack; // 272: surface_test 4: relative, absolute (GTE units)
     int room_order; // 280: a room list's ordered pass: depth is the PS1 draw order key
     int layer_slack; // 284: objects, other room blocks: tested room_slack nearer (1), and written so into the surfaces (2)
+    int emissive; // 288: emissive texels: the slot map (binding 6) is read
 } u;
 // Animated materials (render_list_uv_effects), entry 0 none: the UV offset
 // the game's effect writes this frame (offset.xy), its window (base u, v,

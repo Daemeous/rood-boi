@@ -272,6 +272,9 @@ int render_list_translucent_triangles(uint32_t list, render_triangle_sink emit, 
 /* Inside a render_triangle_sink: the polygon's source tag (render_polygon
  * .source) and its instance's mesh handle (glow identity, glows.c). */
 void render_emit_tag(uint32_t* source, uint32_t* mesh);
+/* Inside a render_triangle_sink: the polygon the triangle belongs to (its
+ * four UVs: the texture's UV box, emissive_editor.cpp). */
+const render_polygon* render_emit_polygon(void);
 
 /* Blend two palettes of one model (bones each) at t as frame interpolation
  * does (pc_interp_skeleton: rotations through the skeleton found in them;

@@ -16,6 +16,7 @@ layout(location = 9) flat in int v_cut;
 layout(location = 10) noperspective in vec3 v_bary;
 layout(location = 11) flat in uint v_order;
 layout(binding = 2) uniform usampler2D vram;
+layout(binding = 6) uniform usampler2D emissive_map; // emissive texels' slot map (emissive.glsl)
 // MSAA (native_ms.frag): the surfaces' depth read from multisampled twins, sample 0.
 #ifdef SURFACE_MS
 layout(binding = 3) uniform sampler2DMS surface_depth;
@@ -29,6 +30,7 @@ layout(location = 1) out vec4 normal_out;
 layout(location = 2) out vec4 albedo_out;
 layout(location = 3) out vec4 shade_out;
 #include "vram.glsl"
+#include "emissive.glsl"
 // An animated material between game frames: texels past the effect's
 // window wrap back by its period (the game's scroll wraps there).
 ivec2 uv_wrap(ivec2 t, uint e, float k) {
@@ -143,6 +145,11 @@ void main() {
         c = (code & 1u) != 0u ? texel / 31.0 : min(texel * v_color * (255.0 / 128.0), 31.0) / 31.0;
         albedo = texel / 31.0;
         shade = (code & 1u) != 0u ? vec4(vec3(128.0 / 255.0), 1.0) : vec4(v_color, 1.0);
+        // Emissive texels (emissive.glsl): never darkened; the shade carries the emission.
+        if (u.emissive != 0) {
+            vec3 em = emissive_texel(at.x & 255u, at.y & 255u, tpage, u.window, t);
+            if (any(greaterThan(em, vec3(0.0)))) { c = max(c, min(em, vec3(1.0))); shade = vec4(min(em * 0.5, vec3(1.0)), 0.25); }
+        }
     }
     if ((u.semi_pass == 1 && semi) || (u.semi_pass == 2 && !semi)) discard;
     color = vec4(c, float(mask));

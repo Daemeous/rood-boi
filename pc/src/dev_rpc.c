@@ -26,6 +26,9 @@
  *                                polling status (rood_rpc.Game.wait_paused)
  *   input {buttons, vsyncs}      hold buttons ("circle", "up", ...) for N vsyncs;
  *         {right_stick: [x, y]}  and/or hold the right stick (-1..1, down +y)
+ *         {triggers: [l2, r2]}   and/or the triggers' analog travel (0..1 past
+ *                                the press point; the map's zoom, map_pad.h;
+ *                                the L2 / R2 bits still come from buttons)
  *   camera_stick {...}           the right-stick camera (camera_stick.c):
  *                                settings (enabled, speed, deadzone, curve,
  *                                invert_x, invert_y, zoom, zoom_speed,
@@ -34,10 +37,12 @@
  *                                replies the settings and its state (with
  *                                the first-person look: first_person,
  *                                fp_looks, fp_step)
- *   camera_options {map_invert, fp_invert_y}  settings qol_map_invert (the
- *                                map screen's panning) and qol_fp_invert_y
- *                                (first-person up/down): sets them, replies
- *                                both
+ *   camera_options {map_invert, map_controls, fp_invert_y}  settings
+ *                                qol_map_invert (the map screen's panning),
+ *                                qol_map_controls (its right stick and
+ *                                triggers: 0 Modern, 1 Original) and
+ *                                qol_fp_invert_y (first-person up/down):
+ *                                sets them, replies all three
  *   weapon_slots {enabled}       the QoL weapon slots (weapon_slots.c,
  *                                settings key qol_weapon_slots): sets the
  *                                option; replies it, the overlay/assign/swap
@@ -54,7 +59,11 @@
  *   ui_menu {modern}             modern menus (pc/src/ui): sets ui_menus,
  *                                returns the shell (visible, menus, tab,
  *                                tabs, rows, row; loot while the Loot screen
- *                                shows; battle builds); {text, key}: typed
+ *                                shows; backdrop_kept: the presenter holds a
+ *                                picture of the world for the Ashley tab;
+ *                                backdrop_built: [keeps, need] at the
+ *                                Ashley model's last build;
+ *                                battle builds); {text, key}: typed
  *                                into the Workshop's name field as the
  *                                keyboard types (key: backspace, delete,
  *                                left, right, home, end, enter, escape)
@@ -410,7 +419,7 @@ extern void pc_scene_bounds(float*, float*) __attribute__((weak));
 extern int pc_scene_camera_get(float (*)[3], float*, float*, float*, float*) __attribute__((weak));
 extern void pc_rpc_state(char* out, unsigned size) __attribute__((weak)); /* dev_state.c */
 extern int pc_qol_weapon_slots; /* project_settings.cpp */
-extern int pc_qol_map_invert, pc_qol_fp_invert_y; /* project_settings.cpp */
+extern int pc_qol_map_invert, pc_qol_fp_invert_y, pc_qol_map_controls; /* project_settings.cpp */
 extern void pc_weapon_slots_json(char* out, unsigned size) __attribute__((weak)); /* weapon_slots.c */
 extern int pc_ui_menus; /* project_settings.cpp */
 extern void pc_ui_shell_json(char* out, unsigned size); /* ui/ui_shell.cpp */
@@ -499,6 +508,8 @@ static struct hold {
 } holds[16];
 static float stick_hold[2]; /* input {right_stick: [x, y]} */
 static long stick_vsyncs;
+static float trigger_hold[2]; /* input {triggers: [l2, r2]} */
+static long trigger_vsyncs;
 
 /* ---- minimal JSON reading: enough for flat request objects ---- */
 
@@ -740,6 +751,15 @@ static int parse_buttons(const char* v, unsigned* mask)
 }
 
 /* The right stick the RPC holds (camera_stick.c), -1..1 (down is +y). */
+/* RPC input {triggers}: the triggers' analog travel while held (ui/map_bridge.c). */
+int pc_rpc_triggers(float out[2])
+{
+    if (trigger_vsyncs <= 0)
+        return 0;
+    out[0] = trigger_hold[0];
+    out[1] = trigger_hold[1];
+    return 1;
+}
 int pc_rpc_stick(float out[2])
 {
     if (stick_vsyncs <= 0)
@@ -881,11 +901,26 @@ static void handle_method(int fd, const char* request)
         reply(fd, id, result);
     } else if (!strcmp(method, "input")) {
         unsigned mask;
-        double stick[2];
+        double stick[2], trig[2];
         int has_stick = params && pair_value(member(params, "right_stick"), stick);
         n = 2;
         if (params)
             number_value(member(params, "vsyncs"), &n);
+        if (params && pair_value(member(params, "triggers"), trig)) {
+            if (n < 1) {
+                fail(fd, id, -32602, "bad vsyncs");
+                return;
+            }
+            for (int k = 0; k < 2; k++)
+                trigger_hold[k] = (float)(trig[k] < 0 ? 0 : trig[k] > 1 ? 1 : trig[k]);
+            trigger_vsyncs = (long)n;
+            if (!has_stick && !member(params, "buttons")) {
+                snprintf(result, sizeof result, "{\"triggers\":[%g,%g],\"vsyncs\":%lld}", trigger_hold[0],
+                    trigger_hold[1], n);
+                reply(fd, id, result);
+                return;
+            }
+        }
         if (has_stick) {
             /* The right stick for N vsyncs (the camera, camera_stick.c);
              * buttons are optional with it. */
@@ -957,14 +992,17 @@ static void handle_method(int fd, const char* request)
         pc_camera_stick_json(result, sizeof result);
         reply(fd, id, result);
     } else if (!strcmp(method, "camera_options")) {
-        /* Map panning and first-person up/down (MENU5, BATTLE func_8006EC7C). */
+        /* Map panning, the map's stick and triggers (0 Modern, 1 Original; ui/map_pad.h) and
+         * first-person up/down (MENU5, BATTLE func_8006EC7C). */
         int flag;
         if (params && bool_value(member(params, "map_invert"), &flag))
             pc_qol_map_invert = flag;
+        if (params && number_value(member(params, "map_controls"), &n) && n >= 0 && n <= 1)
+            pc_qol_map_controls = (int)n;
         if (params && bool_value(member(params, "fp_invert_y"), &flag))
             pc_qol_fp_invert_y = flag;
-        snprintf(result, sizeof result, "{\"map_invert\":%d,\"fp_invert_y\":%d}", pc_qol_map_invert != 0,
-            pc_qol_fp_invert_y != 0);
+        snprintf(result, sizeof result, "{\"map_invert\":%d,\"map_controls\":%d,\"fp_invert_y\":%d}",
+            pc_qol_map_invert != 0, pc_qol_map_controls, pc_qol_fp_invert_y != 0);
         reply(fd, id, result);
     } else if (!strcmp(method, "weapon_slots")) {
         /* The QoL weapon slots (weapon_slots.c): the option and the state. */
@@ -1059,6 +1097,21 @@ static void handle_method(int fd, const char* request)
             return;
         }
         pc_ui_shell_json(result, sizeof result);
+        /* backdrop_kept: the presenter holds a picture of the world for the Ashley tab's model view
+         * (gl_present.c / vk_present.c "The modern menu's backdrop") */
+        extern int pc_gl_menu_backdrop_kept(void) __attribute__((weak));
+        extern int pc_vk_menu_backdrop_kept(void) __attribute__((weak));
+        extern void pc_ui_ashley_backdrop_built(int* kept, int* need); /* ui/ashley_bridge.c */
+        size_t len = strlen(result);
+        if (len > 1 && result[len - 1] == '}' && len + 64 < sizeof result) {
+            /* (only the active presenter keeps one) */
+            int kept = (pc_gl_menu_backdrop_kept && pc_gl_menu_backdrop_kept() != 0)
+                    || (pc_vk_menu_backdrop_kept && pc_vk_menu_backdrop_kept() != 0);
+            int built_kept, built_need;
+            pc_ui_ashley_backdrop_built(&built_kept, &built_need);
+            snprintf(result + len - 1, sizeof result - len + 1, ",\"backdrop_kept\":%d,\"backdrop_built\":[%d,%d]}",
+                kept, built_kept, built_need);
+        }
         reply(fd, id, result);
     } else if (!strcmp(method, "loot")) {
         /* Tests: the loot menu opened as the game opens it (ui/loot_bridge.c
@@ -1124,7 +1177,7 @@ static void handle_method(int fd, const char* request)
         reply(fd, id, result);
     } else if (!strcmp(method, "release")) {
         memset(holds, 0, sizeof holds);
-        stick_vsyncs = 0;
+        stick_vsyncs = trigger_vsyncs = 0;
         reply(fd, id, "{}");
     } else if (!strcmp(method, "screenshot")) {
         char path[400];
@@ -1141,6 +1194,7 @@ static void handle_method(int fd, const char* request)
         reply(fd, id, result);
     } else if (!strcmp(method, "graphics")) {
         static const char* const denoiser_names[3] = { "raw", "filter", "nrd" };
+        double real_emissive;
         if (!&pc_gl_filter || !&pc_hw_scale) {
             fail(fd, id, -32000, "no OpenGL presentation");
             return;
@@ -1538,6 +1592,11 @@ static void handle_method(int fd, const char* request)
                 else if (real_value(member(params, key), &real))
                     pc_glow_category[c][f] = (float)real;
             }
+        /* Emissive texels' strength (emissive.cpp: 0 off, up to 2 in the menus, 4 here). */
+        extern float pc_emissive __attribute__((weak));
+        if (params && &pc_emissive && real_value(member(params, "emissive"), &real_emissive) && real_emissive >= 0
+            && real_emissive <= 4)
+            pc_emissive = (float)real_emissive;
         int used = snprintf(result, sizeof result,
             "{\"hardware\":%s,\"scale\":%d,\"filter\":%d,\"aspect\":%d,\"widescreen\":%s,\"widescreen_scene\":%d,"
             "\"perspective\":%s,\"show_depth\":%s,\"native_room\":%d,\"native_occlusion\":%s,"
@@ -1562,6 +1621,8 @@ static void handle_method(int fd, const char* request)
             denoiser_names[pc_gi_denoiser_active ? pc_gi_denoiser_active() : 1],
             vk_nrd_built && vk_nrd_built() ? "true" : "false", vk_nrd_available && vk_nrd_available() ? "true" : "false",
             &pc_nrd_glow && pc_nrd_glow ? "true" : "false");
+        if (&pc_emissive && used < (int)sizeof result - 64)
+            used += snprintf(result + used - 1, sizeof result - used + 1, ",\"emissive\":%g}", (double)pc_emissive) - 1;
         if (&pc_gameplay_walls && used < (int)sizeof result - 200)
             used += snprintf(result + used - 1, sizeof result - used + 1,
                         ",\"gameplay_walls\":\"%s\",\"gameplay_walls_ghost\":%d,\"gameplay_walls_opacity\":%g,"
@@ -1967,6 +2028,27 @@ static void handle_method(int fd, const char* request)
                     regions[k][1], regions[k][2], regions[k][3], regions[k][4]);
             snprintf(result + used, sizeof result - used, "]}");
         }
+        reply(fd, id, result);
+    } else if (!strcmp(method, "card")) {
+        /* Tests that save (memory_card.c): {fail_writes: 0|1} refuses the card's writes (as the Room
+         * Browser's warp does), {unformatted: 0|1} makes the cards read as unformatted until one is
+         * formatted; the result: data writes made so far ("writes") and the flags. */
+        extern unsigned pc_card_write_count(void);
+        extern void pc_card_test_flags(int fail, int new_card);
+        extern void pc_card_test_state(int* fail, int* new_card);
+        int fail = -1, fresh = -1, flag;
+        if (params && bool_value(member(params, "fail_writes"), &flag))
+            fail = flag;
+        else if (params && number_value(member(params, "fail_writes"), &n))
+            fail = n != 0;
+        if (params && bool_value(member(params, "unformatted"), &flag))
+            fresh = flag;
+        else if (params && number_value(member(params, "unformatted"), &n))
+            fresh = n != 0;
+        pc_card_test_flags(fail, fresh);
+        pc_card_test_state(&fail, &fresh);
+        snprintf(result, sizeof result, "{\"writes\":%u,\"fail_writes\":%d,\"unformatted\":%d}",
+            pc_card_write_count(), fail, fresh);
         reply(fd, id, result);
     } else if (!strcmp(method, "system")) {
         /* System settings that live outside project_settings' variables (window mode: boot_window.c, master
@@ -2569,6 +2651,26 @@ static void handle_method(int fd, const char* request)
             strcpy(args, "{}");
         }
         if (pc_actors_rpc(method, args, result, sizeof result) < 0) {
+            fail(fd, id, -32000, result);
+            return;
+        }
+        reply(fd, id, result);
+    } else if (!strcmp(method, "emissive")) {
+        /* Emissive texels (emissive_editor.cpp parses the params object). */
+        extern int pc_emissive_rpc(const char* params, char* out, int size) __attribute__((weak));
+        if (!pc_emissive_rpc) {
+            fail(fd, id, -32000, "emissive needs the hardware renderer");
+            return;
+        }
+        static char args[LINE_MAX_BYTES];
+        const char* end = params ? value_end(params) : NULL;
+        if (params && end && (size_t)(end - params) < sizeof args) {
+            memcpy(args, params, (size_t)(end - params));
+            args[end - params] = 0;
+        } else {
+            strcpy(args, "{}");
+        }
+        if (pc_emissive_rpc(args, result, sizeof result) < 0) {
             fail(fd, id, -32000, result);
             return;
         }
@@ -3393,6 +3495,8 @@ void pc_rpc_poll(void)
             --holds[i].vsyncs;
     if (stick_vsyncs > 0)
         --stick_vsyncs;
+    if (trigger_vsyncs > 0)
+        --trigger_vsyncs;
     if (listener >= 0)
         service();
     take_snapshot();

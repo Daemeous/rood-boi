@@ -22,7 +22,8 @@ extern "C" {
 
 extern "C" {
 extern int pc_hw_active, pc_hw_interpolate, pc_hw_scale_setting, pc_gl_aspect, pc_gte_widescreen, pc_ui_menus,
-    pc_gameplay_walls, pc_button_prompts, pc_qol_map_invert, pc_qol_skip_charging;
+    pc_gameplay_walls, pc_button_prompts, pc_qol_map_invert, pc_qol_map_controls, pc_qol_skip_charging;
+extern float pc_emissive;
 }
 
 static int failures;
@@ -72,16 +73,27 @@ static void pages()
         CHECK(!std::strcmp(pc_ui_settings_page_title(p), titles[p]));
     CHECK(!std::strcmp(pc_ui_settings_page_id(D), "display"));
     CHECK(pc_ui_settings_page_title(7) == nullptr);
-    CHECK(pc_ui_settings_rows(G) == 15);
+    CHECK(pc_ui_settings_rows(G) == 16);
+    // Glowing surfaces (emissive): after Sun and sky, a slider 0..2, Off at 0
+    CHECK(find(G, "emissive") == find(G, "environment") + 1);
+    CHECK(value(G, "emissive") == "1.0");
+    pc_emissive = 0;
+    CHECK(value(G, "emissive") == "Off");
+    pc_emissive = 1.0f;
     CHECK(pc_ui_settings_rows(D) == 8); // Images per vsync shows: interpolation is on
     CHECK(pc_ui_settings_rows(A) == (game ? 2 : 1));
     CHECK(pc_ui_settings_rows(I) == 15); // with Menu opacity, Menu tint, Tint red, green, blue
     CHECK(find(I, "ui_menu_tint") == 2 && find(I, "ui_menu_tint_b") == 5);
-    CHECK(pc_ui_settings_rows(C) == (game ? 16 : 15));
+    CHECK(pc_ui_settings_rows(C) == (game ? 17 : 16));
     // the look inversions after the stick camera (qol_fp_invert_y, qol_map_invert)
     CHECK(find(C, "qol_fp_invert_y") == find(C, "reset_camera") + 1 && find(C, "qol_map_invert") == find(C, "reset_camera") + 2);
     CHECK(value(C, "qol_map_invert") == "Off" && change(C, "qol_map_invert", 1) == 1 && pc_qol_map_invert == 1);
     pc_qol_map_invert = 0;
+    // Map controls after them: Modern (0, default) or Original
+    CHECK(find(C, "qol_map_controls") == find(C, "qol_map_invert") + 1);
+    CHECK(value(C, "qol_map_controls") == "Modern" && change(C, "qol_map_controls", 1) == 1
+        && pc_qol_map_controls == 1 && value(C, "qol_map_controls") == "Original");
+    pc_qol_map_controls = 0;
     CHECK(pc_ui_settings_rows(B) == 17);
     CHECK(pc_ui_settings_rows(P) == (game ? 12 : 5));
     // battle charging after the weapon quick slots: Off, Fast, Skip

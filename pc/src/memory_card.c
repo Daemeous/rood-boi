@@ -27,6 +27,7 @@ extern void pc_deliver_event(psx_ulong event, psx_long spec);
 #define HW_CARD 0xF0000011ul
 #define EV_IOE 0x0004
 #define EV_TIMEOUT 0x0100
+#define EV_NEW 0x2000
 #define FILE_WRITE 0x0002
 #define FILE_CREATE 0x0200
 #define FILE_ASYNC 0x8000
@@ -53,6 +54,26 @@ static struct {
     int used, slot, first, async;
     psx_long position, size;
 } files[16];
+
+/* Tests (dev_rpc.c "card"): data writes made (pc_psx_write calls that wrote),
+ * writes refused as the Room Browser's warp refuses them, and a card that
+ * reads as unformatted (_card_load raises EvSpNEW, as libcard does for a new
+ * card, until the card is formatted). */
+static unsigned card_writes;
+static int fail_writes, unformatted;
+unsigned pc_card_write_count(void) { return card_writes; }
+void pc_card_test_flags(int fail, int new_card)
+{
+    if (fail >= 0)
+        fail_writes = fail != 0;
+    if (new_card >= 0)
+        unformatted = new_card != 0;
+}
+void pc_card_test_state(int* fail, int* new_card)
+{
+    *fail = fail_writes;
+    *new_card = unformatted;
+}
 
 static unsigned char* frame(struct card* card, int index) { return card->image + index * FRAME_SIZE; }
 static void seal(unsigned char* f)
@@ -222,7 +243,8 @@ psx_long _card_info(psx_long port)
 }
 psx_long _card_load(psx_long port)
 {
-    pc_deliver_event(SW_CARD, port_card(port) ? EV_IOE : EV_TIMEOUT);
+    struct card* card = port_card(port);
+    pc_deliver_event(SW_CARD, card ? unformatted ? EV_NEW : EV_IOE : EV_TIMEOUT);
     return 1;
 }
 psx_long _card_clear(psx_long port)
@@ -237,6 +259,7 @@ psx_long _card_format(psx_long port)
         return 0;
     format(card);
     save(card);
+    unformatted = 0;
     return 1;
 }
 
@@ -246,6 +269,10 @@ psx_long _card_format(psx_long port)
 int pc_room_warp_blocks_saving(void) __attribute__((weak));
 static int saving_blocked(const char* what, const char* path)
 {
+    if (fail_writes) {
+        fprintf(stderr, "[card] %s %s refused: the card RPC's fail_writes\n", what, path);
+        return 1;
+    }
     if (!pc_room_warp_blocks_saving || !pc_room_warp_blocks_saving())
         return 0;
     fprintf(stderr, "[card] %s %s refused: warped by the Room Browser (Return, or allow saving there)\n", what, path);
@@ -303,8 +330,10 @@ static psx_long transfer(psx_long fd, unsigned char* buffer, psx_long bytes, int
         done += chunk;
         files[fd].position += chunk;
     }
-    if (writing && done)
+    if (writing && done) {
+        ++card_writes;
         save(card);
+    }
     return done;
 }
 /* Asynchronous (FASYNC) transfers complete at once with a SwCARD IOE event. */

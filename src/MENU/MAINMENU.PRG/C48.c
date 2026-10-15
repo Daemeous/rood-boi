@@ -36,6 +36,8 @@
 #ifdef ROOD_PC
 /* pc/src/ui/menu_bridge.c: the modern menus run a direct entry (the loot) */
 extern int pc_ui_direct_tick(int selectedMenu, char* state, int* result);
+/* pc/src/ui/data_bridge.c: the shell armed the native Data screen's frame */
+extern int pc_ui_data_armed(void);
 #endif
 
 vs_main_inventoryGem* vs_mainMenu_gems;
@@ -420,12 +422,25 @@ void vs_mainMenu_exec(int arg0)
                     vs_mainMenu_toggleBackgroundFade(1);
                 }
 
-                vs_mainMenu_setMenuCommand(menuActionMenu);
+#ifdef ROOD_PC
+                /* the native Data screen (data_bridge.c) has its own header:
+                 * no "MENU" command title, the DATA title stays off screen
+                 * (selectedMenu 7: submenuEntrypoints[6], vs_menu7_dataMenu) */
+                if (selectedMenu == 7 && pc_ui_data_armed()) {
+                    vs_mainMenu_setMenuCommand(menuActionNone);
+                } else
+#endif
+                    vs_mainMenu_setMenuCommand(menuActionMenu);
                 vs_mainMenu_clearMenuExcept(selectedMenu - 1);
 
                 menuItem->state = menuItemStateSlideX;
                 menuItem->targetPosition0 = 180;
                 menuItem->selected = 1;
+#ifdef ROOD_PC
+                if (selectedMenu == 7 && pc_ui_data_armed()) {
+                    menuItem->targetPosition0 = 320;
+                }
+#endif
 
                 if (selectedMenu == 5) {
 

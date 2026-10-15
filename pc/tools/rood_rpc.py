@@ -3,7 +3,7 @@
 
 Python:
     from rood_rpc import Game
-    game = Game.launch(card="pc/save/card1.mcd")   # headless (EGL/Xvfb) unless window=True
+    game = Game.launch(card=copy_of_a_test_card)  # never a player's card: a temp copy (card_fixtures.py)
     game.wait_title()
     game.press("start"); game.run(120)              # run 120 vsyncs, then pause
     print(game.state()); game.screenshot("shot.png")

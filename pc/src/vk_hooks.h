@@ -39,6 +39,8 @@ enum {
 int pc_vk_hw_init(int scale, size_t vertex_size);
 void pc_vk_hw_resize(int scale);
 void pc_vk_hw_upload_tiles(const uint16_t* vram, uint32_t tiles);
+/* Emissive texels' slot map (emissive.h): rows [row0, row1) of the CPU copy. */
+void pc_vk_hw_upload_emissive(const uint8_t* map, int row0, int row1);
 void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blend, const int* clip, int occlusion,
     const int* occlusion_rect);
 void pc_vk_hw_fill(unsigned fbo, int x, int y, int w, int h, int r, int g, int b);

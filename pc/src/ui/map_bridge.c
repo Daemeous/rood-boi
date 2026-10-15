@@ -38,6 +38,7 @@
 #include "../../../src/SLUS_010.40/main.h"
 #include "ui_shell.h"
 #include "map_frame.h"
+#include "map_pad.h"
 #include <libetc.h>
 
 extern u_short _mapNames[]; /* MENU5 4D8.c: the area names (index = scene id) */
@@ -495,4 +496,49 @@ int pc_ui_map_frame_list(void)
         vs_battle_playMenuChangeSfx();
     list_publish();
     return -1;
+}
+
+/* ---- The right stick and the triggers (map_pad.h; 4D8.c processInput) ---- */
+
+extern int pc_qol_map_controls, pc_qol_map_invert;           /* project_settings.cpp */
+extern float pc_camera_stick_deadzone;                       /* camera_stick.c */
+extern int pc_window_stick(float out[2]) __attribute__((weak)); /* gamepad right stick and keys */
+extern int pc_rpc_stick(float out[2]) __attribute__((weak));    /* RPC input {right_stick} */
+extern float pc_controller_trigger(int which) __attribute__((weak)); /* boot_gamepad.c: L2 0, R2 1 */
+extern int pc_rpc_triggers(float out[2]) __attribute__((weak));      /* RPC input {triggers} */
+
+static pc_map_pad_view pad_view;
+static unsigned pad_vsync;
+
+int pc_ui_map_pad(int cmd, short* pitch, short* yaw, int* distance, int* gx, int* gy)
+{
+    pc_map_pad_in in;
+    float v[2];
+    unsigned now = pc_vsync_count ? pc_vsync_count() : 0;
+    int k;
+
+    vs_main_bzero(&in, sizeof in);
+    if (pc_window_stick && pc_window_stick(v))
+        in.stick[0] += v[0], in.stick[1] += v[1];
+    if (pc_rpc_stick && pc_rpc_stick(v))
+        in.stick[0] += v[0], in.stick[1] += v[1];
+    for (k = 0; k < 2; ++k)
+        in.stick[k] = in.stick[k] < -1 ? -1 : in.stick[k] > 1 ? 1 : in.stick[k];
+    if (pc_rpc_triggers && pc_rpc_triggers(v))
+        in.trigger[0] = v[0], in.trigger[1] = v[1];
+    else if (pc_controller_trigger)
+        in.trigger[0] = pc_controller_trigger(0), in.trigger[1] = pc_controller_trigger(1);
+    in.held = vs_main_buttonsPreviousState;
+    in.deadzone = pc_camera_stick_deadzone;
+    in.controls = pc_qol_map_controls;
+    in.invert = pc_qol_map_invert;
+    if (now - pad_vsync > 2) /* a new run (or a pause): no fraction carried over */
+        pad_view.frac[0] = pad_view.frac[1] = pad_view.frac[2] = 0;
+    pad_vsync = now;
+    pad_view.pitch = *pitch, pad_view.yaw = *yaw, pad_view.distance = *distance;
+    pad_view.gx = *gx, pad_view.gy = *gy;
+    cmd = pc_map_pad_step(&in, &pad_view, cmd);
+    *pitch = (short)pad_view.pitch, *yaw = (short)pad_view.yaw, *distance = pad_view.distance;
+    *gx = pad_view.gx, *gy = pad_view.gy;
+    return cmd;
 }

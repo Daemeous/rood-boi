@@ -52,5 +52,7 @@ void pc_controller_poll(void);
 unsigned pc_controller_buttons(void);
 int pc_controller_fast_forward(void); /* both stick clicks held: fast-forward (boot_window.c) */
 void pc_controller_right_stick(float out[2]);
+/* L2 (0) / R2 (1) bound to an axis: its travel past the press point (0..1); -1 a button or no gamepad. */
+float pc_controller_trigger(int which);
 /* The open gamepad's SDL_GamepadType (SDL_GAMEPAD_TYPE_UNKNOWN: none). */
 int pc_controller_type(void);

@@ -56,7 +56,17 @@ off → armed (`deliver(6)`, "Loading map" for up to 30 vsyncs) → framed (stat
 - Footer y 656..720: prompts with pc_prompt_glyph, all clickable, dimmed by `cmd_state` as `_drawUIControls` dims them; list focus has its own prompts. Hidden (Select): everything fades (120 ms) to a "Select Show" pill.
 
 ### Controls
-Pad: MENU5's (above). List: Up / Down (repeat, 58EC wrap), Left / Right a page, Circle the row, Cross back, Triangle close, L1 / R1 back then a TAB request (quit 1, pending tab). Pointer: left drag rotates (yaw +8 per unit right, pitch +8 per unit down), wheel zooms (64 a notch, up closer), middle drag pans (a game pixel per 3 units), right click = Back (the list's Cross while it has the focus), area row = AREA (Circle path + confirm), room row / ‹ › = ROOM / STEP (visited only), prompts their action, tab click = TAB.
+Pad: MENU5's (above), plus the right stick and the triggers by System > Controls "Map controls" (settings `qol_map_controls`; `pc/src/ui/map_pad.c`, one ROOD_PC call in processInput after MENU5's own input, framed and on the original screen alike). On PC the game's stick buffer stays centred (the pad is digital), so MENU5's stick code never ran; the PC left stick reaches it as the D-pad.
+
+| Input | Modern (default) | Original |
+|---|---|---|
+| Right stick X / Y | turn (yaw) / tilt (pitch), 64 a map frame at full deflection, proportional past the camera stick's deadzone, pitch 0..1024 | MENU5's stick code: pans 4 a frame (±96 / ±80, `qol_map_invert`); with L2 turns ±64; with R2 Y zooms ±16 |
+| L2 / R2 alone (no D-pad, stick or Start, not both) | zoom out / in, 16 a frame at full (a trigger axis: by its travel past the press point), 512..1024 | nothing (L2 lights Rotate, R2 Zoom, as MENU5) |
+| L2 / R2 + D-pad | MENU5's: turn / zoom | the same |
+| Left stick, D-pad | pan (MENU5's D-pad, `qol_map_invert`) | the same |
+| L1 / R1, Start | rooms, reset | the same |
+
+Original applies the stick only while no D-pad bit is held (on the PS1 the stick won over the D-pad; here MENU5's D-pad step has already run). The frame's prompts follow the setting: Modern "R-stick Turn, L2 R2 Zoom, L-stick Pan" (stick glyphs drawn by ui_map_draw.cpp), Original "L2 Rotate, R2 Zoom". List: Up / Down (repeat, 58EC wrap), Left / Right a page, Circle the row, Cross back, Triangle close, L1 / R1 back then a TAB request (quit 1, pending tab). Pointer: left drag rotates (yaw +8 per unit right, pitch +8 per unit down), wheel zooms (64 a notch, up closer), middle drag pans (a game pixel per 3 units), right click = Back (the list's Cross while it has the focus), area row = AREA (Circle path + confirm), room row / ‹ › = ROOM / STEP (visited only), prompts their action, tab click = TAB.
 
 ### RAM (parity)
 The shell writes no game RAM; every write is MENU5's or mirrors a MENU5 / 58EC statement. After close the map status, mapPaling, cursor memories, settings, menu state, `D_800EB9AF` / `D_800EB9B0`, `vs_battle_sceneBuffer`, the field camera (0x1F800014, 0x54 bytes), `vs_main_projectionDistance` and MENU5's VRAM rects equal the original path's (ui_map_smoke: no masks needed).

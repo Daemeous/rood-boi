@@ -84,6 +84,7 @@ struct ScreenOut {
     std::string crumb; // bottom left ("Equipment > Weapon"), cut to fit left of the hints
     std::string crumb_tail; // after the crumb, never cut ("· 1:02:33")
     bool busy = false; // a loading indicator by the crumb
+    float fade = 0;    // a black over the whole view after the footer (the Data screen's load fade), 0..1
     void hint(int b0, int b1, const char* verb, unsigned bits)
     {
         if (hint_count < 6)
@@ -103,6 +104,8 @@ void icon(const Frame& f, Icon ic, float cx, float cy, float size, unsigned col,
 void focus_band(const Frame& f, const ui::Theme& t, float x0, float y0, float x1, float y1);
 // A small capitals label (letter-spaced), ash unless col.
 void label(const Frame& f, const ui::Theme& t, float x, float y, const char* s, unsigned col = 0);
+// A five-pointed star centred at (cx, cy), radius r (the bundled fonts have no U+2605).
+void star(const Frame& f, float cx, float cy, float r, unsigned col);
 // "+4" (better), "-2" (worse), "·" (same), right-aligned at x; returns the width.
 float delta(const Frame& f, const ui::Theme& t, float x, float y, int d, float size = 13);
 std::string num(int v);
@@ -151,11 +154,13 @@ void draw_loot(const Frame& f, const ui::Theme& t, float top, float dt, bool fre
 // The Items list's icon for a row of `category` (ui_items_draw.cpp): its id, sub line and name pick it.
 void bag_icon(const Frame& f, int category, int id, const char* sub, const char* name, float cx, float cy, float size,
     unsigned col);
-// The tab strip with `cur` lit (map: the Map frame's, its clicks are requests for the map screen); returns
-// its base line.
-float draw_tabs(const Frame& f, const ui::Theme& t, int cur, Pointer& m, float dt, bool map, bool steps_lit = true);
+// The tab strip with `cur` lit; returns its base line. mode 0: the shell's; 1: the Map frame's (its clicks
+// are requests for the map screen); 2: the Data frame's (goals for MENU7: PC_UI_MOUSE_DATA_TAB).
+float draw_tabs(const Frame& f, const ui::Theme& t, int cur, Pointer& m, float dt, int mode, bool steps_lit = true);
 // The Map frame (ui_map_draw.cpp): the chrome around the game's map screen (MENU5), its pointer included.
 void draw_map_frame(const Frame& f, const ui::Theme& t, float dt, Pointer& m);
+// The native Data screen (ui_data_draw.cpp): everything but the footer, whose hints it fills.
+void draw_data_frame(const Frame& f, const ui::Theme& t, float dt, Pointer& m, ScreenOut& out);
 // The Ashley screen's model column (layout units x, y, w, h) on a W-wide layout.
 void model_column(const ui::Theme& t, float W, float out[4]);
 // The right card's width (16:9: 396, 4:3: 344).

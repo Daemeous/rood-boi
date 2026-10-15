@@ -854,6 +854,13 @@ static int _menuManager(void)
         }
 
 #ifdef ROOD_PC
+        /* The right stick and the triggers (the game's stick buffer stays
+         * centred on PC): Map controls Modern or Original (map_bridge.c
+         * pc_ui_map_pad), framed or not; not on a paled area or leaving. */
+        if (_menuState == processInput && var_s2 != 5) {
+            var_s2 = pc_ui_map_pad(var_s2, &_cameraAngles.vx, &_cameraAngles.vy,
+                &_cameraDistance, &_geomOffsetX, &_geomOffsetY);
+        }
         /* The frame's drag and wheel (rotate, zoom, pan): one per frame; the
          * pad wins (while it moves the view or a button went down they are
          * dropped, 0 returned). */

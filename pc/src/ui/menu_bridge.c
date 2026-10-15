@@ -112,6 +112,12 @@ int pc_ui_map_on(void);
 int pc_ui_map_end(void);
 void pc_ui_map_forget(void);
 
+/* data_bridge.c: the native Data screen around the game's save / load screen (MENU7) */
+void pc_ui_data_arm(void);
+int pc_ui_data_on(void);
+int pc_ui_data_end(void);
+void pc_ui_data_forget(void);
+
 /* manual_bridge.c: the System tab's Quick manual (ui_manual.h) */
 void pc_ui_manual_bridge_fill(int settling);
 void pc_ui_manual_bridge_refresh(void);
@@ -198,6 +204,14 @@ void pc_ui_menu_heartbeat(void)
         direct_abandon(0);
     if (direct.menu)
         return; /* the top level is not this session's (its HUD flag is the direct session's) */
+    /* the Data frame ends once the game left its Data screen (Close: 7, then
+     * 0x7F; anything else): then the HUD the shell held out comes back as an
+     * abandoned session's (below). While it runs the HUD stays out (deliver). */
+    if (pc_ui_data_on()) {
+        if ((vs_battle_menuState.currentMenu & 0x3F) == 7)
+            return;
+        pc_ui_data_end();
+    }
     /* the Map frame ends once the game left its map screen (Triangle: 6, then
      * 0x7F; anything else). A stale stamp never ends it: it only stops the
      * drawing (ui_map.cpp pc_ui_map_visible). */
@@ -223,6 +237,7 @@ void pc_ui_menu_reset(void)
     pc_ui_manual_bridge_reset(); /* nothing written: the game's memory is the next game's */
     pc_ui_ashley_model_forget(); /* the heap is the next game's: nothing to free */
     pc_ui_map_forget();
+    pc_ui_data_forget(); /* (a load already ended it before its loading screen: 260.c) */
     if (direct.menu)
         direct_abandon(1);
     if (shell_open || held || hud_hidden || pc_ui_shell_drawn())
@@ -287,6 +302,9 @@ int pc_ui_menu_open(int mode)
         && vs_battle_shortcutInvoked == 0;
     /* back from the map (Cross, or a tab clicked on its frame: that tab) */
     int map_tab = pc_ui_map_end();
+    /* back from Data (Cross, or a tab clicked / L1 / R1 on its frame: that
+     * tab; else the System list on Data, kept as a return keeps it) */
+    int data_tab = pc_ui_data_end();
     closing = 0;
     held = 0;
     if (mode == 2)
@@ -312,6 +330,8 @@ int pc_ui_menu_open(int mode)
     pc_ui_shell_open(&c, mode != 2 || vs_main_settings.cursorMemory);
     if (map_tab >= 0)
         pc_ui_shell_set_tab(map_tab);
+    if (data_tab >= 0)
+        pc_ui_shell_set_tab(data_tab);
     pc_ui_abilities_fill(mainmenu_resident()); /* the shell may open on the Abilities screen */
     pc_ui_magick_fill(mainmenu_resident());    /* or on Magick */
     pc_ui_items_session(mode == 2);            /* a new menu: the next Items screen is an entry */
@@ -331,9 +351,15 @@ int pc_ui_equip_busy(void);
  * original screen slides its title from. */
 static int deliver(int r)
 {
+    /* the save / load screen (MENU7) under the native Data frame (data_bridge.c) */
+    int data = r == 7 && session && pc_overlay_active && pc_overlay_active();
     if (r != 0) {
         pc_ui_ashley_model_close(); /* before an original screen builds its own clone */
-        show_hud(); /* original screens and the field manage the HUD themselves */
+        /* original screens and the field manage the HUD themselves; the Data
+         * frame keeps it out (MENU7 leaves it as the menu had it: the frame's
+         * backdrop would show it; back with the session, pc_ui_menu_heartbeat) */
+        if (!data)
+            show_hud();
     }
     if (r > 0) {
         int cmd = r - 1;
@@ -354,6 +380,8 @@ static int deliver(int r)
          * original path) */
         if (r == 6 && session && pc_overlay_active && pc_overlay_active())
             pc_ui_map_arm();
+        if (data)
+            pc_ui_data_arm();
     } else if (r < 0) {
         vs_battle_playMenuLeaveSfx();
         vs_battle_textBoxes[7].state = 0;

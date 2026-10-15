@@ -449,6 +449,14 @@ enum { PC_UI_MOUSE_LOOT_ROW = 100, PC_UI_MOUSE_LOOT_MENU, PC_UI_MOUSE_LOOT_BAG }
  * (its wheel scrolls it). */
 enum { PC_UI_MOUSE_MAP_AREA = 120, PC_UI_MOUSE_MAP_ROOM, PC_UI_MOUSE_MAP_STEP, PC_UI_MOUSE_MAP_VIEW,
        PC_UI_MOUSE_MAP_PROMPT, PC_UI_MOUSE_MAP_TAB, PC_UI_MOUSE_MAP_RAIL };
+/* The native Data screen's pointer targets (ui_data_draw.cpp, for
+ * pc_ui_data_mouse; data_frame.h): Save / Load (index 1, 2), a card pill (1,
+ * 2), a save (0..4), the prompt's Yes / No, the status bar (Continue), a tab
+ * (the shell tab), a footer hint (index: its PC_UI_* bits), the panel itself
+ * (a click there does nothing). */
+enum { PC_UI_MOUSE_DATA_OP = 140, PC_UI_MOUSE_DATA_CARD, PC_UI_MOUSE_DATA_FILE, PC_UI_MOUSE_DATA_YES,
+       PC_UI_MOUSE_DATA_NO, PC_UI_MOUSE_DATA_STATUS, PC_UI_MOUSE_DATA_TAB, PC_UI_MOUSE_DATA_BUTTON,
+       PC_UI_MOUSE_DATA_PANEL };
 enum { PC_UI_MAP_P_ROOM_PREV, PC_UI_MAP_P_ROOM_NEXT, PC_UI_MAP_P_ROTATE, PC_UI_MAP_P_ZOOM, PC_UI_MAP_P_RESET,
        PC_UI_MAP_P_AREAS, PC_UI_MAP_P_HIDE, PC_UI_MAP_P_BACK, PC_UI_MAP_P_CLOSE, PC_UI_MAP_P_LIST_UP,
        PC_UI_MAP_P_LIST_DOWN, PC_UI_MAP_P_LIST_TAB, PC_UI_MAP_P_LIST_SHOW, PC_UI_MAP_P_LIST_MAP,

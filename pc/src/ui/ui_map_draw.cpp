@@ -8,12 +8,14 @@
 #include "ui/ui_draw_internal.h"
 #include "ui/map_frame.h"
 #include "button_prompts.h"
+#include "camera_stick.h"
 #include <cmath>
 #include <cstdio>
 #include <string>
 #include <vector>
 
 extern "C" int pc_gl_view[4];
+extern "C" int pc_qol_map_controls; // project_settings.cpp: 0 Modern, 1 Original (map_pad.h)
 
 namespace uidraw {
 namespace {
@@ -118,6 +120,59 @@ void compass(const Frame& f, const ui::Theme& t, float cx, float cy, float r, in
     f.dl->AddTriangleFilled(tail, rr, l, fade(t.dim, a));
 }
 
+// The sticks have no button glyph (PC_PROMPT_*): a stick's top seen from
+// above, its letter on it (L / R), in the prompts' tint.
+enum { STICK_L = 1000, STICK_R };
+float stick_glyph(const Frame& f, int which, float size, float x, float cy, bool measure_only, unsigned tint)
+{
+    float w = size * 0.92f;
+    if (measure_only)
+        return w;
+    float cx = x + w * 0.5f, r = size * 0.4f;
+    unsigned alpha = tint >> 24;
+    f.dl->AddCircleFilled(f.p(cx, cy), f.s(r), (tint & 0x00FFFFFFu) | ((alpha * 2 / 7) << 24), 24);
+    f.dl->AddCircle(f.p(cx, cy), f.s(r), tint, 24, f.s(1.4f));
+    f.dl->AddCircle(f.p(cx, cy), f.s(r * 0.62f), (tint & 0x00FFFFFFu) | ((alpha / 2) << 24), 24, f.s(1));
+    const char* letter = which == STICK_L ? "L" : "R";
+    float ts = size * 0.42f, tw = measure(f, fonts.label, ts, letter);
+    text(f, fonts.label, ts, cx - tw * 0.5f, cy - ts * 0.5f - 1, tint, letter);
+    return w;
+}
+// The keyboard's camera keys (boot_window.c camera_keybit: J / L turn, I / K
+// tilt) and the arrows (the D-pad: pan) as key caps in the prompts' tint:
+// KEY_CAP + the letter, KEY_ARROWS the four arrows on one cap.
+enum { KEY_CAP = 1100, KEY_ARROWS = 1300 };
+float key_glyph(const Frame& f, int b, float size, float x, float cy, bool measure_only, unsigned tint)
+{
+    float w = size * 0.82f;
+    if (measure_only)
+        return w;
+    float h = size * 0.82f, y0 = cy - h * 0.5f;
+    unsigned alpha = tint >> 24;
+    f.dl->AddRectFilled(f.p(x, y0), f.p(x + w, y0 + h), (tint & 0x00FFFFFFu) | ((alpha * 2 / 7) << 24), f.s(3));
+    f.dl->AddRect(f.p(x, y0), f.p(x + w, y0 + h), tint, f.s(3), 0, f.s(1.2f));
+    float cx = x + w * 0.5f;
+    if (b == KEY_ARROWS) {
+        float r = w * 0.32f, k = w * 0.11f;
+        f.dl->AddTriangleFilled(f.p(cx, cy - r - k), f.p(cx - k, cy - r + k), f.p(cx + k, cy - r + k), tint);
+        f.dl->AddTriangleFilled(f.p(cx, cy + r + k), f.p(cx + k, cy + r - k), f.p(cx - k, cy + r - k), tint);
+        f.dl->AddTriangleFilled(f.p(cx - r - k, cy), f.p(cx - r + k, cy + k), f.p(cx - r + k, cy - k), tint);
+        f.dl->AddTriangleFilled(f.p(cx + r + k, cy), f.p(cx + r - k, cy - k), f.p(cx + r - k, cy + k), tint);
+        return w;
+    }
+    char letter[2] = {(char)(b - KEY_CAP), 0};
+    float ts = size * 0.46f, tw = measure(f, fonts.data, ts, letter);
+    text(f, fonts.data, ts, cx - tw * 0.5f, cy - ts * 0.5f - 1, tint, letter);
+    return w;
+}
+float map_glyph(const Frame& f, int b, float size, float x, float cy, bool measure_only, unsigned tint = 0xFFFFFFFFu)
+{
+    if (b >= KEY_CAP)
+        return key_glyph(f, b, size, x, cy, measure_only, tint);
+    return b >= STICK_L ? stick_glyph(f, b, size, x, cy, measure_only, tint)
+                        : glyph(f, b, size, x, cy, measure_only, tint);
+}
+
 // A prompt: glyph(s) and a verb; returns its width (measure only when !draw).
 // The glyphs fade with the verb; an unlit prompt's are dimmed as its verb.
 float prompt(const Frame& f, const ui::Theme& t, float x, float cy, int b0, int b1, const char* verb, unsigned col,
@@ -125,9 +180,9 @@ float prompt(const Frame& f, const ui::Theme& t, float x, float cy, int b0, int 
 {
     float icon = t.hint_size * 1.6f, w = 0;
     unsigned tint = (lit ? 0x00FFFFFFu : (t.dim & 0x00FFFFFFu)) | (col & 0xFF000000u);
-    w += glyph(f, b0, icon, x, cy, !draw, tint);
+    w += map_glyph(f, b0, icon, x, cy, !draw, tint);
     if (b1 >= 0)
-        w += 2 + glyph(f, b1, icon, x + w + 2, cy, !draw, tint);
+        w += 2 + map_glyph(f, b1, icon, x + w + 2, cy, !draw, tint);
     std::string v = upper(verb);
     w += 6;
     if (draw)
@@ -139,7 +194,7 @@ float prompt(const Frame& f, const ui::Theme& t, float x, float cy, int b0, int 
 struct Prompt {
     int b0, b1;
     const char* verb;
-    int action;  // PC_UI_MAP_P_* (b0's half when action2 is set)
+    int action;  // PC_UI_MAP_P_* (b0's half when action2 is set); -1: not a target
     bool lit;
     int action2; // b1's half (PC_UI_MAP_P_*), -1: one target
 };
@@ -150,7 +205,7 @@ struct Prompt {
 float prompts(const Frame& f, const ui::Theme& t, float x0, float x1, float cy, const Prompt* ps, int n, Pointer& m,
     float a)
 {
-    float total = 0, gap = 22, ws[8];
+    float total = 0, gap = 22, ws[10];
     for (int i = 0; i < n; ++i)
         total += ws[i] = prompt(f, t, 0, cy, ps[i].b0, ps[i].b1, ps[i].verb, 0, false);
     if (n > 1 && total + gap * (n - 1) > x1 - x0) // too wide: the gaps give way first
@@ -162,11 +217,11 @@ float prompts(const Frame& f, const ui::Theme& t, float x0, float x1, float cy, 
         float w = ws[i];
         bool over = false;
         if (p.action2 >= 0) { // L1 | R1, Up | Down: each half its own
-            float half = glyph(f, p.b0, t.hint_size * 1.6f, 0, 0, true) + 1;
+            float half = map_glyph(f, p.b0, t.hint_size * 1.6f, 0, 0, true) + 1;
             over = m.over(x - 4, cy - 14, x + w + 4, cy + 14);
             hit(m, PC_UI_MOUSE_MAP_PROMPT, p.action, x - 4, cy - 14, x + half, cy + 14);
             hit(m, PC_UI_MOUSE_MAP_PROMPT, p.action2, x + half, cy - 14, x + w + 4, cy + 14);
-        } else {
+        } else if (p.action >= 0) {
             over = hit(m, PC_UI_MOUSE_MAP_PROMPT, p.action, x - 4, cy - 14, x + w + 4, cy + 14);
         }
         unsigned col = over ? (p.lit ? t.bone : t.ash) : p.lit ? t.ash : t.dim;
@@ -481,7 +536,7 @@ void draw_map_frame(const Frame& f, const ui::Theme& t, float dt, Pointer& m)
     // _menuCommandsState: 0 all lit, 2 zoom and areas, 3 rotate and areas, 5 none)
     if (!loading && !closing && a > 0.001f) {
         float cy = 688;
-        Prompt ps[8];
+        Prompt ps[10];
         int n;
         if (list) {
             const Prompt l[] = {{PC_PROMPT_UP, PC_PROMPT_DOWN, "Choose", PC_UI_MAP_P_LIST_UP, true, PC_UI_MAP_P_LIST_DOWN},
@@ -496,7 +551,20 @@ void draw_map_frame(const Frame& f, const ui::Theme& t, float dt, Pointer& m)
             int cs = mm.cmd_state;
             bool all = cs == 0 && !mm.paled && !switching;
             bool moving = !mm.paled && !switching;
-            const Prompt l[] = {{PC_PROMPT_L1, PC_PROMPT_R1, "Room", PC_UI_MAP_P_ROOM_PREV, all, PC_UI_MAP_P_ROOM_NEXT},
+            // Map controls (System > Controls; map_pad.h): Modern, the right stick turns and tilts, L2 / R2
+            // zoom, the left stick (and the D-pad) pans; Original, the PlayStation's L2 / R2 (+ D-pad or stick)
+            const Prompt modern[] = {
+                {PC_PROMPT_L1, PC_PROMPT_R1, "Room", PC_UI_MAP_P_ROOM_PREV, all, PC_UI_MAP_P_ROOM_NEXT},
+                {STICK_R, -1, "Turn", PC_UI_MAP_P_ROTATE, moving && (cs == 0 || cs == 3), -1},
+                {PC_PROMPT_L2, PC_PROMPT_R2, "Zoom", PC_UI_MAP_P_ZOOM, moving && (cs == 0 || cs == 2), -1},
+                {STICK_L, -1, "Pan", -1, all, -1},
+                {PC_PROMPT_START, -1, "Reset", PC_UI_MAP_P_RESET, all, -1},
+                {PC_PROMPT_CIRCLE, -1, "Areas", PC_UI_MAP_P_AREAS, !switching && cs != 5, -1},
+                {PC_PROMPT_SELECT, -1, "Hide", PC_UI_MAP_P_HIDE, !switching, -1},
+                {PC_PROMPT_CROSS, -1, "Back", PC_UI_MAP_P_BACK, !switching, -1},
+                {PC_PROMPT_TRIANGLE, -1, "Close", PC_UI_MAP_P_CLOSE, !switching, -1}};
+            const Prompt original[] = {
+                {PC_PROMPT_L1, PC_PROMPT_R1, "Room", PC_UI_MAP_P_ROOM_PREV, all, PC_UI_MAP_P_ROOM_NEXT},
                 {PC_PROMPT_L2, -1, "Rotate", PC_UI_MAP_P_ROTATE, moving && (cs == 0 || cs == 3), -1},
                 {PC_PROMPT_R2, -1, "Zoom", PC_UI_MAP_P_ZOOM, moving && (cs == 0 || cs == 2), -1},
                 {PC_PROMPT_START, -1, "Reset", PC_UI_MAP_P_RESET, all, -1},
@@ -504,9 +572,37 @@ void draw_map_frame(const Frame& f, const ui::Theme& t, float dt, Pointer& m)
                 {PC_PROMPT_SELECT, -1, "Hide", PC_UI_MAP_P_HIDE, !switching, -1},
                 {PC_PROMPT_CROSS, -1, "Back", PC_UI_MAP_P_BACK, !switching, -1},
                 {PC_PROMPT_TRIANGLE, -1, "Close", PC_UI_MAP_P_CLOSE, !switching, -1}};
-            n = 8;
-            for (int i = 0; i < n; ++i)
-                ps[i] = l[i];
+            // Modern on the keyboard (the prompts follow the device): no sticks; J / L turn and I / K tilt
+            // (pc_window_stick, camera keys on), else L2 + the arrows (MENU5's own turn); the arrows pan
+            bool keys_on = pc_camera_stick_keys != 0;
+            const Prompt keyboard[] = {
+                {PC_PROMPT_L1, PC_PROMPT_R1, "Room", PC_UI_MAP_P_ROOM_PREV, all, PC_UI_MAP_P_ROOM_NEXT},
+                {keys_on ? KEY_CAP + 'J' : PC_PROMPT_L2, keys_on ? KEY_CAP + 'L' : KEY_ARROWS, "Turn",
+                    PC_UI_MAP_P_ROTATE, moving && (cs == 0 || cs == 3), -1},
+                {KEY_CAP + 'I', KEY_CAP + 'K', "Tilt", -1, moving && (cs == 0 || cs == 3), -1},
+                {PC_PROMPT_L2, PC_PROMPT_R2, "Zoom", PC_UI_MAP_P_ZOOM, moving && (cs == 0 || cs == 2), -1},
+                {KEY_ARROWS, -1, "Pan", -1, all, -1},
+                {PC_PROMPT_START, -1, "Reset", PC_UI_MAP_P_RESET, all, -1},
+                {PC_PROMPT_CIRCLE, -1, "Areas", PC_UI_MAP_P_AREAS, !switching && cs != 5, -1},
+                {PC_PROMPT_SELECT, -1, "Hide", PC_UI_MAP_P_HIDE, !switching, -1},
+                {PC_PROMPT_CROSS, -1, "Back", PC_UI_MAP_P_BACK, !switching, -1},
+                {PC_PROMPT_TRIANGLE, -1, "Close", PC_UI_MAP_P_CLOSE, !switching, -1}};
+            bool orig = pc_qol_map_controls == 1;
+            bool keyboard_on = !orig && pc_prompt_device() == PC_PROMPTS_KEYBOARD;
+            const Prompt* l = orig ? original : keyboard_on ? keyboard : modern;
+            n = orig ? (int)(sizeof original / sizeof original[0])
+                : keyboard_on ? (int)(sizeof keyboard / sizeof keyboard[0])
+                              : (int)(sizeof modern / sizeof modern[0]);
+            if (keyboard_on && !keys_on) { // no camera keys: no tilt prompt
+                int k = 0;
+                for (int i = 0; i < n; ++i)
+                    if (l[i].verb != std::string("Tilt"))
+                        ps[k++] = l[i];
+                n = k;
+            } else {
+                for (int i = 0; i < n; ++i)
+                    ps[i] = l[i];
+            }
         }
         // the footer as the other screens': hints right-aligned at the
         // margin, the crumb left of them (what fits; 4:3 often has no room)

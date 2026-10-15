@@ -18,6 +18,7 @@ layout(push_constant) uniform Push {
     // texels' colour, 5 its translucent texels' colour, by coverage
     int ui_scale; // the UI atlas's magnification (pc/src/ui_upscale.c), 0: none
     float text_factor; // pass 5: the PS1 mode's alpha factor (B/2 + F/2: 0.5, B + F/4: 0.25)
+    int emissive; // emissive texels: the slot map (binding 3) is read
 } pc;
 layout(binding = 0) uniform usampler2D vram;
 #ifdef SURFACE_MS // MSAA (hw_ms.frag): the native surfaces' depth multisampled, sample 0
@@ -26,12 +27,14 @@ layout(binding = 1) uniform sampler2DMS room_depth;
 layout(binding = 1) uniform sampler2D room_depth;
 #endif
 layout(binding = 2) uniform usampler2D ui_atlas; // 2D regions magnified with MMPX
+layout(binding = 3) uniform usampler2D emissive_map; // emissive texels' slot map (emissive.glsl)
 layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normal_out;
 layout(location = 2) out vec4 albedo_out;
 layout(location = 3) out vec4 shade_out;
 #include "vram.glsl"
 #include "text_dist.glsl"
+#include "emissive.glsl"
 void main() {
     // A pixel's footprint in texels (text from distance texels: edges one pixel wide).
     vec2 footprint = fwidth(pc.perspective != 0 ? v_uv_persp : v_uv_affine);
@@ -98,6 +101,13 @@ void main() {
         c = (flags & 2u) != 0u ? texel / 31.0 : min(texel * v_color * (255.0 / 128.0), 31.0) / 31.0;
         albedo = texel / 31.0;
         shade = (flags & 2u) != 0u ? vec4(vec3(128.0 / 255.0), 1.0) : vec4(v_color, 1.0);
+        // Emissive texels: at least their own colour x tint x strength, never
+        // darkened; the G-buffer's shade carries the emission (a 0.25, rgb / 2).
+        if (pc.emissive != 0 && v_normal.w > 0.5 && (flags & 16u) == 0u) {
+            ivec2 eq = ivec2(floor(v_uv + 0.0001));
+            vec3 em = emissive_texel(uint(eq.x) & 255u, uint(eq.y) & 255u, tpage, win, t);
+            if (any(greaterThan(em, vec3(0.0)))) { c = max(c, min(em, vec3(1.0))); shade = vec4(min(em * 0.5, vec3(1.0)), 0.25); }
+        }
     }
     if ((pc.pass == 1 && semi) || (pc.pass == 2 && !semi)) discard;
     // (texels of a recorded frame redrawn with ui_text original: whole)

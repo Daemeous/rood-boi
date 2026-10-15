@@ -65,7 +65,10 @@ list is native (MAINMENU's list ported: the same rows, window, wrap and
 cursor memories) inside MENU5's own state; the pointer (drag rotate, wheel
 zoom, middle drag pan, area / room rows, prompts, tabs, right click back)
 sends requests MENU5 applies at its own input point with its own statements
-and clamps (the pad wins). Map status, mapPaling, cursor memories, settings,
+and clamps (the pad wins). Map controls (System > Controls): Modern (the
+right stick turns and tilts, L2 / R2 alone zoom, the left stick pans) or
+Original (the PlayStation's stick code on the right stick), framed or not
+(`pc/src/ui/map_pad.c`; the plan's controls table). Map status, mapPaling, cursor memories, settings,
 menu state, HUD flags, the scene buffer, the field camera and MENU5's VRAM
 rects end equal to the original path's, and MENU5's own scene, room and
 camera after a switch, rooms and a turn, by pad and by pointer
@@ -90,8 +93,49 @@ pointer; the sounds the game plays (counted at `vs_main_playSfxDefault`)
 equal the original's by pad and the manual's requests by pad and pointer
 (`ui_manual_smoke`). Plan:
 `pc/docs/plans/2026-10-14-modern-menus-manual.md`.
-Plans: `pc/docs/plans/`. Next: phase 7+ (Container, the Data frame, Score,
-Title), then the HUD.
+Phase 7d: the Data screen. System > Data runs the game's own save / load
+screen (MENU7, `vs_menu7_dataMenu`) unchanged; everything shown is native
+(nothing of MENU7's own screen: no sprites, DATA title, play time, message
+box or thumbnails). MENU7 keeps the pad, every decision and sound, its
+cursor memories, all card I/O and every write to the settings and flags.
+While a run is framed (latched at its state 3 when the shell armed it) three
+things differ (260.c, ROOD_PC): its GPU and text output is gated (DrawPrim,
+renderTextRaw, the information box, the text overlay's glyphs; its logic,
+the elements' animation steps, the progress counter and the sounds run);
+its Save / Load chooser (states 5 and 6, a MAINMENU row list) is the
+bridge's list, in getSelectedRow() + 1's protocol; and a click is a goal
+(OP, CARD, FILE, MOVE (the wheel), ANSWER, DISMISS, BACK, CLOSE, TAB) the planner
+(`data_plan.c`, pure) turns into at most one pad press a frame, injected at
+the top of the call only while the real pad is idle (the real values back
+after it). After every call MENU7's statics are published by value
+(`pc_ui_data_game`: state, cursor, message, progress, fade, the scanned
+files) and the frame's phase is derived from that publish alone: OPS (the
+chooser), CARD / FILES / PROMPT (MENU7's cursor at x 180 / 24 / 0), WAIT (no
+cursor, a message that waits for a press), else BUSY. The planner's rules:
+Circle only when the phase and MENU7's cursor are the goal's target in the
+same publish, a frame without a press after each press, a publish from a
+call that carried a press waited out (it can show the list a page behind),
+a real press clears the goal, a goal waits through BUSY (600 frames at most) and expires after
+60 frames where it is taken, CLOSE / TAB back out of the card rows and the
+list with Cross and stop at a prompt or a message (prompts are never
+answered for the player); a click on Save / Load advances to MENU7's own
+card row by itself. Posts made while BUSY are dropped (a double click, a
+click while saving: one write). A load ends the frame before the jump's
+loading screen; Back reopens the shell on the System list (a tab click or L1
+/ R1 on the chooser reopens it on that tab); Close ends it through
+0x7F; the HUD stays out while it shows; the panel is as see-through as the
+other tabs (ui_menu_opacity). Saves byte-for-byte equal to the original
+screen's (pad and mouse), a load's blocks and the file it read (pad and
+mouse), the error paths and the exits (`ui_data_smoke`, card-safe through `card_fixtures.card_guard`).
+Follow-ups (still original; only Data's state 3 latches the frame): the
+save-room container (`vs_menu7_saveContainerMenu`, with the native
+Container / MENUD screen), Game Over's continue (`vs_menu7_gameOver`),
+TITLE's Continue and the post-ending save (`TITLE 22C.c`); location
+thumbnails, save dates, a read-only card peek, a Damaged badge (MENU7 counts
+unreadable files as free blocks), separate Save and Load rows. Plan:
+`pc/docs/plans/2026-10-15-modern-menus-data.md`.
+Plans: `pc/docs/plans/`. Next: phase 7+ (Container, Score, Title), then the
+HUD.
 
 | Phase | Screens |
 | --- | --- |
@@ -101,7 +145,7 @@ Title), then the HUD.
 | 4 | System: settings pages + the game's options |
 | 5 | Abilities (chain/defense mapping, break arts) |
 | 6 | Items and Magick |
-| 7+ | Workshop and Loot (7a), Map frame (7b), Quick manual (7c), Container, Data, Score, Title; then the HUD |
+| 7+ | Workshop and Loot (7a), Map frame (7b), Quick manual (7c), Data (7d), Container, Score, Title; then the HUD |
 
 ## Goals
 
@@ -185,7 +229,7 @@ Prototype (private, placeholder data): the "Riskbreaker Menus" artifact.
 | Abilities | Chain / Defense: 3 button slots + learned list with RISK cost; Break arts by weapon type with kills to the next art | Assign an ability to a button (swaps if already mapped) |
 | Magick | Warlock / Shaman / Sorcerer / Enchanter / Teleport; MP; cost per spell | Cast (target picked in the field as today) |
 | Leá Monde | Map frame (native rail, legend, prompts; the game's 3D map) | Open the map; areas and rooms by pad or click; drag / wheel / middle drag turn, zoom and pan |
-| System | Game: Save, Load, Score, Quick manual (native reader: topics rail, page card). Settings: Graphics, Display, Interface, Controls, Gameplay | Settings change with left/right and apply at once; the manual scrolls by line or page, Square opens the original |
+| System | Game: Data (native Save / Load over the game's MENU7), Score, Quick manual (native reader: topics rail, page card). Settings: Graphics, Display, Interface, Controls, Gameplay | Settings change with left/right and apply at once; Data's clicks walk the game's own cursor; the manual scrolls by line or page, Square opens the original |
 
 Screens not yet replaced open as the game's own screens from the shell:
 Workshop (assemble, gems, disassemble, rename, repair, combine), Container,
@@ -313,8 +357,7 @@ All new code in `pc/src/ui/`. Game-side changes only under `#ifdef ROOD_PC`;
 4. System settings (~1/2 day).
 5. Abilities, Items, Magick (~1/2 day each).
 6. Later: Workshop and Loot (7a, done), Map frame (7b, done), Quick manual
-   (7c, done), Container,
-   Data, Score, Title; then the HUD.
+   (7c, done), Data (7d, done), Container, Score, Title; then the HUD.
 
 The bottleneck is verification (action parity, playtesting feel), not code.
 

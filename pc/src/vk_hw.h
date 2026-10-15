@@ -18,6 +18,7 @@ typedef struct {
     vk_image copy; /* scratch for VRAM-to-VRAM copies */
     vk_image room_depth, before; /* native surfaces' depth, and before an object list */
     vk_image vram; /* native VRAM, R16_UINT 1024 x 512 */
+    vk_image emissive; /* emissive texels' slot map, R8_UINT 4096 x 516 (emissive.h) */
     vk_image dummy_depth; /* 1 x 1 depth for unused depth bindings */
     vk_image dummy_color; /* 1 x 1 colour for unused colour bindings */
     /* MSAA (antialias.h; gpu_hw.c decides when): multisampled twins of a

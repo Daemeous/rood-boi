@@ -15,6 +15,7 @@ int pc_vk_shadows_sun(const float dir[3], float matrix[16], float light[4], floa
 #include "lighting_quality.h"
 #include "antialias.h"
 #include "post.h"
+#include "emissive.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 #include <math.h>
@@ -28,6 +29,7 @@ extern int pc_gl_filter, pc_gl_aspect, pc_gl_show_depth, pc_gl_view_mode;
 extern int pc_gl_view[4], pc_gl_display[4], pc_gl_inset[4];
 static pc_post_frame post_frame; /* this present's resolved post profile (post.h) */
 static int post_hdr; /* the present shader's post bit 8: HDR out, the grade pass tone maps */
+static int post_grade_on; /* the grade pass runs this present (emissive texels may exceed 1: post bit 32) */
 extern float pc_shadow_softness, pc_normal_smoothing, pc_lights_baked;
 extern int pc_rt_shadows, pc_gi_enabled, pc_gi_debug, pc_baked_shadows_active;
 extern float pc_gi_strength, pc_fog_density, pc_fog_anisotropy, pc_light_size;
@@ -607,6 +609,9 @@ extern int pc_ui_menu_backdrop(float rgba[4]) __attribute__((weak)); /* ui/ui_th
 extern int pc_hw_present_menu_model(void) __attribute__((weak));     /* gpu_hw.c */
 static view_target backdrop;
 static int backdrop_valid;
+static unsigned backdrop_keeps; /* pictures kept so far */
+/* gl_present.c pc_gl_menu_backdrop_kept */
+int pc_vk_menu_backdrop_kept(void) { return backdrop_valid ? (int)(backdrop_keeps & 0x3FFFFFFF) + 1 : 0; }
 /* The present shader's backdrop fields and its image (binding 20). */
 static VkImageView backdrop_fill(present_ubo* u)
 {
@@ -643,6 +648,7 @@ static void backdrop_keep(int view_x, int view_y, int view_w, int view_h)
         &region, VK_FILTER_NEAREST);
     vk_barrier();
     backdrop_valid = 1;
+    ++backdrop_keeps;
 }
 /* The last stage: brightness_input through the curve into the window's view. */
 static void brightness_draw(int view_x, int view_y, int view_w, int view_h)
@@ -705,7 +711,9 @@ static void fill_present_ubo(present_ubo* u, int x, int y, int w, int h, int vie
     memset(u, 0, sizeof *u);
     u->rect[0] = x, u->rect[1] = y, u->rect[2] = w, u->rect[3] = h;
     const pc_post_frame* pf = &post_frame;
-    u->i0[0] = pc_hw_scale, u->i0[1] = pc_gl_filter, u->i0[2] = pc_gl_show_depth, u->i0[3] = pf->flags | post_hdr;
+    u->i0[0] = pc_hw_scale, u->i0[1] = pc_gl_filter, u->i0[2] = pc_gl_show_depth;
+    /* 16: emissive texels in the shade target (emissive.h); 32: the grade pass runs (they may exceed 1 for bloom). */
+    u->i0[3] = pf->flags | post_hdr | (pc_emissive_active() ? 16 : 0) | (post_grade_on ? 32 : 0);
     u->view[0] = (float)view_w, u->view[1] = (float)view_h;
     u->f0[0] = pf->focus_sz;
     u->f0[1] = pf->dof_radius * view_h / 720.0f;
@@ -1002,10 +1010,12 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             if (!grade)
                 pc_post_active_bloom = 0;
             post_hdr = grade && post_frame.hdr ? 8 : 0;
+            post_grade_on = grade;
             int stages = 1 + (post != PC_AA_OFF) + blur + grade + ssaa;
             if ((stages > 1 && !ensure_view(&chain[0], lit_w, lit_h))
                 || (stages > 2 && !ensure_view(&chain[1], lit_w, lit_h)))
-                stages = 1, post = PC_AA_OFF, blur = ssaa = grade = post_hdr = 0, lit_w = view_w, lit_h = view_h;
+                stages = 1, post = PC_AA_OFF, blur = ssaa = grade = post_hdr = post_grade_on = 0, lit_w = view_w,
+                lit_h = view_h;
             if (post == PC_AA_SMAA
                 && (!ensure_image(&smaa_edges, lit_w, lit_h, EDGES_FORMAT)
                     || !ensure_image(&smaa_weights, lit_w, lit_h, WEIGHTS_FORMAT))) {
