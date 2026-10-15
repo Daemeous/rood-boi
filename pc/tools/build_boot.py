@@ -114,6 +114,17 @@ def run(args, **kwargs):
     return subprocess.run(args, cwd=root, check=True, **kwargs)
 
 
+def run_long(args, rsp):
+    """run() for a command line that can pass Windows' 32767-character limit (the final link
+    lists every object): the arguments after the program go in a GCC response file, which GCC
+    also hands on to the linker."""
+    if os.name != "nt":
+        return run(args)
+    quote = lambda a: '"' + str(a).replace("\\", "\\\\").replace('"', '\\"') + '"'
+    rsp.write_text("\n".join(quote(a) for a in args[1:]) + "\n")
+    return run([args[0], f"@{rsp}"])
+
+
 # The symbol links below exist only for their symbol tables: overlays link
 # against main with -R, so MIPS relocation overflows are expected. Hide those
 # known lines and show anything else the linker says.
@@ -1802,7 +1813,7 @@ if win:
     (out / "weak_defs.ld").write_text("".join(f'{name} = "{alias}";\n' for name, alias in
                                               sorted(weak_defs.items()) if name not in strong))
     exe = out / "rood.exe"
-    run([
+    run_long([
         MINGW_GXX,
         "-static",
         "-mconsole",
@@ -1826,7 +1837,7 @@ if win:
         *(win_nrd["libraries"] if win_nrd else []),
         *[f"-l{n}" for n in WIN_SYSTEM_LIBS],
         "-o", str(exe),
-    ])
+    ], out / "link.rsp")
     print(f"Built {exe}: {len(assign)} data imports, {len(traps)} fail-fast function imports")
     # The linked objects, for pc/tools/decl_mismatch.py --windows (it reads their COFF twins)
     (out / "objects.txt").write_text("".join(f"{o.relative_to(root)}\n" for o in objects))
