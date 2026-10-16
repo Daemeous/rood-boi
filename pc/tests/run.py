@@ -244,6 +244,10 @@ def suites(args, mode="egl"):
                  300, note="HUD: the HP / MP labels drawn opaque like their digits (solid black outline, the field "
                            "not showing through), ui_text font and original")]
           if args.save.exists() else []),
+        *([Suite("button_roles_smoke", [PY, str(TESTS / "button_roles_smoke.py"), "--card", str(args.save)], 300,
+                 note="QoL button roles: Cross confirms (settings file, title and loading, menus, the modern "
+                      "menus' tabs), Cross attacks in the field; each alone, both, neither; the ability lists")]
+          if args.save.exists() else []),
         *([Suite("ui_menus_smoke", [PY, str(TESTS / "ui_menus_smoke.py"), "--card", str(args.save)], 300,
                  note="modern menus: off = the game's menu; shell tabs, original Status and back, "
                       "System > Menus from the next open, L2 shortcut stays original, greyed Break arts opens, close")]

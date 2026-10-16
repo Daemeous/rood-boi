@@ -239,12 +239,17 @@ extern unsigned pc_rpc_buttons(void);
 /* input_record.c: ROOD_RECORD writes, ROOD_REPLAY replaces, the live input. */
 extern unsigned pc_input_buttons(unsigned live, unsigned rpc);
 extern int pc_input_stick(float out[2], int live_valid);
+/* button_roles.c (battle builds): Circle and Cross exchanged where the
+ * options qol_confirm_cross / qol_field_cross_attack cover the game's context. */
+extern unsigned pc_button_roles_buttons(unsigned buttons) __attribute__((weak));
 unsigned pc_window_buttons(void)
 {
     /* Developer RPC input (dev_rpc.c) applies even while unfocused. */
     unsigned keys = buttons | (pc_camera_stick_keys && (camera_keys & 16) ? 1u << 10 : 0);
     unsigned pad = capture_filter(NULL) ? 0 : pc_controller_buttons(); /* a binding capture takes the pad */
     unsigned result = pc_input_buttons(focused ? keys | pad : 0, pc_rpc_buttons());
+    if (pc_button_roles_buttons)
+        result = pc_button_roles_buttons(result);
     /* R3 resets the right-stick camera instead (camera_stick.c). */
     return pc_camera_stick_buttons(result);
 }

@@ -58,12 +58,18 @@ the game.
   (https://github.com/eremtsov/rood-reverse, branch `qol-mod-classic`,
   `src/mod/wswap.c` and the MENU7 Container fix), reimplemented for the
   native build with the same behaviour and save format. Released by its
-  author under CC0 1.0, like rood-reverse. Only the weapon slots are ported.
+  author under CC0 1.0, like rood-reverse. That branch adds only the weapon
+  slots; the mod's other control changes are the entries below.
 - **Map and first-person inversions** (settings `qol_map_invert`,
   `qol_fp_invert_y`; MENU5 `_menuManager`, BATTLE `func_8006EC7C`): from the
   same mod's default edition (branch `qol-mod`), made run-time options; the
   right stick's first-person look is this port's own (the mod fed the stick
   into the pad). CC0 1.0.
+- **Button roles** (settings `qol_confirm_cross`, `qol_field_cross_attack`;
+  `pc/src/button_roles.c`): the same mod's Cross confirms in menus and Cross
+  attacks in the field (branch `qol-mod`), made run-time options; the mod
+  changed the game's tests of the buttons, the port exchanges them in the
+  pad word by the game's context. CC0 1.0.
 - **MMPX** (`pc/src/ui_upscale.c` `pc_ui_mmpx2x`, `pc/shaders/vulkan/ui_mmpx.comp`):
   ported from the reference implementation of Morgan McGuire and Mara Gagiu,
   "MMPX Style-Preserving Pixel Art Magnification", JCGT 10(2), 2021

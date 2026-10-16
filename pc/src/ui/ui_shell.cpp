@@ -2176,6 +2176,7 @@ extern "C" void pc_ui_shell_close(void)
 }
 
 extern "C" int pc_ui_shell_visible(void) { return s.visible; }
+extern "C" int pc_ui_shell_face_buttons(void) { return s.visible && ab_takes_triangle(); }
 
 extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
 {

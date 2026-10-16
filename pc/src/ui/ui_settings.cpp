@@ -38,6 +38,7 @@ extern int pc_qol_skip_charging; /* project_settings.cpp; boot_window.c */
 extern int pc_skip_intro;        /* project_settings.cpp; boot_runtime.c */
 extern int pc_qol_map_invert, pc_qol_fp_invert_y; /* project_settings.cpp; MENU5, BATTLE func_8006EC7C */
 extern int pc_qol_map_controls;                   /* project_settings.cpp; map_pad.h */
+extern int pc_qol_confirm_cross, pc_qol_field_cross_attack; /* project_settings.cpp; button_roles.c */
 extern int pc_ui_menus;          /* project_settings.cpp; ui_shell */
 extern float pc_ui_menu_opacity; /* project_settings.cpp; ui_theme.cpp theme() */
 void pc_settings_save(void);
@@ -529,6 +530,12 @@ void build()
         "Modern: the right stick turns and tilts the map, L2 and R2 zoom, the left stick pans. Original: the "
         "PlayStation's (L2 or R2 with the right stick, the right stick pans).",
         &pc_qol_map_controls, MAP_CONTROLS, 2));
+    c.push_back(toggle("qol_confirm_cross", "Cross confirms",
+        "Menus and dialogues confirm with Cross and cancel with Circle. Field actions keep their buttons.",
+        &pc_qol_confirm_cross));
+    c.push_back(toggle("qol_field_cross_attack", "Cross attacks",
+        "In the field Cross draws the weapon and attacks; Circle interacts and sheathes.",
+        &pc_qol_field_cross_attack));
     c.push_back(game_option("vibration", "Vibration",
         "The game's vibration setting. Saved with your game, not in settings.", PC_GAME_OPT_VIBRATION, OFF_ON, 2));
 

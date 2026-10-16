@@ -32,6 +32,11 @@ void clear_atlas()
 extern "C" int pc_prompt_device(void) { return pc_button_prompts_family(); }
 extern "C" unsigned pc_prompt_generation(void) { return pc_button_prompts_generation(); }
 
+/* button_roles.c (battle builds): the button whose binding presses PS1 button
+ * `button` now (Circle and Cross exchanged where qol_confirm_cross or
+ * qol_field_cross_attack cover the game's context). */
+extern "C" int pc_button_roles_shown(int button) __attribute__((weak));
+
 extern "C" pc_prompt_image pc_prompt_glyph(int button, float size_px)
 {
     pc_prompt_image image;
@@ -39,6 +44,8 @@ extern "C" pc_prompt_image pc_prompt_glyph(int button, float size_px)
     ImGuiContext* context = ImGui::GetCurrentContext();
     if (!context || button < 0 || button > PC_PROMPT_LEFT)
         return image;
+    if (pc_button_roles_shown)
+        button = pc_button_roles_shown(button);
     int size = (int)(size_px + 0.5f);
     size = size < 4 ? 4 : size > 128 ? 128 : size;
     if (!texture || owner != context) {
