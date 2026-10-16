@@ -35,6 +35,8 @@ extern void pc_hw_sync(int, int, int, int) __attribute__((weak));
 extern void pc_hw_sync_store(int, int, int, int) __attribute__((weak));
 extern void pc_hw_sync_texture(unsigned, unsigned, unsigned, int, int, int, int) __attribute__((weak));
 extern void pc_hw_stale_copy(int, int, int, int, int, int) __attribute__((weak));
+/* What a VRAM write replaces, kept for frame interpolation (gpu_hw.c). */
+extern void pc_hw_before_write(int, int, int, int) __attribute__((weak));
 extern void pc_hw_set_2d(int);
 extern void pc_hw_set_bounds(int, int, int, int, unsigned, unsigned, const int*, const int*);
 extern void pc_hw_set_room(int);
@@ -131,6 +133,8 @@ void pc_vram_transfer(int x, int y, int w, int h, void* data, int write)
     }
     if (!write && pc_hw_sync_store)
         pc_hw_sync_store(x, y, w, h); /* StoreImage */
+    if (write && pc_hw_before_write)
+        pc_hw_before_write(x, y, w, h);
     for (int row = 0; row < h; row++) {
         void* vp = vram + (y + row) * 1024 + x;
         void* dp = (uint16_t*)data + row * w;
@@ -702,6 +706,8 @@ static void commands(uint32_t* p, unsigned n)
             unsigned h = (((p[i + 3] >> 16) - 1) & 511) + 1;
             if (pc_hw_stale_copy)
                 pc_hw_stale_copy((int)sx, (int)sy, (int)dx, (int)dy, (int)w, (int)h);
+            if (pc_hw_before_write)
+                pc_hw_before_write((int)dx, (int)dy, (int)w, (int)h);
             for (unsigned y = 0; y < h; ++y)
                 for (unsigned x = 0; x < w; x += 16) {
                     uint16_t block[16];

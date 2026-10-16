@@ -129,8 +129,10 @@ def suites(args, mode="egl"):
         Suite("interpolation_smoke", [PY, str(TESTS / "interpolation_smoke.py")], 180,
               note="interpolated frames move the camera (opening pan)"),
         *([Suite("interp_menu_2d_smoke", [PY, str(TESTS / "interp_menu_2d_smoke.py"), "--card", str(args.save)],
-                 300, note="16:9, interpolation on (present_rate 1 and 3): original Status and Equip affinity "
-                           "in-between images keep the game's 2D (no stray glyphs or lines; issue #8)")]
+                 600, note="16:9, interpolation on (present_rate 1 and 3): original Status, Equip affinity "
+                           "and card list in-between images keep the game's 2D (no stray glyphs or lines, no "
+                           "double-blended title; issues #8, #14); the title's card screen leaves no bars in the "
+                           "view's sides")]
           if args.save.exists() else []),
         Suite("animation_smoke", [PY, str(TESTS / "animation_smoke.py")]
               + (["--card", str(args.save)] if args.save.exists() else []), 300,

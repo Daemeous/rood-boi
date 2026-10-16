@@ -213,6 +213,36 @@ resolution and uploaded into the sampled copy of VRAM, then native VRAM
 again after the draw). Regression test `interp_menu_2d_smoke` (16:9,
 `present_rate` 1 and 3).
 
+2D batches whose texels or CLUT the game rewrote after they drew
+(`op_rewritten`: the memory card screens swap the CLUT row their pictures
+share in for each save's thumbnail and back) were replayed by copying the
+game's finished picture over where they drew; every later batch then drew
+there again, and translucent ones blended twice: on the field's DATA > LOAD
+list the "MENU" title shone brighter on every in-between image (issue
+#14). The CPU's VRAM writes now keep what they replace (up to 4096
+halfwords; `pc_hw_before_write` from LoadImage and VRAM copies), and the
+replay gives such a batch the sampled copy of VRAM with the writes since
+undone, newest first (`replay_unwrite`), then native VRAM again. A write
+that was not kept still falls back to the copy.
+
+Widescreen sides beside extended 2D: untextured 2D reaching the screen's
+edge (menu bars) stretches to the view's edge, but a screen whose
+background is 2D (the title's memory card screen) erases its bars on the
+PS1 by drawing the background again over the 4:3 screen, which compressed
+never reaches the view's sides. What the bars painted there stayed in each
+frame buffer: after the card screen closed, the right ends of its three
+save bars; above the first save, the end of the bar it slid away from,
+different in each buffer and so flickering (issue #14, with or without
+interpolation). The sides an extension paints are now remembered
+(`side_paint`), and an opaque compressed 2D rectangle over the screen's
+edge column clears the remembered side beside its rows to black (recorded
+as a fill, so in-between images clear it too): the extension goes with the
+bar it continued. Anything else drawn over a remembered side (3D, full-view
+or anchored 2D, fills, uploads, copies) makes it theirs, never cleared, so
+field screens keep their Hor+ sides. Regression test `interp_menu_2d_smoke`
+(the field's card list; the title's card screen opened and closed with
+interpolation off, then on at `present_rate` 1 and 3).
+
 Object lists (characters): drawn into the colour target and G-buffer with
 `room_depth` (the native surfaces so far: the room, then earlier object
 lists) as their depth buffer, so they are hidden exactly by the room and by

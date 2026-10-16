@@ -263,12 +263,16 @@ static void trace_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned
         : primitive_anchor ? (primitive_anchor == 1 ? "anchor left" : primitive_anchor == 2 ? "anchor right" : "fill")
         : primitive_extend > 0 ? "extend right" : primitive_extend < 0 ? "extend left" : "compress");
 }
+static void side_paint_primitive(int x0, int y0, int x1, int y1, unsigned code, const int* clip);
+static int side_paint_count;
+static void side_paint_forget(int x, int y, int w, int h);
 void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv, const int* clip)
 {
     if (!primitive_2d || clip[2] <= 0 || clip[3] <= 0)
         return;
     if (primitive_narrowed) {
         trace_bounds(x0, y0, x1, y1, code, tpage, uv, clip);
+        side_paint_primitive(x0, y0, x1, y1, code, clip);
         return;
     }
     if (layout_enabled() && !uv) {
@@ -287,6 +291,7 @@ void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tp
         debug = getenv("ROOD_WIDESCREEN_DEBUG") && *getenv("ROOD_WIDESCREEN_DEBUG") == '1';
     if (!cover_enabled()) {
         trace_bounds(x0, y0, x1, y1, code, tpage, uv, clip);
+        side_paint_primitive(x0, y0, x1, y1, code, clip);
         return;
     }
     int tolerance = clip[2] / 64; /* 5 pixels at 320 */
@@ -325,6 +330,7 @@ void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tp
     if (primitive_cover || primitive_anchor == PC_ANCHOR_SCENE)
         primitive_extend = 0;
     trace_bounds(x0, y0, x1, y1, code, tpage, uv, clip);
+    side_paint_primitive(x0, y0, x1, y1, code, clip);
     /* (Debug: 2D drawn compressed although it reaches well past the screen's
      * sides, e.g. a full-screen effect in pieces.) */
     if (debug && !primitive_cover && pc_gte_widescreen && (x0 < clip[0] - 8 || x1 > clip[0] + clip[2] + 8)
@@ -1996,6 +2002,8 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     }
     if (has_pending_translucent)
         flush();
+    if (side_paint_count && !primitive_2d)
+        side_paint_forget(clip[0], clip[1], clip[2], clip[3]); /* 3D (Hor+) spans the view */
     /* Widescreen: what the target holds where this draws is not what the
      * CPU rasterizer draws there (2D placed for the view, Hor+ 3D), so a
      * texture sampling it (a screen copy of rows of the frame being drawn,
@@ -2705,6 +2713,7 @@ void pc_hw_fill(int x, int y, int w, int h, int r, int g, int b)
     overlay_bake_rect(x, y, x + w, y + h);
     record_fill(x, y, w, h, r, g, b);
     screen_copy_write(0, 0, x, y, w, h, 0);
+    side_paint_forget(x, y, w, h);
     fill_target(target_fbo, x, y, w, h, r, g, b);
 }
 static void fill_target(GLuint fbo, int x, int y, int w, int h, int r, int g, int b)
@@ -2741,6 +2750,133 @@ static void fill_target(GLuint fbo, int x, int y, int w, int h, int r, int g, in
     gl_Disable(GL_SCISSOR_TEST);
     gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
 }
+/* ---- widescreen: the view's sides beside extended 2D ----
+ *
+ * Compressed 2D leaves the sides of the 16:9 view (beyond the drawing
+ * area's compressed edges) to what covers the view: the 3D, full-view 2D,
+ * fills. Untextured 2D reaching the screen's edge extends into them
+ * (primitive_extend: menu bars). On the PS1 a screen whose background is 2D
+ * (the title's memory card screen) erases its bars by drawing that
+ * background again over the whole 4:3 screen; compressed, it never reaches
+ * the sides, so what bars had painted there stayed in the frame buffers for
+ * good (each buffer its own: after the card screen closed, the right ends
+ * of its three save bars; above the first save, the end of the "MEMORY CARD
+ * slot 2" bar it slid away from, different in each buffer, so it flickered
+ * at 30 Hz; GitHub issue #14).
+ *
+ * So the sides an extension painted are remembered (side_paint: VRAM
+ * rectangles, x1/y1 exclusive), and opaque compressed 2D rectangles that
+ * reach the screen's edge (they cover the very pixels the extension
+ * continues) clear the remembered side beside their rows to black, as it
+ * is beside compressed 2D: the extension goes with the bar it continued.
+ * Whatever else draws over a remembered side (3D, full-view and anchored
+ * 2D, fills, uploads, copies) makes it theirs: forgotten, never cleared. */
+#define MAX_SIDE_PAINT 32
+static int side_paint[MAX_SIDE_PAINT][4], side_paint_count;
+static void side_paint_add(int x0, int y0, int x1, int y1)
+{
+    if (x1 <= x0 || y1 <= y0)
+        return;
+    for (int i = 0; i < side_paint_count; i++) {
+        int* r = side_paint[i];
+        if (x0 >= r[0] && y0 >= r[1] && x1 <= r[2] && y1 <= r[3])
+            return; /* already there */
+        if (r[0] >= x0 && r[1] >= y0 && r[2] <= x1 && r[3] <= y1) {
+            r[0] = x0, r[1] = y0, r[2] = x1, r[3] = y1; /* grows */
+            return;
+        }
+    }
+    if (side_paint_count == MAX_SIDE_PAINT) { /* full: the oldest goes (never cleared) */
+        memmove(side_paint, side_paint + 1, sizeof side_paint[0] * (MAX_SIDE_PAINT - 1));
+        --side_paint_count;
+    }
+    int* r = side_paint[side_paint_count++];
+    r[0] = x0, r[1] = y0, r[2] = x1, r[3] = y1;
+}
+/* Something else drew over VRAM rectangle (x, y, w, h). */
+static void side_paint_forget(int x, int y, int w, int h)
+{
+    for (int i = 0; i < side_paint_count;) {
+        const int* r = side_paint[i];
+        if (x < r[2] && r[0] < x + w && y < r[3] && r[1] < y + h) {
+            memmove(side_paint[i], side_paint[i + 1], sizeof side_paint[0] * (size_t)(side_paint_count - i - 1));
+            --side_paint_count;
+        } else
+            ++i;
+    }
+}
+/* Clear what is remembered inside (x0, y0)-(x1, y1) to black (in the
+ * frame's draw order: recorded, so the in-between images clear it too). */
+static void side_paint_clear(int x0, int y0, int x1, int y1)
+{
+    for (int i = 0; i < side_paint_count;) {
+        int r[4];
+        memcpy(r, side_paint[i], sizeof r);
+        int a0 = r[0] > x0 ? r[0] : x0, b0 = r[1] > y0 ? r[1] : y0;
+        int a1 = r[2] < x1 ? r[2] : x1, b1 = r[3] < y1 ? r[3] : y1;
+        if (a1 <= a0 || b1 <= b0) {
+            ++i;
+            continue;
+        }
+        flush();
+        overlay_bake_rect(a0, b0, a1, b1);
+        record_fill(a0, b0, a1 - a0, b1 - b0, 0, 0, 0);
+        fill_target(target_fbo, a0, b0, a1 - a0, b1 - b0, 0, 0, 0);
+        int stale[4] = { a0, b0, a1 - a0, b1 - b0 };
+        mark_stale_kind(stale, STALE_PLACED);
+        /* What is left of it: above, below, left and right of the cleared part. */
+        memmove(side_paint[i], side_paint[i + 1], sizeof side_paint[0] * (size_t)(side_paint_count - i - 1));
+        --side_paint_count;
+        int left_over[4][4] = { { r[0], r[1], r[2], b0 }, { r[0], b1, r[2], r[3] }, { r[0], b0, a0, b1 },
+            { a1, b0, r[2], b1 } };
+        for (int k = 0; k < 4; k++)
+            side_paint_add(left_over[k][0], left_over[k][1], left_over[k][2], left_over[k][3]);
+        i = 0; /* (the list changed) */
+    }
+}
+/* A 2D primitive's bounds (pc_hw_set_bounds, its placement decided). */
+static void side_paint_primitive(int x0, int y0, int x1, int y1, unsigned code, const int* clip)
+{
+    if (!pc_hw_active || pc_hw_suppress)
+        return;
+    if (!pc_gte_widescreen || !layout_enabled()) {
+        side_paint_count = 0;
+        return;
+    }
+    int left = clip[0], right = clip[0] + clip[2], top = clip[1], bottom = clip[1] + clip[3];
+    y0 = y0 > top ? y0 : top, y1 = y1 < bottom ? y1 : bottom;
+    if (y1 <= y0)
+        return;
+    float centre = clip[0] + clip[2] * 0.5f;
+    int inner_left = (int)ceilf(centre + (left - centre) * 0.75f - 0.001f);
+    int inner_right = (int)floorf(centre + (right - centre) * 0.75f + 0.001f);
+    int anchored = edge_anchored() && !primitive_cover;
+    if (primitive_cover || primitive_narrowed || primitive_anchor == PC_ANCHOR_SCENE
+        || (primitive_anchor == PC_ANCHOR_FILL && !primitive_cover)) {
+        /* Full-view, projected or view-wide 2D: it may draw anywhere in the area. */
+        if (side_paint_count)
+            side_paint_forget(primitive_cover ? x0 : left, y0, primitive_cover ? x1 - x0 : right - left, y1 - y0);
+        return;
+    }
+    if (anchored) {
+        if (side_paint_count) {
+            int a = (int)floorf(anchor_x((float)x0)), b = (int)ceilf(anchor_x((float)x1));
+            side_paint_forget(a, y0, b - a, y1 - y0);
+        }
+        return;
+    }
+    if (primitive_extend > 0)
+        side_paint_add(inner_right, y0, right, y1);
+    else if (primitive_extend < 0)
+        side_paint_add(left, y0, inner_left, y1);
+    else if (side_paint_count && (code & 0xe0) == 0x60 && !(code & 2)) {
+        /* An opaque rectangle (sprite, tile) over the screen's edge column. */
+        if (x1 >= right - 1 && x0 < right)
+            side_paint_clear(inner_right, y0, right, y1);
+        if (x0 <= left + 1 && x1 > left)
+            side_paint_clear(left, y0, inner_left, y1);
+    }
+}
 static int widescreen_screen_upload(int x, int y, int w, int h);
 /* Native VRAM rectangle (already written by the CPU) into the scaled target. */
 void pc_hw_upload(int x, int y, int w, int h)
@@ -2753,6 +2889,7 @@ void pc_hw_upload(int x, int y, int w, int h)
         ms_end_over(x, y, w, h);
     record_write(x, y, w, h);
     screen_copy_write(0, 0, x, y, w, h, 0);
+    side_paint_forget(x, y, w, h);
     pc_hw_mark(x, y, x + w - 1, y + h - 1);
     upload_tiles(dirty_tiles & tiles_for(x, y, x + w - 1, y + h - 1));
     if (widescreen_screen_upload(x, y, w, h))
@@ -2801,6 +2938,7 @@ void pc_hw_copy(int sx, int sy, int dx, int dy, int w, int h)
         ms_end();
     record_write(dx, dy, w, h);
     screen_copy_write(sx, sy, dx, dy, w, h, 1);
+    side_paint_forget(dx, dy, w, h);
     int s = pc_hw_scale;
     if (sx + w > 1024 || sy + h > 512 || dx + w > 1024 || dy + h > 512) {
         /* Wrapping copies are rare; take them from the exact native result. */
@@ -3487,6 +3625,7 @@ void pc_hw_native_marker(uint32_t list, int ox, int oy, const int* clip, unsigne
     if (!draw_native(target_fbo, list, clip, ox, oy, window, mask, NULL, 1.0f))
         return; /* an object list that could not draw: its packets draw */
     record_native(list, clip, ox, oy, window, mask);
+    side_paint_forget(clip[0], clip[1], clip[2], clip[3]); /* (the 3D spans the view) */
     if (drawn_list_count < MAX_DRAWN_LISTS)
         drawn_lists[drawn_list_count++] = list;
     if (pc_native_room == 2 || pc_native_actors == 2)
@@ -3770,6 +3909,7 @@ int pc_present_rate = 1;
 float pc_present_phase;
 #define MAX_RECORDED_VERTICES (3 * MAX_VERTICES)
 #define MAX_RECORDED_OPS 4096
+#define WRITE_KEEP 4096 /* VRAM halfwords a write may replace and be undone (op_rewritten) */
 #define MATCH_SLOTS 131072
 typedef struct {
     float world[9];
@@ -3796,6 +3936,10 @@ typedef struct {
     recorded_op ops[MAX_RECORDED_OPS];
     int vertex_count, triangle_count, op_count, overflow, writes;
     int write_rects[16][5]; /* x, y, w, h, ops drawn before it */
+    /* What each small write replaced (pc_hw_before_write), so a replayed
+     * batch whose texels or CLUT it rewrote samples them as it drew. */
+    uint8_t write_kept[16];
+    uint16_t write_old[16][WRITE_KEEP];
     float r[3][3], t[3], h, ofx, ofy;
     int widescreen, valid;
     float fade, fade_rect[4]; /* a screen fade's amount (0..1; record_fade) and where it covers */
@@ -4111,12 +4255,33 @@ static void record_translucent(uint32_t list, int first, int count, const int* c
     op->window = window, op->mask = (unsigned)mask;
     op->range_first = first, op->range_count = count;
 }
+/* The CPU is about to write VRAM rectangle (x, y, w, h) (LoadImage, a VRAM
+ * copy; boot_runtime.c): what it holds now, for the write's record. */
+static int pending_write[4], pending_kept;
+static uint16_t pending_old[WRITE_KEEP];
+void pc_hw_before_write(int x, int y, int w, int h)
+{
+    pending_kept = 0;
+    if (!pc_hw_active || !native_vram || w <= 0 || h <= 0 || w * h > WRITE_KEEP || x < 0 || y < 0 || x + w > 1024
+        || y + h > 512)
+        return;
+    for (int row = 0; row < h; row++)
+        memcpy(pending_old + row * w, native_vram + (size_t)(y + row) * 1024 + x, (size_t)w * sizeof *pending_old);
+    pending_write[0] = x, pending_write[1] = y, pending_write[2] = w, pending_write[3] = h;
+    pending_kept = 1;
+}
 static void record_write(int x, int y, int w, int h)
 {
     recording* rec = recording_now();
+    int kept = pending_kept && pending_write[0] == x && pending_write[1] == y && pending_write[2] == w
+        && pending_write[3] == h;
+    pending_kept = 0;
     if (rec->writes < 16) {
         int* q = rec->write_rects[rec->writes];
         q[0] = x, q[1] = y, q[2] = w, q[3] = h, q[4] = rec->op_count;
+        rec->write_kept[rec->writes] = (uint8_t)kept;
+        if (kept)
+            memcpy(rec->write_old[rec->writes], pending_old, (size_t)(w * h) * sizeof *pending_old);
     }
     ++rec->writes;
 }
@@ -4405,6 +4570,18 @@ static int op_feedback(const recording* b, int o)
  * compressed; or a newer frame's drawing), it drew misplaced copies of the
  * text at 16:9. Returns the tiles to upload from native VRAM again after
  * the draw. */
+/* The replay's own copy of VRAM, for batches that sample VRAM other than it is now. */
+static uint16_t replay_vram[1024 * 512];
+static void replay_vram_from_native(uint32_t tiles)
+{
+    for (int tile = 0; tile < 32; tile++)
+        if (tiles & (1u << tile)) {
+            int x = (tile & 15) * 64, y = (tile >> 4) * 256;
+            for (int row = 0; row < 256; row++)
+                memcpy(replay_vram + (y + row) * 1024 + x, native_vram + (y + row) * 1024 + x,
+                    64 * sizeof *replay_vram);
+        }
+}
 static uint32_t replay_sample_own(const int16_t* texels)
 {
     int x0 = texels[0] < 0 ? 0 : texels[0], y0 = texels[1] < 0 ? 0 : texels[1];
@@ -4414,17 +4591,61 @@ static uint32_t replay_sample_own(const int16_t* texels)
     if (ms_scope == replay.fbo)
         ms_end_over(x0, y0, x1 - x0, y1 - y0);
     static unsigned char pixels[1024 * 512 * 4];
-    static uint16_t vram[1024 * 512];
     read_native_pixels(replay.fbo, x0, y0, x1, y1, pixels);
     uint32_t tiles = tiles_for(x0, y0, x1 - 1, y1 - 1);
-    for (int tile = 0; tile < 32; tile++)
-        if (tiles & (1u << tile)) {
-            int x = (tile & 15) * 64, y = (tile >> 4) * 256;
-            for (int row = 0; row < 256; row++)
-                memcpy(vram + (y + row) * 1024 + x, native_vram + (y + row) * 1024 + x, 64 * sizeof *vram);
+    replay_vram_from_native(tiles);
+    pixels_to_vram(pixels, x0, y0, x1, y1, replay_vram);
+    upload_tiles_from(replay_vram, tiles);
+    return tiles;
+}
+/* For a replayed batch whose texels or CLUT were rewritten since it drew
+ * (op_rewritten: the memory card screens swap the CLUT row their pictures
+ * share in for each save's thumbnail and back): the sampled copy of VRAM as
+ * it drew, native VRAM with those writes undone, newest first (`later`'s,
+ * the frame being recorded, then `b`'s after the batch). Returns the tiles
+ * to upload from native VRAM again after the draw; 0 when a write was not
+ * kept (too large, or more than 16 in a frame): the caller then keeps B's
+ * pixels there. */
+static uint32_t replay_unwrite(const recording* b, int o, const recording* later)
+{
+    const recorded_op* op = &b->ops[o];
+    uint32_t tiles = 0;
+    for (int pass = 0; pass < 2; pass++) {
+        const recording* rec = pass ? b : later;
+        if (!rec)
+            continue;
+        if (rec->writes > 16)
+            return 0;
+        for (int i = rec->writes - 1; i >= 0; i--) {
+            const int* w = rec->write_rects[i];
+            if (rec == b && w[4] <= o)
+                break; /* written before it drew */
+            if (!write_hits(w, op->texels) && !write_hits(w, op->cluts))
+                continue;
+            if (!rec->write_kept[i])
+                return 0;
+            tiles |= tiles_for(w[0], w[1], w[0] + w[2] - 1, w[1] + w[3] - 1);
         }
-    pixels_to_vram(pixels, x0, y0, x1, y1, vram);
-    upload_tiles_from(vram, tiles);
+    }
+    if (!tiles)
+        return 0;
+    replay_vram_from_native(tiles);
+    for (int pass = 0; pass < 2; pass++) {
+        const recording* rec = pass ? b : later;
+        if (!rec)
+            continue;
+        for (int i = rec->writes - 1; i >= 0; i--) {
+            const int* w = rec->write_rects[i];
+            if (rec == b && w[4] <= o)
+                break;
+            if (!write_hits(w, op->texels) && !write_hits(w, op->cluts))
+                continue;
+            for (int row = 0; row < w[3]; row++)
+                memcpy(replay_vram + (size_t)(w[1] + row) * 1024 + w[0], rec->write_old[i] + row * w[2],
+                    (size_t)w[2] * sizeof *replay_vram);
+        }
+    }
+    upload_tiles_from(replay_vram, tiles);
     return tiles;
 }
 /* Draw B as it would look at fraction `t` of the way from A. */
@@ -4475,8 +4696,11 @@ static void replay_frame(const recording* a, const recording* b, float t)
                     &camera, t);
             continue;
         }
-        if (op_rewritten(b, o, recording_now())) {
-            /* Its texels changed since: B's own pixels where it drew. */
+        uint32_t unwritten = 0;
+        if (op_rewritten(b, o, recording_now()) && !(unwritten = replay_unwrite(b, o, recording_now()))) {
+            /* Its texels changed since and cannot be undone: B's own pixels
+             * where it drew (with everything B drew over them later: the
+             * later batches draw there again, translucent ones twice). */
             int x0 = op->bounds[0] > op->clip[0] ? op->bounds[0] : op->clip[0];
             int y0 = op->bounds[1] > op->clip[1] ? op->bounds[1] : op->clip[1];
             int x1 = op->bounds[2] < op->clip[0] + op->clip[2] ? op->bounds[2] : op->clip[0] + op->clip[2];
@@ -4555,8 +4779,8 @@ static void replay_frame(const recording* a, const recording* b, float t)
         }
         uint32_t own = op_feedback(b, o) ? replay_sample_own(op->texels) : 0;
         draw_batch(replay.fbo, scratch, op->count, op->blend, op->clip);
-        if (own)
-            upload_tiles(own); /* (native VRAM again) */
+        if (own | unwritten)
+            upload_tiles(own | unwritten); /* (native VRAM again) */
     }
     occlusion_on = occlusion_was;
     surface_valid = surface_was;
