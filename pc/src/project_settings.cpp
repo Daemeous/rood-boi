@@ -1,3 +1,4 @@
+#include "hd_textures.h"
 // User settings for everything not tied to a room: graphics, post effects,
 // path tracer quality and shared lighting values. Loaded at startup from the
 // file named by ROOD_SETTINGS (pc/run-game.sh passes pc/user/settings.cfg;
@@ -203,6 +204,7 @@ const Entry entries[] = {
     I("interp_uv", pc_interp_uv),
     I("present_rate", pc_present_rate),
     I("smooth_textures", pc_hw_texture_filter),
+    I("hd_textures", pc_hd_enabled),
     I("ui_subpixel", pc_ui_subpixel),
     I("ui_outline_boost", pc_ui_outline_boost),
     F("ui_bubble_outline", pc_ui_bubble_outline),

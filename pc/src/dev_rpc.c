@@ -3288,6 +3288,13 @@ static void handle_method(int fd, const char* request)
             return;
         }
         reply(fd, id, result);
+    } else if (!strcmp(method, "hd_textures")) {
+        extern void pc_hd_status(char*, int);
+        extern int pc_hd_enabled;
+        int enabled;
+        if (params && bool_value(member(params, "enabled"), &enabled)) pc_hd_enabled = enabled;
+        pc_hd_status(result, sizeof result);
+        reply(fd, id, result);
     } else if (!strcmp(method, "emissive")) {
         /* Emissive texels (emissive_editor.cpp parses the params object). */
         extern int pc_emissive_rpc(const char* params, char* out, int size) __attribute__((weak));

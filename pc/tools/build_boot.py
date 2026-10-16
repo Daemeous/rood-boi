@@ -1162,6 +1162,7 @@ for source in [
     root / "pc/src/emissive.cpp",
     root / "pc/src/emissive_editor.cpp",
     root / "pc/src/materials.cpp",
+    root / "pc/src/hd_textures.cpp",
     root / "pc/src/room_settings.cpp",
     root / "pc/src/lighting_layers.cpp",
     root / "pc/src/lighting_editor.cpp",
