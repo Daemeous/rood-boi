@@ -11,6 +11,11 @@ extern "C" const uint16_t* pc_native_vram(void) { return test_vram; }
 int main(int argc, char** argv)
 {
     init();
+    if (argc > 1 && !strcmp(argv[1], "--no-pack")) {
+        assert(!configured && files.empty());
+        std::cout << "PASS: missing pack or explicit missing override keeps originals\n";
+        return 0;
+    }
     assert(files.size() == 3);
     test_vram[0] = 0x3210;
     test_vram[1] = 0x7654;
