@@ -20,6 +20,7 @@
 #include <string.h>
 #include "render_gl.h"
 #include "glow_overrides.h"
+#include "hd_textures.h"
 #include "ui_upscale.h" /* 2D / UI texture magnification (MMPX) */
 #include "ui_text.h"    /* 2D / UI: glyphs drawn from fonts (ui_text) */
 #include "ui_bubbles.h" /* 2D / UI: joined lines, vector talk bubbles */
@@ -874,7 +875,7 @@ static const char* draw_vertex_source =
     "    gl_Position = vec4((a_pos.x / 512.0 - 1.0) * w, (a_pos.y / 256.0 - 1.0) * w, (depth * 2.0 - 1.0) * w, w);\n"
     "}\n";
 static const char* draw_fragment_source =
-    "#version 330 core\n"
+    "#version 330 core\n#define ROOD_GL 1\n"
     "noperspective centroid in vec3 v_color_affine;\n"
     "noperspective centroid in vec2 v_uv_affine;\n"
     "smooth centroid in vec3 v_color_persp;\n"
@@ -925,7 +926,7 @@ static const char* draw_fragment_source =
     "    return fetch(tx + int(u), ty + int(v));\n"
     "}\n"
     "vec3 rgb(uint t) { return vec3(float(t & 31u), float((t >> 5) & 31u), float((t >> 10) & 31u)); }\n"
-    PC_GLSL_TEXT_DIST PC_GLSL_EMISSIVE
+    PC_GLSL_TEXT_DIST PC_GLSL_EMISSIVE PC_GLSL_HD_TEXTURES
     "void main() {\n"
     /* A pixel's footprint in texels (text from distance texels: edges one pixel wide). */
     "    vec2 footprint = fwidth(perspective != 0 ? v_uv_persp : v_uv_affine);\n"
@@ -970,7 +971,9 @@ static const char* draw_fragment_source =
     "            t = texel_at(uint(q.x) & 255u, uint(q.y) & 255u, tpage, clut, win);\n"
     "            texel = rgb(t);\n"
     "        }\n"
-    "        if (filtering != 0 && v_normal.w > 0.5) {\n"
+    "        vec4 hd;\n"
+    "        bool has_hd = ((flags & 16u) == 0u || text_alpha < 0.0) && hd_texel(clamp(v_uv, vec2(v_bounds.xy), max(vec2(v_bounds.zw) - 0.0001, vec2(v_bounds.xy))), tpage, clut, win, hd);\n"
+    "        if (!has_hd && filtering != 0 && v_normal.w > 0.5) {\n"
     /* Bilinear between the four nearest texels, kept inside the primitive's
      * texel bounds (pages are atlases); transparent texels drop out and the
      * pixel is cut where they dominate. */
@@ -989,6 +992,7 @@ static const char* draw_fragment_source =
     "            texel = sum / cover;\n"
     "            if (t == 0u) t = 0x7fffu;\n" /* a kept edge pixel over a clear texel: opaque */
     "        }\n"
+    "        if (has_hd) hd_apply(hd, texel, t);\n"
     "        if (t == 0u) discard;\n"
     "        semi = semi && (t & 0x8000u) != 0u;\n"
     "        mask |= t >> 15;\n"
@@ -1484,6 +1488,8 @@ static void draw_batch(GLuint fbo, const hw_vertex* vertices, int count, int ble
             centre = vertices[i].z <= 0.0f;
     } else if (ms_scope == fbo)
         ms_end();
+    for (int i = 0; i < count; i += 3)
+        if (vertices[i].flags & 1) pc_hd_use(vertices[i].tpage, vertices[i].clut);
     emissive_sync();
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
@@ -1495,6 +1501,7 @@ static void draw_batch(GLuint fbo, const hw_vertex* vertices, int count, int ble
     gl_Viewport(0, 0, 1024 * pc_hw_scale, 512 * pc_hw_scale);
     set_scissor(clip);
     gl_UseProgram(draw_program);
+    pc_hd_gl_bind(draw_program);
     gl_ActiveTexture(GL_TEXTURE0);
     gl_BindTexture(GL_TEXTURE_2D, native_texture);
     gl_Uniform1i(u_draw_vram, 0);
@@ -4846,6 +4853,7 @@ static GLuint hw_target(void)
         memset(&packet_stats, 0, sizeof packet_stats);
         finish_recording(now);
         ++frame_serial;
+        pc_hd_frame();
         previous = newest;
         newest = recording_index;
         arrival[newest] = vsync;

@@ -1,3 +1,4 @@
+#include "../hd_textures.h"
 // Modern menus, System tab: the settings pages (ui_settings.h). Each row
 // applies through the calls the F1 editor makes (dev_overlay.cpp
 // graphics_panel / camera_stick_panel / gameplay_panel,
@@ -310,6 +311,8 @@ void build()
     g.push_back(toggle("subpixel", "Sub-pixel precision", "No vertex jitter: polygons keep their exact positions.",
         &pc_hw_subpixel)
                     .grey(need_hw));
+    g.push_back(toggle("hd_textures", "HD texture replacements",
+        "Use the installed texture pack. Missing replacements keep the original artwork.", &pc_hd_enabled).grey(need_hw));
     g.push_back(toggle("smooth_textures", "Smooth textures", "Bilinear filtering on 3D textures. Off: the PS1's texels.",
         &pc_hw_texture_filter)
                     .grey(need_hw));
