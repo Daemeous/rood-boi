@@ -21,7 +21,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 SOURCES = ROOT / "pc/shaders/vulkan"
 # The probe GI (pc/src/probe_gi.inc) on OpenGL 4.3 compute.
 SHADERS = ["probe_trace_bvh.comp", "probe_blend.comp", "probe_state.comp", "ui_mmpx.comp"]
-FRAGMENTS = ["probe_common.glsl", "aa_geometry.glsl", "downsample.glsl", "ms_resolve.glsl",
+FRAGMENTS = ["hd_textures.glsl", "probe_common.glsl", "aa_geometry.glsl", "downsample.glsl", "ms_resolve.glsl",
              "brightness.glsl",  # the brightness setting (gl_present.c)
              "emissive.glsl",  # emissive texels (gpu_hw.c's packets, render.c's native lists)
              "text_dist.glsl",  # text and icons from distance texels (gpu_hw.c's packets, the text overlay)

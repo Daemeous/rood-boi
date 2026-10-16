@@ -250,12 +250,15 @@ static int vk_native_init(void)
     if (vk_native_ready >= 0)
         return vk_native_ready;
     vk_native_ready = 0;
-    /* 7: the node material graphs' values table (material_graph.cpp; read only by a generated include). */
-    VkDescriptorType types[8] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    /* 7: the node material graphs' values table (material_graph.cpp; read only by a generated include).
+     * 8-11: HD texture pack words, palettes, table and atlas (hd_textures.cpp). */
+    VkDescriptorType types[12] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER };
-    vk_native_set = vk_push_layout(types, 8);
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
+    vk_native_set = vk_push_layout(types, 12);
     VkPipelineLayoutCreateInfo layout = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = 1,
         .pSetLayouts = &vk_native_set };
@@ -384,6 +387,7 @@ static mesh_slot* vk_use_instance(vk_draw_state* s, const draw_list* list, const
     vk_descriptors_image(&d, 6, vk_hw.emissive.view, vk.nearest);
     vk_descriptors_buffer(&d, 7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, s->graph_values.buffer, s->graph_values.offset,
         (VkDeviceSize)s->graph_count * 16);
+    for (int i=0; i<4; ++i) vk_descriptors_image(&d, 8+i, (VkImageView)pc_hd_vk_view(i), vk.nearest);
     vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_layout);
     return mesh;
 }
