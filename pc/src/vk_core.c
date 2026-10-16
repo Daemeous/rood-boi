@@ -871,7 +871,29 @@ int vk_buffer_create(vk_buffer* b, VkDeviceSize size, VkBufferUsageFlags usage, 
         .pNext = (usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) ? &flags : NULL,
         .allocationSize = req.size,
         .memoryTypeIndex = (uint32_t)type };
-    if (!vk_check(vkAllocateMemory(vk.device, &alloc, NULL, &b->memory), "vkAllocateMemory")) {
+    VkResult allocation = vkAllocateMemory(vk.device, &alloc, NULL, &b->memory);
+    if (allocation == VK_ERROR_OUT_OF_DEVICE_MEMORY && host
+        && (vk.memory.memoryTypes[type].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
+        /* A discrete GPU's CPU-visible VRAM window can be only 256 MiB,
+         * shared with other applications. Plenty of VRAM may remain while
+         * that heap is full. The same host-coherent buffer can live in
+         * system memory; keep its usage and device-address allocation flags. */
+        uint32_t system_bits = req.memoryTypeBits;
+        for (uint32_t i = 0; i < vk.memory.memoryTypeCount; ++i)
+            if (vk.memory.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+                system_bits &= ~(1u << i);
+        int fallback = memory_type(system_bits, required | VK_MEMORY_PROPERTY_HOST_CACHED_BIT, required);
+        if (fallback >= 0) {
+            alloc.memoryTypeIndex = (uint32_t)fallback;
+            allocation = vkAllocateMemory(vk.device, &alloc, NULL, &b->memory);
+            if (allocation == VK_SUCCESS) {
+                static int reported;
+                if (!reported++)
+                    fprintf(stderr, "[vk] CPU-visible VRAM full; host buffers fall back to system memory\n");
+            }
+        }
+    }
+    if (!vk_check(allocation, "vkAllocateMemory")) {
         vkDestroyBuffer(vk.device, b->buffer, NULL);
         b->buffer = VK_NULL_HANDLE;
         return 0;
