@@ -45,6 +45,7 @@ std::vector<Pending> pending;
 uint64_t generation = 1;
 int cursor_x, cursor_y, row_height;
 bool initialized, configured, dirty, full;
+bool words_dirty = true, palettes_dirty = true, table_dirty = true;
 unsigned matched_uploads, loaded_total;
 unsigned gl_tex[4];
 #ifdef ROOD_VULKAN
@@ -112,7 +113,7 @@ void insert(uint64_t key, Image im)
             t[3] = im.y;
             d[0] = im.w;
             d[1] = im.h;
-            dirty = true;
+            dirty = table_dirty = true;
             return;
         }
     }
@@ -199,17 +200,24 @@ extern "C" void pc_hd_upload(int x, int y, int w, int h, const uint16_t* vram)
     for (int j = 0; j < h; ++j)
         c = crc(vram + (y + j) * 1024 + x, w, c);
     c ^= 0xffffffffu;
-    /* Only track uploads named in this pack. Palettes still hash from VRAM. */
-    bool known = files.lower_bound(uint64_t(c) << 32) != files.end()
-        && uint32_t(files.lower_bound(uint64_t(c) << 32)->first >> 32) == c;
+    auto candidate = files.lower_bound(uint64_t(c) << 32);
+    bool known = candidate != files.end() && uint32_t(candidate->first >> 32) == c;
     if (known)
         ++matched_uploads;
+    bool changed = false;
     for (int j = 0; j < h; ++j)
-        for (int i = 0; i < w; ++i)
-            words[(y + j) * 1024 + x + i]
+        for (int i = 0; i < w; ++i) {
+            Word next
                 = known ? Word { c, uint32_t(i) | (uint32_t(j) << 16), uint32_t(w), uint32_t(h) } : Word {};
+            Word& old = words[(y + j) * 1024 + x + i];
+            if (memcmp(&old, &next, sizeof old)) {
+                old = next;
+                changed = true;
+            }
+        }
     ++generation;
-    dirty = true;
+    if (changed)
+        dirty = words_dirty = true;
 }
 extern "C" void pc_hd_clear(int x, int y, int w, int h)
 {
@@ -227,7 +235,7 @@ extern "C" void pc_hd_clear(int x, int y, int w, int h)
         }
     ++generation;
     if (changed)
-        dirty = true;
+        dirty = words_dirty = true;
 }
 extern "C" void pc_hd_copy(int sx, int sy, int dx, int dy, int w, int h, int masked)
 {
@@ -247,7 +255,7 @@ extern "C" void pc_hd_copy(int sx, int sy, int dx, int dy, int w, int h, int mas
         for (int i = 0; i < w; ++i)
             words[((dy + j) & 511) * 1024 + ((dx + i) & 1023)] = copy[j * w + i];
     ++generation;
-    dirty = true;
+    dirty = words_dirty = true;
 }
 extern "C" void pc_hd_use(unsigned tpage, unsigned clut)
 {
@@ -272,7 +280,7 @@ extern "C" void pc_hd_use(unsigned tpage, unsigned clut)
         auto& dst = palettes[clut + (depth ? 32768 : 0)];
         if (dst != pal) {
             dst = pal;
-            dirty = true;
+            dirty = palettes_dirty = true;
         }
     }
     std::set<uint32_t> hashes;
@@ -298,14 +306,14 @@ extern "C" void pc_hd_frame(void)
     pending.clear();
     cursor_x = cursor_y = row_height = 0;
     full = false;
-    dirty = true;
+    dirty = table_dirty = true;
 }
 extern "C" void pc_hd_gl_bind(unsigned program)
 {
     init();
     if (last_enabled != pc_hd_enabled) {
         last_enabled = pc_hd_enabled;
-        dirty = true;
+        dirty = table_dirty = true;
         used.clear();
     }
     gl_PixelStorei(GL_UNPACK_ROW_LENGTH, 0);
@@ -332,7 +340,7 @@ extern "C" void pc_hd_gl_bind(unsigned program)
         gl_ActiveTexture(GL_TEXTURE8 + i);
         gl_BindTexture(GL_TEXTURE_2D, gl_tex[i]);
         gl_Uniform1i(gl_GetUniformLocation(program, names[i]), 8 + i);
-        if (dirty && i < 3) {
+        if (i < 3 && (i == 0 ? words_dirty : i == 1 ? palettes_dirty : table_dirty)) {
             int w, h;
             dimensions(i, w, h);
             gl_TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, i == 1 ? GL_RED_INTEGER : GL_RGBA_INTEGER,
@@ -342,7 +350,7 @@ extern "C" void pc_hd_gl_bind(unsigned program)
     for (const auto& p : pending)
         gl_TexSubImage2D(GL_TEXTURE_2D, 0, p.rect.x, p.rect.y, p.rect.w, p.rect.h, GL_RGBA, GL_UNSIGNED_BYTE,
             p.pixels.data());
-    dirty = false;
+    dirty = words_dirty = palettes_dirty = table_dirty = false;
     pending.clear();
     gl_ActiveTexture(GL_TEXTURE0);
     static int checks;
@@ -372,7 +380,7 @@ extern "C" void pc_hd_vk_sync(void)
     init();
     if (last_enabled != pc_hd_enabled) {
         last_enabled = pc_hd_enabled;
-        dirty = true;
+        dirty = table_dirty = true;
         used.clear();
     }
     bool created = !vk_tex[0].image;
@@ -392,18 +400,21 @@ extern "C" void pc_hd_vk_sync(void)
     vk_barrier();
     auto upload = [](int i, int x, int y, int w, int h, const void* p) {
         size_t bytes = size_t(w) * h * (i == 0 || i == 2 ? 16 : 4);
-        vk_slice s = vk_arena(bytes, 16);
-        if (!s.data)
+        vk_buffer staging {};
+        if (!vk_buffer_create(&staging, bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 2))
             return;
-        memcpy(s.data, p, bytes);
+        memcpy(staging.mapped, p, bytes);
         VkBufferImageCopy region {};
-        region.bufferOffset = s.offset;
         region.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
         region.imageOffset = { x, y, 0 };
         region.imageExtent = { uint32_t(w), uint32_t(h), 1 };
-        vkCmdCopyBufferToImage(vk_cmd(), s.buffer, vk_tex[i].image, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
+        vkCmdCopyBufferToImage(
+            vk_cmd(), staging.buffer, vk_tex[i].image, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
+        vk_buffer_destroy_later(&staging);
     };
     for (int i = 0; i < 3; ++i) {
+        if (!created && !(i == 0 ? words_dirty : i == 1 ? palettes_dirty : table_dirty))
+            continue;
         int w, h;
         dimensions(i, w, h);
         upload(i, 0, 0, w, h, data(i));
@@ -411,7 +422,7 @@ extern "C" void pc_hd_vk_sync(void)
     for (const auto& p : pending)
         upload(3, p.rect.x, p.rect.y, p.rect.w, p.rect.h, p.pixels.data());
     vk_barrier();
-    dirty = false;
+    dirty = words_dirty = palettes_dirty = table_dirty = false;
     pending.clear();
 }
 extern "C" void* pc_hd_vk_view(int i) { return (void*)vk_tex[i].view; }
