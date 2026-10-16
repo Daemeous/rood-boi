@@ -107,6 +107,7 @@ void pc_ui_loot_abandon(int reset);
 int pc_ui_loot_debug_open(const unsigned char* data, int nodes, int chest);
 int pc_ui_loot_debug_chest(int index, int out[12]);
 int pc_ui_loot_debug_chest_open(int index);
+int pc_ui_container_debug_open(int location);
 /* menu_bridge.c: the HUD flag under the shell's slide-out */
 char pc_ui_menu_hud_game(void);
 void pc_ui_menu_hud_keep(void);
@@ -1437,8 +1438,28 @@ int pc_ui_loot_debug_chest_open(int index)
 {
     int n;
     _mpdRoomSection13* c = room_chest(index, &n);
-    if (c == NULL || !field_free() || vs_battle_getStateFlag(c->unk10 + 0x3C0))
+    /* a container (flag >= 64: func_800743E0 calls func_800CB1C0(flag - 64), MENU7's
+     * container) is never "opened": its flag's state is not checked */
+    if (c == NULL || !field_free() || (c->unk10 < 0x40 && vs_battle_getStateFlag(c->unk10 + 0x3C0)))
         return 0;
     func_80074050((_mpdRoomSectionA*)c, 0);
+    return 1;
+}
+
+/* RPC container (tests, the fallback where a room has no container object): the save
+ * room's container opened as the field opens it (BATTLE func_800CB1C0(location):
+ * func_800CACD0(7, 2), D_800F4E6B = location + 0x40, D_800F4EA0 |= 0x400), then the
+ * field's menu mode as for RPC loot (func_8007357C). location < 0: the room's save
+ * point (func_8008A4FC()). Only in the field with Ashley free to act. */
+int pc_ui_container_debug_open(int location)
+{
+    if (!field_free())
+        return 0;
+    if (location < 0)
+        location = func_8008A4FC();
+    func_800CB1C0(location);
+    if ((vs_battle_menuState.currentMenu & 0x3F) != 7)
+        return 0;
+    func_8007357C(0, 0);
     return 1;
 }

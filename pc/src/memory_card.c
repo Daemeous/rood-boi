@@ -214,6 +214,7 @@ static struct card* slot_card(int slot)
         card->loaded = 1;
         snprintf(card->path, sizeof card->path, "%s", chosen_path(slot));
         FILE* f = fopen(card->path, "rb");
+        int error = errno, missing = !f && error == ENOENT; /* else it exists but can't be read now */
         card->present = slot == 0 || f;
         card->format = FORMAT_RAW;
         card->writable = 1;
@@ -235,8 +236,17 @@ static struct card* slot_card(int slot)
                 fprintf(stderr, "[card] slot %d: %s (%s%s)\n", slot + 1, card->path, formats[card->format].name,
                     card->writable ? "" : ", read only: saves are refused");
             }
-        } else if (card->present)
+        } else if (card->present) {
             format(card);
+            if (!missing) {
+                /* Unreadable (permissions, another program holding it): saving would replace it. */
+                card->writable = 0;
+                fprintf(stderr,
+                    "[card] slot %d: cannot read %s (%s); a blank card that refuses saves is inserted instead "
+                    "and the file is left alone\n",
+                    slot + 1, card->path, strerror(error));
+            }
+        }
     }
     return card->present ? card : NULL;
 }

@@ -13,10 +13,12 @@
  * The Save / Load chooser (MENU7 states 5 and 6, a MAINMENU row list) is
  * the bridge's own list (data_bridge.c pc_ui_data_frame_op).
  *
- *   260.c (ROOD_PC)  latches the frame at state 3, stamps every call, gates
- *                    its drawing, injects the planner's press, publishes
- *   data_bridge.c    the game side: lifecycle, publish, the chooser list,
- *                    the planner's pad end
+ *   260.c (ROOD_PC)  the hooks only: the drawing gate, the wrapper, the
+ *                    chooser's list call, the load hand-off, and a table of
+ *                    pointers to its statics (data_menu7.h)
+ *   data_bridge.c    the game side: the latch at state 3, the stamp, the
+ *                    planner's press, the publish (through that table),
+ *                    lifecycle, the chooser list
  *   data_plan.c      pure: phase, cursor decode, goal -> press
  *   ui_data.cpp      pure: the model, the mailbox (one goal), the pointer,
  *                    JSON (RPC ui_menu "data")
@@ -49,7 +51,7 @@ enum {
     PC_UI_DATA_GOAL_TAB, PC_UI_DATA_GOAL_MOVE, PC_UI_DATA_GOALS
 };
 
-/* MENU7's message (_memoryCardMessage, by its MCMAN offset; 260.c maps). */
+/* MENU7's message (_memoryCardMessage, by its MCMAN offset; data_bridge.c maps). */
 enum {
     PC_UI_DATA_MSG_NONE, PC_UI_DATA_MSG_SELECT_SLOT, PC_UI_DATA_MSG_CHECKING, PC_UI_DATA_MSG_INSERT_ERROR,
     PC_UI_DATA_MSG_EMPTY_CARD, PC_UI_DATA_MSG_SAVE_FAILED, PC_UI_DATA_MSG_LOAD_FAILED, PC_UI_DATA_MSG_SELECT_FILE,
@@ -92,7 +94,7 @@ typedef struct {
     const unsigned char* name; /* the location's MCMAN string (decoded by the bridge, never kept) */
 } pc_ui_data_file_game;
 
-/* MENU7's statics after a vs_menu7_dataMenu call (260.c _pcPublish). */
+/* MENU7's statics after a vs_menu7_dataMenu call (data_bridge.c menu7_publish). */
 typedef struct {
     int state;              /* *state after the call */
     int save_ok, at_point, in_battle; /* the chooser's Save row (state 5) */
@@ -129,7 +131,7 @@ typedef struct {
     int walking;            /* CLOSE / TAB: backing out toward the chooser */
 } pc_ui_data_goal;
 
-/* 260.c -> data_bridge.c */
+/* 260.c -> data_bridge.c (and data_menu7.h's calls) */
 /* vs_menu7_dataMenu state 3: 1 when the shell armed the frame (this run is framed). */
 int pc_ui_data_frame_begin(int run);
 /* 1 while the bridge frames run `run` (a save state restores MENU7's latch without the host's model). */
@@ -146,6 +148,12 @@ int pc_ui_data_frame_op(void);
 void pc_ui_data_frame_publish(const pc_ui_data_game* g);
 /* The run ended (PC_UI_DATA_BACK, _CLOSED, _LOADED). */
 void pc_ui_data_frame_finish(int code);
+
+/* container_bridge.c -> data_bridge.c: the Container's save list (MENU7 states 10 / 11,
+ * _showSaveMenu(2)) on this model in container mode, published as the save flow (state 8). */
+void pc_ui_data_container_begin(int run);
+void pc_ui_data_container_end(void);
+int pc_ui_data_container_on(void);
 
 /* menu_bridge.c -> data_bridge.c */
 void pc_ui_data_arm(void);   /* deliver(7): the shell hid for Data */
@@ -165,6 +173,7 @@ typedef struct {
 } pc_ui_data_file;
 typedef struct {
     int armed;
+    int container;          /* the Container's save list (container_bridge.c): no tabs, no chooser */
     unsigned armed_vsync;
     int framed, run, stamped;
     unsigned stamp;
@@ -198,7 +207,9 @@ typedef struct {
 /* ui_data.cpp */
 pc_ui_data_model* pc_ui_data_state(void);
 pc_ui_data_goal* pc_ui_data_goal_slot(void);
-/* The frame draws: framed with a stamp at most 8 vsyncs old, or armed and not stamped yet for up to 30. */
+/* The frame draws: framed with a stamp at most 8 vsyncs old, or armed and not stamped yet for up to 30;
+ * or the Container screen does (MENU7's other framed run, container_frame.h): a native MENU7 screen
+ * shows (the overlay hands it the mouse's clicks). */
 int pc_ui_data_visible(void);
 /* A goal (dropped and counted while MENU7 is busy, refused where the phase does not take it). */
 void pc_ui_data_post(int kind, int a);

@@ -161,6 +161,10 @@ float draw_tabs(const Frame& f, const ui::Theme& t, int cur, Pointer& m, float d
 void draw_map_frame(const Frame& f, const ui::Theme& t, float dt, Pointer& m);
 // The native Data screen (ui_data_draw.cpp): everything but the footer, whose hints it fills.
 void draw_data_frame(const Frame& f, const ui::Theme& t, float dt, Pointer& m, ScreenOut& out);
+// The native Container screen (ui_container_draw.cpp): everything but the footer, whose hints it fills.
+void draw_container_frame(const Frame& f, const ui::Theme& t, float dt, Pointer& m, ScreenOut& out);
+// The Container's title where the tabs go, `sub` on the right (also the Data screen's save list in container mode).
+void container_title(const Frame& f, const ui::Theme& t, const char* sub);
 // The Ashley screen's model column (layout units x, y, w, h) on a W-wide layout.
 void model_column(const ui::Theme& t, float W, float out[4]);
 // The right card's width (16:9: 396, 4:3: 344).

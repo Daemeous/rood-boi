@@ -2,6 +2,7 @@
 #include "ui/ui_shell.h"
 #include "ui/map_frame.h"
 #include "ui/data_frame.h"
+#include "ui/container_frame.h"
 #include "ui/data_plan.h"
 #include "ui/ui_settings.h"
 #include "ui/ui_workshop.h"
@@ -1969,6 +1970,85 @@ static bool data_json_has(const char* needle)
     pc_ui_data_json(buf, sizeof buf);
     return std::strstr(buf, needle) != nullptr;
 }
+// The native Container screen's pure state (ui_container.cpp): visibility, the
+// pointer's requests and goals by phase (busy drops, prompts as goals, a
+// click as FOCUS + Circle), hover writing nothing, the JSON block, Data's
+// container mode refusing tabs.
+static bool container_json_has(const char* needle)
+{
+    static char buf[1 << 16];
+    pc_ui_container_json(buf, sizeof buf);
+    return std::strstr(buf, needle) != nullptr;
+}
+static void container_tests()
+{
+    pc_ui_ctr_model* c = pc_ui_ctr_state();
+    pc_ui_ctr_req r;
+    std::memset(c, 0, sizeof *c);
+    pc_ui_ctr_reset_mailbox();
+    CHECK(container_json_has(",\"container\":null") && !pc_ui_container_visible());
+    pc_ui_ctr_mouse(PC_UI_MOUSE_CTR_YES, 0, 1, 0, 0); // nothing latched: nothing
+    CHECK(!pc_ui_ctr_pop(&r));
+    probe_vsync = 500;
+    c->latched = 1, c->run = 3, c->stamp = 500, c->phase = PC_UI_CTR_PH_BUSY;
+    CHECK(pc_ui_container_visible() && container_json_has("\"phase\":\"busy\""));
+    pc_ui_ctr_mouse(PC_UI_MOUSE_CTR_YES, 0, 1, 0, 0); // busy: dropped and counted
+    CHECK(!pc_ui_ctr_pop(&r) && c->busy_drops == 1);
+    // a prompt: Yes / No / a right click are goals for MENU7 (never a press of their own)
+    c->phase = PC_UI_CTR_PH_PROMPT_CHECK;
+    pc_ui_ctr_mouse(PC_UI_MOUSE_CTR_YES, 0, 1, 0, 0);
+    CHECK(pc_ui_ctr_pop(&r) && r.kind == PC_UI_CTR_REQ_GOAL && r.a == PC_UI_CTR_G_YES);
+    pc_ui_ctr_mouse(PC_UI_MOUSE_NONE, 0, 0, 1, 0);
+    CHECK(pc_ui_ctr_pop(&r) && r.kind == PC_UI_CTR_REQ_GOAL && r.a == PC_UI_CTR_G_NO);
+    // hover: only the soft highlight
+    pc_ui_ctr_mouse(PC_UI_MOUSE_CTR_NO, 0, 0, 0, 0);
+    int hk, hi;
+    pc_ui_ctr_hover(&hk, &hi);
+    CHECK(hk == PC_UI_MOUSE_CTR_NO && !pc_ui_ctr_pop(&r));
+    c->phase = PC_UI_CTR_PH_WAIT; // the card wait: any click dismisses
+    pc_ui_ctr_mouse(PC_UI_MOUSE_CTR_PANEL, 0, 1, 0, 0);
+    CHECK(pc_ui_ctr_pop(&r) && r.a == PC_UI_CTR_G_DISMISS);
+    // the transfer: a row click is the cursor there, then Circle; a tab click walks the tabs
+    c->phase = PC_UI_CTR_PH_TRANSFER, c->session = 1, c->mode = PC_UI_CTR_LIST, c->list_active = 1;
+    pc_ui_ctr_mouse(PC_UI_MOUSE_CTR_ROW, 4, 1, 0, 0);
+    CHECK(pc_ui_ctr_pop(&r) && r.kind == PC_UI_CTR_REQ_FOCUS && r.a == PC_UI_CTR_F_ROW && r.b == 4);
+    CHECK(pc_ui_ctr_pop(&r) && r.kind == PC_UI_CTR_REQ_PRESS && r.a == PC_UI_CONFIRM);
+    pc_ui_ctr_mouse(PC_UI_MOUSE_CTR_TAB, 6, 1, 0, 0);
+    CHECK(pc_ui_ctr_pop(&r) && r.kind == PC_UI_CTR_REQ_TAB && r.a == 6);
+    pc_ui_ctr_mouse(PC_UI_MOUSE_NONE, 0, 0, 0, -2); // the wheel: Down a notch at a time
+    CHECK(pc_ui_ctr_pop(&r) && r.a == PC_UI_DOWN && pc_ui_ctr_pop(&r) && r.a == PC_UI_DOWN && !pc_ui_ctr_pop(&r));
+    pc_ui_ctr_mouse(PC_UI_MOUSE_NONE, 0, 0, 1, 0); // right: Cross
+    CHECK(pc_ui_ctr_pop(&r) && r.kind == PC_UI_CTR_REQ_PRESS && r.a == PC_UI_BACK);
+    c->mode = PC_UI_CTR_ACTIONS; // a menu entry: the cursor there, then Circle
+    pc_ui_ctr_mouse(PC_UI_MOUSE_CTR_MENU, 2, 1, 0, 0);
+    CHECK(pc_ui_ctr_pop(&r) && r.a == PC_UI_CTR_F_MENU && r.b == 2 && pc_ui_ctr_pop(&r) && r.a == PC_UI_CONFIRM);
+    c->mode = PC_UI_CTR_DISCARD_QTY;
+    pc_ui_ctr_mouse(PC_UI_MOUSE_CTR_QTY, 2, 1, 0, 0);
+    CHECK(pc_ui_ctr_pop(&r) && r.a == PC_UI_LEFT);
+    CHECK(container_json_has("\"mode\":\"discard_qty\"") && container_json_has("\"phase\":\"transfer\""));
+    // the save list is the Data screen's: the container's own screen hides
+    c->phase = PC_UI_CTR_PH_SAVE;
+    CHECK(!pc_ui_container_visible());
+    probe_vsync = 500 + 121;
+    c->phase = PC_UI_CTR_PH_BUSY;
+    CHECK(!pc_ui_container_visible()); // a stale stamp
+    // Data's container mode: no tabs, no close
+    pc_ui_data_model* d = pc_ui_data_state();
+    std::memset(d, 0, sizeof *d);
+    pc_ui_data_reset_mailbox();
+    d->framed = 1, d->container = 1, d->published = 1, d->stamped = 1, d->stamp = probe_vsync;
+    d->phase = PC_UI_DATA_PH_CARD;
+    pc_ui_data_post(PC_UI_DATA_GOAL_TAB, 2);
+    pc_ui_data_post(PC_UI_DATA_GOAL_CLOSE, 0);
+    CHECK(pc_ui_data_goal_slot()->kind == PC_UI_DATA_GOAL_NONE && d->rejected == 2);
+    pc_ui_data_post(PC_UI_DATA_GOAL_CARD, 1);
+    CHECK(pc_ui_data_goal_slot()->kind == PC_UI_DATA_GOAL_CARD);
+    std::memset(d, 0, sizeof *d);
+    pc_ui_data_reset_mailbox();
+    std::memset(c, 0, sizeof *c);
+    pc_ui_ctr_reset_mailbox();
+}
+
 static void data_tests()
 {
     pc_ui_data_model* d = pc_ui_data_state();
@@ -3396,6 +3476,7 @@ int main()
     workshop_tests();
     map_tests();
     data_tests();
+    container_tests();
     manual_tests();
     std::printf(failures ? "ui_shell_probe: %d failures\n" : "ui_shell_probe: ok\n", failures);
     return failures != 0;

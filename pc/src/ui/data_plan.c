@@ -201,3 +201,14 @@ int pc_ui_data_plan(const pc_ui_data_snap* s, pc_ui_data_goal* g, unsigned* pres
         return drop(g);
     }
 }
+
+int pc_ui_data_plan_yesno(int ready, int yes_lit, int waiting, int real, pc_ui_data_goal* g, unsigned* press_out)
+{
+    pc_ui_data_snap s;
+    s.phase = waiting ? PC_UI_DATA_PH_WAIT : ready ? PC_UI_DATA_PH_PROMPT : PC_UI_DATA_PH_BUSY;
+    s.card = s.file = -1;
+    s.cancelled = ready ? (yes_lit ? 0 : 1) : -1;
+    s.real = real;
+    s.settling = 0;
+    return pc_ui_data_plan(&s, g, press_out);
+}
