@@ -57,7 +57,6 @@ format limits](pc/docs/HD_Textures.md).
 
 rood-boi is noprompt's native port, built on rood-reverse by
 [ser-pounce](https://github.com/ser-pounce), who started it and did most of the work,
-[Lil' Sassy](https://github.com/lil-sassy), one of its most prolific contributors,
 and its other contributors.
 
 ## Features

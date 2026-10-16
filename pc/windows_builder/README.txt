@@ -2,8 +2,8 @@ rood-boi for Windows - builder
 ==============================
 
 rood-boi is a native PC version of Vagrant Story (by noprompt, built on the
-rood-reverse decompilation by ser-pounce, Lil' Sassy and its other
-contributors), with modern graphics options. This folder builds it
+rood-reverse decompilation by ser-pounce and its other contributors),
+with modern graphics options. This folder builds it
 on your own PC, from your own copy of the game. Optionally it also builds the
 Callo Merlose companion mod ("Two's A Riot").
 
@@ -187,9 +187,8 @@ CREDITS
   The Windows port and these builders: Daemeous.
 * rood-reverse, the Vagrant Story decompilation rood-boi is built on:
   ser-pounce (https://github.com/ser-pounce), who started it and has done
-  the overwhelming majority of the work, Lil' Sassy
-  (https://github.com/lil-sassy), one of its most prolific contributors,
-  and every other contributor. https://github.com/ser-pounce/rood-reverse
+  the overwhelming majority of the work, and every other contributor.
+  https://github.com/ser-pounce/rood-reverse
 * rood-boi's own thanks (the QoL mod's weapon slots by eremtsov, Kenney's
   button prompt icons, Andrew Kuhar's UI remaster that inspired the modern
   menus, and more) are on its page:
