@@ -18,3 +18,14 @@ with tempfile.TemporaryDirectory(prefix='rood-hd-') as tmp:
         '-I'+str(ROOT/'pc/third_party/SDL3/include'),str(ROOT/'pc/tests/hd_textures_probe.cpp'),
         str(ROOT/'pc/build/sdl3_64/libSDL3.a'),'-Wl,--gc-sections','-lm','-lpthread','-ldl','-o',str(exe)],check=True)
     subprocess.run([str(exe)]+([str(ROOT/'pc/shaders/vulkan/hd_textures.glsl')] if '--gpu' in sys.argv else []),env={**os.environ,'ROOD_TEXTURE_PACK':tmp},check=True)
+
+    automatic_env = dict(os.environ)
+    automatic_env.pop('ROOD_TEXTURE_PACK', None)
+    subprocess.run([str(exe), '--no-pack'], cwd=tmp, env=automatic_env, check=True)
+    pack = out/'texture-replacements'
+    pack.mkdir()
+    for image in out.glob('*.png'):
+        image.rename(pack/image.name)
+    subprocess.run([str(exe)], cwd=tmp, env=automatic_env, check=True)
+    subprocess.run([str(exe), '--no-pack'], cwd=tmp,
+                   env={**automatic_env, 'ROOD_TEXTURE_PACK':str(out/'absent')}, check=True)
