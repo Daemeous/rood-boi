@@ -47,6 +47,28 @@ settings are in rood-boi\pc\save and rood-boi\pc\user, and are kept when
 you build again.
 
 
+HD TEXTURE PACKS (optional)
+---------------------------
+The game can use Vagrant Story texture packs made for Beetle PSX HW.
+The pack is a separate download; these builders include no texture pack.
+
+1. Extract the pack's archive (for example with 7-Zip).
+2. Find the folder that directly contains the .png images. Rename that
+   folder to texture-replacements.
+3. Put it inside your built rood-boi folder, alongside play.bat.
+4. Start the game normally. It detects that folder automatically.
+
+To compare with the originals: F1 (or Escape), Graphics, "HD texture
+replacements". Both normal and Merlose builds support packs, with Vulkan
+or OpenGL. Missing replacements keep the original textures. Loading new
+images can briefly pause the game, and broad pack coverage is still being
+tested. DuckStation packs and Beetle page-aligned/DDS packs are not supported.
+Rebuilt font text uses your selected font.
+
+If you keep the pack somewhere else, set ROOD_TEXTURE_PACK to its image
+folder before starting the game. Your pack is kept when you rebuild.
+
+
 SAVES AND MEMORY CARDS
 ----------------------
 rood-boi saves to PS1 memory card files, the same kind emulators use:
@@ -54,8 +76,8 @@ rood-boi saves to PS1 memory card files, the same kind emulators use:
 * Slot 2: rood-boi\pc\save\card2.mcd (only if that file exists)
 
 To use another card file: in the game press F1 (or Escape), open the
-Graphics tab, then "Memory cards". Type or paste the file's path for a
-slot, click Use, then "Save settings" at the top so it's remembered.
+File menu, then "Memory cards...". Type or paste the file's path for a
+slot, click Use, then "Save settings" in that window so it's remembered.
 "Default" goes back to pc\save. (Or edit the card1 / card2 lines in
 rood-boi\pc\user\settings.cfg.) Switch cards outside the save and load
 screens.
