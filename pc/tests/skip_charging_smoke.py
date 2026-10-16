@@ -22,8 +22,10 @@ wall time. Checks:
   - each action charges once, for more than 100 vsyncs; the same number of
     vsyncs in every mode (the game runs every vsync);
   - off: the charging takes about real time (vsyncs x 16.7 ms, +-25 %);
-    fast: at most 40 % of off's wall time (4x: 25 %); skip: at most fast's
-    (+15 % for a loaded machine);
+    fast: its pacing budget (the time the frame loop allows, independent of
+    the machine's load) at most 30 % of off's (4x: 25 %), and faster than
+    off in wall time; skip: a budget at most fast's, and faster than off in
+    wall time (fast vs skip wall times depend on the machine's load);
   - the outcome is the same in every mode: Solid Shock's MP cost (25) and
     the enemy's damage, the Cure Root's healing and the stack one less, the
     vsync count, and the whole game state after both actions (save states
@@ -297,11 +299,19 @@ def main():
             check(s["sequences"] == 1 and s["vsyncs"] == stats["vsyncs"],
                   f"{mode}: the {name} charges once ({s['sequences']}) for the same {s['vsyncs']} vsyncs "
                   f"({stats['vsyncs']})")
+        # The pacing's budget (the time the frame loop allowed the charging vsyncs) does not depend
+        # on the machine's load; the wall time does (a busy machine under run.py -j 2 cannot keep 4x).
+        budget = {m: results[m][name][0]["budget_ms"] for m in ("off", "fast", "skip")}
+        check(budget["fast"] <= 0.3 * budget["off"],
+              f"fast: the {name}'s charging paced in {budget['fast']:.0f} ms, "
+              f"{budget['fast'] / budget['off']:.0%} of off's (4x: 25 %, <= 30 %)")
+        check(budget["skip"] <= budget["fast"],
+              f"skip: the {name}'s charging paced in {budget['skip']:.0f} ms (<= fast's {budget['fast']:.0f})")
         fast, skip = results["fast"][name][0]["ms"], results["skip"][name][0]["ms"]
-        check(fast <= 0.4 * stats["ms"],
-              f"fast: the {name}'s charging in {fast:.0f} ms, {fast / stats['ms']:.0%} of off's (<= 40 %)")
-        check(skip <= 1.15 * fast,
-              f"skip: the {name}'s charging in {skip:.0f} ms, {skip / stats['ms']:.0%} of off's (<= fast's)")
+        check(fast <= 0.9 * stats["ms"],
+              f"fast: the {name}'s charging took {fast:.0f} ms, {fast / stats['ms']:.0%} of off's wall time (faster)")
+        check(skip <= 0.9 * stats["ms"],
+              f"skip: the {name}'s charging took {skip:.0f} ms, {skip / stats['ms']:.0%} of off's wall time (faster)")
     # The outcome.
     _, before, after = off["spell"]
     # (MP regenerates over the action and the walk back: up to one point a second or so.)

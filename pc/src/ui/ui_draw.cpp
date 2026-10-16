@@ -6,6 +6,7 @@
 #include "ui/ui_draw_internal.h"
 #include "ui/map_frame.h"
 #include "ui/data_frame.h"
+#include "ui/container_frame.h"
 #include "ui/ui_settings.h"
 #include "button_prompts.h"
 #include "imgui_internal.h" /* ImTextCharFromUtf8 */
@@ -268,7 +269,7 @@ Pointer read_pointer(const Frame& f)
 {
     Pointer m;
     ImGuiIO& io = ImGui::GetIO();
-    bool shown = pc_ui_loot_visible() || pc_ui_map_visible() || pc_ui_data_visible()
+    bool shown = pc_ui_loot_visible() || pc_ui_map_visible() || pc_ui_data_visible() || pc_ui_container_visible()
         || (pc_ui_shell_visible() && !pc_ui_shell_holding());
     if (forced) {
         forced = false;
@@ -330,6 +331,23 @@ void send_data_pointer(const Pointer& m)
         pc_ui_data_mouse(kind, m.index, 1, 0, 0);
     else if (m.moved || m.wheel != 0)
         pc_ui_data_mouse(kind, m.index, 0, m.wheel, 0);
+}
+
+// The Container screen's pointer: requests and goals, the soft highlight (ui_container.cpp). A
+// footer hint is its button's press.
+void send_container_pointer(const Pointer& m)
+{
+    if (!m.ok)
+        return;
+    int kind = m.kind == PC_UI_MOUSE_BUTTON ? (int)PC_UI_MOUSE_CTR_BUTTON : m.kind;
+    if (kind != PC_UI_MOUSE_NONE && kind != PC_UI_MOUSE_CTR_PANEL)
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    if (m.right)
+        pc_ui_ctr_mouse(PC_UI_MOUSE_NONE, 0, 0, 1, 0);
+    else if (m.clicked)
+        pc_ui_ctr_mouse(kind, m.index, 1, 0, 0);
+    else if (m.moved || m.wheel != 0)
+        pc_ui_ctr_mouse(kind, m.index, 0, 0, m.wheel);
 }
 
 // The Loot screen (a direct session: no tabs): the backdrop, its title where
@@ -501,7 +519,8 @@ extern "C" void pc_ui_draw_model_column(float out[4])
 
 extern "C" int pc_ui_shell_wants_mouse(void)
 {
-    if ((!pc_ui_shell_drawn() && !pc_ui_loot_visible() && !pc_ui_map_visible() && !pc_ui_data_visible())
+    if ((!pc_ui_shell_drawn() && !pc_ui_loot_visible() && !pc_ui_map_visible() && !pc_ui_data_visible()
+            && !pc_ui_container_visible())
         || pc_gl_view[2] <= 0
         || pc_gl_view[3] <= 0 || !ImGui::IsMousePosValid())
         return 0;
@@ -514,7 +533,8 @@ extern "C" void pc_ui_draw_frame(float dt)
 {
     // the System pages' save debounce (ui_settings.cpp): every frame, shell up or not
     pc_ui_settings_tick(ImGui::GetTime());
-    if ((!pc_ui_shell_drawn() && !pc_ui_loot_visible() && !pc_ui_map_visible() && !pc_ui_data_visible())
+    if ((!pc_ui_shell_drawn() && !pc_ui_loot_visible() && !pc_ui_map_visible() && !pc_ui_data_visible()
+            && !pc_ui_container_visible())
         || pc_gl_view[2] <= 0
         || pc_gl_view[3] <= 0) {
         last_tab = -1; // the next open places the ink and focus at once
@@ -545,6 +565,17 @@ extern "C" void pc_ui_draw_frame(float dt)
         draw_map_frame(f, t, dt, m);
         last_tab = tab;
         data_shown = false;
+        return;
+    }
+    // the native Container screen: MENU7's container run framed and MENUD native
+    // (ui_container_draw.cpp); its save list is the Data screen's (below)
+    if (pc_ui_container_visible() && !pc_ui_shell_drawn()) {
+        ScreenOut out;
+        draw_container_frame(f, t, dt, m, out);
+        draw_footer(f, t, out, false, m);
+        send_container_pointer(m);
+        data_shown = false;
+        last_tab = -1;
         return;
     }
     // the native Data screen: the game's save / load screen (MENU7) drawn

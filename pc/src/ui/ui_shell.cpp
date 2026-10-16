@@ -3,6 +3,7 @@
 #include "ui/ui_shell.h"
 #include "ui/map_frame.h"
 #include "ui/data_frame.h"
+#include "ui/container_frame.h"
 #include "ui/ui_manual.h"
 #include "ui/ui_settings.h"
 #include "ui/ui_theme.h"
@@ -2347,6 +2348,10 @@ extern "C" void pc_ui_shell_json(char* out, unsigned size)
     static char data[1 << 14];
     pc_ui_data_json(data, sizeof data);
     j += data;
+    // the native Container screen (ui_container.cpp): its block while its MENU7 run is latched, else null
+    static char container[1 << 16];
+    pc_ui_container_json(container, sizeof container);
+    j += container;
     ui::theme_json(j); // the colours shown (menu tint), every screen
     j += "}";
     std::snprintf(out, size, "%s", j.c_str());

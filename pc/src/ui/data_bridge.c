@@ -12,7 +12,8 @@
  *   - the frame's clicks are goals (ui_data.cpp's mailbox) the planner
  *     (data_plan.c) walks with one pad press a frame while the real pad is
  *     idle (pc_ui_data_frame_inject);
- *   - MENU7's statics are published after every call (_pcPublish) into the
+ *   - MENU7's statics are published after every call (menu7_publish, through
+ *     260.c's table of pointers, data_menu7.h) into the
  *     model the frame draws (ui_data_draw.cpp).
  *
  * Lifecycle (data_frame.h's model):
@@ -39,7 +40,8 @@
 #include "../../../src/BATTLE/BATTLE.PRG/5BF94.h"
 #include "../../../src/SLUS_010.40/main.h"
 #include "ui_shell.h"
-#include "data_frame.h"
+#include "data_menu7.h"
+#include "build/assets/MENU/MCMAN.BIN.h"
 #include "data_plan.h"
 #include <libetc.h>
 
@@ -145,6 +147,33 @@ int pc_ui_data_end(void)
 
 void pc_ui_data_forget(void) { pc_ui_data_end(); }
 
+/* The Container's save list: MENU7's _showSaveMenu(2) in container_bridge.c's
+ * framed run, on this model (framed, never armed: no chooser, no tabs). */
+void pc_ui_data_container_begin(int run)
+{
+    pc_ui_data_model* m = pc_ui_data_state();
+    begin_model(m);
+    m->container = 1;
+    m->framed = 1;
+    m->run = run;
+    m->stamped = 1;
+    m->stamp = now();
+    m->state = 8;
+    m->op = 1;
+    m->save_ok = m->at_point = 1;
+    m->phase = PC_UI_DATA_PH_BUSY;
+    fill_journey(m);
+}
+
+void pc_ui_data_container_end(void)
+{
+    pc_ui_data_model* m = pc_ui_data_state();
+    if (m->container)
+        begin_model(m);
+}
+
+int pc_ui_data_container_on(void) { return pc_ui_data_state()->container; }
+
 int pc_ui_data_busy(void)
 {
     pc_ui_data_model* m = pc_ui_data_state();
@@ -231,8 +260,8 @@ void pc_ui_data_frame_inject(unsigned* pressed, int* repeat)
     if (r == PC_UI_DATA_PLAN_DROPPED && !s.real)
         ++m->expired;
     /* L1 / R1 in the card rows or the file list (MENU7 ignores them): back
-     * out to the chooser, then that tab */
-    if ((real & (PC_UI_TAB_PREV | PC_UI_TAB_NEXT))
+     * out to the chooser, then that tab (the Container's save list has no tabs) */
+    if (!m->container && (real & (PC_UI_TAB_PREV | PC_UI_TAB_NEXT))
         && (s.phase == PC_UI_DATA_PH_CARD || s.phase == PC_UI_DATA_PH_FILES)) {
         zero(g, sizeof *g);
         g->kind = PC_UI_DATA_GOAL_TAB;
@@ -432,4 +461,188 @@ void pc_ui_data_frame_publish(const pc_ui_data_game* g)
     if (g->state != 6)
         m->ops_open = 0;
     fill_journey(m);
+}
+
+/* ---- MENU7's statics (260.c _pcStatics, data_menu7.h) ---- */
+
+static const pc_ui_data_menu7* m7; /* this call's table (set by every begin and every shared publish) */
+static unsigned real_pressed;      /* the real pad over this call */
+static int real_repeat;
+
+/* MENU7's message (_memoryCardMessage) by its MCMAN offset. */
+static int menu7_message(int offset)
+{
+    switch (offset) {
+    case VS_MCMAN_BIN_OFFSET_selectSlot: return PC_UI_DATA_MSG_SELECT_SLOT;
+    case VS_MCMAN_BIN_OFFSET_checking: return PC_UI_DATA_MSG_CHECKING;
+    case VS_MCMAN_BIN_OFFSET_insertError: return PC_UI_DATA_MSG_INSERT_ERROR;
+    case VS_MCMAN_BIN_OFFSET_emptyCard: return PC_UI_DATA_MSG_EMPTY_CARD;
+    case VS_MCMAN_BIN_OFFSET_saveFailed: return PC_UI_DATA_MSG_SAVE_FAILED;
+    case VS_MCMAN_BIN_OFFSET_loadfailed: return PC_UI_DATA_MSG_LOAD_FAILED;
+    case VS_MCMAN_BIN_OFFSET_selectFile: return PC_UI_DATA_MSG_SELECT_FILE;
+    case VS_MCMAN_BIN_OFFSET_fileCorruptDescription: return PC_UI_DATA_MSG_FILE_CORRUPT;
+    case VS_MCMAN_BIN_OFFSET_saving: return PC_UI_DATA_MSG_SAVING;
+    case VS_MCMAN_BIN_OFFSET_loading: return PC_UI_DATA_MSG_LOADING;
+    case VS_MCMAN_BIN_OFFSET_saved: return PC_UI_DATA_MSG_SAVED;
+    case VS_MCMAN_BIN_OFFSET_loaded: return PC_UI_DATA_MSG_LOADED;
+    case VS_MCMAN_BIN_OFFSET_removed: return PC_UI_DATA_MSG_REMOVED;
+    case VS_MCMAN_BIN_OFFSET_accessing0: return PC_UI_DATA_MSG_ACCESSING0;
+    case VS_MCMAN_BIN_OFFSET_accessing1: return PC_UI_DATA_MSG_ACCESSING1;
+    case VS_MCMAN_BIN_OFFSET_containerWarn: return PC_UI_DATA_MSG_CONTAINER_WARN;
+    case VS_MCMAN_BIN_OFFSET_formatPrompt: return PC_UI_DATA_MSG_FORMAT_PROMPT;
+    case VS_MCMAN_BIN_OFFSET_formatting: return PC_UI_DATA_MSG_FORMATTING;
+    case VS_MCMAN_BIN_OFFSET_formatFailed: return PC_UI_DATA_MSG_FORMAT_FAILED;
+    case VS_MCMAN_BIN_OFFSET_formatCancelled: return PC_UI_DATA_MSG_FORMAT_CANCELLED;
+    case VS_MCMAN_BIN_OFFSET_overwritePrompt: return PC_UI_DATA_MSG_OVERWRITE_PROMPT;
+    case VS_MCMAN_BIN_OFFSET_noData: return PC_UI_DATA_MSG_NO_DATA;
+    case VS_MCMAN_BIN_OFFSET_cardFull: return PC_UI_DATA_MSG_CARD_FULL;
+    case VS_MCMAN_BIN_OFFSET_containerWarnDataLoss: return PC_UI_DATA_MSG_CONTAINER_LOSS;
+    default: return PC_UI_DATA_MSG_OTHER;
+    }
+}
+
+/* A location's name (_drawFileMenuElement's indexing: the save points, then
+ * the containers from 0x40), or none. */
+static const unsigned char* menu7_location_name(const unsigned short* table, int location)
+{
+    if (location < 0 || location + VS_MCMAN_BIN_INDEX_saveLocations > VS_MCMAN_BIN_INDEX_containerLocations + 31)
+        return NULL;
+    return (const unsigned char*)&table[table[location + VS_MCMAN_BIN_INDEX_saveLocations]];
+}
+
+/* MENU7's statics after a framed call, by value (no writes). The heap-backed
+ * ones (the text table, the scanned files) only while MCMAN is loaded (states
+ * 5 to 14: _initMemcard done, _shutdownMemcard not yet); the flows' statics
+ * (the cursor, the message, the elements, the progress) only inside a flow
+ * (7 to 10: _initFileMenu ran for it). */
+static void menu7_publish(int state);
+void pc_ui_data_menu7_publish(const pc_ui_data_menu7* m, int state)
+{
+    m7 = m;
+    menu7_publish(state);
+}
+
+static void menu7_publish(int state)
+{
+    const pc_ui_data_menu7_element* elements = (const pc_ui_data_menu7_element*)m7->elements;
+    const unsigned short* table = *m7->text_table;
+    const char* message = *m7->message;
+    pc_ui_data_game g;
+    int loaded = state >= 5 && state <= 14;
+    int flow = state >= 7 && state <= 10;
+    int i;
+
+    zero(&g, sizeof g);
+    g.state = state;
+    g.data_not_saved = *m7->data_not_saved;
+    g.container_empty = (*(int*)&vs_main_settings >> 4) & 1;
+    g.msg_off = -1;
+    g.card_memory = vs_main_settings.cursorMemory != 0 ? D_800F4EE8.unk85[3] + 1 : 1;
+    g.gated = *m7->gated;
+    *m7->gated = 0;
+    if (loaded) {
+        g.location = (u_char)D_800F4E6B;
+        g.location_name = menu7_location_name(table, g.location);
+    }
+    if (flow) {
+        int counter = *m7->progress_counter;
+        int position = *m7->progress_position;
+        g.cursor_xy = *m7->cursor_xy;
+        g.elements_active = m7->elements_active();
+        g.list_up = (state == 8 || state == 10) && elements[5].state != 0;
+        g.list_y0 = elements[5].y;
+        if (message != 0) {
+            g.msg_off = (const unsigned short*)message - table;
+            g.msg = menu7_message(g.msg_off);
+            g.msg_text = (const unsigned char*)message;
+        }
+        g.progress_counter = counter;
+        g.progress_target = *m7->progress_target;
+        if (counter > 0) {
+            g.progress_x = position
+                + m7->progress_div(((counter - *m7->progress_previous)
+                                       * ((*m7->error_offset * 20) - (position - 320))),
+                    *m7->progress_target);
+        }
+        g.fade = *m7->fade;
+        g.files_valid = g.list_up;
+    }
+    if (g.files_valid) {
+        const pc_ui_data_menu7_file* files = *(const pc_ui_data_menu7_file* const*)m7->files;
+        for (i = 0; i < PC_UI_DATA_FILES; ++i) {
+            const pc_ui_data_menu7_file* info = &files[i];
+            pc_ui_data_file_game* f = &g.files[i];
+            f->state = info->slot_state;
+            f->generation = info->generation;
+            f->h = info->game_time.t.h;
+            f->m = info->game_time.t.m;
+            f->s = info->game_time.t.s;
+            f->saves = info->saves;
+            f->hp = info->hp;
+            f->hp_max = info->hp_max;
+            f->mp = info->mp;
+            f->mp_max = info->mp_max;
+            f->location = (u_char)info->location;
+            f->clear = (u_char)info->clear;
+            f->map = (u_char)info->map;
+            f->name = f->state >= 3 ? menu7_location_name(table, f->location) : NULL; /* slotStateInUse */
+        }
+        g.current = m7->current_save();
+        g.newest = (int)m7->newest_save();
+    }
+    pc_ui_data_frame_publish(&g);
+}
+
+void pc_ui_data_call_begin(const pc_ui_data_menu7* m, int entry)
+{
+    m7 = m;
+    real_pressed = vs_main_buttonsPressed.all;
+    real_repeat = vs_main_buttonRepeat;
+    if (entry == 3)
+        *m->framed = pc_ui_data_frame_begin(++*m->run);
+    /* a save state that brings the latch back without the host's frame runs
+     * the rest of the run original */
+    if (*m->framed && !pc_ui_data_framed(*m->run))
+        *m->framed = 0;
+    *m->no_draw = *m->framed;
+    if (*m->framed) {
+        pc_ui_data_frame_stamp(entry);
+        pc_ui_data_frame_inject(&vs_main_buttonsPressed.all, &vs_main_buttonRepeat);
+    }
+}
+
+int pc_ui_data_call_end(int entry, int state, int r)
+{
+    vs_main_buttonsPressed.all = real_pressed;
+    vs_main_buttonRepeat = real_repeat;
+    if (*m7->framed) {
+        menu7_publish(state);
+        if (r != 0) {
+            pc_ui_data_frame_finish(entry == 14 ? PC_UI_DATA_CLOSED : PC_UI_DATA_BACK);
+            *m7->framed = 0;
+        }
+    }
+    *m7->no_draw = 0;
+    return r;
+}
+
+void pc_ui_data_call_loading(void)
+{
+    if (!m7)
+        return;
+    if (*m7->framed) {
+        pc_ui_data_frame_finish(PC_UI_DATA_LOADED);
+        *m7->framed = 0;
+        vs_main_buttonsPressed.all = real_pressed;
+        vs_main_buttonRepeat = real_repeat;
+    }
+    *m7->no_draw = 0;
+}
+
+int pc_ui_data_call(const pc_ui_data_menu7* t, unsigned char* state, pc_ui_menu7_fn menu)
+{
+    int entry = *state, r;
+    pc_ui_data_call_begin(t, entry);
+    r = menu(state);
+    return pc_ui_data_call_end(entry, *state, r);
 }

@@ -1036,11 +1036,11 @@ static void handle_method(int fd, const char* request)
     } else if (!strcmp(method, "skip_charging")) {
         /* Battle charging at several vsyncs per field (boot_window.c). */
         extern int pc_qol_skip_charging; /* project_settings.cpp */
-        extern void pc_charge_turbo_stats(int*, int*, unsigned*, unsigned*, double*, int);
+        extern void pc_charge_turbo_stats(int*, int*, unsigned*, unsigned*, double*, double*, int);
         char mode[16] = "";
         int reset = 0, charging, phase;
         unsigned sequences, vsyncs;
-        double ms;
+        double ms, budget_ms;
         if (params && number_value(member(params, "mode"), &n) && n >= 0 && n <= 2)
             pc_qol_skip_charging = (int)n;
         else if (params && string_value(member(params, "mode"), mode, sizeof mode)) {
@@ -1056,10 +1056,10 @@ static void handle_method(int fd, const char* request)
         }
         if (params)
             bool_value(member(params, "reset"), &reset);
-        pc_charge_turbo_stats(&charging, &phase, &sequences, &vsyncs, &ms, reset);
+        pc_charge_turbo_stats(&charging, &phase, &sequences, &vsyncs, &ms, &budget_ms, reset);
         snprintf(result, sizeof result,
-            "{\"mode\":%d,\"charging\":%d,\"phase\":%d,\"sequences\":%u,\"vsyncs\":%u,\"ms\":%.1f}",
-            pc_qol_skip_charging, charging, phase, sequences, vsyncs, ms);
+            "{\"mode\":%d,\"charging\":%d,\"phase\":%d,\"sequences\":%u,\"vsyncs\":%u,\"ms\":%.1f,\"budget_ms\":%.1f}",
+            pc_qol_skip_charging, charging, phase, sequences, vsyncs, ms, budget_ms);
         reply(fd, id, result);
     } else if (!strcmp(method, "ui_menu")) {
         /* Modern menus (pc/src/ui): {modern} sets ui_menus; the shell's state. */
@@ -1192,6 +1192,22 @@ static void handle_method(int fd, const char* request)
                 i ? "," : "", i, v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10]);
         }
         snprintf(result + len, sizeof result - len, "]}");
+        reply(fd, id, result);
+    } else if (!strcmp(method, "container")) {
+        /* Tests: the save room's container opened as the field opens it
+         * (ui/loot_bridge.c pc_ui_container_debug_open; location: the container's
+         * number, default the room's save point), where the room has no container
+         * object for RPC chest open=. */
+        extern int pc_ui_container_debug_open(int location) __attribute__((weak));
+        long long number = -1;
+        if (!pc_ui_container_debug_open) {
+            fail(fd, id, -32000, "container needs the battle build");
+            return;
+        }
+        if (params)
+            number_value(member(params, "location"), &number);
+        snprintf(result, sizeof result, "{\"opened\":%s}",
+            pc_ui_container_debug_open((int)number) ? "true" : "false");
         reply(fd, id, result);
     } else if (!strcmp(method, "release")) {
         memset(holds, 0, sizeof holds);

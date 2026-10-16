@@ -52,7 +52,7 @@ add_test(NAME selection_probe COMMAND selection_probe)
 # Modern menus: the shell's navigation (pc/src/ui/ui_shell.cpp) without the game.
 add_executable(ui_shell_probe tests/ui_shell_probe.cpp src/ui/ui_shell.cpp src/ui/ui_loot.cpp src/ui/ui_workshop.cpp
     src/ui/ui_map.cpp
-    src/ui/ui_data.cpp src/ui/data_plan.c
+    src/ui/ui_data.cpp src/ui/data_plan.c src/ui/ui_container.cpp
     src/ui/ui_manual.cpp src/ui/manual_parse.c
     src/ui/ui_theme.cpp src/ui/ui_tint.cpp
     src/light_prefabs.cpp)
@@ -128,6 +128,12 @@ target_include_directories(map_pad_probe PRIVATE src/ui)
 target_compile_options(map_pad_probe PRIVATE -Wall -Wextra -Werror)
 add_test(NAME map_pad_probe COMMAND map_pad_probe)
 
+# The native Container screen's data operations (ui/container_ops.c, MENUD ported) without the game.
+add_executable(container_ops_probe tests/container_ops_probe.c src/ui/container_ops.c)
+target_include_directories(container_ops_probe PRIVATE src/ui)
+target_compile_definitions(container_ops_probe PRIVATE PC_CONTAINER_OPS_PROBE)
+target_compile_options(container_ops_probe PRIVATE -Wall -Wextra -Werror -funsigned-char)
+add_test(NAME container_ops_probe COMMAND container_ops_probe)
 # The native Data screen's planner (ui/data_plan.c): goals to MENU7 pad presses, exhaustively.
 add_executable(data_plan_probe tests/data_plan_probe.c src/ui/data_plan.c)
 target_include_directories(data_plan_probe PRIVATE src/ui)

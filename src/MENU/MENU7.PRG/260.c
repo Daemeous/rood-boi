@@ -19,26 +19,21 @@
 #include <libetc.h>
 
 #ifdef ROOD_PC
-/* Modern menus, the native Data screen (pc/src/ui/data_frame.h,
- * data_bridge.c): with ui_menus modern, System > Data runs this screen
- * unchanged under a native frame. While a run is framed (_pcFramed) its
- * drawing is gated (_pcNoDraw: the GPU primitives, the play time, the
- * information box and the text overlay's glyphs; the logic, the
- * animations' steps, the sounds and the card I/O all run), its Save / Load
- * chooser is the bridge's list, the frame's clicks come in as pad presses
- * while the real pad is idle and its statics are published after every
- * call (vs_menu7_dataMenu's wrapper below). */
-#include "pc/src/ui/data_frame.h"
+/* Modern menus, the native Data screen (pc/src/ui/data_menu7.h,
+ * data_bridge.c): framed, this screen runs unchanged with its drawing gated. */
+#include "pc/src/ui/data_menu7.h"
 static int _pcNoDraw;
 static int _pcFramed;
 static unsigned _pcGated;
-static u_int _pcRealPressed;
-static int _pcRealRepeat;
+static int _pcRun;
 #define DrawPrim(p) ((void)(_pcNoDraw ? (++_pcGated, 0) : (DrawPrim(p), 0)))
 #define vs_battle_renderTextRaw(s, xy, ot)                                                       \
     ((void)(_pcNoDraw ? (++_pcGated, 0) : (vs_battle_renderTextRaw(s, xy, ot), 0)))
 #define vs_mainmenu_setInformationMessage(s)                                                     \
     ((void)(_pcNoDraw ? (++_pcGated, 0) : (vs_mainmenu_setInformationMessage(s), 0)))
+/* the Container's _promptYesNo cursor (container_bridge.c), stepped as the real one */
+#define vs_battle_drawCursor(a, b) \
+    (_pcNoDraw ? (++_pcGated, ((a) + 1) & 0xF) : vs_battle_drawCursor(a, b))
 #endif
 
 enum slotState_e {
@@ -3729,6 +3724,10 @@ void _copyContainer(vs_menu_containerData* target, vs_menu_containerData* source
     vs_main_freeHeapR(targetIndices);
 }
 
+#ifdef ROOD_PC
+static int _pcContainerMenu(u_char* state);
+#define vs_menu7_saveContainerMenu _pcContainerMenu
+#endif
 int vs_menu7_saveContainerMenu(u_char* state)
 {
     enum state {
@@ -3973,50 +3972,27 @@ static void _drawPlayTime(void)
 }
 
 #ifdef ROOD_PC
+/* The game's vs_menu7_dataMenu runs renamed under this wrapper; the bridge
+ * reads MENU7's statics through _pcStatics (data_menu7.h). */
+PC_UI_DATA_MENU7_LAYOUT(saveFileInfo_t, fileMenuElements_t);
+static const pc_ui_data_menu7 _pcStatics = { &_pcNoDraw, &_pcFramed, &_pcGated, &_pcRun,
+    &_textTable, &_saveFileInfo, _fileMenuElements, &_memoryCardMessage, &_selectCursorXy,
+    &_dataNotSaved, &_fileMenuScreenFade, &_loadSaveDataErrorOffset,
+    &_fileProgressCounter, &_fileProgressTarget, &_filePreviousProgressCounter,
+    &_fileProgressPosition, _fileMenuElementsActive, _findCurrentSaveOnActiveMemcard,
+    _getNewestSaveFile, _progressDiv };
 static int _pcDataMenu(u_char* state);
-static void _pcPublish(int state);
-
-/* The game's vs_menu7_dataMenu (MAINMENU's submenu entry point): the
- * original below, renamed, runs every call; framed, the planner's press goes
- * in while the real pad is idle (the real values back after the call) and
- * MENU7's statics are published after it. A save state that brings this
- * latch back without the host's frame (pc_ui_data_framed) runs the rest of
- * the run original. */
 int vs_menu7_dataMenu(u_char* state)
 {
-    static int run;
-    u_int pressed = vs_main_buttonsPressed.all;
-    int repeat = vs_main_buttonRepeat;
-    int entry = *state;
-    int r;
-
-    if (*state == 3) {
-        _pcFramed = pc_ui_data_frame_begin(++run);
-    }
-    if (_pcFramed && !pc_ui_data_framed(run)) {
-        _pcFramed = 0;
-    }
-    _pcNoDraw = _pcFramed;
-    _pcRealPressed = pressed;
-    _pcRealRepeat = repeat;
-    if (_pcFramed) {
-        pc_ui_data_frame_stamp(*state);
-        pc_ui_data_frame_inject(&vs_main_buttonsPressed.all, &vs_main_buttonRepeat);
-    }
-    r = _pcDataMenu(state);
-    vs_main_buttonsPressed.all = pressed;
-    vs_main_buttonRepeat = repeat;
-    if (_pcFramed) {
-        _pcPublish(*state);
-        if (r != 0) {
-            pc_ui_data_frame_finish(entry == 14 ? PC_UI_DATA_CLOSED : PC_UI_DATA_BACK);
-            _pcFramed = 0;
-        }
-    }
-    _pcNoDraw = 0;
-    return r;
+    return pc_ui_data_call(&_pcStatics, state, _pcDataMenu);
 }
 #define vs_menu7_dataMenu _pcDataMenu
+/* the Container's run, framed the same way (pc/src/ui/container_bridge.c) */
+#undef vs_menu7_saveContainerMenu
+int vs_menu7_saveContainerMenu(u_char* state)
+{
+    return pc_ui_container_call(&_pcStatics, state, _pcContainerMenu);
+}
 #endif
 
 int vs_menu7_dataMenu(u_char* state)
@@ -4162,13 +4138,7 @@ int vs_menu7_dataMenu(u_char* state)
 #ifdef ROOD_PC
             /* the jump never returns here: the frame ends before the loading
              * screen, the real pad back */
-            if (_pcFramed) {
-                pc_ui_data_frame_finish(PC_UI_DATA_LOADED);
-                _pcFramed = 0;
-                vs_main_buttonsPressed.all = _pcRealPressed;
-                vs_main_buttonRepeat = _pcRealRepeat;
-            }
-            _pcNoDraw = 0;
+            pc_ui_data_call_loading();
 #endif
             setRECT(&rect, 0, 0, 640, 240);
             DrawSync(0);
@@ -4211,147 +4181,3 @@ int vs_menu7_dataMenu(u_char* state)
 
     return 0;
 }
-
-#ifdef ROOD_PC
-static int _pcMessage(int offset)
-{
-    switch (offset) {
-    case VS_MCMAN_BIN_OFFSET_selectSlot:
-        return PC_UI_DATA_MSG_SELECT_SLOT;
-    case VS_MCMAN_BIN_OFFSET_checking:
-        return PC_UI_DATA_MSG_CHECKING;
-    case VS_MCMAN_BIN_OFFSET_insertError:
-        return PC_UI_DATA_MSG_INSERT_ERROR;
-    case VS_MCMAN_BIN_OFFSET_emptyCard:
-        return PC_UI_DATA_MSG_EMPTY_CARD;
-    case VS_MCMAN_BIN_OFFSET_saveFailed:
-        return PC_UI_DATA_MSG_SAVE_FAILED;
-    case VS_MCMAN_BIN_OFFSET_loadfailed:
-        return PC_UI_DATA_MSG_LOAD_FAILED;
-    case VS_MCMAN_BIN_OFFSET_selectFile:
-        return PC_UI_DATA_MSG_SELECT_FILE;
-    case VS_MCMAN_BIN_OFFSET_fileCorruptDescription:
-        return PC_UI_DATA_MSG_FILE_CORRUPT;
-    case VS_MCMAN_BIN_OFFSET_saving:
-        return PC_UI_DATA_MSG_SAVING;
-    case VS_MCMAN_BIN_OFFSET_loading:
-        return PC_UI_DATA_MSG_LOADING;
-    case VS_MCMAN_BIN_OFFSET_saved:
-        return PC_UI_DATA_MSG_SAVED;
-    case VS_MCMAN_BIN_OFFSET_loaded:
-        return PC_UI_DATA_MSG_LOADED;
-    case VS_MCMAN_BIN_OFFSET_removed:
-        return PC_UI_DATA_MSG_REMOVED;
-    case VS_MCMAN_BIN_OFFSET_accessing0:
-        return PC_UI_DATA_MSG_ACCESSING0;
-    case VS_MCMAN_BIN_OFFSET_accessing1:
-        return PC_UI_DATA_MSG_ACCESSING1;
-    case VS_MCMAN_BIN_OFFSET_containerWarn:
-        return PC_UI_DATA_MSG_CONTAINER_WARN;
-    case VS_MCMAN_BIN_OFFSET_formatPrompt:
-        return PC_UI_DATA_MSG_FORMAT_PROMPT;
-    case VS_MCMAN_BIN_OFFSET_formatting:
-        return PC_UI_DATA_MSG_FORMATTING;
-    case VS_MCMAN_BIN_OFFSET_formatFailed:
-        return PC_UI_DATA_MSG_FORMAT_FAILED;
-    case VS_MCMAN_BIN_OFFSET_formatCancelled:
-        return PC_UI_DATA_MSG_FORMAT_CANCELLED;
-    case VS_MCMAN_BIN_OFFSET_overwritePrompt:
-        return PC_UI_DATA_MSG_OVERWRITE_PROMPT;
-    case VS_MCMAN_BIN_OFFSET_noData:
-        return PC_UI_DATA_MSG_NO_DATA;
-    case VS_MCMAN_BIN_OFFSET_cardFull:
-        return PC_UI_DATA_MSG_CARD_FULL;
-    case VS_MCMAN_BIN_OFFSET_containerWarnDataLoss:
-        return PC_UI_DATA_MSG_CONTAINER_LOSS;
-    default:
-        return PC_UI_DATA_MSG_OTHER;
-    }
-}
-
-/* A location's name (_drawFileMenuElement's indexing: the save points, then
- * the containers from 0x40), or none. */
-static const unsigned char* _pcLocationName(int location)
-{
-    if (location < 0
-        || location + VS_MCMAN_BIN_INDEX_saveLocations
-               > VS_MCMAN_BIN_INDEX_containerLocations + 31) {
-        return NULL;
-    }
-    return (
-        const unsigned char*)&_textTable[_textTable[location
-                                                    + VS_MCMAN_BIN_INDEX_saveLocations]];
-}
-
-/* MENU7's statics after a framed call, by value (no writes). The heap-backed
- * ones (the text table, the scanned files) only while MCMAN is loaded (states
- * 5 to 14: _initMemcard done, _shutdownMemcard not yet); the flows' statics
- * (the cursor, the message, the elements, the progress) only inside a flow
- * (7 to 10: _initFileMenu ran for it). */
-static void _pcPublish(int state)
-{
-    pc_ui_data_game g;
-    int loaded = state >= 5 && state <= 14;
-    int flow = state >= 7 && state <= 10;
-    int i;
-
-    memset(&g, 0, sizeof g);
-    g.state = state;
-    g.data_not_saved = _dataNotSaved;
-    g.container_empty = (*(int*)&vs_main_settings >> 4) & 1;
-    g.msg_off = -1;
-    g.card_memory = vs_main_settings.cursorMemory != 0 ? D_800F4EE8.unk85[3] + 1 : 1;
-    g.gated = _pcGated;
-    _pcGated = 0;
-    if (loaded) {
-        g.location = (u_char)D_800F4E6B;
-        g.location_name = _pcLocationName(g.location);
-    }
-    if (flow) {
-        g.cursor_xy = _selectCursorXy;
-        g.elements_active = _fileMenuElementsActive();
-        g.list_up = (state == 8 || state == 10) && _fileMenuElements[5].state != 0;
-        g.list_y0 = _fileMenuElements[5].y;
-        if (_memoryCardMessage != 0) {
-            g.msg_off = (u_short*)_memoryCardMessage - _textTable;
-            g.msg = _pcMessage(g.msg_off);
-            g.msg_text = (const unsigned char*)_memoryCardMessage;
-        }
-        g.progress_counter = _fileProgressCounter;
-        g.progress_target = _fileProgressTarget;
-        if (_fileProgressCounter > 0) {
-            g.progress_x =
-                _fileProgressPosition
-                + _PROGRESS_DIV(((_fileProgressCounter - _filePreviousProgressCounter)
-                                    * ((_loadSaveDataErrorOffset * 20)
-                                        - (_fileProgressPosition - 320))),
-                    _fileProgressTarget);
-        }
-        g.fade = _fileMenuScreenFade;
-        g.files_valid = g.list_up;
-    }
-    if (g.files_valid) {
-        for (i = 0; i < 5; ++i) {
-            saveFileInfo_t* info = &_saveFileInfo[i];
-            pc_ui_data_file_game* f = &g.files[i];
-            f->state = info->unk4.base.slotState;
-            f->generation = info->unk4.base.generation;
-            f->h = info->unk4.stats.gameTime.t.h;
-            f->m = info->unk4.stats.gameTime.t.m;
-            f->s = info->unk4.stats.gameTime.t.s;
-            f->saves = info->unk4.stats.cumulativeSaveCount;
-            f->hp = info->unk4.stats.currentHP;
-            f->hp_max = info->unk4.stats.maxHP;
-            f->mp = info->unk4.stats.currentMP;
-            f->mp_max = info->unk4.stats.maxMP;
-            f->location = (u_char)info->unk4.stats.saveLocation;
-            f->clear = (u_char)info->unk4.stats.clearCount;
-            f->map = (u_char)info->unk4.stats.mapCompletion;
-            f->name = f->state >= slotStateInUse ? _pcLocationName(f->location) : NULL;
-        }
-        g.current = _findCurrentSaveOnActiveMemcard();
-        g.newest = _getNewestSaveFile();
-    }
-    pc_ui_data_frame_publish(&g);
-}
-#endif

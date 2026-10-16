@@ -4,6 +4,7 @@
 // soft highlight, and the JSON (RPC ui_menu "data"). Drawing is
 // ui_data_draw.cpp.
 #include "ui/data_frame.h"
+#include "ui/container_frame.h"
 #include "ui/data_plan.h"
 #include "ui/ui_shell.h"
 #include <cstdio>
@@ -65,12 +66,18 @@ const char* const PROMPTS[] = {"", "overwrite", "format", "container", "containe
 extern "C" pc_ui_data_model* pc_ui_data_state(void) { return &model; }
 extern "C" pc_ui_data_goal* pc_ui_data_goal_slot(void) { return &box; }
 
-extern "C" int pc_ui_data_visible(void)
+namespace {
+bool data_visible()
 {
     if (model.framed)
         return !model.finished && model.stamped && now() - model.stamp <= 8;
     return model.armed && now() - model.armed_vsync <= 30;
 }
+} // namespace
+
+// The Data frame, or the Container screen (MENU7's other framed run, ui_container.cpp): a native MENU7
+// screen shows (the overlay's mouse routing, dev_overlay.cpp, asks this).
+extern "C" int pc_ui_data_visible(void) { return data_visible() || pc_ui_container_visible(); }
 
 extern "C" void pc_ui_data_post(int kind, int a)
 {
@@ -81,8 +88,9 @@ extern "C" void pc_ui_data_post(int kind, int a)
         ++model.busy_drops;
         return;
     }
-    if (!pc_ui_data_accepts(phase, kind)) {
-        ++model.rejected;
+    if (!pc_ui_data_accepts(phase, kind)
+        || (model.container && (kind == PC_UI_DATA_GOAL_TAB || kind == PC_UI_DATA_GOAL_CLOSE))) {
+        ++model.rejected; // the Container's save list: no tabs, Triangle is MENU7's (invalid there)
         return;
     }
     ++seq;
@@ -183,11 +191,11 @@ extern "C" void pc_ui_data_json(char* out, unsigned size)
     int ph = phase_now();
     std::string j = ",\"data\":{";
     std::snprintf(buf, sizeof buf,
-        "\"run\":%d,\"armed\":%d,\"framed\":%d,\"finished\":%d,\"finish\":%d,\"visible\":%s,\"phase\":\"%s\","
+        "\"container\":%d,\"run\":%d,\"armed\":%d,\"framed\":%d,\"finished\":%d,\"finish\":%d,\"visible\":%s,\"phase\":\"%s\","
         "\"state\":%d,\"op\":%d,\"save_ok\":%d,\"at_point\":%d,\"in_battle\":%d,\"warp_blocked\":%d,"
         "\"data_not_saved\":%d,\"container_empty\":%d,\"cursor\":[%d,%d],\"card\":%d,\"file\":%d,\"page\":%d,"
         "\"cancelled\":%d,\"ops_open\":%d,\"ops_row\":%d,\"msg\":\"%s\",\"msg_off\":%d,\"prompt\":\"%s\",",
-        m.run, m.armed, m.framed, m.finished, m.finish_code, pc_ui_data_visible() ? "true" : "false",
+        m.container, m.run, m.armed, m.framed, m.finished, m.finish_code, data_visible() ? "true" : "false",
         PHASES[ph < 0 || ph >= PC_UI_DATA_PHASES ? 0 : ph], m.state, m.op, m.save_ok, m.at_point, m.in_battle,
         m.warp_blocked, m.data_not_saved, m.container_empty, m.cursor_xy & 0xFFFF, (m.cursor_xy >> 16) & 0xFFFF,
         m.card, m.file, m.page, m.cancelled, m.ops_open, m.ops_row,

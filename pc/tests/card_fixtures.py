@@ -401,3 +401,266 @@ if __name__ == "__main__":
             print(k, {n: len(b) for n, b in files(img).items()}, "free", len(free_blocks(img)),
                   {n: (generation(decode(read_file(img, nm))), checksums_ok(decode(read_file(img, nm)), 32))
                    for n, nm in saves(img).items()})
+
+
+# ---- the Container (MENU7 _copyContainer / vs_menu_containerData at 0x1DE0 of a save) ----
+CONTAINER_AT = 0x1DE0  # savedata_t.containerData: _spmcimg + 0x79E0 = file image 2 + 0x1DE0
+
+
+def container_layout(probe=None, out=None):
+    """vs_menu_containerData's and the bag's layout from container_ops_probe --layout (the CMake
+    build's, else built here with gcc into `out`): no record offsets in the tests."""
+    import json
+    candidates = [pathlib.Path(probe)] if probe else [ROOT / "pc/build/container_ops_probe"]
+    exe = next((c for c in candidates if c.exists()), None)
+    if exe is None:
+        out = pathlib.Path(out or ROOT / "pc/build")
+        out.mkdir(parents=True, exist_ok=True)
+        exe = out / "container_ops_probe"
+        subprocess.run(["gcc", "-std=gnu11", "-funsigned-char", "-DPC_CONTAINER_OPS_PROBE", "-I", str(ROOT / "pc/src/ui"),
+                        str(ROOT / "pc/tests/container_ops_probe.c"), str(ROOT / "pc/src/ui/container_ops.c"), "-o",
+                        str(exe)], check=True)
+    return json.loads(subprocess.run([str(exe), "--layout"], capture_output=True, text=True, check=True).stdout)
+
+
+def settings_offset(plain):
+    """vs_main_settings_t in the save: found by its saveFileGeneration and save counts (the header's
+    generation and stats), never hard-coded. Returns the struct's offset (containerEmpty: bit 4 of
+    its first byte)."""
+    gen = struct.unpack_from("<I", plain, 0x188)[0]
+    saves, game_saves = struct.unpack_from("<HH", plain, 0x194)
+    needle = struct.pack("<HHI", saves, game_saves, gen)
+    hits = []
+    i = plain.find(needle, 0x200)
+    while i >= 0:
+        hits.append(i)
+        i = plain.find(needle, i + 1)
+    if len(hits) != 1:
+        raise ValueError(f"settings_offset: {len(hits)} candidates")
+    return hits[0] - 24  # key (+20), cumulativeSaveCount (+24), currentGameSaveCount (+26), saveFileGeneration (+28)
+
+
+def reseal(plain, sectors=92):
+    """Every sector's sum (but sector 1's) recomputed, then sector 1 sealed to XOR 0 (_verifySaveChecksums)."""
+    for i in range(sectors):
+        if i == 1:
+            continue
+        x = 0
+        for b in plain[i * 256:(i + 1) * 256]:
+            x ^= b
+        plain[0x1A4 + i] = x
+    plain[0x1A4 + 1] = 0
+    x = 0
+    for b in plain[256:512]:
+        x ^= b
+    plain[0x1A4 + 1] = x
+
+
+def build_container(bag, layout, misc_counts=(95, 70)):
+    """A container's bytes (display order = slot order, as _copyContainer writes it) from the save's
+    own bag `bag` (vs_main_inventory as RAM has it after the load): its first weapon with blade and
+    grip (up to two gems set, as the grip's slots allow: synthetic gem records, the bag has none to
+    copy), its first shield (one gem set when it has a slot, | 0x80), its first armor that is not
+    an accessory (taken off), two loose gems, and two stacks (misc_counts) of the bag's first misc
+    item plus one of its second. Returns (bytes, {what: slot}). Nothing is equipped."""
+    L, F, S = layout["arrays"], layout["fields"], layout["sizes"]
+    B = layout["bag"]
+    box = bytearray(layout["container"])
+
+    def rec(kind, src_off):
+        return bytearray(bag[src_off:src_off + S[kind]])
+
+    def put(kind, slot, data, index_field, index):
+        data = bytearray(data)
+        if index_field is not None:
+            data[F[index_field]] = index
+        box[L[kind] + slot * S[kind]:L[kind] + (slot + 1) * S[kind]] = data
+
+    def bag_rec(kind, i):
+        return rec(kind, B[kind] + i * S[kind])
+
+    gem_slot = [0]
+    made = {}
+
+    def gem(gid, parent, strength):
+        g = bytearray(S["gems"])
+        struct.pack_into("<H", g, F["gem_id"], gid)
+        g[F["gem_str"]] = strength
+        struct.pack_into("<H", g, F["gem_parent"], parent)
+        slot = gem_slot[0]
+        struct.pack_into("<h", g, F["gem_index"], slot + 1)
+        box[L["gems"] + slot * S["gems"]:L["gems"] + (slot + 1) * S["gems"]] = g
+        gem_slot[0] += 1
+        return slot
+
+    # a weapon with its parts
+    for w in range(8):
+        wr = bag_rec("weapons", w)
+        if wr[F["weapon_blade"]]:
+            break
+    else:
+        raise ValueError("the bag has no weapon")
+    blade = bag_rec("blades", wr[F["weapon_blade"]] - 1)
+    # the bag's grip with the most gem slots (two at least: synthetic when none has them)
+    grips = [bag_rec("grips", g) for g in range(16)]
+    grips = [g for g in grips if struct.unpack_from("<H", g, 0)[0]]
+    grip = max(grips, key=lambda g: g[F["grip_slots"]])
+    if grip[F["grip_slots"]] < 2:
+        grip[F["grip_slots"]] = 2
+    blade[F["blade_parent"]] = 1
+    put("blades", 0, blade, "blade_index", 1)
+    struct.pack_into("<H", grip, F["grip_parent"], 1)
+    struct.pack_into("<H", grip, F["grip_index"], 1)
+    put("grips", 0, grip, None, 0)
+    wr[F["weapon_blade"]] = 1
+    wr[F["weapon_grip"]] = 1
+    wr[F["weapon_equipped"]] = 0
+    for i in range(4):
+        wr[F["weapon_gems"] + i] = 0
+    for i in range(min(2, grip[F["grip_slots"]])):
+        wr[F["weapon_gems"] + i] = gem(263 + i, 1, 1 + i) + 1
+    put("weapons", 0, wr, "weapon_index", 1)
+    made["weapon"] = 0
+    # a shield
+    for s in range(8):
+        sr = bag_rec("shields", s)
+        if sr[4]:  # base.id
+            sr[F["shield_equipped"]] = 0
+            for i in range(4):
+                sr[F["shield_gems"] + i] = 0
+            if not sr[F["shield_slots"]]:
+                sr[F["shield_slots"]] = 1  # synthetic: one slot for the shield's gem
+            sr[F["shield_gems"]] = gem(265, 1 | 0x80, 2) + 1
+            put("shields", 0, sr, "shield_index", 1)
+            made["shield"] = 0
+            break
+    # an armor (not an accessory: category 7), taken off
+    for a in range(16):
+        ar = bag_rec("armor", a)
+        if ar[0] and ar[3] != 7:
+            ar[F["armor_limb"]] = 0
+            put("armor", 0, ar, "armor_index", 1)
+            made["armor"] = 0
+            break
+    for i in range(2):  # loose gems
+        gem(266 + i, 0, 3)
+    # misc: two stacks of the bag's first item, one of its second
+    ids = []
+    for i in range(64):
+        mid = struct.unpack_from("<H", bag, B["misc"] + i * 4)[0]
+        if mid and mid not in ids:
+            ids.append(mid)
+    if not ids:
+        raise ValueError("the bag has no misc item")
+    stacks = [(ids[0], misc_counts[0]), (ids[0], misc_counts[1])] + ([(ids[1], 1)] if len(ids) > 1 else [])
+    for slot, (mid, n) in enumerate(stacks):
+        m = bytearray(4)
+        struct.pack_into("<H", m, F["misc_id"], mid)
+        m[F["misc_count"]] = n
+        m[F["misc_index"]] = slot + 1
+        box[L["misc"] + slot * 4:L["misc"] + slot * 4 + 4] = m
+    made["misc_id"] = ids[0]
+    made["gems"] = gem_slot[0]
+    return bytes(box), made
+
+
+def with_container(payload, box):
+    """The save with container bytes `box` at 0x1DE0 and its settings' containerEmpty cleared
+    (settings_offset), every sector's sum recomputed and sector 1 re-sealed, re-encoded with its key."""
+    plain = decode(payload)
+    plain[CONTAINER_AT:CONTAINER_AT + len(box)] = box
+    plain[settings_offset(plain)] &= ~0x10 & 0xFF
+    reseal(plain)
+    if not checksums_ok(plain):
+        raise AssertionError("with_container: the checksums do not verify")
+    return bytes(encode(plain))
+
+
+def container_fixture(source, path, bag, layout, kind="container"):
+    """A card (from `source`'s first save) whose file 1 holds the container built from `bag`
+    (kind "container"); "container_none": the same with the header's generation one ahead of the
+    settings' (MENU7's _findCurrentSave finds no save of this journey: emptyCard, then containerWarn)."""
+    image = blank()
+    payload = first_save(source)
+    box, made = build_container(bag, layout)
+    data = with_container(payload, box)
+    if kind == "container_none":
+        data = with_generation(data, generation(decode(data)) + 1)
+    elif kind != "container":
+        raise ValueError(kind)
+    write_file(image, save_name(1), data)
+    pathlib.Path(path).write_bytes(bytes(image))
+    return made
+
+
+INDEX_ORDER = ("weapons", "blades", "grips", "shields", "armor", "gems", "misc")  # vs_menu_containerIndices
+CAPS = {"weapons": 32, "blades": 64, "grips": 64, "shields": 32, "armor": 64, "gems": 192, "misc": 256}
+
+
+def pack_container(container, layout=None):
+    """MENU7's _copyContainer (260.c, 3 gem bytes): a vs_menu_container (data, then its index lists) packed
+    in display order as the card holds it: slot i of each category is its list's entry i, the parents'
+    indices remapped (blade / grip assembledWeaponIndex, weapon blade / grip / gems, shield gems, gem
+    setItemIndex: a shield's | 0x80)."""
+    L = layout or container_layout()
+    A, S, F = L["arrays"], L["sizes"], L["fields"]
+    size = L["container"]
+    data, idx = container[:size], container[size:]
+    lists, at = {}, 0
+    for k in INDEX_ORDER:
+        lists[k] = list(struct.unpack_from(f"<{CAPS[k]}H", idx, at))
+        at += CAPS[k] * 2
+    target = {k: [0] * CAPS[k] for k in INDEX_ORDER}  # targetIndices: old slot -> new index
+    for k in INDEX_ORDER:
+        for j, src in enumerate(lists[k]):
+            if src:
+                target[k][src - 1] = j + 1
+    out = bytearray(size)
+
+    def rec(k, slot):
+        return bytearray(data[A[k] + slot * S[k]:A[k] + (slot + 1) * S[k]])
+
+    def put(k, slot, r):
+        out[A[k] + slot * S[k]:A[k] + (slot + 1) * S[k]] = r
+
+    for k in INDEX_ORDER:
+        for i, src in enumerate(lists[k]):
+            if not src:
+                continue
+            r = rec(k, src - 1)
+            if k == "weapons":
+                r[F["weapon_index"]] = i + 1
+                r[F["weapon_blade"]] = target["blades"][r[F["weapon_blade"]] - 1] & 0xFF
+                r[F["weapon_grip"]] = target["grips"][r[F["weapon_grip"]] - 1] & 0xFF
+                for g in range(3):
+                    if r[F["weapon_gems"] + g]:
+                        r[F["weapon_gems"] + g] = target["gems"][r[F["weapon_gems"] + g] - 1] & 0xFF
+            elif k == "blades":
+                r[F["blade_index"]] = i + 1
+                if r[F["blade_parent"]]:
+                    r[F["blade_parent"]] = target["weapons"][r[F["blade_parent"]] - 1] & 0xFF
+            elif k == "grips":
+                struct.pack_into("<H", r, F["grip_index"], i + 1)
+                p = struct.unpack_from("<H", r, F["grip_parent"])[0]
+                if p:
+                    struct.pack_into("<H", r, F["grip_parent"], target["weapons"][p - 1])
+            elif k == "shields":
+                r[F["shield_index"]] = i + 1
+                for g in range(3):
+                    if r[F["shield_gems"] + g]:
+                        r[F["shield_gems"] + g] = target["gems"][r[F["shield_gems"] + g] - 1] & 0xFF
+            elif k == "armor":
+                r[F["armor_index"]] = i + 1
+            elif k == "gems":
+                struct.pack_into("<h", r, F["gem_index"], i + 1)
+                p = struct.unpack_from("<H", r, F["gem_parent"])[0]
+                if p:
+                    if p & 0x80:
+                        p = target["shields"][(p & 0xFFFF) - 0x81] | 0x80
+                    else:
+                        p = target["weapons"][p - 1]
+                    struct.pack_into("<H", r, F["gem_parent"], p)
+            elif k == "misc":
+                r[F["misc_index"]] = i + 1
+            put(k, i, r)
+    return bytes(out)
