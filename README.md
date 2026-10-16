@@ -42,6 +42,21 @@ The detailed reference for the port (renderer, editor, settings keys,
 developer RPC, test suites, architecture) is [`pc/README.md`](pc/README.md),
 with design notes in [`pc/docs/`](pc/docs).
 
+## HD texture packs in this fork
+
+The [player builders](https://github.com/Daemeous/rood-boi/releases/latest) support
+classic Beetle PSX HW PNG texture packs on Vulkan and OpenGL, with or without Merlose.
+Extract your separately downloaded pack, rename the folder containing the PNGs to
+`texture-replacements`, and put it beside `play.bat` / `play.sh` in your built game folder.
+Use Graphics > HD texture replacements to compare with the originals. First loads can pause
+while images decode; broader room, palette and animation coverage still needs testing.
+See [HD texture pack details](pc/docs/HD_Textures.md).
+
+rood-boi is noprompt's native port, built on rood-reverse by
+[ser-pounce](https://github.com/ser-pounce), who started it and did most of the work,
+[Lil' Sassy](https://github.com/lil-sassy), one of its most prolific contributors,
+and its other contributors.
+
 ## Features
 
 - **The original game code, natively.** Main executable, title, battle/field
