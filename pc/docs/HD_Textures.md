@@ -1,7 +1,9 @@
 # HD texture packs
 
 The native hardware renderers can read Beetle PSX HW upload-rectangle PNG texture packs.
-Extract the pack first, then set `ROOD_TEXTURE_PACK` to the directory containing the PNGs.
+Extract the pack first. Rename its image folder to `texture-replacements` and put it
+next to `play.bat` / `play.sh` in your built game folder. It is detected on startup.
+Alternatively, set `ROOD_TEXTURE_PACK` to the directory containing the PNGs.
 No RetroArch installation or disc patch is needed. Packs remain external to the game.
 
 Windows example (a `.cmd` file in the game folder):
@@ -9,7 +11,7 @@ Windows example (a `.cmd` file in the game folder):
 ```bat
 @echo off
 cd /d "%~dp0"
-set "ROOD_TEXTURE_PACK=G:\Users\sharo\Downloads\vs-hd-pack\Vagrant Story (USA)-texture-replacements"
+set "ROOD_TEXTURE_PACK=C:\Games\HD textures\Vagrant Story (USA)-texture-replacements"
 rood.exe --window
 ```
 
