@@ -122,3 +122,12 @@ documentation.
 - The decompiled C and assembly under `src/` (this fork adds further
   decompiled functions and hand-written-assembly `.s` files in the same
   decompilation conventions).
+
+
+## Optional HD texture format helpers
+
+`pc/third_party/texture_formats/xxhash.h` is xxHash 0.8.3 by Yann Collet,
+BSD 2-Clause; `bcdec.h` is bcdec by Sergii Kudlai, used under its MIT option.
+Each vendored header contains the full license; pinned source references are in
+`pc/third_party/texture_formats/README.md`. Texture packs remain separate downloads
+by their respective authors and are not bundled.
