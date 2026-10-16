@@ -134,6 +134,8 @@ void pc_store_image_debug(int x, int y, int w, int h, const void* caller)
     if (debug)
         fprintf(stderr, "[sync] StoreImage %d,%d %dx%d from %p\n", x, y, w, h, caller);
 }
+
+#include "hd_textures.h"
 void pc_vram_transfer(int x, int y, int w, int h, void* data, int write)
 {
     if (x < 0 || y < 0 || w < 0 || h < 0 || x + w > 1024 || y + h > 512) {
@@ -152,8 +154,10 @@ void pc_vram_transfer(int x, int y, int w, int h, void* data, int write)
         else
             memcpy(dp, vp, (size_t)w * 2);
     }
-    if (write)
+    if (write) {
         pc_hw_upload(x, y, w, h);
+        pc_hd_upload(x, y, w, h, vram);
+    }
 }
 /* GPU fill (GP0 0x02) as the hardware does it: x is rounded down to 16
  * pixels, the width rounded up to 16, both wrapped to VRAM (1024 x 512).
@@ -169,6 +173,7 @@ void pc_vram_clear(int x, int y, int w, int h, int r, int g, int b)
     y &= 0x1ff;
     w = ((w & 0x3ff) + 0xf) & ~0xf;
     h &= 0x1ff;
+    pc_hd_clear(x, y, w, h);
     uint64_t cost = pc_cost_begin();
     for (int row = 0; row < h; row++)
         for (int col = 0; col < w; col++)
@@ -667,6 +672,7 @@ void pc_display_env(int x, int y, int w, int h)
 }
 void pc_draw_env(int x, int y, int w, int h, int ox, int oy, int tp)
 {
+    pc_hd_clear(x, y, w, h);
     clip_x = x;
     clip_y = y;
     clip_w = w;
@@ -810,6 +816,7 @@ static void commands(uint32_t* p, unsigned n)
                 }
             pc_hw_mark(dx, dy, dx + w - 1, dy + h - 1);
             pc_hw_copy(sx, sy, dx, dy, w, h);
+            pc_hd_copy(sx, sy, dx, dy, w, h, mask_check || mask_set);
             i += 4;
             continue;
         }
