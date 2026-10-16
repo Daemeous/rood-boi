@@ -28,7 +28,14 @@ a candle, a fog volume). Sections:
   the value back and leaves the editor open;
 - multi: with several objects of one kind selected, a shared field goes to
   each, the position to the edited one only, and a vec3 component dragged
-  on the ladder leaves the others' other components alone.
+  on the ladder leaves the others' other components alone;
+- standalone: a kind registered with add_kind and no scene object, the
+  menu model's studio light (ui/menu_light_kind.cpp): RPC editor_schema
+  {kind} gets / sets / resets it (clamped; one undo step, undo and redo put
+  it back and forth), the rig follows (graphics menu_light), reset returns
+  the shipped rig exactly; the dev tools' Graphics tab draws it
+  (rood_details::draw_kind under kind_section): its fields, its own search,
+  a changed value's reset arrow clicked, the value ladder on Intensity.
 """
 import argparse
 import pathlib
@@ -40,7 +47,7 @@ sys.path.insert(0, str(ROOT / "pc/tests"))
 from rood_rpc import RpcError  # noqa: E402
 from editor_selection_smoke import VOLUME, centre, finish, pinned_card, start  # noqa: E402
 
-EXPECTED_KINDS = {"point", "spot", "rect", "fog", "actor:candle", "actor:torch"}
+EXPECTED_KINDS = {"point", "spot", "rect", "fog", "actor:candle", "actor:torch", "menu_model_light"}
 
 
 def schema(s, **params):
@@ -299,7 +306,81 @@ def check_multi(s):
     schema(s, action="set", id=s.light, values={"position": p})
 
 
-SECTIONS = [check_lint, check_lights, check_actors, check_fog, check_details, check_search_lock, check_ladder, check_multi]
+MENU_LIGHT = "menu_model_light"
+
+
+def check_standalone(s):
+    """The menu model's studio light: a standalone kind, by {kind}; drawn in the Graphics tab by draw_kind."""
+    g = s.game
+
+    def get(field):
+        return schema(s, action="get", kind=MENU_LIGHT)["fields"][field]["value"]
+
+    got = schema(s, action="get", kind=MENU_LIGHT)
+    f = got["fields"]
+    kind = next(k for k in schema(s, action="kinds", kind=MENU_LIGHT)["kinds"])
+    s.check(got["kind"] == MENU_LIGHT and kind["object"] == "none" and kind["count"] == 1
+            and close(f["key_intensity"]["value"], 0.5) and not any(x["overridden"] for x in f.values()),
+            f"the rig as shipped, every field at its default ({kind['object']}, {sorted(f)[:6]}...)")
+    done = s.history()["done"]
+    schema(s, action="set", kind=MENU_LIGHT, values={"key_intensity": 1.5, "key_azimuth": 20})
+    rig = g.call("graphics", menu_light=True)["menu_light"]
+    s.check(close(rig["key_intensity"], 1.5) and close(rig["key_azimuth"], 20) and rig["edited"],
+            f"edits reach the rig (graphics menu_light: {rig['key_intensity']}, {rig['key_azimuth']})")
+    h = s.history()
+    s.check(h["done"] == done + 1 and h["undo"] == "Edit 2 fields", f"one undo step for the request ({h['undo']})")
+    g.call("editor_undo", action="undo")
+    s.check(close(get("key_intensity"), 0.5) and close(get("key_azimuth"), f["key_azimuth"]["value"]),
+            "undo puts the rig back")
+    g.call("editor_undo", action="redo")
+    s.check(close(get("key_intensity"), 1.5), "redo applies it again")
+    schema(s, action="set", kind=MENU_LIGHT, values={"key_intensity": 99, "rim_power": 0})
+    s.check(close(get("key_intensity"), 4) and close(get("rim_power"), 0.25), "values past the range are clamped")
+    try:
+        schema(s, action="get", kind="point")
+        s.check(False, "a scene kind by {kind} is refused")
+    except RpcError:
+        s.check(True, "a scene kind by {kind} is refused")
+    schema(s, action="reset", kind=MENU_LIGHT)
+    rig = g.call("graphics", menu_light=True)["menu_light"]
+    s.check(rig["key_direction"] == [-0.45, -0.5, -0.74] and rig["key_intensity"] == 0.5 and not rig["edited"],
+            f"reset: the shipped rig exactly ({rig['key_direction']}, edited {rig['edited']})")
+    # Details' rows for it in the Graphics tab
+    g.call("editor_ui", details="graphics")
+    schema(s, action="ui", open=MENU_LIGHT)
+    g.run(4)
+    ui = schema(s, action="ui")["standalone"].get(MENU_LIGHT)
+    if not s.check(ui and {"key_azimuth", "key_elevation", "key_color", "key_intensity", "rim_power"} <= set(ui["fields"])
+                   and "key_intensity" in ui["rects"], f"the Graphics tab draws it ({ui and ui['fields']})"):
+        return
+    schema(s, action="ui", kind_search={MENU_LIGHT: "rim"})
+    g.run(3)
+    fields = schema(s, action="ui")["standalone"][MENU_LIGHT]["fields"]
+    s.check(fields and all(x.startswith("rim_") for x in fields), f"its own search: rim's fields only ({fields})")
+    schema(s, action="ui", kind_search={MENU_LIGHT: ""})
+    schema(s, action="set", kind=MENU_LIGHT, values={"fill_intensity": 1})
+    g.run(4)
+    ui = schema(s, action="ui")["standalone"][MENU_LIGHT]
+    rect = ui["reset"].get("fill_intensity")
+    if s.check(rect is not None and "key_intensity" not in ui["reset"], f"a changed value (only) has a reset arrow ({ui['reset']})"):
+        s.click(centre(rect))
+        s.check(close(get("fill_intensity"), 0.15) and s.history()["undo"] == "Reset Intensity",
+                f"clicking it restores the shipped value, one undo step ({s.history()['undo']})")
+    c = centre(schema(s, action="ui")["standalone"][MENU_LIGHT]["rects"]["key_intensity"])
+    done = s.history()["done"]
+    s.mouse(c, button=2, down=True)
+    lad = schema(s, action="ui")["ladder"]
+    s.check(lad["active"] and lad["field"] == "key_intensity", f"a middle press opens the value ladder ({lad})")
+    s.mouse([c[0] + lad["notch"] * 5.5, c[1]], button=2, down=True)  # five notches right in steps of 0.01
+    s.mouse([c[0] + lad["notch"] * 5.5, c[1]], button=2, down=False)
+    h = s.history()
+    s.check(close(get("key_intensity"), 0.55) and h["done"] == done + 1 and h["undo"] == "Edit Intensity",
+            f"the ladder: +0.05, one undo step ({get('key_intensity')}, {h['undo']})")
+    schema(s, action="reset", kind=MENU_LIGHT)
+
+
+SECTIONS = [check_lint, check_lights, check_actors, check_fog, check_details, check_search_lock, check_ladder, check_multi,
+            check_standalone]
 
 
 def main():

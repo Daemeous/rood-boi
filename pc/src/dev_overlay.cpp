@@ -1676,6 +1676,7 @@ static void details(float x, float y, float w, float h, double frame_ms)
                 pc_lighting_panel();
             if (ImGui::CollapsingHeader("Display and rendering", ImGuiTreeNodeFlags_DefaultOpen))
                 graphics_panel();
+            rood_details::kind_section("menu_model_light", "Menu model light"); /* ui/menu_light_kind.cpp */
             if (ImGui::CollapsingHeader("Controls")) {
                 camera_stick_panel();
                 look_panel();

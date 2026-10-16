@@ -136,7 +136,9 @@ unreadable files as free blocks), separate Save and Load rows. Plan:
 Phase 7e: the Container (the save room's container: the field opens it,
 BATTLE `func_800CB1C0`, MENU7 then MENUD). See "Container" below. Plan:
 `pc/docs/plans/2026-10-15-modern-menus-container.md`.
-Plans: `pc/docs/plans/`. Next: phase 7+ (Score, Title), then the HUD.
+Phase 7f: Score (pass 1). System > Score is native (MENU9.PRG never loads
+for it). See "Score" below. Plan: `pc/docs/plans/2026-10-15-modern-menus-score.md`.
+Plans: `pc/docs/plans/`. Next: phase 7+ (Title; the Score's enemy viewer), then the HUD.
 
 | Phase | Screens |
 | --- | --- |
@@ -146,7 +148,65 @@ Plans: `pc/docs/plans/`. Next: phase 7+ (Score, Title), then the HUD.
 | 4 | System: settings pages + the game's options |
 | 5 | Abilities (chain/defense mapping, break arts) |
 | 6 | Items and Magick |
-| 7+ | Workshop and Loot (7a), Map frame (7b), Quick manual (7c), Data (7d), Container (7e), Score, Title; then the HUD |
+| 7+ | Workshop and Loot (7a), Map frame (7b), Quick manual (7c), Data (7d), Container (7e), Score (7f), Title; then the HUD |
+
+## Score (phase 7f)
+
+System > Score (`pc/src/ui/ui_score.h` has the design) is a native sub-screen
+that takes the whole view: the score and the Risk Breaker rank on top, a
+strip of the four sections with their counts (Titles k/32, Records 23, Time
+Attack k/8, Bestiary k/78), then Home (a summary card and the four sections)
+or a section's list and its detail card. MENU9's game rules stay MENU9's: at
+each open `score_bridge.c` runs MENU9's own `_calculateProgress` once,
+through one const table of pointers in 238.c (`score_menu9.h`, ROOD_PC, 10
+lines: the function, `_score`, `_characterRank`, the progress statics and
+the text tables, with a layout check), so roomFlags[1], the cursor memory's
+bzero, the scoredata high-water marks, the titles, the score and the rank are
+the original's by construction. Everything else is native in `pc/src`: the
+numbers (`score_format.c`), the lists' cursor rules (`score_nav.c`, MENU9's
+page / row stepping, wrap on a press only), MON.BIN's parse (`mon_parse.c`,
+`score_mon.c`), the screen (`ui_score.cpp`) and its drawing
+(`ui_score_draw.cpp`, every rect and size in theme.json's "score" group,
+per layout width; RPC `ui_menu score_tune` overrides it until reset or the
+next edit of the file, the active ones listed in the JSON's
+`tune_overrides`). The cursor memories are written as MENU9 writes them:
+menu9CursorMemory's pairs on every move in a section; cursorMemories[2] =
+Home's row and [3] = 0 at the open and at every exit from Home (a section,
+L1 / R1, Cross, Triangle, Square), not on Home's own moves; gazetteRow at
+every exit from Home. So Square (anywhere) opens MENU9 where the native
+screen was.
+
+Intended differences from the original:
+
+- The close is the shell's (-1), as for the Quick manual, not MENU9's
+  currentMenu 9 path; the end state is checked equal (`ui_score_smoke` 2).
+- MON.BIN is read into host memory once per process (`pc_ui_disc_read`,
+  kept until exit like the Quick manual's pages), never the game's heap or
+  CD queue; each open parses it with the current kill flags.
+- The world after the close is as it was at the open: OPEN remembers
+  D_800F190C and CLOSE calls `func_8008A4DC(1)` only if it was running.
+  MENU9's state 6 (and the Quick manual's close) restart it
+  unconditionally. The two differ only when something else already holds
+  the world frozen at the open, which no known path does (MAINMENU runs
+  with it running; the Ashley tab's freeze ends before the System tab
+  shows); there the native close leaves it frozen for its owner instead of
+  restarting it under it. `ui_score_smoke` 2 checks D_800F190C after every
+  close against MENU9's.
+- A click focuses its row through the canonical pair Down presses from
+  (0, 0) would reach; the pad keeps MENU9's exact pairs.
+- No 3D in pass 1: Home has no Ashley pose; the Bestiary's model viewer is
+  the original's (Circle on an unlocked foe shows the hint "Original screen
+  (Encyclopaedia)"; Square opens MENU9 on its top menu with the
+  Encyclopaedia row selected, the list position kept with cursor memory
+  on). The camera backup MENU9 makes is never needed (nothing moves it).
+- L1 / R1 switch sections (MENU9 has no such shortcut; Home's row follows).
+
+Follow-ups: the native enemy viewer (after an original-path ZUD smoke on
+32-bit, 64-bit GL and Vulkan; shared menu-model code out of
+`ashley_bridge.c`, a 592C.c table for the heap pre-check, `vs_menu9_loadZud`
+/ `vs_menu9_freeZud`); Ashley's pose 33 on Home; preview on focus; the
+"score" group in the editor's schema (`rood_schema::add_kind`, on another
+branch).
 
 ## Container (phase 7e)
 
@@ -295,6 +355,31 @@ Prototype (private, placeholder data): the "Riskbreaker Menus" artifact.
   The model itself is lit by a studio rig of its own (key, fill, ambient,
   rim; `menu_studio.glsl`), the same in every room, with the texture's
   colours as they are (no room light, no game rim copy; Native_Rendering.md).
+  The rig is data: the `menu_model_light` block of `pc/assets/ui/theme.json`
+  (`ui/menu_light.h`, live-reloaded with the theme), tuned live in the dev
+  tools (Graphics > Menu model light: the editor's Details rows for the
+  schema kind `menu_model_light`, with ↺, the value ladder, undo, "Save to
+  theme.json" and "Reset to defaults") or by RPC `graphics menu_light`.
+
+  | Key (`menu_model_light.`) | Default | Range | What |
+  | --- | --- | --- | --- |
+  | `key.direction` | [-0.45, -0.5, -0.74] | each -1..1, not 0 | view space toward the light (x right, y down, z away); or `azimuth` / `elevation` in degrees (0, 0: from the camera; azimuth positive to the right, 180 behind) |
+  | `key.color` | [1, 0.97, 0.92] | 0..4 | linear colour, times intensity |
+  | `key.intensity` | 0.5 | 0..4 | |
+  | `key.wrap` | 0.4 | 0..1 | n.l wrapped: the far side keeps this share (0 Lambert) |
+  | `fill.direction` / `color` / `intensity` / `wrap` | [0.85, -0.05, -0.52] / [0.9, 0.95, 1] / 0.15 / 0 | as the key's | |
+  | `rim.direction` / `color` / `intensity` / `wrap` | [0.5, -0.55, 0.67] / [0.85, 0.9, 1] / 0.45 / 0.2 | as the key's | times (1 - n.v) ^ power |
+  | `rim.power` | 2 | 0.25..16 | higher: a thinner rim |
+  | `rim.lift` | 0.1 | 0..1 | added to the texture's colour under the rim |
+  | `ambient.sky` / `ground` | [0.56, 0.56, 0.58] / [0.5, 0.5, 0.52] | 0..4 | on upward / downward faces |
+  | `ambient.intensity` | 1 | 0..4 | |
+  | `exposure` | 1 | 0..8 | scale on the lit colour |
+  | `saturation` | 1 | 0..2 | 0 grey, 1 as lit |
+
+  A missing key keeps its default; a value out of range is clamped; a value
+  of the wrong type (or a zero direction) keeps the whole theme as it was
+  and logs why. Saving rewrites the block alone (the file's other keys and
+  formatting kept; atomically); the defaults save byte for byte as shipped.
 - **Condition card**: the Condition panel as a whole titles the card
   "Condition · <the worst part's state>" (the game's terms: Critical,
   Damaged, Wounded, Good, Excellent) with a summary of the parts; a body
@@ -342,11 +427,11 @@ Prototype (private, placeholder data): the "Riskbreaker Menus" artifact.
 | Abilities | Chain / Defense: 3 button slots + learned list with RISK cost; Break arts by weapon type with kills to the next art | Assign an ability to a button (swaps if already mapped) |
 | Magick | Warlock / Shaman / Sorcerer / Enchanter / Teleport; MP; cost per spell | Cast (target picked in the field as today) |
 | Leá Monde | Map frame (native rail, legend, prompts; the game's 3D map) | Open the map; areas and rooms by pad or click; drag / wheel / middle drag turn, zoom and pan |
-| System | Game: Data (native Save / Load over the game's MENU7), Score, Quick manual (native reader: topics rail, page card). Settings: Graphics, Display, Interface, Controls, Gameplay | Settings change with left/right and apply at once; Data's clicks walk the game's own cursor; the manual scrolls by line or page, Square opens the original |
+| System | Game: Data (native Save / Load over the game's MENU7), Score (native: Titles, Records, Time Attack, Bestiary), Quick manual (native reader: topics rail, page card). Settings: Graphics, Display, Interface, Controls, Gameplay | Settings change with left/right and apply at once; Data's clicks walk the game's own cursor; the manual scrolls by line or page, Square opens the original |
 
 Screens not yet replaced open as the game's own screens from the shell:
 Workshop (assemble, gems, disassemble, rename, repair, combine), Container,
-Loot, Score, Map internals, Results, Title, Game over. They
+Score's enemy model viewer, Map internals, Results, Title, Game over. They
 are replaced one by one later.
 
 ### System settings
@@ -470,7 +555,7 @@ All new code in `pc/src/ui/`. Game-side changes only under `#ifdef ROOD_PC`;
 4. System settings (~1/2 day).
 5. Abilities, Items, Magick (~1/2 day each).
 6. Later: Workshop and Loot (7a, done), Map frame (7b, done), Quick manual
-   (7c, done), Data (7d, done), Container, Score, Title; then the HUD.
+   (7c, done), Data (7d, done), Container (7e, done), Score (7f, pass 1 done), Title; then the HUD.
 
 The bottleneck is verification (action parity, playtesting feel), not code.
 

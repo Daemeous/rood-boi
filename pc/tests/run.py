@@ -313,6 +313,12 @@ def suites(args, mode="egl"):
                       "requests (pad, pointer); text = disc decode for 14 topics; sprite/rule counts, a blink, "
                       "canvas pixels; button art as device prompts; 16:9; reset")]
           if args.save.exists() else []),
+        *([Suite("ui_score_smoke", [PY, str(TESTS / "ui_score_smoke.py"), "--card", str(args.save)], 600,
+                 note="Score (MENU9 native, its own _calculateProgress): scoredata, roomFlags, cursor memories, "
+                      "score / rank, sounds and the close state as the original by pad; boundaries against a port "
+                      "of the rules; Square idempotent; text = MENU9's statics; MON.BIN = _monBinData; pointer at "
+                      "4:3 and 16:9 (one SDL click); theme reload and RPC override; card copy unchanged")]
+          if args.save.exists() else []),
         *([Suite("ui_workshop_smoke", [PY, str(TESTS / "ui_workshop_smoke.py"), "--card", str(args.save)], 300,
                  note="Items > Workshop: same bag, indices and MENUC cursor memories as the original Setup screen "
                       "(MENUC / MENU8) for repair, gems, disassemble (equipped too), assemble, rename, combine x3")]
@@ -447,7 +453,7 @@ CHECKPOINT_SUITES = {
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
-    "ui_ashley_detail_smoke",
+    "ui_ashley_detail_smoke", "ui_score_smoke",
 }
 
 

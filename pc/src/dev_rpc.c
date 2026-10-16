@@ -216,6 +216,10 @@
  *                                menu_studio (the menu's model view lit by
  *                                its own studio light, 1 default; 0 the
  *                                game's colours and the room's light),
+ *                                menu_light (its rig, ui/menu_light.h: an
+ *                                object of fields to set, "reset", "save"
+ *                                into the theme file, or true to read; the
+ *                                reply's menu_light then has every field),
  *                                native_blend (0 semi-transparent room and
  *                                object polygons from packets, 1 native at
  *                                translucent markers), native_objects (0
@@ -1115,6 +1119,23 @@ static void handle_method(int fd, const char* request)
             bool_value(member(pointer, "shift"), &shift);
             pc_ui_draw_pointer((float)x, (float)y, click, right, (float)wheel, down, middle, shift);
         }
+        /* {score_tune: {key, index, value} | {reset: true}}: the Score screen's theme group over the file
+         * (ui/ui_theme.cpp ui::score_tune; key "row_h", or a rect's end "wide.titles_list" with index 0 / 1) */
+        extern int pc_ui_score_tune(const char* key, int index, double value) __attribute__((weak));
+        const char* tune = params ? member(params, "score_tune") : NULL;
+        if (tune && pc_ui_score_tune) {
+            char key[64];
+            double value = 0;
+            long long index = 0;
+            int reset = 0;
+            if (bool_value(member(tune, "reset"), &reset) && reset) {
+                pc_ui_score_tune(NULL, 0, 0);
+            } else if (!string_value(member(tune, "key"), key, sizeof key) || !real_value(member(tune, "value"), &value)
+                || (number_value(member(tune, "index"), &index), !pc_ui_score_tune(key, (int)index, value))) {
+                fail(fd, id, -32602, "score_tune needs a known key (and index for a rect) and a value");
+                return;
+            }
+        }
         /* {text, key}: the Workshop's name field, as typed on the keyboard (ui/ui_workshop.cpp) */
         extern void pc_ui_workshop_text(const char* utf8) __attribute__((weak));
         extern void pc_ui_workshop_key(int key) __attribute__((weak));
@@ -1687,6 +1708,20 @@ static void handle_method(int fd, const char* request)
                 pc_hw_menu_studio = n != 0;
             if (used < (int)sizeof result - 64)
                 used += snprintf(result + used - 1, sizeof result - used + 1, ",\"menu_studio\":%d}", pc_hw_menu_studio) - 1;
+        }
+        /* The studio light's rig (ui/menu_light.h): read, set fields, "reset", "save"; only when asked. */
+        extern int pc_ui_menu_light_rpc(const char*, char*, int) __attribute__((weak));
+        const char* menu_light = params ? member(params, "menu_light") : NULL;
+        const char* menu_light_end = menu_light ? value_end(menu_light) : NULL;
+        if (menu_light_end && pc_ui_menu_light_rpc) {
+            char value[2048], rig[2048];
+            snprintf(value, sizeof value, "%.*s", (int)(menu_light_end - menu_light), menu_light);
+            if (pc_ui_menu_light_rpc(value, rig, sizeof rig)) {
+                fail(fd, id, -32602, rig);
+                return;
+            }
+            if (used < (int)sizeof result - (int)strlen(rig) - 32)
+                used += snprintf(result + used - 1, sizeof result - used + 1, ",\"menu_light\":%s}", rig) - 1;
         }
         if (&pc_gameplay_walls && used < (int)sizeof result - 200)
             used += snprintf(result + used - 1, sizeof result - used + 1,

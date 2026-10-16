@@ -355,6 +355,8 @@ typedef struct {
 void pc_ui_shell_system_view(pc_ui_system_view* v);
 /* The System tab shows the Quick manual (ui_manual.h): ui_system_draw.cpp hands it the screen. */
 int pc_ui_shell_manual_shown(void);
+/* The System tab shows the Score screen (ui_score.h): ui_draw.cpp gives it the whole view. */
+int pc_ui_shell_score_shown(void);
 /* List entry i: id ("data", "graphics"), label, help, enabled, reason (greyed: why).
  * Returns 0 past the end. */
 int pc_ui_shell_system_item(int i, const char** id, const char** label, const char** help, int* enabled,

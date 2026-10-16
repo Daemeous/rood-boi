@@ -137,6 +137,9 @@ void draw_ashley(const Frame& f, const ui::Theme& t, float top, float dt, bool f
 void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
 // The System tab's Quick manual (ui_manual_draw.cpp): the topics, the page card (draw_system hands it over).
 void draw_manual(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
+// The System tab's Score screen (ui_score_draw.cpp): the whole view (header, section strip, the page), the
+// footer's hints and crumb in `out`.
+void draw_score(const Frame& f, const ui::Theme& t, float dt, Pointer& m, ScreenOut& out);
 // The Abilities tab's body (ui_abilities_draw.cpp): Chain / Defense (slots, learned list, card) and Break Arts
 // (categories, arts, card).
 void draw_abilities(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);

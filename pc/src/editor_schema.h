@@ -5,7 +5,8 @@
  * restores), and Details (editor_details.cpp), undo names and the RPC
  * editor_schema use them. Kinds: the point, spot and rect light; a light
  * actor per prefab (its transform and the prefab's exposed parameters); the
- * fog volume (atmosphere.cpp registers it). Editor internals. */
+ * fog volume (atmosphere.cpp registers it); kinds registered with
+ * add_kind (the menu model's light, ui/menu_light_kind.cpp). Editor internals. */
 #ifndef ROOD_EDITOR_SCHEMA_H
 #define ROOD_EDITOR_SCHEMA_H
 #include <functional>
@@ -48,6 +49,9 @@ struct Kind {
     std::vector<Field> fields;
     std::vector<std::string> closed; /* categories Details shows closed at first */
     std::function<void(int)> extras; /* Details: the kind's own tools under its fields */
+    /* A standalone kind (object KIND_NONE; add_kind): its objects, by index
+     * 0..count-1, are its own rather than the scene's (a singleton: 1). */
+    int count = 1;
     const Field* field(const std::string& name) const;
 };
 
@@ -68,6 +72,16 @@ const Kind* kind_of(const rood_selection::Ref& r, int* index);
 const Kind* find_kind(const std::string& name);
 std::vector<const Kind*> all_kinds(); /* the lights', the fog volume's, one per prefab in the library */
 std::vector<std::string> lint(); /* problems; none: every field is complete */
+/* Register a kind beyond the built-in ones (any time; find_kind, all_kinds
+ * and the lint include it). One with object KIND_NONE is standalone: not in
+ * the scene or the selection; Details draws it with rood_details::draw_kind,
+ * RPC editor_schema reaches it by {kind, index}, edits go through apply_at
+ * and undo keeps its values (standalone_state). */
+void add_kind(Kind k);
+/* Every standalone kind's values as text (undo's snapshots), and back
+ * (fields whose values differ are set). */
+std::string standalone_state();
+void set_standalone_state(const std::string& text);
 
 Value base_of(const Field& f, int index);
 const char* base_source_of(const Field& f, int index);
@@ -90,6 +104,9 @@ std::vector<rood_selection::Ref> targets(const Kind& k, const Field& f, const ro
  * targets take that component only (their other two stay their own). */
 void apply(const Kind& k, const Field& f, const rood_selection::Ref& target, const Value& v, int component = -1);
 void apply_reset(const Kind& k, const Field& f, const rood_selection::Ref& target);
+/* The same for a standalone kind's object `index` (the room is not marked unsaved). */
+void apply_at(const Kind& k, const Field& f, int index, const Value& v);
+void apply_reset_at(const Kind& k, const Field& f, int index);
 } // namespace rood_schema
 
 extern "C" int pc_editor_schema_rpc(const char* params, char* out, int size);

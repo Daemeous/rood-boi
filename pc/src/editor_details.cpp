@@ -4,7 +4,9 @@
 // value; tooltips give the range and unit), and the kind's own tools under
 // them. A middle-drag on a number scrubs it on Houdini's value ladder: rows
 // of steps 10 / 1 / 0.1 / 0.01 (up and down picks the step, left and right
-// adds steps); Escape cancels; the release is one undo step.
+// adds steps); Escape cancels; the release is one undo step. A standalone
+// kind's object (the menu model's light) is drawn the same way anywhere in
+// the dev tools (draw_kind), through the same rows, ladder and edits.
 #include "editor_details.h"
 
 #include <float.h>
@@ -34,23 +36,79 @@ namespace {
 const ImVec4 changed_colour(1.0f, 0.78f, 0.3f, 1); /* a value off its default, as the room settings' overrides */
 const float STEPS[4] = { 10, 1, 0.1f, 0.01f }; /* the value ladder's rows, top to bottom */
 char search[64];
-/* As last drawn (RPC editor_schema {action "ui"}). */
+std::map<std::string, std::string> kind_search; /* draw_kind's own, by kind */
+std::string open_request; /* kind_section: open this kind's header */
+
+/* What a row edits: a scene object (ref), or a standalone kind's object (kind, index). */
+struct Subject {
+    Ref ref;
+    std::string kind;
+    int index = -1;
+    bool standalone() const { return !ref; }
+};
+Subject scene(const Ref& r) { Subject s; s.ref = r; return s; }
+Subject own(const Kind& k, int index)
+{
+    Subject s;
+    s.kind = k.name;
+    s.index = index;
+    return s;
+}
+/* Its kind (now: a light's type may change it) and index; null when it is gone. */
+const Kind* resolve(const Subject& s, int* index)
+{
+    if (!s.standalone())
+        return rood_schema::kind_of(s.ref, index);
+    *index = s.index;
+    return rood_schema::find_kind(s.kind);
+}
+/* The objects an edit of it goes to, as subjects (a standalone object: itself). */
+std::vector<Subject> subjects(const Kind& k, const Field& f, const Subject& s)
+{
+    if (s.standalone())
+        return { s };
+    std::vector<Subject> out;
+    for (const Ref& r : rood_schema::targets(k, f, s.ref))
+        out.push_back(scene(r));
+    return out;
+}
+void edit(const Kind& k, const Field& f, const Subject& s, const Value& v, int component)
+{
+    if (s.standalone())
+        rood_schema::apply_at(k, f, s.index, v);
+    else
+        rood_schema::apply(k, f, s.ref, v, component);
+}
+void edit_reset(const Kind& k, const Field& f, const Subject& s)
+{
+    if (s.standalone())
+        rood_schema::apply_reset_at(k, f, s.index);
+    else
+        rood_schema::apply_reset(k, f, s.ref);
+}
+
+/* As last drawn (RPC editor_schema {action "ui"}): Details', and each draw_kind's. */
+struct Drawn {
+    int frame = -1;
+    std::vector<std::string> fields;
+    std::map<std::string, ImVec4> values, resets; /* window pixels: x, y, w, h */
+};
 Ref shown;
 std::string shown_kind;
-int shown_frame = -1;
-std::vector<std::string> shown_fields;
-std::map<std::string, ImVec4> value_rects, reset_rects; /* window pixels: x, y, w, h */
+Drawn details_drawn;
+std::map<std::string, Drawn> kinds_drawn;
+Drawn* drawing = &details_drawn;
 float row_height, notch;
 
 struct Ladder {
     bool active = false;
-    Ref target;
+    Subject target;
     std::string field;
     int component = 0; /* a vec3's x, y or z */
     int row = 0, first_row = 0; /* STEPS indices */
     float press_x = 0, press_y = 0, origin_x = 0;
     float base = 0, value = 0; /* the value when the row was chosen; now */
-    std::vector<std::pair<Ref, Value>> before; /* every object it changes, as they were (Escape) */
+    std::vector<std::pair<Subject, Value>> before; /* every object it changes, as they were (Escape) */
 } ladder;
 
 bool numeric(const Field& f)
@@ -58,11 +116,14 @@ bool numeric(const Field& f)
     return f.type == rood_schema::TYPE_FLOAT || f.type == rood_schema::TYPE_INT || f.type == rood_schema::TYPE_ANGLE
         || f.type == rood_schema::TYPE_VEC3;
 }
-bool matches(const Field& f) { return !search[0] || strcasestr(f.label.c_str(), search) || strcasestr(f.name.c_str(), search); }
-void keep_rect(std::map<std::string, ImVec4>& rects, const std::string& name)
+bool matches(const Field& f, const char* text)
+{
+    return !text[0] || strcasestr(f.label.c_str(), text) || strcasestr(f.name.c_str(), text);
+}
+void keep_rect(bool reset, const std::string& name)
 {
     ImVec2 lo = ImGui::GetItemRectMin(), hi = ImGui::GetItemRectMax();
-    rects[name] = ImVec4(lo.x, lo.y, hi.x - lo.x, hi.y - lo.y);
+    (reset ? drawing->resets : drawing->values)[name] = ImVec4(lo.x, lo.y, hi.x - lo.x, hi.y - lo.y);
 }
 std::string number_format(const Field& f)
 {
@@ -89,7 +150,7 @@ void tooltip(const Field& f, int index)
     ImGui::SetTooltip("%s", tip.c_str());
 }
 
-void ladder_begin(const Kind& k, const Field& f, const Ref& target, int index, int component)
+void ladder_begin(const Kind& k, const Field& f, const Subject& target, int index, int component)
 {
     ladder = Ladder();
     ladder.active = true;
@@ -110,10 +171,10 @@ void ladder_begin(const Kind& k, const Field& f, const Ref& target, int index, i
     ladder.press_x = ladder.origin_x = m.x;
     ladder.press_y = m.y;
     ladder.base = ladder.value = f.get(index).at(component);
-    for (const Ref& r : rood_schema::targets(k, f, target)) {
-        int i = rood_scene::index_of(r);
-        if (i >= 0)
-            ladder.before.push_back({ r, f.get(i) });
+    for (const Subject& s : subjects(k, f, target)) {
+        int i = -1;
+        if (resolve(s, &i) && i >= 0)
+            ladder.before.push_back({ s, f.get(i) });
     }
     pc_undo_begin(("Edit " + f.label).c_str()); /* the whole drag is one undo step */
 }
@@ -122,7 +183,7 @@ void ladder_end(bool keep)
     if (!keep)
         for (const auto& b : ladder.before) {
             int i;
-            const Kind* k = rood_schema::kind_of(b.first, &i);
+            const Kind* k = resolve(b.first, &i);
             const Field* f = k ? k->field(ladder.field) : nullptr;
             if (f)
                 f->set(i, b.second);
@@ -131,14 +192,14 @@ void ladder_end(bool keep)
     ladder.before.clear();
     pc_undo_end();
 }
-void ladder_hover(const Kind& k, const Field& f, const Ref& target, int index, int component)
+void ladder_hover(const Kind& k, const Field& f, const Subject& target, int index, int component)
 {
     if (!ladder.active && ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Middle))
         ladder_begin(k, f, target, index, component);
 }
 
 /* The field's widget; true when the user changed `v`. */
-bool widget(const Kind& k, const Field& f, const Ref& target, int index, Value& v)
+bool widget(const Kind& k, const Field& f, const Subject& target, int index, Value& v)
 {
     bool edited = false;
     ImGuiSliderFlags flags = ImGuiSliderFlags_AlwaysClamp | (f.logarithmic ? ImGuiSliderFlags_Logarithmic : 0);
@@ -151,7 +212,7 @@ bool widget(const Kind& k, const Field& f, const Ref& target, int index, Value& 
         edited = ImGui::DragFloat("##value", &x, f.step, f.min, f.max, fmt.c_str(), flags);
         if (edited)
             v = Value::scalar(x);
-        keep_rect(value_rects, f.name);
+        keep_rect(false, f.name);
         ladder_hover(k, f, target, index, 0);
         tooltip(f, index);
         break;
@@ -161,7 +222,7 @@ bool widget(const Kind& k, const Field& f, const Ref& target, int index, Value& 
         edited = ImGui::DragInt("##value", &x, f.step < 1 ? 1.0f : f.step, (int)f.min, (int)f.max, "%d", flags);
         if (edited)
             v = Value::scalar((float)x);
-        keep_rect(value_rects, f.name);
+        keep_rect(false, f.name);
         ladder_hover(k, f, target, index, 0);
         tooltip(f, index);
         break;
@@ -171,14 +232,14 @@ bool widget(const Kind& k, const Field& f, const Ref& target, int index, Value& 
         edited = ImGui::Checkbox("##value", &b);
         if (edited)
             v = Value::scalar(b ? 1.0f : 0.0f);
-        keep_rect(value_rects, f.name);
+        keep_rect(false, f.name);
         tooltip(f, index);
         break;
     }
     case rood_schema::TYPE_ENUM: {
         int i = (int)lroundf(v.x());
         bool open = ImGui::BeginCombo("##value", i >= 0 && i < (int)f.options.size() ? f.options[i].c_str() : "?");
-        keep_rect(value_rects, f.name);
+        keep_rect(false, f.name);
         if (!open)
             tooltip(f, index);
         if (open) {
@@ -196,7 +257,7 @@ bool widget(const Kind& k, const Field& f, const Ref& target, int index, Value& 
         edited = ImGui::ColorEdit3("##value", c, ImGuiColorEditFlags_Float | (f.max > 1 ? ImGuiColorEditFlags_HDR : 0));
         if (edited)
             v = Value::vec(c[0], c[1], c[2]);
-        keep_rect(value_rects, f.name);
+        keep_rect(false, f.name);
         tooltip(f, index);
         break;
     }
@@ -211,7 +272,7 @@ bool widget(const Kind& k, const Field& f, const Ref& target, int index, Value& 
                 ImGui::SameLine(0, spacing);
             ImGui::SetNextItemWidth(w);
             edited |= ImGui::DragFloat(ids[a], &c[a], f.step, f.min, f.max, fmt.c_str(), flags);
-            keep_rect(value_rects, f.name + "." + std::string(1, "xyz"[a]));
+            keep_rect(false, f.name + "." + std::string(1, "xyz"[a]));
             ladder_hover(k, f, target, index, a);
             tooltip(f, index);
         }
@@ -223,9 +284,9 @@ bool widget(const Kind& k, const Field& f, const Ref& target, int index, Value& 
     return edited;
 }
 
-void row(const Kind& k, const Field& f, const Ref& target, int index)
+void row(const Kind& k, const Field& f, const Subject& target, int index)
 {
-    shown_fields.push_back(f.name);
+    drawing->fields.push_back(f.name);
     ImGui::PushID(f.name.c_str());
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
@@ -246,13 +307,13 @@ void row(const Kind& k, const Field& f, const Ref& target, int index)
             for (int c = 0, n = 0; c < 3; c++)
                 if (v.at(c) != before.at(c))
                     component = ++n == 1 ? c : -1;
-        rood_schema::apply(k, f, target, v, component);
+        edit(k, f, target, v, component);
     }
     ImGui::TableNextColumn();
     if (off_base) {
         if (ImGui::ArrowButton("##reset", ImGuiDir_Left)) /* Unreal's yellow reset arrow */
-            rood_schema::apply_reset(k, f, target);
-        keep_rect(reset_rects, f.name);
+            edit_reset(k, f, target);
+        keep_rect(true, f.name);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip)) {
             const char* source = rood_schema::base_source_of(f, index);
             std::string to = rood_schema::format(f, rood_schema::base_of(f, index));
@@ -263,6 +324,42 @@ void row(const Kind& k, const Field& f, const Ref& target, int index)
         }
     }
     ImGui::PopID();
+}
+
+/* The kind's search box, categories of rows and tools (Details and draw_kind). */
+void fields(const Kind& k, const Subject& subject, int index, char* text, size_t text_size)
+{
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputTextWithHint("##search", "Search details", text, text_size);
+    std::vector<std::string> categories;
+    for (const Field& f : k.fields)
+        if (std::find(categories.begin(), categories.end(), f.category) == categories.end())
+            categories.push_back(f.category);
+    for (const std::string& c : categories) {
+        bool any = false;
+        for (const Field& f : k.fields)
+            any |= f.category == c && matches(f, text);
+        if (!any)
+            continue;
+        if (text[0])
+            ImGui::SetNextItemOpen(true); /* a search shows its matches in every category */
+        bool closed = std::find(k.closed.begin(), k.closed.end(), c) != k.closed.end();
+        if (!ImGui::CollapsingHeader((c + "##category").c_str(), closed ? 0 : ImGuiTreeNodeFlags_DefaultOpen))
+            continue;
+        if (ImGui::BeginTable(c.c_str(), 3, ImGuiTableFlags_SizingStretchProp)) {
+            ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthStretch, 0.42f);
+            ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+            ImGui::TableSetupColumn("reset", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight());
+            for (const Field& f : k.fields)
+                if (f.category == c && matches(f, text))
+                    row(k, f, subject, index);
+            ImGui::EndTable();
+        }
+    }
+    if (k.extras) {
+        ImGui::Spacing();
+        k.extras(index);
+    }
 }
 
 /* A padlock: closed while locked, its shackle swung open when not. */
@@ -293,10 +390,9 @@ bool lock_button(bool locked)
 
 void rood_details::draw()
 {
-    shown_fields.clear();
-    value_rects.clear();
-    reset_rects.clear();
-    shown_frame = ImGui::GetFrameCount();
+    drawing = &details_drawn;
+    *drawing = Drawn();
+    drawing->frame = ImGui::GetFrameCount();
     row_height = ImGui::GetFrameHeight();
     notch = ImGui::GetFontSize() * 0.75f;
     Ref locked = rood_selection::locked();
@@ -336,46 +432,57 @@ void rood_details::draw()
         ImGui::TextDisabled("%s; %zu selected: edits go to every selected %s", k->label.c_str(), n, k->label.c_str());
     else
         ImGui::TextDisabled("%s", k->label.c_str());
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    ImGui::InputTextWithHint("##search", "Search details", search, sizeof search);
-    std::vector<std::string> categories;
-    for (const Field& f : k->fields)
-        if (std::find(categories.begin(), categories.end(), f.category) == categories.end())
-            categories.push_back(f.category);
-    for (const std::string& c : categories) {
-        bool any = false;
-        for (const Field& f : k->fields)
-            any |= f.category == c && matches(f);
-        if (!any)
-            continue;
-        if (search[0])
-            ImGui::SetNextItemOpen(true); /* a search shows its matches in every category */
-        bool closed = std::find(k->closed.begin(), k->closed.end(), c) != k->closed.end();
-        if (!ImGui::CollapsingHeader((c + "##category").c_str(), closed ? 0 : ImGuiTreeNodeFlags_DefaultOpen))
-            continue;
-        if (ImGui::BeginTable(c.c_str(), 3, ImGuiTableFlags_SizingStretchProp)) {
-            ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthStretch, 0.42f);
-            ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-            ImGui::TableSetupColumn("reset", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight());
-            for (const Field& f : k->fields)
-                if (f.category == c && matches(f))
-                    row(*k, f, subject, index);
-            ImGui::EndTable();
-        }
-    }
-    if (k->extras) {
-        ImGui::Spacing();
-        k->extras(index);
-    }
+    fields(*k, scene(subject), index, search, sizeof search);
     ImGui::PopID();
 }
+
+void rood_details::draw_kind(const Kind& k, int index)
+{
+    if (k.object != rood_selection::KIND_NONE || index < 0 || index >= k.count) {
+        ImGui::TextDisabled("%s: not a standalone kind's object", k.label.c_str());
+        return;
+    }
+    Drawn* outer = drawing;
+    drawing = &kinds_drawn[k.name];
+    *drawing = Drawn();
+    drawing->frame = ImGui::GetFrameCount();
+    row_height = ImGui::GetFrameHeight();
+    notch = ImGui::GetFontSize() * 0.75f;
+    std::string& text = kind_search[k.name];
+    char buffer[64];
+    snprintf(buffer, sizeof buffer, "%s", text.c_str());
+    ImGui::PushID(("kind:" + k.name).c_str());
+    fields(k, own(k, index), index, buffer, sizeof buffer);
+    ImGui::PopID();
+    text = buffer;
+    drawing = outer;
+}
+
+void rood_details::kind_section(const char* kind, const char* title, int index)
+{
+    const Kind* k = rood_schema::find_kind(kind);
+    if (!k)
+        return;
+    bool requested = open_request == kind;
+    if (requested) {
+        ImGui::SetNextItemOpen(true);
+        open_request.clear();
+    }
+    if (!ImGui::CollapsingHeader(title))
+        return;
+    if (requested)
+        ImGui::SetScrollHereY(0.0f); /* the header at the top of the panel */
+    draw_kind(*k, index);
+}
+
+void rood_details::open_section(const std::string& kind) { open_request = kind; }
 
 void rood_details::ladder_frame()
 {
     if (!ladder.active)
         return;
     int index;
-    const Kind* k = rood_schema::kind_of(ladder.target, &index);
+    const Kind* k = resolve(ladder.target, &index);
     const Field* f = k ? k->field(ladder.field) : nullptr;
     if (!f) {
         ladder_end(false);
@@ -399,7 +506,7 @@ void rood_details::ladder_frame()
     v.v[ladder.component] = ladder.base + STEPS[ladder.row] * notches;
     v = rood_schema::clamp(*f, v);
     ladder.value = v.at(ladder.component);
-    rood_schema::apply(*k, *f, ladder.target, v, f->type == rood_schema::TYPE_VEC3 ? ladder.component : -1);
+    edit(*k, *f, ladder.target, v, f->type == rood_schema::TYPE_VEC3 ? ladder.component : -1);
     /* The ladder: a column of steps with the chosen one lit, the value beside it. */
     ImDrawList* d = ImGui::GetForegroundDrawList();
     float w = ImGui::GetFontSize() * 4;
@@ -432,16 +539,18 @@ bool rood_details::ladder_cancel()
 }
 
 void rood_details::set_search(const std::string& text) { snprintf(search, sizeof search, "%s", text.c_str()); }
+void rood_details::set_kind_search(const std::string& kind, const std::string& text) { kind_search[kind] = text; }
 
 std::string rood_details::state_json()
 {
     auto q = [](const std::string& s) { return prefab::json_quote(s); };
-    bool current = ImGui::GetCurrentContext() && shown_frame == ImGui::GetFrameCount();
-    auto rects_json = [&](const std::map<std::string, ImVec4>& rects) {
+    int frame = ImGui::GetCurrentContext() ? ImGui::GetFrameCount() : -2;
+    bool current = details_drawn.frame == frame;
+    auto rects_json = [&](const std::map<std::string, ImVec4>& rects, bool now) {
         std::string s = "{";
         bool first = true;
         for (const auto& kv : rects) {
-            if (!current)
+            if (!now)
                 break;
             char r[96];
             snprintf(r, sizeof r, "[%.1f,%.1f,%.1f,%.1f]", kv.second.x, kv.second.y, kv.second.z, kv.second.w);
@@ -454,9 +563,24 @@ std::string rood_details::state_json()
     std::string s = "{\"subject\":" + (current && shown ? q(shown.id) : std::string("null"))
         + ",\"kind\":" + (current && !shown_kind.empty() ? q(shown_kind) : std::string("null"))
         + ",\"locked\":" + (pinned ? q(pinned.id) : std::string("null")) + ",\"search\":" + q(search) + ",\"fields\":[";
-    for (size_t i = 0; current && i < shown_fields.size(); i++)
-        s += (i ? "," : "") + q(shown_fields[i]);
-    s += "],\"rects\":" + rects_json(value_rects) + ",\"reset\":" + rects_json(reset_rects);
+    for (size_t i = 0; current && i < details_drawn.fields.size(); i++)
+        s += (i ? "," : "") + q(details_drawn.fields[i]);
+    s += "],\"rects\":" + rects_json(details_drawn.values, current) + ",\"reset\":" + rects_json(details_drawn.resets, current);
+    /* draw_kind's, drawn this frame (by kind): their fields, value and reset rects, search. */
+    s += ",\"standalone\":{";
+    bool first_kind = true;
+    for (const auto& kv : kinds_drawn) {
+        bool now = kv.second.frame == frame;
+        if (!now)
+            continue;
+        s += std::string(first_kind ? "" : ",") + q(kv.first) + ":{\"fields\":[";
+        for (size_t i = 0; i < kv.second.fields.size(); i++)
+            s += (i ? "," : "") + q(kv.second.fields[i]);
+        s += "],\"rects\":" + rects_json(kv.second.values, true) + ",\"reset\":" + rects_json(kv.second.resets, true)
+            + ",\"search\":" + q(kind_search[kv.first]) + "}";
+        first_kind = false;
+    }
+    s += "}";
     char lad[400];
     snprintf(lad, sizeof lad,
         ",\"ladder\":{\"active\":%s,\"field\":%s,\"component\":%d,\"row\":%d,\"first_row\":%d,\"step\":%g,"

@@ -127,6 +127,11 @@ void pc_ui_manual_bridge_refresh(void);
 void pc_ui_manual_bridge_abandon(void);
 void pc_ui_manual_bridge_reset(void);
 
+/* score_bridge.c: the System tab's Score screen (ui_score.h) */
+void pc_ui_score_bridge_refresh(void);
+void pc_ui_score_bridge_abandon(void);
+void pc_ui_score_bridge_reset(void);
+
 /* A direct entry the shell runs (pc_ui_direct_tick): its menu (0 none),
  * ticks left that ignore the pad. */
 static struct {
@@ -200,6 +205,7 @@ static void abandon(void)
     pc_ui_ashley_model_close(); /* the world back before anything else runs */
     pc_ui_shell_close();
     pc_ui_manual_bridge_abandon(); /* the Quick manual's store and its world freeze back */
+    pc_ui_score_bridge_abandon();  /* the Score screen's likewise */
     if (hud_hidden && D_800EB9AF == 1)
         D_800EB9AF = hud_saved;
     hud_hidden = 0;
@@ -264,6 +270,7 @@ void pc_ui_menu_heartbeat(void)
 void pc_ui_menu_reset(void)
 {
     pc_ui_manual_bridge_reset(); /* nothing written: the game's memory is the next game's */
+    pc_ui_score_bridge_reset();
     pc_ui_ashley_model_forget(); /* the heap is the next game's: nothing to free */
     pc_ui_map_forget();
     pc_ui_data_forget(); /* (a load already ended it before its loading screen: 260.c) */
@@ -349,6 +356,7 @@ int pc_ui_menu_open(int mode)
         pc_ui_ashley_model_close();
         pc_ui_shell_close();
         pc_ui_manual_bridge_abandon(); /* the close's manual events (store, world back) applied now */
+        pc_ui_score_bridge_abandon();
         show_hud();
         return 0;
     }
@@ -535,6 +543,7 @@ int pc_ui_menu_top(void)
     }
     r = pc_ui_shell_tick(&in);
     pc_ui_manual_bridge_refresh(); /* its events (an ORIGINAL before deliver(10) runs MENUE) */
+    pc_ui_score_bridge_refresh();  /* the Score screen's (OPEN runs MENU9's calculation; the cursor stores) */
     pc_ui_equip_requests();
     pc_ui_abilities_refresh();
     pc_ui_magick_refresh();

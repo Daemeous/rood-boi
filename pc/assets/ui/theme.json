@@ -11,9 +11,42 @@
     "margin_x": 56, "top": 34, "tab_height": 44, "row_height": 46, "rail_width": 448
   },
   "motion": { "tab_slide": 0.24, "focus_grow": 0.16, "screen_fade": 0.2 },
+  "score": {
+    "score_size": 40, "rank_size": 44, "row_h": 44, "visible_rows": 10, "page_rows": 8, "locked_alpha": 0.45,
+    "title_size": 25, "name_size": 19, "number_size": 15, "section_size": 21, "help_size": 14, "value_size": 20,
+    "record_size": 18, "record_value_size": 17, "big_value_size": 34, "time_size": 22, "note_size": 16,
+    "class_size": 18, "hint_size": 17, "glyph_size": 22, "chip_size": 12,
+    "pad": 22, "inset": 16, "name_x": 56, "name_x3": 62, "line_gap": 30, "place_gap": 34, "head_rule": 42,
+    "body_gap": 14, "hint_y": 48, "label_top": 16, "card_top": 40,
+    "layout": {
+      "wide": {
+        "header": [32, 112], "strip": [120, 168], "content": [184, 640],
+        "home_card": [56, 700], "home_list": [732, 1224],
+        "titles_list": [56, 700], "titles_detail": [732, 1224],
+        "records_table": [56, 820], "records_detail": [852, 1224],
+        "trials_list": [56, 520], "trials_panel": [552, 1224],
+        "bestiary_list": [56, 560], "bestiary_detail": [592, 1224]
+      },
+      "narrow": {
+        "header": [32, 112], "strip": [120, 168], "content": [184, 640],
+        "home_card": [56, 500], "home_list": [524, 904],
+        "titles_list": [56, 500], "titles_detail": [524, 904],
+        "records_table": [56, 600], "records_detail": [624, 904],
+        "trials_list": [56, 420], "trials_panel": [444, 904],
+        "bestiary_list": [56, 440], "bestiary_detail": [464, 904]
+      }
+    }
+  },
   "fonts": {
     "name": "pc/third_party/fonts/Alegreya/Alegreya[wght].ttf",
     "label": "pc/third_party/fonts/AsapCondensed/AsapCondensed-Bold.ttf",
     "data": "pc/third_party/fonts/ChakraPetch/ChakraPetch-Bold.ttf"
+  },
+  "menu_model_light": {
+    "key": { "direction": [-0.45, -0.5, -0.74], "color": [1, 0.97, 0.92], "intensity": 0.5, "wrap": 0.4 },
+    "fill": { "direction": [0.85, -0.05, -0.52], "color": [0.9, 0.95, 1], "intensity": 0.15, "wrap": 0 },
+    "rim": { "direction": [0.5, -0.55, 0.67], "color": [0.85, 0.9, 1], "intensity": 0.45, "wrap": 0.2, "power": 2, "lift": 0.1 },
+    "ambient": { "sky": [0.56, 0.56, 0.58], "ground": [0.5, 0.5, 0.52], "intensity": 1 },
+    "exposure": 1, "saturation": 1
   }
 }

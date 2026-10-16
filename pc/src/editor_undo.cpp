@@ -3,7 +3,8 @@
 // A snapshot is everything the editor edits: the room's lights and light
 // actors, its settings overrides ("set" lines), glow overrides, texture
 // effect overrides, the Outliner's room group visibility and the settings
-// file's keys (graphics, post, lighting quality), plus the selection. They
+// file's keys (graphics, post, lighting quality), the standalone schema
+// kinds' values (editor_schema.h add_kind: the menu model's light), plus the selection. They
 // are small (a room has tens of lights and actors), so taking one twice a
 // frame costs microseconds.
 //
@@ -16,7 +17,8 @@
 //   slider or gizmo drag, a value being typed, a drag from Place Actors) and
 //   commits on release: one drag is one transaction, and a typed value that
 //   Escape cancelled leaves nothing (after == before is dropped).
-// Settings only count when they changed while the panels ran (RPC graphics,
+// Settings and standalone kinds only count when they changed while the
+// panels ran or in an editing RPC (RPC graphics,
 // the settings file changing on disk, presets settling are not editor
 // edits); the editor's own view switches (editor_* keys: overlays, snapping,
 // the cutaway) are preferences, never transactions, as in Unreal.
@@ -36,6 +38,7 @@
 #include "ImGuizmo.h"
 #include "editor_undo.h"
 #include "editor_scene.h"
+#include "editor_schema.h"
 #include "editor_selection.h"
 #include "glow_overrides.h"
 #include "lights_internal.h"
@@ -56,7 +59,7 @@ void pc_lighting_sync(void);
 using namespace rood_lights;
 
 namespace {
-enum Part { LIGHTS = 1, ACTORS = 2, ROOM = 4, GLOWS = 8, UV = 16, GROUPS = 32, SETTINGS = 64, ROOM_PARTS = 63 };
+enum Part { LIGHTS = 1, ACTORS = 2, ROOM = 4, GLOWS = 8, UV = 16, GROUPS = 32, SETTINGS = 64, ROOM_PARTS = 63, KINDS = 128 };
 
 struct Snapshot {
     std::vector<Light> lights;
@@ -67,6 +70,7 @@ struct Snapshot {
     std::vector<uint8_t> groups;
     unsigned groups_id = 0; /* the room block the groups belong to */
     std::map<std::string, std::string> settings; /* key -> the rest of its line */
+    std::string kinds; /* the standalone schema kinds' values (rood_schema::standalone_state) */
     std::vector<rood_selection::Ref> selection; /* the editor's selection (editor_selection.h) */
 };
 struct Transaction {
@@ -132,6 +136,7 @@ void capture(Snapshot& s)
     }
     s.groups_id = id;
     parse_settings(capture_text(pc_settings_write), s.settings);
+    s.kinds = rood_schema::standalone_state();
     s.selection = rood_selection::items();
 }
 
@@ -216,6 +221,8 @@ unsigned difference(const Snapshot& a, const Snapshot& b, unsigned parts)
         d |= GROUPS;
     if ((parts & SETTINGS) && !changed_settings(a, b).empty())
         d |= SETTINGS;
+    if ((parts & KINDS) && a.kinds != b.kinds)
+        d |= KINDS;
     return d;
 }
 
@@ -368,6 +375,8 @@ void apply(const Snapshot& to, unsigned parts, const Snapshot& from)
                 text += k + " " + to.settings.at(k) + "\n";
         pc_settings_apply(text.c_str());
     }
+    if (parts & KINDS)
+        rood_schema::set_standalone_state(to.kinds);
     /* The selection the state had (references to what it no longer has drop out). */
     rood_selection::set_all(to.selection, rood_selection::FROM_UNDO);
     rood_scene::refresh();
@@ -461,7 +470,7 @@ extern "C" void pc_undo_frame_end(void)
     Snapshot now;
     capture(now);
     if (!txn_open) {
-        unsigned d = difference(base, now, ROOM_PARTS) | (difference(pre_ui, now, SETTINGS | GROUPS));
+        unsigned d = difference(base, now, ROOM_PARTS) | (difference(pre_ui, now, SETTINGS | GROUPS | KINDS));
         if (d & SETTINGS) { /* a preset settles (Custom) before the state is kept */
             pc_lighting_sync();
             capture(now);
@@ -469,8 +478,9 @@ extern "C" void pc_undo_frame_end(void)
         if (d) {
             txn_open = true;
             open_before = base;
-            /* Settings the panels did not change keep their value from now. */
+            /* Settings (and standalone kinds) the panels did not change keep their value from now. */
             open_before.settings = pre_ui.settings;
+            open_before.kinds = pre_ui.kinds;
         }
     }
     if (txn_open && !busy())
@@ -496,7 +506,7 @@ extern "C" void pc_undo_flush(const char* name)
         return;
     Snapshot now;
     capture(now);
-    unsigned d = difference(base, now, ROOM_PARTS);
+    unsigned d = difference(base, now, ROOM_PARTS | KINDS);
     std::string named = hint;
     if (named.empty() && d && name && describe(base, now, d) == "Edit")
         named = name; /* nothing better than the request's method */

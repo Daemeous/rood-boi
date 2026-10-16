@@ -5,6 +5,7 @@
 #include "ui/data_frame.h"
 #include "ui/container_frame.h"
 #include "ui/ui_manual.h"
+#include "ui/ui_score.h"
 #include "ui/ui_settings.h"
 #include "ui/ui_theme.h"
 #include "ui/ui_workshop.h"
@@ -680,6 +681,7 @@ int sys_clamp()
 void sys_leave()
 {
     pc_ui_manual_leave(); // out of the Quick manual too (its store events and the freeze back)
+    pc_ui_score_leave();  // and the Score screen (its gazetteRow and the freeze back)
     if (capturing())
         pc_ui_settings_capture_done(-1, 0);
     pc_ui_settings_flush();
@@ -702,6 +704,10 @@ int sys_list_confirm()
     sys_games(g);
     if (!std::strcmp(SYSTEM_GAME[g[s.sys.item]].id, "manual")) {
         pc_ui_manual_enter(); // the native Quick manual (ui_manual.cpp); Square opens the original
+        return 0;
+    }
+    if (!std::strcmp(SYSTEM_GAME[g[s.sys.item]].id, "score")) {
+        pc_ui_score_enter(); // the native Score screen (ui_score.cpp); Square opens the original (MENU9)
         return 0;
     }
     sys_leave();
@@ -727,8 +733,23 @@ bool sys_on_manual()
     int games = sys_games(g);
     return s.sys.page < 0 && s.sys.item < games && !std::strcmp(SYSTEM_GAME[g[s.sys.item]].id, "manual");
 }
+// The System list's entry is the Score row.
+bool sys_on_score()
+{
+    int g[SYSTEM_GAMES];
+    int games = sys_games(g);
+    return s.sys.page < 0 && s.sys.item < games && !std::strcmp(SYSTEM_GAME[g[s.sys.item]].id, "score");
+}
 int system_tick(const pc_ui_input* in)
 {
+    if (pc_ui_score_mode()) { // the Score screen has the view
+        int r = pc_ui_score_tick(in);
+        if (r) { // Square: the original MENU9 (its cursor memory written at the leave)
+            sys_leave();
+            s.visible = false;
+        }
+        return r;
+    }
     if (pc_ui_manual_mode()) { // the Quick manual has the screen
         int r = pc_ui_manual_tick(in);
         if (r) { // Square: the original MENUE on the manual's topic
@@ -745,6 +766,11 @@ int system_tick(const pc_ui_input* in)
             sys_leave();
             s.visible = false;
             return 10;
+        }
+        if ((in->pressed & PC_UI_ALT) && sys_on_score()) { // Square: the original Score screen (MENU9)
+            sys_leave();
+            s.visible = false;
+            return 9;
         }
         if (in->repeat & PC_UI_DOWN)
             s.sys.item = (s.sys.item + 1) % n;
@@ -831,6 +857,7 @@ void system_json(std::string& j)
     const char* status = pc_settings_status();
     j += escape(status ? status : "") + "\"";
     pc_ui_manual_json(j);
+    pc_ui_score_json(j);
     j += "}";
 }
 
@@ -1858,6 +1885,10 @@ bool mouse_focus(int kind, int index)
     case PC_UI_MOUSE_MANUAL_PAGE:
     case PC_UI_MOUSE_MANUAL_SCROLL:
         return on_system() && pc_ui_manual_mouse_focus(kind, index);
+    case PC_UI_MOUSE_SCORE_SECTION:
+    case PC_UI_MOUSE_SCORE_ROW:
+    case PC_UI_MOUSE_SCORE_PANEL:
+        return on_system() && pc_ui_score_mouse_focus(kind, index); // hovering writes nothing
     case PC_UI_MOUSE_ITEM: // where the list has the focus (the list, details, a move's target)
         if (!on_items() || s.it.ws || index < 0 || index >= it_rows(it_category())
             || (s.it.mode != PC_UI_IT_LIST && s.it.mode != PC_UI_IT_DETAILS && s.it.mode != PC_UI_IT_MOVE))
@@ -2075,6 +2106,12 @@ bool apply_mouse(pc_ui_input& in)
         if (on_system())
             pc_ui_manual_mouse_click(m.click_kind, m.click_index);
         return true;
+    case PC_UI_MOUSE_SCORE_SECTION: // the Score screen's: a click that does it all (or nothing)
+    case PC_UI_MOUSE_SCORE_ROW:
+    case PC_UI_MOUSE_SCORE_PANEL:
+        if (on_system())
+            pc_ui_score_mouse_click(m.click_kind, m.click_index);
+        return true;
     default:
         if (ab_click_zone(m.click_kind, m.click_index) || mg_click_level(m.click_kind, m.click_index)
             || it_click_zone(m.click_kind, m.click_index))
@@ -2140,6 +2177,7 @@ extern "C" void pc_ui_shell_open(const pc_ui_commands* commands, int remember)
     s.drag_x = s.drag_y = 0;
     s.ash_shown = -1; // until the Ashley screen is drawn again
     pc_ui_manual_leave(); // a manual left open by a session that ended without its close (nothing when off)
+    pc_ui_score_leave();  // likewise the Score screen
     s.sys.page = -1; // the System screen opens on its list
     if (!remember) {
         s.tab = 0;
@@ -2211,6 +2249,18 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
     }
     if ((in->pressed & PC_UI_EXIT) && on_system())
         pc_ui_manual_exit_step(in);
+    // the Score screen: Cross steps back (a section -> Home -> the System list); Triangle closes (a
+    // section's sound first); everything else is its own (L1 / R1 switch its sections, not the tabs)
+    if (on_system() && pc_ui_score_mode()) {
+        if ((in->pressed & PC_UI_BACK) && !(in->pressed & PC_UI_EXIT)) {
+            pc_ui_score_back(in);
+            return 0;
+        }
+        if (in->pressed & PC_UI_EXIT)
+            pc_ui_score_exit_step(in);
+        else
+            return system_tick(in);
+    }
     // Cross steps back out of a settings page to the System list
     if ((in->pressed & PC_UI_BACK) && !(in->pressed & PC_UI_EXIT) && on_system() && s.sys.page >= 0) {
         sys_leave();
@@ -2626,6 +2676,7 @@ extern "C" void pc_ui_shell_items_view(pc_ui_items_view* v)
 
 extern "C" int pc_ui_shell_workshop_shown(void) { return on_items() && s.it.ws; }
 extern "C" int pc_ui_shell_manual_shown(void) { return s.visible && on_system() && pc_ui_manual_mode() != 0; }
+extern "C" int pc_ui_shell_score_shown(void) { return s.visible && on_system() && pc_ui_score_mode() != 0; }
 extern "C" void pc_ui_shell_push(int kind, int slot, int item, int shield, int count)
 {
     push(kind, slot, item, shield, count);

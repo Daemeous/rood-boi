@@ -621,6 +621,15 @@ extern "C" void pc_ui_draw_frame(float dt)
     else
         mouse_drag.on = rpc_drag.on = false;
 
+    // the Score screen (System > Score, ui_score_draw.cpp): the whole view, its sections where the tabs go
+    if (pc_ui_shell_score_shown()) {
+        ScreenOut out;
+        draw_score(f, t, dt, m, out);
+        draw_footer(f, t, out, held, m);
+        send_pointer(m);
+        last_tab = pc_ui_shell_tab();
+        return;
+    }
     // tabs
     int cur = pc_ui_shell_tab();
     float base = draw_tabs(f, t, cur, m, dt, false);

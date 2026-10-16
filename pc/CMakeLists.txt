@@ -54,7 +54,8 @@ add_executable(ui_shell_probe tests/ui_shell_probe.cpp src/ui/ui_shell.cpp src/u
     src/ui/ui_map.cpp
     src/ui/ui_data.cpp src/ui/data_plan.c src/ui/ui_container.cpp
     src/ui/ui_manual.cpp src/ui/manual_parse.c
-    src/ui/ui_theme.cpp src/ui/ui_tint.cpp
+    src/ui/ui_score.cpp src/ui/score_nav.c
+    src/ui/ui_theme.cpp src/ui/menu_light.cpp src/ui/ui_tint.cpp
     src/light_prefabs.cpp)
 target_include_directories(ui_shell_probe PRIVATE src)
 target_compile_features(ui_shell_probe PRIVATE cxx_std_17)
@@ -139,6 +140,13 @@ add_executable(data_plan_probe tests/data_plan_probe.c src/ui/data_plan.c)
 target_include_directories(data_plan_probe PRIVATE src/ui)
 target_compile_options(data_plan_probe PRIVATE -Wall -Wextra -Werror)
 add_test(NAME data_plan_probe COMMAND data_plan_probe)
+# The native Score screen (MENU9): its list cursors, its numbers and the Bestiary's MON.BIN parse.
+foreach(probe score_nav score_format mon_parse)
+    add_executable(${probe}_probe tests/${probe}_probe.c src/ui/${probe}.c)
+    target_include_directories(${probe}_probe PRIVATE src/ui)
+    target_compile_options(${probe}_probe PRIVATE -Wall -Wextra -Werror)
+    add_test(NAME ${probe}_probe COMMAND ${probe}_probe)
+endforeach()
 
 # Exercise the actual packet decoder without running game code or opening a window.
 add_library(gpu_probe_runtime OBJECT src/boot_runtime.c)

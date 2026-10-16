@@ -664,3 +664,79 @@ def pack_container(container, layout=None):
                 r[F["misc_index"]] = i + 1
             put(k, i, r)
     return bytes(out)
+
+
+# ---- the Score screen (MENU9: vs_main_scoredata, vs_main_stateFlags) ----
+# vs_main_scoredata_t (src/SLUS_010.40/main.h) field offsets, 0x114 bytes in all
+SCOREDATA = {"titles": 0x00, "kills": 0x04, "attacks": 0x14, "trials": 0x28, "max_chain": 0x88, "clear_count": 0x8C,
+             "minutes": 0x90, "map": 0x94, "chests": 0x98, "kill_flags": 0x9C, "streak": 0x104, "misc": 0x108}
+SCOREDATA_SIZE = 0x114
+# vs_main_flags_t: clearCount, the six boss flags (damascusGolem .. asura), gold / chest keys, chestsOpened[64]
+STATE_FLAGS = {"clear_count": 0x00, "bosses": 0xCC, "gold_key": 0x383, "chest_key": 0x387, "chests": 0x3C0}
+TRIAL_NONE = 0x800000
+
+
+def trial(time=TRIAL_NONE, rnd=0, difficulty=0):
+    """vs_trialScore_t: time:24, round:7, difficulty:1."""
+    return struct.pack("<I", (time & 0xFFFFFF) | (rnd & 0x7F) << 24 | (difficulty & 1) << 31)
+
+
+def score_fixture(kind, kill_flags=None):
+    """RAM patches for the Score screen's tests (they start from a checkpoint, so the card's save never loads:
+    the fixture is written into vs_main_scoredata / vs_main_stateFlags before each open): {"scoredata": {offset:
+    bytes}, "state": {offset: bytes}}. Kinds: fresh (all zero, no time attack), midgame (some kills, three bosses,
+    two time attacks), cleared (one clear in 420 minutes), maxed (every title condition, the score at its cap,
+    every foe). kill_flags: 26 words for the Bestiary (default by kind). Every kind writes every stateFlags
+    field it models (clearCount, the six bosses, the gold / chest keys, chestsOpened[64]), zero unless the kind
+    sets it, so nothing an earlier fixture or case wrote carries over."""
+    sd = {}
+    st = {STATE_FLAGS["clear_count"]: bytes(1), STATE_FLAGS["bosses"]: bytes(6), STATE_FLAGS["gold_key"]: bytes(1),
+          STATE_FLAGS["chest_key"]: bytes(1), STATE_FLAGS["chests"]: bytes(64)}
+    trials = [trial() for _ in range(24)]
+    kills, attacks = [0] * 6, [0] * 10
+    flags = [0] * 26
+    chain = clears = minutes = 0
+    if kind == "fresh":
+        pass
+    elif kind == "midgame":
+        kills, attacks = [120, 80, 45, 30, 4, 12], [300, 220, 40, 10, 0, 5, 0, 0, 2, 75]
+        trials[0], trials[1], trials[2] = trial(0x011E09, 0), trial(0x011F00, 1), trial(0x020000, 2)
+        trials[3 * 3] = trial(0x002A05, 0)
+        flags[0], flags[4] = 0x80000001, 0x00000100
+        chain = 17
+        st[STATE_FLAGS["bosses"]] = bytes([1, 1, 1, 0, 0, 0])
+        st[STATE_FLAGS["chests"]] = bytes([1] * 20 + [0] * 44)
+    elif kind == "cleared":
+        kills, attacks = [900, 700, 500, 300, 60, 120], [2000, 900, 300, 120, 80, 60, 40, 20, 10, 600]
+        chain, clears, minutes = 31, 1, 420
+        trials = [trial(0x003000 + i, i % 3) for i in range(24)]
+        flags = [0x5555AAAA] * 26
+        st[STATE_FLAGS["clear_count"]] = bytes([1])
+        st[STATE_FLAGS["bosses"]] = bytes([1] * 6)
+        st[STATE_FLAGS["gold_key"]] = bytes([1])
+    elif kind == "maxed":
+        kills, attacks = [9999] * 6, [9999] * 10
+        chain, clears, minutes = 99, 9, 200
+        trials = [trial(0x000100 + i, 5) for i in range(24)]
+        flags = [-1] * 26
+        st[STATE_FLAGS["clear_count"]] = bytes([9])
+        st[STATE_FLAGS["bosses"]] = bytes([1] * 6)
+        st[STATE_FLAGS["gold_key"]] = bytes([1])
+        st[STATE_FLAGS["chest_key"]] = bytes([1])
+        st[STATE_FLAGS["chests"]] = bytes([1] * 64)
+    else:
+        raise ValueError(kind)
+    if kill_flags is not None:
+        flags = list(kill_flags)
+    sd[SCOREDATA["titles"]] = struct.pack("<I", 0)  # MENU9 only ORs into it: start from none
+    sd[SCOREDATA["map"]] = struct.pack("<II", 0, 0)  # the high-water marks: raised by the open
+    sd[SCOREDATA["kills"]] = struct.pack("<6H", *kills)
+    sd[SCOREDATA["attacks"]] = struct.pack("<10H", *attacks)
+    sd[SCOREDATA["trials"]] = b"".join(trials)
+    sd[SCOREDATA["max_chain"]] = struct.pack("<H", chain)
+    sd[SCOREDATA["clear_count"]] = struct.pack("<II", clears, minutes)
+    sd[SCOREDATA["kill_flags"]] = struct.pack("<26i", *[f if f < 0x80000000 else f - (1 << 32) for f in flags])
+    sd[SCOREDATA["streak"]] = struct.pack("<II", 1234 if kind != "fresh" else 0, 99 if kind == "maxed" else 0)
+    if kind == "maxed":
+        sd[SCOREDATA["streak"]] = struct.pack("<II", 900000000, 900000000)
+    return {"scoredata": sd, "state": st}

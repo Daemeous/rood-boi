@@ -8,8 +8,15 @@
 #include "ui/ui_workshop.h"
 #include "ui/ui_manual.h"
 #include "ui/manual_parse.h"
+#include "ui/ui_score.h"
+#include "ui/score_nav.h"
 #include "ui/ui_theme.h"
 #include "ui/ui_tint.h"
+#include "ui/menu_light_fields.h"
+#include "light_prefabs.h"
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -874,14 +881,15 @@ static void mouse_tests()
     pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, 1);
     tick(0);
     CHECK(json_has("\"row\":\"score\""));
-    // a click on a game entry opens its command (Score = 8 -> 9; the Quick manual is native: see manual_tests)
-    pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 2, 1, 0);
-    CHECK(tick(0) == 9);
+    // a click on a game entry opens its command (Options = 7 -> 8; Score and the Quick manual are native:
+    // see score_tests, manual_tests)
+    pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 1, 1, 0);
+    CHECK(tick(0) == 8);
     // closed: the pointer is ignored, nothing is left over at the next open
     pc_ui_shell_mouse(PC_UI_MOUSE_PAGE, 0, 1, 0);
     pc_ui_shell_open(&all, 1);
     CHECK(tick(0) == 0);
-    CHECK(json_has("\"row\":\"score\""));
+    CHECK(json_has("\"row\":\"options\""));
     // a tab without rows is not clicked into (no Magick unlocked: bit 0)
     pc_ui_commands early = {0x3FF & ~1u, 0, 0};
     pc_ui_shell_open(&early, 1);
@@ -2748,6 +2756,250 @@ static void items_tests()
     CHECK(tick(PC_UI_EXIT) == -1 && !pc_ui_shell_visible() && queue_empty());
 }
 
+// ---- The Score screen (System > Score: ui_score.cpp, score_nav.c) ----
+static std::vector<pc_ui_score_event> score_events()
+{
+    std::vector<pc_ui_score_event> v;
+    pc_ui_score_event e;
+    while (pc_ui_score_take(&e))
+        v.push_back(e);
+    return v;
+}
+static int score_count(const std::vector<pc_ui_score_event>& v, int kind, int a = -1)
+{
+    int n = 0;
+    for (const auto& e : v)
+        n += e.kind == kind && (a < 0 || e.a == a);
+    return n;
+}
+// The bridge's OPEN: the snapshot (cursor memory `cur`), then ready.
+static void score_open_model(const unsigned char cur[8])
+{
+    pc_ui_score* m = pc_ui_score_model_edit();
+    std::memset(m, 0, sizeof *m);
+    std::memcpy(m->cursor, cur, 8);
+    m->valid = 1;
+    m->mon_ok = 1;
+    m->mon[5].unlocked = 1;
+    m->titles = 0x5u;
+    std::strcpy(m->title_name[0], "T0");
+    std::strcpy(m->title_desc[0], "D0");
+    std::strcpy(m->title_name[1], "T1");
+    std::strcpy(m->misc[0], "Locked");
+    std::strcpy(m->misc[1], "Why");
+    pc_ui_score_model_ready();
+}
+// The shell on System > Score's row (entry 2: Data, Options, Score, Quick manual).
+static void score_row()
+{
+    pc_ui_commands all = {0x3FF, 0, 0};
+    pc_ui_shell_open(&all, 0);
+    tick(PC_UI_TAB_PREV);
+    for (int i = 0; i < 2; ++i) tick(PC_UI_DOWN);
+    score_events();
+}
+
+static void score_tests()
+{
+    unsigned char zero[8] = {}, seeded[8] = {3, 4, 10, 6, 15, 7, 5, 2};
+    pc_ui_score_view v;
+    // ---- Square on the row: the original (command 8 -> 9), nothing of the native screen ----
+    score_row();
+    CHECK(json_has("\"row\":\"score\"") && json_has("\"score\":null"));
+    CHECK(tick(PC_UI_ALT) == 9 && !pc_ui_shell_visible());
+    CHECK(score_events().empty());
+    // ---- Circle: native, OPEN; the bridge's snapshot seeds Home from gazetteRow (HOME written) ----
+    score_row();
+    CHECK(tick(PC_UI_CONFIRM) == 0 && pc_ui_score_mode() == PC_UI_SCORE_HOME && pc_ui_shell_score_shown());
+    auto e = score_events();
+    CHECK(e.size() == 1 && e[0].kind == PC_UI_SEV_OPEN);
+    score_open_model(seeded);
+    e = score_events();
+    CHECK(e.size() == 1 && e[0].kind == PC_UI_SEV_HOME && e[0].a == 2);
+    pc_ui_score_view_get(&v);
+    CHECK(v.home_row == 2 && v.section == 2);
+    CHECK(json_has("\"score\":{\"mode\":\"home\",\"home\":2") && json_has("\"valid\":true"));
+    CHECK(json_has("\"tunables\":{\"score_size\":40") && json_has("\"text\":{\"sections\":"));
+    // the rows as drawn: an unlocked title its own text, a locked one miscInfo's 0 / 1
+    CHECK(json_has("\"titles_shown\":[[\"T0\",\"D0\"],[\"Locked\",\"Why\"],"));
+    CHECK(std::strcmp(pc_ui_score_title_text(pc_ui_score_model(), 1, 0), "Locked") == 0
+        && std::strcmp(pc_ui_score_title_text(pc_ui_score_model(), 0, 1), "D0") == 0
+        && std::strcmp(pc_ui_score_title_text(pc_ui_score_model(), 32, 0), "") == 0);
+    // Up / Down on Home: the main menu's change sound (wrapping); the list's memory waits for an exit
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    e = score_events();
+    pc_ui_score_view_get(&v);
+    CHECK(score_count(e, PC_UI_SEV_HOME) == 0 && score_count(e, PC_UI_SEV_MENU_SFX, 2) == 2 && v.home_row == 0);
+    // L1 / R1 on Home: nothing (and no tab switch)
+    tick(PC_UI_TAB_NEXT);
+    CHECK(score_events().empty() && json_has("\"tab\":\"system\"") && pc_ui_score_mode() == PC_UI_SCORE_HOME);
+    // Circle: Titles (gazetteRow written, the select sound); the cursor from the memory (3, 4)
+    tick(PC_UI_CONFIRM);
+    e = score_events();
+    CHECK(pc_ui_score_mode() == PC_UI_SCORE_TITLES && score_count(e, PC_UI_SEV_GAZETTE) == 1
+        && score_count(e, PC_UI_SEV_HOME, 0) == 1 && score_count(e, PC_UI_SEV_MENU_SFX, 1) == 1);
+    pc_ui_score_view_get(&v);
+    CHECK(v.page == 3 && v.row == 4 && v.focus == 7);
+    // Down: score_nav's rules, CURSOR(list 0) and sound 4 each move
+    tick(PC_UI_DOWN);
+    e = score_events();
+    CHECK(e.size() == 2 && score_count(e, PC_UI_SEV_SFX, 4) == 1 && e[1].kind == PC_UI_SEV_CURSOR && e[1].a == 0
+        && e[1].b == 3 && e[1].c == 5);
+    // the wrap only on a press: Up repeats to the top clamp there, a press wraps
+    for (int i = 0; i < 40; ++i) {
+        pc_ui_input in = {0, PC_UI_UP};
+        pc_ui_shell_tick(&in);
+    }
+    pc_ui_score_view_get(&v);
+    CHECK(v.page == 0 && v.row == 0);
+    score_events();
+    tick(PC_UI_UP);
+    pc_ui_score_view_get(&v);
+    CHECK(v.page == 0x18 && v.row == 7 && v.focus == 31);
+    // R1: Records (sound 4, Home's row follows: HOME + GAZETTE), its own pair (15, 7)
+    score_events();
+    tick(PC_UI_TAB_NEXT);
+    e = score_events();
+    pc_ui_score_view_get(&v);
+    CHECK(v.mode == PC_UI_SCORE_RECORDS && v.page == 15 && v.row == 7 && score_count(e, PC_UI_SEV_HOME, 1) == 1
+        && score_count(e, PC_UI_SEV_GAZETTE) == 1 && score_count(e, PC_UI_SEV_SFX, 4) == 1);
+    CHECK(json_has("\"tab\":\"system\""));
+    // L1 twice: Titles, then the Bestiary (wrapping)
+    tick(PC_UI_TAB_PREV);
+    tick(PC_UI_TAB_PREV);
+    pc_ui_score_view_get(&v);
+    CHECK(v.mode == PC_UI_SCORE_BESTIARY && v.page == 10 && v.row == 6 && v.focus == 16);
+    score_events();
+    // the Bestiary: R2 a page (theme page_rows 8: 8 Down repeats), L2 back; Circle on a locked foe: sound 7
+    tick(PC_UI_SUB_NEXT);
+    pc_ui_score_view_get(&v);
+    CHECK(v.focus == 24);
+    e = score_events();
+    CHECK(score_count(e, PC_UI_SEV_SFX, 4) == 1 && score_count(e, PC_UI_SEV_CURSOR) == 1);
+    tick(PC_UI_SUB_PREV);
+    pc_ui_score_view_get(&v);
+    CHECK(v.focus == 16);
+    score_events();
+    tick(PC_UI_CONFIRM);
+    e = score_events();
+    pc_ui_score_view_get(&v);
+    CHECK(score_count(e, PC_UI_SEV_SFX, 7) == 1 && !v.hint);
+    // the pointer: a row click (its canonical pair), the focused unlocked foe clicked again: the hint
+    pc_ui_shell_mouse(PC_UI_MOUSE_SCORE_ROW, 5, 0, 0); // hover: nothing written
+    tick(0);
+    CHECK(score_events().empty());
+    pc_ui_shell_mouse(PC_UI_MOUSE_SCORE_ROW, 5, 1, 0);
+    tick(0);
+    e = score_events();
+    pc_ui_score_view_get(&v);
+    CHECK(v.focus == 5 && v.page == 0 && v.row == 5 && e.size() == 2 && e[1].kind == PC_UI_SEV_CURSOR && e[1].a == 3
+        && e[1].b == 0 && e[1].c == 5);
+    pc_ui_shell_mouse(PC_UI_MOUSE_SCORE_ROW, 5, 1, 0);
+    tick(0);
+    pc_ui_score_view_get(&v);
+    CHECK(v.hint && score_events().empty() && json_has("\"hint\":true"));
+    pc_ui_shell_mouse(PC_UI_MOUSE_SCORE_ROW, 50, 1, 0);
+    tick(0);
+    pc_ui_score_view_get(&v);
+    CHECK(v.focus == 50 && v.page == 44 && v.row == 6 && !v.hint);
+    // the wheel steps (a repeat: no wrap)
+    score_events();
+    pc_ui_shell_mouse(PC_UI_MOUSE_NONE, 0, 0, -1);
+    tick(0);
+    pc_ui_score_view_get(&v);
+    CHECK(v.focus == 51);
+    // a strip click: the time attack (index 2), its boss the memory's (5)
+    pc_ui_shell_mouse(PC_UI_MOUSE_SCORE_SECTION, 2, 1, 0);
+    tick(0);
+    pc_ui_score_view_get(&v);
+    CHECK(v.mode == PC_UI_SCORE_TRIALS && v.focus == 5);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    tick(PC_UI_DOWN);
+    pc_ui_score_view_get(&v);
+    CHECK(v.focus == 0); // & 7
+    // Cross: Home (sound 6, HOME); Cross: the System list (gazetteRow, leave, CLOSE)
+    score_events();
+    tick(PC_UI_BACK);
+    e = score_events();
+    CHECK(pc_ui_score_mode() == PC_UI_SCORE_HOME && score_count(e, PC_UI_SEV_SFX, 6) == 1
+        && score_count(e, PC_UI_SEV_HOME, 2) == 1);
+    CHECK(tick(PC_UI_BACK) == 0 && pc_ui_shell_visible() && pc_ui_score_mode() == PC_UI_SCORE_OFF);
+    e = score_events();
+    CHECK(score_count(e, PC_UI_SEV_GAZETTE) == 1 && score_count(e, PC_UI_SEV_MENU_SFX, 0) == 1
+        && score_count(e, PC_UI_SEV_CLOSE) == 1 && json_has("\"row\":\"score\"") && json_has("\"score\":null"));
+    // Square in a section: 9, the leave's CLOSE then ORIGINAL
+    tick(PC_UI_CONFIRM);
+    score_open_model(zero);
+    tick(PC_UI_CONFIRM);
+    score_events();
+    CHECK(tick(PC_UI_ALT) == 9 && !pc_ui_shell_visible() && pc_ui_score_mode() == PC_UI_SCORE_OFF);
+    e = score_events();
+    CHECK(e.size() == 2 && e[0].kind == PC_UI_SEV_CLOSE && e[1].kind == PC_UI_SEV_ORIGINAL);
+    // Square on Home: gazetteRow first
+    score_row();
+    tick(PC_UI_CONFIRM);
+    score_open_model(zero);
+    score_events();
+    CHECK(tick(PC_UI_ALT) == 9);
+    e = score_events();
+    CHECK(e.size() == 4 && e[0].kind == PC_UI_SEV_HOME && e[1].kind == PC_UI_SEV_GAZETTE
+        && e[2].kind == PC_UI_SEV_CLOSE && e[3].kind == PC_UI_SEV_ORIGINAL);
+    // Triangle in a section: its sound 6, then the close (-1)
+    score_row();
+    tick(PC_UI_CONFIRM);
+    score_open_model(zero);
+    tick(PC_UI_CONFIRM);
+    score_events();
+    CHECK(tick(PC_UI_EXIT) == -1 && !pc_ui_shell_visible());
+    e = score_events();
+    CHECK(e.size() == 2 && e[0].kind == PC_UI_SEV_SFX && e[0].a == 6 && e[1].kind == PC_UI_SEV_CLOSE);
+    // a session that ended without its close (a fresh open): CLOSE queued; a soft reset drops everything
+    score_row();
+    tick(PC_UI_CONFIRM);
+    score_open_model(zero);
+    score_events();
+    pc_ui_shell_close();
+    e = score_events();
+    CHECK(score_count(e, PC_UI_SEV_CLOSE) == 1 && pc_ui_score_mode() == PC_UI_SCORE_OFF);
+    score_row();
+    tick(PC_UI_CONFIRM);
+    pc_ui_score_forget();
+    CHECK(score_events().empty() && pc_ui_score_mode() == PC_UI_SCORE_OFF);
+    // the theme group: parsed and clamped, an RPC override over it, reset
+    {
+        ui::Theme t;
+        std::string err;
+        CHECK(ui::theme_parse("{\"score\":{\"row_h\":50,\"visible_rows\":99,\"layout\":{\"narrow\":"
+                              "{\"titles_list\":[30,480]}}}}", t, &err));
+        CHECK(t.score.row_h == 50 && t.score.visible_rows == 24 && t.score.narrow.titles_list[0] == 30
+            && t.score.narrow.titles_list[1] == 480 && t.score.wide.titles_list[1] == 700);
+        CHECK(!ui::theme_parse("{\"score\":{\"layout\":{\"wide\":{\"header\":[1]}}}}", t, &err));
+        const float row_h0 = ui::theme().score.row_h, card0 = ui::theme().score.narrow.home_card[1];
+        CHECK(row_h0 != 60 && card0 != 480);
+        CHECK(ui::score_tune("row_h", 0, 60) && ui::theme().score.row_h == 60);
+        CHECK(ui::score_tune("narrow.home_card", 1, 480) && ui::theme().score.narrow.home_card[1] == 480);
+        CHECK(!ui::score_tune("nope", 0, 1) && !ui::score_tune("wide.header", 2, 1));
+        // one override per key and index: a repeated tune replaces it (the list never grows)
+        for (int k = 0; k < 100; ++k)
+            ui::score_tune("row_h", k, 50 + (float)(k % 7));
+        CHECK(ui::score_tune("row_h", 3, 58) && ui::theme().score.row_h == 58);
+        {
+            std::string j;
+            ui::score_json(j);
+            CHECK(j.find("\"tune_overrides\":[\"row_h[0]\",\"narrow.home_card[1]\"]") != std::string::npos);
+        }
+        ui::score_tune(nullptr, 0, 0);
+        CHECK(ui::theme().score.row_h == row_h0 && ui::theme().score.narrow.home_card[1] == card0);
+        {
+            std::string j;
+            ui::score_json(j);
+            CHECK(j.find("\"tune_overrides\":[]") != std::string::npos);
+        }
+    }
+}
+
 // ---- The Quick manual (System > Quick manual: ui_manual.cpp, manual_parse.c) ----
 // 494.c _setMenuRows' window over rowCount rows (9 shown), as written.
 static void ref_seed(int rowCount, int highlightedRow, int* cm4, int* cm5)
@@ -3327,6 +3579,149 @@ static void manual_tests()
     CHECK(json_has("\"manual\":null") || !pc_ui_shell_visible());
 }
 
+
+// The menu model's studio light (menu_light.cpp): the theme's "menu_model_light" block, its ranges, the
+// accessor, saving it back into the theme text, RPC graphics menu_light.
+static bool same_light(const pc_menu_light& a, const pc_menu_light& b) { return std::memcmp(&a, &b, sizeof a) == 0; }
+static std::string read_text(const std::string& path)
+{
+    std::ifstream f(path, std::ios::binary);
+    std::stringstream s;
+    s << f.rdbuf();
+    return f ? s.str() : std::string();
+}
+static void menu_light_tests()
+{
+    const pc_menu_light d = ui::menu_light_defaults();
+    std::string err;
+    {
+        ui::Theme t; // no block: the shipped rig
+        CHECK(same_light(t.menu_light, d));
+        CHECK(ui::theme_parse("{\"colors\":{\"accent\":\"#102030\"}}", t, &err) && same_light(t.menu_light, d));
+    }
+    {
+        // the shipped theme file's block is exactly the defaults, and saving them changes nothing in it
+        std::string here = __FILE__;
+        std::string path = here.substr(0, here.find_last_of('/')) + "/../assets/ui/theme.json";
+        std::string text = read_text(path);
+        CHECK(!text.empty());
+        ui::Theme t;
+        t.menu_light.key_intensity = 3; // overwritten by the file's
+        CHECK(ui::theme_parse(text.c_str(), t, &err));
+        CHECK(same_light(t.menu_light, d));
+        std::string out;
+        CHECK(ui::menu_light_replace_block(text, d, out, &err) && out == text);
+        // an edit replaces the block alone; the other keys and their formatting are kept
+        pc_menu_light e = d;
+        e.key_intensity = 0.75f;
+        e.fill_color[1] = 0.123456789f;
+        CHECK(ui::menu_light_replace_block(text, e, out, &err));
+        size_t at = text.find("\"menu_model_light\"");
+        CHECK(at != std::string::npos && out.compare(0, at, text, 0, at) == 0);
+        ui::Theme back;
+        CHECK(ui::theme_parse(out.c_str(), back, &err) && same_light(back.menu_light, e)); // floats read back exactly
+        CHECK(back.font_name == t.font_name && back.accent == t.accent);
+        // no block yet: added as the last key
+        std::string bare = "{\n  \"sizes\": { \"tab\": 15 }\n}\n";
+        CHECK(ui::menu_light_replace_block(bare, e, out, &err));
+        CHECK(out.compare(0, 26, bare, 0, 26) == 0 && out.find("\"menu_model_light\"") != std::string::npos);
+        CHECK(ui::theme_parse(out.c_str(), back, &err) && same_light(back.menu_light, e) && back.tab_size == 15.0f);
+        CHECK(ui::menu_light_replace_block("{}", e, out, &err));
+        CHECK(ui::theme_parse(out.c_str(), back, &err) && same_light(back.menu_light, e));
+        CHECK(!ui::menu_light_replace_block("{\"a\":", e, out, &err));
+    }
+    {
+        // a partial block: the keys given, the rest the defaults
+        ui::Theme t;
+        CHECK(ui::theme_parse("{\"menu_model_light\":{\"key\":{\"intensity\":0.8},\"exposure\":1.25}}", t, &err));
+        pc_menu_light want = d;
+        want.key_intensity = 0.8f;
+        want.exposure = 1.25f;
+        CHECK(same_light(t.menu_light, want));
+        // out of range: clamped
+        CHECK(ui::theme_parse("{\"menu_model_light\":{\"key\":{\"intensity\":99,\"wrap\":-1,\"color\":[9,-1,0.5],"
+                              "\"direction\":[5,0,-3]},\"rim\":{\"power\":0,\"lift\":7},\"ambient\":{\"intensity\":-2},"
+                              "\"exposure\":100,\"saturation\":-1}}", t, &err));
+        const pc_menu_light& l = t.menu_light;
+        CHECK(l.key_intensity == 4.0f && l.key_wrap == 0.0f);
+        CHECK(l.key_color[0] == 4.0f && l.key_color[1] == 0.0f && l.key_color[2] == 0.5f);
+        CHECK(l.key_dir[0] == 1.0f && l.key_dir[1] == 0.0f && l.key_dir[2] == -1.0f);
+        CHECK(l.rim_power == 0.25f && l.rim_lift == 1.0f && l.ambient_intensity == 0.0f);
+        CHECK(l.exposure == 8.0f && l.saturation == 0.0f);
+        // azimuth / elevation in place of a direction (degrees; 0, 0: from the camera)
+        CHECK(ui::theme_parse("{\"menu_model_light\":{\"fill\":{\"azimuth\":90,\"elevation\":0}}}", t, &err));
+        CHECK(std::fabs(t.menu_light.fill_dir[0] - 1) < 1e-6f && std::fabs(t.menu_light.fill_dir[2]) < 1e-6f);
+        CHECK(ui::theme_parse("{\"menu_model_light\":{\"fill\":{\"elevation\":90}}}", t, &err));
+        CHECK(std::fabs(t.menu_light.fill_dir[1] + 1) < 1e-6f);
+        // wrong types: an error, the theme kept
+        const char* bad[] = {
+            "{\"menu_model_light\":5}",
+            "{\"menu_model_light\":{\"key\":3}}",
+            "{\"menu_model_light\":{\"key\":{\"intensity\":\"bright\"}}}",
+            "{\"menu_model_light\":{\"key\":{\"color\":[1,1]}}}",
+            "{\"menu_model_light\":{\"key\":{\"color\":\"#ffffff\"}}}",
+            "{\"menu_model_light\":{\"rim\":{\"direction\":[0,0,0]}}}",
+            "{\"menu_model_light\":{\"exposure\":nan}}",
+            "{\"menu_model_light\":{\"key\":{\"azimuth\":\"left\"}}}",
+        };
+        for (const char* b : bad) {
+            err.clear();
+            CHECK(!ui::theme_parse(b, t, &err) && err.find("menu_model_light") != std::string::npos);
+        }
+    }
+    {
+        // angles and back
+        float a, e, dir[3];
+        ui::menu_light_angles(d.key_dir, &a, &e);
+        CHECK(a < -30 && a > -33 && e > 29 && e < 31); // the key: upper left, in front
+        ui::menu_light_direction(a, e, dir);
+        float n = std::sqrt(d.key_dir[0] * d.key_dir[0] + d.key_dir[1] * d.key_dir[1] + d.key_dir[2] * d.key_dir[2]);
+        for (int i = 0; i < 3; i++)
+            CHECK(std::fabs(dir[i] - d.key_dir[i] / n) < 1e-5f);
+        ui::menu_light_angles(d.rim_dir, &a, &e);
+        CHECK(a > 90 && e > 0); // the rim: behind, above
+    }
+    {
+        // the live rig and the RPC (on a copy of the theme file)
+        std::string here = __FILE__;
+        std::string text = read_text(here.substr(0, here.find_last_of('/')) + "/../assets/ui/theme.json");
+        char path[] = "/tmp/rood-theme-XXXXXX";
+        int fd = mkstemp(path);
+        CHECK(fd >= 0);
+        if (fd >= 0) {
+            FILE* f = fdopen(fd, "wb");
+            fwrite(text.data(), 1, text.size(), f);
+            fclose(f);
+        }
+        setenv("ROOD_UI_THEME", path, 1);
+        pc_menu_light l;
+        CHECK(pc_ui_menu_model_light(&l) == 1 && same_light(l, d));
+        char out[4096];
+        CHECK(pc_ui_menu_light_rpc("{\"key_intensity\":2,\"fill_color\":[0.1,0.2,0.3],\"rim_azimuth\":180}", out,
+                  sizeof out) == 0);
+        pc_ui_menu_model_light(&l);
+        CHECK(l.key_intensity == 2.0f && l.fill_color[2] == 0.3f && std::fabs(l.rim_dir[0]) < 1e-5f);
+        CHECK(std::strstr(out, "\"key_intensity\":2,") && std::strstr(out, "\"edited\":true"));
+        CHECK(pc_ui_menu_light_rpc("{\"key_intensity\":50}", out, sizeof out) == 0 && std::strstr(out, "\"key_intensity\":4,"));
+        CHECK(pc_ui_menu_light_rpc("{\"nonsense\":1}", out, sizeof out) == -1 && std::strstr(out, "nonsense"));
+        CHECK(pc_ui_menu_light_rpc("{\"key_color\":2}", out, sizeof out) == -1);
+        // saved: the file's block holds it (and reads back exactly), the rest as it was
+        CHECK(pc_ui_menu_light_rpc("\"save\"", out, sizeof out) == 0 && std::strstr(out, "\"saved\":true"));
+        std::string saved = read_text(path);
+        ui::Theme t;
+        CHECK(ui::theme_parse(saved.c_str(), t, &err));
+        pc_ui_menu_model_light(&l);
+        CHECK(same_light(t.menu_light, l) && t.menu_light.key_intensity == 4.0f);
+        size_t at = text.find("\"menu_model_light\"");
+        CHECK(saved.compare(0, at, text, 0, at) == 0);
+        CHECK(pc_ui_menu_light_rpc("\"reset\"", out, sizeof out) == 0);
+        pc_ui_menu_model_light(&l);
+        CHECK(same_light(l, d));
+        unsetenv("ROOD_UI_THEME");
+        std::remove(path);
+    }
+}
+
 int main()
 {
     pc_ui_commands all = {0x3FF, 0, 0};
@@ -3464,6 +3859,7 @@ int main()
         CHECK(ui::theme_parse("{\"colors\":{\"up\":\"#010203\",\"down\":\"#040506\"}}", t, &err));
         CHECK(t.up == 0xFF030201u && t.down == 0xFF060504u);
     }
+    menu_light_tests();
     tint_tests();
     equipment_tests();
     mouse_tests();
@@ -3478,6 +3874,7 @@ int main()
     data_tests();
     container_tests();
     manual_tests();
+    score_tests();
     std::printf(failures ? "ui_shell_probe: %d failures\n" : "ui_shell_probe: ok\n", failures);
     return failures != 0;
 }

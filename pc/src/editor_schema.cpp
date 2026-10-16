@@ -9,6 +9,7 @@
 #include <string.h>
 #include <algorithm>
 #include <cmath>
+#include <deque>
 #include <map>
 #include <string>
 #include <vector>
@@ -398,6 +399,12 @@ std::map<std::string, Kind>& actor_kinds()
     }
     return kinds;
 }
+/* add_kind's (a deque: the pointers handed out stay valid). */
+std::deque<Kind>& added_kinds()
+{
+    static std::deque<Kind> kinds;
+    return kinds;
+}
 const Kind* actor_kind_for(const std::string& prefab_id)
 {
     std::map<std::string, Kind>& kinds = actor_kinds();
@@ -408,9 +415,21 @@ const Kind* actor_kind_for(const std::string& prefab_id)
 }
 } // namespace
 
+void add_kind(Kind k)
+{
+    for (Kind& old : added_kinds())
+        if (old.name == k.name) {
+            old = std::move(k);
+            return;
+        }
+    added_kinds().push_back(std::move(k));
+}
 const Kind* find_kind(const std::string& name)
 {
     for (const Kind& k : fixed_kinds())
+        if (k.name == name)
+            return &k;
+    for (const Kind& k : added_kinds())
         if (k.name == name)
             return &k;
     if (name.compare(0, 6, "actor:") == 0 && prefab::library().find(name.substr(6)))
@@ -440,6 +459,8 @@ std::vector<const Kind*> all_kinds()
     std::vector<const Kind*> out;
     for (const Kind& k : fixed_kinds())
         out.push_back(&k);
+    for (const Kind& k : added_kinds())
+        out.push_back(&k);
     for (const prefab::Prefab& p : prefab::library().prefabs)
         out.push_back(actor_kind_for(p.id));
     return out;
@@ -451,6 +472,8 @@ std::vector<std::string> lint()
         std::vector<std::string> names;
         if (k->fields.empty())
             problems.push_back(k->name + ": no fields");
+        if (k->object == rood_selection::KIND_NONE && k->count < 1)
+            problems.push_back(k->name + ": a standalone kind without objects (count " + std::to_string(k->count) + ")");
         for (const Field& f : k->fields) {
             std::string where = k->name + "." + f.name;
             if (f.name.empty() || f.label.empty() || f.category.empty())
@@ -519,6 +542,57 @@ void apply_reset(const Kind& k, const Field& f, const Ref& target)
     rood_lights::dirty = true;
     pc_undo_hint(("Reset " + f.label).c_str());
 }
+void apply_at(const Kind& k, const Field& f, int index, const Value& v)
+{
+    if (index < 0 || index >= k.count)
+        return;
+    f.set(index, clamp(f, v));
+    pc_undo_hint(("Edit " + f.label).c_str());
+}
+void apply_reset_at(const Kind& k, const Field& f, int index)
+{
+    if (index < 0 || index >= k.count)
+        return;
+    reset_field(f, index);
+    pc_undo_hint(("Reset " + f.label).c_str());
+}
+
+/* Lines of "<kind>\t<index>\t<field>\t<value as JSON>". */
+std::string standalone_state()
+{
+    std::string s;
+    for (const Kind& k : added_kinds())
+        if (k.object == rood_selection::KIND_NONE)
+            for (int i = 0; i < k.count; i++)
+                for (const Field& f : k.fields)
+                    s += k.name + "\t" + std::to_string(i) + "\t" + f.name + "\t" + to_json(f, f.get(i)) + "\n";
+    return s;
+}
+void set_standalone_state(const std::string& text)
+{
+    size_t at = 0;
+    while (at < text.size()) {
+        size_t end = text.find('\n', at);
+        if (end == std::string::npos)
+            end = text.size();
+        std::string line = text.substr(at, end - at);
+        at = end + 1;
+        size_t a = line.find('\t'), b = a == std::string::npos ? a : line.find('\t', a + 1),
+               c = b == std::string::npos ? b : line.find('\t', b + 1);
+        if (c == std::string::npos)
+            continue;
+        const Kind* k = find_kind(line.substr(0, a));
+        int index = atoi(line.substr(a + 1, b - a - 1).c_str());
+        const Field* f = k ? k->field(line.substr(b + 1, c - b - 1)) : nullptr;
+        prefab::Json j;
+        Value v;
+        if (!f || index < 0 || index >= k->count || !prefab::json_parse(line.substr(c + 1).c_str(), j)
+            || !from_json(*f, j, v, nullptr))
+            continue;
+        if (!same(*f, f->get(index), v))
+            f->set(index, v);
+    }
+}
 } // namespace rood_schema
 
 /* ---- RPC editor_schema ---- */
@@ -542,7 +616,8 @@ int failure(const std::string& message, char* out, int size)
 std::string kind_json(const Kind& k)
 {
     std::string s = "{\"name\":" + quote(k.name) + ",\"label\":" + quote(k.label) + ",\"object\":\""
-        + rood_selection::kind_name(k.object) + "\",\"closed\":[";
+        + rood_selection::kind_name(k.object) + "\",\"count\":"
+        + std::to_string(k.object == rood_selection::KIND_NONE ? k.count : -1) + ",\"closed\":[";
     for (size_t i = 0; i < k.closed.size(); i++)
         s += (i ? "," : "") + quote(k.closed[i]);
     s += "],\"fields\":[";
@@ -559,9 +634,9 @@ std::string kind_json(const Kind& k)
     }
     return s + "]}";
 }
-std::string object_json(const Kind& k, const rood_selection::Ref& r, int index)
+std::string object_json(const Kind& k, const std::string& id, const std::string& label, int index)
 {
-    std::string s = "{\"id\":" + quote(r.id) + ",\"kind\":" + quote(k.name) + ",\"label\":" + quote(rood_scene::label(r))
+    std::string s = "{\"id\":" + quote(id) + ",\"kind\":" + quote(k.name) + ",\"label\":" + quote(label)
         + ",\"index\":" + std::to_string(index) + ",\"fields\":{";
     for (size_t i = 0; i < k.fields.size(); i++) {
         const Field& f = k.fields[i];
@@ -578,7 +653,9 @@ std::string object_json(const Kind& k, const rood_selection::Ref& r, int index)
  * action kinds (default; {kind}: one), lint, get {id}, set {id, values
  * {field: value}}, reset {id, fields [names] (default every resettable
  * one)}; without an id, the object Details shows (its lock, else the
- * selection's primary). Values are numbers, [r, g, b] / [x, y, z],
+ * selection's primary); {kind, index (default 0)} instead of an id: a
+ * standalone kind's object (add_kind; "menu_model_light"); ui {search,
+ * kind_search {kind: text}, open: kind (rood_details::kind_section)}. Values are numbers, [r, g, b] / [x, y, z],
  * true / false and enum option names; set clamps them to their range. */
 extern "C" int pc_editor_schema_rpc(const char* params_text, char* out, int size)
 {
@@ -615,7 +692,32 @@ extern "C" int pc_editor_schema_rpc(const char* params_text, char* out, int size
         if (const Json* id = params.get("id"))
             target = rood_selection::ref_of(id->string);
         int index;
-        const Kind* k = rood_schema::kind_of(target, &index);
+        const Kind* k = nullptr;
+        bool standalone = false;
+        if (const Json* kn = params.get("kind")) {
+            k = kn->type == Json::String ? rood_schema::find_kind(kn->string) : nullptr;
+            const Json* ix = params.get("index");
+            index = ix && ix->type == Json::Number ? (int)ix->number : 0;
+            if (!k || k->object != rood_selection::KIND_NONE || index < 0 || index >= k->count)
+                return failure("no standalone kind " + (kn->type == Json::String ? kn->string : std::string("?"))
+                        + " with an object " + std::to_string(index) + " (a scene object: its id)",
+                    out, size);
+            standalone = true;
+        } else {
+            k = rood_schema::kind_of(target, &index);
+        }
+        auto edit = [&](const Field& f, const rood_schema::Value& v) {
+            if (standalone)
+                rood_schema::apply_at(*k, f, index, v);
+            else
+                rood_schema::apply(*k, f, target, v);
+        };
+        auto reset = [&](const Field& f) {
+            if (standalone)
+                rood_schema::apply_reset_at(*k, f, index);
+            else
+                rood_schema::apply_reset(*k, f, target);
+        };
         if (!k)
             return failure("no object with fields: " + (target ? target.id : std::string("nothing selected"))
                     + " (glows have none yet)",
@@ -635,7 +737,7 @@ extern "C" int pc_editor_schema_rpc(const char* params_text, char* out, int size
                 edits.push_back({ f, v });
             }
             for (const auto& e : edits)
-                rood_schema::apply(*k, *e.first, target, e.second);
+                edit(*e.first, e.second);
             if (edits.size() > 1)
                 pc_undo_hint(("Edit " + std::to_string(edits.size()) + " fields").c_str());
         } else if (action == "reset") {
@@ -653,15 +755,24 @@ extern "C" int pc_editor_schema_rpc(const char* params_text, char* out, int size
                     if (f.resettable)
                         fields.push_back(&f);
             for (const Field* f : fields)
-                rood_schema::apply_reset(*k, *f, target);
+                reset(*f);
             if (fields.size() > 1)
                 pc_undo_hint(("Reset " + std::to_string(fields.size()) + " fields").c_str());
         }
-        k = rood_schema::kind_of(target, &index); /* a light's type may have changed it */
-        text = object_json(*k, target, index);
+        if (standalone) {
+            text = object_json(*k, k->name, k->label, index);
+        } else {
+            k = rood_schema::kind_of(target, &index); /* a light's type may have changed it */
+            text = object_json(*k, target.id, rood_scene::label(target), index);
+        }
     } else if (action == "ui") {
         if (const Json* s = params.get("search"))
             rood_details::set_search(s->string);
+        if (const Json* ks = params.get("kind_search")) /* {kind: text}: draw_kind's search boxes */
+            for (const auto& m : ks->members)
+                rood_details::set_kind_search(m.first, m.second.string);
+        if (const Json* o = params.get("open")) /* a kind_section's header opens next frame */
+            rood_details::open_section(o->string);
         text = rood_details::state_json();
     } else {
         return failure("action: kinds, lint, get, set, reset or ui", out, size);

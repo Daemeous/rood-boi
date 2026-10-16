@@ -524,6 +524,16 @@ static char _noString[] __attribute__((unused)) = "NO\0";
 static char const* _timeAttackReferenceTimes[] = { "$00:25:00", "$00:30:00", "$00:40:00",
     "$00:50:00", "$01:00:00", "$01:15:00", "$01:00:00", "$01:25:00" };
 
+#ifdef ROOD_PC
+/* The native Score screen (pc/src/ui/score_menu9.h, score_bridge.c). */
+#include "pc/src/ui/score_menu9.h"
+PC_UI_SCORE_MENU9_LAYOUT();
+const pc_ui_score_menu9 pc_ui_score_menu9_table = { _calculateProgress, &_score,
+    &_characterRank, &_clearCount, &_openedChestCount, &_mapCompletion, _menuText,
+    _rankText, _titleText, _titleDescriptions, _statHeaders, _statDescriptions,
+    _timeAttacks, _timeAttackDescriptions, _miscInfo, _timeAttackReferenceTimes };
+#endif
+
 void _restoreCamera(void);
 void _setEnemyDescription(void);
 int _topMenu(int arg0);

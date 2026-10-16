@@ -239,7 +239,10 @@ window's, up to 8x; the setting back when the model goes). Its frames
 (`pc_hw_present_menu_model`) are lit by a studio rig of their own
 (`pc_hw_present_menu_studio`, `pc/shaders/vulkan/menu_studio.glsl` in both
 presenters: the texture's colour under a key, a fill, an ambient and a rim
-in view space), not by the room's lights, GI and haze nor by the game's
+in view space; its values are data, the theme's `menu_model_light` block,
+`ui/menu_light.h`, handed to the shader as nine vec4s: GL uniform
+`menu_studio_rig`, Vulkan `studio_` at the end of the present UBO; RPC
+`graphics menu_light`, Modern_Menus.md), not by the room's lights, GI and haze nor by the game's
 colours for the model; the bridge leaves out the offset copy MAINMENU draws
 behind the clone as a rim (`no_rim_copy`). RPC `graphics menu_studio` 0
 gives back the game's colours, the rim copy (at the next build) and the

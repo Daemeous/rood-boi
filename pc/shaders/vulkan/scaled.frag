@@ -51,12 +51,14 @@ layout(std140, binding = 0) uniform Present {
     // world (backdrop.x 2) or the ground (1) under the menu's ground colour (rgb) at its opacity (a).
     vec4 backdrop_color;
     ivec4 backdrop; // y: the model view's studio light (menu_studio.glsl)
+    vec4 studio_[9]; // its rig (ui/menu_light.h pc_menu_light_pack: PC_MENU_LIGHT_VEC4S)
 } u;
 layout(binding = 20) uniform sampler2D backdrop_tex;
 #define MEDIUM(i) u.medium_[i]
 layout(binding = 17) uniform sampler3D medium_tex; // the medium's texture (atmosphere.h pc_medium_texture)
 #define MEDIUM_TEX medium_tex
 #include "medium.glsl"
+#define MENU_STUDIO(i) u.studio_[i]
 #include "menu_studio.glsl"
 #define env_sun_dir u.env_[0]
 #define env_sun_col u.env_[1]

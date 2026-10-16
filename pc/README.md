@@ -409,6 +409,16 @@ sounds played are the original's (`ui_manual_smoke`). Off a PlayStation pad
 the illustrations' PlayStation buttons are drawn as your device's prompts
 too.
 
+System > Score is native too: your score and Risk Breaker rank, a summary of
+the journey (clears, map and chests now and at best, the longest chain,
+titles), then Titles, Records, Time Attack and the Bestiary (L1 / R1 switch
+between them; the Bestiary's foes from the disc's `SMALL/MON.BIN`, read at
+run time). The score, rank, titles and every write the original screen makes
+on open come from the game's own code (MENU9's `_calculateProgress`, run
+once per open); the cursor memories and sounds are the original's. Square
+opens the original screen (its enemy model viewer included). Layout, sizes
+and rows are `pc/assets/ui/theme.json`'s "score" group (`ui_score_smoke`).
+
 - `pc/src/ui/menu_bridge.c` (battle builds) takes over `func_800C930C`, the
   top level, from one `#ifdef ROOD_PC` hook; `ui_shell.cpp` is the navigation
   state (ctest `ui_shell_probe`), `ui_draw.cpp` draws it on Dear ImGui's
@@ -448,6 +458,13 @@ too.
   without its write), pad and pointer limits, the area list's window, wait
   and cursor memories, paling, close (HUD, scene buffer, heap, VRAM), soft
   resets, a lost frame (MENU5's own help and list), 16:9.
+- `pc/tests/ui_score_smoke.py`: the Score screen (card-safe): scoredata,
+  roomFlags, the cursor memories, score and rank as the original MENU9 on
+  three opens and a pad story through every section (the sounds too) and the
+  close state; boundaries against a port of the rules; Square idempotent;
+  every string against MENU9's statics; the Bestiary against `_monBinData`;
+  the pointer at 4:3 and 16:9 (one real SDL click); theme reload and the RPC
+  override.
 - `pc/tests/ui_container_smoke.py`: the Container (card-safe): the bag, the
   storage, containerEmpty, the menu state and the cursor memories at
   MENUD's exit equal to the original's by pad (sorts, discard, merge /
@@ -1882,7 +1899,7 @@ redraws at about 60 Hz, and after each request):
 | `gpu_dump` | `path` | the whole scaled hardware VRAM target as a PPM |
 | `gi_probe` | `u`, `v` (display area, 0-1), or `x`, `y`, `z` (a world point: where it is on screen) | the game view's last GI result there (GL and Vulkan): `indirect`, shadow `visibility`, `baked_visibility` (characters' contact and glow shadows on the baked light), `extra` (Vulkan: glow light; GL: haze), and the `u`, `v` it read |
 | `gpu_draw` | `packet` (GP0 words, hex), `texture` (hex texels) with `texture_x/y/w/h`, `area_x/y/w/h`, `offset_x/y` | tests: load texels, set the drawing area, draw the commands on both rasterizers (`flipped_sprite_smoke.py`) |
-| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_scene`, `widescreen_trace` N, `undrawn_debug`), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `ui_text_layout` (`line`/`glyph`), `ui_text_bubble_align` (`centre`/`left`), `ui_text_overlay` (`auto`/`off`), `ui_lines` (`joined`/`legacy`), `ui_outline_boost`, `ui_bubbles` (`original`/`vector`), `ui_bubble_outline`, `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample` | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
+| `graphics` | `scale`, `filter`, `aspect`, `widescreen` (with `widescreen_cover`, `widescreen_layout`, `widescreen_scene`, `widescreen_trace` N, `undrawn_debug`), `perspective`, `show_depth`, `native_room`, `gameplay_walls` (`original`/`smart`), `gameplay_walls_ghost`, `ui_upscale`, `ui_subpixel`, `ui_text` (`original`/`font`), `ui_text_layout` (`line`/`glyph`), `ui_text_bubble_align` (`centre`/`left`), `ui_text_overlay` (`auto`/`off`), `ui_lines` (`joined`/`legacy`), `ui_outline_boost`, `ui_bubbles` (`original`/`vector`), `ui_bubble_outline`, `lighting_preset` and the lighting quality keys, ..., `aa` (`off`/`fxaa`/`smaa`/`msaa2`/`msaa4`/`msaa8`/`ssaa`[factor], joined with `+`), `aa_downsample`, `menu_studio` (0/1: the menu model's own studio light), `menu_light` (its rig, `pc/docs/Modern_Menus.md`: `{field: value}` sets fields live (`key_intensity`, `key_color` [r,g,b], `key_direction` [x,y,z], `key_azimuth`/`key_elevation` degrees, likewise `fill_*`, `rim_*` with `rim_power`, `rim_lift`, `ambient_sky`/`ambient_ground`/`ambient_intensity`, `exposure`, `saturation`; clamped), `"reset"` the shipped rig, `"save"` into the theme file ($ROOD_UI_THEME), `true` reads; the reply's `menu_light` has every field and `edited`) | get/set renderer options; the reply adds `lighting_caps` (backend, ray tracing, GPU class), `lighting_autodetect` and `lighting_unavailable` (why a choice cannot run here) |
 | `ui_upscale` | `verify`, `reset`, `redraw` (path), `mask` (path), `poke` (`[x, y, w, h, value]`), `regions` (N) | the 2D magnification cache: backend, factor, hits/misses, CPU ms per frame, display area; `verify` checks the atlas against the CPU MMPX (`mismatches`, `foreign`: texels not in their source); `redraw` draws the newest frame again as recorded with the current options and dumps the scaled target (compare options on the same frame), `mask` writes where magnified 2D was drawn since the last mask (1024 x 512 PGM), `poke` rewrites a VRAM rectangle as LoadImage would, `regions` lists the cached regions drawn lately (tests) |
 | `button_prompts` | `button_prompts` (mode), `device` (`playstation`/`xbox`/`nintendo`/`keyboard`, as a device used last would set it) with `variant` (3/4/5 PlayStation, 360 Xbox), `bind` (`{"bind_key_circle": "c", "bind_pad_circle": "south"}`), `icon` (a button name) with `size`, `clear_shown`, `style`, `scale`, `dpad` (`cross`/`dim`/`lit`), `cross_actions` (0-15: the shortcut cross's usable arms, bits up, left, right, down, whatever the game reports; -1 the game's), `mask` | the mode, the family drawn, the device, `generation`, the glyph each PS1 button shows, the bindings, `shown` (the icon each prompt on screen was drawn with since `clear_shown`, `text` and `sprite`, the shortcut cross's `dpad` and its lit `dpad_arms`), `style`, `scale`, `dpad_mode`, `cross_actions`, regions drawn from icons (`regions`) and fallen back (`failed`); `icon` adds the native menus' image (`pc_prompt_glyph`: size, uv) |
 | `ui_bubbles` | `path` (N) | vector talk bubbles: frames reported, verified, fallen back (`mismatched`), drawn; line segments the hardware path drew (`lines_drawn`); native pixels per output pixel; the recent bubbles (shape, flip, tail, outline bounds drawn and the game's whole-pixel points, thickness); `path`: bubble N's outline points |

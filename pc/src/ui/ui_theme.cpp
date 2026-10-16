@@ -4,10 +4,13 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <vector>
 #include <initializer_list>
 #include <sys/stat.h>
 #include <time.h>
 
+#include "ui/menu_light_fields.h"
 #include "ui/ui_tint.h"
 
 extern "C" float pc_ui_menu_opacity; // project_settings.cpp: settings ui_menu_opacity
@@ -36,7 +39,105 @@ bool parse_color(const std::string& s, unsigned* out)
     return true;
 }
 
+// The Score group's numbers and rects (ScoreTheme), with their clamps.
+struct ScoreNum {
+    const char* key;
+    float ScoreTheme::*v;
+    float lo, hi;
+};
+const ScoreNum SCORE_NUMS[] = {{"score_size", &ScoreTheme::score_size, 8, 120}, {"rank_size", &ScoreTheme::rank_size, 8, 120},
+    {"row_h", &ScoreTheme::row_h, 16, 160}, {"visible_rows", &ScoreTheme::visible_rows, 3, 24},
+    {"page_rows", &ScoreTheme::page_rows, 1, 78}, {"locked_alpha", &ScoreTheme::locked_alpha, 0, 1},
+    {"title_size", &ScoreTheme::title_size, 8, 96}, {"name_size", &ScoreTheme::name_size, 8, 96},
+    {"number_size", &ScoreTheme::number_size, 8, 96}, {"section_size", &ScoreTheme::section_size, 8, 96},
+    {"help_size", &ScoreTheme::help_size, 8, 96}, {"value_size", &ScoreTheme::value_size, 8, 96},
+    {"record_size", &ScoreTheme::record_size, 8, 96}, {"record_value_size", &ScoreTheme::record_value_size, 8, 96},
+    {"big_value_size", &ScoreTheme::big_value_size, 8, 120}, {"time_size", &ScoreTheme::time_size, 8, 96},
+    {"note_size", &ScoreTheme::note_size, 8, 96}, {"class_size", &ScoreTheme::class_size, 8, 96},
+    {"hint_size", &ScoreTheme::hint_size, 8, 96}, {"glyph_size", &ScoreTheme::glyph_size, 8, 96},
+    {"chip_size", &ScoreTheme::chip_size, 6, 48}, {"pad", &ScoreTheme::pad, 0, 120},
+    {"inset", &ScoreTheme::inset, 0, 120}, {"name_x", &ScoreTheme::name_x, 0, 400},
+    {"name_x3", &ScoreTheme::name_x3, 0, 400}, {"line_gap", &ScoreTheme::line_gap, 0, 200},
+    {"place_gap", &ScoreTheme::place_gap, 0, 200}, {"head_rule", &ScoreTheme::head_rule, 0, 200},
+    {"body_gap", &ScoreTheme::body_gap, 0, 200}, {"hint_y", &ScoreTheme::hint_y, 0, 400},
+    {"label_top", &ScoreTheme::label_top, 0, 200}, {"card_top", &ScoreTheme::card_top, 0, 200}};
+struct ScoreRect {
+    const char* key;
+    float (ScoreLayout::*v)[2];
+};
+const ScoreRect SCORE_RECTS[] = {{"header", &ScoreLayout::header}, {"strip", &ScoreLayout::strip},
+    {"content", &ScoreLayout::content}, {"home_card", &ScoreLayout::home_card}, {"home_list", &ScoreLayout::home_list},
+    {"titles_list", &ScoreLayout::titles_list}, {"titles_detail", &ScoreLayout::titles_detail},
+    {"records_table", &ScoreLayout::records_table}, {"records_detail", &ScoreLayout::records_detail},
+    {"trials_list", &ScoreLayout::trials_list}, {"trials_panel", &ScoreLayout::trials_panel},
+    {"bestiary_list", &ScoreLayout::bestiary_list}, {"bestiary_detail", &ScoreLayout::bestiary_detail}};
+float clampf(double v, float lo, float hi) { return (float)std::fmin(std::fmax(v, (double)lo), (double)hi); }
+
+// "score": numbers, then "layout": {"wide": {rect: [a, b]}, "narrow": {...}}.
+bool parse_score(const prefab::Json& g, ScoreTheme& s, std::string* error)
+{
+    for (const ScoreNum& n : SCORE_NUMS)
+        if (const prefab::Json* v = g.get(n.key)) {
+            if (v->type != prefab::Json::Number || !std::isfinite(v->number)) {
+                if (error)
+                    *error = std::string("score.") + n.key + ": expected a number";
+                return false;
+            }
+            s.*n.v = clampf(v->number, n.lo, n.hi);
+        }
+    const prefab::Json* layout = g.get("layout");
+    if (!layout)
+        return true;
+    for (int w = 0; w < 2; ++w) {
+        const char* name = w ? "narrow" : "wide";
+        const prefab::Json* l = layout->get(name);
+        if (!l)
+            continue;
+        ScoreLayout& out = w ? s.narrow : s.wide;
+        for (const ScoreRect& r : SCORE_RECTS)
+            if (const prefab::Json* v = l->get(r.key)) {
+                if (v->type != prefab::Json::Array || v->items.size() != 2 || v->items[0].type != prefab::Json::Number
+                    || v->items[1].type != prefab::Json::Number || !std::isfinite(v->items[0].number)
+                    || !std::isfinite(v->items[1].number)) {
+                    if (error)
+                        *error = std::string("score.layout.") + name + "." + r.key + ": expected [a, b]";
+                    return false;
+                }
+                float a = clampf(v->items[0].number, 0, 2000), b = clampf(v->items[1].number, 0, 2000);
+                (out.*r.v)[0] = a;
+                (out.*r.v)[1] = b > a ? b : a + 1;
+            }
+    }
+    return true;
+}
+
 } // namespace
+
+bool score_key_set(ScoreTheme& s, const char* key, int index, float value)
+{
+    if (!key || !std::isfinite(value))
+        return false;
+    for (const ScoreNum& n : SCORE_NUMS)
+        if (!std::strcmp(key, n.key)) {
+            s.*n.v = clampf(value, n.lo, n.hi);
+            return true;
+        }
+    const char* dot = std::strchr(key, '.');
+    if (!dot || index < 0 || index > 1)
+        return false;
+    std::string width(key, (size_t)(dot - key));
+    if (width != "wide" && width != "narrow")
+        return false;
+    ScoreLayout& l = width == "narrow" ? s.narrow : s.wide;
+    for (const ScoreRect& r : SCORE_RECTS)
+        if (!std::strcmp(dot + 1, r.key)) {
+            (l.*r.v)[index] = clampf(value, 0, 2000);
+            if ((l.*r.v)[1] <= (l.*r.v)[0])
+                (l.*r.v)[1] = (l.*r.v)[0] + 1;
+            return true;
+        }
+    return false;
+}
 
 bool theme_parse(const char* text, Theme& t, std::string* error)
 {
@@ -83,6 +184,9 @@ bool theme_parse(const char* text, Theme& t, std::string* error)
                     }
                     *g.nums[i].v = (float)std::fmin(std::fmax(v->number, (double)g.nums[i].lo), (double)g.nums[i].hi);
                 }
+    if (const prefab::Json* g = root.get("score"))
+        if (!parse_score(*g, t.score, error))
+            return false;
     struct { const char* key; std::string* v; } fonts[] = {
         {"name", &t.font_name}, {"label", &t.font_label}, {"data", &t.font_data}};
     if (const prefab::Json* f = root.get("fonts"))
@@ -95,7 +199,16 @@ bool theme_parse(const char* text, Theme& t, std::string* error)
                 }
                 *e.v = v->string;
             }
+    if (const prefab::Json* m = root.get("menu_model_light"))
+        if (!menu_light_parse(*m, t.menu_light, error))
+            return false;
     return true;
+}
+
+const char* theme_path()
+{
+    const char* path = getenv("ROOD_UI_THEME");
+    return path && *path ? path : "pc/assets/ui/theme.json";
 }
 
 namespace {
@@ -115,9 +228,7 @@ const Theme& loaded(int* serial)
     if (t < next_check)
         return current;
     next_check = t + 0.5;
-    const char* path = getenv("ROOD_UI_THEME");
-    if (!path)
-        path = "pc/assets/ui/theme.json";
+    const char* path = theme_path();
     struct stat st;
     if (stat(path, &st) != 0)
         return current;
@@ -263,17 +374,61 @@ void tint_theme(Theme& t, const int rgb31[3])
     t.accent_soft = guard_wash(t.accent_soft, t.bone, panel1, wash_distance(t.accent_soft, opaque0));
 }
 
+const Theme& theme_file(int* serial) { return loaded(serial); }
+
 float theme_opacity()
 {
     int serial;
     return (float)(loaded(&serial).ground >> 24) / 255.0f;
 }
 
+namespace {
+// The RPC's Score overrides (score_tune), applied over the file's values: one per key and index (a
+// number's index is 0), a later tune replacing it; cleared by a reset or the file's next edit (the file
+// wins: a live reload is never masked by an earlier tune).
+struct ScoreOverride {
+    std::string key;
+    int index;
+    float value;
+};
+std::vector<ScoreOverride> score_overrides;
+int score_override_serial;
+bool score_number_key(const char* key)
+{
+    for (const ScoreNum& n : SCORE_NUMS)
+        if (!std::strcmp(key, n.key))
+            return true;
+    return false;
+}
+} // namespace
+
+bool score_tune(const char* key, int index, float value)
+{
+    if (!key) {
+        score_overrides.clear();
+        ++score_override_serial;
+        return true;
+    }
+    ScoreTheme probe;
+    if (!score_key_set(probe, key, index, value))
+        return false;
+    if (score_number_key(key))
+        index = 0;
+    ++score_override_serial;
+    for (ScoreOverride& o : score_overrides)
+        if (o.index == index && o.key == key) {
+            o.value = value;
+            return true;
+        }
+    score_overrides.push_back({key, index, value});
+    return true;
+}
+
 const Theme& theme()
 {
     static Theme shown;
     static float shown_opacity = -1;
-    static int shown_serial = -1, shown_tint = -1, shown_rgb[3];
+    static int shown_serial = -1, shown_tint = -1, shown_rgb[3], shown_overrides = -1;
     int serial;
     const Theme& t = loaded(&serial);
     float o = pc_ui_menu_opacity;
@@ -281,9 +436,16 @@ const Theme& theme()
     int tint = pc_ui_tint_current(), rgb[3];
     pc_ui_tint_effective(rgb);
     if (serial == shown_serial && o == shown_opacity && tint == shown_tint && rgb[0] == shown_rgb[0]
-        && rgb[1] == shown_rgb[1] && rgb[2] == shown_rgb[2])
+        && rgb[1] == shown_rgb[1] && rgb[2] == shown_rgb[2] && shown_overrides == score_override_serial)
         return shown;
+    if (shown_serial != -1 && serial != shown_serial && !score_overrides.empty()) {
+        score_overrides.clear(); // the file was edited: its values show
+        ++score_override_serial;
+    }
     shown = t;
+    for (const ScoreOverride& v : score_overrides)
+        score_key_set(shown.score, v.key.c_str(), v.index, v.value);
+    shown_overrides = score_override_serial;
     if (tint != PC_UI_TINT_LEA_MONDE)
         tint_theme(shown, rgb);
     shown_opacity = o;
@@ -332,6 +494,37 @@ void theme_json(std::string& j)
     j += "}";
 }
 
+void score_json(std::string& j)
+{
+    const ScoreTheme& s = theme().score;
+    char buf[160];
+    j += ",\"tunables\":{";
+    bool first = true;
+    for (const ScoreNum& n : SCORE_NUMS) {
+        std::snprintf(buf, sizeof buf, "%s\"%s\":%g", first ? "" : ",", n.key, (double)(s.*n.v));
+        j += buf;
+        first = false;
+    }
+    j += ",\"layout\":{";
+    for (int w = 0; w < 2; ++w) {
+        const ScoreLayout& l = w ? s.narrow : s.wide;
+        j += w ? ",\"narrow\":{" : "\"wide\":{";
+        for (size_t i = 0; i < sizeof SCORE_RECTS / sizeof SCORE_RECTS[0]; ++i) {
+            std::snprintf(buf, sizeof buf, "%s\"%s\":[%g,%g]", i ? "," : "", SCORE_RECTS[i].key,
+                (double)(l.*SCORE_RECTS[i].v)[0], (double)(l.*SCORE_RECTS[i].v)[1]);
+            j += buf;
+        }
+        j += "}";
+    }
+    j += "}},\"tune_overrides\":[";
+    for (size_t i = 0; i < score_overrides.size(); ++i) {
+        const ScoreOverride& o = score_overrides[i];
+        std::snprintf(buf, sizeof buf, "%s\"%s[%d]\"", i ? "," : "", o.key.c_str(), o.index);
+        j += buf;
+    }
+    j += "]";
+}
+
 } // namespace ui
 
 // The modern menus' backdrop for the presenters (gl_present.c / vk_present.c, the Ashley tab's model
@@ -359,4 +552,10 @@ extern "C" void pc_ui_theme_ground_rgb(int* r, int* g, int* b)
 {
     unsigned c = ui::theme().ground; // 0xAABBGGRR
     *r = (int)(c & 0xFF), *g = (int)((c >> 8) & 0xFF), *b = (int)((c >> 16) & 0xFF);
+}
+
+// The Score group's override for the RPC (dev_rpc.c ui_menu score_tune; key null: reset). 1 when known.
+extern "C" int pc_ui_score_tune(const char* key, int index, double value)
+{
+    return ui::score_tune(key, index, (float)value) ? 1 : 0;
 }

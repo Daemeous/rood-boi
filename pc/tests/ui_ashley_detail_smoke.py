@@ -15,6 +15,11 @@ from one recorded frame (RPC redraw): its colours and its depth view
     copy left out (D_800F4538[1]->unk17FD 0; MAINMENU func_800F9CB0 sets 1:
     a second copy 2 units off and 64 ordering-table entries behind, in its
     own colour, drawn after the clone).
+  - the light is data (theme.json "menu_model_light", ui/menu_light.h; here
+    a copy of the theme file): RPC graphics menu_light reads the shipped
+    rig; the key's intensity doubled brightens the model's left half (the
+    key comes from the upper left) by at least LIT_MIN on average, and set
+    back the picture is the same as before to within 1 per channel.
   - no gaps: the clone alone (unk17FD forced 0, so nothing fills what the
     geometry leaves open), at most GAP_MAX pixels over all the views of 2D enclosed by
     the model's 3D pixels in thin holes (a component that 3 erosions take
@@ -49,6 +54,9 @@ GAP_MAX = 150            # thin-hole pixels allowed over all the views (measured
                          # antenna's loop and a slit where the arm meets the body, in every build; before it:
                          # 298, the face and the weapon's edges besides)
 MAGENTA = (153, 0, 153)  # gl_present.c / scaled.frag show_depth: 2D
+LIT_MIN = 8              # the key doubled: the model's left half at least this much brighter (mean of r, g, b)
+SHIPPED = {"key_intensity": 0.5, "key_direction": [-0.45, -0.5, -0.74], "fill_intensity": 0.15,
+           "rim_intensity": 0.45, "rim_power": 2, "exposure": 1, "saturation": 1}  # theme.json's block
 
 
 def pictures(g, path):
@@ -164,8 +172,10 @@ def main():
     lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-", dir=out))
     settings = out / "settings.cfg"
     settings.write_text("aa none\n")
+    theme = out / "theme.json"  # a copy: a save from the rig never reaches the repository's
+    shutil.copyfile(ROOT / "pc/assets/ui/theme.json", theme)
     env = {"ROOD_WINDOW": f"{WINDOW[0]}x{WINDOW[1]}", "ROOD_LIGHTS": str(lights), "ROOD_GI": "0",
-           "ROOD_SETTINGS": str(settings)}
+           "ROOD_SETTINGS": str(settings), "ROOD_UI_THEME": str(theme)}
     sym = symbols()
     failures = []
 
@@ -213,6 +223,32 @@ def main():
         # (the column above the "Turn" hint under the model)
         box = (int(rect[0] * k), int(rect[1] * k), int((rect[0] + rect[2]) * k), int((rect[1] + rect[3] * 0.88) * k))
         cx, cy = rect[0] + rect[2] / 2, rect[1] + rect[3] / 2
+        # the light as data: the key's intensity brightens the lit side; set back, the same picture
+        rig = g.call("graphics", menu_light=True)["menu_light"]
+        flat = lambda v: v if isinstance(v, list) else [v]  # noqa: E731
+        shipped = all(len(flat(rig[k])) == len(flat(v)) and all(abs(a - b) < 1e-6 for a, b in zip(flat(rig[k]), flat(v)))
+                      for k, v in SHIPPED.items())
+        check(shipped and not rig["edited"], f"graphics menu_light: the shipped rig ({ {k: rig[k] for k in SHIPPED} })")
+        g.call("pause", paused=True)
+        before, before_depth = pictures(g, out / "light-before")
+        g.call("graphics", menu_light={"key_intensity": rig["key_intensity"] * 2})
+        brighter, _ = pictures(g, out / "light-key")
+        g.call("graphics", menu_light={"key_intensity": rig["key_intensity"]})
+        after, _ = pictures(g, out / "light-after")
+        g.call("pause", paused=False)
+        x0, y0, x1, y1 = box
+        grey, _ = model_masks(before_depth[y0:y1, x0:x1])
+        ys, xs = np.nonzero(grey)
+        left = grey.copy()
+        if xs.size:
+            left[:, (xs.min() + xs.max()) // 2:] = False
+        lum = lambda image: image[y0:y1, x0:x1][left].mean() if left.any() else 0.0  # noqa: E731
+        gain = lum(brighter) - lum(before)
+        check(left.sum() > 1000 and gain >= LIT_MIN,
+              f"key_intensity {rig['key_intensity']} -> {rig['key_intensity'] * 2}: the model's left half "
+              f"{gain:+.1f} brighter on average over {int(left.sum())} pixels (want >= {LIT_MIN})")
+        diff = int(np.abs(after - before).max())
+        check(diff <= 1, f"key_intensity set back: the picture as before (largest channel difference {diff}, want <= 1)")
         total_gap, extra = 0, []
         for view in range(YAWS):
             yaw = ui()["ashley"]["model_yaw"]
