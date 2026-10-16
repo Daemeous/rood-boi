@@ -2,8 +2,8 @@ rood-boi native Windows build tools
 ====================================
 
 Windows programs that rood-boi's native Windows builder uses to build the PlayStation
-decompilation (rood-reverse, by ser-pounce, Lil' Sassy and its other
-contributors: https://github.com/ser-pounce/rood-reverse) without Linux or WSL:
+decompilation (rood-reverse, by ser-pounce and its other contributors:
+https://github.com/ser-pounce/rood-reverse) without Linux or WSL:
 
   old-gcc\2.7.2-psx\cc1.exe   GCC 2.7.2 for the PlayStation, with the patches of
   old-gcc\2.7.2-cdk\cc1.exe   decompals/old-gcc (https://github.com/decompals/old-gcc):
