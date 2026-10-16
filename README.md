@@ -45,12 +45,15 @@ with design notes in [`pc/docs/`](pc/docs).
 ## HD texture packs in this fork
 
 The [player builders](https://github.com/Daemeous/rood-boi/releases/latest) support
-classic Beetle PSX HW PNG texture packs on Vulkan and OpenGL, with or without Merlose.
-Extract your separately downloaded pack, rename the folder containing the PNGs to
-`texture-replacements`, and put it beside `play.bat` / `play.sh` in your built game folder.
-Use Graphics > HD texture replacements to compare with the originals. First loads can pause
-while images decode; broader room, palette and animation coverage still needs testing.
-See [HD texture pack details](pc/docs/HD_Textures.md).
+optional Beetle PSX HW and DuckStation PNG/DDS texture packs on Vulkan and OpenGL,
+with or without Merlose. Put classic Beetle images in `texture-replacements` beside
+`play.bat` / `play.sh`; for DuckStation, put its extracted `SLUS-01040` folder inside
+`texture-replacements`. Beetle page packs use a separate `texture-replacements-pages`
+folder. No packs are bundled or downloaded automatically.
+Use Graphics > HD texture replacements to compare with originals. For an HD font
+pack choose 2D / UI > Text > Original. First loads can pause; broader room, palette
+and animation coverage still needs testing. See [installation, tested packs and
+format limits](pc/docs/HD_Textures.md).
 
 rood-boi is noprompt's native port, built on rood-reverse by
 [ser-pounce](https://github.com/ser-pounce), who started it and did most of the work,
