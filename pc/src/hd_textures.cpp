@@ -76,9 +76,12 @@ void init()
         return;
     initialized = true;
     const char* dir = getenv("ROOD_TEXTURE_PACK");
-    if (!dir || !*dir)
-        return;
     std::error_code ec;
+    if (!dir || !*dir) {
+        dir = "texture-replacements";
+        if (!std::filesystem::is_directory(dir, ec))
+            return;
+    }
     for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
         if (!entry.is_regular_file(ec))
             continue;
