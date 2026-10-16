@@ -239,11 +239,13 @@ static int vk_native_init(void)
     if (vk_native_ready >= 0)
         return vk_native_ready;
     vk_native_ready = 0;
-    VkDescriptorType types[7] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    VkDescriptorType types[11] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
-    vk_native_set = vk_push_layout(types, 7);
+    vk_native_set = vk_push_layout(types, 11);
     VkPipelineLayoutCreateInfo layout = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = 1,
         .pSetLayouts = &vk_native_set };
@@ -367,6 +369,7 @@ static mesh_slot* vk_use_instance(vk_draw_state* s, const draw_list* list, const
     vk_descriptors_buffer(&d, 5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, s->uv_effects.buffer, s->uv_effects.offset,
         (VkDeviceSize)(s->ubo.uv_count > 0 ? s->ubo.uv_count : 1) * sizeof(uv_effect_gpu));
     vk_descriptors_image(&d, 6, vk_hw.emissive.view, vk.nearest);
+    for (int i=0; i<4; ++i) vk_descriptors_image(&d, 7+i, (VkImageView)pc_hd_vk_view(i), vk.nearest);
     vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_layout);
     return mesh;
 }

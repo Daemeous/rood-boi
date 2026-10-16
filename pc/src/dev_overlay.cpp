@@ -1,3 +1,4 @@
+#include "hd_textures.h"
 // Developer overlay: Dear ImGui over the OpenGL presentation (F1 toggles).
 //
 // Input comes from SDL through Dear ImGui's upstream SDL3 platform backend
@@ -626,6 +627,8 @@ static void graphics_panel()
                                   "stepping below the frame rate) blend across the hold (one frame of lag)");
             ImGui::Unindent();
         }
+        bool hd = pc_hd_enabled != 0;
+        if (ImGui::Checkbox("HD texture replacements", &hd)) pc_hd_enabled = hd;
         bool filtering = pc_hw_texture_filter != 0;
         if (ImGui::Checkbox("Smooth textures (bilinear, 3D only)", &filtering))
             pc_hw_texture_filter = filtering;

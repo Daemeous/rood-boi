@@ -4,6 +4,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "vk_hw.h"
 #include "emissive.h"
+#include "hd_textures.h"
 #include "vk_hooks.h"
 #include "vk_shaders.h"
 #include "ui_upscale.h"
@@ -243,10 +244,11 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
         || !vk_image_create(&vk_hw.dummy_color, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT,
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT))
         return 0;
-    VkDescriptorType draw_types[4] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    VkDescriptorType draw_types[8] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
-    draw_set = vk_push_layout(draw_types, 4);
+    draw_set = vk_push_layout(draw_types, 8);
     upload_set = vk_push_layout(draw_types, 1);
     VkPushConstantRange draw_range = { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(draw_push) };
     VkPipelineLayoutCreateInfo layout = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -383,6 +385,7 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
     if (!slice.data)
         return;
     memcpy(slice.data, vertices, (size_t)count * sizeof(hw_vertex));
+    pc_hd_vk_sync();
     vk_begin_rendering(a);
     if (!vk_hw_viewport_scissor(clip))
         return;
@@ -393,6 +396,7 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
     VkImageView atlas = (VkImageView)pc_ui_upscale_vk_view();
     vk_descriptors_image(&d, 2, atlas ? atlas : vk_hw.vram.view, vk.nearest);
     vk_descriptors_image(&d, 3, vk_hw.emissive.view, vk.nearest);
+    for (int i = 0; i < 4; ++i) vk_descriptors_image(&d, 4+i, (VkImageView)pc_hd_vk_view(i), vk.nearest);
     draw_push push = { .perspective = pc_hw_perspective, .filtering = pc_hw_texture_filter, .occlusion = occlusion,
         .ui_scale = atlas ? pc_ui_upscale_draw_factor() : 0, .emissive = pc_hw_emissive(NULL) };
     if (occlusion) {
