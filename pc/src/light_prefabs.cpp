@@ -863,7 +863,10 @@ Prefab prefab_from_json(const std::string& id, const Json& json)
             l.intensity = field(j, "intensity", where);
             l.radius = field(j, "radius", where);
             l.cone = field(j, "cone", where);
+            l.inner = field(j, "inner", where);
             l.size = field(j, "size", where);
+            l.barn_angle = field(j, "barn_angle", where);
+            l.barn_length = field(j, "barn_length", where);
             l.shadows = field(j, "shadows", where);
             l.light_size = field(j, "light_size", where);
             l.enabled = field(j, "enabled", where);
@@ -1362,6 +1365,7 @@ void evaluate(const Prefab& p, const Actor& a, double time, bool animate, std::v
             pivot[k] += w[k];
     }
     float skip = a.fixture && !a.fixture_shadows ? fmaxf(actor_fixture_radius(a), 0) : 0;
+    float s = a.scale > 0 ? a.scale : 1; /* its size (R): lengths scale, intensities do not */
     int index = 0;
     for (const LightTemplate& t : p.lights) {
         EvalLight l;
@@ -1369,7 +1373,7 @@ void evaluate(const Prefab& p, const Actor& a, double time, bool animate, std::v
         l.type = t.type;
         l.enabled = expr_eval(t.enabled, lookup, Value::scalar(1)).x() > 0.5f;
         Value offset = expr_eval(t.offset, lookup, Value::scalar(0));
-        float local[3] = { offset.at(0), offset.at(1), offset.at(2) }, world[3];
+        float local[3] = { offset.at(0) * s, offset.at(1) * s, offset.at(2) * s }, world[3];
         to_world(right, down, forward, local, world);
         for (int k = 0; k < 3; k++)
             l.position[k] = pivot[k] + world[k];
@@ -1383,18 +1387,21 @@ void evaluate(const Prefab& p, const Actor& a, double time, bool animate, std::v
         for (int k = 0; k < 3; k++)
             l.color[k] = fmaxf(color.at(k), 0);
         l.intensity = fmaxf(expr_eval(t.intensity, lookup, Value::scalar(1)).x(), 0);
-        l.radius = fmaxf(expr_eval(t.radius, lookup, Value::scalar(600)).x(), 1);
+        l.radius = fmaxf(expr_eval(t.radius, lookup, Value::scalar(600)).x() * s, 1);
         l.cone = expr_eval(t.cone, lookup, Value::scalar(45)).x();
+        l.inner = expr_eval(t.inner, lookup, Value::scalar(0)).x();
         Value size = expr_eval(t.size, lookup, Value::scalar(128));
-        l.size[0] = fmaxf(size.at(0), 1), l.size[1] = fmaxf(size.n == 3 ? size.v[1] : size.v[0], 1);
+        l.size[0] = fmaxf(size.at(0) * s, 1), l.size[1] = fmaxf((size.n == 3 ? size.v[1] : size.v[0]) * s, 1);
+        l.barn_angle = expr_eval(t.barn_angle, lookup, Value::scalar(45)).x();
+        l.barn_length = fmaxf(expr_eval(t.barn_length, lookup, Value::scalar(0)).x() * s, 0);
         l.shadows = expr_eval(t.shadows, lookup, Value::scalar(0)).x() > 0.5f;
-        l.light_size = fmaxf(expr_eval(t.light_size, lookup, Value::scalar(0)).x(), 0);
+        l.light_size = fmaxf(expr_eval(t.light_size, lookup, Value::scalar(0)).x() * s, 0);
         l.shadow_skip = skip;
         if (animate) {
             uint32_t seed = hash32(a.seed * 2654435761u + (uint32_t)index * 7919u + (uint32_t)(t.phase * 1000.0f));
             float flicker = expr_eval(t.flicker, lookup, Value::scalar(0)).x();
             float speed = expr_eval(t.flicker_speed, lookup, Value::scalar(8)).x();
-            float jitter = expr_eval(t.jitter, lookup, Value::scalar(0)).x();
+            float jitter = expr_eval(t.jitter, lookup, Value::scalar(0)).x() * s;
             float pulse = expr_eval(t.pulse, lookup, Value::scalar(0)).x();
             float pulse_speed = expr_eval(t.pulse_speed, lookup, Value::scalar(0.5f)).x();
             float factor = 1;

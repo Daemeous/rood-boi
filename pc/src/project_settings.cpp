@@ -28,6 +28,7 @@ extern int pc_native_room, pc_native_occlusion, pc_native_actors, pc_native_acto
 extern int pc_editor_hide_masks, pc_editor_game_cutaway, pc_editor_cutaway, pc_editor_cutaway_auto;
 extern float pc_editor_cutaway_radius, pc_editor_cutaway_opacity;
 extern int pc_lights_snap;
+extern int pc_lights_gizmo_space;
 extern int pc_env_global; /* environment.cpp */
 extern float pc_emissive; /* emissive.cpp: glowing surfaces' strength (0 off) */
 extern int pc_fog_global; /* atmosphere.cpp */
@@ -92,6 +93,7 @@ int pc_ui_menu_tint_custom[3] = { 8, 7, 7 }; /* Custom's colour, 0..31 per chann
 #include "ui/ui_tint.h" /* ui_menu_tint lea_monde | classic | ... | custom, ui_menu_tint_custom r g b */
 #include "post.h" /* post_* (post profiles; the old post_flags, focus_mode, ... still load) */
 #include "editor_selection.h" /* editor_hidden_<zone>_<room>: objects hidden in the editor */
+#include "editor_colour.h" /* editor_colour_tabs, editor_recent_colours */
 extern bool pc_lights_show_gizmos;
 namespace rood_lights {
 extern int animate; /* light actors' flicker and pulse (lights.cpp) */
@@ -198,6 +200,7 @@ const Entry entries[] = {
     I("editor_snap_show", pc_overlay_snap_show),
     F("editor_occluded_opacity", pc_overlay_occluded),
     I("editor_snap_grid", pc_lights_snap),
+    I("editor_gizmo_space", pc_lights_gizmo_space), /* 0 world, 1 local (move and rotate) */
     F("editor_snap_move", pc_lights_snap_move),
     F("editor_snap_angle", pc_lights_snap_angle),
     I("editor_snap_point", pc_snap_point),
@@ -399,6 +402,8 @@ int apply_line(const char* line, int* scale, bool now)
         pc_memory_card_set_path(key[4] - '1', rest);
         return 1;
     }
+    if (rood_colour::parse_setting(key, rest)) /* editor state: the colour popover's tabs and recent colours */
+        return 1;
     int applied = 0;
     for (const Entry& e : entries) {
         if (strcmp(e.key, key))
@@ -569,6 +574,7 @@ extern "C" void pc_settings_write(FILE* f)
         fputc('\n', f);
     }
     rood_selection::write_hidden(f);
+    rood_colour::write_settings(f);
 }
 
 /* Apply settings lines now (the editor's undo: the lines that differ, a

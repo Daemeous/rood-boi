@@ -22,6 +22,18 @@ typedef struct {
 extern "C" {
 #endif
 const scene_triangle* pc_scene_triangle_data(int* count);
+/* The room geometry block last captured while it is still the game's loaded
+ * room (vs_battle_roomData), and its size in bytes; NULL while a room loads
+ * (the old block freed, the disc reading the next room, possibly into the
+ * same memory) and until the new block is captured. pc_scene_room_data:
+ * the same block. */
+const void* pc_scene_room_block(unsigned* length);
+const void* pc_scene_room_data(void);
+/* Group `index`'s polygon block in a room geometry block of `length` bytes
+ * (its triangle and quad counts), or NULL when the group's record or its
+ * polygons do not lie inside the block. */
+const unsigned* pc_room_group_geometry(
+    const void* data, unsigned length, unsigned index, unsigned* tris, unsigned* quads);
 int pc_scene_serial(void);
 /* Room texture effects (room_effects.c) animate some triangles' UVs: the
  * triangles' UVs follow the drawn frame (updated once per game frame), the

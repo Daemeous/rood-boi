@@ -28,6 +28,7 @@ layout(std140, binding = 0) uniform Trace {
 #define env_horizon u.env_[3]
 #define env_ground u.env_[4]
 #include "environment.glsl"
+#include "light_shape.glsl"
 #define eye u.eye_.xyz
 #define light_pos u.light_pos
 #define light_col u.light_col
@@ -174,7 +175,6 @@ float light_falloff(int i, vec3 centre, vec3 p, vec3 n, out vec3 l, out float d)
     vec3 to = centre - p; d = length(to); l = to / max(d, 1e-3);
     float x = clamp(d / lpos(i).w, 0.0, 1.0);
     float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);
-    if (lcol(i).w > 1.5) a *= max(dot(-l, ldir(i).xyz), 0.0);
-    else if (lcol(i).w > 0.5) a *= smoothstep(ldir(i).w, mix(ldir(i).w, 1.0, 0.25), dot(-l, ldir(i).xyz));
+    a *= light_shape(lcol(i).w, lpos(i).xyz, ldir(i), lright(i), lup(i), p, l); // spot edge, rect face and barn doors
     return a;
 }

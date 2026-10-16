@@ -28,6 +28,32 @@ git rev-parse -q --verify refs/heads/public >/dev/null || { echo "no public bran
 [ "$(git config --get remote.github.push || true)" = "refs/heads/public:refs/heads/main" ] ||
     { echo "remote.github.push must be refs/heads/public:refs/heads/main" >&2; exit 1; }
 
+# Follow GitHub's main (pull requests merged there move it). The public
+# branch may drop only our own snapshot commits that never reached GitHub
+# (a push refused because a merge landed meanwhile): they hold nothing but
+# an older main tree, and the next snapshot carries all of it.
+git fetch -q github main
+upstream=$(git rev-parse github/main)
+if [ "$(git rev-parse public)" != "$upstream" ]; then
+    unpushed=$(git rev-list public ^"$upstream")
+    for c in $unpushed; do
+        [ "$(git log -1 --format=%ae "$c")" = "$email" ] ||
+            { echo "public has commits that are not our snapshots: $c; sort it out by hand" >&2; exit 1; }
+    done
+    # What GitHub gained since our last snapshot there (merged pull requests)
+    # must already be in main, or publishing main's tree would undo it.
+    last=$(git log --first-parent --author="$email" -1 --format=%H "$upstream" || true)
+    if [ -n "$last" ] && ! git diff --quiet "$last" "$upstream"; then
+        index=$(mktemp)
+        trap 'rm -f "$index"' EXIT
+        GIT_INDEX_FILE="$index" git read-tree main
+        git diff --binary "$last" "$upstream" | GIT_INDEX_FILE="$index" git apply --cached --reverse --check 2>/dev/null ||
+            { echo "github/main has changes (merged pull requests?) that main lacks; merge them into main first" >&2; exit 1; }
+    fi
+    git branch -f public "$upstream" # local only; a dry run pushes nothing
+    echo "public follows github/main ($(git rev-parse --short "$upstream"))"
+fi
+
 if git diff --quiet public main; then
     echo "public already matches main"
 else

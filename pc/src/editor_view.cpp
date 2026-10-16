@@ -19,6 +19,7 @@
 
 extern "C" {
 #include "gl_api.h"
+#include "light_shape.h"
 #ifdef ROOD_VULKAN
 #include "vk_hooks.h"
 #else
@@ -201,6 +202,7 @@ vec4 gi_at(vec3 world, vec3 n, out vec4 extra_out) {
     extra_out = weight > 1e-5 ? extra / weight : vec4(1.0, 0.0, 0.0, 0.0);
     return weight > 1e-5 ? sum / weight : vec4(0.0, 0.0, 0.0, 1.0);
 }
+)" PC_LIGHT_SHAPE_GLSL R"(
 void main() {
     if (facing != 0u && (((v_mask ^ 255u) & facing & 255u) != 0u)) discard; // as func_8009723C
     vec3 albedo = vec3(0.55), base = albedo;
@@ -243,10 +245,7 @@ void main() {
         vec3 l = to / max(d, 1e-3);
         float x = clamp(d / light_pos[i].w, 0.0, 1.0);
         float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);
-        if (light_col[i].w > 1.5)
-            a *= max(dot(-l, light_dir[i].xyz), 0.0);
-        else if (light_col[i].w > 0.5)
-            a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));
+        a *= light_shape(light_col[i].w, light_pos[i].xyz, light_dir[i], light_right[i], light_up[i], v_world, l);
         if (light_shadow[i] == -2) // ray-traced (ptgi.c)
             a *= clamp(gi.a, 0.0, 1.0);
         else if (light_shadow[i] >= 0 && a > 0.0)
@@ -865,6 +864,7 @@ extern "C" int pc_editor_pick(float x, float y, float world[3], float normal[3])
     return 1;
 }
 
+extern "C" int pc_editor_handle_drag(void); /* editor_handles.cpp: a handle is dragged (Alt keeps a rect symmetric) */
 /* Camera input (called each overlay frame while the editor is active). */
 extern "C" void pc_editor_input(void)
 {
@@ -908,7 +908,7 @@ extern "C" void pc_editor_input(void)
         if (io.MouseWheel != 0) /* as in UE: the wheel while flying sets the speed */
             speed = fmaxf(50, fminf(8000, speed * (io.MouseWheel > 0 ? 1.25f : 0.8f)));
     }
-    if (!over_ui && io.KeyAlt && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0)) {
+    if (!over_ui && io.KeyAlt && !pc_editor_handle_drag() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0)) {
         // Orbit about the pivot: rotate the eye around it, keep looking at it.
         float d[3] = { eye[0] - pivot[0], eye[1] - pivot[1], eye[2] - pivot[2] };
         float distance = sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);

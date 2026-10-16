@@ -46,7 +46,9 @@ an expression string or a list of three (a vector):
 | `color` | 1 | display-space colour (the renderer adds light in display space) |
 | `intensity`, `radius` | 1, 600 | as plain lights |
 | `cone` | 45 | spot cone, degrees |
+| `inner` | 0 | spot inner cone, degrees: full brightness inside it (0: the outer quarter of the cone fades) |
 | `size` | 128 | rect width, height |
+| `barn_angle`, `barn_length` | 45, 0 | rect barn doors: angle from its facing (0 straight ahead, 90 folded flat) and length (0: none; scales with the actor) |
 | `shadows` | 0 | casts traced shadows |
 | `light_size` | 0 | emitting radius for soft shadows (0: the room's light size) |
 | `flicker`, `flicker_speed` | 0, 8 | intensity noise amount (0-1, mean-preserving) and rate (Hz) |

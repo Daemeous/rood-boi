@@ -74,12 +74,17 @@ uv 3 speed=0.5
   0.1, colours 0.001, angles 0.01, ...), no trailing zeros. Fields at their
   defaults are left out.
 - Light fields: `name type(point|spot|rect) pos dir color intensity radius
-  cone size(w,h) shadows enabled`. Actor fields: `name prefab pos rot(yaw,pitch,roll)
-  seed enabled glow glowkey fixture fixture_radius fixture_shadows
-  fixture_type flame`, and any parameter of its prefab
-  (`pc/assets/prefabs/*.json`) it overrides. Glow: `pos muted intensity
-  tint size reach fixture_type shape`; `shape=sphere|column` sets its
-  emitting shape (default `auto`: as its fixture type says, else a column
+  cone inner size(w,h) barn_angle barn_length shadows enabled`. `inner` (a
+  spot): full brightness inside this angle, fading out to `cone` (0: the
+  outer quarter of the cone fades). `barn_angle`, `barn_length` (a rect):
+  its four barn doors, at that angle from its facing (0 straight ahead, 90
+  folded flat) and that long (0: no doors). Actor fields: `name prefab pos
+  rot(yaw,pitch,roll) scale seed enabled glow glowkey fixture fixture_radius
+  fixture_shadows fixture_type flame` (`scale`: its size; its lights'
+  offsets, radii and sizes follow, never their brightness), and any
+  parameter of its prefab (`pc/assets/prefabs/*.json`) it overrides.
+  Glow: `pos muted intensity tint size reach fixture_type shape`;
+  `shape=sphere|column` sets its emitting shape (default `auto`: as its fixture type says, else a column
   when it encloses room for a character, the save point's;
   [pc/docs/Glows.md](../pc/docs/Glows.md) "Enclosing glows"), and `size` is
   that sphere's or column's radius. Texture effect: `speed freeze`.

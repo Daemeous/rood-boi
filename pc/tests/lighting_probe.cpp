@@ -62,6 +62,16 @@ static int selftest()
         "a light round-trips through an item");
     check(!it.get("radius") && !it.get("enabled") && it.get("type") && *it.get("type") == "spot",
         "defaults are left out of items");
+    rood_lights::Light shaped;
+    shaped.id = "fedcba98765432";
+    shaped.type = 2;
+    shaped.inner = 20, shaped.barn_angle = 30, shaped.barn_length = 48;
+    Item shaped_item = item_from_light(shaped);
+    rood_lights::Light shaped_back;
+    check(light_from_item(shaped_item, shaped_back) && shaped_back.inner == 20 && shaped_back.barn_angle == 30
+            && shaped_back.barn_length == 48 && shaped_item.get("barn_length")
+            && !item_from_light(rood_lights::Light()).get("barn_angle"),
+        "the inner cone and barn doors round-trip; at their defaults they are left out");
     Entry e;
     e.item = it;
     e.id = it.id();
@@ -81,6 +91,12 @@ static int selftest()
     check(actor_from_item(ai, ab) && ab.overrides.size() == 2 && ab.glow_linked && ab.glow_key == a.glow_key
             && ab.prefab == "candle",
         "an actor round-trips (parameters, glow link)");
+    prefab::Actor sized = a;
+    sized.scale = 1.75f;
+    Item si = item_from_actor(sized);
+    prefab::Actor sb;
+    check(actor_from_item(si, sb) && fabsf(sb.scale - 1.75f) < 1e-4f && si.get("scale") && !ai.get("scale"),
+        "an actor's scale round-trips; at 1 it is left out");
     /* Diff and merge. */
     State below, want;
     below[it.id()] = it;

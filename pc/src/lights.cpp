@@ -23,6 +23,7 @@
 #include <thread>
 #include "pc_paths.h"
 #include "light_list.h"
+#include "light_shape.h"
 #include <vector>
 
 #include "imgui.h"
@@ -32,7 +33,6 @@
 #include "ImGuizmo.h"
 #include "editor_overlays.h"
 #include "probe_gi.h"
-extern "C" void pc_env_draw(const float view[16], const float projection[16], const float rect[4]); /* environment.cpp */
 bool pc_atmosphere_viewport(const float view[16], const float projection[16], const float rect[4], void* draw_list);
 #include "fixture_catalog.h"
 #include "lights_internal.h"
@@ -40,6 +40,11 @@ bool pc_atmosphere_viewport(const float view[16], const float projection[16], co
 #include "editor_undo.h"
 #include "editor_scene.h"
 #include "editor_selection.h"
+#include "editor_math.h"
+#include "editor_transform.h"
+#include "editor_handles.h"
+#include "editor_colour.h"
+#include "environment_internal.h"
 
 extern "C" {
 int pc_scene_camera_get(float rotation[3][3], float translation[3], float* h, float* ofx, float* ofy);
@@ -59,7 +64,7 @@ int selected = -1;
 int selected_actor = -1;
 std::vector<int> multi;
 int solo = -1, solo_actor = -1; // only this light / actor lights the scene (editor solo)
-int gizmo_operation; // 0 move, 1 rotate (aim spot/rect lights, turn actors)
+int gizmo_operation; // 0 move (W), 1 rotate (E: aims spot and rect lights, turns actors), 2 scale (R: shape only)
 bool glow_selected; // a glow (game emitter) is selected instead of a light
 uint32_t glow_id; // its id (glows.c: stable while in the room)
 float glow_at[3]; // its position (follows the glow)
@@ -369,22 +374,7 @@ extern "C" int pc_lights_glow_drive(const char* key, const float p[3], float* sc
  * span the rect (world up is -y). */
 static void light_frame(const Light& l, float forward[3], float right[3], float up[3])
 {
-    float len = sqrtf(l.direction[0] * l.direction[0] + l.direction[1] * l.direction[1]
-        + l.direction[2] * l.direction[2]);
-    for (int k = 0; k < 3; k++)
-        forward[k] = len > 1e-6f ? l.direction[k] / len : (k == 1);
-    float world_up[3] = { 0, -1, 0 };
-    if (fabsf(forward[1]) > 0.95f)
-        world_up[1] = 0, world_up[2] = 1;
-    right[0] = world_up[1] * forward[2] - world_up[2] * forward[1];
-    right[1] = world_up[2] * forward[0] - world_up[0] * forward[2];
-    right[2] = world_up[0] * forward[1] - world_up[1] * forward[0];
-    float rl = sqrtf(right[0] * right[0] + right[1] * right[1] + right[2] * right[2]);
-    for (int k = 0; k < 3; k++)
-        right[k] /= rl;
-    up[0] = forward[1] * right[2] - forward[2] * right[1];
-    up[1] = forward[2] * right[0] - forward[0] * right[2];
-    up[2] = forward[0] * right[1] - forward[1] * right[0];
+    rood_math::light_frame(l.direction, forward, right, up);
 }
 
 extern "C" int pc_lights_world(float position[][4], float color[][4], float direction[][4],
@@ -669,6 +659,9 @@ static void draw_probe(const View& v, ImDrawList* draw)
 extern "C" {
 float pc_lights_snap_move = 8, pc_lights_snap_angle = 15; /* grid step: Unreal's default size */
 int pc_lights_snap; /* grid snapping of moves and rotations (settings editor_snap_grid) */
+/* The move and rotate tools' axes: 0 the world's, 1 the object's own (toolbar
+ * World / Local; settings editor_gizmo_space). Scale is always the object's. */
+int pc_lights_gizmo_space;
 }
 
 /* The tools' view this frame: the separate renderer's own, else the game
@@ -1212,6 +1205,44 @@ static void empty_click(float x, float y, bool shift, bool ctrl)
     rood_scene::publish();
 }
 
+/* R through the scale table (editor_transform.h): from the shape as the drag
+ * began (`from_light` / `from_actor`; a fog volume from its size now), one
+ * undo step named after the object. */
+static void scale_object(const rood_selection::Ref& r, const float ratio[3], const Light& from_light,
+    const prefab::Actor& from_actor)
+{
+    int i = rood_scene::index_of(r);
+    if (i < 0)
+        return;
+    if (r.kind == rood_selection::KIND_LIGHT) {
+        rood_transform::scale_light(from_light, ratio, lights[i]);
+        pc_undo_hint((std::string("Scale ") + light_type_name(lights[i].type)).c_str());
+    } else if (r.kind == rood_selection::KIND_ACTOR) {
+        rood_transform::scale_actor(from_actor, ratio, actors[i]);
+        pc_undo_hint(("Scale " + rood_scene::label(r)).c_str());
+    } else if (r.kind == rood_selection::KIND_VOLUME) {
+        float size[3], out[3];
+        if (!rood_atmo::volume_size(i, size))
+            return;
+        rood_transform::scale_volume(size, ratio, out);
+        rood_atmo::set_volume_size(i, out);
+        pc_undo_hint("Scale fog volume");
+    } else {
+        return;
+    }
+    dirty = true;
+}
+namespace {
+Light scale_from_light; /* the shape as a scale drag began */
+prefab::Actor scale_from_actor;
+/* The light / actor manipulator as last drawn (RPC editor_transform). */
+struct GizmoShown {
+    int frame = -100;
+    std::string subject;
+    const char* operation = "";
+    const char* mode = "";
+} gizmo_shown;
+} // namespace
 /* Draw and edit lights and actors in the scene (called with the overlay
  * open), over the viewport overlays (editor_overlays.cpp). Click an icon
  * to select (an actor's pivot or any of its lights selects the actor); drag
@@ -1236,7 +1267,6 @@ extern "C" void pc_lights_viewport(void)
     bool snap_drag = (was_using && gizmo_operation == 0 && (modes & geometry_modes)) || (drag.active && (modes & geometry_modes));
     pc_overlay_draw(&ov, draw, snap_drag || (v_held && (modes & geometry_modes)));
     pc_probe_draw(ov.view, ov.projection, ov.rect, draw); /* probe GI visualisation (probe_overlay.cpp) */
-    pc_env_draw(ov.view, ov.projection, ov.rect); /* the sun direction gizmo (environment.cpp) */
     draw_cutaway_focus(v, draw);
     bool in_view = io.MousePos.x >= v.rect[0] && io.MousePos.y >= v.rect[1] && io.MousePos.x < v.rect[0] + v.rect[2]
         && io.MousePos.y < v.rect[1] + v.rect[3];
@@ -1339,6 +1369,10 @@ extern "C" void pc_lights_viewport(void)
     }
     if (probe_valid)
         draw_probe(v, draw);
+    /* The selection's handles (editor_handles.cpp) have the mouse before the
+     * gizmo and the view's clicks; the gizmo is off under a handle. */
+    bool handles_busy = !drag.active && rood_handles::frame(ov, pick_for_snap, draw);
+    ImGuizmo::Enable(!handles_busy);
     ImGuizmo::SetOrthographic(false);
     ImGuizmo::SetDrawlist(draw);
     ImGuizmo::SetRect(v.rect[0], v.rect[1], v.rect[2], v.rect[3]);
@@ -1348,7 +1382,7 @@ extern "C" void pc_lights_viewport(void)
     if ((have_light || have_actor) && !drag.active) {
         float model[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
         float right[3], second[3], forward[3], *position;
-        bool rotate;
+        bool rotate, scale = gizmo_operation == 2;
         if (have_light) {
             Light& l = lights[selected];
             light_frame(l, forward, right, second); /* columns: right, up, forward */
@@ -1360,37 +1394,57 @@ extern "C" void pc_lights_viewport(void)
             position = a.position;
             rotate = gizmo_operation == 1;
         }
+        /* Unit columns every frame: a scale drag's columns come back as its ratios. */
         for (int k = 0; k < 3; k++)
             model[k] = right[k], model[4 + k] = second[k], model[8 + k] = forward[k];
         model[12] = position[0], model[13] = position[1], model[14] = position[2];
         float snap[3] = { pc_lights_snap_move, pc_lights_snap_move, pc_lights_snap_move };
         if (rotate)
             snap[0] = snap[1] = snap[2] = pc_lights_snap_angle;
+        if (scale)
+            snap[0] = snap[1] = snap[2] = 0.1f; /* ratio steps */
         Light before_light = have_light ? lights[selected] : Light();
         prefab::Actor before_actor = have_actor ? actors[selected_actor] : prefab::Actor();
+        if (!was_using) /* the shape as a scale drag begins (R maps the ratios onto it) */
+            scale_from_light = before_light, scale_from_actor = before_actor;
         bool snapping = (pc_lights_snap != 0) != io.KeyCtrl; /* Ctrl inverts grid snapping while dragging */
-        if (ImGuizmo::Manipulate(v.view, v.projection, rotate ? ImGuizmo::ROTATE : ImGuizmo::TRANSLATE,
-                rotate ? ImGuizmo::LOCAL : ImGuizmo::WORLD, model, nullptr, snapping ? snap : nullptr)) {
-            position[0] = model[12], position[1] = model[13], position[2] = model[14];
-            if (rotate) {
-                float c[3][3];
-                for (int col = 0; col < 3; col++) {
-                    float len = sqrtf(model[col * 4] * model[col * 4] + model[col * 4 + 1] * model[col * 4 + 1]
+        ImGuizmo::OPERATION op = scale ? ImGuizmo::SCALE : rotate ? ImGuizmo::ROTATE : ImGuizmo::TRANSLATE;
+        /* The toolbar's World / Local for move and rotate; scale always on the object's own axes. */
+        ImGuizmo::MODE mode = scale || pc_lights_gizmo_space ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
+        rood_selection::Ref subject = have_light ? rood_scene::light_ref(selected) : rood_scene::actor_ref(selected_actor);
+        gizmo_shown.frame = ImGui::GetFrameCount();
+        gizmo_shown.subject = subject.id;
+        gizmo_shown.operation = scale ? "scale" : rotate ? "rotate" : "move";
+        gizmo_shown.mode = mode == ImGuizmo::LOCAL ? "local" : "world";
+        if (ImGuizmo::Manipulate(v.view, v.projection, op, mode, model, nullptr, snapping ? snap : nullptr)) {
+            if (scale) {
+                float ratio[3];
+                for (int col = 0; col < 3; col++)
+                    ratio[col] = sqrtf(model[col * 4] * model[col * 4] + model[col * 4 + 1] * model[col * 4 + 1]
                         + model[col * 4 + 2] * model[col * 4 + 2]);
-                    for (int k = 0; k < 3; k++)
-                        c[col][k] = model[col * 4 + k] / (len > 1e-6f ? len : 1);
+                scale_object(subject, ratio, scale_from_light, scale_from_actor);
+            } else {
+                position[0] = model[12], position[1] = model[13], position[2] = model[14];
+                if (rotate) {
+                    float c[3][3];
+                    for (int col = 0; col < 3; col++) {
+                        float len = sqrtf(model[col * 4] * model[col * 4] + model[col * 4 + 1] * model[col * 4 + 1]
+                            + model[col * 4 + 2] * model[col * 4 + 2]);
+                        for (int k = 0; k < 3; k++)
+                            c[col][k] = model[col * 4 + k] / (len > 1e-6f ? len : 1);
+                    }
+                    if (have_light)
+                        memcpy(lights[selected].direction, c[2], sizeof c[2]);
+                    else
+                        prefab::rotation_from_basis(c[0], c[1], c[2], actors[selected_actor].rotation);
                 }
-                if (have_light)
-                    memcpy(lights[selected].direction, c[2], sizeof c[2]);
-                else
-                    prefab::rotation_from_basis(c[0], c[1], c[2], actors[selected_actor].rotation);
             }
             dirty = true;
         }
         /* Point, edge and surface snapping take the selection to the target
          * under the cursor, wherever the handle would have gone. */
         pc_snap_result target;
-        if (ImGuizmo::IsUsing() && !rotate && modes
+        if (ImGuizmo::IsUsing() && !rotate && !scale && modes
             && pc_overlay_snap(&ov, io.MousePos.x, io.MousePos.y, modes, pick_for_snap, &target)) {
             if (memcmp(position, target.position, sizeof target.position))
                 dirty = true;
@@ -1398,8 +1452,9 @@ extern "C" void pc_lights_viewport(void)
             pc_overlay_draw_snap(&ov, draw, &target);
         }
         gizmo_busy = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
-        /* Alt+drag (as in UE): a copy stays where the light or actor was. */
-        if (ImGuizmo::IsUsing() && !was_using && io.KeyAlt) {
+        /* Alt+drag (as in UE): a copy stays where the light or actor was
+         * (moving or turning it; a scale has no copy). */
+        if (ImGuizmo::IsUsing() && !was_using && io.KeyAlt && !scale) {
             pc_undo_hint(have_light ? "Duplicate light (Alt+drag)" : "Duplicate actor (Alt+drag)");
             /* The copy gets its own id (the selection, by id, stays on the
              * one being dragged; editor_scene.cpp assigns the new id). */
@@ -1417,6 +1472,8 @@ extern "C" void pc_lights_viewport(void)
     } else {
         was_using = false;
     }
+    ImGuizmo::Enable(true);
+    gizmo_busy |= handles_busy;
     /* Fog volumes (atmosphere.cpp): outlines, the selected one's gizmo. */
     if (pc_atmosphere_viewport(v.view, v.projection, v.rect, draw))
         gizmo_busy = true;
@@ -1456,6 +1513,9 @@ extern "C" void pc_lights_viewport(void)
         || !ImGui::IsMouseClicked(ImGuiMouseButton_Left) || io.KeyAlt)
         return;
     float world[3], normal[3];
+    /* A spot waiting to be aimed (its handle) or the colour popover's eyedropper takes the click. */
+    if (rood_handles::viewport_click(io.MousePos.x, io.MousePos.y) || rood_colour::viewport_click(io.MousePos.x, io.MousePos.y))
+        return;
     /* The emissive panel's texture picker (emissive_editor.cpp) takes the click when armed. */
     if (pc_emissive_viewport_click && pc_emissive_viewport_click(io.MousePos.x, io.MousePos.y))
         return;
@@ -1553,7 +1613,9 @@ static Light from_eval(const prefab::EvalLight& e)
     l.radius = e.radius;
     memcpy(l.direction, e.direction, sizeof l.direction);
     l.cone = e.cone;
+    l.inner = e.inner;
     l.size[0] = e.size[0], l.size[1] = e.size[1];
+    l.barn_angle = e.barn_angle, l.barn_length = e.barn_length;
     l.shadows = e.shadows;
     l.enabled = e.enabled;
     return l;
@@ -1685,6 +1747,10 @@ extern "C" int pc_lights_world(float position[][4], float color[][4], float dire
         direction[n][3] = cosf(l.cone * 0.5f * 3.14159265f / 180.0f);
         extent_right[n][3] = l.type != 2 ? c.light_size : 0;
         extent_up[n][3] = c.shadow_skip;
+        if (l.type == 1) /* the spot's inner cone (light_shape.h; its right axis is unused) */
+            extent_right[n][0] = pc_spot_cos_inner(l.cone, l.inner);
+        if (l.type == 2) /* the rect's barn doors (light_shape.h; its cone slot and own size are unused) */
+            pc_barn_pack(l.barn_angle, l.barn_length, &direction[n][3], &extent_right[n][3]);
         shadows[n] = l.shadows && pc_shadow_mode != PC_SHADOWS_OFF; /* lighting quality: Shadows Off */
         ++n;
     }
@@ -1761,6 +1827,49 @@ extern "C" void pc_lights_mark_dirty(void) { dirty = true; }
 extern "C" void pc_lights_reload(void) { load_room(zone, room); }
 extern "C" const char* pc_lights_status(void) { return status; }
 extern "C" int* pc_lights_gizmo_operation(void) { return &gizmo_operation; }
+/* RPC editor_transform (dev_rpc.c hands over the params object's text):
+ * action state (default): the tool (0 move, 1 rotate, 2 scale), the space,
+ * and the light / actor manipulator as last drawn (its subject, operation,
+ * mode); scale {ratio [x, y, z], id (default the selection's primary)}: R as
+ * the gizmo applies it (editor_transform.h), one undo step. */
+extern "C" int pc_editor_transform_rpc(const char* params_text, char* out, int size)
+{
+    prefab::Json params;
+    std::string error;
+    if (!prefab::json_parse(params_text && *params_text ? params_text : "{}", params, &error)
+        || params.type != prefab::Json::Object) {
+        snprintf(out, size, "params: %s", error.empty() ? "expected an object" : error.c_str());
+        return -1;
+    }
+    rood_scene::frame();
+    const prefab::Json* a = params.get("action");
+    std::string action = a && a->type == prefab::Json::String ? a->string : "state";
+    if (action == "scale") {
+        rood_selection::Ref r = rood_selection::primary();
+        if (const prefab::Json* id = params.get("id"))
+            r = rood_selection::ref_of(id->string);
+        const prefab::Json* ratio = params.get("ratio");
+        int i = rood_scene::index_of(r);
+        if (i < 0 || r.kind == rood_selection::KIND_GLOW || !ratio || ratio->type != prefab::Json::Array
+            || ratio->items.size() != 3) {
+            snprintf(out, size, "scale needs ratio [x, y, z] and a light, light actor or fog volume (id or the selection)");
+            return -1;
+        }
+        float k[3] = { (float)ratio->items[0].number, (float)ratio->items[1].number, (float)ratio->items[2].number };
+        scale_object(r, k, r.kind == rood_selection::KIND_LIGHT ? lights[i] : Light(),
+            r.kind == rood_selection::KIND_ACTOR ? actors[i] : prefab::Actor());
+    } else if (action != "state") {
+        snprintf(out, size, "action: state or scale");
+        return -1;
+    }
+    bool shown = ImGui::GetCurrentContext() && gizmo_shown.frame >= ImGui::GetFrameCount() - 1;
+    std::string s = "{\"operation\":" + std::to_string(gizmo_operation) + ",\"space\":\""
+        + (pc_lights_gizmo_space ? "local" : "world") + "\",\"gizmo\":{\"shown\":" + (shown ? "true" : "false")
+        + ",\"subject\":" + (shown ? prefab::json_quote(gizmo_shown.subject) : std::string("null")) + ",\"operation\":\""
+        + (shown ? gizmo_shown.operation : "") + "\",\"mode\":\"" + (shown ? gizmo_shown.mode : "") + "\"}}";
+    snprintf(out, size, "%s", s.c_str());
+    return (int)s.size() < size ? 0 : -1;
+}
 extern "C" bool* pc_lights_show(void) { return &pc_lights_show_gizmos; }
 extern "C" int pc_lights_selection(void) { return selected >= 0 && selected < (int)lights.size() ? selected : -1; }
 extern "C" void pc_lights_select(int i) { select_light(i); }

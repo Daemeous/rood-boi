@@ -21,7 +21,10 @@ struct Light {
     float radius = 600;
     float direction[3] = { 0, 1, 0 }; // spot: world direction (y is down)
     float cone = 45;
+    float inner = 0; // spot: full brightness inside this full angle, fading to the cone (0: the outer quarter fades)
     float size[2] = { 128, 128 }; // rect: width, height (world units)
+    float barn_angle = 45; // rect: its barn doors' angle from its facing (0 straight ahead .. 90 folded flat)
+    float barn_length = 0; // rect: how far its doors reach out from each edge (world units; 0: none)
     bool shadows = false;
     bool enabled = true;
     /* Stable id (lighting_layers.h: "light:<id>"; assigned when first
@@ -42,7 +45,7 @@ extern uint32_t glow_id; /* the selected glow (glows.c id; 0: none found) */
 extern float glow_at[3];
 extern bool dirty;
 extern char status[256];
-extern int gizmo_operation;
+extern int gizmo_operation; /* 0 move (W), 1 rotate (E), 2 scale (R; editor_transform.h) */
 
 void track_room();
 void select_none();

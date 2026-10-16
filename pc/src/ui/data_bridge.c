@@ -272,6 +272,15 @@ void pc_ui_data_frame_inject(unsigned* pressed, int* repeat)
      * them too (4:3 draws the two cards side by side in the header) */
     if (s.phase == PC_UI_DATA_PH_CARD && !(*repeat & (PADLup | PADLdown)) && (*repeat & (PADLleft | PADLright)))
         *repeat |= PADLup;
+    /* a Yes / No prompt: MENU7 toggles it on Up / Down only (260.c _promptConfirm);
+     * the native dialog lays Yes and No side by side, so Left goes to Yes and
+     * Right to No (one toggle when it moves the focus, nothing at the edge) */
+    if (s.phase == PC_UI_DATA_PH_PROMPT && !(*repeat & (PADLup | PADLdown))
+        && (*repeat & (PADLleft | PADLright))) {
+        int to = (*repeat & PADLleft) ? 0 : 1; /* MENU7's cancelled: 0 Yes, 1 No */
+        if (!(*repeat & PADLleft && *repeat & PADLright) && s.cancelled != to)
+            *repeat |= PADLup;
+    }
     if (r == PC_UI_DATA_PLAN_PRESS && !s.real) {
         *pressed = pad_bits(press);
         *repeat = (int)pad_bits(press);

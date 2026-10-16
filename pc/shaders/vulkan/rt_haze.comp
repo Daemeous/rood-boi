@@ -78,8 +78,7 @@ vec3 source_light(int i, vec3 x, out vec3 l, out float d) {
     vec3 to = centre - x; d = length(to); l = to / max(d, 1e-3);
     float f = clamp(d / pos.w, 0.0, 1.0);
     float a = (1.0 - f * f) * (1.0 - f * f);
-    if (i < light_count && lcol(i).w > 1.5) a *= max(dot(-l, ldir(i).xyz), 0.0);
-    else if (i < light_count && lcol(i).w > 0.5) a *= smoothstep(ldir(i).w, mix(ldir(i).w, 1.0, 0.25), dot(-l, ldir(i).xyz));
+    if (i < light_count) a *= light_shape(lcol(i).w, lpos(i).xyz, ldir(i), lright(i), lup(i), x, l);
     return col * a;
 }
 void main() {

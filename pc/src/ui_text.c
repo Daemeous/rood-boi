@@ -1262,8 +1262,34 @@ static text_call* call_slot(const void* command, int insert)
     return insert ? (free_slot ? free_slot : &calls[s]) : NULL;
 }
 
+/* button_roles.c (battle builds): the glyph shown for the font's ○ and ×
+ * where Circle and Cross are exchanged. */
+extern int pc_button_roles_glyph(int glyph) __attribute__((weak));
+
+/* Move a glyph's texels `du` across: its sprite, or the fixed font's quad
+ * (fixed_font.c: u0 at words 2 and 6, u0 + 12 at 4 and 8). */
+static void shift_texels(uint32_t* w, int du)
+{
+    unsigned code = w[0] >> 24, u = w[2] & 255;
+    if ((code & 0xe4) == 0x64)
+        w[2] = (w[2] & ~255u) | ((u + (unsigned)du) & 255);
+    else if ((w[6] & 255) == u && (w[4] & 255) == u + 12 && (w[8] & 255) == u + 12)
+        for (int k = 2; k <= 8; k += 2)
+            w[k] = (w[k] & ~255u) | (((w[k] & 255) + (unsigned)du) & 255);
+}
+
 void pc_text_glyph(void* const* commands, int count, int glyph, int x, int y, int next_x, int advance)
 {
+    /* The game's ○ / × follow the button roles (button_roles.c): the
+     * packets show the other glyph, as if the game had set it. */
+    if (pc_button_roles_glyph && glyph >= 0) {
+        int shown = pc_button_roles_glyph(glyph);
+        if (shown != glyph) {
+            for (int i = 0; i < count; i++)
+                shift_texels(commands[i], (shown - glyph) * 12);
+            glyph = shown;
+        }
+    }
     /* One string: on the line the previous character was set on, where it
      * left the pen (a space or two of offset, 0xFA, allowed either way). */
     int d = x - pen.next_x;

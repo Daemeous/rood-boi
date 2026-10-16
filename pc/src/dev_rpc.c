@@ -43,13 +43,18 @@
  *                                triggers: 0 Modern, 1 Original) and
  *                                qol_fp_invert_y (first-person up/down):
  *                                sets them, replies all three
- *   button_roles {confirm_cross, field_cross_attack}  settings
+ *   button_roles {confirm_cross, field_cross_attack, symbol_exceptions}  settings
  *                                qol_confirm_cross and qol_field_cross_attack
  *                                (button_roles.c, battle builds): sets them;
  *                                replies them, the game's context now
  *                                (menus, field, targeting, game), whether
- *                                Circle and Cross are exchanged there (swap)
- *                                and each role's button
+ *                                Circle and Cross are exchanged there (swap),
+ *                                each role's button and the game's own ○ / ×
+ *                                drawn since start (drawn: for text and
+ *                                sprite, each as shown and how many were
+ *                                swapped); symbol_exceptions false (tests)
+ *                                exchanges the ○ / × that name buttons the
+ *                                roles never move too
  *   weapon_slots {enabled}       the QoL weapon slots (weapon_slots.c,
  *                                settings key qol_weapon_slots): sets the
  *                                option; replies it, the overlay/assign/swap
@@ -258,8 +263,10 @@
  *                                polygons, black shell, hidden, cutaway,
  *                                drawn in the latest frame) and the facing
  *                                mask that frame tested; hide/show take a
- *                                list of group indices (free camera view only)
- *   editor_view {focus}          the free camera's cutaway focus: [x, y, z]
+ *                                list of group indices (free camera view only);
+ *                                room: "ready", or "loading" (no groups while
+ *                                a room loads)
+ *   editor_view {focus}         the free camera's cutaway focus: [x, y, z]
  *                                fixes it, null returns to the automatic one;
  *                                replies whether surfaces hide it (hidden) and
  *                                how far the ghosting cut has faded in (amount)
@@ -354,7 +361,7 @@
 extern int pc_overlay_wire __attribute__((weak)), pc_overlay_points __attribute__((weak)),
     pc_overlay_actor_wire __attribute__((weak)), pc_overlay_snap_show __attribute__((weak)),
     pc_snap_point __attribute__((weak)), pc_snap_edge __attribute__((weak)), pc_snap_midpoint __attribute__((weak)),
-    pc_snap_surface __attribute__((weak)), pc_lights_snap __attribute__((weak));
+    pc_snap_surface __attribute__((weak)), pc_lights_snap __attribute__((weak)), pc_lights_gizmo_space __attribute__((weak));
 extern float pc_overlay_occluded __attribute__((weak)), pc_snap_radius __attribute__((weak)),
     pc_snap_highlight __attribute__((weak)), pc_snap_offset __attribute__((weak)), pc_lights_snap_move __attribute__((weak));
 extern unsigned pc_snap_modes(int) __attribute__((weak));
@@ -451,6 +458,7 @@ extern int pc_qol_weapon_slots; /* project_settings.cpp */
 extern int pc_qol_map_invert, pc_qol_fp_invert_y, pc_qol_map_controls; /* project_settings.cpp */
 extern int pc_qol_confirm_cross, pc_qol_field_cross_attack; /* project_settings.cpp */
 extern void pc_button_roles_json(char* out) __attribute__((weak)); /* button_roles.c */
+extern void pc_button_roles_symbol_exceptions(int on) __attribute__((weak));
 extern void pc_weapon_slots_json(char* out, unsigned size) __attribute__((weak)); /* weapon_slots.c */
 extern int pc_ui_menus; /* project_settings.cpp */
 extern void pc_ui_shell_json(char* out, unsigned size); /* ui/ui_shell.cpp */
@@ -1046,6 +1054,8 @@ static void handle_method(int fd, const char* request)
             pc_qol_confirm_cross = flag;
         if (params && bool_value(member(params, "field_cross_attack"), &flag))
             pc_qol_field_cross_attack = flag;
+        if (params && bool_value(member(params, "symbol_exceptions"), &flag))
+            pc_button_roles_symbol_exceptions(flag);
         pc_button_roles_json(result);
         reply(fd, id, result);
     } else if (!strcmp(method, "weapon_slots")) {
@@ -1607,6 +1617,7 @@ static void handle_method(int fd, const char* request)
             { "editor_snap_show", &pc_overlay_snap_show, NULL },
             { "editor_occluded_opacity", NULL, &pc_overlay_occluded },
             { "editor_snap_grid", &pc_lights_snap, NULL },
+            { "editor_gizmo_space", &pc_lights_gizmo_space, NULL },
             { "editor_snap_move", NULL, &pc_lights_snap_move },
             { "editor_snap_point", &pc_snap_point, NULL },
             { "editor_snap_edge", &pc_snap_edge, NULL },
@@ -2375,7 +2386,12 @@ static void handle_method(int fd, const char* request)
         /* drawn: func_8009723C drew the group in the latest frame (either
          * path); facing: the mask it tested (the game's, or the free
          * camera's while it flies; 0x10000: every group). */
-        int used = snprintf(result, sizeof result, "{\"facing\":%u,\"groups\":[", facing);
+        /* room: "ready" when the groups are the loaded room's, "loading"
+         * while a room loads (or none is loaded): no groups then. */
+        extern int pc_room_editor_ready(void) __attribute__((weak));
+        int ready = pc_room_editor_ready && pc_room_editor_ready();
+        int used = snprintf(result, sizeof result, "{\"facing\":%u,\"room\":\"%s\",\"groups\":[", facing,
+            ready ? "ready" : "loading");
         for (int i = 0; i < count && used < (int)sizeof result - 300; i++) {
             used += snprintf(result + used, sizeof result - used,
                 "%s{\"flags\":%u,\"polygons\":%d,\"black\":%d,\"hidden\":%d,\"room_hides\":%d,\"cutaway\":%d,"
@@ -2465,12 +2481,19 @@ static void handle_method(int fd, const char* request)
             open ? "true" : "false", pc_overlay_set_help && pc_overlay_set_help(help) ? "true" : "false",
             shown ? "place" : "outliner", pc_overlay_details_tab ? pc_overlay_details_tab() : "");
         reply(fd, id, result);
-    } else if (!strcmp(method, "editor_select") || !strcmp(method, "editor_schema")) {
-        /* The editor's selection (editor_scene.cpp) and property schema
-         * (editor_schema.cpp); they parse the params object themselves. */
+    } else if (!strcmp(method, "editor_select") || !strcmp(method, "editor_schema") || !strcmp(method, "editor_transform")
+        || !strcmp(method, "editor_handles")) {
+        /* The editor's selection (editor_scene.cpp), property schema
+         * (editor_schema.cpp) and transform tools (lights.cpp); they parse the
+         * params object themselves. */
         extern int pc_editor_select_rpc(const char*, char*, int) __attribute__((weak));
         extern int pc_editor_schema_rpc(const char*, char*, int) __attribute__((weak));
-        int (*handler)(const char*, char*, int) = !strcmp(method, "editor_select") ? pc_editor_select_rpc : pc_editor_schema_rpc;
+        extern int pc_editor_transform_rpc(const char*, char*, int) __attribute__((weak));
+        extern int pc_editor_handles_rpc(const char*, char*, int) __attribute__((weak));
+        int (*handler)(const char*, char*, int) = !strcmp(method, "editor_select") ? pc_editor_select_rpc
+            : !strcmp(method, "editor_schema")                                     ? pc_editor_schema_rpc
+            : !strcmp(method, "editor_transform")                                  ? pc_editor_transform_rpc
+                                                                                   : pc_editor_handles_rpc;
         if (!handler) {
             fail(fd, id, -32000, "needs the editor");
             return;
@@ -3017,13 +3040,13 @@ static void handle_method(int fd, const char* request)
          * keyboard focus (focus "search": the Outliner's search field;
          * "none": nothing). */
         extern int pc_overlay_input(const char* keys, const char* text, int ctrl, int shift, const char* focus,
-            char* out, int size) __attribute__((weak));
+            const char* hold, int release, char* out, int size) __attribute__((weak));
         if (!pc_overlay_input) {
             fail(fd, id, -32000, "needs the overlay");
             return;
         }
-        char keys[256] = "", typed[128] = "", focus[16] = "";
-        int ctrl = 0, shift = 0;
+        char keys[256] = "", typed[128] = "", focus[16] = "", hold[64] = "";
+        int ctrl = 0, shift = 0, release = 0;
         if (params) {
             const char* list = member(params, "keys");
             const char* end = list ? value_end(list) : NULL;
@@ -3035,8 +3058,15 @@ static void handle_method(int fd, const char* request)
             string_value(member(params, "focus"), focus, sizeof focus);
             bool_value(member(params, "ctrl"), &ctrl);
             bool_value(member(params, "shift"), &shift);
+            const char* held = member(params, "hold");
+            const char* held_end = held ? value_end(held) : NULL;
+            if (held && held_end && (size_t)(held_end - held) < sizeof hold) {
+                memcpy(hold, held, (size_t)(held_end - held));
+                hold[held_end - held] = 0;
+            }
+            bool_value(member(params, "release"), &release);
         }
-        if (pc_overlay_input(keys, typed, ctrl, shift, focus, result, (int)sizeof result) < 0) {
+        if (pc_overlay_input(keys, typed, ctrl, shift, focus, hold, release, result, (int)sizeof result) < 0) {
             fail(fd, id, -32602, result);
             return;
         }
@@ -3288,7 +3318,8 @@ static int edits(const char* method, const char* request)
     if (!strcmp(method, "actors") || !strcmp(method, "glows") || !strcmp(method, "editor_place")
         || !strcmp(method, "room_groups") || !strcmp(method, "uv_effects") || !strcmp(method, "lights")
         || !strcmp(method, "environment") || !strcmp(method, "editor_select")
-        || !strcmp(method, "editor_schema"))
+        || !strcmp(method, "editor_schema") || !strcmp(method, "editor_transform")
+        || !strcmp(method, "editor_handles"))
         return 1;
     if (!strcmp(method, "lighting")) { /* revert edits the room; the rest load or save it */
         const char* p = member(request, "params");

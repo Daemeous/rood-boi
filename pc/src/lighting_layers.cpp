@@ -35,7 +35,7 @@ const std::vector<KindSpec>& kinds()
     static const std::vector<KindSpec> k = {
         { "actor",
             { { "name", -1, nullptr, false }, { "prefab", -1, nullptr, false }, { "pos", 1, nullptr, false },
-                { "rot", 2, "0,0,0", false }, { "seed", 0, "1", false }, { "enabled", 0, "1", false },
+                { "rot", 2, "0,0,0", false }, { "scale", 3, "1", false }, { "seed", 0, "1", false }, { "enabled", 0, "1", false },
                 { "glow", 1, nullptr, true }, { "glowkey", -1, nullptr, false }, { "fixture", 1, nullptr, false },
                 { "fixture_radius", 1, "16", false }, { "fixture_shadows", 0, "0", false },
                 { "fixture_type", -1, nullptr, false }, { "flame", 0, "0", false } },
@@ -80,7 +80,8 @@ const std::vector<KindSpec>& kinds()
         { "light",
             { { "name", -1, nullptr, false }, { "type", -1, "point", false }, { "pos", 1, nullptr, false },
                 { "dir", 4, "0,1,0", false }, { "color", 3, "1,0.75,0.45", false }, { "intensity", 3, "1", false },
-                { "radius", 1, "600", false }, { "cone", 2, "45", false }, { "size", 1, "128,128", false },
+                { "radius", 1, "600", false }, { "cone", 2, "45", false }, { "inner", 2, "0", false },
+                { "size", 1, "128,128", false }, { "barn_angle", 2, "45", false }, { "barn_length", 1, "0", false },
                 { "shadows", 0, "0", false }, { "enabled", 0, "1", false } },
             false, 4 },
         /* Post-processing profiles ("post room", "post cutscene", "post event.<id>"): post_profile.cpp.
@@ -1142,7 +1143,10 @@ Item item_from_light(const rood_lights::Light& l)
     it.set("intensity", format_number(l.intensity, 3));
     it.set("radius", format_number(l.radius, 1));
     it.set("cone", format_number(l.cone, 2));
+    it.set("inner", format_number(l.inner, 2));
     it.set("size", vec(l.size, 2, 1));
+    it.set("barn_angle", format_number(l.barn_angle, 2));
+    it.set("barn_length", format_number(l.barn_length, 1));
     it.set("shadows", l.shadows ? "1" : "0");
     it.set("enabled", l.enabled ? "1" : "0");
     canonicalize(it);
@@ -1165,7 +1169,10 @@ bool light_from_item(const Item& it, rood_lights::Light& l)
     l.intensity = (float)get_num(it, "intensity", 1);
     l.radius = (float)get_num(it, "radius", 600);
     l.cone = (float)get_num(it, "cone", 45);
+    l.inner = (float)get_num(it, "inner", 0);
     get_vec(it, "size", l.size, 2);
+    l.barn_angle = (float)get_num(it, "barn_angle", 45);
+    l.barn_length = (float)get_num(it, "barn_length", 0);
     l.shadows = get_num(it, "shadows", 0) != 0;
     l.enabled = get_num(it, "enabled", 1) != 0;
     return ok;
@@ -1181,6 +1188,7 @@ Item item_from_actor(const prefab::Actor& a)
     it.set("prefab", a.prefab);
     it.set("pos", vec(a.position, 3, 1));
     it.set("rot", vec(a.rotation, 3, 2));
+    it.set("scale", format_number(a.scale, 3));
     it.set("seed", std::to_string(a.seed));
     it.set("enabled", a.enabled ? "1" : "0");
     if (a.glow_linked) {
@@ -1221,6 +1229,7 @@ bool actor_from_item(const Item& it, prefab::Actor& a)
         a.name = *n;
     bool ok = get_vec(it, "pos", a.position, 3);
     get_vec(it, "rot", a.rotation, 3);
+    a.scale = (float)get_num(it, "scale", 1);
     a.seed = (uint32_t)get_num(it, "seed", 1);
     a.enabled = get_num(it, "enabled", 1) != 0;
     if (const std::string* k = it.get("glowkey"))

@@ -666,6 +666,10 @@ static int round_px(float v)
     int i = (int)v;
     return v - (float)i >= 0.5f ? i + 1 : v - (float)i < -0.5f ? i - 1 : i;
 }
+/* button_roles.c (battle builds): how far across a primitive samples the
+ * game's ○ / × button where Circle and Cross are exchanged (0: as drawn). */
+extern int pc_button_roles_texels(const uint16_t* vram, unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1)
+    __attribute__((weak));
 #include "boot_polygons.inc"
 #include "boot_lines.inc"
 
@@ -783,6 +787,9 @@ static void commands(uint32_t* p, unsigned n)
                     fprintf(stderr, "[gpu] sprite size 0x%08x masked to %ux%u as on hardware\n", wh, w, h);
             }
             unsigned uv = tex ? p[i + 2] : 0;
+            if (tex && pc_button_roles_texels) /* the game's ○ / × follow the button roles */
+                uv += (unsigned)pc_button_roles_texels(vram, tpage, uv >> 16, (int)(uv & 255), (int)((uv >> 8) & 255),
+                    (int)(uv & 255) + (int)w - 1, (int)((uv >> 8) & 255) + (int)h - 1);
             if (tex && pc_hw_sync_texture)
                 pc_hw_sync_texture(tpage, uv >> 16, texture_window, uv & 255, (uv >> 8) & 255,
                     (int)(uv & 255) + (int)w - 1, (int)((uv >> 8) & 255) + (int)h - 1);

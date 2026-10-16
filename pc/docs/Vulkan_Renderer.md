@@ -379,6 +379,17 @@ queries every light now counts, at a cost that stays nearly flat:
 - **Direct light, unshadowed** (`scaled.frag`): every light's falloff,
   cosine and cone per pixel (ALU only; most lights are out of reach of a
   given pixel and cost a compare).
+- **Light shapes** (`light_shape.glsl`; OpenGL's copy in `light_shape.h`):
+  a spot fades from its inner cone to its cone (inner 0: the outer quarter
+  of the cone's cosine range, the old edge); a rect lights only in front of
+  it, times its barn doors: per axis, the share of its width a point sees
+  past the two doors (length and angle from its facing). They travel in
+  slots the list had free: a spot's `right.x` (cos of the inner half angle),
+  a rect's `dir.w` and `right.w` (length x cos and sin of the doors' angle).
+  Every evaluation (present, trace, GI bounces, haze, probes) multiplies the
+  falloff by it, so traced and mapped shadows need nothing new. The fog
+  volumes' own renderer (`fog_volume.glsl`, three vectors per light) keeps
+  the old spot edge and has no barn doors.
 - **Shadows** (`visibility()` in `rt_trace.comp`): the present multiplies
   the shadow casters' unshadowed sum by one traced visibility, the ratio
   `sum(w_i V_i) / sum(w_i)` with `w_i` each caster's unshadowed luminance at

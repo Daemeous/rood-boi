@@ -59,6 +59,7 @@ layout(binding = 17) uniform sampler3D medium_tex; // the medium's texture (atmo
 #define MEDIUM_TEX medium_tex
 #include "medium.glsl"
 #define MENU_STUDIO(i) u.studio_[i]
+#include "light_shape.glsl"
 #include "menu_studio.glsl"
 #define env_sun_dir u.env_[0]
 #define env_sun_col u.env_[1]
@@ -279,8 +280,7 @@ vec3 low_haze(vec3 c, vec3 world) {
             vec3 to = lights[i].pos.xyz - x; float dl = length(to); vec3 l = to / max(dl, 1e-3);
             float f = clamp(dl / lights[i].pos.w, 0.0, 1.0);
             float a = (1.0 - f * f) * (1.0 - f * f);
-            if (lights[i].col.w > 1.5) a *= max(dot(-l, lights[i].dir.xyz), 0.0);
-            else if (lights[i].col.w > 0.5) a *= smoothstep(lights[i].dir.w, mix(lights[i].dir.w, 1.0, 0.25), dot(-l, lights[i].dir.xyz));
+            a *= light_shape(lights[i].col.w, lights[i].pos.xyz, lights[i].dir, lights[i].right, lights[i].up, x, l);
             here += lights[i].col.rgb * a * medium_phase(dot(dir, l), g);
         }
         if (env_sun_on())
@@ -458,16 +458,14 @@ void main() {
                 vec3 l = to / max(dl, 1e-3);
                 float x = clamp(dl / lights[i].pos.w, 0.0, 1.0);
                 float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(world_normal, l), 0.0);
-                if (lights[i].col.w > 1.5) // rect: emits from its front face
-                    a *= max(dot(-l, lights[i].dir.xyz), 0.0);
-                else if (lights[i].col.w > 0.5) // spot: smooth cone edge
-                    a *= smoothstep(lights[i].dir.w, mix(lights[i].dir.w, 1.0, 0.25), dot(-l, lights[i].dir.xyz));
+                // a spot's edge, a rect's front face and barn doors (light_shape.glsl)
+                a *= light_shape(lights[i].col.w, lights[i].pos.xyz, lights[i].dir, lights[i].right, lights[i].up, world, l);
                 if (light_shadow(i) == -2) // ray-traced
                     a *= clamp(gi.a, 0.0, 1.0);
                 else if (light_shadow(i) >= 0 && a > 0.0) { // shadow map (no ray tracing)
                     float cosine = clamp(dot(world_normal, l), 0.05, 1.0);
                     a *= map_visibility(light_shadow(i), world + world_normal * max(2.0, lights[i].world.w * 0.01), lights[i].world,
-                        lights[i].right.w > 0.0 ? lights[i].right.w : u.quality2.x, min(sqrt(1.0 - cosine * cosine) / cosine, 4.0));
+                        lights[i].col.w < 1.5 && lights[i].right.w > 0.0 ? lights[i].right.w : u.quality2.x, min(sqrt(1.0 - cosine * cosine) / cosine, 4.0));
                 }
                 sum += lights[i].col.rgb * a;
             }

@@ -25,7 +25,7 @@ FORMAT_VERSION = 2
 SCHEMA = {
     "actor": (True, 4, [
         ("name", -1, None, False), ("prefab", -1, None, False), ("pos", 1, None, False),
-        ("rot", 2, "0,0,0", False), ("seed", 0, "1", False), ("enabled", 0, "1", False),
+        ("rot", 2, "0,0,0", False), ("scale", 3, "1", False), ("seed", 0, "1", False), ("enabled", 0, "1", False),
         ("glow", 1, None, True), ("glowkey", -1, None, False), ("fixture", 1, None, False),
         ("fixture_radius", 1, "16", False), ("fixture_shadows", 0, "0", False),
         ("fixture_type", -1, None, False), ("flame", 0, "0", False)]),
@@ -66,7 +66,8 @@ SCHEMA = {
     "light": (False, 4, [
         ("name", -1, None, False), ("type", -1, "point", False), ("pos", 1, None, False),
         ("dir", 4, "0,1,0", False), ("color", 3, "1,0.75,0.45", False), ("intensity", 3, "1", False),
-        ("radius", 1, "600", False), ("cone", 2, "45", False), ("size", 1, "128,128", False),
+        ("radius", 1, "600", False), ("cone", 2, "45", False), ("inner", 2, "0", False),
+        ("size", 1, "128,128", False), ("barn_angle", 2, "45", False), ("barn_length", 1, "0", False),
         ("shadows", 0, "0", False), ("enabled", 0, "1", False)]),
     # Post-processing profiles ("post room", "post cutscene", "post event.<id>"): pc/src/post_profile.cpp.
     # Open: any post field (checked there), `preset` a named profile under them.

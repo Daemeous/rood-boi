@@ -22,13 +22,27 @@ typedef struct {
 extern pc_matrix* RotMatrixYXZ_gte(pc_svector*, pc_matrix*);
 extern unsigned int CFC2(int reg);
 
+#include "psx_types.h"
 #include "scene_capture.h"
 #include "room_effects.h"
+
+/* The game's room (vs_battle_roomData, BATTLE 146C.h _mpdRoomSection):
+ * unk0 is 1 while a room is loaded (func_8008AB80, func_8008ABF0),
+ * header.geometrySectionLen the geometry section's size, geometrySection
+ * the block func_8009723C draws (a 4-byte guest pointer on every build).
+ * A room change frees the block and clears all of it (func_8008ABF0); the
+ * disc then reads the next room, possibly into the freed memory, and
+ * _loadMpdRoomSection sets the new block only once it is copied whole. */
+extern unsigned char vs_battle_roomData[] __attribute__((weak));
+#define ROOM_LOADED 0x00
+#define ROOM_GEOMETRY_LEN 0x04
+#define ROOM_GEOMETRY 0x64
+#define ROOM_GROUPS_MAX 4096
 
 static scene_triangle* triangles;
 static int triangle_count, triangle_capacity;
 static const void* captured_data;
-static unsigned captured_signature;
+static unsigned captured_signature, captured_length;
 static int scene_serial;
 static float camera_rotation[3][3], camera_translation[3];
 extern float pc_gte_view_ofx(void);
@@ -74,20 +88,59 @@ static void decode(const unsigned* poly, unsigned shift, int out[4][3], int quad
     }
 }
 
+/* The game's loaded room geometry block and its size, or NULL while no
+ * room is loaded (or the block is too small for its group records). */
+static const unsigned char* live_block(unsigned* length)
+{
+    if (!vs_battle_roomData || vs_battle_roomData[ROOM_LOADED] != 1)
+        return NULL;
+    const unsigned char* data = psx_load(const unsigned char*, vs_battle_roomData + ROOM_GEOMETRY);
+    unsigned size = *(const unsigned*)(vs_battle_roomData + ROOM_GEOMETRY_LEN);
+    if (!data || size < 4 || size > 0x200000)
+        return NULL;
+    unsigned count = *(const unsigned*)data;
+    if (!count || count > ROOM_GROUPS_MAX || 4 + count * 0x40 > size)
+        return NULL;
+    *length = size;
+    return data;
+}
+const unsigned* pc_room_group_geometry(
+    const void* data, unsigned length, unsigned index, unsigned* tris, unsigned* quads)
+{
+    const unsigned char* bytes = data;
+    if (!data || length < 4)
+        return NULL;
+    unsigned count = *(const unsigned*)bytes;
+    if (index >= count || count > ROOM_GROUPS_MAX || 4 + count * 0x40 > length)
+        return NULL;
+    unsigned at = *(const unsigned*)(bytes + 4 + index * 0x40 + 0x1c);
+    if ((at & 3) || length < 8 || at > length - 8)
+        return NULL;
+    const unsigned* geometry = (const unsigned*)(bytes + at);
+    unsigned t = geometry[0], q = geometry[1];
+    if (t > 65535 || q > 65535 || (unsigned long long)t * 32 + (unsigned long long)q * 40 > length - 8 - at)
+        return NULL;
+    *tris = t, *quads = q;
+    return geometry;
+}
+
 /* Called by func_8009723C with the room geometry block before it is drawn. */
 void pc_scene_room(const void* data)
 {
     const unsigned char* bytes = data;
+    unsigned length = 0;
+    if (!data || live_block(&length) != bytes)
+        return; /* not the game's loaded room block */
     unsigned count = *(const unsigned*)bytes, sig;
-    if (count == 0 || count > 4096)
-        return;
     sig = signature(bytes);
-    if (data == captured_data && sig == captured_signature)
+    if (data == captured_data && sig == captured_signature && length == captured_length)
         return;
     captured_data = data;
     captured_signature = sig;
+    captured_length = length;
     triangle_count = 0;
     ++scene_serial;
+    int bad = 0;
     for (unsigned g = 0; g < count; ++g) {
         const unsigned char* group = bytes + 4 + g * 0x40;
         unsigned flags = *(const unsigned*)group;
@@ -99,10 +152,12 @@ void pc_scene_room(const void* data)
         pc_matrix world;
         RotMatrixYXZ_gte(&rotation, &world);
         unsigned shift = flags & 0x800 ? 0 : 3;
-        const unsigned* geometry = (const unsigned*)(bytes + *(const unsigned*)(group + 0x1c));
-        unsigned tris = geometry[0], quads = geometry[1];
-        if (tris > 65535 || quads > 65535)
+        unsigned tris, quads;
+        const unsigned* geometry = pc_room_group_geometry(bytes, length, g, &tris, &quads);
+        if (!geometry) {
+            ++bad;
             continue;
+        }
         const unsigned* poly = geometry + 2;
         for (unsigned i = 0; i < tris + quads; ++i) {
             int quad = i >= tris, local[4][3];
@@ -142,6 +197,8 @@ void pc_scene_room(const void* data)
             poly += quad ? 10 : 8;
         }
     }
+    if (bad)
+        fprintf(stderr, "[scene] %d room groups outside the %u-byte block left out\n", bad, length);
     fprintf(stderr, "[scene] room geometry captured: %d triangles\n", triangle_count);
     if (getenv("ROOD_SCENE_DEBUG")) {
         const pc_matrix* cam = (const pc_matrix*)0x1f800014;
@@ -177,8 +234,8 @@ void pc_scene_uv_refresh(void)
     static const int u_byte[4] = { 0x18, 0x1c, 0x13, 0x23 }, v_byte[4] = { 0x19, 0x1d, 0x17, 0x27 };
     int count = 0;
     const pc_uv_effect* effects = pc_uv_effects(&count);
-    if (!captured_data)
-        return;
+    if (!pc_scene_room_data())
+        return; /* no room loaded, or the loaded one not captured yet */
     unsigned generation = pc_uv_effects_generation();
     if (animated_scene != scene_serial || animated_generation != generation) {
         animated_scene = scene_serial;
@@ -212,6 +269,8 @@ void pc_scene_uv_refresh(void)
             continue;
         /* the triangle's corners in the polygon (a quad's second half: 1, 3, 2) */
         static const int corners[3][3] = { { 0, 1, 2 }, { 0, 1, 2 }, { 1, 3, 2 } };
+        if (t->polygon > captured_length - (t->quad ? 0x28 : 0x20))
+            continue; /* (captured from inside the block: never) */
         const unsigned char* p = (const unsigned char*)captured_data + t->polygon;
         for (int j = 0; j < 3; j++) {
             int k = corners[t->quad < 3 ? t->quad : 0][j];
@@ -283,8 +342,19 @@ void pc_scene_camera(const void* view)
 /* ---- queries (RPC, light estimation, renderer) ---- */
 
 int pc_scene_triangles(void) { return triangle_count; }
-/* The room data block last captured (the native room draws only it). */
-const void* pc_scene_room_data(void) { return captured_data; }
+/* The room data block last captured (the native room draws only it), while
+ * it is still the game's loaded room (scene_capture.h). */
+const void* pc_scene_room_block(unsigned* length)
+{
+    unsigned live_length = 0;
+    const void* live = live_block(&live_length);
+    if (!captured_data || live != captured_data || live_length != captured_length)
+        return NULL;
+    if (length)
+        *length = captured_length;
+    return captured_data;
+}
+const void* pc_scene_room_data(void) { return pc_scene_room_block(NULL); }
 const scene_triangle* pc_scene_triangle_data(int* count)
 {
     *count = triangle_count;

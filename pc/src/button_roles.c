@@ -49,9 +49,24 @@
  * of the other one.
  *
  * Prompt icons: pc_button_roles_shown maps a PS1 button to the one whose
- * binding presses it now (pc_prompt_glyph, the modern menus' icons). The
- * game's own button sprites and the ○ / × in its text are left to the button
- * prompts (button_prompts.c). */
+ * binding presses it now (pc_prompt_glyph, the modern menus' icons).
+ *
+ * The game's own ○ and × follow it too, wherever pc_button_roles_shown
+ * exchanges them (the context now; not where the game's words name buttons
+ * the roles never move: symbols_swap), before anything draws them, so the
+ * original pictures, ui_text's font and the button prompts' icons
+ * (button_prompts.c) all show the exchanged button:
+ *   text     the font's ○ and × (glyphs 0xB0 and 0xB1 of either table, side
+ *            by side in a row of 12 x 12 cells): the printers report each
+ *            character as they set it (pc_text_glyph, ui_text.c), which
+ *            moves its sprites' texels (or the fixed font's quad's) one cell
+ *            over and keeps the other glyph (pc_button_roles_glyph);
+ *   sprites  the 16 x 16 buttons of the field UI page (768, 0), CLUT
+ *            (944, 223), ○ at (32, 128) and × at (48, 128): the GPU walker
+ *            (boot_runtime.c, sprites and polygons) samples the other cell
+ *            (pc_button_roles_texels); the packet in guest memory stays as
+ *            the game built it. Only when both cells hold a picture (the
+ *            page can hold something else). */
 #include "common.h"
 #include "../../src/BATTLE/BATTLE.PRG/146C.h"
 #include "../../src/BATTLE/BATTLE.PRG/5BF94.h"
@@ -157,15 +172,80 @@ int pc_button_roles_shown(int button)
     return button;
 }
 
+/* The game's ○ and × as drawn (RPC button_roles "drawn"; tests): [text,
+ * sprite][○, ×] after the exchange, and how many were exchanged [text, sprite]. */
+static unsigned long symbols_drawn[2][2], symbols_swapped[2];
+
+/* The game's ○ and × exchanged now: as the prompt icons, except where the
+ * game's words name buttons the roles never move, even where that menu
+ * itself confirms with Cross:
+ *   - anywhere in Battle Abilities (MENU2): the Chain / Defense choice's
+ *     information, "Assign Abilities to the ○, △, and □ buttons" (the
+ *     ability buttons);
+ *   - the Quick Manual's text (MENUE): "Shortcuts to Magic (Using △,○,×,
+ *     and □ buttons)" (the L2 shortcut's slots); its page pictures are the
+ *     manual's own (original controls) and stay too. Its ○ MENU sprite is
+ *     its own control and follows.
+ * The English data has no other ○ or × in its text. */
+#define MANUAL_COMMAND 10 /* Quick Manual: currentMenu 10 */
+static int symbols_exceptions = 1; /* RPC button_roles symbol_exceptions (tests: 0 exchanges those too) */
+void pc_button_roles_symbol_exceptions(int on) { symbols_exceptions = on != 0; }
+static int symbols_swap(int text)
+{
+    int menu = vs_battle_menuState.currentMenu & 0x3F, open = battle_running() && !(D_800F4EA0 & 0x200);
+    return pc_button_roles_shown(5) != 5
+        && !(symbols_exceptions && open && (menu == MENU2_COMMAND || (text && menu == MANUAL_COMMAND)));
+}
+
+int pc_button_roles_glyph(int glyph)
+{
+    int symbol = glyph % 189 - 0xB0; /* 0 ○, 1 × */
+    if (glyph < 0 || symbol < 0 || symbol > 1)
+        return glyph;
+    int swap = symbols_swap(1);
+    symbols_swapped[0] += (unsigned long)swap;
+    ++symbols_drawn[0][symbol ^ swap];
+    return glyph - symbol + (symbol ^ swap);
+}
+
+#define UI_PAGE 12
+#define UI_CLUT (223u << 6 | 944 / 16)
+#define BUTTON_ROW 128 /* ○ at u 32, × at u 48 */
+static int cell_inked(const unsigned short* vram, int u0)
+{
+    for (int y = 0; y < 16; y++)
+        for (int x = 0; x < 16; x += 4) /* 4-bit: four texels a word */
+            if (vram[(BUTTON_ROW + y) * 1024 + UI_PAGE * 64 + (u0 + x) / 4])
+                return 1;
+    return 0;
+}
+
+int pc_button_roles_texels(const unsigned short* vram, unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1)
+{
+    /* 4-bit, page 12 at y 0, the buttons' CLUT, inside the ○ or × cell. */
+    if ((tpage & 0x19f) != UI_PAGE || (clut & 0x7fff) != UI_CLUT || v0 < BUTTON_ROW || v1 >= BUTTON_ROW + 16
+        || u0 < 32 || u1 >= 64 || u0 / 16 != u1 / 16)
+        return 0;
+    int symbol = u0 / 16 - 2; /* 0 ○, 1 × */
+    int swap = symbols_swap(0) && vram && cell_inked(vram, 32) && cell_inked(vram, 48);
+    symbols_swapped[1] += (unsigned long)swap;
+    ++symbols_drawn[1][symbol ^ swap];
+    return swap ? (symbol ? -16 : 16) : 0;
+}
+
 /* RPC button_roles: the options, the context now and the button each role is on there. */
 void pc_button_roles_json(char* out)
 {
     int context = pc_button_roles_context(), swap = swap_now();
     sprintf(out,
         "{\"confirm_cross\":%d,\"field_cross_attack\":%d,\"context\":\"%s\",\"swap\":%d,\"confirm\":\"%s\","
-        "\"cancel\":\"%s\",\"attack\":\"%s\",\"interact\":\"%s\",\"target\":\"%s\"}",
+        "\"cancel\":\"%s\",\"attack\":\"%s\",\"interact\":\"%s\",\"target\":\"%s\","
+        "\"drawn\":{\"text\":{\"circle\":%lu,\"cross\":%lu,\"swapped\":%lu},"
+        "\"sprite\":{\"circle\":%lu,\"cross\":%lu,\"swapped\":%lu}},\"symbol_exceptions\":%d}",
         pc_qol_confirm_cross != 0, pc_qol_field_cross_attack != 0, CONTEXT_NAMES[context], swap,
         pc_qol_confirm_cross ? "cross" : "circle", pc_qol_confirm_cross ? "circle" : "cross",
         pc_qol_field_cross_attack ? "cross" : "circle", pc_qol_field_cross_attack ? "circle" : "cross",
-        pc_qol_confirm_cross || pc_qol_field_cross_attack ? "cross" : "circle");
+        pc_qol_confirm_cross || pc_qol_field_cross_attack ? "cross" : "circle", symbols_drawn[0][0],
+        symbols_drawn[0][1], symbols_swapped[0], symbols_drawn[1][0], symbols_drawn[1][1], symbols_swapped[1],
+        symbols_exceptions);
 }

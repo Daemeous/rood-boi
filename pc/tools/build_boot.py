@@ -143,8 +143,25 @@ def link_symbols(args):
     if output.exists() and key_file.exists() and key_file.read_text() == key + "\n" + str(output.stat().st_mtime_ns):
         return
     key_file.unlink(missing_ok=True)
-    if shutil.which("mipsel-linux-gnu-ld"):
-        command = ["mipsel-linux-gnu-ld", *args]
+    result = mips_tool("ld", args)
+    shown = [line for line in (result.stdout + result.stderr).splitlines() if not _LD_NOISE.search(line)]
+    for line in shown:
+        print(line, file=sys.stderr)
+    # --noinhibit-exe writes the ELF anyway; a symbol defined twice would leave
+    # its address to link order, and the host imports read these tables.
+    duplicates = [line for line in shown if "multiple definition" in line]
+    if duplicates:
+        raise SystemExit(f"{output.name}: symbols defined twice in the reference link:\n" + "\n".join(duplicates))
+    if result.returncode:
+        raise subprocess.CalledProcessError(result.returncode, result.args)
+    key_file.write_text(key + "\n" + str(output.stat().st_mtime_ns))
+
+
+def mips_tool(tool, args):
+    """Run a MIPS binutils tool (ld, objcopy) on paths relative to the root:
+    the host's cross binutils, else the decomp's docker image."""
+    if shutil.which(f"mipsel-linux-gnu-{tool}"):
+        command = [f"mipsel-linux-gnu-{tool}", *args]
     else:
         command = [
             "docker",
@@ -158,16 +175,10 @@ def link_symbols(args):
             "-w",
             "/work",
             "rood-reverse-dev:local",
-            "mipsel-linux-gnu-ld",
+            f"mipsel-linux-gnu-{tool}",
             *args,
         ]
-    result = subprocess.run(command, cwd=root, capture_output=True, text=True)
-    for line in (result.stdout + result.stderr).splitlines():
-        if not _LD_NOISE.search(line):
-            print(line, file=sys.stderr)
-    if result.returncode:
-        raise subprocess.CalledProcessError(result.returncode, command)
-    key_file.write_text(key + "\n" + str(output.stat().st_mtime_ns))
+    return subprocess.run(command, cwd=root, capture_output=True, text=True)
 
 
 flags = [
@@ -561,6 +572,23 @@ ldargs = [
 ]
 link_symbols(ldargs)
 if battle:
+    # The overlays resolve main's symbols with -R. Main's ELF also keeps
+    # absolute symbols that are other overlays' data (exports.txt retains
+    # vs_battle_mapCompletionFlags, BATTLE's, for the MENU links): BATTLE's
+    # objects define those themselves, so -R reads a copy without them.
+    slus_elf = root / "build/data/SLUS_010.40.elf"
+    main_symbols = out / "slus-symbols.elf"
+    foreign = sorted(parts[7] for parts in map(str.split, query([*READELF, "-sW", str(slus_elf)]).splitlines())
+                     if len(parts) >= 8 and parts[6] == "ABS" and parts[3] != "FILE")
+    stamp = main_symbols.with_name(main_symbols.name + ".inputs")
+    key = f"{slus_elf.stat().st_mtime_ns} {' '.join(foreign)}"
+    if not (main_symbols.exists() and stamp.exists() and stamp.read_text() == key):
+        stamp.unlink(missing_ok=True)
+        result = mips_tool("objcopy", [*[f"--strip-symbol={n}" for n in foreign],
+                                       str(slus_elf.relative_to(root)), str(main_symbols.relative_to(root))])
+        if result.returncode:
+            raise SystemExit(f"objcopy {slus_elf.name}: {result.stderr.strip()}")
+        stamp.write_text(key)
     for config, name in [
         ("BATTLE/BATTLE.PRG", "battle-symbols"),
         ("BATTLE/INITBTL.PRG", "init-symbols"),
@@ -575,7 +603,7 @@ if battle:
             "-T",
             "link.ld",
             "-R",
-            "build/data/SLUS_010.40.elf",
+            str(main_symbols.relative_to(root)),
             "-o",
             str(out.relative_to(root) / (name + ".elf")),
         ]
@@ -984,6 +1012,11 @@ for source in [
     root / "pc/src/editor_clipboard.cpp",
     root / "pc/src/editor_schema.cpp",
     root / "pc/src/editor_details.cpp",
+    root / "pc/src/editor_math.cpp",
+    root / "pc/src/editor_transform.cpp",
+    root / "pc/src/editor_handles.cpp",
+    root / "pc/src/editor_light_handles.cpp",
+    root / "pc/src/editor_colour.cpp",
     root / "pc/src/probe_overlay.cpp",
     root / "pc/src/ui_upscale_panel.cpp",
     root / "pc/src/ui/ui_shell.cpp",
@@ -1725,6 +1758,11 @@ for name in sorted(missing):
         raise RuntimeError(
             f"Unclassified import: {name}; refusing to fake data with a function"
         )
+# A script assignment silently replaces an object's definition: an import
+# must only name what no linked object defines.
+shadowed = sorted({line.split(" = ")[0] for line in assign} & defined)
+if shadowed:
+    raise RuntimeError("Data imports that linked objects also define: " + ", ".join(shadowed))
 (out / "imports.ld").write_text("\n".join(assign) + "\n")
 (out / "traps.c").write_text(
     "extern void pc_unimplemented(const char*) __attribute__((noreturn));\n"

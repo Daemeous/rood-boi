@@ -144,7 +144,8 @@ bool same_light(const Light& a, const Light& b)
 {
     return a.type == b.type && !memcmp(a.position, b.position, sizeof a.position) && !memcmp(a.color, b.color, sizeof a.color)
         && a.intensity == b.intensity && a.radius == b.radius && !memcmp(a.direction, b.direction, sizeof a.direction)
-        && a.cone == b.cone && !memcmp(a.size, b.size, sizeof a.size) && a.shadows == b.shadows && a.enabled == b.enabled;
+        && a.cone == b.cone && a.inner == b.inner && !memcmp(a.size, b.size, sizeof a.size) && a.barn_angle == b.barn_angle
+        && a.barn_length == b.barn_length && a.shadows == b.shadows && a.enabled == b.enabled;
 }
 /* Light fields other than where it is and where it points. */
 bool same_light_params(const Light& a, const Light& b)
@@ -170,7 +171,7 @@ bool same_overrides(const prefab::Actor& a, const prefab::Actor& b)
 bool same_actor(const prefab::Actor& a, const prefab::Actor& b)
 {
     return a.prefab == b.prefab && !memcmp(a.position, b.position, sizeof a.position)
-        && !memcmp(a.rotation, b.rotation, sizeof a.rotation) && a.enabled == b.enabled && a.seed == b.seed
+        && !memcmp(a.rotation, b.rotation, sizeof a.rotation) && a.scale == b.scale && a.enabled == b.enabled && a.seed == b.seed
         && same_overrides(a, b) && a.glow_linked == b.glow_linked && a.fixture == b.fixture
         && a.fixture_shadows == b.fixture_shadows && !memcmp(a.fixture_at, b.fixture_at, sizeof a.fixture_at)
         && a.fixture_radius == b.fixture_radius && a.fixture_radius_set == b.fixture_radius_set

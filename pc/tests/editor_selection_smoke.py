@@ -33,7 +33,9 @@ checks one part:
   are the fly's keys, not editor shortcuts;
 - delete: Delete takes lights, actors and fog volumes in one undo step; undo
   restores them selected;
-- frame: F frames a fog volume.
+- frame: F frames a fog volume;
+- view: project gives a world point's window pixel, pick the surface under a
+  pixel (the handles' tests use both).
 """
 import argparse
 import math
@@ -509,9 +511,23 @@ def check_frame(s):
     g.run(4)
 
 
+def check_view(s):
+    """project / pick (the tests' view helpers): a light's position projects onto its icon; a pick under Ashley finds a surface by her."""
+    o = s.objects()
+    light = next(x for x in s.game.call("lights")["lights"] if x["id"] == s.light)
+    px = s.select(action="project", point=light["position"])["pixel"]
+    s.check(px is not None and distance(px, o[s.light]["screen"]) < 1.0,
+            f"project: the light's position is its icon ({px} vs {o[s.light]['screen']})")
+    p = s.player
+    feet = s.select(action="project", point=[p["x"], p["y"], p["z"]])["pixel"]
+    hit = s.select(action="pick", x=feet[0], y=feet[1])["world"] if feet else None
+    s.check(hit is not None and math.dist(hit, [p["x"], p["y"], p["z"]]) < 160,
+            f"pick under Ashley's feet: a surface by her ({hit})")
+
+
 # In order: later sections start from where earlier ones leave the room.
 SECTIONS = [check_rpc, check_picking, check_modifiers, check_box, check_outliner, check_details_follow, check_hide,
-            check_clipboard, check_flying, check_delete, check_frame]
+            check_clipboard, check_flying, check_delete, check_frame, check_view]
 
 
 def main():

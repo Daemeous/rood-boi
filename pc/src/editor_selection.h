@@ -21,7 +21,7 @@
 
 namespace rood_selection {
 
-enum Kind { KIND_NONE, KIND_LIGHT, KIND_ACTOR, KIND_GLOW, KIND_VOLUME };
+enum Kind { KIND_NONE, KIND_LIGHT, KIND_ACTOR, KIND_GLOW, KIND_VOLUME, KIND_SUN };
 struct Ref {
     Kind kind = KIND_NONE;
     std::string id; /* the lighting item id, its prefix included */
@@ -29,9 +29,9 @@ struct Ref {
     bool operator!=(const Ref& o) const { return !(*this == o); }
     explicit operator bool() const { return kind != KIND_NONE; }
 };
-/* A reference from an item id, by its prefix (KIND_NONE when unknown). */
+/* A reference from an item id, by its prefix ("env:sun": the room's sun or moon; KIND_NONE when unknown). */
 Ref ref_of(const std::string& id);
-const char* kind_name(Kind k); /* "light", "actor", "glow", "fog", "none" */
+const char* kind_name(Kind k); /* "light", "actor", "glow", "fog", "sun", "none" */
 
 /* Where a change came from: the Outliner scrolls to the new primary unless
  * the change came from it; Details switches to it unless the change came

@@ -58,8 +58,7 @@ vec3 probe_direct(vec3 p, vec3 n) {
         vec3 to = centre - p; float d = length(to); vec3 l = to / max(d, 1e-3);
         float x = clamp(d / light_pos[i].w, 0.0, 1.0);
         float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);
-        if (light_col[i].w > 1.5) a *= max(dot(-l, light_dir[i].xyz), 0.0);
-        else if (light_col[i].w > 0.5) a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));
+        a *= light_shape(light_col[i].w, light_pos[i].xyz, light_dir[i], light_right[i], light_up[i], p, l);
         if (a <= 0.0) continue;
         float th; int hit; vec2 bc;
         if (trace(p + n * 1.5, l, d - max(3.0, light_up[i].w), true, n, 0.0, th, hit, bc)) continue;

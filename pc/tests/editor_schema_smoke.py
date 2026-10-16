@@ -107,11 +107,17 @@ def check_lights(s):
     schema(s, action="set", id=s.light, values={"cone": 60, "direction": [1, 0, 0]})
     s.check(close(value(s, s.light, "cone"), 60) and close(value(s, s.light, "direction"), [1, 0, 0]),
             "spot fields round-trip")
+    schema(s, action="set", id=s.light, values={"inner": 20})
+    s.check(close(value(s, s.light, "inner"), 20), "a spot's inner cone round-trips")
     schema(s, action="set", id=s.light, values={"type": "rect"})
     schema(s, action="set", id=s.light, values={"width": 200, "height": 96})
     got = schema(s, action="get", id=s.light)
     s.check(got["kind"] == "rect" and close(got["fields"]["width"]["value"], 200)
             and close(got["fields"]["height"]["value"], 96), "rect fields round-trip")
+    schema(s, action="set", id=s.light, values={"barn_angle": 30, "barn_length": 48})
+    s.check(close(value(s, s.light, "barn_angle"), 30) and close(value(s, s.light, "barn_length"), 48),
+            "a rect's barn doors round-trip")
+    schema(s, action="reset", id=s.light, fields=["barn_angle", "barn_length"])
     schema(s, action="set", id=s.light, values={"type": "point"})
     try:
         schema(s, action="set", id=s.light, values={"nonsense": 1})

@@ -23,6 +23,8 @@
 #include "lighting_quality.h"
 #include "editor_undo.h"
 #include "editor_details.h"
+#include "editor_handles.h"
+#include "editor_colour.h"
 #include "editor_scene.h"
 #include "environment_internal.h"
 #include "editor_selection.h"
@@ -235,10 +237,11 @@ extern "C" int pc_overlay_set_visible(int show)
  * "escape", "enter", "tab", "f2", a letter or digit) pressed and released
  * through SDL's event queue, so they take the same path as the keyboard
  * (pc_overlay_event, Dear ImGui, the shortcuts); text typed (text input
- * events); focus "search" (the Outliner's search field) or "none". Replies
- * with what the editor saw last frame. */
-extern "C" int pc_overlay_input(const char* keys, const char* text, int ctrl, int shift, const char* focus, char* out,
-    int size)
+ * events); focus "search" (the Outliner's search field) or "none"; hold:
+ * modifiers ("ctrl", "shift", "alt") pressed and kept down across requests
+ * until one with release. Replies with what the editor saw last frame. */
+extern "C" int pc_overlay_input(const char* keys, const char* text, int ctrl, int shift, const char* focus, const char* hold,
+    int release, char* out, int size)
 {
     if (!active || !overlay_window) {
         snprintf(out, size, "the overlay is not running");
@@ -248,7 +251,52 @@ extern "C" int pc_overlay_input(const char* keys, const char* text, int ctrl, in
         focus_search_request = true, outliner_tab_request = 0;
     else if (focus && !strcmp(focus, "none"))
         clear_focus_request = true;
-    SDL_Keymod mod = (ctrl ? SDL_KMOD_LCTRL : 0) | (shift ? SDL_KMOD_LSHIFT : 0);
+    /* hold: modifiers kept down across requests (a handle dragged with Ctrl,
+     * Shift or Alt) until a request with release. */
+    static SDL_Keymod held;
+    static const struct {
+        const char* name;
+        SDL_Keycode key;
+        SDL_Keymod mod;
+    } modifiers[] = { { "ctrl", SDLK_LCTRL, SDL_KMOD_LCTRL }, { "shift", SDLK_LSHIFT, SDL_KMOD_LSHIFT },
+        { "alt", SDLK_LALT, SDL_KMOD_LALT } };
+    auto push_modifier = [](SDL_Keycode key, bool down, SDL_Keymod mods) {
+        SDL_Event e;
+        memset(&e, 0, sizeof e);
+        e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+        e.key.windowID = SDL_GetWindowID(overlay_window);
+        e.key.key = key;
+        e.key.scancode = SDL_GetScancodeFromKey(key, nullptr);
+        e.key.mod = mods;
+        e.key.down = down;
+        SDL_PushEvent(&e);
+    };
+    if (release)
+        for (const auto& m : modifiers)
+            if (held & m.mod) {
+                held = (SDL_Keymod)(held & ~m.mod);
+                push_modifier(m.key, false, held);
+            }
+    for (const char* p = hold ? strchr(hold, '"') : nullptr; p; p = strchr(p, '"')) {
+        const char* end = strchr(p + 1, '"');
+        if (!end)
+            break;
+        char name[16];
+        snprintf(name, sizeof name, "%.*s", (int)(end - p - 1), p + 1);
+        p = end + 1;
+        bool known = false;
+        for (const auto& m : modifiers)
+            if (!strcmp(name, m.name)) {
+                known = true;
+                held = (SDL_Keymod)(held | m.mod);
+                push_modifier(m.key, true, held);
+            }
+        if (!known) {
+            snprintf(out, size, "unknown modifier %s (ctrl, shift, alt)", name);
+            return -1;
+        }
+    }
+    SDL_Keymod mod = (SDL_Keymod)((ctrl ? SDL_KMOD_LCTRL : 0) | (shift ? SDL_KMOD_LSHIFT : 0) | held);
     for (const char* p = keys ? strchr(keys, '"') : nullptr; p; p = strchr(p, '"')) {
         const char* end = strchr(p + 1, '"');
         if (!end)
@@ -292,8 +340,14 @@ extern "C" int pc_overlay_input(const char* keys, const char* text, int ctrl, in
         SDL_PushEvent(&e);
     }
     ImGuiIO& io = ImGui::GetIO();
-    snprintf(out, size, "{\"visible\":%s,\"want_text_input\":%s,\"item_active\":%s,\"gizmo\":%d}", visible ? "true" : "false",
-        io.WantTextInput ? "true" : "false", ImGui::IsAnyItemActive() ? "true" : "false", *pc_lights_gizmo_operation());
+    char held_names[48] = "";
+    for (const auto& m : modifiers)
+        if (held & m.mod)
+            snprintf(held_names + strlen(held_names), sizeof held_names - strlen(held_names), "%s\"%s\"",
+                held_names[0] ? "," : "", m.name);
+    snprintf(out, size, "{\"visible\":%s,\"want_text_input\":%s,\"item_active\":%s,\"gizmo\":%d,\"held\":[%s]}",
+        visible ? "true" : "false", io.WantTextInput ? "true" : "false", ImGui::IsAnyItemActive() ? "true" : "false",
+        *pc_lights_gizmo_operation(), held_names);
     return 0;
 }
 
@@ -374,6 +428,12 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
          * editor shortcut fires (viewport_keys and the free camera check the
          * same). */
         bool typing = visible && io.WantTextInput;
+        /* Escape during a handle drag puts its value back, or stops aiming (editor_handles.cpp). */
+        if (key == SDLK_ESCAPE && visible && down && !typing && rood_handles::cancel())
+            return 1;
+        /* Escape closes the colour popover (editor_colour.cpp). */
+        if (key == SDLK_ESCAPE && visible && down && !typing && rood_colour::cancel())
+            return 1;
         /* Escape during a value ladder drag cancels it (editor_details.cpp). */
         if (key == SDLK_ESCAPE && visible && down && !typing && rood_details::ladder_cancel())
             return 1;
@@ -673,6 +733,7 @@ bool* pc_atmosphere_show_volumes(void); /* atmosphere.cpp: Show > Fog volumes */
 void pc_lights_outliner(const char* filter);
 void pc_lights_global_settings(void);
 extern int pc_lights_snap;
+extern int pc_lights_gizmo_space;
 extern float pc_lights_snap_move, pc_lights_snap_angle;
 bool pc_room_settings_page(const char* page);
 bool pc_environment_page(void); /* environment.cpp: the room's sun and sky */
@@ -1367,6 +1428,15 @@ static void toolbar(float x, float y, float w, float* height)
     flow(button_width("Rotate"));
     if (toggle_button("Rotate", *op == 1, "Rotate tool (E): aims spot and rect lights"))
         *op = 1;
+    flow(button_width("Scale"));
+    if (toggle_button("Scale", *op == 2,
+            "Scale tool (R): a light's reach (point, spot) or size and reach (rect), a light actor's size (its lights\n"
+            "and their radii with it), a fog volume's size. Never brightness."))
+        *op = 2;
+    flow(button_width("Local"));
+    if (toggle_button(pc_lights_gizmo_space ? "Local" : "World", pc_lights_gizmo_space != 0,
+            "Move and rotate along the world's axes or the object's own (scale is always the object's)"))
+        pc_lights_gizmo_space = !pc_lights_gizmo_space;
     /* Snapping. */
     group_gap(button_width("Grid"));
     if (toggle_button("Grid", pc_lights_snap != 0, "Snap moves and rotations to the grid (Ctrl while dragging inverts)"))
@@ -1482,7 +1552,16 @@ static void help_window()
         { "Place", "Shift+1", "Show the Place Actors tab" },
         { "Tools", "W", "Move tool" },
         { "Tools", "E", "Rotate tool (aim spot and rect lights, turn actors)" },
+        { "Tools", "R", "Scale tool: a light's reach or size, a light actor's size (its lights and radii with it), a fog volume's size; never brightness" },
+        { "Tools", "World / Local (toolbar)", "Move and rotate along the world's axes or the object's own; scale is always the object's" },
         { "Tools", "I", "Inspect: click the view to probe a surface" },
+        { "Handles", "Drag the ring", "The selected light's or sun's intensity: doubles every 100 pixels to the right" },
+        { "Handles", "Drag a dot", "Radius, range, cone, inner cone, a rect's edges (Alt: both edges), barn doors" },
+        { "Handles", "Ctrl / Shift while dragging", "Fine steps / round values; the value shows by the pointer; Esc puts it back" },
+        { "Handles", "Ring's top dot", "A point light's shadows on or off" },
+        { "Handles", "Swatch", "The colour popover: Kelvin and tint, a hue wheel, the room's palette, recent colours, eyedropper, Hex / RGB" },
+        { "Handles", "Spot's crosshair, then a click", "Aim the spot at the clicked surface (Esc stops)" },
+        { "Handles", "Sun: drag its disc", "Its direction across the sky dome (azimuth and elevation)" },
         { "View", "C", "Cut to focus on or off: surfaces hiding the selection (else Ashley) are drawn as ghosts" },
         { "Snapping", "V (hold)", "Toggle point snapping while dragging; shows the snap target under the cursor" },
         { "Snapping", "Ctrl (hold, dragging)", "Invert grid snapping" },
@@ -1781,6 +1860,8 @@ static void viewport_keys()
         *pc_lights_gizmo_operation() = 0;
     if (!io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_E, false))
         *pc_lights_gizmo_operation() = 1;
+    if (!io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_R, false)) /* Ctrl+R is the Room Browser */
+        *pc_lights_gizmo_operation() = 2;
     if (!io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_I, false))
         *pc_lights_probe_mode() = !*pc_lights_probe_mode();
     if (io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_1, false))
@@ -1868,6 +1949,7 @@ extern "C" void pc_overlay_frame(int width, int height)
         if (pc_hw_active)
             pc_lights_viewport();
         viewport_keys();
+        rood_colour::draw(); /* the colour popover (editor_colour.cpp) */
         rood_details::ladder_frame(); /* a value ladder being dragged (editor_details.cpp) */
         pc_lights_editor_windows();
         pc_room_browser_window();

@@ -49,6 +49,16 @@ target_include_directories(selection_probe PRIVATE src)
 target_compile_features(selection_probe PRIVATE cxx_std_17)
 target_compile_options(selection_probe PRIVATE -Wall -Wextra -Werror)
 add_test(NAME selection_probe COMMAND selection_probe)
+
+# The editor's viewport maths, scale table and light shapes (pc/src/editor_math.cpp,
+# editor_transform.cpp, light_shape.h) without the game.
+add_executable(editor_tools_probe tests/editor_tools_probe.cpp src/editor_math.cpp src/editor_transform.cpp
+    src/editor_picking.cpp src/light_prefabs.cpp)
+target_include_directories(editor_tools_probe PRIVATE src)
+target_compile_features(editor_tools_probe PRIVATE cxx_std_17)
+target_compile_options(editor_tools_probe PRIVATE -Wall -Wextra -Werror)
+add_test(NAME editor_tools_probe COMMAND editor_tools_probe)
+
 # Modern menus: the shell's navigation (pc/src/ui/ui_shell.cpp) without the game.
 add_executable(ui_shell_probe tests/ui_shell_probe.cpp src/ui/ui_shell.cpp src/ui/ui_loot.cpp src/ui/ui_workshop.cpp
     src/ui/ui_map.cpp

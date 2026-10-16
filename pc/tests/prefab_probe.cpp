@@ -116,6 +116,32 @@ int main(int argc, char** argv)
             && near(still[0].intensity, 2.5f),
         "the flame is above the pivot with the overridden intensity");
     check(near(still[0].shadow_skip, 22), "a fixture's light skips its fixture's shadow (shadow_skip = fixture radius)");
+    /* Scale (R): the light's offset from the pivot and its radius grow with
+     * the actor; its intensity does not. */
+    Actor big = b;
+    big.scale = 2;
+    std::vector<EvalLight> scaled;
+    evaluate(*candle, big, 0, false, scaled);
+    check(scaled.size() == 1
+            && near(scaled[0].position[1] - big.position[1], 2 * (still[0].position[1] - b.position[1]), 1e-3f)
+            && near(scaled[0].radius, 2 * still[0].radius, 1e-3f) && near(scaled[0].intensity, still[0].intensity),
+        "a scaled actor: its light twice as far from the pivot, twice the radius, the same intensity");
+    /* A prefab's lights may have an inner cone and barn doors (the doors'
+     * length scales with the actor, the angles do not). */
+    Json shaped_json;
+    check(json_parse("{\"name\": \"Shaped\", \"lights\": [{\"type\": \"rect\", \"barn_angle\": 30, \"barn_length\": 40},"
+                     " {\"type\": \"spot\", \"inner\": 25}]}",
+              shaped_json),
+        "a prefab with barn doors and an inner cone parses");
+    Prefab shaped = prefab_from_json("shaped", shaped_json);
+    Actor sa;
+    sa.prefab = "shaped";
+    sa.scale = 2;
+    std::vector<EvalLight> se;
+    evaluate(shaped, sa, 0, false, se);
+    check(shaped.error.empty() && se.size() == 2 && near(se[0].barn_angle, 30) && near(se[0].barn_length, 80)
+            && near(se[1].inner, 25),
+        "its lights carry them");
     Actor shadowed = b;
     shadowed.fixture_shadows = true;
     evaluate(*candle, shadowed, 0, false, l3);

@@ -166,6 +166,18 @@ static unsigned polygon_command(const uint32_t* p, unsigned available)
                 tpage = (tpage & ~0x1ff) | ((uv >> 16) & 0x1ff);
         }
     }
+    if (textured && pc_button_roles_texels) {
+        /* The game's ○ / × follow the button roles (button_roles.c). */
+        int u0 = vertex[0].u, v0 = vertex[0].v, u1 = u0, v1 = v0;
+        for (int i = 1; i < count; ++i) {
+            u0 = vertex[i].u < u0 ? vertex[i].u : u0, u1 = vertex[i].u > u1 ? vertex[i].u : u1;
+            v0 = vertex[i].v < v0 ? vertex[i].v : v0, v1 = vertex[i].v > v1 ? vertex[i].v : v1;
+        }
+        /* (a quad's far edge: the texel before it) */
+        int du = pc_button_roles_texels(vram, tpage, clut, u0, v0, u1 > u0 ? u1 - 1 : u1, v1 > v0 ? v1 - 1 : v1);
+        for (int i = 0; du && i < count; ++i)
+            vertex[i].u += du;
+    }
     /* A room polygon is always 3D: should one vertex's log entry be gone
      * anyway, it borrows another vertex's candidates for the choice below
      * and then takes the others' mean depth, rather than the whole polygon

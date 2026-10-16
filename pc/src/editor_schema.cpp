@@ -297,6 +297,11 @@ Kind light_kind(int type)
         f.get = [](int i) { return Value::scalar(lights[i].cone); };
         f.set = [](int i, const Value& v) { lights[i].cone = v.x(); };
         k.fields.push_back(f);
+        f = angle_field("inner", "Inner cone", "Shape", 0, 170, 0.5f, d.inner,
+            "Full brightness inside this angle, fading out to the cone's edge; 0: the outer quarter fades");
+        f.get = [](int i) { return Value::scalar(lights[i].inner); };
+        f.set = [](int i, const Value& v) { lights[i].inner = v.x(); };
+        k.fields.push_back(f);
     }
     if (type == 2) {
         f = number_field("width", "Width", "Shape", 8, 4096, 1, d.size[0], "u");
@@ -306,6 +311,16 @@ Kind light_kind(int type)
         f = number_field("height", "Height", "Shape", 8, 4096, 1, d.size[1], "u");
         f.get = [](int i) { return Value::scalar(lights[i].size[1]); };
         f.set = [](int i, const Value& v) { lights[i].size[1] = v.x(); };
+        k.fields.push_back(f);
+        f = angle_field("barn_angle", "Barn door angle", "Barn doors", 0, 90, 0.5f, d.barn_angle,
+            "Its four doors' angle from its facing: 0 straight ahead (the tightest beam), 90 folded flat (no effect)");
+        f.get = [](int i) { return Value::scalar(lights[i].barn_angle); };
+        f.set = [](int i, const Value& v) { lights[i].barn_angle = v.x(); };
+        k.fields.push_back(f);
+        f = number_field("barn_length", "Barn door length", "Barn doors", 0, 1024, 1, d.barn_length, "u", false,
+            "How far the doors reach out from each edge; 0: no doors");
+        f.get = [](int i) { return Value::scalar(lights[i].barn_length); };
+        f.set = [](int i, const Value& v) { lights[i].barn_length = v.x(); };
         k.fields.push_back(f);
     }
     return k;
@@ -334,6 +349,11 @@ Kind actor_kind(const std::string& prefab_id)
         "Yaw, pitch, roll (the rotate tool, E)");
     f.get = [](int i) { return vec_of(actors[i].rotation); };
     f.set = [](int i, const Value& v) { put(actors[i].rotation, v); };
+    k.fields.push_back(f);
+    f = number_field("scale", "Scale", "Transform", 0.05f, 20, 0.01f, 1, "", true,
+        "Its size (the scale tool, R): its lights' offsets, radii and sizes scale with it, never their brightness");
+    f.get = [](int i) { return Value::scalar(actors[i].scale); };
+    f.set = [](int i, const Value& v) { actors[i].scale = v.x(); };
     k.fields.push_back(f);
     if (!p)
         return k;

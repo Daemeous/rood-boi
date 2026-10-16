@@ -797,6 +797,21 @@ black shell, cut by the facing mask, hidden by the room) with a visibility
 checkbox; RPC `room_groups {hide: [...], show: [...], show_all}` does the
 same. Hidden groups reset when the room changes.
 
+The editor reads the groups (the Outliner, `room_groups`, and its undo
+snapshot every overlay frame) only from the game's loaded room block
+(`pc_scene_room_block`, scene_capture.c): `vs_battle_roomData` reports a
+room loaded and its geometry section is the block last captured. A room
+change frees the block (func_8008ABF0) and the disc reads the next room,
+possibly into the same memory; reading the freed block then found a group
+count that passed and garbage geometry offsets, and crashed outside guest
+RAM. While a room loads the editor has no groups (`room_groups` reports
+`"room": "loading"`, else `"ready"`), and every group's geometry offset
+and polygon counts are checked against the section's size
+(`header.geometrySectionLen`) before they are read
+(`pc_room_group_geometry`; the capture leaves out a group outside the
+block and logs it). Test: `pc/tests/editor_roomload_smoke.py` steps every
+vsync of warps across zones and a walked door with the editor open.
+
 None of this touches the ray-traced scene: `scene_capture.c` keeps every
 group, so the hidden walls and shells still cast shadows and block light
 (and haze stays bounded by the room). The G-buffer is the picture's, so a

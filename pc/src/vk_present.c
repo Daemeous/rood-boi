@@ -821,6 +821,8 @@ typedef struct {
 /* gl_present.c: written beside the name, then renamed (complete when it exists). */
 extern void pc_write_ppm_atomic(const char* name, const unsigned char* pixels, int w, int h, int stride, int flip);
 extern unsigned pc_presents;
+extern int pc_present_sample_pending(int xy[2]); /* gl_present.c: the eyedropper's pixel */
+extern void pc_present_sample_store(const unsigned char* pixels, int stride);
 static void write_capture(const char* name, const unsigned char* rgba, int w, int h)
 {
     pc_write_ppm_atomic(name, rgba, w, h, 4, 0);
@@ -836,6 +838,16 @@ static int burst_index;
 static void capture_present(void)
 {
     ++pc_presents;
+    int sample_at[2];
+    if (pc_present_sample_pending(sample_at)) { /* the eyedropper's pixel */
+        unsigned char px[36];
+        int w = window_image.width, h = window_image.height;
+        int x = sample_at[0] - 1, y = sample_at[1] - 1;
+        x = x < 0 ? 0 : x > w - 3 ? w - 3 : x;
+        y = y < 0 ? 0 : y > h - 3 ? h - 3 : y;
+        if (vk_read_image(&window_image, VK_IMAGE_ASPECT_COLOR_BIT, x, y, 3, 3, px, 4))
+            pc_present_sample_store(px, 4);
+    }
     if (!pc_present_capture[0])
         return;
     int w = window_image.width, h = window_image.height;

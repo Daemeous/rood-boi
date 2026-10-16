@@ -100,7 +100,7 @@ struct LightTemplate {
     /* Fields; null ones take the defaults in evaluate(). Offsets and
      * directions are in the actor's frame (x right, y down as in the game,
      * z forward). */
-    ExprPtr offset, direction, color, intensity, radius, cone, size, shadows, light_size, enabled;
+    ExprPtr offset, direction, color, intensity, radius, cone, inner, size, barn_angle, barn_length, shadows, light_size, enabled;
     ExprPtr flicker, flicker_speed, jitter, pulse, pulse_speed;
     float phase = 0; // decorrelates the animation of lights in one actor
 };
@@ -158,6 +158,7 @@ struct Actor {
     std::string prefab; // id
     float position[3] = { 0, 0, 0 }; // pivot, world
     float rotation[3] = { 0, 0, 0 }; // yaw, pitch, roll (degrees): R = Ry(yaw) Rx(pitch) Rz(roll)
+    float scale = 1; // its size (R): its lights' offsets, jitter, radii and sizes scale with it, never their intensity
     bool enabled = true;
     uint32_t seed = 1; // animation noise
     std::vector<std::pair<std::string, Value>> overrides;
@@ -219,6 +220,7 @@ struct EvalLight {
     int type = LIGHT_POINT;
     float position[3] = { 0, 0, 0 }, color[3] = { 1, 1, 1 }, direction[3] = { 0, 0, 1 };
     float intensity = 1, radius = 600, cone = 45, size[2] = { 128, 128 };
+    float inner = 0, barn_angle = 45, barn_length = 0; // spot inner cone; rect barn doors (lights_internal.h Light)
     float light_size = 0; // emitting radius for soft shadows (0: the room's light size)
     float shadow_skip = 0; // shadow rays stop this far short of the light (its fixture casts no shadow)
     bool shadows = false, enabled = true;

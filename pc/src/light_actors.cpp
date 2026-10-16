@@ -331,6 +331,12 @@ bool rood_lights::create_prefab_from_selection(const std::string& name)
             j.set("direction", direction);
         if (l.type == 1)
             j.set("cone", Json::num(l.cone));
+        if (l.type == 1 && l.inner > 0)
+            j.set("inner", Json::num(l.inner));
+        if (l.type == 2 && l.barn_length > 0) {
+            j.set("barn_angle", Json::num(l.barn_angle));
+            j.set("barn_length", Json::num(l.barn_length));
+        }
         if (l.type == 2) {
             Json size = Json::array();
             size.items.push_back(r3(l.size[0]));
@@ -1038,7 +1044,9 @@ void rood_lights::actor_details_extra(int index)
             l.radius = e.radius;
             memcpy(l.direction, e.direction, sizeof l.direction);
             l.cone = e.cone;
+            l.inner = e.inner;
             l.size[0] = e.size[0], l.size[1] = e.size[1];
+            l.barn_angle = e.barn_angle, l.barn_length = e.barn_length;
             l.shadows = e.shadows;
             lights.push_back(l);
         }
@@ -1538,7 +1546,7 @@ std::string actor_json(int i)
     std::string out = "{\"index\":" + std::to_string(i) + ",\"id\":" + prefab::json_quote(actor_item_id(i))
         + ",\"prefab\":" + prefab::json_quote(a.prefab)
         + ",\"name\":" + prefab::json_quote(actor_label(i)) + ",\"missing\":" + (p ? "false" : "true")
-        + ",\"position\":" + vec_json(a.position) + ",\"rotation\":" + vec_json(a.rotation)
+        + ",\"position\":" + vec_json(a.position) + ",\"rotation\":" + vec_json(a.rotation) + ",\"scale\":" + num(a.scale)
         + ",\"enabled\":" + (a.enabled ? "true" : "false") + ",\"seed\":" + std::to_string(a.seed)
         + ",\"glow\":" + (a.glow_linked ? vec_json(a.glow) : "null")
         + ",\"glow_key\":" + (a.glow_linked && !a.glow_key.empty() ? prefab::json_quote(a.glow_key) : "null")

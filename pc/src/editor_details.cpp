@@ -417,6 +417,12 @@ void rood_details::draw()
         ImGui::PopID();
         return;
     }
+    if (subject.kind == rood_selection::KIND_SUN) { /* no schema kind yet: its settings are the Atmosphere tab's */
+        ImGui::TextWrapped("The room's sun (or moon). In the view: drag its disc across the sky dome (azimuth and "
+                           "elevation), its ring (intensity), its swatch (colour). Every setting: the Atmosphere tab.");
+        ImGui::PopID();
+        return;
+    }
     int index;
     const Kind* k = rood_schema::kind_of(subject, &index);
     if (!k) {

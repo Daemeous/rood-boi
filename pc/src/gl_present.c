@@ -8,6 +8,7 @@
 #include "platform.h" /* pc_replace_file */
 #include "gl_api.h"
 #include "dev_state.h"
+#include "light_shape.h"
 #include "gl_shaders.h" /* PC_GLSL_PROBE_COMMON: the probe GI lookup (probe_gi.inc) */
 #include "environment.h"
 #include "atmosphere.h"
@@ -350,6 +351,7 @@ static const char* scaled_fragment_source =
     "    }\n"
     "    return 1.0 - strength * occlusion / 12.0;\n"
     "}\n"
+    PC_LIGHT_SHAPE_GLSL /* a spot's edge, a rect's face and barn doors (light_shape.h) */
     /* Unshadowed haze (haze Low; scaled.frag the same): the room's medium at
      * 8 jittered steps of the part of the ray it can be in, every light's
      * in-scattering and the sun's (through its map where it has one). */
@@ -370,8 +372,7 @@ static const char* scaled_fragment_source =
     "            vec3 to = light_pos[i].xyz - x; float dl = length(to); vec3 l = to / max(dl, 1e-3);\n"
     "            float f = clamp(dl / light_pos[i].w, 0.0, 1.0);\n"
     "            float a = (1.0 - f * f) * (1.0 - f * f);\n"
-    "            if (light_col[i].w > 1.5) a *= max(dot(-l, light_dir[i].xyz), 0.0);\n"
-    "            else if (light_col[i].w > 0.5) a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));\n"
+    "            a *= light_shape(light_col[i].w, light_pos[i].xyz, light_dir[i], light_right[i], light_up[i], x, l);\n"
     "            here += light_col[i].rgb * a * medium_phase(dot(dir, l), g);\n"
     "        }\n"
     "        if (env_sun_on())\n"
@@ -585,16 +586,13 @@ static const char* scaled_fragment_source =
     "                vec3 l = to / max(d, 1e-3);\n"
     "                float x = clamp(d / light_pos[i].w, 0.0, 1.0);\n"
     "                float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(world_normal, l), 0.0);\n"
-    "                if (light_col[i].w > 1.5)\n" /* rect: emits from its front face */
-    "                    a *= max(dot(-l, light_dir[i].xyz), 0.0);\n"
-    "                else if (light_col[i].w > 0.5)\n" /* spot: smooth cone edge */
-    "                    a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));\n"
+    "                a *= light_shape(light_col[i].w, light_pos[i].xyz, light_dir[i], light_right[i], light_up[i], world, l);\n"
     "                if (light_shadow[i] == -2)\n" /* ray-traced (ptgi.c) */
     "                    a *= clamp(gi.a, 0.0, 1.0);\n"
     "                else if (light_shadow[i] >= 0 && a > 0.0) {\n"
     "                    float cosine = clamp(dot(world_normal, l), 0.05, 1.0);\n"
     "                    a *= visibility(light_shadow[i], world + world_normal * max(2.0, light_world[i].w * 0.01), light_world[i],\n"
-    "                        light_right[i].w > 0.0 ? light_right[i].w : quality2.x, min(sqrt(1.0 - cosine * cosine) / cosine, 4.0));\n"
+    "                        light_col[i].w < 1.5 && light_right[i].w > 0.0 ? light_right[i].w : quality2.x, min(sqrt(1.0 - cosine * cosine) / cosine, 4.0));\n"
     "                }\n"
     "                sum += light_col[i].rgb * a;\n"
     "            }\n"
@@ -1416,6 +1414,45 @@ void pc_write_ppm_atomic(const char* name, const unsigned char* pixels, int w, i
     fclose(f);
     pc_replace_file(part, name);
 }
+/* The eyedropper (editor_colour.cpp): the mean of the 3 x 3 pixels around
+ * window pixel (x, y) of the next presented image (display values 0..1,
+ * the overlay included, as present_dump sees it). Both presenters read it
+ * at present time (capture_present). */
+static int sample_state; /* 0 none, 1 asked for, 2 read */
+static int sample_xy[2];
+static float sample_rgb[3];
+int pc_present_sample_request(float x, float y)
+{
+    sample_xy[0] = (int)x, sample_xy[1] = (int)y;
+    sample_state = 1;
+    return 1;
+}
+int pc_present_sample_result(float rgb[3])
+{
+    if (sample_state != 2)
+        return 0;
+    memcpy(rgb, sample_rgb, sizeof sample_rgb);
+    sample_state = 0;
+    return 1;
+}
+/* For the presenters: the pixel asked for (0: none), and its 3 x 3 read (`stride` bytes per pixel, RGB first). */
+int pc_present_sample_pending(int xy[2])
+{
+    if (sample_state != 1)
+        return 0;
+    xy[0] = sample_xy[0], xy[1] = sample_xy[1];
+    return 1;
+}
+void pc_present_sample_store(const unsigned char* pixels, int stride)
+{
+    float sum[3] = { 0, 0, 0 };
+    for (int i = 0; i < 9; i++)
+        for (int k = 0; k < 3; k++)
+            sum[k] += pixels[i * stride + k];
+    for (int k = 0; k < 3; k++)
+        sample_rgb[k] = sum[k] / (9 * 255.0f);
+    sample_state = 2;
+}
 static void write_capture(const char* name, const unsigned char* pixels, int w, int h)
 {
     pc_write_ppm_atomic(name, pixels, w, h, 3, 1);
@@ -1448,6 +1485,17 @@ static void drain_capture(int slot)
 static void capture_present(void)
 {
     ++pc_presents;
+    int sample_at[2];
+    if (pc_present_sample_pending(sample_at)) { /* the eyedropper's pixel (GL rows count from the bottom) */
+        unsigned char px[27];
+        int x = sample_at[0] - 1, y = window_h - 2 - sample_at[1];
+        x = x < 0 ? 0 : x > window_w - 3 ? window_w - 3 : x;
+        y = y < 0 ? 0 : y > window_h - 3 ? window_h - 3 : y;
+        gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
+        gl_PixelStorei(GL_PACK_ALIGNMENT, 1);
+        gl_ReadPixels(x, y, 3, 3, GL_RGB, GL_UNSIGNED_BYTE, px);
+        pc_present_sample_store(px, 3);
+    }
     int slot = capture_next;
     if (!pc_present_capture[0]) {
         /* Finish a burst's images still in flight. */

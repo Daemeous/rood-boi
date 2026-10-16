@@ -45,8 +45,7 @@ struct Sky {
 };
 Sun sun;
 Sky sky;
-int page_frame = -100; /* the Atmosphere tab was drawn this frame (the gizmo shows) */
-bool gizmo = true;
+bool gizmo = true; /* the sun's icon in the editor's view (its handles: editor_light_handles.cpp) */
 
 std::string num(double v, int d) { return lighting::format_number(v, d); }
 std::string vec3(const float* v, int d) { return num(v[0], d) + "," + num(v[1], d) + "," + num(v[2], d); }
@@ -179,6 +178,23 @@ void set_text(const std::string& t)
 
 } // namespace rood_env
 
+rood_env::SunState rood_env::sun_state()
+{
+    SunState s;
+    s.defined = sun.defined, s.enabled = sun.enabled, s.azimuth = sun.azimuth, s.elevation = sun.elevation;
+    memcpy(s.color, sun.color, sizeof s.color);
+    s.intensity = sun.intensity, s.angle = sun.angle, s.shadows = sun.shadows;
+    return s;
+}
+void rood_env::set_sun_state(const SunState& s)
+{
+    sun.defined = s.defined, sun.enabled = s.enabled, sun.azimuth = s.azimuth, sun.elevation = s.elevation;
+    memcpy(sun.color, s.color, sizeof sun.color);
+    sun.intensity = s.intensity, sun.angle = s.angle, sun.shadows = s.shadows;
+    pc_lights_mark_dirty();
+}
+bool rood_env::sun_icon_shown() { return gizmo; }
+
 /* ---- renderers ---- */
 
 extern "C" int pc_env_gpu_get(pc_env_gpu* out)
@@ -242,7 +258,6 @@ bool pc_atmosphere_page(void); /* atmosphere.cpp */
 /* Returns true when something changed (the room has unsaved edits). */
 extern "C" bool pc_environment_page(void)
 {
-    page_frame = ImGui::GetFrameCount();
     rood_lights::track_room();
     bool changed = false;
     ImGui::PushID("environment");
@@ -280,7 +295,9 @@ extern "C" bool pc_environment_page(void)
             changed |= ImGui::SliderFloat("Angular size", &sun.angle, 0, 10, "%.2f deg");
             tooltip("Angular diameter: 0.53 is the real sun's; larger gives softer shadow edges (an overcast moon).");
             changed |= ImGui::Checkbox("Casts shadows", &sun.shadows);
-            ImGui::Checkbox("Direction gizmo in the view", &gizmo);
+            ImGui::Checkbox("Sun in the view", &gizmo);
+            tooltip("Its disc on a sky dome in the view: click it, then drag it (azimuth and elevation), its ring\n"
+                    "(intensity) or its swatch (colour).");
             ImGui::EndDisabled();
             ImGui::PopID();
         }
@@ -324,91 +341,6 @@ extern "C" bool pc_environment_page(void)
     if (changed)
         pc_lights_mark_dirty();
     return changed;
-}
-
-/* ---- editor: the sun direction gizmo ----
- * In the editor view while the Atmosphere tab shows: an arrow from a point
- * ahead of the camera toward the sun, a disc at its end; dragging the disc
- * turns the sun (horizontal: azimuth, vertical: elevation). */
-extern "C" void pc_env_draw(const float view[16], const float projection[16], const float rect[4])
-{
-    if (!gizmo || !sun.defined || !sun.enabled || ImGui::GetFrameCount() - page_frame > 1)
-        return;
-    /* The eye (R e + t = 0, R not orthonormal: Cramer's rule) and the view's forward row. */
-    float m[3][3], eye[3];
-    for (int r = 0; r < 3; r++)
-        for (int c = 0; c < 3; c++)
-            m[r][c] = view[c * 4 + r];
-    float det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
-        + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-    if (fabsf(det) < 1e-12f)
-        return;
-    for (int k = 0; k < 3; k++) {
-        float a[3][3];
-        memcpy(a, m, sizeof a);
-        for (int r = 0; r < 3; r++)
-            a[r][k] = -view[12 + r];
-        eye[k] = (a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0])
-                     + a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0])) / det;
-    }
-    float f[3] = { m[2][0], m[2][1], m[2][2] }, fl = sqrtf(f[0] * f[0] + f[1] * f[1] + f[2] * f[2]);
-    if (fl < 1e-6f)
-        return;
-    float centre[3], d[3], tip[3];
-    direction(sun.azimuth, sun.elevation, d);
-    for (int k = 0; k < 3; k++) {
-        centre[k] = eye[k] + f[k] / fl * 900.0f;
-        tip[k] = centre[k] + d[k] * 300.0f;
-    }
-    auto project = [&](const float w[3], ImVec2& out) {
-        float v[4], c[4];
-        for (int r = 0; r < 4; r++)
-            v[r] = view[r] * w[0] + view[4 + r] * w[1] + view[8 + r] * w[2] + view[12 + r];
-        for (int r = 0; r < 4; r++)
-            c[r] = projection[r] * v[0] + projection[4 + r] * v[1] + projection[8 + r] * v[2] + projection[12 + r] * v[3];
-        if (c[3] <= 1e-3f)
-            return false;
-        out = ImVec2(rect[0] + (c[0] / c[3] * 0.5f + 0.5f) * rect[2], rect[1] + (0.5f - c[1] / c[3] * 0.5f) * rect[3]);
-        return true;
-    };
-    ImVec2 a, b;
-    if (!project(centre, a) || !project(tip, b))
-        return;
-    ImDrawList* draw = ImGui::GetForegroundDrawList();
-    draw->PushClipRect(ImVec2(rect[0], rect[1]), ImVec2(rect[0] + rect[2], rect[1] + rect[3]), true);
-    int rgb[3];
-    for (int k = 0; k < 3; k++)
-        rgb[k] = (int)(255.0f * fminf(1.0f, fmaxf(0.0f, sun.color[k])));
-    ImU32 col = IM_COL32(rgb[0], rgb[1], rgb[2], 255);
-    draw->AddLine(a, b, IM_COL32(255, 220, 120, 220), 2.0f);
-    draw->AddCircle(a, 4.0f, IM_COL32(255, 220, 120, 200), 12, 1.5f);
-    static bool dragging;
-    ImGuiIO& io = ImGui::GetIO();
-    float dx = io.MousePos.x - b.x, dy = io.MousePos.y - b.y;
-    bool over = dx * dx + dy * dy < 14.0f * 14.0f;
-    if (over && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !io.WantCaptureMouse)
-        dragging = true;
-    if (dragging) {
-        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
-            dragging = false;
-        else if (io.MouseDelta.x != 0 || io.MouseDelta.y != 0) {
-            sun.azimuth = fmodf(sun.azimuth + io.MouseDelta.x * 0.5f + 360.0f, 360.0f);
-            sun.elevation = fminf(90.0f, fmaxf(0.0f, sun.elevation - io.MouseDelta.y * 0.3f));
-            pc_lights_mark_dirty();
-            pc_undo_hint("Turn the sun");
-        }
-    }
-    draw->AddCircleFilled(b, 10.0f, col, 24);
-    draw->AddCircle(b, 10.0f, over || dragging ? IM_COL32(255, 255, 255, 255) : IM_COL32(30, 30, 30, 200), 24, 2.0f);
-    for (int i = 0; i < 8; i++) { /* rays */
-        float t = i * 0.785398f;
-        draw->AddLine(ImVec2(b.x + cosf(t) * 13, b.y + sinf(t) * 13), ImVec2(b.x + cosf(t) * 18, b.y + sinf(t) * 18), col,
-            1.5f);
-    }
-    char label[64];
-    snprintf(label, sizeof label, "sun %.0f / %.0f deg", sun.azimuth, sun.elevation);
-    draw->AddText(ImVec2(b.x + 20, b.y - 7), IM_COL32(255, 240, 200, 230), label);
-    draw->PopClipRect();
 }
 
 /* ---- RPC environment ---- */

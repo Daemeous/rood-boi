@@ -11,8 +11,9 @@
 typedef struct {
     float pos[4]; /* world xyz, radius */
     float col[4]; /* rgb * intensity, type (0 point, 1 spot, 2 rect) */
-    float right[4], up[4]; /* rect half extents; right.w: own emitting radius; up.w: shadow skip */
-    float dir[4]; /* direction, cos(half cone) */
+    float right[4], up[4]; /* rect half extents; right.w: own emitting radius (rect: barn length x sin angle);
+                            * up.w: shadow skip; spot: right.x cos(inner half angle) (light_shape.h) */
+    float dir[4]; /* direction, cos(half cone) (rect: barn length x cos angle) */
     float world[4]; /* present: shadow map lookups (position, radius) */
     int info[4]; /* x: shadows (trace: casts; present: -2 traced, >= 0 shadow map slot, -1 none) */
 } pc_light_gpu;

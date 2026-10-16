@@ -16,6 +16,17 @@ void add_items(lighting::State& s);
 /* The items as definition lines (undo snapshots), and back. */
 std::string text();
 void set_text(const std::string& text);
+/* The room's sun (or moon) for the editor's handles (editor_light_handles.cpp). */
+struct SunState {
+    bool defined = false, enabled = true;
+    float azimuth = 180, elevation = 45; /* degrees (rood_math::sun_direction) */
+    float color[3] = { 1, 1, 1 };
+    float intensity = 1, angle = 0.53f;
+    bool shadows = true;
+};
+SunState sun_state();
+void set_sun_state(const SunState& s); /* the room unsaved */
+bool sun_icon_shown(); /* Atmosphere > "Sun in the view" */
 } // namespace rood_env
 
 /* The ground fog (`env fog`) and fog volumes (`fog <id>`): atmosphere.cpp.
@@ -46,6 +57,8 @@ bool volumes_shown(); /* Show > Fog volumes */
 lighting::Item volume_item(int index);
 int add_volume_item(const lighting::Item& item, const float offset[3]); /* a copy with a new id: its index, or -1 */
 void remove_volume(int index);
+bool volume_size(int index, float out[3]); /* its full extents; false out of range */
+void set_volume_size(int index, const float size[3]); /* the room unsaved */
 void outliner(const char* filter); /* the Outliner's Fog volumes rows */
 void schema_kind(rood_schema::Kind& out); /* the fog volume's fields (editor_schema.h) */
 void details_extra(int index); /* Details: a fog volume's tools under its fields */

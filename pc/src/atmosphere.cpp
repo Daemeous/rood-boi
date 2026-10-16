@@ -45,6 +45,7 @@ extern float pc_fog_anisotropy, pc_fog_density;
 int pc_room_settings_parse(const char* line);
 void pc_lights_mark_dirty(void);
 int pc_lights_snap_at(float x, float y, unsigned modes, int apply, pc_snap_result* out); /* lights.cpp */
+extern int pc_lights_gizmo_space; /* lights.cpp: the move tool's axes (0 world, 1 local) */
 }
 
 int pc_fog_global = 1; /* settings key fog: 0 switches every room's ground fog and volumes off */
@@ -145,7 +146,6 @@ std::string presets_status;
 Fog fog;
 std::vector<Volume> volumes;
 int selected = -1;
-int operation = 0; /* gizmo: 0 move, 1 size, 2 turn */
 bool show_volumes = true;
 int page_frame = -100;
 int time_zone = -1, time_room = -1;
@@ -1625,18 +1625,21 @@ bool pc_atmosphere_viewport(const float view[16], const float projection[16], co
     float c = cosf(v.yaw * DEG), s = sinf(v.yaw * DEG);
     float model[16] = { c * v.size[0], 0, -s * v.size[0], 0, 0, v.size[1], 0, 0, s * v.size[2], 0, c * v.size[2], 0, v.pos[0],
         v.pos[1], v.pos[2], 1 };
-    ImGuizmo::OPERATION op = operation == 1 ? ImGuizmo::SCALE : operation == 2 ? ImGuizmo::ROTATE_Y : ImGuizmo::TRANSLATE;
-    if (ImGuizmo::Manipulate(view, projection, op, operation == 0 ? ImGuizmo::WORLD : ImGuizmo::LOCAL, model)) {
+    /* The editor's tools: W moves, E turns, R sizes (scale semantics: its size per axis). */
+    int operation = rood_lights::gizmo_operation;
+    ImGuizmo::OPERATION op = operation == 2 ? ImGuizmo::SCALE : operation == 1 ? ImGuizmo::ROTATE_Y : ImGuizmo::TRANSLATE;
+    ImGuizmo::MODE mode = operation == 0 && !pc_lights_gizmo_space ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
+    if (ImGuizmo::Manipulate(view, projection, op, mode, model)) {
         float x[3] = { model[0], model[1], model[2] }, z[3] = { model[8], model[9], model[10] };
         float sx = sqrtf(x[0] * x[0] + x[1] * x[1] + x[2] * x[2]), sz = sqrtf(z[0] * z[0] + z[1] * z[1] + z[2] * z[2]);
         float sy = sqrtf(model[4] * model[4] + model[5] * model[5] + model[6] * model[6]);
         v.pos[0] = model[12], v.pos[1] = model[13], v.pos[2] = model[14];
-        if (operation == 1)
+        if (operation == 2)
             v.size[0] = fmaxf(sx, 2), v.size[1] = fmaxf(sy, 2), v.size[2] = fmaxf(sz, 2);
-        if (operation == 2 && sx > 1e-6f)
+        if (operation == 1 && sx > 1e-6f)
             v.yaw = atan2f(-x[2], x[0]) / DEG;
         pc_lights_mark_dirty();
-        pc_undo_hint(operation == 0 ? "Move fog volume" : operation == 1 ? "Size fog volume" : "Turn fog volume");
+        pc_undo_hint(operation == 0 ? "Move fog volume" : operation == 2 ? "Size fog volume" : "Turn fog volume");
     }
     /* Moving with the editor's snapping on (the lights' point, edge,
      * midpoint and surface modes): the bottom face's centre goes to the
@@ -1658,6 +1661,20 @@ bool pc_atmosphere_viewport(const float view[16], const float projection[16], co
 /* ---- the room's fog volumes for the editor (environment_internal.h) ---- */
 
 int rood_atmo::volume_count() { return (int)volumes.size(); }
+bool rood_atmo::volume_size(int index, float out[3])
+{
+    if (index < 0 || index >= (int)volumes.size())
+        return false;
+    memcpy(out, volumes[index].size, sizeof volumes[index].size);
+    return true;
+}
+void rood_atmo::set_volume_size(int index, const float size[3])
+{
+    if (index < 0 || index >= (int)volumes.size())
+        return;
+    memcpy(volumes[index].size, size, sizeof volumes[index].size);
+    pc_lights_mark_dirty();
+}
 std::string rood_atmo::volume_id(int index)
 {
     if (index < 0 || index >= (int)volumes.size())
@@ -1901,11 +1918,11 @@ void rood_atmo::details_extra(int index)
     bool changed = false;
     ImGui::PushID(v.id.c_str());
     ImGui::SeparatorText("Tools");
-    ImGui::RadioButton("Move", &operation, 0);
+    ImGui::RadioButton("Move (W)", &rood_lights::gizmo_operation, 0);
     ImGui::SameLine();
-    ImGui::RadioButton("Size", &operation, 1);
+    ImGui::RadioButton("Turn (E)", &rood_lights::gizmo_operation, 1);
     ImGui::SameLine();
-    ImGui::RadioButton("Turn", &operation, 2);
+    ImGui::RadioButton("Size (R)", &rood_lights::gizmo_operation, 2);
     bool end = !ImGui::GetIO().WantTextInput && ImGui::IsKeyPressed(ImGuiKey_End, false);
     if (ImGui::Button("Drop to floor (End)") || end) {
         pc_undo_hint("Drop fog volume to floor");

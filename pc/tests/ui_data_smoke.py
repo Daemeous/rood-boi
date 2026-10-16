@@ -478,7 +478,17 @@ def run(cards, out, cases, check, shots):
             b.press("circle", settle=4)
             b.wait_phase("prompt")
             w0 = b.writes()
-            b.press("up", settle=4)
+            # the dialog lays Yes / No side by side: Right on No stays, Left goes to Yes, Left again stays
+            b.press("right", settle=4)
+            check(b.data()["cancelled"] == 1, f"4: Right on No stays on No ({b.data()['cancelled']})")
+            b.press("left", settle=4)
+            check(b.data()["cancelled"] == 0, f"4: Left moves to Yes ({b.data()['cancelled']})")
+            b.press("left", settle=4)
+            check(b.data()["cancelled"] == 0, f"4: Left on Yes stays on Yes ({b.data()['cancelled']})")
+            b.press("right", settle=4)
+            check(b.data()["cancelled"] == 1, f"4: Right moves back to No ({b.data()['cancelled']})")
+            b.press("up", settle=4)  # Up / Down still toggle, as the original
+            check(b.data()["cancelled"] == 0, f"4: Up toggles to Yes ({b.data()['cancelled']})")
             b.press("circle", settle=4)
             b.wait(lambda: b.writes() > w0, "the overwrite written")
             b.wait_phase("wait")

@@ -34,6 +34,8 @@ static void references()
             && ref_of("glow:room_12_0,0,0").kind == KIND_GLOW,
         "actor, fog and glow ids by their prefix");
     check(!ref_of("light:") && !ref_of("set:haze_density") && !ref_of(""), "an empty name or another kind is no reference");
+    check(ref_of("env:sun").kind == KIND_SUN && !ref_of("env:sky") && !strcmp(kind_name(KIND_SUN), "sun"),
+        "the sun is env:sun (the sky is no reference)");
     check(!strcmp(kind_name(KIND_VOLUME), "fog") && !strcmp(source_name(FROM_OUTLINER), "outliner"), "kind and source names");
 }
 

@@ -10,6 +10,7 @@
 
 #include "imgui.h"
 #include "editor_picking.h"
+#include "editor_math.h"
 #include "editor_undo.h"
 #include "environment_internal.h"
 #include "glow_overrides.h"
@@ -72,6 +73,8 @@ std::vector<Ref> all_objects()
         out.push_back(rood_scene::actor_ref(i));
     for (int i = 0; i < rood_atmo::volume_count(); i++)
         out.push_back(rood_scene::volume_ref(i));
+    if (rood_env::sun_state().defined)
+        out.push_back(Ref { rood_selection::KIND_SUN, "env:sun" });
     static pc_glow_info glows[160];
     int n = pc_gi_glow_list(glows, 160);
     for (int i = 0; i < n; i++)
@@ -136,7 +139,12 @@ int rood_scene::index_of(const Ref& r)
         return -1;
     }
 }
-bool rood_scene::exists(const Ref& r) { return r.kind == rood_selection::KIND_GLOW || index_of(r) >= 0; }
+bool rood_scene::exists(const Ref& r)
+{
+    if (r.kind == rood_selection::KIND_SUN)
+        return rood_env::sun_state().defined;
+    return r.kind == rood_selection::KIND_GLOW || index_of(r) >= 0;
+}
 std::string rood_scene::label(const Ref& r)
 {
     int i = index_of(r);
@@ -164,6 +172,8 @@ std::string rood_scene::label(const Ref& r)
             return g.name;
         return "Glow";
     }
+    case rood_selection::KIND_SUN:
+        return "Sun";
     default:
         break;
     }
@@ -328,7 +338,7 @@ std::vector<Ref> rood_scene::in_box(float x0, float y0, float x1, float y1)
 {
     std::vector<Ref> out;
     for (const Icon& c : icons)
-        if (c.anchor && c.ref.kind != rood_selection::KIND_GLOW && rood_pick::in_rect(c.x, c.y, x0, y0, x1, y1)
+        if (c.anchor && c.ref.kind != rood_selection::KIND_GLOW && c.ref.kind != rood_selection::KIND_SUN && rood_pick::in_rect(c.x, c.y, x0, y0, x1, y1)
             && std::find(out.begin(), out.end(), c.ref) == out.end())
             out.push_back(c.ref);
     return out;
@@ -535,7 +545,8 @@ std::string state_json()
  * {x, y | u, v, shift, ctrl} (as a click in the view: "under" is what it
  * hit), box {x0, y0, x1, y1, shift, ctrl}, lock {on} (Details' lock), hide
  * {ids} (default the selection), isolate, unhide_all, copy (replies the
- * clipboard), paste {text}, duplicate, delete; source
+ * clipboard), paste {text}, duplicate, delete; project {point} (replies
+ * pixel), pick {x, y | u, v} (replies world, normal); source
  * "viewport" | "outliner" | "details" | "rpc" (default) says where the
  * change counts as coming from. Replies with the selection, its primary,
  * serial and source, the Details lock, the Outliner's row of the primary,
@@ -617,6 +628,31 @@ extern "C" int pc_editor_select_rpc(const char* params_text, char* out, int size
         extra += ",\"count\":" + std::to_string(rood_scene::duplicate_selection());
     } else if (action == "delete") {
         extra += ",\"count\":" + std::to_string(rood_scene::delete_selection());
+    } else if (action == "project") { /* a world point's window pixel (null behind the camera) */
+        const Json* p = params.get("point");
+        pc_overlay_view v;
+        if (!p || p->type != Json::Array || p->items.size() != 3 || !pc_lights_tools_view(&v, nullptr))
+            return rpc_fail("project needs point [x, y, z] and an editor view", out, size);
+        float w[3] = { (float)p->items[0].number, (float)p->items[1].number, (float)p->items[2].number }, px[2];
+        char text[96];
+        if (rood_math::project(v.view, v.projection, v.rect, w, px))
+            snprintf(text, sizeof text, ",\"pixel\":[%.2f,%.2f]", px[0], px[1]);
+        else
+            snprintf(text, sizeof text, ",\"pixel\":null");
+        extra += text;
+    } else if (action == "pick") { /* the surface under a window pixel {x, y | u, v} */
+        float x, y, w[3], n[3];
+        pc_overlay_view v;
+        pc_overlay_pick pick = nullptr;
+        if (!cursor_of(params, &x, &y) || !pc_lights_tools_view(&v, &pick) || !pick)
+            return rpc_fail("pick needs an editor view", out, size);
+        char text[160];
+        if (pick(x, y, w, n))
+            snprintf(text, sizeof text, ",\"world\":[%.2f,%.2f,%.2f],\"normal\":[%.4f,%.4f,%.4f]", w[0], w[1], w[2], n[0],
+                n[1], n[2]);
+        else
+            snprintf(text, sizeof text, ",\"world\":null,\"normal\":null");
+        extra += text;
     } else {
         return rpc_fail("unknown action " + action, out, size);
     }

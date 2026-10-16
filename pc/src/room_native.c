@@ -33,6 +33,10 @@ extern float pc_gte_view_ofx(void);
 extern int pc_gte_widescreen;
 extern int pc_hw_active;
 extern const void* pc_scene_room_data(void) __attribute__((weak));
+/* scene_capture.c (scene_capture.h): the loaded room block, group geometry. */
+extern const void* pc_scene_room_block(unsigned* length) __attribute__((weak));
+extern const unsigned* pc_room_group_geometry(
+    const void* data, unsigned length, unsigned index, unsigned* tris, unsigned* quads) __attribute__((weak));
 extern void pc_room_render_rules(int* near_bucket, int* far_bucket, int* lod_bucket) __attribute__((weak));
 extern int pc_room_texture_lod; /* render.c */
 extern void pc_hw_native_room_packets(const void* start, const void* end, uint32_t list) __attribute__((weak));
@@ -682,7 +686,7 @@ int pc_editor_game_cutaway = 1;
 
 #define EDITOR_MAX_GROUPS 4096
 static const void* editor_data; /* the room block the per-group state belongs to */
-static unsigned editor_count, editor_signature;
+static unsigned editor_count, editor_signature, editor_length;
 static unsigned char editor_hidden[EDITOR_MAX_GROUPS]; /* hidden in the Outliner */
 static signed char editor_black[EDITOR_MAX_GROUPS]; /* -1 unknown, else 0/1 */
 
@@ -695,35 +699,46 @@ static unsigned editor_block_signature(const void* data, unsigned count)
         h = (h ^ w[1 + i * 16 + 7]) * 16777619u;
     return h ^ count;
 }
-/* The per-group state follows the room block: a new room clears it. */
-static int editor_block(const void* data)
+/* The room block the editor reads: the game's loaded room as captured
+ * (scene_capture.c), never a block freed by a room change (the disc reads
+ * the next room into that memory: a half-written block) and never before
+ * the new room is captured; `data` (when given) must be it. Group records
+ * lie inside its editor_length bytes (checked by scene_capture.c); group
+ * geometry is checked per access (pc_room_group_geometry). The per-group
+ * state follows the room block: a new room clears it. */
+static const void* editor_block(const void* data)
 {
-    if (!data)
-        return 0;
-    unsigned count = *(const unsigned*)data;
-    if (!count || count > EDITOR_MAX_GROUPS)
-        return 0;
-    unsigned sig = editor_block_signature(data, count);
-    if (data != editor_data || count != editor_count || sig != editor_signature) {
-        editor_data = data;
+    unsigned length = 0;
+    const void* room = pc_scene_room_block ? pc_scene_room_block(&length) : NULL;
+    if (!room || (data && data != room))
+        return NULL;
+    unsigned count = *(const unsigned*)room;
+    if (!count || count > EDITOR_MAX_GROUPS || 4 + count * 0x40 > length)
+        return NULL;
+    unsigned sig = editor_block_signature(room, count);
+    if (room != editor_data || count != editor_count || sig != editor_signature || length != editor_length) {
+        editor_data = room;
         editor_count = count;
         editor_signature = sig;
+        editor_length = length;
         memset(editor_hidden, 0, sizeof editor_hidden);
         memset(editor_black, -1, sizeof editor_black);
     }
-    return 1;
+    return room;
 }
+/* RPC room_groups "room": 1 when the editor reads the loaded room's groups,
+ * 0 while a room loads (or none is loaded). */
+int pc_room_editor_ready(void) { return editor_block(NULL) != NULL; }
 /* A black shell: every polygon of the group has all vertex colours 0 (the
  * texel is modulated to black) and is not a raw texture. */
 static int group_is_black(const void* data, unsigned index)
 {
     if (editor_black[index] >= 0)
         return editor_black[index];
-    const unsigned char* group = (const unsigned char*)data + 4 + index * 0x40;
-    const unsigned* geometry = (const unsigned*)((const unsigned char*)data + *(const unsigned*)(group + 0x1c));
-    unsigned tris = geometry[0], quads = geometry[1];
-    int black = tris + quads > 0 && tris + quads < 65536;
-    const unsigned* poly = geometry + 2;
+    unsigned tris = 0, quads = 0;
+    const unsigned* geometry = pc_room_group_geometry(data, editor_length, index, &tris, &quads);
+    int black = geometry && tris + quads > 0;
+    const unsigned* poly = geometry ? geometry + 2 : NULL;
     for (unsigned i = 0; black && i < tris + quads; ++i) {
         int quad = i >= tris;
         if ((poly[3] & 0xffffff) || (poly[4] & 0xffffff) || (poly[5] & 0xffffff)
@@ -767,27 +782,29 @@ unsigned pc_room_editor_facing(void)
  * out (a black shell, or hidden in the Outliner). */
 int pc_room_editor_hidden(const void* data, unsigned index)
 {
-    if (!pc_scene_room_data || data != pc_scene_room_data() || !editor_block(data) || index >= editor_count)
+    if (!data || !editor_block(data) || index >= editor_count)
         return 0;
     if (editor_hidden[index])
         return 1;
     return pc_editor_hide_masks && group_is_black(data, index);
 }
-/* The current room's groups (Outliner, RPC room_groups). */
+/* The current room's groups (Outliner, RPC room_groups, the editor's undo
+ * snapshot every overlay frame): none while a room loads. */
 int pc_room_editor_groups(pc_room_group_info* out, int max)
 {
-    const void* data = pc_scene_room_data ? pc_scene_room_data() : NULL;
-    if (!editor_block(data))
+    const void* data = editor_block(NULL);
+    if (!data)
         return 0;
     unsigned facing = pc_room_editor_facing();
     int n = 0;
     for (unsigned i = 0; i < editor_count && n < max; ++i, ++n) {
         const unsigned char* group = (const unsigned char*)data + 4 + i * 0x40;
-        const unsigned* geometry = (const unsigned*)((const unsigned char*)data + *(const unsigned*)(group + 0x1c));
+        unsigned tris = 0, quads = 0;
+        const unsigned* geometry = pc_room_group_geometry(data, editor_length, i, &tris, &quads);
         unsigned flags = *(const unsigned*)group;
         pc_room_group_info* g = &out[n];
         g->flags = flags;
-        g->polygons = geometry[0] + geometry[1] < 65536 ? (int)(geometry[0] + geometry[1]) : 0;
+        g->polygons = geometry ? (int)(tris + quads) : 0;
         g->black = group_is_black(data, i);
         g->hidden = editor_hidden[i];
         g->game_hidden = (flags & 0x1100) != 0;
@@ -801,8 +818,7 @@ int pc_room_editor_groups(pc_room_group_info* out, int max)
 /* Hide or show group `index` in the free camera's view; -1 shows them all. */
 void pc_room_editor_set_hidden(int index, int hidden)
 {
-    const void* data = pc_scene_room_data ? pc_scene_room_data() : NULL;
-    if (!editor_block(data))
+    if (!editor_block(NULL))
         return;
     if (index < 0)
         memset(editor_hidden, 0, sizeof editor_hidden);

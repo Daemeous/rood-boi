@@ -160,6 +160,15 @@ def suites(args, mode="egl"):
             Suite("editor_schema_smoke", [PY, str(TESTS / "editor_schema_smoke.py"), "--card", str(args.save)], 420,
                   note="property schema: lint, RPC get/set/reset per kind (lights, actors, fog presets), Details drawn "
                        "from it (categories, search, lock, reset arrow), the value ladder (middle-drag, Esc)"),
+            Suite("editor_transform_smoke", [PY, str(TESTS / "editor_transform_smoke.py"), "--card", str(args.save)],
+                  300, note="W/E/R and World/Local; R scales a light's reach or size, an actor's lights and radii, a fog "
+                            "volume's size, never brightness; the scale gizmo's centre with the mouse"),
+            Suite("barn_doors_smoke", [PY, str(TESTS / "barn_doors_smoke.py"), "--card", str(args.save)], 300,
+                  note="light shapes in the picture: a rect's barn doors cut its spill beside it, a spot's inner cone "
+                       "sets its edge (OpenGL; Vulkan with --arch 64 --renderer vulkan)"),
+            Suite("editor_handles_smoke", [PY, str(TESTS / "editor_handles_smoke.py"), "--card", str(args.save)], 600,
+                  note="viewport handles (mouse drags): each changes one field, Ctrl fine, Shift snap, Esc, one undo "
+                       "step, hidden while flying; point/spot/rect/sun handles; the colour popover and eyedropper"),
             Suite("facing_cutaway_smoke", [PY, str(TESTS / "facing_cutaway_smoke.py"), "--card", str(args.save)], 300,
                   note="game camera cutaway walls: native = packet path at 8 yaws, during turns (save room, room 13)"),
             Suite("camera_stick_smoke", [PY, str(TESTS / "camera_stick_smoke.py"), "--card", str(args.save)], 300,
@@ -170,6 +179,9 @@ def suites(args, mode="egl"):
                             "around in first person; R3 leaves it"),
             Suite("editor_snap_smoke", [PY, str(TESTS / "editor_snap_smoke.py"), "--card", str(args.save)], 300,
                   note="editor overlays (edges, points) and point/edge/surface snapping in the save room"),
+            Suite("editor_roomload_smoke", [PY, str(TESTS / "editor_roomload_smoke.py"), "--card", str(args.save)],
+                  600, note="editor open through room loads (warps, a walked door) stepped every vsync: its room "
+                            "groups are the loaded block's or none (never a freed one), no crash"),
             Suite("room_browser_smoke", [PY, str(TESTS / "room_browser_smoke.py"), "--card", str(args.save)], 300,
                   note="Room Browser: rooms from the disc, warps across zones and back; lighting layers in the game"),
             Suite("route_continuation_smoke", [PY, str(TESTS / "route_continuation_smoke.py"), "--card",
@@ -247,6 +259,11 @@ def suites(args, mode="egl"):
         *([Suite("button_roles_smoke", [PY, str(TESTS / "button_roles_smoke.py"), "--card", str(args.save)], 300,
                  note="QoL button roles: Cross confirms (settings file, title and loading, menus, the modern "
                       "menus' tabs), Cross attacks in the field; each alone, both, neither; the ability lists")]
+          if args.save.exists() else []),
+        *([Suite("button_roles_symbols_smoke", [PY, str(TESTS / "button_roles_symbols_smoke.py"), "--card",
+                       str(args.save)], 300,
+                 note="QoL button roles: the game's own ○ / × sprites and text glyphs follow Cross confirms "
+                      "(original drawing, ui_text font, prompts); text naming unmoved buttons keeps them")]
           if args.save.exists() else []),
         *([Suite("ui_menus_smoke", [PY, str(TESTS / "ui_menus_smoke.py"), "--card", str(args.save)], 300,
                  note="modern menus: off = the game's menu; shell tabs, original Status and back, "
@@ -442,11 +459,11 @@ def stale_binaries(selected):
 # while snapshot_equivalence makes the save states, so it runs first beside
 # a suite that does not.
 CHECKPOINT_SUITES = {
-    "probe_gi_smoke", "animation_smoke", "editor_cutaway_smoke", "editor_undo_smoke", "editor_selection_smoke", "editor_schema_smoke", "facing_cutaway_smoke",
-    "camera_stick_smoke", "editor_snap_smoke", "room_browser_smoke", "route_continuation_smoke", "ending_smoke",
+    "probe_gi_smoke", "animation_smoke", "editor_cutaway_smoke", "editor_undo_smoke", "editor_selection_smoke", "editor_schema_smoke", "editor_transform_smoke", "barn_doors_smoke", "editor_handles_smoke", "facing_cutaway_smoke",
+    "camera_stick_smoke", "editor_snap_smoke", "editor_roomload_smoke", "room_browser_smoke", "route_continuation_smoke", "ending_smoke",
     "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
     "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "weapon_slots_smoke", "ui_menus_smoke",
-    "ui_lines_smoke", "ui_text_smoke", "button_prompts_smoke", "coplanar_order_smoke", "atmosphere_smoke",
+    "ui_lines_smoke", "ui_text_smoke", "button_prompts_smoke", "button_roles_symbols_smoke", "coplanar_order_smoke", "atmosphere_smoke",
     "fog_sim_smoke", "fog_volume_smoke", "save_point_glow_smoke", "emissive_smoke", "ui_ashley_smoke", "ui_ashley_stability_smoke",
     "ui_equip_smoke",
     "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "post_smoke",

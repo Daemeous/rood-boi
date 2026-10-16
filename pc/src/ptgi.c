@@ -27,6 +27,7 @@
 #include <string.h>
 #include <time.h>
 #include "glow_overrides.h"
+#include "light_shape.h"
 #include "emissive.h" /* emissive texels that are lights: room glows */
 #include "lighting_quality.h"
 #include "environment.h"
@@ -1083,6 +1084,7 @@ static const char* trace_source = SHADER_COMMON
     "    }\n"
     "    return hit >= 0;\n"
     "}\n"
+    PC_LIGHT_SHAPE_GLSL /* a spot's edge, a rect's face and barn doors (light_shape.h) */
     /* Direct light from the dynamic lights at a world point, with shadow rays. */
     "vec3 direct(vec3 p, vec3 n) {\n"
     "    vec3 sum = vec3(0.0);\n"
@@ -1097,8 +1099,7 @@ static const char* trace_source = SHADER_COMMON
     "        vec3 to = centre - p; float d = length(to); vec3 l = to / max(d, 1e-3);\n"
     "        float x = clamp(d / light_pos[i].w, 0.0, 1.0);\n"
     "        float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);\n"
-    "        if (light_col[i].w > 1.5) a *= max(dot(-l, light_dir[i].xyz), 0.0);\n"
-    "        else if (light_col[i].w > 0.5) a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));\n"
+    "        a *= light_shape(light_col[i].w, light_pos[i].xyz, light_dir[i], light_right[i], light_up[i], p, l);\n"
     "        if (a <= 0.0) continue;\n"
     "        float th; int hit; vec2 bc;\n"
     "        if (trace(p + n * 1.5, l, d - max(3.0, light_up[i].w), true, n, 0.0, th, hit, bc)) continue;\n"
@@ -1118,8 +1119,7 @@ static const char* trace_source = SHADER_COMMON
     "        vec3 to = centre - p; float d = length(to); vec3 l = to / max(d, 1e-3);\n"
     "        float x = clamp(d / light_pos[i].w, 0.0, 1.0);\n"
     "        float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);\n"
-    "        if (light_col[i].w > 1.5) a *= max(dot(-l, light_dir[i].xyz), 0.0);\n"
-    "        else if (light_col[i].w > 0.5) a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));\n"
+    "        a *= light_shape(light_col[i].w, light_pos[i].xyz, light_dir[i], light_right[i], light_up[i], p, l);\n"
     "        float w = a * dot(light_col[i].rgb, vec3(0.299, 0.587, 0.114));\n"
     "        if (w <= 0.0) continue;\n"
     "        if (light_col[i].w > 1.5) centre += light_right[i].xyz * (rand() * 2.0 - 1.0) + light_up[i].xyz * (rand() * 2.0 - 1.0);\n"
@@ -1277,8 +1277,7 @@ static const char* trace_source = SHADER_COMMON
     "    vec3 to = centre - x; d = length(to); l = to / max(d, 1e-3);\n"
     "    float f = clamp(d / pos.w, 0.0, 1.0);\n"
     "    float a = (1.0 - f * f) * (1.0 - f * f);\n"
-    "    if (i < light_count && light_col[i].w > 1.5) a *= max(dot(-l, light_dir[i].xyz), 0.0);\n"
-    "    else if (i < light_count && light_col[i].w > 0.5) a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));\n"
+    "    if (i < light_count) a *= light_shape(light_col[i].w, light_pos[i].xyz, light_dir[i], light_right[i], light_up[i], x, l);\n"
     "    return col * a;\n"
     "}\n"
     /* The medium (medium.glsl: haze, ground fog, volumes) along the part of
@@ -1384,8 +1383,7 @@ static const char* trace_source = SHADER_COMMON
     "        vec3 to = light_pos[i].xyz - p; float d = length(to); vec3 l = to / max(d, 1e-3);\n"
     "        float x = clamp(d / light_pos[i].w, 0.0, 1.0);\n"
     "        float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);\n"
-    "        if (light_col[i].w > 1.5) a *= max(dot(-l, light_dir[i].xyz), 0.0);\n"
-    "        else if (light_col[i].w > 0.5) a *= smoothstep(light_dir[i].w, mix(light_dir[i].w, 1.0, 0.25), dot(-l, light_dir[i].xyz));\n"
+    "        a *= light_shape(light_col[i].w, light_pos[i].xyz, light_dir[i], light_right[i], light_up[i], p, l);\n"
     "        all_ += max(a * dot(light_col[i].rgb, vec3(0.299, 0.587, 0.114)), 0.0) * float(shadow_samples);\n"
     "    }\n"
     "    float lit = 0.0;\n"
