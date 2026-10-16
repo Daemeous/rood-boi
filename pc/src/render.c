@@ -22,6 +22,7 @@
 #include "room_editor.h"
 #include "occlusion.h" /* fading what hides the characters in play */
 #include "emissive.h"
+#include "hd_textures.h"
 #include "gl_shaders.h" /* PC_GLSL_EMISSIVE (pc/shaders/vulkan/emissive.glsl) */
 /* gpu_hw.c: the emissive slot map is current (its OpenGL texture); the shaders read it. */
 int pc_hw_emissive(unsigned* texture);
@@ -1827,7 +1828,7 @@ static const char* geometry_source =
     "    if (quad) triangle(1, 3, 2);\n"
     "}\n";
 static const char* fragment_source =
-    "#version 330 core\n"
+    "#version 330 core\n#define ROOD_GL 1\n"
     "noperspective centroid in vec3 v_color_affine;\n"
     "noperspective centroid in vec2 v_uv_affine;\n"
     "smooth centroid in vec3 v_color_persp;\n"
@@ -1890,7 +1891,7 @@ static const char* fragment_source =
     "    return fetch(tx + int(u), ty + int(v));\n"
     "}\n"
     "vec3 rgb(uint t) { return vec3(float(t & 31u), float((t >> 5) & 31u), float((t >> 10) & 31u)); }\n"
-    PC_GLSL_EMISSIVE
+    PC_GLSL_EMISSIVE PC_GLSL_HD_TEXTURES
     /* An animated material between game frames: texels past the effect's
      * window wrap back by its period (the game's scroll wraps there). */
     "ivec2 uv_wrap(ivec2 t, uint e, float k) {\n"
@@ -2029,7 +2030,9 @@ static const char* fragment_source =
     "        if (moving) at = uvec2(uv_wrap(ivec2(floor(clamp(v_uv + 0.0001, vec2(v_bounds.xy), vec2(v_bounds.zw) + 0.999) + sh)), e, k));\n"
     "        uint t = texel_at(at.x & 255u, at.y & 255u, tpage, clut, window);\n"
     "        vec3 texel = rgb(t);\n"
-    "        if (filtering != 0) {\n"
+    "        vec4 hd;\n"
+    "        bool has_hd = hd_texel(vec2(at) + fract(v_uv), tpage, clut, window, hd);\n"
+    "        if (!has_hd && filtering != 0) {\n"
     "            vec2 q = v_uv - 0.5 + sh;\n"
     "            vec2 f = fract(q);\n"
     "            ivec2 base = ivec2(floor(q));\n"
@@ -2046,6 +2049,7 @@ static const char* fragment_source =
     "            texel = sum / cover;\n"
     "            if (t == 0u) t = 0x7fffu;\n"
     "        }\n"
+    "        if (has_hd) hd_apply(hd, texel, t);\n"
     "        if (t == 0u) discard;\n"
     /* Only texels with the STP bit are semi-transparent. */
     "        semi = semi && (t & 0x8000u) != 0u;\n"
@@ -2347,6 +2351,7 @@ static const render_camera* begin_draw(const draw_list* list, const render_targe
     unsigned emissive_texture = 0;
     int emissive_on = pc_hw_emissive(&emissive_texture);
     gl_UseProgram(program);
+    pc_hd_gl_bind(program);
     gl_ActiveTexture(GL_TEXTURE1); /* never the depth attached for pass 1 */
     gl_BindTexture(GL_TEXTURE_2D, 0);
     gl_ActiveTexture(GL_TEXTURE7);
@@ -2465,8 +2470,31 @@ static int draw_room_ordered(draw_list* list, const render_target* target)
  * is behind it. An object list (or a layered room list) is depth-tested
  * against the native surfaces drawn so far (target->surface_depth) and adds
  * itself to them. Returns the instances drawn, or -1 when the list is gone. */
+static void prepare_hd(uint32_t id)
+{
+    draw_list* list = find_list(id);
+    if (!list) return;
+    for (int i = 0; i < list->count; ++i) {
+        const list_instance* in = &list->instances[i];
+        mesh_slot* mesh = lookup(in->mesh);
+        if (!mesh || !mesh->cpu) continue;
+        for (int j = 0; j < mesh->polygons; ++j) {
+            const render_polygon* p = &mesh->cpu[j];
+            if (!(p->code & 4)) continue;
+            unsigned page = p->tpage, clut = p->clut;
+            if (in->override & RENDER_OVERRIDE_TEXTURE) { page |= in->tpage; clut = (clut + in->clut) & 65535; }
+            pc_hd_use(page, clut);
+            if (!list->rules.objects) pc_hd_use((page & ~15u) | ((page - 1) & 15), clut);
+        }
+    }
+#ifdef ROOD_VULKAN
+    if (pc_vk_on()) pc_hd_vk_sync();
+#endif
+}
+
 int render_draw_list(uint32_t id, const render_target* target)
 {
+    prepare_hd(id);
 #ifdef ROOD_VULKAN
     if (pc_vk_on())
         return vk_draw_list(id, target);
@@ -2563,6 +2591,7 @@ static void set_blend(int mode)
  * (render_gl.h). */
 int render_draw_translucent(uint32_t id, int first, int count, const render_target* target)
 {
+    prepare_hd(id);
 #ifdef ROOD_VULKAN
     if (pc_vk_on())
         return vk_draw_translucent(id, first, count, target);

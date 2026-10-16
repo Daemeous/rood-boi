@@ -34,6 +34,11 @@ layout(location = 1) out vec4 normal_out;
 layout(location = 2) out vec4 albedo_out;
 layout(location = 3) out vec4 shade_out;
 layout(location = 4) out vec4 material_out; // material.glsl (lit textured 3D packets only)
+layout(binding = 4) uniform usampler2D hd_words;
+layout(binding = 5) uniform usampler2D hd_palettes;
+layout(binding = 6) uniform usampler2D hd_table;
+layout(binding = 7) uniform sampler2D hd_atlas;
+#include "hd_textures.glsl"
 #include "vram.glsl"
 #include "text_dist.glsl"
 #include "emissive.glsl"
@@ -83,7 +88,9 @@ void main() {
             t = texel_at(uint(q.x) & 255u, uint(q.y) & 255u, tpage, clut, win);
             texel = rgb(t);
         }
-        if (pc.filtering != 0 && v_normal.w > 0.5) {
+        vec4 hd;
+        bool has_hd = ((flags & 16u) == 0u || text_alpha < 0.0) && hd_texel(clamp(v_uv, vec2(v_bounds.xy), max(vec2(v_bounds.zw) - 0.0001, vec2(v_bounds.xy))), tpage, clut, win, hd);
+        if (!has_hd && pc.filtering != 0 && v_normal.w > 0.5) {
             vec2 p = v_uv - 0.5;
             vec2 f = fract(p);
             ivec2 base = ivec2(floor(p));
@@ -99,6 +106,7 @@ void main() {
             texel = sum / cover;
             if (t == 0u) t = 0x7fffu;
         }
+        if (has_hd) hd_apply(hd, texel, t);
         if (t == 0u) discard;
         semi = semi && (t & 0x8000u) != 0u;
         mask |= t >> 15;

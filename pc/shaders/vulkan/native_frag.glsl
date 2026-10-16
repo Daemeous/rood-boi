@@ -30,6 +30,11 @@ layout(location = 1) out vec4 normal_out;
 layout(location = 2) out vec4 albedo_out;
 layout(location = 3) out vec4 shade_out;
 layout(location = 4) out vec4 material_out; // material.glsl: roughness, specular, metal, 1 (else 0)
+layout(binding = 7) uniform usampler2D hd_words;
+layout(binding = 8) uniform usampler2D hd_palettes;
+layout(binding = 9) uniform usampler2D hd_table;
+layout(binding = 10) uniform sampler2D hd_atlas;
+#include "hd_textures.glsl"
 #include "vram.glsl"
 #include "emissive.glsl"
 #include "material.glsl"
@@ -169,7 +174,9 @@ void main() {
         if (moving) at = uvec2(uv_wrap(ivec2(floor(clamp(v_uv + 0.0001, vec2(v_bounds.xy), vec2(v_bounds.zw) + 0.999) + sh)), e, k));
         uint t = texel_at(at.x & 255u, at.y & 255u, tpage, clut, u.window);
         vec3 texel = rgb(t);
-        if (u.filtering != 0) {
+        vec4 hd;
+        bool has_hd = hd_texel(vec2(at) + fract(v_uv), tpage, clut, u.window, hd);
+        if (!has_hd && u.filtering != 0) {
             vec2 q = v_uv - 0.5 + sh;
             vec2 f = fract(q);
             ivec2 base = ivec2(floor(q));
@@ -186,6 +193,7 @@ void main() {
             texel = sum / cover;
             if (t == 0u) t = 0x7fffu;
         }
+        if (has_hd) hd_apply(hd, texel, t);
         if (t == 0u) discard;
         // Only texels with the STP bit are semi-transparent.
         semi = semi && (t & 0x8000u) != 0u;
