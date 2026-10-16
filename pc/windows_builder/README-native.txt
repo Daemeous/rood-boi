@@ -2,7 +2,8 @@ rood-boi for Windows - builder (no WSL)
 =======================================
 
 rood-boi is a native PC version of Vagrant Story (by noprompt, built on the
-rood-reverse decompilation), with modern graphics options. This folder builds it
+rood-reverse decompilation by ser-pounce, Lil' Sassy and its other
+contributors), with modern graphics options. This folder builds it
 on your own PC, from your own copy of the game. Optionally it also builds the
 Callo Merlose companion mod ("Two's A Riot").
 
@@ -139,3 +140,24 @@ The builder downloads MSYS2 (https://www.msys2.org), a portable Python
 the PlayStation compilers (GCC 2.7.2 and 2.8.1, with decompals/old-gcc's
 patches) and GNU binutils, from the rood-boi release page, where their
 complete source code is published too.
+
+
+CREDITS
+-------
+* rood-boi, the native PC port: noprompt (https://github.com/noprompt/rood-boi).
+  The Windows port and these builders: Daemeous.
+* rood-reverse, the Vagrant Story decompilation rood-boi is built on:
+  ser-pounce (https://github.com/ser-pounce), who started it and has done
+  the overwhelming majority of the work, Lil' Sassy
+  (https://github.com/lil-sassy), one of its most prolific contributors,
+  and every other contributor. https://github.com/ser-pounce/rood-reverse
+* rood-boi's own thanks (the QoL mod's weapon slots by eremtsov, Kenney's
+  button prompt icons, Andrew Kuhar's UI remaster that inspired the modern
+  menus, and more) are on its page:
+  https://github.com/noprompt/rood-boi#thank-you
+* The native builder uses MSYS2 (https://www.msys2.org), Python
+  (python.org) and Windows builds of decompals' old-gcc
+  (https://github.com/decompals/old-gcc) and GNU binutils.
+* The Merlose mod ("Two's A Riot"): Daemeous.
+* Vagrant Story (c) Square Enix. This is a fan project, not affiliated
+  with or endorsed by Square Enix.
