@@ -152,7 +152,7 @@ def main():
         g.write(sym["vs_main_inventory"] + smoke.MISC, misc)
         g.run(4)
 
-        def record(kind, what, res):
+        def record(kind, what, res, windup=True):
             if res is None or res.get("refused"):
                 refused.append(f"{kind} {what}")
                 return
@@ -168,7 +168,11 @@ def main():
                 check(False, f"{kind} {what}: wind-up {s['vsyncs']} vsyncs ({s['phases']}, presented "
                       f"{s['phases_presented']}), clean {res['clean']}")
             names = [e.split(":") for e in s["name"]["names"].split()]
-            if not (len(names) == 1 and names[0][0] == str(s["action"])
+            if not windup:  # (action 0: no wind-up, so no name window either)
+                if s["action"] != -1 or names or s["name"]["opens"]:
+                    check(False, f"{kind} {what}: a wind-up or name window for action 0 ({s['name']}, "
+                          f"action {s['action']})")
+            elif not (len(names) == 1 and names[0][0] == str(s["action"])
                     and r.action_name(s["action"]) in names[0][1]):
                 check(False, f"{kind} {what}: the name window {s['name']} (action {s['action']})")
 
@@ -212,9 +216,7 @@ def main():
                 except TimeoutError:
                     pass
                 lst = listed()
-            # (Misc id 357 lists as usable with action 0, and using it crashes the game, option off too:
-            # not this test's matter, passed over.)
-            if row >= len(lst) or not lst[row]["usable"] or not lst[row]["action"]:
+            if row >= len(lst) or not lst[row]["usable"]:
                 continue
             for _ in range(70):
                 c = r.ui()["items"]["cursor"]
@@ -227,7 +229,10 @@ def main():
                 if m.get("mode") == "actions" and m["actions"][m["action"]]["id"] == "use":
                     break
                 g.press("down", vsyncs=3, settle=4)
-            record("item", f"{lst[row]['id']} (action {lst[row]['action']})", r.run_action(f"item {lst[row]['id']}"))
+            # (Misc id 357, unnamed, maps to action 0: BATTLE's func_80072BA8 frames actor 1 for it, an
+            # empty slot here; the PS1 reads that from address 0, the port once segfaulted.)
+            record("item", f"{lst[row]['id']} (action {lst[row]['action']})", r.run_action(f"item {lst[row]['id']}"),
+                   windup=lst[row]["action"] != 0)
         # The Break Arts: the equipped category's four.
         if "arts" in parts:
             art0, _ = r.learn_art()
@@ -255,7 +260,8 @@ def main():
     for kind, what, wind, hold, shown, n, clean in results:
         print(f"  {kind:5} {what:28}: wind-up {wind:3} vsyncs, hold {hold:2} ({shown} presented), action {n} vsyncs")
     kinds = {k: sum(1 for x in results if x[0] == k) for k in ("spell", "item", "art")}
-    want = {"spell": 10 * ("spells" in args.only), "item": 3 * ("items" in args.only), "art": "arts" in args.only}
+    want = {"spell": 10 * ("spells" in args.only), "item": min(3, args.items) * ("items" in args.only),
+            "art": "arts" in args.only}
     check(all(kinds[k] >= n for k, n in want.items()),
           f"ran {kinds} ({len(refused)} refused here: {refused})")
     if failures:

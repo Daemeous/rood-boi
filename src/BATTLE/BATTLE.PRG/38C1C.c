@@ -283,7 +283,12 @@ int func_800A190C(int arg0, int arg1, SVECTOR* arg2, int arg3)
     }
 
     if (arg1 == 0xFD) {
+#ifdef ROOD_PC
+        /* An empty slot: the PS1 reads physical address 0 (as 0xFA below). */
+        *arg2 = (D_800F4538[arg0] != NULL ? D_800F4538[arg0] : (D_800F4538_t*)0x80000000)->unk0.position;
+#else
         *arg2 = D_800F4538[arg0]->unk0.position;
+#endif
         return 0;
     }
 
@@ -291,6 +296,15 @@ int func_800A190C(int arg0, int arg1, SVECTOR* arg2, int arg3)
         var_v0 = arg1;
     } else if (arg1 == 0xFA) {
         var_a2 = D_800F4538[arg0];
+#ifdef ROOD_PC
+        /* Action 0 (func_80072BA8: misc item 357, an unnamed slot whose map
+         * entry is 0, listed as usable) frames actor 1, an empty slot in a
+         * room whose enemies sit elsewhere: the PS1 reads its fields from
+         * physical address 0 (see func_800A17BC). */
+        if (var_a2 == NULL) {
+            var_a2 = (D_800F4538_t*)0x80000000;
+        }
+#endif
         *arg2 = var_a2->unk0.position;
         var_v0 = var_a2->unk65A * var_a2->unk183C / ONE;
         arg2->vy += var_v0;

@@ -421,6 +421,19 @@ int vk_core_init(const char* const* instance_extensions, uint32_t extension_coun
         enable[enable_count++] = VK_EXT_SAMPLE_LOCATIONS_EXTENSION_NAME;
         vk.sample_locations = 1;
     }
+    /* ROOD_GPU_PRIORITY=low (the test runner, pc/tests/run.py): a low
+     * priority queue, so a game being played beside the tests keeps the GPU
+     * first. Ignored where the driver has no global priority. */
+    const char* gpu_priority = getenv("ROOD_GPU_PRIORITY");
+    int low_priority = 0;
+    if (gpu_priority && !strcmp(gpu_priority, "low")) {
+        const char* names[] = { VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME, VK_EXT_GLOBAL_PRIORITY_EXTENSION_NAME };
+        for (int i = 0; i < 2 && !low_priority; i++)
+            if (has_extension(device_extensions, device_extension_count, names[i])) {
+                enable[enable_count++] = names[i];
+                low_priority = 1;
+            }
+    }
     free(device_extensions);
 
     /* Features. */
@@ -471,7 +484,11 @@ int vk_core_init(const char* const* instance_extensions, uint32_t extension_coun
         enable[enable_count++] = VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME;
     }
     float priority = 1.0f;
+    VkDeviceQueueGlobalPriorityCreateInfoKHR queue_priority = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_GLOBAL_PRIORITY_CREATE_INFO_KHR,
+        .globalPriority = VK_QUEUE_GLOBAL_PRIORITY_LOW_KHR };
     VkDeviceQueueCreateInfo queue = { .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .pNext = low_priority ? &queue_priority : NULL,
         .queueFamilyIndex = vk.queue_family,
         .queueCount = 1,
         .pQueuePriorities = &priority };
@@ -481,8 +498,16 @@ int vk_core_init(const char* const* instance_extensions, uint32_t extension_coun
         .pQueueCreateInfos = &queue,
         .enabledExtensionCount = enable_count,
         .ppEnabledExtensionNames = enable };
-    if (!vk_check(vkCreateDevice(vk.gpu, &device, NULL, &vk.device), "vkCreateDevice"))
-        return 0;
+    if (low_priority && vkCreateDevice(vk.gpu, &device, NULL, &vk.device) == VK_SUCCESS)
+        fprintf(stderr, "[vk] low GPU priority queue (ROOD_GPU_PRIORITY=low)\n");
+    else {
+        if (low_priority) { /* refused: the normal queue (the extension stays harmlessly enabled) */
+            vk.device = VK_NULL_HANDLE;
+            queue.pNext = NULL;
+        }
+        if (!vk_check(vkCreateDevice(vk.gpu, &device, NULL, &vk.device), "vkCreateDevice"))
+            return 0;
+    }
     vk.ray_query = ray_query;
 #define LOAD_DEVICE(name)                                                                                              \
     name = (PFN_##name)vkGetDeviceProcAddr(vk.device, #name);                                                          \

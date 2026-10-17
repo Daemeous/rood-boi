@@ -40,7 +40,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from editor_cutaway_smoke import default_card  # noqa: E402
 
@@ -51,9 +51,10 @@ def fight(out, socket, check):
     """The prologue fight: transient effect glows (hit sparks)."""
     lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-fight-", dir=out))
     env = {"ROOD_LIGHTS": str(lights), "ROOD_GI": "1", "ROOD_SCALE": "2", "ROOD_CARD1": str(out / "absent.mcd")}
-    game = Game.launch(fast=True, log=out / "fight.log", extra_env=env, socket_path=socket)
+    # The title at an exact vsync (checkpoints.py): the fight's arrival, and with it where the
+    # knight is when the attacks start, must not depend on how busy the machine was at boot.
+    game = launch_at("title", fast=True, log=out / "fight.log", extra_env=env, socket_path=socket)
     try:
-        game.wait_title()
         # Path tracing only for the fight: it starts 1000 vsyncs before (its
         # history and the glows' smoothing settle in far fewer), not for the
         # 12000-vsync opening on the way (the path tracer's own tests cover it).

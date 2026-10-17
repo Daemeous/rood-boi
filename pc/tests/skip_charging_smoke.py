@@ -47,7 +47,8 @@ vsync until the action has ended. Checks, per action:
     either list, no name window, D_800F522C 0, the object data slots empty,
     vs_gametime_tickspeed back, the free heap off's.
 After the battle ran on: every actor's HP, MP, statuses and position the
-same. Then the casters' room (who: all, Ashley standing by): the enemies cast
+same. Then the casters' room (who: all, Ashley standing by; unpaced, --fast:
+no wall time is checked there, only what happened): the enemies cast
 the same spells with the same names shown, their holds skipped and not
 presented, their camera moves presented, and every enemy action on Ashley
 opens the defence window as off. (Their order may differ
@@ -576,7 +577,7 @@ def main():
     # The enemies' wind-ups (who: all), in the casters' room with Ashley standing by.
     casters = {}
     for mode in MODES:
-        r = Run(f"casters-{mode}", casters_snap, card, env, out, socket)
+        r = Run(f"casters-{mode}", casters_snap, card, env, out, socket, fast=True)
         try:
             g, sym = r.g, r.sym
             g.call("skip_charging", mode=mode, who="all", pin=PIN, reset=True, name=NAME_SECONDS)

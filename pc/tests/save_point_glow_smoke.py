@@ -89,7 +89,10 @@ def main():
     card = out / "card1.mcd"
     shutil.copyfile(args.card, card)
     lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-", dir=out))
-    env = {"ROOD_LIGHTS": str(lights), "ROOD_GI": "1", "ROOD_SCALE": "2", "ROOD_WINDOW": "1280x720"}
+    # The path tracer on every present (ROOD_GI_BUDGET 0): its automatic budget times the GPU, so
+    # with other suites sharing it the light was traced less often and not settled after SETTLE.
+    env = {"ROOD_LIGHTS": str(lights), "ROOD_GI": "1", "ROOD_SCALE": "2", "ROOD_WINDOW": "1280x720",
+           "ROOD_GI_BUDGET": "0"}
     socket = os.environ.get("ROOD_RPC") or f"/tmp/rood-savepoint-{os.getpid()}.sock"  # sun_path is short
     failures = []
 

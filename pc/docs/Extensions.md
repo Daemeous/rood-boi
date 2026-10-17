@@ -121,6 +121,16 @@ reloads). Every elevated call is logged (`<plugin_data>/audit.log`).
 
 The grant dialog comes with the menus; in M0 grants are made with RPC
 `lua {action "grant"}` (dev mode) or by editing `settings.cfg`.
+Write grants refuse folders containing the active settings file (or the default
+`pc/user/settings.cfg`), shipped/user plugin roots, or the plugin-data root,
+including their ancestors. Existing symlinks and existing prefixes of new
+folders are resolved before checking; unresolvable paths fail closed. Settings
+`plugin_grant` entries follow the same policy, and write scopes are rechecked
+when used. Grants within an individual plugin directory remain possible.
+Grants outside the recipient's own plugin and data directories emit a warning
+and appear in `lua plugins` as `external_filesystem_grants` (an array of grants).
+This warns about cross-plugin scopes too; it does not make them safe. Path
+checks are not a defense against another process racing filesystem changes.
 
 ## API (api_version 1)
 

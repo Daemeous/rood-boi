@@ -16,13 +16,14 @@
     python3 pc/tests/lua_smoke.py --tests-only --plugin test.settings   one plugin's Lua tests (the fast loop)
 """
 import argparse
+import json
 import pathlib
 import shutil
 import sys
 import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
-from rood_rpc import OUT, Game  # noqa: E402
+from rood_rpc import OUT, Game, RpcError  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "pc/tests/lua/plugins"
@@ -135,6 +136,44 @@ def capabilities(game):
     assert f"plugin_grant {caps} " in settings.read_text()
 
 
+def filesystem_grants(game):
+    name = "hard.grants"
+    write_plugin(name, "-- filesystem grant regression\n")
+    # Include non-existent descendants: realpath alone cannot classify these.
+    own = f"fs.write:{plugins / name / 'new'}"
+    own_data = f"fs.write:{data / name / 'new'}"
+    external = f"fs.write:{OUT / 'lua-exports' / 'new'}"
+    read_external = f"fs.read:{OUT}"
+    alias = plugins / "grant-root-link"
+    alias.symlink_to(plugins, target_is_directory=True)
+    broad = [f"fs.write:{p}" for p in ("/", OUT, plugins, data, settings, alias)]
+    allowed = [own, own_data, external, read_external]
+    manifest = ("return { id = " + json.dumps(name)
+                + ', version = "1.0.0", api_version = 1, capabilities = {'
+                + ",".join(json.dumps(c) for c in broad + allowed) + "} }\n")
+    (plugins / name / "plugin.lua").write_text(manifest)
+    game.call("lua", action="rescan")
+    assert game.lua_plugins()[name]["state"] == "loaded"
+    for cap in broad:
+        try:
+            game.call("lua", action="grant", plugin=name, capability=cap, elevated=True)
+        except RpcError as error:
+            assert "contains settings or a plugin/plugin_data root" in str(error), (cap, error)
+        else:
+            raise AssertionError(f"accepted broad filesystem grant: {cap}")
+    p = game.lua_plugins()[name]
+    assert p["granted"] == [] and p["external_filesystem_grants"] == [], p
+    for cap in allowed:
+        game.call("lua", action="grant", plugin=name, capability=cap, elevated=True)
+    p = game.lua_plugins()[name]
+    assert p["granted"] == allowed, p
+    assert p["external_filesystem_grants"] == [external, read_external], p
+    game.call("lua", action="grant", plugin=name, capability=external, revoke=True)
+    assert game.lua_plugins()[name]["external_filesystem_grants"] == [read_external]
+    game.call("lua", action="grant", plugin=name, capability=external, elevated=True)
+    return name, p["hash"], broad, allowed, [external, read_external]
+
+
 def hot_reload(game):
     def entries():
         return [(e["id"], e["data"]["version"]) for e in game.call("lua", action="registry", kind="test.reload")["entries"]]
@@ -170,6 +209,7 @@ try:
         runaway(game)
         failing_hooks(game)
         capabilities(game)
+        grant_reload = filesystem_grants(game)
         hot_reload(game)
         game.run(40)  # settings.cfg: the Lua tests' changes are saved within 30 polls
         settings_file(game)
@@ -181,3 +221,21 @@ try:
                                         "settings checked in the same game"))
 finally:
     game.close()
+
+if not args.tests_only:
+    # A real settings reload must reject old/hand-edited broad grants too,
+    # while preserving valid grants and the RPC's external-directory warning.
+    name, content_hash, broad, allowed, external = grant_reload
+    with settings.open("a") as saved:
+        for cap in broad:
+            saved.write(f"\nplugin_grant {name} {content_hash} {cap}\n")
+    game = Game.launch(fast=True, extra_env={"ROOD_PLUGINS": str(plugins), "ROOD_PLUGIN_DATA": str(data),
+                                           "ROOD_SETTINGS": str(settings)})
+    try:
+        game.pause()
+        p = game.lua_plugins()[name]
+        assert p["state"] == "loaded" and p["hash"] == content_hash, p
+        assert p["granted"] == allowed and p["external_filesystem_grants"] == external, p
+        print("PASS: filesystem grants survive settings reload; broad saved grants rejected")
+    finally:
+        game.close()

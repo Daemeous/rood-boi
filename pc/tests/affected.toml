@@ -1,0 +1,246 @@
+# Which suites a change can affect: python3 pc/tests/run.py --changed [BASE]
+# (pc/tests/affected.py reads this; BASE defaults to main).
+#
+# Every changed file (git diff BASE, plus uncommitted and untracked files) is
+# matched against the rules below (fnmatch patterns on the repository path:
+# `*` also crosses `/`). A file selects the union of the suites of every rule
+# it matches; suite entries are run.py names or fnmatch patterns of them
+# ("ui_*", "input:*").
+#
+#   [core]        a match runs everything (renderer core, the runtime, RPC,
+#                 snapshots, the test harness itself)
+#   [[rule]]      paths -> suites; `suites = []` means "nothing to run"
+#   [baseline]    suites added whenever any file that goes into the game
+#                 binary changes (game or port source, shaders, assets)
+#
+# Besides the table, three things are derived, so they never go stale:
+#   - a test script (pc/tests/*.py, *.sh) selects the suites that run it or
+#     import it (transitively): changing editor_selection_smoke.py also runs
+#     editor_handles_smoke, which imports it;
+#   - a pc/tools/*.py module imported by test scripts selects those suites;
+#   - a file named in pc/CMakeLists.txt (a probe or the sources it compiles)
+#     and pc/tests/*_probe.* select ctest.
+# A file that matches nothing at all runs everything: when in doubt, add a
+# rule here rather than guessing in code.
+
+[core]
+paths = [
+    "pc/tests/run.py", "pc/tests/affected.py", "pc/tests/affected.toml", "pc/tests/checkpoints.py",
+    "pc/tools/rood_rpc.py", "pc/tools/build_boot.py", "pc/tools/build_cache.py", "pc/tools/import_types.py",
+    "pc/tools/gl_shaders.py", "pc/tools/vk_shaders.py", "pc/tools/nrd.py", "pc/tools/nrd/*",
+    "pc/CMakeLists.txt", "Makefile", "requirements.txt", "config/*", "include/*", "tools/*", ".gitmodules",
+    "pc/third_party/*", "pc/include/*",
+    # the runtime, guest memory, RPC, snapshots, the window and the shared renderer
+    "pc/src/boot_runtime.c", "pc/src/boot_sdk.c", "pc/src/boot_window.c", "pc/src/boot_*.inc",
+    "pc/src/dev_rpc.c", "pc/src/dev_state.*", "pc/src/dev_overlay.cpp", "pc/src/snapshot.*",
+    "pc/src/memory.*", "pc/src/overlay_statics.c", "pc/src/psx_*", "pc/src/platform.h", "pc/src/win_compat.h",
+    "pc/src/pc_paths.h", "pc/src/cd_drive.c", "pc/src/audio*", "pc/src/project_settings.cpp",
+    "pc/src/gpu_hw.c", "pc/src/render.*", "pc/src/render_gl.h", "pc/src/gl_api.h", "pc/src/gl_present.c",
+    "pc/src/scene_submit.inc", "pc/src/scene_capture.*", "pc/src/room_native.c", "pc/src/room_render.c", "pc/src/room_editor.h",
+    "pc/src/room_geometry.c", "pc/src/room_callbacks.inc", "pc/src/actor_*", "pc/src/battle_*",
+    "pc/src/vk_core.*", "pc/src/vk_hw.*", "pc/src/vk_hooks.h", "pc/src/vk_present.c", "pc/src/vk_render.inc",
+    "pc/src/vk_overlay.cpp", "pc/src/input_record.c", "pc/src/navigation.c", "pc/src/materials.*",
+    "pc/shaders/vulkan/hw*", "pc/shaders/vulkan/native*", "pc/shaders/vulkan/vram.glsl",
+    "pc/shaders/vulkan/upload.*", "pc/shaders/vulkan/present_vram.frag", "pc/shaders/vulkan/fullscreen.vert",
+    "pc/shaders/vulkan/scaled.frag", "pc/shaders/vulkan/downsample.*", "pc/shaders/vulkan/brightness.*",
+    # the game itself, shared by every scene
+    "src/SLUS_010.40/*", "src/include/*", "src/GIM/*", "src/renderTextures.h",
+]
+
+[baseline]
+# Cheap guards that the game still boots, plays and draws like before, added
+# for any change to what the game is built from or loads.
+paths = ["pc/src/*", "src/*", "pc/shaders/*", "pc/assets/*", "lighting/*"]
+suites = ["rpc_smoke", "golden_frames"]
+
+# ---- documentation and repository chores: nothing to run ----
+[[rule]]
+paths = ["*.md", "docs/*", "pc/docs/*", "LICENSE", "THIRD_PARTY.md", ".github/*", ".vscode/*",
+         ".gitignore", "Dockerfile", "pc/tools/publish.sh", "pc/tools/where.sh", "pc/tools/verify.sh", "pc/tools/memcap",
+         "pc/tests/profile_report.py", "pc/tests/enemy_soak_report.py", "pc/run-game.sh", "pc/run-boot.sh",
+         "assets/*"]
+suites = []
+
+# ---- Lua plugins ----
+[[rule]]
+paths = ["pc/src/lua/*", "pc/plugins/*", "pc/tests/lua/*", "pc/third_party/lua*"]
+suites = ["lua_smoke", "ctest"]
+
+# ---- modern menus (pc/src/ui) and the original menus they mirror ----
+[[rule]]
+paths = ["pc/src/ui/*", "pc/assets/ui/*"]
+suites = ["ui_*", "ctest", "button_roles_smoke", "button_roles_symbols_smoke", "fast_travel_shell_smoke",
+          "interp_menu_2d_smoke", "system_settings_smoke", "weapon_slots_smoke", "menu0_levelled_smoke",
+          "save_menu_smoke"]
+
+[[rule]]
+paths = ["src/MENU/*"]
+suites = ["ui_*", "menu0_levelled_smoke", "save_menu_smoke", "fast_travel_*", "weapon_slots_smoke",
+          "button_roles_*", "interp_menu_2d_smoke", "input:data-menu*", "widescreen_smoke", "snapshot_equivalence",
+          "hud_label_solid_smoke", "skip_charging_smoke"]
+
+# ---- the battle overlay (field play too) ----
+[[rule]]
+paths = ["src/BATTLE/*", "pc/src/charge_skip.*", "pc/src/gameplay_walls.*"]
+suites = ["skip_charging_smoke", "charge_skip_soak", "soak", "soak:save", "two_model_enemy_smoke",
+          "route_continuation_smoke", "damage_numbers_smoke", "menu0_levelled_smoke", "input:*", "animation_smoke",
+          "snapshot_equivalence", "facing_cutaway_smoke", "camera_stick_smoke", "ending_smoke", "weapon_slots_smoke"]
+
+[[rule]]
+paths = ["src/EFFECT/*", "pc/src/effect_*"]
+suites = ["glow_stability_smoke", "damage_numbers_smoke", "skip_charging_smoke", "charge_skip_soak",
+          "particles_smoke", "save_point_glow_smoke", "ctest", "soak:save"]
+
+[[rule]]
+paths = ["src/TITLE/*"]
+suites = ["title_fade_smoke", "skip_intro_smoke", "opening_smoke", "input:*", "snapshot_equivalence",
+          "interp_menu_2d_smoke", "widescreen_smoke", "save_menu_smoke", "movie_smoke"]
+
+[[rule]]
+paths = ["src/ENDING/*"]
+suites = ["ending_smoke"]
+
+# ---- the editor ----
+[[rule]]
+paths = ["pc/src/editor_*", "pc/src/library_*", "pc/src/selection*", "pc/src/floor_grid.*",
+         "pc/assets/editor/*", "pc/src/lighting_editor.cpp", "pc/src/particles_editor.cpp",
+         "pc/src/fixture_editor.cpp", "pc/src/emissive_editor.cpp"]
+suites = ["editor_*", "barn_doors_smoke", "emissive_entries_smoke", "light_actors_smoke", "ctest"]
+
+[[rule]]
+paths = ["pc/src/emissive*", "pc/assets/emissive/*", "pc/assets/materials/*", "pc/shaders/vulkan/emissive.glsl",
+         "pc/tools/check_material_maps.py"]
+suites = ["emissive_smoke", "emissive_entries_smoke", "editor_selection_smoke", "editor_undo_smoke",
+          "editor_schema_smoke"]
+
+# ---- lights, lighting packs, fixtures, prefabs ----
+[[rule]]
+paths = ["pc/src/light*", "pc/src/lights*", "pc/src/fixture_*", "pc/src/glow*", "pc/src/glows.c",
+         "pc/src/room_lighting.c", "pc/src/room_settings.cpp", "pc/src/room_effects.*", "pc/src/menu_light*",
+         "pc/assets/fixtures/*", "pc/assets/prefabs/*", "pc/shaders/vulkan/light_shape.glsl",
+         "pc/shaders/vulkan/rt_lights.glsl", "pc/shaders/vulkan/shadow.*"]
+suites = ["light_actors_smoke", "fixture_lighting_smoke", "lighting_presets_smoke", "sky_smoke",
+          "glow_stability_smoke", "save_point_glow_smoke", "barn_doors_smoke", "gi_smoke", "texture_animation_smoke",
+          "room_browser_smoke", "editor_selection_smoke", "editor_schema_smoke", "editor_handles_smoke",
+          "editor_undo_smoke", "platform_shadow_smoke", "lighting_lint", "ctest"]
+
+[[rule]]
+paths = ["lighting/*", "pc/tools/lighting_*.py", "pc/tools/generate_lighting.py", "pc/tools/fixture_*.py",
+         "pc/tools/estimate_lights.py", "pc/tools/outdoor.py"]
+suites = ["lighting_lint", "fixture_lighting_smoke", "light_actors_smoke", "sky_smoke", "atmosphere_smoke",
+          "glow_stability_smoke", "save_point_glow_smoke", "room_browser_smoke", "ctest"]
+
+[[rule]]
+paths = ["pc/src/lighting_quality.*"]
+suites = ["lighting_presets_smoke", "gi_smoke", "probe_gi_smoke", "ui_system_smoke", "system_settings_smoke"]
+
+# ---- global illumination, ray tracing, shadows ----
+[[rule]]
+paths = ["pc/src/ptgi.c", "pc/src/probe_*", "pc/src/vk_rt.inc", "pc/src/vk_probes.inc", "pc/src/vk_nrd.*",
+         "pc/src/vk_shadows.c", "pc/src/shadows.c", "pc/src/room_shadows.inc", "pc/shaders/vulkan/rt_*",
+         "pc/shaders/vulkan/probe_*", "pc/shaders/vulkan/menu_studio.glsl"]
+suites = ["gi_smoke", "probe_gi_smoke", "nrd_smoke", "rt_camera_smoke", "gi_lag_smoke", "sky_smoke",
+          "lighting_presets_smoke", "emissive_smoke", "ui_ashley_*", "platform_shadow_smoke",
+          "save_point_glow_smoke", "barn_doors_smoke", "light_actors_smoke", "camera_stick_smoke"]
+
+# ---- atmosphere, fog, sky ----
+[[rule]]
+paths = ["pc/src/atmosphere*", "pc/src/environment*", "pc/src/fog_sim*", "pc/src/vk_fogvol.inc",
+         "pc/assets/environment/*", "pc/shaders/vulkan/fog*", "pc/shaders/vulkan/medium.glsl",
+         "pc/shaders/vulkan/environment.glsl", "pc/tools/atmosphere_sweep.py"]
+suites = ["atmosphere_smoke", "atmosphere_sweep", "void_fog_smoke", "fog_sim_smoke", "fog_volume_smoke", "sky_smoke",
+          "widescreen_scene_smoke", "editor_selection_smoke", "editor_schema_smoke", "transition_fade_smoke"]
+
+# ---- particles ----
+[[rule]]
+paths = ["pc/src/particle*", "pc/src/vk_particles.inc", "pc/assets/emitters/*", "pc/shaders/vulkan/particles*"]
+suites = ["particles_smoke", "ctest"]
+
+# ---- post-processing, anti-aliasing ----
+[[rule]]
+paths = ["pc/src/post*", "pc/src/post_*.inc", "pc/assets/post/*", "pc/shaders/vulkan/bloom*",
+         "pc/shaders/vulkan/post_*", "pc/shaders/vulkan/blur.frag"]
+suites = ["post_smoke", "aa_smoke", "transition_fade_smoke"]
+
+[[rule]]
+paths = ["pc/src/antialias.*", "pc/shaders/vulkan/smaa*", "pc/shaders/vulkan/fxaa.frag",
+         "pc/shaders/vulkan/aa_geometry.glsl", "pc/shaders/vulkan/ms_*"]
+suites = ["aa_smoke", "ui_lines_smoke", "ui_text_smoke", "post_smoke", "flipped_sprite_smoke"]
+
+# ---- 2D: text, fonts, bubbles, prompts, upscaling ----
+[[rule]]
+paths = ["pc/src/ui_text.*", "pc/src/fixed_font.c", "pc/src/text_lines.c", "pc/src/ui_labels.h",
+         "pc/shaders/vulkan/text_*"]
+suites = ["ui_text_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "button_prompts_smoke",
+          "button_roles_symbols_smoke", "ui_manual_smoke", "ui_score_smoke", "ctest"]
+
+[[rule]]
+paths = ["pc/src/ui_bubbles.*", "pc/src/ui_emotes.c"]
+suites = ["ui_lines_smoke", "ui_text_smoke", "interp_menu_2d_smoke", "opening_smoke", "scene_smoke"]
+
+[[rule]]
+paths = ["pc/src/ui_upscale*", "pc/shaders/vulkan/ui_mmpx.comp"]
+suites = ["ui_upscale_smoke", "flipped_sprite_smoke", "ui_text_smoke"]
+
+[[rule]]
+paths = ["pc/src/button_prompts.*", "pc/src/prompt_glyphs.cpp"]
+suites = ["button_prompts_smoke", "button_roles_symbols_smoke", "ui_manual_smoke", "fast_travel_smoke"]
+
+[[rule]]
+paths = ["pc/src/button_roles.c"]
+suites = ["button_roles_smoke", "button_roles_symbols_smoke", "input:*", "ui_menus_smoke"]
+
+[[rule]]
+paths = ["pc/src/widescreen.h"]
+suites = ["widescreen_*", "interp_menu_2d_smoke", "ui_map_smoke", "ui_manual_smoke", "ui_score_smoke",
+          "ui_ashley_smoke", "title_fade_smoke"]
+
+# ---- controls, camera ----
+[[rule]]
+paths = ["pc/tests/send_key.c", "pc/tests/send_mouse.c"]
+suites = ["input:*", "window_smoke"]
+
+[[rule]]
+paths = ["pc/src/boot_controller.*", "pc/src/boot_gamepad.c"]
+suites = ["input:*", "window_smoke", "system_settings_smoke", "camera_stick_smoke", "button_prompts_smoke", "ctest"]
+
+[[rule]]
+paths = ["pc/src/camera_stick.*"]
+suites = ["camera_stick_smoke", "camera_options_smoke", "facing_cutaway_smoke", "ctest"]
+
+# ---- rooms, warps, fast travel ----
+[[rule]]
+paths = ["pc/src/room_browser.cpp", "pc/src/room_warp.*", "pc/src/room_catalog.c", "pc/src/screff2_warp.c",
+         "pc/src/map_view.c"]
+suites = ["room_browser_smoke", "editor_roomload_smoke", "fast_travel_*", "atmosphere_sweep", "void_fog_smoke",
+          "two_model_enemy_smoke", "platform_shadow_smoke", "ui_map_smoke", "ctest"]
+
+[[rule]]
+paths = ["pc/src/fast_travel*", "pc/tools/fast_travel_scan.py"]
+suites = ["fast_travel_*", "ctest"]
+
+# ---- saves, weapons, movies ----
+[[rule]]
+paths = ["pc/src/memory_card.c"]
+suites = ["save_menu_smoke", "ui_data_smoke", "ui_container_smoke", "replace_file_test", "fast_travel_smoke",
+          "weapon_slots_smoke", "snapshot_equivalence", "input:data-menu*", "ctest"]
+
+[[rule]]
+paths = ["pc/src/weapon_slots.c", "pc/src/weapon_packets.c"]
+suites = ["weapon_slots_smoke", "animation_smoke", "ui_equip_smoke", "ui_ashley_*"]
+
+[[rule]]
+paths = ["pc/src/mdec.c", "pc/src/xa_audio.c"]
+suites = ["movie_smoke", "skip_intro_smoke", "ctest"]
+
+# ---- LP64 tools ----
+[[rule]]
+paths = ["pc/tools/lp64_*.py", "pc/tools/decl_mismatch.py", "pc/tools/psx_ptr_codemod.py"]
+suites = ["lp64_alias_scan"]
+
+# ---- tools no test uses (a test that imports one is found by the import scan) ----
+[[rule]]
+paths = ["pc/tools/aa_bench.py", "pc/tools/anim_trace.py", "pc/tools/font_match.py", "pc/tools/inventory.py",
+         "pc/tools/manual_dump.py", "pc/tools/lighting_gallery.py", "pc/tools/windows_dist.py",
+         "pc/tools/event_callbacks.py"]
+suites = ["ctest"]

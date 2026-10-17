@@ -16,6 +16,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <cctype>
+#include <cerrno>
+#include <sys/stat.h>
 
 namespace rl {
 
@@ -40,6 +43,96 @@ const CapabilityInfo* capability_info(const std::string& name)
         if (name == c.name)
             return &c;
     return nullptr;
+}
+
+namespace {
+/* Resolve existing prefixes too: a not-yet-created folder below a symlink
+ * must be judged by its destination, not its spelling. Fail closed on links
+ * that lead nowhere and on inaccessible prefixes. */
+bool canonical_folder(std::string path, std::string& out)
+{
+    for (char& c : path)
+        if (c == '\\')
+            c = '/';
+#ifdef _WIN32
+    /* Windows: links are not checked (like inside(), lua_files.cpp); the
+     * absolute spelling without . and .., case-folded (NTFS ignores case). */
+    char full[_MAX_PATH];
+    if (path.empty() || !_fullpath(full, path.c_str(), sizeof full))
+        return false;
+    out = full;
+    for (char& c : out)
+        c = c == '\\' ? '/' : (char)std::tolower((unsigned char)c);
+    while (out.size() > 3 && out.back() == '/')
+        out.pop_back();
+    return true;
+#else
+    std::string tail;
+    char resolved[PATH_MAX];
+    while (!path.empty()) {
+        if (realpath(path.c_str(), resolved)) {
+            out = resolved;
+            if (out == "/" && !tail.empty())
+                out.clear();
+            out += tail;
+            return true;
+        }
+        if (errno != ENOENT)
+            return false;
+        struct stat st;
+        if (lstat(path.c_str(), &st) == 0)
+            return false;
+        size_t slash = path.find_last_of('/');
+        std::string part = slash == std::string::npos ? path : path.substr(slash + 1);
+        if (part == "..")
+            return false;
+        if (!part.empty() && part != ".")
+            tail = "/" + part + tail;
+        path = slash == std::string::npos ? "." : slash == 0 ? "/" : path.substr(0, slash);
+    }
+    return false;
+#endif
+}
+bool below(const std::string& path, const std::string& root)
+{
+    if (root.size() == 3 && root[1] == ':' && root[2] == '/') /* a Windows drive root */
+        return path.compare(0, 3, root) == 0;
+    return root == "/" || path == root || (path.size() > root.size()
+        && path.compare(0, root.size(), root) == 0 && path[root.size()] == '/');
+}
+}
+
+bool filesystem_grant_ok(const std::string& capability, std::string* why)
+{
+    if (capability.compare(0, 9, "fs.write:") != 0)
+        return true;
+    std::string scope;
+    if (!canonical_folder(capability.substr(9), scope)) {
+        *why = "cannot resolve filesystem grant folder";
+        return false;
+    }
+    const char* settings = std::getenv("ROOD_SETTINGS");
+    for (const std::string& protected_path : { shipped_root(), user_root(), data_root(),
+             std::string(settings && *settings ? settings : "pc/user/settings.cfg") }) {
+        if (protected_path.empty())
+            continue;
+        std::string target;
+        if (!canonical_folder(protected_path, target) || below(target, scope)) {
+            *why = "fs.write folder contains settings or a plugin/plugin_data root";
+            return false;
+        }
+    }
+    return true;
+}
+
+bool external_filesystem_grant(const Plugin* p, const std::string& cap)
+{
+    if (cap.compare(0, 8, "fs.read:") && cap.compare(0, 9, "fs.write:"))
+        return false;
+    std::string scope, own, data;
+    return !canonical_folder(cap.substr(cap.find(':') + 1), scope)
+        || !canonical_folder(p->dir, own) || !canonical_folder(p->data_dir, data)
+        || (!below(scope, own) && !below(scope, data));
 }
 
 bool capability_ok(const std::string& capability, std::string* why)
@@ -102,6 +195,9 @@ bool roots_for(Plugin* p, const char* which, std::vector<std::string>& roots)
     bool any = false;
     for (const std::string& cap : p->granted) {
         if (name_of(cap) != which)
+            continue;
+        std::string why;
+        if (!filesystem_grant_ok(cap, &why))
             continue;
         any = true;
         size_t colon = cap.find(':');
@@ -244,7 +340,14 @@ std::vector<std::string> active_grants(const Plugin* p)
     for (const std::string& cap : p->manifest.capabilities)
         for (const Grant& g : grants())
             if (g.plugin == p->id() && g.hash == p->hash && g.capability == cap) {
-                out.push_back(cap);
+                std::string why;
+                if (filesystem_grant_ok(cap, &why)) {
+                    out.push_back(cap);
+                    if (external_filesystem_grant(p, cap)
+                        && std::find(p->granted.begin(), p->granted.end(), cap) == p->granted.end())
+                        log(LOG_WARN, p->id(), "filesystem grant outside own plugin/data directories: " + cap);
+                } else
+                    log(LOG_WARN, p->id(), "refused grant " + cap + ": " + why);
                 break;
             }
     return out;
@@ -271,6 +374,8 @@ bool grant(const std::string& plugin, const std::string& capability, bool revoke
         *error = "plugin '" + plugin + "' does not declare '" + capability + "'";
         return false;
     }
+    if (!revoke && (!capability_ok(capability, error) || !filesystem_grant_ok(capability, error)))
+        return false;
     if (p->hash.empty())
         p->hash = content_hash(p->dir);
     std::vector<Grant>& list = grants();

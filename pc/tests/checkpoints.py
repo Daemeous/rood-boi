@@ -121,6 +121,33 @@ def _file_hash(path):
     return h.hexdigest()[:16]
 
 
+def harness_key():
+    """Hash of the files that decide how a checkpoint is reached and checked:
+    a snapshot validated by an older harness is validated again."""
+    h = hashlib.sha256()
+    for name in ("checkpoints.py", "snapshot_equivalence.py", "snapshot_diff.py"):
+        h.update((ROOT / "pc/tests" / name).read_bytes())
+    return h.hexdigest()[:16]
+
+
+def verdict(name, card=None):
+    """"ok" (a snapshot validated for this build and harness), "bad" (it did
+    not resume exactly) or None (not validated yet)."""
+    directory, snap, ok, bad = _paths(name, card)
+    key = harness_key()
+    try:
+        if json.loads(ok.read_text()).get("harness") == key and snap.exists():
+            return "ok"
+    except (OSError, ValueError):
+        pass
+    try:
+        if bad.read_text().startswith(f"harness {key}\n"):
+            return "bad"
+    except OSError:
+        pass
+    return None
+
+
 def _paths(name, card):
     directory = pathlib.Path(os.environ["ROOD_TEST_SNAPSHOT_DIR"])
     stem = name + (f"-card{_file_hash(card)}" if card else "")
@@ -185,7 +212,7 @@ def validate(name, card=None, work=None, log=print):
     work = pathlib.Path(work or directory / f"work-{name}-{os.getpid()}")
     work.mkdir(parents=True, exist_ok=True)
     env = _base_env(work)
-    socket = f"/tmp/rood-cp-{os.getpid()}.sock"
+    socket = f"/tmp/rood-cp-{os.getpid()}-{name}.sock"  # checkpoints are validated in parallel
     cards = []
     for side in ("a", "b"):  # each run its own copy of the card (Continue only reads it)
         if card:
@@ -245,12 +272,12 @@ def validate(name, card=None, work=None, log=print):
     if good:
         os.replace(part, snap)
         ok.write_text(json.dumps({"vsync": at, "warmup": WARMUP, "frames": FRAMES,
-                                  "first_identical_frame": first_image}) + "\n")
+                                  "first_identical_frame": first_image, "harness": harness_key()}) + "\n")
         bad.unlink(missing_ok=True)
         shutil.rmtree(work, ignore_errors=True)
     else:
         part.unlink(missing_ok=True)
-        bad.write_text("\n".join(report) + "\n")
+        bad.write_text(f"harness {harness_key()}\n" + "\n".join(report) + "\n")
         ok.unlink(missing_ok=True)
     for line in report:
         log(line)
@@ -263,21 +290,23 @@ BUILDING = "building"  # run.py: snapshot_equivalence.py is (re)making the cache
 def prepare(name, card=None, log=print):
     """The checkpoint's validated snapshot, or None (boot instead): when save
     states are off, when snapshot_equivalence.py has not made it (another
-    card, a test run on its own) or when it did not resume exactly. Waits
-    while snapshot_equivalence.py is making the cache."""
+    card, a test run on its own) or when it did not resume exactly. While
+    snapshot_equivalence.py is making the cache, waits for this checkpoint
+    only (its verdict), not the others."""
     if not enabled():
         return None
     directory, snap, ok, bad = _paths(name, card)
     deadline = time.monotonic() + 900
-    while (directory / BUILDING).exists() and time.monotonic() < deadline:
+    while (directory / BUILDING).exists() and verdict(name, card) is None and time.monotonic() < deadline:
         time.sleep(0.2)
     if not directory.exists():
         return None
     with open(directory / f"{snap.stem}.lock", "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_SH)  # not while one is being made
-        if ok.exists() and snap.exists() and not bad.exists():
+        state = verdict(name, card)
+        if state == "ok":
             return snap
-    if bad.exists():
+    if state == "bad":
         log(f"[checkpoint] {name}: its snapshot did not resume exactly ({bad.name}); booting")
     return None
 

@@ -98,11 +98,16 @@ bool flag_param(const Json& params, const char* key, bool fallback)
 std::string plugin_json(const rl::Plugin& p)
 {
     const rl::Manifest& m = p.manifest;
+    std::vector<std::string> external;
+    for (const std::string& cap : p.granted)
+        if (rl::external_filesystem_grant(&p, cap))
+            external.push_back(cap);
     return "{\"id\":" + q(m.id) + ",\"name\":" + q(m.name) + ",\"version\":" + q(m.version)
         + ",\"state\":" + q(rl::state_name(p.state)) + ",\"status\":" + q(p.status) + ",\"dir\":" + q(p.dir)
         + ",\"shipped\":" + (p.shipped ? "true" : "false") + ",\"console\":" + (p.console ? "true" : "false")
         + ",\"enabled\":" + (p.console || rl::plugin_enabled(&p) ? "true" : "false")
         + ",\"generation\":" + std::to_string(p.generation) + ",\"hash\":" + q(p.hash)
+        + ",\"external_filesystem_grants\":" + list(external)
         + ",\"declared\":" + list(m.capabilities) + ",\"granted\":" + list(p.granted)
         + ",\"pending\":" + list(rl::pending_grants(&p)) + ",\"elevated\":" + (p.granted.empty() ? "false" : "true")
         + ",\"memory\":{\"used_kb\":" + num(p.mem.used / 1024.0) + ",\"peak_kb\":" + num(p.mem.peak / 1024.0)

@@ -2103,7 +2103,14 @@ These focused cases do not establish full GTE fidelity.
 python3 pc/tests/run.py              # all suites, -j CPUs/4 (at most 6)
 python3 pc/tests/run.py -j 2 input   # suites whose names contain "input"
 python3 pc/tests/run.py --list
+python3 pc/tests/run.py --changed    # only the suites a change since main can affect
+pc/tools/verify.sh [--changed]       # the four builds and both suites, one line per step
 ```
+
+`docs/Testing.md` has the details: what `--changed` picks
+(`pc/tests/affected.toml`), the game and CPU lanes (`--gpu-jobs`,
+`--cpu-jobs`, `--heavy-jobs`), the lower priority the suites run at, and
+what limits a full run.
 
 | Suite | Covers |
 | --- | --- |

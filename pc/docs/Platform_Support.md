@@ -125,11 +125,22 @@ The Linux link is skipped; the Linux 64-bit build itself is unchanged.
   `pc/tools/rood_rpc.py` connects to `tcp:` addresses and defaults to
   `tcp:47323` on Windows. A TCP port can be reached by any local program,
   web pages' requests included, so a line that is not a JSON object (an HTTP
-  request line) closes the connection, and `ROOD_RPC=tcp:PORT:TOKEN` makes
-  every connection authenticate first (`auth {token}`; anything else closes
-  it). `rood_rpc.py` sends the token from the address, and `Game.launch()`
-  makes up a random one. Without a token, use TCP on single-user machines
-  only: the RPC can write the game's memory and files.
+  request line) closes the connection. Every TCP connection must authenticate
+  first (`auth {token}`; anything else closes it), including Lua eval/grant.
+  `ROOD_RPC=tcp:PORT:TOKEN` supplies an explicit token; otherwise the server
+  generates 32 cryptographically random bytes, hex-encoded, at startup and
+  writes `$ROOD_OUT/rpc.token` (default `pc/build/boot/rpc.token`, beside the
+  default Unix socket). Set `ROOD_RPC_TOKEN_FILE` for another location; its
+  parent directory must already exist and should be private. Use a distinct
+  file for each simultaneous server. Unix publishes atomically with mode 0600;
+  Windows uses an owner-only protected DACL and refuses existing files (remove
+  the previous token file before restarting). Failure to generate or store a
+  secret disables the listener. Secrets are not logged unless explicitly
+  requested with `ROOD_RPC_PRINT_TOKEN=1` (generated token to stdout).
+  `rood_rpc.py` sends the token from the address or reads the token file;
+  `Game.launch()` still supplies its own random token. Unix sockets retain
+  their existing mode-0600, no-auth behavior. The RPC can write memory and
+  files: do not share the token or expose the loopback port remotely.
 - **NRD.** `pc/tools/nrd.py`'s `ensure_windows()` compiles NRD and
   ShaderMakeBlob with MinGW by replaying the Linux NRD build's own compile
   commands (`ninja -t commands`), with its SPIR-V shaders (`_Shaders`, the

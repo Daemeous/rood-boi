@@ -52,7 +52,7 @@ import subprocess
 import sys
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+import traceback
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
@@ -61,6 +61,7 @@ import rood_rpc  # noqa: E402
 TESTS = ROOT / "pc/tests"
 OUT = ROOT / "pc/build/tests"  # --out
 PY = sys.executable
+IONICE = shutil.which("ionice")
 # --profile: run a Python suite under cProfile, keeping its exit status
 # (python -m cProfile swallows SystemExit).
 PROFILED = """import cProfile, os, runpy, sys
@@ -78,8 +79,13 @@ sys.exit(code)
 
 
 class Suite:
-    def __init__(self, name, command, timeout, binary: "str | None" = "rood_battle_probe", note=""):
+    """gpu: the suite runs the game (the GPU lane, --gpu-jobs); a suite without
+    a game binary runs in the CPU lane (--cpu-jobs). sources: files the suite
+    reads besides its command's scripts (--changed, affected.py)."""
+    def __init__(self, name, command, timeout, binary: "str | None" = "rood_battle_probe", note="", sources=()):
         self.name, self.command, self.timeout, self.binary, self.note = name, command, timeout, binary, note
+        self.gpu = binary is not None
+        self.sources = list(sources)
 
     def scaled(self, factor):
         self.timeout *= factor
@@ -97,7 +103,8 @@ def input_cases(scale):
             realtime = "--realtime" in words
             timeout = (600 if realtime else 420) * scale
             cases.append(Suite(f"input:{slug}", [PY, str(TESTS / "input_smoke.py"), *words[2:],
-                                                 "--deadline", str(timeout - 30)], timeout, note=words[1]))
+                                                 "--deadline", str(timeout - 30)], timeout, note=words[1],
+                                sources=[TESTS / "start_button_smoke.sh"]))
     return cases
 
 
@@ -317,6 +324,11 @@ def suites(args, mode="egl"):
                       "(grimoires too) and the equipped weapon's Break Arts: wind-ups <= 32 vsyncs, none "
                       "presented, a 2000-vsync watchdog, clean afterwards")]
           if args.save.exists() else []),
+        *([Suite("item357_smoke", [PY, str(TESTS / "charge_skip_soak.py"), "--card", str(args.save),
+                                   "--first", "357", "--items", "1", "--only", "items", "--mode", "off"], 600,
+                 note="misc item 357 (unnamed, action 0) used in battle, charging skip off: BATTLE frames the empty "
+                      "actor slot 1 (read from PS1 address 0, as the PS1); no crash, back in the field, clean")]
+          if args.save.exists() else []),
         *([Suite("heal_audio_smoke", [PY, str(TESTS / "heal_audio_smoke.py"), "--card", str(args.save)], 300,
                  note="Cure Root in the field (audio recorded): its streamed sound fed by the SPU interrupt and "
                       "keyed off at its end; afterwards the room's level and no repeating phrase (no endless echo)")]
@@ -524,6 +536,113 @@ CHECKPOINT_SUITES = {
 }
 
 
+# Game suites heavy on the GPU (the path tracer, probe GI, NRD; the light
+# they check after N vsyncs): at most --heavy-jobs of them run at once,
+# whatever -j is; with more, the shared GPU made them fail. Keep it to
+# those: in a full run the capped ones form a queue of their own (their
+# summed time / --heavy-jobs is a floor for the run's wall time).
+HEAVY_SUITES = {
+    "glow_stability_smoke", "save_point_glow_smoke", "probe_gi_smoke", "gi_smoke", "gi_lag_smoke", "nrd_smoke",
+    "rt_camera_smoke", "sky_smoke", "lighting_presets_smoke", "emissive_smoke", "ui_ashley_stability_smoke",
+}
+
+
+def cpu_temperature():
+    """The CPU package temperature in degrees C from hwmon (coretemp's
+    "Package id 0", k10temp's Tctl, else the hottest coretemp/k10temp/zenpower
+    input), or None where there is none."""
+    best = None
+    for hwmon in pathlib.Path("/sys/class/hwmon").glob("hwmon*"):
+        try:
+            if (hwmon / "name").read_text().strip() not in ("coretemp", "k10temp", "zenpower"):
+                continue
+            for label in hwmon.glob("temp*_label"):
+                value = int(label.with_name(label.name.replace("_label", "_input")).read_text()) / 1000
+                if label.read_text().strip() in ("Package id 0", "Tctl", "Tdie"):
+                    return value
+                best = value if best is None else max(best, value)
+        except (OSError, ValueError):
+            continue
+    return best
+
+
+class ThermalGate:
+    """Before each suite starts: if the CPU package is at --thermal-pause
+    degrees or more, wait (no new suite starts; the running ones go on) until
+    it is at --thermal-resume or less, for at most --thermal-wait seconds."""
+
+    def __init__(self, args):
+        self.pause, self.resume, self.limit = args.thermal_pause, args.thermal_resume, args.thermal_wait
+        self.lock = threading.Lock()
+        self.waited = 0.0
+
+    def wait(self, name):
+        if not self.pause:
+            return
+        with self.lock:  # one waiter reports; the others queue behind it
+            t = cpu_temperature()
+            if t is None or t < self.pause:
+                return
+            print(f"thermal: CPU package {t:.0f} C (>= {self.pause}); {name} waits for {self.resume} C", flush=True)
+            start = time.monotonic()
+            while t is not None and t > self.resume and time.monotonic() - start < self.limit:
+                time.sleep(2)
+                t = cpu_temperature()
+            self.waited += time.monotonic() - start
+            print(f"thermal: {t:.0f} C after {time.monotonic() - start:.0f} s; {name} starts", flush=True)
+
+
+def run_lanes(order, args, run):
+    """Run `order` ((index, suite) pairs, in that order of preference) in two
+    lanes: the game suites (--gpu-jobs at once, of them at most --heavy-jobs
+    of HEAVY_SUITES) and the rest (CTest, lints, scans, build checks;
+    --cpu-jobs), so a lint never takes a game's slot or waits for one. A free
+    game slot takes the first waiting suite it may run, so a capped heavy
+    suite never holds a slot while it waits."""
+    cond = threading.Condition()
+    waiting = {True: [item for item in order if item[1].gpu], False: [item for item in order if not item[1].gpu]}
+    heavy = [0]
+    gate = ThermalGate(args)
+
+    def take(gpu):
+        with cond:
+            while True:
+                items = waiting[gpu]
+                if not items:
+                    return None
+                # a heavy suite first while one of their slots is free: their queue starts at once
+                free = gpu and heavy[0] < args.heavy_jobs
+                for item in sorted(items, key=lambda item: not (free and item[1].name in HEAVY_SUITES)):
+                    if not gpu or item[1].name not in HEAVY_SUITES or heavy[0] < args.heavy_jobs:
+                        items.remove(item)
+                        if gpu and item[1].name in HEAVY_SUITES:
+                            heavy[0] += 1
+                        return item
+                cond.wait()  # only capped heavy suites left: until one ends
+
+    def worker(gpu):
+        while (item := take(gpu)) is not None:
+            index, suite = item
+            try:
+                gate.wait(suite.name)
+                run(suite, index)
+            except Exception:  # the runner's own error: the suite shows as NOT RUN
+                traceback.print_exc()
+            finally:
+                with cond:
+                    if gpu and suite.name in HEAVY_SUITES:
+                        heavy[0] -= 1
+                    cond.notify_all()
+
+    threads = [threading.Thread(target=worker, args=(gpu,)) for gpu, n in ((True, args.gpu_jobs), (False, args.cpu_jobs))
+               for _ in range(max(1, n))]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    return gate.waited
+
+
 def file_hash(path, h=None):
     h = h or hashlib.sha256()
     with open(path, "rb") as f:
@@ -606,6 +725,14 @@ def run_suite(suite, index, args, mode, results, lock):
         ROOD_BUTTON_PROMPTS="original",  # the PS1 glyphs (button_prompts_smoke opts in)
         ROOD_AUDIO=f"wav:{out / 'audio.wav'}" if suite.name.startswith("input:") else "none",
         PYTHONUNBUFFERED="1",
+        # A game being played beside the tests keeps the GPU first (Vulkan global priority).
+        **({"ROOD_GPU_PRIORITY": "low"} if args.nice else {}),
+        # The GPU is what limits the suites at once: a paused game nobody is talking to redraws
+        # the same picture less often (after each request it still redraws at once).
+        ROOD_PAUSED_REDRAW_HZ=os.environ.get("ROOD_PAUSED_REDRAW_HZ", "20"),
+        # NVIDIA's OpenGL spins a core while it waits for the GPU (a frame-in-flight fence); with
+        # the GPU shared by several games most of each game's time is that wait: sleep instead.
+        __GL_YIELD=os.environ.get("__GL_YIELD", "USLEEP"),
         **({"ROOD_RPC_PROFILE": str(out / "rpc-profile.txt")} if args.profile else {}),
         # Save states of the test checkpoints (checkpoints.py), or none.
         **({"ROOD_TEST_SNAPSHOT_DIR": str(args.snapshot_dir)} if args.snapshot_dir else {"ROOD_TEST_SNAPSHOTS": "0"}),
@@ -624,10 +751,12 @@ def run_suite(suite, index, args, mode, results, lock):
                 "ROOD_VK_RT", "ROOD_VK_PIPELINE_CACHE"):  # renderer choices to test under, binary
         if key in os.environ:
             env[key] = os.environ[key]
+    if args.nice and IONICE:  # idle I/O class: the player's disk reads first
+        command = [IONICE, "-c", "3", *command]
     start = time.monotonic()
     with log.open("w") as output:
         p = subprocess.Popen(command, cwd=ROOT, env=env, stdout=output, stderr=subprocess.STDOUT,
-                             start_new_session=True)
+                             start_new_session=True, preexec_fn=(lambda: os.nice(args.nice)) if args.nice else None)
         try:
             status = p.wait(timeout=suite.timeout)
             result = {0: "PASS", 77: "SKIP"}.get(status, f"FAIL ({status})")
@@ -653,11 +782,35 @@ def run_suite(suite, index, args, mode, results, lock):
         print(f"{result:<9} {elapsed:6.1f}s  {suite.name}", flush=True)
 
 
-def main():
+def make_parser():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("patterns", nargs="*", help="run suites whose names contain any of these")
-    parser.add_argument("-j", "--jobs", type=int, default=max(1, min(6, (os.cpu_count() or 4) // 4)),
-                        help="suites at once (default: CPUs / 4, at most 6)")
+    parser.add_argument("-j", "--jobs", type=int, default=int(os.environ.get("ROOD_TEST_JOBS", "3")),
+                        help="game suites at once (default 3, $ROOD_TEST_JOBS: kind to the machine's "
+                             "temperature; more runs little faster, the GPU being the limit); same as --gpu-jobs")
+    parser.add_argument("--gpu-jobs", type=int, help="game suites at once (default: -j)")
+    parser.add_argument("--heavy-jobs", type=int, default=2,
+                        help="of those, the GPU-heavy ones (HEAVY_SUITES: path tracing) at once (default 2)")
+    parser.add_argument("--cpu-jobs", type=int, default=2,
+                        help="suites without a game (CTest, lints, scans, build checks) at once, beside the "
+                             "game suites (default 2)")
+    parser.add_argument("--thermal-pause", type=float, default=float(os.environ.get("ROOD_THERMAL_PAUSE", "95")),
+                        help="no new suite starts while the CPU package is this hot (C; default 95, 0 = off)")
+    parser.add_argument("--thermal-resume", type=float, default=float(os.environ.get("ROOD_THERMAL_RESUME", "85")),
+                        help="... until it has cooled to this (C; default 85)")
+    parser.add_argument("--thermal-wait", type=float, default=900,
+                        help="the longest one such wait (s; default 900), then the suite starts anyway")
+    parser.add_argument("--wait-cool", action="store_true",
+                        help="only wait as before a suite (--thermal-pause / --thermal-resume), then exit "
+                             "(pc/tools/verify.sh runs it between steps)")
+    parser.add_argument("--changed", nargs="?", const="main", metavar="BASE",
+                        help="only the suites a change since BASE (default main) can affect "
+                             "(pc/tests/affected.toml; core or unknown files run everything)")
+    parser.add_argument("--changed-files", nargs="+", metavar="PATH",
+                        help="as --changed, for these repository paths instead of a diff")
+    parser.add_argument("--nice", type=int, default=int(os.environ.get("ROOD_TEST_NICE", "10")),
+                        help="CPU niceness of the suites (default 10; 0 = as is), with idle I/O priority and "
+                             "a low GPU priority where the driver has one (ROOD_GPU_PRIORITY=low)")
     parser.add_argument("--list", action="store_true")
     parser.add_argument("--profile", action="store_true",
                         help="log every RPC call's time (<suite>/rpc-profile.txt; pc/tests/profile_report.py)")
@@ -677,7 +830,19 @@ def main():
                         default=os.environ.get("ROOD_TEST_SNAPSHOTS", "1") == "0",
                         help="boot every suite from scratch: no save states of the test checkpoints "
                              "(also ROOD_TEST_SNAPSHOTS=0)")
-    args = parser.parse_args()
+    return parser
+
+
+def default_args():
+    """The options run.py takes with no arguments (for affected.py)."""
+    return make_parser().parse_args([])
+
+
+def main():
+    args = make_parser().parse_args()
+    if args.wait_cool:
+        ThermalGate(args).wait("the next step")
+        return 0
     if args.renderer == "vulkan":
         os.environ["ROOD_RENDERER"] = "vulkan"
     else:
@@ -692,14 +857,27 @@ def main():
     if args.headless:
         os.environ["ROOD_HEADLESS"] = args.headless
     mode, renderer = rood_rpc.headless_mode()
-    selected = [s for s in suites(args, mode)
+    every = suites(args, mode)
+    selected = [s for s in every
                 if (not args.patterns or any(p in s.name for p in args.patterns))
                 and not any(x in s.name for x in args.exclude)]
+    if args.changed or args.changed_files:
+        import affected
+        selection = affected.select(args.changed_files or affected.changed_files(args.changed), every)
+        if not args.no_snapshots and any(name in CHECKPOINT_SUITES for name in selection.reasons):
+            # it makes (or finds) the save states those suites resume
+            selection.reasons.setdefault("snapshot_equivalence", ["the checkpoint suites resume its save states"])
+        affected.report(selection, len(every))
+        if not selection.full:
+            selected = [s for s in selected if s.name in selection.reasons]
     if args.list:
         for s in selected:
             print(f"{s.name:<45} {s.timeout:5.0f}s  {s.note}")
         return 0
     if not selected:
+        if args.changed or args.changed_files:
+            print("nothing to run for this change")
+            return 0
         print("no suites match", args.patterns)
         return 2
     OUT.mkdir(parents=True, exist_ok=True)
@@ -716,8 +894,9 @@ def main():
         built = subprocess.run(["ninja", "-C", str(ROOT / "pc/build")], capture_output=True, text=True)
         if built.returncode:
             print(built.stdout[-2000:])
-    print(f"{len(selected)} suites, {args.jobs} at a time; logs in {OUT}/<suite>/output.log",
-          flush=True)
+    args.gpu_jobs = args.gpu_jobs or args.jobs
+    print(f"{len(selected)} suites, {args.gpu_jobs} game ({args.heavy_jobs} heavy) and {args.cpu_jobs} other at a time"
+          + (f", nice {args.nice}" if args.nice else "") + f"; logs in {OUT}/<suite>/output.log", flush=True)
 
     config = f"{args.arch}-{args.renderer}-{mode}"
     args.snapshot_dir = None
@@ -735,9 +914,7 @@ def main():
     timings = OUT / "durations.json"
     order = schedule(selected, timings, config)
     try:
-        with ThreadPoolExecutor(args.jobs) as pool:
-            for index, suite in order:
-                pool.submit(run_suite, suite, index, args, mode, results, lock)
+        cooled = run_lanes(order, args, lambda suite, index: run_suite(suite, index, args, mode, results, lock))
     finally:
         if args.snapshot_dir:
             (args.snapshot_dir / "building").unlink(missing_ok=True)
@@ -756,7 +933,8 @@ def main():
             print(f"{'':<{width}}  {summary[:160]}")
     skipped = sum(results.get(s.name, ("",))[0] == "SKIP" for s in selected)
     print(f"\n{len(selected) - failed - skipped}/{len(selected)} passed" + (f", {skipped} skipped" if skipped else "")
-          + f" in {total:.0f}s ({mode}, {args.renderer}, -j {args.jobs})")
+          + f" in {total:.0f}s ({mode}, {args.renderer}, -j {args.gpu_jobs} + {args.cpu_jobs}"
+          + (f"; {cooled:.0f}s waiting for the CPU to cool" if cooled else "") + ")")
     return 1 if failed else 0
 
 

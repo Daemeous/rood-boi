@@ -4,16 +4,16 @@
  * mode 0600. ROOD_RPC=tcp:PORT listens on 127.0.0.1:PORT instead (Windows
  * has no Unix sockets for Python clients); lines that are not JSON objects
  * close such a connection. Any local program can reach a TCP port, so
- * ROOD_RPC=tcp:PORT:TOKEN makes each connection's first request auth {token}
- * with that token (anything else closes it); rood_rpc.py does this, and
- * Game.launch() makes up a token. Without a token, TCP is for single-user
- * machines only. Each request is one JSON object per line and each response
+ * every TCP connection's first request must be auth {token}. Supply it with
+ * ROOD_RPC=tcp:PORT:TOKEN, or read the generated token from ROOD_OUT/rpc.token
+ * (0600, next to the default Unix socket). ROOD_RPC_TOKEN_FILE overrides it.
+ * Only ROOD_RPC_PRINT_TOKEN=1 prints the generated secret to stdout.
+ * Each request is one JSON object per line and each response
  * is one line. Requests are serviced on the game thread from pc_tick (once
  * per vsync), so every method runs at a frame boundary with no locking.
  * Methods:
  *
- *   auth {token}                 a TCP connection's first request when
- *                                ROOD_RPC=tcp:PORT:TOKEN
+ *   auth {token}                 every TCP connection's first request
  *   status                       counters (vsync, battle frame, presents: images
  *                                presented, window_presents: of them, those that
  *                                reached a real window; device_lost: Vulkan
@@ -384,6 +384,8 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <windows.h>
+#include <sddl.h>
 #else
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -531,7 +533,7 @@ extern void render_stats_get(render_stats*) __attribute__((weak));
 
 static int listener = -1, initialized;
 static int listener_tcp; /* ROOD_RPC=tcp:PORT */
-static char tcp_token[129]; /* ROOD_RPC=tcp:PORT:TOKEN; empty: no auth */
+static char tcp_token[129]; /* explicit or securely generated; TCP always requires auth */
 static struct client {
     int fd;
     int authed; /* 0 until a TCP connection sends auth {token} */
@@ -543,6 +545,21 @@ static struct client {
 } clients[MAX_CLIENTS];
 static struct client* current_client; /* the client whose request handle() runs */
 static int handled_since_redraw; /* a request was served since the last paused redraw */
+/* Milliseconds between paused redraws with no request served:
+ * ROOD_PAUSED_REDRAW_HZ (1..60, default 60). The test runner lowers it: a
+ * paused game the test is not talking to redraws the same picture, and with
+ * many games at once those redraws take GPU time the stepping ones need. */
+static int paused_redraw_ms(void)
+{
+    static int ms;
+    if (!ms) {
+        const char* env = getenv("ROOD_PAUSED_REDRAW_HZ");
+        int hz = env ? atoi(env) : 60;
+        hz = hz < 1 ? 1 : hz > 60 ? 60 : hz;
+        ms = hz == 60 ? 16 : 1000 / hz;
+    }
+    return ms;
+}
 /* RPC snapshot save (snapshot.c): the pending request. */
 extern int pc_snapshot_available(void);
 extern int pc_snapshot_point(const char* path, char* error, int size);
@@ -3557,7 +3574,8 @@ static int same_secret(const char* a, const char* b)
 /* A TCP connection's first request: auth {token}. 1 when it may go on. */
 static int authenticate(int fd, const char* request)
 {
-    char method[16] = "", token[sizeof tcp_token] = "", id[64] = "null";
+    /* One extra byte ensures an overlong token cannot match by truncation. */
+    char method[16] = "", token[sizeof tcp_token + 1] = "", id[64] = "null";
     const char* idv = member(request, "id");
     const char* e = idv ? value_end(idv) : NULL;
     if (e && (size_t)(e - idv) < sizeof id) {
@@ -3566,13 +3584,116 @@ static int authenticate(int fd, const char* request)
     }
     const char* params = member(request, "params");
     string_value(member(request, "method"), method, sizeof method);
-    string_value(params ? member(params, "token") : NULL, token, sizeof token);
-    if (strcmp(method, "auth") || !same_secret(token, tcp_token)) {
+    const char* supplied = params ? member(params, "token") : NULL;
+    string_value(supplied, token, sizeof token);
+    if (!supplied || !value_end(supplied) || strcmp(method, "auth") || !same_secret(token, tcp_token)) {
         fail(fd, id, -32001, "authentication required: send auth {token} first (ROOD_RPC=tcp:PORT:TOKEN)");
         return 0;
     }
     reply(fd, id, "{\"ok\":true}");
     return 1;
+}
+
+/* Publish a fresh 256-bit secret without ever exposing a world-readable file.
+ * Failure is fatal to the listener, never a fallback to unauthenticated TCP. */
+static int generate_tcp_token(void)
+{
+    unsigned char bytes[32];
+#ifdef _WIN32
+    HMODULE crypto = LoadLibraryA("bcrypt.dll");
+    typedef LONG (WINAPI *random_fn)(void*, unsigned char*, ULONG, ULONG);
+    random_fn random_bytes = crypto ? (random_fn)GetProcAddress(crypto, "BCryptGenRandom") : NULL;
+    int random_ok = random_bytes && random_bytes(NULL, bytes, sizeof bytes, 2) == 0;
+    if (crypto)
+        FreeLibrary(crypto);
+    if (!random_ok)
+        return 0;
+#else
+    int random_fd = open("/dev/urandom", O_RDONLY | O_CLOEXEC);
+    if (random_fd < 0)
+        return 0;
+    size_t used = 0;
+    while (used < sizeof bytes) {
+        ssize_t n = read(random_fd, bytes + used, sizeof bytes - used);
+        if (n < 0 && errno == EINTR)
+            continue;
+        if (n <= 0) {
+            close(random_fd);
+            return 0;
+        }
+        used += (size_t)n;
+    }
+    close(random_fd);
+#endif
+    for (size_t i = 0; i < sizeof bytes; i++)
+        snprintf(tcp_token + i * 2, 3, "%02x", bytes[i]);
+    const char* path = getenv("ROOD_RPC_TOKEN_FILE");
+    if (!path || !*path)
+        path = pc_out_path("rpc.token");
+    char line[65];
+    memcpy(line, tcp_token, 64);
+    line[64] = '\n';
+#ifdef _WIN32
+    /* CRT mode bits do not enforce privacy on Windows: use an owner-only DACL.
+     * CREATE_NEW refuses existing files/reparse points; remove old files before
+     * restarting, or give each process its own ROOD_RPC_TOKEN_FILE. */
+    HMODULE security = LoadLibraryA("advapi32.dll");
+    typedef BOOL (WINAPI *descriptor_fn)(LPCSTR, DWORD, PSECURITY_DESCRIPTOR*, PULONG);
+    descriptor_fn descriptor = security ? (descriptor_fn)GetProcAddress(security,
+        "ConvertStringSecurityDescriptorToSecurityDescriptorA") : NULL;
+    PSECURITY_DESCRIPTOR sd = NULL;
+    int ok = 0;
+    if (descriptor && descriptor("D:P(A;;GA;;;OW)", SDDL_REVISION_1, &sd, NULL)) {
+        SECURITY_ATTRIBUTES attributes = { sizeof attributes, sd, FALSE };
+        HANDLE file = CreateFileA(path, GENERIC_WRITE, 0, &attributes, CREATE_NEW,
+            FILE_ATTRIBUTE_NORMAL, NULL);
+        if (file != INVALID_HANDLE_VALUE) {
+            DWORD written = 0;
+            ok = WriteFile(file, line, 65, &written, NULL) && written == 65;
+            if (!CloseHandle(file))
+                ok = 0;
+            if (!ok)
+                DeleteFileA(path);
+        }
+        LocalFree(sd);
+    }
+    if (security)
+        FreeLibrary(security);
+#else
+    char temporary[1024];
+    int length = snprintf(temporary, sizeof temporary, "%s.XXXXXX", path);
+    if (length < 0 || (size_t)length >= sizeof temporary)
+        return 0;
+    int file = mkstemp(temporary);
+    if (file < 0)
+        return 0;
+    int ok = !fchmod(file, 0600);
+    size_t written = 0;
+    while (ok && written < 65) {
+        ssize_t n = write(file, line + written, 65 - written);
+        if (n < 0 && errno == EINTR)
+            continue;
+        if (n <= 0)
+            ok = 0;
+        else
+            written += (size_t)n;
+    }
+    if (close(file))
+        ok = 0;
+    if (ok && rename(temporary, path))
+        ok = 0;
+    if (!ok)
+        unlink(temporary);
+#endif
+    if (ok) {
+        fprintf(stderr, "[rpc] generated TCP token in %s\n", path);
+        const char* print = getenv("ROOD_RPC_PRINT_TOKEN");
+        if (print && !strcmp(print, "1")) {
+            printf("[rpc] TCP token: %s\n", tcp_token);
+            fflush(stdout);
+        }
+    }
+    return ok;
 }
 
 /* ROOD_RPC=tcp:PORT[:TOKEN]: a TCP listener on the loopback interface only,
@@ -3614,11 +3735,16 @@ static void open_tcp_listener(const char* spec)
     address.sin_family = AF_INET;
     address.sin_port = htons((unsigned short)port);
     address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    if (listener < 0 || bind(listener, (struct sockaddr*)&address, sizeof address)
-        || listen(listener, MAX_CLIENTS)) {
+    if (listener < 0 || bind(listener, (struct sockaddr*)&address, sizeof address)) {
         fprintf(stderr, "[rpc] cannot listen on 127.0.0.1:%lu\n", port);
         if (listener >= 0)
             rpc_close(listener);
+        listener = -1;
+        return;
+    }
+    if ((!tcp_token[0] && !generate_tcp_token()) || listen(listener, MAX_CLIENTS)) {
+        fprintf(stderr, "[rpc] cannot securely start TCP listener; listener disabled\n");
+        rpc_close(listener);
         listener = -1;
         return;
     }
@@ -3626,12 +3752,7 @@ static void open_tcp_listener(const char* spec)
     listener_tcp = 1;
     for (int i = 0; i < MAX_CLIENTS; i++)
         clients[i].fd = -1;
-    if (tcp_token[0])
-        fprintf(stderr, "[rpc] listening on tcp:127.0.0.1:%lu (token required)\n", port);
-    else
-        fprintf(stderr, "[rpc] listening on tcp:127.0.0.1:%lu (no token: any local program can "
-                        "connect; ROOD_RPC=tcp:PORT:TOKEN requires one)\n",
-            port);
+    fprintf(stderr, "[rpc] listening on tcp:127.0.0.1:%lu (token required)\n", port);
 }
 
 static void open_listener(void)
@@ -3696,7 +3817,7 @@ static void service(void)
         clients[i].fd = fd;
         clients[i].used = 0;
         clients[i].waiting = 0;
-        clients[i].authed = !listener_tcp || !tcp_token[0];
+        clients[i].authed = !listener_tcp;
     }
     for (int i = 0; i < MAX_CLIENTS; i++) {
         struct client* c = &clients[i];
@@ -3855,7 +3976,8 @@ void pc_rpc_poll(void)
         --step_budget;
         return;
     }
-    /* Paused: the window (and overlay) redraws at about 60 Hz, and after
+    /* Paused: the window (and overlay) redraws at about 60 Hz
+     * (ROOD_PAUSED_REDRAW_HZ), and after
      * every request served, so each request still sees the frame its
      * predecessor's change produced (editor transactions, graphics
      * settings); a request is served as soon as it arrives instead of
@@ -3873,7 +3995,7 @@ void pc_rpc_poll(void)
             if (!&pc_present_burst || pc_present_burst <= 0)
                 pc_window_redraw();
             now = rpc_now_ms();
-            next_redraw = now + 16;
+            next_redraw = now + paused_redraw_ms();
         }
         wait_for_requests((int)(next_redraw - now));
         if (listener >= 0)

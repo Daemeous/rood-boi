@@ -16,6 +16,9 @@
 #include <string>
 #include <sys/stat.h>
 #include <thread>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 #include <vector>
 
 static int failures;
@@ -544,6 +547,29 @@ static void storage()
  * elevated calls are audited; revoking or changing the code takes them away. */
 static void capabilities()
 {
+    std::string why;
+    CHECK(!rl::filesystem_grant_ok("fs.write:" + scratch, &why));
+    CHECK(!rl::filesystem_grant_ok("fs.write:" + rl::user_root(), &why));
+    CHECK(!rl::filesystem_grant_ok("fs.write:" + rl::data_root(), &why));
+    CHECK(!rl::filesystem_grant_ok("fs.write:/", &why));
+    CHECK(rl::filesystem_grant_ok("fs.write:" + scratch + "/exports/new", &why));
+    CHECK(rl::filesystem_grant_ok("fs.read:" + scratch, &why));
+    // Missing components must not hide traversal back into a protected root.
+    CHECK(!rl::filesystem_grant_ok("fs.write:" + scratch + "/missing/..", &why));
+    CHECK(!rl::filesystem_grant_ok("fs.write:" + scratch + "/missing/../plugins/new", &why));
+    CHECK(!rl::filesystem_grant_ok("fs.write:" + rl::user_root() + "/../plugins", &why));
+    CHECK(!rl::capability_ok("fs.write:" + scratch + "/missing/../exports", &why));
+    CHECK(!rl::capability_ok("fs.write:" + scratch + "/missing\\..\\exports", &why));
+#ifndef _WIN32
+    CHECK(symlink(rl::user_root().c_str(), (scratch + "/grant-link").c_str()) == 0);
+    CHECK(!rl::filesystem_grant_ok("fs.write:" + scratch + "/grant-link", &why));
+    CHECK(!rl::filesystem_grant_ok("fs.write:" + scratch + "/grant-link/..", &why));
+    CHECK(symlink((scratch + "/missing-target").c_str(), (scratch + "/dangling-grant").c_str()) == 0);
+    CHECK(!rl::filesystem_grant_ok("fs.write:" + scratch + "/dangling-grant/new", &why));
+#endif
+    size_t grants_before = rl::grants().size();
+    pc_lua_settings_parse("plugin_grant", ("probe.caps hash fs.write:" + scratch).c_str());
+    CHECK(rl::grants().size() == grants_before);
     std::string root = scratch + "/plugins";
     write_text(root + "/probe.caps/plugin.lua",
         "return { id = 'probe.caps', api_version = 1, capabilities = { 'fs.read', 'fs.write', 'net:example.com', 'exec' } }\n");

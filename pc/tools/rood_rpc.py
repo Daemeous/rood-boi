@@ -204,6 +204,14 @@ def connect(path):
     sent as the first request, auth {token})."""
     if is_tcp(path):
         port, token = tcp_parts(path)
+        if token is None:
+            token_file = os.environ.get("ROOD_RPC_TOKEN_FILE") or str(OUT / "rpc.token")
+            try:
+                token = pathlib.Path(token_file).read_text().strip()
+            except OSError as e:
+                raise RpcError(f"cannot read TCP RPC token file {token_file}: {e}") from e
+            if not token or len(token) > 128:
+                raise RpcError(f"invalid TCP RPC token file {token_file}")
         sock = socket.create_connection(("127.0.0.1", port))
         if token:
             request = {"jsonrpc": "2.0", "id": 0, "method": "auth", "params": {"token": token}}
@@ -286,12 +294,17 @@ class Game:
             + list(args), cwd=ROOT, env=env, stdout=log_file, stderr=subprocess.STDOUT)
         processes.insert(0, game)
         start = time.monotonic()
-        deadline = start + 30
+        # A game that is still starting is waited for: under load (several suites sharing the
+        # GPU, Vulkan pipelines compiled on a cold cache) that took more than 30 s.
+        # ROOD_LAUNCH_TIMEOUT seconds (default 180); an exited game fails at once.
+        deadline = start + float(os.environ.get("ROOD_LAUNCH_TIMEOUT", "180"))
         while not listening(socket_path):
             if game.poll() is not None or time.monotonic() > deadline:
                 for p in processes:
                     p.kill()
-                raise RpcError("game did not open the RPC socket; see " + log_file.name)
+                why = (f"exited with status {game.returncode}" if game.poll() is not None
+                       else f"no socket after {time.monotonic() - start:.0f} s")
+                raise RpcError(f"game did not open the RPC socket ({why}); see " + log_file.name)
             time.sleep(0.05)
         if PROFILE:
             with open(PROFILE, "a") as f:

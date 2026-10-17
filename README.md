@@ -436,10 +436,16 @@ build compiles every unit twice, for Linux (the analysis) and with MinGW-w64
 
 The developer RPC takes `ROOD_RPC=tcp:PORT` on Windows (a loopback TCP port:
 Windows' Python has no Unix sockets); `pc/tools/rood_rpc.py` connects to it
-from Windows or WSL. Any local program can reach that port: on a shared
-machine use `ROOD_RPC=tcp:PORT:TOKEN`, which requires the token (rood_rpc.py
-sends it when the address includes it). The Linux-only test harness (`pc/tests`, Xvfb/EGL
-headless runs) does not run on Windows.
+from Windows or WSL. Every TCP connection must authenticate first, including
+Lua eval/grant requests. Supply `ROOD_RPC=tcp:PORT:TOKEN`, or let the server
+generate a secret in `$ROOD_OUT/rpc.token` (default `pc/build/boot/rpc.token`,
+next to the default Unix socket). `ROOD_RPC_TOKEN_FILE` overrides this path;
+`rood_rpc.py` reads it when the address has no token. The file is mode 0600
+on Unix and owner-only on Windows; Windows refuses existing token files, so
+remove the old file before restarting. Only `ROOD_RPC_PRINT_TOKEN=1` prints
+the generated secret to stdout. Generation/storage failure disables TCP RPC;
+Unix socket behavior is unchanged. The Linux-only test harness (`pc/tests`,
+Xvfb/EGL headless runs) does not run on Windows.
 
 ### macOS
 

@@ -261,6 +261,8 @@ struct CapabilityInfo {
 const std::vector<CapabilityInfo>& capability_table();
 const CapabilityInfo* capability_info(const std::string& name); /* without the scope */
 bool capability_ok(const std::string& capability, std::string* why);
+bool filesystem_grant_ok(const std::string& capability, std::string* why);
+bool external_filesystem_grant(const Plugin* p, const std::string& capability);
 struct Grant {
     std::string plugin, hash, capability; /* settings plugin_grant <plugin> <hash> <capability> */
 };

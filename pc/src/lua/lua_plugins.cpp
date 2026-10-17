@@ -870,6 +870,11 @@ extern "C" int pc_lua_settings_parse(const char* key, const char* rest)
     if (!std::strcmp(key, "plugin_grant")) {
         char hash[80], cap[512];
         if (std::sscanf(rest, "%255s %79s %511s", a, hash, cap) == 3) {
+            std::string why;
+            if (!rl::capability_ok(cap, &why) || !rl::filesystem_grant_ok(cap, &why)) {
+                rl::log(rl::LOG_WARN, a, "refused settings grant: " + why);
+                return 1;
+            }
             bool known = false;
             for (const rl::Grant& g : rl::grants())
                 known |= g.plugin == a && g.hash == hash && g.capability == cap;
