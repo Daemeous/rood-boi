@@ -28,6 +28,7 @@ layout(binding = 3) uniform sampler3D grid_a; // fogvol_light.glsl
 layout(binding = 4) uniform sampler3D grid_b;
 layout(binding = 5, rgba16f) uniform writeonly image2D march_out; // rgb light, a transmittance
 layout(binding = 6, rgba32f) uniform writeonly image2D aux_out; // x scene view depth, y fog distance, z 1
+layout(binding = 7) uniform sampler2D shade_tex; // the G-buffer's shade (medium.glsl medium_void_pixel)
 #define FOGVOL(i) u.fogvol_[i]
 #include "medium.glsl"
 #include "fog_volume.glsl"
@@ -62,7 +63,9 @@ void main() {
     // blue noise per pixel, a 16-frame cycle of golden-ratio steps
     float jitter = fract(ign(vec2(g)) + 0.618034 * float(u.size.z & 15));
     float fog_t;
-    vec4 r = fv_count() > 0 ? fv_march(eye, dir, t_max, jitter, u.size.w, fog_t) : vec4(0.0, 0.0, 0.0, 1.0);
+    // the volumes confined to the room stop where a void pixel's ray leaves the room's interior
+    float t_confined = fv_count() > 0 ? medium_confined_reach(eye, dir, t_max, d, texelFetch(shade_tex, q, 0)) : t_max;
+    vec4 r = fv_count() > 0 ? fv_march(eye, dir, t_max, t_confined, jitter, u.size.w, fog_t) : vec4(0.0, 0.0, 0.0, 1.0);
     if (fv_count() == 0) fog_t = t_max;
     imageStore(march_out, g, r);
     imageStore(aux_out, g, vec4(z, min(fog_t, 1e6), 1.0, 0.0));

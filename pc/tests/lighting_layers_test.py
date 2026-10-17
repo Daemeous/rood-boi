@@ -114,6 +114,10 @@ def run(args, tmp):
                              ("light", "type", "spot"), ("glow", "size", "2.345")]:
         _, c = probe(args, "canon", kind, key, value)
         check(c.strip() == lf.canonical_value(kind, key, value), f"canonical {kind}.{key}={value}: {c.strip()}")
+    fog = dict(lf.canonicalize("fog", [("confine", "1"), ("pos", "1,2,3"), ("enabled", "1")]))
+    off = list(lf.canonicalize("fog", [("confine", "0"), ("pos", "1,2,3"), ("enabled", "0")]))
+    check(fog == {"pos": "1,2,3"} and off == [("pos", "1,2,3"), ("enabled", "0"), ("confine", "0")],
+          f"a fog volume's confine: 1 the default (not written), 0 written after enabled ({fog}, {off})")
     check(lf.generated_id("actor", "candle", "room:0000123@1,2,3") == lf.generated_id("actor", "candle", "room:0000123@1,2,3")
           and lf.generated_id("actor", "candle", "x").startswith("actor:gen.candle."), "generated ids are deterministic")
 
@@ -207,6 +211,7 @@ env moon intensity=1
 env sun zenith=1,1,1
 post room exposure=0.5 tonemapper=aces
 post cutscene preset=cinematic
+fog 68ea4c1200a3f6 pos=1,2,3 confine=2
 """)
     write(bad / "default/rooms/zone09_room99.txt", "rood-lighting 2\n")
     write(bad / "default/rooms/lights.txt", "rood-lighting 2\n")
@@ -218,7 +223,8 @@ post cutscene preset=cinematic
               "not canonical", "room files are named", "override in a generated layer", "expected key=value",
               "the environment items are env:sun, env:sky and env:fog", "'zenith' is not a field of the sun",
               "post:room: sets tonemapper", "post:cutscene: its preset cinematic sets tonemapper",
-              "shape must be one of box, room, point, disc, surface", "render must be pixel"]
+              "shape must be one of box, room, point, disc, surface", "render must be pixel",
+              "confine must be 0 or 1"]
     if (ROOT / "data/SLUS_010.40").exists():
         expect.append("zone 9 room 99 is not a room of the game")
     for e in expect:

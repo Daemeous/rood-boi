@@ -197,9 +197,13 @@ fog 68ea4c1200a3f1 name="Cellar mist" shape=sphere pos=320,-60,640 size=400,120,
   `size` (full extents x, y, z; 256,128,256), `yaw` (degrees about the
   vertical; 0), `density` (0.004), `edge` (the soft part, a fraction of the
   half size; 0.5), `color` (albedo; 1,1,1), `fill` (0,0,0), `noise` (0.5; the
-  wisps drift with the room's fog wind), `enabled` (1).
+  wisps drift with the room's fog wind), `enabled` (1), `confine` (1:
+  "Confine to room", it keeps to the room's interior like the ground fog and
+  haze, over its floor and off the void past the cut-away walls, with the
+  room setting `haze_interior` on; 0 for a volume meant to sit outside the
+  room, over a pit or beyond a window).
 - A room renders up to 16 enabled volumes; they add to the haze and the
-  ground fog and may reach past the room's bounds. The first 8 are drawn by
+  ground fog (with `confine=0`, past the room's bounds too). The first 8 are drawn by
   their own renderer (pc/README.md, "Fog volumes' own renderer"; settings
   `fog_volume_render` 0: all in the haze), exempt from the room's haze
   limits, with these fields for their look: `opacity` (1: the most of the

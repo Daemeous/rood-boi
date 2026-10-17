@@ -229,10 +229,27 @@ float medium_fog_base(vec3 x) {
     medium_room_air(x, haze_share, fog);
     return fog;
 }
-// A volume's field layer + 1 (0: none) and its shape (record: fill.w =
-// layer + 1, + 8 for a sphere).
-int medium_volume_layer(int b) { float w = MEDIUM(b + 3).w; return int((w > 7.5 ? w - 8.0 : w) + 0.5); }
-bool medium_volume_sphere(int b) { return MEDIUM(b + 3).w > 7.5; }
+// A volume's field layer + 1 (0: none), its shape and whether it keeps to the room (record: fill.w =
+// layer + 1, + 8 for a sphere, + 16 confined to the room's interior: "Confine to room").
+int medium_volume_bits(int b) { return int(MEDIUM(b + 3).w + 0.5); }
+int medium_volume_layer(int b) { return medium_volume_bits(b) & 7; }
+bool medium_volume_sphere(int b) { return (medium_volume_bits(b) & 8) != 0; }
+bool medium_volume_confined(int b) { return (medium_volume_bits(b) & 16) != 0; }
+// A confined volume's share at x (its "Confine to room", with the interior on): the room's interior as
+// the ground fog has it (inside the bounds, over the cells with a floor, the same soft edge) and fading
+// out within haze_under_floor units under the column's floor (the void below the room); 1 without the
+// interior (haze_interior 0: the volumes as before).
+float medium_confine(vec3 x) {
+    if (!medium_interior_on()) return 1.0;
+    if (!medium_in_room(x)) return 0.0;
+    vec4 w, fh, f;
+    medium_floor_quad(x, w, fh, f);
+    float inside = medium_inside(dot(w, f));
+    if (inside <= 0.0) return 0.0;
+    float under = x.y - medium_quad_floor(w, fh); // y down: > 0 under the floor
+    if (under > 0.0) inside *= 1.0 - smoothstep(0.0, max(MEDIUM(6).w, 1.0), under);
+    return inside;
+}
 #ifdef MEDIUM_TEX
 // The interactive fog of layer `layer` at unit coordinates foot (-1..1 over
 // the volume's footprint), bilinear: x its density multiplier (0..2), yz
@@ -286,6 +303,7 @@ float medium_volume(int i, vec3 x, inout float n) {
     float d = medium_volume_frame(b, x, r);
     if (d >= 1.0) return 0.0;
     float w = 1.0 - smoothstep(1.0 - clamp(MEDIUM(b + 1).w, 0.001, 1.0), 1.0, d);
+    if (medium_volume_confined(b)) { w *= medium_confine(x); if (w <= 0.0) return 0.0; }
     float amount = MEDIUM(b + 2).w;
     if (amount > 0.0) {
         if (n < 0.0) n = medium_noise(x);
@@ -311,6 +329,7 @@ float medium_volume_coarse(int b, vec3 x) {
     float d = medium_volume_frame(b, x, r);
     if (d >= 1.0) return 0.0;
     float w = 1.0 - smoothstep(1.0 - clamp(MEDIUM(b + 1).w, 0.001, 1.0), 1.0, d);
+    if (medium_volume_confined(b)) w *= medium_confine(x);
 #ifdef MEDIUM_TEX
     int layer = medium_volume_layer(b);
     if (layer > 0) w *= medium_sim(layer - 1, r.xz).x;
@@ -418,8 +437,8 @@ bool medium_maybe(vec3 x) {
 // black shells, Native_Rendering.md "Seeing into rooms"). shade: the G-buffer's
 // shade target (a 0.5 untextured, 1 textured; 0.25 emissive and 0 unlit are
 // never void). Such a pixel keeps the room's haze and ground fog only up to
-// medium_void_reach (a black surface inside the room keeps all of it); the fog
-// volumes' own renderer is exempt (an artist placed them).
+// medium_void_reach (a black surface inside the room keeps all of it); so do the fog
+// volumes confined to the room (medium_confined_reach), in their own renderer too.
 bool medium_void_pixel(float d, vec4 shade) {
     if ((medium_flags() & MEDIUM_FLAG_VOID) == 0) return false;
     if (d >= 1.0) return true;
@@ -442,5 +461,17 @@ float medium_void_reach(vec3 origin, vec3 world) {
         if (dot(w, f) >= 0.5 && x.y - medium_quad_floor(w, fh) <= under) return t;
     }
     return 0.0;
+}
+// Where the fog volumes confined to the room ("Confine to room") stop along the ray origin + dir t toward a
+// pixel at distance t_surface of depth d (SZ / 65536) and G-buffer shade: on a void pixel
+// (medium_void_pixel) as the haze does, a surface's at the last point of its ray in the room's interior
+// air (medium_void_reach: a black doorway across the floor keeps the fog in front of it), and where
+// nothing is drawn at once (0: the haze never lies there either; the void past the room's walls is
+// clean darkness, even seen over a tall volume's top); else t_surface. Without the interior:
+// t_surface (the volumes as before).
+float medium_confined_reach(vec3 origin, vec3 dir, float t_surface, float d, vec4 shade) {
+    if (!medium_interior_on() || !medium_void_pixel(d, shade)) return t_surface;
+    if (d >= 1.0) return 0.0;
+    return medium_void_reach(origin, origin + dir * t_surface) * t_surface;
 }
 #endif

@@ -688,15 +688,53 @@ GPU time at 48/0 (the RPC `perf` frame time, Vulkan, haze Low / High, with
 and without the ground fog): within 0.012 ms of the switches off; OpenGL
 within 0.02 ms (run to run noise).
 
-**Fog volumes are exempt** from the interior and the void test: an artist
-placed them, so the volumes' own renderer (the room's first 8 volumes)
-draws them wherever they are, in front of void pixels too (the far side of
-a volume hanging past a cut-away wall still shows; one entirely behind a
-black shell is hidden by the shell's depth as before; the test puts one
-over the whole room and past it and sees it over the void). The volumes
-past the first 8 go through the haze passes, so on void pixels they stop
-at the ray's reach with the rest of the haze (the "Volumes' own renderer"
-tooltip says so).
+**Fog volumes keep to the room too** ("Confine to room", per volume, on
+by default; 2026-10-16, the user's real complaint: a volume fitted to the
+Undercity's floor showed its mist over the void past the cut-away walls).
+Until then they were exempt (an artist placed them). Now a confined volume's
+density (`medium.glsl` `medium_confine`: in `medium_volume` and
+`medium_volume_coarse` for the haze passes, in `fog_volume.glsl`
+`fv_density` for its own renderer and its light grid) is multiplied by the
+room's interior exactly as the ground fog's is: inside the room's bounds,
+the cells' bilinear floor share through the same soft edge
+(`haze_interior_edge`), fading out within `haze_under_floor` units under the
+column's floor. And on a void pixel (`medium_void_pixel`) the confined
+volumes stop at the ray's reach (`medium_confined_reach`, the haze's
+`medium_void_reach`; a pixel with nothing drawn at once, as the haze never
+lies there: the first version kept a tall volume's fog over the floor in
+front of such pixels, 115 of 255 over the void in the test), in the own
+renderer's march too
+(`fv_march`'s `t_confined`: `fogvol_march.comp` reads the shade target,
+binding 7; OpenGL's `fogvol_at`), so a volume over the floor seen in front
+of a black doorway keeps its fog there but none shows over the void. The
+record: the volume's fill.w + 16 (`medium_volume_confined`; + 8 a sphere,
+the field's layer + 1). The floor grid is packed whenever a drawn volume is
+confined and the interior is on (with no haze and no ground fog too). With
+`haze_interior` 0 a confined volume is the old one (no grid look-ups, no
+void stop); `haze_void` 0 keeps the clip to the interior but drops the void
+stop, as for the haze. Off (a lighting item's `confine=0`, the Details'
+Basics "Confine to room", RPC `environment {volumes: [{id, confine}]}`, the
+reply's `confine`): the volume draws wherever it is, for one meant to sit
+outside the room (over a pit, beyond a window); the volumes past the first 8
+(the haze passes) still stop at a void pixel's reach either way.
+Measured (`void_fog_smoke`, 48/0 at the yaw showing the most void, a purely
+emissive volume fitted to the floor, its light alone, of 255): over the
+void pixels whose ray never crosses the room 142 before (Vulkan) -> 0.1
+(Vulkan) and 0.01 (OpenGL); over the floor 144.6 vs 144.7 unconfined. Each
+confined sample costs one more look-up of the grid's four cells.
+
+**Fit to floor area** (Details; RPC `environment {fit_volume: id}`) and the
+**Library's fog drop** (`editor_library` `volume_drop`, RPC
+`editor_library {action: floor}`) fit to the floor grid's cells with a floor
+(`pc_scene_floor_cells`) connected to the one under the volume (a cell
+without a floor starts from the nearest one with a floor) within 12 units of
+its height, and of those the largest box of cells around the start whose
+cells lie at least 90 % on that area (a ragged or L-shaped floor's bounding
+box would hang over the void): before, the flood fill followed the grid's
+heights alone, and the cells outside the walls carry heights grown from
+their neighbours, so in the Undercity it covered the whole bounds box. The
+drop's fallback (no level area there) is the extent of the cells with a
+floor, not the bounds.
 
 The record: 90.w the switches (`PC_MEDIUM_GRID` 1, `PC_MEDIUM_INTERIOR` 2,
 `PC_MEDIUM_VOID` 4; `medium.glsl` `MEDIUM_FLAG_*`), 6.w
@@ -736,8 +774,11 @@ test alone clears them; `haze {interior: false, void: false}` brings the
 old mist back; `haze_debug 2` marks the void red and the floor green; a
 dark surface inside the room classed as void (`haze_void_level` 32) keeps
 the fog in front of it; the cell under Ashley has a floor; smart walls
-with ghosts; a fog volume at Ashley draws, and one over the whole room
-draws over the void. The CTest probe `floor_grid_probe` checks the cells
+with ghosts; a fog volume at Ashley draws; Fit to floor area and the
+Library's drop stay on the cells with a floor; a volume fitted to the floor
+is black over the void and as before over the floor, and shows over the void
+with `confine` off or the room's switches off; one over the whole room and
+past it is black over the void confined and shows there unconfined. The CTest probe `floor_grid_probe` checks the cells
 (an L-shaped room, holes, fill 0..2, empty strips along the grid's edge,
 heights as before).
 

@@ -447,8 +447,11 @@ static const char* scaled_fragment_source =
     "vec4 fogvol_at(ivec2 q, float d) {\n"
     "    bool far = d >= 1.0 || d * 65536.0 < 0.5;\n"
     "    vec3 eye = inverse_rotation * -camera_translation, ray = world_at(q, 1.0) - eye;\n"
-    "    float stretch = length(ray), fog_t;\n"
-    "    return fv_march(eye, ray / max(stretch, 1e-9), far ? 1e6 : d * 65536.0 * stretch, ign(gl_FragCoord.xy + 31.0), fogvol_on.y, fog_t);\n"
+    "    float stretch = length(ray), fog_t, t_max = far ? 1e6 : d * 65536.0 * stretch;\n"
+    "    vec3 dir = ray / max(stretch, 1e-9);\n"
+    /* the volumes confined to the room stop where a void pixel's ray leaves its interior (medium.glsl) */
+    "    float t_confined = medium_confined_reach(eye, dir, t_max, d, texelFetch(shade_tex, q, 0));\n"
+    "    return fv_march(eye, dir, t_max, t_confined, ign(gl_FragCoord.xy + 31.0), fogvol_on.y, fog_t);\n"
     "}\n"
     "vec3 fogvol_apply(vec3 c, ivec2 q, float d) { vec4 f = fogvol_at(q, d); return c * f.a + f.rgb; }\n"
     "vec3 base(vec2 u) {\n"

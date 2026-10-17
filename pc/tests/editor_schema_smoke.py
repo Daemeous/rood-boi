@@ -166,6 +166,16 @@ def check_fog(s):
             and close(v["yaw"], 30) and close(v["disturb_player"], 0.5), "fog fields reach the volume (environment RPC)")
     schema(s, action="reset", id=s.volume, fields=["density"])
     s.check(close(value(s, s.volume, "density"), 0.004), "reset without a preset: the default")
+    # Confine to room (Basics, on by default): the volume keeps to the room's interior
+    f = schema(s, action="get", id=s.volume)["fields"]
+    s.check("confine" in f and close(f["confine"]["value"], 1) and f["confine"]["source"] == "default",
+            f"Confine to room: on by default ({f.get('confine')})")
+    schema(s, action="set", id=s.volume, values={"confine": False})
+    v = next(x for x in g.call("environment")["volumes"] if x["id"] == VOLUME)
+    s.check(v["confine"] is False and close(value(s, s.volume, "confine"), 0), "Confine to room off reaches the volume")
+    schema(s, action="reset", id=s.volume, fields=["confine"])
+    v = next(x for x in g.call("environment")["volumes"] if x["id"] == VOLUME)
+    s.check(v["confine"] is True, "and its reset turns it on again")
     g.call("environment", volumes=[{"id": VOLUME, "preset": "ankle_mist"}])
     f = schema(s, action="get", id=s.volume)["fields"]
     s.check(close(f["density"]["value"], 0.012) and f["density"]["source"] == "preset" and not f["density"]["overridden"],

@@ -191,12 +191,13 @@ def main():
         game.call("environment", fog_volumes={"render": 1})
         # Its fields save with the volume.
         game.call("environment", volumes=[{"id": VOL, "brightness": 1.5, "glow": [0.1, 0.2, 0.05], "taper": 0.4,
-                                           "phase": 0.5, "ambient": 0.8, "glow_core": 0.7, "detail_size": 220}])
+                                           "phase": 0.5, "ambient": 0.8, "glow_core": 0.7, "detail_size": 220,
+                                           "confine": False}])
         game.call("lighting", action="save")
         saved = (user / name).read_text() if (user / name).exists() else ""
         line = next((l for l in saved.splitlines() if l.startswith(f"fog {VOL} ")), "")
         check(all(k in line for k in ("brightness=1.5", "glow=0.1,0.2,0.05", "taper=0.4", "phase=0.5", "ambient=0.8",
-                                      "glow_core=0.7", "detail_size=220")),
+                                      "glow_core=0.7", "detail_size=220", "confine=0")),
               f"its look saves with it ({line[:200]})")
         game.call("environment", volumes=[{"id": VOL, "remove": True}])
         (user / name).unlink(missing_ok=True)

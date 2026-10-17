@@ -45,8 +45,15 @@ shows the most void. At that pose:
 - the floor grid: the cell under Ashley has a floor (floor_grid.occupied 1);
 - gameplay_walls smart with ghosts: walls the mask cuts are drawn again (or
   as ghosts) and what void is left is still clean;
-- a fog volume at Ashley still draws; one over the whole room and past it
-  draws over the void too (the volumes are exempt);
+- fog volumes keep to the room's interior ("Confine to room", on by
+  default): one at Ashley draws; Fit to floor area (environment
+  {fit_volume}) and the Library's fog drop (editor_library {action: floor})
+  give a footprint on the cells with a floor (inside their extent, at least
+  90 % of its cells with a floor), not the room's bounds; the fitted
+  volume's own light (purely emissive, haze_debug 1) is black over the void
+  and as before over the floor; with confine false, or the room's interior
+  and void switches off, it shows over the void again; one over the whole
+  room and past it is black over the void, and shows there unconfined;
 - no crash, shader error or validation message.
 
     python3 pc/tests/void_fog_smoke.py [--card pc/build/test-card1.mcd] [--shots DIR]
@@ -351,7 +358,7 @@ def main():
         game.call("graphics", gameplay_walls="original", gameplay_walls_ghost=False)
         game.run(60)
 
-        # ---- a fog volume still draws (exempt from the interior and the void) ----
+        # ---- fog volumes: kept to the room's interior ("Confine to room", on by default) ----
         game.call("environment", remove_fog=True, haze={"density": 0})
         vol = {"id": "test0000000001", "pos": [player["x"], player["y"] - 80, player["z"]], "size": [240, 160, 240],
                "density": 0.01, "edge": 0.2, "noise": 0, "color": [0, 0, 0], "fill": [0.6, 0.6, 0.6]}
@@ -361,16 +368,77 @@ def main():
         game.call("graphics", haze_debug=0)
         check(0.005 < lit.mean() < 0.7, f"a fog volume at Ashley draws ({lit.mean() * 100:.1f} % of the view)")
         game.call("environment", volumes=[{"id": "test0000000001", "remove": True}])
-        if grid.get("corner"):
+
+        def volume_light(name, vid, **fields):
+            if fields:
+                game.call("environment", volumes=[dict(fields, id=vid)])
+            game.call("graphics", haze_debug=1)
+            light = frame(name, 150) @ LUMA
+            game.call("graphics", haze_debug=0)
+            return light
+
+        def cells_of(lo, hi):
+            """The floor grid's cells (i, j) whose centres lie in the x, z rectangle lo..hi."""
             n, (cx, cz), (sx, sz) = grid["n"], grid["corner"], grid["cell"]
+            return [(i, j) for j in range(n) for i in range(n)
+                    if lo[0] <= cx + (i + 0.5) * sx <= hi[0] and lo[1] <= cz + (j + 0.5) * sz <= hi[1]]
+
+        if occupied is not None and grid.get("corner"):
+            n, (cx, cz), (sx, sz) = grid["n"], grid["corner"], grid["cell"]
+            filled = [(k % n, k // n) for k, c in enumerate(occupied) if c != 0]
+            occ_lo = (cx + min(i for i, _ in filled) * sx, cz + min(j for _, j in filled) * sz)
+            occ_hi = (cx + (max(i for i, _ in filled) + 1) * sx, cz + (max(j for _, j in filled) + 1) * sz)
+
+            def footprint_ok(what, lo, hi):
+                covered = cells_of(lo, hi)
+                share = sum(1 for i, j in covered if occupied[j * n + i] != 0) / max(len(covered), 1)
+                inside_extent = lo[0] >= occ_lo[0] - 1 and lo[1] >= occ_lo[1] - 1 and hi[0] <= occ_hi[0] + 1 \
+                    and hi[1] <= occ_hi[1] + 1
+                check(covered and inside_extent and share >= 0.9,
+                      f"{what}: its footprint stays on the cells with a floor ({lo[0]:.0f}..{hi[0]:.0f} x "
+                      f"{lo[1]:.0f}..{hi[1]:.0f}: {share * 100:.0f} % of its {len(covered)} cells have a floor; the "
+                      f"floor's extent {occ_lo[0]:.0f}..{occ_hi[0]:.0f} x {occ_lo[1]:.0f}..{occ_hi[1]:.0f}, the grid "
+                      f"{cx:.0f}..{cx + n * sx:.0f} x {cz:.0f}..{cz + n * sz:.0f})")
+
+            # Fit to floor area (the volume's Details; RPC environment {fit_volume}) and the Library's fog drop
+            # (editor_library {action: floor}, the area a dropped volume fits into): the cells with a floor
+            fitted = dict(vol, id="test0000000003", size=[240, 320, 240])
+            game.call("environment", volumes=[fitted], fit_volume="test0000000003")
+            got = next(x for x in game.call("environment")["volumes"] if x["id"] == "test0000000003")
+            half = (got["size"][0] / 2, got["size"][2] / 2)
+            footprint_ok("Fit to floor area", (got["pos"][0] - half[0], got["pos"][2] - half[1]),
+                         (got["pos"][0] + half[0], got["pos"][2] + half[1]))
+            area = game.call("editor_library", action="floor", x=player["x"], z=player["z"])["area"]
+            if check(area is not None, "the Library's fog drop finds the level floor area at Ashley"):
+                footprint_ok("the Library's fog drop", area["lo"], area["hi"])
+            # the fitted volume's own light (purely emissive): black over the void, as before over the floor
+            confined = volume_light("fitted", "test0000000003")
+            free = volume_light("fitted-free", "test0000000003", confine=False)
+            game.call("environment", volumes=[{"id": "test0000000003", "confine": True}], haze=OFF)
+            old = volume_light("fitted-old", "test0000000003")
+            game.call("environment", haze=ON)
+            # (the void pixels whose ray crosses the room first keep the fog in front of them, as the haze)
+            check(float(confined[far].mean()) < 1.0 and float(confined[v].mean()) < 0.25 * float(free[v].mean()),
+                  f"a volume fitted to the floor: its light over the void {confined[far].mean():.2f} "
+                  f"({confined[v].mean():.2f} with the void pixels whose ray crosses the room first; "
+                  f"{free[v].mean():.1f} unconfined)")
+            floor_px = erode(~void, 3) & (b > 8) & (free > 3)
+            check(floor_px.mean() > 0.02 and float(confined[floor_px].mean()) > 0.8 * float(free[floor_px].mean()),
+                  f"and over the floor as before ({confined[floor_px].mean():.1f} vs {free[floor_px].mean():.1f} "
+                  f"unconfined, {floor_px.mean() * 100:.0f} % of the view)")
+            check(float(free[far].mean()) > float(confined[far].mean()) + 1.0,
+                  f"Confine to room off: it shows over the void again ({free[far].mean():.1f})")
+            check(float(old[far].mean()) > float(confined[far].mean()) + 1.0,
+                  f"the room's interior and void off: so does a confined one, as before ({old[far].mean():.1f})")
+            game.call("environment", volumes=[{"id": "test0000000003", "remove": True}])
             big = dict(vol, id="test0000000002", pos=[cx + n * sx / 2, player["y"] - 200, cz + n * sz / 2],
                        size=[n * sx + 1024, 2400, n * sz + 1024], density=0.002)
             game.call("environment", volumes=[big])
-            game.call("graphics", haze_debug=1)
-            over = frame("volume-void", 150) @ LUMA
-            game.call("graphics", haze_debug=0)
-            check(float(over[v].mean()) > 1.0,
-                  f"a fog volume over the whole room and past it draws over the void ({over[v].mean():.1f})")
+            over = volume_light("volume-void", "test0000000002")
+            over_free = volume_light("volume-void-free", "test0000000002", confine=False)
+            check(float(over[far].mean()) < 1.0 and float(over_free[v].mean()) > 1.0,
+                  f"a volume over the whole room and past it: over the void {over[far].mean():.2f} confined, "
+                  f"{over_free[v].mean():.1f} not")
             game.call("environment", volumes=[{"id": "test0000000002", "remove": True}])
     finally:
         game.close()

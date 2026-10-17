@@ -93,6 +93,9 @@ float fv_density(int v, vec3 x, inout float n, out vec3 r) {
         if (d >= 1.0) return 0.0;
     }
     float w = 1.0 - smoothstep(1.0 - clamp(MEDIUM(b + 1).w, 0.001, 1.0), 1.0, d);
+    // "Confine to room": the room's interior only (medium.glsl medium_confine; the haze's soft edge and
+    // under-floor fade)
+    if (medium_volume_confined(b)) { w *= medium_confine(x); if (w <= 0.0) return 0.0; }
     // the height profile: thinning toward the top (y down: r.y -1 the top, +1 the base)
     float taper = FOGVOL(f + 2).w;
     if (taper > 0.0) {
@@ -164,16 +167,17 @@ vec3 fv_shade(int v, vec3 x, vec3 dir, float d, vec3 r, vec4 ta, vec4 tb) {
     return d * (MEDIUM(b + 2).rgb * lit + MEDIUM(b + 3).rgb + glow) * FOGVOL(f).y;
 }
 // The march: from eye along dir (unit) up to t_max (the scene's depth), `steps` samples spread over
-// the parts of the ray inside volumes (empty space skipped), offset by jitter (0..1). Returns the
-// light scattered toward the eye (rgb) and the transmittance (a); fog_t: where its light comes from
-// (transmittance-weighted distance; the reprojection's depth), t_max when it has none.
-vec4 fv_march(vec3 eye, vec3 dir, float t_max, float jitter, int steps, out float fog_t) {
+// the parts of the ray inside volumes (empty space skipped), offset by jitter (0..1); the volumes
+// confined to the room only up to t_confined (medium.glsl medium_confined_reach: a void pixel's reach).
+// Returns the light scattered toward the eye (rgb) and the transmittance (a); fog_t: where its light
+// comes from (transmittance-weighted distance; the reprojection's depth), t_max when it has none.
+vec4 fv_march(vec3 eye, vec3 dir, float t_max, float t_confined, float jitter, int steps, out float fog_t) {
     int count = min(fv_count(), FV_MAX);
     float enter[FV_MAX], leave[FV_MAX];
     int spans = 0;
     float least = 1.0;
     for (int v = 0; v < count; v++) {
-        vec2 s = fv_hit(v, eye, dir, t_max);
+        vec2 s = fv_hit(v, eye, dir, medium_volume_confined(fv_medium(v)) ? min(t_max, t_confined) : t_max);
         if (!(s.y > s.x)) continue;
         // sorted by entry, overlapping spans merged
         int i = spans;
@@ -205,6 +209,7 @@ vec4 fv_march(vec3 eye, vec3 dir, float t_max, float jitter, int steps, out floa
             float noise = -1.0, extinction = 0.0;
             vec3 scattered = vec3(0.0);
             for (int v = 0; v < count; v++) {
+                if (t > t_confined && medium_volume_confined(fv_medium(v))) continue;
                 vec3 r;
                 float d = fv_density(v, x, noise, r);
                 if (d <= 0.0) continue;

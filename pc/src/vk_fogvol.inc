@@ -58,10 +58,10 @@ static int vfv_init(void)
                            A = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
     VkDescriptorType light[7] = { U, U, U, U, T, S, S }; /* 1-3 unused without ray queries */
     VkDescriptorType light_rt[10] = { U, A, B, T, T, S, S, U, U, B }; /* rt_common.glsl: 1 tlas, 2 tris, 3 vram, 9 movers */
-    VkDescriptorType march[7] = { U, T, T, T, T, S, S };
+    VkDescriptorType march[8] = { U, T, T, T, T, S, S, T }; /* 7 the shade target (the void test) */
     VkDescriptorType temporal[7] = { U, S, S, T, T, S, S };
     vfv.light_set = vk_push_layout(light, 7);
-    vfv.march_set = vk_push_layout(march, 7);
+    vfv.march_set = vk_push_layout(march, 8);
     vfv.temporal_set = vk_push_layout(temporal, 7);
     vfv.light_layout = vrt_layout(vfv.light_set, 0);
     vfv.march_layout = vrt_layout(vfv.march_set, 0);
@@ -234,6 +234,7 @@ int pc_vk_fogvol_update(int x, int y, int w, int h, int replay, int traced)
     vk_descriptors_image(&d, 4, vfv.grid[1].view, vk.linear);
     vk_descriptors_storage_image(&d, 5, vfv.march_image.view);
     vk_descriptors_storage_image(&d, 6, vfv.march_aux.view);
+    vk_descriptors_image(&d, 7, target->shade.view, vk.nearest);
     vfv_dispatch(vfv.march, vfv.march_layout, &d, (mw + 7) / 8, (mh + 7) / 8, 1);
     /* 3: temporal */
     vk_section("fog temporal");

@@ -107,6 +107,10 @@ struct Fog {
 struct Volume {
     std::string id, name; /* id: "fog:<id>" */
     bool enabled = true, sphere = false;
+    /* Confine to room: it keeps to the room's interior as the ground fog and haze do (the floor grid's
+     * cells with a floor, haze_under_floor under them, the void-pixel test); off for a volume meant to
+     * sit outside it (over a pit, beyond a window). Only with the room's haze_interior on. */
+    bool confine = true;
     float pos[3] = { 0, 0, 0 };
     float size[3] = { 256, 128, 256 }; /* full extents */
     float yaw = 0; /* degrees */
@@ -465,6 +469,7 @@ lighting::Item item_of(Volume& v)
     it.set("pos", vec3(v.pos, 1));
     it.set("yaw", num(v.yaw, 2));
     it.set("enabled", v.enabled ? "1" : "0");
+    it.set("confine", v.confine ? "1" : "0");
     /* An unknown preset keeps every value; so does one of the user's own (pc/user/prefabs/fog: on this
      * machine only), so the room's look never depends on a file that is not shipped with it. */
     const Preset* preset = v.preset.empty() ? nullptr : find_preset(v.preset);
@@ -518,6 +523,7 @@ bool apply_item(const lighting::Item& it)
         if (const std::string* n = it.get("name"))
             v.name = *n;
         v.enabled = get1(it, "enabled") != 0;
+        v.confine = get1(it, "confine") != 0;
         get3(it, "pos", v.pos);
         v.yaw = get1(it, "yaw");
         if (const std::string* p = it.get("preset"))
@@ -832,7 +838,11 @@ extern "C" int pc_medium_gpu_get(pc_medium_gpu* out, float haze_density, const f
     /* Packed for the ground fog, for the haze with the interior on, and for haze_debug 2 (it shows the
      * interior); a haze without them needs no look-ups. */
     bool interior_on = pc_haze_interior > 0.5f;
-    bool grid = pc_fog_floor_grid && (fog_here || (m[0][0] > 0 && interior_on) || pc_haze_debug == 2)
+    bool confined = false; /* a volume kept to the interior ("Confine to room") needs the cells too */
+    if (fogs && interior_on)
+        for (const Volume& v : volumes)
+            confined |= drawn(v) && v.confine;
+    bool grid = pc_fog_floor_grid && (fog_here || (m[0][0] > 0 && interior_on) || confined || pc_haze_debug == 2)
         && pc_scene_floor_grid(heights, corner, cell);
     bool interior = grid && interior_on && pc_scene_floor_cells(cells);
     if (grid) {
@@ -914,9 +924,10 @@ extern "C" int pc_medium_gpu_get(pc_medium_gpu* out, float haze_density, const f
             b[0][3] = v.density;
             b[1][3] = fminf(fmaxf(v.edge, 0.001f), 1.0f);
             b[2][3] = fminf(fmaxf(v.noise, 0.0f), 1.0f);
-            /* its field's layer of the texture + 1 (pc_fog_vsync; 0 none), + 8 for a sphere */
+            /* its field's layer of the texture + 1 (pc_fog_vsync; 0 none), + 8 for a sphere, + 16 kept to the
+             * room's interior (Confine to room; medium.glsl medium_volume_confined) */
             bool field = v.sim && v.layer >= 0 && v.layer < PC_MEDIUM_TEX_LAYERS && layer_ids[v.layer] == v.id;
-            b[3][3] = (float)(field ? v.layer + 1 : 0) + (v.sphere ? 8.0f : 0.0f);
+            b[3][3] = (float)(field ? v.layer + 1 : 0) + (v.sphere ? 8.0f : 0.0f) + (v.confine ? 16.0f : 0.0f);
             b[4][0] = cosf(v.yaw * DEG), b[4][1] = sinf(v.yaw * DEG), b[4][2] = fminf(fmaxf(v.shadow, 0.0f), 2.0f);
             n++;
         }
@@ -1177,8 +1188,8 @@ extern "C" int pc_fogvol_gpu_get(pc_medium_gpu* medium, pc_fogvol_gpu* out, pc_f
             memcpy(info->keys[vi], keys, sizeof keys);
             info->keys[vi][6] = sun ? hash_words(2166136261u, env.sun_dir, 3 * sizeof(float)) | 1u : 0;
             info->keys[vi][7] = 1;
-            float shape[15] = { v.pos[0], v.pos[1], v.pos[2], v.size[0], v.size[1], v.size[2], v.yaw, v.density, v.edge,
-                v.shadow, v.detail, (float)v.sphere, v.taper, v.opacity, v.noise };
+            float shape[16] = { v.pos[0], v.pos[1], v.pos[2], v.size[0], v.size[1], v.size[2], v.yaw, v.density, v.edge,
+                v.shadow, v.detail, (float)v.sphere, v.taper, v.opacity, v.noise, (float)v.confine };
             info->shape[vi] = hash_words(2166136261u, shape, sizeof shape) | 1u;
         }
     }
@@ -1289,19 +1300,40 @@ bool drop_to_floor(Volume& v)
     v.pos[1] = (any ? best : up) - half[1];
     return true;
 }
-/* The level floor around (x, z): the room's floor grid cells connected to
- * the one under it within 12 units of its height; their world x, z bounds
- * and that height. False without a grid or outside it. */
+/* The level floor around (x, z): the room's floor grid cells with a floor
+ * (pc_scene_floor_cells: not the void past the walls, whose cells carry
+ * heights grown from their neighbours) connected to the one under it within
+ * 12 units of its height; the world x, z bounds of the largest box of cells
+ * around it that lies on that area (at least 90 % of its cells), and that
+ * height. Over a cell without a floor, the nearest one with a floor starts
+ * it. False without a grid, outside it or with no cell with a floor. */
 bool floor_area(float x, float z, float lo[2], float hi[2], float* height)
 {
     const int n = PC_SCENE_FLOOR_GRID;
     static float heights[PC_SCENE_FLOOR_GRID * PC_SCENE_FLOOR_GRID];
+    static unsigned char cells[PC_SCENE_FLOOR_GRID * PC_SCENE_FLOOR_GRID];
     float corner[2], cell[2];
     if (!pc_scene_floor_grid(heights, corner, cell))
         return false;
+    if (!pc_scene_floor_cells(cells))
+        memset(cells, PC_FLOOR_SOLID, sizeof cells);
     int i0 = (int)floorf((x - corner[0]) / cell[0]), j0 = (int)floorf((z - corner[1]) / cell[1]);
     if (i0 < 0 || j0 < 0 || i0 >= n || j0 >= n)
         return false;
+    if (cells[j0 * n + i0] == PC_FLOOR_EMPTY) { /* the nearest cell with a floor (cell centres) */
+        int best = -1;
+        float best_d = 1e30f;
+        for (int k = 0; k < n * n; k++) {
+            if (cells[k] == PC_FLOOR_EMPTY)
+                continue;
+            float dx = (k % n - i0) * cell[0], dz = (k / n - j0) * cell[1], d = dx * dx + dz * dz;
+            if (d < best_d)
+                best_d = d, best = k;
+        }
+        if (best < 0)
+            return false;
+        i0 = best % n, j0 = best / n;
+    }
     float h0 = heights[j0 * n + i0];
     std::vector<char> seen(n * n, 0);
     std::vector<int> stack = { j0 * n + i0 };
@@ -1315,15 +1347,62 @@ bool floor_area(float x, float z, float lo[2], float hi[2], float* height)
         const int di[4] = { 1, -1, 0, 0 }, dj[4] = { 0, 0, 1, -1 };
         for (int e = 0; e < 4; e++) {
             int u = i + di[e], w = j + dj[e];
-            if (u < 0 || w < 0 || u >= n || w >= n || seen[w * n + u] || fabsf(heights[w * n + u] - h0) > 12)
+            if (u < 0 || w < 0 || u >= n || w >= n || seen[w * n + u] || cells[w * n + u] == PC_FLOOR_EMPTY
+                || fabsf(heights[w * n + u] - h0) > 12)
                 continue;
             seen[w * n + u] = 1;
             stack.push_back(w * n + u);
         }
     }
+    /* A box over that area: the rectangle of cells around the start cell covering the most of the area's
+     * cells with at least FLOOR_AREA_SHARE of its own cells in it (an L-shaped or ragged floor: its
+     * bounding box would hang over the void past the walls); the smaller one on a tie. */
+    const float FLOOR_AREA_SHARE = 0.9f;
+    std::vector<int> sum((n + 1) * (n + 1), 0); /* prefix sums of the area's cells */
+    for (int j = 0; j < n; j++)
+        for (int i = 0; i < n; i++)
+            sum[(j + 1) * (n + 1) + i + 1] = seen[j * n + i] + sum[j * (n + 1) + i + 1] + sum[(j + 1) * (n + 1) + i]
+                - sum[j * (n + 1) + i];
+    auto count = [&](int x0, int z0, int x1, int z1) {
+        return sum[(z1 + 1) * (n + 1) + x1 + 1] - sum[z0 * (n + 1) + x1 + 1] - sum[(z1 + 1) * (n + 1) + x0]
+            + sum[z0 * (n + 1) + x0];
+    };
+    int best[4] = { i0, j0, i0, j0 }, best_cells = 1, best_area = 1;
+    for (int x0 = a[0]; x0 <= i0; x0++)
+        for (int x1 = i0; x1 <= b[0]; x1++)
+            for (int z0 = a[1]; z0 <= j0; z0++)
+                for (int z1 = j0; z1 <= b[1]; z1++) {
+                    int area = (x1 - x0 + 1) * (z1 - z0 + 1), in = count(x0, z0, x1, z1);
+                    if ((float)in < FLOOR_AREA_SHARE * (float)area)
+                        continue;
+                    if (in > best_cells || (in == best_cells && area < best_area))
+                        best[0] = x0, best[1] = z0, best[2] = x1, best[3] = z1, best_cells = in, best_area = area;
+                }
+    lo[0] = corner[0] + best[0] * cell[0], hi[0] = corner[0] + (best[2] + 1) * cell[0];
+    lo[1] = corner[1] + best[1] * cell[1], hi[1] = corner[1] + (best[3] + 1) * cell[1];
+    *height = h0;
+    return true;
+}
+/* The x, z extent of the room's floor grid cells with a floor (the room's
+ * interior, not its bounds box); false without a grid or a floor. */
+bool floor_extent(float lo[2], float hi[2])
+{
+    const int n = PC_SCENE_FLOOR_GRID;
+    static float heights[PC_SCENE_FLOOR_GRID * PC_SCENE_FLOOR_GRID];
+    static unsigned char cells[PC_SCENE_FLOOR_GRID * PC_SCENE_FLOOR_GRID];
+    float corner[2], cell[2];
+    if (!pc_scene_floor_grid(heights, corner, cell) || !pc_scene_floor_cells(cells))
+        return false;
+    int a[2] = { n, n }, b[2] = { -1, -1 };
+    for (int k = 0; k < n * n; k++)
+        if (cells[k] != PC_FLOOR_EMPTY) {
+            int i = k % n, j = k / n;
+            a[0] = std::min(a[0], i), a[1] = std::min(a[1], j), b[0] = std::max(b[0], i), b[1] = std::max(b[1], j);
+        }
+    if (b[0] < 0)
+        return false;
     lo[0] = corner[0] + a[0] * cell[0], hi[0] = corner[0] + (b[0] + 1) * cell[0];
     lo[1] = corner[1] + a[1] * cell[1], hi[1] = corner[1] + (b[1] + 1) * cell[1];
-    *height = h0;
     return true;
 }
 /* Fit to floor area: the volume's footprint becomes the level floor around
@@ -1592,9 +1671,10 @@ bool pc_atmosphere_page(void)
         pc_fog_volume_render = own;
     tooltip("Volumes ray marched per pixel with their own lights, shadows and ambient light (settings\n"
             "fog_volume_render); off: inside the room's haze as before (coarser, under its limits).\n"
-            "It draws the room's first 8 volumes, over the void around the room too; the ones past them\n"
-            "go through the haze, which keeps off void pixels past where their ray leaves the room\n"
-            "(room setting haze_void).");
+            "It draws the room's first 8 volumes; those set to Confine to room (the default) keep to the\n"
+            "room's interior and off the void around it, as the haze does (room settings haze_interior,\n"
+            "haze_void). The ones past the first 8 go through the haze, which keeps off void pixels past\n"
+            "where their ray leaves the room.");
     if (own && ImGui::TreeNode("Volume renderer")) {
         ImGui::SliderFloat("Resolution", &pc_fog_volume_resolution, 0.25f, 1, "%.2f");
         tooltip("Its march pixels per internal pixel (Vulkan; 0.5: half; settings fog_volume_resolution).");
@@ -1966,6 +2046,11 @@ void rood_atmo::schema_kind(rood_schema::Kind& k)
     };
     /* Basics (open) */
     flag(rs::bool_field("enabled", "Enabled", "Basics", true), &Volume::enabled);
+    flag(rs::bool_field("confine", "Confine to room", "Basics", true,
+             "Keeps to the room's interior like the ground fog and haze: over its floor, not under it nor over\n"
+             "the void past the cut-away walls (room setting haze_interior). Off for a volume meant to sit\n"
+             "outside the room: over a pit, beyond a window"),
+        &Volume::confine);
     {
         Field f = rs::enum_field("shape", "Shape", "Basics", { "Box", "Sphere" }, 0, "A box, or an ellipsoid of the same size");
         f.get = [](int i) { return Value::scalar(volumes[i].sphere ? 1.0f : 0.0f); };
@@ -2106,8 +2191,9 @@ void rood_atmo::details_extra(int index)
         pc_undo_hint("Fit fog volume to floor area");
         changed |= fit_to_floor(v);
     }
-    tooltip("Its footprint becomes the level floor around its centre (the room's floor grid: the cells\n"
-            "connected to the one under it, within 12 units of its height), square to the room, on the floor.");
+    tooltip("Its footprint becomes the level floor around its centre (the room's floor grid: the cells with\n"
+            "a floor connected to the one under it, within 12 units of its height; the largest box of them\n"
+            "around it, never over the void past the walls), square to the room, on the floor.");
     char name[96];
     snprintf(name, sizeof name, "%s", v.name.c_str());
     if (ImGui::InputText("Name", name, sizeof name)) {
@@ -2174,6 +2260,7 @@ void read_volume(const prefab::Json& o, Volume& v)
         if (const prefab::Json* j = o.get(DISTURB_KEYS[s]))
             v.disturb[s] = j->type == prefab::Json::Null || j->number < 0 ? -1 : (float)j->number;
     read_bool(o, "enabled", &v.enabled);
+    read_bool(o, "confine", &v.confine);
     if (const prefab::Json* j = o.get("shape"))
         v.sphere = j->string == "sphere";
     if (const prefab::Json* j = o.get("name"))
@@ -2203,7 +2290,7 @@ void read_volume(const prefab::Json& o, Volume& v)
 namespace rood_atmo {
 /* params: fog {enabled, density, height, offset, noise, scale, wind, color,
  * fill, sky} (adds it when the room has none), remove_fog, volumes: a list
- * of {id (existing: changed; else added), remove, enabled, shape, name,
+ * of {id (existing: changed; else added), remove, enabled, confine, shape, name,
  * pos, size, yaw, density, edge, color, fill, noise}, fog_time (seconds;
  * -1 live), fog_global. Returns whether the room changed. */
 bool rpc(const prefab::Json& params)
@@ -2383,7 +2470,8 @@ std::string json()
     for (size_t i = 0; i < volumes.size(); i++) {
         const Volume& v = volumes[i];
         s += (i ? "," : "") + std::string("{\"id\":") + prefab::json_quote(v.id) + ",\"name\":"
-            + prefab::json_quote(v.name) + ",\"enabled\":" + jbool(v.enabled) + ",\"shape\":\""
+            + prefab::json_quote(v.name) + ",\"enabled\":" + jbool(v.enabled) + ",\"confine\":" + jbool(v.confine)
+            + ",\"shape\":\""
             + (v.sphere ? "sphere" : "box") + "\",\"pos\":" + jvec(v.pos, 3) + ",\"size\":" + jvec(v.size, 3)
             + ",\"yaw\":" + num(v.yaw, 2) + ",\"density\":" + num(v.density, 5) + ",\"edge\":" + num(v.edge, 2)
             + ",\"color\":" + jvec(v.color, 3) + ",\"fill\":" + jvec(v.fill, 3) + ",\"noise\":" + num(v.noise, 2)
@@ -2610,10 +2698,12 @@ bool rood_atmo::volume_drop(const std::string& preset, const float surface[3], c
     const float here[2] = { at[0], at[2] }, want[2] = { v.size[0], v.size[2] };
     if (floor_area(at[0], at[2], lo, hi, &h0) && fabsf(h0 - at[1]) <= 12) { /* that floor's level area */
         rood_math::fit_footprint(here, want, lo, hi, centre, foot);
-    } else { /* no level area known there (a step, a raised floor): at least inside the room */
-        float blo[3], bhi[3];
-        pc_scene_bounds(blo, bhi);
-        const float rlo[2] = { blo[0], blo[2] }, rhi[2] = { bhi[0], bhi[2] };
+    } else { /* no level area known there (a step, a raised floor): at least over the room's floor */
+        float blo[3], bhi[3], rlo[2], rhi[2];
+        if (!floor_extent(rlo, rhi)) {
+            pc_scene_bounds(blo, bhi);
+            rlo[0] = blo[0], rlo[1] = blo[2], rhi[0] = bhi[0], rhi[1] = bhi[2];
+        }
         rood_math::fit_footprint(here, want, rlo, rhi, centre, foot);
     }
     pos[0] = centre[0], pos[1] = at[1] - v.size[1] * 0.5f, pos[2] = centre[1];

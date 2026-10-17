@@ -193,6 +193,10 @@ def check_values(report, path, e, prefabs, settings):
                 report("warning", path, e.line,
                        f"{e.id}: preset '{value}' is not in pc/assets/environment/fog_presets.json (its fields as written)")
             continue
+        if kind == "fog" and key in ("enabled", "confine"):
+            if value not in ("0", "1"):
+                report("error", path, e.line, f"{e.id}: {key} must be 0 or 1")
+            continue
         if kind == "emitter" and key == "shape":
             if value not in lf.EMITTER_SHAPES:
                 report("error", path, e.line, f"{e.id}: shape must be one of {', '.join(lf.EMITTER_SHAPES)}")

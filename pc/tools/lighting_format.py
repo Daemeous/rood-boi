@@ -58,7 +58,7 @@ SCHEMA = {
         ("name", -1, None, False), ("shape", -1, "box", False), ("pos", 1, None, False),
         ("size", 1, "256,128,256", False), ("yaw", 2, "0", False), ("density", 5, "0.004", False),
         ("edge", 2, "0.5", False), ("color", 3, "1,1,1", False), ("fill", 3, "0,0,0", False),
-        ("noise", 2, "0.5", False), ("enabled", 0, "1", False),
+        ("noise", 2, "0.5", False), ("enabled", 0, "1", False), ("confine", 0, "1", False),
         # the interactive fog (pc/src/fog_sim.h): the characters, attacks and spells part it
         ("sim", 0, "0", False), ("sim_strength", 2, "1", False), ("sim_recover", 2, "3", False),
         ("sim_footprint", 2, "1", False), ("sim_trail", 2, "1", False), ("sim_wind", 2, "1", False),

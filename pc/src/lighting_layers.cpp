@@ -74,7 +74,7 @@ const std::vector<KindSpec>& kinds()
             { { "name", -1, nullptr, false }, { "shape", -1, "box", false }, { "pos", 1, nullptr, false },
                 { "size", 1, "256,128,256", false }, { "yaw", 2, "0", false }, { "density", 5, "0.004", false },
                 { "edge", 2, "0.5", false }, { "color", 3, "1,1,1", false }, { "fill", 3, "0,0,0", false },
-                { "noise", 2, "0.5", false }, { "enabled", 0, "1", false },
+                { "noise", 2, "0.5", false }, { "enabled", 0, "1", false }, { "confine", 0, "1", false },
                 /* the interactive fog (fog_sim.h): the characters, attacks and spells part it */
                 { "sim", 0, "0", false }, { "sim_strength", 2, "1", false }, { "sim_recover", 2, "3", false },
                 { "sim_footprint", 2, "1", false }, { "sim_trail", 2, "1", false }, { "sim_wind", 2, "1", false },
