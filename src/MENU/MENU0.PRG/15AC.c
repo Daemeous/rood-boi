@@ -8,6 +8,21 @@
 #include "build/assets/MENU/MENU0.PRG/magic.h"
 #include "build/assets/MENU/MENU0.PRG/teleportation.h"
 
+#ifdef ROOD_PC
+/* Fast travel (pc/src/fast_travel.c, pc/docs/Fast_Travel.md): Teleportation
+ * offered from the first Circle of Magic (the port's unlock beside the game's
+ * unkB5), its cost mode, the port's refusals greying the row, the Travel
+ * button's entry straight into the destinations list. */
+#include "pc/src/fast_travel.h"
+#define TELEPORT_UNLOCK pc_fast_travel_unlock()
+#define TELEPORT_COST(cost) pc_fast_travel_cost(cost)
+#define TELEPORT_MASK pc_fast_travel_mask(0xB7)
+#else
+#define TELEPORT_UNLOCK vs_main_stateFlags.unkB5
+#define TELEPORT_COST(cost) (cost)
+#define TELEPORT_MASK 0xB7
+#endif
+
 /**
  * Displays and manages Teleport menu.
  *
@@ -60,8 +75,8 @@ static int _teleportMenu(int init)
                 (char*)(&_teleportationStrings[_teleportationStrings
                         [i * 2 + VS_teleportation_INDEX_locations + 1]]);
             teleportCosts[rowCount] = _getTeleportCost(i);
-            rowTypes[rowCount] =
-                (savePointState == 2) | (currentMp < teleportCosts[rowCount]);
+            rowTypes[rowCount] = (savePointState == 2)
+                               | (currentMp < TELEPORT_COST(teleportCosts[rowCount]));
             if (teleportCosts[rowCount] == 15) {
                 rowTypes[rowCount] |= 4;
                 nearestSavePoint = rowCount;
@@ -75,7 +90,7 @@ static int _teleportMenu(int init)
             ++rowCount;
         }
 
-        if (D_800F4EA0 & 0xB7) {
+        if (D_800F4EA0 & TELEPORT_MASK) {
             for (i = 0; i < 48; ++i) {
                 rowTypes[i] |= 1;
             }
@@ -101,6 +116,11 @@ static int _teleportMenu(int init)
         selectedRow = vs_mainmenu_getSelectedRow() + 1;
         if (selectedRow != 0) {
             vs_mainMenu_displayActionCost = 0;
+#ifdef ROOD_PC
+            if (vs_battle_shortcutInvoked == PC_SHORTCUT_TRAVEL && selectedRow == -1) {
+                selectedRow = -2; /* the Travel button: Cross closes the menu */
+            }
+#endif
             if (selectedRow == (-1)) {
                 vs_mainMenu_clearMenuExcept(0);
             } else {
@@ -110,7 +130,7 @@ static int _teleportMenu(int init)
             }
             state = returnIfReady;
         } else {
-            i = teleportCosts[vs_mainMenu_getConfirmedRow()];
+            i = TELEPORT_COST(teleportCosts[vs_mainMenu_getConfirmedRow()]);
             _setMPCostDirect(i, currentMp < i);
         }
         break;
@@ -131,7 +151,7 @@ static int _teleportMenu(int init)
                 v0 |= v1;
                 a0 = (i >> 0x18) & 0x1F;
                 a0 <<= 0xE;
-                v1 = teleportCosts[selectedRow - 1] << 0x13;
+                v1 = TELEPORT_COST(teleportCosts[selectedRow - 1]) << 0x13;
                 v0 &= 0x3FFF;
                 return v0 | a0 | v1;
             }
@@ -200,6 +220,20 @@ int vs_menu0_exec(u_char* state)
 
         i = vs_battle_shortcutInvoked;
 
+#ifdef ROOD_PC
+        if (i == PC_SHORTCUT_TRAVEL) {
+            /* The Travel button (pc/src/fast_travel.c): straight into the
+             * destinations list, its title in the Teleport row's item (14) as
+             * a school shortcut's is in its own (before the magic strings are
+             * indexed by the shortcut). */
+            vs_battle_setMenuItem(14, 0x140, 0x22, 0x8C, 8,
+                (char*)(_teleportationStrings + VS_teleportation_OFFSET_teleportation))
+                ->selected = 1;
+            *state = teleportMenu;
+            _teleportMenu(1);
+            break;
+        }
+#endif
         if (i != 0) {
             enum shortcutMagicMenu { warlock = 1, shaman, sorcerer, enchanter };
             vs_battle_setMenuItem(i + 9, 0x140, 0x22, 0x8C, 8,
@@ -243,7 +277,7 @@ int vs_menu0_exec(u_char* state)
             }
         }
 
-        if (vs_main_stateFlags.unkB5 != 0) {
+        if (TELEPORT_UNLOCK != 0) {
             for (j = 0; j < 48; ++j) {
                 if (vs_main_stateFlags.savePointStates[j] != 0) {
                     break;
@@ -254,20 +288,24 @@ int vs_menu0_exec(u_char* state)
                 (char*)(_teleportationStrings + VS_teleportation_OFFSET_teleportation);
 
             menuStrings[i * 2 + 1] =
-                (func_8008A4FC() != 0) && (vs_main_stateFlags.unkB5 == 2)
+                (func_8008A4FC() != 0) && (TELEPORT_UNLOCK == 2)
                     ? (char*)(_teleportationStrings
                               + VS_teleportation_OFFSET_teleportationDisabled)
                     : (char*)(_teleportationStrings
                               + VS_teleportation_OFFSET_teleportationDesc);
 
-            if ((func_8008A4FC() != 0) && (vs_main_stateFlags.unkB5 == 2)) {
+            if ((func_8008A4FC() != 0) && (TELEPORT_UNLOCK == 2)) {
                 menuStrings[i * 2 + 1] =
                     (char*)(_teleportationStrings
                             + VS_teleportation_OFFSET_teleportationDisabled);
             }
 
             rowTypes[i++] =
-                ((j == 48) || (vs_main_stateFlags.unkB5 == 2) || (func_8008A4FC() == 0));
+                ((j == 48) || (TELEPORT_UNLOCK == 2) || (func_8008A4FC() == 0)
+#ifdef ROOD_PC
+                    || pc_fast_travel_blocked() /* the port's rules (fast_travel.c) */
+#endif
+                );
         }
 
         j = vs_main_settings.cursorMemory;

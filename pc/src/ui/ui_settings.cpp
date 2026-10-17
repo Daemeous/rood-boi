@@ -14,6 +14,7 @@ extern "C" {
 }
 #include "button_prompts.h"
 #include "camera_stick.h"
+#include "fast_travel.h"
 #include "gameplay_walls.h"
 #include "lighting_quality.h"
 #include "ui_bubbles.h"
@@ -549,6 +550,27 @@ void build()
         r.why = [](const Row&) { return pc_ui_capture_begin ? nullptr : COMING; };
         b.push_back(r);
     }
+    Row travel = base("bind_travel", "Travel",
+        "Fast travel: on a Circle of Magic, opens the Circles you can teleport to. It may share a button with "
+        "Select: where you can travel it travels, elsewhere Select does what it always does. Circle to change.",
+        PC_UI_SET_BINDING);
+    travel.arg = PC_BIND_TRAVEL;
+    travel.why = [](const Row&) { return pc_ui_capture_begin ? nullptr : COMING; };
+    b.push_back(travel);
+    // A capture only adds a key or an element: this takes Travel off every key
+    // and button (Select then only zooms the camera, on a Circle too).
+    Row unbind = action("bind_travel_clear", "Unbind Travel",
+        "Take Travel off its keys and gamepad button. Bind it again above whenever you like.",
+        [](const Row&) {
+            pc_binding_setting("bind_key_travel", "none");
+            pc_binding_setting("bind_pad_travel", "none");
+        });
+    unbind.why = [](const Row&) -> const char* {
+        return pc_bind_keys[PC_BIND_TRAVEL][0] || pc_bind_keys[PC_BIND_TRAVEL][1] || pc_bind_pad[PC_BIND_TRAVEL] != PC_PAD_NONE
+            ? nullptr
+            : "Nothing bound";
+    };
+    b.push_back(unbind);
     b.push_back(action("bind_reset", "Reset to defaults", "Every key and gamepad button back to its default.",
         [](const Row&) { pc_bindings_reset(); }));
 
@@ -564,6 +586,31 @@ void build()
         "Spells, items and Break Arts wind up faster before they take effect: Fast 4x, Skip as fast as it runs. "
         "The battle itself is unchanged.",
         &pc_qol_skip_charging, charging, 3));
+    static const char* const travel_costs[] = {"Free", "Flat", "Scaled", "Game"};
+    static const Why need_travel = [](const Row&) -> const char* {
+        return pc_qol_fast_travel ? nullptr : "Needs Fast travel";
+    };
+    p.push_back(toggle("qol_fast_travel", "Fast travel",
+        "Teleport between the Circles of Magic you have found, from the first one after the prologue: stand on a "
+        "Circle and press Travel, or Magic > Teleportation. The game's own spell, once learned, works as always.",
+        &pc_qol_fast_travel));
+    p.push_back(choice("qol_fast_travel_cost", "Travel cost",
+        "Until the game teaches Teleportation: Free, Flat (a set MP), Scaled (part of the game's cost) or Game (15 MP "
+        "plus 4 per Circle between). Once it has, the game's own cost.",
+        &pc_qol_fast_travel_cost, travel_costs, 4)
+                    .grey(need_travel));
+    p.push_back(islider("qol_fast_travel_flat", "Flat cost", "The MP each trip costs.", &pc_qol_fast_travel_flat, 0, 99,
+        "%d MP")
+                    .when([](const Row&) { return pc_qol_fast_travel_cost == PC_FT_COST_FLAT; })
+                    .grey(need_travel));
+    p.push_back(fslider("qol_fast_travel_scale", "Cost scale", "The game's cost times this.", &pc_qol_fast_travel_scale,
+        0.1f, 1.0f, 0.05f, "x%.2f")
+                    .when([](const Row&) { return pc_qol_fast_travel_cost == PC_FT_COST_SCALED; })
+                    .grey(need_travel));
+    // (not greyed with Fast travel off: once the game has taught Teleportation
+    // the Travel button and its prompt work whatever that setting says)
+    p.push_back(toggle("qol_fast_travel_prompt", "Travel prompt",
+        "Show the Travel button on a Circle of Magic when you can travel.", &pc_qol_fast_travel_prompt));
     p.push_back(choice("gameplay_walls", "Cutaway walls",
         "Smart: walls facing the camera stay unless they hide Ashley. Original: the PS1's.", &pc_gameplay_walls, walls,
         2)
@@ -781,7 +828,7 @@ void write_keys(int button, SDL_Keycode a, SDL_Keycode b)
         if (name)
             value += (value.empty() ? "" : ",") + std::string(name);
     }
-    std::string key = std::string("bind_key_") + pc_pad_button_names[button];
+    std::string key = std::string("bind_key_") + pc_bind_slot_name(button);
     pc_binding_setting(key.c_str(), value.empty() ? "none" : value.c_str());
 }
 
@@ -1058,8 +1105,29 @@ extern "C" const char* pc_ui_settings_key_reserved(int code)
 
 extern "C" int pc_ui_settings_bind(int button, int kind, int code)
 {
-    if (button < 0 || button >= PC_PAD_BUTTONS)
+    if (button < 0 || button >= PC_BIND_SLOTS)
         return -2;
+    if (button >= PC_PAD_BUTTONS) { // the port's own action: shares keys and pad buttons, never swaps
+        if (kind == PC_UI_CAPTURE_KEY) {
+            SDL_Keycode key = (SDL_Keycode)code;
+            if (!key || !pc_key_name(key) || pc_ui_settings_key_reserved(code))
+                return -2;
+            if (pc_bind_keys[button][0] == key)
+                return -1;
+            write_keys(button, key, pc_bind_keys[button][0]);
+        } else if (kind == PC_UI_CAPTURE_PAD) {
+            const char* name = pc_pad_element_name(code);
+            if (code == PC_PAD_NONE || pc_pad_element_from_name(name) != code)
+                return -2;
+            if (pc_bind_pad[button] == code)
+                return -1;
+            std::string key = std::string("bind_pad_") + pc_bind_slot_name(button);
+            pc_binding_setting(key.c_str(), name);
+        } else
+            return -2;
+        mark_dirty();
+        return -1;
+    }
     int other = -1;
     char moved[32] = "", gets[32] = "";
     if (kind == PC_UI_CAPTURE_KEY) {

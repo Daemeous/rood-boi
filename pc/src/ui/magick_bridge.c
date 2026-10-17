@@ -25,15 +25,19 @@
  *                  too low, 4 not learned / silenced) and the menu's disable
  *                  mask D_800F4EA0 & 0xB7 clear; a level after LV1 also its
  *                  own getActionFlags == 0 (the picker's Circle)
- *   teleport       the row exists with vs_main_stateFlags.unkB5 != 0; it is
+ *   teleport       the row exists while MENU0 offers Teleportation
+ *                  (pc_fast_travel_unlock: the game's unkB5, or fast
+ *                  travel's), greyed by fast travel's refusals too; it is
  *                  selectable when a savePointStates[0..47] entry is set,
  *                  unkB5 != 2 (the spirit paling) and func_8008A4FC() != 0
  *                  (standing on a Circle of Magic); destinations = the save
  *                  points with a state, names and descriptions MENU0's
  *                  teleportation locations[i * 2] / [i * 2 + 1] (state 2: the
- *                  disabled line), cost _getTeleportCost (15 + 4 per save
- *                  point between this room's and the target, MENU0's tables,
- *                  copied here), current = cost 15 (the cursor's start);
+ *                  disabled line), cost _getTeleportCost through fast
+ *                  travel's cost mode (15 + 4 per save point between this
+ *                  room's and the target, MENU0's tables in
+ *                  fast_travel_rules.c), current = the game's cost 15 (the
+ *                  cursor's start);
  *                  usable: state != 2, MP >= cost, the mask clear
  *   level_memory   cursorMemories[12], the LV picker's level: the shell
  *                  seeds its one level from it at an open, and while a
@@ -76,6 +80,7 @@
 #include "build/assets/MENU/MENU0.PRG/magic.h"
 #include "build/assets/MENU/MENU0.PRG/teleportation.h"
 #include "ui_shell.h"
+#include "../fast_travel.h"
 
 /* ui_text.h (stdio in a game-header unit is avoided) */
 int pc_ui_text_decode(const unsigned char* text, int max_bytes, char* out, int out_size);
@@ -96,15 +101,6 @@ static u_short magic_text[] = {
 static u_short teleport_text[] = {
 #include "build/assets/MENU/MENU0.PRG/teleportation.vsString"
 };
-
-/* MENU0 84.c _savePointData and _getTeleportCost's savePointCosts. */
-static const int save_point_data[PC_UI_SAVE_POINTS] = { 0x0305001B, 0x0801000E, 0x04030199, 0x0C0C001C,
-    0x070C0028, 0x040200CD, 0x0F070035, 0x08060093, 0x060000CE, 0x09080106, 0x09080111, 0x0C030098, 0x090800E0,
-    0x060900C8, 0x050800CA, 0x050F00CC, 0x0109009B, 0x0A07007C, 0x000400CF, 0x080800EC, 0x020400F1, 0x0705011D,
-    0x06080120, 0x04080139, 0x04080147, 0x0904014F, 0x010300A2, 0x150C00A3, 0x030200D0, 0x060600D1, 0x1007008B,
-    0x010400AB, 0x05020055, 0x07060063, 0x0A0400D2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-static const char save_point_costs[PC_UI_SAVE_POINTS] = { 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0 };
 
 #define MAGIC_MASK 0xB7      /* D_800F4EA0 bits that grey every spell and destination (MENU0) */
 #define TOP_LEVEL_MAGIC (1 | 0x40) /* currentMenu while MENU0 runs from the top level */
@@ -223,7 +219,7 @@ static int spell_levels(int id)
 
 /* Why the menu's disable mask greys everything ("" when clear): the lowest
  * bit MENU0 cares about, in the game's message order (as the shell's rows). */
-static int mask_reason(char* out, int size)
+static int mask_reason_in(u_int bits, char* out, int size)
 {
     static const char* const by_bit[8] = {
         0,
@@ -235,7 +231,7 @@ static int mask_reason(char* out, int size)
         0,
         "Silenced: spells cannot be cast.",
     };
-    u_int mask = (u_int)D_800F4EA0 & MAGIC_MASK;
+    u_int mask = (u_int)D_800F4EA0 & bits;
     int b;
     out[0] = 0;
     if (!mask)
@@ -248,6 +244,7 @@ static int mask_reason(char* out, int size)
     copy_text(out, size, "Not usable right now.");
     return 1;
 }
+static int mask_reason(char* out, int size) { return mask_reason_in(MAGIC_MASK, out, size); }
 
 /* Why spell `id` cannot be cast now ("" when it can): the mask first, then
  * the action's own flags (vs_battle_getActionFlags), then MAINMENU loading. */
@@ -310,48 +307,35 @@ static void fill_school(int s)
     }
 }
 
-/* MENU0 _getTeleportCost: 15, plus the save points between this room's
- * (48 when this room has none) and the target. */
-static int teleport_cost(int target)
-{
-    int room = vs_battle_getCurrentRoomId(), here, i, j, cost = 15;
-    for (i = 0; i < PC_UI_SAVE_POINTS; ++i)
-        if ((save_point_data[i] & 0xFFFF) == room)
-            break;
-    here = i;
-    if (target < i) {
-        i = target;
-        target = here;
-    }
-    for (j = i; j < target; ++j)
-        cost += save_point_costs[j];
-    return cost;
-}
+/* MENU0 _getTeleportCost (fast_travel_rules.c, MENU0's tables). */
+static int teleport_cost(int target) { return pc_ft_raw_cost(pc_ft_here(vs_battle_getCurrentRoomId()), target); }
 
 static void fill_teleport(void)
 {
-    int any = 0, circle, i, mp = snap.mp;
+    int any = 0, circle, i, mp = snap.mp, unlock = pc_fast_travel_unlock();
+    const char* blocked = pc_fast_travel_why();
     char row_reason[64];
-    snap.teleport = vs_main_stateFlags.unkB5 != 0;
+    snap.teleport = unlock != 0; /* the game's unkB5, or fast travel's (fast_travel.c) */
     if (!snap.teleport)
         return;
     for (i = 0; i < PC_UI_SAVE_POINTS; ++i)
         if (vs_main_stateFlags.savePointStates[i])
             any = 1;
     circle = func_8008A4FC() != 0;
-    snap.teleport_enabled = any && vs_main_stateFlags.unkB5 != 2 && circle;
-    copy_text(snap.teleport_help, sizeof snap.teleport_help,
-        circle && vs_main_stateFlags.unkB5 == 2 ? paling : teleport_desc);
+    snap.teleport_enabled = any && unlock != 2 && circle && !blocked;
+    copy_text(snap.teleport_help, sizeof snap.teleport_help, circle && unlock == 2 ? paling : teleport_desc);
     row_reason[0] = 0;
     if (!any)
         copy_text(row_reason, sizeof row_reason, "No Circle of Magic found yet.");
-    else if (vs_main_stateFlags.unkB5 == 2)
+    else if (unlock == 2)
         copy_text(row_reason, sizeof row_reason, "The spirit paling prevents teleportation.");
     else if (!circle)
         copy_text(row_reason, sizeof row_reason, "Stand on a Circle of Magic to teleport.");
+    else if (blocked)
+        copy_text(row_reason, sizeof row_reason, blocked);
     copy_text(snap.teleport_reason, sizeof snap.teleport_reason, row_reason);
     for (i = 0; i < PC_UI_SAVE_POINTS; ++i) {
-        int state = vs_main_stateFlags.savePointStates[i];
+        int state = vs_main_stateFlags.savePointStates[i], raw;
         pc_ui_destination* d;
         if (!state)
             continue;
@@ -359,15 +343,16 @@ static void fill_teleport(void)
         d->point = i;
         copy_text(d->name, sizeof d->name, point_name[i]);
         copy_text(d->help, sizeof d->help, state == PALING ? paling : point_help[i]);
-        d->cost = teleport_cost(i);
-        d->current = d->cost == CURRENT_COST;
+        raw = teleport_cost(i);
+        d->cost = pc_fast_travel_cost(raw); /* fast travel's cost mode before the game's own unlock */
+        d->current = raw == CURRENT_COST;
         if (row_reason[0])
             copy_text(d->reason, sizeof d->reason, row_reason);
         else if (state == PALING)
             copy_text(d->reason, sizeof d->reason, "The spirit paling prevents teleportation.");
         else if (mp < d->cost)
             copy_text(d->reason, sizeof d->reason, "Not enough MP.");
-        else if (!mask_reason(d->reason, sizeof d->reason) && !resident)
+        else if (!mask_reason_in(pc_fast_travel_mask(MAGIC_MASK), d->reason, sizeof d->reason) && !resident)
             copy_text(d->reason, sizeof d->reason, "Loading\xE2\x80\xA6");
         d->usable = d->reason[0] == 0;
     }
@@ -444,13 +429,6 @@ static void list_memory(int id, int row, int rows, int info)
     D_800F4EE8.cursorMemories[id * 2 + 1] = page;
 }
 
-/* MENU0 _teleportMenu's return (+ 1, which vs_menu0_exec takes back). */
-static int teleport_packed(int point, int cost)
-{
-    int data = save_point_data[point];
-    return (data & 0x1FF) | ((data >> 16) & 0x1F) << 9 | ((data >> 24) & 0x1F) << 14 | cost << 19;
-}
-
 /* Returns 1 when the request was one of ours. */
 int pc_ui_magick_request(const pc_ui_request* r)
 {
@@ -491,7 +469,7 @@ int pc_ui_magick_request(const pc_ui_request* r)
             if (!snap.teleport_enabled || !d->usable)
                 goto refused;
             cast.kind = 2;
-            cast.id = teleport_packed(d->point, d->cost);
+            cast.id = pc_ft_packed(d->point, d->cost); /* fast_travel_rules.c: MENU0's packing */
             return 1;
         }
     }
@@ -527,7 +505,7 @@ void pc_ui_magick_cast(int go)
         D_800F4E98.executeAbility.s32 = cast.id;
         return;
     }
-    list_memory(SCHOOL_LIST, cast.school, TELEPORT_ROW + (vs_main_stateFlags.unkB5 != 0), 1);
+    list_memory(SCHOOL_LIST, cast.school, TELEPORT_ROW + (pc_fast_travel_unlock() != 0), 1);
     list_memory(SPELL_LIST + cast.school, cast.row, cast.rows, 2);
     if (cast.level >= 0) { /* _warlockMagicMenu levelledSpellInit / levelledSpell */
         D_800F4EE8.cursorMemories[LEVEL_MEMORY] = cast.level;

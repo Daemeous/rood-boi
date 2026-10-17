@@ -13,6 +13,7 @@ extern "C" {
 }
 #include "button_prompts.h"
 #include "camera_stick.h"
+#include "fast_travel.h"
 #include "lighting_quality.h"
 #include "ui/ui_tint.h"
 #include "ui_settings_stubs.h"
@@ -99,8 +100,24 @@ static void pages()
         && find(C, "qol_field_cross_attack") == find(C, "qol_map_controls") + 2);
     CHECK(value(C, "qol_confirm_cross") == "Off" && change(C, "qol_confirm_cross", 1) == 1 && pc_qol_confirm_cross == 1);
     pc_qol_confirm_cross = 0;
-    CHECK(pc_ui_settings_rows(B) == 17);
-    CHECK(pc_ui_settings_rows(P) == (game ? 12 : 5));
+    CHECK(pc_ui_settings_rows(B) == 19); // the 16 PS1 buttons, Travel, Unbind Travel, Reset
+    CHECK(find(B, "bind_travel") == find(B, "bind_reset") - 2 && row(B, "bind_travel").button == PC_BIND_TRAVEL
+        && find(B, "bind_travel_clear") == find(B, "bind_travel") + 1);
+    CHECK(pc_ui_settings_rows(P) == (game ? 15 : 8)); // fast travel: on, its cost, its prompt
+    // fast travel after battle charging: On, Free; Flat shows its MP, Scaled its factor
+    CHECK(find(P, "qol_fast_travel") == find(P, "qol_skip_charging") + 1
+        && find(P, "qol_fast_travel_cost") == find(P, "qol_fast_travel") + 1);
+    CHECK(value(P, "qol_fast_travel") == "On" && value(P, "qol_fast_travel_cost") == "Free");
+    CHECK(change(P, "qol_fast_travel_cost", 1) == 1 && pc_qol_fast_travel_cost == 1
+        && pc_ui_settings_rows(P) == (game ? 16 : 9) && find(P, "qol_fast_travel_flat") == find(P, "qol_fast_travel_cost") + 1);
+    CHECK(change(P, "qol_fast_travel_cost", 1) == 1 && pc_qol_fast_travel_cost == 2
+        && find(P, "qol_fast_travel_scale") == find(P, "qol_fast_travel_cost") + 1 && find(P, "qol_fast_travel_flat") < 0);
+    pc_qol_fast_travel_cost = 0;
+    pc_qol_fast_travel = 0;
+    CHECK(!row(P, "qol_fast_travel_cost").enabled); // greyed: needs fast travel
+    // ... not the prompt: the game's own Teleportation shows it whatever the setting
+    CHECK(row(P, "qol_fast_travel_prompt").enabled);
+    pc_qol_fast_travel = 1;
     // battle charging after the weapon quick slots: Off, Fast, Skip
     CHECK(find(P, "qol_skip_charging") == find(P, "qol_weapon_slots") + 1);
     CHECK(value(P, "qol_skip_charging") == "Off" && change(P, "qol_skip_charging", 1) == 1 && pc_qol_skip_charging == 1
@@ -404,6 +421,15 @@ static void bindings()
     CHECK(pc_ui_settings_activate(B, find(B, "bind_reset")) == 1);
     CHECK(pc_bind_keys[PC_PROMPT_CIRCLE][0] == SDLK_Z && pc_bind_pad[PC_PROMPT_CROSS] == SDL_GAMEPAD_BUTTON_SOUTH);
     CHECK(pc_ui_settings_dirty());
+    pc_ui_settings_flush();
+    // Travel: a key added, then Unbind Travel takes it off its key and its pad element
+    CHECK(pc_ui_settings_bind(PC_BIND_TRAVEL, PC_UI_CAPTURE_KEY, SDLK_T) == -1 && pc_bind_keys[PC_BIND_TRAVEL][0] == SDLK_T);
+    CHECK(pc_bind_pad[PC_BIND_TRAVEL] == SDL_GAMEPAD_BUTTON_BACK && row(B, "bind_travel_clear").enabled);
+    CHECK(pc_ui_settings_activate(B, find(B, "bind_travel_clear")) == 1 && pc_ui_settings_dirty());
+    CHECK(!pc_bind_keys[PC_BIND_TRAVEL][0] && !pc_bind_keys[PC_BIND_TRAVEL][1] && pc_bind_pad[PC_BIND_TRAVEL] == PC_PAD_NONE);
+    CHECK(!row(B, "bind_travel_clear").enabled); // nothing left to unbind
+    CHECK(pc_bind_keys[PC_PROMPT_SELECT][0] && pc_bind_pad[PC_PROMPT_SELECT] == SDL_GAMEPAD_BUTTON_BACK); // Select kept
+    pc_bindings_reset();
     pc_ui_settings_flush();
     if (!game) {
         // capture: Circle on a binding row starts one; what arrives binds that button

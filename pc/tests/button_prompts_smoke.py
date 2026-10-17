@@ -52,7 +52,9 @@ from scipy import ndimage
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT  # noqa: E402
+sys.path.insert(0, str(ROOT / "pc/tests"))
+from rood_rpc import OUT, symbols  # noqa: E402
+from menu_nav import ABILITIES_COMMAND, top_command  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 failures = []
@@ -414,6 +416,7 @@ def run(work, card, shots):
             return
         cross_checks(game, work, shots)
         game.press("triangle", vsyncs=3, settle=60)
+        top_command(game, symbols(), ABILITIES_COMMAND)  # by the game's cursor (fast travel's Magic on a Circle)
         game.press("circle", vsyncs=3, settle=60)  # Battle Abilities: the information box names ○, △ and □
         compare_modes(game, work, "chain", shots, "text", ["circle", "triangle", "square"])
         # Internal resolution 1: icons too (blocks of the 2x atlas).

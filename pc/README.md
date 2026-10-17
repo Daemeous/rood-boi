@@ -247,6 +247,30 @@ the audio stays in real time: what the device has no room for is dropped,
 with a short fade at each cut. `pc/src/boot_window.c` has the details. The
 game cannot take input during the wind-up, so nothing becomes harder.
 
+### Fast travel
+
+The game's own Teleportation between the Circles of Magic, offered from the
+first Circle once the prologue is over (**on by default**; the game's own
+unlock, from the Lich, applies as the game has it). Stand on a Circle and
+press Travel (Select on a gamepad; no key until you bind one: a prompt shows
+when it is available), or Magic > TELEPORTATION (Magick > Teleport with the
+modern menus). Free until the game teaches the spell; it does not count as
+using magic until then. Nothing new reaches the memory card.
+[docs/Fast_Travel.md](docs/Fast_Travel.md) has the rules and the tests.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `qol_fast_travel` | 1 | offer Teleportation from the first Circle once the prologue is over |
+| `qol_fast_travel_cost` | 0 | before the game's own unlock: 0 free, 1 flat, 2 scaled, 3 the game's (15 MP plus 4 per Circle between) |
+| `qol_fast_travel_flat` | 15 | flat mode's MP |
+| `qol_fast_travel_scale` | 0.5 | scaled mode: the game's cost times this |
+| `qol_fast_travel_prompt` | 1 | the Travel prompt on a Circle |
+| `qol_fast_travel_prompt_x`, `qol_fast_travel_prompt_y` | 0.5, 0.84 | the prompt's centre (fractions of the window) |
+| `qol_fast_travel_prompt_scale` | 1 | the prompt's size |
+
+System > Gameplay and System > Bindings in the modern menus, editor Graphics
+> Gameplay, RPC `fast_travel {set, press, audit}`.
+
 ### Cross confirms (optional)
 
 Two button-role options from the same QoL mod, **both off by default** and
@@ -1250,8 +1274,8 @@ prompts in the editor, RPC `button_prompts`.
 | `button_prompts_style` | `color_outline` | how the icons look (no backing behind any): `solid` (a filled cap, the symbol knocked out), `outline` (ring and symbol, no fill), `color_solid`, `color_outline` (the same in the family's colours: PlayStation's teal triangle, red circle, blue cross, pink square; Xbox's green A, red B, blue X, yellow Y; Nintendo, key caps and other buttons neutral). Outline styles use each glyph's `_outline` variant; text pictographs keep the text's colour |
 | `button_prompts_dpad` | `dim` | the L2 shortcut cross's D-pad (below): `cross` the family's whole D-pad in the style; `dim` the same with the arms that have no usable action beside them dimmed (no label, or the game's dimmed label: a locked Break Arts, items while unusable; weapon slots: an empty slot); `lit` the arms with a usable action filled and the others hollow in the outline styles (Kenney's `_<dir>_outline` glyphs joined), in the solid styles bright with the others' insides dim |
 | `button_prompts_scale` | `0.7` | 0.4-1: each 16 x 16 button sprite's icon fits in a circle this fraction of its cell across, centred on the original's (the shortcut cross's face-button diamond has diagonal neighbours 9 PS1 pixels apart: at 0.7 they keep about 1.5 pixels apart; key caps and wide shoulder tabs come out smaller than round buttons) |
-| `bind_key_<button>` | see Controls | the key(s) for a PS1 button (`circle`, `cross`, `triangle`, `square`, `l1`, `r1`, `l2`, `r2`, `start`, `select`, `l3`, `r3`, `up`, `down`, `left`, `right`): one or two names separated by a comma (`a`-`z`, `0`-`9`, `return`, `tab`, `space`, `escape`, `backspace`, arrows `up`..., `lshift`, `lctrl`, `lalt`, ..., `f1`-`f12`, `minus`, `comma`, `period`, `slash`, ...) or `none`; saved only when changed |
-| `bind_pad_<button>` | positional | the gamepad element for a PS1 button: `south`, `east`, `west`, `north`, `leftshoulder`, `rightshoulder`, `lefttrigger`, `righttrigger`, `back`, `start`, `guide`, `leftstick`, `rightstick`, `dpup`, `dpdown`, `dpleft`, `dpright`, `misc1`, `paddle1`-`4`, `touchpad` or `none`; saved only when changed |
+| `bind_key_<button>` | see Controls | the key(s) for a PS1 button (`circle`, `cross`, `triangle`, `square`, `l1`, `r1`, `l2`, `r2`, `start`, `select`, `l3`, `r3`, `up`, `down`, `left`, `right`) or for `travel` (fast travel's Travel button: no key by default; it may share a PS1 button's key): one or two names separated by a comma (`a`-`z`, `0`-`9`, `return`, `tab`, `space`, `escape`, `backspace`, arrows `up`..., `lshift`, `lctrl`, `lalt`, ..., `f1`-`f12`, `minus`, `comma`, `period`, `slash`, ...) or `none`; saved only when changed |
+| `bind_pad_<button>` | positional | the gamepad element for a PS1 button or `travel` (`back` by default, shared with Select): `south`, `east`, `west`, `north`, `leftshoulder`, `rightshoulder`, `lefttrigger`, `righttrigger`, `back`, `start`, `guide`, `leftstick`, `rightstick`, `dpup`, `dpdown`, `dpleft`, `dpright`, `misc1`, `paddle1`-`4`, `touchpad` or `none`; saved only when changed |
 
 The gamepad family comes from SDL (`SDL_GetGamepadType`): PS3/PS4/PS5 show
 PlayStation icons (Start/Select as the PS3's, Options/Share on a PS4,
@@ -1894,6 +1918,7 @@ redraws at about 60 Hz, and after each request):
 | `camera_stick` | the settings without `camera_stick_` (`enabled`, `speed`, ..., `r3_reset`, `idle_reset`, `keys`), `action` (`reset`) | the right-stick camera: settings and state (zoom, distances, collision hit, yaw; the first-person look: `first_person`, `fp_looks`, `fp_step`) |
 | `camera_options` | `map_invert`, `map_controls`, `fp_invert_y` | the optional map panning and first-person up/down inversions and the map's stick controls (settings `qol_map_invert`, `qol_map_controls` 0 Modern / 1 Original, `qol_fp_invert_y`) |
 | `skip_charging` | `mode` (0..2 or `off`, `fast`, `skip`), `reset` | battle charging (settings `qol_skip_charging`): the mode, whether the last vsync charged and its `_cameraMode` (`charging`, `phase`), and the counters since the last reset: charging `sequences`, their `vsyncs` and wall `ms` (`reset: true` zeroes them after the reply) |
+| `fast_travel` | `set` (`enabled`, `cost` 0..3 or `free`/`flat`/`scaled`/`game`, `flat`, `scale`, `prompt`), `press`, `audit` | fast travel (battle builds; [docs/Fast_Travel.md](docs/Fast_Travel.md)): the settings, whose unlock is in effect (`whose`: `off`/`port`/`game`, `unlock` as MENU0 reads it), the state the rules read, `blocked` and `why` (the Travel button's reason, "" when it opens the list), each point's `state`, `raw` and applied `cost`, `current`, `refused`, the press counters, the `last` trip checked on arrival; `press` presses the Travel button once; `audit` adds each destination's Circle object read from the disc |
 | `button_roles` | `confirm_cross`, `field_cross_attack`, `symbol_exceptions` | the optional button roles (battle builds; settings `qol_confirm_cross`, `qol_field_cross_attack`): both options, the game's context now (`menus`, `field`, `targeting`, `game`), whether Circle and Cross are exchanged there (`swap`) and each role's button (`confirm`, `cancel`, `attack`, `interact`, `target`), the game's own ○ / × drawn since start (`drawn`: for `text` and `sprite` how many of each as shown and how many were exchanged, `swapped`); `symbol_exceptions` false (tests) exchanges the ○ / × that name buttons the roles never move too |
 | `weapon_slots` | `enabled` | the optional weapon slots (battle builds): the option, overlay/assign/swap state, field mode, each weapon's slot and each shield's slot bits, what Ashley's battle record has equipped |
 | `ui_menu` | `modern`, `pointer` | the modern menus (`pc/src/ui`, battle builds): sets `ui_menus`; `model_heap_extra` (bytes, tests: the Ashley model's heap check asks for that much more); `pointer {x, y, click, right, wheel, down, middle}` is the next drawn frame's mouse in layout units (1280 or 960 x 720; hit tests as a moved pointer; down / middle: that button held, drags); the shell: visible, holding (closed, a result held during a model load, still drawn), menus, tab, tabs, rows (id, label, enabled, reason when greyed, value), focused row, the Equipment screen; `theme` (the colours shown: `tint` id, `tint_rgb` 0..31, `ground`, `panel`, `stage` as #rrggbbaa, `rule`, `rule2`, `dim`, `ash`); `system.rows[].swatch` (#rrggbb: Menu tint's colour chip); `map` (the Map frame: state, MENU5's published scene / room / camera, areas, rooms, completion, the list's cursor, request counters, the drawn pointer targets `hits`, or null) and `map_heap_free`; `system.manual` (the Quick manual: mode topics / reading, topic, label, desc, row, page_top, line, lines, line_count, page, pages, loaded, square, k, size, overflow, unknown, the page's ten `page_lines`, sprites, rules, hidden, `art` (button-art sprites) and `art_prompts` (drawn as the device's prompts), the `sfx` counters, the drawn `hits`, or null; `system.manual_sfx`: the manual's requested sounds, on or off); `container` (the native Container screen while its MENU7 run is latched, else null: phase, m7_state, session, mode, tab, rows, cursor, menu, card, counts, prompt state, counters, the drawn `hits`; `pc/docs/Modern_Menus.md` "Container"); `data` (the native Data screen while armed or framed, else null; `container` 1 for the Container's save list: run, phase ops / card / files / prompt / wait / busy, state, op, save_ok, at_point, in_battle, warp_blocked, cursor, card, file, page, cancelled, ops_row, msg, msg_text, prompt, progress, fade, files_valid, files[] (state, generation, time, saves, hp, mp, location, clear, map, current, newest, name), cards (per card: -1 not checked, -2 no card, else its saves), card_sel, journey, goal {kind, a, auto}, seq, presses, busy_drops, rejected, expired, menu7_gated, settling, hover, the drawn `hits`); `backdrop_kept` (0 / 1: the presenter holds a picture of the world for the Ashley tab's model) and `backdrop_built` ([keep count, count the wait asked for] when the Ashley model was last built; [-1, 0] none yet) |

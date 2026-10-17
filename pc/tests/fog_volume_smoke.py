@@ -81,6 +81,8 @@ def main():
 
     game = launch_at("save_room", card=out / "card1.mcd", fast=True, log=out / "game.log", extra_env=env,
                      socket_path=socket)
+    # the save room is a Circle of Magic: no Travel prompt plate over the debug views it reads
+    game.call("fast_travel", set={"prompt": False})
 
     def shot(name, frames=20):
         if frames:

@@ -70,6 +70,12 @@ def _title(game, target=TITLE_VSYNC):
         raise RpcError(f"the title menu is not ready at vsync {target}")
 
 
+def title(game):
+    """A game launched without a checkpoint, paused at the title menu taking
+    input (as the checkpoints that need it start)."""
+    _title(game)
+
+
 def _opening(game, end):
     _title(game)
     game.press("start", vsyncs=4, settle=60)

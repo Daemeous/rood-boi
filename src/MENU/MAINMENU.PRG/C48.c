@@ -38,6 +38,12 @@
 extern int pc_ui_direct_tick(int selectedMenu, char* state, int* result);
 /* pc/src/ui/data_bridge.c: the shell armed the native Data screen's frame */
 extern int pc_ui_data_armed(void);
+/* pc/src/fast_travel.c: the Magic title as the Magic command (MP 0 does not
+ * grey it on a Circle while fast travel is free) */
+extern unsigned pc_fast_travel_mask(unsigned bits);
+#define MAGIC_TITLE_MASK pc_fast_travel_mask(0xB7)
+#else
+#define MAGIC_TITLE_MASK 0xB7
 #endif
 
 vs_main_inventoryGem* vs_mainMenu_gems;
@@ -404,7 +410,7 @@ void vs_mainMenu_exec(int arg0)
                     state = 0;
 
                     if (selectedMenu == 1) {
-                        state = (D_800F4EA0 & 0xB7) != 0;
+                        state = (D_800F4EA0 & MAGIC_TITLE_MASK) != 0;
                     }
 
                     if (selectedMenu == 2) {

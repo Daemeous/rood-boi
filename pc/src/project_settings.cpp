@@ -63,6 +63,16 @@ int pc_qol_skip_charging;
  * Circle interacts and sheathes. Off by default; button_roles.c exchanges the
  * two buttons in the pad word where the game's context calls for it. */
 int pc_qol_confirm_cross, pc_qol_field_cross_attack;
+/* Fast travel (fast_travel.h, pc/docs/Fast_Travel.md): qol_fast_travel offers
+ * the game's Teleportation from the first Circle of Magic once the prologue is
+ * over (on by default; the game's own unlock always applies); before the
+ * game's own unlock it costs qol_fast_travel_cost 0 free (default), 1 flat
+ * (qol_fast_travel_flat MP), 2 scaled (qol_fast_travel_scale x the game's), 3
+ * the game's. The Travel prompt on a Circle: qol_fast_travel_prompt, its
+ * centre (fractions of the window) and size. */
+int pc_qol_fast_travel = 1, pc_qol_fast_travel_cost = 0, pc_qol_fast_travel_flat = 15, pc_qol_fast_travel_prompt = 1;
+float pc_qol_fast_travel_scale = 0.5f, pc_qol_fast_travel_prompt_x = 0.5f, pc_qol_fast_travel_prompt_y = 0.84f,
+    pc_qol_fast_travel_prompt_scale = 1.0f;
 
 /* Modern menus (pc/src/ui, pc/docs/Modern_Menus.md): 0 the game's own
  * menus, 1 the modern shell. Off by default until the screens are verified. */
@@ -234,6 +244,14 @@ const Entry entries[] = {
     /* Gameplay. */
     I("qol_weapon_slots", pc_qol_weapon_slots),
     I("qol_skip_charging", pc_qol_skip_charging), /* 0 off, 1 fast, 2 skip */
+    I("qol_fast_travel", pc_qol_fast_travel),
+    I("qol_fast_travel_cost", pc_qol_fast_travel_cost), /* 0 free, 1 flat, 2 scaled, 3 game */
+    I("qol_fast_travel_flat", pc_qol_fast_travel_flat),
+    F("qol_fast_travel_scale", pc_qol_fast_travel_scale),
+    I("qol_fast_travel_prompt", pc_qol_fast_travel_prompt),
+    F("qol_fast_travel_prompt_x", pc_qol_fast_travel_prompt_x),
+    F("qol_fast_travel_prompt_y", pc_qol_fast_travel_prompt_y),
+    F("qol_fast_travel_prompt_scale", pc_qol_fast_travel_prompt_scale),
     I("skip_intro", pc_skip_intro),
     I("ui_menus", pc_ui_menus),
     F("ui_menu_opacity", pc_ui_menu_opacity),

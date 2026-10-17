@@ -206,6 +206,14 @@ void* pc_battle_jump[5];
  * battle it was in. */
 extern void pc_ui_menu_reset(void) __attribute__((weak));
 extern int pc_game_phase __attribute__((weak)); /* boot_runtime.c (saved in save states) */
+/* room_catalog.c: the Room Browser's warp (its savePointStates snapshot too)
+ * belongs to the game being left: both jumps replace the game's state (the
+ * title, then New Game or Continue; MENU7's load after a game over jumps
+ * into BATTLE). */
+extern void pc_room_warp_reset(void) __attribute__((weak));
+/* fast_travel.c: the old game's room and actors are stale until a room loads
+ * (the RPC report reads none meanwhile) */
+extern void pc_fast_travel_reset(void) __attribute__((weak));
 void vs_overlay_jumpToTitle(int* sp)
 {
     (void)sp;
@@ -213,6 +221,10 @@ void vs_overlay_jumpToTitle(int* sp)
         pc_game_phase = 1; /* back to the title */
     if (pc_ui_menu_reset)
         pc_ui_menu_reset();
+    if (pc_room_warp_reset)
+        pc_room_warp_reset();
+    if (pc_fast_travel_reset)
+        pc_fast_travel_reset();
     __builtin_longjmp(pc_title_jump, 1);
 }
 void vs_overlay_jumpToBattle(int* sp)
@@ -220,6 +232,10 @@ void vs_overlay_jumpToBattle(int* sp)
     (void)sp;
     if (pc_ui_menu_reset)
         pc_ui_menu_reset();
+    if (pc_room_warp_reset)
+        pc_room_warp_reset();
+    if (pc_fast_travel_reset)
+        pc_fast_travel_reset();
     __builtin_longjmp(pc_battle_jump, 1);
 }
 void vs_overlay_wait(void) { }

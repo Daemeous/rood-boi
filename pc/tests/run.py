@@ -112,6 +112,9 @@ def suites(args, mode="egl"):
         Suite("lp64_alias_scan", [PY, str(TESTS / "lp64_alias_scan_test.py")], 60, binary=None,
               note="no data import is a field of another across the LP64 native move "
                    "(pc/tools/lp64_alias_scan.py on pc/build/boot64; synthetic cases always)"),
+        Suite("fast_travel_scan", [PY, str(TESTS / "fast_travel_scan_test.py")], 120, binary=None,
+              note="fast travel R9: every room and event script walked op by op; every Circle records itself; "
+                   "no script tests unkB5 or writes a Circle state other than 1 unless blocks.json mirrors it"),
         Suite("snapshot_equivalence", [PY, str(TESTS / "snapshot_equivalence.py")]
               + (["--card", str(args.save)] if args.save.exists() else []), 600,
               note="save states: booting to each test checkpoint and resuming its snapshot give identical "
@@ -274,6 +277,16 @@ def suites(args, mode="egl"):
         *([Suite("menu0_levelled_smoke", [PY, str(TESTS / "menu0_levelled_smoke.py"), "--card", str(args.save)], 300,
                  note="original Magic menu, levelled Warlock spell: LV picker with '--' boxes (GPU sprite size "
                       "masked as on hardware), LV1 and LV2 cast: hand-off id, MP drops by the cost")]
+          if args.save.exists() else []),
+        *([Suite("fast_travel_smoke", [PY, str(TESTS / "fast_travel_smoke.py"), "--card", str(args.save)], 1200,
+                 note="fast travel (original menus): unlock from the first Circle, free cost, R6 audit, Room Browser "
+                      "hygiene, travel then save then decode then Continue, refusals, the game's own unlock, the "
+                      "Travel button, the prompt")]
+          if args.save.exists() else []),
+        *([Suite("fast_travel_shell_smoke", [PY, str(TESTS / "fast_travel_smoke.py"), "--card", str(args.save),
+                                             "--menus", "on"], 1200,
+                 note="fast travel with the modern menus: Magick > Teleport on the same unlock, cost, mask and "
+                      "refusals; save (System > Data) and Continue; the Travel button")]
           if args.save.exists() else []),
         *([Suite("skip_charging_smoke", [PY, str(TESTS / "skip_charging_smoke.py"), "--card", str(args.save)], 600,
                  note="battle charging off/fast/skip (paced): Solid Shock's and a Cure Root's wind-up charge the "
@@ -468,7 +481,7 @@ CHECKPOINT_SUITES = {
     "ui_lines_smoke", "ui_text_smoke", "button_prompts_smoke", "button_roles_symbols_smoke", "coplanar_order_smoke", "atmosphere_smoke",
     "fog_sim_smoke", "fog_volume_smoke", "save_point_glow_smoke", "emissive_smoke", "ui_ashley_smoke", "ui_ashley_stability_smoke",
     "ui_equip_smoke",
-    "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "post_smoke",
+    "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "fast_travel_smoke", "fast_travel_shell_smoke", "post_smoke",
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",

@@ -68,6 +68,17 @@
  *                                _cameraMode, and the counters (charging
  *                                sequences seen, their vsyncs and wall ms;
  *                                reset: true zeroes them after the reply)
+ *   fast_travel {set, press, audit}  fast travel (fast_travel.c): set {enabled,
+ *                                cost (0..3 or free / flat / scaled / game),
+ *                                flat, scale, prompt} (settings qol_fast_travel*);
+ *                                press: the Travel button once, as its key or
+ *                                pad button; audit: each destination's Circle
+ *                                object read from the disc; replies settings,
+ *                                whose unlock (off / port / game), unlock, the
+ *                                state, blocked and why (the Travel button's
+ *                                reason, "" when it opens the list), each
+ *                                point's state / raw / cost / current /
+ *                                refused, counters, the last trip (battle builds)
  *   ui_menu {modern}             modern menus (pc/src/ui): sets ui_menus,
  *                                returns the shell (visible, menus, tab,
  *                                tabs, rows, row; loot while the Loot screen
@@ -83,7 +94,7 @@
  *                                (whole 0x220-byte vs_battle_loot lists, as
  *                                after a battle; chest: the first as a
  *                                chest's); only while no menu is open
- *   system {window_mode, master_volume, brightness, bind, key, pad, down,
+ *   system {window_mode, master_volume, brightness, bind, key, pad, virtual_pad, down,
  *           mouse: [x, y], button}   (mouse: window pixels, button 1-3 with
  *                                down, or 0: a wheel step of `wheel`)
  *                                System settings (pc/src/ui/ui_settings.h hooks):
@@ -92,6 +103,8 @@
  *                                "circle" starts the Bindings page's capture for
  *                                that button; key "m" / pad "east" with down
  *                                pushes that SDL event (real input path);
+ *                                virtual_pad "back" with down sets that element
+ *                                on an SDL virtual gamepad the game polls (tests);
  *                                returns the values, the window's state, the
  *                                audio gain (frames recorded with ROOD_AUDIO=wav)
  *                                and the capture state
@@ -356,6 +369,7 @@
 #include "button_prompts.h"
 #include "boot_controller.h" /* pc_pad_button_index */
 #include "camera_stick.h"
+#include "fast_travel.h"
 #include "ui/ui_settings.h" /* system: the Bindings page */
 /* The editor (editor_overlays.cpp, lights.cpp). */
 extern int pc_overlay_wire __attribute__((weak)), pc_overlay_points __attribute__((weak)),
@@ -372,6 +386,9 @@ extern int pc_overlay_neighbours(const float*, float, float (*)[4], int) __attri
 extern int pc_overlay_sample_points(const pc_overlay_view*, float (*)[3], float (*)[2], int*, int) __attribute__((weak));
 extern int pc_overlay_sample_edges(const pc_overlay_view*, float (*)[6], float (*)[4], int*, int) __attribute__((weak));
 
+/* fast_travel.c (battle builds) */
+extern void pc_fast_travel_report(pc_ft_report* r, int audit) __attribute__((weak));
+extern void pc_fast_travel_press(void) __attribute__((weak));
 extern unsigned pc_battle_frame_count(void);
 extern unsigned pc_vsync_count(void);
 extern int pc_capture_display(const char* path, int* width, int* height);
@@ -1096,6 +1113,49 @@ static void handle_method(int fd, const char* request)
         snprintf(result, sizeof result,
             "{\"mode\":%d,\"charging\":%d,\"phase\":%d,\"sequences\":%u,\"vsyncs\":%u,\"ms\":%.1f,\"budget_ms\":%.1f}",
             pc_qol_skip_charging, charging, phase, sequences, vsyncs, ms, budget_ms);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "fast_travel")) {
+        /* Fast travel (fast_travel.c, fast_travel_rules.c pc_ft_json). */
+        static pc_ft_report report;
+        const char* set = params ? member(params, "set") : NULL;
+        int flag, audit = 0, press = 0;
+        double real;
+        if (!pc_fast_travel_report) {
+            fail(fd, id, -32000, "fast_travel needs the battle build");
+            return;
+        }
+        if (set) {
+            char name[16] = "";
+            if (bool_value(member(set, "enabled"), &flag))
+                pc_qol_fast_travel = flag;
+            if (number_value(member(set, "cost"), &n) && n >= 0 && n < PC_FT_COST_MODES)
+                pc_qol_fast_travel_cost = (int)n;
+            else if (string_value(member(set, "cost"), name, sizeof name)) {
+                int k;
+                for (k = 0; k < PC_FT_COST_MODES && strcmp(name, pc_ft_cost_names[k]); k++)
+                    ;
+                if (k == PC_FT_COST_MODES) {
+                    fail(fd, id, -32602, "fast_travel cost: 0..3 or free, flat, scaled, game");
+                    return;
+                }
+                pc_qol_fast_travel_cost = k;
+            }
+            if (number_value(member(set, "flat"), &n) && n >= 0 && n <= PC_FT_COST_MAX)
+                pc_qol_fast_travel_flat = (int)n;
+            if (real_value(member(set, "scale"), &real) && real >= 0 && real <= 10)
+                pc_qol_fast_travel_scale = (float)real;
+            if (bool_value(member(set, "prompt"), &flag))
+                pc_qol_fast_travel_prompt = flag;
+        }
+        if (params && bool_value(member(params, "press"), &press) && press && pc_fast_travel_press)
+            pc_fast_travel_press();
+        if (params)
+            bool_value(member(params, "audit"), &audit);
+        pc_fast_travel_report(&report, audit);
+        if (pc_ft_json(&report, result, (int)sizeof result) < 0) {
+            fail(fd, id, -32000, "fast_travel: the report does not fit");
+            return;
+        }
         reply(fd, id, result);
     } else if (!strcmp(method, "ui_menu")) {
         /* Modern menus (pc/src/ui): {modern} sets ui_menus; the shell's state. */
@@ -2206,6 +2266,17 @@ static void handle_method(int fd, const char* request)
             fail(fd, id, -32602, "pad: a gamepad element name (bind_pad_*)");
             return;
         }
+        /* virtual_pad: the element on an SDL virtual gamepad (boot_gamepad.c), read
+         * by the game as a real pad's (system {pad} only reaches the capture) */
+        if (params && string_value(member(params, "virtual_pad"), text, sizeof text)) {
+            extern int pc_pad_element_from_name(const char*);
+            extern int pc_controller_virtual_set(int, int) __attribute__((weak));
+            int element = pc_pad_element_from_name(text);
+            if (!pc_controller_virtual_set || element < 0 || pc_controller_virtual_set(element, flag)) {
+                fail(fd, id, -32602, "virtual_pad: a gamepad element name, and no real gamepad connected");
+                return;
+            }
+        }
         const char* mouse = params ? member(params, "mouse") : NULL;
         if (mouse) {
             double xy[2] = { 0, 0 }, button = 1, wheel = 0;
@@ -2850,6 +2921,7 @@ static void handle_method(int fd, const char* request)
         extern int pc_room_warp_phase(void) __attribute__((weak));
         extern void pc_room_warp_acknowledge(void) __attribute__((weak));
         extern const char* pc_room_warp_message(void) __attribute__((weak));
+        extern int pc_room_warp_points_held(void) __attribute__((weak)); /* the savePointStates snapshot */
         extern int pc_room_warp_enemies __attribute__((weak)), pc_room_warp_scripts __attribute__((weak)),
             pc_room_warp_block_saves __attribute__((weak));
         if (!pc_rooms_json || !pc_room_warp_request) {
@@ -2930,9 +3002,10 @@ static void handle_method(int fd, const char* request)
                 *c = '\'';
         snprintf(result, sizeof result,
             "{\"ok\":%s,\"phase\":%d,\"warped\":%s,\"origin\":[%d,%d],\"enemies\":%d,\"scripts\":%d,"
-            "\"block_saves\":%d,\"message\":\"%s\"}",
+            "\"block_saves\":%d,\"points_held\":%d,\"message\":\"%s\"}",
             ok ? "true" : "false", pc_room_warp_phase(), warped ? "true" : "false", oz, orr, pc_room_warp_enemies,
-            pc_room_warp_scripts, pc_room_warp_block_saves, text);
+            pc_room_warp_scripts, pc_room_warp_block_saves, pc_room_warp_points_held ? pc_room_warp_points_held() : 0,
+            text);
         reply(fd, id, result);
     } else if (!strcmp(method, "lighting")) {
         /* Lighting packs: the room's layers (lighting_editor.cpp). */

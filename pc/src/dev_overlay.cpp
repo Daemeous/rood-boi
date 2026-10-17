@@ -29,6 +29,7 @@
 #include "environment_internal.h"
 #include "editor_selection.h"
 #include "camera_stick.h"
+#include "fast_travel.h"
 #include "ui/ui_shell.h"
 #include "ui/map_frame.h"
 #include "ui/data_frame.h"
@@ -55,6 +56,7 @@ int pc_rpc_is_paused(void);
 }
 
 extern "C" void pc_settings_load(void);
+extern "C" void pc_fast_travel_prompt_draw(void); /* fast_travel_prompt.cpp */
 extern "C" int pc_editor_active(void);
 extern "C" void pc_editor_toggle(void);
 extern "C" int pc_editor_flying(void);
@@ -886,6 +888,26 @@ static void gameplay_panel()
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Start at the title without the publisher and developer logos and the opening movie\n"
                           "(settings skip_intro). Later titles, such as after the idle demo, play as the original.");
+    bool travel = pc_qol_fast_travel != 0;
+    if (ImGui::Checkbox("Fast travel (from the first Circle of Magic)", &travel))
+        pc_qol_fast_travel = travel;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Settings qol_fast_travel. The game's own Teleportation between the Circles found, offered\n"
+                          "once the prologue is over; the game's own unlock (the Lich) always applies as the game has it.");
+    ImGui::Combo("Travel cost", &pc_qol_fast_travel_cost, "Free\0Flat\0Scaled\0Game\0");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Settings qol_fast_travel_cost, before the game's own unlock: free, a flat MP\n"
+                          "(qol_fast_travel_flat), the game's cost scaled (qol_fast_travel_scale) or the game's.");
+    if (pc_qol_fast_travel_cost == PC_FT_COST_FLAT)
+        ImGui::SliderInt("Flat cost (MP)", &pc_qol_fast_travel_flat, 0, 99);
+    if (pc_qol_fast_travel_cost == PC_FT_COST_SCALED)
+        ImGui::SliderFloat("Cost scale", &pc_qol_fast_travel_scale, 0.1f, 1.0f, "x%.2f");
+    bool prompt = pc_qol_fast_travel_prompt != 0;
+    if (ImGui::Checkbox("Travel prompt", &prompt))
+        pc_qol_fast_travel_prompt = prompt;
+    ImGui::SliderFloat("Prompt x", &pc_qol_fast_travel_prompt_x, 0, 1);
+    ImGui::SliderFloat("Prompt y", &pc_qol_fast_travel_prompt_y, 0, 1);
+    ImGui::SliderFloat("Prompt size", &pc_qol_fast_travel_prompt_scale, 0.5f, 2.0f);
 }
 
 extern "C" void pc_memory_card_set_path(int slot, const char* path); /* memory_card.c */
@@ -1961,6 +1983,8 @@ extern "C" void pc_overlay_frame(int width, int height)
         memset(pc_gl_inset, 0, sizeof pc_gl_inset);
     }
     pc_ui_draw_frame((float)dt); /* modern menus (pc/src/ui) over the game picture */
+    if (!visible)
+        pc_fast_travel_prompt_draw(); /* the Travel prompt on a Circle of Magic (not over the editor) */
     shell_text_input();
     ImGui::Render();
 #ifdef ROOD_VULKAN

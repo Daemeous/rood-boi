@@ -38,7 +38,9 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
+sys.path.insert(0, str(ROOT / "pc/tests"))
 from rood_rpc import OUT, symbols  # noqa: E402
+from menu_nav import DATA_COMMAND, top_command  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 WEAPON, SHIELD, BLADE = 32, 48, 44  # inventory record sizes (vs_main_inventory_t)
@@ -250,8 +252,7 @@ def main():
 
         # Save to the card copy: DATA > SAVE > MEMORY CARD slot 1 > file 1 > YES.
         game.press("triangle", vsyncs=3, settle=60)
-        for _ in range(4):
-            game.press("down", vsyncs=3, settle=10)
+        top_command(game, symbols(), DATA_COMMAND)  # by the game's cursor (fast travel's Magic on a Circle)
         game.press("circle", vsyncs=3, settle=60)  # DATA
         game.press("circle", vsyncs=3, settle=150)  # SAVE
         game.press("circle", vsyncs=3, settle=150)  # MEMORY CARD slot 1

@@ -4953,7 +4953,18 @@ void func_800735F8(D_800F18EC_t* arg0)
     case 10:
         func_800A1108(0, &sp18);
         func_8006F4B0(&sp18.unk0);
+#ifdef ROOD_PC
+        {
+            /* Fast travel (pc/src/fast_travel.c): the trip, and magicUsed only
+             * when the game itself has taught Teleportation (unkB5). */
+            extern int pc_fast_travel_begin(int packed);
+            if (pc_fast_travel_begin(arg0->executeAbility.s32)) {
+                vs_battle_setStateFlag(0xB7, 1);
+            }
+        }
+#else
         vs_battle_setStateFlag(0xB7, 1);
+#endif
         func_8007C694(arg0->executeAbility.fields.unk0_0,
             arg0->executeAbility.fields.unk0_9, arg0->executeAbility.fields.unk0_14, 0,
             8);

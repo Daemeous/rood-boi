@@ -150,6 +150,14 @@ add_executable(data_plan_probe tests/data_plan_probe.c src/ui/data_plan.c)
 target_include_directories(data_plan_probe PRIVATE src/ui)
 target_compile_options(data_plan_probe PRIVATE -Wall -Wextra -Werror)
 add_test(NAME data_plan_probe COMMAND data_plan_probe)
+
+# Fast travel's rules (fast_travel_rules.c): MENU0's tables and packing, cost modes, unlock and guards.
+add_executable(fast_travel_probe tests/fast_travel_probe.c src/fast_travel_rules.c)
+target_include_directories(fast_travel_probe PRIVATE src)
+target_compile_definitions(fast_travel_probe PRIVATE ROOD_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+target_compile_options(fast_travel_probe PRIVATE -Wall -Wextra -Werror)
+target_link_libraries(fast_travel_probe PRIVATE m)
+add_test(NAME fast_travel_probe COMMAND fast_travel_probe)
 # The native Score screen (MENU9): its list cursors, its numbers and the Bestiary's MON.BIN parse.
 foreach(probe score_nav score_format mon_parse)
     add_executable(${probe}_probe tests/${probe}_probe.c src/ui/${probe}.c)

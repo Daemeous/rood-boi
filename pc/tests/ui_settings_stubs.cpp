@@ -19,6 +19,9 @@ int pc_env_global = 1, pc_lights_enabled = 1, pc_qol_weapon_slots, pc_skip_intro
 float pc_emissive = 1.0f; // emissive.cpp: glowing surfaces' strength
 int pc_qol_map_invert, pc_qol_fp_invert_y, pc_qol_map_controls, pc_qol_skip_charging;
 int pc_qol_confirm_cross, pc_qol_field_cross_attack;
+int pc_qol_fast_travel = 1, pc_qol_fast_travel_cost, pc_qol_fast_travel_flat = 15, pc_qol_fast_travel_prompt = 1;
+float pc_qol_fast_travel_scale = 0.5f, pc_qol_fast_travel_prompt_x = 0.5f, pc_qol_fast_travel_prompt_y = 0.84f,
+    pc_qol_fast_travel_prompt_scale = 1.0f;
 float pc_ui_menu_opacity = 0.94f;
 int pc_ui_menu_tint, pc_ui_menu_tint_custom[3] = {8, 7, 7};
 // ui_theme.cpp: the theme file's ground (#110f0e), Lea Monde's colour (ui_tint.cpp)

@@ -116,7 +116,8 @@ void pc_button_prompts_shown_reset(void);
  *             ImVec2(pos.x + g.w, pos.y + g.h), ImVec2(g.uv0[0], g.uv0[1]), ImVec2(g.uv1[0], g.uv1[1]));
  *
  * - pc_prompt_glyph(button, size_px): the icon of PS1 button `button`
- *   (PC_PROMPT_*, libetc pad bit index) for the device drawn now, `size_px`
+ *   (PC_PROMPT_*, libetc pad bit index; PC_PROMPT_TRAVEL: the Travel action's
+ *   key or pad element) for the device drawn now, `size_px`
  *   high (4..128; width from the icon's shape: key caps such as Enter are
  *   wider). texture is an ImTextureData* (use its GetTexRef(): valid at once,
  *   before the backend has uploaded it; ImTextureRef(ptr) would pick the
@@ -135,7 +136,7 @@ void pc_button_prompts_shown_reset(void);
 enum {
     PC_PROMPT_L2, PC_PROMPT_R2, PC_PROMPT_L1, PC_PROMPT_R1, PC_PROMPT_TRIANGLE, PC_PROMPT_CIRCLE, PC_PROMPT_CROSS,
     PC_PROMPT_SQUARE, PC_PROMPT_SELECT, PC_PROMPT_L3, PC_PROMPT_R3, PC_PROMPT_START, PC_PROMPT_UP, PC_PROMPT_RIGHT,
-    PC_PROMPT_DOWN, PC_PROMPT_LEFT
+    PC_PROMPT_DOWN, PC_PROMPT_LEFT, PC_PROMPT_TRAVEL /* binding slot 16 (boot_controller.h PC_BIND_TRAVEL) */
 };
 typedef struct {
     void* texture;                 /* ImTextureData* (NULL: none) */

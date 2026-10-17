@@ -66,6 +66,7 @@ sys.path.insert(0, str(ROOT / "pc/tests"))
 from rood_rpc import OUT, BUILD, symbols  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 import card_fixtures as cf  # noqa: E402
+from menu_nav import DATA_COMMAND, top_command  # noqa: E402
 
 CLOSED = 0x3F
 DATA_MENU = 7 | 0x40
@@ -234,8 +235,7 @@ class Session:
                 self.press("down", settle=4)
             self.press("circle", settle=2)
         else:
-            for _ in range(4):
-                self.press("down", settle=10)
+            top_command(g, self.sym, DATA_COMMAND)  # by the game's cursor (fast travel's Magic on a Circle)
             self.press("circle", settle=2)
         self.wait(lambda: self.current_menu() == DATA_MENU and self.menu7_state() == 6, "the Data chooser")
         g.run(20 if self.modern else 90)  # the chooser takes input (the original's rows slide in first)
@@ -306,6 +306,16 @@ class Session:
                 break
         self.wait(lambda: self.current_menu() == CLOSED, f"the menu closed ({self.current_menu():#x})")
         self.g.run(10)
+
+
+def menu7_driver(g, name, out, modern=False, shots=False, card1=None):
+    """Session's MENU7 by pad (open_data, chooser, card_rows, file_rows,
+    confirm_pad, back_out, close_menu, writes) on a game launched elsewhere
+    (fast_travel_smoke.py)."""
+    s = Session.__new__(Session)
+    s.name, s.out, s.shots, s.modern, s.card1 = name, out, shots, modern, card1
+    s.g, s.sym, s.m7 = g, symbols(), menu7_symbols()
+    return s
 
 
 def changed_ranges(a, b):

@@ -166,7 +166,8 @@ extern "C" void pc_room_browser_window(void)
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Treat this room as reached normally: saving is allowed and records it.\n"
                               "Warps skip events and story flags: a save here may resume somewhere the\n"
-                              "story never brought you.");
+                              "story never brought you. Circles of Magic recorded while warped are dropped\n"
+                              "(the Circles as before the warps: no fast travel to a room only warped to).");
     }
     bool enemies = pc_room_warp_enemies != 0, scripts = pc_room_warp_scripts != 0,
          block = pc_room_warp_block_saves != 0;
@@ -185,7 +186,8 @@ extern "C" void pc_room_browser_window(void)
     if (ImGui::Checkbox("Refuse saves", &block))
         pc_room_warp_block_saves = block;
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("While warped, the memory card refuses writes (a save would resume in the warped room)");
+        ImGui::SetTooltip("While warped, the memory card refuses writes (a save would resume in the warped room).\n"
+                          "Off: a save while warped also keeps the Circles of Magic recorded while warped.");
     ImGui::SameLine();
     ImGui::Checkbox("Follow", &follow);
     if (ImGui::IsItemHovered())

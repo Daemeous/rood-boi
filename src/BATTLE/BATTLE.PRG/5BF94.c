@@ -2697,6 +2697,14 @@ extern int pc_ui_menu_open(int mode);
 extern int pc_ui_menu_top(void);
 extern int pc_ui_menu_active(void);
 extern int pc_ui_menu_hide_rows(void);
+/* Fast travel (pc/src/fast_travel.c): the Magic command on a Circle of Magic
+ * once the port offers Teleportation (shown, never stored in menuFlags), and
+ * MP 0 not greying it while travel is free. */
+extern unsigned pc_fast_travel_menu_bits(void);
+extern unsigned pc_fast_travel_mask(unsigned bits);
+#define MAGIC_COMMAND_MASK pc_fast_travel_mask(0xB7)
+#else
+#define MAGIC_COMMAND_MASK 0xB7
 #endif
 
 int func_800C930C(int mode)
@@ -2708,6 +2716,7 @@ int func_800C930C(int mode)
     u_int conditions;
 
 #ifdef ROOD_PC
+    enabled |= pc_fast_travel_menu_bits();
     if (!mode && pc_ui_menu_active()) {
         return pc_ui_menu_top();
     }
@@ -2751,7 +2760,7 @@ int func_800C930C(int mode)
                     (char*)&vs_battle_menuStrings[vs_battle_menuStrings[mode]]);
                 ++selected;
                 mask = D_800F4EA0;
-                items[0].unselectable = (mask & 0xB7) != 0;
+                items[0].unselectable = (mask & MAGIC_COMMAND_MASK) != 0;
                 items[1].unselectable = (mask & 0x15F) != 0;
                 items[3].unselectable = (mask & 7) != 0;
                 items[5].unselectable = vs_battle_getCurrentSceneId() == 0;

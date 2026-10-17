@@ -16,6 +16,11 @@ unsigned pc_controller_mask(const PcControllerState*);
  * are libetc pad bits 0..15 (L2 R2 L1 R1 Triangle Circle Cross Square Select
  * L3 R3 Start Up Right Down Left); their names are pc_pad_button_names. */
 #define PC_PAD_BUTTONS 16
+/* Binding slots: the 16 PS1 buttons, then the port's own actions, which never
+ * reach the game's pad word: PC_BIND_TRAVEL, fast travel's Travel button
+ * (fast_travel.c; settings bind_key_travel, bind_pad_travel). */
+#define PC_BIND_TRAVEL 16
+#define PC_BIND_SLOTS 17
 #define PC_BIND_KEYS 2              /* keys per PS1 button */
 #define PC_PAD_AXIS(axis) (100 + (axis)) /* a gamepad element that is an axis (the triggers) */
 #define PC_PAD_NONE (-1)
@@ -25,14 +30,24 @@ unsigned pc_controller_mask(const PcControllerState*);
 #define PC_TRIGGER_PRESSED 8000
 #define PC_TRIGGER_CAPTURE 16384
 extern const char* const pc_pad_button_names[PC_PAD_BUTTONS];
-extern SDL_Keycode pc_bind_keys[PC_PAD_BUTTONS][PC_BIND_KEYS]; /* 0: none */
-extern int pc_bind_pad[PC_PAD_BUTTONS]; /* SDL_GamepadButton, PC_PAD_AXIS(trigger) or PC_PAD_NONE */
+extern SDL_Keycode pc_bind_keys[PC_BIND_SLOTS][PC_BIND_KEYS]; /* 0: none */
+extern int pc_bind_pad[PC_BIND_SLOTS]; /* SDL_GamepadButton, PC_PAD_AXIS(trigger) or PC_PAD_NONE */
 /* Bumped whenever a binding changes (button prompts follow). */
 extern unsigned pc_bind_generation;
 /* The PS1 bits a key presses (0: not bound). */
 unsigned pc_keyboard_bits(SDL_Keycode key);
 /* PS1 button index for a name ("circle", "l1", ...), -1 if none. */
 int pc_pad_button_index(const char* name);
+/* A slot's settings name: pc_pad_button_names, then "travel". */
+const char* pc_bind_slot_name(int slot);
+/* A slot for a settings name (a PS1 button or an action), -1 if none. */
+int pc_bind_slot_index(const char* name);
+/* Whether gamepad element `element` is pressed in `s` (a trigger past PC_TRIGGER_PRESSED). */
+int pc_controller_element(const PcControllerState* s, int element);
+/* Whether `key` is bound to the Travel action. */
+int pc_keyboard_travel(SDL_Keycode key);
+/* The PS1 buttons bound to one of slot's keys or to its pad element (pressed with it). */
+unsigned pc_bind_shared_bits(int slot);
 /* Key and gamepad element names as in the settings ("z", "return", "f1";
  * "south", "east", "leftshoulder", "lefttrigger", "dpup", ...). */
 SDL_Keycode pc_key_from_name(const char* name);
@@ -56,3 +71,7 @@ void pc_controller_right_stick(float out[2]);
 float pc_controller_trigger(int which);
 /* The open gamepad's SDL_GamepadType (SDL_GAMEPAD_TYPE_UNKNOWN: none). */
 int pc_controller_type(void);
+int pc_controller_travel(void); /* the Travel slot's pad element is held */
+/* Tests: an SDL virtual gamepad's element pressed or released (attached as the
+ * gamepad on first use when none is connected); 0 done, -1 refused. */
+int pc_controller_virtual_set(int element, int down);

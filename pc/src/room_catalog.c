@@ -226,13 +226,16 @@ static int build_catalog(void)
             unsigned char* lengths = read_bytes(mpd, room_offset, 0x60);
             if (!lengths)
                 continue;
-            unsigned at = room_offset + 0x60, door_at = 0, door_len = 0, scene_at = 0, floor_at = 0;
+            unsigned at = room_offset + 0x60, door_at = 0, door_len = 0, scene_at = 0, floor_at = 0, objects_at = 0,
+                     objects_len = 0;
             for (int s = 0; s < 24; s++) {
                 unsigned len = le32(lengths + 4 * s);
                 if (s == 1 && len >= 4)
                     floor_at = at; /* the collision map: width, height (cells) */
                 if (s == 3)
                     door_at = at, door_len = len;
+                if (s == 8)
+                    objects_at = at, objects_len = len; /* section 9: 12-byte objects */
                 if (s == 10 && len >= 0x52)
                     scene_at = at + 0x50;
                 at += len;
@@ -253,6 +256,20 @@ static int build_catalog(void)
                     self->floor_h = (short)le16(grid + 2);
                     free(grid);
                 }
+            }
+            if (self && objects_len >= 12 && objects_len <= 12 * 256 && objects_at + objects_len <= mpd_size) {
+                /* _mpdRoomSection9: x, z, level, type (16: a Circle of Magic), lock, id (unkA) */
+                unsigned char* objects = read_bytes(mpd, objects_at, objects_len);
+                for (unsigned o = 0; objects && o < objects_len / 12 && !self->circle_id; o++) {
+                    const unsigned char* e = objects + 12 * o;
+                    if (le16(e + 6) == 16) {
+                        self->circle_id = e[10];
+                        self->circle_cell[0] = (short)le16(e);
+                        self->circle_cell[1] = (short)le16(e + 2);
+                        self->circle_cell[2] = (short)le16(e + 4);
+                    }
+                }
+                free(objects);
             }
             if (!door_len || door_len > 12 * 64 || door_at + door_len > mpd_size)
                 continue;
@@ -494,6 +511,50 @@ int pc_room_warp_warped(int* zone, int* room)
 }
 /* The player keeps this room (saving allowed again). */
 void pc_room_warp_clear(void) { warped = 0; }
+
+/* savePointStates when a chain of warps started (room_warp.c takes and puts
+ * back the game's bytes). Kept here, beside `warped`, so the two share one
+ * lifetime: host state, out of save states, and both dropped by
+ * pc_room_warp_reset when the game's state is replaced. */
+static unsigned char points_before[PC_ROOM_WARP_POINTS];
+static int points_held;
+
+void pc_room_warp_points_hold(const unsigned char* states)
+{
+    if (points_held)
+        return;
+    memcpy(points_before, states, sizeof points_before);
+    points_held = 1;
+}
+
+int pc_room_warp_points_release(unsigned char* states)
+{
+    if (!points_held || warped || (phase >= WARP_PENDING && phase <= WARP_ARRIVED))
+        return 0;
+    memcpy(states, points_before, sizeof points_before);
+    points_held = 0;
+    fprintf(stderr, "[warp] the chain of warps ended: savePointStates as before it\n");
+    return 1;
+}
+
+int pc_room_warp_points_held(void) { return points_held; }
+
+/* The game's state is replaced (boot_sdk.c: the jump to the title, a soft
+ * reset, game over, the ending, and the jump back into BATTLE after a load):
+ * a chain of warps from the old game ends with it and its snapshot is
+ * dropped (put back into the loaded game it would overwrite that save's
+ * Circles). */
+void pc_room_warp_reset(void)
+{
+    if (warped || points_held || phase != WARP_IDLE)
+        fprintf(stderr, "[warp] the game's state was replaced: the warp state%s dropped\n",
+            points_held ? " and its savePointStates snapshot" : "");
+    warped = 0;
+    origin_zone = origin_room = -1;
+    points_held = 0;
+    phase = WARP_IDLE;
+    pc_room_warp_cell[0] = -1;
+}
 const char* pc_room_warp_message(void) { return warp_message; }
 int pc_room_warp_blocks_saving(void) { return warped && pc_room_warp_block_saves; }
 

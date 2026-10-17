@@ -121,7 +121,7 @@ int pc_button_prompts_active(void) { return pc_button_prompts_family() != 0; }
 unsigned pc_button_prompts_generation(void)
 {
     static unsigned generation = 1, last_bind;
-    static int last_family = -1, last_variant, last_style = -1, last_dpad = -1;
+    static int last_family = -1, last_variant, last_style = -1, last_dpad = -1, last_device = -1;
     static unsigned last_actions = 15;
     static float last_scale;
     int family = pc_button_prompts_family(), variant = variant_now();
@@ -129,8 +129,8 @@ unsigned pc_button_prompts_generation(void)
     unsigned actions = pc_button_prompts_dpad == PC_PROMPTS_DPAD_CROSS ? last_actions : cross_actions;
     if (family != last_family || variant != last_variant || pc_bind_generation != last_bind
         || pc_button_prompts_style != last_style || scale_now() != last_scale || pc_button_prompts_dpad != last_dpad
-        || actions != last_actions) {
-        last_family = family, last_variant = variant, last_bind = pc_bind_generation;
+        || actions != last_actions || (!family && device != last_device)) { /* (original: Travel's icon) */
+        last_family = family, last_variant = variant, last_bind = pc_bind_generation, last_device = device;
         last_style = pc_button_prompts_style, last_scale = scale_now(), last_dpad = pc_button_prompts_dpad;
         last_actions = actions;
         ++generation;
@@ -690,9 +690,15 @@ int pc_button_prompts_mask(const uint16_t* vram, unsigned tpage, unsigned clut, 
 int pc_button_prompts_icon_rgba(int button, int size, uint32_t* rgba, int max_w, int* w_out, int* h_out)
 {
     int family = pc_button_prompts_family(), variant = variant_now();
-    if (!family)
-        family = PC_PROMPTS_PLAYSTATION, variant = 0; /* original: the PlayStation's own buttons */
-    if (button < 0 || button >= PC_PAD_BUTTONS || size < 4 || size > 128)
+    if (!family) {
+        /* original: the PlayStation's own buttons. The port's own actions
+         * (Travel) are no PS1 button: their key when the keyboard was used
+         * last (none bound: no icon). */
+        family = button >= PC_PAD_BUTTONS && device == PC_PROMPTS_KEYBOARD ? PC_PROMPTS_KEYBOARD
+                                                                            : PC_PROMPTS_PLAYSTATION;
+        variant = 0;
+    }
+    if (button < 0 || button >= PC_BIND_SLOTS || size < 4 || size > 128)
         return 0;
     unsigned codepoint = styled_codepoint(family, glyph_for(family, variant, button));
     char path[160];

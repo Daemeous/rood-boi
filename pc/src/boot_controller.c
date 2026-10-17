@@ -18,7 +18,7 @@ const char* const pc_pad_button_names[PC_PAD_BUTTONS] = { "l2", "r2", "l1", "r1"
     {                                                                                                   \
         { SDLK_1 }, { SDLK_2 }, { SDLK_Q }, { SDLK_W }, { SDLK_S }, { SDLK_Z }, { SDLK_X }, { SDLK_A }, \
             { SDLK_TAB }, { 0 }, { 0 }, { SDLK_RETURN }, { SDLK_UP }, { SDLK_RIGHT }, { SDLK_DOWN },    \
-            { SDLK_LEFT }                                                                               \
+            { SDLK_LEFT }, { 0 } /* Travel: no key */                                                   \
     }
 #define DEFAULT_PAD                                                                             \
     {                                                                                           \
@@ -31,12 +31,13 @@ const char* const pc_pad_button_names[PC_PAD_BUTTONS] = { "l2", "r2", "l1", "r1"
             SDL_GAMEPAD_BUTTON_BACK,  /* Select (libetc PADselect = 1 << 8) */                  \
             SDL_GAMEPAD_BUTTON_LEFT_STICK, SDL_GAMEPAD_BUTTON_RIGHT_STICK, SDL_GAMEPAD_BUTTON_START, \
             SDL_GAMEPAD_BUTTON_DPAD_UP, SDL_GAMEPAD_BUTTON_DPAD_RIGHT, SDL_GAMEPAD_BUTTON_DPAD_DOWN, \
-            SDL_GAMEPAD_BUTTON_DPAD_LEFT                                                        \
+            SDL_GAMEPAD_BUTTON_DPAD_LEFT,                                                       \
+            SDL_GAMEPAD_BUTTON_BACK /* Travel: shares Select's back */                           \
     }
-static const SDL_Keycode default_keys[PC_PAD_BUTTONS][PC_BIND_KEYS] = DEFAULT_KEYS;
-static const int default_pad[PC_PAD_BUTTONS] = DEFAULT_PAD;
-SDL_Keycode pc_bind_keys[PC_PAD_BUTTONS][PC_BIND_KEYS] = DEFAULT_KEYS;
-int pc_bind_pad[PC_PAD_BUTTONS] = DEFAULT_PAD;
+static const SDL_Keycode default_keys[PC_BIND_SLOTS][PC_BIND_KEYS] = DEFAULT_KEYS;
+static const int default_pad[PC_BIND_SLOTS] = DEFAULT_PAD;
+SDL_Keycode pc_bind_keys[PC_BIND_SLOTS][PC_BIND_KEYS] = DEFAULT_KEYS;
+int pc_bind_pad[PC_BIND_SLOTS] = DEFAULT_PAD;
 unsigned pc_bind_generation = 1;
 
 void pc_bindings_reset(void)
@@ -49,14 +50,9 @@ void pc_bindings_reset(void)
 unsigned pc_controller_mask(const PcControllerState* s)
 {
     unsigned result = 0;
-    for (int i = 0; i < PC_PAD_BUTTONS; ++i) {
-        int e = pc_bind_pad[i];
-        if (e >= 0 && e < SDL_GAMEPAD_BUTTON_COUNT ? s->buttons[e] != 0
-            : e >= PC_PAD_AXIS(0) && e < PC_PAD_AXIS(SDL_GAMEPAD_AXIS_COUNT)
-                ? s->axes[e - PC_PAD_AXIS(0)] > PC_TRIGGER_PRESSED /* the triggers (L2 / R2 by default) */
-                : 0)
+    for (int i = 0; i < PC_PAD_BUTTONS; ++i)
+        if (pc_controller_element(s, pc_bind_pad[i]))
             result |= 1u << i;
-    }
     /* The left stick navigates like the D-pad. */
     int x = s->axes[SDL_GAMEPAD_AXIS_LEFTX], y = s->axes[SDL_GAMEPAD_AXIS_LEFTY];
     if (x < -12000)
@@ -88,6 +84,50 @@ int pc_pad_button_index(const char* name)
         if (!strcasecmp(name, pc_pad_button_names[i]))
             return i;
     return -1;
+}
+
+const char* pc_bind_slot_name(int slot)
+{
+    return slot >= 0 && slot < PC_PAD_BUTTONS ? pc_pad_button_names[slot] : slot == PC_BIND_TRAVEL ? "travel" : "";
+}
+
+int pc_bind_slot_index(const char* name)
+{
+    int i = pc_pad_button_index(name);
+    return i >= 0 ? i : !strcasecmp(name, "travel") ? PC_BIND_TRAVEL : -1;
+}
+
+int pc_controller_element(const PcControllerState* s, int e)
+{
+    return e >= 0 && e < SDL_GAMEPAD_BUTTON_COUNT ? s->buttons[e] != 0
+        : e >= PC_PAD_AXIS(0) && e < PC_PAD_AXIS(SDL_GAMEPAD_AXIS_COUNT)
+        ? s->axes[e - PC_PAD_AXIS(0)] > PC_TRIGGER_PRESSED /* the triggers (L2 / R2 by default) */
+        : 0;
+}
+
+int pc_keyboard_travel(SDL_Keycode key)
+{
+    return key && (pc_bind_keys[PC_BIND_TRAVEL][0] == key || pc_bind_keys[PC_BIND_TRAVEL][1] == key);
+}
+
+/* The PS1 buttons that share one of `slot`'s keys or its pad element: a
+ * press of the slot presses them too (the Travel action takes them out of
+ * that frame when it fires). */
+unsigned pc_bind_shared_bits(int slot)
+{
+    unsigned bits = 0;
+    if (slot < 0 || slot >= PC_BIND_SLOTS)
+        return 0;
+    for (int i = 0; i < PC_PAD_BUTTONS; i++) {
+        int shared = i != slot && pc_bind_pad[slot] != PC_PAD_NONE && pc_bind_pad[i] == pc_bind_pad[slot];
+        for (int k = 0; k < PC_BIND_KEYS; k++)
+            for (int m = 0; m < PC_BIND_KEYS; m++)
+                if (i != slot && pc_bind_keys[slot][k] && pc_bind_keys[slot][k] == pc_bind_keys[i][m])
+                    shared = 1;
+        if (shared)
+            bits |= 1u << i;
+    }
+    return bits;
 }
 
 /* ---- names ---- */
@@ -179,7 +219,7 @@ int pc_binding_setting(const char* key, const char* value)
     int pad = !strncmp(key, "bind_pad_", 9);
     if (!pad && strncmp(key, "bind_key_", 9))
         return 0;
-    int button = pc_pad_button_index(key + 9);
+    int button = pc_bind_slot_index(key + 9);
     if (button < 0) {
         fprintf(stderr, "[settings] %s: unknown PS1 button (%s, ...)\n", key, pc_pad_button_names[5]);
         return 1;
@@ -216,9 +256,9 @@ int pc_binding_setting(const char* key, const char* value)
 void pc_binding_settings_write(FILE* f)
 {
     /* Only what differs from the defaults. */
-    for (int i = 0; i < PC_PAD_BUTTONS; i++) {
+    for (int i = 0; i < PC_BIND_SLOTS; i++) {
         if (memcmp(pc_bind_keys[i], default_keys[i], sizeof default_keys[i])) {
-            fprintf(f, "bind_key_%s", pc_pad_button_names[i]);
+            fprintf(f, "bind_key_%s", pc_bind_slot_name(i));
             int any = 0;
             for (int k = 0; k < PC_BIND_KEYS; k++) {
                 const char* name = pc_bind_keys[i][k] ? pc_key_name(pc_bind_keys[i][k]) : NULL;
@@ -228,6 +268,6 @@ void pc_binding_settings_write(FILE* f)
             fprintf(f, "%s\n", any ? "" : " none");
         }
         if (pc_bind_pad[i] != default_pad[i])
-            fprintf(f, "bind_pad_%s %s\n", pc_pad_button_names[i], pc_pad_element_name(pc_bind_pad[i]));
+            fprintf(f, "bind_pad_%s %s\n", pc_bind_slot_name(i), pc_pad_element_name(pc_bind_pad[i]));
     }
 }

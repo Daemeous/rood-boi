@@ -36,7 +36,9 @@ from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT  # noqa: E402
+sys.path.insert(0, str(ROOT / "pc/tests"))
+from rood_rpc import OUT, symbols  # noqa: E402
+from menu_nav import DATA_COMMAND, top_command  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import card_guard, default_save  # noqa: E402
 
@@ -136,10 +138,9 @@ def run(args, out, card, images):
         if not state.get("player"):
             print(f"FAIL: no room with Ashley after Continue: {state}")
             return 1
-        # Command menu > DATA (fifth) > LOAD (second) > MEMORY CARD slot 1.
+        # Command menu > DATA > LOAD (second) > MEMORY CARD slot 1.
         game.press("triangle", vsyncs=3, settle=60)
-        for _ in range(4):
-            game.press("down", vsyncs=3, settle=10)
+        top_command(game, symbols(), DATA_COMMAND)  # by the game's cursor (fast travel's Magic on a Circle)
         game.press("circle", vsyncs=3, settle=60)
         game.press("down", vsyncs=3, settle=10)
         game.press("circle", vsyncs=3, settle=150)

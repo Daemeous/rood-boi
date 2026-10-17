@@ -84,6 +84,7 @@ sys.path.insert(0, str(ROOT / "pc/tests"))
 from rood_rpc import OUT, BUILD, symbols  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import card_guard, default_save  # noqa: E402
+from menu_nav import MAP_COMMAND, top_command  # noqa: E402
 
 CLOSED = 0x3F
 MAP_MENU = 6 | 0x40
@@ -409,10 +410,9 @@ def rooms_and_turn(s):
 def story_original(a, check, dumps, views):
     g = a.game
     g.press("triangle", vsyncs=3, settle=40)
-    for _ in range(3):
-        g.press("down", vsyncs=3, settle=8)
+    top_command(g, symbols(), MAP_COMMAND)  # by the game's cursor (fast travel's Magic on a Circle)
     g.press("circle", vsyncs=3, settle=150)
-    check(a.current_menu() == MAP_MENU, f"off: Triangle, Down x3, Circle opens the game's map ({a.current_menu():#x})")
+    check(a.current_menu() == MAP_MENU, f"off: Triangle, Down to Map, Circle opens the game's map ({a.current_menu():#x})")
     check(a.map() is None, "off: no frame (map null)")
     m5 = a.wait_menu5(lambda m: m["menu_state"] == 1)
     check(m5["menu_state"] == 1, f"off: MENU5 takes input (processInput, {m5['menu_state']})")

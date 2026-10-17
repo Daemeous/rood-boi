@@ -20,6 +20,7 @@ static int focused = 1;
 static SDL_Window* window;
 static SDL_Surface* image;
 static unsigned buttons;
+static int travel_key; /* a key bound to the Travel action held (fast travel) */
 static unsigned camera_keys; /* J L I K O held (camera_stick.c keyboard fallback) */
 static int fast;
 /* Fast-forward while held: ` (backtick) or L3 + R3 (boot_gamepad.c). The game
@@ -234,7 +235,7 @@ static unsigned camera_keybit(SDL_Keycode key)
 }
 /* The editor opened (dev_overlay.cpp): keys held for the game now belong to
  * the editor, which takes their releases, so let go of them here. */
-void pc_window_release_keys(void) { buttons = camera_keys = 0; }
+void pc_window_release_keys(void) { buttons = camera_keys = 0, travel_key = 0; }
 extern unsigned pc_rpc_buttons(void);
 /* input_record.c: ROOD_RECORD writes, ROOD_REPLAY replaces, the live input. */
 extern unsigned pc_input_buttons(unsigned live, unsigned rpc);
@@ -289,6 +290,7 @@ void pc_window_tick(void)
             exit(0);
         case SDL_EVENT_WINDOW_FOCUS_LOST:
             buttons = camera_keys = 0;
+            travel_key = 0;
             focused = 0;
             break;
         case SDL_EVENT_WINDOW_FOCUS_GAINED:
@@ -305,8 +307,10 @@ void pc_window_tick(void)
         case SDL_EVENT_KEY_DOWN:
             buttons |= keybit(event.key.key);
             camera_keys |= camera_keybit(event.key.key);
+            if (pc_keyboard_travel(event.key.key))
+                travel_key = 1;
             /* The keyboard is the last device used (button prompts). */
-            if (keybit(event.key.key) || camera_keybit(event.key.key))
+            if (keybit(event.key.key) || camera_keybit(event.key.key) || pc_keyboard_travel(event.key.key))
                 pc_button_prompts_device(PC_PROMPTS_KEYBOARD, 0);
             /* Unless ` is bound to a PS1 button (bind_key_*). */
             if (event.key.key == SDLK_GRAVE && !keybit(event.key.key))
@@ -315,6 +319,8 @@ void pc_window_tick(void)
         case SDL_EVENT_KEY_UP:
             buttons &= ~keybit(event.key.key);
             camera_keys &= ~camera_keybit(event.key.key);
+            if (pc_keyboard_travel(event.key.key))
+                travel_key = 0;
             if (event.key.key == SDLK_GRAVE)
                 fast_forward_key = 0;
             break;
@@ -686,3 +692,12 @@ int pc_window_inject_pad(const char* name, int down)
     }
     return SDL_PushEvent(&e) ? 0 : -1;
 }
+
+/* The Travel binding (fast travel, fast_travel.c): held now (focused; not
+ * while a binding capture takes the pad), and the PS1 buttons sharing its key
+ * or pad element (taken out of that frame when it fires). */
+int pc_window_travel_held(void)
+{
+    return focused && (travel_key || (!capture_filter(NULL) && pc_controller_travel()));
+}
+unsigned pc_window_travel_shared(void) { return pc_bind_shared_bits(PC_BIND_TRAVEL); }

@@ -42,7 +42,7 @@ extern "C" pc_prompt_image pc_prompt_glyph(int button, float size_px)
     pc_prompt_image image;
     memset(&image, 0, sizeof image);
     ImGuiContext* context = ImGui::GetCurrentContext();
-    if (!context || button < 0 || button > PC_PROMPT_LEFT)
+    if (!context || button < 0 || button > PC_PROMPT_TRAVEL)
         return image;
     if (pc_button_roles_shown)
         button = pc_button_roles_shown(button);

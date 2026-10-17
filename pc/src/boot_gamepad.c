@@ -15,6 +15,7 @@
 
 static SDL_Gamepad* pad;
 static unsigned mask;
+static int travel; /* the Travel slot's pad element held (fast travel) */
 static int fast_forward; /* L3 + R3 held (boot_window.c) */
 static float right_stick[2]; /* -1..1, SDL's direction (down is +y) */
 static float triggers[2];    /* L2, R2: their axis' travel past the press point (0..1), -1 not an axis */
@@ -172,6 +173,7 @@ void pc_controller_poll(void)
 {
     if (!pad) {
         mask = 0;
+        travel = 0;
         fast_forward = 0;
         right_stick[0] = right_stick[1] = 0;
         triggers[0] = triggers[1] = -1;
@@ -183,6 +185,7 @@ void pc_controller_poll(void)
     for (int i = 0; i < SDL_GAMEPAD_AXIS_COUNT; i++)
         state.axes[i] = SDL_GetGamepadAxis(pad, (SDL_GamepadAxis)i);
     mask = pc_controller_mask(&state);
+    travel = pc_controller_element(&state, pc_bind_pad[PC_BIND_TRAVEL]);
     /* Both stick clicks together: fast-forward while held, instead of
      * whatever PS1 buttons they are bound to (L3 and R3 by default; R3
      * resets the camera). */
@@ -202,6 +205,8 @@ void pc_controller_poll(void)
 }
 
 unsigned pc_controller_buttons(void) { return mask; }
+/* The Travel slot's pad element held (fast travel). */
+int pc_controller_travel(void) { return travel; }
 int pc_controller_fast_forward(void) { return fast_forward; }
 /* The right stick (the PS1 pad stays digital: the camera reads it,
  * camera_stick.c); 0 without a gamepad. */
@@ -212,4 +217,39 @@ void pc_controller_right_stick(float out[2])
 {
     out[0] = right_stick[0] < -1 ? -1 : right_stick[0];
     out[1] = right_stick[1] < -1 ? -1 : right_stick[1];
+}
+
+/* Tests (RPC system {virtual_pad, down}): an SDL virtual gamepad (SDL's
+ * standard layout) that becomes the gamepad when none is connected, so a
+ * test presses a pad element through the same path a real pad takes
+ * (pc_controller_poll, the bindings), unlike system {pad}, which only pushes
+ * an event (the binding capture). 0 done, -1 refused (a real gamepad is in
+ * use, SDL has no virtual joysticks, an unknown element). */
+static SDL_Joystick* virtual_pad;
+int pc_controller_virtual_set(int element, int down)
+{
+    if (!virtual_pad) {
+        if (pad || !SDL_InitSubSystem(SDL_INIT_GAMEPAD))
+            return -1;
+        SDL_VirtualJoystickDesc desc;
+        SDL_INIT_INTERFACE(&desc);
+        desc.type = SDL_JOYSTICK_TYPE_GAMEPAD;
+        desc.naxes = SDL_GAMEPAD_AXIS_COUNT;
+        desc.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
+        desc.name = "rood virtual gamepad (tests)";
+        SDL_JoystickID id = SDL_AttachVirtualJoystick(&desc);
+        if (!id || !(virtual_pad = SDL_OpenJoystick(id))) {
+            fprintf(stderr, "[controller] virtual gamepad: %s\n", SDL_GetError());
+            return -1;
+        }
+        open_gamepad(id);
+        if (!pad)
+            return -1;
+        /* the triggers rest at 0 (SDL's virtual axes start there too) */
+    }
+    if (element >= PC_PAD_AXIS(0) && element - PC_PAD_AXIS(0) < SDL_GAMEPAD_AXIS_COUNT)
+        return SDL_SetJoystickVirtualAxis(virtual_pad, element - PC_PAD_AXIS(0), (Sint16)(down ? 32767 : 0)) ? 0 : -1;
+    if (element >= 0 && element < SDL_GAMEPAD_BUTTON_COUNT)
+        return SDL_SetJoystickVirtualButton(virtual_pad, element, down != 0) ? 0 : -1;
+    return -1;
 }

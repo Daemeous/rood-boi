@@ -92,7 +92,33 @@ int main(int argc, char** argv)
           && pc_keyboard_bits(SDLK_RETURN) == ((1u << 5) | (1u << 11)));
     pc_bindings_reset();
     CHECK(pc_keyboard_bits(SDLK_Z) == (1u << 5) && pc_controller_mask(&s) == (1u << 5));
+    /* The Travel slot (fast travel): its own keys and pad element beside the
+     * PS1 buttons; by default the pad's back (Select's too), no key. */
+    pc_bindings_reset();
+    memset(&s, 0, sizeof(s));
+    s.buttons[SDL_GAMEPAD_BUTTON_BACK] = 1;
+    CHECK(pc_controller_element(&s, pc_bind_pad[PC_BIND_TRAVEL]) && pc_controller_mask(&s) == (1u << 8));
+    CHECK(pc_bind_shared_bits(PC_BIND_TRAVEL) == (1u << 8));
+    CHECK(!pc_keyboard_travel(SDLK_TAB) && pc_keyboard_bits(SDLK_TAB) == (1u << 8));
+    CHECK(pc_bind_slot_index("travel") == PC_BIND_TRAVEL && pc_pad_button_index("travel") == -1);
+    CHECK(pc_binding_setting("bind_key_travel", "tab") && pc_keyboard_travel(SDLK_TAB)
+          && pc_keyboard_bits(SDLK_TAB) == (1u << 8)); /* shared: Tab is still Select */
+    CHECK(pc_binding_setting("bind_pad_travel", "rightstick")
+          && pc_bind_shared_bits(PC_BIND_TRAVEL) == ((1u << 8) | (1u << 10))); /* Tab: Select; right stick: R3 */
+    {
+        FILE* f = tmpfile();
+        char text[4096] = "";
+        CHECK(f != NULL);
+        pc_binding_settings_write(f);
+        rewind(f);
+        size_t n = fread(text, 1, sizeof text - 1, f);
+        text[n] = 0;
+        fclose(f);
+        CHECK(strstr(text, "bind_key_travel tab\n") && strstr(text, "bind_pad_travel rightstick\n"));
+    }
+    pc_bindings_reset();
+    CHECK(!pc_keyboard_travel(SDLK_TAB) && pc_bind_pad[PC_BIND_TRAVEL] == SDL_GAMEPAD_BUTTON_BACK);
     puts("PASS: positional gamepad mapping (east confirms, south cancels), shoulders, Start/Select, "
-         "stick clicks, stick dead zone, D-pad/stick overlap, triggers, rebinding");
+         "stick clicks, stick dead zone, D-pad/stick overlap, triggers, rebinding, the Travel slot");
     return 0;
 }

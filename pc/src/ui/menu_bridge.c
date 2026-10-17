@@ -25,6 +25,7 @@
 #include "../../../src/SLUS_010.40/main.h"
 #include "../../../src/MENU/MAINMENU.PRG/58EC.h"
 #include "ui_shell.h"
+#include "../fast_travel.h"
 #include <libetc.h>
 
 static int shell_open; /* the shell owns the top level (ticks in func_800C930C(0)) */
@@ -313,9 +314,10 @@ static pc_ui_commands commands(void)
 {
     pc_ui_commands c;
     u_int mask = (u_int)D_800F4EA0; /* the menu's disable mask (func_800CABE0) */
-    c.enabled = vs_main_settings.menuFlags & 0x3FF;
+    /* fast travel's Magic command on a Circle (shown, never stored; fast_travel.c) */
+    c.enabled = (vs_main_settings.menuFlags | pc_fast_travel_menu_bits()) & 0x3FF;
     c.mask = mask;
-    c.unselectable = ((mask & 0xB7) ? 1u : 0) | ((mask & 0x15F) ? 2u : 0) | ((mask & 7) ? 8u : 0)
+    c.unselectable = ((mask & pc_fast_travel_mask(0xB7)) ? 1u : 0) | ((mask & 0x15F) ? 2u : 0) | ((mask & 7) ? 8u : 0)
         | (vs_battle_getCurrentSceneId() == 0 ? 0x20u : 0);
     return c;
 }
@@ -412,7 +414,7 @@ static int deliver(int r)
         vs_battle_setMenuItem(cmd, 320, 18, 140, 8,
             (char*)&vs_battle_menuStrings[vs_battle_menuStrings[cmd]])
             ->unselectable
-            = (cmd == 0 && (mask & 0xB7)) || (cmd == 1 && (mask & 0x15F));
+            = (cmd == 0 && (mask & pc_fast_travel_mask(0xB7))) || (cmd == 1 && (mask & 0x15F));
         /* the map screen (MENU5): the shell draws its frame around it
          * (map_bridge.c; MENU5 manages the HUD flag itself, as on the
          * original path) */

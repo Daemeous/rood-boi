@@ -17,6 +17,11 @@ typedef struct {
     unsigned char door[PC_ROOM_ENTRIES][12]; /* the door records leading here */
     int from[PC_ROOM_ENTRIES]; /* the location each door is in */
     int floor_w, floor_h; /* its floor grid in cells (collision map), 0: unknown */
+    /* its Circle of Magic (MPD section 9, _mpdRoomSection9 of type 16): the
+     * save point id it reports (func_8008A4FC: point + 1), 0 none; its cell
+     * x, z and level */
+    int circle_id;
+    int circle_cell[3];
 } pc_room_info;
 
 int pc_rooms_count(void) __attribute__((weak)); /* builds the list once (tens of ms) */
@@ -35,6 +40,15 @@ void pc_room_warp_acknowledge(void) __attribute__((weak));
 /* Whether the game is in a warped-to room, and where the warps started. */
 int pc_room_warp_warped(int* zone, int* room) __attribute__((weak));
 void pc_room_warp_clear(void) __attribute__((weak));
+/* savePointStates around a chain of warps (room_warp.c): held when a chain
+ * starts, put back (1) once it has ended; dropped when the game's state is
+ * replaced (pc_room_warp_reset: boot_sdk.c's jumps to the title and into
+ * BATTLE). */
+#define PC_ROOM_WARP_POINTS 48
+void pc_room_warp_points_hold(const unsigned char* states) __attribute__((weak));
+int pc_room_warp_points_release(unsigned char* states) __attribute__((weak));
+int pc_room_warp_points_held(void) __attribute__((weak));
+void pc_room_warp_reset(void) __attribute__((weak));
 const char* pc_room_warp_message(void) __attribute__((weak));
 int pc_room_warp_blocks_saving(void) __attribute__((weak));
 extern int pc_room_warp_enemies __attribute__((weak)); /* 1: warped-to rooms get their enemies */

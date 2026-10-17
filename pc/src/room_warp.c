@@ -20,6 +20,24 @@ int pc_room_warp_arrived(void);
 int pc_room_warp_finish(int zone, int room);
 void pc_room_warp_benched(int slot, int script_id);
 extern int pc_room_warp_enemies, pc_room_warp_scripts;
+int pc_fast_travel_poll(void); /* fast_travel.c */
+void pc_fast_travel_room_loaded(void);
+int pc_room_warp_warped(int* zone, int* room); /* room_catalog.c */
+
+/* savePointStates when a chain of warps started. A warp with scripts on runs
+ * the room's entry script, and a Circle's room script records the Circle
+ * (op 0x50: savePointStates[i] = 1), which would make a Room Browser visit a
+ * fast travel destination. Put back once the warps end: back where they
+ * started, or the warped state cleared ("keep this room" keeps the room, not
+ * the Circles found while warped). The snapshot is host state beside the
+ * warped flag (room_catalog.c), dropped when the game's state is replaced. */
+void pc_room_warp_points_hold(const unsigned char* states);
+int pc_room_warp_points_release(unsigned char* states);
+
+static void points_restore(void)
+{
+    pc_room_warp_points_release((unsigned char*)vs_main_stateFlags.savePointStates);
+}
 
 static _mpdRoomDoorSection_t door; /* what func_8007C4E0 / func_8007C5C0 copy */
 static vs_main_mapStatus_t map_before;
@@ -85,17 +103,25 @@ int pc_room_warp_poll(void)
     }
     if (bench && D_800F4C34 == 0 && D_800F4BE2 == 0)
         bench_enemies(); /* (again, after an event script) */
+    points_restore(); /* a chain of warps ended: the Circles as before it */
     if (pc_room_warp_finish(D_800F1AB0.zndId, D_800F1AB0.mpdId)) {
         /* The first field frame there: the map screen keeps no trace of it. */
         vs_main_mapStatus = map_before;
         return 0;
     }
+    if (pc_fast_travel_poll()) /* the Travel button on a Circle of Magic (fast_travel.c) */
+        return 1;
     if (!pc_room_warp_pending())
         return 0;
     if (vs_battle_screenTransitionStep != 0 || D_800F4C34 != 0 || D_800F4BE2 != 0 || vs_main_stateFlags.gameOver)
         return 0;
-    if (!pc_room_warp_take(D_800F1AB0.zndId, D_800F1AB0.mpdId, (unsigned char*)&door))
-        return 0;
+    {
+        int chain = pc_room_warp_warped(NULL, NULL); /* (before the take: a new chain or the next hop) */
+        if (!pc_room_warp_take(D_800F1AB0.zndId, D_800F1AB0.mpdId, (unsigned char*)&door))
+            return 0;
+        if (!chain)
+            pc_room_warp_points_hold((const unsigned char*)vs_main_stateFlags.savePointStates);
+    }
     map_before = vs_main_mapStatus;
     if (door.zndId == _zoneContext.zndId)
         func_8007C4E0(&door, 0, 8);
@@ -139,6 +165,7 @@ static u_short actor_slots(void)
  * runs next. */
 void pc_room_warp_room_loaded(void)
 {
+    pc_fast_travel_room_loaded(); /* a fast travel trip arrives (fast_travel.c) */
     bench = 0;
     benched = 0;
     if (!pc_room_warp_arrived())

@@ -113,6 +113,7 @@ def screen(card, out, name, steps, keep):
     game = launch_at("save_room", card=str(copy), fast=True, socket_path=f"/tmp/rood-i2d-{os.getpid()}-{name}.sock",
                      log=str(work / "game.log"), extra_env=env)
     try:
+        game.call("fast_travel", set={"enabled": False})  # the original top level's rows as its sequences count them
         game.call("graphics", widescreen=True, interpolate=False, present_rate=1, aa="off")
         game.run(10)
         for button, settle in steps:
