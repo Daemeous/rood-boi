@@ -98,8 +98,8 @@ static view_target chain[2];
 static vk_image smaa_edges, smaa_weights, smaa_area, smaa_search;
 
 static VkDescriptorSetLayout scaled_set, single_set, triple_set;
-static VkPipelineLayout scaled_layout, blur_layout, fxaa_layout, vram_layout, smaa_layout, downsample_layout;
-static VkPipeline scaled_to_window, scaled_to_view, blur_to_window, blur_to_view, fxaa_pipeline, fxaa_to_view,
+static VkPipelineLayout scaled_layout, fxaa_layout, vram_layout, smaa_layout, downsample_layout;
+static VkPipeline scaled_to_window, scaled_to_view, fxaa_pipeline, fxaa_to_view,
     vram_pipeline, smaa_edges_pipeline, smaa_weights_pipeline, smaa_blend_to_window, smaa_blend_to_view,
     downsample_pipeline;
 typedef struct {
@@ -275,14 +275,12 @@ static int make_pipelines(void)
     single_set = vk_push_layout(&scaled_types[1], 1);
     triple_set = vk_push_layout(&scaled_types[1], 3);
     scaled_layout = make_layout(scaled_set, 0);
-    blur_layout = make_layout(single_set, 16);
     fxaa_layout = make_layout(single_set, 8);
     vram_layout = make_layout(single_set, 32);
     smaa_layout = make_layout(triple_set, sizeof(smaa_push));
     downsample_layout = make_layout(single_set, sizeof(downsample_push));
     VkShaderModule vs = vk_shader(vk_spv_fullscreen_vert, vk_spv_fullscreen_vert_size),
                    scaled = vk_shader(vk_spv_scaled_frag, vk_spv_scaled_frag_size),
-                   blur = vk_shader(vk_spv_blur_frag, vk_spv_blur_frag_size),
                    fxaa = vk_shader(vk_spv_fxaa_frag, vk_spv_fxaa_frag_size),
                    vram = vk_shader(vk_spv_present_vram_frag, vk_spv_present_vram_frag_size),
                    edges = vk_shader(vk_spv_smaa_edges_frag, vk_spv_smaa_edges_frag_size),
@@ -291,8 +289,6 @@ static int make_pipelines(void)
                    down = vk_shader(vk_spv_downsample_frag, vk_spv_downsample_frag_size);
     scaled_to_window = fullscreen(vs, scaled, scaled_layout, WINDOW_FORMAT);
     scaled_to_view = fullscreen(vs, scaled, scaled_layout, VIEW_FORMAT);
-    blur_to_window = fullscreen(vs, blur, blur_layout, WINDOW_FORMAT);
-    blur_to_view = fullscreen(vs, blur, blur_layout, VIEW_FORMAT);
     fxaa_pipeline = fullscreen(vs, fxaa, fxaa_layout, WINDOW_FORMAT);
     fxaa_to_view = fullscreen(vs, fxaa, fxaa_layout, VIEW_FORMAT);
     vram_pipeline = fullscreen(vs, vram, vram_layout, WINDOW_FORMAT);
@@ -301,10 +297,10 @@ static int make_pipelines(void)
     smaa_blend_to_window = fullscreen(vs, blend, smaa_layout, WINDOW_FORMAT);
     smaa_blend_to_view = fullscreen(vs, blend, smaa_layout, VIEW_FORMAT);
     downsample_pipeline = fullscreen(vs, down, downsample_layout, WINDOW_FORMAT);
-    VkShaderModule modules[9] = { vs, scaled, blur, fxaa, vram, edges, weights, blend, down };
-    for (int i = 0; i < 9; i++)
+    VkShaderModule modules[8] = { vs, scaled, fxaa, vram, edges, weights, blend, down };
+    for (int i = 0; i < 8; i++)
         vkDestroyShaderModule(vk.device, modules[i], NULL);
-    return scaled_to_window && scaled_to_view && blur_to_window && blur_to_view && fxaa_pipeline && fxaa_to_view
+    return scaled_to_window && scaled_to_view && fxaa_pipeline && fxaa_to_view
         && vram_pipeline && smaa_edges_pipeline && smaa_weights_pipeline && smaa_blend_to_window && smaa_blend_to_view
         && downsample_pipeline;
 }
@@ -1081,6 +1077,9 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
                 && (present_light_count > 0 || pu->env_mode[2] || pc_medium_has_fog());
             /* The sky's ambient term where neither the path tracer nor the probes trace the sky. */
             pu->env_mode[1] = pu->env.zenith[3] > 0.5f && !(gi && pc_gi_enabled) && !probes;
+            /* The depth of field's focus probe (post.h focus_probe): the depth around its point, read back. */
+            if (post_frame.focus_probe && !pc_gl_show_depth)
+                vk_dof_probe(&post_frame, t->depth.view, x, y, w, h);
             int stage = 0;
             const vk_image* input = stage_begin(stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
             cmd = vk_cmd();
@@ -1175,18 +1174,11 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
                 vkCmdDraw(cmd, 3, 1, 0, 0);
             }
             if (blur) {
-                vk_section("blur");
+                vk_section("dof");
                 const vk_image* source = input;
+                int layers = vk_dof_layers(&post_frame, source, lit_w, lit_h);
                 input = stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
-                cmd = vk_cmd();
-                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, stage + 1 < stages ? blur_to_view : blur_to_window);
-                vk_descriptors_image(&d, 0, source->view, vk.linear);
-                vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, blur_layout);
-                float most = post_frame.dof_radius > post_frame.tilt[2] ? post_frame.dof_radius : post_frame.tilt[2];
-                float push[4] = { (float)lit_w, (float)lit_h, most * lit_h / 720.0f, grade ? 1.0f : 0.0f };
-                vkCmdPushConstants(cmd, blur_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-                    sizeof push, push);
-                vkCmdDraw(cmd, 3, 1, 0, 0);
+                vk_dof_composite(source, lit_w, lit_h, stage + 1 < stages, grade, layers);
             }
             if (grade) {
                 const vk_image* source = input;

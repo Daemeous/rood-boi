@@ -216,3 +216,141 @@ static void gl_grade(const pc_post_frame* pf, GLuint source, int w, int h, int v
     gl_BindTexture(GL_TEXTURE_2D, source);
     gl_DrawArrays(GL_TRIANGLES, 0, 3);
 }
+
+/* ---- depth of field (dof.glsl): half-size layers, then the composite into the chain ---- */
+static const char* dof_fragment_source =
+    "#version 330 core\n"
+    "in vec2 uv;\n"
+    "out vec4 color;\n"
+    "uniform sampler2D src0;\n"
+    "uniform sampler2D src1;\n"
+    "uniform sampler2D src2;\n"
+    "uniform vec4 dp_[8];\n" /* post.h pc_post_dof_gpu */
+    "#define DP(i) dp_[i]\n"
+    "#define DOF_FLIP_Y 1\n" /* GL images count rows from the bottom */
+    PC_GLSL_DOF
+    "void main() { color = dof_main(src0, src1, src2, uv); }\n";
+static GLuint dof_program;
+static GLint u_dof_dp;
+static view_target dof_half, dof_background, dof_foreground, dof_tiles, dof_dilated, dof_probe_target;
+static pc_post_dof_gpu dof_params;
+static GLuint probe_buffers[3];
+static int probe_pending[3], probe_next;
+
+static int dof_ready(void)
+{
+    static int state; /* 0 not yet, 1 ready, -1 failed */
+    if (state)
+        return state > 0;
+    state = -1;
+    if (!post_ready())
+        return 0;
+    dof_program = pc_gl_program(vertex_source, dof_fragment_source);
+    if (!dof_program) {
+        fprintf(stderr, "[gl] depth of field unavailable (its shader did not build)\n");
+        return 0;
+    }
+    u_dof_dp = gl_GetUniformLocation(dof_program, "dp_");
+    gl_UseProgram(dof_program);
+    gl_Uniform1i(gl_GetUniformLocation(dof_program, "src0"), 0);
+    gl_Uniform1i(gl_GetUniformLocation(dof_program, "src1"), 1);
+    gl_Uniform1i(gl_GetUniformLocation(dof_program, "src2"), 2);
+    gl_UseProgram(0);
+    state = 1;
+    return 1;
+}
+
+/* One pass into whatever is bound (w x h): the pass, its main source's size, its sources. */
+static void dof_draw(pc_post_dof_gpu* g, int pass, int w, int h, int src_w, int src_h, GLuint a, GLuint b, GLuint c)
+{
+    gl_UseProgram(dof_program);
+    GLuint sources[3] = { a, b ? b : post_black, c ? c : post_black };
+    for (int i = 2; i >= 0; i--) {
+        gl_ActiveTexture(GL_TEXTURE0 + i);
+        gl_BindTexture(GL_TEXTURE_2D, sources[i]);
+    }
+    g->v[0][0] = (float)w, g->v[0][1] = (float)h, g->v[0][2] = (float)src_w, g->v[0][3] = (float)src_h;
+    g->v[1][0] = (float)pass;
+    gl_Uniform4fv(u_dof_dp, PC_POST_DOF_VEC4S, &g->v[0][0]);
+    gl_DrawArrays(GL_TRIANGLES, 0, 3);
+}
+static void dof_pass(view_target* out, int pass, int src_w, int src_h, GLuint a, GLuint b)
+{
+    gl_BindFramebuffer(GL_FRAMEBUFFER, out->fbo);
+    gl_Viewport(0, 0, out->w, out->h);
+    dof_draw(&dof_params, pass, out->w, out->h, src_w, src_h, a, b, 0);
+}
+
+/* The half-size layers from the lit image `source` (w x h; alpha the signed blur radius). Returns 0 when
+ * they could not be made (the composite then passes the picture through), 1, or 2 with a foreground. */
+static int gl_dof_layers(const pc_post_frame* pf, GLuint source, int w, int h)
+{
+    pc_post_dof_pack(&dof_params, w, h);
+    if (!dof_ready())
+        return 0;
+    int hw = (w + 1) / 2, hh = (h + 1) / 2;
+    int tw = (hw + PC_DOF_TILE - 1) / PC_DOF_TILE, th = (hh + PC_DOF_TILE - 1) / PC_DOF_TILE;
+    if (!ensure_view_target(&dof_half, hw, hh) || !ensure_view_target(&dof_background, hw, hh))
+        return 0;
+    int fg = pf->dof_near && ensure_view_target(&dof_foreground, hw, hh) && ensure_view_target(&dof_tiles, tw, th)
+        && ensure_view_target(&dof_dilated, tw, th);
+    dof_pass(&dof_half, PC_DOF_PREFILTER, w, h, source, 0);
+    if (fg) {
+        dof_pass(&dof_tiles, PC_DOF_TILES, hw, hh, dof_half.texture, 0);
+        dof_pass(&dof_dilated, PC_DOF_DILATE, tw, th, dof_tiles.texture, 0);
+    }
+    dof_pass(&dof_background, PC_DOF_FAR, hw, hh, dof_half.texture, 0);
+    if (fg)
+        dof_pass(&dof_foreground, PC_DOF_NEAR, hw, hh, dof_half.texture, dof_dilated.texture);
+    return fg ? 2 : 1;
+}
+/* The composite into whatever stage_begin bound. Without layers the picture passes through (2D/UI marked
+ * for a grade pass). */
+static void gl_dof_composite(GLuint source, int w, int h, int keep_mask, int layers)
+{
+    if (!dof_ready())
+        return;
+    pc_post_dof_gpu* g = &dof_params;
+    g->v[5][0] = keep_mask ? 1.0f : 0.0f;
+    g->v[5][1] = layers == 2 ? 1.0f : 0.0f;
+    g->v[5][2] = layers ? 0.0f : 1.0f;
+    dof_draw(g, PC_DOF_COMPOSITE, w, h, w, h, source, layers ? dof_background.texture : 0,
+        layers == 2 ? dof_foreground.texture : 0);
+}
+
+/* The focus probe: the view depth around the focus point (the display area x, y, w, h in VRAM), read back
+ * three frames later. Leaves the framebuffer binding and viewport as they were. */
+static void gl_dof_probe(const pc_post_frame* pf, int x, int y, int w, int h)
+{
+    if (!dof_ready() || !ensure_view_target(&dof_probe_target, 1, 1))
+        return;
+    GLint fbo = 0, viewport[4];
+    gl_GetIntegerv(GL_FRAMEBUFFER_BINDING, &fbo);
+    gl_GetIntegerv(GL_VIEWPORT, viewport);
+    if (!probe_buffers[0])
+        gl_GenBuffers(3, probe_buffers);
+    int slot = probe_next;
+    if (probe_pending[slot]) { /* written three frames ago */
+        float texel[4];
+        gl_BindBuffer(GL_PIXEL_PACK_BUFFER, probe_buffers[slot]);
+        gl_GetBufferSubData(GL_PIXEL_PACK_BUFFER, 0, sizeof texel, texel);
+        gl_BindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+        pc_post_focus_result(texel[0], texel[1]);
+    }
+    pc_post_dof_gpu g;
+    memset(&g, 0, sizeof g);
+    g.v[6][0] = pf->focus_uv[0], g.v[6][1] = pf->focus_uv[1], g.v[6][2] = pf->focus_area;
+    g.v[6][3] = (float)pc_hw_scale;
+    g.v[7][0] = (float)x, g.v[7][1] = (float)y, g.v[7][2] = (float)w, g.v[7][3] = (float)h;
+    gl_BindFramebuffer(GL_FRAMEBUFFER, dof_probe_target.fbo);
+    gl_Viewport(0, 0, 1, 1);
+    dof_draw(&g, PC_DOF_PROBE, 1, 1, 1, 1, pc_hw_depth_texture(), 0, 0);
+    gl_BindBuffer(GL_PIXEL_PACK_BUFFER, probe_buffers[slot]);
+    gl_BufferData(GL_PIXEL_PACK_BUFFER, 4 * sizeof(float), NULL, GL_STREAM_READ);
+    gl_ReadPixels(0, 0, 1, 1, GL_RGBA, GL_FLOAT, 0);
+    gl_BindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    probe_pending[slot] = 1;
+    probe_next = (slot + 1) % 3;
+    gl_BindFramebuffer(GL_FRAMEBUFFER, (GLuint)fbo);
+    gl_Viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+}

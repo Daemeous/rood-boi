@@ -42,8 +42,14 @@ typedef struct {
     /* Depth of field, tilt-shift, depth fog (the present shader's `post` bits 1, 2, 4). */
     int flags;
     float focus_sz; /* 0: the shader picks (screen centre) */
-    float dof_radius, aperture, near_blur; /* px at 720 lines; near: the share of it in front of the focus */
+    /* The blur radius at view depth z: dof_radius * clamp(aperture * (1 - focus / z), -1, 1) (px at 720 lines;
+     * the physical camera folds its lens into aperture); near: the share of it in front of the focus. */
+    float dof_radius, aperture, near_blur;
     float tilt[3]; /* centre, half width, radius (px at 720) */
+    /* The depth of field's bokeh passes (dof.glsl; pc_post_dof_pack fills their parameter block). */
+    int dof_near; /* a foreground layer: blur in front of the focus */
+    int focus_probe; /* measure the view depth at focus_uv (pc_post_focus_result, a few frames late) */
+    float focus_uv[2], focus_area; /* the point (0..1, y down) and the probe's radius (share of the height) */
     float fog[4], fog_range[2];
     /* The grade pass (post_grade.glsl): run at all; the lit image may exceed 1 (tone mapped there). */
     int grade, hdr;
@@ -55,6 +61,20 @@ typedef struct {
     float fade; /* the game's screen fade (gpu_hw.c pc_hw_present_fade): subtracted from the 3D last */
     float fade_rect[4]; /* where it lands: u0, v0, u1, v1 of the view */
 } pc_post_frame;
+
+/* The depth of field's passes (dof.glsl DP(i)): DOF_VEC4S vec4s. pc_post_dof_pack fills the lens and
+ * bokeh part for a lit image of lit_w x lit_h; the presenters set each pass's own (DP(0), DP(1).x, DP(5),
+ * DP(7)). */
+#define PC_POST_DOF_VEC4S 8
+enum { PC_DOF_PREFILTER, PC_DOF_TILES, PC_DOF_DILATE, PC_DOF_FAR, PC_DOF_NEAR, PC_DOF_COMPOSITE, PC_DOF_PROBE };
+#define PC_DOF_TILE 8 /* half-resolution texels per tile (the foreground's reach) */
+typedef struct {
+    float v[PC_POST_DOF_VEC4S][4];
+} pc_post_dof_gpu;
+void pc_post_dof_pack(pc_post_dof_gpu* out, int lit_w, int lit_h);
+/* The probe's result: the mean log2 view depth (GTE SZ) of 3D texels around the focus point and their share
+ * of the probe's samples (0: nothing there). */
+void pc_post_focus_result(float mean_log2, float share);
 
 /* Resolve and blend for this present (once per present; the presenters
  * call it before drawing). view_h: the view's height (scales pixel sizes). */

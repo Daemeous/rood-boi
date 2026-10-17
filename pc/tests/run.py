@@ -455,6 +455,10 @@ def suites(args, mode="egl"):
         Suite("post_smoke", [PY, str(TESTS / "post_smoke.py"), "--card", str(args.save)], 600,
               note="post stack: each effect changes only the 3D, defaults neutral, presets, profiles save/load and "
                    "blend, lens blur only in field play (not title, attract, cutscene, menu)"),
+        Suite("dof_smoke", [PY, str(TESTS / "dof_smoke.py"), "--card", str(args.save)], 600,
+              note="physical depth of field: off by default, blur grows with lower f-stops and away from the focus, "
+                   "bokeh blade count / squeeze / cat's eye on the test card, unblurred title, attract, cutscene, "
+                   "menu; first-person focus follows the centre (eased); Vulkan GPU ms"),
         Suite("aa_smoke", [PY, str(TESTS / "aa_smoke.py")], 300,
               note="anti-aliasing: each method renders, smooths edges, keeps texels and 2D; interpolation"),
         Suite("coplanar_order_smoke", [PY, str(TESTS / "coplanar_order_smoke.py"),
@@ -528,7 +532,7 @@ CHECKPOINT_SUITES = {
     "void_fog_smoke",
     "fog_sim_smoke", "fog_volume_smoke", "particles_smoke", "save_point_glow_smoke", "emissive_smoke", "ui_ashley_smoke", "ui_ashley_stability_smoke",
     "ui_equip_smoke",
-    "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "fast_travel_smoke", "fast_travel_shell_smoke", "post_smoke",
+    "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "fast_travel_smoke", "fast_travel_shell_smoke", "post_smoke", "dof_smoke",
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",

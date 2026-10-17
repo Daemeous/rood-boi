@@ -2,7 +2,7 @@
 
 The post stack (`pc/src/post.h`, `pc/src/post_profile.cpp`, the presenters'
 `pc/src/post_gl.inc` and `pc/src/post_vk.inc`, shaders
-`pc/shaders/vulkan/post_grade.glsl`, `post_bloom.glsl`, `bloom_fft*.comp`)
+`pc/shaders/vulkan/post_grade.glsl`, `post_bloom.glsl`, `dof.glsl`, `bloom_fft*.comp`)
 works on the game's 3D picture after lighting, before the 2D/UI is
 composited for the player. **Everything is off or neutral by default**: with
 no profile set, no extra pass runs and the picture is the original one, bit
@@ -16,7 +16,7 @@ The lit image (the present shader's output: lighting, haze, depth fog)
 goes through:
 
 1. anti-aliasing (FXAA / SMAA; MSAA and supersampling are earlier and later),
-2. depth of field and tilt-shift (the gather blur),
+2. depth of field and tilt-shift (half-size bokeh layers and their composite: below),
 3. **the grade pass** (only when an effect in it is on):
    1. sharpen (contrast-adaptive: never past the neighbours' range),
    2. chromatic aberration (radial; red outward, blue inward; from a start
@@ -134,7 +134,95 @@ steal the focus; the focus eases over `dof_focus_speed` seconds of game time,
 holds while she is briefly missing, and snaps on a camera cut or a room
 change. In front of the focus the blur is `dof_near_blur` of the maximum
 (0.5): walls and props between the camera and Ashley become a soft veil
-rather than a smear.
+rather than a smear (0: no foreground layer at all).
+
+## The physical camera
+
+`dof_model physical` treats the game's camera as a lens. The
+blur radius of a point at view depth z (GTE SZ) is a thin lens's circle of
+confusion:
+
+    c = f^2 / (N (S1 - f)) * (1 - S1 / S2)        (mm on the sensor)
+
+with the focal length f, the f-number N (`dof_fstop`, 1.2 to 22), the focus
+distance S1 and the point's distance S2. The sensor's height
+(`dof_sensor`, 24 mm: full frame) is the picture's, so c becomes pixels;
+`dof_max_blur` caps it (pixels of a 720-line picture). The focal length comes
+from the game's field of view: f = sensor x H / picture lines (H the GTE
+projection distance; the game's usual 512 over 240 lines is about 51 mm on
+full frame), or `dof_focal_length` overrides it. Distances need the
+scene's scale: Ashley's model is about 180 world units tall and
+`dof_ashley_height` (1.8 m) says how tall that is. Like a real lens, the
+game's long view (Ashley is typically about 15 m away) has a deep focus:
+the blur far away is about 2 pixels at f/1.4 (a 720-line picture); a longer lens (85 to 135 mm), a larger
+sensor or a smaller scene scale (the miniature look) give more.
+`dof_model artistic` (the default, so existing DoF settings keep their look) keeps the earlier control: blur grows with
+`dof_aperture` from the focal plane, whatever the lens. Both share the
+present shader's formula (radius = `dof_radius` x clamp(`aperture` x
+(1 - focus / z), -1, 1)): the CPU folds the lens into those two numbers.
+
+Focus (`dof_focus`): **On Ashley** (her tracked position), **Screen
+centre** and **Cursor** (the mouse over the picture; RPC `post`
+`focus_point` [u, v] sets a point instead), **Manual** (`dof_focus_depth`,
+GTE SZ). Centre and cursor read the depth there on the GPU: the focus probe
+(dof.glsl pass 6) averages the log depth of 25 texels of the depth target
+within `dof_focus_area` of the point into a 1 x 1 image read back a few
+frames later (Vulkan: when the frame is done; OpenGL: a ring of three pixel
+buffers), so the focus takes walls, props and enemies alike. Every mode
+eases over `dof_focus_speed` seconds of game time; a camera cut, a room
+change or a mode change snaps to the probe's first fresh result.
+
+### Bokeh
+
+The blur runs at half size in five passes (`pc/shaders/vulkan/dof.glsl`,
+shared by `dof.frag` and OpenGL):
+
+1. **prefilter**: the lit image (alpha the signed radius from the present
+   shader) to half size; a 2 x 2 block keeps the colour of its nearest blur
+   (the foreground's when there is any, else the farthest), so a sharp
+   subject's colour does not travel with the background around it;
+2. **tiles**: the largest foreground and background radius per 8 x 8
+   half-size texels, and 3. **dilate**: each tile's foreground radius from
+   the tiles its blur reaches;
+4. **background layer**: each texel gathers over its own radius the texels
+   whose own blur reaches it (scatter as gather), skipping the foreground
+   and anything sharper: an in-focus Ashley neither spreads into the
+   blurred room behind her nor is covered by it;
+5. **foreground layer**: blurred foreground over whatever is behind, out
+   to the tile's radius, premultiplied with its coverage (each foreground
+   texel spreads over its disc's area);
+
+then the **composite** at full size: the sharp picture, the background
+layer where the pixel's own blur is (its four half-size texels weighed by
+how close their blur is to the pixel's: no halo around a sharp
+silhouette), the foreground layer over it. 2D/UI pixels pass through
+untouched (and keep their mark for the grade pass). Tilt-shift's blur is
+background blur by screen position.
+
+The kernel (`bokeh_samples` points of a golden-angle spiral, turned per
+pixel) is the aperture: round (`bokeh_blades 0`) or a polygon of 5 to 9
+blades (`bokeh_curvature` bends them toward the circle, `bokeh_rotation`
+turns them), sampled point-reflected so odd blade counts show the right
+way up; `bokeh_squeeze` narrows it horizontally (anamorphic ovals);
+`bokeh_cats_eye` clips it with a second circle offset toward the frame's
+edges (optical vignetting: cat's-eye shapes in the corners);
+`bokeh_edge` soft / even / rim (`bokeh_edge_amount`) shapes the
+brightness across a disc, and `bokeh_fringe` lets red reach a little
+further than blue (a colour fringe). `bokeh_highlights` weighs bright
+texels up so out-of-focus lights show their shape. Details >
+Post-processing has a **Bokeh test card** (RPC `post` `bokeh_test`):
+the 3D replaced by small white dots, blurred by the maximum.
+
+### First-person view
+
+The first-person view (Start; BATTLE's `_firstPersonViewEnabled`) has its
+own depth of field: `dof_fp` and its `dof_fp_fstop`, `dof_fp_max_blur`,
+`dof_fp_near_blur`, `dof_fp_focus_speed` (the refocus time) and
+`dof_fp_focus_area`; the lens (focal length, sensor, scale) and the bokeh
+are shared. It always focuses on the centre of the view through the probe,
+easing as the player looks around. The third-person depth of field never
+applies in that view. Like the other, it is off by default, and off on the
+title, in attract demos, menus and cutscenes.
 
 ## Contexts: gameplay and cutscenes
 
@@ -234,18 +322,22 @@ The pieces are in place for authored cutscene looks without new formats:
 RPC `post` {`layer` (`gameplay`, `cutscene`, `room`, `room_cutscene`),
 `set` {field: value}, `clear` ([fields] or `"all"`), `preset`, `context`
 (`auto`, `gameplay`, `cutscene`: a preview), `stack`, `blend_time`,
-`fft_size`, `save_preset` (the layer as a user preset), `snap`} replies with
-the context (`detected`, `event`), `lens_blur_off`, `grade`, `bloom` (method
-used), `ev`, `focus`, `blend` progress, the target and shown values, every
-layer and the presets. RPC `graphics` `post` (bits 1 DoF, 2 tilt-shift, 4
+`fft_size`, `save_preset` (the layer as a user preset), `snap`, `focus_point`
+([u, v] for cursor focus, null: the mouse), `bokeh_test`} replies with the
+context (`detected`, `event`), `lens_blur_off`, `grade`, `bloom` (method
+used), `ev`, `focus` (GTE SZ), `first_person`, `lens` (model, `focal_mm`,
+`fstop`, `sensor_mm`, `focus_m`, `far_px`: the blur radius far away in
+pixels of a 720-line picture, `cap`), `probe` (on, `sz`, `share`, `uv`),
+`blend` progress, the target and shown values, every layer and the presets. RPC `graphics` `post` (bits 1 DoF, 2 tilt-shift, 4
 depth fog) sets the gameplay values.
 
 Details > Post-processing (the editor): grouped like Unreal's Post Process
 Volume (Lens: Depth of Field, Tilt-shift, Exposure, Bloom, Chromatic
 Aberration, Image Effects; Rendering Features; Color Grading: White
 Balance, Global, Shadows, Midtones, Highlights, Misc; Film: Tonemapper,
-Grain), an override checkbox per field, the layer to edit, presets (Save as
-preset), a context preview and the live state.
+Grain; Lens also has Bokeh and First-person Depth of Field), an override
+checkbox per field, the layer to edit, presets (Save as preset), a context
+preview and the live state (the lens in use, the bokeh test card).
 
 ## Cost
 
@@ -261,7 +353,13 @@ Vulkan, RTX-class GPU, ray-traced GI on, save room, GPU sections from RPC
 | cinematic | 0.08 | ~0.5 |
 | film | 0.08 | ~0.45 |
 | clean modern | 0.07 | ~0.5 |
-| depth of field (gather blur) | 0.05 | 0.22 |
+| depth of field (bokeh layers and foreground, 64 samples) | 0.12 | 0.32 |
+| depth of field, 128 samples | 0.20 | 0.56 |
 
 Tests: `pc/tests/post_smoke.py` (each effect, the 2D/UI untouched, defaults
-neutral, contexts, profiles, presets, blending, auto exposure).
+neutral, contexts, profiles, presets, blending, auto exposure);
+`pc/tests/dof_smoke.py` (the physical camera's depth of field off by
+default; blur growing with lower f-stops and away from the focus; the
+blade count, squeeze and cat's eye measured on the test card's bokeh; the
+title, attract demo, cutscenes and menus unblurred; the first-person focus
+following the centre of the view; Vulkan's GPU time).

@@ -27,6 +27,7 @@ FRAGMENTS = ["probe_common.glsl", "aa_geometry.glsl", "downsample.glsl", "ms_res
              "text_dist.glsl",  # text and icons from distance texels (gpu_hw.c's packets, the text overlay)
              "post_grade.glsl",  # the post stack's grade pass (gl_present.c)
              "post_bloom.glsl",  # the post stack's Gaussian bloom and exposure meter (gl_present.c)
+             "dof.glsl",  # the depth of field's bokeh passes (gl_present.c)
              # The room's sun and sky (ptgi.c's trace, gl_present.c's present).
              "environment.glsl",
              # The room's medium: haze, ground fog, fog volumes (ptgi.c's haze, gl_present.c's Low haze).

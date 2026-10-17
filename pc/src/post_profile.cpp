@@ -36,6 +36,9 @@ extern int pc_battle_event_id(void) __attribute__((weak));
 extern int pc_scene_camera_get(float (*)[3], float*, float*, float*, float*);
 extern int pc_game_phase __attribute__((weak)); /* boot_runtime.c: 1 title, 2 attract demo, 0 a game */
 extern int pc_battle_field_menu_open(void) __attribute__((weak)); /* weapon_slots.c (battle builds) */
+extern int pc_battle_first_person(void) __attribute__((weak)); /* weapon_slots.c: the first-person view is up */
+extern int pc_gl_view[4] __attribute__((weak)); /* the presented view in the window (gl_present.c / vk_present.c) */
+extern int pc_gl_display[4] __attribute__((weak)); /* the display area in VRAM */
 extern int pc_ui_menu_active(void) __attribute__((weak)); /* ui/menu_bridge.c: the modern menus */
 extern float pc_hw_present_fade(float rect[4]) __attribute__((weak)); /* gpu_hw.c: the shown picture's screen fade */
 extern int pc_hw_present_menu_model(void) __attribute__((weak)); /* gpu_hw.c: the shown picture is the menu's model view */
@@ -88,21 +91,80 @@ std::vector<Field>& fields()
     add({ "dof", BOOL, V1(0), 0, 1, "Lens|Depth of Field", "Depth of field",
         "Blur away from the focal plane (focus on Ashley by default). Off in cutscenes unless the cutscene layer turns it on.",
         nullptr, nullptr, 0 });
-    add({ "dof_focus", ENUM, V1(0), 0, 2, "Lens|Depth of Field", "Focus",
-        "On Ashley: her tracked position (walls in front never steal the focus). Screen centre: the depth there. Manual: a fixed depth.",
-        "ashley\0centre\0manual\0", "On Ashley\0Screen centre\0Manual depth\0", 0 });
+    add({ "dof_model", ENUM, V1(1), 0, 1, "Lens|Depth of Field", "Model",
+        "Physical: a camera lens (f-stop, focal length, sensor; the scene's scale from Ashley's height).\n"
+        "Artistic: blur grows with the aperture value from the focal plane, whatever the lens.",
+        "physical\0artistic\0", "Physical camera\0Artistic\0", 0 });
+    add({ "dof_focus", ENUM, V1(0), 0, 3, "Lens|Depth of Field", "Focus",
+        "On Ashley: her tracked position (walls in front never steal the focus). Screen centre and Cursor: the depth\n"
+        "there (the mouse over the picture), measured each frame and eased. Manual: a fixed depth.",
+        "ashley\0centre\0manual\0cursor\0", "On Ashley\0Screen centre\0Manual depth\0Cursor\0", 0 });
     add({ "dof_focus_depth", FLOAT, V1(1024), 64, 8000, "Lens|Depth of Field", "Focus depth",
-        "Manual focus: the focal plane's view depth (GTE SZ).", nullptr, nullptr, LOG });
-    add({ "dof_aperture", FLOAT, V1(4), 0.25f, 16, "Lens|Depth of Field", "Aperture",
-        "How fast blur grows away from the focal plane. Large with focus on Ashley: the miniature / macro look.", nullptr,
+        "Manual focus: the focal plane's view depth (GTE SZ; the RPC `post` reply gives it in metres).", nullptr,
         nullptr, LOG });
-    add({ "dof_max_blur", FLOAT, V1(8), 0, 24, "Lens|Depth of Field", "Maximum blur",
-        "The largest blur radius, in pixels of a 720-line picture.", nullptr, nullptr, 0 });
+    add({ "dof_focus_area", FLOAT, V1(0.03f), 0.005f, 0.2f, "Lens|Depth of Field", "Focus probe size",
+        "Screen centre and Cursor: the radius around the point whose depth is averaged (share of the picture's height).",
+        nullptr, nullptr, LOG });
+    add({ "dof_fstop", FLOAT, V1(2.8f), 1.2f, 22, "Lens|Depth of Field", "f-stop",
+        "Physical: the aperture's f-number. Lower is a wider aperture: more blur away from the focus.", nullptr, nullptr,
+        LOG });
+    add({ "dof_focal_length", FLOAT, V1(0), 0, 300, "Lens|Depth of Field", "Focal length (mm)",
+        "Physical: 0 takes it from the game's field of view and the sensor; otherwise this lens (longer: more blur).",
+        nullptr, nullptr, 0 });
+    add({ "dof_sensor", FLOAT, V1(24), 4, 60, "Lens|Depth of Field", "Sensor height (mm)",
+        "Physical: the picture's height on the sensor (24: full frame, 15.6: APS-C, 13: Four Thirds).", nullptr,
+        nullptr, 0 });
+    add({ "dof_ashley_height", FLOAT, V1(1.8f), 0.5f, 5, "Lens|Depth of Field", "Scene scale: Ashley's height (m)",
+        "Physical: how tall Ashley is in metres; sets the scene's scale (a taller Ashley: a larger world, less blur).",
+        nullptr, nullptr, 0 });
+    add({ "dof_aperture", FLOAT, V1(4), 0.25f, 16, "Lens|Depth of Field", "Aperture (artistic)",
+        "Artistic: how fast blur grows away from the focal plane. Large with focus on Ashley: the miniature / macro look.",
+        nullptr, nullptr, LOG });
+    add({ "dof_max_blur", FLOAT, V1(8), 0, 32, "Lens|Depth of Field", "Maximum blur",
+        "The largest blur radius (the cap), in pixels of a 720-line picture.", nullptr, nullptr, 0 });
     add({ "dof_near_blur", FLOAT, V1(0.5f), 0, 1, "Lens|Depth of Field", "Foreground blur",
         "Blur in front of the focus, as a share of the maximum: walls and props between the camera and Ashley become a\n"
-        "soft veil instead of a smear (1: as much as behind).", nullptr, nullptr, 0 });
+        "soft veil instead of a smear (1: as much as behind; 0: no foreground layer).", nullptr, nullptr, 0 });
     add({ "dof_focus_speed", FLOAT, V1(0.15f), 0, 2, "Lens|Depth of Field", "Focus pull time",
         "Seconds the focus takes to follow a change (0: at once). Camera cuts and room changes snap.", nullptr, nullptr, 0 });
+    /* The bokeh: the aperture's shape and character (both depth of fields). */
+    add({ "bokeh_blades", FLOAT, V1(0), 0, 9, "Lens|Bokeh", "Aperture blades",
+        "0: a round aperture. 5 to 9: a polygon of that many blades (the shape bright out-of-focus points take).",
+        nullptr, nullptr, INT });
+    add({ "bokeh_curvature", FLOAT, V1(0), 0, 1, "Lens|Bokeh", "Blade curvature", "0 straight blades, 1 round.",
+        nullptr, nullptr, 0 });
+    add({ "bokeh_rotation", FLOAT, V1(0), 0, 360, "Lens|Bokeh", "Blade rotation", "Degrees.", nullptr, nullptr, 0 });
+    add({ "bokeh_squeeze", FLOAT, V1(1), 1, 2, "Lens|Bokeh", "Anamorphic squeeze",
+        "Above 1: oval bokeh, narrower than tall (an anamorphic lens).", nullptr, nullptr, 0 });
+    add({ "bokeh_edge", ENUM, V1(1), 0, 2, "Lens|Bokeh", "Edge character",
+        "Soft: brighter in the middle, fading out. Even: flat discs. Rim: a bright ring (soap-bubble bokeh).",
+        "soft\0even\0rim\0", "Soft\0Even\0Rim\0", 0 });
+    add({ "bokeh_edge_amount", FLOAT, V1(0.5f), 0, 1, "Lens|Bokeh", "Edge amount", "How strong soft or rim is.",
+        nullptr, nullptr, 0 });
+    add({ "bokeh_fringe", FLOAT, V1(0), 0, 1, "Lens|Bokeh", "Colour fringe",
+        "Red and blue edges on the bokeh (the lens's chromatic aberration out of focus).", nullptr, nullptr, 0 });
+    add({ "bokeh_cats_eye", FLOAT, V1(0), 0, 1, "Lens|Bokeh", "Cat's eye",
+        "Optical vignetting: toward the frame's edges the bokeh is clipped into a cat's-eye shape (amount at the corners).",
+        nullptr, nullptr, 0 });
+    add({ "bokeh_highlights", FLOAT, V1(0.5f), 0, 2, "Lens|Bokeh", "Highlight weight",
+        "How much bright points dominate the blur, so their bokeh shapes show.", nullptr, nullptr, 0 });
+    add({ "bokeh_samples", FLOAT, V1(64), 16, 160, "Lens|Bokeh", "Samples",
+        "Kernel samples per pixel (half resolution): more is smoother and costs more.", nullptr, nullptr, INT });
+    /* The first-person view's own depth of field (focus on what the player looks at). */
+    add({ "dof_fp", BOOL, V1(0), 0, 1, "Lens|First-person Depth of Field", "First-person depth of field",
+        "In the first-person view: focus on what is at the centre of the view, refocusing smoothly (this view's own\n"
+        "settings below; the lens and bokeh above). The third-person depth of field does not apply there.", nullptr,
+        nullptr, 0 });
+    add({ "dof_fp_fstop", FLOAT, V1(2), 1.2f, 22, "Lens|First-person Depth of Field", "f-stop", "", nullptr, nullptr,
+        LOG });
+    add({ "dof_fp_max_blur", FLOAT, V1(8), 0, 32, "Lens|First-person Depth of Field", "Maximum blur",
+        "Pixels of a 720-line picture.", nullptr, nullptr, 0 });
+    add({ "dof_fp_near_blur", FLOAT, V1(1), 0, 1, "Lens|First-person Depth of Field", "Foreground blur",
+        "Blur in front of the focus, as a share of the maximum.", nullptr, nullptr, 0 });
+    add({ "dof_fp_focus_speed", FLOAT, V1(0.3f), 0, 2, "Lens|First-person Depth of Field", "Refocus time",
+        "Seconds the focus takes to follow what the view looks at.", nullptr, nullptr, 0 });
+    add({ "dof_fp_focus_area", FLOAT, V1(0.04f), 0.005f, 0.2f, "Lens|First-person Depth of Field", "Focus probe size",
+        "The radius around the centre whose depth is averaged (share of the picture's height).", nullptr, nullptr, LOG });
     add({ "tilt_shift", BOOL, V1(0), 0, 1, "Lens|Tilt-shift", "Tilt-shift",
         "A sharp horizontal band, blur above and below. Off in cutscenes unless the cutscene layer turns it on.", nullptr,
         nullptr, 0 });
@@ -222,7 +284,7 @@ std::vector<Field>& fields()
 #undef V3
 #undef V4
 
-constexpr int MAX_VALUES = 160;
+constexpr int MAX_VALUES = 224;
 int field_index(const std::string& key)
 {
     static std::map<std::string, int> index;
@@ -554,6 +616,7 @@ Layer cutscene_builtin()
 {
     Layer l;
     layer_set(l, "dof", "0");
+    layer_set(l, "dof_fp", "0");
     layer_set(l, "tilt_shift", "0");
     return l;
 }
@@ -622,6 +685,7 @@ Values resolve(int context)
     gate_now = lens_blur_gate(context);
     if (*gate_now) {
         v.f[F("dof").offset] = 0;
+        v.f[F("dof_fp").offset] = 0;
         v.f[F("tilt_shift").offset] = 0;
     }
     return v;
@@ -665,7 +729,40 @@ bool camera_cut()
 
 /* ---- focus ---- */
 float focus_eased = -1;
-int focus_room = -1;
+int focus_room = -1, focus_mode = -1;
+bool focus_fp, focus_snap;
+enum { FOCUS_ASHLEY, FOCUS_CENTRE, FOCUS_MANUAL, FOCUS_CURSOR };
+/* The focus probe's latest result (pc_post_focus_result): the view depth (GTE SZ, <= 0 none) and the share
+ * of 3D around the point; results still in flight from before a jump are skipped. */
+float probe_sz = -1, probe_share;
+int probe_skip;
+/* Cursor focus: the mouse over the picture (held when it leaves), or a point the RPC set. */
+float cursor_uv[2] = { 0.5f, 0.5f }, rpc_point[2];
+bool rpc_point_set;
+void cursor_point(float out[2])
+{
+    if (rpc_point_set) {
+        out[0] = rpc_point[0], out[1] = rpc_point[1];
+        return;
+    }
+    if (ImGui::GetCurrentContext() && &pc_gl_view && pc_gl_view[2] > 0 && pc_gl_view[3] > 0) {
+        ImVec2 m = ImGui::GetIO().MousePos;
+        float u = (m.x - pc_gl_view[0]) / pc_gl_view[2], w = (m.y - pc_gl_view[1]) / pc_gl_view[3];
+        if (u >= 0 && u <= 1 && w >= 0 && w <= 1)
+            cursor_uv[0] = u, cursor_uv[1] = w;
+    }
+    out[0] = cursor_uv[0], out[1] = cursor_uv[1];
+}
+/* The scene's scale for the physical camera: Ashley's height in world units (her standing model, soles to
+ * the top of her head, measured from the save room's picture and depth); dof_ashley_height gives it in
+ * metres. */
+constexpr float ASHLEY_HEIGHT_UNITS = 180.0f;
+/* The lens this present used (RPC `post` lens, the panel's readout). */
+struct Lens {
+    bool physical, first_person;
+    float focal_mm, fstop, sensor_mm, focus_m, far_px, cap;
+} lens;
+bool bokeh_test; /* the bokeh test card (dof.glsl dof_test_card) */
 /* Ashley's chest depth (GTE SZ), or <= 0 when unknown. */
 float ashley_depth()
 {
@@ -984,40 +1081,95 @@ extern "C" void pc_post_frame_get(pc_post_frame* out)
     pc_post_frame f;
     memset(&f, 0, sizeof f);
     f.context = context;
-    /* Depth of field, tilt-shift, fog: blended on/off as amounts. */
-    float dof = get(v, "dof"), tilt = get(v, "tilt_shift"), fog = get(v, "depth_fog");
+    /* Depth of field, tilt-shift, fog: blended on/off as amounts. The first-person view has its own depth
+     * of field (dof_fp_*: focus on what the view looks at); the third-person one does not apply there. */
+    bool fp = pc_battle_first_person && pc_battle_first_person();
+    float dof = get(v, fp ? "dof_fp" : "dof"), tilt = get(v, "tilt_shift"), fog = get(v, "depth_fog");
     f.flags = (dof > 0.001f ? 1 : 0) | (tilt > 0.001f ? 2 : 0) | (fog > 0.001f ? 4 : 0);
-    f.dof_radius = get(v, "dof_max_blur") * dof;
-    f.aperture = get(v, "dof_aperture");
-    f.near_blur = get(v, "dof_near_blur");
+    float cap = get(v, fp ? "dof_fp_max_blur" : "dof_max_blur");
+    f.dof_radius = cap * dof;
+    f.near_blur = get(v, fp ? "dof_fp_near_blur" : "dof_near_blur");
+    f.dof_near = (f.flags & 1) && f.near_blur > 0.001f;
     f.tilt[0] = get(v, "tilt_centre"), f.tilt[1] = get(v, "tilt_width"), f.tilt[2] = get(v, "tilt_blur") * tilt;
     for (int k = 0; k < 3; k++)
         f.fog[k] = get(v, "depth_fog_color", k);
     f.fog[3] = get(v, "depth_fog_amount") * fog;
     f.fog_range[0] = get(v, "depth_fog_start"), f.fog_range[1] = get(v, "depth_fog_end");
-    /* Focus: on Ashley from her tracked position (held while she is not there), eased with time;
-     * a camera cut or a room change snaps. */
-    int mode = (int)get(v, "dof_focus");
+    /* Focus: on Ashley from her tracked position (held while she is not there); the screen centre or the
+     * cursor from the probe (the depth there, measured on the GPU, a few frames late); eased with time. A
+     * camera cut, a room change, a change of mode or view snaps (to the probe's first fresh result). */
+    int mode = fp ? FOCUS_CENTRE : (int)get(v, "dof_focus");
     struct pc_dev_state s;
     memset(&s, 0, sizeof s);
     if (pc_dev_state)
         pc_dev_state(&s);
-    if (mode == 2)
+    bool jump = cut || s.room != focus_room || fp != focus_fp || mode != focus_mode;
+    focus_room = s.room, focus_fp = fp, focus_mode = mode;
+    if (!(f.flags & 1)) {
+        focus_eased = probe_sz = -1;
+    } else if (mode == FOCUS_MANUAL) {
         f.focus_sz = get(v, "dof_focus_depth");
-    else if (mode == 0 && (f.flags & 1)) {
-        float d = ashley_depth();
-        bool jump = cut || s.room != focus_room;
-        focus_room = s.room;
+        focus_eased = -1;
+    } else {
+        float d = -1;
+        if (mode == FOCUS_ASHLEY)
+            d = ashley_depth();
+        else {
+            f.focus_probe = 1;
+            if (mode == FOCUS_CURSOR)
+                cursor_point(f.focus_uv);
+            else
+                f.focus_uv[0] = f.focus_uv[1] = 0.5f;
+            f.focus_area = get(v, fp ? "dof_fp_focus_area" : "dof_focus_area");
+            if (jump) { /* what is in flight was measured before */
+                probe_sz = -1;
+                probe_skip = 3;
+            }
+            d = probe_sz;
+        }
+        if (jump)
+            focus_snap = true;
         if (d > 16) {
-            float speed = get(v, "dof_focus_speed");
-            if (focus_eased <= 0 || jump || speed <= 0)
+            float speed = get(v, fp ? "dof_fp_focus_speed" : "dof_focus_speed");
+            if (focus_eased <= 0 || focus_snap || speed <= 0)
                 focus_eased = d;
             else
                 focus_eased += (d - focus_eased) * (1.0f - expf(-dt / speed));
+            focus_snap = false;
         }
         f.focus_sz = focus_eased > 0 ? focus_eased : 0;
-    } else
-        focus_eased = -1;
+    }
+    /* The blur: radius = dof_radius * clamp(aperture * (1 - focus / z), -1, 1) (the present shaders). The
+     * physical camera is a thin lens: a blur circle of f^2 / (N (S1 - f)) * (1 - S1 / S2) on the sensor
+     * (focal length f, f-number N, focus distance S1, the point's distance S2), the sensor's height being
+     * the picture's; the artistic model takes the aperture as it is. */
+    lens.physical = get(v, "dof_model") == 0;
+    lens.first_person = fp;
+    lens.cap = cap;
+    if (lens.physical) {
+        float r[3][3], t[3], h = 0, ox, oy;
+        float sensor = get(v, "dof_sensor"), focal = get(v, "dof_focal_length");
+        if (focal <= 0) { /* from the game's field of view: the projection distance H over the picture's lines */
+            float lines = &pc_gl_display && pc_gl_display[3] > 0 ? (float)pc_gl_display[3] : 240.0f;
+            focal = pc_scene_camera_get(r, t, &h, &ox, &oy) && h > 0 ? sensor * h / lines : 50.0f;
+        }
+        float focus = f.focus_sz;
+        if (focus <= 0) { /* not measured yet (the shader picks the centre): Ashley, else a room's typical depth */
+            float d = ashley_depth();
+            focus = d > 16 ? d : 1024.0f;
+        }
+        float metres = get(v, "dof_ashley_height") / ASHLEY_HEIGHT_UNITS;
+        float fstop = get(v, fp ? "dof_fp_fstop" : "dof_fstop");
+        float s1 = fmaxf(focus * metres * 1000.0f, 2.0f * focal);
+        float circle = focal * focal / (fstop * (s1 - focal)); /* its diameter in mm, at infinity */
+        lens.focal_mm = focal, lens.fstop = fstop, lens.sensor_mm = sensor, lens.focus_m = s1 / 1000.0f;
+        lens.far_px = circle / sensor * 720.0f * 0.5f; /* its radius in pixels of a 720-line picture */
+        f.aperture = cap > 0.01f ? lens.far_px / cap : 0.0f;
+    } else {
+        f.aperture = get(v, "dof_aperture");
+        lens.far_px = f.aperture * cap;
+        lens.focus_m = 0;
+    }
     /* Exposure. */
     float ev = get(v, "exposure");
     if (get(v, "exposure_mode") == 1) {
@@ -1085,6 +1237,42 @@ extern "C" void pc_post_meter_reduce(const float* texels, int w, int h, int stri
             sum += t[0] * c, share += t[1] * c, weights += c;
         }
     pc_post_meter_result(share > 1e-6 ? (float)(sum / share) : 0.0f, weights > 0 ? (float)(share / weights) : 0.0f);
+}
+
+extern "C" void pc_post_focus_result(float mean_log2, float share)
+{
+    if (probe_skip > 0) { /* measured before a jump */
+        probe_skip--;
+        return;
+    }
+    probe_share = share;
+    if (share > 0.05f && isfinite(mean_log2))
+        probe_sz = exp2f(mean_log2);
+}
+
+extern "C" void pc_post_dof_pack(pc_post_dof_gpu* out, int lit_w, int lit_h)
+{
+    memset(out, 0, sizeof *out);
+    const Values& v = frame_values;
+    float (*g)[4] = out->v;
+    float largest = fmaxf(frame.dof_radius, frame.tilt[2]) * lit_h / 720.0f * 0.5f; /* half-size pixels */
+    g[1][1] = largest;
+    g[1][2] = PC_DOF_TILE;
+    g[1][3] = ceilf(largest / PC_DOF_TILE);
+    g[2][0] = get(v, "bokeh_blades");
+    g[2][1] = get(v, "bokeh_curvature");
+    g[2][2] = get(v, "bokeh_rotation") * 3.14159265f / 180.0f;
+    g[2][3] = get(v, "bokeh_squeeze");
+    g[3][0] = get(v, "bokeh_edge");
+    g[3][1] = get(v, "bokeh_edge_amount");
+    g[3][2] = get(v, "bokeh_fringe");
+    g[3][3] = get(v, "bokeh_cats_eye");
+    g[4][0] = get(v, "bokeh_highlights");
+    g[4][1] = fmaxf(get(v, "bokeh_samples"), 1.0f);
+    g[4][2] = bokeh_test && (frame.flags & 1) ? 1.0f : 0.0f;
+    if (g[4][2] != 0)
+        g[4][0] = 0; /* the test card shows the kernel as it is (its dots are the highlights) */
+    g[4][3] = lit_h > 0 ? (float)lit_w / lit_h : 1.0f;
 }
 
 extern "C" const unsigned char* pc_post_lut(int* size, unsigned* serial)
@@ -1401,8 +1589,10 @@ Layer* layer_named(const std::string& name)
 
 /* params: {layer: "gameplay" | "cutscene" | "room" | "room_cutscene", set: {field: value}, clear: [fields] | "all",
  * preset: name ("" none) for that layer, context: "auto" | "gameplay" | "cutscene", stack, blend_time,
- * fft_size, save_preset: name (the layer's values into the user's presets), snap: true}. The reply: the
- * context, the resolved values (target) and those shown now (blending), every layer and the presets. Room
+ * fft_size, save_preset: name (the layer's values into the user's presets), snap: true, focus_point: [u, v]
+ * (cursor focus there; null: the mouse), bokeh_test: true (the test card)}. The reply: the context, the
+ * resolved values (target) and those shown now (blending), the lens (physical camera), the focus probe,
+ * whether the first-person view is up, every layer and the presets. Room
  * layers are saved with lighting {action: "save"}; the others with settings {action: "save"}. */
 extern "C" int pc_post_rpc(const char* params_text, char* out, int size)
 {
@@ -1467,6 +1657,13 @@ extern "C" int pc_post_rpc(const char* params_text, char* out, int size)
     if (const prefab::Json* j = params.get("snap"))
         if (j->boolean)
             started = false; /* the next present snaps */
+    if (const prefab::Json* j = params.get("focus_point")) { /* cursor focus at this point (null: the mouse) */
+        rpc_point_set = j->type == prefab::Json::Array && j->items.size() == 2;
+        if (rpc_point_set)
+            rpc_point[0] = (float)j->items[0].number, rpc_point[1] = (float)j->items[1].number;
+    }
+    if (const prefab::Json* j = params.get("bokeh_test"))
+        bokeh_test = j->type == prefab::Json::Bool ? j->boolean : j->number != 0;
     std::string saved;
     if (const prefab::Json* j = params.get("save_preset")) {
         if (!save_preset(j->string, *l, &saved)) {
@@ -1492,7 +1689,13 @@ extern "C" int pc_post_rpc(const char* params_text, char* out, int size)
                                                                                : "none")
         + ",\"fft_available\":" + (pc_post_fft_available ? "true" : "false") + ",\"fft_size\":"
         + std::to_string(pc_post_fft_size) + ",\"ev\":" + number(pc_post_active_ev) + ",\"focus\":"
-        + number(frame.focus_sz) + ",\"fade\":" + number(frame.fade) + ",\"menu_model\":" + (frame_menu_model ? "true" : "false") + ",\"flags\":" + std::to_string(frame.flags) + ",\"lut\":{\"size\":"
+        + number(frame.focus_sz) + ",\"first_person\":" + (lens.first_person ? "true" : "false")
+        + ",\"lens\":{\"model\":" + jstr(lens.physical ? "physical" : "artistic") + ",\"focal_mm\":"
+        + number(lens.focal_mm) + ",\"fstop\":" + number(lens.fstop) + ",\"sensor_mm\":" + number(lens.sensor_mm)
+        + ",\"focus_m\":" + number(lens.focus_m) + ",\"far_px\":" + number(lens.far_px) + ",\"cap\":"
+        + number(lens.cap) + "},\"probe\":{\"on\":" + (frame.focus_probe ? "true" : "false") + ",\"sz\":"
+        + number(probe_sz) + ",\"share\":" + number(probe_share) + ",\"uv\":[" + number(frame.focus_uv[0]) + ","
+        + number(frame.focus_uv[1]) + "]},\"bokeh_test\":" + (bokeh_test ? "true" : "false") + ",\"fade\":" + number(frame.fade) + ",\"menu_model\":" + (frame_menu_model ? "true" : "false") + ",\"flags\":" + std::to_string(frame.flags) + ",\"lut\":{\"size\":"
         + std::to_string(lut_size) + ",\"error\":" + jstr(lut_error) + "},\"zone\":" + std::to_string(rood_lights::zone)
         + ",\"room\":" + std::to_string(rood_lights::room) + ",\"target\":" + values_json(target)
         + ",\"shown\":" + values_json(shown) + ",\"layers\":{\"gameplay\":" + layer_json(user_gameplay)
@@ -1724,6 +1927,18 @@ extern "C" void pc_post_panel(void)
         ImGui::TextWrapped("%s", panel_status.c_str());
     if (!lut_error.empty())
         ImGui::TextColored(ImVec4(1, 0.5f, 0.4f, 1), "LUT: %s", lut_error.c_str());
+    if (frame.flags & 1) {
+        if (lens.physical)
+            ImGui::TextDisabled("Lens%s: %.0f mm f/%.1f, focus %.2f m; blur far away %.1f px (cap %.0f)",
+                lens.first_person ? " (first person)" : "", lens.focal_mm, lens.fstop, lens.focus_m, lens.far_px,
+                lens.cap);
+        else
+            ImGui::TextDisabled("Depth of field%s: artistic, focus SZ %.0f", lens.first_person ? " (first person)" : "",
+                frame.focus_sz);
+    }
+    ImGui::Checkbox("Bokeh test card", &bokeh_test);
+    tooltip("While depth of field is on: the 3D replaced by small white dots, blurred by the maximum, to see the\n"
+            "bokeh's shape (blades, squeeze, edge, fringe, cat's eye toward the edges). Not saved.");
     ImGui::TextDisabled("Grade pass %s, bloom %s, exposure %+.2f EV, blend %.0f%%", pc_post_active_grade ? "on" : "off",
         pc_post_active_bloom == PC_BLOOM_CONVOLUTION ? "convolution" : pc_post_active_bloom == PC_BLOOM_GAUSSIAN ? "gaussian" : "off",
         pc_post_active_ev, blend_progress * 100);

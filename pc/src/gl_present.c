@@ -828,47 +828,6 @@ static GLint u_light_right, u_light_up, u_quality0, u_quality1, u_quality2, u_en
 extern float pc_lights_baked;
 extern int pc_scene_camera_inverse(float inverse[3][3]);
 extern int pc_scene_projection(float*, float*, float*);
-/* Depth of field / tilt-shift blur over the lit image (rgb, a = signed blur
- * radius in pixels, 9999 for UI). A gather that respects each tap's own blur:
- * a tap contributes where its blur circle reaches this pixel, and taps behind
- * this pixel are limited to its own radius, so sharp subjects don't bleed
- * into a blurred background while blurred foreground spreads over them. */
-static const char* blur_fragment_source =
-    "#version 330 core\n"
-    "in vec2 uv;\n"
-    "out vec4 color;\n"
-    "uniform sampler2D lit;\n"
-    "uniform vec2 view;\n"
-    "uniform float max_radius;\n"
-    "uniform int keep_mask;\n" /* a grade pass follows: alpha 9999 stays on 2D/UI */
-    "const float golden = 2.39996323;\n"
-    "void main() {\n"
-    "    vec2 st = vec2(uv.x, 1.0 - uv.y);\n" /* framebuffer rows count from the bottom */
-    "    vec4 c0 = texture(lit, st);\n"
-    "    if (c0.a > 9000.0) { color = vec4(c0.rgb, keep_mask != 0 ? 9999.0 : 1.0); return; }\n"
-    "    float r0 = abs(c0.a), radius = r0;\n"
-    /* Blurred foreground nearby may cover this pixel: look for it. */
-    "    for (int i = 0; i < 12; i++) {\n"
-    "        float a = float(i) * 0.5236;\n"
-    "        vec4 t = texture(lit, st + vec2(cos(a), sin(a)) * max_radius * (i % 2 == 0 ? 0.5 : 1.0) / view);\n"
-    "        if (t.a < 0.0 && t.a < c0.a) radius = max(radius, -t.a);\n"
-    "    }\n"
-    "    if (radius < 0.5) { color = vec4(c0.rgb, 1.0); return; }\n"
-    "    vec3 sum = c0.rgb;\n"
-    "    float weight = 1.0;\n"
-    "    for (int i = 0; i < 48; i++) {\n" /* golden-angle spiral over the disc */
-    "        float r = sqrt((float(i) + 0.5) / 48.0) * radius, a = float(i) * golden;\n"
-    "        vec2 o = vec2(cos(a), sin(a)) * r;\n"
-    "        vec4 t = texture(lit, st + o / view);\n"
-    "        if (t.a > 9000.0) continue;\n" /* never smear UI into the scene */
-    "        float rt = abs(t.a);\n"
-    "        if (t.a > c0.a) rt = min(rt, r0);\n"
-    "        float w = clamp(rt - r + 1.0, 0.0, 1.0);\n"
-    "        sum += t.rgb * w;\n"
-    "        weight += w;\n"
-    "    }\n"
-    "    color = vec4(sum / weight, 1.0);\n"
-    "}\n";
 /* FXAA (3.11-style): find the edge through each pixel from luma contrast,
  * search along it for its ends, and resample across it in proportion. */
 static const char* fxaa_fragment_source =
@@ -986,8 +945,8 @@ static const char* downsample_source =
 static GLuint smaa_edges_program, smaa_weights_program, smaa_blend_program, downsample_program;
 static GLuint smaa_area_texture, smaa_search_texture;
 static GLint u_smaa_metrics[3], u_smaa_rect, u_smaa_info, u_down_src_size, u_down_dst_size, u_down_filter;
-static GLuint blur_program, fxaa_program;
-static GLint u_blur_lit, u_blur_view, u_blur_radius, u_aperture, u_fxaa_image, u_fxaa_texel;
+static GLuint fxaa_program;
+static GLint u_aperture, u_fxaa_image, u_fxaa_texel;
 /* The post chain's lit-sized images (half floats; alpha = the depth of
  * field's signed blur radius, 9999 on UI), used in turn: pass n writes
  * chain[n & 1]. SMAA's edges and weights beside them. */
@@ -1000,7 +959,7 @@ static GLint u_scaled_show_depth, u_scaled_depth, u_post, u_focus, u_dof_radius,
 static GLint u_backdrop_tex, u_backdrop_color, u_backdrop_mode, u_menu_studio_on, u_menu_studio_rig;
 /* Post effects: this present's resolved profile (post.h, post_profile.cpp). */
 static pc_post_frame post_frame;
-static GLint u_near_blur, u_blur_keep;
+static GLint u_near_blur;
 extern GLuint pc_hw_depth_texture(void);
 int pc_gl_show_depth;
 /* Presentation settings: filter 0 nearest, 1 bilinear, 2 supersample (default:
@@ -1115,9 +1074,8 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
         scaled_program = pc_gl_program(vertex_source, source ? source : scaled_fragment_source);
         free(source);
     }
-    blur_program = pc_gl_program(vertex_source, blur_fragment_source);
     fxaa_program = pc_gl_program(vertex_source, fxaa_fragment_source);
-    if (!program || !scaled_program || !blur_program || !fxaa_program)
+    if (!program || !scaled_program || !fxaa_program)
         return abandon(win);
     u_scaled_rect = gl_GetUniformLocation(scaled_program, "rect");
     u_scaled_scale = gl_GetUniformLocation(scaled_program, "scale");
@@ -1182,10 +1140,6 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     u_dof_radius = gl_GetUniformLocation(scaled_program, "dof_radius");
     u_aperture = gl_GetUniformLocation(scaled_program, "aperture");
     u_near_blur = gl_GetUniformLocation(scaled_program, "near_blur");
-    u_blur_lit = gl_GetUniformLocation(blur_program, "lit");
-    u_blur_view = gl_GetUniformLocation(blur_program, "view");
-    u_blur_radius = gl_GetUniformLocation(blur_program, "max_radius");
-    u_blur_keep = gl_GetUniformLocation(blur_program, "keep_mask");
     u_fxaa_image = gl_GetUniformLocation(fxaa_program, "image");
     u_fxaa_texel = gl_GetUniformLocation(fxaa_program, "texel");
     u_tilt = gl_GetUniformLocation(scaled_program, "tilt");
@@ -2106,6 +2060,9 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
         int stage = 0;
         GLuint input = stage_begin(stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
         gl_DrawArrays(GL_TRIANGLES, 0, 3);
+        /* The depth of field's focus probe (post.h focus_probe): the depth around its point, read back. */
+        if (target && post_frame.focus_probe && !pc_gl_show_depth)
+            gl_dof_probe(&post_frame, x, y, w, h);
         if (post == PC_AA_FXAA) {
             GLuint source = input;
             input = stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
@@ -2155,18 +2112,11 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
             gl_BindTexture(GL_TEXTURE_2D, source);
             gl_DrawArrays(GL_TRIANGLES, 0, 3);
         }
-        if (blur) {
+        if (blur) { /* depth of field and tilt-shift (dof.glsl): the half-size layers, then the composite */
             GLuint source = input;
+            int layers = gl_dof_layers(&post_frame, source, lit_w, lit_h);
             input = stage_begin(++stage, stages, lit_w, lit_h, view_x, view_y, view_w, view_h);
-            gl_UseProgram(blur_program);
-            gl_ActiveTexture(GL_TEXTURE0);
-            gl_BindTexture(GL_TEXTURE_2D, source);
-            gl_Uniform1i(u_blur_lit, 0);
-            gl_Uniform2f(u_blur_view, (float)lit_w, (float)lit_h);
-            float most = post_frame.dof_radius > post_frame.tilt[2] ? post_frame.dof_radius : post_frame.tilt[2];
-            gl_Uniform1f(u_blur_radius, most * lit_h / 720.0f);
-            gl_Uniform1i(u_blur_keep, grade);
-            gl_DrawArrays(GL_TRIANGLES, 0, 3);
+            gl_dof_composite(source, lit_w, lit_h, grade, layers);
         }
         if (grade) {
             GLuint source = input;

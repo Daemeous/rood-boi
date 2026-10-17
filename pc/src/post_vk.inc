@@ -304,3 +304,135 @@ static void vk_grade(const pc_post_frame* pf, const vk_image* source, int w, int
     vkCmdPushConstants(cmd, grade_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push, push);
     vkCmdDraw(cmd, 3, 1, 0, 0);
 }
+
+/* ---- depth of field (dof.frag, dof.glsl): half-size layers, then the composite into the chain ---- */
+static VkPipelineLayout dof_layout;
+static VkPipeline dof_pipeline, dof_to_window;
+static vk_image dof_half, dof_background, dof_foreground, dof_tiles, dof_dilated, dof_probe_image;
+static pc_post_dof_gpu dof_params;
+static int dof_vk_ready(void)
+{
+    static int state;
+    if (state)
+        return state > 0;
+    state = -1;
+    dof_layout = make_layout(triple_set, sizeof(pc_post_dof_gpu));
+    VkShaderModule vs = vk_shader(vk_spv_fullscreen_vert, vk_spv_fullscreen_vert_size),
+                   fs = vk_shader(vk_spv_dof_frag, vk_spv_dof_frag_size);
+    dof_pipeline = fullscreen(vs, fs, dof_layout, VIEW_FORMAT);
+    dof_to_window = fullscreen(vs, fs, dof_layout, WINDOW_FORMAT);
+    if (vs)
+        vkDestroyShaderModule(vk.device, vs, NULL);
+    if (fs)
+        vkDestroyShaderModule(vk.device, fs, NULL);
+    if (!dof_pipeline || !dof_to_window) {
+        fprintf(stderr, "[vk] depth of field unavailable (its pipelines did not build)\n");
+        return 0;
+    }
+    state = 1;
+    return 1;
+}
+
+/* One pass into the rendering begun (w x h): the pass, its main source's size, its sources. */
+static void dof_draw(VkPipeline pipeline, pc_post_dof_gpu* g, int pass, int w, int h, int src_w, int src_h,
+    VkImageView a, const vk_image* b, const vk_image* c)
+{
+    VkCommandBuffer cmd = vk_cmd();
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    vk_descriptors d = { 0 };
+    vk_descriptors_image(&d, 0, a, vk.nearest);
+    vk_descriptors_image(&d, 1, (b ? b : &post_black)->view, vk.linear);
+    vk_descriptors_image(&d, 2, (c ? c : &post_black)->view, vk.linear);
+    vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, dof_layout);
+    g->v[0][0] = (float)w, g->v[0][1] = (float)h, g->v[0][2] = (float)src_w, g->v[0][3] = (float)src_h;
+    g->v[1][0] = (float)pass;
+    vkCmdPushConstants(cmd, dof_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof *g, g);
+    vkCmdDraw(cmd, 3, 1, 0, 0);
+}
+static void dof_pass(const vk_image* out, int pass, int src_w, int src_h, const vk_image* a, const vk_image* b)
+{
+    begin_single(out, 0, 0, out->width, out->height);
+    dof_draw(dof_pipeline, &dof_params, pass, out->width, out->height, src_w, src_h, a->view, b, NULL);
+}
+
+/* The half-size layers from the lit image `source` (w x h; alpha the signed blur radius). Returns 0 when
+ * they could not be made (the composite then passes the picture through), 1, or 2 with a foreground. */
+static int vk_dof_layers(const pc_post_frame* pf, const vk_image* source, int w, int h)
+{
+    pc_post_dof_pack(&dof_params, w, h);
+    if (!post_vk_ready() || !dof_vk_ready())
+        return 0;
+    int hw = (w + 1) / 2, hh = (h + 1) / 2;
+    int tw = (hw + PC_DOF_TILE - 1) / PC_DOF_TILE, th = (hh + PC_DOF_TILE - 1) / PC_DOF_TILE;
+    if (!ensure_post_image(&dof_half, hw, hh, VIEW_FORMAT, POST_USAGE)
+        || !ensure_post_image(&dof_background, hw, hh, VIEW_FORMAT, POST_USAGE))
+        return 0;
+    int fg = pf->dof_near && ensure_post_image(&dof_foreground, hw, hh, VIEW_FORMAT, POST_USAGE)
+        && ensure_post_image(&dof_tiles, tw, th, VIEW_FORMAT, POST_USAGE)
+        && ensure_post_image(&dof_dilated, tw, th, VIEW_FORMAT, POST_USAGE);
+    dof_pass(&dof_half, PC_DOF_PREFILTER, w, h, source, NULL);
+    if (fg) {
+        dof_pass(&dof_tiles, PC_DOF_TILES, hw, hh, &dof_half, NULL);
+        dof_pass(&dof_dilated, PC_DOF_DILATE, tw, th, &dof_tiles, NULL);
+    }
+    dof_pass(&dof_background, PC_DOF_FAR, hw, hh, &dof_half, NULL);
+    if (fg)
+        dof_pass(&dof_foreground, PC_DOF_NEAR, hw, hh, &dof_half, &dof_dilated);
+    return fg ? 2 : 1;
+}
+/* The composite into the stage begun: the view (to_view) or the window's view. Without layers the
+ * picture passes through (2D/UI marked for a grade pass). */
+static void vk_dof_composite(const vk_image* source, int w, int h, int to_view, int keep_mask, int layers)
+{
+    pc_post_dof_gpu* g = &dof_params;
+    if (!dof_vk_ready())
+        return;
+    g->v[5][0] = keep_mask ? 1.0f : 0.0f;
+    g->v[5][1] = layers == 2 ? 1.0f : 0.0f;
+    g->v[5][2] = layers ? 0.0f : 1.0f;
+    dof_draw(to_view ? dof_pipeline : dof_to_window, g, PC_DOF_COMPOSITE, w, h, w, h, source->view,
+        layers ? &dof_background : NULL, layers == 2 ? &dof_foreground : NULL);
+}
+
+/* The focus probe: the view depth around the focus point (the depth target `depth`, the display area
+ * x, y, w, h in VRAM), read back when the frame is done. */
+typedef struct {
+    vk_buffer buffer;
+} probe_readback;
+static float half_float(unsigned short x)
+{
+    int e = (x >> 10) & 31, f = x & 1023;
+    float v = e == 0 ? ldexpf((float)f, -24) : e == 31 ? 0.0f : ldexpf((float)(f | 1024), e - 25);
+    return x & 0x8000 ? -v : v;
+}
+static void probe_done(void* context)
+{
+    probe_readback* m = context;
+    unsigned short* h = m->buffer.mapped; /* RGBA16F */
+    pc_post_focus_result(half_float(h[0]), half_float(h[1]));
+    vk_buffer_destroy(&m->buffer);
+    free(m);
+}
+static void vk_dof_probe(const pc_post_frame* pf, VkImageView depth, int x, int y, int w, int h)
+{
+    if (!post_vk_ready() || !dof_vk_ready()
+        || !ensure_post_image(&dof_probe_image, 1, 1, VIEW_FORMAT, POST_USAGE | VK_IMAGE_USAGE_TRANSFER_SRC_BIT))
+        return;
+    probe_readback* m = calloc(1, sizeof *m);
+    if (!m || !vk_buffer_create(&m->buffer, 8, VK_BUFFER_USAGE_TRANSFER_DST_BIT, 2)) {
+        free(m);
+        return;
+    }
+    pc_post_dof_gpu g;
+    memset(&g, 0, sizeof g);
+    g.v[6][0] = pf->focus_uv[0], g.v[6][1] = pf->focus_uv[1], g.v[6][2] = pf->focus_area;
+    g.v[6][3] = (float)pc_hw_scale;
+    g.v[7][0] = (float)x, g.v[7][1] = (float)y, g.v[7][2] = (float)w, g.v[7][3] = (float)h;
+    begin_single(&dof_probe_image, 0, 0, 1, 1);
+    dof_draw(dof_pipeline, &g, PC_DOF_PROBE, 1, 1, 1, 1, depth, NULL, NULL);
+    vk_end_rendering();
+    VkBufferImageCopy region = { .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, .imageExtent = { 1, 1, 1 } };
+    vkCmdCopyImageToBuffer(vk_cmd(), dof_probe_image.image, VK_IMAGE_LAYOUT_GENERAL, m->buffer.buffer, 1, &region);
+    vk_barrier();
+    vk_on_frame_done(probe_done, m);
+}

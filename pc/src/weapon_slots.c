@@ -97,6 +97,9 @@ extern int pc_qol_weapon_slots; /* project_settings.cpp */
 #define FIELD_MENU_CLOSED(m) (((m) & 0x3F) == 0x3F)
 /* A field menu (ITEMS, the main menu, ...) is open (post_profile.cpp: no depth of field in menus). */
 int pc_battle_field_menu_open(void) { return !FIELD_MENU_CLOSED(vs_battle_menuState.currentMenu); }
+/* The first-person view is up (BATTLE 146C.c's flag; post_profile.cpp: its own depth of field). */
+extern int _firstPersonViewEnabled;
+int pc_battle_first_person(void) { return _firstPersonViewEnabled != 0; }
 
 /* Per overlay label id (0..3 the button group, 4..7 the D-pad group): text x,
  * y, bullet x, y, width budget in characters (6 px each), slot. Positions with

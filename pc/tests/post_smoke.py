@@ -147,7 +147,7 @@ def main():
         env["ROOD_VK_VALIDATE"] = "1"
     os.environ.pop("ROOD_SETTINGS", None)
     logs = []
-    dof_on = {"dof": True, "dof_max_blur": 24, "dof_aperture": 16, "dof_focus": "centre"}
+    dof_on = {"dof": True, "dof_model": "artistic", "dof_max_blur": 24, "dof_aperture": 16, "dof_focus": "centre"}
 
     # ---- 0. The intro movie: never touched ----
     everything = {**dof_on, "exposure": 2, "tonemapper": "aces", "grain": 1, "vignette": 1, "bloom_intensity": 2,
@@ -385,7 +385,7 @@ def field(game, out, save, lights):
                                  f"edge energy {edge_energy(base, solid):.1f} -> {edge_energy(i, solid):.1f}"), sharpen=1)
 
     # Depth of field in play; a field menu turns it off.
-    blurred = profile(game, out / "f", dof=True, dof_max_blur=24, dof_aperture=16)
+    blurred = profile(game, out / "f", dof=True, dof_model="artistic", dof_max_blur=24, dof_aperture=16)
     r = game.call("post")
     check(r["flags"] & 1 and float(np.abs(blurred - base)[solid].mean()) > 0.3
           and int(np.abs(blurred - base)[ui].max()) == 0,
