@@ -45,7 +45,13 @@ audit share the first):
           nothing
   prompt  the prompt shows on the Circle when travel is offered, not when off,
           not when the device used last has nothing bound (original mode too:
-          the keyboard shows Travel's key, not Select's PlayStation glyph)
+          the keyboard shows Travel's key, not Select's PlayStation glyph);
+          modern UI only (the classic look draws none); in a 16:9 window
+          it sits in the game picture's upper right (inside the 4:3
+          picture, not over its side bars; the 16:9 picture too) in the
+          modern UI's label font, and moves with the anchor and offsets
+  settings (also) an old qol_fast_travel_prompt_x / _y (window fractions)
+          is dropped for the anchor's default and not saved again
 On the pinned test card a case that cannot run its checks fails instead of
 skipping.
 --out keeps screenshots (game imagery: keep it out of git)."""
@@ -241,7 +247,8 @@ def nearest_other(s):
 def case_status(t, check, args):
     s = t.ft()
     st = s["state"]
-    check(s["settings"] == {"enabled": 1, "cost": "free", "flat": 15, "scale": 0.5, "prompt": 1},
+    check(s["settings"] == {"enabled": 1, "cost": "free", "flat": 15, "scale": 0.5, "prompt": 1, "prompt_anchor": 2,
+                            "prompt_offset": [-0.025, 0.035], "prompt_scale": 1},
           f"status: defaults {s['settings']}")
     check(s["whose"] == "port" and s["unlock"] == 1 and st["game"] == 0,
           f"status: the port's unlock ({s['whose']}, unkB5 {st['game']})")
@@ -951,6 +958,42 @@ def drawn(t, vsyncs=20):
     return t.ft()["prompt_drawn"] - n
 
 
+def placed(t, check):
+    """The plate in the game picture's upper right (not the window's: a 4:3 picture in a 16:9 window has side
+    bars), in the modern UI's label font; a bottom-left anchor moves it there; the settings' defaults."""
+    g = t.g
+    s = t.ft()
+    st = s["settings"]
+    check(st["prompt_anchor"] == 2 and abs(st["prompt_offset"][0] + 0.025) < 1e-6
+          and abs(st["prompt_offset"][1] - 0.035) < 1e-6 and st["prompt_scale"] == 1,
+          f"prompt: the defaults, the top right anchor and its offsets ({st})")
+    check(s["prompt_font"] == "label", f"prompt: drawn in the modern UI's label font ({s['prompt_font']})")
+
+    def where():
+        g.run(4)
+        s = t.ft()
+        x0, y0, x1, y1 = s["prompt_box"]
+        px, py, pw, ph = s["picture"]
+        return (x0, y0, x1, y1), (px, py, pw, ph)
+
+    for wide in (False, True):
+        g.call("graphics", widescreen=wide)
+        (x0, y0, x1, y1), (px, py, pw, ph) = where()
+        aspect = "16:9" if wide else "4:3"
+        inside = px <= x0 < x1 <= px + pw and py <= y0 < y1 <= py + ph
+        check(inside and x0 > px + pw * 0.5 and y1 < py + ph * 0.25,
+              f"prompt ({aspect} picture): in its upper right ({[x0, y0, x1, y1]} in {[px, py, pw, ph]})")
+        check(abs((px + pw * (1 - 0.025)) - x1) <= 1.5 and abs((py + ph * 0.035) - y0) <= 1.5,
+              f"prompt ({aspect} picture): its top right corner at the anchor plus the offsets")
+        check(y1 - y0 > ph * 0.03 and y1 - y0 < ph * 0.1, f"prompt ({aspect} picture): a hint's height ({y1 - y0:.0f} px)")
+    g.call("graphics", widescreen=False)
+    t.ft(set={"prompt_anchor": 6, "prompt_offset_x": 0.02, "prompt_offset_y": -0.02})
+    (x0, y0, x1, y1), (px, py, pw, ph) = where()
+    check(abs(x0 - (px + pw * 0.02)) <= 1.5 and abs(y1 - (py + ph * 0.98)) <= 1.5,
+          f"prompt: anchored bottom left ({[x0, y0, x1, y1]} in {[px, py, pw, ph]})")
+    t.ft(set={"prompt_anchor": 2, "prompt_offset_x": -0.025, "prompt_offset_y": 0.035})
+
+
 def case_prompt(t, check, args):
     g = t.g
     s = t.ft()
@@ -966,6 +1009,7 @@ def case_prompt(t, check, args):
     # the device used last decides the icon (the tests launch with the PS1 glyphs: original mode)
     check(t.ft()["prompt"] and drawn(t) > 0, "prompt: shown on the Circle with the modern UI (the pad's back)")
     t.shot("prompt")
+    placed(t, check)
     t.ft(set={"enabled": False})
     g.run(4)  # the field poll decides the prompt (a frame or two)
     check(not t.ft()["prompt"] and drawn(t) == 0, "prompt: not with fast travel off")
@@ -1005,15 +1049,30 @@ def case_settings(t, check, args):
     text = pathlib.Path(r["path"]).read_text()
     check("qol_fast_travel_cost 2\n" in text and "qol_fast_travel_scale 0.25\n" in text,
           "settings: saved back (qol_fast_travel_cost 2, qol_fast_travel_scale 0.25)")
+    # a settings file from before the anchor (the user's own has the old centre, 0.5 / 0.84): its window
+    # fractions are dropped, the prompt gets the anchor's default, and a save writes only the new keys
+    st = s["settings"]
+    check(st["prompt_anchor"] == 2 and abs(st["prompt_offset"][0] + 0.025) < 1e-6
+          and abs(st["prompt_offset"][1] - 0.035) < 1e-6,
+          f"settings: the old qol_fast_travel_prompt_x / _y migrate to the top right default ({st})")
+    check("qol_fast_travel_prompt_x" not in text and "qol_fast_travel_prompt_y" not in text
+          and "qol_fast_travel_prompt_anchor 2\n" in text and "qol_fast_travel_prompt_offset_x -0.025\n" in text,
+          "settings: saved with qol_fast_travel_prompt_anchor / _offset_x / _y, without the old keys")
 
 
 def settings_env(out):
     path = out / "settings-fast-travel.cfg"
-    path.write_text("qol_fast_travel_cost 1\nqol_fast_travel_flat 7\n")
+    path.write_text("qol_fast_travel_cost 1\nqol_fast_travel_flat 7\n"
+                    "qol_fast_travel_prompt_x 0.5\nqol_fast_travel_prompt_y 0.84\n")
     return {"ROOD_SETTINGS": str(path)}
 
 
-CASE_ENV = {"settings": settings_env}
+def wide_window_env(out):
+    """A 16:9 window: the 4:3 picture has side bars (the prompt goes by the picture, not the window)."""
+    return {"ROOD_WINDOW": "1280x720"}
+
+
+CASE_ENV = {"settings": settings_env, "prompt": wide_window_env}
 
 
 SHARED = ("status", "audit")

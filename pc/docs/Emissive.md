@@ -285,7 +285,21 @@ additive glows are left alone.
   texel's index), the colour range filter, and *Only with the picked
   texture's palette*. The texture view draws the texels from VRAM with the
   mask's texels outlined (yellow: they glow; blue: the filters leave them
-  out) and pulsing. Every edit applies live. *Save (yours)* writes the user
+  out) and pulsing. It is as wide as the panel and fits the whole texture
+  at first; the wheel zooms (nearest neighbour, whole-number steps 1x to
+  64x) about the texel under the pointer, a middle drag pans, a middle
+  double-click or *Fit* fits again, *-* / *+* step the zoom. Zoomed in far
+  enough a texel grid shows; under the canvas the texel under the pointer
+  (texture and page coordinates) and its CLUT index. Each texture keeps its
+  zoom and pan while you edit; rect drags, Shift + drag and the brush land
+  on the texels under the pointer at any zoom. *View options* (settings
+  `editor_emissive_view_height` 420, the canvas's tallest height in pixels;
+  `editor_emissive_view_zoom_max` 64; `editor_emissive_view_grid_zoom` 8,
+  the zoom the grid shows from; `editor_emissive_view_grid_alpha` 0.35; RPC
+  `emissive {action: ui, view: {...}}`). RPC `emissive {action: ui}`
+  reports the view (`texture_view`: canvas rect, zoom, fit, pan, the
+  hovered texel and index) and takes `texture {zoom, pan, fit, show}` and
+  `brush {on, radius, hardness, opacity, value}`. Every edit applies live. *Save (yours)* writes the user
   file; *Copy JSON for the curated catalog* puts the entry (review
   `checked`) on the clipboard to paste into `catalog.json`; *Revert to
   curated...* / *Delete...* (after a confirm). An entry's *Duplicate* (a

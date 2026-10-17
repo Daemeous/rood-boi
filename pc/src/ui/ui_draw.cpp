@@ -194,6 +194,8 @@ Pointer forced_pointer;
 
 } // namespace
 
+void uidraw::ensure_fonts(const ui::Theme& t) { load_fonts(t); }
+
 // The tab strip (the shell's, and the Map frame's with its own pointer
 // kinds: a click is a request for the map screen). steps_lit false: the
 // L1 / R1 icons dimmed (the pad's L1 / R1 do something else there; the

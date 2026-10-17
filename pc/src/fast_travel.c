@@ -33,6 +33,8 @@ unsigned pc_window_travel_shared(void); /* boot_window.c: PS1 buttons on the sam
  * progress is the game's (a save state taken during one resumes it). */
 #define HOST __attribute__((section(".data.rood_host")))
 unsigned pc_fast_travel_prompt_drawn HOST; /* fast_travel_prompt.cpp counts the frames it drew */
+float pc_fast_travel_prompt_box[4] HOST, pc_fast_travel_prompt_picture[4] HOST; /* ... and where (RPC) */
+int pc_fast_travel_prompt_font HOST;
 
 /* A field frame lasts 2 or 3 vsyncs (more in a heavy room): the poll runs
  * once per frame, and not at all while an action plays (an enemy's attack:
@@ -264,6 +266,7 @@ static void audit_points(pc_ft_report* r)
 
 void pc_fast_travel_report(pc_ft_report* r, int audit)
 {
+    int i;
     r->settings = settings();
     fill(&r->state);
     r->prompt = pc_fast_travel_prompt();
@@ -272,6 +275,15 @@ void pc_fast_travel_report(pc_ft_report* r, int audit)
     r->opened = opened;
     r->ignored = ignored;
     r->prompt_drawn = pc_fast_travel_prompt_drawn;
+    for (i = 0; i < 4; ++i) {
+        r->prompt_box[i] = pc_fast_travel_prompt_box[i];
+        r->picture[i] = pc_fast_travel_prompt_picture[i];
+    }
+    r->prompt_font = pc_fast_travel_prompt_font;
+    r->prompt_anchor = pc_qol_fast_travel_prompt_anchor;
+    r->prompt_offset[0] = pc_qol_fast_travel_prompt_offset_x;
+    r->prompt_offset[1] = pc_qol_fast_travel_prompt_offset_y;
+    r->prompt_scale = pc_qol_fast_travel_prompt_scale;
     r->last = last;
     r->audited = 0;
     if (audit)

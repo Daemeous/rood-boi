@@ -2,6 +2,7 @@
 // overlay Details > Emissive) and RPC emissive. Design: pc/docs/Emissive.md.
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <algorithm>
 #include <map>
@@ -573,6 +574,84 @@ int draw_uses(const Entry& e)
     return other;
 }
 
+/* The texture view's look (settings editor_emissive_view_*, its View options,
+ * RPC emissive ui {view}): the canvas's tallest height (pixels; it is as wide
+ * as the panel), the deepest zoom (pixels per texel), the zoom from which the
+ * texel grid shows and the grid's opacity. */
+struct ViewLook {
+    float height = 420.0f, zoom_max = 64.0f, grid_zoom = 8.0f, grid_alpha = 0.35f;
+};
+ViewLook look;
+void clamp_look()
+{
+    look.height = std::clamp(look.height, 96.0f, 2048.0f);
+    look.zoom_max = std::clamp(look.zoom_max, 4.0f, 256.0f);
+    look.grid_zoom = std::clamp(look.grid_zoom, 2.0f, 256.0f);
+    look.grid_alpha = std::clamp(look.grid_alpha, 0.0f, 1.0f);
+}
+/* Zoom and pan per texture (by key), kept while editing: pixels per texel
+ * and the texel at the canvas's top-left. Fitted: the whole texture centred
+ * (again when the canvas changes size) until a zoom or pan. */
+struct ViewState {
+    float zoom = 1.0f, pan[2] = { 0, 0 };
+    bool fitted = true;
+};
+std::map<std::string, ViewState> views;
+/* The view as last drawn (RPC ui): its texture, canvas (window pixels), the
+ * fit's zoom and the texel under the pointer (-1: none). */
+struct ViewShown {
+    int frame = -1;
+    std::string key;
+    float rect[4] = { 0, 0, 0, 0 }, fit = 1.0f;
+    int w = 0, h = 0, hover[3] = { -1, -1, -1 };
+    bool grid = false;
+};
+ViewShown view_shown;
+bool view_scroll; /* RPC ui {texture: {show}}: the canvas scrolled into view next frame */
+/* The zoom steps a wheel notch moves between (pixels per texel): whole
+ * numbers (nearest neighbour stays even), about 1.5x apart. */
+const float ZOOMS[] = { 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256 };
+const int ZOOM_COUNT = (int)(sizeof ZOOMS / sizeof ZOOMS[0]);
+float fit_zoom(int w, int h, float cw, float ch)
+{
+    float z = std::min(cw / (float)w, ch / (float)h);
+    return z >= 1.0f ? floorf(z) : z;
+}
+void fit_view(ViewState& v, int w, int h, float cw, float ch)
+{
+    v.zoom = fit_zoom(w, h, cw, ch);
+    v.pan[0] = (w - cw / v.zoom) * 0.5f, v.pan[1] = (h - ch / v.zoom) * 0.5f;
+    v.fitted = true;
+}
+/* Half a canvas past the texture's edges at most. */
+void clamp_pan(ViewState& v, int w, int h, float cw, float ch)
+{
+    float vw = cw / v.zoom, vh = ch / v.zoom;
+    v.pan[0] = std::clamp(v.pan[0], std::min(0.0f, w - vw) - vw * 0.5f, std::max(0.0f, w - vw) + vw * 0.5f);
+    v.pan[1] = std::clamp(v.pan[1], std::min(0.0f, h - vh) - vh * 0.5f, std::max(0.0f, h - vh) + vh * 0.5f);
+}
+/* Zoom to `zoom` keeping texel point (tx, ty) under canvas pixel (px, py). */
+void zoom_at(ViewState& v, float zoom, float tx, float ty, float px, float py, float fit)
+{
+    v.zoom = std::clamp(zoom, std::min(1.0f, fit), std::max(look.zoom_max, fit));
+    v.pan[0] = tx - px / v.zoom, v.pan[1] = ty - py / v.zoom;
+    v.fitted = false;
+}
+/* The next zoom step in (+1) or out (-1) from z. */
+float zoom_step(float z, int dir)
+{
+    if (dir > 0) {
+        for (float s : ZOOMS)
+            if (s > z * 1.01f)
+                return s;
+        return ZOOMS[ZOOM_COUNT - 1];
+    }
+    for (int i = ZOOM_COUNT - 1; i >= 0; i--)
+        if (ZOOMS[i] < z * 0.99f)
+            return ZOOMS[i];
+    return ZOOMS[0];
+}
+
 void texture_view(const Entry* e, const Picked* p)
 {
     /* The texture: the picked one, else the first live use of the entry. */
@@ -619,17 +698,56 @@ void texture_view(const Entry* e, const Picked* p)
     const std::vector<uint8_t>* values = painting ? &brush.values
         : map && map->w == w && map->h == h ? &map->values
                                             : nullptr;
-    float cell = std::clamp(256.0f / (float)std::max(w, h), 2.0f, 12.0f);
+    /* The canvas: the panel's width, the texture's shape up to look.height
+     * tall; the zoom and pan this texture had. */
+    ImGuiIO& io = ImGui::GetIO();
+    float cw = std::max(ImGui::GetContentRegionAvail().x, 64.0f);
+    float ch = std::clamp(cw * (float)h / (float)w, 96.0f, look.height);
+    float fit = fit_zoom(w, h, cw, ch);
+    bool fresh = !views.count(key);
+    ViewState& v = views[key];
+    if (fresh || v.fitted)
+        fit_view(v, w, h, cw, ch); /* a new texture, or still fitted: refit (the panel may have changed width) */
+    float mid[2] = { v.pan[0] + cw * 0.5f / v.zoom, v.pan[1] + ch * 0.5f / v.zoom };
+    if (ImGui::SmallButton("Fit"))
+        fit_view(v, w, h, cw, ch);
+    keep_button("view_fit");
+    ImGui::SameLine();
+    if (ImGui::SmallButton("-"))
+        zoom_at(v, zoom_step(v.zoom, -1), mid[0], mid[1], cw * 0.5f, ch * 0.5f, fit);
+    keep_button("view_out");
+    ImGui::SameLine();
+    if (ImGui::SmallButton("+"))
+        zoom_at(v, zoom_step(v.zoom, 1), mid[0], mid[1], cw * 0.5f, ch * 0.5f, fit);
+    keep_button("view_in");
+    ImGui::SameLine();
+    ImGui::TextDisabled("%gx (wheel: zoom, middle drag: pan)", roundf(v.zoom * 10) / 10);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        ImGui::SetTooltip("Pixels per texel. The wheel zooms about the texel under the pointer; a middle drag\n"
+                          "pans; a middle double-click or Fit shows the whole texture.");
+    clamp_pan(v, w, h, cw, ch);
     ImVec2 origin = ImGui::GetCursorScreenPos();
+    if (view_scroll) {
+        ImGui::SetScrollHereY(0.0f);
+        view_scroll = false;
+    }
+    float z = v.zoom;
+    /* Texel edges on whole pixels (no seams between texels at any zoom). */
+    auto sx = [&](float x) { return origin.x + roundf((x - v.pan[0]) * z); };
+    auto sy = [&](float y) { return origin.y + roundf((y - v.pan[1]) * z); };
     ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->PushClipRect(origin, ImVec2(origin.x + cw, origin.y + ch), true);
+    dl->AddRectFilled(origin, ImVec2(origin.x + cw, origin.y + ch), IM_COL32(18, 18, 22, 255));
     float time = (float)ImGui::GetTime();
     float pulse = 0.5f + 0.5f * sinf(time * 4.0f);
     float under = painted ? brush.reference : 1.0f;
-    for (int y = 0; y < h && y < 256; y++)
-        for (int x = 0; x < w && x < 256; x++) {
+    int x0 = std::max(0, (int)floorf(v.pan[0])), y0 = std::max(0, (int)floorf(v.pan[1]));
+    int x1 = std::min(w, (int)ceilf(v.pan[0] + cw / z)), y1 = std::min(h, (int)ceilf(v.pan[1] + ch / z));
+    for (int y = y0; y < y1 && y < 256; y++)
+        for (int x = x0; x < x1 && x < 256; x++) {
             unsigned index = 0;
             uint16_t t = texel((unsigned)(box[0] + x), (unsigned)(box[1] + y), tpage, clut, &index);
-            ImVec2 a(origin.x + x * cell, origin.y + y * cell), b(a.x + cell, a.y + cell);
+            ImVec2 a(sx((float)x), sy((float)y)), b(sx((float)x + 1), sy((float)y + 1));
             ImU32 col = t ? IM_COL32((int)((t & 31) * 255 / 31 * under), (int)(((t >> 5) & 31) * 255 / 31 * under),
                                 (int)(((t >> 10) & 31) * 255 / 31 * under), 255)
                           : IM_COL32(40, 0, 40, 255);
@@ -641,24 +759,65 @@ void texture_view(const Entry* e, const Picked* p)
                 bool pass = filters_pass(e->mask, index, t, (tpage >> 7) & 3);
                 if (pass && t && !painted)
                     dl->AddRectFilled(a, b, IM_COL32(255, 255, 255, (int)(60 * pulse)));
-                if (!painted || cell >= 6)
+                if (!painted || z >= 6)
                     dl->AddRect(a, b, pass ? IM_COL32(255, 220, 64, 200) : IM_COL32(120, 120, 255, 120));
             }
         }
-    if (p && p->valid && p->tpage == tpage && p->clut == clut && !memcmp(p->box, box, 4)) {
-        int x = p->u - p->box[0], y = p->v - p->box[1];
-        ImVec2 a(origin.x + x * cell, origin.y + y * cell);
-        dl->AddRect(a, ImVec2(a.x + cell, a.y + cell), IM_COL32(255, 0, 0, 255), 0.0f, 0, 2.0f);
+    /* The texel grid, zoomed in far enough. */
+    bool grid = z >= look.grid_zoom && look.grid_alpha > 0 && x1 > x0 && y1 > y0;
+    if (grid) {
+        ImU32 line = IM_COL32(150, 150, 160, (int)(look.grid_alpha * 255));
+        for (int x = x0; x <= x1; x++)
+            dl->AddLine(ImVec2(sx((float)x), sy((float)y0)), ImVec2(sx((float)x), sy((float)y1)), line);
+        for (int y = y0; y <= y1; y++)
+            dl->AddLine(ImVec2(sx((float)x0), sy((float)y)), ImVec2(sx((float)x1), sy((float)y)), line);
     }
-    ImGui::InvisibleButton("##texture", ImVec2(w * cell, h * cell),
-        ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+    if (p && p->valid && p->tpage == tpage && p->clut == clut && !memcmp(p->box, box, 4)) {
+        float x = (float)(p->u - p->box[0]), y = (float)(p->v - p->box[1]);
+        dl->AddRect(ImVec2(sx(x), sy(y)), ImVec2(sx(x + 1), sy(y + 1)), IM_COL32(255, 0, 0, 255), 0.0f, 0, 2.0f);
+    }
+    ImGui::InvisibleButton("##texture", ImVec2(cw, ch), ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+    ImGui::SetItemKeyOwner(ImGuiKey_MouseWheelY); /* the wheel zooms here instead of scrolling the panel */
+    bool hovered = ImGui::IsItemHovered();
+    /* The pointer in texels (fractional: the brush's centre) and the texel under it. */
+    ImVec2 m = io.MousePos;
+    float tx = v.pan[0] + (m.x - origin.x) / z, ty = v.pan[1] + (m.y - origin.y) / z;
+    int hx = (int)floorf(tx), hy = (int)floorf(ty);
+    /* The wheel: a zoom step about the texel under the pointer. Middle drag:
+     * pan; a middle double-click: fit. */
+    static bool panning;
+    bool was_panning = panning; /* (the press's own frame moves nothing: the pointer may have jumped to it) */
+    if (hovered && io.MouseWheel != 0)
+        zoom_at(v, zoom_step(z, io.MouseWheel > 0 ? 1 : -1), tx, ty, m.x - origin.x, m.y - origin.y, fit);
+    if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Middle)) {
+        fit_view(v, w, h, cw, ch);
+        panning = false;
+    } else if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Middle))
+        panning = true;
+    if (panning && ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
+        if (was_panning && (io.MouseDelta.x != 0 || io.MouseDelta.y != 0)) {
+            v.pan[0] -= io.MouseDelta.x / v.zoom, v.pan[1] -= io.MouseDelta.y / v.zoom;
+            v.fitted = false;
+        }
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+    } else
+        panning = false;
+    /* What the view shows (RPC ui) and the hover readout's texel. */
+    bool over = hovered && hx >= 0 && hy >= 0 && hx < w && hy < h;
+    unsigned hover_index = 0;
+    if (over)
+        texel((unsigned)(box[0] + hx), (unsigned)(box[1] + hy), tpage, clut, &hover_index);
+    view_shown.frame = ImGui::GetFrameCount();
+    view_shown.key = key;
+    view_shown.rect[0] = origin.x, view_shown.rect[1] = origin.y, view_shown.rect[2] = cw, view_shown.rect[3] = ch;
+    view_shown.fit = fit, view_shown.w = w, view_shown.h = h, view_shown.grid = grid;
+    view_shown.hover[0] = over ? hx : -1, view_shown.hover[1] = over ? hy : -1;
+    view_shown.hover[2] = over ? (int)hover_index : -1;
     if (painting) {
         /* The brush: left paints the value, right erases; one stroke from
          * press to release, written into the map (your layer) on release. */
-        ImVec2 m = ImGui::GetIO().MousePos;
-        float cx = (m.x - origin.x) / cell, cy = (m.y - origin.y) / cell;
-        if (ImGui::IsItemHovered())
-            dl->AddCircle(m, brush.radius * cell, IM_COL32(255, 255, 255, 200));
+        if (hovered)
+            dl->AddCircle(m, brush.radius * z, IM_COL32(255, 255, 255, 200));
         if (ImGui::IsItemActivated()) {
             if (brush.undo_key != key)
                 brush.undo.clear(), brush.undo_key = key;
@@ -667,42 +826,60 @@ void texture_view(const Entry* e, const Picked* p)
                 brush.undo.erase(brush.undo.begin());
         }
         if (ImGui::IsItemActive())
-            dab(w, h, cx, cy, ImGui::IsMouseDown(ImGuiMouseButton_Right) ? 0.0f : brush.value);
+            dab(w, h, tx, ty, ImGui::IsMouseDown(ImGuiMouseButton_Right) ? 0.0f : brush.value);
         if (ImGui::IsItemDeactivated() && save_map(key, e->mask.map, w, h, brush.values))
             snprintf(status_line, sizeof status_line, "Painted %s's %s map", key.c_str(), e->mask.map.c_str());
-        ImGui::TextDisabled("%d x %d texels. Left: paint %d, right: erase.", w, h, (int)brush.value);
-        return;
     }
     /* Drag a rectangle on the texture: the mask's first rect. */
     static bool dragging;
     static int drag0[2];
-    if (e && ImGui::IsItemActivated()) {
-        ImVec2 m = ImGui::GetIO().MousePos;
-        drag0[0] = (int)((m.x - origin.x) / cell), drag0[1] = (int)((m.y - origin.y) / cell);
+    int cx1 = std::clamp(hx, 0, w - 1), cy1 = std::clamp(hy, 0, h - 1);
+    if (!painting && e && ImGui::IsItemActivated()) {
+        drag0[0] = cx1, drag0[1] = cy1;
         dragging = true;
     }
-    if (e && dragging && ImGui::IsItemActive()) {
-        ImVec2 m = ImGui::GetIO().MousePos;
-        int x1 = (int)((m.x - origin.x) / cell), y1 = (int)((m.y - origin.y) / cell);
-        int r[4] = { std::min(drag0[0], x1), std::min(drag0[1], y1), std::max(drag0[0], x1) + 1,
-            std::max(drag0[1], y1) + 1 };
-        dl->AddRect(ImVec2(origin.x + r[0] * cell, origin.y + r[1] * cell),
-            ImVec2(origin.x + r[2] * cell, origin.y + r[3] * cell), IM_COL32(0, 255, 0, 255), 0.0f, 0, 2.0f);
+    if (!painting && e && dragging && ImGui::IsItemActive()) {
+        float r[4] = { (float)std::min(drag0[0], cx1), (float)std::min(drag0[1], cy1),
+            (float)std::max(drag0[0], cx1) + 1, (float)std::max(drag0[1], cy1) + 1 };
+        dl->AddRect(ImVec2(sx(r[0]), sy(r[1])), ImVec2(sx(r[2]), sy(r[3])), IM_COL32(0, 255, 0, 255), 0.0f, 0, 2.0f);
     }
-    if (e && dragging && ImGui::IsItemDeactivated()) {
+    if (!painting && e && dragging && ImGui::IsItemDeactivated()) {
         dragging = false;
-        ImVec2 m = ImGui::GetIO().MousePos;
-        int x1 = (int)((m.x - origin.x) / cell), y1 = (int)((m.y - origin.y) / cell);
         Entry copy = *e;
-        std::array<int, 4> r = { std::clamp(std::min(drag0[0], x1), 0, w) + ox, std::clamp(std::min(drag0[1], y1), 0, h) + oy,
-            std::clamp(std::max(drag0[0], x1) + 1, 0, w) + ox, std::clamp(std::max(drag0[1], y1) + 1, 0, h) + oy };
-        if (ImGui::GetIO().KeyShift || copy.mask.rects.empty())
+        std::array<int, 4> r = { std::min(drag0[0], cx1) + ox, std::min(drag0[1], cy1) + oy,
+            std::max(drag0[0], cx1) + 1 + ox, std::max(drag0[1], cy1) + 1 + oy };
+        if (io.KeyShift || copy.mask.rects.empty())
             copy.mask.rects.push_back(r);
         else
             copy.mask.rects[0] = r;
         put(copy);
     }
-    ImGui::TextDisabled("%d x %d texels. Drag: the mask's rectangle (Shift: add one).", w, h);
+    dl->PopClipRect();
+    dl->AddRect(origin, ImVec2(origin.x + cw, origin.y + ch), IM_COL32(90, 90, 100, 255));
+    if (over)
+        ImGui::Text("Texel %d, %d (page %d, %d), CLUT index %u", hx, hy, box[0] + hx, box[1] + hy, hover_index);
+    else
+        ImGui::TextDisabled("Texel: point at the texture");
+    if (painting)
+        ImGui::TextDisabled("%d x %d texels. Left: paint %d, right: erase.", w, h, (int)brush.value);
+    else
+        ImGui::TextDisabled("%d x %d texels. Drag: the mask's rectangle (Shift: add one).", w, h);
+    if (ImGui::TreeNode("View options")) {
+        ImGui::SliderFloat("Height", &look.height, 96.0f, 1024.0f, "%.0f px");
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            ImGui::SetTooltip("The texture view's tallest height (settings key editor_emissive_view_height)");
+        ImGui::SliderFloat("Deepest zoom", &look.zoom_max, 4.0f, 256.0f, "%.0fx");
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            ImGui::SetTooltip("Pixels per texel at most (settings key editor_emissive_view_zoom_max)");
+        ImGui::SliderFloat("Grid from", &look.grid_zoom, 2.0f, 64.0f, "%.0fx");
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            ImGui::SetTooltip("The texel grid shows from this zoom in (settings key editor_emissive_view_grid_zoom)");
+        ImGui::SliderFloat("Grid opacity", &look.grid_alpha, 0.0f, 1.0f, "%.2f");
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            ImGui::SetTooltip("The texel grid's opacity, 0: none (settings key editor_emissive_view_grid_alpha)");
+        clamp_look();
+        ImGui::TreePop();
+    }
 }
 
 /* The painted-map part of the Mask section: per texture of the entry, its
@@ -1095,6 +1272,27 @@ void entry_editor(const Entry& original)
 
 } // namespace
 
+/* The texture view's look in the settings file (project_settings.cpp). */
+extern "C" int pc_emissive_view_setting(const char* key, const char* rest)
+{
+    static const std::pair<const char*, float*> keys[] = { { "editor_emissive_view_height", &look.height },
+        { "editor_emissive_view_zoom_max", &look.zoom_max }, { "editor_emissive_view_grid_zoom", &look.grid_zoom },
+        { "editor_emissive_view_grid_alpha", &look.grid_alpha } };
+    for (const auto& k : keys)
+        if (!strcmp(key, k.first)) {
+            *k.second = (float)atof(rest);
+            clamp_look();
+            return 1;
+        }
+    return 0;
+}
+extern "C" void pc_emissive_view_settings_write(FILE* f)
+{
+    fprintf(f, "editor_emissive_view_height %g\neditor_emissive_view_zoom_max %g\neditor_emissive_view_grid_zoom %g\n"
+               "editor_emissive_view_grid_alpha %g\n",
+        look.height, look.zoom_max, look.grid_zoom, look.grid_alpha);
+}
+
 /* The view was clicked (lights.cpp, before its own tools): picks a texture
  * when the panel asked for one. Returns 1 when it took the click. */
 extern "C" int pc_emissive_viewport_click(float x, float y)
@@ -1469,7 +1667,45 @@ extern "C" int pc_emissive_rpc(const char* params_text, char* out, int size)
         j.set("selected", Json::str(selected));
         return reply(j, out, size);
     }
-    if (action == "ui") { /* the entry editor's buttons as last drawn (window pixels x, y, w, h) */
+    if (action == "ui") {
+        /* The entry editor's buttons as last drawn (window pixels x, y, w,
+         * h) and the texture view (texture_view: its canvas, zoom, pan, the
+         * texel under the pointer). Sets first: texture {zoom, pan [x, y],
+         * fit, show (scrolled into view next frame)} for the texture shown,
+         * view {height, zoom_max, grid_zoom, grid_alpha}, brush {on, radius,
+         * hardness, opacity, value}. */
+        if (const Json* tv = params.get("texture"); tv && tv->type == Json::Object && !view_shown.key.empty()) {
+            ViewState& v = views[view_shown.key];
+            auto num = [&](const char* k, float& to) {
+                if (const Json* x = tv->get(k); x && x->type == Json::Number)
+                    to = (float)x->number, v.fitted = false;
+            };
+            num("zoom", v.zoom);
+            v.zoom = std::clamp(v.zoom, std::min(1.0f, view_shown.fit), std::max(look.zoom_max, view_shown.fit));
+            if (const Json* pan = tv->get("pan"); pan && pan->type == Json::Array && pan->items.size() == 2) {
+                v.pan[0] = (float)pan->items[0].number, v.pan[1] = (float)pan->items[1].number;
+                v.fitted = false;
+            }
+            if (const Json* f = tv->get("fit"); f && f->type == Json::Bool && f->boolean)
+                v.fitted = true; /* refit when next drawn */
+            if (const Json* s = tv->get("show"); s && s->type == Json::Bool && s->boolean)
+                view_scroll = true;
+        }
+        if (const Json* vl = params.get("view"); vl && vl->type == Json::Object) {
+            for (auto [k, to] : { std::pair<const char*, float*>("height", &look.height), { "zoom_max", &look.zoom_max },
+                     { "grid_zoom", &look.grid_zoom }, { "grid_alpha", &look.grid_alpha } })
+                if (const Json* x = vl->get(k); x && x->type == Json::Number)
+                    *to = (float)x->number;
+            clamp_look();
+        }
+        if (const Json* b = params.get("brush"); b && b->type == Json::Object) {
+            if (const Json* on = b->get("on"); on && on->type == Json::Bool)
+                brush.on = on->boolean;
+            for (auto [k, to] : { std::pair<const char*, float*>("radius", &brush.radius), { "hardness", &brush.hardness },
+                     { "opacity", &brush.opacity }, { "value", &brush.value } })
+                if (const Json* x = b->get(k); x && x->type == Json::Number)
+                    *to = (float)x->number;
+        }
         Json j = Json::object(), rects = Json::object();
         bool current = ImGui::GetCurrentContext() && ui_frame >= ImGui::GetFrameCount() - 1;
         for (const auto& kv : ui_rects) {
@@ -1483,6 +1719,40 @@ extern "C" int pc_emissive_rpc(const char* params_text, char* out, int size)
         j.set("rects", rects);
         j.set("confirm", Json::boolean_(current && confirm_shown));
         j.set("selected", Json::str(selected));
+        auto array = [](std::initializer_list<double> xs) {
+            Json a = Json::array();
+            for (double x : xs)
+                a.items.push_back(Json::num(x));
+            return a;
+        };
+        if (ImGui::GetCurrentContext() && view_shown.frame >= ImGui::GetFrameCount() - 1) {
+            const ViewState& v = views[view_shown.key];
+            Json tv = Json::object();
+            tv.set("key", Json::str(view_shown.key));
+            tv.set("rect", array({ view_shown.rect[0], view_shown.rect[1], view_shown.rect[2], view_shown.rect[3] }));
+            tv.set("size", array({ (double)view_shown.w, (double)view_shown.h }));
+            tv.set("zoom", Json::num(v.zoom));
+            tv.set("fit", Json::num(view_shown.fit));
+            tv.set("fitted", Json::boolean_(v.fitted));
+            tv.set("pan", array({ v.pan[0], v.pan[1] }));
+            tv.set("grid", Json::boolean_(view_shown.grid));
+            tv.set("hover", view_shown.hover[0] < 0 ? Json()
+                                                    : array({ (double)view_shown.hover[0], (double)view_shown.hover[1],
+                                                        (double)view_shown.hover[2] }));
+            j.set("texture_view", tv);
+        }
+        Json vl = Json::object();
+        vl.set("height", Json::num(look.height));
+        vl.set("zoom_max", Json::num(look.zoom_max));
+        vl.set("grid_zoom", Json::num(look.grid_zoom));
+        vl.set("grid_alpha", Json::num(look.grid_alpha));
+        j.set("view", vl);
+        Json bj = Json::object();
+        bj.set("on", Json::boolean_(brush.on));
+        bj.set("radius", Json::num(brush.radius));
+        bj.set("value", Json::num(brush.value));
+        bj.set("key", Json::str(brush.key));
+        j.set("brush", bj);
         return reply(j, out, size);
     }
     if (action == "save") {

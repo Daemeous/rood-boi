@@ -15,6 +15,9 @@ struct Fonts {
     ImFont* data = nullptr;  // numbers
 };
 extern Fonts fonts;
+// The theme's font files into `fonts` (once per file; the shell does it every frame it draws). For what
+// draws while the shell does not (fast_travel_prompt.cpp).
+void ensure_fonts(const ui::Theme& t);
 
 struct Frame {
     ImDrawList* dl;

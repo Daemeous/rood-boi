@@ -292,8 +292,9 @@ using magic until then. Nothing new reaches the memory card.
 | `qol_fast_travel_flat` | 15 | flat mode's MP |
 | `qol_fast_travel_scale` | 0.5 | scaled mode: the game's cost times this |
 | `qol_fast_travel_prompt` | 1 | the Travel prompt on a Circle |
-| `qol_fast_travel_prompt_x`, `qol_fast_travel_prompt_y` | 0.5, 0.84 | the prompt's centre (fractions of the window) |
-| `qol_fast_travel_prompt_scale` | 1 | the prompt's size |
+| `qol_fast_travel_prompt_anchor` | 2 | where in the game picture the prompt goes: 0-8, top left to bottom right (2 top right; older `qol_fast_travel_prompt_x` / `_y` lines are dropped) |
+| `qol_fast_travel_prompt_offset_x`, `qol_fast_travel_prompt_offset_y` | -0.025, 0.035 | moved from the anchor, fractions of the picture (+ right, down) |
+| `qol_fast_travel_prompt_scale` | 1 | the prompt's size (1: the modern menus' hints) |
 
 System > Gameplay and System > Bindings in the modern menus, editor Graphics
 > Gameplay, RPC `fast_travel {set, press, audit}`.

@@ -1194,6 +1194,15 @@ static void handle_method(int fd, const char* request)
                 pc_qol_fast_travel_scale = (float)real;
             if (bool_value(member(set, "prompt"), &flag))
                 pc_qol_fast_travel_prompt = flag;
+            /* the prompt's place: anchor 0..8, offsets in fractions of the picture, size */
+            if (number_value(member(set, "prompt_anchor"), &n) && n >= 0 && n <= 8)
+                pc_qol_fast_travel_prompt_anchor = (int)n;
+            if (real_value(member(set, "prompt_offset_x"), &real) && real >= -1 && real <= 1)
+                pc_qol_fast_travel_prompt_offset_x = (float)real;
+            if (real_value(member(set, "prompt_offset_y"), &real) && real >= -1 && real <= 1)
+                pc_qol_fast_travel_prompt_offset_y = (float)real;
+            if (real_value(member(set, "prompt_scale"), &real) && real >= 0.1 && real <= 4)
+                pc_qol_fast_travel_prompt_scale = (float)real;
         }
         if (params && bool_value(member(params, "press"), &press) && press && pc_fast_travel_press)
             pc_fast_travel_press();

@@ -31,6 +31,9 @@ extern int pc_lights_snap;
 extern int pc_lights_gizmo_space;
 extern int pc_env_global; /* environment.cpp */
 extern float pc_emissive; /* emissive.cpp: glowing surfaces' strength (0 off) */
+/* emissive_editor.cpp: the texture view's look (editor_emissive_view_*) */
+int pc_emissive_view_setting(const char* key, const char* rest);
+void pc_emissive_view_settings_write(FILE* f);
 extern int pc_fog_global; /* atmosphere.cpp */
 extern float pc_fog_disturb[4]; /* atmosphere.cpp: the interactive fog's weights per source */
 extern int pc_fog_sim_budget;
@@ -76,10 +79,15 @@ int pc_qol_confirm_cross, pc_qol_field_cross_attack;
  * game's own unlock it costs qol_fast_travel_cost 0 free (default), 1 flat
  * (qol_fast_travel_flat MP), 2 scaled (qol_fast_travel_scale x the game's), 3
  * the game's. The Travel prompt on a Circle: qol_fast_travel_prompt, its
- * centre (fractions of the window) and size. */
-int pc_qol_fast_travel = 1, pc_qol_fast_travel_cost = 0, pc_qol_fast_travel_flat = 15, pc_qol_fast_travel_prompt = 1;
-float pc_qol_fast_travel_scale = 0.5f, pc_qol_fast_travel_prompt_x = 0.5f, pc_qol_fast_travel_prompt_y = 0.84f,
-    pc_qol_fast_travel_prompt_scale = 1.0f;
+ * place in the game picture (fast_travel_prompt.cpp): the anchor (0 top left,
+ * 1 top, 2 top right (default), 3 left, 4 centre, 5 right, 6 bottom left, 7
+ * bottom, 8 bottom right; the plate's same corner or edge goes there), moved
+ * by offset_x / _y (fractions of the picture's width / height, + right and
+ * down), and its size (1: the menus' button hints). */
+int pc_qol_fast_travel = 1, pc_qol_fast_travel_cost = 0, pc_qol_fast_travel_flat = 15, pc_qol_fast_travel_prompt = 1,
+    pc_qol_fast_travel_prompt_anchor = 2;
+float pc_qol_fast_travel_scale = 0.5f, pc_qol_fast_travel_prompt_offset_x = -0.025f,
+    pc_qol_fast_travel_prompt_offset_y = 0.035f, pc_qol_fast_travel_prompt_scale = 1.0f;
 
 /* Modern menus (pc/src/ui, pc/docs/Modern_Menus.md): 0 the game's own
  * menus, 1 the modern shell. Off by default until the screens are verified. */
@@ -269,8 +277,9 @@ const Entry entries[] = {
     I("qol_fast_travel_flat", pc_qol_fast_travel_flat),
     F("qol_fast_travel_scale", pc_qol_fast_travel_scale),
     I("qol_fast_travel_prompt", pc_qol_fast_travel_prompt),
-    F("qol_fast_travel_prompt_x", pc_qol_fast_travel_prompt_x),
-    F("qol_fast_travel_prompt_y", pc_qol_fast_travel_prompt_y),
+    I("qol_fast_travel_prompt_anchor", pc_qol_fast_travel_prompt_anchor), /* 0..8, 2 top right */
+    F("qol_fast_travel_prompt_offset_x", pc_qol_fast_travel_prompt_offset_x), /* fractions of the picture */
+    F("qol_fast_travel_prompt_offset_y", pc_qol_fast_travel_prompt_offset_y),
     F("qol_fast_travel_prompt_scale", pc_qol_fast_travel_prompt_scale),
     I("skip_intro", pc_skip_intro),
     I("ui_menus", pc_ui_menus),
@@ -305,6 +314,8 @@ int apply_line(const char* line, int* scale, bool now)
         *scale = atoi(rest);
         return 0;
     }
+    if (!strcmp(key, "qol_fast_travel_prompt_x") || !strcmp(key, "qol_fast_travel_prompt_y"))
+        return 0; /* before the anchor: the centre in fractions of the window; dropped (the anchor's default) */
     if (!strcmp(key, "denoise")) { /* before gi_denoiser: on/off; "on" keeps the default */
         if (!atoi(rest))
             pc_gi_denoise = 0;
@@ -447,6 +458,8 @@ int apply_line(const char* line, int* scale, bool now)
     if (rood_fit::parse_setting(key, rest)) /* editor tools: fit to window's offset and colour */
         return 1;
     if (rood_colour::parse_setting(key, rest)) /* editor state: the colour popover's tabs and recent colours */
+        return 1;
+    if (pc_emissive_view_setting(key, rest)) /* editor tools: the emissive texture view's look */
         return 1;
     if (!strcmp(key, "qol_skip_charging")) { /* 0 off, else skip (older settings: 1 fast, 2 skip) */
         char* end;
@@ -631,6 +644,7 @@ extern "C" void pc_settings_write(FILE* f)
     rood_colour::write_settings(f);
     rood_library::write_settings(f);
     rood_fit::write_settings(f);
+    pc_emissive_view_settings_write(f);
 }
 
 /* Apply settings lines now (the editor's undo: the lines that differ, a

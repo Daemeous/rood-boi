@@ -34,8 +34,9 @@ extern const char* const pc_ft_cost_names[PC_FT_COST_MODES]; /* "free", "flat", 
 /* Settings (project_settings.cpp): qol_fast_travel 0/1 (1), qol_fast_travel_cost
  * PC_FT_COST_* (free), _flat MP (15), _scale (0.5); the prompt: on (1), where
  * (fractions of the window, 0.5 / 0.84) and how big (1). */
-extern int pc_qol_fast_travel, pc_qol_fast_travel_cost, pc_qol_fast_travel_flat, pc_qol_fast_travel_prompt;
-extern float pc_qol_fast_travel_scale, pc_qol_fast_travel_prompt_x, pc_qol_fast_travel_prompt_y,
+extern int pc_qol_fast_travel, pc_qol_fast_travel_cost, pc_qol_fast_travel_flat, pc_qol_fast_travel_prompt,
+    pc_qol_fast_travel_prompt_anchor;
+extern float pc_qol_fast_travel_scale, pc_qol_fast_travel_prompt_offset_x, pc_qol_fast_travel_prompt_offset_y,
     pc_qol_fast_travel_prompt_scale;
 
 typedef struct {
@@ -89,6 +90,11 @@ typedef struct {
     pc_ft_state state;
     int prompt, prompt_on;          /* the prompt would show now; qol_fast_travel_prompt */
     unsigned presses, opened, ignored, prompt_drawn;
+    float prompt_box[4];            /* the prompt's plate as last drawn (window pixels x0, y0, x1, y1) */
+    float picture[4];               /* ... the game picture it was placed in (x, y, w, h) */
+    int prompt_font;                /* ... 1: in the modern UI's label font (0: ImGui's default) */
+    int prompt_anchor;              /* qol_fast_travel_prompt_anchor, _offset_x / _y, _scale */
+    float prompt_offset[2], prompt_scale;
     pc_ft_trip last;
     int audited;
     pc_ft_audit_point audit[PC_FT_USED];

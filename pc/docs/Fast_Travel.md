@@ -138,15 +138,33 @@ and Select does what it always does. It opens MENU0 as an L2 shortcut opens
 a school's list (`func_800CACD0(1, 0)`, `vs_battle_shortcutInvoked` 9,
 MENU0's `handleShortcut` going straight to `_teleportMenu`).
 
-The prompt (`fast_travel_prompt.cpp`): the Travel binding's icon for the
-device used last and "Travel" on a small plate, while the button would open
-the list. With `button_prompts original` (the PS1's own glyphs) a pad shows
+The prompt (`fast_travel_prompt.cpp`, modern UI only: with `ui_menus` off
+the classic look keeps the game's own sprites and layout): the Travel
+binding's icon for the device used last and "TRAVEL" on a small plate, while
+the button would open the list. It is drawn as the modern menus draw their
+button hints (the theme's label font, letter-spaced capitals, a panel with
+its rule; `pc/assets/ui/theme.json`) and placed in the game picture, not the
+window: in 4:3 the window's side bars are left alone. By default it sits in
+the picture's upper right, clear of the HUD's HP / MP in the upper left. With `button_prompts original` (the PS1's own glyphs) a pad shows
 the PlayStation glyph of Travel's element, and the keyboard shows Travel's
 key (Travel is no PS1 button: Select's glyph would name a key that only
 zooms). The Travel prompt row is never greyed: after the game's own unlock
-the button and its prompt work whatever `qol_fast_travel` says. Settings `qol_fast_travel_prompt` (on), `qol_fast_travel_prompt_x`
-/ `_y` (its centre, fractions of the window: 0.5, 0.84) and
-`qol_fast_travel_prompt_scale` (1). Hidden over the editor, when the device
+the button and its prompt work whatever `qol_fast_travel` says. Settings
+`qol_fast_travel_prompt` (on); `qol_fast_travel_prompt_anchor` (2): where in
+the picture it goes, 0 top left, 1 top, 2 top right, 3 left, 4 centre, 5
+right, 6 bottom left, 7 bottom, 8 bottom right (the plate's same corner or
+edge sits on that point); `qol_fast_travel_prompt_offset_x` / `_y` (-0.025,
+0.035): moved from there by fractions of the picture's width and height, +
+right and down; `qol_fast_travel_prompt_scale` (1: the menus' hint size).
+The dev overlay's Graphics > Gameplay has them (Prompt anchor, offset x / y,
+size), and RPC `fast_travel {set: {prompt_anchor, prompt_offset_x,
+prompt_offset_y, prompt_scale}}`; the report has the plate as last drawn
+(`prompt_box`, window pixels), the `picture` it was placed in and
+`prompt_font` (`label`: the modern UI's). Settings files from before the
+anchor have `qol_fast_travel_prompt_x` / `_y` (the centre in fractions of
+the window, 0.5 / 0.84 by default then): they are read and dropped, so the
+prompt takes the anchor's default, and the next save writes only the new
+keys. Hidden over the editor, when the device
 used last has nothing bound to Travel, and whenever the field loop is not
 taking input (a menu open, an action playing: an enemy's attack holds the
 field loop, and the button waits for it as Triangle does).
@@ -188,8 +206,9 @@ destination + 1, the room record the destination. No sidecar file.
 | `qol_fast_travel_flat` | 15 | flat mode's MP |
 | `qol_fast_travel_scale` | 0.5 | scaled mode's factor on the game's cost |
 | `qol_fast_travel_prompt` | 1 | the Travel prompt on a Circle |
-| `qol_fast_travel_prompt_x`, `_y` | 0.5, 0.84 | the prompt's centre (fractions of the window) |
-| `qol_fast_travel_prompt_scale` | 1 | the prompt's size |
+| `qol_fast_travel_prompt_anchor` | 2 | where in the game picture the prompt goes: 0-8, top left to bottom right (2 top right) |
+| `qol_fast_travel_prompt_offset_x`, `_y` | -0.025, 0.035 | moved from the anchor, fractions of the picture (+ right, down) |
+| `qol_fast_travel_prompt_scale` | 1 | the prompt's size (1: the modern menus' hints) |
 | `bind_key_travel`, `bind_pad_travel` | none, `back` | the Travel button |
 
 The modern menus' System > Gameplay (Fast travel, Travel cost, Flat cost /

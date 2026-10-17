@@ -21,9 +21,10 @@ int pc_dust; // particles.cpp: dust motes (0 off)
 int pc_qol_map_invert, pc_qol_fp_invert_y, pc_qol_map_controls, pc_qol_skip_charging, pc_qol_skip_charging_who;
 int pc_qol_confirm_cross, pc_qol_field_cross_attack;
 float pc_qol_skip_charging_name = 1.0f;
-int pc_qol_fast_travel = 1, pc_qol_fast_travel_cost, pc_qol_fast_travel_flat = 15, pc_qol_fast_travel_prompt = 1;
-float pc_qol_fast_travel_scale = 0.5f, pc_qol_fast_travel_prompt_x = 0.5f, pc_qol_fast_travel_prompt_y = 0.84f,
-    pc_qol_fast_travel_prompt_scale = 1.0f;
+int pc_qol_fast_travel = 1, pc_qol_fast_travel_cost, pc_qol_fast_travel_flat = 15, pc_qol_fast_travel_prompt = 1,
+    pc_qol_fast_travel_prompt_anchor = 2;
+float pc_qol_fast_travel_scale = 0.5f, pc_qol_fast_travel_prompt_offset_x = -0.025f,
+    pc_qol_fast_travel_prompt_offset_y = 0.035f, pc_qol_fast_travel_prompt_scale = 1.0f;
 float pc_ui_menu_opacity = 0.94f;
 int pc_ui_menu_tint, pc_ui_menu_tint_custom[3] = {8, 7, 7};
 // ui_theme.cpp: the theme file's ground (#110f0e), Lea Monde's colour (ui_tint.cpp)

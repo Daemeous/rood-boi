@@ -937,9 +937,22 @@ static void gameplay_panel()
     bool prompt = pc_qol_fast_travel_prompt != 0;
     if (ImGui::Checkbox("Travel prompt", &prompt))
         pc_qol_fast_travel_prompt = prompt;
-    ImGui::SliderFloat("Prompt x", &pc_qol_fast_travel_prompt_x, 0, 1);
-    ImGui::SliderFloat("Prompt y", &pc_qol_fast_travel_prompt_y, 0, 1);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Settings qol_fast_travel_prompt. The Travel button and \"TRAVEL\" over the game picture on a\n"
+                          "Circle of Magic, with the modern UI (System > Interface; the classic look has none).");
+    ImGui::Combo("Prompt anchor", &pc_qol_fast_travel_prompt_anchor,
+        "Top left\0Top\0Top right\0Left\0Centre\0Right\0Bottom left\0Bottom\0Bottom right\0");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Settings qol_fast_travel_prompt_anchor (0-8): where in the game picture the prompt goes;\n"
+                          "the prompt's same corner or edge sits there.");
+    ImGui::SliderFloat("Prompt offset x", &pc_qol_fast_travel_prompt_offset_x, -0.5f, 0.5f, "%.3f");
+    ImGui::SliderFloat("Prompt offset y", &pc_qol_fast_travel_prompt_offset_y, -0.5f, 0.5f, "%.3f");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Settings qol_fast_travel_prompt_offset_x / _y: from the anchor, in fractions of the game\n"
+                          "picture's width and height (+ right and down).");
     ImGui::SliderFloat("Prompt size", &pc_qol_fast_travel_prompt_scale, 0.5f, 2.0f);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Settings qol_fast_travel_prompt_scale: 1 is the size of the menus' button hints.");
 }
 
 extern "C" void pc_memory_card_set_path(int slot, const char* path); /* memory_card.c */

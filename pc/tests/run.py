@@ -179,7 +179,8 @@ def suites(args, mode="egl"):
                        "step, hidden while flying; point/spot/rect/sun handles; the colour popover and eyedropper"),
             Suite("emissive_entries_smoke", [PY, str(TESTS / "emissive_entries_smoke.py"), "--card", str(args.save)],
                   300, note="emissive entries: Duplicate and Delete (a confirm first) by RPC and the panel, one undo step "
-                            "each, undo and redo"),
+                            "each, undo and redo; the texture view: wheel zoom about the pointer's texel, middle-drag "
+                            "pan, Fit, hover readout, rect drags and brush dabs on the right texels at any zoom"),
             Suite("editor_library_smoke", [PY, str(TESTS / "editor_library_smoke.py"), "--card", str(args.save)], 600,
                   note="the library: sources, filters, favourites, thumbnails (deterministic, cached), drops on a floor "
                        "and a wall per kind (one undo step, selected), a real drag from a tile, the panel's views, "
@@ -298,7 +299,8 @@ def suites(args, mode="egl"):
         *([Suite("fast_travel_smoke", [PY, str(TESTS / "fast_travel_smoke.py"), "--card", str(args.save)], 1200,
                  note="fast travel (original menus): unlock from the first Circle, free cost, R6 audit, Room Browser "
                       "hygiene, travel then save then decode then Continue, refusals, the game's own unlock, the "
-                      "Travel button, the prompt")]
+                      "Travel button, the prompt (the game picture's upper right, the modern UI's font; old "
+                      "settings migrate)")]
           if args.save.exists() else []),
         *([Suite("fast_travel_shell_smoke", [PY, str(TESTS / "fast_travel_smoke.py"), "--card", str(args.save),
                                              "--menus", "on"], 1200,
