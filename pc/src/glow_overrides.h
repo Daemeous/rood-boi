@@ -37,6 +37,23 @@ enum { PC_GLOW_FIXTURE = 0, PC_GLOW_MAGIC = 1, PC_GLOW_EFFECT = 2 };
 /* Source tag bit of particles attached to a character's or an effect's
  * matrix (effect_particles.c): always transient. */
 #define PC_GLOW_ATTACHED 0x08000000u
+/* Source tag bit of object glows from emissive texels (emissive.cpp: a
+ * glowing crate, a floating block's circle): extra light the PS1's baked
+ * vertex light never came from, so it never shadows that light (its
+ * weight in the baked light's shadows is 0, emitter_shadow y < 0). Other
+ * object glows (gpu_hw.c) keep it and the side bits clear. */
+#define PC_GLOW_EMISSIVE 0x04000000u
+/* ... and the side its surface faces (bits 23-25): 0 none (double sided),
+ * 1 + 2 axis + (negative): +x, -x, +y, -y, +z, -z. glows.c gives such a
+ * glow a disc facing that way, the size of its surface; the mesh's hash
+ * is below them. */
+#define PC_GLOW_SIDE_SHIFT 23
+#define PC_GLOW_SIDE(source) (((source) & PC_GLOW_EMISSIVE) ? ((source) >> PC_GLOW_SIDE_SHIFT) & 7u : 0u)
+/* An emissive object glow's surface (glows.c, emissive.cpp; room settings
+ * glow_emissive_lift, glow_emissive_disc): how far in front of its surface
+ * it sits, and its disc's radius as a fraction of the radius of a disc of
+ * its area. */
+extern float pc_glow_emissive_lift, pc_glow_emissive_disc;
 
 /* A glow's emitting shape (pc_glow_override.shape, the fixture catalog's
  * glow_shape): auto (a column when its polygons enclose room for a

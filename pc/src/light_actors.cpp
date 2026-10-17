@@ -1751,6 +1751,10 @@ int glows_method(const Json& params, char* out, int size)
         pc_glow_shadow_clear = (float)s->number;
     if (const Json* s = params.get("column_baked")) /* a column's luminance in the baked light's shadows (0: its colour's) */
         pc_glow_column_baked = (float)s->number;
+    if (const Json* s = params.get("emissive_lift")) /* an emissive object glow: how far in front of its surface */
+        pc_glow_emissive_lift = (float)s->number;
+    if (const Json* s = params.get("emissive_disc")) /* ... its disc: a fraction of the radius of its area's disc */
+        pc_glow_emissive_disc = (float)s->number;
     if (const Json* s = params.get("shapes")) /* enclosing glows: 0 spheres, 1 columns, 2 solid columns */
         pc_glow_shapes = s->number < 0 ? 0 : s->number > 2 ? 2 : (int)s->number;
     if (const Json* s = params.get("smoothing")) /* every category's */
@@ -1812,7 +1816,8 @@ int glows_method(const Json& params, char* out, int size)
     categories += "}";
     std::string text = "{\"selected\":" + (glow_selected && glow_id ? std::to_string(glow_id) : std::string("null"))
         + ",\"energy\":" + num(pc_glow_energy) + ",\"raw_energy\":" + num(pc_glow_raw_energy) + ",\"casts\":"
-        + std::to_string(pc_glow_casts) + ",\"categories\":" + categories + ",\"glows\":" + glows_json();
+        + std::to_string(pc_glow_casts) + ",\"categories\":" + categories + ",\"emissive\":{\"lift\":"
+        + num(pc_glow_emissive_lift) + ",\"disc\":" + num(pc_glow_emissive_disc) + "},\"glows\":" + glows_json();
     if (const Json* f = params.get("fragments"); f && (f->type == Json::Bool ? f->boolean : f->number != 0)) {
         static char fragments[1 << 20];
         int room_left = size - (int)text.size() - 32; /* what the reply can hold */

@@ -3607,7 +3607,7 @@ static void collect_emissive(void* context, const float world[9], const uint8_t 
     emissive_source_collect[emissive_count] = effects
         ? PC_GLOW_ORIGIN_PARTICLES << 28
               | (source ? ((source * 0x9e3779b1u) & 0x07ffffffu) | (source & PC_GLOW_ATTACHED) : texture_tag(tpage, clut) & 0x07ffffffu)
-        : PC_GLOW_ORIGIN_OBJECT << 28 | ((mesh * 0x9e3779b1u) & 0x0fffffffu);
+        : PC_GLOW_ORIGIN_OBJECT << 28 | ((mesh * 0x9e3779b1u) & 0x0fffffffu & ~PC_GLOW_EMISSIVE); /* not an emissive texel glow */
     memcpy(emissive_collect + emissive_count * 9, world, 9 * sizeof(float));
     pc_hw_surface* sf = &emissive_surface_collect[emissive_count++];
     memcpy(sf->rgb, rgb, sizeof sf->rgb);

@@ -60,6 +60,15 @@ float pc_glow_shadow_clear = 0.4f;
 /* A column's luminance in the baked light's shadow weights (0: its colour's;
  * RPC glows {column_baked}). */
 float pc_glow_column_baked = 3.0f;
+/* An emissive object glow (emissive.cpp: a glowing crate's side, a floating
+ * block's circle; room settings glow_emissive_*, RPC glows {emissive_lift,
+ * emissive_disc}): how far in front of its surface it sits (the largest
+ * emitting sphere, emitting_size 8, and 2 more: no sample of it, and no
+ * shadow ray to it, is behind the surface), and its disc's radius as a
+ * fraction of the radius of a disc of its area (0.8: inside a square face's
+ * edges). */
+float pc_glow_emissive_lift = 10.0f;
+float pc_glow_emissive_disc = 0.8f;
 extern float pc_emitter_radius;
 extern unsigned pc_vsync_count(void) __attribute__((weak));
 /* Light actors linked to a glow (lights.cpp): 1 drives its emission
@@ -86,6 +95,7 @@ typedef struct {
     float pos[3], rgb[3], size, power, strength;
     /* this frame's observation (kept while absent) */
     float obs_pos[3], obs_rgb[3], obs_size, obs_power, obs_strength;
+    float obs_area; /* its triangles' area (an emissive object's disc) */
     int observed, triangles, ever;
     int category, promoted; /* PC_GLOW_FIXTURE / _MAGIC / _EFFECT; promoted: an effect that stayed */
     float presence, absent, age, seen; /* seen: seconds observed */
@@ -790,6 +800,7 @@ static void observe(const pc_glow_fragment* f, int count, const uint32_t* owner)
             t->obs_pos[j] = t->group >= 0 ? groups[t->group].centre[j] : sum_p[k][j] / sum_w[k];
         }
         t->obs_size = t->group >= 0 ? groups[t->group].size : emitting_size(sum_a[k]);
+        t->obs_area = sum_a[k];
         t->obs_power = sum_w[k];
         t->obs_strength = t->group >= 0 ? fmaxf(groups[t->group].strength, 1.0f) : (float)(pieces[k] ? pieces[k] : 1);
     }
@@ -1064,6 +1075,20 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
                 t->out_shape[3] = -fabsf(t->out_shape[3]);
             t->out_shadow_core = fabsf(t->out_shape[3]) * (core < 0 ? 0 : core > 1 ? 1 : core);
         }
+        /* An emissive object's surface (a crate's side, a floating block's
+         * circle; emissive.cpp puts it in front of the surface, one glow per
+         * side it faces): a solid disc facing that side, pc_glow_emissive_disc
+         * of the radius of a disc of its area (0.8: inside a square face's
+         * edges; 0 leaves it a sphere), so whoever
+         * stands on it or beside it is lit by all of it, not by a point at its
+         * middle (under Ashley's feet: her legs got none of it). */
+        unsigned side = t->origin == PC_GLOW_ORIGIN_OBJECT ? PC_GLOW_SIDE(t->source) : 0;
+        if (pc_glow_shapes > 0 && side >= 1 && side <= 6 && shape != PC_GLOW_SHAPE_SPHERE && t->obs_area > 0
+            && (size_override > 0 || pc_glow_emissive_disc > 0)) {
+            t->out_shape[(side - 1) / 2] = 1.0f; /* its half thickness, along the side */
+            t->out_shape[3] = -(size_override > 0 ? size_override
+                                                  : pc_glow_emissive_disc * sqrtf(t->obs_area / 3.14159265f));
+        }
         /* Its category's switch and multipliers. */
         const float* c = pc_glow_category[t->category >= 0 && t->category < 3 ? t->category : PC_GLOW_EFFECT];
         if (t->origin != PC_GLOW_ORIGIN_BAKED) {
@@ -1123,6 +1148,8 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
         emitter_pos[out][3] = t->out_reach;
         memcpy(emitter_shape[out], t->out_shape, sizeof t->out_shape);
         emitter_shadow[out][0] = t->out_shadow_core, emitter_shadow[out][1] = t->out_baked_weight;
+        if (t->origin == PC_GLOW_ORIGIN_OBJECT && (t->source & PC_GLOW_EMISSIVE))
+            emitter_shadow[out][1] = -1; /* not the baked light's: no weight in its shadows */
         emitter_shadow[out][2] = t->out_shape[3] > 0
             ? fmaxf(t->out_shadow_core, t->out_shape[3] * (pc_glow_shadow_clear < 0 ? 0 : pc_glow_shadow_clear > 1 ? 1 : pc_glow_shadow_clear))
             : 0;

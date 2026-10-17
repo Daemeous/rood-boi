@@ -230,6 +230,10 @@ int render_list_effects(uint32_t list);
 typedef void (*render_triangle_sink)(void* context, const float world[9], const uint8_t rgb[9], const uint8_t uv[6],
     unsigned code, unsigned tpage, unsigned clut);
 int render_list_triangles(uint32_t list, render_triangle_sink emit, void* context);
+/* ... only the instances whose mesh `keep` accepts (it gets the same context;
+ * the others cost nothing: not transformed). */
+int render_list_triangles_where(uint32_t list, int (*keep)(void* context, uint32_t mesh), render_triangle_sink emit,
+    void* context);
 /* Finished frames so far (game-side code keys "the previous frame" on it). */
 uint32_t render_frame_serial(void);
 /* Link the list into a PS1 ordering table: writes a three-word marker

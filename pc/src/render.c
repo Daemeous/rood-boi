@@ -1197,7 +1197,8 @@ void render_emit_tag(uint32_t* source, uint32_t* mesh)
 }
 const render_polygon* render_emit_polygon(void) { return emit_polygon; }
 int render_emit_polygon_index(void) { return emit_index; }
-static int emit_triangles(uint32_t id, int translucent, render_triangle_sink emit, void* context)
+static int emit_triangles(uint32_t id, int translucent, int (*keep)(void*, uint32_t), render_triangle_sink emit,
+    void* context)
 {
     draw_list* list = find_list(id);
     if (!list)
@@ -1207,7 +1208,7 @@ static int emit_triangles(uint32_t id, int translucent, render_triangle_sink emi
     for (int i = 0; i < list->count; i++) {
         const list_instance* in = &list->instances[i];
         mesh_slot* mesh = lookup(in->mesh);
-        if (!mesh || !mesh->cpu)
+        if (!mesh || !mesh->cpu || (keep && !keep(context, in->mesh)))
             continue;
         instance_palette(list, in, 1.0f, palette);
         for (int p = 0; p < mesh->polygons; p++) {
@@ -1250,11 +1251,16 @@ static int emit_triangles(uint32_t id, int translucent, render_triangle_sink emi
 }
 int render_list_triangles(uint32_t id, render_triangle_sink emit, void* context)
 {
-    return emit_triangles(id, 0, emit, context);
+    return emit_triangles(id, 0, NULL, emit, context);
+}
+int render_list_triangles_where(uint32_t id, int (*keep)(void* context, uint32_t mesh), render_triangle_sink emit,
+    void* context)
+{
+    return emit_triangles(id, 0, keep, emit, context);
 }
 int render_list_translucent_triangles(uint32_t id, render_triangle_sink emit, void* context)
 {
-    return emit_triangles(id, 1, emit, context);
+    return emit_triangles(id, 1, NULL, emit, context);
 }
 
 /* ---- animation trace (RPC anim_trace) ----

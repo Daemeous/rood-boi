@@ -10,6 +10,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <algorithm>
+#include <array>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -733,6 +734,11 @@ struct MeshInfo {
     std::vector<uint16_t> applied;
 };
 std::unordered_map<uint32_t, MeshInfo> mesh_info;
+/* Per room mesh (a group), whether the scene capture lacks any of its
+ * polygons (object lights, below): only those of the room's list are
+ * walked (the rest, most of the room, cost nothing). Per capture; a mesh
+ * noted again is decided again. */
+std::unordered_map<uint32_t, bool> mesh_uncaptured;
 std::unordered_set<uint32_t> scope_pending; /* meshes noted since the bits were last written */
 uint16_t slot_scope_bit[MAX_SLOTS]; /* per slot: its scope bit + 1 (0: everywhere it is marked) */
 int scope_zone = -1, scope_room = -1; /* the room the marks were written for */
@@ -1122,6 +1128,7 @@ extern "C" void pc_emissive_room_mesh(uint32_t mesh, unsigned offset, unsigned t
     MeshInfo& m = mesh_info[mesh];
     m.kind = SURFACE_ROOM;
     m.offset = offset, m.tris = tris, m.total = tris + quads;
+    mesh_uncaptured.erase(mesh);
     m.applied.clear();
     scope_pending.insert(mesh);
 }
@@ -1591,7 +1598,58 @@ namespace {
 struct ObjectSink {
     pc_glow_fragment* out;
     int n, max;
+    bool room_list; /* the room's own list: only what the captured scene lacks */
 };
+/* The captured room's triangles by polygon (their centres): a triangle of the
+ * room's own list is a scene triangle (the room lights' business) when one
+ * of its polygon's captured triangles lies where it is drawn. Per capture. */
+std::unordered_multimap<uint32_t, std::array<float, 3>> captured_at;
+int captured_scene = -1;
+void refresh_captured()
+{
+    if (captured_scene == pc_scene_serial())
+        return;
+    captured_scene = pc_scene_serial();
+    captured_at.clear();
+    mesh_uncaptured.clear();
+    int count = 0;
+    const scene_triangle* tris = pc_scene_triangle_data(&count);
+    for (int i = 0; i < count; i++) {
+        std::array<float, 3> c;
+        for (int k = 0; k < 3; k++)
+            c[k] = (tris[i].vertex[0].position[k] + tris[i].vertex[1].position[k] + tris[i].vertex[2].position[k])
+                / 3.0f;
+        captured_at.emplace(tris[i].polygon, c);
+    }
+}
+int room_mesh_uncaptured(void* /*context*/, uint32_t mesh)
+{
+    auto found = mesh_uncaptured.find(mesh);
+    if (found != mesh_uncaptured.end())
+        return found->second;
+    bool lacks = false;
+    auto it = mesh_info.find(mesh);
+    if (it != mesh_info.end() && it->second.kind == SURFACE_ROOM)
+        for (unsigned i = 0; i < it->second.total && !lacks; i++) {
+            uint32_t polygon, model;
+            mesh_surface(mesh, (int)i, &polygon, &model);
+            lacks = captured_at.find(polygon) == captured_at.end();
+        }
+    mesh_uncaptured.emplace(mesh, lacks);
+    return lacks;
+}
+bool captured(uint32_t polygon, const float w[9])
+{
+    float c[3];
+    for (int k = 0; k < 3; k++)
+        c[k] = (w[k] + w[3 + k] + w[6 + k]) / 3.0f;
+    auto range = captured_at.equal_range(polygon);
+    for (auto it = range.first; it != range.second; ++it)
+        if (fabsf(it->second[0] - c[0]) < 1.0f && fabsf(it->second[1] - c[1]) < 1.0f
+            && fabsf(it->second[2] - c[2]) < 1.0f)
+            return true;
+    return false;
+}
 void object_sink(void* context, const float w[9], const uint8_t* /*rgb*/, const uint8_t uv[6], unsigned code,
     unsigned tpage, unsigned clut)
 {
@@ -1601,9 +1659,16 @@ void object_sink(void* context, const float w[9], const uint8_t* /*rgb*/, const 
     uint32_t source, mesh, polygon, model;
     render_emit_tag(&source, &mesh);
     int kind = mesh_surface(mesh, render_emit_polygon_index(), &polygon, &model);
+    /* The room's own groups the scene capture left out (disabled when the
+     * room loaded: the floating blocks of Rue Vermillion, shown later by a
+     * script, moving with their own transforms) light as objects; the rest
+     * are scene triangles, the room light triangles' (pc_emissive_room_light). */
+    if (s->room_list && (kind != SURFACE_ROOM || captured(polygon, w)))
+        return;
     ObjectKey key = { (uint64_t)tpage | (uint64_t)clut << 16 | (uint64_t)uv[0] << 32 | (uint64_t)uv[1] << 40
             | (uint64_t)uv[2] << 48 | (uint64_t)uv[3] << 56,
-        (uint64_t)uv[4] | (uint64_t)uv[5] << 8 | (uint64_t)kind << 16 | (uint64_t)model << 24 };
+        (uint64_t)uv[4] | (uint64_t)uv[5] << 8 | (uint64_t)kind << 16
+            | (uint64_t)(kind == SURFACE_ROOM ? polygon : model) << 24 }; /* a room polygon: its own scope */
     auto found = object_cache.find(key);
     if (found == object_cache.end()) {
         float fuv[6];
@@ -1628,9 +1693,35 @@ void object_sink(void* context, const float w[9], const uint8_t* /*rgb*/, const 
         f->rgb[k] = found->second.rgb[k];
     }
     c[0] = e1[1] * e2[2] - e1[2] * e2[1], c[1] = e1[2] * e2[0] - e1[0] * e2[2], c[2] = e1[0] * e2[1] - e1[1] * e2[0];
-    f->area = 0.5f * sqrtf(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
+    float len = sqrtf(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
+    f->area = 0.5f * len;
     f->weight = f->area * (0.299f * f->rgb[0] + 0.587f * f->rgb[1] + 0.114f * f->rgb[2]);
-    f->source = (uint32_t)PC_GLOW_ORIGIN_OBJECT << 28 | ((mesh * 0x9e3779b1u) & 0x0fffffffu);
+    /* In front of its surface, one glow per side it faces. A glow is a
+     * sphere at its triangles' mean position, and an object is solid (a
+     * caster in the tracers' scene): the faces of a glowing crate averaged
+     * to a point inside it, every shadow ray to it hit the crate and its
+     * light was gone (and the baked light around it darkened: its shadow
+     * rays were blocked too). The light now sits pc_glow_emissive_lift out of
+     * the face along its front (objects are single sided: the front is
+     * where NCLIP > 0, render.h, det(p0, p1, p2) > 0 from the camera, so
+     * the outward normal is -(e1 x e2)), and each of the six directions it
+     * may face is its own source (the faces of a box no longer average back
+     * inside it; glows.c makes it a disc facing that side). Double-sided
+     * polygons have no front: on the surface, as before. Its tag marks it
+     * an emissive light (PC_GLOW_EMISSIVE): the room's baked light never
+     * came from it, so it casts no shadows of that light (the crates in
+     * the middle of the room darkened the floor around them). */
+    const render_polygon* poly = render_emit_polygon();
+    unsigned side = 0;
+    if (len > 1e-6f && !(poly && (poly->flags & RENDER_POLY_DOUBLE_SIDED))) {
+        float n[3] = { -c[0] / len, -c[1] / len, -c[2] / len };
+        int axis = fabsf(n[0]) >= fabsf(n[1]) && fabsf(n[0]) >= fabsf(n[2]) ? 0 : fabsf(n[1]) >= fabsf(n[2]) ? 1 : 2;
+        side = 1 + (unsigned)axis * 2 + (n[axis] < 0);
+        for (int k = 0; k < 3; k++)
+            f->p[k] += n[k] * pc_glow_emissive_lift;
+    }
+    f->source = (uint32_t)PC_GLOW_ORIGIN_OBJECT << 28 | PC_GLOW_EMISSIVE | side << PC_GLOW_SIDE_SHIFT
+        | ((mesh * 0x9e3779b1u) & ((1u << PC_GLOW_SIDE_SHIFT) - 1));
 }
 bool any_object_lights()
 {
@@ -1658,10 +1749,19 @@ extern "C" int pc_emissive_object_lights(void* fragments, int max)
     }
     uint32_t lists[64];
     int n = pc_hw_present_all_lists(lists, 64);
-    ObjectSink s = { out, 0, max };
-    for (int i = 0; i < n && s.n < max; i++)
-        if (render_list_objects(lists[i]) > 0) /* objects (1) and other room blocks (2); the room's are scene triangles */
+    ObjectSink s = { out, 0, max, false };
+    for (int i = 0; i < n && s.n < max; i++) {
+        /* objects (1) and other room blocks (2); of the room's own list (0)
+         * only the groups the scene capture lacks (a full walk of it cost
+         * ~18 us a frame, these a few) */
+        int kind = render_list_objects(lists[i]);
+        s.room_list = kind == 0;
+        if (s.room_list) {
+            refresh_captured();
+            render_list_triangles_where(lists[i], room_mesh_uncaptured, object_sink, &s);
+        } else if (kind > 0)
             render_list_triangles(lists[i], object_sink, &s);
+    }
     return s.n;
 }
 

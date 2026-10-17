@@ -197,9 +197,26 @@ and unlit.
   again for a triangle when VRAM under its texels or CLUT changes (palette
   and VRAM animations) or room texture effects move its UVs.
 - object lists and other room blocks (characters, props, the floating
-  blocks): the same integration per triangle, cached by texture area and
-  scope; object glows by mesh (`PC_GLOW_ORIGIN_OBJECT`, effect category
-  until promoted, as glows.c treats additive object polygons).
+  blocks), and the room's own groups the scene capture left out (a group
+  disabled when the room loaded and shown later, moving with its own
+  transform: Rue Vermillion's floating blocks, 32/3; a triangle of the
+  room's list is the capture's when a captured triangle of its polygon lies
+  where it is drawn): the same integration per triangle, cached by texture
+  area and scope (a room polygon's own); object glows by mesh and by the
+  side the surface faces (`PC_GLOW_ORIGIN_OBJECT`, effect category until
+  promoted, as glows.c treats additive object polygons), 10 units in front
+  of the surface (`glow_emissive_lift`), each a disc facing its side ([Glows.md](Glows.md),
+  "Emissive texels as glows"), never shadowing the baked light.
+
+Why the crates lit nothing (fixed 2026-10-15): an object glow was its
+mesh's light triangles' mean position. The magic crates (53/21) glow on
+every side, so their glows' centres were inside the crates; a crate is a
+shadow caster, so every shadow ray to them hit it: no light around them,
+however high the weight, and (magic glows shadow the baked light) a darker
+floor (-6 levels by the crates with light 1). The floating blocks' circle
+(32/3) made no light at all: its polygons are room geometry drawn with the
+room's list, which the object path skipped as scene triangles, but the
+capture had left its group out (hidden at load).
 
 Why filters lost the light (fixed 2026-10-15): the glow of a light
 triangle used to be the mean emission of 15 fixed barycentric points (4 for
@@ -323,7 +340,16 @@ light limited to a polygon lights from it only; a mask on Ashley's texture
 limited to another model shows nowhere, to hers on her. Filtered light: the
 coals narrowed to CLUT index 15 (7% of a triangle's texels at most) are
 still light triangles with light, and with path tracing (Vulkan) still
-light the hood (light 1 against light 0). Painted maps: an entry on the
+light the hood (light 1 against light 0). Lights on objects (path traced:
+Vulkan, and OpenGL with `--trace`; light 1 against 0 after the glows settle
+as magic glows): the magic crates (53/21) are traced object glows and the
+floor and Ashley beside them turn cyan (blue rises 0.6 levels or more, more
+than red; before the fix about -6 levels); each is a solid disc facing its
+side, and `glows {emissive_disc, emissive_lift}` halve its radius and move
+it out; a floating block's circle (32/3, Ashley placed on it, light 3) is
+an object glow and its green light reaches her in the lighting-only view
+(green rises a level or more, more than red) and, on Vulkan, the front of
+her legs (RPC `gi_probe`; before: no glow). Painted maps: an entry on the
 floor's texture with a painted map glows nowhere without its map; the
 reference export writes the texture and an empty map and refuses
 `pc/assets`; a rect painted over RPC glows exactly there (picks across the

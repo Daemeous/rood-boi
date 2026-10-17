@@ -175,7 +175,7 @@ float baked_visibility(vec3 p, vec3 n, vec3 skip_n) {
         vec3 to = emitter_pos[i].xyz - p; float d = length(to);
         if (emitter_col[i].w >= 0.0 && (glow_shadows == 0 || !glow_casts_shadow(i))) { weights[i] = 0.0; continue; }
         float x = clamp(d / emitter_pos[i].w, 0.0, 1.0);
-        weights[i] = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, to / max(d, 1e-3)), 0.0) * (u.emitter_shadow_[i].y > 0.0 ? u.emitter_shadow_[i].y : dot(emitter_col[i].rgb, vec3(0.299, 0.587, 0.114))); // a column's share of the baked light: its own weight (glows.c)
+        weights[i] = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, to / max(d, 1e-3)), 0.0) * (u.emitter_shadow_[i].y > 0.0 ? u.emitter_shadow_[i].y : u.emitter_shadow_[i].y < 0.0 ? 0.0 : dot(emitter_col[i].rgb, vec3(0.299, 0.587, 0.114))); // a column's share of the baked light: its own weight; < 0 none, not the baked light's (an emissive object; glows.c)
         all_ += weights[i];
     }
     float shadowed = 0.0;

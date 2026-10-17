@@ -1246,7 +1246,7 @@ static const char* trace_source = SHADER_COMMON
     "        vec3 to = emitter_pos[i].xyz - p; float d = length(to);\n"
     "        if (emitter_col[i].w >= 0.0 && (glow_shadows == 0 || ((glow_casts >> i) & 1) == 0)) { weights[i] = 0.0; continue; }\n" /* glows: no shadows unless asked */
     "        float x = clamp(d / emitter_pos[i].w, 0.0, 1.0);\n"
-    "        weights[i] = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, to / max(d, 1e-3)), 0.0) * (emitter_shadow[i].y > 0.0 ? emitter_shadow[i].y : dot(emitter_col[i].rgb, vec3(0.299, 0.587, 0.114)));\n"
+    "        weights[i] = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, to / max(d, 1e-3)), 0.0) * (emitter_shadow[i].y > 0.0 ? emitter_shadow[i].y : emitter_shadow[i].y < 0.0 ? 0.0 : dot(emitter_col[i].rgb, vec3(0.299, 0.587, 0.114)));\n" /* y < 0: not the baked light's (an emissive object, glows.c) */
     "        all_ += weights[i];\n"
     "    }\n"
     "    float shadowed = 0.0;\n"

@@ -46,7 +46,14 @@ game paused, the frame redrawn with each setting (RPC redraw).
   adds light triangles;
 - --trace (or ROOD_RENDERER=vulkan): with path traced GI (Ultra) the hood
   and wall above the forge get brighter when the coals glow (their light),
-  and still when the coals are narrowed to their hottest index.
+  and still when the coals are narrowed to their hottest index; lights on
+  objects: the magic crates (E005, 53/21) are traced object glows and turn
+  the floor and Ashley beside them cyan (blue rises, more than red; their
+  glows used to sit inside the crates: every shadow ray hit the crate, no
+  light and a darker floor), and a floating block's circle (E001, 32/3: a
+  room group the room's capture leaves out, which made no light at all) is
+  an object glow that lights the front of Ashley's legs, standing on it,
+  green.
 """
 import argparse
 import json
@@ -414,6 +421,116 @@ def painted_tests(game, out, lights_dir, check):
     game.run(2)
 
 
+def object_light_tests(game, out, check):
+    """Emissive lights on objects, path traced (Ultra, Vulkan): see the module docstring. Each entry's light
+    weight 0 against W (the glow on screen is the same either way), every time long enough for the glows to
+    become steady magic glows (an effect glow that stays 4 seconds; magic glows cast shadows)."""
+    def light(eid, weight):
+        game.call("emissive", action="set", id=eid, light=weight)
+        game.run(330)
+
+    # The magic crates (E005) in the game's view, Ashley beside them: the floor in front of them and her legs
+    # (the middle of the lower half of the frame) take on their cyan.
+    if not goto(game, 53, 21):
+        check(False, "warped to zone 53 room 21")
+        return
+    means = {}
+    for weight in (0, 1):
+        light("E005", weight)
+        means[weight] = np.mean([frame(game, out / f"crates-{weight}-{k}.png") for k in range(4)], axis=0)
+        if weight:
+            noise = float(np.abs(np.mean([frame(game, out / f"crates-again-{k}.png") for k in range(4)], axis=0)
+                                 - means[1]).mean())
+            glows = [g for g in game.call("glows")["glows"] if g["origin"] == "object"]
+    h, w, _ = means[0].shape
+    rise = (means[1] - means[0])[h // 2: h * 3 // 4, w // 4: w * 3 // 4].reshape(-1, 3).mean(0)
+    check(glows and all(g["traced"] for g in glows), f"the crates are traced object glows ({len(glows)})")
+    check(rise[2] >= max(0.6, 5 * noise) and rise[2] >= rise[0] + 0.3,
+          f"the crates light the floor and Ashley beside them in their cyan: +{rise[0]:.2f} +{rise[1]:.2f} "
+          f"+{rise[2]:.2f} (rgb levels, light 1 against 0; frame noise {noise:.3f})")
+    # Their shape and its tunables (room settings glow_emissive_*, RPC glows): each a solid disc in front of the
+    # side it faces (its tag's bits 23-25: 1 + 2 axis + negative); half the disc factor halves the radius, ten
+    # more units of lift move each glow ten units out along its side.
+    def side_of(g):
+        side = (int(g["key"].split(":")[1].split("@")[0], 16) >> 23) & 7
+        return (side - 1) // 2, -1 if (side - 1) % 2 else 1
+
+    def object_glows():
+        return {g["key"]: g for g in game.call("glows")["glows"] if g["origin"] == "object"}
+    check(glows and all(g["shape"]["kind"] == "solid" and 0 <= side_of(g)[0] <= 2 for g in glows),
+          f"each crate glow is a solid disc facing its side ({sorted({g['shape']['kind'] for g in glows})})")
+    defaults = game.call("glows")["emissive"]
+    was = object_glows()
+    game.call("glows", emissive_disc=defaults["disc"] / 2, emissive_lift=defaults["lift"] + 10)
+    game.run(60)
+    now = object_glows()
+    halved = [now[k]["shape"]["radius"] / g["shape"]["radius"] for k, g in was.items() if k in now]
+    moved = [(now[k]["position"][side_of(g)[0]] - g["position"][side_of(g)[0]]) * side_of(g)[1]
+             for k, g in was.items() if k in now]
+    check(halved and all(abs(r - 0.5) < 0.03 for r in halved),
+          f"glows emissive_disc {defaults['disc'] / 2:g} halves the discs (ratios "
+          f"{sorted(set(round(r, 2) for r in halved))})")
+    check(moved and all(abs(m - 10) < 1 for m in moved),
+          f"glows emissive_lift {defaults['lift'] + 10:g} moves them 10 out (by "
+          f"{sorted(set(round(m, 1) for m in moved))})")
+    game.call("glows", emissive_disc=defaults["disc"], emissive_lift=defaults["lift"])
+    game.call("emissive", action="remove", id="E005")
+
+    # A floating block (E001: its top's magic circle; a room group the room's capture leaves out) with Ashley
+    # standing on it, in the free camera: green light on the front of her legs, in the lighting-only view (her
+    # legs and the block's top around them in the middle of the frame) and, on Vulkan, in the glow light
+    # there (RPC gi_probe; OpenGL's probe reads its half-resolution light, too coarse for her legs).
+    if not goto(game, 32, 3):
+        check(False, "warped to zone 32 room 3")
+        return
+    show_platforms(game)
+    data = game.read_symbol("vs_battle_roomData", 0xB0)
+    table = struct.unpack("<I", data[0xA8:0xAC])[0]
+    x, altitude, z = (v / 4096 for v in struct.unpack("<iii", game.read(table + 0xA8, 12)))
+    game.call("editor_camera", x=x, y=-altitude - 500, z=z - 600, yaw=0, pitch=-35)
+    actor = struct.unpack("<I", game.read_symbol("D_800F4538", 4))[0]  # Ashley's record: position at 0x1C
+    game.write(actor + 0x1C, struct.pack("<hhh", int(x), int(-altitude - 10), int(z)))
+    game.run(30)
+    on = game.state()["player"]
+    legs, views = {}, {}
+    for weight in (0, 3):
+        light("E001", weight)
+        game.call("graphics", view_mode=2)
+        game.run(30)
+        views[weight] = np.mean([frame(game, out / f"block-{weight}-{k}.png") for k in range(4)], axis=0)
+        if weight:
+            view_noise = float(np.abs(np.mean([frame(game, out / f"block-again-{k}.png") for k in range(4)], axis=0)
+                                      - views[3]).mean())
+        game.call("graphics", view_mode=0)
+        values = []
+        for dy in (-15, -35):
+            for dx in (-10, 10):
+                for _ in range(4):
+                    game.run(3)
+                    try:
+                        values.append(game.call("gi_probe", x=on["x"] + dx, y=on["y"] + dy, z=on["z"] - 14)["extra"])
+                    except Exception:
+                        pass
+        legs[weight] = np.mean(values, axis=0) if values else np.zeros(3)
+        if weight:
+            glows = [g for g in game.call("glows")["glows"] if g["origin"] == "object"
+                     and math.hypot(g["position"][0] - x, g["position"][2] - z) < 128]
+    check(abs(on["y"] + altitude) < 24, f"Ashley stands on the block ({on}, its top at {-altitude:.0f})")
+    check(bool(glows), f"the block's circle is an object glow ({[g['name'] for g in glows]})")
+    h, w, _ = views[0].shape
+    rise = (views[3] - views[0])[h * 47 // 100: h * 73 // 100, w * 44 // 100: w * 58 // 100].reshape(-1, 3).mean(0)
+    check(rise[1] >= max(1.0, 5 * view_noise) and rise[1] >= rise[0] + 0.5,
+          f"the circle lights Ashley standing on it, green, in the lighting-only view: +{rise[0]:.2f} "
+          f"+{rise[1]:.2f} +{rise[2]:.2f} (rgb levels, light 3 against 0; frame noise {view_noise:.3f})")
+    lift = legs[3] - legs[0]
+    if os.environ.get("ROOD_RENDERER") == "vulkan":
+        check(lift[1] >= 0.01 and lift[1] > lift[0],
+              f"the circle lights the front of her legs, green: +{lift[0]:.4f} +{lift[1]:.4f} +{lift[2]:.4f} "
+              f"(glow light, RPC gi_probe, light 3 against 0)")
+    game.call("emissive", action="remove", id="E001")
+    game.call("editor_camera", off=1)
+
+
 def narrow_coals(game):
     """The coals (E004) narrowed to their hottest CLUT index: (the index, the share of the bed's texels)."""
     game.call("emissive", action="set", id="E004", mask={"indices": [15]}, light=1)
@@ -589,6 +706,8 @@ def main():
             check(nlift >= max(0.15, 5 * noise), f"the coals narrowed to index 15 still light the hood: "
                   f"+{nlift:.2f} levels (light 1 against 0; frame noise {noise:.3f})")
             game.call("emissive", action="remove", id="E004")
+            # ---- lights on objects: the magic crates (53/21) and a floating block's circle (32/3)
+            object_light_tests(game, out, check)
             if preset:
                 game.call("graphics", lighting_preset=preset)
 

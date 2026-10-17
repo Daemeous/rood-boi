@@ -24,7 +24,7 @@ extern float pc_gi_strength, pc_emitter_light, pc_emitter_radius, pc_contact_rad
     pc_lights_baked, pc_lights_master, pc_light_size, pc_gi_baked_bounce, pc_fog_density, pc_fog_anisotropy,
     pc_fog_glow, pc_glow_category[3][5], pc_haze_max_opacity, pc_haze_max_light, pc_haze_shafts, pc_haze_max_forward,
     pc_haze_interior, pc_haze_interior_fill, pc_haze_under_floor, pc_haze_void, pc_haze_void_level, pc_haze_outside,
-    pc_haze_interior_edge, pc_haze_interior_slope;
+    pc_haze_interior_edge, pc_haze_interior_slope, pc_glow_emissive_lift, pc_glow_emissive_disc;
 }
 
 namespace {
@@ -88,6 +88,10 @@ Setting settings[] = {
     { "glow_effects_reach", "Effects: reach", "Glows", &pc_glow_category[2][2], 0.1f, 4, "%.2f", false },
     { "glow_effects_shadows", "Effects: cast shadows", "Glows", &pc_glow_category[2][3], 0, 0, "never", false },
     { "glow_effects_smoothing", "Effects: smoothing (s)", "Glows", &pc_glow_category[2][4], 0, 1, "%.2f", false },
+    /* Glowing surfaces' lights on objects (glows.c: a crate's sides, a
+     * floating block's circle): in front of the surface, a disc facing out. */
+    { "glow_emissive_lift", "Glowing objects: lift off the surface", "Glows", &pc_glow_emissive_lift, 0, 32, "%.1f", false },
+    { "glow_emissive_disc", "Glowing objects: disc size", "Glows", &pc_glow_emissive_disc, 0, 1.5f, "%.2f", false },
 };
 const int count = sizeof settings / sizeof settings[0];
 bool initialised;

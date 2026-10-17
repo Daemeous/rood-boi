@@ -367,6 +367,31 @@ and light texels on characters, props and other room blocks become object
 glows by mesh. Their colour is the texels' emission times the weight; the
 budget, smoothing, categories and shadows are the glows' own.
 
+Object glows from emissive texels (fixed 2026-10-15): each sits
+`glow_emissive_lift` (10) units in front of its surface, one glow per side
+it faces (the source tag carries `PC_GLOW_EMISSIVE`, bit 26, and the side
+in bits 23-25 above the mesh's hash, glow_overrides.h; other object glows
+keep both clear), and is a solid disc facing that side,
+`glow_emissive_disc` (0.8) of the radius of a disc of its area. Both are
+room settings (Glows page of the lighting panel, `set <key>` in the room's
+lighting layers or a pack's defaults.txt) and RPC `glows {emissive_lift,
+emissive_disc}` (the reply's `emissive`). Before, a mesh's light triangles
+averaged to one point: on a magic crate with glowing sides that point was
+inside the crate, every shadow ray to it hit the crate, so the crates lit
+nothing (and, as magic glows that shadow the baked light, darkened the
+floor around them). They never shadow the baked light now
+(`emitter_shadow` y < 0: no weight in `baked_visibility`, Vulkan and
+OpenGL): the PS1's baked light never came from them. Their keys changed
+with the tag (an override saved for one before finds it again by its
+origin and position, within 96 units).
+
+A crate is up to six glows (its sides), so the crate rooms were measured
+against the 32 traced glows (2026-10-17, Vulkan, Ultra, after the glows
+settle): 24/5 14 glows, 30/4 18, 53/12 18, 53/21 12, 55/11 28, 55/17 14,
+all of them object glows; no room reaches 32 (a room that did would drop
+its weakest glows first, as before). No per-object cap or merging of sides
+was needed.
+
 ## Limits and next steps
 
 - Categories come from the source: a spell drawn with unattached world
