@@ -18,8 +18,9 @@ int pc_hw_active = 1, pc_hw_scale_setting = 4, pc_gl_filter = 2, pc_gl_aspect, p
 int pc_env_global = 1, pc_lights_enabled = 1, pc_qol_weapon_slots, pc_skip_intro, pc_ui_menus;
 float pc_emissive = 1.0f; // emissive.cpp: glowing surfaces' strength
 int pc_dust; // particles.cpp: dust motes (0 off)
-int pc_qol_map_invert, pc_qol_fp_invert_y, pc_qol_map_controls, pc_qol_skip_charging;
+int pc_qol_map_invert, pc_qol_fp_invert_y, pc_qol_map_controls, pc_qol_skip_charging, pc_qol_skip_charging_who;
 int pc_qol_confirm_cross, pc_qol_field_cross_attack;
+float pc_qol_skip_charging_name = 1.0f;
 int pc_qol_fast_travel = 1, pc_qol_fast_travel_cost, pc_qol_fast_travel_flat = 15, pc_qol_fast_travel_prompt = 1;
 float pc_qol_fast_travel_scale = 0.5f, pc_qol_fast_travel_prompt_x = 0.5f, pc_qol_fast_travel_prompt_y = 0.84f,
     pc_qol_fast_travel_prompt_scale = 1.0f;

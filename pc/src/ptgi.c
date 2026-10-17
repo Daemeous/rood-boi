@@ -852,6 +852,7 @@ int pc_gi_fixture_triangles(const float p[3], float radius, float (*out)[9], int
 
 extern const uint32_t* pc_hw_emissive_sources(void);
 extern unsigned pc_presents; /* gl_present.c: images presented */
+extern unsigned pc_hw_history_cut; /* gpu_hw.c: unpresented stretches ended (the GI history restarts) */
 static unsigned emitters_present = ~0u; /* the present the emitters were last gathered in */
 static void update_emitters(void)
 {
@@ -2026,6 +2027,13 @@ GLuint pc_gi_update(int x, int y, int w, int h)
     float res = pc_gi_resolution < 0.25f ? 0.25f : pc_gi_resolution > 4 ? 4 : pc_gi_resolution;
     int gw = (int)(w * res + 0.5f), gh = (int)(h * res + 0.5f);
     ensure_images(c, gw, gh);
+    static unsigned cut_seen;
+    if (cut_seen != pc_hw_history_cut) {
+        /* Frames went unpresented (battle charging's skip): restart the history (GL; vrt_run for Vulkan). */
+        cut_seen = pc_hw_history_cut;
+        c->history_valid = 0;
+        cadence_since = (unsigned)pc_gi_cadence_interval(); /* traced now, not the last result */
+    }
     cadence_read();
     if (c->result && c->result_scene == pc_scene_serial() && (int)++cadence_since < pc_gi_cadence_interval()) {
         ++cadence_reused;

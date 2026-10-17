@@ -17,8 +17,8 @@ t.case("validation is enforced", function()
 end)
 
 t.case("valid changes apply and read back", function()
-  t.eq(S.set("qol_skip_charging", "fast"), "fast")
-  t.eq(S.get("qol_skip_charging"), "fast")
+  t.eq(S.set("qol_skip_charging", "skip"), "skip")
+  t.eq(S.get("qol_skip_charging"), "skip")
   t.eq(S.set("qol_skip_charging", "Off"), "off") -- the label works too
   t.near(S.set("ui_menu_opacity", 0.5), 0.5, 1e-6)
   t.eq(S.set("skip_intro", true), true) -- lua_smoke checks settings.cfg for it
@@ -33,8 +33,8 @@ t.case("list has every row's metadata", function()
   t.eq(seen.kind, "choice")
   t.eq(seen.page, "gameplay")
   t.eq(seen.source, "system")
-  t.eq(#seen.choices, 3)
-  t.eq(seen.choices[2].id, "fast")
+  t.eq(#seen.choices, 2)
+  t.eq(seen.choices[2].id, "skip")
   t.ok(#S.pages() >= 7)
 end)
 

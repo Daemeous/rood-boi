@@ -27,71 +27,20 @@ static int fast;
  * runs unpaced, as with --fast; audio drops what it cannot play. */
 static int fast_forward_key;
 static int fast_forward_held(void) { return focused && (fast_forward_key || pc_controller_fast_forward()); }
-/* Battle charging (settings qol_skip_charging, System > Gameplay; off by
- * default): an effect action's wind-up before it takes effect - a spell's
- * casting, an item's or a Break Art's - runs at several game vsyncs per
- * displayed field. That is BATTLE's action state (D_800F196C 2) in
- * _cameraMode 4..6 for an action with an effect (vs_main_actions unk2_0;
- * 146C.c func_80070F28, func_8007138C, func_80078748, func_800787F0): the
- * camera zooms in, the casting effect plays, the release begins. Every
- * vsync still runs (the game logic, its timers, damage, MP, items used and
- * random numbers are exactly the original's); only the wall clock pacing
- * changes, like fast-forward. Nothing waits for input then (chain and
- * defence ability windows open in the release, _cameraMode 7, which keeps
- * its pace). 1 Fast: CHARGE_FAST vsyncs per field; 2 Skip: unpaced, as
- * fast as the machine runs (CHARGE_SKIP at most). Audio keeps real time:
- * what the device has no room for is dropped (audio_output.c). */
-extern int pc_qol_skip_charging; /* project_settings.cpp */
-extern int pc_battle_action(int* actor, int* action, int* phase, int* chain, int* type, int* plain, int aim[3])
-    __attribute__((weak)); /* scene_submit.inc (battle builds) */
-extern unsigned pc_vsync_count(void); /* boot_runtime.c */
+/* Battle charging skip (charge_skip.c): the vsyncs of a skipped wind-up
+ * that still run (its effect's loading) are not presented and not paced;
+ * what the audio device has no room for meanwhile is dropped
+ * (audio_output.c). */
+extern int pc_charge_skip_hidden(void) __attribute__((weak));
 extern void pc_audio_output_turbo(int on) __attribute__((weak)); /* audio_output.c */
-enum { CHARGE_FAST = 4, CHARGE_SKIP = 16 };
-static int charge_turbo; /* this vsync's game vsyncs per field (0: normal pace) */
-static unsigned charge_vsync, charge_seen; /* the last vsync judged; charging sequences seen */
-static unsigned charge_vsyncs;              /* vsyncs spent charging */
-static long long charge_ns;                 /* wall time they took */
-static long long charge_budget_ns;          /* the time their pacing allowed (load-independent) */
-static int charge_now, charge_phase;
-int pc_battle_charging(int* phase)
-{
-    int actor, action, chain, type, plain, aim[3], p = 0;
-    int on = pc_battle_action && pc_battle_action(&actor, &action, &p, &chain, &type, &plain, aim) && !plain
-          && p >= 4 && p <= 6;
-    if (phase)
-        *phase = on ? p : 0;
-    return on;
-}
-/* RPC skip_charging (dev_rpc.c): the counters, optionally reset. */
-void pc_charge_turbo_stats(int* charging, int* phase, unsigned* sequences, unsigned* vsyncs, double* ms, double* budget_ms,
-    int reset)
-{
-    *charging = charge_now, *phase = charge_phase, *sequences = charge_seen, *vsyncs = charge_vsyncs;
-    *ms = charge_ns / 1e6;
-    *budget_ms = charge_budget_ns / 1e6;
-    if (reset)
-        charge_seen = charge_vsyncs = 0, charge_ns = charge_budget_ns = 0;
-}
-/* Once per game vsync (pc_window_tick; paused redraws are not vsyncs):
- * whether this one is charging, and its pace. */
+static int charge_hidden; /* this vsync's */
 static void charge_update(void)
 {
-    unsigned v = pc_vsync_count();
-    if (v == charge_vsync)
-        return;
-    charge_vsync = v;
-    int was = charge_now;
-    charge_now = pc_battle_charging(&charge_phase);
-    charge_seen += charge_now && !was;
-    charge_vsyncs += charge_now;
-    int mode = pc_qol_skip_charging;
-    int turbo = charge_now && mode > 0 ? (mode >= 2 ? CHARGE_SKIP : CHARGE_FAST) : 0;
-    if (turbo != charge_turbo && pc_audio_output_turbo)
-        pc_audio_output_turbo(turbo != 0);
-    charge_turbo = turbo;
+    int hidden = pc_charge_skip_hidden && pc_charge_skip_hidden();
+    if (hidden != charge_hidden && pc_audio_output_turbo)
+        pc_audio_output_turbo(hidden);
+    charge_hidden = hidden;
 }
-/* boot_runtime.c: no in-between presents (pc_present_rate) while charging runs fast. */
-int pc_window_turbo(void) { return charge_turbo != 0; }
 extern int pc_gl_active;
 extern SDL_Window* pc_gl_create_window(const char*, int, int);
 extern void pc_gl_resize(int, int);
@@ -114,7 +63,7 @@ static struct timespec deadline;
  * vsync's deadline to the next (no wait in fast mode). */
 void pc_window_wait_fraction(int k, int n)
 {
-    if (fast || fast_forward_held() || charge_turbo || !deadline.tv_sec || n <= 0)
+    if (fast || fast_forward_held() || charge_hidden || !deadline.tv_sec || n <= 0)
         return;
     struct timespec at = deadline;
     long long ns = at.tv_nsec + FIELD_NS * k / n;
@@ -332,20 +281,16 @@ void pc_window_tick(void)
     pc_controller_poll();
     capture_tick();
     charge_update();
-    if (fast_forward_held())
-        deadline.tv_sec = 0; /* pace again from now when it is released */
+    if (fast_forward_held() || charge_hidden)
+        deadline.tv_sec = 0; /* pace again from now when it is released (or presents again) */
     else if (!fast) {
         /* Pace to absolute NTSC field deadlines (59.94 Hz) so the frame's own
-         * work counts toward the period; resynchronise after long stalls.
-         * Battle charging (above) runs charge_turbo vsyncs per field. */
+         * work counts toward the period; resynchronise after long stalls. */
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
         if (!deadline.tv_sec)
             deadline = now;
-        long long step = charge_turbo ? FIELD_NS / charge_turbo : FIELD_NS;
-        deadline.tv_nsec += step;
-        if (charge_now)
-            charge_budget_ns += step;
+        deadline.tv_nsec += FIELD_NS;
         if (deadline.tv_nsec >= 1000000000) {
             deadline.tv_nsec -= 1000000000;
             ++deadline.tv_sec;
@@ -375,17 +320,6 @@ void pc_window_tick(void)
         else
             clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, NULL);
         clock_gettime(CLOCK_MONOTONIC, &woke);
-    }
-    /* The charging vsyncs' wall time: from the last vsync's tick to this one's. */
-    static struct timespec ticked;
-    static unsigned ticked_vsync;
-    if (charge_vsync != ticked_vsync) {
-        struct timespec t;
-        clock_gettime(CLOCK_MONOTONIC, &t);
-        if (charge_now && ticked.tv_sec)
-            charge_ns += (t.tv_sec - ticked.tv_sec) * 1000000000LL + (t.tv_nsec - ticked.tv_nsec);
-        ticked = t;
-        ticked_vsync = charge_vsync;
     }
 }
 extern int pc_display_rgb24;

@@ -92,7 +92,7 @@ static void wav_header(void)
     fflush(wav);
 }
 
-/* Battle charging at several vsyncs per field (boot_window.c): the game makes
+/* A skipped battle wind-up's unpaced vsyncs (boot_window.c, charge_skip.c): the game makes
  * audio faster than the device plays it, so a push that finds TURBO_LEVEL
  * frames queued already is dropped (the sound stays in real time, without
  * the latency a full ring would add); the next push fades in from the last

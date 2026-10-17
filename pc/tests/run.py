@@ -305,9 +305,24 @@ def suites(args, mode="egl"):
                  note="fast travel with the modern menus: Magick > Teleport on the same unlock, cost, mask and "
                       "refusals; save (System > Data) and Continue; the Travel button")]
           if args.save.exists() else []),
-        *([Suite("skip_charging_smoke", [PY, str(TESTS / "skip_charging_smoke.py"), "--card", str(args.save)], 600,
-                 note="battle charging off/fast/skip (paced): Solid Shock's and a Cure Root's wind-up charge the "
-                      "same vsyncs in 4x / full speed wall time; damage, MP, item and game state identical")]
+        *([Suite("skip_charging_smoke", [PY, str(TESTS / "skip_charging_smoke.py"), "--card", str(args.save)], 900,
+                 note="battle charging skip (paced): Solid Shock, a Cure Root and a Break Art off and on: the same "
+                      "outcome, release view, flags, score and clean state; skipped wind-ups short and unpresented; "
+                      "with the random numbers pinned, the enemies (who: all) act the same")]
+          if args.save.exists() else []),
+        *([Suite("charge_skip_soak", [PY, str(TESTS / "charge_skip_soak.py"), "--card", str(args.save)], 1500,
+                 note="battle charging skip soak (unpaced): every spell of the four schools, 40 misc items "
+                      "(grimoires too) and the equipped weapon's Break Arts: wind-ups <= 32 vsyncs, none "
+                      "presented, a 2000-vsync watchdog, clean afterwards")]
+          if args.save.exists() else []),
+        *([Suite("heal_audio_smoke", [PY, str(TESTS / "heal_audio_smoke.py"), "--card", str(args.save)], 300,
+                 note="Cure Root in the field (audio recorded): its streamed sound fed by the SPU interrupt and "
+                      "keyed off at its end; afterwards the room's level and no repeating phrase (no endless echo)")]
+          if args.save.exists() else []),
+        *([Suite("heal_audio_noirq_smoke",
+                 [PY, str(TESTS / "heal_audio_smoke.py"), "--card", str(args.save), "--no-irq"], 300,
+                 note="the same without the SPU interrupt (ROOD_SPU_IRQ=0): the driver's stop command, sent "
+                      "between two driver ticks, still keys the looping stream off (key on/off writes not lost)")]
           if args.save.exists() else []),
         *([Suite("ui_equip_smoke", [PY, str(TESTS / "ui_equip_smoke.py"), "--card", str(args.save)], 900,
                  note="Equipment screen: same RAM as the original equip page (MENU3) for weapon/shield/armor/"

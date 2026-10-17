@@ -447,7 +447,7 @@ The System tab edits the same variables as the editor and `settings.cfg`
   setting), HUD (later).
 - Controls: right-stick camera and its options, vibration.
 - Gameplay: Skip intro (`skip_intro`, from the next start), quick weapon slots (`qol_weapon_slots`), Battle
-  charging (`qol_skip_charging`: Off / Fast / Skip, pc/README.md "Battle charging") and the game's own
+  charging (`qol_skip_charging`: Off / Skip, whose: `qol_skip_charging_who` Mine / All, and the name's time: `qol_skip_charging_name`; pc/README.md "Battle charging") and the game's own
   options (simple map, ability timing, weapon/armor status, cursor memory,
   information, puzzle mode, sound), written to `vs_main_settings`.
 

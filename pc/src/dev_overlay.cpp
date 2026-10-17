@@ -885,7 +885,8 @@ static void button_roles_panel()
 
 extern "C" int pc_qol_weapon_slots; /* project_settings.cpp; weapon_slots.c */
 extern "C" int pc_skip_intro;       /* project_settings.cpp; boot_runtime.c */
-extern "C" int pc_qol_skip_charging; /* project_settings.cpp; boot_window.c */
+extern "C" int pc_qol_skip_charging, pc_qol_skip_charging_who; /* project_settings.cpp; charge_skip.c */
+extern "C" float pc_qol_skip_charging_name;                     /* project_settings.cpp; charge_skip.inc */
 /* Graphics > Gameplay: optional gameplay changes, all off by default. */
 static void gameplay_panel()
 {
@@ -898,11 +899,21 @@ static void gameplay_panel()
                           "Select: assign mode (the next slot button stores the equipped weapon there);\n"
                           "Start: the equipped shield into every one-handed slot; R2 + Select: store / remove.\n"
                           "Slots are saved in the same bytes as the mod, so memory cards stay interchangeable.");
-    ImGui::Combo("Battle charging", &pc_qol_skip_charging, "Off\0Fast (4x)\0Skip (full speed)\0");
+    ImGui::Combo("Battle charging", &pc_qol_skip_charging, "Off\0Skip\0");
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Settings qol_skip_charging. A spell's casting, an item's or a Break Art's wind-up before\n"
-                          "it takes effect runs at several game frames per displayed frame. Every frame still runs:\n"
-                          "damage, MP, items and enemy turns are exactly the original's; only the waiting is shorter.");
+        ImGui::SetTooltip("Settings qol_skip_charging. Skips the hold of a spell's, an item's or a Break Art's wind-up\n"
+                          "(the caster powering up): the camera's move to the caster and the name window play as\n"
+                          "always, then the release starts as soon as its effect has loaded, the frames until then\n"
+                          "are not shown. Nothing runs faster, and the action's outcome (damage, MP, items,\n"
+                          "statuses) is the original's.");
+    ImGui::Combo("Skip whose charging", &pc_qol_skip_charging_who, "Mine (Ashley's)\0All (enemies' too)\0");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Settings qol_skip_charging_who: only Ashley's actions, or every actor's.");
+    ImGui::SliderFloat("Skipped charging: name shown", &pc_qol_skip_charging_name, 0.0f, 2.0f, "%.2f s");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Settings qol_skip_charging_name: the action's name window (Information option on) stays\n"
+                          "up past a skipped wind-up's release until it has been shown this long, never longer than\n"
+                          "the original's 2 s. 0 closes it at the release.");
     bool skip = pc_skip_intro != 0;
     if (ImGui::Checkbox("Skip intro (from the next start)", &skip))
         pc_skip_intro = skip;

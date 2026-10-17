@@ -23,8 +23,8 @@ extern "C" {
 
 extern "C" {
 extern int pc_hw_active, pc_hw_interpolate, pc_hw_scale_setting, pc_gl_aspect, pc_gte_widescreen, pc_ui_menus,
-    pc_gameplay_walls, pc_button_prompts, pc_qol_map_invert, pc_qol_map_controls, pc_qol_skip_charging, pc_qol_confirm_cross;
-extern float pc_emissive;
+    pc_gameplay_walls, pc_button_prompts, pc_qol_map_invert, pc_qol_map_controls, pc_qol_skip_charging, pc_qol_skip_charging_who, pc_qol_confirm_cross;
+extern float pc_emissive, pc_qol_skip_charging_name;
 extern int pc_dust;
 }
 
@@ -110,13 +110,13 @@ static void pages()
     CHECK(pc_ui_settings_rows(B) == 19); // the 16 PS1 buttons, Travel, Unbind Travel, Reset
     CHECK(find(B, "bind_travel") == find(B, "bind_reset") - 2 && row(B, "bind_travel").button == PC_BIND_TRAVEL
         && find(B, "bind_travel_clear") == find(B, "bind_travel") + 1);
-    CHECK(pc_ui_settings_rows(P) == (game ? 15 : 8)); // fast travel: on, its cost, its prompt
-    // fast travel after battle charging: On, Free; Flat shows its MP, Scaled its factor
-    CHECK(find(P, "qol_fast_travel") == find(P, "qol_skip_charging") + 1
+    CHECK(pc_ui_settings_rows(P) == (game ? 17 : 10)); // fast travel: on, its cost, its prompt
+    // fast travel after battle charging (whose, the name's time): On, Free; Flat shows its MP, Scaled its factor
+    CHECK(find(P, "qol_fast_travel") == find(P, "qol_skip_charging_name") + 1
         && find(P, "qol_fast_travel_cost") == find(P, "qol_fast_travel") + 1);
     CHECK(value(P, "qol_fast_travel") == "On" && value(P, "qol_fast_travel_cost") == "Free");
     CHECK(change(P, "qol_fast_travel_cost", 1) == 1 && pc_qol_fast_travel_cost == 1
-        && pc_ui_settings_rows(P) == (game ? 16 : 9) && find(P, "qol_fast_travel_flat") == find(P, "qol_fast_travel_cost") + 1);
+        && pc_ui_settings_rows(P) == (game ? 18 : 11) && find(P, "qol_fast_travel_flat") == find(P, "qol_fast_travel_cost") + 1);
     CHECK(change(P, "qol_fast_travel_cost", 1) == 1 && pc_qol_fast_travel_cost == 2
         && find(P, "qol_fast_travel_scale") == find(P, "qol_fast_travel_cost") + 1 && find(P, "qol_fast_travel_flat") < 0);
     pc_qol_fast_travel_cost = 0;
@@ -125,12 +125,20 @@ static void pages()
     // ... not the prompt: the game's own Teleportation shows it whatever the setting
     CHECK(row(P, "qol_fast_travel_prompt").enabled);
     pc_qol_fast_travel = 1;
-    // battle charging after the weapon quick slots: Off, Fast, Skip
-    CHECK(find(P, "qol_skip_charging") == find(P, "qol_weapon_slots") + 1);
+    // battle charging after the weapon quick slots: Off, Skip; then whose: Mine, All, and the name's time
+    // (1 s; both greyed while off)
+    CHECK(find(P, "qol_skip_charging") == find(P, "qol_weapon_slots") + 1
+        && find(P, "qol_skip_charging_who") == find(P, "qol_skip_charging") + 1
+        && find(P, "qol_skip_charging_name") == find(P, "qol_skip_charging_who") + 1);
+    CHECK(row(P, "qol_skip_charging").count == 2 && value(P, "qol_skip_charging_who") == "Mine"
+        && !row(P, "qol_skip_charging_who").enabled && !row(P, "qol_skip_charging_name").enabled
+        && pc_qol_skip_charging_name == 1.0f);
     CHECK(value(P, "qol_skip_charging") == "Off" && change(P, "qol_skip_charging", 1) == 1 && pc_qol_skip_charging == 1
-        && value(P, "qol_skip_charging") == "Fast");
-    CHECK(change(P, "qol_skip_charging", 1) == 1 && pc_qol_skip_charging == 2 && value(P, "qol_skip_charging") == "Skip");
-    pc_qol_skip_charging = 0;
+        && value(P, "qol_skip_charging") == "Skip" && row(P, "qol_skip_charging_who").enabled
+        && row(P, "qol_skip_charging_name").enabled);
+    CHECK(change(P, "qol_skip_charging_who", 1) == 1 && pc_qol_skip_charging_who == 1
+        && value(P, "qol_skip_charging_who") == "All");
+    pc_qol_skip_charging = pc_qol_skip_charging_who = 0;
     CHECK(pc_ui_settings_rows(-1) == 0 && pc_ui_settings_rows(7) == 0);
     pc_ui_setting_row r;
     CHECK(!pc_ui_settings_row(G, 99, &r));

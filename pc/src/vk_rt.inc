@@ -1138,6 +1138,14 @@ static int vrt_nrd(const float eye[3], int result, int result_extra)
 
 static void vrt_run(const float to_image[16], const float eye[3], float footprint)
 {
+    extern unsigned pc_hw_history_cut; /* gpu_hw.c */
+    static unsigned cut_seen;
+    if (cut_seen != pc_hw_history_cut) {
+        /* Frames went unpresented (battle charging's skip): the GI history and NRD's restart. */
+        cut_seen = pc_hw_history_cut;
+        vrt.history_valid = 0;
+        vrt.nrd.valid = 0;
+    }
     VkDeviceSize ubo_alignment = vk.properties.limits.minUniformBufferOffsetAlignment;
     vk_image* im = vrt.images;
     /* 1: trace. */

@@ -222,30 +222,57 @@ tests it (option off, swaps, assign mode, shields, saving and reloading).
 ### Battle charging (optional)
 
 Before a spell, an item or a Break Art takes effect, Ashley (or an enemy)
-winds up: the camera closes in, the casting effect plays (magic circle, the
-spell's name), then the release begins. That wind-up takes about 3.3 s
-(32-bit build: Solid Shock 196 vsyncs, a Cure Root 202, a Break Art 226). **Off by
-default**: settings key `qol_skip_charging` (0 off, 1 Fast, 2 Skip), System >
-Gameplay > Battle charging in the modern menus, editor Graphics > Gameplay,
-RPC `skip_charging {mode, reset}` (counters: charging sequences, vsyncs, wall `ms` and the pacing's `budget_ms`).
+winds up: the camera moves to the caster, the action's name shows (with the
+game's Information option on), the caster holds the cast while the magic
+circle builds, then the release begins. The hold alone takes about 2-3 s
+(the name window's own 2 s at least, then the cast animation and the
+effect's loading). **Off by default**: settings key `qol_skip_charging` (0
+Off, 1 Skip; older settings' Fast and Skip both read as Skip),
+`qol_skip_charging_who` (0 Mine: Ashley's actions, 1 All: the enemies' spells
+and arts too) and `qol_skip_charging_name` (seconds the name stays up at
+least, 0..2, default 1), System > Gameplay > Battle charging / Skip whose
+charging / Skipped charging: name shown in the modern menus, editor Graphics
+> Gameplay, RPC `skip_charging {mode, who, name, reset}`.
 
-- **Fast** runs the wind-up at 4 game vsyncs per displayed field (Solid
-  Shock's in 0.83 s).
-- **Skip** runs it unpaced, as fast as the machine renders it (at most 16x;
-  about 6x, 0.6 s, on the development machine).
+**Skip** takes the hold out; nothing runs faster. The action is committed
+before the wind-up begins (BATTLE `func_80070F28`: MP, HP or RISK paid, the
+item used, hits, damage and statuses rolled), so the wind-up decides nothing,
+and skipping it keeps the outcome. `pc/src/charge_skip.inc` (included in
+BATTLE's `146C.c`; `ROOD_PC` hooks where the game runs `_cameraMode` 5, at the
+release, once a frame, and in `vs_battle_displaySceneMessage`):
 
-It is a host-side fast-forward of exactly that stretch, not a change to the
-game: every vsync still runs, so damage, MP, items used, enemy turns and the
-random numbers are the original's (`pc/tests/skip_charging_smoke.py` compares
-the whole game state after a spell and an item, off and on). The stretch is
-BATTLE's action state (`D_800F196C` 2) in `_cameraMode` 4..6 for an action with
-an effect (`vs_main_actions[id]` `unk2_0`: spells, Break Arts, items, enemy
-spells); plain attacks and Battle Abilities (chain and defence timing, which
-open in the release, `_cameraMode` 7) keep their pace, as does everything
-after the wind-up. Frame-interpolation extra presents pause meanwhile, and
-the audio stays in real time: what the device has no room for is dropped,
-with a short fade at each cut. `pc/src/boot_window.c` has the details. The
-game cannot take input during the wind-up, so nothing becomes harder.
+- the camera's move and zoom to the caster (`_cameraMode` 4) run as they
+  always do, at their own pace, and the cast starts as the game starts it
+  (event flags, the effect's request, the cast animation, the name window
+  the game's way, or none with the Information option off);
+- then the cast sound stops and the turn toward the target is applied at
+  once; the magic circle gets its end cue at once, so it is gone by the
+  release;
+- the effect's files load back to back (the loader's own steps, each file
+  read when asked for: `main.c` `pc_cd_queue_load`), and the release starts
+  as soon as they are in;
+- the name window, which the game closes at the release, stays up past it
+  until it has been shown for `qol_skip_charging_name` seconds (never longer
+  than the original's own 2 s; earlier if the action ends or another
+  message opens), then closes the game's way (`func_800CB50C`, which frees
+  its text: the heap is as an unskipped game's).
+
+The few game frames of the hold that still run (4 for a spell or an item, 6
+for a Break Art: 8 or 12 vsyncs, 15-35 ms) are not presented and not paced
+(`pc/src/charge_skip.c`): the picture holds the camera's last frame until the
+release's first, the path-traced GI and NRD history restart after it, and
+the audio device drops what it has no room for meanwhile (a fraction of a
+second of music). The game cannot take input during the wind-up, and chain
+and defence windows open in the release (`_cameraMode` 7), which runs as it
+always does. Random numbers are drawn every frame, so with fewer frames the
+rolls after an action differ from an unskipped game's (as they would after
+any difference in timing); the action itself does not.
+`pc/tests/skip_charging_smoke.py` compares a spell, an item, a Break Art and
+an item with Information off, off and on (outcomes, the camera's move and the
+release's view, the name window's text and time, what is left afterwards,
+and with the random numbers pinned at each action's end, the enemies' later
+actions and their names); `pc/tests/charge_skip_soak.py` casts every spell,
+item and art once.
 
 ### Fast travel
 
@@ -582,6 +609,15 @@ The frame loop paces itself to 59.94 Hz deadlines (`--fast` runs unpaced), with
 swap interval 0. Sound goes to SDL's audio output (PipeWire, PulseAudio or ALSA)
 at 44.1 kHz stereo, about 50 ms ahead, starting after a 2048-frame prebuffer;
 `ROOD_AUDIO=none` is silent and `ROOD_AUDIO=wav:PATH` records instead.
+The game's sound driver writes the SPU's registers itself (`pc/src/audio_spu.cpp`
+mirrors them into the software SPU); key on/off writes apply at once, as they do
+on the chip, and the SPU address interrupt is raised by voice reads
+(`pc/src/audio_libspu.c`): item and effect sounds are streamed through a double
+buffer that the interrupt refills and ends (`ROOD_SPU_IRQ=0` never serves it,
+a diagnostic). RPC `spu` reports the voices keyed and sounding, the reverb and
+the interrupt. `pc/tests/heal_audio_smoke.py` checks a Cure Root's sound (fed,
+ended, its voices keyed off, no repeating phrase afterwards); with `--no-irq`
+it checks that the driver's stop command keys a looping stream off.
 
 The window uses an OpenGL 4.6 core context, or 3.3 core where 4.6 is not
 offered (`pc/src/gl_present.c`; SDL loads libGL or libEGL at run time and
@@ -1949,7 +1985,7 @@ redraws at about 60 Hz, and after each request):
 | `input` | `buttons` (name or list), `right_stick` (`[x, y]`, -1..1, down +y), `triggers` (`[l2, r2]`, 0..1 past the press point), `vsyncs` | hold PS1 buttons and/or the right stick (the camera) and/or the triggers' analog travel (the map's zoom; the L2 / R2 bits come from `buttons`); works unfocused |
 | `camera_stick` | the settings without `camera_stick_` (`enabled`, `speed`, ..., `r3_reset`, `idle_reset`, `keys`), `action` (`reset`) | the right-stick camera: settings and state (zoom, distances, collision hit, yaw; the first-person look: `first_person`, `fp_looks`, `fp_step`) |
 | `camera_options` | `map_invert`, `map_controls`, `fp_invert_y` | the optional map panning and first-person up/down inversions and the map's stick controls (settings `qol_map_invert`, `qol_map_controls` 0 Modern / 1 Original, `qol_fp_invert_y`) |
-| `skip_charging` | `mode` (0..2 or `off`, `fast`, `skip`), `reset` | battle charging (settings `qol_skip_charging`): the mode, whether the last vsync charged and its `_cameraMode` (`charging`, `phase`), and the counters since the last reset: charging `sequences`, their `vsyncs` and wall `ms` (`reset: true` zeroes them after the reply) |
+| `skip_charging` | `mode` (0/1 or `off`/`skip`), `who` (0/1 or `mine`/`all`), `kinds`, `pump`, `pin`, `reset` | battle charging skip (settings `qol_skip_charging`, `qol_skip_charging_who`; pc/src/dev_rpc.c has the fields): whether this vsync is in a wind-up and skipped or hidden, the counters since the last reset (wind-ups, their vsyncs per phase, skipped, hidden, presented, wall `ms`), the view at the last release, the actions that ended; tests: `kinds` (a mask of spells, enemy arts, Break Arts, items), `pump` (the effect's files a step a frame when false), `pin` (seed the random numbers at each action's end) |
 | `fast_travel` | `set` (`enabled`, `cost` 0..3 or `free`/`flat`/`scaled`/`game`, `flat`, `scale`, `prompt`), `press`, `audit` | fast travel (battle builds; [docs/Fast_Travel.md](docs/Fast_Travel.md)): the settings, whose unlock is in effect (`whose`: `off`/`port`/`game`, `unlock` as MENU0 reads it), the state the rules read, `blocked` and `why` (the Travel button's reason, "" when it opens the list), each point's `state`, `raw` and applied `cost`, `current`, `refused`, the press counters, the `last` trip checked on arrival; `press` presses the Travel button once; `audit` adds each destination's Circle object read from the disc |
 | `button_roles` | `confirm_cross`, `field_cross_attack`, `symbol_exceptions` | the optional button roles (battle builds; settings `qol_confirm_cross`, `qol_field_cross_attack`): both options, the game's context now (`menus`, `field`, `targeting`, `game`), whether Circle and Cross are exchanged there (`swap`) and each role's button (`confirm`, `cancel`, `attack`, `interact`, `target`), the game's own ○ / × drawn since start (`drawn`: for `text` and `sprite` how many of each as shown and how many were exchanged, `swapped`); `symbol_exceptions` false (tests) exchanges the ○ / × that name buttons the roles never move too |
 | `weapon_slots` | `enabled` | the optional weapon slots (battle builds): the option, overlay/assign/swap state, field mode, each weapon's slot and each shield's slot bits, what Ashley's battle record has equipped |

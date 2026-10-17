@@ -442,6 +442,17 @@ public:
     // ---- Direct access for tests/tools -------------------------------------
     const SPUVoiceState& GetVoiceState(int voiceIndex) const { return m_voices[voiceIndex]; }
 
+    // ---- SPU address interrupt (rood-boi; SPUCNT bit 6, IRQ address 1F801DA4h)
+    // psx-spx "SPU Interrupt": while enabled, a voice reading the ADPCM block
+    // that holds the IRQ address sets the interrupt flag, which stays set
+    // until the interrupt is disabled (acknowledged). Only voice reads are
+    // modelled (not transfers, reverb or capture-buffer writes). The caller
+    // owns the enable and address (SpuSetIRQ / SpuSetIRQAddr) and polls the
+    // flag after rendering: TakeIrq() returns true once per interrupt.
+    void SetIrq(bool enabled, uint32_t address);
+    bool TakeIrq();
+    bool IrqRaised() const { return m_irqFlag; }
+
     // ---- Save states (rood-boi, pc/src/snapshot.c) ---------------------------
     // The state the Exact renderer runs on (RAM, voices, allocator, transfer,
     // volumes, reverb, noise, CD input) as bytes. The Ideal/Reference
@@ -480,6 +491,11 @@ private:
     int      m_noiseClock;  // packed (shift<<2)|step, see SetNoiseClock() doc
     int32_t  m_noiseTimer;  // psx-spx noise timer (counts down at 44.1 kHz)
     uint32_t m_noiseLevel;  // low 16 bits are the signed noise sample
+
+    bool     m_irqEnabled = false;
+    uint32_t m_irqAddress = 0;
+    bool     m_irqFlag = false;    // raised (the interrupt line), until disabled
+    bool     m_irqPending = false; // raised and not yet taken by the caller
 
     bool    m_cdEnable;
     bool    m_cdReverb;

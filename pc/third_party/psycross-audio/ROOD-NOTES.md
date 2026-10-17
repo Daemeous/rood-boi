@@ -47,3 +47,13 @@ reference reverb and resampler) are as in the fork apart from comment edits.
 the core's Exact-renderer state as bytes for the port's save states
 (`pc/src/snapshot.c`, through `pc/src/audio_spu.cpp`). The Ideal/Reference
 renderers' resampler and reverb histories are not saved (LoadState resets them).
+
+## rood-boi changes: SPU address interrupt
+
+`SPUCore::SetIrq` / `TakeIrq` (PsyX_SPUCore.cpp, "SetIrq") model the SPU
+interrupt from the psx-spx description: while enabled, a voice decoding the
+ADPCM block that holds the IRQ address raises a flag that stays set until the
+interrupt is disabled. Only voice reads raise it (not transfers, reverb or
+capture-buffer writes). The game's sound driver needs it to stream effect
+sounds through a double buffer; `pc/src/audio_libspu.c` runs the callback.
+The enable, address and flags are part of the save state.

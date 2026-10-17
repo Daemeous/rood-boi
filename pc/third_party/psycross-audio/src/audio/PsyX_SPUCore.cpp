@@ -165,6 +165,8 @@ void SPUCore::Reset()
     m_noiseTimer = 0;
     m_noiseLevel = 1;
 
+    m_irqEnabled = m_irqFlag = m_irqPending = false;
+    m_irqAddress = 0;
     m_cdEnable = false;
     m_cdReverb = false;
     m_cdVolL = m_cdVolR = 0;
@@ -1063,6 +1065,9 @@ void SPUCore::DecodeAdpcmBlock(SPUVoiceState& v, int voiceIndex)
         return;
     }
 
+    if (m_irqEnabled && !m_irqFlag && m_irqAddress - v.curAddr < kAdpcmBlockBytes)
+        m_irqFlag = m_irqPending = true;
+
     const uint8_t* block = m_ram + v.curAddr;
     uint8_t shiftFilter = block[0];
     uint8_t flags = block[1];
@@ -1121,6 +1126,21 @@ void SPUCore::DecodeAdpcmBlock(SPUVoiceState& v, int voiceIndex)
     v.curAddr += kAdpcmBlockBytes;
     if (m_renderer == RendererMode::Reference && voiceIndex >= 0 && voiceIndex < kNumVoices)
         m_referenceVoices[voiceIndex].resampler.PushSamples(v.blockSamples, kAdpcmBlockSamples);
+}
+
+void SPUCore::SetIrq(bool enabled, uint32_t address)
+{
+    m_irqAddress = address & (kSpuRamSize - 1u);
+    m_irqEnabled = enabled;
+    if (!enabled)
+        m_irqFlag = m_irqPending = false; // disabling acknowledges the interrupt
+}
+
+bool SPUCore::TakeIrq()
+{
+    bool taken = m_irqPending;
+    m_irqPending = false;
+    return taken;
 }
 
 void SPUCore::ShiftInNextRawSample(SPUVoiceState& v, int voiceIndex)
@@ -1913,7 +1933,8 @@ const uint32_t kStateMagic = 0x53505531u; // "SPU1"
     X(m_reverbMasterEnable) X(m_reverbAttr) X(m_reverb) X(m_noiseClock) X(m_noiseTimer)           \
     X(m_noiseLevel) X(m_cdEnable) X(m_cdReverb) X(m_cdVolL) X(m_cdVolR) X(m_xaMasterGainQ16)      \
     X(m_xaMasterGain) X(m_lastCdFrame) X(m_renderer) X(m_clipMode) X(m_nativePhase)              \
-    X(m_highRateVoiceSamples) X(m_highRateVoiceSteps) X(m_highRateCdL) X(m_highRateCdR)
+    X(m_highRateVoiceSamples) X(m_highRateVoiceSteps) X(m_highRateCdL) X(m_highRateCdR)            \
+    X(m_irqEnabled) X(m_irqAddress) X(m_irqFlag) X(m_irqPending)
 
 void SPUCore::SaveState(std::vector<uint8_t>& out) const
 {

@@ -36,7 +36,8 @@ extern float pc_emissive;        /* emissive.cpp: glowing surfaces' strength, 0 
 extern int pc_dust;              /* particles.cpp: dust motes, 0 off, 1 low, 2 high */
 extern int pc_lights_enabled;    /* lights.cpp: dynamic lights (lighting key dynamic_lights) */
 extern int pc_qol_weapon_slots;  /* project_settings.cpp; weapon_slots.c */
-extern int pc_qol_skip_charging; /* project_settings.cpp; boot_window.c */
+extern int pc_qol_skip_charging, pc_qol_skip_charging_who; /* project_settings.cpp; charge_skip.c */
+extern float pc_qol_skip_charging_name;                     /* project_settings.cpp; charge_skip.inc */
 extern int pc_skip_intro;        /* project_settings.cpp; boot_runtime.c */
 extern int pc_qol_map_invert, pc_qol_fp_invert_y; /* project_settings.cpp; MENU5, BATTLE func_8006EC7C */
 extern int pc_qol_map_controls;                   /* project_settings.cpp; map_pad.h */
@@ -589,11 +590,21 @@ void build()
     p.push_back(toggle("qol_weapon_slots", "Weapon quick slots",
         "Hold L2 + R2 to swap among 8 weapon slots. Stored like the QoL mod, so saves stay compatible.",
         &pc_qol_weapon_slots));
-    static const char* const charging[] = {"Off", "Fast", "Skip"};
+    static const char* const charging[] = {"Off", "Skip"};
     p.push_back(choice("qol_skip_charging", "Battle charging",
-        "Spells, items and Break Arts wind up faster before they take effect: Fast 4x, Skip as fast as it runs. "
-        "The battle itself is unchanged.",
-        &pc_qol_skip_charging, charging, 3));
+        "Skip the hold of spells, items and Break Arts: the camera still moves to the caster and the name shows, then "
+        "the action takes effect at once. Its damage, cost and every other outcome are the same.",
+        &pc_qol_skip_charging, charging, 2));
+    static const char* const charging_who[] = {"Mine", "All"};
+    p.push_back(choice("qol_skip_charging_who", "Skip whose charging",
+        "Mine: only Ashley's spells, items and Break Arts. All: the enemies' spells and arts too.",
+        &pc_qol_skip_charging_who, charging_who, 2)
+                    .grey([](const Row&) -> const char* { return pc_qol_skip_charging ? nullptr : "Needs Battle charging"; }));
+    p.push_back(fslider("qol_skip_charging_name", "Skipped charging: name shown",
+        "How long the action's name stays up after a skipped wind-up, in seconds (the Information option on). "
+        "0 closes it as the action starts; never longer than the original's 2 s.",
+        &pc_qol_skip_charging_name, 0, 2, 0.1f, "%.1f s")
+                    .grey([](const Row&) -> const char* { return pc_qol_skip_charging ? nullptr : "Needs Battle charging"; }));
     static const char* const travel_costs[] = {"Free", "Flat", "Scaled", "Game"};
     static const Why need_travel = [](const Row&) -> const char* {
         return pc_qol_fast_travel ? nullptr : "Needs Fast travel";

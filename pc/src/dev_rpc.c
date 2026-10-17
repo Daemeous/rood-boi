@@ -61,13 +61,28 @@
  *                                state, the field mode and each inventory
  *                                weapon's slot (gems[3]) and shield's slot
  *                                bits (battle builds)
- *   skip_charging {mode, reset}  battle charging (boot_window.c, settings
- *                                key qol_skip_charging): mode 0 off, 1 fast,
- *                                2 skip (or "off"/"fast"/"skip"); replies the
- *                                mode, whether this vsync charges and its
- *                                _cameraMode, and the counters (charging
- *                                sequences seen, their vsyncs and wall ms;
- *                                reset: true zeroes them after the reply)
+ *   skip_charging {mode, who, name, kinds, reset}  battle charging skip
+ *                                (charge_skip.c, settings keys
+ *                                qol_skip_charging, qol_skip_charging_who,
+ *                                qol_skip_charging_name: name, seconds 0..2
+ *                                the name window stays up at least);
+ *                                mode 0/"off" or 1/"skip"; who 0/"mine"
+ *                                (Ashley's actions) or 1/"all"; kinds (a
+ *                                developer mask, default 15: 1 spells, 2
+ *                                enemies' arts, 4 Break Arts, 8 items). Replies
+ *                                them, whether this vsync is in a wind-up
+ *                                (charging, its phase = _cameraMode 4..6),
+ *                                skipped, hidden (not presented), and the
+ *                                counters: wind-ups seen, their vsyncs (per
+ *                                phase too), skipped, hidden, presented, wall
+ *                                ms, the last one's actor and action, the
+ *                                view at the last release (lookAt xyz,
+ *                                position xyz, distance, yaw, the caster's
+ *                                facing); reset: true zeroes them after the
+ *                                reply. Tests: pin (a seed; -1 off) seeds the
+ *                                random numbers whenever an action ends;
+ *                                pump false loads the effect's files a step
+ *                                a frame, as the game does (default true)
  *   fast_travel {set, press, audit}  fast travel (fast_travel.c): set {enabled,
  *                                cost (0..3 or free / flat / scaled / game),
  *                                flat, scale, prompt} (settings qol_fast_travel*);
@@ -108,6 +123,9 @@
  *                                returns the values, the window's state, the
  *                                audio gain (frames recorded with ROOD_AUDIO=wav)
  *                                and the capture state
+ *   spu                          the software SPU (audio_spu.cpp): voices keyed
+ *                                and sounding, reverb sends and master enable,
+ *                                the address interrupt (enabled, address, raised)
  *   release                      drop all injected buttons
  *   screenshot {path}            write the displayed frame as a PPM
  *   present_dump {path}          the next presented window image (as seen) as a PPM
@@ -1103,32 +1121,46 @@ static void handle_method(int fd, const char* request)
         pc_weapon_slots_json(result, sizeof result);
         reply(fd, id, result);
     } else if (!strcmp(method, "skip_charging")) {
-        /* Battle charging at several vsyncs per field (boot_window.c). */
-        extern int pc_qol_skip_charging; /* project_settings.cpp */
-        extern void pc_charge_turbo_stats(int*, int*, unsigned*, unsigned*, double*, double*, int);
-        char mode[16] = "";
-        int reset = 0, charging, phase;
-        unsigned sequences, vsyncs;
-        double ms, budget_ms;
-        if (params && number_value(member(params, "mode"), &n) && n >= 0 && n <= 2)
+        /* Battle charging skip (charge_skip.c, charge_skip.inc). */
+        extern int pc_qol_skip_charging, pc_qol_skip_charging_who; /* project_settings.cpp */
+        extern int pc_charge_skip_kinds; /* charge_skip.c */
+        extern void pc_charge_skip_stats(char*, int, int);
+        char name[16] = "";
+        int reset = 0, flag;
+        if (params && number_value(member(params, "mode"), &n) && n >= 0 && n <= 1)
             pc_qol_skip_charging = (int)n;
-        else if (params && string_value(member(params, "mode"), mode, sizeof mode)) {
-            static const char* const names[] = { "off", "fast", "skip" };
-            int i;
-            for (i = 0; i < 3 && strcmp(mode, names[i]); i++)
-                ;
-            if (i == 3) {
-                fail(fd, id, -32602, "skip_charging mode: 0..2 or off, fast, skip");
+        else if (params && string_value(member(params, "mode"), name, sizeof name)) {
+            if (strcmp(name, "off") && strcmp(name, "skip")) {
+                fail(fd, id, -32602, "skip_charging mode: 0, 1, off or skip");
                 return;
             }
-            pc_qol_skip_charging = i;
+            pc_qol_skip_charging = name[0] == 's';
+        }
+        if (params && number_value(member(params, "who"), &n) && n >= 0 && n <= 1)
+            pc_qol_skip_charging_who = (int)n;
+        else if (params && string_value(member(params, "who"), name, sizeof name)) {
+            if (strcmp(name, "mine") && strcmp(name, "all")) {
+                fail(fd, id, -32602, "skip_charging who: 0, 1, mine or all");
+                return;
+            }
+            pc_qol_skip_charging_who = name[0] == 'a';
+        }
+        if (params && number_value(member(params, "kinds"), &n) && n >= 0 && n <= 15)
+            pc_charge_skip_kinds = (int)n;
+        extern float pc_qol_skip_charging_name; /* project_settings.cpp */
+        double seconds;
+        if (params && real_value(member(params, "name"), &seconds) && seconds >= 0 && seconds <= 2)
+            pc_qol_skip_charging_name = (float)seconds;
+        extern int pc_charge_skip_pump __attribute__((weak)); /* charge_skip.inc (battle builds) */
+        if (params && bool_value(member(params, "pump"), &flag) && &pc_charge_skip_pump)
+            pc_charge_skip_pump = flag;
+        if (params && number_value(member(params, "pin"), &n)) {
+            extern void pc_charge_skip_pin(int, int);
+            pc_charge_skip_pin(n >= 0, n >= 0 ? (int)n : 0);
         }
         if (params)
             bool_value(member(params, "reset"), &reset);
-        pc_charge_turbo_stats(&charging, &phase, &sequences, &vsyncs, &ms, &budget_ms, reset);
-        snprintf(result, sizeof result,
-            "{\"mode\":%d,\"charging\":%d,\"phase\":%d,\"sequences\":%u,\"vsyncs\":%u,\"ms\":%.1f,\"budget_ms\":%.1f}",
-            pc_qol_skip_charging, charging, phase, sequences, vsyncs, ms, budget_ms);
+        pc_charge_skip_stats(result, sizeof result, reset);
         reply(fd, id, result);
     } else if (!strcmp(method, "fast_travel")) {
         /* Fast travel (fast_travel.c, fast_travel_rules.c pc_ft_json). */
@@ -2242,6 +2274,14 @@ static void handle_method(int fd, const char* request)
         pc_card_test_state(&fail, &fresh);
         snprintf(result, sizeof result, "{\"writes\":%u,\"fail_writes\":%d,\"unformatted\":%d}",
             pc_card_write_count(), fail, fresh);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "spu")) {
+        extern int pc_spu_status_json(char*, int) __attribute__((weak)); /* audio_spu.cpp */
+        if (!pc_spu_status_json) {
+            fail(fd, id, -32000, "spu needs the audio build");
+            return;
+        }
+        pc_spu_status_json(result, sizeof result);
         reply(fd, id, result);
     } else if (!strcmp(method, "system")) {
         /* System settings that live outside project_settings' variables (window mode: boot_window.c, master

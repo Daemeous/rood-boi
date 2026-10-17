@@ -26,6 +26,9 @@
 #include "pc/src/psx_types.h"
 #ifdef ROOD_PC
 #include "pc/src/widescreen.h"
+int pc_charge_skip(int phase); /* pc/src/charge_skip.inc: battle charging skip */
+int pc_charge_skip_hold(void);
+void pc_charge_skip_name(int now);
 #endif
 
 typedef struct {
@@ -3762,7 +3765,11 @@ void func_80070278(void)
     func_80045D64(0x7E, 0x34);
     func_80045D64(0x7E, 0x35);
     func_80045D64(0x7E, 0x36);
-    func_800CB50C();
+#ifdef ROOD_PC
+    /* A skipped wind-up's name window stays up a moment longer. */
+    if (!pc_charge_skip_hold())
+#endif
+        func_800CB50C();
 
     D_800F19CC->unk2C03 = 0;
     _cameraMode = 7;
@@ -7601,6 +7608,9 @@ void vs_battle_exec(void)
                     func_8008C8A8();
                     status = func_800A0BE0(0);
                     func_800A1108(0, &position);
+#ifdef ROOD_PC
+                    pc_charge_skip_name(0); /* (a held name window closed in time) */
+#endif
 
                     if ((vs_battle_screenTransitionStep != 1)
                         && (vs_battle_screenTransitionStep != 2)
@@ -7984,9 +7994,17 @@ void vs_battle_exec(void)
                                 func_80078364();
                                 break;
                             case 4:
+#ifdef ROOD_PC
+                                if (pc_charge_skip(4))
+                                    break;
+#endif
                                 _handleCombatCameraZoom();
                                 break;
                             case 5:
+#ifdef ROOD_PC
+                                if (pc_charge_skip(5))
+                                    break;
+#endif
                                 func_80078748();
                                 break;
                             case 6:
@@ -15944,6 +15962,7 @@ int func_8008ABF0(int arg0)
 
 #ifdef ROOD_PC
 #include "pc/src/scene_submit.inc"
+#include "pc/src/charge_skip.inc"
 #else
 INCLUDE_ASM("build/src/BATTLE/BATTLE.PRG/nonmatchings/146C", func_8008AC78);
 #endif

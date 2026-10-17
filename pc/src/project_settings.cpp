@@ -56,10 +56,15 @@ int pc_qol_map_invert, pc_qol_fp_invert_y;
  * Original (the PlayStation's: L2 / R2 + right stick, the stick pans). */
 int pc_qol_map_controls;
 /* qol_skip_charging: battle charging (a spell's casting, an item's or a
- * Break Art's wind-up before it takes effect) runs at several vsyncs per
- * displayed field, the game logic unchanged (boot_window.c): 0 off (the
- * original pace, default), 1 Fast (4x), 2 Skip (as fast as the machine runs). */
-int pc_qol_skip_charging;
+ * Break Art's wind-up before it takes effect) is skipped, the action's
+ * outcome unchanged (charge_skip.c): 0 off (the original, default), 1 Skip
+ * (older settings' 2 too: their Fast and Skip ran it faster). Whose actions:
+ * qol_skip_charging_who 0 mine (Ashley's, default), 1 all (enemies' too).
+ * qol_skip_charging_name: how long a skipped wind-up's name window stays up
+ * at least, seconds (0..2, default 1; 0 closes it at the release, never
+ * longer than the original's own 2 s). */
+int pc_qol_skip_charging, pc_qol_skip_charging_who;
+float pc_qol_skip_charging_name = 1.0f;
 /* qol_confirm_cross: Cross confirms and Circle cancels in menus and dialogs;
  * qol_field_cross_attack: in the field Cross draws the weapon and attacks,
  * Circle interacts and sheathes. Off by default; button_roles.c exchanges the
@@ -256,7 +261,9 @@ const Entry entries[] = {
     I("qol_field_cross_attack", pc_qol_field_cross_attack),
     /* Gameplay. */
     I("qol_weapon_slots", pc_qol_weapon_slots),
-    I("qol_skip_charging", pc_qol_skip_charging), /* 0 off, 1 fast, 2 skip */
+    I("qol_skip_charging", pc_qol_skip_charging), /* 0 off, 1 skip (apply_line: older 2 is 1) */
+    I("qol_skip_charging_who", pc_qol_skip_charging_who), /* 0 mine, 1 all */
+    F("qol_skip_charging_name", pc_qol_skip_charging_name), /* seconds, 0..2 */
     I("qol_fast_travel", pc_qol_fast_travel),
     I("qol_fast_travel_cost", pc_qol_fast_travel_cost), /* 0 free, 1 flat, 2 scaled, 3 game */
     I("qol_fast_travel_flat", pc_qol_fast_travel_flat),
@@ -441,6 +448,13 @@ int apply_line(const char* line, int* scale, bool now)
         return 1;
     if (rood_colour::parse_setting(key, rest)) /* editor state: the colour popover's tabs and recent colours */
         return 1;
+    if (!strcmp(key, "qol_skip_charging")) { /* 0 off, else skip (older settings: 1 fast, 2 skip) */
+        char* end;
+        long v = strtol(rest, &end, 10);
+        if (end != rest)
+            pc_qol_skip_charging = v != 0;
+        return 1;
+    }
     int applied = 0;
     for (const Entry& e : entries) {
         if (strcmp(e.key, key))

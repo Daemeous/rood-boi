@@ -941,7 +941,11 @@ extern float pc_present_phase __attribute__((weak));
 extern int pc_hw_interpolate __attribute__((weak));
 extern int pc_hw_active __attribute__((weak));
 extern void pc_window_wait_fraction(int k, int n) __attribute__((weak));
-extern int pc_window_turbo(void) __attribute__((weak)); /* boot_window.c: battle charging runs fast */
+/* Battle charging skip (charge_skip.c): this vsync judged (before its pacing),
+ * and whether it is presented. */
+extern void pc_charge_skip_vsync(void) __attribute__((weak));
+extern int pc_charge_skip_hidden(void) __attribute__((weak));
+extern void pc_hw_skip_present(void) __attribute__((weak)); /* gpu_hw.c */
 void pc_tick(void)
 {
     ++vsyncs;
@@ -950,16 +954,23 @@ void pc_tick(void)
         pc_fog_vsync(); /* once per game vsync, after the RPC's changes, before the frame */
     if (pc_lua_tick)
         pc_lua_tick(); /* plugins' tick handlers and game-time timers, after the RPC's changes */
+    if (pc_charge_skip_vsync)
+        pc_charge_skip_vsync();
     pc_window_tick();
     if (pc_cd_tick)
         pc_cd_tick(); /* before the audio: this field's XA sectors */
     pc_audio_frame();
     clock_gettime(CLOCK_MONOTONIC, &last_vsync);
+    if (pc_charge_skip_hidden && pc_charge_skip_hidden()) {
+        /* Not presented: the window keeps the last picture; the frame ends as at a present. */
+        if (pc_hw_skip_present)
+            pc_hw_skip_present();
+        return;
+    }
     pc_window_frame(vram, display_x, display_y, display_w, display_h);
-    /* More images per vsync (frame interpolation at its fractions); none
-     * while battle charging runs several vsyncs per field (boot_window.c). */
+    /* More images per vsync (frame interpolation at its fractions). */
     if (&pc_present_rate && &pc_present_phase && pc_window_wait_fraction && &pc_hw_interpolate && &pc_hw_active
-        && pc_present_rate > 1 && pc_hw_interpolate && pc_hw_active && !(pc_window_turbo && pc_window_turbo())) {
+        && pc_present_rate > 1 && pc_hw_interpolate && pc_hw_active) {
         int rate = pc_present_rate > 8 ? 8 : pc_present_rate;
         for (int k = 1; k < rate; k++) {
             pc_window_wait_fraction(k, rate);

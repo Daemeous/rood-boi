@@ -1225,16 +1225,31 @@ static void StopSound(void)
     SpuQuit();
 }
 
+#ifdef ROOD_PC
+/* Key on/off take effect when written on the SPU; the host's register page
+ * is plain memory read back by pc_spu_sync_registers (pc/src/audio_spu.cpp),
+ * so a second write before the next sync replaced the first and its voices
+ * were never keyed (an effect stream's key off lost: it looped forever).
+ * Apply each write at once. */
+extern void pc_spu_sync_registers(void);
+#endif
+
 static void SetVoiceKeyOn(u_int in_KeyOn)
 {
     *SPU_VOICE_KEY_ON_LO = in_KeyOn;
     *SPU_VOICE_KEY_ON_HI = (in_KeyOn >> 0x10);
+#ifdef ROOD_PC
+    pc_spu_sync_registers();
+#endif
 }
 
 static void SetVoiceKeyOff(u_int in_KeyOff)
 {
     *SPU_VOICE_KEY_OFF_LO = in_KeyOff;
     *SPU_VOICE_KEY_OFF_HI = (in_KeyOff >> 0x10);
+#ifdef ROOD_PC
+    pc_spu_sync_registers();
+#endif
 }
 
 static void SetVoiceReverbMode(u_int in_ReverbMode)

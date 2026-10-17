@@ -74,6 +74,13 @@ static uint32_t edge_generation; /* 2D polygon edges of this ordering table (pc_
 
 int pc_hw_active;
 int pc_hw_scale = 1;
+/* Frames left unpresented (battle charging's skip, charge_skip.c): each
+ * still ends as at a present (pc_hw_skip_present). pc_hw_history_cut counts
+ * the skips that ended: the temporal filters (path-traced GI's history, NRD;
+ * ptgi.c, vk_rt.inc) restart at the first frame presented after one, and
+ * that frame is shown as drawn, not blended from the one before (the camera
+ * and the scene jumped while nothing was shown). */
+unsigned pc_hw_history_cut;
 /* Widescreen (16:9 Hor+): the GTE compresses projected X by 3/4
  * (pc_gte_widescreen); 2D primitives, which the GTE did not project, are
  * compressed here about the drawing area's centre so they keep their shape. */
@@ -5052,16 +5059,10 @@ GLuint pc_hw_target(void)
  * grain's seed, post.h: the same on interpolated presents and redraws). */
 static unsigned frame_serial;
 unsigned pc_hw_frame_serial(void) { return frame_serial; }
-static GLuint hw_target(void)
+/* The vsync's end: what was drawn since the last one is a finished frame. */
+static void close_frame(unsigned vsync)
 {
-    overlay_update(); /* (for this view: whether the next frame's text is held back) */
-    flush();
-    ms_end(); /* MSAA: the frame complete in the target */
-    pc_ui_upscale_frame(); /* a presented image: the 2D cache's clock */
-    presenting_replay = 0;
-    memcpy(shown_rect, display_rect, sizeof shown_rect);
     recording* now = recording_now();
-    unsigned vsync = pc_vsync_count();
     if (now->op_count || now->triangle_count) {
         packet_stats.stale_rects = stale_count;
         packet_stats.vram_syncs = pc_hw_syncs;
@@ -5081,6 +5082,30 @@ static GLuint hw_target(void)
         next->valid = 0;
         redraw_shown = 0; /* a new frame: the redrawn one is history */
     }
+}
+/* A vsync the window does not present (charge_skip.c): its frame ends as at
+ * a present, so the next one records on its own. */
+void pc_hw_skip_present(void)
+{
+    if (!pc_hw_active)
+        return;
+    flush();
+    ms_end(); /* MSAA: the frame complete in the target */
+    close_frame(pc_vsync_count());
+}
+static GLuint hw_target(void)
+{
+    overlay_update(); /* (for this view: whether the next frame's text is held back) */
+    flush();
+    ms_end(); /* MSAA: the frame complete in the target */
+    pc_ui_upscale_frame(); /* a presented image: the 2D cache's clock */
+    presenting_replay = 0;
+    memcpy(shown_rect, display_rect, sizeof shown_rect);
+    unsigned vsync = pc_vsync_count();
+    close_frame(vsync);
+    static unsigned cut_seen;
+    int cut = cut_seen != pc_hw_history_cut; /* the first present after a skip */
+    cut_seen = pc_hw_history_cut;
     present_fade = recordings[newest].fade; /* the newest frame's screen fade (interpolated below) */
     memcpy(present_fade_rect, recordings[newest].fade_rect, sizeof present_fade_rect);
     present_menu_model = recordings[newest].menu_model;
@@ -5105,8 +5130,8 @@ static GLuint hw_target(void)
     /* At 60 fps there is nothing between vsyncs to show, unless images are
      * presented between them (pc_present_rate). */
     unsigned shortest = pc_present_phase > 0 ? 1 : 2;
-    if (!pc_hw_interpolate || !matching || interval < shortest || interval > 8)
-        return target_texture; /* 60 fps, a cut, or stale: the newest frame as drawn */
+    if (!pc_hw_interpolate || !matching || interval < shortest || interval > 8 || cut)
+        return target_texture; /* 60 fps, a cut, stale, or after a skip: the newest frame as drawn */
     /* Where B is. The game double-buffers: it draws B into the buffer that
      * is not on screen and shows A meanwhile, flipping to B when it has
      * drawn the frame after it. Then A is shown as is when B arrives, and the

@@ -9529,6 +9529,23 @@ static void _processCdQueue(void)
     func_800443CC();
 }
 
+#ifdef ROOD_PC
+/* pc/src/charge_skip.inc: `slot` read now, as the queue would over the next
+ * two vertical blanks (the host's disc reads are synchronous). */
+int pc_cd_queue_load(vs_main_CdQueueSlot* slot)
+{
+    if (slot == NULL || slot->state != vs_main_CdQueueStateEnqueued || slot->priority != 0
+        || _diskGetState() != diskIdle) {
+        return 0;
+    }
+    _diskInitRead(slot->cdFile.lba, slot->cdFile.size, psx_get(slot->vram));
+    vs_main_disk.framesSinceLastRead = 0;
+    --_cdQueueCount.queued;
+    slot->state = vs_main_CdQueueStateLoaded;
+    return 1;
+}
+#endif
+
 int func_80044D94(void) { return func_80011F90(); }
 
 void func_80044DB4(void) { func_80012004(); }

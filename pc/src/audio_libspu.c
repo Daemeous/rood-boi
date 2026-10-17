@@ -83,23 +83,39 @@ callback_t SpuSetTransferCallback(callback_t fn)
     transfer_callback = fn;
     return previous;
 }
-/* SPU address interrupts (used by streamed cutscene audio) are recorded but
- * not raised yet; the first enable is logged so the gap stays visible. */
+/* SPU address interrupt (SPUCNT bit 6): the sound driver streams effect and
+ * cutscene sounds through a double buffer in SPU RAM and arms the interrupt
+ * at the half a voice reaches next; the callback loads the following part,
+ * and the last one keys the voices off (src 25AC.c Sound_Cutscene_*). The
+ * core raises it when a voice reads the block holding the address
+ * (audio_spu.cpp); pc_audio_frame runs the callback after the quarter frame
+ * that raised it, on the game thread, as the PS1's interrupt handler would
+ * between two driver ticks. As in libspu, disabling it acknowledges it. The
+ * enable and address live here (saved with the game's statics) and are handed
+ * to the core before each render. ROOD_SPU_IRQ=0 never runs the callback (a
+ * diagnostic: streams then loop until the driver's stop command). */
 psx_long SpuSetIRQ(psx_long on)
 {
-    static int warned;
-    if (on && !warned) {
-        warned = 1;
-        fprintf(stderr, "[audio] SPU IRQ requested at 0x%05lx; not emulated yet\n", irq_address);
-    }
-    psx_long previous = irq_enabled;
-    irq_enabled = on;
-    return previous;
+    if (on == 0 || on == 3)
+        irq_enabled = 0;
+    pc_spu_set_irq(irq_enabled, (unsigned int)irq_address);
+    if (on == 1 || on == 3)
+        irq_enabled = 1;
+    pc_spu_set_irq(irq_enabled, (unsigned int)irq_address);
+    return on;
 }
 psx_ulong SpuSetIRQAddr(psx_ulong addr)
 {
+    if (addr > 0x7FFF8)
+        return 0;
     irq_address = addr;
+    pc_spu_set_irq(irq_enabled, (unsigned int)irq_address);
     return addr;
+}
+void pc_spu_irq_get(int* enabled, unsigned int* addr)
+{
+    *enabled = irq_enabled != 0;
+    *addr = (unsigned int)irq_address;
 }
 callback_t SpuSetIRQCallback(callback_t fn)
 {
@@ -137,12 +153,19 @@ void pc_audio_frame(void)
     static int frames;
     if (getenv("ROOD_AUDIO_DEBUG") && ++frames % 120 == 0)
         fprintf(stderr, "[audio] frame %d tick=%p enabled=%d\n", frames, (void*)driver_tick, tick_enabled);
+    /* ROOD_SPU_IRQ=0: never serve the interrupt (read each frame: a static
+     * would be restored by save states) */
+    const char* irq_env = getenv("ROOD_SPU_IRQ");
+    int raise = !irq_env || atoi(irq_env) != 0;
     for (int i = 0; i < 4; ++i) {
         if (driver_tick && tick_enabled)
             driver_tick();
         pc_spu_sync_registers();
+        pc_spu_set_irq((int)irq_enabled, (unsigned int)irq_address);
         pc_spu_render(buffer, chunk[i]);
         pc_audio_output_push(buffer, chunk[i]);
+        if (pc_spu_take_irq() && irq_callback && raise)
+            irq_callback();
     }
 }
 

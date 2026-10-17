@@ -214,6 +214,33 @@ extern "C" void pc_spu_init_malloc(int records, unsigned int base)
 {
     spu().InitMalloc(records, base);
 }
+extern "C" void pc_spu_set_irq(int enabled, unsigned int addr) { spu().SetIrq(enabled != 0, addr); }
+extern "C" int pc_spu_take_irq(void) { return spu().TakeIrq(); }
+/* RPC spu (dev_rpc.c): voices keyed (attack..sustain), sounding (envelope
+ * above 0), reverb sends (EON as last synced) and the reverb master enable,
+ * and the address interrupt: the enable and address the game set
+ * (audio_libspu.c) and whether a voice has raised it. */
+extern "C" int pc_spu_status_json(char* out, int size)
+{
+    SPUCore& s = spu();
+    uint32_t keyed = 0, sounding = 0;
+    for (int voice = 0; voice < 24; ++voice) {
+        int status = s.GetKeyStatus(SPU_VOICECH(voice));
+        int16_t envx = 0;
+        s.GetVoiceEnvelope(voice, &envx);
+        keyed |= (status == SPU_ON || status == SPU_ON_ENV_OFF) ? 1u << voice : 0;
+        sounding |= envx ? 1u << voice : 0;
+    }
+    uint32_t eon = last_mode[4] | (static_cast<uint32_t>(last_mode[5]) << 16);
+    int irq_enabled;
+    unsigned irq_address;
+    pc_spu_irq_get(&irq_enabled, &irq_address);
+    return snprintf(out, size,
+        "{\"keyed\":%u,\"sounding\":%u,\"reverb_voices\":%u,\"reverb\":%d,"
+        "\"irq\":{\"enabled\":%d,\"address\":%u,\"raised\":%d}}",
+        keyed, sounding, eon & 0xffffff, s.GetReverbMasterEnable() ? 1 : 0, irq_enabled, irq_address,
+        s.IrqRaised() ? 1 : 0);
+}
 extern "C" void pc_spu_set_reverb(int on) { spu().SetReverbMasterEnable(on != 0); }
 extern "C" void pc_spu_set_reverb_mode(int type, int depth_left, int depth_right, int mask)
 {

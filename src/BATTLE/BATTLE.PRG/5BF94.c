@@ -3701,6 +3701,11 @@ int _dismissAllTextBoxes(void)
 
 void vs_battle_displaySceneMessage(int arg0, int arg1, int arg2)
 {
+#ifdef ROOD_PC
+    /* A name window held past a skipped wind-up closed first. */
+    extern void pc_charge_skip_name(int now); /* pc/src/charge_skip.inc */
+    pc_charge_skip_name(1);
+#endif
     D_800EB9D8 = vs_main_allocHeapR(112);
     D_800F4E69 = arg2;
     if (D_800F4E69) {
