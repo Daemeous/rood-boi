@@ -455,6 +455,16 @@ void add_kind(Kind k)
         }
     added_kinds().push_back(std::move(k));
 }
+bool remove_kind(const std::string& name)
+{
+    std::deque<Kind>& kinds = added_kinds();
+    for (auto it = kinds.begin(); it != kinds.end(); ++it)
+        if (it->name == name) {
+            kinds.erase(it);
+            return true;
+        }
+    return false;
+}
 int collect()
 {
     int n = (int)retired_kinds().size();

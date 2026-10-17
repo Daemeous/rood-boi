@@ -122,6 +122,9 @@ def suites(args, mode="egl"):
         Suite("rpc_smoke", [PY, str(TESTS / "rpc_smoke.py")], 180),
         Suite("rpc_tcp_token_smoke", [PY, str(TESTS / "rpc_tcp_token_smoke.py")], 180,
               note="TCP RPC with a token: refused without it, with a wrong one, HTTP lines; never logged"),
+        Suite("lua_smoke", [PY, str(TESTS / "lua_smoke.py")], 300,
+              note="plugins in one game: every Lua test (rood.test), runaway and failing scripts stopped "
+                   "within their budgets, sandbox, capabilities, hot reload, settings from Lua"),
         Suite("gi_smoke", [PY, str(TESTS / "gi_smoke.py")], 300),
         Suite("rt_camera_smoke", [PY, str(TESTS / "rt_camera_smoke.py")], 300,
               note="ray-traced surfaces follow the picture's camera (Vulkan)"),
@@ -580,6 +583,8 @@ def run_suite(suite, index, args, mode, results, lock):
         ROOD_CARD2=str(out / "test-card2-absent.mcd"),
         ROOD_LIGHTS=str(out / "lights"),
         ROOD_PREFABS=str(out / "prefabs"),
+        ROOD_PLUGINS=str(out / "plugins"),  # none of the user's plugins (pc/user/plugins)
+        ROOD_PLUGIN_DATA=str(out / "plugin_data"),
         ROOD_HEADLESS=mode,
         ROOD_BUTTON_PROMPTS="original",  # the PS1 glyphs (button_prompts_smoke opts in)
         ROOD_AUDIO=f"wav:{out / 'audio.wav'}" if suite.name.startswith("input:") else "none",

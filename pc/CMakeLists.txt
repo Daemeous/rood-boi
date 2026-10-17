@@ -218,3 +218,30 @@ add_custom_target(check-new-game
     DEPENDS battle-probe
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
     USES_TERMINAL)
+
+# The extension system (pc/src/lua, pc/docs/Extensions.md): Lua 5.4 (pc/third_party/lua) compiled as
+# C++ so its errors are exceptions, with the pattern matcher's budget hook (rood_luauser.h), and the
+# runtime without the game (lua_probe).
+set(ROOD_LUA_CORE_NAMES lapi lcode lctype ldebug ldo ldump lfunc lgc llex lmem lobject lopcodes lparser lstate
+    lstring ltable ltm lundump lvm lzio lauxlib lbaselib lcorolib lmathlib lstrlib ltablib lutf8lib)
+set(ROOD_LUA_CORE)
+foreach(name IN LISTS ROOD_LUA_CORE_NAMES)
+    list(APPEND ROOD_LUA_CORE third_party/lua/src/${name}.c)
+endforeach()
+set_source_files_properties(${ROOD_LUA_CORE} PROPERTIES LANGUAGE CXX)
+add_library(rood_lua STATIC ${ROOD_LUA_CORE})
+target_include_directories(rood_lua PUBLIC third_party/lua/src)
+target_compile_features(rood_lua PUBLIC cxx_std_17)
+target_compile_definitions(rood_lua PRIVATE ROOD_LUA_CORE)
+target_compile_options(rood_lua PRIVATE -include ${CMAKE_CURRENT_SOURCE_DIR}/src/lua/rood_luauser.h)
+set(ROOD_LUA_RUNTIME src/lua/lua_limits.cpp src/lua/lua_value.cpp src/lua/lua_runtime.cpp src/lua/lua_sandbox.cpp
+    src/lua/lua_api_core.cpp src/light_prefabs.cpp src/lua/lua_events.cpp
+    src/lua/lua_registry.cpp src/lua/lua_files.cpp src/lua/sha256.cpp
+    src/lua/lua_plugins.cpp src/lua/lua_caps.cpp src/lua/lua_storage.cpp
+    src/lua/lua_test.cpp src/lua/lua_rpc.cpp)
+find_package(Threads REQUIRED)
+add_executable(lua_probe tests/lua_probe.cpp ${ROOD_LUA_RUNTIME})
+target_include_directories(lua_probe PRIVATE src src/lua)
+target_link_libraries(lua_probe PRIVATE rood_lua Threads::Threads)
+target_compile_options(lua_probe PRIVATE -Wall -Wextra -Werror)
+add_test(NAME lua_probe COMMAND lua_probe ${CMAKE_CURRENT_BINARY_DIR}/lua_probe_scratch)

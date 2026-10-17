@@ -60,7 +60,7 @@ def main():
     strip = "strip" if os.name == "nt" else "x86_64-w64-mingw32-strip"
     subprocess.run([strip, "--strip-debug", str(dest / "rood.exe")], check=True)
     (dest / "play.bat").write_bytes(PLAY_BAT.replace("\n", "\r\n").encode())
-    for tree in ["data", "lighting", "pc/assets", "pc/third_party/fonts"]:
+    for tree in ["data", "lighting", "pc/assets", "pc/third_party/fonts", "pc/plugins"]:
         shutil.copytree(ROOT / tree, dest / tree, dirs_exist_ok=True)
     # Licences: this project's, the vendored code linked into rood.exe, NRD
     # and its dependencies (when the build fetched them) and the MinGW-w64
@@ -78,6 +78,7 @@ def main():
         ("SDL3.txt", "pc/third_party/SDL3/LICENSE.txt"),
         ("imgui.txt", "pc/third_party/imgui/LICENSE.txt"),
         ("ImGuizmo.txt", "pc/third_party/ImGuizmo/LICENSE"),
+        ("lua.txt", "pc/third_party/lua/LICENSE"),
         ("smaa.txt", "pc/third_party/smaa/LICENSE.txt"),
         ("psycross.txt", "pc/third_party/psycross/LICENSE"),
         ("psycross-audio.txt", "pc/third_party/psycross-audio/LICENSE"),

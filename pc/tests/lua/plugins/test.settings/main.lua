@@ -1,0 +1,1 @@
+-- Tests only (tests/settings_test.lua).

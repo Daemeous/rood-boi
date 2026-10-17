@@ -1,0 +1,1 @@
+-- Driven by pc/tests/lua_smoke.py: grants arrive over RPC, checks are evals.

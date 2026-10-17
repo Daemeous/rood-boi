@@ -1,0 +1,6 @@
+https://www.lua.org/ftp/lua-5.4.8.tar.gz
+Version: 5.4.8
+SHA-256: 4f18ddae154e793e46eeab727c59ef1c0c0c2b744e7b94219710d76f530629ae
+(verified against the checksum https://www.lua.org/ftp/ lists for lua-5.4.8.tar.gz)
+Contents: src/ of the release (all .c and .h files and lua.hpp), unchanged except
+lstrlib.c (ROOD-NOTES.md). doc/, Makefile and test files are not vendored.

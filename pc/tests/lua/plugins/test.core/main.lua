@@ -1,0 +1,1 @@
+-- Tests only (tests/core_test.lua): nothing to do at load.

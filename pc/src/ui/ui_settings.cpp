@@ -934,6 +934,30 @@ extern "C" int pc_ui_settings_row(int page, int row, pc_ui_setting_row* out)
     return 1;
 }
 
+extern "C" int pc_ui_settings_find(const char* id, int* page, int* row)
+{
+    build();
+    if (!id)
+        return 0;
+    for (int p = 0; p < PC_UI_SETTINGS_PAGES; p++) {
+        int shown = 0;
+        for (const Row& r : pages[p]) {
+            bool visible = !r.shown || r.shown(r);
+            if (!std::strcmp(r.id, id)) {
+                if (!visible)
+                    return 2;
+                if (page)
+                    *page = p;
+                if (row)
+                    *row = shown;
+                return 1;
+            }
+            shown += visible;
+        }
+    }
+    return 0;
+}
+
 extern "C" int pc_ui_settings_choice(int page, int row, int choice, const char** name, const char** reason)
 {
     const Row* r = find(page, row);

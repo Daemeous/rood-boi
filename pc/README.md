@@ -1921,6 +1921,17 @@ a black frame). When the tracer alone takes longer than its budget (RPC
 between show its last result. `ROOD_GI_SLOW=n` (testing) slows the tracer
 n-fold; `pc/tests/gi_lag_smoke.py` covers both.
 
+## Plugins and Lua (Milestone 0)
+
+Plugins are folders with a manifest and Lua 5.4 code: shipped ones in
+`pc/plugins` (the example `rood.example` is off), yours in
+`pc/user/plugins`. Each runs in its own sandbox with time and memory
+budgets; a plugin that keeps failing is disabled, never the game. Elevated
+capabilities (files beyond its folder, later network or memory access)
+need the "Allow plugins to request elevated permissions" switch and a
+grant per plugin. F1 > Window > Lua console evaluates Lua and lists the
+plugins; RPC `lua` drives it in tests. See `docs/Extensions.md`.
+
 ## Developer control interface (JSON-RPC)
 
 Set `ROOD_RPC=/path/to/socket` and the game listens on that Unix socket (mode
@@ -2062,6 +2073,7 @@ python3 pc/tests/run.py --list
 | `ctest` | the CMake probes in `pc/build` (configure it once, below); `fixture_catalog` keeps the whole-disc scan and generation result for identical inputs in `pc/build/fixture-check/` (the determinism re-run always runs; `ROOD_FIXTURE_CHECK_CACHE=0` recomputes) |
 | `snapshot_equivalence` | save states resume exactly at every test checkpoint (below; first job) |
 | `rpc_smoke`, `gi_smoke`, `movie_smoke` | RPC control, path tracer, intro movie |
+| `lua_smoke` | plugins in one game: every Lua test (`rood.test`), runaway and failing scripts stopped within their budgets, memory cap, sandbox, capabilities, hot reload, settings from Lua (`docs/Extensions.md`) |
 | `room_smoke`, `opening_smoke`, `scene_smoke` | checkpoint frames without a window |
 | `window_smoke` | real X11 key and close events (always on Xvfb) |
 | `input:*` | each case in `start_button_smoke.sh` (`input_smoke.py`) |

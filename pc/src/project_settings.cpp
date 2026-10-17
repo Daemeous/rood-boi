@@ -106,6 +106,7 @@ int pc_ui_menu_tint_custom[3] = { 8, 7, 7 }; /* Custom's colour, 0..31 per chann
 #include "post.h" /* post_* (post profiles; the old post_flags, focus_mode, ... still load) */
 #include "editor_selection.h" /* editor_hidden_<zone>_<room>: objects hidden in the editor */
 #include "editor_colour.h" /* editor_colour_tabs, editor_recent_colours */
+#include "lua/lua_runtime.h" /* plugins_elevated, plugin_enabled, plugin_order, plugin_grant, plugin_budget_* */
 #include "editor_fit_window.h" /* editor_fit_window_offset, _kelvin */
 #include "editor_library.h" /* editor_library_view, _docked, _window, _favourites */
 extern bool pc_lights_show_gizmos;
@@ -354,6 +355,8 @@ int apply_line(const char* line, int* scale, bool now)
     }
     if (pc_button_prompts_setting(key, rest))
         return 1;
+    if (pc_lua_settings_parse(key, rest))
+        return 1;
     if (!strcmp(key, "gameplay_walls")) { /* original | smart (or 0 / 1) */
         char name[32] = "";
         sscanf(rest, "%31s", name);
@@ -542,6 +545,7 @@ extern "C" void pc_settings_load(void)
     }
     char line[512];
     rood_selection::clear_hidden(); /* the file's sets replace them */
+    pc_lua_settings_begin(); /* the file's plugin lines replace them */
     int applied = 0, scale = 0, aa_seen = 0;
     file_lines.clear();
     while (fgets(line, sizeof line, f)) {
@@ -557,6 +561,7 @@ extern "C" void pc_settings_load(void)
         pc_aa_autodetect_pending = 1;
     loaded_once = true;
     fclose(f);
+    pc_lua_settings_end();
     pc_lighting_settings_loaded(1);
     if (scale > 0 && scale != pc_hw_scale_setting)
         pc_hw_set_scale(scale);
@@ -607,6 +612,7 @@ extern "C" void pc_settings_write(FILE* f)
         }
         fputc('\n', f);
     }
+    pc_lua_settings_write(f);
     rood_selection::write_hidden(f);
     rood_colour::write_settings(f);
     rood_library::write_settings(f);

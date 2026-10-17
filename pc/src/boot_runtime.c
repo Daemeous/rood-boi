@@ -108,6 +108,9 @@ void vs_main_exec(void);
 /* Overlay statics restart on each overlay load (overlay_statics.c). */
 extern void pc_overlay_statics_init(void);
 extern void pc_overlay_statics_loaded(int);
+/* Plugins (pc/src/lua, pc/docs/Extensions.md "Where Lua runs"); weak: probes link this file alone. */
+extern void pc_lua_init(void) __attribute__((weak));
+extern void pc_lua_tick(void) __attribute__((weak));
 static void pc_dump_stack(int sig);
 void pc_unimplemented(const char* name)
 {
@@ -506,6 +509,8 @@ int main(int argc, char** argv)
         pc_skip_movies = pc_skip_logos = 1;
         pc_log("skip_intro: starting at the title (no logos, no intro movie)");
     }
+    if (pc_lua_init)
+        pc_lua_init(); /* after the settings (their plugin order and grants), on this thread */
     pc_audio_output_start();
     FILE* f = fopen("data/SLUS_010.40", "rb");
     if (!f) {
@@ -943,6 +948,8 @@ void pc_tick(void)
     pc_rpc_poll();
     if (pc_fog_vsync)
         pc_fog_vsync(); /* once per game vsync, after the RPC's changes, before the frame */
+    if (pc_lua_tick)
+        pc_lua_tick(); /* plugins' tick handlers and game-time timers, after the RPC's changes */
     pc_window_tick();
     if (pc_cd_tick)
         pc_cd_tick(); /* before the audio: this field's XA sectors */

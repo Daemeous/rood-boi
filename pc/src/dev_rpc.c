@@ -313,6 +313,14 @@
  *                                fields}; ui
  *                                (Details' state: its object, fields, their
  *                                window rectangles, the value ladder)
+ *   lua {action, ...}            the extension system (pc/src/lua/lua_rpc.cpp,
+ *                                pc/docs/Extensions.md): eval {code, plugin},
+ *                                console {input}, plugins, reload {plugin},
+ *                                rescan, enable {plugin, enabled}, grant
+ *                                {plugin, capability, revoke, elevated} (dev
+ *                                mode), budget {...}, test {plugin, filter},
+ *                                test_status {run}, log {since}, audit, emit
+ *                                {event, payload}, registry {kind}
  *   editor_library {action, ...}  the editor's library (editor_library.cpp):
  *                                list | filter | favourite | view | thumbs |
  *                                save (Save as prefab) | edit_prefab |
@@ -2594,6 +2602,26 @@ static void handle_method(int fd, const char* request)
             strcpy(args, "{}");
         }
         if (handler(args, result, sizeof result) < 0) {
+            fail(fd, id, -32000, result);
+            return;
+        }
+        reply(fd, id, result);
+    } else if (!strcmp(method, "lua")) {
+        /* The extension system; lua_rpc.cpp parses the params object itself. */
+        extern int pc_lua_rpc(const char*, char*, int) __attribute__((weak));
+        if (!pc_lua_rpc) {
+            fail(fd, id, -32000, "no Lua runtime in this build");
+            return;
+        }
+        static char args[LINE_MAX_BYTES];
+        const char* end = params ? value_end(params) : NULL;
+        if (params && end && (size_t)(end - params) < sizeof args) {
+            memcpy(args, params, (size_t)(end - params));
+            args[end - params] = 0;
+        } else {
+            strcpy(args, "{}");
+        }
+        if (pc_lua_rpc(args, result, sizeof result) < 0) {
             fail(fd, id, -32000, result);
             return;
         }

@@ -18,6 +18,8 @@ CLI:
     rood_rpc.py symbol NAME                   address of a game symbol
     rood_rpc.py --rpc                         JSON-RPC lines on stdin/stdout; adds the
                                               client-side methods "symbol" and "read_symbol"
+    rood_rpc.py lua 'return rood.version' [--plugin ID]   evaluate Lua in the running game
+    rood_rpc.py lua-test [--plugin ID] [--filter TEXT]     run the plugins' Lua tests in it
 
 The socket defaults to $ROOD_RPC or pc/build/boot/rpc.sock (on Windows tcp:47323, a
 loopback TCP port; ROOD_RPC=tcp:PORT works on Linux too). Methods run at vsync
@@ -491,6 +493,38 @@ class Game:
             time.sleep(0.05)
         return self.pause()
 
+    # ---- Lua (pc/src/lua, pc/docs/Extensions.md) ----
+    def lua(self, code, plugin=None):
+        """Evaluate Lua in a plugin (default: the console's own sandbox) under the
+        test budget: {"ok", "results", "output", "error"} (a Lua error is a result,
+        not an RpcError)."""
+        params = {"action": "eval", "code": code}
+        if plugin:
+            params["plugin"] = plugin
+        return self.call("lua", **params)
+
+    def lua_plugins(self):
+        """Every plugin by id (RPC lua {action "plugins"})."""
+        return {p["id"]: p for p in self.call("lua", action="plugins")["plugins"]}
+
+    def lua_test(self, plugin=None, filter=None, step=2, timeout=120):
+        """Run the plugins' Lua tests (rood.test) in this game, without a relaunch:
+        start a run, then step the game `step` vsyncs at a time while cases wait for
+        ticks. Returns the finished run ({passed, failed, skipped, results})."""
+        params = {"action": "test"}
+        if plugin:
+            params["plugin"] = plugin
+        if filter:
+            params["filter"] = filter
+        run = self.call("lua", **params)
+        deadline = time.monotonic() + timeout
+        while not run["done"]:
+            if time.monotonic() > deadline:
+                raise RpcError(f"Lua tests still waiting after {timeout} s: {run['waiting']} case(s)")
+            self.run(step)
+            run = self.call("lua", action="test_status", run=run["run"])
+        return run
+
 
 def bridge(path):
     """stdin/stdout JSON-RPC pass-through with client-side symbol methods."""
@@ -536,6 +570,12 @@ def main():
     call.add_argument("params", nargs="?", default="{}")
     sym = sub.add_parser("symbol")
     sym.add_argument("name")
+    lua = sub.add_parser("lua", help="evaluate Lua in the running game (RPC lua eval)")
+    lua.add_argument("code")
+    lua.add_argument("--plugin")
+    lua_test = sub.add_parser("lua-test", help="run the plugins' Lua tests in the running game")
+    lua_test.add_argument("--plugin")
+    lua_test.add_argument("--filter")
     args = parser.parse_args()
     if args.rpc:
         bridge(args.socket)
@@ -551,6 +591,16 @@ def main():
         print(json.dumps(Game(args.socket).call(args.method, **json.loads(args.params))))
     elif args.command == "symbol":
         print(hex(symbols()[args.name]))
+    elif args.command == "lua":
+        print(json.dumps(Game(args.socket).lua(args.code, plugin=args.plugin), indent=1))
+    elif args.command == "lua-test":
+        run = Game(args.socket).lua_test(plugin=args.plugin, filter=args.filter)
+        for r in run["results"]:
+            print(f"{r['status'].upper():<5} {r['plugin']} {r['file']}: {r['name']}")
+            if r["status"] == "fail":
+                print("      " + r["message"].replace("\n", "\n      "))
+        print(f"{run['passed']} passed, {run['failed']} failed, {run['skipped']} skipped")
+        sys.exit(1 if run["failed"] else 0)
     else:
         parser.print_help()
 

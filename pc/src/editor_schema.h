@@ -91,6 +91,10 @@ int retired_count(); /* tests */
  * RPC editor_schema reaches it by {kind, index}, edits go through apply_at
  * and undo keeps its values (standalone_state). */
 void add_kind(Kind k);
+/* Unregister an add_kind kind (a plugin's settings when it unloads; pc/src/lua);
+ * true when there was one. Pointers to it are gone: Details and the RPC find
+ * kinds by name every frame. */
+bool remove_kind(const std::string& name);
 /* Every standalone kind's values as text (undo's snapshots), and back
  * (fields whose values differ are set). */
 std::string standalone_state();

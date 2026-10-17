@@ -296,7 +296,9 @@ def win_command(args):
     # 0x400000, within reach of the guest addresses (0x1F800000, 0x80000000).
     # Host code (not the game's -nostdinc units) sees windows.h through
     # win_compat.h first.
-    host = "-nostdinc" not in args and not any(a.endswith(".i") for a in args)
+    # The vendored Lua core (-DROOD_LUA_CORE) needs none of it either: Windows'
+    # macros stay away from its identifiers.
+    host = "-nostdinc" not in args and not any(a.endswith(".i") for a in args) and "-DROOD_LUA_CORE" not in args
     # GCC's (System V) bitfield and packed-struct layout, which the PS1
     # structures assume, not MSVC's.
     return command[:1] + ["-mcmodel=small", "-mno-ms-bitfields", "-D_WIN32_WINNT=0x0A00", "-isystem", str(win_include)] \
@@ -527,7 +529,8 @@ stamp_files = [root / "data/SLUS_010.40", root / "data/BATTLE/BATTLE.PRG", root 
                # the host libraries whose symbols the import classification reads
                "/usr/lib/x86_64-linux-gnu/libstdc++.so.6", "/lib/x86_64-linux-gnu/libc.so.6",
                "/lib/x86_64-linux-gnu/libm.so.6", "/usr/lib/x86_64-linux-gnu/libc_nonshared.a",
-               "/usr/lib32/libstdc++.so.6", "/lib/i386-linux-gnu/libc.so.6", "/lib/i386-linux-gnu/libm.so.6"]
+               "/usr/lib32/libstdc++.so.6", "/lib/i386-linux-gnu/libc.so.6", "/lib/i386-linux-gnu/libm.so.6",
+               "/lib/x86_64-linux-gnu/libgcc_s.so.1", "/lib/i386-linux-gnu/libgcc_s.so.1"]
 up_to_date = build_stamp.up_to_date(stamp_trees, stamp_files)
 if parsed.check:
     print(f"{out.relative_to(root)}: " + ("up to date" if up_to_date else "would rebuild"))
@@ -1073,6 +1076,27 @@ if arch64:
     compile_object(["g++", *cxx_flags, *sdl_flags, *(["-DROOD_NRD", "-I" + nrd["include"]] if nrd else []),
         "-c", "pc/src/vk_nrd.cpp", "-o", str(obj)], "pc/src/vk_nrd.cpp", "c++")
     objects.append(obj)
+# Lua 5.4 (vendored, MIT; pc/third_party/lua) for plugins (pc/docs/Extensions.md):
+# the core and its safe libraries only (no io, os, package or debug, no
+# standalone interpreters), compiled as C++ so a Lua error is a C++
+# exception and the bindings may keep std::string across Lua calls; with
+# the pattern matcher's budget hook (rood_luauser.h, ROOD-NOTES.md).
+lua_source = root / "pc/third_party/lua/src"
+LUA_CORE = ["lapi", "lcode", "lctype", "ldebug", "ldo", "ldump", "lfunc", "lgc", "llex", "lmem", "lobject",
+            "lopcodes", "lparser", "lstate", "lstring", "ltable", "ltm", "lundump", "lvm", "lzio", "lauxlib",
+            "lbaselib", "lcorolib", "lmathlib", "lstrlib", "ltablib", "lutf8lib"]
+for name in LUA_CORE:
+    obj = out / ("lua_" + name + ".o")
+    compile_object(["g++", *cxx_flags, "-DROOD_LUA_CORE", "-include", "pc/src/lua/rood_luauser.h",
+                    "-I" + str(lua_source), "-x", "c++", "-c", str(lua_source / (name + ".c")), "-o", str(obj)],
+                   f"pc/third_party/lua/src/{name}.c", "c++")
+    objects.append(obj)
+# The extension system (pc/src/lua): runtime, API, RPC, console.
+for source in sorted((root / "pc/src/lua").glob("*.cpp")):
+    obj = out / (source.stem + ".o")
+    compile_object(["g++", *cxx_flags, "-I" + str(lua_source), "-I" + str(imgui), "-Ipc/src", "-Ipc/src/lua",
+                    *sdl_flags, "-c", str(source), "-o", str(obj)], source.relative_to(root), "c++")
+    objects.append(obj)
 vendor = root / "pc/third_party/psycross"
 for name, compiler, source, extra in [
     ("inline", "gcc", "src/psx/INLINE_C.C", ["-x", "c", "-std=gnu11"]),
@@ -1436,15 +1460,19 @@ else:
         "/lib/x86_64-linux-gnu/libm.so.6",
         "/usr/lib/x86_64-linux-gnu/libc_nonshared.a",  # atexit, stat, ...
         gcc_lib + "/libgcc.a",
+        "/lib/x86_64-linux-gnu/libgcc_s.so.1",
     ] if arch64 else [
         "/usr/lib32/libstdc++.so.6",
         "/lib/i386-linux-gnu/libc.so.6",
         "/lib/i386-linux-gnu/libm.so.6",
         gcc_lib + "/32/libgcc.a",
+        "/lib/i386-linux-gnu/libgcc_s.so.1",
     ]) + [str(sdl_library)] + (nrd["libraries"] if nrd else [])
 for library in host_libraries:
     if os.path.exists(library):
-        for line in run(["nm", "-D" if library.endswith(".6") else "", "--defined-only", library] if library.endswith(".6") else [*NM, "--defined-only", library], capture_output=True, text=True).stdout.splitlines():
+        shared = ".so." in os.path.basename(library)  # libc.so.6, libgcc_s.so.1: their dynamic symbols
+        for line in run(["nm", "-D", "--defined-only", library] if shared else [*NM, "--defined-only", library],
+                        capture_output=True, text=True).stdout.splitlines():
             parts = line.split()
             if len(parts) >= 3:
                 libc.add(parts[2].split("@")[0])
@@ -1836,8 +1864,8 @@ if win:
         + " pc_overlay_statics[] = {\n" + "".join(rows) + "    { 0 } };\n"
         + f"const int pc_overlay_statics_count = {len(rows)};\n")
     run(win_command(["gcc", *flags, "-c", str(out / "overlay_statics_win.c"), "-o", str(out / "overlay_statics_table.o")]))
-    # The MinGW runtime provides the unwinder that the Linux link left to
-    # traps (libgcc_s is not among the scanned libraries).
+    # The MinGW runtime provides the unwinder (libgcc_eh); it is never a
+    # trap (Lua's errors are C++ exceptions).
     (out / "traps_win.c").write_text(
         "extern void pc_unimplemented(const char*) __attribute__((noreturn));\n"
         + "".join(f'void {n}(void) {{ pc_unimplemented("{n}"); }}\n' for n in traps if not n.startswith("_Unwind_")))
@@ -1920,6 +1948,7 @@ run(
         *(nrd["libraries"] if nrd else []),
         *([] if arch64 else ["-L/usr/lib32"]),
         "-l:libstdc++.so.6",
+        "-l:libgcc_s.so.1",  # C++ unwinding (Lua errors are exceptions: pc/docs/Extensions.md)
         "-lm",
         "-lpthread",
         "-ldl",

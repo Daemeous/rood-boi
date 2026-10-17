@@ -140,6 +140,12 @@ static void pages()
     CHECK(find(D, "present_rate") < 0);
     pc_hw_interpolate = 1;
     CHECK(find(D, "present_rate") == 4);
+    int fp = -1, fr = -1;
+    CHECK(pc_ui_settings_find("present_rate", &fp, &fr) == 1 && fp == D && fr == 4);
+    pc_hw_interpolate = 0;
+    CHECK(pc_ui_settings_find("present_rate", &fp, &fr) == 2); /* exists, not shown now */
+    pc_hw_interpolate = 1;
+    CHECK(pc_ui_settings_find("no_such_row", &fp, &fr) == 0);
     // game options: there with the bridge, gone without
     CHECK((find(P, "puzzle_mode") >= 0) == game);
     CHECK((find(A, "sound") >= 0) == game);

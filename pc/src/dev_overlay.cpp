@@ -60,6 +60,9 @@ int pc_rpc_is_paused(void);
 }
 
 extern "C" void pc_settings_load(void);
+extern "C" void pc_lua_frame(double dt);        /* pc/src/lua: plugins' frame handlers (ImGui frame open) */
+extern "C" void pc_lua_console_menu_item(void); /* lua_console.cpp */
+extern "C" void pc_lua_console_window(void);
 extern "C" void pc_fast_travel_prompt_draw(void); /* fast_travel_prompt.cpp */
 extern "C" int pc_editor_active(void);
 extern "C" void pc_editor_toggle(void);
@@ -1178,6 +1181,7 @@ static void menu_bar(float* height)
         if (ImGui::MenuItem("Library", "Shift+1", place_tab_shown || !rood_library::docked()))
             outliner_tab_request = 1;
         ImGui::MenuItem("Room Browser", "Ctrl+R", &pc_room_browser_open);
+        pc_lua_console_menu_item();
         ImGui::MenuItem("Keyboard shortcuts", nullptr, &show_help);
         ImGui::EndMenu();
     }
@@ -1983,6 +1987,7 @@ extern "C" void pc_overlay_frame(int width, int height)
     io.DisplayFramebufferScale = ImVec2(1, 1);
     ImGui::NewFrame();
     ImGuizmo::BeginFrame();
+    pc_lua_frame(dt); /* every presented image, real time */
     if (clear_focus_request) { /* RPC editor_input {focus "none"} */
         clear_focus_request = false;
         ImGui::ClearActiveID();
@@ -2033,6 +2038,7 @@ extern "C" void pc_overlay_frame(int width, int height)
         pc_room_browser_window();
         help_window();
         memory_cards_window();
+        pc_lua_console_window();
         /* What the panels changed becomes a transaction (once released). */
         pc_undo_frame_end();
     } else {

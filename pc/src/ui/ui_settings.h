@@ -65,6 +65,10 @@ const char* pc_ui_settings_page_id(int page);    /* "graphics" */
 int pc_ui_settings_rows(int page);
 /* Fills *out; 0 when there is no such row. */
 int pc_ui_settings_row(int page, int row, pc_ui_setting_row* out);
+/* A row by its id (plugins: rood.settings, pc/src/lua/lua_api_settings.cpp): 1 and
+ * its page and its index among the rows shown now; 2 when it exists but is not
+ * shown now (it depends on another setting); 0 when there is none. */
+int pc_ui_settings_find(const char* id, int* page, int* row);
 /* A choice's name and why it cannot be picked (NULL: it can); 0: no such choice. */
 int pc_ui_settings_choice(int page, int row, int choice, const char** name, const char** reason);
 /* Left/Right: delta -1 / +1 (sliders: steps; choices: the next available
