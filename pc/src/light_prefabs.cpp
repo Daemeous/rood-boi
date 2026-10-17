@@ -911,7 +911,6 @@ const Prefab* Library::find(const std::string& id) const
     return nullptr;
 }
 
-namespace {
 std::vector<std::string> json_files(const std::string& dir)
 {
     std::vector<std::string> out;
@@ -940,6 +939,7 @@ long long directory_stamp(const std::string& dir)
     }
     return stamp;
 }
+namespace {
 bool read_file(const std::string& path, std::string& out)
 {
     FILE* f = fopen(path.c_str(), "rb");
@@ -1397,13 +1397,14 @@ void evaluate(const Prefab& p, const Actor& a, double time, bool animate, std::v
         l.shadows = expr_eval(t.shadows, lookup, Value::scalar(0)).x() > 0.5f;
         l.light_size = fmaxf(expr_eval(t.light_size, lookup, Value::scalar(0)).x() * s, 0);
         l.shadow_skip = skip;
+        float flicker = expr_eval(t.flicker, lookup, Value::scalar(0)).x();
+        float speed = expr_eval(t.flicker_speed, lookup, Value::scalar(8)).x();
+        float jitter = expr_eval(t.jitter, lookup, Value::scalar(0)).x() * s;
+        float pulse = expr_eval(t.pulse, lookup, Value::scalar(0)).x();
+        float pulse_speed = expr_eval(t.pulse_speed, lookup, Value::scalar(0.5f)).x();
+        l.flicker = flicker, l.flicker_speed = speed, l.jitter = jitter, l.pulse = pulse, l.pulse_speed = pulse_speed;
         if (animate) {
             uint32_t seed = hash32(a.seed * 2654435761u + (uint32_t)index * 7919u + (uint32_t)(t.phase * 1000.0f));
-            float flicker = expr_eval(t.flicker, lookup, Value::scalar(0)).x();
-            float speed = expr_eval(t.flicker_speed, lookup, Value::scalar(8)).x();
-            float jitter = expr_eval(t.jitter, lookup, Value::scalar(0)).x() * s;
-            float pulse = expr_eval(t.pulse, lookup, Value::scalar(0)).x();
-            float pulse_speed = expr_eval(t.pulse_speed, lookup, Value::scalar(0.5f)).x();
             float factor = 1;
             if (flicker > 0)
                 factor *= 1 + flicker * (1 - 2 * flicker_noise(seed, time * speed));

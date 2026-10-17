@@ -106,6 +106,29 @@ def fog_presets():
     return _FOG_PRESETS
 
 
+TONEMAP_KEYS = ("tonemapper", "tonemap_white")
+
+
+def post_preset_tonemap(name):
+    """The tonemapper keys a post preset (pc/assets/post/<name>.json "values") sets."""
+    try:
+        values = json.loads((ROOT / "pc/assets/post" / f"{name}.json").read_text()).get("values", {})
+    except (OSError, ValueError):
+        return []
+    return [k for k in TONEMAP_KEYS if k in values]
+
+
+_EMITTER_ASSETS = None
+
+
+def emitter_assets():
+    """The emitter assets' ids (pc/assets/emitters/*.json)."""
+    global _EMITTER_ASSETS
+    if _EMITTER_ASSETS is None:
+        _EMITTER_ASSETS = {p.stem for p in (ROOT / "pc/assets/emitters").glob("*.json")}
+    return _EMITTER_ASSETS
+
+
 def check_values(report, path, e, prefabs, settings):
     global FIXTURE_TYPES
     kind = e.id.split(":", 1)[0]
@@ -139,6 +162,17 @@ def check_values(report, path, e, prefabs, settings):
         name = e.id.split(":", 1)[1]
         if not (name in ("room", "cutscene") or (name.startswith("event.") and name[6:].isdigit())):
             report("error", path, e.line, f"{e.id}: post profiles are post:room, post:cutscene and post:event.<id>")
+        # The tonemapper is the player's choice (Graphics > Post-processing, settings post_preset): a room's
+        # profile that sets it overrides theirs. A warning: the game still applies it.
+        for key, _ in fields:
+            if key in TONEMAP_KEYS:
+                report("warning", path, e.line, f"{e.id}: sets {key}: the tonemapper is the player's choice; "
+                                                f"leave {key} out of room profiles")
+        preset = dict(fields).get("preset")
+        if preset:
+            for key in post_preset_tonemap(preset):
+                report("warning", path, e.line, f"{e.id}: its preset {preset} sets {key}: the tonemapper is the "
+                                                f"player's choice; name a preset without it, or set the fields here")
         return  # the fields: pc/src/post_profile.cpp checks them (and logs unknown ones)
     for key, value in fields:
         if not lf.known_field(kind, key):
@@ -159,6 +193,22 @@ def check_values(report, path, e, prefabs, settings):
                 report("warning", path, e.line,
                        f"{e.id}: preset '{value}' is not in pc/assets/environment/fog_presets.json (its fields as written)")
             continue
+        if kind == "emitter" and key == "shape":
+            if value not in lf.EMITTER_SHAPES:
+                report("error", path, e.line, f"{e.id}: shape must be one of {', '.join(lf.EMITTER_SHAPES)}")
+            continue
+        if kind == "emitter" and key == "render":
+            if value not in lf.EMITTER_RENDERS:
+                report("error", path, e.line, f"{e.id}: render must be {' or '.join(lf.EMITTER_RENDERS)}")
+            continue
+        if kind == "emitter" and key == "quality":
+            if value not in lf.EMITTER_QUALITIES:
+                report("error", path, e.line, f"{e.id}: quality must be one of {', '.join(lf.EMITTER_QUALITIES)}")
+            continue
+        if kind == "emitter" and key == "asset":
+            if value not in emitter_assets():
+                report("warning", path, e.line, f"{e.id}: asset '{value}' is not in pc/assets/emitters (its fields as written)")
+            continue
         if decimals < 0:
             continue
         nums = lf.parse_numbers(value)
@@ -168,7 +218,7 @@ def check_values(report, path, e, prefabs, settings):
         count = lf.COUNTS.get(key)
         if key == "size" and kind == "light":
             count = 2
-        elif key == "size" and kind == "fog":
+        elif key == "size" and kind in ("fog", "emitter"):
             count = 3
         elif key == "size":
             count = 1

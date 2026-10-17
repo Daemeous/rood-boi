@@ -25,6 +25,7 @@ extern unsigned int CFC2(int reg);
 #include "psx_types.h"
 #include "scene_capture.h"
 #include "room_effects.h"
+#include "floor_grid.h"
 
 /* The game's room (vs_battle_roomData, BATTLE 146C.h _mpdRoomSection):
  * unk0 is 1 while a room is loaded (func_8008AB80, func_8008ABF0),
@@ -519,120 +520,137 @@ int pc_scene_floor(float* y)
  * polygons wind one way seen from their front (b - a) x (c - a) has +y (y
  * down) on a floor seen from above, -y on a ceiling or an arch's underside;
  * a room whose level faces all wind the other way takes them all. */
+/* atmosphere.cpp: room settings haze_interior, haze_interior_fill, haze_interior_slope */
+extern float pc_haze_interior __attribute__((weak)), pc_haze_interior_fill __attribute__((weak)),
+    pc_haze_interior_slope __attribute__((weak));
+static int floor_fill(void)
+{
+    int n = &pc_haze_interior_fill ? (int)lroundf(pc_haze_interior_fill) : 1;
+    return n < 0 ? 0 : n > 4 ? 4 : n;
+}
+/* The steepest up-facing face that still counts as floor (degrees; level faces always do). */
+static int floor_slope(void)
+{
+    int d = &pc_haze_interior_slope ? (int)lroundf(pc_haze_interior_slope) : 60;
+    return d < 37 ? 37 : d > 89 ? 89 : d;
+}
+/* Black shells leave the grid only with the interior on (off: the old grid exactly). */
+static int floor_shells_out(void) { return &pc_haze_interior ? pc_haze_interior > 0.5f : 1; }
+/* A triangle drawn black whatever its texture: every vertex colour 0 and not
+ * a raw texture (room_native.c group_is_black's test). */
+static int black_triangle(const scene_triangle* t)
+{
+    if (t->code & 1)
+        return 0;
+    for (int j = 0; j < 3; ++j)
+        if (t->vertex[j].rgb[0] || t->vertex[j].rgb[1] || t->vertex[j].rgb[2])
+            return 0;
+    return 1;
+}
+enum { FLOOR_N = PC_SCENE_FLOOR_GRID };
+static float floor_heights[FLOOR_N * FLOOR_N], floor_corner[2], floor_cell[2];
+static unsigned char floor_cells[FLOOR_N * FLOOR_N];
+static int floor_serial = -1, floor_count = -1, floor_key = -1, floor_ok;
+/* Per room group: 1 when any of its captured triangles is not black (a black
+ * shell: every one is, room_native.c group_is_black). */
+static unsigned char floor_group_lit[65536];
+static void floor_mark(int at, float y, int level, float* lowest, unsigned char* has, unsigned char* occupied)
+{
+    occupied[at] = 1;
+    if (level && (!has[at] || y > lowest[at]))
+        lowest[at] = y, has[at] = 1;
+}
+/* The cells whose centre the triangle covers, and the cells of its corners and centroid. */
+static void floor_raster(const float* a, const float* b, const float* c, const float lo[3], int level, float* lowest,
+    unsigned char* has, unsigned char* occupied)
+{
+    float u[3] = { b[0] - a[0], b[1] - a[1], b[2] - a[2] }, v[3] = { c[0] - a[0], c[1] - a[1], c[2] - a[2] };
+    float y = (a[1] + b[1] + c[1]) / 3.0f;
+    float px[4] = { a[0], b[0], c[0], (a[0] + b[0] + c[0]) / 3 }, pz[4] = { a[2], b[2], c[2], (a[2] + b[2] + c[2]) / 3 };
+    int i0 = FLOOR_N, i1 = -1, j0 = FLOOR_N, j1 = -1;
+    for (int k = 0; k < 4; ++k) {
+        int i = (int)((px[k] - lo[0]) / floor_cell[0]), j = (int)((pz[k] - lo[2]) / floor_cell[1]);
+        i = i < 0 ? 0 : i >= FLOOR_N ? FLOOR_N - 1 : i, j = j < 0 ? 0 : j >= FLOOR_N ? FLOOR_N - 1 : j;
+        i0 = i < i0 ? i : i0, i1 = i > i1 ? i : i1, j0 = j < j0 ? j : j0, j1 = j > j1 ? j : j1;
+        floor_mark(j * FLOOR_N + i, y, level, lowest, has, occupied);
+    }
+    float area2 = u[0] * v[2] - u[2] * v[0]; /* twice the signed area in x, z */
+    if (fabsf(area2) < 1e-6f)
+        return;
+    for (int j = j0; j <= j1; ++j)
+        for (int i = i0; i <= i1; ++i) {
+            float x = lo[0] + (i + 0.5f) * floor_cell[0] - a[0], z = lo[2] + (j + 0.5f) * floor_cell[1] - a[2];
+            float s = (x * v[2] - z * v[0]) / area2, r = (u[0] * z - u[2] * x) / area2;
+            if (s < 0 || r < 0 || s + r > 1)
+                continue;
+            floor_mark(j * FLOOR_N + i, y, level, lowest, has, occupied);
+        }
+}
+static void floor_update(void)
+{
+    int fill = floor_fill(), slope = floor_slope(), shells_out = floor_shells_out();
+    int key = fill | slope << 4 | shells_out << 12;
+    if (floor_serial == scene_serial && floor_count == triangle_count && floor_key == key)
+        return;
+    floor_serial = scene_serial, floor_count = triangle_count, floor_key = key;
+    float steepest = fminf(cosf(slope * 3.14159265f / 180.0f), 0.8f);
+    if (shells_out) {
+        memset(floor_group_lit, 0, sizeof floor_group_lit);
+        for (int t = 0; t < triangle_count; ++t)
+            if (!black_triangle(&triangles[t]))
+                floor_group_lit[triangles[t].group] = 1;
+    }
+    float lo[3], hi[3];
+    pc_scene_bounds(lo, hi);
+    floor_corner[0] = lo[0], floor_corner[1] = lo[2];
+    floor_cell[0] = fmaxf((hi[0] - lo[0]) / FLOOR_N, 1.0f), floor_cell[1] = fmaxf((hi[2] - lo[2]) / FLOOR_N, 1.0f);
+    static float lowest[FLOOR_N * FLOOR_N];
+    static unsigned char has[FLOOR_N * FLOOR_N], occupied[FLOOR_N * FLOOR_N];
+    float up_area = 0, all_area = 0;
+    for (int pass = 0; pass < 2; ++pass) {
+        /* pass 0 counts the level faces; pass 1 rasterises (up-facing only, unless almost none are) */
+        int up_only = pass == 1 && up_area > all_area * 0.05f;
+        memset(has, 0, sizeof has);
+        memset(occupied, 0, sizeof occupied);
+        for (int t = 0; t < triangle_count; ++t) {
+            const float *a = triangles[t].vertex[0].position, *b = triangles[t].vertex[1].position,
+                        *c = triangles[t].vertex[2].position;
+            float u[3] = { b[0] - a[0], b[1] - a[1], b[2] - a[2] }, v[3] = { c[0] - a[0], c[1] - a[1], c[2] - a[2] };
+            float n[3] = { u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0] };
+            float len = sqrtf(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+            if (len < 1e-3f || fabsf(n[1]) < steepest * len)
+                continue; /* a wall */
+            if (shells_out && !floor_group_lit[triangles[t].group])
+                continue; /* the void's black shell (a group all black; a black face in a lit group counts) */
+            int level = fabsf(n[1]) >= 0.8f * len; /* stairs' treads and gentle slopes are */
+            if (pass == 0) {
+                if (level)
+                    all_area += len, up_area += n[1] > 0 ? len : 0;
+                continue;
+            }
+            if (up_only && n[1] <= 0)
+                continue;
+            floor_raster(a, b, c, lo, level, lowest, has, occupied);
+        }
+    }
+    floor_ok = pc_floor_grid_finish(FLOOR_N, fill, lowest, has, occupied, floor_heights, floor_cells);
+}
 int pc_scene_floor_grid(float heights[PC_SCENE_FLOOR_GRID * PC_SCENE_FLOOR_GRID], float corner[2], float cell[2])
 {
-    enum { N = PC_SCENE_FLOOR_GRID };
-    static float cached[N * N], cached_corner[2], cached_cell[2];
-    static int cached_serial = -1, cached_count = -1, cached_ok;
-    if (cached_serial != scene_serial || cached_count != triangle_count) {
-        cached_serial = scene_serial, cached_count = triangle_count, cached_ok = 0;
-        float lo[3], hi[3];
-        pc_scene_bounds(lo, hi);
-        cached_corner[0] = lo[0], cached_corner[1] = lo[2];
-        cached_cell[0] = fmaxf((hi[0] - lo[0]) / N, 1.0f), cached_cell[1] = fmaxf((hi[2] - lo[2]) / N, 1.0f);
-        static float lowest[N * N], grown[N * N];
-        static unsigned char has[N * N], next[N * N];
-        float up_area = 0, all_area = 0;
-        for (int pass = 0; pass < 2; ++pass) {
-            /* pass 0 counts; pass 1 rasterises (up-facing only, unless almost none are) */
-            int up_only = pass == 1 && up_area > all_area * 0.05f;
-            memset(has, 0, sizeof has);
-            for (int t = 0; t < triangle_count; ++t) {
-                const float *a = triangles[t].vertex[0].position, *b = triangles[t].vertex[1].position,
-                            *c = triangles[t].vertex[2].position;
-                float u[3] = { b[0] - a[0], b[1] - a[1], b[2] - a[2] }, v[3] = { c[0] - a[0], c[1] - a[1], c[2] - a[2] };
-                float n[3] = { u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0] };
-                float len = sqrtf(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
-                if (len < 1e-3f || fabsf(n[1]) < 0.8f * len)
-                    continue; /* not level (stairs' treads and gentle slopes are) */
-                if (pass == 0) {
-                    all_area += len, up_area += n[1] > 0 ? len : 0;
-                    continue;
-                }
-                if (up_only && n[1] <= 0)
-                    continue;
-                /* the cells whose centre it covers, and the cells of its corners and centroid */
-                float y = (a[1] + b[1] + c[1]) / 3.0f;
-                float px[4] = { a[0], b[0], c[0], (a[0] + b[0] + c[0]) / 3 }, pz[4] = { a[2], b[2], c[2], (a[2] + b[2] + c[2]) / 3 };
-                int i0 = N, i1 = -1, j0 = N, j1 = -1;
-                for (int k = 0; k < 4; ++k) {
-                    int i = (int)((px[k] - lo[0]) / cached_cell[0]), j = (int)((pz[k] - lo[2]) / cached_cell[1]);
-                    i = i < 0 ? 0 : i >= N ? N - 1 : i, j = j < 0 ? 0 : j >= N ? N - 1 : j;
-                    i0 = i < i0 ? i : i0, i1 = i > i1 ? i : i1, j0 = j < j0 ? j : j0, j1 = j > j1 ? j : j1;
-                    int at = j * N + i;
-                    if (!has[at] || y > lowest[at])
-                        lowest[at] = y, has[at] = 1;
-                }
-                float area2 = u[0] * v[2] - u[2] * v[0]; /* twice the signed area in x, z */
-                if (fabsf(area2) < 1e-6f)
-                    continue;
-                for (int j = j0; j <= j1; ++j)
-                    for (int i = i0; i <= i1; ++i) {
-                        float x = lo[0] + (i + 0.5f) * cached_cell[0] - a[0], z = lo[2] + (j + 0.5f) * cached_cell[1] - a[2];
-                        float s = (x * v[2] - z * v[0]) / area2, r = (u[0] * z - u[2] * x) / area2;
-                        if (s < 0 || r < 0 || s + r > 1)
-                            continue;
-                        int at = j * N + i;
-                        if (!has[at] || y > lowest[at])
-                            lowest[at] = y, has[at] = 1;
-                    }
-            }
-        }
-        int any = 0;
-        for (int k = 0; k < N * N; ++k)
-            any |= has[k];
-        if (any) {
-            /* each cell the lowest of its 3 x 3 (cells with a floor) */
-            for (int j = 0; j < N; ++j)
-                for (int i = 0; i < N; ++i) {
-                    int at = j * N + i, found = 0;
-                    float y = 0;
-                    for (int dj = -1; dj <= 1; ++dj)
-                        for (int di = -1; di <= 1; ++di) {
-                            int x = i + di, z = j + dj;
-                            if (x < 0 || z < 0 || x >= N || z >= N || !has[z * N + x])
-                                continue;
-                            float h = lowest[z * N + x];
-                            if (!found || h > y)
-                                y = h, found = 1;
-                        }
-                    grown[at] = y, next[at] = (unsigned char)found;
-                }
-            /* cells still without one: the mean of their neighbours', growing outward */
-            for (int round = 0; round < 2 * N; ++round) {
-                int missing = 0;
-                memcpy(has, next, sizeof has);
-                for (int j = 0; j < N; ++j)
-                    for (int i = 0; i < N; ++i) {
-                        int at = j * N + i;
-                        if (has[at])
-                            continue;
-                        float sum = 0;
-                        int n = 0;
-                        for (int dj = -1; dj <= 1; ++dj)
-                            for (int di = -1; di <= 1; ++di) {
-                                int x = i + di, z = j + dj;
-                                if (x >= 0 && z >= 0 && x < N && z < N && has[z * N + x])
-                                    sum += grown[z * N + x], n++;
-                            }
-                        if (n)
-                            grown[at] = sum / n, next[at] = 1;
-                        else
-                            missing++;
-                    }
-                if (!missing)
-                    break;
-            }
-            memcpy(cached, grown, sizeof cached);
-            cached_ok = 1;
-        }
+    floor_update();
+    if (floor_ok) {
+        memcpy(heights, floor_heights, sizeof floor_heights);
+        corner[0] = floor_corner[0], corner[1] = floor_corner[1];
+        cell[0] = floor_cell[0], cell[1] = floor_cell[1];
     }
-    if (cached_ok) {
-        memcpy(heights, cached, sizeof cached);
-        corner[0] = cached_corner[0], corner[1] = cached_corner[1];
-        cell[0] = cached_cell[0], cell[1] = cached_cell[1];
-    }
-    return cached_ok;
+    return floor_ok;
+}
+int pc_scene_floor_cells(unsigned char cells[PC_SCENE_FLOOR_GRID * PC_SCENE_FLOOR_GRID])
+{
+    floor_update();
+    if (floor_ok)
+        memcpy(cells, floor_cells, sizeof floor_cells);
+    return floor_ok;
 }
 /* Wavefront OBJ with per-vertex colours (x y z r g b) and a comment header
  * carrying the camera; texture page and CLUT per face as comments. */

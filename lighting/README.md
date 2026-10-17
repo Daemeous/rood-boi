@@ -36,6 +36,7 @@ by naming its id:
 | `set` | `set:<key>` | a per-room setting (`baked_lighting`, `haze_density`, ...: `pc/src/room_settings.cpp`) |
 | `env` | `env:sun`, `env:sky`, `env:fog` | the room's sun (or moon), sky and ground fog (below, "Environment") |
 | `fog` | `fog:<14 hex digits>` | a fog volume: a box or sphere of mist (below, "Fog volumes") |
+| `emitter` | `emitter:<14 hex digits>` | a particle emitter: dust motes in a room's light (below, "Emitters") |
 | `post` | `post:room`, `post:cutscene`, `post:event.<id>` | the room's post-processing profile in play, in its cutscenes, in one event (fields: [pc/docs/Post_Processing.md](../pc/docs/Post_Processing.md); `preset=<name>` puts a named profile under the item's own fields; nothing is generated: every effect is off unless a layer sets it) |
 
 The editor makes ids from the time and a random part, so ids made by
@@ -150,7 +151,7 @@ env fog color=0.85,0.9,1 density=0.01 height=40 noise=0.7 scale=200 wind=9,0,3 f
   visible where no light reaches; 0,0,0), `sky` (how much of the sky's light
   the haze and the fog scatter; 1).
 - The haze stays the room settings `haze_density` (uniform in the room's
-  bounds), `haze_anisotropy` (forward scattering, also the fog's) and
+  interior, below), `haze_anisotropy` (forward scattering, also the fog's) and
   `haze_glow`.
 - Limits, also room settings (Details > Atmosphere; an area's mood may set
   them): `haze_max_opacity` (0.55: the most of the scene the haze, the fog
@@ -162,6 +163,22 @@ env fog color=0.85,0.9,1 density=0.01 height=40 noise=0.7 scale=200 wind=9,0,3 f
   picture; 0 none). Whatever the densities, the atmosphere never hides the
   scene: `pc/tools/atmosphere_sweep.py` checks every room from several
   angles.
+- Where the room's air is, also room settings (Details > Atmosphere):
+  `haze_interior` (1: the ground fog keeps to the room's floor, not its
+  bounds box, and the haze leaves the void under the floor; 0 as before),
+  `haze_interior_fill` (1: holes up to two floor-grid cells across count
+  as floor), `haze_interior_slope` (60: the steepest up-facing face, in
+  degrees, that counts as floor), `haze_interior_edge` (0.2: the
+  interior's soft edge, 0 hard .. 0.5), `haze_outside` (1: the haze's share
+  above the cells without a floor, the air between an outside camera and
+  the room; 0 keeps the haze to the interior too), `haze_under_floor` (32:
+  how far under the floor the haze reaches), `haze_void` (1: the void
+  around the room, what the PS1 draws black, stays clean darkness past
+  where its ray leaves the room; fog volumes are exempt),
+  `haze_void_level` (0: the brightest vertex colour, of 255, that counts
+  as that black). RPC `environment {haze: {interior, interior_fill,
+  interior_slope, interior_edge, outside, under_floor, void,
+  void_level}}`.
 
 ## Fog volumes
 
@@ -209,10 +226,56 @@ fog 68ea4c1200a3f1 name="Cellar mist" shape=sphere pos=320,-60,640 size=400,120,
   write comes from it (the editor writes only what differs from the preset,
   even a value equal to the schema default), so a preset edit updates every
   volume using it. An unknown preset leaves the fields as written.
+  A preset may be one of yours (`pc/user/prefabs/fog/<id>.json`, made
+  with the Library's Save...): a room file naming it then needs your file;
+  promote only volumes with built-in presets (or none) into a pack.
 
 ```
 fog 7c1e0a9b3d55f2 name="Clearing mist" pos=320,-24,640 size=1200,72,900 yaw=15 sim_trail=1.5 preset=forest_floor
 ```
+
+## Emitters
+
+Particles (pc/docs/Particles.md): `emitter <id>` items, placed in the editor
+(Details > Atmosphere > Dust and particles: Add emitter) and edited like fog
+volumes: click one's icon in the view or its row in the Outliner (Emitters)
+and its fields are in Details (Basics, Spawn, Motion, Look, Transform; the
+reset arrow goes back to its asset's value), with the Move / Turn / Size
+gizmo. The graphics setting Dust (Off, Low, High) decides how many of an
+emitter's particles are drawn; Off draws none.
+
+```
+emitter 68f0c0de000001 name="Window dust" asset=dust_motes pos=400,-1000,1300 seed=7 size=900,700,700 count=1200
+```
+
+(The town house, zone 34 room 0, ships this one in
+`default/rooms/zone34_room00.txt`: about a hundred motes glint in its high
+windows' light around Ashley at Dust High, changing about 1.3 % of the view by 0.4/255 on average.)
+
+- Its own fields: `name`, `asset` (one of `pc/assets/emitters/*.json`: every
+  field below it does not write comes from it), `pos` (its centre), `yaw`
+  (degrees about the vertical; 0), `enabled` (1), `seed` (its random
+  choices; 1).
+- From its asset unless written (defaults in brackets, all neutral):
+  - spawn: `shape` (`box`, `room`: in the room's bounds, `point`: a ball of
+    `radius`, `disc`: a horizontal disc of `radius`, `surface`: on the floor
+    under its box; box), `size` (its box's full extents; 256,192,256),
+    `radius` (64), `count` (particles alive at once at Dust High; 400),
+    `lifetime` (seconds; 10), `lifetime_jitter` (the share of that a
+    particle may live less; 0.5);
+  - behaviour: `drift` (u/s, y down; 0,0,0), `curl`, `curl_scale`,
+    `curl_speed` (turbulence: how far a smooth swirling field moves each
+    one, the swirls' size, how fast they change; 0, 64, 0.1), `gravity`
+    (u/s², y down: negative rises; 0), `drag` (per second; 0), `fade_in`,
+    `fade_out` (seconds; 0, 0);
+  - look: `render` (`pixel`: square game pixels, nearest), `pixel_min`,
+    `pixel_max` (game pixels, 1..4; 1, 2), `color` (1,1,1), `brightness`
+    (1), `variation` (how much dimmer each one may be; 0.5);
+  - lighting: `lit` (0: they show only where light reaches them; 1: also
+    `ambient` everywhere; Details: Lighting, In light only or Lit),
+    `ambient` (0.05), `quality` (the setting that scales it: `dust`, the
+    Graphics > Dust setting; `always`: all of them, whatever Dust is).
+- A room draws up to 16 enabled emitters and 16384 particles.
 
 ## The generated layer
 
@@ -239,6 +302,33 @@ type*, or the catalog), not the generated files.
   pack's authored file, keeping its other lines and comments.
 - Every layer file reloads live; when a pack changes on disk while you have
   unsaved edits (a `git pull`), your edits are kept on top of it.
+- **The Library** (beside the Outliner; Shift+1, Window > Library) lists
+  everything to place: lights, light prefabs, the fixture catalog's light
+  classes, a fog volume, the fog presets and any emitters
+  (`pc/assets/emitters/*.json`; yours under *Mine*). Kind and category
+  chips, Favourites (the star), Mine and search filter it; Grid shows
+  thumbnails (rendered by the game into `pc/build/library_thumbs`; their
+  neutral scene: *Thumbnails...*, `pc/assets/editor/library_thumbs.json`)
+  with a type badge per kind, List shows rows; *Pop out* floats it. Drag an
+  entry onto a surface in the view (a fog volume rests on the floor, inside
+  its level area; lights and wall prefabs face out of a wall),
+  double-click to place at the view's centre, Ctrl+click in the view (or on
+  a glow) adds the current one. Right-click an entry: *Edit prefab* (also
+  under the list for the current item), *Favourite*, and for yours
+  *Rename...*, *Delete...* (its file is moved aside to `.bak`) and *Copy
+  file path*. *Save...* (also the Outliner's right-click menu, Edit, and a
+  fog volume's Details) makes a prefab of yours from the selection: lights
+  and light actors become one light prefab (an actor's lights baked as they
+  are at rest), one light actor a prefab with its values, one fog volume a
+  fog preset. A room's volume using a fog preset of yours still writes all
+  of its values (your preset file stays on your machine).
+- A selected **fog volume** has handles: its ring sets the density, the dot
+  on its inner outline the soft edge, the swatch its colour; Details groups
+  its fields (Basics, Look, Motion & interaction, Advanced, Transform) under
+  its preset row, and each disturb weight has *Use global* beside its slider.
+- **Fit to window** (a rect light's Details, or + Place > Rect light on a
+  window...): click a window pane and the rect light takes its size and sits
+  just in front of it, facing out.
 
 ## Contributing lighting
 

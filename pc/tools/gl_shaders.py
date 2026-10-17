@@ -35,6 +35,8 @@ FRAGMENTS = ["probe_common.glsl", "aa_geometry.glsl", "downsample.glsl", "ms_res
              "menu_studio.glsl",
              # The hand-placed fog volumes' own renderer (gl_present.c's per-pixel march).
              "fog_volume.glsl",
+             # The port's particles' composite (gl_present.c's present).
+             "particles.glsl",
              # The reference SMAA shader (MIT, pc/third_party/smaa), used through its GLSL macros.
              "../../third_party/smaa/SMAA.hlsl"]
 INCLUDE = re.compile(r'^\s*#\s*include\s+"([^"]+)"\s*$')

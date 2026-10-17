@@ -148,7 +148,7 @@ void apply_state(const State& s, bool keep_order)
             const std::string* v = it.get("value");
             if (v)
                 pc_room_settings_parse(("set " + it.name + " " + *v).c_str());
-        } else if (it.kind == "env" || it.kind == "fog" || it.kind == "post") {
+        } else if (it.kind == "env" || it.kind == "fog" || it.kind == "emitter" || it.kind == "post") {
             rood_env::apply_item(it);
         } else if (it.kind == "uv") {
             const std::string* speed = it.get("speed");
@@ -488,7 +488,7 @@ void rood_lights::layers_outliner_header()
     std::vector<std::string> gone; /* deleted here (in the base, not now) */
     for (const auto& kv : room_layers.base)
         if (!now.count(kv.first) && kv.second.kind != "set" && kv.second.kind != "uv" && kv.second.kind != "env"
-            && kv.second.kind != "fog")
+            && kv.second.kind != "fog" && kv.second.kind != "emitter")
             gone.push_back(kv.first);
     int problems = (int)room_layers.problems.size();
     char title[160];

@@ -25,6 +25,7 @@ extern "C" {
 extern int pc_hw_active, pc_hw_interpolate, pc_hw_scale_setting, pc_gl_aspect, pc_gte_widescreen, pc_ui_menus,
     pc_gameplay_walls, pc_button_prompts, pc_qol_map_invert, pc_qol_map_controls, pc_qol_skip_charging, pc_qol_confirm_cross;
 extern float pc_emissive;
+extern int pc_dust;
 }
 
 static int failures;
@@ -74,13 +75,19 @@ static void pages()
         CHECK(!std::strcmp(pc_ui_settings_page_title(p), titles[p]));
     CHECK(!std::strcmp(pc_ui_settings_page_id(D), "display"));
     CHECK(pc_ui_settings_page_title(7) == nullptr);
-    CHECK(pc_ui_settings_rows(G) == 16);
+    CHECK(pc_ui_settings_rows(G) == 17);
     // Glowing surfaces (emissive): after Sun and sky, a slider 0..2, Off at 0
     CHECK(find(G, "emissive") == find(G, "environment") + 1);
     CHECK(value(G, "emissive") == "1.0");
     pc_emissive = 0;
     CHECK(value(G, "emissive") == "Off");
     pc_emissive = 1.0f;
+    // Dust (particles.h): after Glowing surfaces, Off / Low / High, Off by default
+    CHECK(find(G, "dust") == find(G, "emissive") + 1);
+    CHECK(value(G, "dust") == "Off");
+    pc_dust = 2;
+    CHECK(value(G, "dust") == "High");
+    pc_dust = 0;
     CHECK(pc_ui_settings_rows(D) == 8); // Images per vsync shows: interpolation is on
     CHECK(pc_ui_settings_rows(A) == (game ? 2 : 1));
     CHECK(pc_ui_settings_rows(I) == 15); // with Menu opacity, Menu tint, Tint red, green, blue

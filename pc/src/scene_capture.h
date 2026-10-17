@@ -59,12 +59,19 @@ int pc_scene_floor(float* y);
  * grid over its bounds (x, z): per cell the lowest up-facing level face's
  * height (world y; the street, not the roofs above it), each cell the
  * lowest of its neighbours too (a street's edge is the street), cells
- * without a floor from their neighbours. heights[j * N + i]: cell i in x, j
- * in z; corner (lo_x, lo_z), cell size (cell_x, cell_z). Cached per capture.
- * Returns 0 without a captured room (or no level face). The ground fog lies
- * on it (atmosphere.cpp). */
+ * without a floor from their neighbours. With the room setting
+ * haze_interior on, black shells (groups whose every triangle has vertex
+ * colour 0) count for nothing; off, the grid is the old one. heights[j * N + i]: cell i in x, j in z; corner
+ * (lo_x, lo_z), cell size (cell_x, cell_z). Cached per capture. Returns 0
+ * without a captured room (or no level face). The ground fog lies on it
+ * (atmosphere.cpp). */
 #define PC_SCENE_FLOOR_GRID 24
 int pc_scene_floor_grid(float heights[PC_SCENE_FLOOR_GRID * PC_SCENE_FLOOR_GRID], float corner[2], float cell[2]);
+/* The same grid's cells (floor_grid.h PC_FLOOR_EMPTY / SOLID / FILLED):
+ * where the room has a floor (any up-facing face up to haze_interior_slope
+ * degrees, default 60, not a black shell), and its holes up to 2 x the room setting haze_interior_fill
+ * cells across. The haze and ground fog keep to them (atmosphere.cpp). */
+int pc_scene_floor_cells(unsigned char cells[PC_SCENE_FLOOR_GRID * PC_SCENE_FLOOR_GRID]);
 #ifdef __cplusplus
 }
 #endif

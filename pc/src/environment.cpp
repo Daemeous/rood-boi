@@ -11,11 +11,13 @@
 #include <string>
 
 #include "imgui.h"
+#include "editor_schema.h"
 #include "editor_undo.h"
 #include "environment_internal.h"
 #include "lighting_layers.h"
 #include "lighting_quality.h"
 #include "lights_internal.h"
+#include "particles_internal.h"
 
 extern "C" {
 extern int pc_lights_enabled;
@@ -80,12 +82,15 @@ void reset()
     sun = Sun();
     sky = Sky();
     rood_atmo::reset();
+    rood_particles::reset();
     rood_post::reset();
 }
 
 bool apply_item(const lighting::Item& it)
 {
     if (rood_atmo::apply_item(it)) /* env fog, fog volumes */
+        return true;
+    if (rood_particles::apply_item(it)) /* particle emitters (particles.cpp) */
         return true;
     if (rood_post::apply_item(it)) /* post room, post cutscene, post event.<id> */
         return true;
@@ -147,6 +152,7 @@ void add_items(lighting::State& s)
         s[it.id()] = it;
     }
     rood_atmo::add_items(s);
+    rood_particles::add_items(s);
     rood_post::add_items(s);
 }
 
@@ -255,6 +261,7 @@ void tooltip(const char* text)
 } // namespace
 
 bool pc_atmosphere_page(void); /* atmosphere.cpp */
+bool pc_particles_page(void); /* particles_editor.cpp */
 /* Returns true when something changed (the room has unsaved edits). */
 extern "C" bool pc_environment_page(void)
 {
@@ -291,7 +298,7 @@ extern "C" bool pc_environment_page(void)
             tooltip("Compass direction it shines from: 0 = from +z, 90 = from +x. Drag the sun in the view too.");
             changed |= ImGui::SliderFloat("Elevation", &sun.elevation, 0, 90, "%.1f deg");
             changed |= color_row("Colour##sun", sun.color);
-            changed |= ImGui::SliderFloat("Intensity##sun", &sun.intensity, 0, 4, "%.3f");
+            changed |= ImGui::SliderFloat("Intensity##sun", &sun.intensity, 0, rood_env::SUN_INTENSITY_MAX, "%.3f");
             changed |= ImGui::SliderFloat("Angular size", &sun.angle, 0, 10, "%.2f deg");
             tooltip("Angular diameter: 0.53 is the real sun's; larger gives softer shadow edges (an overcast moon).");
             changed |= ImGui::Checkbox("Casts shadows", &sun.shadows);
@@ -338,6 +345,7 @@ extern "C" bool pc_environment_page(void)
     tooltip("Switches every room's sun and sky off for comparison (not saved; RPC environment {global}).");
     ImGui::PopID();
     changed |= pc_atmosphere_page(); /* ground fog and fog volumes (atmosphere.cpp) */
+    changed |= pc_particles_page(); /* dust and particles */
     if (changed)
         pc_lights_mark_dirty();
     return changed;
@@ -441,4 +449,63 @@ extern "C" int pc_environment_rpc(const char* params_text, char* out, int size)
         + std::to_string(pc_env_hash()) + "," + rood_atmo::json() + "}";
     snprintf(out, size, "%s", s.c_str());
     return (int)s.size() < size ? 0 : -1;
+}
+
+/* ---- the sun's schema kind (editor_schema.h) ---- */
+
+extern "C" int pc_overlay_set_details_tab(const char* name) __attribute__((weak)); /* dev_overlay.cpp */
+
+void rood_env::sun_schema_kind(rood_schema::Kind& k)
+{
+    namespace rs = rood_schema;
+    using rs::Field;
+    using rs::Value;
+    k = rs::Kind();
+    k.name = "sun";
+    k.label = "Sun";
+    k.object = rood_selection::KIND_SUN;
+    k.extras = [](int i) { rood_env::sun_details_extra(i); };
+    const Sun d = Sun();
+    Field f = rs::bool_field("enabled", "Enabled", "Sun", d.enabled, "Off: no sunlight (the sky stays)");
+    f.get = [](int) { return Value::scalar(sun.enabled ? 1.0f : 0.0f); };
+    f.set = [](int, const Value& v) { sun.enabled = v.x() > 0.5f, pc_lights_mark_dirty(); };
+    k.fields.push_back(f);
+    f = rs::number_field("intensity", "Intensity", "Sun", 0, rood_env::SUN_INTENSITY_MAX, 0.01f, d.intensity, "", false, "Scale on its colour");
+    f.get = [](int) { return Value::scalar(sun.intensity); };
+    f.set = [](int, const Value& v) { sun.intensity = v.x(), pc_lights_mark_dirty(); };
+    k.fields.push_back(f);
+    f = rs::colour_field("color", "Colour", "Sun", 1, Value::vec(d.color[0], d.color[1], d.color[2]), "Linear colour");
+    f.get = [](int) { return Value::vec(sun.color[0], sun.color[1], sun.color[2]); };
+    f.set = [](int, const Value& v) {
+        for (int c = 0; c < 3; c++)
+            sun.color[c] = v.at(c);
+        pc_lights_mark_dirty();
+    };
+    k.fields.push_back(f);
+    f = rs::bool_field("shadows", "Casts shadows", "Sun", d.shadows);
+    f.get = [](int) { return Value::scalar(sun.shadows ? 1.0f : 0.0f); };
+    f.set = [](int, const Value& v) { sun.shadows = v.x() > 0.5f, pc_lights_mark_dirty(); };
+    k.fields.push_back(f);
+    f = rs::angle_field("azimuth", "Azimuth", "Direction", 0, 360, 0.5f, d.azimuth,
+        "Compass direction it shines from: 0 = from +z, 90 = from +x (drag its disc in the view)");
+    f.get = [](int) { return Value::scalar(sun.azimuth); };
+    f.set = [](int, const Value& v) { sun.azimuth = v.x(), pc_lights_mark_dirty(); };
+    k.fields.push_back(f);
+    f = rs::angle_field("elevation", "Elevation", "Direction", 0, 90, 0.5f, d.elevation, "Above the horizon");
+    f.get = [](int) { return Value::scalar(sun.elevation); };
+    f.set = [](int, const Value& v) { sun.elevation = v.x(), pc_lights_mark_dirty(); };
+    k.fields.push_back(f);
+    f = rs::angle_field("angle", "Angular size", "Direction", 0, 10, 0.01f, d.angle,
+        "Its disc's diameter: the softness of its shadows (the sun's own: 0.53)");
+    f.get = [](int) { return Value::scalar(sun.angle); };
+    f.set = [](int, const Value& v) { sun.angle = v.x(), pc_lights_mark_dirty(); };
+    k.fields.push_back(f);
+}
+void rood_env::sun_details_extra(int)
+{
+    ImGui::Spacing();
+    ImGui::TextWrapped("In the view: drag its disc across the sky dome (azimuth and elevation), its ring "
+                       "(intensity), its swatch (colour).");
+    if (ImGui::SmallButton("The sky: Atmosphere tab") && pc_overlay_set_details_tab)
+        pc_overlay_set_details_tab("atmosphere");
 }

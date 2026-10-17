@@ -102,6 +102,10 @@ bool save_user(std::string* error);
 bool entry_from_json(const prefab::Json& j, Entry& e, std::string* error);
 prefab::Json entry_to_json(const Entry& e);
 std::string catalog_text(const Catalog& c, const char* comment);
+/* The user layer as text (the editor's undo snapshots: editor_undo.cpp),
+ * and back (the layer replaced and unsaved; nothing when it is the same). */
+std::string user_text();
+void set_user_text(const std::string& text);
 
 /* Textures and the map */
 uint16_t vram_at(int x, int y);

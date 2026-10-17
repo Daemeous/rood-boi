@@ -74,3 +74,21 @@ highest `priority` wins.
 Animation is a deterministic function of time and the actor's seed (saved
 with it), so the same time always gives the same lights (RPC `actors
 {action: "sample", time}`).
+
+## Your library
+
+The editor's Library (beside the Outliner; Shift+1) lists the built-in
+prefabs, yours (`pc/user/prefabs`, `ROOD_PREFABS`: "Mine"), the fixture
+catalog's light classes, the fog presets and yours. Library > Save... makes
+one of yours from the selection: lights and light actors become one light
+prefab (replaced by an actor of it; an actor's lights baked as they are at
+rest), a single light actor a prefab with its values, a fog volume a fog
+preset in `pc/user/prefabs/fog/<id>.json` (same fields as an entry of
+`pc/assets/environment/fog_presets.json`). Your light prefabs override a
+built-in of the same id; a fog preset of yours named like a built-in one is
+skipped (rename its file). A room's fog volume that uses one of your fog
+presets still writes all of its values, so the room never depends on a file
+only your machine has. Thumbnails are rendered by the game into `pc/build/library_thumbs`
+(`ROOD_LIBRARY_THUMBS`; never committed). Right-click one of yours to
+rename it (its display name; the id that rooms name stays) or delete it
+(the file is moved aside to `<id>.json.bak`).

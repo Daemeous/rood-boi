@@ -78,6 +78,26 @@ static int selftest()
     File f;
     parse_text(format_file({ e }, "test"), f);
     check(f.version == 2 && f.entries.size() == 1 && f.entries[0].item == it, "a file round-trips (quotes too)");
+    /* An emitter (pc/src/particles.cpp; lighting/README.md "Emitters"): with an
+     * asset it keeps the asset fields it writes even at the schema's
+     * defaults (they differ from its asset's), without one they go. */
+    File ef;
+    check(parse_text("rood-lighting 2\nemitter 68ea4c1200a3f2 asset=dust_motes pos=10,-20,30 count=400 drift=1,0,0.5\n", ef)
+            && ef.entries.size() == 1 && ef.entries[0].item.kind == "emitter" && ef.entries[0].item.get("count")
+            && *ef.entries[0].item.get("drift") == "1,0,0.5",
+        "an emitter parses; with its asset, a field at the default stays (count=400)");
+    Entry ee;
+    ee.item = ef.entries[0].item;
+    ee.id = ee.item.id();
+    check(format_entry(ee) == "emitter 68ea4c1200a3f2 asset=dust_motes pos=10,-20,30 count=400 drift=1,0,0.5",
+        "and formats back the same (the schema's field order)");
+    Item bare;
+    bare.kind = "emitter", bare.name = "68ea4c1200a3f3";
+    bare.set("pos", "1,2,3"), bare.set("count", "400"), bare.set("yaw", "0"), bare.set("lit", "1");
+    canonicalize(bare);
+    check(!bare.get("count") && !bare.get("yaw") && bare.get("pos") && bare.get("lit") && preset_field("emitter", "curl")
+            && !preset_field("emitter", "pos") && known_kind("emitter"),
+        "without an asset its defaults are left out; asset fields are preset fields, its own are not");
     prefab::Actor a;
     a.id = "a1";
     a.prefab = "candle";

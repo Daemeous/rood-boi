@@ -4,7 +4,8 @@
 // actors, its settings overrides ("set" lines), glow overrides, texture
 // effect overrides, the Outliner's room group visibility and the settings
 // file's keys (graphics, post, lighting quality), the standalone schema
-// kinds' values (editor_schema.h add_kind: the menu model's light), plus the selection. They
+// kinds' values (editor_schema.h add_kind: the menu model's light), the
+// emissive user layer (emissive_internal.h user_text), plus the selection. They
 // are small (a room has tens of lights and actors), so taking one twice a
 // frame costs microseconds.
 //
@@ -45,6 +46,7 @@
 #include "room_editor.h"
 #include "room_effects.h"
 #include "environment_internal.h"
+#include "emissive_internal.h"
 #include "platform.h"
 
 extern "C" {
@@ -59,7 +61,8 @@ void pc_lighting_sync(void);
 using namespace rood_lights;
 
 namespace {
-enum Part { LIGHTS = 1, ACTORS = 2, ROOM = 4, GLOWS = 8, UV = 16, GROUPS = 32, SETTINGS = 64, ROOM_PARTS = 63, KINDS = 128 };
+enum Part { LIGHTS = 1, ACTORS = 2, ROOM = 4, GLOWS = 8, UV = 16, GROUPS = 32, SETTINGS = 64, ROOM_PARTS = 63, KINDS = 128,
+    EMISSIVE = 256 };
 
 struct Snapshot {
     std::vector<Light> lights;
@@ -71,6 +74,7 @@ struct Snapshot {
     unsigned groups_id = 0; /* the room block the groups belong to */
     std::map<std::string, std::string> settings; /* key -> the rest of its line */
     std::string kinds; /* the standalone schema kinds' values (rood_schema::standalone_state) */
+    std::string emissive; /* the emissive user layer (emissive::user_text) */
     std::vector<rood_selection::Ref> selection; /* the editor's selection (editor_selection.h) */
 };
 struct Transaction {
@@ -137,6 +141,7 @@ void capture(Snapshot& s)
     s.groups_id = id;
     parse_settings(capture_text(pc_settings_write), s.settings);
     s.kinds = rood_schema::standalone_state();
+    s.emissive = emissive::user_text();
     s.selection = rood_selection::items();
 }
 
@@ -224,6 +229,8 @@ unsigned difference(const Snapshot& a, const Snapshot& b, unsigned parts)
         d |= SETTINGS;
     if ((parts & KINDS) && a.kinds != b.kinds)
         d |= KINDS;
+    if ((parts & EMISSIVE) && a.emissive != b.emissive)
+        d |= EMISSIVE;
     return d;
 }
 
@@ -307,6 +314,8 @@ std::string describe(const Snapshot& a, const Snapshot& b, unsigned parts)
             return "Change " + keys[0];
         return "Change settings";
     }
+    if (parts & EMISSIVE)
+        return "Edit glowing surfaces";
     return "Edit";
 }
 
@@ -378,6 +387,8 @@ void apply(const Snapshot& to, unsigned parts, const Snapshot& from)
     }
     if (parts & KINDS)
         rood_schema::set_standalone_state(to.kinds);
+    if (parts & EMISSIVE)
+        emissive::set_user_text(to.emissive);
     /* The selection the state had (references to what it no longer has drop out). */
     rood_selection::set_all(to.selection, rood_selection::FROM_UNDO);
     rood_scene::refresh();
@@ -437,6 +448,14 @@ extern "C" void pc_undo_rebase(void)
         rebase = true;
 }
 
+extern "C" void pc_undo_external_emissive(void)
+{
+    std::string text = emissive::user_text();
+    base.emissive = pre_ui.emissive = text;
+    if (txn_open) /* (no unsaved emissive edit can be in it: a reload waits for a save) */
+        open_before.emissive = text;
+}
+
 extern "C" void pc_undo_frame_begin(void)
 {
     in_frame = false;
@@ -471,7 +490,7 @@ extern "C" void pc_undo_frame_end(void)
     Snapshot now;
     capture(now);
     if (!txn_open) {
-        unsigned d = difference(base, now, ROOM_PARTS) | (difference(pre_ui, now, SETTINGS | GROUPS | KINDS));
+        unsigned d = difference(base, now, ROOM_PARTS) | (difference(pre_ui, now, SETTINGS | GROUPS | KINDS | EMISSIVE));
         if (d & SETTINGS) { /* a preset settles (Custom) before the state is kept */
             pc_lighting_sync();
             capture(now);
@@ -482,6 +501,7 @@ extern "C" void pc_undo_frame_end(void)
             /* Settings (and standalone kinds) the panels did not change keep their value from now. */
             open_before.settings = pre_ui.settings;
             open_before.kinds = pre_ui.kinds;
+            open_before.emissive = pre_ui.emissive;
         }
     }
     if (txn_open && !busy())
@@ -507,7 +527,7 @@ extern "C" void pc_undo_flush(const char* name)
         return;
     Snapshot now;
     capture(now);
-    unsigned d = difference(base, now, ROOM_PARTS | KINDS);
+    unsigned d = difference(base, now, ROOM_PARTS | KINDS | EMISSIVE);
     std::string named = hint;
     if (named.empty() && d && name && describe(base, now, d) == "Edit")
         named = name; /* nothing better than the request's method */

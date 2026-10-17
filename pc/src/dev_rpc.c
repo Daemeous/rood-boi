@@ -293,7 +293,7 @@
  *                                Outliner's search field, "none")
  *   editor_ui {visible, help, tab, details}  open or close the editor (as
  *                                Esc/F1) and its Keyboard shortcuts window; tab
- *                                "outliner" or "place" (Place Actors) beside it;
+ *                                "outliner" or "library" ("place" too) beside it;
  *                                details: a Details tab by name (details,
  *                                lighting, inspector, atmosphere, post, graphics,
  *                                emissive, diagnostics); replies the states and
@@ -306,9 +306,17 @@
  *                                object with its window pixel
  *   editor_schema {action, id, values, fields}  the editor's property schema
  *                                (editor_schema.cpp): kinds, lint, get {id},
- *                                set {id, values}, reset {id, fields}; ui
+ *                                set {id, values} (a field with Use global,
+ *                                as a fog volume's disturb weights: "global",
+ *                                null or a negative number follows it; get
+ *                                replies the weight in effect), reset {id,
+ *                                fields}; ui
  *                                (Details' state: its object, fields, their
  *                                window rectangles, the value ladder)
+ *   editor_library {action, ...}  the editor's library (editor_library.cpp):
+ *                                list | filter | favourite | view | thumbs |
+ *                                save (Save as prefab) | edit_prefab |
+ *                                rename | delete | file (an entry's menu)
  *   editor_overlay {points, edges, update}  the viewport overlays' state
  *                                (room points and edges shown, the occlusion
  *                                test, the last frame's cost) and up to N
@@ -1745,6 +1753,10 @@ static void handle_method(int fd, const char* request)
         if (params && &pc_emissive && real_value(member(params, "emissive"), &real_emissive) && real_emissive >= 0
             && real_emissive <= 4)
             pc_emissive = (float)real_emissive;
+        /* Dust motes (particles.cpp: 0 off, 1 low, 2 high). */
+        extern int pc_dust __attribute__((weak));
+        if (params && &pc_dust && number_value(member(params, "dust"), &n) && n >= 0 && n <= 2)
+            pc_dust = (int)n;
         int used = snprintf(result, sizeof result,
             "{\"hardware\":%s,\"scale\":%d,\"filter\":%d,\"aspect\":%d,\"widescreen\":%s,\"widescreen_scene\":%d,"
             "\"perspective\":%s,\"show_depth\":%s,\"native_room\":%d,\"native_occlusion\":%s,"
@@ -1771,6 +1783,8 @@ static void handle_method(int fd, const char* request)
             &pc_nrd_glow && pc_nrd_glow ? "true" : "false");
         if (&pc_emissive && used < (int)sizeof result - 64)
             used += snprintf(result + used - 1, sizeof result - used + 1, ",\"emissive\":%g}", (double)pc_emissive) - 1;
+        if (&pc_dust && used < (int)sizeof result - 64)
+            used += snprintf(result + used - 1, sizeof result - used + 1, ",\"dust\":%d}", pc_dust) - 1;
         extern int pc_hw_menu_studio __attribute__((weak)); /* gpu_hw.c */
         if (&pc_hw_menu_studio) {
             if (params && bool_value(member(params, "menu_studio"), &flag))
@@ -2530,7 +2544,7 @@ static void handle_method(int fd, const char* request)
             bool_value(member(params, "visible"), &flag);
             bool_value(member(params, "help"), &help);
             if (string_value(member(params, "tab"), tab_name, sizeof tab_name))
-                tab = !strcmp(tab_name, "place") ? 1 : 0;
+                tab = !strcmp(tab_name, "place") || !strcmp(tab_name, "library") ? 1 : 0;
             /* details: a Details tab (lighting, inspector, atmosphere, post, graphics, diagnostics) */
             if (string_value(member(params, "details"), tab_name, sizeof tab_name) && pc_overlay_set_details_tab
                 && !pc_overlay_set_details_tab(tab_name)) {
@@ -2550,10 +2564,10 @@ static void handle_method(int fd, const char* request)
         int shown = pc_overlay_set_tab ? pc_overlay_set_tab(tab) : 0;
         snprintf(result, sizeof result, "{\"visible\":%s,\"help\":%s,\"tab\":\"%s\",\"details\":\"%s\"}",
             open ? "true" : "false", pc_overlay_set_help && pc_overlay_set_help(help) ? "true" : "false",
-            shown ? "place" : "outliner", pc_overlay_details_tab ? pc_overlay_details_tab() : "");
+            shown ? "library" : "outliner", pc_overlay_details_tab ? pc_overlay_details_tab() : "");
         reply(fd, id, result);
     } else if (!strcmp(method, "editor_select") || !strcmp(method, "editor_schema") || !strcmp(method, "editor_transform")
-        || !strcmp(method, "editor_handles")) {
+        || !strcmp(method, "editor_handles") || !strcmp(method, "editor_library")) {
         /* The editor's selection (editor_scene.cpp), property schema
          * (editor_schema.cpp) and transform tools (lights.cpp); they parse the
          * params object themselves. */
@@ -2561,9 +2575,11 @@ static void handle_method(int fd, const char* request)
         extern int pc_editor_schema_rpc(const char*, char*, int) __attribute__((weak));
         extern int pc_editor_transform_rpc(const char*, char*, int) __attribute__((weak));
         extern int pc_editor_handles_rpc(const char*, char*, int) __attribute__((weak));
+        extern int pc_editor_library_rpc(const char*, char*, int) __attribute__((weak));
         int (*handler)(const char*, char*, int) = !strcmp(method, "editor_select") ? pc_editor_select_rpc
             : !strcmp(method, "editor_schema")                                     ? pc_editor_schema_rpc
             : !strcmp(method, "editor_transform")                                  ? pc_editor_transform_rpc
+            : !strcmp(method, "editor_library")                                    ? pc_editor_library_rpc
                                                                                    : pc_editor_handles_rpc;
         if (!handler) {
             fail(fd, id, -32000, "needs the editor");
@@ -3066,6 +3082,26 @@ static void handle_method(int fd, const char* request)
             return;
         }
         reply(fd, id, result);
+    } else if (!strcmp(method, "particles")) {
+        /* The port's particle system (particles.cpp): settings, emitters, motes. */
+        extern int pc_particles_rpc(const char* params, char* out, int size) __attribute__((weak));
+        if (!pc_particles_rpc) {
+            fail(fd, id, -32000, "particles needs the editor (hardware renderer)");
+            return;
+        }
+        static char args[LINE_MAX_BYTES];
+        const char* end = params ? value_end(params) : NULL;
+        if (params && end && (size_t)(end - params) < sizeof args) {
+            memcpy(args, params, (size_t)(end - params));
+            args[end - params] = 0;
+        } else {
+            strcpy(args, "{}");
+        }
+        if (pc_particles_rpc(args, result, sizeof result) < 0) {
+            fail(fd, id, -32000, result);
+            return;
+        }
+        reply(fd, id, result);
     } else if (!strcmp(method, "editor_undo")) {
         /* The editor's undo history (editor_undo.h): undo, redo (steps
          * times), list, begin/end (hold one transaction open across
@@ -3390,10 +3426,18 @@ static int edits(const char* method, const char* request)
 {
     if (!strcmp(method, "actors") || !strcmp(method, "glows") || !strcmp(method, "editor_place")
         || !strcmp(method, "room_groups") || !strcmp(method, "uv_effects") || !strcmp(method, "lights")
-        || !strcmp(method, "environment") || !strcmp(method, "editor_select")
+        || !strcmp(method, "environment") || !strcmp(method, "particles") || !strcmp(method, "editor_select")
         || !strcmp(method, "editor_schema") || !strcmp(method, "editor_transform")
-        || !strcmp(method, "editor_handles"))
+        || !strcmp(method, "editor_handles") || !strcmp(method, "editor_library"))
         return 1;
+    if (!strcmp(method, "emissive")) { /* edits of the user layer; the rest read, pick, save, reload or paint maps */
+        const char* p = member(request, "params");
+        char action[32] = "";
+        if (p)
+            string_value(member(p, "action"), action, sizeof action);
+        return !strcmp(action, "set") || !strcmp(action, "new") || !strcmp(action, "remove")
+            || !strcmp(action, "duplicate") || !strcmp(action, "scope_pick");
+    }
     if (!strcmp(method, "lighting")) { /* revert edits the room; the rest load or save it */
         const char* p = member(request, "params");
         char action[32] = "";

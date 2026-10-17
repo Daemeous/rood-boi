@@ -29,6 +29,12 @@ a candle, a fog volume). Sections:
 - multi: with several objects of one kind selected, a shared field goes to
   each, the position to the edited one only, and a vec3 component dragged
   on the ladder leaves the others' other components alone;
+- sun: the room's sun is a schema kind (env:sun): get / set / reset its
+  fields (clamped), one undo step each; the environment RPC follows;
+  Details draws its fields;
+- reload: a prefab kind taken before the prefab library reloads in the same
+  frame still reads (its old fields, retired until the next frame); after a
+  frame the kind is the reloaded one;
 - standalone: a kind registered with add_kind and no scene object, the
   menu model's studio light (ui/menu_light_kind.cpp): RPC editor_schema
   {kind} gets / sets / resets it (clamped; one undo step, undo and redo put
@@ -47,7 +53,7 @@ sys.path.insert(0, str(ROOT / "pc/tests"))
 from rood_rpc import RpcError  # noqa: E402
 from editor_selection_smoke import VOLUME, centre, finish, pinned_card, start  # noqa: E402
 
-EXPECTED_KINDS = {"point", "spot", "rect", "fog", "actor:candle", "actor:torch", "menu_model_light"}
+EXPECTED_KINDS = {"point", "spot", "rect", "fog", "sun", "actor:candle", "actor:torch", "menu_model_light", "emitter", "particles"}
 
 
 def schema(s, **params):
@@ -168,6 +174,34 @@ def check_fog(s):
     s.check(schema(s, action="get", id=s.volume)["fields"]["density"]["overridden"], "a changed preset field is overridden")
     schema(s, action="reset", id=s.volume, fields=["density"])
     s.check(close(value(s, s.volume, "density"), 0.012), "reset with a preset: the preset's value")
+    # The disturb weights: "Use global" (the volume follows the global weight) or its own.
+    f = schema(s, action="get", id=s.volume)["fields"]
+    glob = g.call("environment")["disturb"]["player"]
+    s.check(f["disturb_player"]["global"] is True and close(f["disturb_player"]["value"], glob),
+            f"a weight left global: the box ticked, the global weight shown ({f['disturb_player']})")
+    schema(s, action="set", id=s.volume, values={"disturb_player": 0.25})
+    v = next(x for x in g.call("environment")["volumes"] if x["id"] == VOLUME)
+    s.check(close(v["disturb_player"], 0.25) and schema(s, action="get", id=s.volume)["fields"]["disturb_player"]["global"]
+            is False, "a value of its own unticks it")
+    schema(s, action="set", id=s.volume, values={"disturb_player": "global"})
+    v = next(x for x in g.call("environment")["volumes"] if x["id"] == VOLUME)
+    s.check(close(v["disturb_player"], -1) and s.history()["undo"] == "Use global Ashley",
+            f"\"global\" ticks it again (-1 in the data; {s.history()['undo']!r})")
+    schema(s, action="set", id=s.volume, values={"disturb_player": 0.25})
+    schema(s, action="set", id=s.volume, values={"disturb_player": -1})
+    s.check(schema(s, action="get", id=s.volume)["fields"]["disturb_player"]["global"] is True,
+            "a negative weight (the old -1) also means Use global, not 0")
+    kinds = {k["name"]: k for k in schema(s, action="kinds")["kinds"]}
+    weight = next(x for x in kinds["fog"]["fields"] if x["name"] == "disturb_player")
+    s.check(weight["min"] == 0 and weight["max"] == 2, f"the weights' range is 0..2 ({weight['min']}..{weight['max']})")
+    # Every group's reset goes to the preset: one field per group, changed then reset.
+    g.call("environment", volumes=[{"id": VOLUME, "preset": "ankle_mist"}])
+    for field, changed_to in (("density", 0.03), ("brightness", 2.5), ("sim_trail", 2.5), ("shadow", 1.5)):
+        base = value(s, s.volume, field)
+        schema(s, action="set", id=s.volume, values={field: changed_to})
+        schema(s, action="reset", id=s.volume, fields=[field])
+        s.check(close(value(s, s.volume, field), base), f"reset on {field} restores the preset's {base}")
+    g.call("environment", volumes=[{"id": VOLUME, "preset": ""}])
     g.call("environment", volumes=[{"id": VOLUME, "preset": "", "size": [160, 128, 160], "shape": "box", "yaw": 0}])
 
 
@@ -186,6 +220,23 @@ def check_details(s):
     ui = schema(s, action="ui")
     s.check(ui["subject"] == s.volume and "density" in ui["fields"] and "opacity" not in ui["fields"],
             f"a fog volume: Basics open, Look closed at first ({ui['fields']})")
+    cats = [(c["name"], c["open"]) for c in ui["categories"]]
+    s.check(cats == [("Basics", True), ("Look", False), ("Motion & interaction", False), ("Advanced", False),
+                     ("Transform", True)] and ui["header"],
+            f"a fog volume's groups in order, Basics and Transform open, its preset row first ({cats}, header {ui['header']})")
+    schema(s, action="ui", search="ashley")
+    g.run(3)
+    ui = schema(s, action="ui")
+    box = ui["rects"].get("disturb_player.global")
+    if s.check(box is not None, f"the weight's Use global box ({sorted(ui['rects'])})"):
+        done = s.history()["done"]
+        s.click(centre(box))
+        f = schema(s, action="get", id=s.volume)["fields"]["disturb_player"]
+        s.check(f["global"] is False and s.history()["done"] == done + 1 and s.history()["undo"] == "Edit Ashley",
+                f"unticking it: its own weight (from the global one), one undo step ({f}, {s.history()['undo']!r})")
+        s.click(centre(box))
+        s.check(schema(s, action="get", id=s.volume)["fields"]["disturb_player"]["global"] is True, "ticking it: global again")
+    schema(s, action="ui", search="")
     s.select(action="set", ids=[s.actor])
     g.run(4)
     ui = schema(s, action="ui")
@@ -272,6 +323,29 @@ def check_ladder(s):
     s.mouse([c[0] + notch * 3.5, c[1]], button=2, down=False)
     s.check(close(mid, 1.53) and close(value(s, s.light, "intensity"), 1.5) and state["visible"]
             and s.history()["done"] == done, f"Escape cancels: the value back, the editor open, no undo step ({mid})")
+    # The editor closing mid-drag (Escape, F1, RPC) ends the ladder: its value stays, its undo step closes.
+    s.select(action="set", ids=[s.light])
+    g.call("editor_ui", details="details")
+    g.run(4)
+    rect = schema(s, action="ui")["rects"]["intensity"]
+    start = centre(rect)
+    before = value(s, s.light, "intensity")
+    done = s.history()["done"]
+    s.mouse(start, button=2, down=True)
+    s.mouse([start[0] + notch * 5.5, start[1]], button=2, down=True)
+    mid = value(s, s.light, "intensity")
+    g.call("editor_ui", visible=False)
+    g.run(3)
+    undo = g.call("editor_undo", action="list")
+    s.mouse([start[0] + notch * 5.5, start[1]], button=2, down=False)
+    g.call("editor_ui", visible=True)
+    g.run(4)
+    s.check(not close(mid, before) and close(value(s, s.light, "intensity"), mid) and undo["hold"] == 0
+            and not undo["open"] and undo["done"] == done + 1 and undo["undo"] == "Edit Intensity"
+            and not schema(s, action="ui")["ladder"]["active"],
+            f"closing the editor mid-ladder keeps {mid} and closes its undo step (hold {undo['hold']}, "
+            f"open {undo['open']}, {undo.get('undo')!r})")
+    g.call("editor_undo", action="undo")
 
 
 def check_multi(s):
@@ -295,6 +369,7 @@ def check_multi(s):
     schema(s, action="set", id=dup, values={"size": [300, 50, 200]})
     s.select(action="set", ids=[dup, s.volume])
     g.call("editor_ui", details="details")
+    schema(s, action="ui", search="size")  # Transform is the last group: the search brings Size on screen
     g.run(4)
     rects = schema(s, action="ui")["rects"]
     if s.check("size.x" in rects, f"Details shows the volume's size ({sorted(rects)[:8]})"):
@@ -306,6 +381,28 @@ def check_multi(s):
         a, b = value(s, s.volume, "size"), value(s, dup, "size")
         s.check(close(a, [163, 128, 160]) and close(b, [163, 50, 200]),
                 f"the ladder on size x: x to both, y and z each their own ({a}, {b})")
+    # Escape on the ladder over a weight: another selected volume left on Use global stays on it.
+    s.select(action="clear")  # an edit goes to every selected volume: one at a time here
+    schema(s, action="set", id=dup, values={"disturb_player": 0.5})
+    schema(s, action="set", id=s.volume, values={"disturb_player": "global"})
+    s.select(action="set", ids=[s.volume, dup])  # dup is the primary (its own weight: the slider is live)
+    schema(s, action="ui", search="ashley")
+    g.run(4)
+    rects = schema(s, action="ui")["rects"]
+    if s.check("disturb_player" in rects, f"Details shows the weight ({sorted(rects)[:8]})"):
+        c = centre(rects["disturb_player"])
+        done = s.history()["done"]
+        s.mouse(c, button=2, down=True)
+        notch = schema(s, action="ui")["ladder"]["notch"]
+        s.mouse([c[0] + notch * 3.5, c[1]], button=2, down=True)
+        s.keys(["escape"])
+        s.mouse([c[0] + notch * 3.5, c[1]], button=2, down=False)
+        fa = schema(s, action="get", id=s.volume)["fields"]["disturb_player"]
+        fb = schema(s, action="get", id=dup)["fields"]["disturb_player"]
+        s.check(fa["global"] is True and fb["global"] is False and close(fb["value"], 0.5)
+                and s.history()["done"] == done,
+                f"Escape: the other volume still on Use global, the primary back to 0.5, no undo step ({fa}, {fb})")
+    schema(s, action="ui", search="")
     s.select(action="set", ids=[other, dup])
     s.select(action="delete")
     schema(s, action="reset", id=s.light, fields=["intensity"])
@@ -385,8 +482,48 @@ def check_standalone(s):
     schema(s, action="reset", kind=MENU_LIGHT)
 
 
+def check_sun(s):
+    g = s.game
+    g.call("environment", sun={"enabled": True, "azimuth": 180, "elevation": 30, "intensity": 1, "color": [1, 1, 1]})
+    g.run(2)
+    got = schema(s, action="get", id="env:sun")
+    f = got["fields"]
+    s.check(got["kind"] == "sun" and {"enabled", "azimuth", "elevation", "color", "intensity", "angle", "shadows"} <= set(f)
+            and close(f["elevation"]["value"], 30), f"the sun's fields ({sorted(f)})")
+    done = s.history()["done"]
+    schema(s, action="set", id="env:sun", values={"elevation": 60, "intensity": 99})
+    sun = g.call("environment")["sun"]
+    s.check(close(sun["elevation"], 60) and sun["intensity"] <= 8 and s.history()["done"] == done + 1,
+            f"set reaches the sun, clamped, one undo step ({sun}, {s.history()['undo']!r})")
+    g.call("editor_undo", action="undo")
+    s.check(close(g.call("environment")["sun"]["elevation"], 30), "undo puts it back")
+    schema(s, action="set", id="env:sun", values={"angle": 2})
+    schema(s, action="reset", id="env:sun", fields=["angle"])
+    s.check(close(value(s, "env:sun", "angle"), 0.53) and s.history()["undo"] == "Reset Angular size",
+            f"reset: the default ({s.history()['undo']!r})")
+    s.select(action="set", ids=["env:sun"])
+    g.call("editor_ui", details="details")
+    g.run(4)
+    ui = schema(s, action="ui")
+    s.check(ui["subject"] == "env:sun" and ui["kind"] == "sun" and "azimuth" in ui["fields"],
+            f"Details draws the sun's fields ({ui.get('fields')})")
+    g.call("environment", remove="sun")
+    s.select(action="clear")
+
+
+def check_reload(s):
+    """A Kind* held across a prefab library reload stays valid until the next frame (editor_schema.cpp collect)."""
+    g = s.game
+    r = schema(s, action="reload_probe", prefab="candle")
+    s.check(r["kept"] and r["name"] == "actor:candle" and r["fields_before"] == r["fields_after"] and r["retired"] >= 1,
+            f"the old kind still reads after the reload, retired ({r})")
+    g.run(2)
+    r2 = schema(s, action="reload_probe", prefab="candle", reload=False)
+    s.check(r2["retired"] == 0 and r2["kept"], f"a frame later the retired kinds are gone ({r2})")
+
+
 SECTIONS = [check_lint, check_lights, check_actors, check_fog, check_details, check_search_lock, check_ladder, check_multi,
-            check_standalone]
+            check_sun, check_reload, check_standalone]
 
 
 def main():

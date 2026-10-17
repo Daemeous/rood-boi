@@ -13,6 +13,7 @@
 #include "environment_internal.h"
 #include "lighting_layers.h"
 #include "lights_internal.h"
+#include "particles_internal.h"
 
 using rood_selection::Ref;
 using namespace rood_lights;
@@ -33,6 +34,7 @@ std::string rood_scene::copy_text()
         lighting::Entry e;
         e.item = r.kind == rood_selection::KIND_LIGHT ? lighting::item_from_light(lights[i])
             : r.kind == rood_selection::KIND_ACTOR    ? lighting::item_from_actor(actors[i])
+            : r.kind == rood_selection::KIND_EMITTER  ? rood_particles::emitter_item(i)
                                                        : rood_atmo::volume_item(i);
         e.id = e.item.id();
         text += lighting::format_entry(e) + "\n";
@@ -44,7 +46,7 @@ int rood_scene::copy_selection()
 {
     std::string text = copy_text();
     if (text.empty()) {
-        snprintf(status, sizeof status, "Copy: select lights, light actors or fog volumes (glows come from the game)");
+        snprintf(status, sizeof status, "Copy: select lights, light actors, fog volumes or emitters (glows come from the game)");
         return 0;
     }
     held = text;
@@ -92,10 +94,14 @@ int rood_scene::paste_text(const std::string& text, const float offset[3], const
             int i = rood_atmo::add_volume_item(e.item, offset);
             if (i >= 0)
                 added.push_back(volume_ref(i));
+        } else if (e.item.kind == "emitter") {
+            int i = rood_particles::add_emitter_item(e.item, offset);
+            if (i >= 0)
+                added.push_back(emitter_ref(i));
         }
     }
     if (added.empty()) {
-        snprintf(status, sizeof status, "%s: no lights, light actors or fog volumes in it", verb);
+        snprintf(status, sizeof status, "%s: no lights, light actors, fog volumes or emitters in it", verb);
         return 0;
     }
     rood_selection::set_all(added, rood_selection::FROM_CODE);

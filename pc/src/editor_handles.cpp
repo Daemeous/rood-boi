@@ -13,6 +13,7 @@
 #include "ImGuizmo.h"
 #include "editor_math.h"
 #include "editor_colour.h"
+#include "editor_fit_window.h"
 #include "editor_picking.h"
 #include "editor_scene.h"
 #include "editor_schema.h"
@@ -42,6 +43,11 @@ Ref aim_target; /* a spot waiting for the click that aims it */
 pc_overlay_pick aim_pick;
 
 int frame_now() { return ImGui::GetCurrentContext() ? ImGui::GetFrameCount() : -1; }
+const rood_schema::Field* field_of(const Ref& r, const std::string& name, int* index)
+{
+    const rood_schema::Kind* k = rood_schema::kind_of(r, index);
+    return k ? k->field(name) : nullptr;
+}
 const char* shape_name(rood_handles::Shape s)
 {
     static const char* const names[] = { "dot", "ring", "square", "toggle", "cross", "disc" };
@@ -77,6 +83,13 @@ const char* build(const pc_overlay_view& v, std::vector<Handle>& out, Ref* who)
         rood_handles::light_handles(v, p, i, out);
         return nullptr;
     }
+    if (p.kind == rood_selection::KIND_VOLUME) {
+        int i = rood_scene::index_of(p);
+        if (i < 0)
+            return "nothing";
+        rood_handles::volume_handles(v, p, i, out);
+        return nullptr;
+    }
     if (p.kind == rood_selection::KIND_SUN && rood_env::sun_state().defined) {
         rood_handles::sun_handles(v, out);
         return nullptr;
@@ -90,6 +103,16 @@ void restore(const Active& a)
         rood_lights::lights[i] = a.drag.light;
     else if (a.subject.kind == rood_selection::KIND_SUN)
         rood_env::set_sun_state(a.drag.sun);
+    else if (a.subject.kind == rood_selection::KIND_VOLUME && i >= 0) {
+        for (const auto& f : a.drag.fields) {
+            int index;
+            /* only what changed: a disturb weight's get gives the global weight, set would make it its own */
+            const rood_schema::Field* field = field_of(a.subject, f.first, &index);
+            if (field && !rood_schema::same(*field, field->get(index), f.second))
+                field->set(index, f.second);
+        }
+        rood_lights::dirty = true;
+    }
 }
 void end(bool keep)
 {
@@ -155,6 +178,8 @@ bool rood_handles::frame(const pc_overlay_view& v, pc_overlay_pick pick, void* d
     }
     if (subject.kind == rood_selection::KIND_LIGHT)
         light_extras(v, rood_scene::index_of(subject), draw);
+    if (subject.kind == rood_selection::KIND_VOLUME)
+        volume_extras(v, rood_scene::index_of(subject), draw);
     float mx = io.MousePos.x, my = io.MousePos.y;
     if (active.on) {
         const Handle* h = find(active.name);
@@ -214,11 +239,23 @@ bool rood_handles::frame(const pc_overlay_view& v, pc_overlay_pick pick, void* d
         if (subject.kind == rood_selection::KIND_LIGHT && i >= 0)
             d.light = rood_lights::lights[i];
         d.sun = rood_env::sun_state();
+        d.fields.clear();
+        int vi;
+        const rood_schema::Kind* vk = subject.kind == rood_selection::KIND_VOLUME ? rood_schema::kind_of(subject, &vi) : nullptr;
+        for (size_t f = 0; vk && f < vk->fields.size(); f++)
+            d.fields.push_back({ vk->fields[f].name, vk->fields[f].get(vi) });
         pc_undo_begin(("Edit " + h.label).c_str()); /* the whole drag is one undo step */
     }
     return true;
 }
 bool rood_handles::dragging() { return active.on; }
+prefab::Value rood_handles::Drag::field(const char* name) const
+{
+    for (const auto& f : fields)
+        if (f.first == name)
+            return f.second;
+    return prefab::Value();
+}
 const char* rood_handles::hot()
 {
     if (active.on)
@@ -245,6 +282,11 @@ bool rood_handles::cancel()
         return true;
     }
     return false;
+}
+void rood_handles::finish()
+{
+    end(true);
+    aim_target = Ref();
 }
 void rood_handles::arm_aim(const Ref& r) { aim_target = r; }
 bool rood_handles::viewport_click(float x, float y)
@@ -310,7 +352,8 @@ std::string rood_handles::state_json()
     s += "],\"drag\":{\"active\":" + std::string(active.on ? "true" : "false") + ",\"handle\":"
         + (active.on ? q(active.name) : std::string("null")) + ",\"moved\":" + (active.moved ? "true" : "false")
         + ",\"readout\":" + (h && h->readout ? q(h->readout()) : std::string("null")) + "},\"aim\":"
-        + (aim_target ? q(aim_target.id) : std::string("null")) + ",\"colour\":" + rood_colour::state_json() + "}";
+        + (aim_target ? q(aim_target.id) : std::string("null")) + ",\"fit\":" + rood_fit::state_json()
+        + ",\"colour\":" + rood_colour::state_json() + "}";
     return s;
 }
 
@@ -321,7 +364,9 @@ std::string rood_handles::state_json()
  * readout) and the spot waiting to be aimed; where {handle, value}: the
  * window pixel to drag the handle to for that value (the sun's: [azimuth,
  * elevation]); colour {open, tab, kelvin, tint, hex, rgb, palette, recent}:
- * the colour popover (editor_colour.h). */
+ * the colour popover (editor_colour.h); fit_window {x, y | u, v, id, new,
+ * offset, kelvin}: fit a rect light to the pane there now; fit_arm {id,
+ * new}: the next click in the view does (editor_fit_window.h). */
 extern "C" int pc_editor_handles_rpc(const char* params_text, char* out, int size)
 {
     prefab::Json params;
@@ -341,7 +386,7 @@ extern "C" int pc_editor_handles_rpc(const char* params_text, char* out, int siz
         std::vector<Handle> hs;
         Ref who;
         if (!name || !value || !pc_lights_tools_view(&v, nullptr) || build(v, hs, &who)) {
-            snprintf(out, size, "where needs handle and value, an editor view and a light or the sun selected");
+            snprintf(out, size, "where needs handle and value, an editor view and a light, the sun or a fog volume selected");
             return -1;
         }
         const Handle* h = nullptr;
@@ -370,10 +415,46 @@ extern "C" int pc_editor_handles_rpc(const char* params_text, char* out, int siz
             return -1;
         }
         text = rood_handles::state_json();
+    } else if (action == "fit_window" || action == "fit_arm") {
+        /* offset, kelvin: the tool's settings; fit_window {x, y | u, v}: fit there now; fit_arm: the next click.
+         * The light: id, else (new: true) a new one, else the selection's primary when it is a rect light. */
+        if (const prefab::Json* o = params.get("offset"))
+            rood_fit::offset = fminf(fmaxf((float)o->number, 0.0f), 32.0f);
+        if (const prefab::Json* k = params.get("kelvin"))
+            rood_fit::kelvin = fminf(fmaxf((float)k->number, 1500.0f), 12000.0f);
+        Ref light;
+        const prefab::Json* fresh = params.get("new");
+        if (const prefab::Json* id = params.get("id"))
+            light = rood_selection::ref_of(id->string);
+        else if (!(fresh && fresh->boolean)) {
+            Ref p = rood_selection::primary();
+            int i = rood_scene::index_of(p);
+            if (p.kind == rood_selection::KIND_LIGHT && i >= 0 && rood_lights::lights[i].type == 2)
+                light = p;
+        }
+        int index = -1;
+        std::string message;
+        const prefab::Json *x = params.get("x"), *y = params.get("y"), *u = params.get("u"), *w = params.get("v");
+        if (action == "fit_arm") {
+            rood_fit::arm(light);
+        } else if ((x && y) || (u && w)) {
+            float px = x ? (float)x->number : 0, py = y ? (float)y->number : 0;
+            pc_overlay_view v;
+            if (!x && pc_lights_tools_view(&v, nullptr))
+                px = v.rect[0] + (float)u->number * v.rect[2], py = v.rect[1] + (float)w->number * v.rect[3];
+            index = rood_fit::fit_at(px, py, light, &message);
+            if (index < 0) {
+                snprintf(out, size, "%s", message.c_str());
+                return -1;
+            }
+        }
+        text = "{\"index\":" + std::to_string(index) + ",\"light\":"
+            + (index >= 0 ? prefab::json_quote(rood_scene::light_ref(index).id) : std::string("null")) + ",\"message\":"
+            + prefab::json_quote(message) + ",\"fit\":" + rood_fit::state_json() + "}";
     } else if (action == "state") {
         text = rood_handles::state_json();
     } else {
-        snprintf(out, size, "action: state, where or colour");
+        snprintf(out, size, "action: state, where, colour, fit_window or fit_arm");
         return -1;
     }
     snprintf(out, size, "%s", text.c_str());

@@ -42,7 +42,7 @@ layout(std140, binding = 0) uniform Present {
     vec4 env_sun_tile;
     // The room's medium for the unshadowed haze (haze Low; quality0.x 1):
     // the uniform haze, the ground fog, the fog volumes (medium.glsl).
-    vec4 medium_[165];
+    vec4 medium_[166];
     // The fog volumes' own renderer (vk_fogvol.inc): its image's size, on, the debug view (1 their
     // light alone, 2 their transmittance); its pixels per display pixel.
     ivec4 fogvol;
@@ -52,8 +52,12 @@ layout(std140, binding = 0) uniform Present {
     vec4 backdrop_color;
     ivec4 backdrop; // y: the model view's studio light (menu_studio.glsl)
     vec4 studio_[9]; // its rig (ui/menu_light.h pc_menu_light_pack: PC_MENU_LIGHT_VEC4S)
+    ivec4 particles_; // the particles (vk_particles.inc): on, the display's size in game pixels
 } u;
 layout(binding = 20) uniform sampler2D backdrop_tex;
+layout(binding = 21) uniform usampler2D particle_keys; // the particles' key image (particles.glsl)
+layout(binding = 22) uniform sampler2D particle_colours;
+#include "particles.glsl"
 #define MEDIUM(i) u.medium_[i]
 layout(binding = 17) uniform sampler3D medium_tex; // the medium's texture (atmosphere.h pc_medium_texture)
 #define MEDIUM_TEX medium_tex
@@ -348,6 +352,14 @@ vec3 hazed(vec3 c, ivec2 q, float d) {
     vec4 h = haze_at((vec2(q) + 0.5) / float(scale) - vec2(rect.xy), d * 65536.0);
     return any(isnan(h)) ? c : c * clamp(h.a, 0.0, 1.0) + max(h.rgb, vec3(0.0));
 }
+// A void pixel's haze (medium.glsl medium_void_pixel): the traced haze's froxels, else haze Low, only
+// over the share `reach` of its ray (medium_void_reach) that crosses the room's interior.
+vec3 void_haze(vec3 c, ivec2 q, float d, float reach) {
+    if (reach <= 0.0) return c;
+    if (u.haze_grid.w != 0) return hazed(c, q, d * reach);
+    if (u.quality0.x > 0.0) return low_haze(c, mix(inverse_rotation() * -camera_translation, world_at(q, d * 65536.0), reach));
+    return c;
+}
 // The fog volumes between the eye and view depth z at display position
 // `display`: their march image (a lower resolution) upsampled with a joint
 // bilateral filter (the 2 x 2 march pixels around, weighted bilinearly and
@@ -379,17 +391,29 @@ vec3 fogvol_apply(vec3 c, ivec2 q, float d) {
 }
 void main() {
     float d = depth_at(uv);
+    // The void around the room (medium.glsl medium_void_pixel): the room's haze and ground fog only up to
+    // where the ray leaves the interior (none past a cut-away wall; all of it in front of a black doorway).
+    bool void_px = medium_void_pixel(d, texelFetch(shade_tex, texel(uv), 0));
+    float reach = void_px && d < 1.0 && d * 65536.0 >= 0.5
+        ? medium_void_reach(inverse_rotation() * -camera_translation, world_at(texel(uv), d * 65536.0)) : 0.0;
     if (u.fogvol.w != 0) { // fog_volume_debug: 1 the volumes' light alone, 2 their transmittance
         bool ui_ = d * 65536.0 < 0.5;
         vec4 f = ui_ || u.fogvol.z == 0 ? vec4(0.0, 0.0, 0.0, 1.0) : fogvol_at((vec2(texel(uv)) + 0.5) / float(scale) - vec2(rect.xy), d >= 1.0 ? 1e6 : d * 65536.0);
         color = vec4(u.fogvol.w == 2 ? vec3(clamp(f.a, 0.0, 1.0)) : min(f.rgb, vec3(1.0)), ui_ ? 9999.0 : 0.0);
         return;
     }
-    bool haze_done = false, fogvol_done = false;
-    if (u.quality1.z != 0) { // haze_debug: the haze's light alone (over black; the far plane where nothing is drawn)
+    bool haze_done = false, fogvol_done = false, particles_done = false;
+    if (u.quality1.z != 0) { // haze_debug 1: the haze's light alone (over black); 2: where the room's air is
         bool ui_ = d * 65536.0 < 0.5;
+        if (u.quality1.z == 2) { // red: a void pixel; green: the room's interior at the surface (medium_interior);
+                                 // blue: a void pixel's reach (the share of its ray that keeps the room's air)
+            float inside = !ui_ && d < 1.0 ? medium_interior(world_at(texel(uv), d * 65536.0)) : 0.0;
+            color = vec4(!ui_ && void_px ? 1.0 : 0.0, inside, !ui_ && void_px ? reach : 0.0, ui_ ? 9999.0 : 0.0);
+            return;
+        }
         vec3 hz = vec3(0.0);
-        if (!ui_ && u.haze_grid.w != 0) hz = hazed(vec3(0.0), texel(uv), min(d, 1.0));
+        if (!ui_ && void_px) hz = void_haze(vec3(0.0), texel(uv), min(d, 1.0), reach);
+        else if (!ui_ && u.haze_grid.w != 0) hz = hazed(vec3(0.0), texel(uv), min(d, 1.0));
         else if (!ui_ && u.quality0.x > 0.0) hz = low_haze(vec3(0.0), world_at(texel(uv), min(d, 0.999) * 65536.0));
         if (!ui_ && u.fogvol.z != 0) hz += fogvol_apply(vec3(0.0), texel(uv), d);
         color = vec4(min(hz, vec3(1.0)), ui_ ? 9999.0 : 0.0);
@@ -424,7 +448,7 @@ void main() {
             if (em_px) c = max(c, em);
             else if ((post & 8) == 0) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c));
             if (any(isnan(c)) || any(isinf(c))) c = base(uv);
-            lit_done = haze_done = fogvol_done = true;
+            lit_done = haze_done = fogvol_done = particles_done = true;
         }
     }
     if (!lit_done && (light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || u.quality1.y != 0 || u.env_mode.z != 0) && view_mode != 1) {
@@ -490,8 +514,13 @@ void main() {
             c = c * baked * baked_vis * ao + albedo * sum;
             if (em_px) c = max(c, em);
             lit_done = true;
+            if (u.particles_.x != 0 && view_mode == 0) { // the motes in front of it, before the fog and haze
+                c += particles_at(particle_keys, particle_colours, u.particles_.yz, uv, d);
+                particles_done = true;
+            }
             if (u.fogvol.z != 0) { c = fogvol_apply(c, q, d); fogvol_done = true; }
-            if (u.haze_grid.w != 0) { c = hazed(c, q, d); haze_done = true; }
+            if (void_px) { c = void_haze(c, q, d, reach); haze_done = true; } // the void: clean darkness, as on the PS1
+            else if (u.haze_grid.w != 0) { c = hazed(c, q, d); haze_done = true; }
             else if (u.quality0.x > 0.0) { c = low_haze(c, world); haze_done = true; }
             // Soft shoulder above 0.8 instead of clipping at white (lit pixels only).
             if ((post & 8) == 0 && !em_px) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c)); // 8: HDR out
@@ -507,9 +536,12 @@ void main() {
     // Unlit 3D pixels (effects, particles, glows) get the same haze as their
     // neighbours: no dark cut-outs around them. The fog volumes also cover
     // where nothing is drawn (their far side).
+    if (u.particles_.x != 0 && !particles_done && view_mode == 0) // unlit pixels, and where nothing is drawn
+        c += particles_at(particle_keys, particle_colours, u.particles_.yz, uv, d);
     if (u.fogvol.z != 0 && !fogvol_done && !ui && view_mode != 1) c = fogvol_apply(c, texel(uv), d);
-    if (u.haze_grid.w != 0 && !haze_done && !ui && d < 1.0 && view_mode != 1) c = hazed(c, texel(uv), d);
-    else if (u.quality0.x > 0.0 && !haze_done && !ui && d < 1.0 && view_mode != 1)
+    if (void_px && !haze_done && !ui && d < 1.0 && view_mode != 1) c = void_haze(c, texel(uv), d, reach);
+    else if (u.haze_grid.w != 0 && !haze_done && !ui && !void_px && d < 1.0 && view_mode != 1) c = hazed(c, texel(uv), d);
+    else if (u.quality0.x > 0.0 && !haze_done && !ui && !void_px && d < 1.0 && view_mode != 1)
         c = low_haze(c, world_at(texel(uv), d * 65536.0));
     vec3 out_c = over && !ui ? max(c, vec3(0.0)) : min(c, vec3(1.0));
     if ((post & 7) == 0 || ui) { color = vec4(out_c, ui ? 9999.0 : 0.0); return; }

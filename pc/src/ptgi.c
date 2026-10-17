@@ -267,6 +267,7 @@ typedef struct {
 
 static GLuint triangle_buffer, node_buffer;
 static int built_scene = -1, built_casters = -1;
+static int uploaded; /* the GPU buffers hold the current build (pc_gi_scene_cpu builds without them) */
 
 /* Gather the room and this frame's casters; rebuild the BVH when either
  * changed. Returns the triangle count. */
@@ -321,7 +322,7 @@ static int update_scene(void)
     int serial = pc_scene_serial();
     if (serial == built_scene)
         update_room_uvs(room, room_count);
-    if (serial == built_scene && caster_serial == built_casters)
+    if (serial == built_scene && caster_serial == built_casters && (uploaded || !triangle_buffer))
         return triangle_count;
     struct timespec t0, t1;
     clock_gettime(CLOCK_MONOTONIC, &t0);
@@ -388,18 +389,21 @@ static int update_scene(void)
     if (!triangle_count)
         return 0;
     /* Triangles in leaf order, so leaves index a contiguous range. */
-    gpu_triangle* sorted = malloc((size_t)triangle_count * sizeof *sorted);
-    memcpy(sorted, room_sorted, (size_t)room_triangles * sizeof *sorted);
-    for (int i = room_triangles; i < triangle_count; i++)
-        sorted[i] = triangles[order[i]];
-    gl_BindBuffer(GL_SHADER_STORAGE_BUFFER, triangle_buffer);
-    gl_BufferData(GL_SHADER_STORAGE_BUFFER, (GLsizeiptr)triangle_count * (GLsizeiptr)sizeof *sorted, sorted,
-        GL_DYNAMIC_DRAW);
-    gl_BindBuffer(GL_SHADER_STORAGE_BUFFER, node_buffer);
-    gl_BufferData(GL_SHADER_STORAGE_BUFFER, (GLsizeiptr)node_count * (GLsizeiptr)sizeof *nodes, nodes,
-        GL_DYNAMIC_DRAW);
-    gl_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-    free(sorted);
+    uploaded = triangle_buffer != 0;
+    if (uploaded) {
+        gpu_triangle* sorted = malloc((size_t)triangle_count * sizeof *sorted);
+        memcpy(sorted, room_sorted, (size_t)room_triangles * sizeof *sorted);
+        for (int i = room_triangles; i < triangle_count; i++)
+            sorted[i] = triangles[order[i]];
+        gl_BindBuffer(GL_SHADER_STORAGE_BUFFER, triangle_buffer);
+        gl_BufferData(GL_SHADER_STORAGE_BUFFER, (GLsizeiptr)triangle_count * (GLsizeiptr)sizeof *sorted, sorted,
+            GL_DYNAMIC_DRAW);
+        gl_BindBuffer(GL_SHADER_STORAGE_BUFFER, node_buffer);
+        gl_BufferData(GL_SHADER_STORAGE_BUFFER, (GLsizeiptr)node_count * (GLsizeiptr)sizeof *nodes, nodes,
+            GL_DYNAMIC_DRAW);
+        gl_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+        free(sorted);
+    }
     clock_gettime(CLOCK_MONOTONIC, &t1);
     static double build_ms;
     static int builds;
@@ -1009,7 +1013,7 @@ static const char* trace_source = SHADER_COMMON
     "#define env_horizon env_[3]\n"
     "#define env_ground env_[4]\n" PC_GLSL_ENVIRONMENT
     /* The room's medium (atmosphere.h pc_medium_gpu; medium.glsl). */
-    "uniform vec4 medium_[165];\n"
+    "uniform vec4 medium_[166];\n"
     "#define MEDIUM(i) medium_[i]\n"
     "uniform sampler3D medium_tex;\n" /* atmosphere.h pc_medium_texture (gl_present.c pc_gl_medium_texture) */
     "#define MEDIUM_TEX medium_tex\n" PC_GLSL_MEDIUM
@@ -2133,6 +2137,21 @@ int pc_gi_probe_world(const float p[3], float out[8], float uv[2])
     return pc_gi_probe(uv[0], uv[1], out);
 }
 
+/* OpenGL: the scene pc_gi_trace_cpu traces (this room and this frame's
+ * casters), built now on the CPU when the path tracer has not (GI and the
+ * traced shadows off; its GPU buffers follow once it runs): the particles'
+ * shadow rays (particles.cpp). Returns 1 when there is one (Vulkan: 0, its
+ * particles trace on the GPU). */
+int pc_gi_scene_cpu(void)
+{
+#ifdef ROOD_VULKAN
+    if (pc_vk_on())
+        return 0;
+#endif
+    if (!update_scene())
+        return 0;
+    return triangle_count > 0 && node_count > 0 && built_scene == pc_scene_serial(); /* this room's */
+}
 /* Editor inspector: the nearest triangle a ray from o along d (unit) hits
  * before tmax, against the scene the path tracer uses (texture cut-outs
  * not tested). Returns its flags (1 textured .. 8 moving) or -1, the

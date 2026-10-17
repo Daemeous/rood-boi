@@ -1,0 +1,17 @@
+{
+  "kind": "emitter",
+  "name": "Dust motes",
+  "category": "Atmosphere",
+  "icon": "dust",
+  "tags": ["dust", "motes", "interior", "light shafts"],
+  "description": "Tiny motes of dust hanging in a room's air: they drift slowly and swirl a little, and show only where light falls through them (a window's beam, a lamp's pool); in shadow they vanish. Place the box where the light crosses the air.",
+  "quality": "dust",
+  "spawn": { "shape": "box", "size": [384, 256, 384], "count": 900, "lifetime": 14, "lifetime_jitter": 0.5 },
+  "modules": {
+    "drift": { "velocity": [1.2, 0.4, 0.8] },
+    "curl": { "amplitude": 9, "scale": 56, "speed": 0.06 },
+    "fade": { "in": 2.5, "out": 3 }
+  },
+  "render": { "type": "pixel", "pixel_min": 1, "pixel_max": 2, "color": [1, 0.95, 0.85], "brightness": 0.8, "variation": 0.6 },
+  "lighting": { "mode": "in_light", "ambient": 0 }
+}

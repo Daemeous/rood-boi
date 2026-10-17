@@ -1,0 +1,4 @@
+#version 460
+#extension GL_GOOGLE_include_directive : require
+// The particles' pass without ray queries: every mote lit unshadowed (particles_main.glsl).
+#include "particles_main.glsl"

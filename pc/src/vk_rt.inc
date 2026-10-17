@@ -1564,4 +1564,5 @@ static int vrt_trace_cpu(const float o[3], const float d[3], float tmax, float* 
     return flags;
 }
 #include "vk_fogvol.inc" /* the fog volumes' own renderer */
+#include "vk_particles.inc" /* the port's particles (dust motes) */
 #include "vk_probes.inc" /* gi_method probes on Vulkan */

@@ -70,5 +70,29 @@ bool parse_hex(const std::string& text, float out[3]); /* "#4080ff", "4080FF" */
 std::string format_hex(const float rgb[3]); /* "#4080FF" (0..1 clamped) */
 float srgb_to_linear(float c); /* a display value (sRGB) to linear light */
 void normalize_colour(float rgb[3]); /* brightest channel 1 (black stays black) */
+/* ---- placing (the library's drops, "fit rect light to window") ---- */
+/* A fog volume's footprint (x, z) dropped at `at` wanting full sizes `want`,
+ * kept inside a floor's area lo..hi: each size at most the area's, the
+ * centre moved in so it fits. An empty area (hi <= lo) keeps both as given. */
+void fit_footprint(const float at[2], const float want[2], const float lo[2], const float hi[2], float centre[2],
+    float size[2]);
+/* A room triangle for fit_pane: its corners and its texture (page << 16 | CLUT). */
+struct PaneTriangle {
+    float v[3][3];
+    unsigned texture;
+};
+/* A flat pane: its centre, the normal facing the eye, the axes of a rect
+ * light facing out of it (light_frame of the normal: right, up), its extent
+ * along them and how many triangles make it. */
+struct Pane {
+    float centre[3] = { 0, 0, 0 }, normal[3] = { 0, 0, 1 }, right[3] = { 1, 0, 0 }, up[3] = { 0, -1, 0 };
+    float width = 0, height = 0;
+    int triangles = 0;
+};
+/* The pane around triangle `seed`: the triangles reached from it through
+ * shared edges (two corners within 0.5 units) that share its texture and lie
+ * in its plane (normals within 8 degrees, corners within 2 units), at most
+ * 256. False when `seed` is no triangle (out of range, degenerate). */
+bool fit_pane(const PaneTriangle* triangles, int count, int seed, const float eye[3], Pane& out);
 } // namespace rood_math
 #endif

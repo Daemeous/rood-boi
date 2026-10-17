@@ -645,12 +645,15 @@ extern "C" void pc_gl_present_stats(unsigned*, double*, unsigned*, int) __attrib
 extern "C" void pc_gi_cadence_stats(unsigned*, unsigned*, double*, int) __attribute__((weak));
 extern "C" int pc_gi_cadence_interval(void) __attribute__((weak));
 extern "C" int pc_vk_perf_sections_json(char*, int, int) __attribute__((weak)); /* vk_core.c: GPU sections */
+extern "C" int pc_particles_cpu_perf(double* ms, int reset) __attribute__((weak)); /* particles.cpp */
 extern "C" float pc_gi_budget_effective(void) __attribute__((weak));
 /* "frames": timed frames (ROOD_PERF; frames still in flight are not timed);
  * "presents": every presented frame; "gpu_wait_ms": the CPU's total wait for
  * frames in flight; "gi_traced"/"gi_reused": game-view path tracer updates
  * and presents that showed the last result (GI slower than its budget),
- * "gi_gpu_ms" its measured GPU time, "gi_interval" presents per trace now. */
+ * "gi_gpu_ms" its measured GPU time, "gi_interval" presents per trace now;
+ * "sections" (Vulkan): GPU time per pass; "cpu_sections": CPU time per pass
+ * that runs on the CPU ("particles": OpenGL's motes, Vulkan's records). */
 extern "C" int pc_perf_json(char* out, int size, int reset)
 {
     int n = snprintf(out, (size_t)size, "{\"gpu_ms\":%.4f,\"gpu_max_ms\":%.4f,\"frames\":%d,\"enabled\":%s",
@@ -673,6 +676,10 @@ extern "C" int pc_perf_json(char* out, int size, int reset)
     }
     if (pc_vk_perf_sections_json && n < size)
         n += pc_vk_perf_sections_json(out + n, size - n, reset);
+    /* "cpu_sections": CPU time a frame of passes that run on the CPU (only while they run). */
+    double particles_ms = 0;
+    if (pc_particles_cpu_perf && pc_particles_cpu_perf(&particles_ms, reset) > 0 && n < size)
+        n += snprintf(out + n, (size_t)(size - n), ",\"cpu_sections\":{\"particles\":%.4f}", particles_ms);
     if (n < size)
         n += snprintf(out + n, (size_t)(size - n), "}");
     if (reset)

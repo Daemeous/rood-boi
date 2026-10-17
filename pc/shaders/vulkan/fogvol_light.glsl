@@ -14,7 +14,7 @@ layout(std140, binding = 0) uniform FogvolLight {
     ivec4 info; // x G (cells per side), y volumes, z frame, w 1: blend everything (a reset)
     ivec4 reset_[2]; // per volume (one int each): the slots (bits 0..7) to restart
     vec4 params; // x the blend weight of a new estimate, y ray-traced shadows on
-    vec4 medium_[165]; // the medium record (medium.glsl): the volumes' shapes
+    vec4 medium_[166]; // the medium record (medium.glsl): the volumes' shapes
     vec4 fogvol_[FV_VEC4S_]; // the volumes' record (fog_volume.glsl)
 } fl;
 #define MEDIUM(i) fl.medium_[i]

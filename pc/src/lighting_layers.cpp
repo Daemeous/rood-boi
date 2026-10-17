@@ -40,6 +40,23 @@ const std::vector<KindSpec>& kinds()
                 { "fixture_radius", 1, "16", false }, { "fixture_shadows", 0, "0", false },
                 { "fixture_type", -1, nullptr, false }, { "flame", 0, "0", false } },
             true, 4 },
+        /* Particle emitters ("emitter <id>"): particles.cpp (pc/docs/Particles.md). Its own
+         * fields, then the ones its asset (pc/assets/emitters/<asset>.json) gives unless written. */
+        { "emitter",
+            { { "name", -1, nullptr, false }, { "asset", -1, nullptr, false }, { "pos", 1, nullptr, false },
+                { "yaw", 2, "0", false }, { "enabled", 0, "1", false }, { "seed", 0, "1", false },
+                /* spawn */
+                { "shape", -1, "box", false }, { "size", 1, "256,192,256", false }, { "radius", 1, "64", false },
+                { "count", 0, "400", false }, { "lifetime", 2, "10", false }, { "lifetime_jitter", 2, "0.5", false },
+                /* behaviour modules (0: off) */
+                { "drift", 2, "0,0,0", false }, { "curl", 2, "0", false }, { "curl_scale", 1, "64", false },
+                { "curl_speed", 3, "0.1", false }, { "gravity", 3, "0", false }, { "drag", 3, "0", false },
+                { "fade_in", 2, "0", false }, { "fade_out", 2, "0", false },
+                /* the renderer, its lighting, the graphics setting that scales it */
+                { "render", -1, "pixel", false }, { "pixel_min", 0, "1", false }, { "pixel_max", 0, "2", false },
+                { "color", 3, "1,1,1", false }, { "brightness", 3, "1", false }, { "variation", 2, "0.5", false },
+                { "lit", 0, "0", false }, { "ambient", 4, "0.05", false }, { "quality", -1, "dust", false } },
+            false, 4 },
         /* The room's sun ("env sun") and sky ("env sky"): environment.cpp. */
         { "env",
             { { "enabled", 0, "1", false }, { "azimuth", 2, "180", false }, { "elevation", 2, "45", false },
@@ -225,6 +242,8 @@ void Item::erase(const std::string& key)
 
 bool preset_field(const std::string& kind, const std::string& key)
 {
+    if (kind == "emitter") /* everything after its own fields comes from its asset */
+        return field_rank("emitter", key) >= field_rank("emitter", "shape") && field_spec("emitter", key);
     if (kind != "fog")
         return false;
     for (const char* k : { "shape", "size", "density", "edge", "color", "fill", "noise", "sim", "sim_strength",
@@ -239,9 +258,9 @@ bool preset_field(const std::string& kind, const std::string& key)
 void canonicalize(Item& item)
 {
     Fields out;
-    /* A fog volume with a preset keeps the values it writes even when they
-     * are the schema's defaults: they differ from its preset's. */
-    bool preset = item.kind == "fog" && item.get("preset");
+    /* A fog volume with a preset (an emitter with an asset) keeps the values it
+     * writes even when they are the schema's defaults: they differ from its preset's. */
+    bool preset = (item.kind == "fog" && item.get("preset")) || (item.kind == "emitter" && item.get("asset"));
     for (const auto& f : item.fields) {
         std::string v = canonical_value(item.kind, f.first, f.second);
         const FieldSpec* spec = field_spec(item.kind, f.first);
@@ -760,7 +779,8 @@ bool diff_one(const State& below, const State& desired, const std::string& id, E
     if (same_item(b->second, d->second))
         return false;
     const Item &x = b->second, &y = d->second;
-    if (x.kind != "light" && x.kind != "actor" && x.kind != "env" && x.kind != "fog" && x.kind != "post") {
+    if (x.kind != "light" && x.kind != "actor" && x.kind != "env" && x.kind != "fog" && x.kind != "emitter"
+        && x.kind != "post") {
         out.verb = DEFINE;
         out.item = y;
         return true;

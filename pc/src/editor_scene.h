@@ -23,6 +23,7 @@ using rood_selection::Ref;
 Ref light_ref(int index);
 Ref actor_ref(int index);
 Ref volume_ref(int index);
+Ref emitter_ref(int index);
 Ref glow_ref(uint32_t id); /* by its key; "glow:@x,y,z" when it has none */
 Ref glow_ref_key(const char* key, const float position[3]);
 /* A light's, actor's or volume's list index, a glow's id; -1 when it is gone. */
@@ -50,23 +51,28 @@ void icon(const Ref& r, float x, float y, float radius, bool anchor);
 Ref object_at(float x, float y); /* the icon under the pixel: lights first, then actors, then glows */
 /* The fog volume a ray from the pixel enters first, unless a room surface is in front of it. */
 Ref volume_at(const pc_overlay_view& v, pc_overlay_pick pick, float x, float y);
-std::vector<Ref> in_box(float x0, float y0, float x1, float y1); /* lights, actors, volumes (not glows) */
+std::vector<Ref> in_box(float x0, float y0, float x1, float y1); /* lights, actors, volumes, emitters (not glows) */
 /* A click in the view at (x, y) as the RPC makes it: what is under it is
  * selected (Shift adds, Ctrl toggles); a plain click on nothing clears. */
 Ref click_at(float x, float y, bool shift, bool ctrl, rood_selection::Source s);
+/* Ctrl+click on `under`: a glow that is not selected is a place to put the
+ * Library's current item (Ctrl+click on empty space does the same), not a
+ * toggle; true when this click places. */
+bool ctrl_places(const Ref& under, bool ctrl);
 
 /* ---- hidden in the editor: no icon, not pickable, and (while the editor
  * shows) their light and fog left out ---- */
 bool light_hidden(int index);
 bool actor_hidden(int index);
 bool volume_hidden_id(const std::string& id); /* by a volume's bare id */
+bool emitter_hidden_id(const std::string& id); /* by an emitter's bare id */
 bool glow_hidden(const char* key, const float position[3]);
 void hide_selection(); /* H */
 void isolate_selection(); /* Shift+H: everything else */
 void unhide_all(); /* Ctrl+H */
 
 /* ---- operations on the selection ---- */
-int delete_selection(); /* lights, actors and volumes; how many went */
+int delete_selection(); /* lights, actors, volumes and emitters; how many went */
 /* editor_clipboard.cpp: the selection as lighting entries (lighting_layers.h), and back as new objects. */
 std::string copy_text();
 int copy_selection(); /* Ctrl+C: the editor's clipboard and the system's */

@@ -17,6 +17,7 @@
 #include "imgui.h"
 #include "editor_overlays.h"
 #include "glow_overrides.h"
+#include "editor_library.h"
 #include "lights_internal.h"
 #include "editor_undo.h"
 #include "editor_scene.h"
@@ -67,6 +68,14 @@ void rood_lights::draw_icon(void* list, float x, float y, float size, const std:
     if (item.rfind("prefab:", 0) == 0) {
         const Prefab* p = prefab::library().find(item.substr(7));
         icon = p && !p->icon.empty() ? p->icon : "light:point";
+    }
+    if (item.rfind("fixture:", 0) == 0) { /* a fixture class: its prefab's icon */
+        const Prefab* p = rood_library::item_prefab(item);
+        icon = p && !p->icon.empty() ? p->icon : "light:point";
+    } else if (item.rfind("fog:", 0) == 0) {
+        icon = "fog";
+    } else if (item.rfind("emitter:", 0) == 0) {
+        icon = "emitter";
     }
     ImU32 col = rgba(color, alpha), line = IM_COL32(220, 220, 220, (int)(alpha * 255));
     ImU32 wood = IM_COL32(140, 95, 60, (int)(alpha * 255)), wax = IM_COL32(235, 225, 200, (int)(alpha * 255));
@@ -125,6 +134,19 @@ void rood_lights::draw_icon(void* list, float x, float y, float size, const std:
         for (int k = 0; k < 8; k += 2) /* four points (non-convex star as triangles) */
             d->AddTriangleFilled(c, star[(k + 7) % 8], star[k], col), d->AddTriangleFilled(c, star[k], star[(k + 1) % 8], col);
         d->AddCircle(c, h * 0.55f, rgba(color, alpha * 0.7f), 16, 1.2f);
+    } else if (icon == "fog") { /* a low cloud over a ground line */
+        ImU32 mist = IM_COL32(190, 205, 230, (int)(alpha * 230));
+        d->AddCircleFilled(ImVec2(x - h * 0.35f, y + h * 0.15f), h * 0.32f, mist, 16);
+        d->AddCircleFilled(ImVec2(x + h * 0.05f, y - h * 0.05f), h * 0.42f, mist, 16);
+        d->AddCircleFilled(ImVec2(x + h * 0.45f, y + h * 0.2f), h * 0.28f, mist, 16);
+        d->AddRectFilled(ImVec2(x - h * 0.65f, y + h * 0.2f), ImVec2(x + h * 0.72f, y + h * 0.48f), mist);
+        d->AddLine(ImVec2(x - h * 0.9f, y + h * 0.75f), ImVec2(x + h * 0.9f, y + h * 0.75f), line, 1.5f);
+    } else if (icon == "emitter") { /* sparks from a point */
+        for (int k = 0; k < 6; k++) {
+            float a = -1.5707963f + (k - 2.5f) * 0.42f;
+            d->AddLine(ImVec2(x, y + h * 0.7f), ImVec2(x + cosf(a) * h * 0.85f, y + h * 0.7f + sinf(a) * h * 1.3f), col, 1.5f);
+        }
+        d->AddCircleFilled(ImVec2(x, y + h * 0.7f), h * 0.16f, col);
     } else { /* point light: a bulb with rays */
         d->AddCircleFilled(c, h * 0.42f, col, 16);
         for (int k = 0; k < 8; k++) {
@@ -143,7 +165,15 @@ namespace {
 void item_colour(const std::string& item, float out[3])
 {
     out[0] = 1, out[1] = 0.75f, out[2] = 0.45f; /* a new light's default */
-    if (item.rfind("prefab:", 0) != 0)
+    std::string key = item;
+    if (item.rfind("fixture:", 0) == 0) /* a fixture class: its prefab's */
+        if (const Prefab* p = rood_library::item_prefab(item))
+            key = "prefab:" + p->id;
+    if (item.rfind("fog:", 0) == 0) {
+        out[0] = 0.75f, out[1] = 0.8f, out[2] = 0.9f;
+        return;
+    }
+    if (key.rfind("prefab:", 0) != 0)
         return;
     static std::map<std::string, std::vector<float>> cache;
     static int serial = -1;
@@ -151,10 +181,10 @@ void item_colour(const std::string& item, float out[3])
         cache.clear();
         serial = prefab::library().serial;
     }
-    auto it = cache.find(item);
+    auto it = cache.find(key);
     if (it == cache.end()) {
         std::vector<float> c = { 1, 0.75f, 0.45f };
-        if (const Prefab* p = prefab::library().find(item.substr(7))) {
+        if (const Prefab* p = prefab::library().find(key.substr(7))) {
             Actor a;
             a.prefab = p->id;
             std::vector<prefab::EvalLight> ls;
@@ -162,7 +192,7 @@ void item_colour(const std::string& item, float out[3])
             if (!ls.empty())
                 c = { ls[0].color[0], ls[0].color[1], ls[0].color[2] };
         }
-        it = cache.emplace(item, c).first;
+        it = cache.emplace(key, c).first;
     }
     memcpy(out, it->second.data(), 3 * sizeof(float));
 }
@@ -263,19 +293,79 @@ bool rood_lights::create_prefab_from_selection(const std::string& name)
         snprintf(status, sizeof status, "Create prefab: select one or more lights first");
         return false;
     }
+    return create_prefab_from(picked, {}, name);
+}
+
+namespace {
+/* One light of a new prefab: a room light's, or an actor's at rest (its animation baked). */
+struct FlatLight {
+    Light l;
+    bool from_actor = false;
+    float light_size = 0, flicker = 0, flicker_speed = 6, jitter = 0, pulse = 0, pulse_speed = 0.5f;
+};
+} // namespace
+
+bool rood_lights::create_prefab_from(const std::vector<int>& light_indices, const std::vector<int>& actor_indices,
+    const std::string& name)
+{
+    std::vector<int> picked, picked_actors;
+    for (int i : light_indices)
+        if (i >= 0 && i < (int)lights.size() && std::find(picked.begin(), picked.end(), i) == picked.end())
+            picked.push_back(i);
+    for (int i : actor_indices)
+        if (i >= 0 && i < (int)actors.size() && std::find(picked_actors.begin(), picked_actors.end(), i) == picked_actors.end())
+            picked_actors.push_back(i);
+    std::vector<FlatLight> src;
+    for (int i : picked) {
+        FlatLight f;
+        f.l = lights[i];
+        src.push_back(f);
+    }
+    for (int i : picked_actors) {
+        const Prefab* p = prefab::library().find(actors[i].prefab);
+        if (!p) {
+            snprintf(status, sizeof status, "Save as prefab: actor %d's prefab %s is missing", i + 1, actors[i].prefab.c_str());
+            return false;
+        }
+        std::vector<prefab::EvalLight> lit;
+        prefab::evaluate(*p, actors[i], 0, false, lit);
+        for (const prefab::EvalLight& e : lit) {
+            if (!e.enabled)
+                continue;
+            FlatLight f;
+            f.from_actor = true;
+            f.l.type = e.type;
+            for (int k = 0; k < 3; k++)
+                f.l.position[k] = e.position[k], f.l.color[k] = e.color[k], f.l.direction[k] = e.direction[k];
+            f.l.intensity = e.intensity, f.l.radius = e.radius, f.l.cone = e.cone, f.l.inner = e.inner;
+            f.l.size[0] = e.size[0], f.l.size[1] = e.size[1];
+            f.l.barn_angle = e.barn_angle, f.l.barn_length = e.barn_length, f.l.shadows = e.shadows;
+            f.light_size = e.light_size, f.flicker = e.flicker, f.flicker_speed = e.flicker_speed;
+            f.jitter = e.jitter, f.pulse = e.pulse, f.pulse_speed = e.pulse_speed;
+            src.push_back(f);
+        }
+    }
+    if (src.empty()) {
+        snprintf(status, sizeof status, "Create prefab: select one or more lights (or light actors) first");
+        return false;
+    }
     /* The pivot: below the lights' centre, on the lowest one's height
      * (y grows downward). */
     float pivot[3] = { 0, -1e9f, 0 };
-    for (int i : picked) {
-        pivot[0] += lights[i].position[0] / picked.size();
-        pivot[2] += lights[i].position[2] / picked.size();
-        pivot[1] = fmaxf(pivot[1], lights[i].position[1]);
+    for (const FlatLight& f : src) {
+        pivot[0] += f.l.position[0] / src.size();
+        pivot[2] += f.l.position[2] / src.size();
+        pivot[1] = fmaxf(pivot[1], f.l.position[1]);
     }
+    const Light& first = src[0].l;
     Json json = Json::object();
     json.set("name", Json::str(name));
     json.set("category", Json::str("My prefabs"));
-    json.set("icon", Json::str(lights[picked[0]].type == 1 ? "light:spot" : lights[picked[0]].type == 2 ? "light:rect" : "light:point"));
-    json.set("description", Json::str("Made from " + std::to_string(picked.size()) + " light(s) with Create prefab."));
+    json.set("icon", Json::str(first.type == 1 ? "light:spot" : first.type == 2 ? "light:rect" : "light:point"));
+    std::string made = std::to_string(picked.size()) + " light(s)";
+    if (!picked_actors.empty())
+        made = (picked.empty() ? std::string() : made + " and ") + std::to_string(picked_actors.size()) + " light actor(s)";
+    json.set("description", Json::str("Made from " + made + " with Create prefab."));
     Json placement = Json::object();
     placement.set("align", Json::str("up"));
     placement.set("surface_offset", Json::num(0));
@@ -303,13 +393,13 @@ bool rood_lights::create_prefab_from_selection(const std::string& name)
     params.items.push_back(param("radius_scale", "Radius scale", "float", Json::num(1), 0.1f, 8, true));
     params.items.push_back(param("flicker", "Flicker amount", "float", Json::num(0), 0, 1, false));
     params.items.push_back(param("flicker_speed", "Flicker speed", "float", Json::num(6), 0.1f, 30, true));
-    params.items.push_back(param("shadows", "Casts shadows", "bool", Json::boolean_(lights[picked[0]].shadows), 0, 1, false));
+    params.items.push_back(param("shadows", "Casts shadows", "bool", Json::boolean_(first.shadows), 0, 1, false));
     json.set("params", params);
     Json out = Json::array();
     auto r3 = [](float v) { return Json::num(roundf(v * 1000) / 1000); };
     int index = 0;
-    for (int i : picked) {
-        const Light& l = lights[i];
+    for (const FlatLight& f : src) {
+        const Light& l = f.l;
         Json j = Json::object();
         j.set("name", Json::str(std::string(light_type_name(l.type)) + " " + std::to_string(++index)));
         j.set("type", Json::str(l.type == 1 ? "spot" : l.type == 2 ? "rect" : "point"));
@@ -343,8 +433,23 @@ bool rood_lights::create_prefab_from_selection(const std::string& name)
             size.items.push_back(r3(l.size[1]));
             j.set("size", size);
         }
-        j.set("flicker", Json::str("flicker"));
-        j.set("flicker_speed", Json::str("flicker_speed"));
+        if (f.from_actor) { /* its own animation baked in; the prefab's Flicker amount adds to it */
+            if (f.light_size > 0)
+                j.set("light_size", r3(f.light_size));
+            snprintf(text, sizeof text, "flicker + %.3f", f.flicker);
+            j.set("flicker", Json::str(f.flicker > 0 ? text : "flicker"));
+            snprintf(text, sizeof text, "flicker_speed * %.3f", f.flicker_speed / 6.0f);
+            j.set("flicker_speed", Json::str(f.flicker > 0 ? text : "flicker_speed"));
+            if (f.jitter > 0)
+                j.set("jitter", r3(f.jitter));
+            if (f.pulse > 0) {
+                j.set("pulse", r3(f.pulse));
+                j.set("pulse_speed", r3(f.pulse_speed));
+            }
+        } else {
+            j.set("flicker", Json::str("flicker"));
+            j.set("flicker_speed", Json::str("flicker_speed"));
+        }
         j.set("phase", Json::num(index * 0.37));
         out.items.push_back(j);
     }
@@ -354,11 +459,16 @@ bool rood_lights::create_prefab_from_selection(const std::string& name)
         snprintf(status, sizeof status, "%s", error.c_str());
         return false;
     }
-    /* Replace the lights with an actor of the new prefab. */
+    /* Replace the lights and actors with an actor of the new prefab. */
     std::sort(picked.begin(), picked.end());
     for (int k = (int)picked.size() - 1; k >= 0; k--)
         lights.erase(lights.begin() + picked[k]);
+    std::sort(picked_actors.begin(), picked_actors.end());
+    for (int k = (int)picked_actors.size() - 1; k >= 0; k--)
+        actors.erase(actors.begin() + picked_actors[k]);
     solo = -1;
+    if (!picked_actors.empty())
+        solo_actor = -1;
     Actor a;
     a.prefab = id;
     memcpy(a.position, pivot, sizeof pivot);
@@ -1156,6 +1266,8 @@ bool edit_number(const char* label, Json& obj, const char* key, float speed)
 } // namespace
 
 extern "C" void pc_lights_edit_prefab(const char* id) { editing_prefab = id ? id : ""; }
+void rood_lights::edit_prefab(const std::string& id) { editing_prefab = id; }
+const std::string& rood_lights::editing_prefab_id() { return editing_prefab; }
 
 void rood_lights::prefab_editor_window()
 {
@@ -1385,7 +1497,7 @@ void rood_lights::prefab_editor_window()
         editing_prefab.clear();
 }
 
-/* ------------------------------------------------------- Place Actors */
+/* ------------------------------------------------ the toolbar's quick add */
 
 namespace {
 struct Entry {
@@ -1403,82 +1515,6 @@ std::vector<Entry> entries()
     return out;
 }
 } // namespace
-
-void rood_lights::place_panel()
-{
-    static char search[64];
-    static std::string category = "All";
-    float em = ImGui::GetFontSize();
-    ImGui::SetNextItemWidth(-1);
-    ImGui::InputTextWithHint("##placesearch", "Search lights and actors", search, sizeof search);
-    std::vector<Entry> all = entries();
-    std::vector<std::string> categories = { "All", "Lights" };
-    for (const Entry& e : all)
-        if (std::find(categories.begin(), categories.end(), e.category) == categories.end())
-            categories.push_back(e.category);
-    /* Category chips (wrapping). */
-    float right = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
-    for (size_t i = 0; i < categories.size(); i++) {
-        const std::string& c = categories[i];
-        float w = ImGui::CalcTextSize(c.c_str()).x + ImGui::GetStyle().FramePadding.x * 2;
-        if (i && ImGui::GetItemRectMax().x + ImGui::GetStyle().ItemSpacing.x + w < right)
-            ImGui::SameLine();
-        bool on = category == c;
-        if (on)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-        if (ImGui::SmallButton(c.c_str()))
-            category = c;
-        if (on)
-            ImGui::PopStyleColor();
-    }
-    ImGui::Separator();
-    ImGui::BeginChild("##placelist", ImVec2(0, -ImGui::GetFrameHeightWithSpacing() * 1.2f));
-    float row = em * 2.4f;
-    std::string last_category;
-    for (const Entry& e : all) {
-        if (category != "All" && e.category != category)
-            continue;
-        if (search[0] && !strcasestr(e.name.c_str(), search) && !strcasestr(e.category.c_str(), search)
-            && !strcasestr(e.description.c_str(), search))
-            continue;
-        if (category == "All" && e.category != last_category) {
-            ImGui::TextDisabled("%s", e.category.c_str());
-            last_category = e.category;
-        }
-        ImGui::PushID(e.item.c_str());
-        ImVec2 at = ImGui::GetCursorScreenPos();
-        bool is_current = place_item == e.item;
-        if (ImGui::Selectable("##row", is_current, ImGuiSelectableFlags_AllowDoubleClick, ImVec2(0, row))) {
-            place_item = e.item;
-            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                place_at_centre(e.item);
-        }
-        /* Drag it out into the view (UE's Place Actors). */
-        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left, em * 0.4f) && !place_drag_active())
-            place_drag_begin(e.item, false, ImGui::GetIO().MousePos.x, ImGui::GetIO().MousePos.y);
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip) && !place_drag_active())
-            ImGui::SetTooltip("%s\n\nDrag into the view to place (snapping as set in the toolbar),\n"
-                              "double-click to place at the view's centre; Ctrl+click in the view adds it.",
-                e.description.c_str());
-        ImDrawList* d = ImGui::GetWindowDrawList();
-        float colour[3];
-        item_colour(e.item, colour);
-        ImVec2 box(at.x + row * 0.1f, at.y + row * 0.1f), box_hi(at.x + row * 0.9f, at.y + row * 0.9f);
-        d->AddRectFilled(box, box_hi, IM_COL32(28, 28, 34, 255), 4);
-        d->AddRectFilled(ImVec2(box.x, box_hi.y - row * 0.1f), box_hi, rgba(colour, 1), 2); /* swatch */
-        draw_icon(d, at.x + row * 0.5f, at.y + row * 0.45f, row * 0.62f, e.item, colour, 1);
-        d->AddText(ImVec2(at.x + row + em * 0.3f, at.y + row * 0.5f - em * 0.55f), ImGui::GetColorU32(ImGuiCol_Text),
-            e.name.c_str());
-        ImGui::PopID();
-    }
-    ImGui::EndChild();
-    ImGui::TextDisabled("Ctrl+click adds: %s", item_label(place_item).c_str());
-    if (place_item.rfind("prefab:", 0) == 0) {
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Edit prefab"))
-            editing_prefab = place_item.substr(7);
-    }
-}
 
 /* The toolbar's quick-add menu: the same items; a click places at the
  * view's centre. */
@@ -1501,10 +1537,9 @@ extern "C" void pc_lights_place_menu(void)
             place_at_centre(e.item);
         }
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-            ImGui::SetTooltip("%s\nPlaced at the view's centre (drag from Place Actors to put it anywhere).", e.description.c_str());
+            ImGui::SetTooltip("%s\nPlaced at the view's centre (drag from the Library to put it anywhere).", e.description.c_str());
     }
 }
-extern "C" void pc_lights_place_panel(void) { place_panel(); }
 extern "C" void pc_lights_editor_windows(void)
 {
     prefab_editor_window();

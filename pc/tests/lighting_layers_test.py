@@ -202,8 +202,11 @@ override light:nothing intensity=2
 set no_such_setting value=1
 light 68ea4c1200a3f3 type=sphere pos=1,2,3
 light  68ea4c1200a3f4   pos=1.00,2,3
+emitter 68ea4c1200a3f5 asset=dust_motes pos=1,2,3 shape=cube render=streak
 env moon intensity=1
 env sun zenith=1,1,1
+post room exposure=0.5 tonemapper=aces
+post cutscene preset=cinematic
 """)
     write(bad / "default/rooms/zone09_room99.txt", "rood-lighting 2\n")
     write(bad / "default/rooms/lights.txt", "rood-lighting 2\n")
@@ -213,7 +216,9 @@ env sun zenith=1,1,1
     expect = ["pos takes 3 numbers", "unknown key 'colour'", "also on line 2", "'flame_hieght' is not a parameter",
               "dangling: override of light:nothing", "no such room setting", "type must be one of",
               "not canonical", "room files are named", "override in a generated layer", "expected key=value",
-              "the environment items are env:sun, env:sky and env:fog", "'zenith' is not a field of the sun"]
+              "the environment items are env:sun, env:sky and env:fog", "'zenith' is not a field of the sun",
+              "post:room: sets tonemapper", "post:cutscene: its preset cinematic sets tonemapper",
+              "shape must be one of box, room, point, disc, surface", "render must be pixel"]
     if (ROOT / "data/SLUS_010.40").exists():
         expect.append("zone 9 room 99 is not a room of the game")
     for e in expect:

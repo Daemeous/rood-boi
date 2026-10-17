@@ -25,7 +25,7 @@ extern "C" int pc_present_sample_result(float rgb[3]);
 
 namespace {
 using RGB = std::array<float, 3>;
-int tabs[4]; /* the last tab per type: point, spot, rect, sun */
+int tabs[5]; /* the last tab per type: point, spot, rect, sun, fog volume */
 std::vector<RGB> recent; /* newest first, at most 8 */
 struct Stop {
     float kelvin;
@@ -51,6 +51,8 @@ int type_index(const Ref& r)
 {
     if (r.kind == rood_selection::KIND_SUN)
         return 3;
+    if (r.kind == rood_selection::KIND_VOLUME)
+        return 4;
     int i = rood_scene::index_of(r);
     if (r.kind != rood_selection::KIND_LIGHT || i < 0)
         return 0;
@@ -64,7 +66,7 @@ bool colour_of(const Ref& r, float out[3])
         memcpy(out, s.color, sizeof s.color);
         return s.defined;
     }
-    if (r.kind != rood_selection::KIND_LIGHT || rood_scene::index_of(r) < 0)
+    if ((r.kind != rood_selection::KIND_LIGHT && r.kind != rood_selection::KIND_VOLUME) || rood_scene::index_of(r) < 0)
         return false;
     Value v = rood_handles::get_value(r, "color");
     for (int k = 0; k < 3; k++)
@@ -396,10 +398,10 @@ std::string rood_colour::state_json()
         colour_of(target, rgb);
     char head[400];
     snprintf(head, sizeof head,
-        "{\"open\":%s,\"subject\":%s,\"tab\":\"%s\",\"tabs\":[%d,%d,%d,%d],\"kelvin\":%.1f,\"tint\":%.3f,"
+        "{\"open\":%s,\"subject\":%s,\"tab\":\"%s\",\"tabs\":[%d,%d,%d,%d,%d],\"kelvin\":%.1f,\"tint\":%.3f,"
         "\"colour\":[%.4f,%.4f,%.4f],\"armed\":%s,\"waiting\":%s",
         current ? "true" : "false", shown ? q(target.id).c_str() : "null", tab == COLOUR_TAB_WHEEL ? "colour" : "temperature",
-        tabs[0], tabs[1], tabs[2], tabs[3], kelvin, tint, rgb[0], rgb[1], rgb[2], armed ? "true" : "false",
+        tabs[0], tabs[1], tabs[2], tabs[3], tabs[4], kelvin, tint, rgb[0], rgb[1], rgb[2], armed ? "true" : "false",
         waiting ? "true" : "false");
     std::string s = std::string(head) + ",\"palette\":" + colours_json(palette()) + ",\"recent\":" + colours_json(recent)
         + ",\"rects\":{";
@@ -422,8 +424,9 @@ bool rood_colour::rpc(const prefab::Json& p, std::string* error)
             close();
         } else {
             Ref r = rood_selection::primary();
-            if (r.kind != rood_selection::KIND_LIGHT && r.kind != rood_selection::KIND_SUN) {
-                *error = "the colour popover needs a light or the sun selected";
+            if (r.kind != rood_selection::KIND_LIGHT && r.kind != rood_selection::KIND_SUN
+                && r.kind != rood_selection::KIND_VOLUME) {
+                *error = "the colour popover needs a light, the sun or a fog volume selected";
                 return false;
             }
             float at[2] = { 0, 0 };
@@ -484,9 +487,9 @@ bool rood_colour::rpc(const prefab::Json& p, std::string* error)
 bool rood_colour::parse_setting(const char* key, const char* rest)
 {
     if (!strcmp(key, "editor_colour_tabs")) {
-        int t[4] = { 0, 0, 0, 0 };
-        sscanf(rest, "%d %d %d %d", &t[0], &t[1], &t[2], &t[3]);
-        for (int k = 0; k < 4; k++)
+        int t[5] = { 0, 0, 0, 0, 0 };
+        sscanf(rest, "%d %d %d %d %d", &t[0], &t[1], &t[2], &t[3], &t[4]); /* four from before fog volumes: the fifth 0 */
+        for (int k = 0; k < 5; k++)
             tabs[k] = t[k] == COLOUR_TAB_WHEEL ? COLOUR_TAB_WHEEL : COLOUR_TAB_TEMPERATURE;
         return true;
     }
@@ -505,7 +508,7 @@ bool rood_colour::parse_setting(const char* key, const char* rest)
 }
 void rood_colour::write_settings(FILE* f)
 {
-    fprintf(f, "editor_colour_tabs %d %d %d %d\n", tabs[0], tabs[1], tabs[2], tabs[3]);
+    fprintf(f, "editor_colour_tabs %d %d %d %d %d\n", tabs[0], tabs[1], tabs[2], tabs[3], tabs[4]);
     if (recent.empty())
         return;
     fprintf(f, "editor_recent_colours");

@@ -36,6 +36,9 @@ checks one part:
 - frame: F frames a fog volume;
 - view: project gives a world point's window pixel, pick the surface under a
   pixel (the handles' tests use both).
+- room_change: a glow (and a Details lock on it) selected when the room
+  changes is dropped; nothing of the old room stays selected (the last
+  section: it leaves the save room for Workshop "Metal Works", 45/0).
 """
 import argparse
 import math
@@ -142,7 +145,7 @@ class Session:
         return False
 
 
-def start(args, name):
+def start(args, name, extra_env=None):
     """Launch into the save room, editor open, objects placed: a Session, or None to skip."""
     if not pathlib.Path(args.card).exists():
         print("SKIP: no memory card", args.card)
@@ -155,7 +158,8 @@ def start(args, name):
     settings = out / "settings.cfg"
     # A settings file with an aa line: no first-run detection (lighting keeps its built-in values).
     settings.write_text(f"# {name}: scratch settings\naa fxaa\n")
-    env = {"ROOD_WINDOW": "1280x720", "ROOD_LIGHTS": str(lights), "ROOD_SETTINGS": str(settings), "ROOD_SCALE": "2"}
+    env = {"ROOD_WINDOW": "1280x720", "ROOD_LIGHTS": str(lights), "ROOD_SETTINGS": str(settings), "ROOD_SCALE": "2",
+           **(extra_env or {})}
     socket = os.environ.get("ROOD_RPC") or f"/tmp/rood-{name[7:12]}-{os.getpid()}.sock"  # sun_path is short
     game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env, socket_path=socket)
     s = Session(game, out)
@@ -275,6 +279,33 @@ def check_modifiers(s):
     s.check(click(s.light, ctrl=True) == [s.actor, s.volume, s.light], "Ctrl+click puts it back, as the primary")
     st = s.game.call("editor_place", phase="state")
     s.check(st["selected_light"] == s.index("lights", s.light), "the primary has the gizmo")
+    # Ctrl+click on a glow that is not selected places the current item there (the Library's; a point
+    # light by default); on a selected glow it still takes it out.
+    glows = [i for i, x in o.items() if x["kind"] == "glow" and x["screen"]]
+    if s.check(glows, "a glow on screen"):
+        xy = o[glows[0]]["screen"]
+        s.select(action="clear")
+        lights, done = len(s.game.call("lights")["lights"]), s.history()["done"]
+        r = s.select(action="click", x=xy[0], y=xy[1], ctrl=True)
+        after = s.game.call("lights")["lights"]
+        s.check(len(after) == lights + 1 and r["selection"] == [after[-1]["id"]]
+                and s.history()["done"] == done + 1 and s.history()["undo"].startswith("Place"),
+                f"Ctrl+click on a glow places a light there, selected, one undo step ({r['selection']}, "
+                f"{s.history()['undo']!r})")
+        s.game.call("editor_undo", action="undo")
+        s.select(action="set", ids=[glows[0]])
+        r = s.select(action="click", x=xy[0], y=xy[1], ctrl=True)
+        s.check(r["selection"] == [] and len(s.game.call("lights")["lights"]) == lights,
+                f"Ctrl+click on the selected glow takes it out, places nothing ({r['selection']})")
+        # The same with real mouse events (lights.cpp's viewport click).
+        s.select(action="clear")
+        s.game.call("editor_input", hold=["ctrl"])
+        s.game.run(2)
+        s.click(xy)
+        s.game.call("editor_input", release=True)
+        s.game.run(2)
+        s.check(len(s.game.call("lights")["lights"]) == lights + 1, "a real Ctrl+click on a glow places too")
+        s.game.call("editor_undo", action="undo")
 
 
 def check_box(s):
@@ -525,9 +556,42 @@ def check_view(s):
             f"pick under Ashley's feet: a surface by her ({hit})")
 
 
+def goto(game, zone, room):
+    """RPC room_goto, bounded: True once the game is in (zone, room)."""
+    game.call("editor_camera", off=1)
+    game.call("room_goto", zone=zone, room=room, enemies=False, scripts=False)
+    for _ in range(60):
+        game.run(20)
+        if game.call("room_goto", action="status")["phase"] in (0, 4):
+            break
+    game.run(40)
+    state = game.state()
+    return (state["zone"], state["room"]) == (zone, room)
+
+
+def check_room_change(s):
+    """A glow selected (and locked in Details) when the room changes is dropped."""
+    g = s.game
+    glows = [x for x in g.call("glows")["glows"] if x["category"] != "effect"]
+    if not s.check(glows, "the save room has a glow"):
+        return
+    g.call("glows", action="select", id=glows[0]["id"])
+    g.run(2)
+    s.select(action="lock", on=True)
+    r = s.select()
+    s.check(len(r["selection"]) == 1 and r["primary"].startswith("glow:"), f"a glow is selected ({r['selection']})")
+    if not s.check(goto(g, 45, 0), "the game warps to Workshop Metal Works (45/0)"):
+        return
+    g.call("editor_ui", visible=True)
+    g.run(6)
+    r = s.select()
+    s.check(r["selection"] == [] and r["locked"] is None,
+            f"after the room change nothing is selected and Details is unlocked ({r['selection']}, {r['locked']})")
+
+
 # In order: later sections start from where earlier ones leave the room.
 SECTIONS = [check_rpc, check_picking, check_modifiers, check_box, check_outliner, check_details_follow, check_hide,
-            check_clipboard, check_flying, check_delete, check_frame, check_view]
+            check_clipboard, check_flying, check_delete, check_frame, check_view, check_room_change]
 
 
 def main():

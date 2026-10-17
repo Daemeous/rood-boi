@@ -18,6 +18,10 @@
 #define MEDIUM_FLOOR_DATA 91
 #define MEDIUM_SIM 163
 #define MEDIUM_DETAIL 164
+#define MEDIUM_AIR 165
+#define MEDIUM_FLAG_GRID 1
+#define MEDIUM_FLAG_INTERIOR 2
+#define MEDIUM_FLAG_VOID 4
 // The record (pc_medium_gpu):
 //  0: haze density (per world unit, uniform in the room), phase g, time (s), volume count
 //  1: fog density at its base, scale height, base y (world, y down; with a floor grid: its offset above
@@ -28,20 +32,27 @@
 //     are drawn by their own renderer, fog_volume.glsl: atmosphere.cpp pc_fog_volume_render)
 //  5: rgb the sky's light where nothing traces it (mean radiance, half blocked: in-scattered
 //     everywhere; 0 in the traced haze, which samples the sky with occlusion), w its strength
-//  6, 7: the room's bounds (haze and ground fog fill them only)
+//  6, 7: the room's bounds (haze and ground fog fill them only); 6.w the haze's reach under the floor
+//      (world units: it fades out there, haze_under_floor), 7.w the void's brightest black ((level + 0.5) / 255)
 //  8 + 5 i: volume i: centre + density, half size + edge, albedo + noise, fill + its field's layer + 1 (0
 //      none; + 8 for a sphere), cos/sin yaw + self-shadowing strength + detail (0..1)
 //  88: limits (0: none): x the least transmittance along a ray (1 - the most opacity), y the most light it
 //      scatters toward the eye (luminance, a soft knee), z the sun's in-scattering in shadowed air (1 - the
 //      shafts' contrast), w the phase function's largest value (forward scattering toward the moon)
 //  89, 90: the ground fog's floor, a top-down grid over the room: x, z of its corner, cells per unit in x, z;
-//      y of height 0, units per step, cells per side, on
-//  91..162: the grid's heights, two 12-bit steps per float (a * 4096 + b), row by row (z), x within a row
+//      y of height 0, units per step, cells per side, w the switches (MEDIUM_FLAG_*: atmosphere.h PC_MEDIUM_GRID,
+//      PC_MEDIUM_INTERIOR, PC_MEDIUM_VOID)
+//  91..162: the grid's cells, two 12-bit steps per float (a * 4096 + b), row by row (z), x within a row:
+//      a cell's height step (0..4095); with MEDIUM_FLAG_INTERIOR its height step (0..2047) * 2 + 1 where it
+//      has no floor (outside the room)
 //  163: the medium's texture: x the interactive fog's cells per side, y its width and height (texels),
 //      z its depth, w 1 (0: none). Slices 0..64: tileable detail noise (64 a period, the first repeated);
 //      then one per simulated volume: its field (fog_sim.h) over its footprint, density / 2, in the corner
 //  164: x 1 / the detail noise's period (world units), yzw the main light's direction (toward it: the
 //      sun or moon, else up): the volumes' self-shadowing
+//  165: the room's air (MEDIUM_FLAG_INTERIOR): x the haze's share above cells without a floor (haze_outside),
+//      y z the interior's edge (smoothstep of the cells' bilinear floor share; haze_interior_edge), w the room's
+//      lowest floor (world y: the haze over the cells without a floor reaches down to it)
 float medium_haze() { return MEDIUM(0).x; }
 float medium_g() { return MEDIUM(0).y; }
 int medium_volume_count() { return int(MEDIUM(0).w + 0.5); }
@@ -122,41 +133,101 @@ float medium_noise(vec3 p) {
 // A density's noise factor: mean about 1, 1 - amount .. 1 + amount.
 float medium_wisps(float n, float amount) { return mix(1.0, 2.0 * smoothstep(0.2, 0.8, n), amount); }
 bool medium_in_room(vec3 x) { return all(greaterThanEqual(x, MEDIUM(6).xyz)) && all(lessThanEqual(x, MEDIUM(7).xyz)); }
-// One height of the floor grid (cell i, j), world y.
-float medium_floor_cell(int i, int j) {
+// The record's switches (atmosphere.h PC_MEDIUM_GRID, PC_MEDIUM_INTERIOR, PC_MEDIUM_VOID).
+int medium_flags() { return int(MEDIUM(MEDIUM_FLOOR + 1).w + 0.5); }
+bool medium_grid() { return (medium_flags() & MEDIUM_FLAG_GRID) != 0; }
+bool medium_interior_on() { return (medium_flags() & (MEDIUM_FLAG_GRID | MEDIUM_FLAG_INTERIOR)) == (MEDIUM_FLAG_GRID | MEDIUM_FLAG_INTERIOR); }
+// One cell of the floor grid (i, j clamped to it): x its height (world y), y 1 with a floor, 0 without
+// (outside the room's walls, the void; only with the interior: every cell has one without it).
+vec2 medium_floor_cell(int i, int j) {
     int n = int(MEDIUM(MEDIUM_FLOOR + 1).z + 0.5);
     int k = clamp(j, 0, n - 1) * n + clamp(i, 0, n - 1);
     float v = MEDIUM(MEDIUM_FLOOR_DATA + k / 8)[(k / 2) & 3];
     float a = floor(v / 4096.0);
     float q = (k & 1) == 0 ? a : v - a * 4096.0;
-    return MEDIUM(MEDIUM_FLOOR + 1).x + q * MEDIUM(MEDIUM_FLOOR + 1).y;
+    float hs = q, floor_ = 1.0;
+    if (medium_interior_on()) { hs = floor(q * 0.5); floor_ = 1.0 - (q - 2.0 * hs); }
+    return vec2(MEDIUM(MEDIUM_FLOOR + 1).x + hs * MEDIUM(MEDIUM_FLOOR + 1).y, floor_);
+}
+// The four cells around x: bilinear weights w, heights fh, floors f (1 with a floor).
+void medium_floor_quad(vec3 x, out vec4 w, out vec4 fh, out vec4 f) {
+    vec2 c = (x.xz - MEDIUM(MEDIUM_FLOOR).xy) * MEDIUM(MEDIUM_FLOOR).zw - 0.5;
+    vec2 t = c - floor(c);
+    ivec2 i = ivec2(floor(c));
+    vec2 a = medium_floor_cell(i.x, i.y), b = medium_floor_cell(i.x + 1, i.y);
+    vec2 d = medium_floor_cell(i.x, i.y + 1), e = medium_floor_cell(i.x + 1, i.y + 1);
+    w = vec4((1.0 - t.x) * (1.0 - t.y), t.x * (1.0 - t.y), (1.0 - t.x) * t.y, t.x * t.y);
+    fh = vec4(a.x, b.x, d.x, e.x);
+    f = vec4(a.y, b.y, d.y, e.y);
+}
+// The floor under x from its cells: bilinear (the cells without a floor carry the height grown from
+// their neighbours', scene_capture.c pc_scene_floor_grid, as before the interior).
+float medium_quad_floor(vec4 w, vec4 fh) { return dot(w, fh); }
+// The interior's share from the cells' bilinear floor share s: the record's soft edge around a half.
+float medium_inside(float s) {
+    vec2 e = MEDIUM(MEDIUM_AIR).yz;
+    return e.y - e.x > 1e-3 ? smoothstep(e.x, e.y, s) : step(0.5, s);
 }
 // The ground fog's floor under x (world y, y down): the room's lowest floor
 // there (scene_capture.c pc_scene_floor_grid), bilinear between cells; the
 // room's main floor without a grid.
 float medium_floor(vec3 x) {
-    if (MEDIUM(MEDIUM_FLOOR + 1).w < 0.5) return MEDIUM(1).z;
-    vec2 c = (x.xz - MEDIUM(MEDIUM_FLOOR).xy) * MEDIUM(MEDIUM_FLOOR).zw - 0.5;
-    vec2 f = c - floor(c);
-    ivec2 i = ivec2(floor(c));
-    float a = mix(medium_floor_cell(i.x, i.y), medium_floor_cell(i.x + 1, i.y), f.x);
-    float b = mix(medium_floor_cell(i.x, i.y + 1), medium_floor_cell(i.x + 1, i.y + 1), f.x);
-    return mix(a, b, f.y);
+    if (!medium_grid()) return MEDIUM(1).z;
+    vec4 w, fh, f;
+    medium_floor_quad(x, w, fh, f);
+    return medium_quad_floor(w, fh);
 }
-// The ground fog's density without noise: thickest at its base, falling
-// off by e every scale height up (y down: the height above the base is
-// base y - y). With the floor grid its base is the floor under x raised by
-// its offset (MEDIUM(1).z), and under its base (under the lowest floor: the
-// void past a ledge, a pit the grid smooths over) it fades within one more
-// scale height, so no column holds an unbounded depth of it; without one
-// (RPC environment {floor_grid: 0}, no level face) the base is the room's
-// main floor and everything under it has the full density, as before.
-float medium_fog_base(vec3 x) {
-    if (MEDIUM(1).x <= 0.0) return 0.0;
+// How much of x's column is the room's interior (MEDIUM_FLAG_INTERIOR): 1 over
+// the grid's cells with a floor, 0 over the cells without (outside the walls:
+// the void past a cut-away wall), a soft edge where the bilinear share of
+// floor crosses a half (the cells' border; haze_interior_edge); 1 without the switch.
+float medium_interior(vec3 x) {
+    if (!medium_interior_on()) return 1.0;
+    vec4 w, fh, f;
+    medium_floor_quad(x, w, fh, f);
+    return medium_inside(dot(w, f));
+}
+// The room's own air at x (inside its bounds), one look-up of the grid: the
+// uniform haze's share (with the interior: 1 over it, MEDIUM(MEDIUM_AIR).x
+// above the cells without a floor, haze_outside; fading out within
+// MEDIUM(6).w units under the floor: the column's over the interior, the
+// room's lowest, MEDIUM(MEDIUM_AIR).w, over the cells without one) and the ground fog's density without noise:
+// thickest at its base, falling off by e every scale height up (y down: the
+// height above the base is base y - y). With the floor grid its base is the
+// floor under x raised by its offset (MEDIUM(1).z), and under its base (under
+// the lowest floor: the void past a ledge, a pit the grid smooths over) it
+// fades within one more scale height, so no column holds an unbounded depth
+// of it; with the interior, only over the room's floor. Without a grid (RPC
+// environment {floor_grid: 0}, no level face) the base is the room's main
+// floor and everything under it has the full density, as before.
+void medium_room_air(vec3 x, out float haze_share, out float fog) {
+    haze_share = 1.0;
+    fog = 0.0;
     float height = max(MEDIUM(1).y, 1.0);
-    if (MEDIUM(MEDIUM_FLOOR + 1).w < 0.5) return MEDIUM(1).x * exp(-max(MEDIUM(1).z - x.y, 0.0) / height);
-    float up = medium_floor(x) - MEDIUM(1).z - x.y;
-    return MEDIUM(1).x * exp(up >= 0.0 ? -up / height : -max(-up - height, 0.0) / height);
+    if (!medium_grid()) {
+        if (MEDIUM(1).x > 0.0) fog = MEDIUM(1).x * exp(-max(MEDIUM(1).z - x.y, 0.0) / height);
+        return;
+    }
+    vec4 w, fh, f;
+    medium_floor_quad(x, w, fh, f);
+    float floor_y = medium_quad_floor(w, fh);
+    float inside = 1.0;
+    if (medium_interior_on()) {
+        inside = medium_inside(dot(w, f));
+        haze_share = mix(MEDIUM(MEDIUM_AIR).x, 1.0, inside);
+        // under the floor: the column's own over the interior, the room's lowest over the cells without one
+        float under = x.y - mix(MEDIUM(MEDIUM_AIR).w, floor_y, inside); // y down: > 0 under the floor
+        if (under > 0.0) haze_share *= 1.0 - smoothstep(0.0, max(MEDIUM(6).w, 1.0), under);
+    }
+    if (MEDIUM(1).x > 0.0 && inside > 0.0) {
+        float up = floor_y - MEDIUM(1).z - x.y;
+        fog = inside * MEDIUM(1).x * exp(up >= 0.0 ? -up / height : -max(-up - height, 0.0) / height);
+    }
+}
+float medium_fog_base(vec3 x) {
+    float haze_share, fog;
+    medium_room_air(x, haze_share, fog);
+    return fog;
 }
 // A volume's field layer + 1 (0: none) and its shape (record: fill.w =
 // layer + 1, + 8 for a sphere).
@@ -267,9 +338,10 @@ float medium_at(vec3 x, out vec3 scatter, out vec3 emit) {
     emit = vec3(0.0);
     float extinction = 0.0, n = -1.0;
     if (medium_in_room(x)) {
-        extinction = MEDIUM(0).x;
+        float share, f;
+        medium_room_air(x, share, f);
+        extinction = MEDIUM(0).x * share;
         scatter = vec3(extinction);
-        float f = medium_fog_base(x);
         if (f > 1e-9) {
             if (MEDIUM(1).w > 0.0) {
                 n = medium_noise(x);
@@ -321,7 +393,16 @@ float medium_ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.0671105
 // Whether the medium may be present at x (its largest density, noise at
 // its peak, is above zero): passes skip the rest.
 bool medium_maybe(vec3 x) {
-    if (medium_in_room(x) && (MEDIUM(0).x > 0.0 || medium_fog_base(x) * (1.0 + MEDIUM(1).w) > 1e-7)) return true;
+    if (medium_in_room(x)) {
+        // the haze fills the bounds without the interior: no look-ups (nor for a fog without a grid)
+        if (MEDIUM(0).x > 0.0 && !medium_interior_on()) return true;
+        if (!medium_grid()) { if (medium_fog_base(x) * (1.0 + MEDIUM(1).w) > 1e-7) return true; }
+        else {
+            float share, f;
+            medium_room_air(x, share, f);
+            if ((MEDIUM(0).x > 0.0 && share > 0.0) || f * (1.0 + MEDIUM(1).w) > 1e-7) return true;
+        }
+    }
     int count = medium_volume_count();
     for (int i = medium_volume_first(); i < count && i < MEDIUM_VOLUMES; i++) {
         int b = MEDIUM_VOLUME_BASE + 5 * i;
@@ -330,5 +411,36 @@ bool medium_maybe(vec3 x) {
         if (max(max(r.x, r.y), r.z) < reach && MEDIUM(b).w > 0.0) return true;
     }
     return false;
+}
+// A present pass's pixel that may show the void around the room (MEDIUM_FLAG_VOID):
+// nothing drawn (depth d >= 1), or a 3D surface the PS1 draws black whatever its
+// texture, its vertex colour at most the record's level (MEDIUM(7).w; the rooms'
+// black shells, Native_Rendering.md "Seeing into rooms"). shade: the G-buffer's
+// shade target (a 0.5 untextured, 1 textured; 0.25 emissive and 0 unlit are
+// never void). Such a pixel keeps the room's haze and ground fog only up to
+// medium_void_reach (a black surface inside the room keeps all of it); the fog
+// volumes' own renderer is exempt (an artist placed them).
+bool medium_void_pixel(float d, vec4 shade) {
+    if ((medium_flags() & MEDIUM_FLAG_VOID) == 0) return false;
+    if (d >= 1.0) return true;
+    return d * 65536.0 >= 0.5 && shade.a > 0.375 && max(max(shade.r, shade.g), shade.b) <= MEDIUM(7).w;
+}
+// A void pixel's reach: the share (0..1) of its ray from the eye to its surface `world` up to the
+// last of 16 points that lies in the room's interior air (inside the bounds, over the cells with a
+// floor, at most haze_under_floor under it); 0 when none does, or without the interior (the pixel then
+// keeps none of the room's air). A black doorway or prop seen across the room keeps the air in front
+// of it (no cut-out); the void past a cut-away wall, whose ray never crosses the room, keeps none.
+float medium_void_reach(vec3 origin, vec3 world) {
+    if (!medium_interior_on()) return 0.0;
+    float under = max(MEDIUM(6).w, 1.0);
+    for (int k = 16; k >= 1; k--) {
+        float t = float(k) / 16.0;
+        vec3 x = mix(origin, world, t);
+        if (!medium_in_room(x)) continue;
+        vec4 w, fh, f;
+        medium_floor_quad(x, w, fh, f);
+        if (dot(w, f) >= 0.5 && x.y - medium_quad_floor(w, fh) <= under) return t;
+    }
+    return 0.0;
 }
 #endif

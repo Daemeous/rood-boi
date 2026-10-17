@@ -117,23 +117,6 @@ Handle shadows_toggle(const Ref& r, float cx, float cy, float ring_radius)
     h.readout = [r]() { return rood_handles::readout(r, "shadows"); };
     return h;
 }
-/* The colour swatch, below right of the ring: a click opens (or closes) the colour popover. */
-Handle swatch(const Ref& r, float cx, float cy, float ring_radius, const float colour[3])
-{
-    Handle h;
-    h.name = "colour", h.label = "Colour";
-    h.shape = rood_handles::SHAPE_SQUARE;
-    h.x = cx + ring_radius * 0.75f + 10 * em(), h.y = cy + ring_radius * 0.75f + 10 * em(), h.radius = 6 * em();
-    h.colour = colour_of(colour);
-    float x = h.x, y = h.y;
-    h.click = [r, x, y]() {
-        if (rood_colour::is_open())
-            rood_colour::close();
-        else
-            rood_colour::open(r, x, y);
-    };
-    return h;
-}
 /* A spot's or rect's range: a dot on its axis at its radius. */
 Handle range_dot(const pc_overlay_view& v, const Ref& r, const Light& l)
 {
@@ -317,6 +300,23 @@ Handle barn_length_handle(const pc_overlay_view& v, const Ref& r, const Light& l
 }
 } // namespace
 
+/* The colour swatch, below right of the ring: a click opens (or closes) the colour popover. */
+Handle rood_handles::colour_swatch(const Ref& r, float cx, float cy, float ring_radius, const float colour[3])
+{
+    Handle h;
+    h.name = "colour", h.label = "Colour";
+    h.shape = rood_handles::SHAPE_SQUARE;
+    h.x = cx + ring_radius * 0.75f + 10 * em(), h.y = cy + ring_radius * 0.75f + 10 * em(), h.radius = 6 * em();
+    h.colour = colour_of(colour);
+    float x = h.x, y = h.y;
+    h.click = [r, x, y]() {
+        if (rood_colour::is_open())
+            rood_colour::close();
+        else
+            rood_colour::open(r, x, y);
+    };
+    return h;
+}
 void rood_handles::light_handles(const pc_overlay_view& v, const Ref& r, int index, std::vector<Handle>& out)
 {
     const Light& l = lights[index];
@@ -345,7 +345,7 @@ void rood_handles::light_handles(const pc_overlay_view& v, const Ref& r, int ind
         out.push_back(barn_length_handle(v, r, l));
         out.push_back(barn_angle_handle(v, r, l));
     }
-    out.push_back(swatch(r, c[0], c[1], intensity.radius, l.color));
+    out.push_back(rood_handles::colour_swatch(r, c[0], c[1], intensity.radius, l.color));
 }
 /* A selected light's shapes besides its handles: a spot's inner cone (its
  * edges inside the cone's), a rect's four barn door flaps. */
@@ -461,7 +461,7 @@ void rood_handles::sun_handles(const pc_overlay_view& v, std::vector<Handle>& ou
     out.push_back(ring(px[0], px[1], colour_of(s.color), "Sun intensity", [](const Drag& g) { return g.sun.intensity; },
         [](float x) {
             rood_env::SunState t = rood_env::sun_state();
-            t.intensity = fminf(x, 4.0f);
+            t.intensity = fminf(x, rood_env::SUN_INTENSITY_MAX);
             rood_env::set_sun_state(t);
         },
         []() { return rood_env::sun_state().intensity; },
@@ -470,7 +470,7 @@ void rood_handles::sun_handles(const pc_overlay_view& v, std::vector<Handle>& ou
             snprintf(text, sizeof text, "Intensity %.2f", rood_env::sun_state().intensity);
             return std::string(text);
         }));
-    out.push_back(swatch(Ref { rood_selection::KIND_SUN, "env:sun" }, px[0], px[1], 22 * em(), s.color));
+    out.push_back(rood_handles::colour_swatch(Ref { rood_selection::KIND_SUN, "env:sun" }, px[0], px[1], 22 * em(), s.color));
     Handle h;
     h.name = "sun", h.label = "Sun direction";
     h.shape = rood_handles::SHAPE_DISC;

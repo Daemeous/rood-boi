@@ -994,6 +994,10 @@ These switches persist with File > Save settings:
 | `fog_volume_history` | 0.06 | the least weight of a new frame in its temporal accumulation (lower: steadier, slower) |
 | `fog_volume_ambient`, `fog_volume_glow`, `fog_volume_scattering`, `fog_volume_halo` | 1, 0.6, 0.5, 2 | its ambient light, the glows' light, the multiple-scattering octave, extra light near a light |
 | `fog_volume_shadows` | 1 | the scene shadows the volumes' lights (Vulkan ray queries) |
+| `dust` | 0 | dust motes in rooms that have them (pc/docs/Particles.md): 0 Off (the picture as before), 1 Low, 2 High; Graphics > Dust |
+| `dust_low` | 0.4 | the share of each dust emitter's particles Low draws |
+| `particles_glow`, `particles_lights`, `particles_glow_shadows` | 1, 2, 1 | the glows' light on particles; the strongest sources each is lit by (with a shadow ray each, and the sun); glows' light shadowed too |
+| `particles_cpu_rays` | 1536 | OpenGL: the particles' shadow rays a frame (their light refreshed round-robin) |
 | `editor_cutaway`, `editor_cutaway_radius` | 1, 320 | See into rooms > Cut to focus (key C) and its radius at the focus |
 | `editor_cutaway_opacity` | 0.3 | share of a cut surface still drawn as a ghost, with its edges (0: a hole) |
 | `editor_cutaway_auto` | 1 | cut only while room surfaces hide the focus from the camera |
@@ -1802,6 +1806,23 @@ raise the room's `haze_max_opacity` / `haze_max_light` (room settings).
   `events` (attacks and spells seen, the current battle action) and
   `presets`. Test: `pc/tests/fog_sim_smoke.py`.
 
+#### Dust and particles
+
+Motes of dust that glint where light crosses a room's air and vanish in
+shadow: square motes of one or two game pixels, nearest like the PS1's
+texels, drifting slowly with a little turbulence. They are the first use
+of a small data-driven particle system (pc/docs/Particles.md): emitters
+are lighting items (`emitter <id>`, lighting/README.md "Emitters") placed
+in Details > Atmosphere > Dust and particles (Add emitter), each taking
+its look from an asset in `pc/assets/emitters` (dust_motes.json). The
+graphics setting **Dust** (System > Graphics, Details > Graphics, settings
+key `dust`, RPC `graphics {dust}` or `particles {level}`) is Off by
+default: Off draws nothing (the picture as before), Low `dust_low` of each
+emitter's particles, High all. The motes are lit by their strongest
+`particles_lights` lights and glows and the sun, each with a shadow ray
+(Vulkan ray queries; OpenGL the path tracer's scene within
+`particles_cpu_rays` rays a frame). Test: `pc/tests/particles_smoke.py`.
+
 ### Lighting quality presets
 
 Lighting has quality presets so lower-spec PCs run it (`pc/src/lighting_quality.cpp`):
@@ -1954,6 +1975,7 @@ redraws at about 60 Hz, and after each request):
 | `post` | `layer` (`gameplay`, `cutscene`, `room`, `room_cutscene`), `set` {field: value}, `clear` ([fields] or `all`), `preset`, `context` (`auto`, `gameplay`, `cutscene`: preview), `stack`, `blend_time`, `fft_size`, `save_preset`, `snap` | post-processing profiles (docs/Post_Processing.md): `context`, `detected`, `event`, `lens_blur_off` (`title`, `attract`, `menu`, `no_player` or ""), `grade`, `bloom`, `ev`, `focus`, `flags`, `blend`, `target` and `shown` values, every layer, `presets` |
 | `environment` | `sun` {`enabled`, `azimuth`, `elevation`, `color`, `intensity`, `angle`, `shadows`}, `sky` {`enabled`, `zenith`, `horizon`, `ground`, `intensity`, `sun_tint`, `ambient`}, `remove` (`sun`, `sky`, `all`), `global` | the room's sun and sky (`defined`: the room has the item; setting a field of one it lacks adds it), `active`, `global` (settings key `environment`), the renderers' packed record (`gpu`) and its `hash`; an edit marks the room dirty (save with `lighting` `save`) and is one undo transaction |
 | `environment` (fog) | `haze` {`density`, `anisotropy`, `glow`, `max_opacity`, `max_light`, `shafts`, `max_forward`} (room settings), `floor_grid`, `fog` {`enabled`, `density`, `height`, `offset`, `noise`, `scale`, `wind`, `color`, `fill`, `sky`}, `remove_fog`, `volumes` [{`id`, `remove`, `enabled`, `shape`, `name`, `pos`, `size`, `yaw`, `density`, `edge`, `color`, `fill`, `noise`, `sim`, `sim_strength`, `sim_recover`, `sim_footprint`, `sim_trail`, `sim_wind`, `detail`, `opacity`, `brightness`, `phase`, `ambient`, `glow`, `glow_core`, `taper`, `detail_size`, `disturb_player`, `disturb_actors`, `disturb_attacks`, `disturb_spells`, `preset`}], `fog_time` (seconds, -1 live), `fog_global`; the interactive fog: `disturb`, `sim_budget`, `stamp`, `ghost`, `sim_reset`, `sim_field`, `presets_reload` ("Interactive fog"); `fog_volumes` {`render`, `resolution`, `steps`, `steps_gl`, `history`, `ambient`, `glow`, `scattering`, `halo`, `shadows`, `debug`} ("Fog volumes' own renderer") | the same reply plus `haze`, `fog` (with the room's main `floor` and its `floor_grid` {`n`, `corner`, `cell`, `heights`}), `bounds`, `volumes`, `fog_volumes` (with `drawn`), `fog_global`, `fog_time`, `sim`, `sims`, `disturb`, `sim_budget`, `events`, `presets` |
+| `particles` | `level` (Dust 0-2), `low`, `time` (seconds, -1 live), `debug`, `untraced`, `show`, `settings` {`glow`, `lights`, `glow_shadows`, `cpu_rays`}, `reload_assets`, `emitters` [{`id`, `remove`, `name`, `asset`, `pos`, `yaw`, `enabled`, `seed`, any asset field}], `add` {`asset`, `pos`} or {`asset`, `here`}, `select`, `motes` {`emitter`, `offset`, `max`}; checked whole before anything changes | the settings, `renderer`, `path` (`traced`, `untraced`, `off`), `scene` (`gi`, `own`, `cpu`, `none`), `motes`, `cpu_ms`, `display`, `view`, `assets`, `emitters` (with their resolved `fields` and `drawn`), `mote_list` (each mote's `pos`, `cell`, `size`, `sz`, `colour`, `light`, `open`, `won`) |
 | `lighting` | `action` (`layers`, `save`, `revert` {`id`}, `promote` {`ids`}, `reload` (as `lights` `reload`), `packs` {`packs`, `active`}, `discard_dangling`, `poll` (the live reload's check, now)) | the room's lighting layers (files, entries, version), the effective items with their layer badges, deleted ids, problems (dangling overrides), the user layer as it would be saved |
 | `fixtures` | `action` (`list`, `set` {`type`, `params`, `offset`, `fixture_radius`, `glow`, `enabled`, `review`}, `save`, `revert`, `regenerate` {`scope`}), `type`, `all` | the fixture catalog's types in the room (or one, or all), the room's typed actors and glows (`muted` 4: suppressed by the type); type edits apply live to every instance (`pc/docs/Fixture_Catalog.md`) |
 | `rooms` | | every zone and room read from the disc (zone, room, location, scene, entries, `floor` [width, depth] in cells, name, area), the current room, whether warped, the warp's phase |

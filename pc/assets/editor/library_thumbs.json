@@ -1,0 +1,11 @@
+{
+  "about": "The editor Library's thumbnail scene (pc/src/library_thumbs.h): albedos, light, exposure, field of view. Library > Thumbnails... edits it.",
+  "floor": 0.5,
+  "wall": 0.42,
+  "grid": 0.8,
+  "ambient": 0.04,
+  "fog_ambient": 0.25,
+  "exposure": 1.8,
+  "fov": 40,
+  "background": [0.03, 0.03, 0.035]
+}

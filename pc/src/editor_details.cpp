@@ -86,12 +86,23 @@ void edit_reset(const Kind& k, const Field& f, const Subject& s)
     else
         rood_schema::apply_reset(k, f, s.ref);
 }
+void edit_global(const Kind& k, const Field& f, const Subject& s, bool on)
+{
+    if (s.standalone()) {
+        f.set_uses_global(s.index, on);
+        pc_undo_hint(((on ? "Use global " : "Edit ") + f.label).c_str());
+    } else {
+        rood_schema::apply_global(k, f, s.ref, on);
+    }
+}
 
 /* As last drawn (RPC editor_schema {action "ui"}): Details', and each draw_kind's. */
 struct Drawn {
     int frame = -1;
     std::vector<std::string> fields;
     std::map<std::string, ImVec4> values, resets; /* window pixels: x, y, w, h */
+    std::vector<std::pair<std::string, bool>> categories; /* as drawn: each category and whether it is open */
+    bool header = false; /* the kind's header row drawn */
 };
 Ref shown;
 std::string shown_kind;
@@ -109,6 +120,7 @@ struct Ladder {
     float press_x = 0, press_y = 0, origin_x = 0;
     float base = 0, value = 0; /* the value when the row was chosen; now */
     std::vector<std::pair<Subject, Value>> before; /* every object it changes, as they were (Escape) */
+    std::vector<int> global_before; /* each one's Use global (1, 0), -1 for a field without one */
 } ladder;
 
 bool numeric(const Field& f)
@@ -173,23 +185,37 @@ void ladder_begin(const Kind& k, const Field& f, const Subject& target, int inde
     ladder.base = ladder.value = f.get(index).at(component);
     for (const Subject& s : subjects(k, f, target)) {
         int i = -1;
-        if (resolve(s, &i) && i >= 0)
+        if (resolve(s, &i) && i >= 0) {
             ladder.before.push_back({ s, f.get(i) });
+            ladder.global_before.push_back(f.uses_global ? (f.uses_global(i) ? 1 : 0) : -1);
+        }
     }
     pc_undo_begin(("Edit " + f.label).c_str()); /* the whole drag is one undo step */
 }
 void ladder_end(bool keep)
 {
     if (!keep)
-        for (const auto& b : ladder.before) {
+        for (size_t n = 0; n < ladder.before.size(); n++) {
+            const auto& b = ladder.before[n];
             int i;
             const Kind* k = resolve(b.first, &i);
             const Field* f = k ? k->field(ladder.field) : nullptr;
-            if (f)
+            if (!f)
+                continue;
+            int global = n < ladder.global_before.size() ? ladder.global_before[n] : -1;
+            if (global == 1 && f->set_uses_global) { /* it used the global value: back to that, not a copy of it */
+                if (!f->uses_global || !f->uses_global(i))
+                    f->set_uses_global(i, true);
+                continue;
+            }
+            if (global == 0 && f->uses_global && f->uses_global(i) && f->set_uses_global)
+                f->set_uses_global(i, false);
+            if (!rood_schema::same(*f, f->get(i), b.second)) /* only what changed (an untouched one stays as it is) */
                 f->set(i, b.second);
         }
     ladder.active = false;
     ladder.before.clear();
+    ladder.global_before.clear();
     pc_undo_end();
 }
 void ladder_hover(const Kind& k, const Field& f, const Subject& target, int index, int component)
@@ -298,8 +324,23 @@ void row(const Kind& k, const Field& f, const Subject& target, int index)
         ImGui::TextUnformatted(f.label.c_str());
     tooltip(f, index);
     ImGui::TableNextColumn();
+    bool global = f.uses_global && f.uses_global(index);
+    if (f.uses_global) { /* "Use global": the value follows the setting every room shares */
+        bool box = global;
+        if (ImGui::Checkbox("##global", &box))
+            edit_global(k, f, target, box);
+        keep_rect(false, f.name + ".global");
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            ImGui::SetTooltip("Use global: %s.\nUntick to give this one its own value.",
+                f.global_tooltip.empty() ? "the value every room uses" : f.global_tooltip.c_str());
+        ImGui::SameLine();
+        ImGui::BeginDisabled(global);
+    }
     Value v = f.get(index), before = v;
-    if (widget(k, f, target, index, v)) {
+    bool changed = widget(k, f, target, index, v);
+    if (f.uses_global)
+        ImGui::EndDisabled();
+    if (changed) {
         /* A vec3's one component dragged or typed: the other selected
          * objects take that component only. */
         int component = -1;
@@ -329,6 +370,11 @@ void row(const Kind& k, const Field& f, const Subject& target, int index)
 /* The kind's search box, categories of rows and tools (Details and draw_kind). */
 void fields(const Kind& k, const Subject& subject, int index, char* text, size_t text_size)
 {
+    if (k.header) { /* preset first (a fog volume's): above the search, always shown */
+        k.header(index);
+        drawing->header = true;
+        ImGui::Spacing();
+    }
     ImGui::SetNextItemWidth(-FLT_MIN);
     ImGui::InputTextWithHint("##search", "Search details", text, text_size);
     std::vector<std::string> categories;
@@ -344,7 +390,9 @@ void fields(const Kind& k, const Subject& subject, int index, char* text, size_t
         if (text[0])
             ImGui::SetNextItemOpen(true); /* a search shows its matches in every category */
         bool closed = std::find(k.closed.begin(), k.closed.end(), c) != k.closed.end();
-        if (!ImGui::CollapsingHeader((c + "##category").c_str(), closed ? 0 : ImGuiTreeNodeFlags_DefaultOpen))
+        bool open = ImGui::CollapsingHeader((c + "##category").c_str(), closed ? 0 : ImGuiTreeNodeFlags_DefaultOpen);
+        drawing->categories.push_back({ c, open });
+        if (!open)
             continue;
         if (ImGui::BeginTable(c.c_str(), 3, ImGuiTableFlags_SizingStretchProp)) {
             ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthStretch, 0.42f);
@@ -414,12 +462,6 @@ void rood_details::draw()
         rood_selection::lock(!locked);
     if (subject.kind == rood_selection::KIND_GLOW) {
         pc_lights_glow_details();
-        ImGui::PopID();
-        return;
-    }
-    if (subject.kind == rood_selection::KIND_SUN) { /* no schema kind yet: its settings are the Atmosphere tab's */
-        ImGui::TextWrapped("The room's sun (or moon). In the view: drag its disc across the sky dome (azimuth and "
-                           "elevation), its ring (intensity), its swatch (colour). Every setting: the Atmosphere tab.");
         ImGui::PopID();
         return;
     }
@@ -544,6 +586,12 @@ bool rood_details::ladder_cancel()
     return true;
 }
 
+void rood_details::ladder_finish()
+{
+    if (ladder.active)
+        ladder_end(true);
+}
+
 void rood_details::set_search(const std::string& text) { snprintf(search, sizeof search, "%s", text.c_str()); }
 void rood_details::set_kind_search(const std::string& kind, const std::string& text) { kind_search[kind] = text; }
 
@@ -572,6 +620,11 @@ std::string rood_details::state_json()
     for (size_t i = 0; current && i < details_drawn.fields.size(); i++)
         s += (i ? "," : "") + q(details_drawn.fields[i]);
     s += "],\"rects\":" + rects_json(details_drawn.values, current) + ",\"reset\":" + rects_json(details_drawn.resets, current);
+    s += ",\"categories\":[";
+    for (size_t i = 0; current && i < details_drawn.categories.size(); i++)
+        s += std::string(i ? "," : "") + "{\"name\":" + q(details_drawn.categories[i].first) + ",\"open\":"
+            + (details_drawn.categories[i].second ? "true" : "false") + "}";
+    s += std::string("],\"header\":") + (current && details_drawn.header ? "true" : "false");
     /* draw_kind's, drawn this frame (by kind): their fields, value and reset rects, search. */
     s += ",\"standalone\":{";
     bool first_kind = true;

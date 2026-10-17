@@ -37,6 +37,8 @@ extern int pc_fog_sim_budget;
 extern int pc_fog_volume_render, pc_fog_volume_steps, pc_fog_volume_steps_gl, pc_fog_volume_shadows; /* atmosphere.cpp */
 extern float pc_fog_volume_resolution, pc_fog_volume_history, pc_fog_volume_ambient, pc_fog_volume_glow,
     pc_fog_volume_scattering, pc_fog_volume_halo;
+extern int pc_dust, pc_particles_lights, pc_particles_glow_shadows, pc_particles_cpu_rays; /* particles.cpp */
+extern float pc_dust_low, pc_particles_glow;
 extern float pc_lights_snap_move, pc_lights_snap_angle;
 /* Gameplay options, read by the game side. qol_weapon_slots: the weapon
  * slots quick swap on L2 + R2 (weapon_slots.c, battle builds), off by default. */
@@ -104,6 +106,8 @@ int pc_ui_menu_tint_custom[3] = { 8, 7, 7 }; /* Custom's colour, 0..31 per chann
 #include "post.h" /* post_* (post profiles; the old post_flags, focus_mode, ... still load) */
 #include "editor_selection.h" /* editor_hidden_<zone>_<room>: objects hidden in the editor */
 #include "editor_colour.h" /* editor_colour_tabs, editor_recent_colours */
+#include "editor_fit_window.h" /* editor_fit_window_offset, _kelvin */
+#include "editor_library.h" /* editor_library_view, _docked, _window, _favourites */
 extern bool pc_lights_show_gizmos;
 namespace rood_lights {
 extern int animate; /* light actors' flicker and pulse (lights.cpp) */
@@ -192,6 +196,14 @@ const Entry entries[] = {
     F("fog_volume_scattering", pc_fog_volume_scattering),
     F("fog_volume_halo", pc_fog_volume_halo),
     I("fog_volume_shadows", pc_fog_volume_shadows),
+    /* Particles (particles.h, pc/docs/Particles.md): Dust (0 off, 1 low, 2 high), Low's share, the glows'
+     * light on them, sources per mote, glow shadows, OpenGL's shadow rays a frame. */
+    I("dust", pc_dust),
+    F("dust_low", pc_dust_low),
+    F("particles_glow", pc_particles_glow),
+    I("particles_lights", pc_particles_lights),
+    I("particles_glow_shadows", pc_particles_glow_shadows),
+    I("particles_cpu_rays", pc_particles_cpu_rays),
     F("normal_smoothing", pc_normal_smoothing),
     I("gameplay_walls_ghost", pc_gameplay_walls_ghost),
     F("gameplay_walls_opacity", pc_gameplay_walls_opacity),
@@ -420,6 +432,10 @@ int apply_line(const char* line, int* scale, bool now)
         pc_memory_card_set_path(key[4] - '1', rest);
         return 1;
     }
+    if (rood_library::parse_setting(key, rest)) /* editor state: the library's view, place and favourites */
+        return 1;
+    if (rood_fit::parse_setting(key, rest)) /* editor tools: fit to window's offset and colour */
+        return 1;
     if (rood_colour::parse_setting(key, rest)) /* editor state: the colour popover's tabs and recent colours */
         return 1;
     int applied = 0;
@@ -593,6 +609,8 @@ extern "C" void pc_settings_write(FILE* f)
     }
     rood_selection::write_hidden(f);
     rood_colour::write_settings(f);
+    rood_library::write_settings(f);
+    rood_fit::write_settings(f);
 }
 
 /* Apply settings lines now (the editor's undo: the lines that differ, a

@@ -20,6 +20,7 @@
 #include "glow_overrides.h"
 #include "dev_state.h"
 #include "materials.h"
+#include "editor_undo.h"
 
 extern "C" {
 float pc_emissive = 1.0f;
@@ -517,8 +518,13 @@ static void merge()
         merged.entries.resize(MAX_SLOTS - 1);
     ++catalog_generation;
 }
+namespace {
+bool dirty_user;
+std::string saved_user; /* the user layer as on disk (catalog_text, no comment): undo back to it is not unsaved */
+}
 void reload()
 {
+    bool again = loaded;
     std::string error;
     materials::forget(); /* painted maps read again too */
     if (!load_file(catalog_path(), curated, error))
@@ -530,6 +536,10 @@ void reload()
     user_stamp = stamp(user_path());
     merge();
     loaded = true;
+    dirty_user = false;
+    saved_user = catalog_text(user, nullptr);
+    if (again) /* read again (a hand edit, Reload): not an edit of the editor's */
+        pc_undo_external_emissive();
     char line[256];
     snprintf(line, sizeof line, "%d curated, %d of yours%s%s", (int)curated.entries.size(), (int)user.entries.size(),
         error.empty() && uerror.empty() ? "" : "; error: ", (error + uerror).c_str());
@@ -562,9 +572,6 @@ const Catalog& curated_catalog()
 const std::string& status() { return status_text; }
 uint32_t generation() { return catalog_generation; }
 
-namespace {
-bool dirty_user;
-}
 bool user_dirty() { return dirty_user; }
 const Entry* find(const std::string& id)
 {
@@ -632,6 +639,34 @@ std::string catalog_text(const Catalog& c, const char* comment)
     j.set("entries", es);
     return prefab::json_write(j) + "\n";
 }
+std::string user_text()
+{
+    catalog();
+    static uint32_t made_for = ~0u;
+    static std::string text;
+    if (made_for != catalog_generation) { /* merge() bumps it on every change */
+        text = catalog_text(user, nullptr);
+        made_for = catalog_generation;
+    }
+    return text;
+}
+void set_user_text(const std::string& text)
+{
+    if (text == user_text())
+        return;
+    Catalog c;
+    Json j;
+    if (prefab::json_parse(text.c_str(), j) && j.type == Json::Object)
+        if (const Json* es = j.get("entries"); es && es->type == Json::Array)
+            for (const Json& ej : es->items) {
+                Entry e;
+                if (entry_from_json(ej, e, nullptr))
+                    c.entries.push_back(e);
+            }
+    user = c;
+    merge();
+    dirty_user = user_text() != saved_user; /* undone back to what is saved: nothing unsaved */
+}
 static void mkdirs(const std::string& path)
 {
     for (size_t i = 1; i < path.size(); i++)
@@ -659,6 +694,7 @@ bool save_user(std::string* error)
     }
     user_stamp = stamp(path);
     dirty_user = false;
+    saved_user = catalog_text(user, nullptr);
     return true;
 }
 

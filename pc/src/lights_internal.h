@@ -105,8 +105,10 @@ void light_details_extra(int index); /* lights.cpp: Duplicate, Delete, Create pr
 void actor_details_extra(int index); /* the prefab line, Reset all, fixture, glow, its lights, actions */
 void glow_details_actions();
 void glows_outliner_actions();
-void place_panel();
 void prefab_editor_window();
+/* The prefab editor's prefab: opened on one ("" closes it), and which one is open ("" none). */
+void edit_prefab(const std::string& id);
+const std::string& editing_prefab_id();
 void suggestions_window();
 /* Glow suggestions for the room: a prefab for each unlinked glow it fits. */
 struct Suggestion {
@@ -137,6 +139,9 @@ extern "C" int pc_gi_flames(float out[][4], int max);
 extern "C" int pc_gi_fixture_triangles(const float p[3], float radius, float (*out)[9], int max);
 /* Prefab file operations (status set on failure). */
 bool create_prefab_from_selection(const std::string& name);
+/* A light prefab of the user's from lights and light actors (their lights at rest, baked: positions,
+ * colours, animation), replaced here by one actor of it, selected. */
+bool create_prefab_from(const std::vector<int>& light_indices, const std::vector<int>& actor_indices, const std::string& name);
 bool save_actor_as_prefab(int actor, const std::string& name);
 bool apply_actor_to_prefab(int actor);
 void draw_icon(void* draw_list, float x, float y, float size, const std::string& item, const float color[3], float alpha);

@@ -920,7 +920,7 @@ for name in ["runtime", "window", "controller", "gamepad"]:
             and name in STATE_HOST_UNITS:
         state_sections(obj)
     objects.append(obj)
-for name in ["audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []):
+for name in ["audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []):
     obj = out / (name.replace("/", "_") + ".o")
     # ui_text rasterizes fonts with the stb_truetype that Dear ImGui vendors.
     extra = ["-Ipc/third_party/imgui"] if name == "ui_text" else []
@@ -1001,6 +1001,9 @@ for source in [
     root / "pc/src/atmosphere.cpp",
     root / "pc/src/post_profile.cpp",
     root / "pc/src/fog_sim.cpp",
+    root / "pc/src/particles.cpp",
+    root / "pc/src/particle_assets.cpp",
+    root / "pc/src/particles_editor.cpp",
     root / "pc/src/room_browser.cpp",
     root / "pc/src/project_settings.cpp",
     root / "pc/src/lighting_quality.cpp",
@@ -1017,7 +1020,12 @@ for source in [
     root / "pc/src/editor_transform.cpp",
     root / "pc/src/editor_handles.cpp",
     root / "pc/src/editor_light_handles.cpp",
+    root / "pc/src/editor_volume_handles.cpp",
     root / "pc/src/editor_colour.cpp",
+    root / "pc/src/library_model.cpp",
+    root / "pc/src/library_thumbs.cpp",
+    root / "pc/src/editor_library.cpp",
+    root / "pc/src/editor_fit_window.cpp",
     root / "pc/src/probe_overlay.cpp",
     root / "pc/src/ui_upscale_panel.cpp",
     root / "pc/src/ui/ui_shell.cpp",

@@ -271,8 +271,10 @@ additive glows are left alone.
   out) and pulsing. Every edit applies live. *Save (yours)* writes the user
   file; *Copy JSON for the curated catalog* puts the entry (review
   `checked`) on the clipboard to paste into `catalog.json`; *Revert to
-  curated* / *Delete*. Files edited by hand reload live (unless the editor
-  has unsaved changes).
+  curated...* / *Delete...* (after a confirm). An entry's *Duplicate* (a
+  copy of yours under a new id) and *Delete...* are on its title line;
+  both, like every emissive edit, are undoable (Ctrl+Z). Files edited by
+  hand reload live (unless the editor has unsaved changes).
 
 ## Curated v1 (2026-10-15)
 

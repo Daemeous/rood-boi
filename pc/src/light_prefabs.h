@@ -152,6 +152,10 @@ struct Library {
 Library& library();
 /* A file-name-safe id from a display name ("Wall torch" -> "wall_torch"). */
 std::string make_id(const std::string& name);
+/* A directory's *.json file names, sorted (none when it is missing), and a
+ * stamp of their names, times and sizes (changes when any does). */
+std::vector<std::string> json_files(const std::string& dir);
+long long directory_stamp(const std::string& dir);
 
 /* ---- actors ---- */
 struct Actor {
@@ -225,6 +229,8 @@ struct EvalLight {
     float shadow_skip = 0; // shadow rays stop this far short of the light (its fixture casts no shadow)
     bool shadows = false, enabled = true;
     float factor = 1; // this frame's animation factor on the intensity
+    /* Its animation's values (evaluated whether animating or not; Save as prefab bakes them). */
+    float flicker = 0, flicker_speed = 8, jitter = 0, pulse = 0, pulse_speed = 0.5f;
 };
 /* The actor's lights at `time` (seconds); animated when `animate`. */
 void evaluate(const Prefab& p, const Actor& a, double time, bool animate, std::vector<EvalLight>& out);

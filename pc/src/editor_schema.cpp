@@ -405,8 +405,17 @@ std::vector<Kind>& fixed_kinds()
         Kind fog;
         rood_atmo::schema_kind(fog);
         kinds.push_back(fog);
+        Kind sun;
+        rood_env::sun_schema_kind(sun);
+        kinds.push_back(sun);
     }
     return kinds;
+}
+/* The kinds of older library serials, kept until collect() (pointers into them stay valid this frame). */
+std::deque<std::map<std::string, Kind>>& retired_kinds()
+{
+    static std::deque<std::map<std::string, Kind>> retired;
+    return retired;
 }
 /* One kind per prefab, rebuilt when the library reloads (its parameters may change). */
 std::map<std::string, Kind>& actor_kinds()
@@ -414,7 +423,9 @@ std::map<std::string, Kind>& actor_kinds()
     static std::map<std::string, Kind> kinds;
     static int serial = -1;
     if (serial != prefab::library().serial) {
-        kinds.clear();
+        if (!kinds.empty())
+            retired_kinds().push_back(std::move(kinds));
+        kinds = std::map<std::string, Kind>();
         serial = prefab::library().serial;
     }
     return kinds;
@@ -444,6 +455,13 @@ void add_kind(Kind k)
         }
     added_kinds().push_back(std::move(k));
 }
+int collect()
+{
+    int n = (int)retired_kinds().size();
+    retired_kinds().clear();
+    return n;
+}
+int retired_count() { return (int)retired_kinds().size(); }
 const Kind* find_kind(const std::string& name)
 {
     for (const Kind& k : fixed_kinds())
@@ -458,6 +476,12 @@ const Kind* find_kind(const std::string& name)
 }
 const Kind* kind_of(const Ref& r, int* index)
 {
+    if (r.kind == rood_selection::KIND_SUN) { /* the room's sun: one object, index 0 */
+        bool on = rood_env::sun_state().defined;
+        if (index)
+            *index = on ? 0 : -1;
+        return on ? find_kind("sun") : nullptr;
+    }
     int i = r.kind == rood_selection::KIND_GLOW ? -1 : rood_scene::index_of(r);
     if (index)
         *index = i;
@@ -470,6 +494,8 @@ const Kind* kind_of(const Ref& r, int* index)
     }
     case rood_selection::KIND_ACTOR:
         return actor_kind_for(actors[i].prefab);
+    case rood_selection::KIND_EMITTER:
+        return find_kind("emitter"); /* particles_editor.cpp registers it */
     default:
         return find_kind("fog"); /* atmosphere.cpp registers it */
     }
@@ -520,6 +546,15 @@ std::vector<std::string> lint()
     return problems;
 }
 
+namespace {
+/* An object's index for its kind's accessors (the sun's is 0; -1: gone). */
+int object_index(const Ref& r)
+{
+    int i = -1;
+    return kind_of(r, &i) ? i : -1;
+}
+} // namespace
+
 std::vector<Ref> targets(const Kind& k, const Field& f, const Ref& target)
 {
     std::vector<Ref> out = { target };
@@ -537,7 +572,7 @@ void apply(const Kind& k, const Field& f, const Ref& target, const Value& value,
     Value v = clamp(f, value);
     bool one = f.type == TYPE_VEC3 && component >= 0 && component < 3;
     for (const Ref& r : targets(k, f, target)) {
-        int i = rood_scene::index_of(r);
+        int i = object_index(r);
         if (i < 0)
             continue;
         if (one && r != target) { /* only the component edited (a size's x leaves y and z alone) */
@@ -555,12 +590,24 @@ void apply(const Kind& k, const Field& f, const Ref& target, const Value& value,
 void apply_reset(const Kind& k, const Field& f, const Ref& target)
 {
     for (const Ref& r : targets(k, f, target)) {
-        int i = rood_scene::index_of(r);
+        int i = object_index(r);
         if (i >= 0)
             reset_field(f, i);
     }
     rood_lights::dirty = true;
     pc_undo_hint(("Reset " + f.label).c_str());
+}
+void apply_global(const Kind& k, const Field& f, const Ref& target, bool on)
+{
+    if (!f.set_uses_global)
+        return;
+    for (const Ref& r : targets(k, f, target)) {
+        int i = object_index(r);
+        if (i >= 0)
+            f.set_uses_global(i, on);
+    }
+    rood_lights::dirty = true;
+    pc_undo_hint(((on ? "Use global " : "Edit ") + f.label).c_str());
 }
 void apply_at(const Kind& k, const Field& f, int index, const Value& v)
 {
@@ -663,7 +710,8 @@ std::string object_json(const Kind& k, const std::string& id, const std::string&
         s += std::string(i ? "," : "") + quote(f.name) + ":{\"value\":" + rood_schema::to_json(f, f.get(index))
             + ",\"base\":" + rood_schema::to_json(f, rood_schema::base_of(f, index)) + ",\"source\":\""
             + rood_schema::base_source_of(f, index) + "\",\"overridden\":"
-            + (f.resettable && rood_schema::is_overridden(f, index) ? "true" : "false") + "}";
+            + (f.resettable && rood_schema::is_overridden(f, index) ? "true" : "false")
+            + (f.uses_global ? std::string(",\"global\":") + (f.uses_global(index) ? "true" : "false") : std::string()) + "}";
     }
     return s + "}}";
 }
@@ -747,10 +795,18 @@ extern "C" int pc_editor_schema_rpc(const char* params_text, char* out, int size
             if (!values || values->type != Json::Object)
                 return failure("set needs values {field: value}", out, size);
             std::vector<std::pair<const Field*, rood_schema::Value>> edits;
+            std::vector<const Field*> globals; /* "global" (or null) for a field that may follow one */
             for (const auto& m : values->members) {
                 const Field* f = k->field(m.first);
                 if (!f)
                     return failure("no field " + m.first + " on " + k->name, out, size);
+                /* "global", null or a negative number (a fog volume's disturb weight's old -1) follows the global one */
+                if (f->set_uses_global && !standalone
+                    && (m.second.type == Json::Null || (m.second.type == Json::String && m.second.string == "global")
+                        || (m.second.type == Json::Number && m.second.number < 0))) {
+                    globals.push_back(f);
+                    continue;
+                }
                 rood_schema::Value v;
                 if (!rood_schema::from_json(*f, m.second, v, &error))
                     return failure(error, out, size);
@@ -758,7 +814,9 @@ extern "C" int pc_editor_schema_rpc(const char* params_text, char* out, int size
             }
             for (const auto& e : edits)
                 edit(*e.first, e.second);
-            if (edits.size() > 1)
+            for (const Field* f : globals)
+                rood_schema::apply_global(*k, *f, target, true);
+            if (edits.size() + globals.size() > 1)
                 pc_undo_hint(("Edit " + std::to_string(edits.size()) + " fields").c_str());
         } else if (action == "reset") {
             const Json* names = params.get("fields");
@@ -785,6 +843,22 @@ extern "C" int pc_editor_schema_rpc(const char* params_text, char* out, int size
             k = rood_schema::kind_of(target, &index); /* a light's type may have changed it */
             text = object_json(*k, target.id, rood_scene::label(target), index);
         }
+    } else if (action == "reload_probe") {
+        /* Tests: a prefab's kind taken, the library reloaded (reload: false skips it), the kind read again. */
+        const Json* p = params.get("prefab");
+        const Json* again = params.get("reload");
+        if (!p || p->type != Json::String || !prefab::library().find(p->string))
+            return failure("reload_probe needs prefab (a prefab id)", out, size);
+        const Kind* k = rood_schema::find_kind("actor:" + p->string);
+        size_t before = k ? k->fields.size() : 0;
+        if (!again || again->type != Json::Bool || again->boolean)
+            prefab::library().load();
+        rood_schema::find_kind("actor:" + p->string); /* the new serial's kind: the old map retires */
+        std::string name = k ? k->name : std::string(); /* through the pointer taken before the reload */
+        size_t after = k ? k->fields.size() : 0;
+        text = "{\"kept\":" + std::string(k && name == "actor:" + p->string ? "true" : "false") + ",\"name\":" + quote(name)
+            + ",\"fields_before\":" + std::to_string(before) + ",\"fields_after\":" + std::to_string(after)
+            + ",\"retired\":" + std::to_string(rood_schema::retired_count()) + "}";
     } else if (action == "ui") {
         if (const Json* s = params.get("search"))
             rood_details::set_search(s->string);
@@ -795,7 +869,7 @@ extern "C" int pc_editor_schema_rpc(const char* params_text, char* out, int size
             rood_details::open_section(o->string);
         text = rood_details::state_json();
     } else {
-        return failure("action: kinds, lint, get, set, reset or ui", out, size);
+        return failure("action: kinds, lint, get, set, reset, ui or reload_probe", out, size);
     }
     snprintf(out, size, "%s", text.c_str());
     return (int)text.size() < size ? 0 : -1;

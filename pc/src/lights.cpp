@@ -34,7 +34,10 @@
 #include "editor_overlays.h"
 #include "probe_gi.h"
 bool pc_atmosphere_viewport(const float view[16], const float projection[16], const float rect[4], void* draw_list);
+bool pc_particles_viewport(const float view[16], const float projection[16], const float rect[4], void* draw_list);
 #include "fixture_catalog.h"
+#include "editor_fit_window.h"
+#include "editor_library.h"
 #include "lights_internal.h"
 #include "lighting_quality.h"
 #include "editor_undo.h"
@@ -45,6 +48,7 @@ bool pc_atmosphere_viewport(const float view[16], const float projection[16], co
 #include "editor_handles.h"
 #include "editor_colour.h"
 #include "environment_internal.h"
+#include "particles_internal.h"
 
 extern "C" {
 int pc_scene_camera_get(float rotation[3][3], float translation[3], float* h, float* ofx, float* ofy);
@@ -746,7 +750,9 @@ extern "C" int pc_lights_add(const float position[3])
 
 static const unsigned geometry_modes = PC_SNAP_MODE_POINT | PC_SNAP_MODE_EDGE | PC_SNAP_MODE_MIDPOINT;
 
-/* "light:point|spot|rect" (light_type 0-2) or "prefab:<id>" (*p). */
+/* "light:point|spot|rect" (light_type 0-2), "prefab:<id>" (*p), or another
+ * library item (editor_library.h; light_type -1): a fixture class gives its
+ * prefab in *p (its placement and lit preview), a fog preset none. */
 static bool parse_item(const std::string& item, int* light_type, const prefab::Prefab** p)
 {
     *p = nullptr;
@@ -760,6 +766,10 @@ static bool parse_item(const std::string& item, int* light_type, const prefab::P
         *p = prefab::library().find(item.substr(7));
         return *p != nullptr;
     }
+    if (rood_library::is_item(item)) {
+        *p = rood_library::item_prefab(item);
+        return true;
+    }
     return false;
 }
 std::string rood_lights::item_label(const std::string& item)
@@ -768,6 +778,8 @@ std::string rood_lights::item_label(const std::string& item)
     const prefab::Prefab* p;
     if (!parse_item(item, &type, &p))
         return item;
+    if (type < 0 && rood_library::is_item(item))
+        return rood_library::label(item);
     return p ? p->name : light_type_name(type);
 }
 bool rood_lights::view_rect(float rect[4])
@@ -805,12 +817,21 @@ bool rood_lights::place_compute(const std::string& item, float x, float y, unsig
     bool grid = snap == PC_SNAP_SURFACE && pc_lights_snap;
     for (int k = 0; k < 3; k++) {
         /* A light: off the surface by the snap offset (r.position); an
-         * actor's pivot: on it, by the prefab's own offset. */
-        float at = !p || snap != PC_SNAP_SURFACE ? r.position[k] : r.surface[k] + r.normal[k] * p->surface_offset;
+         * actor's pivot: on it, by the prefab's own offset; another library
+         * item (a fog volume): the surface point itself. */
+        float at = snap != PC_SNAP_SURFACE ? r.position[k]
+            : p                            ? r.surface[k] + r.normal[k] * p->surface_offset
+            : type < 0                     ? r.surface[k]
+                                           : r.position[k];
         out.position[k] = grid ? roundf(at / pc_lights_snap_move) * pc_lights_snap_move : at;
     }
-    if (p && p->align == "normal" && snap == PC_SNAP_SURFACE)
+    if (p && p->align == "normal" && snap == PC_SNAP_SURFACE) {
         prefab::rotation_facing(r.normal, out.rotation);
+    } else if (p && snap == PC_SNAP_SURFACE && fabsf(r.normal[1]) < 0.5f) {
+        /* An upright prefab on a wall turns to face out of it (yaw only). */
+        float out_of_wall[3] = { r.normal[0], 0, r.normal[2] };
+        prefab::rotation_facing(out_of_wall, out.rotation);
+    }
     return true;
 }
 
@@ -831,7 +852,13 @@ int rood_lights::place_commit(const std::string& item, const Placement& where)
         return -1;
     track_room();
     int index;
-    if (!p) {
+    if (type < 0 && rood_library::is_item(item)) { /* a library item: its source places and selects it (editor_library.cpp) */
+        index = rood_library::place(item, where);
+        if (index < 0) {
+            snprintf(status, sizeof status, "Could not place %s there", item_label(item).c_str());
+            return -1;
+        }
+    } else if (!p) {
         Light l;
         l.type = type;
         memcpy(l.position, where.position, sizeof l.position);
@@ -911,6 +938,8 @@ static void update_drag()
     int type;
     const prefab::Prefab* p;
     parse_item(drag.item, &type, &p);
+    if (!p && type < 0)
+        return; /* a library item without a lit preview (a fog volume): draw_place_drag draws its outline */
     Ghost g;
     g.actor = p != nullptr;
     if (p) {
@@ -1097,8 +1126,9 @@ static void draw_place_drag(const View& v, const pc_overlay_view& ov, ImDrawList
     ImDrawList* front = ImGui::GetForegroundDrawList();
     std::string label = item_label(drag.item);
     float colour[3] = { 1, 0.85f, 0.6f };
-    if (drag.over && drag.where.ok && !drag_ghost.empty()) {
-        const Ghost& g = drag_ghost[0];
+    bool outline = drag_ghost.empty() && rood_library::is_item(drag.item); /* drawn by its source (a fog volume's box) */
+    if (drag.over && drag.where.ok && (!drag_ghost.empty() || outline)) {
+        const Ghost& g = outline ? Ghost() : drag_ghost[0];
         if (drag.snap.type != PC_SNAP_SURFACE)
             pc_overlay_draw_snap(&ov, draw, &drag.snap);
         else { /* the surface point and its normal */
@@ -1111,7 +1141,9 @@ static void draw_place_drag(const View& v, const pc_overlay_view& ov, ImDrawList
                 draw->AddCircle(s, 6, IM_COL32(120, 255, 160, 220), 16, 2.0f);
             }
         }
-        if (g.actor)
+        if (outline)
+            rood_library::draw_ghost(drag.item, ov, drag.where, draw);
+        else if (g.actor)
             draw_actor(v, draw, g.a, true, 0.75f, nullptr, nullptr);
         else {
             ImVec2 p;
@@ -1227,6 +1259,21 @@ static void scale_object(const rood_selection::Ref& r, const float ratio[3], con
         rood_transform::scale_volume(size, ratio, out);
         rood_atmo::set_volume_size(i, out);
         pc_undo_hint("Scale fog volume");
+    } else if (r.kind == rood_selection::KIND_EMITTER) {
+        float size[3], out[3];
+        if (!rood_particles::emitter_size(i, size))
+            return;
+        std::string shape = rood_particles::field(i, "shape");
+        if (shape == "point" || shape == "disc") { /* a ball: its radius (as the viewport's R) */
+            float k = fmaxf(fmaxf(fabsf(ratio[0]), fabsf(ratio[1])), fabsf(ratio[2]));
+            char text[32];
+            snprintf(text, sizeof text, "%.1f", fmaxf((float)atof(rood_particles::field(i, "radius").c_str()) * k, 0.0f));
+            rood_particles::set_field(i, "radius", text);
+        } else {
+            rood_transform::scale_volume(size, ratio, out);
+            rood_particles::set_emitter_size(i, out);
+        }
+        pc_undo_hint("Scale emitter");
     } else {
         return;
     }
@@ -1291,6 +1338,7 @@ extern "C" void pc_lights_viewport(void)
         }
         draw_place_drag(v, ov, draw);
     }
+    rood_fit::hint(draw); /* armed: the pane under the pointer */
     if (!pc_lights_show_gizmos || !pc_lights_enabled) {
         was_using = false;
         return;
@@ -1472,10 +1520,13 @@ extern "C" void pc_lights_viewport(void)
     } else {
         was_using = false;
     }
-    ImGuizmo::Enable(true);
     gizmo_busy |= handles_busy;
-    /* Fog volumes (atmosphere.cpp): outlines, the selected one's gizmo. */
+    /* Fog volumes (atmosphere.cpp): outlines, the selected one's gizmo (off while a handle has the mouse). */
     if (pc_atmosphere_viewport(v.view, v.projection, v.rect, draw))
+        gizmo_busy = true;
+    ImGuizmo::Enable(true);
+    /* Particle emitters (particles_editor.cpp): outlines, icons, the selected one's gizmo. */
+    if (pc_particles_viewport(v.view, v.projection, v.rect, draw))
         gizmo_busy = true;
     /* A box select: drawn while the button is held; on release it selects
      * what it encloses (Shift adds, Ctrl toggles), or, when the mouse hardly
@@ -1513,6 +1564,9 @@ extern "C" void pc_lights_viewport(void)
         || !ImGui::IsMouseClicked(ImGuiMouseButton_Left) || io.KeyAlt)
         return;
     float world[3], normal[3];
+    /* Fit rect light to window (editor_fit_window.cpp), when armed, takes the click. */
+    if (rood_fit::viewport_click(io.MousePos.x, io.MousePos.y))
+        return;
     /* A spot waiting to be aimed (its handle) or the colour popover's eyedropper takes the click. */
     if (rood_handles::viewport_click(io.MousePos.x, io.MousePos.y) || rood_colour::viewport_click(io.MousePos.x, io.MousePos.y))
         return;
@@ -1537,6 +1591,9 @@ extern "C" void pc_lights_viewport(void)
     if (fixture_mode && !on_light) {
         /* The Light fixture tool: one click on a lantern, candle or glow. */
         light_fixture_at_pixel(io.MousePos.x, io.MousePos.y, "");
+    } else if (rood_scene::ctrl_places(under, io.KeyCtrl)) {
+        /* Ctrl+click on a glow places the current item there (glows sit on the surfaces one lights). */
+        empty_click(io.MousePos.x, io.MousePos.y, false, true);
     } else if (under) {
         /* Unreal's: a click selects, Shift adds, Ctrl toggles. */
         rood_selection::click(under, io.KeyShift, io.KeyCtrl, rood_selection::FROM_VIEWPORT);
@@ -1852,7 +1909,7 @@ extern "C" int pc_editor_transform_rpc(const char* params_text, char* out, int s
         int i = rood_scene::index_of(r);
         if (i < 0 || r.kind == rood_selection::KIND_GLOW || !ratio || ratio->type != prefab::Json::Array
             || ratio->items.size() != 3) {
-            snprintf(out, size, "scale needs ratio [x, y, z] and a light, light actor or fog volume (id or the selection)");
+            snprintf(out, size, "scale needs ratio [x, y, z] and a light, light actor, fog volume or emitter (id or the selection)");
             return -1;
         }
         float k[3] = { (float)ratio->items[0].number, (float)ratio->items[1].number, (float)ratio->items[2].number };
@@ -2012,6 +2069,20 @@ void rood_lights::light_details_extra(int index)
         if (ImGui::Button("Cancel"))
             ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
+    }
+    if (l.type == 2) {
+        if (ImGui::Button("Fit to window"))
+            rood_fit::arm(rood_scene::light_ref(index));
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            ImGui::SetTooltip("Click a window pane in the view: this rect light takes its size and sits in front of it,\n"
+                              "facing out (Esc cancels)");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("...##fit"))
+            ImGui::OpenPopup("fit options");
+        if (ImGui::BeginPopup("fit options")) {
+            rood_fit::options();
+            ImGui::EndPopup();
+        }
     }
     ImGui::PopID();
 }
@@ -2231,7 +2302,7 @@ extern "C" void pc_lights_glows_outliner(const char* filter)
         if (silent)
             ImGui::PopStyleColor();
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Glow %u, %s\n%d glowing triangles this frame%s%s%s%s", g.id, g.key, g.triangles,
+            ImGui::SetTooltip("Glow %u, %s\n%d glowing triangles this frame%s%s%s%s%s", g.id, g.key, g.triangles,
                 g.presence < 0.02f ? "\nout: its source drew nothing lately" : "",
                 g.traced ? "" : "\nnot among the glows the tracers use this frame",
                 g.fixture_type[0] ? "\nfixture type " : "", g.fixture_type,

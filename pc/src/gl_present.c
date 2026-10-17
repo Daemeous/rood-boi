@@ -16,6 +16,7 @@
 #include "antialias.h"
 #include "post.h"
 #include "emissive.h"
+#include "particles.h"
 #include "ui/menu_light.h" /* the model view's studio light */
 #include <SDL3/SDL.h>
 #include <math.h> /* powf: brightness */
@@ -253,7 +254,7 @@ static const char* scaled_fragment_source =
     /* The room's medium (atmosphere.h pc_medium_gpu; medium.glsl): the haze,
      * the ground fog, the fog volumes (haze Low marches it; the traced haze's
      * transmittance). */
-    "uniform vec4 medium_[165];\n"
+    "uniform vec4 medium_[166];\n"
     "#define MEDIUM(i) medium_[i]\n"
     "uniform sampler3D medium_tex;\n" /* atmosphere.h pc_medium_texture (pc_gl_medium_texture) */
     "#define MEDIUM_TEX medium_tex\n" PC_GLSL_MEDIUM PC_GLSL_MENU_STUDIO
@@ -403,6 +404,13 @@ static const char* scaled_fragment_source =
     "    vec2 s = (vec2(q) + 0.5) / float(scale) - vec2(rect.xy) - screen_offset;\n"
     "    return inverse_rotation * (vec3(s.x * z / projection.x, s.y * z / projection.y, z) - camera_translation);\n"
     "}\n"
+    /* A void pixel's haze (medium.glsl medium_void_pixel; scaled.frag the same): the room's medium marched
+     * unshadowed (haze Low's march, whichever haze is on) over the share `reach` of its ray
+     * (medium_void_reach) that crosses the room's interior. */
+    "vec3 void_haze(vec3 c, ivec2 q, float d, float reach) {\n"
+    "    if (reach <= 0.0 || (quality0.x <= 0.0 && ((gi_on & 128) == 0 || fog_density <= 0.0))) return c;\n"
+    "    return low_haze(c, mix(inverse_rotation * -camera_translation, world_at(q, d * 65536.0), reach));\n"
+    "}\n"
     /* The fog volumes' own renderer (atmosphere.h pc_fogvol_gpu; fog_volume.glsl), OpenGL's lower
      * quality: marched per pixel in this pass (fogvol_.y steps), the sample offset blue noise fixed per
      * pixel (a still picture stays still), each light's shadow an analytic estimate (the volume's mean
@@ -410,6 +418,16 @@ static const char* scaled_fragment_source =
     "uniform vec4 fogvol_[179];\n"
     "uniform ivec4 fogvol_on;\n" /* x on, y steps, z the debug view (1 their light alone, 2 their transmittance) */
     "#define FOGVOL(i) fogvol_[i]\n" PC_GLSL_FOG_VOLUME
+    /* The port's particles (particles.h): the key image (a game pixel per texel) and their colours.
+     * PC_NO_PARTICLES (fewer than 21 texture units: they use 19 and 20): none, nothing sampled. */
+    "uniform ivec4 particles_on;\n" /* x on, y z the display's size in game pixels */
+    "#ifndef PC_NO_PARTICLES\n"
+    "uniform usampler2D particle_keys;\n"
+    "uniform sampler2D particle_colours;\n"
+    PC_GLSL_PARTICLES
+    "#else\n"
+    "#define particles_at(keys, colours, display, uv, d) vec3(0.0)\n"
+    "#endif\n"
     "void fv_shadows(int v, vec3 x, vec3 r, out vec4 ta, out vec4 tb) {\n"
     "    int f = fv_base(v);\n"
     "    float sigma = MEDIUM(fv_medium(v)).w * 0.6 * FOGVOL(f + 3).y * (1.0 - 0.5 * FOGVOL(f + 2).w), t[8];\n"
@@ -506,6 +524,9 @@ static const char* scaled_fragment_source =
     "}\n"
     "void main() {\n"
     "    float d = depth_at(uv);\n"
+    "    bool void_px = medium_void_pixel(d, texelFetch(shade_tex, texel(uv), 0));\n" /* the void: the room's air only up to its reach (medium.glsl) */
+    "    float reach = void_px && d < 1.0 && d * 65536.0 >= 0.5\n"
+    "        ? medium_void_reach(inverse_rotation * -camera_translation, world_at(texel(uv), d * 65536.0)) : 0.0;\n"
     "    if (show_depth != 0) {\n" /* far black, UI magenta, 3D log-grey near-bright */
     "        float sz = d * 65536.0;\n"
     "        color = d >= 1.0 ? vec4(0.0, 0.0, 0.0, 1.0)\n"
@@ -519,9 +540,15 @@ static const char* scaled_fragment_source =
     "        color = vec4(fogvol_on.z == 2 ? vec3(clamp(f.a, 0.0, 1.0)) : min(f.rgb, vec3(1.0)), ui_ ? 9999.0 : 0.0);\n"
     "        return;\n"
     "    }\n"
-    "    if (quality1.z != 0) {\n" /* haze_debug: the haze's light alone (scaled.frag the same) */
+    "    if (quality1.z != 0) {\n" /* haze_debug 1: the haze's light alone; 2: where the room's air is (scaled.frag the same) */
     "        bool ui_ = d * 65536.0 < 0.5; vec3 hz = vec3(0.0);\n"
-    "        if (!ui_ && (gi_on & 128) != 0 && fog_density > 0.0) {\n" /* traced (ptgi.c): its GI pixel */
+    "        if (quality1.z == 2) {\n"
+    "            float inside = !ui_ && d < 1.0 ? medium_interior(world_at(texel(uv), d * 65536.0)) : 0.0;\n"
+    "            color = vec4(!ui_ && void_px ? 1.0 : 0.0, inside, !ui_ && void_px ? reach : 0.0, ui_ ? 9999.0 : 0.0);\n"
+    "            return;\n"
+    "        }\n"
+    "        if (!ui_ && void_px) hz = void_haze(vec3(0.0), texel(uv), min(d, 1.0), reach);\n"
+    "        else if (!ui_ && (gi_on & 128) != 0 && fog_density > 0.0) {\n" /* traced (ptgi.c): its GI pixel */
     "            vec2 display = (vec2(texel(uv)) + 0.5) / float(scale) - vec2(rect.xy);\n"
     "            hz = max(texelFetch(gi_extra, clamp(ivec2(display / vec2(rect.zw) * vec2(gi_size)), ivec2(0), gi_size - 1), 0).gba, vec3(0.0));\n"
     "        } else if (!ui_ && quality0.x > 0.0) hz = low_haze(vec3(0.0), world_at(texel(uv), min(d, 0.999) * 65536.0));\n"
@@ -530,7 +557,7 @@ static const char* scaled_fragment_source =
     "        return;\n"
     "    }\n"
     "    vec3 c = base(uv);\n"
-    "    bool haze_done = false, fogvol_done = false, lit_done = false;\n"
+    "    bool haze_done = false, fogvol_done = false, lit_done = false, particles_done = false;\n"
     /* Emissive texels (post bit 16; emissive.h): the shade target's alpha
      * 0.25 marks them, its rgb is their emission / 2. Kept above the lit
      * result (never darkened), above 1 for bloom when the grade pass runs
@@ -552,7 +579,7 @@ static const char* scaled_fragment_source =
     "            if (em_px) c = max(c, em);\n"
     "            else if ((post & 8) == 0) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c));\n"
     "            if (any(isnan(c)) || any(isinf(c))) c = base(uv);\n"
-    "            lit_done = haze_done = fogvol_done = true;\n"
+    "            lit_done = haze_done = fogvol_done = particles_done = true;\n"
     "        }\n"
     "    }\n"
     "    if (!lit_done && (light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || quality1.y != 0 || env_mode.z != 0) && view_mode != 1) {\n"
@@ -617,8 +644,13 @@ static const char* scaled_fragment_source =
     "            c = c * baked * baked_vis * ao + albedo * sum;\n"
     "            if (em_px) c = max(c, em);\n"
     "            lit_done = true;\n"
+    "            if (particles_on.x != 0 && view_mode == 0) {\n" /* the motes in front of it, before the fog and haze */
+    "                c += particles_at(particle_keys, particle_colours, particles_on.yz, uv, d);\n"
+    "                particles_done = true;\n"
+    "            }\n"
     "            if (fogvol_on.x != 0) { c = fogvol_apply(c, q, d); fogvol_done = true; }\n" /* the fog volumes, then the haze */
-    "            if ((gi_on & 128) != 0 && fog_density > 0.0) {\n" /* the traced haze (ptgi.c) between the eye and the surface */
+    "            if (void_px) { c = void_haze(c, q, d, reach); haze_done = true; }\n" /* the void: clean darkness, as on the PS1 */
+    "            else if ((gi_on & 128) != 0 && fog_density > 0.0) {\n" /* the traced haze (ptgi.c) between the eye and the surface */
     "                float transmittance_ = medium_transmittance(world);\n"
     "                c = c * transmittance_ + max(extra.gba, vec3(0.0));\n"
     "                haze_done = true;\n"
@@ -637,8 +669,11 @@ static const char* scaled_fragment_source =
     "    if (ui && backdrop_mode != 0)\n" /* the menu's model view: the world behind, under the ground */
     "        c = mix(backdrop_mode == 2 ? texture(backdrop_tex, vec2(uv.x, 1.0 - uv.y)).rgb : backdrop_color.rgb,\n"
     "            backdrop_color.rgb, backdrop_color.a);\n"
+    "    if (particles_on.x != 0 && !particles_done && view_mode == 0)\n" /* unlit pixels, and where nothing is drawn */
+    "        c += particles_at(particle_keys, particle_colours, particles_on.yz, uv, d);\n"
     "    if (fogvol_on.x != 0 && !fogvol_done && !ui && view_mode != 1) c = fogvol_apply(c, texel(uv), d);\n" /* unlit, and where nothing is drawn */
-    "    if (quality0.x > 0.0 && !haze_done && !ui && d < 1.0 && view_mode != 1)\n" /* unlit 3D pixels */
+    "    if (void_px && !haze_done && !ui && d < 1.0 && view_mode != 1) c = void_haze(c, texel(uv), d, reach);\n"
+    "    else if (quality0.x > 0.0 && !haze_done && !ui && !void_px && d < 1.0 && view_mode != 1)\n" /* unlit 3D pixels */
     "        c = low_haze(c, world_at(texel(uv), d * 65536.0));\n"
     "    vec3 out_c = over && !ui ? max(c, vec3(0.0)) : min(c, vec3(1.0));\n"
     "    if ((post & 7) == 0 || ui) { color = vec4(out_c, ui ? 9999.0 : 0.0); return; }\n"
@@ -706,7 +741,7 @@ extern GLuint pc_hw_shade_texture(void);
 extern void pc_lights_shadow_pick(int count, int* wants, int slots);
 extern int pc_lights_view(float (*)[4], float (*)[4], float (*)[4], float (*)[4], int*, float (*)[4],
     float (*)[4], int);
-static GLint u_medium, u_medium_tex, u_fogvol, u_fogvol_on;
+static GLint u_medium, u_medium_tex, u_fogvol, u_fogvol_on, u_particle_keys, u_particle_colours, u_particles_on;
 /* The medium's texture (atmosphere.h pc_medium_texture: the detail noise,
  * the interactive fog's fields) for the present's Low haze and ptgi.c's
  * traced haze: uploaded whole once, then its field slices when they change. */
@@ -738,6 +773,52 @@ GLuint pc_gl_medium_texture(void)
         uploaded = serial;
     }
     return texture;
+}
+/* The particles' key image (R32UI, a game pixel per texel) and colours (RGBA32F, 256 x 64)
+ * for the present (particles.h pc_particles_cpu_frame), on units 19 and 20 (18: the menu backdrop). Always bound,
+ * so the usampler never shares a unit with a float sampler. */
+static int particles_units = 1; /* the driver has the units 19 and 20 they use (pc_gl_create_window) */
+static void particles_bind(int on, const uint32_t* keys, int w, int h, const float* colours, int count)
+{
+    static GLuint key_tex, colour_tex;
+    static int key_w, key_h;
+    if (!key_tex) {
+        gl_GenTextures(1, &key_tex);
+        gl_GenTextures(1, &colour_tex);
+        static const uint32_t none = PC_PARTICLE_NONE;
+        gl_BindTexture(GL_TEXTURE_2D, key_tex);
+        gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        gl_TexImage2D(GL_TEXTURE_2D, 0, GL_R32UI, 1, 1, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, &none);
+        key_w = key_h = 1;
+        gl_BindTexture(GL_TEXTURE_2D, colour_tex);
+        gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        gl_TexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, PC_PARTICLE_COLOUR_W, PC_PARTICLES_MAX / PC_PARTICLE_COLOUR_W, 0,
+            GL_RGBA, GL_FLOAT, NULL);
+    }
+    gl_ActiveTexture(GL_TEXTURE0 + 19);
+    gl_BindTexture(GL_TEXTURE_2D, key_tex);
+    if (on) {
+        gl_PixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        if (key_w != w || key_h != h) {
+            gl_TexImage2D(GL_TEXTURE_2D, 0, GL_R32UI, w, h, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, keys);
+            key_w = w, key_h = h;
+        } else {
+            gl_TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RED_INTEGER, GL_UNSIGNED_INT, keys);
+        }
+    }
+    gl_ActiveTexture(GL_TEXTURE0 + 20);
+    gl_BindTexture(GL_TEXTURE_2D, colour_tex);
+    if (on && count > 0) {
+        int rows = (count + PC_PARTICLE_COLOUR_W - 1) / PC_PARTICLE_COLOUR_W, full = count / PC_PARTICLE_COLOUR_W;
+        if (full)
+            gl_TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, PC_PARTICLE_COLOUR_W, full, GL_RGBA, GL_FLOAT, colours);
+        if (rows > full) /* the last row's motes (the rest of it is never fetched) */
+            gl_TexSubImage2D(GL_TEXTURE_2D, 0, 0, full, count - full * PC_PARTICLE_COLOUR_W, 1, GL_RGBA, GL_FLOAT,
+                colours + (size_t)full * PC_PARTICLE_COLOUR_W * 4);
+    }
+    gl_ActiveTexture(GL_TEXTURE0);
 }
 static GLint u_light_right, u_light_up, u_quality0, u_quality1, u_quality2, u_env, u_env_mode, u_sun_map,
     u_sun_matrix, u_sun_light, u_sun_texel;
@@ -1011,7 +1092,26 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     }
 #undef LOAD_OPTIONAL
     program = pc_gl_program(vertex_source, fragment_source);
-    scaled_program = pc_gl_program(vertex_source, scaled_fragment_source);
+    {
+        /* The particles' textures are on units 19 and 20: with fewer units the present compiles
+         * without them (PC_NO_PARTICLES) and draws none (particles_units). */
+        GLint units = 0;
+        gl_GetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &units);
+        particles_units = units >= 21;
+        if (!particles_units)
+            fprintf(stderr, "[gl] %d texture units: no particles (they need 21)\n", (int)units);
+        const char* version = "#version 330 core\n";
+        size_t skip = strlen(version);
+        char* source = NULL;
+        if (!particles_units && !strncmp(scaled_fragment_source, version, skip)) {
+            size_t n = strlen(scaled_fragment_source);
+            source = malloc(n + 64);
+            if (source)
+                snprintf(source, n + 64, "%s#define PC_NO_PARTICLES\n%s", version, scaled_fragment_source + skip);
+        }
+        scaled_program = pc_gl_program(vertex_source, source ? source : scaled_fragment_source);
+        free(source);
+    }
     blur_program = pc_gl_program(vertex_source, blur_fragment_source);
     fxaa_program = pc_gl_program(vertex_source, fxaa_fragment_source);
     if (!program || !scaled_program || !blur_program || !fxaa_program)
@@ -1058,6 +1158,9 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     u_medium_tex = gl_GetUniformLocation(scaled_program, "medium_tex");
     u_fogvol = gl_GetUniformLocation(scaled_program, "fogvol_");
     u_fogvol_on = gl_GetUniformLocation(scaled_program, "fogvol_on");
+    u_particle_keys = gl_GetUniformLocation(scaled_program, "particle_keys");
+    u_particle_colours = gl_GetUniformLocation(scaled_program, "particle_colours");
+    u_particles_on = gl_GetUniformLocation(scaled_program, "particles_on");
     u_quality1 = gl_GetUniformLocation(scaled_program, "quality1");
     u_quality2 = gl_GetUniformLocation(scaled_program, "quality2");
     u_env = gl_GetUniformLocation(scaled_program, "env_");
@@ -1750,6 +1853,13 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
         if (target) {
             /* Indirect light first (compute passes change GL state). */
             GLuint gi = pc_gl_show_depth ? 0 : pc_gi_update(x, y, w, h);
+            /* The particles (particles.cpp): evaluated, lit and splatted on the CPU after the
+             * path tracer built its scene (their shadow rays use it); composited below. */
+            const uint32_t* particle_keys = NULL;
+            const float* particle_colours = NULL;
+            int particle_count = 0;
+            int particles_on = !pc_gl_show_depth && particles_units
+                && pc_particles_cpu_frame(w, h, &particle_keys, &particle_colours, &particle_count);
             if (!pc_gl_show_depth && pc_probe_gl_update)
                 pc_probe_gl_update(); /* the probe field when the path tracer did not update it */
             gl_BindTexture(GL_TEXTURE_2D, target);
@@ -1949,6 +2059,12 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
             gl_ActiveTexture(GL_TEXTURE1);
             gl_BindTexture(GL_TEXTURE_2D, pc_hw_depth_texture());
             gl_Uniform1i(u_scaled_depth, 1);
+            if (particles_units) {
+                particles_bind(particles_on, particle_keys, w, h, particle_colours, particle_count);
+                gl_Uniform1i(u_particle_keys, 19);
+                gl_Uniform1i(u_particle_colours, 20);
+            }
+            gl_Uniform4i(u_particles_on, particles_on, w, h, 0);
             /* The shade target also marks emissive texels (post bit 16), lit or not. */
             gl_ActiveTexture(GL_TEXTURE12);
             gl_BindTexture(GL_TEXTURE_2D, pc_hw_shade_texture());

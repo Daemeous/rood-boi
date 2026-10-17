@@ -17,7 +17,7 @@ layout(std140, binding = 0) uniform Integrate {
     vec4 inverse_rotation[3];
     vec4 camera_translation;
     vec4 room_lo, room_hi;
-    vec4 medium_[165]; // the room's medium (medium.glsl, atmosphere.h)
+    vec4 medium_[166]; // the room's medium (medium.glsl, atmosphere.h)
 } u;
 #define MEDIUM(i) u.medium_[i]
 #include "medium.glsl"

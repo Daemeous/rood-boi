@@ -182,8 +182,12 @@ def main():
         check(e["fog"]["defined"] and badges.get("env:fog") == "G" and e["sun"]["defined"],
               f"the forest has a generated ground fog and moon (badge {badges.get('env:fog')})")
         if traced:
-            # The shafts at full contrast (haze_shafts 1: shadowed air loses all of the moon's light).
-            game.call("environment", haze={"density": 0.002, "anisotropy": 0.6, "shafts": 1}, remove_fog=True)
+            # The shafts at full contrast (haze_shafts 1: shadowed air loses all of the moon's light), in the
+            # whole bounds box: the room's interior (haze_interior, on by default) clears the shadowed air
+            # under the terrain's edge, which shifts this distribution without touching the shafts
+            # (void_fog_smoke covers the interior).
+            game.call("environment", haze={"density": 0.002, "anisotropy": 0.6, "shafts": 1, "interior": False,
+                                           "void": False}, remove_fog=True)
             game.call("graphics", haze_debug=1)
             on = view(shot("shafts-on", 150))
             game.call("environment", haze={"shafts": 0.5})
@@ -203,6 +207,7 @@ def main():
             check(q10 > p10 + 0.05 and q90 - q10 < p90 - p10, f"haze_shafts 0.5 limits their contrast (10th percentile "
                                                               f"{q10:.2f}, 90th {q90:.2f})")
             # Steady when nothing changes (the generated fog, its drift stopped).
+            game.call("environment", haze={"interior": True, "void": True})
             game.call("lighting", action="reload")
             game.call("environment", fog_time=5)
             a = view(shot("steady-a", 150))

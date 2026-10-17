@@ -25,6 +25,7 @@ void kind_section(const char* kind, const char* title, int index = 0);
 void open_section(const std::string& kind);
 void ladder_frame(); /* a value ladder being dragged follows the mouse (every overlay frame) */
 bool ladder_cancel(); /* Escape: the values back; true when a ladder was open */
+void ladder_finish(); /* the editor closes: a ladder being dragged keeps its value, its undo step closes */
 std::string state_json(); /* RPC editor_schema {action "ui"} */
 void set_search(const std::string& text);
 void set_kind_search(const std::string& kind, const std::string& text); /* draw_kind's, by kind */

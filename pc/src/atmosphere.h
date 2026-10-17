@@ -16,13 +16,31 @@
 #define PC_MEDIUM_FLOOR (PC_MEDIUM_LIMITS + 1) /* the ground fog's floor grid (2 vec4s, then its heights) */
 #define PC_MEDIUM_FLOOR_GRID 24 /* cells per side (scene_capture.h PC_SCENE_FLOOR_GRID) */
 #define PC_MEDIUM_FLOOR_DATA (PC_MEDIUM_FLOOR + 2)
+/* (PC_MEDIUM_FLOOR + 1).w: the record's switches. GRID: the floor grid is
+ * packed (the ground fog lies on it; a cell's 12-bit step its height, 0..4095,
+ * as before the interior); INTERIOR: the ground fog keeps to its cells with a
+ * floor, the haze to them and to the air above the cells without one (its
+ * share there PC_MEDIUM_AIR.x), never under the floor (a cell's step is then
+ * its height, 0..PC_MEDIUM_FLOOR_STEPS_INTERIOR, times 2, + PC_MEDIUM_FLOOR_NONE
+ * where it has no floor); VOID: present passes keep the room's air off void
+ * pixels past where their ray leaves the interior (record 7.w: the brightest
+ * black, (level + 0.5) / 255; 6.w: haze_under_floor). */
+#define PC_MEDIUM_GRID 1
+#define PC_MEDIUM_INTERIOR 2
+#define PC_MEDIUM_VOID 4
+#define PC_MEDIUM_FLOOR_NONE 1
+#define PC_MEDIUM_FLOOR_STEPS_INTERIOR 2047
 /* 163: the medium's texture (pc_medium_texture: the interactive fog's
  * fields, the detail noise): x the fields' cells per side, y the texture's
  * width and height, z its depth, w 1 (bound) */
 #define PC_MEDIUM_SIM (PC_MEDIUM_FLOOR_DATA + PC_MEDIUM_FLOOR_GRID * PC_MEDIUM_FLOOR_GRID / 8)
 #define PC_MEDIUM_DETAIL (PC_MEDIUM_SIM + 1) /* 164: x 1 / the detail noise's period (world units); yzw the main light's direction (self-shadowing) */
-/* 165 (the shaders' medium_[] arrays have this size) */
-#define PC_MEDIUM_VEC4S (PC_MEDIUM_DETAIL + 1)
+/* 165: the room's air (haze_interior): x the haze's share above cells without a floor (haze_outside),
+ * y z the interior's edge (smoothstep of the cells' bilinear floor share; haze_interior_edge), w the room's
+ * lowest floor (world y, y down: the largest height of the cells with a floor) */
+#define PC_MEDIUM_AIR (PC_MEDIUM_DETAIL + 1)
+/* 166 (the shaders' medium_[] arrays have this size) */
+#define PC_MEDIUM_VEC4S (PC_MEDIUM_AIR + 1)
 
 /* The medium's texture, one RGBA8 3D texture every pass that samples the
  * medium binds (medium.glsl MEDIUM_TEX): PC_MEDIUM_TEX_SIZE x
@@ -125,6 +143,24 @@ void pc_fog_vsync(void);
  * lit air (the shafts' contrast), forward scattering's peak (the phase
  * function toward the moon; haze_max_forward). */
 extern float pc_haze_max_opacity, pc_haze_max_light, pc_haze_shafts, pc_haze_max_forward;
+/* Where the room's air is (room settings; pc/docs/Vulkan_Renderer.md "The
+ * room's interior and the void"): haze_interior (1: the ground fog keeps to
+ * the floor grid's cells with a floor, not the room's bounds box, and the
+ * haze never fills the void under the floor; 0 as before),
+ * haze_interior_fill (holes up to twice this many cells across count as
+ * floor; 0..4), haze_interior_slope (the steepest up-facing face, degrees,
+ * that counts as floor), haze_interior_edge (the interior's soft edge, 0
+ * hard .. 0.5 a cell wide each side), haze_outside (the uniform haze's share
+ * above the cells without a floor: 1 keeps the air between an outside
+ * camera and the room, as before; 0 confines the haze to the interior),
+ * haze_under_floor (the haze fades out within this many world units under
+ * the floor), haze_void (1: pixels that show the void around the room,
+ * nothing drawn or a surface the PS1 draws black whatever its texture, keep
+ * the room's air only up to where their ray leaves the interior; the fog
+ * volumes are exempt), haze_void_level (the brightest vertex colour, of 255,
+ * that still counts as that black). */
+extern float pc_haze_interior, pc_haze_interior_fill, pc_haze_under_floor, pc_haze_void, pc_haze_void_level,
+    pc_haze_outside, pc_haze_interior_edge, pc_haze_interior_slope;
 /* The haze froxel cell in display pixels (settings key haze_cell, from
  * the lighting quality; Vulkan's traced haze). */
 extern int pc_haze_cell;

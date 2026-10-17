@@ -29,6 +29,19 @@ SCHEMA = {
         ("glow", 1, None, True), ("glowkey", -1, None, False), ("fixture", 1, None, False),
         ("fixture_radius", 1, "16", False), ("fixture_shadows", 0, "0", False),
         ("fixture_type", -1, None, False), ("flame", 0, "0", False)]),
+    # Particle emitters ("emitter <id>"): pc/src/particles.cpp. Its own fields, then those its
+    # asset (pc/assets/emitters/<asset>.json) gives unless written.
+    "emitter": (False, 4, [
+        ("name", -1, None, False), ("asset", -1, None, False), ("pos", 1, None, False),
+        ("yaw", 2, "0", False), ("enabled", 0, "1", False), ("seed", 0, "1", False),
+        ("shape", -1, "box", False), ("size", 1, "256,192,256", False), ("radius", 1, "64", False),
+        ("count", 0, "400", False), ("lifetime", 2, "10", False), ("lifetime_jitter", 2, "0.5", False),
+        ("drift", 2, "0,0,0", False), ("curl", 2, "0", False), ("curl_scale", 1, "64", False),
+        ("curl_speed", 3, "0.1", False), ("gravity", 3, "0", False), ("drag", 3, "0", False),
+        ("fade_in", 2, "0", False), ("fade_out", 2, "0", False),
+        ("render", -1, "pixel", False), ("pixel_min", 0, "1", False), ("pixel_max", 0, "2", False),
+        ("color", 3, "1,1,1", False), ("brightness", 3, "1", False), ("variation", 2, "0.5", False),
+        ("lit", 0, "0", False), ("ambient", 4, "0.05", False), ("quality", -1, "dust", False)]),
     # The room's sun ("env sun") and sky ("env sky"): pc/src/environment.cpp.
     "env": (False, 4, [
         ("enabled", 0, "1", False), ("azimuth", 2, "180", False), ("elevation", 2, "45", False),
@@ -77,15 +90,20 @@ SCHEMA = {
 }
 # What a define of each kind needs, and how many numbers a field takes.
 REQUIRED = {"light": ["pos"], "actor": ["prefab", "pos"], "set": ["value"], "glow": [], "uv": [], "env": [],
-            "fog": ["pos"], "post": []}
+            "fog": ["pos"], "post": [], "emitter": ["pos"]}
 COUNTS = {"pos": 3, "dir": 3, "color": 3, "rot": 3, "glow": 3, "fixture": 3, "tint": 3, "size": None,
-          "zenith": 3, "horizon": 3, "ground": 3, "wind": 3, "fill": 3}
+          "zenith": 3, "horizon": 3, "ground": 3, "wind": 3, "fill": 3, "drift": 3}
 # The env items a room may have, and the fields each takes.
 ENV_FIELDS = {"sun": ("enabled", "azimuth", "elevation", "color", "intensity", "angle", "shadows"),
               "sky": ("enabled", "zenith", "horizon", "ground", "intensity", "sun_tint", "ambient"),
               "fog": ("enabled", "density", "height", "offset", "noise", "scale", "wind", "color", "fill", "sky")}
 LIGHT_TYPES = ("point", "spot", "rect")
 FOG_SHAPES = ("box", "sphere")
+EMITTER_SHAPES = ("box", "room", "point", "disc", "surface")
+EMITTER_RENDERS = ("pixel",)  # soft sprites and streaks come later (pc/docs/Particles.md)
+EMITTER_QUALITIES = ("dust", "always")
+# The fields an emitter's asset gives (everything after its own: pc/src/lighting_layers.cpp preset_field).
+EMITTER_ASSET_FIELDS = tuple(f[0] for f in SCHEMA["emitter"][2][6:])
 
 
 def _spec(kind, key):
@@ -168,12 +186,13 @@ def canonicalize(kind, fields):
     with a preset keeps its preset fields even at their defaults: they differ from the preset's)."""
     out = {}
     fields = list(fields)
-    preset = kind == "fog" and any(key == "preset" for key, _ in fields)
+    preset = (kind == "fog" and any(key == "preset" for key, _ in fields)) or \
+        (kind == "emitter" and any(key == "asset" for key, _ in fields))
     for key, value in fields:
         v = canonical_value(kind, key, value)
         f = _spec(kind, key)
         if f and f[2] is not None and v == canonical_value(kind, key, f[2]) \
-                and not (preset and key in PRESET_FIELDS):
+                and not (preset and key in (PRESET_FIELDS if kind == "fog" else EMITTER_ASSET_FIELDS)):
             out.pop(key, None)
             continue
         out[key] = v
@@ -422,7 +441,7 @@ def diff_one(below, desired, id):
         return Entry("define", id, item=d)
     if same_item(b, d):
         return None
-    if b.kind not in ("light", "actor", "env", "fog", "post"):
+    if b.kind not in ("light", "actor", "env", "fog", "emitter", "post"):
         return Entry("define", id, item=d)
     old = dict(b.fields)
     sets = [(k, v) for k, v in d.fields if not (k in old and (old[k] == v or volatile(d.kind, d.name, k)))]

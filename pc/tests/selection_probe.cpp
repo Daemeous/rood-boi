@@ -37,6 +37,9 @@ static void references()
     check(ref_of("env:sun").kind == KIND_SUN && !ref_of("env:sky") && !strcmp(kind_name(KIND_SUN), "sun"),
         "the sun is env:sun (the sky is no reference)");
     check(!strcmp(kind_name(KIND_VOLUME), "fog") && !strcmp(source_name(FROM_OUTLINER), "outliner"), "kind and source names");
+    check(ref_of("emitter:d4").kind == KIND_EMITTER && ref_of("emitter:d4").id == "emitter:d4" && !ref_of("emitter:")
+            && !strcmp(kind_name(KIND_EMITTER), "emitter"),
+        "emitter ids are particle emitters (particles.cpp)");
 }
 
 static void selecting()

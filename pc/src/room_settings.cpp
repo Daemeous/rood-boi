@@ -22,7 +22,9 @@
 extern "C" {
 extern float pc_gi_strength, pc_emitter_light, pc_emitter_radius, pc_contact_radius, pc_baked_ambient,
     pc_lights_baked, pc_lights_master, pc_light_size, pc_gi_baked_bounce, pc_fog_density, pc_fog_anisotropy,
-    pc_fog_glow, pc_glow_category[3][5], pc_haze_max_opacity, pc_haze_max_light, pc_haze_shafts, pc_haze_max_forward;
+    pc_fog_glow, pc_glow_category[3][5], pc_haze_max_opacity, pc_haze_max_light, pc_haze_shafts, pc_haze_max_forward,
+    pc_haze_interior, pc_haze_interior_fill, pc_haze_under_floor, pc_haze_void, pc_haze_void_level, pc_haze_outside,
+    pc_haze_interior_edge, pc_haze_interior_slope;
 }
 
 namespace {
@@ -57,6 +59,16 @@ Setting settings[] = {
     { "haze_max_light", "Most light it adds", "Atmosphere", &pc_haze_max_light, 0, 1, "%.3f", false },
     { "haze_shafts", "Sun shafts' contrast", "Atmosphere", &pc_haze_shafts, 0, 1, "%.2f", false },
     { "haze_max_forward", "Glow toward the moon (peak)", "Atmosphere", &pc_haze_max_forward, 0, 8, "%.2f", false },
+    /* Where the room's air is (atmosphere.h): its interior, not its bounds;
+     * clear over the void around the room. */
+    { "haze_interior", "Keep to the room's interior", "Atmosphere", &pc_haze_interior, 0, 1, "toggle", false },
+    { "haze_interior_fill", "Interior: holes filled (cells)", "Atmosphere", &pc_haze_interior_fill, 0, 4, "%.0f", false },
+    { "haze_interior_slope", "Interior: steepest floor (degrees)", "Atmosphere", &pc_haze_interior_slope, 37, 89, "%.0f", false },
+    { "haze_interior_edge", "Interior: edge softness", "Atmosphere", &pc_haze_interior_edge, 0, 0.5f, "%.2f", false },
+    { "haze_outside", "Interior: haze over the outside", "Atmosphere", &pc_haze_outside, 0, 1, "%.2f", false },
+    { "haze_under_floor", "Interior: haze under the floor", "Atmosphere", &pc_haze_under_floor, 0, 256, "%.0f", false },
+    { "haze_void", "Clear over the void", "Atmosphere", &pc_haze_void, 0, 1, "toggle", false },
+    { "haze_void_level", "Void: brightest black (of 255)", "Atmosphere", &pc_haze_void_level, 0, 32, "%.0f", false },
     /* The game's glows by category (glows.c): fixtures (candles, torches,
      * lanterns, room flames), magic (the save point), transient effects
      * (attacks, spells, sparks; never shadowed). "toggle": a checkbox;

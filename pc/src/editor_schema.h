@@ -41,6 +41,13 @@ struct Field {
     /* Whether reset has something to undo (an actor: it overrides the parameter); null: get != base. */
     std::function<bool(int)> overridden;
     std::function<void(int)> reset; /* null: set(base) */
+    /* A value that may follow a setting every room shares (a fog volume's
+     * disturb weights: the global fog_disturb_*): Details draws a "Use
+     * global" box before it and disables the value while it is ticked (get
+     * then gives the global value); RPC set takes "global". Null: none. */
+    std::function<bool(int)> uses_global;
+    std::function<void(int, bool)> set_uses_global;
+    std::string global_tooltip; /* what the global value is ("the weight every room uses ...") */
 };
 
 struct Kind {
@@ -49,6 +56,7 @@ struct Kind {
     std::vector<Field> fields;
     std::vector<std::string> closed; /* categories Details shows closed at first */
     std::function<void(int)> extras; /* Details: the kind's own tools under its fields */
+    std::function<void(int)> header; /* Details: the kind's own row above its search (a fog volume's preset) */
     /* A standalone kind (object KIND_NONE; add_kind): its objects, by index
      * 0..count-1, are its own rather than the scene's (a singleton: 1). */
     int count = 1;
@@ -72,6 +80,11 @@ const Kind* kind_of(const rood_selection::Ref& r, int* index);
 const Kind* find_kind(const std::string& name);
 std::vector<const Kind*> all_kinds(); /* the lights', the fog volume's, one per prefab in the library */
 std::vector<std::string> lint(); /* problems; none: every field is complete */
+/* The prefab kinds a library reload replaced stay readable until this is
+ * called (rood_scene::frame, each overlay frame and RPC): a Kind* or Field&
+ * taken earlier in the frame never dangles. Returns how many it freed. */
+int collect();
+int retired_count(); /* tests */
 /* Register a kind beyond the built-in ones (any time; find_kind, all_kinds
  * and the lint include it). One with object KIND_NONE is standalone: not in
  * the scene or the selection; Details draws it with rood_details::draw_kind,
@@ -104,6 +117,8 @@ std::vector<rood_selection::Ref> targets(const Kind& k, const Field& f, const ro
  * targets take that component only (their other two stay their own). */
 void apply(const Kind& k, const Field& f, const rood_selection::Ref& target, const Value& v, int component = -1);
 void apply_reset(const Kind& k, const Field& f, const rood_selection::Ref& target);
+/* A "use global" field ticked (on) or given its own value (off: the global value now), to every target. */
+void apply_global(const Kind& k, const Field& f, const rood_selection::Ref& target, bool on);
 /* The same for a standalone kind's object `index` (the room is not marked unsaved). */
 void apply_at(const Kind& k, const Field& f, int index, const Value& v);
 void apply_reset_at(const Kind& k, const Field& f, int index);

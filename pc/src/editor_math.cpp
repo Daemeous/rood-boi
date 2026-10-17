@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include <vector>
 
 #include "editor_picking.h"
 #include "light_prefabs.h" /* prefab::kelvin */
@@ -254,4 +255,96 @@ std::string format_hex(const float rgb[3])
     return text;
 }
 float srgb_to_linear(float c) { return c <= 0.04045f ? c / 12.92f : powf((c + 0.055f) / 1.055f, 2.4f); }
+void fit_footprint(const float at[2], const float want[2], const float lo[2], const float hi[2], float centre[2], float size[2])
+{
+    for (int k = 0; k < 2; k++) {
+        float room = hi[k] - lo[k];
+        if (room <= 0) {
+            size[k] = want[k], centre[k] = at[k];
+            continue;
+        }
+        size[k] = fminf(want[k], room);
+        float half = size[k] * 0.5f;
+        centre[k] = fminf(fmaxf(at[k], lo[k] + half), hi[k] - half);
+    }
+}
+
+namespace {
+bool triangle_normal(const PaneTriangle& t, float n[3])
+{
+    float a[3] = { t.v[1][0] - t.v[0][0], t.v[1][1] - t.v[0][1], t.v[1][2] - t.v[0][2] };
+    float b[3] = { t.v[2][0] - t.v[0][0], t.v[2][1] - t.v[0][1], t.v[2][2] - t.v[0][2] };
+    n[0] = a[1] * b[2] - a[2] * b[1], n[1] = a[2] * b[0] - a[0] * b[2], n[2] = a[0] * b[1] - a[1] * b[0];
+    float len = sqrtf(dot(n, n));
+    if (len < 1e-6f)
+        return false;
+    for (int k = 0; k < 3; k++)
+        n[k] /= len;
+    return true;
+}
+bool shares_edge(const PaneTriangle& a, const PaneTriangle& b)
+{
+    int same = 0;
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++) {
+            float d[3] = { a.v[i][0] - b.v[j][0], a.v[i][1] - b.v[j][1], a.v[i][2] - b.v[j][2] };
+            if (dot(d, d) <= 0.25f) {
+                same++;
+                break;
+            }
+        }
+    return same >= 2;
+}
+} // namespace
+
+bool fit_pane(const PaneTriangle* t, int count, int seed, const float eye[3], Pane& out)
+{
+    out = Pane();
+    float n[3];
+    if (seed < 0 || seed >= count || !triangle_normal(t[seed], n))
+        return false;
+    float to_eye[3] = { eye[0] - t[seed].v[0][0], eye[1] - t[seed].v[0][1], eye[2] - t[seed].v[0][2] };
+    if (dot(n, to_eye) < 0)
+        n[0] = -n[0], n[1] = -n[1], n[2] = -n[2];
+    float plane = dot(n, t[seed].v[0]);
+    const float cos_limit = cosf(8 * 3.14159265f / 180);
+    std::vector<int> candidates;
+    for (int i = 0; i < count; i++) {
+        float m[3];
+        if (t[i].texture != t[seed].texture || !triangle_normal(t[i], m) || fabsf(dot(m, n)) < cos_limit)
+            continue;
+        bool flat = true;
+        for (int c = 0; c < 3 && flat; c++)
+            flat = fabsf(dot(n, t[i].v[c]) - plane) <= 2;
+        if (flat)
+            candidates.push_back(i);
+    }
+    std::vector<int> pane = { seed };
+    std::vector<char> taken(candidates.size(), 0);
+    for (size_t k = 0; k < candidates.size(); k++)
+        taken[k] = candidates[k] == seed;
+    for (size_t at = 0; at < pane.size() && pane.size() < 256; at++)
+        for (size_t k = 0; k < candidates.size() && pane.size() < 256; k++)
+            if (!taken[k] && shares_edge(t[pane[at]], t[candidates[k]])) {
+                taken[k] = 1;
+                pane.push_back(candidates[k]);
+            }
+    float f[3];
+    light_frame(n, f, out.right, out.up);
+    float lo[2] = { 1e30f, 1e30f }, hi[2] = { -1e30f, -1e30f };
+    for (int i : pane)
+        for (int c = 0; c < 3; c++) {
+            float r = dot(out.right, t[i].v[c]), u = dot(out.up, t[i].v[c]);
+            lo[0] = fminf(lo[0], r), hi[0] = fmaxf(hi[0], r), lo[1] = fminf(lo[1], u), hi[1] = fmaxf(hi[1], u);
+        }
+    float mr = (lo[0] + hi[0]) * 0.5f, mu = (lo[1] + hi[1]) * 0.5f;
+    for (int k = 0; k < 3; k++) {
+        out.normal[k] = f[k];
+        out.centre[k] = out.right[k] * mr + out.up[k] * mu + f[k] * plane;
+    }
+    out.width = hi[0] - lo[0], out.height = hi[1] - lo[1];
+    out.triangles = (int)pane.size();
+    return true;
+}
+
 } // namespace rood_math

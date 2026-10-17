@@ -174,6 +174,13 @@ def suites(args, mode="egl"):
             Suite("editor_handles_smoke", [PY, str(TESTS / "editor_handles_smoke.py"), "--card", str(args.save)], 600,
                   note="viewport handles (mouse drags): each changes one field, Ctrl fine, Shift snap, Esc, one undo "
                        "step, hidden while flying; point/spot/rect/sun handles; the colour popover and eyedropper"),
+            Suite("emissive_entries_smoke", [PY, str(TESTS / "emissive_entries_smoke.py"), "--card", str(args.save)],
+                  300, note="emissive entries: Duplicate and Delete (a confirm first) by RPC and the panel, one undo step "
+                            "each, undo and redo"),
+            Suite("editor_library_smoke", [PY, str(TESTS / "editor_library_smoke.py"), "--card", str(args.save)], 600,
+                  note="the library: sources, filters, favourites, thumbnails (deterministic, cached), drops on a floor "
+                       "and a wall per kind (one undo step, selected), a real drag from a tile, the panel's views, "
+                       "Save as prefab round trips (lights, an actor, a fog volume)"),
             Suite("facing_cutaway_smoke", [PY, str(TESTS / "facing_cutaway_smoke.py"), "--card", str(args.save)], 300,
                   note="game camera cutaway walls: native = packet path at 8 yaws, during turns (save room, room 13)"),
             Suite("camera_stick_smoke", [PY, str(TESTS / "camera_stick_smoke.py"), "--card", str(args.save)], 300,
@@ -215,12 +222,19 @@ def suites(args, mode="egl"):
                                        str(args.save)], 300,
                   note="atmosphere never washes out the view: town, forest, Undercity rooms at several camera "
                        "angles and toward the moon (full sweep: pc/tools/atmosphere_sweep.py)"),
+            Suite("void_fog_smoke", [PY, str(TESTS / "void_fog_smoke.py"), "--card", str(args.save)], 420,
+                  note="the void past cut-away walls (Undercity, zone 48 room 0) stays black with the fog and "
+                       "haze on; fog still on the floor; interior/void switches; ghost walls; a volume draws"),
             Suite("fog_sim_smoke", [PY, str(TESTS / "fog_sim_smoke.py"), "--card", str(args.save)], 300,
                   note="interactive fog prototype (sim=1, off by default): Ashley clears her footprint, a wake "
                        "when walking, settles back"),
             Suite("fog_volume_smoke", [PY, str(TESTS / "fog_volume_smoke.py"), "--card", str(args.save)], 420,
                   note="fog volumes' own renderer: thick (opacity >= 0.9), its own opacity cap, depth, a light "
                        "brightens and tints it, dim grey not black in a dark room, still frames steady (haze too)"),
+            Suite("particles_smoke", [PY, str(TESTS / "particles_smoke.py"), "--card", str(args.save)], 600,
+                  note="particles: emitters round-trip through the lighting file; motes deterministic, counted by "
+                       "Dust; Dust Off pixel-identical, shadowed motes never show, lit ones are square game pixels; "
+                       "editor select/move/reset/delete; GPU/CPU cost; the town house's dust (34/0)"),
             Suite("glow_stability_smoke", [PY, str(TESTS / "glow_stability_smoke.py"), "--card", str(args.save)], 600,
                   note="save point: one steady glow, stable id, overrides persist; prologue fight: effect glows unshadowed, smooth"),
             Suite("emissive_smoke", [PY, str(TESTS / "emissive_smoke.py"), "--card", str(args.save)], 420,
@@ -479,7 +493,8 @@ CHECKPOINT_SUITES = {
     "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
     "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "weapon_slots_smoke", "ui_menus_smoke",
     "ui_lines_smoke", "ui_text_smoke", "button_prompts_smoke", "button_roles_symbols_smoke", "coplanar_order_smoke", "atmosphere_smoke",
-    "fog_sim_smoke", "fog_volume_smoke", "save_point_glow_smoke", "emissive_smoke", "ui_ashley_smoke", "ui_ashley_stability_smoke",
+    "void_fog_smoke",
+    "fog_sim_smoke", "fog_volume_smoke", "particles_smoke", "save_point_glow_smoke", "emissive_smoke", "ui_ashley_smoke", "ui_ashley_stability_smoke",
     "ui_equip_smoke",
     "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "fast_travel_smoke", "fast_travel_shell_smoke", "post_smoke",
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",

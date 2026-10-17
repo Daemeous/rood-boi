@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "editor_overlays.h"
@@ -31,6 +32,9 @@ struct Drag {
     pc_overlay_view view; /* as the drag began */
     rood_lights::Light light; /* the light as the drag began (Escape puts it back) */
     rood_env::SunState sun; /* the sun as the drag began */
+    /* A fog volume's schema fields as the drag began (Escape puts them back; its handles read their start here). */
+    std::vector<std::pair<std::string, prefab::Value>> fields;
+    prefab::Value field(const char* name) const; /* one of them (a zero scalar when absent) */
 };
 struct Handle {
     std::string name; /* "intensity", "radius", "range", "cone", "inner", "width+", ...: the RPC's and the tests' */
@@ -55,6 +59,12 @@ void light_extras(const pc_overlay_view& v, int index, void* draw_list);
 void sun_handles(const pc_overlay_view& v, std::vector<Handle>& out);
 /* Every frame the sun shows: its disc on the sky dome, pickable (env:sun). */
 void sun_icon(const pc_overlay_view& v, void* draw_list);
+/* editor_volume_handles.cpp: a fog volume's handles (the density ring, the
+ * soft edge dot, the colour swatch) and its inner outline (the full-density core). */
+void volume_handles(const pc_overlay_view& v, const rood_selection::Ref& r, int index, std::vector<Handle>& out);
+void volume_extras(const pc_overlay_view& v, int index, void* draw_list);
+/* The colour swatch below right of a ring centred at (cx, cy): a click opens (or closes) the colour popover. */
+Handle colour_swatch(const rood_selection::Ref& r, float cx, float cy, float ring_radius, const float colour[3]);
 
 /* Each viewport frame (lights.cpp, with the editor's view and surface
  * picker): draws the primary's handles and runs their mouse; true when a
@@ -66,6 +76,7 @@ const char* hot(); /* the handle dragged or under the pointer (its name), or nul
 bool handle_pixel(const char* name, float out[2]); /* where a handle was last drawn */
 /* Escape: a drag's values back (no undo step), else aiming disarmed; true when it did. */
 bool cancel();
+void finish(); /* the editor closes: a drag keeps its value, its undo step closes; aiming is disarmed */
 /* A spot's "aim at surface" (its handle): the next click on a surface points it there. */
 void arm_aim(const rood_selection::Ref& r);
 bool viewport_click(float x, float y); /* aiming: this click aims; true when it took it */

@@ -50,6 +50,13 @@ target_compile_features(selection_probe PRIVATE cxx_std_17)
 target_compile_options(selection_probe PRIVATE -Wall -Wextra -Werror)
 add_test(NAME selection_probe COMMAND selection_probe)
 
+# The room's floor grid's last steps (pc/src/floor_grid.c: the ground fog's floor, the room's interior) without the game.
+add_executable(floor_grid_probe tests/floor_grid_probe.c src/floor_grid.c)
+target_include_directories(floor_grid_probe PRIVATE src)
+target_compile_options(floor_grid_probe PRIVATE -Wall -Wextra -Werror)
+target_link_libraries(floor_grid_probe PRIVATE m)
+add_test(NAME floor_grid_probe COMMAND floor_grid_probe)
+
 # The editor's viewport maths, scale table and light shapes (pc/src/editor_math.cpp,
 # editor_transform.cpp, light_shape.h) without the game.
 add_executable(editor_tools_probe tests/editor_tools_probe.cpp src/editor_math.cpp src/editor_transform.cpp
@@ -58,6 +65,21 @@ target_include_directories(editor_tools_probe PRIVATE src)
 target_compile_features(editor_tools_probe PRIVATE cxx_std_17)
 target_compile_options(editor_tools_probe PRIVATE -Wall -Wextra -Werror)
 add_test(NAME editor_tools_probe COMMAND editor_tools_probe)
+# The library's entries, filters and thumbnails (pc/src/library_model.cpp,
+# library_thumbs.cpp) without the game.
+add_executable(library_probe tests/library_probe.cpp src/library_model.cpp src/library_thumbs.cpp src/editor_math.cpp
+    src/editor_picking.cpp src/light_prefabs.cpp)
+target_include_directories(library_probe PRIVATE src)
+target_compile_features(library_probe PRIVATE cxx_std_17)
+target_compile_options(library_probe PRIVATE -Wall -Wextra -Werror)
+add_test(NAME library_probe COMMAND library_probe ${CMAKE_CURRENT_BINARY_DIR}/library_probe_out)
+
+# The particle system (pc/src/particle_math.h, particle_assets.cpp) without the game.
+add_executable(particles_probe tests/particles_probe.cpp src/particle_assets.cpp src/lighting_layers.cpp src/light_prefabs.cpp)
+target_include_directories(particles_probe PRIVATE src)
+target_compile_features(particles_probe PRIVATE cxx_std_17)
+target_compile_options(particles_probe PRIVATE -Wall -Wextra -Werror)
+add_test(NAME particles_probe COMMAND particles_probe ${CMAKE_CURRENT_SOURCE_DIR}/assets/emitters)
 
 # Modern menus: the shell's navigation (pc/src/ui/ui_shell.cpp) without the game.
 add_executable(ui_shell_probe tests/ui_shell_probe.cpp src/ui/ui_shell.cpp src/ui/ui_loot.cpp src/ui/ui_workshop.cpp

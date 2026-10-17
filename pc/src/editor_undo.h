@@ -45,6 +45,9 @@ void pc_undo_jump(int done);
 void pc_undo_reset(void);
 /* Keep the history, but take the state now as the base (the editor opens). */
 void pc_undo_rebase(void);
+/* The emissive user layer was read again from its file (a hand edit, Reload):
+ * the base takes it as it is now, so the reload is no undo step. */
+void pc_undo_external_emissive(void);
 /* RPC editor_undo: the history as JSON. */
 int pc_undo_json(char* out, int size);
 /* The most transactions kept (oldest dropped first). */

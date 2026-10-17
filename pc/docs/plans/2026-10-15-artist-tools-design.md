@@ -1,6 +1,28 @@
 # Artist tools: editor ergonomics for environment and lighting artists
 
 Status: design approved 2026-10-15. The implementation plan comes next.
+Phases A-C landed 2026-10-15; D and E, fit to window and the follow-ups:
+pc/docs/plans/2026-10-16-artist-tools-de-plan.md (Place Actors became the
+Library).
+
+Open questions for the user (the review of D and E, 2026-10-16), where the
+build differs from this design until decided:
+
+- **Thumbnails** are drawn on the CPU (`pc/src/library_thumbs.cpp`) with the
+  renderers' light model and the fog volume shader's terms (shape, soft
+  edge, taper, wisps, phase, glow at its base, opacity, brightness, ambient,
+  a self-shadow estimate), not by the OpenGL or Vulkan renderer itself: the
+  same bytes on both renderers and every run, but not the exact in-game
+  picture (no flames, glow sprites or the room's light). Rendering them
+  offscreen with the real renderers is the alternative.
+- **Docking:** the Library is a tab beside the Outliner or one floating
+  window (Pop out / Dock), not Dear ImGui docking. The bundled Dear ImGui
+  is its docking branch, so real docking is possible, but turning it on
+  changes how every editor window moves and is laid out.
+- **Save as prefab** is in the Library (Save...), the Outliner's right-click
+  menu, Edit and a fog volume's Details (lights and light actors already had
+  theirs), not in a viewport right-click menu: the right mouse button flies
+  the camera there.
 
 ## Goal
 

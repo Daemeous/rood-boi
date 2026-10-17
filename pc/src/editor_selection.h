@@ -2,7 +2,7 @@
  * "Selection model"): one set of typed references to the room's objects,
  * shared by the viewport, the Outliner, Details, undo and the RPC. A
  * reference is the object's lighting item id ("light:<id>", "actor:<id>",
- * "fog:<id>", "glow:<key>"; lighting_layers.h), so it survives edits, undo
+ * "fog:<id>", "emitter:<id>", "glow:<key>"; lighting_layers.h), so it survives edits, undo
  * and reloads where list indices would not. The last reference is the
  * primary: the gizmo's and Details' object.
  *
@@ -21,7 +21,7 @@
 
 namespace rood_selection {
 
-enum Kind { KIND_NONE, KIND_LIGHT, KIND_ACTOR, KIND_GLOW, KIND_VOLUME, KIND_SUN };
+enum Kind { KIND_NONE, KIND_LIGHT, KIND_ACTOR, KIND_GLOW, KIND_VOLUME, KIND_SUN, KIND_EMITTER };
 struct Ref {
     Kind kind = KIND_NONE;
     std::string id; /* the lighting item id, its prefix included */
@@ -31,7 +31,7 @@ struct Ref {
 };
 /* A reference from an item id, by its prefix ("env:sun": the room's sun or moon; KIND_NONE when unknown). */
 Ref ref_of(const std::string& id);
-const char* kind_name(Kind k); /* "light", "actor", "glow", "fog", "sun", "none" */
+const char* kind_name(Kind k); /* "light", "actor", "glow", "fog", "sun", "emitter", "none" */
 
 /* Where a change came from: the Outliner scrolls to the new primary unless
  * the change came from it; Details switches to it unless the change came

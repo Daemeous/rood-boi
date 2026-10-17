@@ -529,14 +529,24 @@ through the includer's `MEDIUM(i)`; appended to the haze's and the
 integrate pass's UBOs and the present UBO, uniforms `medium_` on OpenGL):
 
 - the **haze**: uniform inside the room's bounds (room setting
-  `haze_density`; the lighting quality picks the traced or the Low density);
+  `haze_density`; the lighting quality picks the traced or the Low density),
+  `haze_outside` of it (default 1) above the floor grid's cells without a
+  floor, and fading out within `haze_under_floor` units under the floor
+  (below, "The room's interior and the void"; with `haze_interior` 0 the
+  whole bounds, as before);
 - the **ground fog** (`env fog`): `density x exp(-(base y - y) / height)`
   above its base (y down), its base `offset` units above **the floor under
   the point** (`scene_capture.c` `pc_scene_floor_grid`: a 24 x 24 top-down
   grid over the room's bounds, per cell the lowest up-facing level face,
-  each cell the lowest of its 3 x 3, empty cells grown from their
-  neighbours; packed two 12-bit heights per float, bilinear in
-  `medium_floor`), and under its base fading within one more scale height
+  each cell the lowest of its 3 x 3; cells without a floor (no up-facing
+  face up to `haze_interior_slope` degrees that is not a black shell)
+  stay empty: no fog over them (the void outside the walls); holes up to
+  twice `haze_interior_fill` cells across count as floor (a closing,
+  `floor_grid.c`); every cell still has a height (the lowest of its 3 x 3,
+  then grown outward); packed two 12-bit steps per float, the height (with
+  `haze_interior`: 11 bits of height and a no-floor bit), bilinear in
+  `medium_floor`; below, "The room's interior and the void"), and under
+  its base fading within one more scale height
   (no column holds an unbounded depth of it), times drifting **wisps**:
   three octaves of gradient (Perlin) noise with a quintic fade and an
   integer hash, the coordinates domain-warped by one more slow octave
@@ -581,6 +591,155 @@ where the atmosphere's light is over 40/255 and brighter than the scene <=
 0.3) fails the old medium (`--legacy`: limits off, `floor_grid` 0) in
 Rue Vermillion at 6 of 10 poses (detail 0.08-0.35, veil up to 0.99) and
 passes the new one; the `atmosphere_sweep` suite runs four rooms.
+
+#### The room's interior and the void (2026-10-16)
+
+The report: the Undercity (zone 48 room 0, Ashley at about (972, 0,
+1221)). The game cuts away the camera-side walls (as on the PS1), and the
+void around the room showed glowing mist: the ground fog followed a floor
+grid whose empty cells grew from their neighbours (so it lay over the
+cells outside the walls), the haze filled the room's bounds box, and the
+black shells the void is made of (Native_Rendering.md "Seeing into
+rooms": each wall's thickness, top and outside, every vertex colour 0)
+took the haze like any wall. Three layers, each a room setting (data, the
+Room settings panel's Atmosphere page, RPC `environment {haze: {interior,
+interior_fill, interior_slope, interior_edge, outside, under_floor, void,
+void_level}}`, booleans or numbers, and the reply's `haze` object), on by
+default; with `haze_interior` and `haze_void` 0 the picture is exactly the
+old one (the old grid, the old 12-bit heights, no void test):
+
+1. **The floor grid knows where the room is** (`scene_capture.c`,
+   `floor_grid.c`; `pc_scene_floor_cells`): a cell has a floor where an
+   up-facing face covers it no steeper than `haze_interior_slope` (37..89
+   degrees, default 60; heights still come from the level faces, |n.y| >=
+   0.8 |n|). With `haze_interior` on, black shells (room groups whose every
+   captured triangle has vertex colour 0 and no raw texture: `room_native.c`
+   `group_is_black`'s test, per group, so a black face in a lit group still
+   counts) count for neither, so the fog no longer lies on black wall tops;
+   off, they count as before. A closing with a square of radius
+   `haze_interior_fill` cells (0..4, default 1) fills holes up to twice
+   that across (past the grid's edge counts as floor while eroding only
+   next to an edge cell with a floor, so a floor reaching the bounds keeps
+   its edge and an empty strip along the edge stays empty; a concave corner
+   is never filled). The RPC reply's `fog.floor_grid.occupied` lists the
+   cells (0 empty, 1 floor, 2 a filled hole).
+2. **The medium keeps to the interior** (`haze_interior`, default 1;
+   `medium.glsl` `medium_room_air`, one look-up of the grid per sample):
+   the cells pack their heights in 11 bits plus a no-floor bit (the cells
+   without a floor keep the heights grown from their neighbours'). The
+   ground fog is multiplied by the cells' bilinear floor share through a
+   smoothstep around a half (`haze_interior_edge`, 0 hard .. 0.5 a cell
+   each side, default 0.2; the edge is at most one cell, bounds / 24, off
+   the true wall). The uniform haze keeps `haze_outside` (0..1, default 1)
+   of itself above the cells without a floor: the game camera usually sits
+   outside the room's walls (that is why they are cut away), and that air
+   between it and the room is part of every room's tuned mood; 0 confines
+   the haze to the interior too. Under the floor the haze fades out within
+   `haze_under_floor` units (0..256, default 32): under the column's own
+   floor over the interior, under the room's lowest floor (record 165.w)
+   over the cells without one, so the void below the room is clear but the
+   air down to the floor is not. The grid is packed for the ground fog,
+   for the haze with the interior on, and for `haze_debug 2`; a haze
+   without the interior needs no grid look-ups (`medium_maybe` returns at
+   once). `fit_to_floor` and `atmosphere_sweep.py`'s `floor_at` read the
+   heights, unchanged.
+3. **Void pixels keep the room's air only up to where their ray leaves the
+   interior** (`haze_void`, default 1; `medium_void_pixel`,
+   `medium_void_reach`, `scaled.frag`, `gl_present.c`): a present pixel is
+   void when nothing is drawn there (depth 1), or its G-buffer shade is a
+   lit 3D surface (shade alpha 0.5 flat or 1 textured; never 0.25 emissive
+   or 0 unlit) whose vertex colour is at most `haze_void_level` (0..32 of
+   255, default 0: exactly black): what the PS1 draws black whatever its
+   texture. Such a pixel's ray is sampled at 16 points from its surface
+   back toward the eye; the last one in the room's interior air (inside
+   the bounds, over the cells with a floor, at most `haze_under_floor`
+   under it) is its reach, and the haze (the traced froxels at that depth,
+   or haze Low's march to that point; OpenGL's traced haze uses haze Low's
+   march there) stops there. The void past a cut-away wall, whose ray
+   never crosses the room, keeps none of it: clean darkness. A black
+   doorway, pit or prop seen across a fogged floor keeps the fog in front
+   of it, so it is never cut out of the fog with a hard edge. Without the
+   interior the reach is 0 (void pixels keep none of the room's air). Depth
+   1 pixels never had the haze in the present (only its debug view). This
+   works on both renderers and both room paths (`native_room` 0 and 2)
+   without group ids in the G-buffer. The Vulkan present fills its medium
+   record every frame, so every haze path reads the switch.
+
+What changed in the look, measured (the 3D view's mean luma, of 255,
+against the switches off): at the report's pose, the user's settings
+(haze Low, the room's own fog and haze), Vulkan, 20.1 -> 22.5: almost all
+of it the ground fog the old grid laid over the cells outside the walls,
+where it dimmed the floor seen through it and glowed over the void; the
+haze alone (no ground fog) 30.5 -> 30.8 (`haze_outside` 1; an earlier
+version that confined the haze to the interior made rooms seen from
+outside a third brighter). `atmosphere_sweep.py` records the change per
+pose (`interior`) and fails a game-camera pose that moves by more than 6:
+every room with atmosphere on Vulkan (97 rooms, 347 poses, two free-camera
+yaws), median |change| 0.1, 40 poses over 1, 12 over 2, 2 over 4; the
+largest with the game's camera 48/14 +5.1 (brighter: less of the old fog
+over the cells outside its walls), and with a free camera 40/10 +12 (the
+camera sits outside the walls, over cells without a floor, and looked
+through the old fog grown over them). Outdoors the haze under a terrain's
+edge (below the room's lowest floor) goes too, and with it some shadowed
+air: in the forest (40/6) the moon's shafts measured over the whole view
+lose a little contrast (`atmosphere_smoke` measures them with the interior
+off, 10th percentile of shadowed / unshadowed 0.74; with it 0.81).
+GPU time at 48/0 (the RPC `perf` frame time, Vulkan, haze Low / High, with
+and without the ground fog): within 0.012 ms of the switches off; OpenGL
+within 0.02 ms (run to run noise).
+
+**Fog volumes are exempt** from the interior and the void test: an artist
+placed them, so the volumes' own renderer (the room's first 8 volumes)
+draws them wherever they are, in front of void pixels too (the far side of
+a volume hanging past a cut-away wall still shows; one entirely behind a
+black shell is hidden by the shell's depth as before; the test puts one
+over the whole room and past it and sees it over the void). The volumes
+past the first 8 go through the haze passes, so on void pixels they stop
+at the ray's reach with the rest of the haze (the "Volumes' own renderer"
+tooltip says so).
+
+The record: 90.w the switches (`PC_MEDIUM_GRID` 1, `PC_MEDIUM_INTERIOR` 2,
+`PC_MEDIUM_VOID` 4; `medium.glsl` `MEDIUM_FLAG_*`), 6.w
+`haze_under_floor`, 7.w the void's level, (level + 0.5) / 255, 165 the
+room's air (x `haze_outside`, y z the interior's edge, w the room's lowest
+floor): 166 vec4s (`PC_MEDIUM_VEC4S`, every shader's `medium_[]`).
+`pc_medium_hash` includes the interior's settings and the scene serial
+(the haze's history restarts when the interior changes).
+**`haze_debug 2`** (RPC `graphics {haze_debug: 2}`, Atmosphere tab "Show
+where the room's air is") paints red where a pixel is void, green the
+interior share at the surface, blue a void pixel's reach (both renderers).
+
+Left as they are: dynamic lights may still add a little light to a black
+shell (the test compares with the atmosphere off, so it measures the
+medium alone); the post profile's depth fog (`depth_fog_*`, off by default
+and in no room's profile; a camera-distance tint over every pixel, the far
+plane included) is a separate effect; `ptgi.c` still marches the GL haze
+on void GI pixels (the present no longer uses it there; a few pixels of
+bleed into floor pixels next to the void through `gi_at`'s 4 x 4 haze
+average are accepted). The `gameplay_walls smart` look with ghosts (cut
+walls drawn again, or translucent) works in this room as an alternative;
+what void it leaves stays clean.
+
+Tests: `pc/tests/void_fog_smoke.py` (warps to the report's spot; the void
+from the vertex colours, `view_mode 4`). First the user's view: the game's
+own camera, haze Low, the room's own fog and haze: the void is as without
+them, and the room's own fog made visible (its shape, purely emissive) is
+black over the void where the old code shows 13 of 255 on Vulkan and 15
+on OpenGL (the mist of the report; with the room's real colours it is
+faint, since its fill light is); the interior alone lowers it (the shells
+right by the floor lie within a grid cell of it), the void test alone
+takes all of it; the haze alone keeps its mood. Then at the yaw showing
+the most void: the room's fog and haze still dim the floor; a bright
+emissive ground fog's light is black over the void pixels whose ray never
+crosses the room (most of them) and clearly there over the floor; the void
+test alone clears them; `haze {interior: false, void: false}` brings the
+old mist back; `haze_debug 2` marks the void red and the floor green; a
+dark surface inside the room classed as void (`haze_void_level` 32) keeps
+the fog in front of it; the cell under Ashley has a floor; smart walls
+with ghosts; a fog volume at Ashley draws, and one over the whole room
+draws over the void. The CTest probe `floor_grid_probe` checks the cells
+(an L-shaped room, holes, fill 0..2, empty strips along the grid's edge,
+heights as before).
 
 Traced (haze High; Vulkan ray queries, or OpenGL compute in `ptgi.c`):
 
@@ -693,6 +852,25 @@ same room; totals vary by about 0.05 ms between runs):
 | Undercity West, Medium | 0.45 -> 0.51 | in `present` |
 
 So Ultra takes `haze_cell` 2 (sharper shafts for 0.006 ms), High 3.
+
+**Particles** (`vk_particles.inc`, `particles_main.glsl`; pc/docs/Particles.md):
+the port's dust motes are one compute pass after the fog volumes' passes
+(perf section `particles`), only when a room's emitters draw motes (Dust Off:
+no pass, nothing bound). Two pipelines: `particles.comp` (motes lit
+unshadowed) and `particles_rt.comp` (`PARTICLES_RT`: a ray query per light
+source and the sun, against this frame's acceleration structure, when the
+path tracer built one). Bindings: 0 the UBO (`particle_math.h`
+`pc_particles_gpu`: emitters, camera, sun and sky, glows, the floor grid), 1-3
+and 9 `rt_common.glsl`'s (the TLAS, triangles, VRAM, movers; declared but
+unused without ray queries), 4 the light list (`pc_light_gpu`), 5 the key
+image (R32_UINT, a texel per game pixel of the display, cleared to
+`0xFFFFFFFF` with `vkCmdClearColorImage` first), 6 the colour image (RGBA32F,
+256 x 64, a texel per mote). One invocation per mote evaluates its closed form
+(`particles_sim.glsl`), lights it, writes its colour and, when it is lit,
+`imageAtomicMin`s `depth << 16 | mote` into its game pixels. The present pass
+binds the two images at 21 and 22 and `scaled.frag` composites them
+(`particles.glsl`: whole game pixels, depth-tested, before the fog volumes
+and the haze). Measured: 0.02 ms a frame for 4096 motes (960 x 720, Ultra).
 
 ## Status (2026-10-11): NRD
 

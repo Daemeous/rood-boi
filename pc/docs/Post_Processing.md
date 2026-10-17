@@ -176,10 +176,16 @@ tonemapper too, by mixing both curves) when a room change or a context
 change alters it, and snaps on edits, on the first frame and on a cutscene
 that starts on a camera cut. `post_stack 0` turns every effect off.
 
+The tonemapper (`tonemapper`, `tonemap_white`) is the player's choice: room
+profiles leave it out. `pc/tools/lighting_lint.py` warns when a room's
+`post` item sets either, or names a preset whose values set them (every
+shipped preset does: they are the player's picks in Graphics >
+Post-processing).
+
 ```
 # lighting/<pack>/rooms/zone09_room17.txt
-post room preset=film exposure=-0.3 vignette=0.4
-post cutscene tonemapper=aces exposure=0.5
+post room exposure=-0.3 vignette=0.4
+post cutscene exposure=0.5 vignette=0.3
 post event.4096 dof=1 dof_focus=manual dof_focus_depth=900
 ```
 

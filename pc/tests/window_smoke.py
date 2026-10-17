@@ -61,7 +61,7 @@ try:
             subprocess.run(
                 [send_key, "--close"], cwd=root, env=env, check=True
             )
-            p.wait(timeout=5)
+            p.wait(timeout=15)  # a cold Mesa shader cache (after a shader change) slows the exit
             assert p.returncode == 0, p.returncode
             print(
                 "PASS: SDL window (X11 on Xvfb) reached title, Up selected Sound (item 3), "
@@ -70,7 +70,7 @@ try:
         finally:
             if p.poll() is None:
                 p.terminate()
-                p.wait(timeout=5)
+                p.wait(timeout=15)  # a cold Mesa shader cache (after a shader change) slows the exit
 finally:
     x.terminate()
     x.wait(timeout=5)

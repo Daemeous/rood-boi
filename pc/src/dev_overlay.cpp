@@ -24,9 +24,13 @@
 #include "editor_undo.h"
 #include "editor_details.h"
 #include "editor_handles.h"
+#include "editor_fit_window.h"
+#include "editor_library.h"
 #include "editor_colour.h"
 #include "editor_scene.h"
 #include "environment_internal.h"
+#include "particles.h"
+#include "particles_internal.h"
 #include "editor_selection.h"
 #include "camera_stick.h"
 #include "fast_travel.h"
@@ -65,7 +69,7 @@ extern "C" void pc_editor_panel(void);
 extern "C" void pc_editor_grid(void);
 static bool active, visible;
 static bool show_help; /* Help > Keyboard shortcuts */
-static int outliner_tab_request = -1; /* Window menu / toolbar: 0 Outliner, 1 Place Actors */
+static int outliner_tab_request = -1; /* Window menu / toolbar: 0 Outliner, 1 the Library */
 static bool place_tab_shown;
 /* The Details tabs: the selection's Details first (it follows the
  * selection), then the room-wide settings on their own tabs (RPC editor_ui
@@ -86,7 +90,6 @@ static const char* const details_tabs[TAB_COUNT] = { "details", "lighting", "ins
 static int details_tab_request = -1;
 static int details_tab_shown = TAB_DETAILS;
 extern "C" int pc_lights_place_cancel(void);
-extern "C" void pc_lights_place_panel(void);
 extern "C" void pc_lights_place_menu(void);
 extern "C" void pc_lights_editor_windows(void);
 extern "C" bool* pc_lights_fixture_mode(void);
@@ -194,6 +197,13 @@ static void set_visible(bool show)
             pc_window_release_keys();
         return;
     }
+    /* A drag the editor's frames would have ended on release ends now: its
+     * value stays and its undo step closes (editor_details.cpp, editor_handles.cpp). */
+    rood_details::ladder_finish();
+    rood_handles::finish();
+    /* Tools armed for the next click in the view disarm (the first click after reopening only selects). */
+    rood_fit::cancel();
+    pc_lights_place_cancel(); /* a Library drag (or a placing ghost) */
     /* Keys and buttons held when the editor closes never see their release. */
     ImGuiIO& io = ImGui::GetIO();
     io.ClearInputKeys();
@@ -207,8 +217,8 @@ extern "C" int pc_overlay_set_help(int show)
         show_help = show != 0;
     return show_help;
 }
-/* RPC editor_ui {tab}: 0 the Outliner, 1 Place Actors (-1 reads; returns 1
- * when Place Actors shows). */
+/* RPC editor_ui {tab}: 0 the Outliner, 1 the Library (-1 reads; returns 1
+ * when the Library's tab shows). */
 extern "C" int pc_overlay_set_tab(int tab)
 {
     if (tab >= 0)
@@ -439,7 +449,10 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
         /* Escape during a value ladder drag cancels it (editor_details.cpp). */
         if (key == SDLK_ESCAPE && visible && down && !typing && rood_details::ladder_cancel())
             return 1;
-        /* Escape during a drag from Place Actors cancels the drag only. */
+        /* Escape disarms "fit rect light to window" (editor_fit_window.cpp). */
+        if (key == SDLK_ESCAPE && visible && down && !typing && rood_fit::cancel())
+            return 1;
+        /* Escape during a drag from the Library cancels the drag only. */
         if (key == SDLK_ESCAPE && visible && down && !typing && pc_lights_place_cancel())
             return 1;
         /* Escape or F1: open or close the editor.
@@ -541,6 +554,11 @@ static void graphics_panel()
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
         ImGui::SetTooltip("Emissive texels (window light, magic circles, lava): never darkened, they feed bloom\n"
                           "and, as lights, the ray-traced light. 0: the original picture. Details > Emissive edits them.");
+    ImGui::Combo("Dust", &pc_dust, "Off\0Low\0High\0");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        ImGui::SetTooltip("Dust motes (particles: pc/docs/Particles.md) in rooms that have them: Off draws none (the\n"
+                          "picture as before), Low dust_low of them, High all. Details > Atmosphere places and tunes them.");
+    rood_details::kind_section("particles", "Particle settings"); /* particles_editor.cpp */
     ImGui::SliderFloat("Overlay scale", &ui_scale, 0.75f, 4.0f, "%.2fx");
     if (ImGui::IsItemDeactivatedAfterEdit())
         apply_scale();
@@ -1087,6 +1105,7 @@ static void edit_menu()
         rood_scene::duplicate_selection();
     if (ImGui::MenuItem("Delete", "Delete", false, any))
         rood_scene::delete_selection();
+    rood_library::save_menu_item();
     ImGui::Separator();
     if (ImGui::MenuItem("Hide selection", "H", false, any))
         rood_scene::hide_selection();
@@ -1140,6 +1159,7 @@ static void menu_bar(float* height)
     if (ImGui::BeginMenu("View")) {
         ImGui::MenuItem("Lights and glows", nullptr, pc_lights_show());
     ImGui::MenuItem("Fog volumes", nullptr, pc_atmosphere_show_volumes());
+    ImGui::MenuItem("Emitters", nullptr, rood_particles::emitters_shown_flag());
         show_toggle("Room wireframe", &pc_overlay_wire);
         show_toggle("Room points", &pc_overlay_points);
         show_toggle("Character wireframe", &pc_overlay_actor_wire);
@@ -1155,7 +1175,7 @@ static void menu_bar(float* height)
     if (ImGui::BeginMenu("Window")) {
         if (ImGui::MenuItem("Outliner"))
             outliner_tab_request = 0;
-        if (ImGui::MenuItem("Place Actors", "Shift+1", place_tab_shown))
+        if (ImGui::MenuItem("Library", "Shift+1", place_tab_shown || !rood_library::docked()))
             outliner_tab_request = 1;
         ImGui::MenuItem("Room Browser", "Ctrl+R", &pc_room_browser_open);
         ImGui::MenuItem("Keyboard shortcuts", nullptr, &show_help);
@@ -1363,6 +1383,7 @@ static void show_popup()
 {
     ImGui::MenuItem("Lights and glows", nullptr, pc_lights_show());
     ImGui::MenuItem("Fog volumes", nullptr, pc_atmosphere_show_volumes());
+    ImGui::MenuItem("Emitters", nullptr, rood_particles::emitters_shown_flag());
     show_toggle("Room wireframe", &pc_overlay_wire);
     show_toggle("Room points", &pc_overlay_points);
     show_toggle("Character wireframe", &pc_overlay_actor_wire);
@@ -1412,15 +1433,24 @@ static void toolbar(float x, float y, float w, float* height)
         }
     }
     /* Place: UE's quick add (a menu of lights and actors, placed at the
-     * view's centre); the Place Actors tab drags them anywhere. */
+     * view's centre); the Library drags them anywhere. */
     group_gap(button_width("+ Place"));
     if (toggle_button("+ Place", place_tab_shown, "Add a light or light actor at the view's centre;\n"
-                                                  "or drag one from Place Actors (beside the Outliner)"))
+                                                  "or drag one from the Library (beside the Outliner)"))
         ImGui::OpenPopup("place menu");
     if (ImGui::BeginPopup("place menu")) {
-        if (ImGui::MenuItem("Open Place Actors (drag into the view)"))
+        if (ImGui::MenuItem("Open the Library (drag into the view)"))
             outliner_tab_request = 1;
         pc_lights_place_menu();
+        ImGui::Separator();
+        if (ImGui::MenuItem("Rect light on a window..."))
+            rood_fit::arm(rood_selection::Ref());
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            ImGui::SetTooltip("Click a window pane in the view: a rect light its size, in front of it, facing out");
+        if (ImGui::BeginMenu("Fit to window options")) {
+            rood_fit::options();
+            ImGui::EndMenu();
+        }
         ImGui::EndPopup();
     }
     /* Rooms: the Room Browser (go to any room to light it). */
@@ -1563,15 +1593,16 @@ static void help_window()
         { "Select", "Shift+click / Ctrl+click", "Add to the selection / add or take out (the view and the Outliner)" },
         { "Select", "Drag on empty space", "Box select lights, light actors and fog volumes (Shift adds, Ctrl toggles); it may start in a fog volume" },
         { "Lights", "Shift+click (empty)", "Move the selected light or actor to the surface (or the snapped point or edge)" },
-        { "Lights", "Ctrl+click (empty)", "Add the Place Actors item (a point light by default) at the surface (or the snapped point or edge); in an unselected fog volume too" },
+        { "Lights", "Ctrl+click (empty)", "Add the Library item (a point light by default) at the surface (or the snapped point or edge); in an unselected fog volume too" },
+        { "Lights", "Ctrl+click (a glow)", "Place the Library item at the surface there (a selected glow is taken out of the selection instead)" },
         { "Lights", "Alt + drag gizmo", "Duplicate the light or actor (the copy stays behind)" },
         { "Fixtures", "L", "Light the fixture under the cursor (lantern, candle, torch: room polygons or its glow)" },
         { "Fixtures", "Click (Light fixture tool)", "Light the clicked fixture: an actor at its flame, its polygons casting no shadow from it" },
         { "Fixtures", "Light fixture > Light all", "Lights for every flame in the room, to review and add" },
-        { "Place", "Drag from Place Actors", "Place a light or light actor where it is dropped (snapping as set; a lit preview follows)" },
+        { "Place", "Drag from the Library", "Place a light, light actor, fixture or fog volume on the surface where it is dropped (snapping as set; a preview follows)" },
         { "Place", "Esc (dragging)", "Cancel the drag (dropping off the view cancels too)" },
-        { "Place", "Double-click in Place Actors", "Place at the surface under the view's centre" },
-        { "Place", "Shift+1", "Show the Place Actors tab" },
+        { "Place", "Double-click in the Library", "Place at the surface under the view's centre" },
+        { "Place", "Shift+1", "Show the Library (List / Grid, Pop out / Dock on its toolbar; the star: a favourite)" },
         { "Tools", "W", "Move tool" },
         { "Tools", "E", "Rotate tool (aim spot and rect lights, turn actors)" },
         { "Tools", "R", "Scale tool: a light's reach or size, a light actor's size (its lights and radii with it), a fog volume's size; never brightness" },
@@ -1579,6 +1610,8 @@ static void help_window()
         { "Tools", "I", "Inspect: click the view to probe a surface" },
         { "Handles", "Drag the ring", "The selected light's or sun's intensity: doubles every 100 pixels to the right" },
         { "Handles", "Drag a dot", "Radius, range, cone, inner cone, a rect's edges (Alt: both edges), barn doors" },
+        { "Tools", "Fit to window (a rect light's Details, + Place)", "Click a window pane: the rect light takes its size and sits in front of it, facing out; Esc cancels" },
+        { "Handles", "A fog volume's ring / dot / swatch", "Density (doubles every 100 pixels to the right), the soft edge (the inner outline: drag out for a harder edge), its colour" },
         { "Handles", "Ctrl / Shift while dragging", "Fine steps / round values; the value shows by the pointer; Esc puts it back" },
         { "Handles", "Ring's top dot", "A point light's shadows on or off" },
         { "Handles", "Swatch", "The colour popover: Kelvin and tint, a hue wheel, the room's palette, recent colours, eyedropper, Hex / RGB" },
@@ -1635,7 +1668,7 @@ static void outliner(float x, float y, float w, float h)
     ImGui::Begin("Outliner", nullptr,
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse
             | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar); /* the tabs are its title */
-    /* Two tabs as in UE's default layout: the Outliner and Place Actors. */
+    /* The Outliner and the Library (UE's Place Actors, with every kind of thing to place). */
     place_tab_shown = false;
     if (ImGui::BeginTabBar("outliner tabs")) {
         ImGuiTabItemFlags outliner_flags = outliner_tab_request == 0 ? ImGuiTabItemFlags_SetSelected : 0;
@@ -1672,16 +1705,38 @@ static void outliner(float x, float y, float w, float h)
                 rood_atmo::outliner(filter);
                 ImGui::TreePop();
             }
+            if (rood_scene::scroll_due(rood_selection::KIND_EMITTER))
+                ImGui::SetNextItemOpen(true);
+            if (ImGui::TreeNodeEx("Emitters (this room)", ImGuiTreeNodeFlags_DefaultOpen)) {
+                rood_particles::outliner(filter);
+                ImGui::TreePop();
+            }
             if (ImGui::TreeNodeEx("Room groups")) {
                 room_groups_outliner(filter);
                 ImGui::TreePop();
             }
+            /* Right-click: the selection's menu (as Edit's). */
+            if (ImGui::BeginPopupContextWindow("outliner menu")) {
+                bool any = !rood_selection::empty();
+                if (ImGui::MenuItem("Copy", "Ctrl+C", false, any))
+                    rood_scene::copy_selection();
+                if (ImGui::MenuItem("Paste", "Ctrl+V"))
+                    rood_scene::paste_clipboard();
+                if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, any))
+                    rood_scene::duplicate_selection();
+                if (ImGui::MenuItem("Delete", "Delete", false, any))
+                    rood_scene::delete_selection();
+                ImGui::Separator();
+                rood_library::save_menu_item();
+                ImGui::EndPopup();
+            }
             ImGui::EndChild();
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem("Place Actors", nullptr, place_flags)) {
+        /* The Library (editor_library.cpp): this tab, or its own window when popped out. */
+        if (rood_library::docked() && ImGui::BeginTabItem("Library", nullptr, place_flags)) {
             place_tab_shown = true;
-            pc_lights_place_panel();
+            rood_library::panel();
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
@@ -1960,10 +2015,11 @@ extern "C" void pc_overlay_frame(int width, int height)
             panel = width * 0.5f;
         float view_w = width - panel;
         toolbar(0, bar, view_w, &tools);
-        /* Place Actors gets more of the column (its list is the point of it). */
+        /* The Library gets more of the column (its tiles are the point of it). */
         float split = place_tab_shown ? 0.55f : 0.35f;
         outliner(view_w, bar, panel, (height - bar) * split);
         details(view_w, bar + (height - bar) * split, panel, (height - bar) * (1 - split), dt * 1000.0);
+        rood_library::window(); /* the Library when popped out */
         pc_gl_inset[0] = 0;
         pc_gl_inset[1] = (int)(bar + tools);
         pc_gl_inset[2] = (int)panel;

@@ -29,6 +29,19 @@ after it, and undo puts it back. Sections:
   give a warm colour in one undo step; the Candle stop; Hex typed; the room's
   palette and the recent colours; the tab remembered per light type, saved
   in the user settings; Escape closes it;
+- volume: a fog volume selected shows its handles (the colour swatch, the
+  density ring, the soft edge dot); the swatch opens the colour popover on
+  its colour (one undo step, only its colour changes); each drag changes
+  exactly one field by the expected amount in one undo step; Escape puts
+  it back; the editor closing mid-drag keeps the value and closes its one
+  undo step; R still sizes it while its handles show;
+- fit: "fit rect light to window" on a wall: a new rect light on the
+  clicked pane's plane (editor_fit_window_offset in front, facing out), its
+  size the pane's, selected, one undo step; with that light selected a
+  second fit moves it (no new light); the offset is tunable; closing the
+  editor disarms it; armed from
+  RPC (as the Details button and the toolbar do) a real click fits;
+  Escape disarms;
 - eyedropper: armed in the popover, a click on the picture gives the light
   that pixel's colour (display to linear, brightest channel 1) in one undo
   step; the click selects nothing.
@@ -43,6 +56,7 @@ sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
 from editor_selection_smoke import centre, finish, pinned_card, start  # noqa: E402
 from editor_schema_smoke import close, schema, value  # noqa: E402
+from editor_library_smoke import floor_and_wall  # noqa: E402
 import golden_frames as gf  # noqa: E402
 
 
@@ -300,6 +314,120 @@ def check_sun(s):
     s.select(action="set", ids=[s.light])
 
 
+def check_volume(s):
+    g = s.game
+    s.select(action="set", ids=[s.volume])
+    schema(s, action="set", id=s.volume, values={"density": 0.004, "edge": 0.5, "color": [1, 1, 1]})
+    g.run(2)
+    st = handles(s)
+    names = {h["name"] for h in st["handles"]}
+    if not s.check(st["subject"] == s.volume and st["hidden"] is None and "colour" in names,
+                   f"a fog volume's handles ({st['hidden']}, {sorted(names)})"):
+        return
+    before, done = fields(s, s.volume), s.history()["done"]
+    s.click(handle(s, "colour")["screen"])
+    st = handles(s)["colour"]
+    s.check(st["open"] and st["subject"] == s.volume, f"its swatch opens the colour popover on it ({st['subject']})")
+    colour(s, kelvin=3200, tint=0)
+    after = fields(s, s.volume)
+    s.check(changed(before, after) == ["color"] and s.history()["done"] == done + 1
+            and s.history()["undo"] == "Edit Colour", f"only its colour changes, one undo step ({changed(before, after)})")
+    g.call("editor_undo", action="undo")
+    s.keys(["escape"])
+    st = handles(s)
+    names = {h["name"] for h in st["handles"]}
+    s.check({"density", "edge", "colour"} <= names, f"the density ring and the soft edge dot too ({sorted(names)})")
+    check_drag(s, s.volume, "density", "density", "Density", 0.008, 0.008)  # 100 px right doubles it
+    ring = handle(s, "density")
+    drag(s, ring["screen"], [ring["screen"][0] + 60, ring["screen"][1]], hold=["shift"])  # 2^0.6 = 1.52: snaps to 0.005
+    s.check(close(value(s, s.volume, "density"), 0.005, 0.01), f"Shift: 1, 2, 5 steps ({value(s, s.volume, 'density')})")
+    g.call("editor_undo", action="undo")
+    check_drag(s, s.volume, "edge", "edge", "Soft edge", 0.25, 0.25)
+    check_escape(s, s.volume, "edge", "edge", 0.8)
+    # The editor closing mid-drag (F1, RPC) ends the drag: its value stays, its one undo step closes.
+    ring = handle(s, "density")
+    before, done = value(s, s.volume, "density"), s.history()["done"]
+    end = [ring["screen"][0] + 100, ring["screen"][1]]
+    drag(s, ring["screen"], end, release=False)
+    mid = value(s, s.volume, "density")
+    g.call("editor_ui", visible=False)
+    g.run(3)
+    undo = g.call("editor_undo", action="list")
+    s.mouse(end, down=False)
+    g.call("editor_ui", visible=True)
+    g.run(4)
+    s.check(not close(mid, before) and close(value(s, s.volume, "density"), mid) and undo["hold"] == 0
+            and not undo["open"] and undo["done"] == done + 1 and undo["undo"] == "Edit Density",
+            f"closing the editor mid-drag keeps {mid} and closes one undo step (hold {undo['hold']}, open {undo['open']}, "
+            f"{undo.get('undo')!r})")
+    g.call("editor_undo", action="undo")
+    # R: the scale tool still sizes it (only its size) while its handles show. The view's keys need
+    # the pointer over the view (not a panel).
+    s.mouse(centre(s.select()["view"]), down=False)
+    s.keys(["r"])
+    before = fields(s, s.volume)
+    g.call("editor_transform", action="scale", ratio=[2, 1, 1])
+    after = fields(s, s.volume)
+    s.check(changed(before, after) == ["size"] and close(after["size"][0], before["size"][0] * 2)
+            and g.call("editor_transform")["operation"] == 2 and handles(s)["subject"] == s.volume,
+            f"R with its handles shown: only its size ({changed(before, after)}, {before['size']} -> {after['size']}, "
+            f"operation {g.call('editor_transform')['operation']}, handles on {handles(s)['subject']})")
+    g.call("editor_undo", action="undo")
+    s.keys(["w"])
+
+
+def check_fit(s):
+    g = s.game
+    _, wall = floor_and_wall(s)
+    if not s.check(wall is not None, "a wall pixel in the view"):
+        return
+    xy, hit = wall
+    s.select(action="clear")
+    count, done = len(g.call("lights")["lights"]), s.history()["done"]
+    r = handles(s, action="fit_window", x=xy[0], y=xy[1])
+    lights = g.call("lights")["lights"]
+    new = lights[-1]["id"] if len(lights) == count + 1 else None
+    if not s.check(new is not None and lights[-1]["type"] == "rect" and r["light"] == new, f"a new rect light ({r})"):
+        return
+    f = fields(s, new)
+    n = f["direction"]
+    off = sum((f["position"][k] - hit["world"][k]) * n[k] for k in range(3))
+    s.check(abs(sum(n[k] * hit["normal"][k] for k in range(3))) > 0.95 and abs(off - 2) < 0.5
+            and f["width"] >= 8 and f["height"] >= 8 and s.select()["selection"] == [new]
+            and s.history()["done"] == done + 1 and s.history()["undo"] == "Fit rect light to window",
+            f"on the pane's plane, 2 units out, facing out, sized ({f['width']} x {f['height']}), selected, one undo step "
+            f"({off:.2f}, {s.history()['undo']!r})")
+    view = s.select()["view"]
+    other = [xy[0] + (40 if xy[0] < view[0] + view[2] / 2 else -40), xy[1] + 20]
+    r = handles(s, action="fit_window", x=other[0], y=other[1])
+    s.check(r["light"] == new and len(g.call("lights")["lights"]) == count + 1,
+            "with it selected a second fit moves that light (no new one)")
+    g.call("editor_undo", action="undo")
+    handles(s, action="fit_window", offset=10)
+    handles(s, action="fit_window", x=xy[0], y=xy[1])
+    f = fields(s, new)
+    off = sum((f["position"][k] - hit["world"][k]) * f["direction"][k] for k in range(3))
+    s.check(abs(off - 10) < 0.5, f"the offset is tunable (10: {off:.2f})")
+    handles(s, action="fit_window", offset=2)
+    handles(s, action="fit_arm")
+    s.check(handles(s)["fit"]["armed"] and handles(s)["fit"]["target"] == new, "armed on the selected rect light")
+    s.select(action="clear")  # its handles and gizmo out of the way of the click (the tool keeps its target)
+    s.click(other)
+    s.check(not handles(s)["fit"]["armed"] and s.history()["undo"] == "Fit rect light to window", "a real click fits it")
+    handles(s, action="fit_arm", new=True)
+    s.keys(["escape"])
+    s.check(not handles(s)["fit"]["armed"] and s.keys([])["visible"], "Escape disarms (the editor stays open)")
+    handles(s, action="fit_arm", new=True)
+    g.call("editor_ui", visible=False)
+    g.run(2)
+    g.call("editor_ui", visible=True)
+    g.run(2)
+    s.check(not handles(s)["fit"]["armed"], "closing the editor disarms it (the next click after reopening only selects)")
+    s.select(action="set", ids=[new])
+    s.keys(["delete"])
+    s.select(action="set", ids=[s.light])
+
+
 def colour(s, **params):
     return handles(s, action="colour", **params)["colour"]
 
@@ -424,7 +552,7 @@ def check_eyedropper(s):
     colour(s, open=False)
 
 
-SECTIONS = [check_layer, check_point, check_spot, check_rect, check_sun, check_colour, check_eyedropper]
+SECTIONS = [check_layer, check_point, check_spot, check_rect, check_sun, check_volume, check_colour, check_eyedropper, check_fit]
 
 
 def main():

@@ -33,6 +33,7 @@ extern int pc_hw_active, pc_hw_scale_setting, pc_gl_filter, pc_gl_aspect, pc_gte
 int pc_hw_set_scale(int scale);
 extern int pc_env_global;        /* environment.cpp: the rooms' sun and sky */
 extern float pc_emissive;        /* emissive.cpp: glowing surfaces' strength, 0 off */
+extern int pc_dust;              /* particles.cpp: dust motes, 0 off, 1 low, 2 high */
 extern int pc_lights_enabled;    /* lights.cpp: dynamic lights (lighting key dynamic_lights) */
 extern int pc_qol_weapon_slots;  /* project_settings.cpp; weapon_slots.c */
 extern int pc_qol_skip_charging; /* project_settings.cpp; boot_window.c */
@@ -323,6 +324,13 @@ void build()
             &pc_emissive, 0, 2, 0.1f, "%.1f");
         r.zero = "Off";
         g.push_back(r.grey(need_hw));
+    }
+    {
+        static const char* const dust[] = {"Off", "Low", "High"};
+        g.push_back(choice("dust", "Dust",
+            "Motes of dust that glint where light crosses the air and vanish in shadow (rooms that have them). Off: the picture as before.",
+            &pc_dust, dust, 3)
+                        .grey(need_hw));
     }
 
     // Display

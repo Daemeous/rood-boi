@@ -18,9 +18,16 @@ band, above its bottom one), luminance 0-255:
   atmosphere's extinction and its added light both lower it);
 - veil: the share of pixels where the atmosphere's light (H) is over VEIL
   and brighter than the scene it covers (B): a sheet over the picture;
-- shift: mean(A) - mean(B); haze_mean: mean(H).
+- shift: mean(A) - mean(B); haze_mean: mean(H);
+- interior: mean(A) - mean(A without the room's interior and void test,
+  environment {haze: {interior: false, void: false}}: the old medium), how
+  much the look changed where the fog no longer fills the void around the
+  room (pc/docs/Vulkan_Renderer.md "The room's interior and the void").
 
-A pose fails when detail < MIN_DETAIL or veil > MAX_VEIL, a room when the
+A pose fails when detail < MIN_DETAIL, veil > MAX_VEIL or, the game's own
+camera, |interior| > MAX_INTERIOR_SHIFT (a room whose mood the interior
+changed; a free camera outside the walls sees the old fog over the cells
+without a floor go, so it is only recorded), a room when the
 fog's floor under Ashley (the floor grid) is above her feet; poses whose frame
 without atmosphere is nearly flat (the camera in a wall, a black void: B's
 deviation under 3) are skipped. Deterministic: frame-based stepping, the
@@ -59,6 +66,7 @@ DARK = 10
 VEIL = 40
 MAX_VEIL = 0.3
 YAWS = 8
+MAX_INTERIOR_SHIFT = 6  # mean luma the interior and the void test may change a pose by
 FLOOR_SLACK = 64  # world units the fog's floor may sit above Ashley's feet (a step, the grid's blur)
 ORBIT, LIFT, PITCH = 650, 380, -22
 # Rue Vermillion (the playtest's washout), Rue Lejour, Snowfly Forest, Undercity West.
@@ -172,7 +180,8 @@ def main():
     game = Game.launch(fast=True, card=str(out / "card1.mcd"), log=out / "game.log", extra_env=env, socket_path=socket)
     report = {"renderer": os.environ.get("ROOD_RENDERER", "gl"), "arch": os.environ.get("ROOD_ARCH", "32"),
               "legacy": args.legacy, "thresholds": {"min_detail": MIN_DETAIL, "dark": DARK,
-                                                    "veil": VEIL, "max_veil": MAX_VEIL}, "rooms": []}
+                                                    "veil": VEIL, "max_veil": MAX_VEIL,
+                                                    "max_interior_shift": MAX_INTERIOR_SHIFT}, "rooms": []}
     failures, poses_run, started, written = [], 0, time.monotonic(), []
 
     def warp(zone, room):
@@ -245,6 +254,13 @@ def main():
                     game.call("editor_camera", off=1)
                 stem = (shots or out) / f"z{zone:02d}r{room:02d}-{name}"
                 a = frame(stem.with_name(stem.name + "-on.png"), args.frames + 20)
+                interior = None
+                if not args.legacy:
+                    game.call("environment", haze={"interior": False, "void": False})
+                    old = frame(stem.with_name(stem.name + "-old.png"), args.frames)
+                    game.call("environment", haze={"interior": True, "void": True})
+                    interior = float((view(a) @ LUMA).mean() - (view(old) @ LUMA).mean())
+                    game.run(args.frames)
                 game.call("graphics", haze_debug=1)
                 h = frame(stem.with_name(stem.name + "-haze.png"), 8)
                 game.call("graphics", haze_debug=0, fog_density=0)
@@ -254,11 +270,18 @@ def main():
                 game.call("environment", fog_global=args.fog)
                 m = metrics(view(a) @ LUMA, view(b) @ LUMA, view(h) @ LUMA)
                 m["pose"] = name
+                if interior is not None:
+                    m["interior"] = round(interior, 2)
+                    # the game's own camera: the room's mood as played (a free camera outside the walls
+                    # looks through the air over the cells without a floor, which the old fog filled)
+                    if name == "game" and abs(interior) > MAX_INTERIOR_SHIFT and "skipped" not in m:
+                        m["fail"] = (m["fail"] + "; " if "fail" in m else "") + f"the interior changed it by {interior:+.1f}"
                 entry["poses"].append(m)
                 poses_run += 1
                 status = "SKIP" if "skipped" in m else "FAIL" if "fail" in m else "ok"
                 print(f"zone {zone:2d} room {room:2d} {name:7s} {status:4s} detail {m.get('detail', 0):.2f} "
                       f"veil {m['veil']:.2f} shift {m['shift']:+.1f} haze {m['haze_mean']:.1f}"
+                      + (f" interior {m['interior']:+.1f}" if "interior" in m else "")
                       + (f"  ({m['fail']})" if "fail" in m else ""), flush=True)
                 if "fail" in m:
                     failures.append(f"zone {zone} room {room} {name}: {m['fail']}")

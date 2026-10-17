@@ -49,6 +49,35 @@ static inline float pc_barn_doors(const float centre[3], const float right[3], c
     float fy = 1 - (fmaxf(a * ty - b, 0) + fmaxf(-a * ty - b, 0)) / (2 * h);
     return fminf(fmaxf(fx, 0), 1) * fminf(fmaxf(fy, 0), 1);
 }
+/* light_shape() (below) in C, for the particles' CPU path (particles.cpp):
+ * the factor on a light's falloff at p, l the unit direction toward it. */
+static inline float pc_light_shape(float type, const float centre[3], const float dir[4], const float right[4],
+    const float up[4], const float p[3], const float l[3])
+{
+    float c = -(l[0] * dir[0] + l[1] * dir[1] + l[2] * dir[2]);
+    if (type > 1.5f)
+        return fmaxf(c, 0.0f) * pc_barn_doors(centre, right, up, dir, dir[3], right[3], p);
+    if (type > 0.5f) {
+        float x = fminf(fmaxf((c - dir[3]) / fmaxf(right[0] - dir[3], 1e-6f), 0.0f), 1.0f);
+        return x * x * (3 - 2 * x);
+    }
+    return 1;
+}
+
+/* Every renderer's falloff of a light at distance d with reach r:
+ * (1 - (d / r)^2)^2, 0 beyond it (editor_view.cpp, gl_present.c, the
+ * Vulkan shaders); the library's thumbnails use it on the CPU. */
+static inline float pc_light_falloff(float d, float r)
+{
+    float x = r > 0 ? fminf(fmaxf(d / r, 0.0f), 1.0f) : 1.0f, y = 1 - x * x;
+    return y * y;
+}
+/* GLSL's smoothstep. */
+static inline float pc_smoothstep(float e0, float e1, float x)
+{
+    float t = e1 != e0 ? fminf(fmaxf((x - e0) / (e1 - e0), 0.0f), 1.0f) : (x >= e1 ? 1.0f : 0.0f);
+    return t * t * (3 - 2 * t);
+}
 
 /* light_shape(type, centre, dir, right, up, p, l): the factor on a light's
  * falloff at p (l: the unit direction toward the light): a spot's edge, a

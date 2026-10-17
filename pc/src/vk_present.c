@@ -62,6 +62,9 @@ extern int pc_vk_haze_bind(VkImageView* view, int grid[4], float range[2]) __att
 /* The fog volumes' own renderer (vk_fogvol.inc): its passes for this frame, then its result. */
 extern int pc_vk_fogvol_update(int x, int y, int w, int h, int replay, int traced) __attribute__((weak));
 extern int pc_vk_fogvol_bind(VkImageView* light, VkImageView* aux, int size[2], float scale[2]) __attribute__((weak));
+/* The port's particles (vk_particles.inc): their pass this frame, then their key and colour images. */
+extern int pc_vk_particles_update(int x, int y, int w, int h, int traced) __attribute__((weak));
+extern int pc_vk_particles_bind(VkImageView* keys, VkImageView* colours) __attribute__((weak));
 /* Probe GI (vk_probes.inc): update the field before the present pass (1: sample it per pixel, 2: it
  * went into the traced GI result); bind it (bindings 12-15). */
 extern int pc_vk_probes_update(int x, int y, int w, int h, int replay) __attribute__((weak));
@@ -143,6 +146,7 @@ typedef struct {
     int backdrop[4];
     /* The studio light's rig (ui/menu_light.h pc_menu_light_pack; scaled.frag studio_). */
     float studio[PC_MENU_LIGHT_VEC4S][4];
+    int particles[4]; /* the particles (vk_particles.inc): on, the display's size in game pixels */
 } present_ubo;
 
 /* ---- swapchain ---- */
@@ -261,13 +265,13 @@ static VkPipeline fullscreen(VkShaderModule vs, VkShaderModule fs, VkPipelineLay
 static int make_pipelines(void)
 {
     /* 12-15: the probe field (vk_probes.inc); 16: the lights; 17: the medium's texture; 18, 19: the fog volumes;
-     * 20: the menu's backdrop (backdrop_keep) */
-    VkDescriptorType scaled_types[21];
-    for (int i = 0; i < 21; i++)
+     * 20: the menu's backdrop (backdrop_keep); 21, 22: the particles (vk_particles.inc) */
+    VkDescriptorType scaled_types[23];
+    for (int i = 0; i < 23; i++)
         scaled_types[i] = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     scaled_types[0] = scaled_types[12] = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     scaled_types[16] = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    scaled_set = vk_push_layout(scaled_types, 21);
+    scaled_set = vk_push_layout(scaled_types, 23);
     single_set = vk_push_layout(&scaled_types[1], 1);
     triple_set = vk_push_layout(&scaled_types[1], 3);
     scaled_layout = make_layout(scaled_set, 0);
@@ -1019,6 +1023,7 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             if (probes == 3) /* the field at GI resolution, in place of a traced result */
                 pc_vk_probes_gi_bind(gi_views, &gi_w, &gi_h);
             int fogvol = !pc_gl_show_depth && pc_vk_fogvol_update ? pc_vk_fogvol_update(x, y, w, h, replay, gi) : 0;
+            int particles = !pc_gl_show_depth && pc_vk_particles_update ? pc_vk_particles_update(x, y, w, h, gi) : 0;
             /* The post chain (antialias.h): the lit image -> [FXAA | SMAA] -> [depth of field blur]
              * -> [supersampling's downsample] -> the window. The lit image is view-sized, or with
              * supersampling as large as the display area at the internal resolution. */
@@ -1066,10 +1071,12 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             pu->i1[2] |= (gi || probes == 3 ? 128 : 0) | (probes == 1 ? 64 : 0) | (probes == 3 ? 256 : 0)
                        | (probes && pc_gi_debug == 1 ? 2 : 0) | (probes && gi && pc_gi_debug != 1 ? 1 : 0);
             VkImageView medium_view = pc_vk_medium_texture(); /* before the pass begins: may upload */
-            /* Haze Low (or High where nothing traced it this frame): the room's
-             * medium marched per pixel, unshadowed but for the sun's map. */
-            pu->quality0[0] = !pc_gl_show_depth && !pu->haze_grid[3]
-                && pc_medium_gpu_get(&pu->medium, pc_lighting_low_haze_density(0), pu->room_lo, pu->room_hi)
+            /* The room's medium every frame (whatever the haze path: scaled.frag reads its void switch
+             * and the interior for haze_debug 2); haze Low (or High where nothing traced it this frame)
+             * marches it per pixel, unshadowed but for the sun's map. */
+            int medium_any = !pc_gl_show_depth
+                && pc_medium_gpu_get(&pu->medium, pc_lighting_low_haze_density(0), pu->room_lo, pu->room_hi);
+            pu->quality0[0] = !pu->haze_grid[3] && medium_any
                 /* the uniform haze alone with nothing to light it would only darken: as before, none */
                 && (present_light_count > 0 || pu->env_mode[2] || pc_medium_has_fog());
             /* The sky's ambient term where neither the path tracer nor the probes trace the sky. */
@@ -1101,6 +1108,12 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             vk_descriptors_image(&d, 18, fogvol_light, vk.nearest);
             vk_descriptors_image(&d, 19, fogvol_aux, vk.nearest);
             vk_descriptors_image(&d, 20, backdrop_fill(pu), vk.linear); /* the menu's model view (above) */
+            /* The particles (vk_particles.inc): off, a uint and a float image nothing fetches. */
+            VkImageView particle_keys = vk_hw.vram.view, particle_colours = vk_hw.dummy_color.view;
+            if (particles && pc_vk_particles_bind && pc_vk_particles_bind(&particle_keys, &particle_colours))
+                pu->particles[0] = 1, pu->particles[1] = w, pu->particles[2] = h;
+            vk_descriptors_image(&d, 21, particle_keys, vk.nearest);
+            vk_descriptors_image(&d, 22, particle_colours, vk.nearest);
             vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, scaled_layout);
             vkCmdDraw(cmd, 3, 1, 0, 0);
             if (post != PC_AA_OFF)

@@ -845,7 +845,10 @@ vsync of warps across zones and a walked door with the editor open.
 None of this touches the ray-traced scene: `scene_capture.c` keeps every
 group, so the hidden walls and shells still cast shadows and block light
 (and haze stays bounded by the room). The G-buffer is the picture's, so a
-cut wall shows the surfaces behind it, lit and shadowed as they are.
+cut wall shows the surfaces behind it, lit and shadowed as they are. The haze and ground fog also leave the void alone: present pixels that
+show a black shell or nothing keep none past where their ray leaves the
+room (Vulkan_Renderer.md "The room's interior and the void"), and with
+`haze_interior` the shells count for nothing in the fog's floor grid.
 
 Test: `pc/tests/editor_cutaway_smoke.py` (registered in `run.py` when a
 save card exists): Continue into the save room; the game camera draws the

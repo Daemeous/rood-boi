@@ -211,6 +211,44 @@ static void colours()
     check(near3(n, 0.5f, 1, 0.25f), "brightest channel 1");
 }
 
+/* A fog volume dropped on a floor keeps its footprint inside the floor's
+ * area; "fit to window" takes the pane around the clicked triangle. */
+static void placement()
+{
+    const float lo[2] = { 0, 0 }, hi[2] = { 400, 1000 };
+    float c[2], s[2];
+    const float at[2] = { 380, 500 }, want[2] = { 600, 300 };
+    rood_math::fit_footprint(at, want, lo, hi, c, s);
+    check(near(s[0], 400) && near(s[1], 300) && near(c[0], 200) && near(c[1], 500),
+        "a footprint wider than the floor: its width the floor's, centred on it; its depth kept");
+    const float corner[2] = { 390, 990 }, small_want[2] = { 100, 100 };
+    rood_math::fit_footprint(corner, small_want, lo, hi, c, s);
+    check(near(s[0], 100) && near(c[0], 350) && near(c[1], 950), "near a corner: moved in so it fits");
+    const float no_lo[2] = { 0, 0 }, no_hi[2] = { 0, 0 };
+    rood_math::fit_footprint(at, want, no_lo, no_hi, c, s);
+    check(near(s[0], 600) && near(c[0], 380), "no floor area known: as wanted, where dropped");
+
+    /* A 100 x 60 quad in the plane z = 0 (two triangles, texture 7), seen from -z. */
+    rood_math::PaneTriangle t[5] = {
+        { { { 0, 0, 0 }, { 100, 0, 0 }, { 100, -60, 0 } }, 7 },
+        { { { 0, 0, 0 }, { 100, -60, 0 }, { 0, -60, 0 } }, 7 },
+        { { { 500, 0, 0 }, { 600, 0, 0 }, { 600, -60, 0 } }, 7 }, /* the same texture and plane, apart */
+        { { { 100, 0, 0 }, { 160, 0, 0 }, { 100, -60, 0 } }, 8 }, /* beside it, another texture */
+        { { { 0, 0, 0 }, { 0, -60, 0 }, { 0, 0, 80 } }, 7 }, /* beside it, another plane */
+    };
+    const float eye[3] = { 50, -30, -200 };
+    rood_math::Pane p;
+    bool ok = rood_math::fit_pane(t, 5, 0, eye, p);
+    check(ok && p.triangles == 2 && near(p.width, 100) && near(p.height, 60) && near3(p.centre, 50, -30, 0)
+            && near3(p.normal, 0, 0, -1),
+        "the pane: its two triangles, 100 x 60, centred, facing the eye");
+    check(near3(p.right, 1, 0, 0) && near3(p.up, 0, -1, 0), "its axes: a rect light's own frame (right +x, up -y)");
+    const float behind[3] = { 50, -30, 200 };
+    rood_math::fit_pane(t, 5, 1, behind, p);
+    check(near3(p.normal, 0, 0, 1) && p.triangles == 2, "seen from the other side: facing that way");
+    check(!rood_math::fit_pane(t, 5, 9, eye, p), "no such triangle: no pane");
+}
+
 int main()
 {
     view_maths();
@@ -220,6 +258,7 @@ int main()
     scale_table();
     light_shapes();
     colours();
+    placement();
     printf("%s\n", failures ? "FAIL" : "PASS: editor tools maths");
     return failures ? 1 : 0;
 }

@@ -4,10 +4,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
+#include <map>
 #include <string>
 
 #include "imgui.h"
 #include "editor_overlays.h"
+#include "editor_undo.h"
 #include "emissive.h"
 #include "emissive_internal.h"
 #include "materials.h"
@@ -470,6 +472,52 @@ Json list_json()
 
 bool pick_armed;
 std::string selected;
+bool scroll_to_editor; /* RPC select: the entry editor's title scrolled into view next frame */
+bool confirm_shown;
+int ui_frame = -1;
+std::map<std::string, ImVec4> ui_rects; /* the entry's buttons as last drawn (RPC ui) */
+void keep_button(const char* name)
+{
+    ImVec2 lo = ImGui::GetItemRectMin(), hi = ImGui::GetItemRectMax();
+    ui_rects[name] = ImVec4(lo.x, lo.y, hi.x - lo.x, hi.y - lo.y);
+}
+/* A copy of an entry (curated or yours) in your layer: a new id, " copy"
+ * after its name; selected. "" when there is no such entry. */
+bool catalog_full() { return catalog().entries.size() >= (size_t)(MAX_SLOTS - 1); } /* merge() keeps MAX_SLOTS - 1 */
+std::string duplicate_entry(const std::string& id, std::string* why = nullptr)
+{
+    const Entry* e = find(id);
+    if (!e) {
+        if (why)
+            *why = "needs the id of an entry";
+        return std::string();
+    }
+    if (catalog_full()) { /* a copy past the last slot would not be in the catalog */
+        if (why)
+            *why = "the catalog is full (" + std::to_string(MAX_SLOTS - 1) + " entries)";
+        return std::string();
+    }
+    Entry copy = *e;
+    copy.id = new_id();
+    copy.name = (e->name.empty() ? e->id : e->name) + " copy";
+    copy.origin = ORIGIN_USER;
+    put(copy);
+    selected = copy.id;
+    pc_undo_hint("Duplicate emissive entry");
+    return copy.id;
+}
+/* Your entry deleted, or your changes to a curated one reverted. */
+bool remove_entry(const std::string& id)
+{
+    const Entry* e = find(id);
+    bool revert = e && e->origin == ORIGIN_OVERRIDE;
+    if (!remove(id))
+        return false;
+    pc_undo_hint(revert ? "Revert emissive entry" : "Delete emissive entry");
+    if (!revert && selected == id)
+        selected.clear();
+    return true;
+}
 /* Scopes: clicks in the view add or remove surfaces of the selected entry;
  * "Show other uses" outlines the surfaces it lights in the view. */
 bool surface_pick_armed;
@@ -789,7 +837,52 @@ void entry_editor(const Entry& original)
     Entry e = original;
     bool changed = false;
     static const char* origins[] = { "curated (shipped)", "curated, with your changes", "yours" };
+    ImGui::AlignTextToFramePadding();
     ImGui::Text("%s  (%s)", e.id.c_str(), origins[e.origin]);
+    if (scroll_to_editor) {
+        ImGui::SetScrollHereY(0.0f);
+        scroll_to_editor = false;
+    }
+    ui_frame = ImGui::GetFrameCount();
+    ui_rects.clear();
+    confirm_shown = false;
+    ImGui::SameLine();
+    bool full = catalog_full();
+    ImGui::BeginDisabled(full);
+    bool duplicate = ImGui::SmallButton("Duplicate");
+    ImGui::EndDisabled();
+    if (duplicate && !duplicate_entry(e.id).empty())
+        return; /* the copy is selected: drawn next frame */
+    keep_button("duplicate");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip(full ? "The catalog is full (255 entries): delete one first"
+                               : "A copy in your layer under a new id (Ctrl+Z undoes)");
+    if (e.origin != ORIGIN_CURATED) {
+        ImGui::SameLine();
+        if (ImGui::SmallButton(e.origin == ORIGIN_OVERRIDE ? "Revert to curated..." : "Delete..."))
+            ImGui::OpenPopup("confirm remove");
+        keep_button("delete");
+    }
+    if (ImGui::BeginPopupModal("confirm remove", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        confirm_shown = true;
+        if (e.origin == ORIGIN_OVERRIDE)
+            ImGui::Text("Revert %s to the curated entry? Your changes to it go.", e.id.c_str());
+        else
+            ImGui::Text("Delete %s (%s)?", e.id.c_str(), e.name.c_str());
+        ImGui::TextDisabled("Ctrl+Z undoes it.");
+        bool yes = ImGui::Button("Yes");
+        keep_button("confirm_yes");
+        ImGui::SameLine();
+        bool no = ImGui::Button("Cancel");
+        keep_button("confirm_cancel");
+        if (yes || no)
+            ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+        if (yes) {
+            remove_entry(e.id);
+            return;
+        }
+    }
     char name[128];
     snprintf(name, sizeof name, "%s", e.name.c_str());
     if (ImGui::InputText("Name", name, sizeof name))
@@ -998,14 +1091,6 @@ void entry_editor(const Entry& original)
         ImGui::SetClipboardText(prefab::json_write(entry_to_json(copy)).c_str());
         snprintf(status_line, sizeof status_line, "Copied: paste it into %s's entries", catalog_path().c_str());
     }
-    if (e.origin != ORIGIN_CURATED) {
-        ImGui::SameLine();
-        if (ImGui::Button(e.origin == ORIGIN_OVERRIDE ? "Revert to curated" : "Delete")) {
-            remove(e.id);
-            if (e.origin == ORIGIN_USER)
-                selected.clear();
-        }
-    }
 }
 
 } // namespace
@@ -1110,7 +1195,8 @@ extern "C" void pc_emissive_panel(void)
 /* RPC emissive: {action: list (default) | uses {keys, matched} | pick {x, y}
  * or {world: [x, y, z]} | set {entry} or {id, fields...} | new {from the
  * last pick} | remove {id} | save | reload | export {id} | texel {u, v,
- * tpage, clut}}. */
+ * tpage, clut} | duplicate {id} (a copy in the user layer) | select {id}
+ * (the panel's entry) | ui (the entry editor's buttons, the confirm)}. */
 extern "C" int pc_emissive_rpc(const char* params_text, char* out, int size)
 {
     Json params;
@@ -1360,9 +1446,44 @@ extern "C" int pc_emissive_rpc(const char* params_text, char* out, int size)
     }
     if (action == "remove") {
         const Json* id = params.get("id");
-        if (!id || id->type != Json::String || !remove(id->string))
+        if (!id || id->type != Json::String || !remove_entry(id->string))
             return fail("emissive remove: no such entry of yours", out, size);
         return reply(list_json(), out, size);
+    }
+    if (action == "duplicate") {
+        const Json* id = params.get("id");
+        std::string why = "needs the id of an entry";
+        std::string copy = id && id->type == Json::String ? duplicate_entry(id->string, &why) : std::string();
+        const Entry* made = copy.empty() ? nullptr : find(copy);
+        if (!made)
+            return fail("emissive duplicate: " + why, out, size);
+        return reply(entry_to_json(*made), out, size);
+    }
+    if (action == "select") { /* the panel's entry (its editor scrolled into view next frame) */
+        const Json* id = params.get("id");
+        if (!id || id->type != Json::String || !find(id->string))
+            return fail("emissive select: unknown id", out, size);
+        selected = id->string;
+        scroll_to_editor = true;
+        Json j = list_json();
+        j.set("selected", Json::str(selected));
+        return reply(j, out, size);
+    }
+    if (action == "ui") { /* the entry editor's buttons as last drawn (window pixels x, y, w, h) */
+        Json j = Json::object(), rects = Json::object();
+        bool current = ImGui::GetCurrentContext() && ui_frame >= ImGui::GetFrameCount() - 1;
+        for (const auto& kv : ui_rects) {
+            if (!current)
+                break;
+            Json r = Json::array();
+            for (float v : { kv.second.x, kv.second.y, kv.second.z, kv.second.w })
+                r.items.push_back(Json::num(v));
+            rects.set(kv.first.c_str(), r);
+        }
+        j.set("rects", rects);
+        j.set("confirm", Json::boolean_(current && confirm_shown));
+        j.set("selected", Json::str(selected));
+        return reply(j, out, size);
     }
     if (action == "save") {
         if (!save_user(&error))
@@ -1431,5 +1552,5 @@ extern "C" int pc_emissive_rpc(const char* params_text, char* out, int size)
         j.set("slot", Json::num(slot_at(u, v, tpage)));
         return reply(j, out, size);
     }
-    return fail("emissive: action list, uses, pick, new, set, remove, save, reload, export, texel, surfaces, scope_pick, lights, materials, export_reference, import_map or paint", out, size);
+    return fail("emissive: action list, uses, pick, new, set, remove, save, reload, export, texel, surfaces, scope_pick, lights, materials, export_reference, import_map, paint, duplicate, select or ui", out, size);
 }

@@ -10,11 +10,13 @@
 
 #include "imgui.h"
 #include "editor_picking.h"
+#include "editor_schema.h"
 #include "editor_math.h"
 #include "editor_undo.h"
 #include "environment_internal.h"
 #include "glow_overrides.h"
 #include "lights_internal.h"
+#include "particles_internal.h"
 
 extern "C" int pc_lights_tools_view(pc_overlay_view* out, pc_overlay_pick* pick); /* lights.cpp */
 extern "C" int pc_overlay_visible(void); /* dev_overlay.cpp */
@@ -73,6 +75,8 @@ std::vector<Ref> all_objects()
         out.push_back(rood_scene::actor_ref(i));
     for (int i = 0; i < rood_atmo::volume_count(); i++)
         out.push_back(rood_scene::volume_ref(i));
+    for (int i = 0; i < rood_particles::emitter_count(); i++)
+        out.push_back(rood_scene::emitter_ref(i));
     if (rood_env::sun_state().defined)
         out.push_back(Ref { rood_selection::KIND_SUN, "env:sun" });
     static pc_glow_info glows[160];
@@ -107,6 +111,11 @@ Ref rood_scene::volume_ref(int index)
     std::string id = rood_atmo::volume_id(index);
     return id.empty() ? Ref() : Ref { rood_selection::KIND_VOLUME, id };
 }
+Ref rood_scene::emitter_ref(int index)
+{
+    std::string id = rood_particles::emitter_id(index);
+    return id.empty() ? Ref() : Ref { rood_selection::KIND_EMITTER, id };
+}
 Ref rood_scene::glow_ref_key(const char* key, const float position[3])
 {
     return Ref { rood_selection::KIND_GLOW, key && key[0] ? std::string("glow:") + key : glow_at_id(position) };
@@ -131,6 +140,8 @@ int rood_scene::index_of(const Ref& r)
         return -1;
     case rood_selection::KIND_VOLUME:
         return rood_atmo::volume_index(r.id);
+    case rood_selection::KIND_EMITTER:
+        return rood_particles::emitter_index(r.id);
     case rood_selection::KIND_GLOW: {
         uint32_t id = glow_id_of(r);
         return id ? (int)id : -1;
@@ -165,6 +176,10 @@ std::string rood_scene::label(const Ref& r)
     case rood_selection::KIND_VOLUME:
         if (i >= 0)
             return rood_atmo::volume_label(i);
+        break;
+    case rood_selection::KIND_EMITTER:
+        if (i >= 0)
+            return rood_particles::emitter_label(i);
         break;
     case rood_selection::KIND_GLOW: {
         pc_glow_info g;
@@ -202,6 +217,8 @@ bool rood_scene::position(const Ref& r, float out[3], float* radius)
     }
     case rood_selection::KIND_VOLUME:
         return rood_atmo::volume_centre(i, out, radius);
+    case rood_selection::KIND_EMITTER:
+        return rood_particles::emitter_centre(i, out, radius);
     case rood_selection::KIND_GLOW: { /* a game glow: where it is now, a nominal radius */
         pc_glow_info g;
         if (i > 0 && pc_gi_glow_get((uint32_t)i, &g))
@@ -251,8 +268,22 @@ void rood_scene::refresh()
 }
 void rood_scene::frame()
 {
+    rood_schema::collect(); /* kinds a prefab reload replaced last frame (editor_schema.h) */
     track_room();
     rood_selection::set_room(zone, room);
+    /* Another room: its glows are other glows (a key or position of the
+     * old room may name one here), so glow references go; lights, actors
+     * and fog volumes go by their ids in refresh. */
+    static int seen_zone = -1, seen_room = -1;
+    if (zone != seen_zone || room != seen_room) {
+        if (seen_zone >= 0) {
+            rood_selection::retain([](const Ref& r) { return r.kind != rood_selection::KIND_GLOW; },
+                rood_selection::FROM_CODE);
+            if (rood_selection::locked().kind == rood_selection::KIND_GLOW)
+                rood_selection::lock(false);
+        }
+        seen_zone = zone, seen_room = room;
+    }
     refresh();
     /* A scroll to a row the Outliner never draws (filtered out, its tab
      * hidden) gives up after a few frames: its section may close again. */
@@ -343,6 +374,11 @@ std::vector<Ref> rood_scene::in_box(float x0, float y0, float x1, float y1)
             out.push_back(c.ref);
     return out;
 }
+bool rood_scene::ctrl_places(const Ref& under, bool ctrl)
+{
+    return ctrl && under.kind == rood_selection::KIND_GLOW && !rood_selection::contains(under);
+}
+
 Ref rood_scene::click_at(float x, float y, bool shift, bool ctrl, rood_selection::Source s)
 {
     Ref under = object_at(x, y);
@@ -350,10 +386,15 @@ Ref rood_scene::click_at(float x, float y, bool shift, bool ctrl, rood_selection
     pc_overlay_pick pick = nullptr;
     if (!under && pc_lights_tools_view(&v, &pick))
         under = volume_at(v, pick, x, y);
-    if (under)
+    if (ctrl_places(under, ctrl)) { /* the current item at the surface there (it is selected) */
+        rood_lights::Placement where;
+        if (rood_lights::place_compute(rood_lights::place_item, x, y, 0, where))
+            rood_lights::place_commit(rood_lights::place_item, where);
+    } else if (under) {
         rood_selection::click(under, shift, ctrl, s);
-    else if (!shift && !ctrl)
+    } else if (!shift && !ctrl) {
         rood_selection::clear(s);
+    }
     publish();
     return under;
 }
@@ -376,6 +417,10 @@ bool rood_scene::actor_hidden(int index)
 bool rood_scene::volume_hidden_id(const std::string& id)
 {
     return hiding() && rood_selection::hidden(Ref { rood_selection::KIND_VOLUME, "fog:" + id });
+}
+bool rood_scene::emitter_hidden_id(const std::string& id)
+{
+    return hiding() && rood_selection::hidden(Ref { rood_selection::KIND_EMITTER, "emitter:" + id });
 }
 bool rood_scene::glow_hidden(const char* key, const float position[3])
 {
@@ -415,7 +460,7 @@ void rood_scene::unhide_all()
 int rood_scene::delete_selection()
 {
     track_room();
-    std::vector<int> gone_lights, gone_actors, gone_volumes;
+    std::vector<int> gone_lights, gone_actors, gone_volumes, gone_emitters;
     int glows = 0;
     std::string single;
     for (const Ref& r : rood_selection::items()) {
@@ -426,11 +471,14 @@ int rood_scene::delete_selection()
         int i = index_of(r);
         if (i < 0)
             continue;
-        (r.kind == rood_selection::KIND_LIGHT ? gone_lights : r.kind == rood_selection::KIND_ACTOR ? gone_actors : gone_volumes)
+        (r.kind == rood_selection::KIND_LIGHT         ? gone_lights
+                : r.kind == rood_selection::KIND_ACTOR   ? gone_actors
+                : r.kind == rood_selection::KIND_EMITTER ? gone_emitters
+                                                         : gone_volumes)
             .push_back(i);
         single = label(r);
     }
-    int count = (int)(gone_lights.size() + gone_actors.size() + gone_volumes.size());
+    int count = (int)(gone_lights.size() + gone_actors.size() + gone_volumes.size() + gone_emitters.size());
     if (!count) {
         if (glows)
             snprintf(status, sizeof status, "Glows come from the game: untick one in the Outliner to mute it");
@@ -444,6 +492,7 @@ int rood_scene::delete_selection()
     descending(gone_lights);
     descending(gone_actors);
     descending(gone_volumes);
+    descending(gone_emitters);
     for (int i : gone_lights) {
         lights.erase(lights.begin() + i);
         if (solo == i)
@@ -460,6 +509,8 @@ int rood_scene::delete_selection()
     }
     for (int i : gone_volumes)
         rood_atmo::remove_volume(i);
+    for (int i : gone_emitters)
+        rood_particles::remove_emitter(i);
     rood_selection::clear(rood_selection::FROM_CODE);
     publish();
     dirty = true;

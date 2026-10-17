@@ -1,5 +1,5 @@
 /* The colour popover (pc/docs/plans/2026-10-15-artist-tools-design.md,
- * decision 7), opened from a light's or the sun's swatch in the view: a
+ * decision 7), opened from a light's, the sun's or a fog volume's swatch in the view: a
  * Temperature tab (a Kelvin strip with named stops and a magenta-green tint)
  * and a Colour tab (a hue wheel and value); under both the room's palette
  * (the colours its lights use), recent colours and Hex / RGB. It remembers the
