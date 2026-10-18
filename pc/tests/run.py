@@ -116,6 +116,9 @@ def suites(args, mode="egl"):
               note="CMake probes in pc/build"),
         Suite("lighting_lint", [PY, str(ROOT / "pc/tools/lighting_lint.py")], 60, binary=None,
               note="lighting packs in lighting/: syntax, keys, ids, dangling overrides, rooms"),
+        Suite("emissive_catalog", [PY, str(TESTS / "emissive_catalog_test.py")], 300, binary=None,
+              note="curated emissive entries: masks, tints, light settings in range; with the disc, every room's "
+                   "emissive glows within the 32 traced, window lights generated and at most 16 a room"),
         Suite("lp64_alias_scan", [PY, str(TESTS / "lp64_alias_scan_test.py")], 60, binary=None,
               note="no data import is a field of another across the LP64 native move "
                    "(pc/tools/lp64_alias_scan.py on pc/build/boot64; synthetic cases always)"),

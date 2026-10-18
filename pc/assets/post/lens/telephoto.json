@@ -1,0 +1,10 @@
+{
+  "title": "Telephoto 135 mm",
+  "description": "A physical 135 mm lens wide open: the background melts into rimmed hexagons.",
+  "values": {
+    "dof": 1, "dof_model": "physical", "dof_focus": "ashley", "dof_focus_speed": 0.15,
+    "dof_focal_length": 135, "dof_fstop": 1.4, "dof_max_blur": 18, "dof_near_blur": 0.7,
+    "bokeh_blades": 6, "bokeh_curvature": 0.2, "bokeh_edge": "rim", "bokeh_edge_amount": 0.6,
+    "bokeh_highlights": 1.2, "bokeh_samples": 96
+  }
+}

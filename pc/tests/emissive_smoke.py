@@ -53,7 +53,9 @@ game paused, the frame redrawn with each setting (RPC redraw).
   light and a darker floor), and a floating block's circle (E001, 32/3: a
   room group the room's capture leaves out, which made no light at all) is
   an object glow that lights the front of Ashley's legs, standing on it,
-  green.
+  green; no crate glow faces the floor; an entry's light_reach and
+  light_lift set its glows' reach and how far out they sit; a floor glyph
+  tile (E006, 29/3) lights from 48 units over the floor with reach 320.
 """
 import argparse
 import json
@@ -75,7 +77,8 @@ from rood_rpc import OUT, symbols  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 SETTLE = 45
-MATCH_ROOMS = [((32, 3), ["E001"]), ((34, 0), ["E002", "E003"]), ((45, 0), ["E004"]), ((53, 21), ["E005"])]
+MATCH_ROOMS = [((29, 3), ["E006"]), ((32, 3), ["E001"]), ((34, 0), ["E002", "E003"]), ((45, 0), ["E004"]),
+               ((53, 21), ["E005"])]
 
 
 def frame(game, path):
@@ -474,7 +477,33 @@ def object_light_tests(game, out, check):
           f"glows emissive_lift {defaults['lift'] + 10:g} moves them 10 out (by "
           f"{sorted(set(round(m, 1) for m in moved))})")
     game.call("glows", emissive_disc=defaults["disc"], emissive_lift=defaults["lift"])
+    # No glow on a side turned to the floor (a crate's bottom lit only the floor under it and took a traced
+    # glow): side 3 is +y, down.
+    check(glows and all(side_of(g) != (1, 1) for g in glows),
+          f"no crate glow faces the floor (sides {sorted({side_of(g) for g in glows})})")
+    # The entry's own light shape (light_reach, light_lift): the glows reach that far, and sit that far out.
+    game.call("emissive", action="set", id="E005", light=1, light_reach=150, light_lift=defaults["lift"] + 10)
+    game.run(60)
+    now = object_glows()
+    reaches = sorted({round(g["reach"]) for g in now.values()})
+    moved = [(now[k]["position"][side_of(g)[0]] - g["position"][side_of(g)[0]]) * side_of(g)[1]
+             for k, g in was.items() if k in now]
+    check(reaches == [150], f"E005 light_reach 150: its glows reach 150 ({reaches})")
+    check(moved and all(abs(m - 10) < 1 for m in moved),
+          f"E005 light_lift {defaults['lift'] + 10:g}: its glows sit 10 further out "
+          f"({sorted(set(round(m, 1) for m in moved))})")
     game.call("emissive", action="remove", id="E005")
+    # A floor glyph tile (E006, 29/3: room geometry) lights from above the floor (light_lift 48) with its
+    # tight reach (light_reach 320): its room glow sits 48 units over the tile (the floor is at y 0; up is -y).
+    if goto(game, 29, 3):
+        game.run(60)
+        tiles = [g for g in game.call("glows")["glows"] if g["origin"] == "room"
+                 and abs(g["position"][0] - 832) < 40 and abs(g["position"][2] - 320) < 40]
+        check(len(tiles) == 1 and abs(tiles[0]["position"][1] + 48) < 2 and abs(tiles[0]["reach"] - 320) < 1,
+              f"the glyph tile's glow: 48 over the floor, reach 320 "
+              f"({[(g['position'], g['reach']) for g in tiles]})")
+    else:
+        check(False, "warped to zone 29 room 3")
 
     # A floating block (E001: its top's magic circle; a room group the room's capture leaves out) with Ashley
     # standing on it, in the free camera: green light on the front of her legs, in the lighting-only view (her

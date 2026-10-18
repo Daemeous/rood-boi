@@ -756,11 +756,14 @@ def scene_triangles(r):
     return out
 
 
-def glow_groups(r):
+def glow_groups(r, extra=()):
     """[{'key', 'tag', 'centre', 'polys': set of poly indices}] in the order
-    glows.c builds them (its room groups; keys 'room:<tag>@x,y,z')."""
+    glows.c builds them (its room groups; keys 'room:<tag>@x,y,z'). extra:
+    more polygon indices that glow (emissive light texels: glows.c groups
+    them with the additive ones)."""
     polys = r["polys"]
-    tris = [t for t in scene_triangles(r) if polys[t[0]]["additive"]]
+    extra = set(extra)
+    tris = [t for t in scene_triangles(r) if polys[t[0]]["additive"] or t[0] in extra]
     n = len(tris)
     parent = list(range(n))
 

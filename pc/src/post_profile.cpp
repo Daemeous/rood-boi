@@ -540,6 +540,51 @@ void presets_refresh(bool force = false)
     load_dir(builtin_dir(), true);
     load_dir(user_dir(), false); /* a user preset of the same name wins */
 }
+/* Lens presets (pc/assets/post/lens, yours in pc/user/post/lens): looks for
+ * the depth of field and its bokeh alone. Applying one writes its fields into
+ * a layer (lens_preset_apply), unlike a layer's preset, so the player's own
+ * tone mapping, bloom and the rest stay as they are. */
+std::map<std::string, Preset> lens_presets;
+long long lens_presets_stamp = -1;
+void lens_presets_refresh()
+{
+    std::string b = std::string(builtin_dir()) + "/lens", u = user_dir() + "/lens";
+    long long stamp = dir_stamp(b) * 31 + dir_stamp(u);
+    if (stamp == lens_presets_stamp)
+        return;
+    lens_presets_stamp = stamp;
+    std::map<std::string, Preset> keep;
+    keep.swap(presets);
+    load_dir(b, true);
+    load_dir(u, false);
+    lens_presets.swap(presets);
+    presets.swap(keep);
+}
+/* The fields a lens preset owns: third-person depth of field and bokeh (not
+ * the first-person ones, not tilt-shift). */
+bool lens_field(const std::string& key)
+{
+    return (key.compare(0, 3, "dof") == 0 && key.compare(0, 6, "dof_fp") != 0) || key.compare(0, 5, "bokeh") == 0;
+}
+bool lens_preset_apply(Layer& l, const std::string& name, std::string* error)
+{
+    lens_presets_refresh();
+    auto it = lens_presets.find(name);
+    if (it == lens_presets.end()) {
+        *error = "no lens preset " + name;
+        return false;
+    }
+    const Layer& p = it->second.layer;
+    for (size_t i = 0; i < fields().size(); i++) {
+        const Field& x = fields()[i];
+        if (!lens_field(x.key))
+            continue;
+        l.set[i] = p.set[i];
+        for (int c = 0; c < x.count(); c++)
+            l.v.f[x.offset + c] = p.set[i] ? p.v.f[x.offset + c] : x.def[c];
+    }
+    return true;
+}
 const Layer* preset_layer(const std::string& name)
 {
     if (name.empty())
@@ -1631,6 +1676,14 @@ extern "C" int pc_post_rpc(const char* params_text, char* out, int size)
         l->preset = j->string;
         changed = true;
     }
+    if (const prefab::Json* j = params.get("lens_preset")) {
+        std::string error;
+        if (!lens_preset_apply(*l, j->string, &error)) {
+            snprintf(out, size, "lens_preset: %s", error.c_str());
+            return -1;
+        }
+        changed = true;
+    }
     if (const prefab::Json* j = params.get("set")) {
         for (const auto& m : j->members)
             if (!layer_set(*l, m.first, json_value_text(m.second))) {
@@ -1675,6 +1728,10 @@ extern "C" int pc_post_rpc(const char* params_text, char* out, int size)
     std::string names;
     for (const auto& p : presets)
         names += (names.empty() ? "" : ",") + jstr(p.first);
+    lens_presets_refresh();
+    std::string lens_names;
+    for (const auto& p : lens_presets)
+        lens_names += (lens_names.empty() ? "" : ",") + jstr(p.first);
     std::string events;
     for (const auto& e : room_events)
         events += (events.empty() ? "" : ",") + jstr(std::to_string(e.first)) + ":" + layer_json(e.second);
@@ -1701,7 +1758,7 @@ extern "C" int pc_post_rpc(const char* params_text, char* out, int size)
         + ",\"shown\":" + values_json(shown) + ",\"layers\":{\"gameplay\":" + layer_json(user_gameplay)
         + ",\"cutscene\":" + layer_json(user_cutscene) + ",\"room\":" + layer_json(room_gameplay)
         + ",\"room_cutscene\":" + layer_json(room_cutscene) + ",\"events\":{" + events + "}},\"presets\":[" + names
-        + "]" + (saved.empty() ? "" : ",\"saved\":" + jstr(saved)) + "}";
+        + "],\"lens_presets\":[" + lens_names + "]" + (saved.empty() ? "" : ",\"saved\":" + jstr(saved)) + "}";
     snprintf(out, size, "%s", s.c_str());
     return (int)s.size() < size ? 0 : -1;
 }
@@ -1863,6 +1920,24 @@ extern "C" void pc_post_panel(void)
         ImGui::EndCombo();
     }
     tooltip("A named profile under this layer's own values (pc/assets/post, yours in pc/user/post).");
+    lens_presets_refresh();
+    if (ImGui::BeginCombo("Lens preset", "Apply...")) {
+        for (const auto& p : lens_presets) {
+            std::string label = (p.second.title.empty() ? p.first : p.second.title) + (p.second.builtin ? "" : " (yours)");
+            if (ImGui::Selectable(label.c_str(), false)) {
+                std::string error;
+                if (lens_preset_apply(l, p.first, &error))
+                    changed = true;
+                else
+                    panel_status = error;
+            }
+            if (!p.second.description.empty())
+                tooltip(p.second.description.c_str());
+        }
+        ImGui::EndCombo();
+    }
+    tooltip("Writes a depth of field and bokeh look into this layer (pc/assets/post/lens, yours in\n"
+            "pc/user/post/lens); every other effect stays as it is. Tweak the fields after.");
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
     ImGui::InputText("##name", preset_name, sizeof preset_name);
     ImGui::SameLine();

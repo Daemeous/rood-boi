@@ -1070,8 +1070,24 @@ void entry_editor(const Entry& original)
     bool light = e.light > 0;
     if (ImGui::Checkbox("Is a light (lights the room with ray tracing / GI)", &light))
         e.light = light ? 1.0f : 0.0f, changed = true;
-    if (light)
-        changed |= ImGui::SliderFloat("Light weight", &e.light, 0.05f, 4.0f, "%.2f");
+    if (light) {
+        changed |= ImGui::SliderFloat("Light weight", &e.light, 0.05f, 16.0f, "%.2f", ImGuiSliderFlags_Logarithmic);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Its glows' light: the glowing texels' colour times this (and their share of the\n"
+                              "surface, at least a quarter). A crate or a glyph needs about 10 to tint the floor\n"
+                              "and characters beside it; a window's pane 1.");
+        changed |= ImGui::SliderFloat("Light reach", &e.light_reach, 0.0f, 1000.0f,
+            e.light_reach > 0 ? "%.0f units" : "the room's");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("How far its glows light (world units): a small value keeps a tight pool of its colour\n"
+                              "around it (a glyph, a crate). 0: the room's glow reach.");
+        changed |= ImGui::SliderFloat("Light lift", &e.light_lift, 0.0f, 64.0f,
+            e.light_lift > 0 ? "%.0f units" : "default");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Its glows sit this far in front of the glowing surface (a floor glyph's light above\n"
+                              "the floor, so it lights the floor around it). 0: room surfaces on the surface,\n"
+                              "objects the room's glow_emissive_lift.");
+    }
     ImGui::SeparatorText("Mask");
     for (size_t i = 0; i < e.mask.rects.size(); i++) {
         ImGui::PushID((int)i);

@@ -96,6 +96,7 @@ typedef struct {
     /* this frame's observation (kept while absent) */
     float obs_pos[3], obs_rgb[3], obs_size, obs_power, obs_strength;
     float obs_area; /* its triangles' area (an emissive object's disc) */
+    float obs_reach; /* its emissive entries' light_reach (0: the room's glow_reach) */
     int observed, triangles, ever;
     int category, promoted; /* PC_GLOW_FIXTURE / _MAGIC / _EFFECT; promoted: an effect that stayed */
     float presence, absent, age, seen; /* seen: seconds observed */
@@ -357,9 +358,13 @@ static void build_groups(void)
             }
         }
     }
-    /* Area-weighted centres. */
-    float sum[MAX_GROUPS][3];
+    /* Area-weighted centres; an emissive entry's light_lift moves its
+     * group's centre that far out of its surfaces (along their mean front,
+     * -(e1 x e2) as for objects: a floor glyph's light above the floor, not
+     * in its plane, where it lit the floor around it at a grazing angle). */
+    float sum[MAX_GROUPS][3], lifted[MAX_GROUPS][4];
     memset(sum, 0, sizeof sum);
+    memset(lifted, 0, sizeof lifted);
     for (int i = 0; i < count; i++) {
         int g = triangle_group[i];
         if (g < 0)
@@ -374,12 +379,20 @@ static void build_groups(void)
         for (int k = 0; k < 3; k++)
             sum[g][k] += area * (t->vertex[0].position[k] + t->vertex[1].position[k] + t->vertex[2].position[k]) / 3.0f;
         groups[g].area += area;
+        float lift = 0;
+        if (pc_emissive_room_light_shape(i, NULL, &lift) && lift > 0) {
+            for (int k = 0; k < 3; k++)
+                lifted[g][k] -= 0.5f * x[k] * lift; /* area x lift along the front */
+            lifted[g][3] += area;
+        }
     }
     for (int g = 0; g < group_count; g++) {
         for (int k = 0; k < 3; k++)
             groups[g].centre[k] = sum[g][k] / groups[g].area;
         groups[g].size = emitting_size(groups[g].area);
         fit_column(&groups[g], g, room, glowing, n);
+        for (int k = 0; k < 3 && lifted[g][3] > 0; k++)
+            groups[g].centre[k] += lifted[g][k] / lifted[g][3];
     }
     /* The save point: its column and sigil scroll (room texture effect
      * type 2, which only save points use). */
@@ -755,6 +768,8 @@ static void observe(const pc_glow_fragment* f, int count, const uint32_t* owner)
 {
     static float sum_w[MAX_TRACKS], sum_p[MAX_TRACKS][3], sum_c[MAX_TRACKS][3], sum_a[MAX_TRACKS];
     static int tris[MAX_TRACKS], pieces[MAX_TRACKS];
+    static float reach[MAX_TRACKS];
+    memset(reach, 0, sizeof reach);
     static float seeds[MAX_TRACKS][16][3];
     memset(pieces, 0, sizeof pieces);
     memset(sum_w, 0, sizeof sum_w);
@@ -769,6 +784,7 @@ static void observe(const pc_glow_fragment* f, int count, const uint32_t* owner)
         if (k == track_count)
             continue;
         float w = f[i].weight;
+        reach[k] = fmaxf(reach[k], f[i].reach);
         sum_w[k] += w;
         sum_a[k] += f[i].area;
         tris[k]++;
@@ -801,6 +817,7 @@ static void observe(const pc_glow_fragment* f, int count, const uint32_t* owner)
         }
         t->obs_size = t->group >= 0 ? groups[t->group].size : emitting_size(sum_a[k]);
         t->obs_area = sum_a[k];
+        t->obs_reach = reach[k];
         t->obs_power = sum_w[k];
         t->obs_strength = t->group >= 0 ? fmaxf(groups[t->group].strength, 1.0f) : (float)(pieces[k] ? pieces[k] : 1);
     }
@@ -1022,8 +1039,8 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
         float size_override = 0;
         memcpy(t->out_rgb, t->rgb, sizeof t->out_rgb);
         t->out_size = t->origin == PC_GLOW_ORIGIN_BAKED ? t->obs_size : t->size;
-        if (t->origin != PC_GLOW_ORIGIN_BAKED)
-            t->out_reach = pc_emitter_radius;
+        if (t->origin != PC_GLOW_ORIGIN_BAKED) /* an emissive entry's own reach (a glyph's tight pool), else the room's */
+            t->out_reach = t->obs_reach > 0 ? t->obs_reach : pc_emitter_radius;
         for (int i = 0; i < override_count; i++) {
             pc_glow_override* o = &overrides[i];
             if (o->bound != t->id)

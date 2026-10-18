@@ -1,0 +1,10 @@
+{
+  "title": "Portrait 85 mm",
+  "description": "A physical 85 mm lens at f/1.8 focused on Ashley: she stands out, near-round nine-blade bokeh.",
+  "values": {
+    "dof": 1, "dof_model": "physical", "dof_focus": "ashley", "dof_focus_speed": 0.15,
+    "dof_focal_length": 85, "dof_fstop": 1.8, "dof_max_blur": 12, "dof_near_blur": 0.6,
+    "bokeh_blades": 9, "bokeh_curvature": 0.8, "bokeh_edge": "even", "bokeh_edge_amount": 0.4,
+    "bokeh_cats_eye": 0.3, "bokeh_highlights": 1
+  }
+}

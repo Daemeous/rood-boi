@@ -73,6 +73,9 @@ uint32_t pc_emissive_light_serial(void);
  * light texels; with rgb, their mean emission over the triangle's 15-point
  * grid times the light weight (zero where it does not glow this frame). */
 int pc_emissive_room_light(int index, float rgb[3]);
+/* ... and its entries' light shape: the glow's reach (0: the room's
+ * glow_reach) and how far in front of the surface it sits (0: on it). */
+int pc_emissive_room_light_shape(int index, float* reach, float* lift);
 
 /* Light texels on object lists and other room blocks this present: glow
  * fragments (glow_overrides.h pc_glow_fragment, origin object). */

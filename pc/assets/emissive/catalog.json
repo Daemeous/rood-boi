@@ -5,30 +5,34 @@
     {
       "id": "E001",
       "name": "Magic circle on the floating blocks",
-      "where": "zone 32 room 3 and the other rooms with floating blocks (the moving platforms' tops)",
+      "where": "zone 32 room 3 and the other rooms with floating blocks (the moving platforms' tops); its green variant (9/5, 15/8, 22/6-7, 23/1-5, 24/2)",
       "match": [
         { "key": "1a7a9a0083", "size": [31, 31] },
         { "key": "cb0bfa6a81", "size": [31, 31] },
         { "key": "789d8b070b", "size": [31, 31] },
         { "key": "0dc55d7442", "size": [31, 31] },
-        { "key": "036c1f39e7", "size": [31, 31] }
+        { "key": "036c1f39e7", "size": [31, 31] },
+        { "key": "514db27fa4", "size": [31, 29] }
       ],
       "mask": {
         "indices": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
       },
       "color": [1, 1, 1],
       "strength": 1.25,
-      "light": 0.6,
+      "light": 4,
+      "light_reach": 320,
       "review": "checked",
-      "note": "4-bit, index 0 is the block's dark ground; the circle is a VRAM animation of five frames (one key each)"
+      "note": "4-bit, index 0 is the block's dark ground; the circle is a VRAM animation of five frames (one key each); 514db27fa4: the green blocks' circle drawn as a 31 x 29 box (palette 16311fce51); the orange and green circles match every palette"
     },
     {
       "id": "E002",
       "name": "Lattice window panes (town houses)",
-      "where": "zone 34 room 0, zone 35 room 0 (high windows)",
+      "where": "zone 34 room 0, zone 35 room 0, zone 36 room 0 (high windows)",
       "match": [
         { "key": "cd41b7751f", "size": [47, 63] },
         { "key": "2cd3ec747d", "size": [47, 55], "offset": [0, 8] },
+        { "key": "c49c06c6c9", "size": [47, 17] },
+        { "key": "8ef3a82f44", "size": [47, 9] },
         { "key": "9a84da203c", "size": [47, 47], "offset": [0, 16] },
         { "key": "e3ab7cde4b", "size": [47, 7], "offset": [0, 24] }
       ],
@@ -38,6 +42,11 @@
       "color": [1, 0.97, 0.9],
       "strength": 1.25,
       "light": 1,
+      "rect_light": {
+        "intensity": 0.8,
+        "radius": 900,
+        "offset": 2
+      },
       "review": "checked",
       "note": "index 0 is the white pane, the bars are not lit"
     },
@@ -69,7 +78,18 @@
         { "key": "767480c2c3", "size": [31, 31], "offset": [32, 0] },
         { "key": "28d9216215", "size": [31, 31], "offset": [32, 0] },
         { "key": "1095ec4f34", "size": [31, 31], "offset": [32, 0] },
-        { "key": "b86f16f59b", "size": [31, 31], "offset": [32, 0] }
+        { "key": "b86f16f59b", "size": [31, 31], "offset": [32, 0] },
+        { "key": "e29dff4876", "size": [3, 31] },
+        { "key": "58a7ef21b7", "size": [3, 13] },
+        { "key": "0d76d6509c", "size": [33, 3] },
+        { "key": "1ef570ce33", "size": [15, 3] },
+        { "key": "5046348839", "size": [31, 3] },
+        { "key": "7ad4848d4e", "size": [29, 3] },
+        { "key": "8a5e53146b", "size": [31, 3] },
+        { "key": "7d13c69ada", "size": [3, 11] },
+        { "key": "766fde79f7", "size": [17, 3] },
+        { "key": "78f284e362", "size": [15, 3] },
+        { "key": "a8bab016c8", "size": [31, 31] }
       ],
       "mask": {
         "indices": [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
@@ -78,7 +98,7 @@
       "strength": 1.6,
       "light": 1,
       "review": "checked",
-      "note": "indices 5-15 are the ember ramp, 0-4 the grey ash; the bed is a VRAM animation of four frames (one key each)"
+      "note": "indices 5-15 are the ember ramp, 0-4 the grey ash; the bed is a VRAM animation of four frames (one key each); the thin boxes are the bed's rims (its front and sides: the same image); a8bab016c8 the embers in the furnace mouth above (another image, the same ember ramp)"
     },
     {
       "id": "E005",
@@ -86,16 +106,366 @@
       "where": "zone 53 (Limestone Quarry) room 21 and other crate puzzles",
       "match": [
         { "key": "dc51f82ff7", "size": [32, 32] },
-        { "key": "eaecfa1949", "size": [32, 32], "offset": [32, 0] }
+        { "key": "eaecfa1949", "size": [32, 32], "offset": [32, 0] },
+        { "key": "2e24028557", "size": [32, 32] }
       ],
       "mask": {
         "indices": [10, 11, 12, 13, 14, 15]
       },
       "color": [1, 1, 1],
       "strength": 1.4,
-      "light": 0.4,
+      "light": 12,
+      "light_reach": 250,
       "review": "checked",
-      "note": "8 x 8 texel sides and top of the movable crates: indices 10-15 are the blue glow lines and the white glyph"
+      "note": "8 x 8 texel sides and top of the movable crates: indices 10-15 are the blue glow lines and the white glyph; 2e24028557: the green crates (a glow line along one edge, no glyph)"
+    },
+    {
+      "id": "E006",
+      "name": "Glyph floor tiles (The Keep)",
+      "where": "zone 29 rooms 3-6 (two glyphs a room)",
+      "match": [
+        { "key": "66b4521ff4", "size": [31, 31] },
+        { "key": "dfcfeabea7", "size": [31, 31] },
+        { "key": "d7e99d196c", "size": [31, 31] },
+        { "key": "fa9a0c8ac4", "size": [31, 31] },
+        { "key": "5d13428e1a", "size": [31, 31] },
+        { "key": "4bb1b35d5e", "size": [31, 31] },
+        { "key": "e0602ca6b6", "size": [31, 31] },
+        { "key": "a638920d9b", "size": [31, 31] }
+      ],
+      "mask": {
+        "indices": [10, 11, 12, 13, 14, 15]
+      },
+      "color": [1, 1, 1],
+      "strength": 1.5,
+      "light": 14,
+      "light_reach": 320,
+      "light_lift": 48,
+      "review": "checked",
+      "note": "4-bit, one 128 x 128 floor tile each; 10-15 the glyph's stroke ramp, 0-8 the stone; each glyph its own colour (blue, red, green, yellow, purple, white, cyan, amber), and so its light"
+    },
+    {
+      "id": "E007",
+      "name": "Workshop windows",
+      "where": "zones 43, 45, 46 room 0",
+      "match": [
+        { "key": "02bc6145cc", "size": [31, 33] },
+        { "key": "000f3130d7", "size": [31, 31] }
+      ],
+      "mask": {
+        "indices": [15]
+      },
+      "color": [1, 1, 1],
+      "strength": 1.25,
+      "light": 0,
+      "rect_light": {
+        "intensity": 0.9,
+        "radius": 700,
+        "offset": 2
+      },
+      "review": "checked",
+      "note": "15 the pale pane; the wooden frame and bars (1-14) stay"
+    },
+    {
+      "id": "E008",
+      "name": "Town house windows (Khazabas, Gilgitte)",
+      "where": "zone 37 room 0, zone 38 room 0, zone 69 room 0",
+      "match": [
+        { "key": "5b3efe8cc4", "size": [31, 23], "clut": "9d231dff74" },
+        { "key": "c6f127bdad", "size": [15, 31], "clut": "9d231dff74" },
+        { "key": "1c2b1aada3", "size": [15, 31], "clut": "9d231dff74" },
+        { "key": "f9b65fac0a", "size": [17, 31], "clut": "9d231dff74" },
+        { "key": "6e27e2c348", "size": [31, 25], "clut": "9d231dff74" },
+        { "key": "fe11de0ee9", "size": [31, 23], "clut": "9d231dff74" }
+      ],
+      "mask": {
+        "indices": [14, 15]
+      },
+      "color": [1, 0.97, 0.9],
+      "strength": 1.25,
+      "light": 0,
+      "rect_light": {
+        "intensity": 0.9,
+        "radius": 700,
+        "offset": 2
+      },
+      "review": "checked",
+      "note": "15 the pane, 14 its lit edge; the frame ramp 1-13 stays"
+    },
+    {
+      "id": "E009",
+      "name": "Pierced stone friezes (Sanctum)",
+      "where": "zone 15 rooms 0-6, 10-12, zones 16, 17, 62 room 0",
+      "match": [
+        { "key": "1300ed3dd6", "size": [29, 15], "clut": "e63fac3025" },
+        { "key": "59d6ac1586", "size": [31, 17], "clut": "e63fac3025" },
+        { "key": "7d0588ee9c", "size": [33, 17], "clut": "e63fac3025" },
+        { "key": "6aa08f928f", "size": [29, 15], "clut": "e63fac3025" },
+        { "key": "f5b5966f17", "size": [33, 31], "clut": "e63fac3025" },
+        { "key": "50fc6b0cff", "size": [33, 17], "clut": "e63fac3025" },
+        { "key": "701945a663", "size": [27, 15], "clut": "e63fac3025" },
+        { "key": "7064ee4256", "size": [31, 29], "clut": "e63fac3025" },
+        { "key": "7d52871df2", "size": [33, 29], "clut": "e63fac3025" },
+        { "key": "1f59548576", "size": [33, 17], "clut": "e63fac3025" },
+        { "key": "9f57711c00", "size": [31, 17], "clut": "e63fac3025" },
+        { "key": "a387b85beb", "size": [31, 31], "clut": "e63fac3025" },
+        { "key": "b5a79df52b", "size": [33, 27], "clut": "e63fac3025" },
+        { "key": "eba7b6cd11", "size": [31, 27], "clut": "e63fac3025" },
+        { "key": "3a113cd3c2", "size": [33, 5], "clut": "e63fac3025" },
+        { "key": "488eb8761d", "size": [31, 29], "clut": "e63fac3025" },
+        { "key": "6687e18003", "size": [31, 5], "clut": "e63fac3025" },
+        { "key": "6d7fb26e07", "size": [33, 29], "clut": "e63fac3025" },
+        { "key": "77ba48e10b", "size": [33, 5], "clut": "e63fac3025" },
+        { "key": "c2f96c2fcc", "size": [31, 27], "clut": "e63fac3025" },
+        { "key": "e30e6b5f7a", "size": [33, 27], "clut": "e63fac3025" },
+        { "key": "eb02384603", "size": [31, 5], "clut": "e63fac3025" },
+        { "key": "97a1c56748", "size": [33, 31], "clut": "e9576a18b2" },
+        { "key": "ce5ea395d5", "size": [31, 29], "clut": "e9576a18b2" },
+        { "key": "ec52e7f3a5", "size": [33, 29], "clut": "e9576a18b2" },
+        { "key": "179ddc0761", "size": [33, 5], "clut": "e9576a18b2" },
+        { "key": "d225afd318", "size": [31, 5], "clut": "e9576a18b2" }
+      ],
+      "mask": {
+        "indices": [12, 13, 14, 15]
+      },
+      "color": [1, 0.97, 0.92],
+      "strength": 1.2,
+      "light": 2,
+      "review": "new",
+      "note": "the openwork's pale holes (12-15), light behind the stone; the stone (0-11) stays"
+    },
+    {
+      "id": "E010",
+      "name": "Stained glass windows (Great Cathedral)",
+      "where": "zone 24 rooms 0-14, zone 25 room 4, zones 57, 59, 63 room 0",
+      "match": [
+        { "key": "25f8697bda", "size": [63, 99], "clut": "bc86cfa443" },
+        { "key": "5391c068b3", "size": [63, 19], "clut": "bc86cfa443" },
+        { "key": "d0a24568a8", "size": [63, 23], "clut": "bc86cfa443" },
+        { "key": "63e766befe", "size": [49, 13], "clut": "bc86cfa443" },
+        { "key": "1d58a1b694", "size": [63, 91], "clut": "bc86cfa443" },
+        { "key": "99c272aedf", "size": [63, 89], "clut": "bc86cfa443" },
+        { "key": "c1811775b5", "size": [63, 129], "clut": "bc86cfa443" },
+        { "key": "76a8ca8dbe", "size": [49, 15], "clut": "bc86cfa443" },
+        { "key": "e9a845f5ed", "size": [63, 97], "clut": "bc86cfa443" },
+        { "key": "0745ddcf06", "size": [63, 133], "clut": "bc86cfa443" },
+        { "key": "09aacf3529", "size": [63, 25], "clut": "bc86cfa443" },
+        { "key": "1b4730a68f", "size": [63, 23], "clut": "bc86cfa443" },
+        { "key": "3ad9bff925", "size": [63, 131], "clut": "bc86cfa443" },
+        { "key": "e6d70b0438", "size": [63, 123], "clut": "bc86cfa443" },
+        { "key": "e95bab1d30", "size": [63, 21], "clut": "bc86cfa443" },
+        { "key": "299a5e2648", "size": [47, 15], "clut": "bc86cfa443" },
+        { "key": "3c0a15e46b", "size": [31, 63], "clut": "bc86cfa443" },
+        { "key": "89e04f8dc6", "size": [49, 11], "clut": "bc86cfa443" },
+        { "key": "4957603365", "size": [47, 13], "clut": "bc86cfa443" },
+        { "key": "4ec85008cd", "size": [63, 19], "clut": "bc86cfa443" },
+        { "key": "256e3777b6", "size": [15, 33], "clut": "bc86cfa443" },
+        { "key": "43d2b47d10", "size": [51, 15], "clut": "bc86cfa443" },
+        { "key": "b550a632be", "size": [11, 33], "clut": "bc86cfa443" },
+        { "key": "d192087ff3", "size": [47, 11], "clut": "bc86cfa443" },
+        { "key": "f266df7ff7", "size": [7, 33], "clut": "bc86cfa443" },
+        { "key": "0524739bdf", "size": [47, 13], "clut": "bc86cfa443" },
+        { "key": "0a71f667a3", "size": [31, 29], "clut": "bc86cfa443" },
+        { "key": "0b9405c05e", "size": [63, 131], "clut": "bc86cfa443" },
+        { "key": "173d4a0309", "size": [31, 13], "clut": "bc86cfa443" },
+        { "key": "1a86ebc0c6", "size": [25, 25], "clut": "bc86cfa443" },
+        { "key": "1ab78ca12b", "size": [63, 21], "clut": "bc86cfa443" },
+        { "key": "1b78181b92", "size": [25, 13], "clut": "bc86cfa443" },
+        { "key": "25508d5b7b", "size": [17, 49], "clut": "bc86cfa443" },
+        { "key": "299dbd5b55", "size": [19, 33], "clut": "bc86cfa443" },
+        { "key": "382e2074d8", "size": [7, 49], "clut": "bc86cfa443" },
+        { "key": "3b32833e28", "size": [43, 13], "clut": "bc86cfa443" },
+        { "key": "3b5c36ecd8", "size": [13, 33], "clut": "bc86cfa443" },
+        { "key": "3dc20e692c", "size": [25, 17], "clut": "bc86cfa443" },
+        { "key": "547ae69e2e", "size": [17, 49], "clut": "bc86cfa443" },
+        { "key": "5f4e7eb7b0", "size": [31, 49], "clut": "bc86cfa443" },
+        { "key": "652d2163ae", "size": [47, 19], "clut": "bc86cfa443" },
+        { "key": "65de18376b", "size": [25, 33], "clut": "bc86cfa443" },
+        { "key": "66f5ba47dd", "size": [17, 17], "clut": "bc86cfa443" },
+        { "key": "689c502912", "size": [27, 17], "clut": "bc86cfa443" },
+        { "key": "876543c3ba", "size": [63, 49], "clut": "bc86cfa443" },
+        { "key": "8ec13064c0", "size": [31, 25], "clut": "bc86cfa443" },
+        { "key": "942b6639dc", "size": [33, 13], "clut": "bc86cfa443" },
+        { "key": "985dda19f8", "size": [25, 29], "clut": "bc86cfa443" },
+        { "key": "a1e4a24de2", "size": [25, 17], "clut": "bc86cfa443" },
+        { "key": "ae5e3caf2a", "size": [25, 17], "clut": "bc86cfa443" },
+        { "key": "b4108ffc2c", "size": [17, 33], "clut": "bc86cfa443" },
+        { "key": "baddcf3d13", "size": [63, 13], "clut": "bc86cfa443" },
+        { "key": "bfa13d9b59", "size": [39, 49], "clut": "bc86cfa443" },
+        { "key": "bfc4dc8603", "size": [23, 15], "clut": "bc86cfa443" },
+        { "key": "ccb0603ddc", "size": [19, 17], "clut": "bc86cfa443" },
+        { "key": "dc2524d99d", "size": [23, 17], "clut": "bc86cfa443" },
+        { "key": "e0f863f51e", "size": [31, 17], "clut": "bc86cfa443" },
+        { "key": "e1058c2649", "size": [13, 65], "clut": "bc86cfa443" },
+        { "key": "e64a72a2d0", "size": [15, 49], "clut": "bc86cfa443" },
+        { "key": "ec3ce0032a", "size": [33, 49], "clut": "bc86cfa443" },
+        { "key": "ee2e1f05df", "size": [11, 29], "clut": "bc86cfa443" },
+        { "key": "eec19075f9", "size": [47, 33], "clut": "bc86cfa443" },
+        { "key": "3cea53852e", "size": [63, 117], "clut": "bc86cfa443" },
+        { "key": "b1451ab3da", "size": [63, 119], "clut": "bc86cfa443" },
+        { "key": "c3762ef13d", "size": [63, 137], "clut": "bc86cfa443" },
+        { "key": "f2d9752164", "size": [63, 139], "clut": "bc86cfa443" }
+      ],
+      "mask": {
+        "indices": [2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+      },
+      "color": [1, 1, 1],
+      "strength": 1.15,
+      "light": 0,
+      "rect_light": {
+        "intensity": 0.8,
+        "radius": 900,
+        "offset": 2
+      },
+      "review": "new",
+      "note": "the glass (2, 4-15); 0, 1 and 3 the lead and the frame"
+    },
+    {
+      "id": "E011",
+      "name": "Stained glass windows (zones 5-8)",
+      "where": "zones 5-8 room 0, zone 5 room 1",
+      "match": [
+        { "key": "6aeb685f7f", "size": [17, 7], "clut": "02b01e4467" },
+        { "key": "76266b8770", "size": [11, 7], "clut": "02b01e4467" },
+        { "key": "0a3c96a41f", "size": [17, 21], "clut": "02b01e4467" },
+        { "key": "3f20789a40", "size": [3, 31], "clut": "02b01e4467" },
+        { "key": "835bf2fbab", "size": [13, 17], "clut": "02b01e4467" },
+        { "key": "f2141485db", "size": [13, 29], "clut": "02b01e4467" },
+        { "key": "02cb0ef5c2", "size": [9, 29], "clut": "02b01e4467" },
+        { "key": "10fbdb2746", "size": [15, 17], "clut": "02b01e4467" },
+        { "key": "12366d2ae9", "size": [7, 39], "clut": "02b01e4467" },
+        { "key": "2dc74934aa", "size": [9, 41], "clut": "02b01e4467" },
+        { "key": "4a6807331e", "size": [11, 29], "clut": "02b01e4467" },
+        { "key": "7eb92a43cc", "size": [11, 23], "clut": "02b01e4467" },
+        { "key": "97df6fc138", "size": [13, 29], "clut": "02b01e4467" },
+        { "key": "bce64365a6", "size": [15, 23], "clut": "02b01e4467" },
+        { "key": "bfdd2e0193", "size": [9, 37], "clut": "02b01e4467" },
+        { "key": "e87223b788", "size": [9, 23], "clut": "02b01e4467" },
+        { "key": "f0bee3aa68", "size": [9, 33], "clut": "02b01e4467" },
+        { "key": "f593401121", "size": [15, 13], "clut": "02b01e4467" },
+        { "key": "2c28b40969", "size": [7, 43], "clut": "02b01e4467" },
+        { "key": "3f9eb96d10", "size": [7, 23], "clut": "02b01e4467" },
+        { "key": "965ecc9466", "size": [3, 29], "clut": "02b01e4467" },
+        { "key": "59e7c47481", "size": [15, 7], "clut": "02b01e4467" },
+        { "key": "62249d0c9b", "size": [11, 7], "clut": "02b01e4467" },
+        { "key": "2b964c0c95", "size": [11, 29], "clut": "02b01e4467" },
+        { "key": "38db866aa3", "size": [7, 23], "clut": "02b01e4467" },
+        { "key": "bfa24a5ca1", "size": [7, 41], "clut": "02b01e4467" },
+        { "key": "1dbf9a272b", "size": [11, 17], "clut": "02b01e4467" },
+        { "key": "bf1553230e", "size": [15, 21], "clut": "02b01e4467" },
+        { "key": "4f66be5f5a", "size": [9, 29], "clut": "02b01e4467" },
+        { "key": "5b85adc5b8", "size": [9, 37], "clut": "02b01e4467" },
+        { "key": "62977e1dd1", "size": [13, 29], "clut": "02b01e4467" },
+        { "key": "6900805909", "size": [13, 23], "clut": "02b01e4467" },
+        { "key": "74b7f3cd0d", "size": [13, 17], "clut": "02b01e4467" },
+        { "key": "84886af82d", "size": [15, 13], "clut": "02b01e4467" },
+        { "key": "93a40ba045", "size": [9, 33], "clut": "02b01e4467" },
+        { "key": "ba452ce123", "size": [5, 39], "clut": "02b01e4467" },
+        { "key": "cb5f6b895a", "size": [13, 29], "clut": "02b01e4467" },
+        { "key": "f202a0b085", "size": [15, 23], "clut": "02b01e4467" },
+        { "key": "7d9bb02d45", "size": [17, 31], "clut": "02b01e4467" },
+        { "key": "81b8d1fa63", "size": [11, 53], "clut": "02b01e4467" },
+        { "key": "a8534e1f6b", "size": [17, 21], "clut": "02b01e4467" },
+        { "key": "cd99d58ffd", "size": [3, 29], "clut": "02b01e4467" },
+        { "key": "f2afd085d3", "size": [9, 29], "clut": "02b01e4467" },
+        { "key": "fe7eeec0a9", "size": [9, 31], "clut": "02b01e4467" },
+        { "key": "06443aa28c", "size": [15, 45], "clut": "02b01e4467" },
+        { "key": "1cdd82d511", "size": [15, 13], "clut": "02b01e4467" },
+        { "key": "30cda060d9", "size": [11, 23], "clut": "02b01e4467" },
+        { "key": "4797308fca", "size": [9, 41], "clut": "02b01e4467" },
+        { "key": "481c5522de", "size": [11, 39], "clut": "02b01e4467" },
+        { "key": "6b7447ce1c", "size": [15, 39], "clut": "02b01e4467" },
+        { "key": "82ac315fd0", "size": [13, 27], "clut": "02b01e4467" },
+        { "key": "c7e683f8c3", "size": [15, 23], "clut": "02b01e4467" },
+        { "key": "c9d0f271ac", "size": [13, 15], "clut": "02b01e4467" },
+        { "key": "d057426665", "size": [11, 29], "clut": "02b01e4467" },
+        { "key": "d70cef0302", "size": [9, 23], "clut": "02b01e4467" },
+        { "key": "5ac34c0417", "size": [13, 27], "clut": "02b01e4467" },
+        { "key": "bf913caa29", "size": [15, 15], "clut": "02b01e4467" },
+        { "key": "f2f725b8d6", "size": [7, 39], "clut": "02b01e4467" },
+        { "key": "f888ce7758", "size": [9, 37], "clut": "02b01e4467" },
+        { "key": "115fec3b58", "size": [17, 39], "clut": "02b01e4467" },
+        { "key": "27495c5c56", "size": [17, 45], "clut": "02b01e4467" },
+        { "key": "59e943da11", "size": [7, 23], "clut": "02b01e4467" },
+        { "key": "7a2ee6fc03", "size": [13, 39], "clut": "02b01e4467" },
+        { "key": "8e6d237c1f", "size": [13, 23], "clut": "02b01e4467" },
+        { "key": "b94f888081", "size": [7, 41], "clut": "02b01e4467" },
+        { "key": "bb3d4bd4da", "size": [13, 29], "clut": "02b01e4467" },
+        { "key": "136f4ebb67", "size": [9, 29], "clut": "02b01e4467" },
+        { "key": "286eae0b6d", "size": [13, 29], "clut": "02b01e4467" },
+        { "key": "2aef93682e", "size": [9, 31], "clut": "02b01e4467" },
+        { "key": "37c57cf0e3", "size": [7, 41], "clut": "02b01e4467" },
+        { "key": "40bf672c36", "size": [15, 23], "clut": "02b01e4467" },
+        { "key": "68e69dcd82", "size": [15, 21], "clut": "02b01e4467" },
+        { "key": "e8c0479cdb", "size": [15, 31], "clut": "02b01e4467" },
+        { "key": "f40ca3b293", "size": [7, 23], "clut": "02b01e4467" },
+        { "key": "865d51b119", "size": [9, 39], "clut": "02b01e4467" },
+        { "key": "9a92ee36ba", "size": [13, 45], "clut": "02b01e4467" },
+        { "key": "b03feea450", "size": [13, 39], "clut": "02b01e4467" },
+        { "key": "f3c4fdbc0c", "size": [9, 53], "clut": "02b01e4467" },
+        { "key": "11840b7a78", "size": [13, 23], "clut": "02b01e4467" },
+        { "key": "27b79d0ae4", "size": [11, 15], "clut": "02b01e4467" },
+        { "key": "7946970b86", "size": [11, 27], "clut": "02b01e4467" },
+        { "key": "af4bbb34f8", "size": [15, 13], "clut": "02b01e4467" },
+        { "key": "242f52ff3f", "size": [13, 27], "clut": "02b01e4467" },
+        { "key": "a2c0952e87", "size": [5, 39], "clut": "02b01e4467" },
+        { "key": "c4cebe230d", "size": [9, 37], "clut": "02b01e4467" },
+        { "key": "dace7d893f", "size": [13, 15], "clut": "02b01e4467" },
+        { "key": "35b29bcc51", "size": [13, 39], "clut": "02b01e4467" },
+        { "key": "4dec6607e8", "size": [15, 39], "clut": "02b01e4467" },
+        { "key": "b98113ee73", "size": [11, 53], "clut": "02b01e4467" },
+        { "key": "f150723aeb", "size": [15, 45], "clut": "02b01e4467" },
+        { "key": "087abf9fe6", "size": [27, 15], "clut": "67dfbed02a" },
+        { "key": "7d1348ee70", "size": [27, 17], "clut": "67dfbed02a" }
+      ],
+      "mask": {
+        "indices": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+      },
+      "color": [1, 1, 1],
+      "strength": 1.15,
+      "light": 0,
+      "rect_light": {
+        "intensity": 0.8,
+        "radius": 700,
+        "offset": 2
+      },
+      "review": "new",
+      "note": "the narrow lancets and their pointed tops (two palettes); 0-3 the lead"
+    },
+    {
+      "id": "E012",
+      "name": "Street lantern panes (Undercity)",
+      "where": "zone 48 (most rooms)",
+      "match": [
+        { "key": "92daea7663", "size": [15, 23], "clut": "b62651ef99" },
+        { "key": "77b0e2631a", "size": [15, 15], "clut": "bd213c67db" }
+      ],
+      "mask": {
+        "indices": [9, 10, 11, 12]
+      },
+      "color": [1, 0.92, 0.78],
+      "strength": 1.3,
+      "light": 0,
+      "review": "new",
+      "note": "additive panes, already the lanterns' game glows (their light): on screen and bloom only; 0-8 the iron"
+    },
+    {
+      "id": "E013",
+      "name": "Glass lamp shades (zone 68)",
+      "where": "zone 68 room 0",
+      "match": [
+        { "key": "f008589122", "size": [7, 7], "clut": "ba4f175788" },
+        { "key": "c35639afb8", "size": [27, 31], "clut": "ba4f175788" }
+      ],
+      "mask": {
+        "indices": [9, 10, 11, 12, 13, 14, 15]
+      },
+      "color": [1, 0.9, 0.75],
+      "strength": 1.3,
+      "light": 6,
+      "light_reach": 300,
+      "review": "new",
+      "note": "the glass (9-15, semi-transparent); 0-7 the holder"
     }
   ]
 }

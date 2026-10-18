@@ -497,6 +497,7 @@ static void add_glow(glow* g, int* n, int max, const float p[3][3], const uint8_
     }
     out->area = area;
     out->weight = area * (0.299f * out->rgb[0] + 0.587f * out->rgb[1] + 0.114f * out->rgb[2]);
+    out->reach = 0;
     out->source = source;
 }
 /* Baked light sources, estimated once per room from the vertex colours:
@@ -897,6 +898,8 @@ static void update_emitters(void)
             out->area = 0.5f * sqrtf(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
             out->weight = out->area * (0.299f * e[0] + 0.587f * e[1] + 0.114f * e[2]);
             out->source = (uint32_t)PC_GLOW_ORIGIN_ROOM << 28 | (uint32_t)i;
+            out->reach = 0;
+            pc_emissive_room_light_shape(i, &out->reach, NULL);
         }
     /* ... and on characters, props and other room blocks (object glows). */
     if (pc_emissive_light_serial() || pc_emissive_active())

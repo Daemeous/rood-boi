@@ -154,6 +154,26 @@ def main():
         check(neutral and r["flags"] == 0 and not r["probe"]["on"],
               f"off by default: no depth of field, none in first person, neutral bokeh ({r['flags']}, "
               f"dof {t['dof']}, dof_fp {t['dof_fp']}, blades {t['bokeh_blades']})")
+        # Lens presets write depth of field and bokeh only, over the layer's other values.
+        names = r.get("lens_presets", [])
+        check({"subtle", "portrait", "telephoto", "miniature", "anamorphic"} <= set(names),
+              f"lens presets listed ({names})")
+        game.call("post", layer="gameplay", clear="all", set={"tonemapper": "agx", "dof_fp": True})
+        for name in names:
+            g = game.call("post", layer="gameplay", lens_preset=name)["layers"]["gameplay"]["set"]
+            check(g.get("dof") == "1" and g.get("tonemapper") == "agx" and g.get("dof_fp") == "1"
+                  and any(k.startswith("bokeh") for k in g),
+                  f"lens preset {name}: depth of field on, the tone mapper and first person kept ({sorted(g)})")
+        game.call("post", layer="gameplay", lens_preset="anamorphic")
+        g = game.call("post", layer="gameplay", lens_preset="miniature")["layers"]["gameplay"]["set"]
+        check("bokeh_squeeze" not in g and g.get("dof_ashley_height") == "0.6",
+              f"a lens preset clears the previous one's fields ({sorted(g)})")
+        try:
+            game.call("post", lens_preset="no_such_lens")
+            check(False, "an unknown lens preset is refused")
+        except Exception:
+            check(True, "an unknown lens preset is refused")
+        game.call("post", layer="gameplay", clear="all")
         off = redrawn(game, out / "title")
         game.call("post", set=everything, snap=True)
         on = redrawn(game, out / "title")

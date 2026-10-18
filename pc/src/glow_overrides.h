@@ -159,6 +159,7 @@ extern uint32_t pc_glow_casts;
 typedef struct {
     float p[3], area, rgb[3], weight;
     uint32_t source; /* origin << 28 | tag; room: the room triangle index */
+    float reach; /* its glow's reach (an emissive entry's light_reach; 0: the room's glow_reach) */
 } pc_glow_fragment;
 /* This frame's glowing triangles (room ones with source ROOM << 28 | its
  * index in pc_scene_triangle_data) and the baked estimates (xyz reach,

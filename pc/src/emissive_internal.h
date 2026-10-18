@@ -71,6 +71,8 @@ struct Entry {
     float color[3] = { 1, 1, 1 }; /* tint */
     float strength = 1; /* x the texel's colour (display light) */
     float light = 0; /* > 0: its room triangles are game glows, this much */
+    float light_reach = 0; /* its glows' reach (world units; 0: the room's glow_reach) */
+    float light_lift = 0; /* its glows this far in front of the surface (0: room surfaces on it, objects glow_emissive_lift) */
     bool enabled = true;
     int origin = ORIGIN_CURATED;
 };
@@ -183,6 +185,7 @@ struct TriangleLight {
     float amount = 0; /* sum of the glowing texels' amounts (0..1 each) */
     int texels = 0;
     bool candidate = false;
+    float reach = 0, lift = 0; /* the largest of its light entries' light_reach, light_lift */
 };
 /* Of a light triangle's emission, what reaches its glow: the glowing
  * texels' mean emission x light weight x max(their share, LIGHT_MIN_SHARE). */

@@ -213,6 +213,24 @@ texels up so out-of-focus lights show their shape. Details >
 Post-processing has a **Bokeh test card** (RPC `post` `bokeh_test`):
 the 3D replaced by small white dots, blurred by the maximum.
 
+### Lens presets
+
+Looks for the depth of field and its bokeh alone, in `pc/assets/post/lens`
+(yours in `pc/user/post/lens`, same name wins). Details > Post-processing >
+Lens preset (or RPC `post {lens_preset: name}`) writes one into the layer
+being edited: it sets the third-person `dof*` and `bokeh*` fields it names
+and clears the others, and leaves every other effect, first person and
+tilt-shift as they are. Tweak the fields after. Unlike the layer presets
+above, these turn depth of field on: they are the player's pick.
+
+| Preset | Look |
+|---|---|
+| subtle | the artistic model, a light blur, seven blades |
+| portrait | 85 mm f/1.8 on Ashley, near-round nine blades, a little cat's eye |
+| telephoto | 135 mm f/1.4, rimmed hexagons, a strong background melt |
+| miniature | Ashley read as 0.6 m: a diorama look, blurred near and far |
+| anamorphic | 100 mm f/2, squeeze 1.8, rims, colour fringe, cat's eye |
+
 ### First-person view
 
 The first-person view (Start; BATTLE's `_firstPersonViewEnabled`) has its

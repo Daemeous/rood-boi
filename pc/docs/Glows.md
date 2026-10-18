@@ -392,6 +392,15 @@ all of them object glows; no room reaches 32 (a room that did would drop
 its weakest glows first, as before). No per-object cap or merging of sides
 was needed.
 
+Glow sweep (2026-10-17): a side whose front points down (a crate's
+bottom, on the floor) is no glow any more (53/21: 12 glows -> 10); an
+emissive entry's `light_reach` is its glows' reach (the room's
+`glow_reach` otherwise; the fragments carry it, `pc_glow_fragment.reach`,
+and a glow takes its fragments' largest) and its `light_lift` moves a room
+group's centre out of its surfaces along their mean front (a floor
+glyph's light 48 units over its tile) or replaces `glow_emissive_lift`
+for its object glows ([Emissive.md](Emissive.md), "Glow sweep").
+
 ## Limits and next steps
 
 - Categories come from the source: a spell drawn with unattached world

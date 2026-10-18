@@ -22,6 +22,7 @@ drew it.
 | `pc/src/materials.cpp` | painted channel maps per texture ([Materials.md](Materials.md)) |
 | `pc/shaders/vulkan/emissive.glsl` | the per-texel test, shared by every draw shader (OpenGL splices it in as `PC_GLSL_EMISSIVE`) |
 | `pc/tests/emissive_smoke.py` | the test (run.py suite `emissive_smoke`) |
+| `pc/tools/glow_scan.py` | the glow sweep: candidate textures from every room, for review (below) |
 
 ## Entries
 
@@ -71,6 +72,18 @@ drew it.
   colour). Above 1 only matters for bloom (and HDR output).
 - **light**: 0, not a light (it glows on screen and blooms); above 0, its
   triangles are game glows with this weight (below).
+- **light_reach** (optional, world units, 32..1000): how far its glows
+  light; a small reach keeps a tight pool of its colour around it (a
+  glyph tile, a crate). 0 or none: the room's `glow_reach`. A glow takes
+  the largest reach of its entries; a glow override's `reach` still wins.
+- **light_lift** (optional, 0..64): its glows sit this far in front of the
+  glowing surface (a floor glyph's light above the floor: in the floor's
+  plane it lit the floor around it only at a grazing angle). 0 or none:
+  room surfaces on the surface, objects `glow_emissive_lift`.
+- **rect_light** (optional, windows): `pc/tools/generate_lighting.py`
+  puts a rect light on every pane of the entry's textures in every room
+  (below, "Window lights"): `intensity`, `radius`, `offset` (2),
+  `max_per_room` (6), `min_area` (64), `shadows` (1).
 - **scope** (optional): where the entry applies (next section). Without
   one it applies everywhere its textures are drawn.
 - `enabled`, `review` (`checked`, `new`), `note`, `where`: as in the fixture
@@ -230,7 +243,7 @@ threshold and the light was gone, while the screen (per pixel) still
 showed the glow. Now every texel counts, so the light follows the glowing
 area exactly (the coals narrowed to their hottest index: 2-7% of a
 triangle's texels, still three light triangles), and the share's floor keeps
-a narrow strip a usable light whose strength the light weight (up to 4)
+a narrow strip a usable light whose strength the light weight (up to 16)
 scales.
 
 The glows' existing budget (32 traced, per-piece strength, smoothing,
@@ -280,7 +293,7 @@ additive glows are left alone.
   *New entry for the picked texture*, or *Add the picked texture* to the
   selected entry (pick the other frames of an animated texture the same
   way). The entry's name, enabled, tint, strength, *Is a light* and its
-  weight, mask rects (typed, or drawn: drag on the texture view; Shift adds
+  weight, reach and lift, mask rects (typed, or drawn: drag on the texture view; Shift adds
   a rect), the CLUT index filter (typed, or *+ picked* adds the picked
   texel's index), the colour range filter, and *Only with the picked
   texture's palette*. The texture view draws the texels from VRAM with the
@@ -324,6 +337,106 @@ and Zebel's Walk (34/0, 35/0). No lava or glowing rune textures were found
 in room geometry (fires and the T067 magic circles are additive sprites,
 already glows). Candidates not yet in the catalog are listed in the
 session's report for review.
+
+## Glow sweep (2026-10-17)
+
+From `glow_scan.py`'s candidates (score 0.5 and up, each looked at: its
+texels, its palette, its rooms), the catalog gained:
+
+| Id | What | Where | Mask | Light |
+| --- | --- | --- | --- | --- |
+| E001 | + the green blocks' circle box (514db27fa4) | 9/5, 15/8, 22/6-7, 23/1-5, 24/2 | as before | 4, reach 320 |
+| E002 | + its two missing boxes (c49c06c6c9, 8ef3a82f44) | 34/0, 35/0, 36/0 | as before | 1; window lights |
+| E004 | + the bed's rims (the same image's 2-texel strips), the furnace mouth's embers (a8bab016c8) | 43-47 | as before | 1 |
+| E005 | + the green crates (2e24028557) | crate rooms | as before | 12, reach 250 |
+| E006 | glyph floor tiles of The Keep (eight glyphs, each its own colour) | 29/3-6 | indices 10-15 (the stroke ramp) | 14, reach 320, lift 48 |
+| E007 | workshop windows | 43/0, 45/0, 46/0 | index 15 (the pane) | window lights |
+| E008 | town house windows (Khazabas, Gilgitte) | 37/0, 38/0, 69/0 | 14-15 (pane, its lit edge) | window lights |
+| E009 | pierced stone friezes (Sanctum) | 15/0-6, 10-12, 16/0, 17/0, 62/0 | 12-15 (the holes) | 2 |
+| E010 | stained glass (Great Cathedral) | 24/0-14, 25/4, 57/0, 59/0, 63/0 | 2, 4-15 (the glass; 0, 1, 3 lead) | window lights |
+| E011 | stained glass lancets and their tops (zones 5-8) | 5/0-1, 6/0, 7/0, 8/0 | 4-15 | window lights |
+| E012 | Undercity street lantern panes (additive: already the lanterns' glows) | zone 48 | 9-12 | 0 (on screen, bloom) |
+| E013 | glass lamp shades | 68/0 | 9-15 | 6, reach 300 |
+
+Light weights: a glow's light is its texels' emission x the weight x
+their share of the surface (at least 0.25) x the room's `glow_light`
+(0.25), so the shipped 0.4-0.6 left only a level or two of colour on the
+floor. Measured on Vulkan (Ultra, 53/21 and 29/3, weight 0 against 8 and
+16 in the lighting-only view): the crates' cyan shows on the floor and
+the pillar beside them from about 8, the glyph's red pool on the floor
+and walls around its tile from about 8; 12 and 14 give a clear pool
+without washing out the floor. `light_reach` keeps the pool tight (250-
+320 against the room's 700) and `light_lift` 48 puts a floor glyph's
+light above its tile.
+
+Windows with a `rect_light` get no glow light (`light` 0: the rect
+light is their light), except E002, whose glow the user approved; the
+glass keeps its on-screen glow and bloom. The cathedral's tall windows
+were 42 glows in 24/6 alone (a 640-unit window splits into 160-unit
+pieces), more than the 32 traced.
+
+Left out: the sky and silhouette textures of 10/0 and 20/0 (backdrops,
+not windows); the "other" bucket; the additive flame sprites (torches,
+candles: already game glows, and an emissive mask only brightens the
+sprite) and the save points (additive, already the magic glow); textures
+the scan rated high that are not light sources: the Sanctum's pale brick
+walls (G804afc, Ge4bc0f), a fan-vault picture (G068100, 17/0), a shuttered
+window and a door (G159ffe, G8aeff1, 68/0), a brazier's holder
+(G6050a3), the ornamental trim with red gems of 19/0 and 70/0 (G84643d,
+G3b188f), a wall frame (Ga46967). E004's whole-bed box d3bb87d13c is
+drawn only below the floor of 43/0 (not seen) and the bed's own boxes
+already mark its VRAM.
+
+### Window lights
+
+`pc/tools/generate_lighting.py` reads the entries with `rect_light` and
+writes, per room, a rect light on each pane (`light gen.window_<entry>.<hash>`
+in the generated layer): the entry's polygons that are coplanar and
+touch are one pane, the light its bounding rectangle in the pane's plane
+(vertical side up), `offset` in front of the pane's front (-(e1 x e2), as
+the game draws it), facing into the room, in the mean colour of the
+pane's glowing texels (the mask's CLUT indices) x the tint. A room with
+more panes than `max_per_room` (6) gets one light per wall (the panes of
+one plane): OpenGL with ray-traced shadows keeps 16 lights, plain lights
+first. Regenerate after changing an entry (`--zone` its zones); the test
+`emissive_catalog` fails while a generated file is out of date.
+
+## Finding candidates (glow sweep)
+
+`pc/tools/glow_scan.py` lists every texture the rooms draw that may show
+light, for review before entries are written:
+
+```sh
+python3 pc/tools/glow_scan.py                       # every room on the disc (about 2 minutes)
+python3 pc/tools/glow_scan.py --zone 29 --zone 34   # some zones
+python3 pc/tools/glow_scan.py --collect live.json --card pc/build/test-card1.mcd  # objects: drives a game
+python3 pc/tools/glow_scan.py --live live.json      # ... merged into the list
+```
+
+It reads the rooms from your disc with `fixture_lib.py` (no game needed):
+each polygon's texture `key` (the catalog's), page, CLUT and box. A
+**variant** is a key with one palette (the catalog's `clut` hash); variants
+whose boxes overlap in one page and palette are one **candidate** (one
+image cut into several boxes: one entry's `match` list), with the rooms it
+is in and the same keys drawn with other palettes (colour variants). Each
+is scored from its texels (bright, saturated or pale texels on a darker
+ground, thin strokes with a coloured halo, warm ember ramps, pale panes),
+its polygons (floor or wall, additive) and the fixture it belongs to
+(`fixture_lib` clusters and the fixture catalog: flames, lantern panes,
+save point swirls), and put in one category: windows, glyphs, circles,
+fire, lamps, other. Tiles framed like a strong glyph (border luminance
+correlated) join the glyphs. Entries already in the catalog are marked.
+
+Objects (crates, props) are not room geometry: `--collect` launches the
+game at the `save_room` checkpoint, warps into every room (`room_goto`,
+enemies and scripts off), and notes RPC `emissive uses` with each
+texture's texels; `--live` adds the textures the disc scan did not see.
+
+Output goes to `pc/exports/glow_scan/` (`--out`): `candidates.json`,
+`sheet_<category>.png` contact sheets (crop, id, glow colour, rooms,
+score; green: curated), `crops/` and `index.html`. All of it is the
+game's imagery: local only, never committed (the tool refuses
+`pc/assets`).
 
 ## Cost
 
@@ -371,7 +484,19 @@ floor), the file holds those pixels and so does a reload; imported PNGs
 (grayscale, alpha-only) replace it, another size is refused; a map saved
 from outside is reloaded while the game runs; with a light weight the
 painted floor adds light triangles. `ui_settings_probe` checks the menu
-row.
+row. Light shape (glow sweep): no crate glow faces the floor (a crate's
+bottom lit only the floor under it and took a traced glow; object faces
+whose front points down are dropped); an entry's `light_reach` and
+`light_lift` set its glows' reach and move them out; the glyph tile of
+29/3 lights from 48 units over the floor with reach 320.
+
+`pc/tests/emissive_catalog_test.py` (run.py suite `emissive_catalog`, no
+game): every curated entry has textures, a mask, a tint and light
+settings in range; with the disc, no room's emissive light polygons make
+more than the 32 traced glows (grouped as glows.c groups them) or take a
+room past them, every light entry's texture is drawn somewhere (object
+textures listed), and the generated window lights are up to date, at most
+16 a room.
 
 ## Limits and next
 

@@ -33,7 +33,14 @@ and writes lighting/<pack>/generated/zoneZZ_roomRR.txt (lighting/README.md):
   leaning toward the room's own vertex light); roofed rooms get none;
 - the area's atmosphere mood (pc/assets/environment/atmosphere.json): "set
   haze_density" / "set haze_anisotropy" and a ground fog "env fog ..."
-  (Snowfly Forest, the Undercity, the town at night, other open rooms).
+  (Snowfly Forest, the Undercity, the town at night, other open rooms);
+- a rect light on every window pane of an emissive entry with "rect_light"
+  (pc/assets/emissive/catalog.json, pc/docs/Emissive.md "Window lights"):
+  "light gen.window_<entry>.<hash>" fitted to the pane's polygons (coplanar
+  polygons of the entry's textures that touch), facing into the room from
+  the pane's front, in the colour of the pane's glowing texels (its mask's
+  CLUT indices) times the entry's tint, with the entry's intensity, radius
+  and offset (what "Fit rect light to window" does in the editor).
 
 The type's parameters, light offset, fixture radius and glow treatment are
 not written: the game reads them from the catalog (pc/src/fixture_catalog.cpp)
@@ -47,9 +54,12 @@ lighting/<pack>/rooms/ (or the editor's user layer).
 import argparse
 import collections
 import hashlib
+import json
 import os
 import pathlib
 import sys
+
+import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fixture_lib as fl  # noqa: E402
@@ -133,10 +143,113 @@ def room_items(cat, r, stats):
     return items, notes
 
 
+EMISSIVE_CATALOG = ROOT / "pc/assets/emissive/catalog.json"
+
+
+def load_window_entries(path=EMISSIVE_CATALOG):
+    """The emissive entries that put rect lights on their panes."""
+    try:
+        entries = json.loads(pathlib.Path(path).read_text(encoding="utf-8")).get("entries", [])
+    except OSError:
+        return []
+    return [e for e in entries if e.get("enabled", True) and isinstance(e.get("rect_light"), dict)]
+
+
+def window_lights(entries, r, vram, stats):
+    """Rect lights fitted to the panes of window entries (load_window_entries) in room r."""
+    items = []
+    polys = r["polys"]
+    for e in entries:
+        rooms = (e.get("scope") or {}).get("rooms")
+        if rooms and [r["zone"], r["room"]] not in [list(x) for x in rooms]:
+            continue
+        keys = {m["key"] for m in e.get("match", [])}
+        idx = [i for i, p in enumerate(polys) if p["ikey"] in keys and fl.captured(p)]
+        if not idx:
+            continue
+        spec = e["rect_light"]
+        indices = set((e.get("mask") or {}).get("indices") or range(256))
+        # panes: coplanar polygons whose bounds touch (4 units)
+        uf = fl.UF(len(idx))
+        lo = [polys[i]["V"].min(0) - 4 for i in idx]
+        hi = [polys[i]["V"].max(0) + 4 for i in idx]
+        for a in range(len(idx)):
+            na = polys[idx[a]]["normal"]
+            for b in range(a + 1, len(idx)):
+                nb = polys[idx[b]]["normal"]
+                if float(np.dot(na, nb)) < 0.95:
+                    continue
+                if abs(float(np.dot(na, polys[idx[b]]["V"][0] - polys[idx[a]]["V"][0]))) > 4:
+                    continue
+                if np.all(lo[a] <= hi[b]) and np.all(lo[b] <= hi[a]):
+                    uf.u(a, b)
+        panes = collections.defaultdict(list)
+        for a in range(len(idx)):
+            panes[uf.f(a)].append(idx[a])
+        panes = sorted(panes.values(), key=lambda m: min(polys[i]["off"] for i in m))
+        # More panes than the entry's max_per_room (a hall of tall windows): the panes of one wall (the
+        # same plane) become one light along it, so the room stays inside the lights' budgets (OpenGL
+        # with ray-traced shadows keeps 16, plain lights first).
+        if len(panes) > spec.get("max_per_room", 6):
+            walls = collections.OrderedDict()
+            for m in panes:
+                nrm = -polys[m[0]]["normal"]
+                plane = (tuple(int(round(float(x))) for x in nrm),
+                         int(round(float(np.dot(nrm, polys[m[0]]["V"][0])) / 16)))
+                walls.setdefault(plane, []).extend(m)
+            panes = list(walls.values())
+            stats["window_walls"] += 1
+        for members in panes:
+            pts = np.concatenate([polys[i]["V"] for i in members])
+            area = sum(polys[i]["area"] for i in members)
+            n = -sum(polys[i]["normal"] * polys[i]["area"] for i in members)  # the front: -(e1 x e2)
+            n = n / (np.linalg.norm(n) + 1e-9)
+            up = np.array([0.0, -1.0, 0.0]) if abs(n[1]) < 0.7 else np.array([0.0, 0.0, 1.0])
+            up = up - n * float(np.dot(up, n))
+            up /= np.linalg.norm(up) + 1e-9
+            right = np.cross(up, n)
+            u, v = pts @ right, pts @ up
+            if area < spec.get("min_area", 64) or u.max() - u.min() < 2 or v.max() - v.min() < 2:
+                continue
+            centre = pts.mean(0)
+            centre = centre + right * ((u.max() + u.min()) / 2 - float(centre @ right)) \
+                + up * ((v.max() + v.min()) / 2 - float(centre @ up))
+            # the pane's colour: its glowing texels' mean (the mask's CLUT indices), x the tint
+            rgb, count = np.zeros(3), 0
+            for i in members:
+                p = polys[i]
+                us, vs = p["uv"][:, 0], p["uv"][:, 1]
+                gu, gv = np.meshgrid(np.arange(us.min(), us.max() + 1), np.arange(vs.min(), vs.max() + 1))
+                t, ii = fl.texel(vram, gu, gv, p["tpage"], p["clut"])
+                ok = np.isin(ii, list(indices)) & (t != 0)
+                if ok.any():
+                    rgb += fl.rgb15(t[ok]).sum(0)
+                    count += int(ok.sum())
+            rgb = rgb / count if count else np.ones(3)
+            rgb = rgb * np.array(e.get("color", [1, 1, 1]), float)
+            rgb = rgb / max(float(rgb.max()), 1e-6)
+            pos = centre + n * spec.get("offset", 2)
+            first = min(polys[i]["off"] for i in members)
+            item_id = lf.generated_id("light", f"window_{e['id']}", r["zone"], r["room"], first)
+            fields = [("name", f"Window light {e['id']}"), ("type", "rect"), ("pos", vec(pos)),
+                      ("dir", ",".join(lf.format_number(float(x), 4) for x in n)),
+                      ("color", ",".join(lf.format_number(float(x), 3) for x in rgb)),
+                      ("intensity", lf.format_number(float(spec.get("intensity", 1)), 3)),
+                      ("radius", lf.format_number(float(spec.get("radius", 600)), 1)),
+                      ("size", vec([max(u.max() - u.min(), 8), max(v.max() - v.min(), 8)])),
+                      ("shadows", "1" if spec.get("shadows", 1) else "0")]
+            items.append(lf.Item("light", item_id.split(":", 1)[1], fields))
+            stats["windows"] += 1
+    return items
+
+
 def room_text(zone, room, items):
     entries = [lf.Entry("define", it.id, item=it) for it in items]
     comment = (f"zone {zone} room {room}: generated by pc/tools/generate_lighting.py from "
                "pc/assets/fixtures/catalog.json; do not edit (override by id in rooms/)")
+    if any(it.id.startswith("light:gen.window_") for it in items):
+        comment += "; window lights from pc/assets/emissive/catalog.json"
+
     return lf.format_file(entries, comment)
 
 
@@ -150,6 +263,7 @@ def zone_rooms(task):
     out = []
     review = outdoor.load_review()
     moods = outdoor.load_atmosphere()
+    windows = load_window_entries()
     try:
         vram, rooms = fl.zone_vram(disc, zone)
     except (OSError, KeyError, ValueError, IndexError):
@@ -159,6 +273,7 @@ def zone_rooms(task):
             continue
         r = fl.load_room(disc, zone, room, vram, name)
         items, notes = room_items(cat, r, stats)
+        items += window_lights(windows, r, vram, stats)
         # Open to the sky: the room's moon and sky (outdoor.py).
         m = outdoor.measure(r)
         is_outdoor, _ = outdoor.decide(m, zone, room, review)
@@ -238,7 +353,7 @@ def main():
           f"{stats['actors']} actors ({stats['on']} on, {stats['off']} off by default; {stats['linked']} linked to "
           f"a game glow); {stats['glows']} glows typed ({stats['suppressed']} suppressed); "
           f"{stats['outdoor']} rooms open to the sky (env sun, env sky); {stats['hazed']} with an area haze, "
-          f"{stats['fog']} with a ground fog (env fog)")
+          f"{stats['fog']} with a ground fog (env fog); {stats['windows']} window lights")
     if by_type and not args.quiet:
         print(f"actors by type: {by_type}")
     if args.dry_run or args.check:

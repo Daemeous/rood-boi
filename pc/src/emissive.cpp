@@ -267,6 +267,8 @@ bool entry_from_json(const Json& j, Entry& e, std::string* error)
     numbers(j.get("color"), e.color, 3);
     e.strength = num("strength", 1.0f);
     e.light = num("light", 0.0f);
+    e.light_reach = num("light_reach", 0.0f);
+    e.light_lift = num("light_lift", 0.0f);
     if (const Json* ms = j.get("match"); ms && ms->type == Json::Array)
         for (const Json& mj : ms->items) {
             if (mj.type != Json::Object)
@@ -465,6 +467,10 @@ Json entry_to_json(const Entry& e)
     j.set("color", array_of({ tidy(e.color[0]), tidy(e.color[1]), tidy(e.color[2]) }));
     j.set("strength", Json::num(tidy(e.strength)));
     j.set("light", Json::num(tidy(e.light)));
+    if (e.light_reach > 0)
+        j.set("light_reach", Json::num(tidy(e.light_reach)));
+    if (e.light_lift > 0)
+        j.set("light_lift", Json::num(tidy(e.light_lift)));
     if (!e.enabled)
         j.set("enabled", Json::boolean_(false));
     if (!e.review.empty())
@@ -1415,6 +1421,8 @@ static TriangleLight integrate(const float uv[6], unsigned tpage, unsigned clut,
         if (e.light <= 0 || !e.enabled || !allowed(e))
             return;
         out.candidate = true;
+        out.reach = std::max(out.reach, e.light_reach);
+        out.lift = std::max(out.lift, e.light_lift);
         float rgb[3];
         if (emission && emission_at((unsigned)x, (unsigned)y, tpage, clut, s, rgb)) {
             for (int k = 0; k < 3; k++)
@@ -1466,6 +1474,7 @@ struct ObjectLight {
     uint32_t tiles;
     float rgb[3];
     bool lit;
+    float reach, lift; /* its entries' light_reach, light_lift */
 };
 std::unordered_map<ObjectKey, ObjectLight, ObjectKeyHash> object_cache;
 uint32_t object_cache_map;
@@ -1479,6 +1488,7 @@ struct RoomLight {
     float rgb[3];
     int texels; /* its texels, and the glowing share's amount */
     float amount;
+    float reach, lift; /* its entries' light_reach, light_lift */
 };
 int lights_scene = -1, lights_uv = -1;
 uint32_t lights_map = 0, lights_serial = 1;
@@ -1527,14 +1537,17 @@ void refresh_lights()
             continue; /* additive: a glow already */
         float uv[6];
         scene_uv(t, uv);
-        if (!integrate(uv, t->tpage, t->clut, false, [&](const Entry& e) { return room_allows(t, e); }).candidate)
+        TriangleLight tl = integrate(uv, t->tpage, t->clut, false, [&](const Entry& e) { return room_allows(t, e); });
+        if (!tl.candidate)
             continue;
         light_at[(size_t)i] = (int)found.size();
-        found.push_back({ i, triangle_tiles(uv, t->tpage, t->clut), false, { 0, 0, 0 }, 0, 0 });
+        found.push_back({ i, triangle_tiles(uv, t->tpage, t->clut), false, { 0, 0, 0 }, 0, 0, tl.reach, tl.lift });
     }
+    /* Another set of light triangles, or another lift (glows.c puts its
+     * groups' centres in front of them): the groups again. */
     bool same = found.size() == room_lights.size();
     for (size_t k = 0; same && k < found.size(); k++)
-        same = found[k].index == room_lights[k].index;
+        same = found[k].index == room_lights[k].index && found[k].lift == room_lights[k].lift;
     room_lights.swap(found);
     if (!same)
         ++lights_serial;
@@ -1545,6 +1558,18 @@ extern "C" uint32_t pc_emissive_light_serial(void)
 {
     refresh_lights();
     return room_lights.empty() ? 0 : lights_serial;
+}
+extern "C" int pc_emissive_room_light_shape(int index, float* reach, float* lift)
+{
+    refresh_lights();
+    if (index < 0 || index >= (int)light_at.size() || light_at[(size_t)index] < 0)
+        return 0;
+    const RoomLight& l = room_lights[(size_t)light_at[(size_t)index]];
+    if (reach)
+        *reach = l.reach;
+    if (lift)
+        *lift = l.lift;
+    return 1;
 }
 extern "C" int pc_emissive_room_light(int index, float rgb[3])
 {
@@ -1680,29 +1705,39 @@ void object_sink(void* context, const float w[9], const uint8_t* /*rgb*/, const 
         ObjectLight l;
         l.tiles = triangle_tiles(fuv, tpage, clut);
         l.lit = tl.amount > 0;
+        l.reach = tl.reach, l.lift = tl.lift;
         light_rgb(tl, l.rgb);
         found = object_cache.emplace(key, l).first;
     }
     if (!found->second.lit)
         return;
-    pc_glow_fragment* f = &s->out[s->n++];
     float e1[3], e2[3], c[3];
-    for (int k = 0; k < 3; k++) {
+    for (int k = 0; k < 3; k++)
         e1[k] = w[3 + k] - w[k], e2[k] = w[6 + k] - w[k];
+    c[0] = e1[1] * e2[2] - e1[2] * e2[1], c[1] = e1[2] * e2[0] - e1[0] * e2[2], c[2] = e1[0] * e2[1] - e1[1] * e2[0];
+    float len = sqrtf(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
+    const render_polygon* poly = render_emit_polygon();
+    bool sided = len > 1e-6f && !(poly && (poly->flags & RENDER_POLY_DOUBLE_SIDED));
+    /* A face turned to the floor (a crate's bottom: its outward normal
+     * -(e1 x e2) mostly down, +y) lights nothing but the floor under it,
+     * and would take one of the 32 traced glows. */
+    if (sided && -c[1] / len > 0.7f)
+        return;
+    pc_glow_fragment* f = &s->out[s->n++];
+    for (int k = 0; k < 3; k++) {
         f->p[k] = (w[k] + w[3 + k] + w[6 + k]) / 3.0f;
         f->rgb[k] = found->second.rgb[k];
     }
-    c[0] = e1[1] * e2[2] - e1[2] * e2[1], c[1] = e1[2] * e2[0] - e1[0] * e2[2], c[2] = e1[0] * e2[1] - e1[1] * e2[0];
-    float len = sqrtf(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
     f->area = 0.5f * len;
+    f->reach = found->second.reach;
     f->weight = f->area * (0.299f * f->rgb[0] + 0.587f * f->rgb[1] + 0.114f * f->rgb[2]);
     /* In front of its surface, one glow per side it faces. A glow is a
      * sphere at its triangles' mean position, and an object is solid (a
      * caster in the tracers' scene): the faces of a glowing crate averaged
      * to a point inside it, every shadow ray to it hit the crate and its
      * light was gone (and the baked light around it darkened: its shadow
-     * rays were blocked too). The light now sits pc_glow_emissive_lift out of
-     * the face along its front (objects are single sided: the front is
+     * rays were blocked too). The light now sits pc_glow_emissive_lift (or
+     * the entry's light_lift) out of the face along its front (objects are single sided: the front is
      * where NCLIP > 0, render.h, det(p0, p1, p2) > 0 from the camera, so
      * the outward normal is -(e1 x e2)), and each of the six directions it
      * may face is its own source (the faces of a box no longer average back
@@ -1711,14 +1746,14 @@ void object_sink(void* context, const float w[9], const uint8_t* /*rgb*/, const 
      * an emissive light (PC_GLOW_EMISSIVE): the room's baked light never
      * came from it, so it casts no shadows of that light (the crates in
      * the middle of the room darkened the floor around them). */
-    const render_polygon* poly = render_emit_polygon();
     unsigned side = 0;
-    if (len > 1e-6f && !(poly && (poly->flags & RENDER_POLY_DOUBLE_SIDED))) {
+    if (sided) {
         float n[3] = { -c[0] / len, -c[1] / len, -c[2] / len };
         int axis = fabsf(n[0]) >= fabsf(n[1]) && fabsf(n[0]) >= fabsf(n[2]) ? 0 : fabsf(n[1]) >= fabsf(n[2]) ? 1 : 2;
         side = 1 + (unsigned)axis * 2 + (n[axis] < 0);
+        float lift = found->second.lift > 0 ? found->second.lift : pc_glow_emissive_lift; /* the entry's, else the room's */
         for (int k = 0; k < 3; k++)
-            f->p[k] += n[k] * pc_glow_emissive_lift;
+            f->p[k] += n[k] * lift;
     }
     f->source = (uint32_t)PC_GLOW_ORIGIN_OBJECT << 28 | PC_GLOW_EMISSIVE | side << PC_GLOW_SIDE_SHIFT
         | ((mesh * 0x9e3779b1u) & ((1u << PC_GLOW_SIDE_SHIFT) - 1));

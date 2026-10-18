@@ -1,0 +1,10 @@
+{
+  "title": "Anamorphic",
+  "description": "A 100 mm anamorphic look: tall oval bokeh with rims, a colour fringe and cat's-eye edges.",
+  "values": {
+    "dof": 1, "dof_model": "physical", "dof_focus": "ashley", "dof_focus_speed": 0.15,
+    "dof_focal_length": 100, "dof_fstop": 2, "dof_max_blur": 14, "dof_near_blur": 0.6,
+    "bokeh_blades": 0, "bokeh_squeeze": 1.8, "bokeh_edge": "rim", "bokeh_edge_amount": 0.5,
+    "bokeh_fringe": 0.25, "bokeh_cats_eye": 0.5, "bokeh_highlights": 1
+  }
+}
