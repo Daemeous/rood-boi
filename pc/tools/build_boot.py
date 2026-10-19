@@ -401,7 +401,7 @@ STATE_HOST_UNITS = {"runtime", "cd_drive", "mdec", "xa_audio", "audio_libspu", "
 # skip), the audio output and the software SPU (spu_*: the audio thread never
 # runs library code), and the library's loader. Every other unit is the
 # engine library's (pc/docs/plans/2026-10-19-engine-reload.md).
-HOST_UNITS = STATE_HOST_UNITS | {"snapshot", "state_diff", "state_rewind", "shadow", "overlay_statics", "ownership", "routing",
+HOST_UNITS = STATE_HOST_UNITS | {"snapshot", "state_diff", "state_rewind", "savestate_slots", "shadow", "overlay_statics", "ownership", "routing",
                                  "memory_card", "input_record", "charge_skip", "audio_output", "engine_host", "render_state"}
 engine_units = {}  # --engine-library: object -> its compile command (position-independent)
 host_units = {}  # --engine-library: the host's other compiled units -> command (engine_lib.py reads their headers)
@@ -448,8 +448,10 @@ def state_sections(obj):
     restores whole. For the game's own units and the host units whose statics
     are game state (the SDK layer, CPU rasterizer and VRAM, GTE, CD drive,
     MDEC, XA, the libspu layer). Variables placed in .data.rood_host (host
-    configuration read from the environment) stay out. The Windows twins keep
-    their sections (no save states there)."""
+    configuration read from the environment) stay out. The Windows twin (when
+    it is built already) gets state_sections_coff's renames."""
+    if win:
+        state_sections_coff(obj)
     if coff:
         return
     renames = []
@@ -461,14 +463,39 @@ def state_sections(obj):
         run(["objcopy", *renames, str(obj)])
 
 
+def state_sections_coff(obj):
+    """state_sections for a COFF twin: MinGW's GCC puts each static (the
+    zero-initialised ones too) in .data$<name>; they all become
+    .data$rood.state.m, which ld's grouped-section sort places between
+    snapshot.c's zero-length markers .data$rood.state.a and .z (a C name
+    cannot hold the dots). .data.rood_host and the overlays' own
+    .data$rood_ovl_ sections stay as they are."""
+    path = twin(obj)
+    if not path.exists():
+        return
+    renames = []
+    headers = query([MINGW + "objdump", "-h", str(path)])
+    for section, kind, size in re.findall(r"^\s*\d+\s+(\.(data|bss)(?:\$\S+)?)\s+([0-9a-f]+)\s", headers, re.M):
+        if not int(size, 16) or section.startswith(".data$rood_ovl_"):
+            continue
+        if kind == "bss":
+            # The default PE script does not sort .bss$ sections; no marker brackets them.
+            raise RuntimeError(f"{path.name}: game state in {section} (expected .data$)")
+        renames.append(f"--rename-section={section}=.data$rood.state.m")
+    if renames:
+        run([MINGW + "objcopy", *renames, str(path)])
+
+
+
+
 def compile_generated(args):
     """A generated table (game data: saved with the game state): both
     objects must build."""
     if not coff:
         run(args)
-        state_sections(args[args.index("-o") + 1])
     if win:
         run(win_command(args))
+    state_sections(args[args.index("-o") + 1])
 
 
 # Owned code: ELF objects and, for Windows, COFF twins from the same source.
@@ -1149,7 +1176,7 @@ for name in ["runtime", "window", "controller", "gamepad"]:
             and name in STATE_HOST_UNITS:
         state_sections(obj)
     objects.append(obj)
-for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "charge_skip", "camera_stick", "gl_present", "gpu_hw", "render", "render_state", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "shadow", "frame_cost", "display_confirm", "ui/option_actions", "ui/options_nav", "ui/option_style", "host_format"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
+for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "charge_skip", "camera_stick", "gl_present", "gpu_hw", "render", "render_state", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "savestate_slots", "shadow", "frame_cost", "display_confirm", "ui/option_actions", "ui/options_nav", "ui/option_style", "host_format"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
         + (["engine_host", "engine_reload"] if engine_library else []):
     obj = out / (name.replace("/", "_") + ".o")
     # ui_text rasterizes fonts with the stb_truetype that Dear ImGui vendors.
@@ -2049,6 +2076,7 @@ def lp64_native_imports():
         win_source = out / "native_imports_win.c"
         win_source.write_text(text)
         run(win_command(["gcc", *flags, "-c", str(win_source), "-o", str(obj)]))
+        state_sections_coff(obj)
     objects.append(obj)
     print(f"LP64: {len(moved)} pointer-bearing data imports defined natively in {len(regions)} regions")
     return moved

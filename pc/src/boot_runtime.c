@@ -398,26 +398,50 @@ static LONG WINAPI pc_exception(EXCEPTION_POINTERS* info)
     _exit(3);
 }
 /* Reserved in main before the window: graphics drivers reserve much of the
- * address space below 2 GB when they load. */
-static char* game_stack;
+ * address space below 2 GB when they load. At Linux's fixed address when it
+ * is free: a save state (snapshot.c) holds the game's stack and resumes it in
+ * a new process, where every saved frame pointer and return address must mean
+ * the same; elsewhere (taken) only resuming in a new process is lost. Host
+ * statics (.data.rood_host): a snapshot of this unit's state must not carry
+ * another process's. */
+#define GAME_STACK_BASE 0x60000000u
+static char* game_stack __attribute__((section(".data.rood_host"))) = NULL;
+static int game_stack_fixed __attribute__((section(".data.rood_host"))) = 0;
 static const size_t game_stack_size = 64u << 20;
 static int reserve_game_stack(void)
 {
+    game_stack = VirtualAlloc((void*)(uintptr_t)GAME_STACK_BASE, game_stack_size, MEM_RESERVE | MEM_COMMIT,
+        PAGE_READWRITE);
+    game_stack_fixed = game_stack == (char*)(uintptr_t)GAME_STACK_BASE;
+    if (!game_stack_fixed)
+        fprintf(stderr, "[snapshot] game stack: 0x%x is taken; save states load only in this session\n",
+            GAME_STACK_BASE);
     for (uintptr_t at = 0x02000000; !game_stack && at + game_stack_size <= 0x7f000000; at += 1u << 20)
         game_stack = VirtualAlloc((void*)at, game_stack_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     return game_stack != NULL;
 }
+/* snapshot.c: the stack's range. Unlike Linux, a stack elsewhere still saves
+ * and loads in this process; a file made there names its address, which a
+ * new process (at another address) refuses as a range it does not have. */
+char* pc_game_stack(size_t* size)
+{
+    *size = game_stack_size;
+    return game_stack;
+}
+/* Stack bounds in the thread information block, for code that checks them
+ * (exception dispatch, drivers): the game stack's, while it runs. */
+void pc_game_stack_entered(void)
+{
+    NT_TIB* tib = (NT_TIB*)NtCurrentTeb();
+    tib->StackBase = game_stack + game_stack_size;
+    tib->StackLimit = game_stack;
+}
 static void run_game_on_low_stack(void)
 {
-    size_t size = game_stack_size;
-    char* stack = game_stack;
-    /* Stack bounds in the thread information block, for code that checks
-     * them (exception dispatch, drivers). */
     NT_TIB* tib = (NT_TIB*)NtCurrentTeb();
     void *base = tib->StackBase, *limit = tib->StackLimit;
-    tib->StackBase = stack + size;
-    tib->StackLimit = stack;
-    rood_call_on_stack(stack + size - 64, vs_main_exec);
+    pc_game_stack_entered();
+    rood_call_on_stack(game_stack + game_stack_size - 64, vs_main_exec);
     tib->StackBase = base;
     tib->StackLimit = limit;
 }
@@ -467,6 +491,7 @@ char* pc_game_stack(size_t* size)
     *size = GAME_STACK_SIZE;
     return game_stack_fixed ? game_stack : NULL;
 }
+void pc_game_stack_entered(void) { } /* Windows keeps stack bounds per thread */
 static void run_game_on_low_stack(void)
 {
     getcontext(&game_context);

@@ -35,8 +35,19 @@
  * resumes it. Its keys (snapshot_key.c) are the game's code before linking
  * and the state layout; a snapshot whose keys differ is refused, saying
  * which. A build without them (32 bits) resumes only snapshots of the same
- * binary (a hash of its code). Linux only; elsewhere the RPC reports it
+ * binary (a hash of its code), as does Windows (64 bits: no pinned layout
+ * there yet). Linux and Windows on x86; elsewhere the RPC reports it
  * unavailable.
+ *
+ * Windows (x64): the boundary also saves rdi, rsi and xmm6-xmm15 (callee-saved
+ * there); the game stack is fixed at the same address as on Linux
+ * (boot_runtime.c); the state sections are the grouped .data$rood.state.m
+ * between the zero-length markers below (build_boot.py); MinGW builds no
+ * stack protector, so there is no canary; the log is not carried over.
+ *
+ * pc_snapshot_load_now (the player's Load state, savestate_slots.c) resumes a
+ * file in this process instead: the in-process rewind's way (state_rewind.c),
+ * from the file's contents.
  *
  * ROOD_SNAPSHOT=path resumes, or exits with the reason (tests);
  * ROOD_RESUME=path (1: the auto-snapshot) resumes when the file is valid for
@@ -46,6 +57,7 @@
  * {action:"autosave"} and RPC restart (dev_rpc.c). */
 #define _GNU_SOURCE
 #include "platform.h" /* pc_replace_file */
+#include "snapshot_context.h"
 #include "state_diff.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -61,15 +73,19 @@
 extern unsigned pc_vsync_count(void);
 extern void pc_tick(void); /* boot_runtime.c */
 
-#if defined(_WIN32) || !(defined(__i386__) || defined(__x86_64__))
+#if !(defined(__i386__) || defined(__x86_64__)) || (defined(_WIN32) && !defined(__x86_64__))
 void pc_vsync_boundary(void) { pc_tick(); }
 int pc_state_ranges(pc_state_range* out, int max) { (void)out; (void)max; return 0; }
 int pc_snapshot_available(void) { return 0; }
 int pc_snapshot_point(const char* path, char* error, int size)
 {
     (void)path;
-    snprintf(error, (size_t)size, "save states need Linux on x86");
+    snprintf(error, (size_t)size, "save states need x86 (Linux or 64-bit Windows)");
     return -1;
+}
+int pc_snapshot_load_now(const char* path, char* error, int size)
+{
+    return pc_snapshot_point(path, error, size);
 }
 void pc_snapshot_resume_if_requested(void) { }
 int pc_snapshot_hash(char* out, int size)
@@ -81,7 +97,7 @@ const char* pc_snapshot_autosave_path(void) { return NULL; }
 int pc_snapshot_check(const char* path, char* why, int size)
 {
     (void)path;
-    snprintf(why, (size_t)size, "save states need Linux on x86");
+    snprintf(why, (size_t)size, "save states need x86 (Linux or 64-bit Windows)");
     return 0;
 }
 void pc_snapshot_restart(const char* path, int paused)
@@ -91,15 +107,7 @@ void pc_snapshot_restart(const char* path, int paused)
 }
 #else
 
-/* ---- register context: setjmp/longjmp without glibc's pointer mangling
- * (a mangled jmp_buf only works in the process that made it) ---- */
-typedef struct {
-    uintptr_t regs[8]; /* x86_64: rbx rbp r12 r13 r14 r15 rsp rip; i386: ebx esi edi ebp esp eip */
-    uint32_t mxcsr;
-    uint16_t fpu_cw;
-} snap_context;
-#define CTX_SP(c) ((c)->regs[sizeof(void*) == 8 ? 6 : 4])
-#define CTX_IP(c) ((c)->regs[sizeof(void*) == 8 ? 7 : 5])
+/* ---- register context (snapshot_context.h) ---- */
 /* The game side of the current vsync's boundary: its callee-saved registers,
  * the stack pointer at the call (pointing at the return address) and that
  * return address (into pc_vblank_wait). */
@@ -108,7 +116,70 @@ void pc_vsync_boundary(void);
 /* Load the registers of `c` and jump to `fn` with the stack pointer at the
  * boundary's: fn runs as if the game had just called it there. */
 __attribute__((noreturn)) void pc_snap_enter(const snap_context* c, void (*fn)(void));
-#ifdef __x86_64__
+#ifdef _WIN32
+/* Windows x64 (Microsoft ABI): c in rcx, fn in rdx. The caller's register
+ * home area (32 bytes above the return address) is the game's frame, saved
+ * with its stack. */
+__asm__(".text\n"
+        ".globl pc_vsync_boundary\n"
+        ".def pc_vsync_boundary; .scl 2; .type 32; .endef\n"
+        "pc_vsync_boundary:\n"
+        "    leaq pc_snap_boundary(%rip), %rax\n"
+        "    movq %rbx, 0(%rax)\n"
+        "    movq %rbp, 8(%rax)\n"
+        "    movq %rdi, 16(%rax)\n"
+        "    movq %rsi, 24(%rax)\n"
+        "    movq %r12, 32(%rax)\n"
+        "    movq %r13, 40(%rax)\n"
+        "    movq %r14, 48(%rax)\n"
+        "    movq %r15, 56(%rax)\n"
+        "    movq %rsp, 64(%rax)\n"
+        "    movq (%rsp), %rdx\n"
+        "    movq %rdx, 72(%rax)\n"
+        "    stmxcsr 80(%rax)\n"
+        "    fnstcw 84(%rax)\n"
+        "    movdqu %xmm6, 96(%rax)\n"
+        "    movdqu %xmm7, 112(%rax)\n"
+        "    movdqu %xmm8, 128(%rax)\n"
+        "    movdqu %xmm9, 144(%rax)\n"
+        "    movdqu %xmm10, 160(%rax)\n"
+        "    movdqu %xmm11, 176(%rax)\n"
+        "    movdqu %xmm12, 192(%rax)\n"
+        "    movdqu %xmm13, 208(%rax)\n"
+        "    movdqu %xmm14, 224(%rax)\n"
+        "    movdqu %xmm15, 240(%rax)\n"
+        "    jmp pc_tick\n"
+        ".globl pc_snap_enter\n"
+        ".def pc_snap_enter; .scl 2; .type 32; .endef\n"
+        "pc_snap_enter:\n"
+        "    ldmxcsr 80(%rcx)\n"
+        "    fldcw 84(%rcx)\n"
+        "    movdqu 96(%rcx), %xmm6\n"
+        "    movdqu 112(%rcx), %xmm7\n"
+        "    movdqu 128(%rcx), %xmm8\n"
+        "    movdqu 144(%rcx), %xmm9\n"
+        "    movdqu 160(%rcx), %xmm10\n"
+        "    movdqu 176(%rcx), %xmm11\n"
+        "    movdqu 192(%rcx), %xmm12\n"
+        "    movdqu 208(%rcx), %xmm13\n"
+        "    movdqu 224(%rcx), %xmm14\n"
+        "    movdqu 240(%rcx), %xmm15\n"
+        "    movq 0(%rcx), %rbx\n"
+        "    movq 8(%rcx), %rbp\n"
+        "    movq 16(%rcx), %rdi\n"
+        "    movq 24(%rcx), %rsi\n"
+        "    movq 32(%rcx), %r12\n"
+        "    movq 40(%rcx), %r13\n"
+        "    movq 48(%rcx), %r14\n"
+        "    movq 56(%rcx), %r15\n"
+        "    movq 64(%rcx), %rsp\n"
+        "    jmpq *%rdx\n");
+_Static_assert(__builtin_offsetof(snap_context, mxcsr) == 80 && __builtin_offsetof(snap_context, xmm) == 96,
+    "the boundary's offsets");
+/* MinGW-w64 builds no stack protector (no canary to carry). */
+static uintptr_t read_canary(void) { return 0; }
+static void write_canary(uintptr_t v) { (void)v; }
+#elif defined(__x86_64__)
 __asm__(".text\n"
         ".globl pc_vsync_boundary\n"
         ".type pc_vsync_boundary, @function\n"
@@ -187,10 +258,58 @@ static uintptr_t read_canary(void)
 static void write_canary(uintptr_t v) { __asm__ volatile("movl %0, %%gs:0x14" : : "r"(v) : "memory"); }
 #endif
 
+/* Call fn with the stack pointer at `top` (aligned down); fn does not return
+ * (state_rewind.c's restore and the in-process load run there). */
+__attribute__((noreturn)) void pc_snap_call_on_stack(void* top, void (*fn)(void));
+#ifdef _WIN32
+__asm__(".text\n.globl pc_snap_call_on_stack\n.def pc_snap_call_on_stack; .scl 2; .type 32; .endef\n"
+        "pc_snap_call_on_stack:\n movq %rcx,%rsp\n andq $-16,%rsp\n subq $32,%rsp\n callq *%rdx\n ud2\n");
+#elif defined(__x86_64__)
+__asm__(".text\n.globl pc_snap_call_on_stack\n.type pc_snap_call_on_stack,@function\n"
+        "pc_snap_call_on_stack:\n movq %rdi,%rsp\n andq $-16,%rsp\n callq *%rsi\n ud2\n"
+        ".size pc_snap_call_on_stack,.-pc_snap_call_on_stack\n");
+#else
+__asm__(".text\n.globl pc_snap_call_on_stack\n.type pc_snap_call_on_stack,@function\n"
+        "pc_snap_call_on_stack:\n movl 4(%esp),%eax\n movl 8(%esp),%ecx\n"
+        " movl %eax,%esp\n andl $-16,%esp\n calll *%ecx\n ud2\n"
+        ".size pc_snap_call_on_stack,.-pc_snap_call_on_stack\n");
+#endif
+
 /* ---- what is saved ---- */
+#ifdef _WIN32
+/* PE has no __start_/__stop_ section symbols: ld sorts the grouped .data$
+ * sections by name, so these zero-length markers bracket the state units'
+ * statics (build_boot.py renames them all .data$rood.state.m; MinGW's GCC
+ * puts zero-initialised statics in .data$ too, so there is no state .bss). */
+__attribute__((section(".data$rood.state.a"))) char __start_rood_state_data[0];
+__attribute__((section(".data$rood.state.z"))) char __stop_rood_state_data[0];
+static char* const __start_rood_state_bss = NULL;
+static char* const __stop_rood_state_bss = NULL;
+/* The code a snapshot must match: the image's .text (no pinned layout). */
+extern char __ImageBase[];
+static const char* text_range(size_t* size)
+{
+    const IMAGE_DOS_HEADER* dos = (const IMAGE_DOS_HEADER*)__ImageBase;
+    const IMAGE_NT_HEADERS* nt = (const IMAGE_NT_HEADERS*)(__ImageBase + dos->e_lfanew);
+    const IMAGE_SECTION_HEADER* s = IMAGE_FIRST_SECTION(nt);
+    for (int i = 0; i < nt->FileHeader.NumberOfSections; i++, s++)
+        if (!memcmp(s->Name, ".text", 6)) {
+            *size = s->Misc.VirtualSize;
+            return __ImageBase + s->VirtualAddress;
+        }
+    *size = 0;
+    return __ImageBase;
+}
+#else
 extern char __start_rood_state_data[] __attribute__((weak)), __stop_rood_state_data[] __attribute__((weak));
 extern char __start_rood_state_bss[] __attribute__((weak)), __stop_rood_state_bss[] __attribute__((weak));
 extern char __executable_start[], etext[];
+static const char* text_range(size_t* size)
+{
+    *size = (size_t)(etext - __executable_start);
+    return __executable_start;
+}
+#endif
 /* snapshot_key.c (build_boot.py, 64 bits): the game's code and state layout. */
 extern const unsigned long long pc_snapshot_code_key __attribute__((weak));
 extern const unsigned long long pc_snapshot_layout_key __attribute__((weak));
@@ -201,6 +320,8 @@ struct pc_overlay_statics {
 extern const struct pc_overlay_statics pc_overlay_statics[] __attribute__((weak));
 extern const int pc_overlay_statics_count __attribute__((weak));
 extern char* pc_game_stack(size_t* size); /* boot_runtime.c */
+extern void pc_game_stack_entered(void);  /* boot_runtime.c: Windows' stack bounds for it */
+extern void pc_input_rewound(void) __attribute__((weak)); /* input_record.c */
 extern void pc_tick_resumed(void);        /* boot_runtime.c: the rest of a resumed vsync */
 extern const uint16_t* pc_native_vram(void);
 /* Subsystems with state outside those ranges (weak: absent in some builds). */
@@ -213,6 +334,7 @@ extern int pc_fog_state_size(void) __attribute__((weak));
 extern void pc_fog_state_save(void* out) __attribute__((weak));
 extern int pc_fog_state_load(const void* in, int size) __attribute__((weak));
 extern void pc_cd_restored(void) __attribute__((weak));   /* cd_drive.c: reopen the disc */
+extern void pc_cd_release(void) __attribute__((weak));    /* cd_drive.c: close it before a load */
 extern void pc_hw_resync(void) __attribute__((weak));     /* gpu_hw.c: the target from native VRAM */
 extern void pc_rpc_restored(void) __attribute__((weak));  /* dev_rpc.c: listen, paused */
 extern void pc_rpc_set_paused(int value) __attribute__((weak));
@@ -286,8 +408,11 @@ static uint64_t code_key(void)
     if (&pc_snapshot_code_key)
         return pc_snapshot_code_key;
     static uint64_t whole;
-    if (!whole)
-        whole = fnv(__executable_start, (size_t)(etext - __executable_start), FNV0);
+    if (!whole) {
+        size_t size;
+        const char* text = text_range(&size);
+        whole = fnv(text, size, FNV0);
+    }
     return whole;
 }
 static uint64_t layout_key(void) { return &pc_snapshot_layout_key ? pc_snapshot_layout_key : code_key(); }
@@ -318,6 +443,10 @@ static int write_chunk(FILE* f, uint32_t tag, const void* address, const void* d
 /* The log so far (stderr, when it is a file): replayed by the new process. */
 static char* read_log(size_t* size)
 {
+#ifdef _WIN32
+    *size = 0; /* not carried over (no /proc/self/fd/2) */
+    return NULL;
+#else
     struct stat st;
     *size = 0;
     if (fstat(2, &st) || !S_ISREG(st.st_mode))
@@ -334,18 +463,25 @@ static char* read_log(size_t* size)
         close(fd);
     *size = got > 0 ? (size_t)got : 0;
     return text;
+#endif
 }
 
+#ifdef _WIN32
+#define PC_PATH_BACKSLASH 1
+#else
+#define PC_PATH_BACKSLASH 0
+#endif
 /* mkdir -p of a file's directory. */
 static void make_parent(const char* path)
 {
     char dir[1100];
     snprintf(dir, sizeof dir, "%s", path);
     for (char* p = dir + 1; *p; p++)
-        if (*p == '/') {
+        if (*p == '/' || (*p == '\\' && PC_PATH_BACKSLASH)) {
+            char separator = *p;
             *p = 0;
-            mkdir(dir, 0777);
-            *p = '/';
+            pc_mkdir(dir);
+            *p = separator;
         }
 }
 
@@ -460,6 +596,43 @@ const char* pc_snapshot_autosave_path(void)
  * executable's path now (a rebuilt binary), resuming `path` (ROOD_RESUME:
  * a snapshot the new build refuses boots normally, with the reason in the
  * log), paused or running. Returns only when the exec fails. */
+#ifdef _WIN32
+/* Windows: no exec. The same command line runs as a new process, which gets
+ * this one's log (its standard handles), and this one exits at once so its
+ * window and RPC port go away. */
+void pc_snapshot_restart(const char* path, int paused)
+{
+    char absolute[1100];
+    if (!GetFullPathNameA(path, sizeof absolute, absolute, NULL))
+        return;
+    SetEnvironmentVariableA("ROOD_RESUME", absolute);
+    SetEnvironmentVariableA("ROOD_RESUME_PAUSED", paused ? "1" : "0");
+    SetEnvironmentVariableA("ROOD_SNAPSHOT", NULL);
+    wchar_t exe[MAX_PATH];
+    if (!GetModuleFileNameW(NULL, exe, MAX_PATH))
+        return;
+    wchar_t* cmdline = _wcsdup(GetCommandLineW()); /* CreateProcessW may write to it */
+    STARTUPINFOW si;
+    PROCESS_INFORMATION pi;
+    memset(&si, 0, sizeof si);
+    si.cb = sizeof si;
+    si.dwFlags = STARTF_USESTDHANDLES;
+    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+    si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    fprintf(stderr, "[snapshot] restarting from %s\n", absolute);
+    fflush(stderr);
+    fflush(stdout);
+    if (!cmdline || !CreateProcessW(exe, cmdline, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+        fprintf(stderr, "[snapshot] restart: cannot run the game again (error %lu)\n", GetLastError());
+        free(cmdline);
+        return;
+    }
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    ExitProcess(0);
+}
+#else
 void pc_snapshot_restart(const char* path, int paused)
 {
     char exe[1024];
@@ -503,6 +676,7 @@ void pc_snapshot_restart(const char* path, int paused)
     execv(exe, argv);
     fprintf(stderr, "[snapshot] restart: cannot run %s: %s\n", exe, strerror(errno));
 }
+#endif
 
 /* Whether `path` is a snapshot this build resumes (its header: version, pointer size, code and
  * layout keys): 1, or 0 and why (rood.dev.bench lists and loads with it). */
@@ -594,32 +768,39 @@ fail:
     return NULL;
 }
 
-/* Called by main instead of starting the game, after the window, audio and
- * overlay statics are initialised. ROOD_SNAPSHOT: resumes or exits with the
- * reason. ROOD_RESUME: resumes when the file fits this build, else returns
- * (the game boots). Does not return when it resumes. */
-void pc_snapshot_resume_if_requested(void)
-{
-    const char* path = getenv("ROOD_SNAPSHOT");
-    int strict = path && *path;
-    if (!strict) {
-        path = getenv("ROOD_RESUME");
-        if (!path || !*path || !strcmp(path, "0"))
-            return;
-        if (!strcmp(path, "1"))
-            path = pc_snapshot_autosave_path();
-    }
-    const char* why = NULL;
+/* A snapshot read and checked against this build, ready to be written in. */
+typedef struct {
     header h;
-    int count = 0;
-    loaded* chunks = load(path, &h, &count, &why);
+    loaded* chunks;
+    int count;
+    char* stack_at; /* the saved stack's place (its sp at the boundary) */
+} prepared;
+
+static void discard(prepared* p)
+{
+    for (int i = 0; p->chunks && i < p->count; i++)
+        free(p->chunks[i].data);
+    free(p->chunks);
+    p->chunks = NULL;
+    p->count = 0;
+}
+
+/* Read `path` and check every chunk before anything is written: a refused
+ * file must leave the process as it was. NULL, or why it does not fit. */
+static const char* prepare(const char* path, prepared* p)
+{
+    const char* why = NULL;
+    header* hp = &p->h;
+    p->count = 0;
+    p->stack_at = NULL;
+    p->chunks = load(path, hp, &p->count, &why);
+    loaded* chunks = p->chunks;
+    int count = p->count;
     size_t game_stack_size;
     char* stack = pc_game_stack(&game_stack_size);
     range r[MAX_RANGES];
     int n = ranges(r), have_stack = 0;
     char* stack_at = NULL;
-    /* Check every chunk before anything is written: a refused file must
-     * leave the process able to boot. */
     for (int i = 0; chunks && i < count && !why; i++) {
         const chunk* c = &chunks[i].c;
         if (c->tag == CHUNK_MEMORY) {
@@ -630,7 +811,7 @@ void pc_snapshot_resume_if_requested(void)
             if (known)
                 continue;
             if (stack && at >= stack && at + c->size == stack + game_stack_size && !have_stack
-                && (uintptr_t)at == CTX_SP(&h.boundary)) {
+                && (uintptr_t)at == CTX_SP(&hp->boundary)) {
                 have_stack = 1;
                 stack_at = at;
             } else
@@ -649,27 +830,26 @@ void pc_snapshot_resume_if_requested(void)
         if (memory != n + 1)
             why = "missing ranges";
     }
-    if (why) {
-        fprintf(stderr, "[snapshot] cannot resume %s: %s\n", path, why);
-        if (strict)
-            exit(1);
-        fprintf(stderr, "[snapshot] booting normally\n");
-        if (chunks)
-            for (int i = 0; i < count; i++)
-                free(chunks[i].data);
-        free(chunks);
-        return;
-    }
+    if (why)
+        discard(p);
+    p->stack_at = stack_at;
+    return why;
+}
+
+/* Write a prepared snapshot in, except the game stack (the caller's last
+ * step: it may be running on it), and free its chunks: the stack image is
+ * returned (the caller frees it). Guest memory is written before the SPU is
+ * checked, so a failure there exits. */
+static char* apply(prepared* p, const char* path, int replay_log, size_t* stack_bytes)
+{
     char* stack_image = NULL;
-    size_t stack_bytes = 0;
-    for (int i = 0; i < count; i++) {
-        const chunk* c = &chunks[i].c;
-        char* data = chunks[i].data;
+    *stack_bytes = 0;
+    for (int i = 0; i < p->count; i++) {
+        const chunk* c = &p->chunks[i].c;
+        char* data = p->chunks[i].data;
         if (c->tag == CHUNK_MEMORY) {
-            if ((char*)(uintptr_t)c->address == stack_at) {
-                /* Copied in just before the jump (this function runs on the
-                 * main thread's stack, not that one, but keep it simple). */
-                stack_image = data, stack_bytes = (size_t)c->size;
+            if ((char*)(uintptr_t)c->address == p->stack_at) {
+                stack_image = data, *stack_bytes = (size_t)c->size;
                 continue;
             }
             memcpy((void*)(uintptr_t)c->address, data, (size_t)c->size);
@@ -681,31 +861,119 @@ void pc_snapshot_resume_if_requested(void)
         } else if (c->tag == CHUNK_FOG) {
             if (pc_fog_state_load && !pc_fog_state_load(data, (int)c->size))
                 fprintf(stderr, "[snapshot] the interactive fog's state does not fit: it starts at rest\n");
-        } else if (c->tag == CHUNK_LOG) {
+        } else if (c->tag == CHUNK_LOG && replay_log) {
             fprintf(stderr, "[snapshot] the log of the run that saved %s:\n", path);
             fwrite(data, 1, (size_t)c->size, stderr);
             fprintf(stderr, "[snapshot] (end of the saved log)\n");
         }
         free(data);
     }
-    free(chunks);
+    free(p->chunks);
+    p->chunks = NULL;
+    p->count = 0;
     if (pc_cd_restored)
         pc_cd_restored();
     if (pc_hw_resync)
         pc_hw_resync();
+    return stack_image;
+}
+
+/* The last step of a resume or a load: the game stack, the registers, and
+ * into the game at the saved boundary (the rest of that vsync). */
+static __attribute__((noreturn)) void enter_saved(prepared* p, char* stack_image, size_t stack_bytes)
+{
+    memcpy(p->stack_at, stack_image, stack_bytes);
+    free(stack_image);
+    write_canary((uintptr_t)p->h.canary);
+    pc_snap_boundary = p->h.boundary;
+    pc_game_stack_entered();
+    pc_snap_enter(&pc_snap_boundary, pc_tick_resumed);
+}
+
+/* Called by main instead of starting the game, after the window, audio and
+ * overlay statics are initialised. ROOD_SNAPSHOT: resumes or exits with the
+ * reason. ROOD_RESUME: resumes when the file fits this build, else returns
+ * (the game boots). Does not return when it resumes. */
+void pc_snapshot_resume_if_requested(void)
+{
+    const char* path = getenv("ROOD_SNAPSHOT");
+    int strict = path && *path;
+    if (!strict) {
+        path = getenv("ROOD_RESUME");
+        if (!path || !*path || !strcmp(path, "0"))
+            return;
+        if (!strcmp(path, "1"))
+            path = pc_snapshot_autosave_path();
+    }
+    static prepared p;
+    const char* why = prepare(path, &p);
+    if (why) {
+        fprintf(stderr, "[snapshot] cannot resume %s: %s\n", path, why);
+        if (strict)
+            exit(1);
+        fprintf(stderr, "[snapshot] booting normally\n");
+        return;
+    }
+    size_t stack_bytes;
+    /* This runs on the main thread's stack, not the game's: no side stack. */
+    char* stack_image = apply(&p, path, 1, &stack_bytes);
     if (pc_rpc_restored)
         pc_rpc_restored();
     /* The player's resume runs on, as it was (RPC restart {paused} keeps it paused). */
     const char* keep_paused = getenv("ROOD_RESUME_PAUSED");
     if (!strict && pc_rpc_set_paused && !(keep_paused && !strcmp(keep_paused, "1")))
         pc_rpc_set_paused(0);
-    fprintf(stderr, "[snapshot] resumed %s at vsync %u\n", path, h.vsync);
+    fprintf(stderr, "[snapshot] resumed %s at vsync %u\n", path, p.h.vsync);
     fflush(stderr);
-    memcpy(stack_at, stack_image, stack_bytes);
-    free(stack_image);
-    write_canary((uintptr_t)h.canary);
-    pc_snap_boundary = h.boundary;
-    pc_snap_enter(&pc_snap_boundary, pc_tick_resumed);
+    enter_saved(&p, stack_image, stack_bytes);
+}
+
+/* ---- loading in this process (the player's Load state) ---- */
+/* The game stack is replaced while the load runs, so the load runs on a side
+ * stack: the bottom of the game stack's own reservation (inside the stack
+ * bounds Windows keeps for this thread), far below anything the game uses. */
+#define SIDE_STACK (1u << 20)
+static prepared pending;
+static char pending_path[1024];
+static __attribute__((noreturn)) void load_on_side_stack(void)
+{
+    size_t stack_bytes;
+    if (pc_cd_release)
+        pc_cd_release(); /* this process's disc file: closed, not leaked */
+    char* stack_image = apply(&pending, pending_path, 0, &stack_bytes);
+    if (pc_input_rewound)
+        pc_input_rewound(); /* a replay seeks again; held RPC input is dropped */
+    fprintf(stderr, "[snapshot] loaded %s (saved at vsync %u)\n", pending_path, pending.h.vsync);
+    fflush(stderr);
+    enter_saved(&pending, stack_image, stack_bytes);
+}
+/* Load `path` into this process: does not return when it loads; -1 with
+ * `error` when the file does not fit this build (nothing is changed then).
+ * Called inside pc_tick (dev_rpc.c's poll), like pc_snapshot_point. */
+__attribute__((noinline)) int pc_snapshot_load_now(const char* path, char* error, int size)
+{
+    if (pc_game_snapshot_safe && !pc_game_snapshot_safe()) {
+        snprintf(error, (size_t)size, "load refused: owned frame live or incomplete unwind");
+        return -1;
+    }
+    uintptr_t sp = CTX_SP(&pc_snap_boundary), here = (uintptr_t)__builtin_frame_address(0);
+    if (!sp || here >= sp || *(uintptr_t*)sp != CTX_IP(&pc_snap_boundary)) {
+        snprintf(error, (size_t)size, "not inside a vsync of the game (pc_tick through pc_vsync_boundary)");
+        return -1;
+    }
+    size_t game_stack_size;
+    char* stack = pc_game_stack(&game_stack_size);
+    const char* why = stack ? prepare(path, &pending) : "the game stack is not at its fixed address";
+    if (!why && pending.stack_at < stack + SIDE_STACK) {
+        discard(&pending);
+        why = "the saved game stack reaches the loader's side stack";
+    }
+    if (why) {
+        snprintf(error, (size_t)size, "%s", why);
+        return -1;
+    }
+    snprintf(pending_path, sizeof pending_path, "%s", path);
+    pc_snap_call_on_stack(stack + SIDE_STACK, load_on_side_stack);
 }
 
 /* RPC snapshot {action: "hash"}: FNV-1a hashes of what a snapshot holds

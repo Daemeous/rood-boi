@@ -104,6 +104,17 @@ static int open_disc(void)
     return 1;
 }
 
+/* snapshot.c and state_rewind.c, before restoring a state into this process:
+ * the open disc is closed (the restored state's FILE* is not this one, or is
+ * this one closed; pc_cd_restored opens it again), so loads do not leak one
+ * file each. */
+void pc_cd_release(void)
+{
+    if (cd.disc)
+        fclose(cd.disc);
+    cd.disc = NULL;
+}
+
 /* snapshot.c restored the drive's state from another process: its FILE*
  * was that process's; open our own (each read seeks first). */
 void pc_cd_restored(void)

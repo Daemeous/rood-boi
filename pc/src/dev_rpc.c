@@ -637,6 +637,8 @@ static int reload_wanted(void)
         (pc_game_reload_pending && pc_game_reload_pending());
 }
 static int bench_restart_pending(void);
+/* The player's save state keys (savestate_slots.c): saved or loaded here, at the vsync boundary. */
+extern void pc_savestate_poll(void) __attribute__((weak));
 static long long rpc_now_ms(void)
 {
     struct timespec now;
@@ -4747,6 +4749,8 @@ static void poll_requests(void)
     take_bench_restart();
     if (reload_wanted())
         return; /* the host reloads the engine now; the next library carries on (pc_rpc_reloaded) */
+    if (pc_savestate_poll)
+        pc_savestate_poll();
     if (paused && step_budget > 0) {
         --step_budget;
         return;
@@ -4780,6 +4784,8 @@ static void poll_requests(void)
         take_bench_restart();
         if (reload_wanted())
             return;
+        if (pc_savestate_poll)
+            pc_savestate_poll();
     }
     if (paused && step_budget > 0)
         --step_budget;
