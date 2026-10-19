@@ -424,6 +424,7 @@
 #include <poll.h>
 #endif
 #include "pc_paths.h"
+#include "platform.h" /* pc_replace_file */
 #include "state_diff.h"
 #include <limits.h>
 #include "room_effects.h"
@@ -3958,8 +3959,15 @@ static int generate_tcp_token(void)
     line[64] = '\n';
 #ifdef _WIN32
     /* CRT mode bits do not enforce privacy on Windows: use an owner-only DACL.
-     * CREATE_NEW refuses existing files/reparse points; remove old files before
-     * restarting, or give each process its own ROOD_RPC_TOKEN_FILE. */
+     * As on POSIX, the token goes to a new temporary file (CREATE_NEW refuses
+     * existing files and reparse points) that then replaces the old token:
+     * writing `path` itself with CREATE_NEW failed on every start after the
+     * first, so the listener stayed off until the file was deleted by hand.
+     * The moved file keeps its owner-only DACL. */
+    char temporary[1024];
+    int length = snprintf(temporary, sizeof temporary, "%s.%lu.tmp", path, (unsigned long)GetCurrentProcessId());
+    if (length < 0 || (size_t)length >= sizeof temporary)
+        return 0;
     HMODULE security = LoadLibraryA("advapi32.dll");
     typedef BOOL (WINAPI *descriptor_fn)(LPCSTR, DWORD, PSECURITY_DESCRIPTOR*, PULONG);
     descriptor_fn descriptor = security ? (descriptor_fn)GetProcAddress(security,
@@ -3968,15 +3976,17 @@ static int generate_tcp_token(void)
     int ok = 0;
     if (descriptor && descriptor("D:P(A;;GA;;;OW)", SDDL_REVISION_1, &sd, NULL)) {
         SECURITY_ATTRIBUTES attributes = { sizeof attributes, sd, FALSE };
-        HANDLE file = CreateFileA(path, GENERIC_WRITE, 0, &attributes, CREATE_NEW,
+        HANDLE file = CreateFileA(temporary, GENERIC_WRITE, 0, &attributes, CREATE_NEW,
             FILE_ATTRIBUTE_NORMAL, NULL);
         if (file != INVALID_HANDLE_VALUE) {
             DWORD written = 0;
             ok = WriteFile(file, line, 65, &written, NULL) && written == 65;
             if (!CloseHandle(file))
                 ok = 0;
+            if (ok && pc_replace_file(temporary, path))
+                ok = 0;
             if (!ok)
-                DeleteFileA(path);
+                DeleteFileA(temporary);
         }
         LocalFree(sd);
     }
