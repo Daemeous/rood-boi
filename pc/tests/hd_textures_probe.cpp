@@ -5,11 +5,14 @@
 #include <sstream>
 #define DEFINE_GL(ret, name, args) ret(APIENTRY* gl_##name) args;
 GL_FUNCTIONS(DEFINE_GL)
+GL_COMPUTE_FUNCTIONS(DEFINE_GL)
 #undef DEFINE_GL
+int pc_gl_compute;
 uint16_t test_vram[1024 * 512];
 extern "C" const uint16_t* pc_native_vram(void) { return test_vram; }
 int main(int argc, char** argv)
 {
+    async_loads = false; /* decode on this thread: the checks follow each call */
     init();
     if (argc > 1 && !strcmp(argv[1], "--no-pack")) {
         assert(!configured && files.empty());
@@ -29,7 +32,7 @@ int main(int argc, char** argv)
     assert(words[1025].offset == 0x10001 && words[1025].width == 2 && words[1025].height == 2);
     pc_hd_use(0, 300 * 64);
     assert(resident.size() == 1 && pending.size() == 1 && pending[0].rect.w == 16);
-    assert(pending[0].pixels[0] == 240 && pending[0].pixels[3] == 255);
+    assert((*pending[0].pixels)[0] == 240 && (*pending[0].pixels)[3] == 255);
     pc_hd_use(128, 300 * 64);
     assert(resident.size() == 2);
     pc_hd_use(256, 0);
@@ -48,9 +51,43 @@ int main(int argc, char** argv)
     assert(words[0].offset == 0x10001);
     pc_hd_clear(1023, 511, 2, 2);
     assert(!words[0].width);
+    /* Bounded atlas: a layer drawn from in the last frames is never cleared;
+     * once it has not been, it is the one reused. */
+    size_t kept = resident.size();
     full = true;
     pc_hd_frame();
-    assert(resident.empty() && !full && table[slots * 4] == 0);
+    assert(resident.size() == kept && full);
+    for (int i = 0; i < 130; ++i)
+        pc_hd_frame();
+    assert(resident.empty() && !full && evictions == 1 && table[slots * 4] == 0 && current_layer == 0);
+    assert(ram.size() == 3); /* the decoded PNGs stay in RAM: no disk read to place them again */
+
+    /* Layers: a full layer opens the next; with every layer full the least
+     * recently drawn one is reused, while the other keeps its image. */
+    side = 16;
+    max_layers = 2;
+    atlas.clear();
+    current_layer = -1;
+    pending.clear();
+    auto px = std::make_shared<std::vector<uint8_t>>(16 * 16 * 4, 7);
+    Image a, b, c;
+    assert(place(16, 16, px, "a", a) && a.layer == 0);
+    assert(place(16, 16, px, "b", b) && b.layer == 1 && atlas.size() == 2);
+    assert(!place(16, 16, px, "c", c) && full);
+    for (int i = 0; i < 130; ++i) {
+        touch(1);
+        pc_hd_frame();
+    }
+    assert(!full && evictions == 2 && current_layer == 0 && atlas[1].cursor_x == 16);
+    assert(place(16, 16, px, "c", c) && c.layer == 0 && c.x == 0 && c.y == 0);
+    side = 8192;
+    max_layers = 8;
+    atlas.clear();
+    current_layer = -1;
+    pending.clear();
+    resident.clear();
+    table.fill(0);
+    used.clear();
 
     if (argc > 1) {
         assert(SDL_Init(SDL_INIT_VIDEO));
@@ -124,5 +161,5 @@ int main(int argc, char** argv)
         std::cout << "PASS: real GPU sampler lookup, PNG colors and enabled/disabled/enabled\n";
     }
     std::cout << "PASS: independent zlib CRCs, 4/8/16-bit palettes, PNG loading, source offsets, partial "
-                 "overwrites, wrapped and masked copies, original VRAM, bounded atlas reset\n";
+                 "overwrites, wrapped and masked copies, original VRAM, layered atlas reuse, RAM cache\n";
 }

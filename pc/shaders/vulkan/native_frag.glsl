@@ -39,7 +39,7 @@ layout(location = 4) out vec4 material_out; // material_pack.glsl (all 0: no mat
 layout(binding = 10) uniform usampler2D hd_words;
 layout(binding = 11) uniform usampler2D hd_palettes;
 layout(binding = 12) uniform usampler2D hd_table;
-layout(binding = 13) uniform sampler2D hd_atlas;
+layout(binding = 13) uniform sampler2DArray hd_atlas;
 #include "hd_textures.glsl"
 #include "vram.glsl"
 #include "emissive.glsl"
