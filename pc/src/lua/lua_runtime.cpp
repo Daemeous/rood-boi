@@ -172,6 +172,11 @@ std::vector<Hook>& poll_hooks()
     static auto* list = new std::vector<Hook>();
     return *list;
 }
+std::vector<Hook>& tick_hooks()
+{
+    static auto* list = new std::vector<Hook>();
+    return *list;
+}
 std::vector<Hook>& flush_hooks()
 {
     static auto* list = new std::vector<Hook>();

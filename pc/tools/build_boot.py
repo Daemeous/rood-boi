@@ -850,6 +850,7 @@ if battle:
         ("pc/src/dev_state.c", "dev_state"),
         ("pc/src/room_warp.c", "room_warp"),
         ("pc/src/fast_travel.c", "fast_travel"),
+        ("pc/src/hud/hud_bridge.c", "hud_bridge"),
         ("pc/src/weapon_slots.c", "weapon_slots"),
         ("pc/src/button_roles.c", "button_roles"),
         ("pc/src/text_lines.c", "text_lines"),
@@ -1183,6 +1184,8 @@ for source in [
     root / "pc/src/ui/ui_score_draw.cpp",
     root / "pc/src/prompt_glyphs.cpp",
     root / "pc/src/fast_travel_prompt.cpp",
+    root / "pc/src/hud/hud_elements.cpp",
+    root / "pc/src/hud/hud_draw.cpp",
 ] + ([imgui / "backends/imgui_impl_vulkan.cpp", root / "pc/src/vk_overlay.cpp"] if arch64 else []):
     obj = out / ("imgui_" + source.stem + ".o")
     # The object cache decides what recompiles; the 64-bit pass reports

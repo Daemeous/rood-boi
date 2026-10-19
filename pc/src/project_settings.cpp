@@ -152,6 +152,7 @@ int pc_ui_menu_tint_custom[3] = { 8, 7, 7 }; /* Custom's colour, 0..31 per chann
 #include "post.h" /* post_* (post profiles; the old post_flags, focus_mode, ... still load) */
 #include "editor_selection.h" /* editor_hidden_<zone>_<room>: objects hidden in the editor */
 #include "editor_colour.h" /* editor_colour_tabs, editor_recent_colours */
+#include "hud/hud.h" /* hud_classic_override */
 #include "lua/lua_runtime.h" /* plugins_elevated, plugin_enabled, plugin_order, plugin_grant, plugin_budget_* */
 #include "editor_fit_window.h" /* editor_fit_window_offset, _kelvin */
 #include "editor_library.h" /* editor_library_view, _docked, _window, _favourites */
@@ -349,6 +350,7 @@ const Entry entries[] = {
     F("ui_prompt_tracking", pc_ui_prompt_tracking), /* em */
     I("skip_intro", pc_skip_intro),
     I("ui_menus", pc_ui_menus),
+    I("hud_classic_override", pc_hud_classic_override), /* HUD claims honoured with ui_menus 0 too (hud.h) */
     F("ui_menu_opacity", pc_ui_menu_opacity),
 };
 const char* path()

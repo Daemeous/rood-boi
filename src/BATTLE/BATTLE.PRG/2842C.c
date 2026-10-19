@@ -9,6 +9,7 @@
 #include "pc/src/psx_types.h"
 #ifdef ROOD_PC
 #include "pc/src/widescreen.h"
+#include "pc/src/hud/hud_hook.h"
 #endif
 
 typedef struct {
@@ -1870,8 +1871,10 @@ void func_800941FC(void)
             break;
         case 4:
 #ifdef ROOD_PC
-            /* Widescreen: beside the status display, at the left edge. */
-            PC_ANCHOR_PACKETS(PC_ANCHOR_LEFT_EDGE, func_800958A4(44, 48, label));
+            /* Widescreen: beside the status display, at the left edge.
+             * PC_HUD: a plugin may draw the word instead (hud_hook.h). */
+            PC_HUD(PC_HUD_STATUS, label,
+                PC_ANCHOR_PACKETS(PC_ANCHOR_LEFT_EDGE, func_800958A4(44, 48, label)));
 #else
             func_800958A4(44, 48, label);
 #endif

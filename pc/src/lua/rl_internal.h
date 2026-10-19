@@ -201,6 +201,7 @@ using Hook = void (*)();
 std::vector<ApiOpener>& api_openers(); /* add fields to rood */
 std::vector<PluginHook>& unload_hooks(); /* drop what a plugin registered */
 std::vector<Hook>& poll_hooks();         /* every tick and frame */
+std::vector<Hook>& tick_hooks();         /* every tick, first (the HUD's held moments) */
 std::vector<Hook>& flush_hooks();        /* at exit: write what is unsaved */
 
 /* ---- lua_sandbox.cpp, lua_api_core.cpp ---- */
@@ -334,6 +335,11 @@ int start_tests(const std::string& plugin, const std::string& filter);
 void step_tests(bool tick); /* a tick: waiting cases count down; ready ones run */
 std::string test_run_json(int run); /* {run, done, passed, failed, skipped, waiting, results}; "" if unknown */
 void drop_tests(const std::string& plugin); /* its waiting cases fail: the plugin unloaded */
+
+/* ---- lua_api_hud.cpp ---- */
+/* The claims' draws of the live HUD elements into the command buffer (pc_hud_frame, then
+ * its renderer); returns the commands. */
+int hud_pass();
 
 /* ---- lua_rpc.cpp ---- */
 std::vector<std::string>& console_history(); /* the console's inputs, oldest first (200) */

@@ -307,6 +307,11 @@ def suites(args, mode="egl"):
                  300, note="HUD: the HP / MP labels drawn opaque like their digits (solid black outline, the field "
                            "not showing through), ui_text font and original")]
           if args.save.exists() else []),
+        *([Suite("hud_bench_smoke", [PY, str(TESTS / "hud_bench_smoke.py"), "--card", str(args.save)], 300,
+                 note="Lua HUD layer: SLOW! summoned and held (rood.dev.show), claimed by a plugin (suppressed, "
+                      "drawn), hot-reloaded while held; the game's own drawing with no claim, a draw error, the "
+                      "plugin off, the classic look")]
+          if args.save.exists() else []),
         *([Suite("frame_cost_smoke", [PY, str(TESTS / "frame_cost_smoke.py"), "--card", str(args.save)], 300,
                  note="per-frame cost (ROOD_PERF counters): no read-backs (sphere, Status rows: GPU copies), "
                       "emissive not re-hashed, CPU skips stale 2D; pictures = the old paths'")]
@@ -568,7 +573,7 @@ CHECKPOINT_SUITES = {
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
-    "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "frame_cost_smoke",
+    "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "frame_cost_smoke", "hud_bench_smoke",
 }
 
 

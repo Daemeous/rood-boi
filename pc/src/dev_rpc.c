@@ -350,6 +350,10 @@
  *                                mode), budget {...}, test {plugin, filter},
  *                                test_status {run}, log {since}, audit, emit
  *                                {event, payload}, registry {kind}
+ *   hud {action, ...}            HUD elements plugins claim (pc/src/hud/hud.h,
+ *                                lua_api_hud.cpp): list, show {kind, timing,
+ *                                variant, age, hold}, clear {kind}, stats
+ *                                {reset}, set {classic_override}
  *   editor_library {action, ...}  the editor's library (editor_library.cpp):
  *                                list | filter | favourite | view | thumbs |
  *                                save (Save as prefab) | edit_prefab |
@@ -2968,6 +2972,26 @@ static void handle_method(int fd, const char* request)
             strcpy(args, "{}");
         }
         if (pc_lua_rpc(args, result, sizeof result) < 0) {
+            fail(fd, id, -32000, result);
+            return;
+        }
+        reply(fd, id, result);
+    } else if (!strcmp(method, "hud")) {
+        /* HUD elements plugins claim (pc/src/hud/hud.h); lua_api_hud.cpp parses the params. */
+        extern int pc_hud_rpc(const char*, char*, int) __attribute__((weak));
+        if (!pc_hud_rpc) {
+            fail(fd, id, -32000, "no HUD layer in this build");
+            return;
+        }
+        static char args[LINE_MAX_BYTES];
+        const char* end = params ? value_end(params) : NULL;
+        if (params && end && (size_t)(end - params) < sizeof args) {
+            memcpy(args, params, (size_t)(end - params));
+            args[end - params] = 0;
+        } else {
+            strcpy(args, "{}");
+        }
+        if (pc_hud_rpc(args, result, sizeof result) < 0) {
             fail(fd, id, -32000, result);
             return;
         }

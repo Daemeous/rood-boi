@@ -71,7 +71,12 @@ suites = ["frame_cost_smoke", "rpc_smoke", "ctest"]
 # ---- Lua plugins ----
 [[rule]]
 paths = ["pc/src/lua/*", "pc/plugins/*", "pc/tests/lua/*", "pc/third_party/lua*"]
-suites = ["lua_smoke", "ctest"]
+suites = ["lua_smoke", "ctest", "hud_bench_smoke"]
+
+# ---- the Lua visible layer's HUD elements (pc/src/hud) ----
+[[rule]]
+paths = ["pc/src/hud/*"]
+suites = ["hud_bench_smoke", "lua_smoke", "ctest", "ui_text_smoke"]
 
 # ---- modern menus (pc/src/ui) and the original menus they mirror ----
 [[rule]]
@@ -91,7 +96,8 @@ suites = ["ui_*", "menu0_levelled_smoke", "save_menu_smoke", "fast_travel_*", "w
 paths = ["src/BATTLE/*", "pc/src/charge_skip.*", "pc/src/gameplay_walls.*"]
 suites = ["tunables_smoke", "skip_charging_smoke", "charge_skip_soak", "soak", "soak:save", "two_model_enemy_smoke",
           "route_continuation_smoke", "damage_numbers_smoke", "menu0_levelled_smoke", "input:*", "animation_smoke",
-          "snapshot_equivalence", "facing_cutaway_smoke", "camera_stick_smoke", "ending_smoke", "weapon_slots_smoke"]
+          "snapshot_equivalence", "facing_cutaway_smoke", "camera_stick_smoke", "ending_smoke", "weapon_slots_smoke",
+          "hud_bench_smoke"]
 
 [[rule]]
 paths = ["src/EFFECT/*", "pc/src/effect_*"]

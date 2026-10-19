@@ -1,11 +1,13 @@
 // The extension system without the game (pc/src/lua; pc/docs/Extensions.md):
 // Lua compiled as C++, the allocator's cap, the budgets, the sandbox, values
 // between plugins, events, timers, the registry, plugins on disk, storage,
-// capabilities, hot reload, the test harness and the RPC. ctest lua_probe
+// capabilities, hot reload, the test harness, the RPC and the HUD layer
+// (claims, the draw API, rood.dev; pc/src/hud). ctest lua_probe
 // (argv[1]: a scratch directory the probe owns).
 #include "lua/lua_runtime.h"
 #include "lua/rl_internal.h"
 #include "lua/sha256.h"
+#include "hud/hud_internal.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -835,6 +837,157 @@ static void rpc_actions()
     CHECK(contains(rpc("{\"action\":\"audit\"}"), "probe.caps"));
 }
 
+
+/* An element as the game's hook reports it (hud_bridge.c): SLOW!, aged 10. */
+static int record_status(int age = 10)
+{
+    pc_hud_fields f = {};
+    f.kind = PC_HUD_STATUS;
+    std::snprintf(f.text, sizeof f.text, "SLOW!");
+    f.x = 44, f.y = 53, f.w = 40, f.h = 10;
+    f.rgb = 0xC0FF40;
+    f.timing = 3;
+    f.age = age, f.life = 46;
+    f.anchor = 1;
+    return pc_hud_record(&f);
+}
+static std::string command_text(int i)
+{
+    const hud::Command& c = hud::commands()[i];
+    return c.type == hud::CMD_TEXT ? std::string(hud::text_arena() + c.text, c.length) : std::string("<rect>");
+}
+static std::string hud_rpc(const char* params)
+{
+    static char out[65536];
+    int n = pc_hud_rpc(params, out, (int)sizeof out);
+    return n < 0 ? std::string("error: ") + out : std::string(out);
+}
+
+/* The HUD layer (pc/src/hud, lua_api_hud.cpp): the draw API's validation,
+ * a claim honoured (the game's packets suppressed) and drawn into the
+ * command buffer, a failing draw falls back to the game's drawing, claims
+ * and styles dropped on reload, the bounded command buffer, rood.dev only
+ * in dev mode, show away from the field (a synthetic element), RPC hud. */
+static void hud_layer()
+{
+    std::string root = scratch + "/plugins";
+    unsetenv("ROOD_RPC");
+    unsetenv("ROOD_DEV");
+    write_text(root + "/probe.hud/plugin.lua", "return { id = 'probe.hud', api_version = 1 }\n");
+    write_text(root + "/probe.hud/main.lua",
+        "local d = rood.draw\n"
+        "word = d.style{ font = 'labels', size = 12, color = 0xFFEEDD, stroke = 1.5, align = 'center', anchor = 'middle' }\n"
+        "rood.hud.claim('status', function(e, d) d.text(word, e.text .. '/v1', e.x, e.y, e.rgb) end)\n");
+    rl::config.watch_vsyncs = 2;
+    pc_lua_tick();
+    pc_lua_tick();
+    rl::Plugin* p = rl::find("probe.hud");
+    CHECK(p && p->state == rl::PLUGIN_LOADED);
+    if (!p || p->state != rl::PLUGIN_LOADED)
+        return;
+    // validation
+    CHECK(contains(eval_error(p, "rood.draw.style{ colour = 0xFF, sizes = 3 }"), "unknown field 'sizes'"));
+    CHECK(contains(eval_error(p, "rood.draw.style{ font = 'comic' }"), "is not one of dialogue"));
+    CHECK(contains(eval_error(p, "rood.draw.style{ size = 0 }"), "outside"));
+    CHECK(contains(eval_error(p, "rood.draw.style{ color = 'red' }"), "0xRRGGBB"));
+    CHECK(contains(eval_error(p, "rood.draw.style{ 12 }"), "fields are named"));
+    CHECK(contains(eval_error(p, "rood.hud.claim('compass', print)"), "unknown HUD kind 'compass'"));
+    CHECK(contains(eval_error(p, "rood.hud.claim('status', 3)"), "function expected"));
+    CHECK(contains(eval_error(p, "rood.draw.text(word, 'x', 1, 2)"), "only inside a HUD draw function"));
+    CHECK(contains(eval_error(p, "rood.draw.text({}, 'x', 1, 2)"), "must be a style"));
+    CHECK(contains(eval_error(p, "word.size = 3"), "immutable"));
+    CHECK(eval_json(p, "word.size, word.font, word.align") == "12,\"labels\",\"center\"");
+    CHECK(eval_json(p, "rood.draw.style{ font = 'labels', size = 12, color = 0xFFEEDD, stroke = 1.5, align = 'center',"
+                       " anchor = 'middle' } ~= nil") == "true");
+    CHECK(eval_json(p, "select('#', rood.draw.measure(word, 'SLOW!'))") == "2");
+    CHECK(eval_json(p, "rood.dev") == "null"); // not in dev mode
+    // claimed: the game's packets suppressed, the claim draws the element
+    CHECK(hud::claimed(PC_HUD_STATUS));
+    CHECK(record_status() == 1);
+    pc_hud_frame();
+    CHECK(hud::command_count() == 1 && command_text(0) == "SLOW!/v1");
+    CHECK(hud::commands()[0].color == 0xC0FF40 && hud::commands()[0].anchor == 1);
+    CHECK(contains(hud_rpc("{\"action\":\"stats\"}"), "\"claimed_by\":\"probe.hud\""));
+    CHECK(contains(hud_rpc("{\"action\":\"list\"}"), "\"text\":\"SLOW!\""));
+    // reload: the claim and its styles go with the old load, the new one claims again
+    write_text(root + "/probe.hud/main.lua",
+        "local d = rood.draw\n"
+        "word = d.style{ font = 'status', size = 14 }\n"
+        "rood.hud.claim('status', function(e, d) d.rect(e.x, e.y, 4, 4, 0xFF0000) d.text(word, e.text .. '/v2', e.x, e.y) end)\n");
+    pc_lua_tick();
+    pc_lua_tick();
+    p = rl::find("probe.hud");
+    CHECK(record_status() == 1);
+    pc_hud_frame();
+    CHECK(hud::command_count() == 2 && command_text(1) == "SLOW!/v2");
+    int styles = 0;
+    for (int i = 0; i < HUD_STYLES; ++i)
+        styles += hud::styles()[i].used && hud::styles()[i].owner == "probe.hud";
+    CHECK(styles == 1);
+    write_text(root + "/probe.hud/main.lua", "-- no claim\n");
+    pc_lua_tick();
+    pc_lua_tick();
+    CHECK(!hud::claimed(PC_HUD_STATUS) && record_status() == 0); // the game draws it
+    pc_hud_frame();
+    CHECK(hud::command_count() == 0);
+    // a draw that raises: counted, and the game draws it from then on
+    write_text(root + "/probe.hud/main.lua",
+        "rood.hud.claim('status', function(e, d) error('broken draw') end)\n");
+    pc_lua_tick();
+    pc_lua_tick();
+    unsigned long long faults = hud::stats(PC_HUD_STATUS).faults;
+    CHECK(record_status() == 1);
+    pc_hud_frame();
+    CHECK(hud::stats(PC_HUD_STATUS).faults == faults + 1 && record_status() == 0);
+    // the command buffer is bounded: past it draws are refused, nothing grows
+    write_text(root + "/probe.hud/main.lua",
+        "local s = rood.draw.style{}\n"
+        "refused = 0\n"
+        "rood.hud.claim('status', function(e, d) refused = 0 for i = 1, 3000 do if not d.text(s, 'many', i, 1) then"
+        " refused = refused + 1 end end end)\n");
+    pc_lua_tick();
+    pc_lua_tick();
+    p = rl::find("probe.hud");
+    CHECK(record_status() == 1);
+    pc_hud_frame();
+    CHECK(hud::command_count() == HUD_COMMANDS && eval_json(p, "refused") == std::to_string(3000 - HUD_COMMANDS));
+    // dev mode: rood.dev; show away from the field gives a synthetic element claims draw
+    setenv("ROOD_DEV", "1", 1);
+    write_text(root + "/probe.hud/main.lua",
+        "local s = rood.draw.style{ size = 9 }\n"
+        "rood.hud.claim('status', function(e, d) d.text(s, e.text, e.x, e.y) end)\n");
+    pc_lua_tick();
+    pc_lua_tick();
+    p = rl::find("probe.hud");
+    CHECK(eval_json(p, "type(rood.dev)") == "\"table\"");
+    CHECK(contains(eval_error(p, "rood.dev.show('status', { timing = 'sluggish' })"), "timing must be"));
+    for (int k = 0; k < 10; k++)
+        pc_lua_tick(); // the recorded element is gone (not drawn for a while)
+    CHECK(eval_json(p, "rood.dev.show('status', { timing = 'too_fast' })") == "true");
+    CHECK(eval_json(p, "#rood.dev.list(), rood.dev.list()[1].text, rood.dev.list()[1].synthetic") == "1,\"TOO FAST!\",true");
+    for (int k = 0; k < 60; k++)
+        pc_lua_tick(); // held: it stays
+    pc_hud_frame();
+    CHECK(hud::command_count() == 1 && command_text(0) == "TOO FAST!");
+    CHECK(contains(hud_rpc("{\"action\":\"clear\"}"), "\"ok\":true"));
+    pc_hud_frame();
+    CHECK(hud::command_count() == 0);
+    CHECK(contains(hud_rpc("{\"action\":\"show\",\"kind\":\"status\",\"timing\":\"success\",\"variant\":4,\"hold\":false}"),
+        "\"ok\":true"));
+    pc_hud_frame();
+    CHECK(hud::command_count() == 1 && command_text(0) == "PERFECT!");
+    for (int k = 0; k < 60; k++)
+        pc_lua_tick(); // not held: it plays out
+    pc_hud_frame();
+    CHECK(hud::command_count() == 0);
+    CHECK(hud_rpc("{\"action\":\"nope\"}").rfind("error: ", 0) == 0);
+    unsetenv("ROOD_DEV");
+    std::filesystem::remove_all(root + "/probe.hud");
+    pc_lua_tick();
+    pc_lua_tick();
+    rl::config.watch_vsyncs = 30;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) {
@@ -866,6 +1019,7 @@ int main(int argc, char** argv)
     hot_reload();
     test_harness();
     rpc_actions();
+    hud_layer();
     if (failures) {
         std::printf("lua_probe: %d failure(s)\n", failures);
         return 1;

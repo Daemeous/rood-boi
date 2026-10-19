@@ -745,6 +745,8 @@ bool initialized() { return started; }
 void tick()
 {
     ++ticks;
+    for (Hook hook : tick_hooks())
+        hook();
     tick_events(pc_vsync_count ? pc_vsync_count() : ticks);
     for (Hook hook : poll_hooks())
         hook();

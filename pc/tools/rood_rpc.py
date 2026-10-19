@@ -20,6 +20,8 @@ CLI:
                                               client-side methods "symbol" and "read_symbol"
     rood_rpc.py lua 'return rood.version' [--plugin ID]   evaluate Lua in the running game
     rood_rpc.py lua-test [--plugin ID] [--filter TEXT]     run the plugins' Lua tests in it
+    rood_rpc.py hud-show [KIND] [--timing slow] [--no-hold]  summon a HUD element (RPC hud show)
+    rood_rpc.py hud [list|clear|stats]        the HUD layer's elements, claims and timings
 
 The socket defaults to $ROOD_RPC or pc/build/boot/rpc.sock (on Windows tcp:47323, a
 loopback TCP port; ROOD_RPC=tcp:PORT works on Linux too). Methods run at vsync
@@ -617,6 +619,13 @@ def main():
     lua_test = sub.add_parser("lua-test", help="run the plugins' Lua tests in the running game")
     lua_test.add_argument("--plugin")
     lua_test.add_argument("--filter")
+    hud_show = sub.add_parser("hud-show", help="summon a HUD element in the running game, held (RPC hud show)")
+    hud_show.add_argument("kind", nargs="?", default="status")
+    hud_show.add_argument("--timing", default="slow", help="too_fast, fast, success, slow, too_slow")
+    hud_show.add_argument("--variant", type=int, default=0)
+    hud_show.add_argument("--no-hold", action="store_true")
+    hud = sub.add_parser("hud", help="the HUD layer (RPC hud): list, clear, stats")
+    hud.add_argument("action", nargs="?", default="list", choices=["list", "clear", "stats"])
     args = parser.parse_args()
     if args.rpc:
         bridge(args.socket)
@@ -634,6 +643,11 @@ def main():
         print(hex(symbols()[args.name]))
     elif args.command == "lua":
         print(json.dumps(Game(args.socket).lua(args.code, plugin=args.plugin), indent=1))
+    elif args.command == "hud-show":
+        print(json.dumps(Game(args.socket).call("hud", action="show", kind=args.kind, timing=args.timing,
+                                                variant=args.variant, hold=not args.no_hold)))
+    elif args.command == "hud":
+        print(json.dumps(Game(args.socket).call("hud", action=args.action), indent=1))
     elif args.command == "lua-test":
         run = Game(args.socket).lua_test(plugin=args.plugin, filter=args.filter)
         for r in run["results"]:

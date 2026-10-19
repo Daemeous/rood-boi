@@ -147,6 +147,47 @@ checks are not a defense against another process racing filesystem changes.
 | `rood.settings.get/set/reset/run/list([{page}])/pages()/define(name, spec)/on_change(id, fn)/off_change` | System rows (`"skip_intro"`), schema kinds (`"<kind>/<field>"`), the plugin's own (`"plugin:<id>/<name>"`; another plugin's are read and watched, never changed), each validated by its registry |
 | `rood.test.case(name, fn)`, `eq`, `ok`, `near`, `raises`, `skip`, `wait(ticks)` | in `tests/*.lua` |
 
+## HUD: claims and drawing
+
+The visible layer (plan `pc/docs/plans/2026-10-18-lua-visible-layer.md`;
+`pc/src/hud`, `pc/src/lua/lua_api_hud.cpp`). The game decides when and what
+(its HUD elements, copied each frame into a fixed pool); a plugin's claim
+decides how it looks. So far one kind: `status`, the battle's timing word
+(TOO FAST!, FAST!, SLOW!, TOO SLOW!, COOL!, ...).
+
+| | |
+|---|---|
+| `rood.hud.claim(kind, fn) -> owner?` | `fn(e, d)` draws each element of the kind on every presented frame; while the claim is honoured the game's packets for it are no-ops. One owner per kind: the last in load order (a console sandbox after every plugin), with a warning. `e`: `kind, id, text, x, y, w, h` (the game's drawing's box in its 320 x 240 screen, x, y its centre), `rgb`, `timing` (`too_fast`, `fast`, `success`, `slow`, `too_slow`), `variant`, `age`, `life`, `held`, `synthetic`; one table, reused |
+| `rood.hud.release(kind)`, `rood.hud.kinds()` | |
+| `rood.draw.style{...} -> style` (also `d.style`) | an immutable handle, parsed once (make styles at load): `font` (a ui_text style's font: `dialogue`, `menu`, `info`, `digits`, `status`, `labels`), `size` (em, game pixels), `color` (`0xRRGGBB` or `"#rrggbb"`), `alpha`, `stroke` (game pixels), `stroke_color`, `stroke_alpha`, `tracking` (em), `stretch`, `align` (`left`, `center`, `right`), `anchor` (`top`, `middle`: the capitals' middle, `baseline`, `bottom`); unknown fields and bad values raise; at most 256 per load |
+| `d.text(style, s, x, y[, color[, alpha]]) -> queued` | inside a draw function only; game coordinates (widescreen narrows them about the element's anchored edge, as the game's 2D) |
+| `d.rect(x, y, w, h, color[, alpha])`, `d.measure(style, s) -> w, h` | |
+| `rood.dev.show(kind, {timing, variant, age, hold})` | dev mode only (`ROOD_RPC` set or `ROOD_DEV=1`): in the field the game's own spawner, held at `age` (10) until `rood.dev.clear([kind])`; elsewhere a synthetic element only claims draw. `rood.dev.list()` |
+
+Honoured: a claim that has not failed, and the modern look (`ui_menus 1`)
+or `hud_classic_override 1` (default 0: the classic look stays the game's,
+typography only). A draw that raises counts a fault and the game draws the
+element again until the plugin reloads. The command buffer is fixed (1024
+commands, 16 KB of text: past it `d.text` returns false). A reload drops the
+plugin's claims and styles; held moments belong to the host and stay, so an
+edit shows on the held word about half a second after it is saved (the
+hot reload check).
+
+RPC `hud`: `list`, `show {kind, timing, variant, age, hold}`, `clear {kind}`,
+`stats {reset}` (per kind: seen, suppressed, fallback, drawn, faults, owner;
+the claims' Lua per frame, mean / p99 / max ms; the last frame's commands),
+`set {classic_override}`.
+
+Try it (the Lua console, F1, in the field with the modern look):
+
+```lua
+rood.dev.show("status", { timing = "slow" })
+w = rood.draw.style{ font = "status", size = 14, stroke = 1.5, align = "center", anchor = "middle" }
+rood.hud.claim("status", function(e, d) d.text(w, e.text, e.x, e.y, e.rgb) end)
+rood.hud.release("status")   -- the game's own word again
+rood.dev.clear()
+```
+
 ## Developer tools
 
 - The console: F1, Window > Lua console. Evaluate in the console's own
@@ -163,9 +204,13 @@ checks are not a defense against another process racing filesystem changes.
 
 - `ctest lua_probe` (seconds, no game): allocator cap, budgets, sandbox,
   values between plugins, events, timers, registry, manifests, storage,
-  capabilities, hot reload, the test harness, the RPC.
+  capabilities, hot reload, the test harness, the RPC, the HUD layer.
 - Lua tests: `tests/*.lua` in a plugin, run inside a running game with no
   relaunch: `rood_rpc.py lua-test`, or `python3 pc/tests/lua_smoke.py
   --tests-only --plugin my.plugin` (one launch).
 - `pc/tests/run.py lua_smoke`: one game, every Lua test, then runaway and
   failing scripts, memory, capabilities, hot reload and settings.
+- `pc/tests/run.py hud_bench_smoke`: one game in the save room: SLOW!
+  summoned and held, claimed (suppressed, drawn), hot-reloaded while held
+  (the loop's seconds printed), and the game's own drawing with no claim,
+  a draw error, the plugin off, the classic look.

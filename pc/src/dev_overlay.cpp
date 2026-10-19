@@ -64,6 +64,7 @@ extern "C" void pc_lua_frame(double dt);        /* pc/src/lua: plugins' frame ha
 extern "C" void pc_lua_console_menu_item(void); /* lua_console.cpp */
 extern "C" void pc_lua_console_window(void);
 extern "C" void pc_fast_travel_prompt_draw(void); /* fast_travel_prompt.cpp */
+extern "C" void pc_hud_frame(void);               /* lua_api_hud.cpp: claimed HUD elements */
 extern "C" int pc_editor_active(void);
 extern "C" void pc_editor_toggle(void);
 extern "C" int pc_editor_flying(void);
@@ -2146,6 +2147,7 @@ extern "C" void pc_overlay_frame(int width, int height)
     } else {
         memset(pc_gl_inset, 0, sizeof pc_gl_inset);
     }
+    pc_hud_frame(); /* HUD elements plugins claim (pc/src/hud): over the picture, under the menus */
     pc_ui_draw_frame((float)dt); /* modern menus (pc/src/ui) over the game picture */
     if (!visible)
         pc_fast_travel_prompt_draw(); /* the Travel prompt on a Circle of Magic (not over the editor) */
