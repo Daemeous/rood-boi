@@ -226,6 +226,7 @@ std::set<uint64_t> bad;
 struct Use {
     uint64_t stamp; /* `changes` when it was last looked up */
     uint32_t layers; /* atlas layers its replacements live on */
+    std::vector<uint32_t> uploads; /* upload CRCs on its page (what an arriving image can change) */
 };
 std::map<unsigned, Use> used;
 std::vector<Pending> pending;
@@ -992,6 +993,7 @@ extern "C" void pc_hd_use(unsigned tpage, unsigned clut)
             if (t.width)
                 hashes.insert(t.hash);
         }
+    used[key].uploads.assign(hashes.begin(), hashes.end());
     for (uint32_t c : hashes) {
         uint64_t key = (uint64_t(c) << 32) | pal;
         if (depth < 2) {
@@ -1052,8 +1054,16 @@ extern "C" void pc_hd_frame(void)
             if (!full && !resident.count(key))
                 place_resident(key, image, path);
         }
-        if (!done.empty())
-            used.clear();
+        /* Look up again only the pages that show an arrived image. */
+        std::set<uint32_t> arrived;
+        for (auto &item : done)
+            arrived.insert(uint32_t(std::get<0>(item) >> 32));
+        for (auto it = used.begin(); it != used.end();) {
+            bool shows = false;
+            for (uint32_t c : it->second.uploads)
+                shows = shows || arrived.count(c);
+            it = shows ? used.erase(it) : std::next(it);
+        }
     }
     ++frame_number;
     frame_layers = 0;
