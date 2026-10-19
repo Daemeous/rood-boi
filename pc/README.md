@@ -116,6 +116,46 @@ and does not establish title boot. `--fast` disables window pacing for tests.
 Without `--skip-movies`, the intro movie plays first (about 38 seconds of
 video before the title; Start skips it).
 
+### Back at the same moment after a rebuild (save states)
+
+The engine's edit loop: change something in `pc/`, rebuild, and the running
+game continues where it was on the new build within seconds.
+
+```sh
+pc/run-game.sh --vulkan          # play; leave it running
+# ...edit a renderer, UI or editor file...
+pc/tools/dev_loop.sh             # rebuild the 64-bit game, restart it at the same moment
+pc/run-game.sh --vulkan --resume # later: continue where the last session quit
+```
+
+- **Auto-snapshot.** `pc/run-game.sh` sets `ROOD_AUTOSNAP`
+  (`pc/build/resume/last.snap`, ignored by git): closing the window saves it
+  at the next vsync, then quits. RPC `snapshot {action:"autosave"}` saves it
+  without quitting.
+- **`--resume`** (or `ROOD_RESUME=1`; a path also works) resumes it, running,
+  when it still fits the build; otherwise the game boots normally and the log
+  says why (`[snapshot] cannot resume ...`).
+- **`pc/tools/dev_loop.sh`** runs `build_boot.py --arch 64`, then RPC
+  `restart` on the running game (`$ROOD_RPC`, default run-game.sh's socket):
+  it saves the auto-snapshot, runs the executable again (now the rebuilt one)
+  and resumes it. The window closes and reopens; settings, lights and the
+  editor start fresh, as at a launch. `--no-build` only restarts. Measured
+  (Vulkan): a one-file renderer edit rebuilds in about 6 s and the game runs
+  again at the same vsync about 0.5 s after the build ends.
+
+What survives a rebuild (64-bit build): the link pins the game's code,
+read-only data and state (`src/` and the `pc/src` units built like it, the
+state sections of the host units whose statics are game state) at a fixed
+address after the engine (`pc/tools/snapshot_layout.py`), and a snapshot
+holds the game's stack only below the vsync boundary, where every frame is
+the game's (`pc/src/snapshot.c`). So any change to the rest of `pc/` (the
+renderer, UI, editor, Lua host, platform glue, the runtime's code) resumes
+exactly. A change to the game's code, or to the layout of the saved state (a
+host unit's saved static added or resized), cannot: the snapshot's keys
+(`snapshot {action:"hash"}` shows this build's `code_key` and `layout_key`)
+differ, and it is refused with the reason. The 32-bit build resumes only
+snapshots of the same binary. Save states are Linux-only.
+
 ### Right-stick camera
 
 The right stick turns and zooms the game's own follow camera; the PS1 pad
@@ -2075,8 +2115,9 @@ redraws at about 60 Hz, and after each request):
 | `editor_undo` | `action` (`list`, `undo`, `redo`, `begin`, `end`, `jump`), `steps`, `name`, `done` | the undo history (`done`, names, `undo`/`redo` names, `open`); each editing request (`actors`, `glows`, `lights`, `environment`, `editor_place`, `room_groups`, `uv_effects`, `editor_snap` with `apply`) is one transaction, `begin`/`end` hold one open across requests (a drag) |
 | `editor_input` | `keys` (`delete`, `backspace`, `escape`, `enter`, `tab`, `f2`, a letter or digit), `text`, `ctrl`, `shift`, `focus` (`search`, `none`) | keys and text through SDL's event queue (the keyboard's path); replies `visible`, `want_text_input`, `item_active`, `gizmo` |
 | `editor_view` | `focus` | the cutaway's focus (`[x, y, z]` fixes it, null: automatic), whether it is `hidden` and how far the cut has faded in (`amount`) |
-| `snapshot` | `action` (`save` {`path`}, `hash`, `available`) | save states (`pc/src/snapshot.c`, Linux): `save` writes the whole game state at this vsync to `path` (reply once written); `hash` gives FNV-1a hashes of guest RAM, scratchpad, I/O page, native game statics, overlay statics and VRAM. `ROOD_SNAPSHOT=path` at launch resumes such a file (same binary only), paused |
-| `quit` | | exit |
+| `snapshot` | `action` (`save` {`path`}, `autosave`, `hash`, `available`) | save states (`pc/src/snapshot.c`, Linux): `save` writes the whole game state at this vsync to `path` (reply once written); `autosave` to the auto-snapshot (`ROOD_AUTOSNAP`, default `pc/build/resume/last.snap`); `hash` gives FNV-1a hashes of guest RAM, scratchpad, I/O page, native game statics, overlay statics and VRAM, and this build's `code_key` and `layout_key`. `ROOD_SNAPSHOT=path` at launch resumes such a file, paused, or exits with the reason; `ROOD_RESUME=path` resumes it running, or boots when it does not fit ([save states](#back-at-the-same-moment-after-a-rebuild-save-states)) |
+| `restart` | `paused` | autosave, then run the executable again (a rebuilt one) resuming it at this vsync, running unless `paused` (`pc/tools/dev_loop.sh`); replies `saved`, `vsync` before the restart |
+| `quit` | | exit (with `ROOD_AUTOSNAP` set, after saving the auto-snapshot at the next vsync) |
 
 Button names: `up down left right cross circle square triangle l1 r1 l2 r2 l3 r3
 start select`.
@@ -2159,6 +2200,7 @@ what limits a full run.
 | --- | --- |
 | `ctest` | the CMake probes in `pc/build` (configure it once, below); `fixture_catalog` keeps the whole-disc scan and generation result for identical inputs in `pc/build/fixture-check/` (the determinism re-run always runs; `ROOD_FIXTURE_CHECK_CACHE=0` recomputes) |
 | `snapshot_equivalence` | save states resume exactly at every test checkpoint (below; first job) |
+| `snapshot_resume_smoke` | 64-bit: the engine relinked elsewhere resumes a snapshot through RPC `restart` at the same moment and state, and 60 vsyncs on matches the original build; a snapshot of other game code is refused |
 | `rpc_smoke`, `gi_smoke`, `movie_smoke` | RPC control, path tracer, intro movie |
 | `lua_smoke` | plugins in one game: every Lua test (`rood.test`), runaway and failing scripts stopped within their budgets, memory cap, sandbox, capabilities, hot reload, settings from Lua (`docs/Extensions.md`) |
 | `room_smoke`, `opening_smoke`, `scene_smoke` | checkpoint frames without a window |

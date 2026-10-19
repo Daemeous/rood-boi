@@ -520,7 +520,8 @@ int pc_ui_map_pad(int cmd, short* pitch, short* yaw, int* distance, int* gx, int
     vs_main_bzero(&in, sizeof in);
     if (pc_window_stick && pc_window_stick(v))
         in.stick[0] += v[0], in.stick[1] += v[1];
-    if (pc_rpc_stick && pc_rpc_stick(v))
+    /* The window/input recorder already combines the RPC stick. */
+    if (!pc_window_stick && pc_rpc_stick && pc_rpc_stick(v))
         in.stick[0] += v[0], in.stick[1] += v[1];
     for (k = 0; k < 2; ++k)
         in.stick[k] = in.stick[k] < -1 ? -1 : in.stick[k] > 1 ? 1 : in.stick[k];

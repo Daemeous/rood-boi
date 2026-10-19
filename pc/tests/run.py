@@ -113,7 +113,16 @@ def suites(args, mode="egl"):
     scale = args.timeout_scale * (1 if mode == "egl" else 3)
     return [suite.scaled(scale) if not suite.name.startswith("input:") else suite for suite in [
         Suite("ctest", ["ctest", "--test-dir", str(ROOT / "pc/build"), "--output-on-failure"], 300, binary=None,
-              note="CMake probes in pc/build"),
+              note="CMake probes in pc/build", sources=[ROOT / "pc/tools/ownership.py",
+                  ROOT / "game/ownership.toml", TESTS / "ownership_test.py", TESTS / "routing_probe/run.py",
+                  TESTS / "routing_probe/unit.c", TESTS / "routing_probe/owned.c", TESTS / "routing_probe/main.c",
+                  TESTS / "owner_switch_probe.c", ROOT / "pc/src/ownership.c",
+                  TESTS / "state_diff_test.c", ROOT / "pc/src/state_diff.c", ROOT / "pc/src/state_diff.h",
+                  TESTS / "state_rewind_test.c", ROOT / "pc/src/state_rewind.c",
+                  TESTS / "input_record_test.c", ROOT / "pc/src/input_record.c"]),
+        Suite("ownership_smoke", [PY, str(TESTS / "ownership_smoke.py")], 300,
+              note="oracle checkpoint, rewind and replay", sources=[ROOT / "pc/src/state_rewind.c",
+                  ROOT / "pc/src/state_diff.c", ROOT / "pc/src/snapshot.c", ROOT / "pc/src/input_record.c"]),
         Suite("lighting_lint", [PY, str(ROOT / "pc/tools/lighting_lint.py")], 60, binary=None,
               note="lighting packs in lighting/: syntax, keys, ids, dangling overrides, rooms"),
         Suite("emissive_catalog", [PY, str(TESTS / "emissive_catalog_test.py")], 300, binary=None,
@@ -129,6 +138,9 @@ def suites(args, mode="egl"):
               + (["--card", str(args.save)] if args.save.exists() else []), 600,
               note="save states: booting to each test checkpoint and resuming its snapshot give identical "
                    "game state and frames; makes the checkpoints' save states (first job)"),
+        Suite("snapshot_resume_smoke", [PY, str(TESTS / "snapshot_resume_smoke.py")], 300,
+              note="64-bit: the engine relinked elsewhere resumes a snapshot through RPC restart at the same "
+                   "moment and state (and as the original build does 60 vsyncs on); other game code refused"),
         Suite("rpc_smoke", [PY, str(TESTS / "rpc_smoke.py")], 180),
         Suite("rpc_tcp_token_smoke", [PY, str(TESTS / "rpc_tcp_token_smoke.py")], 180,
               note="TCP RPC with a token: refused without it, with a wrong one, HTTP lines; never logged"),
@@ -546,7 +558,7 @@ CHECKPOINT_SUITES = {
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
-    "ui_ashley_detail_smoke", "ui_score_smoke",
+    "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke",
 }
 
 

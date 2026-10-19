@@ -1,0 +1,27 @@
+# Owned game code (pc/docs/Ownership.md). Each subsystem is a set of the
+# original's functions that the PC game can run from owned code (game/)
+# instead. Functions are keyed by their PS1 address; the name is checked
+# against the reference ELFs, so an upstream rename fails the build.
+#
+#   overlay   the Zig object that implements it: game/<overlay>/root.zig -> <overlay>_zig.o
+#   unit      the original unit that defines every listed function
+#   default   who runs it unless ROOD_OWNER, RPC owner or the overlay says otherwise:
+#             original | owned
+#   roots     pointer globals the field mapper follows (pc/tools/field_map.py)
+
+[subsystem.battle_action]
+overlay = "battle"
+unit = "src/BATTLE/BATTLE.PRG/146C.c"
+default = "original"
+roots = ["D_800F19CC", "vs_battle_actors", "D_800F4538", "vs_battle_characterState"]
+functions = [
+    { addr = 0x80070F28, name = "func_80070F28" },            # commit (costs, hits rolled), sets phase 4
+    { addr = 0x8007138C, name = "func_8007138C" },            # cast start: animation, sound, effect request
+    { addr = 0x800784AC, name = "_handleCombatCameraZoom" },  # phase 4: the camera converges
+    { addr = 0x80078748, name = "func_80078748" },            # phase 5: wait for the cast to be ready
+    { addr = 0x800704B0, name = "func_800704B0" },            # -> phase 6
+    { addr = 0x800787F0, name = "func_800787F0" },            # phase 6: wait for the flash, release
+    { addr = 0x80070278, name = "func_80070278" },            # release: turn, ability window, phase 7
+    { addr = 0x80079030, name = "func_80079030" },            # phase 8: re-cast
+    { addr = 0x80078AB4, name = "func_80078AB4" },            # phase 7: the chain/defense timing window
+]

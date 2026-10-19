@@ -11,11 +11,56 @@ add_executable(memory_probe tests/memory_probe.c)
 target_link_libraries(memory_probe PRIVATE rood_memory)
 add_test(NAME memory_probe COMMAND memory_probe)
 
+add_executable(state_diff_test tests/state_diff_test.c src/state_diff.c)
+target_include_directories(state_diff_test PRIVATE src)
+target_compile_options(state_diff_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+add_test(NAME state_diff COMMAND state_diff_test)
+add_executable(state_diff_failures_test tests/state_diff_test.c src/state_diff.c)
+target_include_directories(state_diff_failures_test PRIVATE src)
+target_compile_definitions(state_diff_failures_test PRIVATE STATE_DIFF_TEST_OWNERSHIP STATE_DIFF_TEST_ALLOC)
+target_compile_options(state_diff_failures_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+target_link_options(state_diff_failures_test PRIVATE -Wl,--wrap=malloc -Wl,--wrap=calloc)
+add_test(NAME state_diff_failures COMMAND state_diff_failures_test)
+add_executable(input_record_test tests/input_record_test.c)
+target_compile_options(input_record_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+add_test(NAME input_record COMMAND input_record_test)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # The vsync boundary and the enter into the game are test doubles (snapshot.c's).
+    add_executable(state_rewind_test tests/state_rewind_test.c src/state_rewind.c)
+    target_include_directories(state_rewind_test PRIVATE src)
+    target_compile_options(state_rewind_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+    add_test(NAME state_rewind COMMAND state_rewind_test)
+endif()
+
 # The boot diagnostic deliberately uses a 32-bit ABI and the original SDK headers.
 # It requires the matching build's extracted assets; it is not part of the
 # dependency-free memory probe's default build.
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_test(NAME event_callbacks COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/event_callbacks_test.py)
+# The pinned Zig toolchain's verification and cache (pc/tools/zig_toolchain.py), offline.
+add_test(NAME zig_toolchain COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/zig_toolchain_test.py)
+# Ownership table, preprocessed definitions and generated routing.
+add_test(NAME ownership COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/ownership_test.py)
+add_test(NAME routing_probe COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/routing_probe/run.py)
+add_executable(owner_switch_probe tests/owner_switch_probe.c src/ownership.c)
+target_compile_options(owner_switch_probe PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+add_test(NAME owner_switch COMMAND owner_switch_probe)
+set_tests_properties(owner_switch PROPERTIES ENVIRONMENT "ROOD_OWNER=")
+add_test(NAME owner_switch_env COMMAND owner_switch_probe 1)
+set_tests_properties(owner_switch_env PROPERTIES ENVIRONMENT "ROOD_OWNER=alpha=owned,missing=owned,beta=invalid")
+add_test(NAME owner_switch_shadow COMMAND owner_switch_probe)
+set_tests_properties(owner_switch_shadow PROPERTIES ENVIRONMENT "ROOD_OWNER=alpha=shadow")
+# Owned game code's pure parts (game/): zig test on the 32- and 64-bit targets the game builds for.
+execute_process(COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/zig_toolchain.py
+    OUTPUT_VARIABLE ROOD_ZIG OUTPUT_STRIP_TRAILING_WHITESPACE RESULT_VARIABLE ROOD_ZIG_MISSING)
+if(ROOD_ZIG_MISSING EQUAL 0)
+    foreach(target x86_64-linux-musl x86-linux-musl)
+        add_test(NAME zig_unit_${target} COMMAND ${ROOD_ZIG} test -target ${target} -O ReleaseSafe
+            ${CMAKE_CURRENT_SOURCE_DIR}/../game/common/psx.zig)
+    endforeach()
+else()
+    message(STATUS "Zig not installed (pc/tools/zig_toolchain.py): zig unit tests skipped")
+endif()
 
 # Light actor prefabs (JSON, expressions, deterministic animation, the
 # built-in library in pc/assets/prefabs) without the game.

@@ -33,3 +33,6 @@
 *.ecm
 *.pbp
 *.mcd
+# Zig caches (the build's live under pc/build)
+.zig-cache/
+zig-out/

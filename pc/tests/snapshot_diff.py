@@ -16,7 +16,8 @@ import struct
 import subprocess
 import sys
 
-HEADER = struct.Struct("<8sIIQII")
+HEADER = struct.Struct("<8sIIQII")  # version 1
+HEADER2 = struct.Struct("<8sIIQQII")  # version 2: code and layout keys
 CHUNK = struct.Struct("<IIQQ")
 CHUNK_END, CHUNK_MEMORY, CHUNK_SPU, CHUNK_LOG = range(4)
 # Native statics that hold wall-clock time, not game state (boot_runtime.c:
@@ -27,11 +28,15 @@ VOLATILE = {"last_vsync"}
 def read(path):
     """{"header": (...), "memory": {address: bytes}, "spu": bytes, "stack": (address, bytes)}"""
     data = pathlib.Path(path).read_bytes()
-    magic, version, pointer_size, code_hash, vsync, _ = HEADER.unpack_from(data, 0)
+    magic, version = struct.unpack_from("<8sI", data, 0)
     if magic != b"ROODSNAP":
         raise ValueError(f"{path}: not a snapshot")
+    if version >= 2:
+        _, _, pointer_size, code_hash, _, vsync, _ = HEADER2.unpack_from(data, 0)
+    else:
+        _, _, pointer_size, code_hash, vsync, _ = HEADER.unpack_from(data, 0)
     context_size = 8 * pointer_size + 8  # snap_context: 8 registers, mxcsr, fpu cw, padding
-    offset = HEADER.size + context_size + 8  # + canary
+    offset = (HEADER2 if version >= 2 else HEADER).size + context_size + 8  # + canary
     memory, spu, log = {}, b"", b""
     while True:
         tag, _, address, size = CHUNK.unpack_from(data, offset)

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# The standard verify of a change: the four builds, then the 32-bit OpenGL
-# and the 64-bit Vulkan suites, one line per step.
+# The standard verify of a change: the four builds, then the 64-bit Vulkan
+# suites, one line per step. The 32-bit build is still compiled (a cheap check)
+# but its suite is not run: 64-bit is what ships and what the oracle checks.
+# OpenGL (the fallback renderer) runs as a 64-bit suite with --changed, and
+# with --gl on a full verify.
 #
 #   pc/tools/verify.sh                   everything
 #   pc/tools/verify.sh --changed [BASE]  the suites a change since BASE (default
@@ -8,6 +11,8 @@
 #   pc/tools/verify.sh --no-windows      skip the Windows cross build
 #   pc/tools/verify.sh --windows         include it with --changed (skipped
 #                                        there by default: low priority)
+#   pc/tools/verify.sh --gl              also the 64-bit OpenGL suite on a
+#                                        full verify
 #   pc/tools/verify.sh -- ARGS...        more run.py options for both suites
 #                                        (e.g. -- -j 4 --gpu-jobs 3)
 #
@@ -20,13 +25,14 @@
 # Exit status: the number of failed steps (0 = all passed).
 set -u
 cd "$(dirname "$0")/../.."
-changed=() windows= extra=()
+changed=() windows= gl=0 extra=()
 while [ $# -gt 0 ]; do
     case "$1" in
         --changed)
             if [ $# -gt 1 ] && [ "${2#-}" = "$2" ]; then changed=(--changed "$2"); shift; else changed=(--changed); fi ;;
         --no-windows) windows=0 ;;
         --windows) windows=1 ;;
+        --gl) gl=1 ;;
         --) shift; extra=("$@"); break ;;
         -h|--help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "verify.sh: unknown option $1 (see --help)" >&2; exit 2 ;;
@@ -66,8 +72,10 @@ step() {  # step build|test NAME COMMAND...: run it (under its lock), print one 
 step build build-32 python3 pc/tools/build_boot.py
 step build battle-32 python3 pc/tools/build_boot.py --battle
 step build build-64 python3 pc/tools/build_boot.py --arch 64
-step test suite-32gl python3 pc/tests/run.py --out "$out/t32gl" "${changed[@]}" "${extra[@]}"
 step test suite-64vk python3 pc/tests/run.py --arch 64 --renderer vulkan --out "$out/t64vk" "${changed[@]}" "${extra[@]}"
+if [ ${#changed[@]} -gt 0 ] || [ $gl = 1 ]; then
+    step test suite-64gl python3 pc/tests/run.py --arch 64 --renderer gl --out "$out/t64gl" "${changed[@]}" "${extra[@]}"
+fi
 [ $windows = 1 ] && step build windows nice -n 19 python3 pc/tools/build_boot.py --target windows
 printf '%s in %ds\n' "$([ $failed = 0 ] && echo 'all passed' || echo "$failed failed")" $((SECONDS - start_all))
 exit $failed

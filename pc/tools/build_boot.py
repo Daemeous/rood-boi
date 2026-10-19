@@ -2,6 +2,7 @@
 """Build a fail-fast x86 startup diagnostic from the original C and local disc data."""
 
 import argparse
+import json
 import pathlib
 import subprocess
 import re
@@ -387,6 +388,63 @@ def compile_generated(args):
         run(win_command(args))
 
 
+# Owned code: ELF objects and, for Windows, COFF twins from the same source.
+ZIG_COMMON = ["-O", "ReleaseSafe", "-fllvm", "-fsingle-threaded", "-fno-stack-check",
+              "-fno-omit-frame-pointer", "-ffunction-sections", "-fdata-sections"]
+ZIG_ELF = ("x86_64-linux-none", "x86_64", ["-fPIE"]) if arch64 else ("x86-linux-none", "i686", ["-fno-PIE", "-fno-PIC"])
+ZIG_COFF = ("x86_64-windows-gnu", "x86_64", [])
+
+
+def zig_command(target, modules, root_name, output):
+    """zig build-obj with the root first and flags repeated per module."""
+    triple, cpu, pic = target
+    args = [ZIG, "build-obj", "-fno-compiler-rt", f"-femit-bin={output}",
+            "--cache-dir", str(out / "zig-cache"), "--global-cache-dir", str(zig_toolchain.global_cache())]
+    for name in [root_name] + sorted(m for m in modules if m != root_name):
+        path, deps = modules[name]
+        args += ["-target", triple, "-mcpu", cpu, *ZIG_COMMON, *pic]
+        for dep in deps:
+            args += ["--dep", dep]
+        args.append(f"-M{name}={path}")
+    return args
+
+
+_ZIG_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def check_zig_object(obj, overlay):
+    """Reject odd global names, COFF .refptr stubs, and overlay statics."""
+    if not coff:
+        for line in query(["nm", "-g", "-P", str(obj)]).splitlines():
+            name = line.rsplit(" ", 3)[0]
+            if not _ZIG_NAME.fullmatch(name):
+                raise SystemExit(f"{obj.name}: global symbol {name!r} is not a plain identifier")
+        if overlay:
+            for line in query(["readelf", "-SW", str(obj)]).splitlines():
+                section = re.match(r"\s*\[\s*\d+\]\s+(\.(data|bss)(\.\S+)?)\s+\w+\s+\w+\s+\w+\s+(\w+)", line)
+                # .data.rel.ro: constant tables, read-only after linking.
+                if section and int(section.group(4), 16) and not section.group(1).startswith(".data.rel.ro"):
+                    raise SystemExit(f"{obj.name}: owned code keeps no mutable statics ({section.group(1)}); "
+                                     "keep state in guest memory or host C")
+    if win:
+        symbols = query([MINGW + "nm", str(twin(obj))])
+        if ".refptr." in symbols:
+            bad = sorted({s.split(".refptr.")[1] for s in symbols.split() if ".refptr." in s})
+            raise SystemExit(f"{twin(obj).name}: .refptr stubs for {', '.join(bad)}: reach globals with psx.global()")
+
+
+def compile_zig(name, modules, root_name, overlay=None):
+    """Compile an owned object (and its COFF twin); returns its path."""
+    obj = out / f"{name}.o"
+    if not coff:
+        run(zig_command(ZIG_ELF, modules, root_name, obj))
+    if win:
+        run(zig_command(ZIG_COFF, modules, root_name, twin(obj)))
+    check_zig_object(obj, overlay)
+    print(f"Zig: {obj.name} ({ZIG_ELF[0]}{', ' + ZIG_COFF[0] if win else ''})")
+    return obj
+
+
 # SDL3 (vendored, zlib) for the window, input, gamepads and audio, built as a
 # static 32-bit library. Its platform backends (Wayland, X11, PulseAudio,
 # PipeWire, ALSA, udev, D-Bus) load their libraries at run time, so only
@@ -511,8 +569,25 @@ if win:
 # outputs. Otherwise every compile below is checked against the object cache.
 from build_cache import ObjectCache, ResultCache, Stamp, tool_identity
 
+sys.path.insert(0, str(root / "pc/tools"))
+import zig_toolchain  # noqa: E402
+
+# The pinned Zig for the owned code in game/ (pc/docs/Ownership.md). Optional
+# while no game code is owned yet: without it the owned objects are skipped
+# (a warning; ROOD_REQUIRE_ZIG=1 makes it an error, as it will be once a
+# module is owned).
+_zig = zig_toolchain.find()
+if _zig is None and os.environ.get("ROOD_REQUIRE_ZIG") == "1":
+    _zig = zig_toolchain.ensure()  # exits with the install instructions
+ZIG = str(_zig) if _zig else None
+if ZIG is None:
+    print(f"warning: Zig {zig_toolchain.VERSION} not installed: building without the owned objects (game/); "
+          "`python3 pc/tools/zig_toolchain.py --help` installs it")
+
 stamp_tools = ["gcc", "g++", "nm", "objcopy", "objdump", "readelf", "gdb", "mipsel-linux-gnu-ld", "docker"] \
     + ([MINGW_GCC, MINGW_GXX] + [MINGW + t for t in ["objcopy", "objdump", "nm", "readelf", "windres"]] if win else [])
+if ZIG:
+    stamp_tools.append(ZIG)
 toolchain = tool_identity(stamp_tools)
 build_stamp = Stamp(root, out, {
     "battle": battle, "no_audio": no_audio, "arch": parsed.arch, "target": parsed.target, "coff": coff,
@@ -520,9 +595,10 @@ build_stamp = Stamp(root, out, {
 })
 stamp_trees = [("src", None), ("include", None), ("config", None), ("build", None), ("pc/src", None),
                ("pc/include", None), ("pc/shaders", None), ("pc/third_party", None), ("tools/etc", ".py"),
-               ("pc/tests", (".c", ".h"))] \
+               ("pc/tests", (".c", ".h")), ("game", None)] \
     + [(f"pc/tools/{tool}.py", None) for tool in ["build_boot", "build_cache", "event_callbacks", "lp64_report",
-                                                   "import_types", "nrd", "gl_shaders", "vk_shaders"]]
+                                                   "import_types", "nrd", "gl_shaders", "vk_shaders", "zig_toolchain", "ownership",
+                                                   "snapshot_layout"]]
 stamp_files = [root / "data/SLUS_010.40", root / "data/BATTLE/BATTLE.PRG", root / "data/ENDING/ENDING.PRG",
                sdl_library, *(nrd["libraries"] if nrd else []),
                *([win_sdl_library, *(win_nrd["libraries"] if win_nrd else [])] if win else []),
@@ -923,14 +999,23 @@ for name in ["runtime", "window", "controller", "gamepad"]:
             and name in STATE_HOST_UNITS:
         state_sections(obj)
     objects.append(obj)
-for name in ["audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "charge_skip", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []):
+for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "charge_skip", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []):
     obj = out / (name.replace("/", "_") + ".o")
     # ui_text rasterizes fonts with the stb_truetype that Dear ImGui vendors.
     extra = ["-Ipc/third_party/imgui"] if name == "ui_text" else []
+    if name == "ownership":
+        extra = ["-DROOD_NO_ROUTING"]  # Task 9 will link generated routing.c
+        if not ZIG:
+            extra.append("-DROOD_NO_OWNED")  # no game_core object: no ABI to check
     if compile_object(["gcc", *flags, *sdl_flags, *extra, "-c", f"pc/src/{name}.c", "-o", str(obj)], f"pc/src/{name}.c") \
             and name in STATE_HOST_UNITS:
         state_sections(obj)
     objects.append(obj)
+if ZIG:
+    objects.append(compile_zig("game_core", {
+        "root": ("game/core/root.zig", ["common"]),
+        "common": ("game/common/common.zig", []),
+    }, "root"))
 if not arch64:
     # Gamepad mapping test, and --hardware to report a connected gamepad.
     run(["gcc", "-m32", "-O2", "-fno-pie", "-no-pie", "-DROOD_CONTROLLER_HARDWARE", "-Ipc/src", *sdl_flags,
@@ -1932,7 +2017,23 @@ if win:
 # The linked objects, for pc/tools/decl_mismatch.py (stale .o files in the
 # directory are not part of the program).
 (out / "objects.txt").write_text("".join(f"{o.relative_to(root)}\n" for o in objects))
-run(
+# Save states across engine rebuilds (pc/tools/snapshot_layout.py): the
+# game's code, read-only data and state at a fixed address after the engine
+# (64 bits: 0x18000000; the heap starts up to 1 GB past the image's end, which
+# must stay below the game stack at 0x60000000), and the keys a snapshot is
+# checked against.
+pin_args = []
+if arch64:
+    from snapshot_layout import generate as generate_snapshot_layout
+
+    linked = [*objects, out / "traps.o", out / "overlay_statics_table.o"]
+    # The owned code (game/) is the game's too: its frames sit below the boundary.
+    pinned = [o for o in game_objects if o in objects] + [out / "cd_drive.o", out / "traps.o"] \
+        + [o for o in objects if o.name == "game_core.o"]
+    pin_script, key_source = generate_snapshot_layout(linked, pinned, 0x18000000, 8, out)
+    run(["gcc", *flags, "-c", str(key_source), "-o", str(out / "snapshot_key.o")])
+    pin_args = [str(out / "snapshot_key.o"), "-Wl,-T," + str(pin_script)]
+link = (
     [
         "gcc",
         # 32 bits: native code below 16 MB, where 24-bit OT links can reach
@@ -1943,6 +2044,7 @@ run(
         *[str(o) for o in objects],
         str(out / "traps.o"),
         str(out / "overlay_statics_table.o"),
+        *pin_args,
         str(out / "imports.ld"),
         str(sdl_library),
         *(nrd["libraries"] if nrd else []),
@@ -1956,6 +2058,9 @@ run(
         str(out / ("rood_battle_probe" if battle else "rood_boot")),
     ]
 )
+# The link, for pc/tests/snapshot_resume_smoke.py (it relinks with the engine moved).
+(out / "link_command.json").write_text(json.dumps(link) + "\n")
+run(link)
 print(
     f"Built {out / ('rood_battle_probe' if battle else 'rood_boot')}: {len(assign)} data imports, {len(traps)} fail-fast function imports"
 )

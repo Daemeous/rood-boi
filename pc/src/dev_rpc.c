@@ -378,7 +378,18 @@
  *                                e.g. to get past the prologue in tests
  *   input_record                 recording/replay state (input_record.c):
  *                                mode, file, end vblank, current vblank
- *   quit                         exit the game
+ *   snapshot {action, path}      save states (snapshot.c): save {path} at this
+ *                                vsync; autosave: to the auto-snapshot
+ *                                (ROOD_AUTOSNAP, default pc/build/resume/last.snap);
+ *                                hash: hashes of the saved state and this build's
+ *                                keys; available
+ *   restart {paused}             autosave, then run the executable again (a
+ *                                rebuilt one) resuming it at this vsync
+ *                                (pc/tools/dev_loop.sh), running unless paused;
+ *                                replies {saved, vsync}
+ *   quit                         exit the game (with ROOD_AUTOSNAP set, after
+ *                                an autosave at the next vsync, as a window
+ *                                close does)
  *
  * pc/tools/rood_rpc.py is the client (CLI, Python API and a stdin/stdout
  * JSON-RPC bridge); it resolves symbol names to addresses with nm. */
@@ -405,6 +416,8 @@
 #include <poll.h>
 #endif
 #include "pc_paths.h"
+#include "state_diff.h"
+#include <limits.h>
 #include "room_effects.h"
 #include "render.h"
 #include "room_editor.h"
@@ -573,12 +586,23 @@ static int paused_redraw_ms(void)
     }
     return ms;
 }
-/* RPC snapshot save (snapshot.c): the pending request. */
+/* RPC snapshot save (snapshot.c): the pending request, and what follows it. */
 extern int pc_snapshot_available(void);
 extern int pc_snapshot_point(const char* path, char* error, int size);
 extern int pc_snapshot_hash(char* out, int size);
+extern const char* pc_snapshot_autosave_path(void);
+extern void pc_snapshot_restart(const char* path, int paused);
+static int restart_paused;
+void pc_quit(void);
 static struct client* snapshot_client;
+static int snapshot_pending;
+static enum { THEN_REPLY, THEN_EXIT, THEN_RESTART } snapshot_then;
 static char snapshot_id[64], snapshot_path[1024];
+/* snapshot mark/rewind: replies are deferred until on the game stack. */
+extern int pc_snapshot_mark_point(char*, int);
+extern int pc_snapshot_rewind(char*, int);
+static struct client *mark_client, *rewind_client, *rewound_client;
+static char mark_id[64], rewind_id[64], rewound_id[64];
 static long long rpc_now_ms(void)
 {
     struct timespec now;
@@ -719,6 +743,38 @@ static int number_value(const char* v, long long* out)
         return 0;
     *out = n;
     return 1;
+}
+/* Digest masks are bounded pairs, parsed fully before changing the baseline. */
+static int digest_masks(const char* p, uintptr_t* starts, size_t* sizes)
+{
+    int count = 0;
+    if (!p || *p++ != '[') return -1;
+    p = skip(p);
+    if (*p == ']') return 0;
+    for (;;) {
+        if (*p++ != '[' || count == 64) return -1;
+        p = skip(p);
+        if (*p < '0' || *p > '9') return -1;
+        char* end;
+        errno = 0;
+        unsigned long long address = strtoull(p, &end, 10);
+        if (errno || address > UINTPTR_MAX) return -1;
+        p = skip(end);
+        if (*p++ != ',') return -1;
+        p = skip(p);
+        if (*p < '0' || *p > '9') return -1;
+        errno = 0;
+        unsigned long long size = strtoull(p, &end, 10);
+        if (errno || !size || size > SIZE_MAX || size > UINTPTR_MAX - address) return -1;
+        p = skip(end);
+        if (*p++ != ']') return -1;
+        starts[count] = (uintptr_t)address;
+        sizes[count++] = (size_t)size;
+        p = skip(p);
+        if (*p == ']') return count;
+        if (*p++ != ',') return -1;
+        p = skip(p);
+    }
 }
 static int bool_value(const char* v, int* out)
 {
@@ -966,6 +1022,59 @@ static void handle_method(int fd, const char* request)
     if (!strcmp(method, "status")) {
         status_json(result, sizeof result);
         reply(fd, id, result);
+    } else if (!strcmp(method, "digest")) {
+        char action[16] = "result";
+        long long ticks = 4000, alternate = -1;
+        const char* masks = params ? member(params, "masks") : NULL;
+        if (params) {
+            const char *a = member(params, "action"), *t = member(params, "ticks"), *o = member(params, "alternate");
+            if ((a && !string_value(a, action, sizeof action)) ||
+                (t && !number_value(t, &ticks)) || (o && !number_value(o, &alternate))) {
+                fail(fd, id, -32602, "invalid digest parameters");
+                return;
+            }
+        }
+        int record = !strcmp(action, "record"), compare = !strcmp(action, "compare");
+        if ((!record && !compare && strcmp(action, "stop") && strcmp(action, "result")) ||
+            ticks < 1 || ticks > INT_MAX || alternate < -1 || alternate > INT_MAX ||
+            (record && alternate != -1) || (masks && !record)) {
+            fail(fd, id, -32602, "digest: record, compare, stop or result; masks only on record");
+            return;
+        }
+        if (masks) {
+            uintptr_t starts[64];
+            size_t sizes[64];
+            int count = digest_masks(masks, starts, sizes);
+            if (count < 0 || pc_digest_record_masks((int)ticks, starts, sizes, count)) {
+                fail(fd, id, -32602, "digest masks: idle game, up to 64 [address, positive size] pairs");
+                return;
+            }
+        }
+        if (!masks && (record || compare) && pc_digest_start(compare, (int)ticks, (int)alternate)) {
+            fail(fd, id, -32000, "digest: stop current run first; needs valid baseline/ranges, capacity and owner");
+            return;
+        }
+        if (!strcmp(action, "stop")) pc_digest_stop();
+        pc_digest_result(result, (int)sizeof result);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "record") || !strcmp(method, "replay")) {
+        extern int pc_input_record_rpc(const char*), pc_input_replay_rpc(const char*);
+        char file[1024] = "";
+        const char* path = params ? member(params, "path") : NULL;
+        const char* end = path ? value_end(path) : NULL;
+        if (path && strncmp(path, "null", 4) &&
+            (!end || *path != '"' || (size_t)(end - path) > sizeof file ||
+             !string_value(path, file, sizeof file))) {
+            fail(fd, id, -32602, "record/replay path must be a bounded string or null");
+            return;
+        }
+        int status = !strcmp(method, "record") ? pc_input_record_rpc(file) : pc_input_replay_rpc(file);
+        if (status) {
+            fail(fd, id, -32000, "record/replay failed (exclusive modes; check path and recording format)");
+            return;
+        }
+        snprintf(result, sizeof result, "{\"%s\":\"%s\"}", method, json_str(file));
+        reply(fd, id, result);
     } else if (!strcmp(method, "snapshot")) {
         char action[32] = "save";
         if (params)
@@ -975,22 +1084,55 @@ static void handle_method(int fd, const char* request)
             reply(fd, id, result);
         } else if (!strcmp(action, "available")) {
             reply(fd, id, pc_snapshot_available() ? "{\"available\":true}" : "{\"available\":false}");
-        } else if (!strcmp(action, "save")) {
+        } else if (!strcmp(action, "save") || !strcmp(action, "autosave")) {
             if (!pc_snapshot_available()) {
                 fail(fd, id, -32000, "save states are unavailable in this process (see the log)");
                 return;
             }
-            if (!params || !string_value(member(params, "path"), snapshot_path, sizeof snapshot_path)
-                || !snapshot_path[0] || !current_client || strlen(id) >= sizeof snapshot_id) {
+            if (!strcmp(action, "autosave"))
+                snprintf(snapshot_path, sizeof snapshot_path, "%s", pc_snapshot_autosave_path());
+            else if (!params || !string_value(member(params, "path"), snapshot_path, sizeof snapshot_path))
+                snapshot_path[0] = 0;
+            if (!snapshot_path[0] || !current_client || strlen(id) >= sizeof snapshot_id) {
                 fail(fd, id, -32602, "snapshot save needs a path");
                 return;
             }
             /* Taken by pc_rpc_poll once this request's handling is over (on
              * the game stack, between frames); the reply comes from there. */
             snapshot_client = current_client;
+            snapshot_pending = 1;
+            snapshot_then = THEN_REPLY;
             strcpy(snapshot_id, id);
+        } else if (!strcmp(action, "mark") || !strcmp(action, "rewind")) {
+            if (!pc_snapshot_available() || !current_client || strlen(id) >= sizeof mark_id) {
+                fail(fd, id, -32000, "in-memory snapshots unavailable");
+                return;
+            }
+            if (!paused || step_budget || mark_client || rewind_client || snapshot_client) {
+                fail(fd, id, -32000, "mark/rewind needs an idle paused game");
+                return;
+            }
+            if (action[0] == 'm')
+                mark_client = current_client, strcpy(mark_id, id);
+            else
+                rewind_client = current_client, strcpy(rewind_id, id);
         } else
-            fail(fd, id, -32602, "snapshot action: save, hash or available");
+            fail(fd, id, -32602, "snapshot action: save, autosave, mark, rewind, hash or available");
+    } else if (!strcmp(method, "restart")) {
+        if (!pc_snapshot_available() || !current_client || strlen(id) >= sizeof snapshot_id) {
+            fail(fd, id, -32000, "restart needs save states (see the log)");
+            return;
+        }
+        /* paused: the new process stays paused (tests); else it runs on. */
+        int keep_paused = 0;
+        if (params)
+            bool_value(member(params, "paused"), &keep_paused);
+        restart_paused = keep_paused;
+        snprintf(snapshot_path, sizeof snapshot_path, "%s", pc_snapshot_autosave_path());
+        snapshot_client = current_client;
+        snapshot_pending = 1;
+        snapshot_then = THEN_RESTART;
+        strcpy(snapshot_id, id);
     } else if (!strcmp(method, "wait")) {
         long long timeout = 1000;
         if (params && number_value(member(params, "timeout_ms"), &n))
@@ -3618,7 +3760,7 @@ static void handle_method(int fd, const char* request)
     } else if (!strcmp(method, "quit")) {
         reply(fd, id, "{}");
         fprintf(stderr, "[rpc] quit requested\n");
-        exit(0);
+        pc_quit();
     } else {
         snprintf(text, sizeof text, "unknown method %s", method);
         fail(fd, id, -32601, text);
@@ -4027,24 +4169,93 @@ static void wait_for_requests(int ms)
  * and the game stays paused (pc_rpc_restored). */
 static void take_snapshot(void)
 {
-    if (!snapshot_client)
+    if (!snapshot_pending)
         return;
     struct client* c = snapshot_client;
     snapshot_client = NULL;
+    snapshot_pending = 0;
     char error[256] = "";
     int status = pc_snapshot_point(snapshot_path, error, (int)sizeof error);
-    if (status == 1 || c->fd < 0)
-        return;
-    rpc_set_blocking(c->fd, 1);
-    if (status == 0) {
-        char result[1200];
-        snprintf(result, sizeof result, "{\"saved\":\"%s\",\"vsync\":%u}", json_str(snapshot_path),
-            pc_vsync_count());
-        reply(c->fd, snapshot_id, result);
-    } else
-        fail(c->fd, snapshot_id, -32000, error);
-    rpc_set_blocking(c->fd, 0);
+    if (status != 0)
+        fprintf(stderr, "[snapshot] not saved: %s\n", error);
+    if (c && c->fd >= 0) {
+        rpc_set_blocking(c->fd, 1);
+        if (status == 0) {
+            char result[1200];
+            snprintf(result, sizeof result, "{\"saved\":\"%s\",\"vsync\":%u}", json_str(snapshot_path),
+                pc_vsync_count());
+            reply(c->fd, snapshot_id, result);
+        } else
+            fail(c->fd, snapshot_id, -32000, error);
+        rpc_set_blocking(c->fd, 0);
+    }
+    if (snapshot_then == THEN_EXIT)
+        exit(0);
+    if (snapshot_then == THEN_RESTART && status == 0)
+        pc_snapshot_restart(snapshot_path, restart_paused); /* returns only when the exec failed */
 }
+/* A clean quit (the window closed, RPC quit): with ROOD_AUTOSNAP set, the
+ * auto-snapshot first, at the next vsync boundary (pc_rpc_poll); else now. */
+void pc_quit(void)
+{
+    const char* autosnap = getenv("ROOD_AUTOSNAP");
+    if (!autosnap || !*autosnap || !pc_snapshot_available())
+        exit(0);
+    snprintf(snapshot_path, sizeof snapshot_path, "%s", autosnap);
+    snapshot_client = NULL; /* a pending request is answered by the exit */
+    snapshot_pending = 1;
+    snapshot_then = THEN_EXIT;
+}
+/* A rewind re-enters the game at the mark's vsync boundary and runs that
+ * vsync again (snapshot.c pc_snap_enter); only host statics identify the
+ * request then. state_rewind.c calls this just before re-entering. */
+static int rewind_landed;
+void pc_rpc_rewound(void) { rewind_landed = 1; }
+static void take_mark(void)
+{
+    char error[256] = "", result[96];
+    if (rewind_landed) {
+        struct client* c = rewound_client;
+        rewind_landed = 0;
+        rewound_client = NULL;
+        paused = 1;
+        step_budget = 0;
+        memset(holds, 0, sizeof holds);
+        stick_vsyncs = trigger_vsyncs = 0;
+        if (c && c->fd >= 0) {
+            snprintf(result, sizeof result, "{\"rewound\":true,\"vsync\":%u}", pc_vsync_count());
+            rpc_set_blocking(c->fd, 1);
+            reply(c->fd, rewound_id, result);
+            rpc_set_blocking(c->fd, 0);
+        }
+    }
+    if (mark_client) {
+        struct client* c = mark_client;
+        mark_client = NULL;
+        int status = pc_snapshot_mark_point(error, (int)sizeof error);
+    if (c->fd < 0) return;
+        rpc_set_blocking(c->fd, 1);
+        if (status == 0) {
+            snprintf(result, sizeof result, "{\"marked\":true,\"vsync\":%u}", pc_vsync_count());
+            reply(c->fd, mark_id, result);
+        } else
+            fail(c->fd, mark_id, -32000, error);
+        rpc_set_blocking(c->fd, 0);
+    }
+    if (rewind_client) {
+        rewound_client = rewind_client;
+        strcpy(rewound_id, rewind_id);
+        rewind_client = NULL;
+        pc_snapshot_rewind(error, (int)sizeof error);
+        struct client* c = rewound_client;
+        rewound_client = NULL;
+        if (!c || c->fd < 0) return;
+        rpc_set_blocking(c->fd, 1);
+        fail(c->fd, rewound_id, -32000, error);
+        rpc_set_blocking(c->fd, 0);
+    }
+}
+
 /* snapshot.c: this process resumed a save state; serve RPC, stay paused. */
 void pc_rpc_restored(void)
 {
@@ -4083,6 +4294,7 @@ void pc_rpc_poll(void)
     if (listener >= 0)
         service();
     take_snapshot();
+    take_mark();
     if (paused && step_budget > 0) {
         --step_budget;
         return;
@@ -4112,6 +4324,7 @@ void pc_rpc_poll(void)
         if (listener >= 0)
             service();
         take_snapshot();
+        take_mark();
     }
     if (paused && step_budget > 0)
         --step_budget;

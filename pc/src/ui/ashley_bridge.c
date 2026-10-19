@@ -447,7 +447,8 @@ static void turn(void)
     dt = (gap < 1 ? 1 : gap > 8 ? 2 : (float)gap) / 59.94f;
     if (pc_window_stick && pc_window_stick(v))
         stick[0] += v[0], stick[1] += v[1];
-    if (pc_rpc_stick && pc_rpc_stick(v))
+    /* The window/input recorder already combines the RPC stick. */
+    if (!pc_window_stick && pc_rpc_stick && pc_rpc_stick(v))
         stick[0] += v[0], stick[1] += v[1];
     for (k = 0; k < 2; ++k)
         stick[k] = clampf(stick[k], -1, 1);

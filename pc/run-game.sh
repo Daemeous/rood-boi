@@ -4,7 +4,9 @@
 # On an NVIDIA hybrid laptop/desktop it renders on the NVIDIA GPU (PRIME
 # offload); ROOD_GPU=integrated keeps the default GPU. Path-traced lighting is
 # on (ROOD_GI=0 turns it off). --64 plays the 64-bit build; --vulkan plays it
-# with the Vulkan renderer (hardware ray tracing). Other arguments go to the game.
+# with the Vulkan renderer (hardware ray tracing). --resume (or ROOD_RESUME=1)
+# continues where the last session quit (the auto-snapshot, below) when it
+# still fits the build, else boots normally. Other arguments go to the game.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 build=1
@@ -15,6 +17,7 @@ for arg in "$@"; do
     --no-build) build=0 ;;
     --64) arch=64 ;;
     --vulkan) arch=64; export ROOD_RENDERER=vulkan ;;
+    --resume) export ROOD_RESUME=1 ;;
     *) args+=("$arg") ;;
     esac
 done
@@ -42,6 +45,10 @@ export ROOD_SETTINGS="${ROOD_SETTINGS:-pc/user/settings.cfg}"
 # can be inspected: Game("pc/build/boot/rpc-live.sock").
 export ROOD_RPC="${ROOD_RPC:-pc/build/boot/rpc-live.sock}"
 rm -f "$ROOD_RPC"
+# Save states (pc/src/snapshot.c): a clean quit saves the auto-snapshot, which
+# --resume and pc/tools/dev_loop.sh (RPC restart after a rebuild) resume. On
+# the 64-bit build it survives engine-only rebuilds.
+export ROOD_AUTOSNAP="${ROOD_AUTOSNAP:-pc/build/resume/last.snap}"
 # The game writes its display capture (loading.ppm) to pc/build/boot, which a
 # 64-bit-only checkout has not created yet.
 mkdir -p pc/build/boot "$(dirname "$ROOD_RPC")"

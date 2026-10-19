@@ -93,11 +93,18 @@ u_long DrawSyncCallback(void (*fn)(void))
     return old;
 }
 static int ticks;
+/* snapshot.c: pc_tick through the vsync boundary, where a save state cuts
+ * the stack (the game's frames below, the host's above). Weak: the GTE probe
+ * links this unit with its own pc_tick. */
+extern void pc_vsync_boundary(void) __attribute__((weak));
 /* One vertical blank: the field is presented and the VSync handler runs. */
 void pc_vblank_wait(void)
 {
     ++ticks;
-    pc_tick();
+    if (pc_vsync_boundary)
+        pc_vsync_boundary();
+    else
+        pc_tick();
     if (pad0 && pc_window_enabled) {
         unsigned b = ~pc_window_buttons();
         pad0[0] = 0;

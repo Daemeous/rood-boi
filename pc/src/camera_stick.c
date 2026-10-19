@@ -218,7 +218,9 @@ static void read_stick(float out[2])
     float v[2];
     if (pc_window_stick && pc_window_stick(v))
         out[0] += v[0], out[1] += v[1];
-    if (pc_rpc_stick && pc_rpc_stick(v))
+    /* pc_window_stick passes all live sources through input_record.c. The
+     * fallback is for standalone probes without a window/input layer. */
+    if (!pc_window_stick && pc_rpc_stick && pc_rpc_stick(v))
         out[0] += v[0], out[1] += v[1];
     for (int k = 0; k < 2; k++)
         out[k] = out[k] > 1 ? 1 : out[k] < -1 ? -1 : out[k];

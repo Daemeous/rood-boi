@@ -55,9 +55,11 @@ look. No new look value lives in C++ (enforced by a lint, phase F).
 
    The measure is suite wall time before and after (the classic menus get
    snappier as a side effect).
-3. **Faster compile and link:** the mold linker and ccache for every target
-   that supports them. Measure a one-file edit to a runnable binary before and
-   after.
+3. **Compile and link are not the bottleneck** (measured 2026-10-18): a
+   one-line code change in a C or C++ file rebuilds the 64-bit game in about
+   5.7 s; build_boot's object cache already does what ccache would, and
+   linking is quick. mold/ccache are dropped. The time goes to test suites,
+   replaying back to the moment, and agent overhead.
 4. **Snapshot-resume across rebuilds.** Save states are tied to the whole
    binary today, so any rebuild makes them stale. Key their validity on the
    game's memory layout and data instead (the guest image, the overlay table,
@@ -67,6 +69,18 @@ look. No new look value lives in C++ (enforced by a lint, phase F).
 
    Any change (C++, Zig, `src/`) becomes: rebuild, then back at the same
    moment within seconds.
+
+   **Done for engine changes (2026-10-18, 64-bit):** the link pins the
+   game's code, read-only data and state after the engine
+   (`pc/tools/snapshot_layout.py`); a snapshot saves the game's stack only
+   below the vsync boundary (`pc_vsync_boundary`) and resumes by returning
+   into the game from there; its keys are the game's code before linking and
+   the state layout. `pc/tools/dev_loop.sh` (rebuild + RPC `restart`)
+   measured 6.2 s from a renderer edit to the game running again at the same
+   vsync (build 5.7 s, restart 0.5 s; Vulkan). A game-code (`src/`) change is still
+   refused: resuming across it needs the game's own frames to stay valid,
+   which hot swap (C) addresses. 32 bits: same-binary only (its native code
+   must stay below 16 MB).
 5. **The engine as a hot-reloadable library** (Live Coding, or Handmade
    Hero's game-code reload, but for the engine):
    - **Host:** a thin executable owns the game (`src/`, the PS1 memory image
@@ -95,6 +109,22 @@ pulled forward:
 - addresses to fields (`field_map.py`);
 - the battle corpus: recorded play covering casts, items, arts, chains,
   defence, enemies, status effects.
+
+**Headless CPU oracle** (with part 2, before the bulk port): game state does
+not depend on rendering, and the oracle compares memory, not pixels. So:
+- add a null-renderer mode for oracle, shadow and corpus runs (no GPU, no
+  window, no presentation; the hardware VRAM target is not created), so they
+  run on the CPU in parallel across all cores instead of queueing on the one
+  GPU lock;
+- tests that check pictures keep the GPU.
+
+**More machines:** the user has other machines in the house (laptops). A
+small runner (`pc/tools/farm.py`) shards oracle/corpus/test jobs to them:
+- ssh, with a build artifact plus the job list;
+- each machine reads its own copy of the user's disc;
+- the results come back as digests and logs.
+
+Game data stays on the user's own machines; nothing is uploaded elsewhere.
 
 Done when: a recorded corpus replays bit-identically, and a deliberately
 wrong owned function is caught with the field and frame named.
@@ -184,9 +214,9 @@ From here on, changes to that subsystem are ordinary feature work.
 
 ## Order
 
-**A3 (mold, ccache) → A4 (snapshot resume) → A1 (shared cache) → A2
-(per-frame cost) → A5 (engine as a reloadable library) → F1-F3 and F6 (Lua
-visible layer, bench, REPL) → B (oracle) → C (Zig hot swap) → D (battle port)
+**A4 (snapshot resume) → A2 (per-frame cost) → A1 (shared cache) → F1-F3
+and F6 → A5 (engine as a reloadable library, lower urgency: a 6 s rebuild plus
+resume is already close) → B (oracle) → C (Zig hot swap) → D (battle port)
 → E (liberation) → F4 (M1 options) → next subsystems.**
 - A and F come first because they speed up all later work.
 - B and C come before D because the oracle and hot swap make the bulk port

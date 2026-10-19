@@ -47,6 +47,7 @@ extern void pc_gl_resize(int, int);
 extern void pc_gl_present(const uint16_t*, int, int, int, int);
 extern int pc_overlay_event(const SDL_Event*);
 extern void pc_ui_settings_flush(void) __attribute__((weak)); /* ui_settings.cpp */
+extern void pc_quit(void); /* dev_rpc.c */
 int pc_window_enabled;
 static void window_mode_apply(void); /* window_mode, below */
 static int capture_filter(const SDL_Event* event); /* binding capture, below */
@@ -236,7 +237,8 @@ void pc_window_tick(void)
             /* A settings change still waiting for its debounced save (System) is saved first. */
             if (pc_ui_settings_flush)
                 pc_ui_settings_flush();
-            exit(0);
+            pc_quit(); /* dev_rpc.c: the auto-snapshot first when ROOD_AUTOSNAP is set */
+            break;
         case SDL_EVENT_WINDOW_FOCUS_LOST:
             buttons = camera_keys = 0;
             travel_key = 0;

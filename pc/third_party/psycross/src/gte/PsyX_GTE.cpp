@@ -76,9 +76,11 @@ static unsigned rood_projected_sequence[ROOD_PROJECTED_SLOTS], rood_sequence;
 static int rood_projected_view[ROOD_PROJECTED_SLOTS][3];
 int pc_gte_lookup_view[3];
 /* The code address that issued each projection (doCOP2's caller), for
- * attributing what is still reconstructed (ROOD_OTHER_DEBUG). */
-const void* pc_gte_caller;
-static const void* rood_projected_caller[ROOD_PROJECTED_SLOTS];
+ * attributing what is still reconstructed (ROOD_OTHER_DEBUG). Host data, not
+ * game state: an engine address, which a save state must not carry across
+ * an engine rebuild (pc/src/snapshot.c). */
+__attribute__((section(".bss.rood_host"))) const void* pc_gte_caller;
+__attribute__((section(".bss.rood_host"))) static const void* rood_projected_caller[ROOD_PROJECTED_SLOTS];
 const void* pc_gte_projection_caller(int s) { return s >= 0 && s < ROOD_PROJECTED_SLOTS ? rood_projected_caller[s] : 0; }
 static unsigned char rood_generation = 1;
 static int rood_fresh(unsigned slot)

@@ -411,6 +411,26 @@ class Game:
             if not self.has_wait:
                 time.sleep(0.01)
 
+    def digest(self, action, **params):
+        """Record/compare per-vsync state pages; see pc/docs/Oracle.md."""
+        return self.call("digest", action=action, **params)
+
+    def record(self, path):
+        """Record buttons/stick by vsync; None stops and closes the file."""
+        return self.call("record", path=str(path) if path else "")
+
+    def replay(self, path):
+        """Replay by recorded vsync (rewind seeks again); None stops."""
+        return self.call("replay", path=str(path) if path else "")
+
+    def mark(self):
+        """Keep one in-process checkpoint (requires an idle paused game)."""
+        return self.call("snapshot", action="mark")
+
+    def rewind(self):
+        """Restore the checkpoint and stay paused at its vsync."""
+        return self.call("snapshot", action="rewind")
+
     def run(self, vsyncs):
         """Run exactly `vsyncs` vsyncs, then stay paused (no wall-clock
         limit while the game advances; see wait_paused)."""

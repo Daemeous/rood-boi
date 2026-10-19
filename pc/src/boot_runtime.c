@@ -394,6 +394,15 @@ static void reserve_game_stack(void)
     if (p != MAP_FAILED)
         munmap(p, GAME_STACK_SIZE); /* an old kernel's hint, not the address */
     fprintf(stderr, "[snapshot] game stack: 0x%x is taken; save states are off\n", GAME_STACK_BASE);
+    FILE* maps = fopen("/proc/self/maps", "r"); /* by what */
+    char line[512];
+    while (maps && fgets(line, sizeof line, maps)) {
+        unsigned long lo, hi;
+        if (sscanf(line, "%lx-%lx", &lo, &hi) == 2 && lo < GAME_STACK_BASE + GAME_STACK_SIZE && hi > GAME_STACK_BASE)
+            fprintf(stderr, "[snapshot]   %s", line);
+    }
+    if (maps)
+        fclose(maps);
     p = mmap(NULL, GAME_STACK_SIZE, PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | (sizeof(void*) == 8 ? MAP_32BIT : 0), -1, 0);
     if (p == MAP_FAILED || (uintptr_t)p + GAME_STACK_SIZE > 0x80000000u) {
@@ -946,10 +955,27 @@ extern void pc_window_wait_fraction(int k, int n) __attribute__((weak));
 extern void pc_charge_skip_vsync(void) __attribute__((weak));
 extern int pc_charge_skip_hidden(void) __attribute__((weak));
 extern void pc_hw_skip_present(void) __attribute__((weak)); /* gpu_hw.c */
+extern void pc_state_diff_vsync(void) __attribute__((weak));
+static void tick_frame(void);
+/* One vsync of the host, called by the game through pc_vsync_boundary
+ * (boot_sdk.c's pc_vblank_wait, snapshot.c). */
 void pc_tick(void)
 {
     ++vsyncs;
+    if (pc_state_diff_vsync)
+        pc_state_diff_vsync(); /* compare the completed frame before RPC changes */
     pc_rpc_poll();
+    tick_frame();
+}
+/* snapshot.c: a resumed save state continues the vsync it was saved in
+ * (inside pc_rpc_poll) on this process's frames, then returns to the game. */
+void pc_tick_resumed(void)
+{
+    pc_rpc_poll();
+    tick_frame();
+}
+static void tick_frame(void)
+{
     if (pc_fog_vsync)
         pc_fog_vsync(); /* once per game vsync, after the RPC's changes, before the frame */
     if (pc_lua_tick)
@@ -1055,9 +1081,13 @@ int func_800E45B4(void)
     return (unsigned)((elapsed * 15734) / 1000000000) & 65535;
 }
 
+/* The game's code pinned for save states (64 bits: pc/tools/snapshot_layout.py). */
+extern char __start_rood_game_text[] __attribute__((weak)), __stop_rood_game_text[] __attribute__((weak));
 void pc_require_native_callback(unsigned address, const char* context, unsigned opcode)
 {
-    if (address < 0x00400000 || address >= 0x01000000) {
+    int pinned = __start_rood_game_text && address >= (uintptr_t)__start_rood_game_text
+              && address < (uintptr_t)__stop_rood_game_text;
+    if (!pinned && (address < 0x00400000 || address >= 0x01000000)) {
         fprintf(stderr, "[callback] %s: opcode 0x%02x, target 0x%08x\n", context, opcode,
             address);
         pc_unimplemented(context);
