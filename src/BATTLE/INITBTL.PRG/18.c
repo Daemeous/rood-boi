@@ -567,6 +567,14 @@ void func_800FA35C(int startState __attribute__((unused)))
     D_80050468.seconds = 0;
     D_80050468.frames = 0;
     _zoneContext.unk68 = D_80061068.unk6_0;
+#ifdef ROOD_PC
+    /* A new game/card load starts a new difficulty session. Existing room
+     * records are vanilla-scale, including saves made with difficulty on. */
+    {
+        extern void pc_difficulty_begin_scene(int);
+        pc_difficulty_begin_scene((unsigned char)vs_main_stateFlags.clearCount);
+    }
+#endif
     vs_battle_cameraTransition = NULL;
     func_80077EC4();
     vs_scratch.camera.farClip = 0x1000;
