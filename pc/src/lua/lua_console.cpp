@@ -14,7 +14,7 @@
 extern "C" void pc_settings_save(void) __attribute__((weak));
 
 namespace {
-bool open;
+bool console_open;
 char input[2048];
 std::string target = "@console";
 unsigned long long cleared;
@@ -106,15 +106,15 @@ void budgets()
 }
 } // namespace
 
-extern "C" void pc_lua_console_menu_item(void) { ImGui::MenuItem("Lua console", nullptr, &open); }
+extern "C" void pc_lua_console_menu_item(void) { ImGui::MenuItem("Lua console", nullptr, &console_open); }
 
 extern "C" void pc_lua_console_window(void)
 {
-    if (!open)
+    if (!console_open)
         return;
     float em = ImGui::GetFontSize();
     ImGui::SetNextWindowSize(ImVec2(em * 46, em * 28), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Lua console", &open)) {
+    if (!ImGui::Begin("Lua console", &console_open)) {
         ImGui::End();
         return;
     }
