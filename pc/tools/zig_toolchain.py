@@ -75,6 +75,10 @@ def find():
         if found != VERSION:
             raise SystemExit(f"ROOD_ZIG={override} is Zig {found}, not the pinned {VERSION}")
         return pathlib.Path(override)
+    # Discovery is optional on hosts without a pinned download. Explicit
+    # installation/required builds still fail through _pin() in ensure().
+    if host() not in PIN:
+        return None
     zig = _install_dir() / ("zig.exe" if os.name == "nt" else "zig")
     return zig if zig.exists() and version_of(zig) == VERSION else None
 
