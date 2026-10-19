@@ -1819,10 +1819,11 @@ static void handle_method(int fd, const char* request)
                     pc_room_texture_lod = n != 0;
             }
             if (pc_native_room_slack) {
-                if (number_value(member(params, "room_slack"), &n) && n >= 0 && n <= 0.1)
-                    pc_native_room_slack[0] = (float)n;
-                if (number_value(member(params, "room_slack_units"), &n) && n >= 0 && n <= 64)
-                    pc_native_room_slack[1] = (float)n;
+                double slack; /* fractions: read as integers, 0.004 became 0 */
+                if (real_value(member(params, "room_slack"), &slack) && slack >= 0 && slack <= 0.1)
+                    pc_native_room_slack[0] = (float)slack;
+                if (real_value(member(params, "room_slack_units"), &slack) && slack >= 0 && slack <= 64)
+                    pc_native_room_slack[1] = (float)slack;
             }
         }
         if (params && &pc_native_actors) {
