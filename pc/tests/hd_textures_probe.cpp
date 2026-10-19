@@ -75,6 +75,7 @@ int main(int argc, char** argv)
      * placed at a frame boundary once a worker decoded it, and only pages
      * showing it are looked up again (an unrelated page keeps its lookup). */
     async_loads = true;
+    small_file = 0; /* (the fixtures are small: test the workers) */
     ram.clear();
     ram_bytes = 0;
     pc_hd_use(0, 300 * 64);
@@ -87,6 +88,25 @@ int main(int argc, char** argv)
     assert(resident.size() == 1 && requested.empty() && !used.count(300 * 64) && used.count(12345));
     pc_hd_use(0, 300 * 64); /* now bound */
     assert(used.count(300 * 64));
+    /* Another palette of the same texture still loading: the loaded one
+     * stands in until it arrives (no flicker back to the original). */
+    pc_hd_use(128, 300 * 64);
+    assert(resident.size() == 1 && requested.size() == 1 && stand_ins.size() == 1);
+    for (int i = 0; i < 200 && resident.size() < 2; ++i) {
+        SDL_Delay(10);
+        pc_hd_frame();
+    }
+    pc_hd_use(128, 300 * 64);
+    assert(resident.size() == 2 && stand_ins.empty());
+    /* Small files decode in the frame they are drawn, even with workers. */
+    small_file = 64 * 1024;
+    resident.clear();
+    ram.clear();
+    ram_bytes = 0;
+    used.clear();
+    latest_variant.clear();
+    pc_hd_use(0, 300 * 64);
+    assert(resident.size() == 1 && requested.empty());
     async_loads = false;
 
     /* Layers: a full layer opens the next; with every layer full the least
@@ -188,5 +208,5 @@ int main(int argc, char** argv)
         std::cout << "PASS: real GPU sampler lookup, PNG colors and enabled/disabled/enabled\n";
     }
     std::cout << "PASS: independent zlib CRCs, 4/8/16-bit palettes, PNG loading, source offsets, partial "
-                 "overwrites, wrapped and masked copies, original VRAM, layered atlas reuse, RAM cache, per-tile lookups, background loading\n";
+                 "overwrites, wrapped and masked copies, original VRAM, layered atlas reuse, RAM cache, per-tile lookups, background loading, palette stand-ins, small files in-frame\n";
 }
