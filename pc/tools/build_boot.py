@@ -81,7 +81,8 @@ out.mkdir(parents=True, exist_ok=True)
 # renames symbols in place (name -> name__overlay), so a second run in the same
 # tree reads objects the first already renamed ("Unclassified import:
 # _fontTable__title") or half-written ones. The 64-bit Linux and Windows builds
-# also share pc/build/sdl3_64 and pc/build/nrd, so they share one lock.
+# share one lock. The third-party builds (SDL, glslang, NRD) are shared by every
+# checkout (pc/tools/shared_cache.py) and have locks of their own.
 lock = open(root / ("pc/build/build_boot-64.lock" if arch64 else "pc/build/build_boot-32.lock"), "w")
 if os.name == "nt":
     import msvcrt
@@ -209,6 +210,16 @@ c_only_flags = ["-std=gnu17"]
 if gcc_major("gcc") >= 14:
     c_only_flags.append("-fpermissive")
 flags += c_only_flags
+# The ELF objects and executables keep their debug information compressed
+# (about half the size on disk; gdb, addr2line, objdump and readelf read it as
+# is). $ROOD_DEBUG_COMPRESS: zlib (default), zstd, or none. PE/COFF (the
+# Windows twins and rood.exe) has no compressed sections: win_command drops it.
+debug_compress = os.environ.get("ROOD_DEBUG_COMPRESS", "zlib")
+if debug_compress in ("0", "off", "no", "none"):
+    debug_compress = "none"
+debug_compress_flags = [] if debug_compress == "none" else [f"-gz={debug_compress}"]
+link_compress_flags = [] if debug_compress == "none" else [f"-Wl,--compress-debug-sections={debug_compress}"]
+flags += debug_compress_flags
 if arch64:
     # The executable is non-PIE (native code and data below 4 GB, so a native
     # address fits a 4-byte psx_ptr field), but the code is compiled as PIE:
@@ -285,7 +296,7 @@ def win_command(args):
         command.append("-fpermissive")
     rest = iter(args[1:])
     for a in rest:
-        if a in ("-m64", "-fpie", "-fno-pie", "-fpermissive"):
+        if a in ("-m64", "-fpie", "-fno-pie", "-fpermissive") or a.startswith("-gz"):
             continue
         if a == "-o":
             command += ["-o", str(twin(next(rest)))]
@@ -449,11 +460,42 @@ def compile_zig(name, modules, root_name, overlay=None):
 # static 32-bit library. Its platform backends (Wayland, X11, PulseAudio,
 # PipeWire, ALSA, udev, D-Bus) load their libraries at run time, so only
 # headers are needed here; CMake is pointed at the 32-bit runtime libraries,
-# which have no development symlinks without the :i386 -dev packages.
+# which have no development symlinks without the :i386 -dev packages. Built
+# once per machine into the shared build cache (pc/tools/shared_cache.py:
+# third-party/sdl3-<target>-<key>, keyed by the source, the CMake options and
+# the compilers); only libSDL3.a is kept, the headers are the vendored ones.
+sys.path.insert(0, str(root / "pc/tools"))
+import shared_cache
+from build_cache import tool_identity
+
 sdl_source = root / "pc/third_party/SDL3"
-sdl_build = root / ("pc/build/sdl3_64" if arch64 else "pc/build/sdl3")
-sdl_library = sdl_build / "libSDL3.a"
 sdl_flags = ["-I" + str(sdl_source / "include")]
+WORK = "@WORK@"  # the SDL build directory in its CMake arguments
+
+
+def sdl_entry(target, args, compilers, files=None):
+    """libSDL3.a of the shared cache entry sdl3-<target> (built when
+    missing). files: {name: text} written into the build directory first."""
+    key = {"source": shared_cache.tree_key(sdl_source), "cmake_args": args, "files": files or {},
+           "env": {k: os.environ.get(k) for k in ("CC", "CFLAGS")},
+           "tools": tool_identity([*compilers, "cmake", "ninja"])}
+
+    def build(tmp):
+        print(f"SDL3 ({target}): building into {tmp.parent}", flush=True)
+        work = tmp / "work"
+        for name, text in (files or {}).items():
+            (work / name).parent.mkdir(parents=True, exist_ok=True)
+            (work / name).write_text(text)
+        generator = ["-G", "Ninja"] if shutil.which("ninja") else []
+        run(["cmake", "-S", str(sdl_source), "-B", str(work), *generator, *[a.replace(WORK, str(work)) for a in args]],
+            stdout=subprocess.DEVNULL)
+        run(["cmake", "--build", str(work), "--parallel", str(min(os.cpu_count() or 4, 8))], stdout=subprocess.DEVNULL)
+        shutil.copy2(work / "libSDL3.a", tmp / "libSDL3.a")
+        shutil.rmtree(work)
+
+    return shared_cache.entry(f"sdl3-{target}", key, build) / "libSDL3.a"
+
+
 # Shared GLSL for the OpenGL path (the probe GI's compute shaders, written
 # once in pc/shaders/vulkan) as C strings.
 run([sys.executable, "pc/tools/gl_shaders.py", "--out", str(out / "gl_shaders.h")])
@@ -464,8 +506,8 @@ if arch64:
     run([sys.executable, "pc/tools/vk_shaders.py", "--out", str(out / "vk_shaders.h")])
     sdl_flags += ["-DROOD_VULKAN", "-I" + str(out)]
     # NVIDIA NRD (not vendored: its license is not CC0): fetched pinned and
-    # built once into pc/build/nrd; None builds without it.
-    sys.path.insert(0, str(root / "pc/tools"))
+    # built once per machine into the shared build cache; None builds
+    # without it.
     import nrd as nrd_build
 
     nrd = nrd_build.ensure(parsed.nrd)
@@ -515,31 +557,22 @@ for library, variables in [
 # typedefs use long (32 bits here): shadow it with a 32-bit copy.
 c_flags_32 = "-m64" if arch64 else "-m32"
 arch_deps = pathlib.Path("/usr/lib/x86_64-linux-gnu/dbus-1.0/include/dbus/dbus-arch-deps.h")
+sdl_files = {}
 if arch_deps.exists() and not arch64:
-    shadow = sdl_build / "include32/dbus/dbus-arch-deps.h"
-    shadow.parent.mkdir(parents=True, exist_ok=True)
     text = arch_deps.read_text()
     text = text.replace("typedef long dbus_int64_t", "typedef long long dbus_int64_t")
     text = text.replace("typedef unsigned long dbus_uint64_t", "typedef unsigned long long dbus_uint64_t")
     text = text.replace("(val##L))", "(val##LL))").replace("(val##UL))", "(val##ULL))")
-    if not shadow.exists() or shadow.read_text() != text:
-        shadow.write_text(text)
-    c_flags_32 += " -I" + str(sdl_build / "include32")
+    sdl_files["include32/dbus/dbus-arch-deps.h"] = text
+    c_flags_32 += f" -I{WORK}/include32"
 sdl_args.append(f"-DCMAKE_C_FLAGS={c_flags_32}")
-stamp = sdl_build / "rood-configure.txt"
 # --coff links only the Windows SDL below.
-if not coff and (not (sdl_build / "CMakeCache.txt").exists() or not stamp.exists()
-                   or stamp.read_text() != "\n".join(sdl_args)):
-    generator = ["-G", "Ninja"] if shutil.which("ninja") else []
-    run(["cmake", "-S", str(sdl_source), "-B", str(sdl_build), *generator, *sdl_args], stdout=subprocess.DEVNULL)
-    stamp.write_text("\n".join(sdl_args))
-if not coff:
-    run(["cmake", "--build", str(sdl_build), "--parallel", str(min(os.cpu_count() or 4, 8))], stdout=subprocess.DEVNULL)
-win_sdl_library = root / "pc/build/sdl3_win/libSDL3.a"
+sdl_library = out / "no-linux-sdl" if coff else \
+    sdl_entry("linux64" if arch64 else "linux32", sdl_args, ["cc", "gcc"], sdl_files)
+win_sdl_library = None
 if win:
     # SDL 3 for Windows (static; its video, audio and input backends are
     # Win32, WASAPI/DirectSound, XInput/RawInput/HIDAPI).
-    win_sdl_build = win_sdl_library.parent
     win_sdl_args = [
         "-DCMAKE_SYSTEM_NAME=Windows",
         f"-DCMAKE_C_COMPILER={MINGW_GCC}",
@@ -558,16 +591,17 @@ if win:
         "-DSDL_VULKAN=ON",
         "-DSDL_RENDER_VULKAN=OFF",
     ]
-    stamp = win_sdl_build / "rood-configure.txt"
-    if not (win_sdl_build / "CMakeCache.txt").exists() or not stamp.exists() or stamp.read_text() != "\n".join(win_sdl_args):
-        generator = ["-G", "Ninja"] if shutil.which("ninja") else []
-        run(["cmake", "-S", str(sdl_source), "-B", str(win_sdl_build), *generator, *win_sdl_args], stdout=subprocess.DEVNULL)
-        stamp.write_text("\n".join(win_sdl_args))
-    run(["cmake", "--build", str(win_sdl_build), "--parallel", str(min(os.cpu_count() or 4, 8))], stdout=subprocess.DEVNULL)
+    win_sdl_library = sdl_entry("windows", win_sdl_args, [MINGW_GCC, MINGW_GXX, MINGW + "windres"])
+# Where this tree's third-party libraries are (pc/tools/rood_rpc.py's EGL
+# probe links the SDL; windows_dist.py copies NRD's licenses).
+third_party = json.dumps({"sdl": str(sdl_library), "sdl_win": win_sdl_library and str(win_sdl_library),
+                          "nrd": nrd, "nrd_win": win_nrd}, indent=1, sort_keys=True) + "\n"
+if not (out / "third-party.json").exists() or (out / "third-party.json").read_text() != third_party:
+    (out / "third-party.json").write_text(third_party)
 # No-op when nothing changed (pc/tools/build_cache.py): the last complete
 # build of this configuration in this tree saw the same inputs and left these
 # outputs. Otherwise every compile below is checked against the object cache.
-from build_cache import ObjectCache, ResultCache, Stamp, tool_identity
+from build_cache import ObjectCache, ResultCache, Stamp
 
 sys.path.insert(0, str(root / "pc/tools"))
 import zig_toolchain  # noqa: E402
@@ -591,6 +625,7 @@ if ZIG:
 toolchain = tool_identity(stamp_tools)
 build_stamp = Stamp(root, out, {
     "battle": battle, "no_audio": no_audio, "arch": parsed.arch, "target": parsed.target, "coff": coff,
+    "debug_compress": debug_compress,
     "nrd": [nrd and nrd["libraries"], win_nrd and win_nrd["libraries"]], "toolchain": toolchain,
 })
 stamp_trees = [("src", None), ("include", None), ("config", None), ("build", None), ("pc/src", None),
@@ -598,7 +633,7 @@ stamp_trees = [("src", None), ("include", None), ("config", None), ("build", Non
                ("pc/tests", (".c", ".h")), ("game", None)] \
     + [(f"pc/tools/{tool}.py", None) for tool in ["build_boot", "build_cache", "event_callbacks", "lp64_report",
                                                    "import_types", "nrd", "gl_shaders", "vk_shaders", "zig_toolchain", "ownership",
-                                                   "snapshot_layout"]]
+                                                   "snapshot_layout", "shared_cache"]]
 stamp_files = [root / "data/SLUS_010.40", root / "data/BATTLE/BATTLE.PRG", root / "data/ENDING/ENDING.PRG",
                sdl_library, *(nrd["libraries"] if nrd else []),
                *([win_sdl_library, *(win_nrd["libraries"] if win_nrd else [])] if win else []),
@@ -629,6 +664,8 @@ def finish(*outputs):
     """A complete build: the next one with the same inputs is a no-op."""
     build_stamp.write(stamp_trees, stamp_files, [p for p in outputs if p and pathlib.Path(p).exists()])
     result_cache.prune()
+    print(f"object cache: {object_cache.hits} reused, {object_cache.misses} compiled ({object_cache.store})")
+    object_cache.finish()
 
 
 # Keep the full data symbol manifest reproducible; upstream intentionally strips
@@ -1033,7 +1070,8 @@ if not arch64:
 # missing; fall back to the 64-bit one, which only differs in word-size macros
 # the compiler itself provides. Install g++-multilib to avoid the fallback.
 audio_vendor = root / "pc/third_party/psycross-audio"
-cxx_flags = ["-m64", "-O2", "-std=c++17", "-fpie", "-g"] if arch64 else ["-m32", "-O2", "-std=c++17", "-fno-pie", "-fno-pic", "-g"]
+cxx_flags = (["-m64", "-O2", "-std=c++17", "-fpie", "-g"] if arch64 else
+             ["-m32", "-O2", "-std=c++17", "-fno-pie", "-fno-pic", "-g"]) + debug_compress_flags
 probe_cxx = None if coff else subprocess.run(
     ["g++", *cxx_flags, "-x", "c++", "-fsyntax-only", "-"],
     input=b"#include <vector>\n",
@@ -2041,6 +2079,7 @@ link = (
         # below 4 GB (psx_ptr fields can hold them).
         *(["-m64", "-no-pie"] if arch64 else ["-m32", "-no-pie", "-Wl,-Ttext-segment=0x00400000"]),
         "-Wl,--gc-sections",
+        *link_compress_flags,
         *[str(o) for o in objects],
         str(out / "traps.o"),
         str(out / "overlay_statics_table.o"),

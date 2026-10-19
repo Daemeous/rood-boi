@@ -27,8 +27,9 @@ build and play; the commands below are the 32-bit build.
 
 Host dependencies: Python 3, GCC/G++ with x86 multilib libc, CMake and (optionally)
 Ninja. The window, input, gamepads and audio use SDL 3 (`pc/third_party/SDL3`,
-vendored, zlib licence), which the builder compiles as a static 32-bit library in
-`pc/build/sdl3`; distributions do not ship 32-bit SDL 3 development packages.
+vendored, zlib licence), which the builder compiles as a static 32-bit library
+once per machine (the shared build cache, [below](#build-caches-worktrees-and-disk-space));
+distributions do not ship 32-bit SDL 3 development packages.
 SDL loads its platform libraries at run time, so the build only needs their
 headers (on Ubuntu: `libx11-dev libxext-dev libxi-dev libxcursor-dev
 libxfixes-dev libxrandr-dev libxss-dev libwayland-dev libxkbcommon-dev
@@ -155,6 +156,77 @@ host unit's saved static added or resized), cannot: the snapshot's keys
 (`snapshot {action:"hash"}` shows this build's `code_key` and `layout_key`)
 differ, and it is refused with the reason. The 32-bit build resumes only
 snapshots of the same binary. Save states are Linux-only.
+
+### Build caches, worktrees and disk space
+
+What does not depend on the checkout is built once per machine and shared by
+the main checkout and every worktree, under `$ROOD_BUILD_CACHE` (default
+`~/.cache/rood-boi`; `python3 pc/tools/shared_cache.py` lists it with sizes):
+
+| Path | What | Key |
+| --- | --- | --- |
+| `third-party/sdl3-linux32-<key>/`, `sdl3-linux64-<key>/`, `sdl3-windows-<key>/` | `libSDL3.a` for each target (the headers are the vendored ones) | the vendored source (its git tree id plus any uncommitted edits in it), the CMake options, the compilers and CMake |
+| `third-party/glslang-<key>/bin/glslang` | the shader compiler of the Vulkan renderer (`pc/tools/vk_shaders.py`) | the same |
+| `third-party/nrd-<key>/` | NVIDIA NRD (`pc/tools/nrd.py`): its pruned build tree (DXC deleted, ~40 MB) | the pinned `pc/tools/nrd/CMakeLists.txt`, the compilers and CMake |
+| `third-party/nrd_win-<key>/` | NRD's libraries compiled by MinGW-w64 | the NRD entry and MinGW-w64 |
+| `objects/` | the object cache: `manifests/` and content-addressed `blobs/` | below |
+| `wine/<version>/prefix` | the Wine prefix of `replace_file_test` | the Wine version |
+
+A different key is a different entry: nothing is rebuilt in place, so a
+checkout never sees another's half-built or changed entry. An entry is built
+under its own lock (`<entry>.lock`, flock: one builder per entry, the others
+wait and then use it) into a temporary directory that is renamed into place
+when complete; builds only read entries. A failed NRD build is remembered
+(`nrd-<key>.failed`, log `nrd-<key>.log`; `--nrd on` retries). Old entries
+stay until you delete them (an unused one is never read again). The Wine
+prefix holds absolute paths, so it is made in place under its lock and
+published by a marker; Wine runs any number of processes in one prefix
+(they share its wineserver), so concurrent tests share it.
+
+**Object cache.** Every compile of `build_boot.py` gets
+`-ffile-prefix-map=<checkout>=.` (debug information and `__FILE__` name
+paths relative to the checkout; `pc/tools/where.sh` resolves crash addresses
+by function name and file base name, unaffected), so an object is the same
+wherever it is compiled. A compile's key is its command with the checkout's
+path replaced by a placeholder, plus the compilers' identities
+(`build_cache.tool_identity`: a compiler update misses); its manifest keeps
+up to 8 results, each the content hash of every file the compile read
+(`-MD`) and the object's hash. A result is reused when every one of those
+files has that content in this checkout, so an edit recompiles exactly the
+objects that read the edited file, in any worktree, and the variants of
+several worktrees live side by side. The build prints `object cache: N
+reused, M compiled`. The store is capped at `$ROOD_OBJECT_CACHE_MAX`
+(default `10G`): after each build the least recently used objects go until
+it is under 90% of the cap (`python3 pc/tools/build_cache.py [--prune]`
+shows or prunes it now). `ROOD_OBJECT_CACHE=0` compiles everything and
+stores nothing. The deterministic query results (`resultcache/`) and the
+no-op stamp stay in each build directory.
+
+**Worktrees.** `pc/tools/new_worktree.sh NAME [BASE]` creates
+`.claude/worktrees/NAME` on a new branch NAME from BASE (default `main`),
+symlinks `data/` and `disks/` to the main checkout's, copies `build/` (the
+decompilation's 85 MB PS1 build: a copy, because `make commit-check`
+regenerates it and Docker's linker cannot follow a symlink) and makes
+`requirements.txt` old and `tools/.sysdeps` present so commit-check reuses the
+Python environment. Nothing else is copied: the caches above are shared.
+`pc/tools/remove_worktree.sh NAME [--force]` removes it (refusing uncommitted
+changes without `--force`; the branch stays).
+
+**Test outputs.** `pc/build/verify` (verify.sh), `pc/build/tests*` (run.py's
+outputs) and `pc/build/test-snapshots` (one directory of save states per
+configuration, replaced when the binary changes) are the rest of a
+checkout's disk use. `python3 pc/tests/run.py --clean` (or
+`pc/tools/clean_build.py`, `-n` to list) removes them;
+`pc/tools/clean_build.py --legacy` also removes what builds from before the
+shared cache left in that checkout (`pc/build/{sdl3,sdl3_64,sdl3_win,glslang,nrd,nrd_win,wineprefix}`,
+`pc/build/*/objcache`).
+
+Agents and parallel sessions run every build and test under one lock,
+`flock $ROOD_HEAVY_LOCK ...` (`pc/tools/verify.sh` takes it per step when
+`ROOD_HEAVY_LOCK` is set), so their builds interleave instead of overlapping;
+the cache locks above only serialise two builds of the same entry.
+
+SIZES_TABLE
 
 ### Right-stick camera
 
@@ -2189,6 +2261,7 @@ python3 pc/tests/run.py -j 2 input   # suites whose names contain "input"
 python3 pc/tests/run.py --list
 python3 pc/tests/run.py --changed    # only the suites a change since main can affect
 pc/tools/verify.sh [--changed]       # the four builds and both suites, one line per step
+python3 pc/tests/run.py --clean      # remove this checkout's test outputs (pc/tools/clean_build.py)
 ```
 
 `docs/Testing.md` has the details: what `--changed` picks

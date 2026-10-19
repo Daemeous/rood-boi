@@ -30,6 +30,9 @@ runs first: it makes them for this build in pc/build/test-snapshots/ and
 proves each exact against booting (game state and frames); one that is not
 stays unused and its suites boot. Suites about the boot path always boot.
     python3 pc/tests/run.py --no-snapshots  every suite boots (ROOD_TEST_SNAPSHOTS=0)
+One directory of save states is kept per configuration (arch, renderer,
+headless mode): a new game binary replaces it. `run.py --clean` removes the
+test outputs (pc/tools/clean_build.py).
 
 Suites start longest first by the last run's times (<out>/durations.json).
 --profile adds <suite>/rpc-profile.txt and python.prof (profile_report.py).
@@ -131,7 +134,10 @@ def suites(args, mode="egl"):
         Suite("lp64_alias_scan", [PY, str(TESTS / "lp64_alias_scan_test.py")], 60, binary=None,
               note="no data import is a field of another across the LP64 native move "
                    "(pc/tools/lp64_alias_scan.py on pc/build/boot64; synthetic cases always)"),
-        Suite("fast_travel_scan", [PY, str(TESTS / "fast_travel_scan_test.py")], 120, binary=None,
+        Suite("build_cache", [PY, str(TESTS / "build_cache_test.py")], 120, binary=None,
+              note="shared build caches: objects reused across checkouts and identical to a compile there, "
+                   "edits/flags/compiler miss, LRU cap, third-party entries built once under the lock"),
+        Suite("fast_travel_scan",[PY, str(TESTS / "fast_travel_scan_test.py")], 120, binary=None,
               note="fast travel R9: every room and event script walked op by op; every Circle records itself; "
                    "no script tests unkB5 or writes a Circle state other than 1 unless blocks.json mirrors it"),
         Suite("snapshot_equivalence", [PY, str(TESTS / "snapshot_equivalence.py")]
@@ -845,6 +851,9 @@ def make_parser():
                         help="CPU niceness of the suites (default 10; 0 = as is), with idle I/O priority and "
                              "a low GPU priority where the driver has one (ROOD_GPU_PRIORITY=low)")
     parser.add_argument("--list", action="store_true")
+    parser.add_argument("--clean", action="store_true",
+                        help="remove this checkout's test outputs (pc/build/verify, pc/build/tests*, "
+                             "pc/build/test-snapshots; pc/tools/clean_build.py), then exit")
     parser.add_argument("--profile", action="store_true",
                         help="log every RPC call's time (<suite>/rpc-profile.txt; pc/tests/profile_report.py)")
     parser.add_argument("--headless", choices=["egl", "xvfb"], help="default: $ROOD_HEADLESS, else egl if it works")
@@ -876,6 +885,9 @@ def main():
     if args.wait_cool:
         ThermalGate(args).wait("the next step")
         return 0
+    if args.clean:
+        import clean_build
+        return clean_build.clean()
     if args.renderer == "vulkan":
         os.environ["ROOD_RENDERER"] = "vulkan"
     else:

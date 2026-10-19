@@ -28,7 +28,7 @@ paths = [
     "pc/tests/run.py", "pc/tests/affected.py", "pc/tests/affected.toml", "pc/tests/checkpoints.py",
     "pc/tools/rood_rpc.py", "pc/tools/build_boot.py", "pc/tools/build_cache.py", "pc/tools/import_types.py",
     "pc/tools/gl_shaders.py", "pc/tools/vk_shaders.py", "pc/tools/nrd.py", "pc/tools/nrd/*",
-    "pc/tools/snapshot_layout.py",
+    "pc/tools/snapshot_layout.py", "pc/tools/shared_cache.py",
     "pc/CMakeLists.txt", "Makefile", "requirements.txt", "config/*", "include/*", "tools/*", ".gitmodules",
     "pc/third_party/*", "pc/include/*",
     # the runtime, guest memory, RPC, snapshots, the window and the shared renderer
@@ -58,6 +58,7 @@ suites = ["rpc_smoke", "golden_frames"]
 [[rule]]
 paths = ["*.md", "docs/*", "pc/docs/*", "LICENSE", "THIRD_PARTY.md", ".github/*", ".vscode/*",
          ".gitignore", "Dockerfile", "pc/tools/publish.sh", "pc/tools/where.sh", "pc/tools/verify.sh", "pc/tools/dev_loop.sh", "pc/tools/memcap",
+         "pc/tools/new_worktree.sh", "pc/tools/remove_worktree.sh", "pc/tools/clean_build.py",
          "pc/tests/profile_report.py", "pc/tests/enemy_soak_report.py", "pc/run-game.sh", "pc/run-boot.sh",
          "assets/*"]
 suites = []

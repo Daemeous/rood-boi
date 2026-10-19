@@ -3,7 +3,7 @@
 Synthetic cases, always (a scratch tree and gcc): the build stamp sees an
 edited, a reverted (touched), a new and a deleted input, an option change
 and a changed or missing output; the object cache reuses a compile only
-when its command and every file it read are unchanged (headers through
+when its command and every file it read are those of a cached compile (headers through
 gcc's dependency list, preprocessed .i input), replays its warnings, and
 gives back the compiler's own object even after the build edited it; the
 result cache keys on file content.
@@ -124,26 +124,26 @@ def synthetic(base):
         check((out / "a.o").read_bytes() != original, "object cache: the edit is in the object")
         (src / "a.h").write_text("#define A 1\n")
         cache.compile(command)
-        check(len(calls) == 4 and (out / "a.o").read_bytes() == original,
-              "object cache: edit reverted -> compile, same object as before")
+        check(len(calls) == 3 and (out / "a.o").read_bytes() == original,
+              "object cache: edit reverted -> the earlier object again, no compile")
         cache.compile(command[:1] + ["-O1"] + command[2:])
-        check(len(calls) == 5, "object cache: other flags -> compile")
+        check(len(calls) == 4, "object cache: other flags -> compile")
         cache.compile(command[:1] + ["-O1"] + command[2:])
-        check(len(calls) == 5, "object cache: the same again -> no compile")
+        check(len(calls) == 4, "object cache: the same again -> no compile")
         ObjectCache(base, out, stamp, "other toolchain").compile(command)
-        check(len(calls) == 6, "object cache: other compiler -> compile")
+        check(len(calls) == 5, "object cache: other compiler -> compile")
         # Preprocessed input: no dependency list; the .i is what was read.
         real_run(["gcc", "-E", "src/b.c", "-o", "out/b.i"], cwd=base, check=True)
         pre = ["gcc", "-O2", "-c", "out/b.i", "-o", "out/b.o"]
         cache.compile(pre)
         cache.compile(pre)
-        check(len(calls) == 7, "object cache: preprocessed input cached")
+        check(len(calls) == 6, "object cache: preprocessed input cached")
         (out / "b.i").write_text((out / "b.i").read_text().replace("return 2", "return 3"))
         cache.compile(pre)
-        check(len(calls) == 8, "object cache: preprocessed input edited -> compile")
+        check(len(calls) == 7, "object cache: preprocessed input edited -> compile")
         broken = ["gcc", "-c", "src/missing.c", "-o", "out/missing.o"]
         check(cache.compile(broken).returncode != 0, "object cache: a failing compile fails")
-        check(cache.compile(broken).returncode != 0 and len(calls) == 10, "object cache: failures are not cached")
+        check(cache.compile(broken).returncode != 0 and len(calls) == 9, "object cache: failures are not cached")
     finally:
         subprocess.run = real_run
 
@@ -181,10 +181,16 @@ def real_builds():
 
 
 base = pathlib.Path(tempfile.mkdtemp(prefix="build-noop-"))
+saved = os.environ.get("ROOD_BUILD_CACHE")
+os.environ["ROOD_BUILD_CACHE"] = str(base / "cache")  # a private object store, never the shared one
 try:
     synthetic(base)
 finally:
     shutil.rmtree(base)
+    if saved is None:
+        os.environ.pop("ROOD_BUILD_CACHE")
+    else:
+        os.environ["ROOD_BUILD_CACHE"] = saved
 real_builds()
 print(f"{len(failures)} failure(s)" if failures else "build_noop_test: all checks passed")
 sys.exit(1 if failures else 0)

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Incremental build support for build_boot.py.
 
 Two layers, both conservative (any doubt rebuilds):
@@ -15,9 +16,13 @@ Two layers, both conservative (any doubt rebuilds):
   dependency list, -MD) are those of a cached compile. build_boot.py edits
   objects in place after compiling (overlay renames, state sections), so
   the cache keeps the compiler's own output and copies it back; every step
-  after compiling runs as before.
+  after compiling runs as before. The cache is shared by every checkout
+  and worktree (ObjectCache), with a size cap (prune).
+
+    python3 pc/tools/build_cache.py [--prune] [--max SIZE]   # the object store's size; prune it
 """
 
+import argparse
 import hashlib
 import json
 import os
@@ -27,7 +32,10 @@ import subprocess
 import sys
 import zlib
 
-VERSION = 1  # bump when the stamp or cache format, or what they cover, changes
+import shared_cache
+
+VERSION = 2  # bump when the stamp or cache format, or what they cover, changes
+ROOT_MARK = "@ROOT@"  # the checkout's path in the shared object cache's keys
 
 
 def _stat_line(path):
@@ -135,15 +143,54 @@ class Stamp:
         }, indent=1, sort_keys=True) + "\n")
 
 
-class ObjectCache:
-    """Skips compiles whose command and inputs are unchanged."""
+def parse_size(text):
+    """Bytes of "10G", "500M", "4096" (K, M, G, T: powers of 1024)."""
+    text = str(text).strip().upper().removesuffix("B")
+    scale = {"K": 1 << 10, "M": 1 << 20, "G": 1 << 30, "T": 1 << 40}.get(text[-1:], 1)
+    return int(float(text[:-1] if scale > 1 else text) * scale)
 
-    def __init__(self, root, out, stamp, identity):
+
+def object_store():
+    """The shared object store: $ROOD_BUILD_CACHE/objects (shared_cache.py)."""
+    return shared_cache.base() / "objects"
+
+
+def object_store_limit():
+    """The store's size cap: $ROOD_OBJECT_CACHE_MAX (e.g. 10G), default 10 GB."""
+    return parse_size(os.environ.get("ROOD_OBJECT_CACHE_MAX", "10G"))
+
+
+COMPILERS = ("gcc", "g++", "cc", "c++", "gcc-posix", "g++-posix")
+
+
+class ObjectCache:
+    """Skips compiles whose command and inputs are those of a cached compile.
+
+    The store is shared by every checkout and worktree (object_store():
+    manifests/ and blobs/). A compile's key is its command with the
+    checkout's own path replaced by a placeholder, plus the compiler
+    identities, so the same source compiled the same way has the same key in
+    every worktree. Its manifest lists the results seen for that key: the
+    content of every file the compile read (the compiler's own dependency
+    list; paths inside the checkout are kept relative to it) and the hash of
+    the object (blobs/, content-addressed). A result is used when every one
+    of those files has that content here.
+
+    Every compile also gets -ffile-prefix-map=<checkout>=. (debug info and
+    __FILE__ name paths relative to the checkout), so an object names no
+    checkout and is the same wherever it was compiled. $ROOD_OBJECT_CACHE=0
+    compiles everything (the same objects; nothing read or stored)."""
+
+    MAX_RESULTS = 8  # per key: one per variant of its inputs (edits in other worktrees)
+
+    def __init__(self, root, out, stamp, identity, store=None):
         self.root = pathlib.Path(root)
-        self.dir = pathlib.Path(out) / "objcache"
-        self.dir.mkdir(parents=True, exist_ok=True)
+        self.prefix = str(self.root)
+        self.store = pathlib.Path(store) if store else object_store()
+        self.enabled = os.environ.get("ROOD_OBJECT_CACHE", "1") not in ("0", "off", "no")
         self.stamp = stamp
         self.identity = identity  # compiler identities: a different compiler misses
+        self.hits = self.misses = 0
         self._hashes = {}
 
     def _hash(self, path):
@@ -158,28 +205,49 @@ class ObjectCache:
                 self._hashes[key] = hashlib.sha256(f.read()).hexdigest()
         return self._hashes[key]
 
+    def _portable(self, text):
+        return text.replace(self.prefix, ROOT_MARK)
+
+    def _dep_name(self, path):
+        """A dependency as a manifest names it: relative when inside the checkout."""
+        full = os.path.normpath(path if os.path.isabs(path) else os.path.join(self.prefix, path))
+        if full.startswith(self.prefix + os.sep):
+            return os.path.relpath(full, self.prefix).replace(os.sep, "/")
+        return full
+
+    def _local(self, name):
+        return name if os.path.isabs(name) else os.path.join(self.prefix, name)
+
+    def _blob(self, digest):
+        return self.store / "blobs" / digest[:2] / digest
+
+    @staticmethod
+    def _write(path, data):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+        tmp.write_bytes(data)
+        os.replace(tmp, path)
+
     def compile(self, args, check=False):
         """Run a compile command (gcc/g++, MinGW too) ending in -o OBJ, or
         reuse the cached object. Returns a CompletedProcess with text
         stderr (a cache hit replays the compiler's warnings). check: raise
         on failure like subprocess.run(check=True), printing the errors."""
-        obj = pathlib.Path(args[args.index("-o") + 1])
+        command = [str(a) for a in args]
+        if os.path.basename(command[0]).endswith(COMPILERS):
+            command.insert(1, f"-ffile-prefix-map={self.prefix}=.")
+        obj = pathlib.Path(command[command.index("-o") + 1])
         if not obj.is_absolute():
             obj = self.root / obj
-        name = obj.relative_to(self.root).as_posix().replace("/", "%")
-        meta_path, pristine, depfile = (self.dir / (name + ".json"), self.dir / name, self.dir / (name + ".d"))
-        command = [str(a) for a in args]
-        try:
-            meta = json.loads(meta_path.read_text())
-        except (OSError, ValueError):
-            meta = None
-        if (meta and meta.get("command") == command and meta.get("identity") == self.identity
-                and pristine.exists()
-                and all(self._hash(path) == digest for path, digest in meta["deps"].items())):
-            shutil.copyfile(pristine, obj)
-            self.stamp.deps.update(self._absolute(meta["deps"]))
-            return subprocess.CompletedProcess(args, 0, "", meta.get("stderr", ""))
-        meta_path.unlink(missing_ok=True)
+        key = hashlib.sha256(json.dumps([VERSION, self.identity, [self._portable(a) for a in command]])
+                             .encode()).hexdigest()
+        manifest = self.store / "manifests" / key[:2] / key
+        stderr = self._lookup(manifest, obj) if self.enabled else None
+        if stderr is not None:
+            self.hits += 1
+            return subprocess.CompletedProcess(args, 0, "", stderr)
+        self.misses += 1
+        depfile = obj.with_name(f"{obj.name}.{os.getpid()}.d")
         result = subprocess.run(command + ["-MD", "-MF", str(depfile)], cwd=self.root, capture_output=True, text=True)
         if result.returncode == 0:
             # A preprocessed input (.i) runs no preprocessor and writes no
@@ -188,9 +256,8 @@ class ObjectCache:
                 [a for a in command[1:] if a.endswith((".i", ".ii"))]
             hashes = {path: self._hash(path) for path in deps}
             if deps and all(hashes.values()):
-                shutil.copyfile(obj, pristine)
-                meta_path.write_text(json.dumps({"command": command, "identity": self.identity,
-                                                 "deps": hashes, "stderr": result.stderr}))
+                if self.enabled:
+                    self._store(manifest, obj, {self._dep_name(p): h for p, h in hashes.items()}, result.stderr)
                 self.stamp.deps.update(self._absolute(deps))
             else:
                 self.stamp.deps.update(self._absolute(p for p, h in hashes.items() if h))
@@ -200,8 +267,112 @@ class ObjectCache:
             raise subprocess.CalledProcessError(result.returncode, command)
         return result
 
+    def _lookup(self, manifest, obj):
+        """The stderr of a cached result whose inputs match (its object
+        copied to obj), or None."""
+        try:
+            results = json.loads(manifest.read_text())
+        except (OSError, ValueError):
+            return None
+        for result in results:
+            if not all(self._hash(self._local(name)) == digest for name, digest in result["deps"].items()):
+                continue
+            blob = self._blob(result["object"])
+            try:
+                shutil.copyfile(blob, obj)
+            except FileNotFoundError:  # pruned meanwhile
+                continue
+            for path in (blob, manifest):  # used now (least-recently-used pruning)
+                try:
+                    os.utime(path)
+                except OSError:
+                    pass
+            self.stamp.deps.update(self._absolute(self._local(name) for name in result["deps"]))
+            return result.get("stderr", "").replace(ROOT_MARK, self.prefix)
+        return None
+
+    def _store(self, manifest, obj, deps, stderr):
+        data = obj.read_bytes()
+        digest = hashlib.sha256(data).hexdigest()
+        blob = self._blob(digest)
+        if blob.exists():
+            os.utime(blob)
+        else:
+            self._write(blob, data)
+        try:
+            results = json.loads(manifest.read_text())
+        except (OSError, ValueError):
+            results = []
+        # Newest first; the same inputs replace their older result. Another
+        # worktree writing this manifest at the same moment may drop one
+        # result: a later miss, never a wrong object.
+        results = [{"deps": deps, "object": digest, "stderr": self._portable(stderr)}] + \
+            [r for r in results if r["deps"] != deps][:self.MAX_RESULTS - 1]
+        self._write(manifest, json.dumps(results).encode())
+
     def _absolute(self, paths):
         return {p if os.path.isabs(p) else os.path.normpath(os.path.join(self.root, p)) for p in paths}
+
+    def finish(self):
+        """After a build: prune the store to its size cap."""
+        if self.enabled:
+            removed = prune(self.store, object_store_limit())
+            if removed:
+                print(f"object cache: pruned {removed[0]} least recently used objects ({removed[1] / 2**20:.0f} MB)")
+
+
+def store_usage(store):
+    """[(mtime, size, path)] of the store's objects."""
+    blobs = []
+    for directory in sorted(pathlib.Path(store, "blobs").glob("??")):
+        with os.scandir(directory) as entries:
+            for item in entries:
+                try:
+                    st = item.stat()
+                except OSError:
+                    continue
+                blobs.append((st.st_mtime, st.st_size, item.path))
+    return blobs
+
+
+def prune(store, limit):
+    """Remove the least recently used objects while the store is over
+    `limit` bytes (down to 90% of it), and the manifests not used since.
+    Returns (count, bytes) removed, or None. One pruner at a time; a build
+    that finds its object pruned compiles it."""
+    store = pathlib.Path(store)
+    blobs = store_usage(store)
+    total = sum(size for _, size, _ in blobs)
+    if total <= limit:
+        return None
+    with open(store / ".prune.lock", "a") as lock:
+        if os.name != "nt":
+            import fcntl
+
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return None  # another build is pruning
+        count = removed = 0
+        cutoff = None
+        for mtime, size, path in sorted(blobs):
+            if total - removed <= limit * 0.9:
+                break
+            try:
+                os.unlink(path)
+            except OSError:
+                continue
+            count, removed, cutoff = count + 1, removed + size, mtime
+        if cutoff is not None:
+            for directory in pathlib.Path(store, "manifests").glob("??"):
+                with os.scandir(directory) as entries:
+                    for item in entries:
+                        try:
+                            if item.stat().st_mtime <= cutoff:
+                                os.unlink(item.path)
+                        except OSError:
+                            pass
+    return count, removed
 
 
 class ResultCache:
@@ -283,3 +454,23 @@ def tool_identity(tools):
                 if os.path.isabs(inner):
                     lines.append(_stat_line(os.path.realpath(inner)))
     return hashlib.sha256("".join(lines).encode()).hexdigest()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--prune", action="store_true", help="prune the object store to its cap now")
+    parser.add_argument("--max", help="the cap (default $ROOD_OBJECT_CACHE_MAX, else 10G)")
+    args = parser.parse_args()
+    store = object_store()
+    limit = parse_size(args.max) if args.max else object_store_limit()
+    blobs = store_usage(store)
+    print(f"{store}: {len(blobs)} objects, {sum(s for _, s, _ in blobs) / 2**20:.0f} MB "
+          f"(cap {limit / 2**30:.1f} GB)")
+    if args.prune:
+        removed = prune(store, limit)
+        print(f"pruned {removed[0]} objects ({removed[1] / 2**20:.0f} MB)" if removed else "nothing to prune")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

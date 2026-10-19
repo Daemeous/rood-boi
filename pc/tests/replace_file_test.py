@@ -4,13 +4,13 @@
 pc/tests/replace_file_probe.c saves three times in a row over the same file.
 
 Built and run natively, and, when MinGW-w64 and Wine are installed, built for
-Windows and run under Wine (a private prefix in pc/build/wineprefix): there
+Windows and run under Wine (one prefix per Wine version, made once and
+shared by every checkout: pc/tools/shared_cache.py, wine/<version>): there
 rename() fails when the target exists, which once left every memory card save
 after the first in card1.mcd.tmp. Without Wine that half is skipped.
 
     python3 pc/tests/replace_file_test.py
 """
-import os
 import pathlib
 import shutil
 import subprocess
@@ -18,6 +18,9 @@ import sys
 import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "pc/tools"))
+import shared_cache  # noqa: E402
+
 PROBE = ROOT / "pc/tests/replace_file_probe.c"
 MINGW = "x86_64-w64-mingw32-gcc-posix"
 
@@ -45,10 +48,8 @@ def main():
             if run([MINGW, "-O2", "-Wall", "-Werror", "-D_WIN32_WINNT=0x0A00", "-include",
                     str(ROOT / "pc/src/win_compat.h"), "-I" + str(ROOT / "pc/src"), str(PROBE), "-o", str(exe)]):
                 return 1
-            prefix = ROOT / "pc/build/wineprefix"
-            prefix.mkdir(parents=True, exist_ok=True)
-            env = dict(os.environ, WINEPREFIX=str(prefix), WINEDEBUG="-all", WINEDLLOVERRIDES="mscoree,mshtml=",
-                       DISPLAY="")
+            prefix = shared_cache.wine_prefix()
+            env = shared_cache.wine_env(prefix)
             try:
                 failed |= run(["wine", str(exe), "."], cwd=scratch, env=env, timeout=240) != 0
             except subprocess.TimeoutExpired:

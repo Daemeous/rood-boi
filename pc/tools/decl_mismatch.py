@@ -176,7 +176,9 @@ class Dwarf:
                 name = attr_value(parts[2])
                 full = pathlib.PurePosixPath(directory) / name if not name.startswith("/") else pathlib.PurePosixPath(name)
                 try:
-                    full = pathlib.Path(full).resolve().relative_to(ROOT)
+                    # Relative names are relative to the checkout (build_boot.py
+                    # compiles with -ffile-prefix-map=<checkout>=.).
+                    full = (ROOT / full).resolve().relative_to(ROOT)
                 except ValueError:
                     pass
                 self.files[int(parts[0])] = str(full)

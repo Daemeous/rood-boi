@@ -104,11 +104,19 @@ def egl_probe(device=None):
     source = ROOT / "pc/tests/egl_probe.c"
     # Built against whichever SDL the builds made: the game's own word size
     # first (ROOD_ARCH), so a 64-bit-only checkout still gets EGL.
-    builds = [("32", "pc/build/boot/egl_probe", "pc/build/sdl3"),
-              ("64", "pc/build/boot64/egl_probe", "pc/build/sdl3_64")]
+    # The SDL each build linked (its third-party.json: the shared build
+    # cache, pc/tools/shared_cache.py), else a pre-cache build's own copy.
+    def library(build, legacy):
+        try:
+            return pathlib.Path(json.loads((ROOT / build / "third-party.json").read_text())["sdl"])
+        except (OSError, ValueError, KeyError):
+            return ROOT / legacy / "libSDL3.a"
+
+    builds = [("32", "pc/build/boot/egl_probe", library("pc/build/boot", "pc/build/sdl3")),
+              ("64", "pc/build/boot64/egl_probe", library("pc/build/boot64", "pc/build/sdl3_64"))]
     if os.environ.get("ROOD_ARCH") == "64":
         builds.reverse()
-    found = [(bits, ROOT / p, ROOT / s / "libSDL3.a") for bits, p, s in builds if (ROOT / s / "libSDL3.a").exists()]
+    found = [(bits, ROOT / p, s) for bits, p, s in builds if s.exists()]
     if not found:
         return None
     bits, probe, library = found[0]

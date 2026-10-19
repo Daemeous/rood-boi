@@ -16,6 +16,7 @@ are kept. Like data/, the result contains your own game data: keep it to
 yourself.
 """
 import argparse
+import json
 import os
 import pathlib
 import shutil
@@ -72,6 +73,12 @@ def main():
         share = pathlib.Path(shutil.which("gcc") or ".").resolve().parents[1] / "share/licenses"
         mingw_licenses = [("mingw-w64.txt", str(share / "crt/COPYING.MinGW-w64-runtime.txt")),
                           ("winpthreads.txt", str(share / "winpthreads/COPYING"))]
+    # NRD's licences come with its sources, in its shared build cache entry
+    # (build_boot.py records it; pc/tools/shared_cache.py).
+    try:
+        nrd_entry = (json.loads((ROOT / "pc/build/win64/third-party.json").read_text()).get("nrd") or {})["entry"]
+    except (OSError, ValueError, KeyError):
+        nrd_entry = "pc/build/nrd"  # a build from before the shared cache
     for name, source in [
         ("LICENSE.txt", "LICENSE"),
         ("THIRD_PARTY.md", "THIRD_PARTY.md"),
@@ -82,9 +89,9 @@ def main():
         ("smaa.txt", "pc/third_party/smaa/LICENSE.txt"),
         ("psycross.txt", "pc/third_party/psycross/LICENSE"),
         ("psycross-audio.txt", "pc/third_party/psycross-audio/LICENSE"),
-        ("NRD.txt", "pc/build/nrd/_deps/nrd-src/LICENSE.txt"),
-        ("ShaderMake.txt", "pc/build/nrd/_deps/shadermake-src/LICENSE.txt"),
-        ("MathLib.txt", "pc/build/nrd/_deps/mathlib-src/LICENSE.txt"),
+        ("NRD.txt", f"{nrd_entry}/_deps/nrd-src/LICENSE.txt"),
+        ("ShaderMake.txt", f"{nrd_entry}/_deps/shadermake-src/LICENSE.txt"),
+        ("MathLib.txt", f"{nrd_entry}/_deps/mathlib-src/LICENSE.txt"),
         *mingw_licenses,
     ]:
         if (ROOT / source).exists():
