@@ -7,6 +7,7 @@
 // aspect), live game state, and run control (pause, frame step). Settings
 // persist in pc/build/boot/imgui.ini.
 #include <SDL3/SDL.h>
+#include <algorithm>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -950,8 +951,23 @@ extern "C" int pc_qol_skip_charging, pc_qol_skip_charging_who; /* project_settin
 extern "C" float pc_qol_skip_charging_name;                     /* project_settings.cpp; charge_skip.inc */
 extern "C" float pc_qol_skip_charging_hold_mine, pc_qol_skip_charging_hold_enemy; /* project_settings.cpp; charge_skip.inc */
 /* Graphics > Gameplay: optional gameplay changes, all off by default. */
+extern "C" int pc_difficulty_base_percent, pc_difficulty_clear_percent;
+extern "C" int pc_difficulty_active_base, pc_difficulty_active_clear, pc_difficulty_active_completions;
 static void gameplay_panel()
 {
+    ImGui::SeparatorText("Enemy difficulty");
+    ImGui::InputInt("Base increase (%)", &pc_difficulty_base_percent, 0, 0);
+    ImGui::InputInt("Additional increase per completion (%)", &pc_difficulty_clear_percent, 0, 0);
+    pc_difficulty_base_percent = std::clamp(pc_difficulty_base_percent, 0, 10000);
+    pc_difficulty_clear_percent = std::clamp(pc_difficulty_clear_percent, 0, 10000);
+    ImGui::Text("Active: +%d%% (%d completed games)",
+        pc_difficulty_active_base + pc_difficulty_active_clear * pc_difficulty_active_completions,
+        pc_difficulty_active_completions);
+    ImGui::TextWrapped("Whole percentages, 0 to 10000; 0 leaves stats unchanged. Applies to HP, MP, STR, INT, AGL and limb HP. Ashley and Merlose are excluded. Existing stat caps apply; limbs keep their original percentage of maximum HP.");
+    if (pc_difficulty_base_percent != pc_difficulty_active_base ||
+        pc_difficulty_clear_percent != pc_difficulty_active_clear)
+        ImGui::TextWrapped("Change pending: load a save or enter a new scene to apply it safely. Save settings to keep these values.");
+    ImGui::Separator();
     bool slots = pc_qol_weapon_slots != 0;
     if (ImGui::Checkbox("Weapon slots (L2 + R2 quick swap)", &slots))
         pc_qol_weapon_slots = slots;
