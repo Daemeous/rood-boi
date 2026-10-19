@@ -30,6 +30,7 @@
 /* environment.cpp: a rain drop's packet, left out of the hardware picture
  * where solid room geometry hides the drop (native VRAM draws it) */
 void pc_weather_drop_packet(const void* packet, int x, int y, int z);
+#include "pc/src/enemy_difficulty.inc"
 int pc_charge_skip(int phase); /* pc/src/charge_skip.inc: battle charging skip */
 int pc_charge_skip_hold(void);
 void pc_charge_skip_name(int now);
@@ -843,6 +844,9 @@ void func_80069DBC(void)
 {
     D_80060064 = 0;
     vs_main_bzero(D_80061078, sizeof D_80061078);
+#ifdef ROOD_PC
+    pc_difficulty_begin_scene((unsigned char)vs_main_stateFlags.clearCount);
+#endif
 }
 
 void func_80069DEC(int mapId, int zndId)
@@ -923,6 +927,9 @@ void func_80069FC4(int arg0, int arg1)
         temp_v0->limbHp[i] = temp_s1->limbs[i].hp;
     }
 
+#ifdef ROOD_PC
+    pc_difficulty_cache_store(temp_v0, temp_s1);
+#endif
     temp_v0->unk20 = temp_s1->statuses;
 
     if (func_800A0BE0(arg0) & 0x01000000) {
@@ -6263,6 +6270,11 @@ void func_80076784(
     }
 
     actor->unk954 = 0;
+#ifdef ROOD_PC
+    /* Fresh templates are scaled here. Room records stay at vanilla scale;
+     * restore uses exact live sidecar values, or scales a card-loaded record. */
+    pc_difficulty_init_actor(arg0, (unsigned char)init->unk2, actor);
+#endif
 }
 
 void func_80076D50(u_int id, int arg1, int arg2, int arg3, int arg4)
@@ -6762,6 +6774,9 @@ vs_battle_actor* func_800775C0(
             for (i = 0; i < 6; ++i) {
                 psx_get(actor->unk3C)->limbs[i].hp = saved->limbHP[i];
             }
+#ifdef ROOD_PC
+            pc_difficulty_cache_restore(saved, id, (unsigned char)init->unk2, psx_get(actor->unk3C));
+#endif
             func_80086FA8(saved->statuses, psx_get(actor->unk3C));
             i = func_800E6178((void*)actor, saved->unk2);
         } else {
