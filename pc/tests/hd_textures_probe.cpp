@@ -71,6 +71,24 @@ int main(int argc, char** argv)
     assert(resident.empty() && !full && evictions == 1 && table[slots * 4] == 0 && current_layer == 0);
     assert(ram.size() == 3); /* the decoded PNGs stay in RAM: no disk read to place them again */
 
+    /* Background loading: the first lookup only requests the image; it is
+     * placed at a frame boundary once a worker decoded it, and only pages
+     * showing it are looked up again (an unrelated page keeps its lookup). */
+    async_loads = true;
+    ram.clear();
+    ram_bytes = 0;
+    pc_hd_use(0, 300 * 64);
+    assert(resident.empty() && requested.size() == 1);
+    used[12345] = Use{changes, 0, {}};
+    for (int i = 0; i < 200 && resident.empty(); ++i) {
+        SDL_Delay(10);
+        pc_hd_frame();
+    }
+    assert(resident.size() == 1 && requested.empty() && !used.count(300 * 64) && used.count(12345));
+    pc_hd_use(0, 300 * 64); /* now bound */
+    assert(used.count(300 * 64));
+    async_loads = false;
+
     /* Layers: a full layer opens the next; with every layer full the least
      * recently drawn one is reused, while the other keeps its image. */
     side = 16;
@@ -170,5 +188,5 @@ int main(int argc, char** argv)
         std::cout << "PASS: real GPU sampler lookup, PNG colors and enabled/disabled/enabled\n";
     }
     std::cout << "PASS: independent zlib CRCs, 4/8/16-bit palettes, PNG loading, source offsets, partial "
-                 "overwrites, wrapped and masked copies, original VRAM, layered atlas reuse, RAM cache, per-tile lookups\n";
+                 "overwrites, wrapped and masked copies, original VRAM, layered atlas reuse, RAM cache, per-tile lookups, background loading\n";
 }
