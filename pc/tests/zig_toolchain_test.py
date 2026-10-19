@@ -52,6 +52,14 @@ with tempfile.TemporaryDirectory() as scratch:
         check(False, "ensure() without an install stops")
     except SystemExit as e:
         check("--from-tarball" in str(e) and "--fetch" in str(e), "ensure() says how to get it")
+    from unittest.mock import patch
+    with patch.object(zt, "host", return_value="x86_64-windows"):
+        check(zt.find() is None, "unsupported host: optional discovery is None")
+        try:
+            zt.ensure()
+            check(False, "unsupported host: required installation stops")
+        except SystemExit as e:
+            check("no pinned archive" in str(e), "unsupported host: required installation explains the missing pin")
     zig = zt.unpack(tarball)
     check(zig.exists() and zt.version_of(zig) == zt.VERSION, f"unpacked and runs: {zig}")
     check(zt.find() == zig, "find() returns the unpacked zig")
