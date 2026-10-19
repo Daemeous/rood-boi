@@ -53,6 +53,7 @@ struct Memory {
     size_t cap = 0;   /* 0: none */
     size_t grace = 0; /* extra room while an error is being reported */
     unsigned long long refusals = 0;
+    unsigned long long allocations = 0; /* blocks made or grown (the HUD pass's churn: RPC hud stats) */
 };
 struct Budget {
     bool active = false, killed = false;

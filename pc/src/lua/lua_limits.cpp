@@ -41,6 +41,8 @@ void* alloc(void* ud, void* ptr, size_t osize, size_t nsize)
     if (!p)
         return nsize <= old ? ptr : nullptr; /* Lua assumes shrinking never fails */
     m->used = m->used - old + nsize;
+    if (nsize > old)
+        ++m->allocations;
     if (m->used > m->peak)
         m->peak = m->used;
     return p;

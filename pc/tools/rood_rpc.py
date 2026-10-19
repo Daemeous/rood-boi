@@ -21,7 +21,7 @@ CLI:
     rood_rpc.py lua 'return rood.version' [--plugin ID]   evaluate Lua in the running game
     rood_rpc.py lua-test [--plugin ID] [--filter TEXT]     run the plugins' Lua tests in it
     rood_rpc.py hud-show [KIND] [--timing slow] [--value N] [--heal] [--pool mp] [--stat S] [--slot S] [--no-hold]
-                                              summon a HUD element (RPC hud show): status, chain, buff, damage, travel
+                                              summon a HUD element (RPC hud show): status, chain, buff, damage, travel, name_window
     rood_rpc.py hud [list|clear|stats]        the HUD layer's elements, claims and timings
 
 The socket defaults to $ROOD_RPC or pc/build/boot/rpc.sock (on Windows tcp:47323, a
@@ -630,6 +630,9 @@ def main():
     hud_show.add_argument("--pool", help="damage: hp, mp or stat")
     hud_show.add_argument("--stat", help="buff: human .. darkness; damage with --pool stat: 0..5")
     hud_show.add_argument("--slot", help="buff: weapon, shield, r.arm, l.arm, head, body, legs")
+    hud_show.add_argument("--index", type=int, help="name_window: the action (vs_main_actions' index; 184)")
+    hud_show.add_argument("--message", type=int, help="name_window: the scene message (11 a technique's name)")
+    hud_show.add_argument("--text", help="name_window away from the field: its text")
     hud_show.add_argument("--no-hold", action="store_true")
     hud = sub.add_parser("hud", help="the HUD layer (RPC hud): list, clear, stats")
     hud.add_argument("action", nargs="?", default="list", choices=["list", "clear", "stats"])
@@ -652,7 +655,9 @@ def main():
         print(json.dumps(Game(args.socket).lua(args.code, plugin=args.plugin), indent=1))
     elif args.command == "hud-show":
         params = dict(action="show", kind=args.kind, timing=args.timing, variant=args.variant, hold=not args.no_hold)
-        params.update({k: v for k, v in [("value", args.value), ("pool", args.pool), ("slot", args.slot)] if v is not None})
+        params.update({k: v for k, v in [("value", args.value), ("pool", args.pool), ("slot", args.slot),
+                                         ("index", args.index), ("message", args.message), ("text", args.text)]
+                       if v is not None})
         if args.stat is not None:
             params["stat"] = int(args.stat) if args.stat.isdigit() else args.stat
         if args.heal or args.loss:

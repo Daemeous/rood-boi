@@ -1,11 +1,18 @@
 # The Lua visible layer (F1-F3)
 
-Status: plan, 2026-10-18. Phase F1-F3 of
-`2026-10-18-freedom-and-fast-iteration.md`. Tasks 1-6 done (2026-10-19):
-status, chain, buff, damage and travel are elements, the shipped `rood.hud`
-claims them (pc/docs/Extensions.md "HUD"). Found on the way: the field's
-screen is 320 x 224 (the display area), not 240; coordinates follow the
-display area.
+Status: done, 2026-10-19. Phase F1-F3 of
+`2026-10-18-freedom-and-fast-iteration.md`. Tasks 1-6: status, chain, buff,
+damage and travel are elements, the shipped `rood.hud` claims them. Tasks
+7-11: `rood.game` queries, the classic flavour (packets at the game's
+hooks, `hud_classic_override`), the name window as an event (and
+`hud.<kind>` events), the gallery (`rood.dev.bench`, RPC `restart
+{snapshot}`, the console's Bench), the performance assertions
+(pc/docs/Extensions.md "HUD"). Found on the way: the field's screen is 320 x
+224 (the display area), not 240; coordinates follow the display area. The
+name window is a band across the bottom of the screen (text box kind 4),
+not a framed box. Where this plan put the gallery's index in a plugin's
+storage, it is a Lua table file beside each save state (the console and the
+RPC list it without a plugin).
 
 Goal: a HUD or UI tweak in under a minute. Edit a Lua file, it hot-reloads in
 the running game, and the moment is summoned with one command. The game

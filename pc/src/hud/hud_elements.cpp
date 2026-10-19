@@ -23,6 +23,7 @@ int pc_hud_classic_override;
 namespace hud {
 namespace {
 Element elements[PC_HUD_POOL];
+Element* recorded; // the last pc_hud_record's
 unsigned ticks; // pc_hud_tick calls (lua_probe has no vsync count)
 unsigned next_id = 1;
 KindStats kind_stats[PC_HUD_KINDS];
@@ -35,6 +36,7 @@ struct Hold {
     ShowArgs args;
     pc_hud_spawn spawn = {}; // args for the bridge
     unsigned respawn_vsync = 0;
+    unsigned close_vsync = 0; // name_window shown without hold: closed then
 };
 Hold holds[PC_HUD_KINDS];
 
@@ -42,7 +44,7 @@ Hold holds[PC_HUD_KINDS];
 #define KEEP_VSYNCS 120 // ... and its slot is reused after this (RPC hud {list} still shows it)
 #define RESPAWN_VSYNCS 15
 
-const char* const KINDS[PC_HUD_KINDS] = { "", "status", "chain", "buff", "damage", "travel" };
+const char* const KINDS[PC_HUD_KINDS] = { "", "status", "chain", "buff", "damage", "travel", "name_window" };
 const char* const TIMINGS[] = { "too_fast", "fast", "success", "slow", "too_slow" };
 // BATTLE.PRG func_800958A4's words and colours (PS1 BGR, 0x80 full).
 const char* const TIMING_WORDS[] = { "TOO FAST!", "FAST!", "", "SLOW!", "TOO SLOW!" };
@@ -55,9 +57,9 @@ const char* const STATS[] = { "HUMAN", "BEAST", "UNDEAD", "PHANTOM", "DRAGON", "
     "EARTH", "WATER", "LIGHT", "DARKNESS" };
 const char* const POOLS[] = { "hp", "mp", "stat" };
 // The ages a held element is kept at: past its slide-in, before its slide-out or end.
-const int AGE_MIN[PC_HUD_KINDS] = { 0, 4, 4, 0, 0, 0 };
-const int AGE_MAX[PC_HUD_KINDS] = { 0, 41, 86, 60, 30, 0 };
-const int LIFE[PC_HUD_KINDS] = { 0, 46, 91, 61, 31, 0 };
+const int AGE_MIN[PC_HUD_KINDS] = { 0, 4, 4, 0, 0, 0, 0 };
+const int AGE_MAX[PC_HUD_KINDS] = { 0, 41, 86, 60, 30, 0, 0 };
+const int LIFE[PC_HUD_KINDS] = { 0, 46, 91, 61, 31, 0, 120 }; // (name_window: a show without hold, vsyncs)
 
 unsigned full(unsigned bgr)
 {
@@ -71,7 +73,21 @@ unsigned full(unsigned bgr)
 }
 
 // one at a time (the game removes the last; one prompt)
-bool single(int kind) { return kind == PC_HUD_STATUS || kind == PC_HUD_CHAIN || kind == PC_HUD_TRAVEL; }
+bool single(int kind)
+{
+    return kind == PC_HUD_STATUS || kind == PC_HUD_CHAIN || kind == PC_HUD_TRAVEL || kind == PC_HUD_NAME_WINDOW;
+}
+
+Appearance appeared[64];
+unsigned appeared_head, appeared_count;
+void appear(const Element& e)
+{
+    appeared[(appeared_head + appeared_count) % 64] = { (int)(&e - elements), e.id };
+    if (appeared_count < 64)
+        ++appeared_count;
+    else
+        appeared_head = (appeared_head + 1) % 64;
+}
 
 Element* free_slot()
 {
@@ -152,6 +168,14 @@ void synthetic_fields(int kind, const ShowArgs& a, pc_hud_fields& f)
         f.rgb = colours[(a.pool == 1 ? 2 : 0) + (a.sign > 0)];
         break;
     }
+    case PC_HUD_NAME_WINDOW: // text box 7: a band across the bottom (func_800CD158), 43 rows for one line
+        std::snprintf(f.text, sizeof f.text, "%s", a.text[0] ? a.text : "NAME WINDOW");
+        f.variant = a.variant, f.value = a.value;
+        f.w = 320, f.h = 43;
+        f.x = 160, f.y = 240 - 21.5f;
+        f.rgb = 0xFFFFFF;
+        f.anchor = PC_HUD_ANCHOR_CENTRE;
+        break;
     case PC_HUD_TRAVEL:
         std::snprintf(f.text, sizeof f.text, "TRAVEL");
         f.anchor = PC_HUD_ANCHOR_PICTURE;
@@ -177,6 +201,7 @@ void make_synthetic(int kind, const ShowArgs& a)
     synthetic_fields(kind, a, e->f);
     e->held = a.hold;
     e->first_seen = e->last_seen = vsync();
+    appear(*e);
 }
 
 pc_hud_spawn spawn_of(const ShowArgs& a)
@@ -189,6 +214,18 @@ pc_hud_spawn spawn_of(const ShowArgs& a)
 } // namespace
 
 Element* pool() { return elements; }
+int take_appearances(Appearance* out, int max)
+{
+    int n = 0;
+    while (appeared_count && n < max) {
+        out[n++] = appeared[appeared_head];
+        appeared_head = (appeared_head + 1) % 64;
+        --appeared_count;
+    }
+    return n;
+}
+Element* last_recorded() { return recorded; }
+bool classic_look() { return &pc_ui_menus && pc_ui_menus == 0; }
 unsigned vsync() { return pc_vsync_count ? pc_vsync_count() : ticks; }
 bool live(const Element& e) { return e.used && (e.synthetic || vsync() - e.last_seen <= SEEN_VSYNCS); }
 KindStats& stats(int kind) { return kind_stats[kind > 0 && kind < PC_HUD_KINDS ? kind : 0]; }
@@ -234,11 +271,16 @@ bool show(int kind, const ShowArgs& args, std::string* error)
     }
     ShowArgs a = args;
     a.timing = a.timing < 0 ? 0 : a.timing > 4 ? 4 : a.timing;
-    a.variant &= 7;
+    a.variant = kind == PC_HUD_NAME_WINDOW ? a.variant : a.variant & 7;
     a.age = a.age < AGE_MIN[kind] ? AGE_MIN[kind] : a.age > AGE_MAX[kind] ? AGE_MAX[kind] : a.age;
-    if (a.value < 0)
-        a.value = kind == PC_HUD_CHAIN ? 3 : kind == PC_HUD_DAMAGE ? 123 : 1;
-    a.value = a.value > 999 ? 999 : a.value < 1 ? 1 : a.value;
+    if (kind == PC_HUD_NAME_WINDOW) { // an action's name (a technique, as a battle shows it), its message
+        a.value = a.value < 0 ? 184 : a.value > 255 ? 255 : a.value;
+        a.variant = args.variant ? args.variant : 11;
+    } else {
+        if (a.value < 0)
+            a.value = kind == PC_HUD_CHAIN ? 3 : kind == PC_HUD_DAMAGE ? 123 : 1;
+        a.value = a.value > 999 ? 999 : a.value < 1 ? 1 : a.value;
+    }
     if (!a.sign)
         a.sign = kind == PC_HUD_DAMAGE ? -1 : 1;
     a.sign = a.sign < 0 ? -1 : 1;
@@ -259,6 +301,10 @@ bool show(int kind, const ShowArgs& args, std::string* error)
         h.args = a;
         h.spawn = sp;
         h.respawn_vsync = vsync() + RESPAWN_VSYNCS;
+        if (kind == PC_HUD_NAME_WINDOW) { // (nothing in the field closes it: a show without hold is closed after its life)
+            h.active = true;
+            h.close_vsync = a.hold ? 0 : vsync() + (unsigned)LIFE[kind];
+        }
         if (a.hold && pc_hud_bridge_hold)
             pc_hud_bridge_hold(kind, &sp);
         return true;
@@ -269,6 +315,35 @@ bool show(int kind, const ShowArgs& args, std::string* error)
     h.spawn = sp;
     make_synthetic(kind, a);
     return true;
+}
+
+int held_moments(HeldMoment* out, int max)
+{
+    int n = 0;
+    for (int k = 1; k < PC_HUD_KINDS && n < max; ++k)
+        if (holds[k].active && !holds[k].close_vsync)
+            out[n++] = { k, holds[k].args };
+    return n;
+}
+
+void adopt(int kind, const ShowArgs& args)
+{
+    if (kind <= 0 || kind >= PC_HUD_KINDS)
+        return;
+    Hold& h = holds[kind];
+    h = Hold();
+    h.active = true;
+    h.args = args;
+    h.args.hold = true;
+    h.spawn = spawn_of(h.args);
+    if (pc_hud_bridge_field && pc_hud_bridge_field()) {
+        if (kind == PC_HUD_TRAVEL && pc_hud_bridge_spawn) // (the forced prompt is the host's: not in the state)
+            pc_hud_bridge_spawn(kind, &h.spawn);
+        h.respawn_vsync = vsync() + RESPAWN_VSYNCS;
+        return;
+    }
+    h.synthetic = true;
+    make_synthetic(kind, h.args);
 }
 
 void clear(int kind)
@@ -291,9 +366,8 @@ extern "C" int pc_hud_honoured(int kind)
 {
     if (!claimed(kind))
         return 0;
-    bool modern = &pc_ui_menus ? pc_ui_menus != 0 : true;
-    if (!modern && !pc_hud_classic_override)
-        return 0; // the classic look: the game's own drawing (typography only)
+    if (hud::classic_look()) // the game's own drawing (typography only) unless hud_classic_override: then the
+        return pc_hud_classic_override != 0; // claim draws at the game's hook, in the classic flavour
     return !pc_overlay_active || pc_overlay_active(); // nobody would draw it otherwise
 }
 
@@ -303,6 +377,7 @@ extern "C" int pc_hud_record(const pc_hud_fields* f)
         return 0;
     unsigned now = vsync();
     Element* e = nullptr;
+    bool fresh = false;
     for (Element& x : elements)
         if (x.used && !x.synthetic && x.f.kind == f->kind && (x.f.key == f->key || single(f->kind))) {
             e = &x;
@@ -326,18 +401,24 @@ extern "C" int pc_hud_record(const pc_hud_fields* f)
         e->used = true;
         e->id = next_id++;
         e->first_seen = now;
+        fresh = true;
     }
     e->f = *f;
     e->f.text[PC_HUD_TEXT - 1] = 0;
     e->last_seen = now;
     const Hold& h = holds[f->kind];
-    e->held = h.active && !h.synthetic
-        && (single(f->kind) || (f->value == h.spawn.value && f->sign == h.spawn.sign)); // (the one shown)
+    e->held = h.active && !h.synthetic && !h.close_vsync
+        && (f->kind == PC_HUD_NAME_WINDOW ? f->value == h.spawn.value
+                                          : single(f->kind) || (f->value == h.spawn.value && f->sign == h.spawn.sign));
     e->suppressed = pc_hud_honoured(f->kind) != 0;
+    recorded = e;
+    if (fresh)
+        appear(*e);
     KindStats& s = stats(f->kind);
     ++s.seen;
     ++(e->suppressed ? s.suppressed : s.fallback);
-    return e->suppressed;
+    // the classic flavour: drawn now, at the game's hook (the Travel prompt has none: never classic)
+    return e->suppressed ? (classic_look() && f->kind != PC_HUD_TRAVEL ? 2 : 1) : 0;
 }
 
 extern "C" void pc_hud_tick(void)
@@ -345,10 +426,21 @@ extern "C" void pc_hud_tick(void)
     ++ticks;
     unsigned now = vsync();
     bool field = pc_hud_bridge_field && pc_hud_bridge_field();
+    pc_hud_fields name;
+    if (field && pc_hud_bridge_name_window && pc_hud_bridge_name_window(&name))
+        pc_hud_record(&name); // (an event: never claimed, the game draws it)
     for (int k = 1; k < PC_HUD_KINDS; ++k) {
         Hold& h = holds[k];
         if (!h.active || h.synthetic)
             continue;
+        if (h.close_vsync) { // a name window shown without hold: its life
+            if ((int)(now - h.close_vsync) >= 0) {
+                if (pc_hud_bridge_release)
+                    pc_hud_bridge_release(k, &h.spawn);
+                h = Hold();
+            }
+            continue;
+        }
         if (!field) { // left the field (a room load, the title): held on as a synthetic element
             h.synthetic = true;
             make_synthetic(k, h.args);

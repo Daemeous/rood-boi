@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """The Lua visible layer (pc/src/hud, lua_api_hud.cpp; plan
-pc/docs/plans/2026-10-18-lua-visible-layer.md tasks 1-6): the battle's status
+pc/docs/plans/2026-10-18-lua-visible-layer.md): the battle's status
 word summoned and held, claimed by a plugin, hot-reloaded, and the game's own
-drawing as the fallback; then the shipped rood.hud plugin on every kind
-(status, chain, buff, damage, travel).
+drawing as the fallback; the classic flavour; then the shipped rood.hud plugin
+on every kind (status, chain, buff, damage, travel) with the performance
+budget; the queries, the name window and the events; the gallery.
 
     python3 pc/tests/hud_bench_smoke.py [--card pc/build/test-card1.mcd] [--out DIR]
 
@@ -22,20 +23,32 @@ it) turned off until the second part:
     is redrawn by the new code without a restart (the loop time printed);
   - a draw that raises, the plugin disabled, the classic look (ui_menus 0,
     hud_classic_override 0): the game draws the word again each time;
+  - the classic flavour (hud_classic_override 1): the claim draws at the
+    game's hook as packets (the game's printers: ui_text restyles the word),
+    every classic primitive, the game's font measured; the primitives refuse
+    in the modern flavour; a classic draw error gives the game's drawing;
   - rood.dev.clear lets it go.
 rood.hud (shipped, on by default), the test plugin off:
   - each kind summoned (rood.dev.show's spawners: the game's own records)
     with its fields, claimed, suppressed and drawn (its text in the frame's
     commands); the Travel prompt's C++ drawing skipped;
-  - all five held at once: the pass's cost (p99 under 1 ms), no dropped
-    commands, memory flat;
+  - all five held at once: the pass's cost (mean under 0.25 ms, p99 under
+    1 ms), no dropped commands, no allocations, memory flat; the four game
+    kinds in the classic flavour: under 0.1 ms of Lua a game frame;
   - rood.hud's own Lua tests (pc/plugins/rood.hud/tests) in the same game;
   - an edit of its look on disk redrawn on the held word (the loop timed);
   - rood.hud off: the game's (and the C++ prompt's) own drawing of each kind;
   - rood.hud.typography: the status style's fields for this run, its
     settings line unchanged, then the settings' again.
+Before them rood.game (task 7) against RPC state, and the name window (task
+9): the game's own call, held, its hud.name_window event once, cleared, a
+show without hold closed after its life; a damage number's hud.damage event.
+Last the gallery (task 10, ROOD_BENCH in the output folder): a held word
+saved, listed, the moment changed, loaded (the process restarts resuming it:
+the word held again, the seconds printed); a stale entry refused.
 No screenshots: counters only."""
 import argparse
+import os
 import pathlib
 import random
 import shutil
@@ -46,7 +59,7 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT  # noqa: E402
+from rood_rpc import OUT, Game, RpcError, listening  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import card_guard, default_save  # noqa: E402
 
@@ -101,7 +114,9 @@ def run(out, card):
     settings = out / "settings.cfg"
     settings.write_text("aspect 4:3\nui_menus 1\nui_text font\nplugin_enabled rood.hud 0\n")
     env = {"ROOD_WINDOW": "960x720", "ROOD_SETTINGS": str(settings), "ROOD_PLUGINS": str(plugins),
-           "ROOD_PLUGINS_SHIPPED": str(shipped), "ROOD_PLUGIN_DATA": str(out / "plugin_data")}
+           "ROOD_PLUGINS_SHIPPED": str(shipped), "ROOD_PLUGIN_DATA": str(out / "plugin_data"),
+           "ROOD_BENCH": str(out / "bench")}
+    shutil.rmtree(out / "bench", ignore_errors=True)
     g = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env)
     try:
         def stats():
@@ -148,6 +163,8 @@ def run(out, card):
 
         g.run(4)
         check(g.call("ui_menu")["modern"] if "modern" in g.call("ui_menu") else True, "the modern look (ui_menus 1)")
+        queries(g, check)
+        name_window(g, check)
         dev = g.lua("return type(rood.dev)")
         check(dev["results"] == ["table"], f"rood.dev exists in dev mode (RPC on): {dev['results']}")
         # summoned and held from the console, the game's own drawing (no claim)
@@ -223,20 +240,224 @@ def run(out, card):
         check(wait(lambda: not status()["honoured"]), "classic look: the claim is not honoured")
         game_draws("classic look")
         g.call("hud", action="set", classic_override=1)
-        claim_draws("classic look, hud_classic_override 1", "v10")
+        classic(g, folder, check, wait, stats, status, glyphs)
         g.call("hud", action="set", classic_override=0)
+        (folder / "main.lua").write_text(draw_code("v10"))
+        check(wait(lambda: status()["claimed_by"] == PLUGIN and not status()["claim_failed"]), "v10 claims again")
         g.call("ui_menu", modern=True)
         check(wait(lambda: status()["honoured"]), "modern look again")
         # cleared: it plays out and goes
         g.lua('rood.dev.clear("status")')
         check(wait(lambda: not held(), timeout=10, step=10), f"cleared: the word goes ({held()})")
         shipped_hud(g, shipped / "rood.hud", check, wait, stats, glyphs)
+        g = gallery(g, out / "bench", check)
         log = (out / "game.log").read_text(errors="replace")
         check("[crash]" not in log, "no crash in the log")
     finally:
         g.close()
     print(f"{len(failures)} failure(s)" if failures else "all passed")
     return 1 if failures else 0
+
+
+CLASSIC_CODE = """
+local d = rood.draw
+local word = d.style{ font = 'status', align = 'center', anchor = 'middle' }
+local menu = d.style{ font = 'menu' }
+errors, widths = {}, {}
+rood.hud.claim('status', function(e, d)
+  if e.flavour ~= 'classic' then
+    local ok, err = pcall(d.window, 10, 10, 50, 20)
+    errors[1] = err
+    return
+  end
+  d.window(20, 120, 140, 34)
+  d.gradient(26, 126, 40, 8, 0xFF0000, 0x0000FF)
+  d.rect(70, 126, 10, 8, 0x00FF00, 0.5)
+  d.glyph('circle', 26, 146, 16)
+  d.cursor(4, 138)
+  d.bar(84, 140, 30, 100, 'hp')
+  d.sprite(140, 126, { page_x = 768, page_y = 0, bits = 4, u = 0, v = 128, w = 16, h = 16, clut_x = 944,
+                       clut_y = 223 })
+  d.text(menu, 'Ashley v11', 84, 124)
+  d.text(word, e.text .. ' v11', e.x, e.y)
+  widths[1], widths[2] = d.measure(word, 'SLOW!'), d.glyph_width('circle', 8)
+end)
+"""
+
+
+def classic(g, folder, check, wait, stats, status, glyphs):
+    """The classic flavour (task 8): with the classic look and hud_classic_override the claim runs at the game's
+    hook, in the game's frame, and draws PS1 packets (its text through the game's printers: the status style's
+    word restyled by ui_text as SLOW! is); nothing goes to the modern pass."""
+    g.run(4)
+    s, before, f0 = status(), glyphs(), stats()["classic_frames"]
+    g.run(8)
+    t, st, after = status(), stats(), glyphs()
+    texts = [c.get("text") for c in st["classic_last"]]
+    check(t["suppressed"] > s["suppressed"] and t["drawn"] > s["drawn"] and t["fallback"] == s["fallback"]
+          and st["classic_frames"] > f0 and any(x and x.endswith("v10") for x in texts) and after > before
+          and not st["last"],
+          f"classic flavour: claimed at the hook and drawn as packets (suppressed {t['suppressed'] - s['suppressed']}, "
+          f"drawn {t['drawn'] - s['drawn']}, classic frames {st['classic_frames'] - f0}, restyled glyphs "
+          f"{after - before}, commands {texts}, modern {len(st['last'])})")
+    (folder / "main.lua").write_text(CLASSIC_CODE)
+    check(wait(lambda: any(c["type"] == "window" for c in stats()["classic_last"])), "the classic primitives' claim")
+    g.run(4)
+    st = stats()
+    types = [c["type"] for c in st["classic_last"]]
+    check(types == ["window", "gradient", "rect", "glyph", "cursor", "bar", "sprite", "text", "text"]
+          and st["dropped"] == 0,
+          f"classic primitives: window, gradient, rect, glyph, cursor, bar, sprite, menu and status text ({types})")
+    w = g.lua("return widths[1], widths[2]", plugin=PLUGIN)["results"] + [None, None]
+    check(w[0] and w[0] == int(w[0]) and 20 <= w[0] <= 40 and w[1] == 16,
+          f"classic measures: the game's font (SLOW! {w[0]} pixels), its button sprites (16: {w[1]})")
+    g.call("hud", action="set", classic_override=0)
+    g.call("ui_menu", modern=True)
+    check(wait(lambda: status()["honoured"]), "modern look again")
+    check(wait(lambda: g.lua("return errors[1]", plugin=PLUGIN)["results"][0] is not None), "the modern pass ran the claim")
+    e = g.lua("return errors[1]", plugin=PLUGIN)["results"][0] or ""
+    check("the classic flavour only" in e, f"modern flavour: the classic primitives refuse ({e.splitlines()[0]})")
+    g.call("ui_menu", modern=False)
+    g.call("hud", action="set", classic_override=1)
+    (folder / "main.lua").write_text(draw_code("broken", "error('a broken classic draw')"))
+    check(wait(lambda: status()["claim_failed"]), f"a classic draw error stops the claim ({status()})")
+    g.run(4)
+    s, before = status(), glyphs()
+    g.run(8)
+    t = status()
+    check(t["fallback"] > s["fallback"] and t["suppressed"] == s["suppressed"] and glyphs() > before,
+          f"a classic draw error: the game draws the word (fallback {t['fallback'] - s['fallback']})")
+
+
+def gallery(g, bench, check):
+    """The gallery (task 10): a held moment saved (the game's save state and a Lua table of the held moments),
+    listed, the moment changed, then loaded: the process restarts resuming it (same socket and cards) and holds
+    the word again; a stale entry is listed as such and refused. Returns the game's new handle."""
+    def live(kind):
+        return [e for e in g.call("hud", action="list")["elements"] if e["live"] and e["kind"] == kind]
+
+    g.call("hud", action="clear")
+    g.call("hud", action="show", kind="status", timing="slow")
+    g.run(10)
+    r = g.lua('return rood.dev.bench.save("slow-word")')
+    check(not r.get("error") and str(r["results"][0]).endswith("slow-word.snap"), f"bench.save ({r})")
+    g.run(2)
+    entries = g.lua("return rood.dev.bench.list()")["results"][0] or []
+    e = next((x for x in entries if x["name"] == "slow-word"), {})
+    st = g.call("state")
+    check(e.get("valid") and e.get("held") == ["status"] and e.get("zone") == st["zone"] and e.get("room") == st["room"]
+          and (bench / "slow-word.snap").stat().st_size > 0 and (bench / "slow-word.lua").exists(),
+          f"listed: valid, the held word, the room ({e})")
+    text = (bench / "slow-word.lua").read_text()
+    check(text.lstrip().startswith("--") and "return {" in text and "kind = \"status\"" in text,
+          "the entry is a Lua table")
+    # the moment changes, then the gallery brings it back
+    g.call("hud", action="clear")
+    g.call("hud", action="show", kind="chain", count=4)
+    g.run(30)
+    check(not live("status") and live("chain"), "the moment changed (a chain, no word)")
+    old = os.stat(g.path).st_ino
+    t0 = time.monotonic()
+    r = g.lua('return rood.dev.bench.load("slow-word")')
+    check(not r.get("error"), f"bench.load ({r.get('error')})")
+    g.file.close()
+    g.sock.close()
+    process = g.processes[0]
+    gone = False  # (the old socket unlinked: the new one may reuse its inode)
+    while time.monotonic() - t0 < 60:
+        try:
+            gone = gone or os.stat(g.path).st_ino != old
+        except OSError:
+            gone = True
+        if gone and listening(g.path):
+            break
+        if process.poll() is not None:
+            raise RpcError(f"the game exited (status {process.returncode})")
+        time.sleep(0.02)
+    g = Game(g.path, g.processes)
+    seconds = time.monotonic() - t0
+    g.run(6)
+    words = live("status")
+    check(len(words) == 1 and words[0]["text"] == "SLOW!" and words[0]["held"] and not words[0]["synthetic"]
+          and not live("chain"),
+          f"loaded in {seconds:.2f} s (load -> the game's socket back): the word held again, no chain ({words})")
+    g.run(120)
+    words = live("status")
+    check(len(words) == 1 and words[0]["age"] == 10, f"held past its life after the load ({words})")
+    cur = g.lua("return rood.dev.bench.current()")["results"]
+    check(cur == ["slow-word"], f"bench.current ({cur})")
+    print(f"gallery load (bench.load -> socket back, the held word resumed): {seconds:.2f} s", flush=True)
+    # a stale entry: its save state not this build's
+    (bench / "old.lua").write_text("return { name = 'old', held = {} }\n")
+    data = bytearray((bench / "slow-word.snap").read_bytes())
+    data[16] ^= 0xFF  # the header's code key (snapshot.c), as a game-code rebuild changes it
+    (bench / "old.snap").write_bytes(bytes(data))
+    lst = g.call("hud", action="bench", op="list")["entries"]
+    old_e = next((x for x in lst if x["name"] == "old"), {})
+    check(old_e.get("valid") is False and "stale" in old_e.get("why", ""), f"a stale entry is listed as such ({old_e})")
+    e = g.lua('return rood.dev.bench.load("old")').get("error") or ""
+    check("stale" in e, f"and refused ({e.splitlines()[0] if e else e})")
+    e = g.lua('return rood.dev.bench.save("Bad Name")').get("error") or ""
+    check("a name is" in e, "names are checked")
+    g.call("hud", action="clear")
+    return g
+
+
+def name_window(g, check):
+    """The name window (task 9): rood.dev.show calls the game's vs_battle_displaySceneMessage (its hook gives
+    the message and the action); a hud.name_window event once per appearance; held until cleared, else closed
+    after its life; never claimed. And hud.<kind> events for the drawn kinds (a damage number)."""
+    def windows():
+        return [e for e in g.call("hud", action="list")["elements"] if e["live"] and e["kind"] == "name_window"]
+
+    def until(condition, vsyncs=400, step=4):
+        for _ in range(0, vsyncs, step):
+            if condition():
+                return True
+            g.run(step)
+        return condition()
+
+    r = g.call("lua", action="console", input="names, hits = {}, {} "
+               "rood.on('hud.name_window', function(e) names[#names + 1] = e.text .. '#' .. e.index end) "
+               "rood.on('hud.damage', function(e) hits[#hits + 1] = e.value end)")
+    check(not r.get("error"), f"event handlers ({r.get('error')})")
+    g.lua('rood.dev.show("name_window")')
+    until(lambda: windows())
+    w = windows()
+    check(len(w) == 1 and w[0]["text"] and w[0]["held"] and not w[0]["synthetic"] and w[0]["value"] == 184
+          and w[0]["variant"] == 11 and w[0]["w"] == 320,
+          f"the game's name window from its own call, held ({[(e['text'], e['value'], e['h'], e['y']) for e in w]})")
+    g.run(240)
+    names = g.lua("return #names, names[1]")["results"]
+    check(len(windows()) == 1 and names[0] == 1 and names[1] == f"{w[0]['text'] if w else ''}#184",
+          f"held 240 vsyncs, one hud.name_window event ({names})")
+    e = g.lua('rood.hud.claim("name_window", function() end)').get("error") or ""
+    check("is an event" in e, f"the name window is not claimed ({e.splitlines()[0] if e else e})")
+    g.lua('rood.dev.clear("name_window")')
+    check(until(lambda: not windows()), "cleared: the window closes")
+    g.lua('rood.dev.show("name_window", { index = 185, hold = false })')
+    check(until(lambda: windows()) and until(lambda: not windows(), vsyncs=600),
+          "a show without hold opens it and closes it after its life")
+    names = g.lua("return #names")["results"]
+    check(names == [2], f"a second appearance, a second event ({names})")
+    g.call("hud", action="show", kind="damage", value=77, hold=False)
+    check(until(lambda: g.lua("return hits[1]")["results"] == [77], vsyncs=60), "hud.damage: the number's event")
+    g.call("hud", action="clear")
+
+
+def queries(g, check):
+    """rood.game (task 7): Ashley, the room, the mode as the game has them (RPC state)."""
+    st = g.call("state")
+    r = g.lua("local a, r = rood.game.ashley(), rood.game.room() return a.hp, a.max_hp, a.mp, a.max_mp, a.risk,"
+              " a.position.x, a.position.z, #a.statuses, a.battle, r.zone, r.room, r.name, rood.game.mode(),"
+              " rood.game.first_person(), rood.game.ashley() == a")["results"]
+    want = [st["hp"], st["max_hp"], st["mp"], st["max_mp"], st["risk"], st["player"]["x"], st["player"]["z"]]
+    check(r[:7] == want and r[7] == 0 and r[8] is False and r[9:11] == [st["zone"], st["room"]] and r[11]
+          and r[12] == "field" and r[13] is False and r[14] is True,
+          f"rood.game: Ashley, the room, the mode as the game has them ({r}; state {want}, "
+          f"{st['zone']}/{st['room']})")
+    e = g.lua("rood.game.ashley().hp = 1").get("error") or ""
+    check("read-only" in e, f"rood.game's tables are read-only ({e.splitlines()[0] if e else e})")
 
 
 # rood.dev.show's args per kind, the element's text, fields it must have.
@@ -304,11 +525,31 @@ def shipped_hud(g, folder, check, wait, stats, glyphs):
     before = stats()["claim_memory_kb"]
     g.run(240)
     s = stats()
-    check(s["frames"] > 100 and s["p99_ms"] < 1.0 and s["dropped"] == 0,
-          f"rood.hud, five elements: {s['frames']} frames, mean {s['mean_ms']:.3f} ms, p99 {s['p99_ms']:.3f} ms, "
-          f"max {s['max_ms']:.3f} ms of Lua; drawing {s['render_mean_ms']:.3f} ms; {s['commands']} commands")
-    check(abs(s["claim_memory_kb"] - before) < 64,
-          f"rood.hud's memory flat: {before:.0f} KB then {s['claim_memory_kb']:.0f} KB after 240 vsyncs")
+    # the budget (plan "Performance"): at most 0.25 ms of Lua per presented frame for the whole HUD, p99 under 1 ms
+    check(s["frames"] > 100 and s["mean_ms"] < 0.25 and s["p99_ms"] < 1.0 and s["dropped"] == 0,
+          f"rood.hud, five elements: {s['frames']} frames, mean {s['mean_ms']:.3f} ms (budget 0.25), p99 "
+          f"{s['p99_ms']:.3f} ms (1), max {s['max_ms']:.3f} ms of Lua; drawing {s['render_mean_ms']:.3f} ms; "
+          f"{s['commands']} commands; {s['allocations_per_frame']:.1f} allocations a frame")
+    check(abs(s["claim_memory_kb"] - before) < 64 and s["allocations_per_frame"] < 4,
+          f"rood.hud's memory flat: {before:.0f} KB then {s['claim_memory_kb']:.0f} KB after 240 vsyncs, "
+          f"{s['allocations_per_frame']:.1f} allocations a frame")
+    # the classic flavour: the four game kinds drawn at their hooks, at most 0.1 ms of Lua per game frame
+    g.call("ui_menu", modern=False)
+    g.call("hud", action="set", classic_override=1)
+    g.call("hud", action="clear")
+    for k, args, *_ in SHOWS[:4]:
+        g.call("hud", action="show", kind=k, **args)
+    check(wait(lambda: all(elements(k) for k in kinds[:4])), "four game kinds held, the classic look")
+    g.call("hud", action="stats", reset=True)
+    g.run(240)
+    s = stats()
+    check(s["classic_frames"] > 50 and s["classic_mean_ms"] < 0.1 and s["classic_p99_ms"] < 1.0 and s["frames"] == 0,
+          f"rood.hud, classic flavour: {s['classic_frames']} game frames, mean {s['classic_mean_ms']:.3f} ms "
+          f"(budget 0.1), p99 {s['classic_p99_ms']:.3f} ms, max {s['classic_max_ms']:.3f} ms of Lua; "
+          f"{s['classic_allocations_per_frame']:.1f} allocations a frame; the presented frames' pass idle")
+    g.call("hud", action="set", classic_override=0)
+    g.call("ui_menu", modern=True)
+    check(wait(lambda: kind("status")["honoured"]), "modern look again")
     # its own Lua tests, in this game (the field, the modern look)
     g.call("hud", action="clear")
     run = g.lua_test(plugin="rood.hud")

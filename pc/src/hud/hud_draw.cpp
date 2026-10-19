@@ -238,6 +238,12 @@ void render(const Command* cmds, int count, const char* text)
             dl->AddRectFilled(ImVec2(m.x(c.x, c.anchor), m.y(c.y, c.anchor)),
                 ImVec2(m.x(c.x, c.anchor) + c.w * m.across(c.anchor), m.y(c.y + c.h, c.anchor)),
                 rgba(c.color, c.alpha));
+        else if (c.type == hud::CMD_GRADIENT && c.w > 0 && c.h > 0) {
+            unsigned a = rgba(c.color, c.alpha), b = rgba(c.color2, c.alpha);
+            dl->AddRectFilledMultiColor(ImVec2(m.x(c.x, c.anchor), m.y(c.y, c.anchor)),
+                ImVec2(m.x(c.x, c.anchor) + c.w * m.across(c.anchor), m.y(c.y + c.h, c.anchor)), a,
+                c.vertical ? a : b, b, c.vertical ? b : a);
+        }
     }
     dl->PopClipRect();
 }

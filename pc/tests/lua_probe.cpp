@@ -8,6 +8,7 @@
 #include "lua/rl_internal.h"
 #include "lua/sha256.h"
 #include "hud/hud_internal.h"
+#include "hud/game_query.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -1034,6 +1035,206 @@ static void hud_layer()
     rl::config.watch_vsyncs = 30;
 }
 
+/* The look (project_settings.cpp's ui_menus; absent from this probe otherwise: modern). */
+extern "C" {
+int pc_ui_menus = 1;
+}
+
+/* The classic flavour (hud.h pc_hud_classic_cmd): with the classic look a claim is honoured only with
+ * hud_classic_override, and then draws at the game's hook into the classic commands (record 2,
+ * pc_hud_classic_draw), never in the presented frames' pass; the classic-only primitives refuse in
+ * the modern flavour. */
+static void classic_flavour()
+{
+    std::string root = scratch + "/plugins";
+    write_text(root + "/probe.classic/plugin.lua", "return { id = 'probe.classic', api_version = 1 }\n");
+    write_text(root + "/probe.classic/main.lua",
+        "local w = rood.draw.style{ font = 'menu', align = 'right', anchor = 'middle' }\n"
+        "flavours, refused = {}, nil\n"
+        "rood.hud.claim('status', function(e, d)\n"
+        "  flavours[#flavours + 1] = e.flavour\n"
+        "  if e.flavour ~= 'classic' then refused = select(2, pcall(d.window, 1, 2, 30, 20)) return end\n"
+        "  d.window(10, 20, 100, 30, 0.5)\n"
+        "  d.gradient(12, 22, 20, 6, 0xFF0000, '#0000ff', true)\n"
+        "  d.rect(1, 2, 3, 4, 0x00FF00, 0.5)\n"
+        "  glyph_w = d.glyph('circle', 30, 40, 12)\n"
+        "  d.cursor(4, 5)\n"
+        "  d.bar(50, 60, 70, 140, 'mp')\n"
+        "  d.sprite(70, 80, { page_x = 768, page_y = 0, bits = 4, u = 16, v = 128, w = 16, h = 16, clut_x = 944,"
+        " clut_y = 223 })\n"
+        "  d.text(w, e.text, e.x, e.y, e.rgb)\n"
+        "end)\n");
+    rl::config.watch_vsyncs = 2;
+    pc_lua_tick();
+    pc_lua_tick();
+    rl::Plugin* p = rl::find("probe.classic");
+    CHECK(p && p->state == rl::PLUGIN_LOADED);
+    if (!p || p->state != rl::PLUGIN_LOADED)
+        return;
+    CHECK(contains(eval_error(p, "rood.draw.window(1, 2, 3, 4)"), "only inside a HUD draw function"));
+    CHECK(contains(eval_error(p, "rood.draw.gradient(1, 2, 3, 4, 'red', 0)"), "must be 0xRRGGBB"));
+    pc_ui_menus = 0;
+    pc_hud_classic_override = 0;
+    CHECK(record_status() == 0 && !pc_hud_honoured(PC_HUD_STATUS)); // the classic look: the game's drawing
+    pc_hud_classic_override = 1;
+    CHECK(record_status() == 2); // drawn at the hook, in the classic flavour
+    const pc_hud_classic_cmd* cmds = nullptr;
+    int n = pc_hud_classic_draw(&cmds);
+    CHECK(n == 7); // (no button sprites without the game: d.glyph draws nothing, width 0)
+    if (n == 7) {
+        CHECK(cmds[0].type == PC_HUD_CMD_WINDOW && cmds[0].x == 10 && cmds[0].w == 100 && cmds[0].a == 64);
+        CHECK(cmds[1].type == PC_HUD_CMD_GRADIENT && cmds[1].color == 0xFF0000 && cmds[1].color2 == 0x0000FF
+            && cmds[1].a == 1);
+        CHECK(cmds[2].type == PC_HUD_CMD_RECT && cmds[2].alpha == 0.5f);
+        CHECK(cmds[3].type == PC_HUD_CMD_CURSOR && cmds[3].a == -1);
+        CHECK(cmds[4].type == PC_HUD_CMD_BAR && cmds[4].a == 70 && cmds[4].b == 140 && cmds[4].c == 1);
+        CHECK(cmds[5].type == PC_HUD_CMD_SPRITE && cmds[5].a == 12 && cmds[5].b == (59 | 223 << 6) && cmds[5].c == 16
+            && cmds[5].d == 128);
+        CHECK(cmds[6].type == PC_HUD_CMD_TEXT && std::string(cmds[6].text, cmds[6].length) == "SLOW!"
+            && cmds[6].font == 1 && cmds[6].align == 2 && cmds[6].anchor == 1 && cmds[6].color == 0xC0FF40);
+    }
+    pc_hud_frame();
+    CHECK(hud::command_count() == 0); // nothing in the presented frames' pass
+    CHECK(eval_json(p, "flavours[#flavours], glyph_w") == "\"classic\",0");
+    CHECK(contains(hud_rpc("{\"action\":\"stats\"}"), "\"classic_frames\":1"));
+    pc_ui_menus = 1;
+    pc_hud_classic_override = 0;
+    CHECK(record_status() == 1);
+    pc_hud_frame();
+    CHECK(eval_json(p, "flavours[#flavours]") == "\"modern\"");
+    CHECK(contains(eval_json(p, "refused"), "the classic flavour only"));
+    // a classic draw that raises: -1, the game's packets stay (counted as its fallback)
+    write_text(root + "/probe.classic/main.lua", "rood.hud.claim('status', function(e, d) error('classic boom') end)\n");
+    pc_lua_tick();
+    pc_lua_tick();
+    pc_ui_menus = 0;
+    pc_hud_classic_override = 1;
+    unsigned long long fallback = hud::stats(PC_HUD_STATUS).fallback;
+    CHECK(record_status() == 2 && pc_hud_classic_draw(&cmds) == -1);
+    CHECK(hud::stats(PC_HUD_STATUS).fallback == fallback + 1 && record_status() == 0);
+    pc_ui_menus = 1;
+    pc_hud_classic_override = 0;
+    std::filesystem::remove_all(root + "/probe.classic");
+    pc_lua_tick();
+    pc_lua_tick();
+    rl::config.watch_vsyncs = 30;
+}
+
+/* hud.<kind> events (task 9): one per appearance, after the tick that saw it, with the element's
+ * fields; the name window: an event and a show, never a claim. */
+static void hud_events()
+{
+    setenv("ROOD_DEV", "1", 1);
+    rl::Plugin* p = rl::console("@probe-events");
+    CHECK(eval_json(p, "seen = {} for _, k in ipairs({ 'status', 'name_window' }) do rood.on('hud.' .. k,"
+                       " function(e) seen[#seen + 1] = e.kind .. ':' .. e.text .. ':' .. tostring(e.index) end) end"
+                       " return true") == "true");
+    CHECK(contains(eval_error(p, "rood.hud.claim('name_window', function() end)"), "is an event"));
+    CHECK(eval_json(p, "rood.dev.show('name_window', { text = 'Rending Gale', index = 184 })") == "true");
+    pc_lua_tick();
+    CHECK(eval_json(p, "#seen, seen[1]") == "1,\"name_window:Rending Gale:184\"");
+    pc_lua_tick();
+    CHECK(eval_json(p, "#seen") == "1"); // once per appearance
+    CHECK(record_status(3) == 0); // (no claim: the game draws it) a new appearance of the status word
+    record_status(4);
+    pc_lua_tick();
+    CHECK(eval_json(p, "#seen, seen[2]") == "2,\"status:SLOW!:nil\"");
+    CHECK(contains(hud_rpc("{\"action\":\"list\"}"), "\"kind\":\"name_window\""));
+    CHECK(contains(hud_rpc("{\"action\":\"show\",\"kind\":\"name_window\",\"text\":\"Heavy Shot\",\"hold\":false}"),
+        "\"ok\":true"));
+    pc_lua_tick();
+    CHECK(eval_json(p, "#seen, seen[3]") == "3,\"name_window:Heavy Shot:184\"");
+    CHECK(contains(hud_rpc("{\"action\":\"stats\"}"), "\"events\":"));
+    // the gallery's listing (no save states in this probe: entries listed, not resumable)
+    std::string bench = scratch + "/bench";
+    setenv("ROOD_BENCH", bench.c_str(), 1);
+    write_text(bench + "/held-word.lua", "-- a bench entry\nreturn { name = 'held-word', saved = '2026-10-19 10:00:00',"
+                                         " zone = 9, room = 17, room_name = 'Wine Cellar', held = { { kind = 'status',"
+                                         " timing = 3, age = 10 }, { kind = 'nope' } } }\n");
+    write_text(bench + "/Not A Name.lua", "return {}\n");
+    CHECK(eval_json(p, "local l = rood.dev.bench.list() return #l, l[1].name, l[1].room_name, #l[1].held, l[1].held[1],"
+                       " l[1].valid") == "1,\"held-word\",\"Wine Cellar\",1,\"status\",false");
+    CHECK(contains(eval_error(p, "rood.dev.bench.save('x y')"), "a name is"));
+    CHECK(contains(eval_error(p, "rood.dev.bench.save('fine')"), "save states unavailable"));
+    CHECK(contains(eval_error(p, "rood.dev.bench.load('held-word')"), "save states unavailable"));
+    CHECK(eval_json(p, "rood.dev.bench.current()") == "null");
+    CHECK(contains(hud_rpc("{\"action\":\"bench\",\"op\":\"list\"}"), "\"name\":\"held-word\""));
+    unsetenv("ROOD_BENCH");
+    hud::clear(0);
+    unsetenv("ROOD_DEV");
+}
+
+/* rood.game's source in this probe (the game's is hud/query_bridge.c): a record the
+ * cases fill, and how often it was read. */
+static pc_game_query fake_game;
+static int fake_fills;
+extern "C" void pc_game_query_fill(pc_game_query* out)
+{
+    ++fake_fills;
+    *out = fake_game;
+}
+extern "C" int pc_game_query_room_names(int zone, int room, char* area, int area_size, char* name, int name_size)
+{
+    std::snprintf(area, (size_t)area_size, "Wine Cellar %d", zone);
+    std::snprintf(name, (size_t)name_size, "Room %d", room);
+    return 1;
+}
+
+/* rood.game (lua_api_game.cpp): read-only tables, one per query per vsync, the game read
+ * at most once a vsync; the modes from the record's flags. */
+static void game_queries()
+{
+    rl::Plugin* p = rl::console("@probe-game");
+    fake_game = pc_game_query();
+    fake_game.zone = fake_game.room = -1;
+    pc_lua_tick();
+    CHECK(eval_json(p, "rood.game.ashley(), rood.game.room(), rood.game.mode(), rood.game.first_person()")
+        == "null,null,\"none\",false");
+    fake_game.field = fake_game.ashley = 1;
+    fake_game.hp = 120, fake_game.max_hp = 150, fake_game.mp = 40, fake_game.max_mp = 60, fake_game.risk = 33;
+    fake_game.str = 101, fake_game.intel = 99, fake_game.agl = 98;
+    fake_game.x = 10, fake_game.y = -20, fake_game.z = 30, fake_game.facing = 1024;
+    fake_game.zone = 9, fake_game.room = 17;
+    fake_game.status_count = 2;
+    std::snprintf(fake_game.statuses[0].name, sizeof fake_game.statuses[0].name, "Poison");
+    fake_game.statuses[0].seconds = -1;
+    std::snprintf(fake_game.statuses[1].name, sizeof fake_game.statuses[1].name, "STR Up");
+    fake_game.statuses[1].buff = 1, fake_game.statuses[1].seconds = 40;
+    pc_lua_tick();
+    int fills = fake_fills;
+    CHECK(eval_json(p, "local a = rood.game.ashley() return a.hp, a.max_hp, a.mp, a.risk, a.str, a.int, a.agl,"
+                       " a.position.x, a.position.y, a.facing, a.battle")
+        == "120,150,40,33,101,99,98,10,-20,1024,false");
+    CHECK(eval_json(p, "local s = rood.game.ashley().statuses return #s, s[1].name, s[1].buff, s[2].name, s[2].buff,"
+                       " s[2].seconds") == "2,\"Poison\",false,\"STR Up\",true,40");
+    CHECK(eval_json(p, "rood.game.ashley() == rood.game.ashley(), rood.game.room() == rood.game.room()")
+        == "true,true"); // the same table within a vsync
+    CHECK(fake_fills == fills + 1); // the game read once this vsync
+    CHECK(contains(eval_error(p, "rood.game.ashley().hp = 1"), "read-only"));
+    CHECK(contains(eval_error(p, "rood.game.ashley().position.x = 1"), "read-only"));
+    CHECK(contains(eval_error(p, "rood.game.ashley().statuses[1] = 1"), "read-only"));
+    CHECK(eval_json(p, "local r = rood.game.room() return r.zone, r.room, r.area, r.name")
+        == "9,17,\"Wine Cellar 9\",\"Room 17\"");
+    CHECK(eval_json(p, "rood.game.mode()") == "\"field\"");
+    eval_json(p, "kept = rood.game.ashley()");
+    fake_game.hp = 7, fake_game.battle = 1, fake_game.first_person = 1;
+    CHECK(eval_json(p, "rood.game.ashley().hp") == "120"); // until the next vsync
+    pc_lua_tick();
+    CHECK(eval_json(p, "rood.game.ashley().hp, kept.hp, kept ~= rood.game.ashley(), rood.game.mode(),"
+                       " rood.game.first_person()") == "7,120,true,\"battle\",true");
+    fake_game.menu = 1;
+    pc_lua_tick();
+    CHECK(eval_json(p, "rood.game.mode()") == "\"menu\"");
+    fake_game.event = 1;
+    pc_lua_tick();
+    CHECK(eval_json(p, "rood.game.mode()") == "\"cutscene\"");
+    fake_game.ashley = 0;
+    pc_lua_tick();
+    CHECK(eval_json(p, "rood.game.ashley()") == "null");
+    fake_game = pc_game_query();
+    pc_lua_tick();
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) {
@@ -1066,6 +1267,9 @@ int main(int argc, char** argv)
     test_harness();
     rpc_actions();
     hud_layer();
+    classic_flavour();
+    hud_events();
+    game_queries();
     if (failures) {
         std::printf("lua_probe: %d failure(s)\n", failures);
         return 1;

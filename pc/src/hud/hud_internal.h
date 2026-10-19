@@ -29,7 +29,7 @@ unsigned vsync(); // pc_vsync_count, or the ticks seen (lua_probe)
 bool live(const Element& e);
 const char* kind_name(int kind);  // "status", "chain", "buff", "damage", "travel"; "" for none
 int kind_of(const char* name);    // PC_HUD_*, 0 unknown
-#define HUD_KIND_LIST "status, chain, buff, damage, travel"
+#define HUD_KIND_LIST "status, chain, buff, damage, travel, name_window"
 // Status: "too_fast", "fast", "success", "slow", "too_slow" (0..4); -1 unknown.
 int timing_of(const char* name);
 const char* timing_name(int timing);
@@ -42,9 +42,10 @@ const char* pool_name(int pool);
 int word_index(const char* name, const char* (*word)(int), int count); // either case; -1 unknown
 
 struct ShowArgs {
-    int timing = 3, variant = 0, age = 10;
+    int timing = 3, variant = 0, age = 10; // name_window: variant its message (11 a technique's name)
     bool hold = true;
-    int value = -1;            // chain: the count (3); buff: 1; damage: 123
+    int value = -1;            // chain: the count (3); buff: 1; damage: 123; name_window: the action (184)
+    char text[PC_HUD_TEXT] = ""; // name_window away from the field: its text
     int sign = 0;              // buff +1, damage -1 (a hit) unless given
     int pool = 0, stat = 0, slot = 0;
 };
@@ -52,6 +53,15 @@ struct ShowArgs {
 // held until clear() when args.hold. False (and why) for a kind without a show.
 bool show(int kind, const ShowArgs& args, std::string* error);
 void clear(int kind); // 0: every kind
+// The held moments (rood.dev.bench saves them beside its save state: they are the host's, not the game's).
+struct HeldMoment {
+    int kind;
+    ShowArgs args;
+};
+int held_moments(HeldMoment* out, int max);
+// Hold again after a restart resumed a save state: the game's element is in it (held at its age), so it
+// is found, not spawned (spawned again if it is not there); away from the field a synthetic one.
+void adopt(int kind, const ShowArgs& args);
 
 struct KindStats {
     unsigned long long seen = 0;       // pc_hud_record calls
@@ -61,6 +71,19 @@ struct KindStats {
     unsigned long long faults = 0;     // claim draws that failed (the claim then stops being honoured)
 };
 KindStats& stats(int kind);
+
+// New appearances (pc_hud_record's and the synthetic ones), for the hud.<kind> events: taken at each tick
+// (lua_api_hud.cpp); past 64 between two ticks the oldest are dropped.
+struct Appearance {
+    int slot;    // in pool()
+    unsigned id; // the element's (gone or reused: not emitted)
+};
+int take_appearances(Appearance* out, int max);
+
+// The element pc_hud_record was last called for (the classic flavour draws it at once).
+Element* last_recorded();
+// The classic look (ui_menus 0): claims draw only in the classic flavour, at the game's hooks.
+bool classic_look();
 
 // ---- claims (lua_api_hud.cpp) ----
 bool claimed(int kind); // a claim stands and has not failed
@@ -94,7 +117,7 @@ struct StyleSlot {
     Style style;
 };
 StyleSlot* styles(); // HUD_STYLES
-enum CommandType { CMD_TEXT, CMD_RECT, CMD_GLYPH };
+enum CommandType { CMD_TEXT, CMD_RECT, CMD_GLYPH, CMD_GRADIENT };
 #define HUD_NO_STYLE 0xFFFF
 struct Command {
     unsigned char type;
@@ -103,6 +126,8 @@ struct Command {
     float x, y, w, h;      // the game's screen, 320 x 224 in the field (CMD_TEXT with fit: its box;
                            // CMD_GLYPH: x its left, y its middle, h its height)
     unsigned color;        // 0xRRGGBB (CMD_TEXT: the style's unless given; CMD_GLYPH: a tint)
+    unsigned color2;       // CMD_GRADIENT: the far end's (right, or bottom when vertical)
+    bool vertical;         // CMD_GRADIENT: top to bottom
     float alpha;
     unsigned text, length; // CMD_TEXT: in text_arena()
     bool fit;              // CMD_TEXT: fitted inside w x h (w 0: any width), the outline kept in

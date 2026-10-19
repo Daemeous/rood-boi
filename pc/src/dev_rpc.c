@@ -391,6 +391,10 @@
  *                                rebuilt one) resuming it at this vsync
  *                                (pc/tools/dev_loop.sh), running unless paused;
  *                                replies {saved, vsync}
+ *   restart {snapshot, paused}   run the executable again resuming that save
+ *                                state (rood.dev.bench's gallery) instead;
+ *                                refused when this build cannot resume it;
+ *                                replies {restarting} first
  *   quit                         exit the game (with ROOD_AUTOSNAP set, after
  *                                an autosave at the next vsync, as a window
  *                                close does)
@@ -596,6 +600,7 @@ extern int pc_snapshot_point(const char* path, char* error, int size);
 extern int pc_snapshot_hash(char* out, int size);
 extern const char* pc_snapshot_autosave_path(void);
 extern void pc_snapshot_restart(const char* path, int paused);
+extern int pc_snapshot_check(const char* path, char* why, int size);
 static int restart_paused;
 void pc_quit(void);
 static struct client* snapshot_client;
@@ -1129,8 +1134,21 @@ static void handle_method(int fd, const char* request)
         }
         /* paused: the new process stays paused (tests); else it runs on. */
         int keep_paused = 0;
+        char from[1024] = "", why[256];
         if (params)
             bool_value(member(params, "paused"), &keep_paused);
+        if (params && string_value(member(params, "snapshot"), from, sizeof from) && from[0]) {
+            char result[1200];
+            if (!pc_snapshot_check(from, why, (int)sizeof why)) {
+                fail(fd, id, -32000, why);
+                return;
+            }
+            snprintf(result, sizeof result, "{\"restarting\":\"%s\",\"vsync\":%u}", json_str(from), pc_vsync_count());
+            rpc_set_blocking(fd, 1);
+            reply(fd, id, result);
+            pc_snapshot_restart(from, keep_paused); /* returns only when the exec failed */
+            return;
+        }
         restart_paused = keep_paused;
         snprintf(snapshot_path, sizeof snapshot_path, "%s", pc_snapshot_autosave_path());
         snapshot_client = current_client;
@@ -4245,6 +4263,34 @@ static void take_snapshot(void)
     if (snapshot_then == THEN_RESTART && status == 0)
         pc_snapshot_restart(snapshot_path, restart_paused); /* returns only when the exec failed */
 }
+/* rood.dev.bench (pc/src/lua/lua_bench.cpp): a save state written at the next vsync boundary
+ * (as RPC snapshot save, nobody to answer): 0 when one is pending already. */
+int pc_rpc_bench_save(const char* path)
+{
+    if (snapshot_pending || strlen(path) >= sizeof snapshot_path)
+        return 0;
+    snprintf(snapshot_path, sizeof snapshot_path, "%s", path);
+    snapshot_client = NULL;
+    snapshot_pending = 1;
+    snapshot_then = THEN_REPLY;
+    return 1;
+}
+/* ... and a restart resuming a saved one, at the next poll (paused as the RPC has it now). */
+static char bench_restart[1024];
+int pc_rpc_bench_restart(const char* path)
+{
+    if (snapshot_pending || strlen(path) >= sizeof bench_restart)
+        return 0;
+    snprintf(bench_restart, sizeof bench_restart, "%s", path);
+    return 1;
+}
+static void take_bench_restart(void)
+{
+    if (!bench_restart[0])
+        return;
+    pc_snapshot_restart(bench_restart, paused); /* returns only when the exec failed */
+    bench_restart[0] = 0;
+}
 /* A clean quit (the window closed, RPC quit): with ROOD_AUTOSNAP set, the
  * auto-snapshot first, at the next vsync boundary (pc_rpc_poll); else now. */
 void pc_quit(void)
@@ -4346,6 +4392,7 @@ void pc_rpc_poll(void)
         service();
     take_snapshot();
     take_mark();
+    take_bench_restart();
     if (paused && step_budget > 0) {
         --step_budget;
         return;
@@ -4376,6 +4423,7 @@ void pc_rpc_poll(void)
             service();
         take_snapshot();
         take_mark();
+        take_bench_restart();
     }
     if (paused && step_budget > 0)
         --step_budget;

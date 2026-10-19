@@ -3733,6 +3733,14 @@ void vs_battle_displaySceneMessage(int arg0, int arg1, int arg2)
     }
 
     vs_battle_setTextBox(7, (char*)D_800EB9D8);
+#ifdef ROOD_PC
+    {
+        /* HUD elements (pc/src/hud/hud_bridge.c): the name window opened. */
+        extern void pc_hud_name_window(int message, int action) __attribute__((weak));
+        if (pc_hud_name_window)
+            pc_hud_name_window(arg0, arg1);
+    }
+#endif
 }
 
 int func_800CB45C(void)

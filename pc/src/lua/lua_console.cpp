@@ -4,14 +4,22 @@
 // plugin's) with Up / Down history, through rl::console_submit like RPC lua
 // {action "console"}; the plugins (state, memory, faults, slowest call,
 // elevated) with on/off and reload; the budgets (tunables(), settings
-// plugin_*) and the master switch for elevated permissions. Game side.
+// plugin_*) and the master switch for elevated permissions; the HUD bench
+// (dev mode: ROOD_RPC set or ROOD_DEV=1): summon each kind (rood.dev.show's
+// defaults), clear, the classic flavour's override, and the gallery
+// (rood.dev.bench: save the moment, load an entry). Game side.
 #include "imgui.h"
+#include "lua_bench.h"
 #include "lua_runtime.h"
 #include "rl_internal.h"
 
 #include <algorithm>
+#include <cstdlib>
+#include <cstring>
 
 extern "C" void pc_settings_save(void) __attribute__((weak));
+extern "C" int pc_hud_classic_override;   // hud_elements.cpp (settings hud_classic_override)
+extern "C" int pc_ui_menus __attribute__((weak)); // project_settings.cpp
 
 namespace {
 bool open;
@@ -104,6 +112,100 @@ void budgets()
     if (ImGui::Button("Save settings") && pc_settings_save)
         pc_settings_save();
 }
+bool dev_mode()
+{
+    const char* rpc = std::getenv("ROOD_RPC");
+    const char* dev = std::getenv("ROOD_DEV");
+    return (rpc && *rpc) || (dev && !std::strcmp(dev, "1"));
+}
+
+// The bench: summon, clear, the classic override, the gallery (read again on demand: entries are files).
+char bench_name[49] = "moment";
+std::vector<rl::BenchEntry> entries;
+bool entries_read;
+std::string bench_message;
+void bench()
+{
+    ImGui::TextUnformatted("Summon (held until cleared):");
+    for (int k = 1; k < PC_HUD_KINDS; ++k) {
+        ImGui::SameLine();
+        if (ImGui::SmallButton(hud::kind_name(k))) {
+            std::string why;
+            if (!hud::show(k, hud::ShowArgs(), &why))
+                bench_message = why;
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Clear"))
+        hud::clear(0);
+    bool classic = pc_hud_classic_override != 0;
+    if (ImGui::Checkbox("Claims in the classic look (hud_classic_override)", &classic))
+        pc_hud_classic_override = classic;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("With the modern UI off, claims draw in the classic flavour: the game's own printers,\n"
+                          "sprites and windows, at the game's hooks. Off: the game draws the HUD (typography only).");
+    if (&pc_ui_menus) {
+        ImGui::SameLine();
+        ImGui::TextDisabled(pc_ui_menus ? "(the modern look now)" : "(the classic look now)");
+    }
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
+    ImGui::InputText("##bench name", bench_name, sizeof bench_name);
+    ImGui::SameLine();
+    if (ImGui::Button("Save this moment")) {
+        std::string path, why;
+        bench_message = rl::bench_save(bench_name, &path, &why) ? "saving " + path : why;
+        entries_read = false;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Refresh") || !entries_read) {
+        entries = rl::bench_list();
+        entries_read = true;
+    }
+    if (!bench_message.empty())
+        ImGui::TextWrapped("%s", bench_message.c_str());
+    if (entries.empty()) {
+        ImGui::TextDisabled("No saved moments in %s.", rl::bench_dir().c_str());
+        return;
+    }
+    if (!ImGui::BeginTable("##bench", 5, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchProp))
+        return;
+    ImGui::TableSetupColumn("Moment");
+    ImGui::TableSetupColumn("Room");
+    ImGui::TableSetupColumn("Held");
+    ImGui::TableSetupColumn("Saved");
+    ImGui::TableSetupColumn("");
+    ImGui::TableHeadersRow();
+    for (const rl::BenchEntry& e : entries) {
+        ImGui::PushID(e.name.c_str());
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::TextUnformatted(e.name.c_str());
+        if (e.name == rl::bench_current()) {
+            ImGui::SameLine();
+            ImGui::TextDisabled("(this run)");
+        }
+        ImGui::TableNextColumn();
+        ImGui::Text("%s (%d/%d)", e.room_name.c_str(), e.zone, e.room);
+        ImGui::TableNextColumn();
+        std::string held;
+        for (const hud::HeldMoment& m : e.held)
+            held += (held.empty() ? "" : ", ") + std::string(hud::kind_name(m.kind));
+        ImGui::TextUnformatted(held.empty() ? "-" : held.c_str());
+        ImGui::TableNextColumn();
+        ImGui::TextUnformatted(e.saved.c_str());
+        ImGui::TableNextColumn();
+        ImGui::BeginDisabled(!e.valid);
+        if (ImGui::SmallButton("Load")) {
+            std::string why;
+            bench_message = rl::bench_load(e.name, &why) ? "restarting into " + e.name : why;
+        }
+        ImGui::EndDisabled();
+        if (!e.valid && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip("%s", e.why.c_str());
+        ImGui::PopID();
+    }
+    ImGui::EndTable();
+}
 } // namespace
 
 extern "C" void pc_lua_console_menu_item(void) { ImGui::MenuItem("Lua console", nullptr, &open); }
@@ -137,6 +239,8 @@ extern "C" void pc_lua_console_window(void)
         plugins_table();
     if (ImGui::CollapsingHeader("Budgets"))
         budgets();
+    if (dev_mode() && ImGui::CollapsingHeader("Bench"))
+        bench();
     float footer = ImGui::GetFrameHeightWithSpacing();
     ImGui::BeginChild("##lua log", ImVec2(0, -footer), ImGuiChildFlags_Borders);
     for (const rl::LogLine& line : rl::log_lines()) {

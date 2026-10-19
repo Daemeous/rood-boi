@@ -1,10 +1,12 @@
 # Extensions: plugins and Lua
 
 rood-boi runs plugins written in Lua 5.4 (vendored in `pc/third_party/lua`).
-This is Milestone 0: the runtime, its safety nets and the core API. Menus,
-drawing, input and game queries come in later milestones. Vanilla stays
-vanilla: the shipped example is off; the shipped `rood.hud` (on) draws the
-HUD's words only with the modern look, and off, the game draws them.
+Milestone 0 is the runtime, its safety nets and the core API; the HUD layer
+adds drawing the game's HUD elements, their events and read-only game
+queries. Menus and input come in later milestones. Vanilla stays vanilla:
+the shipped example is off; the shipped `rood.hud` (on) draws the HUD's
+words only with the modern look (or the classic look with
+`hud_classic_override`), and off, the game draws them.
 
 ## Where Lua runs
 
@@ -16,10 +18,12 @@ Single-threaded, on the game thread (`rl::run` refuses any other):
 | `pc_lua_tick` | `pc_tick()`, after the RPC | every game vsync while the game runs (not while the RPC has it paused) |
 | `pc_lua_frame` | `pc_overlay_frame()`, the ImGui frame open | every presented image (interpolated in-betweens, paused redraws) |
 | `pc_lua_rpc` | RPC method `lua` (`dev_rpc.c`) | between frames |
+| `pc_hud_classic_draw` | the game's HUD hooks (`hud_bridge.c`), inside its frame | a claim in the classic flavour, per element drawn |
 | `pc_lua_shutdown` | `atexit` | writes stores and plugin settings; runs no Lua |
 
 Never on the audio callback thread or helper threads. Save states
-(`snapshot.c`) do not include Lua: plugins keep their state across a resume.
+(`snapshot.c`) do not include Lua: plugins keep their state across a resume
+(a restart, RPC `restart` or `rood.dev.bench.load`, loads them again).
 
 ## Plugins
 
@@ -162,17 +166,23 @@ decides how it looks. The kinds:
 | `buff` | an equipment's class or affinity change: WEAPON HUMAN +1 | `slot` (`WEAPON`, `SHIELD`, `R.ARM`, `L.ARM`, `HEAD`, `BODY`, `LEGS`), `stat` (`HUMAN` .. `EVIL`, `PHYSICS` .. `DARKNESS`), `sign` (+1, -1), `value`, `parts`: the two words', the sign's and the digits' boxes |
 | `damage` | a number over an actor: damage, healing, a stat's change | `value`, `sign` (-1 damage, +1 healing), `pool` (`hp`, `mp`, `stat`), `bounce` (the digits' rise this frame, the rightmost's; each to its left half the one before), `stat` (0..5 with `pool` `stat`), `parts`: the digits' box (a stat's: its icon's word STR, INT, ..., the sign, the digits) |
 | `travel` | the Travel prompt on a Circle of Magic (the modern look) | `glyph` (the button: `travel`), `corner` (0..8: which of its corners goes on `x, y`, top left .. bottom right), `unit` (game pixels per layout unit of the menus, 720 high) |
+| `name_window` | the action's name in text box 7 (vs_battle_displaySceneMessage: a band across the bottom); an event, never claimed: the game draws it | `index` (the action, `vs_main_actions`), `message` (the scene message: 11 a technique's name, 12 a spell mastered, ...) |
 
 Every element: `kind, id, text, x, y, w, h` (the game's drawing's box in its
 screen, 320 x 224 in the field, `x, y` its centre; a damage number: where the
 game placed it, before its bounce; travel: the picture's point the prompt is
 anchored to, the picture as 320 x 240), `rgb`, `age`, `life`, `anchor`
 (`centre`, `left`, `right`: where widescreen anchors it; `picture`), `held`,
-`synthetic`; `parts` are `{x, y, w, h, text}`. One table, reused.
+`synthetic`, `flavour` (`modern`, or `classic`: below); `parts` are `{x, y, w, h, text}`. One
+table, reused.
+
+Events: `rood.on("hud.<kind>", fn)` (`hud.status`, ..., `hud.name_window`) fires once per
+appearance, at the tick after the game drew it, with the element's fields (a copy) — for logic;
+drawing is the claims'.
 
 | | |
 |---|---|
-| `rood.hud.claim(kind, fn) -> owner?` | `fn(e, d)` draws each element of the kind on every presented frame; while the claim is honoured the game's packets for it are no-ops (the Travel prompt: its C++ drawing skipped). One owner per kind: the last in load order (a console sandbox after every plugin), with a warning |
+| `rood.hud.claim(kind, fn) -> owner?` | the kinds of `rood.hud.kinds()` (not `name_window`); `fn(e, d)` draws each element of the kind on every presented frame; while the claim is honoured the game's packets for it are no-ops (the Travel prompt: its C++ drawing skipped). One owner per kind: the last in load order (a console sandbox after every plugin), with a warning |
 | `rood.hud.release(kind)`, `rood.hud.kinds()`, `rood.hud.honoured(kind)` | |
 | `rood.hud.typography(style, {...} \| nil)` | a ui_text style's fields (`font`, `size`, `stroke`, `tracking`, `stretch`, `slant`, `embolden`, ...: the `ui_text_<style>_<field>` settings) for this run, over the settings, never saved; nil gives the settings' back; dropped when the plugin unloads. What the classic look may change (with ui_text font) |
 | `rood.draw.style{...} -> style` (also `d.style`) | an immutable handle, parsed once (make styles at load): `font` (a ui_text style's font: `dialogue`, `menu`, `info`, `digits`, `status`, `labels`), `size` (em, game pixels), `cap` (instead of size: a capital H this tall), `color` (`0xRRGGBB` or `"#rrggbb"`), `alpha`, `stroke` (game pixels), `stroke_color`, `stroke_alpha`, `tracking` (em), `stretch`, `align` (`left`, `center`, `right`), `anchor` (`top`, `middle`: the capitals' middle, `baseline`, `bottom`); unknown fields and bad values raise; at most 256 at once (a collected handle lets its slot go) |
@@ -180,11 +190,37 @@ anchored to, the picture as 320 x 240), `rgb`, `age`, `life`, `anchor`
 | `d.fit(style, s, x, y, w, h[, color[, alpha]]) -> queued` | inside the box (its top-left at `x, y`): no larger than the style, smaller to fit its height and condensed to fit its width (`w` 0: any) with the outline kept in; across by the style's align, the capitals' middle on the box's |
 | `d.glyph(button, x, y, h[, style[, color[, alpha]]]) -> w`, `d.glyph_width(button, h)` | the button's prompt icon for the device used last (`l2` .. `left`, `travel`), `h` high, its left at `x`, its middle at `y`; the style's stroke outlines it; 0 when that device has none |
 | `d.rect(x, y, w, h, color[, alpha])`, `d.measure(style, s) -> w, h` | |
-| `rood.dev.show(kind, {...})` | dev mode only (`ROOD_RPC` set or `ROOD_DEV=1`): in the field the game's own spawner (status: `timing`, `variant`; chain: `count`; buff: `slot`, `stat`, `value`, `sign`; damage on Ashley: `value`, `heal` or `sign`, `pool`, `stat`; travel: the prompt without a Circle of Magic), held at `age` (10) until `rood.dev.clear([kind])` (`hold = false`: it plays out); elsewhere a synthetic element only claims draw. `rood.dev.list()` (with `drawn`, `suppressed`) |
+| `d.gradient(x, y, w, h, color, color2[, vertical[, alpha]])` | `color` at the left (the top) to `color2` at the right (the bottom) |
+| `d.sprite(x, y, {page_x, page_y, bits, u, v, w, h, clut_x, clut_y}[, color[, alpha]])` | classic only: a VRAM rectangle as the game draws its sprites (page_x a multiple of 64, page_y 0 or 256, bits 4, 8 or 15; color modulates it, white: as it is) |
+| `d.window(x, y, w, h[, brightness])` | classic only: the game's text box window (its stone body, frame and shadow); brightness 1 a selected box, 0.5 the others |
+| `d.cursor(x, y[, step])` | classic only: the menus' pointing hand, its brightness animation at `step` (0..15; default: the game's) |
+| `d.bar(x, y, value, max[, pool])` | classic only: the status display's bar (`hp`, `mp`, `risk`) filled value / max |
+| `rood.dev.show(kind, {...})` | dev mode only (`ROOD_RPC` set or `ROOD_DEV=1`): in the field the game's own spawner (status: `timing`, `variant`; chain: `count`; buff: `slot`, `stat`, `value`, `sign`; damage on Ashley: `value`, `heal` or `sign`, `pool`, `stat`; travel: the prompt without a Circle of Magic; name_window: `index` (184), `message` (11), the game's own `vs_battle_displaySceneMessage`), held at `age` (10) until `rood.dev.clear([kind])` (`hold = false`: it plays out; a name window closes after 120 vsyncs); elsewhere a synthetic element (the name window's `text`) only modern claims draw. `rood.dev.list()` (with `drawn`, `suppressed`) |
+| `rood.dev.bench.save(name)`, `list()`, `load(name)`, `current()` | the gallery (below) |
 
 Honoured: a claim that has not failed, and the modern look (`ui_menus 1`)
 or `hud_classic_override 1` (default 0: the classic look stays the game's,
-typography only). A draw that raises counts a fault and the game draws the
+typography only).
+
+Two flavours (`e.flavour`). Modern: the presented frame's pass, drawn over
+the picture (ImGui, the fonts of ui_text's styles, outlines, any size).
+Classic (the classic look with `hud_classic_override 1`): the claim runs
+inside the game's frame at the element's own hook and its commands become
+PS1 packets of the game's kinds in the HUD labels' slot, anchored as the
+element in widescreen (`pc/src/hud/hud_bridge.c`): `d.text` and `d.measure`
+use the game's printers (fonts `dialogue` and `menu`: the menus'
+variable-width font, through `vs_encode`; the others the status words'
+capitals, `align` by the printer's own centring; the `status` style's word
+restyled by ui_text as SLOW! is; size, stroke and tracking are ui_text's,
+not the style's), `d.fit` places without scaling, `d.glyph` is the game's
+16 x 16 button sprite (triangle, square, circle, cross, L1, R1, L2, R2;
+the button prompts setting and the Circle/Cross roles redraw it as they do
+the game's), `d.rect` and `d.gradient` are tiles and Gouraud quads (alpha
+below 1: the PS1's half blending), and the classic-only `d.sprite`,
+`d.window`, `d.cursor`, `d.bar` exist (in the modern flavour they raise).
+So the classic look gains only what a plugin draws with the game's own
+pieces; the Travel prompt has no classic flavour (its classic look is the
+game's), and synthetic elements are drawn only in the modern look. A draw that raises counts a fault and the game draws the
 element again until the plugin reloads. The command buffer is fixed (1024
 commands, 16 KB of text: past it `d.text` returns false). The host's own
 work inside a call (a font loaded and its glyphs baked on first use) does not
@@ -193,10 +229,59 @@ and typography; held moments belong to the host and stay, so an edit shows
 on the held word about half a second after it is saved (the hot reload
 check).
 
-RPC `hud`: `list`, `show {kind, ...}` (as `rood.dev.show`), `clear {kind}`,
-`stats {reset}` (per kind: seen, suppressed, fallback, drawn, faults, owner;
-the claims' Lua per frame, mean / p99 / max ms; the last frame's commands),
-`set {classic_override}`; `pc/tools/rood_rpc.py hud-show KIND`.
+RPC `hud`: `list`, `show {kind, ...}` (as `rood.dev.show`; the name
+window's `index`, `message`, `text`), `clear {kind}`, `stats {reset}` (per
+kind: seen, suppressed, fallback, drawn, faults, owner; the claims' Lua per
+presented frame and, classic, per game frame: mean / p99 / max ms; Lua
+allocations per frame; events emitted; the last frame's commands, and the
+last classic draw's), `bench {op save / list / load, name}`, `set
+{classic_override}`; `pc/tools/rood_rpc.py hud-show KIND` (`--index`,
+`--message`, `--text` for the name window).
+
+### Performance
+
+The plan's budget: at most 0.25 ms of Lua per presented frame for the whole
+HUD and 0.1 ms per game frame for classic claims; `plugin_budget_ms` stays
+the hard ceiling of each draw. No allocation per frame on the host's side
+(a fixed pool of 64 elements, 256 styles, 1024 commands and 16 KB of text;
+256 classic commands and 4 KB), and the element tables, their parts and the
+query tables are reused, so a draw function that makes no strings makes no
+garbage. RPC `hud {stats}` reports it; hud_bench_smoke asserts it with
+rood.hud's five kinds held (measured 2026-10-19: 0.010 ms mean, 0.017 ms
+p99 a presented frame; classic 0.009 ms a game frame; 0 allocations a
+frame; the hot reload loop 0.3 s mean, under 0.5 s).
+
+### Queries
+
+`rood.game` (`pc/src/lua/lua_api_game.cpp`, `pc/src/hud/query_bridge.c`):
+read-only game state for logic and draw functions. The game's records are
+copied at most once per game vsync, on the first query; each plugin gets one
+read-only table per query per vsync (the same table until the next one, so
+`==` tells whether it changed; nothing to collect in a draw function).
+
+| | |
+|---|---|
+| `rood.game.ashley()` | nil, or `{hp, max_hp, mp, max_mp, risk, str, int, agl, position = {x, y, z}, facing, battle, statuses = {{name, buff, seconds}, ...}}` (her HUD record and actor; `battle`: the weapon drawn; statuses as the Status screen lists them, in the game's words) |
+| `rood.game.mode()` | `title`, `attract`, `cutscene` (an event script), `menu` (the field menu or the modern menus), `battle`, `field`, or `none` (no room: loading) |
+| `rood.game.room()` | nil, or `{zone, room, area, name}` (the game's names) |
+| `rood.game.first_person()` | the first-person view |
+
+### The gallery
+
+`rood.dev.bench` (`pc/src/lua/lua_bench.cpp`; dev mode) keeps moments to
+come back to. `save(name)` (a-z, 0-9, `-`, `_`) writes the game's save state
+at the next vsync boundary as `<bench>/<name>.snap` and, beside it,
+`<name>.lua`: a Lua table of what the save state does not hold (the held
+`rood.dev.show` moments are the host's), the room and when (`<bench>` is
+`ROOD_BENCH`, else `pc/user/bench`). `list()` gives the entries (`name`,
+`saved`, `zone`, `room`, `area`, `room_name`, `held` (kinds), `valid`,
+`why`): an entry goes stale when the game's code changes (a rebuild of
+`src/` or a unit built like it; Lua edits and engine rebuilds keep it).
+`load(name)` restarts the process resuming it (RPC `restart {snapshot}`'s
+way: the same command line and environment, so the RPC socket and the
+memory cards stay; paused if the RPC had it paused), and the new process
+holds the entry's moments again (`current()` names it). About 0.4 s from
+`load` to the word held again.
 
 ### rood.hud (shipped, on)
 
@@ -231,7 +316,9 @@ rood.dev.clear()
 
 - The console: F1, Window > Lua console. Evaluate in the console's own
   sandbox or a plugin's (Up/Down history); the plugins with on/off and
-  reload; the budgets and the master switch.
+  reload; the budgets and the master switch; in dev mode the Bench: summon
+  each HUD kind, clear, the classic override, and the gallery (save this
+  moment, the entries with their room and held kinds, Load).
 - RPC `lua` (`pc/src/lua/lua_rpc.cpp`): `eval`, `console`, `plugins`,
   `reload`, `rescan`, `enable`, `grant`, `budget`, `test`, `test_status`,
   `log`, `audit`, `emit`, `registry`.
@@ -249,10 +336,17 @@ rood.dev.clear()
   --tests-only --plugin my.plugin` (one launch).
 - `pc/tests/run.py lua_smoke`: one game, every Lua test, then runaway and
   failing scripts, memory, capabilities, hot reload and settings.
-- `pc/tests/run.py hud_bench_smoke`: one game in the save room: SLOW!
-  summoned and held, claimed (suppressed, drawn), hot-reloaded while held
-  (the loop's seconds printed), and the game's own drawing with no claim,
-  a draw error, the plugin off, the classic look; then rood.hud on every
-  kind (claimed, suppressed, drawn; all five held at once: the pass's cost;
-  its Lua tests; an edit of its look hot-reloaded; off: the game's drawing;
-  typography never saved).
+- `pc/tests/run.py hud_bench_smoke`: one game in the save room:
+  `rood.game` against RPC state; the name window (the game's own call,
+  held, its event, closed; a damage number's event); SLOW! summoned and
+  held, claimed (suppressed, drawn), hot-reloaded while held (the loop's
+  seconds printed), and the game's own drawing with no claim, a draw error,
+  the plugin off, the classic look; the classic flavour (packets at the
+  hook, every classic primitive, the game's font measured, the primitives
+  refused in the modern flavour, a classic draw error); then rood.hud on
+  every kind (claimed, suppressed, drawn; all five held at once: under 0.25
+  ms of Lua a presented frame, p99 under 1 ms, no allocations, memory flat;
+  the classic flavour under 0.1 ms a game frame; its Lua tests; an edit of
+  its look hot-reloaded; off: the game's drawing; typography never saved);
+  last the gallery (save, list, the moment changed, load: the restarted
+  process holds the word again; a stale entry refused).

@@ -8,7 +8,9 @@
 --   rood.dev.show("damage", { value = 123 })            over Ashley ({ heal = true }, { pool = "mp" })
 --   rood.dev.show("travel")                             the Travel prompt without a Circle of Magic
 -- With the modern look (ui_menus 1) the claims below draw them and the game's own drawing is
--- skipped; with the classic look the game draws them (only typography: look.status.classic).
+-- skipped; with the classic look the game draws them (only typography: look.status.classic), unless
+-- hud_classic_override is on: then the same claims run in the classic flavour (e.flavour "classic":
+-- the game's own printers, sprites and windows, drawn in its frame).
 -- Turned off (the Lua console's Plugins list), everything is the game's and the C++ drawing.
 local S = rood.settings.get
 
@@ -120,7 +122,8 @@ end
 
 -- status and chain: the word, centred where the game centres it
 local function word(e, d)
-  d.text(style.word, e.text, e.x, e.y + look.words.nudge, shaded(e.rgb, look.words.shade))
+  local shade = e.flavour == "classic" and 1 or look.words.shade -- (the game's printer shades its own glyphs)
+  d.text(style.word, e.text, e.x, e.y + look.words.nudge, shaded(e.rgb, shade))
 end
 rood.hud.claim("status", word)
 rood.hud.claim("chain", word)

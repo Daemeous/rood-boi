@@ -76,6 +76,7 @@
 #include "../camera_stick.h"
 #include "../room_warp.h"
 #include "ui_shell.h"
+#include "../hud/game_query.h"
 #include <libgte.h>
 
 /* ui_text.h (stdio in a game-header unit is avoided) */
@@ -246,6 +247,28 @@ void pc_ui_ashley_open(void)
             break;
         }
     }
+}
+
+/* The Lua queries (hud/query_bridge.c, rood.game.ashley): a's statuses as
+ * the Status screen lists them (the same names, buff flag and timers as the
+ * tab's effects); returns how many. */
+int pc_ui_ashley_statuses(vs_battle_actor2* a, pc_game_status* out, int max)
+{
+    int i, t, n = 0, flags;
+    if (!a)
+        return 0;
+    decode_effects();
+    flags = vs_battle_getStatusFlags(a);
+    for (i = 0; i < EFFECT_COUNT && n < max; ++i) {
+        if (!(((u_int)flags >> i) & 1))
+            continue;
+        copy_text(out[n].name, sizeof out[n].name, effect_name[i]);
+        out[n].buff = (BUFF_MASK >> i) & 1;
+        t = timer_of(i);
+        out[n].seconds = t >= 0 && a->statusTimers[t] ? a->statusTimers[t] : -1;
+        ++n;
+    }
+    return n;
 }
 
 void pc_ui_ashley_fill(void)

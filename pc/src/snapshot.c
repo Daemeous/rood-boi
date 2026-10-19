@@ -78,6 +78,12 @@ int pc_snapshot_hash(char* out, int size)
     return 0;
 }
 const char* pc_snapshot_autosave_path(void) { return NULL; }
+int pc_snapshot_check(const char* path, char* why, int size)
+{
+    (void)path;
+    snprintf(why, (size_t)size, "save states need Linux on x86");
+    return 0;
+}
 void pc_snapshot_restart(const char* path, int paused)
 {
     (void)path;
@@ -491,6 +497,31 @@ void pc_snapshot_restart(const char* path, int paused)
         close(i);
     execv(exe, argv);
     fprintf(stderr, "[snapshot] restart: cannot run %s: %s\n", exe, strerror(errno));
+}
+
+/* Whether `path` is a snapshot this build resumes (its header: version, pointer size, code and
+ * layout keys): 1, or 0 and why (rood.dev.bench lists and loads with it). */
+int pc_snapshot_check(const char* path, char* why, int size)
+{
+    header h;
+    FILE* f = fopen(path, "rb");
+    const char* reason = "cannot open";
+    int ok = 0;
+    if (f) {
+        if (fread(&h, sizeof h, 1, f) != 1 || memcmp(h.magic, MAGIC, 8) || h.version != VERSION)
+            reason = "not a snapshot of this version";
+        else if (h.pointer_size != sizeof(void*))
+            reason = h.pointer_size == 8 ? "made by the 64-bit build" : "made by the 32-bit build";
+        else if (h.code_key != code_key())
+            reason = "stale: the game's code changed since it was saved";
+        else if (h.layout_key != layout_key())
+            reason = "stale: the game state's layout changed since it was saved";
+        else
+            ok = 1, reason = "";
+        fclose(f);
+    }
+    snprintf(why, (size_t)size, "%s", reason);
+    return ok;
 }
 
 /* ---- resuming ---- */

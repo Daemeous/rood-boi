@@ -22,9 +22,20 @@
  *     (0x8000 damage, else healing), the digits in displayText; gone at 31.
  *     Textured quads.
  *   travel: not the game's (fast_travel_prompt.cpp records it); its show is
- *     fast_travel.c's forced prompt. */
+ *     fast_travel.c's forced prompt.
+ *   name_window: text box 7 with vs_battle_displaySceneMessage's text
+ *     (D_800EB9D8, allocated there and freed by func_800CB50C; drawn as a band
+ *     across the bottom of the screen, func_800CD158); the hook at its
+ *     end (pc_hud_name_window) gives its message and action and starts its age;
+ *     read each vsync (pc_hud_bridge_name_window, an event: never suppressed).
+ *     Its show opens it (the battle's own closes it when its action ends; the
+ *     field nothing: the hold keeps it, a show without hold is closed after its
+ *     life, both only if it is still the one shown). */
 #include "common.h"
 #include "../../../src/BATTLE/BATTLE.PRG/146C.h"
+#include "../../../src/BATTLE/BATTLE.PRG/5BF94.h"
+#include "../widescreen.h"
+#include "../ui/vs_encode.h"
 #include "hud.h"
 
 
@@ -39,6 +50,12 @@ const char* pc_ui_text_label_at(int page_x, int page_y, int u0, int v0, int u1, 
 int pc_fast_travel_prompt_is_forced(void);
 
 void pc_hud_element(int kind, void* record, int x, int y, void* first, void* end);
+void pc_hud_name_window(int message, int action);
+extern unsigned pc_vsync_count(void) __attribute__((weak));
+extern int* D_800EB9D8; /* the name window's text (5BF94.c) */
+extern char D_800F4E68; /* its countdown (func_800CB45C) */
+int pc_ui_text_decode(const unsigned char* text, int max_bytes, char* out, int out_size); /* ui_text.c */
+static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor);
 
 #define STATUS_LIFE 46
 #define CHAIN_LIFE 91
@@ -287,12 +304,66 @@ void pc_hud_element(int kind, void* record, int x, int y, void* first, void* end
         f.anchor = PC_HUD_ANCHOR_CENTRE;
         break;
     }
-    if (pc_hud_record(&f))
+    amount = pc_hud_record(&f);
+    if (amount == 2) { /* the classic flavour: the claim draws now, into packets of the game's kinds */
+        const pc_hud_classic_cmd* cmds;
+        int count = pc_hud_classic_draw ? pc_hud_classic_draw(&cmds) : -1;
+        if (count < 0)
+            return; /* it failed: the game's own drawing */
+        for (i = 0; i < n; ++i)
+            q[i].packet[0] &= 0x00ffffff;
+        classic_packets(cmds, count, f.anchor);
+        return;
+    }
+    if (amount)
         for (i = 0; i < n; ++i)
             q[i].packet[0] &= 0x00ffffff;
 }
 
 int pc_hud_bridge_field(void) { return status_field(); }
+
+/* The name window: the scene message's hook (5BF94.c), what it opened. */
+static struct {
+    unsigned serial, ours; /* each opening; the one a show opened */
+    unsigned opened;       /* vsync */
+    int message, action;
+} name;
+void pc_hud_name_window(int message, int action)
+{
+    ++name.serial;
+    name.opened = pc_vsync_count ? pc_vsync_count() : 0;
+    name.message = message;
+    name.action = action;
+}
+static int name_open(void) { return status_field() && D_800EB9D8 != NULL && vs_battle_textBoxes[7].state > 0; }
+
+int pc_hud_bridge_name_window(pc_hud_fields* f)
+{
+    vs_battle_textBox* box = &vs_battle_textBoxes[7];
+    unsigned now = pc_vsync_count ? pc_vsync_count() : 0;
+    int i;
+    if (!name_open())
+        return 0;
+    for (i = 0; i < (int)sizeof *f; ++i)
+        ((char*)f)[i] = 0;
+    f->kind = PC_HUD_NAME_WINDOW;
+    f->key = &name;
+    pc_ui_text_decode((const unsigned char*)D_800EB9D8, 112, f->text, sizeof f->text);
+    if (box->unk0.unk0_0 == 4) { /* (the scene message's kind: func_800CD158's band across the screen's bottom,
+                                  * or its top when the box is at 0, unk2A rows high) */
+        f->w = 320, f->h = (float)box->unk2A;
+        f->x = 160, f->y = box->y == 0 ? f->h * 0.5f : 240.0f - f->h * 0.5f;
+    } else { /* a framed box: its rectangle as func_800CB83C scales it */
+        f->x = (float)box->unk24 + (float)box->unk28 * 0.5f, f->y = (float)box->unk26 + (float)box->unk2A * 0.5f;
+        f->w = (float)box->unk28, f->h = (float)box->unk2A;
+    }
+    f->rgb = 0xFFFFFF;
+    f->variant = name.message;
+    f->value = name.action;
+    f->age = (int)(now - name.opened);
+    f->anchor = PC_HUD_ANCHOR_CENTRE;
+    return 1;
+}
 
 int pc_hud_bridge_spawn(int kind, const pc_hud_spawn* s)
 {
@@ -305,6 +376,15 @@ int pc_hud_bridge_spawn(int kind, const pc_hud_spawn* s)
     }
     if (kind == PC_HUD_TRAVEL) {
         pc_fast_travel_force_prompt(1);
+        return 1;
+    }
+    if (kind == PC_HUD_NAME_WINDOW) {
+        if (!status_field())
+            return 0;
+        if (D_800EB9D8 != NULL)
+            func_800CB50C(); /* (the one up goes, as the game's next one replaces it) */
+        vs_battle_displaySceneMessage(s->variant, s->value & 0xFF, 1);
+        name.ours = name.serial;
         return 1;
     }
     if (!status_field() || D_800F227E >= 30) /* (the game's pool holds 32) */
@@ -352,6 +432,12 @@ int pc_hud_bridge_hold(int kind, const pc_hud_spawn* s)
     D_800F1BAC_t* p;
     if (kind == PC_HUD_TRAVEL)
         return pc_fast_travel_prompt_is_forced();
+    if (kind == PC_HUD_NAME_WINDOW) {
+        if (!name_open() || name.serial != name.ours)
+            return 0;
+        D_800F4E68 = 0x78; /* (a battle's countdown never runs out) */
+        return 1;
+    }
     p = find(kind, kind == PC_HUD_BUFF || kind == PC_HUD_DAMAGE ? s : NULL);
     if (!p)
         return 0;
@@ -368,10 +454,323 @@ void pc_hud_bridge_release(int kind, const pc_hud_spawn* s)
         pc_fast_travel_force_prompt(0);
         return;
     }
+    if (kind == PC_HUD_NAME_WINDOW) {
+        if (status_field() && D_800EB9D8 != NULL && name.serial == name.ours)
+            func_800CB50C(); /* closed as the game closes it */
+        name.ours = 0;
+        return;
+    }
     p = find(kind, kind == PC_HUD_BUFF || kind == PC_HUD_DAMAGE ? s : NULL);
     if (kind == PC_HUD_STATUS && p && p->unkB < 42)
         p->unkB = 42; /* its slide out */
     else if (kind == PC_HUD_CHAIN && p && p->unkB < 87)
         p->unkB = 87;
     /* (a buff or a number ages on from where it was held) */
+}
+
+/* ---- the classic flavour's packets (hud.h pc_hud_classic_cmd) ----
+ *
+ * Each command as packets of the kinds the game's own HUD builds, from the
+ * packet pointer (vs_scratch.unk0), linked into the HUD labels' slot of the
+ * ordering table (the status words' and digits': 4 entries before
+ * vs_scratch.unk4). A packet linked at a slot's head draws before what the
+ * slot held, so the commands go in last first.
+ *   text     the info style's capitals (vs_battle_renderTextRawColor, as the
+ *            status words and labels: its '$' centres, '#' right-aligns;
+ *            the status style's font restyled as SLOW! is, pc_text_status),
+ *            or the menus' variable-width font (dialogue, menu: vs_encode, a
+ *            sprite per glyph as vs_battle_printVariableWidthFontChar sets it
+ *            in font style 4, reported to ui_text, pc_text_glyph)
+ *   rect, gradient   a tile, a Gouraud quad (alpha below 1: half blending)
+ *   glyph    the field UI page's 16 x 16 button sprites (768, 0), CLUT
+ *            (944, 223): button_prompts.c and button_roles.c redraw them as
+ *            they do the game's
+ *   sprite   any VRAM rectangle (its page and CLUT words)
+ *   window   the text boxes' window (func_800CD3E4 for a rectangle): its
+ *            shadow 2 pixels down and right, its body (page (448, 256), CLUT
+ *            (992, 220), a 64-texel tile: texture window 0x318), its frame
+ *            lines 0x303030
+ *   cursor   vs_battle_drawCursor's hand at a place (brightness from
+ *            vs_battle_cursorBrightnessAnimation)
+ *   bar      vs_battle_renderStatBar (HP, MP, RISK) */
+extern u_char D_800EB708[], D_800EB7B4[]; /* the info capitals' kerning and widths (5BF94.c) */
+extern void pc_text_status(const void* first, const void* end) __attribute__((weak)); /* ui_text.c */
+extern void pc_text_glyph(void* const* commands, int count, int glyph, int x, int y, int next_x, int advance)
+    __attribute__((weak));
+
+static u_long* classic_ot(void) { return (u_long*)((char*)psx_get(vs_scratch.unk4) - 16); }
+
+/* n words after a tag at the packet pointer, linked at the head of ot. */
+static u_long* packet(u_long* ot, int n)
+{
+    u_long* p = psx_get(vs_scratch.unk0);
+    p[0] = (*ot & 0xFFFFFF) | ((u_long)n << 24);
+    *ot = (psx_to_int(u_long, p) << 8) >> 8;
+    psx_set(vs_scratch.unk0, p + 1 + n);
+    return p + 1;
+}
+
+/* 0xRRGGBB as a PS1 colour word (BGR): direct (tiles), or modulating a texture (0xFF -> 0x80). */
+static u_long bgr(unsigned rgb) { return ((rgb >> 16) & 255) | (rgb & 0xFF00) | ((rgb & 255) << 16); }
+static u_long modulate(unsigned rgb)
+{
+    unsigned r = ((rgb >> 16) & 255) + 1, g = ((rgb >> 8) & 255) + 1, b = (rgb & 255) + 1;
+    return (r >> 1) | ((g >> 1) << 8) | ((b >> 1) << 16);
+}
+static u_long xy(int x, int y) { return (u_long)(x & 0xFFFF) | ((u_long)(y & 0xFFFF) << 16); }
+static int semi(float alpha) { return alpha < 0.99f; }
+
+/* The info capitals' advance of text (as vs_battle_renderTextRawColor's centring measures). */
+static int info_width(const char* text, int length)
+{
+    int width = 0, i;
+    for (i = 0; i < length; ++i) {
+        u_int ch = (u_char)text[i] - 0x20;
+        if (ch < 0x3C) {
+            width += (D_800EB7B4[ch >> 1] >> ((ch << 2) & 4)) & 0xF;
+            if (ch - 0x21 < 26 && i + 1 < length && (u_int)((u_char)text[i + 1] - 0x41) < 26) {
+                u_int index = (u_char)text[i + 1] - 0x41 + (ch - 0x21) * 26;
+                width -= (D_800EB708[index >> 2] >> ((index & 3) * 2)) & 3;
+            }
+        }
+    }
+    return width;
+}
+static int menu_font(int font) { return font == 0 || font == 1; } /* PC_UI_TEXT_DIALOGUE, _MENU */
+#define MENU_SPACE 0x8F
+
+static int encode(const char* text, int length, u_char* out, int cap)
+{
+    char utf8[260];
+    int n = length < (int)sizeof utf8 - 1 ? length : (int)sizeof utf8 - 1, i;
+    for (i = 0; i < n; ++i)
+        utf8[i] = text[i];
+    utf8[n] = 0;
+    return vs_encode(utf8, out, cap, NULL) - 1; /* (without its 0xE7) */
+}
+static int menu_width(const u_char* glyphs, int n)
+{
+    int w = 0, i;
+    for (i = 0; i < n; ++i)
+        w += glyphs[i] == MENU_SPACE ? 6 : glyphs[i] < 0xE7 ? vs_battle_characterWidths[glyphs[i]] : 0;
+    return w;
+}
+
+void pc_hud_classic_measure(int font, const char* text, int length, int* w, int* h)
+{
+    if (menu_font(font)) {
+        u_char glyphs[260];
+        int n = encode(text, length, glyphs, sizeof glyphs);
+        *w = menu_width(glyphs, n > 0 ? n : 0);
+        *h = 12;
+    } else {
+        *w = info_width(text, length);
+        *h = 10;
+    }
+}
+
+/* The field UI page's button cells (PC_PROMPT_* order: L2, R2, L1, R1, triangle, circle, cross,
+ * square; the rest have none): u, v. */
+static const signed char button_cells[8][2] = { { 32, 16 }, { 48, 16 }, { 0, 16 }, { 16, 16 }, { 0, 0 }, { 32, 0 },
+    { 48, 0 }, { 16, 0 } };
+int pc_hud_classic_glyph(int button) { return button >= 0 && button < 8 ? 16 : 0; }
+
+/* A sprite as the game's (pc_sprite_packet): its page word (semi-transparent: the page's blending), its
+ * colour and command word (returned), place, texels and CLUT, size. */
+static u_long* sprite(u_long* ot, int x, int y, int w, int h, u_long page, u_long uv_clut, unsigned rgb, float alpha)
+{
+    u_long* p = packet(ot, 5);
+    p[0] = 0xE1000000 | page;
+    p[1] = modulate(rgb) | ((u_long)(semi(alpha) ? 0x66 : 0x64) << 24);
+    p[2] = xy(x, y);
+    p[3] = uv_clut;
+    p[4] = xy(w, h);
+    return p + 1;
+}
+
+static void text_packets(u_long* ot, const pc_hud_classic_cmd* c)
+{
+    int w, h, x = c->x, y = c->y, align = c->align;
+    pc_hud_classic_measure(c->font, c->text, c->length, &w, &h);
+    if (c->fit) { /* inside the box: across by the align, the middle on its middle */
+        x = align == 1 ? c->x + c->w / 2 : align == 2 ? c->x + c->w : c->x;
+        y = c->y + (c->h - h) / 2;
+    } else {
+        y -= c->anchor == 1 ? h / 2 : c->anchor == 2 ? h - 2 : c->anchor == 3 ? h : 0;
+    }
+    if (menu_font(c->font)) {
+        u_char glyphs[260];
+        u_long* command[260];
+        int n = encode(c->text, c->length, glyphs, sizeof glyphs), i, pen;
+        if (n <= 0)
+            return;
+        x -= align == 1 ? w / 2 : align == 2 ? w : 0;
+        /* linked last first (the slot draws them first to last), reported to ui_text first to last */
+        for (i = n - 1, pen = x + w; i >= 0; --i) {
+            u_int glyph = glyphs[i];
+            pen -= glyph == MENU_SPACE ? 6 : glyph < 0xE7 ? vs_battle_characterWidths[glyph] : 0;
+            command[i] = glyph < 0xE7 && glyph != MENU_SPACE
+                ? sprite(ot, pen, y, 12, 12, 0x2D, /* font style 4: CLUT (896, 222) */
+                      ((glyph % 21) * 12) | ((glyph / 21) * 12 << 8) | 0x37B80000u, c->color, 0.5f)
+                : NULL;
+        }
+        for (i = 0, pen = x; i < n && pc_text_glyph; ++i) {
+            u_int glyph = glyphs[i];
+            int advance = glyph == MENU_SPACE ? 6 : glyph < 0xE7 ? vs_battle_characterWidths[glyph] : 0;
+            if (command[i])
+                pc_text_glyph((void* const*)&command[i], 1, (int)glyph, pen << 16, y << 16, (pen + advance) << 16,
+                    advance);
+            else if (glyph == MENU_SPACE)
+                pc_text_glyph(NULL, 0, -1, pen << 16, y << 16, (pen + 6) << 16, 6);
+            pen += advance;
+        }
+        return;
+    }
+    {
+        char ascii[260];
+        int n = 0, i;
+        void* first = psx_get(vs_scratch.unk0);
+        if (align == 1 || align == 2)
+            ascii[n++] = align == 1 ? '$' : '#';
+        for (i = 0; i < c->length && n < (int)sizeof ascii - 1; ++i) {
+            char ch = c->text[i];
+            ascii[n++] = ch >= 'a' && ch <= 'z' ? (char)(ch - 32) : ch; /* (capitals only) */
+        }
+        ascii[n] = 0;
+        vs_battle_renderTextRawColor(ascii, xy(x, y), (int)modulate(c->color), ot);
+        if (c->font == 4 && pc_text_status) /* PC_UI_TEXT_STATUS: set as the status words are */
+            pc_text_status(first, psx_get(vs_scratch.unk0));
+    }
+}
+
+static void window_packets(u_long* ot, const pc_hud_classic_cmd* c)
+{
+    int x0 = c->x, y0 = c->y, x1 = c->x + c->w, y1 = c->y + c->h, ax = x0 & ~63, ay = y0 & ~63, x, y;
+    u_long grey = (u_long)(c->a < 0 ? 0 : c->a > 255 ? 255 : c->a), *p;
+    u_long corners[4] = { xy(x0, y0), xy(x1, y0), xy(x1, y1), xy(x0, y1) };
+    int i;
+    grey |= grey << 8 | grey << 16;
+    /* (last drawn first) the frame */
+    for (i = 3; i >= 0; --i) {
+        p = packet(ot, 3);
+        p[0] = 0x40303030;
+        p[1] = corners[i];
+        p[2] = corners[(i + 1) & 3];
+    }
+    p = packet(ot, 1);
+    p[0] = 0xE2000000; /* the texture window back */
+    /* the body, in pieces the texels' 8 bits span (the tile repeats every 64) */
+    for (x = x0; x < x1; x += 128)
+        for (y = y0; y < y1; y += 128) {
+            int xe = x + 128 < x1 ? x + 128 : x1, ye = y + 128 < y1 ? y + 128 : y1;
+            int u0 = (x - ax) & 63, u1 = u0 + xe - x, v0 = (y - ay) & 63, v1 = v0 + ye - y;
+            p = packet(ot, 9);
+            p[0] = grey | 0x2C000000;
+            p[1] = xy(x, y);
+            p[2] = (u_long)u0 | ((u_long)v0 << 8) | 0x373E0000;
+            p[3] = xy(xe, y);
+            p[4] = (u_long)u1 | ((u_long)v0 << 8) | 0x170000;
+            p[5] = xy(x, ye);
+            p[6] = (u_long)u0 | ((u_long)v1 << 8);
+            p[7] = xy(xe, ye);
+            p[8] = (u_long)u1 | ((u_long)v1 << 8);
+        }
+    p = packet(ot, 2);
+    p[0] = 0xE1000017;
+    p[1] = 0xE2000318; /* its 64-texel tile */
+    /* the shadow, 2 pixels down and right: filled, then outlined */
+    p = packet(ot, 12);
+    p[0] = 0x28000000;
+    p[1] = xy(x0 + 2, y0 + 2);
+    p[2] = xy(x1 + 2, y0 + 2);
+    p[3] = xy(x0 + 2, y1 + 2);
+    p[4] = xy(x1 + 2, y1 + 2);
+    p[5] = 0x48000000;
+    p[6] = p[1];
+    p[7] = p[2];
+    p[8] = p[4];
+    p[9] = p[3];
+    p[10] = p[1];
+    p[11] = 0x55555555;
+}
+
+static void quad_packets(u_long* ot, const pc_hud_classic_cmd* c)
+{
+    u_long* p;
+    int x1 = c->x + c->w, y1 = c->y + c->h;
+    if (c->w <= 0 || c->h <= 0)
+        return;
+    if (semi(c->alpha)) {
+        p = packet(ot, 1);
+        p[0] = 0xE1000000; /* (after it: the draw mode the HUD's own packets set) */
+    }
+    if (c->type == PC_HUD_CMD_RECT) {
+        p = packet(ot, 3);
+        p[0] = bgr(c->color) | ((u_long)(semi(c->alpha) ? 0x62 : 0x60) << 24);
+        p[1] = xy(c->x, c->y);
+        p[2] = xy(c->w, c->h);
+    } else {
+        u_long a = bgr(c->color), b = bgr(c->color2);
+        p = packet(ot, 8);
+        p[0] = a | ((u_long)(semi(c->alpha) ? 0x3A : 0x38) << 24);
+        p[1] = xy(c->x, c->y);
+        p[2] = c->a ? a : b;
+        p[3] = xy(x1, c->y);
+        p[4] = c->a ? b : a;
+        p[5] = xy(c->x, y1);
+        p[6] = b;
+        p[7] = xy(x1, y1);
+    }
+    if (semi(c->alpha)) {
+        p = packet(ot, 1);
+        p[0] = 0xE1000000; /* half blending (abr 0) for it */
+    }
+}
+
+static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor)
+{
+    u_long* ot = classic_ot();
+    void* start = psx_get(vs_scratch.unk0);
+    int i;
+    for (i = n - 1; i >= 0; --i) {
+        const pc_hud_classic_cmd* c = &cmds[i];
+        if (c->alpha <= 0.01f && c->type != PC_HUD_CMD_WINDOW && c->type != PC_HUD_CMD_BAR && c->type != PC_HUD_CMD_CURSOR)
+            continue;
+        switch (c->type) {
+        case PC_HUD_CMD_TEXT:
+            text_packets(ot, c);
+            break;
+        case PC_HUD_CMD_RECT:
+        case PC_HUD_CMD_GRADIENT:
+            quad_packets(ot, c);
+            break;
+        case PC_HUD_CMD_GLYPH:
+            if (c->a >= 0 && c->a < 8)
+                sprite(ot, c->x, c->y - 8, 16, 16, 0x0C,
+                    (u_long)button_cells[c->a][0] | ((u_long)(128 + button_cells[c->a][1]) << 8) | 0x37FB0000u, c->color,
+                    c->alpha);
+            break;
+        case PC_HUD_CMD_SPRITE:
+            sprite(ot, c->x, c->y, c->w, c->h, (u_long)c->a, (u_long)(c->c & 255) | ((u_long)(c->d & 255) << 8)
+                | ((u_long)(c->b & 0xFFFF) << 16), c->color, c->alpha);
+            break;
+        case PC_HUD_CMD_WINDOW:
+            window_packets(ot, c);
+            break;
+        case PC_HUD_CMD_CURSOR: {
+            int step = c->a >= 0 ? c->a : pc_vsync_count ? (int)(pc_vsync_count() >> 1) & 15 : 0;
+            u_long brightness = (u_char)vs_battle_cursorBrightnessAnimation[step];
+            *sprite(ot, c->x, c->y, 16, 16, 0x0C, 0x37F83020u, 0xFFFFFF, 1) = brightness * 0x010101u | 0x64000000u;
+            break;
+        }
+        case PC_HUD_CMD_BAR: {
+            int fill = (int)(((long long)(c->a < c->b ? c->a : c->b) * 64 + c->b - 1) / c->b);
+            vs_battle_renderStatBar(c->c, fill, ot, (int)xy(c->x, c->y));
+            break;
+        }
+        }
+    }
+    if (pc_hw_anchor_packets && (anchor == PC_HUD_ANCHOR_LEFT || anchor == PC_HUD_ANCHOR_RIGHT))
+        pc_hw_anchor_packets(start, psx_get(vs_scratch.unk0),
+            anchor == PC_HUD_ANCHOR_LEFT ? PC_ANCHOR_LEFT_EDGE : PC_ANCHOR_RIGHT_EDGE);
 }

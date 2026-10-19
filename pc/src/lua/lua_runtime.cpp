@@ -80,6 +80,12 @@ int locked_newindex(lua_State* L)
 {
     return luaL_error(L, "rood is read-only (cannot set '%s')", luaL_tolstring(L, 2, nullptr));
 }
+/* # of a read-only view: its table's (rood.game's lists). */
+int locked_len(lua_State* L)
+{
+    lua_pushinteger(L, (lua_Integer)lua_rawlen(L, lua_upvalueindex(1)));
+    return 1;
+}
 int raw_next(lua_State* L)
 {
     luaL_checktype(L, 1, LUA_TTABLE);
@@ -207,7 +213,7 @@ void set_cfunction(lua_State* L, int table, const char* name, lua_CFunction f)
 void lock_table(lua_State* L)
 {
     lua_newtable(L);          /* the view */
-    lua_createtable(L, 0, 4); /* its metatable */
+    lua_createtable(L, 0, 5); /* its metatable */
     lua_pushvalue(L, -3);
     lua_setfield(L, -2, "__index");
     lua_pushvalue(L, -3);
@@ -215,6 +221,9 @@ void lock_table(lua_State* L)
     lua_setfield(L, -2, "__pairs");
     lua_pushcfunction(L, locked_newindex);
     lua_setfield(L, -2, "__newindex");
+    lua_pushvalue(L, -3);
+    lua_pushcclosure(L, locked_len, 1);
+    lua_setfield(L, -2, "__len");
     lua_pushliteral(L, "locked");
     lua_setfield(L, -2, "__metatable");
     lua_setmetatable(L, -2);
