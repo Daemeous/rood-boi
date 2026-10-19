@@ -51,10 +51,16 @@ class Run:
         self.log_path = self.out / "game.log"
         self.failures = []
         card = self.out / "card1.mcd"
+        if getattr(args, "card", None) and pathlib.Path(args.card).resolve() == card:
+            raise ValueError("source card must be outside the test output directory")
         if card.exists():
             card.unlink()  # a New Game on an empty card
+        if getattr(args, "card", None):
+            import shutil
+            shutil.copyfile(args.card, card)  # disposable test copy, never write to the source card
         port = args.port or free_port()
-        env = dict(os.environ, ROOD_RPC=f"tcp:{port}", ROOD_AUDIO="none", ROOD_CONTROLLER="none",
+        rpc = rood_rpc.with_token(f"tcp:{port}")
+        env = dict(os.environ, ROOD_RPC=rpc, ROOD_AUDIO="none", ROOD_CONTROLLER="none",
                    ROOD_CARD1=str(card), ROOD_CARD2=str(self.out / "card2-absent.mcd"), ROOD_OUT=str(self.out),
                    ROOD_GI=os.environ.get("ROOD_GI", "0"))
         env.pop("ROOD_SETTINGS", None)
@@ -71,11 +77,11 @@ class Run:
                                         cwd=args.dir, env=env, stdout=subprocess.DEVNULL,
                                         stderr=open(self.log_path, "w"))
         deadline = time.monotonic() + 60
-        while not rood_rpc.listening(f"tcp:{port}"):
+        while not rood_rpc.listening(rpc):
             if self.process.poll() is not None or time.monotonic() > deadline:
                 raise SystemExit(f"the game did not open its RPC port; see {self.log_path}")
             time.sleep(0.2)
-        self.game = rood_rpc.Game(f"tcp:{port}")
+        self.game = rood_rpc.Game(rpc)
         self.game.log = str(self.log_path)
 
     def check(self, ok, what):
