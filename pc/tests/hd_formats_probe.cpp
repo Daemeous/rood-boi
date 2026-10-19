@@ -3,7 +3,9 @@
 #include <iostream>
 #define DEFINE_GL(ret, name, args) ret(APIENTRY *gl_##name) args;
 GL_FUNCTIONS(DEFINE_GL)
+GL_COMPUTE_FUNCTIONS(DEFINE_GL)
 #undef DEFINE_GL
+int pc_gl_compute;
 uint16_t test_vram[1024 * 512];
 extern "C" const uint16_t *pc_native_vram(void) { return test_vram; }
 void gpu_probe(unsigned x, bool hole)
@@ -103,6 +105,7 @@ int main(int argc, char **argv)
             test_vram[y * 1024 + x] = 0x2121;
     for (int i = 0; i < 256; ++i)
         test_vram[300 * 1024 + i] = i + 1;
+    async_loads = false; /* decode on this thread: the checks follow each call */
     init();
     assert(configured);
     pc_hd_upload(0, 0, 2, 2, test_vram);
@@ -114,7 +117,7 @@ int main(int argc, char **argv)
         for (int i = 0; i < slots; ++i)
             if (table[i * 4] == hash && table[i * 4 + 1] == pal && table[(slots + i) * 4])
                 bound = true;
-        assert(bound && pending.back().pixels[0] == 240);
+        assert(bound && (*pending.back().pixels)[0] == 240);
         std::cout << "PASS: reduced palette hashes bound under the full live palette\n";
         return 0;
     }
@@ -125,7 +128,7 @@ int main(int argc, char **argv)
     // starts at x=4.
     unsigned x = mode == "duckpage" || mode == "duckupload" || mode == "alias" ? 4 : 0;
     unsigned sx = image.rect.w / 256;
-    auto at = [&](unsigned u, unsigned v) { return image.pixels.data() + v * sx * stride + u * sx * 4; };
+    auto at = [&](unsigned u, unsigned v) { return image.pixels->data() + v * sx * stride + u * sx * 4; };
     assert(at(x, 0)[0] == 240 && at(x, 0)[1] == 20 && at(x, 0)[2] == 10 && at(x, 0)[3] == 255);
     if (mode != "page")
         assert(at(0, 10)[3] == 1); // uncovered pixels fall back in the shader,
@@ -135,7 +138,7 @@ int main(int argc, char **argv)
     if (mode == "duckupload") {
         pc_hd_clear(1, 0, 1, 1);
         pc_hd_use(0, 300 * 64);
-        assert(pending.back().pixels[(4 * sx) * 4 + 3] == 1); // replaced source word invalidated.
+        assert((*pending.back().pixels)[(4 * sx) * 4 + 3] == 1); // replaced source word invalidated.
     }
     // A palette mutation must never keep a stale page replacement bound.
     test_vram[300 * 1024 + 1] ^= 0x3ff;

@@ -227,6 +227,9 @@ int vk_image_create(vk_image* image, int width, int height, VkFormat format, VkI
 int vk_image_create_ms(vk_image* image, int width, int height, VkFormat format, VkImageUsageFlags usage, int samples);
 /* A 3D image (sampled; GENERAL like the rest), not cleared. */
 int vk_image_create_3d(vk_image* image, int width, int height, int depth, VkFormat format, VkImageUsageFlags usage);
+/* `layers` layers of width x height (a 2D array view), cleared, in GENERAL. */
+int vk_image_create_array(vk_image* image, int width, int height, int layers, VkFormat format,
+    VkImageUsageFlags usage);
 void vk_image_destroy(vk_image* image);
 void vk_image_destroy_later(vk_image* image);
 
