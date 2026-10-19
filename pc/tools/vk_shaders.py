@@ -28,6 +28,8 @@ SHADERS = ROOT / "pc/shaders/vulkan"
 # Vendored shader sources the shaders include (SMAA, MIT: pc/third_party/smaa).
 INCLUDE_DIRS = [ROOT / "pc/third_party/smaa"]
 STAGES = ("vert", "geom", "frag", "comp")
+# A Windows host (the native Windows builder, MSYS2) builds glslang.exe.
+EXE = ".exe" if os.name == "nt" else ""
 
 
 OPTIONS = ["-DCMAKE_BUILD_TYPE=Release", "-DENABLE_OPT=OFF", "-DGLSLANG_TESTS=OFF", "-DBUILD_TESTING=OFF",
@@ -56,10 +58,10 @@ def glslang(key):
         subprocess.run(["cmake", "--build", str(work), "--target", "glslang-standalone", "--parallel",
                         str(min(os.cpu_count() or 4, 8))], check=True, stdout=subprocess.DEVNULL)
         (tmp / "bin").mkdir()
-        shutil.copy2(work / "StandAlone/glslang", tmp / "bin/glslang")
+        shutil.copy2(work / f"StandAlone/glslang{EXE}", tmp / f"bin/glslang{EXE}")
         shutil.rmtree(work)
 
-    return shared_cache.entry("glslang", key, build) / "bin/glslang"
+    return shared_cache.entry("glslang", key, build) / f"bin/glslang{EXE}"
 
 
 def main():
