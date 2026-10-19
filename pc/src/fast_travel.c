@@ -34,14 +34,15 @@ unsigned pc_window_travel_shared(void); /* boot_window.c: PS1 buttons on the sam
 #define HOST __attribute__((section(".data.rood_host")))
 unsigned pc_fast_travel_prompt_drawn HOST; /* fast_travel_prompt.cpp counts the frames it drew */
 float pc_fast_travel_prompt_box[4] HOST, pc_fast_travel_prompt_picture[4] HOST; /* ... and where (RPC) */
-int pc_fast_travel_prompt_font HOST;
+int pc_fast_travel_prompt_font HOST, pc_fast_travel_prompt_backdrop HOST;
+float pc_fast_travel_prompt_stroke HOST;
 
 /* A field frame lasts 2 or 3 vsyncs (more in a heavy room): the poll runs
  * once per frame, and not at all while an action plays (an enemy's attack:
  * field mode 2). An RPC press waits for the next poll (dropped when none
- * comes within 4 s); the prompt follows the last poll. */
+ * comes within 4 s); the prompt follows the last poll, for
+ * qol_fast_travel_prompt_hold vsyncs (8). */
 #define PRESS_VSYNCS 240
-#define PROMPT_VSYNCS 8
 static int held_before HOST;
 static int rpc_press HOST; /* RPC fast_travel {press}: VSync(-1) + 1 when asked */
 static unsigned presses HOST, opened HOST, ignored HOST;
@@ -234,7 +235,9 @@ int pc_fast_travel_poll(void)
 int pc_fast_travel_prompt(void)
 {
     /* (the field still: no menu opened since the poll) */
-    return pc_qol_fast_travel_prompt && prompt_ok && VSync(-1) - prompt_vsync <= PROMPT_VSYNCS && D_800F196C == 1
+    int hold = pc_qol_fast_travel_prompt_hold < 1 ? 1 : pc_qol_fast_travel_prompt_hold > 600 ? 600
+                                                                                              : pc_qol_fast_travel_prompt_hold;
+    return pc_qol_fast_travel_prompt && prompt_ok && VSync(-1) - prompt_vsync <= hold && D_800F196C == 1
         && vs_battle_menuState.currentMenu == 0x3F;
 }
 
@@ -280,6 +283,9 @@ void pc_fast_travel_report(pc_ft_report* r, int audit)
         r->picture[i] = pc_fast_travel_prompt_picture[i];
     }
     r->prompt_font = pc_fast_travel_prompt_font;
+    r->prompt_backdrop = pc_fast_travel_prompt_backdrop;
+    r->prompt_stroke = pc_fast_travel_prompt_stroke;
+    r->prompt_hold = pc_qol_fast_travel_prompt_hold;
     r->prompt_anchor = pc_qol_fast_travel_prompt_anchor;
     r->prompt_offset[0] = pc_qol_fast_travel_prompt_offset_x;
     r->prompt_offset[1] = pc_qol_fast_travel_prompt_offset_y;

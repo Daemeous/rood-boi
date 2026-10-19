@@ -24,13 +24,24 @@ enum { PC_UI_TEXT_ORIGINAL = 0, PC_UI_TEXT_FONT = 1 };
 extern int pc_ui_text; /* PC_UI_TEXT_*; original keeps the PS1 glyphs */
 extern const char* const pc_ui_text_names[2];
 
-/* Text styles and their font settings (settings ui_text_<style>_font,
- * _stretch, _slant, _embolden, _aspect; RPC ui_text). Fixed labels baked
- * into the UI's images (HP, MP, INFORMATION, ...) are drawn with the info
- * style's font. */
-enum { PC_UI_TEXT_DIALOGUE, PC_UI_TEXT_MENU, PC_UI_TEXT_INFO, PC_UI_TEXT_DIGITS, PC_UI_TEXT_STYLES };
+/* Text styles and their font settings: settings ui_text_<style>_<field>
+ * (re-read live; RPC
+ * ui_text; Graphics > 2D / UI > HUD typography). status: the battle's words
+ * the game sets in the info style's capitals (BATTLE.PRG func_800958A4's
+ * SLOW! / COOL! ..., func_80095A4C's 3 CHAINS: pc_text_status), set as whole
+ * words. labels: words baked into the UI's images (HP, MP, INFORMATION, ...;
+ * ui_labels.h). */
+enum {
+    PC_UI_TEXT_DIALOGUE,
+    PC_UI_TEXT_MENU,
+    PC_UI_TEXT_INFO,
+    PC_UI_TEXT_DIGITS,
+    PC_UI_TEXT_STATUS,
+    PC_UI_TEXT_LABELS,
+    PC_UI_TEXT_STYLES
+};
 typedef struct {
-    const char* name;  /* dialogue, menu, info, digits */
+    const char* name;  /* dialogue, menu, info, digits, status, labels */
     char font[256];    /* TrueType file (relative to the repository root) */
     float stretch;     /* horizontal scale of the glyphs */
     float slant;       /* added shear (x per y, original pixels) */
@@ -38,7 +49,10 @@ typedef struct {
     float aspect;      /* digits: least horizontal scale of the font's own proportions (0: any); a size whose
                         * widest digit needs more condensing than this is drawn smaller instead */
     int small_caps;    /* lower case drawn as small capitals (the upper-case glyph at the original's height) */
-    int outline;       /* the original has a one-pixel outline (CLUT index 1) around a body ramp */
+    int outline;       /* the original has an outline (CLUT index 1) around a body ramp */
+    float size;        /* status, labels: cap height as a multiple of the original's */
+    float stroke;      /* outlined styles: the outline's width in PS1 pixels (0: none) */
+    float tracking;    /* status, labels: added letter spacing in em */
 } pc_ui_text_style;
 extern pc_ui_text_style pc_ui_text_styles[PC_UI_TEXT_STYLES];
 /* Bumped when a style changes (the atlas keeps glyphs per generation). */
@@ -131,6 +145,20 @@ void pc_ui_text_layout_run(const uint16_t* vram, const pc_ui_text_piece_info* pi
  * colours, 0 transparent). */
 int pc_ui_text_image_key(int image, uint64_t* key, int* w, int* h);
 int pc_ui_text_image_render(int image, int factor, uint32_t* out);
+
+/* The battle's status words (BATTLE.PRG func_800958A4: SLOW!, COOL!, ...;
+ * func_80095A4C: 3 CHAINS; ROOD_PC hooks): the packets one call of
+ * vs_battle_renderTextRawColor built, [first, end) (a texture page packet,
+ * then a sprite per glyph). With ui_text font each glyph of the string is
+ * drawn from the status style as one word (the font's advances, tracking,
+ * size), centred where the game centres it. */
+void pc_text_status(const void* first, const void* end);
+/* gpu_hw.c: whether the sprite whose command word is at `command` (texels u,
+ * v, w x h of page tpage, CLUT clut) is a status word's glyph; then its
+ * image's quad, x and y from the sprite's own top-left (a whole image: row0
+ * 0, row1 h). 0: draw it as any glyph. */
+int pc_ui_text_status_quad(const uint16_t* vram, const void* command, int u, int v, int w, int h, unsigned tpage,
+    unsigned clut, pc_ui_text_quad* quad);
 /* JSON (RPC ui_text {lines: true}): the lines laid out in the newest frame
  * that drew text: per glyph its character, the original glyph's position,
  * advance and ink, the laid-out pen and ink (screen PS1 pixels; ink per
@@ -145,9 +173,16 @@ void pc_ui_text_warm(double budget_ms);
 /* A new presented frame (ui_upscale.c): the next layout starts the lines report afresh. */
 void pc_ui_text_frame(void);
 
-/* Settings lines (project_settings.cpp): 1 when `key` was one of ours. */
+/* Settings lines (project_settings.cpp, re-read when the file changes; RPC
+ * ui_text; the panel): 1 when `key` was one of ours: ui_text, ui_text_layout,
+ * ..., each style's ui_text_<style>_<field> and the tunables below. Saved
+ * only where they differ from the built-in values. */
 int pc_ui_text_setting(const char* key, const char* value);
 void pc_ui_text_settings_write(FILE* f);
+/* Tunables (settings): the font's space widened in line layout
+ * (ui_text_word_space, 1.5), the PS1 pixels an outline's anti-aliased edge
+ * keeps from the box it is drawn in (ui_text_edge_margin, 0.15). */
+extern float pc_ui_text_word_space, pc_ui_text_edge_margin;
 /* JSON object (RPC ui_text): option, styles, fonts loaded, glyphs cached,
  * regions drawn. */
 int pc_ui_text_json(char* out, int size);
@@ -155,9 +190,9 @@ int pc_ui_text_json(char* out, int size);
  * ui_text forget_signs: tests). */
 void pc_ui_text_forget_signs(void);
 
-/* The UI text scale: 1 draws text at the original's size. The one place it
- * is read (a future setting sets it; RPC ui_text {scale} for tests, 0.25-4).
- * Applied to the battle number popups (damage, heal, MP) with ui_text font. */
+/* The UI text scale: 1 draws text at the original's size (ui_text_popup_scale:
+ * a setting; RPC ui_text {scale}; 0.25-4). Applied to the battle
+ * number popups (damage, heal, MP) with ui_text font. */
 float pc_ui_text_scale(void);
 void pc_ui_text_set_scale(float scale);
 /* boot_polygons.inc: a 2D quad's corners (xy: 0 1 / 2 3, the packet's pixels)

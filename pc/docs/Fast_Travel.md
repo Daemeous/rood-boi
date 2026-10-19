@@ -140,10 +140,13 @@ MENU0's `handleShortcut` going straight to `_teleportMenu`).
 
 The prompt (`fast_travel_prompt.cpp`, modern UI only: with `ui_menus` off
 the classic look keeps the game's own sprites and layout): the Travel
-binding's icon for the device used last and "TRAVEL" on a small plate, while
-the button would open the list. It is drawn as the modern menus draw their
-button hints (the theme's label font, letter-spaced capitals, a panel with
-its rule; `pc/assets/ui/theme.json`) and placed in the game picture, not the
+binding's icon for the device used last and "TRAVEL", while the button
+would open the list. It is drawn like the HUD's own words: the HUD labels'
+typography (settings `ui_text_labels_font`, `_stretch`), the icon and the
+verb outlined, no plate. Its look is settings (README "Fast travel":
+`qol_fast_travel_prompt_size`, `_stroke`, `_color`, `_stroke_color`,
+`_stretch`, `_backdrop` for the menus' hint plate again, and
+`ui_prompt_icon`, `_gap`, `_tracking`, shared with the menus' hint bar), and it is placed in the game picture, not the
 window: in 4:3 the window's side bars are left alone. By default it sits in
 the picture's upper right, clear of the HUD's HP / MP in the upper left. With `button_prompts original` (the PS1's own glyphs) a pad shows
 the PlayStation glyph of Travel's element, and the keyboard shows Travel's
@@ -155,12 +158,17 @@ the picture it goes, 0 top left, 1 top, 2 top right, 3 left, 4 centre, 5
 right, 6 bottom left, 7 bottom, 8 bottom right (the plate's same corner or
 edge sits on that point); `qol_fast_travel_prompt_offset_x` / `_y` (-0.025,
 0.035): moved from there by fractions of the picture's width and height, +
-right and down; `qol_fast_travel_prompt_scale` (1: the menus' hint size).
-The dev overlay's Graphics > Gameplay has them (Prompt anchor, offset x / y,
-size), and RPC `fast_travel {set: {prompt_anchor, prompt_offset_x,
-prompt_offset_y, prompt_scale}}`; the report has the plate as last drawn
-(`prompt_box`, window pixels), the `picture` it was placed in and
-`prompt_font` (`label`: the modern UI's). Settings files from before the
+right and down; `qol_fast_travel_prompt_scale` (1: x
+`qol_fast_travel_prompt_size`); `qol_fast_travel_prompt_hold` (8): vsyncs it
+stays after the field's last poll offered travel. The dev overlay's
+Graphics > Gameplay has them (Prompt anchor, offset x / y, size, hold,
+backdrop, text size, outline, stretch, colours, icon size, gap, tracking),
+and RPC `fast_travel {set: {prompt_anchor, prompt_offset_x,
+prompt_offset_y, prompt_scale, prompt_hold, prompt_backdrop, prompt_size,
+prompt_stroke}}`; the report has the prompt as last drawn (`prompt_box`,
+window pixels), the `picture` it was placed in, `prompt_font` (`labels`: the
+HUD labels', `default`: the menus' label font when that file is missing),
+`prompt_backdrop` and `prompt_stroke`. Settings files from before the
 anchor have `qol_fast_travel_prompt_x` / `_y` (the centre in fractions of
 the window, 0.5 / 0.84 by default then): they are read and dropped, so the
 prompt takes the anchor's default, and the next save writes only the new
@@ -208,7 +216,8 @@ destination + 1, the room record the destination. No sidecar file.
 | `qol_fast_travel_prompt` | 1 | the Travel prompt on a Circle |
 | `qol_fast_travel_prompt_anchor` | 2 | where in the game picture the prompt goes: 0-8, top left to bottom right (2 top right) |
 | `qol_fast_travel_prompt_offset_x`, `_y` | -0.025, 0.035 | moved from the anchor, fractions of the picture (+ right, down) |
-| `qol_fast_travel_prompt_scale` | 1 | the prompt's size (1: the modern menus' hints) |
+| `qol_fast_travel_prompt_scale` | 1 | the prompt's size (x `qol_fast_travel_prompt_size`) |
+| `qol_fast_travel_prompt_hold` | 8 | vsyncs the prompt stays after the field last offered travel |
 | `bind_key_travel`, `bind_pad_travel` | none, `back` | the Travel button |
 
 The modern menus' System > Gameplay (Fast travel, Travel cost, Flat cost /

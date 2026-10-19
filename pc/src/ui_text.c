@@ -30,13 +30,15 @@
  * pictographs (button symbols, arrows, notes), stay original.
  *
  * Words the game draws as pictures (HP, MP, COMMAND, MENU, INFORMATION,
- * BATTLE MODE, ...: ui_labels.h, by page, box and hash) are set in the info
- * style's font in the word's original box and colours ("fixed labels"
- * below). */
+ * BATTLE MODE, ...: ui_labels.h, by page, box and hash) are set in the labels
+ * style in the word's original box and colours ("fixed labels" below); the
+ * battle's status words (SLOW!, 3 CHAINS) as whole words in the status style
+ * ("status words"). Every style field is a setting ("settings" below). */
 #define _POSIX_C_SOURCE 200809L
 #include "ui_text.h"
 #include "ui_labels.h"
 #include <math.h>
+#include <stddef.h>
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,13 +62,20 @@ unsigned pc_ui_text_generation = 1;
 #define STYLE_DEFAULTS                                                                                           \
     {                                                                                                            \
         { "dialogue", "pc/third_party/fonts/PermanentMarker/PermanentMarker-Regular.ttf", 1.02f, 0.12f, -0.02f, \
-            0.0f, 1, 0 },                                                                                        \
-        { "menu", "pc/third_party/fonts/AsapCondensed/AsapCondensed-Bold.ttf", 1.18f, 0.0f, -0.02f, 0.0f, 0, 0 }, \
-        { "info", "pc/third_party/fonts/ChakraPetch/ChakraPetch-Bold.ttf", 1.26f, 0.0f, 0.0f, 0.0f, 0, 1 },     \
-        { "digits", "pc/third_party/fonts/Alegreya/Alegreya[wght].ttf", 1.07f, 0.0f, 0.02f, DIGITS_ASPECT, 0, 1 }, \
+            0.0f, 1, 0, 1.0f, 0.0f, 0.0f },                                                                      \
+        { "menu", "pc/third_party/fonts/AsapCondensed/AsapCondensed-Bold.ttf", 1.18f, 0.0f, -0.02f, 0.0f, 0, 0, \
+            1.0f, 0.0f, 0.0f },                                                                                  \
+        { "info", "pc/third_party/fonts/ChakraPetch/ChakraPetch-Bold.ttf", 1.26f, 0.0f, 0.0f, 0.0f, 0, 1, 1.0f, \
+            1.0f, 0.0f },                                                                                        \
+        { "digits", "pc/third_party/fonts/Alegreya/Alegreya[wght].ttf", 1.07f, 0.0f, 0.02f, DIGITS_ASPECT, 0, 1, \
+            1.0f, 1.0f, 0.0f },                                                                                  \
+        { "status", "pc/third_party/fonts/ChakraPetch/ChakraPetch-Bold.ttf", 1.26f, 0.0f, 0.0f, 0.0f, 0, 1,     \
+            1.0f, 1.0f, 0.02f },                                                                                 \
+        { "labels", "pc/third_party/fonts/ChakraPetch/ChakraPetch-Bold.ttf", 1.26f, 0.0f, 0.0f, 0.0f, 0, 1,     \
+            1.0f, 1.0f, 0.0f },                                                                                  \
     }
 pc_ui_text_style pc_ui_text_styles[PC_UI_TEXT_STYLES] = STYLE_DEFAULTS;
-static const pc_ui_text_style defaults[PC_UI_TEXT_STYLES] = STYLE_DEFAULTS;
+static const pc_ui_text_style defaults[PC_UI_TEXT_STYLES] = STYLE_DEFAULTS; /* (settings save what differs) */
 
 /* The game's character set for glyph indices 0..0xBB of a font table
  * (tools/etc/vsString.py); 0: not drawn from a font (pictographs, unused). */
@@ -184,11 +193,40 @@ void pc_ui_text_resolve(const uint16_t* vram, unsigned clut, uint32_t* texels, i
     }
 }
 
+/* An outlined texel's distance for an outline `stroke` PS1 pixels wide: the
+ * shaders draw the outline's outer edge at -1 (the originals' one pixel),
+ * so the distance outside the body is mapped to put the stroke's outer edge
+ * there, its last half pixel unscaled (the anti-aliased edge stays one
+ * output pixel wide); inside, as it is. */
+static float stroke_distance(float d, float stroke)
+{
+    if (d >= 0 || stroke == 1.0f || stroke <= 0)
+        return d;
+    if (stroke < 1.0f)
+        return d / stroke;
+    float knee = 0.5f - stroke;
+    return d <= knee ? d + stroke - 1.0f : d * 0.5f / (stroke - 0.5f);
+}
+
+/* Tunables over the styles (settings; ui_text.h). */
+#define WORD_SPACE_DEFAULT 1.5f
+#define EDGE_MARGIN_DEFAULT 0.15f
+float pc_ui_text_word_space = WORD_SPACE_DEFAULT, pc_ui_text_edge_margin = EDGE_MARGIN_DEFAULT;
+
 /* ---- fonts and glyph distance fields ---- */
 
 #define SDF_EM 64   /* distance field pixels per em (cap height ~45: upsampled smoothly at 8x) */
 #define SDF_PAD 16  /* field reaches this many of its pixels outside the outline (> one original pixel) */
 #define SDF_SCALE (127.0f / SDF_PAD)
+
+/* What an outlined glyph needs beside its body inside the box it is drawn
+ * in: the stroke, its anti-aliased edge (ui_text_edge_margin) and the
+ * embolden's growth (PS1 pixels at scale s, PS1 pixels per field pixel). */
+static float outline_room(const pc_ui_text_style* st, float s)
+{
+    float stroke = st->outline ? st->stroke : 0.0f;
+    return stroke + pc_ui_text_edge_margin + fmaxf(st->embolden, 0.0f) * SDF_EM * s;
+}
 
 typedef struct {
     char path[256];
@@ -669,6 +707,7 @@ typedef struct {
     float pen[LABEL_CHARS]; /* field pixels from the first glyph's origin */
     int count;
     float s, sx, cx_t, cx_s, base;
+    float sd;               /* the scale below the baseline (descenders squeezed into the box) */
     int disc;               /* a dot (LABEL_DOT): a disc, not letters */
     float disc_x, disc_y, disc_r;
     uint16_t outline;       /* CLUT colour of the original's outline (0: none) */
@@ -695,9 +734,12 @@ static int luma555(uint16_t c) { return (c & 31) * 299 + (c >> 5 & 31) * 587 + (
  * and place of the original dot's lettering, outlined like the labels. */
 #define LABEL_DOT "\xe2\x80\xa2"
 
-static int label_layout_make(const uint16_t* vram, unsigned clut, const pc_ui_label* l, label_layout* o)
+/* `region` (u0, v0, u1, v1): the texels the game draws the word in; with the
+ * label's own box it bounds where the word's ink (and its outline) may go. */
+static int label_layout_make(const uint16_t* vram, unsigned clut, const pc_ui_label* l, const int region[4],
+    label_layout* o)
 {
-    const pc_ui_text_style* st = &pc_ui_text_styles[PC_UI_TEXT_INFO];
+    const pc_ui_text_style* st = &pc_ui_text_styles[PC_UI_TEXT_LABELS];
     font_file* f = font_for(st->font);
     const uint16_t* lut = vram + (clut >> 6 & 511) * 1024 + (clut & 63) * 16;
     memset(o, 0, sizeof *o);
@@ -761,21 +803,23 @@ static int label_layout_make(const uint16_t* vram, unsigned clut, const pc_ui_la
         o->disc_r = fmaxf((float)(bx1 + 1 - bx0), (float)(by1 + 1 - top)) * 0.5f;
         return 1;
     }
-    /* The word in the font: pen positions with the font's advances and
-     * kerning, its ink extent and height above the baseline. */
-    float pen = 0, x0 = 1e9f, x1 = -1e9f, height = 0;
+    /* The word in the font: pen positions with the font's advances, kerning
+     * and the style's tracking, its ink extent, height above the baseline
+     * and depth below it. */
+    float pen = 0, x0 = 1e9f, x1 = -1e9f, height = 0, depth = 0;
     int previous = 0;
     for (const char* c = l->text; *c; c++) {
         int index = stbtt_FindGlyphIndex(&f->info, (unsigned char)*c);
         if (previous && index)
-            pen += stbtt_GetGlyphKernAdvance(&f->info, previous, index) * f->scale;
+            pen += stbtt_GetGlyphKernAdvance(&f->info, previous, index) * f->scale + st->tracking * SDF_EM;
         if (*c != ' ') {
-            const glyph_field* g = field(PC_UI_TEXT_INFO, (unsigned char)*c);
+            const glyph_field* g = field(PC_UI_TEXT_LABELS, (unsigned char)*c);
             if (!g || o->count == LABEL_CHARS)
                 return 0;
             o->glyph[o->count] = g;
             o->pen[o->count++] = pen;
             x0 = fminf(x0, pen + g->x0), x1 = fmaxf(x1, pen + g->x1), height = fmaxf(height, g->top);
+            depth = fmaxf(depth, -g->bottom);
         }
         int advance, bearing;
         stbtt_GetGlyphHMetrics(&f->info, index, &advance, &bearing);
@@ -785,14 +829,43 @@ static int label_layout_make(const uint16_t* vram, unsigned clut, const pc_ui_la
     if (!o->count || height <= 0 || x1 <= x0)
         return 0;
     /* Its height is the original's (cap top to baseline, or the tallest
-     * letter's top), its width the font's own, condensed only where the
-     * word would leave the original's body. */
-    o->s = (o->base - top) / height;
-    o->sx = o->s * st->stretch;
-    float room = (float)(bx1 + 1 - bx0);
-    if ((x1 - x0) * o->sx > room)
-        o->sx = room / (x1 - x0);
-    o->cx_t = (bx0 + bx1 + 1) * 0.5f, o->cx_s = (x0 + x1) * 0.5f;
+     * letter's top) times the style's size, grown about its middle, its
+     * width the font's own; condensed where the word, its outline and that
+     * outline's anti-aliased edge would leave the room the original word has
+     * (its box within the texels drawn: whatever the font, no ink is cut at
+     * the box's edges), smaller where it would leave the box's rows. */
+    float cap = o->base - (float)top, mid = o->base - cap * 0.5f;
+    float s0 = cap / height, margin = pc_ui_text_edge_margin;
+    float size = st->size > 0.1f ? st->size : 0.1f;
+    float lo_u = 0, hi_u = 0, hi_v = 0;
+    /* The field's distances are scaled by the smaller of the two scales, so
+     * the outline is wider along the larger one (sx / s across a stretched
+     * word, s / sx down a condensed one): each pass fits the word with the
+     * ratios the previous one left (they only shrink: the last fit holds). */
+    o->s = s0 * size, o->sx = o->s * st->stretch;
+    for (int pass = 0; pass < 3; pass++) {
+        float edge = outline_room(st, fmaxf(o->s, s0)) - margin;
+        float down = pass && o->sx < o->s ? o->s / o->sx : 1.0f, across = o->sx > o->s ? o->sx / o->s : 1.0f;
+        float lo_v = (float)(l->v0 > region[1] ? l->v0 : region[1]) + edge * down + margin;
+        hi_v = (float)((l->v1 < region[3] ? l->v1 : region[3]) + 1) - edge * down - margin;
+        float half_room = fminf(mid - lo_v, hi_v - mid), fit = size;
+        if (cap * fit * 0.5f > half_room)
+            fit = fmaxf(half_room * 2.0f / cap, 0.1f);
+        o->s = fminf(o->s, s0 * fit);
+        o->sx = fminf(o->sx, o->s * st->stretch);
+        lo_u = (float)(l->u0 > region[0] ? l->u0 : region[0]) + edge * across + margin;
+        hi_u = (float)((l->u1 < region[2] ? l->u1 : region[2]) + 1) - edge * across - margin;
+        float room = fmaxf(hi_u - lo_u, 1.0f);
+        if ((x1 - x0) * o->sx > room)
+            o->sx = room / (x1 - x0);
+    }
+    o->base = mid + cap * (o->s / s0) * 0.5f;
+    o->sd = o->s;
+    if (depth * o->s > hi_v - o->base)
+        o->sd = hi_v > o->base ? (hi_v - o->base) / depth : 0.0f;
+    float half = (x1 - x0) * o->sx * 0.5f;
+    o->cx_t = fminf(fmaxf((bx0 + bx1 + 1) * 0.5f, lo_u + half), hi_u - half);
+    o->cx_s = (x0 + x1) * 0.5f;
     return 1;
 }
 
@@ -802,13 +875,14 @@ static int render_labels(const uint16_t* vram, unsigned tpage, unsigned clut, in
     int found[MAX_REGION_LABELS];
     int n = find_labels(vram, tpage, u0, v0, u1, v1, found);
     static label_layout layouts[MAX_REGION_LABELS];
+    int region[4] = { u0, v0, u1, v1 };
     for (int k = 0; k < n; k++)
-        if (!label_layout_make(vram, clut, &labels[found[k]], &layouts[k]))
+        if (!label_layout_make(vram, clut, &labels[found[k]], region, &layouts[k]))
             return 0;
     if (n <= 0)
         return 0;
-    const pc_ui_text_style* st = &pc_ui_text_styles[PC_UI_TEXT_INFO];
-    float bold = st->embolden * SDF_EM, inv = 1.0f / factor;
+    const pc_ui_text_style* st = &pc_ui_text_styles[PC_UI_TEXT_LABELS];
+    float bold = st->embolden * SDF_EM, inv = 1.0f / factor, stroke = st->outline ? st->stroke : 0.0f;
     int w = (u1 - u0 + 1) * factor, rows = (v1 - v0 + 1) * factor;
     for (int y = 0; y < rows; y++) {
         float yo = v0 + (y + 0.5f) * inv;
@@ -825,7 +899,10 @@ static int render_labels(const uint16_t* vram, unsigned tpage, unsigned clut, in
                 if (o->disc)
                     d = o->disc_r - hypotf(xo - o->disc_x, yo - o->disc_y); /* original pixels */
                 else {
-                    float fx = o->cx_s + (xo - o->cx_t) / o->sx, fy = (o->base - yo) / o->s;
+                    float up = o->base - yo, ks = up >= 0 ? o->s : o->sd;
+                    if (ks <= 0)
+                        continue;
+                    float fx = o->cx_s + (xo - o->cx_t) / o->sx, fy = up / ks;
                     for (int i = 0; i < o->count; i++) {
                         const glyph_field* g = o->glyph[i];
                         float gx = fx - o->pen[i];
@@ -833,12 +910,13 @@ static int render_labels(const uint16_t* vram, unsigned tpage, unsigned clut, in
                             continue;
                         d = fmaxf(d, distance_at(g, gx, fy));
                     }
-                    d = (d + bold) * fminf(o->s, o->sx); /* original pixels */
+                    d = (d + bold) * fminf(o->s, o->sx); /* original pixels (the squeeze below moves rows, not the edge) */
                 }
                 if (d <= best)
                     continue;
                 best = d;
-                texel = pc_ui_dist_texel(d, PC_UI_DIST_LABEL, o->outline_index, o->body_index, o->outline != 0);
+                texel = pc_ui_dist_texel(stroke_distance(d, stroke), PC_UI_DIST_LABEL, o->outline_index,
+                    o->body_index, o->outline != 0 && stroke > 0);
             }
             out[y * w + x] = texel;
         }
@@ -860,7 +938,7 @@ int pc_ui_text_classify(const uint16_t* vram, unsigned tpage, unsigned clut, int
     if (!identify(tpage, clut, u0, v0, u1, v1, &g)) {
         int found[MAX_REGION_LABELS];
         int n = find_labels(vram, tpage, u0, v0, u1, v1, found);
-        if (n > 0 && field(PC_UI_TEXT_INFO, 'H')) {
+        if (n > 0 && field(PC_UI_TEXT_LABELS, 'H')) {
             if (debug > 2) /* ROOD_UI_DEBUG=3: labels drawn from the font */
                 fprintf(stderr, "[ui] label %s%s: page %x clut %d,%d uv %d,%d..%d,%d\n", labels[found[0]].text,
                     n > 1 ? " ..." : "", tpage, (int)(clut & 63) * 16, (int)(clut >> 6 & 511), u0, v0, u1, v1);
@@ -1061,14 +1139,20 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
         return 0;
     }
     float s = height / cap; /* original pixels per field pixel */
-    float room = st->outline ? g.box_w - 2.0f : fmaxf((float)(box[2] - box[0]), (float)g.advance) + 0.5f;
+    /* Outlined: the ink, its outline and that outline's anti-aliased edge
+     * stay inside the box (a popup's: the wider quad it is drawn in), so
+     * nothing is cut at its edges. */
+    float box_w = g.popup && u0 == g.box_u && u1 - u0 + 1 > g.box_w ? (float)(u1 - u0 + 1) : (float)g.box_w;
+    float edge = st->outline ? outline_room(st, s) : 0.0f;
+    float room = st->outline ? fmaxf(box_w - 2.0f * edge, 1.0f)
+                             : fmaxf((float)(box[2] - box[0]), (float)g.advance) + 0.5f;
     if (g.style == PC_UI_TEXT_DIGITS && !bullet && st->aspect > 0) /* (a sign: the small digits' scale) */
         s = digit_scale(g.style, s, st->aspect, g.symbol ? g.ref_w + 0.5f : room);
     float sx = s * st->stretch;
     if ((f->x1 - f->x0) * sx > room)
         sx = room / (f->x1 - f->x0);
     /* Descenders squeezed into the box (the PS1 faces have none). */
-    float below = g.box_h - base - (st->outline ? 1.0f : 0.0f) - 0.1f, sd = s;
+    float below = g.box_h - base - (st->outline ? edge : 0.1f), sd = s;
     if (-f->bottom * s > below && below > 0)
         sd = below / -f->bottom;
     if (g.symbol) {
@@ -1089,9 +1173,13 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
             base = (float)box[3] + f->bottom * s;
     }
     float cx_t = (box[0] + box[2]) * 0.5f, cx_s = (f->x0 + f->x1) * 0.5f;
-    if (st->outline) { /* the ink keeps a pixel from the box's edges (the outline; neighbours overlap them) */
+    if (st->outline) { /* the ink keeps its outline's room from the box's edges (neighbours overlap them) */
+        /* Across, the outline is sx / s as wide (the distances are scaled by s). */
+        float side = sx > s ? (edge - pc_ui_text_edge_margin) * sx / s + pc_ui_text_edge_margin : edge;
+        if ((f->x1 - f->x0) * sx > box_w - 2.0f * side)
+            sx = fmaxf(box_w - 2.0f * side, 0.5f) / (f->x1 - f->x0);
         float half = (f->x1 - f->x0) * sx * 0.5f;
-        cx_t = fminf(fmaxf(cx_t, 1.0f + half), g.box_w - 1.0f - half);
+        cx_t = fminf(fmaxf(cx_t, side + half), box_w - side - half);
     }
     float pivot = base - height * 0.5f, bold = st->embolden * SDF_EM;
     /* The disc: centred on the original dot's ink, its radius. */
@@ -1107,7 +1195,8 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
     int lo = st->outline ? 2 : 1;
     if (hi < lo)
         hi = lo;
-    int mode = st->outline ? PC_UI_DIST_OUTLINED : PC_UI_DIST_RAMP;
+    float stroke = st->outline ? st->stroke : 0.0f;
+    int mode = stroke > 0 ? PC_UI_DIST_OUTLINED : PC_UI_DIST_RAMP;
     if (g.symbol && g.style == PC_UI_TEXT_DIGITS) {
         /* A sign from another CLUT (the info style's %): the digits'
          * colours (their CLUT, 832,223: the small 0's brightest inside its
@@ -1152,7 +1241,8 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
             float fx = cx_s + (xo - cx_t - shift) / sx;
             float d = bullet ? disc_r - hypotf(xo - disc_x, yo - disc_y) /* original pixels */
                              : (distance_at(f, fx, fy) + bold) * s;
-            out[y * w + x] = pc_ui_dist_texel(d, mode, lo, hi, mode == PC_UI_DIST_LABEL);
+            out[y * w + x] = pc_ui_dist_texel(stroke_distance(d, stroke), mode, lo, hi,
+                mode == PC_UI_DIST_LABEL && stroke > 0);
         }
     }
     ++stats.regions;
@@ -1183,7 +1273,7 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
  *   the printer's advance, or an overlap, starts another: columns);
  * - a segment starts where the game's first glyph's ink starts; each next
  *   pen is the previous pen + the font's advance, + its kerning or the font's
- *   space (widened, WORD_SPACE) for every space the game left (a gap of 3
+ *   space (widened: ui_text_word_space) for every space the game left (a gap of 3
  *   pixels or more, 6 each);
  * - it never runs ahead of the game: a glyph's ink ends at most SLACK
  *   pixels after the original glyph's ink (the font tightened where it is
@@ -1215,9 +1305,9 @@ const char* const pc_ui_text_bubble_align_names[2] = { "left", "centre" };
 #define SLACK 1.0f   /* PS1 pixels a glyph's ink may end after the original's */
 #define MIN_GAP 0.5f /* PS1 pixels at least between neighbours' ink on any row */
 #define DESCENT_ROWS 6 /* rows below the 12-pixel cell a glyph may reach */
-/* The font's space widened: the game's words stand a whole letter apart, and
- * at these sizes (8-pixel capitals) a text face's own space reads as none. */
-#define WORD_SPACE 1.5f
+/* The font's space is widened (pc_ui_text_word_space, ui_text_word_space:
+ * 1.5): the game's words stand a whole letter apart, and at these sizes
+ * (8-pixel capitals) a text face's own space reads as none. */
 
 int pc_ui_text_layout_on(int scale) { return pc_ui_text == PC_UI_TEXT_FONT && scale >= 1; }
 
@@ -1393,6 +1483,7 @@ typedef struct {
     unsigned drawn;
     float s, sx, base, pivot, slant, bold;
     int left, w, h, lo, hi;
+    float stroke; /* an outline this wide (PS1 pixels) of CLUT index 1, the ramp from lo inside (0: none) */
 } text_image;
 
 #define RUN_GLYPHS 1024
@@ -1538,7 +1629,7 @@ static void set_pens(run_glyph* const* line, int n, float slant, int mode, int s
                 if (spaces) {
                     int space = stbtt_FindGlyphIndex(&m->font->info, ' '), w, lsb;
                     stbtt_GetGlyphHMetrics(&m->font->info, space, &w, &lsb);
-                    pen += spaces * w * m->font->scale * fmaxf(q->sx, m->sx) * WORD_SPACE * k;
+                    pen += spaces * w * m->font->scale * fmaxf(q->sx, m->sx) * pc_ui_text_word_space * k;
                 } else if (q->font == m->font)
                     pen += stbtt_GetGlyphKernAdvance(&m->font->info, q->index, m->index) * m->font->scale
                          * (q->sx + m->sx) * 0.5f * k;
@@ -1815,12 +1906,16 @@ static uint64_t image_hash(const text_image* im)
     return h | 1;
 }
 
+static const text_image* status_image(int image);
 int pc_ui_text_image_key(int image, uint64_t* key, int* w, int* h)
 {
-    if (image < 0 || image >= image_count)
+    const text_image* im = status_image(image);
+    if (!im && (image < 0 || image >= image_count))
         return 0;
-    *key = image_hash(&images[image]);
-    *w = images[image].w, *h = images[image].h;
+    if (!im)
+        im = &images[image];
+    *key = image_hash(im);
+    *w = im->w, *h = im->h;
     return 1;
 }
 
@@ -1839,23 +1934,266 @@ static int draw_image(const text_image* im, int factor, uint32_t* out)
         return 0;
     int w = im->w * factor, rows = im->h * factor;
     float inv = 1.0f / factor;
+    int mode = im->stroke > 0 ? PC_UI_DIST_OUTLINED : PC_UI_DIST_RAMP;
     for (int y = 0; y < rows; y++) {
         float yo = (y + 0.5f) * inv;
         for (int x = 0; x < w; x++)
-            out[y * w + x] = pc_ui_dist_texel(image_distance(im, f, (x + 0.5f) * inv, yo), PC_UI_DIST_RAMP, im->lo,
-                im->hi, 0);
+            out[y * w + x] = pc_ui_dist_texel(stroke_distance(image_distance(im, f, (x + 0.5f) * inv, yo), im->stroke),
+                mode, im->lo, im->hi, 0);
     }
     return 1;
 }
 
+static const text_image* status_image(int image);
 int pc_ui_text_image_render(int image, int factor, uint32_t* out)
 {
+    const text_image* status = status_image(image);
+    if (status) {
+        if (!draw_image(status, factor, out)) {
+            ++stats.failed;
+            return 0;
+        }
+        ++stats.regions;
+        return 1;
+    }
     if (image < 0 || image >= image_count || !draw_image(&images[image], factor, out)) {
         ++stats.failed;
         return 0;
     }
     ++stats.regions;
     return 1;
+}
+
+/* ---- the battle's status words (pc_text_status) ----
+ *
+ * BATTLE.PRG prints its timing words (func_800958A4: TOO FAST!, FAST!,
+ * SLOW!, TOO SLOW!, and COOL!, GOOD!, ... for a well-timed chain) and the
+ * chain count (func_80095A4C: 3 CHAINS) with vs_battle_renderTextRawColor:
+ * a sprite per glyph (spaces too, blank) of the info style's capitals, in
+ * the game's colour, centred on a point. Its ROOD_PC hooks hand over the
+ * packets of each call; with ui_text font the string is set as one word in
+ * the status style (font, size, stretch, slant, embolden, stroke, tracking:
+ * settings), centred on the original glyphs' ink, and each glyph's
+ * sprite draws its glyph's image there (gpu_hw.c), above and below its
+ * 10-row box as the size needs. Colours, brightness, places, timing and
+ * motion stay the game's. */
+#define STATUS_STRINGS 16
+#define STATUS_GLYPHS 24
+#define STATUS_IMAGE_BASE (1 << 20) /* image ids: STATUS_IMAGE_BASE + string * STATUS_GLYPHS + glyph */
+typedef struct {
+    unsigned stamp; /* vsync it was printed at */
+    int count;
+    unsigned tpage;
+    struct {
+        const void* command; /* its sprite's command word */
+        int x, y, u, v, w;
+        unsigned clut;
+        int space;
+    } glyph[STATUS_GLYPHS];
+    unsigned generation; /* laid out for this style generation (0: not yet) */
+    int ok;
+    float dx[STATUS_GLYPHS], dy; /* each glyph's image's top-left from its sprite's */
+    text_image image[STATUS_GLYPHS];
+    char text[STATUS_GLYPHS + 1];
+    float extent[4], original[4]; /* laid-out and original ink (x0, y0, x1, y1) from the first sprite's place */
+} status_string;
+static status_string statuses[STATUS_STRINGS];
+static int status_next;
+static long status_glyphs_drawn; /* glyph quads handed to gpu_hw (RPC) */
+
+void pc_text_status(const void* first, const void* end)
+{
+    const uint32_t *w = first, *stop = end;
+    if (!w || !stop || stop <= w || stop - w > 8 * STATUS_GLYPHS)
+        return;
+    status_string* s = &statuses[status_next];
+    memset(s, 0, sizeof *s);
+    s->tpage = 12;
+    while (w + 1 < stop && s->count < STATUS_GLYPHS) {
+        unsigned len = w[0] >> 24, code = w[1] >> 24;
+        if (len && code == 0xe1)
+            s->tpage = w[1] & 0x7ff;
+        else if (len == 4 && (code & 0xfc) == 0x64 && w + 5 <= stop) {
+            s->glyph[s->count].command = w + 1;
+            s->glyph[s->count].x = (int16_t)(w[2] & 0xffff), s->glyph[s->count].y = (int16_t)(w[2] >> 16);
+            s->glyph[s->count].u = (int)(w[3] & 255), s->glyph[s->count].v = (int)(w[3] >> 8 & 255);
+            s->glyph[s->count].clut = w[3] >> 16, s->glyph[s->count].w = (int)(w[4] & 0xffff);
+            ++s->count;
+        }
+        w += 1 + len;
+    }
+    if (!s->count)
+        return;
+    s->stamp = call_now();
+    status_next = (status_next + 1) % STATUS_STRINGS;
+}
+
+static const text_image* status_image(int image)
+{
+    int i = image - STATUS_IMAGE_BASE;
+    if (i < 0 || i >= STATUS_STRINGS * STATUS_GLYPHS)
+        return NULL;
+    const status_string* s = &statuses[i / STATUS_GLYPHS];
+    return s->ok && i % STATUS_GLYPHS < s->count && !s->glyph[i % STATUS_GLYPHS].space ? &s->image[i % STATUS_GLYPHS]
+                                                                                       : NULL;
+}
+
+static int status_layout(const uint16_t* vram, status_string* s)
+{
+    const pc_ui_text_style* st = &pc_ui_text_styles[PC_UI_TEXT_STATUS];
+    font_file* f = font_for(st->font);
+    const glyph_field* cap = field(PC_UI_TEXT_STATUS, 'H');
+    if (!f || !cap || cap->top <= 0)
+        return 0;
+    int page_x = (int)(s->tpage & 15) * 64, prev = 0, n = 0;
+    float base = 0, height = 0, pen[STATUS_GLYPHS] = { 0 }, x = 0, top = 0, depth = 0;
+    float l0 = 1e9f, l1 = -1e9f, o0 = 1e9f, o1 = -1e9f, oy0 = 1e9f, oy1 = -1e9f;
+    float s0 = 0, sc = 0, sx = 0, track = 0;
+    const glyph_field* fl[STATUS_GLYPHS] = { 0 };
+    int hi[STATUS_GLYPHS] = { 0 }, chars = 0;
+    unsigned drawn[STATUS_GLYPHS] = { 0 };
+    int space_u, space_v, space_w;
+    int have_space = small_find(' ', &space_u, &space_v, &space_w);
+    for (int i = 0; i < s->count; i++) {
+        glyph_info g;
+        int box[4], u = s->glyph[i].u, v = s->glyph[i].v, w = s->glyph[i].w;
+        float rel = (float)(s->glyph[i].x - s->glyph[0].x);
+        if (have_space && u == space_u && v == space_v && w == space_w) {
+            s->glyph[i].space = 1;
+            int space = stbtt_FindGlyphIndex(&f->info, ' '), advance, bearing;
+            stbtt_GetGlyphHMetrics(&f->info, space, &advance, &bearing);
+            if (sx > 0)
+                x += advance * f->scale * sx * pc_ui_text_word_space + track;
+            prev = 0;
+            if (chars < STATUS_GLYPHS)
+                s->text[chars++] = ' ';
+            continue;
+        }
+        if (!identify(s->tpage, s->glyph[i].clut, u, v, u + w - 1, v + 9, &g) || g.style != PC_UI_TEXT_INFO
+            || !ink(vram, page_x, g.box_u, g.box_v, g.box_w, g.box_h, g.threshold, box))
+            return 0;
+        if (!n) { /* the original's cap height and baseline (its H), the scale */
+            int ref[4];
+            if (!ink(vram, page_x, g.ref_u, g.ref_v, g.ref_w, g.ref_h, g.threshold, ref) || ref[3] <= ref[1])
+                return 0;
+            base = (float)ref[3], height = (float)(ref[3] - ref[1]);
+            s0 = height / cap->top;
+            sc = s0 * (st->size > 0.1f ? st->size : 0.1f);
+            sx = sc * st->stretch;
+            track = st->tracking * SDF_EM * sx;
+        }
+        unsigned cp = st->small_caps ? upper(g.codepoint) : g.codepoint;
+        if (!(fl[i] = field(PC_UI_TEXT_STATUS, cp)))
+            return 0;
+        drawn[i] = cp;
+        int index = stbtt_FindGlyphIndex(&f->info, (int)cp), advance, bearing;
+        if (prev)
+            x += stbtt_GetGlyphKernAdvance(&f->info, prev, index) * f->scale * sx + track;
+        pen[i] = x;
+        l0 = fminf(l0, x + fl[i]->x0 * sx), l1 = fmaxf(l1, x + fl[i]->x1 * sx);
+        top = fmaxf(top, fl[i]->top), depth = fmaxf(depth, -fl[i]->bottom);
+        o0 = fminf(o0, rel + box[0]), o1 = fmaxf(o1, rel + box[2]);
+        oy0 = fminf(oy0, (float)box[1]), oy1 = fmaxf(oy1, (float)box[3]);
+        stbtt_GetGlyphHMetrics(&f->info, index, &advance, &bearing);
+        x += advance * f->scale * sx;
+        prev = index;
+        for (int yy = 0; yy < g.box_h; yy++)
+            for (int xx = 0; xx < g.box_w; xx++) {
+                int k = page_index(vram, page_x, g.box_u + xx, g.box_v + yy);
+                hi[i] = k > hi[i] ? k : hi[i];
+            }
+        if (chars < STATUS_GLYPHS)
+            s->text[chars++] = cp >= 0x20 && cp < 0x7f && cp != '"' && cp != '\\' ? (char)cp : '?';
+        ++n;
+    }
+    if (!n || l1 <= l0)
+        return 0;
+    /* Centred on the original's ink across, grown about its cap height's
+     * middle; each image the glyph with its stroke and edge around it. */
+    float shift = (o0 + o1 - l0 - l1) * 0.5f, mid = base - height * 0.5f;
+    float new_base = mid + height * (sc / s0) * 0.5f;
+    float stroke = st->outline ? st->stroke : 0.0f, pad = ceilf(stroke + 1.5f), bold = st->embolden * SDF_EM;
+    float t = floorf(new_base - top * sc - pad), b = ceilf(new_base + depth * sc + pad);
+    int lo = st->outline ? 2 : 1;
+    for (int i = 0; i < s->count; i++) {
+        if (s->glyph[i].space)
+            continue;
+        text_image* im = &s->image[i];
+        memset(im, 0, sizeof *im);
+        im->style = PC_UI_TEXT_STATUS;
+        im->drawn = drawn[i];
+        im->s = sc, im->sx = sx, im->base = new_base - t, im->pivot = mid - t;
+        im->slant = st->slant, im->bold = bold, im->stroke = stroke;
+        float lean_lo = fminf(0.0f, st->slant * (im->pivot - (b - t))), lean_hi = fmaxf(0.0f, st->slant * im->pivot);
+        im->left = (int)ceilf(-(fl[i]->x0 * sx + lean_lo) + pad);
+        im->w = im->left + (int)ceilf(fl[i]->x1 * sx + lean_hi + pad);
+        im->h = (int)(b - t);
+        im->lo = lo, im->hi = hi[i] > lo ? hi[i] : lo;
+        if (im->w <= 0 || im->w > 255 || im->h <= 0 || im->h > 255)
+            return 0;
+        s->dx[i] = shift + pen[i] - (float)(s->glyph[i].x - s->glyph[0].x) - (float)im->left;
+    }
+    s->dy = t;
+    s->extent[0] = shift + l0, s->extent[2] = shift + l1;
+    s->extent[1] = new_base - top * sc, s->extent[3] = new_base + depth * sc;
+    s->original[0] = o0, s->original[1] = oy0, s->original[2] = o1, s->original[3] = oy1;
+    return 1;
+}
+
+int pc_ui_text_status_quad(const uint16_t* vram, const void* command, int u, int v, int w, int h, unsigned tpage,
+    unsigned clut, pc_ui_text_quad* quad)
+{
+    if (pc_ui_text != PC_UI_TEXT_FONT || !vram || !command || h != 10)
+        return 0;
+    unsigned now = call_now();
+    for (int k = 1; k <= STATUS_STRINGS; k++) {
+        status_string* s = &statuses[(status_next - k + STATUS_STRINGS) % STATUS_STRINGS];
+        if (!s->count || now - s->stamp > CALL_AGE || (const char*)command < (const char*)s->glyph[0].command
+            || (const char*)command > (const char*)s->glyph[s->count - 1].command)
+            continue;
+        for (int i = 0; i < s->count; i++) {
+            if (s->glyph[i].command != command)
+                continue;
+            if (s->glyph[i].u != u || s->glyph[i].v != v || s->glyph[i].w != w || s->glyph[i].clut != clut
+                || (s->tpage & 0x19f) != (tpage & 0x19f))
+                return 0; /* another packet there since */
+            if (s->generation != pc_ui_text_generation) {
+                s->ok = status_layout(vram, s);
+                s->generation = pc_ui_text_generation;
+            }
+            if (!s->ok || s->glyph[i].space)
+                return 0;
+            const text_image* im = &s->image[i];
+            quad->image = STATUS_IMAGE_BASE + (int)(s - statuses) * STATUS_GLYPHS + i;
+            quad->x = s->dx[i], quad->y = s->dy, quad->k = 1.0f;
+            quad->w = im->w, quad->h = im->h, quad->row0 = 0, quad->row1 = im->h;
+            ++status_glyphs_drawn;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* The status words laid out lately (RPC ui_text status: tests). */
+static int status_json(char* out, int size)
+{
+    int used = snprintf(out, (size_t)size, "\"status_glyphs\":%ld,\"status\":[", status_glyphs_drawn), first = 1;
+    unsigned now = call_now();
+    for (int k = 1; k <= STATUS_STRINGS && used < size - 256; k++) {
+        const status_string* s = &statuses[(status_next - k + STATUS_STRINGS) % STATUS_STRINGS];
+        if (!s->count || !s->ok || now - s->stamp > CALL_AGE)
+            continue;
+        used += snprintf(out + used, (size_t)(size - used),
+            "%s{\"text\":\"%s\",\"x\":%d,\"y\":%d,\"vsync\":%u,\"extent\":[%.3f,%.3f,%.3f,%.3f],"
+            "\"original\":[%.3f,%.3f,%.3f,%.3f],\"scale\":%.4f}",
+            first ? "" : ",", s->text, s->glyph[0].x, s->glyph[0].y, s->stamp, s->extent[0], s->extent[1],
+            s->extent[2], s->extent[3], s->original[0], s->original[1], s->original[2], s->original[3],
+            s->image[0].s);
+        first = 0;
+    }
+    if (used < size)
+        used += snprintf(out + used, (size_t)(size - used), "]");
+    return used < size ? used : size - 1;
 }
 
 int pc_ui_text_lines_json(char* out, int size)
@@ -1911,9 +2249,10 @@ void pc_ui_text_warm(double budget_ms)
     clock_gettime(CLOCK_MONOTONIC, &t0);
     for (; style < PC_UI_TEXT_STYLES; style++, next = 0) {
         const pc_ui_text_style* st = &pc_ui_text_styles[style];
-        int count = style == PC_UI_TEXT_INFO ? 0x5b - 0x21 : style == PC_UI_TEXT_DIGITS ? 10 : 189;
+        int capitals = style == PC_UI_TEXT_INFO || style == PC_UI_TEXT_STATUS;
+        int count = capitals ? 0x5b - 0x21 : style == PC_UI_TEXT_DIGITS ? 10 : 189;
         for (; next < count; next++) {
-            unsigned cp = style == PC_UI_TEXT_INFO ? 0x21u + (unsigned)next
+            unsigned cp = capitals ? 0x21u + (unsigned)next
                         : style == PC_UI_TEXT_DIGITS ? '0' + (unsigned)next
                                                      : charset[next];
             if (!cp)
@@ -1928,7 +2267,112 @@ void pc_ui_text_warm(double budget_ms)
     }
 }
 
-/* ---- settings ---- */
+/* ---- settings ----
+ *
+ * Each style's fields (ui_text_<style>_<field>) and the tunables over them
+ * (ui_text_<name>) are settings: the settings file (re-read when it changes
+ * on disk), RPC ui_text and the panel set them; saved where they differ
+ * from the built-in values (STYLE_DEFAULTS, the tunables' defaults). */
+enum {
+    FIELD_FONT,
+    FIELD_STRETCH,
+    FIELD_SLANT,
+    FIELD_EMBOLDEN,
+    FIELD_ASPECT,
+    FIELD_SMALL_CAPS,
+    FIELD_OUTLINE,
+    FIELD_SIZE,
+    FIELD_STROKE,
+    FIELD_TRACKING,
+    FIELDS
+};
+static const struct {
+    const char* name;
+    size_t offset;
+    int integer; /* a flag (else a float clamped to lo..hi) */
+    float lo, hi;
+} fields[FIELDS] = {
+    { "font", 0, 0, 0, 0 },
+    { "stretch", offsetof(pc_ui_text_style, stretch), 0, 0.25f, 4.0f },
+    { "slant", offsetof(pc_ui_text_style, slant), 0, -1.0f, 1.0f },
+    { "embolden", offsetof(pc_ui_text_style, embolden), 0, -0.25f, 0.25f },
+    { "aspect", offsetof(pc_ui_text_style, aspect), 0, 0.0f, 1.0f },
+    { "small_caps", offsetof(pc_ui_text_style, small_caps), 1, 0, 1 },
+    { "outline", offsetof(pc_ui_text_style, outline), 1, 0, 1 },
+    { "size", offsetof(pc_ui_text_style, size), 0, 0.25f, 4.0f },
+    { "stroke", offsetof(pc_ui_text_style, stroke), 0, 0.0f, 4.0f },
+    { "tracking", offsetof(pc_ui_text_style, tracking), 0, -0.5f, 1.0f },
+};
+#define TUNABLES 3
+static const struct {
+    const char* name;
+    float* value;
+    float builtin, lo, hi;
+} tunables[TUNABLES] = {
+    { "word_space", &pc_ui_text_word_space, WORD_SPACE_DEFAULT, 0.5f, 4.0f },
+    { "edge_margin", &pc_ui_text_edge_margin, EDGE_MARGIN_DEFAULT, 0.0f, 2.0f },
+    { "popup_scale", &text_scale, 1.0f, 0.25f, 4.0f },
+};
+
+/* "ui_text_<style>_<field>": its style and field. */
+static int style_key(const char* key, int* style, int* which)
+{
+    if (strncmp(key, "ui_text_", 8))
+        return 0;
+    for (int i = 0; i < PC_UI_TEXT_STYLES; i++) {
+        size_t n = strlen(pc_ui_text_styles[i].name);
+        if (strncmp(key + 8, pc_ui_text_styles[i].name, n) || key[8 + n] != '_')
+            continue;
+        for (int k = 0; k < FIELDS; k++)
+            if (!strcmp(key + 9 + n, fields[k].name))
+                return *style = i, *which = k, 1;
+    }
+    return 0;
+}
+static int tunable_key(const char* key)
+{
+    for (int t = 0; t < TUNABLES && !strncmp(key, "ui_text_", 8); t++)
+        if (!strcmp(key + 8, tunables[t].name))
+            return t;
+    return -1;
+}
+static float tunable_parse(int t, const char* value)
+{
+    float v = strtof(value, NULL);
+    return isfinite(v) ? fminf(fmaxf(v, tunables[t].lo), tunables[t].hi) : tunables[t].builtin;
+}
+/* One field from a settings value (a path; 1 / 0, true / false, on / off; a
+ * number, clamped): 1 when it was understood. */
+static int field_set(pc_ui_text_style* st, int k, const char* value)
+{
+    if (k == FIELD_FONT) {
+        char path[256] = "";
+        if (sscanf(value, " %255[^\r\n]", path) != 1)
+            return 0;
+        snprintf(st->font, sizeof st->font, "%s", path);
+        return 1;
+    }
+    void* at = (char*)st + fields[k].offset;
+    if (fields[k].integer) {
+        char word[16] = "";
+        sscanf(value, "%15s", word);
+        *(int*)at = !strcmp(word, "1") || !strcmp(word, "true") || !strcmp(word, "on");
+        return 1;
+    }
+    char* end;
+    float v = strtof(value, &end);
+    if (end == value || !isfinite(v))
+        return 0;
+    *(float*)at = fminf(fmaxf(v, fields[k].lo), fields[k].hi);
+    return 1;
+}
+static int field_equal(const pc_ui_text_style* a, const pc_ui_text_style* b, int k)
+{
+    if (k == FIELD_FONT)
+        return !strcmp(a->font, b->font);
+    return !memcmp((const char*)a + fields[k].offset, (const char*)b + fields[k].offset, fields[k].integer ? sizeof(int)
+                                                                                                         : sizeof(float));
+}
 
 int pc_ui_text_setting(const char* key, const char* value)
 {
@@ -1966,34 +2410,32 @@ int pc_ui_text_setting(const char* key, const char* value)
                 pc_ui_text_layout = k;
         return 1;
     }
-    if (strncmp(key, "ui_text_", 8))
-        return 0;
-    for (int i = 0; i < PC_UI_TEXT_STYLES; i++) {
-        pc_ui_text_style* st = &pc_ui_text_styles[i];
-        size_t n = strlen(st->name);
-        if (strncmp(key + 8, st->name, n) || key[8 + n] != '_')
-            continue;
-        const char* field_name = key + 9 + n;
-        if (!strcmp(field_name, "font")) {
-            char path[256] = "";
-            if (sscanf(value, " %255[^\r\n]", path) == 1)
-                snprintf(st->font, sizeof st->font, "%s", path);
-        } else if (!strcmp(field_name, "stretch"))
-            st->stretch = strtof(value, NULL);
-        else if (!strcmp(field_name, "slant"))
-            st->slant = strtof(value, NULL);
-        else if (!strcmp(field_name, "embolden"))
-            st->embolden = strtof(value, NULL);
-        else if (!strcmp(field_name, "aspect"))
-            st->aspect = fminf(fmaxf(strtof(value, NULL), 0.0f), 1.0f);
-        else
-            return 0;
-        if (st->stretch < 0.25f || st->stretch > 4.0f)
-            st->stretch = 1.0f;
-        ++pc_ui_text_generation;
+    int style, which, t;
+    if (style_key(key, &style, &which)) {
+        pc_ui_text_style probe = pc_ui_text_styles[style];
+        if (field_set(&probe, which, value) && !field_equal(&probe, &pc_ui_text_styles[style], which)) {
+            pc_ui_text_styles[style] = probe;
+            ++pc_ui_text_generation; /* (only on a change: the settings file is re-read whole) */
+        }
+        return 1;
+    }
+    if ((t = tunable_key(key)) >= 0) {
+        float v = tunable_parse(t, value);
+        if (v != *tunables[t].value)
+            *tunables[t].value = v, ++pc_ui_text_generation;
         return 1;
     }
     return 0;
+}
+
+static void field_print(FILE* f, const pc_ui_text_style* st, int k)
+{
+    if (k == FIELD_FONT)
+        fputs(st->font, f);
+    else if (fields[k].integer)
+        fputs(*(const int*)((const char*)st + fields[k].offset) ? "1" : "0", f);
+    else
+        fprintf(f, "%g", (double)*(const float*)((const char*)st + fields[k].offset));
 }
 
 void pc_ui_text_settings_write(FILE* f)
@@ -2002,20 +2444,17 @@ void pc_ui_text_settings_write(FILE* f)
     fprintf(f, "ui_text_layout %s\n", pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0]);
     fprintf(f, "ui_text_bubble_align %s\n", pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0]);
     fprintf(f, "ui_text_overlay %s\n", pc_ui_text_overlay_names[pc_ui_text_overlay ? 1 : 0]);
-    /* Only what differs from the built-in choice. */
-    for (int i = 0; i < PC_UI_TEXT_STYLES; i++) {
-        const pc_ui_text_style *st = &pc_ui_text_styles[i], *d = &defaults[i];
-        if (strcmp(st->font, d->font))
-            fprintf(f, "ui_text_%s_font %s\n", st->name, st->font);
-        if (st->stretch != d->stretch)
-            fprintf(f, "ui_text_%s_stretch %g\n", st->name, st->stretch);
-        if (st->slant != d->slant)
-            fprintf(f, "ui_text_%s_slant %g\n", st->name, st->slant);
-        if (st->embolden != d->embolden)
-            fprintf(f, "ui_text_%s_embolden %g\n", st->name, st->embolden);
-        if (st->aspect != d->aspect)
-            fprintf(f, "ui_text_%s_aspect %g\n", st->name, st->aspect);
-    }
+    /* Only what differs from the built-in values. */
+    for (int i = 0; i < PC_UI_TEXT_STYLES; i++)
+        for (int k = 0; k < FIELDS; k++)
+            if (!field_equal(&pc_ui_text_styles[i], &defaults[i], k)) {
+                fprintf(f, "ui_text_%s_%s ", pc_ui_text_styles[i].name, fields[k].name);
+                field_print(f, &pc_ui_text_styles[i], k);
+                fputc('\n', f);
+            }
+    for (int t = 0; t < TUNABLES; t++)
+        if (*tunables[t].value != tunables[t].builtin)
+            fprintf(f, "ui_text_%s %g\n", tunables[t].name, (double)*tunables[t].value);
 }
 
 void pc_ui_text_get_stats(pc_ui_text_stats* s) { *s = stats; }
@@ -2037,12 +2476,22 @@ int pc_ui_text_json(char* out, int size)
                 loaded = &fonts[k];
         used += snprintf(out + used, (size_t)(size - used),
             "%s{\"name\":\"%s\",\"font\":\"%s\",\"loaded\":%s,\"stretch\":%g,\"slant\":%g,\"embolden\":%g,"
-            "\"aspect\":%g,\"small_caps\":%d,\"outline\":%d}",
+            "\"aspect\":%g,\"small_caps\":%d,\"outline\":%d,\"size\":%g,\"stroke\":%g,\"tracking\":%g}",
             i ? "," : "", st->name, st->font, !loaded ? "null" : loaded->ok ? "true" : "false", st->stretch, st->slant,
-            st->embolden, st->aspect, st->small_caps, st->outline);
+            st->embolden, st->aspect, st->small_caps, st->outline, st->size, st->stroke, st->tracking);
+    }
+    if (used < size) {
+        used += snprintf(out + used, (size_t)(size - used), "],\"tunables\":{");
+        for (int t = 0; t < TUNABLES && used < size; t++)
+            used += snprintf(out + used, (size_t)(size - used), "%s\"%s\":%g", t ? "," : "", tunables[t].name,
+                (double)*tunables[t].value);
     }
     if (used < size)
-        used += snprintf(out + used, (size_t)(size - used), "],\"labels_drawn\":[");
+        used += snprintf(out + used, (size_t)(size - used), "},");
+    if (used < size)
+        used += status_json(out + used, size - used);
+    if (used < size)
+        used += snprintf(out + used, (size_t)(size - used), ",\"labels_drawn\":[");
     for (int i = 0, first = 1; i < LABEL_COUNT && used < size; i++)
         if (labels_drawn[i >> 6] >> (i & 63) & 1) {
             used += snprintf(out + used, (size_t)(size - used), "%s\"%s\"", first ? "" : ",", labels[i].text);

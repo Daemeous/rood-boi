@@ -182,16 +182,19 @@ int pc_ft_json(const pc_ft_report* r, char* out, int size)
     if (size <= 0)
         return -1;
     PUT("{\"settings\":{\"enabled\":%d,\"cost\":\"%s\",\"flat\":%d,\"scale\":%g,\"prompt\":%d,"
-        "\"prompt_anchor\":%d,\"prompt_offset\":[%g,%g],\"prompt_scale\":%g},",
+        "\"prompt_anchor\":%d,\"prompt_offset\":[%g,%g],\"prompt_scale\":%g,\"prompt_hold\":%d},",
         c->enabled, c->cost >= 0 && c->cost < PC_FT_COST_MODES ? pc_ft_cost_names[c->cost] : "game", c->flat,
         (double)c->scale, r->prompt_on, r->prompt_anchor, (double)r->prompt_offset[0], (double)r->prompt_offset[1],
-        (double)r->prompt_scale);
+        (double)r->prompt_scale, r->prompt_hold);
     PUT("\"whose\":\"%s\",\"unlock\":%d,\"menu_bits\":%u,\"prompt\":%s,\"prompt_drawn\":%u,",
         whose_names[pc_ft_whose(c, s)], pc_ft_unlock(c, s), pc_ft_menu_bits(c, s), r->prompt ? "true" : "false",
         r->prompt_drawn);
-    PUT("\"prompt_box\":[%g,%g,%g,%g],\"picture\":[%g,%g,%g,%g],\"prompt_font\":\"%s\",", (double)r->prompt_box[0],
+    PUT("\"prompt_box\":[%g,%g,%g,%g],\"picture\":[%g,%g,%g,%g],\"prompt_font\":\"%s\",\"prompt_backdrop\":%s,"
+        "\"prompt_stroke\":%g,", (double)r->prompt_box[0],
         (double)r->prompt_box[1], (double)r->prompt_box[2], (double)r->prompt_box[3], (double)r->picture[0],
-        (double)r->picture[1], (double)r->picture[2], (double)r->picture[3], r->prompt_font ? "label" : "default");
+        (double)r->picture[1], (double)r->picture[2], (double)r->picture[3],
+        r->prompt_font ? "labels" : "default",
+        r->prompt_backdrop ? "true" : "false", (double)r->prompt_stroke);
     PUT("\"state\":{\"game\":%d,\"intro\":%d,\"warped\":%d,\"no_save\":%d,\"circle\":%d,\"here\":%d,"
         "\"event\":%d,\"busy\":%d,\"mask\":%u,\"mp\":%d},",
         s->game, s->intro, s->warped, s->no_save, s->circle, s->here, s->event, s->busy, s->mask, s->mp);

@@ -443,10 +443,31 @@ using magic until then. Nothing new reaches the memory card.
 | `qol_fast_travel_prompt` | 1 | the Travel prompt on a Circle |
 | `qol_fast_travel_prompt_anchor` | 2 | where in the game picture the prompt goes: 0-8, top left to bottom right (2 top right; older `qol_fast_travel_prompt_x` / `_y` lines are dropped) |
 | `qol_fast_travel_prompt_offset_x`, `qol_fast_travel_prompt_offset_y` | -0.025, 0.035 | moved from the anchor, fractions of the picture (+ right, down) |
-| `qol_fast_travel_prompt_scale` | 1 | the prompt's size (1: the modern menus' hints) |
+| `qol_fast_travel_prompt_scale` | 1 | the prompt's size (x `qol_fast_travel_prompt_size`) |
+| `qol_fast_travel_prompt_hold` | 8 | vsyncs the prompt stays after the field last offered travel (a field frame is 2 or 3; more in a heavy room) |
 
 System > Gameplay and System > Bindings in the modern menus, editor Graphics
 > Gameplay, RPC `fast_travel {set, press, audit}`.
+
+The prompt (modern UI only; the classic look draws none) is drawn like the
+HUD's own words: the Travel binding's icon and TRAVEL in the HUD labels'
+typography (settings `ui_text_labels_font`, `ui_text_labels_stretch`), both
+outlined, over the picture with no plate. Its look is settings:
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `qol_fast_travel_prompt_size` | 18 | the verb's size, layout units of 720 (x `qol_fast_travel_prompt_scale`) |
+| `qol_fast_travel_prompt_stroke` | 2.5 | the outline around the verb and the icon, layout units (0: none) |
+| `qol_fast_travel_prompt_color`, `qol_fast_travel_prompt_stroke_color` | `0.922 0.894 0.839 1`, `0 0 0 0.88` | red, green, blue, alpha (0..1) |
+| `qol_fast_travel_prompt_stretch` | 0 | the verb's horizontal scale (0: the HUD labels') |
+| `qol_fast_travel_prompt_backdrop` | 0 | 1: on the menus' hint plate again (`_pad_x` 12, `_pad_y` 6, `_border` 1) |
+| `ui_prompt_icon`, `ui_prompt_gap`, `ui_prompt_tracking` | 1.6, 9, 0.22 | an icon's height (x the text size), the icon-to-verb gap and the verb's tracking (em); the menus' hint bar shares them |
+
+Editor Graphics > Gameplay has them (Prompt backdrop, text size, outline,
+stretch, colours, icon size, gap, tracking), RPC `fast_travel {set:
+{prompt_backdrop, prompt_size, prompt_stroke}}`; `fast_travel` reports the
+prompt drawn (`prompt_box`, `prompt_font`, `prompt_backdrop`,
+`prompt_stroke`).
 
 ### Cross confirms (optional)
 
@@ -1231,7 +1252,8 @@ pixel's corner as the PS1 does, not one past the image (`pc_hw_set_flipped_uv`).
 | `ui_text_overlay` | `auto` | `auto`: while the window is finer than the internal resolution, text and button icons from fonts are drawn at the window's own resolution over the picture (below); `off`: into the picture at the internal resolution |
 | `ui_text_layout` | `line` | with `ui_text font`: `line` sets each string the game prints (talk bubbles, menus, the information box, the memory card screens) with the font's own spacing and kerning (below); `glyph`: each glyph in the original's 12-pixel cell at the game's advance, its descenders drawn whole below the cell |
 | `ui_text_bubble_align` | `centre` | with `ui_text_layout line`, talk bubbles only (menus and the information box stay left): `centre` centres each line within the original line's extent, `left` starts it where the game does |
-| `ui_text_<style>_font`, `_stretch`, `_slant`, `_embolden`, `_aspect` | the chosen fonts | per style (`dialogue`, `menu`, `info`, `digits`): a TrueType file (relative to the repository root), horizontal scale, added shear, distance-field offset in em (bolder > 0), and for `digits` the least share of the font's own width/height a digit size may be condensed to (0.78; 0: any); saved only when changed |
+| `ui_text_<style>_<field>` | the chosen fonts | per style (`dialogue`, `menu`, `info`, `digits`, `status`, `labels`; HUD typography below): `font` a TrueType file (relative to the repository root), `stretch` horizontal scale, `slant` added shear, `embolden` distance-field offset in em (bolder > 0), `aspect` for `digits` the least share of the font's own width/height a digit size may be condensed to (0.78; 0: any), `small_caps`, `outline` (the original is outlined), `size` (`status`, `labels`: cap height x the original's), `stroke` (outlined styles: the outline's width in PS1 pixels, 1), `tracking` (`status`, `labels`: letter spacing in em); saved only when they differ from the defaults |
+| `ui_text_word_space`, `ui_text_edge_margin`, `ui_text_popup_scale` | 1.5, 0.15, 1 | line layout's space (x the font's), the PS1 pixels an outline's anti-aliased edge keeps from the box the game draws it in, the battle number popups' size |
 | `ui_lines` | `joined` | 2D lines (GP0 0x40-0x5F: the map, the minimap, the targeting sphere, talk bubble outlines) at the internal resolution. `joined`: one PS1 pixel thick at any scale, joins closed, no light dots along outlines (below). `legacy`: the earlier one-pixel quads, for comparison |
 | `ui_outline_boost` | 0 | 2D lines (and vector bubble outlines) 0-3 output pixels thicker: a bolder inked look |
 | `ui_bubbles` | `original` | `original`: talk bubbles drawn from the game's packets. `vector`: each bubble the game builds drawn as one smooth shape, the emote bubbles over actors too (below) |
@@ -1275,7 +1297,8 @@ rectangle:
 | `menu` | menus, item and ability names, the information box (glyphs 0-188 of that page, 6-pixel fixed advance; menu rows come as 12 x 1 strips with a brightness gradient) | Asap Condensed Bold |
 | `info` | wide outlined capitals: RISK ZERO, NEXT, the map screen's BACK / ROTATION / ZOOM (field UI page (768, 0) rows 76-95, found through the game's own width and position tables, kept from when the field's overlay holds them so the map screen's overlay does not lose them; also digits, : / % + - in PLAY TIME, NEXT, map percentages) | Chakra Petch Bold |
 | `digits` | HUD numbers (HP, MP; old-style figures in two sizes and the small slash, row 0 of that page); the dot between current and maximum HP / MP is drawn as a disc of the original's size and place, outlined like the digits | Alegreya |
-| labels | words the game draws as images (below): HP, MP, COMMAND, MENU, INFORMATION, CAUTION, BATTLE MODE, ... | the `info` font |
+| `status` | the battle's timing and chain words (`BATTLE.PRG` `func_800958A4`: TOO FAST!, FAST!, SLOW!, TOO SLOW!, COOL!, GOOD!, ...; `func_80095A4C`: 3 CHAINS): the info style's capitals, set as whole words (below) | Chakra Petch Bold, as the labels |
+| `labels` | words the game draws as images (below): HP, MP, COMMAND, MENU, INFORMATION, CAUTION, BATTLE MODE, ... | Chakra Petch Bold |
 
 Each glyph is a signed distance field (64 pixels per em) made with stb_truetype
 (from Dear ImGui), a few each frame ahead of use once the option is on (about
@@ -1298,6 +1321,46 @@ advances (5 and 6) never touch. Its coverage is mapped through the original glyp
 of index 1 for the outlined styles), so palettes and the colour key are the
 game's. Characters a font lacks and the pictographs (button symbols,
 arrows, notes, stars) stay original.
+
+**HUD typography as settings.** Every style's fields and the tunables
+above are settings keys (`ui_text_status_size 1.5`,
+`ui_text_labels_stroke 1`, `ui_text_edge_margin 0.2`), read from the
+settings file and re-read when it changes on disk (about twice a second), so
+an edit shows on the next frames without a restart; saved only where they
+differ from the built-in values (`ui_text.c` `STYLE_DEFAULTS`, the
+tunables' defaults). Graphics > 2D / UI > Modern fonts > HUD typography
+edits any style live (a style picker, font file, size, stretch, tracking,
+embolden, stroke, slant, aspect, small capitals, outlined; word space, edge
+margin, popup scale). RPC `ui_text {style, <field>: value}` and
+`{word_space, edge_margin, popup_scale}` set them as the settings do; the
+reply reports `styles` (with `size`, `stroke`, `tracking`) and `tunables`.
+
+**Status words.** BATTLE.PRG prints its timing words and the chain count
+with `vs_battle_renderTextRawColor`: one sprite per glyph of the info style's
+capitals, centred on a point, in the game's colour. Two `ROOD_PC` hooks in
+`func_800958A4` and `func_80095A4C` (`PC_TEXT_STATUS`, `pc_text_status`)
+hand over each call's packets; with `ui_text font` the string is set as one
+word in the `status` style (the font's advances and kerning, `tracking`,
+`size` grown about the cap height's middle, `stretch`, `embolden`, a `stroke`
+wide outline), centred on the original glyphs' ink, and each glyph's sprite
+draws its glyph's image there (`gpu_hw.c` `status_rect`), above and below
+its 10-row box as the size needs. The defaults are the HUD labels' (HP, MP,
+RISK): Chakra Petch Bold at stretch 1.26 with the one-pixel outline, rather
+than each letter squeezed into its own narrow cell. Colours, brightness,
+places, timing and the slide in and out stay the game's. RPC `ui_text`
+reports `status` (each word laid out lately: its text, the first glyph's
+place, the laid-out and original ink extents) and `status_glyphs`.
+
+**Nothing cut at a box's edges.** The 2D path replaces only the texels of
+the box the game draws (a label's word, a glyph's cell, a popup's quad), so
+outlined text (labels, the info style, digits, the buff and stat popups:
+STR -up, Paralysis, STR +1, WEAPON HUMAN +1) is fitted with its outline and
+that outline's anti-aliased edge inside it: the ink keeps `stroke` +
+`ui_text_edge_margin` (0.15 PS1 pixels; + the embolden's growth) from the
+box's edges, condensed (or, at the top, smaller) where the room is less; a
+label's room is its box within the texels drawn, a popup digit's the
+8-pixel quad it is drawn in. `ui_text_smoke.py` renders every popup region
+alone and requires no ink in its outermost columns and rows.
 
 **Anti-aliased at any resolution.** The atlas does not hold a glyph's
 colours but its *distance texels* (`pc/src/ui_text.h`): the signed distance
@@ -1418,12 +1481,14 @@ place in its lettering colour with the labels' outline (the HUD's HP / MP
 dot is drawn the same way).
 A 2D region is drawn from the font when every word it touches still has its
 hash and all of its ink belongs to those words; the word is then set in the
-`info` font with its kerning, at the original's cap height and baseline
-(the commonest bottom of its letters, so descenders hang below), centred on
-its ink and condensed only where it would be wider, in the original's
-colours: the outline's CLUT colour (indices 1-3) and the lettering's (the
-brightest colour the word uses often; the PS1 bevel and banding are not
-kept: a font's letters do not fall on the original's rows), with the `info` style's one-pixel outline. Left original:
+`labels` style (its font with its kerning and `tracking`), at the original's
+cap height (times `size`) and baseline (the commonest bottom of its letters,
+so descenders hang below), centred on its ink and condensed only where it
+(with its outline) would leave the room the original word has, in the
+original's colours: the outline's CLUT colour (indices 1-3) and the
+lettering's (the brightest colour the word uses often; the PS1 bevel and
+banding are not kept: a font's letters do not fall on the original's rows),
+with the `labels` style's outline (`stroke`, one pixel). Left original:
 pictographs and icons (button symbols, SET / EQP on its button, the lock
 and key icons, the compass letters N S E W, drawn as rotated strips), the
 Japanese line on the field UI page, the + between status words, the save

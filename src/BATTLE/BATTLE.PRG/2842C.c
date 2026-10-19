@@ -2248,6 +2248,20 @@ void func_800957D0(int arg0, int arg1, int arg2)
     psx_store((u_int*)p, prim);
 }
 
+#ifdef ROOD_PC
+/* ui_text font (pc/src/ui_text.c): the status words' packets, set as words. */
+extern void pc_text_status(const void* first, const void* end) __attribute__((weak));
+#define PC_TEXT_STATUS(call)                                                     \
+    do {                                                                         \
+        void* pc_first = psx_get(((vs_scratch_t*)0x1F800000)->unk0);             \
+        call;                                                                    \
+        if (pc_text_status)                                                      \
+            pc_text_status(pc_first, psx_get(((vs_scratch_t*)0x1F800000)->unk0)); \
+    } while (0)
+#else
+#define PC_TEXT_STATUS(call) call
+#endif
+
 void func_800958A4(int x, int y, D_800F1BAC_t* p)
 {
     char* timing[] = { "$TOO   FAST!", "$FAST!", "", "$SLOW!", "$TOO   SLOW!" };
@@ -2271,11 +2285,13 @@ void func_800958A4(int x, int y, D_800F1BAC_t* p)
     }
 draw:
     if (p->unkC != 2) {
-        vs_battle_renderTextRawColor(timing[p->unkC], (x & 0xFFFF) | (y << 16),
-            colors[p->unkC], psx_get(((vs_scratch_t*)0x1F800000)->unk4) - 16);
+        PC_TEXT_STATUS(vs_battle_renderTextRawColor(timing[p->unkC],
+            (x & 0xFFFF) | (y << 16), colors[p->unkC],
+            psx_get(((vs_scratch_t*)0x1F800000)->unk4) - 16));
     } else {
-        vs_battle_renderTextRawColor(success[p->displayTextLen], (x & 0xFFFF) | (y << 16),
-            0x408040, psx_get(((vs_scratch_t*)0x1F800000)->unk4) - 16);
+        PC_TEXT_STATUS(vs_battle_renderTextRawColor(success[p->displayTextLen],
+            (x & 0xFFFF) | (y << 16), 0x408040,
+            psx_get(((vs_scratch_t*)0x1F800000)->unk4) - 16));
     }
 }
 
@@ -2293,8 +2309,8 @@ void func_80095A4C(int x, int y, D_800F1BAC_t* p)
     } else {
         sprintf(text, "$%d CHAINS", p->unkC);
     }
-    vs_battle_renderTextRawColor(text, (x & 0xFFFF) | (y << 16), 0x1040A0,
-        psx_get(((vs_scratch_t*)0x1F800000)->unk4) - 16);
+    PC_TEXT_STATUS(vs_battle_renderTextRawColor(text, (x & 0xFFFF) | (y << 16), 0x1040A0,
+        psx_get(((vs_scratch_t*)0x1F800000)->unk4) - 16));
 }
 
 void func_80095B70(int arg0) { D_800F2270 = arg0; }

@@ -92,7 +92,9 @@ import os
 import pathlib
 import shutil
 import subprocess
+import struct
 import sys
+import time
 
 import numpy as np
 from PIL import Image
@@ -990,10 +992,270 @@ def run_save(work, card, shots):
     log_clean(game, "save")
 
 
+# ---- HUD typography (settings ui_text_<style>_<field>; ui_text.c status words, labels, popups) ----
+
+PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4  # host pointers (the label pool)
+LABEL_SIZE = 24  # D_800F1BAC_t
+# Battle popups' regions as the game draws them (BATTLE.PRG): the status changes' words (func_80095258,
+# D_80068FAC: x, y, w; 12 rows, battle page, CLUT (976, 220)), a stat change's word, sign and digits
+# (func_80094E18, func_80094B0C), the equipment class words and small digits (func_8009695C).
+POPUP_WORDS = [(0, 64, 24), (24, 64, 20), (44, 64, 24), (224, 64, 16), (212, 76, 32), (68, 64, 40), (108, 64, 30),
+               (138, 64, 50), (188, 64, 36), (0, 76, 52), (52, 76, 30), (144, 88, 58), (120, 76, 60), (180, 76, 30),
+               (104, 88, 32), (0, 88, 16), (20, 88, 20), (40, 88, 30), (72, 88, 32), (102, 76, 16), (220, 100, 18),
+               (152, 52, 28), (180, 52, 40), (220, 52, 30), (216, 28, 28)]
+CLASS_WORDS = [(72, 160, 32), (76, 168, 28), (78, 176, 26), (78, 184, 26), (82, 192, 22), (82, 200, 22),
+               (82, 208, 22), (104, 160, 28), (104, 168, 26), (104, 176, 30), (104, 184, 36), (104, 192, 32),
+               (104, 200, 18), (144, 160, 30), (144, 168, 14), (144, 176, 18), (144, 184, 26), (144, 192, 26),
+               (144, 200, 22), (144, 208, 36)]
+CLUT_POPUP = (220 << 6) | (976 >> 4)
+CLUT_CLASSES = (223 << 6) | (848 >> 4)
+CLUT_INFO = (223 << 6) | (864 >> 4)
+
+
+def popup_regions():
+    """Every popup region: (name, page, CLUT, u0, v0, u1, v1)."""
+    out = [(f"word {u},{v}", BATTLE_PAGE, CLUT_POPUP, u, v, u + w - 1, v + 11) for u, v, w in POPUP_WORDS]
+    out += [(f"class {u},{v}", UI_PAGE, CLUT_CLASSES, u, v, u + w - 1, v + 7) for u, v, w in CLASS_WORDS]
+    out += [(f"sign {u}", UI_PAGE, CLUT_INFO, u, 76, u + 7, 85) for u in (154, 162)]
+    out += [(f"popup digit {d}", UI_PAGE, CLUT_DIGITS, 64 + 8 * d, 0, 71 + 8 * d, 11) for d in range(10)]
+    out += [(f"small digit {d}", UI_PAGE, CLUT_DIGITS, 6 * d, 0, 6 * d + 5, 9) for d in range(10)]
+    return out
+
+
+def check_popup_edges(game, work):
+    """Buff and stat popups (STR -up, Paralysis, STR +1, WEAPON HUMAN +1, ...): each region drawn from the font
+    alone (RPC ui_text render, 8 texels a PS1 pixel, every texel with any coverage) has no ink in its first or
+    last column or row: the text, its outline and that outline's anti-aliased edge stay inside the box the game
+    draws it in, nothing is cut at its edges."""
+    drawn, cut = 0, []
+    for name, page, clut, u0, v0, u1, v1 in popup_regions():
+        path = work / "edge.raw"
+        reply = game.call("ui_text", render=[page, clut, u0, v0, u1, v1], factor=8, path=str(path))["render"]
+        if not reply["ok"]:
+            continue
+        texels = np.fromfile(path, "<u2").reshape(reply["h"], reply["w"])
+        path.unlink()
+        drawn += 1
+        edges = {"left": texels[:, 0], "right": texels[:, -1], "top": texels[0], "bottom": texels[-1]}
+        touched = [k for k, e in edges.items() if (e != 0).any()]
+        if touched:
+            cut.append(f"{name} ({', '.join(touched)})")
+    check(drawn >= 40, f"popups: {drawn} popup regions drawn from the font")
+    check(not cut, f"popups: no ink at any region's edges ({len(cut)} cut: {cut[:8]})")
+
+
+def label(kind, actor=0, a=0, frame=10, c=0, e=0, text=b"", wait=-1):
+    """A D_800F1BAC_t record (BATTLE.PRG's popups): kind 4 timing words (c: TOO FAST!, FAST!, -, SLOW!, TOO
+    SLOW!), 5 the chain count (c chains), 1 a number (e >= 3: a stat change)."""
+    return struct.pack("<hhhhBBBBHBBhh4s", 0, 0, 0, wait, kind, actor, a, frame, c, e, len(text), 0, 0,
+                       text.ljust(4, b"\0"))
+
+
+class Popups:
+    """The battle popups' pool (D_800F1BAC): records written as the game would add them."""
+
+    def __init__(self, game):
+        self.g = game
+        self.sym = symbols()
+        self.pool = int.from_bytes(game.read(self.sym["D_800F1BAC"], PTR), "little")
+
+    def show(self, *records, vsyncs=3):
+        for _ in range(vsyncs):  # (each vsync: the records as written, drawn in the next frame)
+            self.g.write(self.pool, b"".join(records))
+            self.g.write(self.sym["D_800F227E"], struct.pack("<h", len(records)))
+            self.g.run(1)
+
+    def clear(self):
+        self.g.write(self.sym["D_800F227E"], struct.pack("<h", 0))
+        self.g.run(2)
+
+
+def status_words(game):
+    words = {}
+    for s in game.call("ui_text")["status"]:  # (newest first)
+        words.setdefault(s["text"], s)
+    return words
+
+
+def status_style(game):
+    return {st["name"]: st for st in game.call("ui_text")["styles"]}["status"]
+
+
+def wait_style(game, field, value, timeout=5.0):
+    """Until the status style's field has the value (the settings file is re-read twice a second)."""
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        game.run(2)
+        if abs(status_style(game)[field] - value) < 1e-6:
+            return True
+        time.sleep(0.1)
+    return False
+
+
+def word_box(image, scale, status, pad=2):
+    """A status word's laid-out extent in a picture of the game's 320 x 240 (scale: window pixels per PS1 pixel)."""
+    x0, y0, x1, y1 = status["extent"]
+    bx, by = status["x"], status["y"]
+    return (slice(max(int((by + y0 - pad) * scale), 0), int((by + y1 + pad) * scale)),
+            slice(max(int((bx + x0 - pad) * scale), 0), int((bx + x1 + pad) * scale)))
+
+
+def check_status_words(game, work, settings, shots):
+    """The battle's status words (SLOW!, 3 CHAINS: ui_text.c pc_text_status) in their own style, and its
+    settings changed live (the settings file re-read): an edit changes the drawing without a restart."""
+    pop = Popups(game)
+    slow, chains = label(4, c=3, frame=10), label(5, c=3, frame=10)
+    styles = {st["name"]: st for st in game.call("ui_text")["styles"]}
+    st, lab = styles["status"], styles["labels"]
+    check(st["font"] == lab["font"] and st["stretch"] == lab["stretch"] and st["stroke"] == lab["stroke"]
+          and st["outline"] == 1, f"status: the HUD labels' typography by default ({st['font']}, stretch "
+                                  f"{st['stretch']}, stroke {st['stroke']}; labels {lab['font']}, {lab['stretch']})")
+    game.call("graphics", ui_text="original")
+    pop.show(slow, chains)
+    check(not status_words(game) and game.call("ui_text")["status_glyphs"] == 0,
+          "status: ui_text original sets nothing")
+    original = np.asarray(Image.open(game.present_screenshot(work / "status-original.png")).convert("RGB")).astype(int)
+    game.call("graphics", ui_text="font")
+    pop.show(slow, chains)
+    words = status_words(game)
+    if not check("SLOW!" in words and "3 CHAINS" in words, f"status: SLOW! and 3 CHAINS set as words ({list(words)})"):
+        return
+    before = game.call("ui_text")["status_glyphs"]
+    pop.show(slow, chains)
+    check(game.call("ui_text")["status_glyphs"] > before, "status: their glyphs drawn from the status style")
+    font = np.asarray(Image.open(game.present_screenshot(work / "status-font.png")).convert("RGB")).astype(int)
+    scale = font.shape[1] / 320
+    for text, w in words.items():
+        o0, oy0, o1, oy1 = w["original"]
+        x0, y0, x1, y1 = w["extent"]
+        centre = abs((o0 + o1) - (x0 + x1)) / 2
+        check(centre <= 0.75, f"status {text}: centred where the game centres it ({centre:.2f} PS1 pixels off)")
+        check(0.85 <= (y1 - y0) / (oy1 - oy0) <= 1.4,
+              f"status {text}: the original's cap height at size 1 ({y1 - y0:.1f} vs {oy1 - oy0:.1f} PS1 pixels)")
+        box = word_box(font, scale, w)
+        diff = np.any(np.abs(font[box] - original[box]) > 24, axis=2)
+        check(diff.mean() > 0.05, f"status {text}: the picture changes there ({diff.mean():.2f} of the word's box)")
+    if shots:
+        Image.fromarray(np.concatenate([original, font], axis=1).astype(np.uint8)).save(shots / "status-words.png")
+    # Live: the settings file edited while the game runs (bigger, wider apart), then the defaults again.
+    settings.write_text("ui_text font\nui_text_status_size 1.5\nui_text_status_tracking 0.12\n")
+    check(wait_style(game, "size", 1.5) and wait_style(game, "tracking", 0.12),
+          f"settings: the status style takes the settings file's values without a restart ({status_style(game)})")
+    pop.show(slow, chains)
+    bigger = status_words(game)
+    big = np.asarray(Image.open(game.present_screenshot(work / "status-big.png")).convert("RGB")).astype(int)
+    if check("SLOW!" in bigger, "settings: SLOW! set again"):
+        a, b = words["SLOW!"]["extent"], bigger["SLOW!"]["extent"]
+        tall, wide = (b[3] - b[1]) / (a[3] - a[1]), (b[2] - b[0]) / (a[2] - a[0])
+        check(1.35 <= tall <= 1.65 and wide > tall, f"settings: SLOW! drawn 1.5 times as tall ({tall:.2f}) and wider "
+                                                     f"apart ({wide:.2f} as wide)")
+        box = word_box(big, scale, bigger["SLOW!"])
+        diff = np.any(np.abs(big[box] - font[box]) > 24, axis=2)
+        check(diff.mean() > 0.05, f"settings: the edit changes the picture ({diff.mean():.2f} of the word's box)")
+    if shots:
+        Image.fromarray(np.concatenate([font, big], axis=1).astype(np.uint8)).save(shots / "status-settings.png")
+    settings.write_text("ui_text font\nui_text_status_size 1\nui_text_status_tracking 0.02\n")
+    check(wait_style(game, "size", 1.0), "settings: back to the defaults")
+    # RPC ui_text sets a style's field as the settings key does.
+    game.call("ui_text", style="status", stroke=1.5)
+    check(abs(status_style(game)["stroke"] - 1.5) < 1e-6, "settings: RPC ui_text sets the status stroke")
+    game.call("ui_text", style="status", stroke=1)
+    pop.clear()
+
+
+def check_travel_prompt(game, work, shots):
+    """The Travel prompt (fast_travel_prompt.cpp, modern UI): over the picture like the HUD's words, in the HUD
+    labels' font with an outline and no plate (qol_fast_travel_prompt_backdrop 0); backdrop 1 puts the plate
+    back; the classic look draws none."""
+    ft = game.call("fast_travel")
+    if not check(not ft["why"], f"prompt: travel offered on the save room's Circle ('{ft['why']}')"):
+        return
+    game.call("button_prompts", button_prompts="auto")
+    game.call("button_prompts", device="playstation", variant=4)
+
+    def frames(vsyncs=20):
+        n = game.call("fast_travel")["prompt_drawn"]
+        game.run(vsyncs)
+        return game.call("fast_travel")["prompt_drawn"] - n
+
+    game.call("ui_menu", modern=False)
+    check(frames() == 0, "prompt: the classic look draws none")
+    game.call("ui_menu", modern=True)
+    check(frames() > 0, "prompt: drawn with the modern UI")
+    ft = game.call("fast_travel")
+    check(ft["prompt_backdrop"] is False, "prompt: no backdrop by default (qol_fast_travel_prompt_backdrop 0)")
+    check(ft["prompt_stroke"] > 0, f"prompt: outlined ({ft['prompt_stroke']:.1f} px)")
+    check(ft["prompt_font"] == "labels", f"prompt: in the HUD labels' font ({ft['prompt_font']})")
+
+    def shots_of(name):
+        """The picture with the prompt and without it (the same frame otherwise), and the prompt's box."""
+        game.call("fast_travel", set={"prompt": True})
+        game.run(6)
+        on = np.asarray(Image.open(game.present_screenshot(work / f"prompt-{name}.png")).convert("RGB")).astype(int)
+        box = [int(round(v)) for v in game.call("fast_travel")["prompt_box"]]
+        game.call("fast_travel", set={"prompt": False})
+        game.run(6)
+        off = np.asarray(Image.open(game.present_screenshot(work / f"prompt-{name}-off.png")).convert("RGB")).astype(int)
+        game.call("fast_travel", set={"prompt": True})
+        x0, y0, x1, y1 = box
+        if shots:
+            Image.fromarray(on[max(y0 - 20, 0):y1 + 20, max(x0 - 20, 0):x1 + 20].astype(np.uint8)).save(
+                shots / f"prompt-{name}.png")
+        return on[y0:y1, x0:x1], off[y0:y1, x0:x1]
+
+    def changed(on, off):
+        return np.any(np.abs(on - off) > 12, axis=2)
+
+    on, off = shots_of("bare")
+    bare = float(changed(on, off).mean()) if on.size else 0.0
+    check(0.05 < bare < 0.8, f"prompt: drawn over the picture, no plate ({bare:.2f} of its box changes)")
+    game.call("fast_travel", set={"prompt_backdrop": True})
+    # The plate is the menus' panel colour (the theme's, tinted per area), so where the room behind is
+    # already within a few levels of it (a dark corner) the plate changes nothing: measured against that
+    # known colour, not as a share of the whole box (which follows the room's lighting). The plate covers
+    # the box: every pixel the panel colour would change, it changes; its margins are the panel colour.
+    panel = np.array(list(bytes.fromhex(game.call("ui_menu")["theme"]["panel"][1:7])))
+    on, off = shots_of("plate")
+    k = game.call("fast_travel")["picture"][3] / 720
+    pad = int(12 * k)  # qol_fast_travel_prompt_pad_x (12 layout units)
+    visible = np.any(np.abs(off - panel) > 12, axis=2)  # where the room differs from the panel colour
+    covered = float(changed(on, off)[visible].mean()) if visible.mean() > 0.1 else 0.0
+    margin = on[3:-3, 3:pad - 4] if on.shape[0] > 6 and pad > 7 else on[:0]  # left of the icon's outline
+    edge = float(np.median(np.abs(margin - panel).max(axis=2))) if margin.size else 255.0
+    check(covered > 0.95 and covered > bare + 0.3 and edge <= 3
+          and game.call("fast_travel")["prompt_backdrop"] is True,
+          f"prompt: qol_fast_travel_prompt_backdrop 1 draws the plate ({covered:.2f} of the box's "
+          f"{visible.mean():.2f} that differs from the panel colour {panel.tolist()} changes; its margin "
+          f"{edge:.0f} levels from it)")
+    game.call("fast_travel", set={"prompt_backdrop": False})
+    game.call("ui_menu", modern=False)
+
+
+def run_hud(work, card, shots):
+    """The save room: the battle's popups and status words, the Travel prompt; settings changed live."""
+    copy = work / "card.mcd"
+    shutil.copyfile(card, copy)
+    settings = work / "settings.cfg"
+    game = launch(work, copy, "hud", {"ROOD_WINDOW": "960x720"}, checkpoint="save_room")
+    try:
+        game.call("graphics", interpolate=False, aa="off", ui_text="font")
+        game.run(4)
+        check_popup_edges(game, work)
+        check_status_words(game, work, settings, shots)
+        check_travel_prompt(game, work, shots)
+        game.call("graphics", ui_text="original")
+        game.run(4)
+    finally:
+        game.close()
+        settings.unlink(missing_ok=True)
+    log_clean(game, "hud")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--card", type=pathlib.Path, default=default_card())
     parser.add_argument("--shots", type=pathlib.Path)
+    parser.add_argument("--parts", help="only these, comma separated: bubble, emotes, hud, save, screens, overlay")
     args = parser.parse_args()
     card = args.card if args.card and args.card.exists() else None
     if args.shots:
@@ -1001,12 +1263,20 @@ def main():
     work = OUT / "ui-text"
     work.mkdir(parents=True, exist_ok=True)
     (work / "settings.cfg").unlink(missing_ok=True)
-    run_bubble(work, args.shots)
-    run_emotes(work, args.shots)
+    parts = set(args.parts.split(",")) if args.parts else {"bubble", "emotes", "hud", "save", "screens", "overlay"}
+    if "bubble" in parts:
+        run_bubble(work, args.shots)
+    if "emotes" in parts:
+        run_emotes(work, args.shots)
     if card:
-        run_save(work, card, args.shots)
-        run_screens(work, card, args.shots)
-        run_overlay(work, card, args.shots)
+        if "hud" in parts:
+            run_hud(work, card, args.shots)
+        if "save" in parts:
+            run_save(work, card, args.shots)
+        if "screens" in parts:
+            run_screens(work, card, args.shots)
+        if "overlay" in parts:
+            run_overlay(work, card, args.shots)
     else:
         print("note: no memory card: the talk bubble only")
     if failures:

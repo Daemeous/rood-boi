@@ -48,8 +48,9 @@ audit share the first):
           the keyboard shows Travel's key, not Select's PlayStation glyph);
           modern UI only (the classic look draws none); in a 16:9 window
           it sits in the game picture's upper right (inside the 4:3
-          picture, not over its side bars; the 16:9 picture too) in the
-          modern UI's label font, and moves with the anchor and offsets
+          picture, not over its side bars; the 16:9 picture too) in the HUD
+          labels' font, outlined, no plate (qol_fast_travel_prompt_backdrop 0), and moves with
+          the anchor and offsets
   settings (also) an old qol_fast_travel_prompt_x / _y (window fractions)
           is dropped for the anchor's default and not saved again
 On the pinned test card a case that cannot run its checks fails instead of
@@ -248,7 +249,7 @@ def case_status(t, check, args):
     s = t.ft()
     st = s["state"]
     check(s["settings"] == {"enabled": 1, "cost": "free", "flat": 15, "scale": 0.5, "prompt": 1, "prompt_anchor": 2,
-                            "prompt_offset": [-0.025, 0.035], "prompt_scale": 1},
+                            "prompt_offset": [-0.025, 0.035], "prompt_scale": 1, "prompt_hold": 8},
           f"status: defaults {s['settings']}")
     check(s["whose"] == "port" and s["unlock"] == 1 and st["game"] == 0,
           f"status: the port's unlock ({s['whose']}, unkB5 {st['game']})")
@@ -959,15 +960,18 @@ def drawn(t, vsyncs=20):
 
 
 def placed(t, check):
-    """The plate in the game picture's upper right (not the window's: a 4:3 picture in a 16:9 window has side
-    bars), in the modern UI's label font; a bottom-left anchor moves it there; the settings' defaults."""
+    """The prompt in the game picture's upper right (not the window's: a 4:3 picture in a 16:9 window has side
+    bars), in the HUD labels' font, outlined, no plate; a bottom-left anchor moves it there; the settings'
+    defaults."""
     g = t.g
     s = t.ft()
     st = s["settings"]
     check(st["prompt_anchor"] == 2 and abs(st["prompt_offset"][0] + 0.025) < 1e-6
           and abs(st["prompt_offset"][1] - 0.035) < 1e-6 and st["prompt_scale"] == 1,
           f"prompt: the defaults, the top right anchor and its offsets ({st})")
-    check(s["prompt_font"] == "label", f"prompt: drawn in the modern UI's label font ({s['prompt_font']})")
+    check(s["prompt_font"] == "labels", f"prompt: drawn in the HUD labels' font ({s['prompt_font']})")
+    check(s["prompt_backdrop"] is False and s["prompt_stroke"] > 0,
+          f"prompt: no plate, outlined (backdrop {s['prompt_backdrop']}, stroke {s['prompt_stroke']})")
 
     def where():
         g.run(4)

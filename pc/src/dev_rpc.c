@@ -1384,6 +1384,15 @@ static void handle_method(int fd, const char* request)
                 pc_qol_fast_travel_prompt_offset_y = (float)real;
             if (real_value(member(set, "prompt_scale"), &real) && real >= 0.1 && real <= 4)
                 pc_qol_fast_travel_prompt_scale = (float)real;
+            if (number_value(member(set, "prompt_hold"), &n) && n >= 1 && n <= 600)
+                pc_qol_fast_travel_prompt_hold = (int)n;
+            /* its look (as the settings qol_fast_travel_prompt_backdrop, _size, _stroke) */
+            if (bool_value(member(set, "prompt_backdrop"), &flag))
+                pc_qol_fast_travel_prompt_backdrop = flag;
+            if (real_value(member(set, "prompt_size"), &real) && real >= 4 && real <= 96)
+                pc_qol_fast_travel_prompt_size = (float)real;
+            if (real_value(member(set, "prompt_stroke"), &real) && real >= 0 && real <= 20)
+                pc_qol_fast_travel_prompt_stroke = (float)real;
         }
         if (params && bool_value(member(params, "press"), &press) && press && pc_fast_travel_press)
             pc_fast_travel_press();
@@ -2137,25 +2146,43 @@ static void handle_method(int fd, const char* request)
         reply(fd, id, result);
     } else if (!strcmp(method, "ui_text")) {
         /* ui_text.h: the option, its styles (font, placement), fonts loaded,
-         * glyph fields made, regions and labels drawn; {style, font, stretch,
-         * slant, embolden, aspect} changes a style (as the settings keys do). */
+         * glyph fields made, regions and labels drawn, the status words laid
+         * out; {style, font, stretch, slant, embolden, aspect, small_caps,
+         * outline, size, stroke, tracking} changes a style and {word_space,
+         * edge_margin, popup_scale} a tunable, as the settings keys do. */
         char style[32], text[300];
         if (params && string_value(member(params, "style"), style, sizeof style)) {
-            static const char* const keys[5] = { "font", "stretch", "slant", "embolden", "aspect" };
+            static const char* const keys[] = { "font", "stretch", "slant", "embolden", "aspect", "small_caps",
+                "outline", "size", "stroke", "tracking" };
             int known = 0;
             for (int i = 0; i < PC_UI_TEXT_STYLES; i++)
                 known |= !strcmp(style, pc_ui_text_styles[i].name);
             if (!known) {
-                fail(fd, id, -32602, "style: dialogue, menu, info or digits");
+                fail(fd, id, -32602, "style: dialogue, menu, info, digits, status or labels");
                 return;
             }
-            for (int k = 0; k < 5; k++) {
+            for (int k = 0; k < (int)(sizeof keys / sizeof keys[0]); k++) {
                 char key[64];
                 double value;
+                int flag;
                 snprintf(key, sizeof key, "ui_text_%s_%s", style, keys[k]);
                 if (k == 0 && string_value(member(params, "font"), text, sizeof text))
                     pc_ui_text_setting(key, text);
+                else if (k && bool_value(member(params, keys[k]), &flag))
+                    pc_ui_text_setting(key, flag ? "1" : "0");
                 else if (k && real_value(member(params, keys[k]), &value)) {
+                    snprintf(text, sizeof text, "%.6g", value);
+                    pc_ui_text_setting(key, text);
+                }
+            }
+        }
+        {
+            static const char* const tunables[] = { "word_space", "edge_margin", "popup_scale" };
+            for (int k = 0; k < 3; k++) {
+                double value;
+                char key[64];
+                if (params && real_value(member(params, tunables[k]), &value)) {
+                    snprintf(key, sizeof key, "ui_text_%s", tunables[k]);
                     snprintf(text, sizeof text, "%.6g", value);
                     pc_ui_text_setting(key, text);
                 }

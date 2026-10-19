@@ -2641,9 +2641,49 @@ int pc_hw_text_quad(const float* xy, const int* uv, const int* rgb, unsigned cod
     return 1;
 }
 
+/* A battle status word's glyph sprite (ui_text.c pc_text_status: SLOW!,
+ * 3 CHAINS): drawn as itself tagged TEXT_TAG_GLYPH, then as its glyph's
+ * image where the word is set, tagged for both layouts (the word is set the
+ * same either way); 1 when it was one. */
+static int status_rect(int x, int y, int w, int h, int u, int v, unsigned rgb, unsigned code, unsigned tpage,
+    unsigned clut, unsigned window, const int* clip, int mask_set, int mask_check)
+{
+    pc_ui_text_quad q;
+    if (!pc_ui_text_status_quad(native_vram, &pc_gpu_command ? pc_gpu_command : NULL, u, v, w, h, tpage, clut, &q))
+        return 0;
+    triangle_tag = TEXT_TAG_GLYPH;
+    rect_triangles(x, y, w, h, u, v, rgb, code, tpage, clut, window, clip, mask_set, mask_check);
+    triangle_tag = 0;
+    int found = pc_ui_upscale_lookup_image(q.image, pc_hw_scale, text_offset);
+    if (found < 0) { /* the atlas is full: as pc_hw_triangle does */
+        flush();
+        pc_ui_upscale_reset();
+        forget_recordings();
+        found = pc_ui_upscale_lookup_image(q.image, pc_hw_scale, text_offset);
+    }
+    if (found > 0) {
+        text_piece p;
+        memset(&p, 0, sizeof p);
+        p.info = (pc_ui_text_piece_info){ (float)x, (float)y, 1.0f, u, v, h, tpage, clut,
+            { clip[0], clip[1], clip[2], clip[3] } };
+        p.rgb = rgb, p.code = code, p.window = window, p.mask_set = mask_set, p.mask_check = mask_check;
+        text_bounds[0] = text_bounds[1] = 0, text_bounds[2] = q.w, text_bounds[3] = q.h;
+        float x0 = (float)x + q.x, y0 = (float)y + q.y;
+        for (int tag = 0; tag < 2; tag++) {
+            triangle_tag = tag ? TEXT_TAG_LINE : TEXT_TAG_CELL;
+            text_quad(x0, y0, x0 + q.w * q.k, y0 + q.h * q.k, 0, 0, q.w, q.h, 1, &p);
+        }
+        triangle_tag = 0;
+    }
+    return 1;
+}
+
 void pc_hw_rect(int x, int y, int w, int h, int u, int v, unsigned rgb, unsigned code,
     unsigned tpage, unsigned clut, unsigned window, const int* clip, int mask_set, int mask_check)
 {
+    if (!text_emitting && pc_hw_active && !pc_hw_suppress && (code & 4) && pc_ui_text_layout_on(pc_hw_scale)
+        && status_rect(x, y, w, h, u, v, rgb, code, tpage, clut, window, clip, mask_set, mask_check))
+        return;
     if (!text_emitting && pc_hw_active && !pc_hw_suppress && (code & 4) && pc_ui_text_layout_on(pc_hw_scale)
         && pc_ui_text_piece(native_vram, tpage, clut, u, v, w, h)) {
         pc_ui_text_piece_info info = { (float)x, (float)y, 1.0f, u, v, h, tpage, clut,

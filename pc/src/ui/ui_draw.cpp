@@ -20,6 +20,9 @@ extern "C" int pc_gte_widescreen;
 extern "C" unsigned pc_vsync_count(void) __attribute__((weak));
 // gpu_hw.c: the presented picture is the Ashley tab's model view (the presenter shows the world behind it)
 extern "C" int pc_hw_present_menu_model(void) __attribute__((weak));
+// button prompts' look (project_settings.cpp ui_prompt_*), shared with the Travel prompt
+extern "C" float pc_ui_prompt_icon __attribute__((weak)), pc_ui_prompt_gap __attribute__((weak)),
+    pc_ui_prompt_tracking __attribute__((weak));
 
 namespace uidraw {
 
@@ -446,19 +449,25 @@ void drag_model(const Pointer& m, const float r[4])
     d.x = m.x, d.y = m.y;
 }
 
+// A hint's icon (x the text size), its gap to the verb and the verb's tracking: settings ui_prompt_icon, _gap,
+// _tracking (project_settings.cpp; the Travel prompt shares them). Probes without the settings: their defaults.
+float prompt_icon() { return &pc_ui_prompt_icon ? std::fmin(std::fmax(pc_ui_prompt_icon, 0.5f), 4.0f) : 1.6f; }
+float prompt_gap() { return &pc_ui_prompt_gap ? std::fmin(std::fmax(pc_ui_prompt_gap, 0.0f), 200.0f) : 9.0f; }
+float prompt_tracking() { return &pc_ui_prompt_tracking ? pc_ui_prompt_tracking : 0.22f; }
+
 // Hints (bottom right, the main session's prompt icons and our own verbs) and
 // the crumb (bottom left).
 void draw_footer(const Frame& f, const ui::Theme& t, const ScreenOut& out, bool held, Pointer& m)
 {
-    float hx = f.W - t.margin_x, hy = 720 - 40, icon = t.hint_size * 1.6f, cy = hy + t.hint_size * 0.5f;
+    float hx = f.W - t.margin_x, hy = 720 - 40, icon = t.hint_size * prompt_icon(), cy = hy + t.hint_size * 0.5f;
     unsigned col = held ? t.dim : t.ash;
     for (int i = out.hint_count - 1; i >= 0; --i) {
         const Hint& h = out.hints[i];
         // a hint without a verb is an icon of the group on its right ("○ △ □ SET ON THAT BUTTON")
         std::string verb = upper(h.verb);
         float right = hx;
-        float vw = verb.empty() ? 0 : measure(f, fonts.label, t.hint_size, verb.c_str(), 0.22f);
-        float sp = verb.empty() ? 0 : 9;
+        float vw = verb.empty() ? 0 : measure(f, fonts.label, t.hint_size, verb.c_str(), prompt_tracking());
+        float sp = verb.empty() ? 0 : prompt_gap();
         float gw1 = h.b1 >= 0 ? glyph(f, h.b1, icon, 0, 0, true) : 0;
         float gw0 = glyph(f, h.b0, icon, 0, 0, true);
         float left = hx - vw - sp - gw1 - (gw1 > 0 ? 3 : 0) - gw0;
@@ -468,7 +477,7 @@ void draw_footer(const Frame& f, const ui::Theme& t, const ScreenOut& out, bool 
             m.hit(PC_UI_MOUSE_BUTTON, (int)h.bits, left - 4, hy - 8, right + 4, hy + t.hint_size + 8);
         hx -= vw;
         if (!verb.empty())
-            text(f, fonts.label, t.hint_size, hx, hy, c, verb.c_str(), 0.22f);
+            text(f, fonts.label, t.hint_size, hx, hy, c, verb.c_str(), prompt_tracking());
         hx -= sp;
         if (h.b1 >= 0) {
             hx -= gw1;

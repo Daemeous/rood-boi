@@ -101,9 +101,24 @@ int pc_qol_confirm_cross, pc_qol_field_cross_attack;
  * 1 top, 2 top right (default), 3 left, 4 centre, 5 right, 6 bottom left, 7
  * bottom, 8 bottom right; the plate's same corner or edge goes there), moved
  * by offset_x / _y (fractions of the picture's width / height, + right and
- * down), and its size (1: the menus' button hints). */
+ * down), its size (x qol_fast_travel_prompt_size), and how many vsyncs it stays
+ * after the field last offered travel (qol_fast_travel_prompt_hold, 8). */
 int pc_qol_fast_travel = 1, pc_qol_fast_travel_cost = 0, pc_qol_fast_travel_flat = 15, pc_qol_fast_travel_prompt = 1,
-    pc_qol_fast_travel_prompt_anchor = 2;
+    pc_qol_fast_travel_prompt_anchor = 2, pc_qol_fast_travel_prompt_hold = 8;
+/* The Travel prompt's look (fast_travel_prompt.cpp): drawn like the HUD's
+ * own words, the HUD labels' font (ui_text_labels_font), outlined, no plate
+ * unless qol_fast_travel_prompt_backdrop; sizes in the menus' layout units
+ * (720 high); colours red, green, blue, alpha 0..1; stretch 0: the HUD
+ * labels' (ui_text_labels_stretch). Button prompts' icon (x the text size),
+ * icon-to-verb gap and the verb's tracking (em), shared with the menus' hint
+ * bar (ui/ui_draw.cpp): ui_prompt_icon, ui_prompt_gap, ui_prompt_tracking. */
+int pc_qol_fast_travel_prompt_backdrop = 0;
+float pc_qol_fast_travel_prompt_size = 18, pc_qol_fast_travel_prompt_stroke = 2.5f,
+    pc_qol_fast_travel_prompt_stretch = 0, pc_qol_fast_travel_prompt_pad_x = 12, pc_qol_fast_travel_prompt_pad_y = 6,
+    pc_qol_fast_travel_prompt_border = 1;
+float pc_qol_fast_travel_prompt_color[4] = { 0.922f, 0.894f, 0.839f, 1.0f },
+    pc_qol_fast_travel_prompt_stroke_color[4] = { 0.0f, 0.0f, 0.0f, 0.88f };
+float pc_ui_prompt_icon = 1.6f, pc_ui_prompt_gap = 9, pc_ui_prompt_tracking = 0.22f;
 float pc_qol_fast_travel_scale = 0.5f, pc_qol_fast_travel_prompt_offset_x = -0.025f,
     pc_qol_fast_travel_prompt_offset_y = 0.035f, pc_qol_fast_travel_prompt_scale = 1.0f;
 
@@ -319,6 +334,19 @@ const Entry entries[] = {
     F("qol_fast_travel_prompt_offset_x", pc_qol_fast_travel_prompt_offset_x), /* fractions of the picture */
     F("qol_fast_travel_prompt_offset_y", pc_qol_fast_travel_prompt_offset_y),
     F("qol_fast_travel_prompt_scale", pc_qol_fast_travel_prompt_scale),
+    I("qol_fast_travel_prompt_hold", pc_qol_fast_travel_prompt_hold), /* vsyncs after the last poll */
+    I("qol_fast_travel_prompt_backdrop", pc_qol_fast_travel_prompt_backdrop), /* the menus' hint plate */
+    F("qol_fast_travel_prompt_size", pc_qol_fast_travel_prompt_size), /* layout units */
+    F("qol_fast_travel_prompt_stroke", pc_qol_fast_travel_prompt_stroke), /* the outline (0: none) */
+    F("qol_fast_travel_prompt_stretch", pc_qol_fast_travel_prompt_stretch), /* 0: the HUD labels' */
+    F("qol_fast_travel_prompt_pad_x", pc_qol_fast_travel_prompt_pad_x), /* the plate's margins */
+    F("qol_fast_travel_prompt_pad_y", pc_qol_fast_travel_prompt_pad_y),
+    F("qol_fast_travel_prompt_border", pc_qol_fast_travel_prompt_border), /* the plate's rule */
+    FN("qol_fast_travel_prompt_color", pc_qol_fast_travel_prompt_color, 4), /* r g b a, 0..1 */
+    FN("qol_fast_travel_prompt_stroke_color", pc_qol_fast_travel_prompt_stroke_color, 4),
+    F("ui_prompt_icon", pc_ui_prompt_icon), /* x the text size */
+    F("ui_prompt_gap", pc_ui_prompt_gap), /* layout units */
+    F("ui_prompt_tracking", pc_ui_prompt_tracking), /* em */
     I("skip_intro", pc_skip_intro),
     I("ui_menus", pc_ui_menus),
     F("ui_menu_opacity", pc_ui_menu_opacity),

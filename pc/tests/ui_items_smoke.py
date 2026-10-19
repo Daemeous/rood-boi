@@ -888,6 +888,16 @@ def mouse_checks(b, check):
     def pointer(x, y, click=False):
         b.ui(pointer={"x": x, "y": y, "click": click})
         g.run(4)
+
+    def hover_until(x, y, ready, seconds=3):
+        """The menus glide in real time (ui_theme focus_grow), not in vsyncs, and a resumed save state runs
+        vsyncs far faster than that: hover (x, y) until what is under it is ready, then it can be clicked."""
+        deadline = time.monotonic() + seconds
+        while True:
+            pointer(x, y)
+            if ready() or time.monotonic() > deadline:
+                return
+            time.sleep(0.02)
     b.s_goto(MISC_C)
     for _ in range(80):
         if b.it().get("cursor") == 0:
@@ -903,6 +913,7 @@ def mouse_checks(b, check):
     acts = [x["id"] for x in m.get("actions") or []]
     top = row_top(r) + 52
     i = acts.index("discard") if "discard" in acts else 0
+    hover_until(X1 - 248 + 60, top + 10 + i * 30 + 15, lambda: b.it().get("action") == i)  # the popover in place
     pointer(X1 - 248 + 60, top + 10 + i * 30 + 15, True)
     m = b.it()
     check(m.get("mode") == "quantity", f"mouse: a click on the popover's Discard: the quantity picker "

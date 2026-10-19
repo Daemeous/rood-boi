@@ -1002,7 +1002,33 @@ static void gameplay_panel()
                           "picture's width and height (+ right and down).");
     ImGui::SliderFloat("Prompt size", &pc_qol_fast_travel_prompt_scale, 0.5f, 2.0f);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Settings qol_fast_travel_prompt_scale: 1 is the size of the menus' button hints.");
+        ImGui::SetTooltip("Settings qol_fast_travel_prompt_scale: x qol_fast_travel_prompt_size.");
+    ImGui::SliderInt("Prompt hold (vsyncs)", &pc_qol_fast_travel_prompt_hold, 1, 60);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Settings qol_fast_travel_prompt_hold: how long the prompt stays after the field last offered\n"
+                          "travel (a field frame is 2 or 3 vsyncs; more in a heavy room).");
+    // the prompt's look (settings; drawn like the HUD's words: ui_text_labels_font)
+    bool backdrop = pc_qol_fast_travel_prompt_backdrop != 0;
+    if (ImGui::Checkbox("Prompt backdrop", &backdrop))
+        pc_qol_fast_travel_prompt_backdrop = backdrop;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Settings qol_fast_travel_prompt_backdrop: on the menus' hint plate; off (default): over the\n"
+                          "picture like the HUD's own words, outlined.");
+    ImGui::SliderFloat("Prompt text size", &pc_qol_fast_travel_prompt_size, 8.0f, 48.0f, "%.1f");
+    ImGui::SliderFloat("Prompt outline", &pc_qol_fast_travel_prompt_stroke, 0.0f, 8.0f, "%.2f");
+    ImGui::SliderFloat("Prompt stretch", &pc_qol_fast_travel_prompt_stretch, 0.0f, 2.0f,
+        pc_qol_fast_travel_prompt_stretch > 0 ? "%.2f" : "the HUD labels'");
+    ImGui::ColorEdit4("Prompt colour", pc_qol_fast_travel_prompt_color);
+    ImGui::ColorEdit4("Prompt outline colour", pc_qol_fast_travel_prompt_stroke_color);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Settings qol_fast_travel_prompt_size, _stroke (layout units, 720 high), _stretch,\n"
+                          "_color, _stroke_color (r g b a, 0..1).");
+    ImGui::SliderFloat("Prompt icon size", &pc_ui_prompt_icon, 0.5f, 3.0f, "x%.2f");
+    ImGui::SliderFloat("Prompt gap", &pc_ui_prompt_gap, 0.0f, 30.0f, "%.1f");
+    ImGui::SliderFloat("Prompt tracking", &pc_ui_prompt_tracking, -0.1f, 0.5f, "%.3f");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Settings ui_prompt_icon (x the text size), ui_prompt_gap, ui_prompt_tracking (em): the\n"
+                          "Travel prompt's and the menus' button hints'.");
 }
 
 extern "C" void pc_memory_card_set_path(int slot, const char* path); /* memory_card.c */

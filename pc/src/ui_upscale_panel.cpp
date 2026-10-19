@@ -1,6 +1,7 @@
 // Editor: Graphics > "2D / UI" (ui_upscale.h): how 2D screen furniture (HUD,
 // menus, text, talk bubbles, icons) is sampled. Kept out of dev_overlay.cpp,
 // which only calls pc_ui_upscale_panel().
+#include <stdio.h>
 #include <string.h>
 #include "imgui.h"
 #include "ui_upscale.h"
@@ -10,6 +11,93 @@
 #include "ui/ui_shell.h"
 
 extern "C" int pc_hw_scale, pc_hw_active;
+
+namespace {
+// One setting, as a settings line would set it (saved with the settings).
+void set(const char* key, float value)
+{
+    char text[32];
+    snprintf(text, sizeof text, "%.4g", value);
+    pc_ui_text_setting(key, text);
+}
+
+// HUD typography: each style's fields and the tunables, as settings (ui_text_<style>_<field>, saved with the
+// settings file).
+void hud_typography()
+{
+    if (!ImGui::TreeNode("HUD typography"))
+        return;
+    static int style = PC_UI_TEXT_STATUS;
+    const char* names[PC_UI_TEXT_STYLES];
+    for (int i = 0; i < PC_UI_TEXT_STYLES; i++)
+        names[i] = pc_ui_text_styles[i].name;
+    ImGui::Combo("Style", &style, names, PC_UI_TEXT_STYLES);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("status: the battle's SLOW!, COOL!, 3 CHAINS (set as whole words). labels: words baked\n"
+                          "into the HUD's images (HP, MP, RISK, ...). info: the HUD's small capitals (RISK ZERO,\n"
+                          "NEXT). digits: the HUD's numbers. dialogue, menu: talk bubbles and menus.");
+    pc_ui_text_style& st = pc_ui_text_styles[style];
+    char key[64];
+    static char font[256];
+    static int font_style = -1;
+    if (font_style != style)
+        snprintf(font, sizeof font, "%s", st.font), font_style = style;
+    ImGui::InputText("Font file", font, sizeof font);
+    ImGui::SameLine();
+    if (ImGui::Button("Use")) {
+        snprintf(key, sizeof key, "ui_text_%s_font", st.name);
+        pc_ui_text_setting(key, font);
+    }
+    struct Field {
+        const char* name;
+        float* v;
+        float lo, hi;
+        const char* help;
+    } fields[] = {
+        { "size", &st.size, 0.5f, 2.0f, "status, labels: cap height x the original's" },
+        { "stretch", &st.stretch, 0.5f, 2.0f, "horizontal scale of the font's own proportions" },
+        { "tracking", &st.tracking, -0.1f, 0.3f, "status, labels: added letter spacing (em)" },
+        { "embolden", &st.embolden, -0.08f, 0.08f, "thicker (> 0) or thinner strokes (em)" },
+        { "stroke", &st.stroke, 0.0f, 3.0f, "outlined styles: the outline's width (PS1 pixels)" },
+        { "slant", &st.slant, -0.4f, 0.4f, "added shear" },
+        { "aspect", &st.aspect, 0.0f, 1.0f, "digits: least share of the font's own width" },
+    };
+    for (const Field& f : fields) {
+        float v = *f.v;
+        if (ImGui::SliderFloat(f.name, &v, f.lo, f.hi, "%.3f")) {
+            snprintf(key, sizeof key, "ui_text_%s_%s", st.name, f.name);
+            set(key, v);
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("ui_text_%s_%s: %s", st.name, f.name, f.help);
+    }
+    bool small = st.small_caps != 0, outline = st.outline != 0;
+    if (ImGui::Checkbox("Small capitals", &small)) {
+        snprintf(key, sizeof key, "ui_text_%s_small_caps", st.name);
+        pc_ui_text_setting(key, small ? "1" : "0");
+    }
+    ImGui::SameLine();
+    if (ImGui::Checkbox("Outlined", &outline)) {
+        snprintf(key, sizeof key, "ui_text_%s_outline", st.name);
+        pc_ui_text_setting(key, outline ? "1" : "0");
+    }
+    float word = pc_ui_text_word_space, margin = pc_ui_text_edge_margin, popup = pc_ui_text_scale();
+    if (ImGui::SliderFloat("Word space", &word, 0.5f, 3.0f, "%.2f"))
+        set("ui_text_word_space", word);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("ui_text_word_space: line layout's space, x the font's own");
+    if (ImGui::SliderFloat("Edge margin", &margin, 0.0f, 1.0f, "%.2f px"))
+        set("ui_text_edge_margin", margin);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("ui_text_edge_margin: PS1 pixels an outline's anti-aliased edge keeps from the box the\n"
+                          "game draws it in (nothing cut at its edges)");
+    if (ImGui::SliderFloat("Popup scale", &popup, 0.5f, 3.0f, "%.2f"))
+        set("ui_text_popup_scale", popup);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("ui_text_popup_scale: battle number popups (damage, heal, a stat change) x this");
+    ImGui::TreePop();
+}
+} // namespace
 
 extern "C" void pc_ui_upscale_panel(void)
 {
@@ -76,6 +164,7 @@ extern "C" void pc_ui_upscale_panel(void)
             const char* file = strrchr(pc_ui_text_styles[i].font, '/');
             ImGui::TextDisabled("  %-8s %s", pc_ui_text_styles[i].name, file ? file + 1 : pc_ui_text_styles[i].font);
         }
+        hud_typography();
     }
     static const char* line_modes[] = { "Legacy (gaps when upscaled)", "Joined (default)" };
     ImGui::Combo("Lines", &pc_ui_lines, line_modes, 2);
