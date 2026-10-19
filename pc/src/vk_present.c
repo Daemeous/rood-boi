@@ -308,6 +308,17 @@ static int make_pipelines(void)
 
 /* ---- window ---- */
 
+extern SDL_Window* pc_window_create(SDL_PropertiesID props); /* boot_window.c: kept across an engine reload */
+/* An engine reload (engine_reload.c): the device and everything on it, the
+ * surface and the instance go; the window stays for the next library. */
+void pc_vk_shutdown(void)
+{
+    if (!vk.instance)
+        return;
+    vk_core_teardown(surface);
+    surface = VK_NULL_HANDLE;
+    swapchain = VK_NULL_HANDLE;
+}
 static SDL_Window* abandon(SDL_Window* win)
 {
     SDL_DestroyWindow(win);
@@ -324,7 +335,7 @@ SDL_Window* pc_vk_create_window(const char* title, int width, int height)
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_VULKAN_BOOLEAN, true);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true);
-    SDL_Window* win = SDL_CreateWindowWithProperties(props);
+    SDL_Window* win = pc_window_create(props);
     SDL_DestroyProperties(props);
     if (!win) {
         /* The offscreen driver (headless runs) may lack a Vulkan surface:
@@ -333,7 +344,7 @@ SDL_Window* pc_vk_create_window(const char* title, int width, int height)
         SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, title);
         SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, width);
         SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, height);
-        win = SDL_CreateWindowWithProperties(props);
+        win = pc_window_create(props);
         SDL_DestroyProperties(props);
         if (!win || !SDL_Vulkan_LoadLibrary(NULL)) {
             fprintf(stderr, "[vk] no Vulkan window: %s\n", SDL_GetError());

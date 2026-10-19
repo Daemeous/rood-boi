@@ -987,6 +987,18 @@ extern void pc_hw_set_display(int x, int y, int w, int h);
 extern void pc_hw_present_origin(int* x, int* y);
 extern const uint16_t* pc_native_vram(void);
 
+extern SDL_Window* pc_window_create(SDL_PropertiesID props);
+/* An engine reload (engine_reload.c): the context goes with every GL object
+ * (nothing is shared), the window stays for the next library. */
+void pc_gl_shutdown(void)
+{
+    if (!context)
+        return;
+    SDL_GL_MakeCurrent(window, NULL);
+    SDL_GL_DestroyContext(context);
+    context = NULL;
+    pc_gl_active = 0;
+}
 /* A window (and its context) that could not be used: no GL presentation. */
 static SDL_Window* abandon(SDL_Window* win)
 {
@@ -1017,7 +1029,7 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_OPENGL_BOOLEAN, true);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true);
-    SDL_Window* win = SDL_CreateWindowWithProperties(props);
+    SDL_Window* win = pc_window_create(props); /* boot_window.c: the window kept across an engine reload */
     SDL_DestroyProperties(props);
     if (!win) {
         fprintf(stderr, "[gl] no OpenGL window: %s\n", SDL_GetError());

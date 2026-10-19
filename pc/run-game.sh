@@ -6,11 +6,15 @@
 # on (ROOD_GI=0 turns it off). --64 plays the 64-bit build; --vulkan plays it
 # with the Vulkan renderer (hardware ray tracing). --resume (or ROOD_RESUME=1)
 # continues where the last session quit (the auto-snapshot, below) when it
-# still fits the build, else boots normally. Other arguments go to the game.
+# still fits the build, else boots normally. --reload plays the 64-bit
+# development split (pc/build/dev64: rood_host and the engine library it
+# reloads in place; pc/tools/dev_loop.sh --reload or --watch swaps in an edit
+# of the engine without a restart). Other arguments go to the game.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 build=1
 arch=32
+split=0
 args=()
 for arg in "$@"; do
     case "$arg" in
@@ -18,11 +22,14 @@ for arg in "$@"; do
     --64) arch=64 ;;
     --vulkan) arch=64; export ROOD_RENDERER=vulkan ;;
     --resume) export ROOD_RESUME=1 ;;
+    --reload) arch=64; split=1 ;;
     *) args+=("$arg") ;;
     esac
 done
 if ((build)); then
-    if ((arch == 64)); then
+    if ((split)); then
+        python3 pc/tools/build_boot.py --arch 64 --engine-library
+    elif ((arch == 64)); then
         python3 pc/tools/build_boot.py --arch 64
     else
         python3 pc/tools/build_boot.py --battle
@@ -30,6 +37,7 @@ if ((build)); then
 fi
 binary=pc/build/boot/rood_battle_probe
 ((arch == 64)) && binary=pc/build/boot64/rood_battle_probe
+((split)) && binary=pc/build/dev64/rood_host
 if [[ "${ROOD_GPU:-}" != integrated && -e /proc/driver/nvidia/version ]]; then
     export __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia
     # The same for EGL, which SDL uses on native Wayland.

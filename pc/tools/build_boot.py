@@ -56,6 +56,13 @@ parser.add_argument(
     "would rebuild (exit 1); builds nothing",
 )
 parser.add_argument(
+    "--engine-library",
+    action="store_true",
+    help="--arch 64, Linux: the development split into pc/build/dev64: rood_host (the game "
+    "and its state) and librood_engine.so (the rest of pc/), which the running host reloads "
+    "in place (pc/docs/plans/2026-10-19-engine-reload.md, pc/tools/engine_lib.py)",
+)
+parser.add_argument(
     "--coff",
     action="store_true",
     help="--target windows: compile only the MinGW-w64 objects and run the "
@@ -70,12 +77,16 @@ coff = win and (parsed.coff or os.name == "nt")
 if win:
     parsed.arch = "64"
 arch64 = parsed.arch == "64"
+engine_library = parsed.engine_library
+if engine_library and (win or not arch64):
+    parser.error("--engine-library is the 64-bit Linux build only")
 # The 64-bit pass compiles every source the full (battle) build does.
 battle = parsed.battle or arch64
 no_audio = parsed.no_audio
 
 root = pathlib.Path(__file__).resolve().parents[2]
-out = root / ("pc/build/win64" if win else "pc/build/boot64" if arch64 else "pc/build/boot")
+out = root / ("pc/build/win64" if win else "pc/build/dev64" if engine_library
+              else "pc/build/boot64" if arch64 else "pc/build/boot")
 out.mkdir(parents=True, exist_ok=True)
 # One build at a time per output tree: every run recompiles the objects and then
 # renames symbols in place (name -> name__overlay), so a second run in the same
@@ -83,7 +94,8 @@ out.mkdir(parents=True, exist_ok=True)
 # _fontTable__title") or half-written ones. The 64-bit Linux and Windows builds
 # share one lock. The third-party builds (SDL, glslang, NRD) are shared by every
 # checkout (pc/tools/shared_cache.py) and have locks of their own.
-lock = open(root / ("pc/build/build_boot-64.lock" if arch64 else "pc/build/build_boot-32.lock"), "w")
+lock = open(root / ("pc/build/build_boot-dev64.lock" if engine_library else "pc/build/build_boot-64.lock" if arch64
+                    else "pc/build/build_boot-32.lock"), "w")
 if os.name == "nt":
     import msvcrt
     import time
@@ -351,9 +363,44 @@ def objcopy(args, obj):
         run([MINGW + "objcopy", *args, str(twin(obj))])
 
 
+# Host units whose statics are game state (state_sections).
+STATE_HOST_UNITS = {"runtime", "cd_drive", "mdec", "xa_audio", "audio_libspu", "gte", "libgte", "inline"}
+# --engine-library: the host executable's units besides the game's own (src/
+# and the pc/src units built like them) and the generated tables: those whose
+# state is game state, or that read or drive it outside a frame (save states,
+# the oracle, the owner switch, memory cards, input recording, the charging
+# skip), the audio output and the software SPU (spu_*: the audio thread never
+# runs library code), and the library's loader. Every other unit is the
+# engine library's (pc/docs/plans/2026-10-19-engine-reload.md).
+HOST_UNITS = STATE_HOST_UNITS | {"snapshot", "state_diff", "state_rewind", "overlay_statics", "ownership",
+                                 "memory_card", "input_record", "charge_skip", "audio_output", "engine_host"}
+engine_units = {}  # --engine-library: object -> its compile command (position-independent)
+host_units = {}  # --engine-library: the host's other compiled units -> command (engine_lib.py reads their headers)
+
+
+def library_args(args):
+    """--engine-library: an engine unit's command compiles it position-
+    independent (-fPIC), C++ without unique symbols (a library with one is
+    never unloaded by glibc); the command is kept for engine_lib.py."""
+    if not engine_library or "-c" not in args:
+        return args
+    obj = pathlib.Path(args[args.index("-o") + 1])
+    if any(str(a).endswith(".i") for a in args):
+        return args  # the game's (preprocessed) units: their headers come from the preprocessing
+    if obj.stem in HOST_UNITS or obj.stem.startswith("spu_"):
+        host_units[obj] = args
+        return args
+    args = ["-fPIC" if a == "-fpie" else a for a in args]
+    if args[0] == "g++":
+        args.append("-fno-gnu-unique")
+    engine_units[obj] = args
+    return args
+
+
 def compile_object(args, source, kind="c", win_args=None):
     """Compile one object; the 64-bit pass records failures and goes on.
     win_args: the twin's command when it differs (its own preprocessed input)."""
+    args = library_args(args)
     if not arch64:
         sys.stderr.write(object_cache.compile(args, check=True).stderr)
         return True
@@ -383,10 +430,6 @@ def state_sections(obj):
             renames.append(f"--rename-section={section.group(1)}=rood_state_{section.group(2)}")
     if renames:
         run(["objcopy", *renames, str(obj)])
-
-
-# Host units whose statics are game state (state_sections).
-STATE_HOST_UNITS = {"runtime", "cd_drive", "mdec", "xa_audio", "audio_libspu", "gte", "libgte", "inline"}
 
 
 def compile_generated(args):
@@ -625,6 +668,7 @@ if ZIG:
 toolchain = tool_identity(stamp_tools)
 build_stamp = Stamp(root, out, {
     "battle": battle, "no_audio": no_audio, "arch": parsed.arch, "target": parsed.target, "coff": coff,
+    "engine_library": engine_library,
     "debug_compress": debug_compress,
     "nrd": [nrd and nrd["libraries"], win_nrd and win_nrd["libraries"]], "toolchain": toolchain,
 })
@@ -633,7 +677,7 @@ stamp_trees = [("src", None), ("include", None), ("config", None), ("build", Non
                ("pc/tests", (".c", ".h")), ("game", None)] \
     + [(f"pc/tools/{tool}.py", None) for tool in ["build_boot", "build_cache", "event_callbacks", "lp64_report",
                                                    "import_types", "nrd", "gl_shaders", "vk_shaders", "zig_toolchain", "ownership",
-                                                   "snapshot_layout", "shared_cache"]]
+                                                   "snapshot_layout", "shared_cache", "engine_boundary"]]
 stamp_files = [root / "data/SLUS_010.40", root / "data/BATTLE/BATTLE.PRG", root / "data/ENDING/ENDING.PRG",
                sdl_library, *(nrd["libraries"] if nrd else []),
                *([win_sdl_library, *(win_nrd["libraries"] if win_nrd else [])] if win else []),
@@ -962,8 +1006,10 @@ for source, name in sources:
         f"-DMENUBGSZ={(root / 'build/assets/TITLE/TITLE.PRG/_titleScreenBg.rleRgb555.img.bin').stat().st_size}",
         source,
     ]
+    # --engine-library: the unit's headers (engine_lib.py: a change to one is a host change).
+    depend = ["-MD", "-MF", str(out / (name + ".i.d")), "-MT", str(out / (name + ".o"))] if engine_library else []
     cpp = None if coff else (subprocess.run if arch64 else run)(
-        ["gcc", *cpp_args],
+        ["gcc", *cpp_args, *depend],
         capture_output=True,
         **({"cwd": root} if arch64 else {}),
     )
@@ -1038,7 +1084,8 @@ for name in ["runtime", "window", "controller", "gamepad"]:
             and name in STATE_HOST_UNITS:
         state_sections(obj)
     objects.append(obj)
-for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "charge_skip", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "frame_cost"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []):
+for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "charge_skip", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "frame_cost"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
+        + (["engine_host", "engine_reload"] if engine_library else []):
     obj = out / (name.replace("/", "_") + ".o")
     # ui_text rasterizes fonts with the stb_truetype that Dear ImGui vendors.
     extra = ["-Ipc/third_party/imgui"] if name == "ui_text" else []
@@ -1607,6 +1654,9 @@ libc.update({"_GLOBAL_OFFSET_TABLE_", "__dso_handle", "__data_start", "_end", "_
              "__start_rood_state_data", "__stop_rood_state_data", "__start_rood_state_bss",
              "__stop_rood_state_bss"})  # linker-provided (snapshot.c: code hash, state sections)
 libc.update({"pc_overlay_statics", "pc_overlay_statics_count"})  # generated before linking
+if engine_library:  # engine_boundary.S (generated before linking the host)
+    libc.update({"rood_engine_slots", "rood_engine_slot_names", "rood_engine_slot_count", "rood_engine_owned",
+                 "rood_engine_owned_count", "rood_engine_unbound"})
 if coff:  # provided by the PE linker (ld's default script for PE+)
     libc.update({"__ImageBase", "__image_base__", "__CTOR_LIST__", "__DTOR_LIST__", "_tls_index",
                  "__RUNTIME_PSEUDO_RELOC_LIST__", "__RUNTIME_PSEUDO_RELOC_LIST_END__", "__data_start__",
@@ -2068,13 +2118,78 @@ pin_args = []
 if arch64:
     from snapshot_layout import generate as generate_snapshot_layout
 
-    linked = [*objects, out / "traps.o", out / "overlay_statics_table.o"]
+    # The loader and the library's reload side (--engine-library) hold no
+    # game state: left out, the keys equal the static build's.
+    linked = [o for o in [*objects, out / "traps.o", out / "overlay_statics_table.o"]
+              if o.stem not in ("engine_host", "engine_reload")]
     # The owned code (game/) is the game's too: its frames sit below the boundary.
     pinned = [o for o in game_objects if o in objects] + [out / "cd_drive.o", out / "traps.o"] \
         + [o for o in objects if o.name == "game_core.o"]
     pin_script, key_source = generate_snapshot_layout(linked, pinned, 0x18000000, 8, out)
     run(["gcc", *flags, "-c", str(key_source), "-o", str(out / "snapshot_key.o")])
     pin_args = [str(out / "snapshot_key.o"), "-Wl,-T," + str(pin_script)]
+if engine_library:
+    # The development split (pc/docs/plans/2026-10-19-engine-reload.md): the
+    # host executable (the game, its state, SDL, NRD, the loader) and the
+    # engine library it reloads in place. The snapshot keys above come from
+    # the same objects as the static build's, so save states move between them.
+    import engine_boundary
+
+    linked = [*objects, out / "traps.o", out / "overlay_statics_table.o"]
+    engine_objects = [o for o in objects if o in engine_units]
+    host_objects = [o for o in linked if o not in engine_units]
+    # SDL is the host's (the window, audio and input outlive the library);
+    # NRD the library's (hidden symbols: the host could not export them).
+    archives = {str(sdl_library): query(["nm", "--defined-only", str(sdl_library)])}
+    own_archives = [query(["nm", "--defined-only", str(a)]) for a in (nrd["libraries"] if nrd else [])]
+    shared = set()  # what the library's own links provide: the shared libraries, libc_nonshared, libgcc
+    for library in ["/usr/lib/x86_64-linux-gnu/libstdc++.so.6", "/lib/x86_64-linux-gnu/libc.so.6",
+                    "/lib/x86_64-linux-gnu/libm.so.6", "/lib/x86_64-linux-gnu/libgcc_s.so.1"]:
+        shared |= {parts[2].split("@")[0] for parts in map(str.split, query(["nm", "-D", "--defined-only", library])
+                                                            .splitlines()) if len(parts) >= 3}
+    for library in ["/usr/lib/x86_64-linux-gnu/libc_nonshared.a", gcc_lib + "/libgcc.a"]:
+        shared |= {parts[2] for parts in map(str.split, query(["nm", "--defined-only", library]).splitlines())
+                   if len(parts) == 3}
+    try:
+        boundary = engine_boundary.generate(host_objects, engine_objects, lambda o: query(["nm", str(o)]), archives,
+                                            {line.split(" = ")[0] for line in assign}, shared, out, own_archives)
+    except RuntimeError as error:
+        raise SystemExit(f"engine library boundary: {error}")
+    run(["gcc", "-m64", "-c", str(out / "engine_boundary.S"), "-o", str(out / "engine_boundary.o")])
+    library = out / "librood_engine.so"
+    # Linked to load at 0x64000000 (above the game stack, below guest RAM;
+    # glibc takes it as a hint): engine addresses fit a 4-byte psx_ptr, as
+    # in the non-PIE static build.
+    library_link = ["g++", "-m64", "-shared", "-Wl,-Ttext-segment=0x64000000",
+                    "-Wl,--version-script=" + str(out / "engine.map"), "-Wl,--gc-sections",
+                    *[str(o) for o in engine_objects], *(nrd["libraries"] if nrd else []),
+                    "-l:libstdc++.so.6", "-l:libgcc_s.so.1", "-lm", "-lpthread", "-ldl", "-o", str(library)]
+    staged = library.with_name(library.name + ".new")
+    run([*library_link[:-1], str(staged)])
+    os.replace(staged, library)  # a running host reloads whole files only
+    host_link = ["gcc", "-m64", "-no-pie", "-Wl,--gc-sections", *link_compress_flags,
+                 *[str(o) for o in host_objects], str(out / "engine_boundary.o"), *pin_args, str(out / "imports.ld"),
+                 "-Wl,--dynamic-list=" + str(out / "host_exports.list"),
+                 *[f"-Wl,--undefined={name}" for name in boundary["from_archives"]],
+                 str(sdl_library), "-l:libstdc++.so.6", "-l:libgcc_s.so.1", "-lm", "-lpthread", "-ldl",
+                 "-o", str(out / "rood_host")]
+    (out / "link_command.json").write_text(json.dumps(host_link) + "\n")
+    run(host_link)
+    # What pc/tools/engine_lib.py needs to rebuild the library alone.
+    (out / "engine_library.json").write_text(json.dumps({
+        "units": [{"object": str(o.relative_to(root)), "command": engine_units[o]} for o in engine_objects],
+        "link": library_link,
+        "host_units": [{"object": str(o.relative_to(root)), "command": c} for o, c in host_units.items()],
+        "host_depfiles": sorted(str((out / (o.stem + ".i.d")).relative_to(root)) for o in game_objects
+                                if (out / (o.stem + ".i.d")).exists()),
+        "shaders": [[sys.executable, "pc/tools/gl_shaders.py", "--out", str(out / "gl_shaders.h")],
+                    [sys.executable, "pc/tools/vk_shaders.py", "--out", str(out / "vk_shaders.h")]],
+    }, indent=1) + "\n")
+    print(f"Built {out / 'rood_host'} and {library}: {len(boundary['functions'])} engine functions and "
+          f"{len(boundary['data'])} host-owned engine variables cross, the host exports {len(boundary['exports'])}")
+    finish(out / "rood_host", library, out / "engine_library.json", out / "engine_boundary.json", out / "objects.txt",
+           report, out / "report.json", out / "lp64_imports.json")
+    raise SystemExit(0)
 link = (
     [
         "gcc",

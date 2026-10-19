@@ -178,6 +178,39 @@ extern "C" void pc_overlay_init(SDL_Window* window, SDL_GLContext context)
         IMGUI_VERSION, ui_scale);
 }
 
+/* Before an engine reload (engine_reload.c): Dear ImGui's backends and
+ * context go while the renderer they draw with is still up. What the
+ * overlay showed (F1, the editor) is returned for the next library. */
+static void set_visible(bool show);
+extern "C" void pc_vk_overlay_shutdown(void) __attribute__((weak));
+extern "C" void pc_overlay_shutdown(int* was_visible, int* editor)
+{
+    *was_visible = active && visible;
+    *editor = active && pc_editor_active();
+    if (!active)
+        return;
+#ifdef ROOD_VULKAN
+    if (pc_vk_on()) {
+        if (pc_vk_overlay_shutdown)
+            pc_vk_overlay_shutdown();
+    } else
+#endif
+        ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
+    active = visible = relative = false;
+    overlay_window = nullptr;
+}
+/* After a reload: show what the old library showed. */
+extern "C" void pc_overlay_restore(int was_visible, int editor)
+{
+    if (!active)
+        return;
+    if (was_visible && !visible)
+        set_visible(true);
+    if (editor && !pc_editor_active())
+        pc_editor_toggle();
+}
 extern "C" int pc_overlay_visible(void) { return active && visible; }
 /* Dear ImGui is up and draws each frame (the modern menus draw through it:
  * pc/src/ui/menu_bridge.c keeps the original menus when it is not). */

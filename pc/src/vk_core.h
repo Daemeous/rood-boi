@@ -186,6 +186,9 @@ extern int pc_vk_active;
  * to OpenGL). */
 int vk_core_init(const char* const* instance_extensions, uint32_t extension_count);
 void vk_core_shutdown(void);
+/* Destroy the device, every object made through vk_core's entry points,
+ * `surface` and the instance (an engine reload; the window stays). */
+void vk_core_teardown(VkSurfaceKHR surface);
 /* Notes a pipeline created with vk.pipeline_cache outside vk_core.c (NRD,
  * the overlay) taking `ns` nanoseconds, so the cache is saved once creation
  * settles. */

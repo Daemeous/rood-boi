@@ -14,6 +14,7 @@
 #include <string.h>
 
 static SDL_Gamepad* pad;
+static int gamepad_inits; /* SDL_InitSubSystem(SDL_INIT_GAMEPAD) calls to undo (pc_controller_shutdown) */
 static unsigned mask;
 static int travel; /* the Travel slot's pad element held (fast travel) */
 static int fast_forward; /* L3 + R3 held (boot_window.c) */
@@ -133,6 +134,7 @@ void pc_controller_init(void)
         fprintf(stderr, "[controller] SDL gamepad support unavailable: %s\n", SDL_GetError());
         return;
     }
+    ++gamepad_inits;
     const char* database = getenv("ROOD_GAMECONTROLLERDB");
     if (!database)
         database = "pc/user/gamecontrollerdb.txt";
@@ -226,18 +228,20 @@ void pc_controller_right_stick(float out[2])
  * an event (the binding capture). 0 done, -1 refused (a real gamepad is in
  * use, SDL has no virtual joysticks, an unknown element). */
 static SDL_Joystick* virtual_pad;
+static SDL_JoystickID virtual_id;
 int pc_controller_virtual_set(int element, int down)
 {
     if (!virtual_pad) {
         if (pad || !SDL_InitSubSystem(SDL_INIT_GAMEPAD))
             return -1;
+        ++gamepad_inits;
         SDL_VirtualJoystickDesc desc;
         SDL_INIT_INTERFACE(&desc);
         desc.type = SDL_JOYSTICK_TYPE_GAMEPAD;
         desc.naxes = SDL_GAMEPAD_AXIS_COUNT;
         desc.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
         desc.name = "rood virtual gamepad (tests)";
-        SDL_JoystickID id = SDL_AttachVirtualJoystick(&desc);
+        SDL_JoystickID id = virtual_id = SDL_AttachVirtualJoystick(&desc);
         if (!id || !(virtual_pad = SDL_OpenJoystick(id))) {
             fprintf(stderr, "[controller] virtual gamepad: %s\n", SDL_GetError());
             return -1;
@@ -252,4 +256,22 @@ int pc_controller_virtual_set(int element, int down)
     if (element >= 0 && element < SDL_GAMEPAD_BUTTON_COUNT)
         return SDL_SetJoystickVirtualButton(virtual_pad, element, down != 0) ? 0 : -1;
     return -1;
+}
+
+/* Before an engine reload (engine_reload.c): the gamepads this library
+ * opened are closed and SDL's gamepad subsystem released; the next library
+ * opens them again. */
+void pc_controller_shutdown(void)
+{
+    if (pad)
+        SDL_CloseGamepad(pad);
+    pad = NULL;
+    mask = 0;
+    if (virtual_pad) {
+        SDL_CloseJoystick(virtual_pad);
+        SDL_DetachVirtualJoystick(virtual_id);
+    }
+    virtual_pad = NULL;
+    for (; gamepad_inits > 0; gamepad_inits--)
+        SDL_QuitSubSystem(SDL_INIT_GAMEPAD);
 }

@@ -462,3 +462,6 @@ extern "C" int pc_fixtures_rpc(const char* params_text, char* out, int size)
                 + "}";
     return reply(text + "]}", out, size);
 }
+
+/* An engine reload (engine_reload.c) is refused while the generator runs. */
+extern "C" int pc_fixture_regen_busy(void) { return regen_running.load() != 0; }

@@ -29,6 +29,180 @@ int vk_check(VkResult result, const char* what)
     return result == VK_SUCCESS;
 }
 
+/* ---- object tracking ----
+ * An engine reload (build_boot.py --engine-library; pc/docs/plans/
+ * 2026-10-19-engine-reload.md) tears the device down and the new library
+ * builds its own. Most objects have no teardown of their own, so the create
+ * and destroy entry points vk_core hands out are wrapped: every object made
+ * through them is recorded until destroyed, and vk_core_teardown destroys
+ * what is still alive, newest first, before the device. Dear ImGui's
+ * backend loads its own entry points and destroys its objects itself. */
+#define VK_TRACKED(X)                                                                                                  \
+    X(Buffer, VkBuffer, VkBufferCreateInfo)                                                                            \
+    X(Image, VkImage, VkImageCreateInfo)                                                                               \
+    X(ImageView, VkImageView, VkImageViewCreateInfo)                                                                   \
+    X(Sampler, VkSampler, VkSamplerCreateInfo)                                                                         \
+    X(ShaderModule, VkShaderModule, VkShaderModuleCreateInfo)                                                          \
+    X(PipelineLayout, VkPipelineLayout, VkPipelineLayoutCreateInfo)                                                    \
+    X(PipelineCache, VkPipelineCache, VkPipelineCacheCreateInfo)                                                       \
+    X(DescriptorSetLayout, VkDescriptorSetLayout, VkDescriptorSetLayoutCreateInfo)                                     \
+    X(DescriptorPool, VkDescriptorPool, VkDescriptorPoolCreateInfo)                                                    \
+    X(QueryPool, VkQueryPool, VkQueryPoolCreateInfo)                                                                   \
+    X(CommandPool, VkCommandPool, VkCommandPoolCreateInfo)                                                             \
+    X(Fence, VkFence, VkFenceCreateInfo)                                                                               \
+    X(Semaphore, VkSemaphore, VkSemaphoreCreateInfo)                                                                   \
+    X(SwapchainKHR, VkSwapchainKHR, VkSwapchainCreateInfoKHR)                                                          \
+    X(AccelerationStructureKHR, VkAccelerationStructureKHR, VkAccelerationStructureCreateInfoKHR)
+enum {
+#define KIND(name, handle, info) TRACK_##name,
+    VK_TRACKED(KIND)
+#undef KIND
+    TRACK_MEMORY,
+    TRACK_PIPELINE,
+    TRACK_DEAD
+};
+static struct tracked {
+    uint64_t handle;
+    int kind;
+} * tracked;
+static size_t tracked_count, tracked_capacity, tracked_dead;
+static void track_add(int kind, uint64_t handle)
+{
+    if (tracked_count == tracked_capacity) {
+        size_t capacity = tracked_capacity ? tracked_capacity * 2 : 1024;
+        struct tracked* grown = realloc(tracked, capacity * sizeof *grown);
+        if (!grown)
+            return; /* not destroyed at a reload: a leak, not a fault */
+        tracked = grown, tracked_capacity = capacity;
+    }
+    tracked[tracked_count++] = (struct tracked) { handle, kind };
+}
+static void track_remove(int kind, uint64_t handle)
+{
+    /* Newest first: short-lived objects (shader modules, staging) are near the end. */
+    for (size_t i = tracked_count; i-- > 0;)
+        if (tracked[i].handle == handle && tracked[i].kind == kind) {
+            if (i + 1 == tracked_count)
+                --tracked_count;
+            else
+                tracked[i].kind = TRACK_DEAD, ++tracked_dead;
+            break;
+        }
+    if (tracked_dead > 256 && tracked_dead > tracked_count / 2) {
+        size_t kept = 0;
+        for (size_t i = 0; i < tracked_count; i++)
+            if (tracked[i].kind != TRACK_DEAD)
+                tracked[kept++] = tracked[i];
+        tracked_count = kept, tracked_dead = 0;
+    }
+}
+#define WRAP(name, handle, info)                                                                                       \
+    static PFN_vkCreate##name real_create_##name;                                                                      \
+    static PFN_vkDestroy##name real_destroy_##name;                                                                    \
+    static VKAPI_ATTR VkResult VKAPI_CALL track_create_##name(VkDevice device, const info* create,                    \
+        const VkAllocationCallbacks* allocator, handle* out)                                                           \
+    {                                                                                                                  \
+        VkResult result = real_create_##name(device, create, allocator, out);                                          \
+        if (result == VK_SUCCESS && *out)                                                                              \
+            track_add(TRACK_##name, (uint64_t)(uintptr_t)*out);                                                       \
+        return result;                                                                                                 \
+    }                                                                                                                  \
+    static VKAPI_ATTR void VKAPI_CALL track_destroy_##name(VkDevice device, handle object,                            \
+        const VkAllocationCallbacks* allocator)                                                                        \
+    {                                                                                                                  \
+        if (object)                                                                                                    \
+            track_remove(TRACK_##name, (uint64_t)(uintptr_t)object);                                                  \
+        real_destroy_##name(device, object, allocator);                                                                \
+    }
+VK_TRACKED(WRAP)
+#undef WRAP
+static PFN_vkAllocateMemory real_allocate_memory;
+static PFN_vkFreeMemory real_free_memory;
+static PFN_vkCreateGraphicsPipelines real_graphics_pipelines;
+static PFN_vkCreateComputePipelines real_compute_pipelines;
+static PFN_vkDestroyPipeline real_destroy_pipeline;
+static PFN_vkDestroyDevice real_destroy_device;
+static VKAPI_ATTR VkResult VKAPI_CALL track_allocate_memory(VkDevice device, const VkMemoryAllocateInfo* info,
+    const VkAllocationCallbacks* allocator, VkDeviceMemory* out)
+{
+    VkResult result = real_allocate_memory(device, info, allocator, out);
+    if (result == VK_SUCCESS && *out)
+        track_add(TRACK_MEMORY, (uint64_t)(uintptr_t)*out);
+    return result;
+}
+static VKAPI_ATTR void VKAPI_CALL track_free_memory(VkDevice device, VkDeviceMemory memory,
+    const VkAllocationCallbacks* allocator)
+{
+    if (memory)
+        track_remove(TRACK_MEMORY, (uint64_t)(uintptr_t)memory);
+    real_free_memory(device, memory, allocator);
+}
+static void track_pipelines(VkResult result, uint32_t count, const VkPipeline* pipelines)
+{
+    /* Pipelines that were made are valid even when another of the batch failed. */
+    (void)result;
+    for (uint32_t i = 0; i < count; i++)
+        if (pipelines[i])
+            track_add(TRACK_PIPELINE, (uint64_t)(uintptr_t)pipelines[i]);
+}
+static VKAPI_ATTR VkResult VKAPI_CALL track_graphics_pipelines(VkDevice device, VkPipelineCache cache, uint32_t count,
+    const VkGraphicsPipelineCreateInfo* infos, const VkAllocationCallbacks* allocator, VkPipeline* out)
+{
+    VkResult result = real_graphics_pipelines(device, cache, count, infos, allocator, out);
+    track_pipelines(result, count, out);
+    return result;
+}
+static VKAPI_ATTR VkResult VKAPI_CALL track_compute_pipelines(VkDevice device, VkPipelineCache cache, uint32_t count,
+    const VkComputePipelineCreateInfo* infos, const VkAllocationCallbacks* allocator, VkPipeline* out)
+{
+    VkResult result = real_compute_pipelines(device, cache, count, infos, allocator, out);
+    track_pipelines(result, count, out);
+    return result;
+}
+static VKAPI_ATTR void VKAPI_CALL track_destroy_pipeline(VkDevice device, VkPipeline pipeline,
+    const VkAllocationCallbacks* allocator)
+{
+    if (pipeline)
+        track_remove(TRACK_PIPELINE, (uint64_t)(uintptr_t)pipeline);
+    real_destroy_pipeline(device, pipeline, allocator);
+}
+extern int pc_engine_reload_request(void) __attribute__((weak)); /* engine_host.c (--engine-library) */
+/* After the device's entry points are loaded: hand out the tracking ones. */
+static void track_install(void)
+{
+#define INSTALL(name, handle, info)                                                                                    \
+    real_create_##name = vkCreate##name, real_destroy_##name = vkDestroy##name;                                         \
+    if (vkCreate##name && vkDestroy##name)                                                                             \
+        vkCreate##name = track_create_##name, vkDestroy##name = track_destroy_##name;
+    VK_TRACKED(INSTALL)
+#undef INSTALL
+    real_allocate_memory = vkAllocateMemory, vkAllocateMemory = track_allocate_memory;
+    real_free_memory = vkFreeMemory, vkFreeMemory = track_free_memory;
+    real_graphics_pipelines = vkCreateGraphicsPipelines, vkCreateGraphicsPipelines = track_graphics_pipelines;
+    real_compute_pipelines = vkCreateComputePipelines, vkCreateComputePipelines = track_compute_pipelines;
+    real_destroy_pipeline = vkDestroyPipeline, vkDestroyPipeline = track_destroy_pipeline;
+    real_destroy_device = vkDestroyDevice;
+}
+static void destroy_tracked(const struct tracked* t)
+{
+    switch (t->kind) {
+#define DESTROY(name, type, info)                                                                                      \
+    case TRACK_##name:                                                                                                 \
+        real_destroy_##name(vk.device, (type)(uintptr_t)t->handle, NULL);                                              \
+        break;
+        VK_TRACKED(DESTROY)
+#undef DESTROY
+    case TRACK_MEMORY:
+        real_free_memory(vk.device, (VkDeviceMemory)(uintptr_t)t->handle, NULL);
+        break;
+    case TRACK_PIPELINE:
+        real_destroy_pipeline(vk.device, (VkPipeline)(uintptr_t)t->handle, NULL);
+        break;
+    default:
+        break;
+    }
+}
+
 /* ---- frames ---- */
 
 typedef struct deferred {
@@ -521,6 +695,8 @@ int vk_core_init(const char* const* instance_extensions, uint32_t extension_coun
 #define LOAD_OPTIONAL(name) name = (PFN_##name)vkGetDeviceProcAddr(vk.device, #name);
     VK_OPTIONAL_DEVICE_FUNCTIONS(LOAD_OPTIONAL)
 #undef LOAD_OPTIONAL
+    if (pc_engine_reload_request) /* only where the engine can be reloaded (engine_host.c) */
+        track_install();
     if (!vkCmdPushDescriptorSetKHR)
         return 0;
     vkGetDeviceQueue(vk.device, vk.queue_family, 0, &vk.queue);
@@ -605,6 +781,44 @@ void vk_core_shutdown(void)
         run_frame_done(i);
     if (pipeline_cache.dirty)
         pipeline_cache_save();
+}
+
+/* Destroy everything: the objects still alive (newest first), the device,
+ * `surface` (the presenter's), the debug messenger and the instance. The
+ * window stays (an engine reload keeps it). vk is zeroed: vk_core_init can
+ * run again. */
+void vk_core_teardown(VkSurfaceKHR surface)
+{
+    if (!vk.instance)
+        return;
+    if (vk.device) {
+        vkDeviceWaitIdle(vk.device);
+        for (int i = 0; i < VK_FRAMES; i++)
+            run_frame_done(i);
+        if (pipeline_cache.dirty)
+            pipeline_cache_save();
+        size_t destroyed = 0;
+        for (size_t i = tracked_count; i-- > 0;)
+            if (tracked[i].kind != TRACK_DEAD) {
+                destroy_tracked(&tracked[i]);
+                ++destroyed;
+            }
+        tracked_count = tracked_dead = 0;
+        (real_destroy_device ? real_destroy_device : vkDestroyDevice)(vk.device, NULL);
+        fprintf(stderr, "[vk] device torn down (%zu objects destroyed)\n", destroyed);
+    }
+    if (surface && vkDestroySurfaceKHR)
+        vkDestroySurfaceKHR(vk.instance, surface, NULL);
+    if (messenger) {
+        PFN_vkDestroyDebugUtilsMessengerEXT destroy_messenger
+            = (PFN_vkDestroyDebugUtilsMessengerEXT)vk_get_instance_proc_addr(vk.instance, "vkDestroyDebugUtilsMessengerEXT");
+        if (destroy_messenger)
+            destroy_messenger(vk.instance, messenger, NULL);
+        messenger = VK_NULL_HANDLE;
+    }
+    vkDestroyInstance(vk.instance, NULL);
+    memset(&vk, 0, sizeof vk);
+    pc_vk_active = 0;
 }
 
 /* ---- memory ---- */

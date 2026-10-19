@@ -2391,3 +2391,7 @@ extern "C" bool pc_lights_glow_details(void)
     glow_details_actions();
     return true;
 }
+
+/* An engine reload (engine_reload.c) waits for no helper: it is refused
+ * while the light suggestion's background fit runs. */
+extern "C" int pc_lights_busy(void) { return suggest_state.load() == 1; }

@@ -260,6 +260,7 @@ offload; `ROOD_GPU=integrated` keeps the default GPU).
 | `--vulkan` | 64-bit build, Vulkan renderer (`ROOD_RENDERER=vulkan`). Recommended. Falls back to OpenGL if Vulkan 1.3 is not available. |
 | `--64` | 64-bit build with the OpenGL renderer |
 | *(none)* | 32-bit build (`build_boot.py --battle`) with OpenGL: the original port configuration; needs the multilib/i386 packages above and has no Vulkan or NRD |
+| `--reload` | 64-bit development split: the engine is a library the running game reloads in place (below) |
 | `--no-build` | skip the build step and run the existing binary |
 | `--skip-movies` | (passed to the game) skip the intro movie |
 
@@ -286,6 +287,17 @@ second: `pc/build/<tree>/build-stamp.json` records every input of the last
 complete build), and after a change only the units it touches recompile
 (a few seconds; `pc/tools/build_cache.py`). `build_boot.py --check` says
 whether a build would do anything. `--no-build` skips even the check.
+
+**Engine edits without a restart** (Linux, 64-bit). `pc/run-game.sh --reload`
+(with `--vulkan` for Vulkan) builds `pc/build/dev64`: `rood_host`, the
+game and its state, and `librood_engine.so`, the rest of `pc/` (renderers, UI,
+editor, Lua, RPC). While it runs, `pc/tools/dev_loop.sh --watch` rebuilds only
+the library after each save under `pc/src` or `pc/shaders` and the game swaps it
+at its next vsync: no restart, the window, audio, settings and game state stay
+(about 2.5 s from the save to the new engine on screen for a renderer edit;
+`dev_loop.sh --reload` does it once). A change to the game itself or to what
+the host is built from falls back to a rebuild and an RPC restart at the same
+moment. See `pc/docs/plans/2026-10-19-engine-reload.md`.
 
 ## Run
 

@@ -245,7 +245,12 @@ def generate(objects, pinned, base, pointer_size, out, log=print):
             code.update(f"{pathlib.Path(obj).name}\0{info['digest']}\n".encode())
         else:
             layout.update(f"{pathlib.Path(obj).name}\0{info['digest']}\n".encode())
-    layout.update(f"{text}\0{pointer_size}\0{linker}\0{code.hexdigest()}".encode())
+    # The script as the key sees it names the pinned objects without their
+    # directory: the same game built in another tree (a worktree, or
+    # build_boot.py --engine-library's pc/build/dev64) has the same layout.
+    portable = script(base, [pathlib.Path(o).name for o in pinned],
+                      {n for info in infos.values() for n in info["sections"]})
+    layout.update(f"{portable}\0{pointer_size}\0{linker}\0{code.hexdigest()}".encode())
     # State initialised with the address of something that moves with the engine.
     defined = {}
     for info in infos.values():

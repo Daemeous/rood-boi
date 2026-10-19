@@ -53,6 +53,16 @@ extern "C" int pc_vk_overlay_init(void)
     return 1;
 }
 
+/* Before an engine reload (dev_overlay.cpp): the backend's own objects, while the device lives. */
+extern "C" void pc_vk_overlay_shutdown(void)
+{
+    if (!ready)
+        return;
+    vkDeviceWaitIdle(vk.device);
+    ImGui_ImplVulkan_Shutdown();
+    ready = false;
+}
+
 extern "C" void pc_vk_overlay_new_frame(void)
 {
     if (ready)

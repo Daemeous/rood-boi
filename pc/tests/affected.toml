@@ -63,6 +63,13 @@ paths = ["*.md", "docs/*", "pc/docs/*", "LICENSE", "THIRD_PARTY.md", ".github/*"
          "assets/*"]
 suites = []
 
+# ---- the engine library and its reload (build_boot.py --engine-library) ----
+[[rule]]
+paths = ["pc/src/engine_host.c", "pc/src/engine_reload.c", "pc/tools/engine_boundary.py", "pc/tools/engine_lib.py",
+         "pc/src/boot_gamepad.c", "pc/src/atmosphere.cpp", "pc/src/lights.cpp", "pc/src/fixture_editor.cpp",
+         "pc/src/fog_sim.cpp"]
+suites = ["engine_reload_smoke"]
+
 # ---- frame cost counters (ROOD_PERF) ----
 [[rule]]
 paths = ["pc/src/frame_cost.*", "pc/tools/frame_cost_bench.py"]

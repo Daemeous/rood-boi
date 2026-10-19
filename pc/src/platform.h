@@ -15,6 +15,25 @@
 #define PC_MTIME_NS(st) ((long long)(st).st_mtim.tv_sec * 1000000000LL + (st).st_mtim.tv_nsec)
 #endif
 
+/* setenv(name, value, 1) and unsetenv(name): Windows has _putenv_s (an
+ * empty value removes the variable). */
+static inline int pc_setenv(const char* name, const char* value)
+{
+#ifdef _WIN32
+    return _putenv_s(name, value) ? -1 : 0;
+#else
+    return setenv(name, value, 1);
+#endif
+}
+static inline int pc_unsetenv(const char* name)
+{
+#ifdef _WIN32
+    return _putenv_s(name, "") ? -1 : 0;
+#else
+    return unsetenv(name);
+#endif
+}
+
 /* Puts `temp` in place of `path` (replacing it) in one step: rename on
  * POSIX; on Windows MoveFileEx (rename there fails when the target exists).
  * 0 on success; else -1 with errno set, and `path` untouched. Windows never

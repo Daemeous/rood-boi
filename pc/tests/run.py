@@ -147,6 +147,10 @@ def suites(args, mode="egl"):
         Suite("snapshot_resume_smoke", [PY, str(TESTS / "snapshot_resume_smoke.py")], 300,
               note="64-bit: the engine relinked elsewhere resumes a snapshot through RPC restart at the same "
                    "moment and state (and as the original build does 60 vsyncs on); other game code refused"),
+        Suite("engine_reload_smoke", [PY, str(TESTS / "engine_reload_smoke.py")], 600,
+              note="64-bit: the engine library (build_boot.py --engine-library) reloads in place at a vsync: "
+                   "state, pause and settings survive, a rebuilt unit takes effect, a broken library falls "
+                   "back, and 120 vsyncs on the game equals one never reloaded"),
         Suite("rpc_smoke", [PY, str(TESTS / "rpc_smoke.py")], 180),
         Suite("rpc_tcp_token_smoke", [PY, str(TESTS / "rpc_tcp_token_smoke.py")], 180,
               note="TCP RPC with a token: refused without it, with a wrong one, HTTP lines; never logged"),
@@ -577,7 +581,8 @@ CHECKPOINT_SUITES = {
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
-    "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "frame_cost_smoke", "hud_bench_smoke",
+    "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "frame_cost_smoke",
+    "hud_bench_smoke",
     "repl_smoke",
 }
 

@@ -95,6 +95,12 @@ look. No new look value lives in C++ (enforced by a lint, phase F).
    replaces the earlier "split pc/ into modules" step: reloading one library
    is the bigger win.
 
+   **Done (2026-10-19, Linux 64 bits):** `pc/run-game.sh --reload` and
+   `pc/tools/dev_loop.sh --watch`; RPC `reload` swaps the library in 40-50 ms
+   (GL) or about 300 ms (Vulkan); a renderer edit is on screen 2.5 s after
+   the save (the A4 restart loop: 8.1 s on the same machine). Details,
+   boundary and limits: `2026-10-19-engine-reload.md`.
+
 ### B. The oracle (before any bulk port)
 
 The original is deterministic: the same inputs give the same state. That is a

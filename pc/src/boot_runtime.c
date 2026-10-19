@@ -19,6 +19,10 @@
 #endif
 static uint16_t vram[1024 * 512];
 extern void pc_snapshot_resume_if_requested(void) __attribute__((weak)); /* snapshot.c (ROOD_SNAPSHOT) */
+/* engine_host.c (build_boot.py --engine-library only): load the engine
+ * library before the first call into it; reload it at a vsync. */
+extern void pc_engine_start(void) __attribute__((weak));
+extern void pc_engine_vsync(void) __attribute__((weak));
 const uint16_t* pc_native_vram(void) { return vram; }
 /* Hardware rasterizer mirror (gpu_hw.c); no-ops until a GL context exists. */
 extern void pc_hw_mark(int, int, int, int);
@@ -553,6 +557,8 @@ int main(int argc, char** argv)
 #else
     reserve_game_stack();
 #endif
+    if (pc_engine_start)
+        pc_engine_start(); /* the engine library, once the fixed ranges are taken */
     pc_window_init(window, fast); /* loads the settings (dev_overlay.cpp) */
     if (&pc_skip_intro && pc_skip_intro) {
         intro_skipped_by_setting = pc_skip_movies ? 1 : 2;
@@ -1074,6 +1080,8 @@ void pc_tick(void)
     if (pc_state_diff_vsync)
         pc_state_diff_vsync(); /* compare the completed frame before RPC changes */
     pc_rpc_poll();
+    if (pc_engine_vsync)
+        pc_engine_vsync(); /* an engine reload the RPC asked for, here: no engine frame is on the stack */
     tick_frame();
 }
 /* snapshot.c: a resumed save state continues the vsync it was saved in
@@ -1081,6 +1089,8 @@ void pc_tick(void)
 void pc_tick_resumed(void)
 {
     pc_rpc_poll();
+    if (pc_engine_vsync)
+        pc_engine_vsync();
     tick_frame();
 }
 static void tick_frame(void)

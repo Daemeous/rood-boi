@@ -52,6 +52,8 @@ int pc_window_enabled;
 static void window_mode_apply(void); /* window_mode, below */
 static int capture_filter(const SDL_Event* event); /* binding capture, below */
 static void capture_tick(void);
+static unsigned keybit(SDL_Keycode key);
+static unsigned camera_keybit(SDL_Keycode key);
 #ifdef ROOD_VULKAN
 #define PC_VK_ACTIVE pc_vk_on()
 #else
@@ -78,6 +80,39 @@ void pc_window_wait_fraction(int k, int n)
 }
 /* Fast mode (no vsync pacing; tests): the GI cadence budget (ptgi.c). */
 int pc_window_fast(void) { return fast; }
+/* The window an engine reload keeps (engine_reload.c): the next library's
+ * presenter takes it instead of creating one (pc_window_create). */
+static SDL_Window* adopted;
+SDL_Window* pc_window_create(SDL_PropertiesID props)
+{
+    if (adopted) {
+        SDL_Window* kept = adopted;
+        adopted = NULL;
+        return kept;
+    }
+    return SDL_CreateWindowWithProperties(props);
+}
+/* Before an engine reload: the window (left open), and the run's options. */
+SDL_Window* pc_window_unload(int* enabled, int* run_fast)
+{
+    *enabled = pc_window_enabled;
+    *run_fast = fast;
+    SDL_Window* kept = window;
+    if (kept) {
+        SDL_SetWindowRelativeMouseMode(kept, false); /* the free camera's grab is the old engine's */
+        if (SDL_TextInputActive(kept))
+            SDL_StopTextInput(kept);
+    }
+    window = NULL;
+    if (image)
+        SDL_DestroySurface(image);
+    image = NULL;
+    /* SDL's video stays initialised (quitting it would close the window): the
+     * next library's SDL_Init only counts it once more. */
+    return kept;
+}
+/* After a reload: pc_window_init takes `kept` as the window. */
+void pc_window_adopt(SDL_Window* kept) { adopted = kept; }
 void pc_window_init(int enabled, int run_fast)
 {
     fast = run_fast;
@@ -149,7 +184,7 @@ void pc_window_init(int enabled, int run_fast)
         SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, 40);
         SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, 640);
         SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, 480);
-        window = SDL_CreateWindowWithProperties(props);
+        window = pc_window_create(props);
         SDL_DestroyProperties(props);
         image = SDL_CreateSurface(640, 480, SDL_PIXELFORMAT_XRGB8888);
         if (!window || !image) {
@@ -161,6 +196,15 @@ void pc_window_init(int enabled, int run_fast)
     fprintf(stderr, "[window] SDL %d.%d.%d, %s video\n", SDL_VERSIONNUM_MAJOR(version),
         SDL_VERSIONNUM_MINOR(version), SDL_VERSIONNUM_MICRO(version), SDL_GetCurrentVideoDriver());
     window_mode_apply(); /* a saved window_mode (settings, loaded while the presenter started) */
+    /* Keys held through an engine reload stay held. */
+    int count = 0;
+    const bool* keys = SDL_GetKeyboardState(&count);
+    for (int i = 0; keys && i < count; i++)
+        if (keys[i]) {
+            SDL_Keycode key = SDL_GetKeyFromScancode((SDL_Scancode)i, SDL_KMOD_NONE, false);
+            buttons |= keybit(key);
+            camera_keys |= camera_keybit(key);
+        }
 }
 /* The PS1 buttons a key presses (the bindings, boot_controller.c; defaults
  * in README "Controls"). */

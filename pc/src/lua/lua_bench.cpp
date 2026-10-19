@@ -17,6 +17,7 @@
 #include "lua_bench.h"
 #include "hud/game_query.h"
 #include "light_prefabs.h"
+#include "platform.h" /* pc_setenv */
 
 #include <cstdio>
 #include <cstdlib>
@@ -206,7 +207,7 @@ bool bench_load(const std::string& name, std::string* why)
             *why = "cannot restart now (a save state is being written)";
             return false;
         }
-        setenv("ROOD_BENCH_ENTRY", e.entry.c_str(), 1); // (the new process holds its moments again)
+        pc_setenv("ROOD_BENCH_ENTRY", e.entry.c_str()); // (the new process holds its moments again)
         log(LOG_INFO, "", "bench: restarting into " + name);
         return true;
     }
@@ -227,7 +228,7 @@ void bench_resume_tick()
     if (++waited < 120 && !(pc_hud_bridge_field && pc_hud_bridge_field()))
         return;
     std::string entry = path;
-    unsetenv("ROOD_BENCH_ENTRY");
+    pc_unsetenv("ROOD_BENCH_ENTRY");
     for (const BenchEntry& e : bench_list())
         if (e.entry == entry) {
             for (const hud::HeldMoment& m : e.held)

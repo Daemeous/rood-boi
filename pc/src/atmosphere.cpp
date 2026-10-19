@@ -2784,3 +2784,11 @@ int rood_atmo::place_volume(const std::string& preset, const float surface[3], c
     pc_lights_mark_dirty();
     return index;
 }
+
+/* Before an engine reload (engine_reload.c): the start-up noise thread runs
+ * this library's code; it is waited for (well under a second). */
+extern "C" void pc_atmosphere_settle(void)
+{
+    while (!noise_done.load())
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+}
