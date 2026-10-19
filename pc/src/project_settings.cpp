@@ -71,6 +71,12 @@ int pc_qol_map_invert, pc_qol_fp_invert_y;
  * 0 Modern (default: the right stick turns and tilts, L2 / R2 zoom), 1
  * Original (the PlayStation's: L2 / R2 + right stick, the stick pans). */
 int pc_qol_map_controls;
+/* Enemy difficulty: pending user settings; active values live with game state. */
+int pc_difficulty_base_percent, pc_difficulty_clear_percent;
+/* Boot-only builds have no BATTLE unit. The strong game-owned definitions are snapshotted. */
+int pc_difficulty_active_base __attribute__((weak)), pc_difficulty_active_clear __attribute__((weak)),
+    pc_difficulty_active_completions __attribute__((weak));
+
 /* qol_skip_charging: battle charging (a spell's casting, an item's or a
  * Break Art's wind-up before it takes effect) is skipped, the action's
  * outcome unchanged (charge_skip.c): 0 off (the original, default), 1 Skip
@@ -323,6 +329,8 @@ const Entry entries[] = {
     IN("qol_weapon_slots_label6", pc_qol_weapon_slots_label[6], 4),
     IN("qol_weapon_slots_label7", pc_qol_weapon_slots_label[7], 4),
     IN("qol_weapon_slots_hint", pc_qol_weapon_slots_hint, 2),
+    I("difficulty_base_percent", pc_difficulty_base_percent),
+    I("difficulty_clear_percent", pc_difficulty_clear_percent),
     I("qol_skip_charging", pc_qol_skip_charging), /* 0 off, 1 skip (apply_line: older 2 is 1) */
     I("qol_skip_charging_who", pc_qol_skip_charging_who), /* 0 mine, 1 all */
     F("qol_skip_charging_name", pc_qol_skip_charging_name), /* seconds, 0..2 */
