@@ -48,6 +48,7 @@ extern void pc_gl_present(const uint16_t*, int, int, int, int);
 extern int pc_overlay_event(const SDL_Event*);
 extern void pc_ui_settings_flush(void) __attribute__((weak)); /* ui_settings.cpp */
 extern void pc_quit(void); /* dev_rpc.c */
+extern int pc_savestate_key(int key) __attribute__((weak)); /* savestate_slots.c: F5, F6, F7, F9 */
 int pc_window_enabled;
 static void window_mode_apply(void); /* window_mode, below */
 void pc_window_place(SDL_PropertiesID props, int width, int height); /* below */
@@ -321,6 +322,10 @@ void pc_window_tick(void)
 #endif
             break;
         case SDL_EVENT_KEY_DOWN:
+            /* Save states (savestate_slots.c), unless the key is bound to a PS1 button. */
+            if (pc_savestate_key && !keybit(event.key.key) && !camera_keybit(event.key.key) && !event.key.repeat
+                && pc_savestate_key((int)event.key.key))
+                break;
             buttons |= keybit(event.key.key);
             camera_keys |= camera_keybit(event.key.key);
             if (pc_keyboard_travel(event.key.key))
