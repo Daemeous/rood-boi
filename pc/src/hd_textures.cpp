@@ -61,6 +61,7 @@ std::vector<Word> words;
 std::array<uint32_t, 64 * 1024> palettes{};
 std::array<uint32_t, slots * 8> table{};
 std::map<uint64_t, std::string> files, page_files;
+std::map<uint64_t, uintmax_t> file_bytes; /* classic files' sizes on disk */
 struct Upload {
     int w, h;
     std::vector<uint16_t> pixels;
@@ -165,8 +166,14 @@ void index_folder(const std::filesystem::path &dir, bool pages)
             for (const auto &part : path.parent_path())
                 if (part.string().find("texture-replacements-pages") != std::string::npos)
                     page = true;
-            if ((page ? page_files : files).emplace(key, path.string()).second)
+            if ((page ? page_files : files).emplace(key, path.string()).second) {
                 ++indexed_count;
+                if (!page) {
+                    std::error_code size_error;
+                    uintmax_t bytes = std::filesystem::file_size(path, size_error);
+                    file_bytes[key] = size_error ? UINTMAX_MAX : bytes;
+                }
+            }
         } else if (parse_duck(name, path.string()))
             ++indexed_count;
     }
@@ -387,6 +394,18 @@ struct Loader {
 Loader *loader; /* never freed: the detached workers may outlive static destructors at exit */
 bool async_loads = true;
 std::set<uint64_t> requested;
+/* While a palette variant loads, the texture's latest loaded variant stands
+ * in: text fading in asks for a new 1-2 MB variant every frame, and showing
+ * the original until each arrived made it flicker for the whole fade. */
+std::map<uint32_t, uint64_t> latest_variant; /* upload CRC -> resident key */
+std::set<uint64_t> stand_ins;               /* table keys showing another variant */
+/* Small files (text, icons) decode on the game thread in the frame they are
+ * first drawn, up to 1 MB of files a frame: text written to VRAM a state at a
+ * time otherwise flickered between original and replacement while it waited
+ * behind large images. */
+uintmax_t small_file = 64 * 1024;
+constexpr uintmax_t small_budget = 1024 * 1024;
+uintmax_t small_spent; /* this frame */
 void request(uint64_t key, const std::string &path)
 {
     if (!requested.insert(key).second)
@@ -400,8 +419,9 @@ void request(uint64_t key, const std::string &path)
                     {
                         std::unique_lock<std::mutex> lock(loader->mutex);
                         loader->wake.wait(lock, [] { return !loader->requests.empty(); });
-                        job = std::move(loader->requests.front());
-                        loader->requests.pop_front();
+                        /* newest first: what is on screen now */
+                        job = std::move(loader->requests.back());
+                        loader->requests.pop_back();
                     }
                     Decoded d = decode_file(job.second);
                     std::lock_guard<std::mutex> lock(loader->mutex);
@@ -543,6 +563,8 @@ void place_resident(uint64_t key, const Decoded &d, const std::string &path)
     }
     resident.emplace(key, im);
     insert(key, im);
+    latest_variant[uint32_t(key >> 32)] = key;
+    stand_ins.erase(key);
 }
 void load(uint64_t key)
 {
@@ -550,6 +572,8 @@ void load(uint64_t key)
     if (r != resident.end()) {
         insert(key, r->second);
         touch(r->second.layer);
+        latest_variant[uint32_t(key >> 32)] = key;
+        stand_ins.erase(key);
         return;
     }
     if (bad.count(key) || full)
@@ -561,10 +585,14 @@ void load(uint64_t key)
         place_resident(key, *cached, f->second);
         return;
     }
-    if (async_loads) {
+    auto size = file_bytes.find(key);
+    bool small = size != file_bytes.end() && size->second <= small_file && small_spent + size->second <= small_budget;
+    if (async_loads && !small) {
         request(key, f->second);
         return;
     }
+    if (small)
+        small_spent += size->second;
     Decoded d = decode_file(f->second);
     if (!d.pixels) {
         fprintf(stderr, "[hd] cannot read %s: %s\n", f->second.c_str(), SDL_GetError());
@@ -573,6 +601,28 @@ void load(uint64_t key)
     }
     ram_put(f->second, d);
     place_resident(key, d, f->second);
+}
+/* `wanted` is loading: bind `table_key` to its texture's latest variant. */
+bool stand_in(uint64_t wanted, uint64_t table_key)
+{
+    if (resident.count(wanted) || !requested.count(wanted))
+        return false;
+    auto latest = latest_variant.find(uint32_t(wanted >> 32));
+    if (latest == latest_variant.end())
+        return false;
+    auto im = resident.find(latest->second);
+    if (im == resident.end())
+        return false;
+    insert(table_key, im->second);
+    touch(im->second.layer);
+    stand_ins.insert(table_key);
+    return true;
+}
+/* Nothing to stand in any more (the variant failed or its stand-in left). */
+void drop_stand_in(uint64_t table_key)
+{
+    if (stand_ins.erase(table_key))
+        insert(table_key, {0, 0, 1, 1, 0}, 0, false);
 }
 /* Layers at and past `first` are gone (a GPU allocation failed). */
 void drop_layers_from(int first)
@@ -592,6 +642,7 @@ void drop_layers_from(int first)
     else
         current_layer = std::min(current_layer, int(atlas.size()) - 1);
     table.fill(0);
+    stand_ins.clear();
     used.clear();
     dirty = table_dirty = true;
 }
@@ -605,6 +656,7 @@ void forget_uploaded()
     atlas.clear();
     current_layer = -1;
     table.fill(0);
+    stand_ins.clear();
     used.clear();
     dirty = table_dirty = true;
 }
@@ -622,6 +674,7 @@ void clear_layer(int layer)
     current_layer = layer;
     /* The table is rebuilt from what stays resident as pages are drawn. */
     table.fill(0);
+    stand_ins.clear();
     used.clear();
     dirty = table_dirty = true;
     ++evictions;
@@ -1007,12 +1060,16 @@ extern "C" void pc_hd_use(unsigned tpage, unsigned clut)
                     if (im != resident.end()) {
                         insert(key, im->second);
                         touch(im->second.layer);
-                    }
+                        stand_ins.erase(key);
+                    } else if (!stand_in(rk, key))
+                        drop_stand_in(key);
                     continue;
                 }
             }
         }
         load(key);
+        if (!resident.count(key) && !stand_in(key, key))
+            drop_stand_in(key);
     }
     resolve_page(tpage, clut, depth, ppw, px, py, colors, pal);
     /* (clear_layer inside may have emptied `used`; the entry is then gone) */
@@ -1067,6 +1124,7 @@ extern "C" void pc_hd_frame(void)
     }
     ++frame_number;
     frame_layers = 0;
+    small_spent = 0;
     if (!full)
         return;
     if (cooldown && --cooldown)
