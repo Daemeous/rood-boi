@@ -37,6 +37,15 @@ int main(int argc, char** argv)
     assert(resident.size() == 2);
     pc_hd_use(256, 0);
     assert(resident.size() == 3);
+    /* A page is looked up again only after a write to its own tiles or its
+     * palette's: (512, 0) is neither for page 0 / CLUT row 300, (10, 300) is the CLUT. */
+    uint64_t looked = used[300 * 64].stamp;
+    pc_hd_upload(512, 0, 1, 1, test_vram);
+    pc_hd_use(0, 300 * 64);
+    assert(used[300 * 64].stamp == looked);
+    pc_hd_upload(10, 300, 1, 1, test_vram);
+    pc_hd_use(0, 300 * 64);
+    assert(used[300 * 64].stamp > looked && resident.size() == 3);
     assert(test_vram[0] == original[0] && test_vram[1025] == original[3]);
     pc_hd_copy(0, 0, 64, 100, 2, 2, 0);
     assert(words[101 * 1024 + 65].offset == 0x10001);
@@ -161,5 +170,5 @@ int main(int argc, char** argv)
         std::cout << "PASS: real GPU sampler lookup, PNG colors and enabled/disabled/enabled\n";
     }
     std::cout << "PASS: independent zlib CRCs, 4/8/16-bit palettes, PNG loading, source offsets, partial "
-                 "overwrites, wrapped and masked copies, original VRAM, layered atlas reuse, RAM cache\n";
+                 "overwrites, wrapped and masked copies, original VRAM, layered atlas reuse, RAM cache, per-tile lookups\n";
 }
