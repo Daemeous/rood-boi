@@ -23,7 +23,7 @@ extern "C" int pc_hud_classic_override;   // hud_elements.cpp (settings hud_clas
 extern "C" int pc_ui_menus __attribute__((weak)); // project_settings.cpp
 
 namespace {
-bool open;
+bool console_open;
 char input[2048];
 std::string target = "@console";
 unsigned long long cleared;
@@ -225,17 +225,17 @@ void bench()
 }
 } // namespace
 
-extern "C" void pc_lua_console_menu_item(void) { ImGui::MenuItem("Lua console", nullptr, &open); }
-extern "C" bool* pc_lua_console_open_flag(void) { return &open; }
+extern "C" void pc_lua_console_menu_item(void) { ImGui::MenuItem("Lua console", nullptr, &console_open); }
+extern "C" bool* pc_lua_console_open_flag(void) { return &console_open; }
 
 extern "C" void pc_lua_console_window(void)
 {
-    if (!open)
+    if (!console_open)
         return;
     float em = ImGui::GetFontSize();
     ImGui::SetNextWindowSize(ImVec2(em * 46, em * 28), ImGuiCond_FirstUseEver);
     rood_shell::dock_tool_window("Lua console");
-    if (!ImGui::Begin("Lua console", &open)) {
+    if (!ImGui::Begin("Lua console", &console_open)) {
         ImGui::End();
         return;
     }
