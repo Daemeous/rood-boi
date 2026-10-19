@@ -2167,7 +2167,8 @@ if engine_library:
     staged = library.with_name(library.name + ".new")
     run([*library_link[:-1], str(staged)])
     os.replace(staged, library)  # a running host reloads whole files only
-    host_link = ["gcc", "-m64", "-no-pie", "-Wl,--gc-sections", *link_compress_flags,
+    host_link = ["gcc", "-m64", "-no-pie", "-Wl,--section-start=rood_guest_pages=0x1f800000",  # as the static link
+                 "-Wl,--gc-sections", *link_compress_flags,
                  *[str(o) for o in host_objects], str(out / "engine_boundary.o"), *pin_args, str(out / "imports.ld"),
                  "-Wl,--dynamic-list=" + str(out / "host_exports.list"),
                  *[f"-Wl,--undefined={name}" for name in boundary["from_archives"]],
@@ -2197,6 +2198,9 @@ link = (
         # it. 64 bits: links are guest-only; non-PIE keeps native addresses
         # below 4 GB (psx_ptr fields can hold them).
         *(["-m64", "-no-pie"] if arch64 else ["-m32", "-no-pie", "-Wl,-Ttext-segment=0x00400000"]),
+        # The scratchpad and the I/O page (boot_runtime.c): the image's last
+        # pages, so the heap starts above them.
+        "-Wl,--section-start=rood_guest_pages=0x1f800000",
         "-Wl,--gc-sections",
         *link_compress_flags,
         *[str(o) for o in objects],

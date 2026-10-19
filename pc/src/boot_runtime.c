@@ -484,6 +484,20 @@ static void* map_guest(uintptr_t address, size_t size)
     return p == MAP_FAILED ? NULL : p;
 #endif
 }
+#ifndef _WIN32
+/* The scratchpad and the I/O page are part of the image (build_boot.py links
+ * this section at 0x1f800000): the kernel starts the heap (brk) at a random
+ * point up to 1 GB past the image's end (x86-64), and the pinned game region
+ * (snapshot_layout.py) ends a little over 100 MB below 0x1f800000, so the
+ * heap the C and C++ runtimes allocate before main covered the pages about
+ * once in 5000 launches ("guest mapping: File exists"). Ending the image at
+ * them puts the heap above them. */
+__asm__(".section rood_guest_pages,\"aw\",@nobits\n"
+        ".balign 4096\n"
+        "pc_guest_pages: .space 0x2000\n"
+        ".previous");
+extern char pc_guest_pages[];
+#endif
 int main(int argc, char** argv)
 {
 #ifdef _WIN32
@@ -540,10 +554,15 @@ int main(int argc, char** argv)
     void* scratch = map_guest(0x1f800000, 0x2000);
     void* io = scratch;
 #else
-    void* scratch = map_guest(0x1f800000, 0x1000);
+    if (pc_guest_pages != (char*)(uintptr_t)0x1f800000) {
+        fprintf(stderr, "guest mapping: rood_guest_pages is linked at %p, not 0x1f800000 (build_boot.py)\n",
+            (void*)pc_guest_pages);
+        return 1;
+    }
+    void* scratch = pc_guest_pages;
     /* I/O page: the sound driver writes SPU registers (0x1F801C00..) here;
      * pc/src/audio_spu.cpp synchronises them into the software SPU. */
-    void* io = map_guest(0x1f801000, 0x1000);
+    void* io = pc_guest_pages + 0x1000;
 #endif
     if (!ram || !scratch || !io) {
         perror("guest mapping");
