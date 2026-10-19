@@ -110,7 +110,7 @@ pc/build/boot/rood_boot --skip-movies --title-checkpoint
 ```
 
 It exits successfully only when the original title code reaches its input loop.
-`pc/build/boot/loading.ppm` (in `$ROOD_OUT` when set) contains the latest captured display (including the
+`pc/build/boot/loading.ppm` (in `$ROOD_OUT` when set) contains a recent captured display (every 64th, and the last at exit; including the
 title screen at this checkpoint). `--loading-checkpoint` is an earlier checkpoint
 and does not establish title boot. `--fast` disables window pacing for tests.
 Without `--skip-movies`, the intro movie plays first (about 38 seconds of
@@ -2092,7 +2092,7 @@ redraws at about 60 Hz, and after each request):
 | `redraw` | | the newest frame drawn again as recorded with the current options (MSAA, ...) and presented until the game draws another: pause first, then compare options on one frame (`aa_smoke.py`) |
 | `settings` | `action` (`save`, `load`), `apply` (a settings line or a list of them, applied now, not saved), `get` (a key) | the `ROOD_SETTINGS` file (a loaded preset applies at once); `line`: the key's line as a save would write it (null: none) |
 | `sfx` | `reset` | the sounds played through `vs_main_playSfxDefault` since the last reset (a `ROOD_PC` count in `main.c`): bank 0x7E's `change`, `select`, `leave`, `invalid`, every id of it (`menu`), the other banks' total (`other`) |
-| `perf` | `reset` | GPU time per presented frame since the last reset (`ROOD_PERF=1`; Vulkan timestamps, GL timer queries; Vulkan adds `sections`: ms per frame of `draw`, `present`, `aa`, `downsample`, the GI passes); GL adds `presents`, `gpu_wait_ms` (CPU waits for frames in flight), `gi_traced`/`gi_reused`, `gi_gpu_ms`, `gi_budget_ms`, `gi_interval` (path tracer cadence) |
+| `perf` | `reset` | GPU time per presented frame since the last reset (`ROOD_PERF=1`; Vulkan timestamps, GL timer queries; Vulkan adds `sections`: ms per frame of `draw`, `present`, `aa`, `downsample`, the GI passes); GL adds `presents`, `gpu_wait_ms` (CPU waits for frames in flight), `gi_traced`/`gi_reused`, `gi_gpu_ms`, `gi_budget_ms`, `gi_interval` (path tracer cadence); with `ROOD_PERF=1` also the game thread per vsync (`pc/src/frame_cost.h`): `cpu_vsyncs`, `cpu_sections` (ms: `vsync` = `game` + `host`, `draw`, `raster`, `emissive`, `upload`, `readback`, `gpu_copy`, `fence_wait`, `present`, `debug_ppm`) and `cpu_counts` (`upload_kb`, `uploads`, `readbacks`, `gpu_copies`, `hashed_texels`, `passes`, `barriers`, `raster_px`, `skipped_px`); `pc/tools/frame_cost_bench.py` measures a few game moments with them |
 | `lighting_autodetect` | `ray_query`, `integrated` | the first-run preset for those capabilities |
 | `render_stats` | | native lists/instances/triangles and room triangles drawn from packets in the last frame |
 | `editor_ui` | `visible`, `help`, `tab`, `details`, `lighting_menu`, `rooms` | open or close the editor and its Keyboard shortcuts window (`rooms`: the Room Browser); `tab` `outliner` or `place`; `details` a Details tab (`lighting`, `inspector`, `atmosphere`, `post`, `graphics`, `diagnostics`); `lighting_menu` opens the toolbar's quality dropdown |

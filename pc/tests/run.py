@@ -301,6 +301,10 @@ def suites(args, mode="egl"):
                  300, note="HUD: the HP / MP labels drawn opaque like their digits (solid black outline, the field "
                            "not showing through), ui_text font and original")]
           if args.save.exists() else []),
+        *([Suite("frame_cost_smoke", [PY, str(TESTS / "frame_cost_smoke.py"), "--card", str(args.save)], 300,
+                 note="per-frame cost (ROOD_PERF counters): no read-backs (sphere, Status rows: GPU copies), "
+                      "emissive not re-hashed, CPU skips stale 2D; pictures = the old paths'")]
+          if args.save.exists() else []),
         *([Suite("button_roles_smoke", [PY, str(TESTS / "button_roles_smoke.py"), "--card", str(args.save)], 300,
                  note="QoL button roles: Cross confirms (settings file, title and loading, menus, the modern "
                       "menus' tabs), Cross attacks in the field; each alone, both, neither; the ability lists")]
@@ -558,7 +562,7 @@ CHECKPOINT_SUITES = {
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
-    "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke",
+    "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "frame_cost_smoke",
 }
 
 

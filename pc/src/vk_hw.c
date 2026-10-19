@@ -29,6 +29,7 @@ typedef struct {
 } hw_vertex;
 
 static VkDescriptorSetLayout draw_set, upload_set;
+static int vram_storage; /* the VRAM image is a storage image (pc_vk_hw_vram_from_target) */
 static VkPipelineLayout draw_layout, upload_layout;
 static VkPipeline opaque_pipeline, blend_pipelines[4], cover_pipeline, upload_pipeline;
 /* Text from distance texels (gpu_hw.c BLEND_TEXT): its solid pixels' G-buffer
@@ -233,9 +234,20 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
         fprintf(stderr, "[vk] gpu_hw.c's vertex is %zu bytes, vk_hw.c expects %zu\n", vertex_size, sizeof(hw_vertex));
         return 0;
     }
+    {
+        /* The VRAM image is also written from the target on the GPU
+         * (pc_vk_hw_vram_from_target) where R16 storage images are supported. */
+        VkFormatProperties props;
+        VkPhysicalDeviceFeatures2 features = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+        vkGetPhysicalDeviceFormatProperties(vk.gpu, VK_FORMAT_R16_UINT, &props);
+        vkGetPhysicalDeviceFeatures2(vk.gpu, &features);
+        vram_storage = (props.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT)
+            && features.features.shaderStorageImageExtendedFormats;
+    }
     if (!make_targets(scale)
         || !vk_image_create(&vk_hw.vram, 1024, 512, VK_FORMAT_R16_UINT,
-            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                | (vram_storage ? VK_IMAGE_USAGE_STORAGE_BIT : 0))
         || !vk_image_create(&vk_hw.emissive, PC_EMISSIVE_MAP_W, PC_EMISSIVE_MAP_H, VK_FORMAT_R8_UINT,
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
         || !vk_image_create(&vk_hw.dummy_depth, 1, 1, vk.depth_format,
@@ -311,38 +323,36 @@ void pc_vk_hw_resize(int scale)
 
 /* ---- native VRAM ---- */
 
-void pc_vk_hw_upload_tiles(const uint16_t* vram, uint32_t tiles)
+void pc_vk_hw_upload_rects(const uint16_t* vram, const int (*rects)[4], int count)
 {
-    if (!tiles)
+    if (count <= 0)
         return;
     vk_end_rendering();
     VkCommandBuffer cmd = vk_cmd();
-    VkBufferImageCopy regions[32];
-    int count = 0;
+    VkBufferImageCopy regions[64];
+    int n = 0;
     VkBuffer buffer = VK_NULL_HANDLE;
-    for (int tile = 0; tile < 32; tile++) {
-        if (!(tiles & (1u << tile)))
-            continue;
-        int x = (tile & 15) * 64, y = (tile >> 4) * 256;
-        vk_slice slice = vk_arena(64 * 256 * 2, 16);
+    for (int i = 0; i < count; i++) {
+        int x = rects[i][0], y = rects[i][1], w = rects[i][2], h = rects[i][3];
+        vk_slice slice = vk_arena((VkDeviceSize)w * h * 2, 16);
         if (!slice.data)
             return;
-        for (int row = 0; row < 256; row++)
-            memcpy((uint16_t*)slice.data + row * 64, vram + (y + row) * 1024 + x, 64 * 2);
-        if (buffer && buffer != slice.buffer) {
-            vkCmdCopyBufferToImage(cmd, buffer, vk_hw.vram.image, VK_IMAGE_LAYOUT_GENERAL, (uint32_t)count, regions);
-            count = 0;
+        for (int row = 0; row < h; row++)
+            memcpy((uint16_t*)slice.data + row * w, vram + (y + row) * 1024 + x, (size_t)w * 2);
+        if (n == 64 || (buffer && buffer != slice.buffer)) {
+            vkCmdCopyBufferToImage(cmd, buffer, vk_hw.vram.image, VK_IMAGE_LAYOUT_GENERAL, (uint32_t)n, regions);
+            n = 0;
         }
         buffer = slice.buffer;
-        regions[count++] = (VkBufferImageCopy){ .bufferOffset = slice.offset,
-            .bufferRowLength = 64,
-            .bufferImageHeight = 256,
+        regions[n++] = (VkBufferImageCopy){ .bufferOffset = slice.offset,
+            .bufferRowLength = (uint32_t)w,
+            .bufferImageHeight = (uint32_t)h,
             .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
             .imageOffset = { x, y, 0 },
-            .imageExtent = { 64, 256, 1 } };
+            .imageExtent = { (uint32_t)w, (uint32_t)h, 1 } };
     }
-    if (count)
-        vkCmdCopyBufferToImage(cmd, buffer, vk_hw.vram.image, VK_IMAGE_LAYOUT_GENERAL, (uint32_t)count, regions);
+    if (n)
+        vkCmdCopyBufferToImage(cmd, buffer, vk_hw.vram.image, VK_IMAGE_LAYOUT_GENERAL, (uint32_t)n, regions);
     vk_barrier();
 }
 
@@ -707,8 +717,9 @@ int pc_vk_hw_dump(const char* path, int replay)
         return -1;
     }
     fprintf(f, "P6\n%d %d\n255\n", w, h);
-    for (int i = 0; i < w * h; i++)
-        fwrite(pixels + i * 4, 1, 3, f);
+    for (size_t i = 0; i < (size_t)w * h; i++) /* RGBA to RGB in place, written at once */
+        memmove(pixels + i * 3, pixels + i * 4, 3);
+    fwrite(pixels, 3, (size_t)w * h, f);
     free(pixels);
     return fclose(f) ? -1 : 0;
 }
@@ -749,6 +760,53 @@ int pc_vk_hw_sync_read(int replay, int x0, int y0, int x1, int y1, unsigned char
         sync_image.image, VK_IMAGE_LAYOUT_GENERAL,
         1, &blit, VK_FILTER_NEAREST);
     return vk_read_image(&sync_image, VK_IMAGE_ASPECT_COLOR_BIT, x0, y0, x1 - x0, y1 - y0, pixels, 4);
+}
+/* The sampled copy of native VRAM over native rectangle x0..x1, y0..y1 from
+ * the live (replay: the replay) target's colour, on the GPU
+ * (vram_from_target.comp). 0: unavailable (no R16 storage image here). */
+static VkDescriptorSetLayout vram_copy_set;
+static VkPipelineLayout vram_copy_layout;
+static VkPipeline vram_copy_pipeline;
+int pc_vk_hw_vram_from_target(int replay, int x0, int y0, int x1, int y1)
+{
+    if (!vram_storage)
+        return 0;
+    if (x1 <= x0 || y1 <= y0)
+        return 1;
+    if (!vram_copy_pipeline) {
+        VkDescriptorType types[2] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE };
+        vram_copy_set = vk_push_layout(types, 2);
+        VkPushConstantRange range = { VK_SHADER_STAGE_COMPUTE_BIT, 0, 32 };
+        VkPipelineLayoutCreateInfo info = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = 1,
+            .pSetLayouts = &vram_copy_set,
+            .pushConstantRangeCount = 1,
+            .pPushConstantRanges = &range };
+        if (!vram_copy_set || !vk_check(vkCreatePipelineLayout(vk.device, &info, NULL, &vram_copy_layout), "vkCreatePipelineLayout")) {
+            vram_storage = 0;
+            return 0;
+        }
+        VkShaderModule cs = vk_shader(vk_spv_vram_from_target_comp, vk_spv_vram_from_target_comp_size);
+        vram_copy_pipeline = vk_compute_pipeline(cs, vram_copy_layout);
+        vkDestroyShaderModule(vk.device, cs, NULL);
+        if (!vram_copy_pipeline) {
+            vram_storage = 0;
+            return 0;
+        }
+    }
+    vk_end_rendering();
+    VkCommandBuffer cmd = vk_cmd();
+    vk_barrier(); /* the target's drawing so far */
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, vram_copy_pipeline);
+    vk_descriptors d = { 0 };
+    vk_descriptors_image(&d, 0, target_of(replay ? VK_TOKEN_REPLAY : VK_TOKEN_LIVE)->color.view, vk.nearest);
+    vk_descriptors_storage_image(&d, 1, vk_hw.vram.view);
+    vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_COMPUTE, vram_copy_layout);
+    int push[8] = { x0, y0, x1 - x0, y1 - y0, vk_hw.scale };
+    vkCmdPushConstants(cmd, vram_copy_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof push, push);
+    vkCmdDispatch(cmd, (uint32_t)(x1 - x0 + 7) / 8, (uint32_t)(y1 - y0 + 7) / 8, 1);
+    vk_barrier(); /* before the draws that sample it */
+    return 1;
 }
 
 /* ---- MSAA (antialias.h): the multisampled twins ---- */

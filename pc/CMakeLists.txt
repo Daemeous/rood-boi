@@ -245,7 +245,7 @@ target_link_libraries(vs_encode_probe PRIVATE m)
 add_library(gpu_probe_runtime OBJECT src/boot_runtime.c)
 target_compile_definitions(gpu_probe_runtime PRIVATE main=pc_boot_main)
 target_compile_options(gpu_probe_runtime PRIVATE -ffunction-sections -fdata-sections)
-add_executable(gpu_probe tests/gpu_probe.c tests/gpu_hooks_stub.c $<TARGET_OBJECTS:gpu_probe_runtime>)
+add_executable(gpu_probe tests/gpu_probe.c tests/gpu_hooks_stub.c src/frame_cost.c $<TARGET_OBJECTS:gpu_probe_runtime>)
 target_link_options(gpu_probe PRIVATE -Wl,--gc-sections)
 add_test(NAME gpu_probe COMMAND gpu_probe)
 add_custom_target(check-room

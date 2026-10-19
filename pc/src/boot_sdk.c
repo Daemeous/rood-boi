@@ -319,11 +319,14 @@ void DrawPrim(void* p) { pc_draw_packet(p, 0); }
  * (widescreen 2D/3D classification in the hardware rasterizer). */
 extern void pc_gte_new_generation(void);
 extern void pc_hw_begin_ot(void) __attribute__((weak));
+extern void pc_hw_end_ot(void) __attribute__((weak));
 void DrawOTag(u_long* p)
 {
     if (pc_hw_begin_ot)
         pc_hw_begin_ot();
     pc_draw_packet(p, 1);
+    if (pc_hw_end_ot)
+        pc_hw_end_ot();
     pc_gte_new_generation();
 }
 /* Diagnostic font output is disabled; no game UI uses this debug font. */

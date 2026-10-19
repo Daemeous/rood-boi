@@ -89,7 +89,17 @@ static void triangle(
         maxx = 1023;
     if (maxy > 511)
         maxy = 511;
+    if (maxx < minx || maxy < miny)
+        return;
+    /* Where the target's picture replaces native VRAM before any read (a
+     * drawing area native draws left stale), nothing is drawn here. */
+    if (pc_hw_raster_skip && pc_hw_raster_skip(minx, miny, maxx, maxy)) {
+        pc_cost_count(PC_COUNT_SKIPPED_PX, (unsigned)((maxx - minx + 1) * (maxy - miny + 1)));
+        return;
+    }
     pc_hw_mark(minx, miny, maxx, maxy);
+    uint64_t cost = pc_cost_begin();
+    pc_cost_count(PC_COUNT_RASTER_PX, (unsigned)((maxx - minx + 1) * (maxy - miny + 1)));
     int tl0 = top_left(&b, &c), tl1 = top_left(&c, &a), tl2 = top_left(&a, &b);
     for (int y = miny; y <= maxy; ++y)
         for (int x = minx; x <= maxx; ++x) {
@@ -125,6 +135,7 @@ static void triangle(
             }
             pixel(x, y, color, (code & 2) && (!(code & 4) || (color & 0x8000)));
         }
+    pc_cost_end(PC_COST_RASTER, cost);
 }
 static unsigned polygon_command(const uint32_t* p, unsigned available)
 {
@@ -298,7 +309,8 @@ static unsigned polygon_command(const uint32_t* p, unsigned available)
             u0 = vertex[i].u < u0 ? vertex[i].u : u0, u1 = vertex[i].u > u1 ? vertex[i].u : u1;
             v0 = vertex[i].v < v0 ? vertex[i].v : v0, v1 = vertex[i].v > v1 ? vertex[i].v : v1;
         }
-        pc_hw_sync_texture(tpage, clut, texture_window, u0, v0, u1, v1);
+        int clip[4] = { clip_x, clip_y, clip_w, clip_h };
+        pc_hw_sync_texture(tpage, clut, texture_window, u0, v0, u1, v1, clip);
     }
     /* ui_text: a battle number popup's digit at the UI text scale (ui_text.c; scale 1: unchanged). */
     if (!projected && textured && count == 4 && drawing_tag && drawing_tag + 1 == p && pc_ui_text_popup_place) {

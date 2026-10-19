@@ -695,8 +695,35 @@ In the first room nothing reads back; in the soak a screen effect samples
 rows of the frame now and then (about one copy per 12 vsyncs), and menus
 copy back a few times when they open. The software presenter is only used
 without the hardware rasterizer, where nothing is native and the packets
-draw as before. The per-frame `loading.ppm` debug image is written from
-native VRAM without a copy (it lacks native content in mode 2).
+draw as before. The `loading.ppm` debug image is written from native VRAM
+without a copy (it lacks native content in mode 2), every 64th displayed
+frame, when a checkpoint or `ROOD_SNAP_EVERY` copies it, and at exit.
+
+Since 2026-10-18 (frame cost, `pc/tests/frame_cost_smoke.py`) nothing waits
+for the GPU where only the GPU needs the picture:
+
+- **Own copies.** A primitive that samples a stale area while what the CPU
+  rasterizer would draw lands in stale VRAM too (the targeting sphere's
+  info box and the Status screen redraw rows of their own picture) takes
+  those texels from the target on the GPU (`vram_from_target`: the same
+  centre sample and 5-bit quantization, a compute pass on Vulkan
+  `vram_from_target.comp`, a draw into the R16UI texture on OpenGL) instead
+  of reading back; native VRAM stays stale there. Replayed (interpolated)
+  batches that sample their own frame do the same from the replay target.
+  Each read-back had waited for the GPU's whole frame so far (with path
+  tracing on, several milliseconds: the sphere and the menus fell to 12-20
+  fps). `ROOD_GPU_VRAM_COPY=0` reads back as before.
+- **Stale 2D is not drawn on the CPU.** An ordering table that holds native
+  draws (render.c markers, found by a pre-scan of its packets) marks its
+  drawing area stale from its start, and the CPU rasterizer leaves out what
+  it would draw inside an area this table left stale (`pc_hw_raster_skip`):
+  the target's picture replaces it before anything reads it. That was most
+  of the game thread's frame (the backdrop alone is the whole screen every
+  frame). Decided from the table's own packets, so a resumed save state draws
+  the same. `ROOD_RASTER_SKIP=0` draws everything.
+- **Uploads by band.** Native VRAM the GPU's copy lacks is tracked in bands
+  of 64 x 16 (was 64 x 256 tiles); a draw uploads only the bands its texels
+  (its UV box, a texel around it) and CLUT row need.
 
 ## Retiring the reconstruction (`pc_reconstruct`)
 

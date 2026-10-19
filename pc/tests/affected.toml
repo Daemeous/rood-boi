@@ -62,6 +62,11 @@ paths = ["*.md", "docs/*", "pc/docs/*", "LICENSE", "THIRD_PARTY.md", ".github/*"
          "assets/*"]
 suites = []
 
+# ---- frame cost counters (ROOD_PERF) ----
+[[rule]]
+paths = ["pc/src/frame_cost.*", "pc/tools/frame_cost_bench.py"]
+suites = ["frame_cost_smoke", "rpc_smoke", "ctest"]
+
 # ---- Lua plugins ----
 [[rule]]
 paths = ["pc/src/lua/*", "pc/plugins/*", "pc/tests/lua/*", "pc/third_party/lua*"]

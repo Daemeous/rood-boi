@@ -1,0 +1,24 @@
+#version 450
+// The target's colour into the sampled copy of VRAM (pc/src/gpu_hw.c
+// vram_from_target): what a read-back makes of it (read_native_pixels, then
+// pixels_to_vram and an upload) without the trip through the CPU. Each
+// native pixel is its centre sample at the target's scale (as the nearest
+// blit takes it), 5 bits per channel as the CPU rasterizer quantizes, the
+// mask bit from alpha.
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(binding = 0) uniform sampler2D target;
+layout(binding = 1, r16ui) uniform writeonly uimage2D vram;
+layout(push_constant) uniform Push {
+    ivec4 rect; // native x, y, w, h
+    int scale;
+} pc;
+
+void main() {
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (p.x >= pc.rect.z || p.y >= pc.rect.w)
+        return;
+    ivec2 at = pc.rect.xy + p;
+    uvec4 c = uvec4(round(texelFetch(target, at * pc.scale + pc.scale / 2, 0) * 255.0));
+    uint t = (c.r >> 3) | ((c.g >> 3) << 5) | ((c.b >> 3) << 10) | (c.a >= 128u ? 0x8000u : 0u);
+    imageStore(vram, at, uvec4(t));
+}

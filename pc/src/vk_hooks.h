@@ -38,7 +38,8 @@ enum {
 /* ---- gpu_hw.c -> vk_hw.c ---- */
 int pc_vk_hw_init(int scale, size_t vertex_size);
 void pc_vk_hw_resize(int scale);
-void pc_vk_hw_upload_tiles(const uint16_t* vram, uint32_t tiles);
+/* Native VRAM rectangles (x, y, w, h; inside VRAM) into its sampled copy (VK_TOKEN_VRAM). */
+void pc_vk_hw_upload_rects(const uint16_t* vram, const int (*rects)[4], int count);
 /* Emissive texels' slot map (emissive.h): rows [row0, row1) of the CPU copy. */
 void pc_vk_hw_upload_emissive(const uint8_t* map, int row0, int row1);
 void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blend, const int* clip, int occlusion,
@@ -64,6 +65,10 @@ void pc_vk_hw_text_overlay(const void* vertices, int count, int mode, const floa
     int view_y, int to_view);
 /* Normal (RGBA8) and depth (0..1) of the live target at scaled pixel x, y. */
 int pc_vk_hw_pick(int x, int y, float* depth, unsigned char normal[4]);
+/* The sampled copy of native VRAM (VK_TOKEN_VRAM) over native rectangle
+ * x0..x1, y0..y1 from the live (replay: the replay) target's colour, on the
+ * GPU, quantized as pc_hw_sync's read-back is; 0: unavailable here. */
+int pc_vk_hw_vram_from_target(int replay, int x0, int y0, int x1, int y1);
 /* The live target (replay: the replay target) over native rectangle x0..x1,
  * y0..y1 at native resolution (RGBA8, tightly packed), for VRAM readers
  * (gpu_hw.c pc_hw_sync) and replayed batches that sample the frame's own

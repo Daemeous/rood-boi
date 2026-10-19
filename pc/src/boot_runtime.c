@@ -2,6 +2,7 @@
 #include "audio.h"
 #include "pc_paths.h"
 #include "platform.h" /* pc_replace_file */
+#include "frame_cost.h" /* ROOD_PERF sections */
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -33,8 +34,9 @@ extern void pc_hw_copy(int, int, int, int, int, int);
  * target has (gpu_hw.c; absent in unit probes). */
 extern void pc_hw_sync(int, int, int, int) __attribute__((weak));
 extern void pc_hw_sync_store(int, int, int, int) __attribute__((weak));
-extern void pc_hw_sync_texture(unsigned, unsigned, unsigned, int, int, int, int) __attribute__((weak));
+extern void pc_hw_sync_texture(unsigned, unsigned, unsigned, int, int, int, int, const int*) __attribute__((weak));
 extern void pc_hw_stale_copy(int, int, int, int, int, int) __attribute__((weak));
+extern int pc_hw_raster_skip(int, int, int, int) __attribute__((weak));
 /* What a VRAM write replaces, kept for frame interpolation (gpu_hw.c). */
 extern void pc_hw_before_write(int, int, int, int) __attribute__((weak));
 extern void pc_hw_set_2d(int);
@@ -163,9 +165,11 @@ void pc_vram_clear(int x, int y, int w, int h, int r, int g, int b)
     y &= 0x1ff;
     w = ((w & 0x3ff) + 0xf) & ~0xf;
     h &= 0x1ff;
+    uint64_t cost = pc_cost_begin();
     for (int row = 0; row < h; row++)
         for (int col = 0; col < w; col++)
             vram[((y + row) & 511) * 1024 + ((x + col) & 1023)] = color;
+    pc_cost_end(PC_COST_RASTER, cost);
     /* Mirror as up to four in-range pieces of the wrapped rectangle. */
     for (int part = 0; part < 4; part++) {
         int px = part & 1 ? 0 : x, py = part & 2 ? 0 : y;
@@ -210,8 +214,16 @@ static void display_pixel(int x, int y, unsigned char* rgb)
     rgb[1] = (((p >> 5) & 31) * 255) / 31;
     rgb[2] = (((p >> 10) & 31) * 255) / 31;
 }
-void pc_present(void)
+/* loading.ppm is written when something copies it (the checkpoints, the
+ * ROOD_SNAP_EVERY and frame-100/400 copies, the first frame), else every
+ * 64th presented frame (by the frame count, not the clock: the game's own
+ * path buffers rotate with each write, saved state), and at exit when a
+ * newer frame was presented since: writing it for every frame cost ~0.15 ms
+ * a vsync. */
+static int display_unwritten __attribute__((section(".data.rood_host"))) = 0; /* host: a frame not in the file yet */
+static void write_display(void)
 {
+    uint64_t cost = pc_cost_begin();
     FILE* f = fopen(pc_out_path("loading.ppm"), "wb");
     if (!f) {
         perror("framebuffer");
@@ -225,12 +237,34 @@ void pc_present(void)
         fwrite(row, 3, display_w < 1024 ? display_w : 1024, f);
     }
     fclose(f);
+    display_unwritten = 0;
+    pc_cost_end(PC_COST_DEBUG_PPM, cost);
+    pc_cost_count(PC_COUNT_DEBUG_PPM, 1);
+}
+static void write_display_at_exit(void)
+{
+    if (display_unwritten)
+        write_display();
+}
+/* A displayed frame (PutDispEnv, SetDispMask(1), the checkpoints). */
+void pc_present(void)
+{
+    static int exit_hook __attribute__((section(".data.rood_host"))) = 0; /* host */
+    if (!exit_hook) {
+        exit_hook = 1;
+        atexit(write_display_at_exit);
+    }
     /* Debug aid: ROOD_SNAP_EVERY=N copies the displayed frame to
      * snap-<battle frame>.ppm in ROOD_OUT (pc/build/boot) every N battle frames. */
     static int snap_every __attribute__((section(".data.rood_host"))) = -1; /* host setting */
     static unsigned snapped;
     if (snap_every < 0)
         snap_every = getenv("ROOD_SNAP_EVERY") ? atoi(getenv("ROOD_SNAP_EVERY")) : 0;
+    int snap = snap_every > 0
+        && (battle_frames ? battle_frames % snap_every == 0 && snapped != battle_frames : frames % snap_every == 0);
+    display_unwritten = 1;
+    if (snap || frames % 64 == 0 || frames == 100 || frames == 400 || stop_at_loading)
+        write_display();
     if (snap_every > 0 && battle_frames && battle_frames % snap_every == 0
         && snapped != battle_frames) {
         char name[24];
@@ -254,6 +288,13 @@ void pc_present(void)
         pc_log("loading-screen checkpoint reached (not title boot)");
         exit(0);
     }
+}
+/* A displayed frame that is copied or renamed right after (the checkpoints). */
+static void pc_present_now(void)
+{
+    pc_present();
+    if (display_unwritten)
+        write_display();
 }
 /* Debug aid: `kill -USR1 <pid>` prints the native call stack; resolve the
  * addresses with pc/tools/where.sh. */
@@ -810,9 +851,11 @@ static void commands(uint32_t* p, unsigned n)
             if (tex && pc_button_roles_texels) /* the game's ○ / × follow the button roles */
                 uv += (unsigned)pc_button_roles_texels(vram, tpage, uv >> 16, (int)(uv & 255), (int)((uv >> 8) & 255),
                     (int)(uv & 255) + (int)w - 1, (int)((uv >> 8) & 255) + (int)h - 1);
-            if (tex && pc_hw_sync_texture)
+            if (tex && pc_hw_sync_texture) {
+                int clip[4] = { clip_x, clip_y, clip_w, clip_h };
                 pc_hw_sync_texture(tpage, uv >> 16, texture_window, uv & 255, (uv >> 8) & 255,
-                    (int)(uv & 255) + (int)w - 1, (int)((uv >> 8) & 255) + (int)h - 1);
+                    (int)(uv & 255) + (int)w - 1, (int)((uv >> 8) & 255) + (int)h - 1, clip);
+            }
             {
                 int clip[4] = { clip_x, clip_y, clip_w, clip_h };
                 pc_hw_set_2d(1); /* sprites and tiles are screen-space */
@@ -822,8 +865,28 @@ static void commands(uint32_t* p, unsigned n)
                 pc_hw_rect(x, y, (int)w, (int)h, uv & 255, (uv >> 8) & 255, p[i] & 0xffffff, code,
                     tpage, uv >> 16, texture_window, clip, mask_set, mask_check);
                 pc_gpu_command = NULL;
+            }
+            {
+                /* (the pixels it may draw: inside the drawing area and VRAM) */
+                int x0 = x > clip_x ? x : clip_x, y0 = y > clip_y ? y : clip_y;
+                int x1 = x + (int)w < clip_x + clip_w ? x + (int)w : clip_x + clip_w;
+                int y1 = y + (int)h < clip_y + clip_h ? y + (int)h : clip_y + clip_h;
+                x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0, x1 = x1 > 1024 ? 1024 : x1, y1 = y1 > 512 ? 512 : y1;
+                if (x1 <= x0 || y1 <= y0) {
+                    i += words;
+                    continue;
+                }
+                /* Where the target's picture replaces native VRAM before any
+                 * read, nothing is drawn here (as for triangles). */
+                if (pc_hw_raster_skip && pc_hw_raster_skip(x0, y0, x1 - 1, y1 - 1)) {
+                    pc_cost_count(PC_COUNT_SKIPPED_PX, (unsigned)((x1 - x0) * (y1 - y0)));
+                    i += words;
+                    continue;
+                }
                 pc_hw_mark(x, y, x + (int)w - 1, y + (int)h - 1);
             }
+            uint64_t cost = pc_cost_begin();
+            pc_cost_count(PC_COUNT_RASTER_PX, w * h);
             for (unsigned yy = 0; yy < h; yy++)
                 for (unsigned xx = 0; xx < w; xx++) {
                     uint16_t c;
@@ -844,6 +907,7 @@ static void commands(uint32_t* p, unsigned n)
                           | ((((p[i] >> 16) & 255) >> 3) << 10);
                     pixel(x + xx, y + yy, c, (code & 2) && (!tex || (c & 0x8000)));
                 }
+            pc_cost_end(PC_COST_RASTER, cost);
             i += words;
             continue;
         }
@@ -860,7 +924,43 @@ extern void pc_hw_native_translucent(uint32_t, int, int, int, int, const int*, u
 /* Vector talk bubbles (ui_bubbles.c): their packets are drawn here as on the
  * PS1 but left out of the hardware target, which draws the shapes instead. */
 extern void pc_ui_bubble_packet(const void*, int, int, const int*) __attribute__((weak));
+/* gpu_hw.c: the ordering table about to be drawn holds native draws, and
+ * starts in drawing area `clip` (x, y, w, h). */
+extern void pc_hw_ot_native_area(const int*) __attribute__((weak));
+/* Whether the ordering table from `p` holds a native draw (render.c marker):
+ * only the table's own packets decide (guest data, the same in a game
+ * resumed from a save state). */
+static int ot_has_native(const uint32_t* p)
+{
+    for (unsigned links = 0; links < 100000; links++) {
+        uint32_t list;
+        int first, count;
+        if (render_is_marker(p) || (render_translucent_marker && render_translucent_marker(p, &list, &first, &count)))
+            return 1;
+        unsigned next = p[0] & 0xffffff;
+        if (next == 0xffffff)
+            return 0;
+        if (next < 0x200000)
+            p = (const uint32_t*)(uintptr_t)(next | 0x80000000u);
+        else if (sizeof(void*) == 4 && next >= 0x400000 && next < 0x1000000)
+            p = (const uint32_t*)(uintptr_t)next;
+        else
+            return 0;
+    }
+    return 0;
+}
+static void draw_packet(void* data, int chain);
 void pc_draw_packet(void* data, int chain)
+{
+    uint64_t cost = pc_cost_begin();
+    if (chain && pc_hw_ot_native_area && render_is_marker && ot_has_native(data)) {
+        int clip[4] = { clip_x, clip_y, clip_w, clip_h };
+        pc_hw_ot_native_area(clip);
+    }
+    draw_packet(data, chain);
+    pc_cost_end(PC_COST_DRAW, cost);
+}
+static void draw_packet(void* data, int chain)
 {
     uint32_t* p = data;
     for (unsigned links = 0; links < 100000; links++) {
@@ -904,7 +1004,7 @@ void pc_draw_packet(void* data, int chain)
 
 void pc_title_menu_ready(void)
 {
-    pc_present();
+    pc_present_now();
     pc_log("TITLE MENU READY: original game entered title input loop");
     if (intro_skipped_by_setting) {
         /* Later titles (after the idle demo, the ending) play as the original. */
@@ -933,12 +1033,12 @@ int pc_capture_display(const char* path, int* width, int* height)
     if (!f)
         return -1;
     fprintf(f, "P6\n%d %d\n255\n", display_w, display_h);
-    for (int y = 0; y < display_h; y++)
-        for (int x = 0; x < display_w; x++) {
-            unsigned char rgb[3];
-            display_pixel(x, y, rgb);
-            fwrite(rgb, 1, 3, f);
-        }
+    for (int y = 0; y < display_h; y++) {
+        unsigned char row[1024 * 3];
+        for (int x = 0; x < display_w && x < 1024; x++)
+            display_pixel(x, y, row + x * 3);
+        fwrite(row, 3, display_w < 1024 ? display_w : 1024, f);
+    }
     *width = display_w;
     *height = display_h;
     return fclose(f) ? -1 : 0;
@@ -957,11 +1057,13 @@ extern int pc_charge_skip_hidden(void) __attribute__((weak));
 extern void pc_hw_skip_present(void) __attribute__((weak)); /* gpu_hw.c */
 extern void pc_state_diff_vsync(void) __attribute__((weak));
 static void tick_frame(void);
+static void tick_frame_work(void);
 /* One vsync of the host, called by the game through pc_vsync_boundary
  * (boot_sdk.c's pc_vblank_wait, snapshot.c). */
 void pc_tick(void)
 {
     ++vsyncs;
+    pc_cost_vsync();
     if (pc_state_diff_vsync)
         pc_state_diff_vsync(); /* compare the completed frame before RPC changes */
     pc_rpc_poll();
@@ -975,6 +1077,12 @@ void pc_tick_resumed(void)
     tick_frame();
 }
 static void tick_frame(void)
+{
+    uint64_t cost = pc_cost_begin();
+    tick_frame_work();
+    pc_cost_game_resumes(cost);
+}
+static void tick_frame_work(void)
 {
     if (pc_fog_vsync)
         pc_fog_vsync(); /* once per game vsync, after the RPC's changes, before the frame */
@@ -993,7 +1101,9 @@ static void tick_frame(void)
             pc_hw_skip_present();
         return;
     }
+    uint64_t cost = pc_cost_begin();
     pc_window_frame(vram, display_x, display_y, display_w, display_h);
+    pc_cost_end(PC_COST_PRESENT, cost);
     /* More images per vsync (frame interpolation at its fractions). */
     if (&pc_present_rate && &pc_present_phase && pc_window_wait_fraction && &pc_hw_interpolate && &pc_hw_active
         && pc_present_rate > 1 && pc_hw_interpolate && pc_hw_active) {
@@ -1028,10 +1138,10 @@ void pc_finish_room_checkpoint(void)
     display_y = clip_y;
     display_w = clip_w;
     display_h = clip_h;
-    pc_present();
+    pc_present_now();
     if (pc_hw_sync) {
         pc_hw_sync(display_x, display_y, display_w, display_h);
-        pc_present();
+        pc_present_now();
     }
     if (pc_replace_file(pc_out_path("loading.ppm"), pc_out_path("room-checkpoint.ppm"))) {
         perror("room checkpoint");
@@ -1131,10 +1241,10 @@ void pc_battle_frame_complete(void)
         display_y = clip_y;
         display_w = clip_w;
         display_h = clip_h;
-        pc_present();
+        pc_present_now();
         if (pc_hw_sync) {
         pc_hw_sync(display_x, display_y, display_w, display_h);
-        pc_present();
+        pc_present_now();
     }
     if (pc_replace_file(pc_out_path("loading.ppm"), pc_out_path("battle-checkpoint.ppm"))) {
             perror("battle checkpoint");
@@ -1154,10 +1264,10 @@ void pc_battle_frame_complete(void)
     display_y = clip_y;
     display_w = clip_w;
     display_h = clip_h;
-    pc_present();
+    pc_present_now();
     if (pc_hw_sync) {
         pc_hw_sync(display_x, display_y, display_w, display_h);
-        pc_present();
+        pc_present_now();
     }
     if (pc_replace_file(pc_out_path("loading.ppm"), pc_out_path("opening-checkpoint.ppm"))) {
         perror("opening checkpoint");

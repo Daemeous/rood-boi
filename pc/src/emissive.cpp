@@ -21,6 +21,7 @@
 #include "glow_overrides.h"
 #include "dev_state.h"
 #include "materials.h"
+#include "frame_cost.h" /* ROOD_PERF: texels hashed */
 #include "editor_undo.h"
 
 extern "C" {
@@ -716,6 +717,10 @@ struct Use {
     std::string key; /* "" when no catalog size matches (not hashed) */
     int entry = -1, item = -1;
     uint32_t tiles = 0; /* VRAM tiles under its texels */
+    /* The VRAM its key and CLUT key were taken from (its texels' halfwords,
+     * row by row, then the CLUT's): an unmatched use is hashed again only
+     * when this changed (same VRAM, same keys, same result). */
+    std::vector<uint16_t> seen;
 };
 std::unordered_map<uint64_t, Use> uses;
 std::unordered_map<uint64_t, std::vector<uint64_t>> instance_uses; /* instance key -> uses */
@@ -1022,6 +1027,51 @@ static void write_marks()
     }
     any_marks = marked_uses > 0;
 }
+/* The VRAM a use's keys read (Use::seen), visited as runs of halfwords:
+ * the rows of its texels, then the CLUT (16 or 256 entries; none at 16 bits). */
+template <typename F> static void use_vram(const Use& u, F run)
+{
+    const uint16_t* vram = pc_native_vram();
+    if (!vram)
+        return;
+    int tx = (int)(u.page & 15) * 64, ty = (int)((u.page >> 4) & 1) * 256, depth = (int)((u.page >> 7) & 3);
+    int shift = depth == 0 ? 2 : depth == 1 ? 1 : 0;
+    int x0 = tx + (u.box[0] >> shift), x1 = tx + (u.box[2] >> shift);
+    for (int v = u.box[1]; v <= u.box[3]; v++) {
+        const uint16_t* row = vram + (size_t)((ty + v) & 511) * 1024;
+        for (int x = x0; x <= x1;) { /* (a run stops at VRAM's right edge: it wraps) */
+            int at = x & 1023, n = std::min(x1 - x + 1, 1024 - at);
+            run(row + at, n);
+            x += n;
+        }
+    }
+    if (depth < 2) {
+        int cx = (int)(u.clut & 63) * 16, cy = (int)((u.clut >> 6) & 511), n = depth == 0 ? 16 : 256;
+        const uint16_t* row = vram + (size_t)cy * 1024;
+        int first = std::min(n, 1024 - cx);
+        run(row + cx, first);
+        if (first < n)
+            run(row, n - first);
+    }
+}
+static void remember_vram(Use& u)
+{
+    u.seen.clear();
+    use_vram(u, [&](const uint16_t* p, int n) { u.seen.insert(u.seen.end(), p, p + n); });
+}
+static bool vram_unchanged(const Use& u)
+{
+    if (u.seen.empty())
+        return false;
+    size_t at = 0;
+    bool same = true;
+    use_vram(u, [&](const uint16_t* p, int n) {
+        if (same && (at + (size_t)n > u.seen.size() || memcmp(p, u.seen.data() + at, (size_t)n * 2)))
+            same = false;
+        at += (size_t)n;
+    });
+    return same && at == u.seen.size();
+}
 static void match_use(Use& u)
 {
     u.state = 1;
@@ -1029,9 +1079,12 @@ static void match_use(Use& u)
     int w1 = u.box[2] - u.box[0], h1 = u.box[3] - u.box[1];
     if (!sizes.count(w1 << 8 | h1)) {
         u.key.clear();
+        u.seen.clear();
         return;
     }
     u.key = content_key(u.page, u.clut, u.box[0], u.box[1], u.box[2], u.box[3]);
+    remember_vram(u);
+    pc_cost_count(PC_COUNT_HASHED, (unsigned)((w1 + 1) * (h1 + 1)));
     const Catalog& c = catalog();
     std::string ck;
     for (size_t i = 0; i < c.entries.size(); i++) {
@@ -1240,10 +1293,12 @@ extern "C" int pc_emissive_sync(int* row0, int* row1)
         marks_changed = true; /* a painted map changed on disk */
     /* A use that did not match yet is tried again when textures are
      * (re)loaded under it, and every frame when it has a catalogued size
-     * (VRAM animations change its content: the floating blocks' circle). */
+     * (VRAM animations change its content: the floating blocks' circle):
+     * then only when the VRAM its keys read changed since (text and menus
+     * drawn elsewhere, or nothing at all, cost a comparison). */
     for (auto& kv : uses)
         if (kv.second.entry < 0 && kv.second.state == 1
-            && (!kv.second.key.empty() || (kv.second.tiles & dirty_tiles)))
+            && (!kv.second.key.empty() ? !vram_unchanged(kv.second) : (kv.second.tiles & dirty_tiles) != 0))
             kv.second.state = 0;
     dirty_tiles = 0;
     long budget = 1 << 21; /* texels hashed per frame */

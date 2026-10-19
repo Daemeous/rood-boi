@@ -8,6 +8,7 @@
 // is decided again each frame (a Custom "traced" without a tracer draws
 // shadow maps), so a settings file from another machine also works.
 #include "lighting_quality.h"
+#include "frame_cost.h" /* RPC perf: the game thread's sections */
 #include "atmosphere.h"
 #include "probe_gi.h"
 #include "antialias.h"
@@ -676,10 +677,16 @@ extern "C" int pc_perf_json(char* out, int size, int reset)
     }
     if (pc_vk_perf_sections_json && n < size)
         n += pc_vk_perf_sections_json(out + n, size - n, reset);
-    /* "cpu_sections": CPU time a frame of passes that run on the CPU (only while they run). */
+    /* "cpu_sections": CPU time a frame of passes that run on the CPU (only while they run);
+     * with ROOD_PERF also the game thread's sections per vsync and "cpu_counts" (frame_cost.h). */
     double particles_ms = 0;
-    if (pc_particles_cpu_perf && pc_particles_cpu_perf(&particles_ms, reset) > 0 && n < size)
-        n += snprintf(out + n, (size_t)(size - n), ",\"cpu_sections\":{\"particles\":%.4f}", particles_ms);
+    char particles[64] = "";
+    if (pc_particles_cpu_perf && pc_particles_cpu_perf(&particles_ms, reset) > 0)
+        snprintf(particles, sizeof particles, "\"particles\":%.4f", particles_ms);
+    if (pc_cost_on && n < size)
+        n += pc_cost_json(out + n, size - n, reset, particles);
+    else if (particles[0] && n < size)
+        n += snprintf(out + n, (size_t)(size - n), ",\"cpu_sections\":{%s}", particles);
     if (n < size)
         n += snprintf(out + n, (size_t)(size - n), "}");
     if (reset)

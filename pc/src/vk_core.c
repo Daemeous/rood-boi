@@ -10,6 +10,7 @@
 #include "lighting_quality.h"
 #include "platform.h"
 #include "vk_shaders_digest.h"
+#include "frame_cost.h" /* ROOD_PERF: fence waits */
 
 #define VK_DEFINE(name) PFN_##name name;
 VK_GLOBAL_FUNCTIONS(VK_DEFINE)
@@ -965,6 +966,7 @@ VkCommandBuffer vk_cmd(void)
 }
 void vk_barrier(void)
 {
+    pc_cost_count(PC_COUNT_BARRIERS, 1);
     VkMemoryBarrier2 barrier = { .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
         .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
         .srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT,
@@ -1008,6 +1010,7 @@ void vk_begin_rendering(const vk_attachments* a)
         .pColorAttachments = colors,
         .pDepthAttachment = a->depth ? &depth : NULL };
     vkCmdBeginRendering(vk_cmd(), &info);
+    pc_cost_count(PC_COUNT_PASSES, 1);
     current_attachments = *a;
     rendering = 1;
 }
@@ -1087,6 +1090,7 @@ void vk_device_lost(const char* where)
 static void wait_slot(int slot)
 {
     typeof(frames[0])* f = &frames[slot];
+    uint64_t cost = pc_cost_begin();
     if (f->submitted && !vk.lost) {
         VkResult result;
         int waited = 0;
@@ -1098,6 +1102,7 @@ static void wait_slot(int slot)
             vk_device_lost(result == VK_TIMEOUT ? "a frame never finished" : "vkWaitForFences");
         }
     }
+    pc_cost_end(PC_COST_FENCE, cost);
     f->submitted = 0;
     vkResetCommandPool(vk.device, f->pool, 0);
 }
