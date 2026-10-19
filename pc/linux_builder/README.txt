@@ -187,6 +187,16 @@ To free the space the build tools and build files take (several GB), run
 ./remove-build-tools.sh. The game folder stays.
 
 
+
+ENEMY DIFFICULTY
+----------------
+Open F1 > Graphics > Gameplay > Enemy difficulty. Type a base percentage
+and an additional percentage per completed game (0 leaves it unchanged).
+The increases add together: 30% base + 30% per completion gives +90%
+on a third playthrough. Save the settings and reload your save to apply.
+Ashley and Merlose are excluded. HP, MP, STR, INT and AGL obey their caps;
+limb HP preserves its starting proportion of maximum HP.
+
 CREDITS
 -------
 * rood-boi, the native PC port: noprompt (https://github.com/noprompt/rood-boi).
