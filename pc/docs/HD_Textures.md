@@ -70,12 +70,19 @@ packet and native mesh renderers. PNG alpha uses Beetle's convention: 0 is clear
 255 opaque, intermediate values select PS1 semi-transparency. It is not ordinary
 fractional coverage. Native rebuilt font text retains the selected font.
 
-The atlas is bounded to 8192 x 8192 RGBA pixels (256 MiB with a configured pack),
-plus tracking tables and temporary uploads. Images load only when their original
-texture and palette are used. Missing, unreadable or oversized images use originals.
-If the atlas fills, remaining images use originals until the following frame resets
-its contents. First use can pause while PNGs decode; asynchronous loading and a
-more persistent eviction policy are future improvements.
+Replacements live in a VRAM atlas of 8192 x 8192 RGBA layers (256 MiB each),
+added as they are needed up to `ROOD_HD_VRAM_MB` (default 2048: eight layers).
+When every layer is full, the layer drawn from least recently is reused at a frame
+boundary; images on the other layers stay. A layer drawn from in the last two
+frames is never cleared, so a scene needing more than the budget shows the excess
+with original textures instead of reloading every frame. Decoded images are kept
+in a RAM cache (`ROOD_HD_RAM_MB`, default 256; 0 keeps none), so a reused layer
+refills without reading the disk. Images are read and decoded on two background
+threads: a replacement seen for the first time keeps its original texture until
+it arrives, usually the next frame. `ROOD_HD_SYNC_LOAD=1` decodes on the game
+thread instead. Missing, unreadable or oversized images use originals. RPC
+`hd_textures` reports the layers in use, evictions, the RAM cache and queued loads.
+The design follows DuckStation's and Beetle PSX's replacement caches.
 
 ## Scope and validation
 

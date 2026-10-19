@@ -35,7 +35,7 @@ layout(location = 3) out vec4 shade_out;
 layout(binding = 4) uniform usampler2D hd_words;
 layout(binding = 5) uniform usampler2D hd_palettes;
 layout(binding = 6) uniform usampler2D hd_table;
-layout(binding = 7) uniform sampler2D hd_atlas;
+layout(binding = 7) uniform sampler2DArray hd_atlas;
 #include "hd_textures.glsl"
 #include "vram.glsl"
 #include "text_dist.glsl"
