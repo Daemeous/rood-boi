@@ -12,6 +12,11 @@
 -- hud_classic_override is on: then the same claims run in the classic flavour (e.flavour "classic":
 -- the game's own printers, sprites and windows, drawn in its frame).
 -- Turned off (the Lua console's Plugins list), everything is the game's and the C++ drawing.
+-- The module (returned at the end; the REPL's M, pc/tools/rood_repl.py --plugin rood.hud): the look,
+-- the styles, refresh and the draw functions. The claims call M.draw[kind], so a draw function
+-- redefined there (M.draw.status = function(e, d) ... end) draws from the next frame; saving
+-- this file brings its own back.
+local M = { draw = {} }
 local S = rood.settings.get
 
 -- A settings colour (r, g, b, a in 0..1) as 0xRRGGBB and its alpha.
@@ -100,6 +105,7 @@ end
 
 local function refresh()
   look = make_look()
+  M.look = look
   local w = look.words
   style.word = d.style{ font = w.font, cap = w.cap, stretch = w.stretch, tracking = w.tracking, stroke = w.stroke,
                         stroke_color = w.stroke_color, align = "center", anchor = "middle" }
@@ -111,6 +117,7 @@ local function refresh()
   if travel_unit then travel_styles(travel_unit) end
   rood.hud.typography("status", next(look.classic) and look.classic or nil)
 end
+M.style, M.refresh = style, refresh
 refresh()
 for _, key in ipairs(SETTINGS) do rood.settings.on_change(key, refresh) end
 
@@ -125,22 +132,22 @@ local function word(e, d)
   local shade = e.flavour == "classic" and 1 or look.words.shade -- (the game's printer shades its own glyphs)
   d.text(style.word, e.text, e.x, e.y + look.words.nudge, shaded(e.rgb, shade))
 end
-rood.hud.claim("status", word)
-rood.hud.claim("chain", word)
+M.draw.status = word
+M.draw.chain = word
 
 -- buff: the equipment's word, the class's or affinity's, the sign, the digits, each in its box
-rood.hud.claim("buff", function(e, d)
+M.draw.buff = function(e, d)
   local p = e.parts
   if not p then return end
   for i = 1, #p do
     local part = p[i]
     d.fit(i < 4 and style.buff_word or style.buff_digits, part.text, part.x, part.y, part.w, part.h, e.rgb)
   end
-end)
+end
 
 -- damage: the digits at the game's place and bounce (func_80094B0C: from the right, each one's
 -- rise half the one before's); a stat's word, sign and digits in their boxes
-rood.hud.claim("damage", function(e, d)
+M.draw.damage = function(e, d)
   local p = e.parts
   if e.pool == "stat" and p and #p == 3 then
     if p[1].text ~= "" then d.fit(style.damage_word, p[1].text, p[1].x, p[1].y, p[1].w, p[1].h, e.rgb) end
@@ -154,11 +161,11 @@ rood.hud.claim("damage", function(e, d)
     d.text(style.damage, e.text:sub(i, i), x, e.y + rise, e.rgb)
     x, rise = x - step, rise < 0 and -((-rise) // 2) or rise // 2 -- (C halves toward 0)
   end
-end)
+end
 
 -- travel: the icon then the verb, laid out as the C++ prompt (fast_travel_prompt.cpp), its
 -- corner `e.corner` (0..8) on the picture's point e.x, e.y
-rood.hud.claim("travel", function(e, d)
+M.draw.travel = function(e, d)
   local t = look.travel
   if e.unit ~= travel_unit then travel_styles(e.unit) end
   local u = e.unit
@@ -173,4 +180,10 @@ rood.hud.claim("travel", function(e, d)
   local y0 = e.y - h * (e.corner // 3) * 0.5
   d.glyph(e.glyph, x0 + stroke, y0 + h * 0.5, icon, style.icon)
   d.text(style.verb, t.verb, x0 + stroke + gw + gap, y0 + (h - size) * 0.5)
-end)
+end
+
+for _, kind in ipairs({ "status", "chain", "buff", "damage", "travel" }) do
+  rood.hud.claim(kind, function(e, d) return M.draw[kind](e, d) end)
+end
+
+return M

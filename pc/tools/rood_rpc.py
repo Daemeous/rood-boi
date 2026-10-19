@@ -20,6 +20,9 @@ CLI:
                                               client-side methods "symbol" and "read_symbol"
     rood_rpc.py lua 'return rood.version' [--plugin ID]   evaluate Lua in the running game
     rood_rpc.py lua-test [--plugin ID] [--filter TEXT]     run the plugins' Lua tests in it
+    rood_rpc.py repl eval CODE [--session S] [--plugin ID]   the REPL bridge (RPC lua {action "repl"}):
+    rood_rpc.py repl describe EXPR | inspect WHAT [ARG] | sessions | close   one JSON reply each
+                                              (pc/tools/rood_repl.py: the interactive REPL)
     rood_rpc.py hud-show [KIND] [--timing slow] [--value N] [--heal] [--pool mp] [--stat S] [--slot S] [--no-hold]
                                               summon a HUD element (RPC hud show): status, chain, buff, damage, travel, name_window
     rood_rpc.py hud [list|clear|stats]        the HUD layer's elements, claims and timings
@@ -547,6 +550,18 @@ class Game:
             params["plugin"] = plugin
         return self.call("lua", **params)
 
+    def repl(self, op="eval", session=None, plugin=None, **params):
+        """The REPL bridge (RPC lua {action "repl"}, pc/src/lua/lua_repl.cpp; dev mode): op eval
+        {code}, describe {code}, inspect {what, arg}, sessions, close. A session (any name of
+        letters, digits, _ - .; made on first use, else one is named in the reply) keeps its
+        bindings between evals; plugin picks the sandbox (default "@console")."""
+        params = {k: v for k, v in params.items() if v is not None}
+        if session:
+            params["session"] = session
+        if plugin:
+            params["plugin"] = plugin
+        return self.call("lua", action="repl", op=op, **params)
+
     def lua_plugins(self):
         """Every plugin by id (RPC lua {action "plugins"})."""
         return {p["id"]: p for p in self.call("lua", action="plugins")["plugins"]}
@@ -620,6 +635,13 @@ def main():
     lua_test = sub.add_parser("lua-test", help="run the plugins' Lua tests in the running game")
     lua_test.add_argument("--plugin")
     lua_test.add_argument("--filter")
+    repl = sub.add_parser("repl", help="the REPL bridge in the running game (RPC lua repl; rood_repl.py)")
+    repl.add_argument("op", choices=["eval", "describe", "inspect", "sessions", "close"])
+    repl.add_argument("text", nargs="?", help="eval: code; describe: an expression; inspect: plugins, claims, "
+                                              "exports, queries, globals, upvalues, complete")
+    repl.add_argument("arg", nargs="?", help="inspect upvalues: an expression; complete: the text")
+    repl.add_argument("--session", "-s")
+    repl.add_argument("--plugin", "-p")
     hud_show = sub.add_parser("hud-show", help="summon a HUD element in the running game, held (RPC hud show)")
     hud_show.add_argument("kind", nargs="?", default="status")
     hud_show.add_argument("--timing", default="slow", help="too_fast, fast, success, slow, too_slow")
@@ -653,6 +675,11 @@ def main():
         print(hex(symbols()[args.name]))
     elif args.command == "lua":
         print(json.dumps(Game(args.socket).lua(args.code, plugin=args.plugin), indent=1))
+    elif args.command == "repl":
+        extra = {"eval": {"code": args.text}, "describe": {"code": args.text},
+                 "inspect": {"what": args.text, "arg": args.arg}}.get(args.op, {})
+        print(json.dumps(Game(args.socket).repl(args.op, session=args.session, plugin=args.plugin, **extra),
+                         indent=1))
     elif args.command == "hud-show":
         params = dict(action="show", kind=args.kind, timing=args.timing, variant=args.variant, hold=not args.no_hold)
         params.update({k: v for k, v in [("value", args.value), ("pool", args.pool), ("slot", args.slot),

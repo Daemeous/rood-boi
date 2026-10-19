@@ -1525,6 +1525,20 @@ extern "C" void pc_hud_frame(void)
     }
 }
 
+namespace rl {
+std::vector<ClaimInfo> hud_claims()
+{
+    std::vector<ClaimInfo> out;
+    for (int k = 1; k < PC_HUD_CLAIMABLE; ++k)
+        for (int i = 0; i < (int)claims[k].size(); ++i) {
+            const Claim& c = claims[k][i];
+            if (valid(c))
+                out.push_back({ hud::kind_name(k), c.plugin, c.ref, c.failed, i == active[k] });
+        }
+    return out;
+}
+} // namespace rl
+
 namespace hud {
 Command* commands() { return rl::command_buffer; }
 int command_count() { return rl::command_used; }

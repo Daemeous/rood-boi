@@ -9,6 +9,7 @@
 #include "lua/sha256.h"
 #include "hud/hud_internal.h"
 #include "hud/game_query.h"
+#include "light_prefabs.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -1164,6 +1165,172 @@ static void hud_events()
     unsetenv("ROOD_DEV");
 }
 
+/* RPC lua {action "repl"} (lua_repl.cpp): dev mode only; per-session bindings over a
+ * sandbox's globals; printed values, JSON results, captured output, errors with
+ * tracebacks, incomplete input; a plugin's sandbox (its globals, its module as M, the
+ * upvalues of its functions) or a console's; inspection; a HUD draw redefined live (the
+ * next frame draws it), then a reload: the file's again and the session starts over;
+ * the eval budget, never a counted fault. */
+static prefab::Json repl(const std::string& op, const std::string& session, const std::string& plugin,
+    const std::string& code, const char* extra = "")
+{
+    std::string params = "{\"action\":\"repl\",\"op\":" + prefab::json_quote(op);
+    if (!session.empty())
+        params += ",\"session\":" + prefab::json_quote(session);
+    if (!plugin.empty())
+        params += ",\"plugin\":" + prefab::json_quote(plugin);
+    if (!code.empty())
+        params += ",\"code\":" + prefab::json_quote(code);
+    params += std::string(extra) + "}";
+    std::string reply = rpc(params.c_str());
+    prefab::Json j;
+    if (reply.rfind("error: ", 0) == 0) {
+        j.type = prefab::Json::Object;
+        j.set("rpc_error", prefab::Json::str(reply));
+        return j;
+    }
+    CHECK(prefab::json_parse(reply.c_str(), j, nullptr));
+    return j;
+}
+static std::string field(const prefab::Json& j, const char* key)
+{
+    const prefab::Json* v = j.get(key);
+    if (!v)
+        return "<none>";
+    if (v->type == prefab::Json::String)
+        return v->string;
+    return prefab::json_write(*v);
+}
+static std::string first_value(const prefab::Json& j)
+{
+    const prefab::Json* v = j.get("values");
+    return v && v->type == prefab::Json::Array && !v->items.empty() ? v->items[0].string : "<none>";
+}
+static bool drew(const std::string& text)
+{
+    for (int i = 0; i < hud::command_count(); ++i)
+        if (command_text(i) == text)
+            return true;
+    return false;
+}
+static void repl_bridge()
+{
+    std::string root = scratch + "/plugins";
+    unsetenv("ROOD_RPC");
+    unsetenv("ROOD_DEV");
+    CHECK(contains(field(repl("eval", "a", "", "1"), "rpc_error"), "dev mode only"));
+    setenv("ROOD_DEV", "1", 1);
+    // session state, printed values and JSON results, the console's sandbox untouched
+    prefab::Json r = repl("eval", "a", "", "x = 41");
+    CHECK(field(r, "ok") == "true" && field(r, "session") == "a" && field(r, "plugin") == "@console");
+    r = repl("eval", "a", "", "x + 1, 'two', { 1, k = true }");
+    CHECK(field(r, "values") == "[\"42\", \"\\\"two\\\"\", \"{1, k = true}\"]");
+    CHECK(contains(field(r, "results"), "42") && contains(field(r, "results"), "\"two\""));
+    CHECK(first_value(repl("eval", "a", "", "_")) == "42"); // the last eval's first value
+    CHECK(first_value(repl("eval", "b", "", "x")) == "nil"); // another session
+    CHECK(eval_json(rl::console(), "x") == "null");          // the console's own globals
+    r = repl("eval", "", "", "1 + 1"); // no session: a new one, named in the reply
+    CHECK(field(r, "ok") == "true" && field(r, "session").rfind("s", 0) == 0);
+    // print captured, an error with its traceback (and _e), the session still there
+    r = repl("eval", "a", "", "print('hello', x) error('boom')");
+    CHECK(field(r, "ok") == "false" && contains(field(r, "output"), "hello\\t41"));
+    CHECK(contains(field(r, "error"), "boom") && contains(field(r, "traceback"), "stack traceback"));
+    CHECK(!contains(field(r, "output"), "boom"));
+    CHECK(contains(first_value(repl("eval", "a", "", "_e")), "boom") && first_value(repl("eval", "a", "", "x")) == "41");
+    // incomplete input: more lines wanted, nothing run
+    r = repl("eval", "a", "", "function twice(n)");
+    CHECK(field(r, "incomplete") == "true" && field(r, "ok") == "false");
+    CHECK(field(repl("eval", "a", "", "function twice(n)\n  return 2 * n\nend"), "ok") == "true");
+    CHECK(first_value(repl("eval", "a", "", "twice(21)")) == "42");
+    CHECK(field(repl("eval", "a", "", "x = = 1"), "incomplete") == "<none>"); // a plain syntax error
+    // the budget: stopped, never a counted fault, the session goes on
+    r = repl("eval", "a", "", "while true do end");
+    CHECK(field(r, "ok") == "false" && contains(field(r, "error"), "budget exceeded"));
+    CHECK(first_value(repl("eval", "a", "", "x")) == "41");
+    // a plugin's sandbox: its globals, its module (M), its locals through upvalues
+    write_text(root + "/probe.repl/plugin.lua", "return { id = 'probe.repl', api_version = 1 }\n");
+    write_text(root + "/probe.repl/main.lua",
+        "local M = { draw = {} }\n"
+        "secret = 'a global'\n"
+        "local count = 0\n"
+        "function bump() count = count + 1 return count end\n"
+        "local word = rood.draw.style{ size = 9 }\n"
+        "M.draw.status = function(e, d) d.text(word, e.text .. '/file', e.x, e.y) end\n"
+        "rood.hud.claim('status', function(e, d) return M.draw.status(e, d) end)\n"
+        "return M\n");
+    rl::config.watch_vsyncs = 2;
+    pc_lua_tick();
+    pc_lua_tick();
+    rl::Plugin* p = rl::find("probe.repl");
+    CHECK(p && p->state == rl::PLUGIN_LOADED);
+    if (!p || p->state != rl::PLUGIN_LOADED)
+        return;
+    unsigned faults = (unsigned)p->stats.faults;
+    CHECK(first_value(repl("eval", "p", "probe.repl", "secret")) == "\"a global\"");
+    CHECK(first_value(repl("eval", "a", "", "secret")) == "nil");
+    CHECK(contains(field(repl("eval", "a", "probe.repl", "1"), "rpc_error"), "evaluates in @console"));
+    CHECK(contains(field(repl("eval", "q", "probe.nope", "1"), "rpc_error"), "no loaded plugin"));
+    CHECK(contains(first_value(repl("eval", "p", "", "M.draw.status")), "function<probe.repl/main.lua:6>"));
+    CHECK(first_value(repl("eval", "p", "", "repl.getupvalue(bump, 'count')")) == "0");
+    CHECK(first_value(repl("eval", "p", "", "bump(), repl.getupvalue(bump, 'count')")) == "1");
+    CHECK(first_value(repl("eval", "p", "", "repl.setupvalue(bump, 'count', 10) and bump()")) == "11");
+    CHECK(repl("eval", "p", "", "mine = 1 function bump() return -1 end").get("ok")->boolean);
+    CHECK(eval_json(p, "mine, bump()") == "null,-1"); // a new name the session's; the plugin's own redefined
+    p->stats.faults = faults;
+    r = repl("eval", "p", "", "while true do end");
+    CHECK(p->state == rl::PLUGIN_LOADED && p->fault_times.empty() && contains(field(r, "error"), "budget"));
+    // inspection
+    r = repl("inspect", "p", "", "", ",\"what\":\"plugins\"");
+    CHECK(contains(field(r, "result"), "\"id\": \"probe.repl\"") && contains(field(r, "result"), "\"name\": \"draw\""));
+    r = repl("inspect", "p", "", "", ",\"what\":\"claims\"");
+    CHECK(contains(field(r, "result"), "\"owner\": \"probe.repl\"") && contains(field(r, "result"), "probe.repl/main.lua:7"));
+    CHECK(contains(field(repl("inspect", "p", "", "", ",\"what\":\"exports\""), "result"), "\"name\": \"draw\""));
+    CHECK(contains(field(repl("inspect", "p", "", "", ",\"what\":\"queries\""), "result"), "rood.game.mode()"));
+    CHECK(contains(field(repl("inspect", "p", "", "", ",\"what\":\"complete\",\"arg\":\"x = rood.hud.cl\""), "result"),
+        "\"x = rood.hud.claim\""));
+    CHECK(contains(field(repl("inspect", "p", "", "", ",\"what\":\"upvalues\",\"arg\":\"M.draw.status\""), "result"),
+        "\"word\""));
+    r = repl("describe", "p", "", "rood.hud");
+    CHECK(contains(field(r, "result"), "\"key\": \"claim\"") && contains(field(r, "result"), "\"metatable\": \"locked\""));
+    r = repl("describe", "p", "", "M.draw.status");
+    CHECK(contains(field(r, "result"), "\"line\": 6") && contains(field(r, "result"), "\"source\": \"probe.repl/main.lua\""));
+    CHECK(contains(field(repl("inspect", "p", "", "", ",\"what\":\"nope\""), "error"), "no inspection"));
+    // a draw redefined live: the next frame draws it (through the module, then a claim of its own)
+    CHECK(record_status() == 1);
+    pc_hud_frame();
+    CHECK(drew("SLOW!/file"));
+    CHECK(field(repl("eval", "p", "", "M.draw.status = function(e, d) d.text(repl.getupvalue(repl.claim('status'), 'M')"
+                                      " and rood.draw.style{ size = 9 }, e.text .. '/repl', e.x, e.y) end"), "ok") == "true");
+    CHECK(record_status() == 1);
+    pc_hud_frame();
+    CHECK(drew("SLOW!/repl") && !drew("SLOW!/file"));
+    CHECK(field(repl("eval", "p", "", "s9 = rood.draw.style{ size = 9 } rood.hud.claim('status', function(e, d)"
+                                      " d.text(s9, e.text .. '/claim', e.x, e.y) end)"), "ok") == "true");
+    CHECK(record_status() == 1);
+    pc_hud_frame();
+    CHECK(drew("SLOW!/claim"));
+    // the file reloaded: its draw again, the session starts over (said once)
+    CHECK(field(repl("eval", "p", "", "repl.reload()"), "ok") == "true");
+    CHECK(record_status() == 1);
+    pc_hud_frame();
+    CHECK(drew("SLOW!/file") && !drew("SLOW!/claim") && !drew("SLOW!/repl"));
+    r = repl("eval", "p", "", "s9, mine, secret");
+    CHECK(contains(field(r, "reset"), "probe.repl reloaded") && field(r, "values") == "[\"nil\", \"nil\", \"\\\"a global\\\"\"]");
+    CHECK(field(repl("eval", "p", "", "1"), "reset") == "<none>");
+    // sessions listed and closed
+    CHECK(contains(field(repl("sessions", "", "", ""), "sessions"), "\"session\": \"p\""));
+    r = repl("close", "a", "", "");
+    CHECK(!contains(field(r, "sessions"), "\"session\": \"a\""));
+    CHECK(first_value(repl("eval", "a", "", "x")) == "nil"); // a new session of that name
+    CHECK(contains(field(repl("close", "zz", "", ""), "rpc_error"), "no session"));
+    std::filesystem::remove_all(root + "/probe.repl");
+    rl::scan();
+    pc_lua_tick();
+    pc_lua_tick();
+    rl::config.watch_vsyncs = 30;
+    unsetenv("ROOD_DEV");
+}
+
 /* rood.game's source in this probe (the game's is hud/query_bridge.c): a record the
  * cases fill, and how often it was read. */
 static pc_game_query fake_game;
@@ -1270,6 +1437,7 @@ int main(int argc, char** argv)
     classic_flavour();
     hud_events();
     game_queries();
+    repl_bridge();
     if (failures) {
         std::printf("lua_probe: %d failure(s)\n", failures);
         return 1;

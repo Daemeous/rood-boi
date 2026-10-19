@@ -32,6 +32,7 @@ extern "C" void pc_settings_save(void) __attribute__((weak));
 namespace rl {
 std::map<std::string, bool> enabled_override; /* settings plugin_enabled (pc_lua_settings_* below) */
 std::vector<std::string> order;               /* settings plugin_order */
+char module_key;                              /* the registry's key of a plugin's module */
 namespace {
 bool started;
 bool dirty_config;
@@ -573,7 +574,9 @@ bool load(Plugin* p)
     bool ok = run(p, "load", BUDGET_LOAD, [&](lua_State* L) {
         if (luaL_loadbufferx(L, code.data(), code.size(), chunk.c_str(), "t") != LUA_OK)
             lua_error(L);
-        lua_call(L, 0, 0);
+        lua_call(L, 0, 1);
+        if (lua_istable(L, -1)) /* its module: the REPL's M and exports (lua_repl.cpp) */
+            lua_rawsetp(L, LUA_REGISTRYINDEX, &module_key);
     }, &error);
     if (!ok) {
         unload(p, PLUGIN_FAILED, "its main chunk failed: " + first_line(error));

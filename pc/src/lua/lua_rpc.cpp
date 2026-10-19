@@ -4,6 +4,8 @@
 //                             sandbox) under the test budget: {ok, results [JSON],
 //                             output [what it logged], error}
 //   console {input, plugin}   as typed into the overlay's console (history, echo)
+//   repl {op, session, plugin, code, what, arg}
+//                             the REPL bridge's sessions (lua_repl.cpp; dev mode)
 //   plugins                   every plugin: state, status, manifest, grants, memory,
 //                             faults, budget kills, time, handlers, timers, entries
 //   reload {plugin}           one (and what depends on it); without plugin, all
@@ -185,6 +187,9 @@ extern "C" int pc_lua_rpc(const char* params_text, char* out, int size)
         }
         rl::settle();
         reply = eval_reply(ok, results, error, since);
+    } else if (action == "repl") {
+        if (!rl::repl_rpc(params, &reply, &error))
+            return failure("lua: " + error);
     } else if (action == "plugins") {
         reply = plugins_reply();
     } else if (action == "reload" || action == "rescan") {
@@ -288,7 +293,7 @@ extern "C" int pc_lua_rpc(const char* params_text, char* out, int size)
         reply += "]}";
     } else
         return failure("lua: unknown action '" + action
-            + "' (eval, console, plugins, reload, rescan, enable, grant, budget, test, test_status, log, audit, emit, "
+            + "' (eval, console, repl, plugins, reload, rescan, enable, grant, budget, test, test_status, log, audit, emit, "
               "registry)");
     if ((int)reply.size() >= size)
         return failure("lua: the reply is larger than " + std::to_string(size) + " bytes");

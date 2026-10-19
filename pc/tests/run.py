@@ -5,8 +5,8 @@
     python3 pc/tests/run.py -j 2 rpc input  suites whose names contain "rpc" or "input"
     python3 pc/tests/run.py --list          the suites, without running them
     python3 pc/tests/run.py --headless xvfb software GL on Xvfb instead of EGL
-    python3 pc/tests/run.py --arch 64       the LP64 build (build_boot.py --arch 64)
-    python3 pc/tests/run.py --arch 64 --renderer vulkan   the Vulkan renderer (64-bit only)
+    python3 pc/tests/run.py --renderer vulkan   the Vulkan renderer (64-bit only)
+    python3 pc/tests/run.py --arch 32       the 32-bit build (pc/build/boot; its suite is no longer kept up)
 
 Suites: the CTest probes (pc/build), the RPC and checkpoint smokes, the X11
 window smoke, every input case in start_button_smoke.sh, golden frames and
@@ -312,6 +312,10 @@ def suites(args, mode="egl"):
                       "drawn), hot-reloaded while held; the game's own drawing with no claim, a draw error, the "
                       "plugin off, the classic look")]
           if args.save.exists() else []),
+        *([Suite("repl_smoke", [PY, str(TESTS / "repl_smoke.py"), "--card", str(args.save)], 300,
+                 note="Lua REPL bridge: rood_repl.py -e sessions across processes, sandboxes, inspection, "
+                      "rood.hud's draw redefined live (next frame), then its file reloaded wins")]
+          if args.save.exists() else []),
         *([Suite("frame_cost_smoke", [PY, str(TESTS / "frame_cost_smoke.py"), "--card", str(args.save)], 300,
                  note="per-frame cost (ROOD_PERF counters): no read-backs (sphere, Status rows: GPU copies), "
                       "emissive not re-hashed, CPU skips stale 2D; pictures = the old paths'")]
@@ -574,6 +578,7 @@ CHECKPOINT_SUITES = {
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
     "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "frame_cost_smoke", "hud_bench_smoke",
+    "repl_smoke",
 }
 
 
@@ -868,8 +873,8 @@ def make_parser():
     parser.add_argument("--timeout-scale", type=float, default=1.0, help="multiply every suite's timeout")
     parser.add_argument("--exclude", action="append", default=[], help="skip suites containing this")
     parser.add_argument("--out", help="output directory (default pc/build/tests); one runner per directory")
-    parser.add_argument("--arch", choices=["32", "64"], default=os.environ.get("ROOD_ARCH", "32"),
-                        help="game binary: 32 (pc/build/boot, default) or 64 (pc/build/boot64; sets ROOD_ARCH)")
+    parser.add_argument("--arch", choices=["32", "64"], default=os.environ.get("ROOD_ARCH", "64"),
+                        help="game binary: 64 (pc/build/boot64, default) or 32 (pc/build/boot); sets ROOD_ARCH")
     parser.add_argument("--renderer", choices=["gl", "vulkan"],
                         default="vulkan" if os.environ.get("ROOD_RENDERER") == "vulkan" else "gl",
                         help="gl (default) or vulkan (64-bit; sets ROOD_RENDERER)")

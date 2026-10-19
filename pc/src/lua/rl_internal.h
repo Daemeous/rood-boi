@@ -282,6 +282,9 @@ const std::deque<std::string>& audit_lines();
 std::string shipped_root(); /* ROOD_PLUGINS_SHIPPED, else pc/plugins ("" : none) */
 std::string user_root();    /* ROOD_PLUGINS, else pc/user/plugins */
 std::string data_root();    /* ROOD_PLUGIN_DATA, else pc/user/plugin_data */
+/* A main chunk that returns a table: the plugin's module, in its registry at &module_key
+ * (lua_rawgetp; the REPL's M and its exports, lua_repl.cpp). */
+extern char module_key;
 bool parse_manifest(const Value& v, Manifest& m, std::string* error);
 bool read_manifest(const std::string& dir, Manifest& m, std::string* error); /* plugin.json, else plugin.lua */
 /* SHA-256 over its code files (*.lua, *.fnl, plugin.json, any case; not hidden; at most
@@ -341,6 +344,19 @@ void drop_tests(const std::string& plugin); /* its waiting cases fail: the plugi
 /* The claims' draws of the live HUD elements into the command buffer (pc_hud_frame, then
  * its renderer); returns the commands. */
 int hud_pass();
+struct ClaimInfo {
+    const char* kind; /* "status", ... */
+    Plugin* plugin;
+    int ref;     /* the draw function in the plugin's registry */
+    bool failed; /* its draw raised: not honoured until the plugin reloads */
+    bool active; /* the kind's owner */
+};
+std::vector<ClaimInfo> hud_claims(); /* every live claim (the REPL's inspection) */
+
+/* ---- lua_repl.cpp ---- */
+/* RPC lua {action "repl"} (dev mode): sessions evaluating in a plugin's or a console's
+ * sandbox; false and *error for a refused request. */
+bool repl_rpc(const prefab::Json& params, std::string* reply, std::string* error);
 
 /* ---- lua_rpc.cpp ---- */
 std::vector<std::string>& console_history(); /* the console's inputs, oldest first (200) */

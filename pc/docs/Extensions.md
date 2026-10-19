@@ -48,6 +48,11 @@ pc/user/plugin_data/<id>/     its storage, its settings.json; ROOD_PLUGIN_DATA o
 | `depends` | | ids, or `{ id = "a.b", version = ">=1.2.0" }`; they load first |
 | `capabilities` | | what it asks for beyond the sandbox (below) |
 
+A main chunk may `return` a table: the plugin's module. The host keeps it
+for the REPL (its `M`, and the exports `lua repl` lists); nothing else reads
+it. `rood.hud` returns `{draw, look, style, refresh}` and its claims call
+`M.draw[kind]`, so a draw function replaced there draws from the next frame.
+
 Load order: dependencies first, then `plugin_order`, shipped before yours,
 then by id. A plugin whose dependency is missing, off or failed waits and
 loads when it can.
@@ -312,6 +317,79 @@ rood.hud.release("status")   -- rood.hud's again
 rood.dev.clear()
 ```
 
+## The REPL
+
+An nREPL-style bridge over RPC `lua {action "repl"}` (`pc/src/lua/lua_repl.cpp`;
+plan `2026-10-18-freedom-and-fast-iteration.md` F6), used mostly by agents.
+Dev mode only (`ROOD_RPC` set or `ROOD_DEV=1`). It rides the existing RPC
+socket rather than a socket of its own: the RPC already runs on the game
+thread between frames (where Lua must run), has the auth (a Unix socket, or a
+token over TCP), the pause and stepping an agent drives tests with, and one
+client library; a second listener would duplicate all of that for nothing a
+request/reply eval needs.
+
+A session evaluates in one sandbox, chosen when it starts: a plugin's (its
+globals; its module as `M`) or a console's (`@console`, the overlay console's
+own, the default; `@<name>` makes one of that name). Sessions are named by
+the client (letters, digits, `_ - .`, up to 32; made on first use) or by the
+host (`s1`, ... in the reply); 64 at most, the least recently used dropped.
+Its bindings live in its own environment over the sandbox's globals:
+
+- a new name (`x = 1`) stays in the session (another session or the plugin
+  does not see it); a name the sandbox already has is the sandbox's, so
+  `function bump() ... end` redefines a plugin's global function live
+  (`_G.name = v` always writes the sandbox's); a top-level `local` lasts one
+  form;
+- `_` is the last form's first value, `_e` its last error;
+- a reload of the plugin (its files saved, `repl.reload()`, RPC `lua reload`)
+  gives it a new state: the session's bindings and anything it redefined are
+  gone, the file's code runs again, and the next reply says so (`reset`).
+
+A form is evaluated as the console does (as an expression if it parses as
+one, else as statements) under the eval budget (`plugin_load_budget_*`;
+errors are logged, never counted towards disabling a plugin). A draw
+function or handler a session installs runs as the plugin's own: its budget
+and fault rules are the plugin's (a draw that raises stops the claim until
+the plugin reloads).
+
+| `op` | Params | Reply (besides `session`, `plugin`, `generation`, `reset`) |
+|---|---|---|
+| `eval` | `code`, `session`, `plugin` | `ok`, `values` (each result printed as Lua: strings quoted, tables to 6 levels and 200 entries, `function<source:line>`), `results` (JSON; `null` when not plain data), `output` (what the form and anything it called logged: `print`, warnings; others' lines prefixed with their id), `ms`; failed: `error`, `traceback`; `incomplete` when the code ends early (an open `function`, `{`: send more lines with it) |
+| `describe` | `code` (an expression) | `result`: `type`, `repr`, a table's `keys` (key, type, value, `where`), `count`, `length`, `metatable`; a function's `where` and `function` (`source`, `line`, `last_line`, `nparams`, `vararg`, `upvalues`: names) |
+| `inspect` | `what`, `arg` | `result` of `repl.<what>(arg)`: `plugins`, `claims`, `exports`, `queries`, `globals`, `upvalues` (`arg`: an expression), `complete` (`arg`: the text) |
+| `sessions` | | `sessions`: `session`, `plugin`, `generation`, `current`, `evals`, `idle_s` |
+| `close` | `session` | the sessions left |
+
+In a session, `repl` (kept in its environment's metatable: `repl = 1`
+shadows it, the RPC still finds it) holds what plugins never get:
+
+| | |
+|---|---|
+| `repl.describe(v)`, `repl.repr(v)`, `repl.where(f)` | as `describe`; printed; `"source:line"` |
+| `repl.plugins()` | every plugin and console: `id, state, status, generation, shipped, console, enabled, claims` (kinds), `exports` (`name, type, where` of its module) |
+| `repl.claims()`, `repl.claim(kind)` | every live claim: `kind, owner, active, failed, honoured, where`; this plugin's draw function for kind |
+| `repl.exports()`, `repl.queries()`, `repl.globals()` | the module's fields; each `rood.game` query and its value now; the sandbox's and the session's names |
+| `repl.upvalues(f)`, `repl.getupvalue(f, name)`, `repl.setupvalue(f, name, v)` | a function's upvalues: a main chunk's locals are reachable through the functions that use them (`setupvalue` changes the local every closure shares) |
+| `repl.reload([id])` | the plugin (default this one) reloads after the form |
+| `repl.complete(text)` | completions of the identifier chain ending text |
+
+Clients: `pc/tools/rood_repl.py` (interactive, with history, Tab completion
+and `>>` continuation lines; `-e CODE` one-shot, repeatable, `-` for stdin;
+`-s NAME` a session kept between calls; `-p ID` the sandbox; `--json` one
+reply per line; `--describe`, `--inspect`, `--sessions`, `--close`; exit
+status 1 when a form failed), `rood_rpc.py repl eval|describe|inspect|sessions|close`,
+and `Game.repl(op, session, plugin, ...)` in tests. An agent's loop:
+
+```sh
+export ROOD_RPC=...   # the game's socket
+rood_repl.py --json -p rood.hud -s hud --inspect claims
+rood_repl.py --json -s hud -e 'rood.dev.show("status", { timing = "slow" })'
+rood_repl.py --json -s hud -e 'M.draw.status = function(e, d)
+  d.text(M.style.word, e.text, e.x, e.y - 4, 0xFF8040) end'     # drawn from the next frame
+rood_repl.py --json -s hud -e 'M.look.words.nudge = 1.5'          # a field of the look, live
+rood_repl.py --json -s hud -e 'repl.reload()'                     # or save main.lua: the file wins
+```
+
 ## Developer tools
 
 - The console: F1, Window > Lua console. Evaluate in the console's own
@@ -319,7 +397,7 @@ rood.dev.clear()
   reload; the budgets and the master switch; in dev mode the Bench: summon
   each HUD kind, clear, the classic override, and the gallery (save this
   moment, the entries with their room and held kinds, Load).
-- RPC `lua` (`pc/src/lua/lua_rpc.cpp`): `eval`, `console`, `plugins`,
+- RPC `lua` (`pc/src/lua/lua_rpc.cpp`): `eval`, `console`, `repl` (above), `plugins`,
   `reload`, `rescan`, `enable`, `grant`, `budget`, `test`, `test_status`,
   `log`, `audit`, `emit`, `registry`.
 - `pc/tools/rood_rpc.py lua 'return rood.version'` and
@@ -330,7 +408,10 @@ rood.dev.clear()
 
 - `ctest lua_probe` (seconds, no game): allocator cap, budgets, sandbox,
   values between plugins, events, timers, registry, manifests, storage,
-  capabilities, hot reload, the test harness, the RPC, the HUD layer.
+  capabilities, hot reload, the test harness, the RPC, the HUD layer, the
+  REPL (dev mode only; sessions, printed values, output, errors, incomplete
+  input, the budget; a plugin's sandbox, its module and upvalues;
+  inspection; a draw redefined live, then reloaded from its file).
 - Lua tests: `tests/*.lua` in a plugin, run inside a running game with no
   relaunch: `rood_rpc.py lua-test`, or `python3 pc/tests/lua_smoke.py
   --tests-only --plugin my.plugin` (one launch).
@@ -350,3 +431,10 @@ rood.dev.clear()
   its look hot-reloaded; off: the game's drawing; typography never saved);
   last the gallery (save, list, the moment changed, load: the restarted
   process holds the word again; a stale entry refused).
+- `pc/tests/run.py repl_smoke`: one game in the save room, driven as an agent
+  does with `rood_repl.py -e` processes: a session's bindings across them,
+  JSON replies, an error's exit status and traceback, multi-line input from a
+  pipe; rood.hud's sandbox and module; claims, exports, queries, plugins,
+  describe; SLOW! held, `M.draw.status` redefined (drawn one vsync later),
+  a claim from the REPL, then rood.hud's file saved: its drawing again and
+  the session started over; no faults counted; `rood_rpc.py repl`.

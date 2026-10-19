@@ -71,7 +71,12 @@ suites = ["frame_cost_smoke", "rpc_smoke", "ctest"]
 # ---- Lua plugins ----
 [[rule]]
 paths = ["pc/src/lua/*", "pc/plugins/*", "pc/tests/lua/*", "pc/third_party/lua*"]
-suites = ["lua_smoke", "ctest", "hud_bench_smoke"]
+suites = ["lua_smoke", "ctest", "hud_bench_smoke", "repl_smoke"]
+
+# ---- the REPL bridge's client (run by repl_smoke as a process, not imported) ----
+[[rule]]
+paths = ["pc/tools/rood_repl.py"]
+suites = ["repl_smoke"]
 
 # ---- the Lua visible layer's HUD elements (pc/src/hud) ----
 [[rule]]

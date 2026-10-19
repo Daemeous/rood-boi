@@ -210,7 +210,8 @@ From here on, changes to that subsystem are ordinary feature work.
 6. **REPL bridge:** an nREPL-style socket on top of the RPC `lua` eval, used
    mostly by agents (the user rarely by hand). It evaluates forms in a
    plugin's or the console's sandbox, inspects the queries, and redefines HUD
-   draw functions live. Fennel can come later.
+   draw functions live. Fennel can come later. Done 2026-10-19: RPC `lua
+   {action "repl"}` and `pc/tools/rood_repl.py` (Extensions.md "The REPL").
 
 ## Order
 
