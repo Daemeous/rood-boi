@@ -6,8 +6,7 @@
 # on (ROOD_GI=0 turns it off). --64 plays the 64-bit build; --vulkan plays it
 # with the Vulkan renderer (hardware ray tracing). --resume (or ROOD_RESUME=1)
 # continues where the last session quit (the auto-snapshot, below) when it
-# still fits the build, else boots normally. Other arguments go to the game.
-# with the Vulkan renderer (hardware ray tracing). --callo builds and plays the Callo
+# still fits the build, else boots normally. --callo builds and plays the Callo
 # Merlose companion mod (64-bit; --random-stat-items and --spin-bonus-wheel turn off its
 # extras). Other arguments go to the game.
 set -euo pipefail
