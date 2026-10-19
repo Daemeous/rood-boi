@@ -4,15 +4,22 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <condition_variable>
+#include <deque>
+#include <fstream>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <regex>
 #include <set>
 #include <sstream>
 #include <string>
+#include <thread>
+#include <tuple>
 #include <vector>
 #define XXH_INLINE_ALL
 #include "../third_party/texture_formats/xxhash.h"
@@ -20,26 +27,35 @@
 #ifdef ROOD_VULKAN
 #include "vk_core.h"
 #endif
+#ifndef GL_TEXTURE_2D_ARRAY
+#define GL_TEXTURE_2D_ARRAY 0x8C1A
+#endif
+#ifndef GL_OUT_OF_MEMORY
+#define GL_OUT_OF_MEMORY 0x0505
+#endif
 
 /* A word retains its original upload coordinates even after a VRAM copy.
  * The two CRCs are the pack's on-disk IDs, not VRAM addresses. No game bytes
- * or save data are replaced. Thread: game/render thread only. */
+ * or save data are replaced. Thread: game/render thread, except the image
+ * decoding workers (decode_file), which share only the Loader queues. */
 extern "C" {
 int pc_hd_enabled = 1;
 }
 namespace
 {
 int last_enabled = 1;
-constexpr int side = 8192, slots = 4096;
+int side = 8192; /* one atlas layer: 256 MiB of RGBA */
+constexpr int slots = 4096;
 struct Word {
     uint32_t hash, offset, width, height;
 };
 struct Image {
-    int x, y, w, h;
+    int x, y, w, h, layer;
 };
+using Pixels = std::shared_ptr<const std::vector<uint8_t>>;
 struct Pending {
     Image rect;
-    std::vector<uint8_t> pixels;
+    Pixels pixels;
 };
 std::vector<Word> words;
 std::array<uint32_t, 64 * 1024> palettes{};
@@ -207,18 +223,166 @@ void index_folder(const std::filesystem::path &dir, bool pages)
 }
 std::map<uint64_t, Image> resident;
 std::set<uint64_t> bad;
-std::map<unsigned, uint64_t> used;
+struct Use {
+    uint64_t generation;
+    uint32_t layers; /* atlas layers its replacements live on */
+};
+std::map<unsigned, Use> used;
 std::vector<Pending> pending;
 uint64_t generation = 1;
-int cursor_x, cursor_y, row_height;
 bool initialized, configured, dirty, full;
 bool words_dirty = true, palettes_dirty = true, table_dirty = true;
-unsigned matched_uploads, loaded_total;
+int words_y0 = 0, words_y1 = 512; /* rows of the word map to send to the GPU */
+unsigned matched_uploads, loaded_total, evictions;
 unsigned gl_tex[4];
+int gl_layers;
 #ifdef ROOD_VULKAN
 vk_image vk_tex[4];
+int vk_layers;
 #endif
 extern "C" const uint16_t *pc_native_vram(void);
+
+/* The atlas is a stack of side x side layers in VRAM, added as they are
+ * needed up to ROOD_HD_VRAM_MB (default 2048: eight 256 MiB layers). When
+ * every layer is full, the layer drawn from least recently is cleared and
+ * reused at a game-frame boundary; images still on the other layers stay.
+ * A layer drawn from in the last two frames is never cleared: if a scene
+ * needs more than the budget, the excess keeps its original textures. */
+struct AtlasLayer {
+    int cursor_x, cursor_y, row_height;
+    uint64_t last_used;
+};
+std::vector<AtlasLayer> atlas;
+int current_layer = -1, max_layers = 8;
+uint32_t frame_layers; /* layers drawn from this frame */
+uint64_t frame_number = 1;
+unsigned cooldown; /* frames before the next try when every layer is in use */
+void touch(int layer)
+{
+    if (layer < 0 || layer >= int(atlas.size()))
+        return;
+    frame_layers |= 1u << layer;
+    atlas[layer].last_used = frame_number;
+}
+
+/* Decoded images (RGBA rows, no padding), shared by the RAM cache and the
+ * pending uploads. Decoding happens once per file while it stays cached. */
+struct Decoded {
+    int w = 0, h = 0;
+    Pixels pixels;
+};
+Pixels to_rgba(SDL_Surface *original)
+{
+    SDL_Surface *rgba = SDL_ConvertSurface(original, SDL_PIXELFORMAT_RGBA32);
+    SDL_DestroySurface(original);
+    if (!rgba)
+        return nullptr;
+    auto out = std::make_shared<std::vector<uint8_t>>(size_t(rgba->w) * rgba->h * 4);
+    for (int y = 0; y < rgba->h; ++y)
+        memcpy(out->data() + size_t(y) * rgba->w * 4, (uint8_t *)rgba->pixels + size_t(y) * rgba->pitch,
+               size_t(rgba->w) * 4);
+    SDL_DestroySurface(rgba);
+    return out;
+}
+/* Any thread: reads and decodes one replacement file. */
+Decoded decode_file(const std::string &path)
+{
+    std::string ext = std::filesystem::path(path).extension().string();
+    for (char &c : ext)
+        c = std::tolower((unsigned char)c);
+    SDL_Surface *s = ext == ".dds" ? hd_load_dds(path.c_str()) : SDL_LoadPNG(path.c_str());
+    Decoded d;
+    if (!s)
+        return d;
+    d.w = s->w;
+    d.h = s->h;
+    d.pixels = to_rgba(s);
+    return d;
+}
+
+/* RAM tier (ROOD_HD_RAM_MB, default 256; 0 keeps none): what refills a
+ * cleared layer without the disk. Least recently used first out. */
+struct Cached {
+    Decoded image;
+    uint64_t last_used;
+};
+std::map<std::string, Cached> ram;
+size_t ram_bytes, ram_budget = size_t(256) << 20;
+const Decoded *ram_get(const std::string &path)
+{
+    auto it = ram.find(path);
+    if (it == ram.end())
+        return nullptr;
+    it->second.last_used = frame_number;
+    return &it->second.image;
+}
+void ram_put(const std::string &path, const Decoded &d)
+{
+    size_t bytes = d.pixels ? d.pixels->size() : 0;
+    if (!bytes || bytes > ram_budget || ram.count(path))
+        return;
+    ram[path] = {d, frame_number};
+    ram_bytes += bytes;
+    while (ram_bytes > ram_budget) {
+        auto oldest = ram.end();
+        for (auto it = ram.begin(); it != ram.end(); ++it)
+            if (it->first != path && (oldest == ram.end() || it->second.last_used < oldest->second.last_used))
+                oldest = it;
+        if (oldest == ram.end())
+            break;
+        ram_bytes -= oldest->second.image.pixels->size();
+        ram.erase(oldest);
+    }
+}
+Decoded decode_cached(const std::string &path)
+{
+    if (const Decoded *d = ram_get(path))
+        return *d;
+    Decoded d = decode_file(path);
+    ram_put(path, d);
+    return d;
+}
+
+/* Disk reads and PNG decodes run on two worker threads, so a frame never
+ * waits for them: a replacement seen for the first time keeps its original
+ * texture until its image arrives (usually the next frame). ROOD_HD_SYNC_LOAD=1
+ * decodes on the game thread instead (the unit probe does too). */
+struct Loader {
+    std::mutex mutex;
+    std::condition_variable wake;
+    std::deque<std::pair<uint64_t, std::string>> requests;
+    std::vector<std::tuple<uint64_t, std::string, Decoded>> done;
+};
+Loader *loader; /* never freed: the detached workers may outlive static destructors at exit */
+bool async_loads = true;
+std::set<uint64_t> requested;
+void request(uint64_t key, const std::string &path)
+{
+    if (!requested.insert(key).second)
+        return;
+    if (!loader) {
+        loader = new Loader;
+        for (int i = 0; i < 2; ++i)
+            std::thread([] {
+                for (;;) {
+                    std::pair<uint64_t, std::string> job;
+                    {
+                        std::unique_lock<std::mutex> lock(loader->mutex);
+                        loader->wake.wait(lock, [] { return !loader->requests.empty(); });
+                        job = std::move(loader->requests.front());
+                        loader->requests.pop_front();
+                    }
+                    Decoded d = decode_file(job.second);
+                    std::lock_guard<std::mutex> lock(loader->mutex);
+                    loader->done.emplace_back(job.first, std::move(job.second), std::move(d));
+                }
+            }).detach();
+    }
+    std::lock_guard<std::mutex> lock(loader->mutex);
+    loader->requests.emplace_back(key, path);
+    loader->wake.notify_one();
+}
+
 uint32_t crc(const uint16_t *data, size_t n, uint32_t c = 0xffffffffu)
 {
     static uint32_t lut[256];
@@ -237,6 +401,11 @@ uint32_t crc(const uint16_t *data, size_t n, uint32_t c = 0xffffffffu)
     return c;
 }
 uint32_t bucket(uint32_t a, uint32_t b) { return (a * 0x9e3779b1u ^ b * 0x85ebca6bu) & (slots - 1); }
+int env_mb(const char *name, int fallback)
+{
+    const char *v = getenv(name);
+    return v && *v ? atoi(v) : fallback;
+}
 void init()
 {
     if (initialized)
@@ -257,20 +426,32 @@ void init()
     configured = indexed_count != 0;
     if (configured)
         words.resize(1024 * 512);
+    int layer_mb = int((uint64_t(side) * side * 4) >> 20);
+    max_layers = std::clamp(env_mb("ROOD_HD_VRAM_MB", 2048) / std::max(layer_mb, 1), 1, 32);
+    ram_budget = size_t(std::max(env_mb("ROOD_HD_RAM_MB", 256), 0)) << 20;
+    if (getenv("ROOD_HD_SYNC_LOAD") && atoi(getenv("ROOD_HD_SYNC_LOAD")))
+        async_loads = false;
     fprintf(stderr, "[hd] %u replacements indexed (%zu classic, %zu page, %zu DuckStation)\n", indexed_count,
             files.size(), page_files.size(), duck.size());
+    if (configured)
+        fprintf(stderr, "[hd] up to %d atlas layers (%d MB of VRAM), %zu MB RAM cache, %s loading\n", max_layers,
+                max_layers * layer_mb, ram_budget >> 20, async_loads ? "background" : "synchronous");
 }
 void insert(uint64_t key, Image im, unsigned kind = 0, bool valid = true)
 {
     uint32_t a = key >> 32, b = uint32_t(key);
+    uint32_t where = uint32_t(im.y) | (uint32_t(im.layer) << 16);
     for (int n = 0, i = bucket(a, b); n < slots; ++n, i = (i + 1) & (slots - 1)) {
         uint32_t *t = table.data() + i * 4;
         uint32_t *d = t + slots * 4;
         if (!d[0] || (t[0] == a && t[1] == b && d[2] == kind)) {
+            if (d[0] && t[2] == uint32_t(im.x) && t[3] == where && d[0] == uint32_t(im.w) &&
+                d[1] == uint32_t(im.h) && d[3] == uint32_t(valid))
+                return; /* already there */
             t[0] = a;
             t[1] = b;
             t[2] = im.x;
-            t[3] = im.y;
+            t[3] = where;
             d[0] = im.w;
             d[1] = im.h;
             d[2] = kind;
@@ -280,75 +461,152 @@ void insert(uint64_t key, Image im, unsigned kind = 0, bool valid = true)
         }
     }
 }
-bool place(SDL_Surface *original, const char *label, Image &result)
+bool fits(const AtlasLayer &l, int w, int h)
 {
-    if (original->w <= 0 || original->h <= 0 || original->w > side || original->h > side) {
-        fprintf(stderr, "[hd] unsupported image size %dx%d: %s\n", original->w, original->h, label);
-        SDL_DestroySurface(original);
-
+    int y = l.cursor_x + w > side ? l.cursor_y + l.row_height : l.cursor_y;
+    return y + h <= side;
+}
+bool place(int w, int h, Pixels pixels, const char *label, Image &result)
+{
+    if (!pixels || w <= 0 || h <= 0 || w > side || h > side) {
+        fprintf(stderr, "[hd] unsupported image size %dx%d: %s\n", w, h, label);
         return false;
     }
-    int w = original->w, h = original->h;
-    if (cursor_x + w > side) {
-        cursor_x = 0;
-        cursor_y += row_height;
-        row_height = 0;
-    }
-    if (cursor_y + h > side || resident.size() + page_resident.size() >= slots / 2) {
-        SDL_DestroySurface(original);
+    if (resident.size() + page_resident.size() >= slots / 2 ||
+        ((current_layer < 0 || !fits(atlas[current_layer], w, h)) && int(atlas.size()) >= max_layers)) {
+        if (!full)
+            fprintf(stderr, "[hd] atlas full (%zu images on %zu layers); reusing the least recently used layer\n",
+                    resident.size() + page_resident.size(), atlas.size());
         full = true;
-        fprintf(stderr,
-                "[hd] atlas full (%zu images); unmatched textures use originals "
-                "until next frame\n",
-                resident.size());
         return false;
     }
-    SDL_Surface *rgba = SDL_ConvertSurface(original, SDL_PIXELFORMAT_RGBA32);
-    SDL_DestroySurface(original);
-    if (!rgba) {
-
-        return false;
+    if (current_layer < 0 || !fits(atlas[current_layer], w, h)) {
+        atlas.push_back({});
+        current_layer = int(atlas.size()) - 1;
+        if (atlas.size() > 1)
+            fprintf(stderr, "[hd] atlas layer %d of %d\n", current_layer + 1, max_layers);
     }
-    Pending p;
-    p.rect = {cursor_x, cursor_y, w, h};
-    p.pixels.resize(size_t(w) * h * 4);
-    for (int y = 0; y < h; ++y)
-        memcpy(p.pixels.data() + size_t(y) * w * 4, (uint8_t *)rgba->pixels + size_t(y) * rgba->pitch,
-               size_t(w) * 4);
-    SDL_DestroySurface(rgba);
+    AtlasLayer &l = atlas[current_layer];
+    if (l.cursor_x + w > side) {
+        l.cursor_x = 0;
+        l.cursor_y += l.row_height;
+        l.row_height = 0;
+    }
+    result = {l.cursor_x, l.cursor_y, w, h, current_layer};
+    l.cursor_x += w;
+    l.row_height = std::max(l.row_height, h);
+    touch(current_layer);
     ++loaded_total;
-    result = p.rect;
-    pending.push_back(std::move(p));
-    cursor_x += w;
-    row_height = std::max(row_height, h);
+    pending.push_back({result, std::move(pixels)});
     if (loaded_total <= 8)
         fprintf(stderr, "[hd] loaded %s (%dx%d)\n", label, w, h);
     return true;
 }
-void load(uint64_t key)
+void place_resident(uint64_t key, const Decoded &d, const std::string &path)
 {
-    if (resident.count(key) || bad.count(key))
-        return;
-    auto f = files.find(key);
-    if (f == files.end() || full)
-        return;
-    std::string ext = std::filesystem::path(f->second).extension().string();
-    for (char &c : ext)
-        c = std::tolower((unsigned char)c);
-    SDL_Surface *original = ext == ".dds" ? hd_load_dds(f->second.c_str()) : SDL_LoadPNG(f->second.c_str());
-    if (!original) {
-        fprintf(stderr, "[hd] cannot read %s: %s\n", f->second.c_str(), SDL_GetError());
-        bad.insert(key);
-        return;
-    }
     Image im;
-    if (!place(original, f->second.c_str(), im)) {
+    if (!place(d.w, d.h, d.pixels, path.c_str(), im)) {
         if (!full)
             bad.insert(key);
         return;
     }
     resident.emplace(key, im);
     insert(key, im);
+}
+void load(uint64_t key)
+{
+    auto r = resident.find(key);
+    if (r != resident.end()) {
+        insert(key, r->second);
+        touch(r->second.layer);
+        return;
+    }
+    if (bad.count(key) || full)
+        return;
+    auto f = files.find(key);
+    if (f == files.end())
+        return;
+    if (const Decoded *cached = ram_get(f->second)) {
+        place_resident(key, *cached, f->second);
+        return;
+    }
+    if (async_loads) {
+        request(key, f->second);
+        return;
+    }
+    Decoded d = decode_file(f->second);
+    if (!d.pixels) {
+        fprintf(stderr, "[hd] cannot read %s: %s\n", f->second.c_str(), SDL_GetError());
+        bad.insert(key);
+        return;
+    }
+    ram_put(f->second, d);
+    place_resident(key, d, f->second);
+}
+/* Layers at and past `first` are gone (a GPU allocation failed). */
+void drop_layers_from(int first)
+{
+    for (auto it = resident.begin(); it != resident.end();)
+        it = it->second.layer >= first ? resident.erase(it) : std::next(it);
+    for (auto it = page_resident.begin(); it != page_resident.end();)
+        it = it->second.layer >= first ? page_resident.erase(it) : std::next(it);
+    pending.erase(std::remove_if(pending.begin(), pending.end(),
+                                 [first](const Pending &p) { return p.rect.layer >= first; }),
+                  pending.end());
+    if (int(atlas.size()) > first)
+        atlas.resize(first);
+    max_layers = std::max(first, 1);
+    if (atlas.empty())
+        current_layer = -1;
+    else
+        current_layer = std::min(current_layer, int(atlas.size()) - 1);
+    table.fill(0);
+    used.clear();
+    dirty = table_dirty = true;
+}
+/* The atlas lost its contents (grown without a GPU copy): start empty;
+ * images are placed again from the RAM cache or disk as they are drawn. */
+void forget_uploaded()
+{
+    resident.clear();
+    page_resident.clear();
+    pending.clear();
+    atlas.clear();
+    current_layer = -1;
+    table.fill(0);
+    used.clear();
+    dirty = table_dirty = true;
+}
+void clear_layer(int layer)
+{
+    for (auto it = resident.begin(); it != resident.end();)
+        it = it->second.layer == layer ? resident.erase(it) : std::next(it);
+    for (auto it = page_resident.begin(); it != page_resident.end();)
+        it = it->second.layer == layer ? page_resident.erase(it) : std::next(it);
+    pending.erase(std::remove_if(pending.begin(), pending.end(),
+                                 [layer](const Pending &p) { return p.rect.layer == layer; }),
+                  pending.end());
+    atlas[layer] = {};
+    atlas[layer].last_used = frame_number;
+    current_layer = layer;
+    /* The table is rebuilt from what stays resident as pages are drawn. */
+    table.fill(0);
+    used.clear();
+    dirty = table_dirty = true;
+    ++evictions;
+}
+void mark_rows(int y, int h)
+{
+    if (h <= 0)
+        return;
+    if (h >= 512 || (y & 511) + h > 512) {
+        words_y0 = 0;
+        words_y1 = 512;
+    } else {
+        words_y0 = std::min(words_y0, y & 511);
+        words_y1 = std::max(words_y1, (y & 511) + h);
+    }
+    dirty = words_dirty = true;
 }
 
 uint32_t reduced_palette(const std::vector<uint16_t> &pixels, unsigned depth, const uint16_t *colors)
@@ -361,22 +619,6 @@ uint32_t reduced_palette(const std::vector<uint16_t> &pixels, unsigned depth, co
             hi = std::max(hi, v);
         }
     return crc(colors + lo, hi - lo + 1) ^ 0xffffffffu;
-}
-SDL_Surface *read_image(const std::string &path)
-{
-    std::string ext = std::filesystem::path(path).extension().string();
-    for (char &c : ext)
-        c = std::tolower((unsigned char)c);
-    SDL_Surface *s = ext == ".dds" ? hd_load_dds(path.c_str()) : SDL_LoadPNG(path.c_str());
-    if (!s)
-        return nullptr;
-    if (s->w > side || s->h > side) {
-        SDL_DestroySurface(s);
-        return nullptr;
-    }
-    auto result = SDL_ConvertSurface(s, SDL_PIXELFORMAT_RGBA32);
-    SDL_DestroySurface(s);
-    return result;
 }
 struct Layer {
     const Duck *file;
@@ -455,7 +697,7 @@ void resolve_page(unsigned tpage, unsigned clut, unsigned depth, unsigned ppw, u
     std::stable_sort(layers.begin(), layers.end(),
                      [](const Layer &a, const Layer &b) { return a.file->semi < b.file->semi; });
     if (beetle == page_files.end() && layers.empty()) {
-        insert(binding, {0, 0, 1, 1}, 1, false);
+        insert(binding, {0, 0, 1, 1, 0}, 1, false);
         return;
     }
     std::ostringstream name;
@@ -472,33 +714,36 @@ void resolve_page(unsigned tpage, unsigned clut, unsigned depth, unsigned ppw, u
     auto cached = page_resident.find(name.str());
     if (cached != page_resident.end()) {
         insert(binding, cached->second, 1);
+        touch(cached->second.layer);
         return;
     }
     if (full) {
-        insert(binding, {0, 0, 1, 1}, 1, false);
+        insert(binding, {0, 0, 1, 1, 0}, 1, false);
         return;
     }
-    struct Decoded {
+    struct Source {
         Layer layer;
-        SDL_Surface *image;
+        Decoded image;
     };
-    std::vector<Decoded> decoded;
+    std::vector<Source> decoded;
     unsigned scale_x = 1, scale_y = 1;
-    SDL_Surface *base = beetle == page_files.end() ? nullptr : read_image(beetle->second);
-    if (base) {
-        scale_x = std::max(1, (base->w + 255) / 256);
-        scale_y = std::max(1, (base->h + 255) / 256);
+    Decoded base;
+    if (beetle != page_files.end())
+        base = decode_cached(beetle->second);
+    if (base.pixels) {
+        scale_x = std::max(1, (base.w + 255) / 256);
+        scale_y = std::max(1, (base.h + 255) / 256);
     }
     for (const auto &layer : layers) {
-        SDL_Surface *image = read_image(layer.file->path);
-        if (!image)
+        Decoded image = decode_cached(layer.file->path);
+        if (!image.pixels)
             continue;
-        scale_x = std::max(scale_x, unsigned((image->w + layer.file->w - 1) / layer.file->w));
-        scale_y = std::max(scale_y, unsigned((image->h + layer.file->h - 1) / layer.file->h));
+        scale_x = std::max(scale_x, unsigned((image.w + layer.file->w - 1) / layer.file->w));
+        scale_y = std::max(scale_y, unsigned((image.h + layer.file->h - 1) / layer.file->h));
         decoded.push_back({layer, image});
     }
-    if (!base && decoded.empty()) {
-        insert(binding, {0, 0, 1, 1}, 1, false);
+    if (!base.pixels && decoded.empty()) {
+        insert(binding, {0, 0, 1, 1, 0}, 1, false);
         return;
     }
     // Bound temporary composition as well as the GPU atlas. Arbitrary scales use
@@ -506,21 +751,13 @@ void resolve_page(unsigned tpage, unsigned clut, unsigned depth, unsigned ppw, u
     scale_x = std::min(scale_x, 32u);
     scale_y = std::min(scale_y, 32u);
     unsigned w = 256 * scale_x, h = 256 * scale_y;
-    SDL_Surface *out = SDL_CreateSurface(w, h, SDL_PIXELFORMAT_RGBA32);
-    if (!out) {
-        if (base)
-            SDL_DestroySurface(base);
-        for (auto &d : decoded)
-            SDL_DestroySurface(d.image);
-        return;
-    }
+    auto out = std::make_shared<std::vector<uint8_t>>(size_t(w) * h * 4);
     for (unsigned y = 0; y < h; ++y)
         for (unsigned x = 0; x < w; ++x) {
-            auto dst = (uint8_t *)out->pixels + y * out->pitch + x * 4;
-            if (base) {
+            uint8_t *dst = out->data() + (size_t(y) * w + x) * 4;
+            if (base.pixels) {
                 memcpy(dst,
-                       (uint8_t *)base->pixels + (uint64_t(y) * base->h / h) * base->pitch +
-                           (uint64_t(x) * base->w / w) * 4,
+                       base.pixels->data() + ((uint64_t(y) * base.h / h) * base.w + uint64_t(x) * base.w / w) * 4,
                        4);
                 if (dst[3] && dst[3] < 255)
                     dst[3] = 128;
@@ -531,8 +768,6 @@ void resolve_page(unsigned tpage, unsigned clut, unsigned depth, unsigned ppw, u
                 dst[3] = 1;
             }
         }
-    if (base)
-        SDL_DestroySurface(base);
     for (auto &d : decoded) {
         const auto &layer = d.layer;
         const Duck &file = *layer.file;
@@ -548,22 +783,21 @@ void resolve_page(unsigned tpage, unsigned clut, unsigned depth, unsigned ppw, u
                         int(word.offset >> 16) != source_y)
                         continue;
                 }
-                unsigned sx = uint64_t(x - layer.x * int(scale_x)) * d.image->w / (file.w * scale_x);
-                unsigned sy = uint64_t(y - layer.y * int(scale_y)) * d.image->h / (file.h * scale_y);
-                uint8_t *dst = (uint8_t *)out->pixels + y * out->pitch + x * 4;
-                memcpy(dst, (uint8_t *)d.image->pixels + sy * d.image->pitch + sx * 4, 4);
+                unsigned sx = uint64_t(x - layer.x * int(scale_x)) * d.image.w / (file.w * scale_x);
+                unsigned sy = uint64_t(y - layer.y * int(scale_y)) * d.image.h / (file.h * scale_y);
+                uint8_t *dst = out->data() + (size_t(y) * w + x) * 4;
+                memcpy(dst, d.image.pixels->data() + (size_t(sy) * d.image.w + sx) * 4, 4);
                 if (dst[3])
                     dst[3] = !file.semi || dst[3] == 255 ? 255 : 128;
             }
-        SDL_DestroySurface(d.image);
     }
     Image result;
-    if (place(out, "composed page", result)) {
+    if (place(int(w), int(h), std::move(out), "composed page", result)) {
         ++matched_uploads;
         page_resident.emplace(name.str(), result);
         insert(binding, result, 1);
     } else
-        insert(binding, {0, 0, 1, 1}, 1, false);
+        insert(binding, {0, 0, 1, 1, 0}, 1, false);
 }
 
 void dimensions(int i, int &w, int &h)
@@ -583,6 +817,19 @@ const void *data(int i)
            : i == 1 ? (const void *)palettes.data()
                     : (const void *)table.data();
 }
+/* The rows of texture `i` to send: the word map's changed rows, else all. */
+void upload_rows(int i, bool all, int &y0, int &rows)
+{
+    int w, h;
+    dimensions(i, w, h);
+    y0 = 0;
+    rows = h;
+    if (i == 0 && configured && !all) {
+        y0 = std::min(words_y0, words_y1);
+        rows = words_y1 - y0;
+    }
+}
+int wanted_layers() { return configured ? std::max(1, int(atlas.size())) : 1; }
 } // namespace
 extern "C" void pc_hd_upload(int x, int y, int w, int h, const uint16_t *vram)
 {
@@ -626,7 +873,7 @@ extern "C" void pc_hd_upload(int x, int y, int w, int h, const uint16_t *vram)
         }
     ++generation;
     if (changed)
-        dirty = words_dirty = true;
+        mark_rows(y, h);
 }
 extern "C" void pc_hd_clear(int x, int y, int w, int h)
 {
@@ -644,7 +891,7 @@ extern "C" void pc_hd_clear(int x, int y, int w, int h)
         }
     ++generation;
     if (changed)
-        dirty = words_dirty = true;
+        mark_rows(y, h);
 }
 extern "C" void pc_hd_copy(int sx, int sy, int dx, int dy, int w, int h, int masked)
 {
@@ -660,11 +907,18 @@ extern "C" void pc_hd_copy(int sx, int sy, int dx, int dy, int w, int h, int mas
     for (int j = 0; j < h; ++j)
         for (int i = 0; i < w; ++i)
             copy[j * w + i] = words[((sy + j) & 511) * 1024 + ((sx + i) & 1023)];
+    bool changed = false;
     for (int j = 0; j < h; ++j)
-        for (int i = 0; i < w; ++i)
-            words[((dy + j) & 511) * 1024 + ((dx + i) & 1023)] = copy[j * w + i];
+        for (int i = 0; i < w; ++i) {
+            Word &to = words[((dy + j) & 511) * 1024 + ((dx + i) & 1023)];
+            if (memcmp(&to, &copy[j * w + i], sizeof to)) {
+                to = copy[j * w + i];
+                changed = true;
+            }
+        }
     ++generation;
-    dirty = words_dirty = true;
+    if (changed)
+        mark_rows(dy, h);
 }
 extern "C" void pc_hd_use(unsigned tpage, unsigned clut)
 {
@@ -674,9 +928,17 @@ extern "C" void pc_hd_use(unsigned tpage, unsigned clut)
     tpage &= 0x19f;
     clut &= 0x7fff;
     unsigned key = (tpage << 15) | clut;
-    if (used[key] == generation)
+    Use &use = used[key];
+    if (use.generation == generation) {
+        frame_layers |= use.layers; /* still drawn from: keep those layers */
+        for (int l = 0; l < int(atlas.size()); ++l)
+            if (use.layers & (1u << l))
+                atlas[l].last_used = frame_number;
         return;
-    used[key] = generation;
+    }
+    use.generation = generation;
+    uint32_t before = frame_layers;
+    frame_layers = 0;
     unsigned depth = (tpage >> 7) & 3, ppw = depth == 0 ? 4 : depth == 1 ? 2 : 1;
     uint32_t pal = 0;
     uint16_t colors[256]{};
@@ -710,8 +972,10 @@ extern "C" void pc_hd_use(unsigned tpage, unsigned clut)
                 if (files.count(rk)) {
                     load(rk);
                     auto im = resident.find(rk);
-                    if (im != resident.end())
+                    if (im != resident.end()) {
                         insert(key, im->second);
+                        touch(im->second.layer);
+                    }
                     continue;
                 }
             }
@@ -719,6 +983,11 @@ extern "C" void pc_hd_use(unsigned tpage, unsigned clut)
         load(key);
     }
     resolve_page(tpage, clut, depth, ppw, px, py, colors, pal);
+    /* (clear_layer inside may have emptied `used`; the entry is then gone) */
+    auto again = used.find(key);
+    if (again != used.end())
+        again->second.layers = frame_layers;
+    frame_layers |= before;
 }
 extern "C" void pc_hd_frame(void)
 {
@@ -734,18 +1003,51 @@ extern "C" void pc_hd_frame(void)
                 ++it;
         }
     }
+    /* Images the workers finished: cache them and place them now, then look
+     * the drawn pages up again so their table entries appear. */
+    if (loader) {
+        std::vector<std::tuple<uint64_t, std::string, Decoded>> done;
+        {
+            std::lock_guard<std::mutex> lock(loader->mutex);
+            done.swap(loader->done);
+        }
+        for (auto &[key, path, image] : done) {
+            requested.erase(key);
+            if (!image.pixels) {
+                fprintf(stderr, "[hd] cannot read %s\n", path.c_str());
+                bad.insert(key);
+                continue;
+            }
+            ram_put(path, image);
+            if (!full && !resident.count(key))
+                place_resident(key, image, path);
+        }
+        if (!done.empty())
+            used.clear();
+    }
+    ++frame_number;
+    frame_layers = 0;
     if (!full)
         return;
-    /* Atlas storage is bounded to 256 MiB; reclaim at a game-frame boundary.
-     * GPU updates are ordered after earlier draws, including frame replays. */
-    resident.clear();
-    page_resident.clear();
-    table.fill(0);
-    used.clear();
-    pending.clear();
-    cursor_x = cursor_y = row_height = 0;
+    if (cooldown && --cooldown)
+        return;
+    /* At a game-frame boundary (GPU updates are ordered after earlier draws,
+     * frame replays included): reuse the layer drawn from least recently. */
+    int victim = -1;
+    for (int l = 0; l < int(atlas.size()); ++l)
+        if (atlas[l].last_used + 2 < frame_number &&
+            (victim < 0 || atlas[l].last_used < atlas[victim].last_used))
+            victim = l;
+    if (victim < 0) {
+        static unsigned reported;
+        if (!reported++)
+            fprintf(stderr, "[hd] every atlas layer is in use (ROOD_HD_VRAM_MB raises the budget); "
+                            "the rest keep their original textures\n");
+        cooldown = 120;
+        return;
+    }
+    clear_layer(victim);
     full = false;
-    dirty = table_dirty = true;
 }
 extern "C" void pc_hd_gl_bind(unsigned program)
 {
@@ -758,38 +1060,72 @@ extern "C" void pc_hd_gl_bind(unsigned program)
     gl_PixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     const GLenum formats[4] = {GL_RGBA32UI, GL_R32UI, GL_RGBA32UI, GL_RGBA8};
     const char *names[4] = {"hd_words", "hd_palettes", "hd_table", "hd_atlas"};
-    if (!gl_tex[0]) {
+    bool created = !gl_tex[0];
+    if (created) {
         gl_GenTextures(4, gl_tex);
         for (int i = 0; i < 4; ++i) {
             int w, h;
             dimensions(i, w, h);
+            GLenum target = i == 3 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
             gl_ActiveTexture(GL_TEXTURE8 + i);
-            gl_BindTexture(GL_TEXTURE_2D, gl_tex[i]);
-            gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            gl_TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            gl_TexImage2D(GL_TEXTURE_2D, 0, formats[i], w, h, 0,
-                          i == 1   ? GL_RED_INTEGER
-                          : i == 3 ? GL_RGBA
-                                   : GL_RGBA_INTEGER,
-                          i == 3 ? GL_UNSIGNED_BYTE : GL_UNSIGNED_INT, i == 3 ? nullptr : data(i));
+            gl_BindTexture(target, gl_tex[i]);
+            gl_TexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            gl_TexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            if (i == 3) {
+                gl_layers = 1;
+                gl_TexImage3D(target, 0, GL_RGBA8, w, h, gl_layers, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            } else
+                gl_TexImage2D(target, 0, formats[i], w, h, 0, i == 1 ? GL_RED_INTEGER : GL_RGBA_INTEGER,
+                              GL_UNSIGNED_INT, data(i));
         }
         dirty = false;
     }
+    if (wanted_layers() > gl_layers) {
+        int want = wanted_layers();
+        GLuint grown = 0;
+        gl_GenTextures(1, &grown);
+        gl_ActiveTexture(GL_TEXTURE11);
+        gl_BindTexture(GL_TEXTURE_2D_ARRAY, grown);
+        gl_TexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        gl_TexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        for (int drain = 0; drain < 16 && gl_GetError() != GL_NO_ERROR; ++drain) {
+        }
+        gl_TexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8, side, side, want, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        if (gl_GetError() == GL_OUT_OF_MEMORY) {
+            gl_DeleteTextures(1, &grown);
+            fprintf(stderr, "[hd] no VRAM for %d atlas layers; keeping %d\n", want, gl_layers);
+            drop_layers_from(gl_layers);
+        } else {
+            if (pc_gl_compute && gl_CopyImageSubData)
+                gl_CopyImageSubData(gl_tex[3], GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, grown, GL_TEXTURE_2D_ARRAY, 0, 0, 0,
+                                    0, side, side, gl_layers);
+            else
+                forget_uploaded(); /* (no GL 4.3) placed again from the RAM cache or disk */
+            gl_DeleteTextures(1, &gl_tex[3]);
+            gl_tex[3] = grown;
+            gl_layers = want;
+        }
+    }
     for (int i = 0; i < 4; ++i) {
+        GLenum target = i == 3 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
         gl_ActiveTexture(GL_TEXTURE8 + i);
-        gl_BindTexture(GL_TEXTURE_2D, gl_tex[i]);
+        gl_BindTexture(target, gl_tex[i]);
         gl_Uniform1i(gl_GetUniformLocation(program, names[i]), 8 + i);
         if (i < 3 && (i == 0 ? words_dirty : i == 1 ? palettes_dirty : table_dirty)) {
-            int w, h;
+            int w, h, y0, rows;
             dimensions(i, w, h);
-            gl_TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, i == 1 ? GL_RED_INTEGER : GL_RGBA_INTEGER,
-                             GL_UNSIGNED_INT, data(i));
+            upload_rows(i, created, y0, rows);
+            if (rows > 0)
+                gl_TexSubImage2D(target, 0, 0, y0, w, rows, i == 1 ? GL_RED_INTEGER : GL_RGBA_INTEGER,
+                                 GL_UNSIGNED_INT, (const uint8_t *)data(i) + size_t(y0) * w * (i == 1 ? 4 : 16));
         }
     }
     for (const auto &p : pending)
-        gl_TexSubImage2D(GL_TEXTURE_2D, 0, p.rect.x, p.rect.y, p.rect.w, p.rect.h, GL_RGBA, GL_UNSIGNED_BYTE,
-                         p.pixels.data());
+        gl_TexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, p.rect.x, p.rect.y, p.rect.layer, p.rect.w, p.rect.h, 1, GL_RGBA,
+                         GL_UNSIGNED_BYTE, p.pixels->data());
     dirty = words_dirty = palettes_dirty = table_dirty = false;
+    words_y0 = 512;
+    words_y1 = 0;
     pending.clear();
     gl_ActiveTexture(GL_TEXTURE0);
     static int checks;
@@ -827,43 +1163,88 @@ extern "C" void pc_hd_vk_sync(void)
     bool created = !vk_tex[0].image;
     const VkFormat formats[4] = {VK_FORMAT_R32G32B32A32_UINT, VK_FORMAT_R32_UINT, VK_FORMAT_R32G32B32A32_UINT,
                                  VK_FORMAT_R8G8B8A8_UNORM};
-    if (created)
+    const VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    if (created) {
         for (int i = 0; i < 4; ++i) {
             int w, h;
             dimensions(i, w, h);
-            if (!vk_image_create(&vk_tex[i], w, h, formats[i],
-                                 VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT))
+            if (i == 3 ? !vk_image_create_array(&vk_tex[i], w, h, 1, formats[i],
+                                                usage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
+                       : !vk_image_create(&vk_tex[i], w, h, formats[i], usage))
                 return;
         }
-    if (!dirty && !created && pending.empty())
+        vk_layers = 1;
+    }
+    bool grew = false;
+    if (wanted_layers() > vk_layers) {
+        int want = wanted_layers();
+        vk_image grown{};
+        if (!vk_image_create_array(&grown, side, side, want, formats[3], usage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT)) {
+            fprintf(stderr, "[hd] no VRAM for %d atlas layers; keeping %d\n", want, vk_layers);
+            drop_layers_from(vk_layers);
+        } else {
+            VkImageCopy region{};
+            region.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, uint32_t(vk_layers)};
+            region.dstSubresource = region.srcSubresource;
+            region.extent = {uint32_t(side), uint32_t(side), 1};
+            vkCmdCopyImage(vk_cmd(), vk_tex[3].image, VK_IMAGE_LAYOUT_GENERAL, grown.image, VK_IMAGE_LAYOUT_GENERAL,
+                           1, &region);
+            vk_image_destroy_later(&vk_tex[3]);
+            vk_tex[3] = grown;
+            vk_layers = want;
+            grew = true;
+        }
+    }
+    if (!dirty && !created && !grew && pending.empty())
         return;
     vk_end_rendering();
     vk_barrier();
-    auto upload = [](int i, int x, int y, int w, int h, const void *p) {
-        size_t bytes = size_t(w) * h * (i == 0 || i == 2 ? 16 : 4);
-        vk_buffer staging{};
-        if (!vk_buffer_create(&staging, bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 2))
+    /* Everything in one staging buffer: one allocation per sync, not one per image. */
+    struct Copy {
+        int image;
+        VkBufferImageCopy region;
+        const void *source;
+        size_t bytes;
+    };
+    std::vector<Copy> copies;
+    size_t total = 0;
+    auto add = [&](int i, int x, int y, int w, int h, int layer, const void *p) {
+        if (w <= 0 || h <= 0)
             return;
-        memcpy(staging.mapped, p, bytes);
-        VkBufferImageCopy region{};
-        region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
-        region.imageOffset = {x, y, 0};
-        region.imageExtent = {uint32_t(w), uint32_t(h), 1};
-        vkCmdCopyBufferToImage(vk_cmd(), staging.buffer, vk_tex[i].image, VK_IMAGE_LAYOUT_GENERAL, 1,
-                               &region);
-        vk_buffer_destroy_later(&staging);
+        Copy c{};
+        c.image = i;
+        c.source = p;
+        c.bytes = size_t(w) * h * (i == 0 || i == 2 ? 16 : 4);
+        c.region.bufferOffset = total;
+        c.region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, uint32_t(layer), 1};
+        c.region.imageOffset = {x, y, 0};
+        c.region.imageExtent = {uint32_t(w), uint32_t(h), 1};
+        total += (c.bytes + 15) & ~size_t(15);
+        copies.push_back(c);
     };
     for (int i = 0; i < 3; ++i) {
         if (!created && !(i == 0 ? words_dirty : i == 1 ? palettes_dirty : table_dirty))
             continue;
-        int w, h;
+        int w, h, y0, rows;
         dimensions(i, w, h);
-        upload(i, 0, 0, w, h, data(i));
+        upload_rows(i, created, y0, rows);
+        add(i, 0, y0, w, rows, 0, (const uint8_t *)data(i) + size_t(y0) * w * (i == 1 ? 4 : 16));
     }
     for (const auto &p : pending)
-        upload(3, p.rect.x, p.rect.y, p.rect.w, p.rect.h, p.pixels.data());
+        add(3, p.rect.x, p.rect.y, p.rect.w, p.rect.h, p.rect.layer, p.pixels->data());
+    vk_buffer staging{};
+    if (total && vk_buffer_create(&staging, total, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 2)) {
+        for (const auto &c : copies) {
+            memcpy((uint8_t *)staging.mapped + c.region.bufferOffset, c.source, c.bytes);
+            vkCmdCopyBufferToImage(vk_cmd(), staging.buffer, vk_tex[c.image].image, VK_IMAGE_LAYOUT_GENERAL, 1,
+                                   &c.region);
+        }
+        vk_buffer_destroy_later(&staging);
+    }
     vk_barrier();
     dirty = words_dirty = palettes_dirty = table_dirty = false;
+    words_y0 = 512;
+    words_y1 = 0;
     pending.clear();
 }
 extern "C" void *pc_hd_vk_view(int i) { return (void *)vk_tex[i].view; }
@@ -872,10 +1253,16 @@ extern "C" void *pc_hd_vk_view(int i) { return (void *)vk_tex[i].view; }
 extern "C" void pc_hd_status(char *out, int size)
 {
     init();
+    size_t queued = 0;
+    if (loader) {
+        std::lock_guard<std::mutex> lock(loader->mutex);
+        queued = loader->requests.size();
+    }
     snprintf(out, size,
              "{\"enabled\":%s,\"indexed\":%zu,\"matched_uploads\":%u,"
-             "\"resident\":%zu,\"loaded_total\":%u,\"bad_"
-             "files\":%zu,\"atlas_full\":%s}",
+             "\"resident\":%zu,\"loaded_total\":%u,\"bad_files\":%zu,\"atlas_full\":%s,"
+             "\"layers\":%zu,\"max_layers\":%d,\"evictions\":%u,\"ram_cache_mb\":%zu,\"queued\":%zu}",
              (configured && pc_hd_enabled) ? "true" : "false", size_t(indexed_count), matched_uploads,
-             resident.size() + page_resident.size(), loaded_total, bad.size(), full ? "true" : "false");
+             resident.size() + page_resident.size(), loaded_total, bad.size(), full ? "true" : "false",
+             atlas.size(), max_layers, evictions, ram_bytes >> 20, queued);
 }
