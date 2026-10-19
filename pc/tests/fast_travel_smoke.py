@@ -74,6 +74,9 @@ import checkpoints  # noqa: E402
 import card_fixtures as cf  # noqa: E402
 
 PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4  # host pointers (characterState, menuItems)
+# The C++ Travel prompt (fast_travel_prompt.cpp) is what this tests: the shipped plugins stay off
+# (rood.hud claims the prompt with the modern look; hud_bench_smoke tests that).
+os.environ.setdefault("ROOD_PLUGINS_SHIPPED", "")
 CLOSED = 0x3F           # vs_battle_menuState.currentMenu with no menu
 FLAGS_SIZE = 0x440      # sizeof(vs_main_flags_t)
 UNK_A7, INTRO, UNK_B5, MAGIC_USED, SAVE_POINTS = 0xA7, 0xAB, 0xB5, 0xB7, 0x156

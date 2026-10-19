@@ -1,23 +1,28 @@
 // The Lua visible layer's HUD API (plan pc/docs/plans/2026-10-18-lua-visible-layer.md;
 // pc/docs/Extensions.md "HUD"): the game decides when and what, a plugin's
 // claim how it looks.
-//   rood.hud.claim(kind, fn)   fn(e, d) draws each element of the kind ("status") on every
-//                              presented frame; the game's own drawing is suppressed while
-//                              the claim is honoured (the modern look, or
-//                              hud_classic_override). One owner per kind: the last in load
-//                              order (the console's last of all), with a warning. A draw
-//                              error stops honouring it (the game draws again) until the
+//   rood.hud.claim(kind, fn)   fn(e, d) draws each element of the kind (status, chain, buff,
+//                              damage, travel) on every presented frame; the game's own
+//                              drawing is suppressed while the claim is honoured (the modern
+//                              look, or hud_classic_override). One owner per kind: the last
+//                              in load order (the console's last of all), with a warning. A
+//                              draw error stops honouring it (the game draws again) until the
 //                              plugin reloads.
-//   rood.hud.release(kind), rood.hud.kinds()
-//   rood.draw (also d):        style{font, size, color, alpha, stroke, stroke_color,
+//   rood.hud.release(kind), rood.hud.kinds(), rood.hud.honoured(kind)
+//   rood.hud.typography(style, {...} | nil): ui_text's style fields for this run (the classic
+//                              look's typography; never saved), dropped on unload.
+//   rood.draw (also d):        style{font, size, cap, color, alpha, stroke, stroke_color,
 //                              stroke_alpha, tracking, stretch, align, anchor} -> an
 //                              immutable handle, parsed once; text(style, s, x, y[, color[,
-//                              alpha]]), measure(style, s) -> w, h, rect(x, y, w, h, color[,
-//                              alpha]); in the game's 320 x 240 screen, into a fixed
-//                              command buffer (HUD_COMMANDS, HUD_TEXT_ARENA bytes of text)
-//                              hud_draw.cpp draws in picture space.
+//                              alpha]]), fit(style, s, x, y, w, h[, color[, alpha]]) (inside
+//                              a box, the outline kept in), measure(style, s) -> w, h,
+//                              rect(x, y, w, h, color[, alpha]), glyph(button, x, y, h[,
+//                              style[, color[, alpha]]]) -> w (a prompt icon),
+//                              glyph_width(button, h); in the game's screen (320 x 224 in
+//                              the field), into a fixed command buffer (HUD_COMMANDS,
+//                              HUD_TEXT_ARENA bytes of text) hud_draw.cpp draws in picture space.
 //   rood.dev (dev mode only: ROOD_RPC set or ROOD_DEV=1): show(kind, {timing, variant, age,
-//                              hold}), clear([kind]), list().
+//                              hold, value, sign / heal, pool, stat, slot}), clear([kind]), list().
 // The pass (pc_hud_frame), RPC hud {list, show, clear, stats, set} (pc_hud_rpc). Claims,
 // styles and element tables belong to the plugin's load: an unload drops them; held
 // moments belong to the host (hud_elements.cpp) and survive a reload.
@@ -31,14 +36,21 @@
 #include <cstdlib>
 #include <cstring>
 
+// ui_text.c's typography layer (ui_text.h; absent in lua_probe)
+extern "C" int pc_ui_text_style_index(const char* name) __attribute__((weak));
+extern "C" int pc_ui_text_override(int style, const char* field, const char* value) __attribute__((weak));
+extern "C" void pc_ui_text_override_clear(int style) __attribute__((weak));
+extern "C" unsigned pc_ui_text_overridden(int style) __attribute__((weak));
+
 namespace hud {
 void (*render)(const Command*, int, const char*);
 void (*measure)(const Style&, const char*, size_t, float*, float*);
+float (*glyph_width)(int, float);
 bool Style::operator==(const Style& o) const
 {
     return font == o.font && size == o.size && color == o.color && alpha == o.alpha && stroke == o.stroke
         && stroke_color == o.stroke_color && stroke_alpha == o.stroke_alpha && tracking == o.tracking
-        && stretch == o.stretch && align == o.align && anchor == o.anchor;
+        && stretch == o.stretch && align == o.align && anchor == o.anchor && cap == o.cap;
 }
 } // namespace hud
 
@@ -62,7 +74,7 @@ struct Claim {
     bool failed = false;   // its draw raised: not honoured until the plugin reloads
 };
 std::vector<Claim> claims[PC_HUD_KINDS];
-int active[PC_HUD_KINDS] = { -1, -1 }; // index into claims[kind]
+int active[PC_HUD_KINDS] = { -1, -1, -1, -1, -1, -1 }; // index into claims[kind] (PC_HUD_KINDS entries)
 unsigned long long next_claim = 1;
 
 bool valid(const Claim& c)
@@ -183,6 +195,8 @@ int api_style(lua_State* L)
             st.font = choice(L, k, FONTS, 6);
         else if (!std::strcmp(k, "size"))
             st.size = (float)number(L, k, 1, 120);
+        else if (!std::strcmp(k, "cap"))
+            st.cap = (float)number(L, k, 0, 120);
         else if (!std::strcmp(k, "color") || !std::strcmp(k, "colour"))
             st.color = colour_field(L, k);
         else if (!std::strcmp(k, "alpha"))
@@ -219,9 +233,11 @@ int api_style(lua_State* L)
                 HUD_STYLES);
         found = empty;
         style_slots[found].used = true;
+        style_slots[found].refs = 0;
         style_slots[found].owner = p->id();
         style_slots[found].style = st;
     }
+    ++style_slots[found].refs;
     Handle* h = (Handle*)lua_newuserdatauv(L, sizeof(Handle), 0);
     h->slot = (unsigned)found;
     h->serial = style_slots[found].serial;
@@ -238,6 +254,8 @@ int style_index(lua_State* L)
         lua_pushstring(L, FONTS[st.font]);
     else if (!std::strcmp(k, "size"))
         lua_pushnumber(L, st.size);
+    else if (!std::strcmp(k, "cap"))
+        lua_pushnumber(L, st.cap);
     else if (!std::strcmp(k, "color"))
         lua_pushinteger(L, st.color);
     else if (!std::strcmp(k, "alpha"))
@@ -261,6 +279,20 @@ int style_index(lua_State* L)
     return 1;
 }
 int style_newindex(lua_State* L) { return luaL_error(L, "a style is immutable (make another with rood.draw.style)"); }
+// A handle collected: the last one frees its slot (a look rebuilt as settings change does not fill the table).
+int style_gc(lua_State* L)
+{
+    Handle* h = (Handle*)luaL_testudata(L, 1, STYLE_META);
+    if (!h || h->slot >= HUD_STYLES)
+        return 0;
+    StyleSlot& s = style_slots[h->slot];
+    if (s.used && s.serial == h->serial && s.refs && !--s.refs) {
+        s.used = false;
+        s.owner.clear();
+        ++s.serial;
+    }
+    return 0;
+}
 int style_tostring(lua_State* L)
 {
     const Style& st = slot_of(L, 1, "style").style;
@@ -317,16 +349,37 @@ Command* next_command()
     return &command_buffer[command_used++];
 }
 
-int api_text(lua_State* L)
+// The host's own work inside a call (a font file loaded, its glyphs baked on first use: several
+// milliseconds once) is not the plugin's: the call's budget moves on by it.
+struct HostWork {
+    Plugin* p;
+    double start;
+    explicit HostWork(lua_State* L) : p(plugin_of(L)), start(now_seconds()) {}
+    ~HostWork()
+    {
+        if (p && p->budget.active) {
+            double spent = now_seconds() - start;
+            p->budget.start += spent;
+            p->budget.deadline += spent;
+        }
+    }
+};
+
+// One text command: style at 1, the string at 2, then x, y (and with fit w, h), colour, alpha.
+int text_command(lua_State* L, const char* fn, bool fit)
 {
-    const char* fn = "rood.draw.text";
     const StyleSlot& s = slot_of(L, 1, fn);
     size_t len;
     const char* text = luaL_checklstring(L, 2, &len);
-    float x = coordinate(L, 3, fn), y = coordinate(L, 4, fn);
+    float x = coordinate(L, 3, fn), y = coordinate(L, 4, fn), w = 0, h = 0;
+    int at = 5;
+    if (fit) {
+        w = coordinate(L, 5, fn), h = coordinate(L, 6, fn);
+        at = 7;
+    }
     unsigned colour = s.style.color;
-    optional_colour(L, 5, &colour, fn);
-    float alpha = optional_alpha(L, 6, s.style.alpha);
+    optional_colour(L, at, &colour, fn);
+    float alpha = optional_alpha(L, at + 1, s.style.alpha);
     need_draw(L, fn);
     if (len > 255)
         return luaL_error(L, "%s: text longer than 255 bytes", fn);
@@ -346,11 +399,84 @@ int api_text(lua_State* L)
     c->type = hud::CMD_TEXT;
     c->anchor = (unsigned char)drawing.anchor;
     c->style = (unsigned short)(&s - style_slots);
-    c->x = x, c->y = y;
+    c->x = x, c->y = y, c->w = w, c->h = h;
+    c->fit = fit;
     c->color = colour, c->alpha = alpha;
     c->text = arena_used, c->length = (unsigned)len;
     arena_used += (unsigned)len + 1;
     lua_pushboolean(L, 1);
+    return 1;
+}
+int api_text(lua_State* L) { return text_command(L, "rood.draw.text", false); }
+// d.fit(style, s, x, y, w, h[, color[, alpha]]): inside the box x, y, w, h (its top-left), the
+// outline kept in: no larger than the style (its size or cap), smaller to fit the box's height,
+// condensed to fit its width (w 0: any); placed by the style's align across, centred down.
+int api_fit(lua_State* L) { return text_command(L, "rood.draw.fit", true); }
+
+// ui's prompt icons (button_prompts.h PC_PROMPT_*, in order).
+const char* const BUTTONS[] = { "l2", "r2", "l1", "r1", "triangle", "circle", "cross", "square", "select", "l3", "r3",
+    "start", "up", "right", "down", "left", "travel" };
+#define BUTTON_COUNT 17
+int button_arg(lua_State* L, int idx, const char* fn)
+{
+    const char* name = luaL_checkstring(L, idx);
+    for (int i = 0; i < BUTTON_COUNT; ++i)
+        if (!std::strcmp(name, BUTTONS[i]))
+            return i;
+    return luaL_error(L, "%s: unknown button '%s' (l2, r2, l1, r1, triangle, circle, cross, square, select, l3, r3, "
+                         "start, up, right, down, left, travel)", fn, name);
+}
+
+// d.glyph_width(button, h) -> the icon's width h high (0: the device has none for it).
+int api_glyph_width(lua_State* L)
+{
+    const char* fn = "rood.draw.glyph_width";
+    int button = button_arg(L, 1, fn);
+    float h = coordinate(L, 2, fn);
+    HostWork host(L);
+    lua_pushnumber(L, hud::glyph_width ? hud::glyph_width(button, h) : h);
+    return 1;
+}
+
+// d.glyph(button, x, y, h[, style[, color[, alpha]]]) -> its width: the button's prompt icon for the
+// device used last, h high, its left at x, its middle at y; the style's stroke and stroke_color
+// outline it; color tints it. 0 (nothing drawn) when that device has no icon for it.
+int api_glyph(lua_State* L)
+{
+    const char* fn = "rood.draw.glyph";
+    int button = button_arg(L, 1, fn);
+    float x = coordinate(L, 2, fn), y = coordinate(L, 3, fn), h = coordinate(L, 4, fn);
+    int style = HUD_NO_STYLE;
+    float alpha = 1;
+    if (!lua_isnoneornil(L, 5)) {
+        const StyleSlot& s = slot_of(L, 5, fn);
+        style = (int)(&s - style_slots);
+        alpha = s.style.alpha;
+    }
+    unsigned colour = 0xFFFFFF;
+    optional_colour(L, 6, &colour, fn);
+    alpha = optional_alpha(L, 7, alpha);
+    need_draw(L, fn);
+    float w;
+    {
+        HostWork host(L);
+        w = hud::glyph_width ? hud::glyph_width(button, h) : h;
+    }
+    if (w <= 0) {
+        lua_pushnumber(L, 0);
+        return 1;
+    }
+    Command* c = next_command();
+    if (c) {
+        *c = Command();
+        c->type = hud::CMD_GLYPH;
+        c->anchor = (unsigned char)drawing.anchor;
+        c->style = (unsigned short)style;
+        c->button = button;
+        c->x = x, c->y = y, c->w = w, c->h = h;
+        c->color = colour, c->alpha = alpha;
+    }
+    lua_pushnumber(L, w);
     return 1;
 }
 
@@ -379,8 +505,9 @@ int api_rect(lua_State* L)
 
 void estimate(const Style& st, const char*, size_t len, float* w, float* h)
 {
-    *w = (float)len * st.size * (0.55f + st.tracking) * st.stretch;
-    *h = st.size;
+    float size = st.cap > 0 ? st.cap / 0.7f : st.size;
+    *w = (float)len * size * (0.55f + st.tracking) * st.stretch;
+    *h = size;
 }
 
 int api_measure(lua_State* L)
@@ -389,7 +516,10 @@ int api_measure(lua_State* L)
     size_t len;
     const char* text = luaL_checklstring(L, 2, &len);
     float w = 0, h = 0;
-    (hud::measure ? hud::measure : estimate)(s.style, text, len, &w, &h);
+    {
+        HostWork host(L);
+        (hud::measure ? hud::measure : estimate)(s.style, text, len, &w, &h);
+    }
     lua_pushnumber(L, w);
     lua_pushnumber(L, h);
     return 2;
@@ -401,7 +531,7 @@ int kind_arg(lua_State* L, int idx, const char* fn)
     const char* name = luaL_checkstring(L, idx);
     int kind = hud::kind_of(name);
     if (!kind)
-        return luaL_error(L, "%s: unknown HUD kind '%s' (known: status)", fn, name);
+        return luaL_error(L, "%s: unknown HUD kind '%s' (known: " HUD_KIND_LIST ")", fn, name);
     return kind;
 }
 
@@ -449,6 +579,65 @@ int api_release(lua_State* L)
     return 0;
 }
 
+// rood.hud.honoured(kind): whether a claim on it is honoured now (a claim that has not failed;
+// the modern look or hud_classic_override; the overlay drawing).
+int api_honoured(lua_State* L)
+{
+    lua_pushboolean(L, pc_hud_honoured(kind_arg(L, 1, "rood.hud.honoured")) != 0);
+    return 1;
+}
+
+// ---- typography: ui_text's styles overridden for this run (ui_text.h pc_ui_text_override) ----
+struct Typography {
+    std::string owner; // the plugin whose override stands ("" none)
+};
+Typography typography_of[8];
+
+// rood.hud.typography(style, {font, size, stretch, slant, embolden, stroke, tracking, ...}): a ui_text
+// style's fields (the game's own text drawn from fonts with ui_text font: the classic look's
+// status words, labels, ...) for this run, over the settings (never saved); nil or {} gives the
+// settings' back. One owner per style, the last to call; dropped when the plugin unloads.
+int api_typography(lua_State* L)
+{
+    const char* fn = "rood.hud.typography";
+    const char* name = luaL_checkstring(L, 1);
+    if (!pc_ui_text_style_index || !pc_ui_text_override)
+        return luaL_error(L, "%s: no ui_text in this build", fn);
+    int style = pc_ui_text_style_index(name);
+    if (style < 0 || style >= 8)
+        return luaL_error(L, "%s: unknown style '%s' (dialogue, menu, info, digits, status, labels)", fn, name);
+    Plugin* p = plugin_of(L);
+    pc_ui_text_override_clear(style);
+    typography_of[style].owner.clear();
+    if (lua_isnoneornil(L, 2))
+        return 0;
+    luaL_checktype(L, 2, LUA_TTABLE);
+    lua_pushnil(L);
+    while (lua_next(L, 2)) {
+        if (lua_type(L, -2) != LUA_TSTRING)
+            return luaL_error(L, "%s: fields are named", fn);
+        const char* k = lua_tostring(L, -2);
+        char value[300];
+        if (lua_type(L, -1) == LUA_TBOOLEAN)
+            std::snprintf(value, sizeof value, "%d", lua_toboolean(L, -1));
+        else if (lua_type(L, -1) == LUA_TNUMBER)
+            std::snprintf(value, sizeof value, "%.9g", (double)lua_tonumber(L, -1));
+        else if (lua_type(L, -1) == LUA_TSTRING && !std::strcmp(k, "font"))
+            std::snprintf(value, sizeof value, "%s", lua_tostring(L, -1));
+        else
+            return luaL_error(L, "%s: field '%s' has the wrong type", fn, k);
+        if (!pc_ui_text_override(style, k, value)) {
+            pc_ui_text_override_clear(style);
+            return luaL_error(L, "%s: unknown field '%s' (font, stretch, slant, embolden, aspect, small_caps, "
+                                 "outline, size, stroke, tracking)", fn, k);
+        }
+        lua_pop(L, 1);
+    }
+    if (pc_ui_text_overridden(style))
+        typography_of[style].owner = p->id();
+    return 0;
+}
+
 int api_kinds(lua_State* L)
 {
     lua_createtable(L, PC_HUD_KINDS - 1, 0);
@@ -467,6 +656,16 @@ bool dev_mode()
     return (rpc && *rpc) || (dev && !std::strcmp(dev, "1"));
 }
 
+// A name (either case) or an index for slot / stat / pool args.
+int word_arg(lua_State* L, const char* (*word)(int), int count)
+{
+    if (lua_isinteger(L, -1)) {
+        lua_Integer i = lua_tointeger(L, -1);
+        return i >= 0 && i < count ? (int)i : -1;
+    }
+    return lua_type(L, -1) == LUA_TSTRING ? hud::word_index(lua_tostring(L, -1), word, count) : -1;
+}
+
 // show's args from the table at idx (nil: the defaults); false and why.
 bool show_args(lua_State* L, int idx, hud::ShowArgs* a, std::string* why)
 {
@@ -480,6 +679,7 @@ bool show_args(lua_State* L, int idx, hud::ShowArgs* a, std::string* why)
     lua_pushnil(L);
     while (lua_next(L, idx)) {
         const char* k = lua_type(L, -2) == LUA_TSTRING ? lua_tostring(L, -2) : "";
+        bool ok = true;
         if (!std::strcmp(k, "timing")) {
             int t = lua_type(L, -1) == LUA_TSTRING ? hud::timing_of(lua_tostring(L, -1))
                 : lua_isinteger(L, -1) ? (int)lua_tointeger(L, -1) : -1;
@@ -494,8 +694,25 @@ bool show_args(lua_State* L, int idx, hud::ShowArgs* a, std::string* why)
             a->age = (int)lua_tointeger(L, -1);
         } else if (!std::strcmp(k, "hold") && lua_isboolean(L, -1)) {
             a->hold = lua_toboolean(L, -1);
+        } else if ((!std::strcmp(k, "value") || !std::strcmp(k, "count")) && lua_isinteger(L, -1)) {
+            a->value = (int)lua_tointeger(L, -1);
+        } else if (!std::strcmp(k, "sign") && lua_isinteger(L, -1)) {
+            a->sign = lua_tointeger(L, -1) < 0 ? -1 : 1;
+        } else if (!std::strcmp(k, "heal") && lua_isboolean(L, -1)) {
+            a->sign = lua_toboolean(L, -1) ? 1 : -1;
+        } else if (!std::strcmp(k, "pool")) {
+            ok = (a->pool = word_arg(L, hud::pool_name, 3)) >= 0;
+        } else if (!std::strcmp(k, "stat")) {
+            ok = (a->stat = word_arg(L, hud::stat_word, 13)) >= 0;
+        } else if (!std::strcmp(k, "slot")) {
+            ok = (a->slot = word_arg(L, hud::slot_word, 7)) >= 0;
         } else {
-            *why = std::string("unknown or mistyped arg '") + k + "' (timing, variant, age, hold)";
+            *why = std::string("unknown or mistyped arg '") + k
+                + "' (timing, variant, age, hold, value or count, sign or heal, pool, stat, slot)";
+            return false;
+        }
+        if (!ok) {
+            *why = std::string("arg '") + k + "': an unknown name or index";
             return false;
         }
         lua_pop(L, 1);
@@ -541,23 +758,122 @@ void set_bool(lua_State* L, const char* k, bool v)
     lua_setfield(L, -2, k);
 }
 
-// An element's fields into the table on top (reused: every field set every time).
-void fill_element(lua_State* L, const hud::Element& e)
+// The registry's table `name` (made once) on top.
+void reused_table(lua_State* L, const char* name, int size)
 {
-    set_str(L, "kind", hud::kind_name(e.f.kind));
+    if (lua_getfield(L, LUA_REGISTRYINDEX, name) != LUA_TTABLE) {
+        lua_pop(L, 1);
+        lua_createtable(L, size, 0);
+        lua_pushvalue(L, -1);
+        lua_setfield(L, LUA_REGISTRYINDEX, name);
+    }
+}
+
+void set_nil(lua_State* L, const char* k)
+{
+    lua_pushnil(L);
+    lua_setfield(L, -2, k);
+}
+
+const char* const ANCHORS_OF[] = { "centre", "left", "right", "picture" };
+
+// An element's fields into the table on top (reused: every field set every time, those another
+// kind has to nil). parts: fresh tables (rood.dev.list), else the registry's reused ones.
+void fill_element(lua_State* L, const hud::Element& e, bool fresh = false)
+{
+    const pc_hud_fields& f = e.f;
+    int k = f.kind;
+    set_str(L, "kind", hud::kind_name(k));
     set_int(L, "id", e.id);
-    set_str(L, "text", e.f.text);
-    set_field(L, "x", e.f.x);
-    set_field(L, "y", e.f.y);
-    set_field(L, "w", e.f.w);
-    set_field(L, "h", e.f.h);
-    set_int(L, "rgb", e.f.rgb);
-    set_str(L, "timing", hud::timing_name(e.f.timing));
-    set_int(L, "variant", e.f.variant);
-    set_int(L, "age", e.f.age);
-    set_int(L, "life", e.f.life);
+    set_str(L, "text", f.text);
+    set_field(L, "x", f.x);
+    set_field(L, "y", f.y);
+    set_field(L, "w", f.w);
+    set_field(L, "h", f.h);
+    set_int(L, "rgb", f.rgb);
+    set_int(L, "age", f.age);
+    set_int(L, "life", f.life);
     set_bool(L, "held", e.held);
     set_bool(L, "synthetic", e.synthetic);
+    set_str(L, "anchor", ANCHORS_OF[f.anchor >= 0 && f.anchor < 4 ? f.anchor : 0]);
+    if (k == PC_HUD_STATUS) {
+        set_str(L, "timing", hud::timing_name(f.timing));
+        set_int(L, "variant", f.variant);
+    } else {
+        set_nil(L, "timing");
+        set_nil(L, "variant");
+    }
+    if (k == PC_HUD_CHAIN || k == PC_HUD_BUFF || k == PC_HUD_DAMAGE)
+        set_int(L, "value", f.value);
+    else
+        set_nil(L, "value");
+    if (k == PC_HUD_BUFF || k == PC_HUD_DAMAGE)
+        set_int(L, "sign", f.sign);
+    else
+        set_nil(L, "sign");
+    if (k == PC_HUD_BUFF) {
+        set_str(L, "slot", hud::slot_word(f.slot));
+        set_str(L, "stat", hud::stat_word(f.stat));
+    } else if (k == PC_HUD_DAMAGE && f.pool == 2) {
+        set_nil(L, "slot");
+        set_int(L, "stat", f.stat);
+    } else {
+        set_nil(L, "slot");
+        set_nil(L, "stat");
+    }
+    if (k == PC_HUD_DAMAGE) {
+        set_str(L, "pool", hud::pool_name(f.pool));
+        set_field(L, "bounce", f.bounce);
+    } else {
+        set_nil(L, "pool");
+        set_nil(L, "bounce");
+    }
+    if (k == PC_HUD_TRAVEL) {
+        set_str(L, "glyph", f.glyph >= 0 && f.glyph < BUTTON_COUNT ? BUTTONS[f.glyph] : "travel");
+        set_int(L, "corner", f.variant); // the prompt's anchor: 0..8, top left .. bottom right
+        set_field(L, "unit", f.unit);
+    } else {
+        set_nil(L, "glyph");
+        set_nil(L, "corner");
+        set_nil(L, "unit");
+    }
+    if (!f.part_count) {
+        set_nil(L, "parts");
+        return;
+    }
+    // parts: { {x, y, w, h, text}, ... }; reused: the view and, kept apart, each part's table
+    if (fresh) {
+        lua_createtable(L, f.part_count, 0);
+    } else {
+        reused_table(L, "rood.hud.parts", PC_HUD_PARTS);
+        reused_table(L, "rood.hud.part_tables", PC_HUD_PARTS);
+        lua_insert(L, -2); // ... parts' tables, the view
+    }
+    for (int i = 0; i < PC_HUD_PARTS; ++i) {
+        if (i >= f.part_count) {
+            lua_pushnil(L);
+            lua_rawseti(L, -2, i + 1);
+            continue;
+        }
+        if (fresh) {
+            lua_createtable(L, 0, 5);
+        } else if (lua_rawgeti(L, -2, i + 1) != LUA_TTABLE) {
+            lua_pop(L, 1);
+            lua_createtable(L, 0, 5);
+            lua_pushvalue(L, -1);
+            lua_rawseti(L, -4, i + 1);
+        }
+        const pc_hud_part& pt = f.parts[i];
+        set_field(L, "x", pt.x);
+        set_field(L, "y", pt.y);
+        set_field(L, "w", pt.w);
+        set_field(L, "h", pt.h);
+        set_str(L, "text", pt.text);
+        lua_rawseti(L, -2, i + 1);
+    }
+    if (!fresh)
+        lua_remove(L, -2);
+    lua_setfield(L, -2, "parts");
 }
 
 int api_list(lua_State* L)
@@ -568,8 +884,10 @@ int api_list(lua_State* L)
         const hud::Element& e = hud::pool()[i];
         if (!hud::live(e))
             continue;
-        lua_createtable(L, 0, 16);
-        fill_element(L, e);
+        lua_createtable(L, 0, 24);
+        fill_element(L, e, true);
+        set_int(L, "drawn", e.drawn);
+        set_bool(L, "suppressed", e.suppressed);
         lua_rawseti(L, -2, ++n);
     }
     return 1;
@@ -605,6 +923,12 @@ void draw_element(lua_State* L)
 
 void drop_hud(Plugin* p)
 {
+    for (int i = 0; i < 8; ++i)
+        if (typography_of[i].owner == p->id()) {
+            if (pc_ui_text_override_clear)
+                pc_ui_text_override_clear(i);
+            typography_of[i].owner.clear();
+        }
     for (int k = 1; k < PC_HUD_KINDS; ++k) {
         size_t before = claims[k].size();
         drop_claim(k, p, nullptr); // (its state closes: the references go with it)
@@ -628,6 +952,8 @@ void open_hud(lua_State* L, Plugin*)
         lua_setfield(L, -2, "__newindex");
         lua_pushcfunction(L, style_tostring);
         lua_setfield(L, -2, "__tostring");
+        lua_pushcfunction(L, style_gc);
+        lua_setfield(L, -2, "__gc");
         lua_pushliteral(L, "locked");
         lua_setfield(L, -2, "__metatable");
     }
@@ -636,6 +962,8 @@ void open_hud(lua_State* L, Plugin*)
     set_cfunction(L, -1, "claim", api_claim);
     set_cfunction(L, -1, "release", api_release);
     set_cfunction(L, -1, "kinds", api_kinds);
+    set_cfunction(L, -1, "honoured", api_honoured);
+    set_cfunction(L, -1, "typography", api_typography);
     lock_table(L);
     lua_setfield(L, -2, "hud");
     lua_newtable(L);
@@ -643,6 +971,9 @@ void open_hud(lua_State* L, Plugin*)
     set_cfunction(L, -1, "text", api_text);
     set_cfunction(L, -1, "measure", api_measure);
     set_cfunction(L, -1, "rect", api_rect);
+    set_cfunction(L, -1, "fit", api_fit);
+    set_cfunction(L, -1, "glyph", api_glyph);
+    set_cfunction(L, -1, "glyph_width", api_glyph_width);
     lock_table(L);
     lua_pushvalue(L, -1);
     lua_setfield(L, LUA_REGISTRYINDEX, "rood.hud.draw"); // d in draw functions
@@ -712,13 +1043,26 @@ std::string num(double v)
     return buffer;
 }
 
+std::string parts_json(const pc_hud_fields& f)
+{
+    std::string out = "[";
+    for (int i = 0; i < f.part_count && i < PC_HUD_PARTS; ++i)
+        out += std::string(i ? "," : "") + "{\"x\":" + num(f.parts[i].x) + ",\"y\":" + num(f.parts[i].y) + ",\"w\":"
+            + num(f.parts[i].w) + ",\"h\":" + num(f.parts[i].h) + ",\"text\":" + q(f.parts[i].text) + "}";
+    return out + "]";
+}
+
 std::string element_json(const hud::Element& e)
 {
     const Claim* c = owner(e.f.kind);
     return "{\"id\":" + std::to_string(e.id) + ",\"kind\":" + q(hud::kind_name(e.f.kind)) + ",\"text\":" + q(e.f.text)
         + ",\"x\":" + num(e.f.x) + ",\"y\":" + num(e.f.y) + ",\"w\":" + num(e.f.w) + ",\"h\":" + num(e.f.h)
         + ",\"rgb\":" + std::to_string(e.f.rgb) + ",\"timing\":" + q(hud::timing_name(e.f.timing))
-        + ",\"variant\":" + std::to_string(e.f.variant) + ",\"age\":" + std::to_string(e.f.age)
+        + ",\"variant\":" + std::to_string(e.f.variant) + ",\"value\":" + std::to_string(e.f.value)
+        + ",\"sign\":" + std::to_string(e.f.sign) + ",\"pool\":" + q(hud::pool_name(e.f.pool))
+        + ",\"stat\":" + std::to_string(e.f.stat) + ",\"slot\":" + std::to_string(e.f.slot)
+        + ",\"bounce\":" + num(e.f.bounce) + ",\"unit\":" + num(e.f.unit) + ",\"anchor\":" + std::to_string(e.f.anchor)
+        + ",\"parts\":" + parts_json(e.f) + ",\"age\":" + std::to_string(e.f.age)
         + ",\"life\":" + std::to_string(e.f.life) + ",\"held\":" + (e.held ? "true" : "false")
         + ",\"synthetic\":" + (e.synthetic ? "true" : "false") + ",\"live\":" + (hud::live(e) ? "true" : "false")
         + ",\"suppressed\":" + (e.suppressed ? "true" : "false") + ",\"drawn\":" + std::to_string(e.drawn)
@@ -749,12 +1093,16 @@ std::string stats_json()
     size_t memory = 0;
     for (int i = 0; i < command_used && i < 16; ++i) {
         const Command& c = command_buffer[i];
-        cmds += std::string(i ? "," : "") + "{\"type\":" + q(c.type == hud::CMD_TEXT ? "text" : "rect")
+        cmds += std::string(i ? "," : "") + "{\"type\":"
+            + q(c.type == hud::CMD_TEXT ? "text" : c.type == hud::CMD_GLYPH ? "glyph" : "rect")
             + ",\"x\":" + num(c.x) + ",\"y\":" + num(c.y) + ",\"color\":" + std::to_string(c.color);
         if (c.type == hud::CMD_TEXT) {
             const Style& st = style_slots[c.style].style;
             cmds += ",\"text\":" + q(std::string(arena + c.text, c.length)) + ",\"font\":" + q(FONTS[st.font])
-                + ",\"size\":" + num(st.size) + ",\"stroke\":" + num(st.stroke);
+                + ",\"size\":" + num(st.size) + ",\"cap\":" + num(st.cap) + ",\"stroke\":" + num(st.stroke)
+                + ",\"fit\":" + (c.fit ? "true" : "false") + ",\"w\":" + num(c.w) + ",\"h\":" + num(c.h);
+        } else if (c.type == hud::CMD_GLYPH) {
+            cmds += ",\"button\":" + q(BUTTONS[c.button]) + ",\"w\":" + num(c.w) + ",\"h\":" + num(c.h);
         } else {
             cmds += ",\"w\":" + num(c.w) + ",\"h\":" + num(c.h);
         }
@@ -848,6 +1196,27 @@ extern "C" int pc_hud_rpc(const char* params, char* out, int size)
             args.age = (int)v->number;
         if (const Json* v = p.get("hold"))
             args.hold = v->boolean;
+        if (const Json* v = p.get("value"))
+            args.value = (int)v->number;
+        if (const Json* v = p.get("count"))
+            args.value = (int)v->number;
+        if (const Json* v = p.get("sign"))
+            args.sign = v->number < 0 ? -1 : 1;
+        if (const Json* v = p.get("heal"))
+            args.sign = v->boolean ? 1 : -1;
+        const char* names[3] = { "pool", "stat", "slot" };
+        const char* (*words[3])(int) = { hud::pool_name, hud::stat_word, hud::slot_word };
+        int counts[3] = { 3, 13, 7 }, *into[3] = { &args.pool, &args.stat, &args.slot };
+        for (int i = 0; i < 3; ++i)
+            if (const Json* v = p.get(names[i])) {
+                int at = v->type == Json::String ? hud::word_index(v->string.c_str(), words[i], counts[i])
+                                                 : (int)v->number;
+                if (at < 0 || at >= counts[i]) {
+                    std::snprintf(out, (size_t)size, "%s: an unknown name or index", names[i]);
+                    return -1;
+                }
+                *into[i] = at;
+            }
         if (args.timing < 0 || args.timing > 4) {
             std::snprintf(out, (size_t)size, "timing must be too_fast, fast, success, slow or too_slow");
             return -1;

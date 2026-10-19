@@ -1815,7 +1815,13 @@ void func_800941FC(void)
                 if (label->unkE == 2) {
                     func_8009506C(screen[0], screen[1], label);
                 } else {
+#ifdef ROOD_PC
+                    /* PC_HUD: a plugin may draw the number instead (hud_hook.h). */
+                    PC_HUD(PC_HUD_DAMAGE, label, screen[0], screen[1],
+                        func_80094B0C(screen[0], screen[1], label));
+#else
                     func_80094B0C(screen[0], screen[1], label);
+#endif
                 }
                 label->unkB += vs_gametime_tickspeed / 2;
                 if (label->unkB >= 10) {
@@ -1873,7 +1879,7 @@ void func_800941FC(void)
 #ifdef ROOD_PC
             /* Widescreen: beside the status display, at the left edge.
              * PC_HUD: a plugin may draw the word instead (hud_hook.h). */
-            PC_HUD(PC_HUD_STATUS, label,
+            PC_HUD(PC_HUD_STATUS, label, 44, 48,
                 PC_ANCHOR_PACKETS(PC_ANCHOR_LEFT_EDGE, func_800958A4(44, 48, label)));
 #else
             func_800958A4(44, 48, label);
@@ -1886,7 +1892,8 @@ void func_800941FC(void)
             break;
         case 5:
 #ifdef ROOD_PC
-            PC_ANCHOR_PACKETS(PC_ANCHOR_LEFT_EDGE, func_80095A4C(44, 64, label));
+            PC_HUD(PC_HUD_CHAIN, label, 44, 64,
+                PC_ANCHOR_PACKETS(PC_ANCHOR_LEFT_EDGE, func_80095A4C(44, 64, label)));
 #else
             func_80095A4C(44, 64, label);
 #endif
@@ -1901,7 +1908,8 @@ void func_800941FC(void)
                 break;
             }
 #ifdef ROOD_PC
-            PC_ANCHOR_PACKETS(PC_ANCHOR_LEFT_EDGE, func_8009695C(8, 172, label));
+            PC_HUD(PC_HUD_BUFF, label, 8, 172,
+                PC_ANCHOR_PACKETS(PC_ANCHOR_LEFT_EDGE, func_8009695C(8, 172, label)));
 #else
             func_8009695C(8, 172, label);
 #endif

@@ -1,7 +1,11 @@
 # The Lua visible layer (F1-F3)
 
 Status: plan, 2026-10-18. Phase F1-F3 of
-`2026-10-18-freedom-and-fast-iteration.md`.
+`2026-10-18-freedom-and-fast-iteration.md`. Tasks 1-6 done (2026-10-19):
+status, chain, buff, damage and travel are elements, the shipped `rood.hud`
+claims them (pc/docs/Extensions.md "HUD"). Found on the way: the field's
+screen is 320 x 224 (the display area), not 240; coordinates follow the
+display area.
 
 Goal: a HUD or UI tweak in under a minute. Edit a Lua file, it hot-reloads in
 the running game, and the moment is summoned with one command. The game

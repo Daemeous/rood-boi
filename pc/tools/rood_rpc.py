@@ -20,7 +20,8 @@ CLI:
                                               client-side methods "symbol" and "read_symbol"
     rood_rpc.py lua 'return rood.version' [--plugin ID]   evaluate Lua in the running game
     rood_rpc.py lua-test [--plugin ID] [--filter TEXT]     run the plugins' Lua tests in it
-    rood_rpc.py hud-show [KIND] [--timing slow] [--no-hold]  summon a HUD element (RPC hud show)
+    rood_rpc.py hud-show [KIND] [--timing slow] [--value N] [--heal] [--pool mp] [--stat S] [--slot S] [--no-hold]
+                                              summon a HUD element (RPC hud show): status, chain, buff, damage, travel
     rood_rpc.py hud [list|clear|stats]        the HUD layer's elements, claims and timings
 
 The socket defaults to $ROOD_RPC or pc/build/boot/rpc.sock (on Windows tcp:47323, a
@@ -623,6 +624,12 @@ def main():
     hud_show.add_argument("kind", nargs="?", default="status")
     hud_show.add_argument("--timing", default="slow", help="too_fast, fast, success, slow, too_slow")
     hud_show.add_argument("--variant", type=int, default=0)
+    hud_show.add_argument("--value", type=int, help="chain: the count; buff, damage: the amount")
+    hud_show.add_argument("--heal", action="store_true", help="damage: healing (buff: a gain is the default)")
+    hud_show.add_argument("--loss", action="store_true", help="buff: a loss")
+    hud_show.add_argument("--pool", help="damage: hp, mp or stat")
+    hud_show.add_argument("--stat", help="buff: human .. darkness; damage with --pool stat: 0..5")
+    hud_show.add_argument("--slot", help="buff: weapon, shield, r.arm, l.arm, head, body, legs")
     hud_show.add_argument("--no-hold", action="store_true")
     hud = sub.add_parser("hud", help="the HUD layer (RPC hud): list, clear, stats")
     hud.add_argument("action", nargs="?", default="list", choices=["list", "clear", "stats"])
@@ -644,8 +651,13 @@ def main():
     elif args.command == "lua":
         print(json.dumps(Game(args.socket).lua(args.code, plugin=args.plugin), indent=1))
     elif args.command == "hud-show":
-        print(json.dumps(Game(args.socket).call("hud", action="show", kind=args.kind, timing=args.timing,
-                                                variant=args.variant, hold=not args.no_hold)))
+        params = dict(action="show", kind=args.kind, timing=args.timing, variant=args.variant, hold=not args.no_hold)
+        params.update({k: v for k, v in [("value", args.value), ("pool", args.pool), ("slot", args.slot)] if v is not None})
+        if args.stat is not None:
+            params["stat"] = int(args.stat) if args.stat.isdigit() else args.stat
+        if args.heal or args.loss:
+            params["sign"] = 1 if args.heal else -1
+        print(json.dumps(Game(args.socket).call("hud", **params)))
     elif args.command == "hud":
         print(json.dumps(Game(args.socket).call("hud", action=args.action), indent=1))
     elif args.command == "lua-test":

@@ -10,6 +10,8 @@
  *   presented frame: dev_overlay.cpp -> pc_hud_frame (lua_api_hud.cpp: each
  *               live element's claim draws into a fixed command buffer) ->
  *               the renderer (hud_draw.cpp, picture space)
+ *   presented frame, the Travel prompt: fast_travel_prompt.cpp ->
+ *               pc_hud_record (its C++ drawing skipped when honoured)
  *   game vsync: pc_lua_tick -> held rood.dev.show moments kept, expiry
  *
  * Elements are copies, never pointers into the game. With no claim, a
@@ -22,21 +24,53 @@
 extern "C" {
 #endif
 
-enum { PC_HUD_NONE = 0, PC_HUD_STATUS = 1, PC_HUD_KINDS };
+/* The kinds (hud_hook.h repeats the game's): status, the timing word (BATTLE.PRG
+ * func_800958A4); chain, "3 CHAINS" (func_80095A4C); buff, an equipment's class or
+ * affinity change (func_8009695C: WEAPON HUMAN +1); damage, a number over an actor
+ * (func_80094B0C: damage, healing, a stat's change); travel, the Travel prompt on a
+ * Circle of Magic (fast_travel_prompt.cpp). */
+enum { PC_HUD_NONE = 0, PC_HUD_STATUS = 1, PC_HUD_CHAIN, PC_HUD_BUFF, PC_HUD_DAMAGE, PC_HUD_TRAVEL, PC_HUD_KINDS };
 #define PC_HUD_TEXT 32
+#define PC_HUD_PART_TEXT 12
+#define PC_HUD_PARTS 4
 #define PC_HUD_POOL 64
+/* pc_hud_fields.anchor: where widescreen puts it. The game's 2D is drawn 3/4 as wide about
+ * the picture's centre or the edge it is anchored to (pc_hw_anchor_packets); PICTURE:
+ * fractions of the whole picture (x / 320, y / 240), sizes in the picture's own pixels
+ * (the Travel prompt, which is ours). */
+enum { PC_HUD_ANCHOR_CENTRE, PC_HUD_ANCHOR_LEFT, PC_HUD_ANCHOR_RIGHT, PC_HUD_ANCHOR_PICTURE };
+
+/* A piece of an element as the game drew it (the buff's words, sign and digits). */
+typedef struct {
+    float x, y, w, h; /* its box (x, y the top-left) */
+    char text[PC_HUD_PART_TEXT];
+} pc_hud_part;
 
 /* One element as the game drew it this frame. */
 typedef struct {
     int kind;             /* PC_HUD_* */
     const void* key;      /* the game's record: identity only, never read through */
     char text[PC_HUD_TEXT];
-    float x, y, w, h;     /* the game's drawing's box in its 320 x 240 screen: x, y its centre */
+    float x, y, w, h;     /* the game's drawing's box in its screen (320 x 224 in the field): x, y its centre
+                           * (damage: x, y where the game placed it, before its bounce; travel:
+                           * the picture's point the prompt is anchored to) */
     unsigned rgb;         /* 0xRRGGBB: the game's colour (its 0x80 = full) */
     int timing;           /* status: 0 too fast, 1 fast, 2 success, 3 slow, 4 too slow */
-    int variant;          /* status: which success word (COOL!, GOOD!, ...) */
-    int age, life;        /* game frames since it appeared, and when it goes */
-    int anchor;           /* where widescreen anchors it: 0 the centre, 1 the left edge, 2 the right */
+    int variant;          /* status: which success word (COOL!, GOOD!, ...); travel: the
+                           * prompt's anchor (0..8: top left .. bottom right) */
+    int value;            /* chain: the count; buff, damage: the amount */
+    int sign;             /* buff, damage: +1 a gain (a heal), -1 a loss (damage) */
+    int pool;             /* damage: 0 HP, 1 MP, 2 a stat (stat: which) */
+    int stat;             /* buff: the class or affinity (0..12: HUMAN .. DARKNESS); damage: the stat
+                           * changed (0..5: its icon HP, MP, STR, INT, AGL, RISK) */
+    int slot;             /* buff: the equipment (0..6: WEAPON, SHIELD, R.ARM, L.ARM, HEAD, BODY, LEGS) */
+    float bounce;         /* damage: its digits' rise this frame (game pixels, - up) */
+    float unit;           /* travel: game pixels per menus' layout unit (720 high) */
+    int glyph;            /* travel: the button whose icon it shows (PC_PROMPT_*) */
+    int age, life;        /* game frames since it appeared, and when it goes (travel: 0, 0) */
+    int anchor;           /* PC_HUD_ANCHOR_* */
+    int part_count;
+    pc_hud_part parts[PC_HUD_PARTS];
 } pc_hud_fields;
 
 /* ---- hud_elements.cpp ---- */
@@ -54,12 +88,18 @@ void pc_hud_tick(void);
 /* ---- hud_bridge.c (battle builds; absent elsewhere: weak) ---- */
 /* The field is live (a room loaded, the battle overlay's HUD running). */
 int pc_hud_bridge_field(void) __attribute__((weak));
-/* The game's own spawner for kind (status: vs_battle_renderBattleAbilityTimingResult). */
-int pc_hud_bridge_spawn(int kind, int timing, int variant) __attribute__((weak));
-/* Keeps the game's element of kind at `age` (each vsync); 0 when it has none. */
-int pc_hud_bridge_hold(int kind, int age) __attribute__((weak));
+/* What rood.dev.show asks for (hud_internal.h ShowArgs, as plain C). */
+typedef struct {
+    int timing, variant, age, value, sign, pool, stat, slot;
+} pc_hud_spawn;
+/* The game's own spawner for kind (status: vs_battle_renderBattleAbilityTimingResult,
+ * chain: func_80093F24, buff: func_80096768, damage: func_80093B68 on Ashley, travel:
+ * the forced prompt, fast_travel.c); 0 when it could not. */
+int pc_hud_bridge_spawn(int kind, const pc_hud_spawn* s) __attribute__((weak));
+/* Keeps the game's element of kind (the one spawned) at s->age (each vsync); 0 when it has none. */
+int pc_hud_bridge_hold(int kind, const pc_hud_spawn* s) __attribute__((weak));
 /* Lets it go: its last frames play out. */
-void pc_hud_bridge_release(int kind) __attribute__((weak));
+void pc_hud_bridge_release(int kind, const pc_hud_spawn* s) __attribute__((weak));
 
 /* ---- lua_api_hud.cpp ---- */
 /* Presented frame (dev_overlay.cpp, the ImGui frame open): claims draw the

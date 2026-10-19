@@ -622,6 +622,21 @@ extern "C" int pc_settings_line(const char* key, char* out, int size)
     return !line.empty();
 }
 
+/* A plain numeric key's values (the entries table: qol_fast_travel_prompt_size, ...; rood.settings
+ * reads them, lua_api_settings.cpp): how many (0: not one of those), at most max in values. */
+extern "C" int pc_settings_numbers(const char* key, double* values, int max)
+{
+    for (const Entry& e : entries) {
+        if (strcmp(e.key, key))
+            continue;
+        int n = e.count < max ? e.count : max;
+        for (int i = 0; i < n; i++)
+            values[i] = e.ints ? (double)e.ints[i] : e.bools ? (double)e.bools[i] : (double)e.floats[i];
+        return n;
+    }
+    return 0;
+}
+
 extern "C" const char* pc_settings_status(void) { return status; }
 extern "C" const char* pc_settings_path(void) { return path(); }
 

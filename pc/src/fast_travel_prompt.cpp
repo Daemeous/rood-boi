@@ -16,12 +16,17 @@
 // frame.
 // Modern UI only: with ui_menus off the classic look keeps the game's own
 // button sprites and layout (a classic prompt comes with the action bar).
+// The HUD layer (pc/src/hud): each presented frame the prompt shows is a
+// "travel" element (pc_fast_travel_prompt_hud, before the HUD pass); while a
+// plugin's claim on it is honoured the claim draws it and this does not.
 #include "button_prompts.h"
 #include "fast_travel.h"
+#include "hud/hud.h"
 #include "ui/ui_draw_internal.h"
 #include "ui_text.h"
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <sys/stat.h>
 
@@ -34,6 +39,7 @@ extern "C" float pc_fast_travel_prompt_stroke __attribute__((weak));
 extern "C" int pc_ui_menus; // project_settings.cpp
 extern "C" int pc_gl_view[4];
 extern "C" int pc_gte_widescreen;
+extern "C" int pc_hud_record(const pc_hud_fields* f) __attribute__((weak)); // hud_elements.cpp
 
 namespace {
 using namespace uidraw;
@@ -101,12 +107,57 @@ unsigned rgba(const float c[4])
 }
 float clamped(float v, float lo, float hi) { return std::isfinite(v) ? std::fmin(std::fmax(v, lo), hi) : lo; }
 
+bool claimed_now; // this frame's prompt is a plugin's to draw (pc_fast_travel_prompt_hud)
+
 } // namespace
+
+// The prompt as a HUD element (hud.h): the point of the picture it is anchored to, the picture
+// as 320 x 240 (x, y; PC_HUD_ANCHOR_PICTURE), which of its corners goes there (variant 0..8),
+// game pixels per layout unit (unit), the button and the verb, the settings' colour.
+extern "C" void pc_fast_travel_prompt_fields(pc_hud_fields* f)
+{
+    int anchor = pc_qol_fast_travel_prompt_anchor < 0 ? 0 : pc_qol_fast_travel_prompt_anchor > 8
+        ? 8
+        : pc_qol_fast_travel_prompt_anchor;
+    float ax = (anchor % 3) * 0.5f, ay = (anchor / 3) * 0.5f;
+    f->kind = PC_HUD_TRAVEL;
+    std::snprintf(f->text, sizeof f->text, "TRAVEL");
+    f->x = 320.0f * (ax + pc_qol_fast_travel_prompt_offset_x);
+    f->y = 240.0f * (ay + pc_qol_fast_travel_prompt_offset_y);
+    f->variant = anchor;
+    f->anchor = PC_HUD_ANCHOR_PICTURE;
+    f->glyph = PC_PROMPT_TRAVEL;
+    // (the menus' layout: 1280 or 960 x 720 fitted into the picture)
+    float W = pc_gte_widescreen ? 1280.0f : 960.0f;
+    f->unit = pc_gl_view[2] > 0 && pc_gl_view[3] > 0
+        ? std::fmin(pc_gl_view[2] / W, pc_gl_view[3] / 720.0f) * 240.0f / (float)pc_gl_view[3]
+        : 1.0f / 3.0f;
+    unsigned c = rgba(pc_qol_fast_travel_prompt_color);
+    f->rgb = (c & 255u) << 16 | (c & 0xFF00u) | (c >> 16 & 255u);
+}
+
+// Before the HUD pass (dev_overlay.cpp): the prompt shown now is recorded; claimed, this frame's
+// drawing below is the plugin's.
+extern "C" void pc_fast_travel_prompt_hud(void)
+{
+    claimed_now = false;
+    if (!pc_ui_menus || !pc_fast_travel_prompt || !pc_fast_travel_prompt() || !pc_hud_record || pc_gl_view[2] <= 0
+        || pc_gl_view[3] <= 0)
+        return;
+    static int key; // (one prompt)
+    static pc_hud_fields f;
+    std::memset(&f, 0, sizeof f);
+    f.key = &key;
+    pc_fast_travel_prompt_fields(&f);
+    claimed_now = pc_hud_record(&f) != 0;
+}
 
 extern "C" void pc_fast_travel_prompt_draw(void)
 {
     if (!pc_ui_menus || !pc_fast_travel_prompt || !pc_fast_travel_prompt() || pc_gl_view[2] <= 0 || pc_gl_view[3] <= 0)
         return;
+    if (claimed_now)
+        return; // a plugin draws it (the HUD pass)
     const ui::Theme& t = ui::theme();
     ensure_fonts(t);
     // the HUD labels' typography (ui_text's labels style)

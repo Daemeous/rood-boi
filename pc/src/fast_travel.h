@@ -132,6 +132,10 @@ void pc_fast_travel_room_loaded(void);       /* room_warp.c: a room's sections a
 void pc_fast_travel_reset(void); /* boot_sdk.c: the game's state is replaced (no room read until one loads) */
 void pc_fast_travel_press(void);             /* RPC fast_travel {press}: the Travel button, once */
 int pc_fast_travel_prompt(void);             /* the prompt shows now (fast_travel_prompt.cpp) */
+/* rood.dev.show("travel") (hud_bridge.c): the prompt shown in the field with no Circle of
+ * Magic until let go (1 / 0); whether it is. */
+void pc_fast_travel_force_prompt(int on);
+int pc_fast_travel_prompt_is_forced(void);
 void pc_fast_travel_report(pc_ft_report* r, int audit); /* RPC fast_travel */
 
 #ifdef __cplusplus

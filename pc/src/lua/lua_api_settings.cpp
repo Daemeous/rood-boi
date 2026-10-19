@@ -7,6 +7,9 @@
 //     actions run with rood.settings.run; greyed rows refuse, saying why;
 //   - standalone kinds of the editor's property schema (editor_schema.h
 //     add_kind) with one object: "<kind>/<field>";
+//   - settings.cfg's keys without a row, read only: the plain numeric ones
+//     (qol_fast_travel_prompt_size; a colour a table of four) and ui_text's
+//     (ui_text_status_size, ui_text_labels_font);
 //   - a plugin's own settings (rood.settings.define): the schema kind
 //     "plugin:<plugin id>" (so the dev tools' Details can draw them), the
 //     values in the plugin's data folder (settings.json).
@@ -25,6 +28,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+
+extern "C" int pc_settings_numbers(const char* key, double* values, int max) __attribute__((weak));
+extern "C" int pc_ui_text_setting_value(const char* key, char* out, int size) __attribute__((weak));
 
 namespace rl {
 namespace {
@@ -349,6 +355,41 @@ void push_field_info(lua_State* L, const Kind& k, const Field& f)
 }
 
 /* Pushes a setting's value; false when there is none shown. */
+/* ---- settings.cfg keys without a row (read only): the plain numeric ones
+ * (project_settings.cpp's table: qol_fast_travel_prompt_size, ui_prompt_icon, ...; a
+ * number, or a table of numbers for a key with several: colours) and ui_text's
+ * (ui_text_<style>_<field>: a number, or the font's path). Changed by settings.cfg,
+ * the dev tools and the RPC; plugins read and watch them. ---- */
+#define CONFIG_MAX 8
+struct ConfigKey {
+    int count = 0;           /* numbers; -1: text */
+    double numbers[CONFIG_MAX];
+    char text[256];
+};
+bool config_value(const std::string& id, ConfigKey& c)
+{
+    c.count = pc_settings_numbers ? pc_settings_numbers(id.c_str(), c.numbers, CONFIG_MAX) : 0;
+    if (c.count > 0)
+        return true;
+    if (pc_ui_text_setting_value && pc_ui_text_setting_value(id.c_str(), c.text, (int)sizeof c.text)) {
+        char* end;
+        double v = std::strtod(c.text, &end);
+        if (end != c.text && !*end)
+            c.count = 1, c.numbers[0] = v;
+        else
+            c.count = -1;
+        return true;
+    }
+    return false;
+}
+void push_number(lua_State* L, double v)
+{
+    if (std::floor(v) == v && std::fabs(v) < 1e15)
+        lua_pushinteger(L, (lua_Integer)v);
+    else
+        lua_pushnumber(L, v);
+}
+
 bool push_setting(lua_State* L, const std::string& id)
 {
     RowRef ref;
@@ -359,6 +400,21 @@ bool push_setting(lua_State* L, const std::string& id)
     const Kind* k = nullptr;
     if (const Field* f = schema_field(id, &k)) {
         push_field_value(L, *f, f->get(0));
+        return true;
+    }
+    ConfigKey c;
+    if (!find_row(id, ref) && config_value(id, c)) {
+        if (c.count < 0) {
+            lua_pushstring(L, c.text);
+        } else if (c.count == 1) {
+            push_number(L, c.numbers[0]);
+        } else {
+            lua_createtable(L, c.count, 0);
+            for (int i = 0; i < c.count; i++) {
+                push_number(L, c.numbers[i]);
+                lua_rawseti(L, -2, i + 1);
+            }
+        }
         return true;
     }
     return false;
@@ -373,6 +429,15 @@ std::string current_text(const std::string& id)
     const Kind* k = nullptr;
     if (const Field* f = schema_field(id, &k))
         return rood_schema::to_json(*f, f->get(0));
+    ConfigKey c;
+    if (!find_row(id, ref) && config_value(id, c)) {
+        if (c.count < 0)
+            return c.text;
+        std::string text;
+        for (int i = 0; i < c.count; i++)
+            text += std::to_string(c.numbers[i]) + " ";
+        return text;
+    }
     return "";
 }
 
@@ -578,6 +643,9 @@ int api_set(lua_State* L)
         push_setting(L, id);
         return 1;
     }
+    ConfigKey c;
+    if (config_value(id, c))
+        return luaL_error(L, "rood.settings.set: '%s' is read-only here (settings.cfg, the dev tools)", id);
     return luaL_error(L, "rood.settings.set: unknown setting '%s'", id);
 }
 
@@ -719,7 +787,8 @@ int api_on_change(lua_State* L)
     luaL_checktype(L, 2, LUA_TFUNCTION);
     RowRef ref;
     const Kind* k = nullptr;
-    if (!find_row(id, ref) && !schema_field(id, &k))
+    ConfigKey c;
+    if (!find_row(id, ref) && !schema_field(id, &k) && !config_value(id, c))
         return luaL_error(L, "rood.settings.on_change: unknown setting '%s'", id);
     Plugin* p = plugin_of(L);
     lua_settop(L, 2);

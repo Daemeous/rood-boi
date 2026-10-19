@@ -176,6 +176,14 @@ keys. Hidden over the editor, when the device
 used last has nothing bound to Travel, and whenever the field loop is not
 taking input (a menu open, an action playing: an enemy's attack holds the
 field loop, and the button waits for it as Triangle does).
+The prompt is also the HUD layer's `travel` element (`pc/docs/Extensions.md`,
+"HUD"): the shipped `rood.hud` plugin claims it and draws the same layout
+from these settings in Lua (`pc/plugins/rood.hud/main.lua`); the C++ drawing
+above is the fallback (the plugin off, or its draw failing).
+`rood.dev.show("travel")` (RPC `hud {show, kind: "travel"}`) forces the
+prompt in the field without a Circle of Magic until `rood.dev.clear`
+(`pc_fast_travel_force_prompt`; the button still does only what the field
+allows).
 
 The rules read the game only from a loaded room: the RPC report can come at
 any vsync, also inside a room load's wait loop, where `func_8008A4FC` would

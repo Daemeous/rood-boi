@@ -980,6 +980,52 @@ static void hud_layer()
         pc_lua_tick(); // not held: it plays out
     pc_hud_frame();
     CHECK(hud::command_count() == 0);
+    // the other kinds (tasks 5-6), away from the field: synthetic elements with their fields; d.fit
+    // (a buff's boxes), d.glyph (the Travel prompt's icon), every kind claimed at once
+    write_text(root + "/probe.hud/main.lua",
+        "local w = rood.draw.style{ size = 9, stroke = 1, cap = 6 }\n"
+        "for _, k in ipairs(rood.hud.kinds()) do rood.hud.claim(k, function(e, d)\n"
+        "  if e.kind == 'buff' then for _, p in ipairs(e.parts) do d.fit(w, p.text, p.x, p.y, p.w, p.h, e.rgb) end\n"
+        "  elseif e.kind == 'travel' then d.text(w, e.text, e.x + d.glyph(e.glyph, e.x, e.y, 8, w), e.y)\n"
+        "  else d.text(w, e.text .. (e.value and ('#' .. e.value) or ''), e.x, e.y + (e.bounce or 0)) end\n"
+        "end) end\n");
+    pc_lua_tick();
+    pc_lua_tick();
+    p = rl::find("probe.hud");
+    CHECK(eval_json(p, "#rood.hud.kinds(), rood.hud.kinds()[5]") == "5,\"travel\"");
+    CHECK(contains(hud_rpc("{\"action\":\"show\",\"kind\":\"chain\",\"count\":5}"), "\"ok\":true"));
+    CHECK(contains(hud_rpc("{\"action\":\"show\",\"kind\":\"buff\",\"slot\":\"head\",\"stat\":\"fire\",\"value\":3,"
+                           "\"sign\":-1}"), "\"ok\":true"));
+    CHECK(eval_json(p, "rood.dev.show('damage', { value = 77, heal = true, pool = 'mp' })") == "true");
+    CHECK(eval_json(p, "rood.dev.show('travel')") == "true");
+    CHECK(contains(eval_error(p, "rood.dev.show('buff', { slot = 'tail' })"), "an unknown name"));
+    std::string list = hud_rpc("{\"action\":\"list\"}");
+    CHECK(contains(list, "\"text\":\"5 CHAINS\"") && contains(list, "\"text\":\"HEAD FIRE -3\"")
+        && contains(list, "\"text\":\"77\"") && contains(list, "\"text\":\"TRAVEL\""));
+    CHECK(eval_json(p, "(function() for _, e in ipairs(rood.dev.list()) do if e.kind == 'buff' then return #e.parts,"
+                       " e.parts[1].text, e.parts[2].text, e.parts[4].text, e.slot, e.stat, e.sign end end end)()")
+        == "4,\"HEAD\",\"FIRE\",\"3\",\"HEAD\",\"FIRE\",-1");
+    CHECK(eval_json(p, "(function() for _, e in ipairs(rood.dev.list()) do if e.kind == 'damage' then return e.pool,"
+                       " e.sign, e.anchor end end end)()") == "\"mp\",1,\"centre\"");
+    CHECK(eval_json(p, "(function() for _, e in ipairs(rood.dev.list()) do if e.kind == 'travel' then return e.glyph,"
+                       " e.anchor, e.unit > 0 end end end)()") == "\"travel\",\"picture\",true");
+    pc_hud_frame();
+    int fitted = 0, glyphs = 0;
+    std::string texts;
+    for (int i = 0; i < hud::command_count(); ++i) {
+        const hud::Command& c = hud::commands()[i];
+        fitted += c.type == hud::CMD_TEXT && c.fit && c.w > 0 && c.h > 0;
+        glyphs += c.type == hud::CMD_GLYPH && c.button == 16 && c.h == 8 && c.anchor == PC_HUD_ANCHOR_PICTURE;
+        texts += command_text(i) + "|";
+    }
+    CHECK(fitted == 4 && glyphs == 1);
+    CHECK(contains(texts, "5 CHAINS#5|") && contains(texts, "77#77|") && contains(texts, "TRAVEL|"));
+    // styles let go when their handles are collected (a look rebuilt as settings change)
+    CHECK(eval_json(p, "for i = 1, 200 do rood.draw.style{ size = 1 + i / 2 } end collectgarbage() collectgarbage()"
+                       " for i = 1, 200 do rood.draw.style{ size = 2 + i / 3, stroke = 2 } end return true") == "true");
+    // typography needs ui_text (not in this probe)
+    CHECK(contains(eval_error(p, "rood.hud.typography('status', { size = 2 })"), "no ui_text in this build"));
+    CHECK(contains(hud_rpc("{\"action\":\"clear\"}"), "\"ok\":true"));
     CHECK(hud_rpc("{\"action\":\"nope\"}").rfind("error: ", 0) == 0);
     unsetenv("ROOD_DEV");
     std::filesystem::remove_all(root + "/probe.hud");

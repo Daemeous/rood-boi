@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""The Lua visible layer's first end-to-end slice (pc/src/hud, lua_api_hud.cpp;
-plan pc/docs/plans/2026-10-18-lua-visible-layer.md tasks 1-3): the battle's
-status word summoned and held, claimed by a plugin, hot-reloaded, and the
-game's own drawing as the fallback.
+"""The Lua visible layer (pc/src/hud, lua_api_hud.cpp; plan
+pc/docs/plans/2026-10-18-lua-visible-layer.md tasks 1-6): the battle's status
+word summoned and held, claimed by a plugin, hot-reloaded, and the game's own
+drawing as the fallback; then the shipped rood.hud plugin on every kind
+(status, chain, buff, damage, travel).
 
     python3 pc/tests/hud_bench_smoke.py [--card pc/build/test-card1.mcd] [--out DIR]
 
 One game from the save_room checkpoint (a copy of the card inside
 card_guard), the modern look (ui_menus 1), ui_text font (its status glyph
 counter tells when the game draws the word), a test plugin in its own
-ROOD_PLUGINS folder:
+ROOD_PLUGINS folder, rood.hud from a copy of pc/plugins (so the test can edit
+it) turned off until the second part:
   - rood.dev.show("status", {timing = "slow"}) from the Lua console calls
     the game's spawner: SLOW! appears, held past its 46-frame life; with no
     claim the game draws it (status glyphs grow);
@@ -21,10 +23,22 @@ ROOD_PLUGINS folder:
   - a draw that raises, the plugin disabled, the classic look (ui_menus 0,
     hud_classic_override 0): the game draws the word again each time;
   - rood.dev.clear lets it go.
+rood.hud (shipped, on by default), the test plugin off:
+  - each kind summoned (rood.dev.show's spawners: the game's own records)
+    with its fields, claimed, suppressed and drawn (its text in the frame's
+    commands); the Travel prompt's C++ drawing skipped;
+  - all five held at once: the pass's cost (p99 under 1 ms), no dropped
+    commands, memory flat;
+  - rood.hud's own Lua tests (pc/plugins/rood.hud/tests) in the same game;
+  - an edit of its look on disk redrawn on the held word (the loop timed);
+  - rood.hud off: the game's (and the C++ prompt's) own drawing of each kind;
+  - rood.hud.typography: the status style's fields for this run, its
+    settings line unchanged, then the settings' again.
 No screenshots: counters only."""
 import argparse
 import pathlib
 import random
+import shutil
 import statistics
 import sys
 import time
@@ -81,10 +95,13 @@ def run(out, card):
         for p in sorted(folder.rglob("*"), reverse=True):
             p.unlink() if p.is_file() else p.rmdir()
     plugins.mkdir(parents=True, exist_ok=True)
+    shipped = out / "shipped"
+    shutil.rmtree(shipped, ignore_errors=True)
+    shutil.copytree(ROOT / "pc/plugins/rood.hud", shipped / "rood.hud")
     settings = out / "settings.cfg"
-    settings.write_text("aspect 4:3\nui_menus 1\nui_text font\n")
+    settings.write_text("aspect 4:3\nui_menus 1\nui_text font\nplugin_enabled rood.hud 0\n")
     env = {"ROOD_WINDOW": "960x720", "ROOD_SETTINGS": str(settings), "ROOD_PLUGINS": str(plugins),
-           "ROOD_PLUGINS_SHIPPED": "", "ROOD_PLUGIN_DATA": str(out / "plugin_data")}
+           "ROOD_PLUGINS_SHIPPED": str(shipped), "ROOD_PLUGIN_DATA": str(out / "plugin_data")}
     g = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env)
     try:
         def stats():
@@ -213,12 +230,143 @@ def run(out, card):
         # cleared: it plays out and goes
         g.lua('rood.dev.clear("status")')
         check(wait(lambda: not held(), timeout=10, step=10), f"cleared: the word goes ({held()})")
+        shipped_hud(g, shipped / "rood.hud", check, wait, stats, glyphs)
         log = (out / "game.log").read_text(errors="replace")
         check("[crash]" not in log, "no crash in the log")
     finally:
         g.close()
     print(f"{len(failures)} failure(s)" if failures else "all passed")
     return 1 if failures else 0
+
+
+# rood.dev.show's args per kind, the element's text, fields it must have.
+SHOWS = [
+    ("status", {"timing": "slow"}, "SLOW!", {"timing": "slow", "anchor": 1}),
+    ("chain", {"count": 3}, "3 CHAINS", {"value": 3, "life": 91}),
+    ("buff", {"slot": "weapon", "stat": "human", "value": 2}, "WEAPON HUMAN +2",
+     {"value": 2, "sign": 1, "slot": 0, "stat": 0}),
+    ("damage", {"value": 123}, "123", {"value": 123, "sign": -1, "pool": "hp", "anchor": 0}),
+    ("travel", {}, "TRAVEL", {"anchor": 3}),
+]
+# What the claim's commands show of each (the travel: its verb; a buff: its words, each a command).
+DRAWN = {"status": "SLOW!", "chain": "3 CHAINS", "buff": "WEAPON", "damage": "3", "travel": "TRAVEL"}
+
+
+def shipped_hud(g, folder, check, wait, stats, glyphs):
+    """rood.hud on every kind (tasks 4-6), the test plugin off."""
+    def kind(k):
+        return stats()["kinds"][k]
+
+    def elements(k):
+        return [e for e in g.call("hud", action="list")["elements"] if e["live"] and e["kind"] == k]
+
+    def prompt_drawn():
+        return g.call("fast_travel")["prompt_drawn"]
+
+    def texts():
+        return [c.get("text") for c in stats()["last"]]
+
+    g.call("lua", action="enable", plugin=PLUGIN, enabled=False)
+    g.call("lua", action="enable", plugin="rood.hud", enabled=True)
+    kinds = [k for k, *_ in SHOWS]
+    check(wait(lambda: all(kind(k)["claimed_by"] == "rood.hud" for k in kinds)),
+          f"rood.hud claims every kind ({[kind(k)['claimed_by'] for k in kinds]})")
+    # the Travel prompt's icon: a device with something bound to Travel (the pad's back)
+    g.call("button_prompts", button_prompts="auto")
+    g.call("button_prompts", device="playstation", variant=4)
+    for k, args, text, fields in SHOWS:
+        g.call("hud", action="clear")
+        r = g.call("hud", action="show", kind=k, **args)
+        found = wait(lambda: any(e["text"] == text and e["held"] for e in elements(k)), timeout=10)
+        e = next((e for e in elements(k) if e["text"] == text), {})
+        check(r.get("ok") and found and not e.get("synthetic", True)
+              and all(e.get(f) == v for f, v in fields.items()),
+              f"{k}: the game's element, held, its fields ({ {f: e.get(f) for f in ['text', *fields]} })")
+        s, before, cpp = kind(k), glyphs(), prompt_drawn()
+        ok = wait(lambda: kind(k)["drawn"] >= s["drawn"] + 4 and any(t and DRAWN[k] in t for t in texts()))
+        t = kind(k)
+        game_drawn = (glyphs() - before) if k in ("status", "chain") else (prompt_drawn() - cpp if k == "travel" else 0)
+        check(ok and t["suppressed"] > s["suppressed"] and t["fallback"] == s["fallback"] and game_drawn == 0,
+              f"{k}: claimed by rood.hud, suppressed and drawn (drawn {t['drawn'] - s['drawn']}, suppressed "
+              f"{t['suppressed'] - s['suppressed']}, fallback {t['fallback'] - s['fallback']}, the game's own "
+              f"{game_drawn}; commands {texts()[:6]})")
+    if any(not e.get("synthetic") for e in elements("buff")):
+        parts = elements("buff")[0]["parts"] if elements("buff") else []
+        check([p["text"] for p in parts] == ["WEAPON", "HUMAN", "+", "2"] and all(p["w"] > 0 for p in parts),
+              f"buff: its four boxes from the game's quads ({parts})")
+    # all five at once: the pass's cost
+    g.call("hud", action="clear")
+    for k, args, *_ in SHOWS:
+        g.call("hud", action="show", kind=k, **args)
+    check(wait(lambda: all(elements(k) for k in kinds)), "all five held at once")
+    g.call("hud", action="stats", reset=True)
+    g.run(120)
+    before = stats()["claim_memory_kb"]
+    g.run(240)
+    s = stats()
+    check(s["frames"] > 100 and s["p99_ms"] < 1.0 and s["dropped"] == 0,
+          f"rood.hud, five elements: {s['frames']} frames, mean {s['mean_ms']:.3f} ms, p99 {s['p99_ms']:.3f} ms, "
+          f"max {s['max_ms']:.3f} ms of Lua; drawing {s['render_mean_ms']:.3f} ms; {s['commands']} commands")
+    check(abs(s["claim_memory_kb"] - before) < 64,
+          f"rood.hud's memory flat: {before:.0f} KB then {s['claim_memory_kb']:.0f} KB after 240 vsyncs")
+    # its own Lua tests, in this game (the field, the modern look)
+    g.call("hud", action="clear")
+    run = g.lua_test(plugin="rood.hud")
+    for r in run["results"]:
+        print(f"      {r['status'].upper():<5} rood.hud {r['name']} ({r['ms']} ms)" + (
+            f": {r['message']}" if r["status"] == "fail" else ""))
+    check(run["failed"] == 0 and run["passed"] >= 8, f"rood.hud's Lua tests: {run['passed']} passed, "
+          f"{run['failed']} failed, {run['skipped']} skipped")
+    # an edit of its look on the held word: saved -> redrawn
+    g.call("hud", action="show", kind="status", timing="slow")
+    check(wait(lambda: any(c.get("text") == "SLOW!" for c in stats()["last"])), "SLOW! drawn by rood.hud")
+    main = folder / "main.lua"
+    source = main.read_text()
+    loops = []
+    for k in range(1, 6):
+        nudge = 0.5 + k
+        time.sleep(random.Random(k).uniform(0, 0.6))
+        t0 = time.monotonic()
+        main.write_text(source.replace("nudge = 0.5,", f"nudge = {nudge},"))
+        seen = False
+        while time.monotonic() - t0 < 10:
+            if any(c.get("text") == "SLOW!" and abs(c["y"] - (53 + nudge)) < 0.01 for c in stats()["last"]):
+                seen = True
+                break
+            time.sleep(0.01)
+        loops.append(time.monotonic() - t0)
+        check(seen, f"rood.hud edit {k}: the held word redrawn {nudge} pixels down in {loops[-1]:.3f} s (paused)")
+    print(f"rood.hud's hot reload loop (save -> held word redrawn), paused game: mean {statistics.mean(loops):.3f} s, "
+          f"max {max(loops):.3f} s over {len(loops)} edits", flush=True)
+    main.write_text(source)
+    # rood.hud off: the game's own drawing of each kind (and the C++ Travel prompt)
+    g.call("lua", action="enable", plugin="rood.hud", enabled=False)
+    check(wait(lambda: all(kind(k)["claimed_by"] is None for k in kinds)), "rood.hud off: no claims")
+    for k, args, *_ in SHOWS:
+        g.call("hud", action="clear")
+        g.call("hud", action="show", kind=k, **args)
+        g.run(6)
+        s, before, cpp = kind(k), glyphs(), prompt_drawn()
+        g.run(10)
+        t = kind(k)
+        own = (glyphs() - before) if k in ("status", "chain") else (prompt_drawn() - cpp if k == "travel" else 1)
+        check(t["fallback"] > s["fallback"] and t["suppressed"] == s["suppressed"] and own > 0,
+              f"{k}, rood.hud off: the game draws it (fallback {t['fallback'] - s['fallback']}, suppressed "
+              f"{t['suppressed'] - s['suppressed']}, its own {own})")
+    g.call("hud", action="clear")
+    # typography (what the classic look may change): a ui_text style's fields for this run, never saved
+    def status_style():
+        return {st["name"]: st for st in g.call("ui_text")["styles"]}["status"]
+
+    size, line = status_style()["size"], g.call("settings", get="ui_text_status_size").get("line")
+    r = g.call("lua", action="console", input='rood.hud.typography("status", { size = 1.5, tracking = 0.1 })')
+    st = status_style()
+    check(not r.get("error") and st["size"] == 1.5 and abs(st["tracking"] - 0.1) < 1e-6
+          and g.call("settings", get="ui_text_status_size").get("line") == line,
+          f"typography: the status style overridden ({st['size']}, {st['tracking']:.3f}), the setting's line kept "
+          f"({line!r}; {r.get('error')})")
+    g.call("lua", action="console", input='rood.hud.typography("status", nil)')
+    check(status_style()["size"] == size, f"typography: nil gives the settings' back ({status_style()['size']})")
 
 
 if __name__ == "__main__":

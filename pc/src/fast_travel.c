@@ -232,13 +232,19 @@ int pc_fast_travel_poll(void)
     return 1;
 }
 
+/* rood.dev.show("travel") (pc/src/hud/hud_bridge.c): the prompt shown in the field without
+ * a Circle of Magic until it is let go (the Travel button still does what the field allows). */
+static int prompt_forced HOST;
+void pc_fast_travel_force_prompt(int on) { prompt_forced = on != 0; }
+int pc_fast_travel_prompt_is_forced(void) { return prompt_forced; }
+
 int pc_fast_travel_prompt(void)
 {
     /* (the field still: no menu opened since the poll) */
     int hold = pc_qol_fast_travel_prompt_hold < 1 ? 1 : pc_qol_fast_travel_prompt_hold > 600 ? 600
                                                                                               : pc_qol_fast_travel_prompt_hold;
-    return pc_qol_fast_travel_prompt && prompt_ok && VSync(-1) - prompt_vsync <= hold && D_800F196C == 1
-        && vs_battle_menuState.currentMenu == 0x3F;
+    int offered = prompt_forced || (pc_qol_fast_travel_prompt && prompt_ok && VSync(-1) - prompt_vsync <= hold);
+    return offered && D_800F196C == 1 && vs_battle_menuState.currentMenu == 0x3F;
 }
 
 /* ---- RPC fast_travel ---- */

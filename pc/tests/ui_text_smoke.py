@@ -105,6 +105,10 @@ sys.path.insert(0, str(ROOT / "pc/tools"))
 from checkpoints import launch_at  # noqa: E402
 from rood_rpc import OUT, Game, symbols  # noqa: E402
 
+# ui_text's own drawing of the HUD's words and the C++ Travel prompt are what this tests: the
+# shipped plugins stay off (rood.hud claims them with the modern look; hud_bench_smoke tests that).
+os.environ.setdefault("ROOD_PLUGINS_SHIPPED", "")
+
 failures = []
 
 

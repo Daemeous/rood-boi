@@ -179,6 +179,19 @@ void pc_ui_text_frame(void);
  * only where they differ from the built-in values. */
 int pc_ui_text_setting(const char* key, const char* value);
 void pc_ui_text_settings_write(FILE* f);
+/* The value of a ui_text_<style>_<field> key or a tunable as the settings have it (text,
+ * under any plugin's override); 0 for none of ours. */
+int pc_ui_text_setting_value(const char* key, char* out, int size);
+/* Plugins' typography (rood.hud.typography): a style's field set for this run only, over
+ * its setting (never saved; settings changes to it wait under it); 1 when understood.
+ * The clear puts the settings' values back; the mask says which fields are overridden. */
+int pc_ui_text_style_index(const char* name); /* PC_UI_TEXT_*, -1 unknown */
+/* The label word (ui_labels.h) most of the texels u0..u1, v0..v1 of the 4-bit page at
+ * (page_x, page_y) show; NULL for none (hud_bridge.c names the damage popups' stat icons). */
+const char* pc_ui_text_label_at(int page_x, int page_y, int u0, int v0, int u1, int v1);
+int pc_ui_text_override(int style, const char* field, const char* value);
+void pc_ui_text_override_clear(int style);
+unsigned pc_ui_text_overridden(int style);
 /* Tunables (settings): the font's space widened in line layout
  * (ui_text_word_space, 1.5), the PS1 pixels an outline's anti-aliased edge
  * keeps from the box it is drawn in (ui_text_edge_margin, 0.15). */

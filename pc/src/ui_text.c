@@ -659,6 +659,24 @@ static int texel4(const uint16_t* vram, int page_x, int page_y, int u, int v)
     return (vram[((page_y + v) & 511) * 1024 + ((page_x + (u >> 2)) & 1023)] >> ((u & 3) * 4)) & 15;
 }
 
+/* The label word most of a texel region shows (the HUD layer names a quad's image:
+ * hud_bridge.c); NULL when it covers none. */
+const char* pc_ui_text_label_at(int page_x, int page_y, int u0, int v0, int u1, int v1)
+{
+    const char* best = NULL;
+    int most = 0;
+    for (int i = 0; i < LABEL_COUNT; i++) {
+        const pc_ui_label* l = &labels[i];
+        if (l->page_x != page_x || l->page_y != page_y)
+            continue;
+        int w = (u1 < l->u1 ? u1 : l->u1) - (u0 > l->u0 ? u0 : l->u0) + 1;
+        int h = (v1 < l->v1 ? v1 : l->v1) - (v0 > l->v0 ? v0 : l->v0) + 1;
+        if (w > 0 && h > 0 && w * h > most)
+            most = w * h, best = l->text;
+    }
+    return best;
+}
+
 static uint32_t label_hash(const uint16_t* vram, const pc_ui_label* l)
 {
     uint32_t h = 2166136261u;
@@ -2374,6 +2392,91 @@ static int field_equal(const pc_ui_text_style* a, const pc_ui_text_style* b, int
                                                                                                          : sizeof(float));
 }
 
+/* Plugins' typography (rood.hud.typography, lua_api_hud.cpp): a runtime layer over the
+ * settings, never saved. A field overridden keeps its setting in override_base (the
+ * settings file, RPC ui_text and the saved lines see that one); a clear puts it back. */
+static unsigned overridden[PC_UI_TEXT_STYLES];
+static pc_ui_text_style override_base[PC_UI_TEXT_STYLES];
+
+int pc_ui_text_style_index(const char* name)
+{
+    for (int i = 0; name && i < PC_UI_TEXT_STYLES; i++)
+        if (!strcmp(name, pc_ui_text_styles[i].name))
+            return i;
+    return -1;
+}
+
+int pc_ui_text_override(int style, const char* field, const char* value)
+{
+    if (style < 0 || style >= PC_UI_TEXT_STYLES || !field || !value)
+        return 0;
+    for (int k = 0; k < FIELDS; k++) {
+        if (strcmp(field, fields[k].name))
+            continue;
+        pc_ui_text_style probe = pc_ui_text_styles[style];
+        if (!field_set(&probe, k, value))
+            return 0;
+        if (!overridden[style])
+            override_base[style] = pc_ui_text_styles[style];
+        else if (!(overridden[style] & 1u << k)) /* (the base follows what the settings set meanwhile) */
+            memcpy((char*)&override_base[style] + (k == FIELD_FONT ? offsetof(pc_ui_text_style, font) : fields[k].offset),
+                (const char*)&pc_ui_text_styles[style]
+                    + (k == FIELD_FONT ? offsetof(pc_ui_text_style, font) : fields[k].offset),
+                k == FIELD_FONT ? sizeof probe.font : fields[k].integer ? sizeof(int) : sizeof(float));
+        overridden[style] |= 1u << k;
+        if (!field_equal(&probe, &pc_ui_text_styles[style], k)) {
+            pc_ui_text_styles[style] = probe;
+            ++pc_ui_text_generation;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+void pc_ui_text_override_clear(int style)
+{
+    if (style < 0 || style >= PC_UI_TEXT_STYLES || !overridden[style])
+        return;
+    pc_ui_text_style* st = &pc_ui_text_styles[style];
+    for (int k = 0; k < FIELDS; k++) {
+        if (!(overridden[style] & 1u << k))
+            continue;
+        size_t at = k == FIELD_FONT ? offsetof(pc_ui_text_style, font) : fields[k].offset;
+        memcpy((char*)st + at, (const char*)&override_base[style] + at,
+            k == FIELD_FONT ? sizeof st->font : fields[k].integer ? sizeof(int) : sizeof(float));
+    }
+    overridden[style] = 0;
+    ++pc_ui_text_generation;
+}
+
+unsigned pc_ui_text_overridden(int style) { return style >= 0 && style < PC_UI_TEXT_STYLES ? overridden[style] : 0; }
+
+/* A field's style as the settings have it (under any override). */
+static const pc_ui_text_style* settings_style(int style, int k)
+{
+    return overridden[style] & 1u << k ? &override_base[style] : &pc_ui_text_styles[style];
+}
+
+int pc_ui_text_setting_value(const char* key, char* out, int size)
+{
+    int style, which, t;
+    if (style_key(key, &style, &which)) {
+        const pc_ui_text_style* st = settings_style(style, which);
+        if (which == FIELD_FONT)
+            snprintf(out, (size_t)size, "%s", st->font);
+        else if (fields[which].integer)
+            snprintf(out, (size_t)size, "%d", *(const int*)((const char*)st + fields[which].offset));
+        else
+            snprintf(out, (size_t)size, "%.9g", (double)*(const float*)((const char*)st + fields[which].offset));
+        return 1;
+    }
+    if ((t = tunable_key(key)) >= 0) {
+        snprintf(out, (size_t)size, "%.9g", (double)*tunables[t].value);
+        return 1;
+    }
+    return 0;
+}
+
 int pc_ui_text_setting(const char* key, const char* value)
 {
     if (!strcmp(key, "ui_text")) { /* original | font (or 0 / 1) */
@@ -2412,6 +2515,10 @@ int pc_ui_text_setting(const char* key, const char* value)
     }
     int style, which, t;
     if (style_key(key, &style, &which)) {
+        if (overridden[style] & 1u << which) { /* the setting under a plugin's override (shown when it goes) */
+            field_set(&override_base[style], which, value);
+            return 1;
+        }
         pc_ui_text_style probe = pc_ui_text_styles[style];
         if (field_set(&probe, which, value) && !field_equal(&probe, &pc_ui_text_styles[style], which)) {
             pc_ui_text_styles[style] = probe;
@@ -2447,9 +2554,9 @@ void pc_ui_text_settings_write(FILE* f)
     /* Only what differs from the built-in values. */
     for (int i = 0; i < PC_UI_TEXT_STYLES; i++)
         for (int k = 0; k < FIELDS; k++)
-            if (!field_equal(&pc_ui_text_styles[i], &defaults[i], k)) {
+            if (!field_equal(settings_style(i, k), &defaults[i], k)) { /* (never a plugin's override) */
                 fprintf(f, "ui_text_%s_%s ", pc_ui_text_styles[i].name, fields[k].name);
-                field_print(f, &pc_ui_text_styles[i], k);
+                field_print(f, settings_style(i, k), k);
                 fputc('\n', f);
             }
     for (int t = 0; t < TUNABLES; t++)

@@ -620,6 +620,13 @@ int pc_disc_read(int lba, unsigned int size, void* dest)
     return 1;
 }
 extern int pc_gte_centre __attribute__((weak)); /* PsyX_GTE.cpp: widescreen narrows about it */
+/* The display area's size (the picture shows it: the field's 320 x 224; the HUD layer's
+ * coordinates, pc/src/hud/hud_draw.cpp). */
+void pc_display_size(int* w, int* h)
+{
+    *w = display_w;
+    *h = display_h;
+}
 void pc_display_env(int x, int y, int w, int h)
 {
     if (w <= 0 || h <= 0 || w > 1024 || h > 512)
