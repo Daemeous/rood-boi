@@ -5,7 +5,7 @@
 uniform usampler2D hd_words;
 uniform usampler2D hd_palettes;
 uniform usampler2D hd_table;
-uniform sampler2D hd_atlas;
+uniform sampler2DArray hd_atlas;
 #endif
 // Upload and page entries have independent namespaces, even if CRC values collide.
 bool hd_lookup(uint a,uint pal,uint kind,vec2 source,vec2 original_size,out vec4 color) {
@@ -17,7 +17,8 @@ bool hd_lookup(uint a,uint pal,uint kind,vec2 source,vec2 original_size,out vec4
         if(key.x!=a || key.y!=pal || size.z!=kind)continue;
         if(size.w==0u)return false;
         vec2 point=clamp(floor(source*vec2(size.xy)/original_size),vec2(0),vec2(size.xy)-1.0);
-        color=texelFetch(hd_atlas,ivec2(key.zw)+ivec2(point),0);
+        // key.w: the atlas layer (high 16 bits) and the row in it
+        color=texelFetch(hd_atlas,ivec3(int(key.z)+int(point.x),int(key.w&65535u)+int(point.y),int(key.w>>16)),0);
         if(kind==1u && color.a>0.0 && color.a<1.5/255.0)return false;
         return true;
     }
