@@ -55,17 +55,26 @@
  *                                swapped); symbol_exceptions false (tests)
  *                                exchanges the ○ / × that name buttons the
  *                                roles never move too
- *   weapon_slots {enabled}       the QoL weapon slots (weapon_slots.c,
- *                                settings key qol_weapon_slots): sets the
- *                                option; replies it, the overlay/assign/swap
- *                                state, the field mode and each inventory
- *                                weapon's slot (gems[3]) and shield's slot
- *                                bits (battle builds)
- *   skip_charging {mode, who, name, kinds, reset}  battle charging skip
+ *   weapon_slots {enabled, name_ticks}  the QoL weapon slots (weapon_slots.c,
+ *                                settings keys qol_weapon_slots,
+ *                                qol_weapon_slots_name_ticks): sets the
+ *                                option and how long a swapped weapon's name
+ *                                stays up; replies them, the labels' and the
+ *                                hint's places (qol_weapon_slots_label<N>,
+ *                                _hint), the name's ticks left (msg), the
+ *                                overlay/assign/swap state, the field mode
+ *                                and each inventory weapon's slot (gems[3])
+ *                                and shield's slot bits (battle builds)
+ *   skip_charging {mode, who, name, hold_mine, hold_enemy, kinds, reset}
+ *                                battle charging skip
  *                                (charge_skip.c, settings keys
  *                                qol_skip_charging, qol_skip_charging_who,
  *                                qol_skip_charging_name: name, seconds 0..2
- *                                the name window stays up at least);
+ *                                the name window stays up at least;
+ *                                qol_skip_charging_hold_mine / _enemy:
+ *                                hold_mine / hold_enemy, seconds of the
+ *                                hold shown first: 0..1.5 in the menus,
+ *                                here up to 10 for the tests);
  *                                mode 0/"off" or 1/"skip"; who 0/"mine"
  *                                (Ashley's actions) or 1/"all"; kinds (a
  *                                developer mask, default 15: 1 spells, 2
@@ -271,7 +280,9 @@
  *                                walls drawn unless they get in the way),
  *                                gameplay_walls_ghost (smart: occluding
  *                                walls as ghosts), gameplay_walls_opacity,
- *                                gameplay_walls_radius;
+ *                                gameplay_walls_radius, gameplay_walls_fade_out,
+ *                                gameplay_walls_fade_in, gameplay_walls_clear
+ *                                (smart walls' timing, game frames);
  *                                editor_hide_masks, editor_game_cutaway,
  *                                editor_cutaway, editor_cutaway_radius (the
  *                                free camera's view into rooms); the editor
@@ -496,6 +507,8 @@ extern int pc_editor_cutaway_auto __attribute__((weak));
 extern int pc_editor_cutaway_state(int*, float*) __attribute__((weak));
 extern int pc_gameplay_walls __attribute__((weak)), pc_gameplay_walls_ghost __attribute__((weak));
 extern float pc_gameplay_walls_opacity __attribute__((weak)), pc_gameplay_walls_radius __attribute__((weak));
+extern int pc_gameplay_walls_fade_out __attribute__((weak)), pc_gameplay_walls_fade_in __attribute__((weak)),
+    pc_gameplay_walls_clear __attribute__((weak));
 extern int pc_gameplay_walls_info(unsigned, float*, int*, int*) __attribute__((weak));
 extern int pc_scene_triangles(void) __attribute__((weak));
 extern int pc_lights_describe(char*, int) __attribute__((weak));
@@ -1135,6 +1148,10 @@ static void handle_method(int fd, const char* request)
         }
         if (params && bool_value(member(params, "enabled"), &flag))
             pc_qol_weapon_slots = flag;
+        if (params && number_value(member(params, "name_ticks"), &n)) {
+            extern int pc_qol_weapon_slots_name_ticks; /* project_settings.cpp */
+            pc_qol_weapon_slots_name_ticks = n < 1 ? 1 : n > 3600 ? 3600 : (int)n;
+        }
         pc_weapon_slots_json(result, sizeof result);
         reply(fd, id, result);
     } else if (!strcmp(method, "skip_charging")) {
@@ -1168,6 +1185,11 @@ static void handle_method(int fd, const char* request)
         double seconds;
         if (params && real_value(member(params, "name"), &seconds) && seconds >= 0 && seconds <= 2)
             pc_qol_skip_charging_name = (float)seconds;
+        extern float pc_qol_skip_charging_hold_mine, pc_qol_skip_charging_hold_enemy; /* project_settings.cpp */
+        if (params && real_value(member(params, "hold_mine"), &seconds) && seconds >= 0 && seconds <= 10)
+            pc_qol_skip_charging_hold_mine = (float)seconds;
+        if (params && real_value(member(params, "hold_enemy"), &seconds) && seconds >= 0 && seconds <= 10)
+            pc_qol_skip_charging_hold_enemy = (float)seconds;
         extern int pc_charge_skip_pump __attribute__((weak)); /* charge_skip.inc (battle builds) */
         if (params && bool_value(member(params, "pump"), &flag) && &pc_charge_skip_pump)
             pc_charge_skip_pump = flag;
@@ -1716,6 +1738,12 @@ static void handle_method(int fd, const char* request)
                 pc_gameplay_walls_opacity = (float)real;
             if (real_value(member(params, "gameplay_walls_radius"), &real))
                 pc_gameplay_walls_radius = (float)real;
+            /* Smart walls' timing (game frames): fade out, fade in, frames clear before a wall is back. */
+            int* timings[] = { &pc_gameplay_walls_fade_out, &pc_gameplay_walls_fade_in, &pc_gameplay_walls_clear };
+            const char* timing_keys[] = { "gameplay_walls_fade_out", "gameplay_walls_fade_in", "gameplay_walls_clear" };
+            for (int k = 0; k < 3; k++)
+                if (number_value(member(params, timing_keys[k]), &n))
+                    *timings[k] = n < 1 ? 1 : n > 600 ? 600 : (int)n;
         }
         /* The editor's view into rooms (free camera only; room_editor.h). */
         if (params && &pc_editor_cutaway) {
@@ -1877,9 +1905,11 @@ static void handle_method(int fd, const char* request)
         if (&pc_gameplay_walls && used < (int)sizeof result - 200)
             used += snprintf(result + used - 1, sizeof result - used + 1,
                         ",\"gameplay_walls\":\"%s\",\"gameplay_walls_ghost\":%d,\"gameplay_walls_opacity\":%g,"
-                        "\"gameplay_walls_radius\":%g}",
+                        "\"gameplay_walls_radius\":%g,\"gameplay_walls_fade_out\":%d,\"gameplay_walls_fade_in\":%d,"
+                        "\"gameplay_walls_clear\":%d}",
                         pc_gameplay_walls ? "smart" : "original", pc_gameplay_walls_ghost, pc_gameplay_walls_opacity,
-                        pc_gameplay_walls_radius)
+                        pc_gameplay_walls_radius, pc_gameplay_walls_fade_out, pc_gameplay_walls_fade_in,
+                        pc_gameplay_walls_clear)
                 - 1;
         if (&pc_probe_spacing && used < (int)sizeof result - 200)
             used += snprintf(result + used - 1, sizeof result - used + 1,
@@ -2087,7 +2117,8 @@ static void handle_method(int fd, const char* request)
         /* button_prompts.h: {button_prompts: mode} sets the mode; {device:
          * "keyboard" | "playstation" | "xbox" | "nintendo", variant} stands in
          * for the device used last; {bind: {"bind_key_circle": "c",
-         * "bind_pad_circle": "south", ...}} applies binding settings lines. */
+         * "bind_pad_circle": "south", ...}} applies binding settings lines;
+         * {colors: {...}, dim_mix} the icons' colours (below). */
         char text[96];
         if (params && string_value(member(params, "button_prompts"), text, sizeof text)
             && !pc_button_prompts_setting("button_prompts", text)) {
@@ -2167,6 +2198,34 @@ static void handle_method(int fd, const char* request)
                     p = skip(p + 1);
             }
         }
+        /* {colors: {"playstation_circle": "#rrggbb", ...}} (settings button_prompts_color_<name>), {dim_mix: 0-1}. */
+        const char* colors = params ? member(params, "colors") : NULL;
+        if (colors && *(colors = skip(colors)) == '{') {
+            const char* p = skip(colors + 1);
+            while (*p == '"') {
+                char key[64], name[40], value[32];
+                string_value(p, name, sizeof name);
+                p = skip(value_end(p));
+                snprintf(key, sizeof key, "button_prompts_color_%s", name);
+                if (*p != ':' || !string_value(skip(p + 1), value, sizeof value) || !pc_button_prompts_setting(key, value)) {
+                    fail(fd, id, -32602, "colors: an object of colour names (neutral, playstation_triangle, ..., "
+                                         "xbox_y, dim) and \"#rrggbb\" values");
+                    return;
+                }
+                p = skip(value_end(skip(p + 1)));
+                if (*p == ',')
+                    p = skip(p + 1);
+            }
+        }
+        double dim_mix;
+        if (params && real_value(member(params, "dim_mix"), &dim_mix)) {
+            if (dim_mix < 0 || dim_mix > 1) {
+                fail(fd, id, -32602, "dim_mix: 0-1");
+                return;
+            }
+            snprintf(text, sizeof text, "%.9g", dim_mix);
+            pc_button_prompts_setting("button_prompts_dim_mix", text);
+        }
         int used = pc_button_prompts_json(result, (int)sizeof result);
         /* {icon: button name, size}: the native menus' image (pc_prompt_glyph). */
         extern pc_prompt_image pc_prompt_glyph(int, float) __attribute__((weak));
@@ -2181,6 +2240,26 @@ static void handle_method(int fd, const char* request)
                 "\"generation\":%u,\"device\":%d}}",
                 button, g.texture ? "true" : "false", g.w, g.h, g.uv0[0], g.uv0[1], g.uv1[0], g.uv1[1],
                 pc_button_prompts_generation(), pc_button_prompts_family());
+        }
+        /* {icon_color: button name}: the icon's mean ink colour (alpha-weighted 0..255 r, g, b; the native
+         * menus' RGBA icon at 32 px), null without an icon (tests: button_prompts_color_*). */
+        if (params && string_value(member(params, "icon_color"), text, sizeof text)) {
+            static uint32_t rgba[32 * 128];
+            int w = 0, h = 0, button = pc_pad_button_index(text);
+            double sum[4] = { 0, 0, 0, 0 };
+            if (pc_button_prompts_icon_rgba(button, 32, rgba, 128, &w, &h))
+                for (int y = 0; y < h; y++)
+                    for (int x = 0; x < w; x++) {
+                        uint32_t c = rgba[y * 128 + x];
+                        double a = (c >> 24) / 255.0;
+                        sum[0] += (c & 255) * a, sum[1] += (c >> 8 & 255) * a, sum[2] += (c >> 16 & 255) * a, sum[3] += a;
+                    }
+            used = (int)strlen(result) - 1;
+            if (sum[3] > 0)
+                snprintf(result + used, sizeof result - used, ",\"icon_color\":[%.1f,%.1f,%.1f]}", sum[0] / sum[3],
+                    sum[1] / sum[3], sum[2] / sum[3]);
+            else
+                snprintf(result + used, sizeof result - used, ",\"icon_color\":null}");
         }
         /* {mask: [u0, v0, u1, v1, factor, scale]}: which texels the icon of
          * that region of the field UI page (768, 0; CLUT 944, 223) has at that
@@ -2399,12 +2478,17 @@ static void handle_method(int fd, const char* request)
             pc_brightness_get(), window_json, capture_json);
         reply(fd, id, result);
     } else if (!strcmp(method, "settings")) {
-        /* The user settings file (ROOD_SETTINGS): {action: "save" | "load"}. */
+        /* The user settings file (ROOD_SETTINGS): {action: "save" | "load"}; {apply: "key value" or a list of
+         * them} applies settings lines now (any key, as the file has them; not saved); {get: "key"} replies
+         * its line as pc_settings_write gives it. */
         extern void pc_settings_save(void) __attribute__((weak));
         extern void pc_settings_load(void) __attribute__((weak));
         extern const char* pc_settings_status(void) __attribute__((weak));
         extern const char* pc_settings_path(void) __attribute__((weak));
-        char action[16] = "";
+        extern void pc_settings_apply(const char*) __attribute__((weak));
+        extern int pc_settings_line(const char*, char*, int) __attribute__((weak));
+        char action[16] = "", key[64] = "";
+        static char lines[4096];
         if (params)
             string_value(member(params, "action"), action, sizeof action);
         if (!pc_settings_save) {
@@ -2415,10 +2499,37 @@ static void handle_method(int fd, const char* request)
             pc_settings_save();
         else if (!strcmp(action, "load"))
             pc_settings_load();
+        const char* apply = params ? member(params, "apply") : NULL;
+        if (apply && *(apply = skip(apply)) == '[') { /* a list: one line each */
+            size_t used_lines = 0;
+            const char* p = skip(apply + 1);
+            lines[0] = 0;
+            while (*p == '"' && used_lines + 2 < sizeof lines) {
+                string_value(p, lines + used_lines, sizeof lines - used_lines - 1);
+                used_lines += strlen(lines + used_lines);
+                lines[used_lines++] = '\n';
+                lines[used_lines] = 0;
+                if (!(p = value_end(p)))
+                    break;
+                p = skip(p);
+                if (*p == ',')
+                    p = skip(p + 1);
+            }
+            pc_settings_apply(lines);
+        } else if (string_value(apply, lines, sizeof lines))
+            pc_settings_apply(lines);
         if (pc_lighting_sync)
             pc_lighting_sync(); /* a loaded preset applies now */
         const char* path = pc_settings_path();
-        snprintf(result, sizeof result, "{\"status\":\"%s\",\"path\":\"%s\"}", pc_settings_status(), json_str(path));
+        int used = snprintf(result, sizeof result, "{\"status\":\"%s\",\"path\":\"%s\"", pc_settings_status(),
+            json_str(path));
+        if (params && string_value(member(params, "get"), key, sizeof key)) {
+            char line[1024];
+            int found = pc_settings_line(key, line, sizeof line);
+            used += snprintf(result + used, sizeof result - (size_t)used, ",\"line\":%s%s%s", found ? "\"" : "",
+                found ? json_str(line) : "null", found ? "\"" : "");
+        }
+        snprintf(result + used, sizeof result - (size_t)used, "}");
         reply(fd, id, result);
     } else if (!strcmp(method, "sfx")) {
         /* The sounds played since the last {reset: true}: bank 0x7E (the menus') by name, every id of it,

@@ -24,7 +24,7 @@ extern "C" {
 extern "C" {
 extern int pc_hw_active, pc_hw_interpolate, pc_hw_scale_setting, pc_gl_aspect, pc_gte_widescreen, pc_ui_menus,
     pc_gameplay_walls, pc_button_prompts, pc_qol_map_invert, pc_qol_map_controls, pc_qol_skip_charging, pc_qol_skip_charging_who, pc_qol_confirm_cross;
-extern float pc_emissive, pc_qol_skip_charging_name;
+extern float pc_emissive, pc_qol_skip_charging_name, pc_qol_skip_charging_hold_mine, pc_qol_skip_charging_hold_enemy;
 extern int pc_dust;
 }
 
@@ -110,13 +110,13 @@ static void pages()
     CHECK(pc_ui_settings_rows(B) == 19); // the 16 PS1 buttons, Travel, Unbind Travel, Reset
     CHECK(find(B, "bind_travel") == find(B, "bind_reset") - 2 && row(B, "bind_travel").button == PC_BIND_TRAVEL
         && find(B, "bind_travel_clear") == find(B, "bind_travel") + 1);
-    CHECK(pc_ui_settings_rows(P) == (game ? 17 : 10)); // fast travel: on, its cost, its prompt
-    // fast travel after battle charging (whose, the name's time): On, Free; Flat shows its MP, Scaled its factor
-    CHECK(find(P, "qol_fast_travel") == find(P, "qol_skip_charging_name") + 1
+    CHECK(pc_ui_settings_rows(P) == (game ? 19 : 12)); // fast travel: on, its cost, its prompt
+    // fast travel after battle charging (whose, the name's time, the holds): On, Free; Flat shows its MP, Scaled its factor
+    CHECK(find(P, "qol_fast_travel") == find(P, "qol_skip_charging_hold_enemy") + 1
         && find(P, "qol_fast_travel_cost") == find(P, "qol_fast_travel") + 1);
     CHECK(value(P, "qol_fast_travel") == "On" && value(P, "qol_fast_travel_cost") == "Free");
     CHECK(change(P, "qol_fast_travel_cost", 1) == 1 && pc_qol_fast_travel_cost == 1
-        && pc_ui_settings_rows(P) == (game ? 18 : 11) && find(P, "qol_fast_travel_flat") == find(P, "qol_fast_travel_cost") + 1);
+        && pc_ui_settings_rows(P) == (game ? 20 : 13) && find(P, "qol_fast_travel_flat") == find(P, "qol_fast_travel_cost") + 1);
     CHECK(change(P, "qol_fast_travel_cost", 1) == 1 && pc_qol_fast_travel_cost == 2
         && find(P, "qol_fast_travel_scale") == find(P, "qol_fast_travel_cost") + 1 && find(P, "qol_fast_travel_flat") < 0);
     pc_qol_fast_travel_cost = 0;
@@ -126,18 +126,27 @@ static void pages()
     CHECK(row(P, "qol_fast_travel_prompt").enabled);
     pc_qol_fast_travel = 1;
     // battle charging after the weapon quick slots: Off, Skip; then whose: Mine, All, and the name's time
-    // (1 s; both greyed while off)
+    // (1 s), the wind-up shown first, mine (0 s) and the enemies' (0.35 s; theirs greyed while whose is Mine);
+    // all greyed while off
     CHECK(find(P, "qol_skip_charging") == find(P, "qol_weapon_slots") + 1
         && find(P, "qol_skip_charging_who") == find(P, "qol_skip_charging") + 1
-        && find(P, "qol_skip_charging_name") == find(P, "qol_skip_charging_who") + 1);
+        && find(P, "qol_skip_charging_name") == find(P, "qol_skip_charging_who") + 1
+        && find(P, "qol_skip_charging_hold_mine") == find(P, "qol_skip_charging_name") + 1
+        && find(P, "qol_skip_charging_hold_enemy") == find(P, "qol_skip_charging_hold_mine") + 1);
     CHECK(row(P, "qol_skip_charging").count == 2 && value(P, "qol_skip_charging_who") == "Mine"
         && !row(P, "qol_skip_charging_who").enabled && !row(P, "qol_skip_charging_name").enabled
-        && pc_qol_skip_charging_name == 1.0f);
+        && !row(P, "qol_skip_charging_hold_mine").enabled && !row(P, "qol_skip_charging_hold_enemy").enabled
+        && pc_qol_skip_charging_name == 1.0f && pc_qol_skip_charging_hold_mine == 0.0f
+        && pc_qol_skip_charging_hold_enemy == 0.35f);
     CHECK(value(P, "qol_skip_charging") == "Off" && change(P, "qol_skip_charging", 1) == 1 && pc_qol_skip_charging == 1
         && value(P, "qol_skip_charging") == "Skip" && row(P, "qol_skip_charging_who").enabled
-        && row(P, "qol_skip_charging_name").enabled);
+        && row(P, "qol_skip_charging_name").enabled && row(P, "qol_skip_charging_hold_mine").enabled
+        && !row(P, "qol_skip_charging_hold_enemy").enabled);
     CHECK(change(P, "qol_skip_charging_who", 1) == 1 && pc_qol_skip_charging_who == 1
-        && value(P, "qol_skip_charging_who") == "All");
+        && value(P, "qol_skip_charging_who") == "All" && row(P, "qol_skip_charging_hold_enemy").enabled);
+    CHECK(change(P, "qol_skip_charging_hold_enemy", 1) == 1 && pc_qol_skip_charging_hold_enemy > 0.39f
+        && pc_qol_skip_charging_hold_enemy < 0.41f);
+    pc_qol_skip_charging_hold_enemy = 0.35f;
     pc_qol_skip_charging = pc_qol_skip_charging_who = 0;
     CHECK(pc_ui_settings_rows(-1) == 0 && pc_ui_settings_rows(7) == 0);
     pc_ui_setting_row r;

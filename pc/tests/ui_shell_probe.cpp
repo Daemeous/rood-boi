@@ -2976,6 +2976,8 @@ static void score_tests()
         CHECK(t.score.row_h == 50 && t.score.visible_rows == 24 && t.score.narrow.titles_list[0] == 30
             && t.score.narrow.titles_list[1] == 480 && t.score.wide.titles_list[1] == 700);
         CHECK(!ui::theme_parse("{\"score\":{\"layout\":{\"wide\":{\"header\":[1]}}}}", t, &err));
+        // motion.screen_fade (read by nothing; removed) in an older theme file is ignored, the rest still read
+        CHECK(ui::theme_parse("{\"motion\":{\"screen_fade\":0.2,\"tab_slide\":0.3}}", t, &err) && t.tab_slide == 0.3f);
         const float row_h0 = ui::theme().score.row_h, card0 = ui::theme().score.narrow.home_card[1];
         CHECK(row_h0 != 60 && card0 != 480);
         CHECK(ui::score_tune("row_h", 0, 60) && ui::theme().score.row_h == 60);

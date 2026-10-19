@@ -43,6 +43,9 @@
 #define PG_HDR (PG(27).y != 0.0)
 #define PG_WB (PG(27).z != 0.0)
 #define PG_CA_ON (PG(27).w != 0.0)
+#define PG_SHARPEN_GAIN PG(30).x /* post sharpen_gain */
+#define PG_VIGNETTE_GAIN PG(30).y /* post vignette_gain */
+#define PG_SHOULDER PG(30).zw /* post shoulder_start, shoulder_width */
 
 const vec3 PG_LUMA = vec3(0.2126, 0.7152, 0.0722);
 
@@ -116,13 +119,13 @@ vec3 pg_neutral(vec3 c, float white)
     float g = 1.0 - 1.0 / (desaturation * (peak - new_peak) + 1.0);
     return clamp(mix(c, vec3(new_peak), g), 0.0, 1.0);
 }
-// None: the original picture's soft shoulder above 0.8 (display light; gl_present.c's lit pixels),
-// clamped. Without HDR input (PG_HDR off) the picture is already at most 1: a clamp.
+// None: the original picture's soft shoulder above shoulder_start (0.8; display light; gl_present.c's
+// lit pixels), clamped. Without HDR input (PG_HDR off) the picture is already at most 1: a clamp.
 vec3 pg_none(vec3 c)
 {
     if (PG_HDR) {
         vec3 d = pg_display(c);
-        d = mix(d, 1.0 - 0.2 * exp(-(d - 0.8) / 0.2), step(0.8, d));
+        d = mix(d, 1.0 - PG_SHOULDER.y * exp(-(d - PG_SHOULDER.x) / PG_SHOULDER.y), step(PG_SHOULDER.x, d));
         return pg_linear(min(d, vec3(1.0)));
     }
     return min(c, vec3(1.0));
@@ -183,7 +186,7 @@ vec3 pg_pixel(vec4 centre, vec2 uv, vec2 st, vec2 st_per_uv)
         vec3 a = n0.a > 9000.0 ? c : n0.rgb, b = n1.a > 9000.0 ? c : n1.rgb;
         vec3 e = n2.a > 9000.0 ? c : n2.rgb, f = n3.a > 9000.0 ? c : n3.rgb;
         vec3 lo = min(c, min(min(a, b), min(e, f))), hi = max(c, max(max(a, b), max(e, f)));
-        vec3 sharp = c + PG_SHARPEN * (c - (a + b + e + f) * 0.25) * 1.5;
+        vec3 sharp = c + PG_SHARPEN * (c - (a + b + e + f) * 0.25) * PG_SHARPEN_GAIN;
         c = clamp(sharp, lo, hi);
     }
     // Chromatic aberration: red outward, blue inward, growing past the start offset.
@@ -206,7 +209,7 @@ vec3 pg_pixel(vec4 centre, vec2 uv, vec2 st, vec2 st_per_uv)
     if (PG_VIGNETTE > 0.0) {
         vec2 d = (uv - 0.5) * vec2(PG_ASPECT, 1.0);
         float r = length(d) / length(vec2(PG_ASPECT, 1.0) * 0.5);
-        float k = r * PG_VIGNETTE * 1.2;
+        float k = r * PG_VIGNETTE * PG_VIGNETTE_GAIN;
         lin *= 1.0 / ((1.0 + k * k) * (1.0 + k * k));
     }
     vec3 mapped = pg_tonemap(lin, PG_TONE_B, PG_WHITE);

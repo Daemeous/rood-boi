@@ -546,6 +546,13 @@ void rood_particles::reload()
     for (const lighting::Item& it : items)
         apply_item(it);
 }
+/* Emitter asset files edited on disk (a text editor, a script) take effect live: called about twice a second
+ * (dev_overlay.cpp, with the settings and room files). */
+extern "C" void pc_particles_assets_poll(void)
+{
+    if (rood_particles::assets_changed())
+        rood_particles::reload();
+}
 void rood_particles::add_items(lighting::State& s)
 {
     for (Emitter& e : emitters) {

@@ -82,7 +82,7 @@ suites = ["ui_*", "menu0_levelled_smoke", "save_menu_smoke", "fast_travel_*", "w
 # ---- the battle overlay (field play too) ----
 [[rule]]
 paths = ["src/BATTLE/*", "pc/src/charge_skip.*", "pc/src/gameplay_walls.*"]
-suites = ["skip_charging_smoke", "charge_skip_soak", "soak", "soak:save", "two_model_enemy_smoke",
+suites = ["tunables_smoke", "skip_charging_smoke", "charge_skip_soak", "soak", "soak:save", "two_model_enemy_smoke",
           "route_continuation_smoke", "damage_numbers_smoke", "menu0_levelled_smoke", "input:*", "animation_smoke",
           "snapshot_equivalence", "facing_cutaway_smoke", "camera_stick_smoke", "ending_smoke", "weapon_slots_smoke"]
 
@@ -149,6 +149,7 @@ paths = ["pc/src/atmosphere*", "pc/src/environment*", "pc/src/fog_sim*", "pc/src
          "pc/assets/environment/*", "pc/shaders/vulkan/fog*", "pc/shaders/vulkan/medium.glsl",
          "pc/shaders/vulkan/environment.glsl", "pc/tools/atmosphere_sweep.py"]
 suites = ["atmosphere_smoke", "atmosphere_sweep", "void_fog_smoke", "fog_sim_smoke", "fog_volume_smoke", "sky_smoke",
+          "tunables_smoke",
           "widescreen_scene_smoke", "editor_selection_smoke", "editor_schema_smoke", "transition_fade_smoke"]
 
 # ---- particles ----
@@ -160,7 +161,7 @@ suites = ["particles_smoke", "ctest"]
 [[rule]]
 paths = ["pc/src/post*", "pc/src/post_*.inc", "pc/assets/post/*", "pc/shaders/vulkan/bloom*",
          "pc/shaders/vulkan/post_*", "pc/shaders/vulkan/blur.frag"]
-suites = ["post_smoke", "aa_smoke", "transition_fade_smoke"]
+suites = ["post_smoke", "aa_smoke", "transition_fade_smoke", "tunables_smoke"]
 
 [[rule]]
 paths = ["pc/src/antialias.*", "pc/shaders/vulkan/smaa*", "pc/shaders/vulkan/fxaa.frag",
@@ -184,7 +185,7 @@ suites = ["ui_upscale_smoke", "flipped_sprite_smoke", "ui_text_smoke"]
 
 [[rule]]
 paths = ["pc/src/button_prompts.*", "pc/src/prompt_glyphs.cpp"]
-suites = ["button_prompts_smoke", "button_roles_symbols_smoke", "ui_manual_smoke", "fast_travel_smoke"]
+suites = ["button_prompts_smoke", "button_roles_symbols_smoke", "ui_manual_smoke", "fast_travel_smoke", "tunables_smoke"]
 
 [[rule]]
 paths = ["pc/src/button_roles.c"]
@@ -227,7 +228,7 @@ suites = ["save_menu_smoke", "ui_data_smoke", "ui_container_smoke", "replace_fil
 
 [[rule]]
 paths = ["pc/src/weapon_slots.c", "pc/src/weapon_packets.c"]
-suites = ["weapon_slots_smoke", "animation_smoke", "ui_equip_smoke", "ui_ashley_*"]
+suites = ["weapon_slots_smoke", "animation_smoke", "ui_equip_smoke", "ui_ashley_*", "tunables_smoke"]
 
 [[rule]]
 paths = ["pc/src/mdec.c", "pc/src/xa_audio.c"]

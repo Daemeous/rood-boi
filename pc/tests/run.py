@@ -317,10 +317,12 @@ def suites(args, mode="egl"):
                  note="fast travel with the modern menus: Magick > Teleport on the same unlock, cost, mask and "
                       "refusals; save (System > Data) and Continue; the Travel button")]
           if args.save.exists() else []),
-        *([Suite("skip_charging_smoke", [PY, str(TESTS / "skip_charging_smoke.py"), "--card", str(args.save)], 900,
+        *([Suite("skip_charging_smoke", [PY, str(TESTS / "skip_charging_smoke.py"), "--card", str(args.save)], 1500,
                  note="battle charging skip (paced): Solid Shock, a Cure Root and a Break Art off and on: the same "
                       "outcome, release view, flags, score and clean state; skipped wind-ups short and unpresented; "
-                      "with the random numbers pinned, the enemies (who: all) act the same")]
+                      "with the random numbers pinned, the enemies (who: all) act the same; the holds shown first "
+                      "(mine / enemy: paced, their length, clamped to the original's) and a defence press after an "
+                      "enemy's release judged as off")]
           if args.save.exists() else []),
         *([Suite("charge_skip_soak", [PY, str(TESTS / "charge_skip_soak.py"), "--card", str(args.save)], 1500,
                  note="battle charging skip soak (unpaced): every spell of the four schools, 40 misc items "
@@ -458,6 +460,11 @@ def suites(args, mode="egl"):
         Suite("post_smoke", [PY, str(TESTS / "post_smoke.py"), "--card", str(args.save)], 600,
               note="post stack: each effect changes only the 3D, defaults neutral, presets, profiles save/load and "
                    "blend, lens blur only in field play (not title, attract, cutscene, menu)"),
+        *([Suite("tunables_smoke", [PY, str(TESTS / "tunables_smoke.py"), "--card", str(args.save)], 420,
+                 note="tunables in data: settings keys read back and reach their modules, post shoulder / tilt "
+                      "feather / sharpen and vignette gains change the 3D (defaults pixel-identical), prompt "
+                      "colours recolour the icons, smart walls' timing, fog presets reload live")]
+          if args.save.exists() else []),
         Suite("dof_smoke", [PY, str(TESTS / "dof_smoke.py"), "--card", str(args.save)], 600,
               note="physical depth of field: off by default, blur grows with lower f-stops and away from the focus, "
                    "bokeh blade count / squeeze / cat's eye on the test card, unblurred title, attract, cutscene, "
@@ -617,9 +624,12 @@ def run_lanes(order, args, run):
                 items = waiting[gpu]
                 if not items:
                     return None
-                # a heavy suite first while one of their slots is free: their queue starts at once
+                # snapshot_equivalence first (the checkpoint suites wait for its save states: a
+                # heavy one in every slot would wait for it forever), then a heavy suite while
+                # one of their slots is free: their queue starts at once
                 free = gpu and heavy[0] < args.heavy_jobs
-                for item in sorted(items, key=lambda item: not (free and item[1].name in HEAVY_SUITES)):
+                for item in sorted(items, key=lambda item: (item[1].name != "snapshot_equivalence",
+                                                            not (free and item[1].name in HEAVY_SUITES))):
                     if not gpu or item[1].name not in HEAVY_SUITES or heavy[0] < args.heavy_jobs:
                         items.remove(item)
                         if gpu and item[1].name in HEAVY_SUITES:
@@ -801,10 +811,10 @@ def make_parser():
     parser.add_argument("--cpu-jobs", type=int, default=2,
                         help="suites without a game (CTest, lints, scans, build checks) at once, beside the "
                              "game suites (default 2)")
-    parser.add_argument("--thermal-pause", type=float, default=float(os.environ.get("ROOD_THERMAL_PAUSE", "95")),
-                        help="no new suite starts while the CPU package is this hot (C; default 95, 0 = off)")
-    parser.add_argument("--thermal-resume", type=float, default=float(os.environ.get("ROOD_THERMAL_RESUME", "85")),
-                        help="... until it has cooled to this (C; default 85)")
+    parser.add_argument("--thermal-pause", type=float, default=float(os.environ.get("ROOD_THERMAL_PAUSE", "102")),
+                        help="no new suite starts while the CPU package is this hot (C; default 102, 0 = off: the chip throttles itself at 105)")
+    parser.add_argument("--thermal-resume", type=float, default=float(os.environ.get("ROOD_THERMAL_RESUME", "96")),
+                        help="... until it has cooled to this (C; default 96)")
     parser.add_argument("--thermal-wait", type=float, default=900,
                         help="the longest one such wait (s; default 900), then the suite starts anyway")
     parser.add_argument("--wait-cool", action="store_true",

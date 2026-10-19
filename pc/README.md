@@ -216,6 +216,16 @@ control changes are separate options (the look inversions under
   always 0 and the original loop skips zero bytes. Selling a shield or
   combining it in a workshop still drops its slots, as in the mod.
 
+Its look and timing are settings too (Graphics > Gameplay > Weapon slots:
+look; RPC `weapon_slots {name_ticks}`, any of them through RPC `settings
+{apply}`):
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `qol_weapon_slots_name_ticks` | 150 | how long a swapped weapon's name stays in the information bar, game ticks (60 a second) |
+| `qol_weapon_slots_label0` ... `qol_weapon_slots_label7` | `242 99 237 101`, `214 108 213 115`, `252 111 247 113`, `223 126 223 127`, `94 99 89 101`, `71 112 70 115`, `103 117 98 113`, `81 124 80 127` | each overlay label's text x, y and bullet x, y with the overlay slid in (PS1 pixels; 0-3 the button group, 4-7 the D-pad group's up, left, right, down) |
+| `qol_weapon_slots_hint` | `160 142` | x, y of the line under the overlay (what Select does) |
+
 `pc/src/weapon_slots.c` documents the details; `pc/tests/weapon_slots_smoke.py`
 tests it (option off, swaps, assign mode, shields, saving and reloading).
 
@@ -229,10 +239,13 @@ circle builds, then the release begins. The hold alone takes about 2-3 s
 effect's loading). **Off by default**: settings key `qol_skip_charging` (0
 Off, 1 Skip; older settings' Fast and Skip both read as Skip),
 `qol_skip_charging_who` (0 Mine: Ashley's actions, 1 All: the enemies' spells
-and arts too) and `qol_skip_charging_name` (seconds the name stays up at
-least, 0..2, default 1), System > Gameplay > Battle charging / Skip whose
-charging / Skipped charging: name shown in the modern menus, editor Graphics
-> Gameplay, RPC `skip_charging {mode, who, name, reset}`.
+and arts too), `qol_skip_charging_name` (seconds the name stays up at
+least, 0..2, default 1) and `qol_skip_charging_hold_mine` /
+`qol_skip_charging_hold_enemy` (seconds of the hold still shown first, 0..1.5,
+defaults 0 and 0.35), System > Gameplay > Battle charging / Skip whose
+charging / Skipped charging: name shown / my wind-up / enemy wind-up in the
+modern menus, editor Graphics > Gameplay, RPC `skip_charging {mode, who, name,
+hold_mine, hold_enemy, reset}`.
 
 **Skip** takes the hold out; nothing runs faster. The action is committed
 before the wind-up begins (BATTLE `func_80070F28`: MP, HP or RISK paid, the
@@ -245,6 +258,13 @@ release, once a frame, and in `vs_battle_displaySceneMessage`):
   always do, at their own pace, and the cast starts as the game starts it
   (event flags, the effect's request, the cast animation, the name window
   the game's way, or none with the Information option off);
+- the hold itself then plays as it always does, shown and paced, for
+  `qol_skip_charging_hold_mine` seconds (Ashley's actions) or
+  `qol_skip_charging_hold_enemy` (the others'), counted from the camera's
+  arrival; a hold the original ends sooner ends the original's way, never
+  longer than Off (once the magic circle has built, its fade then runs as
+  Off's, about 40 vsyncs, hidden: some 0.1-0.2 s of the last picture before
+  the release);
 - then the cast sound stops and the turn toward the target is applied at
   once; the magic circle gets its end cue at once, so it is gone by the
   release;
@@ -252,7 +272,8 @@ release, once a frame, and in `vs_battle_displaySceneMessage`):
   read when asked for: `main.c` `pc_cd_queue_load`), and the release starts
   as soon as they are in;
 - the name window, which the game closes at the release, stays up past it
-  until it has been shown for `qol_skip_charging_name` seconds (never longer
+  until it has been shown for `qol_skip_charging_name` seconds, the hold
+  shown first included (never longer
   than the original's own 2 s; earlier if the action ends or another
   message opens), then closes the game's way (`func_800CB50C`, which frees
   its text: the heap is as an unskipped game's).
@@ -264,14 +285,30 @@ release's first, the path-traced GI and NRD history restart after it, and
 the audio device drops what it has no room for meanwhile (a fraction of a
 second of music). The game cannot take input during the wind-up, and chain
 and defence windows open in the release (`_cameraMode` 7), which runs as it
-always does. Random numbers are drawn every frame, so with fewer frames the
+always does.
+
+Why the enemies' hold defaults to 0.35 s: a chain or defence press is judged
+only in the release (`func_80078AB4`), against a timer that starts there
+(`battleAbilityTimer`, zeroed by `func_80070278`) and a window that opens
+with the hit (`func_80069C6C`); a press before it is **FAST!** or **TOO
+FAST!** (`func_800958A4`'s labels) and spends the action's one attempt. Off,
+the hold gives seconds of warning; skipped outright, an enemy's release
+follows the camera's arrival at once, so a press meant for after it (Circle
+for Ashley's own attack sphere, with a defence ability on Circle) lands in
+it. The skipped vsyncs take nothing from the timer or the window: a press at
+a given time after the release is judged exactly as Off judges it. 0.35 s
+(21 vsyncs) is about what a player needs to see the cast begin and hold back
+a press already on its way (a stop-signal reaction, ~0.25 s, plus a frame or
+two of display); raise it to read the action's name first. Random numbers are drawn every frame, so with fewer frames the
 rolls after an action differ from an unskipped game's (as they would after
 any difference in timing); the action itself does not.
 `pc/tests/skip_charging_smoke.py` compares a spell, an item, a Break Art and
 an item with Information off, off and on (outcomes, the camera's move and the
 release's view, the name window's text and time, what is left afterwards,
 and with the random numbers pinned at each action's end, the enemies' later
-actions and their names); `pc/tests/charge_skip_soak.py` casts every spell,
+actions and their names), then the holds shown first (paced, their length,
+clamped to the original's) and a defence press at fixed delays after an
+enemy's release judged as Off judges it; `pc/tests/charge_skip_soak.py` casts every spell,
 item and art once.
 
 ### Fast travel
@@ -1031,6 +1068,8 @@ These switches persist with File > Save settings:
 | `fog_volume_history` | 0.06 | the least weight of a new frame in its temporal accumulation (lower: steadier, slower) |
 | `fog_volume_ambient`, `fog_volume_glow`, `fog_volume_scattering`, `fog_volume_halo` | 1, 0.6, 0.5, 2 | its ambient light, the glows' light, the multiple-scattering octave, extra light near a light |
 | `fog_volume_shadows` | 1 | the scene shadows the volumes' lights (Vulkan ray queries) |
+| `fog_detail_wind`, `fog_detail_rise` | 1.3, 0.01 | the fog's detail noise (ground fog and volumes) drifts this many times the room's wind, and evolves in place this many noise periods a second (Details > Atmosphere > Interactive fog: all rooms; RPC `environment {detail_wind, detail_rise}`) |
+| `fog_flow_cycle` | 2.5 | seconds of each cycle the interactive fog carries its detail along its flow over, cross-faded (RPC `environment {flow_cycle}`) |
 | `dust` | 0 | dust motes in rooms that have them (pc/docs/Particles.md): 0 Off (the picture as before), 1 Low, 2 High; Graphics > Dust |
 | `dust_low` | 0.4 | the share of each dust emitter's particles Low draws |
 | `particles_glow`, `particles_lights`, `particles_glow_shadows` | 1, 2, 1 | the glows' light on particles; the strongest sources each is lit by (with a shadow ray each, and the sun); glows' light shadowed too |
@@ -1054,6 +1093,8 @@ keys below, RPC `graphics`) chooses:
 | `gameplay_walls_ghost` | 0 | smart: walls in the way are drawn as dithered ghosts with their edges instead of left out |
 | `gameplay_walls_opacity` | 0.3 | a ghost's share of pixels |
 | `gameplay_walls_radius` | 64 | world units around Ashley's body a wall must keep clear of |
+| `gameplay_walls_fade_out`, `gameplay_walls_fade_in` | 4, 7 | game frames a wall takes to fade out when it gets in the way, and to come back |
+| `gameplay_walls_clear` | 10 | game frames a wall must stay clear of a slightly wider region before it stops counting as in the way (no flicker) |
 
 Ray tracing and lighting always use the whole room either way.
 pc/docs/Native_Rendering.md "Smart walls" has the details; RPC `room_groups`
@@ -1315,6 +1356,8 @@ prompts in the editor, RPC `button_prompts`.
 | `button_prompts_style` | `color_outline` | how the icons look (no backing behind any): `solid` (a filled cap, the symbol knocked out), `outline` (ring and symbol, no fill), `color_solid`, `color_outline` (the same in the family's colours: PlayStation's teal triangle, red circle, blue cross, pink square; Xbox's green A, red B, blue X, yellow Y; Nintendo, key caps and other buttons neutral). Outline styles use each glyph's `_outline` variant; text pictographs keep the text's colour |
 | `button_prompts_dpad` | `dim` | the L2 shortcut cross's D-pad (below): `cross` the family's whole D-pad in the style; `dim` the same with the arms that have no usable action beside them dimmed (no label, or the game's dimmed label: a locked Break Arts, items while unusable; weapon slots: an empty slot); `lit` the arms with a usable action filled and the others hollow in the outline styles (Kenney's `_<dir>_outline` glyphs joined), in the solid styles bright with the others' insides dim |
 | `button_prompts_scale` | `0.7` | 0.4-1: each 16 x 16 button sprite's icon fits in a circle this fraction of its cell across, centred on the original's (the shortcut cross's face-button diamond has diagonal neighbours 9 PS1 pixels apart: at 0.7 they keep about 1.5 pixels apart; key caps and wide shoulder tabs come out smaller than round buttons) |
+| `button_prompts_color_<name>` | see Meaning | the icons' colours, `#rrggbb` (saved only when changed): `neutral` `#eeeee8` (every icon outside the colour styles, and the families and buttons without colours of their own), `playstation_triangle` `#40d8a8`, `playstation_circle` `#f06070`, `playstation_cross` `#80b0f0`, `playstation_square` `#e098d8`, `xbox_a` `#70c840`, `xbox_b` `#f04840`, `xbox_x` `#4890f0`, `xbox_y` `#f8c830`, `dim` `#101014` (what a dimmed D-pad arm's colour mixes toward); Graphics > 2D / UI > Prompt colours, RPC `button_prompts {colors}` |
+| `button_prompts_dim_mix` | 0.62 | 0-1: how far a dimmed D-pad arm's colour goes toward `dim` (saved only when changed; RPC `button_prompts {dim_mix}`) |
 | `bind_key_<button>` | see Controls | the key(s) for a PS1 button (`circle`, `cross`, `triangle`, `square`, `l1`, `r1`, `l2`, `r2`, `start`, `select`, `l3`, `r3`, `up`, `down`, `left`, `right`) or for `travel` (fast travel's Travel button: no key by default; it may share a PS1 button's key): one or two names separated by a comma (`a`-`z`, `0`-`9`, `return`, `tab`, `space`, `escape`, `backspace`, arrows `up`..., `lshift`, `lctrl`, `lalt`, ..., `f1`-`f12`, `minus`, `comma`, `period`, `slash`, ...) or `none`; saved only when changed |
 | `bind_pad_<button>` | positional | the gamepad element for a PS1 button or `travel` (`back` by default, shared with Select): `south`, `east`, `west`, `north`, `leftshoulder`, `rightshoulder`, `lefttrigger`, `righttrigger`, `back`, `start`, `guide`, `leftstick`, `rightstick`, `dpup`, `dpdown`, `dpleft`, `dpright`, `misc1`, `paddle1`-`4`, `touchpad` or `none`; saved only when changed |
 
@@ -1986,10 +2029,10 @@ redraws at about 60 Hz, and after each request):
 | `input` | `buttons` (name or list), `right_stick` (`[x, y]`, -1..1, down +y), `triggers` (`[l2, r2]`, 0..1 past the press point), `vsyncs` | hold PS1 buttons and/or the right stick (the camera) and/or the triggers' analog travel (the map's zoom; the L2 / R2 bits come from `buttons`); works unfocused |
 | `camera_stick` | the settings without `camera_stick_` (`enabled`, `speed`, ..., `r3_reset`, `idle_reset`, `keys`), `action` (`reset`) | the right-stick camera: settings and state (zoom, distances, collision hit, yaw; the first-person look: `first_person`, `fp_looks`, `fp_step`) |
 | `camera_options` | `map_invert`, `map_controls`, `fp_invert_y` | the optional map panning and first-person up/down inversions and the map's stick controls (settings `qol_map_invert`, `qol_map_controls` 0 Modern / 1 Original, `qol_fp_invert_y`) |
-| `skip_charging` | `mode` (0/1 or `off`/`skip`), `who` (0/1 or `mine`/`all`), `kinds`, `pump`, `pin`, `reset` | battle charging skip (settings `qol_skip_charging`, `qol_skip_charging_who`; pc/src/dev_rpc.c has the fields): whether this vsync is in a wind-up and skipped or hidden, the counters since the last reset (wind-ups, their vsyncs per phase, skipped, hidden, presented, wall `ms`), the view at the last release, the actions that ended; tests: `kinds` (a mask of spells, enemy arts, Break Arts, items), `pump` (the effect's files a step a frame when false), `pin` (seed the random numbers at each action's end) |
+| `skip_charging` | `mode` (0/1 or `off`/`skip`), `who` (0/1 or `mine`/`all`), `name`, `hold_mine`, `hold_enemy` (seconds), `kinds`, `pump`, `pin`, `reset` | battle charging skip (settings `qol_skip_charging`, `qol_skip_charging_who`; pc/src/dev_rpc.c has the fields): whether this vsync is in a wind-up and skipped or hidden, the counters since the last reset (wind-ups, their vsyncs per phase, skipped, hidden, presented, wall `ms`), the view at the last release, the actions that ended; tests: `kinds` (a mask of spells, enemy arts, Break Arts, items), `pump` (the effect's files a step a frame when false), `pin` (seed the random numbers at each action's end) |
 | `fast_travel` | `set` (`enabled`, `cost` 0..3 or `free`/`flat`/`scaled`/`game`, `flat`, `scale`, `prompt`), `press`, `audit` | fast travel (battle builds; [docs/Fast_Travel.md](docs/Fast_Travel.md)): the settings, whose unlock is in effect (`whose`: `off`/`port`/`game`, `unlock` as MENU0 reads it), the state the rules read, `blocked` and `why` (the Travel button's reason, "" when it opens the list), each point's `state`, `raw` and applied `cost`, `current`, `refused`, the press counters, the `last` trip checked on arrival; `press` presses the Travel button once; `audit` adds each destination's Circle object read from the disc |
 | `button_roles` | `confirm_cross`, `field_cross_attack`, `symbol_exceptions` | the optional button roles (battle builds; settings `qol_confirm_cross`, `qol_field_cross_attack`): both options, the game's context now (`menus`, `field`, `targeting`, `game`), whether Circle and Cross are exchanged there (`swap`) and each role's button (`confirm`, `cancel`, `attack`, `interact`, `target`), the game's own ○ / × drawn since start (`drawn`: for `text` and `sprite` how many of each as shown and how many were exchanged, `swapped`); `symbol_exceptions` false (tests) exchanges the ○ / × that name buttons the roles never move too |
-| `weapon_slots` | `enabled` | the optional weapon slots (battle builds): the option, overlay/assign/swap state, field mode, each weapon's slot and each shield's slot bits, what Ashley's battle record has equipped |
+| `weapon_slots` | `enabled`, `name_ticks` | the optional weapon slots (battle builds): the option, overlay/assign/swap state, field mode, each weapon's slot and each shield's slot bits, what Ashley's battle record has equipped, `name_ticks` and the name's ticks left (`msg`), the labels' and hint's places |
 | `ui_menu` | `modern`, `pointer` | the modern menus (`pc/src/ui`, battle builds): sets `ui_menus`; `model_heap_extra` (bytes, tests: the Ashley model's heap check asks for that much more); `pointer {x, y, click, right, wheel, down, middle}` is the next drawn frame's mouse in layout units (1280 or 960 x 720; hit tests as a moved pointer; down / middle: that button held, drags); the shell: visible, holding (closed, a result held during a model load, still drawn), menus, tab, tabs, rows (id, label, enabled, reason when greyed, value), focused row, the Equipment screen; `theme` (the colours shown: `tint` id, `tint_rgb` 0..31, `ground`, `panel`, `stage` as #rrggbbaa, `rule`, `rule2`, `dim`, `ash`); `system.rows[].swatch` (#rrggbb: Menu tint's colour chip); `map` (the Map frame: state, MENU5's published scene / room / camera, areas, rooms, completion, the list's cursor, request counters, the drawn pointer targets `hits`, or null) and `map_heap_free`; `system.manual` (the Quick manual: mode topics / reading, topic, label, desc, row, page_top, line, lines, line_count, page, pages, loaded, square, k, size, overflow, unknown, the page's ten `page_lines`, sprites, rules, hidden, `art` (button-art sprites) and `art_prompts` (drawn as the device's prompts), the `sfx` counters, the drawn `hits`, or null; `system.manual_sfx`: the manual's requested sounds, on or off); `container` (the native Container screen while its MENU7 run is latched, else null: phase, m7_state, session, mode, tab, rows, cursor, menu, card, counts, prompt state, counters, the drawn `hits`; `pc/docs/Modern_Menus.md` "Container"); `data` (the native Data screen while armed or framed, else null; `container` 1 for the Container's save list: run, phase ops / card / files / prompt / wait / busy, state, op, save_ok, at_point, in_battle, warp_blocked, cursor, card, file, page, cancelled, ops_row, msg, msg_text, prompt, progress, fade, files_valid, files[] (state, generation, time, saves, hp, mp, location, clear, map, current, newest, name), cards (per card: -1 not checked, -2 no card, else its saves), card_sel, journey, goal {kind, a, auto}, seq, presses, busy_drops, rejected, expired, menu7_gated, settling, hover, the drawn `hits`); `backdrop_kept` (0 / 1: the presenter holds a picture of the world for the Ashley tab's model) and `backdrop_built` ([keep count, count the wait asked for] when the Ashley model was last built; [-1, 0] none yet) |
 | `container` | `location` | tests (battle builds): the save room's container opened as the field opens it (BATTLE `func_800CB1C0`, then the field's menu mode; `location` the container's number, default the room's save point), only with Ashley free to act; answers `opened`. `chest` `open=` also opens a container object (flag >= 64) |
 | `card` | `fail_writes`, `unformatted` | tests that save (battle builds): `fail_writes` refuses the card's writes, `unformatted` makes the cards read as unformatted until one is formatted; answers `writes` (data writes so far), `fail_writes`, `unformatted` |
@@ -2007,7 +2050,7 @@ redraws at about 60 Hz, and after each request):
 | `ui_bubbles` | `path` (N) | vector talk bubbles: frames reported, verified, fallen back (`mismatched`), drawn; line segments the hardware path drew (`lines_drawn`); native pixels per output pixel; the recent bubbles (shape, flip, tail, outline bounds drawn and the game's whole-pixel points, thickness); `path`: bubble N's outline points |
 | `ui_text` | `ui_text` (`original`/`font`), `layout` (`line`/`glyph`), `bubble_align` (`centre`/`left`), `lines` (path: the newest frame's laid-out lines as JSON), `style` with `font`, `stretch`, `slant`, `embolden`, `aspect`; `render` ([tpage, clut, u0, v0, u1, v1]) with `factor`, `path`; `scale` (the UI text scale, tests); `forget_signs` | the text fonts: option, each style (font, placement, `loaded`), fonts loaded, glyph fields made, glyph regions drawn from fonts (`regions`, of them `labels`) and fallen back (`failed`), the labels drawn (`labels_drawn`), signs and battle popups drawn from fonts (`signs_drawn`, `popups_drawn`, `popup_glyphs`), the newest frame's popup digits (`popups`: digit, x, y) and `scale`; a `style` with values changes it as the `ui_text_<style>_*` settings do; `render` draws that region from the font into `path` (little-endian PS1 colours) and adds its size |
 | `redraw` | | the newest frame drawn again as recorded with the current options (MSAA, ...) and presented until the game draws another: pause first, then compare options on one frame (`aa_smoke.py`) |
-| `settings` | `action` (`save`, `load`) | the `ROOD_SETTINGS` file (a loaded preset applies at once) |
+| `settings` | `action` (`save`, `load`), `apply` (a settings line or a list of them, applied now, not saved), `get` (a key) | the `ROOD_SETTINGS` file (a loaded preset applies at once); `line`: the key's line as a save would write it (null: none) |
 | `sfx` | `reset` | the sounds played through `vs_main_playSfxDefault` since the last reset (a `ROOD_PC` count in `main.c`): bank 0x7E's `change`, `select`, `leave`, `invalid`, every id of it (`menu`), the other banks' total (`other`) |
 | `perf` | `reset` | GPU time per presented frame since the last reset (`ROOD_PERF=1`; Vulkan timestamps, GL timer queries; Vulkan adds `sections`: ms per frame of `draw`, `present`, `aa`, `downsample`, the GI passes); GL adds `presents`, `gpu_wait_ms` (CPU waits for frames in flight), `gi_traced`/`gi_reused`, `gi_gpu_ms`, `gi_budget_ms`, `gi_interval` (path tracer cadence) |
 | `lighting_autodetect` | `ray_query`, `integrated` | the first-run preset for those capabilities |

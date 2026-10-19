@@ -85,7 +85,7 @@ struct Theme {
     float tab_size = 15, label_size = 11, name_size = 19, body_size = 14.5f, hint_size = 12;
     float margin_x = 56, top = 34, tab_height = 44, row_height = 46, rail_width = 448;
     // seconds
-    float tab_slide = 0.24f, focus_grow = 0.16f, screen_fade = 0.2f;
+    float tab_slide = 0.24f, focus_grow = 0.16f;
     // font files (relative to the repository root)
     std::string font_name = "pc/third_party/fonts/Alegreya/Alegreya[wght].ttf";
     std::string font_label = "pc/third_party/fonts/AsapCondensed/AsapCondensed-Bold.ttf";

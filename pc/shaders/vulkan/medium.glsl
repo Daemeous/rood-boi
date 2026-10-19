@@ -19,6 +19,7 @@
 #define MEDIUM_SIM 163
 #define MEDIUM_DETAIL 164
 #define MEDIUM_AIR 165
+#define MEDIUM_FLOW 166
 #define MEDIUM_FLAG_GRID 1
 #define MEDIUM_FLAG_INTERIOR 2
 #define MEDIUM_FLAG_VOID 4
@@ -53,6 +54,9 @@
 //  165: the room's air (MEDIUM_FLAG_INTERIOR): x the haze's share above cells without a floor (haze_outside),
 //      y z the interior's edge (smoothstep of the cells' bilinear floor share; haze_interior_edge), w the room's
 //      lowest floor (world y: the haze over the cells without a floor reaches down to it)
+//  166: the detail noise's motion (settings fog_detail_wind, fog_detail_rise, fog_flow_cycle): x its drift
+//      as a multiple of the wind, y its rise (noise periods per second, evolving it), z the flow map's cycle
+//      (seconds)
 float medium_haze() { return MEDIUM(0).x; }
 float medium_g() { return MEDIUM(0).y; }
 int medium_volume_count() { return int(MEDIUM(0).w + 0.5); }
@@ -268,13 +272,14 @@ float medium_detail_tex(vec3 q, int channel) {
 // The detail noise at x (0..1, mean 0.5): the baked Perlin-Worley texture
 // drifting with the wind, evolving slowly; carried along by the fog's own
 // flow (world x, z units per second) as a flow map does: two samples
-// advected over staggered 2.5 s cycles, cross-faded, so the billows follow
-// the wake and the swirls without stretching forever.
+// advected over staggered cycles (2.5 s: MEDIUM_FLOW.z), cross-faded, so the
+// billows follow the wake and the swirls without stretching forever.
 float medium_detail_s(vec3 x, vec2 flow, float s) {
     float time = MEDIUM(0).z;
-    vec3 q = (x - MEDIUM(4).xyz * time * 1.3) * s * vec3(1.0, 2.0, 1.0) + vec3(0.0, 0.0, time * 0.01);
+    vec4 motion = MEDIUM(MEDIUM_FLOW);
+    vec3 q = (x - MEDIUM(4).xyz * time * motion.x) * s * vec3(1.0, 2.0, 1.0) + vec3(0.0, 0.0, time * motion.y);
     if (dot(flow, flow) < 0.25) return medium_detail_tex(q, 0);
-    const float cycle = 2.5;
+    float cycle = max(motion.z, 0.05);
     float p0 = fract(time / cycle), p1 = fract(time / cycle + 0.5);
     vec3 f = vec3(flow.x, 0.0, flow.y) * s * cycle;
     float a = medium_detail_tex(q - f * p0, 0), b = medium_detail_tex(q - f * p1, 1);

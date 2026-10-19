@@ -229,7 +229,9 @@ fog 68ea4c1200a3f1 name="Cellar mist" shape=sphere pos=320,-60,640 size=400,120,
   `pc/assets/environment/fog_presets.json`; every field the volume does not
   write comes from it (the editor writes only what differs from the preset,
   even a value equal to the schema default), so a preset edit updates every
-  volume using it. An unknown preset leaves the fields as written.
+  volume using it (live: the presets file and yours are polled about twice a
+  second; RPC `environment {presets_reload}` does it at once). An unknown
+  preset leaves the fields as written.
   A preset may be one of yours (`pc/user/prefabs/fog/<id>.json`, made
   with the Library's Save...): a room file naming it then needs your file;
   promote only volumes with built-in presets (or none) into a pack.

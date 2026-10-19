@@ -11,6 +11,9 @@ extern int pc_gameplay_walls; /* 0 original (the game's facing mask), 1 smart */
 extern int pc_gameplay_walls_ghost; /* smart: occluding groups drawn as ghosts instead of left out */
 extern float pc_gameplay_walls_opacity; /* a ghost's share of pixels kept */
 extern float pc_gameplay_walls_radius; /* world units around Ashley's body that count as in the way */
+/* Smart walls' timing, game frames: a group fades out over fade_out, in over fade_in, and stops occluding
+ * after `clear` frames clear of the wide region (hysteresis). */
+extern int pc_gameplay_walls_fade_out, pc_gameplay_walls_fade_in, pc_gameplay_walls_clear;
 
 /* func_8009723C (room_geometry.c), the current room: once per frame before
  * its group walk (data NULL while the editor's free camera flies; facing:

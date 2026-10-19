@@ -46,6 +46,11 @@ typedef struct {
      * the physical camera folds its lens into aperture); near: the share of it in front of the focus. */
     float dof_radius, aperture, near_blur;
     float tilt[3]; /* centre, half width, radius (px at 720) */
+    float tilt_feather; /* the share of the picture's height over which the blur grows past the band */
+    /* The lit image's soft shoulder (tonemapper none; the present shaders and post_grade.glsl pg_none): above
+     * shoulder[0] colours bend toward 1 instead of clipping, shoulder[1] its softness (start + width = 1 keeps the
+     * curve smooth). */
+    float shoulder[2];
     /* The depth of field's bokeh passes (dof.glsl; pc_post_dof_pack fills their parameter block). */
     int dof_near; /* a foreground layer: blur in front of the focus */
     int focus_probe; /* measure the view depth at focus_uv (pc_post_focus_result, a few frames late) */

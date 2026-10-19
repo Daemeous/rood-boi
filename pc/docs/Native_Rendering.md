@@ -892,8 +892,9 @@ the game camera):
   hides nothing; back faces never show (the PS1 culls them), so a revealed
   wall never shows its outside.
 - Hysteresis: in the way from the first frame, clear again after 10 frames
-  outside a region 1.3 times as wide. The drawn share fades out over 4 game
-  frames and in over 7 as an ordered dither (`render_instance.cut`, with
+  (`gameplay_walls_clear`) outside a region 1.3 times as wide. The drawn
+  share fades out over 4 game frames (`gameplay_walls_fade_out`) and in over
+  7 (`gameplay_walls_fade_in`) as an ordered dither (`render_instance.cut`, with
   `cut_previous` blended by frame interpolation between game frames, so the
   fade is as smooth as the presented frame rate). Groups the mask keeps
   stay solid (they fade in only after a smart hide, e.g. while the camera

@@ -25,9 +25,10 @@
  *   black outside the room where a far wall belongs) is what it is drawn
  *   for; behind the base picture it hides nothing;
  * - hysteresis: a group counts as occluding from the first frame it
- *   occludes and stops after 10 frames clear of a region 1.3 times as
- *   wide; its drawn share fades (an ordered dither, render_instance.cut)
- *   out over 4 game frames and in over 7, interpolated between game frames
+ *   occludes and stops after gameplay_walls_clear (10) frames clear of a
+ *   region 1.3 times as wide; its drawn share fades (an ordered dither,
+ *   render_instance.cut) out over gameplay_walls_fade_out (4) game frames
+ *   and in over gameplay_walls_fade_in (7), interpolated between game frames
  *   by the renderer (cut_previous);
  * - occluding groups are left out, or with gameplay_walls_ghost drawn as
  *   ghosts (gameplay_walls_opacity of their pixels and their edges, as the
@@ -62,6 +63,9 @@ int pc_gameplay_walls = 0; /* 0 original, 1 smart */
 int pc_gameplay_walls_ghost = 0; /* occluding groups: 0 left out, 1 ghosts */
 float pc_gameplay_walls_opacity = 0.3f; /* a ghost's share of pixels kept */
 float pc_gameplay_walls_radius = 64; /* world units around Ashley's body */
+int pc_gameplay_walls_fade_out = 4; /* game frames to fade out */
+int pc_gameplay_walls_fade_in = 7; /* game frames to fade in */
+int pc_gameplay_walls_clear = 10; /* game frames clear before a group stops occluding */
 
 typedef struct {
     short m[3][3];
@@ -74,9 +78,6 @@ typedef struct {
 #define GRID_H 60
 #define CELL 4.0f
 #define NEAR_Z 16.0f
-#define OUT_FRAMES 4 /* frames to fade out */
-#define IN_FRAMES 7 /* frames to fade in */
-#define CLEAR_FRAMES 10 /* frames clear before a group stops occluding */
 #define COVER_CELLS 6 /* cells seen in front of the play area that make a group occlude */
 #define FRONT_MARGIN 96 /* world units nearer than the focus: in front of the play area */
 
@@ -410,7 +411,12 @@ int pc_gameplay_walls_frame(const void* data, unsigned facing, unsigned mode)
         }
     }
 
-    /* Decisions, hysteresis and fades. */
+    /* Decisions, hysteresis and fades (gameplay_walls_clear, _fade_in, _fade_out: at least a frame). */
+    unsigned short clear_frames = (unsigned short)(pc_gameplay_walls_clear < 1 ? 1
+            : pc_gameplay_walls_clear > 600                                 ? 600
+                                                                            : pc_gameplay_walls_clear);
+    int in_frames = pc_gameplay_walls_fade_in < 1 ? 1 : pc_gameplay_walls_fade_in;
+    int out_frames = pc_gameplay_walls_fade_out < 1 ? 1 : pc_gameplay_walls_fade_out;
     for (unsigned i = 0; i < count; i++) {
         group_state* g = &states[i];
         int now = (g->seen & 2) || g->cover_cells >= COVER_CELLS;
@@ -419,14 +425,14 @@ int pc_gameplay_walls_frame(const void* data, unsigned facing, unsigned mode)
         if (!g->candidate) {
             /* Kept by the game (or never drawn): solid once faded in. */
             g->occluding = 0;
-            g->clear = CLEAR_FRAMES;
+            g->clear = clear_frames;
         } else if (now) {
             g->occluding = 1;
             g->clear = 0;
         } else if (near_) {
             g->clear = 0;
-        } else if (g->clear < CLEAR_FRAMES && ++g->clear >= CLEAR_FRAMES) {
-            g->occluding = 0;
+        } else if (g->clear < clear_frames ? ++g->clear >= clear_frames : g->occluding) {
+            g->occluding = 0; /* (or the setting went below its count) */
         } else if (state_fresh) {
             g->occluding = 0;
         }
@@ -435,9 +441,9 @@ int pc_gameplay_walls_frame(const void* data, unsigned facing, unsigned mode)
         if (state_fresh)
             g->shown = g->previous = target;
         else if (g->shown < target)
-            g->shown = fminf(target, g->shown + 1.0f / IN_FRAMES);
+            g->shown = fminf(target, g->shown + 1.0f / in_frames);
         else
-            g->shown = fmaxf(target, g->shown - 1.0f / OUT_FRAMES);
+            g->shown = fmaxf(target, g->shown - 1.0f / out_frames);
     }
     state_fresh = 0;
     active_frame = 1;

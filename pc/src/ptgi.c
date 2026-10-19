@@ -1017,7 +1017,7 @@ static const char* trace_source = SHADER_COMMON
     "#define env_horizon env_[3]\n"
     "#define env_ground env_[4]\n" PC_GLSL_ENVIRONMENT
     /* The room's medium (atmosphere.h pc_medium_gpu; medium.glsl). */
-    "uniform vec4 medium_[166];\n"
+    "uniform vec4 medium_[167];\n"
     "#define MEDIUM(i) medium_[i]\n"
     "uniform sampler3D medium_tex;\n" /* atmosphere.h pc_medium_texture (gl_present.c pc_gl_medium_texture) */
     "#define MEDIUM_TEX medium_tex\n" PC_GLSL_MEDIUM

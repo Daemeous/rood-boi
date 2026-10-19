@@ -49,6 +49,16 @@ const char* const pc_button_prompts_style_names[PC_PROMPTS_STYLES] = { "solid", 
 float pc_button_prompts_scale = 0.7f;
 int pc_button_prompts_dpad = PC_PROMPTS_DPAD_DIM;
 const char* const pc_button_prompts_dpad_names[PC_PROMPTS_DPADS] = { "cross", "dim", "lit" };
+/* The icons' colours (button_prompts.h; settings button_prompts_color_<name>). */
+const unsigned pc_button_prompts_color_defaults[PC_PROMPTS_COLORS] = { 0xeeeee8, 0x40d8a8, 0xf06070, 0x80b0f0,
+    0xe098d8, 0x70c840, 0xf04840, 0x4890f0, 0xf8c830, 0x101014 };
+unsigned pc_button_prompts_colors[PC_PROMPTS_COLORS] = { 0xeeeee8, 0x40d8a8, 0xf06070, 0x80b0f0, 0xe098d8, 0x70c840,
+    0xf04840, 0x4890f0, 0xf8c830, 0x101014 };
+const char* const pc_button_prompts_color_names[PC_PROMPTS_COLORS] = { "neutral", "playstation_triangle",
+    "playstation_circle", "playstation_cross", "playstation_square", "xbox_a", "xbox_b", "xbox_x", "xbox_y", "dim" };
+float pc_button_prompts_dim_mix = 0.62f;
+static unsigned colors_generation;
+void pc_button_prompts_colors_changed(void) { ++colors_generation; }
 /* Bit k: the cross's arm k (up, left, right, down) has a usable action;
  * the RPC's stand-in (tests; -1: none). */
 static unsigned game_actions = 15;
@@ -122,17 +132,18 @@ unsigned pc_button_prompts_generation(void)
 {
     static unsigned generation = 1, last_bind;
     static int last_family = -1, last_variant, last_style = -1, last_dpad = -1, last_device = -1;
-    static unsigned last_actions = 15;
+    static unsigned last_actions = 15, last_colors;
     static float last_scale;
     int family = pc_button_prompts_family(), variant = variant_now();
     /* The shortcut cross's usable arms change its D-pad (modes dim, lit). */
     unsigned actions = pc_button_prompts_dpad == PC_PROMPTS_DPAD_CROSS ? last_actions : cross_actions;
     if (family != last_family || variant != last_variant || pc_bind_generation != last_bind
         || pc_button_prompts_style != last_style || scale_now() != last_scale || pc_button_prompts_dpad != last_dpad
-        || actions != last_actions || (!family && device != last_device)) { /* (original: Travel's icon) */
+        || actions != last_actions || (!family && device != last_device) /* (original: Travel's icon) */
+        || colors_generation != last_colors) {
         last_family = family, last_variant = variant, last_bind = pc_bind_generation, last_device = device;
         last_style = pc_button_prompts_style, last_scale = scale_now(), last_dpad = pc_button_prompts_dpad;
-        last_actions = actions;
+        last_actions = actions, last_colors = colors_generation;
         ++generation;
     }
     return generation;
@@ -494,30 +505,31 @@ static rgb hex(unsigned v) { return (rgb){ (v >> 16 & 255) / 255.0f, (v >> 8 & 2
  * other buttons and families neutral), else neutral. */
 static rgb ink_colour(int family, int element)
 {
-    rgb neutral = hex(0xeeeee8);
+    const unsigned* c = pc_button_prompts_colors;
+    rgb neutral = hex(c[PC_PROMPTS_COLOR_NEUTRAL]);
     if (!colour_style())
         return neutral;
     if (family == PC_PROMPTS_PLAYSTATION)
         switch (element) {
         case SDL_GAMEPAD_BUTTON_NORTH:
-            return hex(0x40d8a8);
+            return hex(c[PC_PROMPTS_COLOR_PS_TRIANGLE]);
         case SDL_GAMEPAD_BUTTON_EAST:
-            return hex(0xf06070);
+            return hex(c[PC_PROMPTS_COLOR_PS_CIRCLE]);
         case SDL_GAMEPAD_BUTTON_SOUTH:
-            return hex(0x80b0f0);
+            return hex(c[PC_PROMPTS_COLOR_PS_CROSS]);
         case SDL_GAMEPAD_BUTTON_WEST:
-            return hex(0xe098d8);
+            return hex(c[PC_PROMPTS_COLOR_PS_SQUARE]);
         }
     if (family == PC_PROMPTS_XBOX)
         switch (element) {
         case SDL_GAMEPAD_BUTTON_SOUTH:
-            return hex(0x70c840);
+            return hex(c[PC_PROMPTS_COLOR_XBOX_A]);
         case SDL_GAMEPAD_BUTTON_EAST:
-            return hex(0xf04840);
+            return hex(c[PC_PROMPTS_COLOR_XBOX_B]);
         case SDL_GAMEPAD_BUTTON_WEST:
-            return hex(0x4890f0);
+            return hex(c[PC_PROMPTS_COLOR_XBOX_X]);
         case SDL_GAMEPAD_BUTTON_NORTH:
-            return hex(0xf8c830);
+            return hex(c[PC_PROMPTS_COLOR_XBOX_Y]);
         }
     return neutral;
 }
@@ -650,7 +662,8 @@ int pc_button_prompts_render(const uint16_t* vram, unsigned tpage, unsigned clut
     uint16_t stp = opaque && stp_votes * 2 > opaque ? 0x8000 : 0;
     int element = family == PC_PROMPTS_KEYBOARD || r.context == DPAD ? -1 : pc_bind_pad[r.button];
     /* Sprites: the icon alone, no backing, in its colour (dim arms dimmer). */
-    rgb colour = ink_colour(family, element), edge = hex(0x101014), dim = mix(colour, edge, 0.62f);
+    rgb colour = ink_colour(family, element), edge = hex(pc_button_prompts_colors[PC_PROMPTS_COLOR_DIM]),
+        dim = mix(colour, edge, fminf(fmaxf(pc_button_prompts_dim_mix, 0.0f), 1.0f));
     int w = (u1 - u0 + 1) * factor, rows = (v1 - v0 + 1) * factor;
     for (int y = 0; y < rows; y++) {
         int gy = (v0 - r.cell_v) * factor + y;
@@ -773,6 +786,31 @@ int pc_button_prompts_setting(const char* key, const char* value)
             fprintf(stderr, "[settings] button_prompts_dpad: unknown value '%s' (cross, dim, lit)\n", name);
         return 1;
     }
+    if (!strncmp(key, "button_prompts_color_", 21)) { /* #rrggbb (or rrggbb, 0xrrggbb) */
+        unsigned v;
+        char extra[2];
+        const char* text = value + strspn(value, " \t");
+        text += *text == '#' ? 1 : text[0] == '0' && (text[1] == 'x' || text[1] == 'X') ? 2 : 0;
+        for (int k = 0; k < PC_PROMPTS_COLORS; k++)
+            if (!strcmp(key + 21, pc_button_prompts_color_names[k])) {
+                if (strspn(text, "0123456789abcdefABCDEF") == 6 && sscanf(text, "%6x %1s", &v, extra) == 1) {
+                    if (pc_button_prompts_colors[k] != v)
+                        pc_button_prompts_colors[k] = v, pc_button_prompts_colors_changed();
+                } else
+                    fprintf(stderr, "[settings] %s: '%s' is not a colour (#rrggbb)\n", key, value);
+                return 1;
+            }
+        return 0;
+    }
+    if (!strcmp(key, "button_prompts_dim_mix")) {
+        float k;
+        if (sscanf(value, "%f", &k) == 1 && k >= 0 && k <= 1) {
+            if (pc_button_prompts_dim_mix != k)
+                pc_button_prompts_dim_mix = k, pc_button_prompts_colors_changed();
+        } else
+            fprintf(stderr, "[settings] button_prompts_dim_mix: '%s' is not 0-1\n", value);
+        return 1;
+    }
     if (!strcmp(key, "button_prompts_scale")) {
         float k;
         if (sscanf(value, "%f", &k) == 1 && k >= 0.4f && k <= 1.0f)
@@ -791,6 +829,12 @@ void pc_button_prompts_settings_write(FILE* f)
     fprintf(f, "button_prompts_style %s\n", pc_button_prompts_style_names[pc_button_prompts_style]);
     fprintf(f, "button_prompts_scale %g\n", (double)scale_now());
     fprintf(f, "button_prompts_dpad %s\n", pc_button_prompts_dpad_names[pc_button_prompts_dpad]);
+    for (int k = 0; k < PC_PROMPTS_COLORS; k++) /* only when changed: the defaults may evolve */
+        if (pc_button_prompts_colors[k] != pc_button_prompts_color_defaults[k])
+            fprintf(f, "button_prompts_color_%s #%06x\n", pc_button_prompts_color_names[k],
+                pc_button_prompts_colors[k] & 0xffffffu);
+    if (pc_button_prompts_dim_mix != 0.62f)
+        fprintf(f, "button_prompts_dim_mix %g\n", (double)pc_button_prompts_dim_mix);
     pc_binding_settings_write(f);
 }
 
@@ -857,6 +901,15 @@ int pc_button_prompts_json(char* out, int size)
                 dpad ? "\"" : "", dpad ? dpad : "null", dpad ? "\"" : "", arms,
                 pc_button_prompts_style_names[pc_button_prompts_style], (double)scale_now(),
                 pc_button_prompts_dpad_names[pc_button_prompts_dpad], cross_actions);
+    }
+    /* "colors": {"neutral": "#eeeee8", ...}, "dim_mix". */
+    if (used > 0 && used < size) {
+        used--; /* the closing brace again after them */
+        for (int k = 0; k < PC_PROMPTS_COLORS && used < size; k++)
+            used += snprintf(out + used, (size_t)(size - used), "%s\"%s\":\"#%06x\"", k ? "," : ",\"colors\":{",
+                pc_button_prompts_color_names[k], pc_button_prompts_colors[k] & 0xffffffu);
+        if (used < size)
+            used += snprintf(out + used, (size_t)(size - used), "},\"dim_mix\":%g}", (double)pc_button_prompts_dim_mix);
     }
     return used;
 }

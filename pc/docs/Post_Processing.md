@@ -18,7 +18,9 @@ goes through:
 1. anti-aliasing (FXAA / SMAA; MSAA and supersampling are earlier and later),
 2. depth of field and tilt-shift (half-size bokeh layers and their composite: below),
 3. **the grade pass** (only when an effect in it is on):
-   1. sharpen (contrast-adaptive: never past the neighbours' range),
+   1. sharpen (contrast-adaptive: never past the neighbours' range;
+      `sharpen_gain`, 1.5, the gain on the difference from the neighbours'
+      mean),
    2. chromatic aberration (radial; red outward, blue inward; from a start
       offset),
    3. into linear light (the PS1's display-referred colours: a 2.2 power),
@@ -29,9 +31,12 @@ goes through:
    7. colour grading as Unreal's ColorCorrect: saturation, contrast, gamma,
       gain, offset, each per channel and master, global x shadows / midtones
       / highlights (blended by luminance, `shadows_max`, `highlights_min`),
-   8. vignette,
+   8. vignette (`vignette_gain`, 1.2: how fast it darkens toward the
+      corners for a given intensity),
    9. tone mapping: `none` (the original picture: the lit image's own soft
-      shoulder above 0.8, then a clamp), `aces` (the fitted RRT + ODT),
+      shoulder above `shoulder_start` 0.8 with `shoulder_width` 0.2 of
+      headroom, then a clamp; the present shaders bend lit pixels the same
+      way without the grade pass; keep start + width = 1 for a smooth curve), `aces` (the fitted RRT + ODT),
       `agx`, `filmic` (Hable), `reinhard` (extended, on luminance),
       `neutral` (Khronos PBR Neutral); `tonemap_white` maps to white,
    10. back to display encoding, the 3D LUT (`.cube`), film grain;
@@ -197,7 +202,9 @@ layer where the pixel's own blur is (its four half-size texels weighed by
 how close their blur is to the pixel's: no halo around a sharp
 silhouette), the foreground layer over it. 2D/UI pixels pass through
 untouched (and keep their mark for the grade pass). Tilt-shift's blur is
-background blur by screen position.
+background blur by screen position: none inside the band (`tilt_centre`,
+`tilt_width`), growing to `tilt_blur` over `tilt_feather` (0.25) of the
+picture's height past it.
 
 The kernel (`bokeh_samples` points of a golden-angle spiral, turned per
 pixel) is the aperture: round (`bokeh_blades 0`) or a polygon of 5 to 9

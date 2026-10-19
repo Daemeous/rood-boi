@@ -181,12 +181,20 @@ target_compile_options(fast_travel_probe PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(fast_travel_probe PRIVATE m)
 add_test(NAME fast_travel_probe COMMAND fast_travel_probe)
 # The native Score screen (MENU9): its list cursors, its numbers and the Bestiary's MON.BIN parse.
-foreach(probe score_nav score_format mon_parse)
+foreach(probe score_nav score_format mon_parse vs_encode options_nav)
     add_executable(${probe}_probe tests/${probe}_probe.c src/ui/${probe}.c)
     target_include_directories(${probe}_probe PRIVATE src/ui)
     target_compile_options(${probe}_probe PRIVATE -Wall -Wextra -Werror)
     add_test(NAME ${probe}_probe COMMAND ${probe}_probe)
 endforeach()
+# Round-trip against the real decoder; discard its unrelated rendering code.
+add_library(vs_encode_decoder OBJECT src/ui_text.c)
+target_include_directories(vs_encode_decoder PRIVATE src third_party/imgui)
+target_compile_options(vs_encode_decoder PRIVATE -ffunction-sections -fdata-sections)
+target_sources(vs_encode_probe PRIVATE $<TARGET_OBJECTS:vs_encode_decoder>)
+target_include_directories(vs_encode_probe PRIVATE src)
+target_link_options(vs_encode_probe PRIVATE -Wl,--gc-sections)
+target_link_libraries(vs_encode_probe PRIVATE m)
 
 # Exercise the actual packet decoder without running game code or opening a window.
 add_library(gpu_probe_runtime OBJECT src/boot_runtime.c)

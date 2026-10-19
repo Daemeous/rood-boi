@@ -147,6 +147,7 @@ typedef struct {
     /* The studio light's rig (ui/menu_light.h pc_menu_light_pack; scaled.frag studio_). */
     float studio[PC_MENU_LIGHT_VEC4S][4];
     int particles[4]; /* the particles (vk_particles.inc): on, the display's size in game pixels */
+    float look[4]; /* post.h pc_post_frame: the soft shoulder's start and width, tilt-shift's feather */
 } present_ubo;
 
 /* ---- swapchain ---- */
@@ -731,6 +732,7 @@ static void fill_present_ubo(present_ubo* u, int x, int y, int w, int h, int vie
     u->f0[2] = pf->aperture;
     u->tilt[0] = pf->tilt[0], u->tilt[1] = pf->tilt[1], u->tilt[2] = pf->tilt[2] * view_h / 720.0f;
     u->tilt[3] = pf->near_blur; /* scaled.frag: the share of the blur in front of the focal plane */
+    u->look[0] = pf->shoulder[0], u->look[1] = pf->shoulder[1], u->look[2] = pf->tilt_feather;
     memcpy(u->fog, pf->fog, sizeof u->fog);
     u->fog_range[0] = pf->fog_range[0], u->fog_range[1] = pf->fog_range[1];
     /* Lighting: world-space lights (every one: a storage buffer, binding

@@ -29,6 +29,9 @@ bool asset_from_json(const std::string& id, const prefab::Json& root, Asset& out
 /* Every asset of the directory, sorted by id (read once; reload_assets reads them again). */
 const std::vector<Asset>& assets();
 void reload_assets();
+/* The directory's files changed since they were read (their names, times and sizes; false before the first
+ * read): particles.cpp's poll then reloads them and resolves every emitter again. */
+bool assets_changed();
 const Asset* find_asset(const std::string& id);
 const std::string& assets_status(); /* "1 asset (pc/assets/emitters)", or the problems */
 } // namespace rood_particles

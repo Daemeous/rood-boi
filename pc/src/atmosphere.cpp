@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <stdint.h>
 #include <time.h>
+#include <sys/stat.h>
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -83,11 +84,15 @@ int pc_fog_volume_render = 1, pc_fog_volume_steps = 48, pc_fog_volume_steps_gl =
 float pc_fog_volume_resolution = 0.5f, pc_fog_volume_history = 0.06f, pc_fog_volume_ambient = 1, pc_fog_volume_glow = 0.6f,
       pc_fog_volume_scattering = 0.5f, pc_fog_volume_halo = 2.0f;
 int pc_fog_sim_budget = PC_FOG_SIM_MAX; /* settings fog_sim_budget */
+/* The fog's detail noise in motion (medium.glsl medium_detail_s; settings fog_detail_wind, fog_detail_rise,
+ * fog_flow_cycle): its drift as a multiple of the room's wind, its slow rise (noise periods per second: it
+ * evolves), and the flow map's cycle (seconds) along the interactive fog's flow. */
+float pc_fog_detail_wind = 1.3f, pc_fog_detail_rise = 0.01f, pc_fog_flow_cycle = 2.5f;
 static const char* const DISTURB_KEYS[4] = { "disturb_player", "disturb_actors", "disturb_attacks", "disturb_spells" };
 
 static_assert(PC_FOG_SIM_MAX == PC_MEDIUM_TEX_LAYERS, "atmosphere.h: a texture layer per simulated volume");
 static_assert(PC_FOG_SIM_GRID < PC_MEDIUM_TEX_SIZE, "atmosphere.h: a field fits a slice");
-static_assert(PC_MEDIUM_VEC4S == 166, "the shaders' medium_[] arrays");
+static_assert(PC_MEDIUM_VEC4S == 167, "the shaders' medium_[] arrays");
 namespace {
 const float DEG = 3.14159265f / 180.0f;
 
@@ -265,9 +270,16 @@ Preset preset_from_json(const std::string& id, const prefab::Json& j)
 /* The user's own presets (Save as prefab of a fog volume): one file each beside their light prefabs. */
 std::string user_presets_dir() { return prefab::library().user_dir + "/fog"; }
 long long user_presets_stamp = -1;
+long long presets_file_stamp = -1; /* the presets file's time and size as read */
+long long file_stamp(const std::string& path)
+{
+    struct stat st;
+    return stat(path.c_str(), &st) ? 0 : PC_MTIME_NS(st) * 31 + (long long)st.st_size;
+}
 void load_presets()
 {
     presets_loaded = true;
+    presets_file_stamp = file_stamp(presets_path());
     ++presets_serial;
     presets.clear();
     std::string text, error;
@@ -816,10 +828,13 @@ static void fog_preview(void)
 extern "C" int pc_medium_gpu_get(pc_medium_gpu* out, float haze_density, const float room_lo[3], const float room_hi[3])
 {
     memset(out, 0, sizeof *out);
+    float(*m)[4] = out->v;
+    m[PC_MEDIUM_FLOW][0] = pc_fog_detail_wind;
+    m[PC_MEDIUM_FLOW][1] = pc_fog_detail_rise;
+    m[PC_MEDIUM_FLOW][2] = fmaxf(pc_fog_flow_cycle, 0.05f);
     rood_lights::track_room();
     if (!pc_lights_enabled)
         return 0;
-    float(*m)[4] = out->v;
     bool fogs = pc_medium_has_fog() != 0;
     m[0][0] = haze_density > 0 ? haze_density : 0;
     m[0][1] = fminf(fmaxf(pc_fog_anisotropy, -0.9f), 0.9f);
@@ -1588,6 +1603,14 @@ void global_interaction_ui()
     }
     ImGui::SliderInt("Simulated volumes per room", &pc_fog_sim_budget, 0, PC_FOG_SIM_MAX);
     tooltip("Settings key fog_sim_budget: the first this many interactive volumes of a room simulate.");
+    ImGui::SliderFloat("Detail drift (x wind)", &pc_fog_detail_wind, 0, 4, "%.2f");
+    tooltip("Settings key fog_detail_wind: the fog's detail noise drifts this many times the room's wind\n"
+            "(ground fog and fog volumes alike).");
+    ImGui::SliderFloat("Detail rise", &pc_fog_detail_rise, 0, 0.1f, "%.3f");
+    tooltip("Settings key fog_detail_rise: how fast the detail noise evolves in place (noise periods per second).");
+    ImGui::SliderFloat("Flow cycle (s)", &pc_fog_flow_cycle, 0.5f, 10, "%.2f");
+    tooltip("Settings key fog_flow_cycle: the interactive fog carries its detail along its flow in cycles this\n"
+            "long, cross-faded (longer: wisps stretch further before they reset).");
     unsigned attacks, spells;
     rood_fog_sim::event_counts(&attacks, &spells);
     ImGui::TextDisabled("seen this session: %u attacks, %u spells", attacks, spells);
@@ -2215,6 +2238,17 @@ void rood_atmo::details_extra(int index)
 /* ---- RPC environment {fog, volumes, fog_time} (environment.cpp calls these) ---- */
 
 namespace {
+/* The presets read again (the file or yours changed on disk, or RPC presets_reload), and every volume of the
+ * room naming one resolved from them again: what its item writes stays, the rest follows its preset. */
+void presets_reload_live()
+{
+    std::vector<lighting::Item> items;
+    for (Volume& v : volumes)
+        items.push_back(item_of(v)); /* against the presets they were resolved from */
+    load_presets();
+    for (const lighting::Item& it : items)
+        rood_atmo::apply_item(it);
+}
 std::string jbool(bool b) { return b ? "true" : "false"; }
 std::string jvec(const float* v, int n)
 {
@@ -2314,6 +2348,10 @@ bool rpc(const prefab::Json& params)
     }
     if (const prefab::Json* b = params.get("sim_budget"))
         pc_fog_sim_budget = (int)b->number;
+    /* The detail noise's motion (settings fog_detail_wind, fog_detail_rise, fog_flow_cycle). */
+    read_num(params, "detail_wind", &pc_fog_detail_wind);
+    read_num(params, "detail_rise", &pc_fog_detail_rise);
+    read_num(params, "flow_cycle", &pc_fog_flow_cycle);
     /* The fog volumes' renderer (settings fog_volume_*; debug: 1 their light alone, 2 their transmittance). */
     if (const prefab::Json* fv = params.get("fog_volumes")) {
         float x;
@@ -2335,7 +2373,7 @@ bool rpc(const prefab::Json& params)
         read_num(*fv, "halo", &pc_fog_volume_halo);
     }
     if (params.get("presets_reload"))
-        load_presets();
+        presets_reload_live();
     /* A stamp (as the game's attacks and spells make; source "attack",
      * "spell" or "ghost": weight 1 everywhere). */
     if (const prefab::Json* st = params.get("stamp")) {
@@ -2534,9 +2572,23 @@ std::string json()
         + num(pc_fog_disturb[2], 2) + ",\"spells\":" + num(pc_fog_disturb[3], 2) + "},\"sim_budget\":"
         + std::to_string(pc_fog_sim_budget) + ",\"events\":{\"attacks\":" + std::to_string(attacks) + ",\"spells\":"
         + std::to_string(spells) + ",\"sources\":" + std::to_string(bodies) + ",\"phase\":" + std::to_string(phase)
-        + ",\"type\":" + std::to_string(type) + "},\"presets\":[" + names + "]";
+        + ",\"type\":" + std::to_string(type) + "},\"presets\":[" + names + "],\"presets_serial\":"
+        + std::to_string(presets_serial) + ",\"detail_wind\":" + num(pc_fog_detail_wind, 3) + ",\"detail_rise\":"
+        + num(pc_fog_detail_rise, 4) + ",\"flow_cycle\":" + num(pc_fog_flow_cycle, 3);
 }
 } // namespace rood_atmo
+
+/* The presets file (or your own presets) edited on disk takes effect live: read again, and every volume of the
+ * room naming a preset resolved from it again (what its item writes stays). Called about twice a second
+ * (dev_overlay.cpp, with the settings and room files); nothing before the presets were first needed. */
+extern "C" void pc_fog_presets_poll(void)
+{
+    if (!presets_loaded)
+        return;
+    if (file_stamp(presets_path()) != presets_file_stamp
+        || prefab::directory_stamp(user_presets_dir()) != user_presets_stamp)
+        presets_reload_live();
+}
 
 /* ---- fog presets for the library (environment_internal.h) ---- */
 

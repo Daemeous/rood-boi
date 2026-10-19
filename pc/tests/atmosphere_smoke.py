@@ -147,6 +147,20 @@ def main():
         game.call("environment", volumes=[{"id": "test0000000001", "remove": True}])
         gone = view(shot("volume-gone"))
         check((gone > 6).mean() < 0.001, f"removed: nothing left ({(gone > 6).mean() * 100:.2f} %)")
+        # The volumes' detail noise moves by data (settings fog_detail_wind, fog_detail_rise): with the fog's
+        # time frozen, its billows drifted by the room's wind sit elsewhere than with the drift off, and come
+        # back with it (time and wind put the default drift about half a noise period, 160 x 3.2 units, away).
+        game.call("environment", fog={"density": 0.00001, "noise": 0, "scale": 160, "wind": [60, 0, 0]}, fog_time=3.3,
+                  volumes=[dict(vol, id="test0000000003", detail=1)])
+        billows = view(shot("detail"))
+        game.call("settings", apply=["fog_detail_wind 0", "fog_detail_rise 0"])
+        still = view(shot("detail-still"))
+        game.call("settings", apply=["fog_detail_wind 1.3", "fog_detail_rise 0.01"])
+        again = view(shot("detail-again"))
+        moved, back = float(np.abs(still - billows).mean()), float(np.abs(again - billows).mean())
+        check(moved > 3 * back + 0.1, f"fog_detail_wind / _rise: a volume's billows move with them ({moved:.2f}), "
+                                      f"back at the defaults as before ({back:.2f})")
+        game.call("environment", remove_fog=True, fog_time=5, volumes=[{"id": "test0000000003", "remove": True}])
 
         # ---- settings: save, reload ----
         game.call("graphics", haze_debug=0)

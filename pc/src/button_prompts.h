@@ -57,6 +57,30 @@ extern float pc_button_prompts_scale;
 enum { PC_PROMPTS_DPAD_CROSS = 0, PC_PROMPTS_DPAD_DIM = 1, PC_PROMPTS_DPAD_LIT = 2, PC_PROMPTS_DPADS = 3 };
 extern int pc_button_prompts_dpad;
 extern const char* const pc_button_prompts_dpad_names[PC_PROMPTS_DPADS];
+/* The icons' colours (settings button_prompts_color_<name>, "#rrggbb"; saved
+ * only when changed): neutral (every button outside the colour styles, and
+ * the families and buttons without colours of their own), the PlayStation's
+ * four face buttons and the Xbox's, and dim, what a dimmed D-pad arm's colour
+ * mixes toward by button_prompts_dim_mix (0..1). 0xRRGGBB each. */
+enum {
+    PC_PROMPTS_COLOR_NEUTRAL,
+    PC_PROMPTS_COLOR_PS_TRIANGLE,
+    PC_PROMPTS_COLOR_PS_CIRCLE,
+    PC_PROMPTS_COLOR_PS_CROSS,
+    PC_PROMPTS_COLOR_PS_SQUARE,
+    PC_PROMPTS_COLOR_XBOX_A,
+    PC_PROMPTS_COLOR_XBOX_B,
+    PC_PROMPTS_COLOR_XBOX_X,
+    PC_PROMPTS_COLOR_XBOX_Y,
+    PC_PROMPTS_COLOR_DIM,
+    PC_PROMPTS_COLORS
+};
+extern unsigned pc_button_prompts_colors[PC_PROMPTS_COLORS];
+extern const unsigned pc_button_prompts_color_defaults[PC_PROMPTS_COLORS];
+extern const char* const pc_button_prompts_color_names[PC_PROMPTS_COLORS]; /* the keys' <name> */
+extern float pc_button_prompts_dim_mix;
+/* Call after changing a colour or the mix directly (the editor): the icons are drawn again. */
+void pc_button_prompts_colors_changed(void);
 /* The cross's arm `arm` (0 up, 1 left, 2 right, 3 down: BATTLE.PRG
  * func_800C9FE8's label order, ids 4..7) has a usable action this frame
  * (weapon_slots.c, as the game asks for each label). */
@@ -94,7 +118,8 @@ int pc_button_prompts_mask(const uint16_t* vram, unsigned tpage, unsigned clut, 
     int factor, int scale, unsigned char* mask);
 
 /* Settings lines (project_settings.cpp): 1 when `key` was ours
- * (button_prompts and the bind_key_* / bind_pad_* bindings). */
+ * (button_prompts*, button_prompts_color_*, the bind_key_* / bind_pad_*
+ * bindings). */
 int pc_button_prompts_setting(const char* key, const char* value);
 void pc_button_prompts_settings_write(FILE* f);
 /* JSON object (RPC button_prompts): mode, family, device, generation, the

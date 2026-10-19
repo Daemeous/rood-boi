@@ -1,0 +1,104 @@
+symbol	meaning	value_lifetime
+D_800F4538	Actor objects, one per actor slot (17): position, animation, model, movement (unk1848); NULL is an empty slot (the PC guards read PS1 address 0 there)	per-room (slots filled when actors spawn)
+vs_battle_actors	Battle actors by id (stats side): vs_battle_actor records (id, next, unk3C -> vs_battle_actor2 with HP/MP/equipment/statuses); [0] is Ashley; D_800F192C is [1]	per-room
+D_800F45E0	Map objects (16 slots: chests, crates, platforms, stacked objects); scanFloor and object stacking	per-room
+D_800F19CC	The action block: queued actions unk854[4] (current = unk0 & 3), targets, chain/defence timing window (battleAbilityTimer, battleAbilityTargetWindow, inputs); NULL outside battle mode	per-battle allocation; fields per-action
+vs_battle_roomData	The loaded room's MPD sections (header, geometry, doors, traps, texture effects)	per-room
+vs_scratch	Scratchpad block at 0x1F800000: GPU packet cursor (unk0) and OT pointers, view matrix, camera	per-frame
+_cameraMode	Action phase while D_800F196C == 2: 3 confirm, 4 camera zoom, 5 cast wait, 6 cast flash, 7 wind-down/timing window, 8 re-cast	per-action
+vs_main_actions	Action table (256): spells, arts, items; name, type, unlocked, hitParams, unk2_0 = has an effect	static (SLUS data)
+vs_gametime_tickspeed	Game-time tick speed (timers scale by it; set to 4 at an action's release)	per-frame
+D_800F569C	Current effect file (PFILE) parse target: points at D_800F57A0 or D_800F56C8 (func_800D7890)	per-effect
+D_800F58BC	Zone navigation record: bounds (minX..maxZ), gates (closedGates, registered), AI entity lists (unk1C, unk20)	per-room
+D_800F196C	vs_battle_exec's top-level mode (1..12; 2 = normal play, where actions run)	per-mode change
+D_800F5878	Enemy AI entities by actor (depth, height, dead, maxActionCost; actionStatusScore)	per-room
+vs_battle_characterState	The player character's actor record (weaponDrawn, equippedWeaponCategory)	per-session
+D_800EB9B8	HUD target display state (target shape, markers); declared 72 bytes in 573B8.c and 19212 in 58578.c/5BE50.c	per-battle (allocated)
+D_800F4C2C	Event script interpreter mode: 0 idle, 1 running, 2 run from the alternate table D_800F4C28 (inferred)	per-event
+vs_battle_cameraCurrentSpherical	Battle camera's current spherical position (values, speed, delta, initialDistance)	per-frame
+D_800F4BA4	Event camera state: eye, lookAt, near/far clip, projection distance, interpolation steps (inferred)	per-event
+vs_main_buttonsPressed	Pad buttons newly pressed this frame (main.c)	per-frame
+_zoneContext	Current zone (ZND): map id, MPD file and data, enemies, bounds; D_800F188C is its zndEnemies	per-zone
+vs_battle_textBoxes	Text box windows (8); 7 is the action name window	per-message
+vs_battle_wepModels	Weapon model slots (20)	per-room
+vs_main_stateFlags	Story and state flags (door entered, intro state, puzzle timer, text selection); saved with the game	static (save data)
+D_800F58B8	Zone table of 32 u16 per row, read by actor AI and movement (inferred)	per-zone
+D_800F58D0	Zone table of 32 u16 per row, read by navigation (inferred)	per-zone
+vs_main_frameBuf	Current frame buffer index (double buffering)	per-frame
+vs_main_soundData	Sound state: music slots and data, current SFX	static
+D_800F227E	HUD number/popup state in 2842C.c (func_80093AB4 family) (inferred)	per-popup
+D_800F1BAC	Ability timing result rows (32), drawn by vs_battle_renderBattleAbilityTimingResult	per-action
+D_800EB9BC	GIM image loader state (CD queue slot, flags); vs_battle_loadGim	per-load
+D_800F1868	Cast flash flags (bit 1: the flash is running; phase 6 waits for it to clear)	per-action
+D_800F1BA4	Room render flags read by the room drawing code (func_8008AC78 scene submit) (inferred)	per-room
+D_800F1DD4	Weather/sky effect record in 146C.c/2842C.c (func_8008E88C..) (inferred)	per-room
+D_800F1910	Door lock check state (keyOrSigil)	per-door
+D_800F1DD8	HUD element records in 2842C.c (status/number displays) (inferred)	per-battle
+D_800F1AB0	Door section of the room being entered (mpdId, flags)	per-room change
+D_800F5920	Enemy AI shared state (flag, unk16, unk17) (inferred)	per-room
+D_800EB9B4	SCREFF2 screen-effect loader state	per-effect
+D_800EB9D8	Name window text buffer (112 bytes, heap): allocated by vs_battle_displaySceneMessage, freed by func_800CB50C; NULL when closed	per-action
+D_800F531C	Effect loader state: 6 purge, 2 textures, 8 code, 3 data, 5 ready (func_800CE9B0)	per-effect
+D_800F568C	CD queue slot of the effect loader	per-effect
+D_800F4C34	Event script running (0 none; 1..4 its states); the charging skip is off while nonzero	per-event
+D_800F54B0	Effect instance record (D_800F53B8_t)	per-effect
+D_800F53B8	Effect request record list (D_800F53B8_t)	per-effect
+D_800F53C0	Effect request copy (0xE8 bytes) built by func_8007138C: partly uninitialised stack, a known noise source	per-action
+D_800F5230	Effect request target record (func_800CF0E8_t: effectId)	per-action
+D_800F18EC	Ability menu state; NULL until the menu first opens (the PC guard reads PS1 address 0)	per-session
+D_800F4E98	Shortcut/ability selection record (D_800F18EC_t)	per-menu
+vs_battle_stringContext	vs_battle_printf arguments (strings, integers)	per-message
+vs_battle_objectDataSlots	Object data load slots (16; dataType)	per-load
+_lastValue	Last stat value of the damage formulas (_calculateStatChange, _factorLastValue)	per-action
+vs_main_scoredata	Score data: kills, kill and chain streaks, heal count; saved with the game	static (save data)
+vs_main_settings	Game options (information, cursor memory, timing display, mapped chain/defence abilities); bitfields	static (save data)
+vs_main_inventory	Inventory (blades, grips, gems, armour, misc)	static (save data)
+vs_main_projectionDistance	GTE projection distance (H) in use	per-frame
+vs_main_nearClip	Camera near clip	per-frame
+_clutState	CLUT animation and background colour state	per-room
+_lootListHead	Head of the dropped-loot list	per-battle
+vs_battle_menuState	Battle menu state (current menu, return state, ability type)	per-menu
+vs_battle_menuItems	Battle menu items (heap)	per-menu
+vs_battle_screenTransitionStep	Screen transition (wipe) step	per-transition
+vs_battle_screenTransitionEffect	Screen transition effect id	per-transition
+vs_battle_screenTransitionSpeed	Screen transition speed	per-transition
+vs_battle_screenTransitionWipeAngle	Screen transition wipe angle	per-transition
+_firstPersonViewEnabled	First-person view on	per-mode
+vs_battle_doorEntered	Door id used to enter the room	per-room
+_evtFile	Current event file id	per-event
+_fontTable	Font table (an overlay-local name: TITLE has its own _fontTable; the build renames to _fontTable__battle)	static
+D_80050468	Game clock (hours, minutes, seconds, frames)	static (save data)
+vs_battle_cameraTransition	Battle camera transition record (from/to camera state, clips, projection)	per-transition
+_opcodeFunctionTable	Event script opcode handlers (256), native C function pointers (event_callbacks.inc rehomes the guest table)	static (const in practice)
+_hitFunctions	Hit formula dispatch (guest table rehomed by build_boot.py function_tables.c)	static
+_statCalculators	Stat calculator dispatch (rehomed guest table)	static
+_attackPrerequisiteFunctions	Attack prerequisite dispatch (rehomed guest table)	static
+_actionEffectMediators	Action effect mediator dispatch (rehomed guest table)	static
+D_800E85CC	2842C.c callback table (7), rehomed and verified against the overlay by build_boot.py	static
+D_800E85E8	2842C.c callback table (13), rehomed and verified	static
+D_800EC25C	GIM render callbacks (4), defined in C under ROOD_PC	static
+D_800EC3F4	Effect script opcode handlers (49)	static
+D_800EC324	Effect exec entry	static
+D_800F1760	AI movement dispatch table [3][4] (battle_movement.c, rehomed)	static
+D_800F1790	AI action dispatch table (battle_movement.c, rehomed)	static
+_gimLbas	Disc LBAs of the GIM files	static
+_menuLbas	Disc LBAs of the menu overlays	static
+randArr	RNG pool (97) of vs_main_getRand	static
+randIndex	RNG pool index	static
+pc_gte_anchored	Widescreen: >0 while a projection must not be narrowed (PC_GTE_UNNARROWED)	per-call (bracketed)
+pc_gte_widescreen	Widescreen on (PC setting)	host setting
+pc_qol_skip_charging	Charging skip setting	host setting
+pc_qol_skip_charging_who	Charging skip: also enemies	host setting
+pc_qol_skip_charging_hold_mine	Charging skip: shown hold for Ashley (s)	host setting
+pc_qol_skip_charging_hold_enemy	Charging skip: shown hold for enemies (s)	host setting
+pc_qol_skip_charging_name	Charging skip: name window time (s)	host setting
+pc_qol_fp_invert_y	First-person view: invert Y (PC setting)	host setting
+pc_charge_skip_kinds	Charging skip: action kinds mask (charge_skip.c)	host setting
+pc_charge_skip_pump	Charging skip: run the effect loader back to back (RPC)	host setting
+pc_charge_skip_pumped	Charging skip diagnostics counter	host diagnostics
+pc_room_checkpoint_requested	Rendering diagnostic request (runtime)	host diagnostics
+charge_skip_from	Charging skip state (pc/src/charge_skip.inc, compiled into 146C.c)	per-action
+charge_skip_from_set	Charging skip state (pc/src/charge_skip.inc, compiled into 146C.c)	per-action
+charge_skip_held	Charging skip state (pc/src/charge_skip.inc, compiled into 146C.c)	per-action
+charge_skip_held_at	Charging skip state (pc/src/charge_skip.inc, compiled into 146C.c)	per-action
+charge_skip_held_vsyncs	Charging skip state (pc/src/charge_skip.inc, compiled into 146C.c)	per-action

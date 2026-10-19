@@ -30,7 +30,7 @@ layout(std140, binding = 4) uniform Haze {
     vec4 previous_rotation[3]; // previous world -> view (rows), w: translation
     vec4 previous_projection; // hx, hh, ofx, ofy
     vec4 previous_range; // znear, log(zfar / znear)
-    vec4 medium_[166]; // the room's medium (medium.glsl, atmosphere.h)
+    vec4 medium_[167]; // the room's medium (medium.glsl, atmosphere.h)
 } h;
 #define MEDIUM(i) h.medium_[i]
 layout(binding = 11) uniform sampler3D medium_tex; // the medium's texture (atmosphere.h pc_medium_texture)

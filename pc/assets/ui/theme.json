@@ -10,7 +10,7 @@
     "tab": 15, "label": 11, "name": 19, "body": 14.5, "hint": 12,
     "margin_x": 56, "top": 34, "tab_height": 44, "row_height": 46, "rail_width": 448
   },
-  "motion": { "tab_slide": 0.24, "focus_grow": 0.16, "screen_fade": 0.2 },
+  "motion": { "tab_slide": 0.24, "focus_grow": 0.16 },
   "score": {
     "score_size": 40, "rank_size": 44, "row_h": 44, "visible_rows": 10, "page_rows": 8, "locked_alpha": 0.45,
     "title_size": 25, "name_size": 19, "number_size": 15, "section_size": 21, "help_size": 14, "value_size": 20,

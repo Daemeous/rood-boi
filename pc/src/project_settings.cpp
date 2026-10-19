@@ -40,12 +40,24 @@ extern int pc_fog_sim_budget;
 extern int pc_fog_volume_render, pc_fog_volume_steps, pc_fog_volume_steps_gl, pc_fog_volume_shadows; /* atmosphere.cpp */
 extern float pc_fog_volume_resolution, pc_fog_volume_history, pc_fog_volume_ambient, pc_fog_volume_glow,
     pc_fog_volume_scattering, pc_fog_volume_halo;
+extern float pc_fog_detail_wind, pc_fog_detail_rise, pc_fog_flow_cycle; /* atmosphere.cpp */
 extern int pc_dust, pc_particles_lights, pc_particles_glow_shadows, pc_particles_cpu_rays; /* particles.cpp */
 extern float pc_dust_low, pc_particles_glow;
 extern float pc_lights_snap_move, pc_lights_snap_angle;
 /* Gameplay options, read by the game side. qol_weapon_slots: the weapon
  * slots quick swap on L2 + R2 (weapon_slots.c, battle builds), off by default. */
 int pc_qol_weapon_slots;
+/* Its look and timing (weapon_slots.c): qol_weapon_slots_name_ticks, how long
+ * a swapped weapon's name stays up (game ticks); qol_weapon_slots_label<N>
+ * (N 0..7: 0..3 the button group, 4..7 the D-pad group) a label's text x, y
+ * and bullet x, y with the overlay slid in (PS1 pixels); qol_weapon_slots_hint
+ * the x, y of the line under the overlay (what Select does). */
+int pc_qol_weapon_slots_name_ticks = 150;
+int pc_qol_weapon_slots_label[8][4] = {
+    { 242, 99, 237, 101 }, { 214, 108, 213, 115 }, { 252, 111, 247, 113 }, { 223, 126, 223, 127 },
+    { 94, 99, 89, 101 }, { 71, 112, 70, 115 }, { 103, 117, 98, 113 }, { 81, 124, 80, 127 },
+};
+int pc_qol_weapon_slots_hint[2] = { 160, 142 };
 /* skip_intro: start at the title, without the publisher and developer logos
  * and the intro movie (boot_runtime.c); off by default (the original start). */
 int pc_skip_intro;
@@ -65,9 +77,15 @@ int pc_qol_map_controls;
  * qol_skip_charging_who 0 mine (Ashley's, default), 1 all (enemies' too).
  * qol_skip_charging_name: how long a skipped wind-up's name window stays up
  * at least, seconds (0..2, default 1; 0 closes it at the release, never
- * longer than the original's own 2 s). */
+ * longer than the original's own 2 s).
+ * qol_skip_charging_hold_mine / _hold_enemy: how much of a skipped wind-up's
+ * hold is shown first, paced, from the camera's arrival at the caster,
+ * seconds (0..1.5; never longer than the original's own hold): for Ashley's
+ * actions (default 0) and for the enemies' (default 0.35: a beat to see the
+ * spell or art coming, and not press into its release, charge_skip.inc). */
 int pc_qol_skip_charging, pc_qol_skip_charging_who;
 float pc_qol_skip_charging_name = 1.0f;
+float pc_qol_skip_charging_hold_mine = 0.0f, pc_qol_skip_charging_hold_enemy = 0.35f;
 /* qol_confirm_cross: Cross confirms and Circle cancels in menus and dialogs;
  * qol_field_cross_attack: in the field Cross draws the weapon and attacks,
  * Circle interacts and sheathes. Off by default; button_roles.c exchanges the
@@ -155,6 +173,7 @@ struct Entry {
 #define I(key, var) { key, &(var), nullptr, 1, nullptr }
 #define F(key, var) { key, nullptr, &(var), 1, nullptr }
 #define FN(key, var, n) { key, nullptr, var, n, nullptr }
+#define IN(key, var, n) { key, var, nullptr, n, nullptr }
 #define B(key, var) { key, nullptr, nullptr, 1, &(var) }
 const Entry entries[] = {
     I("filter", pc_gl_filter),
@@ -210,6 +229,10 @@ const Entry entries[] = {
     F("fog_volume_scattering", pc_fog_volume_scattering),
     F("fog_volume_halo", pc_fog_volume_halo),
     I("fog_volume_shadows", pc_fog_volume_shadows),
+    /* The fog's detail noise in motion (atmosphere.h): drift x the wind, rise per second, the flow map's cycle. */
+    F("fog_detail_wind", pc_fog_detail_wind),
+    F("fog_detail_rise", pc_fog_detail_rise),
+    F("fog_flow_cycle", pc_fog_flow_cycle),
     /* Particles (particles.h, pc/docs/Particles.md): Dust (0 off, 1 low, 2 high), Low's share, the glows'
      * light on them, sources per mote, glow shadows, OpenGL's shadow rays a frame. */
     I("dust", pc_dust),
@@ -222,6 +245,9 @@ const Entry entries[] = {
     I("gameplay_walls_ghost", pc_gameplay_walls_ghost),
     F("gameplay_walls_opacity", pc_gameplay_walls_opacity),
     F("gameplay_walls_radius", pc_gameplay_walls_radius),
+    I("gameplay_walls_fade_out", pc_gameplay_walls_fade_out), /* game frames */
+    I("gameplay_walls_fade_in", pc_gameplay_walls_fade_in),
+    I("gameplay_walls_clear", pc_gameplay_walls_clear),
     I("editor_hide_masks", pc_editor_hide_masks),
     I("editor_game_cutaway", pc_editor_game_cutaway),
     I("editor_cutaway", pc_editor_cutaway),
@@ -269,9 +295,21 @@ const Entry entries[] = {
     I("qol_field_cross_attack", pc_qol_field_cross_attack),
     /* Gameplay. */
     I("qol_weapon_slots", pc_qol_weapon_slots),
+    I("qol_weapon_slots_name_ticks", pc_qol_weapon_slots_name_ticks), /* game ticks */
+    IN("qol_weapon_slots_label0", pc_qol_weapon_slots_label[0], 4), /* text x y, bullet x y */
+    IN("qol_weapon_slots_label1", pc_qol_weapon_slots_label[1], 4),
+    IN("qol_weapon_slots_label2", pc_qol_weapon_slots_label[2], 4),
+    IN("qol_weapon_slots_label3", pc_qol_weapon_slots_label[3], 4),
+    IN("qol_weapon_slots_label4", pc_qol_weapon_slots_label[4], 4),
+    IN("qol_weapon_slots_label5", pc_qol_weapon_slots_label[5], 4),
+    IN("qol_weapon_slots_label6", pc_qol_weapon_slots_label[6], 4),
+    IN("qol_weapon_slots_label7", pc_qol_weapon_slots_label[7], 4),
+    IN("qol_weapon_slots_hint", pc_qol_weapon_slots_hint, 2),
     I("qol_skip_charging", pc_qol_skip_charging), /* 0 off, 1 skip (apply_line: older 2 is 1) */
     I("qol_skip_charging_who", pc_qol_skip_charging_who), /* 0 mine, 1 all */
     F("qol_skip_charging_name", pc_qol_skip_charging_name), /* seconds, 0..2 */
+    F("qol_skip_charging_hold_mine", pc_qol_skip_charging_hold_mine), /* seconds, 0..1.5 */
+    F("qol_skip_charging_hold_enemy", pc_qol_skip_charging_hold_enemy), /* seconds, 0..1.5 */
     I("qol_fast_travel", pc_qol_fast_travel),
     I("qol_fast_travel_cost", pc_qol_fast_travel_cost), /* 0 free, 1 flat, 2 scaled, 3 game */
     I("qol_fast_travel_flat", pc_qol_fast_travel_flat),
@@ -546,6 +584,13 @@ extern "C" void pc_settings_env_override_flag(const char* key)
         env_overrides[key].line.clear();
 }
 extern "C" void pc_settings_touched(const char* key) { env_overrides.erase(key); }
+/* RPC settings {get}: the key's line as pc_settings_write gives it now; 0 when it writes none. */
+extern "C" int pc_settings_line(const char* key, char* out, int size)
+{
+    std::string line = current_line(key);
+    snprintf(out, (size_t)size, "%s", line.c_str());
+    return !line.empty();
+}
 
 extern "C" const char* pc_settings_status(void) { return status; }
 extern "C" const char* pc_settings_path(void) { return path(); }

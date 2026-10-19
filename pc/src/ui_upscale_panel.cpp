@@ -122,6 +122,37 @@ extern "C" void pc_ui_upscale_panel(void)
             ImGui::SetTooltip("The L2 shortcut cross's D-pad. Whole D-pad: the family's D-pad in the prompt style.\n"
                               "Dim: the arms with no usable action beside them dimmed. Fill: the arms with one\n"
                               "filled (outline styles; solid styles dim the others' insides).");
+        if (ImGui::TreeNode("Prompt colours")) {
+            static const char* const labels[PC_PROMPTS_COLORS] = { "Neutral", "PlayStation triangle",
+                "PlayStation circle", "PlayStation cross", "PlayStation square", "Xbox A", "Xbox B", "Xbox X", "Xbox Y",
+                "Dimmed toward" };
+            for (int k = 0; k < PC_PROMPTS_COLORS; k++) {
+                unsigned v = pc_button_prompts_colors[k];
+                float c[3] = { (v >> 16 & 255) / 255.0f, (v >> 8 & 255) / 255.0f, (v & 255) / 255.0f };
+                if (ImGui::ColorEdit3(labels[k], c, ImGuiColorEditFlags_NoInputs)) {
+                    unsigned r = (unsigned)(c[0] * 255 + 0.5f), g = (unsigned)(c[1] * 255 + 0.5f),
+                             b = (unsigned)(c[2] * 255 + 0.5f);
+                    pc_button_prompts_colors[k] = r << 16 | g << 8 | b;
+                    pc_button_prompts_colors_changed();
+                }
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Settings button_prompts_color_%s (#rrggbb).%s", pc_button_prompts_color_names[k],
+                        k == PC_PROMPTS_COLOR_DIM ? "\nWhat a dimmed D-pad arm's colour mixes toward." : "");
+                if (k % 2 == 0 && k + 1 < PC_PROMPTS_COLORS)
+                    ImGui::SameLine(220);
+            }
+            if (ImGui::SliderFloat("Dim mix", &pc_button_prompts_dim_mix, 0.0f, 1.0f, "%.2f"))
+                pc_button_prompts_colors_changed();
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Settings button_prompts_dim_mix: how far a dimmed D-pad arm goes toward that colour.");
+            if (ImGui::SmallButton("Default colours")) {
+                for (int k = 0; k < PC_PROMPTS_COLORS; k++)
+                    pc_button_prompts_colors[k] = pc_button_prompts_color_defaults[k];
+                pc_button_prompts_dim_mix = 0.62f;
+                pc_button_prompts_colors_changed();
+            }
+            ImGui::TreePop();
+        }
     }
     bool subpixel = pc_ui_subpixel != 0;
     if (ImGui::Checkbox("Sub-pixel text placement", &subpixel))

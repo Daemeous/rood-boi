@@ -38,6 +38,7 @@ extern int pc_lights_enabled;    /* lights.cpp: dynamic lights (lighting key dyn
 extern int pc_qol_weapon_slots;  /* project_settings.cpp; weapon_slots.c */
 extern int pc_qol_skip_charging, pc_qol_skip_charging_who; /* project_settings.cpp; charge_skip.c */
 extern float pc_qol_skip_charging_name;                     /* project_settings.cpp; charge_skip.inc */
+extern float pc_qol_skip_charging_hold_mine, pc_qol_skip_charging_hold_enemy; /* project_settings.cpp; charge_skip.inc */
 extern int pc_skip_intro;        /* project_settings.cpp; boot_runtime.c */
 extern int pc_qol_map_invert, pc_qol_fp_invert_y; /* project_settings.cpp; MENU5, BATTLE func_8006EC7C */
 extern int pc_qol_map_controls;                   /* project_settings.cpp; map_pad.h */
@@ -605,6 +606,19 @@ void build()
         "0 closes it as the action starts; never longer than the original's 2 s.",
         &pc_qol_skip_charging_name, 0, 2, 0.1f, "%.1f s")
                     .grey([](const Row&) -> const char* { return pc_qol_skip_charging ? nullptr : "Needs Battle charging"; }));
+    p.push_back(fslider("qol_skip_charging_hold_mine", "Skipped charging: my wind-up",
+        "How much of Ashley's own charging still plays before the skip, in seconds, once the camera reaches her. "
+        "0 skips it all; never longer than the original's.",
+        &pc_qol_skip_charging_hold_mine, 0, 1.5f, 0.05f, "%.2f s")
+                    .grey([](const Row&) -> const char* { return pc_qol_skip_charging ? nullptr : "Needs Battle charging"; }));
+    p.push_back(fslider("qol_skip_charging_hold_enemy", "Skipped charging: enemy wind-up",
+        "How much of an enemy's charging still plays before the skip, in seconds, once the camera reaches it: a beat "
+        "to see the spell or art coming before it is released. Never longer than the original's.",
+        &pc_qol_skip_charging_hold_enemy, 0, 1.5f, 0.05f, "%.2f s")
+                    .grey([](const Row&) -> const char* {
+                        return !pc_qol_skip_charging ? "Needs Battle charging"
+                             : !pc_qol_skip_charging_who ? "Needs Skip whose charging: All" : nullptr;
+                    }));
     static const char* const travel_costs[] = {"Free", "Flat", "Scaled", "Game"};
     static const Why need_travel = [](const Row&) -> const char* {
         return pc_qol_fast_travel ? nullptr : "Needs Fast travel";

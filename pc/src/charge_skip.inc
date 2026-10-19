@@ -30,10 +30,41 @@
  * qol_skip_charging_name seconds, never longer than the original's own 120
  * ticks, and closed the game's way (func_800CB50C). Whether a vsync skips is
  * decided from the game's state every time (pc_charge_skip_state); only the
- * held window is kept between vsyncs. */
+ * held window and the hold's start are kept between vsyncs.
+ *
+ * A wind-up may show some of its hold first (qol_skip_charging_hold_mine for
+ * Ashley's actions, _hold_enemy for the others', seconds): phases 5 and 6 run
+ * as they are, shown and paced, for that long from phase 5's first vsync, and
+ * only then does Skip take out the rest. A hold the original ends sooner ends
+ * the original's way (it is the game's own code that runs). Why: the defence
+ * and chain input of an action (func_80078AB4) only runs in phase 7, from the
+ * release; a press there before the hit's window opens is "FAST!" or
+ * "TOO FAST!" and spends the action's one attempt. Off, the hold is seconds of
+ * warning; skipped outright, an enemy's release followed the camera's arrival
+ * at once, and a press meant for after its action (Circle for Ashley's own
+ * attack) landed in it. The timing itself counts from the release
+ * (battleAbilityTimer, zeroed by func_80070278) and only in phase 7, so the
+ * skipped vsyncs take nothing from it. */
 
 extern int pc_qol_skip_charging, pc_qol_skip_charging_who; /* project_settings.cpp */
+extern float pc_qol_skip_charging_hold_mine, pc_qol_skip_charging_hold_enemy;
 extern int pc_charge_skip_kinds;                           /* charge_skip.c */
+extern unsigned pc_vsync_count(void);                      /* boot_runtime.c */
+static int charge_skip_from_set; /* phase 5 has begun: its first vsync */
+static unsigned charge_skip_from;
+
+/* The hold shown before Skip applies, vsyncs (qol_skip_charging_hold_mine /
+ * _enemy: 0..1.5 s in the menus, by the caster; the tests' RPC goes past the
+ * originals' own holds, up to 10 s). */
+static int charge_skip_hold_vsyncs(int caster)
+{
+    float seconds = caster == 0 ? pc_qol_skip_charging_hold_mine : pc_qol_skip_charging_hold_enemy;
+    if (!(seconds > 0.0f))
+        return 0;
+    if (seconds > 10.0f)
+        seconds = 10.0f;
+    return (int)(seconds * 60.0f + 0.5f);
+}
 
 /* The kind of action `index` (RPC skip_charging kinds; func_8007138C's
  * ranges): 1 a spell (below 0x8D), 2 an enemy's art (0x8D..0xB7), 4 a Break
@@ -50,19 +81,29 @@ int pc_charge_skip_state(int* phase, int* skipping, int* actor, int* action)
 {
     D_800F19CC_t2* a;
     int caster;
-    if (D_800F196C != 2 || D_800F19CC == NULL || _cameraMode < 4 || _cameraMode > 6)
+    if (D_800F196C != 2 || D_800F19CC == NULL || _cameraMode < 4 || _cameraMode > 6) {
+        charge_skip_from_set = 0;
         return 0;
+    }
     a = &D_800F19CC->unk854[D_800F19CC->unk0 & 3];
-    if (a->actionIndex >= 256 || !vs_main_actions[a->actionIndex].unk2_0)
+    if (a->actionIndex >= 256 || !vs_main_actions[a->actionIndex].unk2_0) {
+        charge_skip_from_set = 0;
         return 0;
+    }
     caster = (u_char)a->unk4.unk0.targetActor;
+    /* The hold's first vsync (the camera arrived: phase 5). */
+    if (_cameraMode == 4)
+        charge_skip_from_set = 0;
+    else if (!charge_skip_from_set)
+        charge_skip_from_set = 1, charge_skip_from = pc_vsync_count();
     *phase = (int)_cameraMode;
     *actor = caster;
     *action = a->actionIndex;
     *skipping = pc_qol_skip_charging && (caster == 0 || pc_qol_skip_charging_who)
              && (pc_charge_skip_kinds & charge_skip_kind(a->actionIndex))
              && D_800F4C34 == 0 /* (not while an event script runs) */
-             && _cameraMode >= 5;
+             && _cameraMode >= 5
+             && pc_vsync_count() - charge_skip_from >= (unsigned)charge_skip_hold_vsyncs(caster);
     return 1;
 }
 
@@ -147,7 +188,6 @@ int pc_charge_skip(int phase)
 extern float pc_qol_skip_charging_name; /* project_settings.cpp */
 extern int* D_800EB9D8;
 extern char D_800F4E68;
-extern unsigned pc_vsync_count(void); /* boot_runtime.c */
 static int charge_skip_held;          /* the window is held */
 static unsigned charge_skip_held_at;  /* the vsync of the release */
 static int charge_skip_held_vsyncs;   /* how long it stays up from there */
@@ -165,6 +205,8 @@ int pc_charge_skip_hold(void)
      * its countdown (D_800F4E68, 120 ticks, 2 a game frame of 2 vsyncs while
      * casting: one a vsync; the skipped hold did not run it). */
     vsyncs = (int)(pc_qol_skip_charging_name * 60.0f + 0.5f);
+    /* (less the hold shown before the skip: qol_skip_charging_hold_*) */
+    vsyncs -= charge_skip_hold_vsyncs((u_char)D_800F19CC->unk854[D_800F19CC->unk0 & 3].unk4.unk0.targetActor);
     if (vsyncs > (u_char)D_800F4E68)
         vsyncs = (u_char)D_800F4E68;
     if (vsyncs <= 0)
@@ -269,4 +311,18 @@ int pc_charge_skip_trace(char* out, int size)
 int pc_charge_skip_window(void)
 {
     return D_800F19CC != NULL && D_800F196C == 2 ? (int)D_800F19CC->battleAbilityTargetWindow : 0;
+}
+/* The chain / defence input of the action under way (func_80078AB4), for the
+ * tests: out[0] its timer (battleAbilityTimer, ticks from the release), [1]
+ * the window (battleAbilityTargetWindow; 0 none yet), [2] whether the one
+ * attempt is spent, [3] its success (1 chain, 2 defence). 0: no action. */
+int pc_charge_skip_ability(int out[4])
+{
+    if (D_800F19CC == NULL || D_800F196C != 2)
+        return 0;
+    out[0] = D_800F19CC->battleAbilityTimer;
+    out[1] = D_800F19CC->battleAbilityTargetWindow;
+    out[2] = D_800F19CC->battleAbilityInputAttempted;
+    out[3] = D_800F19CC->battleAbilityInputSuccessful;
+    return 1;
 }

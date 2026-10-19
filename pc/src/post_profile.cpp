@@ -172,6 +172,9 @@ std::vector<Field>& fields()
     add({ "tilt_width", FLOAT, V1(0.12f), 0, 0.5f, "Lens|Tilt-shift", "Band half width", "", nullptr, nullptr, 0 });
     add({ "tilt_blur", FLOAT, V1(6), 0, 16, "Lens|Tilt-shift", "Tilt blur", "Pixels of a 720-line picture.", nullptr,
         nullptr, 0 });
+    add({ "tilt_feather", FLOAT, V1(0.25f), 0.01f, 1, "Lens|Tilt-shift", "Band feather",
+        "How gradually the blur grows past the band: the share of the picture's height it takes to reach Tilt blur.",
+        nullptr, nullptr, 0 });
     /* Exposure. */
     add({ "exposure_mode", ENUM, V1(0), 0, 1, "Lens|Exposure", "Metering mode",
         "Manual: exposure compensation only. Auto: the picture's mean brightness adapts toward mid grey within the range.",
@@ -216,6 +219,9 @@ std::vector<Field>& fields()
         "Distance from the centre (0..1 of the way to the corner) where fringes begin.", nullptr, nullptr, 0 });
     add({ "vignette", FLOAT, V1(0), 0, 1, "Lens|Image Effects", "Vignette intensity", "Darkens toward the corners.",
         nullptr, nullptr, 0 });
+    add({ "vignette_gain", FLOAT, V1(1.2f), 0.25f, 4, "Lens|Image Effects", "Vignette falloff",
+        "How fast the vignette darkens toward the corners for a given intensity (larger: darker, reaching further in).",
+        nullptr, nullptr, 0 });
     /* Depth fog (the older screen-space fog, by GTE depth). */
     add({ "depth_fog", BOOL, V1(0), 0, 1, "Rendering Features|Depth fog", "Depth fog",
         "A plain fog by view depth (the room's haze and ground fog are in the Atmosphere tab).", nullptr, nullptr, 0 });
@@ -228,6 +234,9 @@ std::vector<Field>& fields()
         nullptr, LOG });
     add({ "sharpen", FLOAT, V1(0), 0, 1, "Rendering Features|Sharpen", "Sharpen",
         "Contrast-adaptive sharpening of the 3D (never past the neighbours' range: no halos).", nullptr, nullptr, 0 });
+    add({ "sharpen_gain", FLOAT, V1(1.5f), 0.25f, 4, "Rendering Features|Sharpen", "Sharpen strength",
+        "How much detail Sharpen adds at a given amount (the gain on the difference from the neighbours' mean).",
+        nullptr, nullptr, 0 });
     /* White balance and colour grading. */
     add({ "temperature", FLOAT, V1(6500), 1500, 15000, "Color Grading|White Balance", "Temperature",
         "Kelvin of the light that should look white: lower values make the picture cooler (bluer).", nullptr, nullptr, 0 });
@@ -263,6 +272,11 @@ std::vector<Field>& fields()
         TONEMAP_NAMES, TONEMAP_LABELS, 0 });
     add({ "tonemap_white", FLOAT, V1(4), 1, 16, "Film|Tonemapper", "White point",
         "Linear brightness that maps to white.", nullptr, nullptr, LOG });
+    add({ "shoulder_start", FLOAT, V1(0.8f), 0.5f, 1, "Film|Tonemapper", "Soft shoulder start",
+        "The original picture's highlights (tonemapper None): above this brightness lit colours bend toward white\n"
+        "instead of clipping (1: a plain clip). Keep start + width = 1 for a smooth curve.", nullptr, nullptr, 0 });
+    add({ "shoulder_width", FLOAT, V1(0.2f), 0.01f, 0.5f, "Film|Tonemapper", "Soft shoulder width",
+        "How softly the shoulder rolls off (the headroom it compresses toward white).", nullptr, nullptr, 0 });
     add({ "grain", FLOAT, V1(0), 0, 1, "Film|Grain", "Grain intensity",
         "Film grain on the 3D: changes every game frame, stays put on interpolated frames and redraws.", nullptr, nullptr,
         0 });
@@ -1136,6 +1150,8 @@ extern "C" void pc_post_frame_get(pc_post_frame* out)
     f.near_blur = get(v, fp ? "dof_fp_near_blur" : "dof_near_blur");
     f.dof_near = (f.flags & 1) && f.near_blur > 0.001f;
     f.tilt[0] = get(v, "tilt_centre"), f.tilt[1] = get(v, "tilt_width"), f.tilt[2] = get(v, "tilt_blur") * tilt;
+    f.tilt_feather = fmaxf(get(v, "tilt_feather"), 1e-3f);
+    f.shoulder[0] = get(v, "shoulder_start"), f.shoulder[1] = fmaxf(get(v, "shoulder_width"), 1e-3f);
     for (int k = 0; k < 3; k++)
         f.fog[k] = get(v, "depth_fog_color", k);
     f.fog[3] = get(v, "depth_fog_amount") * fog;
@@ -1389,6 +1405,8 @@ extern "C" void pc_post_gpu_pack(pc_post_gpu* out, int lit_w, int lit_h, int vie
     g[27][3] = g[0][2] > 0 ? 1.0f : 0.0f;
     g[28][0] = frame.fade;
     memcpy(g[29], frame.fade_rect, sizeof g[29]);
+    g[30][0] = get(v, "sharpen_gain"), g[30][1] = get(v, "vignette_gain");
+    g[30][2] = frame.shoulder[0], g[30][3] = frame.shoulder[1];
 }
 
 /* ------------------------------------------------------------ the convolution kernel */

@@ -662,6 +662,20 @@ static void graphics_panel()
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip("World units around Ashley's body (and the battle target) that a wall must\n"
                                       "keep clear of to be drawn.");
+                ImGui::SetNextItemWidth(120);
+                ImGui::SliderInt("Fade out (frames)##walls", &pc_gameplay_walls_fade_out, 1, 30);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Settings gameplay_walls_fade_out: game frames a wall takes to fade out\n"
+                                      "when it gets in the way.");
+                ImGui::SetNextItemWidth(120);
+                ImGui::SliderInt("Fade in (frames)##walls", &pc_gameplay_walls_fade_in, 1, 30);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Settings gameplay_walls_fade_in: game frames a wall takes to come back.");
+                ImGui::SetNextItemWidth(120);
+                ImGui::SliderInt("Clear before back (frames)##walls", &pc_gameplay_walls_clear, 1, 60);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Settings gameplay_walls_clear: game frames a wall must stay clear of a\n"
+                                      "slightly wider region before it stops counting as in the way (no flicker).");
             }
         }
         bool native = pc_native_room != 0;
@@ -770,6 +784,8 @@ void pc_settings_save(void);
 void pc_settings_poll(void);
 const char* pc_settings_status(void);
 void pc_lights_poll(void);
+void pc_particles_assets_poll(void); /* particles.cpp */
+void pc_fog_presets_poll(void); /* atmosphere.cpp */
 void pc_lighting_file_menu(void);
 }
 #include "room_warp.h"
@@ -884,9 +900,12 @@ static void button_roles_panel()
 }
 
 extern "C" int pc_qol_weapon_slots; /* project_settings.cpp; weapon_slots.c */
+/* project_settings.cpp: the weapon slots' name time and their labels' and hint's places (weapon_slots.c). */
+extern "C" int pc_qol_weapon_slots_name_ticks, pc_qol_weapon_slots_label[8][4], pc_qol_weapon_slots_hint[2];
 extern "C" int pc_skip_intro;       /* project_settings.cpp; boot_runtime.c */
 extern "C" int pc_qol_skip_charging, pc_qol_skip_charging_who; /* project_settings.cpp; charge_skip.c */
 extern "C" float pc_qol_skip_charging_name;                     /* project_settings.cpp; charge_skip.inc */
+extern "C" float pc_qol_skip_charging_hold_mine, pc_qol_skip_charging_hold_enemy; /* project_settings.cpp; charge_skip.inc */
 /* Graphics > Gameplay: optional gameplay changes, all off by default. */
 static void gameplay_panel()
 {
@@ -899,6 +918,25 @@ static void gameplay_panel()
                           "Select: assign mode (the next slot button stores the equipped weapon there);\n"
                           "Start: the equipped shield into every one-handed slot; R2 + Select: store / remove.\n"
                           "Slots are saved in the same bytes as the mod, so memory cards stay interchangeable.");
+    if (pc_qol_weapon_slots && ImGui::TreeNode("Weapon slots: look")) {
+        ImGui::SliderInt("Name shown (ticks)", &pc_qol_weapon_slots_name_ticks, 1, 600);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Settings qol_weapon_slots_name_ticks: how long a swapped weapon's name stays in the\n"
+                              "information bar, in game ticks (60 a second; 150: about 2.5 s).");
+        static const char* const names[8] = { "Circle label", "Triangle label", "Square label", "Cross label",
+            "Up label", "Left label", "Right label", "Down label" };
+        for (int i = 0; i < 8; i++) {
+            ImGui::DragInt4(names[i], pc_qol_weapon_slots_label[i], 0.25f, 0, 320);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Settings qol_weapon_slots_label%d: the label's text x, y and its bullet's x, y\n"
+                                  "(PS1 pixels, the overlay slid in).",
+                    i);
+        }
+        ImGui::DragInt2("Hint line", pc_qol_weapon_slots_hint, 0.25f, 0, 320);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Settings qol_weapon_slots_hint: x, y of the line under the overlay (what Select does).");
+        ImGui::TreePop();
+    }
     ImGui::Combo("Battle charging", &pc_qol_skip_charging, "Off\0Skip\0");
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Settings qol_skip_charging. Skips the hold of a spell's, an item's or a Break Art's wind-up\n"
@@ -914,6 +952,18 @@ static void gameplay_panel()
         ImGui::SetTooltip("Settings qol_skip_charging_name: the action's name window (Information option on) stays\n"
                           "up past a skipped wind-up's release until it has been shown this long, never longer than\n"
                           "the original's 2 s. 0 closes it at the release.");
+    ImGui::BeginDisabled(!pc_qol_skip_charging);
+    ImGui::SliderFloat("Skipped charging: my wind-up", &pc_qol_skip_charging_hold_mine, 0.0f, 1.5f, "%.2f s");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("Settings qol_skip_charging_hold_mine: how much of Ashley's own wind-up hold still plays,\n"
+                          "shown and at normal speed, from the camera's arrival before the skip takes the rest.\n"
+                          "0 skips it all; never longer than the original's own hold.");
+    ImGui::SliderFloat("Skipped charging: enemy wind-up", &pc_qol_skip_charging_hold_enemy, 0.0f, 1.5f, "%.2f s");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("Settings qol_skip_charging_hold_enemy: the same for the enemies' spells and arts\n"
+                          "(Skip whose charging: All). A beat to see the action coming before its release, where a\n"
+                          "defence press counts (too early: FAST! / TOO FAST!). Never longer than the original's.");
+    ImGui::EndDisabled();
     bool skip = pc_skip_intro != 0;
     if (ImGui::Checkbox("Skip intro (from the next start)", &skip))
         pc_skip_intro = skip;
@@ -1998,6 +2048,8 @@ extern "C" void pc_overlay_frame(int width, int height)
         last_poll = t;
         pc_settings_poll();
         pc_lights_poll();
+        pc_particles_assets_poll(); /* emitter assets (pc/assets/emitters) */
+        pc_fog_presets_poll(); /* fog presets (pc/assets/environment/fog_presets.json, yours) */
     }
 #ifdef ROOD_VULKAN
     if (pc_vk_on())

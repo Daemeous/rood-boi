@@ -39,8 +39,11 @@
  * y z the interior's edge (smoothstep of the cells' bilinear floor share; haze_interior_edge), w the room's
  * lowest floor (world y, y down: the largest height of the cells with a floor) */
 #define PC_MEDIUM_AIR (PC_MEDIUM_DETAIL + 1)
-/* 166 (the shaders' medium_[] arrays have this size) */
-#define PC_MEDIUM_VEC4S (PC_MEDIUM_AIR + 1)
+/* 166: the detail noise's motion: x its drift as a multiple of the wind (settings fog_detail_wind), y its rise
+ * in noise periods per second (fog_detail_rise), z the flow map's cycle in seconds (fog_flow_cycle) */
+#define PC_MEDIUM_FLOW (PC_MEDIUM_AIR + 1)
+/* 167 (the shaders' medium_[] arrays have this size) */
+#define PC_MEDIUM_VEC4S (PC_MEDIUM_FLOW + 1)
 
 /* The medium's texture, one RGBA8 3D texture every pass that samples the
  * medium binds (medium.glsl MEDIUM_TEX): PC_MEDIUM_TEX_SIZE x
@@ -113,6 +116,10 @@ int pc_fogvol_gpu_get(pc_medium_gpu* medium, pc_fogvol_gpu* out, pc_fogvol_info*
 extern int pc_fog_volume_render, pc_fog_volume_steps, pc_fog_volume_steps_gl, pc_fog_volume_debug, pc_fog_volume_shadows;
 extern float pc_fog_volume_resolution, pc_fog_volume_history, pc_fog_volume_ambient, pc_fog_volume_glow,
     pc_fog_volume_scattering, pc_fog_volume_halo;
+/* The fog's detail noise in motion (record PC_MEDIUM_FLOW; settings fog_detail_wind, fog_detail_rise,
+ * fog_flow_cycle; RPC environment {detail_wind, detail_rise, flow_cycle}): its drift as a multiple of the
+ * room's wind (1.3), its rise in noise periods per second (0.01), the flow map's cycle in seconds (2.5). */
+extern float pc_fog_detail_wind, pc_fog_detail_rise, pc_fog_flow_cycle;
 /* The glows this frame for the fog volumes' lights (ptgi.c: updated once a
  * present): position + radius of influence, colour + emitting radius, a
  * column's half axis + radius (0: a sphere). Returns their count. */

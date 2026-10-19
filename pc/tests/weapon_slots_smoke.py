@@ -15,10 +15,12 @@ one) in the save room, then:
   - R2 + Select puts the equipped weapon into slot 1 and the equipped shield's
     slot bits get bit 0 (bytes at the mod's offsets: weapons[i].gems[3],
     shields[i].gems[3])
+  - its labels' places are settings: label 0 moved (qol_weapon_slots_label0)
+    leaves its place, back at the default it is there again
   - a weapon given slot 2 in RAM (as the mod writes it) is equipped by
     L2 + R2 + Triangle: inventory flags, Ashley's battle record (weapon and
     shield) and the model category follow; slot 2 has no shield, so the
-    shield comes off
+    shield comes off; its name stays up qol_weapon_slots_name_ticks (40 here)
   - assign mode (Select, then Square) moves the equipped weapon to slot 3
   - Circle (slot 1) swaps back: the weapon and its shield again
   - Start writes the equipped shield into every occupied one-handed slot
@@ -39,6 +41,8 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
+import numpy as np  # noqa: E402
+from PIL import Image  # noqa: E402
 from rood_rpc import OUT, symbols  # noqa: E402
 from menu_nav import DATA_COMMAND, top_command  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
@@ -181,10 +185,29 @@ def main():
         # Slot 2 as the mod writes it, then L2 + R2 + Triangle.
         other = next(i for i in one_handed if i != start) if len(one_handed) > 1 else both[0]
         game.write(inventory + other * WEAPON + SLOT_BYTE, bytes([2]))
-        overlay(settle=25, hold=60)
+        overlay(settle=25, hold=90)
         w = ws()
         shot("overlay")
         check(w["overlay"] == 1 and w["field_mode"] == 6, f"on: L2 + R2 shows the weapon slots (mode {w['field_mode']})")
+        # Its labels' places are settings (qol_weapon_slots_label<N>): label 0 (slot 2's name) moved 20 PS1
+        # pixels down leaves its place; back at the default it is there again.
+        def label_box(name):
+            path = game.present_screenshot(out / f"{name}.png")
+            image = np.asarray(Image.open(path).convert("L"), np.float32)
+            k = image.shape[1] / 320.0  # window pixels per PS1 pixel (4:3)
+            return image[int(97 * k):int(109 * k), int(240 * k):int(300 * k)]
+        a = label_box("label-default")
+        game.call("settings", apply="qol_weapon_slots_label0 242 119 237 121")
+        game.run(6)
+        b = label_box("label-moved")
+        game.call("settings", apply="qol_weapon_slots_label0 242 99 237 101")
+        game.run(6)
+        c = label_box("label-back")
+        moved, back = float(np.abs(b - a).mean()), float(np.abs(c - a).mean())
+        check(moved > 4 * back + 1, f"qol_weapon_slots_label0: the label leaves its place when moved "
+                                    f"(difference {moved:.1f}), back at the default ({back:.1f})")
+        game.run(30)
+        ws(name_ticks=40)  # the next swap's name: 40 ticks, not 150
         game.call("input", buttons=["triangle"], vsyncs=3)
         w = wait_swap()
         check(w["equipped"] == other and w["actor_weapon"] == weapons[other][0]
@@ -193,6 +216,10 @@ def main():
               f"(equipped {w['equipped']}, record {w['actor_weapon']}, category {w['actor_category']})")
         check(w["actor_shield"] == 0 and not any(s["equipped"] for s in w["shields"]),
               f"slot 2 has no shield: the shield came off (record {w['actor_shield']})")
+
+        check(0 <= w["msg"] <= 40 and w["name_ticks"] == 40,
+              f"qol_weapon_slots_name_ticks 40: the name's time left after the swap is {w['msg']} ticks (<= 40)")
+        ws(name_ticks=150)
 
         # Assign mode: Select, then Square (slot 3): the weapon moves.
         overlay("select", hold=60)

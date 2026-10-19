@@ -169,7 +169,7 @@ bool theme_parse(const char* text, Theme& t, std::string* error)
         {"rail_width", &t.rail_width, 0, 2000},
     };
     const Num times[] = {
-        {"tab_slide", &t.tab_slide, 0, 5}, {"focus_grow", &t.focus_grow, 0, 5}, {"screen_fade", &t.screen_fade, 0, 5}};
+        {"tab_slide", &t.tab_slide, 0, 5}, {"focus_grow", &t.focus_grow, 0, 5}};
     struct Group { const char* name; const Num* nums; size_t count; const char* expected; };
     const Group groups[] = {{"sizes", nums, sizeof nums / sizeof nums[0], "a number"},
         {"motion", times, sizeof times / sizeof times[0], "seconds"}};

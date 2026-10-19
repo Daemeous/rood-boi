@@ -91,8 +91,11 @@ void pc_weapon_slots_set(int slot, int weapon_index, int shield_index);
 void pc_weapon_slots_clear(int slot);
 
 extern int pc_qol_weapon_slots; /* project_settings.cpp */
+/* project_settings.cpp: qol_weapon_slots_name_ticks (how long the weapon name
+ * stays up, game ticks), qol_weapon_slots_label<N> (text x, y, bullet x, y),
+ * qol_weapon_slots_hint (x, y). */
+extern int pc_qol_weapon_slots_name_ticks, pc_qol_weapon_slots_label[8][4], pc_qol_weapon_slots_hint[2];
 
-#define MSG_TICKS 150 /* how long the weapon name stays up (game ticks) */
 #define SHEATHE_TIMEOUT 90
 #define FIELD_MENU_CLOSED(m) (((m) & 0x3F) == 0x3F)
 /* A field menu (ITEMS, the main menu, ...) is open (post_profile.cpp: no depth of field in menus). */
@@ -101,15 +104,13 @@ int pc_battle_field_menu_open(void) { return !FIELD_MENU_CLOSED(vs_battle_menuSt
 extern int _firstPersonViewEnabled;
 int pc_battle_first_person(void) { return _firstPersonViewEnabled != 0; }
 
-/* Per overlay label id (0..3 the button group, 4..7 the D-pad group): text x,
- * y, bullet x, y, width budget in characters (6 px each), slot. Positions with
- * the overlay fully slid in; the button group moves with +step, the D-pad
- * group with -step. Odd ids are right-aligned (the text ends at x). */
-static const u_char labels[8][6] = {
-    { 242, 99, 237, 101, 12, 2 }, { 214, 108, 213, 115, 17, 3 },
-    { 252, 111, 247, 113, 10, 1 }, { 223, 126, 223, 127, 19, 4 },
-    { 94, 99, 89, 101, 21, 5 }, { 71, 112, 70, 115, 11, 8 },
-    { 103, 117, 98, 113, 17, 7 }, { 81, 124, 80, 127, 12, 6 },
+/* Per overlay label id (0..3 the button group, 4..7 the D-pad group): width
+ * budget in characters (6 px each), slot. Its text x, y and bullet x, y are
+ * settings (pc_qol_weapon_slots_label), with the overlay fully slid in; the
+ * button group moves with +step, the D-pad group with -step. Odd ids are
+ * right-aligned (the text ends at x). */
+static const u_char labels[8][2] = {
+    { 12, 2 }, { 17, 3 }, { 10, 1 }, { 19, 4 }, { 21, 5 }, { 11, 8 }, { 17, 7 }, { 12, 6 },
 };
 /* Slot 1..8 -> bit of the button words: Circle, Triangle, Square, Cross, Up,
  * Down, Right, Left. */
@@ -443,6 +444,7 @@ void pc_button_prompts_cross_action(int arm, int usable);
 int pc_weapon_slots_label(int id)
 {
     const u_char* t;
+    const int* xy;
     vs_main_inventoryWeapon* w;
     int step;
 
@@ -453,19 +455,21 @@ int pc_weapon_slots_label(int id)
         return sprite;
     }
     t = labels[id];
-    w = in_slot(t[5]);
+    xy = pc_qol_weapon_slots_label[id];
+    w = in_slot(t[1]);
     if (id >= 4)
         pc_button_prompts_cross_action(id - 4, w != NULL);
     step = (u_char)vs_battle_rowAnimationSteps[D_800EBCE8];
     if (id >= 4)
         step = -step;
-    func_800C9F98(((t[2] + step) & 0xFFFF) | (t[3] << 16), w ? 0x180 : 0x140);
+    func_800C9F98(((xy[2] + step) & 0xFFFF) | (xy[3] << 16), w ? 0x180 : 0x140);
     if (w) { /* an empty slot shows the bullet only */
-        draw_small((const u_char*)w->name, ((t[0] + step) & 0xFFFF) | (t[1] << 16), t[4],
+        draw_small((const u_char*)w->name, ((xy[0] + step) & 0xFFFF) | (xy[1] << 16), t[0],
             ((id & 1) * 6) | (palettes[s.assign * 2 + (w->isEquipped & 1)] << 3));
     }
     if (id == 4 && D_800EBCE8 == 0) /* the line under the overlay: what Select does */
-        draw_small(hints[s.assign], 160 | (142 << 16), 30, 3 | (palettes[4 + s.assign] << 3));
+        draw_small(hints[s.assign], (pc_qol_weapon_slots_hint[0] & 0xFFFF) | (pc_qol_weapon_slots_hint[1] << 16), 30,
+            3 | (palettes[4 + s.assign] << 3));
     return 0;
 }
 
@@ -559,7 +563,7 @@ static int swap_step(void)
         if (box->state == 0 || s.msg) {
             vs_battle_initInformationTextBox(informationTextBoxHeaderNone);
             vs_battle_setTextBox(7, s.target->name);
-            s.msg = MSG_TICKS;
+            s.msg = pc_qol_weapon_slots_name_ticks > 0 ? pc_qol_weapon_slots_name_ticks : 1;
         }
     }
     s.loading = 0;
@@ -674,6 +678,12 @@ void pc_weapon_slots_json(char* out, unsigned size)
         vs_main_inventoryShield* shield = &vs_main_inventory.shields[i];
         p += sprintf(p, "%s{\"id\":%d,\"equipped\":%d,\"slots\":%d}", i ? "," : "", shield->base.id,
             shield->isEquipped != 0, SHIELD_SLOTS(shield));
+    }
+    p += sprintf(p, "],\"name_ticks\":%d,\"msg\":%d,\"hint\":[%d,%d],\"labels\":[", pc_qol_weapon_slots_name_ticks,
+        s.msg, pc_qol_weapon_slots_hint[0], pc_qol_weapon_slots_hint[1]);
+    for (i = 0; i < 8; ++i) {
+        const int* xy = pc_qol_weapon_slots_label[i];
+        p += sprintf(p, "%s[%d,%d,%d,%d]", i ? "," : "", xy[0], xy[1], xy[2], xy[3]);
     }
     p += sprintf(p, "]");
     /* What Ashley's battle record has on (the equip routines' result): the

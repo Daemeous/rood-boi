@@ -21,6 +21,7 @@ int pc_dust; // particles.cpp: dust motes (0 off)
 int pc_qol_map_invert, pc_qol_fp_invert_y, pc_qol_map_controls, pc_qol_skip_charging, pc_qol_skip_charging_who;
 int pc_qol_confirm_cross, pc_qol_field_cross_attack;
 float pc_qol_skip_charging_name = 1.0f;
+float pc_qol_skip_charging_hold_mine = 0.0f, pc_qol_skip_charging_hold_enemy = 0.35f;
 int pc_qol_fast_travel = 1, pc_qol_fast_travel_cost, pc_qol_fast_travel_flat = 15, pc_qol_fast_travel_prompt = 1,
     pc_qol_fast_travel_prompt_anchor = 2;
 float pc_qol_fast_travel_scale = 0.5f, pc_qol_fast_travel_prompt_offset_x = -0.025f,

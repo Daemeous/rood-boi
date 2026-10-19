@@ -34,7 +34,9 @@ plus what a library lists (`kind: "emitter"`, `name`, `category`, `icon`,
 **Reload assets** (Details > Atmosphere > Particle renderer, RPC `particles
 {reload_assets}`) reads the assets again and resolves every emitter of the
 room again: what its item writes stays, the rest follows the (edited)
-asset, and the room is not left with unsaved edits. An emitter whose asset
+asset, and the room is not left with unsaved edits. The same happens on
+its own when the asset files change on disk (an edit in a text editor or a
+script): the directory is polled about twice a second. An emitter whose asset
 is missing (or fails to parse) keeps exactly the fields its item writes
 (the rest are the defaults until the asset loads), so saving it loses
 nothing and a later reload makes it follow the asset.

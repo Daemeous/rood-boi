@@ -178,6 +178,7 @@ static const char* scaled_fragment_source =
     "uniform float aperture;\n" /* blur growth away from the focal plane */
     "uniform float near_blur;\n" /* the share of it in front of the focal plane */
     "uniform vec3 tilt;\n" /* band centre (0..1 from top), half width, radius */
+    "uniform vec3 look;\n" /* post.h pc_post_frame: the soft shoulder's start and width, tilt-shift's feather */
     "uniform vec4 fog;\n" /* rgb colour, a = density */
     "uniform vec2 fog_range;\n" /* SZ where fog starts and saturates */
     /* The modern menu's model view (backdrop_frame below): 2D pixels show the held picture of the world
@@ -254,7 +255,7 @@ static const char* scaled_fragment_source =
     /* The room's medium (atmosphere.h pc_medium_gpu; medium.glsl): the haze,
      * the ground fog, the fog volumes (haze Low marches it; the traced haze's
      * transmittance). */
-    "uniform vec4 medium_[166];\n"
+    "uniform vec4 medium_[167];\n"
     "#define MEDIUM(i) medium_[i]\n"
     "uniform sampler3D medium_tex;\n" /* atmosphere.h pc_medium_texture (pc_gl_medium_texture) */
     "#define MEDIUM_TEX medium_tex\n" PC_GLSL_MEDIUM PC_GLSL_MENU_STUDIO
@@ -580,7 +581,7 @@ static const char* scaled_fragment_source =
     "            vec3 p = vec3(s.x * z / projection.x, s.y * z / projection.y, z);\n"
     "            c = menu_studio(texelFetch(albedo_tex, q, 0).rgb, smooth_normal(q, normalize(n.xyz * 2.0 - 1.0), z), p);\n"
     "            if (em_px) c = max(c, em);\n"
-    "            else if ((post & 8) == 0) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c));\n"
+    "            else if ((post & 8) == 0) c = mix(c, 1.0 - look.y * exp(-(c - look.x) / look.y), step(look.x, c));\n"
     "            if (any(isnan(c)) || any(isinf(c))) c = base(uv);\n"
     "            lit_done = haze_done = fogvol_done = particles_done = true;\n"
     "        }\n"
@@ -661,8 +662,8 @@ static const char* scaled_fragment_source =
     "                c = low_haze(c, world);\n"
     "                haze_done = true;\n"
     "            }\n"
-    /* Soft shoulder above 0.8 instead of clipping at white (lit pixels only). */
-    "            if ((post & 8) == 0 && !em_px) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c));\n"
+    /* Soft shoulder above 0.8 (post shoulder_start, _width) instead of clipping at white (lit pixels only). */
+    "            if ((post & 8) == 0 && !em_px) c = mix(c, 1.0 - look.y * exp(-(c - look.x) / look.y), step(look.x, c));\n"
     "            if (any(isnan(c)) || any(isinf(c))) c = base(uv);\n" /* never a black hole */
     "        }\n"
     "    }\n"
@@ -702,7 +703,7 @@ static const char* scaled_fragment_source =
     "        if (coc < 0.0) coc *= near_blur;\n"
     "    }\n"
     "    if ((post & 2) != 0) {\n"
-    "        float t = tilt.z * smoothstep(tilt.y, tilt.y + 0.25, abs(uv.y - tilt.x));\n"
+    "        float t = tilt.z * smoothstep(tilt.y, tilt.y + look.z, abs(uv.y - tilt.x));\n"
     "        coc = abs(coc) >= t ? coc : t;\n"
     "    }\n"
     "    color = vec4(over ? max(c, vec3(0.0)) : min(c, vec3(1.0)), coc);\n"
@@ -955,7 +956,7 @@ typedef struct {
     int w, h;
 } view_target;
 static view_target chain[2], smaa_edges, smaa_weights;
-static GLint u_scaled_show_depth, u_scaled_depth, u_post, u_focus, u_dof_radius, u_tilt, u_fog, u_fog_range;
+static GLint u_scaled_show_depth, u_scaled_depth, u_post, u_focus, u_dof_radius, u_tilt, u_look, u_fog, u_fog_range;
 static GLint u_backdrop_tex, u_backdrop_color, u_backdrop_mode, u_menu_studio_on, u_menu_studio_rig;
 /* Post effects: this present's resolved profile (post.h, post_profile.cpp). */
 static pc_post_frame post_frame;
@@ -1143,6 +1144,7 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     u_fxaa_image = gl_GetUniformLocation(fxaa_program, "image");
     u_fxaa_texel = gl_GetUniformLocation(fxaa_program, "texel");
     u_tilt = gl_GetUniformLocation(scaled_program, "tilt");
+    u_look = gl_GetUniformLocation(scaled_program, "look");
     u_fog = gl_GetUniformLocation(scaled_program, "fog");
     u_fog_range = gl_GetUniformLocation(scaled_program, "fog_range");
     u_backdrop_tex = gl_GetUniformLocation(scaled_program, "backdrop_tex");
@@ -1839,6 +1841,7 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
             gl_Uniform1f(u_aperture, pf->aperture);
             gl_Uniform1f(u_near_blur, pf->near_blur);
             gl_Uniform3f(u_tilt, pf->tilt[0], pf->tilt[1], pf->tilt[2] * lit_h / 720.0f);
+            gl_Uniform3f(u_look, pf->shoulder[0], pf->shoulder[1], pf->tilt_feather);
             gl_Uniform4f(u_fog, pf->fog[0], pf->fog[1], pf->fog[2], pf->fog[3]);
             gl_Uniform2f(u_fog_range, pf->fog_range[0], pf->fog_range[1]);
             backdrop_bind(); /* the menu's model view: the world behind it (above) */

@@ -17,7 +17,7 @@ layout(std140, binding = 0) uniform FogvolMarch {
     vec4 projection; // hx, hh, ofx, ofy
     vec4 inverse_rotation[3]; // view -> world (columns)
     vec4 camera_translation;
-    vec4 medium_[166];
+    vec4 medium_[167];
     vec4 fogvol_[179];
 } u;
 #define MEDIUM(i) u.medium_[i]

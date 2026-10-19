@@ -285,7 +285,8 @@ int func_800A190C(int arg0, int arg1, SVECTOR* arg2, int arg3)
     if (arg1 == 0xFD) {
 #ifdef ROOD_PC
         /* An empty slot: the PS1 reads physical address 0 (as 0xFA below). */
-        *arg2 = (D_800F4538[arg0] != NULL ? D_800F4538[arg0] : (D_800F4538_t*)0x80000000)->unk0.position;
+        *arg2 = (D_800F4538[arg0] != NULL ? D_800F4538[arg0] : (D_800F4538_t*)0x80000000)
+                    ->unk0.position;
 #else
         *arg2 = D_800F4538[arg0]->unk0.position;
 #endif

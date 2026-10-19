@@ -42,7 +42,7 @@ layout(std140, binding = 0) uniform Present {
     vec4 env_sun_tile;
     // The room's medium for the unshadowed haze (haze Low; quality0.x 1):
     // the uniform haze, the ground fog, the fog volumes (medium.glsl).
-    vec4 medium_[166];
+    vec4 medium_[167];
     // The fog volumes' own renderer (vk_fogvol.inc): its image's size, on, the debug view (1 their
     // light alone, 2 their transmittance); its pixels per display pixel.
     ivec4 fogvol;
@@ -53,6 +53,7 @@ layout(std140, binding = 0) uniform Present {
     ivec4 backdrop; // y: the model view's studio light (menu_studio.glsl)
     vec4 studio_[9]; // its rig (ui/menu_light.h pc_menu_light_pack: PC_MENU_LIGHT_VEC4S)
     ivec4 particles_; // the particles (vk_particles.inc): on, the display's size in game pixels
+    vec4 look_; // post.h pc_post_frame: the soft shoulder's start and width, tilt-shift's feather
 } u;
 layout(binding = 20) uniform sampler2D backdrop_tex;
 layout(binding = 21) uniform usampler2D particle_keys; // the particles' key image (particles.glsl)
@@ -123,6 +124,8 @@ layout(binding = 15) uniform sampler2D probe_data;
 #define fog_density u.f1.y
 #define normal_smoothing u.f1.w
 #define tilt u.tilt_.xyz
+#define shoulder u.look_.xy
+#define tilt_feather u.look_.z
 #define fog u.fog_
 #define fog_range u.fog_range_.xy
 #define room_lo u.room_lo_.xyz
@@ -446,7 +449,7 @@ void main() {
             vec3 p = vec3(s.x * z / projection.x, s.y * z / projection.y, z);
             c = menu_studio(texelFetch(albedo_tex, q, 0).rgb, smooth_normal(q, normalize(n.xyz * 2.0 - 1.0), z), p);
             if (em_px) c = max(c, em);
-            else if ((post & 8) == 0) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c));
+            else if ((post & 8) == 0) c = mix(c, 1.0 - shoulder.y * exp(-(c - shoulder.x) / shoulder.y), step(shoulder.x, c));
             if (any(isnan(c)) || any(isinf(c))) c = base(uv);
             lit_done = haze_done = fogvol_done = particles_done = true;
         }
@@ -522,8 +525,8 @@ void main() {
             if (void_px) { c = void_haze(c, q, d, reach); haze_done = true; } // the void: clean darkness, as on the PS1
             else if (u.haze_grid.w != 0) { c = hazed(c, q, d); haze_done = true; }
             else if (u.quality0.x > 0.0) { c = low_haze(c, world); haze_done = true; }
-            // Soft shoulder above 0.8 instead of clipping at white (lit pixels only).
-            if ((post & 8) == 0 && !em_px) c = mix(c, 1.0 - 0.2 * exp(-(c - 0.8) / 0.2), step(0.8, c)); // 8: HDR out
+            // Soft shoulder above 0.8 (post shoulder_start, _width) instead of clipping at white (lit pixels only).
+            if ((post & 8) == 0 && !em_px) c = mix(c, 1.0 - shoulder.y * exp(-(c - shoulder.x) / shoulder.y), step(shoulder.x, c)); // 8: HDR out
             if (any(isnan(c)) || any(isinf(c))) c = base(uv);
         }
     }
@@ -567,7 +570,7 @@ void main() {
         if (coc < 0.0) coc *= u.tilt_.w; // the share in front of the focal plane (post.h near_blur)
     }
     if ((post & 2) != 0) {
-        float t = tilt.z * smoothstep(tilt.y, tilt.y + 0.25, abs(uv.y - tilt.x));
+        float t = tilt.z * smoothstep(tilt.y, tilt.y + tilt_feather, abs(uv.y - tilt.x));
         coc = abs(coc) >= t ? coc : t;
     }
     color = vec4(over ? max(c, vec3(0.0)) : min(c, vec3(1.0)), coc);

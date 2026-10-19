@@ -13,6 +13,7 @@ namespace rood_particles {
 namespace {
 std::vector<Asset> loaded;
 bool loaded_once;
+long long loaded_stamp; /* the directory's stamp as read (prefab::directory_stamp) */
 std::string status;
 
 /* Where each JSON value goes: group (a top-level object, or a module under "modules"), key, lighting field. */
@@ -140,6 +141,7 @@ void reload_assets()
     loaded.clear();
     status.clear();
     std::string dir = assets_dir(), problems;
+    loaded_stamp = prefab::directory_stamp(dir);
     DIR* d = opendir(dir.c_str());
     if (!d) {
         status = "no emitter assets (" + dir + ")";
@@ -166,6 +168,7 @@ void reload_assets()
     if (!problems.empty())
         fprintf(stderr, "[particles] %s\n", problems.c_str());
 }
+bool assets_changed() { return loaded_once && prefab::directory_stamp(assets_dir()) != loaded_stamp; }
 const std::vector<Asset>& assets()
 {
     if (!loaded_once)

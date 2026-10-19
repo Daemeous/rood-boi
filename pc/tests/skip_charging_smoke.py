@@ -53,7 +53,26 @@ the same spells with the same names shown, their holds skipped and not
 presented, their camera moves presented, and every enemy action on Ashley
 opens the defence window as off. (Their order may differ
 over longer runs: the enemies' own timing counts the vsyncs their wind-ups
-took.) --out keeps the logs."""
+took.)
+
+The holds shown first (qol_skip_charging_hold_mine / _enemy): "skip" runs
+them at 0 (all skipped: the checks above are today's behaviour); a third
+paced run, "hold", shows HOLD_MINE of Ashley's holds and the default
+HOLD_ENEMY of the enemies' (who: all), and checks per action that phases 5
+and 6 are presented for exactly that many vsyncs from the camera's arrival,
+paced (their wall time), the rest skipped and hidden, and the outcome,
+release view, name text, flags, score, clean state and heap off's (the name
+window held past the release for the setting's time less the hold shown);
+the Cure Root with the Information option off runs with HOLD_CLAMP (3 s, RPC only),
+longer than its original hold: it runs as off's, all presented, none
+skipped. The casters' room runs paced with the default enemy hold too (each
+enemy hold presented that long). Then the defence input around an enemy's
+action (zone 48 room 10, a defence ability on Circle, unpaced): off and with
+the default enemy hold, Circle is pressed PRESS_DELAY vsyncs after each enemy
+release; each press is judged the same (its timer from the release, the
+window then, its result: before the hit's window it is FAST!, the game's
+func_800958A4 label), and every enemy action's window (its tick from the
+release, battleAbilityTargetWindow) is off's. --out keeps the logs."""
 import argparse
 import os
 import pathlib
@@ -98,7 +117,13 @@ HOLD_MAX = 32  # vsyncs of _cameraMode 5 and 6 a skipped wind-up may run
 # later actions start a little apart (the menus' loading waits take what they take, and the actors move
 # meanwhile), so the move may differ by a few game frames (the Break Art's: 12 vsyncs, off 8).
 MOVE_SLACK = 8
-MODES = ("off", "skip")
+MODES = ("off", "skip", "hold")
+HOLD_MINE = 0.5  # qol_skip_charging_hold_mine in the "hold" run (seconds)
+HOLD_ENEMY = 0.35  # qol_skip_charging_hold_enemy: the default
+HOLD_CLAMP = 3.0  # the hold for the Cure Root with Information off: longer than its original (136 vsyncs; RPC only, past the setting's 1.5 s)
+PRESS_DELAY = 2  # vsyncs from an enemy's release to the Circle press
+PRESS_RUN = 7200  # vsyncs the press runs get (unpaced)
+PACE_SLACK = 0.9  # a shown hold's wall time at least this share of its vsyncs' (paced)
 ACTIONS = {"spell": "Solid Shock", "item": "the Cure Root", "art": "the Break Art",
            "quiet": "the Cure Root (Information off)"}
 
@@ -130,6 +155,10 @@ class Run:
 
     def __init__(self, mode, snap, card, env, out, socket, fast=False):
         self.mode = mode
+        self.setting = "off" if mode.endswith("off") else "skip"
+        # (the holds shown first: none in "skip", today's behaviour)
+        self.holds = {"hold_mine": HOLD_MINE if "hold" in mode else 0.0,
+                      "hold_enemy": HOLD_ENEMY if "hold" in mode else 0.0}
         self.g = Game.launch(card=str(card), log=out / f"{mode}.log", extra_env=env, socket_path=socket,
                              snapshot=snap, fast=fast)
         self.sym = symbols()
@@ -223,7 +252,7 @@ class Run:
     def prepare(self):
         g, sym = self.g, self.sym
         g.call("ui_menu", modern=True)
-        g.call("skip_charging", mode=self.mode, who="mine", pin=PIN, name=NAME_SECONDS)
+        g.call("skip_charging", mode=self.setting, who="mine", pin=PIN, name=NAME_SECONDS, **self.holds)
         self.information(True)
         a = sym["vs_main_actions"] + SOLID_SHOCK * ACTION + ACTION_UNLOCKED
         g.write(a, bytes([g.read(a, 1)[0] | 0x80]))
@@ -261,6 +290,38 @@ class Run:
 
     def ab(self):
         return self.ui().get("abilities") or {}
+
+    def press_after_releases(self, total):
+        """Run `total` vsyncs; PRESS_DELAY vsyncs after each enemy's release (its _cameraMode 7), Circle.
+        Returns skip_charging's counters (presses: each chain / defence attempt)."""
+        g, v, releases = self.g, 0, 0
+        while v < total:
+            g.run(2)
+            v += 2
+            if self.u8("D_800F196C") != 2 or self.camera_mode() not in (4, 5, 6):
+                continue
+            st = g.call("skip_charging")  # (a wind-up: an enemy's spell or art)
+            if not st["charging"] or st["actor"] in (0, -1):
+                continue
+            for _ in range(600):  # vsync by vsync to the release
+                g.run(1)
+                v += 1
+                if self.u8("D_800F196C") != 2 or self.camera_mode() not in (4, 5, 6):
+                    break
+            if self.u8("D_800F196C") == 2 and self.camera_mode() == 7:
+                g.run(PRESS_DELAY)
+                g.call("input", buttons=["circle"], vsyncs=3)
+                g.run(3)
+                v += PRESS_DELAY + 3
+                releases += 1
+            for _ in range(900):  # to the action's end
+                if self.u8("D_800F196C") != 2:
+                    break
+                g.run(2)
+                v += 2
+        stats = g.call("skip_charging")
+        stats["releases"] = releases
+        return stats
 
     def shell_close(self):
         g = self.g
@@ -447,8 +508,11 @@ def main():
             art = r.act("the Break Art")
             art["id"], art["cost"] = art_id, art_cost
             art["name"] = r.action_name(art_id)
-            # Another Cure Root, the Information option off: no name window.
+            # Another Cure Root, the Information option off: no name window. (Held: a hold longer
+            # than its original's, which runs as off's.)
             r.information(False)
+            if mode == "hold":
+                r.g.call("skip_charging", hold_mine=HOLD_CLAMP)
             r.shell("items")
             for _ in range(8):
                 if r.ui().get("items", {}).get("category") == "misc":
@@ -463,6 +527,7 @@ def main():
             quiet = r.act("Cure Root, Information off")
             quiet["name"] = None
             r.information(True)
+            r.g.call("skip_charging", **r.holds)
             # The enemies' actions skipped too from here (who: all).
             r.g.call("skip_charging", who="all")
             # The battle runs on: the enemies act.
@@ -475,7 +540,7 @@ def main():
         finally:
             r.close()
 
-    off, skip = results["off"], results["skip"]
+    off, skip, held = results["off"], results["skip"], results["hold"]
     for mode in MODES:
         x = results[mode]
         for name in ACTIONS:
@@ -539,6 +604,49 @@ def main():
             check(all(c[k] == v for k, v in idle.items()) and c["tickspeed"] == o["clean"]["tickspeed"],
                   f"{mode}: clean after {what}: {c}")
         check(s["heap"] == o["heap"], f"skip: free heap after {what} {s['heap']} (off {o['heap']})")
+    # The holds shown first ("hold": Ashley's HOLD_MINE, the quiet Cure Root's HOLD_CLAMP).
+    for name, what in ACTIONS.items():
+        o, h = off[name], held[name]
+        so, sh = o["stats"], h["stats"]
+        want = round((HOLD_CLAMP if name == "quiet" else HOLD_MINE) * 60)
+        original = sum(so["phases"][1:])  # off's hold, vsyncs
+        shown = sum(sh["phases_presented"][1:])
+        hold = sum(sh["phases"][1:])
+        ms = sum(sh["phases_ms"][1:])
+        print(f"  hold {name:5}: {sh['vsyncs']} wind-up vsyncs (phases {sh['phases']}, presented "
+              f"{sh['phases_presented']}, ms {sh['phases_ms']}), {sh['skipped']} skipped; off's hold {original}; "
+              f"name window {sh['name']}" + chr(10) + f"      trace {sh['trace']}")
+        check(sh["sequences"] == 1 and abs(sh["phases"][0] - so["phases"][0]) <= MOVE_SLACK
+              and sh["phases_presented"][0] == sh["phases"][0],
+              f"hold: {what}'s camera move runs as off's: {sh['phases'][0]} vsyncs (off {so['phases'][0]}), presented")
+        if original > want:
+            # (the rest: the hold's own skip, then the magic circle's fade, cued once it has built:
+            # phase 6 runs as off's, hidden)
+            check(abs(shown - want) <= 1 and sh["skipped"] == hold - shown
+                  and 0 < sh["skipped"] <= HOLD_MAX + so["phases"][2] and hold - shown - sh["phases"][2] <= HOLD_MAX,
+                  f"hold: {what}'s hold shown for {shown} vsyncs ({want} set; off's {original}), then the rest "
+                  f"skipped: {sh['skipped']} vsyncs, hidden ({sh['phases'][2]} of them the circle's fade, off "
+                  f"{so['phases'][2]})")
+        else:
+            check(sh["skipped"] == 0 and shown == hold and abs(hold - original) <= MOVE_SLACK,
+                  f"hold: {what}'s hold set longer ({want} vsyncs) than its original ({original}): it runs as off's, "
+                  f"{hold} vsyncs, {shown} presented, {sh['skipped']} skipped")
+        check(ms >= PACE_SLACK * shown * FIELD_MS,
+              f"hold: {what}'s shown hold is paced: {ms:.0f} ms for {shown} vsyncs ({shown * FIELD_MS:.0f} ms)")
+        if o["name"] is not None:
+            n, after = sh["name"], round(NAME_SECONDS * 60) - min(want, original)
+            end = sh["release_vsyncs"]
+            check(sh["name"]["names"] == so["name"]["names"] and n["held"] == 1 and n["up"] == 0
+                  and (after - NAME_SLACK <= n["after"] <= after + NAME_SLACK or abs(n["after"] - end) <= 2 * NAME_SLACK),
+                  f"hold: {what}'s name window off's ({so['name']['names']}), held past the release {n['after']} "
+                  f"vsyncs ({NAME_SECONDS} s less the {want} shown = {after}), closed after")
+        check(sh["releases"] == 1 and same_view(sh["release"], so["release"]),
+              f"hold: the view and the caster's facing at {what}'s release are off's: {sh['release']} (off {so['release']})")
+        check(h["before"] == o["before"] and h["after"] == o["after"] and h["flags"] == o["flags"]
+              and h["score"] == o["score"] and h["heap"] == o["heap"]
+              and all(h["clean"][k] == o["clean"][k] for k in o["clean"]),
+              f"hold: {what}'s outcome is off's (every actor before and after, the flags, score, clean state, heap)")
+    check(held["item"]["roots"] == off["item"]["roots"], f"hold: Cure Roots {held['item']['roots']} (off {off['item']['roots']})")
     _, before, after = None, off["spell"]["before"], off["spell"]["after"]
     # (MP regenerates over the action and the walk back: up to one point a second or so.)
     check(before[0][1] - off["cost"] <= after[0][1] <= before[0][1] - off["cost"] + 15,
@@ -554,8 +662,8 @@ def main():
     check(after[0][0] == before[0][0] - off["art"]["cost"] and skip["art"]["id"] == off["art"]["id"],
           f"off: the Break Art {off['art']['id']} cost its HP: {before[0][0]} -> {after[0][0]} "
           f"(cost {off['art']['cost']})")
-    lo, ls = off["later"], skip["later"]
-    for mode, x in (("off", lo), ("skip", ls)):
+    lo, ls, lh = off["later"], skip["later"], held["later"]
+    for mode, x in (("off", lo), ("skip", ls), ("hold", lh)):
         print(f"  {mode:4} later: {x['stats']['sequences']} wind-ups (the last by actor {x['stats']['actor']}, "
               f"action {x['stats']['action']}), {x['stats']['skipped']} vsyncs skipped, "
               f"{x['stats']['presented']} presented; actions (actor:action:wound up:window) {x['stats']['ended']}")
@@ -574,13 +682,27 @@ def main():
           f"skip: {RUN_ON} vsyncs on, every actor's HP, MP, statuses and position are off's"
           + ("" if ls["actors"] == lo["actors"] else f"\n      off  {lo['actors'][:5]}\n      skip {ls['actors'][:5]}")
           + ("" if same_places(ls["positions"], lo["positions"]) else f"\n      off  {lo['positions']}\n      skip {ls['positions']}"))
+    # The enemies' holds shown first (who: all, the default HOLD_ENEMY) as the battle ran on.
+    enemy_hold = round(HOLD_ENEMY * 60)
+    acts = [e.split(":") for e in lh["stats"]["ended"].split()]
+    check(lh["stats"]["ended"] == lo["stats"]["ended"] and lh["actors"] == lo["actors"]
+          and same_places(lh["positions"], lo["positions"]),
+          f"hold (who: all): over {RUN_ON} vsyncs the same actions, windows (where they open) and outcome as off "
+          f"({len(acts)} actions)")
+    if any(e[0] != "0" and e[2] == "1" for e in acts):
+        n = lh["stats"]["sequences"]
+        check(abs(sum(lh["stats"]["phases_presented"][1:]) - enemy_hold * n) <= n
+              and sum(lh["stats"]["phases_ms"][1:]) >= PACE_SLACK * enemy_hold * n * FIELD_MS,
+              f"hold (who: all): the enemies' {n} holds shown {enemy_hold} vsyncs each, paced: "
+              f"{lh['stats']['phases_presented']} in {lh['stats']['phases_ms']} ms")
     # The enemies' wind-ups (who: all), in the casters' room with Ashley standing by.
     casters = {}
     for mode in MODES:
-        r = Run(f"casters-{mode}", casters_snap, card, env, out, socket, fast=True)
+        # ("hold" paced, its holds' wall time checked)
+        r = Run(f"casters-{mode}", casters_snap, card, env, out, socket, fast=mode != "hold")
         try:
             g, sym = r.g, r.sym
-            g.call("skip_charging", mode=mode, who="all", pin=PIN, reset=True, name=NAME_SECONDS)
+            g.call("skip_charging", mode=r.setting, who="all", pin=PIN, reset=True, name=NAME_SECONDS, **r.holds)
             r.information(True)
             r.map_defense()
             g.press("circle", vsyncs=3, settle=30)  # the weapon drawn: they come
@@ -593,8 +715,8 @@ def main():
             check("[UNIMPLEMENTED]" not in log and "[crash]" not in log, f"casters, {mode}: no crash")
         finally:
             r.close()
-    co, cs = casters["off"], casters["skip"]
-    for mode, x in (("off", co), ("skip", cs)):
+    co, cs, ch = casters["off"], casters["skip"], casters["hold"]
+    for mode, x in (("off", co), ("skip", cs), ("hold", ch)):
         print(f"  casters {mode:4}: {x['sequences']} wind-ups, {x['vsyncs']} vsyncs ({x['skipped']} skipped, "
               f"{x['presented']} presented, {x['ms']:.0f} ms); actions (actor:action:wound up:window) {x['ended']}"
               + chr(10) + f"      phases {x['phases']} presented {x['phases_presented']}; name windows {x['name']}")
@@ -621,7 +743,55 @@ def main():
           f"casters: the enemies' spells and arts show their names as off ({len(names['skip'])} name windows, "
           f"{cs['name']['opens']} opened for {cs['sequences']} wind-ups, held past the release: {cs['name']['held']})")
     check(all(e[3] == "1" for m in MODES for e in acts[m] if e[0] != "0"),
-          "casters: every enemy action on Ashley opened the defence window, off and skip")
+          "casters: every enemy action on Ashley opened the defence window, off, skip and hold")
+    # Each enemy hold shown HOLD_ENEMY first (their originals hold longer: the name window's 2 s), paced.
+    n, shown = ch["sequences"], sum(ch["phases_presented"][1:])
+    check(n > 0 and spells["hold"] == spells["off"] and abs(shown - enemy_hold * n) <= n
+          and ch["skipped"] == sum(ch["phases"][1:]) - shown
+          and sum(ch["phases_ms"][1:]) >= PACE_SLACK * shown * FIELD_MS,
+          f"casters, hold: the same spells as off ({spells['hold']}); {n} holds shown {shown} vsyncs "
+          f"({enemy_hold} each), {ch['skipped']} skipped, in {sum(ch['phases_ms'][1:]):.0f} ms")
+    # (actor:action:wound up:window:its tick) each enemy action's window where off's opens
+    ticks = {m: sorted(e[1] + "@" + e[4] for e in acts[m] if e[0] != "0") for m in MODES}
+    check(ticks["skip"] == ticks["off"] and ticks["hold"] == ticks["off"],
+          f"casters: every enemy action's defence window opens at off's tick from its release: {ticks['off']} "
+          f"(skip {ticks['skip']}, hold {ticks['hold']})")
+    # The defence input around an enemy's release: Circle (a defence ability) pressed PRESS_DELAY vsyncs
+    # after each, off and with the default enemy hold.
+    pressed = {}
+    for mode in ("press-off", "press-hold"):
+        r = Run(mode, casters_snap, card, env, out, socket, fast=True)
+        try:
+            g = r.g
+            g.call("skip_charging", mode=r.setting, who="all", pin=PIN, reset=True, name=NAME_SECONDS, **r.holds)
+            r.information(True)
+            r.map_defense()
+            g.press("circle", vsyncs=3, settle=30)
+            pressed[mode] = r.press_after_releases(PRESS_RUN)
+            log = pathlib.Path(g.log).read_text(errors="replace")
+            check("[UNIMPLEMENTED]" not in log and "[crash]" not in log, f"{mode}: no crash")
+        finally:
+            r.close()
+    po, ph = pressed["press-off"], pressed["press-hold"]
+    for mode, x in pressed.items():
+        print(f"  {mode}: {x['releases']} enemy releases pressed after; attempts (actor:action:timer:window:success) "
+              f"{x['presses']}; actions {x['ended']}; holds shown {x['phases_presented']} in {x['phases_ms']} ms")
+
+    def judged(x):
+        out = []
+        for e in x["presses"].split():
+            actor, action, timer, window, success = (int(v) for v in e.split(":"))
+            # (func_80078AB4: before the hit's window, FAST! or, earlier than its margin, TOO FAST!)
+            label = ("early" if window == 0 or timer <= window else "on time" if success else "late")
+            out.append((action, timer, window, success, label))
+        return sorted(out)
+    jo, jh = judged(po), judged(ph)
+    check(jo and jh == jo,
+          f"press: Circle {PRESS_DELAY} vsyncs after an enemy's release is judged as off judges it, with the "
+          f"default enemy hold: {jh} (off {jo})")
+    check(jo and all(j[4] == "early" for j in jo),
+          f"press: off, a press right at an enemy's release is early (FAST! / TOO FAST!: before the hit's "
+          f"window): {jo}")
     if failures:
         print(f"FAIL: {len(failures)} check(s)")
         return 1

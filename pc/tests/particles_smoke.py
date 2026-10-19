@@ -14,7 +14,8 @@ directory (ROOD_LIGHTS) and settings file (ROOD_SETTINGS); the room's packs
   call with a bad entry changes nothing;
 - assets: an emitter of an asset that is not there keeps what it writes,
   and follows the asset once it is reloaded; an asset edited and reloaded
-  changes its emitters (nothing pinned, nothing unsaved);
+  changes its emitters (nothing pinned, nothing unsaved); edited on disk
+  without any RPC, it is read again live (polled about twice a second);
 - motes: with the time frozen the motes are the same from frame to frame,
   inside their box; Dust Off draws none, Low its share, High all; time moves
   them by their drift;
@@ -43,6 +44,7 @@ import pathlib
 import shutil
 import sys
 import tempfile
+import time
 
 import json
 
@@ -200,6 +202,15 @@ def check_assets(s):
     e = s.emitter()
     s.check(e["fields"]["curl"] == "20" and line() == expect,
             f"the asset edited and reloaded: the emitter follows it, nothing pinned ({e['fields']['curl']}; {line()})")
+    # Edited on disk alone (no reload_assets): the assets are polled about twice a second.
+    data["modules"]["curl"]["amplitude"] = 33
+    later.write_text(json.dumps(data))
+    deadline = time.time() + 10
+    while time.time() < deadline and s.emitter()["fields"]["curl"] != "33":
+        s.game.run(10)
+    e = s.emitter()
+    s.check(e["fields"]["curl"] == "33" and e["count"] == 300 and line() == expect,
+            f"the asset edited on disk, no RPC: the emitter follows it live ({e['fields']['curl']}), its own count kept")
     s.particles(emitters=[{"id": EMITTER, "remove": True}])
     s.game.call("lighting", action="save")
     later.unlink()
