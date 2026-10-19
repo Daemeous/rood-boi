@@ -224,12 +224,42 @@ void index_folder(const std::filesystem::path &dir, bool pages)
 std::map<uint64_t, Image> resident;
 std::set<uint64_t> bad;
 struct Use {
-    uint64_t generation;
+    uint64_t stamp; /* `changes` when it was last looked up */
     uint32_t layers; /* atlas layers its replacements live on */
 };
 std::map<unsigned, Use> used;
 std::vector<Pending> pending;
-uint64_t generation = 1;
+/* VRAM writes by 64 x 256 tile (16 x 2): a page and palette is looked up
+ * again only when one of its own tiles was written since, not after any
+ * write anywhere (text boxes write VRAM every frame; re-scanning every drawn
+ * page each time cost 8-16 ms a frame). */
+uint64_t changes = 1, tile_changed[32];
+void tiles_written(int x, int y, int w, int h)
+{
+    if (w <= 0 || h <= 0)
+        return;
+    ++changes;
+    int columns = w >= 1024 ? 16 : ((x & 1023) + w - 1) / 64 - (x & 1023) / 64 + 1;
+    int rows = h >= 512 ? 2 : ((y & 511) + h - 1) / 256 - (y & 511) / 256 + 1;
+    for (int r = 0; r < std::min(rows, 2); ++r)
+        for (int c = 0; c < std::min(columns, 16); ++c)
+            tile_changed[((((y & 511) / 256 + r) & 1) << 4) | (((x & 1023) / 64 + c) & 15)] = changes;
+}
+/* Whether a tile under the page or its palette was written after `stamp`. */
+bool written_since(uint64_t stamp, unsigned tpage, unsigned clut, unsigned depth)
+{
+    unsigned row = (tpage >> 4) & 1, first = tpage & 15, count = depth == 0 ? 1 : depth == 1 ? 2 : 4;
+    for (unsigned c = 0; c < count; ++c)
+        if (tile_changed[(row << 4) | ((first + c) & 15)] > stamp)
+            return true;
+    if (depth < 2) {
+        unsigned x = (clut & 63) * 16, y = (clut >> 6) & 511, width = depth == 0 ? 16 : 256;
+        for (unsigned c = x / 64; c <= (x + width - 1) / 64; ++c)
+            if (tile_changed[((y / 256) << 4) | (c & 15)] > stamp)
+                return true;
+    }
+    return false;
+}
 bool initialized, configured, dirty, full;
 bool words_dirty = true, palettes_dirty = true, table_dirty = true;
 int words_y0 = 0, words_y1 = 512; /* rows of the word map to send to the GPU */
@@ -871,7 +901,7 @@ extern "C" void pc_hd_upload(int x, int y, int w, int h, const uint16_t *vram)
                 changed = true;
             }
         }
-    ++generation;
+    tiles_written(x, y, w, h);
     if (changed)
         mark_rows(y, h);
 }
@@ -889,7 +919,7 @@ extern "C" void pc_hd_clear(int x, int y, int w, int h)
                 changed = true;
             }
         }
-    ++generation;
+    tiles_written(x, y, w, h);
     if (changed)
         mark_rows(y, h);
 }
@@ -900,7 +930,6 @@ extern "C" void pc_hd_copy(int sx, int sy, int dx, int dy, int w, int h, int mas
         return;
     if (masked) {
         pc_hd_clear(dx, dy, w, h);
-        ++generation;
         return;
     }
     std::vector<Word> copy(size_t(w) * h);
@@ -916,7 +945,7 @@ extern "C" void pc_hd_copy(int sx, int sy, int dx, int dy, int w, int h, int mas
                 changed = true;
             }
         }
-    ++generation;
+    tiles_written(dx, dy, w, h);
     if (changed)
         mark_rows(dy, h);
 }
@@ -928,18 +957,19 @@ extern "C" void pc_hd_use(unsigned tpage, unsigned clut)
     tpage &= 0x19f;
     clut &= 0x7fff;
     unsigned key = (tpage << 15) | clut;
-    Use &use = used[key];
-    if (use.generation == generation) {
+    unsigned depth = (tpage >> 7) & 3, ppw = depth == 0 ? 4 : depth == 1 ? 2 : 1;
+    auto found = used.find(key);
+    if (found != used.end() && !written_since(found->second.stamp, tpage, clut, depth)) {
+        const Use &use = found->second;
         frame_layers |= use.layers; /* still drawn from: keep those layers */
         for (int l = 0; l < int(atlas.size()); ++l)
             if (use.layers & (1u << l))
                 atlas[l].last_used = frame_number;
         return;
     }
-    use.generation = generation;
+    used[key].stamp = changes;
     uint32_t before = frame_layers;
     frame_layers = 0;
-    unsigned depth = (tpage >> 7) & 3, ppw = depth == 0 ? 4 : depth == 1 ? 2 : 1;
     uint32_t pal = 0;
     uint16_t colors[256]{};
     if (depth < 2) {
