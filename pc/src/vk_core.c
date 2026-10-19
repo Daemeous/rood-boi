@@ -1082,6 +1082,71 @@ int vk_image_create_3d(vk_image* image, int width, int height, int depth, VkForm
     vkCmdPipelineBarrier2(vk_cmd(), &dependency);
     return 1;
 }
+int vk_image_create_array(vk_image* image, int width, int height, int layers, VkFormat format,
+    VkImageUsageFlags usage)
+{
+    memset(image, 0, sizeof *image);
+    VkImageCreateInfo info = { .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .imageType = VK_IMAGE_TYPE_2D,
+        .format = format,
+        .extent = { (uint32_t)width, (uint32_t)height, 1 },
+        .mipLevels = 1,
+        .arrayLayers = (uint32_t)layers,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .tiling = VK_IMAGE_TILING_OPTIMAL,
+        .usage = usage,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED };
+    if (!vk_check(vkCreateImage(vk.device, &info, NULL, &image->image), "vkCreateImage array"))
+        return 0;
+    VkMemoryRequirements req;
+    vkGetImageMemoryRequirements(vk.device, image->image, &req);
+    int type = memory_type(req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+    VkMemoryAllocateInfo alloc = { .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .allocationSize = req.size,
+        .memoryTypeIndex = (uint32_t)type };
+    if (type < 0 || vkAllocateMemory(vk.device, &alloc, NULL, &image->memory) != VK_SUCCESS) {
+        /* Out of VRAM is an answer here (the caller keeps fewer layers), not an error. */
+        vkDestroyImage(vk.device, image->image, NULL);
+        image->image = VK_NULL_HANDLE;
+        return 0;
+    }
+    vkBindImageMemory(vk.device, image->image, image->memory, 0);
+    image->aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    VkImageViewCreateInfo view = { .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image = image->image,
+        .viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+        .format = format,
+        .subresourceRange = { image->aspect, 0, 1, 0, (uint32_t)layers } };
+    if (!vk_check(vkCreateImageView(vk.device, &view, NULL, &image->view), "vkCreateImageView array"))
+        return 0;
+    image->format = format;
+    image->width = width;
+    image->height = height;
+    vk_end_rendering();
+    VkCommandBuffer cmd = vk_cmd();
+    VkImageMemoryBarrier2 barrier = { .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+        .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+        .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = image->image,
+        .subresourceRange = { image->aspect, 0, 1, 0, (uint32_t)layers } };
+    VkDependencyInfo dependency = { .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+        .imageMemoryBarrierCount = 1,
+        .pImageMemoryBarriers = &barrier };
+    vkCmdPipelineBarrier2(cmd, &dependency);
+    if (usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT) {
+        VkImageSubresourceRange range = { image->aspect, 0, 1, 0, (uint32_t)layers };
+        VkClearColorValue zero = { { 0, 0, 0, 0 } };
+        vkCmdClearColorImage(cmd, image->image, VK_IMAGE_LAYOUT_GENERAL, &zero, 1, &range);
+        vk_barrier();
+    }
+    return 1;
+}
 void vk_image_destroy(vk_image* image)
 {
     if (image->view)
