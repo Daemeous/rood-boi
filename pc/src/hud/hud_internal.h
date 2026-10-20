@@ -29,7 +29,7 @@ unsigned vsync(); // pc_vsync_count, or the ticks seen (lua_probe)
 bool live(const Element& e);
 const char* kind_name(int kind);  // "status", "chain", "buff", "damage", "travel"; "" for none
 int kind_of(const char* name);    // PC_HUD_*, 0 unknown
-#define HUD_KIND_LIST "status, chain, buff, damage, travel, name_window"
+#define HUD_KIND_LIST "status, chain, buff, damage, travel, notice, name_window"
 // Status: "too_fast", "fast", "success", "slow", "too_slow" (0..4); -1 unknown.
 int timing_of(const char* name);
 const char* timing_name(int timing);

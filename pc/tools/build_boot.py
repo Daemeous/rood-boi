@@ -1375,6 +1375,7 @@ for source in [
     root / "pc/src/ui/ui_score_draw.cpp",
     root / "pc/src/prompt_glyphs.cpp",
     root / "pc/src/fast_travel_prompt.cpp",
+    root / "pc/src/savestate_notice.cpp",
     root / "pc/src/hud/hud_elements.cpp",
     root / "pc/src/hud/hud_draw.cpp",
 ] + ([imgui / "backends/imgui_impl_vulkan.cpp", root / "pc/src/vk_overlay.cpp"] if arch64 else []):
