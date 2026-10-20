@@ -133,6 +133,21 @@ Single-save files (.mcs, .psx, .mcb, .ps1 ...) aren't cards: put them on
 a card file first, e.g. with MemcardRex.
 
 
+SAVE STATES
+-----------
+Like an emulator, the game can save its whole state at any moment and go
+back to it at once:
+* F5 saves to the current slot, F9 loads it.
+* F6 / F7 choose the slot (1 to 10); the top-left corner shows the slot and
+  when it was saved.
+States are files in rood-boi\pc\save\states. They are separate from your memory card
+saves: loading a state doesn't change your cards.
+A state only loads in the build that made it: after you update (run the
+builder again), older states can't be loaded (the game says so). Save on
+a memory card before updating.
+If you bound F5, F6, F7 or F9 to a PS1 button, that key stays the button.
+
+
 OPTIONS (the builder asks)
 --------------------------
 The builder starts by asking which of these you want:
