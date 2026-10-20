@@ -835,6 +835,12 @@ extern "C" void pc_lua_tick(void)
         rl::tick();
 }
 
+extern "C" void pc_lua_reload_all(void)
+{
+    if (rl::initialized())
+        rl::request_reload_all(); /* at the next safe point (settle) */
+}
+
 extern "C" void pc_lua_frame(double dt)
 {
     if (rl::initialized())

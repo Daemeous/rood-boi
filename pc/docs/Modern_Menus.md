@@ -427,7 +427,7 @@ Prototype (private, placeholder data): the "Riskbreaker Menus" artifact.
 | Abilities | Chain / Defense: 3 button slots + learned list with RISK cost; Break arts by weapon type with kills to the next art | Assign an ability to a button (swaps if already mapped) |
 | Magick | Warlock / Shaman / Sorcerer / Enchanter / Teleport; MP; cost per spell | Cast (target picked in the field as today) |
 | Leá Monde | Map frame (native rail, legend, prompts; the game's 3D map) | Open the map; areas and rooms by pad or click; drag / wheel / middle drag turn, zoom and pan |
-| System | Game: Data (native Save / Load over the game's MENU7), Score (native: Titles, Records, Time Attack, Bestiary), Quick manual (native reader: topics rail, page card). Settings: Graphics, Display, Interface, Controls, Gameplay | Settings change with left/right and apply at once; Data's clicks walk the game's own cursor; the manual scrolls by line or page, Square opens the original |
+| System | Game: Data (native Save / Load over the game's MENU7), Score (native: Titles, Records, Time Attack, Bestiary), Quick manual (native reader: topics rail, page card). Settings: the Option pages (`option_pages.h`, from the shipped `rood.options` plugin or its C++ fallback): Gameplay, Display, Graphics, Audio, Interface, Controls, Bindings, then plugins' pages | Settings change with left/right and apply at once; Data's clicks walk the game's own cursor; the manual scrolls by line or page, Square opens the original |
 
 Screens not yet replaced open as the game's own screens from the shell:
 Workshop (assemble, gems, disassemble, rename, repair, combine), Container,

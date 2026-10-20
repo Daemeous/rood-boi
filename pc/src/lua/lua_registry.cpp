@@ -333,6 +333,36 @@ size_t registry_count(const std::string& owner)
         [&](const RegistryEntry& e) { return e.owner == owner; });
 }
 
+void registry_put(const RegistryEntry& entry)
+{
+    std::vector<RegistryEntry>& list = entries();
+    for (RegistryEntry& e : list)
+        if (e.kind == entry.kind && e.id == entry.id) {
+            unsigned long long seq = e.seq; /* in place: its order among equals stays */
+            e = entry;
+            e.seq = seq;
+            changed(e, "register");
+            return;
+        }
+    RegistryEntry e = entry;
+    e.seq = next_seq++;
+    list.push_back(e);
+    changed(e, "register");
+}
+
+bool registry_drop(const std::string& kind, const std::string& id)
+{
+    std::vector<RegistryEntry>& list = entries();
+    for (auto it = list.begin(); it != list.end(); ++it)
+        if (it->kind == kind && it->id == id) {
+            RegistryEntry gone = *it;
+            list.erase(it);
+            changed(gone, "remove");
+            return true;
+        }
+    return false;
+}
+
 void drop_registry(const std::string& owner)
 {
     std::vector<RegistryEntry> gone;

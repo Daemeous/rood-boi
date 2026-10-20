@@ -11,6 +11,7 @@ void pc_lua_init(void);       /* main(), after the settings load: finds and load
 void pc_lua_shutdown(void);   /* atexit: writes what plugins stored; runs no Lua */
 void pc_lua_tick(void);       /* pc_tick: once per game vsync while the game runs */
 void pc_lua_frame(double dt); /* pc_overlay_frame: every presented image, the ImGui frame open */
+void pc_lua_reload_all(void); /* every plugin loads again at the next safe point (the Option pages' action) */
 /* RPC method lua (dev_rpc.c): the params object's text; the reply's JSON in out
  * (its length), or < 0 with the error's text in out. */
 int pc_lua_rpc(const char* params, char* out, int size);

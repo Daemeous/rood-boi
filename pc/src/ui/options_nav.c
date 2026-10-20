@@ -22,7 +22,9 @@ static void move_one(options_nav_state* s, int down, int fresh)
             }
         } else {
             --s->cursor;
-            if (s->top && row == 1)
+            /* row 0 under a scrolled page never happens in the original
+             * (paging holds row 1); a restored focus may start there: page too. */
+            if (s->top && row <= 1)
                 --s->top;
         }
     } else {
@@ -33,7 +35,7 @@ static void move_one(options_nav_state* s, int down, int fresh)
                 s->cursor = s->top = 0;
         } else {
             ++s->cursor;
-            if (s->top < s->count - OPTIONS_NAV_ROWS && row == 7)
+            if (s->top < s->count - OPTIONS_NAV_ROWS && row >= 7) /* row 8: likewise */
                 ++s->top;
         }
     }

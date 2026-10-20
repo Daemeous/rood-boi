@@ -227,6 +227,10 @@ void draw_value(const Frame& f, const ui::Theme& t, const pc_ui_setting_row& r, 
             }
         break;
     }
+    case PC_UI_SET_LINK: // another page: its title and an arrow
+        text_right(f, fonts.name, 15, x1 - 22, cy - 9.5f, r.enabled ? t.ash : t.dim, r.value);
+        chevron(f, x1 - 8, cy, 1, r.enabled ? (focused ? t.bone : t.ash) : t.dim);
+        break;
     case PC_UI_SET_INFO: {
         std::string v = fit(f, fonts.name, 15, r.value, x1 - x0);
         text_right(f, fonts.name, 15, x1, cy - 9.5f, t.ash, v.c_str());
@@ -406,6 +410,14 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
         bool row_hit = hit_ok && shown && m.over(cx, ry, cx + cw, ry + ROW_H);
         if (row_hit)
             m.hit(PC_UI_MOUSE_SETTING, i, cx, ry, cx + cw, ry + ROW_H);
+        if (r.kind == PC_UI_SET_HEADER || r.kind == PC_UI_SET_NOTE) { // a page's section title or help line
+            std::string line = fit(f, fonts.name, r.kind == PC_UI_SET_HEADER ? 17 : 14, r.label, x1 - x0);
+            if (r.kind == PC_UI_SET_HEADER)
+                uidraw::label(f, t, x0, cy - 6, line.c_str(), t.gold);
+            else
+                text(f, fonts.name, 14, x0, cy - 9, t.ash, line.c_str());
+            continue;
+        }
         // label (a binding: the PS1 button's icon first)
         float lx0 = x0;
         if (r.kind == PC_UI_SET_BINDING && r.button >= 0) {
@@ -438,15 +450,8 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
             f.dl->AddLine(f.p(x0, ry + ROW_H), f.p(x1, ry + ROW_H), t.rule, f.s(1));
     }
     f.dl->PopClipRect();
-    if (capture) {
-        pc_ui_setting_row r;
-        for (int i = 0, n = pc_ui_settings_rows(PC_UI_SETTINGS_BINDINGS); i < n; ++i)
-            if (pc_ui_settings_row(PC_UI_SETTINGS_BINDINGS, i, &r) && r.kind == PC_UI_SET_BINDING
-                && r.button == v.capture) {
-                capture_label = r.label;
-                break;
-            }
-    }
+    if (capture)
+        pc_ui_settings_binding(v.capture, nullptr, &capture_label);
     // a scroll bar when the page is longer than the card
     if (max_scroll > 0) {
         float th = (ry1 - ry0) * visible / (float)v.rows, tx = cx + cw - 6;

@@ -1,6 +1,7 @@
 # Lua M1: vanilla++ options
 
-Status: plan, 2026-10-18.
+Status: phases A and B done (2026-10-19, branch `m1-options`); C-E open.
+See "Progress" at the end.
 
 User decisions:
 1. **Placement:** pages live inside the game's own Option screen. Its rows
@@ -272,3 +273,61 @@ counter (`rl::registry_generation()`, bumped in lua_registry.cpp:81).
 | D | D2 window_rect / remember_window *(delegate)* | — | boot_window + create sites |
 | D | D3 render quality "Match window", fps cap | A4 | gpu_hw.c, settings |
 | E | E1 classic smoke + fixture; E2 golden; E3 revert/parity + docs | C, D | tests, docs |
+
+## Progress
+
+**Done (A, B):**
+- **A1** `vs_encode.{c,h}` + `vs_encode_probe` (on main since 021b2fe9; the
+  HUD layer uses it). Unencodable characters come back as `?` with a count:
+  rood.menu raises for titles and warns for labels and help.
+- **A2** `options_nav.{c,h}` + probe (on main); reviewed against
+  58EC.c:1053-1109. Added: a focus restored on visible row 0 / 8 of a
+  scrolled page pages instead of leaving the window.
+- **A3** `display_confirm.{c,h}` + probe (from the parked `m1-page-model`).
+  Which keys ask is the catalog's data (`confirm` on a row: window_mode now),
+  not a list in C; a held key set back to its snapshot is let go.
+- **A4** `option_pages.{h,cpp}` + probe, row kinds HEADER / NOTE / LINK,
+  catalog `home` and `where` (parked branch). Fixed: a catalog row not shown
+  now fills its metadata only (the fallback crashed without the game-options
+  bridge); action rows take label, help and availability from
+  `option_actions`.
+- **B1** `pc_ui_settings_*` are the page model's pages (where modern), in
+  tree order: Gameplay, Display, Graphics, Audio, Interface, Controls,
+  Bindings (the modern order changed to this one), then plugins' pages. The
+  fixed page enum is gone; the catalog is reachable by index
+  (`catalog_choice/change/set/activate`, `pc_ui_settings_binding`), which
+  `rood.settings` and the RPC use; the shell keeps focus per page id across
+  generations, opens links, skips headers and notes. Core page ids stay short
+  (`display`) for the RPC, tests and `rood.settings`. The catalog has a
+  provider for rows by id: `lua_api_settings.cpp` provides schema fields
+  (plugins' own settings).
+- **B2** `lua_api_menu.cpp` (`rood.menu.page/action/remove/pages/rows/actions/
+  generation`), validation as above, pages also `menu.page` registry entries
+  (`registry_put` / `registry_drop`), `option_actions.{h,c}` (core
+  `settings.save`, `plugins.reload` with `plugin_ok`; plugins' through a
+  provider). Tested by `lua_menu_probe` (a probe of its own: lua_probe has
+  no catalog) rather than lua_probe.
+- **B3** `pc/plugins/rood.options` (pages as Lua tables, tests),
+  `pc/tests/lua/plugins/test.menu` (a plugin's page with settings defined in
+  place), Extensions.md "Option pages".
+
+**Deviations:** no `rl::registry_generation()`: the page model's
+generation (`pc_option_pages_generation`, `rood.menu.generation`) is the one
+renderers watch, bumped by every define and removal including a plugin's
+unload. `settings.reset_page` is not a core action: catalog rows record no
+defaults (a seam: a `def` per row, then the action). Label width (truncate
+with a warning) needs the classic renderer's measure: C1.
+
+**Seams for C-E:**
+- C1: `pc_option_pages_children(-1)` gives the Option-screen entries;
+  `pc_option_page_rows/row(page, PC_UI_WHERE_CLASSIC, ...)` the rows (kinds,
+  values, greyed reasons, link targets); `pc_ui_settings_catalog_change/set/
+  activate` change a setting row; `pc_option_action_run` runs an action;
+  `options_nav_step` moves; `vs_encode` encodes; watch
+  `pc_option_pages_generation` and keep focus with `pc_option_page_find_row`.
+- C2 / D1: a row's `confirm` flag says when to go through
+  `pc_display_confirm_begin`; the settings writer must save
+  `pc_display_confirm_held` values (not wired yet, nothing calls begin).
+- D1 / D3: new rows go in the catalog (`ui_settings.cpp`, with their home) and
+  in `rood.options/main.lua`; `lua_menu_probe` and the plugin's tests fail
+  until both have them.

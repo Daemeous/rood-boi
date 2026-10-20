@@ -4,6 +4,8 @@
 // lighting_quality.cpp pc_lighting_panel / antialiasing_panel,
 // ui_upscale_panel.cpp) and saves settings.cfg debounced.
 #include "ui/ui_settings.h"
+#include "ui/option_actions.h"
+#include "ui/option_pages.h"
 #include "ui/game_options.h"
 #include "ui/ui_tint.h"
 #include "antialias.h"
@@ -112,6 +114,9 @@ struct Row {
     bool hook = false;   // reads and writes through a hook that may be missing (then greyed, showing `def`)
     bool on_release = false; // slider: a pointer drag previews the number, the value applies when it ends
     float def = 0;       // hook row: the value shown while greyed (choice index or slider value)
+    bool confirm = false; // a risky display change: "Keep these settings?" (display_confirm.h), unsaved until kept
+    const char* home = nullptr;  // its page in the page model ("rood.options/display"), set by build()
+    int where = PC_UI_WHERE_ALL; // the Option screens that show it
     Row grey(Why w) const { Row r = *this; r.why = w; return r; }
     Row when(Shown s) const { Row r = *this; r.shown = s; return r; }
     Row choices_why(ChoiceWhy c) const { Row r = *this; r.choice_why = c; return r; }
@@ -175,6 +180,7 @@ Row game_option(const char* id, const char* label, const char* help, int option,
 {
     Row r = base(id, label, help, names == OFF_ON ? PC_UI_SET_TOGGLE : PC_UI_SET_CHOICE);
     r.names = names, r.count = count, r.arg = option, r.saved = false, r.game = true;
+    r.where = PC_UI_WHERE_MODERN; // the classic Option screen has the game's own rows for these
     r.shown = [](const Row&) { return pc_game_option_get != nullptr && pc_game_option_set != nullptr; };
     r.get = [](const Row& r) { return pc_game_option_get(r.arg); };
     r.set = [](const Row& r, int i) { pc_game_option_set(r.arg, i); };
@@ -204,13 +210,22 @@ const char* need_prompts(const Row& r)
     return pc_button_prompts != PC_PROMPTS_ORIGINAL ? nullptr : "Needs button prompts other than Original glyphs";
 }
 
-// ---- pages ----
-
-const char* const PAGE_IDS[PC_UI_SETTINGS_PAGES] = {"graphics", "display", "audio", "interface", "controls",
-    "bindings", "gameplay"};
-const char* const PAGE_TITLES[PC_UI_SETTINGS_PAGES] = {"Graphics", "Display", "Audio", "Interface", "Controls",
-    "Bindings", "Gameplay"};
-std::vector<Row> pages[PC_UI_SETTINGS_PAGES];
+// ---- the catalog's homes ----
+// Where each row belongs by default: its page in the page model (option_pages.h;
+// the C++ fallback pages and rood.options build theirs from these) and the
+// rood.settings page names (lua_api_settings.cpp). Not the System screen's
+// pages: those are the page model's (pc_ui_settings_pages below).
+enum { HOME_GRAPHICS, HOME_DISPLAY, HOME_AUDIO, HOME_INTERFACE, HOME_CONTROLS, HOME_BINDINGS, HOME_GAMEPLAY, HOMES };
+const char* const HOME_IDS[HOMES] = {"rood.options/graphics", "rood.options/display", "rood.options/audio",
+    "rood.options/interface", "rood.options/controls", "rood.options/bindings", "rood.options/gameplay"};
+const char* const HOME_TITLES[HOMES] = {"Graphics", "Display", "Audio", "Interface", "Controls", "Bindings",
+    "Gameplay"};
+std::vector<Row> homes[HOMES];
+std::vector<const Row*> catalog; // every row, home by home (pc_ui_settings_catalog_*)
+// Rows another module provides ("plugin:<id>/<name>", "<kind>/<field>": lua_api_settings.cpp),
+// at catalog indices from catalog.size() on.
+pc_ui_settings_provider provider;
+bool have_provider;
 
 // PS1 buttons in the Bindings page's order (libetc bit indices, PC_PROMPT_*).
 const int BINDING_ORDER[PC_PAD_BUTTONS] = {PC_PROMPT_CIRCLE, PC_PROMPT_CROSS, PC_PROMPT_TRIANGLE, PC_PROMPT_SQUARE,
@@ -232,7 +247,7 @@ double swap_note_since, ticked;
 
 void build()
 {
-    if (!pages[0].empty())
+    if (!homes[0].empty())
         return;
     // Graphics
     static const char* const presets[] = {"Original", "Low", "Medium", "High", "Ultra", "Custom"};
@@ -249,7 +264,7 @@ void build()
     static const char* const ssaa[] = {"Off", "1.5x", "2x", "3x", "4x"};
     static const float ssaa_factors[] = {0, 1.5f, 2, 3, 4};
     static const char* const downsample[] = {"Area", "Lanczos-3", "Bilinear"};
-    std::vector<Row>& g = pages[PC_UI_SETTINGS_GRAPHICS];
+    std::vector<Row>& g = homes[HOME_GRAPHICS];
     g.push_back(lighting("lighting_preset", "Lighting quality",
         "Sets the lighting settings below for a class of GPU. Changing any of them makes it Custom.",
         &pc_lighting_preset, presets, preset_values, 6)
@@ -339,7 +354,7 @@ void build()
     static const char* const aspects[] = {"Keep aspect", "Stretch to window", "Integer scale"};
     static const char* const filters[] = {"Nearest", "Bilinear", "Box"};
     static const char* const window_modes[] = {"Windowed", "Borderless", "Fullscreen"};
-    std::vector<Row>& d = pages[PC_UI_SETTINGS_DISPLAY];
+    std::vector<Row>& d = homes[HOME_DISPLAY];
     d.push_back(toggle("widescreen", "Widescreen 16:9", "The 3D view widens to 16:9; menus and HUD stay in place.",
         &pc_gte_widescreen));
     d.push_back(choice("aspect", "Scaling", "How the picture fills the window.", &pc_gl_aspect, aspects, 3));
@@ -360,6 +375,7 @@ void build()
         r.get = [](const Row&) { return pc_window_mode_get(); };
         r.set = [](const Row&, int i) { pc_window_mode_set(i); };
         r.hook = true, r.def = 0;
+        r.confirm = true;
         d.push_back(r.grey([](const Row&) {
             return pc_window_mode_get && pc_window_mode_set ? nullptr : COMING;
         }));
@@ -390,7 +406,7 @@ void build()
 
     // Audio
     static const char* const sound[] = {"Stereo", "Mono"};
-    std::vector<Row>& a = pages[PC_UI_SETTINGS_AUDIO];
+    std::vector<Row>& a = homes[HOME_AUDIO];
     {
         Row r = slider("master_volume", "Master volume", "Everything the game plays.", 0, 100, 5, "%d%%");
         r.getf = [](const Row&) { return (float)pc_master_volume_get(); };
@@ -411,7 +427,7 @@ void build()
     static const char* const bubbles[] = {"Original", "Vector"};
     static const char* const prompts[] = {"Auto", "PlayStation", "Xbox", "Nintendo", "Keyboard", "Original glyphs"};
     static const char* const styles[] = {"Solid", "Outline", "Colour solid", "Colour outline"};
-    std::vector<Row>& u = pages[PC_UI_SETTINGS_INTERFACE];
+    std::vector<Row>& u = homes[HOME_INTERFACE];
     u.push_back(choice("ui_menus", "Menus", "The modern menus or the game's own, from the next time the menu opens.",
         &pc_ui_menus, menus, 2));
     u.push_back(fslider("ui_menu_opacity", "Menu opacity",
@@ -490,7 +506,7 @@ void build()
                     .grey(need_hw));
 
     // Controls
-    std::vector<Row>& c = pages[PC_UI_SETTINGS_CONTROLS];
+    std::vector<Row>& c = homes[HOME_CONTROLS];
     c.push_back(toggle("camera_stick", "Right stick camera",
         "The right stick turns the camera around Ashley and zooms; L1/R1 still turn 45 degrees.", &pc_camera_stick));
     c.push_back(fslider("camera_stick_speed", "Turn speed", "Degrees per second at full tilt.", &pc_camera_stick_speed,
@@ -551,7 +567,7 @@ void build()
         "The game's vibration setting. Saved with your game, not in settings.", PC_GAME_OPT_VIBRATION, OFF_ON, 2));
 
     // Bindings
-    std::vector<Row>& b = pages[PC_UI_SETTINGS_BINDINGS];
+    std::vector<Row>& b = homes[HOME_BINDINGS];
     for (int i = 0; i < PC_PAD_BUTTONS; i++) {
         int button = BINDING_ORDER[i];
         Row r = base(BUTTON_IDS[button], BUTTON_LABELS[button],
@@ -587,7 +603,7 @@ void build()
     // Gameplay
     static const char* const walls[] = {"Original", "Smart"};
     static const char* const map[] = {"Frame", "Simple", "Off"};
-    std::vector<Row>& p = pages[PC_UI_SETTINGS_GAMEPLAY];
+    std::vector<Row>& p = homes[HOME_GAMEPLAY];
     p.push_back(toggle("qol_weapon_slots", "Weapon quick slots",
         "Hold L2 + R2 to swap among 8 weapon slots. Stored like the QoL mod, so saves stay compatible.",
         &pc_qol_weapon_slots));
@@ -676,29 +692,35 @@ void build()
     p.push_back(game_option("puzzle_mode", "Puzzle mode",
         "Timed cube puzzles in rooms you have cleared. Saved with your game, not in settings.", PC_GAME_OPT_PUZZLE_MODE,
         OFF_ON, 2));
+
+    for (int home = 0; home < HOMES; home++)
+        for (Row& r : homes[home]) {
+            r.home = HOME_IDS[home];
+            catalog.push_back(&r);
+        }
 }
 
-// The rows shown now on a page (indices into pages[page]).
-int shown_index(int page, int row)
+// A catalog row: one of the rows above, or a provider's (ext >= 0).
+struct Target {
+    const Row* row = nullptr;
+    int ext = -1;
+    explicit operator bool() const { return row || ext >= 0; }
+};
+Target catalog_target(int i)
 {
     build();
-    if (page < 0 || page >= PC_UI_SETTINGS_PAGES || row < 0)
-        return -1;
-    int n = 0;
-    const std::vector<Row>& rows = pages[page];
-    for (size_t i = 0; i < rows.size(); i++)
-        if (!rows[i].shown || rows[i].shown(rows[i])) {
-            if (n == row)
-                return (int)i;
-            ++n;
-        }
-    return -1;
+    Target t;
+    if (i >= 0 && i < (int)catalog.size())
+        t.row = catalog[(size_t)i];
+    else if (i >= (int)catalog.size() && have_provider) {
+        pc_ui_setting_row probe;
+        std::memset(&probe, 0, sizeof probe);
+        if (provider.row(i - (int)catalog.size(), &probe))
+            t.ext = i - (int)catalog.size();
+    }
+    return t;
 }
-const Row* find(int page, int row)
-{
-    int i = shown_index(page, row);
-    return i < 0 ? nullptr : &pages[page][(size_t)i];
-}
+bool row_shown(const Row& r) { return !r.shown || r.shown(r); }
 
 // ---- values ----
 
@@ -767,7 +789,7 @@ bool dirty, stamp_pending;
 double stamp;
 // A drag on an on_release slider: the number shown until the drag ends (pc_ui_settings_preview).
 struct {
-    int page = -1, row = -1;
+    const Row* row = nullptr;
     float value = 0;
 } preview;
 void mark_dirty()
@@ -877,31 +899,11 @@ void json_text(std::string& s, const char* text)
 }
 } // namespace
 
-extern "C" int pc_ui_settings_pages(void) { return PC_UI_SETTINGS_PAGES; }
-extern "C" const char* pc_ui_settings_page_title(int page)
-{
-    return page >= 0 && page < PC_UI_SETTINGS_PAGES ? PAGE_TITLES[page] : nullptr;
-}
-extern "C" const char* pc_ui_settings_page_id(int page)
-{
-    return page >= 0 && page < PC_UI_SETTINGS_PAGES ? PAGE_IDS[page] : nullptr;
-}
-extern "C" int pc_ui_settings_rows(int page)
-{
-    build();
-    if (page < 0 || page >= PC_UI_SETTINGS_PAGES)
-        return 0;
-    int n = 0;
-    for (const Row& r : pages[page])
-        n += !r.shown || r.shown(r);
-    return n;
-}
+// ---- one catalog row: shown state and changes (builtin or a provider's) ----
 
-extern "C" int pc_ui_settings_row(int page, int row, pc_ui_setting_row* out)
+// A row's shown state; `previewing`: a drag on it is in progress (pc_ui_settings_preview).
+static void fill(const Row* r, bool previewing, pc_ui_setting_row* out)
 {
-    const Row* r = find(page, row);
-    if (!r || !out)
-        return 0;
     std::memset(out, 0, sizeof *out);
     out->id = r->id;
     out->label = r->label;
@@ -910,6 +912,11 @@ extern "C" int pc_ui_settings_row(int page, int row, pc_ui_setting_row* out)
     out->button = -1;
     out->index = -1;
     out->game_option = r->game;
+    out->home = r->home;
+    out->where = r->where;
+    out->confirm = r->confirm;
+    if (!row_shown(*r)) // not shown now: its metadata only (its getters may be missing: game options)
+        return;
     if (r->swatch) {
         out->swatch = 1;
         r->swatch(*r, out->swatch_rgb);
@@ -934,7 +941,7 @@ extern "C" int pc_ui_settings_row(int page, int row, pc_ui_setting_row* out)
     case PC_UI_SET_SLIDER: {
         out->min = r->min, out->max = r->max, out->step = r->step;
         float v = r->hook && why ? r->def : get_number(*r);
-        if (preview.page == page && preview.row == row && !why)
+        if (previewing && !why)
             v = preview.value; // a drag in progress: its number
         out->number = v;
         if (r->zero && v <= r->min)
@@ -956,42 +963,40 @@ extern "C" int pc_ui_settings_row(int page, int row, pc_ui_setting_row* out)
     default:
         break;
     }
-    return 1;
 }
-
-extern "C" int pc_ui_settings_find(const char* id, int* page, int* row)
+static bool fill(Target t, pc_ui_setting_row* out)
 {
-    build();
-    if (!id)
-        return 0;
-    for (int p = 0; p < PC_UI_SETTINGS_PAGES; p++) {
-        int shown = 0;
-        for (const Row& r : pages[p]) {
-            bool visible = !r.shown || r.shown(r);
-            if (!std::strcmp(r.id, id)) {
-                if (!visible)
-                    return 2;
-                if (page)
-                    *page = p;
-                if (row)
-                    *row = shown;
-                return 1;
-            }
-            shown += visible;
-        }
+    if (t.row) {
+        fill(t.row, preview.row == t.row, out);
+        return true;
     }
-    return 0;
+    std::memset(out, 0, sizeof *out);
+    if (t.ext < 0 || !provider.row(t.ext, out))
+        return false;
+    out->where = out->where ? out->where : PC_UI_WHERE_ALL;
+    out->help = out->help ? out->help : "";
+    return true;
 }
 
-extern "C" int pc_ui_settings_choice(int page, int row, int choice, const char** name, const char** reason)
+static int target_choice(Target t, int choice, const char** name, const char** reason)
 {
-    const Row* r = find(page, row);
-    if (!r || (r->kind != PC_UI_SET_CHOICE && r->kind != PC_UI_SET_TOGGLE) || choice < 0 || choice >= r->count)
+    if (t.row) {
+        const Row* r = t.row;
+        if ((r->kind != PC_UI_SET_CHOICE && r->kind != PC_UI_SET_TOGGLE) || choice < 0 || choice >= r->count)
+            return 0;
+        if (name)
+            *name = r->names[choice];
+        if (reason)
+            *reason = r->choice_why ? r->choice_why(*r, choice) : nullptr;
+        return 1;
+    }
+    const char* n = nullptr;
+    if (t.ext < 0 || !provider.choice(t.ext, choice, &n))
         return 0;
     if (name)
-        *name = r->names[choice];
+        *name = n;
     if (reason)
-        *reason = r->choice_why ? r->choice_why(*r, choice) : nullptr;
+        *reason = nullptr;
     return 1;
 }
 
@@ -1025,10 +1030,52 @@ static int apply_number(const Row& r, float v)
     return 1;
 }
 
-extern "C" int pc_ui_settings_change(int page, int row, int delta)
+static int target_set(Target t, double value)
 {
-    const Row* r = find(page, row);
-    if (!r || !delta || (r->why && r->why(*r)))
+    if (t.ext >= 0) {
+        pc_ui_setting_row r;
+        if (!fill(t, &r) || !r.enabled)
+            return 0;
+        if (r.kind == PC_UI_SET_SLIDER)
+            value = value < r.min ? r.min : value > r.max ? r.max : value;
+        else if (r.kind != PC_UI_SET_CHOICE && r.kind != PC_UI_SET_TOGGLE)
+            return 0;
+        else if ((int)value < 0 || (int)value >= r.count)
+            return 0;
+        return provider.set(t.ext, value);
+    }
+    const Row* r = t.row;
+    if (preview.row == r)
+        preview.row = nullptr;
+    if (!r || (r->why && r->why(*r)))
+        return 0;
+    if (r->kind == PC_UI_SET_SLIDER)
+        return apply_number(*r, (float)value);
+    if (r->kind != PC_UI_SET_CHOICE && r->kind != PC_UI_SET_TOGGLE)
+        return 0;
+    int i = (int)value;
+    if (i < 0 || i >= r->count || (r->choice_why && r->choice_why(*r, i)))
+        return 0;
+    return apply_choice(*r, i);
+}
+
+static int target_change(Target t, int delta)
+{
+    if (!delta)
+        return 0;
+    if (t.ext >= 0) { // a provider's row: the next choice (wrapping) or a step
+        pc_ui_setting_row r;
+        if (!fill(t, &r) || !r.enabled)
+            return 0;
+        if (r.kind == PC_UI_SET_SLIDER)
+            return target_set(t, r.number + (double)delta * (r.step > 0 ? r.step : 1));
+        if ((r.kind != PC_UI_SET_CHOICE && r.kind != PC_UI_SET_TOGGLE) || r.count <= 0)
+            return 0;
+        int i = r.index >= 0 ? r.index : (delta > 0 ? -1 : r.count);
+        return target_set(t, ((i + (delta > 0 ? 1 : -1)) % r.count + r.count) % r.count);
+    }
+    const Row* r = t.row;
+    if (!r || (r->why && r->why(*r)))
         return 0;
     if (r->kind == PC_UI_SET_SLIDER)
         return apply_number(*r, snap(*r, get_number(*r)) + (float)delta * r->step);
@@ -1047,47 +1094,31 @@ extern "C" int pc_ui_settings_change(int page, int row, int delta)
     return 0;
 }
 
-extern "C" int pc_ui_settings_set(int page, int row, double value)
+static int target_preview(Target t, double value)
 {
-    const Row* r = find(page, row);
-    if (preview.page == page && preview.row == row)
-        preview.page = preview.row = -1;
-    if (!r || (r->why && r->why(*r)))
+    const Row* r = t.row;
+    if (!r || r->kind != PC_UI_SET_SLIDER || !r->on_release)
+        return target_set(t, value);
+    if (r->why && r->why(*r))
         return 0;
-    if (r->kind == PC_UI_SET_SLIDER)
-        return apply_number(*r, (float)value);
-    if (r->kind != PC_UI_SET_CHOICE && r->kind != PC_UI_SET_TOGGLE)
-        return 0;
-    int i = (int)value;
-    if (i < 0 || i >= r->count || (r->choice_why && r->choice_why(*r, i)))
-        return 0;
-    return apply_choice(*r, i);
-}
-
-extern "C" int pc_ui_settings_preview(int page, int row, double value)
-{
-    const Row* r = find(page, row);
-    if (!r || (r->why && r->why(*r)))
-        return 0;
-    if (r->kind != PC_UI_SET_SLIDER || !r->on_release)
-        return pc_ui_settings_set(page, row, value);
     float v = snap(*r, (float)value);
-    bool changed = preview.page != page || preview.row != row || preview.value != v;
-    preview.page = page, preview.row = row, preview.value = v;
+    bool changed = preview.row != r || preview.value != v;
+    preview.row = r, preview.value = v;
     return changed;
 }
 // A drag that never ended (the page or the menu closed under it) applies.
 static void apply_preview()
 {
-    if (preview.page < 0)
+    if (!preview.row)
         return;
-    int page = preview.page, row = preview.row;
-    pc_ui_settings_set(page, row, preview.value);
+    Target t;
+    t.row = preview.row;
+    target_set(t, preview.value);
 }
 
-extern "C" int pc_ui_settings_activate(int page, int row)
+static int target_activate(Target t)
 {
-    const Row* r = find(page, row);
+    const Row* r = t.row;
     if (!r || (r->why && r->why(*r)))
         return 0;
     if (r->kind == PC_UI_SET_ACTION && r->run) {
@@ -1102,6 +1133,225 @@ extern "C" int pc_ui_settings_activate(int page, int row)
         return 1;
     }
     return 0;
+}
+
+// ---- the System pages: the page model's (option_pages.h), as the modern screen shows them ----
+
+static const int MODERN = PC_UI_WHERE_MODERN;
+static const char* const CORE_PREFIX = "rood.options/";
+
+// The row of a System page: its page-model row, and the catalog row behind a setting.
+static bool resolve(int page, int row, pc_option_row* out, Target* t)
+{
+    if (!pc_option_page_row(page, MODERN, row, out))
+        return false;
+    *t = Target();
+    if (out->form == PC_OPT_SETTING && out->catalog >= 0)
+        *t = catalog_target(out->catalog);
+    return true;
+}
+
+extern "C" int pc_ui_settings_pages(void) { return pc_option_pages_count(); }
+extern "C" unsigned pc_ui_settings_generation(void) { return pc_option_pages_generation(); }
+extern "C" const char* pc_ui_settings_page_title(int page)
+{
+    pc_option_page p;
+    return pc_option_pages_info(page, &p) ? p.title : nullptr;
+}
+extern "C" const char* pc_ui_settings_page_id(int page)
+{
+    pc_option_page p;
+    if (!pc_option_pages_info(page, &p))
+        return nullptr;
+    size_t n = std::strlen(CORE_PREFIX);
+    return std::strncmp(p.id, CORE_PREFIX, n) == 0 ? p.id + n : p.id; // the core pages: "display"
+}
+extern "C" const char* pc_ui_settings_page_help(int page)
+{
+    pc_option_page p;
+    return pc_option_pages_info(page, &p) ? p.help : nullptr;
+}
+extern "C" int pc_ui_settings_page_depth(int page)
+{
+    pc_option_page p;
+    return pc_option_pages_info(page, &p) ? p.depth : 0;
+}
+extern "C" int pc_ui_settings_page_index(const char* id)
+{
+    if (!id)
+        return -1;
+    int i = pc_option_pages_index(id);
+    if (i < 0 && !std::strchr(id, '/'))
+        i = pc_option_pages_index((std::string(CORE_PREFIX) + id).c_str());
+    return i;
+}
+extern "C" int pc_ui_settings_rows(int page)
+{
+    build();
+    return pc_option_page_rows(page, MODERN);
+}
+extern "C" int pc_ui_settings_row(int page, int row, pc_ui_setting_row* out)
+{
+    pc_option_row o;
+    Target t;
+    if (!out || !resolve(page, row, &o, &t))
+        return 0;
+    *out = o.row; // (filled from the catalog: a drag in progress shows its number)
+    return 1;
+}
+extern "C" int pc_ui_settings_link(int page, int row)
+{
+    pc_option_row o;
+    Target t;
+    return resolve(page, row, &o, &t) && o.form == PC_OPT_LINK ? o.link : -1;
+}
+
+extern "C" int pc_ui_settings_find(const char* id, int* page, int* row)
+{
+    build();
+    if (!id)
+        return 0;
+    for (int p = 0, n = pc_ui_settings_pages(); p < n; p++) {
+        int r = pc_option_page_find_row(p, MODERN, id);
+        if (r >= 0) {
+            pc_option_row o;
+            if (pc_option_page_row(p, MODERN, r, &o) && o.form == PC_OPT_SETTING) {
+                if (page)
+                    *page = p;
+                if (row)
+                    *row = r;
+                return 1;
+            }
+        }
+    }
+    int i = pc_ui_settings_catalog_index(id);
+    return i >= 0 && !pc_ui_settings_catalog_shown(i) ? 2 : 0;
+}
+
+extern "C" int pc_ui_settings_choice(int page, int row, int choice, const char** name, const char** reason)
+{
+    pc_option_row o;
+    Target t;
+    return resolve(page, row, &o, &t) && t ? target_choice(t, choice, name, reason) : 0;
+}
+extern "C" int pc_ui_settings_change(int page, int row, int delta)
+{
+    pc_option_row o;
+    Target t;
+    return resolve(page, row, &o, &t) && t ? target_change(t, delta) : 0;
+}
+extern "C" int pc_ui_settings_set(int page, int row, double value)
+{
+    pc_option_row o;
+    Target t;
+    return resolve(page, row, &o, &t) && t ? target_set(t, value) : 0;
+}
+extern "C" int pc_ui_settings_preview(int page, int row, double value)
+{
+    pc_option_row o;
+    Target t;
+    return resolve(page, row, &o, &t) && t ? target_preview(t, value) : 0;
+}
+extern "C" int pc_ui_settings_activate(int page, int row)
+{
+    pc_option_row o;
+    Target t;
+    if (!resolve(page, row, &o, &t))
+        return 0;
+    if (o.form == PC_OPT_ACTION)
+        return o.row.enabled && pc_option_action_run(o.ref);
+    return t ? target_activate(t) : 0;
+}
+
+// ---- the catalog by index ----
+
+extern "C" int pc_ui_settings_catalog_count(void)
+{
+    build();
+    return (int)catalog.size();
+}
+extern "C" const char* pc_ui_settings_catalog_id(int i)
+{
+    build();
+    if (i >= 0 && i < (int)catalog.size())
+        return catalog[(size_t)i]->id;
+    pc_ui_setting_row r;
+    Target t = catalog_target(i);
+    return t && fill(t, &r) ? r.id : nullptr;
+}
+extern "C" int pc_ui_settings_catalog_index(const char* id)
+{
+    build();
+    for (size_t i = 0; id && i < catalog.size(); i++)
+        if (!std::strcmp(catalog[i]->id, id))
+            return (int)i;
+    int h = id && have_provider ? provider.find(id) : -1;
+    return h >= 0 ? (int)catalog.size() + h : -1;
+}
+extern "C" int pc_ui_settings_catalog_shown(int i)
+{
+    Target t = catalog_target(i);
+    return t.row ? row_shown(*t.row) : t.ext >= 0;
+}
+extern "C" int pc_ui_settings_catalog_where(int i)
+{
+    Target t = catalog_target(i);
+    return t.row ? t.row->where : t.ext >= 0 ? PC_UI_WHERE_ALL : 0;
+}
+extern "C" int pc_ui_settings_catalog_row(int i, pc_ui_setting_row* out)
+{
+    Target t = catalog_target(i);
+    return out && t && fill(t, out);
+}
+extern "C" int pc_ui_settings_catalog_choice(int i, int choice, const char** name, const char** reason)
+{
+    Target t = catalog_target(i);
+    return t ? target_choice(t, choice, name, reason) : 0;
+}
+extern "C" int pc_ui_settings_catalog_change(int i, int delta)
+{
+    Target t = catalog_target(i);
+    return t ? target_change(t, delta) : 0;
+}
+extern "C" int pc_ui_settings_catalog_set(int i, double value)
+{
+    Target t = catalog_target(i);
+    return t ? target_set(t, value) : 0;
+}
+extern "C" int pc_ui_settings_catalog_activate(int i)
+{
+    Target t = catalog_target(i);
+    return t ? target_activate(t) : 0;
+}
+extern "C" int pc_ui_settings_catalog_homes(void) { return HOMES; }
+extern "C" const char* pc_ui_settings_catalog_home(int home, const char** title)
+{
+    if (home < 0 || home >= HOMES)
+        return nullptr;
+    if (title)
+        *title = HOME_TITLES[home];
+    return HOME_IDS[home];
+}
+extern "C" int pc_ui_settings_binding(int button, const char** id, const char** label)
+{
+    build();
+    for (const Row& r : homes[HOME_BINDINGS])
+        if (r.kind == PC_UI_SET_BINDING && r.arg == button) {
+            if (id)
+                *id = r.id;
+            if (label)
+                *label = r.label;
+            return pc_ui_settings_catalog_index(r.id);
+        }
+    return -1;
+}
+extern "C" void pc_ui_settings_set_provider(const pc_ui_settings_provider* p)
+{
+    have_provider = p && p->find && p->row && p->choice && p->set;
+    if (have_provider)
+        provider = *p;
+    else
+        std::memset(&provider, 0, sizeof provider);
 }
 
 static int saves; // pc_ui_settings_saves
@@ -1289,7 +1539,8 @@ extern "C" int pc_ui_settings_json(int page, char* out, int size)
     s += ",\"dirty\":";
     s += dirty ? "true" : "false";
     s += ",\"rows\":[";
-    static const char* const kinds[] = {"choice", "toggle", "slider", "action", "binding", "info"};
+    static const char* const kinds[] = {"choice", "toggle", "slider", "action", "binding", "info", "header", "note",
+        "link"};
     int n = pc_ui_settings_rows(page);
     for (int i = 0; i < n; i++) {
         pc_ui_setting_row r;
@@ -1326,6 +1577,12 @@ extern "C" int pc_ui_settings_json(int page, char* out, int size)
         }
         if (r.game_option)
             s += ",\"game\":true";
+        if (r.confirm)
+            s += ",\"confirm\":true";
+        if (r.kind == PC_UI_SET_LINK) {
+            s += ",\"page\":";
+            json_text(s, pc_ui_settings_page_id(pc_ui_settings_link(page, i)));
+        }
         s += "}";
     }
     s += "]}";

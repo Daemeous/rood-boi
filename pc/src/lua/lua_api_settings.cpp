@@ -82,18 +82,29 @@ void set_flag(lua_State* L, const char* key, bool value)
     lua_setfield(L, -2, key);
 }
 
-/* ---- System rows ---- */
+/* ---- System rows: the settings catalog (ui_settings.h), whichever pages show them ---- */
 struct RowRef {
-    int page = -1, row = -1;
+    int index = -1; /* the catalog's */
     pc_ui_setting_row r;
 };
-/* 1: shown (ref filled), 2: exists but not shown now, 0: no such row. */
+/* 1: shown (ref filled), 2: exists but not shown now, 0: no such row. Only the
+ * catalog's own rows: its provider's (plugin settings, schema fields) are the
+ * schema's below. */
 int find_row(const std::string& id, RowRef& ref)
 {
-    int found = pc_ui_settings_find(id.c_str(), &ref.page, &ref.row);
-    if (found == 1 && !pc_ui_settings_row(ref.page, ref.row, &ref.r))
+    int i = pc_ui_settings_catalog_index(id.c_str());
+    if (i < 0 || i >= pc_ui_settings_catalog_count())
         return 0;
-    return found;
+    ref.index = i;
+    if (!pc_ui_settings_catalog_shown(i))
+        return 2;
+    return pc_ui_settings_catalog_row(i, &ref.r) ? 1 : 0;
+}
+/* A home's rood.settings page name: "display" for rood.options/display. */
+std::string home_page(const char* home)
+{
+    const char* slash = home ? std::strrchr(home, '/') : nullptr;
+    return slash ? slash + 1 : home ? home : "";
 }
 
 std::string choices_text(const RowRef& ref)
@@ -101,7 +112,7 @@ std::string choices_text(const RowRef& ref)
     std::string s;
     for (int c = 0; c < ref.r.count; c++) {
         const char* name = nullptr;
-        if (pc_ui_settings_choice(ref.page, ref.row, c, &name, nullptr) && name)
+        if (pc_ui_settings_catalog_choice(ref.index, c, &name, nullptr) && name)
             s += (s.empty() ? "" : ", ") + slug(name);
     }
     return s;
@@ -116,7 +127,7 @@ void push_row_value(lua_State* L, const RowRef& ref)
         return;
     case PC_UI_SET_CHOICE: {
         const char* name = nullptr;
-        if (r.index >= 0 && pc_ui_settings_choice(ref.page, ref.row, r.index, &name, nullptr) && name)
+        if (r.index >= 0 && pc_ui_settings_catalog_choice(ref.index, r.index, &name, nullptr) && name)
             lua_pushstring(L, slug(name).c_str());
         else
             lua_pushnil(L);
@@ -166,7 +177,7 @@ double row_value(lua_State* L, int idx, const RowRef& ref, const char* id)
     for (int c = 0; c < r.count; c++) {
         const char* name = nullptr;
         const char* reason = nullptr;
-        if (!pc_ui_settings_choice(ref.page, ref.row, c, &name, &reason) || !name)
+        if (!pc_ui_settings_catalog_choice(ref.index, c, &name, &reason) || !name)
             continue;
         if (slug(name) == want || !std::strcmp(name, want)) {
             if (reason)
@@ -205,7 +216,7 @@ void push_row_info(lua_State* L, const RowRef& ref, const char* page)
         for (int c = 0; c < r.count; c++) {
             const char* name = nullptr;
             const char* why = nullptr;
-            pc_ui_settings_choice(ref.page, ref.row, c, &name, &why);
+            pc_ui_settings_catalog_choice(ref.index, c, &name, &why);
             lua_createtable(L, 0, 4);
             set_text(L, "id", slug(name ? name : "?"));
             set_text(L, "label", name ? name : "?");
@@ -627,7 +638,7 @@ int api_set(lua_State* L)
         return luaL_error(L, "rood.settings.set: '%s' is not shown now (it depends on another setting)", id);
     if (found == 1) {
         double v = row_value(L, 2, ref, id);
-        if (pc_ui_settings_set(ref.page, ref.row, v) && !flush_pending) {
+        if (pc_ui_settings_catalog_set(ref.index, v) && !flush_pending) {
             flush_pending = true;
             flush_polls = 0;
             flush_since = now_seconds();
@@ -673,7 +684,7 @@ int api_run(lua_State* L)
         return luaL_error(L, "rood.settings.run: '%s' is not an action shown now", id);
     if (!ref.r.enabled)
         return luaL_error(L, "rood.settings.run: '%s' cannot run now: %s", id, ref.r.reason);
-    lua_pushboolean(L, pc_ui_settings_activate(ref.page, ref.row));
+    lua_pushboolean(L, pc_ui_settings_catalog_activate(ref.index));
     return 1;
 }
 
@@ -688,19 +699,16 @@ int api_list(lua_State* L)
     }
     lua_newtable(L);
     lua_Integer n = 0;
-    for (int page = 0; page < pc_ui_settings_pages(); page++) {
-        const char* pid = pc_ui_settings_page_id(page);
+    for (int i = 0, count = pc_ui_settings_catalog_count(); i < count; i++) {
+        RowRef ref;
+        ref.index = i;
+        if (!pc_ui_settings_catalog_shown(i) || !pc_ui_settings_catalog_row(i, &ref.r))
+            continue;
+        std::string pid = home_page(ref.r.home);
         if (!filter.empty() && filter != pid)
             continue;
-        for (int row = 0; row < pc_ui_settings_rows(page); row++) {
-            RowRef ref;
-            ref.page = page;
-            ref.row = row;
-            if (!pc_ui_settings_row(page, row, &ref.r))
-                continue;
-            push_row_info(L, ref, pid);
-            lua_rawseti(L, -2, ++n);
-        }
+        push_row_info(L, ref, pid.c_str());
+        lua_rawseti(L, -2, ++n);
     }
     for (const Kind* k : rood_schema::all_kinds()) {
         if (k->object != rood_selection::KIND_NONE || k->count != 1 || (!filter.empty() && filter != k->name))
@@ -715,12 +723,14 @@ int api_list(lua_State* L)
 
 int api_pages(lua_State* L)
 {
-    lua_createtable(L, pc_ui_settings_pages(), 0);
-    for (int page = 0; page < pc_ui_settings_pages(); page++) {
+    lua_createtable(L, pc_ui_settings_catalog_homes(), 0);
+    for (int home = 0; home < pc_ui_settings_catalog_homes(); home++) {
+        const char* title = nullptr;
+        const char* id = pc_ui_settings_catalog_home(home, &title);
         lua_createtable(L, 0, 2);
-        set_text(L, "id", pc_ui_settings_page_id(page));
-        set_text(L, "title", pc_ui_settings_page_title(page));
-        lua_rawseti(L, -2, page + 1);
+        set_text(L, "id", home_page(id));
+        set_text(L, "title", title ? title : "");
+        lua_rawseti(L, -2, home + 1);
     }
     return 1;
 }
@@ -863,6 +873,106 @@ void flush_settings()
         pc_ui_settings_flush();
 }
 
+/* ---- The settings catalog's provider (ui_settings.h): schema fields as rows ----
+ * So an Option page (option_pages.h, rood.menu) can show a plugin's own setting
+ * ("plugin:<id>/<name>") or a standalone schema kind's ("<kind>/<field>"):
+ * booleans are toggles, enums choices, numbers sliders, colours read-only
+ * text. Changes come from the player (the menus), never another plugin. */
+std::vector<std::string>& provided()
+{
+    static auto* ids = new std::vector<std::string>(); /* handle -> id, kept: a handle stays its id's */
+    return *ids;
+}
+int provider_find(const char* id)
+{
+    if (!id || !schema_field(id, nullptr))
+        return -1;
+    std::vector<std::string>& ids = provided();
+    for (size_t k = 0; k < ids.size(); k++)
+        if (ids[k] == id)
+            return (int)k;
+    ids.push_back(id);
+    return (int)ids.size() - 1;
+}
+const Field* provided_field(int handle, const Kind** kind)
+{
+    if (handle < 0 || handle >= (int)provided().size())
+        return nullptr;
+    return schema_field(provided()[(size_t)handle], kind);
+}
+int provider_row(int handle, pc_ui_setting_row* out)
+{
+    const Kind* k = nullptr;
+    const Field* f = provided_field(handle, &k);
+    if (!f || !out)
+        return 0;
+    std::memset(out, 0, sizeof *out);
+    out->id = provided()[(size_t)handle].c_str();
+    out->label = f->label.c_str();
+    out->help = f->tooltip.c_str();
+    out->home = k->name.c_str();
+    out->where = PC_UI_WHERE_ALL;
+    out->enabled = 1;
+    out->index = out->button = -1;
+    prefab::Value v = f->get(0);
+    std::snprintf(out->value, sizeof out->value, "%s", rood_schema::format(*f, v).c_str());
+    switch (f->type) {
+    case rood_schema::TYPE_BOOL:
+        out->kind = PC_UI_SET_TOGGLE;
+        out->count = 2;
+        out->index = v.x() != 0;
+        std::snprintf(out->value, sizeof out->value, "%s", out->index ? "On" : "Off");
+        break;
+    case rood_schema::TYPE_ENUM:
+        out->kind = PC_UI_SET_CHOICE;
+        out->count = (int)f->options.size();
+        out->index = (int)std::lround(v.x());
+        if (out->index < 0 || out->index >= out->count)
+            out->index = -1;
+        break;
+    case rood_schema::TYPE_FLOAT:
+    case rood_schema::TYPE_INT:
+    case rood_schema::TYPE_ANGLE:
+        out->kind = PC_UI_SET_SLIDER;
+        out->min = f->min, out->max = f->max, out->number = v.x();
+        out->step = f->type == rood_schema::TYPE_INT ? std::max(1.0f, std::round(f->step)) : f->step;
+        break;
+    default: /* a colour, a vector: shown, changed in the dev tools */
+        out->kind = PC_UI_SET_INFO;
+        break;
+    }
+    return 1;
+}
+int provider_choice(int handle, int choice, const char** name)
+{
+    static const char* const OFF_ON[2] = { "Off", "On" };
+    const Field* f = provided_field(handle, nullptr);
+    if (!f)
+        return 0;
+    if (f->type == rood_schema::TYPE_BOOL && choice >= 0 && choice < 2) {
+        *name = OFF_ON[choice];
+        return 1;
+    }
+    if (f->type != rood_schema::TYPE_ENUM || choice < 0 || choice >= (int)f->options.size())
+        return 0;
+    *name = f->options[(size_t)choice].c_str();
+    return 1;
+}
+int provider_set(int handle, double value)
+{
+    const Kind* k = nullptr;
+    const Field* f = provided_field(handle, &k);
+    if (!f || f->type == rood_schema::TYPE_COLOUR || f->type == rood_schema::TYPE_VEC3)
+        return 0;
+    if (f->type == rood_schema::TYPE_INT)
+        value = std::round(value);
+    prefab::Value before = f->get(0), v = rood_schema::clamp(*f, prefab::Value::scalar((float)value));
+    if (rood_schema::same(*f, before, v))
+        return 0;
+    rood_schema::apply_at(*k, *f, 0, v);
+    return 1;
+}
+
 void open_settings(lua_State* L, Plugin*)
 {
     lua_newtable(L);
@@ -882,6 +992,8 @@ void open_settings(lua_State* L, Plugin*)
 struct Register {
     Register()
     {
+        static const pc_ui_settings_provider provider = { provider_find, provider_row, provider_choice, provider_set };
+        pc_ui_settings_set_provider(&provider);
         api_openers().push_back(open_settings);
         unload_hooks().push_back(drop_settings);
         poll_hooks().push_back(poll_settings);

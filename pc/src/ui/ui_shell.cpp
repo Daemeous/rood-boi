@@ -11,6 +11,7 @@
 #include "ui/ui_workshop.h"
 #include <cstdio>
 #include <cstring>
+#include <map>
 #include <string>
 
 extern "C" const char* pc_settings_status(void);
@@ -138,7 +139,11 @@ struct State {
     struct {
         int item = 0;  // focused list entry
         int page = -1; // the entered settings page; -1: the list has the focus
-        int row[PC_UI_SETTINGS_PAGES] = {};
+        std::map<std::string, int> rows; // each page's focused row, by page id
+        // The pages as last seen (pc_ui_settings_generation): a plugin's page coming
+        // or going renumbers them; the focus stays on its page by id.
+        unsigned generation = 0;
+        std::string page_id, item_page_id;
     } sys;
     Abil ab;
     pc_ui_abilities ab_model = {};
@@ -623,15 +628,6 @@ const RowDef SYSTEM_GAME[] = {
     {"manual", "Quick manual", "The game's own guide: controls, battle, magic and maps.", ROW_COMMAND, 9},
 };
 const int SYSTEM_GAMES = sizeof SYSTEM_GAME / sizeof SYSTEM_GAME[0];
-const char* const PAGE_HELP[PC_UI_SETTINGS_PAGES] = {
-    "Lighting, resolution, anti-aliasing and the 3D picture.",
-    "Widescreen, scaling, the window and brightness.",
-    "Volume and the game's sound output.",
-    "Menus, text, 2D upscaling and button prompts.",
-    "The right stick camera and vibration.",
-    "Keys and gamepad buttons for each PlayStation button.",
-    "Quality-of-life options and the game's own options.",
-};
 bool on_system() { return TABS[s.tab].screen == SCREEN_SYSTEM; }
 // The game entries shown now (menuFlags), as indices into SYSTEM_GAME.
 int sys_games(int* out)
@@ -654,26 +650,69 @@ int sys_item_page(int item)
     int games = sys_games(g);
     return item >= games ? item - games : -1;
 }
+std::string page_key(int page)
+{
+    const char* id = page >= 0 ? pc_ui_settings_page_id(page) : nullptr;
+    return id ? id : "";
+}
+// The pages changed (a plugin's page defined or gone): the entered page and the
+// focused entry follow their page by id; a page that is gone leaves to the list.
+void sys_sync()
+{
+    unsigned generation = pc_ui_settings_generation();
+    if (generation == s.sys.generation)
+        return;
+    s.sys.generation = generation;
+    int g[SYSTEM_GAMES];
+    int games = sys_games(g);
+    if (!s.sys.item_page_id.empty()) {
+        int page = pc_ui_settings_page_index(s.sys.item_page_id.c_str());
+        if (page >= 0)
+            s.sys.item = games + page;
+    }
+    if (s.sys.page >= 0) {
+        s.sys.page = pc_ui_settings_page_index(s.sys.page_id.c_str());
+        if (s.sys.page < 0)
+            s.sys.page_id.clear();
+    }
+}
+// The page's focused row (kept per page id).
+int& sys_row(int page) { return s.sys.rows[page_key(page)]; }
 // The page the card shows: the entered one, else the focused entry's (-1: a game entry).
-int sys_shown_page() { return s.sys.page >= 0 ? s.sys.page : sys_item_page(s.sys.item); }
+int sys_shown_page()
+{
+    sys_sync();
+    return s.sys.page >= 0 ? s.sys.page : sys_item_page(s.sys.item);
+}
+// Headers and notes are not focused (the classic screen skips them too).
+bool sys_selectable(int page, int row)
+{
+    pc_ui_setting_row r;
+    return pc_ui_settings_row(page, row, &r) && r.kind != PC_UI_SET_HEADER && r.kind != PC_UI_SET_NOTE;
+}
 bool capturing() { return pc_ui_settings_capture_button() >= 0; }
 // Keep the focus on the list and the page's rows (rows come and go with other settings).
 int sys_clamp()
 {
+    sys_sync();
     int n = sys_items();
     if (s.sys.item >= n)
         s.sys.item = n ? n - 1 : 0;
     if (s.sys.item < 0)
         s.sys.item = 0;
+    int item_page = sys_item_page(s.sys.item);
+    s.sys.item_page_id = page_key(item_page);
     int page = sys_shown_page();
     if (page < 0)
         return 0;
     int rows = pc_ui_settings_rows(page);
-    int& r = s.sys.row[page];
+    int& r = sys_row(page);
     if (r >= rows)
         r = rows ? rows - 1 : 0;
     if (r < 0)
         r = 0;
+    for (int k = 0; k < rows && !sys_selectable(page, r); k++) // off a header or note
+        r = (r + 1) % rows;
     return rows;
 }
 // Out of the page (Cross, another tab, the menu closing, an original screen):
@@ -686,10 +725,12 @@ void sys_leave()
         pc_ui_settings_capture_done(-1, 0);
     pc_ui_settings_flush();
     s.sys.page = -1;
+    s.sys.page_id.clear();
 }
 void sys_enter(int page)
 {
     s.sys.page = page;
+    s.sys.page_id = page_key(page);
     sys_clamp();
 }
 // Circle (or Right) on the list. Returns the game's result (n > 0: an original screen).
@@ -714,12 +755,23 @@ int sys_list_confirm()
     s.visible = false; // the game shows the original screen; it reopens the shell after
     return SYSTEM_GAME[g[s.sys.item]].command + 1;
 }
-// Circle on a row: actions run, bindings start a capture, choices and toggles step.
+// Circle on a row: actions run, bindings start a capture, choices and toggles step,
+// links open their page (its entry focused in the list).
 void sys_row_confirm(int page, int row)
 {
     pc_ui_setting_row r;
     if (!pc_ui_settings_row(page, row, &r))
         return;
+    if (r.kind == PC_UI_SET_LINK) {
+        int target = pc_ui_settings_link(page, row);
+        if (target >= 0) {
+            pc_ui_settings_flush();
+            int g[SYSTEM_GAMES];
+            s.sys.item = sys_games(g) + target;
+            sys_enter(target);
+        }
+        return;
+    }
     if (r.kind == PC_UI_SET_ACTION || r.kind == PC_UI_SET_BINDING)
         pc_ui_settings_activate(page, row);
     else if (r.kind == PC_UI_SET_CHOICE || r.kind == PC_UI_SET_TOGGLE)
@@ -784,11 +836,17 @@ int system_tick(const pc_ui_input* in)
     int rows = sys_clamp();
     if (!rows)
         return 0;
-    int& row = s.sys.row[page];
-    if (in->repeat & PC_UI_DOWN)
+    int& row = sys_row(page);
+    for (int k = 0; k < rows && (in->repeat & PC_UI_DOWN); k++) { // past headers and notes
         row = (row + 1) % rows;
-    if (in->repeat & PC_UI_UP)
+        if (sys_selectable(page, row))
+            break;
+    }
+    for (int k = 0; k < rows && (in->repeat & PC_UI_UP); k++) {
         row = (row + rows - 1) % rows;
+        if (sys_selectable(page, row))
+            break;
+    }
     int delta = ((in->repeat & PC_UI_RIGHT) ? 1 : 0) - ((in->repeat & PC_UI_LEFT) ? 1 : 0);
     if (delta) {
         pc_ui_settings_change(page, row, delta);
@@ -802,13 +860,10 @@ int system_tick(const pc_ui_input* in)
 const char* capture_row_id()
 {
     int button = pc_ui_settings_capture_button();
-    if (button < 0)
+    const char* id = nullptr;
+    if (button < 0 || pc_ui_settings_binding(button, &id, nullptr) < 0)
         return "";
-    pc_ui_setting_row r;
-    for (int i = 0, n = pc_ui_settings_rows(PC_UI_SETTINGS_BINDINGS); i < n; ++i)
-        if (pc_ui_settings_row(PC_UI_SETTINGS_BINDINGS, i, &r) && r.kind == PC_UI_SET_BINDING && r.button == button)
-            return r.id;
-    return "";
+    return id;
 }
 void system_json(std::string& j)
 {
@@ -826,16 +881,17 @@ void system_json(std::string& j)
     j += "\",\"row\":\"";
     int rows = page >= 0 ? pc_ui_settings_rows(page) : 0;
     pc_ui_setting_row r;
-    if (rows && pc_ui_settings_row(page, s.sys.row[page], &r))
+    if (rows && pc_ui_settings_row(page, sys_row(page), &r))
         j += r.id;
     j += "\",\"rows\":[";
-    static const char* const kinds[] = {"choice", "toggle", "slider", "action", "binding", "info"};
+    static const char* const kinds[] = {"choice", "toggle", "slider", "action", "binding", "info", "header", "note",
+        "link"};
     for (int i = 0; i < rows; ++i) {
         if (!pc_ui_settings_row(page, i, &r))
             break;
         j += i ? ",{\"id\":\"" : "{\"id\":\"";
         j += escape(r.id) + "\",\"label\":\"" + escape(r.label) + "\",\"kind\":\"";
-        j += r.kind >= 0 && r.kind <= PC_UI_SET_INFO ? kinds[r.kind] : "";
+        j += r.kind >= 0 && r.kind <= PC_UI_SET_LINK ? kinds[r.kind] : "";
         j += "\",\"value\":\"" + escape(r.value) + "\",\"enabled\":";
         j += r.enabled ? "true" : "false";
         if (r.reason[0])
@@ -1840,7 +1896,7 @@ bool mouse_focus(int kind, int index)
         int page = s.sys.page;
         if (!on_system() || page < 0 || index < 0 || index >= pc_ui_settings_rows(page))
             return false;
-        s.sys.row[page] = index;
+        sys_row(page) = index;
         return true;
     }
     case PC_UI_MOUSE_ABIL_SLOT: // hover moves the slots' focus while they have it
@@ -2001,7 +2057,7 @@ bool apply_mouse(pc_ui_input& in)
             return true;
         if (s.sys.page < 0)
             sys_enter(page);
-        s.sys.row[page] = m.value_row;
+        sys_row(page) = m.value_row;
         if (m.value_set && m.value_preview)
             pc_ui_settings_preview(page, m.value_row, m.value_number);
         else if (m.value_set)
@@ -2092,7 +2148,7 @@ bool apply_mouse(pc_ui_input& in)
             int page = on_system() ? sys_shown_page() : -1;
             if (page >= 0 && m.click_index >= 0 && m.click_index < pc_ui_settings_rows(page)) {
                 sys_enter(page);
-                s.sys.row[page] = m.click_index;
+                sys_row(page) = m.click_index;
             }
             return true;
         }
@@ -2179,6 +2235,7 @@ extern "C" void pc_ui_shell_open(const pc_ui_commands* commands, int remember)
     pc_ui_manual_leave(); // a manual left open by a session that ended without its close (nothing when off)
     pc_ui_score_leave();  // likewise the Score screen
     s.sys.page = -1; // the System screen opens on its list
+    s.sys.page_id.clear();
     if (!remember) {
         s.tab = 0;
         std::memset(s.row, 0, sizeof s.row);
@@ -2186,7 +2243,7 @@ extern "C" void pc_ui_shell_open(const pc_ui_commands* commands, int remember)
         s.ash_row = 0;
         s.ash_limb = -1;
         s.sys.item = 0;
-        std::memset(s.sys.row, 0, sizeof s.sys.row);
+        s.sys.rows.clear();
         s.ab = Abil();
         s.mg = Magic();
         s.it = It();
@@ -2542,7 +2599,7 @@ extern "C" void pc_ui_shell_system_view(pc_ui_system_view* v)
     v->item = s.sys.item;
     v->page = sys_shown_page();
     v->entered = s.sys.page >= 0;
-    v->row = v->page >= 0 ? s.sys.row[v->page] : 0;
+    v->row = v->page >= 0 ? sys_row(v->page) : 0;
     v->capture = pc_ui_settings_capture_button();
 }
 extern "C" int pc_ui_shell_system_item(int i, const char** id, const char** label, const char** help, int* enabled,
@@ -2562,7 +2619,7 @@ extern "C" int pc_ui_shell_system_item(int i, const char** id, const char** labe
     int page = i - games;
     *id = pc_ui_settings_page_id(page);
     *label = pc_ui_settings_page_title(page);
-    *help = PAGE_HELP[page];
+    *help = pc_ui_settings_page_help(page);
     *enabled = 1;
     *reason = nullptr;
     return 1;

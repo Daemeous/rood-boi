@@ -2701,13 +2701,10 @@ static void handle_method(int fd, const char* request)
         if (params && string_value(member(params, "bind"), text, sizeof text)) {
             char row_id[48];
             snprintf(row_id, sizeof row_id, "bind_%s", text);
-            int rows = pc_ui_settings_rows(PC_UI_SETTINGS_BINDINGS), started = 0;
-            for (int r = 0; r < rows && !started; r++) {
-                pc_ui_setting_row row;
-                if (pc_ui_settings_row(PC_UI_SETTINGS_BINDINGS, r, &row) && !strcmp(row.id, row_id))
-                    started = pc_ui_settings_activate(PC_UI_SETTINGS_BINDINGS, r);
-            }
-            if (!started) {
+            int i = pc_ui_settings_catalog_index(row_id);
+            pc_ui_setting_row row;
+            if (i < 0 || !pc_ui_settings_catalog_row(i, &row) || row.kind != PC_UI_SET_BINDING
+                || !pc_ui_settings_catalog_activate(i)) {
                 fail(fd, id, -32000, "no binding capture for that button");
                 return;
             }

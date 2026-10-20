@@ -47,6 +47,10 @@ int main(void)
         { 12, 2, 1, NULL, U, 1, 0, C },
         { 12, 1, 0, NULL, U, 0, 0, C },
         { 12, 5, 3, NULL, U, 4, 3, C },
+        /* A restored focus on visible row 0 / 8 mid-list (never reached by
+         * these steps): it pages instead of leaving the window. */
+        { 12, 2, 2, NULL, U, 1, 1, C },
+        { 12, 9, 1, NULL, D, 10, 2, C },
         /* 1053,1081,1111-1113: Up then Down; final-row sound only.
          * At a paging threshold both directions can leave a different top. */
         { 12, 4, 3, NULL, U | D, 4, 2, N },

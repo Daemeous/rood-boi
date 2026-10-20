@@ -3,10 +3,12 @@
 rood-boi runs plugins written in Lua 5.4 (vendored in `pc/third_party/lua`).
 Milestone 0 is the runtime, its safety nets and the core API; the HUD layer
 adds drawing the game's HUD elements, their events and read-only game
-queries. Menus and input come in later milestones. Vanilla stays vanilla:
-the shipped example is off; the shipped `rood.hud` (on) draws the HUD's
-words only with the modern look (or the classic look with
-`hud_classic_override`), and off, the game draws them.
+queries; M1 adds the Option screens' pages (`rood.menu`). Input comes in a
+later milestone. Vanilla stays vanilla: the shipped example is off; the
+shipped `rood.hud` (on) draws the HUD's words only with the modern look (or
+the classic look with `hud_classic_override`), and off, the game draws
+them; the shipped `rood.options` (on) defines the core Option pages, which
+the C++ fallback builds identically without it.
 
 ## Where Lua runs
 
@@ -30,7 +32,7 @@ Never on the audio callback thread or helper threads. Save states
 A plugin is a folder named after its id, with a manifest and a main chunk:
 
 ```
-pc/plugins/rood.example/      shipped (committed; rood.hud too); ROOD_PLUGINS_SHIPPED overrides, "" for none
+pc/plugins/rood.example/      shipped (committed; rood.hud, rood.options too); ROOD_PLUGINS_SHIPPED overrides, "" for none
 pc/user/plugins/<id>/         yours (not committed); ROOD_PLUGINS overrides
 pc/user/plugin_data/<id>/     its storage, its settings.json; ROOD_PLUGIN_DATA overrides
 ```
@@ -156,6 +158,7 @@ checks are not a defense against another process racing filesystem changes.
 | `rood.storage.get/set/remove/keys/flush`, `read(path)`, `read_data/write_data/list_data` | plain data, 1 MB; `read` reads the plugin's folder |
 | `rood.settings.get/set/reset/run/list([{page}])/pages()/define(name, spec)/on_change(id, fn)/off_change` | System rows (`"skip_intro"`), schema kinds (`"<kind>/<field>"`), the plugin's own (`"plugin:<id>/<name>"`; another plugin's are read and watched, never changed), each validated by its registry; settings.cfg keys without a row are read and watched, never set: the plain numeric ones (`"qol_fast_travel_prompt_size"`; several numbers, a colour: a table) and ui_text's (`"ui_text_status_size"`, a font's path as text) |
 | `rood.test.case(name, fn)`, `eq`, `ok`, `near`, `raises`, `skip`, `wait(ticks)` | in `tests/*.lua` |
+| `rood.menu.page{...}`, `action`, `remove`, `pages`, `rows`, `actions`, `generation` | the Option screens' pages (below) |
 
 ## HUD: claims and drawing
 
@@ -317,6 +320,65 @@ rood.hud.release("status")   -- rood.hud's again
 rood.dev.clear()
 ```
 
+## Option pages
+
+`rood.menu` (`pc/src/lua/lua_api_menu.cpp`; plan
+`pc/docs/plans/2026-10-18-lua-m1-options.md`): pages of the Option screens. The
+page model (`pc/src/ui/option_pages.h`) holds them; the modern System tab
+(`pc_ui_settings_*`, `ui_shell.cpp`) lists every page in tree order, and the
+game's own Option screen will show the top-level pages as entries below its
+rows (phase C). A page's rows name settings of the settings catalog
+(`pc/src/ui/ui_settings.cpp`; `rood.settings.list()` lists the keys), so a new
+option is a catalog row plus a line of Lua.
+
+```lua
+rood.menu.page{ id = "tweaks", title = "Tweaks", help = "Small things.",
+  after = "rood.options/gameplay",          -- or before; ids or "group:<name>"; or parent = a page id
+  rows = {
+    "widescreen",                           -- a catalog key
+    { setting = "aspect", label = "Fill", help = "How it fills.", where = "classic" },
+    { define = "fast", kind = "toggle", default = false, label = "Fast" }, -- rood.settings.define in place
+    { setting = "plugin:other.plugin/speed" }, -- another plugin's: greyed while it is not loaded
+    { header = "Advanced" },
+    { help = "Restart to apply." },          -- a line of help
+    { page = "more" },                       -- a link (a page id; local names are this plugin's)
+    { action = "settings.save" },            -- a core action
+    { action = "clear", label = "Clear" },   -- this plugin's (rood.menu.action)
+  } }                                        --> "me.tweaks/tweaks"
+rood.menu.page{ id = "more", title = "More", parent = "tweaks", rows = { "filter" } }
+rood.menu.action("clear", function() rood.storage.set("seen", {}) end, { help = "Forget what was seen." })
+```
+
+| | |
+|---|---|
+| `rood.menu.page(t) -> id` | defines (or, again, redefines in place) a page `"<plugin id>/<id>"`. `id`: a slug (1-32 of a-z 0-9 _ -); `title` 1-24 characters the game's font has (`vs_encode`); `help`; `after` / `before` (ids, local names, `group:<name>`) or `parent` must name pages that exist; `group` defaults to `plugins` (after every core page; `system` is the shipped pages'); `rows` at most 64, 16 pages a plugin. A row is a key or a table with exactly one of `setting`, `define`, `header`, `page`, `action` (or `help` alone: a help line), plus `label`, `help`, `where` (`classic`, `modern`, `all`). A setting must be in the catalog (the plugin's own defined first; another plugin's is allowed); `define` takes `rood.settings.define`'s spec, with `kind` `toggle` / `choice` / `slider` for `type`. Errors raise in the plugin; text the font lacks in labels and help is a warning (shown as `?` in the classic look) |
+| `rood.menu.action(name, fn[, {label, help}]) -> id` | `"<plugin id>/<name>"`, run in the plugin's sandbox under its budget when the player picks its row (an error: the plugin's fault) |
+| `rood.menu.remove(id) -> bool`, `rood.menu.pages()`, `rood.menu.rows(id[, where])`, `rood.menu.actions()`, `rood.menu.generation()` | own pages only; every listed page (`id, title, help, source, group, parent, depth`); a page's rows a screen shows now (`id, form, kind, label, help, text, enabled, reason, page, where`); the core actions (`plugin_ok`) and plugins' (`owner`); the page model's change counter |
+
+Rows show live values and greyed reasons from the catalog; a plugin's own
+settings (`plugin:<id>/<name>`, and standalone schema kinds' `<kind>/<field>`)
+come through the catalog's provider (`lua_api_settings.cpp`): booleans are
+toggles, enums choices, numbers sliders, colours read-only. Other plugins'
+settings stay read-only to code: only the player changes them in the menus.
+
+Actions: core ones (`pc/src/ui/option_actions.c`: `settings.save` "Save now",
+`plugins.reload` "Reload plugins"); a plugin's page offers only those flagged
+`plugin_ok` and its own; the shipped `rood.*` plugins any. The pages are also
+registry entries (`menu.page`, owned by the plugin: `registry.changed`);
+everything a plugin defined goes when it unloads or reloads, and a screen
+showing it keeps its focus by id (or goes back to the list).
+
+### rood.options (shipped, on)
+
+`pc/plugins/rood.options/main.lua`: the core pages as a table (`M.pages`):
+Gameplay, Display, Graphics, Audio, Interface, Controls (group `system`) and
+Bindings under Controls (the classic screen reaches it by a link; the modern
+list shows it as an entry). The game's own options carry `where = "modern"`
+in the catalog: the classic Option screen has its own rows for them. With it
+off, broken or without Lua, `option_pages.cpp` builds the same pages from each
+catalog row's home page; `lua_menu_probe` checks they are equal row for row
+and its Lua tests check every catalog row is on exactly one page.
+
 ## The REPL
 
 An nREPL-style bridge over RPC `lua {action "repl"}` (`pc/src/lua/lua_repl.cpp`;
@@ -415,7 +477,15 @@ rood_repl.py --json -s hud -e 'repl.reload()'                     # or save main
 - Lua tests: `tests/*.lua` in a plugin, run inside a running game with no
   relaunch: `rood_rpc.py lua-test`, or `python3 pc/tests/lua_smoke.py
   --tests-only --plugin my.plugin` (one launch).
-- `pc/tests/run.py lua_smoke`: one game, every Lua test, then runaway and
+- `ctest lua_menu_probe` (Linux; the real settings catalog and page model):
+  rood.options' pages equal the C++ fallback's row for row and the fallback
+  comes back identical when it is off or broken; every validation error; a
+  plugin's page placed after the core ones, its rows per screen, links,
+  parents; actions (refused core ones, its own greyed until registered, run
+  in its sandbox, a raising one its own fault); hot reload and turning off.
+- `pc/tests/run.py lua_smoke`: one game, every Lua test (rood.options': its
+  pages against the catalog; the fixture test.menu: a page with settings
+  defined in place shown as toggle / slider / choice rows, its actions), then runaway and
   failing scripts, memory, capabilities, hot reload and settings.
 - `pc/tests/run.py hud_bench_smoke`: one game in the save room:
   `rood.game` against RPC state; the name window (the game's own call,

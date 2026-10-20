@@ -29,8 +29,10 @@ typedef struct {
 /* Pure nine-row (vanilla rowInfo=1) step. UP/DOWN are repeat pulses, not
  * raw held buttons: the caller supplies the game's button-repeat timing.
  * FRESH bits permit edge wrapping but do not themselves cause movement.
- * Requires count >= 0, a visible in-range cursor and 0 <= top <= max(count-9,0)
- * for nonempty lists. Empty lists are unchanged. Non-selectable rows are
+ * Requires count >= 0, an in-range cursor and 0 <= top <= max(count-9,0)
+ * for nonempty lists; a cursor on visible row 0 or 8 of a mid-list page (a
+ * restored focus; the original's steps never leave it there) pages when it
+ * moves past that edge, so it stays visible. Empty lists are unchanged. Non-selectable rows are
  * skipped using the same scrolling rules; if no target is reachable the
  * state is unchanged. A blocked repeat is silent, no selectable row is
  * INVALID, and a changed final cursor is CHANGE. Up runs before Down.

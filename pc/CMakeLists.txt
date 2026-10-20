@@ -236,6 +236,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     # with the later features' hooks.
     foreach(variant IN ITEMS ui_settings_probe ui_settings_probe_hooks)
         add_executable(${variant} tests/ui_settings_probe.cpp tests/ui_settings_stubs.cpp src/ui/ui_settings.cpp
+            src/ui/option_pages.cpp src/ui/option_actions.c
             src/ui/ui_tint.cpp src/antialias.c src/camera_stick.c src/boot_controller.c)
         target_include_directories(${variant} PRIVATE src tests third_party/SDL3/include)
         target_compile_features(${variant} PRIVATE cxx_std_17)
@@ -244,7 +245,23 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_test(NAME ${variant} COMMAND ${variant})
     endforeach()
     target_compile_definitions(ui_settings_probe_hooks PRIVATE UI_SETTINGS_PROBE_HOOKS)
+    # The Option pages model (pc/src/ui/option_pages.cpp) over the same catalog:
+    # the C++ fallback pages against today's System pages, ordering, cycles.
+    add_executable(option_pages_probe tests/option_pages_probe.cpp tests/ui_settings_stubs.cpp src/ui/option_pages.cpp
+        src/ui/option_actions.c src/ui/ui_settings.cpp src/ui/ui_tint.cpp src/antialias.c src/camera_stick.c
+        src/boot_controller.c)
+    target_include_directories(option_pages_probe PRIVATE src tests third_party/SDL3/include)
+    target_compile_features(option_pages_probe PRIVATE cxx_std_17)
+    target_compile_options(option_pages_probe PRIVATE -Wall -Wextra -Werror)
+    target_link_libraries(option_pages_probe PRIVATE m)
+    add_test(NAME option_pages_probe COMMAND option_pages_probe)
 endif()
+
+# "Keep these settings?" for risky display changes (display_confirm.c) against a fake clock.
+add_executable(display_confirm_probe tests/display_confirm_probe.c src/display_confirm.c)
+target_include_directories(display_confirm_probe PRIVATE src)
+target_compile_options(display_confirm_probe PRIVATE -Wall -Wextra -Werror)
+add_test(NAME display_confirm_probe COMMAND display_confirm_probe)
 
 # The right-stick camera's logic (camera_stick.c) against a fake game camera.
 add_executable(camera_stick_probe tests/camera_stick_probe.c src/camera_stick.c)
@@ -352,3 +369,15 @@ target_include_directories(lua_probe PRIVATE src src/lua)
 target_link_libraries(lua_probe PRIVATE rood_lua Threads::Threads)
 target_compile_options(lua_probe PRIVATE -Wall -Wextra -Werror)
 add_test(NAME lua_probe COMMAND lua_probe ${CMAKE_CURRENT_BINARY_DIR}/lua_probe_scratch)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # rood.menu (lua_api_menu.cpp) over the real settings catalog and Option page model: the
+    # shipped rood.options plugin against the C++ fallback, validation, actions, hot reload.
+    add_executable(lua_menu_probe tests/lua_menu_probe.cpp ${ROOD_LUA_RUNTIME} src/lua/lua_api_menu.cpp
+        src/ui/vs_encode.c src/ui/option_pages.cpp src/ui/option_actions.c src/ui/ui_settings.cpp
+        tests/ui_settings_stubs.cpp src/ui/ui_tint.cpp src/antialias.c src/camera_stick.c src/boot_controller.c)
+    target_include_directories(lua_menu_probe PRIVATE src src/lua tests third_party/SDL3/include)
+    target_link_libraries(lua_menu_probe PRIVATE rood_lua Threads::Threads m)
+    target_compile_options(lua_menu_probe PRIVATE -Wall -Wextra -Werror)
+    add_test(NAME lua_menu_probe COMMAND lua_menu_probe ${CMAKE_CURRENT_BINARY_DIR}/lua_menu_probe_scratch
+        ${CMAKE_CURRENT_SOURCE_DIR}/plugins)
+endif()

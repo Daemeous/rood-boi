@@ -252,6 +252,10 @@ const RegistryEntry* registry_get(const std::string& kind, const std::string& id
 std::vector<std::string> registry_kinds();
 size_t registry_count(const std::string& owner);
 void drop_registry(const std::string& owner); /* its entries (registry.changed for each) */
+/* For the host's own APIs (rood.menu): register or replace kind+id as given (owner,
+ * relations, data: the caller checked them), and remove one; registry.changed for each. */
+void registry_put(const RegistryEntry& entry);
+bool registry_drop(const std::string& kind, const std::string& id);
 
 /* ---- lua_caps.cpp ---- */
 struct CapabilityInfo {

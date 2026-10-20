@@ -4,6 +4,7 @@
 // the game options bridge and without the feature hooks, and the other way
 // round (UI_SETTINGS_PROBE_HOOKS).
 #include "ui/ui_settings.h"
+#include "ui/option_pages.h"
 #include "ui/game_options.h"
 #include "antialias.h"
 #include <SDL3/SDL_gamepad.h> /* before boot_controller.h: SDL keeps its own linkage */
@@ -57,9 +58,9 @@ static pc_ui_setting_row row(int page, const char* id)
 static std::string value(int page, const char* id) { return row(page, id).value; }
 static int change(int page, const char* id, int delta) { return pc_ui_settings_change(page, find(page, id), delta); }
 
-enum { G = PC_UI_SETTINGS_GRAPHICS, D = PC_UI_SETTINGS_DISPLAY, A = PC_UI_SETTINGS_AUDIO,
-    I = PC_UI_SETTINGS_INTERFACE, C = PC_UI_SETTINGS_CONTROLS, B = PC_UI_SETTINGS_BINDINGS,
-    P = PC_UI_SETTINGS_GAMEPLAY };
+// The System pages are the Option page model's (option_pages.h; the C++
+// fallback pages here): found by id.
+static int G, D, A, I, C, B, P;
 
 #ifdef UI_SETTINGS_PROBE_HOOKS
 const bool game = false;
@@ -70,10 +71,14 @@ const bool game = true;
 static void pages()
 {
     CHECK(pc_ui_settings_pages() == 7);
-    const char* titles[] = {"Graphics", "Display", "Audio", "Interface", "Controls", "Bindings", "Gameplay"};
+    // the Option screen's order (Bindings, Controls' sub-page, right after it)
+    const char* titles[] = {"Gameplay", "Display", "Graphics", "Audio", "Interface", "Controls", "Bindings"};
     for (int p = 0; p < 7; p++)
         CHECK(!std::strcmp(pc_ui_settings_page_title(p), titles[p]));
     CHECK(!std::strcmp(pc_ui_settings_page_id(D), "display"));
+    CHECK(pc_ui_settings_page_index("rood.options/display") == D && pc_ui_settings_page_index("nothing") == -1);
+    CHECK(!std::strcmp(pc_ui_settings_page_help(C), "The right stick camera and vibration."));
+    CHECK(pc_ui_settings_page_depth(B) == 1 && pc_ui_settings_page_depth(C) == 0);
     CHECK(pc_ui_settings_page_title(7) == nullptr);
     CHECK(pc_ui_settings_rows(G) == 17);
     // Glowing surfaces (emissive): after Sun and sky, a slider 0..2, Off at 0
@@ -555,8 +560,93 @@ static void json()
     CHECK(n == 15 && std::strlen(small) == 15);
 }
 
+// ---- the System pages are the page model's (option_pages.h) ----
+// A provider's row (lua_api_settings.cpp gives plugins' settings): one slider.
+static float speed = 2;
+static int fake_find(const char* id) { return !std::strcmp(id, "plugin:me.test/speed") ? 0 : -1; }
+static int fake_row(int handle, pc_ui_setting_row* out)
+{
+    if (handle != 0)
+        return 0;
+    out->id = "plugin:me.test/speed", out->label = "Speed", out->help = "How fast.";
+    out->kind = PC_UI_SET_SLIDER, out->enabled = 1, out->min = 0, out->max = 10, out->step = 1, out->number = speed;
+    std::snprintf(out->value, sizeof out->value, "%g", (double)speed);
+    return 1;
+}
+static int fake_choice(int, int, const char**) { return 0; }
+static int fake_set(int, double v)
+{
+    if ((float)v == speed)
+        return 0;
+    speed = (float)v;
+    return 1;
+}
+
+static void page_model()
+{
+    static const pc_ui_settings_provider provider = {fake_find, fake_row, fake_choice, fake_set};
+    pc_ui_settings_set_provider(&provider);
+    unsigned gen = pc_ui_settings_generation();
+    const pc_option_row_def rows[] = {
+        {PC_OPT_HEADER, nullptr, "Picture", nullptr, 0},
+        {PC_OPT_SETTING, "widescreen", "Wide", nullptr, 0},
+        {PC_OPT_SETTING, "plugin:me.test/speed", nullptr, nullptr, 0},
+        {PC_OPT_NOTE, nullptr, "Restart to apply.", nullptr, 0},
+        {PC_OPT_ACTION, "settings.save", nullptr, nullptr, 0},
+        {PC_OPT_LINK, "rood.options/display", nullptr, nullptr, 0},
+        {PC_OPT_SETTING, "skip_intro", nullptr, nullptr, PC_UI_WHERE_CLASSIC}, // not on the modern screen
+    };
+    pc_option_page_def d = {};
+    d.id = "me.test/tweaks", d.title = "Tweaks", d.help = "Mine.", d.group = "plugins";
+    d.rows = rows, d.row_count = (int)(sizeof rows / sizeof rows[0]);
+    CHECK(pc_option_pages_define("me.test", &d) == PC_OPT_OK);
+    CHECK(pc_ui_settings_generation() != gen && pc_ui_settings_pages() == 8);
+    int t = pc_ui_settings_page_index("me.test/tweaks");
+    CHECK(t == 7 && !std::strcmp(pc_ui_settings_page_id(t), "me.test/tweaks")); // after every core page
+    CHECK(!std::strcmp(pc_ui_settings_page_title(t), "Tweaks") && !std::strcmp(pc_ui_settings_page_help(t), "Mine."));
+    CHECK(pc_ui_settings_rows(t) == 6);
+    pc_ui_setting_row r;
+    CHECK(pc_ui_settings_row(t, 0, &r) && r.kind == PC_UI_SET_HEADER && !r.enabled);
+    // a catalog setting on another page: the same row, its own label here
+    CHECK(pc_ui_settings_row(t, 1, &r) && !std::strcmp(r.id, "widescreen") && !std::strcmp(r.label, "Wide"));
+    CHECK(pc_ui_settings_change(t, 1, 1) == 1 && pc_gte_widescreen == 1 && value(D, "widescreen") == "On");
+    CHECK(pc_ui_settings_change(t, 1, 1) == 1 && pc_gte_widescreen == 0);
+    // the provider's row
+    CHECK(pc_ui_settings_row(t, 2, &r) && r.kind == PC_UI_SET_SLIDER && !std::strcmp(r.value, "2"));
+    CHECK(pc_ui_settings_change(t, 2, 1) == 1 && speed == 3 && pc_ui_settings_set(t, 2, 20) == 1 && speed == 10);
+    CHECK(pc_ui_settings_set(t, 2, 10) == 0);
+    int i = pc_ui_settings_catalog_index("plugin:me.test/speed");
+    CHECK(i >= pc_ui_settings_catalog_count() && pc_ui_settings_catalog_shown(i)
+        && pc_ui_settings_catalog_set(i, 4) == 1 && speed == 4);
+    CHECK(pc_ui_settings_find("plugin:me.test/speed", nullptr, nullptr) == 1);
+    // an action (option_actions.h): Save now, greyed while nothing is unsaved
+    pc_ui_settings_flush();
+    CHECK(pc_ui_settings_row(t, 4, &r) && r.kind == PC_UI_SET_ACTION && !r.enabled && !std::strcmp(r.label, "Save now"));
+    CHECK(pc_ui_settings_activate(t, 4) == 0);
+    pc_ui_settings_change(D, find(D, "widescreen"), 1);
+    int saves = stub.saves;
+    CHECK(pc_ui_settings_row(t, 4, &r) && r.enabled && pc_ui_settings_activate(t, 4) == 1 && stub.saves == saves + 1);
+    pc_ui_settings_change(D, find(D, "widescreen"), 1);
+    pc_ui_settings_flush();
+    // a link: the page it opens
+    CHECK(pc_ui_settings_row(t, 5, &r) && r.kind == PC_UI_SET_LINK && !std::strcmp(r.value, "Display"));
+    CHECK(pc_ui_settings_link(t, 5) == D && pc_ui_settings_link(t, 4) == -1);
+    char buf[8192];
+    pc_ui_settings_json(t, buf, sizeof buf);
+    CHECK(std::strstr(buf, "\"kind\":\"header\"") && std::strstr(buf, "\"kind\":\"link\"")
+        && std::strstr(buf, "\"page\":\"display\""));
+    // the plugin goes: its page with it
+    CHECK(pc_option_pages_remove_source("me.test") == 1 && pc_ui_settings_pages() == 7);
+    pc_ui_settings_set_provider(nullptr);
+    CHECK(pc_ui_settings_catalog_index("plugin:me.test/speed") == -1);
+}
+
 int main()
 {
+    G = pc_ui_settings_page_index("graphics"), D = pc_ui_settings_page_index("display");
+    A = pc_ui_settings_page_index("audio"), I = pc_ui_settings_page_index("interface");
+    C = pc_ui_settings_page_index("controls"), B = pc_ui_settings_page_index("bindings");
+    P = pc_ui_settings_page_index("gameplay");
     pages();
     values();
     lighting_and_aa();
@@ -566,6 +656,7 @@ int main()
     bindings();
     tint();
     json();
+    page_model();
     if (failures) {
         std::printf("ui_settings_probe: %d failure(s)\n", failures);
         return 1;
