@@ -714,7 +714,18 @@ use:
   - the real cost of menu tours (recording them is manual the first time:
     an agent drives RPC input).
 
-## 7. Open questions for the user
+## 7. Decisions (the user, 2026-10-20)
+
+1. Parity: the packet gate is a given, not an option (pixels stay a secondary check on the gallery).
+2. Small `ROOD_PC` hooks in src/MENU now: yes.
+3. The heuristic widescreen stretch is removed per screen as each moves to Lua: yes.
+4. A kind or screen's Lua draw becomes the classic default once it passes the parity gate: yes.
+5. Phase 2's screen: left to us. The main-menu frame plus Options (the default below).
+6. One plugin or two: left to us. A new shipped `rood.classic` (the default below).
+
+The questions as they were put:
+
+### Open questions (answered above)
 
 The plan is written with the recommended default for each.
 
