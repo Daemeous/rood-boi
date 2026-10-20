@@ -16,7 +16,7 @@ import time
 
 root = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(root / "pc/tools"))
-from rood_rpc import OUT, Game, headless_env, headless_mode, start_xvfb  # noqa: E402
+from rood_rpc import OUT, Deadline, Game, headless_env, headless_mode, start_xvfb, watch_stops  # noqa: E402
 
 # The window's keyboard mapping (boot_window.c keybit) as RPC pad buttons.
 RPC_BUTTONS = {"Up": "up", "Down": "down", "Left": "left", "Right": "right", "Return": "start",
@@ -30,7 +30,8 @@ parser.add_argument("--keys", default="")
 parser.add_argument("--hold", default="")
 parser.add_argument("--idle", action="store_true", help="let the attract demo start instead of selecting New Game")
 parser.add_argument("--realtime", action="store_true", help="pace at 59.94 Hz instead of --fast")
-parser.add_argument("--deadline", type=float, help="seconds for the key sequence (default 300, realtime 900)")
+parser.add_argument("--deadline", type=float, help="seconds for the key sequence (default 300, realtime 900; "
+                    "awake seconds: time the game spends stopped is not counted)")
 parser.add_argument("--input", choices=["x11", "rpc"],
                     help="x11: send_key on Xvfb; rpc: headless EGL with RPC input (default: by headless mode)")
 parser.add_argument(
@@ -90,6 +91,22 @@ def key(name, half=None):
     return 0
 
 
+def gap():
+    """Between two keys: half a second, and (RPC) at least 30 vsyncs of the game's: a game stopped
+    (SIGSTOP) or starved during the half second would otherwise take the next key at once, two
+    presses in one. X11 keys have no RPC here to count with."""
+    time.sleep(0.5)
+    if not use_rpc or rpc is None:
+        return
+    try:
+        start = rpc.status()["vsync"]
+        deadline = Deadline(60)  # a hang guard (a quit game ends the loop at once)
+        while p.poll() is None and rpc.status()["vsync"] < start + 30 and not deadline.passed():
+            time.sleep(0.01)
+    except (OSError, RuntimeError):
+        pass  # the game exited (the checkpoint)
+
+
 try:
     with log.open("w") as output:
         p = subprocess.Popen(
@@ -106,9 +123,10 @@ try:
             stdout=output,
             stderr=output,
         )
+        watch_stops(p.pid)  # the hang guards below leave out time the game spends stopped (SIGSTOP)
         try:
-            deadline = time.monotonic() + 40
-            while time.monotonic() < deadline:
+            deadline = Deadline(120)
+            while not deadline.passed():
                 if "TITLE MENU READY" in log.read_text():
                     break
                 if p.poll() is not None:
@@ -119,12 +137,12 @@ try:
             if not args.idle and key("Return"):
                 raise RuntimeError("Return failed")
             if args.advance_dialogue or args.idle or args.keys or args.hold:
-                deadline = time.monotonic() + (args.deadline or (900 if args.realtime else 300))
+                deadline = Deadline(args.deadline or (900 if args.realtime else 300))
                 last_frame = 0
                 sequence = args.keys.split()
                 titles = 1
                 held = False
-                while p.poll() is None and time.monotonic() < deadline:
+                while p.poll() is None and not deadline.passed():
                     markers = re.findall(r"completed (\d+) frames", log.read_text())
                     frame = int(markers[-1]) if markers else 0
                     if frame >= args.after and (args.keys or args.hold):
@@ -159,7 +177,7 @@ try:
                         # +Key presses and holds, -Key releases.
                         key(name.lstrip("+-"), {"+": "down", "-": "up"}.get(name[0]))
                         if not args.hold:
-                            time.sleep(0.5)
+                            gap()
                         continue
                     if args.advance_dialogue and frame > last_frame:
                         last_frame = frame
@@ -168,7 +186,10 @@ try:
                     time.sleep(0.05)
                 p.wait(timeout=5)
             else:
-                p.wait(timeout=300)
+                deadline = Deadline(300)  # a hang guard (awake seconds)
+                while p.poll() is None and not deadline.passed():
+                    time.sleep(0.05)
+                p.wait(timeout=5)
             text = log.read_text()
             assert p.returncode == 0, text[-4000:]
             assert args.idle or "[title] starting mode 0 " in text, "Did not enter New Game"

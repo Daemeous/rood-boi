@@ -95,6 +95,36 @@ C), at most `--thermal-wait` (900 s) at a time; the running suites go on.
 The summary line says how long it waited. `run.py --wait-cool` only waits
 (`verify.sh` runs it before every step); `--thermal-pause 0` turns it off.
 
+## Waiting in a suite
+
+A suite waits for something the game reports, never for a guessed number of
+seconds or vsyncs: the modern menus glide and files are polled on real
+time, a loaded machine is slower, and a thermal guard may stop (SIGSTOP) a
+test game for 5 s or more while the CPU is hot.
+
+- File edits: `game.wait_polled("files" | "plugins" | "theme")` runs the game
+  until that watcher has looked at its files since the edit (RPC `status`
+  `polls`: the twice-a-second look at settings.cfg, the room's lighting
+  files, emitter assets and fog presets; the plugins' hot reload; the UI
+  theme), then the suite checks the exact value. Where an RPC reloads at once
+  (`lights reload`, `particles reload_assets`), use that.
+- State the game reaches: `game.until(condition)` (or the suite's own
+  condition loop), e.g. RPC `ui_menu` `at_rest` for a finished glide, the
+  settings page's `dirty` flag for a debounced save; its timing, where it
+  matters, from the game's own clock (`system.debounce`: the save came at the
+  first tick after 1 s of quiet).
+- What remains of a timeout is a hang guard, generous, counted by
+  `rood_rpc.Deadline` / `awake()`: wall time less the time the suite's games
+  spent stopped (sampled from /proc). A latency a suite measures (a hot
+  reload's) uses `awake()` too.
+
+`pc/tests/stall_inject.py` reproduces such a race: it runs a suite with its
+game stopped for `--seconds` at a chosen moment (before an RPC request, from
+a source line, after a file write or an X11 key), and `run.py --stall
+"OPTIONS"` does it for the suites of a run, e.g.
+
+    python3 pc/tests/run.py --stall "--site 'sysv()[\"dirty\"]' --nth 2" ui_system_smoke
+
 ## Lower impact on a player
 
 - Every suite runs at `nice 10` (`--nice N`, `0` = as is) in the idle I/O

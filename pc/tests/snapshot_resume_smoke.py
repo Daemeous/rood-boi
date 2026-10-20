@@ -37,7 +37,7 @@ import checkpoints  # noqa: E402
 import rood_rpc  # noqa: E402
 import snapshot_diff  # noqa: E402
 import snapshot_layout  # noqa: E402
-from rood_rpc import Game, RpcError  # noqa: E402
+from rood_rpc import Deadline, Game, RpcError, awake  # noqa: E402
 
 FRAMES = 60
 STATE_KEYS = ("ram", "scratch", "io", "state", "overlays", "vram")
@@ -93,9 +93,10 @@ def state(game):
     return {k: h[k] for k in STATE_KEYS}, h["vsync"]
 
 
-def wait_listening(path, process, old, timeout=60):
-    """The restarted game's socket (a new file: never the old process's)."""
-    deadline = time.monotonic() + timeout
+def wait_listening(path, process, old, timeout=120):
+    """The restarted game's socket (a new file: never the old process's); `timeout`: a hang guard
+    (awake seconds: a stopped game's pause is not counted)."""
+    deadline = Deadline(timeout)
     gone = False
     while True:
         try:
@@ -106,7 +107,7 @@ def wait_listening(path, process, old, timeout=60):
             return
         if process.poll() is not None:
             raise RpcError(f"the game exited (status {process.returncode})")
-        if time.monotonic() > deadline:
+        if deadline.passed():
             raise RpcError("the restarted game did not open its socket")
         time.sleep(0.02)
 
@@ -142,7 +143,7 @@ def main():
     before, vsync = state(game)
     shutil.copy2(moved, work / "rood_game.new")
     os.replace(work / "rood_game.new", running)  # as a rebuild replaces it
-    started = time.monotonic()
+    started = awake()
     old_socket = os.stat(socket).st_ino
     reply = game.call("restart", paused=True)
     game.file.close()
@@ -150,7 +151,7 @@ def main():
     wait_listening(socket, process, old_socket)
     game = Game(socket, game.processes)
     after, vsync_after = state(game)
-    seconds = time.monotonic() - started
+    seconds = awake() - started
     check(reply.get("vsync") == vsync and vsync_after == vsync,
           f"restart resumed at the vsync it was asked at ({vsync}, {seconds:.2f} s to the socket)")
     check(after == before, "the game state after the restart equals the state before it")

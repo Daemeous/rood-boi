@@ -14,6 +14,10 @@
 #include "ui/ui_tint.h"
 
 extern "C" float pc_ui_menu_opacity; // project_settings.cpp: settings ui_menu_opacity
+/* Looks at the theme file (twice a second at most; RPC status polls.theme): a
+ * test that edited it waits for the next look instead of guessing the period. */
+extern "C" unsigned pc_ui_theme_checks;
+unsigned pc_ui_theme_checks;
 
 namespace ui {
 namespace {
@@ -230,6 +234,7 @@ const Theme& loaded(int* serial)
     next_check = t + 0.5;
     const char* path = theme_path();
     struct stat st;
+    pc_ui_theme_checks++; /* (the look below finishes before the next RPC request is served) */
     if (stat(path, &st) != 0)
         return current;
 #ifdef _WIN32

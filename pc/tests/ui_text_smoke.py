@@ -94,7 +94,6 @@ import shutil
 import subprocess
 import struct
 import sys
-import time
 
 import numpy as np
 from PIL import Image
@@ -1085,15 +1084,11 @@ def status_style(game):
     return {st["name"]: st for st in game.call("ui_text")["styles"]}["status"]
 
 
-def wait_style(game, field, value, timeout=5.0):
-    """Until the status style's field has the value (the settings file is re-read twice a second)."""
-    end = time.monotonic() + timeout
-    while time.monotonic() < end:
-        game.run(2)
-        if abs(status_style(game)[field] - value) < 1e-6:
-            return True
-        time.sleep(0.1)
-    return False
+def reloaded_style(game):
+    """The status style once the game has looked at the settings file again (its twice-a-second
+    poll, waited for by RPC status polls.files instead of guessed): exactly what the file says."""
+    game.wait_polled("files")
+    return status_style(game)
 
 
 def word_box(image, scale, status, pad=2):
@@ -1143,8 +1138,9 @@ def check_status_words(game, work, settings, shots):
         Image.fromarray(np.concatenate([original, font], axis=1).astype(np.uint8)).save(shots / "status-words.png")
     # Live: the settings file edited while the game runs (bigger, wider apart), then the defaults again.
     settings.write_text("ui_text font\nui_text_status_size 1.5\nui_text_status_tracking 0.12\n")
-    check(wait_style(game, "size", 1.5) and wait_style(game, "tracking", 0.12),
-          f"settings: the status style takes the settings file's values without a restart ({status_style(game)})")
+    st = reloaded_style(game)
+    check(abs(st["size"] - 1.5) < 1e-6 and abs(st["tracking"] - 0.12) < 1e-6,
+          f"settings: the status style takes the settings file's values without a restart ({st})")
     pop.show(slow, chains)
     bigger = status_words(game)
     big = np.asarray(Image.open(game.present_screenshot(work / "status-big.png")).convert("RGB")).astype(int)
@@ -1159,7 +1155,8 @@ def check_status_words(game, work, settings, shots):
     if shots:
         Image.fromarray(np.concatenate([font, big], axis=1).astype(np.uint8)).save(shots / "status-settings.png")
     settings.write_text("ui_text font\nui_text_status_size 1\nui_text_status_tracking 0.02\n")
-    check(wait_style(game, "size", 1.0), "settings: back to the defaults")
+    st = reloaded_style(game)
+    check(abs(st["size"] - 1.0) < 1e-6, f"settings: back to the defaults ({st['size']})")
     # RPC ui_text sets a style's field as the settings key does.
     game.call("ui_text", style="status", stroke=1.5)
     check(abs(status_style(game)["stroke"] - 1.5) < 1e-6, "settings: RPC ui_text sets the status stroke")

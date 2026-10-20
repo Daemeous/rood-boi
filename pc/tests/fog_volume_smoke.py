@@ -99,7 +99,7 @@ def main():
     def still(name, count=8):
         """Consecutive presented frames while paused (the game redraws): their change."""
         game.call("pause", paused=True)
-        time.sleep(1.0)
+        game.wait_presents(60)  # settled: presented frames counted, not a second guessed (a stopped game draws none)
         frames = []
         for i in range(count):
             path = game.present_screenshot(shots / f"fogvol-{name}-{i}.png")

@@ -60,7 +60,6 @@ import math
 import pathlib
 import shutil
 import sys
-import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
@@ -405,13 +404,10 @@ def check_emitters(s):
     mine.mkdir(parents=True, exist_ok=True)
     (d / "sparks.json").write_text('{"name": "Forge sparks", "category": "Fire", "tags": ["spark"], "description": "test"}\n')
     (mine / "drips.json").write_text('{"name": "Drips"}\n')
-    r = None
-    for _ in range(8):  # the directories are looked at twice a second
-        g.run(10)
-        time.sleep(0.6)
-        r = lib(s, action="filter", kind="", category="", search="", favourites=False, mine=False)
-        if "emitter" in r["kinds"]:
-            break
+    # the directories are looked at twice a second (real time): run the game until they show
+    g.until(lambda: "emitter" in lib(s, action="filter", kind="", category="", search="", favourites=False,
+                                     mine=False)["kinds"], step=10)
+    r = lib(s)
     e = {x["item"]: x for x in r["entries"]}
     s.check("emitter" in r["sources"] and "emitter" in r["kinds"] and e.get("emitter:sparks", {}).get("name") == "Forge sparks"
             and e["emitter:sparks"]["category"] == "Fire" and e.get("emitter:drips", {}).get("mine") is True,
@@ -427,12 +423,8 @@ def check_emitters(s):
     g.call("editor_ui", tab="outliner")
     (d / "sparks.json").unlink()
     (mine / "drips.json").unlink()
-    for _ in range(8):
-        g.run(10)
-        time.sleep(0.6)
-        r = lib(s)
-        if "emitter" not in r["kinds"]:
-            break
+    g.until(lambda: "emitter" not in lib(s)["kinds"], step=10)
+    r = lib(s)
     s.check("emitter" not in r["kinds"], "the files gone: no emitters")
     # A drop: the shipped dust motes as an asset of this run, placed on the floor (one undo step, selected)
     floor, _ = floor_and_wall(s)
@@ -440,11 +432,8 @@ def check_emitters(s):
         return
     (d / "dust_motes.json").write_text((ROOT / "pc/assets/emitters/dust_motes.json").read_text())
     g.call("particles", reload_assets=True)
-    for _ in range(8):
-        g.run(10)
-        time.sleep(0.6)
-        if "emitter:dust_motes" in items(lib(s, action="filter", kind="", category="", search="", favourites=False, mine=False)):
-            break
+    g.until(lambda: "emitter:dust_motes" in items(lib(s, action="filter", kind="", category="", search="",
+                                                    favourites=False, mine=False)), step=10)
     r, steps = drop(s, "emitter:dust_motes", floor[0])
     sel = s.select()["selection"]
     s.check(steps == 1 and sel and sel[0].startswith("emitter:"),

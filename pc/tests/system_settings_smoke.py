@@ -44,7 +44,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, Deadline, Game, symbols  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
 CLOSED = 0x3F
@@ -233,9 +233,11 @@ def main():
             game.run(2)
             c = game.call("system", bind="square")["capture"]
             check(c["listening"] and c["pad_timeout"], f"capture from the gamepad has a timeout ({c})")
-            # paused: the window still pumps events and ticks the capture; wait for it (bounded)
+            # paused: the window still pumps events and ticks the capture; wait for it (the guard only
+            # bounds a hang, in awake seconds; what is measured is wall time, as the capture's own timeout)
             t0 = time.monotonic()
-            while c["listening"] and time.monotonic() - t0 < 15:
+            guard = Deadline(60)
+            while c["listening"] and not guard.passed():
                 time.sleep(0.25)
                 c = game.call("system")["capture"]
             waited = time.monotonic() - t0

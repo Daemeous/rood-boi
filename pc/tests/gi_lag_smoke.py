@@ -39,7 +39,7 @@ import numpy as np
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT  # noqa: E402
+from rood_rpc import OUT, awake  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from lighting_presets_smoke import capture, default_card  # noqa: E402
 
@@ -85,9 +85,9 @@ def main():
 
     def shot(name):
         path = out / f"{name}.png"
-        start = time.monotonic()
+        start = awake()  # (a stopped game's pause is not the queue's)
         image = capture(game, path, timeout=90)
-        took = time.monotonic() - start
+        took = awake() - start
         if shots:
             shutil.copyfile(path, shots / path.name)
         path.unlink()
@@ -114,11 +114,11 @@ def main():
         # 1. Every present traced: frames in flight are limited.
         game.run(30)
         game.call("perf", reset=True)
-        start = time.monotonic()
+        start = awake()
         game.run(60)
         # This machine's time per traced present, now (other work on the box
         # slows it): the scale for "promptly" below.
-        frame_s = (time.monotonic() - start) / 60
+        frame_s = (awake() - start) / 60
         perf = game.call("perf", reset=True)
         print(f"perf, every present traced: {perf}; {frame_s * 1000:.0f} ms per vsync", flush=True)
         check(perf["gi_gpu_ms"] > 20, f"the path tracer is slow ({perf['gi_gpu_ms']:.1f} ms GPU per update; "

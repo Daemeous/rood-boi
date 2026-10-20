@@ -885,13 +885,20 @@ static void status_json(char* out, size_t size)
     extern unsigned pc_presents __attribute__((weak)); /* gl_present.c: images presented */
     extern unsigned pc_window_presents __attribute__((weak)); /* gl_present.c: images that reached the window */
     extern int pc_vk_device_lost(void) __attribute__((weak)); /* vk_core.c */
+    /* The file watchers' looks so far (tests: wait for the next look after an
+     * edit, not for a guessed time): settings/lights/emitters/fog presets
+     * (dev_overlay.cpp), plugin hot reload (lua_plugins.cpp), the UI theme (ui_theme.cpp). */
+    extern unsigned pc_file_polls __attribute__((weak)), pc_lua_file_polls __attribute__((weak)),
+        pc_ui_theme_checks __attribute__((weak));
     snprintf(out, size,
         "{\"vsync\":%u,\"battle_frame\":%u,\"paused\":%s,\"step_budget\":%ld,\"buttons\":%u,"
-        "\"display_masked\":%s,\"presents\":%u,\"window_presents\":%u,\"device_lost\":%s}",
+        "\"display_masked\":%s,\"presents\":%u,\"window_presents\":%u,\"device_lost\":%s,"
+        "\"polls\":{\"files\":%u,\"plugins\":%u,\"theme\":%u}}",
         pc_vsync_count(), pc_battle_frame_count(), paused ? "true" : "false", step_budget,
         pc_rpc_buttons(), &pc_display_masked && pc_display_masked ? "true" : "false",
         &pc_presents ? pc_presents : 0u, &pc_window_presents ? pc_window_presents : 0u,
-        pc_vk_device_lost && pc_vk_device_lost() ? "true" : "false");
+        pc_vk_device_lost && pc_vk_device_lost() ? "true" : "false", &pc_file_polls ? pc_file_polls : 0u,
+        &pc_lua_file_polls ? pc_lua_file_polls : 0u, &pc_ui_theme_checks ? pc_ui_theme_checks : 0u);
 }
 /* Deferred "wait" replies: owed once the step is over (paused, no budget)
  * or the deadline passed. */
@@ -908,7 +915,7 @@ static void serve_waiters(void)
             if (now < c->wait_until)
                 continue;
         }
-        char result[384];
+        char result[512];
         status_json(result, sizeof result);
         c->waiting = 0;
         rpc_set_blocking(c->fd, 1);

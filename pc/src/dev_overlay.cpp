@@ -2108,6 +2108,11 @@ static void viewport_keys()
         pc_editor_cutaway = !pc_editor_cutaway; /* See into rooms > Cut to focus */
 }
 
+/* Passes of the twice-a-second file poll below (RPC status polls.files): a
+ * test that edited a file waits for the next pass instead of guessing. */
+extern "C" unsigned pc_file_polls;
+unsigned pc_file_polls;
+
 // Draw the overlay over the presented frame (call before swapping buffers).
 extern "C" void pc_overlay_frame(int width, int height)
 {
@@ -2129,6 +2134,7 @@ extern "C" void pc_overlay_frame(int width, int height)
         pc_lights_poll();
         pc_particles_assets_poll(); /* emitter assets (pc/assets/emitters) */
         pc_fog_presets_poll(); /* fog presets (pc/assets/environment/fog_presets.json, yours) */
+        pc_file_polls++;
     }
 #ifdef ROOD_VULKAN
     if (pc_vk_on())

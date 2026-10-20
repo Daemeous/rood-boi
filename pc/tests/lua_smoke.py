@@ -20,10 +20,9 @@ import json
 import pathlib
 import shutil
 import sys
-import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
-from rood_rpc import OUT, Game, RpcError  # noqa: E402
+from rood_rpc import OUT, Game, RpcError, awake  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "pc/tests/lua/plugins"
@@ -73,10 +72,10 @@ def runaway(game):
                       ("table.move({}, 1, 1 << 40, 2)", "budget exceeded"),  # a C loop: it hung the game
                       ("setmetatable({}, { __gc = function() while true do end end }) collectgarbage()",
                        "__gc is not available")]:  # finalizers run with the hook off: it hung the game
-        start = time.monotonic()
+        start = awake()  # (time the game spent stopped, e.g. by the thermal guard, is not counted)
         result = game.lua(code)
         assert not result["ok"] and why in result["error"], (code, result)
-        assert time.monotonic() - start < 2.0, (code, "the eval budget is 250 ms")
+        assert awake() - start < 2.0, (code, "the eval budget is 250 ms")
     assert game.lua("return #string.rep('', math.maxinteger)")["results"] == [0]
     assert game.run(5)["vsync"] == vsync + 5
     game.call("lua", action="budget", memory_mb=8, load_budget_ms=5000, load_budget_instructions=10**10)
@@ -95,9 +94,9 @@ def failing_hooks(game):
     listed = game.lua_plugins()
     assert listed["hard.loop"]["state"] == "loaded" and listed["hard.frame_error"]["state"] == "loaded", listed
     vsync = game.status()["vsync"]
-    start = time.monotonic()
+    start = awake()
     assert game.run(30)["vsync"] == vsync + 30
-    assert time.monotonic() - start < 15, "five call budgets, then plain vsyncs"
+    assert awake() - start < 15, "five call budgets, then plain vsyncs"
     listed = game.lua_plugins()
     loop, frame = listed["hard.loop"], listed["hard.frame_error"]
     assert loop["state"] == "disabled" and loop["kills"] >= 5, loop

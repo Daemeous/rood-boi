@@ -946,6 +946,10 @@ void system_json(std::string& j)
     std::snprintf(buf, sizeof buf, "],\"capture\":\"%s\",\"dirty\":%s,\"saves\":%d,", capture_row_id(),
         pc_ui_settings_dirty() ? "true" : "false", pc_ui_settings_saves());
     j += buf;
+    double quiet, quiet_before;
+    pc_ui_settings_debounce(&quiet, &quiet_before);
+    std::snprintf(buf, sizeof buf, "\"debounce\":{\"quiet\":%.4f,\"quiet_before\":%.4f},", quiet, quiet_before);
+    j += buf;
     const char* note = pc_ui_settings_note();               // a binding swap's (3 s)
     const char* refused = pc_ui_settings_capture_note();    // a reserved key pressed during the capture
     j += "\"note\":\"" + escape(note ? note : "") + "\",\"capture_note\":\"" + escape(refused ? refused : "")

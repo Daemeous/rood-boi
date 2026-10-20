@@ -29,6 +29,11 @@ extern "C" int pc_overlay_active(void) __attribute__((weak));
 extern "C" unsigned pc_vsync_count(void) __attribute__((weak));
 extern "C" void pc_settings_save(void) __attribute__((weak));
 
+/* Hot reload checks made (RPC status polls.plugins): a test that edited a
+ * plugin's file waits for the next check instead of guessing its period. */
+extern "C" unsigned pc_lua_file_polls;
+unsigned pc_lua_file_polls;
+
 namespace rl {
 std::map<std::string, bool> enabled_override; /* settings plugin_enabled (pc_lua_settings_* below) */
 std::vector<std::string> order;               /* settings plugin_order */
@@ -697,6 +702,7 @@ void poll_files()
             log(LOG_INFO, p->id(), "files changed: reloading");
         }
     }
+    pc_lua_file_polls++;
 }
 
 void settle()

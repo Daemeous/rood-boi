@@ -49,6 +49,7 @@ import secrets
 import socket
 import subprocess
 import sys
+import threading
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -91,14 +92,97 @@ class RpcError(RuntimeError):
     pass
 
 
-def wait_for_file(path, timeout=10):
+# ---- the game's own time: waits and hang guards that a paused game does not trip ----
+# A test waits for conditions the game reports (a vsync, a reload counter, a
+# flag), never for a guessed number of seconds or vsyncs. What bounds a wait
+# is only a hang guard, and the guard counts the time the game could run:
+# the time its process spends stopped (SIGSTOP: the thermal guard pauses test
+# games while the CPU is hot; a debugger) is left out.
+_stops = {"lock": threading.Lock(), "pids": set(), "total": 0.0, "since": None, "thread": None}
+
+
+def _stopped(pid):
+    """True while process `pid` is stopped (state T or t); None once it is gone."""
+    try:
+        with open(f"/proc/{pid}/stat", "rb") as f:
+            state = f.read().rsplit(b")", 1)[1].split()[0]
+    except (OSError, IndexError):
+        return None
+    return None if state in (b"Z", b"X") else state in (b"T", b"t")
+
+
+def _watch_loop():
+    while True:
+        with _stops["lock"]:
+            pids = list(_stops["pids"])
+        states = {pid: _stopped(pid) for pid in pids}
+        now = time.monotonic()
+        with _stops["lock"]:
+            for pid, state in states.items():
+                if state is None:
+                    _stops["pids"].discard(pid)
+            stopped = any(states.values())
+            if stopped and _stops["since"] is None:
+                _stops["since"] = now
+            elif not stopped and _stops["since"] is not None:
+                _stops["total"] += now - _stops["since"]
+                _stops["since"] = None
+            if not _stops["pids"]:
+                _stops["thread"] = None
+                return
+        time.sleep(0.01)
+
+
+def watch_stops(pid):
+    """Count the time game process `pid` spends stopped (sampled from /proc
+    every 10 ms by a daemon thread) out of awake(). Game.launch and Game(...,
+    processes) do it; tests that start the game themselves call it. Not on
+    Windows (no SIGSTOP there): awake() is then time.monotonic()."""
+    if WINDOWS or not os.path.exists(f"/proc/{pid}"):
+        return
+    with _stops["lock"]:
+        _stops["pids"].add(pid)
+        if _stops["thread"] is None:
+            _stops["thread"] = threading.Thread(target=_watch_loop, name="rood-stop-watch", daemon=True)
+            _stops["thread"].start()
+
+
+def stopped_seconds():
+    """Seconds the watched games have spent stopped so far (any of them)."""
+    with _stops["lock"]:
+        since = _stops["since"]
+        return _stops["total"] + (time.monotonic() - since if since is not None else 0.0)
+
+
+def awake():
+    """time.monotonic() less the time the watched games spent stopped: the
+    clock for hang guards and for measured latencies."""
+    return time.monotonic() - stopped_seconds()
+
+
+class Deadline:
+    """A hang guard of `seconds` of awake() time (a stopped game's pause is not
+    counted): Deadline(60).passed() / .elapsed()."""
+
+    def __init__(self, seconds):
+        self.seconds, self.start = seconds, awake()
+
+    def elapsed(self):
+        return awake() - self.start
+
+    def passed(self):
+        return self.elapsed() > self.seconds
+
+
+def wait_for_file(path, timeout=60):
     """True once `path` exists and is not empty. The game writes its images
     (present_dump) beside the name and renames them, so an existing image is
-    complete: no settling sleep needed."""
+    complete: no settling sleep needed. `timeout` is a hang guard (awake
+    seconds: a stopped game's pause does not count)."""
     path = pathlib.Path(path)
-    deadline = time.monotonic() + timeout
+    deadline = Deadline(timeout)
     while not (path.exists() and path.stat().st_size > 0):
-        if time.monotonic() > deadline:
+        if deadline.passed():
             return False
         time.sleep(0.003)
     return True
@@ -266,6 +350,8 @@ class Game:
         self.processes = list(processes)
         self.next_id = 0
         self.has_wait = None  # the game answers "wait" (wait_paused)
+        for p in self.processes[:1]:  # the game (the rest: its Xvfb)
+            watch_stops(p.pid)
         self.sock = connect(path)
         self.file = self.sock.makefile("rwb")
 
@@ -318,13 +404,14 @@ class Game:
             [str(BINARY), "--window"] + ([] if movies else ["--skip-movies"]) + (["--fast"] if fast else [])
             + list(args), cwd=ROOT, env=env, stdout=log_file, stderr=subprocess.STDOUT)
         processes.insert(0, game)
+        watch_stops(game.pid)
         start = time.monotonic()
         # A game that is still starting is waited for: under load (several suites sharing the
         # GPU, Vulkan pipelines compiled on a cold cache) that took more than 30 s.
-        # ROOD_LAUNCH_TIMEOUT seconds (default 180); an exited game fails at once.
-        deadline = start + float(os.environ.get("ROOD_LAUNCH_TIMEOUT", "180"))
+        # ROOD_LAUNCH_TIMEOUT awake seconds (default 180); an exited game fails at once.
+        deadline = Deadline(float(os.environ.get("ROOD_LAUNCH_TIMEOUT", "180")))
         while not listening(socket_path):
-            if game.poll() is not None or time.monotonic() > deadline:
+            if game.poll() is not None or deadline.passed():
                 for p in processes:
                     p.kill()
                 why = (f"exited with status {game.returncode}" if game.poll() is not None
@@ -399,15 +486,16 @@ class Game:
     def pause(self, paused=True):
         return self.call("pause", paused=paused)
 
-    STALL = 90  # seconds without a vsync before a step counts as hung
+    STALL = 90  # awake seconds without a vsync before a step counts as hung
 
     def wait_paused(self, timeout=None, stall=None):
         """Wait for the step to finish. A step may take as long as the
         machine needs (path tracing under load): it fails only when the game
-        stops advancing (no vsync for `stall` seconds, default STALL: a
-        hang), or after `timeout` seconds in all when one is given."""
+        stops advancing (no vsync for `stall` awake seconds, default STALL: a
+        hang), or after `timeout` awake seconds in all when one is given
+        (awake(): time the game spent stopped does not count)."""
         stall = stall or self.STALL
-        start = moved = time.monotonic()
+        start = moved = awake()
         last = None
         while True:
             # "wait" replies as soon as the step is over (or after a second):
@@ -425,7 +513,7 @@ class Game:
                 s = self.status()
             if s["paused"] and s["step_budget"] == 0:
                 return s
-            now = time.monotonic()
+            now = awake()
             if s["vsync"] != last:
                 last, moved = s["vsync"], now
             elif now - moved > stall:
@@ -468,6 +556,43 @@ class Game:
         self.call("step", vsyncs=vsyncs)
         return self.wait_paused()
 
+    def until(self, condition, step=2, guard=60, what=None):
+        """Run the game `step` vsyncs at a time until condition() is true: a
+        condition the game reports (a value, a reload counter, a flag), never a
+        guessed number of vsyncs or seconds (menus glide and files are polled
+        on real time). `guard` only bounds a hang, in awake seconds (a stopped
+        game's pause does not count). Returns condition()'s last value, false
+        when the guard ran out (or raises RpcError when `what` names the
+        condition)."""
+        deadline = Deadline(guard)
+        while True:
+            value = condition()
+            if value or deadline.passed():
+                break
+            self.run(step)
+        if not value and what:
+            raise RpcError(f"{what}: not after {guard} s of the game running")
+        return value
+
+    def polls(self):
+        """The game's file watchers' looks so far (RPC status polls): files
+        (settings.cfg, the room's lighting files, emitter assets, fog presets;
+        dev_overlay.cpp, twice a second), plugins (Lua hot reload), theme (the
+        UI theme file, while a menu draws)."""
+        polls = self.status().get("polls")
+        if polls is None:
+            raise RpcError("RPC status has no polls (an older game?)")
+        return polls
+
+    def wait_polled(self, watcher="files", step=2, guard=60):
+        """After writing a file: run the game until its `watcher` (see polls)
+        has looked at its files since, so what it loaded is in place (a look
+        reads and applies a changed file at once). Then check exactly: no
+        guessed sleep, no 'until it has the value' that hides a wrong one."""
+        start = self.polls()[watcher]
+        self.until(lambda: self.polls()[watcher] != start, step=step, guard=guard,
+                   what=f"the game's {watcher} watcher looking at its files")
+
     def reload_lights(self):
         """Read the current room's lighting files from disk now (RPC lights
         {action: reload}): call it right after writing a room file instead
@@ -502,9 +627,10 @@ class Game:
                 pass
         return info
 
-    def present_screenshot(self, path, timeout=10):
+    def present_screenshot(self, path, timeout=60):
         """The next image the game presents (read back in the game; works
-        where screen capture does not, e.g. Wayland). Converted to `path`."""
+        where screen capture does not, e.g. Wayland). Converted to `path`.
+        `timeout`: a hang guard in awake seconds."""
         path = pathlib.Path(path)
         ppm = path.with_suffix(".capture.ppm")
         if ppm.exists():
@@ -516,16 +642,17 @@ class Game:
         ppm.unlink()
         return path
 
-    def wait_presents(self, count=2, timeout=10):
+    def wait_presents(self, count=2, timeout=60):
         """Wait until the game has presented `count` more images (a paused
         game redraws about 60 times a second): after a graphics change,
-        instead of sleeping. Returns at once on games without the counter."""
+        instead of sleeping. Returns at once on games without the counter.
+        `timeout`: a hang guard in awake seconds."""
         start = self.status().get("presents")
         if start is None:
             return
-        deadline = time.monotonic() + timeout
+        deadline = Deadline(timeout)
         while self.status()["presents"] < start + count:
-            if time.monotonic() > deadline:
+            if deadline.passed():
                 raise RpcError(f"no present for {timeout} s")
             time.sleep(0.002)
 
@@ -548,11 +675,12 @@ class Game:
         a = symbols()[name_or_address] if isinstance(name_or_address, str) else name_or_address
         return int.from_bytes(self.read(a, 4), "little")
 
-    def wait_title(self, timeout=60):
-        """Run until the title menu is ready (log marker), then pause."""
-        deadline = time.monotonic() + timeout
+    def wait_title(self, timeout=120):
+        """Run until the title menu is ready (log marker), then pause.
+        `timeout`: a hang guard in awake seconds."""
+        deadline = Deadline(timeout)
         while "TITLE MENU READY" not in pathlib.Path(self.log).read_text():
-            if time.monotonic() > deadline:
+            if deadline.passed():
                 raise RpcError("title menu not reached")
             time.sleep(0.05)
         return self.pause()
@@ -593,9 +721,9 @@ class Game:
         if filter:
             params["filter"] = filter
         run = self.call("lua", **params)
-        deadline = time.monotonic() + timeout
+        deadline = Deadline(timeout)  # a hang guard (awake seconds)
         while not run["done"]:
-            if time.monotonic() > deadline:
+            if deadline.passed():
                 raise RpcError(f"Lua tests still waiting after {timeout} s: {run['waiting']} case(s)")
             self.run(step)
             run = self.call("lua", action="test_status", run=run["run"])

@@ -41,7 +41,7 @@ from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT  # noqa: E402
+from rood_rpc import OUT, Deadline  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 PRESETS = ["original", "low", "medium", "high", "ultra"]
@@ -102,12 +102,13 @@ def expected(preset, caps):
 
 def capture(game, path, timeout=60):
     """The next presented image (RPC present_dump), read once the PPM is
-    complete: under load the game may still be writing it when it appears."""
+    complete: under load the game may still be writing it when it appears.
+    `timeout`: a hang guard (awake seconds: a stopped game's pause is not counted)."""
     ppm = path.with_suffix(".ppm")
     ppm.unlink(missing_ok=True)
     game.call("present_dump", path=str(ppm.resolve()))
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
+    deadline = Deadline(timeout)
+    while not deadline.passed():
         try:
             data = ppm.read_bytes()
             header = re.match(rb"P6\s+(\d+)\s+(\d+)\s+\d+\s", data)

@@ -48,7 +48,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
@@ -420,8 +419,7 @@ def check_hide(s):
     g.call("settings", action="load")
     g.run(2)
     s.check(s.select()["hidden"] == [s.light], "loading the settings brings the hidden set back")
-    time.sleep(0.7)  # the editor polls the lighting config and room files twice a second (wall clock)
-    g.run(2)
+    g.wait_polled("files")  # the editor's next look at the lighting config and room files (twice a second)
     s.check(g.call("lights")["loads"] == loads and s.history()["done"] == history["done"],
             "loading the settings it saved changes no lighting config: the room is not reloaded, its undo history stays "
             f"(loads {g.call('lights')['loads']} vs {loads}, done {s.history()['done']} vs {history['done']})")

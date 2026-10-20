@@ -25,12 +25,11 @@ import pathlib
 import shutil
 import subprocess
 import sys
-import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT  # noqa: E402
+from rood_rpc import OUT, awake  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import card_guard, default_save  # noqa: E402
 
@@ -86,14 +85,10 @@ def run(out, card):
         def last_texts():
             return [c.get("text") or "" for c in g.call("hud", action="stats")["last"]]
 
-        def wait(condition, timeout=10.0, step=1):
-            """Run the game a little at a time until condition() (real-time reloads: no vsync counts)."""
-            end = time.monotonic() + timeout
-            while time.monotonic() < end:
-                if condition():
-                    return True
-                g.run(step)
-            return condition()
+        def wait(condition, step=1):
+            """Run the game a little at a time until condition() (real-time reloads: no vsync counts);
+            the guard only bounds a hang (60 awake seconds: a stopped game's pause not counted)."""
+            return g.until(condition, step=step, guard=60)
 
         g.run(4)
         faults = g.lua_plugins()["rood.hud"]["faults"]
@@ -136,23 +131,23 @@ def run(out, card):
         # a held word: rood.hud draws it; redefined from the REPL, the next frames draw the new one
         g.lua('rood.dev.show("status", { timing = "slow" })')
         check(wait(lambda: "SLOW!" in last_texts()), f"SLOW! held, drawn by rood.hud ({last_texts()})")
-        t0 = time.monotonic()
+        t0 = awake()
         status, r, _ = replies("-s", "hud", "-e",
                                "M.draw.status = function(e, d) d.text(M.style.word, e.text .. ' REPL', e.x, e.y,"
                                " e.rgb) end")
         g.run(1)
         seen = "SLOW! REPL" in last_texts()
         check(status == 0 and seen, f"redefined from the REPL: drawn one vsync later ({last_texts()})")
-        print(f"redefinition to drawn: {time.monotonic() - t0:.3f} s (one rood_repl.py process)", flush=True)
+        print(f"redefinition to drawn: {awake() - t0:.3f} s (one rood_repl.py process)", flush=True)
         status, r, _ = replies("-s", "hud", "-e",
                                "rood.hud.claim('status', function(e, d) d.text(M.style.word, 'CLAIMED', e.x, e.y) end)")
         g.run(1)
         check(status == 0 and "CLAIMED" in last_texts(), f"a claim made from the REPL draws ({last_texts()})")
         # rood.hud's file saved: its own drawing again, the session starts over
-        t0 = time.monotonic()
+        t0 = awake()
         main_lua.write_text(main_lua.read_text() + "-- saved by repl_smoke\n")
         check(wait(lambda: "SLOW!" in last_texts()), f"the file reloaded wins: its drawing ({last_texts()})")
-        print(f"file saved to its drawing again: {time.monotonic() - t0:.3f} s", flush=True)
+        print(f"file saved to its drawing again: {awake() - t0:.3f} s", flush=True)
         status, r, _ = replies("-s", "hud", "-e", "M.draw.status ~= nil")
         check(r and "rood.hud reloaded" in r[0].get("reset", "") and r[0]["values"] == ["true"],
               f"the session says it started over ({r})")

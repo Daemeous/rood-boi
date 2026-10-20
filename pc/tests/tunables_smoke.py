@@ -40,7 +40,6 @@ import pathlib
 import shutil
 import sys
 import tempfile
-import time
 
 import numpy as np
 from PIL import Image
@@ -243,12 +242,8 @@ def run(game, out, shots, presets):
     data["presets"][name]["density"] = round(density * 2.5, 5)
     presets.write_text(json.dumps(data, indent=2) + "\n")
     game.pause(False)
-    deadline = time.time() + 10
-    while time.time() < deadline:
-        game.run(10)
-        e = game.call("environment")
-        if e["presets_serial"] != serial:
-            break
+    game.wait_polled("files")  # the presets file's next look (twice a second; RPC status polls.files)
+    e = game.call("environment")
     v = next((x for x in e["volumes"] if x["id"] == vol["id"]), None)
     check(e["presets_serial"] != serial and v is not None and abs(v["density"] - density * 2.5) < 1e-4
           and abs(v["edge"] - 0.33) < 1e-6,

@@ -15,7 +15,9 @@ in the save room with ui_menus on; Triangle, L1 (System). One row per page:
     Downsample filter while supersampling is off: greyed with a reason,
     Right does nothing (value, dirty)
   - debounce: right after a change the page is dirty; the save (the save
-    counter) follows within about 1 s of real time; Cross saves at once
+    counter) follows at the first tick after 1 s of quiet, by the shell's
+    own clock (RPC debounce; a stopped or slow game does not change that);
+    Cross saves at once
   - Audio: Master volume Left/Right steps of 5 (the system RPC's volume and
     gain, audio recorded to a WAV), a pointer drag on the bar to the middle
     (50); Sound Mono sets vs_main_settings.monoSound and is not written to
@@ -68,7 +70,7 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, Game, awake, symbols  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 from ui_ashley_smoke import GROUND  # noqa: E402  (the theme's ground colour)
@@ -230,15 +232,14 @@ def main():
         if sysv()["mode"] != "list":
             raise Timeout("Cross back to the System list")
 
-    def wait_clean(limit=4.0):
-        """Real seconds until the debounced save went out (the shell ticks
-        on presented frames: keep the game running)."""
-        t0 = time.time()
-        while sysv()["dirty"]:
-            if time.time() - t0 > limit:
-                raise Timeout(f"the settings file is still dirty after {limit} s")
-            game.run(4)
-        return time.time() - t0
+    def wait_clean():
+        """Until the debounced save went out (the shell ticks on presented
+        frames: keep the game running). Awake seconds it took (rood_rpc.awake:
+        a stopped game's pause not counted); the guard only bounds a hang."""
+        start = awake()
+        if not game.until(lambda: not sysv()["dirty"], step=4, guard=60):
+            raise Timeout("the settings file is still dirty after 60 s of the game running")
+        return awake() - start
 
     try:
         defaults_title = game.call("system")
@@ -276,9 +277,12 @@ def main():
               f"Graphics: Left steps Lighting quality to Low ({before} -> {after})")
         check(sysv()["dirty"], "a change marks the page dirty")
         elapsed = wait_clean()
-        # the debounce (1 s quiet) saved, by the save counter; real time only bounds it loosely (busy machines)
-        check(sysv()["saves"] > saves and elapsed < 3.0,
-              f"debounce: saved {elapsed:.2f} s after the change ({saves} -> {sysv()['saves']})")
+        # the debounce saved (the save counter) at the first tick after 1 s of quiet, by the shell's own
+        # clock (RPC ui_menu system.debounce): not before, and not a tick later, however slow the frames
+        bounce = sysv()["debounce"]
+        check(sysv()["saves"] > saves and bounce["quiet_before"] < 1.0 <= bounce["quiet"],
+              f"debounce: saved at the first tick after 1 s quiet (quiet {bounce['quiet_before']:.3f} s -> "
+              f"{bounce['quiet']:.3f} s at the save; {elapsed:.2f} s; {saves} -> {sysv()['saves']} saves)")
         saved = settings_lines(settings)
         check(saved.get("lighting_preset") == after.lower(),
               f"saved lighting_preset {after.lower()} ({saved.get('lighting_preset')})")

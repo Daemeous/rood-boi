@@ -31,12 +31,11 @@ import pathlib
 import shutil
 import sys
 import tempfile
-import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT, Deadline, symbols  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import default_save  # noqa: E402
 from menu_nav import top_command  # noqa: E402
@@ -109,12 +108,14 @@ def main():
             return r["results"][0]
 
         def until_reverted(limit):
-            t0 = time.monotonic()
+            """Awake seconds until the countdown reverted (`limit`: a hang guard; a stopped game's pause
+            is not counted)."""
+            deadline = Deadline(limit)
             while opt()["pending"]:
-                if time.monotonic() - t0 > limit:
+                if deadline.passed():
                     raise Timeout("the confirm never reverted")
                 game.run(2)
-            return time.monotonic() - t0
+            return deadline.elapsed()
 
         style = opt()["style"]
         check(style["confirm_seconds"] == 10, f"the countdown is rood.options' 10 s ({style['confirm_seconds']})")
@@ -169,7 +170,7 @@ def main():
 
         pick(1)  # Borderless, no answer
         wait("confirm")
-        took = until_reverted(SECONDS + 15)
+        took = until_reverted(SECONDS + 60)
         o = wait("page")
         check(window_mode() == "fullscreen" and o["focus_id"] == "window_mode",
               f"no answer: back to fullscreen by itself after {took:.1f} s (countdown {SECONDS} s), on the page")
@@ -237,7 +238,7 @@ def main():
         c = sysv()["confirm"]
         check(c["pending"] and c["focus"] == "keep" and window_mode() == "borderless",
               f"modern Right on Window: Borderless at once, the modal asks on Keep ({c}, {window_mode()})")
-        took = until_reverted(SECONDS + 15)
+        took = until_reverted(SECONDS + 60)
         c = sysv()["confirm"]
         check(not c["pending"] and window_mode() == "windowed",
               f"modern, no answer: back to Windowed by itself after {took:.1f} s ({window_mode()})")

@@ -785,6 +785,8 @@ def run_suite(suite, index, args, mode, results, lock):
     if suite.name.startswith("soak"):
         suite.command += ["--out", str(out / "soak")]
     command = suite.command
+    if args.stall and command[0] == PY:  # its game stopped for a while (stall_inject.py)
+        command = [PY, str(TESTS / "stall_inject.py"), *shlex.split(args.stall), "--"] + command[1:]
     if args.profile and command[0] == PY:  # the test's own Python time too (python.prof)
         command = [PY, "-c", PROFILED, str(out / "python.prof")] + command[1:]
     if out.exists():
@@ -903,6 +905,10 @@ def make_parser():
     parser.add_argument("--save", type=pathlib.Path, default=default_save(),
                         help="memory card for soak:save (copied, never written; skipped when absent)")
     parser.add_argument("--timeout-scale", type=float, default=1.0, help="multiply every suite's timeout")
+    parser.add_argument("--stall", metavar="OPTIONS",
+                        help="run each Python suite under pc/tests/stall_inject.py OPTIONS (its game SIGSTOPped "
+                             "for a while at a chosen moment, as the thermal guard does), e.g. "
+                             "--stall \"--seconds 5 --write settings.cfg\"")
     parser.add_argument("--exclude", action="append", default=[], help="skip suites containing this")
     parser.add_argument("--out", help="output directory (default pc/build/tests); one runner per directory")
     parser.add_argument("--arch", choices=["32", "64"], default=os.environ.get("ROOD_ARCH", "64"),

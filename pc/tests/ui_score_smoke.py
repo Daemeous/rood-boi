@@ -59,7 +59,6 @@ import shutil
 import struct
 import subprocess
 import sys
-import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
@@ -819,16 +818,12 @@ def tunables(b, check, theme):
     data["score"]["row_h"] = 50
     data["score"]["layout"]["narrow"]["titles_list"] = [30, 480]
     theme.write_text(json.dumps(data, indent=2))
-    ok = False
-    for _ in range(40):
-        time.sleep(0.1)
-        g.run(2)
-        t = b.score()["tunables"]
-        if t["row_h"] == 50:
-            ok = True
-            break
+    g.wait_polled("theme")  # the menu's next look at the theme file (RPC status polls.theme), not a guessed time
+    g.run(2)  # drawn with it (the hit rectangles)
+    t = b.score()["tunables"]
     h0, h1 = b.hit("row", 0), b.hit("row", 1)
-    check(ok and t0["row_h"] == 44 and h0 and h1 and abs((h1["y0"] - h0["y0"]) - 50) < 0.01 and h0["x0"] == 30,
+    check(t["row_h"] == 50 and t0["row_h"] == 44 and h0 and h1 and abs((h1["y0"] - h0["y0"]) - 50) < 0.01
+          and h0["x0"] == 30,
           f"tune: the theme file reloads: row_h {t0['row_h']} -> {t['row_h']}, rows 50 apart from x 30")
     g.call("ui_menu", score_tune={"key": "row_h", "value": 52})
     g.run(3)
@@ -852,15 +847,10 @@ def tunables(b, check, theme):
     g.run(3)
     data["score"]["row_h"] = 48
     theme.write_text(json.dumps(data, indent=2))
-    ok = False
-    for _ in range(40):
-        time.sleep(0.1)
-        g.run(2)
-        sc = b.score()
-        if sc["tunables"]["row_h"] == 48:
-            ok = True
-            break
-    check(ok and sc["tune_overrides"] == [], f"tune: a file edit after a tune shows ({sc['tunables']['row_h']}, "
+    g.wait_polled("theme")
+    g.run(2)
+    sc = b.score()
+    check(sc["tunables"]["row_h"] == 48 and sc["tune_overrides"] == [], f"tune: a file edit after a tune shows ({sc['tunables']['row_h']}, "
           f"overrides {sc['tune_overrides']})")
     theme.write_text(original)  # the next process starts from the shipped values
     b.step("triangle", None)

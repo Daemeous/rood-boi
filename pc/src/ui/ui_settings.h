@@ -173,6 +173,10 @@ int pc_ui_settings_dirty(void);
 void pc_ui_settings_touch(void);
 /* How many saves these settings made so far (tests: the debounced save happened). */
 int pc_ui_settings_saves(void);
+/* The last save's debounce, by the tick clock: the quiet seconds (since the last change) at the tick that
+ * saved and at the tick before it (the debounce saves at the first tick past 1 s: before < 1 <= quiet,
+ * however long the frames between took); both -1 when the last save was not the debounce's (a flush). */
+void pc_ui_settings_debounce(double* quiet, double* quiet_before);
 
 /* The page as JSON (RPC / tests): {"page":"display","title":...,"rows":[{"id",
  * "label","kind","value","enabled","reason",...}]}. Returns the length. */

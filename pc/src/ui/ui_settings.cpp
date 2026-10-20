@@ -1525,6 +1525,9 @@ extern "C" void pc_ui_settings_set_provider(const pc_ui_settings_provider* p)
 }
 
 static int saves; // pc_ui_settings_saves
+// The debounced save's timing, by the clock pc_ui_settings_tick is given: the quiet time (since the last
+// change) at the tick that saved and at the tick before it; -1 when the last save was not the debounce's.
+static double saved_quiet = -1, saved_quiet_before = -1;
 static void save_now()
 {
     if (!dirty)
@@ -1532,6 +1535,7 @@ static void save_now()
     dirty = stamp_pending = false;
     pc_settings_save();
     ++saves;
+    saved_quiet = saved_quiet_before = -1;
 }
 namespace {
 void confirm_save(void*) // kept: the values save now
@@ -1546,8 +1550,14 @@ extern "C" void pc_ui_settings_flush(void)
     save_now();
 }
 extern "C" int pc_ui_settings_saves(void) { return saves; }
+extern "C" void pc_ui_settings_debounce(double* quiet, double* quiet_before)
+{
+    *quiet = saved_quiet;
+    *quiet_before = saved_quiet_before;
+}
 extern "C" void pc_ui_settings_tick(double now)
 {
+    double before = ticked; // the previous tick's clock
     build();
     // "Keep these settings?": reverts once its time ran out (real time, whatever screen is up)
     pc_display_confirm_set_timeout(pc_option_style_value(PC_STYLE_CONFIRM_SECONDS));
@@ -1561,8 +1571,10 @@ extern "C" void pc_ui_settings_tick(double now)
         stamp = now;
         stamp_pending = false;
     }
-    if (dirty && now - stamp >= 1.0)
+    if (dirty && now - stamp >= 1.0) {
         save_now(); // (a slider drag still in progress stays a preview)
+        saved_quiet = now - stamp, saved_quiet_before = before - stamp;
+    }
 }
 extern "C" int pc_ui_settings_dirty(void) { return dirty; }
 // Something saved in settings.cfg changed outside the rows (the window moved: window_rect): saved debounced.

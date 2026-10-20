@@ -44,7 +44,6 @@ import pathlib
 import shutil
 import sys
 import tempfile
-import time
 
 import json
 
@@ -202,12 +201,11 @@ def check_assets(s):
     e = s.emitter()
     s.check(e["fields"]["curl"] == "20" and line() == expect,
             f"the asset edited and reloaded: the emitter follows it, nothing pinned ({e['fields']['curl']}; {line()})")
-    # Edited on disk alone (no reload_assets): the assets are polled about twice a second.
+    # Edited on disk alone (no reload_assets): the assets are polled about twice a second (the next
+    # look waited for: RPC status polls.files).
     data["modules"]["curl"]["amplitude"] = 33
     later.write_text(json.dumps(data))
-    deadline = time.time() + 10
-    while time.time() < deadline and s.emitter()["fields"]["curl"] != "33":
-        s.game.run(10)
+    s.game.wait_polled("files")
     e = s.emitter()
     s.check(e["fields"]["curl"] == "33" and e["count"] == 300 and line() == expect,
             f"the asset edited on disk, no RPC: the emitter follows it live ({e['fields']['curl']}), its own count kept")

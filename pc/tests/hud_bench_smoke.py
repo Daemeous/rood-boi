@@ -59,7 +59,7 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, RpcError, listening  # noqa: E402
+from rood_rpc import OUT, Deadline, Game, RpcError, awake, listening  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import card_guard, default_save  # noqa: E402
 
@@ -131,14 +131,10 @@ def run(out, card):
         def held():
             return [e for e in g.call("hud", action="list")["elements"] if e["live"] and e["kind"] == "status"]
 
-        def wait(condition, timeout=10.0, step=2):
-            """Run the game a little at a time until condition() (real-time menus and reloads: no vsync counts)."""
-            end = time.monotonic() + timeout
-            while time.monotonic() < end:
-                if condition():
-                    return True
-                g.run(step)
-            return condition()
+        def wait(condition, step=2):
+            """Run the game a little at a time until condition() (real-time menus and reloads: no vsync
+            counts); the guard only bounds a hang (60 awake seconds: a stopped game's pause not counted)."""
+            return g.until(condition, step=step, guard=60)
 
         def game_draws(what):
             """The game drew the word itself over 8 vsyncs (its glyphs counted; nothing suppressed)."""
@@ -205,15 +201,16 @@ def run(out, card):
         for k in range(2, 10):
             tag = f"v{k}"
             time.sleep(rng.uniform(0, 0.6))  # saved at any moment of the hot reload check's half second
-            t0 = time.monotonic()
+            # (the loop's time in awake seconds: a pause of the stopped game is not the reload's)
+            t0 = awake()
             (folder / "main.lua").write_text(draw_code(tag))
             seen = False
-            while time.monotonic() - t0 < 10:
+            while awake() - t0 < 30:  # (a hang guard)
                 if any((c.get("text") or "").endswith(tag) for c in stats()["last"]):
                     seen = True
                     break
                 time.sleep(0.01)
-            loops.append(time.monotonic() - t0)
+            loops.append(awake() - t0)
             check(seen, f"edit {tag}: the held word redrawn by the new code in {loops[-1]:.3f} s (paused)")
         print(f"hot reload loop (save -> held word redrawn), paused game: mean {statistics.mean(loops):.3f} s, "
               f"max {max(loops):.3f} s over {len(loops)} edits", flush=True)
@@ -248,7 +245,7 @@ def run(out, card):
         check(wait(lambda: status()["honoured"]), "modern look again")
         # cleared: it plays out and goes
         g.lua('rood.dev.clear("status")')
-        check(wait(lambda: not held(), timeout=10, step=10), f"cleared: the word goes ({held()})")
+        check(wait(lambda: not held(), step=10), f"cleared: the word goes ({held()})")
         shipped_hud(g, shipped / "rood.hud", check, wait, stats, glyphs)
         g = gallery(g, out / "bench", check)
         log = (out / "game.log").read_text(errors="replace")
@@ -357,14 +354,15 @@ def gallery(g, bench, check):
     g.run(30)
     check(not live("status") and live("chain"), "the moment changed (a chain, no word)")
     old = os.stat(g.path).st_ino
-    t0 = time.monotonic()
+    t0 = awake()
     r = g.lua('return rood.dev.bench.load("slow-word")')
     check(not r.get("error"), f"bench.load ({r.get('error')})")
     g.file.close()
     g.sock.close()
     process = g.processes[0]
     gone = False  # (the old socket unlinked: the new one may reuse its inode)
-    while time.monotonic() - t0 < 60:
+    guard = Deadline(120)  # a hang guard (awake seconds)
+    while not guard.passed():
         try:
             gone = gone or os.stat(g.path).st_ino != old
         except OSError:
@@ -375,7 +373,7 @@ def gallery(g, bench, check):
             raise RpcError(f"the game exited (status {process.returncode})")
         time.sleep(0.02)
     g = Game(g.path, g.processes)
-    seconds = time.monotonic() - t0
+    seconds = awake() - t0
     g.run(6)
     words = live("status")
     check(len(words) == 1 and words[0]["text"] == "SLOW!" and words[0]["held"] and not words[0]["synthetic"]
@@ -498,7 +496,7 @@ def shipped_hud(g, folder, check, wait, stats, glyphs):
     for k, args, text, fields in SHOWS:
         g.call("hud", action="clear")
         r = g.call("hud", action="show", kind=k, **args)
-        found = wait(lambda: any(e["text"] == text and e["held"] for e in elements(k)), timeout=10)
+        found = wait(lambda: any(e["text"] == text and e["held"] for e in elements(k)))
         e = next((e for e in elements(k) if e["text"] == text), {})
         check(r.get("ok") and found and not e.get("synthetic", True)
               and all(e.get(f) == v for f, v in fields.items()),
@@ -567,15 +565,15 @@ def shipped_hud(g, folder, check, wait, stats, glyphs):
     for k in range(1, 6):
         nudge = 0.5 + k
         time.sleep(random.Random(k).uniform(0, 0.6))
-        t0 = time.monotonic()
+        t0 = awake()  # (awake seconds: a pause of the stopped game is not the reload's)
         main.write_text(source.replace("nudge = 0.5,", f"nudge = {nudge},"))
         seen = False
-        while time.monotonic() - t0 < 10:
+        while awake() - t0 < 30:  # (a hang guard)
             if any(c.get("text") == "SLOW!" and abs(c["y"] - (53 + nudge)) < 0.01 for c in stats()["last"]):
                 seen = True
                 break
             time.sleep(0.01)
-        loops.append(time.monotonic() - t0)
+        loops.append(awake() - t0)
         check(seen, f"rood.hud edit {k}: the held word redrawn {nudge} pixels down in {loops[-1]:.3f} s (paused)")
     print(f"rood.hud's hot reload loop (save -> held word redrawn), paused game: mean {statistics.mean(loops):.3f} s, "
           f"max {max(loops):.3f} s over {len(loops)} edits", flush=True)
