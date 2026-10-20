@@ -110,18 +110,44 @@ static int masked(uintptr_t address)
             return 1;
     return 0;
 }
-int pc_state_image_compare(const pc_state_image* a, const pc_state_image* b)
+int pc_state_image_stable_difference(const pc_state_image* a, const pc_state_image* repeat,
+    const pc_state_image* b, pc_state_difference* difference)
 {
-    if (!same_layout(a, b))
+    if (difference)
+        memset(difference, 0, sizeof *difference);
+    if (!same_layout(a, b) || (repeat && !same_layout(a, repeat)))
         return -1;
     size_t at = 0;
-    for (int i = 0; i < a->count; i++) {
-        for (size_t j = 0; j < a->ranges[i].size; j++)
-            if (!masked((uintptr_t)a->ranges[i].start + j) && a->data[at + j] != b->data[at + j])
-                return 1;
-        at += a->ranges[i].size;
+    for (int i = 0; i <= a->count; i++) {
+        int spu = i == a->count;
+        size_t size = spu ? (size_t)a->spu_size : a->ranges[i].size;
+        uintptr_t base = spu ? 0 : (uintptr_t)a->ranges[i].start;
+        for (size_t j = 0; j < size; j++) {
+            if ((!spu && masked(base + j)) || a->data[at + j] == b->data[at + j] ||
+                (repeat && a->data[at + j] != repeat->data[at + j]))
+                continue;
+            if (difference) {
+                difference->address = base + j;
+                difference->offset = j;
+                difference->expected = a->data[at + j];
+                difference->actual = b->data[at + j];
+                const char* name = spu ? "spu" : a->ranges[i].name;
+                snprintf(difference->range, sizeof difference->range, "%s", name ? name : "unnamed");
+            }
+            return 1;
+        }
+        at += size;
     }
-    return memcmp(a->data + at, b->data + at, (size_t)a->spu_size) != 0;
+    return 0;
+}
+int pc_state_image_difference(const pc_state_image* a, const pc_state_image* b,
+    pc_state_difference* difference)
+{
+    return pc_state_image_stable_difference(a, NULL, b, difference);
+}
+int pc_state_image_compare(const pc_state_image* a, const pc_state_image* b)
+{
+    return pc_state_image_difference(a, b, NULL);
 }
 void pc_state_mask_clear(void)
 {

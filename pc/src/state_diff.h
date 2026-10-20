@@ -27,6 +27,21 @@ void pc_state_image_free(pc_state_image* image);
 /* Compare two images, honoring current address masks: 0 equal, 1 different,
  * -1 invalid/incompatible. SPU is compared in full, without address masks. */
 int pc_state_image_compare(const pc_state_image* a, const pc_state_image* b);
+/* First differing unmasked byte. SPU addresses are offsets, identified by
+ * range == "spu". The output is zeroed on equality or invalid images. */
+typedef struct {
+    uintptr_t address;
+    size_t offset;
+    unsigned char expected, actual;
+    char range[96];
+} pc_state_difference;
+int pc_state_image_difference(const pc_state_image* expected, const pc_state_image* actual,
+    pc_state_difference* difference);
+
+/* Ignore only bytes that differ between the two original executions. NULL
+ * repeat is ordinary comparison. Noise is local to this call, never a mask. */
+int pc_state_image_stable_difference(const pc_state_image* expected, const pc_state_image* repeat,
+    const pc_state_image* actual, pc_state_difference* difference);
 
 void pc_state_mask_clear(void);
 int pc_state_mask_add(uintptr_t start, size_t size);

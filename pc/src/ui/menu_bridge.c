@@ -26,6 +26,7 @@
 #include "../../../src/MENU/MAINMENU.PRG/58EC.h"
 #include "ui_shell.h"
 #include "../fast_travel.h"
+#include "../oracle.h"
 #include <libetc.h>
 
 static int shell_open; /* the shell owns the top level (ticks in func_800C930C(0)) */
@@ -336,6 +337,8 @@ static pc_ui_commands commands(void)
  * func_800CABE0(2)). */
 int pc_ui_menu_open(int mode)
 {
+    if (pc_oracle_classic && pc_oracle_classic())
+        return 0;
     pc_ui_commands c;
     int top = (vs_battle_menuState.currentMenu & 0x3F) == 0 && !((u_int)D_800F4EA0 & 0x200)
         && vs_battle_shortcutInvoked == 0;
@@ -482,6 +485,8 @@ static int close_for_cast(int target)
  * for any return to the top level. The flag is spent here either way. */
 int pc_ui_menu_cast_cancelled(void)
 {
+    if (pc_oracle_classic && pc_oracle_classic())
+        return 0;
     int from_shell = cast_shell && vs_battle_menuItems != 0
         && (vs_battle_menuState.currentMenu & 0x3F) == 0x3F;
     cast_shell = 0;
@@ -515,6 +520,8 @@ int pc_ui_menu_cast_cancelled(void)
  * pc_ui_menu_heartbeat and pc_ui_menu_reset. */
 int pc_ui_menu_top(void)
 {
+    if (pc_oracle_classic && pc_oracle_classic())
+        return 0;
     pc_ui_input in;
     int r;
     int busy;
@@ -582,7 +589,12 @@ int pc_ui_menu_top(void)
     return deliver(r);
 }
 
-int pc_ui_menu_active(void) { return shell_open; }
+int pc_ui_menu_active(void)
+{
+    if (pc_oracle_classic && pc_oracle_classic())
+        return 0;
+    return shell_open;
+}
 
 /* func_800C97BC: the original top-level rows stay hidden while the shell
  * owns this menu session, the close frames included. */

@@ -145,8 +145,10 @@ def egl_probe(device=None):
 
 
 def headless_mode():
-    """("egl" | "xvfb", renderer or None): ROOD_HEADLESS, else egl when it works."""
+    """("egl" | "xvfb" | "null", renderer or None); null never probes graphics."""
     global _headless
+    if os.environ.get("ROOD_RENDERER") == "null" or os.environ.get("ROOD_HEADLESS") == "null":
+        return ("null", "CPU VRAM (no graphics)")
     if _headless is None:
         mode = os.environ.get("ROOD_HEADLESS", "")
         renderer = None
@@ -272,7 +274,7 @@ class Game:
     def launch(cls, window=False, card=None, audio="none", socket_path=None, log=None, extra_env=None,
                movies=False, headless=None, fast=False, args=(), snapshot=None):
         """Start the game with RPC enabled; headless unless window=True
-        (`headless`: "egl" or "xvfb", default headless_mode()). The intro
+        (`headless`: "egl", "xvfb" or "null", default headless_mode()). The intro
         movie is skipped unless movies=True; fast=True drops the 59.94 Hz
         pacing (vsync-exact RPC stepping is unaffected). snapshot: a save
         state (RPC snapshot save; pc/src/snapshot.c) to resume instead of
@@ -290,7 +292,16 @@ class Game:
         if snapshot:
             env["ROOD_SNAPSHOT"] = str(snapshot)
         processes = []
-        if not window and not WINDOWS:
+        null = (headless == "null" or env.get("ROOD_RENDERER") == "null"
+                or env.get("ROOD_HEADLESS") == "null")
+        if null:
+            if window:
+                raise RpcError("null renderer cannot open a desktop window")
+            env["ROOD_RENDERER"] = "null"
+            env["ROOD_HEADLESS"] = "null"
+            env.pop("DISPLAY", None)
+            env.pop("WAYLAND_DISPLAY", None)
+        if not null and not window and not WINDOWS:
             mode = headless or headless_mode()[0]
             if mode == "egl":
                 headless_env(mode, env)
@@ -424,6 +435,12 @@ class Game:
                 raise RpcError(f"timed out waiting for the step to finish ({timeout} s)")
             if not self.has_wait:
                 time.sleep(0.01)
+
+    def owner(self, subsystem=None, owner=None):
+        """List ownership, or set a subsystem between game frames."""
+        if subsystem is None and owner is None:
+            return self.call("owner")
+        return self.call("owner", subsystem=subsystem, owner=owner)
 
     def digest(self, action, **params):
         """Record/compare per-vsync state pages; see pc/docs/Oracle.md."""
@@ -622,7 +639,7 @@ def main():
     launch.add_argument("--card")
     launch.add_argument("--audio", default="none")
     launch.add_argument("--movies", action="store_true", help="play the intro movie")
-    launch.add_argument("--headless", choices=["egl", "xvfb"], help="default: $ROOD_HEADLESS, else egl if it works")
+    launch.add_argument("--headless", choices=["egl", "xvfb", "null"], help="default: $ROOD_HEADLESS, else egl if it works")
     sub.add_parser("headless")
     call = sub.add_parser("call")
     call.add_argument("method")

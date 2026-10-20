@@ -372,7 +372,7 @@ STATE_HOST_UNITS = {"runtime", "cd_drive", "mdec", "xa_audio", "audio_libspu", "
 # skip), the audio output and the software SPU (spu_*: the audio thread never
 # runs library code), and the library's loader. Every other unit is the
 # engine library's (pc/docs/plans/2026-10-19-engine-reload.md).
-HOST_UNITS = STATE_HOST_UNITS | {"snapshot", "state_diff", "state_rewind", "overlay_statics", "ownership",
+HOST_UNITS = STATE_HOST_UNITS | {"snapshot", "state_diff", "state_rewind", "shadow", "overlay_statics", "ownership", "routing",
                                  "memory_card", "input_record", "charge_skip", "audio_output", "engine_host"}
 engine_units = {}  # --engine-library: object -> its compile command (position-independent)
 host_units = {}  # --engine-library: the host's other compiled units -> command (engine_lib.py reads their headers)
@@ -470,7 +470,7 @@ def check_zig_object(obj, overlay):
     """Reject odd global names, COFF .refptr stubs, and overlay statics."""
     if not coff:
         for line in query(["nm", "-g", "-P", str(obj)]).splitlines():
-            name = line.rsplit(" ", 3)[0]
+            name = line.split()[0]
             if not _ZIG_NAME.fullmatch(name):
                 raise SystemExit(f"{obj.name}: global symbol {name!r} is not a plain identifier")
         if overlay:
@@ -653,7 +653,7 @@ import zig_toolchain  # noqa: E402
 # while no game code is owned yet: without it the owned objects are skipped
 # (a warning; ROOD_REQUIRE_ZIG=1 makes it an error, as it will be once a
 # module is owned).
-_zig = zig_toolchain.find()
+_zig = None if os.environ.get("ROOD_NO_ZIG") == "1" else zig_toolchain.find()
 if _zig is None and os.environ.get("ROOD_REQUIRE_ZIG") == "1":
     _zig = zig_toolchain.ensure()  # exits with the install instructions
 ZIG = str(_zig) if _zig else None
@@ -993,6 +993,23 @@ for layout_pass in [[], ["-DPSX_SDK_LAYOUT_LIBDS"]]:
 
 overlay_statics = {}  # overlay file on the disc -> {"data", "bss"} sections present
 win_overlay_statics = {}  # the same for the COFF twins
+import ownership as ownership_tool
+
+ownership_table = ownership_tool.load(root / "game/ownership.toml")
+active = ownership_tool.Table([s for s in ownership_table.subsystems
+                               if ZIG and s.unit in {source for source, _ in sources}])
+
+
+def route_definitions(text, source):
+    names = active.routed_names(source)
+    if not names:
+        return text
+    text, counts = ownership_tool.rename_definitions(text, names)
+    if any(count != 1 for count in counts.values()):
+        raise SystemExit(f"{source}: expected one routed definition each: {counts}")
+    return text
+
+
 game_objects = []  # objects of the game's (-nostdinc) units
 for source, name in sources:
     cpp_args = [
@@ -1024,9 +1041,9 @@ for source, name in sources:
             arch64_results.append(("c", "win:" + source, win_cpp.returncode, win_cpp.stderr.decode(errors="replace")))
             continue
         win_pre = out / (name + ".win.i")
-        win_pre.write_bytes(lp64_longs(result_cache.run([sys.executable, "-m", "tools.etc.vsStringTransformer"], root,
+        win_pre.write_bytes(route_definitions(lp64_longs(result_cache.run([sys.executable, "-m", "tools.etc.vsStringTransformer"], root,
                                                         files=sorted((root / "tools/etc").glob("vsString*.py")),
-                                                        input=win_cpp.stdout)))
+                                                        input=win_cpp.stdout)), source))
     if not coff and arch64 and cpp.returncode:  # record it and go on, like a compile error
         arch64_results.append(("c", source, cpp.returncode, cpp.stderr.decode(errors="replace")))
         continue
@@ -1034,7 +1051,7 @@ for source, name in sources:
     if not coff:
         encoded = result_cache.run([sys.executable, "-m", "tools.etc.vsStringTransformer"], root,
                                    files=sorted((root / "tools/etc").glob("vsString*.py")), input=cpp.stdout)
-        pre.write_bytes(encoded)
+        pre.write_bytes(route_definitions(encoded, source))
     obj = out / (name + ".o")
     # main.c and MAINMENU statics that only other code calls (by address on
     # the PS1) must survive compilation to be exposed below.
@@ -1084,13 +1101,13 @@ for name in ["runtime", "window", "controller", "gamepad"]:
             and name in STATE_HOST_UNITS:
         state_sections(obj)
     objects.append(obj)
-for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "charge_skip", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "frame_cost"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
+for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "charge_skip", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "shadow", "frame_cost"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
         + (["engine_host", "engine_reload"] if engine_library else []):
     obj = out / (name.replace("/", "_") + ".o")
     # ui_text rasterizes fonts with the stb_truetype that Dear ImGui vendors.
     extra = ["-Ipc/third_party/imgui"] if name == "ui_text" else []
     if name == "ownership":
-        extra = ["-DROOD_NO_ROUTING"]  # Task 9 will link generated routing.c
+        extra = [] if ZIG else ["-DROOD_NO_ROUTING"]
         if not ZIG:
             extra.append("-DROOD_NO_OWNED")  # no game_core object: no ABI to check
     if compile_object(["gcc", *flags, *sdl_flags, *extra, "-c", f"pc/src/{name}.c", "-o", str(obj)], f"pc/src/{name}.c") \
@@ -1098,6 +1115,25 @@ for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_dr
         state_sections(obj)
     objects.append(obj)
 if ZIG:
+    routing = out / "routing.c"
+    routing.write_text(ownership_tool.routing_source(active, "sysv64" if arch64 else "i386"))
+    win_routing = out / "routing.win.c"
+    win_routing.write_text(ownership_tool.routing_source(active, "win64"))
+    routing_obj = out / "routing.o"
+    compile_object(["gcc", *flags, "-c", str(routing), "-o", str(routing_obj)], str(routing),
+                   win_args=["gcc", *flags, "-c", str(win_routing), "-o", str(routing_obj)])
+    objects.append(routing_obj)
+    game_objects.append(routing_obj)
+    ownership_module = out / "ownership.zig"
+    ownership_module.write_text(ownership_tool.ownership_zig(ownership_table))
+    for owned_overlay in sorted({s.overlay for s in active.subsystems}):
+        obj = compile_zig(owned_overlay + "_zig", {
+            "root": (f"game/{owned_overlay}/root.zig", ["common", "ownership"]),
+            "common": ("game/common/common.zig", []),
+            "ownership": (str(ownership_module), []),
+        }, "root", overlay=owned_overlay)
+        objects.append(obj)
+        game_objects.append(obj)
     objects.append(compile_zig("game_core", {
         "root": ("game/core/root.zig", ["common"]),
         "common": ("game/common/common.zig", []),
@@ -1561,6 +1597,13 @@ for obj in objects:
             if parts[1] == "T":
                 text_defined.add(defined_name(parts[2], parts[1]))
     calls.update(called_names(obj))
+problems = active.problems(function_addresses, {source for source, _ in sources})
+if problems:
+    raise SystemExit("game/ownership.toml: " + "; ".join(problems))
+for name, _ in active.routes():
+    for suffix in ("", "__orig", "__owned", "__shadow"):
+        if name + suffix not in text_defined:
+            raise SystemExit(f"routing: missing definition {name}{suffix}")
 libc = {
     "__divdi3",
     "__udivdi3",

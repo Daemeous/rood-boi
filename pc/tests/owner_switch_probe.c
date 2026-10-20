@@ -6,12 +6,15 @@
 #include <string.h>
 
 const uint32_t rood_game_abi = 1;
+const unsigned pc_route_count = 3;
+const unsigned char pc_route_subsystems[] = { 0, 1, 1 };
 const unsigned pc_subsystem_count = 2;
 const char* const pc_subsystem_names[] = { "alpha", "beta" };
 const unsigned char pc_subsystem_defaults[] = { 0, 1 };
 static int shadow_ready;
 int pc_shadow_available(void) { return shadow_ready; }
 void pc_unimplemented(const char* what) { (void)what; abort(); }
+int pc_owner_routes(int);
 int pc_owner_count(void);
 const char* pc_owner_subsystem(int);
 const char* pc_owner_label(int);
@@ -23,6 +26,7 @@ int pc_owner_set(int, int);
 int main(int argc, char** argv)
 {
     assert(pc_owner_count() == 2);
+    assert(pc_owner_routes(0) == 1 && pc_owner_routes(1) == 2 && pc_owner_routes(-1) == 0);
     assert(pc_owner_get(0) == (argc > 1 ? atoi(argv[1]) : 0));
     assert(pc_owner_get(1) == 1);
     assert(!strcmp(pc_owner_subsystem(1), "beta"));

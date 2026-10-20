@@ -12,6 +12,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "ownership.h"
 #include "emissive.h"
 #include "imgui.h"
 #include "imgui_internal.h" /* ClearActiveID (RPC editor_input) */
@@ -1979,6 +1980,19 @@ static void details(float x, float y, float w, float h, double frame_ms)
             }
             if (ImGui::CollapsingHeader("Gameplay"))
                 gameplay_panel();
+            if (ImGui::CollapsingHeader("Ownership")) {
+                static int owner_error;
+                for (int i = 0; i < pc_owner_count(); i++) {
+                    int owner = pc_owner_get(i);
+                    ImGui::PushID(i);
+                    if (ImGui::Combo(pc_owner_subsystem(i), &owner,
+                            "Original (src/)\0Owned (game/)\0Shadow (compare)\0"))
+                        owner_error = pc_owner_set(i, owner);
+                    ImGui::PopID();
+                }
+                if (owner_error)
+                    ImGui::TextUnformatted("Requested owner is unavailable in this build.");
+            }
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Emissive", nullptr, select[TAB_EMISSIVE])) {

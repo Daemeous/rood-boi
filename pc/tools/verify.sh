@@ -50,6 +50,7 @@ step() {  # step build|test NAME COMMAND...: run it (under its lock), print one 
     local log="$out/$name.log" t=$SECONDS status
     local lock=${ROOD_HEAVY_LOCK:-}
     [ "$kind" = build ] && [ -n "${ROOD_BUILD_LOCK:-}" ] && lock=$ROOD_BUILD_LOCK
+    [ "$kind" = cpu ] && lock= # genuine null backend: no GPU resource serialization
     python3 pc/tests/run.py --wait-cool  # a hot CPU package first cools (run.py --thermal-pause)
     if [ -n "$lock" ]; then
         flock "$lock" "$@" > "$log" 2>&1
@@ -72,6 +73,8 @@ step() {  # step build|test NAME COMMAND...: run it (under its lock), print one 
 step build build-32 python3 pc/tools/build_boot.py
 step build battle-32 python3 pc/tools/build_boot.py --battle
 step build build-64 python3 pc/tools/build_boot.py --arch 64
+step cpu suite-64null python3 pc/tests/run.py --arch 64 --renderer null --out "$out/t64null" \
+    "${changed[@]}" "${extra[@]}" null_backend_smoke shadow_battle_smoke ownership_smoke battle_corpus_candidate
 step test suite-64vk python3 pc/tests/run.py --arch 64 --renderer vulkan --out "$out/t64vk" "${changed[@]}" "${extra[@]}"
 if [ ${#changed[@]} -gt 0 ] || [ $gl = 1 ]; then
     step test suite-64gl python3 pc/tests/run.py --arch 64 --renderer gl --out "$out/t64gl" "${changed[@]}" "${extra[@]}"

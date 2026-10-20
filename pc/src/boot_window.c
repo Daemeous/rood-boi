@@ -117,6 +117,23 @@ void pc_window_init(int enabled, int run_fast)
 {
     fast = run_fast;
     pc_window_enabled = enabled;
+    const char* backend = getenv("ROOD_RENDERER");
+    if (backend && !strcmp(backend, "null")) {
+        /* Logical pad presence is independent of a window: boot_sdk still
+         * delivers RPC/recorded input. Native VRAM stays CPU-owned; never
+         * initialize a video driver, hardware target or overlay here. */
+        pc_window_enabled = 1;
+        /* Settings normally load from the graphical overlay. The loader
+         * itself is CPU-only (hardware scale changes guard pc_hw_active). */
+        extern void pc_settings_load(void);
+        extern int pc_gte_widescreen;
+        const char* widescreen = getenv("ROOD_WIDESCREEN");
+        if (widescreen)
+            pc_gte_widescreen = *widescreen == '1';
+        pc_settings_load();
+        fprintf(stderr, "[window] null backend: CPU VRAM, RPC input, no video initialization\n");
+        return;
+    }
     if (!enabled)
         return;
     SDL_SetAppMetadata("Vagrant Story (rood-boi)", NULL, "rood-boi");

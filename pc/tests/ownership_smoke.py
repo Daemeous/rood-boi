@@ -23,10 +23,32 @@ def main():
         out = pathlib.Path(directory)
         g = Game.launch(fast=True, log=out / "game.log", extra_env={
                 "ROOD_DETERMINISTIC": "1", "ROOD_INTERPOLATE": "0",
+                "ROOD_OWNER": "battle_action=owned",
                 "ROOD_CARD1": str(out / "absent-card.mcd"),
                 "ROOD_CARD2": str(out / "absent-card2.mcd")})
         try:
             title(g)
+            owners = g.owner()["subsystems"]
+            check(len(owners) == 1 and owners[0]["name"] == "battle_action"
+                  and owners[0]["routes"] == 9 and owners[0]["owner"] == "owned",
+                  f"ROOD_OWNER and nine routed battle actions: {owners}")
+            for owner in ("original", "owned", "original"):
+                check(g.owner("battle_action", owner)["subsystems"][0]["owner"] == owner,
+                      f"owner round-trip: {owner}")
+            for params in ({"subsystem": "missing", "owner": "owned"},
+                           {"subsystem": "battle_action", "owner": "bad"},
+                           {"subsystem": "battle_action"}, {"owner": "owned"},
+                           {"subsystem": 1, "owner": "owned"},
+                           {"action": "unknown"}, {"action": "report", "reset": "yes"},
+                           {"action": "report", "owner": "owned"}):
+                try:
+                    g.call("owner", **params)
+                    raise AssertionError(f"invalid owner request accepted: {params}")
+                except RpcError:
+                    pass
+            report = g.call("owner", action="report", reset=True)
+            check(report == {"calls": 0, "count": 0, "errors": 0, "truncated": False, "mismatches": [], "coverage": []},
+                  f"shadow report is empty before shadow execution: {report}")
             g.call("graphics", interpolate=False)
             try:
                 g.rewind()

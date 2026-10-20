@@ -1184,6 +1184,9 @@ static void make_object_fbos(void)
  * multiple (1-8, default 4); ROOD_SCALE=0 disables the hardware path. */
 void pc_hw_init(const uint16_t* vram)
 {
+    const char* backend = getenv("ROOD_RENDERER");
+    if (backend && !strcmp(backend, "null"))
+        return; /* CPU rasterization owns VRAM; no graphics target, even if called explicitly. */
     const char* setting = getenv("ROOD_SCALE");
     int scale = setting ? atoi(setting) : 4;
     if (scale < 1)

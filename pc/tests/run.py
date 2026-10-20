@@ -82,12 +82,12 @@ sys.exit(code)
 
 
 class Suite:
-    """gpu: the suite runs the game (the GPU lane, --gpu-jobs); a suite without
-    a game binary runs in the CPU lane (--cpu-jobs). sources: files the suite
+    """gpu selects the GPU lane (--gpu-jobs), independently of binary dependencies.
+    Explicit null game suites use the CPU lane (--cpu-jobs). sources: files the suite
     reads besides its command's scripts (--changed, affected.py)."""
-    def __init__(self, name, command, timeout, binary: "str | None" = "rood_battle_probe", note="", sources=()):
+    def __init__(self, name, command, timeout, binary: "str | None" = "rood_battle_probe", note="", sources=(), gpu=None):
         self.name, self.command, self.timeout, self.binary, self.note = name, command, timeout, binary, note
-        self.gpu = binary is not None
+        self.gpu = binary is not None if gpu is None else gpu
         self.sources = list(sources)
 
     def scaled(self, factor):
@@ -113,7 +113,7 @@ def input_cases(scale):
 
 def suites(args, mode="egl"):
     # Software GL on Xvfb is several times slower than a GPU.
-    scale = args.timeout_scale * (1 if mode == "egl" else 3)
+    scale = args.timeout_scale * (3 if mode == "xvfb" else 1)
     return [suite.scaled(scale) if not suite.name.startswith("input:") else suite for suite in [
         Suite("ctest", ["ctest", "--test-dir", str(ROOT / "pc/build"), "--output-on-failure"], 300, binary=None,
               note="CMake probes in pc/build", sources=[ROOT / "pc/tools/ownership.py",
@@ -121,8 +121,23 @@ def suites(args, mode="egl"):
                   TESTS / "routing_probe/unit.c", TESTS / "routing_probe/owned.c", TESTS / "routing_probe/main.c",
                   TESTS / "owner_switch_probe.c", ROOT / "pc/src/ownership.c",
                   TESTS / "state_diff_test.c", ROOT / "pc/src/state_diff.c", ROOT / "pc/src/state_diff.h",
+                  TESTS / "shadow_test.c", TESTS / "shadow_route_test.c",
+                  ROOT / "game/common/route.zig", ROOT / "game/common/shadow_route_probe.zig",
+                  ROOT / "pc/src/shadow.c", ROOT / "pc/src/shadow.h",
+                  ROOT / "pc/tools/field_map.py", TESTS / "field_map_test.py", TESTS / "diff/masks.py",
+                  TESTS / "diff/corpus_test.py", TESTS / "diff/corpus.py", TESTS / "diff/differ.py", TESTS / "diff/scenarios.py",
                   TESTS / "state_rewind_test.c", ROOT / "pc/src/state_rewind.c",
                   TESTS / "input_record_test.c", ROOT / "pc/src/input_record.c"]),
+        *([Suite("null_backend_smoke", [PY, str(TESTS / "null_backend_smoke.py")], 300,
+                 gpu=False, note="CPU null backend: no display or GPU resources")]
+          if args.renderer == "null" else []),
+        Suite("battle_corpus_candidate", [PY, str(TESTS / "diff/differ.py"), "battle_action",
+              "--scenario", "enemy_cast_wait", "--card", str(args.save)], 300,
+              note="one witnessed enemy-cast recipe; NOT full task20 coverage",
+              sources=[TESTS / "diff/corpus.py", TESTS / "diff/scenarios.py", ROOT / "pc/tools/field_map.py"]),
+        Suite("shadow_battle_smoke", [PY, str(TESTS / "shadow_battle_smoke.py"), "--card", str(args.save)], 300,
+              note="experimental routed battle shadow; classic oracle profile",
+              sources=[ROOT / "pc/src/shadow.c", ROOT / "game/common/route.zig"]),
         Suite("ownership_smoke", [PY, str(TESTS / "ownership_smoke.py")], 300,
               note="oracle checkpoint, rewind and replay", sources=[ROOT / "pc/src/state_rewind.c",
                   ROOT / "pc/src/state_diff.c", ROOT / "pc/src/snapshot.c", ROOT / "pc/src/input_record.c"]),
@@ -880,9 +895,9 @@ def make_parser():
     parser.add_argument("--out", help="output directory (default pc/build/tests); one runner per directory")
     parser.add_argument("--arch", choices=["32", "64"], default=os.environ.get("ROOD_ARCH", "64"),
                         help="game binary: 64 (pc/build/boot64, default) or 32 (pc/build/boot); sets ROOD_ARCH")
-    parser.add_argument("--renderer", choices=["gl", "vulkan"],
-                        default="vulkan" if os.environ.get("ROOD_RENDERER") == "vulkan" else "gl",
-                        help="gl (default) or vulkan (64-bit; sets ROOD_RENDERER)")
+    parser.add_argument("--renderer", choices=["gl", "vulkan", "null"],
+                        default=os.environ.get("ROOD_RENDERER") if os.environ.get("ROOD_RENDERER") in ("vulkan", "null") else "gl",
+                        help="gl, vulkan (64-bit), or null (CPU-only oracle suites)")
     parser.add_argument("--no-snapshots", action="store_true",
                         default=os.environ.get("ROOD_TEST_SNAPSHOTS", "1") == "0",
                         help="boot every suite from scratch: no save states of the test checkpoints "
@@ -903,8 +918,8 @@ def main():
     if args.clean:
         import clean_build
         return clean_build.clean()
-    if args.renderer == "vulkan":
-        os.environ["ROOD_RENDERER"] = "vulkan"
+    if args.renderer in ("vulkan", "null"):
+        os.environ["ROOD_RENDERER"] = args.renderer
     else:
         os.environ.pop("ROOD_RENDERER", None)
     os.environ["ROOD_ARCH"] = args.arch  # suites and rood_rpc pick the binary from it
@@ -918,6 +933,14 @@ def main():
         os.environ["ROOD_HEADLESS"] = args.headless
     mode, renderer = rood_rpc.headless_mode()
     every = suites(args, mode)
+    if args.renderer == "null":
+        # Only explicitly CPU-safe game suites; never run screenshots or GPU
+        # probes in this lane merely because they can launch the game binary.
+        safe = {"null_backend_smoke", "shadow_battle_smoke", "ownership_smoke", "battle_corpus_candidate"}
+        every = [s for s in every if s.binary is None or s.name in safe]
+        for suite in every:
+            suite.gpu = False
+        args.no_snapshots = True
     selected = [s for s in every
                 if (not args.patterns or any(p in s.name for p in args.patterns))
                 and not any(x in s.name for x in args.exclude)]

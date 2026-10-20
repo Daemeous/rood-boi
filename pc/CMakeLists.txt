@@ -15,6 +15,16 @@ add_executable(state_diff_test tests/state_diff_test.c src/state_diff.c)
 target_include_directories(state_diff_test PRIVATE src)
 target_compile_options(state_diff_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
 add_test(NAME state_diff COMMAND state_diff_test)
+add_executable(shadow_test tests/shadow_test.c src/shadow.c src/state_diff.c)
+target_include_directories(shadow_test PRIVATE src)
+target_compile_options(shadow_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+add_test(NAME shadow COMMAND shadow_test)
+add_executable(shadow_failures_test tests/shadow_test.c src/shadow.c src/state_diff.c)
+target_include_directories(shadow_failures_test PRIVATE src)
+target_compile_definitions(shadow_failures_test PRIVATE SHADOW_ALLOC_PROBE)
+target_compile_options(shadow_failures_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+target_link_options(shadow_failures_test PRIVATE -Wl,--wrap=malloc -Wl,--wrap=calloc)
+add_test(NAME shadow_failures COMMAND shadow_failures_test)
 add_executable(state_diff_failures_test tests/state_diff_test.c src/state_diff.c)
 target_include_directories(state_diff_failures_test PRIVATE src)
 target_compile_definitions(state_diff_failures_test PRIVATE STATE_DIFF_TEST_OWNERSHIP STATE_DIFF_TEST_ALLOC)
@@ -36,6 +46,18 @@ endif()
 # It requires the matching build's extracted assets; it is not part of the
 # dependency-free memory probe's default build.
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(FIELD_MAP_FIXTURE ${CMAKE_CURRENT_BINARY_DIR}/field_map_fixture)
+    add_custom_command(OUTPUT ${FIELD_MAP_FIXTURE}
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/field_map_test.py
+            --build-fixture ${FIELD_MAP_FIXTURE}
+        DEPENDS tests/field_map_test.py VERBATIM)
+    add_custom_target(field_map_fixture_build ALL DEPENDS ${FIELD_MAP_FIXTURE})
+    add_test(NAME field_map COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/field_map_test.py
+        --fixture ${FIELD_MAP_FIXTURE})
+    set_tests_properties(field_map PROPERTIES TIMEOUT 120)
+endif()
+add_test(NAME diff_corpus COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/diff/corpus_test.py)
 add_test(NAME event_callbacks COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/event_callbacks_test.py)
 # The pinned Zig toolchain's verification and cache (pc/tools/zig_toolchain.py), offline.
 add_test(NAME zig_toolchain COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/zig_toolchain_test.py)
@@ -58,6 +80,37 @@ if(ROOD_ZIG_MISSING EQUAL 0)
         add_test(NAME zig_unit_${target} COMMAND ${ROOD_ZIG} test -target ${target} -O ReleaseSafe
             ${CMAKE_CURRENT_SOURCE_DIR}/../game/common/psx.zig)
     endforeach()
+    add_test(NAME zig_route COMMAND ${ROOD_ZIG} test -target x86_64-linux-musl -O ReleaseSafe
+        ${CMAKE_CURRENT_SOURCE_DIR}/../game/common/route_test.zig)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(SHADOW_ZIG_OBJECT ${CMAKE_CURRENT_BINARY_DIR}/shadow_zig_probe.o)
+        add_custom_command(OUTPUT ${SHADOW_ZIG_OBJECT}
+            COMMAND ${ROOD_ZIG} build-obj -target x86_64-linux-none -O ReleaseSafe -fllvm
+                -fno-compiler-rt -fno-stack-check -fPIC -femit-bin=${SHADOW_ZIG_OBJECT}
+                ${CMAKE_CURRENT_SOURCE_DIR}/../game/common/shadow_probe.zig
+            DEPENDS ../game/common/shadow_probe.zig ../game/common/panic.zig VERBATIM)
+        add_executable(shadow_zig_test tests/shadow_test.c src/shadow.c src/state_diff.c
+            src/ownership.c ${SHADOW_ZIG_OBJECT})
+        target_include_directories(shadow_zig_test PRIVATE src)
+        target_compile_definitions(shadow_zig_test PRIVATE SHADOW_ZIG_PROBE ROOD_NO_ROUTING ROOD_NO_OWNED)
+        target_compile_options(shadow_zig_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+        add_test(NAME shadow_zig COMMAND shadow_zig_test)
+        set(SHADOW_ROUTE_OBJECT ${CMAKE_CURRENT_BINARY_DIR}/shadow_route_probe.o)
+        add_custom_command(OUTPUT ${SHADOW_ROUTE_OBJECT}
+            COMMAND ${ROOD_ZIG} build-obj -target x86_64-linux-none -O ReleaseSafe -fllvm
+                -fno-compiler-rt -fno-stack-check -fno-omit-frame-pointer -fPIC
+                -femit-bin=${SHADOW_ROUTE_OBJECT}
+                ${CMAKE_CURRENT_SOURCE_DIR}/../game/common/shadow_route_probe.zig
+            DEPENDS ../game/common/shadow_route_probe.zig ../game/common/route.zig
+                ../game/common/panic.zig VERBATIM)
+        add_executable(shadow_route_test tests/shadow_route_test.c src/shadow.c src/state_diff.c
+            src/ownership.c ${SHADOW_ROUTE_OBJECT})
+        target_include_directories(shadow_route_test PRIVATE src)
+        target_compile_definitions(shadow_route_test PRIVATE ROOD_NO_ROUTING ROOD_NO_OWNED)
+        target_compile_options(shadow_route_test PRIVATE -Wall -Wextra -Werror -UNDEBUG -fno-omit-frame-pointer)
+        target_link_libraries(shadow_route_test PRIVATE pthread)
+        add_test(NAME shadow_route COMMAND shadow_route_test)
+    endif()
 else()
     message(STATUS "Zig not installed (pc/tools/zig_toolchain.py): zig unit tests skipped")
 endif()

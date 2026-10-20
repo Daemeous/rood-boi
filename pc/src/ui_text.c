@@ -1386,6 +1386,7 @@ static void shift_texels(uint32_t* w, int du)
             w[k] = (w[k] & ~255u) | (((w[k] & 255) + (unsigned)du) & 255);
 }
 
+#include "oracle.h"
 void pc_text_glyph(void* const* commands, int count, int glyph, int x, int y, int next_x, int advance)
 {
     /* The game's ○ / × follow the button roles (button_roles.c): the
@@ -1398,6 +1399,9 @@ void pc_text_glyph(void* const* commands, int count, int glyph, int x, int y, in
             glyph = shown;
         }
     }
+    /* Packet changes above are game state; the capture registry below is not. */
+    if (pc_shadow_speculative && pc_shadow_speculative())
+        return;
     /* One string: on the line the previous character was set on, where it
      * left the pen (a space or two of offset, 0xFA, allowed either way). */
     int d = x - pen.next_x;
