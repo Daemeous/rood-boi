@@ -166,6 +166,11 @@ def suites(args, mode="egl"):
               note="64-bit: the engine library (build_boot.py --engine-library) reloads in place at a vsync: "
                    "state, pause and settings survive, a rebuilt unit takes effect, a broken library falls "
                    "back, and 120 vsyncs on the game equals one never reloaded"),
+        Suite("zig_hotswap_smoke", [PY, str(TESTS / "zig_hotswap_smoke.py"), "--card", str(args.save)], 900,
+              note="64-bit Linux: edited private Zig battle source rebuilt/reloaded in one PID; paused state "
+                   "unchanged, shadow names the wrong field/frame, clean restore and running reload",
+              sources=[ROOT / "pc/tools/game_lib.py", ROOT / "game/battle/root.zig",
+                       ROOT / "game/common/route.zig", ROOT / "pc/src/game_host.inc"]),
         Suite("rpc_smoke", [PY, str(TESTS / "rpc_smoke.py")], 180),
         Suite("rpc_tcp_token_smoke", [PY, str(TESTS / "rpc_tcp_token_smoke.py")], 180,
               note="TCP RPC with a token: refused without it, with a wrong one, HTTP lines; never logged"),
@@ -954,7 +959,8 @@ def main():
     if args.renderer == "null":
         # Only explicitly CPU-safe game suites; never run screenshots or GPU
         # probes in this lane merely because they can launch the game binary.
-        safe = {"null_backend_smoke", "shadow_battle_smoke", "ownership_smoke", "battle_corpus_candidate"}
+        safe = {"null_backend_smoke", "shadow_battle_smoke", "ownership_smoke", "battle_corpus_candidate",
+                "zig_hotswap_smoke"}
         every = [s for s in every if s.binary is None or s.name in safe]
         for suite in every:
             suite.gpu = False

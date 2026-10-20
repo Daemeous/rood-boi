@@ -2,6 +2,7 @@
 """pc/tools/ownership.py: the table, its validation, the routed-definition
 rename, the declaration-only strip and the generated routing sources."""
 import pathlib
+import subprocess
 import sys
 import tempfile
 
@@ -114,6 +115,72 @@ for abi in ("i386", "sysv64", "win64"):
     check((".type F, @function" in src) == (abi != "win64"), f"{abi}: ELF symbol types only on ELF")
     check("%al" not in src and ("%r11d" in src) == (abi != "i386"), f"{abi}: no argument register clobbered")
     check('"s", "t"' in src and "pc_subsystem_defaults[] = { 0, 1 }" in src, f"{abi}: subsystem tables")
+for abi in ("i386", "win64"):
+    check(raises(lambda: ownership.routing_source(t, abi, reloadable=True), "sysv64"),
+          f"{abi}: reloadable routing is refused")
+check("pc_owned_slots" not in ownership.routing_source(t, "sysv64"),
+      "static routing does not gain reload slots")
+
+# Execute the generated host trampolines, including a shadow wrapper's
+# direct call to __owned and a previously saved function pointer.
+with tempfile.TemporaryDirectory() as d:
+    path = pathlib.Path(d)
+    source = path / "routes.c"
+    source.write_text(ownership.routing_source(t, "sysv64", reloadable=True) + r'''
+#include <assert.h>
+unsigned char pc_owner[2];
+const char F__owned_abi[] = "test-F", G__owned_abi[] = "test-G";
+int F(int, int, int, int, int, int, int);
+int F__owned(int, int, int, int, int, int, int);
+int F__orig(int a, int b, int c, int d, int e, int f, int g) {
+    return a + 2*b + 3*c + 4*d + 5*e + 6*f + 7*g;
+}
+int first(int a, int b, int c, int d, int e, int f, int g) {
+    return F__orig(a,b,c,d,e,f,g) + 100;
+}
+int second(int a, int b, int c, int d, int e, int f, int g) {
+    return F__orig(a,b,c,d,e,f,g) + 200;
+}
+int F__shadow(int a, int b, int c, int d, int e, int f, int g) {
+    return F__owned(a,b,c,d,e,f,g) + 1000;
+}
+double G(double);
+double G__orig(double a) { return a + 1; }
+double g_owned(double a) { return a + 2; }
+double G__shadow(double a) { return a + 3; }
+int main(void) {
+    int (*saved)(int,int,int,int,int,int,int) = F__owned;
+    pc_owned_slots[0] = first;
+    pc_owned_slots[1] = g_owned;
+    assert(F(1,2,3,4,5,6,7) == 140);
+    pc_owner[0] = 1;
+    assert(F(1,2,3,4,5,6,7) == 240);
+    assert(saved(1,2,3,4,5,6,7) == 240);
+    pc_owned_slots[0] = second;
+    assert(F(1,2,3,4,5,6,7) == 340);
+    assert(saved(1,2,3,4,5,6,7) == 340);
+    pc_owner[0] = 2;
+    assert(F(1,2,3,4,5,6,7) == 1340);
+    pc_owner[1] = 1;
+    assert(G(0.5) == 2.5);
+    void* next[] = { first, g_owned };
+    assert(__atomic_exchange_n(&pc_owned_table, next, __ATOMIC_ACQ_REL) == pc_owned_slots);
+    assert(F(1,2,3,4,5,6,7) == 1240); /* shadow also sees the complete new table */
+    assert(saved(1,2,3,4,5,6,7) == 240);
+    assert(G(0.5) == 2.5);
+    pc_owner[0] = 0;
+    assert(F(1,2,3,4,5,6,7) == 140);
+    return 0;
+}
+''')
+    compiled = subprocess.run(["gcc", "-Wall", "-Wextra", "-Werror", "-fno-pie", "-no-pie",
+                               str(source), "-o", str(path / "routes")], capture_output=True, text=True, timeout=60)
+    check(compiled.returncode == 0, "reloadable routing harness compiles: " + compiled.stderr.strip())
+    if compiled.returncode == 0:
+        result = subprocess.run([str(path / "routes")], timeout=10)
+        check(result.returncode == 0,
+              "repointing preserves owner/shadow routing, saved addresses and integer/FP/stack arguments")
+
 zig = ownership.ownership_zig(t)
 check('.{ .name = "F", .subsystem = 0 }' in zig and "pub const battle_action" not in zig, "the comptime table")
 

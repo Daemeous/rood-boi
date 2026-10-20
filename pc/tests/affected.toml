@@ -70,6 +70,13 @@ paths = ["pc/src/engine_host.c", "pc/src/engine_reload.c", "pc/tools/engine_boun
          "pc/src/fog_sim.cpp"]
 suites = ["engine_reload_smoke"]
 
+# ---- reloadable Zig game code and the host dispatch boundary ----
+[[rule]]
+paths = ["game/*", "pc/tools/game_lib.py", "pc/src/game_host.inc", "pc/src/engine_host.c",
+         "pc/tools/ownership.py", "pc/src/ownership.*", "pc/src/shadow.*", "pc/src/dev_rpc.c",
+         "pc/src/lua/lua_rpc.cpp", "pc/tools/rood_rpc.py", "pc/tools/dev_loop.sh"]
+suites = ["zig_hotswap_smoke"]
+
 # ---- frame cost counters (ROOD_PERF) ----
 [[rule]]
 paths = ["pc/src/frame_cost.*", "pc/tools/frame_cost_bench.py"]

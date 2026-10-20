@@ -151,6 +151,10 @@ def main():
     original = work / "librood_engine.original.so"
     shutil.copyfile(library, original)
     rood_rpc.BINARY = DEV / "rood_host"
+    # The Debug-owned split has host shadow trampolines, unlike the static
+    # binary used to prepare the runner's checkpoint cache. Never resume a
+    # static stack into that different pinned code layout.
+    os.environ["ROOD_TEST_SNAPSHOTS"] = "0"
     os.environ["ROOD_SYMBOLS"] = str(DEV / "rood_host")  # read_symbol: the host's addresses
     socket = f"/tmp/rood-reload-{os.getpid()}.sock"
     env = dict(checkpoints._base_env(work), ROOD_ENGINE_LIBRARY=str(library))

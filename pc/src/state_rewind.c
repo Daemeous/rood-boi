@@ -47,8 +47,13 @@ static struct {
     size_t stack_bytes;
 } mark;
 
+extern int pc_game_snapshot_safe(void) __attribute__((weak));
 __attribute__((noinline)) int pc_snapshot_mark_point(char* error, int size)
 {
+    if (pc_game_snapshot_safe && !pc_game_snapshot_safe()) {
+        snprintf(error, (size_t)size, "mark refused: owned frame live or incomplete unwind");
+        return -1;
+    }
     /* Invalidate before replacing: an allocation failure must not leave a
      * context paired with an older image. The mark is the current vsync's
      * boundary (the game side only); a rewind re-enters the game there. */

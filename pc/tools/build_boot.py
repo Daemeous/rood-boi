@@ -677,7 +677,7 @@ stamp_trees = [("src", None), ("include", None), ("config", None), ("build", Non
                ("pc/tests", (".c", ".h")), ("game", None)] \
     + [(f"pc/tools/{tool}.py", None) for tool in ["build_boot", "build_cache", "event_callbacks", "lp64_report",
                                                    "import_types", "nrd", "gl_shaders", "vk_shaders", "zig_toolchain", "ownership",
-                                                   "snapshot_layout", "shared_cache", "engine_boundary"]]
+                                                   "snapshot_layout", "shared_cache", "engine_boundary", "game_lib"]]
 stamp_files = [root / "data/SLUS_010.40", root / "data/BATTLE/BATTLE.PRG", root / "data/ENDING/ENDING.PRG",
                sdl_library, *(nrd["libraries"] if nrd else []),
                *([win_sdl_library, *(win_nrd["libraries"] if win_nrd else [])] if win else []),
@@ -1057,6 +1057,12 @@ for source, name in sources:
     # main.c and MAINMENU statics that only other code calls (by address on
     # the PS1) must survive compilation to be exposed below.
     keep = ["-fkeep-static-functions"] if name == "main" or name.startswith("mainmenu_") else []
+    if engine_library:
+        # Debug owned frames differ from ReleaseSafe's tail calls. Original
+        # C copies partly initialised aggregates to game memory: initialise
+        # their padding/locals in this development host so shadow compares
+        # defined output, not coincidental stale stack bytes. Release unchanged.
+        keep += ["-ftrivial-auto-var-init=zero"]
     if not compile_object(["gcc", *flags, *keep, "-c", str(pre), "-o", str(obj)], source,
                           win_args=win_pre and ["gcc", *flags, *keep, "-c", str(win_pre), "-o", str(obj)]):
         continue
@@ -1117,7 +1123,7 @@ for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_dr
     objects.append(obj)
 if ZIG:
     routing = out / "routing.c"
-    routing.write_text(ownership_tool.routing_source(active, "sysv64" if arch64 else "i386"))
+    routing.write_text(ownership_tool.routing_source(active, "sysv64" if arch64 else "i386", reloadable=engine_library))
     win_routing = out / "routing.win.c"
     win_routing.write_text(ownership_tool.routing_source(active, "win64"))
     routing_obj = out / "routing.o"
@@ -1128,11 +1134,17 @@ if ZIG:
     ownership_module = out / "ownership.zig"
     ownership_module.write_text(ownership_tool.ownership_zig(ownership_table))
     for owned_overlay in sorted({s.overlay for s in active.subsystems}):
-        obj = compile_zig(owned_overlay + "_zig", {
+        modules = {
             "root": (f"game/{owned_overlay}/root.zig", ["common", "ownership"]),
             "common": ("game/common/common.zig", []),
             "ownership": (str(ownership_module), []),
-        }, "root", overlay=owned_overlay)
+        }
+        if engine_library:
+            wrapper = out / (owned_overlay + "_host.zig")
+            wrapper.write_text('pub const reload_mode = 1;\npub const panic = @import("impl").panic;\ncomptime { _ = @import("impl"); }\n')
+            modules["impl"] = modules["root"]
+            modules["root"] = (str(wrapper), ["impl"])
+        obj = compile_zig(owned_overlay + "_zig", modules, "root", overlay=owned_overlay)
         objects.append(obj)
         game_objects.append(obj)
     objects.append(compile_zig("game_core", {
@@ -2200,6 +2212,21 @@ if engine_library:
                                             {line.split(" = ")[0] for line in assign}, shared, out, own_archives)
     except RuntimeError as error:
         raise SystemExit(f"engine library boundary: {error}")
+    if ZIG:
+        import game_lib
+        game_library = game_lib.build(root / "game", out / "librood_game.so")
+        imports = {line.split()[-1] for line in query(["nm", "-D", "--undefined-only", str(game_library)]).splitlines()
+                   if line.strip() and line.split()[0] == "U"}
+        # Owned edits may access any public game function/global without a
+        # host restart. Keep that game ABI exported, not the engine's private
+        # internals. New host-service dependencies still require a rebuild.
+        for obj in game_objects:
+            imports |= {parts[-1] for parts in map(str.split, query(["nm", "-g", "--defined-only", str(obj)]).splitlines())
+                        if len(parts) == 3 and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", parts[-1])}
+        imports |= {line.split(" = ")[0] for line in assign}
+        imports |= {"pc_zig_panic", "pc_psx_bad_pointer"}
+        exports = out / "host_exports.list"
+        exports.write_text(exports.read_text().replace("};", "".join(f"  {n};\n" for n in sorted(imports)) + "};"))
     run(["gcc", "-m64", "-c", str(out / "engine_boundary.S"), "-o", str(out / "engine_boundary.o")])
     library = out / "librood_engine.so"
     # Linked to load at 0x64000000 (above the game stack, below guest RAM;
@@ -2233,7 +2260,8 @@ if engine_library:
     }, indent=1) + "\n")
     print(f"Built {out / 'rood_host'} and {library}: {len(boundary['functions'])} engine functions and "
           f"{len(boundary['data'])} host-owned engine variables cross, the host exports {len(boundary['exports'])}")
-    finish(out / "rood_host", library, out / "engine_library.json", out / "engine_boundary.json", out / "objects.txt",
+    finish(out / "rood_host", library, *([game_library] if ZIG else []),
+           out / "engine_library.json", out / "engine_boundary.json", out / "objects.txt",
            report, out / "report.json", out / "lp64_imports.json")
     raise SystemExit(0)
 link = (

@@ -432,8 +432,13 @@ int pc_snapshot_available(void)
 /* Save to `path`: 0 when saved, -1 with `error` when it failed. Called
  * inside pc_tick (dev_rpc.c's poll), whose vsync boundary is live: the game
  * stack from the boundary down is saved, the host frames above it are not. */
+extern int pc_game_snapshot_safe(void) __attribute__((weak));
 __attribute__((noinline)) int pc_snapshot_point(const char* path, char* error, int size)
 {
+    if (pc_game_snapshot_safe && !pc_game_snapshot_safe()) {
+        snprintf(error, (size_t)size, "save refused: owned frame live or incomplete unwind");
+        return -1;
+    }
     uintptr_t sp = CTX_SP(&pc_snap_boundary), here = (uintptr_t)__builtin_frame_address(0);
     if (!sp || here >= sp || *(uintptr_t*)sp != CTX_IP(&pc_snap_boundary)) {
         snprintf(error, (size_t)size, "not inside a vsync of the game (pc_tick through pc_vsync_boundary)");

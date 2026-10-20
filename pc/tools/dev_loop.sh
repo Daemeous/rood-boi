@@ -7,8 +7,9 @@
 #   pc/tools/dev_loop.sh --reload   rebuild only the engine library, then RPC
 #                                   reload: the running game swaps it in place
 #                                   at its next vsync (pc/run-game.sh --reload)
-#   pc/tools/dev_loop.sh --watch    --reload on every change saved under pc/src
-#                                   or pc/shaders, until interrupted
+#   pc/tools/dev_loop.sh --zig      rebuild game/ and reload the Zig library
+#   pc/tools/dev_loop.sh --watch    reload engine edits under pc/src or pc/shaders,
+#                                   and Zig edits under game/, until interrupted
 #
 # Restart (pc/src/dev_rpc.c, snapshot.c): RPC restart saves the
 # auto-snapshot at the next vsync, runs the executable again (now the
@@ -30,15 +31,17 @@
 # with other builds (flock).
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
-build=1 mode=restart
+build=1 mode=restart watch=0
 for arg in "$@"; do
     case "$arg" in
     --no-build) build=0 ;;
     --reload) mode=reload ;;
-    --watch) mode=watch ;;
-    *) echo "usage: $0 [--no-build | --reload | --watch]" >&2; exit 2 ;;
+    --zig) mode=zig ;;
+    --watch) watch=1 ;;
+    *) echo "usage: $0 [--no-build] [--reload | --zig] [--watch]" >&2; exit 2 ;;
     esac
 done
+if ((watch)); then mode=watch; fi
 export ROOD_RPC="${ROOD_RPC:-pc/build/boot/rpc-live.sock}"
 locked() {
     if [[ -n "${ROOD_BUILD_LOCK:-}" ]]; then
@@ -49,7 +52,11 @@ locked() {
 }
 # The newest saved source (seconds since the epoch): the edit a reload shows.
 newest_edit() {
-    find pc/src pc/shaders -type f -printf '%T@\n' 2>/dev/null | sort -n | tail -1
+    find "$@" -type f -not -path '*/.zig-cache/*' -not -path '*/zig-out/*' -printf '%T@\n' 2>/dev/null | sort -n | tail -1
+}
+# Include paths so removals and renames also trigger a rebuild.
+source_stamp() {
+    find "$@" -type f -not -path '*/.zig-cache/*' -not -path '*/zig-out/*' -printf '%p %T@ %s\n' 2>/dev/null | sort | sha256sum
 }
 
 # RPC restart or reload of the running game, timed from $1 (the build's
@@ -68,12 +75,14 @@ edit = float(sys.argv[4]) if len(sys.argv) > 4 and sys.argv[4] else None
 path = os.environ["ROOD_RPC"]
 if not rood_rpc.listening(path):
     sys.exit(f"no game on {path} (start one with pc/run-game.sh --vulkan, or --reload)")
-if mode == "reload":
+if mode in ("reload", "zig"):
+    target = "zig" if mode == "zig" else "engine"
     game = rood_rpc.Game(path)
     waiting = None
-    while True:
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
         try:
-            reply = game.call("reload")
+            reply = game.reload(target=target)
             break
         except rood_rpc.RpcError as error:
             # Refused for now (a modern menu open, ...): asked again until it goes through.
@@ -83,8 +92,10 @@ if mode == "reload":
                 print(f"waiting: {error}", flush=True)
                 waiting = str(error)
             time.sleep(0.5)
+    else:
+        sys.exit("reload was refused for 60 s")
     now = time.time()
-    shown = f", edit to the new engine on screen {now - edit:.2f} s" if edit else ""
+    shown = f", edit to {target} reload acknowledgment {now - edit:.2f} s" if edit else ""
     print(f"build {built - start:.1f} s, reload {reply['ms']:.0f} ms at vsync {reply['vsync']} "
           f"(generation {reply['generation']}){shown}", flush=True)
     sys.exit(0)
@@ -125,6 +136,10 @@ EOF
 reload_once() {
     local start built status=0
     start=$(date +%s.%N)
+    if ((!build)); then
+        rpc "$start" "$start" reload "${1:-}"
+        return
+    fi
     python3 pc/tools/engine_lib.py --quiet || status=$? # it takes ROOD_BUILD_LOCK itself
     built=$(date +%s.%N)
     case $status in
@@ -139,6 +154,15 @@ reload_once() {
     esac
 }
 
+zig_once() {
+    local start
+    start=$(date +%s.%N)
+    if ((build)); then
+        locked python3 pc/tools/game_lib.py || return
+    fi
+    rpc "$start" "$(date +%s.%N)" zig "${1:-}"
+}
+
 case $mode in
 restart)
     start=$(date +%s.%N)
@@ -148,23 +172,28 @@ restart)
     rpc "$start" "$(date +%s.%N)" restart
     ;;
 reload)
-    reload_once "$(newest_edit)"
+    reload_once "$(newest_edit pc/src pc/shaders)"
+    ;;
+zig)
+    zig_once "$(newest_edit game)"
     ;;
 watch)
-    echo "watching pc/src and pc/shaders (Ctrl+C stops)"
-    last=$(newest_edit)
+    echo "watching pc/src, pc/shaders and game/ (Ctrl+C stops)"
+    engine_last=$(source_stamp pc/src pc/shaders)
+    zig_last=$(source_stamp game)
     while true; do
-        if command -v inotifywait >/dev/null; then
-            inotifywait -qq -r -e close_write,moved_to,create pc/src pc/shaders || true
-        else
-            sleep 0.2
+        # Poll also after builds: edits saved during a build must not be lost.
+        sleep 0.2
+        engine_now=$(source_stamp pc/src pc/shaders)
+        zig_now=$(source_stamp game)
+        if [[ "$engine_now" != "$engine_last" ]]; then
+            engine_last=$engine_now
+            reload_once "$(newest_edit pc/src pc/shaders)" || true
         fi
-        now=$(newest_edit)
-        [[ "$now" == "$last" ]] && continue
-        sleep 0.05 # an editor's save is often more than one write
-        now=$(newest_edit)
-        last=$now
-        reload_once "$now" || true
+        if [[ "$zig_now" != "$zig_last" ]]; then
+            zig_last=$zig_now
+            zig_once "$(newest_edit game)" || true
+        fi
     done
     ;;
 esac

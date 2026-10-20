@@ -19,6 +19,7 @@
  *                                presented, window_presents: of them, those that
  *                                reached a real window; device_lost: Vulkan
  *                                stopped rendering), pause state, display, start state
+ *   reload {target}             reload engine (default) or zig at the next vsync
  *   owner {subsystem, owner}     list ownership routes, or set original|owned|shadow
  *   pause {paused}               stop (or resume) the game at vsync boundaries
  *   step {vsyncs}                run N vsyncs, then pause again
@@ -622,11 +623,19 @@ static char mark_id[64], rewind_id[64], rewound_id[64];
 extern int pc_engine_reload_request(void) __attribute__((weak));
 extern int pc_engine_reload_wanted(void) __attribute__((weak));
 extern int pc_engine_reload_status(char* out, int size) __attribute__((weak));
+extern int pc_game_reload_request(void) __attribute__((weak));
+extern int pc_game_reload_pending(void) __attribute__((weak));
+extern int pc_game_reload_status(char* out, int size) __attribute__((weak));
 extern int pc_engine_carry_put(const char* name, const void* data, size_t size) __attribute__((weak));
 extern void* pc_engine_carry_take(const char* name, size_t* size) __attribute__((weak));
 static struct client* reload_client;
 static char reload_id[64];
-static int reload_wanted(void) { return pc_engine_reload_wanted && pc_engine_reload_wanted(); }
+static int reload_zig;
+static int reload_wanted(void)
+{
+    return (pc_engine_reload_wanted && pc_engine_reload_wanted()) ||
+        (pc_game_reload_pending && pc_game_reload_pending());
+}
 static int bench_restart_pending(void);
 static long long rpc_now_ms(void)
 {
@@ -1057,7 +1066,23 @@ static void handle_method(int fd, const char* request)
     if (!strcmp(method, "status")) {
         status_json(result, sizeof result);
         reply(fd, id, result);
-    } else if (!strcmp(method, "owner")) {
+    } else if (!strcmp(method, "owner") || !strcmp(method, "shadow")) {
+        int shadow_command = !strcmp(method, "shadow");
+        if (shadow_command) {
+            char name[64];
+            int on;
+            if (!params || !string_value(member(params, "subsystem"), name, sizeof name) ||
+                !bool_value(member(params, "on"), &on) || member(params, "owner") || member(params, "action")) {
+                fail(fd, id, -32602, "shadow: subsystem string and on boolean required");
+                return;
+            }
+            int status = pc_owner_set(pc_owner_find(name), on ? 2 : 0);
+            if (status) {
+                fail(fd, id, status == -2 ? -32000 : -32602,
+                    status == -2 ? "shadow is unavailable" : "unknown subsystem");
+                return;
+            }
+        }
         const char* action = params ? member(params, "action") : NULL;
         if (action) {
             char label[16];
@@ -1090,7 +1115,7 @@ static void handle_method(int fd, const char* request)
         }
         const char* subsystem = params ? member(params, "subsystem") : NULL;
         const char* owner = params ? member(params, "owner") : NULL;
-        if (subsystem || owner) {
+        if (!shadow_command && (subsystem || owner)) {
             char name[64], label[16];
             if (!string_value(subsystem, name, sizeof name) || !string_value(owner, label, sizeof label)) {
                 fail(fd, id, -32602, "owner: supply subsystem and owner strings");
@@ -1212,21 +1237,35 @@ static void handle_method(int fd, const char* request)
         } else
             fail(fd, id, -32602, "snapshot action: save, autosave, mark, rewind, hash or available");
     } else if (!strcmp(method, "reload")) {
-        if (!pc_engine_reload_request) {
-            fail(fd, id, -32000, "reload needs the engine library build (pc/run-game.sh --reload)");
+        char target[32] = "engine";
+        if (params && member(params, "target") &&
+            (!string_value(member(params, "target"), target, sizeof target) ||
+                (strcmp(target, "engine") && strcmp(target, "zig")))) {
+            fail(fd, id, -32602, "reload target: engine or zig");
             return;
         }
-        if (!current_client || strlen(id) >= sizeof reload_id || reload_client) {
-            fail(fd, id, -32000, reload_client ? "a reload is already pending" : "reload: request id too long");
+        int zig = !strcmp(target, "zig");
+        int (*request)(void) = zig ? pc_game_reload_request : pc_engine_reload_request;
+        if (!request) {
+            fail(fd, id, -32000, zig ? "Zig reload is unavailable in this build" :
+                "reload needs the engine library build (pc/run-game.sh --reload)");
+            return;
+        }
+        if (!current_client || strlen(id) >= sizeof reload_id || reload_client || reload_wanted()) {
+            fail(fd, id, -32000, reload_client || reload_wanted() ? "a reload is already pending" : "reload: request id too long");
             return;
         }
         if (snapshot_pending || mark_client || rewind_client || rewound_client || bench_restart_pending()) {
             fail(fd, id, -32000, "reload: a save state or rewind is pending");
             return;
         }
+        if (!request()) {
+            fail(fd, id, -32000, "reload is unavailable");
+            return;
+        }
+        reload_zig = zig;
         reload_client = current_client;
-        strcpy(reload_id, id);
-        pc_engine_reload_request(); /* at the end of this poll (pc_rpc_poll returns early) */
+        strcpy(reload_id, id); /* the host swaps at vsync after this poll returns */
     } else if (!strcmp(method, "restart")) {
         if (!pc_snapshot_available() || !current_client || strlen(id) >= sizeof snapshot_id) {
             fail(fd, id, -32000, "restart needs save states (see the log)");
@@ -4681,7 +4720,8 @@ void pc_rpc_reloaded(void)
     reload_client = NULL;
     if (c && c->fd >= 0) {
         char status[1024] = "{}";
-        int ok = pc_engine_reload_status && pc_engine_reload_status(status, (int)sizeof status);
+        int (*get_status)(char*, int) = reload_zig ? pc_game_reload_status : pc_engine_reload_status;
+        int ok = get_status && get_status(status, (int)sizeof status);
         rpc_set_blocking(c->fd, 1);
         if (ok)
             reply(c->fd, reload_id, status);

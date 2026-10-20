@@ -174,6 +174,9 @@ static void remove_live(void)
         unlink(live);
 }
 
+static void pc_game_start(void);
+static void pc_game_vsync(void);
+
 /* main (boot_runtime.c), before the first call into the engine. */
 void pc_engine_start(void)
 {
@@ -185,6 +188,7 @@ void pc_engine_start(void)
         exit(1);
     }
     ++generation;
+    pc_game_start();
     atexit(remove_live);
     bind_slots(handle);
     /* Host-owned variables start with the library's initial values (a
@@ -578,6 +582,7 @@ static void reload(void)
  * here would run frames of a paused game. */
 void pc_engine_vsync(void)
 {
+    pc_game_vsync();
     while (reload_requested) {
         reload_requested = 0;
         if (engine_frame_on_stack()) {
@@ -586,5 +591,8 @@ void pc_engine_vsync(void)
         } else
             reload();
         pc_rpc_reloaded(); /* the reply, then the rest of the poll (it may ask again) */
+        pc_game_vsync();
     }
 }
+
+#include "game_host.inc"

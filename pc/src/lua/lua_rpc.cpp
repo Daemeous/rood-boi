@@ -26,9 +26,16 @@
 #include "rl_internal.h"
 #include "light_prefabs.h"
 #include "lua_runtime.h"
+#include "ownership.h"
 
 #include <cstdio>
 #include <cstring>
+#include <sstream>
+
+extern "C" int pc_engine_reload_request(void) __attribute__((weak));
+extern "C" int pc_engine_reload_wanted(void) __attribute__((weak));
+extern "C" int pc_game_reload_request(void) __attribute__((weak));
+extern "C" int pc_game_reload_pending(void) __attribute__((weak));
 
 namespace rl {
 std::vector<std::string>& console_history()
@@ -45,6 +52,55 @@ bool console_submit(const std::string& target, const std::string& text, std::vec
     if (history.size() > 200)
         history.erase(history.begin());
     log(LOG_INFO, "console", "> " + text);
+    // Bare developer commands share the owner routes used by RPC. Everything
+    // else remains Lua, including reload(...) calls in a plugin's sandbox.
+    std::istringstream command(text);
+    std::string name, arg, value, extra;
+    command >> name >> arg >> value >> extra;
+    if ((target.empty() || target == "@console") &&
+        (name == "reload" || name == "owner" || name == "shadow")) {
+        std::string why, shown;
+        if (name == "reload") {
+            if (arg.empty())
+                arg = "engine";
+            if ((arg != "engine" && arg != "zig") || !value.empty())
+                why = "usage: reload [engine|zig]";
+            else if ((pc_engine_reload_wanted && pc_engine_reload_wanted()) ||
+                (pc_game_reload_pending && pc_game_reload_pending()))
+                why = "a reload is already pending";
+            else {
+                auto request = arg == "zig" ? pc_game_reload_request : pc_engine_reload_request;
+                if (!request || !request())
+                    why = arg + " reload is unavailable";
+                else
+                    shown = arg + " reload queued for the next vsync";
+            }
+        } else if (name == "owner" && arg.empty()) {
+            for (int i = 0; i < pc_owner_count(); ++i)
+                shown += std::string(pc_owner_subsystem(i)) + ": " + pc_owner_label(pc_owner_get(i)) + "\n";
+        } else {
+            if (name == "shadow") {
+                if (value == "on") value = "shadow";
+                else if (value == "off") value = "original";
+                else why = "usage: shadow <subsystem> on|off";
+            }
+            if (why.empty() && (arg.empty() || value.empty() || !extra.empty()))
+                why = "usage: owner <subsystem> original|owned|shadow";
+            if (why.empty()) {
+                int status = pc_owner_set(pc_owner_find(arg.c_str()), pc_owner_parse(value.c_str()));
+                if (status)
+                    why = status == -2 ? "shadow is unavailable" : "unknown subsystem or owner";
+                else
+                    shown = arg + ": " + value;
+            }
+        }
+        if (results)
+            results->clear();
+        if (error)
+            *error = why;
+        log(why.empty() ? LOG_INFO : LOG_ERROR, "console", why.empty() ? shown : why);
+        return why.empty();
+    }
     Plugin* p = target.empty() || target == "@console" ? console() : find(target);
     if (!p || p->state != PLUGIN_LOADED) {
         std::string why = "no loaded plugin '" + target + "'";

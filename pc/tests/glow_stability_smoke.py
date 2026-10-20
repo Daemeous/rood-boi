@@ -47,6 +47,33 @@ from editor_cutaway_smoke import default_card  # noqa: E402
 FRAMES = 90
 
 
+def fight_samples(game):
+    """Sample every vsync without changing the original 500-iteration input schedule."""
+    rows = []
+    previous = game.status()["vsync"]
+    for i in range(500):
+        attack = i % 100 == 0
+        if attack:
+            # Equivalent to press("circle", 2, 1), but observe both held
+            # frames and the released frame rather than only the last one.
+            game.call("input", buttons=["circle"], vsyncs=2)
+        for _ in range(3 if attack else 1):
+            status = game.run(1)
+            if not status or "vsync" not in status:
+                status = game.status()
+            current = status["vsync"]
+            assert current == previous + 1, (
+                f"effect samples must be one vsync apart: {previous} -> {current}")
+            rows.append(game.call("glows"))
+            previous = current
+        # Keep the old iteration-based stopping point, not the now larger
+        # sample count; never stop halfway through an attack's settle frame.
+        if i >= 150 and not any(g["category"] == "effect" for g in rows[-1]["glows"]) \
+                and any(r["categories"]["effects"]["energy"] > 0.5 for r in rows):
+            break
+    return rows
+
+
 def fight(out, socket, check):
     """The prologue fight: transient effect glows (hit sparks)."""
     lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-fight-", dir=out))
@@ -70,16 +97,7 @@ def fight(out, socket, check):
             game.call("graphics", gi=True, glow_shadows=True)
         state = game.state()
         print(f"fight: zone {state['zone']} room {state['room']} at vsync {game.status()['vsync']}")
-        rows = []
-        for i in range(500):
-            if i % 100 == 0:
-                game.press("circle", 2, 1)  # attack when in range
-            else:
-                game.run(1)
-            rows.append(game.call("glows"))
-            if len(rows) > 150 and not any(g["category"] == "effect" for g in rows[-1]["glows"]) \
-                    and any(r["categories"]["effects"]["energy"] > 0.5 for r in rows):
-                break  # one hit seen and over
+        rows = fight_samples(game)
         effect_rows = [r for r in rows if any(g["category"] == "effect" and g["traced"] for g in r["glows"])]
         check(len(effect_rows) >= 10, f"hits make effect glows ({len(effect_rows)} vsyncs with traced effect glows)")
         if not effect_rows:

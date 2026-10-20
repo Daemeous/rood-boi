@@ -1,7 +1,7 @@
 //! C-signature exports for the ownership trampolines.
 const std = @import("std");
 
-pub fn original(comptime name: []const u8, comptime F: type) *const F {
+pub inline fn original(comptime name: []const u8, comptime F: type) *const F {
     return @extern(*const F, .{ .name = name ++ "__orig" });
 }
 
@@ -111,7 +111,28 @@ pub fn exportAll(comptime subsystem: u8, comptime names: []const []const u8, com
     _ = subsystem;
     for (names) |name| {
         const f = @field(Impl, name);
-        @export(&f, .{ .name = name ++ "__owned" });
-        @export(&Shadow(name, @TypeOf(f), f).call, .{ .name = name ++ "__shadow" });
+        const root = @import("root");
+        const mode = if (@hasDecl(root, "reload_mode")) root.reload_mode else 0;
+        if (mode != 0) {
+            const Signature = struct {
+                const text = (@typeName(@TypeOf(f)) ++ "\x00").*;
+            };
+            @export(&Signature.text, .{ .name = name ++ (if (mode == 2) "__candidate_abi" else "__owned_abi") });
+        }
+        if (mode == 2) {
+            @export(&f, .{ .name = name ++ "__candidate" });
+        } else if (mode == 1) {
+            const Routed = struct {
+                fn call(args: std.meta.ArgsTuple(@TypeOf(f))) @typeInfo(@TypeOf(f)).@"fn".return_type.? {
+                    const target = @extern(*const @TypeOf(f), .{ .name = name ++ "__owned" });
+                    return @call(.never_inline, target, args);
+                }
+            };
+            @export(&Shadow(name, @TypeOf(f), withSignature(@TypeOf(f), Routed.call)).call,
+                .{ .name = name ++ "__shadow" });
+        } else {
+            @export(&f, .{ .name = name ++ "__owned" });
+            @export(&Shadow(name, @TypeOf(f), f).call, .{ .name = name ++ "__shadow" });
+        }
     }
 }
