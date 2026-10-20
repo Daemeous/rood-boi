@@ -11,7 +11,8 @@
  *               live element's claim draws into a fixed command buffer) ->
  *               the renderer (hud_draw.cpp, picture space)
  *   presented frame, the Travel prompt: fast_travel_prompt.cpp ->
- *               pc_hud_record (its C++ drawing skipped when honoured)
+ *               pc_hud_record (its C++ drawing skipped when honoured); a
+ *               notice the same way (savestate_notice.cpp)
  *   game vsync: pc_lua_tick -> held rood.dev.show moments kept, expiry
  *
  * Elements are copies, never pointers into the game. With no claim, a
@@ -28,10 +29,11 @@ extern "C" {
  * func_800958A4); chain, "3 CHAINS" (func_80095A4C); buff, an equipment's class or
  * affinity change (func_8009695C: WEAPON HUMAN +1); damage, a number over an actor
  * (func_80094B0C: damage, healing, a stat's change); travel, the Travel prompt on a
- * Circle of Magic (fast_travel_prompt.cpp); name_window, the action's name in text box 7
- * (5BF94.c vs_battle_displaySceneMessage: an event, not claimed: the game draws it). */
-enum { PC_HUD_NONE = 0, PC_HUD_STATUS = 1, PC_HUD_CHAIN, PC_HUD_BUFF, PC_HUD_DAMAGE, PC_HUD_TRAVEL, PC_HUD_NAME_WINDOW,
-    PC_HUD_KINDS };
+ * Circle of Magic (fast_travel_prompt.cpp); notice, a line of the port's own news (the save
+ * state slots': "Saved to slot 3", savestate_notice.cpp); name_window, the action's name in
+ * text box 7 (5BF94.c vs_battle_displaySceneMessage: an event, not claimed: the game draws it). */
+enum { PC_HUD_NONE = 0, PC_HUD_STATUS = 1, PC_HUD_CHAIN, PC_HUD_BUFF, PC_HUD_DAMAGE, PC_HUD_TRAVEL, PC_HUD_NOTICE,
+    PC_HUD_NAME_WINDOW, PC_HUD_KINDS };
 #define PC_HUD_CLAIMABLE PC_HUD_NAME_WINDOW /* kinds below it may be claimed */
 #define PC_HUD_TEXT 32
 #define PC_HUD_PART_TEXT 12
@@ -63,15 +65,16 @@ typedef struct {
                            * prompt's anchor (0..8: top left .. bottom right); name_window: its
                            * message (the scene message template: 11 a technique's name, 12 a
                            * spell mastered, ...) */
-    int value;            /* chain: the count; buff, damage: the amount; name_window: the action
-                           * (vs_main_actions' index) */
+    int value;            /* chain: the count; buff, damage: the amount; notice: the save state
+                           * slot it is about (0: none); name_window: the action (vs_main_actions'
+                           * index) */
     int sign;             /* buff, damage: +1 a gain (a heal), -1 a loss (damage) */
     int pool;             /* damage: 0 HP, 1 MP, 2 a stat (stat: which) */
     int stat;             /* buff: the class or affinity (0..12: HUMAN .. DARKNESS); damage: the stat
                            * changed (0..5: its icon HP, MP, STR, INT, AGL, RISK) */
     int slot;             /* buff: the equipment (0..6: WEAPON, SHIELD, R.ARM, L.ARM, HEAD, BODY, LEGS) */
     float bounce;         /* damage: its digits' rise this frame (game pixels, - up) */
-    float unit;           /* travel: game pixels per menus' layout unit (720 high) */
+    float unit;           /* travel, notice: game pixels per menus' layout unit (720 high) */
     int glyph;            /* travel: the button whose icon it shows (PC_PROMPT_*) */
     int age, life;        /* game frames since it appeared, and when it goes (travel: 0, 0) */
     int anchor;           /* PC_HUD_ANCHOR_* */

@@ -69,7 +69,8 @@ extern "C" void pc_lua_console_menu_item(void); /* lua_console.cpp */
 extern "C" void pc_lua_console_window(void);
 extern "C" void pc_fast_travel_prompt_draw(void); /* fast_travel_prompt.cpp */
 extern "C" void pc_hud_frame(void);               /* lua_api_hud.cpp: claimed HUD elements */
-extern "C" const char* pc_savestate_message(void) __attribute__((weak)); /* savestate_slots.c */
+extern "C" void pc_savestate_notice_hud(void);  /* savestate_notice.cpp: the save state slots' notice */
+extern "C" void pc_savestate_notice_draw(void);
 extern "C" void pc_fast_travel_prompt_hud(void);  /* fast_travel_prompt.cpp: the prompt as a HUD element */
 extern "C" int pc_editor_active(void);
 extern "C" void pc_editor_toggle(void);
@@ -2134,20 +2135,6 @@ extern "C" unsigned pc_file_polls;
 unsigned pc_file_polls;
 
 // Draw the overlay over the presented frame (call before swapping buffers).
-/* The save state keys' message (savestate_slots.c), top left over everything. */
-static void savestate_message()
-{
-    const char* text = pc_savestate_message ? pc_savestate_message() : nullptr;
-    if (!text)
-        return;
-    ImDrawList* draw = ImGui::GetForegroundDrawList();
-    float pad = ImGui::GetFontSize() * 0.5f;
-    ImVec2 at(pad * 2, pad * 2), size = ImGui::CalcTextSize(text);
-    draw->AddRectFilled(ImVec2(at.x - pad, at.y - pad), ImVec2(at.x + size.x + pad, at.y + size.y + pad),
-        IM_COL32(0, 0, 0, 170), pad * 0.5f);
-    draw->AddText(at, IM_COL32(255, 255, 255, 255), text);
-}
-
 extern "C" void pc_overlay_frame(int width, int height)
 {
     if (!active)
@@ -2241,9 +2228,10 @@ extern "C" void pc_overlay_frame(int width, int height)
     }
     if (!visible)
         pc_fast_travel_prompt_hud(); /* (before the pass: a claimed prompt is drawn by it) */
+    pc_savestate_notice_hud(); /* the save state slots' notice, the same way */
     pc_hud_frame(); /* HUD elements plugins claim (pc/src/hud): over the picture, under the menus */
     pc_ui_draw_frame((float)dt); /* modern menus (pc/src/ui) over the game picture */
-    savestate_message();
+    pc_savestate_notice_draw(); /* the save state slots' notice, unless a plugin drew it (the HUD pass) */
     if (!visible)
         pc_fast_travel_prompt_draw(); /* the Travel prompt on a Circle of Magic (not over the editor) */
     shell_text_input();

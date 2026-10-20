@@ -117,6 +117,23 @@ and does not establish title boot. `--fast` disables window pacing for tests.
 Without `--skip-movies`, the intro movie plays first (about 38 seconds of
 video before the title; Start skips it).
 
+### Save state slots (optional, off by default)
+
+With **Gameplay > Save states** on (setting `save_states 1`), the game can
+be saved whole at any moment and loaded at once, as in an emulator: **F5**
+saves the current slot, **F9** loads it, **F6** / **F7** choose the slot
+(1 to 10). The keys are bindings (System > Bindings: Save state, Load
+state, Previous slot, Next slot; settings `bind_key_state_save`,
+`bind_key_state_load`, `bind_key_state_slot_prev`, `bind_key_state_slot_next`
+and their `bind_pad_`, no gamepad button by default). The files are
+`pc/save/states/slot<N>.snap` (the format below); a load replaces the
+running game in place (`pc_snapshot_load_now`, `pc/src/snapshot.c`). A line
+at the top of the picture, below HP and MP, says what happened ("Saved to slot 3"): the HUD
+element `notice`, which `rood.hud` draws ([docs/Extensions.md](docs/Extensions.md),
+the HUD). The memory cards are not part of a state, and a state loads only
+in the build that made it (on Windows: the same `rood.exe`).
+`pc/src/savestate_slots.c`.
+
 ### Back at the same moment after a rebuild (save states)
 
 The engine's edit loop: change something in `pc/`, rebuild, and the running
@@ -1568,7 +1585,7 @@ prompts in the editor, RPC `button_prompts`.
 | `button_prompts_scale` | `0.7` | 0.4-1: each 16 x 16 button sprite's icon fits in a circle this fraction of its cell across, centred on the original's (the shortcut cross's face-button diamond has diagonal neighbours 9 PS1 pixels apart: at 0.7 they keep about 1.5 pixels apart; key caps and wide shoulder tabs come out smaller than round buttons) |
 | `button_prompts_color_<name>` | see Meaning | the icons' colours, `#rrggbb` (saved only when changed): `neutral` `#eeeee8` (every icon outside the colour styles, and the families and buttons without colours of their own), `playstation_triangle` `#40d8a8`, `playstation_circle` `#f06070`, `playstation_cross` `#80b0f0`, `playstation_square` `#e098d8`, `xbox_a` `#70c840`, `xbox_b` `#f04840`, `xbox_x` `#4890f0`, `xbox_y` `#f8c830`, `dim` `#101014` (what a dimmed D-pad arm's colour mixes toward); Graphics > 2D / UI > Prompt colours, RPC `button_prompts {colors}` |
 | `button_prompts_dim_mix` | 0.62 | 0-1: how far a dimmed D-pad arm's colour goes toward `dim` (saved only when changed; RPC `button_prompts {dim_mix}`) |
-| `bind_key_<button>` | see Controls | the key(s) for a PS1 button (`circle`, `cross`, `triangle`, `square`, `l1`, `r1`, `l2`, `r2`, `start`, `select`, `l3`, `r3`, `up`, `down`, `left`, `right`) or for `travel` (fast travel's Travel button: no key by default; it may share a PS1 button's key): one or two names separated by a comma (`a`-`z`, `0`-`9`, `return`, `tab`, `space`, `escape`, `backspace`, arrows `up`..., `lshift`, `lctrl`, `lalt`, ..., `f1`-`f12`, `minus`, `comma`, `period`, `slash`, ...) or `none`; saved only when changed |
+| `bind_key_<button>` | see Controls | the key(s) for a PS1 button (`circle`, `cross`, `triangle`, `square`, `l1`, `r1`, `l2`, `r2`, `start`, `select`, `l3`, `r3`, `up`, `down`, `left`, `right`) or for `travel` (fast travel's Travel button: no key by default; it may share a PS1 button's key) or a save state action (`state_save` F5, `state_load` F9, `state_slot_prev` F6, `state_slot_next` F7): one or two names separated by a comma (`a`-`z`, `0`-`9`, `return`, `tab`, `space`, `escape`, `backspace`, arrows `up`..., `lshift`, `lctrl`, `lalt`, ..., `f1`-`f12`, `minus`, `comma`, `period`, `slash`, ...) or `none`; saved only when changed |
 | `bind_pad_<button>` | positional | the gamepad element for a PS1 button or `travel` (`back` by default, shared with Select): `south`, `east`, `west`, `north`, `leftshoulder`, `rightshoulder`, `lefttrigger`, `righttrigger`, `back`, `start`, `guide`, `leftstick`, `rightstick`, `dpup`, `dpdown`, `dpleft`, `dpright`, `misc1`, `paddle1`-`4`, `touchpad` or `none`; saved only when changed |
 
 The gamepad family comes from SDL (`SDL_GetGamepadType`): PS3/PS4/PS5 show

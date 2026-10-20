@@ -46,6 +46,7 @@ extern int pc_qol_skip_charging, pc_qol_skip_charging_who; /* project_settings.c
 extern float pc_qol_skip_charging_name;                     /* project_settings.cpp; charge_skip.inc */
 extern float pc_qol_skip_charging_hold_mine, pc_qol_skip_charging_hold_enemy; /* project_settings.cpp; charge_skip.inc */
 extern int pc_skip_intro;        /* project_settings.cpp; boot_runtime.c */
+extern int pc_save_states;       /* project_settings.cpp; savestate_slots.c */
 extern int pc_qol_map_invert, pc_qol_fp_invert_y; /* project_settings.cpp; MENU5, BATTLE func_8006EC7C */
 extern int pc_qol_map_controls;                   /* project_settings.cpp; map_pad.h */
 extern int pc_qol_confirm_cross, pc_qol_field_cross_attack; /* project_settings.cpp; button_roles.c */
@@ -706,6 +707,24 @@ void build()
             : "Nothing bound";
     };
     b.push_back(unbind);
+    // The save state slots' actions (savestate_slots.c), with Gameplay > Save states on.
+    static const struct { const char* id; const char* label; const char* help; int slot; } STATE_ROWS[] = {
+        { "bind_state_save", "Save state", "Saves the whole game to the current slot. Circle to change.",
+            PC_BIND_STATE_SAVE },
+        { "bind_state_load", "Load state", "Loads the current slot. Circle to change.", PC_BIND_STATE_LOAD },
+        { "bind_state_slot_prev", "Previous slot", "The save state slot before (1 to 10). Circle to change.",
+            PC_BIND_STATE_SLOT_PREV },
+        { "bind_state_slot_next", "Next slot", "The save state slot after (1 to 10). Circle to change.",
+            PC_BIND_STATE_SLOT_NEXT },
+    };
+    for (const auto& s : STATE_ROWS) {
+        Row r = base(s.id, s.label, s.help, PC_UI_SET_BINDING);
+        r.arg = s.slot;
+        r.why = [](const Row&) -> const char* {
+            return !pc_ui_capture_begin ? COMING : pc_save_states ? nullptr : "Needs Gameplay > Save states on";
+        };
+        b.push_back(r);
+    }
     b.push_back(action("bind_reset", "Reset to defaults", "Every key and gamepad button back to its default.",
         [](const Row&) { pc_bindings_reset(); }));
 
@@ -782,6 +801,11 @@ void build()
                     }));
     p.push_back(toggle("skip_intro", "Skip intro",
         "Start at the title, without the logos and the opening movie. From the next start.", &pc_skip_intro));
+    p.push_back(toggle("save_states", "Save states",
+        "Save and load the whole game at any moment, as an emulator does (keys in Bindings: F5 saves, F9 loads, "
+        "F6 and F7 choose the slot). Separate from your memory card saves; a state loads only in the version of "
+        "the game that made it.",
+        &pc_save_states));
     p.push_back(game_option("map", "Map", "The small map in the corner: framed, plain or hidden. Saved with your game, not in settings.",
         PC_GAME_OPT_MAP, map, 3));
     p.push_back(game_option("ability_timing", "Ability timing",

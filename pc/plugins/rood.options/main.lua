@@ -21,6 +21,7 @@ M.pages = {
       "qol_fast_travel_prompt",
       "gameplay_walls", "gameplay_walls_ghost",
       "skip_intro",
+      "save_states",
       -- the game's own options (saved with the game): the classic screen has its own rows for them
       "map", "ability_timing", "weapon_status", "armor_status", "cursor_memory", "information", "puzzle_mode",
     } },
@@ -58,7 +59,9 @@ M.pages = {
     rows = {
       "bind_circle", "bind_cross", "bind_triangle", "bind_square", "bind_l1", "bind_r1", "bind_l2", "bind_r2",
       "bind_start", "bind_select", "bind_l3", "bind_r3", "bind_up", "bind_down", "bind_left", "bind_right",
-      "bind_travel", "bind_travel_clear", "bind_reset",
+      "bind_travel", "bind_travel_clear",
+      "bind_state_save", "bind_state_load", "bind_state_slot_prev", "bind_state_slot_next",
+      "bind_reset",
     } },
 }
 

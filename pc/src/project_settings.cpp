@@ -165,6 +165,7 @@ int pc_ui_menu_tint_custom[3] = { 8, 7, 7 }; /* Custom's colour, 0..31 per chann
 #include "editor_fit_window.h" /* editor_fit_window_offset, _kelvin */
 #include "editor_library.h" /* editor_library_view, _docked, _window, _favourites */
 extern bool pc_lights_show_gizmos;
+extern "C" int pc_save_states; /* savestate_slots.c: the save state slots' keys act (0 off, default) */
 namespace rood_lights {
 extern int animate; /* light actors' flicker and pulse (lights.cpp) */
 }
@@ -374,6 +375,7 @@ const Entry entries[] = {
     I("skip_intro", pc_skip_intro),
     I("ui_menus", pc_ui_menus),
     I("hud_classic_override", pc_hud_classic_override), /* HUD claims honoured with ui_menus 0 too (hud.h) */
+    I("save_states", pc_save_states), /* the save state slots (savestate_slots.c), 0 off */
     F("ui_menu_opacity", pc_ui_menu_opacity),
 };
 const char* path()
