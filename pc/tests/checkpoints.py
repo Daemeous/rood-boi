@@ -320,16 +320,22 @@ def launch_at(name, card=None, **launch):
     snap = prepare(name, card)
     if card:
         launch["card"] = str(card)
-    if snap:
-        game = Game.launch(snapshot=snap, **launch)
-        game.run(WARMUP)
-        print(f"[checkpoint] {name}: resumed {snap.name} and ran the {WARMUP}-vsync warm-up (vsync {at})")
-    else:
-        game = Game.launch(**launch)
-        _drive(game, name, at)
-        print(f"[checkpoint] {name}: booted to vsync {at}")
-    game.checkpoint_resumed = bool(snap)
-    return game
+    game = Game.launch(snapshot=snap, **launch) if snap else Game.launch(**launch)
+    try:
+        if snap:
+            game.run(WARMUP)
+            print(f"[checkpoint] {name}: resumed {snap.name} and ran the {WARMUP}-vsync warm-up (vsync {at})")
+        else:
+            _drive(game, name, at)
+            print(f"[checkpoint] {name}: booted to vsync {at}")
+        game.checkpoint_resumed = bool(snap)
+        return game
+    except BaseException:
+        try:
+            game.close()
+        except BaseException:
+            pass
+        raise
 
 
 if __name__ == "__main__":

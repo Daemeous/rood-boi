@@ -153,6 +153,9 @@ def suites(args, mode="egl"):
               sources=[ROOT / "pc/tools/engine_boundary.py", ROOT / "pc/tools/engine_lib.py",
                        ROOT / "pc/tools/snapshot_layout.py"],
               note="split engine refuses stranded saved sections before publishing, including private statics"),
+        Suite("checkpoints_test", [PY, str(TESTS / "checkpoints_test.py")], 30, binary=None,
+              sources=[TESTS / "checkpoints.py"],
+              note="checkpoint launch failures close the mocked game and preserve the original exception"),
         Suite("build_cache", [PY, str(TESTS / "build_cache_test.py")], 120, binary=None,
               note="shared build caches: objects reused across checkouts and identical to a compile there, "
                    "edits/flags/compiler miss, LRU cap, third-party entries built once under the lock"),
