@@ -18,7 +18,7 @@
  * shade. */
 #define _POSIX_C_SOURCE 200809L
 #include "render_gl.h"
-#include "snapshot.h"
+#include "render_state.h"
 #include "room_editor.h"
 #include "emissive.h"
 #include "gl_shaders.h" /* PC_GLSL_EMISSIVE (pc/shaders/vulkan/emissive.glsl) */
@@ -412,9 +412,6 @@ typedef struct {
     int uv_effect_count;
 } draw_list;
 static draw_list lists[LIST_RING];
-/* List ids are written into the game's packets (render_list_link): saved
- * with the game state so a resumed save state writes the same packets. */
-static uint32_t next_id PC_SAVED_STATE = 1;
 static GLuint program;
 static int program_failed;
 
@@ -436,10 +433,10 @@ uint32_t render_list_begin(const render_camera* camera, const render_rules* rule
 {
     if (!pc_hw_active || !ensure_program())
         return 0;
-    uint32_t id = next_id;
-    next_id = (next_id + 1) & 0xffffff;
-    if (!next_id)
-        next_id = 1;
+    uint32_t id = pc_render_next_id;
+    pc_render_next_id = (pc_render_next_id + 1) & 0xffffff;
+    if (!pc_render_next_id)
+        pc_render_next_id = 1;
     draw_list* list = &lists[id % LIST_RING];
     list->id = id;
     list->serial = frame_serial;

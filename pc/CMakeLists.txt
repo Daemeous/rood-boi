@@ -61,6 +61,9 @@ add_test(NAME diff_corpus COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_D
 add_test(NAME event_callbacks COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/event_callbacks_test.py)
 # The pinned Zig toolchain's verification and cache (pc/tools/zig_toolchain.py), offline.
 add_test(NAME zig_toolchain COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/zig_toolchain_test.py)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_test(NAME engine_saved_state COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/engine_saved_state_test.py)
+endif()
 # Ownership table, preprocessed definitions and generated routing.
 add_test(NAME ownership COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/ownership_test.py)
 add_test(NAME routing_probe COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/routing_probe/run.py)

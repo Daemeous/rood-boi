@@ -145,9 +145,10 @@ Add a registered no-reload replay regression for the split host on GPU
 lanes, failing before the fix and passing afterward; then rerun the Zig
 reload replay oracle. The diagnostic counter write above must not become
 the regression's normal path. A production fix and those regression runs
-remain undone; this report records the investigation only.
+were not part of the investigation commit. The implementation and verification
+below complete that follow-up.
 
-## Verification limits
+## Original investigation verification limits
 
 `pc/tools/verify.sh --changed` was attempted afterward with the required
 build/heavy lock variables. Three build jobs failed because this fresh
@@ -156,3 +157,60 @@ suite failed before running tests because it treated `null_backend_smoke`
 as a Git comparison ref. GL/Vulkan suite selection reported nothing to run
 for this documentation-only change. This is not a successful full verifier
 run. No `src/` changes were made, so commit-check was not applicable.
+
+## Production ownership fix (sunny-raven)
+
+`pc/src/render_state.c` now defines `pc_render_next_id` in
+`rood_state_data`. It is an explicit host unit in `build_boot.py`, including
+when building the split host; `render.c` imports it. In the verified ELF,
+the host owns its four bytes and the engine has only an undefined import.
+The engine contains no saved-state sections.
+
+This uses the existing contract rather than an extra serializer:
+
+- Snapshot save/resume and in-process rewind both cover the host state range.
+- `snapshot_layout.py` includes the new unit's saved symbols, sizes and
+  alignment in the layout key. Old snapshots must be regenerated; this is
+  not an engine-only patch for an already-running pre-fix host.
+- Engine reload neither initializes nor restores the counter: its host
+  storage survives unchanged. Presentation cache invalidation is separate.
+- Both initial split builds and incremental engine builds reject nonempty
+  `rood_state_*` / `rood_ovl_*` sections in engine objects and the final
+  linked library (including archive contributions). A rejection does not
+  replace the published library. This catches local statics and NOBITS too.
+- The host also rejects legacy/manually copied libraries containing these
+  sections before unloading the current engine, and checks the hard-linked
+  candidate before `dlopen`. This prevents an old engine with a private
+  allocator from silently reintroducing the bug despite matching function
+  slots. `engine_reload_smoke` exercises this refusal and continued play.
+
+### Verification
+
+All artifacts and builds were private to this worktree. Build and game
+runs used the build lock (`ROOD_BUILD_LOCK`) and
+the suite lock (`ROOD_HEAVY_LOCK`), respectively; game runs used private
+settings and copied test cards. No user settings/cards or another checkout's
+sources were changed.
+
+| Check | GL | Vulkan | null |
+| --- | --- | --- | --- |
+| New `engine_rewind_smoke`, copied pre-fix investigation artifacts | FAIL: 2624 RAM bytes | FAIL: 2624 RAM bytes | exact |
+| Same no-reload test, rebuilt fixed split host | exact | exact | exact |
+| Zig hot-swap, two restored 600-frame replay cycles | exact / PASS | exact / PASS | exact / PASS |
+| Engine reload, snapshot resume and 120-frame equivalence | PASS | PASS | not run |
+
+`engine_rewind_smoke` is registered in `pc/tests/run.py` for GPU lanes and
+the null control. It marks once and rewinds that same mark for both legs;
+there are no reloads, diagnostic memory writes, address masks or comparator
+changes. `zig_hotswap_smoke` now requires the existing byte-exact comparator
+on GPU lanes too, removing the previous GPU exception.
+
+The saved-section guard's three synthetic ELF tests pass, including
+publication preservation on object- and linked-library rejection. They are
+registered in the suite runner and CTest. Split dev64 and monolithic boot64
+builds pass; incremental engine rebuild reports up to date (exit 3).
+Registered runner verification passes 4/4 on GL (guard, engine reload,
+rewind, Zig), 3/3 on Vulkan (engine reload, rewind, Zig) and 2/2 on null
+(rewind, Zig). Logs are under this worktree's
+`pc/build/results/`. This is focused verification, not a claim that the
+entire verifier, 32-bit or Windows builds were run.

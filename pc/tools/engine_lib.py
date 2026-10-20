@@ -34,6 +34,8 @@ import subprocess
 import sys
 import time
 
+from engine_boundary import check_saved_sections, publish_library
+
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = ROOT / "pc/build/dev64"
 # The build itself: a change to one of these needs build_boot.py.
@@ -179,6 +181,15 @@ def main():
         return 1
     compiled = time.monotonic()
 
+    # Saved sections cannot be interposed safely, even if no host symbol
+    # references them. Check every object, including unchanged units.
+    try:
+        for unit in manifest["units"]:
+            check_saved_sections(ROOT / unit["object"])
+    except (RuntimeError, ValueError, OSError) as error:
+        print(f"engine library boundary: {error}", file=sys.stderr)
+        return 2
+
     # 4. Link, staged, and check it against the host's boundary.
     library = OUT / "librood_engine.so"
     staged = library.with_name(library.name + ".new")
@@ -211,7 +222,11 @@ def main():
         print("the library no longer fits the host (" + "; ".join(problems[:8])
               + "): run python3 pc/tools/build_boot.py --arch 64 --engine-library and restart", file=sys.stderr)
         return 2
-    os.replace(staged, library)
+    try:
+        publish_library(staged, library)
+    except (RuntimeError, ValueError, OSError) as error:
+        print(f"engine library boundary: {error}", file=sys.stderr)
+        return 2
     say(f"engine library: {len(todo)} unit{'s' if len(todo) != 1 else ''} compiled in {compiled - checked:.2f} s, "
         f"linked in {linked - compiled:.2f} s ({time.monotonic() - started:.2f} s in all)")
     return 0

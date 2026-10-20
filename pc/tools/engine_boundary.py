@@ -30,6 +30,7 @@ inline copies), a host reference to an engine symbol that is neither code
 nor data, an engine reference nothing provides."""
 
 import json
+import os
 import pathlib
 import re
 
@@ -59,6 +60,31 @@ def symbols(nm_output):
     return defined, undefined
 
 
+def check_saved_sections(path):
+    """Saved bytes must live in the host, including local/hidden symbols.
+
+    Inspect section sizes, not symbol visibility or file contents: saved bss
+    is NOBITS, and a linked library may have no static symbol table at all.
+    """
+    sections = [s for s in Elf(path).sections if s["size"] and
+                s["name"].startswith(("rood_state_", "rood_ovl_"))]
+    if sections:
+        detail = ", ".join(f"{s['name']} ({s['size']} bytes)" for s in sections)
+        raise RuntimeError(f"{path}: engine contains saved state: {detail}; "
+                           "move saved storage to a host-owned unit")
+
+
+def publish_library(staged, library):
+    """Validate the final link (including archives) before atomic publication."""
+    staged = pathlib.Path(staged)
+    try:
+        check_saved_sections(staged)
+    except (RuntimeError, ValueError, OSError):
+        staged.unlink(missing_ok=True)
+        raise
+    os.replace(staged, library)
+
+
 def _data_layout(obj, name):
     """(size, alignment) of a defined variable in an object."""
     elf = Elf(obj)
@@ -83,6 +109,8 @@ def generate(host_objects, engine_objects, nm, archives, imports, shared, out, o
     for side_def, side_undef, objects in ((host_def, host_undef, host_objects),
                                           (engine_def, engine_undef, engine_objects)):
         for obj in objects:
+            if side_def is engine_def:
+                check_saved_sections(obj)
             defined, undefined = symbols(nm(obj))
             for name, kind in defined.items():
                 if side_def is engine_def:

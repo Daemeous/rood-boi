@@ -84,13 +84,22 @@ def build():
         sys.exit(result.stdout[-3000:] + result.stderr[-3000:])
 
 
-def build_with_note(work, note):
+def build_with_note(work, note, legacy_state=False):
     """The library with engine_reload.c compiled with ROOD_ENGINE_NOTE=note: its path."""
     manifest = json.loads((DEV / "engine_library.json").read_text())
     unit = next(u for u in manifest["units"] if u["object"].endswith("/engine_reload.o"))
     obj = work / "engine_reload_note.o"
     command = list(unit["command"])
     command[command.index("-o") + 1] = str(obj)
+    if legacy_state:
+        source = ROOT / "pc/src/engine_reload.c"
+        private = work / "engine_reload_legacy.c"
+        text = source.read_text()
+        private.write_text(text + '\nstatic unsigned legacy_counter '
+                           '__attribute__((used, retain, section("rood_state_data"))) = 1;\n')
+        command = [str(private) if pathlib.Path(a) == source or a == "pc/src/engine_reload.c" else a
+                   for a in command]
+        command += ["-I", str(ROOT / "pc/src")]
     subprocess.run(command + [f'-DROOD_ENGINE_NOTE="{note}"'], cwd=ROOT, check=True)
     link = [str(obj) if a == unit["object"] or a == str(ROOT / unit["object"]) else a for a in manifest["link"]]
     library = work / "librood_engine.note.so"
@@ -196,6 +205,18 @@ def main():
         check(reply.get("note") == note and reply.get("generation") == 3,
               f"a rebuilt engine unit runs after the reload (note {reply.get('note')!r})")
         check(state(game)[0] == before, "the state is still unchanged")
+
+        # A pre-host-ownership engine has the same function slots but its
+        # private allocator escapes snapshots. Even a manually linked artifact
+        # bypassing the build guard must be refused before unloading anything.
+        swap(build_with_note(work, "legacy", legacy_state=True), library)
+        try:
+            game.call("reload")
+            check(False, "legacy saved-state ownership is refused")
+        except RpcError as error:
+            check("engine contains saved state" in str(error), f"legacy engine refused ({error})")
+        check(state(game)[0] == before and game.status()["paused"],
+              "legacy refusal preserves saved state and pause")
 
         # 4. A library that does not load.
         (work / "broken.so").write_bytes(b"not a library\n")

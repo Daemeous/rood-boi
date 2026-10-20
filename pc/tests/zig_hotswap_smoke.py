@@ -191,16 +191,9 @@ def main():
                 restored_state = snapshot_diff.read(restored_path)
                 # The established equivalence comparator excludes only the
                 # native last_vsync wall clock and the saved stack's host frames.
-                if os.environ.get("ROOD_RENDERER") == "null":
-                    differences = snapshot_diff.diff(baseline_end, restored_state, state_symbols)
-                    check(not differences and restored_state["vsync"] == baseline_end["vsync"],
-                          f"restored deterministic frames equal the unmodified run: {differences}")
-                else:
-                    # GPU presentation history is outside the rewind image.
-                    # Run the byte-exact replay oracle on the registered null
-                    # lane; GPU lanes still require full preservation at reload,
-                    # clean per-call shadow, actual execution and presentation.
-                    check(restored_state["vsync"] == baseline_end["vsync"], "restored GPU run reaches the same frame")
+                differences = snapshot_diff.diff(baseline_end, restored_state, state_symbols)
+                check(not differences and restored_state["vsync"] == baseline_end["vsync"],
+                      f"restored deterministic frames equal the unmodified run: {differences}")
                 check(restored["calls"] > 0 and restored["count"] == restored["errors"] == 0,
                       "restored clean library runs the same recipe without wrong writes")
                 check(after["vsync"] == before["vsync"] + FRAMES

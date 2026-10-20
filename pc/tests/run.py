@@ -149,6 +149,10 @@ def suites(args, mode="egl"):
         Suite("lp64_alias_scan", [PY, str(TESTS / "lp64_alias_scan_test.py")], 60, binary=None,
               note="no data import is a field of another across the LP64 native move "
                    "(pc/tools/lp64_alias_scan.py on pc/build/boot64; synthetic cases always)"),
+        Suite("engine_saved_state_test", [PY, str(TESTS / "engine_saved_state_test.py")], 60, binary=None,
+              sources=[ROOT / "pc/tools/engine_boundary.py", ROOT / "pc/tools/engine_lib.py",
+                       ROOT / "pc/tools/snapshot_layout.py"],
+              note="split engine refuses stranded saved sections before publishing, including private statics"),
         Suite("build_cache", [PY, str(TESTS / "build_cache_test.py")], 120, binary=None,
               note="shared build caches: objects reused across checkouts and identical to a compile there, "
                    "edits/flags/compiler miss, LRU cap, third-party entries built once under the lock"),
@@ -166,6 +170,10 @@ def suites(args, mode="egl"):
               note="64-bit: the engine library (build_boot.py --engine-library) reloads in place at a vsync: "
                    "state, pause and settings survive, a rebuilt unit takes effect, a broken library falls "
                    "back, and 120 vsyncs on the game equals one never reloaded"),
+        Suite("engine_rewind_smoke", [PY, str(TESTS / "engine_rewind_smoke.py"), "--card", str(args.save)], 600,
+              note="64-bit split host: no reload, one mark and two rewind/600-frame GPU replays are byte exact",
+              sources=[ROOT / "pc/src/render_state.c", ROOT / "pc/src/render.c",
+                       ROOT / "pc/tools/engine_boundary.py", ROOT / "pc/tools/build_boot.py"]),
         Suite("zig_hotswap_smoke", [PY, str(TESTS / "zig_hotswap_smoke.py"), "--card", str(args.save)], 900,
               note="64-bit Linux: edited private Zig battle source rebuilt/reloaded in one PID; paused state "
                    "unchanged, shadow names the wrong field/frame, clean restore and running reload",
@@ -198,6 +206,9 @@ def suites(args, mode="egl"):
         Suite("movie_smoke", [PY, str(TESTS / "movie_smoke.py")], 300),
         Suite("skip_intro_smoke", [PY, str(TESTS / "skip_intro_smoke.py")], 300,
               note="skip_intro 1: straight to the title (no logos, no movie), same title; off = the original start"),
+        Suite("verify_args_test", [PY, str(TESTS / "verify_args_test.py")], 30, binary=None,
+              sources=[ROOT / "pc/tools/verify.sh"],
+              note="verify.sh changed revisions stay separate from null suite patterns"),
         Suite("build_noop_test", [PY, str(TESTS / "build_noop_test.py")], 120, binary=None,
               note="build_boot.py: a second build with nothing changed does nothing (< 2 s); the build "
                    "stamp and object cache notice edits, reverts, new files and option changes"),
@@ -893,7 +904,8 @@ def make_parser():
                              "(pc/tools/verify.sh runs it between steps)")
     parser.add_argument("--changed", nargs="?", const="main", metavar="BASE",
                         help="only the suites a change since BASE (default main) can affect "
-                             "(pc/tests/affected.toml; core or unknown files run everything)")
+                             "(pc/tests/affected.toml; core or unknown files run everything); "
+                             "put -- before suite patterns when omitting BASE")
     parser.add_argument("--changed-files", nargs="+", metavar="PATH",
                         help="as --changed, for these repository paths instead of a diff")
     parser.add_argument("--nice", type=int, default=int(os.environ.get("ROOD_TEST_NICE", "10")),
@@ -960,7 +972,7 @@ def main():
         # Only explicitly CPU-safe game suites; never run screenshots or GPU
         # probes in this lane merely because they can launch the game binary.
         safe = {"null_backend_smoke", "shadow_battle_smoke", "ownership_smoke", "battle_corpus_candidate",
-                "zig_hotswap_smoke"}
+                "zig_hotswap_smoke", "engine_rewind_smoke"}
         every = [s for s in every if s.binary is None or s.name in safe]
         for suite in every:
             suite.gpu = False

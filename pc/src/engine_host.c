@@ -106,6 +106,7 @@ static void library_path(void)
 /* Load the library (a hard link of `path`: a build replacing the file
  * meanwhile does not change what is loaded), resolve every slot. NULL and
  * the reason when it cannot be used; nothing of it stays loaded then. */
+static int stranded_saved_state(const char* path, char* why, int size);
 static void* open_library(const char* path, char* why, int size)
 {
     char link_path[1100];
@@ -113,6 +114,11 @@ static void* open_library(const char* path, char* why, int size)
     unlink(link_path);
     if (link(path, link_path)) {
         snprintf(why, (size_t)size, "cannot link %s: %s", path, strerror(errno));
+        return NULL;
+    }
+    /* Refuse legacy ownership before running any library constructors. */
+    if (stranded_saved_state(link_path, why, size)) {
+        unlink(link_path);
         return NULL;
     }
     void* h = dlopen(link_path, RTLD_NOW | RTLD_LOCAL);
@@ -361,13 +367,16 @@ static int elf_symbols_open(const char* path, struct elf_symbols* e)
     const unsigned char* base = map;
     const ElfW(Ehdr)* eh = map;
     e->map = map, e->size = (size_t)st.st_size;
-    if (memcmp(eh->e_ident, ELFMAG, SELFMAG) || eh->e_shoff + (size_t)eh->e_shnum * sizeof(ElfW(Shdr)) > e->size)
+    if (memcmp(eh->e_ident, ELFMAG, SELFMAG) || eh->e_ident[EI_CLASS] != ELFCLASS64
+        || eh->e_ident[EI_DATA] != ELFDATA2LSB || eh->e_shentsize != sizeof(ElfW(Shdr))
+        || eh->e_shoff > e->size || (size_t)eh->e_shnum * sizeof(ElfW(Shdr)) > e->size - eh->e_shoff)
         return 1;
     const ElfW(Shdr)* sh = (const ElfW(Shdr)*)(base + eh->e_shoff);
     e->sections = sh, e->section_count = eh->e_shnum;
     for (int i = 0; i < eh->e_shnum; i++)
         if (sh[i].sh_type == SHT_SYMTAB && sh[i].sh_link < eh->e_shnum
-            && sh[i].sh_offset + sh[i].sh_size <= e->size && sh[sh[i].sh_link].sh_offset < e->size) {
+            && sh[i].sh_offset <= e->size && sh[i].sh_size <= e->size - sh[i].sh_offset
+            && sh[sh[i].sh_link].sh_offset < e->size) {
             e->symbols = (const ElfW(Sym)*)(base + sh[i].sh_offset);
             e->count = sh[i].sh_size / sizeof(ElfW(Sym));
             e->names = (const char*)(base + sh[sh[i].sh_link].sh_offset);
@@ -380,6 +389,40 @@ static void elf_symbols_close(struct elf_symbols* e)
         munmap(e->map, e->size);
     memset(e, 0, sizeof *e);
 }
+/* A manually copied or legacy engine must obey the same saved-state
+ * ownership rule as the build guard. Check before unloading the live engine
+ * (and again on the hard-linked candidate before dlopen). No engine addresses
+ * are added to snapshots, which must survive unloading this file. */
+static int stranded_saved_state(const char* path, char* why, int size)
+{
+    struct elf_symbols e;
+    if (!elf_symbols_open(path, &e))
+        return 0; /* the ordinary loader reports missing/invalid files */
+    int found = 0;
+    const ElfW(Ehdr)* eh = e.map;
+    if (e.sections && eh->e_shstrndx < e.section_count) {
+        const ElfW(Shdr)* strings = &e.sections[eh->e_shstrndx];
+        if (strings->sh_offset <= e.size && strings->sh_size <= e.size - strings->sh_offset) {
+            const char* names = (const char*)e.map + strings->sh_offset;
+            for (size_t i = 0; i < e.section_count; i++) {
+                const ElfW(Shdr)* section = &e.sections[i];
+                if (!section->sh_size || section->sh_name >= strings->sh_size)
+                    continue;
+                const char* name = names + section->sh_name;
+                size_t available = strings->sh_size - section->sh_name;
+                if (memchr(name, 0, available) &&
+                    (!strncmp(name, "rood_state_", 11) || !strncmp(name, "rood_ovl_", 9))) {
+                    snprintf(why, (size_t)size, "engine contains saved state (%s): rebuild the host and engine and restart", name);
+                    found = 1;
+                    break;
+                }
+            }
+        }
+    }
+    elf_symbols_close(&e);
+    return found;
+}
+
 /* The symbol `address` (minus `bias`) is the entry of (a function), the
  * start of (an object) or lies inside (a writable object: read-only blobs
  * such as the embedded shaders hold no state a pointer would follow, and raw
@@ -495,6 +538,10 @@ static void reload(void)
     double start = now_ms();
     char why[512] = "";
     status_ok = 0;
+    if (stranded_saved_state(library, why, (int)sizeof why)) {
+        snprintf(status, sizeof status, "reload refused (%s)", why);
+        return;
+    }
     if (rood_engine_unload(why, (int)sizeof why)) {
         snprintf(status, sizeof status, "reload refused (%s)", why);
         fprintf(stderr, "[engine] reload refused: %s\n", why);

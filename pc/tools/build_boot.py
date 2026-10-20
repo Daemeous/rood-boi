@@ -373,7 +373,7 @@ STATE_HOST_UNITS = {"runtime", "cd_drive", "mdec", "xa_audio", "audio_libspu", "
 # runs library code), and the library's loader. Every other unit is the
 # engine library's (pc/docs/plans/2026-10-19-engine-reload.md).
 HOST_UNITS = STATE_HOST_UNITS | {"snapshot", "state_diff", "state_rewind", "shadow", "overlay_statics", "ownership", "routing",
-                                 "memory_card", "input_record", "charge_skip", "audio_output", "engine_host"}
+                                 "memory_card", "input_record", "charge_skip", "audio_output", "engine_host", "render_state"}
 engine_units = {}  # --engine-library: object -> its compile command (position-independent)
 host_units = {}  # --engine-library: the host's other compiled units -> command (engine_lib.py reads their headers)
 
@@ -1108,7 +1108,7 @@ for name in ["runtime", "window", "controller", "gamepad"]:
             and name in STATE_HOST_UNITS:
         state_sections(obj)
     objects.append(obj)
-for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "charge_skip", "camera_stick", "gl_present", "gpu_hw", "render", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "shadow", "frame_cost", "display_confirm", "ui/option_actions", "ui/options_nav", "ui/option_style", "host_format"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
+for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "charge_skip", "camera_stick", "gl_present", "gpu_hw", "render", "render_state", "room_native", "gameplay_walls", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "shadow", "frame_cost", "display_confirm", "ui/option_actions", "ui/options_nav", "ui/option_style", "host_format"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
         + (["engine_host", "engine_reload"] if engine_library else []):
     obj = out / (name.replace("/", "_") + ".o")
     # ui_text rasterizes fonts with the stb_truetype that Dear ImGui vendors.
@@ -2238,7 +2238,10 @@ if engine_library:
                     "-l:libstdc++.so.6", "-l:libgcc_s.so.1", "-lm", "-lpthread", "-ldl", "-o", str(library)]
     staged = library.with_name(library.name + ".new")
     run([*library_link[:-1], str(staged)])
-    os.replace(staged, library)  # a running host reloads whole files only
+    try:
+        engine_boundary.publish_library(staged, library)
+    except (RuntimeError, ValueError, OSError) as error:
+        raise SystemExit(f"engine library boundary: {error}")
     host_link = ["gcc", "-m64", "-no-pie", "-Wl,--section-start=rood_guest_pages=0x1f800000",  # as the static link
                  "-Wl,--gc-sections", *link_compress_flags,
                  *[str(o) for o in host_objects], str(out / "engine_boundary.o"), *pin_args, str(out / "imports.ld"),
