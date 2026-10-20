@@ -1596,14 +1596,18 @@ static void handle_method(int fd, const char* request)
         extern int pc_vk_menu_backdrop_kept(void) __attribute__((weak));
         extern void pc_ui_ashley_backdrop_built(int* kept, int* need); /* ui/ashley_bridge.c */
         size_t len = strlen(result);
-        if (len > 1 && result[len - 1] == '}' && len + 64 < sizeof result) {
+        if (len > 1 && result[len - 1] == '}' && len + 96 < sizeof result) {
             /* (only the active presenter keeps one) */
             int kept = (pc_gl_menu_backdrop_kept && pc_gl_menu_backdrop_kept() != 0)
                     || (pc_vk_menu_backdrop_kept && pc_vk_menu_backdrop_kept() != 0);
             int built_kept, built_need;
             pc_ui_ashley_backdrop_built(&built_kept, &built_need);
-            snprintf(result + len - 1, sizeof result - len + 1, ",\"backdrop_kept\":%d,\"backdrop_built\":[%d,%d]}",
-                kept, built_kept, built_need);
+            /* at_rest: the last drawn frame's glides all at their targets (ui/ui_draw.cpp; real time) */
+            extern int pc_ui_draw_at_rest(void) __attribute__((weak));
+            int at_rest = !pc_ui_draw_at_rest || pc_ui_draw_at_rest();
+            snprintf(result + len - 1, sizeof result - len + 1,
+                ",\"backdrop_kept\":%d,\"backdrop_built\":[%d,%d],\"at_rest\":%s}", kept, built_kept, built_need,
+                at_rest ? "true" : "false");
         }
         reply(fd, id, result);
     } else if (!strcmp(method, "loot")) {

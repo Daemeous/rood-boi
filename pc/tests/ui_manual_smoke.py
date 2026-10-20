@@ -369,7 +369,24 @@ class Session:
         self.game.call("ui_menu", pointer=p)
         self.game.run(run)
 
+    def at_rest(self, polls=2000):
+        """Until the last drawn frame has nothing gliding (RPC ui_menu at_rest: the card sliding as the
+        rail steps aside, its k, the lines' scroll, the focus). The glides run on real time, not vsyncs,
+        and the paused game redraws after every request, so polling alone lets them finish; `polls` only
+        bounds a hang (each poll waits on the game: a paused or slow game does not use them up)."""
+        for _ in range(polls):
+            s = self.shell()
+            if "at_rest" not in s:
+                raise RuntimeError(f"{self.name}: RPC ui_menu has no at_rest (an older game?)")
+            if s["at_rest"]:
+                return
+            time.sleep(0.01)
+        raise TimeoutError(f"{self.name}: the menus still gliding after {polls} polls")
+
     def hit(self, kind, index=None):
+        """A target of the layout at rest (the published hits are the last drawn frame's: mid-glide they
+        are not where the next frame puts them)."""
+        self.at_rest()
         m = self.manual()
         for h in reversed(m["hits"] if m else []):
             if h["kind"] == kind and (index is None or h["index"] == index):
@@ -721,16 +738,10 @@ def walk_to(b, check, topic, what):
     return m if ok else None
 
 
-def wait_k(b, k):
-    """The 4:3 card slides in real time: the manual once its k is reached (or the last read)."""
-    m = b.manual()
-    for _ in range(40):
-        if not m or abs(m["k"] - k) < 0.001:
-            break
-        time.sleep(0.05)
-        b.game.run(2)
-        m = b.manual()
-    return m
+def wait_k(b):
+    """The 4:3 card slides in real time: the manual once the slide is over (at rest)."""
+    b.at_rest()
+    return b.manual()
 
 
 def frame_checks(b, check, shots):
@@ -753,7 +764,7 @@ def frame_checks(b, check, shots):
     # 4:3 reading: the rail steps aside, the canvas at k 2.6
     if walk_to(b, check, 0, "frames"):
         g.press("circle", vsyncs=3, settle=2)
-        m = wait_k(b, 2.6)
+        m = wait_k(b)
         topics = [h for h in m["hits"] if h["kind"] == "topic"] if m else None
         check(m is not None and abs(m["k"] - 2.6) < 0.001 and not topics,
               f"4:3 reading: k {m and m['k']}, rail hits {topics and len(topics)}")
@@ -792,11 +803,9 @@ def wide_checks(b, check):
     g = b.game
     g.call("graphics", widescreen=True)
     g.run(10)
-    m = b.open_shell()
-    for _ in range(40):  # the card slides in real time
-        time.sleep(0.05)
-        g.run(2)
-        m = b.manual()
+    b.open_shell()
+    b.at_rest()  # the card slides in real time
+    m = b.manual()
     hits = m["hits"]
     canvas = next((h for h in hits if h["kind"] == "canvas"), None)
     check(hits and all(0 <= h["x0"] and h["x1"] <= 1280 for h in hits), f"16:9: every hit inside 1280 ({len(hits)})")

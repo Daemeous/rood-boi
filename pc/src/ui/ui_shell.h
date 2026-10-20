@@ -58,6 +58,11 @@ int pc_ui_shell_wanted_candidates(void);
 void pc_ui_menus_editor_row(void);
 /* Drawing, from pc_overlay_frame (ImGui frame open). */
 void pc_ui_draw_frame(float dt);
+/* The last drawn frame had nothing in motion: every glide (the focus, a
+ * list's scroll, a popover following its row, a card's width, the tab ink;
+ * ui_draw.cpp approach) at its target. They run on real time, not vsyncs:
+ * tests wait for this (RPC ui_menu "at_rest") before pointing at a layout. */
+int pc_ui_draw_at_rest(void);
 /* The shell is drawn and the pointer is over it (the game picture, which its
  * backdrop covers): the editor's viewport mouse (fly, pick, orbit) leaves
  * the pointer to the shell, as io.WantCaptureMouse does for ImGui windows. */

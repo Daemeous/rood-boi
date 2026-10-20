@@ -209,13 +209,20 @@ def main():
             press("down", settle=2)
         raise Timeout(f"row {row_id} ({sysv()['row']})")
 
-    def settle(seconds=0.8):
-        """Let the page's scroll animation finish: it runs on real time, and a
-        focus move stops it where it was (the pointer's row positions assume
-        the page at its top: settle on the first row)."""
-        t0 = time.time()
-        while time.time() - t0 < seconds:
-            game.run(4)
+    def settle(polls=2000):
+        """Let the page's scroll animation finish (RPC ui_menu at_rest): it
+        runs on real time, not vsyncs, and a focus move stops it where it was
+        (the pointer's row positions assume the page at its top: settle on
+        the first row). The paused game redraws after every request, so
+        polling alone lets it finish; `polls` only bounds a hang."""
+        for _ in range(polls):
+            s = game.call("ui_menu")
+            if "at_rest" not in s:
+                raise Timeout("RPC ui_menu has no at_rest (an older game?)")
+            if s["at_rest"]:
+                return
+            time.sleep(0.01)
+        raise Timeout(f"the System page still gliding after {polls} polls")
 
     def leave():
         press("cross")

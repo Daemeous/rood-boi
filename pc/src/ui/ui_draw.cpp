@@ -95,12 +95,21 @@ std::string upper(const char* str)
     return s;
 }
 
+// The largest distance an approach() of the frame being drawn has still to go
+// (pc_ui_draw_at_rest): the glides run on real time, so tests wait for them
+// to end instead of counting vsyncs.
+static float frame_motion = 0;
+
 float approach(float cur, float target, float dt, float seconds)
 {
     if (seconds <= 0)
         return target;
     float a = 1.0f - std::exp(-dt / (seconds / 3.0f));
-    return cur + (target - cur) * a;
+    float next = cur + (target - cur) * a;
+    float left = std::fabs(target - next);
+    if (left > frame_motion)
+        frame_motion = left;
+    return next;
 }
 
 float glyph(const Frame& f, int button, float size, float x, float cy, bool measure_only, unsigned tint)
@@ -540,7 +549,21 @@ extern "C" int pc_ui_shell_wants_mouse(void)
         && p.y < pc_gl_view[1] + pc_gl_view[3];
 }
 
+static void draw_frame(float dt);
+// The last drawn frame's glides (approach) were all within this of their targets.
+static const float AT_REST = 0.01f;
+static bool last_at_rest = true;
+
 extern "C" void pc_ui_draw_frame(float dt)
+{
+    uidraw::frame_motion = 0;
+    draw_frame(dt);
+    last_at_rest = uidraw::frame_motion <= AT_REST;
+}
+
+extern "C" int pc_ui_draw_at_rest(void) { return last_at_rest; }
+
+static void draw_frame(float dt)
 {
     // the System pages' save debounce (ui_settings.cpp): every frame, shell up or not
     pc_ui_settings_tick(ImGui::GetTime());

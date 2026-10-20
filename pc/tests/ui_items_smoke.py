@@ -363,6 +363,20 @@ class Session:
     def it(self):
         return self.ui().get("items") or {}
 
+    def at_rest(self, polls=2000):
+        """Until the last drawn frame has nothing gliding (RPC ui_menu at_rest: the focus, the list's
+        scroll, a popover following its row, the card's width). The glides run on real time, and the
+        paused game redraws after every request, so polling alone lets them finish; `polls` only bounds
+        a hang (each poll waits on the game, so a paused or slow game does not use them up)."""
+        for _ in range(polls):
+            s = self.ui()
+            if "at_rest" not in s:
+                raise RuntimeError(f"{self.name}: RPC ui_menu has no at_rest (an older game?)")
+            if s["at_rest"]:
+                return
+            time.sleep(0.01)
+        raise TimeoutError(f"{self.name}: the menus still gliding after {polls} polls")
+
     def s_open(self):
         g = self.g
         for _ in range(6):
@@ -886,35 +900,28 @@ def mouse_checks(b, check):
     before = b.dump()
 
     def pointer(x, y, click=False):
+        """A click at (x, y) of the layout at rest (the clicks' coordinates are where things settle): the
+        menus glide in real time (ui_theme focus_grow, ui_draw.cpp approach), not in vsyncs, so a vsync
+        count says nothing about where a row or popover is (a resumed save state runs vsyncs faster than
+        the glide; a loaded machine slower)."""
+        b.at_rest()
         b.ui(pointer={"x": x, "y": y, "click": click})
         g.run(4)
-
-    def hover_until(x, y, ready, seconds=3):
-        """The menus glide in real time (ui_theme focus_grow), not in vsyncs, and a resumed save state runs
-        vsyncs far faster than that: hover (x, y) until what is under it is ready, then it can be clicked."""
-        deadline = time.monotonic() + seconds
-        while True:
-            pointer(x, y)
-            if ready() or time.monotonic() > deadline:
-                return
-            time.sleep(0.02)
     b.s_goto(MISC_C)
     for _ in range(80):
         if b.it().get("cursor") == 0:
             break
         b.press("up", settle=4)
-    g.run(40)  # the focus glides to the row (the popover opens under it)
     m = b.it()
     r = next(x["row"] for x in m["list"] if x["count"] >= 3 and x["row"] < 3)
-    pointer(LIST_X, row_top(r) + ROW_H // 2, True)
+    pointer(LIST_X, row_top(r) + ROW_H // 2, True)  # (at rest: the focus on row 0, the list unscrolled)
     m = b.it()
     check(m.get("mode") == "actions" and m.get("cursor") == r, f"mouse: a click on row {r} opens its actions "
           f"({m.get('mode')}, cursor {m.get('cursor')})")
     acts = [x["id"] for x in m.get("actions") or []]
     top = row_top(r) + 52
     i = acts.index("discard") if "discard" in acts else 0
-    hover_until(X1 - 248 + 60, top + 10 + i * 30 + 15, lambda: b.it().get("action") == i)  # the popover in place
-    pointer(X1 - 248 + 60, top + 10 + i * 30 + 15, True)
+    pointer(X1 - 248 + 60, top + 10 + i * 30 + 15, True)  # the popover under row r once it has followed it
     m = b.it()
     check(m.get("mode") == "quantity", f"mouse: a click on the popover's Discard: the quantity picker "
           f"({m.get('mode')}; actions {acts})")
