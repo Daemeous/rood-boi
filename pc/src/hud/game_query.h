@@ -34,12 +34,22 @@ typedef struct {
     int event;       /* an event script (a cutscene) runs */
 } pc_game_query;
 
-/* query_bridge.c (battle builds; absent elsewhere: weak): the state now. */
-void pc_game_query_fill(pc_game_query* out) __attribute__((weak));
+/* query_bridge.c (battle builds; absent elsewhere: weak references). Weak only
+ * for the callers: query_bridge.c defines PC_GAME_QUERY_DEFINES, so its
+ * definitions are strong. A weak definition and a weak reference in another
+ * object can get the same COFF alias (.weak.<name>. with an empty suffix,
+ * MSYS2's GCC 16), and the Windows link then fails with a multiple definition. */
+#ifdef PC_GAME_QUERY_DEFINES
+#define PC_GAME_QUERY_WEAK
+#else
+#define PC_GAME_QUERY_WEAK __attribute__((weak))
+#endif
+/* The state now. */
+void pc_game_query_fill(pc_game_query* out) PC_GAME_QUERY_WEAK;
 /* The room's names (the game's, through room_warp.h's list; built once, tens of
  * ms the first time): 1 when found. */
 int pc_game_query_room_names(int zone, int room, char* area, int area_size, char* name, int name_size)
-    __attribute__((weak));
+    PC_GAME_QUERY_WEAK;
 
 #ifdef __cplusplus
 }
