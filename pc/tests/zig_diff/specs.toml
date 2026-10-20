@@ -5,7 +5,7 @@
 # mutation whose `from` text is gone fails the check (keep them current).
 #
 #   file   the file the mutation edits (default: the port's file)
-#   expect "mismatch" (default) or "panic"
+#   expect "mismatch" (default), "panic" or "crash" (a signal in the port's run)
 
 [function._updateEnemyKills]
 spec = "updateEnemyKills.zig"
@@ -101,3 +101,303 @@ to = '''        const type_: c_int = psx.getBits(psx.at(v.g.actions(), action), 
         _ = c.vs_battle_printf(@ptrCast(psx.at(v.g.nameWindowText().*.?, 1)),
             @ptrCast(psx.at(v.g.menuStrings(), psx.at(v.g.menuStrings(), type_ +% 22).*)));
         psx.setBits(&v.g.textBoxes()[7].unk0, "unk0_8", 0);'''
+
+# ---------------------------------------------------------------- the model bake-off
+# (pc/docs/porting/battle/BAKEOFF.md): the reference ports' specs. The scoring
+# tool (pc/tools/bakeoff_score.py) runs them on candidate ports, without the
+# mutations.
+
+[function.func_8006CE50]
+spec = "startSection12Timer.zig"
+iterations = 2000
+
+[[function.func_8006CE50.mutation]]
+name = "S1: 179 ticks"
+from = "c.func_8008D5A0(0xB4);"
+to = "c.func_8008D5A0(0xB3);"
+
+[[function.func_8006CE50.mutation]]
+name = "S2: the call dropped"
+from = "c.func_8008D5A0(0xB4);"
+to = ""
+
+[function.func_8007C088]
+spec = "isWeaponDrawn.zig"
+iterations = 20000
+
+[[function.func_8007C088.mutation]]
+name = "W1: weaponDrawn != 0, not & 1"
+from = ".weaponDrawn & 1;"
+to = ".weaponDrawn & 3;"
+
+[[function.func_8007C088.mutation]]
+name = "W2: the next actor's slot (slot 16 is past the array: a crash there)"
+from = "psx.at(v.g.vs_battle_actors(), actorId)"
+to = "psx.at(v.g.vs_battle_actors(), actorId +% 1)"
+expect = "crash"
+
+[function.func_8007357C]
+spec = "enterMenuMode.zig"
+iterations = 20000
+
+[[function.func_8007357C.mutation]]
+name = "M1: mode 4"
+from = "v.g.D_800F196C().* = 5;"
+to = "v.g.D_800F196C().* = 4;"
+
+[[function.func_8007357C.mutation]]
+name = "M2: the weapon bit not masked"
+from = "(v.g.vs_battle_characterState().*.?.weaponDrawn & 1) | 2"
+to = "v.g.vs_battle_characterState().*.?.weaponDrawn | 2"
+
+[[function.func_8007357C.mutation]]
+name = "M3: the camera mode set after the calls"
+from = '''    v.g._cameraMode().* = 1;
+    c.func_800CB660((v.g.vs_battle_characterState().*.?.weaponDrawn & 1) | 2);
+    c.func_8006C39C();'''
+to = '''    c.func_800CB660((v.g.vs_battle_characterState().*.?.weaponDrawn & 1) | 2);
+    c.func_8006C39C();
+    v.g._cameraMode().* = 1;'''
+
+[function._factorDamageReceived]
+spec = "factorDamageReceived.zig"
+iterations = 40000
+
+[[function._factorDamageReceived.mutation]]
+name = "F1: hpEffect 2 instead of 3"
+from = "@as(c_int, psx.getBits(&block.unk8.unk4, \"hpEffect\")) == 3"
+to = "@as(c_int, psx.getBits(&block.unk8.unk4, \"hpEffect\")) == 2"
+
+[[function._factorDamageReceived.mutation]]
+name = "F2: rounded down, not toward zero"
+from = "@divTrunc(received *% statFactor, 10)"
+to = "@divFloor(received *% statFactor, 10)"
+
+[[function._factorDamageReceived.mutation]]
+name = "F3: hp + mp in i16 (not promoted)"
+from = "@as(c_int, block.unk8.unk4.unk0.hp) +% block.unk8.unk4.unk0.mp"
+to = "block.unk8.unk4.unk0.hp +% block.unk8.unk4.unk0.mp"
+
+[[function._factorDamageReceived.mutation]]
+name = "F4: always the first hit's factor"
+from = "psx.at(&action.?.hitParams, hitNumber)"
+to = "psx.at(&action.?.hitParams, hitNumber & 0)"
+
+[function.func_8008D5FC]
+spec = "operateLock.zig"
+iterations = 20000
+
+[[function.func_8008D5FC.mutation]]
+name = "L1: busy tested as signed > 0 (0x80-0xFF read as idle)"
+from = "psx.conv(i8, lock.?.unk0.unkB) == 0"
+to = "psx.conv(i8, lock.?.unk0.unkB) <= 0"
+
+[[function.func_8008D5FC.mutation]]
+name = "L2: a 21-tick delay"
+from = "lock.?.unk0.unkA = 0x14;"
+to = "lock.?.unk0.unkA = 0x15;"
+
+[[function.func_8008D5FC.mutation]]
+name = "L3: no return after queueing (falls into the toggle)"
+from = '''            c.func_8008C070(2, psx.cptr(c._mpdRoomSectionA, lock.?));
+            return;'''
+to = '''            c.func_8008C070(2, psx.cptr(c._mpdRoomSectionA, lock.?));'''
+
+[[function.func_8008D5FC.mutation]]
+name = "L4: busy set after the calls"
+from = '''        lock.?.unk0.unkB = 1;
+        if (lock.?.unk0.unk8.s16 == 0) {'''
+to = '''        defer lock.?.unk0.unkB = 1;
+        if (lock.?.unk0.unk8.s16 == 0) {'''
+
+[function.func_80074A20]
+spec = "checkDefeated.zig"
+iterations = 40000
+
+[[function.func_80074A20.mutation]]
+name = "D1: Ashley's exception as `and`"
+from = "!= 0x80 or actorId == 0"
+to = "!= 0x80 and actorId == 0"
+
+[[function.func_80074A20.mutation]]
+name = "D2: falling marks 0x10"
+from = "psx.at(actors, actorId).*.?.unk8 = 0x20;"
+to = "psx.at(actors, actorId).*.?.unk8 = 0x10;"
+
+[[function.func_80074A20.mutation]]
+name = "D3: the wrong block field passed"
+from = "&v.g.D_800F19CC().*.?.unk29A8"
+to = "&v.g.D_800F19CC().*.?.unk29B8"
+
+[[function.func_80074A20.mutation]]
+name = "D4: func_800E6700 called after the empty-slot test"
+from = '''    c.func_800E6700(actorId);
+    var ret: c_int = 0;
+
+    // vs_battle_actors[actorId]: the C does not check the id, and reads the slot again after each call.
+    const actors = v.g.vs_battle_actors();
+    if (psx.at(actors, actorId).* != null) {'''
+to = '''    var ret: c_int = 0;
+    const actors = v.g.vs_battle_actors();
+    if (psx.at(actors, actorId).* != null) {
+        c.func_800E6700(actorId);'''
+
+[function.func_80078828]
+spec = "canUseBattleAbility.zig"
+iterations = 40000
+
+[[function.func_80078828.mutation]]
+name = "A1: actionIndex - 40 compared signed"
+from = "psx.conv(c_uint, @as(c_int, current.actionIndex)) -% 40 < 14"
+to = "@as(c_int, current.actionIndex) -% 40 < 14"
+
+[[function.func_80078828.mutation]]
+name = "A2: the button's chain slot, not button - 1"
+from = "psx.at(&settings.mappedChainAbilities, button -% 1)"
+to = "psx.at(&settings.mappedChainAbilities, button)"
+
+[[function.func_80078828.mutation]]
+name = "A3: the cost's sign bit only"
+from = '''c._getActionCost(psx.at(&settings.mappedChainAbilities, button -% 1).*, @ptrCast(stats), 0)) & 0xFF000000'''
+to = '''c._getActionCost(psx.at(&settings.mappedChainAbilities, button -% 1).*, @ptrCast(stats), 0)) & 0x80000000'''
+
+[[function.func_80078828.mutation]]
+name = "A4: the defense loop reads the chain abilities"
+from = "if (settings.mappedDefenseAbilities[@intCast(i)] != 0) {"
+to = "if (settings.mappedChainAbilities[@intCast(i)] != 0) {"
+
+[[function.func_80078828.mutation]]
+name = "A5: func_800A0BE0 not called"
+from = "_ = c.func_800A0BE0(0);"
+to = ""
+
+[[function.func_80078828.mutation]]
+name = "A6: the attempted input ignored"
+from = "if (block.battleAbilityInputAttempted != 0) {"
+to = "if (block.battleAbilityInputAttempted == 0xFFFF) {"
+
+[function.vs_battle_applyWeaponStats]
+spec = "applyWeaponStats.zig"
+iterations = 20000
+
+[[function.vs_battle_applyWeaponStats.mutation]]
+name = "P1: the damage type's value from the blade"
+from = "psx.at(&s.grip.types, t.damageType)"
+to = "psx.at(&s.blade.types, t.damageType)"
+
+[[function.vs_battle_applyWeaponStats.mutation]]
+name = "P2: the third gem's strength left out"
+from = "s.gems[1].strength +% s.gems[2].strength);"
+to = "s.gems[1].strength);"
+
+[[function.vs_battle_applyWeaponStats.mutation]]
+name = "P3: 7 classes"
+from = "while (i < 6) : (i += 1) {"
+to = "while (i < 7) : (i += 1) {"
+
+[[function.vs_battle_applyWeaponStats.mutation]]
+name = "P4: the blade copied with the weapon's size"
+from = "c.vs_main_memcpy(&t.blade, &s.blade, @sizeOf(v.vs_battle_uiEquipment));"
+to = "c.vs_main_memcpy(&t.blade, &s.blade, @sizeOf(v.vs_battle_weaponIntermediate));"
+
+[[function.vs_battle_applyWeaponStats.mutation]]
+name = "P5: unk168 not cleared"
+from = "t.unk168[k] = 0;"
+to = ""
+
+[function.vs_battle_lerpSvector]
+spec = "lerpSvector.zig"
+iterations = 40000
+
+[[function.vs_battle_lerpSvector.mutation]]
+name = "V1: / 128, not >> 7"
+from = "(((end0 -% start0) *% t) >> 7)"
+to = "@divTrunc((end0 -% start0) *% t, 128)"
+
+[[function.vs_battle_lerpSvector.mutation]]
+name = "V2: vy from the z pair"
+from = "const start1: c_int = src[2];"
+to = "const start1: c_int = src[4];"
+
+[[function.vs_battle_lerpSvector.mutation]]
+name = "V3: a trapping multiply"
+from = "(((end1 -% start1) *% t) >> 7)"
+to = "(((end1 -% start1) * t) >> 7)"
+expect = "panic"
+
+[function.func_800AD494]
+spec = "findAnimation.zig"
+iterations = 40000
+
+[[function.func_800AD494.mutation]]
+name = "U1: the count test as >"
+from = '''        idx = idx *% 3 +% 31;
+        if (idx >= actor.unk5B6) {'''
+to = '''        idx = idx *% 3 +% 31;
+        if (idx > actor.unk5B6) {'''
+
+[[function.func_800AD494.mutation]]
+name = "U2: D_800F49DC not set"
+from = "v.g.D_800F49DC().* = psx.conv(u8, idx);"
+to = ""
+
+[[function.func_800AD494.mutation]]
+name = "U3: a frame is nBones * 4 + 8 halfwords"
+from = "*% 4 +% 10) *% idx) >> 1"
+to = "*% 4 +% 8) *% idx) >> 1"
+
+[[function.func_800AD494.mutation]]
+name = "U4: the 0xFE branch reads unk5DC[2]"
+from = '''    } else if (animation == 0xFE) {
+        p = table(psx.get(actor.unk5DC[3]));'''
+to = '''    } else if (animation == 0xFE) {
+        p = table(psx.get(actor.unk5DC[2]));'''
+
+[[function.func_800AD494.mutation]]
+name = "U5: an empty entry keeps the frames pointer of entry 0xFF"
+from = '''    if (idx == 0xFF) {
+        frames.* = null;
+    } else {'''
+to = '''    if (idx == 0x1FF) {
+        frames.* = null;
+    } else {'''
+
+[function.func_800A0204]
+spec = "startAnimation.zig"
+iterations = 40000
+
+[[function.func_800A0204.mutation]]
+name = "R1: the failed retry returns 0 (not func_800AD494's result, as the object does)"
+from = "return found;"
+to = "return 0;"
+
+[[function.func_800A0204.mutation]]
+name = "R2: the blend doubles from 0x7F"
+from = "if (actor.unk63C >= 0x80) {"
+to = "if (actor.unk63C >= 0x7F) {"
+
+[[function.func_800A0204.mutation]]
+name = "R3: only animation 25 keeps flag 15"
+from = "if (animation == 25 or animation == 26) {"
+to = "if (animation == 25) {"
+
+[[function.func_800A0204.mutation]]
+name = "R4: the still branch turns the actor too (the goto mapped wrong)"
+from = '''                psx.setBits(&actor.unk0, "unk9_6", 0);
+            }
+            break :setHeading;'''
+to = '''                psx.setBits(&actor.unk0, "unk9_6", 0);
+            }
+            if (anim == 0x7FFF_FFFF) break :setHeading;'''
+
+[[function.func_800A0204.mutation]]
+name = "R5: the start frame from the second word"
+from = "actor.unk5BC = psx.conv(i16, frames[0]);"
+to = "actor.unk5BC = psx.conv(i16, frames[1]);"
+
+[[function.func_800A0204.mutation]]
+name = "R6: no retry with animation 0"
+from = '''            anim = 0;
+            continue :retry;'''
+to = '''            if (anim == 0x7FFF_FFFF) continue :retry;
+            return found;'''

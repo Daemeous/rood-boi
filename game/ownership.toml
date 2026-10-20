@@ -69,3 +69,67 @@ functions = [
 types = ["vs_battle_textBox", "vs_battle_stringContext_t", "vs_action_t"]
 globals = ["D_800EB9D8", "D_800F4E68", "D_800F4E69", "vs_battle_stringContext", "vs_main_actions",
            "vs_battle_menuStrings", "vs_battle_textBoxes", "D_800EBF58", "D_800EBDDC"]
+
+# The model bake-off (pc/docs/porting/battle/BAKEOFF.md): eleven functions,
+# one Zig module each. One subsystem per unit; 146C.c and 5BF94.c get their
+# own (`_bakeoff`) beside the trial's, so the trial's corpus suites and their
+# root-call gate keep checking exactly the trial's functions.
+[subsystem.battle_146C_bakeoff]
+overlay = "battle"
+unit = "src/BATTLE/BATTLE.PRG/146C.c"
+default = "original"
+roots = ["D_800F19CC", "vs_battle_actors", "vs_battle_characterState"]
+functions = [
+    { addr = 0x8006CE50, name = "func_8006CE50", zig = "room_timer.startSection12Timer" },             # the section-12 timer at 180
+    { addr = 0x8007C088, name = "func_8007C088", zig = "actor_weapon.isWeaponDrawn" },                 # an actor's weapon-drawn bit
+    { addr = 0x8007357C, name = "func_8007357C", zig = "field_menu.enterMenuMode" },                   # vs_battle_exec mode 5
+    { addr = 0x8008379C, name = "_factorDamageReceived", zig = "hit_factors.factorDamageReceived" },  # (hp + mp) * statFactor / 10
+    { addr = 0x8008D5FC, name = "func_8008D5FC", zig = "room_lock.operateLock" },                      # a lock: queue it or toggle it
+    { addr = 0x80074A20, name = "func_80074A20", zig = "actor_defeat.checkDefeated" },                 # an actor at 0 HP falls
+    { addr = 0x80078828, name = "func_80078828", zig = "ability_window.canUseBattleAbility" },         # a chain/defense input allowed
+    { addr = 0x8006A334, name = "vs_battle_applyWeaponStats", zig = "weapon_stats.applyWeaponStats" }, # weapon parts -> the UI weapon
+]
+
+[subsystem.battle_146C_bakeoff.views]
+types = ["vs_battle_actor", "vs_battle_actor2", "D_800F19CC_t", "vs_action_t", "_hitEntity_t", "_mpdRoomSectionA",
+         "vs_main_settings_t", "vs_battle_uiWeapon", "vs_battle_weaponIntermediate"]
+globals = ["vs_battle_actors", "D_800F19CC", "D_800F196C", "_cameraMode", "vs_battle_characterState", "vs_main_settings"]
+
+[subsystem.battle_5BF94_bakeoff]
+overlay = "battle"
+unit = "src/BATTLE/BATTLE.PRG/5BF94.c"
+default = "original"
+roots = []
+functions = [
+    { addr = 0x800CFD60, name = "vs_battle_lerpSvector", zig = "vector_lerp.lerpSvector" },  # three 7-bit lerps into an SVECTOR
+]
+
+[subsystem.battle_5BF94_bakeoff.views]
+types = ["SVECTOR"]
+globals = []
+
+[subsystem.battle_30DB0]
+overlay = "battle"
+unit = "src/BATTLE/BATTLE.PRG/30DB0.c"
+default = "original"
+roots = ["D_800F4538"]
+functions = [
+    { addr = 0x800A0204, name = "func_800A0204", zig = "actor_animation.startAnimation" },  # an actor's animation (re)started
+]
+
+[subsystem.battle_30DB0.views]
+types = ["D_800F4538_t"]
+globals = ["D_800F4538", "D_800F49DC"]
+
+[subsystem.battle_40564]
+overlay = "battle"
+unit = "src/BATTLE/BATTLE.PRG/40564.c"
+default = "original"
+roots = ["D_800F4538", "D_800F4768"]
+functions = [
+    { addr = 0x800AD494, name = "func_800AD494", zig = "animation_lookup.findAnimation" },  # an animation's table and frames
+]
+
+[subsystem.battle_40564.views]
+types = ["D_800F4538_t", "func_800AD494_t"]
+globals = ["D_800E8F2C", "D_800F4768", "D_800F49DC", "D_800F49E4"]

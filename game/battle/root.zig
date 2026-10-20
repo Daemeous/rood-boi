@@ -44,9 +44,25 @@ comptime {
 pub const score = @import("score.zig");
 pub const actor_transform = @import("actor_transform.zig");
 pub const scene_message = @import("scene_message.zig");
+// The model bake-off (pc/docs/porting/battle/BAKEOFF.md): one module per function.
+pub const room_timer = @import("room_timer.zig");
+pub const actor_weapon = @import("actor_weapon.zig");
+pub const field_menu = @import("field_menu.zig");
+pub const hit_factors = @import("hit_factors.zig");
+pub const room_lock = @import("room_lock.zig");
+pub const actor_defeat = @import("actor_defeat.zig");
+pub const ability_window = @import("ability_window.zig");
+pub const weapon_stats = @import("weapon_stats.zig");
+pub const vector_lerp = @import("vector_lerp.zig");
+pub const animation_lookup = @import("animation_lookup.zig");
+pub const actor_animation = @import("actor_animation.zig");
 
 comptime {
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_146C), ownership.routesOf(.battle_146C), @This());
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_44F14), ownership.routesOf(.battle_44F14), @This());
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_5BF94), ownership.routesOf(.battle_5BF94), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.battle_146C_bakeoff), ownership.routesOf(.battle_146C_bakeoff), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.battle_5BF94_bakeoff), ownership.routesOf(.battle_5BF94_bakeoff), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.battle_30DB0), ownership.routesOf(.battle_30DB0), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.battle_40564), ownership.routesOf(.battle_40564), @This());
 }

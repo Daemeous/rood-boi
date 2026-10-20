@@ -1980,9 +1980,16 @@ def lp64_native_imports():
         following = [a for a in ordered[groups[name]][bisect.bisect_right(ordered[groups[name]], address):]
                      if (groups[name], a) not in pointer_word_addresses]
         extent = (following[0] - address) if following else 4
-        complete = [info["ps1_size"] for info in changed if info.get("size")]
+        # Owned Zig follows the C's layout, it never defines it: a Zig object's
+        # declaration does not size the region (a one-element declaration of
+        # an unsized array would shrink it), and must agree with the result.
+        complete = [info["ps1_size"] for obj, info in infos
+                    if changes(info) and info.get("size") and not obj.stem.endswith("_zig")]
         # Complete types: their PS1 size; incomplete arrays: up to the next import.
         size = max(complete) if complete else extent
+        problems += [f"{name}: {obj.stem} declares {info['type']} ({info['ps1_size']} PS1 bytes), the C {size}"
+                     for obj, info in infos
+                     if obj.stem.endswith("_zig") and info.get("size") and info["ps1_size"] != size]
         spans.append([address, address + size, [name], groups[name] or ""])
     regions = []
     for span in sorted(spans, key=lambda span: (span[3], span[0], span[1])):

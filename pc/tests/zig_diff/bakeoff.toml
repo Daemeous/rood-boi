@@ -1,0 +1,92 @@
+# The model bake-off (pc/docs/porting/battle/BAKEOFF.md): the functions each
+# model ports, in order of difficulty. pc/tools/bakeoff_context.py builds a
+# function's prompt from this; pc/tools/bakeoff_score.py scores a directory of
+# candidate modules (PORT_DIR/<module>.zig) against the zig_diff specs.
+#
+#   name        the original symbol (game/ownership.toml, specs.toml)
+#   module      game/battle/<module>.zig: one module per function
+#   signature   the exact Zig declaration the candidate must export (`v` is
+#               the unit's views module, `c` its c module); parameter names
+#               are free
+#   difficulty  FUNCTIONS.tsv's class and C lines
+#   traps       what a faithful port must get right (the reviewers' list)
+#   asm         the prompt also carries the function's x86-64 disassembly
+#               (PORTING.md §1: undefined behaviour is ported from the object)
+
+[[function]]
+name = "func_8006CE50"
+module = "room_timer"
+signature = "pub fn startSection12Timer() callconv(.c) void"
+difficulty = "S, 1 line"
+traps = "none: one call with a constant (the calibration function)"
+
+[[function]]
+name = "func_8007C088"
+module = "actor_weapon"
+signature = "pub fn isWeaponDrawn(actorId: c_int) callconv(.c) c_int"
+difficulty = "S, 1 line"
+traps = "an unsized global array indexed by an unchecked int (psx.at); an int field masked"
+
+[[function]]
+name = "vs_battle_lerpSvector"
+module = "vector_lerp"
+signature = "pub fn lerpSvector(src: [*c]i16, t: c_int, vec: ?*v.SVECTOR) callconv(.c) void"
+difficulty = "S, 13 lines"
+traps = "short -> int promotion before the subtraction; wrapping * and +; >> 7 is not / 128 for negatives; i16 truncation of the result"
+
+[[function]]
+name = "func_8007357C"
+module = "field_menu"
+signature = "pub fn enterMenuMode(arg0: c_int, arg1: c_int) callconv(.c) void"
+difficulty = "S, 7 lines"
+traps = "unused parameters; two globals written before two calls (the order relative to the calls is compared)"
+
+[[function]]
+name = "_factorDamageReceived"
+module = "hit_factors"
+signature = "pub fn factorDamageReceived(action: ?*v.vs_action_t, arg1: ?*v._hitEntity_t, arg2: ?*v._hitEntity_t, hitNumber: c_int, arg4: c_int) callconv(.c) i16"
+difficulty = "S, 12 lines"
+traps = "two bitfields (hpEffect, statFactor) through getBits; short + short in int; signed / 10 rounds toward zero; the short result truncates; an unchecked hit index"
+
+[[function]]
+name = "func_8008D5FC"
+module = "room_lock"
+signature = "pub fn operateLock(lock: ?*v._mpdRoomSectionA) callconv(.c) void"
+difficulty = "S, 12 lines"
+traps = "a (signed char) cast of an unsigned char field; a union member; an early return between two calls; view pointers to c functions (psx.cptr)"
+
+[[function]]
+name = "func_80074A20"
+module = "actor_defeat"
+signature = "pub fn checkDefeated(actorId: c_int) callconv(.c) c_int"
+difficulty = "S, 23 lines"
+traps = "a psx_ptr field (psx.get) renamed in the views (unk3C is `stats`); an address inside a native pointer global passed to a callee; a call before the null test"
+
+[[function]]
+name = "vs_battle_applyWeaponStats"
+module = "weapon_stats"
+signature = "pub fn applyWeaponStats(target: ?*v.vs_battle_uiWeapon, source: ?*v.vs_battle_weaponIntermediate) callconv(.c) void"
+difficulty = "M, 59 lines"
+traps = "sizeof as the memcpy size; signed char sums promoted to int; chained assignments through u16 and short; an array indexed by a just-written u8 (unchecked: 4-7 reads the next field); loop bounds"
+
+[[function]]
+name = "func_800AD494"
+module = "animation_lookup"
+signature = "pub fn findAnimation(actor: ?*anyopaque, animation: c_int, frames: [*c][*c]u16) callconv(.c) c_int"
+difficulty = "M, 69 lines"
+traps = "void* to a struct pointer; six psx_ptr fields; an out-parameter; a negative index (animation < 0) into a psx_ptr byte table; an unchecked index into a 4-entry array; a zero-length trailing array; the result is a guest address (psx_addr)"
+
+[[function]]
+name = "func_80078828"
+module = "ability_window"
+signature = "pub fn canUseBattleAbility(button: c_int) callconv(.c) c_int"
+difficulty = "M, 103 lines"
+traps = "an unsigned comparison (actionIndex - 40u < 14); a native pointer global; mapped[button - 1] unchecked; a callee's int result masked with an unsigned constant; a call that only happens on one branch"
+
+[[function]]
+name = "func_800A0204"
+module = "actor_animation"
+signature = "pub fn startAnimation(actorId: c_int, animation: c_int, arg2: c_int, blendFrames: c_int) callconv(.c) c_int"
+difficulty = "L, 123 lines"
+traps = "eight bitfields; raw int reads at byte offset 0x5AC; a forward goto into an if-body (setHeading) and a backward goto (retry); a bare `return;` in an int function (the object returns func_800AD494's result); an unprototyped callee (variadic in c); an out-parameter on the stack; the 30DB0 c module's D_800F4538_t is opaque"
+asm = true

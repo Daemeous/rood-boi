@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "pc/tools"))
 from rood_rpc import OUT, BINARY
 from snapshot_diff import Symbols
 from checkpoints import launch_at
+import ownership
 
 
 def main():
@@ -52,7 +53,13 @@ def main():
             print(result, flush=True)
             assert result["calls"] > 0, "no routed battle calls exercised"
             assert result["count"] == 0 and result["errors"] == 0, result
-            function = max(result["coverage"], key=lambda row: row["calls"])["function"]
+            # The fault goes into battle_action's most-called function: another
+            # subsystem's busiest one may not run again in the next 120 vsyncs
+            # (vs_battle_lerpSvector's effect calls all come early).
+            action = {name for _, name in next(s for s in ownership.load().subsystems
+                                               if s.name == "battle_action").functions}
+            function = max((row for row in result["coverage"] if row["function"] in action),
+                           key=lambda row: row["calls"])["function"]
             address = next(address for address, size, name in Symbols(BINARY).rows
                            if name == "vs_main_stateFlags")
             baseline = game.read(address, 1)

@@ -121,8 +121,12 @@ pub inline fn global(comptime T: type, comptime name: []const u8) *T {
     if (library) return @extern(*T, .{ .name = name });
     return @extern(*T, .{ .name = name, .relocation = .pcrel, .visibility = .hidden });
 }
+/// An unsized array (`extern T name[];`). Declared as `T name[0]`, as the C
+/// declares it, never as one `T`: the 64-bit build sizes each moved pointer
+/// import from every object's declaration, and a complete one-element
+/// declaration shrank `vs_battle_actors` (16 slots) to its first two.
 pub inline fn globalMany(comptime T: type, comptime name: []const u8) [*]T {
-    return @ptrCast(global(T, name));
+    return global([0]T, name);
 }
 
 /// A host hook the C declares `__attribute__((weak))` and tests for null

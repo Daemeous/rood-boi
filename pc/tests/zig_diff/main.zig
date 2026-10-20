@@ -124,10 +124,20 @@ fn defaultReturn(comptime T: type, comptime name: []const u8) T {
     };
 }
 
-fn Stub(comptime id: u16, comptime name: []const u8) type {
+/// The stub's C type. An unprototyped C declaration (`short f();`) is
+/// variadic in translate-c; with no fixed parameters an x86-64 call of it is
+/// a call of `R f(void)` (%al, the vector-register count, is ignored).
+fn StubType(comptime name: []const u8) type {
     const G = @TypeOf(@field(gen.c, name));
     const info = @typeInfo(G).@"fn";
-    if (info.attrs.varargs) @compileError("zdiff: " ++ name ++ " is variadic: not supported");
+    if (!info.attrs.varargs) return G;
+    if (info.param_types.len != 0) @compileError("zdiff: " ++ name ++ " is variadic with fixed parameters: not supported");
+    return fn () callconv(.c) info.return_type.?;
+}
+
+fn Stub(comptime id: u16, comptime name: []const u8) type {
+    const G = StubType(name);
+    const info = @typeInfo(G).@"fn";
     const S = info.return_type.?;
     return struct {
         fn body(args: std.meta.ArgsTuple(G)) S {
