@@ -11,6 +11,9 @@ int pc_owner_parse(const char* label);
 int pc_owner_routes(int subsystem);
 const char* pc_owner_subsystem(int subsystem);
 const char* pc_owner_label(int owner);
+/* Owner 3, alternate: per-route flip bits and owned/original call counts. */
+int pc_owner_alternate_reset(int subsystem);
+int pc_owner_alternate_report(int subsystem, char* out, int size);
 #ifdef __cplusplus
 }
 #endif

@@ -18,7 +18,12 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--card", default=os.environ.get("ROOD_TEST_CARD", ROOT / "pc/build/test-card1.mcd"))
-    card = pathlib.Path(parser.parse_args().card)
+    parser.add_argument("--owner", action="append", default=[], metavar="SUBSYSTEM=MODE",
+                        help="also run another subsystem original/owned/shadow during the smoke "
+                             "(the trial port's subsystems, pc/docs/porting/battle/TRIAL.md)")
+    args = parser.parse_args()
+    card = pathlib.Path(args.card)
+    others = [tuple(item.split("=", 1)) for item in args.owner]
     if not card.exists():
         print("SKIP: no pinned test card", card)
         return 77
@@ -39,6 +44,8 @@ def main():
                     break
             assert (game.state()["zone"], game.state()["room"]) == (48, 10)
             game.owner("battle_action", "shadow")
+            for subsystem, mode in others:
+                game.owner(subsystem, mode)
             game.call("owner", action="report", reset=True)
             game.run(600)
             result = game.call("owner", action="report")
@@ -61,6 +68,8 @@ def main():
             assert game.read(address, 1) == baseline, "injected owned write escaped rollback"
             print(f"caught {function}: vs_main_stateFlags[0], frame {first['frame']}", flush=True)
             game.owner("battle_action", "original")
+            for subsystem, _ in others:
+                game.owner(subsystem, "original")
         finally:
             game.close()
             shutil.copyfile(work / "game.log", OUT / "shadow-battle.log")

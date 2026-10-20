@@ -82,6 +82,15 @@ int K(a, b)
     int b;
 { return a + b; }
 __attribute__((noinline)) int H(void) { return F(0); }
+void Hook(int a)
+{
+    extern void pc_hook_start(int now);
+    pc_hook_start(1);
+    {
+        extern void pc_hook_end(int message, int action) __attribute__((weak));
+        if (pc_hook_end) pc_hook_end(a, 2);
+    }
+}
 '''
 
 text, counts = ownership.rename_definitions(UNIT, {"F", "K", "H"})
@@ -104,6 +113,9 @@ check(b"return" not in decls and b"int F(int x);" in decls and b"int G(void);" i
 check(b"typedef struct { int a; } S;" in decls and b"{ F, F2 }" in decls,
       "strip_bodies keeps struct bodies and initialisers")
 check(b'# 1 "unit.c"' not in decls, "strip_bodies drops linemarkers")
+check(b"extern void pc_hook_start(int now);\n" in decls
+      and b"extern void pc_hook_end(int message, int action) __attribute__((weak));\n" in decls
+      and b"pc_hook_start(1)" not in decls, "strip_bodies keeps block-scope extern declarations at file scope")
 
 t = ownership.Table([ownership.Subsystem("s", 0, "battle", "u.c", "original", [], [(0, "F")], {}),
                      ownership.Subsystem("t", 1, "battle", "u.c", "owned", [], [(0, "G")], {})])
@@ -182,7 +194,32 @@ int main(void) {
               "repointing preserves owner/shadow routing, saved addresses and integer/FP/stack arguments")
 
 zig = ownership.ownership_zig(t)
-check('.{ .name = "F", .subsystem = 0 }' in zig and "pub const battle_action" not in zig, "the comptime table")
+check('.{ .name = "F", .zig = "F", .subsystem = 0 }' in zig and "pub const battle_action" not in zig,
+      "the comptime table (no zig key: the Zig function has the original name)")
+
+# Readable Zig names (PORTING.md §16): the table maps the original symbol to
+# the Zig function; routing keeps the original name, the source says `orig:`.
+with tempfile.TemporaryDirectory() as d:
+    d = pathlib.Path(d)
+    path = d / "ownership.toml"
+    path.write_text(TOML.replace('{ addr = 0x80010010, name = "f_two" }',
+                                 '{ addr = 0x80010010, name = "f_two", zig = "score.countKill" }'))
+    named = ownership.load(path)
+    check(named.routes() == table.routes(), "routes (and the reload ABI key) stay keyed by the original names")
+    check(named.zig_routes()[1] == ("f_two", "score.countKill", 0) and named.zig_routes()[0][1] == "f_one",
+          "zig_routes maps original -> Zig function")
+    check('.{ .name = "f_two", .zig = "score.countKill", .subsystem = 0 }' in ownership.ownership_zig(named)
+          and "pub fn routesOf" in ownership.ownership_zig(named), "routesOf carries the mapping to route.zig")
+    path.write_text(TOML.replace('name = "f_two" }', 'name = "f_two", zig = "score.count kill" }'))
+    check(raises(lambda: ownership.load(path), "Zig declaration path"), "a malformed zig path is refused")
+    (d / "battle").mkdir()
+    source = d / "battle/score.zig"
+    source.write_text("/// orig: f_two (src/A.c)\n/// Counts a kill.\npub fn countKill() callconv(.c) void {}\n")
+    check(ownership.orig_comment_problems(named, d) == [], "a documented Zig function passes")
+    source.write_text("/// orig: f_two (src/B.c)\npub fn countKill() callconv(.c) void {}\n")
+    check(len(ownership.orig_comment_problems(named, d)) == 1, "the orig line must name the routed unit")
+    source.write_text("pub fn countKill() callconv(.c) void {}\n")
+    check(len(ownership.orig_comment_problems(named, d)) == 1, "a Zig function without `orig:` is reported")
 
 print("FAILED" if failures else "all ownership checks passed")
 sys.exit(1 if failures else 0)

@@ -786,7 +786,9 @@ def main():
     meanings = {}
     for line in (OUT / "MEANINGS.tsv").read_text().splitlines()[1:]:
         p = line.split("\t")
-        if len(p) == 3:
+        # symbol, meaning, value_lifetime[, zig_name (PORTING.md §16, read by zig_views.py)];
+        # Type.field rows name fields only.
+        if len(p) >= 3 and "." not in p[0]:
             meanings[p[0]] = (p[1], p[2])
 
     state = []

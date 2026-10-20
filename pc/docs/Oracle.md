@@ -37,7 +37,14 @@ the eleventh sampled frame. The digest runs before RPC polling each vsync.
 
 `alternate` optionally selects a checked ownership subsystem index for compare;
 its original owner is restored on stop. Unavailable optional ownership is an
-error rather than an unchecked write. Routed shadow mode is described below.
+error rather than an unchecked write. The subsystem runs as owner 3
+(`alternate`) for the whole compare: every routed call flips its route between
+owned and original (odd calls owned), so each function's calls split whatever
+vsync they land on (a per-vsync flip put a once-a-frame battle function on one
+side only, decided by the launch's parity). The result adds
+`"alternate_calls":[{"function","owned","original"}]` for the subsystem;
+`differ.py` fails the mode when a called function ran on one side only.
+Routed shadow mode is described below.
 
 ## Coverage and intentional exclusions
 

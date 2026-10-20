@@ -97,3 +97,25 @@ if launch fails. No VRAM/whole-state mask was added. Generic cached restore
 normalization remains unproven; this fix enforces profile-compatible generation.
 
 Do not use this partial corpus as a subsystem-flip gate.
+
+## Pass conditions since the trial fix (pc/docs/porting/battle/TRIAL.md)
+
+* `alternate` alternates per routed call (`pc/docs/Oracle.md`); the mode
+  fails when a function the run called ran only owned or only original, or
+  when no routed call ran at all. Its report lists each function's owned and
+  original call counts (`alternate_check`). A function a recipe calls once
+  cannot be split (it runs owned only; tick covers it): such functions need a
+  reasoned waiver in `waivers.toml` (`[alternate_one_side.SUBSYSTEM]`).
+* Root calls: every routed function of the selected subsystem must have root
+  calls in call mode in at least one selected recipe, or a waiver with its
+  reason in `waivers.toml`; `root_calls.json` lists called, missing and waived
+  functions. Nested-only calls do not count.
+* `--profile features` runs the same recipes with the PC features whose
+  `ROOD_PC` hooks change compared state turned on (`corpus.py` FEATURES: the
+  charging skip, for every caster); the classic profile alone never runs a
+  feature-gated hook. run.py registers each trial recipe in both
+  (`trial_corpus_*` and `trial_corpus_*_features`).
+* Witnesses are exact: `enemy_kill` checks the expected score changes of its
+  two kills (the kill counts per class, the streak, the streak score, the
+  kill flags), `action_name_window` the exact text of its three name windows.
+

@@ -7,7 +7,8 @@
 #   unit      the original unit that defines every listed function
 #   default   who runs it unless ROOD_OWNER, RPC owner or the overlay says otherwise:
 #             original | owned
-#   roots     pointer globals the field mapper follows (pc/tools/field_map.py)
+#   roots     pointer globals the field mapper follows (pc/tools/field_map.py), or
+#             TYPE@ADDRESS for a block the code addresses by number (the scratchpad)
 
 [subsystem.battle_action]
 overlay = "battle"
@@ -25,3 +26,46 @@ functions = [
     { addr = 0x80079030, name = "func_80079030" },            # phase 8: re-cast
     { addr = 0x80078AB4, name = "func_80078AB4" },            # phase 7: the chain/defense timing window
 ]
+
+# The Zig trial port (pc/docs/porting/battle/TRIAL.md): one subsystem per
+# original unit (PORTING.md §20 item 5), the Zig function named by meaning
+# (PORTING.md §16) and its views per unit.
+[subsystem.battle_146C]
+overlay = "battle"
+unit = "src/BATTLE/BATTLE.PRG/146C.c"
+default = "original"
+roots = ["vs_battle_actors", "vs_main_scoredata"]
+functions = [
+    { addr = 0x8006C004, name = "_updateEnemyKills", zig = "score.updateEnemyKills" },  # a defeated enemy's kills, streak, flags
+]
+
+[subsystem.battle_146C.views]
+types = ["vs_battle_actor", "vs_battle_actor2", "vs_main_scoredata_t"]
+globals = ["vs_main_scoredata"]
+
+[subsystem.battle_44F14]
+overlay = "battle"
+unit = "src/BATTLE/BATTLE.PRG/44F14.c"
+default = "original"
+roots = ["D_800F4538", "actorTransformScratch@0x1F80035C"]  # the scratchpad block func_800B07DC works in
+functions = [
+    { addr = 0x800B07DC, name = "func_800B07DC", zig = "actor_transform.offsetToWorld" },  # scratch offset -> world
+]
+
+[subsystem.battle_44F14.views]
+types = ["D_800F4538_t", "actorTransformScratch"]
+globals = []
+
+[subsystem.battle_5BF94]
+overlay = "battle"
+unit = "src/BATTLE/BATTLE.PRG/5BF94.c"
+default = "original"
+roots = ["D_800EB9D8", "vs_battle_textBoxes", "vs_battle_stringContext"]
+functions = [
+    { addr = 0x800CB2B8, name = "vs_battle_displaySceneMessage", zig = "scene_message.displaySceneMessage" },  # the name window
+]
+
+[subsystem.battle_5BF94.views]
+types = ["vs_battle_textBox", "vs_battle_stringContext_t", "vs_action_t"]
+globals = ["D_800EB9D8", "D_800F4E68", "D_800F4E69", "vs_battle_stringContext", "vs_main_actions",
+           "vs_battle_menuStrings", "vs_battle_textBoxes", "D_800EBF58", "D_800EBDDC"]

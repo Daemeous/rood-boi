@@ -77,6 +77,18 @@ paths = ["game/*", "pc/tools/game_lib.py", "pc/src/game_host.inc", "pc/src/engin
          "pc/src/lua/lua_rpc.cpp", "pc/tools/rood_rpc.py", "pc/tools/dev_loop.sh"]
 suites = ["zig_hotswap_smoke"]
 
+# ---- the Zig trial port: its corpus runs (pc/docs/porting/battle/TRIAL.md) ----
+[[rule]]
+paths = ["game/*", "pc/tools/ownership.py", "pc/tools/zig_views.py", "pc/tools/zig_c.py",
+         "pc/docs/porting/battle/MEANINGS.tsv", "pc/tests/diff/*", "pc/src/shadow.*"]
+suites = ["trial_corpus_*"]
+
+# ---- owned-code generators and the differential harness (ctest zig_c, zig_views, zig_diff) ----
+[[rule]]
+paths = ["game/*", "pc/tools/ownership.py", "pc/tools/zig_views.py", "pc/tools/zig_c.py", "pc/tools/zig_diff.py",
+         "pc/tests/zig_diff/*", "pc/tests/zig_c_test.py", "pc/tests/zig_views_test.py"]
+suites = ["ctest"]
+
 # ---- frame cost counters (ROOD_PERF) ----
 [[rule]]
 paths = ["pc/src/frame_cost.*", "pc/tools/frame_cost_bench.py"]

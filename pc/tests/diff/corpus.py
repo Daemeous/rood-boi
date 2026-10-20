@@ -16,6 +16,19 @@ camera_stick camera_stick_keys camera_stick_zoom qol_map_invert qol_map_controls
 qol_fp_invert_y qol_confirm_cross qol_field_cross_attack qol_weapon_slots
 qol_skip_charging qol_fast_travel qol_fast_travel_prompt skip_intro ui_menus""".split()
 PROFILE = "".join(f"{key} 0\n" for key in OFF)
+# Feature-gated ROOD_PC hooks are outside the classic profile (a port that
+# dropped pc_charge_skip_name(1) passed it): the features profile turns on
+# the features whose hooks run in game code and change state the oracle
+# compares, keeping off the ones that change what a recipe's input means
+# (Cross as confirm or attack, the weapon slots, modern menus, the camera
+# stick, the map controls) and the renderer's own.
+FEATURES_ON = ["qol_skip_charging"]
+# ... and for every caster (the enemies' wind-ups too: the corpus recipes
+# watch enemies cast).
+FEATURES_SETTINGS = {"qol_skip_charging_who": 1}
+FEATURES = "".join(f"{key} {1 if key in FEATURES_ON else 0}\n" for key in OFF) + \
+    "".join(f"{key} {value}\n" for key, value in FEATURES_SETTINGS.items())
+PROFILES = {"classic": PROFILE, "features": FEATURES}
 
 
 def cache_path(path):
@@ -38,9 +51,9 @@ def write_json(path, value):
     pathlib.Path(path).write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
 
 
-def environment(work, subsystem):
+def environment(work, subsystem, profile="classic"):
     settings = work / "settings.cfg"
-    settings.write_text(PROFILE)
+    settings.write_text(PROFILES[profile])
     for name in ("lights", "prefabs"):
         (work / name).mkdir(exist_ok=True)
     return {"ROOD_ORACLE": "1", "ROOD_DETERMINISTIC": "1", "ROOD_GI": "0",

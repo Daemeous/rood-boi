@@ -1990,7 +1990,7 @@ static void details(float x, float y, float w, float h, double frame_ms)
                     int owner = pc_owner_get(i);
                     ImGui::PushID(i);
                     if (ImGui::Combo(pc_owner_subsystem(i), &owner,
-                            "Original (src/)\0Owned (game/)\0Shadow (compare)\0"))
+                            "Original (src/)\0Owned (game/)\0Shadow (compare)\0Alternate (per call)\0"))
                         owner_error = pc_owner_set(i, owner);
                     ImGui::PopID();
                 }

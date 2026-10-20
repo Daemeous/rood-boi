@@ -16,7 +16,9 @@ class Game:
     def __init__(self):
         self.events = []
         self.current = "original"
-        self.tick_result = {"error": 0, "ticks": 600, "recorded": 600, "first_tick": -1}
+        self.tick_result = {"error": 0, "ticks": 600, "recorded": 600, "first_tick": -1,
+                            "alternate_calls": [{"function": "f", "owned": 2, "original": 2},
+                                                {"function": "uncalled", "owned": 0, "original": 0}]}
         self.shadow = {"calls": 4, "count": 0, "errors": 0,
                        "coverage": [{"function": "f", "calls": 4, "nested": 0}], "mismatches": []}
 
@@ -80,6 +82,37 @@ class Tests(unittest.TestCase):
         self.assertIn(("digest", "compare", {"alternate": 2}), game.events)
         self.assertEqual(results["call"]["coverage_summary"]["uncalled"], ["uncalled"])
 
+    def test_alternate_needs_both_sides_of_every_called_function(self):
+        for calls in ([{"function": "f", "owned": 3, "original": 0}],
+                      [{"function": "f", "owned": 0, "original": 1}],
+                      [{"function": "f", "owned": 0, "original": 0}], None):
+            game = Game()
+            game.tick_result["alternate_calls"] = calls
+            results = self.compare(game)
+            self.assertFalse(results["alternate"]["ok"], calls)
+            self.assertTrue(results["tick"]["ok"])
+
+    def test_alternate_one_side_waiver(self):
+        calls = [{"function": "f", "owned": 1, "original": 0}, {"function": "g", "owned": 2, "original": 2}]
+        self.assertFalse(differ.alternate_check(calls)["ok"])
+        check = differ.alternate_check(calls, {"f": "one call per recipe"})
+        self.assertTrue(check["ok"])
+        self.assertEqual(check["waived"], {"f": "one call per recipe"})
+        self.assertFalse(differ.alternate_check(calls, {"g": "unused"})["ok"])
+
+    def test_root_call_gate_needs_every_function_or_a_waiver(self):
+        reports = {"a": {"modes": {"call": {"coverage_summary": {"called": ["f"]}}}},
+                   "b": {"modes": {"call": {"coverage_summary": {"called": ["g"]}}}}}
+        with tempfile.TemporaryDirectory() as directory:
+            waivers = pathlib.Path(directory) / "waivers.toml"
+            waivers.write_text('[sub]\nh = "no recipe yet"\n')
+            self.assertTrue(differ.root_call_gate(reports, "sub", ["f", "g", "h"], waivers)["ok"])
+            gate = differ.root_call_gate(reports, "sub", ["f", "g", "h", "k"], waivers)
+            self.assertFalse(gate["ok"])
+            self.assertEqual(gate["missing"], ["k"])
+            self.assertEqual(gate["waived"], {"h": "no recipe yet"})
+            self.assertFalse(differ.root_call_gate(reports, "other", ["f", "h"], waivers)["ok"])
+
     def test_control_difference_stops_owned_runs(self):
         game = Game()
         game.tick_result["first_tick"] = 7
@@ -133,7 +166,7 @@ class Tests(unittest.TestCase):
         selected = scenarios.select()
         self.assertGreater(len(selected), 20)
         for scenario in selected:
-            if scenario.name != "enemy_cast_wait":
+            if scenario.name not in scenarios.IMPLEMENTED:
                 with self.assertRaises(NotImplementedError):
                     scenario.setup(Game())
 
@@ -169,10 +202,54 @@ class Tests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(result["enemy_casts"], [["2", "54", "1", "0", "0"]])
 
+    def test_name_window_witness_is_exact(self):
+        scenario = scenarios.SCENARIOS["action_name_window"]
+        good = " ".join(scenario.EXPECTED)
+        game = SimpleNamespace(call=lambda method: {"name": {"names": good}, "ended": ""})
+        self.assertTrue(scenario.witness(game)["ok"])
+        for names in (" ".join(scenario.EXPECTED[:2]), good.replace("f800fb04", "f800fb05", 1),
+                      "54:f800fb04 " + " ".join(scenario.EXPECTED[1:])):
+            game = SimpleNamespace(call=lambda method, n=names: {"name": {"names": n}, "ended": ""})
+            self.assertFalse(scenario.witness(game)["ok"], names)
+
+    def test_kill_witness_is_exact(self):
+        import struct
+        scenario = scenarios.SCENARIOS["enemy_kill"]
+        memory = bytearray(0x110)
+
+        def state(kills, streak, score, flags=(18, 14)):
+            data = bytearray(0x110)
+            struct.pack_into("<6H", data, 4, *kills)
+            for t in flags:
+                data[0x9C + 4 * (t // 32) + (t % 32) // 8] |= 1 << (t % 8)
+            data[0x10C:0x10E] = bytes(streak)
+            struct.pack_into("<I", data, 0x104, score)
+            return data
+        game = SimpleNamespace(read=lambda address, length: bytes(memory[address - 0x1000:][:length]))
+        with patch("rood_rpc.symbols", return_value={"vs_main_scoredata": 0x1000}):
+            object.__setattr__(scenario, "_subtypes", [18, 14])
+            memory[:] = state((4, 16, 0, 0, 0, 0), (1, 99), 0, flags=())
+            scenario.reset_witness(game)
+            memory[:] = state((4, 17, 0, 1, 0, 0), (3, 0), 8197)
+            self.assertTrue(scenario.witness(game)["ok"])
+            for wrong in (state((4, 18, 0, 1, 0, 0), (3, 0), 8197), state((4, 17, 0, 1, 0, 0), (3, 1), 8197),
+                          state((4, 17, 0, 1, 0, 0), (3, 0), 8274), state((4, 17, 0, 1, 0, 0), (3, 0), 8197, (18,))):
+                memory[:] = wrong
+                self.assertFalse(scenario.witness(game)["ok"])
+
     def test_profile_has_classic_feature_gates(self):
         values = dict(line.split() for line in corpus.PROFILE.splitlines())
         for key in ("qol_skip_charging", "qol_fast_travel", "ui_menus", "widescreen", "camera_stick"):
             self.assertEqual(values[key], "0")
+
+    def test_features_profile_turns_on_state_changing_hooks_only(self):
+        values = dict(line.split() for line in corpus.FEATURES.splitlines())
+        self.assertEqual(values["qol_skip_charging"], "1")
+        for key in ("qol_confirm_cross", "qol_field_cross_attack", "ui_menus", "camera_stick"):
+            self.assertEqual(values[key], "0")
+        with tempfile.TemporaryDirectory() as directory:
+            corpus.environment(pathlib.Path(directory), "battle_action", "features")
+            self.assertIn("qol_skip_charging 1", (pathlib.Path(directory) / "settings.cfg").read_text())
 
     def test_generator_pins_state_input_profile_and_marks_once(self):
         with tempfile.TemporaryDirectory() as directory:

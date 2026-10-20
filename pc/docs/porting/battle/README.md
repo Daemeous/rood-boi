@@ -44,7 +44,7 @@ battle subsystem, with the rules in `../PORTING.md`.
 |---|---|
 | `FUNCTIONS.tsv` | one row per function in scope (2043 rows: 1961 battle, 82 SLUS boundary) |
 | `STATE.tsv` | one row per global or static any in-scope function (or a battle-only SLUS function) reads, writes or takes the address of (701 rows) |
-| `MEANINGS.tsv` | the hand-written meanings and value lifetimes `STATE.tsv` takes (symbol, meaning, value_lifetime): edit here, then regenerate |
+| `MEANINGS.tsv` | the hand-written meanings and value lifetimes `STATE.tsv` takes (symbol, meaning, value_lifetime), and the readable Zig names (`zig_name`, PORTING.md §16) the views give globals and, in `Type.field` rows, fields: edit here, then regenerate |
 
 ## How they were made
 

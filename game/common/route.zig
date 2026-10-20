@@ -107,10 +107,27 @@ pub fn Shadow(comptime name: []const u8, comptime F: type, comptime owned: F) ty
     };
 }
 
-pub fn exportAll(comptime subsystem: u8, comptime names: []const []const u8, comptime Impl: type) void {
+/// The exports of one subsystem's routes. `routes` is either the original
+/// names (the Zig function has the same name in `Impl`) or ownership.zig's
+/// `routesOf(...)`: each original `name` is exported from the Zig function at
+/// `zig` (PORTING.md §16), so routing, shadow reports and hot swap keep
+/// pairing by the original symbol.
+pub fn exportAll(comptime subsystem: u8, comptime routes: anytype, comptime Impl: type) void {
     _ = subsystem;
-    for (names) |name| {
-        const f = @field(Impl, name);
+    for (routes) |route| {
+        const is_route = @typeInfo(@TypeOf(route)) == .@"struct";
+        const name: []const u8 = if (is_route) route.name else route;
+        const zig_path: []const u8 = if (is_route) route.zig else route;
+        // The declaration at the dotted path ("score.updateEnemyKills").
+        const f = comptime blk: {
+            var space = Impl;
+            var rest = zig_path;
+            while (std.mem.indexOfScalar(u8, rest, '.')) |dot| {
+                space = @field(space, rest[0..dot]);
+                rest = rest[dot + 1 ..];
+            }
+            break :blk @field(space, rest);
+        };
         const root = @import("root");
         const mode = if (@hasDecl(root, "reload_mode")) root.reload_mode else 0;
         if (mode != 0) {

@@ -1,0 +1,103 @@
+# Differential specs (pc/tools/zig_diff.py): each ported function, the Zig
+# file that builds its inputs, the iterations a CTest run makes, the input
+# classes that must all occur, and the mutation self-checks: wrong variants
+# of the port (or of a helper it uses) that the harness must catch. A
+# mutation whose `from` text is gone fails the check (keep them current).
+#
+#   file   the file the mutation edits (default: the port's file)
+#   expect "mismatch" (default) or "panic"
+
+[function._updateEnemyKills]
+spec = "updateEnemyKills.zig"
+iterations = 40000
+
+[[function._updateEnemyKills.mutation]]
+name = "K1: a kill counts twice"
+from = "kills.* +%= 1;"
+to = "kills.* +%= 2;"
+
+[[function._updateEnemyKills.mutation]]
+name = "K2: chainStreak read as weaponKillStreak"
+from = "@divTrunc(maxHP *% score.chainStreak, 2)"
+to = "@divTrunc(maxHP *% score.weaponKillStreak, 2)"
+
+[[function._updateEnemyKills.mutation]]
+name = "K3: the streak stops at 99"
+from = "@as(c_int, score.killStreakEnemyCount) < 100"
+to = "@as(c_int, score.killStreakEnemyCount) < 99"
+
+[[function._updateEnemyKills.mutation]]
+name = "K4: no clamp at 999999999"
+from = "score.streakScore = 999999999;"
+to = "score.streakScore = 999999998;"
+
+[[function._updateEnemyKills.mutation]]
+name = "B1: psx.at keeps the base's alignment (odd enemyClass traps)"
+file = "game/common/psx.zig"
+from = 'attrs.@"align" = if (element_align == @alignOf(E)) null else element_align;'
+to = 'attrs.@"align" = info.attrs.@"align"; _ = element_align;'
+expect = "panic"
+
+[function.func_800B07DC]
+spec = "offsetToWorld.zig"
+iterations = 40000
+
+[[function.func_800B07DC.mutation]]
+name = "T1: vy += position.vz"
+from = "@as(c_int, scratch.offset.vy) +% actor.?.unk0.position.vy"
+to = "@as(c_int, scratch.offset.vy) +% actor.?.unk0.position.vz"
+
+[[function.func_800B07DC.mutation]]
+name = "T2: roll ignored"
+from = "scratch.rotation.vz = actor.?.unk0.roll;"
+to = "scratch.rotation.vz = 0;"
+
+[[function.func_800B07DC.mutation]]
+name = "T3: matrix.t saturated to i16, not wrapped"
+from = "scratch.offset.vx = psx.conv(i16, scratch.matrix.t[0]);"
+to = "scratch.offset.vx = @intCast(@max(-32768, @min(32767, scratch.matrix.t[0])));"
+
+[function.vs_battle_displaySceneMessage]
+spec = "displaySceneMessage.zig"
+iterations = 40000
+
+[[function.vs_battle_displaySceneMessage.mutation]]
+name = "N1: menuStrings[type + 21]"
+from = "type_ +% 22"
+to = "type_ +% 21"
+
+[[function.vs_battle_displaySceneMessage.mutation]]
+name = "N2: the pc_hud_name_window hook dropped"
+from = 'if (psx.weak(Hook, "pc_hud_name_window")) |hook| hook(message, action);'
+to = '_ = Hook;'
+
+[[function.vs_battle_displaySceneMessage.mutation]]
+name = "N3: the pc_charge_skip_name(1) hook dropped"
+from = "c.pc_charge_skip_name(1);"
+to = ""
+
+[[function.vs_battle_displaySceneMessage.mutation]]
+name = "N4: the held timer 0x77"
+from = "v.g.nameWindowTimer().* = 0x78;"
+to = "v.g.nameWindowTimer().* = 0x77;"
+
+[[function.vs_battle_displaySceneMessage.mutation]]
+name = "N5: the D_800EBF58 row of action - 0x1C9 (the else branch)"
+from = "(action -% 0x1CA) *% 2"
+to = "(action -% 0x1C9) *% 2"
+
+[[function.vs_battle_displaySceneMessage.mutation]]
+name = "N6: message 12 prints spellMastered + 1"
+from = "c.VS_menuStrings_OFFSET_spellMastered)"
+to = "c.VS_menuStrings_OFFSET_spellMastered + 1)"
+
+[[function.vs_battle_displaySceneMessage.mutation]]
+name = "N7: unk0_8 cleared after the printf"
+from = '''        psx.setBits(&v.g.textBoxes()[7].unk0, "unk0_8", 0);
+        const type_: c_int = psx.getBits(psx.at(v.g.actions(), action), "type");
+        _ = c.vs_battle_printf(@ptrCast(psx.at(v.g.nameWindowText().*.?, 1)),
+            @ptrCast(psx.at(v.g.menuStrings(), psx.at(v.g.menuStrings(), type_ +% 22).*)));'''
+to = '''        const type_: c_int = psx.getBits(psx.at(v.g.actions(), action), "type");
+        _ = c.vs_battle_printf(@ptrCast(psx.at(v.g.nameWindowText().*.?, 1)),
+            @ptrCast(psx.at(v.g.menuStrings(), psx.at(v.g.menuStrings(), type_ +% 22).*)));
+        psx.setBits(&v.g.textBoxes()[7].unk0, "unk0_8", 0);'''

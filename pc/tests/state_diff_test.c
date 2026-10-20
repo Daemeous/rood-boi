@@ -22,7 +22,13 @@ void* __wrap_calloc(size_t n, size_t s) { return allocation_fails() ? NULL : __r
 static int owner = 1;
 int pc_owner_count(void) { return 1; }
 int pc_owner_get(int i) { return i == 0 ? owner : -1; }
-int pc_owner_set(int i, int v) { if (i || v < 0 || v > 2) return -1; owner = v; return 0; }
+int pc_owner_set(int i, int v) { if (i || v < 0 || v > 3) return -1; owner = v; return 0; }
+static int alternate_resets;
+int pc_owner_alternate_reset(int i) { if (i) return -1; alternate_resets++; return 0; }
+int pc_owner_alternate_report(int i, char* out, int size)
+{
+    return i ? -1 : snprintf(out, (size_t)size, "[{\"function\":\"f\",\"owned\":2,\"original\":1}]");
+}
 #endif
 int pc_state_ranges(pc_state_range* out, int max)
 {
@@ -144,8 +150,11 @@ int main(void)
     assert(pc_digest_start(1, 0, -1) == 0); pc_state_diff_vsync();
     result_has("\"first_pages\":[\"spu\"]");
 #ifdef STATE_DIFF_TEST_OWNERSHIP
-    assert(pc_digest_start(1, 0, 0) == 0); assert(owner == 0);
+    /* Alternate is per call (owner 3, the trampolines flip), not per vsync:
+     * the owner stays 3 for the whole run and is restored when it ends. */
+    assert(pc_digest_start(1, 0, 0) == 0); assert(owner == 3 && alternate_resets == 1);
     pc_state_diff_vsync(); assert(owner == 1);
+    result_has("\"alternate\":0,\"alternate_calls\":[{\"function\":\"f\",\"owned\":2,\"original\":1}]}");
 #else
     assert(pc_digest_start(1, 0, 0) == -1);
 #endif

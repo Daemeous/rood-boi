@@ -6,6 +6,7 @@ Publication is atomic; failed compilation never replaces a live library.
 """
 import argparse
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -48,11 +49,19 @@ def build(source, output):
             obj = work / (overlay + '.o')
             args = [zig, 'build-obj', '-fno-compiler-rt', '-femit-bin=' + str(obj),
                     '--cache-dir', str(cache), '--global-cache-dir', str(zig_toolchain.global_cache())]
-            modules = [('root', wrapper, ['impl']), ('impl', source / overlay / 'root.zig', ['common', 'ownership']),
+            # The per-unit views/c modules the host build generated (build_boot.py
+            # --engine-library): layouts and declarations are host-side facts.
+            listed = ROOT / 'pc/build/dev64/zig' / (overlay + '_modules.json')
+            generated = json.loads(listed.read_text()) if listed.exists() else {}
+            modules = [('root', wrapper, ['impl']),
+                       ('impl', source / overlay / 'root.zig', ['common', 'ownership', *sorted(generated)]),
                        ('common', source / 'common/common.zig', []), ('ownership', work / 'ownership.zig', [])]
+            modules += [(name, Path(path), deps) for name, (path, deps) in sorted(generated.items())]
             for name, path, deps in modules:
+                # -fno-stack-check as the static objects: the safety panics' message
+                # buffers would otherwise call __zig_probe_stack, which no host has.
                 args += ['-target', 'x86_64-linux-gnu', '-mcpu', 'baseline', '-O', 'Debug', '-fPIC',
-                         '-fllvm', '-funwind-tables']
+                         '-fllvm', '-funwind-tables', '-fno-stack-check']
                 for dep in deps:
                     args += ['--dep', dep]
                 args += [f'-M{name}={path}']

@@ -2,7 +2,8 @@
 """The routing mechanism (pc/docs/Ownership.md) on i386, x86-64 and MinGW:
 a unit compiled at -O2 with its routed definition renamed, the generated
 trampoline, and calls from inside the unit, from outside and through a
-function pointer reach the owner pc_owner[] selects. Prints the log per ABI;
+function pointer reach the owner pc_owner[] selects (owner 3, alternate,
+flips per call and counts each side). Prints the log per ABI;
 MinGW's runs under wine when present (else the link and the relocations are
 checked)."""
 import os
@@ -17,7 +18,7 @@ ROOT = HERE.parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 import ownership  # noqa: E402
 
-EXPECTED = "1 2 101 102 107 203"
+EXPECTED = "1 2 101 102 107 203 104 5 106 | 2 1"  # alternate: owned, original, owned; counts
 table = ownership.Table([ownership.Subsystem("probe", 0, "battle", "unit.c", "original", [],
                                              [(0, "F")], {})])
 failures = []

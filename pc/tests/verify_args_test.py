@@ -17,7 +17,7 @@ import run
 
 
 NULL_SUITES = ["null_backend_smoke", "shadow_battle_smoke", "ownership_smoke",
-               "battle_corpus_candidate", "zig_hotswap_smoke"]
+               "battle_corpus_candidate", "zig_hotswap_smoke", "trial_corpus"]
 
 
 class VerifyArgsTest(unittest.TestCase):

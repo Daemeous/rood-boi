@@ -30,6 +30,12 @@ class Subsystem:
     roots: list
     functions: list  # [(address, name)]
     views: dict
+    # Original name -> the Zig function that ports it, as a path from the
+    # overlay root ("score.updateEnemyKills"); absent: the original name.
+    zig: dict = dataclasses.field(default_factory=dict)
+
+    def zig_name(self, name):
+        return self.zig.get(name, name)
 
 
 @dataclasses.dataclass
@@ -42,6 +48,10 @@ class Table:
     def routes(self):
         """[(name, subsystem index)] in table order."""
         return [(name, s.index) for s in self.subsystems for _, name in s.functions]
+
+    def zig_routes(self):
+        """[(original name, Zig function path, subsystem index)] in table order."""
+        return [(name, s.zig_name(name), s.index) for s in self.subsystems for _, name in s.functions]
 
     def problems(self, function_addresses, compiled_units):
         """Inconsistencies with the reference ELFs (name -> address) and the
@@ -59,6 +69,26 @@ class Table:
         return out
 
 
+def orig_comment_problems(table, game_root=ROOT / "game"):
+    """Each route with a Zig name must be a `pub fn` under game/<overlay>/
+    whose doc comment has the line `/// orig: <name> (<unit>)` (PORTING.md
+    §16): the table and the source say the same pairing. [] when they do."""
+    out = []
+    for s in table.subsystems:
+        for _, name in s.functions:
+            if name not in s.zig:
+                continue
+            fn = s.zig[name].rsplit(".", 1)[-1]
+            pattern = re.compile(r"^[ \t]*/// orig: " + re.escape(name) + r" \(" + re.escape(s.unit) + r"\)[ \t]*\n"
+                                 r"(?:[ \t]*///[^\n]*\n)*[ \t]*pub fn " + re.escape(fn) + r"\(", re.M)
+            hits = [p for p in sorted((pathlib.Path(game_root) / s.overlay).rglob("*.zig"))
+                    if pattern.search(p.read_text())]
+            if len(hits) != 1:
+                out.append(f"{s.name}: {name} -> {s.zig[name]}: expected one `/// orig: {name} ({s.unit})` "
+                           f"doc line on `pub fn {fn}` under game/{s.overlay}/, found {len(hits)}")
+    return out
+
+
 def load(path=ROOT / "game/ownership.toml"):
     data = tomllib.loads(pathlib.Path(path).read_text())
     subsystems, seen = [], {}
@@ -67,12 +97,16 @@ def load(path=ROOT / "game/ownership.toml"):
         if default not in OWNERS:
             raise ValueError(f"{name}: default {default!r} is not one of {', '.join(OWNERS)}")
         functions = [(int(f["addr"]), f["name"]) for f in entry.get("functions", [])]
+        zig = {f["name"]: f["zig"] for f in entry.get("functions", []) if "zig" in f}
+        for original, path in zig.items():
+            if not re.fullmatch(r"[A-Za-z_]\w*(\.[A-Za-z_]\w*)*", path):
+                raise ValueError(f"{name}: {original}: zig = {path!r} is not a Zig declaration path")
         for _, fn in functions:
             if fn in seen:
                 raise ValueError(f"{fn} is routed by both {seen[fn]} and {name}")
             seen[fn] = name
         subsystems.append(Subsystem(name, index, entry["overlay"], entry["unit"], default,
-                                    list(entry.get("roots", [])), functions, dict(entry.get("views", {}))))
+                                    list(entry.get("roots", [])), functions, dict(entry.get("views", {})), zig))
     if len(subsystems) > MAX_SUBSYSTEMS:
         raise ValueError(f"{len(subsystems)} subsystems: pc_owner[] holds {MAX_SUBSYSTEMS}")
     return Table(subsystems)
@@ -178,13 +212,35 @@ def rename_definitions(text, names):
     return text, counts
 
 
-def strip_bodies(text):
-    """Declarations only: replace function bodies with ';', drop linemarkers."""
+def _block_externs(text, tokens, body, end):
+    """The block-scope `extern` declarations in a body (the ROOD_PC hooks
+    declare their host functions there), as file-scope declarations."""
+    out, i = [], body + 1
+    while i < end:
+        if tokens[i][2] == b"extern" and tokens[i - 1][2] in (b"{", b"}", b";"):
+            j = i
+            while tokens[j][2] != b";":
+                j = _matching(tokens, j) if tokens[j][2] == b"(" else j
+                j += 1
+            out.append(text[tokens[i][0]:tokens[j][1]] + b"\n")
+            i = j
+        i += 1
+    return out
+
+
+def strip_bodies(text, keep=()):
+    """Declarations only: replace function bodies with ';', drop linemarkers.
+    Block-scope `extern` declarations are kept, after their function. The
+    definitions named in `keep` stay whole (pc/tools/zig_diff.py)."""
     tokens, found = _file_scope_functions(text)
+    keep = {k.encode() if isinstance(k, str) else k for k in keep}
     pieces, last = [], 0
-    for _, _, body, _ in found:
+    for name_index, _, body, _ in found:
+        if tokens[name_index][2] in keep:
+            continue
         end = _matching(tokens, body, b"{", b"}")
         pieces += [text[last:tokens[body][0]].rstrip(), b";\n"]
+        pieces += _block_externs(text, tokens, body, end)
         last = tokens[end][1]
     pieces.append(text[last:])
     return re.sub(rb"(?m)^#[^\n]*\n?", b"", b"".join(pieces))
@@ -220,11 +276,19 @@ def routing_source(table, abi, *, reloadable=False):
                 f".size {name}__owned, .-{name}__owned",
             ])
             out.append(f'__asm__("{asm}\\n");')
-    for name, index in table.routes():
+    rip = "" if abi == "i386" else "(%rip)"
+    for route, (name, index) in enumerate(table.routes()):
         reg = "%eax" if abi == "i386" else "%r11d"
-        address = f"pc_owner+{index}" + ("" if abi == "i386" else "(%rip)")
+        address = f"pc_owner+{index}{rip}"
+        # Owner 3, alternate (the oracle's per-call alternation, state_diff.c):
+        # each call flips this route's bit, odd calls owned, even ones
+        # original, and counts both (pc_owner_alternate_report). Only the
+        # flags and the scratch register change before the tail jump.
         body = [f"movzbl {address}, {reg}", f"cmpl $1, {reg}", f"je {name}__owned",
-                f"cmpl $2, {reg}", f"je {name}__shadow", f"jmp {name}__orig"]
+                f"cmpl $2, {reg}", f"je {name}__shadow", f"cmpl $3, {reg}", "je 1f", f"jmp {name}__orig",
+                f"1: xorb $1, pc_route_alternate+{route}{rip}", "jz 2f",
+                f"incl pc_route_alternate_calls+{8 * route}{rip}", f"jmp {name}__owned",
+                f"2: incl pc_route_alternate_calls+{8 * route + 4}{rip}", f"jmp {name}__orig"]
         head = [".text", f".globl {name}"] + ([] if abi == "win64" else [f".type {name}, @function"]) \
             + [".p2align 4", f"{name}:"]
         tail = [] if abi == "win64" else [f".size {name}, .-{name}"]
@@ -239,23 +303,33 @@ def routing_source(table, abi, *, reloadable=False):
             f"const unsigned char pc_subsystem_defaults[] = {{ {defaults} }};",
             f"const unsigned pc_route_count = {len(table.routes())};",
             f"const char* const pc_route_names[] = {{ {routes} }};",
-            f"const unsigned char pc_route_subsystems[] = {{ {route_subsystems} }};"]
+            f"const unsigned char pc_route_subsystems[] = {{ {route_subsystems} }};",
+            f"unsigned char pc_route_alternate[{max(1, len(table.routes()))}];",
+            f"unsigned pc_route_alternate_calls[{2 * max(1, len(table.routes()))}];  /* owned, original */"]
     return "\n".join(out) + "\n"
 
 
 def ownership_zig(table):
     """The table for owned code (comptime): subsystem slots and routes."""
     lines = ["//! Generated by pc/tools/ownership.py from game/ownership.toml.",
-             "pub const Route = struct { name: []const u8, subsystem: u8 };",
+             "/// name: the original symbol (routing, shadow reports and hot swap pair by it);",
+             "/// zig: the Zig function that ports it, as a path from the overlay root.",
+             "pub const Route = struct { name: []const u8, zig: []const u8, subsystem: u8 };",
              "pub const Subsystem = enum(u8) {"]
     lines += [f"    {s.name} = {s.index}," for s in table.subsystems]
     lines += ["};", "pub const routes = [_]Route{"]
-    lines += [f'    .{{ .name = "{n}", .subsystem = {i} }},' for n, i in table.routes()]
+    lines += [f'    .{{ .name = "{n}", .zig = "{z}", .subsystem = {i} }},' for n, z, i in table.zig_routes()]
     lines += ["};",
               "/// The routed function names of one subsystem.",
               "pub fn namesOf(comptime s: Subsystem) []const []const u8 {",
               "    comptime var out: []const []const u8 = &.{};",
               "    inline for (routes) |r| {",
               "        if (r.subsystem == @intFromEnum(s)) out = out ++ [_][]const u8{r.name};",
+              "    }", "    return out;", "}",
+              "/// The routes of one subsystem (original name and Zig function).",
+              "pub fn routesOf(comptime s: Subsystem) []const Route {",
+              "    comptime var out: []const Route = &.{};",
+              "    inline for (routes) |r| {",
+              "        if (r.subsystem == @intFromEnum(s)) out = out ++ [_]Route{r};",
               "    }", "    return out;", "}"]
     return "\n".join(lines) + "\n"

@@ -467,7 +467,8 @@ _ZIG_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
 def check_zig_object(obj, overlay):
-    """Reject odd global names, COFF .refptr stubs, and overlay statics."""
+    """Reject odd global names, COFF .refptr stubs, and overlay statics (ELF
+    and the COFF twin)."""
     if not coff:
         for line in query(["nm", "-g", "-P", str(obj)]).splitlines():
             name = line.split()[0]
@@ -485,15 +486,24 @@ def check_zig_object(obj, overlay):
         if ".refptr." in symbols:
             bad = sorted({s.split(".refptr.")[1] for s in symbols.split() if ".refptr." in s})
             raise SystemExit(f"{twin(obj).name}: .refptr stubs for {', '.join(bad)}: reach globals with psx.global()")
+        if overlay:
+            # The same rule for the COFF twin: .data, .bss and their grouped
+            # .data$/.bss$ forms (.rdata holds the constant tables).
+            for line in query([MINGW + "objdump", "-h", str(twin(obj))]).splitlines():
+                section = re.match(r"\s*\d+\s+(\.(?:data|bss)(?:\$\S*)?)\s+([0-9a-fA-F]+)\s", line)
+                if section and int(section.group(2), 16):
+                    raise SystemExit(f"{twin(obj).name}: owned code keeps no mutable statics ({section.group(1)}); "
+                                     "keep state in guest memory or host C")
 
 
-def compile_zig(name, modules, root_name, overlay=None):
-    """Compile an owned object (and its COFF twin); returns its path."""
+def compile_zig(name, modules, root_name, overlay=None, win_modules=None):
+    """Compile an owned object (and its COFF twin, from win_modules when the
+    twin's generated modules differ); returns its path."""
     obj = out / f"{name}.o"
     if not coff:
         run(zig_command(ZIG_ELF, modules, root_name, obj))
     if win:
-        run(zig_command(ZIG_COFF, modules, root_name, twin(obj)))
+        run(zig_command(ZIG_COFF, win_modules or modules, root_name, twin(obj)))
     check_zig_object(obj, overlay)
     print(f"Zig: {obj.name} ({ZIG_ELF[0]}{', ' + ZIG_COFF[0] if win else ''})")
     return obj
@@ -677,8 +687,10 @@ stamp_trees = [("src", None), ("include", None), ("config", None), ("build", Non
                ("pc/tests", (".c", ".h")), ("game", None)] \
     + [(f"pc/tools/{tool}.py", None) for tool in ["build_boot", "build_cache", "event_callbacks", "lp64_report",
                                                    "import_types", "nrd", "gl_shaders", "vk_shaders", "zig_toolchain", "ownership",
-                                                   "snapshot_layout", "shared_cache", "engine_boundary", "game_lib"]]
+                                                   "snapshot_layout", "shared_cache", "engine_boundary", "game_lib",
+                                                   "zig_views", "zig_c"]]
 stamp_files = [root / "data/SLUS_010.40", root / "data/BATTLE/BATTLE.PRG", root / "data/ENDING/ENDING.PRG",
+               root / "pc/docs/porting/battle/MEANINGS.tsv",  # the views' readable names (zig_views.py)
                sdl_library, *(nrd["libraries"] if nrd else []),
                *([win_sdl_library, *(win_nrd["libraries"] if win_nrd else [])] if win else []),
                # the host libraries whose symbols the import classification reads
@@ -995,6 +1007,8 @@ for layout_pass in [[], ["-DPSX_SDK_LAYOUT_LIBDS"]]:
 overlay_statics = {}  # overlay file on the disc -> {"data", "bss"} sections present
 win_overlay_statics = {}  # the same for the COFF twins
 import ownership as ownership_tool
+import zig_c  # noqa: E402
+import zig_views  # noqa: E402
 
 ownership_table = ownership_tool.load(root / "game/ownership.toml")
 active = ownership_tool.Table([s for s in ownership_table.subsystems
@@ -1133,18 +1147,70 @@ if ZIG:
     game_objects.append(routing_obj)
     ownership_module = out / "ownership.zig"
     ownership_module.write_text(ownership_tool.ownership_zig(ownership_table))
+    zig_dir = out / "zig"
+    zig_dir.mkdir(exist_ok=True)
+    unit_names = dict(sources)
+    generated = {}  # overlay -> {module: (path, deps)}, and the COFF twin's
+    win_generated = {}
     for owned_overlay in sorted({s.overlay for s in active.subsystems}):
+        # Per-unit `views` (DWARF layouts, readable names from MEANINGS.tsv)
+        # and `c` (translate-c of the routed .i): PORTING.md §2.
+        for unit in sorted({s.unit for s in active.subsystems if s.overlay == owned_overlay and s.views}):
+            subs = [s for s in active.subsystems if s.unit == unit and s.views]
+            types = sorted({t for s in subs for t in s.views.get("types", [])})
+            names = sorted({n for s in subs for n in s.views.get("globals", [])})
+            stem, unit_name = pathlib.PurePosixPath(unit).stem, unit_names[unit]
+            unit_obj = out / f"{unit_name}.o"
+            dump = zig_views.dump_with_gdb(twin(unit_obj) if coff else unit_obj, types, names,
+                                           zig_dir / f"views_{stem}.json")
+            views_path = zig_dir / f"views_{stem}.zig"
+            text = zig_views.emit(dump, zig_views.load_names())
+            if not views_path.exists() or views_path.read_text() != text:
+                views_path.write_text(text)
+            if win and not coff:
+                # The COFF twin compiles with these views (from the ELF unit's
+                # DWARF). They are equal by construction (the twin's game longs
+                # are respelled long long, -mno-ms-bitfields, the same
+                # -funsigned-char): check it against the twin's own DWARF.
+                win_text = zig_views.emit(zig_views.dump_with_gdb(
+                    twin(unit_obj), types, names, zig_dir / f"views_{stem}.win.json"), zig_views.load_names())
+                if win_text != text:
+                    diff = next(f"ELF: {a!r}\n  COFF: {b!r}" for a, b in
+                                zip(text.splitlines() + [""], win_text.splitlines() + [""]) if a != b)
+                    raise SystemExit(f"views_{stem}: the COFF twin's layouts differ from the ELF unit's:\n  {diff}")
+            entry = {f"views_{stem}": (str(views_path), ["common"])}
+            win_entry = dict(entry)
+            if not coff:
+                entry[f"c_{stem}"] = (str(zig_c.translate(ZIG, out / f"{unit_name}.i", zig_dir / f"c_{stem}.zig",
+                                                          ZIG_ELF[0])), [])
+            if win:
+                # The twin's .i (MinGW-preprocessed, game longs already long long),
+                # read with GCC's bitfield layout: translate-c for a Windows target
+                # lays bitfields out MSVC's way and fails the units' layout asserts.
+                win_entry[f"c_{stem}"] = (str(zig_c.translate(ZIG, out / f"{unit_name}.win.i",
+                                                              zig_dir / f"c_{stem}.win.zig", "x86_64-linux-none")), [])
+            generated.setdefault(owned_overlay, {}).update(entry)
+            win_generated.setdefault(owned_overlay, {}).update(win_entry)
+        # game_lib.py (hot swap) builds the same modules for the development library.
+        (zig_dir / f"{owned_overlay}_modules.json").write_text(json.dumps(
+            {name: [path, deps] for name, (path, deps) in generated.get(owned_overlay, {}).items()}, indent=1))
+    for owned_overlay in sorted({s.overlay for s in active.subsystems}):
+        extra = generated.get(owned_overlay, {})
         modules = {
-            "root": (f"game/{owned_overlay}/root.zig", ["common", "ownership"]),
+            "root": (f"game/{owned_overlay}/root.zig", ["common", "ownership", *sorted(extra)]),
             "common": ("game/common/common.zig", []),
             "ownership": (str(ownership_module), []),
+            **extra,
         }
+        win_extra = win_generated.get(owned_overlay, {})
+        win_modules = dict(modules, **win_extra)
         if engine_library:
             wrapper = out / (owned_overlay + "_host.zig")
             wrapper.write_text('pub const reload_mode = 1;\npub const panic = @import("impl").panic;\ncomptime { _ = @import("impl"); }\n')
             modules["impl"] = modules["root"]
             modules["root"] = (str(wrapper), ["impl"])
-        obj = compile_zig(owned_overlay + "_zig", modules, "root", overlay=owned_overlay)
+        obj = compile_zig(owned_overlay + "_zig", modules, "root", overlay=owned_overlay,
+                          win_modules=dict(win_modules, root=modules["root"]) if win else None)
         objects.append(obj)
         game_objects.append(obj)
     objects.append(compile_zig("game_core", {
@@ -1611,7 +1677,8 @@ for obj in objects:
             if parts[1] == "T":
                 text_defined.add(defined_name(parts[2], parts[1]))
     calls.update(called_names(obj))
-problems = active.problems(function_addresses, {source for source, _ in sources})
+problems = active.problems(function_addresses, {source for source, _ in sources}) \
+    + ownership_tool.orig_comment_problems(active, root / "game")
 if problems:
     raise SystemExit("game/ownership.toml: " + "; ".join(problems))
 for name, _ in active.routes():
@@ -2215,8 +2282,10 @@ if engine_library:
     if ZIG:
         import game_lib
         game_library = game_lib.build(root / "game", out / "librood_game.so")
+        # A versioned import (memcpy@GLIBC_2.14: Debug Zig's memset/memcpy of
+        # aggregates) comes from libc, not the host.
         imports = {line.split()[-1] for line in query(["nm", "-D", "--undefined-only", str(game_library)]).splitlines()
-                   if line.strip() and line.split()[0] == "U"}
+                   if line.strip() and line.split()[0] == "U" and "@" not in line.split()[-1]}
         # Owned edits may access any public game function/global without a
         # host restart. Keep that game ABI exported, not the engine's private
         # internals. New host-service dependencies still require a rebuild.

@@ -12,6 +12,9 @@ extern int pc_spu_state_load(const void*, int) __attribute__((weak));
 extern int pc_owner_count(void) __attribute__((weak));
 extern int pc_owner_get(int) __attribute__((weak));
 extern int pc_owner_set(int, int) __attribute__((weak));
+extern int pc_owner_alternate_reset(int) __attribute__((weak));
+extern int pc_owner_alternate_report(int, char*, int) __attribute__((weak));
+#define OWNER_ALTERNATE 3 /* ownership.c: every routed call flips owned/original */
 
 #define MAX_RANGES 170
 #define PAGE 4096
@@ -26,7 +29,7 @@ typedef struct { uintptr_t start; size_t size; } mask;
 static mask masks[64];
 static int mask_count;
 static int mode, ticks, capacity, recorded_ticks, pages, first_tick = -1, error;
-static int alternate = -1, previous_owner;
+static int alternate = -1, previous_owner, reported_alternate = -1;
 static uint64_t* recorded;
 static uint64_t* now;
 static pc_state_image* layout;
@@ -246,7 +249,8 @@ int pc_digest_start(int compare, int cap, int alt)
 {
     if (mode || cap < 0 || alt < -1 || (!compare && (cap == 0 || alt != -1)))
         return -1;
-    if (alt >= 0 && (!pc_owner_count || !pc_owner_get || !pc_owner_set || alt >= pc_owner_count()))
+    if (alt >= 0 && (!pc_owner_count || !pc_owner_get || !pc_owner_set || !pc_owner_alternate_reset ||
+                     !pc_owner_alternate_report || alt >= pc_owner_count()))
         return -1;
     pc_state_image* m = pc_state_capture();
     if (!m) return -1;
@@ -271,14 +275,20 @@ int pc_digest_start(int compare, int cap, int alt)
         free(recorded); free(now); pc_state_image_free(layout);
         recorded = r; now = scratch; layout = m;
         capacity = cap; recorded_ticks = 0; pages = n;
+        reported_alternate = -1;
     } else {
         pc_state_image_free(m);
     }
+    /* Alternate: the subsystem's routes alternate per call (each route's
+     * calls split owned/original whatever frame they land on), counted for
+     * the result; a schedule by vsync would put a once-a-frame function on
+     * one side only. */
     if (alt >= 0) {
         previous_owner = pc_owner_get(alt);
-        if (previous_owner < 0 || pc_owner_set(alt, 0)) return -1;
+        if (previous_owner < 0 || pc_owner_alternate_reset(alt) || pc_owner_set(alt, OWNER_ALTERNATE)) return -1;
     }
     alternate = alt;
+    reported_alternate = alt;
     ticks = 0; first_tick = -1; first_pages[0] = 0; error = 0;
     mode = compare ? 2 : 1;
     return 0;
@@ -298,9 +308,22 @@ int pc_digest_record_masks(int cap, const uintptr_t* starts, const size_t* sizes
 int pc_digest_result(char* out, int size)
 {
     if (size < 0 || (!out && size)) return -1;
-    return snprintf(out, (size_t)size,
-        "{\"recorded\":%d,\"ticks\":%d,\"pages\":%d,\"first_tick\":%d,\"first_pages\":[%s],\"error\":%d}",
+    int n = snprintf(out, (size_t)size,
+        "{\"recorded\":%d,\"ticks\":%d,\"pages\":%d,\"first_tick\":%d,\"first_pages\":[%s],\"error\":%d",
         recorded_ticks, ticks, pages, first_tick, first_pages, error);
+    if (n < 0) return -1;
+    if (reported_alternate >= 0 && pc_owner_alternate_report) {
+        /* The alternate subsystem's calls per route: owned and original. */
+        int m = snprintf(n < size ? out + n : NULL, n < size ? (size_t)(size - n) : 0,
+            ",\"alternate\":%d,\"alternate_calls\":", reported_alternate);
+        if (m < 0) return -1;
+        n += m;
+        m = pc_owner_alternate_report(reported_alternate, n < size ? out + n : NULL, n < size ? size - n : 0);
+        if (m < 0) return -1;
+        n += m;
+    }
+    int m = snprintf(n < size ? out + n : NULL, n < size ? (size_t)(size - n) : 0, "}");
+    return m < 0 ? -1 : n + m;
 }
 void pc_state_diff_vsync(void)
 {
@@ -337,9 +360,5 @@ void pc_state_diff_vsync(void)
         }
         ticks++;
         if (ticks == recorded_ticks) pc_digest_stop();
-        else if (alternate >= 0 && pc_owner_set(alternate, ticks & 1)) {
-            error = -1;
-            pc_digest_stop();
-        }
     }
 }

@@ -1,0 +1,24 @@
+# Waivers of the corpus gates (differ.py), each with its reason. Remove a
+# waiver as soon as a recipe makes it unnecessary.
+#
+# [SUBSYSTEM]: routed functions the selected recipes may leave without root
+# calls in call mode (root_call_gate): every other function of the subsystem
+# must be called at the root by at least one selected recipe, or the run fails.
+#
+# [alternate_one_side.SUBSYSTEM]: functions alternate mode may run on one
+# side only (alternate_check): it alternates per call, so a function a recipe
+# calls once runs owned only; tick mode covers it.
+
+[battle_action]
+# The subsystem is a pass-through (game/battle/root.zig BattleAction calls
+# the original): there is no ported code to compare yet.
+func_80070278 = "pass-through to the original; called only nested (from func_800787F0 or func_8007138C, inside their transaction)"
+func_800704B0 = "pass-through to the original; called only nested (from func_80078748, inside its transaction)"
+func_8007138C = "pass-through to the original; called only nested (from _handleCombatCameraZoom or func_80079030)"
+func_80079030 = "pass-through to the original; phase 8 (re-cast): no recipe reaches it yet (corpus-wide)"
+
+[alternate_one_side.battle_action]
+func_80070F28 = "pass-through; enemy_cast_wait commits one action: one call"
+func_8007138C = "pass-through; one cast start per recipe: one call"
+func_800704B0 = "pass-through; one phase 5 -> 6 per recipe: one call"
+func_80070278 = "pass-through; one release per recipe: one call"

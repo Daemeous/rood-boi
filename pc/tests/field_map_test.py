@@ -80,6 +80,13 @@ class FieldMapTests(unittest.TestCase):
         fm = self.mapper(max_nodes=1)
         self.assertIn("(nodes)", fm.names([base+48])[base+48])
 
+    def test_typed_fixed_address_root(self):
+        # A block addressed by number (the scratchpad): TYPE@ADDRESS names its fields.
+        fm = self.mapper(roots=["Leaf@0x1f8000a0"])
+        label = fm.names([0x1f8000a0 + 8])[0x1f8000a0 + 8]
+        self.assertIn("Leaf@0x1f8000a0.value", label)
+        self.assertIn("Leaf@0x1f8000a0.cells[1]", fm.names([0x1f8000a0 + 20])[0x1f8000a0 + 20])
+
     def test_union_and_bitfields(self):
         fm = self.mapper()
         base = fm.symbol_address("choice")

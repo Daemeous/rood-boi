@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Map target addresses to DWARF fields and bounded live root-pointer paths.
 
+A root is a symbol name, or `TYPE@ADDRESS` for a block the code addresses by
+number (the scratchpad's `actorTransformScratch` at 0x1F80035C, PORTING.md
+§5.7): the address is labelled `TYPE@ADDRESS.field`.
+
 GDB inspects types only: it never runs or attaches to the game. `read(address,
 size)` supplies live bytes, using the binary's byte order and pointer sizes.
 Missing debug info leaves symbol+offset labels. PIE callers must supply the
@@ -53,6 +57,13 @@ for name in req["names"]:
         symbols[name] = layout(gdb.parse_and_eval("'" + name + "'").type)
     except Exception:
         pass
+for label, name in req.get("typed", []):
+    for spelling in (name, "struct " + name, "union " + name):
+        try:
+            symbols[label] = layout(gdb.lookup_type(spelling))
+            break
+        except Exception:
+            pass
 json.dump({"types": types, "symbols": symbols}, open(req["out"], "w"))
 '''
 
@@ -61,7 +72,9 @@ class FieldMap:
     def __init__(self, binary, roots=(), read=None, pointer_size=None, *,
                  load_bias=0, max_depth=12, max_nodes=10000, timeout=30):
         self.binary = str(binary)
-        self.roots = list(roots)
+        self.roots = [root for root in roots if "@" not in root]
+        # TYPE@ADDRESS roots: a type's layout at a fixed address (no symbol).
+        self.typed = {root: (root.split("@")[0], int(root.split("@")[1], 0)) for root in roots if "@" in root}
         self.read = read
         self.load_bias = load_bias
         self.max_depth, self.max_nodes, self.timeout = max_depth, max_nodes, timeout
@@ -119,7 +132,9 @@ class FieldMap:
                 directory = pathlib.Path(directory)
                 req, out = directory / "request.json", directory / "result.json"
                 script = directory / "layout.py"
-                req.write_text(json.dumps({"names": missing, "out": str(out)}))
+                typed = [[label, self.typed[label][0]] for label in missing if label in self.typed]
+                req.write_text(json.dumps({"names": [n for n in missing if n not in self.typed],
+                                           "typed": typed, "out": str(out)}))
                 script.write_text("REQUEST = " + repr(str(req)) + "\n" + GDB_SCRIPT)
                 subprocess.run(["gdb", "-nx", "-nh", "-batch", "-iex",
                                 "set auto-load off", self.binary, "-x", str(script)],
@@ -153,7 +168,7 @@ class FieldMap:
                 while i >= 0 and self.starts[i] == start:
                     nearby.append(self.rows[i][2])
                     i -= 1
-        self._load(self.roots + nearby)
+        self._load(self.roots + list(self.typed) + nearby)
         matches = {address: self.symbol(address) for address in addresses}
         self._load([name for name, _ in matches.values() if name])
         paths = {address: [] for address in addresses}
@@ -221,6 +236,8 @@ class FieldMap:
             base = self.symbol_address(root)
             if base is not None:
                 walk(self.layouts.get(root), base, root, 0, True)
+        for label, (_, base) in self.typed.items():
+            walk(self.layouts.get(label), base + self.load_bias, label, 0, True)
         labels = {}
         for address, (name, offset) in matches.items():
             label = f"{name}+{offset:#x}" if name else f"{address:#x}"

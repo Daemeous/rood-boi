@@ -8,8 +8,9 @@ of this guide found).
 
 The port is **faithful first**. A ported function does exactly what the C
 object of the same target does, byte for byte in game state, and the oracle
-(shadow mode, tick mode) proves it. Restructuring, renaming and freeing the
-data from the PS1 layout come later (phase E). If a rule here makes the Zig
+(shadow mode, tick mode) proves it. Restructuring and freeing the
+data from the PS1 layout come later (phase E); readable names come now, with
+the original symbol kept as the key (§16). If a rule here makes the Zig
 uglier than it could be, follow the rule anyway; phase E is where it gets
 pretty.
 
@@ -70,20 +71,38 @@ Contents:
   way (an uninitialised local, an out-of-range shift, a missing `return`),
   read the object (`objdump -d --no-show-raw-insn -r battle_<unit>.o`) and
   port what it does; say so in one comment line.
+- **Before any game run, diff the port against its C body**
+  (`pc/tools/zig_diff.py FUNCTION`, CTest `zig_diff`): the build's own
+  `FUNCTION__orig` (from the routed `.i`, compiled with the game's flags) and
+  the Zig port run side by side on random and edge inputs, with every global
+  either reaches defined at its C size, every external call a recording stub
+  (arguments, and a hash of the state at the call) and the scratchpad mapped;
+  touched memory, call traces and return values must agree. It takes
+  seconds, needs no game, and sees branches and values a corpus recipe never
+  reaches (the trial's K3, T2, T3, N3 slipped through the corpus; it catches
+  all of them). Each ported function gets a spec in `pc/tests/zig_diff/`
+  (a `prepare` that builds valid inputs, biased to the C's edges, and
+  `classes` naming the paths the inputs must reach) and its reviewers' wrong
+  variants as `mutation`s in `specs.toml`; `--self-check` requires every
+  mutation caught and every class reached. It complements the oracle, it
+  does not replace it: it does not see state a stub hides (what a callee
+  would have done with the arguments it got), nor inputs the spec cannot
+  build.
 
 ## 2. The modules a port uses
 
-Owned battle code lives in `game/battle/`, one Zig file per original unit,
-named after it (`game/battle/146C.zig`, `game/battle/5BF94.zig`), plus one
-per `pc/src` asm port it replaces in the D2 pass (`game/battle/pc/battle_movement.zig`).
-Each file imports:
+Owned battle code lives in `game/battle/`, in modules named by meaning
+(§16: `score.zig`, `actor_transform.zig`), each function with its `orig:`
+line; D2's `pc/src` asm ports go to `game/battle/pc/`. Routing subsystems are
+one per original unit (`battle_146C`, ...: the owner switch bisects by unit),
+whatever module a function lives in. Each file imports:
 
 | Module | What it gives | Source |
 |---|---|---|
 | `common` → `psx` | `Ptr(T)`, `get`, `conv`, `getBits`/`setBits`, `global`/`globalMany`, `at`, `cptr`, `addr` | `game/common/psx.zig` (exists) |
 | `common` → `route` | `exportAll`: `F__owned`/`F__shadow` exports per routed function | `game/common/route.zig` (M0 task 9) |
-| `c` | translate-c of the unit's own declarations: every prototype and typedef **that unit** was compiled with | `pc/tools/zig_c.py` (M0 task 13), one per unit |
-| `views` | struct layouts, bitfield tables and global accessors `v.g.<name>()` from the unit object's DWARF, per target | `pc/tools/zig_views.py` (M0 task 12), one per unit |
+| `c` | translate-c of the unit's own declarations: every prototype, typedef and enum constant **that unit** was compiled with, its block-scope `extern`s included; its data definitions become `extern` declarations (translate-c would export a second definition) | `pc/tools/zig_c.py`, one per unit (`c_146C`) |
+| `views` | struct layouts, bitfield tables and global accessors `v.g.<name>()` (readable names, §16) from the unit object's DWARF, per target, for the types and globals listed in the subsystem's `views` manifest in `ownership.toml` | `pc/tools/zig_views.py`, one per unit (`views_146C`) |
 | `gte` | one function per `gte_*` macro, exactly the PC macro's register sequence | `game/common/gte.zig` (to write, §8) |
 
 Rules:
@@ -345,6 +364,13 @@ psx.put(&v.g.D_800F57A0().curveBlock, null);    // psx.put: proposed, §20
 `psx.get` already accepts both shapes. Never touch `.raw` directly except
 where the C uses `psx_raw` (then `psx.rawOf`, proposed).
 
+`psx.put` into a **native** pointer field `@alignCast`s the pointer to the
+field's type: a misaligned pointer (from `psx.byteAt`, `psx.lowRam` or
+integer arithmetic) stored into a `T*` field traps in ReleaseSafe where the C
+just stores it. Store such a pointer as the C does, by its bits
+(`@as(*usize, @ptrCast(field)).* = @intFromPtr(p)`), with a comment; the
+trial's stores (`vs_main_allocHeapR`'s 16-byte blocks) are aligned.
+
 A plain native pointer field (a runtime struct the 64-bit build keeps in the
 native layout) is `?*T` on both; `psx.get`/`psx.put` pass it through.
 
@@ -381,7 +407,27 @@ and do not drop one (the oracle survives that path). `psx.lowRam(T)` is
 Arrays in views are Zig arrays: `a[i]` is bounds-checked. The C is not. When
 the C indexes past an array's end on purpose (`D_800F19CC->unk854[unk0 & 3]`
 is fine; `mappedChainAbilities[x - 1]` with `x == 0` is not), use `psx.at`
-and keep the comment that says the original does it.
+and keep the comment that says the original does it. The same when the index
+type can exceed the array even if the data never does: `enemyKills[6]`
+indexed by `u_int enemyClass : 3` (0..7) is `psx.at(&score.enemyKills, class)`
+(`_updateEnemyKills`); a plain index would trap where the C writes into the
+next field. Use a plain index only where the C's own checks bound it, with
+the one-line reason (`subType < 256`: below 8 of 26).
+
+`psx.at`'s result is aligned to `min(base alignment, the largest power of two
+dividing @sizeOf(E))`: `&score.enemyKills` is `*align(4) [6]u16`, and its odd
+entries sit at 2 mod 4, so `psx.at` returns `*align(2) u16`, not
+`*align(4) u16`. (Until the trial fix it kept the base's alignment, and
+ReleaseSafe trapped "incorrect alignment" on the first odd class: a Beast,
+Phantom or Evil kill.) Any helper of your own that forms `&base[k]` must do
+the same; never give an element pointer its base's alignment, and never
+`@alignCast` one up to it.
+
+`psx.at` on a `[*c]T` base drops `allowzero`: `psx.at(null_cptr, k)` panics
+where C computes `NULL + k`. Where the C takes the address of an element of
+a possibly-null base without dereferencing it, test the base first and keep
+the C's result (`if (p) |q| psx.at(q, k) else null`, or the plain integer
+arithmetic of §5.5).
 
 Alignment: a pointer built from a byte offset or an integer is `*align(1)
 T` unless the C type's alignment provably divides it. MIPS would have trapped
@@ -428,9 +474,21 @@ The decompilation addresses scratchpad slots by number
 (`(void*)0x1F8003A8`, `getScratchAddr(n)`, `vs_scratch`). Keep the numbers:
 
 ```zig
-const scratch: *align(1) v.actorTransformScratch = @ptrFromInt(0x1F80035C);   // align(1): @ptrFromInt checks alignment
-const matrix: *align(1) v.MATRIX = @ptrFromInt(0x1F8003C0);
+const scratch: *v.actorTransformScratch = @ptrFromInt(0x1F80035C);   // 0x...5C: a multiple of 4, the type's alignment
+const matrix: *align(1) v.MATRIX = @ptrFromInt(0x1F8003C2);          // 0x...C2: not a multiple of 4, so align(1)
 ```
+
+The rule: use `*T` only when the slot's number is a multiple of `@alignOf(T)`
+**on every target** the game builds (i686, x86_64 Linux, the Windows twin:
+a view with an 8-byte member is 8-aligned on 64-bit only); otherwise
+`*align(1) T`. A comptime address is checked at compile time, so a wrong
+`*T` fails the build of that target rather than the run. With `*T` (most
+slots), its
+fields' addresses then go to `c` functions through `psx.cptr` (which cannot
+raise an `align(1)` pointer's alignment) and to `gte` as they are
+(`func_800B07DC`). The field mapper names such a block's fields from an
+ownership root `TYPE@ADDRESS` (`actorTransformScratch@0x1F80035C`), so a
+shadow mismatch in it reads `actorTransformScratch@0x1F80035C.offset.vy`.
 
 Two numbers can name the same bytes (`0x1F8003A8` is
 `scratch->translation`, `0x1F8003D4` is `matrix->t`): keep both spellings as
@@ -533,6 +591,16 @@ choice and changes with the compiler or the source: the build step finds the
 symbol by pattern (`name.[0-9]+` among the unit's local data symbols, exactly
 one match) and fails otherwise. Globalised names must not collide: prefix them
 (`battle_146C__charge_skip_held`).
+
+Never reach a static through `c`: translate-c would give the Zig object its
+own copy (a second `charge_skip_held`, a `.rodata` copy of `D_80068BEC` at
+another address, which `psx_addr` rejects on 64-bit). `zig_c.py` therefore
+emits every file-scope static of the unit (variables, tables, static
+functions, header `static inline`s such as `psx_addr`) as a `@compileError`
+that names it: using one fails the build. Reach the globalised symbol through
+`psx.global` instead, or the `psx` helper (`psx.addr`). Owned objects keep no
+`.data`/`.bss` of their own either: the build rejects them in an overlay's
+object, ELF and COFF twin alike (`check_zig_object`).
 
 ## 7. Structs, unions and bitfields
 
@@ -805,11 +873,11 @@ Keep the C's label names as the block or enum names.
 
 | In the C | In the Zig |
 |---|---|
-| `func_800xxxxx`, `D_800xxxxx`, `unkXX`, `temp_v0`, `var_s1`, `sp10`, `new_var` | the same names (§16) |
+| `func_800xxxxx`, `D_800xxxxx`, `unkXX`, `temp_v0`, `var_s1`, `sp10`, `new_var` | readable names where the meaning is known, with `orig:` comments; the original where it is not (§16) |
 | `static inline` "inlined copy" of another unit's function (`40564.c` `func_800A4A24`) | its own private Zig function in that unit's file, with its own statics; do not call the original instead |
 | gnu89 `inline` without `static` (`3A1A0.c`) | a normal function (it has an external definition) |
 | `INCLUDE_ASM` with a `ROOD_PC` C replacement | port the replacement (§12) |
-| block-scope `extern` declarations | nothing: the `c`/`views` modules have them |
+| block-scope `extern` declarations (the `ROOD_PC` hooks declare their host functions inside the body) | nothing: `ownership.strip_bodies` hoists them, so `c` declares them (a weak one is still called through `psx.weak`) |
 | a missing `return` in a non-void function (`func_8008C8A8`) | return what the object returns (read `%eax`); comment it |
 | uninitialised locals read | what GCC's object does when it is deterministic; else initialise to 0, comment "uninitialised in the original" and expect the double oracle to mask it |
 | `do { } while (0)` from macros | plain statements |
@@ -847,15 +915,19 @@ a variable the optimiser cannot see into:
 
 ```zig
 pub inline fn weak(comptime F: type, comptime name: []const u8) ?F {
-    var f = @extern(?F, .{ .name = name, .linkage = .weak });
+    var f: ?F = @extern(?F, .{ .name = name, .linkage = .weak });   // ELF (COFF: below)
     std.mem.doNotOptimizeAway(&f);
     return f;
 }
 ```
 
 (Checked on `x86-linux-none` and `x86_64-linux-none` linked by gcc: null when
-the hook is absent, called when present. COFF is unchecked: the trial must
-check it on the Windows twin.) The twelve weak hooks battle uses today are
+the hook is absent, called when present. On COFF the trial found that LLVM
+reaches a weak external only through a `.refptr` stub, which the build
+rejects, where MinGW's C uses a PC-relative `lea`; `psx.weak` there is a
+strong PC-relative reference, never null: every Windows build links the
+whole game, so the hooks are defined, and a missing one is a link error
+rather than a skipped hook.) The twelve weak hooks battle uses today are
 all defined in every build that links BATTLE, so the test is always true
 there; it stays for the probes and smaller builds.
 
@@ -937,6 +1009,13 @@ May differ:
   presentation counters, `pc_charge_skip_pumped`), timing;
 - the host stack layout, register use, inlining, code size.
 
+A feature hook whose host state is in a `pc/src` unit the build compiles as
+a game unit (`hud/hud_bridge.c`'s name-window record, which
+`pc_hud_name_window` updates at the end of `vs_battle_displaySceneMessage`)
+is inside the compared state sections: shadow mode restores it between the
+runs, so the hook runs once in effect. Check where a hook's state lives
+before assuming item 7 of §20 applies.
+
 Hazards the comparison does not see (so the port must get them right by
 construction):
 - writes through a pointer into the **caller's stack** (out-parameters:
@@ -971,22 +1050,63 @@ construction):
 
 ## 16. Names
 
-- **Keep the decompilation's names during D**: functions (`func_80070F28`),
-  globals (`D_800F19CC`), fields (`unk2C0E`), parameters (`arg0`), locals
-  (`temp_v0`, `var_s1`, `sp10`). The reviewers diff the Zig against the C
-  side by side; the names are the alignment.
-- One Zig file per C unit, functions in the C file's order.
-- The exported name of a routed function is fixed by routing
-  (`F__owned`); the Zig function itself is named `F`.
-- Renaming (descriptive names, enums for state values, struct names) is
-  phase E, from the names `STATE.tsv` and the upstream decompilation give.
-  (This replaces the M0 plan's "descriptive internal names".)
+**Readable names from day one; the original symbol stays the key.**
+
+- **Functions** get a readable Zig name when they are ported, in lower
+  camel case: from the decompilation's own name when it has one
+  (`_updateEnemyKills` → `updateEnemyKills`, `vs_battle_displaySceneMessage`
+  → `displaySceneMessage`: drop the `vs_battle_`/`vs_main_` prefix and a
+  leading `_`), else from `battle/MEANINGS.tsv`, else from what the port
+  reveals (`func_800B07DC` rotates the scratchpad offset by the actor's
+  rotation and adds its position: `offsetToWorld`). Name what the function
+  does, not how; no address in the name.
+- **Every ported function carries the line** `/// orig: <original symbol>
+  (<unit>)` as the first line of its doc comment, with the unit as
+  `ownership.toml` spells it (`/// orig: func_800B07DC
+  (src/BATTLE/BATTLE.PRG/44F14.c)`). A `static` C function ported as a
+  private Zig function carries it too.
+- **The ownership table maps the original symbol to the Zig function**:
+  `{ addr = 0x800B07DC, name = "func_800B07DC", zig =
+  "actor_transform.offsetToWorld" }`. `zig` is the declaration's path from
+  the overlay's `root.zig` (which `pub const`-imports the module). Without
+  `zig` the Zig function has the original name (the M0 pass-through module).
+  `route.exportAll(..., ownership.routesOf(.<subsystem>), @This())` exports
+  `name__owned`/`name__shadow` (and the hot-swap `name__candidate`) from the
+  Zig function, so routing, the owner switch, shadow reports, hot swap and
+  the corpus all keep pairing by the **original** name. The build checks that
+  each `zig` path is a `pub fn` whose doc comment has the matching `orig:`
+  line (`ownership.orig_comment_problems`).
+- **Globals** are reached through the views by a readable accessor when
+  `battle/MEANINGS.tsv` gives one (its `zig_name` column):
+  `v.g.nameWindowText()` for `D_800EB9D8`. The accessor's doc comment is
+  `/// orig: D_800EB9D8`; the symbol it links to is the original. Without a
+  `zig_name` the accessor has the original name. Add the name to MEANINGS.tsv
+  when the port reveals what a global is, not in the Zig.
+- **Fields** likewise: a MEANINGS.tsv row `Type.field` (`vs_battle_actor.unk3C`)
+  with a `zig_name` renames that field in the view of `Type` (with its
+  `/// orig:` comment); the offset asserts still pin it to DWARF. Bitfields
+  are renamed in the view's `bitfields` table the same way. Rename a field
+  only when its meaning is established (read from its users, not guessed).
+- **Parameters and locals** get readable names (`enemy`, `actor`, `message`,
+  `action`), not `arg0`/`temp_v0`, except where the C's own name is already
+  the best one. Keep a C local's name when it is a decompiler artefact whose
+  meaning is unknown, rather than invent one.
+- **Files**: one Zig module per routing subsystem's topic in `game/<overlay>/`
+  (`score.zig`, `actor_transform.zig`, `scene_message.zig`), named by meaning;
+  each file's top comment names the units its functions come from. The
+  per-unit `c`/`views` modules are `@import("c_146C")`/`@import("views_146C")`
+  (§2).
 - A name Zig cannot take (a keyword, a leading digit) uses `@"name"`.
+
+Reviewers diff the Zig against the C side by side through the `orig:` lines
+and the views' `orig:` comments: the readable names must not change what is
+compared (one Zig function per C function, the C's statements in the C's
+order).
 
 ## 17. Comments
 
-- Each function: one `///` line, `<unit>.c <name> (0x<address>)`, and a short
-  meaning if it is known. Nothing else by default.
+- Each function: the `/// orig: <symbol> (<unit>)` line (§16), then one short
+  `///` line with its meaning. Nothing else by default.
 - Inline comments only where the Zig is not an obvious reading of the C:
   a kept original bug, a `ROOD_PC` guard and why it exists (one line,
   pointing at the C comment), an evaluation order taken from the object, an
@@ -1043,7 +1163,11 @@ For every ported function, against the `.i` and the object:
    `goto`s mapped without changing which code runs?
 9. `ROOD_PC` blocks: the PC branch ported, feature hooks kept with their
    weak-symbol tests?
-10. Names as in the C; comments only where §17 allows?
+10. Readable names per §16, each function with its `/// orig:` line and its
+    `zig` entry in `ownership.toml`; comments only where §17 allows?
+11. A `pc/tests/zig_diff` spec whose classes cover every branch of the C, with
+    the wrong variants the review tried as mutations, passing
+    `zig_diff.py --self-check`?
 
 ## 20. Prerequisites this guide assumes (not built yet)
 
@@ -1054,8 +1178,15 @@ INITBTL, and the `pc/src` C that implements BATTLE's PS1 assembly
 `actor_*.c`, `room_*.c`, ...), which is the oracle for those functions until
 then. The table rows for them say "D2".
 
-Things D needs that do not exist on `zig-ownership-m0` yet. The trial (plan
-step D.2) must not start before 1-5.
+Things D needs that did not exist on `zig-ownership-m0`. The trial (plan
+step D.2, `battle/TRIAL.md`) built items 1-4 to the extent its three functions
+needed them: `pc/tools/zig_views.py` and `zig_c.py` per unit (generated by
+`build_boot.py` from the `views` manifest in `ownership.toml`, also for the
+COFF twin and the hot-swap library), `gte.zig` with the five macros
+`func_800B07DC` uses, and the `psx` additions with the `at` fixes. Item 5's
+per-unit subsystems exist for the three trial units; the statics
+globalisation, the post-routing inlining check and the i386 struct-return
+probe do not.
 
 **Zig side (M0 tasks 9-13, extended):**
 1. `views` and `c` **per unit** for every battle unit (M0's Task 13 supports
@@ -1076,7 +1207,8 @@ step D.2) must not start before 1-5.
    wraps), and it drops the base's `align(1)`. Proposed: accept `*T`,
    `[*]T`, `[*c]T` (and their `align(1)` forms), take any integer index
    converted as C converts it, compute with `+%`/`*%`, and keep the base's
-   alignment.
+   alignment as far as the element offset keeps it (built; the first version
+   kept all of it, which trapped on `enemyKills`' odd entries: §5.4).
 5. Build steps: globalise the battle statics `STATE.tsv` lists (§6.5, by
    pattern); ownership subsystems **one per unit** (`battle_146C`,
    `battle_5BF94`, ...: the owner switch then bisects, and "flip battle" sets

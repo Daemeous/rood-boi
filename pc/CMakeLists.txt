@@ -85,6 +85,17 @@ if(ROOD_ZIG_MISSING EQUAL 0)
     endforeach()
     add_test(NAME zig_route COMMAND ${ROOD_ZIG} test -target x86_64-linux-musl -O ReleaseSafe
         ${CMAKE_CURRENT_SOURCE_DIR}/../game/common/route_test.zig)
+    # Views generated from DWARF (pc/tools/zig_views.py) read a C-filled instance on 32 and 64 bits.
+    add_test(NAME zig_views COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/zig_views_test.py)
+    # The c module (pc/tools/zig_c.py): a unit's statics are compile errors, externs stay usable.
+    add_test(NAME zig_c COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/zig_c_test.py)
+    # Each Zig port against its original C body on random and edge inputs, with the mutation
+    # self-checks (pc/tools/zig_diff.py; reads the 64-bit build, skipped without one).
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+        add_test(NAME zig_diff COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/zig_diff.py
+            --self-check --build ${CMAKE_CURRENT_BINARY_DIR}/boot64 --work ${CMAKE_CURRENT_BINARY_DIR}/zig-diff)
+        set_tests_properties(zig_diff PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 900)
+    endif()
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
         set(SHADOW_ZIG_OBJECT ${CMAKE_CURRENT_BINARY_DIR}/shadow_zig_probe.o)
         add_custom_command(OUTPUT ${SHADOW_ZIG_OBJECT}

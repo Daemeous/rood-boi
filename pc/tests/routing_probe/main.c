@@ -1,5 +1,6 @@
 #include <stdio.h>
 extern unsigned char pc_owner[];
+extern unsigned pc_route_alternate_calls[];
 extern int log_[16], n;
 extern void (*table[])(int);
 void G(void);
@@ -13,8 +14,12 @@ int main(void)
     table[0](7);     /* owned, through a pointer the unit took: 107 */
     pc_owner[0] = 2;
     F(3);            /* shadow: 203 */
+    pc_owner[0] = 3;
+    F(4);            /* alternate, per call: owned 104, */
+    F(5);            /* original 5, */
+    F(6);            /* owned 106 */
     for (int i = 0; i < n; i++)
         printf("%d ", log_[i]);
-    printf("\n");
+    printf("| %u %u\n", pc_route_alternate_calls[0], pc_route_alternate_calls[1]);
     return 0;
 }

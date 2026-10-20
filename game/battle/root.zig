@@ -1,4 +1,5 @@
-//! Pass-through battle action module; the original remains the implementation.
+//! The battle overlay's owned code: the pass-through battle action module (the
+//! original remains the implementation) and the ported functions.
 const common = @import("common");
 const ownership = @import("ownership");
 pub const panic = common.Panic;
@@ -35,5 +36,17 @@ const BattleAction = struct {
 };
 
 comptime {
-    common.route.exportAll(@backingInt(ownership.Subsystem.battle_action), ownership.namesOf(.battle_action), BattleAction);
+    common.route.exportAll(@backingInt(ownership.Subsystem.battle_action), ownership.routesOf(.battle_action), BattleAction);
+}
+
+// Ported battle functions (PORTING.md): modules named by meaning, routed by
+// their original names through ownership.toml's `zig` paths from here.
+pub const score = @import("score.zig");
+pub const actor_transform = @import("actor_transform.zig");
+pub const scene_message = @import("scene_message.zig");
+
+comptime {
+    common.route.exportAll(@backingInt(ownership.Subsystem.battle_146C), ownership.routesOf(.battle_146C), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.battle_44F14), ownership.routesOf(.battle_44F14), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.battle_5BF94), ownership.routesOf(.battle_5BF94), @This());
 }

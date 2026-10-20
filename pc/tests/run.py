@@ -111,6 +111,12 @@ def input_cases(scale):
     return cases
 
 
+# The Zig trial port's corpus runs: (suite label, subsystem, recipe, the Zig modules it covers).
+TRIAL_CORPUS = [("kill", "battle_146C", "enemy_kill", ["score.zig"]),
+                ("transform", "battle_44F14", "enemy_cast_wait", ["actor_transform.zig"]),
+                ("name_window", "battle_5BF94", "action_name_window", ["scene_message.zig"])]
+
+
 def suites(args, mode="egl"):
     # Software GL on Xvfb is several times slower than a GPU.
     scale = args.timeout_scale * (3 if mode == "xvfb" else 1)
@@ -135,6 +141,16 @@ def suites(args, mode="egl"):
               "--scenario", "enemy_cast_wait", "--card", str(args.save)], 300,
               note="one witnessed enemy-cast recipe; NOT full task20 coverage",
               sources=[TESTS / "diff/corpus.py", TESTS / "diff/scenarios.py", ROOT / "pc/tools/field_map.py"]),
+        # The Zig trial port (pc/docs/porting/battle/TRIAL.md): each ported function's
+        # subsystem in control, shadow, owned and alternating runs of a recipe that calls it,
+        # in the classic profile and again with the state-changing PC features on.
+        *[Suite(f"trial_corpus_{label}{suffix}", [PY, str(TESTS / "diff/differ.py"), subsystem,
+                "--scenario", scenario, "--card", str(args.save), "--profile", profile], 300,
+                note=f"trial port: {subsystem} on the {scenario} recipe, {profile} profile",
+                sources=[TESTS / "diff/corpus.py", TESTS / "diff/scenarios.py", ROOT / "pc/tools/field_map.py",
+                         TESTS / "diff/waivers.toml", *[ROOT / "game/battle" / module for module in modules]])
+          for label, subsystem, scenario, modules in TRIAL_CORPUS
+          for suffix, profile in (("", "classic"), ("_features", "features"))],
         Suite("shadow_battle_smoke", [PY, str(TESTS / "shadow_battle_smoke.py"), "--card", str(args.save)], 300,
               note="experimental routed battle shadow; classic oracle profile",
               sources=[ROOT / "pc/src/shadow.c", ROOT / "game/common/route.zig"]),
@@ -975,7 +991,8 @@ def main():
         # Only explicitly CPU-safe game suites; never run screenshots or GPU
         # probes in this lane merely because they can launch the game binary.
         safe = {"null_backend_smoke", "shadow_battle_smoke", "ownership_smoke", "battle_corpus_candidate",
-                "zig_hotswap_smoke", "engine_rewind_smoke"}
+                "zig_hotswap_smoke", "engine_rewind_smoke",
+                *(f"trial_corpus_{t[0]}{suffix}" for t in TRIAL_CORPUS for suffix in ("", "_features"))}
         every = [s for s in every if s.binary is None or s.name in safe]
         for suite in every:
             suite.gpu = False

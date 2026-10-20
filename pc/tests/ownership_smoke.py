@@ -29,9 +29,11 @@ def main():
         try:
             title(g)
             owners = g.owner()["subsystems"]
-            check(len(owners) == 1 and owners[0]["name"] == "battle_action"
-                  and owners[0]["routes"] == 9 and owners[0]["owner"] == "owned",
-                  f"ROOD_OWNER and nine routed battle actions: {owners}")
+            # battle_action first, then the trial port's one-route subsystems, original by default.
+            check(owners[0]["name"] == "battle_action"
+                  and owners[0]["routes"] == 9 and owners[0]["owner"] == "owned"
+                  and all(o["owner"] == "original" for o in owners[1:]),
+                  f"ROOD_OWNER and nine routed battle actions, the rest original: {owners}")
             for owner in ("original", "owned", "original"):
                 check(g.owner("battle_action", owner)["subsystems"][0]["owner"] == owner,
                       f"owner round-trip: {owner}")

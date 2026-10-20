@@ -75,7 +75,7 @@ step build battle-32 python3 pc/tools/build_boot.py --battle
 step build build-64 python3 pc/tools/build_boot.py --arch 64
 # End options before fixed suite names: bare --changed has an optional BASE.
 step cpu suite-64null python3 pc/tests/run.py --arch 64 --renderer null --out "$out/t64null" \
-    "${changed[@]}" "${extra[@]}" -- null_backend_smoke shadow_battle_smoke ownership_smoke battle_corpus_candidate zig_hotswap_smoke
+    "${changed[@]}" "${extra[@]}" -- null_backend_smoke shadow_battle_smoke ownership_smoke battle_corpus_candidate zig_hotswap_smoke trial_corpus
 step test suite-64vk python3 pc/tests/run.py --arch 64 --renderer vulkan --out "$out/t64vk" "${changed[@]}" "${extra[@]}"
 if [ ${#changed[@]} -gt 0 ] || [ $gl = 1 ]; then
     step test suite-64gl python3 pc/tests/run.py --arch 64 --renderer gl --out "$out/t64gl" "${changed[@]}" "${extra[@]}"

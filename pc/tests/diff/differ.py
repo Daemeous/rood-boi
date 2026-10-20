@@ -28,6 +28,52 @@ def coverage(report, functions):
             "available": "coverage" in report}
 
 
+WAIVERS = pathlib.Path(__file__).with_name("waivers.toml")
+
+
+def waivers(table, subsystem, path=WAIVERS):
+    """{function: reason} of one waiver table (waivers.toml)."""
+    import tomllib
+    data = tomllib.loads(path.read_text()) if path.exists() else {}
+    return (data.get(table, {}) if table else data).get(subsystem, {})
+
+
+def alternate_check(calls, waived=None):
+    """Alternate mode alternates per routed call (state_diff.c): every
+    function the run called must have run both owned and original, or the
+    mode compared nothing for it (unless waived: a function a recipe calls
+    once cannot be split)."""
+    waived = waived or {}
+    if calls is None:
+        return {"ok": False, "reason": "the digest result has no per-call alternate counts"}
+    called = [c for c in calls if c["owned"] + c["original"]]
+    one_sided = [c for c in called if not c["owned"] or not c["original"]]
+    failing = [f"{c['function']} ({c['owned']} owned, {c['original']} original)"
+               for c in one_sided if c["function"] not in waived]
+    result = {"calls": calls, "waived": {c["function"]: waived[c["function"]] for c in one_sided
+                                         if c["function"] in waived}}
+    if not called:
+        return dict(result, ok=False, reason="no routed call ran: alternate compared nothing")
+    if failing:
+        return dict(result, ok=False, reason="called on one side only: " + ", ".join(failing))
+    return dict(result, ok=True)
+
+
+def root_call_gate(reports, subsystem, functions, path=WAIVERS):
+    """Every routed function of the subsystem needs root calls in call mode
+    in at least one of the selected recipes, or a waiver with its reason
+    (pc/tests/diff/waivers.toml): a subsystem does not pass because one of
+    its functions was called."""
+    waived = waivers(None, subsystem, path)
+    called = set()
+    for report in reports.values():
+        summary = report.get("modes", {}).get("call", {}).get("coverage_summary", {})
+        called |= set(summary.get("called", []))
+    missing = [f for f in functions if f not in called and f not in waived]
+    return {"ok": not missing, "called": sorted(called & set(functions)), "missing": missing,
+            "waived": {f: waived[f] for f in functions if f in waived and f not in called}}
+
+
 def annotate(report, mapper):
     for mismatch in report.get("mismatches", []):
         address = mismatch.get("first", 0)
@@ -96,6 +142,10 @@ def compare(game, recording, ticks, subsystem, index, modes, mapper, work,
             report = game.digest("result")
             ok = (report.get("error") == 0 and report.get("ticks") == ticks
                   and report.get("recorded") == ticks and report.get("first_tick") == -1)
+            if mode == "alternate":
+                report["alternate_check"] = alternate_check(report.get("alternate_calls"),
+                                                            waivers("alternate_one_side", subsystem))
+                ok = ok and report["alternate_check"]["ok"]
             if report.get("first_tick", -1) >= 0:
                 report["first_difference"] = diagnose(game, work, recording,
                     report["first_tick"], subsystem, index, mode, mapper)
@@ -121,7 +171,7 @@ def run_one(scenario, args, work):
     sub = next(s for s in table.subsystems if s.name == args.subsystem)
     card = work / "card.mcd"
     shutil.copyfile(args.card, card)
-    env = corpus.environment(work, sub.name)
+    env = corpus.environment(work, sub.name, getattr(args, "profile", "classic"))
     # Shared checkpoints were generated with the normal startup profile, not
     # this features-off profile. Never import that feature history into a corpus.
     previous = os.environ.get("ROOD_TEST_SNAPSHOTS")
@@ -150,7 +200,8 @@ def run_one(scenario, args, work):
                           diagnose=functools.partial(first_difference, masks=masks))
         return {"status": "passed" if all(r["ok"] for r in results.values()) else "failed",
                 "modes": results, "field_map_diagnostics": mapper.diagnostics,
-                "coverage_claim": "ended enemy action with actor != 0 and woundup == 1 in every run"}
+                "coverage_claim": (type(scenario).__doc__ or "").strip().split("\n")[0] if type(scenario) is not scenarios.Scenario
+                else "ended enemy action with actor != 0 and woundup == 1 in every run"}
     finally:
         game.close()
 
@@ -163,6 +214,9 @@ def main(argv=None):
     parser.add_argument("--card", type=pathlib.Path, default=ROOT / "pc/build/test-card1.mcd")
     parser.add_argument("--out", type=pathlib.Path, default=corpus.CACHE)
     parser.add_argument("--list", action="store_true")
+    parser.add_argument("--profile", choices=sorted(corpus.PROFILES), default="classic",
+                        help="classic: every PC feature off (the default oracle profile); features: the "
+                             "features whose ROOD_PC hooks change game state on (corpus.py FEATURES)")
     args = parser.parse_args(argv)
     selected = scenarios.select(args.scenario)
     if args.list:
@@ -186,8 +240,16 @@ def main(argv=None):
                 reports[scenario.name] = {"status": "failed", "error": f"{type(error).__name__}: {error}"}
         corpus.write_json(work / "report.json", reports)
         print(scenario.name + ": " + reports[scenario.name]["status"], flush=True)
+    import ownership
+    sub = next(s for s in ownership.load().subsystems if s.name == args.subsystem)
+    gate = root_call_gate({k: v for k, v in reports.items() if v.get("status") != "incomplete"},
+                          sub.name, [name for _, name in sub.functions])
+    corpus.write_json(work / "root_calls.json", gate)
+    print(f"Root calls: {len(gate['called'])}/{len(sub.functions)} functions called"
+          + (f", waived: {', '.join(gate['waived'])}" if gate["waived"] else "")
+          + ("" if gate["ok"] else f"; FAIL: never called and not waived: {', '.join(gate['missing'])}"))
     print(f"Report: {work / 'report.json'}")
-    return 0 if all(r["status"] == "passed" for r in reports.values()) else 1
+    return 0 if gate["ok"] and all(r["status"] == "passed" for r in reports.values()) else 1
 
 
 if __name__ == "__main__":

@@ -41,12 +41,20 @@ __attribute__((constructor)) static void check_abi(void)
 #ifdef ROOD_NO_ROUTING
 static const unsigned pc_route_count = 0;
 static const unsigned char pc_route_subsystems[] = { 0 };
+static const char* const pc_route_names[] = { NULL };
+static unsigned char pc_route_alternate[1];
+static unsigned pc_route_alternate_calls[2];
 static const unsigned pc_subsystem_count = 0;
 static const char* const pc_subsystem_names[] = { NULL };
 static const unsigned char pc_subsystem_defaults[] = { 0 };
 #else
 extern const unsigned pc_route_count;
 extern const unsigned char pc_route_subsystems[];
+extern const char* const pc_route_names[];
+/* Owner 3 (alternate): each route's flip bit and its owned/original call
+ * counts, kept by the trampolines (pc/tools/ownership.py routing_source). */
+extern unsigned char pc_route_alternate[];
+extern unsigned pc_route_alternate_calls[];
 extern const unsigned pc_subsystem_count;
 extern const char* const pc_subsystem_names[];
 extern const unsigned char pc_subsystem_defaults[];
@@ -56,7 +64,10 @@ extern int pc_shadow_available(void) __attribute__((weak));
 #endif
 
 unsigned char pc_owner[64];
-static const char* const owner_labels[] = { "original", "owned", "shadow" };
+/* alternate: every routed call flips between owned and original, per route
+ * (the oracle's alternate mode, state_diff.c; not a default). */
+static const char* const owner_labels[] = { "original", "owned", "shadow", "alternate" };
+#define OWNER_LAST 3
 
 int pc_owner_routes(int subsystem)
 {
@@ -67,7 +78,7 @@ int pc_owner_routes(int subsystem)
 }
 int pc_owner_count(void) { return (int)pc_subsystem_count; }
 const char* pc_owner_subsystem(int i) { return i >= 0 && i < (int)pc_subsystem_count ? pc_subsystem_names[i] : NULL; }
-const char* pc_owner_label(int owner) { return owner >= 0 && owner <= 2 ? owner_labels[owner] : "?"; }
+const char* pc_owner_label(int owner) { return owner >= 0 && owner <= OWNER_LAST ? owner_labels[owner] : "?"; }
 int pc_owner_get(int i) { return i >= 0 && i < (int)pc_subsystem_count ? pc_owner[i] : -1; }
 int pc_owner_find(const char* name)
 {
@@ -78,7 +89,7 @@ int pc_owner_find(const char* name)
 }
 int pc_owner_parse(const char* label)
 {
-    for (int o = 0; label && o < 3; o++)
+    for (int o = 0; label && o <= OWNER_LAST; o++)
         if (!strcmp(owner_labels[o], label))
             return o;
     return -1;
@@ -86,7 +97,7 @@ int pc_owner_parse(const char* label)
 /* Called between frames: 0 set, -1 invalid, -2 shadow unavailable. */
 int pc_owner_set(int i, int owner)
 {
-    if (i < 0 || i >= (int)pc_subsystem_count || owner < 0 || owner > 2)
+    if (i < 0 || i >= (int)pc_subsystem_count || owner < 0 || owner > OWNER_LAST)
         return -1;
     if (owner == 2) {
 #ifdef _WIN32
@@ -100,6 +111,45 @@ int pc_owner_set(int i, int owner)
         fprintf(stderr, "[ownership] %s: %s\n", pc_subsystem_names[i], owner_labels[owner]);
     pc_owner[i] = (unsigned char)owner;
     return 0;
+}
+
+/* Alternate mode: clear a subsystem's flip bits and call counts (the first
+ * call after this one runs owned). */
+int pc_owner_alternate_reset(int subsystem)
+{
+    if (subsystem < 0 || subsystem >= (int)pc_subsystem_count)
+        return -1;
+    for (unsigned r = 0; r < pc_route_count; r++) {
+        if (pc_route_subsystems[r] != subsystem)
+            continue;
+        pc_route_alternate[r] = 0;
+        pc_route_alternate_calls[2 * r] = pc_route_alternate_calls[2 * r + 1] = 0;
+    }
+    return 0;
+}
+
+/* Alternate mode: a subsystem's routes as a JSON array,
+ * [{"function":NAME,"owned":N,"original":M},...]; the length written
+ * (snprintf's), or -1. */
+int pc_owner_alternate_report(int subsystem, char* out, int size)
+{
+    if (subsystem < 0 || subsystem >= (int)pc_subsystem_count || size < 0 || (!out && size))
+        return -1;
+    int used = snprintf(out, (size_t)size, "[");
+    int first = 1;
+    for (unsigned r = 0; r < pc_route_count && used >= 0; r++) {
+        if (pc_route_subsystems[r] != subsystem)
+            continue;
+        int n = snprintf(used < size ? out + used : NULL, used < size ? (size_t)(size - used) : 0,
+            "%s{\"function\":\"%s\",\"owned\":%u,\"original\":%u}", first ? "" : ",", pc_route_names[r],
+            pc_route_alternate_calls[2 * r], pc_route_alternate_calls[2 * r + 1]);
+        used = n < 0 ? -1 : used + n;
+        first = 0;
+    }
+    if (used < 0)
+        return -1;
+    int n = snprintf(used < size ? out + used : NULL, used < size ? (size_t)(size - used) : 0, "]");
+    return n < 0 ? -1 : used + n;
 }
 
 /* ROOD_OWNER=battle_action=owned,menus=original, applied over defaults. */
