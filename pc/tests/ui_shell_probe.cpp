@@ -78,6 +78,7 @@ const char* pc_ui_settings_page_title(int page) { return fake::IDS[page]; }
 const char* pc_ui_settings_page_id(int page) { return page >= 0 && page < PAGE_PAGES ? fake::IDS[page] : nullptr; }
 const char* pc_ui_settings_page_help(int page) { return page >= 0 && page < PAGE_PAGES ? "help" : nullptr; }
 unsigned pc_ui_settings_generation(void) { return fake::generation; }
+void pc_ui_settings_debounce(double* quiet, double* quiet_before) { *quiet = *quiet_before = 0; }
 int pc_ui_settings_page_index(const char* id)
 {
     for (int p = 0; id && p < PAGE_PAGES; p++)
