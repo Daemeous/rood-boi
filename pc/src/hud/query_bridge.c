@@ -16,6 +16,7 @@
 #include "../../../src/BATTLE/BATTLE.PRG/3A1A0.h"
 #include "../../../src/SLUS_010.40/main.h"
 #include "../room_warp.h"
+#define PC_GAME_QUERY_DEFINES /* strong definitions here (game_query.h) */
 #include "game_query.h"
 
 extern _mpdRoomDoorSection_t D_800F1AB0; /* the live room (dev_state.c) */
