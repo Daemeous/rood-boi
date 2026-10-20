@@ -19,6 +19,7 @@ typedef struct {
     int cursor; /* absolute row, not window-relative */
     int top;
     const unsigned char* selectable; /* count entries: nonzero selectable; NULL = all */
+    int rows; /* visible rows (the window): 10 - rowInfo; 0 = OPTIONS_NAV_ROWS (rowInfo 1) */
 } options_nav_state;
 
 typedef struct {
@@ -26,11 +27,12 @@ typedef struct {
     options_nav_sound sound;
 } options_nav_result;
 
-/* Pure nine-row (vanilla rowInfo=1) step. UP/DOWN are repeat pulses, not
+/* Pure window step (vanilla renderItemsList with rowInfo = 10 - rows; nine
+ * rows, rowInfo 1, by default; the classic Option pages use eight, rowInfo 2). UP/DOWN are repeat pulses, not
  * raw held buttons: the caller supplies the game's button-repeat timing.
  * FRESH bits permit edge wrapping but do not themselves cause movement.
- * Requires count >= 0, an in-range cursor and 0 <= top <= max(count-9,0)
- * for nonempty lists; a cursor on visible row 0 or 8 of a mid-list page (a
+ * Requires count >= 0, an in-range cursor and 0 <= top <= max(count-rows,0)
+ * for nonempty lists; a cursor on the first or last visible row of a mid-list page (a
  * restored focus; the original's steps never leave it there) pages when it
  * moves past that edge, so it stays visible. Empty lists are unchanged. Non-selectable rows are
  * skipped using the same scrolling rules; if no target is reachable the

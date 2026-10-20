@@ -355,8 +355,8 @@ and arts too), `qol_skip_charging_name` (seconds the name stays up at
 least, 0..2, default 1) and `qol_skip_charging_hold_mine` /
 `qol_skip_charging_hold_enemy` (seconds of the hold still shown first, 0..1.5,
 defaults 0 and 0.35), System > Gameplay > Battle charging / Skip whose
-charging / Skipped charging: name shown / my wind-up / enemy wind-up in the
-modern menus, editor Graphics > Gameplay, RPC `skip_charging {mode, who, name,
+charging / Skip: name shown / Skip: my wind-up / Skip: enemy wind-up in the
+Option pages, editor Graphics > Gameplay, RPC `skip_charging {mode, who, name,
 hold_mine, hold_enemy, reset}`.
 
 **Skip** takes the hold out; nothing runs faster. The action is committed
@@ -510,6 +510,39 @@ shortcut's buttons; its page pictures are the original controls too), which
 are the only ○ / × in the English text; the manual's ○ MENU key follows.
 RPC `button_roles` reports the ○ / × drawn (`drawn`). Tests:
 `pc/tests/button_roles_smoke.py`, `pc/tests/button_roles_symbols_smoke.py`.
+
+### PC options in the game's Option screen
+
+The game's own Option screen (Triangle > Option) lists the PC settings' pages
+below its nine rows: Gameplay, Display, Graphics, Audio, Interface, Controls
+(Bindings is a page under Controls), then any plugin's pages. A page looks and
+works like the game's own lists (its windows, cursor hand, font and paging;
+with `ui_text font` the modern typography): Up/Down move, Left/Right change a
+value, Circle opens a choice's list (the game's flyout), flips a switch, runs
+an action or opens a sub-page, Cross goes back, Triangle closes the menu. The
+focused row's help shows in the information box (a long one in turns). The
+same pages, from the same data (`pc/plugins/rood.options`, `docs/Extensions.md`
+"Option pages"), are the modern menus' System tab. Changes apply at once and
+save to settings.cfg; the game's own nine options stay on the memory card.
+
+Risky display changes (Window, Display, Fullscreen mode) ask "Keep these
+settings?": they apply at once and go back by themselves after 10 seconds
+unless kept (Circle on KEEP; the countdown is rood.options' `confirm.seconds`);
+until then settings.cfg keeps the old value. The display settings:
+
+| Key | Values | |
+|---|---|---|
+| `window_mode` | `windowed`, `borderless`, `fullscreen` | exclusive fullscreen uses `fullscreen_mode` |
+| `display` | `<index> <name>`, `primary` | the screen the window (centred) and fullscreen go on: matched by name, then index, then the primary |
+| `fullscreen_mode` | `WxH@Hz`, `desktop` | exclusive fullscreen's mode; one the display lacks: the closest it has |
+| `vsync` | `0` (default), `1` | images wait for the display's refresh (OpenGL swap interval, Vulkan FIFO) |
+| `remember_window` | `0` (default), `1` | the window opens where and as large as it was last left (`window_rect x y w h`, written as it moves; `ROOD_WINDOW` wins) |
+| `internal_resolution` | `1`..`8`, `auto` | Render quality; `auto` is "Match window": one 3D pixel per window pixel or finer |
+| `present_rate` | `1`..`8`, `0` | Frame rate with frame interpolation: 60, 120, 180, 240 fps, or `0` the display's refresh; with vsync never above it. The game itself runs at 59.94 Hz |
+
+RPC `options` reports the classic screen (page, rows, focus, the question) and
+answers it (`{keep: true}`, `{revert: true}`); RPC `system` sets the display
+keys directly (`display`, `fullscreen_mode`, `vsync`, `remember_window`).
 
 ### Modern menus (in progress)
 

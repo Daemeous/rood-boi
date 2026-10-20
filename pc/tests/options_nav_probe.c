@@ -72,7 +72,7 @@ int main(void)
         { 0, 0, 0, NULL, D, 0, 0, I },
     };
     for (unsigned i = 0; i < sizeof cases / sizeof cases[0]; ++i) {
-        options_nav_state s = { cases[i].count, cases[i].cursor, cases[i].top, cases[i].flags };
+        options_nav_state s = { cases[i].count, cases[i].cursor, cases[i].top, cases[i].flags, 0 };
         options_nav_result r = options_nav_step(s, cases[i].input);
         if (r.state.cursor != cases[i].cursor_after || r.state.top != cases[i].top_after
             || r.sound != cases[i].sound) {
@@ -83,13 +83,36 @@ int main(void)
         CHECK(r.state.count == s.count && r.state.selectable == s.selectable);
     }
     /* Traverse several full cycles: nine visible rows, no header focus. */
-    options_nav_state s = { 12, 1, 0, long_skip };
+    options_nav_state s = { 12, 1, 0, long_skip, 0 };
     for (int i = 0; i < 200; ++i) {
         options_nav_result r = options_nav_step(s, i < 100 ? D | FD : U | FU);
         s = r.state;
         CHECK(s.cursor >= s.top && s.cursor < s.top + OPTIONS_NAV_ROWS);
         CHECK(s.top >= 0 && s.top <= s.count - OPTIONS_NAV_ROWS);
         CHECK(s.selectable[s.cursor]);
+    }
+    /* Eight visible rows (rowInfo 2: the classic Option pages): the same
+     * rules one row shorter, paging at visible row 6, wrapping at row 7. */
+    {
+        options_nav_state e = { 12, 6, 0, NULL, 8 };
+        options_nav_result r = options_nav_step(e, D);
+        CHECK(r.state.cursor == 7 && r.state.top == 1);
+        e = (options_nav_state) { 12, 11, 4, NULL, 8 };
+        CHECK(options_nav_step(e, D).state.cursor == 11);         /* no fresh press: held */
+        r = options_nav_step(e, D | FD);
+        CHECK(r.state.cursor == 0 && r.state.top == 0);
+        e = (options_nav_state) { 12, 0, 0, NULL, 8 };
+        r = options_nav_step(e, U | FU);
+        CHECK(r.state.cursor == 11 && r.state.top == 4);
+        e = (options_nav_state) { 8, 7, 0, NULL, 8 };          /* a list that fits: wraps on repeat */
+        CHECK(options_nav_step(e, D).state.cursor == 0);
+        e = (options_nav_state) { 12, 1, 0, long_skip, 8 };
+        for (int i = 0; i < 200; ++i) {
+            e = options_nav_step(e, i < 100 ? D | FD : U | FU).state;
+            CHECK(e.cursor >= e.top && e.cursor < e.top + 8);
+            CHECK(e.top >= 0 && e.top <= e.count - 8);
+            CHECK(e.selectable[e.cursor]);
+        }
     }
     puts("options_nav_probe: OK");
     return 0;

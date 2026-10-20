@@ -4,6 +4,8 @@
 // the game options bridge and without the feature hooks, and the other way
 // round (UI_SETTINGS_PROBE_HOOKS).
 #include "ui/ui_settings.h"
+#include "display_confirm.h"
+extern "C" int pc_hw_scale_auto, pc_present_rate; // ui_settings_stubs.cpp
 #include "ui/option_pages.h"
 #include "ui/game_options.h"
 #include "antialias.h"
@@ -93,7 +95,7 @@ static void pages()
     pc_dust = 2;
     CHECK(value(G, "dust") == "High");
     pc_dust = 0;
-    CHECK(pc_ui_settings_rows(D) == 8); // Images per vsync shows: interpolation is on
+    CHECK(pc_ui_settings_rows(D) == 12); // Images per vsync shows: interpolation is on
     CHECK(pc_ui_settings_rows(A) == (game ? 2 : 1));
     CHECK(pc_ui_settings_rows(I) == 15); // with Menu opacity, Menu tint, Tint red, green, blue
     CHECK(find(I, "ui_menu_tint") == 2 && find(I, "ui_menu_tint_b") == 5);
@@ -158,7 +160,7 @@ static void pages()
     CHECK(!pc_ui_settings_row(G, 99, &r));
     // Images per vsync only while interpolating
     pc_hw_interpolate = 0;
-    CHECK(pc_ui_settings_rows(D) == 7);
+    CHECK(pc_ui_settings_rows(D) == 11);
     CHECK(find(D, "present_rate") < 0);
     pc_hw_interpolate = 1;
     CHECK(find(D, "present_rate") == 4);
@@ -198,13 +200,15 @@ static void values()
     // slider through pc_hw_set_scale, clamped
     CHECK(value(G, "internal_resolution") == "4x");
     CHECK(change(G, "internal_resolution", 1) == 1 && stub.last_scale == 5 && pc_hw_scale_setting == 5);
-    CHECK(change(G, "internal_resolution", 10) == 1 && stub.last_scale == 8);
+    CHECK(change(G, "internal_resolution", 10) == 1 && stub.last_scale == 0 && pc_hw_scale_auto); // the top: auto
+    CHECK(value(G, "internal_resolution") == "Match window" && row(G, "internal_resolution").number == 9);
     int calls = stub.set_scale_calls;
     CHECK(change(G, "internal_resolution", 1) == 0 && stub.set_scale_calls == calls); // at the top
+    CHECK(change(G, "internal_resolution", -1) == 1 && stub.last_scale == 8 && !pc_hw_scale_auto);
     CHECK(pc_ui_settings_set(G, find(G, "internal_resolution"), 0) == 1 && pc_hw_scale_setting == 1);
     pc_ui_settings_set(G, find(G, "internal_resolution"), 4);
     pc_ui_setting_row s = row(G, "internal_resolution");
-    CHECK(s.kind == PC_UI_SET_SLIDER && s.min == 1 && s.max == 8 && s.step == 1 && s.number == 4);
+    CHECK(s.kind == PC_UI_SET_SLIDER && s.min == 1 && s.max == 9 && s.step == 1 && s.number == 4);
     // a pointer drag previews it (the targets rebuild once, at its end); other sliders apply as they go
     calls = stub.set_scale_calls;
     int ir = find(G, "internal_resolution");
@@ -229,7 +233,9 @@ static void values()
     CHECK(value(I, "ui_outline_boost") == "Off");
     CHECK(change(I, "ui_outline_boost", 1) == 1 && value(I, "ui_outline_boost") == "+1 px");
     // present_rate text
-    CHECK(value(D, "present_rate") == "1");
+    CHECK(value(D, "present_rate") == "60 fps");
+    CHECK(change(D, "present_rate", -1) == 1 && pc_present_rate == 0 && value(D, "present_rate") == "Match display");
+    CHECK(change(D, "present_rate", 1) == 1 && pc_present_rate == 1);
     // renderer info
     pc_ui_setting_row info = row(D, "renderer");
     CHECK(info.kind == PC_UI_SET_INFO && std::string(info.value) == "OpenGL");
@@ -323,6 +329,19 @@ static void greyed()
     } else {
         CHECK(wm.enabled && br.enabled && mv.enabled && bind.enabled);
         CHECK(change(D, "window_mode", -1) == 1 && stub.window_mode == 2 && value(D, "window_mode") == "Fullscreen");
+        // a risky display change (confirm): applied, held unsaved until kept, reverted on request
+        char held[96];
+        CHECK(pc_display_confirm_pending() && pc_display_confirm_count() == 1);
+        CHECK(pc_display_confirm_held("window_mode", held, sizeof held) && std::string(held) == "windowed");
+        pc_display_confirm_revert();
+        CHECK(!pc_display_confirm_pending() && stub.window_mode == 0 && value(D, "window_mode") == "Windowed");
+        CHECK(change(D, "window_mode", 1) == 1 && stub.window_mode == 1 && pc_display_confirm_pending());
+        CHECK(change(D, "window_mode", -1) == 1 && stub.window_mode == 0 && !pc_display_confirm_pending()); // back: let go
+        CHECK(change(D, "window_mode", -1) == 1 && stub.window_mode == 2 && pc_display_confirm_pending());
+        int kept_saves = stub.saves;
+        pc_display_confirm_keep();
+        CHECK(!pc_display_confirm_pending() && stub.window_mode == 2 && stub.saves == kept_saves + 1);
+        CHECK(!pc_display_confirm_held("window_mode", held, sizeof held));
         CHECK(change(D, "brightness", 1) == 1 && stub.brightness == 55 && value(D, "brightness") == "55");
         CHECK(change(A, "master_volume", 1) == 0); // at 100
         CHECK(change(A, "master_volume", -2) == 1 && stub.volume == 90 && value(A, "master_volume") == "90%");

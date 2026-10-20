@@ -988,6 +988,8 @@ extern void pc_hw_present_origin(int* x, int* y);
 extern const uint16_t* pc_native_vram(void);
 
 extern SDL_Window* pc_window_create(SDL_PropertiesID props);
+extern void pc_window_place(SDL_PropertiesID props, int width, int height); /* boot_window.c */
+extern int pc_vsync_get(void);                                              /* boot_window.c: settings vsync */
 /* An engine reload (engine_reload.c): the context goes with every GL object
  * (nothing is shared), the window stays for the next library. */
 void pc_gl_shutdown(void)
@@ -1022,10 +1024,7 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_PropertiesID props = SDL_CreateProperties();
     SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, title);
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, 40);
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, 40);
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, width);
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, height);
+    pc_window_place(props, width, height); /* boot_window.c: a remembered place, else (40, 40) */
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_OPENGL_BOOLEAN, true);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true);
@@ -1717,6 +1716,14 @@ void pc_gl_present_stats(unsigned* presents, double* wait_ms, unsigned* waits, i
 }
 static void swap(void)
 {
+    {
+        /* settings vsync: the swap waits for the display's refresh (off: the frame loop paces alone) */
+        static int interval = -2;
+        if (interval != (pc_vsync_get() ? 1 : 0)) {
+            interval = pc_vsync_get() ? 1 : 0;
+            SDL_GL_SetSwapInterval(interval);
+        }
+    }
     SDL_GL_SwapWindow(window);
     ++presented_frames;
     ++pc_window_presents;

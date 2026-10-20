@@ -11,6 +11,7 @@
 #include "ui/ui_draw_internal.h"
 #include "ui/ui_settings.h"
 #include "button_prompts.h"
+#include "display_confirm.h"
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -41,6 +42,7 @@ struct Anim {
     int drag_page = -1, shown_page = -1; // the page the drag began on; the page drawn this frame
     bool drag_rpc = false;
     float wheel = 0; // wheel notches not turned into steps yet
+    float list_scroll = 0, list_max = 0; // the list of pages (more than fit: plugins' pages)
 } anim;
 
 // "Saved settings to /a/b/settings.cfg" -> "Saved settings to settings.cfg": the
@@ -275,6 +277,45 @@ void draw_capture(const Frame& f, const ui::Theme& t, int button, const char* la
 
 } // namespace
 
+// "Keep these settings?" over the whole menu (display_confirm.h): what changed, the seconds
+// left, Keep and Revert (the shell's modal: pc_ui_shell_confirm_focus, PC_UI_MOUSE_CONFIRM).
+void draw_display_confirm(const Frame& f, const ui::Theme& t, Pointer& m, ScreenOut& out)
+{
+    f.dl->AddRectFilled(f.p(0, 0), f.p(f.W, 720), fade(t.ground | 0xFF000000u, 0.72f));
+    m.hit(PC_UI_MOUSE_CONFIRM, 2, 0, 0, f.W, 720); // the rest of the screen takes nothing
+    float w = 520, h = 180, x0 = (f.W - w) * 0.5f, y0 = 260;
+    f.dl->AddRectFilled(f.p(x0, y0), f.p(x0 + w, y0 + h), t.panel);
+    f.dl->AddRect(f.p(x0, y0), f.p(x0 + w, y0 + h), t.rule2, 0, 0, f.s(1));
+    f.dl->AddRectFilled(f.p(x0, y0), f.p(x0 + w, y0 + 2), t.accent);
+    text(f, fonts.name, 25, x0 + 24, y0 + 18, t.bone, "Keep these settings?");
+    std::string what;
+    for (int i = 0; i < pc_display_confirm_count(); ++i) {
+        pc_ui_setting_row r;
+        int c = pc_ui_settings_catalog_index(pc_display_confirm_key(i));
+        what += i ? ", " : "";
+        what += c >= 0 && pc_ui_settings_catalog_row(c, &r) ? r.label : pc_display_confirm_key(i);
+    }
+    int secs = (int)std::ceil(pc_display_confirm_remaining());
+    char line[256];
+    std::snprintf(line, sizeof line, "%s changed. %s back in %d second%s unless you keep %s.", what.c_str(),
+        pc_display_confirm_count() > 1 ? "They go" : "It goes", secs, secs == 1 ? "" : "s",
+        pc_display_confirm_count() > 1 ? "them" : "it");
+    paragraph(f, t, x0 + 24, y0 + 60, w - 48, t.ash, line);
+    float bw = 140, bh = 40, by = y0 + h - 60, gx = x0 + w - 24 - bw * 2 - 12;
+    int focus = pc_ui_shell_confirm_focus();
+    for (int i = 0; i < 2; ++i) {
+        float bx = gx + i * (bw + 12);
+        bool o = m.hit(PC_UI_MOUSE_CONFIRM, i, bx, by, bx + bw, by + bh);
+        f.dl->AddRectFilled(f.p(bx, by), f.p(bx + bw, by + bh), focus == i ? t.accent : o ? t.rule2 : t.rule, f.s(5));
+        const char* s = i == 0 ? "KEEP" : "REVERT";
+        float tw = measure(f, fonts.label, 15, s, 0.26f);
+        text(f, fonts.label, 15, bx + (bw - tw) * 0.5f, by + (bh - 15) * 0.5f - 1, t.bone, s, 0.26f);
+    }
+    out.hint_count = 0;
+    out.hint(PC_PROMPT_CIRCLE, -1, focus == 0 ? "Keep" : "Revert", PC_UI_CONFIRM);
+    out.hint(PC_PROMPT_CROSS, -1, "Revert", PC_UI_BACK);
+}
+
 void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out)
 {
     if (pc_ui_shell_manual_shown()) { // the Quick manual has the screen (ui_manual_draw.cpp)
@@ -300,10 +341,41 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
     }
 
     // ---- the list ----
+    // (scrolled when the entries are taller than the screen: many plugins' pages; the focused
+    // entry stays in view with one entry of margin where there is one)
     float lx = t.margin_x, lw = list_width(f.W), y = top;
     const char *id, *label, *help, *reason, *focus_label = "", *focus_help = "", *focus_reason = nullptr,
                                                *focus_id = "";
     int enabled;
+    {
+        float h = 0, fy = 0;
+        int n = 0;
+        for (; pc_ui_shell_system_item(n, &id, &label, &help, &enabled, &reason); ++n) {
+            if (n == 0 || n == v.games)
+                h += (n ? 14 : 0) + 24;
+            if (n == v.item)
+                fy = h;
+            h += ENTRY_H;
+        }
+        float room = BOTTOM - 8 - top, target = anim.list_scroll;
+        float max_scroll = h > room ? h - room : 0;
+        if (fy - ENTRY_H < target)
+            target = fy - ENTRY_H;
+        if (fy + ENTRY_H * 2 > target + room)
+            target = fy + ENTRY_H * 2 - room;
+        target = target < 0 ? 0 : target > max_scroll ? max_scroll : target;
+        anim.list_scroll = fresh ? target : approach(anim.list_scroll, target, dt, t.focus_grow);
+        anim.list_max = max_scroll;
+        y -= anim.list_scroll;
+        f.dl->PushClipRect(f.p(lx - 4, top - 4), f.p(lx + lw + 4, BOTTOM - 4), true);
+        if (max_scroll > 0) { // where the list is: a thin bar at its right edge
+            float th = room * room / h, tx = lx + lw + 6;
+            float ty = top + (room - th) * (anim.list_scroll / max_scroll);
+            f.dl->AddRectFilled(f.p(tx, top), f.p(tx + 2, top + room), t.rule);
+            f.dl->AddRectFilled(f.p(tx, ty), f.p(tx + 2, ty + th), t.ash);
+        }
+    }
+    float list_top = top, list_bottom = BOTTOM - 8;
     for (int i = 0; pc_ui_shell_system_item(i, &id, &label, &help, &enabled, &reason); ++i) {
         if (i == 0 || i == v.games) {
             if (i)
@@ -316,7 +388,7 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
             focus_band(f, t, lx, y, lx + lw, y + ENTRY_H);
         else if (focus) // the page that is open: its bar only
             f.dl->AddRectFilled(f.p(lx, y + 8), f.p(lx + 2, y + ENTRY_H - 8), t.accent);
-        if (hit_ok)
+        if (hit_ok && y >= list_top - 1 && y + ENTRY_H <= list_bottom + 1) // whole entries take the pointer
             m.hit(PC_UI_MOUSE_PAGE, i, lx, y, lx + lw, y + ENTRY_H);
         unsigned c = !enabled ? t.dim : focus ? t.bone : v.entered ? t.ash : t.bone;
         text(f, fonts.name, 18, lx + 16, y + (ENTRY_H - 18) * 0.5f - 2, c, label);
@@ -326,6 +398,7 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
             focus_label = label, focus_help = help, focus_reason = reason, focus_id = id;
         y += ENTRY_H;
     }
+    f.dl->PopClipRect();
 
     // ---- the card ----
     float cx = lx + lw + 28, cw = f.W - t.margin_x - cx;

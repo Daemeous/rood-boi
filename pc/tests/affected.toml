@@ -78,7 +78,7 @@ suites = ["frame_cost_smoke", "rpc_smoke", "ctest"]
 # ---- Lua plugins ----
 [[rule]]
 paths = ["pc/src/lua/*", "pc/plugins/*", "pc/tests/lua/*", "pc/third_party/lua*"]
-suites = ["lua_smoke", "ctest", "hud_bench_smoke", "repl_smoke"]
+suites = ["lua_smoke", "ctest", "hud_bench_smoke", "repl_smoke", "options_classic_smoke", "options_confirm_smoke"]
 
 # ---- the REPL bridge's client (run by repl_smoke as a process, not imported) ----
 [[rule]]
@@ -95,13 +95,18 @@ suites = ["hud_bench_smoke", "lua_smoke", "ctest", "ui_text_smoke"]
 paths = ["pc/src/ui/*", "pc/assets/ui/*"]
 suites = ["ui_*", "ctest", "button_roles_smoke", "button_roles_symbols_smoke", "fast_travel_shell_smoke",
           "interp_menu_2d_smoke", "system_settings_smoke", "weapon_slots_smoke", "menu0_levelled_smoke",
-          "save_menu_smoke"]
+          "save_menu_smoke", "options_*"]
+
+# ---- the Option pages' look and "Keep these settings?" (the settings writer holds its keys) ----
+[[rule]]
+paths = ["pc/src/display_confirm.*", "pc/src/host_format.*"]
+suites = ["options_*", "ui_system_smoke", "system_settings_smoke", "window_mode_smoke", "ctest"]
 
 [[rule]]
 paths = ["src/MENU/*"]
 suites = ["ui_*", "menu0_levelled_smoke", "save_menu_smoke", "fast_travel_*", "weapon_slots_smoke",
           "button_roles_*", "interp_menu_2d_smoke", "input:data-menu*", "widescreen_smoke", "snapshot_equivalence",
-          "hud_label_solid_smoke", "skip_charging_smoke"]
+          "hud_label_solid_smoke", "skip_charging_smoke", "options_*"]
 
 # ---- the battle overlay (field play too) ----
 [[rule]]

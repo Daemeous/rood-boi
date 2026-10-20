@@ -980,7 +980,8 @@ extern "C" void pc_lighting_panel(void)
     ImGui::SeparatorText("Display (not part of the preset)");
     antialiasing_panel();
     if (pc_hw_interpolate) {
-        ImGui::SliderInt("Frame pacing (images per vsync)", &pc_present_rate, 1, 8);
+        ImGui::SliderInt("Frame pacing (images per vsync)", &pc_present_rate, 0, 8,
+            pc_present_rate ? "%d" : "match display");
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
             ImGui::SetTooltip("Interpolated in-betweens per vsync (2: 120 fps, 4: 240 fps)");
     } else {

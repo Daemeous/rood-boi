@@ -17,6 +17,7 @@
 #include "rl_internal.h"
 #include "ui/option_actions.h"
 #include "ui/option_pages.h"
+#include "ui/option_style.h"
 #include "ui/ui_settings.h"
 #include "ui/vs_encode.h"
 
@@ -495,6 +496,42 @@ int api_actions(lua_State* L)
     return 1;
 }
 
+/* rood.menu.style{ classic = { row_x = 65, ... }, confirm = { seconds = 10 } }: the Option
+ * screens' look and feel (option_style.h; fields named "<group>_<field>"), set by the shipped
+ * rood.options from its table; back to the defaults when it unloads. Returns every value. */
+int api_style(lua_State* L)
+{
+    Plugin* p = plugin_of(L);
+    if (!lua_isnoneornil(L, 1)) {
+        luaL_checktype(L, 1, LUA_TTABLE);
+        if (p->id() != CORE_PLUGIN)
+            return luaL_error(L, "rood.menu.style: only %s sets the Option screens' look", CORE_PLUGIN);
+        lua_pushnil(L);
+        while (lua_next(L, 1)) {
+            if (lua_type(L, -2) != LUA_TSTRING || !lua_istable(L, -1))
+                return luaL_error(L, "rood.menu.style: groups are tables by name (classic, confirm)");
+            std::string group = lua_tostring(L, -2);
+            lua_pushnil(L);
+            while (lua_next(L, -2)) {
+                if (lua_type(L, -2) != LUA_TSTRING)
+                    return luaL_error(L, "rood.menu.style: %s's fields are named", group.c_str());
+                std::string name = group + "_" + lua_tostring(L, -2);
+                double v = lua_isboolean(L, -1) ? (lua_toboolean(L, -1) ? 1 : 0) : luaL_checknumber(L, -1);
+                if (!pc_option_style_set(name.c_str(), v))
+                    return luaL_error(L, "rood.menu.style: no field %s.%s", group.c_str(), lua_tostring(L, -2));
+                lua_pop(L, 1);
+            }
+            lua_pop(L, 1);
+        }
+    }
+    lua_newtable(L);
+    for (int i = 0; i < pc_option_style_count(); i++) {
+        lua_pushnumber(L, pc_option_style_value(i));
+        lua_setfield(L, -2, pc_option_style_name(i));
+    }
+    return 1;
+}
+
 int api_generation(lua_State* L)
 {
     lua_pushinteger(L, (lua_Integer)pc_option_pages_generation());
@@ -542,6 +579,7 @@ void open_menu(lua_State* L, Plugin*)
     set_cfunction(L, -1, "rows", api_rows);
     set_cfunction(L, -1, "actions", api_actions);
     set_cfunction(L, -1, "generation", api_generation);
+    set_cfunction(L, -1, "style", api_style);
     lock_table(L);
     lua_setfield(L, -2, "menu");
 }
@@ -550,6 +588,8 @@ void open_menu(lua_State* L, Plugin*)
 void drop_menu(Plugin* p)
 {
     actions().remove_if([&](const Action& a) { return a.owner == p->id(); });
+    if (p->id() == CORE_PLUGIN)
+        pc_option_style_reset(); /* its look's values go too */
     if (p->id() != CORE_PLUGIN)
         pc_option_pages_remove_source(p->id().c_str());
     else if (!pc_option_pages_fallback_active()) /* (the fallback's pages share its source: they stay) */

@@ -7,6 +7,7 @@
 #include "ui/ui_manual.h"
 #include "ui/ui_score.h"
 #include "ui/ui_settings.h"
+#include "display_confirm.h"
 #include "ui/ui_theme.h"
 #include "ui/ui_workshop.h"
 #include <cstdio>
@@ -144,6 +145,8 @@ struct State {
         // or going renumbers them; the focus stays on its page by id.
         unsigned generation = 0;
         std::string page_id, item_page_id;
+        int confirm_focus = 0;    // "Keep these settings?": 0 Keep, 1 Revert
+        bool confirm_seen = false; // the modal is up (its focus starts on Keep each time)
     } sys;
     Abil ab;
     pc_ui_abilities ab_model = {};
@@ -856,6 +859,43 @@ int system_tick(const pc_ui_input* in)
         sys_row_confirm(page, row);
     return 0;
 }
+// "Keep these settings?" (display_confirm.h): a risky display change waits for an answer; the
+// modal takes the input until it is answered or reverts by itself.
+bool confirm_up()
+{
+    bool up = pc_display_confirm_pending() != 0;
+    if (up && !s.sys.confirm_seen)
+        s.sys.confirm_focus = 0;
+    s.sys.confirm_seen = up;
+    return up;
+}
+void confirm_answer(bool keep)
+{
+    if (keep)
+        pc_display_confirm_keep();
+    else
+        pc_display_confirm_revert();
+    s.sys.confirm_seen = false;
+}
+int confirm_tick(const pc_ui_input* in)
+{
+    if (in->repeat & (PC_UI_LEFT | PC_UI_RIGHT | PC_UI_UP | PC_UI_DOWN))
+        s.sys.confirm_focus ^= 1;
+    if (in->pressed & PC_UI_CONFIRM)
+        confirm_answer(s.sys.confirm_focus == 0);
+    else if (in->pressed & (PC_UI_BACK | PC_UI_EXIT))
+        confirm_answer(false);
+    return 0;
+}
+void confirm_json(std::string& j)
+{
+    char buf[160];
+    std::snprintf(buf, sizeof buf, ",\"confirm\":{\"pending\":%s,\"remaining\":%.2f,\"focus\":\"%s\"}",
+        pc_display_confirm_pending() ? "true" : "false", pc_display_confirm_remaining(),
+        s.sys.confirm_focus ? "revert" : "keep");
+    j += buf;
+}
+
 // The PS1 button's binding row id ("bind_triangle"), "" when none.
 const char* capture_row_id()
 {
@@ -914,6 +954,7 @@ void system_json(std::string& j)
     j += escape(status ? status : "") + "\"";
     pc_ui_manual_json(j);
     pc_ui_score_json(j);
+    confirm_json(j);
     j += "}";
 }
 
@@ -2045,6 +2086,16 @@ bool apply_mouse(pc_ui_input& in)
     Mouse m = s.mouse;
     s.mouse.hover_kind = s.mouse.click_kind = PC_UI_MOUSE_NONE;
     s.mouse.value = false;
+    if (confirm_up()) { // only the modal's buttons take the pointer
+        s.mouse.wheel = 0;
+        if (m.hover_kind == PC_UI_MOUSE_CONFIRM && m.hover_index < 2)
+            s.sys.confirm_focus = m.hover_index;
+        if (m.click_kind == PC_UI_MOUSE_CONFIRM && m.click_index < 2) {
+            confirm_answer(m.click_index == 0);
+            return true;
+        }
+        return false;
+    }
     if (capturing()) { // a capture listens: only a right click (Back) or a click on the prompt cancels it
         s.mouse.wheel = 0;
         if (m.click_kind == PC_UI_MOUSE_BUTTON && ((unsigned)m.click_index & PC_UI_BACK))
@@ -2283,6 +2334,8 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
         return 0;
     if (capturing()) // a binding capture listens: no navigation until it ends
         return 0;
+    if (confirm_up()) // "Keep these settings?" waits for its answer
+        return confirm_tick(in);
     bool equipment = TABS[s.tab].screen == SCREEN_EQUIPMENT;
     // Cross steps back out of a pick list; at the top it closes, as Triangle does
     if ((in->pressed & PC_UI_BACK) && !(in->pressed & PC_UI_EXIT) && equipment && equip_back())
@@ -2590,6 +2643,7 @@ extern "C" void pc_ui_shell_model_turn(float* yaw_delta, float* pitch_delta)
     s.drag_x = s.drag_y = 0;
 }
 
+extern "C" int pc_ui_shell_confirm_focus(void) { return s.sys.confirm_focus; }
 extern "C" void pc_ui_shell_system_view(pc_ui_system_view* v)
 {
     int g[SYSTEM_GAMES];

@@ -6,7 +6,9 @@
 #include "ui/ui_settings.h"
 #include "ui/option_actions.h"
 #include "ui/option_pages.h"
+#include "ui/option_style.h"
 #include "ui/game_options.h"
+#include "display_confirm.h"
 #include "ui/ui_tint.h"
 #include "antialias.h"
 #include <SDL3/SDL_gamepad.h> /* before boot_controller.h: SDL keeps its own linkage */
@@ -23,6 +25,7 @@ extern "C" {
 #include "ui_text.h"
 #include "ui_upscale.h"
 #include <cctype>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -62,6 +65,22 @@ void pc_master_volume_set(int volume) __attribute__((weak));
 int pc_brightness_get(void) __attribute__((weak));
 void pc_brightness_set(int value) __attribute__((weak));
 int pc_ui_capture_begin(void) __attribute__((weak));
+/* The display back-ends (boot_window.c; weak: probes and windowless builds grey their rows). */
+int pc_display_count(void) __attribute__((weak));
+const char* pc_display_label(int i) __attribute__((weak));
+const char* pc_display_value(int i) __attribute__((weak));
+int pc_display_current(void) __attribute__((weak));
+void pc_display_choose(const char* value) __attribute__((weak));
+int pc_fullscreen_mode_count(void) __attribute__((weak));
+const char* pc_fullscreen_mode_label(int i) __attribute__((weak));
+const char* pc_fullscreen_mode_value(int i) __attribute__((weak));
+int pc_fullscreen_mode_current(void) __attribute__((weak));
+void pc_fullscreen_mode_choose(const char* value) __attribute__((weak));
+int pc_vsync_get(void) __attribute__((weak));
+void pc_vsync_set(int on) __attribute__((weak));
+int pc_window_remember_get(void) __attribute__((weak));
+void pc_window_remember_set(int on) __attribute__((weak));
+extern int pc_hw_scale_auto __attribute__((weak)); /* gpu_hw.c: internal_resolution auto ("Match window") */
 }
 
 namespace {
@@ -80,6 +99,9 @@ using ChoiceWhy = const char* (*)(const Row&, int);
 using Run = void (*)(const Row&);
 using Info = void (*)(const Row&, char*, int);
 using Swatch = void (*)(const Row&, unsigned char*);
+using CfgOf = const char* (*)(const Row&, int); // a choice's text in settings.cfg (dynamic choices)
+using CountOf = int (*)(const Row&);            // a dynamic choice's number of choices (the displays, ...)
+using NameOf = const char* (*)(const Row&, int); // and its names
 
 struct Row {
     const char* id;
@@ -90,7 +112,10 @@ struct Row {
     float* fvar = nullptr;
     const char* key = nullptr;              // lighting key (pc_lighting_set)
     const char* const* names = nullptr;     // choice labels
-    const char* const* values = nullptr;    // lighting values per choice (else "0"/"1")
+    const char* const* values = nullptr;    // lighting values per choice (else "0"/"1"); a confirm row's settings.cfg text
+    CfgOf cfg = nullptr;                    // a confirm row's settings.cfg text of choice i (else values)
+    CountOf dyn_count = nullptr;            // a dynamic choice (else count, names)
+    NameOf dyn_name = nullptr;
     const int* ichoices = nullptr;          // choice i sets *ivar = ichoices[i]
     const float* fchoices = nullptr;        // choice i sets *fvar = fchoices[i]
     int count = 0;
@@ -98,6 +123,7 @@ struct Row {
     float min = 0, max = 0, step = 1;
     const char* format = nullptr;           // slider value (printf, the value as double or int)
     const char* zero = nullptr;             // slider text at its minimum ("Off")
+    const char* top = nullptr;              // slider text at its maximum ("Match window")
     bool integer = false;                   // slider value printed as int
     GetI get = nullptr;
     SetI set = nullptr;
@@ -124,6 +150,14 @@ struct Row {
 };
 
 const char* const OFF_ON[2] = {"Off", "On"};
+
+// A choice's count and names: fixed (count, names) or the hardware's now (dyn_count, dyn_name).
+int count_of(const Row& r) { return r.dyn_count ? r.dyn_count(r) : r.count; }
+const char* name_of(const Row& r, int i)
+{
+    const char* n = r.dyn_name ? r.dyn_name(r, i) : r.names[i];
+    return n ? n : "?";
+}
 
 Row base(const char* id, const char* label, const char* help, int kind)
 {
@@ -245,6 +279,12 @@ char swap_note[128];
 bool swap_note_pending;
 double swap_note_since, ticked;
 
+// "Keep these settings?" (below): display_confirm.h's callbacks.
+double confirm_now(void*);
+int confirm_get(void*, const char* key, char* out, int size);
+void confirm_set(void*, const char* key, const char* value);
+void confirm_save(void*);
+
 void build()
 {
     if (!homes[0].empty())
@@ -292,10 +332,14 @@ void build()
         nullptr, 2)
                     .grey(need_hw));
     {
-        Row r = islider("internal_resolution", "Internal resolution",
-            "Times the PS1's resolution the 3D is drawn at. Higher is sharper and costs more.", &pc_hw_scale_setting, 1,
-            8, "%dx");
-        r.setf = [](const Row&, float v) { pc_hw_set_scale((int)v); };
+        // 1x-8x, then Match window (settings internal_resolution auto: one 3D pixel per window pixel)
+        Row r = islider("internal_resolution", "Render quality",
+            "Times the PS1's resolution the 3D is drawn at; Match window: as sharp as the window. Higher is sharper "
+            "and costs more.",
+            &pc_hw_scale_setting, 1, 9, "%dx");
+        r.top = "Match window";
+        r.getf = [](const Row&) { return &pc_hw_scale_auto && pc_hw_scale_auto ? 9.0f : (float)pc_hw_scale_setting; };
+        r.setf = [](const Row&, float v) { pc_hw_set_scale(v >= 9 ? 0 : (int)v); };
         r.on_release = true; // each scale rebuilds the render targets: not on every step of a drag
         g.push_back(r.grey(need_hw));
     }
@@ -323,7 +367,7 @@ void build()
                             return why;
                         return pc_aa_ssaa > 1 ? nullptr : "Needs supersampling";
                     }));
-    g.push_back(toggle("perspective_textures", "Perspective-correct textures",
+    g.push_back(toggle("perspective_textures", "Perspective textures",
         "Textures no longer warp on large polygons.", &pc_hw_perspective)
                     .grey(need_hw));
     g.push_back(toggle("subpixel", "Sub-pixel precision", "No vertex jitter: polygons keep their exact positions.",
@@ -363,9 +407,14 @@ void build()
         "Smooth 60 fps motion between the game's frames. Off: the game's own rate.", &pc_hw_interpolate)
                     .grey(need_hw));
     {
-        Row r = islider("present_rate", "Images per vsync",
-            "In-between images per screen refresh: 2 gives 120 fps on a 120 Hz display.", &pc_present_rate, 1, 8,
-            "%d");
+        // images per vsync (settings present_rate 1-4, 0 match display); the game itself runs at 59.94 Hz
+        static const char* const rates[] = {"60 fps", "120 fps", "180 fps", "240 fps", "Match display"};
+        static const int rate_values[] = {1, 2, 3, 4, 0};
+        Row r = choice("present_rate", "Frame rate",
+            "Images shown per second with frame interpolation; the game itself still runs at 60. Match display: as "
+            "many as the display refreshes (120 on a 120 Hz display).",
+            &pc_present_rate, rates, 5);
+        r.ichoices = rate_values;
         r.shown = [](const Row&) { return pc_hw_active && pc_hw_interpolate; };
         d.push_back(r);
     }
@@ -374,10 +423,67 @@ void build()
             nullptr, window_modes, 3);
         r.get = [](const Row&) { return pc_window_mode_get(); };
         r.set = [](const Row&, int i) { pc_window_mode_set(i); };
+        static const char* const window_mode_values[] = {"windowed", "borderless", "fullscreen"};
+        r.values = window_mode_values;
         r.hook = true, r.def = 0;
         r.confirm = true;
         d.push_back(r.grey([](const Row&) {
             return pc_window_mode_get && pc_window_mode_set ? nullptr : COMING;
+        }));
+    }
+    {
+        // the displays SDL reports (settings display "<index> <name>")
+        Row r = base("display", "Display", "The screen the window and fullscreen go on.", PC_UI_SET_CHOICE);
+        r.dyn_count = [](const Row&) { return pc_display_count ? pc_display_count() : 0; };
+        r.dyn_name = [](const Row&, int i) { return pc_display_label ? pc_display_label(i) : nullptr; };
+        r.cfg = [](const Row&, int i) { return pc_display_value ? pc_display_value(i) : nullptr; };
+        r.get = [](const Row&) { return pc_display_current(); };
+        r.set = [](const Row&, int i) { pc_display_choose(pc_display_value(i)); };
+        r.hook = true, r.def = 0;
+        r.confirm = true;
+        d.push_back(r.grey([](const Row&) -> const char* {
+            if (!pc_display_count || !pc_display_choose)
+                return COMING;
+            return pc_display_count() ? nullptr : "No display found";
+        }));
+    }
+    {
+        // exclusive fullscreen's mode on that display (settings fullscreen_mode WxH@Hz | desktop)
+        Row r = base("fullscreen_mode", "Fullscreen mode",
+            "The resolution and refresh rate of exclusive fullscreen. Desktop: the display's own.", PC_UI_SET_CHOICE);
+        r.dyn_count = [](const Row&) { return pc_fullscreen_mode_count ? pc_fullscreen_mode_count() : 1; };
+        r.dyn_name = [](const Row&, int i) {
+            return pc_fullscreen_mode_label ? pc_fullscreen_mode_label(i) : i == 0 ? "Desktop" : nullptr;
+        };
+        r.cfg = [](const Row&, int i) { return pc_fullscreen_mode_value ? pc_fullscreen_mode_value(i) : nullptr; };
+        r.get = [](const Row&) { return pc_fullscreen_mode_current(); };
+        r.set = [](const Row&, int i) { pc_fullscreen_mode_choose(pc_fullscreen_mode_value(i)); };
+        r.hook = true, r.def = 0;
+        r.confirm = true;
+        d.push_back(r.grey([](const Row&) -> const char* {
+            if (!pc_fullscreen_mode_count || !pc_fullscreen_mode_choose || !pc_window_mode_get)
+                return COMING;
+            return pc_window_mode_get() == 2 ? nullptr : "Needs Window: Fullscreen";
+        }));
+    }
+    {
+        Row r = base("vsync", "Vertical sync",
+            "Each image waits for the display's refresh: no tearing, a little more latency.", PC_UI_SET_TOGGLE);
+        r.names = OFF_ON, r.count = 2;
+        r.get = [](const Row&) { return pc_vsync_get(); };
+        r.set = [](const Row&, int i) { pc_vsync_set(i); };
+        r.hook = true, r.def = 0;
+        d.push_back(r.grey([](const Row&) { return pc_vsync_get && pc_vsync_set ? nullptr : COMING; }));
+    }
+    {
+        Row r = base("remember_window", "Remember window",
+            "The window opens where and as large as you last left it.", PC_UI_SET_TOGGLE);
+        r.names = OFF_ON, r.count = 2;
+        r.get = [](const Row&) { return pc_window_remember_get(); };
+        r.set = [](const Row&, int i) { pc_window_remember_set(i); };
+        r.hook = true, r.def = 0;
+        d.push_back(r.grey([](const Row&) {
+            return pc_window_remember_get && pc_window_remember_set ? nullptr : COMING;
         }));
     }
     {
@@ -548,7 +654,7 @@ void build()
         [](const Row&) { pc_camera_stick_reset(); })
                     .grey(need_stick)
                     .unsaved());
-    c.push_back(toggle("qol_fp_invert_y", "Invert first-person look",
+    c.push_back(toggle("qol_fp_invert_y", "Invert first person",
         "In the first-person view up looks down and down looks up (D-pad and right stick).", &pc_qol_fp_invert_y));
     c.push_back(toggle("qol_map_invert", "Invert map panning", "The map screen pans the other way on both axes.",
         &pc_qol_map_invert));
@@ -617,17 +723,17 @@ void build()
         "Mine: only Ashley's spells, items and Break Arts. All: the enemies' spells and arts too.",
         &pc_qol_skip_charging_who, charging_who, 2)
                     .grey([](const Row&) -> const char* { return pc_qol_skip_charging ? nullptr : "Needs Battle charging"; }));
-    p.push_back(fslider("qol_skip_charging_name", "Skipped charging: name shown",
+    p.push_back(fslider("qol_skip_charging_name", "Skip: name shown",
         "How long the action's name stays up after a skipped wind-up, in seconds (the Information option on). "
         "0 closes it as the action starts; never longer than the original's 2 s.",
         &pc_qol_skip_charging_name, 0, 2, 0.1f, "%.1f s")
                     .grey([](const Row&) -> const char* { return pc_qol_skip_charging ? nullptr : "Needs Battle charging"; }));
-    p.push_back(fslider("qol_skip_charging_hold_mine", "Skipped charging: my wind-up",
+    p.push_back(fslider("qol_skip_charging_hold_mine", "Skip: my wind-up",
         "How much of Ashley's own charging still plays before the skip, in seconds, once the camera reaches her. "
         "0 skips it all; never longer than the original's.",
         &pc_qol_skip_charging_hold_mine, 0, 1.5f, 0.05f, "%.2f s")
                     .grey([](const Row&) -> const char* { return pc_qol_skip_charging ? nullptr : "Needs Battle charging"; }));
-    p.push_back(fslider("qol_skip_charging_hold_enemy", "Skipped charging: enemy wind-up",
+    p.push_back(fslider("qol_skip_charging_hold_enemy", "Skip: enemy wind-up",
         "How much of an enemy's charging still plays before the skip, in seconds, once the camera reaches it: a beat "
         "to see the spell or art coming before it is released. Never longer than the original's.",
         &pc_qol_skip_charging_hold_enemy, 0, 1.5f, 0.05f, "%.2f s")
@@ -698,6 +804,8 @@ void build()
             r.home = HOME_IDS[home];
             catalog.push_back(&r);
         }
+    static const pc_display_confirm_ops confirm_ops = {confirm_now, confirm_get, confirm_set, confirm_save, nullptr};
+    pc_display_confirm_init(&confirm_ops);
 }
 
 // A catalog row: one of the rows above, or a provider's (ext >= 0).
@@ -783,6 +891,51 @@ void set_number(const Row& r, float v)
         *r.fvar = v;
     else if (r.ivar)
         *r.ivar = (int)std::lround(v);
+}
+
+// ---- "Keep these settings?" (display_confirm.h) ----
+// A confirm row's choice as settings.cfg writes it ("fullscreen", "1920x1080@60").
+std::string choice_value(const Row& r, int i)
+{
+    if (i < 0 || i >= count_of(r))
+        return std::string();
+    if (r.cfg)
+        return r.cfg(r, i) ? r.cfg(r, i) : "";
+    if (r.values)
+        return r.values[i];
+    return std::to_string(i);
+}
+const Row* confirm_row(const char* key)
+{
+    for (const Row* r : catalog)
+        if (r->confirm && !std::strcmp(r->id, key))
+            return r;
+    return nullptr;
+}
+double confirm_now(void*)
+{
+    using namespace std::chrono;
+    return duration<double>(steady_clock::now().time_since_epoch()).count();
+}
+int confirm_get(void*, const char* key, char* out, int size)
+{
+    const Row* r = confirm_row(key);
+    if (!r)
+        return 0;
+    std::string v = choice_value(*r, get_choice(*r));
+    if (v.empty())
+        return 0;
+    std::snprintf(out, (size_t)size, "%s", v.c_str());
+    return 1;
+}
+void confirm_set(void*, const char* key, const char* value)
+{
+    const Row* r = confirm_row(key);
+    for (int i = 0; r && i < count_of(*r); i++)
+        if (choice_value(*r, i) == value) {
+            set_choice(*r, i);
+            return;
+        }
 }
 
 bool dirty, stamp_pending;
@@ -928,11 +1081,11 @@ static void fill(const Row* r, bool previewing, pc_ui_setting_row* out)
     switch (r->kind) {
     case PC_UI_SET_CHOICE:
     case PC_UI_SET_TOGGLE: {
-        out->count = r->count;
+        out->count = count_of(*r);
         // A greyed hook row (its feature is not in yet) shows its default.
         int i = r->hook && why ? (int)r->def : get_choice(*r);
         out->index = i;
-        std::snprintf(out->value, sizeof out->value, "%s", i >= 0 && i < r->count ? r->names[i] : "?");
+        std::snprintf(out->value, sizeof out->value, "%s", i >= 0 && i < count_of(*r) ? name_of(*r, i) : "?");
         if (!why && i >= 0 && r->choice_why)
             if (const char* note = r->choice_why(*r, i))
                 std::snprintf(out->reason, sizeof out->reason, "%s", note);
@@ -946,6 +1099,8 @@ static void fill(const Row* r, bool previewing, pc_ui_setting_row* out)
         out->number = v;
         if (r->zero && v <= r->min)
             std::snprintf(out->value, sizeof out->value, "%s", r->zero);
+        else if (r->top && v >= r->max)
+            std::snprintf(out->value, sizeof out->value, "%s", r->top);
         else if (r->integer)
             std::snprintf(out->value, sizeof out->value, r->format, (int)std::lround(v));
         else
@@ -982,10 +1137,10 @@ static int target_choice(Target t, int choice, const char** name, const char** r
 {
     if (t.row) {
         const Row* r = t.row;
-        if ((r->kind != PC_UI_SET_CHOICE && r->kind != PC_UI_SET_TOGGLE) || choice < 0 || choice >= r->count)
+        if ((r->kind != PC_UI_SET_CHOICE && r->kind != PC_UI_SET_TOGGLE) || choice < 0 || choice >= count_of(*r))
             return 0;
         if (name)
-            *name = r->names[choice];
+            *name = name_of(*r, choice);
         if (reason)
             *reason = r->choice_why ? r->choice_why(*r, choice) : nullptr;
         return 1;
@@ -1005,6 +1160,21 @@ static int apply_choice(const Row& r, int target)
     int before = get_choice(r);
     if (target == before)
         return 0;
+    // A risky display change applies at once and is kept only when confirmed: until then
+    // the settings writer saves the value it had (pc_display_confirm_held).
+    if (r.confirm) {
+        pc_display_confirm_set_timeout(pc_option_style_value(PC_STYLE_CONFIRM_SECONDS));
+        std::string value = choice_value(r, target);
+        if (!value.empty() && pc_display_confirm_begin(r.id, value.c_str()) >= 0) {
+            if (get_choice(r) == before)
+                return 0;
+            if (r.saved) {
+                touched(r);
+                mark_dirty();
+            }
+            return 1;
+        }
+    }
     set_choice(r, target);
     if (get_choice(r) == before)
         return 0;
@@ -1054,7 +1224,7 @@ static int target_set(Target t, double value)
     if (r->kind != PC_UI_SET_CHOICE && r->kind != PC_UI_SET_TOGGLE)
         return 0;
     int i = (int)value;
-    if (i < 0 || i >= r->count || (r->choice_why && r->choice_why(*r, i)))
+    if (i < 0 || i >= count_of(*r) || (r->choice_why && r->choice_why(*r, i)))
         return 0;
     return apply_choice(*r, i);
 }
@@ -1083,9 +1253,9 @@ static int target_change(Target t, int delta)
         return 0;
     int current = get_choice(*r);
     int step = delta > 0 ? 1 : -1;
-    int i = current >= 0 ? current : (step > 0 ? -1 : r->count);
-    for (int tries = 0; tries < r->count; tries++) {
-        i = (i + step + r->count) % r->count;
+    int i = current >= 0 ? current : (step > 0 ? -1 : count_of(*r));
+    for (int tries = 0; tries < count_of(*r); tries++) {
+        i = (i + step + count_of(*r)) % count_of(*r);
         if (i == current)
             return 0;
         if (!r->choice_why || !r->choice_why(*r, i))
@@ -1363,6 +1533,13 @@ static void save_now()
     pc_settings_save();
     ++saves;
 }
+namespace {
+void confirm_save(void*) // kept: the values save now
+{
+    mark_dirty();
+    save_now();
+}
+} // namespace
 extern "C" void pc_ui_settings_flush(void)
 {
     apply_preview();
@@ -1371,6 +1548,10 @@ extern "C" void pc_ui_settings_flush(void)
 extern "C" int pc_ui_settings_saves(void) { return saves; }
 extern "C" void pc_ui_settings_tick(double now)
 {
+    build();
+    // "Keep these settings?": reverts once its time ran out (real time, whatever screen is up)
+    pc_display_confirm_set_timeout(pc_option_style_value(PC_STYLE_CONFIRM_SECONDS));
+    pc_display_confirm_tick();
     ticked = now;
     if (swap_note_pending) {
         swap_note_since = now;
@@ -1384,6 +1565,8 @@ extern "C" void pc_ui_settings_tick(double now)
         save_now(); // (a slider drag still in progress stays a preview)
 }
 extern "C" int pc_ui_settings_dirty(void) { return dirty; }
+// Something saved in settings.cfg changed outside the rows (the window moved: window_rect): saved debounced.
+extern "C" void pc_ui_settings_touch(void) { mark_dirty(); }
 
 extern "C" const char* pc_ui_settings_key_reserved(int code)
 {

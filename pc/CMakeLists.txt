@@ -186,7 +186,7 @@ add_executable(ui_shell_probe tests/ui_shell_probe.cpp src/ui/ui_shell.cpp src/u
     src/ui/ui_manual.cpp src/ui/manual_parse.c
     src/ui/ui_score.cpp src/ui/score_nav.c
     src/ui/ui_theme.cpp src/ui/menu_light.cpp src/ui/ui_tint.cpp
-    src/light_prefabs.cpp)
+    src/light_prefabs.cpp src/display_confirm.c)
 target_include_directories(ui_shell_probe PRIVATE src)
 target_compile_features(ui_shell_probe PRIVATE cxx_std_17)
 target_compile_options(ui_shell_probe PRIVATE -Wall -Wextra -Werror)
@@ -236,7 +236,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     # with the later features' hooks.
     foreach(variant IN ITEMS ui_settings_probe ui_settings_probe_hooks)
         add_executable(${variant} tests/ui_settings_probe.cpp tests/ui_settings_stubs.cpp src/ui/ui_settings.cpp
-            src/ui/option_pages.cpp src/ui/option_actions.c
+            src/ui/option_pages.cpp src/ui/option_actions.c src/ui/option_style.c src/display_confirm.c
             src/ui/ui_tint.cpp src/antialias.c src/camera_stick.c src/boot_controller.c)
         target_include_directories(${variant} PRIVATE src tests third_party/SDL3/include)
         target_compile_features(${variant} PRIVATE cxx_std_17)
@@ -249,7 +249,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     # the C++ fallback pages against today's System pages, ordering, cycles.
     add_executable(option_pages_probe tests/option_pages_probe.cpp tests/ui_settings_stubs.cpp src/ui/option_pages.cpp
         src/ui/option_actions.c src/ui/ui_settings.cpp src/ui/ui_tint.cpp src/antialias.c src/camera_stick.c
-        src/boot_controller.c)
+        src/boot_controller.c src/ui/option_style.c src/display_confirm.c)
     target_include_directories(option_pages_probe PRIVATE src tests third_party/SDL3/include)
     target_compile_features(option_pages_probe PRIVATE cxx_std_17)
     target_compile_options(option_pages_probe PRIVATE -Wall -Wextra -Werror)
@@ -374,6 +374,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     # shipped rood.options plugin against the C++ fallback, validation, actions, hot reload.
     add_executable(lua_menu_probe tests/lua_menu_probe.cpp ${ROOD_LUA_RUNTIME} src/lua/lua_api_menu.cpp
         src/ui/vs_encode.c src/ui/option_pages.cpp src/ui/option_actions.c src/ui/ui_settings.cpp
+        src/ui/option_style.c src/display_confirm.c
         tests/ui_settings_stubs.cpp src/ui/ui_tint.cpp src/antialias.c src/camera_stick.c src/boot_controller.c)
     target_include_directories(lua_menu_probe PRIVATE src src/lua tests third_party/SDL3/include)
     target_link_libraries(lua_menu_probe PRIVATE rood_lua Threads::Threads m)

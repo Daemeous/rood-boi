@@ -168,6 +168,9 @@ void pc_ui_settings_set_provider(const pc_ui_settings_provider* p);
 void pc_ui_settings_tick(double now);
 void pc_ui_settings_flush(void);
 int pc_ui_settings_dirty(void);
+/* Something settings.cfg keeps changed outside the rows (the window moved or
+ * was resized: window_rect, boot_window.c): saved like a change, debounced. */
+void pc_ui_settings_touch(void);
 /* How many saves these settings made so far (tests: the debounced save happened). */
 int pc_ui_settings_saves(void);
 

@@ -1078,6 +1078,7 @@ int pc_capture_display(const char* path, int* width, int* height)
 /* Present the current frame again (paused developer view). */
 void pc_window_redraw(void) { pc_window_frame(vram, display_x, display_y, display_w, display_h); }
 extern int pc_present_rate __attribute__((weak));
+extern int pc_window_present_rate(void) __attribute__((weak)); /* boot_window.c */
 extern float pc_present_phase __attribute__((weak));
 extern int pc_hw_interpolate __attribute__((weak));
 extern int pc_hw_active __attribute__((weak));
@@ -1141,9 +1142,11 @@ static void tick_frame_work(void)
     pc_window_frame(vram, display_x, display_y, display_w, display_h);
     pc_cost_end(PC_COST_PRESENT, cost);
     /* More images per vsync (frame interpolation at its fractions). */
-    if (&pc_present_rate && &pc_present_phase && pc_window_wait_fraction && &pc_hw_interpolate && &pc_hw_active
-        && pc_present_rate > 1 && pc_hw_interpolate && pc_hw_active) {
-        int rate = pc_present_rate > 8 ? 8 : pc_present_rate;
+    /* (pc_window_present_rate: present_rate, its "match display" and the vsync cap) */
+    int rate = pc_window_present_rate ? pc_window_present_rate() : &pc_present_rate ? pc_present_rate : 1;
+    if (&pc_present_phase && pc_window_wait_fraction && &pc_hw_interpolate && &pc_hw_active
+        && rate > 1 && pc_hw_interpolate && pc_hw_active) {
+        rate = rate > 8 ? 8 : rate;
         for (int k = 1; k < rate; k++) {
             pc_window_wait_fraction(k, rate);
             pc_present_phase = (float)k / (float)rate;

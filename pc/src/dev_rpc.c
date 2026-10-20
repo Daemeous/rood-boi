@@ -217,7 +217,7 @@
  *                                smooth through the frames they hold),
  *                                interp_holds (poses the game holds for 1-3
  *                                frames between changes blended across the
- *                                hold), present_rate (images per vsync, 1-8:
+ *                                hold), present_rate (images per vsync, 0-8, 0 the display's refresh:
  *                                in-betweens at fractions of a vsync), aa (FXAA),
  *                                texture_filter, ui_upscale ("nearest" | "mmpx"),
  *                                ui_subpixel, ui_text ("original" | "font"),
@@ -1713,7 +1713,7 @@ static void handle_method(int fd, const char* request)
             return;
         }
         extern int pc_present_rate __attribute__((weak));
-        if (params && number_value(member(params, "present_rate"), &n) && &pc_present_rate && n >= 1 && n <= 8)
+        if (params && number_value(member(params, "present_rate"), &n) && &pc_present_rate && n >= 0 && n <= 8)
             pc_present_rate = (int)n;
         if (params && number_value(member(params, "scale"), &n) && pc_hw_set_scale)
             pc_hw_set_scale((int)n);
@@ -2694,6 +2694,21 @@ static void handle_method(int fd, const char* request)
             for (int k = 0; k < 3; k++)
                 if (!strcmp(text, modes[k]))
                     pc_window_mode_set(k);
+        /* the display back-ends (boot_window.c): display "<index> <name>", fullscreen_mode "WxH@Hz" | desktop,
+         * vsync, remember_window; applied directly (no "Keep these settings?": tests) */
+        extern void pc_display_choose(const char*), pc_fullscreen_mode_choose(const char*), pc_vsync_set(int),
+            pc_window_remember_set(int);
+        extern int pc_window_display_json(char*, int);
+        char value[128];
+        if (params && string_value(member(params, "display"), value, sizeof value))
+            pc_display_choose(value);
+        if (params && string_value(member(params, "fullscreen_mode"), value, sizeof value))
+            pc_fullscreen_mode_choose(value);
+        if (params && bool_value(member(params, "vsync"), &flag))
+            pc_vsync_set(flag);
+        if (params && bool_value(member(params, "remember_window"), &flag))
+            pc_window_remember_set(flag);
+        flag = 1;
         if (params && number_value(member(params, "master_volume"), &n))
             pc_master_volume_set((int)n);
         if (params && number_value(member(params, "brightness"), &n))
@@ -2754,14 +2769,50 @@ static void handle_method(int fd, const char* request)
                 return;
             }
         }
-        char window_json[512], capture_json[512];
+        char window_json[512], capture_json[512], display_json[640];
         pc_window_mode_json(window_json, sizeof window_json);
         pc_capture_json(capture_json, sizeof capture_json);
+        pc_window_display_json(display_json, sizeof display_json);
         snprintf(result, sizeof result,
             "{\"window_mode\":\"%s\",\"master_volume\":%d,\"gain\":%g,\"audio_recorded\":%u,\"brightness\":%d,"
-            "\"window\":%s,\"capture\":%s}",
+            "\"window\":%s,\"capture\":%s,\"display\":%s}",
             modes[pc_window_mode_get() % 3], pc_master_volume_get(), pc_master_gain(), pc_audio_output_recorded(),
-            pc_brightness_get(), window_json, capture_json);
+            pc_brightness_get(), window_json, capture_json, display_json);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "options")) {
+        /* The Option pages (pc/docs/Extensions.md "Option pages"): the classic screen in the game's own Option
+         * screen (pc/src/ui/classic_options.c, battle builds: {screen, ready, page, title, depth, focus,
+         * focus_id, top, rows, entries, confirm, info}); {keep: true} / {revert: true} answer "Keep these
+         * settings?" (display_confirm.h) whichever screen asks; {style: {name: value, ...}} sets look and feel
+         * values (option_style.h; {style_reset: true} the defaults); the reply's "style" has them all. */
+        extern int pc_options_json(char*, int) __attribute__((weak));
+        extern int pc_display_confirm_pending(void);
+        extern void pc_display_confirm_keep(void), pc_display_confirm_revert(void);
+        extern int pc_option_style_count(void), pc_option_style_set(const char*, double);
+        extern const char* pc_option_style_name(int);
+        extern void pc_option_style_reset(void);
+        extern int pc_option_style_json(char*, int);
+        int flag = 0;
+        double v;
+        if (params && bool_value(member(params, "keep"), &flag) && flag)
+            pc_display_confirm_keep();
+        if (params && bool_value(member(params, "revert"), &flag) && flag)
+            pc_display_confirm_revert();
+        if (params && bool_value(member(params, "style_reset"), &flag) && flag)
+            pc_option_style_reset();
+        const char* style = params ? member(params, "style") : NULL;
+        for (int i = 0; style && i < pc_option_style_count(); i++)
+            if (real_value(member(style, pc_option_style_name(i)), &v))
+                pc_option_style_set(pc_option_style_name(i), v);
+        static char classic[65536];
+        char style_json[1024];
+        if (pc_options_json)
+            pc_options_json(classic, sizeof classic);
+        else
+            snprintf(classic, sizeof classic, "null");
+        pc_option_style_json(style_json, sizeof style_json);
+        snprintf(result, sizeof result, "{\"classic\":%s,\"pending\":%s,\"style\":%s}", classic,
+            pc_display_confirm_pending() ? "true" : "false", style_json);
         reply(fd, id, result);
     } else if (!strcmp(method, "settings")) {
         /* The user settings file (ROOD_SETTINGS): {action: "save" | "load"}; {apply: "key value" or a list of

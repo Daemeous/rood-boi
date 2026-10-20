@@ -168,7 +168,8 @@ enum {
     PC_UI_MOUSE_ITEM,      /* Items: a row of the category's list (hover focuses it where the list has the
                             * focus: list, move, details; a click elsewhere goes back to the list on it) */
     PC_UI_MOUSE_ITEM_MENU, /* Items: a row of the open menu (actions, Yes / No, sort stats) */
-    PC_UI_MOUSE_LIMB       /* Ashley: a body part of the Condition panel (pc_ui_shell_ashley_limb) */
+    PC_UI_MOUSE_LIMB,      /* Ashley: a body part of the Condition panel (pc_ui_shell_ashley_limb) */
+    PC_UI_MOUSE_CONFIRM    /* "Keep these settings?": 0 Keep, 1 Revert, 2 the rest of the screen (nothing) */
 };
 void pc_ui_shell_mouse(int kind, int index, int clicked, float wheel);
 
@@ -358,6 +359,10 @@ typedef struct {
     int capture;  /* the PS1 button a capture listens for, -1 none */
 } pc_ui_system_view;
 void pc_ui_shell_system_view(pc_ui_system_view* v);
+/* "Keep these settings?" (display_confirm.h) while a risky display change waits:
+ * the shell's modal takes the input (Left/Right/Up/Down move between Keep and
+ * Revert, Circle answers, Cross and Triangle revert); its focus, 0 Keep, 1 Revert. */
+int pc_ui_shell_confirm_focus(void);
 /* The System tab shows the Quick manual (ui_manual.h): ui_system_draw.cpp hands it the screen. */
 int pc_ui_shell_manual_shown(void);
 /* The System tab shows the Score screen (ui_score.h): ui_draw.cpp gives it the whole view. */

@@ -50,6 +50,8 @@ extern void pc_ui_settings_flush(void) __attribute__((weak)); /* ui_settings.cpp
 extern void pc_quit(void); /* dev_rpc.c */
 int pc_window_enabled;
 static void window_mode_apply(void); /* window_mode, below */
+void pc_window_place(SDL_PropertiesID props, int width, int height); /* below */
+static void window_moved(void);                                      /* remember_window, below */
 static int capture_filter(const SDL_Event* event); /* binding capture, below */
 static void capture_tick(void);
 static unsigned keybit(SDL_Keycode key);
@@ -197,10 +199,7 @@ void pc_window_init(int enabled, int run_fast)
     if (!window) {
         SDL_PropertiesID props = SDL_CreateProperties();
         SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, title);
-        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, 40);
-        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, 40);
-        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, 640);
-        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, 480);
+        pc_window_place(props, 640, 480);
         window = pc_window_create(props);
         SDL_DestroyProperties(props);
         image = SDL_CreateSurface(640, 480, SDL_PIXELFORMAT_XRGB8888);
@@ -213,6 +212,7 @@ void pc_window_init(int enabled, int run_fast)
     fprintf(stderr, "[window] SDL %d.%d.%d, %s video\n", SDL_VERSIONNUM_MAJOR(version),
         SDL_VERSIONNUM_MINOR(version), SDL_VERSIONNUM_MICRO(version), SDL_GetCurrentVideoDriver());
     window_mode_apply(); /* a saved window_mode (settings, loaded while the presenter started) */
+    window_moved();      /* where it opened: the place to remember from the start */
     /* Keys held through an engine reload stay held. */
     int count = 0;
     const bool* keys = SDL_GetKeyboardState(&count);
@@ -307,6 +307,10 @@ void pc_window_tick(void)
             break;
         case SDL_EVENT_WINDOW_FOCUS_GAINED:
             focused = 1;
+            break;
+        case SDL_EVENT_WINDOW_MOVED:
+        case SDL_EVENT_WINDOW_RESIZED:
+            window_moved();
             break;
         case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
             if (pc_gl_active)
@@ -452,28 +456,38 @@ void pc_window_mode_set(int mode)
 {
     window_mode = mode < 0 ? 0 : mode > 2 ? 2 : mode; /* applied by the next pc_window_tick */
 }
+static SDL_DisplayID display_target(void);                      /* settings display, below */
+static int exclusive_mode(SDL_DisplayID display, SDL_DisplayMode* out); /* settings fullscreen_mode, below */
+static int place_pending; /* the display or the exclusive mode changed: apply again at the next tick */
 static void window_mode_apply(void)
 {
-    if (!window || window_mode == window_mode_applied)
+    if (!window || (window_mode == window_mode_applied && !place_pending))
         return;
-    if (window_mode_applied == 0)
+    place_pending = 0;
+    if (window_mode_applied == 0 && !(SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN))
         SDL_GetWindowSize(window, &windowed_w, &windowed_h);
+    SDL_DisplayID display = display_target();
     int ok;
     if (window_mode == 0) {
         ok = SDL_SetWindowFullscreen(window, false);
         if (ok && windowed_w > 0 && windowed_h > 0)
             SDL_SetWindowSize(window, windowed_w, windowed_h);
+        /* on the display the settings name: centred there when the window is on another */
+        if (ok && display && SDL_GetDisplayForWindow(window) != display)
+            SDL_SetWindowPosition(window, (int)SDL_WINDOWPOS_CENTERED_DISPLAY(display),
+                (int)SDL_WINDOWPOS_CENTERED_DISPLAY(display));
     } else {
         SDL_DisplayMode exclusive;
         const SDL_DisplayMode* mode = NULL;
-        if (window_mode == 2) {
-            SDL_DisplayID display = SDL_GetDisplayForWindow(window);
-            const SDL_DisplayMode* desktop = SDL_GetDesktopDisplayMode(display);
-            if (desktop
-                && SDL_GetClosestFullscreenDisplayMode(display, desktop->w, desktop->h, desktop->refresh_rate, true,
-                    &exclusive))
-                mode = &exclusive;
+        /* to the display first (a fullscreen window fills the display it is on), then the mode */
+        if (display && SDL_GetDisplayForWindow(window) != display) {
+            if (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN)
+                SDL_SetWindowFullscreen(window, false);
+            SDL_SetWindowPosition(window, (int)SDL_WINDOWPOS_CENTERED_DISPLAY(display),
+                (int)SDL_WINDOWPOS_CENTERED_DISPLAY(display));
         }
+        if (window_mode == 2 && exclusive_mode(display ? display : SDL_GetDisplayForWindow(window), &exclusive))
+            mode = &exclusive;
         ok = SDL_SetWindowFullscreenMode(window, mode) && SDL_SetWindowFullscreen(window, true);
     }
     /* A failed switch keeps the mode the window has (what the settings
@@ -501,6 +515,263 @@ int pc_window_mode_json(char* out, int size)
         window_mode_failed ? window_mode_names[window_mode_failed - 1] : "",
         flags & SDL_WINDOW_FULLSCREEN ? "true" : "false", exclusive ? "true" : "false", w, h, windowed_w, windowed_h,
         window ? SDL_GetCurrentVideoDriver() : "");
+}
+
+/* ---- The display, the exclusive mode, vsync and the window's place (System
+ * > Display; settings display, fullscreen_mode, vsync, remember_window,
+ * window_rect) ----
+ * display "<index> <name>": the screen the window (centred) and fullscreen go
+ * on, matched by name, then by index, then the primary ("primary": always
+ * the primary). fullscreen_mode "WxH@Hz" | desktop: exclusive fullscreen's
+ * mode on that display (desktop: the display's own; a mode it lacks: the
+ * closest it has). Both apply at the next frame boundary, like window_mode.
+ * vsync 0|1: presents wait for the display's refresh (OpenGL swap interval,
+ * Vulkan FIFO; off: the frame loop's own 59.94 Hz pacing only, the default).
+ * remember_window 0|1 with window_rect x y w h: the window opens where and
+ * as large as it was last left windowed (the presenters' create calls,
+ * pc_window_place; only when a display still contains it). */
+#define DISPLAYS 8
+#define MODES 64
+static char display_want[128]; /* "" or "primary": the primary display */
+static char mode_want[48] = "desktop";
+static int vsync_on, remember_on, rect_known, rect[4];
+static struct {
+    SDL_DisplayID id;
+    char label[96], value[128];
+} displays[DISPLAYS];
+static int display_count;
+static struct {
+    int w, h, hz;
+    char label[48], value[32];
+} modes[MODES];
+static int mode_count;
+static SDL_DisplayID modes_display;
+
+static void refresh_displays(void)
+{
+    int n = 0;
+    SDL_DisplayID* ids = SDL_WasInit(SDL_INIT_VIDEO) ? SDL_GetDisplays(&n) : NULL;
+    display_count = 0;
+    for (int i = 0; ids && i < n && display_count < DISPLAYS; i++) {
+        const char* name = SDL_GetDisplayName(ids[i]);
+        displays[display_count].id = ids[i];
+        snprintf(displays[display_count].label, sizeof displays[0].label, "%d: %s", i + 1, name ? name : "Display");
+        snprintf(displays[display_count].value, sizeof displays[0].value, "%d %s", i, name ? name : "");
+        display_count++;
+    }
+    SDL_free(ids);
+}
+/* The display the setting names: by name, then by index, then the primary (0: no video). */
+static int display_index(void)
+{
+    refresh_displays();
+    if (!display_count)
+        return -1;
+    int index = -1, primary = 0;
+    char name[128] = "";
+    if (display_want[0] && strcmp(display_want, "primary") && sscanf(display_want, "%d %127[^\n]", &index, name) >= 1) {
+        for (int i = 0; name[0] && i < display_count; i++) {
+            const char* n = SDL_GetDisplayName(displays[i].id);
+            if (n && !strcmp(n, name))
+                return i;
+        }
+        if (index >= 0 && index < display_count)
+            return index;
+    }
+    SDL_DisplayID p = SDL_GetPrimaryDisplay();
+    for (int i = 0; i < display_count; i++)
+        if (displays[i].id == p)
+            primary = i;
+    return primary;
+}
+static SDL_DisplayID display_target(void)
+{
+    if (!display_want[0] || !strcmp(display_want, "primary"))
+        return 0; /* (where it is: the window manager's choice, as before) */
+    int i = display_index();
+    return i >= 0 ? displays[i].id : 0;
+}
+int pc_display_count(void)
+{
+    refresh_displays();
+    return display_count;
+}
+const char* pc_display_label(int i) { return i >= 0 && i < display_count ? displays[i].label : NULL; }
+const char* pc_display_value(int i) { return i >= 0 && i < display_count ? displays[i].value : NULL; }
+int pc_display_current(void) { return display_index(); }
+void pc_display_choose(const char* value)
+{
+    snprintf(display_want, sizeof display_want, "%s", value ? value : "");
+    place_pending = 1;
+    modes_display = 0; /* (the modes listed were another display's) */
+}
+const char* pc_display_setting(void) { return display_want[0] ? display_want : "primary"; }
+
+/* The exclusive modes of the target display: deduplicated (size and whole Hz), "Desktop" first. */
+static void refresh_modes(void)
+{
+    int i = display_index(), n = 0;
+    SDL_DisplayID id = i >= 0 ? displays[i].id : 0;
+    mode_count = 0;
+    modes_display = id;
+    snprintf(modes[0].label, sizeof modes[0].label, "Desktop");
+    snprintf(modes[0].value, sizeof modes[0].value, "desktop");
+    mode_count = 1;
+    SDL_DisplayMode** list = id ? SDL_GetFullscreenDisplayModes(id, &n) : NULL;
+    for (int k = 0; list && k < n && mode_count < MODES; k++) {
+        int w = list[k]->w, h = list[k]->h, hz = (int)(list[k]->refresh_rate + 0.5f), seen = 0;
+        for (int j = 1; j < mode_count; j++)
+            seen |= modes[j].w == w && modes[j].h == h && modes[j].hz == hz;
+        if (seen || w <= 0 || h <= 0)
+            continue;
+        modes[mode_count].w = w, modes[mode_count].h = h, modes[mode_count].hz = hz;
+        snprintf(modes[mode_count].label, sizeof modes[0].label, hz ? "%d x %d, %d Hz" : "%d x %d", w, h, hz);
+        snprintf(modes[mode_count].value, sizeof modes[0].value, "%dx%d@%d", w, h, hz);
+        mode_count++;
+    }
+    SDL_free(list);
+}
+static int exclusive_mode(SDL_DisplayID display, SDL_DisplayMode* out)
+{
+    int w = 0, h = 0, hz = 0;
+    const SDL_DisplayMode* desktop = SDL_GetDesktopDisplayMode(display);
+    if (!desktop)
+        return 0;
+    if (sscanf(mode_want, "%dx%d@%d", &w, &h, &hz) < 2 || w <= 0 || h <= 0)
+        w = desktop->w, h = desktop->h, hz = (int)(desktop->refresh_rate + 0.5f);
+    return SDL_GetClosestFullscreenDisplayMode(display, w, h, (float)hz, true, out);
+}
+int pc_fullscreen_mode_count(void)
+{
+    refresh_modes();
+    return mode_count;
+}
+const char* pc_fullscreen_mode_label(int i) { return i >= 0 && i < mode_count ? modes[i].label : NULL; }
+const char* pc_fullscreen_mode_value(int i) { return i >= 0 && i < mode_count ? modes[i].value : NULL; }
+/* The listed mode the setting gives (the closest the display has), 0 Desktop. */
+int pc_fullscreen_mode_current(void)
+{
+    SDL_DisplayMode m;
+    refresh_modes();
+    if (!strcmp(mode_want, "desktop") || !modes_display || !exclusive_mode(modes_display, &m))
+        return 0;
+    for (int i = 1; i < mode_count; i++)
+        if (modes[i].w == m.w && modes[i].h == m.h && modes[i].hz == (int)(m.refresh_rate + 0.5f))
+            return i;
+    return 0;
+}
+void pc_fullscreen_mode_choose(const char* value)
+{
+    snprintf(mode_want, sizeof mode_want, "%s", value && *value ? value : "desktop");
+    if (window_mode == 2)
+        place_pending = 1;
+}
+const char* pc_fullscreen_mode_setting(void) { return mode_want; }
+
+int pc_vsync_get(void) { return vsync_on; }
+void pc_vsync_set(int on) { vsync_on = on != 0; } /* the presenters follow at their next present */
+
+/* Images per vsync (pc_present_rate): 0 "Match display" is the display's refresh over 59.94 Hz; with vsync on
+ * never more than the display shows (more would wait a refresh each and slow the game). */
+extern int pc_present_rate __attribute__((weak));
+static int display_rate(void)
+{
+    const SDL_DisplayMode* m = window ? SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(window)) : NULL;
+    int rate = m && m->refresh_rate > 0 ? (int)(m->refresh_rate / 59.94f + 0.5f) : 1;
+    return rate < 1 ? 1 : rate > 8 ? 8 : rate;
+}
+int pc_window_present_rate(void)
+{
+    int rate = &pc_present_rate ? pc_present_rate : 1;
+    if (rate <= 0)
+        rate = display_rate();
+    if (vsync_on && rate > display_rate())
+        rate = display_rate();
+    return rate < 1 ? 1 : rate > 8 ? 8 : rate;
+}
+
+int pc_window_remember_get(void) { return remember_on; }
+void pc_window_remember_set(int on) { remember_on = on != 0; }
+/* The window's place as last left windowed: 1 and x y w h when known. */
+int pc_window_rect_get(int out[4])
+{
+    if (!rect_known)
+        return 0;
+    memcpy(out, rect, sizeof rect);
+    return 1;
+}
+void pc_window_rect_set(const int r[4])
+{
+    if (r[2] < 160 || r[3] < 120)
+        return;
+    memcpy(rect, r, sizeof rect);
+    rect_known = 1;
+}
+/* A rectangle a display contains (at least its top-left 64 x 64: the title bar is reachable). */
+static int rect_visible(const int r[4])
+{
+    int n = 0, ok = 0;
+    SDL_DisplayID* ids = SDL_GetDisplays(&n);
+    for (int i = 0; ids && i < n && !ok; i++) {
+        SDL_Rect b;
+        if (SDL_GetDisplayBounds(ids[i], &b))
+            ok = r[0] >= b.x && r[1] >= b.y && r[0] + 64 <= b.x + b.w && r[1] + 64 <= b.y + b.h;
+    }
+    SDL_free(ids);
+    return ok;
+}
+extern int pc_settings_peek(const char* key, char* out, int size) __attribute__((weak)); /* project_settings.cpp */
+/* The presenters' window: where and how large it opens (their create properties; one helper for the
+ * three create sites). The remembered place when remember_window is on (read from the file: the settings
+ * load after the window exists) and a display contains it; else (40, 40) at the size asked for. ROOD_WINDOW
+ * (tests) always gives the size. */
+void pc_window_place(SDL_PropertiesID props, int width, int height)
+{
+    int x = 40, y = 40, r[4];
+    char line[96];
+    if (!getenv("ROOD_WINDOW") && pc_settings_peek && pc_settings_peek("remember_window", line, sizeof line)
+        && atoi(line) && pc_settings_peek("window_rect", line, sizeof line)
+        && sscanf(line, "%d %d %d %d", &r[0], &r[1], &r[2], &r[3]) == 4 && r[2] >= 160 && r[3] >= 120
+        && rect_visible(r)) {
+        x = r[0], y = r[1], width = r[2], height = r[3];
+        pc_window_rect_set(r);
+        remember_on = 1;
+    }
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, x);
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, y);
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, width);
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, height);
+}
+extern void pc_ui_settings_touch(void) __attribute__((weak)); /* ui_settings.cpp: something to save */
+/* Moved or resized while windowed: the place to remember (saved debounced when remember_window is on). */
+static void window_moved(void)
+{
+    int r[4];
+    if (!window || (SDL_GetWindowFlags(window) & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_MAXIMIZED | SDL_WINDOW_MINIMIZED)))
+        return;
+    SDL_GetWindowPosition(window, &r[0], &r[1]);
+    SDL_GetWindowSize(window, &r[2], &r[3]);
+    if (rect_known && !memcmp(r, rect, sizeof rect))
+        return;
+    pc_window_rect_set(r);
+    if (remember_on && pc_ui_settings_touch)
+        pc_ui_settings_touch();
+}
+
+/* RPC (system): the display back-ends' state. */
+int pc_window_display_json(char* out, int size)
+{
+    int i = display_index(), n = 0, r[4] = { 0, 0, 0, 0 };
+    refresh_modes();
+    pc_window_rect_get(r);
+    n += snprintf(out + n, (size_t)(size - n),
+        "{\"display\":\"%s\",\"display_index\":%d,\"displays\":%d,\"fullscreen_mode\":\"%s\",\"modes\":%d,"
+        "\"mode_index\":%d,\"vsync\":%s,\"present_rate\":%d,\"display_rate\":%d,\"remember_window\":%s,"
+        "\"window_rect\":[%d,%d,%d,%d]}",
+        pc_display_setting(), i, display_count, mode_want, mode_count, pc_fullscreen_mode_current(),
+        vsync_on ? "true" : "false", pc_window_present_rate(), display_rate(), remember_on ? "true" : "false", r[0],
+        r[1], r[2], r[3]);
+    return n;
 }
 
 /* ---- Binding capture (System > Bindings, ui_settings.cpp) ----

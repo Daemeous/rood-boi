@@ -148,6 +148,7 @@ int pc_ui_menu_tint_custom[3] = { 8, 7, 7 }; /* Custom's colour, 0..31 per chann
 #include "antialias.h" /* aa (msaa4+smaa ...), aa_downsample */
 #include "lighting_layers.h" /* lighting_packs, lighting_active_pack */
 #include "platform.h"
+#include "display_confirm.h" /* risky display changes save their old values until kept */
 #include "ui/ui_tint.h" /* ui_menu_tint lea_monde | classic | ... | custom, ui_menu_tint_custom r g b */
 #include "post.h" /* post_* (post profiles; the old post_flags, focus_mode, ... still load) */
 #include "editor_selection.h" /* editor_hidden_<zone>_<room>: objects hidden in the editor */
@@ -172,6 +173,18 @@ int pc_master_volume_get(void) __attribute__((weak));
 void pc_master_volume_set(int volume) __attribute__((weak));
 int pc_brightness_get(void) __attribute__((weak));
 void pc_brightness_set(int value) __attribute__((weak));
+/* System > Display back-ends (boot_window.c): display, fullscreen_mode, vsync, remember_window, window_rect. */
+const char* pc_display_setting(void) __attribute__((weak));
+void pc_display_choose(const char* value) __attribute__((weak));
+const char* pc_fullscreen_mode_setting(void) __attribute__((weak));
+void pc_fullscreen_mode_choose(const char* value) __attribute__((weak));
+int pc_vsync_get(void) __attribute__((weak));
+void pc_vsync_set(int on) __attribute__((weak));
+int pc_window_remember_get(void) __attribute__((weak));
+void pc_window_remember_set(int on) __attribute__((weak));
+int pc_window_rect_get(int out[4]) __attribute__((weak));
+void pc_window_rect_set(const int r[4]) __attribute__((weak));
+extern int pc_hw_scale_auto; /* gpu_hw.c: internal_resolution auto ("Match window") */
 /* card1 / card2: the memory card files (memory_card.c), "" for pc/save/cardN.mcd. */
 void pc_memory_card_set_path(int slot, const char* path);
 const char* pc_memory_card_path_setting(int slot);
@@ -378,9 +391,36 @@ int apply_line(const char* line, int* scale, bool now)
     if (line[0] == '#' || sscanf(line, "%63s%n", key, &used) != 1)
         return 0;
     const char* rest = line + used;
-    if (!strcmp(key, "internal_resolution")) {
-        *scale = atoi(rest);
+    if (!strcmp(key, "internal_resolution")) { /* 1..8, or auto: the window's resolution (-1 here) */
+        char word[16] = "";
+        sscanf(rest, "%15s", word);
+        *scale = !strcmp(word, "auto") ? -1 : atoi(rest);
         return 0;
+    }
+    /* the display back-ends (boot_window.c; their own parsing of the value) */
+    if (!strcmp(key, "display") || !strcmp(key, "fullscreen_mode")) {
+        std::string value = rest;
+        size_t a = value.find_first_not_of(" \t\r\n"), b = value.find_last_not_of(" \t\r\n");
+        value = a == std::string::npos ? std::string() : value.substr(a, b - a + 1);
+        if (key[0] == 'd' && pc_display_choose)
+            pc_display_choose(value.c_str());
+        else if (key[0] == 'f' && pc_fullscreen_mode_choose)
+            pc_fullscreen_mode_choose(value.c_str());
+        return 1;
+    }
+    if (!strcmp(key, "vsync") || !strcmp(key, "remember_window")) { /* 0 | 1 */
+        int on = atoi(rest) != 0;
+        if (key[0] == 'v' && pc_vsync_set)
+            pc_vsync_set(on);
+        else if (key[0] == 'r' && pc_window_remember_set)
+            pc_window_remember_set(on);
+        return 1;
+    }
+    if (!strcmp(key, "window_rect")) { /* x y w h: where the window was last left windowed */
+        int r[4];
+        if (sscanf(rest, "%d %d %d %d", &r[0], &r[1], &r[2], &r[3]) == 4 && pc_window_rect_set)
+            pc_window_rect_set(r);
+        return 1;
     }
     if (!strcmp(key, "qol_fast_travel_prompt_x") || !strcmp(key, "qol_fast_travel_prompt_y"))
         return 0; /* before the anchor: the centre in fractions of the window; dropped (the anchor's default) */
@@ -614,6 +654,26 @@ extern "C" void pc_settings_env_override_flag(const char* key)
         env_overrides[key].line.clear();
 }
 extern "C" void pc_settings_touched(const char* key) { env_overrides.erase(key); }
+/* A key's value as the settings file has it now (read from the file, not the live settings: the window is
+ * placed before the settings load, boot_window.c pc_window_place); 0 when the file lacks it. */
+extern "C" int pc_settings_peek(const char* key, char* out, int size)
+{
+    const char* file = path();
+    FILE* f = file ? fopen(file, "r") : nullptr;
+    char line[512];
+    int found = 0;
+    size_t n = strlen(key);
+    while (f && fgets(line, sizeof line, f))
+        if (!strncmp(line, key, n) && (line[n] == ' ' || line[n] == '\t')) {
+            std::string value = line + n;
+            size_t a = value.find_first_not_of(" \t\r\n"), b = value.find_last_not_of(" \t\r\n");
+            snprintf(out, (size_t)size, "%s", a == std::string::npos ? "" : value.substr(a, b - a + 1).c_str());
+            found = 1; /* (the last one wins, as the loader's) */
+        }
+    if (f)
+        fclose(f);
+    return found;
+}
 /* RPC settings {get}: the key's line as pc_settings_write gives it now; 0 when it writes none. */
 extern "C" int pc_settings_line(const char* key, char* out, int size)
 {
@@ -680,8 +740,8 @@ extern "C" void pc_settings_load(void)
     fclose(f);
     pc_lua_settings_end();
     pc_lighting_settings_loaded(1);
-    if (scale > 0 && scale != pc_hw_scale_setting)
-        pc_hw_set_scale(scale);
+    if (scale == -1 || (scale > 0 && (scale != pc_hw_scale_setting || pc_hw_scale_auto)))
+        pc_hw_set_scale(scale < 0 ? 0 : scale); /* 0: auto */
     snprintf(status, sizeof status, "Loaded %d settings from %s", applied, file);
 }
 
@@ -689,7 +749,10 @@ extern "C" void pc_settings_load(void)
  * compares them). */
 extern "C" void pc_settings_write(FILE* f)
 {
-    fprintf(f, "internal_resolution %d\n", pc_hw_scale_setting);
+    if (pc_hw_scale_auto)
+        fprintf(f, "internal_resolution auto\n");
+    else
+        fprintf(f, "internal_resolution %d\n", pc_hw_scale_setting);
     fprintf(f, "aa %s\n", pc_aa_string());
     fprintf(f, "aa_downsample %s\n", pc_aa_downsample_names[pc_aa_downsample]);
     if (&pc_drop_shadow_mode)
@@ -710,6 +773,18 @@ extern "C" void pc_settings_write(FILE* f)
         fprintf(f, "master_volume %d\n", pc_master_volume_get());
     if (pc_brightness_get)
         fprintf(f, "brightness %d\n", pc_brightness_get());
+    if (pc_display_setting)
+        fprintf(f, "display %s\n", pc_display_setting());
+    if (pc_fullscreen_mode_setting)
+        fprintf(f, "fullscreen_mode %s\n", pc_fullscreen_mode_setting());
+    if (pc_vsync_get)
+        fprintf(f, "vsync %d\n", pc_vsync_get());
+    if (pc_window_remember_get) {
+        int r[4];
+        fprintf(f, "remember_window %d\n", pc_window_remember_get());
+        if (pc_window_remember_get() && pc_window_rect_get && pc_window_rect_get(r))
+            fprintf(f, "window_rect %d %d %d %d\n", r[0], r[1], r[2], r[3]);
+    }
     for (int slot = 0; slot < 2; slot++) {
         const char* card = pc_memory_card_path_setting(slot);
         fprintf(f, "card%d %s\n", slot + 1, *card ? card : "default");
@@ -751,8 +826,8 @@ extern "C" void pc_settings_apply(const char* text)
         apply_line(line, &scale, true);
         p += n + (end ? 1 : 0);
     }
-    if (scale > 0 && scale != pc_hw_scale_setting)
-        pc_hw_set_scale(scale);
+    if (scale == -1 || (scale > 0 && (scale != pc_hw_scale_setting || pc_hw_scale_auto)))
+        pc_hw_set_scale(scale < 0 ? 0 : scale); /* 0: auto */
     pc_lighting_sync();
 }
 
@@ -777,6 +852,10 @@ extern "C" void pc_settings_save(void)
         const char* end = strchr(p, '\n');
         std::string line(p, end ? (size_t)(end - p) : strlen(p));
         p = end ? end + 1 : p + line.size();
+        /* A risky display change not confirmed yet (display_confirm.h): the value it had saves. */
+        char held[PC_DISPLAY_CONFIRM_VALUE];
+        if (pc_display_confirm_held(line_key(line).c_str(), held, (int)sizeof held))
+            line = line_key(line) + " " + held;
         auto o = env_overrides.find(line_key(line));
         if (o != env_overrides.end()) {
             if (o->second.line.empty() || o->second.line == line) {

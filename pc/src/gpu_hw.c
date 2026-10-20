@@ -1264,7 +1264,7 @@ natives:
     {
         const char* rate = getenv("ROOD_PRESENT_RATE");
         if (rate) {
-            pc_present_rate = atoi(rate) < 1 ? 1 : atoi(rate) > 8 ? 8 : atoi(rate);
+            pc_present_rate = atoi(rate) < 0 ? 0 : atoi(rate) > 8 ? 8 : atoi(rate); /* 0: match the display */
             if (pc_settings_env_override)
                 pc_settings_env_override("present_rate");
         }
@@ -3203,18 +3203,30 @@ void pc_hw_copy(int sx, int sy, int dx, int dy, int w, int h)
  * overlay, RPC scale); supersampling (antialias.h) may run pc_hw_scale
  * above it, by the scale it last asked for. */
 int pc_hw_scale_setting = 4;
+/* internal_resolution auto ("Match window", pc_hw_set_scale(0)): the
+ * setting follows the window, one internal pixel per window pixel or finer
+ * (up to 8x), at the view size the presenters last gave. */
+int pc_hw_scale_auto;
 static int supersample_scale;
 static int apply_scale(int scale);
-int pc_hw_set_scale(int scale)
-{
-    if (!pc_hw_active || scale < 1 || scale > 8)
-        return pc_hw_scale;
-    pc_hw_scale_setting = scale;
-    return apply_scale(supersample_scale > scale ? supersample_scale : scale);
-}
 /* A detail view (pc_hw_detail_view): one internal pixel per window pixel
  * or finer, at the view size the presenters last gave. */
 static int detail_view, last_view_h, last_display_h;
+static int window_scale(int view_h, int display_h)
+{
+    int s = view_h > 0 && display_h > 0 ? (int)ceilf((float)view_h / (float)display_h - 0.01f) : pc_hw_scale_setting;
+    return s < 1 ? 1 : s > 8 ? 8 : s;
+}
+int pc_hw_set_scale(int scale)
+{
+    if (!pc_hw_active || scale < 0 || scale > 8)
+        return pc_hw_scale;
+    pc_hw_scale_auto = scale == 0;
+    if (pc_hw_scale_auto)
+        scale = window_scale(last_view_h, last_display_h);
+    pc_hw_scale_setting = scale;
+    return apply_scale(supersample_scale > scale ? supersample_scale : scale);
+}
 /* Supersampling at a view `view_h` window pixels tall showing a display
  * area `display_h` VRAM pixels tall: the scale it needs, or the setting
  * again when it is off (the presenters, before drawing a frame). */
@@ -3223,6 +3235,8 @@ void pc_hw_supersample(int view_h, int display_h)
     if (!pc_hw_active)
         return;
     last_view_h = view_h, last_display_h = display_h;
+    if (pc_hw_scale_auto && view_h > 0 && display_h > 0)
+        pc_hw_scale_setting = window_scale(view_h, display_h); /* "Match window": follows the window */
     supersample_scale = pc_aa_ssaa_scale(view_h, display_h);
     if (detail_view && view_h > 0 && display_h > 0) {
         int detail = (int)ceilf((float)view_h / (float)display_h - 0.01f);

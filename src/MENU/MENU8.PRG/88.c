@@ -5,6 +5,15 @@
 #include "src/MENU/MAINMENU.PRG/58EC.h"
 #include "build/assets/MENU/MENU8.PRG/menu.h"
 
+#ifdef ROOD_PC
+/* pc/src/ui/classic_options.c: the Option pages (Gameplay, Display, ...,
+ * plugins' pages) as entries below the nine rows, and a page's screen */
+#define PC_OPTIONS_ENTRIES 24
+extern int pc_options_entries(char** strings, int* types, int max);
+extern void pc_options_open(int entry);
+extern int pc_options_exec(void);
+#endif
+
 static u_short _menuStrings[] = {
 #include "build/assets/MENU/MENU8.PRG/menu.vsString"
 };
@@ -504,10 +513,19 @@ int vs_menu8_exec(u_char* state)
         vibration,
         exitToMenu,
         exitToBattle
+#ifdef ROOD_PC
+        ,
+        pcPage
+#endif
     };
 
+#ifdef ROOD_PC
+    char* menuStrings[18 + PC_OPTIONS_ENTRIES * 2];
+    int rowTypes[9 + PC_OPTIONS_ENTRIES];
+#else
     char* menuStrings[18];
     int rowTypes[9];
+#endif
     int selectedRow;
     int i;
     int var_v1;
@@ -536,7 +554,13 @@ int vs_menu8_exec(u_char* state)
         if (*state != waitReady) {
             vs_main_settings.cursorMemory = 1;
         }
+#ifdef ROOD_PC
+        vs_mainmenu_setMenuRows(
+            9 + pc_options_entries(menuStrings + 18, rowTypes + 9, PC_OPTIONS_ENTRIES),
+            0x145, menuStrings, rowTypes);
+#else
         vs_mainmenu_setMenuRows(9, 0x145, menuStrings, rowTypes);
+#endif
         vs_main_settings.cursorMemory = i;
         *state = 5;
         break;
@@ -583,6 +607,12 @@ int vs_menu8_exec(u_char* state)
                     *state = vibration;
                     _vibrationOptionMenu(1);
                     return 0;
+#ifdef ROOD_PC
+                default:
+                    *state = pcPage;
+                    pc_options_open(selectedRow - 9);
+                    return 0;
+#endif
                 }
             } else if (i == -2) {
                 vs_mainMenu_clearMenuExcept(vs_mainMenu_menuItemIds_none);
@@ -742,6 +772,15 @@ int vs_menu8_exec(u_char* state)
         }
         *state = init;
         break;
+#ifdef ROOD_PC
+    case pcPage:
+        i = pc_options_exec();
+        if (i == 0) {
+            break;
+        }
+        *state = i == -2 ? exitToBattle : init;
+        break;
+#endif
     case exitToMenu:
         vs_mainMenu_dismissInformationBox();
         vs_mainMenu_setMenuCommand(menuActionNone);

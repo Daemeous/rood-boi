@@ -1,11 +1,12 @@
 #include "options_nav.h"
 
-/* src/MENU/MAINMENU.PRG/58EC.c:1053-1109, with rowInfo=1. The
+/* src/MENU/MAINMENU.PRG/58EC.c:1053-1109, with rowInfo = 10 - rows. The
  * original stores a window-relative cursor; this API stores cursor+page. */
 static void move_one(options_nav_state* s, int down, int fresh)
 {
     int row = s->cursor - s->top;
-    if (s->count <= OPTIONS_NAV_ROWS) {
+    int rows = s->rows > 0 ? s->rows : OPTIONS_NAV_ROWS;
+    if (s->count <= rows) {
         /* 1055-1061 / 1083-1089: short lists wrap even on repeat. */
         s->cursor += down ? 1 : -1;
         if (s->cursor < 0)
@@ -14,11 +15,11 @@ static void move_one(options_nav_state* s, int down, int fresh)
             s->cursor = 0;
     } else if (!down) {
         /* 1063-1078: fresh-only wrap; paging holds visible row 1.
-         * The original's count+247 is byte arithmetic for count-9. */
+         * The original's count+246+rowInfo is byte arithmetic for count-rows. */
         if (s->top == 0 && row == 0) {
             if (fresh) {
                 s->cursor = s->count - 1;
-                s->top = s->count - OPTIONS_NAV_ROWS;
+                s->top = s->count - rows;
             }
         } else {
             --s->cursor;
@@ -29,13 +30,13 @@ static void move_one(options_nav_state* s, int down, int fresh)
         }
     } else {
         /* 1091-1107: fresh-only wrap at bottom; otherwise page at
-         * visible row (8-rowInfo)=7 until the final page. */
-        if (s->top == s->count - OPTIONS_NAV_ROWS && row == 8) {
+         * visible row (8-rowInfo) = rows-2 until the final page. */
+        if (s->top == s->count - rows && row == rows - 1) {
             if (fresh)
                 s->cursor = s->top = 0;
         } else {
             ++s->cursor;
-            if (s->top < s->count - OPTIONS_NAV_ROWS && row >= 7) /* row 8: likewise */
+            if (s->top < s->count - rows && row >= rows - 2) /* the last row: likewise */
                 ++s->top;
         }
     }

@@ -1,7 +1,7 @@
 # Lua M1: vanilla++ options
 
-Status: phases A and B done (2026-10-19, branch `m1-options`); C-E open.
-See "Progress" at the end.
+Status: done. Phases A and B (2026-10-19, branch `m1-options`), C-E
+(2026-10-19, branch `m1-options2`). See "Progress" at the end.
 
 User decisions:
 1. **Placement:** pages live inside the game's own Option screen. Its rows
@@ -331,3 +331,50 @@ with a warning) needs the classic renderer's measure: C1.
 - D1 / D3: new rows go in the catalog (`ui_settings.cpp`, with their home) and
   in `rood.options/main.lua`; `lua_menu_probe` and the plugin's tests fail
   until both have them.
+
+**Done (C-E, branch `m1-options2`):**
+- **C1** MENU8 hooks (88.c, `ROOD_PC`: a `pcPage` state, 24 entries' room,
+  the entries after the nine rows, the default case opening a page, `init`
+  restoring the cursor past nine); `pc/src/ui/classic_options.c` (battle
+  builds): rows as the game's menu windows at rowInfo 2 (ids 20-27, eight
+  visible, the entry hoisted into the title stack above them), the value
+  column, the game's flyout for choices (its cursor memory slot 0x46 saved
+  and put back, the cursor on the current choice), links push sub-pages,
+  bindings start the capture; RPC `options`. `options_nav` takes the window's
+  row count. Labels are measured with the game's widths (cut with a warning;
+  RPC `cut`): five catalog labels were shortened to fit.
+- **C2** `display_confirm` wired through the catalog (a `confirm` row's choice
+  goes through `pc_display_confirm_begin`; ticked with the settings' debounce on
+  the real clock); the settings writer saves held keys' snapshots; classic
+  KEEP / REVERT flyout with the seconds in the information box, modern modal
+  card (pad, pointer, `ui_menu system.confirm`).
+- **D1** `display`, `fullscreen_mode` (confirm rows), `vsync` (GL swap
+  interval, Vulkan FIFO with a swapchain recreate).
+- **D2** `remember_window` + `window_rect`: one helper for the three create
+  sites (`pc_window_place`), reading the file (the settings load after the
+  window exists).
+- **D3** Render quality: `internal_resolution` 1x-8x then Match window
+  (`auto`); Frame rate: `present_rate` a choice 60 / 120 / 180 / 240 fps /
+  Match display (0), capped at the display's rate with vsync.
+- **E1** `options_classic_smoke.py` (with the fixture plugin `test.menu`),
+  **E2** its goldens of the Display page (original glyphs and ui_text font;
+  `--update`, `pc/build/golden/<renderer>/`), **E3** `options_confirm_smoke.py`
+  (keep / Cross / timeout / RPC keep in both screens; both screens' rows
+  against `rood.menu.rows` for every core page); docs (README "PC options in
+  the game's Option screen", Extensions.md).
+- Also: the modern System list scrolls when plugins' pages overflow it.
+
+**Deviations (C-E):**
+- Look and feel are data: `option_style.h` values set from rood.options'
+  `M.style` (`rood.menu.style`, core plugin only) and RPC `options {style}`;
+  C keeps the same values as defaults for the fallback.
+- The information box holds one line (a newline code broke the box): a long
+  help's lines take turns (`classic_help_seconds`) instead of two lines.
+- Page rows sit at rowInfo 2 (eight rows) under the hoisted entry, as the
+  game's own flyouts do, rather than nine at rowInfo 1.
+- The game's TUs have no host stdio: `pc/src/host_format.c` gives them
+  `pc_format`, `pc_log_line`, `pc_host_seconds`.
+- Display and fullscreen-mode lists are dynamic catalog choices
+  (`dyn_count`, `dyn_name`, `cfg`); headless (SDL offscreen) has one display
+  and no exclusive modes, so the tests cover them through the RPC and the
+  settings round trip; a real multi-monitor check stays manual.

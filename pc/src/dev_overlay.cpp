@@ -50,6 +50,7 @@ extern "C" {
 extern int pc_hw_active, pc_hw_scale;
 int pc_hw_set_scale(int scale);
 extern int pc_hw_scale_setting;
+extern int pc_hw_scale_auto; /* gpu_hw.c: internal_resolution auto */
 extern int pc_gl_filter, pc_gl_aspect, pc_gte_widescreen, pc_hw_perspective, pc_gl_show_depth;
 extern int pc_hw_subpixel, pc_hw_interpolate, pc_hw_texture_filter, pc_interp_skeleton,
     pc_interp_holds, pc_interp_uv, pc_present_rate;
@@ -603,8 +604,11 @@ static void graphics_panel()
         apply_scale();
     if (pc_hw_active) {
         int scale = pc_hw_scale_setting;
+        bool match = pc_hw_scale_auto != 0;
         if (ImGui::SliderInt("Internal resolution", &scale, 1, 8, "%dx"))
             pc_hw_set_scale(scale);
+        if (ImGui::Checkbox("Match window", &match)) // settings internal_resolution auto
+            pc_hw_set_scale(match ? 0 : pc_hw_scale_setting);
         ImGui::Text("Render target %d x %d%s", 1024 * pc_hw_scale, 512 * pc_hw_scale,
             pc_hw_scale != pc_hw_scale_setting ? " (supersampling)" : "");
     } else {
@@ -653,7 +657,7 @@ static void graphics_panel()
                                   "them, every game frame exact; Smooth: a constant speed through the\n"
                                   "frames an effect holds between its steps");
             ImGui::SetNextItemWidth(120);
-            ImGui::SliderInt("Images per vsync", &pc_present_rate, 1, 8);
+            ImGui::SliderInt("Images per vsync", &pc_present_rate, 0, 8, pc_present_rate ? "%d" : "match display");
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Present in-betweens at fractions of a vsync (2: 120 fps, 4: 240 fps);\n"
                                   "the game keeps its own rate");

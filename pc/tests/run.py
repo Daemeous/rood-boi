@@ -476,6 +476,17 @@ def suites(args, mode="egl"):
                                         *(["--card", str(args.save)] if args.save.exists() else [])], 360,
               note="System settings: brightness, master volume (WAV), window mode, binding capture (SDL events; "
                    "key works in the field), saved and back after a relaunch with widescreen / perspective kept"),
+        *([Suite("options_classic_smoke", [PY, str(TESTS / "options_classic_smoke.py"), "--card", str(args.save)], 400,
+                 note="Option pages in the game's Option screen (classic): entries after the nine rows, rows = the "
+                      "page model's, values live + saved on leaving, the flyout, a sub-page, a plugin's page (header "
+                      "skipped, action, hot reload), cursor memory past nine, Triangle; vs_main_settings and the "
+                      "card unchanged; goldens of the Display page (original, font) when present")]
+          if args.save.exists() else []),
+        *([Suite("options_confirm_smoke", [PY, str(TESTS / "options_confirm_smoke.py"), "--card", str(args.save)], 400,
+                 note="Keep these settings? (classic and modern): applied at once, the old value saved until kept, "
+                      "KEEP / Cross / no answer (3 s, real time) / RPC keep; modern and classic rows = the page "
+                      "model's for every core page")]
+          if args.save.exists() else []),
         Suite("window_mode_smoke", [PY, str(TESTS / "window_mode_smoke.py"),
                                     *(["--card", str(args.save)] if args.save.exists() else [])], 300,
               note="window mode cycled both ways twice (save room): no device loss, presents go on, windowed "
@@ -594,6 +605,7 @@ CHECKPOINT_SUITES = {
     "ui_equip_smoke",
     "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "fast_travel_smoke", "fast_travel_shell_smoke", "post_smoke", "dof_smoke",
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
+    "options_classic_smoke", "options_confirm_smoke",
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
     "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "frame_cost_smoke",

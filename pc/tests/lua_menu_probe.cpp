@@ -12,6 +12,7 @@
 #include "hud/game_query.h"
 #include "ui/option_actions.h"
 #include "ui/option_pages.h"
+#include "ui/option_style.h"
 #include "ui/ui_settings.h"
 
 #include <cstdio>
@@ -125,6 +126,13 @@ static void shipped_equals_fallback(const std::string& fallback)
     CHECK(rl::registry_get("menu.page", "rood.options/display") != nullptr);
     CHECK(eval_json("rood.options", "local p = rood.menu.pages() return #p, p[1].id, p[7].parent")
         == "7,\"rood.options/gameplay\",\"rood.options/controls\"");
+    // its look (M.style through rood.menu.style) is what the C defaults are: keep the two equal
+    for (int i = 0; i < pc_option_style_count(); i++) {
+        if (pc_option_style_value(i) != pc_option_style_default(i))
+            std::printf("style %s: rood.options %g, C %g\n", pc_option_style_name(i), pc_option_style_value(i),
+                pc_option_style_default(i));
+        CHECK(pc_option_style_value(i) == pc_option_style_default(i));
+    }
 }
 
 static void validation()
@@ -159,6 +167,8 @@ static void validation()
     CHECK(contains(err("rood.menu.page{ id = 'x', title = 'X', rows = { { setting = 'widescreen', where = 'up' } } }"),
         "where"));
     CHECK(contains(err("rood.menu.action('Bad', function() end)"), "not a slug"));
+    CHECK(contains(err("rood.menu.style{ classic = { row_x = 10 } }"), "only rood.options"));
+    CHECK(eval_json(P, "return rood.menu.style().classic_value_x") == "140");
     // a refused page left nothing behind (the one valid title above was defined, then is redefined)
     CHECK(pc_option_pages_index("probe.menu/x") >= 0);
     CHECK(eval_json(P, "rood.menu.remove('x')") == "true" && pc_option_pages_index("probe.menu/x") == -1);

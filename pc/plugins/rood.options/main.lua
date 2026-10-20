@@ -26,7 +26,8 @@ M.pages = {
     } },
   { id = "display", title = "Display", help = "Widescreen, scaling, the window and brightness.",
     rows = {
-      "widescreen", "aspect", "filter", "interpolate", "present_rate", "window_mode", "brightness", "renderer",
+      "widescreen", "aspect", "filter", "interpolate", "present_rate", "window_mode", "display", "fullscreen_mode",
+      "vsync", "remember_window", "brightness", "renderer",
     } },
   { id = "graphics", title = "Graphics", help = "Lighting, resolution, anti-aliasing and the 3D picture.",
     rows = {
@@ -60,6 +61,27 @@ M.pages = {
       "bind_travel", "bind_travel_clear", "bind_reset",
     } },
 }
+
+-- The look of the pages in the game's own Option screen (the classic look: its windows, cursor and
+-- font) and the "Keep these settings?" countdown (pc/src/ui/option_style.h; positions in the PS1's
+-- 320 x 240 pixels). Saving this file applies them; RPC options {style = {...}} tries values live.
+M.style = {
+  classic = {
+    row_x = 65,          -- a row's window left edge (it reaches the screen's right edge)
+    row_w = 255,         -- its width (the game's windows are at most 255)
+    value_x = 140,       -- the value column, from the window's left edge
+    uppercase = true,    -- labels and values in capitals, as the game's own rows
+    toggle_gap = 10,     -- between ON and OFF
+    bar_colour = 1,      -- a slider's gauge: the HP / MP / RISK bars' colours 0-3
+    bar_width = 64,      -- the gauge at its maximum (the game's bars: 64)
+    lit = 1,             -- the current value's colour: 0 white, 1 the game's lit yellow, 3 grey
+    other = 3,           -- the other toggle value's
+    help_width = 280,    -- a help line in the information box
+    help_seconds = 3,    -- a longer help's lines take turns this long each (the box holds one)
+  },
+  confirm = { seconds = 10 }, -- a risky display change reverts by itself after this long
+}
+rood.menu.style(M.style)
 
 -- Defines one page (also from the REPL: M.define{ id = "gameplay", ... } redefines it live).
 function M.define(page)

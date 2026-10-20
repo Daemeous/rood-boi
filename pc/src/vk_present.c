@@ -85,6 +85,8 @@ static VkExtent2D swapchain_extent; /* its images' size: the window image's whil
 /* stale: recreate the swapchain at the next frame's start (a size change,
  * OUT_OF_DATE or SUBOPTIMAL). window_w/h: the window image's size. */
 static int swapchain_stale, window_w, window_h;
+static int swapchain_vsync; /* the swapchain waits for the refresh (FIFO): settings vsync when it was made */
+extern int pc_vsync_get(void); /* boot_window.c */
 extern unsigned pc_window_presents; /* gl_present.c: images that reached the window (RPC status) */
 static vk_image window_image, present_vram;
 typedef struct {
@@ -189,10 +191,12 @@ static int make_swapchain(void)
     if (mode_count > 16)
         mode_count = 16;
     vkGetPhysicalDeviceSurfacePresentModesKHR(vk.gpu, surface, &mode_count, modes);
-    /* The frame loop paces itself (as GL's swap interval 0): never block. */
+    /* The frame loop paces itself (as GL's swap interval 0): never block, unless settings vsync asks to
+     * wait for the display's refresh (FIFO, every Vulkan driver has it). */
     VkPresentModeKHR mode = VK_PRESENT_MODE_FIFO_KHR;
     static const VkPresentModeKHR preferred[2] = { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR };
-    for (int p = 1; p >= 0; p--)
+    swapchain_vsync = pc_vsync_get();
+    for (int p = 1; p >= 0 && !swapchain_vsync; p--)
         for (uint32_t i = 0; i < mode_count; i++)
             if (modes[i] == preferred[p])
                 mode = preferred[p];
@@ -309,6 +313,7 @@ static int make_pipelines(void)
 /* ---- window ---- */
 
 extern SDL_Window* pc_window_create(SDL_PropertiesID props); /* boot_window.c: kept across an engine reload */
+extern void pc_window_place(SDL_PropertiesID props, int width, int height); /* boot_window.c */
 /* An engine reload (engine_reload.c): the device and everything on it, the
  * surface and the instance go; the window stays for the next library. */
 void pc_vk_shutdown(void)
@@ -328,10 +333,7 @@ SDL_Window* pc_vk_create_window(const char* title, int width, int height)
 {
     SDL_PropertiesID props = SDL_CreateProperties();
     SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, title);
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, 40);
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, 40);
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, width);
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, height);
+    pc_window_place(props, width, height); /* boot_window.c: a remembered place, else (40, 40) */
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_VULKAN_BOOLEAN, true);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true);
@@ -422,6 +424,8 @@ static void sync_swapchain(void)
 {
     if (!surface || vk.lost)
         return;
+    if (swapchain && swapchain_vsync != pc_vsync_get())
+        swapchain_stale = 1; /* settings vsync changed: another present mode */
     if (swapchain_stale)
         make_swapchain(); /* fails while the window has no area (minimised): stays stale, tried next frame */
     if (swapchain) {

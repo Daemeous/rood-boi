@@ -25,7 +25,7 @@
  * changes (a renderer keeps its focus by page and row id across it). */
 #ifndef PC_OPTION_PAGES_H
 #define PC_OPTION_PAGES_H
-#include "ui/ui_settings.h"
+#include "ui_settings.h" /* (beside it: found from any include path) */
 #ifdef __cplusplus
 extern "C" {
 #endif
