@@ -994,7 +994,7 @@ static void hud_layer()
     pc_lua_tick();
     pc_lua_tick();
     p = rl::find("probe.hud");
-    CHECK(eval_json(p, "#rood.hud.kinds(), rood.hud.kinds()[5]") == "5,\"travel\"");
+    CHECK(eval_json(p, "#rood.hud.kinds(), rood.hud.kinds()[5], rood.hud.kinds()[6]") == "6,\"travel\",\"notice\"");
     CHECK(contains(hud_rpc("{\"action\":\"show\",\"kind\":\"chain\",\"count\":5}"), "\"ok\":true"));
     CHECK(contains(hud_rpc("{\"action\":\"show\",\"kind\":\"buff\",\"slot\":\"head\",\"stat\":\"fire\",\"value\":3,"
                            "\"sign\":-1}"), "\"ok\":true"));

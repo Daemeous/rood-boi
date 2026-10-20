@@ -114,16 +114,24 @@ static void pages()
         && find(C, "qol_field_cross_attack") == find(C, "qol_map_controls") + 2);
     CHECK(value(C, "qol_confirm_cross") == "Off" && change(C, "qol_confirm_cross", 1) == 1 && pc_qol_confirm_cross == 1);
     pc_qol_confirm_cross = 0;
-    CHECK(pc_ui_settings_rows(B) == 19); // the 16 PS1 buttons, Travel, Unbind Travel, Reset
-    CHECK(find(B, "bind_travel") == find(B, "bind_reset") - 2 && row(B, "bind_travel").button == PC_BIND_TRAVEL
+    CHECK(pc_ui_settings_rows(B) == 23); // the 16 PS1 buttons, Travel, Unbind Travel, the 4 save state actions, Reset
+    CHECK(find(B, "bind_travel") == find(B, "bind_reset") - 6 && row(B, "bind_travel").button == PC_BIND_TRAVEL
         && find(B, "bind_travel_clear") == find(B, "bind_travel") + 1);
-    CHECK(pc_ui_settings_rows(P) == (game ? 19 : 12)); // fast travel: on, its cost, its prompt
+    // the save state slots' actions (savestate_slots.c), after Unbind Travel
+    CHECK(find(B, "bind_state_save") == find(B, "bind_travel_clear") + 1
+        && row(B, "bind_state_save").button == PC_BIND_STATE_SAVE && row(B, "bind_state_load").button == PC_BIND_STATE_LOAD
+        && row(B, "bind_state_slot_prev").button == PC_BIND_STATE_SLOT_PREV
+        && row(B, "bind_state_slot_next").button == PC_BIND_STATE_SLOT_NEXT
+        && find(B, "bind_state_slot_next") == find(B, "bind_reset") - 1);
+    // Save states: off by default
+    CHECK(find(P, "save_states") >= 0 && value(P, "save_states") == "Off");
+    CHECK(pc_ui_settings_rows(P) == (game ? 20 : 13)); // fast travel: on, its cost, its prompt; save states
     // fast travel after battle charging (whose, the name's time, the holds): On, Free; Flat shows its MP, Scaled its factor
     CHECK(find(P, "qol_fast_travel") == find(P, "qol_skip_charging_hold_enemy") + 1
         && find(P, "qol_fast_travel_cost") == find(P, "qol_fast_travel") + 1);
     CHECK(value(P, "qol_fast_travel") == "On" && value(P, "qol_fast_travel_cost") == "Free");
     CHECK(change(P, "qol_fast_travel_cost", 1) == 1 && pc_qol_fast_travel_cost == 1
-        && pc_ui_settings_rows(P) == (game ? 20 : 13) && find(P, "qol_fast_travel_flat") == find(P, "qol_fast_travel_cost") + 1);
+        && pc_ui_settings_rows(P) == (game ? 21 : 14) && find(P, "qol_fast_travel_flat") == find(P, "qol_fast_travel_cost") + 1);
     CHECK(change(P, "qol_fast_travel_cost", 1) == 1 && pc_qol_fast_travel_cost == 2
         && find(P, "qol_fast_travel_scale") == find(P, "qol_fast_travel_cost") + 1 && find(P, "qol_fast_travel_flat") < 0);
     pc_qol_fast_travel_cost = 0;
