@@ -76,8 +76,9 @@ M.style = {
     bar_width = 64,      -- the gauge at its maximum (the game's bars: 64)
     lit = 1,             -- the current value's colour: 0 white, 1 the game's lit yellow, 3 grey
     other = 3,           -- the other toggle value's
-    help_width = 280,    -- a help line in the information box
-    help_seconds = 3,    -- a longer help's lines take turns this long each (the box holds one)
+    help_width = 270,    -- a help line in the information box (the game's own descriptions: 270 at the longest)
+    help_seconds = 3,    -- a help longer than the box holds: a box at a time, this long each
+    help_lines = 2,      -- the box's lines (the game's own descriptions: up to 2, broken at a sentence's end)
   },
   confirm = { seconds = 10 }, -- a risky display change reverts by itself after this long
 }

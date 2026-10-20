@@ -5,20 +5,26 @@ E3) in both Option screens, and the two screens' rows from the same page data.
 
     python3 pc/tests/options_confirm_smoke.py [--card CARD] [--out DIR]
 
+Only the exclusive fullscreen mode (fullscreen_mode) asks: the window mode and
+the display apply and save at once. A headless display has no exclusive modes,
+so the game gets two test ones (ROOD_TEST_FULLSCREEN_MODES, boot_window.c):
+Desktop, 1920 x 1080 and 1280 x 720 at 60 Hz.
+
 From a copy of the card (skipped without one), the save room, ROOD_SETTINGS on
 a fresh file; the countdown shortened through rood.options' look (RPC options
 {style: {confirm_seconds: 3}}):
-  - classic (the game's Option screen > Display > Window): the flyout's
-    Fullscreen applies at once (system window_mode) and asks KEEP / REVERT;
-    while it asks, settings.cfg keeps Windowed (a save in between writes the
-    old value); Circle on KEEP: kept and saved fullscreen. Windowed again,
-    then Cross on the question: back to fullscreen, nothing saved. Borderless
-    with no answer: back to fullscreen by itself after the countdown (waited
-    on the RPC's pending flag, real time), the page again
-  - RPC options {keep: true} answers too (Windowed kept)
-  - modern (System > Display > Window, Right): the modal asks (ui_menu
-    system.confirm, focus Keep); no answer: it reverts by itself, the modal
-    goes
+  - classic (the game's Option screen > Display): Window > Fullscreen applies
+    and saves at once, no question. Fullscreen mode > 1920 x 1080 applies at
+    once (system display.fullscreen_mode) and asks KEEP / REVERT; while it
+    asks, settings.cfg keeps desktop (a save in between writes the old value);
+    Circle on KEEP: kept and saved. Desktop, then Cross on the question: back
+    to 1920 x 1080, nothing saved. 1280 x 720 with no answer: back to
+    1920 x 1080 by itself after the countdown (waited on the RPC's pending
+    flag, real time), the page again
+  - RPC options {keep: true} answers too (Desktop kept)
+  - modern (System > Display): Fullscreen mode, Right: the modal asks
+    (ui_menu system.confirm, focus Keep); no answer: it reverts by itself, the
+    modal goes. Window, Left: Borderless at once, no modal
   - parity: each core page's rows in the modern System screen (ui_menu, as
     the shell lists them) are rood.menu.rows(id, "modern"); the classic page's
     (RPC options) are rood.menu.rows(id, "classic"): the classic rows are the
@@ -43,6 +49,7 @@ from menu_nav import top_command  # noqa: E402
 OPTION_COMMAND = 7
 VANILLA_ROWS = 9
 SECONDS = 3  # the countdown here (confirm_seconds' minimum)
+MODES = ["desktop", "1920x1080@60", "1280x720@60"]  # fullscreen_mode's choices here (Desktop first)
 CORE = ["gameplay", "display", "graphics", "audio", "interface", "controls", "bindings"]
 
 
@@ -66,7 +73,7 @@ def main():
     settings = work / "settings.cfg"
     (work / "lights").mkdir()
     env = {"ROOD_WINDOW": "960x720", "ROOD_SETTINGS": str(settings), "ROOD_LIGHTS": str(work / "lights"),
-           "ROOD_GI": "0"}
+           "ROOD_GI": "0", "ROOD_TEST_FULLSCREEN_MODES": ",".join(MODES[1:])}
     failures = []
 
     def check(ok, message):
@@ -102,6 +109,9 @@ def main():
         def window_mode():
             return game.call("system")["window_mode"]
 
+        def fullscreen_mode():
+            return game.call("system")["display"]["fullscreen_mode"]
+
         def lua_ids(page, where):
             r = game.lua(f'local t = {{}} for _, r in ipairs(rood.menu.rows("{page}", "{where}")) do '
                          f't[#t + 1] = r.id end return t')
@@ -122,7 +132,7 @@ def main():
         game.call("options", style={"confirm_seconds": SECONDS})
         game.call("ui_menu", modern=False)
 
-        # ---- classic: Option > Display > Window ----
+        # ---- classic: Option > Display ----
         game.press("triangle", vsyncs=3, settle=30)
         top_command(game, sym, OPTION_COMMAND)
         press("circle")
@@ -133,54 +143,69 @@ def main():
                 break
             press("down")
         press("circle")
-        for _ in range(40):
-            if wait("page")["focus_id"] == "window_mode":
-                break
-            press("down")
 
-        def pick(index):
-            """Circle on Window, the flyout's choice `index` (0 Windowed .. 2 Fullscreen), Circle. The flyout
-            opens on the current choice; a list this short wraps."""
-            current = next(r for r in wait("page")["rows"] if r["id"] == "window_mode")["index"]
+        def focus(row):
+            for _ in range(40):
+                if wait("page")["focus_id"] == row:
+                    return
+                press("down")  # (window_mode, then fullscreen_mode below it: only ever down)
+            raise Timeout(f"the focus on {row}: {wait('page')['focus_id']}")
+
+        def pick(row, index, count=3):
+            """Circle on `row`, the flyout's choice `index`, Circle. The flyout opens on the current choice; a
+            list this short wraps."""
+            focus(row)
+            current = next(r for r in wait("page")["rows"] if r["id"] == row)["index"]
             press("circle")
             o = wait("flyout")
-            for _ in range((index - current) % 3):
+            for _ in range((index - current) % count):
                 press("down")
             press("circle")
             return o
 
-        pick(2)  # Fullscreen
+        # the window mode: applied and saved at once, no question
+        pick("window_mode", 2)  # Fullscreen
+        o = wait("page")
+        game.call("settings", action="save")
+        check(window_mode() == "fullscreen" and not opt()["pending"] and saved("window_mode") == "fullscreen",
+              f"Window > Fullscreen: applied and saved at once, no question ({window_mode()}, "
+              f"saved {saved('window_mode')}, {o['confirm']})")
+
+        # the exclusive mode asks
+        pick("fullscreen_mode", 1)  # 1920 x 1080
         o = wait("confirm")
-        check(window_mode() == "fullscreen" and o["confirm"]["pending"] and o["confirm"]["keys"] == ["window_mode"],
-              f"Fullscreen applies at once and asks ({window_mode()}, {o['confirm']})")
+        check(fullscreen_mode() == MODES[1] and o["confirm"]["pending"] and o["confirm"]["keys"] == ["fullscreen_mode"],
+              f"Fullscreen mode > 1920 x 1080 applies at once and asks ({fullscreen_mode()}, {o['confirm']})")
         check("Keep these settings?" in o["info"], f"the question in the information box ({o['info']!r})")
         game.call("settings", action="save")
-        check(saved("window_mode") == "windowed", f"while it asks, a save writes Windowed ({saved('window_mode')})")
+        check(saved("fullscreen_mode") == "desktop",
+              f"while it asks, a save writes desktop ({saved('fullscreen_mode')})")
         press("circle")  # KEEP (the focus starts there)
         o = wait("page")
-        check(window_mode() == "fullscreen" and not o["confirm"]["pending"] and saved("window_mode") == "fullscreen",
-              f"KEEP: kept and saved ({window_mode()}, saved {saved('window_mode')})")
+        check(fullscreen_mode() == MODES[1] and not o["confirm"]["pending"] and saved("fullscreen_mode") == MODES[1],
+              f"KEEP: kept and saved ({fullscreen_mode()}, saved {saved('fullscreen_mode')})")
 
-        pick(0)  # Windowed, then Cross on the question
+        pick("fullscreen_mode", 0)  # Desktop, then Cross on the question
         wait("confirm")
         press("cross")
         o = wait("page")
-        check(window_mode() == "fullscreen" and saved("window_mode") == "fullscreen",
-              f"Cross on the question: reverted to fullscreen ({window_mode()}, saved {saved('window_mode')})")
+        check(fullscreen_mode() == MODES[1] and saved("fullscreen_mode") == MODES[1],
+              f"Cross on the question: reverted to 1920 x 1080 ({fullscreen_mode()}, "
+              f"saved {saved('fullscreen_mode')})")
 
-        pick(1)  # Borderless, no answer
+        pick("fullscreen_mode", 2)  # 1280 x 720, no answer
         wait("confirm")
         took = until_reverted(SECONDS + 60)
         o = wait("page")
-        check(window_mode() == "fullscreen" and o["focus_id"] == "window_mode",
-              f"no answer: back to fullscreen by itself after {took:.1f} s (countdown {SECONDS} s), on the page")
+        check(fullscreen_mode() == MODES[1] and o["focus_id"] == "fullscreen_mode",
+              f"no answer: back to 1920 x 1080 by itself after {took:.1f} s (countdown {SECONDS} s), on the page")
 
-        pick(0)  # Windowed, kept through the RPC
+        pick("fullscreen_mode", 0)  # Desktop, kept through the RPC
         wait("confirm")
         game.call("options", keep=True)
         o = wait("page")
-        check(window_mode() == "windowed" and not o["confirm"]["pending"],
-              f"RPC options {{keep}}: Windowed kept ({window_mode()})")
+        check(fullscreen_mode() == "desktop" and not o["confirm"]["pending"],
+              f"RPC options {{keep}}: Desktop kept ({fullscreen_mode()})")
 
         # parity: the classic page's rows are the page model's classic rows
         check([r["id"] for r in o["rows"]] == lua_ids("rood.options/display", "classic"),
@@ -230,18 +255,28 @@ def main():
                   f"{page}: the same rows in the same order (modern only: {gone}; classic only, links: {extra})")
             press("cross")
         enter("display")
-        for _ in range(30):
-            if sysv()["row"] == "window_mode":
-                break
-            press("down")
+
+        def goto(row):
+            for _ in range(30):
+                if sysv()["row"] == row:
+                    return
+                press("down" if row == "fullscreen_mode" else "up")
+
+        goto("fullscreen_mode")
         press("right")
         c = sysv()["confirm"]
-        check(c["pending"] and c["focus"] == "keep" and window_mode() == "borderless",
-              f"modern Right on Window: Borderless at once, the modal asks on Keep ({c}, {window_mode()})")
+        check(c["pending"] and c["focus"] == "keep" and fullscreen_mode() == MODES[1],
+              f"modern Right on Fullscreen mode: 1920 x 1080 at once, the modal asks on Keep ({c}, "
+              f"{fullscreen_mode()})")
         took = until_reverted(SECONDS + 60)
         c = sysv()["confirm"]
-        check(not c["pending"] and window_mode() == "windowed",
-              f"modern, no answer: back to Windowed by itself after {took:.1f} s ({window_mode()})")
+        check(not c["pending"] and fullscreen_mode() == "desktop",
+              f"modern, no answer: back to Desktop by itself after {took:.1f} s ({fullscreen_mode()})")
+        goto("window_mode")
+        press("left")
+        c = sysv()["confirm"]
+        check(not c["pending"] and window_mode() == "borderless",
+              f"modern Left on Window: Borderless at once, no modal ({c}, {window_mode()})")
     except Timeout as e:
         check(False, f"timed out: {e}")
     finally:

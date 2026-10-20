@@ -13,7 +13,9 @@ of its own: a header, a help line, settings it defines, an action):
     (Gameplay ... Controls, then Tweaks); the core pages' labels all fit their
     column (none cut)
   - Display: rows = rood.menu.rows(id, "classic") in order; the info line is
-    the focused row's help; Right on Filter changes it live and Cross saves
+    the focused row's help, set as the game's own descriptions are (two lines
+    of up to 270 pixels with its newline: Widescreen's in one box, Frame
+    rate's longer one a box of two lines at a time); Right on Filter changes it live and Cross saves
     it (settings.cfg) on the way back; the list's cursor is back on Display
     (an entry past the nine: cursor memory)
   - Scaling: Circle opens the game's flyout on the current choice, Down +
@@ -128,6 +130,10 @@ def main():
         def row(o, row_id):
             return next(r for r in o["rows"] if r["id"] == row_id)
 
+        def row_help(row_id):
+            return lua(f'for _, r in ipairs(rood.menu.rows("rood.options/display", "classic")) do '
+                       f'if r.id == "{row_id}" then return r.help end end')[0]
+
         def lua(code):
             r = game.lua(code)
             if not r.get("ok", True) and r.get("error"):
@@ -160,6 +166,12 @@ def main():
               f'if r.id == "{o["focus_id"]}" then return r.help end end')[0],
               f"the information line is the focused row's help ({o['info']!r})")
         golden(game, out, args, check)
+        # the help set as the game's own descriptions are: up to two lines of up to 270 pixels, the game's newline
+        o = page_to("widescreen")
+        help_text = row_help("widescreen")
+        check(o["info_boxes"] == 1 and 1 < len(o["info_lines"]) <= 2 and " ".join(o["info_lines"]) == help_text
+              and all(len(line) <= 45 for line in o["info_lines"]),
+              f"Widescreen's help in one box of two lines, as the game's descriptions ({o['info_lines']})")
         o = page_to("filter")
         before = row(o, "filter")["value"]
         press("right")
@@ -167,6 +179,11 @@ def main():
         after = row(o, "filter")["value"]
         check(after != before and o["focus_id"] == "filter", f"Right on Filter: {before} -> {after}")
         filter_value = game.call("settings", get="filter")["line"]
+        o = page_to("present_rate")  # (a help longer than a box: two boxes in turn, two lines each)
+        lines = o["info_lines"]
+        check(o["info_boxes"] == 2 and o["info_box"] == 0 and len(lines) == 2
+              and row_help("present_rate").startswith(" ".join(lines)),
+              f"Frame rate's longer help: box 1 of {o['info_boxes']}, two lines ({lines})")
         press("cross")
         o = wait("list")
         saved = settings.read_text() if settings.exists() else ""

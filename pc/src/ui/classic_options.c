@@ -199,72 +199,118 @@ static int text_width(const char* utf8)
     return width_of(g, encode(utf8, g, sizeof g, style(PC_STYLE_UPPERCASE)));
 }
 
-/* The information box's message: the help wrapped to the box (classic_help_lines,
- * classic_help_width), cut with "..." past them; set when it changes. */
-/* The information box holds one line: a longer help is split into lines of
- * classic_help_width, shown in turn for classic_help_seconds each. */
-#define HELP_LINES 8
+/* The information box's message, as the game's own Option descriptions are
+ * set (MENU8's menu.vsString): at most classic_help_lines lines (theirs: 2)
+ * of at most classic_help_width pixels (theirs: 270 at the longest, in the
+ * game's font), broken with the game's newline (0xE8) at a sentence's end
+ * when the sentences fit a line each ("Turn vibration mode ON." / "This is
+ * the default setting."), else at the last word that fits. A help longer
+ * than the box holds is shown a box at a time, in turn, for
+ * classic_help_seconds each. */
+#define HELP_LINES 12
+#define GLYPH_NEWLINE 0xE8
+#define GLYPH_PERIOD 0xA0
+#define MESSAGE_BYTES 92 /* setInformationMessage copies 96 bytes: our header, the glyphs, the terminator */
 static struct {
     u_char glyphs[TEXT * 3];
-    int start[HELP_LINES], end[HELP_LINES], lines, shown;
+    int start[HELP_LINES], end[HELP_LINES], lines, per_box, shown;
     double since;
 } help;
+static int help_boxes(void) { return (help.lines + help.per_box - 1) / help.per_box; }
 static void info_line(int k)
 {
     static u_short message[48 + 4]; /* setInformationMessage copies 96 bytes */
     u_char* out = (u_char*)message;
-    int n = help.end[k] - help.start[k];
+    int n = 2, line;
     memset(message, 0, sizeof message);
     out[0] = 0xF8; /* vs_char_chunkSize 0: all at once, as the list's descriptions */
     out[1] = 0;
-    n = n < 92 ? n : 92;
-    memcpy(out + 2, help.glyphs + help.start[k], (size_t)n);
-    out[2 + n] = GLYPH_END;
+    for (line = k * help.per_box; line < help.lines && line < (k + 1) * help.per_box; line++) {
+        int len = help.end[line] - help.start[line];
+        if (line > k * help.per_box)
+            out[n++] = GLYPH_NEWLINE;
+        len = len < MESSAGE_BYTES - n ? len : MESSAGE_BYTES - n;
+        memcpy(out + n, help.glyphs + help.start[line], (size_t)len);
+        n += len;
+    }
+    out[n] = GLYPH_END;
     if (help.shown != k || !help.since)
         help.since = pc_host_seconds();
     help.shown = k;
     vs_mainmenu_setInformationMessage((char*)message);
 }
+/* Greedy lines of at most `room` pixels and `bytes` glyphs from glyphs [from, to); returns how many
+ * (at most `max`, into start/end). */
+static int wrap(int from, int to, int room, int bytes, int* start, int* end, int max)
+{
+    int lines = 0, i = from;
+    while (i < to && lines < max) {
+        int first = i, pen = 0, last = -1; /* last: the end of the last whole word that fits */
+        while (i < to) {
+            int stop = i, w = 0;
+            while (stop < to && help.glyphs[stop] != GLYPH_SPACE) /* a word */
+                w += glyph_width(help.glyphs[stop++]);
+            if (last >= 0 && (pen + glyph_width(GLYPH_SPACE) + w > room || stop - first > bytes))
+                break;
+            if (last < 0 && (w > room || stop - first > bytes))
+                break; /* one word wider than the line */
+            pen += (last >= 0 ? glyph_width(GLYPH_SPACE) : 0) + w;
+            last = stop;
+            i = stop < to ? stop + 1 : stop;
+        }
+        if (last < 0) { /* as much of the word as fits */
+            last = first;
+            while (last < to && last - first < bytes && width_of(help.glyphs + first, last - first + 1) <= room)
+                last++;
+            if (last == first)
+                last = first + 1;
+            i = last;
+        }
+        start[lines] = first, end[lines] = last;
+        lines++;
+    }
+    return lines;
+}
 static void info(const char* text)
 {
-    int n, i, room = style(PC_STYLE_HELP_WIDTH);
+    int n, k, room = style(PC_STYLE_HELP_WIDTH), per_box = style(PC_STYLE_HELP_LINES);
     if (!text)
         text = "";
     if (S.info_key[0] && !strncmp(S.info_key, (char*)text, sizeof S.info_key - 1)) {
         /* (set every frame, as the game's lists do: the box may have been re-opened meanwhile) */
-        if (help.lines > 1 && pc_host_seconds() - help.since >= pc_option_style_value(PC_STYLE_HELP_SECONDS))
-            info_line((help.shown + 1) % help.lines);
+        if (help_boxes() > 1 && pc_host_seconds() - help.since >= pc_option_style_value(PC_STYLE_HELP_SECONDS))
+            info_line((help.shown + 1) % help_boxes());
         else
-            info_line(help.shown < help.lines ? help.shown : 0);
+            info_line(help.shown < help_boxes() ? help.shown : 0);
         return;
     }
     pc_format(S.info_key, sizeof S.info_key, "%s", text);
     n = encode(text, help.glyphs, sizeof help.glyphs, 0);
-    help.lines = 0;
+    per_box = per_box < 1 ? 1 : per_box > 4 ? 4 : per_box;
+    help.per_box = per_box;
     help.shown = -1;
-    for (i = 0; i < n && help.lines < HELP_LINES;) {
-        int start = i, pen = 0, last = -1; /* last: the end of the last whole word that fits */
-        while (i < n) {
-            int end = i, w = 0;
-            while (end < n && help.glyphs[end] != GLYPH_SPACE) /* a word */
-                w += glyph_width(help.glyphs[end++]);
-            if (pen && pen + glyph_width(GLYPH_SPACE) + w > room)
-                break;
-            pen += (pen ? glyph_width(GLYPH_SPACE) : 0) + w;
-            last = end;
-            i = end < n ? end + 1 : end;
-            if (end - start >= 90) /* (a line's bytes) */
-                break;
+    /* a line's glyphs: the box's bytes shared by its lines (and their newlines) */
+    int bytes = (MESSAGE_BYTES - 2 - (per_box - 1)) / per_box;
+    /* sentences, each on its own line, when there are few enough and each fits one */
+    int ends[HELP_LINES], sentences = 0, from = 0, fits = 1;
+    for (k = 0; k < n && sentences < HELP_LINES; k++)
+        if (help.glyphs[k] == GLYPH_PERIOD && k + 1 < n && help.glyphs[k + 1] == GLYPH_SPACE)
+            ends[sentences++] = k + 1;
+    if (sentences < HELP_LINES)
+        ends[sentences++] = n;
+    for (k = 0; k < sentences && fits; k++) {
+        int a = from, b = ends[k];
+        fits = width_of(help.glyphs + a, b - a) <= room && b - a <= bytes;
+        from = b + 1;
+    }
+    if (sentences > 1 && sentences <= per_box && fits) {
+        for (k = 0, from = 0; k < sentences; k++) {
+            help.start[k] = from, help.end[k] = ends[k];
+            from = ends[k] + 1;
         }
-        if (last < 0) { /* one word wider than the line: as much as fits */
-            last = start;
-            while (last < n && last - start < 90 && width_of(help.glyphs + start, last - start + 1) <= room)
-                last++;
-            i = last > start ? last : start + 1;
-        }
-        help.start[help.lines] = start;
-        help.end[help.lines] = last;
-        help.lines++;
+        help.lines = sentences;
+    } else {
+        help.lines = wrap(0, n, room, bytes, help.start, help.end, HELP_LINES);
     }
     if (!help.lines) {
         help.start[0] = help.end[0] = 0;
@@ -272,6 +318,8 @@ static void info(const char* text)
     }
     info_line(0);
 }
+/* (ui_text.c: a game string as UTF-8, for the RPC) */
+int pc_ui_text_decode(const unsigned char* text, int max_bytes, char* out, int out_size);
 
 /* ---- the page's rows ---- */
 
@@ -1126,7 +1174,18 @@ int pc_options_json(char* out, int size)
         PUT("%s", i ? "," : "");
         TEXT_(pc_display_confirm_key(i));
     }
-    PUT("]},\"info\":");
+    /* the information box: the help's box shown now, how many it takes, its lines */
+    PUT("]},\"info_box\":%d,\"info_boxes\":%d,\"info_lines\":[", S.state != S_NONE ? help.shown : -1,
+        S.state != S_NONE && help.lines ? help_boxes() : 0);
+    for (i = help.shown * help.per_box; S.state != S_NONE && help.shown >= 0 && i < help.lines
+         && i < (help.shown + 1) * help.per_box;
+         i++) {
+        char line[TEXT * 2];
+        pc_ui_text_decode(help.glyphs + help.start[i], help.end[i] - help.start[i], line, (int)sizeof line);
+        PUT("%s", i > help.shown * help.per_box ? "," : "");
+        TEXT_(line);
+    }
+    PUT("],\"info\":");
     TEXT_(S.state != S_NONE ? S.info_key : "");
     PUT("}");
 #undef PUT

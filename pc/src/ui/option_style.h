@@ -21,8 +21,9 @@ enum {
     PC_STYLE_BAR_WIDTH,    /* classic_bar_width: the gauge's length at its maximum (the game's bars: 64) */
     PC_STYLE_LIT,          /* classic_lit: the current value's text colour (0 white, 1 the game's lit yellow, 3 grey) */
     PC_STYLE_OTHER,        /* classic_other: the other toggle value's */
-    PC_STYLE_HELP_WIDTH,   /* classic_help_width: a help line's width in the information box */
-    PC_STYLE_HELP_SECONDS, /* classic_help_seconds: a longer help's lines take turns in the box (it holds one) */
+    PC_STYLE_HELP_WIDTH,   /* classic_help_width: a help line's width in the information box (the game's longest: 270) */
+    PC_STYLE_HELP_SECONDS, /* classic_help_seconds: a help longer than the box holds is shown a box at a time, this long each */
+    PC_STYLE_HELP_LINES,   /* classic_help_lines: the information box's lines (the game's descriptions: 2) */
     PC_STYLE_CONFIRM_SECONDS, /* confirm_seconds: "Keep these settings?" reverts after this long */
     PC_STYLE_COUNT
 };

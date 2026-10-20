@@ -329,19 +329,34 @@ static void greyed()
     } else {
         CHECK(wm.enabled && br.enabled && mv.enabled && bind.enabled);
         CHECK(change(D, "window_mode", -1) == 1 && stub.window_mode == 2 && value(D, "window_mode") == "Fullscreen");
-        // a risky display change (confirm): applied, held unsaved until kept, reverted on request
+        // the window mode applies and saves at once: no "Keep these settings?"
         char held[96];
+        CHECK(!pc_display_confirm_pending() && !pc_display_confirm_held("window_mode", held, sizeof held));
+        // the exclusive mode does (a mode the display cannot show): applied, held unsaved until kept,
+        // reverted on request
+        CHECK(row(D, "fullscreen_mode").enabled && value(D, "fullscreen_mode") == "Desktop");
+        CHECK(change(D, "fullscreen_mode", 1) == 1 && std::string(stub.fullscreen_mode) == "1920x1080@60");
         CHECK(pc_display_confirm_pending() && pc_display_confirm_count() == 1);
-        CHECK(pc_display_confirm_held("window_mode", held, sizeof held) && std::string(held) == "windowed");
+        CHECK(pc_display_confirm_held("fullscreen_mode", held, sizeof held) && std::string(held) == "desktop");
         pc_display_confirm_revert();
-        CHECK(!pc_display_confirm_pending() && stub.window_mode == 0 && value(D, "window_mode") == "Windowed");
-        CHECK(change(D, "window_mode", 1) == 1 && stub.window_mode == 1 && pc_display_confirm_pending());
-        CHECK(change(D, "window_mode", -1) == 1 && stub.window_mode == 0 && !pc_display_confirm_pending()); // back: let go
-        CHECK(change(D, "window_mode", -1) == 1 && stub.window_mode == 2 && pc_display_confirm_pending());
+        CHECK(!pc_display_confirm_pending() && std::string(stub.fullscreen_mode) == "desktop"
+            && value(D, "fullscreen_mode") == "Desktop");
+        CHECK(change(D, "fullscreen_mode", 1) == 1 && change(D, "fullscreen_mode", 1) == 1
+            && std::string(stub.fullscreen_mode) == "1280x720@60" && pc_display_confirm_count() == 1
+            && pc_display_confirm_held("fullscreen_mode", held, sizeof held) && std::string(held) == "desktop");
+        CHECK(change(D, "fullscreen_mode", -1) == 1 && pc_display_confirm_pending());
+        CHECK(change(D, "fullscreen_mode", -1) == 1 && std::string(stub.fullscreen_mode) == "desktop"
+            && !pc_display_confirm_pending()); // back: let go
+        CHECK(change(D, "fullscreen_mode", 1) == 1 && pc_display_confirm_pending());
         int kept_saves = stub.saves;
         pc_display_confirm_keep();
-        CHECK(!pc_display_confirm_pending() && stub.window_mode == 2 && stub.saves == kept_saves + 1);
-        CHECK(!pc_display_confirm_held("window_mode", held, sizeof held));
+        CHECK(!pc_display_confirm_pending() && std::string(stub.fullscreen_mode) == "1920x1080@60"
+            && stub.saves == kept_saves + 1);
+        CHECK(!pc_display_confirm_held("fullscreen_mode", held, sizeof held));
+        CHECK(change(D, "window_mode", -1) == 1 && stub.window_mode == 1 && !pc_display_confirm_pending());
+        CHECK(!row(D, "fullscreen_mode").enabled
+            && !std::strcmp(row(D, "fullscreen_mode").reason, "Needs Window: Fullscreen"));
+        CHECK(change(D, "window_mode", 1) == 1 && stub.window_mode == 2);
         CHECK(change(D, "brightness", 1) == 1 && stub.brightness == 55 && value(D, "brightness") == "55");
         CHECK(change(A, "master_volume", 1) == 0); // at 100
         CHECK(change(A, "master_volume", -2) == 1 && stub.volume == 90 && value(A, "master_volume") == "90%");

@@ -50,8 +50,9 @@ in the save room with ui_menus on; Triangle, L1 (System). One row per page:
     "m" binds it (bind_key_triangle m saved); in the field "m" opens the menu
   - Display: Widescreen On: pc_gl_view is 16:9 (its outermost 32 px column
     the tinted ground), widescreen 1 saved; Window
-    Right = Borderless (system RPC), "Keep these settings?" asks and the
-    file keeps Windowed until Circle keeps it (saved)
+    Right = Borderless (system RPC), applied and saved at once without
+    "Keep these settings?" (only the exclusive fullscreen mode asks:
+    options_confirm_smoke)
   - Game group: Data opens the game's own Data screen; Cross comes back to
     the System list on Data
 Relaunch with the same file: the values are back (live variables and RPCs,
@@ -644,16 +645,10 @@ def main():
         game.run(4)
         check(rows()["window_mode"]["value"] == "Borderless" and game.call("system")["window_mode"] == "borderless",
               "Right: Borderless (system window_mode)")
-        # a risky display change: "Keep these settings?" over the menu; until kept the file keeps Windowed
+        # the window mode applies and saves at once: no "Keep these settings?" (only the exclusive fullscreen
+        # mode asks: options_confirm_smoke)
         confirm = sysv()["confirm"]
-        check(confirm["pending"] and confirm["focus"] == "keep", f"Keep these settings? asks, on Keep ({confirm})")
-        wait_clean()
-        saved = settings_lines(settings)
-        check(saved.get("window_mode") == "windowed",
-              f"unconfirmed: window_mode windowed saved ({saved.get('window_mode')})")
-        press("circle")  # Keep
-        check(not sysv()["confirm"]["pending"] and game.call("system")["window_mode"] == "borderless",
-              "Circle on Keep: kept borderless")
+        check(not confirm["pending"], f"no Keep these settings? for the window mode ({confirm})")
         wait_clean()
         saved = settings_lines(settings)
         check(saved.get("widescreen") == "1" and saved.get("window_mode") == "borderless",

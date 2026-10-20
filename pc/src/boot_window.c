@@ -607,33 +607,56 @@ void pc_display_choose(const char* value)
 }
 const char* pc_display_setting(void) { return display_want[0] ? display_want : "primary"; }
 
+/* ROOD_TEST_FULLSCREEN_MODES "WxH@Hz,WxH@Hz,...": tests' exclusive modes in place of the display's (a
+ * headless SDL display has none, so Fullscreen mode and its "Keep these settings?" could not be
+ * exercised). They are listed and chosen like real ones; going fullscreen with one takes the desktop's
+ * mode (no real mode switch). Unset: the display's own. */
+static const char* test_modes(void)
+{
+    const char* list = getenv("ROOD_TEST_FULLSCREEN_MODES");
+    return list && *list ? list : NULL;
+}
+static void add_mode(int w, int h, int hz)
+{
+    int seen = 0;
+    for (int j = 1; j < mode_count; j++)
+        seen |= modes[j].w == w && modes[j].h == h && modes[j].hz == hz;
+    if (seen || w <= 0 || h <= 0 || mode_count >= MODES)
+        return;
+    modes[mode_count].w = w, modes[mode_count].h = h, modes[mode_count].hz = hz;
+    snprintf(modes[mode_count].label, sizeof modes[0].label, hz ? "%d x %d, %d Hz" : "%d x %d", w, h, hz);
+    snprintf(modes[mode_count].value, sizeof modes[0].value, "%dx%d@%d", w, h, hz);
+    mode_count++;
+}
 /* The exclusive modes of the target display: deduplicated (size and whole Hz), "Desktop" first. */
 static void refresh_modes(void)
 {
     int i = display_index(), n = 0;
     SDL_DisplayID id = i >= 0 ? displays[i].id : 0;
+    const char* test = test_modes();
     mode_count = 0;
     modes_display = id;
     snprintf(modes[0].label, sizeof modes[0].label, "Desktop");
     snprintf(modes[0].value, sizeof modes[0].value, "desktop");
     mode_count = 1;
-    SDL_DisplayMode** list = id ? SDL_GetFullscreenDisplayModes(id, &n) : NULL;
-    for (int k = 0; list && k < n && mode_count < MODES; k++) {
-        int w = list[k]->w, h = list[k]->h, hz = (int)(list[k]->refresh_rate + 0.5f), seen = 0;
-        for (int j = 1; j < mode_count; j++)
-            seen |= modes[j].w == w && modes[j].h == h && modes[j].hz == hz;
-        if (seen || w <= 0 || h <= 0)
-            continue;
-        modes[mode_count].w = w, modes[mode_count].h = h, modes[mode_count].hz = hz;
-        snprintf(modes[mode_count].label, sizeof modes[0].label, hz ? "%d x %d, %d Hz" : "%d x %d", w, h, hz);
-        snprintf(modes[mode_count].value, sizeof modes[0].value, "%dx%d@%d", w, h, hz);
-        mode_count++;
+    if (test) {
+        for (const char* p = test; p; p = strchr(p, ',') ? strchr(p, ',') + 1 : NULL) {
+            int w = 0, h = 0, hz = 0;
+            if (sscanf(p, "%dx%d@%d", &w, &h, &hz) >= 2)
+                add_mode(w, h, hz);
+        }
+        return;
     }
+    SDL_DisplayMode** list = id ? SDL_GetFullscreenDisplayModes(id, &n) : NULL;
+    for (int k = 0; list && k < n; k++)
+        add_mode(list[k]->w, list[k]->h, (int)(list[k]->refresh_rate + 0.5f));
     SDL_free(list);
 }
 static int exclusive_mode(SDL_DisplayID display, SDL_DisplayMode* out)
 {
     int w = 0, h = 0, hz = 0;
+    if (test_modes())
+        return 0; /* (the desktop's mode) */
     const SDL_DisplayMode* desktop = SDL_GetDesktopDisplayMode(display);
     if (!desktop)
         return 0;
@@ -653,6 +676,12 @@ int pc_fullscreen_mode_current(void)
 {
     SDL_DisplayMode m;
     refresh_modes();
+    if (test_modes()) { /* the listed one the setting names */
+        for (int i = 1; i < mode_count; i++)
+            if (!strcmp(modes[i].value, mode_want))
+                return i;
+        return 0;
+    }
     if (!strcmp(mode_want, "desktop") || !modes_display || !exclusive_mode(modes_display, &m))
         return 0;
     for (int i = 1; i < mode_count; i++)

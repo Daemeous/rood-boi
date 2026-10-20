@@ -23,7 +23,8 @@ this repository's normal matching build (see the root README, which also
 lists the packages to install). The host build uses its extracted assets,
 symbol manifests, and object files. Nothing extracted from the disc belongs
 in Git. `pc/run-game.sh --vulkan` (64-bit, Vulkan) is the recommended way to
-build and play; the commands below are the 32-bit build.
+build and play (`pc/run-game.sh` alone plays the 64-bit build with OpenGL,
+`--32` the old 32-bit build); the commands below are the 32-bit build.
 
 Host dependencies: Python 3, GCC/G++ with x86 multilib libc, CMake and (optionally)
 Ninja. The window, input, gamepads and audio use SDL 3 (`pc/third_party/SDL3`,
@@ -525,10 +526,13 @@ same pages, from the same data (`pc/plugins/rood.options`, `docs/Extensions.md`
 "Option pages"), are the modern menus' System tab. Changes apply at once and
 save to settings.cfg; the game's own nine options stay on the memory card.
 
-Risky display changes (Window, Display, Fullscreen mode) ask "Keep these
-settings?": they apply at once and go back by themselves after 10 seconds
-unless kept (Circle on KEEP; the countdown is rood.options' `confirm.seconds`);
-until then settings.cfg keeps the old value. The display settings:
+A new exclusive Fullscreen mode (resolution and refresh rate) asks "Keep these
+settings?": it applies at once and goes back by itself after 10 seconds unless
+kept (Circle on KEEP; the countdown is rood.options' `confirm.seconds`); until
+then settings.cfg keeps the old value. Window (windowed, borderless,
+fullscreen) and Display apply and save at once without asking. Tests list
+exclusive modes of their own with `ROOD_TEST_FULLSCREEN_MODES=1920x1080@60,...`
+(a headless display has none). The display settings:
 
 | Key | Values | |
 |---|---|---|
@@ -1287,6 +1291,7 @@ pixel's corner as the PS1 does, not one past the image (`pc_hw_set_flipped_uv`).
 | `ui_text_bubble_align` | `centre` | with `ui_text_layout line`, talk bubbles only (menus and the information box stay left): `centre` centres each line within the original line's extent, `left` starts it where the game does |
 | `ui_text_<style>_<field>` | the chosen fonts | per style (`dialogue`, `menu`, `info`, `digits`, `status`, `labels`; HUD typography below): `font` a TrueType file (relative to the repository root), `stretch` horizontal scale, `slant` added shear, `embolden` distance-field offset in em (bolder > 0), `aspect` for `digits` the least share of the font's own width/height a digit size may be condensed to (0.78; 0: any), `small_caps`, `outline` (the original is outlined), `size` (`status`, `labels`: cap height x the original's), `stroke` (outlined styles: the outline's width in PS1 pixels, 1), `tracking` (`status`, `labels`: letter spacing in em); saved only when they differ from the defaults |
 | `ui_text_word_space`, `ui_text_edge_margin`, `ui_text_popup_scale` | 1.5, 0.15, 1 | line layout's space (x the font's), the PS1 pixels an outline's anti-aliased edge keeps from the box the game draws it in, the battle number popups' size |
+| `ui_text_descender_lift` | 1 | 0..1: the HUD digits (old-style figures: 3 4 5 7 9 descend) rise together by this much of the room their deepest descender lacks below the baseline, into the room above them, so the figures keep their shape; what is still lacking is squeezed (0: squeezed only, a 5's bowl flattened) |
 | `ui_lines` | `joined` | 2D lines (GP0 0x40-0x5F: the map, the minimap, the targeting sphere, talk bubble outlines) at the internal resolution. `joined`: one PS1 pixel thick at any scale, joins closed, no light dots along outlines (below). `legacy`: the earlier one-pixel quads, for comparison |
 | `ui_outline_boost` | 0 | 2D lines (and vector bubble outlines) 0-3 output pixels thicker: a bolder inked look |
 | `ui_bubbles` | `original` | `original`: talk bubbles drawn from the game's packets. `vector`: each bubble the game builds drawn as one smooth shape, the emote bubbles over actors too (below) |
@@ -1379,8 +1384,15 @@ wide outline), centred on the original glyphs' ink, and each glyph's sprite
 draws its glyph's image there (`gpu_hw.c` `status_rect`), above and below
 its 10-row box as the size needs. The defaults are the HUD labels' (HP, MP,
 RISK): Chakra Petch Bold at stretch 1.26 with the one-pixel outline, rather
-than each letter squeezed into its own narrow cell. Colours, brightness,
-places, timing and the slide in and out stay the game's. RPC `ui_text`
+than each letter squeezed into its own narrow cell. The game pads two-word
+phrases with narrow blanks (three between WELL and TIMED!): a run of them is
+one space of the font's (`ui_text_word_space`), so RIGHT ON! reads as one
+phrase; a phrase wider than the game's, centred on it, is moved only as far
+as it takes to stay on the 320-pixel screen with its outline (WELL TIMED!
+starts at x 5; 16:9 anchors the HUD at the window's edges, so the same
+holds there; rood.hud's modern drawing does the same, `look.words.margin`).
+Colours, brightness, places, timing and the slide in and out stay the
+game's. RPC `ui_text`
 reports `status` (each word laid out lately: its text, the first glyph's
 place, the laid-out and original ink extents) and `status_glyphs`.
 

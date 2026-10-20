@@ -194,8 +194,10 @@ void pc_ui_text_override_clear(int style);
 unsigned pc_ui_text_overridden(int style);
 /* Tunables (settings): the font's space widened in line layout
  * (ui_text_word_space, 1.5), the PS1 pixels an outline's anti-aliased edge
- * keeps from the box it is drawn in (ui_text_edge_margin, 0.15). */
-extern float pc_ui_text_word_space, pc_ui_text_edge_margin;
+ * keeps from the box it is drawn in (ui_text_edge_margin, 0.15), how much of
+ * the room the HUD digits' descenders lack they take by rising into the room
+ * above them before being squeezed (ui_text_descender_lift, 0..1, 1). */
+extern float pc_ui_text_word_space, pc_ui_text_edge_margin, pc_ui_text_descender_lift;
 /* JSON object (RPC ui_text): option, styles, fonts loaded, glyphs cached,
  * regions drawn. */
 int pc_ui_text_json(char* out, int size);

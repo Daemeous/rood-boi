@@ -43,6 +43,7 @@ local function make_look()
       stroke_color = 0x000000,
       shade = 0.94, -- the game's colour as its glyphs' body ramp shows it on average
       nudge = 0.5,  -- the capitals' middle below the middle of the game's glyph boxes
+      margin = 1,   -- pixels a word (its outline included) keeps from the screen's edges (WELL TIMED! at x 5)
     },
     -- The classic look (ui_menus 0) keeps the game's drawing: only the status style's
     -- typography may change here (ui_text font). Fields of ui_text's styles (size, stroke,
@@ -128,9 +129,14 @@ local function shaded(rgb, k)
 end
 
 -- status and chain: the word, centred where the game centres it
+local SCREEN_W = 320 -- the display area's width (the HUD's coordinates; 16:9 anchors it at the window's edges)
 local function word(e, d)
   local shade = e.flavour == "classic" and 1 or look.words.shade -- (the game's printer shades its own glyphs)
-  d.text(style.word, e.text, e.x, e.y + look.words.nudge, shaded(e.rgb, shade))
+  -- centred where the game centres it, unless that would leave the screen
+  local half = d.measure(style.word, e.text) * 0.5 + look.words.stroke + look.words.margin
+  local x = e.x
+  if half * 2 < SCREEN_W then x = math.max(half, math.min(SCREEN_W - half, x)) end
+  d.text(style.word, e.text, x, e.y + look.words.nudge, shaded(e.rgb, shade))
 end
 M.draw.status = word
 M.draw.chain = word

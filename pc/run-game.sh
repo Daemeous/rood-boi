@@ -3,8 +3,10 @@
 # and input flow (--skip-movies skips the movie).
 # On an NVIDIA hybrid laptop/desktop it renders on the NVIDIA GPU (PRIME
 # offload); ROOD_GPU=integrated keeps the default GPU. Path-traced lighting is
-# on (ROOD_GI=0 turns it off). --64 plays the 64-bit build; --vulkan plays it
-# with the Vulkan renderer (hardware ray tracing). --resume (or ROOD_RESUME=1)
+# on (ROOD_GI=0 turns it off). It plays the 64-bit build with OpenGL by
+# default (--64 says so explicitly); --vulkan plays it with the Vulkan renderer
+# (hardware ray tracing); --32 plays the old 32-bit build (build_boot.py
+# --battle, OpenGL only, no longer tested). --resume (or ROOD_RESUME=1)
 # continues where the last session quit (the auto-snapshot, below) when it
 # still fits the build, else boots normally. --reload plays the 64-bit
 # development split (pc/build/dev64: rood_host and the engine library it
@@ -13,13 +15,14 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 build=1
-arch=32
+arch=64
 split=0
 args=()
 for arg in "$@"; do
     case "$arg" in
     --no-build) build=0 ;;
     --64) arch=64 ;;
+    --32) arch=32 ;;
     --vulkan) arch=64; export ROOD_RENDERER=vulkan ;;
     --resume) export ROOD_RESUME=1 ;;
     --reload) arch=64; split=1 ;;

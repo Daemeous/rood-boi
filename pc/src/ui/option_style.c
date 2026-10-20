@@ -21,8 +21,9 @@ static const Field fields[PC_STYLE_COUNT] = {
     { "classic_bar_width", 64, 8, 64, "The gauge's length at its maximum (the game's bars: 64)" },
     { "classic_lit", 1, 0, 3, "The current value's text colour (0 white, 1 the game's lit yellow, 3 grey)" },
     { "classic_other", 3, 0, 3, "The other toggle value's text colour" },
-    { "classic_help_width", 280, 100, 300, "A help line's width in the information box" },
-    { "classic_help_seconds", 3, 1, 10, "A longer help's lines take turns in the information box (one line) this long each" },
+    { "classic_help_width", 270, 100, 300, "A help line's width in the information box (the game's own descriptions: 270 at the longest)" },
+    { "classic_help_seconds", 3, 1, 10, "A help longer than the information box holds is shown a box at a time, this long each" },
+    { "classic_help_lines", 2, 1, 2, "The information box's lines (the game's own descriptions: up to 2)" },
     { "confirm_seconds", 10, 3, 60, "\"Keep these settings?\" reverts by itself after this long" },
 };
 static double values[PC_STYLE_COUNT];

@@ -3098,8 +3098,12 @@ static void side_paint_primitive(int x0, int y0, int x1, int y1, unsigned code, 
         side_paint_add(inner_right, y0, right, y1);
     else if (primitive_extend < 0)
         side_paint_add(left, y0, inner_left, y1);
-    else if (side_paint_count && (code & 0xe0) == 0x60 && !(code & 2)) {
-        /* An opaque rectangle (sprite, tile) over the screen's edge column. */
+    else if (side_paint_count && (code & 0xe0) == 0x60 && !(code & 2) && x1 - x0 >= clip[2] / 10) {
+        /* An opaque rectangle (sprite, tile) over the screen's edge column, as
+         * wide as what extends (a tenth of the screen: a background, a
+         * picture); not a small sprite that only touches the edge (the
+         * cursor hand left of the save screen's YES / NO rows cleared their
+         * extensions in its rows: the bars came apart). */
         if (x1 >= right - 1 && x0 < right)
             side_paint_clear(inner_right, y0, right, y1);
         if (x0 <= left + 1 && x1 > left)

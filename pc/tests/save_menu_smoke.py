@@ -24,6 +24,15 @@ decoded from the disc data (SPMCIMG.BIN with MCDATA.BIN's two location
 CLUTs, as tools/data/MENU/SPMCIMG_BIN.py does) at the menu's brightness
 (selected: 0x80, others: 0x40).
 
+Then, in 16:9 (a 1280 x 720 window), DATA > SAVE > MEMORY CARD slot 1 >
+the first file: "Overwrite the file?" and its YES / NO rows, each a menu
+window from the screen's left edge, which widescreen extends to the view's
+edge (gpu_hw.c primitive_extend). With NO and then YES focused, each row's
+extension beside the 4:3 screen covers the same pixel rows as the row
+inside it (the cursor hand touching the edge cleared the extension in its
+rows: the bars came apart, the user's report), at rest (two presented
+images the same); Cross backs out without saving.
+
 --out keeps frames for looking (game imagery: keep it out of git)."""
 import argparse
 import os
@@ -120,6 +129,62 @@ def main():
         return run(args, out, cards.card1, images)
 
 
+def bands(column, level=30):
+    """The runs of lit pixels down one column of a picture: [(first, last), ...]."""
+    lit = column.astype(int).sum(axis=1) > level
+    runs, start = [], None
+    for y, on in enumerate(lit):
+        if on and start is None:
+            start = y
+        elif not on and start is not None:
+            runs.append((start, y - 1))
+            start = None
+    if start is not None:
+        runs.append((start, len(lit) - 1))
+    return runs
+
+
+def check_save_confirm(args, out, card, check):
+    """16:9: the save confirm's YES / NO rows are one piece each, their extensions at the rows' heights."""
+    lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-", dir=out))
+    env = {"ROOD_WINDOW": "1280x720", "ROOD_LIGHTS": str(lights), "ROOD_GI": "0", "ROOD_WIDESCREEN": "1"}
+    game = launch_at("save_room", card=card, fast=True, log=out / "game-16x9.log", extra_env=env)
+    try:
+        game.call("graphics", widescreen=True)
+        game.press("triangle", vsyncs=3, settle=60)
+        top_command(game, symbols(), DATA_COMMAND)
+        game.press("circle", vsyncs=3, settle=60)  # DATA: SAVE is the first row
+        for _ in range(3):  # SAVE, MEMORY CARD slot 1, the first file: "Overwrite the file?"
+            game.press("circle", vsyncs=3, settle=150)
+
+        def at_rest(name):
+            """A presented image the same as the one before it (the rows have slid in)."""
+            previous = None
+            for _ in range(30):
+                image = np.asarray(Image.open(game.present_screenshot(out / f"{name}.png")).convert("RGB"))
+                if previous is not None and np.array_equal(image, previous):
+                    return image
+                previous = image
+                game.run(4)
+            return previous
+
+        for focus, press in (("NO", None), ("YES", "up")):
+            if press:
+                game.press(press, vsyncs=3, settle=30)
+            image = at_rest(f"confirm-{focus.lower()}")
+            h, w = image.shape[:2]
+            top = image[: h // 4]  # the rows sit at the top (PS1 y 18..46 of 224)
+            side, inside = bands(top[:, w // 64]), bands(top[:, w * 3 // 8])
+            rows = [b for b in inside if b[1] - b[0] >= h // 40][:2]  # YES and NO (the file list starts below)
+            matched = [any(abs(s[0] - r[0]) <= 2 and abs(s[1] - r[1]) <= 2 for s in side) for r in rows]
+            check(len(rows) == 2 and all(matched),
+                  f"16:9 save confirm, {focus} focused: both rows' extensions at the rows' heights (inside "
+                  f"{rows}, beside the screen {side})")
+        game.press("cross", vsyncs=3, settle=60)  # NO: nothing saved
+    finally:
+        game.close()
+
+
 def run(args, out, card, images):
     lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-", dir=out))
     env = {"ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(lights), "ROOD_GI": "0", "ROOD_SCALE": "2"}
@@ -173,6 +238,7 @@ def run(args, out, card, images):
         check(replays > 0, "interpolated images were checked")
     finally:
         game.close()
+    check_save_confirm(args, out, card, check)
     if failures:
         print(f"FAIL: {len(failures)} check(s)")
         return 1

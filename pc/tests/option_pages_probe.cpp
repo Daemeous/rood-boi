@@ -206,8 +206,11 @@ static void catalog()
     // the JSON names the new kinds (never on a catalog page, but the table covers them)
     char json[65536];
     CHECK(pc_ui_settings_json(pc_ui_settings_page_index("display"), json, (int)sizeof json) > 0);
-    CHECK(std::strstr(json, "\"id\":\"window_mode\"") && std::strstr(json, "\"confirm\":true"));
-    CHECK(pc_ui_settings_catalog_row(pc_ui_settings_catalog_index("window_mode"), &r) && r.confirm);
+    CHECK(std::strstr(json, "\"id\":\"fullscreen_mode\"") && std::strstr(json, "\"confirm\":true"));
+    CHECK(pc_ui_settings_catalog_row(pc_ui_settings_catalog_index("fullscreen_mode"), &r) && r.confirm);
+    // only the exclusive mode asks "Keep these settings?": the window mode and the display apply at once
+    CHECK(pc_ui_settings_catalog_row(pc_ui_settings_catalog_index("window_mode"), &r) && !r.confirm);
+    CHECK(pc_ui_settings_catalog_row(pc_ui_settings_catalog_index("display"), &r) && !r.confirm);
     CHECK(pc_ui_settings_catalog_row(pc_ui_settings_catalog_index("widescreen"), &r) && !r.confirm);
     // the homes, in the catalog's order
     const char* title = nullptr;

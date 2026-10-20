@@ -211,7 +211,9 @@ static float stroke_distance(float d, float stroke)
 /* Tunables over the styles (settings; ui_text.h). */
 #define WORD_SPACE_DEFAULT 1.5f
 #define EDGE_MARGIN_DEFAULT 0.15f
+#define DESCENDER_LIFT_DEFAULT 1.0f
 float pc_ui_text_word_space = WORD_SPACE_DEFAULT, pc_ui_text_edge_margin = EDGE_MARGIN_DEFAULT;
+float pc_ui_text_descender_lift = DESCENDER_LIFT_DEFAULT;
 
 /* ---- fonts and glyph distance fields ---- */
 
@@ -1169,8 +1171,27 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
     float sx = s * st->stretch;
     if ((f->x1 - f->x0) * sx > room)
         sx = room / (f->x1 - f->x0);
-    /* Descenders squeezed into the box (the PS1 faces have none). */
+    /* Descenders: the PS1 faces have none, so the box has little room below
+     * the baseline (the large HUD digits: 2 rows, less the outline's room).
+     * The digits' figures are old style (3 4 5 7 9 descend): squeezed alone
+     * their descenders flatten (a 5's bowl) while the rest keeps its scale.
+     * So the digits of one size first rise together, by what their deepest
+     * descender lacks, into the room above their tallest figure
+     * (ui_text_descender_lift of it: 1 all it takes, 0 none); a descender
+     * still too deep is squeezed. */
     float below = g.box_h - base - (st->outline ? edge : 0.1f), sd = s;
+    if (g.style == PC_UI_TEXT_DIGITS && !bullet && !g.symbol && pc_ui_text_descender_lift > 0) {
+        float deepest = 0, tallest = 0;
+        for (unsigned d = '0'; d <= '9'; d++) {
+            const glyph_field* q = field(g.style, d);
+            if (q)
+                deepest = fmaxf(deepest, -q->bottom), tallest = fmaxf(tallest, q->top);
+        }
+        float lacks = deepest * s - below, above = base - tallest * s - (st->outline ? edge : 0.1f);
+        float lift = fminf(lacks, fmaxf(above, 0.0f)) * pc_ui_text_descender_lift;
+        if (lift > 0)
+            base -= lift, below += lift;
+    }
     if (-f->bottom * s > below && below > 0)
         sd = below / -f->bottom;
     if (g.symbol) {
@@ -2001,6 +2022,7 @@ int pc_ui_text_image_render(int image, int factor, uint32_t* out)
  * motion stay the game's. */
 #define STATUS_STRINGS 16
 #define STATUS_GLYPHS 24
+#define STATUS_SCREEN_W 320.0f       /* the field's display width (the words' place is the game's, on it) */
 #define STATUS_IMAGE_BASE (1 << 20) /* image ids: STATUS_IMAGE_BASE + string * STATUS_GLYPHS + glyph */
 typedef struct {
     unsigned stamp; /* vsync it was printed at */
@@ -2082,6 +2104,8 @@ static int status_layout(const uint16_t* vram, status_string* s)
         float rel = (float)(s->glyph[i].x - s->glyph[0].x);
         if (have_space && u == space_u && v == space_v && w == space_w) {
             s->glyph[i].space = 1;
+            if (!prev)
+                continue; /* the game pads its words with narrow blanks (3 between WELL and TIMED!): one space */
             int space = stbtt_FindGlyphIndex(&f->info, ' '), advance, bearing;
             stbtt_GetGlyphHMetrics(&f->info, space, &advance, &bearing);
             if (sx > 0)
@@ -2135,6 +2159,17 @@ static int status_layout(const uint16_t* vram, status_string* s)
     float shift = (o0 + o1 - l0 - l1) * 0.5f, mid = base - height * 0.5f;
     float new_base = mid + height * (sc / s0) * 0.5f;
     float stroke = st->outline ? st->stroke : 0.0f, pad = ceilf(stroke + 1.5f), bold = st->embolden * SDF_EM;
+    /* Wider than the game's word (the font, its size), centred on it, a
+     * word near the screen's edge (WELL TIMED! from x 5) would leave it:
+     * kept on the PS1's 320-pixel screen, its outline and that outline's
+     * edge (ui_text_edge_margin) included (16:9 anchors the HUD at the
+     * window's edges, so the same holds there). */
+    float room = (st->outline ? stroke : 0.0f) + pc_ui_text_edge_margin + fmaxf(bold, 0.0f) * sc;
+    float at = (float)s->glyph[0].x, lo_x = room - at, hi_x = STATUS_SCREEN_W - room - at;
+    if (shift + l1 > hi_x)
+        shift = hi_x - l1;
+    if (shift + l0 < lo_x)
+        shift = lo_x - l0;
     float t = floorf(new_base - top * sc - pad), b = ceilf(new_base + depth * sc + pad);
     int lo = st->outline ? 2 : 1;
     for (int i = 0; i < s->count; i++) {
@@ -2325,7 +2360,7 @@ static const struct {
     { "stroke", offsetof(pc_ui_text_style, stroke), 0, 0.0f, 4.0f },
     { "tracking", offsetof(pc_ui_text_style, tracking), 0, -0.5f, 1.0f },
 };
-#define TUNABLES 3
+#define TUNABLES 4
 static const struct {
     const char* name;
     float* value;
@@ -2334,6 +2369,7 @@ static const struct {
     { "word_space", &pc_ui_text_word_space, WORD_SPACE_DEFAULT, 0.5f, 4.0f },
     { "edge_margin", &pc_ui_text_edge_margin, EDGE_MARGIN_DEFAULT, 0.0f, 2.0f },
     { "popup_scale", &text_scale, 1.0f, 0.25f, 4.0f },
+    { "descender_lift", &pc_ui_text_descender_lift, DESCENDER_LIFT_DEFAULT, 0.0f, 1.0f },
 };
 
 /* "ui_text_<style>_<field>": its style and field. */

@@ -224,8 +224,9 @@ counter (`rl::registry_generation()`, bumped in lua_registry.cpp:81).
   relabelled, 1x-8x plus "Match window". Saved as `internal_resolution auto`,
   resolved in `pc_hw_supersample` (gpu_hw.c:2994-3008).
 - **10 s confirm:** a pure `pc/src/display_confirm.c` with an injected clock.
-  - Rows flagged `confirm` (window_mode, fullscreen_mode, display) snapshot
-    their old values, apply, and hold back saving.
+  - Rows flagged `confirm` snapshot their old values, apply, and hold back
+    saving. Only fullscreen_mode asks (user, after the 2026-10-20 playtest:
+    window_mode and display apply at once).
   - Classic shows a Keep/Revert flyout; modern shows a modal.
   - A timeout or Cross reverts.
   - RPC `options {keep:true}` is there for tests.
@@ -284,7 +285,7 @@ counter (`rl::registry_generation()`, bumped in lua_registry.cpp:81).
   58EC.c:1053-1109. Added: a focus restored on visible row 0 / 8 of a
   scrolled page pages instead of leaving the window.
 - **A3** `display_confirm.{c,h}` + probe (from the parked `m1-page-model`).
-  Which keys ask is the catalog's data (`confirm` on a row: window_mode now),
+  Which keys ask is the catalog's data (`confirm` on a row: fullscreen_mode),
   not a list in C; a held key set back to its snapshot is let go.
 - **A4** `option_pages.{h,cpp}` + probe, row kinds HEADER / NOTE / LINK,
   catalog `home` and `where` (parked branch). Fixed: a catalog row not shown
@@ -348,7 +349,7 @@ with a warning) needs the classic renderer's measure: C1.
   the real clock); the settings writer saves held keys' snapshots; classic
   KEEP / REVERT flyout with the seconds in the information box, modern modal
   card (pad, pointer, `ui_menu system.confirm`).
-- **D1** `display`, `fullscreen_mode` (confirm rows), `vsync` (GL swap
+- **D1** `display`, `fullscreen_mode` (the confirm row), `vsync` (GL swap
   interval, Vulkan FIFO with a swapchain recreate).
 - **D2** `remember_window` + `window_rect`: one helper for the three create
   sites (`pc_window_place`), reading the file (the settings load after the
@@ -368,8 +369,13 @@ with a warning) needs the classic renderer's measure: C1.
 - Look and feel are data: `option_style.h` values set from rood.options'
   `M.style` (`rood.menu.style`, core plugin only) and RPC `options {style}`;
   C keeps the same values as defaults for the fallback.
-- The information box holds one line (a newline code broke the box): a long
-  help's lines take turns (`classic_help_seconds`) instead of two lines.
+- The information box first held one line (a long help's lines took turns,
+  `classic_help_seconds`). After the 2026-10-20 playtest it is set as the
+  game's own descriptions are (MENU8's menu.vsString): up to two lines
+  (`classic_help_lines`) of at most 270 pixels (`classic_help_width`, the
+  originals' longest) with the game's newline (0xE8), broken at a sentence's
+  end when each sentence fits a line; only help longer than two lines takes
+  turns, a box at a time.
 - Page rows sit at rowInfo 2 (eight rows) under the hoisted entry, as the
   game's own flyouts do, rather than nine at rowInfo 1.
 - The game's TUs have no host stdio: `pc/src/host_format.c` gives them

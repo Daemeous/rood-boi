@@ -258,8 +258,8 @@ offload; `ROOD_GPU=integrated` keeps the default GPU).
 | Option | Effect |
 | --- | --- |
 | `--vulkan` | 64-bit build, Vulkan renderer (`ROOD_RENDERER=vulkan`). Recommended. Falls back to OpenGL if Vulkan 1.3 is not available. |
-| `--64` | 64-bit build with the OpenGL renderer |
-| *(none)* | 32-bit build (`build_boot.py --battle`) with OpenGL: the original port configuration; needs the multilib/i386 packages above and has no Vulkan or NRD |
+| *(none)* or `--64` | 64-bit build with the OpenGL renderer |
+| `--32` | 32-bit build (`build_boot.py --battle`) with OpenGL: the original port configuration, no longer tested; needs the multilib/i386 packages above and has no Vulkan or NRD |
 | `--reload` | 64-bit development split: the engine is a library the running game reloads in place (below) |
 | `--no-build` | skip the build step and run the existing binary |
 | `--skip-movies` | (passed to the game) skip the intro movie |
@@ -397,7 +397,8 @@ cmake -S pc -B pc/build -G Ninja && cmake --build pc/build   # CMake probes, onc
 python3 pc/tests/run.py --list                               # the suites
 python3 pc/tests/run.py --arch 64 --renderer vulkan          # everything, 64-bit Vulkan
 python3 pc/tests/run.py --arch 64 --renderer vulkan rpc      # suites matching "rpc"
-python3 pc/tests/run.py                                      # the 32-bit build
+python3 pc/tests/run.py                                      # everything, 64-bit OpenGL
+python3 pc/tests/run.py --arch 32                            # the 32-bit build (no longer kept up)
 ```
 
 The runner prefers rendering on the GPU through EGL (`python3

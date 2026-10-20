@@ -14,5 +14,6 @@ struct Stub {
     int game_sets = 0;
     int puzzle_disabled = 0;
     int window_mode = 0, volume = 100, brightness = 50, captures = 0;
+    char fullscreen_mode[32] = "desktop"; // settings fullscreen_mode (the hooks' modes: desktop, 1920x1080@60, 1280x720@60)
 };
 extern Stub stub;

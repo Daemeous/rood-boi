@@ -509,6 +509,28 @@ def shipped_hud(g, folder, check, wait, stats, glyphs):
               f"{k}: claimed by rood.hud, suppressed and drawn (drawn {t['drawn'] - s['drawn']}, suppressed "
               f"{t['suppressed'] - s['suppressed']}, fallback {t['fallback'] - s['fallback']}, the game's own "
               f"{game_drawn}; commands {texts()[:6]})")
+    # a word wider than its place allows centred (WELL TIMED! at x 5, size 1.8): kept on the screen
+    for size in (1.0, 1.8):
+        g.call("ui_text", style="status", size=size)
+        g.call("hud", action="clear")
+        g.call("hud", action="show", kind="status", timing="success", variant=5)
+        e = {}
+        found = wait(lambda: any(x["text"] == "WELL TIMED!" and x["held"] for x in elements("status")))
+        e = next((x for x in elements("status") if x["text"] == "WELL TIMED!"), {})
+        wait(lambda: any(c.get("text") == "WELL TIMED!" and c.get("cap", 0) > 7 * size - 0.01
+                         for c in stats()["last"]))
+        cmd = next((c for c in stats()["last"] if c.get("text") == "WELL TIMED!"), None)
+        if not check(found and cmd is not None, f"WELL TIMED! (size {size}) drawn by rood.hud ({texts()[:4]})"):
+            continue
+        r = g.lua(f"local d, S = rood.draw, rood.settings.get return d.measure(d.style{{ font = 'status', "
+                  f"cap = {cmd['cap']}, stretch = S('ui_text_status_stretch'), tracking = S('ui_text_status_tracking'), "
+                  f"stroke = {cmd['stroke']}, align = 'center', anchor = 'middle' }}, 'WELL TIMED!')")
+        width = r["results"][0]
+        left = cmd["x"] - width / 2 - cmd["stroke"]
+        check(left >= 0 and (size > 1 or abs(cmd["x"] - e["x"]) < 0.01),
+              f"WELL TIMED! (size {size}): centred on the game's place {e['x']} unless that leaves the screen "
+              f"(at {cmd['x']:.1f}, {width:.1f} wide: its left edge {left:.1f})")
+    g.call("ui_text", style="status", size=1.0)
     if any(not e.get("synthetic") for e in elements("buff")):
         parts = elements("buff")[0]["parts"] if elements("buff") else []
         check([p["text"] for p in parts] == ["WEAPON", "HUMAN", "+", "2"] and all(p["w"] > 0 for p in parts),

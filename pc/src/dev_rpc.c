@@ -2315,7 +2315,7 @@ static void handle_method(int fd, const char* request)
          * glyph fields made, regions and labels drawn, the status words laid
          * out; {style, font, stretch, slant, embolden, aspect, small_caps,
          * outline, size, stroke, tracking} changes a style and {word_space,
-         * edge_margin, popup_scale} a tunable, as the settings keys do. */
+         * edge_margin, popup_scale, descender_lift} a tunable, as the settings keys do. */
         char style[32], text[300];
         if (params && string_value(member(params, "style"), style, sizeof style)) {
             static const char* const keys[] = { "font", "stretch", "slant", "embolden", "aspect", "small_caps",
@@ -2343,8 +2343,8 @@ static void handle_method(int fd, const char* request)
             }
         }
         {
-            static const char* const tunables[] = { "word_space", "edge_margin", "popup_scale" };
-            for (int k = 0; k < 3; k++) {
+            static const char* const tunables[] = { "word_space", "edge_margin", "popup_scale", "descender_lift" };
+            for (int k = 0; k < (int)(sizeof tunables / sizeof tunables[0]); k++) {
                 double value;
                 char key[64];
                 if (params && real_value(member(params, tunables[k]), &value)) {

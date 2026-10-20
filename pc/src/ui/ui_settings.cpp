@@ -426,7 +426,6 @@ void build()
         static const char* const window_mode_values[] = {"windowed", "borderless", "fullscreen"};
         r.values = window_mode_values;
         r.hook = true, r.def = 0;
-        r.confirm = true;
         d.push_back(r.grey([](const Row&) {
             return pc_window_mode_get && pc_window_mode_set ? nullptr : COMING;
         }));
@@ -440,7 +439,6 @@ void build()
         r.get = [](const Row&) { return pc_display_current(); };
         r.set = [](const Row&, int i) { pc_display_choose(pc_display_value(i)); };
         r.hook = true, r.def = 0;
-        r.confirm = true;
         d.push_back(r.grey([](const Row&) -> const char* {
             if (!pc_display_count || !pc_display_choose)
                 return COMING;
@@ -459,7 +457,7 @@ void build()
         r.get = [](const Row&) { return pc_fullscreen_mode_current(); };
         r.set = [](const Row&, int i) { pc_fullscreen_mode_choose(pc_fullscreen_mode_value(i)); };
         r.hook = true, r.def = 0;
-        r.confirm = true;
+        r.confirm = true; // a mode the display cannot show leaves a black screen: "Keep these settings?"
         d.push_back(r.grey([](const Row&) -> const char* {
             if (!pc_fullscreen_mode_count || !pc_fullscreen_mode_choose || !pc_window_mode_get)
                 return COMING;

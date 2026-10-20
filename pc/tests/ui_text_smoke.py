@@ -746,6 +746,53 @@ def check_digits(game, work):
                         f"(narrowest gap {gap / factor:.2f} PS1 pixels)")
 
 
+DESCENDING = (3, 4, 5, 7, 9)  # the digits font's old-style figures that reach below the baseline
+
+
+def check_digit_shapes(game, work):
+    """The HUD digits keep the font's own figures (the 5's bowl, the 7's
+    tail): each size drawn alone (RPC ui_text render, 8 texels a PS1 pixel),
+    how far a descending figure's lettering reaches below the 0's, over the
+    0's height, is the font's own (PIL's outlines of the same file, at the
+    default instance), within 0.04: nothing squeezed below the baseline
+    while the rest keeps its scale. With ui_text_descender_lift 0 (squeezed
+    only) the large size's do not (the check sees the flattened 5)."""
+    from PIL import ImageFont
+    st = {s["name"]: s for s in game.call("ui_text")["styles"]}["digits"]
+    font = ImageFont.truetype(str(ROOT / st["font"]), 400)
+    box = {d: font.getbbox(str(d), anchor="ls") for d in range(10)}  # (left, top, right, bottom) from the baseline
+    want = {d: (box[d][3] - box[0][3]) / (box[0][3] - box[0][1]) for d in DESCENDING}
+    factor = 8
+
+    def reach(u, w, h):
+        out = {}
+        for d in (0,) + DESCENDING:
+            texels = render(game, work, (UI_PAGE, CLUT_DIGITS, u + d * (w if u == 0 else 8), 0,
+                                         u + d * (w if u == 0 else 8) + w - 1, h - 1), factor)
+            if texels is None:
+                return None
+            ys = np.where(bright(texels).any(1))[0]
+            out[d] = (ys.min(), ys.max())
+        top0, bottom0 = out[0]
+        return {d: (out[d][1] - bottom0) / (bottom0 - top0 + 1) for d in DESCENDING}
+
+    for name, u, w, h in (("small", 0, 6, 10), ("large", 64, 7, 12)):
+        got = reach(u, w, h)
+        if not check(got is not None, f"digit shapes {name}: drawn from the font"):
+            return
+        off = {d: got[d] - want[d] for d in DESCENDING}
+        worst = max(off, key=lambda d: abs(off[d]))
+        check(abs(off[worst]) <= 0.04,
+              f"digit shapes {name}: the descending figures reach below the 0 as the font's own do (worst {worst}: "
+              f"{got[worst]:.3f} vs {want[worst]:.3f}; all {', '.join(f'{d} {got[d]:.2f}/{want[d]:.2f}' for d in DESCENDING)})")
+    game.call("ui_text", descender_lift=0)
+    got = reach(64, 7, 12)
+    game.call("ui_text", descender_lift=1)
+    check(got is not None and abs(got[5] - want[5]) > 0.04,
+          f"digit shapes: squeezed only (ui_text_descender_lift 0) the large 5 is flattened, which the check sees "
+          f"({got and round(got[5], 3)} vs {want[5]:.3f})")
+
+
 # Signs beside replaced text, drawn from the font too (RPC ui_text signs_drawn): the memory card screens'
 # MAP:34% and times (the % from the info style's page, the colon from the digits'; both as the digits),
 # the equip screen's material letters (the card's Bronze, Wood and Leather).
@@ -948,6 +995,7 @@ def run_save(work, card, shots):
             drawn = game.call("ui_text")["labels_drawn"]
             check("HP" in drawn and "MP" in drawn, f"save: HUD labels drawn from the font ({drawn})")
             check_digits(game, work)
+            check_digit_shapes(game, work)
             check_label_render(game, work)
             check_colon_render(game, work)
             check_cross(game, work, shots)
@@ -1157,11 +1205,45 @@ def check_status_words(game, work, settings, shots):
     settings.write_text("ui_text font\nui_text_status_size 1\nui_text_status_tracking 0.02\n")
     st = reloaded_style(game)
     check(abs(st["size"] - 1.0) < 1e-6, f"settings: back to the defaults ({st['size']})")
+    check_status_phrases(game)
     # RPC ui_text sets a style's field as the settings key does.
     game.call("ui_text", style="status", stroke=1.5)
     check(abs(status_style(game)["stroke"] - 1.5) < 1e-6, "settings: RPC ui_text sets the status stroke")
     game.call("ui_text", style="status", stroke=1)
     pop.clear()
+
+
+PHRASES = {3: "RIGHT ON!", 5: "WELL TIMED!"}  # success variants the game prints as two words (rood.dev.show)
+
+
+def check_status_phrases(game):
+    """Two-word status words (the game's spawner through RPC hud show: RIGHT ON!, WELL TIMED! at x 5, TOO
+    SLOW!): the game pads the words with narrow blanks (three), set as one space of the font's (ui_text_word_space)
+    so the words read as one phrase (laid out no wider than 1.15 of the original's ink at size 1), and kept on
+    the 320-pixel screen with their outline at size 1 and at size 1.6 (wider than the screen's left margin
+    allows centred on the game's place)."""
+    def phrase(args):
+        game.call("hud", action="clear")
+        game.call("hud", action="show", kind="status", **args)
+        game.run(6)
+        return status_words(game)
+
+    shows = [({"timing": "success", "variant": v}, t) for v, t in PHRASES.items()] + [({"timing": "too_slow"}, "TOO SLOW!")]
+    for size in (1.0, 1.6):
+        game.call("ui_text", style="status", size=size)
+        for args, text in shows:
+            words = phrase(args)
+            w = words.get(text)
+            if not check(w is not None, f"status {text} (size {size}): set as one phrase, one space ({list(words)})"):
+                continue
+            x0, x1, o0, o1 = w["extent"][0], w["extent"][2], w["original"][0], w["original"][2]
+            if size == 1.0:
+                check((x1 - x0) / (o1 - o0) <= 1.15, f"status {text}: the words a space apart, laid out "
+                                                     f"{(x1 - x0) / (o1 - o0):.2f} of the original's width")
+            check(w["x"] + x0 >= 1 and w["x"] + x1 <= 319,
+                  f"status {text} (size {size}): on the screen with its outline ({w['x'] + x0:.1f}..{w['x'] + x1:.1f})")
+    game.call("ui_text", style="status", size=1.0)
+    game.call("hud", action="clear")
 
 
 def check_travel_prompt(game, work, shots):

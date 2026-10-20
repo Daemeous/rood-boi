@@ -128,6 +128,22 @@ int pc_game_option_set(int option, int choice)
 #else
 int pc_window_mode_get(void) { return stub.window_mode; }
 void pc_window_mode_set(int mode) { stub.window_mode = mode; }
+static const char* const stub_mode_values[] = {"desktop", "1920x1080@60", "1280x720@60"};
+static const char* const stub_mode_labels[] = {"Desktop", "1920 x 1080, 60 Hz", "1280 x 720, 60 Hz"};
+int pc_fullscreen_mode_count(void) { return 3; }
+const char* pc_fullscreen_mode_label(int i) { return i >= 0 && i < 3 ? stub_mode_labels[i] : nullptr; }
+const char* pc_fullscreen_mode_value(int i) { return i >= 0 && i < 3 ? stub_mode_values[i] : nullptr; }
+int pc_fullscreen_mode_current(void)
+{
+    for (int i = 0; i < 3; i++)
+        if (!std::strcmp(stub.fullscreen_mode, stub_mode_values[i]))
+            return i;
+    return 0;
+}
+void pc_fullscreen_mode_choose(const char* value)
+{
+    std::snprintf(stub.fullscreen_mode, sizeof stub.fullscreen_mode, "%s", value ? value : "desktop");
+}
 int pc_master_volume_get(void) { return stub.volume; }
 void pc_master_volume_set(int volume) { stub.volume = volume; }
 int pc_brightness_get(void) { return stub.brightness; }

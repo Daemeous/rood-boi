@@ -91,6 +91,12 @@ void hud_typography()
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("ui_text_edge_margin: PS1 pixels an outline's anti-aliased edge keeps from the box the\n"
                           "game draws it in (nothing cut at its edges)");
+    float lift = pc_ui_text_descender_lift;
+    if (ImGui::SliderFloat("Descender lift", &lift, 0.0f, 1.0f, "%.2f"))
+        set("ui_text_descender_lift", lift);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("ui_text_descender_lift: the HUD digits rise together by this much of the room their\n"
+                          "old-style descenders (3 4 5 7 9) lack below the baseline; the rest is squeezed");
     if (ImGui::SliderFloat("Popup scale", &popup, 0.5f, 3.0f, "%.2f"))
         set("ui_text_popup_scale", popup);
     if (ImGui::IsItemHovered())
