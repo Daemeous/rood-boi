@@ -152,6 +152,9 @@ static void* open_library(const char* path, char* why, int size)
             missing++, snprintf(why, (size_t)size, "the host does not export %s", o->name);
     }
     if (missing) {
+        /* No engine entry point may be called on an incompatible candidate.
+         * dlopen already ran its constructors: their destructors must release
+         * constructor-owned resources (including workers) without unload/resume. */
         dlclose(h);
         unlink(link_path);
         return NULL;

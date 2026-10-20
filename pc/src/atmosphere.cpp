@@ -691,9 +691,15 @@ void make_noise()
 }
 /* Made on a thread from start-up: never inside a game frame (the game's AI
  * budgets its frame by the time since the vsync: a 0.17 s stall there
- * changed what the enemies did). */
+ * changed what the enemies did). The constructor runs during dlopen, before
+ * the host checks the engine ABI. A rejected candidate goes straight to
+ * dlclose without pc_atmosphere_settle: its destructor must join the worker
+ * before its code and medium_tex are unmapped. Keep this after the data the
+ * worker uses, so it also joins before that data's static destructors run. */
 struct NoiseStarter {
-    NoiseStarter() { std::thread(make_noise).detach(); }
+    std::thread worker;
+    NoiseStarter() : worker(make_noise) { }
+    ~NoiseStarter() { worker.join(); }
 } noise_starter;
 /* A layer at rest (density 1: 127.5, as 128; no velocity: 128). */
 void layer_rest(int layer)

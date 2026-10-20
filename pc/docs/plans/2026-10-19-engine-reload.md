@@ -191,9 +191,22 @@ stack:
    taken, generation) and carries on with the vsync; the rest of `pc_tick`
    (`tick_frame`: window events, audio, present) runs on the new library.
 
-A library that fails to load (a missing symbol, a crossing size that
-changed) is unloaded and the previous one is loaded again: the reply is an
-error and the game goes on.
+A library that fails to load (an ABI mismatch, a missing symbol, a crossing
+size that changed) is unloaded and the previous one is loaded again: the
+reply is an error and the game goes on.
+
+**Constructor lifetime:** `dlopen` runs C++ constructors before `open_library`
+can check `rood_engine_abi`. A rejected candidate is closed without calling
+its incompatible unload/resume interface. Constructor-owned resources must
+therefore be cleaned up by destructors alone. In particular, atmosphere's
+`NoiseStarter` owns and joins its worker: the former detached worker could
+still execute `make_noise` when `dlclose` unmapped the rejected library,
+causing SIGSEGV during fallback. The normal `pc_atmosphere_settle` unload
+hook does not cover this path. `engine_reload_smoke.py` keeps the host and
+production engine at ABI 1, privately compiles an engine returning 2, and
+checks repeated rejection, preserved state/settings/RPC, and subsequent
+compatible reloads. This is a lifecycle contract for engine libraries, not
+a sandbox for arbitrary unsafe constructors or destructors.
 
 ## The dev loop
 

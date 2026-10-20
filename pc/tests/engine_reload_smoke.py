@@ -19,8 +19,10 @@ copy of the library (ROOD_ENGINE_LIBRARY), from the opening checkpoint:
    another ROOD_ENGINE_NOTE (the manifest's command), the library relinked
    with it (the manifest's link) and swapped in; RPC reload's reply carries
    the note.
-4. A library that does not load (not ELF) is refused: the reply is an error,
-   the previous library runs again and the state is unchanged.
+4. A real engine returning ABI 2 (host still expects 1), then a library that
+   does not load (not ELF), are refused: RPC reports the error, the previous
+   library runs again and state, pause and settings are unchanged. Repeated
+   ABI rejection also exercises constructor-worker cleanup on dlclose.
 5. The game keeps running: FRAMES vsyncs later its state (guest memory,
    VRAM, native and overlay statics, SPU, the game's stack) equals a second
    game resuming the same moment with no reload; it presented every vsync.
@@ -84,22 +86,28 @@ def build():
         sys.exit(result.stdout[-3000:] + result.stderr[-3000:])
 
 
-def build_with_note(work, note, legacy_state=False):
-    """The library with engine_reload.c compiled with ROOD_ENGINE_NOTE=note: its path."""
+def build_with_note(work, note, legacy_state=False, abi=None):
+    """The library with engine_reload.c compiled with ROOD_ENGINE_NOTE=note (its path); optionally with a
+    legacy saved-state section, or a different ABI return value."""
     manifest = json.loads((DEV / "engine_library.json").read_text())
     unit = next(u for u in manifest["units"] if u["object"].endswith("/engine_reload.o"))
     obj = work / "engine_reload_note.o"
     command = list(unit["command"])
     command[command.index("-o") + 1] = str(obj)
-    if legacy_state:
+    if legacy_state or abi is not None:
         source = ROOT / "pc/src/engine_reload.c"
-        private = work / "engine_reload_legacy.c"
+        private = work / "engine_reload.c"
         text = source.read_text()
-        private.write_text(text + '\nstatic unsigned legacy_counter '
-                           '__attribute__((used, retain, section("rood_state_data"))) = 1;\n')
-        command = [str(private) if pathlib.Path(a) == source or a == "pc/src/engine_reload.c" else a
-                   for a in command]
-        command += ["-I", str(ROOT / "pc/src")]
+        if abi is not None:
+            assert "int rood_engine_abi(void) { return 1; }" in text
+            text = text.replace("int rood_engine_abi(void) { return 1; }",
+                                f"int rood_engine_abi(void) {{ return {abi}; }}")
+        if legacy_state:
+            text += ('\nstatic unsigned legacy_counter '
+                     '__attribute__((used, retain, section("rood_state_data"))) = 1;\n')
+        private.write_text(text)
+        command = [str(private) if a in (str(source), str(source.relative_to(ROOT))) else a for a in command]
+        command += ["-I", str(source.parent)]
     subprocess.run(command + [f'-DROOD_ENGINE_NOTE="{note}"'], cwd=ROOT, check=True)
     link = [str(obj) if a == unit["object"] or a == str(ROOT / unit["object"]) else a for a in manifest["link"]]
     library = work / "librood_engine.note.so"
@@ -123,7 +131,7 @@ def menu_while_open(work, socket, env):
         return
     with card_guard(work / "cards") as cards:
         game = checkpoints.launch_at("save_room", card=cards.card1, fast=True, socket_path=socket,
-                                     log=work / "menu.log", extra_env=env)
+                                     log=work / "menu.log", extra_env=dict(env, ROOD_CARD1=str(cards.card1)))
         try:
             menu_state = rood_rpc.symbols()["vs_battle_menuState"]
             game.call("ui_menu", modern=True)
@@ -166,7 +174,10 @@ def main():
     os.environ["ROOD_TEST_SNAPSHOTS"] = "0"
     os.environ["ROOD_SYMBOLS"] = str(DEV / "rood_host")  # read_symbol: the host's addresses
     socket = f"/tmp/rood-reload-{os.getpid()}.sock"
-    env = dict(checkpoints._base_env(work), ROOD_ENGINE_LIBRARY=str(library))
+    env = dict(checkpoints._base_env(work), ROOD_ENGINE_LIBRARY=str(library),
+               ROOD_SETTINGS=str(work / "settings.ini"),
+               ROOD_CARD1=str(work / "card1.mcd"), ROOD_CARD2=str(work / "card2.mcd"),
+               ROOD_PLUGINS=str(work / "plugins"), ROOD_PLUGIN_DATA=str(work / "plugin_data"))
     settings = ["qol_map_invert 1"]
 
     game = checkpoints.launch_at("opening", fast=True, socket_path=socket, log=work / "game.log", extra_env=env)
@@ -200,7 +211,10 @@ def main():
 
         # 3. An engine change takes effect.
         note = f"smoke-{os.getpid()}"
-        swap(build_with_note(work, note), library)
+        noted = build_with_note(work, note)
+        good = work / "librood_engine.good.so"
+        shutil.copyfile(noted, good)
+        swap(good, library)
         reply = game.call("reload")
         check(reply.get("note") == note and reply.get("generation") == 3,
               f"a rebuilt engine unit runs after the reload (note {reply.get('note')!r})")
@@ -217,6 +231,27 @@ def main():
             check("engine contains saved state" in str(error), f"legacy engine refused ({error})")
         check(state(game)[0] == before and game.status()["paused"],
               "legacy refusal preserves saved state and pause")
+
+        # A real, symbol-compatible engine with only its ABI return changed.
+        swap(build_with_note(work, "bad-abi", abi=2), library)
+        for attempt in range(2):
+            try:
+                game.call("reload")
+                check(False, "an incompatible engine ABI is refused")
+            except RpcError as error:
+                check("rood_engine_abi" in str(error) and "previous one runs again" in str(error),
+                      f"an incompatible engine ABI is refused ({error})")
+            check(state(game) == (before, vsync) and game.status()["paused"],
+                  f"ABI rejection {attempt + 1} preserves state, vsync, pause and RPC connectivity")
+            check(game.call("settings", get="qol_map_invert").get("line") == "qol_map_invert 1"
+                  and int.from_bytes(game.read_symbol("pc_qol_map_invert", 4), "little") == 1,
+                  "ABI rejection preserves settings and host-owned state")
+            check(len(list(work.glob("*.live-*"))) == 1, "only the fallback library's live link remains")
+        swap(good, library)
+        reply = game.call("reload")
+        check(reply.get("generation") == 6 and reply.get("note") == note
+              and reply.get("base") == "0x64000000",
+              "a compatible library reloads at its base after repeated ABI rejection")
 
         # 4. A library that does not load.
         (work / "broken.so").write_bytes(b"not a library\n")
