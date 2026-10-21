@@ -131,13 +131,14 @@ suites = ["options_*", "ui_system_smoke", "system_settings_smoke", "window_mode_
 paths = ["src/MENU/*"]
 suites = ["ui_*", "menu0_levelled_smoke", "save_menu_smoke", "fast_travel_*", "weapon_slots_smoke",
           "button_roles_*", "interp_menu_2d_smoke", "input:data-menu*", "widescreen_smoke", "snapshot_equivalence",
-          "hud_label_solid_smoke", "skip_charging_smoke", "options_*"]
+          "hud_label_solid_smoke", "skip_charging_smoke", "options_*", "narrowed_2d_smoke"]
 
 # ---- the battle overlay (field play too) ----
 [[rule]]
 paths = ["src/BATTLE/*", "pc/src/charge_skip.*", "pc/src/gameplay_walls.*"]
 suites = ["tunables_smoke", "skip_charging_smoke", "charge_skip_soak", "soak", "soak:save", "two_model_enemy_smoke",
-          "route_continuation_smoke", "damage_numbers_smoke", "menu0_levelled_smoke", "input:*", "animation_smoke",
+          "route_continuation_smoke", "damage_numbers_smoke", "narrowed_2d_smoke", "menu0_levelled_smoke", "input:*",
+          "animation_smoke",
           "snapshot_equivalence", "facing_cutaway_smoke", "camera_stick_smoke", "ending_smoke", "weapon_slots_smoke",
           "hud_bench_smoke", "classic_parity", "classic_hud_smoke"]
 
@@ -249,7 +250,7 @@ suites = ["button_roles_smoke", "button_roles_symbols_smoke", "input:*", "ui_men
 [[rule]]
 paths = ["pc/src/widescreen.h"]
 suites = ["widescreen_*", "interp_menu_2d_smoke", "ui_map_smoke", "ui_manual_smoke", "ui_score_smoke",
-          "ui_ashley_smoke", "title_fade_smoke"]
+          "ui_ashley_smoke", "title_fade_smoke", "narrowed_2d_smoke"]
 
 # ---- controls, camera ----
 [[rule]]
@@ -269,7 +270,7 @@ suites = ["camera_stick_smoke", "camera_options_smoke", "facing_cutaway_smoke", 
 paths = ["pc/src/room_browser.cpp", "pc/src/room_warp.*", "pc/src/room_catalog.c", "pc/src/screff2_warp.c",
          "pc/src/map_view.c"]
 suites = ["room_browser_smoke", "editor_roomload_smoke", "fast_travel_*", "atmosphere_sweep", "void_fog_smoke",
-          "two_model_enemy_smoke", "platform_shadow_smoke", "ui_map_smoke", "ctest"]
+          "two_model_enemy_smoke", "platform_shadow_smoke", "ui_map_smoke", "narrowed_2d_smoke", "ctest"]
 
 [[rule]]
 paths = ["pc/src/fast_travel*", "pc/tools/fast_travel_scan.py"]

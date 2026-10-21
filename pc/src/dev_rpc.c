@@ -377,7 +377,9 @@
  *                                lit around it with their weights; apply
  *                                moves the selected light there, highlight
  *                                keeps it drawn (clear stops)
- *   render_stats                native vs legacy submissions in the last frame
+ *   render_stats                native vs legacy submissions in the last frame;
+ *                                narrowed_triangles: widescreen 2D drawn as
+ *                                projected (uncompressed)
  *   read {address, length}       hex bytes from guest RAM, scratchpad or host data
  *   write {address, hex}         patch guest RAM or scratchpad
  *   state                        Vagrant Story snapshot (zone, room, player, music)
@@ -3455,7 +3457,7 @@ static void handle_method(int fd, const char* request)
             "\"native_shadows\":%d,\"shadow_markers\":%d,\"shadow_polygons\":%d,\"native_effects\":%d,"
             "\"effect_markers\":%d,\"effect_polygons\":%d,\"skipped_effect_triangles\":%d,"
             "\"legacy_effect_triangles\":%d,\"vram_syncs\":%d,\"stale_rects\":%d,\"uv_effects\":%d,"
-            "\"frame_serial\":%u}",
+            "\"narrowed_triangles\":%d,\"frame_serial\":%u}",
             &pc_native_room ? pc_native_room : 0, st.lists, st.instances, st.native_triangles,
             st.legacy_room_triangles, st.skipped_room_triangles, st.meshes, st.mesh_polygons, st.mesh_updates,
             &pc_native_actors ? pc_native_actors : 0, st.object_lists, st.object_instances, st.object_triangles,
@@ -3466,7 +3468,7 @@ static void handle_method(int fd, const char* request)
             st.legacy_other_triangles, &pc_native_shadows ? pc_native_shadows : 0, st.shadow_markers,
             st.shadow_polygons, &pc_native_effects ? pc_native_effects : 0, st.effect_markers, st.effect_polygons,
             st.skipped_effect_triangles, st.legacy_effect_triangles, st.vram_syncs, st.stale_rects, st.uv_effects,
-            render_frame_serial());
+            st.narrowed_triangles, render_frame_serial());
         reply(fd, id, result);
     } else if (!strcmp(method, "scene")) {
         if (!pc_scene_triangles) {

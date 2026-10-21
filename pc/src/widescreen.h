@@ -33,8 +33,13 @@ enum { PC_UPLOAD_SCREEN_IMAGE = 1, PC_UPLOAD_SCREEN_PICTURE = 2 };
  * clipped to the whole 16:9 view, so what the game draws past the 4:3
  * screen's sides shows there. PC_ANCHOR_COVER: screen-space 2D spread over
  * the whole screen (dust motes), drawn over the whole view. */
+/* PC_ANCHOR_PROJECTED: 2D the game computes from (narrowed) GTE projections
+ * (the area-targeting floor fill's scanline spans, pc/src/map_view.c): drawn
+ * where it is, like 3D, never compressed. Without it only the projection log
+ * tells (boot_runtime.c narrowed_2d), which matches a span's ends only where
+ * they happen to land on a projected point: the rest were compressed. */
 enum { PC_ANCHOR_CENTRE = 0x10, PC_ANCHOR_LEFT_EDGE = 0x11, PC_ANCHOR_RIGHT_EDGE = 0x12, PC_ANCHOR_FILL = 0x13,
-    PC_ANCHOR_SCENE = 0x14, PC_ANCHOR_COVER = 0x15 };
+    PC_ANCHOR_SCENE = 0x14, PC_ANCHOR_COVER = 0x15, PC_ANCHOR_PROJECTED = 0x16 };
 /* PC_ANCHOR_EXACT, or'ed with one of the above: a range placed by data (the
  * classic look drawn in Lua, pc/src/classic): scaled about its anchor and
  * nothing more: no edge extension, no cover or backdrop guesses, no side

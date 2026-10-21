@@ -97,12 +97,18 @@ static float primitive_span[2];
 static int primitive_narrowed;
 static uintptr_t current_packet; /* the GPU packet being drawn (pc_hw_set_packet) */
 static int primitive_uv_shift[2]; /* pc_hw_set_flipped_uv */
+/* Widescreen placement kinds of packet ranges (widescreen.h PC_ANCHOR_*, low bits). */
+enum { PC_ANCHOR_NONE, PC_ANCHOR_LEFT, PC_ANCHOR_RIGHT, PC_ANCHOR_FILL, PC_ANCHOR_SCENE, PC_ANCHOR_COVER,
+    PC_ANCHOR_PROJECTED };
+static int primitive_anchor; /* of the packet being drawn (pc_hw_anchor_packet) */
 void pc_hw_set_2d(int is_2d)
 {
     primitive_2d = is_2d;
     primitive_cover = 0;
     primitive_extend = 0;
-    primitive_narrowed = 0;
+    /* (A range of 2D made from projections, PC_ANCHOR_PROJECTED: narrowed
+     * whatever the projection log finds.) */
+    primitive_narrowed = is_2d && primitive_anchor == PC_ANCHOR_PROJECTED;
     primitive_uv_shift[0] = primitive_uv_shift[1] = 0;
 }
 /* Widescreen with the projection log off (every 3D draw native): 2D packets
@@ -254,8 +260,6 @@ static int layout_enabled(void)
 /* RPC widescreen_trace: log every 2D primitive of the next N ordering
  * tables (bounds relative to the drawing area, how widescreen places it). */
 int pc_widescreen_trace;
-enum { PC_ANCHOR_NONE, PC_ANCHOR_LEFT, PC_ANCHOR_RIGHT, PC_ANCHOR_FILL, PC_ANCHOR_SCENE, PC_ANCHOR_COVER };
-static int primitive_anchor;
 static int primitive_exact; /* of the packet being drawn: its range is PC_ANCHOR_EXACT (widescreen.h) */
 static void trace_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv, const int* clip)
 {
@@ -685,11 +689,63 @@ int pc_hw_anchor_of(const void* packet)
     }
     return anchor;
 }
+/* Scanline fills drawn as one shape (ui_lines joined, upscaled): a fill the
+ * game draws as a horizontal line per row (the area-targeting floor fill,
+ * map_view.c) steps by a whole native row at its slanted edges, 4 pixels
+ * and more at the internal resolution, where the projected shape it fills
+ * is smooth. Its builder tells each row's packet how its ends join the
+ * rows above and below (pc_hw_span_shape: the left and right ends at the
+ * row's top and bottom edges, relative to the line's own ends, x0 and
+ * x1 + 1, which hold at the row's middle); the row is then drawn as that
+ * shape (two trapezoids) instead of a rectangle. Rows meet where their
+ * neighbours' ends meet, so the fill has no gaps or overlaps (it is
+ * semi-transparent) and its edges run straight between the rows' middles.
+ * At 1x the lines are drawn as they are (the PS1's pixels). */
+#define MAX_SPAN_SHAPES 2048
+typedef struct {
+    uintptr_t packet;
+    int length; /* x1 - x0 of the line it was made for */
+    float top[2], bottom[2];
+} span_shape;
+static span_shape pending_spans[MAX_SPAN_SHAPES], active_spans[MAX_SPAN_SHAPES];
+static int pending_span_count, active_span_count;
+void pc_hw_span_shape(const void* packet, int length, float top_left, float top_right, float bottom_left,
+    float bottom_right)
+{
+    if (pending_span_count < MAX_SPAN_SHAPES) {
+        span_shape* s = &pending_spans[pending_span_count++];
+        s->packet = (uintptr_t)packet;
+        s->length = length;
+        s->top[0] = top_left, s->top[1] = top_right;
+        s->bottom[0] = bottom_left, s->bottom[1] = bottom_right;
+    }
+}
+static int compare_span_shapes(const void* a, const void* b)
+{
+    uintptr_t x = ((const span_shape*)a)->packet, y = ((const span_shape*)b)->packet;
+    return x < y ? -1 : x > y;
+}
+static const span_shape* span_shape_of(uintptr_t packet)
+{
+    int lo = 0, hi = active_span_count - 1;
+    while (lo <= hi) {
+        int mid = (lo + hi) / 2;
+        if (active_spans[mid].packet == packet)
+            return &active_spans[mid];
+        if (active_spans[mid].packet < packet)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    return NULL;
+}
 /* The next primitives come from GPU packet `p`, drawn with the screen at
  * VRAM X screen_x..screen_x + screen_w (drawing offset, display width). */
+static uintptr_t anchor_packet; /* the packet pc_hw_anchor_packet was last told of */
 void pc_hw_anchor_packet(const void* p, int screen_x, int screen_w)
 {
     uintptr_t best = UINTPTR_MAX;
+    anchor_packet = (uintptr_t)p;
     primitive_anchor = PC_ANCHOR_NONE;
     primitive_exact = 0;
     for (int i = 0; i < active_anchor_count; i++) {
@@ -825,6 +881,11 @@ void pc_hw_begin_ot(void)
     memcpy(active_anchors, pending_anchors, sizeof active_anchors);
     active_anchor_count = pending_anchor_count;
     pending_anchor_count = 0;
+    memcpy(active_spans, pending_spans, (size_t)pending_span_count * sizeof *active_spans);
+    active_span_count = pending_span_count;
+    pending_span_count = 0;
+    qsort(active_spans, (size_t)active_span_count, sizeof *active_spans, compare_span_shapes);
+    anchor_packet = 0;
     primitive_anchor = PC_ANCHOR_NONE;
     primitive_exact = 0;
     pc_hw_suppress = 0;
@@ -2284,6 +2345,8 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     int depth[3] = { 0, 0, 0 };
     if (has_pending_depth && !primitive_2d)
         memcpy(depth, pending_depth, sizeof depth);
+    if (primitive_2d && primitive_narrowed && pc_gte_widescreen)
+        ++packet_stats.narrowed_triangles;
     has_pending_depth = 0;
     if (other && (depth[0] | depth[1] | depth[2])) {
         ++packet_stats.legacy_other_triangles;
@@ -2904,6 +2967,27 @@ void pc_hw_line(int x0, int y0, int x1, int y1, unsigned c0, unsigned c1, int se
     ++pc_hw_lines_drawn;
     if (pc_ui_lines == PC_UI_LINES_LEGACY) {
         line_legacy(x0, y0, x1, y1, c0, c1, semi, tpage, clip, mask_set);
+        return;
+    }
+    /* A scanline fill's row (pc_hw_span_shape). */
+    const span_shape* shape = pc_hw_scale > 1 && y0 == y1 && active_span_count ? span_shape_of(anchor_packet) : NULL;
+    if (shape && shape->length == (x1 > x0 ? x1 - x0 : x0 - x1)) {
+        pc_hw_set_packet(NULL);
+        float left = (float)(x0 < x1 ? x0 : x1), right = (float)(x0 > x1 ? x0 : x1) + 1.0f, y = (float)y0;
+        int rgb[9];
+        for (int ch = 0; ch < 3; ch++)
+            rgb[ch] = rgb[3 + ch] = rgb[6 + ch] = (int)((c0 >> (ch * 8)) & 255);
+        int uv[6] = { 0 };
+        /* Corners: the top edge, the middle (the line's ends), the bottom edge. */
+        const float row[3][2] = { { left + shape->top[0], right + shape->top[1] }, { left, right },
+            { left + shape->bottom[0], right + shape->bottom[1] } };
+        for (int half = 0; half < 2; half++) {
+            float ya = y + half * 0.5f, yb = ya + 0.5f;
+            const float *a = row[half], *b = row[half + 1];
+            const float tris[2][6] = { { a[0], ya, a[1], ya, b[0], yb }, { a[1], ya, b[1], yb, b[0], yb } };
+            for (int t = 0; t < 2; t++)
+                shape_triangle(tris[t], uv, rgb, semi ? 2 : 0, tpage, 0, 0, clip, mask_set, 0, NULL);
+        }
         return;
     }
     pc_hw_set_packet(NULL);

@@ -335,6 +335,11 @@ typedef struct {
     /* 3D triangles of packets that are neither room nor object packets
      * (effects, drop shadows, particles: what is still reconstructed). */
     int legacy_other_triangles;
+    /* Widescreen: 2D packet triangles drawn where they are (not compressed)
+     * because every vertex was a GTE projection of the frame (gpu_hw.c
+     * pc_hw_set_narrowed: the targeting sphere's lines, effects drawn as
+     * packets); screen furniture never is (boot_runtime.c ot_front). */
+    int narrowed_triangles;
     /* Drop shadows and effects (render_rules.effects): markers and polygons
      * drawn natively, packet triangles left to them, and effect packet
      * triangles the hardware path drew (native off, or its marker could

@@ -887,12 +887,27 @@ stretch to that edge of the view; compressed 2D is clipped to the
 compressed drawing area, so what the game parks beyond the screen's edges
 stays hidden; 2D whose vertices the GTE projected this frame (the map
 screen's rooms, effects drawn as packets) is not compressed a second time
-(the GTE keeps logging projections in widescreen for this). 2D the game
+(the GTE keeps logging projections in widescreen for this). That log only
+knows pixels, so screen furniture never counts as projected: the battle
+code links its menus and HUD in the ordering table's slots in front of the
+scene's (the scratchpad's OT pointer, `ot + 18`), and a primitive there is
+2D however its vertices fall (`boot_runtime.c` `ot_front`; with the menu's
+Ashley on screen, menu lines and bars landing on her vertices were drawn
+uncompressed: stat bars came apart and header bands left slivers beside the
+screen; a battle number's digit landing on an enemy's vertices jumped about
+180 pixels aside for that frame). RPC `render_stats` `narrowed_triangles` counts what was drawn as
+projected (`pc/tests/narrowed_2d_smoke.py`). 2D the game
 places at a projected point (damage numbers, ability and timing labels over
 characters, target lines, icons over actors, the map screen's room icons)
 takes un-narrowed projections (`pc/src/widescreen.h`,
 `PC_GTE_UNNARROWED`/`pc_gte_unnarrow_x`), so after compression it sits on
-the narrowed 3D. Screen furniture at the edges is anchored by packet ranges
+the narrowed 3D. 2D the game computes from narrowed projections itself (the
+area-targeting floor fill around a spell's target, one semi-transparent line
+per scanline, `pc/src/map_view.c`) is marked so (`PC_ANCHOR_PROJECTED`) and
+drawn where it is: by the log alone only the rows whose ends happened to land
+on a projected point stayed narrowed, the rest were compressed, so the fill
+was squeezed and its narrowed rows stuck out as bands to the view's sides.
+Screen furniture at the edges is anchored by packet ranges
 from the game code (`PC_ANCHOR_PACKETS`): the status display and the
 timing/chain labels beside it at the left, BATTLE MODE at the right, the map
 screen's controls help and compass at the left. A still that covers the
@@ -1673,6 +1688,13 @@ along a bubble's dark outline (`legacy`). A joined line along an edge of a
 2D polygon drawn earlier in the same ordering table therefore also reaches
 that edge (up to half a pixel wider on that side); other lines keep their
 width. `ui_outline_boost` widens every 2D line by whole output pixels.
+A fill the game draws as one horizontal line per scanline (the
+area-targeting floor fill) is drawn row by row as the shape the rows trace:
+its builder tells each row how its ends meet the rows above and below
+(`pc_hw_span_shape`), so upscaled its slanted edges run straight between the
+rows' middles instead of stepping a whole PS1 row (4 pixels and more) at a
+time; rows meet exactly (it is semi-transparent), and 1x and `legacy` draw
+the lines.
 
 **Vector talk bubbles (`ui_bubbles vector`).** A talk bubble's frame is
 built each frame by BATTLE.PRG `func_800CD3E4` from one of nine shapes

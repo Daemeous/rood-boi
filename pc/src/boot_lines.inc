@@ -11,7 +11,7 @@ static void line_segment(uint32_t a, uint32_t b, unsigned ca, unsigned cb, int s
     int steps = ax > ay ? ax : ay;
     {
         int clip[4] = { clip_x, clip_y, clip_w, clip_h };
-        pc_hw_set_2d(!pc_gte_log || !pc_gte_projected(x0, y0) || !pc_gte_projected(x1, y1));
+        pc_hw_set_2d(ot_front || !pc_gte_log || !pc_gte_projected(x0, y0) || !pc_gte_projected(x1, y1));
         {
             const int ends[2][2] = { { x0, y0 }, { x1, y1 } };
             if (narrowed_2d(ends, 2))

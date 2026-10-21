@@ -12,6 +12,7 @@
  * marker triangles (+0x4AB8), clipped to the circle's left edge, then emitted
  * as semi-transparent LINE_F2 packets along the circle's right edge. */
 #include "common.h"
+#include "widescreen.h"
 #include <libgte.h>
 #include <inline_c.h>
 
@@ -23,6 +24,54 @@ extern u_short D_800EA6B0[]; /* edge -> pair of neighbouring cell indices */
 extern short D_800EA818[];   /* 40-entry sine table: sin at i, cos at i + 8 */
 
 #define PC_MAP_SCRATCH(off) ((u_char*)0x1f800000 + (off))
+
+/* The rows' spans as emitted (for the hardware renderer's shapes, gpu_hw.c
+ * pc_hw_span_shape; host memory only, nothing of the game's). */
+extern void pc_hw_span_shape(const void* packet, int length, float top_left, float top_right, float bottom_left,
+    float bottom_right) __attribute__((weak));
+#define PC_MAP_EMITTED 1024
+static struct {
+    const unsigned* packet;
+    short row, x0, x1; /* x1 inclusive */
+} pc_map_emitted[PC_MAP_EMITTED];
+static int pc_map_emitted_count;
+
+/* The span of row `row` (emitted) overlapping [x0, x1] the most, or -1. */
+static int pc_map_partner(int row, int x0, int x1)
+{
+    int best = -1, most = 0;
+    for (int i = 0; i < pc_map_emitted_count; i++) {
+        if (pc_map_emitted[i].row != row)
+            continue;
+        int lo = x0 > pc_map_emitted[i].x0 ? x0 : pc_map_emitted[i].x0;
+        int hi = x1 < pc_map_emitted[i].x1 ? x1 : pc_map_emitted[i].x1;
+        if (hi - lo + 1 > most)
+            most = hi - lo + 1, best = i;
+    }
+    return best;
+}
+
+/* Each emitted row joined to the rows above and below: where a span and a
+ * span of the next row overlap the most for both, their ends meet half way
+ * between the rows (a projected edge passes through the rows' ends), else
+ * the row keeps its ends there. */
+static void pc_map_span_shapes(void)
+{
+    if (!pc_hw_span_shape)
+        return;
+    for (int i = 0; i < pc_map_emitted_count; i++) {
+        int x0 = pc_map_emitted[i].x0, x1 = pc_map_emitted[i].x1, row = pc_map_emitted[i].row;
+        float edge[2][2] = { { 0, 0 }, { 0, 0 } }; /* top, bottom: left and right, relative */
+        for (int side = 0; side < 2; side++) {
+            int j = pc_map_partner(row + (side ? 1 : -1), x0, x1);
+            if (j < 0 || pc_map_partner(row, pc_map_emitted[j].x0, pc_map_emitted[j].x1) != i)
+                continue;
+            edge[side][0] = (pc_map_emitted[j].x0 - x0) * 0.5f;
+            edge[side][1] = (pc_map_emitted[j].x1 - x1) * 0.5f;
+        }
+        pc_hw_span_shape(pc_map_emitted[i].packet, x1 - x0, edge[0][0], edge[0][1], edge[1][0], edge[1][1]);
+    }
+}
 
 static int pc_map_recip(int dy)
 {
@@ -507,6 +556,8 @@ void func_800C2E24(SVECTOR* origin, MATRIX* m, int scale)
 
     /* Walk the right side downwards and emit the spans left of it. */
     packet = psx_load(unsigned*, 0x1f800000);
+    unsigned* first_packet = packet;
+    pc_map_emitted_count = 0;
     index = (topIndex + 1) & 31;
     for (;;) {
         unsigned* p0 = points + ((index - 1) & 31) * 2;
@@ -567,6 +618,13 @@ void func_800C2E24(SVECTOR* origin, MATRIX* m, int scale)
                             packet[2] = color;
                             packet[3] = from;
                             packet[4] = (w >> 16) | rowY;
+                            if (pc_map_emitted_count < PC_MAP_EMITTED) {
+                                pc_map_emitted[pc_map_emitted_count].packet = packet;
+                                pc_map_emitted[pc_map_emitted_count].row = (short)t1;
+                                pc_map_emitted[pc_map_emitted_count].x0 = (short)from;
+                                pc_map_emitted[pc_map_emitted_count].x1 = (short)(w >> 16);
+                                ++pc_map_emitted_count;
+                            }
                             *ot = psx_to_int(unsigned, packet) & 0xffffff;
                             packet += 5;
                             if (last)
@@ -583,4 +641,9 @@ void func_800C2E24(SVECTOR* origin, MATRIX* m, int scale)
         index = (index + 1) & 31;
     }
     psx_store(0x1f800000, packet);
+    /* Widescreen: the spans are made from the narrowed projections: drawn
+     * where they are (gpu_hw.c), not compressed as screen furniture. */
+    if (pc_hw_anchor_packets)
+        pc_hw_anchor_packets(first_packet, packet, PC_ANCHOR_PROJECTED);
+    pc_map_span_shapes();
 }

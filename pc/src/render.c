@@ -1348,6 +1348,7 @@ void render_frame_end(const render_stats* hardware)
     finished.legacy_translucent_triangles = hardware->legacy_translucent_triangles;
     finished.skipped_translucent_triangles = hardware->skipped_translucent_triangles;
     finished.legacy_other_triangles = hardware->legacy_other_triangles;
+    finished.narrowed_triangles = hardware->narrowed_triangles;
     finished.skipped_effect_triangles = hardware->skipped_effect_triangles;
     finished.legacy_effect_triangles = hardware->legacy_effect_triangles;
     finished.vram_syncs = hardware->vram_syncs;

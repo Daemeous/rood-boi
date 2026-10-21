@@ -75,9 +75,10 @@ extern int pc_gte_widescreen __attribute__((weak));
 extern void pc_hw_set_narrowed(void) __attribute__((weak));
 /* Widescreen with the log off: whether every vertex was projected (narrowed)
  * this frame (the GTE still records projections in widescreen). */
+static int ot_front; /* (below: the packet being drawn is linked in front of the scene's slots) */
 static int narrowed_2d(const int (*xy)[2], int count)
 {
-    if (pc_gte_log || !&pc_gte_widescreen || !pc_gte_widescreen || !pc_hw_set_narrowed)
+    if (pc_gte_log || !&pc_gte_widescreen || !pc_gte_widescreen || !pc_hw_set_narrowed || ot_front)
         return 0;
     for (int i = 0; i < count; ++i) {
         int found = pc_gte_projected(xy[i][0], xy[i][1]);
@@ -1007,14 +1008,48 @@ static int ot_has_native(const uint32_t* p)
     return 0;
 }
 static void draw_packet(void* data, int chain);
+/* The ordering table's layers. The battle code (BATTLE 146C.c) clears an
+ * ordering table of 0x822 entries and keeps its scene slots' base in the
+ * scratchpad (vs_scratch.unk4, ot + 18; the screen transitions' ot + 16):
+ * 3D (models, room, effects at projected points: the targeting sphere's
+ * lines at ot + depth) links at or behind it, and the slots in front of it
+ * hold screen furniture (menus, HUD: vs_battle_addTile and friends link at
+ * unk4 - 12, unk8 = ot + 2). So a primitive in a front slot is 2D however
+ * its vertices fall: the projection log (narrowed_2d) matches any pixel the
+ * GTE projected to this frame, and with a model on screen (the menus'
+ * Ashley) a menu's lines and bars landed on her vertices often enough that
+ * pieces of them were taken for 3D and drawn uncompressed in widescreen
+ * (bars came apart, slivers beside the screen). ot_scene: that base when
+ * the ordering table being drawn has it (it lies below the table's last
+ * entry, where DrawOTag starts, by at most ot_span entries), else NULL. */
+static const uint32_t *ot_scene, *ot_top;
+enum { ot_span = 0x1000 };
+static void ot_layers_begin(const void* top)
+{
+    uintptr_t scene = *(const volatile uint32_t*)(uintptr_t)0x1f800004; /* a guest address */
+    ot_top = top;
+    ot_scene = scene <= (uintptr_t)top && (uintptr_t)top - scene < ot_span * 4u ? (const uint32_t*)scene : NULL;
+    ot_front = 0;
+}
+/* An ordering table's own entry (a link word in its array: ClearOTagR's
+ * tags, no command words) tells the layer of the packets linked after it. */
+static void ot_layers_note(const uint32_t* p)
+{
+    if (ot_scene && (*p >> 24) == 0 && p <= ot_top && p >= ot_scene - 32)
+        ot_front = p < ot_scene;
+}
 void pc_draw_packet(void* data, int chain)
 {
     uint64_t cost = pc_cost_begin();
+    if (chain)
+        ot_layers_begin(data);
     if (chain && pc_hw_ot_native_area && render_is_marker && ot_has_native(data)) {
         int clip[4] = { clip_x, clip_y, clip_w, clip_h };
         pc_hw_ot_native_area(clip);
     }
     draw_packet(data, chain);
+    if (chain)
+        ot_scene = NULL, ot_front = 0;
     pc_cost_end(PC_COST_DRAW, cost);
 }
 static void draw_packet(void* data, int chain)
@@ -1022,6 +1057,8 @@ static void draw_packet(void* data, int chain)
     uint32_t* p = data;
     for (unsigned links = 0; links < 100000; links++) {
         uint32_t tag = *p;
+        if (chain)
+            ot_layers_note(p);
         if (pc_hw_anchor_packet)
             pc_hw_anchor_packet(p, draw_x, display_w);
         if (pc_ui_bubble_packet) {

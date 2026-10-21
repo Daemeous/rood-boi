@@ -3443,6 +3443,17 @@ int vs_menu7_gameOver(u_char* state)
         }
         break;
     case initFileMenu:
+#ifdef ROOD_PC
+        /* Both frame buffers black first, as the title's own LOAD screen
+         * clears them (TITLE _initSaveScreen): the file menu's background
+         * leaves its black texels undrawn, and the Game Over screen left the
+         * room showing beside its banner (x 280-320, rows 90-135; each buffer
+         * its own last frame), so one buffer kept a piece of the room and it
+         * flickered at 30 Hz under the LOAD menu. */
+        setRECT(&rect, 0, 0, 640, 240);
+        ClearImage(&rect, 0, 0, 0);
+        DrawSync(0);
+#endif
         _initMemcard(1);
         _initFileMenu();
         setRECT(&rect, 640, 511, 256, 1);

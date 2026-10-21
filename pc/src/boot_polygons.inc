@@ -160,7 +160,7 @@ static unsigned polygon_command(const uint32_t* p, unsigned available)
         vertex[i].y = (int16_t)(xy >> 16) + draw_y;
         vertex[i].fx = (float)vertex[i].x;
         vertex[i].fy = (float)vertex[i].y;
-        candidates[i] = pc_gte_log ? pc_gte_projected_candidates((int16_t)xy, (int16_t)(xy >> 16), slots[i], sequences[i], 4) : 0;
+        candidates[i] = pc_gte_log && !ot_front ? pc_gte_projected_candidates((int16_t)xy, (int16_t)(xy >> 16), slots[i], sequences[i], 4) : 0;
         screen[i][0] = (int16_t)xy, screen[i][1] = (int16_t)(xy >> 16);
         if (!candidates[i])
             ++absent, missing = i;
