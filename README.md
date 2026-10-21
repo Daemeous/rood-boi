@@ -85,9 +85,29 @@ with design notes in [`pc/docs/`](pc/docs).
   as standard `.mcd` images that emulators also read.
 - **Input.** Keyboard and SDL 3 gamepads (Xbox, PlayStation, Switch and
   others), hot-plugged.
+- **Options in the game's own menu.** Gameplay, Display, Graphics, Audio,
+  Interface and Controls pages sit below the original rows of the Option
+  screen, drawn in the game's style: window mode, display, fullscreen mode
+  (asks "Keep these settings?"), vsync, frame rate cap, render quality,
+  key and pad bindings. Plugins can add pages of their own.
+- **Lua plugins.** Look, feel and quality-of-life changes live in Lua with hot
+  reload (`pc/docs/Extensions.md`). Shipped: `rood.options` (the Option pages),
+  `rood.hud` (the HUD with the modern menus) and `rood.classic` (the classic
+  HUD: timing words, chain count, HP/MP/RISK gauges, each checked packet for
+  packet against the game's own drawing, which stays the fallback).
+- **Save state slots** (optional, off by default): System > Gameplay > Save
+  states, then F5 saves, F9 loads, F6/F7 pick the slot (bindable).
 - **Developer tooling.** A JSON-RPC control socket and Python client
   (`pc/tools/rood_rpc.py`) for scripted play, screenshots and memory
-  inspection; headless GPU test suites.
+  inspection; a Lua REPL into the running game (`pc/tools/rood_repl.py`);
+  the engine as a library reloaded in place (`pc/run-game.sh --reload`, below);
+  save-state resume across rebuilds (`--resume`); headless GPU and CPU-only
+  test suites.
+- **Game logic moving to Zig** (in progress). Battle functions are being
+  ported to Zig one at a time (`game/`), each checked against the original C:
+  shadow mode runs both and compares every call, a differential checker
+  compares them on generated inputs with branch coverage, and Zig edits
+  hot-swap into the running game. See `pc/docs/porting/`.
 
 ## Status
 
@@ -108,7 +128,8 @@ been played through to the end. Known gaps:
 - The game sees a digital PS1 pad: a gamepad's left stick works as a
   D-pad (the right stick drives the camera); there is no analog movement,
   button pressure or rumble.
-- Widescreen (16:9) is experimental and off by default; HDR output is not
+- Widescreen (16:9) is experimental and off by default; some classic menu
+  screens still show artifacts in 16:9 (being fixed). HDR output is not
   implemented.
 - 32-bit Vulkan drivers have no ray tracing: the Vulkan renderer and the
   Ultra preset need the 64-bit build.
