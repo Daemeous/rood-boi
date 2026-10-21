@@ -118,9 +118,10 @@ the areas played so far. The automated suites cover the boot, the opening,
 the first rooms, a save room and long unattended soak runs. It has **not**
 been played through to the end. Known gaps:
 
-- **The ending is not ported.** `ENDING.PRG` is not compiled for the PC
-  (the upstream decompilation of it is incomplete); reaching it stops the
-  game with `[UNIMPLEMENTED] vs_ending_exec`.
+- **The ending is ported but only reached by a jump.** `ENDING.PRG` runs
+  natively (credits, the MISSION COMPLETE score and rank screen, the return
+  to the title and its clear-data save; `ending_smoke`, from RPC `ending`),
+  but no one has yet reached it by playing the final events.
 - Code paths that have not been translated yet stop the game with a named
   `[UNIMPLEMENTED]` message (and a stack trace) rather than misbehaving.
   Rarely reached branches (some spells, effects and enemy AI routines) are
