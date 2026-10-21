@@ -78,13 +78,17 @@ pub const bone_view_point = @import("bone_view_point.zig");
 pub const bone_view_matrix = @import("bone_view_matrix.zig");
 pub const start_jump = @import("start_jump.zig");
 pub const func_800E5568 = @import("func_800E5568.zig");
-pub const func_800E5600 = @import("func_800E5600.zig");
+pub const action_radius = @import("action_radius.zig");
 pub const func_800E5998 = @import("func_800E5998.zig");
 pub const func_800E5A74 = @import("func_800E5A74.zig");
-pub const func_800E5EC0 = @import("func_800E5EC0.zig");
+pub const flood_region = @import("flood_region.zig");
 pub const func_800E6158 = @import("func_800E6158.zig");
 pub const func_800E5FDC = @import("func_800E5FDC.zig");
-pub const func_800E6098 = @import("func_800E6098.zig");
+pub const label_regions = @import("label_regions.zig");
+pub const action_range_squared = @import("action_range_squared.zig");
+pub const fill_action_metadata = @import("fill_action_metadata.zig");
+pub const init_actor_state = @import("init_actor_state.zig");
+pub const apply_actor_settings = @import("apply_actor_settings.zig");
 
 comptime {
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_146C), ownership.routesOf(.battle_146C), @This());

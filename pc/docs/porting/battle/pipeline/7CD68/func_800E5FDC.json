@@ -8,7 +8,7 @@
  "temperature": 0.0,
  "samples": 1,
  "status": "ported",
- "reviewed": false,
+ "reviewed": "sound as drafted (func_8008DC7C's only effect is its short return, its sign reaches the >> 6)",
  "plan": {
   "name": "func_800E5FDC",
   "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
@@ -235,5 +235,14 @@
   "check_seconds": 32.5,
   "calls": 2,
   "wall_seconds": 33.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "proposed_name": "neighbourLevel (func_8008DC7C at the centre of the first neighbour cell free of 0x70, >> 6): func_8008DC7C unnamed",
+  "spec_fixes": [],
+  "port_fixes": [],
+  "mutations_added": [],
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)"
  }
 }

@@ -7,8 +7,8 @@
  "thinking": "default",
  "temperature": 0.0,
  "samples": 1,
- "status": "spec-failed",
- "reviewed": false,
+ "status": "ported",
+ "reviewed": "sound (rerun: spec after the table-length note, port after a compile-fix round); renamed applyActorSettings",
  "plan": {
   "name": "func_800E5A9C",
   "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
@@ -65,18 +65,17 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 16110,
-     "completion_tokens": 21818,
-     "reasoning_tokens": 19849,
-     "cost": 0.01252,
-     "seconds": 94.6,
+     "prompt_tokens": 16514,
+     "completion_tokens": 26116,
+     "reasoning_tokens": 23891,
+     "cost": 0.0147094,
+     "seconds": 109.7,
      "sample": 1,
-     "conversation": "8869326a7e4507cac7a2cd0227f4ad3dc99698c1418e2daffee49360521f69c7"
+     "conversation": "e0a1c5ff1129b7c19da6d16b54f18c071ab7eb82b00c7e632b5b2fc55fc5375e"
     },
     "passed": false,
     "errors": [
-     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: PANIC in the prepare run, iteration 0: incorrect alignment (return address 0x403d75)",
-     "(the mutations and the coverage gate are checked once the spec runs)"
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800E5A9C: branches 16/16 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 58/58\n  FLAG +18 eq: boundary equality occurred only 3 time(s) in 124396 (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (D_800F58C8[i] >> 15)`\ncoverage func_800E5A9C: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (D_800F58C8[i] >> 15)` (+18): the two sides of this ordered compare were equal 3 time(s) in 124396. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800E5A9C.coverage_waiver]] with its `id` and a `reason`."
     ]
    },
    {
@@ -89,38 +88,288 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 18237,
-     "completion_tokens": 5054,
-     "reasoning_tokens": 3273,
-     "cost": 0.0043507,
-     "seconds": 21.2,
+     "prompt_tokens": 19134,
+     "completion_tokens": 4270,
+     "reasoning_tokens": 1814,
+     "cost": 0.0040484,
+     "seconds": 16.3,
      "sample": 1,
-     "conversation": "400a369e813e8ed87eb7edecdc9b9592180fd7221939e06bc544b3fa323eb4a5"
+     "conversation": "61b0fe796ea347b1333d1d0415c6c506c155edf4016382082a2c4eb025e6dab4"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-scan": "8381",
+   "scan-breaks": "15845",
+   "scan-full": "781",
+   "kind-ac-ad": "4993"
+  },
+  "mutations": [
+   {
+    "name": "S1: clamp taken at >= 0x23FFFF (equal sides)",
+    "caught": true
+   },
+   {
+    "name": "S2: limit stores the unclamped range",
+    "caught": true
+   },
+   {
+    "name": "S3: the D_800F58C8 scan stops one entry early",
+    "caught": true
+   },
+   {
+    "name": "S4: kind 0xAD takes the table callback",
+    "caught": true
+   },
+   {
+    "name": "S5: callback index masked to 3 bits",
+    "caught": true
+   },
+   {
+    "name": "S6: collision radius test >= 128 (equal sides)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 16,
+   "branches_hit": 16,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 58,
+   "lines_hit": 58,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if (rangeSquared > 0x23FFFF)",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 3040, < 16484, > 10476 (signed); < 5988, > 20972 (unsigned)",
+     "operand": "constant 2359295",
+     "a": "-2147336565..2147141962"
+    },
+    {
+     "line": 16,
+     "text": "if (D_800F58C0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 9983, < 10026, > 9991 (signed); < 0, > 20017 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 17,
+     "text": "for (i = 0; i < 8; i++) {",
+     "size": 4,
+     "count": 54721,
+     "kind": "against a constant",
+     "outcomes": "== 1329, < 52423, > 969 (signed); < 52423, > 969 (unsigned)",
+     "operand": "constant 7",
+     "a": "0..8"
+    },
+    {
+     "line": 18,
+     "text": "if (D_800F58C8[i] >> 15)",
+     "size": 2,
+     "count": 53752,
+     "kind": "against a constant",
+     "outcomes": "== 11087, < 19048, > 23617 (signed); < 0, > 42665 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 21,
+     "text": "if (i != 8)",
+     "size": 4,
+     "count": 20017,
+     "kind": "against a constant",
+     "outcomes": "== 969, < 19048, > 0 (signed); < 19048, > 0 (unsigned)",
+     "operand": "constant 8",
+     "a": "0..8"
+    },
+    {
+     "line": 27,
+     "text": "if (state->collisionRadius > 128)",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 3094, < 16442, > 10464 (signed); < 5989, > 20917 (unsigned)",
+     "operand": "constant 128",
+     "a": "-32759..32764"
+    },
+    {
+     "line": 42,
+     "text": "if (!(state->flags & 0xC0))",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 8798, < 0, > 21202 (signed); < 0, > 21202 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..192"
+    },
+    {
+     "line": 54,
+     "text": "if ((unsigned int)(actor->kind - 0xAC) < 2) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 2433, < 7482, > 20085 (signed); < 2560, > 25007 (unsigned)",
+     "operand": "constant 1",
+     "a": "-172..65363"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39485,
+     "completion_tokens": 20206,
+     "reasoning_tokens": 18342,
+     "cost": 0.0140515,
+     "seconds": 81.7,
+     "sample": 1,
+     "conversation": "e326f62e850506644c29376b77ac099105dbb6f6303446fdfb4dcdc20ae38fa1"
     },
     "passed": false,
     "errors": [
-     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 0, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0x407070 [arena] 0x407210 [arena] (class clamped)",
-     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800E5A9C.zig:62:47: error: @ptrCast discards const qualifier\n        psx.put(&s.callback, @as(?*anyopaque, @ptrCast(&c.func_800E7F8C)));\n                                              ^~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/func_800E5A9C.zig:62:47: note: use @constCast to discard const qualifier\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 41668,
+     "completion_tokens": 2668,
+     "reasoning_tokens": 784,
+     "cost": 0.0055008,
+     "seconds": 9.3,
+     "sample": 1,
+     "conversation": "fed60b1a7002063f5ec9ca654ec5e21f0f24bdb37cd1108c639014b1f406dbf1"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/boot64/zig/c_7CD68.zig:4623:20: error: array of opaque type 'c_7CD68.actionMetadataEntry' not allowed\n    entries: [6][4]actionMetadataEntry = @import(\"std\").mem.zeroes([6][4]actionMetadataEntry),\n                   ^~~~~~~~~~~~~~~~~~~\npc/build/boot64/zig/c_7CD68.zig:4607:33: note: opaque declared here\npub const actionMetadataEntry = opaque {};\n                                ^~~~~~~~~\nreferenced by:\n    func_800E5A9C: game/battle/func_800E5A9C.zig:72:21\n    main: pc/tests/zig_diff/main.zig:454:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 43926,
+     "completion_tokens": 2825,
+     "reasoning_tokens": 840,
+     "cost": 0.0058051,
+     "seconds": 9.9,
+     "sample": 1,
+     "conversation": "5000202d4430d56fa859e259d78aafd67bb65dccc2bbf995472e245f9ede1417"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
     ]
    }
   ],
-  "classes": {},
-  "mutations": [],
-  "coverage": null
+  "kept": {
+   "round": 3,
+   "sample": 1
+  }
  },
- "port": {
-  "attempts": []
- },
- "written": [],
- "check_seconds": 0.9101281910006946,
- "wall_seconds": 0.9892619020010898,
+ "written": [
+  "pc/tests/zig_diff/func_800E5A9C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800E5A9C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 61.41126453399556,
+ "wall_seconds": 288.47579063300145,
  "totals": {
-  "cost": 0.01687,
-  "prompt_tokens": 34347,
-  "completion_tokens": 26872,
-  "model_seconds": 115.8,
-  "check_seconds": 0.9,
-  "calls": 2,
-  "wall_seconds": 1.0
+  "cost": 0.04412,
+  "prompt_tokens": 160727,
+  "completion_tokens": 56085,
+  "model_seconds": 226.9,
+  "check_seconds": 61.4,
+  "calls": 5,
+  "wall_seconds": 288.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "renamed": "apply_actor_settings.applyActorSettings",
+  "notes": [
+   "first runs: Haiku wrote all 32 entries of D_800F1790 (10 entries, 80 bytes) and indexed it by &31; the spec prompt now gives an unsized table's length",
+   "the port calls func_800E5710 through a local `extern fn` (the c prototype's actionMetadataState embeds an opaque bitfield struct): the same routed symbol as c.func_800E5710",
+   "callees: func_800E7660/func_800E5998/func_800E5710 change nothing this C reads afterwards"
+  ],
+  "spec_fixes": [],
+  "port_fixes": [],
+  "mutations_added": [],
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)"
  }
 }

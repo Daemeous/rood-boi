@@ -8,7 +8,7 @@
  "temperature": 0.0,
  "samples": 1,
  "status": "ported",
- "reviewed": false,
+ "reviewed": "sound as drafted (its func_800E5EC0 stub rewrites cells the scan reads later); port re-reads the grid pointers; renamed labelRegions",
  "plan": {
   "name": "func_800E6098",
   "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
@@ -224,5 +224,18 @@
   "check_seconds": 876.2,
   "calls": 2,
   "wall_seconds": 876.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "renamed": "label_regions.labelRegions",
+  "port_fixes": [
+   "the grid pointers D_800F58B8/D_800F58D0 were loaded once before the scan; the C reloads them after each call. No behaviour change (no callee reassigns them), a plainer reading of the C"
+  ],
+  "mutations_added": [
+   "R1: the visited bits tested on a copy of D_800F58D0 taken before the scan (caught by the drafted spec)"
+  ],
+  "spec_fixes": [],
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)"
  }
 }

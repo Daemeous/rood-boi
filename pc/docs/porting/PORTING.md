@@ -518,7 +518,9 @@ by the build, or a definition in `pc/src`) and the port uses it through
 
 Every global, guest or host, is reached through the views accessor
 `v.g.<name>()` (a `*T`) or `psx.global(T, "name")` / `psx.globalMany(T,
-"name")` for unsized arrays. No `extern var`: on Windows it goes through a
+"name")` for unsized arrays. A global pointer to integers (`u_short*
+D_800F58C8`, `int* D_800EB9D8`) is many-item (`*?[*]u16`): the C indexes it,
+so `v.g.D_800F58C8().*.?[i]`, and `[0]` for `*p`. No `extern var`: on Windows it goes through a
 `.refptr` stub the overlay renames cannot follow, and the build rejects it.
 
 ```c

@@ -9,192 +9,14 @@ hook, statics, waivers). Mark a function reviewed by setting its record's
 added, port fixes, a rename, corpus reach) in `review`; the queue then
 lists it under Reviewed.
 
-14 to review (7 flagged), 17 reviewed.
-
-## `_insertActor` (src/BATTLE/BATTLE.PRG/146C.c) -> `insert_actor.insertActor`: ported
-
-- **Flags:** the spec needed a retry; coverage waivers: +13 b1 (the outer test already requires actor->id != 0 and the list scan writes nothing, so the inner else cannot be taken)
-- Drafted by anthropic/claude-haiku-5.5
-- Name: the decompilation's name (prefix dropped); signature `pub fn insertActor(actor: ?*v.vs_battle_actor) callconv(.c) c_int`
-- Input classes: allegiance-low-clear=9934, id-zero=4974, already-listed=8306, self-in-slot-0=2093, inserted=14693
-- Mutations (of the C): I1: the list scan misses slot 15 (caught); I2: allegiance mask 3 instead of 7 (caught); I3: the new actor's next is not copied from the head (caught); I4: insert returns 0 (caught); I5: the null test on list slots is dropped (caught); I6: id tested against 1 instead of 0 (caught)
-- Coverage: branches 11/12, lines 11/12
-  - arg 0: pointer: never null
-  - compare +3 (32-bit, constant 0): == 9934, < 0, > 30066 (signed); < 0, > 30066 (unsigned): `if ((actor->unk1C & 7) && (actor->id != 0)) {`
-  - compare +3 (32-bit, constant 0): == 4974, < 12454, > 12638 (signed); < 0, > 25092 (unsigned): `if ((actor->unk1C & 7) && (actor->id != 0)) {`
-  - compare +6 (32-bit, constant 15): == 17303, < 321807, > 16786 (signed); < 321807, > 16786 (unsigned): `for (i = 0; i < 16; ++i) {`
-  - compare +13 (32-bit, constant 0): == 0, < 8312, > 8474 (signed); < 0, > 16786 (unsigned): `if (actor->id != 0) {`
-  - +13 b1: branch never taken
-
-## `func_80069D14` (src/BATTLE/BATTLE.PRG/146C.c) -> `func_80069D14.func_80069D14`: ported
-
-- **Flags:** the spec needed a retry
-- Drafted by anthropic/claude-haiku-5.5
-- Name: no readable name: the original symbol is kept; signature `pub fn func_80069D14() callconv(.c) void`
-- Input classes: empty=2914, no-match=3014, match=24072
-- Mutations (of the C): M1: the matched actor gets 9, not 8 (caught); M2: the loop stops at 15 and skips the last slot (caught); M3: the unk9 test uses the wrong constant (caught); M4: the store goes to unk9, not unk8 (wrong field) (caught); M5: the null guard is dropped and a null slot is dereferenced (caught)
-- Coverage: branches 8/8, lines 7/7
-  - compare +4 (32-bit, constant 15): == 30000, < 450000, > 30000 (signed); < 450000, > 30000 (unsigned): `for (i = 0; i < 16; ++i) {`
-  - compare +8 (8-bit, constant -128): == 47563, < 0, > 249596 (signed); < 136409, > 113187 (unsigned): `if ((actor != 0) && (actor->unk8 == 0x80)`
-  - compare +9 (8-bit, constant 24): == 26155, < 14352, > 7056 (signed); < 6198, > 15210 (unsigned): `&& (vs_battle_actors[i]->unk9 == 0x18)) {`
-
-## `func_800E5698` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `func_800E5698.func_800E5698`: port-failed
-
-- **Flags:** the spec needed a retry; the port needed a retry; not ported: port-failed
-- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
-- Name: no readable name: the original symbol is kept; signature `pub fn func_800E5698(arg0: ?*v.func_800E5698_t, actionId: c_int) callconv(.c) c_int`
-- Input classes: literal-range=15045, ptr-range-arena=11248, ptr-range-lowram=3707
-- Mutations (of the C): F1: clamp at >= 0x20 (the value 0x20 becomes 0 rather than 0) (caught); F2: wrong subtraction constant (caught); F3: signed comparison of the unsigned result (caught); F4: the 0xFF test reads rangeY (caught); F5: literal range points at rangeY (caught); F6: wrong constant added to the square (caught)
-- Coverage: branches 4/4, lines 9/9
-  - arg 0: pointer: never null
-  - arg 1: 32-bit: min 0, max 255, seen zero, never negative
-  - compare +6 (8-bit, constant -1): == 14955, < 7486, > 7559 (signed); < 15045, > 0 (unsigned): `if (action->rangeX == 0xFF) {`
-  - compare +12 (32-bit, constant 32): == 7419, < 14994, > 7587 (signed); < 3727, > 18854 (unsigned): `if (v > 0x20) {`
-
-## `func_800E5710` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `func_800E5710.func_800E5710`: port-failed
-
-- **Flags:** the spec needed a retry; the port needed a retry; not ported: port-failed
-- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
-- Name: no readable name: the original symbol is kept; signature `pub fn func_800E5710(state: ?*v.actionMetadataState) callconv(.c) void`
-- Input classes: no-loop=6030, special-off=12060, special-on=11910
-- Mutations (of the C): M1: no-loop path sets maxActionCost to 0, not 1 (caught); M2: f2 store dropped (caught); M3: rangeSquared bound is >= instead of > (caught); M4: the action cost read as signed, so bytes >= 128 go negative (caught); M5: wrong type constant in the special test (caught); M6: radius store dropped (the call stays) (caught)
-- Coverage: branches 32/32, lines 33/33
-  - arg 0: pointer: never null
-  - compare +5 (8-bit, constant 0): == 6030, < 12007, > 11963 (signed); < 0, > 23970 (unsigned): `if (!state->id) {`
-  - compare +9 (32-bit, constant 5): == 23970, < 119850, > 23970 (signed); < 119850, > 23970 (unsigned): `for (row = 0; row < 6; row++)`
-  - compare +10 (32-bit, constant 3): == 143820, < 431460, > 143820 (signed); < 431460, > 143820 (unsigned): `for (column = 0; column < 4; column++) {`
-  - compare +19 (32-bit, constant 331776): == 143904, < 215841, > 215535 (signed); < 144202, > 287174 (unsigned): `entry->rangeSquared > 0x51000 && !(action->flagsC & 0x20000000);`
-  - compare +19 (32-bit, constant 0): == 143553, < 0, > 143621 (signed); < 0, > 143621 (unsigned): `entry->rangeSquared > 0x51000 && !(action->flagsC & 0x20000000);`
-  - compare +20 (32-bit, constant 0): == 395777, < 0, > 179503 (signed); < 0, > 179503 (unsigned): `if (mask & 0x4198)`
-  - compare +22 (32-bit, constant 0): == 431537, < 0, > 143743 (signed); < 0, > 143743 (unsigned): `if (mask & 0x154)`
-  - compare +24 (32-bit, constant 0): == 503376, < 0, > 71904 (signed); < 0, > 71904 (unsigned): `if (mask & 0xA)`
-  - compare +26 (32-bit, constant 0): == 395864, < 0, > 107512 (signed); < 0, > 107512 (unsigned): `else if (mask & 0x40A0)`
-  - compare +28 (32-bit, constant 0): == 180989, < 0, > 214875 (signed); < 0, > 214875 (unsigned): `else if (mask & 0x1954)`
-  - compare +31 (32-bit, constant 131072): == 160517, < 18091, > 107232 (signed); < 18091, > 107232 (unsigned): `&& (action->flags.raw & 0xE0000) != 0x20000`
-  - compare +32 (32-bit, constant 393216): == 18046, < 35766, > 71511 (signed); < 35766, > 71511 (unsigned): `&& (action->flags.raw & 0xE0000) != 0x60000`
-  - compare +33 (8-bit, constant 0): == 289440, < 143304, > 142536 (signed); < 0, > 285840 (unsigned): `&& (mask & 0x4000) != 0;`
-  - compare +33 (32-bit, constant 0): == 100431, < 0, > 6846 (signed); < 0, > 6846 (unsigned): `&& (mask & 0x4000) != 0;`
-  - compare +34 (32-bit, constant 131072): == 323353, < 36185, > 215742 (signed); < 36185, > 215742 (unsigned): `if ((action->flags.raw & 0xE0000) == 0x20000) {`
-  - compare +36 (32-bit, b 0..255): == 11464, < 210537, > 101352 (signed); < 210537, > 101352 (unsigned): `if (state->maxActionCost < value)`
-
-## `func_800E5A74` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `func_800E5A74.func_800E5A74`: ported
-
-- **Flags:** the spec needed a retry
-- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
-- Name: no readable name: the original symbol is kept; signature `pub fn func_800E5A74(arg0: [*c]c_int, arg1: ?*v.func_800E5A74_t) callconv(.c) void`
-- Input classes: masked-zero=7438, bit11-set=13133, other=9429
-- Mutations (of the C): M1: mask drops bit 11 (0x7FE, not 0xFFE) (caught); M2: shift by 21, not 20 (caught); M3: low mask keeps bit 20 (0x0FFFFF) (caught); M4: store to *arg0 never runs (caught); M5: wrong field (unk0 read, not unk4) (caught)
-- Coverage: branches 0/0, lines 3/3
-  - arg 0: pointer: never null
-  - arg 1: pointer: never null
-
-## `func_800E5A9C` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `func_800E5A9C.func_800E5A9C`: spec-failed
-
-- **Flags:** the spec needed a retry; not ported: spec-failed
-- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
-- Name: no readable name: the original symbol is kept; signature `pub fn func_800E5A9C(state: ?*v.actorSettingsState, settings: ?*v.actorSettingsWord) callconv(.c) void`
-
-## `func_800E6178` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `func_800E6178.func_800E6178`: spec-failed
-
-- **Flags:** the spec needed a retry; not ported: spec-failed
-- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
-- Name: no readable name: the original symbol is kept; signature `pub fn func_800E6178(actor: [*c]c.struct_actorInitializationActor, options: c_int) callconv(.c) c_int`
-
-## `func_800E5568` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `func_800E5568.func_800E5568`: ported
-
-- **Flags:** none
-- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
-- Name: no readable name: the original symbol is kept; signature `pub fn func_800E5568(arg0: ?*v.func_800E5568_t) callconv(.c) c_int`
-- Input classes: shape-rcos-z=11227, shape-rcos-y=3708, shape-rsin=15065
-- Mutations (of the C): S1: shape 1 falls through to the rsin branch (caught); S2: the rcos-Z branch reads rangeY (caught); S3: angle shifted by 6, not 7 (caught); S4: result shifted by 11, not 12 (caught); S5: v unsigned, so negative sines take the wrong sign (caught); S6: the rsin branch calls rcos (caught)
-- Coverage: branches 4/4, lines 12/12
-  - arg 0: pointer: never null
-  - compare +8 (32-bit, constant 0): == 18773, < 0, > 11227 (signed); < 0, > 11227 (unsigned): `if (mask & 0x16) {`
-  - compare +11 (32-bit, constant 0): == 15065, < 0, > 3708 (signed); < 0, > 3708 (unsigned): `} else if (mask & 0x8) {`
-
-## `func_800E5600` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `func_800E5600.func_800E5600`: ported
-
-- **Flags:** none
-- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
-- Name: no readable name: the original symbol is kept; signature `pub fn func_800E5600(arg0: c_int, actionId: c_int, arg2: c_uint) callconv(.c) c_int`
-- Input classes: flagsE13=10084, flagsE3-only=9868, neither=10048
-- Mutations (of the C): M1: the first test reads flagsE_3 instead of flagsE_13 (caught); M2: aoe_8 shifted by 4, not 5 (caught); M3: v < arg2 compared signed (caught); M4: bound slip, v <= arg2 (caught); M5: the callee is not called (caught)
-- Coverage: branches 6/6, lines 10/10
-  - arg 0: 32-bit: min -2147293604, max 2147471230, unsigned 110105..4294789083, seen negative, never zero
-  - arg 1: 32-bit: min 0, max 255, seen zero, never negative
-  - arg 2: 32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones
-  - compare +6 (8-bit, constant 0): == 19916, < 0, > 10084 (signed); < 0, > 10084 (unsigned): `if (action->flagsE_13 << 0x1D) {`
-  - compare +8 (8-bit, constant 0): == 10048, < 0, > 9868 (signed); < 0, > 9868 (unsigned): `} else if (action->flagsE_3 << 0x17) {`
-  - compare +10 (32-bit, b -2147483648..2147483647): == 3240, < 3259, > 3369 (signed); < 3674, > 2954 (unsigned): `if (v < arg2) {`
-
-## `func_800E5998` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `func_800E5998.func_800E5998`: ported
-
-- **Flags:** none
-- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
-- Name: no readable name: the original symbol is kept; signature `pub fn func_800E5998() callconv(.c) void`
-- Input classes: empty=4962, no-trigger=4932, trigger-no-match=9379, trigger-match=10727
-- Mutations (of the C): F1: a match is found but the search reports none (caught); F2: unk30_9 read as a 4-bit field (caught); F3: the store writes the actor's own id (caught); F4: wrong trigger constant (0x11 for 0x10) (caught); F5: the inner search starts from the actor, not the list head (caught)
-- Coverage: branches 10/10, lines 13/13
-  - compare +5 (8-bit, constant 16): == 37886, < 23164, > 14299 (signed); < 7290, > 30173 (unsigned): `if (D_800F5878[actor->id]->unk16 == 0x10) {`
-  - compare +9 (32-bit, b 0..31): == 14521, < 67507, > 29416 (signed); < 67507, > 29416 (unsigned): `if (other->unk30_0 == actor->unk30_9) {`
-
-## `func_800E5EC0` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `func_800E5EC0.func_800E5EC0`: ported
-
-- **Flags:** none
-- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
-- Name: no readable name: the original symbol is kept; signature `pub fn func_800E5EC0(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) void`
-- Input classes: edge=22872, visited=3563, fresh=3565
-- Mutations (of the C): F1: value masked to 9 bits (caught); F2: visited bit set as 0x4000 (caught); F3: x bound off by one (<= 32) (caught); F4: wrong bitmap bit (0x10 for 0x20) (caught); F5: step advances by 1, not 2 (caught); F6: recursion dropped (caught)
-- Coverage: branches 10/10, lines 10/10
-  - arg 0: 32-bit: min 0, max 31, seen zero, never negative
-  - arg 1: 32-bit: min 0, max 31, seen zero, never negative
-  - arg 2: 32-bit: min -2147314933, max 2147479369, unsigned 2078..4294862048, seen negative, never zero
-  - compare +8 (32-bit, constant 3): == 30000, < 90000, > 30000 (signed); < 90000, > 30000 (unsigned): `for (i = 0, step = D_800F16EC; i < 4; ++i, step += 2) {`
-  - compare +12 (32-bit, constant 31): == 15975, < 88678, > 15347 (signed); < 87265, > 16760 (unsigned): `if (x < 32 && z < 32 && (D_800F58B8[z][x] & 0x20)`
-  - compare +12 (32-bit, constant 31): == 13696, < 76356, > 13188 (signed); < 75209, > 14335 (unsigned): `if (x < 32 && z < 32 && (D_800F58B8[z][x] & 0x20)`
-  - compare +12 (32-bit, constant 0): == 44636, < 0, > 44269 (signed); < 0, > 44269 (unsigned): `if (x < 32 && z < 32 && (D_800F58B8[z][x] & 0x20)`
-  - compare +13 (32-bit, constant 0): == 20285, < 0, > 23984 (signed); < 0, > 23984 (unsigned): `&& !(D_800F58D0[z][x] & 0x2000)) {`
-
-## `func_800E5FDC` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `func_800E5FDC.func_800E5FDC`: ported
-
-- **Flags:** none
-- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
-- Name: no readable name: the original symbol is kept; signature `pub fn func_800E5FDC(arg0: c_int, arg1: c_int) callconv(.c) c_int`
-- Input classes: hit-0=3314, hit-1=4310, hit-2=3827, hit-3=3405, no-hit=25144
-- Mutations (of the C): F1: x bound off by one (x < 31) (caught); F2: mask tests bit 5 instead of 4-6 (caught); F3: z centre offset dropped from the callee's argument (caught); F4: loop stops before the fourth entry (caught); F5: z read from dx, not dz (caught); F6: signed division instead of arithmetic shift (caught)
-- Coverage: branches 8/8, lines 7/7
-  - arg 0: 32-bit: min -2147483646, max 2147483646, unsigned 0..4294967295, seen zero/negative/all ones
-  - arg 1: 32-bit: min -2147483646, max 2147483646, unsigned 0..4294967295, seen zero/negative/all ones
-  - compare +6 (32-bit, constant 3): == 28549, < 109062, > 25144 (signed); < 109062, > 25144 (unsigned): `for (i = 0; i < 4; i++) {`
-  - compare +9 (32-bit, constant 31): == 8147, < 91595, > 37869 (signed); < 77543, > 51921 (unsigned): `if (x < 32 && z < 32 && !(D_800F58B8[z][x] & 0x70)) {`
-  - compare +9 (32-bit, constant 31): == 5343, < 55937, > 24410 (signed); < 46707, > 33640 (unsigned): `if (x < 32 && z < 32 && !(D_800F58B8[z][x] & 0x70)) {`
-  - compare +9 (32-bit, constant 0): == 14856, < 0, > 37194 (signed); < 0, > 37194 (unsigned): `if (x < 32 && z < 32 && !(D_800F58B8[z][x] & 0x70)) {`
-
-## `func_800E6098` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `func_800E6098.func_800E6098`: ported
-
-- **Flags:** none
-- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
-- Name: no readable name: the original symbol is kept; signature `pub fn func_800E6098() callconv(.c) void`
-- Input classes: mixed=7740, all-active=7299, all-inactive=7534, all-blocked=7427
-- Mutations (of the C): M1: active test uses 0x10 instead of 0x20 (caught); M2: blocked test uses 0x4000 instead of 0x2000 (caught); M3: r > 0 instead of r >= 0 (caught); M4: func_800E5EC0 called with x and z swapped (caught); M5: the x scan stops at 31 (last column skipped) (caught); M6: the call to func_800E5EC0 is dropped (caught)
-- Coverage: branches 10/10, lines 8/8
-  - compare +5 (32-bit, constant 31): == 30000, < 930000, > 30000 (signed); < 930000, > 30000 (unsigned): `for (z = 0; z < 32; ++z) {`
-  - compare +6 (32-bit, constant 31): == 960000, < 29760000, > 960000 (signed); < 29760000, > 960000 (unsigned): `for (x = 0; x < 32; ++x) {`
-  - compare +7 (32-bit, constant 0): == 11892851, < 0, > 18827149 (signed); < 0, > 18827149 (unsigned): `if ((D_800F58B8[z][x] & 0x20) && !(D_800F58D0[z][x] & 0x2000)) {`
-  - compare +7 (32-bit, constant 0): == 9033278, < 0, > 9793871 (signed); < 0, > 9793871 (unsigned): `if ((D_800F58B8[z][x] & 0x20) && !(D_800F58D0[z][x] & 0x2000)) {`
-  - compare +9 (32-bit, constant 0): == 1694067, < 4516871, > 2822340 (signed); < 0, > 7339211 (unsigned): `if (r >= 0) {`
-
-## `func_800E6158` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `func_800E6158.func_800E6158`: ported
-
-- **Flags:** none
-- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
-- Name: no readable name: the original symbol is kept; signature `pub fn func_800E6158() callconv(.c) void`
-- Input classes: call=20000
-- Mutations (of the C): F1: the call is dropped (caught); F2: the call is made twice (caught); F3: the body is empty (caught)
-- Coverage: branches 0/0, lines 1/1
+0 to review (0 flagged), 31 reviewed.
 
 ## Reviewed
 
+- `_insertActor` (src/BATTLE/BATTLE.PRG/146C.c): sound as drafted (no callees; the +13 b1 waiver holds)
+  - corpus: call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (no recipe spawns an actor)
+- `func_80069D14` (src/BATTLE/BATTLE.PRG/146C.c): sound as drafted (no callees)
+  - corpus: call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: root (1 / 2 / 4 calls), 0 mismatches
 - `func_800A141C` (src/BATTLE/BATTLE.PRG/38C1C.c) -> `project_bone_point.projectBonePoint`: faithful; spec sound (one mutation added: the widescreen PC_GTE_UNNARROWED wrapper dropped); renamed projectBonePoint
   - mutations added: R1: PC_GTE_UNNARROWED dropped
   - corpus: call mode (shadow): enemy_kill: 2 root calls (none in enemy_cast_wait, action_name_window)
@@ -246,3 +68,33 @@ lists it under Reviewed.
   - corpus: call mode (shadow): not reached by the three recipes
 - `func_800A291C` (src/BATTLE/BATTLE.PRG/38C1C.c): faithful; spec sound
   - corpus: call mode (shadow): not reached by the three recipes
+- `func_800E5568` (src/BATTLE/BATTLE.PRG/7CD68.c): sound as drafted (rcos/rsin are pure; every shape, sign and range byte edge)
+  - corpus: call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)
+- `func_800E5600` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `action_radius.actionRadius`: sound as drafted; renamed actionRadius
+  - corpus: call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)
+- `func_800E5698` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `action_range_squared.actionRangeSquared`: sound (drafted on the rerun after the null-field harness check dropped Haiku's bogus null class); renamed actionRangeSquared
+  - corpus: call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)
+- `func_800E5710` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `fill_action_metadata.fillActionMetadata`: sound (rerun: spec after a compile-fix round, port after its retry); 2 mutations added; renamed fillActionMetadata
+  - mutations added: R1: f1 assigned from the mask (the C only sets it); R2: kind cleared when no mask matches
+  - corpus: call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)
+- `func_800E5998` (src/BATTLE/BATTLE.PRG/7CD68.c): sound as drafted (no callees; the unk30_9 5-bit key's & 15 slip is a mutation)
+  - corpus: call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)
+- `func_800E5A74` (src/BATTLE/BATTLE.PRG/7CD68.c): sound as drafted
+  - corpus: call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)
+- `func_800E5A9C` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `apply_actor_settings.applyActorSettings`: sound (rerun: spec after the table-length note, port after a compile-fix round); renamed applyActorSettings
+  - corpus: call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)
+- `func_800E5EC0` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `flood_region.floodRegion`: spec strengthened (the self-call stub stamps its cell visited); renamed floodRegion
+  - spec fix: the recursive call (a routed stub in the harness) wrote nothing, but the real recursion stamps its cell 0x2000 first (and floods on), and the C re-reads the later neighbours' visited bits after each call: the stub now stamps its cell (and a quarter of the time another)
+  - mutations added: R1: the four neighbours' visited bits read before any recursive call (slips the drafted spec, caught by the fixed one)
+  - corpus: call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)
+- `func_800E5FDC` (src/BATTLE/BATTLE.PRG/7CD68.c): sound as drafted (func_8008DC7C's only effect is its short return, its sign reaches the >> 6)
+  - corpus: call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)
+- `func_800E6098` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `label_regions.labelRegions`: sound as drafted (its func_800E5EC0 stub rewrites cells the scan reads later); port re-reads the grid pointers; renamed labelRegions
+  - port fix: the grid pointers D_800F58B8/D_800F58D0 were loaded once before the scan; the C reloads them after each call. No behaviour change (no callee reassigns them), a plainer reading of the C
+  - mutations added: R1: the visited bits tested on a copy of D_800F58D0 taken before the scan (caught by the drafted spec)
+  - corpus: call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)
+- `func_800E6158` (src/BATTLE/BATTLE.PRG/7CD68.c): sound as drafted (a forwarder)
+  - corpus: call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)
+- `func_800E6178` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `init_actor_state.initActorState`: sound (rerun: port after two compile-fix rounds); port faithfulness fix; renamed initActorState
+  - port fix: result[4] was zero-initialised; the C leaves it uninitialised (func_800A190C's selector 250 = 0xFA always writes it): now `undefined` with that comment
+  - corpus: call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)

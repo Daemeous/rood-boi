@@ -7,8 +7,8 @@
  "thinking": "default",
  "temperature": 0.0,
  "samples": 1,
- "status": "port-failed",
- "reviewed": false,
+ "status": "ported",
+ "reviewed": "sound (drafted on the rerun after the null-field harness check dropped Haiku's bogus null class); renamed actionRangeSquared",
  "plan": {
   "name": "func_800E5698",
   "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
@@ -33,14 +33,10 @@
   ],
   "ret": "c_int",
   "types": [
-   "func_800E5568_t",
    "func_800E5698_t",
-   "func_800E5698_t2",
-   "vs_action_t"
+   "func_800E5698_t2"
   ],
-  "globals": [
-   "vs_main_actions"
-  ],
+  "globals": [],
   "hooks": [],
   "statics": [],
   "skip": ""
@@ -57,17 +53,17 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 12619,
-     "completion_tokens": 9762,
-     "reasoning_tokens": 8348,
-     "cost": 0.0061429,
-     "seconds": 44.2,
+     "prompt_tokens": 12653,
+     "completion_tokens": 9244,
+     "reasoning_tokens": 7755,
+     "cost": 0.0058873,
+     "seconds": 40.6,
      "sample": 1,
-     "conversation": "9fb2d1fde7a68f3031a6945d9cdc5912acb77d8642f511b987017a9c7a95bb71"
+     "conversation": "51c48332406fe75366a1070bf0a7af1c6fc46dc95dee10f91e5b8f34d3c665bc"
     },
     "passed": false,
     "errors": [
-     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:172:9: error: zdiff: a spec stub gives u32 where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:206:29\n    f: <tmp>/.../route.zig:24:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+     "FAIL: mutation A4: wrong sentinel for the object-relative range: not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: MISMATCH iteration 2: call 0 (func_800E5568): argument 0: C 0x406108, Zig 0x428740\nzdiff: MISMATCH iteration 3: call 0 (func_800E5568): argument 0: C 0x406108, Zig 0x4278a0\nzdiff: MISMATCH iteration 5: call 0 (func_800E5568): argument 0: C 0x406108, Zig 0x4261ac\nzdiff: CRASH (signal 11) in the Zig run, iteration 31, fault address 0x5c [NULL+0x5c: a field of a null pointer]"
     ]
    },
    {
@@ -80,13 +76,13 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 14351,
-     "completion_tokens": 1977,
-     "reasoning_tokens": 546,
-     "cost": 0.0024236,
-     "seconds": 7.6,
+     "prompt_tokens": 14482,
+     "completion_tokens": 2959,
+     "reasoning_tokens": 1325,
+     "cost": 0.0029277,
+     "seconds": 11.7,
      "sample": 1,
-     "conversation": "038da0eb065a210e5c378154e9b6d9ac641489609f0fe4c565e6320da2c4f790"
+     "conversation": "087bd0f45782a57d5b66748d54cddfed3f92ee9e06e169bc0a4f711513119b25"
     },
     "passed": true,
     "errors": []
@@ -97,33 +93,32 @@
    "sample": 1
   },
   "classes": {
-   "literal-range": "15045",
-   "ptr-range-arena": "11248",
-   "ptr-range-lowram": "3707"
+   "action-range": "14937",
+   "object-range": "15063"
   },
   "mutations": [
    {
-    "name": "F1: clamp at >= 0x20 (the value 0x20 becomes 0 rather than 0)",
+    "name": "A1: v >= 0x20 instead of v > 0x20 (v == 0x20 gives 0 not 1024)",
     "caught": true
    },
    {
-    "name": "F2: wrong subtraction constant",
+    "name": "A2: signed compare of v (negative returns take the other branch)",
     "caught": true
    },
    {
-    "name": "F3: signed comparison of the unsigned result",
+    "name": "A3: wrong constant subtracted",
     "caught": true
    },
    {
-    "name": "F4: the 0xFF test reads rangeY",
+    "name": "A4: wrong sentinel for the object-relative range",
     "caught": true
    },
    {
-    "name": "F5: literal range points at rangeY",
+    "name": "A5: the action's rangeY, not rangeX, is passed as the range",
     "caught": true
    },
    {
-    "name": "F6: wrong constant added to the square",
+    "name": "A6: square truncated to 16 bits",
     "caught": true
    }
   ],
@@ -140,7 +135,7 @@
     {
      "arg": 0,
      "count": 30000,
-     "text": "pointer: never null"
+     "text": "pointer: null seen"
     },
     {
      "arg": 1,
@@ -155,7 +150,7 @@
      "size": 1,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 14955, < 7486, > 7559 (signed); < 15045, > 0 (unsigned)",
+     "outcomes": "== 15063, < 7506, > 7431 (signed); < 14937, > 0 (unsigned)",
      "operand": "constant -1",
      "a": "-128..127"
     },
@@ -165,9 +160,9 @@
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 7419, < 14994, > 7587 (signed); < 3727, > 18854 (unsigned)",
+     "outcomes": "== 3641, < 16835, > 9524 (signed); < 7554, > 18805 (unsigned)",
      "operand": "constant 32",
-     "a": "-2147483648..2147443928"
+     "a": "-2147483647..2145413945"
     }
    ],
    "passed": true
@@ -186,63 +181,71 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 35934,
-     "completion_tokens": 3191,
-     "reasoning_tokens": 2781,
-     "cost": 0.0051889,
-     "seconds": 14.3,
+     "prompt_tokens": 35969,
+     "completion_tokens": 3342,
+     "reasoning_tokens": 2924,
+     "cost": 0.0052679,
+     "seconds": 15.5,
      "sample": 1,
-     "conversation": "6d44b326043d60f4da42d97d60bf3744361fd0dca1ee223a628e33e5193bfcc2"
+     "conversation": "32f768eb7ed2ada66fc484595c55775d394f2ffbadb4898f72958732fc950ca4"
     },
-    "passed": false,
-    "errors": [
-     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800E5698.zig:15:39: error: expected type 'c_uint', found 'c_int'\n    var dist: c_uint = c.func_800E5568(@ptrCast(range));\n                       ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~\ngame/battle/func_800E5698.zig:15:39: note: unsigned 32-bit int cannot represent all possible signed 32-bit values\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:430:31\n    main: pc/tests/zig_diff/main.zig:353:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
-    ],
-    "runs": []
-   },
-   {
-    "round": 2,
-    "sample": 1,
-    "call": {
-     "finish_reason": "stop",
-     "model": "anthropic/claude-haiku-5.5",
-     "endpoint": "remote",
-     "thinking": "default",
-     "temperature": 0.0,
-     "max_tokens": 64000,
-     "prompt_tokens": 36666,
-     "completion_tokens": 900,
-     "reasoning_tokens": 478,
-     "cost": 0.0041166,
-     "seconds": 4.6,
-     "sample": 1,
-     "conversation": "9a26733b353fc69f7445aec285689e2c8207304d664bba63f26bf9ad29e1a49a"
-    },
-    "passed": false,
-    "errors": [
-     "FAIL: seed 1: the port differs from the C (exit 3):\nzdiff: PANIC in the Zig run, iteration 15: attempt to use null value (return address 0x403524)"
-    ],
+    "passed": true,
+    "errors": [],
     "runs": [
      {
       "seed": 1,
-      "exit": 3,
-      "mismatches": null,
-      "first": "PANIC in the Zig run, iteration 15: attempt to use null value (return address 0x403524)"
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
      }
     ]
    }
-  ]
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
  },
- "written": [],
- "check_seconds": 9.460190881000017,
- "wall_seconds": 9.588906990000396,
+ "written": [
+  "pc/tests/zig_diff/func_800E5698.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800E5698.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 41.3613016700001,
+ "wall_seconds": 109.36998849600059,
  "totals": {
-  "cost": 0.01787,
-  "prompt_tokens": 99570,
-  "completion_tokens": 15830,
-  "model_seconds": 70.7,
-  "check_seconds": 9.5,
-  "calls": 4,
-  "wall_seconds": 9.6
+  "cost": 0.01408,
+  "prompt_tokens": 63104,
+  "completion_tokens": 15545,
+  "model_seconds": 67.8,
+  "check_seconds": 41.4,
+  "calls": 3,
+  "wall_seconds": 109.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "renamed": "action_range_squared.actionRangeSquared",
+  "notes": [
+   "first run: the spec's null unk5C class passed &NULL->unk38 to a stub that never read it, so the C 'survived' and the port's .? (the game's fault) failed; zig_diff now stops the C there (a field of a null pointer handed to a callee)"
+  ],
+  "spec_fixes": [],
+  "port_fixes": [],
+  "mutations_added": [],
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)"
  }
 }

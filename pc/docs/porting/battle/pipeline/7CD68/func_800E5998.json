@@ -8,7 +8,7 @@
  "temperature": 0.0,
  "samples": 1,
  "status": "ported",
- "reviewed": false,
+ "reviewed": "sound as drafted (no callees; the unk30_9 5-bit key's & 15 slip is a mutation)",
  "plan": {
   "name": "func_800E5998",
   "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
@@ -193,5 +193,17 @@
   "check_seconds": 19.3,
   "calls": 2,
   "wall_seconds": 19.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "proposed_name": "links each actor whose AI slot unk16 is 0x10 to the actor whose unk30_0 matches its unk30_9: meaning of the fields not established",
+  "notes": [
+   "`psx.conv(i8, o.id)` truncation is never exercised (ids 0-7; real ids are below 16)"
+  ],
+  "spec_fixes": [],
+  "port_fixes": [],
+  "mutations_added": [],
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)"
  }
 }

@@ -8,7 +8,7 @@
  "temperature": 0.0,
  "samples": 1,
  "status": "ported",
- "reviewed": false,
+ "reviewed": "spec strengthened (the self-call stub stamps its cell visited); renamed floodRegion",
  "plan": {
   "name": "func_800E5EC0",
   "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
@@ -255,5 +255,18 @@
   "check_seconds": 20.9,
   "calls": 2,
   "wall_seconds": 24.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "renamed": "flood_region.floodRegion",
+  "spec_fixes": [
+   "the recursive call (a routed stub in the harness) wrote nothing, but the real recursion stamps its cell 0x2000 first (and floods on), and the C re-reads the later neighbours' visited bits after each call: the stub now stamps its cell (and a quarter of the time another)"
+  ],
+  "mutations_added": [
+   "R1: the four neighbours' visited bits read before any recursive call (slips the drafted spec, caught by the fixed one)"
+  ],
+  "port_fixes": [],
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)"
  }
 }

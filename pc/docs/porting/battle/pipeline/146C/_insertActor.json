@@ -4,7 +4,7 @@
  "difficulty": "S",
  "model": "anthropic/claude-haiku-5.5",
  "status": "ported",
- "reviewed": false,
+ "reviewed": "sound as drafted (no callees; the +13 b1 waiver holds)",
  "plan": {
   "name": "_insertActor",
   "unit": "src/BATTLE/BATTLE.PRG/146C.c",
@@ -219,5 +219,13 @@
   "completion_tokens": 27459,
   "model_seconds": 119.3,
   "check_seconds": 151.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "port_fixes": [],
+  "mutations_added": [],
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (no recipe spawns an actor)"
  }
 }

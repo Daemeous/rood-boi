@@ -190,12 +190,31 @@ fn stubArgs(comptime G: type, args: anytype) StubArgs(G, @TypeOf(args)) {
     return out;
 }
 
+/// A field of a null pointer (`&psx_get(NULL)->unk38`, an address in the
+/// first page) handed to a callee: the real callee reads through it (the
+/// game faults), a recording stub would not, so the run stops as the game
+/// would. A null pointer itself is an argument like any other.
+fn nullFieldArgs(comptime name: []const u8, args: anytype) void {
+    inline for (0..args.len) |i| {
+        const T = @TypeOf(args[i]);
+        if (comptime pointerLike(T)) {
+            const p: usize = if (@typeInfo(T) == .optional) (if (args[i]) |q| @intFromPtr(q) else 0) else @intFromPtr(args[i]);
+            if (p != 0 and p < 0x1000) {
+                _ = printf("zdiff: CRASH (signal 11) in the %s run, iteration %llu, fault address 0x%zx: argument %d of the call of %.*s, which reads through it\n",
+                    phase, @as(c_ulonglong, iteration), p, @as(c_int, i), @as(c_int, name.len), name.ptr);
+                crashTail();
+            }
+        }
+    }
+}
+
 fn Stub(comptime id: u16, comptime name: []const u8) type {
     const G = StubType(name);
     const info = @typeInfo(G).@"fn";
     const S = info.return_type.?;
     return struct {
         fn body(args: std.meta.ArgsTuple(G)) S {
+            nullFieldArgs(name, args);
             record(id, args);
             defer {
                 ctx.calls += 1;
@@ -252,6 +271,11 @@ fn onSignal(sig: c_int, info: *const SigInfo, _: ?*anyopaque) callconv(.c) void 
         _ = printf(", a wild pointer (a non-canonical address: random bytes used as a pointer?)");
     } else if (sig == 11 or sig == 7) _ = printf(", fault address 0x%zx", info.addr);
     _ = printf("\n");
+    crashTail();
+}
+
+/// After a crash's first line: the iteration's arguments and class, then exit 4.
+fn crashTail() noreturn {
     if (!std.mem.eql(u8, std.mem.span(phase), "setup") and !std.mem.eql(u8, std.mem.span(phase), "prepare")) {
         _ = printf("zdiff: crashed on arguments:");
         for (0..arg_count) |i| _ = printf(" %#llx", @as(c_ulonglong, arg_words[i]));

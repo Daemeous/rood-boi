@@ -33,7 +33,11 @@ budget makes any call a stop.
     kept without a retry; two functions with --jobs 2;
   - the 7CD68 head-to-head's tooling fixes: a table sized from the object
     defining it, a pointer to rows typed in the views and the prompt, a
-    routed function's own name in the c module, a self-call's note.
+    routed function's own name in the c module, a self-call's note;
+  - the 7CD68 review's: a global pointer to integers is many-item in the
+    views, an unsized table's length in the spec prompt, a compile-fix
+    round after the retry (--compile-fixes), a field of a null pointer
+    handed to a stub stops the C as the game would.
 
 CPU only; needs a 64-bit build (exit 77 without one)."""
 import http.server
@@ -189,6 +193,65 @@ def head_to_head_7CD68(tmp, table):
     return failures
 
 
+def review_7CD68(tmp, table):
+    """The tooling fixes of the 7CD68 review (BAKEOFF.md, "7CD68 review")."""
+    import port_pipeline as pp
+    failures = []
+    # A global pointer to integers the C indexes (`u_short* D_800F58C8`): many-item in the views.
+    unit = pp.Unit("7CD68", "src/BATTLE/BATTLE.PRG/7CD68.c", BUILD, tmp / "unit-7CD68-review", table)
+    views, _ = unit.views([], ["D_800F58C8"], tag="int-pointer")
+    if 'pub inline fn D_800F58C8() *?[*]u16 { return psx.global(?[*]u16, "D_800F58C8"); }' not in views.read_text():
+        failures.append("views: D_800F58C8 as a many-item u16 pointer")
+    # The functions these cases plan, unrouted (the review ported them since).
+    import ownership
+    text = "\n".join(l for l in (ROOT / "game/ownership.toml").read_text().split("\n")
+                     if 'name = "func_800E5698"' not in l and 'name = "func_800E5A9C"' not in l)
+    table_path = tmp / "ownership-7CD68.toml"
+    table_path.write_text(text)
+    unrouted = ownership.load(table_path)
+    # An unsized table's length in the spec prompt (D_800F1790: 10 function pointers, sized from battle_movement.o).
+    rows, names = pp.functions_tsv(), pp.meanings()
+    plan, unit5a9c = pp.plan_function("func_800E5A9C", rows["func_800E5A9C"], unrouted, names, {}, BUILD,
+                                      tmp / "plan-5A9C")
+    if plan.skip:
+        failures.append(f"func_800E5A9C skipped: {plan.skip}")
+    else:
+        views5a9c, _ = unit5a9c.views(plan.types, plan.globals, tag="test-5A9C")
+        if "- `D_800F1790`: 10 entries (80 bytes" not in pp.spec_prompt(plan, unit5a9c, views5a9c, unrouted, BUILD):
+            failures.append("spec prompt of func_800E5A9C: no length for D_800F1790")
+    # A compile-fix round after the retry: two drafts that do not build, the third passes.
+    work = tmp / "compile-fix"
+    shutil.copytree(CANNED / "func_8006B214", work / "func_8006B214")
+    good = (work / "func_8006B214/port_reply1.md").read_text()
+    broken = good.replace("0, 0x100000, 1);", "0, 0x100000, 1)")
+    assert broken != good
+    for k in (1, 2):
+        (work / f"func_8006B214/port_reply{k}.md").write_text(broken)
+    (work / "func_8006B214/port_reply3.md").write_text(good)
+    run = pipeline(["func_8006B214", "--no-write"], work)
+    r = record(work, "func_8006B214")
+    rounds = r and [(a["round"], a["passed"]) for a in r["port"]["attempts"]]
+    if not r or r["status"] != "passed (not written)" or rounds != [(1, False), (2, False), (3, True)]:
+        failures.append(f"compile-fix round: {r and r['status']} {rounds} {run.stderr[-800:]}")
+    work = tmp / "no-compile-fix"
+    shutil.copytree(tmp / "compile-fix/func_8006B214", work / "func_8006B214",
+                    ignore=shutil.ignore_patterns("port1*", "port2*", "port3*", "spec1*", "*.json"))
+    pipeline(["func_8006B214", "--no-write", "--compile-fixes", "0"], work)
+    r = record(work, "func_8006B214")
+    if not r or r["status"] != "port-failed" or len(r["port"]["attempts"]) != 2:
+        failures.append(f"--compile-fixes 0: {r and r['status']} {r and len(r['port']['attempts'])}")
+    # A field of a null pointer handed to a stub (`&psx_get(NULL)->unk38`): the
+    # real callee reads through it, so the C "crashes" (Haiku's spec had a
+    # null class the stub hid; the port's `.?` was then the one to fail).
+    work = tmp / "null-field"
+    pipeline(["func_800E5698", "--no-write"], work, CANNED / "func_800E5698", table=table_path)
+    r = record(work, "func_800E5698", "7CD68")
+    errors = " ".join(r["spec"]["attempts"][0]["errors"]) if r else ""
+    if "the C itself crashed" not in errors or "NULL+0x38" not in errors or "of the call of func_800E5568" not in errors:
+        failures.append(f"a null field handed to a stub: {r and r['status']}: {errors[:1200]}")
+    return failures
+
+
 def record(work, function, unit="146C"):
     path = work / "records" / unit / f"{function}.json"
     return json.loads(path.read_text()) if path.exists() else None
@@ -222,6 +285,12 @@ def pilot_38C1C(tmp, rows, names):
     if pp.zig_type("[*c]u_short", set(), set(), {"u_short": "c_ushort"}, {"u_short"}) != "[*c]c_ushort" \
             or pp.zig_type("[*c]psx_thing", set(), set(), {}, {"psx_thing"}) != "[*c]c.psx_thing":
         failures.append("(A) zig_type: aliases resolved, other unit names through c.")
+    # 7CD68 review: `struct T*` (translate-c's struct_T, opaque there when T
+    # holds a bitfield union) is the views type of the tag.
+    if pp.zig_type("[*c]struct_actorInitializationActor", {"actorInitializationActor"}, set(),
+                   {"actorInitializationActor": "struct_actorInitializationActor"},
+                   {"struct_actorInitializationActor"}) != "?*v.actorInitializationActor":
+        failures.append("(A) zig_type: a struct_T pointer is the views type T")
     # (B) the globals the C names, with accessors, in the views and the prompts.
     if pp.c_decls("pub extern var D_1: [17]?*T;\npub const D_2: [*c]u8 = @extern([*c]u8, .{});\n")[1] != {"D_1", "D_2"}:
         failures.append("(B) c_decls: `pub extern var` and `@extern` globals")
@@ -366,6 +435,7 @@ def main():
         failures += pilot_38C1C(tmp, rows, names)
         failures += client_checks(tmp)
         failures += head_to_head_7CD68(tmp, table)
+        failures += review_7CD68(tmp, table)
         for p in tmp.rglob("records/**/*.json"):
             if HOME in p.read_text() or os.path.join(tempfile.gettempdir(), "claude") in p.read_text():
                 failures.append(f"{p.name}: a local path in the record")

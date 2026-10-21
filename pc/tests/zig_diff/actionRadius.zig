@@ -1,4 +1,4 @@
-//! zig_diff spec: func_800E5600 -> func_800E5600.func_800E5600 (7CD68.c).
+//! zig_diff spec: func_800E5600 -> action_radius.actionRadius (7CD68.c).
 //! Inputs: an action index in vs_main_actions (0, 255 or any byte), flagsE_13
 //! and flagsE_3 set independently (the first test wins when both are set),
 //! aoe_8 at its edges, and an arg2 that is 0, 1, INT_MAX, 0x80000000,
@@ -12,7 +12,7 @@ const std = @import("std");
 const zd = @import("zdiff");
 const psx = @import("common").psx;
 const v = @import("views_7CD68");
-pub const Args = std.meta.ArgsTuple(@TypeOf(@import("port").func_800E5600));
+pub const Args = std.meta.ArgsTuple(@TypeOf(@import("port").actionRadius));
 
 pub const classes = [_][:0]const u8{ "flagsE13", "flagsE3-only", "neither" };
 

@@ -8,7 +8,7 @@
  "temperature": 0.0,
  "samples": 1,
  "status": "ported",
- "reviewed": false,
+ "reviewed": "sound as drafted (rcos/rsin are pure; every shape, sign and range byte edge)",
  "plan": {
   "name": "func_800E5568",
   "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
@@ -203,5 +203,14 @@
   "check_seconds": 15.8,
   "calls": 2,
   "wall_seconds": 16.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "proposed_name": "rangeReach (the range byte of the shape's axis times |cos| or |sin| of its angle, x32): not yet confident",
+  "spec_fixes": [],
+  "port_fixes": [],
+  "mutations_added": [],
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)"
  }
 }

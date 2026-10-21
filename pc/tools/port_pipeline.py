@@ -23,10 +23,12 @@ Per function (all CPU, no game run; needs a 64-bit build, build_boot.py --arch 6
     against a stand-in port that is the C itself (0 mismatches, every class
     occurs, every mutation caught) and --coverage (every branch covered and
     no value flag, or waivers with reasons); one retry fed the checker's
-    errors;
+    errors (and --compile-fixes more, default 1, while the draft does not
+    build);
  2. the model ports the function (bakeoff_context.py's prompt with the
     planned name and signature); gate: zig_diff with the spec, 0 mismatches
-    on 3 seeds, and the `/// orig:` line; one retry fed the first errors;
+    on 3 seeds, and the `/// orig:` line; one retry fed the first errors
+    (and the compile-fix rounds as for the spec);
  3. writes the spec, its specs.toml entry, the port, the ownership.toml route
     and views, and root.zig's import and export into this checkout (after
     checking that the unit's existing specs still pass with the widened
@@ -239,7 +241,10 @@ def zig_type(t, views_types, c_types, aliases=None, names=None):
         while word in aliases and word not in seen and word not in views_types and word not in c_types:
             seen.add(word)
             word = aliases[word]
-        return word
+        # A tagged declaration (`struct T*` in the C) is translate-c's
+        # `struct_T`: the views type of the tag (the c one may be opaque).
+        tag = re.sub(r"^(?:struct|union)_", "", word)
+        return tag if tag != word and tag in views_types else word
     m = re.fullmatch(r"(\[\*c\]|\?\*)(const )?(\w+)", t)
     if m and resolve(m.group(3)) in views_types:
         return f"?*{m.group(2) or ''}v.{resolve(m.group(3))}"
@@ -540,10 +545,53 @@ line and a short `//!` paragraph saying what the inputs cover), then ```toml
         parts.append(f"The source (`{plan.unit}`, for names and comments):\n\n```c\n{c_source}\n```")
     parts.append(f"## `views_{plan.stem}` (the declarations it touches)\n\n```zig\n"
                  + bc.views_subset(views_path.read_text(), tokens) + "\n```")
+    lengths = unsized_lengths(plan, unit, build, tokens)
+    if lengths:
+        parts.append("Tables declared here without a length (`extern T x[];`, a many-item accessor): the "
+                     "harness gives each this room (the game's own table has no more), so an index the C "
+                     "reads and every entry prepare sets must stay below it:\n\n"
+                     + "\n".join(f"- `{g}`: {n} entries ({b} bytes, {how})" for g, (n, b, how) in lengths.items()))
     parts.append(f"## `c_{plan.stem}` (the declarations it touches)\n\n```zig\n"
                  + bc.c_subset(unit.c_text, tokens, plan.name) + "\n```")
     parts.append("## `common.psx` (game/common/psx.zig, public API)\n\n```zig\n" + bc.psx_api() + "\n```")
     return "\n\n".join(parts) + "\n"
+
+
+def unsized_lengths(plan, unit, build, tokens):
+    """{global: (entries, bytes, where the size comes from)} for the unsized
+    arrays the body names: the size the harness gives them (zig_diff's chain:
+    imports.ld's gap, native_imports.c, the defining object)."""
+    _, dump = unit.views(plan.types, plan.globals, tag=f"fn-{plan.name}")
+    names = sorted(g for g, r in dump["globals"].items() if g in tokens and r["kind"] == "array" and r["count"] == 0)
+    if not names:
+        return {}
+
+    def size(r):
+        k = r["kind"]
+        if k in ("int", "float"):
+            return r["size"]
+        if k == "ptr":
+            return dump["pointer_size"]
+        if k == "psx_ptr":
+            return 4
+        if k == "named":
+            return dump["types"][r["name"]]["size"]
+        if k == "array":
+            return r["count"] * size(r["elem"])
+        return 0
+    build = pathlib.Path(build)
+    out = {}
+    for source, how in ((lambda m: zig_diff.sizes_from_imports(build / "imports.ld", m), "the gap to the next PS1 symbol"),
+                        (lambda m: zig_diff.sizes_from_native_imports(build / "native_imports.c", m), "native_imports.c"),
+                        (lambda m: zig_diff.sizes_from_objects(build, m), "its size in the object that defines it")):
+        missing = [n for n in names if n not in out]
+        if not missing:
+            break
+        for n, b in source(missing).items():
+            e = size(dump["globals"][n]["elem"])
+            if b > 0 and e > 0:
+                out[n] = (b // e, b, how)
+    return out
 
 
 def port_prompt(plan, unit, views_path, table, build):
@@ -1107,21 +1155,25 @@ def sample_round(kind, messages, round_, samples, evaluate, state, fdir, label):
 
 
 def run_step(kind, first_prompt, evaluate, record, args, state, fdir, label):
-    """Best-of-N on the prompt, then one retry fed the furthest draft's errors;
+    """Best-of-N on the prompt, then one retry fed the furthest draft's errors
+    (and up to --compile-fixes more while the retry's draft does not build);
     the passing draft's details (with its round and sample), or None. The
     record keeps every sample's call and verdict, and (failing) the
     furthest draft's JSON-safe details."""
     attempts = record[kind]["attempts"]
     messages = [{"role": "user", "content": first_prompt}]
     best = None
-    for round_ in (1, 2):
+    for round_ in range(1, 3 + getattr(args, "compile_fixes", 0)):
+        # A round past the retry only for a draft that did not build (its compiler errors fed back).
+        if round_ > 2 and (best is None or progress(best[4]) != 0):
+            break
         try:
             results = sample_round(kind, messages, round_, args.attempts if round_ == 1 else 1, evaluate, state,
                                    fdir, label)
         except Stop as stop:
             if round_ == 1 or not str(stop).startswith("context:"):
                 raise
-            attempts.append({"round": 2, "sample": 1, "call": None, "passed": False, "errors": [str(stop)]})
+            attempts.append({"round": round_, "sample": 1, "call": None, "passed": False, "errors": [str(stop)]})
             break
         for k, reply, call, ok, errors, details in results:
             attempts.append({"round": round_, "sample": k, "call": call, "passed": ok,
@@ -1133,9 +1185,8 @@ def run_step(kind, first_prompt, evaluate, record, args, state, fdir, label):
         if passed:
             return dict(passed[5], round=round_, sample=passed[0])
         best = max(judged, key=lambda r: (progress(r[4]), -len(r[4]), -r[0]))
-        if round_ == 1:
-            messages = messages + [{"role": "assistant", "content": best[1]},
-                                   {"role": "user", "content": feedback(best[4], kind)}]
+        messages = messages + [{"role": "assistant", "content": best[1]},
+                               {"role": "user", "content": feedback(best[4], kind)}]
     record[kind].update({k: v for k, v in (best[5] if best else {}).items() if k not in ("entry", "path", "runs")})
     return None
 
@@ -1279,6 +1330,8 @@ def main(argv=None):
     parser.add_argument("--attempts", type=int, default=1,
                         help="best-of-N: up to N independent samples of each step's prompt, the first that passes "
                              "its gate kept, before the feedback retry (use with --temperature > 0)")
+    parser.add_argument("--compile-fixes", type=int, default=1,
+                        help="rounds after the retry, each fed the errors, while the draft does not build (default 1)")
     parser.add_argument("-j", "--jobs", type=int, default=1, help="functions in parallel")
     parser.add_argument("--check-jobs", type=int, default=None,
                         help="checker builds/runs at once (CPU; default min(jobs, cores/4)), all at nice 10")

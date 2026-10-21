@@ -1,4 +1,4 @@
-//! zig_diff spec: func_800E5EC0 -> func_800E5EC0.func_800E5EC0 (7CD68.c).
+//! zig_diff spec: func_800E5EC0 -> flood_region.floodRegion (7CD68.c).
 //! Inputs: a 32x32 flag grid (D_800F58B8) and a data grid (D_800F58D0) in the
 //! arena, both 33 rows so a neighbour one past the edge stays in memory. The
 //! start cell is any column and row 0..31, with 31 drawn half the time so the
@@ -6,14 +6,28 @@
 //! 32 comes from dx or dz = 1). Every D_800F16EC step gets a random dx and dz
 //! in -2..1, so negative and wrapped neighbours occur. arg2 is any c_int. The
 //! flag and data cells keep their random bytes, so both the visited and the
-//! unvisited paths run. The C calls only itself, so there are no stubs.
+//! unvisited paths run. The C calls only itself (through the routed symbol,
+//! a stub here): the stub does what the real call does first, stamping its
+//! cell visited (and, a quarter of the time, a further cell, as its flood
+//! would), because the C re-reads the later neighbours' visited bits after
+//! each call (two steps of the table often name the same neighbour).
 const std = @import("std");
 const zd = @import("zdiff");
 const psx = @import("common").psx;
 const v = @import("views_7CD68");
-pub const Args = std.meta.ArgsTuple(@TypeOf(@import("port").func_800E5EC0));
+pub const Args = std.meta.ArgsTuple(@TypeOf(@import("port").floodRegion));
 
 pub const classes = [_][:0]const u8{ "edge", "visited", "fresh" };
+
+pub const stubs = struct {
+    pub fn func_800E5EC0(ctx: *zd.Ctx, x: c_int, z: c_int, arg2: c_int) void {
+        // Indexed as the C's D_800F58D0[z][x] (a wrong port's x == 32 is the next row's cell 0).
+        const cells: [*]u16 = @ptrCast(v.g.D_800F58D0().*.?);
+        const cell = &cells[@as(usize, @intCast(z)) * 32 + @as(usize, @intCast(x))];
+        cell.* = (cell.* & 0xFC00) | @as(u16, @intCast(arg2 & 0x3FF)) | 0x2000;
+        if (ctx.value(u2) == 0) cells[@as(usize, ctx.value(u5)) * 32 + ctx.value(u5)] |= 0x2000;
+    }
+};
 
 fn grid(ctx: *zd.Ctx) [*][32]u16 {
     return @ptrCast(@alignCast(ctx.allocBytes(33 * 32 * 2, 16)));

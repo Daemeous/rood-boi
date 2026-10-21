@@ -8,7 +8,7 @@
  "temperature": 0.0,
  "samples": 1,
  "status": "ported",
- "reviewed": false,
+ "reviewed": "sound as drafted (a forwarder)",
  "plan": {
   "name": "func_800E6158",
   "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
@@ -155,5 +155,13 @@
   "check_seconds": 12.4,
   "calls": 2,
   "wall_seconds": 12.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "port_fixes": [],
+  "mutations_added": [],
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)"
  }
 }

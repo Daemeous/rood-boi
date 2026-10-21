@@ -8,7 +8,7 @@
  "temperature": 0.0,
  "samples": 1,
  "status": "ported",
- "reviewed": false,
+ "reviewed": "sound as drafted",
  "plan": {
   "name": "func_800E5A74",
   "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
@@ -210,5 +210,14 @@
   "check_seconds": 22.1,
   "calls": 3,
   "wall_seconds": 22.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "proposed_name": "packs unk4's bits 1-11 into bits 21-31 of a settings word (func_800E6178's packed): a name needs the word's meaning",
+  "spec_fixes": [],
+  "port_fixes": [],
+  "mutations_added": [],
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)"
  }
 }

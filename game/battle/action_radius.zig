@@ -7,7 +7,7 @@ const c = @import("c_7CD68");
 
 /// orig: func_800E5600 (src/BATTLE/BATTLE.PRG/7CD68.c)
 /// Returns the action's area of effect when its E13 flag is set, else its range from func_800E5568 when that is below `arg2`, else 0.
-pub fn func_800E5600(_: c_int, actionId: c_int, arg2: c_uint) callconv(.c) c_int {
+pub fn actionRadius(_: c_int, actionId: c_int, arg2: c_uint) callconv(.c) c_int {
     const action = psx.at(v.g.actions(), actionId);
     var r: c_int = 0;
     if (psx.getBits(action, "flagsE_13") != 0) {

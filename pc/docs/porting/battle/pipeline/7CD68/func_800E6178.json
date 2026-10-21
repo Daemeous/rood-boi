@@ -7,8 +7,8 @@
  "thinking": "default",
  "temperature": 0.0,
  "samples": 1,
- "status": "spec-failed",
- "reviewed": false,
+ "status": "ported",
+ "reviewed": "sound (rerun: port after two compile-fix rounds); port faithfulness fix; renamed initActorState",
  "plan": {
   "name": "func_800E6178",
   "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
@@ -20,11 +20,11 @@
   "module": "func_800E6178",
   "spec_file": "func_800E6178.zig",
   "subsystem": "battle_7CD68_port",
-  "signature": "pub fn func_800E6178(actor: [*c]c.struct_actorInitializationActor, options: c_int) callconv(.c) c_int",
+  "signature": "pub fn func_800E6178(actor: ?*v.actorInitializationActor, options: c_int) callconv(.c) c_int",
   "params": [
    [
     "actor",
-    "[*c]c.struct_actorInitializationActor"
+    "?*v.actorInitializationActor"
    ],
    [
     "options",
@@ -37,12 +37,9 @@
    "actorInitializationActor",
    "actorInitializationModel",
    "actorInitializationState",
-   "actorInitializationStats",
-   "func_800DEEA4_t2"
+   "actorInitializationStats"
   ],
   "globals": [
-   "D_800F5878",
-   "D_800F58B8",
    "D_800F58BC",
    "D_800F590C"
   ],
@@ -62,18 +59,387 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 17407,
-     "completion_tokens": 52724,
-     "reasoning_tokens": 48625,
-     "cost": 0.0281027,
-     "seconds": 228.1,
+     "prompt_tokens": 17409,
+     "completion_tokens": 34564,
+     "reasoning_tokens": 31198,
+     "cost": 0.0190229,
+     "seconds": 149.8,
      "sample": 1,
-     "conversation": "573e6424288df1b59a24b7115fc6eee0d4ca56a0e869e1cb87a949b6eb698da6"
+     "conversation": "adad76eb5f167fc6d0247f025bd1b5b22cf81732e7eed9b67ae1d2ca5fa1d6f4"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "early-return": "18452",
+   "id-zero": "2684",
+   "options-negative": "8716",
+   "options-bit5": "3720",
+   "options-plain": "6428"
+  },
+  "mutations": [
+   {
+    "name": "F1: radius 63 takes the 63 branch",
+    "caught": true
+   },
+   {
+    "name": "F2: targetY shifted by 11",
+    "caught": true
+   },
+   {
+    "name": "F3: rangeSquared compared with <= (equal case)",
+    "caught": true
+   },
+   {
+    "name": "F4: fieldB8 store dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: return bit test with <= 0 (wrong comparison)",
+    "caught": true
+   },
+   {
+    "name": "F6: flags.bits.f26 clear dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 54,
+   "branches_hit": 54,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 91,
+   "lines_hit": 91,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "32-bit: min -2146521598, max 2146919571, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 9,
+     "text": "if (actor->attributes & 0x15)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 12652, < 0, > 27348 (signed); < 0, > 27348 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..21"
+    },
+    {
+     "line": 11,
+     "text": "if (!actor->field40) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 20101, < 10037, > 9862 (signed); < 0, > 19899 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147359328..2147418259"
+    },
+    {
+     "line": 13,
+     "text": "if (kind == 2 || kind == 4) {",
+     "size": 4,
+     "count": 20101,
+     "kind": "against a constant",
+     "outcomes": "== 2488, < 5043, > 12570 (signed); < 5043, > 12570 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..7"
+    },
+    {
+     "line": 13,
+     "text": "if (kind == 2 || kind == 4) {",
+     "size": 4,
+     "count": 17613,
+     "kind": "against a constant",
+     "outcomes": "== 2488, < 7543, > 7582 (signed); < 7543, > 7582 (unsigned)",
+     "operand": "constant 4",
+     "a": "0..7"
+    },
+    {
+     "line": 14,
+     "text": "for (i = 0; i < 4; i++) {",
+     "size": 4,
+     "count": 20795,
+     "kind": "against a constant",
+     "outcomes": "== 3749, < 13712, > 3334 (signed); < 13712, > 3334 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..4"
+    },
+    {
+     "line": 15,
+     "text": "if (!((int*)D_800F58BC)[10 + i]) {",
+     "size": 4,
+     "count": 17461,
+     "kind": "against a constant",
+     "outcomes": "== 1642, < 7898, > 7921 (signed); < 0, > 15819 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147447872..2147362187"
+    },
+    {
+     "line": 22,
+     "text": "if (!(actor->attributes & 5))",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 18452, < 0, > 21548 (signed); < 0, > 21548 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..5"
+    },
+    {
+     "line": 35,
+     "text": "if (!id)",
+     "size": 4,
+     "count": 21548,
+     "kind": "against a constant",
+     "outcomes": "== 2684, < 0, > 18864 (signed); < 0, > 18864 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 37,
+     "text": "else if (radius < 63)",
+     "size": 4,
+     "count": 18864,
+     "kind": "against a constant",
+     "outcomes": "== 1052, < 2188, > 15624 (signed); < 2188, > 15624 (unsigned)",
+     "operand": "constant 62",
+     "a": "0..65535"
+    },
+    {
+     "line": 41,
+     "text": "if (radius > 128) {",
+     "size": 4,
+     "count": 21548,
+     "kind": "against a constant",
+     "outcomes": "== 1175, < 7304, > 13069 (signed); < 7304, > 13069 (unsigned)",
+     "operand": "constant 128",
+     "a": "0..65535"
+    },
+    {
+     "line": 54,
+     "text": "state->field2A = func_800A152C(id, 2, 3) >= 0;",
+     "size": 4,
+     "count": 21548,
+     "kind": "against a constant",
+     "outcomes": "== 2776, < 9460, > 9312 (signed); < 0, > 18772 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147428071..2147464428"
+    },
+    {
+     "line": 60,
+     "text": "if (state->field224 & 8)",
+     "size": 4,
+     "count": 21548,
+     "kind": "against a constant",
+     "outcomes": "== 10716, < 0, > 10832 (signed); < 0, > 10832 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..8"
+    },
+    {
+     "line": 62,
+     "text": "else if (state->field225 & 8)",
+     "size": 4,
+     "count": 10716,
+     "kind": "against a constant",
+     "outcomes": "== 5349, < 0, > 5367 (signed); < 0, > 5367 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..8"
+    },
+    {
+     "line": 66,
+     "text": "if (range < state->field227)",
+     "size": 4,
+     "count": 21548,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8051, < 6338, > 7159 (signed); < 6338, > 7159 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..255"
+    },
+    {
+     "line": 70,
+     "text": "if (actor->field34 & 1)",
+     "size": 4,
+     "count": 21548,
+     "kind": "against a constant",
+     "outcomes": "== 10842, < 0, > 10706 (signed); < 0, > 10706 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 75,
+     "text": "if (state->rangeSquared < (unsigned int)(temp * temp))",
+     "size": 4,
+     "count": 21548,
+     "kind": "a == b / a < b",
+     "outcomes": "== 5329, < 9724, > 6495 (signed); < 8418, > 7801 (unsigned)",
+     "operand": "b -2145817052..2147289316",
+     "a": "-2146718759..2147357318"
+    },
+    {
+     "line": 85,
+     "text": "if (id) {",
+     "size": 4,
+     "count": 21548,
+     "kind": "against a constant",
+     "outcomes": "== 2684, < 0, > 18864 (signed); < 0, > 18864 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 86,
+     "text": "if ((state->flags & 0x30) && (state->flags & 0xC6)",
+     "size": 4,
+     "count": 18864,
+     "kind": "against a constant",
+     "outcomes": "== 4642, < 0, > 14222 (signed); < 0, > 14222 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..48"
+    },
+    {
+     "line": 86,
+     "text": "if ((state->flags & 0x30) && (state->flags & 0xC6)",
+     "size": 4,
+     "count": 14222,
+     "kind": "against a constant",
+     "outcomes": "== 909, < 0, > 13313 (signed); < 0, > 13313 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..198"
+    },
+    {
+     "line": 87,
+     "text": "&& (D_800F58B8[model->tile.p.z][model->tile.p.x] & 0x10)",
+     "size": 4,
+     "count": 13313,
+     "kind": "against a constant",
+     "outcomes": "== 6626, < 0, > 6687 (signed); < 0, > 6687 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..16"
+    },
+    {
+     "line": 88,
+     "text": "&& !(model->flags & 0x200000)) {",
+     "size": 4,
+     "count": 6687,
+     "kind": "against a constant",
+     "outcomes": "== 3325, < 0, > 3362 (signed); < 0, > 3362 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2097152"
+    },
+    {
+     "line": 91,
+     "text": "} else if ((short)options < 0 || !(((int)(short)options << 26) < 0)) {",
+     "size": 2,
+     "count": 15539,
+     "kind": "against a constant",
+     "outcomes": "== 2316, < 7167, > 6056 (signed); < 0, > 13223 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32762"
+    },
+    {
+     "line": 91,
+     "text": "} else if ((short)options < 0 || !(((int)(short)options << 26) < 0)) {",
+     "size": 4,
+     "count": 8372,
+     "kind": "against a constant",
+     "outcomes": "== 3485, < 3068, > 1819 (signed); < 0, > 4887 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2080374784"
+    },
+    {
+     "line": 92,
+     "text": "if (actor->field1F) {",
+     "size": 1,
+     "count": 12471,
+     "kind": "against a constant",
+     "outcomes": "== 2124, < 3074, > 7273 (signed); < 0, > 10347 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 105,
+     "text": "if (state->id) {",
+     "size": 1,
+     "count": 21548,
+     "kind": "against a constant",
+     "outcomes": "== 2684, < 0, > 18864 (signed); < 0, > 18864 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 106,
+     "text": "while (func_800DEC88(0))",
+     "size": 4,
+     "count": 37750,
+     "kind": "against a constant",
+     "outcomes": "== 18864, < 0, > 18886 (signed); < 0, > 18886 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 109,
+     "text": "return (short)options >= 0 && (((int)(short)options << 26) < 0);",
+     "size": 2,
+     "count": 21548,
+     "kind": "against a constant",
+     "outcomes": "== 3197, < 9949, > 8402 (signed); < 0, > 18351 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32762"
+    },
+    {
+     "line": 109,
+     "text": "return (short)options >= 0 && (((int)(short)options << 26) < 0);",
+     "size": 4,
+     "count": 11599,
+     "kind": "against a constant",
+     "outcomes": "== 4807, < 4247, > 2545 (signed); < 0, > 6792 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2080374784"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40725,
+     "completion_tokens": 24677,
+     "reasoning_tokens": 22368,
+     "cost": 0.016411,
+     "seconds": 99.1,
+     "sample": 1,
+     "conversation": "569407b5bd7a41fdf617b8f4903961606e4ecbfffb2d0592c7571b73c81cc6b3"
     },
     "passed": false,
     "errors": [
-     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: <tmp>/.../c_7CD68.zig:3625:12: error: cannot directly embed opaque type 'c_7CD68.actorInitializationFlags' in struct\n    flags: actorInitializationFlags = @import(\"std\").mem.zeroes(actorInitializationFlags),\n           ^~~~~~~~~~~~~~~~~~~~~~~~\n<tmp>/.../c_7CD68.zig:3625:12: note: opaque types have unknown size\n<tmp>/.../c_7CD68.zig:4765:38: note: opaque declared here\npub const actorInitializationFlags = opaque {};\n                                     ^~~~~~~~~\nreferenced by:\n    classify: <tmp>/.../spec.zig:80:68\n    main: pc/tests/zig_diff/main.zig:404:36\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
-    ]
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800E6178.zig:46:25: error: expected type 'u8', found 'c_int'\n    _ = c.func_800A190C(@as(c_int, state.id), 250, &result, 0);\n                        ^~~~~~~~~~~~~~~~~~~~\ngame/battle/func_800E6178.zig:46:25: note: unsigned 8-bit int cannot represent all possible signed 32-bit values\npc/build/boot64/zig/c_7CD68.zig:4757:29: note: parameter type declared here\npub extern fn func_800A190C(u8, c_int, ?*anyopaque, c_int) void;\n                            ^~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
    },
    {
     "round": 2,
@@ -85,37 +451,98 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 21901,
-     "completion_tokens": 7918,
-     "reasoning_tokens": 3773,
-     "cost": 0.0061491,
-     "seconds": 29.5,
+     "prompt_tokens": 43426,
+     "completion_tokens": 6271,
+     "reasoning_tokens": 3974,
+     "cost": 0.0074781,
+     "seconds": 23.4,
      "sample": 1,
-     "conversation": "ae21b599e4885b9907f0055b9e7269a8af239acef6c41c33ddf1c8ad2a22de82"
+     "conversation": "1284ac93b7f1df89cf2910c546fc2e70dfaf500a67c6351a710d325d5b17361c"
     },
     "passed": false,
     "errors": [
-     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: <tmp>/.../c_7CD68.zig:3625:12: error: cannot directly embed opaque type 'c_7CD68.actorInitializationFlags' in struct\n    flags: actorInitializationFlags = @import(\"std\").mem.zeroes(actorInitializationFlags),\n           ^~~~~~~~~~~~~~~~~~~~~~~~\n<tmp>/.../c_7CD68.zig:3625:12: note: opaque types have unknown size\n<tmp>/.../c_7CD68.zig:4765:38: note: opaque declared here\npub const actorInitializationFlags = opaque {};\n                                     ^~~~~~~~~\nreferenced by:\n    prepare: <tmp>/.../spec.zig:78:15\n    main: pc/tests/zig_diff/main.zig:396:40\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800E6178.zig:100:62: error: expected type 'c_int', found 'u32'\n        state.distance = psx.conv(c_int, c.vs_gte_rsqrt(state.rangeSquared)) -% 64;\n                                                        ~~~~~^~~~~~~~~~~~~\ngame/battle/func_800E6178.zig:100:62: note: signed 32-bit int cannot represent all possible unsigned 32-bit values\npc/build/boot64/zig/c_7CD68.zig:4368:28: note: parameter type declared here\npub extern fn vs_gte_rsqrt(c_int) c_int;\n                           ^~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 46121,
+     "completion_tokens": 3391,
+     "reasoning_tokens": 1094,
+     "cost": 0.0063076,
+     "seconds": 11.3,
+     "sample": 1,
+     "conversation": "5cad5cd9c64443ca58af6d7cc3933f0948b760658b2b28e9ede462e0b2df500a"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
     ]
    }
   ],
-  "classes": {},
-  "mutations": [],
-  "coverage": null
+  "kept": {
+   "round": 3,
+   "sample": 1
+  }
  },
- "port": {
-  "attempts": []
- },
- "written": [],
- "check_seconds": 0.4672007039989694,
- "wall_seconds": 0.5504659729995183,
+ "written": [
+  "pc/tests/zig_diff/func_800E6178.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800E6178.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 72.4799885809989,
+ "wall_seconds": 369.6996374499977,
  "totals": {
-  "cost": 0.03425,
-  "prompt_tokens": 39308,
-  "completion_tokens": 60642,
-  "model_seconds": 257.6,
-  "check_seconds": 0.5,
-  "calls": 2,
-  "wall_seconds": 0.6
+  "cost": 0.04922,
+  "prompt_tokens": 147681,
+  "completion_tokens": 68903,
+  "model_seconds": 283.6,
+  "check_seconds": 72.5,
+  "calls": 4,
+  "wall_seconds": 369.7
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "renamed": "init_actor_state.initActorState",
+  "port_fixes": [
+   "result[4] was zero-initialised; the C leaves it uninitialised (func_800A190C's selector 250 = 0xFA always writes it): now `undefined` with that comment"
+  ],
+  "notes": [
+   "the first run's spec could not build: `struct actorInitializationActor*` was planned as c.struct_actorInitializationActor (opaque: a bitfield union); now the views type",
+   "callees checked: func_800E6828 (asm) writes state->flags and +0x125 only; the stubs write flags (via func_800E5A9C), rangeSquared (func_800E7370), distance (func_800E6828), packed, result: a superset of what the C re-reads"
+  ],
+  "spec_fixes": [],
+  "mutations_added": [],
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)"
  }
 }

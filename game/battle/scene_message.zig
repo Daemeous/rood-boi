@@ -18,7 +18,7 @@ pub fn displaySceneMessage(message: c_int, action: c_int, held: c_int) callconv(
 
     c.vs_battle_initTextBox(7, 0x304, 0, 1, 0, 3, 0, 0);
 
-    v.g.nameWindowText().*.?.* = 0x00F8 | (0x04FB << 16);
+    v.g.nameWindowText().*.?[0] = 0x00F8 | (0x04FB << 16);
     // vs_main_actions[action].name: the address only, the C does not check action < 256.
     psx.put(&v.g.stringContext().strings[0], &psx.at(v.g.actions(), action).name);
 

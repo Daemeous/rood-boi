@@ -349,8 +349,13 @@ class Emitter:
                 out.append(f"    pub inline fn {zid(zig)}() [*]{self.ztype(r['elem'])} "
                            f'{{ return psx.globalMany({self.ztype(r["elem"])}, "{name}"); }}')
             else:
-                out.append(f"    pub inline fn {zid(zig)}() *{self.ztype(r)} "
-                           f'{{ return psx.global({self.ztype(r)}, "{name}"); }}')
+                # A global pointer to integers (`u_short* D_800F58C8`) is indexed
+                # by the C (`D_800F58C8[i]`): many-item, so a reader sees a table.
+                zt = self.ztype(r)
+                if r["kind"] == "ptr" and r["target"]["kind"] in ("int", "float"):
+                    zt = "?[*]" + self.ztype(r["target"])
+                out.append(f"    pub inline fn {zid(zig)}() *{zt} "
+                           f'{{ return psx.global({zt}, "{name}"); }}')
         out.append("};")
         return "\n".join(out)
 

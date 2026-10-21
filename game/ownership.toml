@@ -187,15 +187,19 @@ default = "original"
 roots = []
 functions = [
     { addr = 0x800E5568, name = "func_800E5568", zig = "func_800E5568.func_800E5568" },
-    { addr = 0x800E5600, name = "func_800E5600", zig = "func_800E5600.func_800E5600" },
+    { addr = 0x800E5600, name = "func_800E5600", zig = "action_radius.actionRadius" },
+    { addr = 0x800E5698, name = "func_800E5698", zig = "action_range_squared.actionRangeSquared" },
+    { addr = 0x800E5710, name = "func_800E5710", zig = "fill_action_metadata.fillActionMetadata" },
     { addr = 0x800E5998, name = "func_800E5998", zig = "func_800E5998.func_800E5998" },
     { addr = 0x800E5A74, name = "func_800E5A74", zig = "func_800E5A74.func_800E5A74" },
-    { addr = 0x800E5EC0, name = "func_800E5EC0", zig = "func_800E5EC0.func_800E5EC0" },
+    { addr = 0x800E5A9C, name = "func_800E5A9C", zig = "apply_actor_settings.applyActorSettings" },
+    { addr = 0x800E5EC0, name = "func_800E5EC0", zig = "flood_region.floodRegion" },
     { addr = 0x800E5FDC, name = "func_800E5FDC", zig = "func_800E5FDC.func_800E5FDC" },
-    { addr = 0x800E6098, name = "func_800E6098", zig = "func_800E6098.func_800E6098" },
+    { addr = 0x800E6098, name = "func_800E6098", zig = "label_regions.labelRegions" },
     { addr = 0x800E6158, name = "func_800E6158", zig = "func_800E6158.func_800E6158" },
+    { addr = 0x800E6178, name = "func_800E6178", zig = "init_actor_state.initActorState" },
 ]
 
 [subsystem.battle_7CD68_port.views]
-types = ["D_800F16EC_t", "func_800DEEA4_t2", "func_800E5568_t", "func_800E5A74_t", "vs_action_t", "vs_battle_actor"]
-globals = ["D_800F16EC", "D_800F5878", "D_800F58B8", "D_800F58D0", "vs_battle_actors", "vs_main_actions"]
+types = ["D_800F16EC_t", "D_800F58BC_t", "actionMetadataAction", "actionMetadataEntry", "actionMetadataState", "actionMetadataStats", "actorInitializationActor", "actorInitializationModel", "actorInitializationState", "actorInitializationStats", "actorSettingsActor", "actorSettingsState", "actorSettingsWord", "func_800DEEA4_t2", "func_800E5568_t", "func_800E5698_t", "func_800E5698_t2", "func_800E5A74_t", "vs_action_t", "vs_battle_actor"]
+globals = ["D_80069C08", "D_80069C18", "D_80069C1C", "D_80069C3C", "D_800F16EC", "D_800F1790", "D_800F17B8", "D_800F17C8", "D_800F17D8", "D_800F5878", "D_800F58B8", "D_800F58BC", "D_800F58C0", "D_800F58C8", "D_800F58D0", "D_800F590C", "vs_battle_actors", "vs_main_actions"]

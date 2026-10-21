@@ -6,7 +6,7 @@ const c = @import("c_7CD68");
 
 /// orig: func_800E5EC0 (src/BATTLE/BATTLE.PRG/7CD68.c)
 /// Stamps cell (arg0, arg1) with arg2's low 10 bits, then recurses into each walkable, unstamped 4-neighbour.
-pub fn func_800E5EC0(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) void {
+pub fn floodRegion(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) void {
     const value: c_int = arg2 & 0x3FF;
 
     {

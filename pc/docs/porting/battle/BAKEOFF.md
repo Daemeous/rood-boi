@@ -343,7 +343,9 @@ entry), which is where both misses were.
 `pc/tools/port_pipeline.py` turns the two bake-offs into the bulk port's
 loop: per function, the model drafts the spec (with mutations of the **C**,
 `target = "c"`), then the port; each draft is gated by the checker, with one
-retry fed only its sanitised errors; what passes is written into the tree;
+retry fed only its sanitised errors (and, while the retry's draft does not
+build, `--compile-fixes` more rounds fed the compiler's errors, default 1);
+what passes is written into the tree;
 a stronger reviewer works from `pipeline/REVIEW.md`.
 
 ```sh
@@ -645,3 +647,82 @@ in the context the server has. If the local model is to earn a place, the
 cheapest thing to try is a compile-fix loop (feed back only zig's errors,
 several cheap rounds, no gate run) rather than more samples; server-side,
 see the suggestions in the agent's report (not applied).
+
+## 7CD68 review (Opus 5.5, 2026-10-21)
+
+The 8 Haiku ports of 7CD68 and the two smoke-run functions of 146C
+(`_insertActor`, `func_80069D14`), reviewed as the 38C1C pilot was; then the
+four 7CD68 functions Haiku had not ported, rerun after the tooling fixes
+below and reviewed too. Verdicts in the records and `pipeline/REVIEW.md`.
+
+**What blocked the four, and the fixes** (each in CTest `port_pipeline`):
+
+| Function | Blocker | Fix |
+|---|---|---|
+| `func_800E5698` | The spec's null class (`unk5C` NULL) passed `&NULL->unk38` to a stub that never read it, so the C "survived" and the port's `.?` (the game's own fault) failed the port gate | zig_diff: a field of a null pointer (an address in the first page) handed to a callee stops the C as the game would ("the C itself crashed", `NULL+0x38`, the callee named) |
+| `func_800E5710` | Ports with a `c_int`/`c_uint` slip at `vs_gte_rsqrt`/`func_800E5600`, retry fixed one and broke the other | `--compile-fixes N` (default 1): a round after the retry while its draft does not build |
+| `func_800E5A9C` | `D_800F58C8` (`u_short*`, indexed) was `*?*u16` in the views: Haiku took it for a table of pointers, then for "values only" (C crash); then it filled all 32 slots of `D_800F1790`, a table of 10 (overflow, nondeterminism) | a global pointer to integers is many-item (`*?[*]u16`; `scene_message.zig`'s one `.*` becomes `[0]`); the spec prompt gives each unsized table's length (zig_diff's sizes: imports.ld gap, native_imports.c, the defining object) |
+| `func_800E6178` | `struct actorInitializationActor*` planned as `c.struct_actorInitializationActor`, opaque in the c module (a bitfield union): the harness did not build | a `struct_T`/`union_T` parameter is the views type `T` |
+
+Rerun with Haiku (temperature 0, one sample, retry, one compile-fix
+round): **all four ported**, $0.16 (16 calls); 12/12 for the unit. The
+compile-fix round passed three drafts the old pipeline would have failed
+(`func_800E5710`'s spec, `func_800E5A9C`'s and `func_800E6178`'s ports, the
+last one after two type slips in a row).
+
+**Review findings** (14 functions):
+
+| | Functions | What |
+|---|---|---|
+| Spec fixes (behaviour) | 1 | `func_800E5EC0` (flood fill): its self-call goes through the routed symbol, a stub that wrote nothing; the real recursion stamps its cell visited first and the C re-reads the later neighbours' visited bits after each call (two steps often name the same neighbour). The stub now stamps its cell; R1 (all four tests read before any call) slipped the drafted spec and is caught by the fixed one |
+| Port faithfulness fixes | 2 | `func_800E6098` loaded the grid pointers once before the scan (the C reloads them after every call; no callee reassigns them, so no behaviour change); `func_800E6178` zero-initialised `result[4]` where the C leaves it uninitialised (func_800A190C's selector 0xFA always writes it) |
+| Port bugs | 0 | |
+| Mutations added only | 2 | `func_800E6098` R1 (visited bits from a copy taken before the scan: the drafted stub's random cell writes catch it), `func_800E5710` R1/R2 (the C only sets `f1`/`kind`, never clears them) |
+| Specs sound as drafted | 13 | every function but `func_800E5EC0` (`func_800E6098`, `func_800E5710` with the mutations above; `func_800E6098`, `func_800E6178` with the port tidies) |
+
+The callee question (what does each callee change that the C reads back,
+what can it return) found one gap in 14, against 5 in 17 on 38C1C: the
+spec prompt's new paragraph worked. Haiku's stubs now write what the C
+re-reads (`func_800E6098`'s grid cells, `func_800E6178`'s flags, packed word,
+distance, rangeSquared and result, `func_800E5710`'s maxActionCost) and
+return the tested values (`func_800E5FDC`'s -1 and negatives, `func_800A152C`'s
+0). The miss was a self-call: a recursive function's own effect is easy to
+forget because the port prompt says the call goes to a stub. Checked
+against the asm where the C was not enough: `func_800E6828` writes only
+`flags` and +0x125. The 4 rerun functions' specs held up under the same
+questions; their stubs over-approximate (they write fields the real
+callees never touch), which is harmless.
+
+Names: seven renamed (`floodRegion`, `labelRegions`, `actionRangeSquared`,
+`actionRadius`, `fillActionMetadata`, `applyActorSettings`, `initActorState`);
+left as symbols, with proposals: `func_800E5568` (rangeReach),
+`func_800E5998` (links AI slots of kind 0x10 by a key: fields unnamed),
+`func_800E5A74` (packs a settings field), `func_800E5FDC` (neighbourLevel:
+`func_8008DC7C` unnamed), `func_800E6158` (forwarder), `func_80069D14`.
+
+Corpus (64-bit, classic profile, call mode on the three implemented
+recipes): `differ.py battle_7CD68_port` reaches **none** of the 12, neither
+as roots nor nested (0 calls: these run at room load and actor spawn,
+before the recipes' mark; a recipe that enters a room or spawns an actor
+would reach `initActorState`, `applyActorSettings`, `fillActionMetadata`
+and the flood fill), so the scenarios report "failed" only on the root-call
+gate, with 0 mismatches. `differ.py battle_146C_port`: `func_80069D14` as a
+root in all three (1 / 2 / 4 calls, 0 mismatches), `_insertActor` never.
+`shadow_battle_smoke --owner battle_7CD68_port=shadow` and `ownership_smoke`
+pass. Tick mode not run: its 0x800F5248..90 divergence is the known open
+oracle gap (another worker's), and with no 7CD68 call in the recipes it
+could say nothing about these ports.
+
+Review cost (agent time): ~14 min reading the 10 queued specs and ports
+against the `.i` (zig_diff `--self-check --coverage` for all 10 in 2.7 min,
+14 in 5.2 min), ~6 min for the one spec fix and its mutation proof, ~20 min
+of tooling for the four blocked functions (diagnosis from the saved
+drafts, four fixes, CTest cases), ~6 min of the reruns (Haiku's wall time;
+reviewed in ~8 min), ~4 min renames. Per function: ~1 min for a forwarder
+or a no-callee function (`func_800E5A74`, `func_800E6158`, `_insertActor`,
+`func_80069D14`, `func_800E5998`), ~2 min for a sound mid-size one
+(`func_800E5568`, `func_800E5600`, `func_800E5FDC`, `func_800E5698`), ~3-4
+min for one with a mutation or port tidy (`func_800E6098`, `func_800E5710`,
+`func_800E5A9C`), ~6 min for `func_800E5EC0` (spec fix) and `func_800E6178`
+(111 lines, eight callees, asm check). Mean ~2.5 min per function, close to
+the 38C1C estimate, with fewer fixes (1 behaviour gap in 14).

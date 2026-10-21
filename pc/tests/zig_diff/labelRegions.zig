@@ -1,4 +1,4 @@
-//! zig_diff spec: func_800E6098 -> func_800E6098.func_800E6098 (7CD68.c).
+//! zig_diff spec: func_800E6098 -> label_regions.labelRegions (7CD68.c).
 //! Inputs: two 32x32 u16 tables, D_800F58B8 and D_800F58D0, built in the arena
 //! and pointed to by their globals. Each run picks a mode: random cells (mixed),
 //! all cells active (bit 0x20 set, 0x2000 clear), all inactive (0x20 clear), or
@@ -10,7 +10,7 @@ const std = @import("std");
 const zd = @import("zdiff");
 const v = @import("views_7CD68");
 
-pub const Args = std.meta.ArgsTuple(@TypeOf(@import("port").func_800E6098));
+pub const Args = std.meta.ArgsTuple(@TypeOf(@import("port").labelRegions));
 
 pub const classes = [_][:0]const u8{ "mixed", "all-active", "all-inactive", "all-blocked" };
 

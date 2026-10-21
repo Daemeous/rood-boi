@@ -4,7 +4,7 @@
  "difficulty": "S",
  "model": "anthropic/claude-haiku-5.5",
  "status": "ported",
- "reviewed": false,
+ "reviewed": "sound as drafted (no callees)",
  "plan": {
   "name": "func_80069D14",
   "unit": "src/BATTLE/BATTLE.PRG/146C.c",
@@ -180,5 +180,14 @@
   "completion_tokens": 9994,
   "model_seconds": 42.9,
   "check_seconds": 62.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "proposed_name": "unk8 0x80 -> 8 for actors with unk9 0x18: fields unnamed",
+  "spec_fixes": [],
+  "port_fixes": [],
+  "mutations_added": [],
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: root (1 / 2 / 4 calls), 0 mismatches"
  }
 }

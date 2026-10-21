@@ -2,19 +2,17 @@
  "unit": "7CD68",
  "totals": {
   "functions": 12,
-  "ported": 8,
-  "cost": 0.1944,
-  "prompt_tokens": 665173,
-  "completion_tokens": 255682,
-  "model_seconds": 1112.2,
-  "check_seconds": 1089.8,
-  "calls": 29,
+  "ported": 12,
+  "cost": 0.2348,
+  "prompt_tokens": 882423,
+  "completion_tokens": 293101,
+  "model_seconds": 1240.3,
+  "check_seconds": 1363.6,
+  "calls": 34,
   "statuses": {
-   "port-failed": 2,
-   "ported": 8,
-   "spec-failed": 2
+   "ported": 12
   },
-  "last_run_wall_seconds": 916.2
+  "last_run_wall_seconds": 288.7
  },
  "functions": [
   {
@@ -41,25 +39,25 @@
   },
   {
    "function": "func_800E5698",
-   "status": "port-failed",
+   "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
    "spec_attempts": 2,
-   "port_attempts": 2,
+   "port_attempts": 1,
    "spec": "retry",
-   "port": "failed",
-   "cost": 0.01787,
-   "wall_seconds": 9.6
+   "port": "first",
+   "cost": 0.01408,
+   "wall_seconds": 109.4
   },
   {
    "function": "func_800E5710",
-   "status": "port-failed",
+   "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
-   "spec_attempts": 2,
+   "spec_attempts": 3,
    "port_attempts": 2,
    "spec": "retry",
-   "port": "failed",
-   "cost": 0.03188,
-   "wall_seconds": 62.7
+   "port": "retry",
+   "cost": 0.03389,
+   "wall_seconds": 346.3
   },
   {
    "function": "func_800E5998",
@@ -85,14 +83,14 @@
   },
   {
    "function": "func_800E5A9C",
-   "status": "spec-failed",
+   "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
    "spec_attempts": 2,
-   "port_attempts": 0,
-   "spec": "failed",
-   "port": "failed",
-   "cost": 0.01687,
-   "wall_seconds": 1.0
+   "port_attempts": 3,
+   "spec": "retry",
+   "port": "retry",
+   "cost": 0.04412,
+   "wall_seconds": 288.5
   },
   {
    "function": "func_800E5EC0",
@@ -140,14 +138,14 @@
   },
   {
    "function": "func_800E6178",
-   "status": "spec-failed",
+   "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
-   "spec_attempts": 2,
-   "port_attempts": 0,
-   "spec": "failed",
-   "port": "failed",
-   "cost": 0.03425,
-   "wall_seconds": 0.6
+   "spec_attempts": 1,
+   "port_attempts": 3,
+   "spec": "first",
+   "port": "retry",
+   "cost": 0.04922,
+   "wall_seconds": 369.7
   }
  ]
 }

@@ -7,8 +7,8 @@
  "thinking": "default",
  "temperature": 0.0,
  "samples": 1,
- "status": "port-failed",
- "reviewed": false,
+ "status": "ported",
+ "reviewed": "sound (rerun: spec after a compile-fix round, port after its retry); 2 mutations added; renamed fillActionMetadata",
  "plan": {
   "name": "func_800E5710",
   "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
@@ -36,8 +36,7 @@
    "actionMetadataStats"
   ],
   "globals": [
-   "D_800F58BC",
-   "vs_main_actions"
+   "D_800F58BC"
   ],
   "hooks": [],
   "statics": [],
@@ -55,17 +54,17 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 14229,
-     "completion_tokens": 23791,
-     "reasoning_tokens": 21576,
-     "cost": 0.0133184,
-     "seconds": 104.2,
+     "prompt_tokens": 14284,
+     "completion_tokens": 20264,
+     "reasoning_tokens": 18272,
+     "cost": 0.0115604,
+     "seconds": 85.6,
      "sample": 1,
-     "conversation": "57d989ecd3b6cfaee1711df1b9badc53f95e538b0768276d23f8183b28ac6fab"
+     "conversation": "eddfdfc9390d06ac32447e96f69181b2c9616eda55e7f9578a0b2f40a33ce596"
     },
     "passed": false,
     "errors": [
-     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:172:9: error: zdiff: a spec stub gives u32 where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:206:29\n    f: <tmp>/.../route.zig:24:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:172:9: error: zdiff: a spec stub gives u32 where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:225:29\n    f: pc/build/port-pipeline/func_800E5710/spec1/build/game/common/route.zig:24:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
     ]
    },
    {
@@ -78,50 +77,73 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 16762,
-     "completion_tokens": 4415,
-     "reasoning_tokens": 2201,
-     "cost": 0.0038837,
-     "seconds": 16.8,
+     "prompt_tokens": 16615,
+     "completion_tokens": 3462,
+     "reasoning_tokens": 1465,
+     "cost": 0.0033925,
+     "seconds": 13.2,
      "sample": 1,
-     "conversation": "0dcf1c414ce950cee4a4917721621e4eaf6d3999b47a449b9d6ea531a3eb5b89"
+     "conversation": "51f4c7ce4498426b8870cde60d5274259b5514b7088c375635fe58590d8e1451"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:172:9: error: zdiff: a spec stub gives c_uint where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:225:29\n    f: pc/build/port-pipeline/func_800E5710/spec2/build/game/common/route.zig:24:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18952,
+     "completion_tokens": 2789,
+     "reasoning_tokens": 794,
+     "cost": 0.0032897,
+     "seconds": 9.7,
+     "sample": 1,
+     "conversation": "d746bd70fcfd4af33e37d8955498d15a5ccb3b8db90c338469c13fb078907d88"
     },
     "passed": true,
     "errors": []
    }
   ],
   "kept": {
-   "round": 2,
+   "round": 3,
    "sample": 1
   },
   "classes": {
-   "no-loop": "6030",
-   "special-off": "12060",
-   "special-on": "11910"
+   "id-zero": "4903",
+   "special-on": "18707",
+   "special-off": "6390"
   },
   "mutations": [
    {
-    "name": "M1: no-loop path sets maxActionCost to 0, not 1",
+    "name": "M1: empty state sets maxActionCost to 2, not 1",
     "caught": true
    },
    {
-    "name": "M2: f2 store dropped",
+    "name": "M2: the running maximum is kept the wrong way round",
     "caught": true
    },
    {
-    "name": "M3: rangeSquared bound is >= instead of >",
+    "name": "M3: long range includes the boundary (>= for >)",
     "caught": true
    },
    {
-    "name": "M4: the action cost read as signed, so bytes >= 128 go negative",
+    "name": "M4: wrong flagsC bit for longRange",
     "caught": true
    },
    {
-    "name": "M5: wrong type constant in the special test",
+    "name": "M5: wrong mask bit in the special test",
     "caught": true
    },
    {
-    "name": "M6: radius store dropped (the call stays)",
+    "name": "M6: rsqrt fed the wrong field",
     "caught": true
    }
   ],
@@ -148,7 +170,7 @@
      "size": 1,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 6030, < 12007, > 11963 (signed); < 0, > 23970 (unsigned)",
+     "outcomes": "== 4903, < 12586, > 12511 (signed); < 0, > 25097 (unsigned)",
      "operand": "constant 0",
      "a": "-128..127"
     },
@@ -156,9 +178,9 @@
      "line": 9,
      "text": "for (row = 0; row < 6; row++)",
      "size": 4,
-     "count": 167790,
+     "count": 175679,
      "kind": "against a constant",
-     "outcomes": "== 23970, < 119850, > 23970 (signed); < 119850, > 23970 (unsigned)",
+     "outcomes": "== 25097, < 125485, > 25097 (signed); < 125485, > 25097 (unsigned)",
      "operand": "constant 5",
      "a": "0..6"
     },
@@ -166,9 +188,9 @@
      "line": 10,
      "text": "for (column = 0; column < 4; column++) {",
      "size": 4,
-     "count": 719100,
+     "count": 752910,
      "kind": "against a constant",
-     "outcomes": "== 143820, < 431460, > 143820 (signed); < 431460, > 143820 (unsigned)",
+     "outcomes": "== 150582, < 451746, > 150582 (signed); < 451746, > 150582 (unsigned)",
      "operand": "constant 3",
      "a": "0..4"
     },
@@ -176,19 +198,19 @@
      "line": 19,
      "text": "entry->rangeSquared > 0x51000 && !(action->flagsC & 0x20000000);",
      "size": 4,
-     "count": 575280,
+     "count": 602328,
      "kind": "against a constant",
-     "outcomes": "== 143904, < 215841, > 215535 (signed); < 144202, > 287174 (unsigned)",
+     "outcomes": "== 225220, < 188545, > 188563 (signed); < 17, > 377091 (unsigned)",
      "operand": "constant 331776",
-     "a": "-2147479538..2147468612"
+     "a": "-2147479339..2147482930"
     },
     {
      "line": 19,
      "text": "entry->rangeSquared > 0x51000 && !(action->flagsC & 0x20000000);",
      "size": 4,
-     "count": 287174,
+     "count": 377091,
      "kind": "against a constant",
-     "outcomes": "== 143553, < 0, > 143621 (signed); < 0, > 143621 (unsigned)",
+     "outcomes": "== 188935, < 0, > 188156 (signed); < 0, > 188156 (unsigned)",
      "operand": "constant 0",
      "a": "0..536870912"
     },
@@ -196,9 +218,9 @@
      "line": 20,
      "text": "if (mask & 0x4198)",
      "size": 4,
-     "count": 575280,
+     "count": 602328,
      "kind": "against a constant",
-     "outcomes": "== 395777, < 0, > 179503 (signed); < 0, > 179503 (unsigned)",
+     "outcomes": "== 414379, < 0, > 187949 (signed); < 0, > 187949 (unsigned)",
      "operand": "constant 0",
      "a": "0..16384"
     },
@@ -206,9 +228,9 @@
      "line": 22,
      "text": "if (mask & 0x154)",
      "size": 4,
-     "count": 575280,
+     "count": 602328,
      "kind": "against a constant",
-     "outcomes": "== 431537, < 0, > 143743 (signed); < 0, > 143743 (unsigned)",
+     "outcomes": "== 452541, < 0, > 149787 (signed); < 0, > 149787 (unsigned)",
      "operand": "constant 0",
      "a": "0..256"
     },
@@ -216,9 +238,9 @@
      "line": 24,
      "text": "if (mask & 0xA)",
      "size": 4,
-     "count": 575280,
+     "count": 602328,
      "kind": "against a constant",
-     "outcomes": "== 503376, < 0, > 71904 (signed); < 0, > 71904 (unsigned)",
+     "outcomes": "== 527043, < 0, > 75285 (signed); < 0, > 75285 (unsigned)",
      "operand": "constant 0",
      "a": "0..8"
     },
@@ -226,9 +248,9 @@
      "line": 26,
      "text": "else if (mask & 0x40A0)",
      "size": 4,
-     "count": 503376,
+     "count": 527043,
      "kind": "against a constant",
-     "outcomes": "== 395864, < 0, > 107512 (signed); < 0, > 107512 (unsigned)",
+     "outcomes": "== 413709, < 0, > 113334 (signed); < 0, > 113334 (unsigned)",
      "operand": "constant 0",
      "a": "0..16384"
     },
@@ -236,9 +258,9 @@
      "line": 28,
      "text": "else if (mask & 0x1954)",
      "size": 4,
-     "count": 395864,
+     "count": 413709,
      "kind": "against a constant",
-     "outcomes": "== 180989, < 0, > 214875 (signed); < 0, > 214875 (unsigned)",
+     "outcomes": "== 188064, < 0, > 225645 (signed); < 0, > 225645 (unsigned)",
      "operand": "constant 0",
      "a": "0..4096"
     },
@@ -246,9 +268,9 @@
      "line": 31,
      "text": "&& (action->flags.raw & 0xE0000) != 0x20000",
      "size": 4,
-     "count": 285840,
+     "count": 448968,
      "kind": "against a constant",
-     "outcomes": "== 160517, < 18091, > 107232 (signed); < 18091, > 107232 (unsigned)",
+     "outcomes": "== 55828, < 56246, > 336894 (signed); < 56246, > 336894 (unsigned)",
      "operand": "constant 131072",
      "a": "0..917504"
     },
@@ -256,9 +278,9 @@
      "line": 32,
      "text": "&& (action->flags.raw & 0xE0000) != 0x60000",
      "size": 4,
-     "count": 125323,
+     "count": 393140,
      "kind": "against a constant",
-     "outcomes": "== 18046, < 35766, > 71511 (signed); < 35766, > 71511 (unsigned)",
+     "outcomes": "== 55991, < 112238, > 224911 (signed); < 112238, > 224911 (unsigned)",
      "operand": "constant 393216",
      "a": "0..917504"
     },
@@ -266,19 +288,19 @@
      "line": 33,
      "text": "&& (mask & 0x4000) != 0;",
      "size": 1,
-     "count": 575280,
+     "count": 602328,
      "kind": "against a constant",
-     "outcomes": "== 289440, < 143304, > 142536 (signed); < 0, > 285840 (unsigned)",
+     "outcomes": "== 153360, < 301320, > 147648 (signed); < 0, > 448968 (unsigned)",
      "operand": "constant 0",
-     "a": "-128..127"
+     "a": "-128..1"
     },
     {
      "line": 33,
      "text": "&& (mask & 0x4000) != 0;",
      "size": 4,
-     "count": 107277,
+     "count": 337149,
      "kind": "against a constant",
-     "outcomes": "== 100431, < 0, > 6846 (signed); < 0, > 6846 (unsigned)",
+     "outcomes": "== 315860, < 0, > 21289 (signed); < 0, > 21289 (unsigned)",
      "operand": "constant 0",
      "a": "0..16384"
     },
@@ -286,9 +308,9 @@
      "line": 34,
      "text": "if ((action->flags.raw & 0xE0000) == 0x20000) {",
      "size": 4,
-     "count": 575280,
+     "count": 602328,
      "kind": "against a constant",
-     "outcomes": "== 323353, < 36185, > 215742 (signed); < 36185, > 215742 (unsigned)",
+     "outcomes": "== 74970, < 75237, > 452121 (signed); < 75237, > 452121 (unsigned)",
      "operand": "constant 131072",
      "a": "0..917504"
     },
@@ -296,9 +318,9 @@
      "line": 36,
      "text": "if (state->maxActionCost < value)",
      "size": 4,
-     "count": 323353,
+     "count": 74970,
      "kind": "a == b / a < b",
-     "outcomes": "== 11464, < 210537, > 101352 (signed); < 210537, > 101352 (unsigned)",
+     "outcomes": "== 6221, < 40585, > 28164 (signed); < 40585, > 28164 (unsigned)",
      "operand": "b 0..255",
      "a": "0..255"
     }
@@ -319,17 +341,17 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 37544,
-     "completion_tokens": 11337,
-     "reasoning_tokens": 10213,
-     "cost": 0.0094229,
-     "seconds": 47.0,
+     "prompt_tokens": 37600,
+     "completion_tokens": 13904,
+     "reasoning_tokens": 12813,
+     "cost": 0.010712,
+     "seconds": 57.5,
      "sample": 1,
-     "conversation": "fbf3b90538618f376df9b2b3b6f1a1d8d5ce43625d61fb40c8e67b471b34e346"
+     "conversation": "1dd90b45ea9eeee1d19d407718e1877bcf5e2b764e42f843830dbed9964db3fb"
     },
     "passed": false,
     "errors": [
-     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800E5710.zig:31:37: error: expected type 'c_int', found 'u32'\n                c.vs_gte_rsqrt(entry.rangeSquared),\n                               ~~~~~^~~~~~~~~~~~~\ngame/battle/func_800E5710.zig:31:37: note: signed 32-bit int cannot represent all possible unsigned 32-bit values\n<tmp>/.../c_7CD68.zig:4368:28: note: parameter type declared here\npub extern fn vs_gte_rsqrt(c_int) c_int;\n                           ^~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:430:31\n    main: pc/tests/zig_diff/main.zig:353:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800E5710.zig:24:64: error: expected type 'c_int', found 'u32'\n            const rsqrt = psx.conv(c_uint, c.vs_gte_rsqrt(entry.rangeSquared));\n                                                          ~~~~~^~~~~~~~~~~~~\ngame/battle/func_800E5710.zig:24:64: note: signed 32-bit int cannot represent all possible unsigned 32-bit values\npc/build/boot64/zig/c_7CD68.zig:4368:28: note: parameter type declared here\npub extern fn vs_gte_rsqrt(c_int) c_int;\n                           ^~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
     ],
     "runs": []
    },
@@ -343,32 +365,74 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 39040,
-     "completion_tokens": 2692,
-     "reasoning_tokens": 1527,
-     "cost": 0.00525,
-     "seconds": 12.3,
+     "prompt_tokens": 39087,
+     "completion_tokens": 2046,
+     "reasoning_tokens": 899,
+     "cost": 0.0049317,
+     "seconds": 8.2,
      "sample": 1,
-     "conversation": "8f248d84a118e16602a82c0d43d6607d985ab3e3c9bf5509eea77e1c83413c38"
+     "conversation": "f674f34b003e5331dc5608bfcbcccc13c47b6732f7bbf1546420c7525f9d770f"
     },
-    "passed": false,
-    "errors": [
-     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800E5710.zig:32:31: error: expected type 'c_uint', found 'c_int'\n                c.vs_gte_rsqrt(psx.conv(c_int, entry.rangeSquared)),\n                ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/func_800E5710.zig:32:31: note: unsigned 32-bit int cannot represent all possible signed 32-bit values\n<tmp>/.../c_7CD68.zig:4586:65: note: parameter type declared here\npub extern fn func_800E5600(arg0: c_int, actionId: c_int, arg2: u_int) c_int;\n                                                                ^~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:430:31\n    main: pc/tests/zig_diff/main.zig:353:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
-    ],
-    "runs": []
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
    }
-  ]
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
  },
- "written": [],
- "check_seconds": 62.563203005000105,
- "wall_seconds": 62.69474346500101,
+ "written": [
+  "pc/tests/zig_diff/func_800E5710.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800E5710.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 171.97508497799936,
+ "wall_seconds": 346.32509690000006,
  "totals": {
-  "cost": 0.03188,
-  "prompt_tokens": 107575,
-  "completion_tokens": 42235,
-  "model_seconds": 180.3,
-  "check_seconds": 62.6,
-  "calls": 4,
-  "wall_seconds": 62.7
+  "cost": 0.03389,
+  "prompt_tokens": 126538,
+  "completion_tokens": 42465,
+  "model_seconds": 174.2,
+  "check_seconds": 172.0,
+  "calls": 5,
+  "wall_seconds": 346.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "renamed": "fill_action_metadata.fillActionMetadata",
+  "mutations_added": [
+   "R1: f1 assigned from the mask (the C only sets it)",
+   "R2: kind cleared when no mask matches"
+  ],
+  "notes": [
+   "the real callees (func_800E5698, func_800E5600, vs_gte_rsqrt) write nothing the C reads back; the stubs' maxActionCost writes are a harmless superset"
+  ],
+  "spec_fixes": [],
+  "port_fixes": [],
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)"
  }
 }
