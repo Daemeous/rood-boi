@@ -268,3 +268,72 @@ and is then routed still goes through the corpus as any port does.
   model).
 - The scorer trusts the candidate to compile only against the listed
   modules; a candidate that imports something else fails to compile.
+
+## Spec bake-off: can a cheap model write the specs?
+
+Porting the eleven cost Claude Haiku 5.5 $0.08; the expensive part of a
+bulk port is writing the zig_diff specs. `pc/tools/spec_bakeoff.py --out
+DIR [--model M] [--budget 2.0] [--only F] [--rescore]` asks a model
+(OpenRouter, `OPENROUTER_API_KEY` from the environment, temperature 0) for
+each function's spec file and `specs.toml` entry with 3-6 mutations, and
+scores the reply in DIR (the checkout's specs are never written). The
+prompt: the task and how the harness uses a spec, PORTING.md §19, `zdiff.zig`,
+two worked examples with their ports and `specs.toml` entries (the trial's
+`_updateEnemyKills` and `func_800B07DC`, never one of the eleven), the
+function's C, its accepted (reference) port, and the declarations it touches
+(bakeoff_context.py's extraction; about 9.6k-20k prompt tokens). One
+attempt; when the spec does not build or fails its own self-check, one retry
+fed only the checker's error lines. Scores: (a) compiles; (b) self-check:
+the reference port passes on seed 1, every declared class occurs and every
+one of the model's mutations is caught as it declares; (c) strength: how
+many of the reference spec's mutations (above, written with the reference
+ports) the model's spec catches (any mismatch, panic or crash), counted
+only when (d) holds; (d) the reference port passes the model's spec with 0
+mismatches on seeds 1-3.
+
+Haiku 5.5 (`anthropic/claude-haiku-5.5`), 2026-10-20:
+
+| Function | Tries | Compiles | Self-check (own mutations) | Strength (reference mutations) | Reference port passes |
+|---|---|---|---|---|---|
+| `func_8006CE50` | 1 | yes | pass (5/5) | 2/2 | yes |
+| `func_8007C088` | 2 | yes | pass (5/5) | 2/2 | yes |
+| `vs_battle_lerpSvector` | 1 | yes | pass (5/5) | 3/3 | yes |
+| `func_8007357C` | 1 | yes | pass (6/6) | 3/3 | yes |
+| `_factorDamageReceived` | 2 | yes | pass (6/6) | 4/4 | yes |
+| `func_8008D5FC` | 1 | yes | pass (5/5) | 4/4 | yes |
+| `func_80074A20` | 1 | yes | pass (5/5) | 4/4 | yes |
+| `vs_battle_applyWeaponStats` | 2 | yes | pass (6/6) | 5/5 | yes |
+| `func_800AD494` | 2 | yes | FAIL (5/6) | 4/5 | yes |
+| `func_80078828` | 1 | yes | pass (6/6) | 5/6 | yes |
+| `func_800A0204` | 2 | yes | pass (6/6) | 6/6 | yes |
+
+11/11 compile and accept the reference port on the first try; 10/11 pass
+their self-check (6 first try); strength 42/44 (43/44 for the first
+attempts). 16 calls, 233k prompt + 181k completion tokens, $0.11 and 13
+minutes of model time (plus $0.06 for six calls of a first run whose 16k
+`max_tokens` the three largest functions spent on reasoning, with empty
+replies: the default is now 64k).
+
+- **The first-try failures are mostly mechanical**: a mutation declared
+  `mismatch` that crashes or panics (2), and mutations that do not compile
+  because Zig rejects a now-unused local (3). The checker's error lines
+  fixed them in the retry, except in `func_800AD494`.
+- **Missed:** `func_800AD494`'s U1 (the count test as `>`: no input with
+  `idx == unk5B6` exactly) and `func_80078828`'s A3 (the cost's sign bit
+  only: the model's `_getActionCost` stub returns the top byte all clear
+  or all set, never nonzero with bit 31 clear, where the default random
+  value would have caught it). Both are value edges a reviewer names in one
+  line. `func_800AD494` still fails its self-check after the
+  retry (a declared class never occurs: classify's bound test comes first);
+  the retry also lost the U1 catch its first attempt had.
+- **The model's own mutations are weaker than the reference's**: many are
+  constant changes and dropped calls that any input catches; fewer test a
+  boundary or a signedness edge. Strength against the reference mutations
+  is the better measure; the self-check mostly measures that the spec runs.
+
+Read: Haiku-written specs are good enough as the first draft of the bulk
+port's specs, gated by `zig_diff.py --self-check` with a retry. A stronger
+model's review (or the porter's) should look at the classes for exact
+boundaries (`==` against a bound, a value with only the sign bit or only
+the high byte) and at callee results the C tests bit by bit (a `stubs`
+entry), which is where both misses were.
