@@ -35,6 +35,7 @@ M.pages = {
       "lighting_preset", "dynamic_lights", "gi_method", "shadows", "haze", "ao",
       "internal_resolution", "aa", "msaa", "ssaa", "aa_downsample",
       "perspective_textures", "subpixel", "smooth_textures", "environment", "emissive", "dust",
+      "occlusion", "occlusion_visibility",
     } },
   { id = "audio", title = "Audio", help = "Volume and the game's sound output.",
     rows = { "master_volume", "sound" } },

@@ -36,6 +36,13 @@ layout(std140, binding = 0) uniform Draw {
     int room_order; // 280: a room list's ordered pass: depth is the PS1 draw order key
     int layer_slack; // 284: objects, other room blocks: tested room_slack nearer (1), and written so into the surfaces (2)
     int emissive; // 288: emissive texels: the slot map (binding 6) is read
+    // 304: occlusion in play (render.c occlusion_params): the subjects in view
+    // space with the rows' scales divided out (xyz), the fade (w)
+    vec4 occl_subject[4];
+    vec4 occl_shape[4]; // 368: ellipse half axes, depth margin (world units), silhouette strength
+    vec4 occl_params; // 432: visibility kept, softness, subject count (0: off), dither (0 Bayer, 1 noise)
+    vec4 occl_instance; // 448: a character's mesh (x: never faded), its silhouette strength (y), rim weight (z)
+    vec4 occl_tint; // 464: its silhouette's colour
 } u;
 // Animated materials (render_list_uv_effects), entry 0 none: the UV offset
 // the game's effect writes this frame (offset.xy), its window (base u, v,

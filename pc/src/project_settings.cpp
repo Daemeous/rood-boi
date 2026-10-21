@@ -139,6 +139,8 @@ int pc_ui_menu_tint_custom[3] = { 8, 7, 7 }; /* Custom's colour, 0..31 per chann
 #include "camera_stick.h" /* the right-stick camera (camera_stick_*) */
 #include "editor_overlays.h"
 #include "gameplay_walls.h" /* gameplay_walls original | smart, gameplay_walls_ghost, _opacity, _radius */
+#include <cstdio>
+#include "occlusion.h" /* occlusion off | fade | fade_silhouette | silhouette, occlusion_* */
 #include "lighting_quality.h" /* the lighting quality keys (lighting_preset, gi_method, shadows, ...) */
 #include "probe_gi.h"
 #include "ui_upscale.h" /* 2D / UI: ui_upscale nearest | mmpx, ui_subpixel */
@@ -490,6 +492,8 @@ int apply_line(const char* line, int* scale, bool now)
     }
     if (pc_button_prompts_setting(key, rest))
         return 1;
+    if (pc_occlusion_setting(key, rest)) /* occlusion off | fade | fade_silhouette | silhouette, occlusion_* */
+        return 1;
     if (pc_lua_settings_parse(key, rest))
         return 1;
     if (!strcmp(key, "gameplay_walls")) { /* original | smart (or 0 / 1) */
@@ -773,6 +777,7 @@ extern "C" void pc_settings_write(FILE* f)
     fprintf(f, "ui_bubbles %s\n", pc_ui_bubbles_names[pc_ui_bubbles ? 1 : 0]);
     pc_button_prompts_settings_write(f);
     fprintf(f, "gameplay_walls %s\n", pc_gameplay_walls ? "smart" : "original");
+    pc_occlusion_settings_write(f);
     fprintf(f, "ui_menu_tint %s\n", pc_ui_tint_id(pc_ui_tint_current()));
     fprintf(f, "ui_menu_tint_custom %d %d %d\n", pc_ui_menu_tint_custom[0], pc_ui_menu_tint_custom[1],
         pc_ui_menu_tint_custom[2]);

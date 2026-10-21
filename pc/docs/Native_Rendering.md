@@ -947,6 +947,77 @@ nothing; group 19, a wall piece right of the arched door, shows) and keeps
 black shell is drawn, that every kept group still is and that both paths
 draw the same groups.
 
+## Occlusion in play (`occlusion`, 2026-10-21)
+
+What hides Ashley (a beam across her legs at the Undercity save point,
+a pillar, a wall's edge) and, in battle, the enemies near her, fades in a
+soft ellipse around each of them while it hides them, the rest of the wall
+solid: Baldur's Gate 3's idea, in the PS1's own terms.
+
+- **Who** (`occlusion.c`, once per game frame from `func_8009723C` for the
+  current room): Ashley; in battle (her weapon drawn, or BATTLE's action
+  state, the same state the depth of field's camera subject reads:
+  `pc_dev_battle_camera`/`_action`, `post_profile.cpp pick_subject`) the
+  targeting sphere's candidate, the action's performer and first target,
+  and enemies within `occlusion_enemy_range` of her, nearest first; at
+  most four. Each has an ellipse of `occlusion_radius` x `occlusion_aspect`
+  world units at its middle (an enemy's scaled by its footprint against
+  Ashley's), so its size on screen follows the subject's distance.
+- **Hidden**: five rays from the game camera's eye to the subject's
+  middle, head, knees and sides against the room groups drawn this frame
+  (front faces, opaque; the subject's own last stretch skipped), as the
+  editor's cutaway asks. Any blocked ray counts; a subject stays hidden
+  `occlusion_hold` s after the rays clear. The fade (and the silhouettes'
+  strength) eases toward hidden over `occlusion_ease` s of game time
+  (vsyncs), smoothstepped, and is interpolated between game frames like
+  everything else, so nothing pops; a subject that stops mattering eases
+  out.
+- **Fade**: per draw, the subjects go to the shaders in the list camera's
+  view space (`render.c occlusion_params`; Vulkan: `native_ubo` from offset
+  304). The geometry stage marks each polygon whose plane separates the eye
+  from a subject (`v_cut` bits 4-7: walls between them, never the floor
+  under the subject or a wall behind it); the fragment stage, for marked
+  fragments nearer than the subject inside its ellipse, keeps
+  `1 - fade * (1 - occlusion_visibility)` of the pixels with a smooth
+  radial falloff (`occlusion_softness`), the rest discarded. Room lists
+  and props fade (semi-transparent texels, a save point's light, never); characters (an object mesh
+  whose root lies within an actor's reach, `pc_occlusion_character`) and
+  effects never do.
+- **Why a dither, not alpha**: the native passes write a G-buffer that is
+  lit afterwards (lights, ray-traced shadows, GI, haze in the present
+  pass), and room surfaces resolve in the PS1's ordering-table order. A
+  discarded pixel simply shows what is behind it with its own exact depth,
+  normal and lighting; a kept pixel is the wall, lit as before. True alpha
+  would need a second, forward-lit translucent pass in both renderers and
+  would break the depth that lighting, haze and the DoF read. The dither
+  is fixed to the screen's pixels at the internal resolution (8 x 8 Bayer,
+  or interleaved gradient noise with `occlusion_dither 1`) and the same
+  every frame: no shimmer, and at the high internal resolutions it is a
+  fine screen-door that reads as translucency (a supersampled picture's
+  downsample averages it; MSAA does not, a discard drops every sample). The ray-traced scene and shadow maps keep every surface:
+  occluders still cast shadows and light as before.
+- **Silhouettes** (`fade_silhouette`, `silhouette`): in the PS1-ordered
+  object lists a subject's own fragments hidden by a surface drawn before
+  them (by more than 8 units) are not discarded but drawn, unlit, in a
+  dither of `occlusion_silhouette_*` (more toward its rim,
+  `occlusion_silhouette_rim`) in the subject's tint, at the surface's
+  depth: a faint stippled shape. Defaults: off (the mode is `fade`); when
+  chosen, Ashley 0.3 in a cool neutral, enemies 0.45 in a muted rust.
+  With the fade on Ashley is mostly visible already, so her silhouette only
+  shows on the kept share.
+- **Smart walls**: `gameplay_walls` stays its own option and defaults to
+  `original`; with the fade on it is not needed for seeing Ashley (smart
+  walls still leave out a whole group that gets in the way), so the Option
+  row recommends Original.
+- **Off**: during event scripts (`occlusion_cutscenes` 0) and with the
+  editor's free camera (its own cutaway, dev only); the packet path
+  (`native_room 0`) has no fade. Later a Lua layer may override these
+  keys as it does post fields.
+
+`occlusion_smoke.py` checks it on both renderers (Undercity save point:
+eased, stable, only around her; zone 9 room 18 in battle: an enemy hidden
+by a wall).
+
 ## Verification (2026-10-10)
 
 - Golden frames (`pc/tests/golden_frames.py`, references from the packet

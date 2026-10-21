@@ -82,7 +82,7 @@ static void pages()
     CHECK(!std::strcmp(pc_ui_settings_page_help(C), "The right stick camera and vibration."));
     CHECK(pc_ui_settings_page_depth(B) == 1 && pc_ui_settings_page_depth(C) == 0);
     CHECK(pc_ui_settings_page_title(7) == nullptr);
-    CHECK(pc_ui_settings_rows(G) == 17);
+    CHECK(pc_ui_settings_rows(G) == 19);
     // Glowing surfaces (emissive): after Sun and sky, a slider 0..2, Off at 0
     CHECK(find(G, "emissive") == find(G, "environment") + 1);
     CHECK(value(G, "emissive") == "1.0");
@@ -95,6 +95,11 @@ static void pages()
     pc_dust = 2;
     CHECK(value(G, "dust") == "High");
     pc_dust = 0;
+    // See-through walls (occlusion.h): after Dust, Fade by default; its amount greyed unless it fades
+    CHECK(find(G, "occlusion") == find(G, "dust") + 1);
+    CHECK(value(G, "occlusion") == "Fade");
+    CHECK(find(G, "occlusion_visibility") == find(G, "occlusion") + 1);
+    CHECK(value(G, "occlusion_visibility") == "0.35");
     CHECK(pc_ui_settings_rows(D) == 12); // Images per vsync shows: interpolation is on
     CHECK(pc_ui_settings_rows(A) == (game ? 2 : 1));
     CHECK(pc_ui_settings_rows(I) == 15); // with Menu opacity, Menu tint, Tint red, green, blue

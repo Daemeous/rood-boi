@@ -20,6 +20,7 @@
 #include "render_gl.h"
 #include "render_state.h"
 #include "room_editor.h"
+#include "occlusion.h" /* fading what hides the characters in play */
 #include "emissive.h"
 #include "gl_shaders.h" /* PC_GLSL_EMISSIVE (pc/shaders/vulkan/emissive.glsl) */
 /* gpu_hw.c: the emissive slot map is current (its OpenGL texture); the shaders read it. */
@@ -1421,6 +1422,83 @@ static void cutaway_params(const draw_list* list, const render_camera* cam, floa
     focus[3] = pc_editor_cutaway_radius;
 }
 
+/* ---- occlusion in play (occlusion.c) ----
+ * Per draw: the subjects in the camera's view space with the rows' scales
+ * divided out (as v_view; xyz, w the fade at the draw's t), their ellipse
+ * (x, y half axes in world units at the subject, z the depth margin, w the
+ * silhouette's strength) and the shared parameters (x visibility kept, y
+ * softness, z subject count (0 off for this list), w dither: 0 Bayer, 1
+ * noise). The geometry stage marks the polygons whose plane separates the
+ * eye from a subject (v_cut bits 4-7); the fragment stage leaves out a
+ * dithered share of such a polygon's pixels nearer than the subject inside
+ * its ellipse. Per instance: x 1 for a character's mesh (never faded), y
+ * its silhouette's strength (a subject's own meshes, PS1-ordered object
+ * lists: its hidden pixels drawn in a dither of `tint`), z rim weight. */
+typedef struct {
+    float subject[PC_OCCLUSION_SUBJECTS][4], shape[PC_OCCLUSION_SUBJECTS][4], params[4];
+} occlusion_draw;
+static void occlusion_params(const draw_list* list, const render_camera* cam, float t, occlusion_draw* o)
+{
+    memset(o, 0, sizeof *o);
+    const pc_occlusion_subject* s;
+    int n = pc_occlusion_subjects_get(&s);
+    if (!n || list->rules.effects || cutaway_on)
+        return;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    float scale[3];
+    for (int a = 0; a < 3; a++) {
+        float length = sqrtf(cam->rotation[a][0] * cam->rotation[a][0] + cam->rotation[a][1] * cam->rotation[a][1]
+            + cam->rotation[a][2] * cam->rotation[a][2]);
+        scale[a] = length > 1e-9f ? 1.0f / length : 1.0f;
+    }
+    int any = 0;
+    for (int i = 0; i < n && i < PC_OCCLUSION_SUBJECTS; i++) {
+        float w[3];
+        for (int a = 0; a < 3; a++)
+            w[a] = s[i].previous[a] + (s[i].center[a] - s[i].previous[a]) * t;
+        for (int a = 0; a < 3; a++)
+            o->subject[i][a]
+                = (cam->rotation[a][0] * w[0] + cam->rotation[a][1] * w[1] + cam->rotation[a][2] * w[2] + cam->translation[a])
+                * scale[a];
+        float fade = s[i].fade_previous + (s[i].fade - s[i].fade_previous) * t;
+        o->subject[i][3] = o->subject[i][2] > 16 ? fade : 0;
+        float strength = s[i].enemy ? pc_occlusion_silhouette_enemy : pc_occlusion_silhouette_ashley;
+        o->shape[i][0] = s[i].half_w;
+        o->shape[i][1] = s[i].half_h;
+        o->shape[i][2] = s[i].body;
+        o->shape[i][3] = s[i].hidden * (strength < 0 ? 0 : strength > 1 ? 1 : strength);
+        any |= o->subject[i][3] > 0.001f || o->shape[i][3] > 0.001f;
+    }
+    if (!any)
+        return;
+    float v = pc_occlusion_visibility < 0 ? 0 : pc_occlusion_visibility > 1 ? 1 : pc_occlusion_visibility;
+    float soft = pc_occlusion_softness < 0.01f ? 0.01f : pc_occlusion_softness > 1 ? 1 : pc_occlusion_softness;
+    o->params[0] = v, o->params[1] = soft, o->params[2] = (float)(n < PC_OCCLUSION_SUBJECTS ? n : PC_OCCLUSION_SUBJECTS);
+    o->params[3] = pc_occlusion_dither ? 1.0f : 0.0f;
+}
+/* The instance's occl_instance and occl_tint (see above). */
+static void occlusion_instance(const draw_list* list, const list_instance* in, int painter, float out[4], float tint[4])
+{
+    memset(out, 0, 4 * sizeof *out);
+    memset(tint, 0, 4 * sizeof *tint);
+    if (!list->rules.objects)
+        return;
+    const pc_occlusion_subject* s;
+    int n = pc_occlusion_subjects_get(&s);
+    int subject = -1;
+    int character = n && pc_occlusion_character(list->transforms[in->first].translation, &subject);
+    out[0] = character || !pc_occlusion_props ? 1.0f : 0.0f;
+    if (!character || subject < 0 || subject >= n || !painter || in->blend)
+        return;
+    float strength = s[subject].enemy ? pc_occlusion_silhouette_enemy : pc_occlusion_silhouette_ashley;
+    out[1] = s[subject].hidden * (strength < 0 ? 0 : strength > 1 ? 1 : strength);
+    out[2] = pc_occlusion_silhouette_rim < 0 ? 0 : pc_occlusion_silhouette_rim > 1 ? 1 : pc_occlusion_silhouette_rim;
+    const float* c = s[subject].enemy ? pc_occlusion_tint_enemy : pc_occlusion_tint_ashley;
+    for (int a = 0; a < 3; a++)
+        tint[a] = c[a] < 0 ? 0 : c[a] > 1 ? 1 : c[a];
+    tint[3] = 1;
+}
+
 /* ---- drawing ---- */
 
 static const char* vertex_source =
@@ -1489,8 +1567,10 @@ static const char* geometry_source =
     "flat out uvec4 v_bounds;\n"
     "uniform vec4 cut_focus;\n" /* the editor's cutaway: focus (view space, rows' scales divided out), radius */
     "uniform vec4 cut_scale;\n" /* 1 / the view rows' scales; w: ghost coverage */
+    "uniform vec4 occl_subject[4];\n" /* occlusion (occlusion_params): subjects in view space (rows' scales divided out), fade */
+    "uniform vec4 occl_params;\n" /* visibility, softness, subject count, dither */
     "smooth centroid out vec3 v_view;\n"
-    "flat out int v_cut;\n" /* bit 0: cut; bits 1-3: the triangle's real edges (opposite corner 0, 1, 2) */
+    "flat out int v_cut;\n" /* bit 0: cut; bits 1-3: the triangle's real edges (opposite corner 0, 1, 2); bits 4-7: occlusion subjects behind it */
     "noperspective out vec3 v_bary;\n" /* the corner weights (a ghost's edges) */
     "vec3 p[4];\n"
     "vec2 uv[4];\n"
@@ -1500,7 +1580,7 @@ static const char* geometry_source =
     "uint effect = 0u, halved = 0u;\n"
     "vec3 n;\n"
     "float z_near = 0.0;\n" /* sprites: tested and written at their nearest point */
-    "int cut = 0;\n"
+    "int cut = 0, occl_bits = 0;\n"
     "int tri_edges = 7, corner = 0;\n" /* a quad's diagonal is no edge */
     "uint order_key = 0u;\n"
     "vec2 screen(vec3 q) { return vec2(offset.x + projection.x * q.x / q.z, offset.y + projection.y * q.y / q.z); }\n"
@@ -1517,7 +1597,7 @@ static const char* geometry_source =
     "    v_state = uvec4(pcode & 7u, tpage, clut, effect | (halved << 8) | (g_scope[0] << 16));\n"
     "    v_normal = n;\n"
     "    v_view = q * cut_scale.xyz;\n"
-    "    v_cut = cut | (tri_edges << 1);\n"
+    "    v_cut = cut | (tri_edges << 1) | (occl_bits << 4);\n"
     "    v_bary = vec3(corner == 0 ? 1.0 : 0.0, corner == 1 ? 1.0 : 0.0, corner == 2 ? 1.0 : 0.0);\n"
     "    v_order = order_key;\n"
     "    EmitVertex();\n"
@@ -1554,6 +1634,24 @@ static const char* geometry_source =
     "    pn /= l;\n"
     "    float eye = dot(pn, -a), focus = dot(pn, cut_focus.xyz - a);\n"
     "    if (eye * focus < 0.0 && abs(focus) > 8.0) cut = 1;\n"
+    "}\n"
+    /* Occlusion in play: a polygon whose plane separates the eye from a
+     * subject stands between them (bit 4 + i); floors under it and walls
+     * behind it never do. */
+    "void occlusion_test(bool quad) {\n"
+    "    if (occl_params.z <= 0.0) return;\n"
+    "    vec3 a = p[0] * cut_scale.xyz, b = p[1] * cut_scale.xyz, c = p[2] * cut_scale.xyz;\n"
+    "    vec3 pn = cross(b - a, c - a);\n"
+    "    if (quad && dot(pn, pn) < 1e-3) pn = cross(p[3] * cut_scale.xyz - b, c - b);\n"
+    "    float l = length(pn);\n"
+    "    if (l < 1e-6) return;\n"
+    "    pn /= l;\n"
+    "    float eye = dot(pn, -a);\n"
+    "    for (int i = 0; i < 4; i++) {\n"
+    "        if (float(i) >= occl_params.z || occl_subject[i].w <= 0.0) continue;\n"
+    "        float s = dot(pn, occl_subject[i].xyz - a);\n"
+    "        if (eye * s < 0.0 && abs(s) > 8.0) occl_bits |= 1 << i;\n"
+    "    }\n"
     "}\n"
     "int sz(int i) { return int(clamp(p[i].z, 0.0, 65535.0)); }\n"
     /* Object rules (BATTLE/4B16C.s func_800B3CF0/func_800B4594). */
@@ -1706,6 +1804,7 @@ static const char* geometry_source =
     "    n = length_ > 1e-6 ? n / length_ : vec3(0.0, 0.0, -1.0);\n"
     "    if (dot(n, p[0]) > 0.0) n = -n;\n"
     "    cutaway_test(quad);\n"
+    "    occlusion_test(quad);\n"
     "    tri_edges = quad ? 6 : 7;\n"
     "    triangle(0, 1, 2);\n"
     "    tri_edges = 5;\n"
@@ -1728,6 +1827,11 @@ static const char* fragment_source =
     "uniform vec4 cut_focus;\n"
     "uniform vec4 cut_scale;\n"
     "uniform vec4 instance_cut;\n" /* render_instance.cut: share left out (x), ghost edges (y) */
+    "uniform vec4 occl_subject[4];\n" /* occlusion (occlusion_params): subject (view space), fade */
+    "uniform vec4 occl_shape[4];\n" /* ellipse half axes, depth margin (world units), silhouette strength */
+    "uniform vec4 occl_params;\n" /* visibility, softness, subject count, dither */
+    "uniform vec4 occl_instance;\n" /* a character's mesh (x), its silhouette strength (y), rim weight (z) */
+    "uniform vec4 occl_tint;\n" /* its silhouette's colour */
     "uniform int perspective;\n"
     "uniform int filtering;\n"
     "uniform uint window;\n"
@@ -1785,6 +1889,15 @@ static const char* fragment_source =
     "    int a = (q.x ^ q.y) & 3, b = q.y & 3;\n"
     "    return float(((a & 1) << 3) | ((b & 1) << 2) | ((a >> 1) << 1) | (b >> 1)) / 16.0 + 1.0 / 32.0;\n"
     "}\n"
+    /* Occlusion's dither (fixed to the screen's pixels, the same every
+     * frame): 8 x 8 Bayer, or interleaved gradient noise. */
+    "float bayer8(ivec2 q) {\n"
+    "    int a = (q.x ^ q.y) & 7, b = q.y & 7;\n"
+    "    return float(((a & 1) << 5) | ((b & 1) << 4) | ((a & 2) << 2) | ((b & 2) << 1) | ((a & 4) >> 1) | ((b & 4) >> 2)) / 64.0 + 1.0 / 128.0;\n"
+    "}\n"
+    "float occl_threshold(ivec2 q) {\n"
+    "    return occl_params.w > 0.5 ? fract(52.9829189 * fract(dot(vec2(q) + 0.5, vec2(0.06711056, 0.00583715)))) : bayer8(q);\n"
+    "}\n"
     "void main() {\n"
     /* The editor's cutaway: inside the cone from the eye to the focus (its
      * radius at the focus cut_focus.w: a circle of constant size on
@@ -1819,6 +1932,23 @@ static const char* fragment_source =
     "        }\n"
     "        if (cover < bayer4(ivec2(gl_FragCoord.xy))) discard;\n"
     "    }\n"
+    /* Occlusion in play: a polygon between the eye and a subject, nearer
+     * than it, inside its ellipse on the screen, keeps occl_params.x of
+     * its pixels at the centre, more toward the rim, all beyond it.
+     * Semi-transparent texels (a save point's light, glass) hide nothing:
+     * never faded (decided below, once the texel is known). */
+    "    float occl_cover = 1.0;\n"
+    "    if (occl_params.z > 0.0 && occl_instance.x == 0.0 && (v_cut >> 4) != 0 && v_view.z > 1.0) {\n"
+    "        vec2 sp = v_view.xy / v_view.z;\n"
+    "        float fade = 0.0;\n"
+    "        for (int i = 0; i < 4; i++) {\n"
+    "            vec4 s = occl_subject[i];\n"
+    "            if (((v_cut >> (4 + i)) & 1) == 0 || s.w <= 0.0 || v_view.z > s.z - occl_shape[i].z) continue;\n"
+    "            vec2 d = (sp - s.xy / s.z) * s.z / max(occl_shape[i].xy, vec2(1.0));\n"
+    "            fade = max(fade, (1.0 - smoothstep(1.0 - occl_params.y, 1.0, length(d))) * s.w);\n"
+    "        }\n"
+    "        occl_cover = 1.0 - fade * (1.0 - occl_params.x);\n"
+    "    }\n"
     "    float depth = clamp(v_z / 65536.0, 0.0, 1.0);\n"
     /* Objects and other room blocks are painted after the room surfaces
      * they lie on (their buckets are nearer): tested as if room_slack
@@ -1827,8 +1957,23 @@ static const char* fragment_source =
     /* PS1 order within a model: hidden only by what was drawn before the
      * model (the room, other models); its own polygons paint over each
      * other in the order drawn. */
-    "    if (painter != 0 && tested > texelFetch(surface_before, ivec2(gl_FragCoord.xy), 0).r)\n"
-    "        discard;\n"
+    /* Occlusion's silhouettes: a subject's own pixels hidden by a surface
+     * drawn before it (by more than 8 units) are drawn, in a dither of
+     * occl_instance.y (more toward its rim), in occl_tint, unlit, at the
+     * surface's depth. */
+    "    bool silhouette = false;\n"
+    "    float silhouette_depth = 0.0;\n"
+    "    if (painter != 0) {\n"
+    "        float before = texelFetch(surface_before, ivec2(gl_FragCoord.xy), 0).r;\n"
+    "        if (tested > before) {\n"
+    "            if (occl_instance.y <= 0.0 || depth_pass != 0 || v_z < before * 65536.0 + 8.0) discard;\n"
+    "            float rim = smoothstep(0.25, 0.9, 1.0 - abs(dot(normalize(v_normal), normalize(-v_view))));\n"
+    "            float cover = occl_instance.y * mix(1.0, rim, occl_instance.z);\n"
+    "            if (cover < occl_threshold(ivec2(gl_FragCoord.xy) + ivec2(3, 5))) discard;\n"
+    "            silhouette = true;\n"
+    "            silhouette_depth = before;\n"
+    "        }\n"
+    "    }\n"
     "    if (depth_pass != 0 && painter == 0 && tested > texelFetch(surface_depth, ivec2(gl_FragCoord.xy), 0).r + 1.0 / 4194304.0)\n"
     "        discard;\n"
     "    if (surface_test != 0) {\n"
@@ -1894,6 +2039,15 @@ static const char* fragment_source =
     "        }\n"
     "    }\n"
     "    if ((semi_pass == 1 && semi) || (semi_pass == 2 && !semi)) discard;\n"
+    "    if (occl_cover < 1.0 && !semi && occl_cover < occl_threshold(ivec2(gl_FragCoord.xy))) discard;\n"
+    "    if (silhouette) {\n"
+    "        color = vec4(occl_tint.rgb, float(mask));\n"
+    "        normal_out = vec4(0.5, 0.5, 0.0, 0.0);\n" /* unlit */
+    "        albedo_out = vec4(occl_tint.rgb, 1.0);\n"
+    "        shade_out = vec4(occl_tint.rgb, 0.5);\n"
+    "        gl_FragDepth = silhouette_depth;\n"
+    "        return;\n"
+    "    }\n"
     "    color = vec4(c, float(mask));\n"
     "    normal_out = vec4(normalize(v_normal) * 0.5 + 0.5, ghost ? 0.55 : surface);\n"
     "    albedo_out = vec4(albedo, 1.0);\n"
@@ -1903,7 +2057,7 @@ static const char* fragment_source =
 static GLint u_bone_rotation, u_bone_translation, u_normal_matrix, u_projection, u_offset, u_rules, u_split, u_tint,
     u_clip_z, u_perspective, u_filtering, u_window, u_mask_set, u_vram, u_objects, u_zsf3, u_override_color,
     u_override_texture, u_surface, u_depth_pass, u_surface_depth, u_painter, u_surface_before, u_instance_blend,
-    u_translucent, u_forced, u_semi_pass, u_surface_test, u_order, u_room_slack, u_room_order, u_layer_slack, u_cut_focus, u_cut_scale, u_instance_cut, u_uv_offset, u_uv_count, u_uv_window,
+    u_translucent, u_forced, u_semi_pass, u_surface_test, u_order, u_room_slack, u_room_order, u_layer_slack, u_cut_focus, u_cut_scale, u_instance_cut, u_occl_subject, u_occl_shape, u_occl_params, u_occl_instance, u_occl_tint, u_uv_offset, u_uv_count, u_uv_window,
     u_uv_shift, u_emissive_map, u_emissive_on;
 static GLuint element_buffer; /* PS1 draw order, streamed per list */
 
@@ -1961,6 +2115,11 @@ static int ensure_program(void)
     U(cut_focus);
     U(cut_scale);
     U(instance_cut);
+    U(occl_subject);
+    U(occl_shape);
+    U(occl_params);
+    U(occl_instance);
+    U(occl_tint);
 #undef U
     gl_GenBuffers(1, &element_buffer);
     u_bone_rotation = gl_GetUniformLocation(program, "bone_rotation[0]");
@@ -2039,6 +2198,10 @@ static mesh_slot* use_instance(const draw_list* list, const list_instance* in, c
     gl_Uniform4i(u_override_texture, in->tpage, in->clut, in->override & RENDER_OVERRIDE_TEXTURE ? 1 : 0, 0);
     gl_Uniform2i(u_instance_blend, in->blend != 0, in->blend ? ((in->blend - 1) & 3) << 5 : 0);
     gl_Uniform4f(u_instance_cut, instance_cut(in, target->t), in->cut_ghost ? 1.0f : 0.0f, 0, 0);
+    float occl[4], tint[4];
+    occlusion_instance(list, in, list->order_used > 0 && list->rules.objects && target->surface_before, occl, tint);
+    gl_Uniform4fv(u_occl_instance, 1, occl);
+    gl_Uniform4fv(u_occl_tint, 1, tint);
     gl_BindVertexArray(mesh->vao);
     return mesh;
 }
@@ -2197,6 +2360,11 @@ static const render_camera* begin_draw(const draw_list* list, const render_targe
     cutaway_params(list, cam, cut_focus, cut_scale);
     gl_Uniform4fv(u_cut_focus, 1, cut_focus);
     gl_Uniform4fv(u_cut_scale, 1, cut_scale);
+    occlusion_draw occl;
+    occlusion_params(list, cam, target->t, &occl);
+    gl_Uniform4fv(u_occl_subject, PC_OCCLUSION_SUBJECTS, occl.subject[0]);
+    gl_Uniform4fv(u_occl_shape, PC_OCCLUSION_SUBJECTS, occl.shape[0]);
+    gl_Uniform4fv(u_occl_params, 1, occl.params);
     /* Animated materials (render_list_uv_effects). */
     static uv_effect_gpu table[RENDER_MAX_UV_EFFECTS + 1];
     static GLint offsets[(RENDER_MAX_UV_EFFECTS + 1) * 4], windows[(RENDER_MAX_UV_EFFECTS + 1) * 4];

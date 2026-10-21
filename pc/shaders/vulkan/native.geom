@@ -24,7 +24,8 @@ layout(location = 6) flat out vec3 v_normal;
 layout(location = 7) flat out uvec4 v_bounds;
 layout(location = 8) smooth centroid out vec3 v_view; // view space, rows' scales divided out (cutaway)
 layout(location = 9) flat out int v_cut; // bit 0: the polygon stands between the eye and the cutaway focus;
-                                         // bits 1-3: the triangle's real edges (opposite corner 0, 1, 2)
+                                         // bits 1-3: the triangle's real edges (opposite corner 0, 1, 2);
+                                         // bits 4-7: occlusion subjects the polygon stands in front of
 layout(location = 10) noperspective out vec3 v_bary; // the corner weights (a cutaway ghost's edges)
 layout(location = 11) flat out uint v_order; // room polygons: PS1 draw order key (bucket << 10 | sequence; smaller paints later)
 vec3 p[4];
@@ -35,7 +36,7 @@ uint tpage, clut, pcode;
 uint effect = 0u, halved = 0u;
 vec3 n;
 float z_near = 0.0; // sprites: tested and written at their nearest point
-int cut = 0;
+int cut = 0, occl_bits = 0;
 int tri_edges = 7, corner = 0; // a quad's diagonal is no edge
 uint order_key = 0u;
 vec2 screen(vec3 q) { return vec2(u.offset.x + u.projection.x * q.x / q.z, u.offset.y + u.projection.y * q.y / q.z); }
@@ -53,7 +54,7 @@ void emit(int i) {
     v_state = uvec4(pcode & 7u, tpage, clut, effect | (halved << 8) | (g_scope[0] << 16));
     v_normal = n;
     v_view = q * u.cut_scale.xyz;
-    v_cut = cut | (tri_edges << 1);
+    v_cut = cut | (tri_edges << 1) | (occl_bits << 4);
     v_bary = vec3(corner == 0 ? 1.0 : 0.0, corner == 1 ? 1.0 : 0.0, corner == 2 ? 1.0 : 0.0);
     v_order = order_key;
     EmitVertex();
@@ -91,6 +92,25 @@ void cutaway_test(bool quad) {
     pn /= l;
     float eye = dot(pn, -a), focus = dot(pn, u.cut_focus.xyz - a);
     if (eye * focus < 0.0 && abs(focus) > 8.0) cut = 1;
+}
+// Occlusion in play (render.c occlusion_params): a polygon whose plane
+// separates the eye from a subject stands between them (bit 4 + i);
+// floors under it and walls behind it never do.
+void occlusion_test(bool quad) {
+    if (u.occl_params.z <= 0.0) return;
+    vec3 k = u.cut_scale.xyz;
+    vec3 a = p[0] * k, b = p[1] * k, c = p[2] * k;
+    vec3 pn = cross(b - a, c - a);
+    if (quad && dot(pn, pn) < 1e-3) pn = cross(p[3] * k - b, c - b);
+    float l = length(pn);
+    if (l < 1e-6) return;
+    pn /= l;
+    float eye = dot(pn, -a);
+    for (int i = 0; i < 4; i++) {
+        if (float(i) >= u.occl_params.z || u.occl_subject[i].w <= 0.0) continue;
+        float s = dot(pn, u.occl_subject[i].xyz - a);
+        if (eye * s < 0.0 && abs(s) > 8.0) occl_bits |= 1 << i;
+    }
 }
 int sz(int i) { return int(clamp(p[i].z, 0.0, 65535.0)); }
 // Object rules (BATTLE/4B16C.s func_800B3CF0/func_800B4594).
@@ -236,6 +256,7 @@ void main() {
     n = length_ > 1e-6 ? n / length_ : vec3(0.0, 0.0, -1.0);
     if (dot(n, p[0]) > 0.0) n = -n;
     cutaway_test(quad);
+    occlusion_test(quad);
     tri_edges = quad ? 6 : 7;
     triangle(0, 1, 2);
     tri_edges = 5;

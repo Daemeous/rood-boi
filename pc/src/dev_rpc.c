@@ -541,6 +541,10 @@ extern float pc_gameplay_walls_opacity __attribute__((weak)), pc_gameplay_walls_
 extern int pc_gameplay_walls_fade_out __attribute__((weak)), pc_gameplay_walls_fade_in __attribute__((weak)),
     pc_gameplay_walls_clear __attribute__((weak));
 extern int pc_gameplay_walls_info(unsigned, float*, int*, int*) __attribute__((weak));
+/* occlusion.h (RPC occlusion). */
+extern int pc_occlusion_setting(const char* key, const char* value) __attribute__((weak));
+extern const char* pc_occlusion_key(int index) __attribute__((weak));
+extern int pc_occlusion_json(char* out, int size) __attribute__((weak));
 extern int pc_scene_triangles(void) __attribute__((weak));
 extern int pc_lights_describe(char*, int) __attribute__((weak));
 extern void pc_lights_suggest(void) __attribute__((weak));
@@ -1758,6 +1762,23 @@ static void handle_method(int fd, const char* request)
         }
         snprintf(result, sizeof result, "{\"path\":\"%s\",\"width\":%d,\"height\":%d}", json_str(path), width,
             height);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "occlusion")) {
+        /* Occlusion in play (occlusion.h): any of its settings keys
+         * (occlusion "off" | "fade" | "fade_silhouette" | "silhouette",
+         * occlusion_visibility, ... occlusion_tint_ashley [r, g, b]); the
+         * reply: every setting and this game frame's subjects (slot, enemy,
+         * center, ellipse half axes, fade, hidden, rays blocked of 5). */
+        if (!pc_occlusion_json) {
+            fail(fd, id, -32000, "no occlusion in this build");
+            return;
+        }
+        for (int k = 0; params && pc_occlusion_key(k); k++) {
+            const char* v = member(params, pc_occlusion_key(k));
+            if (v)
+                pc_occlusion_setting(pc_occlusion_key(k), v);
+        }
+        pc_occlusion_json(result, (int)sizeof result);
         reply(fd, id, result);
     } else if (!strcmp(method, "graphics")) {
         static const char* const denoiser_names[3] = { "raw", "filter", "nrd" };

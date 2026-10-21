@@ -173,6 +173,9 @@ typedef struct {
     float room_slack[2]; /* surface_test 4 (pc_native_room_slack) */
     int room_order, layer_slack;
     int emissive; /* emissive texels: the slot map (binding 6) is read */
+    int pad_occl[3];
+    float occl_subject[PC_OCCLUSION_SUBJECTS][4], occl_shape[PC_OCCLUSION_SUBJECTS][4]; /* occlusion_params */
+    float occl_params[4], occl_instance[4], occl_tint[4]; /* occlusion_params, occlusion_instance */
 } native_ubo;
 _Static_assert(offsetof(native_ubo, projection) == 48 && offsetof(native_ubo, rules) == 96
         && offsetof(native_ubo, split) == 144 && offsetof(native_ubo, objects) == 168
@@ -180,7 +183,9 @@ _Static_assert(offsetof(native_ubo, projection) == 48 && offsetof(native_ubo, ru
         && offsetof(native_ubo, uv_count) == 216 && offsetof(native_ubo, cut_focus) == 224 && offsetof(native_ubo, cut_scale) == 240
         && offsetof(native_ubo, instance_cut) == 256 && offsetof(native_ubo, room_slack) == 272
         && offsetof(native_ubo, room_order) == 280 && offsetof(native_ubo, layer_slack) == 284
-        && offsetof(native_ubo, emissive) == 288,
+        && offsetof(native_ubo, emissive) == 288 && offsetof(native_ubo, occl_subject) == 304
+        && offsetof(native_ubo, occl_shape) == 368 && offsetof(native_ubo, occl_params) == 432
+        && offsetof(native_ubo, occl_instance) == 448 && offsetof(native_ubo, occl_tint) == 464,
     "native_ubo must match native_common.glsl's std140 layout");
 static VkDescriptorSetLayout vk_native_set;
 static VkPipelineLayout vk_native_layout;
@@ -351,6 +356,7 @@ static mesh_slot* vk_use_instance(vk_draw_state* s, const draw_list* list, const
     u->instance_blend[1] = in->blend ? ((in->blend - 1) & 3) << 5 : 0;
     u->instance_cut[0] = instance_cut(in, target->t);
     u->instance_cut[1] = in->cut_ghost ? 1.0f : 0.0f;
+    occlusion_instance(list, in, u->painter, u->occl_instance, u->occl_tint);
     if (!vk_mesh_bind(mesh->vbo))
         return NULL;
     vk_slice ubo = vk_arena(sizeof *u, s->ubo_alignment);
@@ -395,6 +401,11 @@ static const render_camera* vk_begin_draw(vk_draw_state* s, const draw_list* lis
     u->zsf3 = list->rules.zsf3;
     u->surface = list->rules.objects ? 0.75f : 1.0f;
     cutaway_params(list, cam, u->cut_focus, u->cut_scale);
+    occlusion_draw occl;
+    occlusion_params(list, cam, target->t, &occl);
+    memcpy(u->occl_subject, occl.subject, sizeof u->occl_subject);
+    memcpy(u->occl_shape, occl.shape, sizeof u->occl_shape);
+    memcpy(u->occl_params, occl.params, sizeof u->occl_params);
     /* Animated materials: the table for this draw's blend t. */
     uv_effect_gpu table[RENDER_MAX_UV_EFFECTS + 1];
     int entries = uv_effect_table(list, target->t, table);

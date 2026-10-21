@@ -70,6 +70,7 @@ int pc_dev_actors(struct pc_dev_actor* out, int max)
         out[n].pos[2] = actor->unk0.position.vz;
         out[n].radius = actor->shadowRadius;
         out[n].facing = actor->unk0.facing & 0xfff;
+        out[n].weapon_drawn = actor->unk0.weaponDrawn == 1;
         n++;
     }
     return n;

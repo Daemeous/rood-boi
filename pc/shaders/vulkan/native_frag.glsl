@@ -47,6 +47,15 @@ float bayer4(ivec2 q) {
     int a = (q.x ^ q.y) & 3, b = q.y & 3;
     return float(((a & 1) << 3) | ((b & 1) << 2) | ((a >> 1) << 1) | (b >> 1)) / 16.0 + 1.0 / 32.0;
 }
+// Occlusion's dither (fixed to the screen's pixels, the same every frame):
+// 8 x 8 Bayer, or interleaved gradient noise (render.c the same).
+float bayer8(ivec2 q) {
+    int a = (q.x ^ q.y) & 7, b = q.y & 7;
+    return float(((a & 1) << 5) | ((b & 1) << 4) | ((a & 2) << 2) | ((b & 2) << 1) | ((a & 4) >> 1) | ((b & 4) >> 2)) / 64.0 + 1.0 / 128.0;
+}
+float occl_threshold(ivec2 q) {
+    return u.occl_params.w > 0.5 ? fract(52.9829189 * fract(dot(vec2(q) + 0.5, vec2(0.06711056, 0.00583715)))) : bayer8(q);
+}
 void main() {
     // The editor's cutaway: inside the cone from the eye to the focus (its
     // radius at the focus cut_focus.w: a circle of constant size on screen),
@@ -81,14 +90,46 @@ void main() {
         }
         if (cover < bayer4(ivec2(gl_FragCoord.xy))) discard;
     }
+    // Occlusion in play: a polygon between the eye and a subject, nearer than
+    // it, inside its ellipse on the screen, keeps occl_params.x of its pixels
+    // at the centre, more toward the rim, all beyond it.
+    // Semi-transparent texels (a save point's light, glass) hide nothing:
+    // never faded (decided below, once the texel is known).
+    float occl_cover = 1.0;
+    if (u.occl_params.z > 0.0 && u.occl_instance.x == 0.0 && (v_cut >> 4) != 0 && v_view.z > 1.0) {
+        vec2 sp = v_view.xy / v_view.z;
+        float fade = 0.0;
+        for (int i = 0; i < 4; i++) {
+            vec4 s = u.occl_subject[i];
+            if (((v_cut >> (4 + i)) & 1) == 0 || s.w <= 0.0 || v_view.z > s.z - u.occl_shape[i].z) continue;
+            vec2 d = (sp - s.xy / s.z) * s.z / max(u.occl_shape[i].xy, vec2(1.0));
+            fade = max(fade, (1.0 - smoothstep(1.0 - u.occl_params.y, 1.0, length(d))) * s.w);
+        }
+        occl_cover = 1.0 - fade * (1.0 - u.occl_params.x);
+    }
     float depth = clamp(v_z / 65536.0, 0.0, 1.0);
     // Objects and other room blocks are painted after the room surfaces they
     // lie on (nearer buckets): tested as if room_slack nearer.
     float tested = u.layer_slack != 0 ? max(depth * (1.0 - u.room_slack.x) - u.room_slack.y / 65536.0, 0.0) : depth;
     // PS1 order within a model: hidden only by what was drawn before the
     // model (the room, other models); its own polygons paint over each other.
-    if (u.painter != 0 && tested > texelFetch(surface_before, ivec2(gl_FragCoord.xy), 0).r)
-        discard;
+    // Occlusion's silhouettes: a subject's own pixels hidden by a surface drawn
+    // before it (by more than 8 units) are drawn, in a dither of
+    // occl_instance.y (more toward its rim), in occl_tint, unlit, at the
+    // surface's depth.
+    bool silhouette = false;
+    float silhouette_depth = 0.0;
+    if (u.painter != 0) {
+        float before = texelFetch(surface_before, ivec2(gl_FragCoord.xy), 0).r;
+        if (tested > before) {
+            if (u.occl_instance.y <= 0.0 || u.depth_pass != 0 || v_z < before * 65536.0 + 8.0) discard;
+            float rim = smoothstep(0.25, 0.9, 1.0 - abs(dot(normalize(v_normal), normalize(-v_view))));
+            float cover = u.occl_instance.y * mix(1.0, rim, u.occl_instance.z);
+            if (cover < occl_threshold(ivec2(gl_FragCoord.xy) + ivec2(3, 5))) discard;
+            silhouette = true;
+            silhouette_depth = before;
+        }
+    }
     if (u.depth_pass != 0 && u.painter == 0 && tested > texelFetch(surface_depth, ivec2(gl_FragCoord.xy), 0).r + 1.0 / 4194304.0)
         discard;
     if (u.surface_test != 0) {
@@ -152,6 +193,15 @@ void main() {
         }
     }
     if ((u.semi_pass == 1 && semi) || (u.semi_pass == 2 && !semi)) discard;
+    if (occl_cover < 1.0 && !semi && occl_cover < occl_threshold(ivec2(gl_FragCoord.xy))) discard;
+    if (silhouette) {
+        color = vec4(u.occl_tint.rgb, float(mask));
+        normal_out = vec4(0.5, 0.5, 0.0, 0.0); // unlit
+        albedo_out = vec4(u.occl_tint.rgb, 1.0);
+        shade_out = vec4(u.occl_tint.rgb, 0.5);
+        gl_FragDepth = silhouette_depth;
+        return;
+    }
     color = vec4(c, float(mask));
     normal_out = vec4(normalize(v_normal) * 0.5 + 0.5, ghost ? 0.55 : u.surface);
     albedo_out = vec4(albedo, 1.0);

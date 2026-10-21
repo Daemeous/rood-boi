@@ -21,6 +21,7 @@ extern "C" {
 #include "fast_travel.h"
 #include "gameplay_walls.h"
 #include "lighting_quality.h"
+#include "occlusion.h"
 #include "ui_bubbles.h"
 #include "ui_text.h"
 #include "ui_upscale.h"
@@ -393,6 +394,25 @@ void build()
             "Motes of dust that glint where light crosses the air and vanish in shadow (rooms that have them). Off: the picture as before.",
             &pc_dust, dust, 3)
                         .grey(need_hw));
+    }
+    {
+        // Occlusion in play (occlusion.h): both looks (it is the 3D view's).
+        static const char* const occlusion[] = {"Off", "Fade", "Fade + silhouettes", "Silhouettes"};
+        g.push_back(choice("occlusion", "See-through walls",
+            "Walls and props between the camera and Ashley (in battle also her target and the enemies near her) fade "
+            "in a soft circle around her while they hide her. Silhouettes: what still hides a character shows its "
+            "shape faintly. Off: as the PS1 drew them.",
+            &pc_occlusion, occlusion, 4)
+                        .grey(need_hw));
+        Row r = fslider("occlusion_visibility", "See-through amount",
+            "How much of a faded wall stays at the circle's middle. Lower: you see more of what it hides.",
+            &pc_occlusion_visibility, 0, 0.9f, 0.05f, "%.2f");
+        g.push_back(r.grey([](const Row& r) {
+            if (const char* why = need_hw(r))
+                return why;
+            return pc_occlusion == PC_OCCLUSION_FADE || pc_occlusion == PC_OCCLUSION_FADE_SILHOUETTE ? nullptr
+                                                                                                      : "Needs See-through walls to fade";
+        }));
     }
 
     // Display
@@ -791,7 +811,7 @@ void build()
     p.push_back(toggle("qol_fast_travel_prompt", "Travel prompt",
         "Show the Travel button on a Circle of Magic when you can travel.", &pc_qol_fast_travel_prompt));
     p.push_back(choice("gameplay_walls", "Cutaway walls",
-        "Smart: walls facing the camera stay unless they hide Ashley. Original: the PS1's.", &pc_gameplay_walls, walls,
+        "Smart: walls facing the camera stay unless they hide Ashley. Original: the PS1's (best with See-through walls).", &pc_gameplay_walls, walls,
         2)
                     .grey(need_hw));
     p.push_back(toggle("gameplay_walls_ghost", "Ghost walls", "Walls in the way stay as a see-through ghost.",

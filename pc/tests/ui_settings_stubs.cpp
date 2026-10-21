@@ -37,6 +37,8 @@ int pc_ui_text, pc_ui_upscale, pc_ui_subpixel, pc_ui_lines = 1, pc_ui_outline_bo
 int pc_button_prompts, pc_button_prompts_style;
 float pc_button_prompts_scale = 0.7f;
 int pc_gameplay_walls, pc_gameplay_walls_ghost = 1;
+int pc_occlusion = 1;
+float pc_occlusion_visibility = 0.35f;
 
 int pc_hw_scale_auto; // internal_resolution auto (gpu_hw.c): pc_hw_set_scale(0)
 int pc_hw_set_scale(int scale)

@@ -156,6 +156,11 @@ suites = ["tunables_smoke", "skip_charging_smoke", "charge_skip_soak", "soak", "
           "snapshot_equivalence", "facing_cutaway_smoke", "camera_stick_smoke", "ending_smoke", "weapon_slots_smoke",
           "hud_bench_smoke", "classic_parity", "classic_hud_smoke"]
 
+# ---- occlusion in play ----
+[[rule]]
+paths = ["pc/src/occlusion.*", "pc/tests/occlusion_smoke.py"]
+suites = ["occlusion_smoke", "ctest", "tunables_smoke"]
+
 [[rule]]
 paths = ["src/EFFECT/*", "pc/src/effect_*"]
 suites = ["glow_stability_smoke", "damage_numbers_smoke", "skip_charging_smoke", "charge_skip_soak",

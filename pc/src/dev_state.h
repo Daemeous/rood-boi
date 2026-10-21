@@ -18,6 +18,7 @@ struct pc_dev_actor {
     float pos[3]; /* its feet, world units (y down) */
     float radius; /* its drop shadow's radius (world units): its footprint */
     int facing; /* 0..4095 */
+    int weapon_drawn; /* battle mode (its weaponDrawn; Ashley's is the player's) */
 };
 int pc_dev_actors(struct pc_dev_actor* out, int max) __attribute__((weak));
 /* The battle action running now (one at a time, any actor; scene_submit.inc

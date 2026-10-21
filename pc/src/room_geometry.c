@@ -337,6 +337,7 @@ extern void pc_room_native_group_cut(float cut, float cut_previous, int ghost) _
 extern int pc_gameplay_walls_frame(const void* data, unsigned facing, unsigned mode) __attribute__((weak));
 extern int pc_gameplay_walls_group(unsigned index, int kept, float* cut, float* cut_previous, int* ghost)
     __attribute__((weak));
+extern void pc_occlusion_frame(int free_camera) __attribute__((weak));
 extern void pc_room_native_tint(const unsigned* start, int dr, int dg, int db, int fade) __attribute__((weak));
 extern const void* pc_scene_room_data(void) __attribute__((weak));
 /* The current room's groups drawn by the latest call (RPC room_groups
@@ -421,6 +422,10 @@ void func_8009723C(void* data, unsigned mode)
         packet = pc_room_group_packets(geometry, packet, ot, gp, mode, limit);
     }
     translucent_only = 0;
+    /* Occlusion in play (occlusion.c): who matters and whether the groups
+     * just drawn hide them, once per game frame for the current room. */
+    if (record && pc_occlusion_frame)
+        pc_occlusion_frame(free_camera);
     if (native)
         packet = pc_room_native_end(packet, ot);
     native = 0;
