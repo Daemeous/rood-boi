@@ -112,6 +112,14 @@ def input_cases(scale):
 
 
 # The Zig trial port's corpus runs: (suite label, subsystem, recipe, the Zig modules it covers).
+def port_modules(subsystem):
+    """The Zig modules a subsystem's functions route to (game/ownership.toml)."""
+    import tomllib
+    table = tomllib.loads((ROOT / "game/ownership.toml").read_text())["subsystem"][subsystem]
+    return sorted({ROOT / "game" / table["overlay"] / (f["zig"].split(".")[0] + ".zig")
+                   for f in table["functions"] if "zig" in f})
+
+
 TRIAL_CORPUS = [("kill", "battle_146C", "enemy_kill", ["score.zig"]),
                 ("transform", "battle_44F14", "enemy_cast_wait", ["actor_transform.zig"]),
                 ("name_window", "battle_5BF94", "action_name_window", ["scene_message.zig"])]
@@ -156,6 +164,16 @@ def suites(args, mode="egl"):
         Suite("shadow_battle_smoke", [PY, str(TESTS / "shadow_battle_smoke.py"), "--card", str(args.save)], 300,
               note="experimental routed battle shadow; classic oracle profile",
               sources=[ROOT / "pc/src/shadow.c", ROOT / "game/common/route.zig"]),
+        # The 38C1C port shadowed inside battle_action: its routed bone helpers
+        # (func_800A152C, func_800A1AF8) run between func_8007138C's caller and
+        # its partly written effect request, whose dead-stack bytes diverged
+        # until the request was zeroed (pc/docs/Oracle.md, known hazards).
+        Suite("shadow_battle_smoke_38C1C", [PY, str(TESTS / "shadow_battle_smoke.py"), "--card", str(args.save),
+              "--owner", "battle_38C1C_port=shadow"], 300,
+              note="battle_action shadow with battle_38C1C_port shadowed (the effect-request oracle gap)",
+              sources=[ROOT / "pc/src/shadow.c", ROOT / "game/common/route.zig", TESTS / "shadow_battle_smoke.py",
+                       ROOT / "src/BATTLE/BATTLE.PRG/146C.c", ROOT / "src/BATTLE/BATTLE.PRG/38C1C.c",
+                       *port_modules("battle_38C1C_port")]),
         Suite("ownership_smoke", [PY, str(TESTS / "ownership_smoke.py")], 300,
               note="oracle checkpoint, rewind and replay", sources=[ROOT / "pc/src/state_rewind.c",
                   ROOT / "pc/src/state_diff.c", ROOT / "pc/src/snapshot.c", ROOT / "pc/src/input_record.c"]),
@@ -1029,7 +1047,7 @@ def main():
     if args.renderer == "null":
         # Only explicitly CPU-safe game suites; never run screenshots or GPU
         # probes in this lane merely because they can launch the game binary.
-        safe = {"null_backend_smoke", "shadow_battle_smoke", "ownership_smoke", "battle_corpus_candidate",
+        safe = {"null_backend_smoke", "shadow_battle_smoke", "shadow_battle_smoke_38C1C", "ownership_smoke", "battle_corpus_candidate",
                 "zig_hotswap_smoke", "engine_rewind_smoke", "classic_parity",
                 *(f"trial_corpus_{t[0]}{suffix}" for t in TRIAL_CORPUS for suffix in ("", "_features"))}
         every = [s for s in every if s.binary is None or s.name in safe]

@@ -143,3 +143,47 @@ Do not broaden the enabled subsystem set without auditing its host hooks.
 See [CPU-Oracle.md](CPU-Oracle.md) for the experimental null backend, measured
 CPU-lane throughput and the still-unproven cross-backend parity gate. The local
 corpus and its explicit coverage gaps are in `pc/tests/diff/CORPUS.md`.
+
+## Known hazards: partly written locals copied whole
+
+The original C often fills only the used fields of a stack local and then
+copies the whole struct into game memory (or passes it to a callee that
+does). On the PS1 the unwritten bytes are PS1 stack residue; here they are
+dead host stack, which differs between owned and original routes (a Zig
+callee leaves different frames) and between builds. Tick and alternate
+modes then report a divergence that no port caused, and shadow mode
+reports one when the residue is left by calls inside the transaction (both
+original runs leave the same residue, so the two-run noise detection
+cannot mask it).
+
+Fixed: `func_8007138C` (146C.c) zeroes its effect request under ROOD_PC.
+`func_800CF0E8` copies the request whole into `D_800F5230` (0xE8 bytes) and
+`func_800CE714` copies `targets[0]` whole into each effect node; only the
+reserved bytes, the last four bytes of an actor target's union, the targets
+past `count`, the others past `otherCount` and `position.pad` were dead
+stack (offsets 0x18..0x60 diverged with `battle_38C1C_port` owned). No
+reader found interprets them. Regression: run.py `shadow_battle_smoke_38C1C`.
+
+Found by watching the bytes: `ROOD_BINARY` can be a wrapper that runs the
+game under `gdb -batch` with a Python script setting access watchpoints on
+the guest addresses (they are host addresses in the 64-bit build) whose
+`stop()` logs a backtrace and returns False; drive the recipe with the
+normal RPC.
+
+Not fixed (no recipe diverges on them yet; zero the local under ROOD_PC
+the same way when one does):
+
+- the other effect requests, `func_800CF0E8_t` locals with a few fields
+  written, passed to `func_800CF3F8`/`func_800CF0E8` (copied whole into
+  `D_800F53C0`/`D_800F5230`): 146C.c `func_8006C4C4`, `func_8006F450`,
+  `func_8006F4B0`, `func_8006F848`, `func_800733F8`, `func_80073D30`,
+  `func_8007BE20`; 5BF94.c `func_800CF7A8`, `func_800CF8BC`;
+- SVECTOR/VECTOR locals whose `pad` is never written, copied whole into
+  game memory: 146C.c `func_800719FC` (`origin` into
+  `D_800F19CC->unk29B8`), `func_80085B10` (`impact` into a hit entry),
+  `func_80089DC0` (`lookAt` into `vs_scratch.camera.lookAt`); 3A1A0.c
+  `func_800A76BC` (`probe` into `D_800F4B08`).
+
+The SVECTOR/VECTOR list comes from a scan of the BATTLE units for locals
+copied with `= local;` and no `.pad` or whole assignment; locals passed by
+address to a callee that copies them are not covered by it.

@@ -464,14 +464,20 @@ Reached as roots: `func_800A152C`, `func_800A1720`, `func_800A190C`,
 `func_800A291C` (movement and jumps: no recipe moves an actor). Tick and
 alternate modes, and `shadow_battle_smoke --owner battle_38C1C_port=shadow`
 (battle_action's `_handleCombatCameraZoom` shadowed with 38C1C nested),
-diverge in guest RAM 0x800F5248..0x800F5290 (inside the unnamed BATTLE bss
-after `D_800F5238`). Not a port bug: owning only `func_800A1AF8` (a 3-line
+diverged in guest RAM 0x800F5248..0x800F5290 (it looked like unnamed
+BATTLE bss after `D_800F5238`; it is inside `D_800F5230`). Not a port bug: owning only `func_800A1AF8` (a 3-line
 forwarder) diverges there too, and the original side's bytes change from
 build to build with the C unchanged (only the routing trampolines differ):
-bytes derived from dead host stack (callers pass SVECTORs whose `pad` the
-callee never writes), which the double oracle cannot mask because both
-original runs leave the same residue. An oracle gap to close before 38C1C
-can pass tick mode: find the writer and mask or fix it.
+dead host stack. Closed (branch oracle-tick-gap): the bytes are
+`D_800F5230` (the effect request, 0xE8 bytes) offsets 0x18..0x60, written
+by `func_800CF0E8`'s whole-struct copy of `func_8007138C`'s local request,
+of which only the used fields are written (reserved bytes, the union tail
+of actor targets, the targets past `count`); `func_800CE714` then copies
+`targets[0]` whole into each effect node. `func_8007138C` runs inside
+`_handleCombatCameraZoom` after the routed 38C1C helpers, whose frames left
+the residue. Under ROOD_PC the request is now zeroed first; tick, alternate
+and call modes pass on all three recipes and `shadow_battle_smoke_38C1C`
+(run.py) is the regression. See Oracle.md, known hazards.
 
 Review cost (agent time, 17 functions): ~32 min reading and fixing the
 specs and ports (zig_diff `--self-check --coverage` for all 17 in 3.5 min,

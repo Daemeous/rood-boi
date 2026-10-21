@@ -4178,6 +4178,20 @@ void func_8007138C(void)
     int count;
     vs_battle_actor* actor;
 
+#ifdef ROOD_PC
+    /* The request is copied whole (func_800CF0E8: D_800F5230 = *arg0, then
+     * func_800CE714 copies targets[0] whole into each effect node), but only
+     * part of it is written: reserved2/reserved3 and the union's last four
+     * bytes of an actor target, the targets past count, the others past
+     * otherCount, position.pad. On the PS1 those bytes are whatever the PS1
+     * stack held; here they were dead host stack, which changes with the
+     * routing (owned or original callees leave different frames) and from
+     * build to build, so the state oracle saw them diverge. No reader found
+     * interprets them (actor targets use type, actor and part; position
+     * targets write all eight bytes): zero them. */
+    memset(&request, 0, sizeof request);
+#endif
+
     D_800F19CC->battleAbilityInputSuccessful = 0;
     if (psx_get(vs_battle_characterState->unk3C)->statuses & 0x8000) {
         D_800F19CC->battleAbilityInputAttempted = 1;
