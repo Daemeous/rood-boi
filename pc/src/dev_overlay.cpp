@@ -67,6 +67,8 @@ extern "C" void pc_lua_console_menu_item(void); /* lua_console.cpp */
 extern "C" void pc_lua_console_window(void);
 extern "C" void pc_fast_travel_prompt_draw(void); /* fast_travel_prompt.cpp */
 extern "C" void pc_hud_frame(void);               /* lua_api_hud.cpp: claimed HUD elements */
+extern "C" void pc_savestate_notice_hud(void);  /* savestate_notice.cpp: the save state slots' notice */
+extern "C" void pc_savestate_notice_draw(void);
 extern "C" void pc_fast_travel_prompt_hud(void);  /* fast_travel_prompt.cpp: the prompt as a HUD element */
 extern "C" int pc_editor_active(void);
 extern "C" void pc_editor_toggle(void);
@@ -2207,8 +2209,10 @@ extern "C" void pc_overlay_frame(int width, int height)
     }
     if (!visible)
         pc_fast_travel_prompt_hud(); /* (before the pass: a claimed prompt is drawn by it) */
+    pc_savestate_notice_hud(); /* the save state slots' notice, the same way */
     pc_hud_frame(); /* HUD elements plugins claim (pc/src/hud): over the picture, under the menus */
     pc_ui_draw_frame((float)dt); /* modern menus (pc/src/ui) over the game picture */
+    pc_savestate_notice_draw(); /* the save state slots' notice, unless a plugin drew it (the HUD pass) */
     if (!visible)
         pc_fast_travel_prompt_draw(); /* the Travel prompt on a Circle of Magic (not over the editor) */
     shell_text_input();

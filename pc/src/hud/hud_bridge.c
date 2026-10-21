@@ -368,6 +368,8 @@ int pc_hud_bridge_name_window(pc_hud_fields* f)
 int pc_hud_bridge_spawn(int kind, const pc_hud_spawn* s)
 {
     D_800F1BAC_t* p;
+    if (kind == PC_HUD_NOTICE)
+        return 0; /* the port's own: a show is a synthetic element */
     /* (a buff or a number the same as the one asked for ends at once: the new one is then the
      * one found, and none waits behind it in the actor's queue) */
     while ((kind == PC_HUD_BUFF || kind == PC_HUD_DAMAGE) && (p = find(kind, s)) != NULL) {
@@ -430,6 +432,8 @@ int pc_hud_bridge_spawn(int kind, const pc_hud_spawn* s)
 int pc_hud_bridge_hold(int kind, const pc_hud_spawn* s)
 {
     D_800F1BAC_t* p;
+    if (kind == PC_HUD_NOTICE)
+        return 0;
     if (kind == PC_HUD_TRAVEL)
         return pc_fast_travel_prompt_is_forced();
     if (kind == PC_HUD_NAME_WINDOW) {
@@ -450,6 +454,8 @@ int pc_hud_bridge_hold(int kind, const pc_hud_spawn* s)
 void pc_hud_bridge_release(int kind, const pc_hud_spawn* s)
 {
     D_800F1BAC_t* p;
+    if (kind == PC_HUD_NOTICE)
+        return;
     if (kind == PC_HUD_TRAVEL) {
         pc_fast_travel_force_prompt(0);
         return;

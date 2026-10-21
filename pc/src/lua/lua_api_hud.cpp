@@ -75,7 +75,7 @@ struct Claim {
     bool failed = false;   // its draw raised: not honoured until the plugin reloads
 };
 std::vector<Claim> claims[PC_HUD_KINDS];
-int active[PC_HUD_KINDS] = { -1, -1, -1, -1, -1, -1, -1 }; // index into claims[kind] (PC_HUD_KINDS entries)
+int active[PC_HUD_KINDS] = { -1, -1, -1, -1, -1, -1, -1, -1 }; // index into claims[kind] (PC_HUD_KINDS entries)
 unsigned long long next_claim = 1;
 
 bool valid(const Claim& c)
@@ -1026,6 +1026,8 @@ void fill_element(lua_State* L, const hud::Element& e, bool fresh = false)
         set_int(L, "value", f.value);
     else
         set_nil(L, "value");
+    if (k == PC_HUD_NOTICE)
+        set_int(L, "slot", f.value); // the save state slot (0: none)
     if (k == PC_HUD_NAME_WINDOW) { // the action (vs_main_actions' index) and the scene message
         set_int(L, "index", f.value);
         set_int(L, "message", f.variant);
@@ -1044,7 +1046,8 @@ void fill_element(lua_State* L, const hud::Element& e, bool fresh = false)
         set_nil(L, "slot");
         set_int(L, "stat", f.stat);
     } else {
-        set_nil(L, "slot");
+        if (k != PC_HUD_NOTICE)
+            set_nil(L, "slot");
         set_nil(L, "stat");
     }
     if (k == PC_HUD_DAMAGE) {
@@ -1057,6 +1060,10 @@ void fill_element(lua_State* L, const hud::Element& e, bool fresh = false)
     if (k == PC_HUD_TRAVEL) {
         set_str(L, "glyph", f.glyph >= 0 && f.glyph < BUTTON_COUNT ? BUTTONS[f.glyph] : "travel");
         set_int(L, "corner", f.variant); // the prompt's anchor: 0..8, top left .. bottom right
+        set_field(L, "unit", f.unit);
+    } else if (k == PC_HUD_NOTICE) {
+        set_nil(L, "glyph");
+        set_int(L, "corner", f.variant); // which of its corners goes on x, y (0 top left)
         set_field(L, "unit", f.unit);
     } else {
         set_nil(L, "glyph");
@@ -1262,6 +1269,8 @@ Value element_value(const hud::Element& e)
         v.set("index", Value::integer(f.value));
         v.set("message", Value::integer(f.variant));
     }
+    if (k == PC_HUD_NOTICE)
+        v.set("slot", Value::integer(f.value));
     return v;
 }
 

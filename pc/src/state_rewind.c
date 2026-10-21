@@ -1,26 +1,21 @@
 /* In-process oracle checkpoint at the vsync boundary (snapshot.c). Host
  * allocations stay outside snapshot ranges; restoration runs on a side stack
  * because the game stack itself is restored. */
+#include "snapshot_context.h"
 #include "state_diff.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(_WIN32) || !(defined(__i386__) || defined(__x86_64__))
+#if !(defined(__i386__) || defined(__x86_64__)) || (defined(_WIN32) && !defined(__x86_64__))
 int pc_snapshot_mark_point(char* error, int size)
 {
-    snprintf(error, (size_t)size, "rewind needs Linux on x86");
+    snprintf(error, (size_t)size, "rewind needs x86 (Linux or 64-bit Windows)");
     return -1;
 }
 int pc_snapshot_rewind(char* error, int size) { return pc_snapshot_mark_point(error, size); }
 #else
-/* Matches snapshot.c's unmangled register context. */
-typedef struct {
-    uintptr_t regs[8];
-    uint32_t mxcsr;
-    uint16_t fpu_cw;
-} snap_context;
 /* snapshot.c: the game side of the current vsync's boundary, and entering
  * the game there (a resume uses the same pair). */
 extern snap_context pc_snap_boundary;
@@ -35,6 +30,7 @@ extern int pc_fog_state_size(void) __attribute__((weak));
 extern void pc_fog_state_save(void*) __attribute__((weak));
 extern int pc_fog_state_load(const void*, int) __attribute__((weak));
 extern void pc_cd_restored(void) __attribute__((weak));
+extern void pc_cd_release(void) __attribute__((weak));
 extern void pc_hw_resync(void) __attribute__((weak));
 extern void pc_input_rewound(void) __attribute__((weak));
 #define MAX_RANGES 170
@@ -61,7 +57,7 @@ __attribute__((noinline)) int pc_snapshot_mark_point(char* error, int size)
     mark.context = pc_snap_boundary;
     size_t stack_size;
     char* stack = pc_game_stack(&stack_size);
-    uintptr_t sp = mark.context.regs[sizeof(void*) == 8 ? 6 : 4];
+    uintptr_t sp = CTX_SP(&mark.context);
     uintptr_t top = (uintptr_t)stack + stack_size;
     if (!stack || sp < (uintptr_t)stack || sp >= top) {
         snprintf(error, (size_t)size, "not on the game stack");
@@ -108,7 +104,10 @@ oom:
 }
 
 __attribute__((noreturn)) void pc_rewind_call_on_stack(void*, void (*)(void));
-#ifdef __x86_64__
+#ifdef _WIN32
+__asm__(".text\n.globl pc_rewind_call_on_stack\n.def pc_rewind_call_on_stack; .scl 2; .type 32; .endef\n"
+        "pc_rewind_call_on_stack:\n movq %rcx,%rsp\n andq $-16,%rsp\n subq $32,%rsp\n callq *%rdx\n ud2\n");
+#elif defined(__x86_64__)
 __asm__(".text\n.globl pc_rewind_call_on_stack\n.type pc_rewind_call_on_stack,@function\n"
         "pc_rewind_call_on_stack:\n movq %rdi,%rsp\n andq $-16,%rsp\n callq *%rsi\n ud2\n"
         ".size pc_rewind_call_on_stack,.-pc_rewind_call_on_stack\n");
@@ -120,6 +119,8 @@ __asm__(".text\n.globl pc_rewind_call_on_stack\n.type pc_rewind_call_on_stack,@f
 #endif
 static __attribute__((noreturn)) void restore(void)
 {
+    if (pc_cd_release)
+        pc_cd_release(); /* the open disc file: closed, not leaked (pc_cd_restored opens it) */
     const char* p = mark.memory;
     for (int i = 0; i < mark.count; i++) {
         memcpy(mark.ranges[i].start, p, mark.ranges[i].size);

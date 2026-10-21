@@ -7,6 +7,7 @@
 --   rood.dev.show("buff", { slot = "weapon", stat = "human", value = 1 })
 --   rood.dev.show("damage", { value = 123 })            over Ashley ({ heal = true }, { pool = "mp" })
 --   rood.dev.show("travel")                             the Travel prompt without a Circle of Magic
+--   rood.dev.show("notice", { text = "Saved to slot 3", value = 3 })   the save state slots' line
 -- With the modern look (ui_menus 1) the claims below draw them and the game's own drawing is
 -- skipped; with the classic look the game draws them (only typography: look.status.classic), unless
 -- hud_classic_override is on: then the same claims run in the classic flavour (e.flavour "classic":
@@ -80,6 +81,18 @@ local function make_look()
       color = fill, alpha = fill_alpha,
       stroke_color = edge, stroke_alpha = edge_alpha,
     },
+    -- The save state slots' notice ("Saved to slot 3"): the HUD labels' typography outlined, its
+    -- corner e.corner on the game's point (the top middle, below HP and MP; sizes in the menus'
+    -- layout units, 720 high), fading out at the end.
+    notice = {
+      font = "labels",
+      size = 26,
+      stroke = 2.5,
+      stretch = S("ui_text_labels_stretch"),
+      color = 0xFFFFFF,
+      stroke_color = 0x000000,
+      fade = 30, -- the last vsyncs of its life
+    },
   }
 end
 
@@ -93,6 +106,7 @@ local SETTINGS = {
 local d = rood.draw
 local look, style = nil, {}
 local travel_unit -- the travel styles' scale (the picture's size)
+local notice_unit -- the notice style's
 
 local function travel_styles(unit)
   local t = look.travel
@@ -102,6 +116,13 @@ local function travel_styles(unit)
                         color = t.color, alpha = t.alpha }
   style.icon = d.style{ stroke = t.stroke * unit, stroke_color = t.stroke_color, stroke_alpha = t.stroke_alpha,
                         alpha = t.alpha }
+end
+
+local function notice_style(unit)
+  local n = look.notice
+  notice_unit = unit
+  style.notice = d.style{ font = n.font, size = math.max(1, n.size * unit), stretch = n.stretch,
+                          stroke = n.stroke * unit, stroke_color = n.stroke_color, color = n.color }
 end
 
 local function refresh()
@@ -116,6 +137,7 @@ local function refresh()
   style.damage_word = d.style(look.damage.words)
   style.damage_digits = d.style(look.damage.fitted_digits)
   if travel_unit then travel_styles(travel_unit) end
+  if notice_unit then notice_style(notice_unit) end
   rood.hud.typography("status", next(look.classic) and look.classic or nil)
 end
 M.style, M.refresh = style, refresh
@@ -188,7 +210,18 @@ M.draw.travel = function(e, d)
   d.text(style.verb, t.verb, x0 + stroke + gw + gap, y0 + (h - size) * 0.5)
 end
 
-for _, kind in ipairs({ "status", "chain", "buff", "damage", "travel" }) do
+-- notice: the save state slots' line, its corner e.corner (0..8) on e.x, e.y (the picture as 320 x 240)
+M.draw.notice = function(e, d)
+  if e.unit ~= notice_unit then notice_style(e.unit) end
+  local w, h = d.measure(style.notice, e.text)
+  local x0 = e.x - w * (e.corner % 3) * 0.5
+  local y0 = e.y - h * (e.corner // 3) * 0.5
+  local left = e.life - e.age
+  local alpha = left < look.notice.fade and math.max(0, left / look.notice.fade) or 1
+  d.text(style.notice, e.text, x0, y0, look.notice.color, alpha)
+end
+
+for _, kind in ipairs({ "status", "chain", "buff", "damage", "travel", "notice" }) do
   rood.hud.claim(kind, function(e, d) return M.draw[kind](e, d) end)
 end
 

@@ -53,8 +53,8 @@ local function summon(kind, args, text, check, away)
   if not ok then error(err, 0) end
 end
 
-t.case("claims the five kinds", function()
-  t.eq(rood.hud.kinds(), { "status", "chain", "buff", "damage", "travel" })
+t.case("claims the six kinds", function()
+  t.eq(rood.hud.kinds(), { "status", "chain", "buff", "damage", "travel", "notice" })
 end)
 
 t.case("status: SLOW!", function()
@@ -103,6 +103,14 @@ t.case("travel: the prompt", function()
     t.eq(e.corner, rood.settings.get("qol_fast_travel_prompt_anchor"))
     t.ok(e.unit > 0, "game pixels per layout unit")
   end, function() return not rood.hud.honoured("travel") end)
+end)
+
+t.case("notice: the save state slots' line", function()
+  summon("notice", { text = "Saved to slot 3", value = 3 }, "Saved to slot 3", function(e)
+    t.eq({ e.text, e.slot, e.anchor, e.corner }, { "Saved to slot 3", 3, "picture", 1 })
+    t.ok(e.unit > 0, "game pixels per layout unit")
+    t.ok(e.life > 0, "a life")
+  end)
 end)
 
 t.case("the look follows the settings it reads", function()

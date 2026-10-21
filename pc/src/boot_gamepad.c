@@ -18,6 +18,8 @@ static int gamepad_inits; /* SDL_InitSubSystem(SDL_INIT_GAMEPAD) calls to undo (
 static unsigned mask;
 static int travel; /* the Travel slot's pad element held (fast travel) */
 static int fast_forward; /* L3 + R3 held (boot_window.c) */
+static unsigned state_actions; /* the save state actions' pad elements held (bit n: PC_BIND_STATE_FIRST + n) */
+extern void pc_savestate_actions(unsigned bits) __attribute__((weak)); /* savestate_slots.c */
 static float right_stick[2]; /* -1..1, SDL's direction (down is +y) */
 static float triggers[2];    /* L2, R2: their axis' travel past the press point (0..1), -1 not an axis */
 static const char* requested;
@@ -176,6 +178,7 @@ void pc_controller_poll(void)
     if (!pad) {
         mask = 0;
         travel = 0;
+        state_actions = 0;
         fast_forward = 0;
         right_stick[0] = right_stick[1] = 0;
         triggers[0] = triggers[1] = -1;
@@ -188,6 +191,14 @@ void pc_controller_poll(void)
         state.axes[i] = SDL_GetGamepadAxis(pad, (SDL_GamepadAxis)i);
     mask = pc_controller_mask(&state);
     travel = pc_controller_element(&state, pc_bind_pad[PC_BIND_TRAVEL]);
+    /* The save state actions: on a press (savestate_slots.c). */
+    unsigned held = 0;
+    for (int s = PC_BIND_STATE_FIRST; s < PC_BIND_SLOTS; s++)
+        if (pc_bind_pad[s] != PC_PAD_NONE && pc_controller_element(&state, pc_bind_pad[s]))
+            held |= 1u << (s - PC_BIND_STATE_FIRST);
+    if (pc_savestate_actions && (held & ~state_actions))
+        pc_savestate_actions(held & ~state_actions);
+    state_actions = held;
     /* Both stick clicks together: fast-forward while held, instead of
      * whatever PS1 buttons they are bound to (L3 and R3 by default; R3
      * resets the camera). */

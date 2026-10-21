@@ -15,6 +15,8 @@ extern "C" int pc_overlay_active(void) __attribute__((weak)); // dev_overlay.cpp
 extern "C" unsigned pc_vsync_count(void) __attribute__((weak));
 // fast_travel_prompt.cpp: the Travel prompt's place and size from the settings (a synthetic element's)
 extern "C" void pc_fast_travel_prompt_fields(pc_hud_fields* f) __attribute__((weak));
+// savestate_notice.cpp: a notice's place and size (a synthetic element's)
+extern "C" void pc_savestate_notice_fields(pc_hud_fields* f) __attribute__((weak));
 
 extern "C" {
 int pc_hud_classic_override;
@@ -44,7 +46,8 @@ Hold holds[PC_HUD_KINDS];
 #define KEEP_VSYNCS 120 // ... and its slot is reused after this (RPC hud {list} still shows it)
 #define RESPAWN_VSYNCS 15
 
-const char* const KINDS[PC_HUD_KINDS] = { "", "status", "chain", "buff", "damage", "travel", "name_window" };
+const char* const KINDS[PC_HUD_KINDS] = { "", "status", "chain", "buff", "damage", "travel", "notice",
+    "name_window" };
 const char* const TIMINGS[] = { "too_fast", "fast", "success", "slow", "too_slow" };
 // BATTLE.PRG func_800958A4's words and colours (PS1 BGR, 0x80 full).
 const char* const TIMING_WORDS[] = { "TOO FAST!", "FAST!", "", "SLOW!", "TOO SLOW!" };
@@ -57,9 +60,9 @@ const char* const STATS[] = { "HUMAN", "BEAST", "UNDEAD", "PHANTOM", "DRAGON", "
     "EARTH", "WATER", "LIGHT", "DARKNESS" };
 const char* const POOLS[] = { "hp", "mp", "stat" };
 // The ages a held element is kept at: past its slide-in, before its slide-out or end.
-const int AGE_MIN[PC_HUD_KINDS] = { 0, 4, 4, 0, 0, 0, 0 };
-const int AGE_MAX[PC_HUD_KINDS] = { 0, 41, 86, 60, 30, 0, 0 };
-const int LIFE[PC_HUD_KINDS] = { 0, 46, 91, 61, 31, 0, 120 }; // (name_window: a show without hold, vsyncs)
+const int AGE_MIN[PC_HUD_KINDS] = { 0, 4, 4, 0, 0, 0, 0, 0 };
+const int AGE_MAX[PC_HUD_KINDS] = { 0, 41, 86, 60, 30, 0, 0, 0 };
+const int LIFE[PC_HUD_KINDS] = { 0, 46, 91, 61, 31, 0, 150, 120 }; // (name_window: a show without hold, vsyncs)
 
 unsigned full(unsigned bgr)
 {
@@ -75,7 +78,8 @@ unsigned full(unsigned bgr)
 // one at a time (the game removes the last; one prompt)
 bool single(int kind)
 {
-    return kind == PC_HUD_STATUS || kind == PC_HUD_CHAIN || kind == PC_HUD_TRAVEL || kind == PC_HUD_NAME_WINDOW;
+    return kind == PC_HUD_STATUS || kind == PC_HUD_CHAIN || kind == PC_HUD_TRAVEL || kind == PC_HUD_NOTICE
+        || kind == PC_HUD_NAME_WINDOW;
 }
 
 Appearance appeared[64];
@@ -185,6 +189,15 @@ void synthetic_fields(int kind, const ShowArgs& a, pc_hud_fields& f)
         if (pc_fast_travel_prompt_fields)
             pc_fast_travel_prompt_fields(&f);
         break;
+    case PC_HUD_NOTICE: // the save state slots' line, at the top of the picture, centred
+        std::snprintf(f.text, sizeof f.text, "%s", a.text[0] ? a.text : "Saved to slot 1");
+        f.value = a.value;
+        f.anchor = PC_HUD_ANCHOR_PICTURE;
+        f.x = 160, f.y = 30, f.variant = 1, f.unit = 1.0f / 3.0f;
+        f.rgb = 0xFFFFFF;
+        if (pc_savestate_notice_fields)
+            pc_savestate_notice_fields(&f);
+        break;
     }
 }
 
@@ -290,6 +303,8 @@ bool show(int kind, const ShowArgs& args, std::string* error)
     a.slot = a.slot < 0 ? 0 : a.slot > 6 ? 6 : a.slot;
     if (kind == PC_HUD_TRAVEL)
         a.hold = true; // (the forced prompt has no life of its own: shown until clear)
+    if (kind == PC_HUD_NOTICE) // (the port's own: never the game's spawner, always a synthetic element)
+        a.value = args.value < 0 ? 1 : args.value;
     Hold& h = holds[kind];
     if (h.active && !h.synthetic && pc_hud_bridge_release) // (the last one goes)
         pc_hud_bridge_release(kind, &h.spawn);
@@ -417,8 +432,8 @@ extern "C" int pc_hud_record(const pc_hud_fields* f)
     KindStats& s = stats(f->kind);
     ++s.seen;
     ++(e->suppressed ? s.suppressed : s.fallback);
-    // the classic flavour: drawn now, at the game's hook (the Travel prompt has none: never classic)
-    return e->suppressed ? (classic_look() && f->kind != PC_HUD_TRAVEL ? 2 : 1) : 0;
+    // the classic flavour: drawn now, at the game's hook (the Travel prompt and notices have none: never classic)
+    return e->suppressed ? (classic_look() && f->kind != PC_HUD_TRAVEL && f->kind != PC_HUD_NOTICE ? 2 : 1) : 0;
 }
 
 extern "C" void pc_hud_tick(void)
