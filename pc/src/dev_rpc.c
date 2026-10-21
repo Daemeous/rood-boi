@@ -22,7 +22,10 @@
  *   reload {target}             reload engine (default) or zig at the next vsync
  *   owner {subsystem, owner}     list ownership routes, or set original|owned|shadow
  *   pause {paused}               stop (or resume) the game at vsync boundaries
- *   step {vsyncs}                run N vsyncs, then pause again
+ *   step {vsyncs}                run N vsyncs, then pause again (not while a
+ *                                plugin's photo mode pause holds the game)
+ *   photo {render_frames,        the photo mode's state (photo.cpp): phase, owners,
+ *          game2d_slots}         renders, camera, hidden layers; tunes its renders
  *   wait {timeout_ms}            reply (as status) once the game is paused with
  *                                no step left, or after timeout_ms (default
  *                                1000, at most 60000): a step's end without
@@ -3870,6 +3873,23 @@ static void handle_method(int fd, const char* request)
         }
         snprintf(result, sizeof result, "{\"path\":\"%s\",\"remaining\":%d}", json_str(path), render_anim_trace_remaining());
         reply(fd, id, result);
+    } else if (!strcmp(method, "photo")) {
+        /* The photo mode's state (photo.cpp): {phase, owners, renders, camera, ...}; params
+         * {render_frames, game2d_slots} tune it. */
+        extern int pc_photo_rpc(const char*, char*, int) __attribute__((weak));
+        static char args[4096], out[4096];
+        const char* end = params ? value_end(params) : NULL;
+        if (params && end && (size_t)(end - params) < sizeof args) {
+            memcpy(args, params, (size_t)(end - params));
+            args[end - params] = 0;
+        } else {
+            strcpy(args, "{}");
+        }
+        if (!pc_photo_rpc || pc_photo_rpc(args, out, (int)sizeof out)) {
+            fail(fd, id, -32000, "no photo mode in this build");
+            return;
+        }
+        reply(fd, id, out);
     } else if (!strcmp(method, "present_dump")) {
         /* The next presented window image (as displayed) to a PPM. */
         extern char pc_present_capture[400] __attribute__((weak));
@@ -4735,6 +4755,13 @@ void pc_rpc_request_step(long vsyncs)
 }
 int pc_rpc_is_paused(void) { return paused && step_budget == 0; }
 
+/* photo.cpp (photo.h): the photo mode's pause, and its renders' vsyncs (the game runs from the frozen
+ * moment with nothing to see; the RPC waits: its requests are served when the moment is back). */
+extern int pc_photo_poll(void) __attribute__((weak));
+extern int pc_photo_holding(void) __attribute__((weak));
+extern int pc_photo_rendering __attribute__((weak));
+static int photo_holding(void) { return pc_photo_holding && pc_photo_holding(); }
+
 /* Called once per vsync from pc_tick, before the frame is presented. While
  * paused it keeps the window (and overlay) live and serves requests. */
 static void poll_requests(void);
@@ -4742,6 +4769,10 @@ void pc_rpc_poll(void)
 {
     if (!initialized)
         open_listener();
+    if (&pc_photo_rendering && pc_photo_rendering) { /* a photo render's vsync: the input holds wait too */
+        poll_requests();
+        return;
+    }
     for (int i = 0; i < 16; i++)
         if (holds[i].vsyncs > 0)
             --holds[i].vsyncs;
@@ -4782,6 +4813,8 @@ void pc_rpc_reloaded(void)
 }
 static void poll_requests(void)
 {
+    if (pc_photo_poll && pc_photo_poll())
+        return; /* a photo render's vsync: the game runs it (photo.cpp) */
     if (listener >= 0)
         service();
     take_snapshot();
@@ -4791,7 +4824,7 @@ static void poll_requests(void)
         return; /* the host reloads the engine now; the next library carries on (pc_rpc_reloaded) */
     if (pc_savestate_poll)
         pc_savestate_poll();
-    if (paused && step_budget > 0) {
+    if (paused && step_budget > 0 && !photo_holding()) {
         --step_budget;
         return;
     }
@@ -4802,8 +4835,15 @@ static void poll_requests(void)
      * settings); a request is served as soon as it arrives instead of
      * after a fixed 16 ms sleep. */
     long long next_redraw = 0;
-    while (paused && step_budget == 0) {
+    while ((paused && step_budget == 0) || photo_holding()) {
         extern int pc_present_burst __attribute__((weak));
+        if (photo_holding() && step_budget) {
+            /* A plugin's photo mode pause wins: steps asked for meanwhile do not run (the game's
+             * vsync stays; a step's wait returns at once). */
+            fprintf(stderr, "[rpc] step of %ld vsyncs dropped: a photo mode pause holds the game\n", step_budget);
+            step_budget = 0;
+            serve_waiters();
+        }
         long long now = rpc_now_ms();
         if (now >= next_redraw || handled_since_redraw) {
             handled_since_redraw = 0;
@@ -4826,6 +4866,8 @@ static void poll_requests(void)
             return;
         if (pc_savestate_poll)
             pc_savestate_poll();
+        if (pc_photo_poll && pc_photo_poll())
+            return; /* a photo render starts: this vsync runs it */
     }
     if (paused && step_budget > 0)
         --step_budget;

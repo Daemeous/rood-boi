@@ -96,6 +96,14 @@ static struct {
 static unsigned card_writes;
 static int fail_writes, unformatted;
 unsigned pc_card_write_count(void) { return card_writes; }
+/* A card file is open (a save or a load between its steps): photo.cpp does not hold the game then. */
+int pc_memory_card_busy(void)
+{
+    for (int i = 0; i < 16; i++)
+        if (files[i].used)
+            return 1;
+    return 0;
+}
 void pc_card_test_flags(int fail, int new_card)
 {
     if (fail >= 0)
@@ -476,8 +484,13 @@ psx_long _card_format(psx_long port)
  * was warped to (room_warp.c): a save there would resume in that room. The
  * game sees a card that cannot be written. */
 int pc_room_warp_blocks_saving(void) __attribute__((weak));
+extern int pc_photo_rendering __attribute__((weak)); /* photo.cpp: a photo mode render (rewound after) */
 static int saving_blocked(const char* what, const char* path)
 {
+    if (&pc_photo_rendering && pc_photo_rendering) {
+        fprintf(stderr, "[card] %s %s refused: a photo mode render (the game is rewound after it)\n", what, path);
+        return 1;
+    }
     if (fail_writes) {
         fprintf(stderr, "[card] %s %s refused: the card RPC's fail_writes\n", what, path);
         return 1;

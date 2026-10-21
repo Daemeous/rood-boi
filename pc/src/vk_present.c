@@ -896,6 +896,24 @@ static void capture_present(void)
     }
 }
 
+/* photo.cpp (rood.capture.photo): the picture as presented (post applied, the overlay not drawn yet),
+ * the view's rectangle of the window image read back for a photo when one waits. */
+extern int pc_photo_capture_wanted(void) __attribute__((weak));
+extern void pc_photo_capture_pixels(const unsigned char* rgba, int w, int h, int stride, int bottom_up)
+    __attribute__((weak));
+static void photo_capture(void)
+{
+    if (!pc_photo_capture_wanted || !pc_photo_capture_wanted() || pc_gl_view[2] <= 0 || pc_gl_view[3] <= 0)
+        return;
+    int x = pc_gl_view[0], y = pc_gl_view[1], w = pc_gl_view[2], h = pc_gl_view[3];
+    if (x < 0 || y < 0 || x + w > (int)window_image.width || y + h > (int)window_image.height)
+        return;
+    unsigned char* pixels = malloc((size_t)w * h * 4);
+    if (pixels && vk_read_image(&window_image, VK_IMAGE_ASPECT_COLOR_BIT, x, y, w, h, pixels, 4))
+        pc_photo_capture_pixels(pixels, w, h, w * 4, 0);
+    free(pixels);
+}
+
 /* ---- the frame ---- */
 
 /* The window image to the swapchain. The swapchain is only ever recreated
@@ -1260,6 +1278,7 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             brightness_draw(view_x, view_y, view_w, view_h);
     }
 overlay:
+    photo_capture();
     pc_overlay_frame(window_w, window_h);
     {
         vk_attachments a = { .colors = { window_image.view }, .color_count = 1, .width = window_w, .height = window_h };

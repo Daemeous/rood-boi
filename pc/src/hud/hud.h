@@ -46,8 +46,9 @@ enum { PC_HUD_NONE = 0, PC_HUD_STATUS = 1, PC_HUD_CHAIN, PC_HUD_BUFF, PC_HUD_DAM
 /* pc_hud_fields.anchor: where widescreen puts it. The game's 2D is drawn 3/4 as wide about
  * the picture's centre or the edge it is anchored to (pc_hw_anchor_packets); PICTURE:
  * fractions of the whole picture (x / 320, y / 240), sizes in the picture's own pixels
- * (the Travel prompt, which is ours). */
-enum { PC_HUD_ANCHOR_CENTRE, PC_HUD_ANCHOR_LEFT, PC_HUD_ANCHOR_RIGHT, PC_HUD_ANCHOR_PICTURE };
+ * (the Travel prompt, which is ours); SCREEN: the picture's own square pixels from its top-left, 240 high
+ * (a plugin's panel, rood.draw.panel: its width 240 times the picture's aspect). */
+enum { PC_HUD_ANCHOR_CENTRE, PC_HUD_ANCHOR_LEFT, PC_HUD_ANCHOR_RIGHT, PC_HUD_ANCHOR_PICTURE, PC_HUD_ANCHOR_SCREEN };
 
 /* A piece of an element as the game drew it (the buff's words, sign and digits). */
 typedef struct {
@@ -189,6 +190,8 @@ int pc_hud_classic_glyph(int button) __attribute__((weak));
 /* Presented frame (dev_overlay.cpp, the ImGui frame open): claims draw the
  * live elements, then the renderer draws their commands. */
 void pc_hud_frame(void);
+/* Then, whatever rood.ui.hide hides: plugins' panels (rood.draw.panel) over the picture (its size in pixels). */
+void pc_hud_panels(float dt, int view_w, int view_h);
 /* RPC hud (dev_rpc.c): the params object's text; JSON in out, or < 0 with the error. */
 int pc_hud_rpc(const char* params, char* out, int size);
 

@@ -11,7 +11,8 @@ look's timing words, chain counts and HP / MP / RISK gauges with the game's own 
 packet as the game does (the parity gate), its typography and 16:9
 placement a hot-reloaded table, and off, the game draws them; the shipped
 `rood.options` (on) defines the core Option pages, which the C++ fallback
-builds identically without it.
+builds identically without it; the shipped `rood.photo` (on) is the photo
+mode, opened by its own button (F12), doing nothing until then.
 
 ## Where Lua runs
 
@@ -133,6 +134,12 @@ reloads). Every elevated call is logged (`<plugin_data>/audit.log`).
 | `fs.read`, `fs.read:<folder>` | yes | `rood.fs.read`, `exists`, `list`: the plugin's folder and the granted folders |
 | `fs.write`, `fs.write:<folder>` | yes | `rood.fs.write`, `remove` |
 | `net:<host>`, `exec`, `memory.read`, `memory.write`, `flags.write`, `native` | declared only | exist when granted and refuse: "not available in this version" |
+| `game.pause`, `camera`, `post`, `ui.hide`, `capture`, `input.capture` | the photo mode foundation | below ("Photo mode foundation"); not elevated |
+
+The photo mode's capabilities are not elevated: they need their grant (tied
+to the code's hash, as every grant) but not `plugins_elevated`, and a shipped
+plugin (`pc/plugins`) has the ones it declares. `rood.plugin.elevated` is
+true only for an elevated grant.
 
 The grant dialog comes with the menus; in M0 grants are made with RPC
 `lua {action "grant"}` (dev mode) or by editing `settings.cfg`.
@@ -154,7 +161,7 @@ checks are not a defense against another process racing filesystem changes.
 | `rood.log/warn/error(...)` | to the log and the console |
 | `rood.version`, `rood.api_version` | |
 | `rood.plugin` | `id, name, version, dir, data_dir, shipped, capabilities, granted, missing, elevated` |
-| `rood.on(event, fn) -> handle`, `rood.off(handle)`, `rood.emit(event, payload) -> count` | `fn(payload, sender)`: sender is the emitting plugin's id (nil for the core's events), since a plugin may emit in another's namespace (a request); plugins emit namespaced events (`my.plugin/changed`); core events: `tick {vsync, game_time}`, `frame {dt, real_time}`, `plugin.loaded/unloaded {id}`, `registry.changed {kind, id, action}`, `unload` (to the plugin itself) |
+| `rood.on(event, fn) -> handle`, `rood.off(handle)`, `rood.emit(event, payload) -> count` | `fn(payload, sender)`: sender is the emitting plugin's id (nil for the core's events), since a plugin may emit in another's namespace (a request); plugins emit namespaced events (`my.plugin/changed`); core events: `tick {vsync, game_time}`, `frame {dt, real_time}`, `plugin.loaded/unloaded {id}`, `registry.changed {kind, id, action}`, `unload` (to the plugin itself), `input.action {name, device}` (a port action's button pressed, whatever captures the input: `photo`, bind_key_photo F12 / bind_pad_photo misc1; device `keyboard` or `pad`), `photo.released {what, reason}` (to its owner: below) |
 | `rood.timer.after/every(seconds, fn[, {clock = "real"}]) -> id`, `rood.timer.cancel(id)` | game time by default (stops while paused) |
 | `rood.clock.game()`, `rood.clock.real()` | seconds |
 | `rood.registry.register(kind, id, data[, {after, before, group}])`, `get`, `list(kind[, {group}])`, `remove`, `kinds()` | ids in the plugin's namespace (`<plugin id>/<name>`); `after`/`before`: ids or `group:<name>` |
@@ -162,6 +169,7 @@ checks are not a defense against another process racing filesystem changes.
 | `rood.settings.get/set/reset/run/list([{page}])/pages()/define(name, spec)/on_change(id, fn)/off_change` | System rows (`"skip_intro"`), schema kinds (`"<kind>/<field>"`), the plugin's own (`"plugin:<id>/<name>"`; another plugin's are read and watched, never changed), each validated by its registry; settings.cfg keys without a row are read and watched, never set: the plain numeric ones (`"qol_fast_travel_prompt_size"`; several numbers, a colour: a table) and ui_text's (`"ui_text_status_size"`, a font's path as text) |
 | `rood.test.case(name, fn)`, `eq`, `ok`, `near`, `raises`, `skip`, `wait(ticks)` | in `tests/*.lua` |
 | `rood.menu.page{...}`, `action`, `remove`, `pages`, `rows`, `actions`, `generation` | the Option screens' pages (below) |
+| `rood.game.pause/resume/paused`, `rood.camera`, `rood.post`, `rood.ui`, `rood.capture`, `rood.input` | the photo mode foundation (below), each with its grant |
 
 ## HUD: claims and drawing
 
@@ -212,7 +220,8 @@ drawing is the claims'.
 | `d.layer(offset \| nil)` | classic only: the ordering-table slot the commands that follow link into, as the game names its slots: bytes from `vs_scratch.unk4` (-64..64, a multiple of 4: the status words' -16, the gauges' bars and labels -12, their digits -16); nil the kind's own. A slot draws its packets in the order of the commands (the game's: the reverse of its calls) |
 | `d.value(font, x, y, value) -> x, y`, `d.digit(font, x, y, digit)` | classic only: the HUD's digits (`vs_battle_renderValue`: the rightmost at `x, y`; font 0 small, 1 large; returns the pen the game's call leaves) and one digit (`_renderDigit`; font 2 the separator) |
 | `d.xy(x, y, delta) -> x, y` | the game's packed position arithmetic: `x, y` packed as the game packs them plus `delta` written as the game writes its steps (`56 \| (-8 << 16)`), so x's carry or borrow reaches y as in the game |
-| `d.anchor(where)` | where the draw's commands sit in 16:9: `"left"`, `"right"`, `"centre"`, `"element"` (its own, the default); in the classic flavour the range is placed exactly (`PC_ANCHOR_EXACT`: no edge extension, cover or side-paint guesses) |
+| `d.anchor(where)` | where the draw's commands sit in 16:9: `"left"`, `"right"`, `"centre"`, `"element"` (its own, the default), `"screen"` (a panel's: the picture's square pixels, 240 high; not in the classic flavour); in the classic flavour the range is placed exactly (`PC_ANCHOR_EXACT`: no edge extension, cover or side-paint guesses) |
+| `rood.draw.panel(fn \| nil)` | the plugin's own layer over the picture (one a plugin; nil removes it): `fn(d, view)` every presented frame, in the modern pass whatever the look, after the HUD and the menus, whatever `rood.ui.hide` hides; `view`: `width` (240 times the picture's aspect), `height` 240, `aspect`, `look` (`classic`, `modern`), `dt`. Coordinates are the picture's square pixels from its top-left (`d.anchor("screen")`, its default); the classic-only primitives raise. Never in a photo (captured before the overlay). A draw that raises stops it until the plugin sets it again or reloads. While one is set its commands replace the HUD's in RPC `hud {stats}`'s last frame |
 | `rood.dev.show(kind, {...})` | dev mode only (`ROOD_RPC` set or `ROOD_DEV=1`): in the field the game's own spawner (status: `timing`, `variant`; chain: `count`; buff: `slot`, `stat`, `value`, `sign`; damage on Ashley: `value`, `heal` or `sign`, `pool`, `stat`; travel: the prompt without a Circle of Magic; name_window: `index` (184), `message` (11), the game's own `vs_battle_displaySceneMessage`), held at `age` (10) until `rood.dev.clear([kind])` (`hold = false`: it plays out; a name window closes after 120 vsyncs); elsewhere a synthetic element (the name window's `text`) only modern claims draw. `rood.dev.list()` (with `drawn`, `suppressed`) |
 | `rood.dev.bench.save(name)`, `list()`, `load(name)`, `current()` | the gallery (below) |
 
@@ -291,6 +300,7 @@ read-only table per query per vsync (the same table until the next one, so
 | `rood.game.mode()` | `title`, `attract`, `cutscene` (an event script), `menu` (the field menu or the modern menus), `battle`, `field`, or `none` (no room: loading) |
 | `rood.game.room()` | nil, or `{zone, room, area, name}` (the game's names) |
 | `rood.game.first_person()` | the first-person view |
+| `rood.game.paused()` | the photo mode's pause holds the game (or was asked for); `pause()` / `resume()` with the `game.pause` grant (below) |
 
 ### The gallery
 
@@ -416,6 +426,294 @@ drawing then the game: every vsync's state the same but the packets and
 the host clock: Oracle page digests). Reports `<out>/<kind>.json`.
 Result 2026-10-20: status 576 frames, chain 558, gauges 1192, 0
 mismatches; state parity 120 of 120 vsyncs.
+
+## Photo mode foundation
+
+What a photo mode plugin is built on (`pc/src/photo.h`, `photo.cpp`; Lua:
+`pc/src/lua/lua_api_photo.cpp`; the post overrides in `post_profile.cpp`).
+Each part is behind its own capability, declared in `plugin.lua` and granted
+as any other (RPC `lua {action "grant"}` in dev mode, `plugin_grant` lines);
+a table or function exists only when granted. Everything a plugin holds is
+its own and stacked with other plugins' (the pause holds while any plugin
+holds it, hidden layers add up, post overrides apply in the order the
+plugins began), and is given back when it lets go, when it unloads or
+reloads (an edit, a revoked grant, turned off), when it is disabled for its
+faults, and at an engine reload. An input handler that raises gives the
+input back at once. Nothing of it is saved: settings.cfg, the post presets
+and room files never see it, and the game's state is untouched (below).
+
+| Capability | Functions |
+|---|---|
+| `game.pause` | `rood.game.pause() -> true \| nil, why`, `resume()`; `rood.game.paused()` (any plugin) needs no grant |
+| `camera` | `rood.camera.begin()`, `finish()`, `active()`, `get()`, `set{...}`, `orbit(yaw, pitch[, zoom])`, `move(right, up, forward)` |
+| `post` | `rood.post.list()`, `get(key)`, `set(key, value)`, `reset([key])`, `overrides()` |
+| `ui.hide` | `rood.ui.hide{hud, game2d, overlay}` (no table: all three), `show()`, `hidden()` |
+| `capture` | `rood.capture.photo{scale, path, done} -> path, id[, note]`, `status(id)`, `folder` |
+| `input.capture` | `rood.input.capture(fn)`, `release()`, `captured()`, `state()` |
+
+### The pause and the frozen moment
+
+`rood.game.pause()` holds the game at the next vsync boundary (at once when
+asked between frames, as from the REPL or the RPC): no vsync advances (RPC
+`step`s asked meanwhile are dropped, so a test's `run` returns at the same
+vsync), no game-time Lua (ticks, game-clock timers), no audio fed (the
+queued tail plays out, then silence). The window, the overlay, Lua's frames
+(`frame` events, `{clock = "real"}` timers), the post stack (the focus and
+auto exposure follow real time while held) and the RPC go on. Refused, with
+the reason, while it is not safe: loading (no room: a door, a movie), a room
+transition, memory card I/O (a card file open, the save screen). The title
+and the attract demo may be held.
+
+What changes the picture while held (the camera, the hidden HUD and 2D) is
+drawn by a **render**: the game runs from the held moment M for
+`render_frames` game frames (4; RPC `photo {render_frames}`) with nothing to
+see or hear (no presents, no audio, no input, no Lua ticks, deterministic
+scanline timing so every render of M is the same, memory card writes
+refused, RPC requests waiting), then its state is rewound to M
+(`state_rewind.c`'s photo slot; the RPC's `snapshot mark` slot is its own)
+while the picture stays. So the game's state, its digest (RPC `snapshot
+hash`), its vsync and every `rood.game` query stay M's the whole time; the
+picture shows the moment four frames on, the same each render. A render
+costs the CPU time of those frames, unpaced: about 5 ms (8 vsyncs). Renders
+need the hardware renderer and save states (x86); without them the camera
+and the hidden layers do not show while held (RPC `photo` says why).
+Resuming continues from M exactly (the hardware target is rebuilt from M's
+VRAM, as after a rewind).
+
+### rood.camera
+
+The editor's live free camera (`editor_view.cpp`), borrowed: its eye, yaw
+and pitch for the plugin's time, the editor's own camera given back after,
+the editor not turned on. World units (y down), degrees.
+
+| | |
+|---|---|
+| `begin() -> true \| nil, why` | needs the game paused (or asked to be) and a room; starts at the game's camera (the same picture), the orbit's target on Ashley's middle (else 1500 units ahead) |
+| `finish()` | the game's camera again: its own state was never touched (the view is built from the free camera inside `func_8007ACB0`'s hook only during renders, which are rewound), so the next render is the held picture exactly |
+| `get() -> {position, target, yaw, pitch, roll, fov, collision}` | nil unless begun by this plugin |
+| `set{position, target, yaw, pitch, roll, fov, collision}` | any of them: `position` / `target` as `{x, y, z}` or `{x =, y =, z =}`; a target without yaw / pitch turns the camera to it; a position alone keeps the direction (the target moves along); `pitch` -89..89; `roll` (-180..180) is the game's own view roll (`vs_scratch.camera.angles.vz`); `fov` (5..120, vertical) scales the game's projection distance; `collision` keeps the eye in front of the room's solid surfaces between the target and it |
+| `orbit(yaw, pitch[, zoom])` | about the target, the distance times `zoom` |
+| `move(right, up, forward)` | in view space; the target moves along |
+| `active()` | this plugin has the camera |
+
+### rood.post
+
+The post profile's live values by key: every field of `post_profile.cpp`'s
+table (depth of field: `dof`, `dof_focus`, `dof_focus_depth`, `dof_fstop`,
+`dof_aperture`, `dof_max_blur`, bokeh; `tilt_shift` and its band; exposure:
+`exposure`, `exposure_mode`, auto exposure; bloom; `chromatic_aberration`;
+`vignette`; grading: white balance, the four ranges' saturation / contrast /
+gamma / gain / offset, `lut`, `lut_intensity`; `tonemapper`; film `grain`;
+...) and two of the photo mode's own: `preset` (a named post profile from
+`pc/assets/post` or `pc/user/post` under the plugin's values: a filter;
+`""` none) and `format` (the picture cropped to an aspect ratio, width over
+height, 0 the whole picture: black bars over the live view, the photo
+cropped to it).
+
+| | |
+|---|---|
+| `list()` | `{key, kind, group, label, tip, components, min, max, log, integer, default, choices, labels}` per key (`kind`: `bool`, `float`, `enum`, `color`, `vec4`, `text`) |
+| `get(key)` | what the stack resolves now (every layer and every plugin's overrides): a boolean, a number, a name, `{r, g, b}` / `{r, g, b, a}`, a string |
+| `set(key, value) -> true \| nil, why` | this plugin's override: numbers clamped to the field's range, names checked; applies at once (no blend) |
+| `reset([key])`, `overrides()` | this plugin's overrides gone (one, or all); the keys it set and their text |
+
+The overrides are a layer over every other (before the lens blur's gate:
+depth of field and tilt-shift stay off on the title, in menus, without
+Ashley), never written: the user's layers (RPC `post` `layers`) are as they
+were.
+
+### rood.ui
+
+`hide{hud = true, game2d = true, overlay = true}` (any of them; no table:
+all three), `show()` (this plugin's), `hidden()` (every plugin's together).
+`hud`: the HUD's elements (the status display: figure, gauges, status icons;
+timing words, chains, buffs, damage numbers), every `PC_CLASSIC` / `PC_HUD`
+site's packets made no-ops after the game ran them (claims' classic packets
+too), and the modern pass (Lua claims, the Travel prompt, the save state
+notice). `game2d`: the rest of the game's 2D in the field: the packets
+linked at the ordering table's first `game2d_slots` entries (35: the text,
+window and HUD layer, `vs_scratch.unk4` +- 16 entries; RPC `photo
+{game2d_slots}`): text boxes, the name window, the minimap, targeting
+marks; native lists' markers and mode packets are kept. `overlay`: the
+developer overlay (its windows and the free camera's grid) as if closed.
+While held, a change is drawn by a render.
+
+### rood.capture
+
+`photo{scale = 1, path = nil, done = fn} -> path, id[, note]`: the next
+picture presented once the frozen moment is drawn as it is to be (no render
+waiting), post applied, read back before the overlay (so no ImGui: the dev
+overlay, modern HUD claims and a plugin's own drawing are never in it;
+the HUD and 2D the game draws are, unless hidden), cropped to the format,
+written as a PNG with a timestamped name (`rood-boi-YYYYMMDD-HHMMSS.png`,
+`-2` ... when taken) in `pc/user/photos` (`ROOD_PHOTOS`; `rood.capture.folder`).
+`path`: only inside a folder the plugin's `fs.write` grant names (audited).
+`scale` 2..4: not supported yet; the photo is the window's resolution, nothing
+upscaled, and a third result says so. `done(result)` and the plugin's
+`photo.capture` event get `{id, ok, path, width, height, scale, error}`;
+`status(id)` the same meanwhile (`done` false).
+
+### rood.input
+
+`capture(fn) -> true \| nil, why` (one plugin at a time): the keyboard (its
+keys while the overlay does not take them), the gamepad and the RPC's input
+go to `fn(e)` instead of the game, which sees no buttons and no stick
+(what it held is let go). Events: `{type = "button", name, down, device}`
+(the PS1 buttons by name: `cross`, `circle`, `start`, `up`, ...; `device`
+`pad`, `keyboard` (through the key bindings), `rpc`), `{type = "key", name,
+down, device = "keyboard"}` (any key by its settings name: `w`, `left`,
+`f1`), `{type = "analog", dt}` each frame a stick or trigger is off rest, and
+`{type = "released", reason}`; each also carries `held` (the buttons held:
+`{cross = true, ...}`), `left` and `right` (`{x, y}`, -1..1, down +y), `l2`,
+`r2` (0..1; -1 bound to buttons). `state()` gives the same now. `release()`.
+
+The safety: Escape (taken before the developer overlay, which it would
+open) or Start gives the input back (`released` with the reason; the Start
+press does not reach the game until let go). With nothing captured while a
+plugin holds the game, Escape or Start gives every plugin's photo holds back
+(each told by a `photo.released` event `{what, reason}`).
+
+### RPC and the engine reload
+
+RPC `photo` (`pc/tools/rood_rpc.py`: `Game.call("photo")`): `phase`
+(`running`, `asked`, `held`, `rendering`), `owners`, `held_vsync`,
+`renders`, `last_render_ms`, `last_render_vsyncs`, `mark`, `error`,
+`camera` (owner and pose), `hidden`, `format`, `input`, `captures`; params
+`render_frames`, `game2d_slots` tune it. An engine reload
+(`build_boot.py --engine-library`) is refused while a render runs
+(`retry`); otherwise every hold is given back first (the state is M's) and
+the plugins, started again by the next library, ask again.
+
+### Example
+
+`pc/tests/lua/plugins/test.photo` (a test fixture, not shipped):
+
+```lua
+-- plugin.lua: capabilities = { "game.pause", "camera", "post", "ui.hide", "capture", "input.capture" }
+function M.start()
+  assert(rood.game.pause())
+  assert(rood.camera.begin())
+  assert(rood.camera.orbit(35, 12))            -- degrees about Ashley
+  assert(rood.post.set("dof", true))
+  assert(rood.post.set("dof_fstop", 1.4))
+  assert(rood.post.set("exposure", 0.7))
+  assert(rood.ui.hide { hud = true, game2d = true, overlay = true })
+  assert(rood.input.capture(function(e)        -- the game sees nothing meanwhile
+    if e.type == "button" and e.name == "cross" and e.down then rood.camera.orbit(-10, 0) end
+  end))
+  return rood.capture.photo { done = function(result)
+    M.photo = result
+    rood.input.release() rood.ui.show() rood.post.reset() rood.camera.finish() rood.game.resume()
+  end }
+end
+```
+
+### What the foundation lacks
+
+For the reference card (`rood.photo` below): no pose (Ashley's poses are the
+game's animations and a held moment is rewound after every render, so a pose
+is not something to set read-only; a pose picker needs an animation query
+and a way to hold a chosen frame), no shaped masks or borders for the format
+(crop and bars only), no LUT files shipped (`lut` takes a `.cube` path, and
+a plugin cannot list `pc/user/post/luts` without an `fs.read` grant). Missing
+as effects: photos above the window's resolution (`scale` > 1: needs an
+offscreen present at a larger size), lens distortion, halation, motion blur,
+a light leak or frame overlay, and the modern HUD in photos (ImGui is not
+captured). The 2D the game draws as screen sprites (some particles, sky
+tiles) follows the camera only as the game draws it from the free camera.
+
+### Testing
+
+- `ctest lua_probe`: the Lua side over a fake host: the grants (none: the
+  functions absent; not elevated), pause refused with its reason, the camera's
+  pose both ways, post values both ways (names, the format, presets), the
+  hidden layers, a capture's path rules and its event, input events with the
+  held state and sticks, a raising handler, the host's notices, an unload
+  giving everything back, a revoked grant; a panel (`rood.draw.panel`).
+- `pc/tests/run.py photo_foundation_smoke` (`--renderer gl` and `vulkan`):
+  the example plugin granted, then step by step from the REPL and its own
+  session to the end (above).
+- `photo_engine_reload_smoke`: the same on the dev64 split build (built
+  first, as `engine_reload_smoke` does), then an engine reload while the
+  plugin holds the pause, the camera, hidden layers, a post override and the
+  input: everything given back, the moment's state kept, the plugin started
+  again with nothing held.
+
+## Photo mode (rood.photo, shipped, on)
+
+`pc/plugins/rood.photo` is the photo mode, made only of the foundation
+above, `rood.draw.panel`, `rood.settings` and `rood.menu`. It does nothing
+until its button is pressed: the binding slot `photo` (`bind_key_photo`
+F12, `bind_pad_photo` `misc1`: the Xbox Share, Switch Capture or PS5
+microphone button; System > Bindings: Photo mode), which the host sends as
+the event `input.action {name = "photo"}` whether or not the input is
+captured, so the same button enters and leaves.
+
+Entering is allowed in the field and in battle (`rood.game.mode()` `field`,
+`battle`); elsewhere a short notice says why ("Photo mode: not in a menu",
+"... not during a scene", "... not while loading", the title, the demo), and
+the foundation's own refusals (a room transition, memory card I/O) are shown
+the same way. Then: the game held (`rood.game.pause`), the free camera begun
+at the game's (its pivot on Ashley), the HUD, the game's 2D and the
+developer overlay hidden, the input captured, and the card drawn as a panel.
+Leaving gives back the input, the layers, the post overrides (the format
+too), the camera and the pause, in that order; the plugin unloading or
+reloading does the same by itself.
+
+| Pad (keyboard) | |
+|---|---|
+| D-pad up / down (arrows) | the row |
+| D-pad left / right (arrows) | the row's value (held: repeats) |
+| Left stick (I J K L) | move the camera (the pivot along), within `radius` of where it began |
+| Right stick (F H T G) | turn about the pivot |
+| L1 / R1 (Q W; U O) | lower / raise |
+| L2 / R2 (1 2; C V) | zoom (the distance to the pivot) |
+| Circle (Z) | take a photo (`rood.capture.photo`, the "Photo size" setting's scale): "Saved <name>" |
+| Cross (X), Start (Enter), Escape, the photo button | leave |
+| Triangle (S) | hide / show the card |
+| Square (A) | reset the row (its override dropped) |
+| Select (Tab) | the camera back where it began |
+
+The rows (`M.rows`; each a post override of the plugin's, live, never saved):
+
+| Row | Values | Post keys |
+|---|---|---|
+| Format | Fullscreen, 4:3, 3:2, 16:9, Cinema 2.39:1, Square, Portrait 4:5, Vertical 9:16 | `format` |
+| Filter | Off, Noir, Sepia, Faded, Vivid, Warm, Cold (grades: saturation, contrast, white balance, gains, offsets), then every post preset (Film, Cinematic, Clean, and the user's) | the grade's keys, `preset` |
+| Vignette, Grain | 0..1 by 0.05 | `vignette`, `grain` |
+| Aberration | 0..2 by 0.1 | `chromatic_aberration` |
+| Exposure | -3..+3 EV by 0.25 | `exposure` |
+| Aperture | Off, f/1.4 .. f/22 | `dof` off, or on with `dof_fstop` |
+| Focus | Subject (the DoF camera subject: Ashley in the field, the acting actor in battle), Centre, Cursor (the mouse), Ashley | `dof_focus` (greyed with Aperture off) |
+
+Sliders start at the live value (so entering changes nothing), untouched
+rows follow a filter's preset. No Pose row: see above.
+
+Look and feel are tables in `data.lua` (hot-reloaded; the REPL's `M`):
+`M.look` (the card's place and size, the modern and classic colours and
+typography, the notices, the thirds grid, the hints), `M.camera` (speeds,
+dead zone, radius, collision, the keys, the slider repeat), `M.formats`,
+`M.filters`, `M.preset_labels`, `M.apertures`, `M.focus`, `M.rows`. The card
+is drawn over the picture (never in the photo): with the modern look in the
+labels font with the button prompt icons; with the classic look in the
+game's window colours and its menu font (ui_text's typography) and the
+buttons named in words, since the game's own button sprites cannot be drawn
+over the picture.
+
+The player's settings (the Option screen's Photo mode page, saved in the
+plugin's own `settings.json`, never `settings.cfg`): Photo size (1x; 2x-4x
+are not supported yet: saved at the window's size, the notice says so),
+Camera speed, Invert camera Y, Thirds grid; the page also shows the
+binding.
+
+Tests: its Lua tests (`tests/photo_test.lua`, in `lua_smoke`: where it
+opens, the rows' keys and ranges, the filters' keys, the page) and
+`photo_mode_smoke` (`--renderer gl` and `vulkan`): in the save room, the
+button refused in the field menu; F12 enters; every row by the keyboard
+read back through `rood.post`; the camera keys; a photo; Cross leaves with
+the state digest, the vsync, the post values and the picture as without the
+session; the pad's button enters, F12 leaves, Start leaves; settings.cfg
+untouched.
 
 ## Option pages
 

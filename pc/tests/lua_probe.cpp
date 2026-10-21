@@ -10,6 +10,8 @@
 #include "hud/hud_internal.h"
 #include "hud/game_query.h"
 #include "light_prefabs.h"
+#include "photo.h"
+#include "post.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -17,6 +19,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <string>
 #include <sys/stat.h>
 #include <thread>
@@ -982,6 +985,25 @@ static void hud_layer()
         pc_lua_tick(); // not held: it plays out
     pc_hud_frame();
     CHECK(hud::command_count() == 0);
+    // a panel (rood.draw.panel): the plugin's own layer, drawn every frame by pc_hud_panels whatever the HUD
+    // hides, in the picture's square pixels (240 high); one per plugin; a raising one stops until set again
+    CHECK(eval_json(p, "local s = rood.draw.style{ size = 9 } rood.draw.panel(function(d, v) "
+                       "d.rect(1, 2, v.width, 3, 0x102030) d.text(s, string.format('%s/%d', v.look, v.height), 4, 5) end)") == "");
+    pc_hud_panels(0.016f, 1280, 720);
+    CHECK(hud::command_count() == 2 && hud::commands()[0].anchor == PC_HUD_ANCHOR_SCREEN
+        && hud::commands()[0].w > 426.6f && hud::commands()[0].w < 426.7f
+        && (command_text(1) == "classic/240" || command_text(1) == "modern/240"));
+    CHECK(contains(eval_error(p, "rood.draw.panel(3)"), "function expected"));
+    CHECK(eval_json(p, "rood.draw.panel(function(d) error('boom') end)") == "");
+    pc_hud_panels(0.016f, 1280, 720);
+    CHECK(hud::command_count() == 0);
+    CHECK(eval_json(p, "rood.draw.panel(function(d) d.anchor('screen') d.rect(0, 0, 1, 1, 0) end)") == "");
+    pc_hud_panels(0.016f, 960, 720);
+    CHECK(hud::command_count() == 1);
+    CHECK(eval_json(p, "rood.draw.panel(nil)") == "");
+    pc_hud_frame();
+    pc_hud_panels(0.016f, 960, 720); // (none: the HUD's commands left as they are, for RPC hud stats)
+    CHECK(hud::command_count() == 0);
     // the other kinds (tasks 5-6), away from the field: synthetic elements with their fields; d.fit
     // (a buff's boxes), d.glyph (the Travel prompt's icon), every kind claimed at once
     write_text(root + "/probe.hud/main.lua",
@@ -1484,6 +1506,319 @@ static void game_queries()
     pc_lua_tick();
 }
 
+
+/* The photo mode foundation in Lua (lua_api_photo.cpp; pc/docs/Extensions.md "Photo mode foundation")
+ * over a fake host (photo.h, post.h's overrides): each function exists only with its grant (no master
+ * switch: they are not elevated), calls reach the host as the plugin, values convert both ways, a
+ * capture path needs fs.write, input events reach the handler (a raising one gives the input back),
+ * what the host took back is told to the plugin, and an unload gives everything back. */
+namespace fake_photo {
+std::vector<std::string> calls;
+std::string paused_by, camera_owner, input_owner, refuse;
+int hidden;
+float format;
+std::vector<pc_photo_event> queue;
+std::map<std::string, std::string> post; /* key -> the override's text */
+pc_photo_pose pose;
+struct Notice {
+    std::string owner, what, reason;
+};
+std::vector<Notice> notices;
+int capture_id;
+void call(const std::string& c) { calls.push_back(c); }
+bool called(const std::string& c) { return std::find(calls.begin(), calls.end(), c) != calls.end(); }
+}
+extern "C" {
+int pc_photo_pause(const char* owner, char* why, int size)
+{
+    if (!fake_photo::refuse.empty()) {
+        snprintf(why, (size_t)size, "%s", fake_photo::refuse.c_str());
+        return -1;
+    }
+    fake_photo::paused_by = owner;
+    fake_photo::call(std::string("pause ") + owner);
+    return 0;
+}
+void pc_photo_resume(const char* owner)
+{
+    if (fake_photo::paused_by == owner)
+        fake_photo::paused_by.clear();
+}
+int pc_photo_paused(void) { return !fake_photo::paused_by.empty(); }
+int pc_photo_camera_begin(const char* owner, char*, int)
+{
+    fake_photo::camera_owner = owner;
+    fake_photo::pose = pc_photo_pose{};
+    fake_photo::pose.fov = 25;
+    return 0;
+}
+void pc_photo_camera_finish(const char* owner)
+{
+    if (fake_photo::camera_owner == owner)
+        fake_photo::camera_owner.clear();
+}
+int pc_photo_camera_owner(char* out, int size)
+{
+    snprintf(out, (size_t)size, "%s", fake_photo::camera_owner.c_str());
+    return !fake_photo::camera_owner.empty();
+}
+int pc_photo_camera_get(pc_photo_pose* out)
+{
+    *out = fake_photo::pose;
+    return !fake_photo::camera_owner.empty();
+}
+int pc_photo_camera_set(const char* owner, const pc_photo_pose* pose, unsigned mask, char* why, int size)
+{
+    if (fake_photo::camera_owner != owner) {
+        snprintf(why, (size_t)size, "the camera is not begun");
+        return -1;
+    }
+    if (mask & PC_POSE_POSITION)
+        memcpy(fake_photo::pose.position, pose->position, sizeof pose->position);
+    if (mask & PC_POSE_TARGET)
+        memcpy(fake_photo::pose.target, pose->target, sizeof pose->target);
+    if (mask & PC_POSE_FOV)
+        fake_photo::pose.fov = pose->fov;
+    if (mask & PC_POSE_ROLL)
+        fake_photo::pose.roll = pose->roll;
+    if (mask & PC_POSE_COLLISION)
+        fake_photo::pose.collision = pose->collision;
+    fake_photo::call("set " + std::to_string(mask));
+    return 0;
+}
+int pc_photo_camera_orbit(const char*, float yaw, float pitch, float zoom, char*, int)
+{
+    fake_photo::pose.yaw += yaw, fake_photo::pose.pitch += pitch;
+    fake_photo::call("orbit " + std::to_string((int)zoom));
+    return 0;
+}
+int pc_photo_camera_move(const char*, float right, float, float, char*, int)
+{
+    fake_photo::pose.position[0] += right;
+    return 0;
+}
+void pc_photo_ui_hide(const char* owner, int flags)
+{
+    fake_photo::hidden = flags;
+    fake_photo::call(std::string("hide ") + owner + " " + std::to_string(flags));
+}
+int pc_photo_ui_hidden(void) { return fake_photo::hidden; }
+void pc_photo_format_set(const char*, float aspect) { fake_photo::format = aspect; }
+float pc_photo_format(void) { return fake_photo::format; }
+const char* pc_photo_dir(void) { return "photos"; }
+int pc_photo_capture(const char* owner, const char* path, int scale, char* path_out, int path_size, char*, int)
+{
+    snprintf(path_out, (size_t)path_size, "%s", path ? path : "photos/rood-boi-1.png");
+    fake_photo::call(std::string("capture ") + owner + " " + std::to_string(scale));
+    return ++fake_photo::capture_id;
+}
+int pc_photo_capture_result_get(int id, pc_photo_capture_result* out)
+{
+    memset(out, 0, sizeof *out);
+    out->done = out->ok = 1;
+    out->width = 640, out->height = 480, out->scale = 1;
+    snprintf(out->path, sizeof out->path, "photos/rood-boi-%d.png", id);
+    return id <= fake_photo::capture_id;
+}
+int pc_photo_input_capture(const char* owner, int on)
+{
+    if (on) {
+        if (!fake_photo::input_owner.empty() && fake_photo::input_owner != owner)
+            return -1;
+        fake_photo::input_owner = owner;
+    } else if (fake_photo::input_owner == owner)
+        fake_photo::input_owner.clear();
+    return 0;
+}
+int pc_photo_input_owner(char* out, int size)
+{
+    snprintf(out, (size_t)size, "%s", fake_photo::input_owner.c_str());
+    return !fake_photo::input_owner.empty();
+}
+int pc_photo_input_events(pc_photo_event* out, int max)
+{
+    int n = 0;
+    while (n < max && !fake_photo::queue.empty()) {
+        out[n++] = fake_photo::queue.front();
+        fake_photo::queue.erase(fake_photo::queue.begin());
+    }
+    return n;
+}
+void pc_photo_input_state_get(pc_photo_input_state* out)
+{
+    memset(out, 0, sizeof *out);
+    out->buttons = 1u << 6; /* cross */
+    out->left[0] = 0.5f;
+}
+void pc_photo_release(const char* owner)
+{
+    fake_photo::call(std::string("release ") + owner);
+    pc_photo_resume(owner);
+    pc_photo_camera_finish(owner);
+    pc_photo_input_capture(owner, 0);
+    fake_photo::hidden = 0;
+    fake_photo::format = 0;
+}
+int pc_photo_notice_next(char* owner, int owner_size, char* what, int what_size, char* reason, int reason_size)
+{
+    if (fake_photo::notices.empty())
+        return 0;
+    snprintf(owner, (size_t)owner_size, "%s", fake_photo::notices[0].owner.c_str());
+    snprintf(what, (size_t)what_size, "%s", fake_photo::notices[0].what.c_str());
+    snprintf(reason, (size_t)reason_size, "%s", fake_photo::notices[0].reason.c_str());
+    fake_photo::notices.erase(fake_photo::notices.begin());
+    return 1;
+}
+int pc_post_field_count(void) { return 2; }
+int pc_post_field_info(int index, pc_post_field_desc* out)
+{
+    static const char names[] = "ashley\0centre\0";
+    memset(out, 0, sizeof *out);
+    if (index == 0) {
+        *out = { "dof_fstop", "float", "Lens|Depth of Field", "f-stop", "", nullptr, nullptr, 1, 1.2f, 22, { 2.8f },
+            1, 0 };
+        return 1;
+    }
+    if (index == 1) {
+        *out = { "dof_focus", "enum", "Lens|Depth of Field", "Focus", "", names, names, 1, 0, 1, { 0 }, 0, 1 };
+        return 1;
+    }
+    return 0;
+}
+int pc_post_field_find(const char* key) { return !strcmp(key, "dof_fstop") ? 0 : !strcmp(key, "dof_focus") ? 1 : -1; }
+int pc_post_value_text(const char* key, char* out, int size)
+{
+    auto it = fake_photo::post.find(key);
+    snprintf(out, (size_t)size, "%s", it != fake_photo::post.end() ? it->second.c_str()
+            : !strcmp(key, "dof_fstop") ? "2.8" : "ashley");
+    return pc_post_field_find(key) < 0 ? -1 : 0;
+}
+int pc_post_override_set(const char*, const char* key, const char* value, char* why, int size)
+{
+    if (pc_post_field_find(key) < 0) {
+        snprintf(why, (size_t)size, "no post field '%s'", key);
+        return -1;
+    }
+    fake_photo::post[key] = value;
+    return 0;
+}
+void pc_post_override_clear(const char* owner, const char* key)
+{
+    fake_photo::call(std::string("post clear ") + owner + (key ? std::string(" ") + key : std::string()));
+    if (key)
+        fake_photo::post.erase(key);
+    else
+        fake_photo::post.clear();
+}
+}
+
+static void photo_foundation()
+{
+    std::string root = scratch + "/plugins";
+    write_text(root + "/probe.photo/plugin.lua",
+        "return { id = 'probe.photo', api_version = 1, capabilities = { 'game.pause', 'camera', 'post', 'ui.hide', "
+        "'capture', 'input.capture' } }\n");
+    write_text(root + "/probe.photo/main.lua",
+        "got, released = {}, nil\n"
+        "rood.on('photo.released', function(e) released = e.what .. ' ' .. e.reason end)\n"
+        "rood.on('photo.capture', function(e) shot = e.path end)\n");
+    rl::scan();
+    rl::config_changed();
+    pc_lua_tick();
+    rl::Plugin* p = rl::find("probe.photo");
+    CHECK(p && p->state == rl::PLUGIN_LOADED);
+    CHECK(eval_json(p, "rood.camera, rood.post, rood.ui, rood.capture, rood.input, rood.game.pause, "
+                       "type(rood.game.paused)") == "null,null,null,null,null,null,\"function\"");
+    std::string error;
+    for (const char* cap : { "game.pause", "camera", "post", "ui.hide", "capture", "input.capture" })
+        CHECK(rl::grant("probe.photo", cap, false, &error));
+    CHECK(!rl::config.elevated);
+    pc_lua_tick(); /* not elevated: no master switch */
+    p = rl::find("probe.photo");
+    CHECK(p->granted.size() == 6);
+    CHECK(eval_json(p, "type(rood.camera.orbit), type(rood.post.set), type(rood.ui.hide), type(rood.capture.photo), "
+                       "type(rood.input.capture), type(rood.game.pause), rood.plugin.elevated")
+        == "\"function\",\"function\",\"function\",\"function\",\"function\",\"function\",false");
+    /* pause */
+    fake_photo::refuse = "cannot pause now: loading (no room)";
+    CHECK(eval_json(p, "rood.game.pause()") == "null,\"cannot pause now: loading (no room)\"");
+    fake_photo::refuse.clear();
+    CHECK(eval_json(p, "rood.game.pause(), rood.game.paused()") == "true,true" && fake_photo::paused_by == "probe.photo");
+    /* camera */
+    CHECK(eval_json(p, "rood.camera.get()") == "null");
+    CHECK(eval_json(p, "rood.camera.set{ fov = 30 }") == "null,\"the camera is not begun\"");
+    CHECK(eval_json(p, "rood.camera.begin(), rood.camera.active()") == "true,true");
+    CHECK(eval_json(p, "rood.camera.set{ position = { 1, 2, 3 }, target = { x = 4, y = 5, z = 6 }, fov = 30, "
+                       "roll = 5, collision = true }")
+        == "true");
+    CHECK(fake_photo::called("set " + std::to_string(PC_POSE_POSITION | PC_POSE_TARGET | PC_POSE_FOV | PC_POSE_ROLL
+                                  | PC_POSE_COLLISION)));
+    CHECK(eval_json(p, "local c = rood.camera.get() return c.position.y, c.target.z, c.fov, c.roll, c.collision")
+        == "2,6,30,5,true");
+    CHECK(contains(eval_error(p, "rood.camera.set{ position = { 1, 'x', 3 } }"), "position"));
+    CHECK(eval_json(p, "rood.camera.orbit(10, 5, 2)") == "true" && fake_photo::called("orbit 2"));
+    /* post */
+    CHECK(eval_json(p, "local l = rood.post.list() return #l, l[1].key, l[1].min, l[2].choices[2], l[3].key, l[4].key")
+        == "4,\"dof_fstop\",1.2000000476837158,\"centre\",\"preset\",\"format\"");
+    CHECK(eval_json(p, "rood.post.set('dof_fstop', 1.5), rood.post.get('dof_fstop')") == "true,1.5");
+    CHECK(eval_json(p, "rood.post.set('dof_focus', 'centre'), rood.post.get('dof_focus')") == "true,\"centre\"");
+    CHECK(eval_json(p, "rood.post.set('nope', 1)") == "null,\"no post field 'nope'\"");
+    CHECK(eval_json(p, "rood.post.set('format', 2.39), rood.post.get('format') > 2.38, rood.post.set('format', 9)")
+        == "true,true,null,\"format: an aspect ratio 0..5 (0: the whole picture)\"");
+    CHECK(eval_json(p, "local o = rood.post.overrides() return o.dof_fstop, o.dof_focus, o.format")
+        == "\"1.5\",\"centre\",\"2.39\"");
+    /* ui */
+    CHECK(eval_json(p, "rood.ui.hide{ hud = true }, rood.ui.hidden().hud, rood.ui.hidden().overlay") == "true,true,false");
+    CHECK(fake_photo::hidden == PC_PHOTO_HIDE_HUD);
+    CHECK(eval_json(p, "rood.ui.hide()") == "true" && fake_photo::hidden == 7);
+    CHECK(contains(eval_error(p, "rood.ui.hide{ menus = true }"), "unknown layer"));
+    /* capture */
+    CHECK(eval_json(p, "rood.capture.photo{ scale = 2 }")
+        == "\"photos/rood-boi-1.png\",1,\"scale > 1 is not supported yet: the photo is the window's picture (scale 1), "
+           "nothing upscaled\"");
+    CHECK(contains(eval_json(p, "rood.capture.photo{ path = 'out/x.png' }"), "fs.write"));
+    CHECK(contains(eval_error(p, "rood.capture.photo{ scale = 9 }"), "scale"));
+    CHECK(eval_json(p, "rood.capture.status(1).ok, rood.capture.status(1).width") == "true,640");
+    pc_lua_tick(); /* the finished capture told */
+    CHECK(eval_json(p, "shot") == "\"photos/rood-boi-1.png\"");
+    /* input */
+    CHECK(eval_json(p, "rood.input.capture(function(e) got[#got + 1] = e end), rood.input.captured()") == "true,true");
+    pc_photo_event e;
+    memset(&e, 0, sizeof e);
+    e.type = PC_PHOTO_EVENT_BUTTON, e.down = 1;
+    snprintf(e.name, sizeof e.name, "circle");
+    snprintf(e.device, sizeof e.device, "pad");
+    fake_photo::queue.push_back(e);
+    pc_lua_tick();
+    CHECK(eval_json(p, "#got >= 1, got[1].type, got[1].name, got[1].down, got[1].device, got[1].held.cross, "
+                       "got[1].left.x")
+        == "true,\"button\",\"circle\",true,\"pad\",true,0.5");
+    CHECK(eval_json(p, "rood.input.state().held.cross") == "true");
+    CHECK(eval_json(p, "rood.input.capture(function(e) error('boom') end)") == "true");
+    fake_photo::queue.push_back(e);
+    pc_lua_tick();
+    CHECK(fake_photo::input_owner.empty()); /* a raising handler gave the input back */
+    /* what the host took back, told */
+    fake_photo::notices.push_back({ "probe.photo", "everything", "the safety" });
+    pc_lua_tick();
+    CHECK(eval_json(p, "released") == "\"everything the safety\"");
+    /* an unload (a reload) gives everything back */
+    CHECK(eval_json(p, "rood.game.pause(), rood.camera.begin(), rood.ui.hide(), rood.post.set('dof_fstop', 2)")
+        == "true,true,true,true");
+    fake_photo::calls.clear();
+    p->reload_requested = true;
+    pc_lua_tick();
+    CHECK(fake_photo::called("release probe.photo") && fake_photo::called("post clear probe.photo"));
+    CHECK(fake_photo::paused_by.empty() && fake_photo::camera_owner.empty() && fake_photo::hidden == 0
+        && fake_photo::post.empty());
+    /* revoked: the functions go at once (the plugin reloads) */
+    CHECK(rl::grant("probe.photo", "camera", true, &error));
+    pc_lua_tick();
+    CHECK(eval_json(rl::find("probe.photo"), "rood.camera, type(rood.post)") == "null,\"table\"");
+    rl::set_enabled("probe.photo", false);
+    pc_lua_tick();
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) {
@@ -1521,6 +1856,7 @@ int main(int argc, char** argv)
     hud_events();
     game_queries();
     repl_bridge();
+    photo_foundation();
     if (failures) {
         std::printf("lua_probe: %d failure(s)\n", failures);
         return 1;

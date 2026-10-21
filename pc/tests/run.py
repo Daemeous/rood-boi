@@ -189,6 +189,11 @@ def suites(args, mode="egl"):
               note="64-bit: the engine library (build_boot.py --engine-library) reloads in place at a vsync: "
                    "state, pause and settings survive, a rebuilt unit takes effect, a broken library falls "
                    "back, and 120 vsyncs on the game equals one never reloaded"),
+        *([Suite("photo_engine_reload_smoke", [PY, str(TESTS / "photo_foundation_smoke.py"), "--card", str(args.save),
+                       "--engine-reload"], 400,
+                 note="64-bit: the photo mode foundation on the split build, then an engine reload while a plugin "
+                      "holds the pause, camera, hidden layers, post and input: all given back, the moment kept")]
+          if args.save.exists() else []),
         Suite("engine_rewind_smoke", [PY, str(TESTS / "engine_rewind_smoke.py"), "--card", str(args.save)], 600,
               note="64-bit split host: no reload, one mark and two rewind/600-frame GPU replays are byte exact",
               sources=[ROOT / "pc/src/render_state.c", ROOT / "pc/src/render.c",
@@ -386,6 +391,17 @@ def suites(args, mode="egl"):
         *([Suite("repl_smoke", [PY, str(TESTS / "repl_smoke.py"), "--card", str(args.save)], 300,
                  note="Lua REPL bridge: rood_repl.py -e sessions across processes, sandboxes, inspection, "
                       "rood.hud's draw redefined live (next frame), then its file reloaded wins")]
+          if args.save.exists() else []),
+        *([Suite("photo_foundation_smoke", [PY, str(TESTS / "photo_foundation_smoke.py"), "--card", str(args.save)],
+                 300, note="the photo mode foundation in Lua: pause (the state digest held), the free camera (orbit, "
+                           "fov, roll), post overrides, the HUD and 2D hidden, a PNG photo, input capture (Start, "
+                           "Escape), the example plugin's session; everything given back, settings.cfg unchanged")]
+          if args.save.exists() else []),
+        *([Suite("photo_mode_smoke", [PY, str(TESTS / "photo_mode_smoke.py"), "--card", str(args.save)], 300,
+                 note="the shipped photo mode (rood.photo): refused in a menu; F12 enters (held, HUD hidden, the "
+                      "input and camera its own), each card row live through rood.post, the camera keys, a PNG, "
+                      "Cross / the pad button / Start leave with everything restored (state digest, post values, "
+                      "the picture, settings.cfg)")]
           if args.save.exists() else []),
         *([Suite("frame_cost_smoke", [PY, str(TESTS / "frame_cost_smoke.py"), "--card", str(args.save)], 300,
                  note="per-frame cost (ROOD_PERF counters): no read-backs (sphere, Status rows: GPU copies), "
@@ -666,7 +682,7 @@ CHECKPOINT_SUITES = {
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
     "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "frame_cost_smoke",
     "hud_bench_smoke", "classic_hud_smoke",
-    "repl_smoke",
+    "repl_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke",
 }
 
 

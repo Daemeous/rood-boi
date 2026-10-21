@@ -67,6 +67,7 @@ extern "C" void pc_lua_console_menu_item(void); /* lua_console.cpp */
 extern "C" void pc_lua_console_window(void);
 extern "C" void pc_fast_travel_prompt_draw(void); /* fast_travel_prompt.cpp */
 extern "C" void pc_hud_frame(void);               /* lua_api_hud.cpp: claimed HUD elements */
+extern "C" void pc_hud_panels(float dt, int view_w, int view_h); /* lua_api_hud.cpp: plugins' panels (rood.draw.panel) */
 extern "C" void pc_savestate_notice_hud(void);  /* savestate_notice.cpp: the save state slots' notice */
 extern "C" void pc_savestate_notice_draw(void);
 extern "C" void pc_fast_travel_prompt_hud(void);  /* fast_travel_prompt.cpp: the prompt as a HUD element */
@@ -2116,10 +2117,30 @@ extern "C" unsigned pc_file_polls;
 unsigned pc_file_polls;
 
 // Draw the overlay over the presented frame (call before swapping buffers).
+/* photo.cpp (rood.ui.hide, rood.post format): the overlay and the HUD hidden for a clean frame (given
+ * back when the plugin lets go), and the format's bars over the picture. */
+extern "C" int pc_photo_hide_overlay(void) __attribute__((weak));
+extern "C" int pc_photo_hide_hud(void) __attribute__((weak));
+extern "C" void pc_photo_format_draw(void) __attribute__((weak));
+
 extern "C" void pc_overlay_frame(int width, int height)
 {
     if (!active)
         return;
+    struct HiddenOverlay { /* (visible as the player left it, after this frame) */
+        bool on, saved;
+        HiddenOverlay() : on(pc_photo_hide_overlay && pc_photo_hide_overlay()), saved(visible)
+        {
+            if (on)
+                visible = false;
+        }
+        ~HiddenOverlay()
+        {
+            if (on)
+                visible = saved;
+        }
+    } hidden_overlay;
+    bool hide_hud = pc_photo_hide_hud && pc_photo_hide_hud();
     ImGuiIO& io = ImGui::GetIO();
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
@@ -2158,7 +2179,8 @@ extern "C" void pc_overlay_frame(int width, int height)
     }
     if (pc_editor_active()) {
         pc_editor_input();
-        pc_editor_grid();
+        if (!hidden_overlay.on)
+            pc_editor_grid();
     }
     update_relative_mouse();
     /* The undo history's base: the state before the panels run (only while
@@ -2207,14 +2229,20 @@ extern "C" void pc_overlay_frame(int width, int height)
     } else {
         memset(pc_gl_inset, 0, sizeof pc_gl_inset);
     }
-    if (!visible)
+    if (pc_photo_format_draw)
+        pc_photo_format_draw(); /* the photo format's bars (the background: under everything else) */
+    if (!visible && !hide_hud)
         pc_fast_travel_prompt_hud(); /* (before the pass: a claimed prompt is drawn by it) */
-    pc_savestate_notice_hud(); /* the save state slots' notice, the same way */
-    pc_hud_frame(); /* HUD elements plugins claim (pc/src/hud): over the picture, under the menus */
+    if (!hide_hud) {
+        pc_savestate_notice_hud(); /* the save state slots' notice, the same way */
+        pc_hud_frame(); /* HUD elements plugins claim (pc/src/hud): over the picture, under the menus */
+    }
     pc_ui_draw_frame((float)dt); /* modern menus (pc/src/ui) over the game picture */
-    pc_savestate_notice_draw(); /* the save state slots' notice, unless a plugin drew it (the HUD pass) */
-    if (!visible)
+    if (!hide_hud)
+        pc_savestate_notice_draw(); /* the save state slots' notice, unless a plugin drew it (the HUD pass) */
+    if (!visible && !hide_hud)
         pc_fast_travel_prompt_draw(); /* the Travel prompt on a Circle of Magic (not over the editor) */
+    pc_hud_panels((float)dt, pc_gl_view[2], pc_gl_view[3]); /* plugins' panels (a photo mode's card): over everything but the editor's */
     shell_text_input();
     ImGui::Render();
 #ifdef ROOD_VULKAN

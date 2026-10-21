@@ -47,6 +47,7 @@ extern void pc_fog_state_save(void* out);
 extern int pc_fog_state_load(const void* in, int size);
 extern void pc_lua_init(void);
 extern void pc_hw_resync(void);
+extern int pc_photo_engine_unload(char* why, int size);
 
 struct window_carry {
     SDL_Window* window;
@@ -88,6 +89,11 @@ int rood_engine_unload(char* why, int size)
         snprintf(why, (size_t)size, "retry: %s is open (the reload goes through once it closes)", open);
         return -1;
     }
+    /* The photo mode (photo.cpp): refused while a render runs the game from its frozen moment; else every
+     * plugin's pause, camera, hidden layers and input capture are given back here (the state is the
+     * moment's: renders rewind), and the plugins, started again by the next library, ask again. */
+    if (pc_photo_engine_unload(why, size))
+        return -1;
     pc_atmosphere_settle();
     size_t n = 0;
     char* text = pc_capture_file(pc_settings_write, &n);

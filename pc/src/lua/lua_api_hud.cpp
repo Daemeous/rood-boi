@@ -354,7 +354,7 @@ int pixel(float v) { return (int)std::floor(v + 0.5f); }
 void need_draw(lua_State* L, const char* fn)
 {
     if (!in_draw)
-        luaL_error(L, "%s: only inside a HUD draw function (rood.hud.claim)", fn);
+        luaL_error(L, "%s: only inside a HUD draw function (rood.hud.claim) or a panel (rood.draw.panel)", fn);
 }
 // A primitive the PS1 packets have and the modern renderer does not.
 void need_classic(lua_State* L, const char* fn)
@@ -852,10 +852,12 @@ int api_text_raw(lua_State* L)
 int api_anchor(lua_State* L)
 {
     const char* fn = "rood.draw.anchor";
-    static const char* const names[] = { "centre", "left", "right", "element", "center", nullptr };
+    static const char* const names[] = { "centre", "left", "right", "element", "center", "screen", nullptr };
     int i = luaL_checkoption(L, 1, nullptr, names);
     need_draw(L, fn);
-    int anchor = i == 4 ? PC_HUD_ANCHOR_CENTRE : i == 3 ? -1 : i;
+    int anchor = i == 5 ? PC_HUD_ANCHOR_SCREEN : i == 4 ? PC_HUD_ANCHOR_CENTRE : i == 3 ? -1 : i;
+    if (anchor == PC_HUD_ANCHOR_SCREEN && classic_pass)
+        return luaL_error(L, "%s: \"screen\" is a panel's (the modern pass)", fn);
     if (classic_pass)
         classic_anchor = anchor;
     else
@@ -949,6 +951,43 @@ int kind_arg(lua_State* L, int idx, const char* fn)
     if (!kind)
         return luaL_error(L, "%s: unknown HUD kind '%s' (known: " HUD_KIND_LIST ")", fn, name);
     return kind;
+}
+
+// Plugins' own layers over the picture (rood.draw.panel): a function per plugin drawn every presented frame in
+// the modern pass, after the HUD and the menus, in either look and whatever rood.ui.hide hides (a photo mode's
+// card, a notice); never in a photo (captured before the overlay). Their coordinates: the picture's square
+// pixels, 240 high (d.anchor("screen")).
+struct Panel {
+    Plugin* plugin;
+    unsigned generation;
+    int ref;
+    bool failed;
+};
+std::vector<Panel> panels;
+const Panel* panel_job;
+void drop_panel(Plugin* p, lua_State* L)
+{
+    for (auto it = panels.begin(); it != panels.end();)
+        if (it->plugin == p) {
+            if (L && it->generation == p->generation)
+                luaL_unref(L, LUA_REGISTRYINDEX, it->ref);
+            it = panels.erase(it);
+        } else {
+            ++it;
+        }
+}
+// rood.draw.panel(fn | nil): fn(d, view) every presented frame (view: width, height, aspect, look, dt).
+int api_panel(lua_State* L)
+{
+    Plugin* p = plugin_of(L);
+    if (!lua_isnoneornil(L, 1))
+        luaL_checktype(L, 1, LUA_TFUNCTION);
+    drop_panel(p, L);
+    if (lua_isnoneornil(L, 1))
+        return 0;
+    lua_settop(L, 1);
+    panels.push_back({ p, p->generation, luaL_ref(L, LUA_REGISTRYINDEX), false });
+    return 0;
 }
 
 void drop_claim(int kind, Plugin* p, lua_State* L)
@@ -1421,6 +1460,7 @@ void drop_hud(Plugin* p)
                 pc_ui_text_override_clear(i);
             typography_of[i].owner.clear();
         }
+    drop_panel(p, nullptr);
     for (int k = 1; k < PC_HUD_KINDS; ++k) {
         size_t before = claims[k].size();
         drop_claim(k, p, nullptr); // (its state closes: the references go with it)
@@ -1478,6 +1518,7 @@ void open_hud(lua_State* L, Plugin*)
     set_cfunction(L, -1, "value", api_value);
     set_cfunction(L, -1, "digit", api_digit);
     set_cfunction(L, -1, "xy", api_xy);
+    set_cfunction(L, -1, "panel", api_panel);
     lock_table(L);
     lua_pushvalue(L, -1);
     lua_setfield(L, LUA_REGISTRYINDEX, "rood.hud.draw"); // d in draw functions
@@ -1603,6 +1644,48 @@ int hud_pass()
     }
     if (command_used || frame_count) // (frames with nothing claimed do not dilute the figures)
         frame_ms[frame_count++ % FRAME_RING] = (now_seconds() - start) * 1000.0;
+    return command_used;
+}
+
+// The panels' draws (rood.draw.panel) into the command buffer, after the HUD's pass drew its own.
+double panel_dt;
+int panels_pass(float width, float height)
+{
+    command_used = 0;
+    arena_used = 0;
+    for (size_t i = 0; i < panels.size(); ++i) {
+        Panel& pn = panels[i];
+        Plugin* p = pn.plugin;
+        if (pn.failed || !p->L || p->state != PLUGIN_LOADED || p->generation != pn.generation
+            || !p->disable_reason.empty())
+            continue;
+        panel_job = &pn;
+        drawing.anchor = drawing.element_anchor = PC_HUD_ANCHOR_SCREEN;
+        in_draw = true;
+        std::string error;
+        bool ok = run(p, "panel draw", BUDGET_CALL, [&](lua_State* L) {
+            lua_rawgeti(L, LUA_REGISTRYINDEX, panel_job->ref);
+            lua_getfield(L, LUA_REGISTRYINDEX, "rood.hud.draw");
+            lua_createtable(L, 0, 5);
+            lua_pushnumber(L, width);
+            lua_setfield(L, -2, "width");
+            lua_pushnumber(L, height);
+            lua_setfield(L, -2, "height");
+            lua_pushnumber(L, height > 0 ? width / height : 4.0 / 3.0);
+            lua_setfield(L, -2, "aspect");
+            lua_pushstring(L, hud::classic_look() ? "classic" : "modern");
+            lua_setfield(L, -2, "look");
+            lua_pushnumber(L, panel_dt);
+            lua_setfield(L, -2, "dt");
+            lua_call(L, 2, 0);
+        }, &error);
+        in_draw = false;
+        if (i < panels.size() && &panels[i] == panel_job && !ok) {
+            panels[i].failed = true; // until the plugin reloads (or sets its panel again)
+            log(LOG_WARN, p->id(), "its panel draw failed: not drawn until the plugin reloads or sets it again");
+        }
+    }
+    panel_job = nullptr;
     return command_used;
 }
 
@@ -1821,6 +1904,18 @@ extern "C" int pc_hud_classic_parity_draw(const pc_hud_classic_cmd** out, const 
     return rl::initialized() ? rl::classic_draw(true, why) : -1;
 }
 extern "C" int pc_hud_classic_anchor(void) { return rl::classic_anchor; }
+
+/* dev_overlay.cpp, every presented frame after the HUD and the menus, whatever is hidden: plugins' panels
+ * over the picture (pc_gl_view's size). */
+extern "C" void pc_hud_panels(float dt, int view_w, int view_h)
+{
+    if (!rl::initialized() || rl::panels.empty() || view_w <= 0 || view_h <= 0)
+        return;
+    rl::panel_dt = dt;
+    float height = 240.0f, width = 240.0f * (float)view_w / (float)view_h;
+    if (rl::panels_pass(width, height) > 0 && hud::render)
+        hud::render(rl::command_buffer, rl::command_used, rl::arena);
+}
 
 extern "C" void pc_hud_frame(void)
 {

@@ -333,6 +333,7 @@ fields it sets. Layers, lowest first:
 | cutscene preset and values | settings `post_cutscene_preset`, `post_cutscene_<field>` | (Cutscenes) |
 | the room's cutscenes | item `post cutscene` | (This room's cutscenes) |
 | one event | item `post event.<id>` | lighting files (editor support later) |
+| plugins' overrides | `rood.post.set` (a plugin's own layer, in the order the plugins began; a `preset` under it), never saved, gone when the plugin lets go (pc/docs/Extensions.md "Photo mode foundation") | Lua (the `post` grant) |
 
 A layer may name a preset (`preset=film` in an item, `post_preset` in the
 settings): the preset's fields apply under the layer's own. The resolved

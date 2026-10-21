@@ -25,14 +25,23 @@ namespace rl {
 const std::vector<CapabilityInfo>& capability_table()
 {
     static const std::vector<CapabilityInfo> table = {
-        { "fs.read", true, true, "Read files in its own folder and in the folders you approve" },
-        { "fs.write", true, true, "Create and change files in its own folder and in the folders you approve" },
-        { "net", true, false, "Connect to the internet (the hosts it lists)" },
-        { "exec", false, false, "Run programs on your computer" },
-        { "memory.read", false, false, "Read the game's memory" },
-        { "memory.write", false, false, "Change the game's memory (this can corrupt saves)" },
-        { "flags.write", false, false, "Change the game's story flags (this can corrupt saves)" },
-        { "native", false, false, "Load native code (full access to your computer)" },
+        { "fs.read", true, true, "Read files in its own folder and in the folders you approve", true },
+        { "fs.write", true, true, "Create and change files in its own folder and in the folders you approve", true },
+        { "net", true, false, "Connect to the internet (the hosts it lists)", true },
+        { "exec", false, false, "Run programs on your computer", true },
+        { "memory.read", false, false, "Read the game's memory", true },
+        { "memory.write", false, false, "Change the game's memory (this can corrupt saves)", true },
+        { "flags.write", false, false, "Change the game's story flags (this can corrupt saves)", true },
+        { "native", false, false, "Load native code (full access to your computer)", true },
+        /* The photo mode foundation (lua_api_photo.cpp): each given back when the plugin lets go, unloads
+         * or fails; nothing of them is saved. */
+        { "game.pause", false, true, "Pause the game (a photo mode)", false },
+        { "camera", false, true, "Move the camera while the game is paused", false },
+        { "post", false, true, "Change the picture's post-processing while it runs (never saved)", false },
+        { "ui.hide", false, true, "Hide the HUD, the game's text and windows, and the developer overlay", false },
+        { "capture", false, true, "Save pictures of the game (in pc/user/photos)", false },
+        { "input.capture", false, true, "Take the pad and keyboard from the game while it holds them (Escape or "
+                                        "Start gives them back)", false },
     };
     return table;
 }
@@ -142,8 +151,10 @@ bool capability_ok(const std::string& capability, std::string* why)
     std::string scope = colon == std::string::npos ? std::string() : capability.substr(colon + 1);
     const CapabilityInfo* info = capability_info(name);
     if (!info) {
-        *why = "unknown capability '" + name + "' (fs.read, fs.write, net, exec, memory.read, memory.write, "
-               "flags.write, native)";
+        std::string names;
+        for (const CapabilityInfo& c : capability_table())
+            names += (names.empty() ? "" : ", ") + std::string(c.name);
+        *why = "unknown capability '" + name + "' (" + names + ")";
         return false;
     }
     if (colon != std::string::npos && !info->scoped) {
@@ -332,12 +343,28 @@ std::vector<Grant>& grants()
     return *list;
 }
 
+bool granted(const Plugin* p, const char* capability)
+{
+    for (const std::string& cap : p->granted)
+        if (name_of(cap) == capability)
+            return true;
+    return false;
+}
+
 std::vector<std::string> active_grants(const Plugin* p)
 {
     std::vector<std::string> out;
-    if (!config.elevated || p->console)
+    if (p->console)
         return out;
-    for (const std::string& cap : p->manifest.capabilities)
+    for (const std::string& cap : p->manifest.capabilities) {
+        const CapabilityInfo* info = capability_info(name_of(cap));
+        bool elevated = !info || info->elevated;
+        if (elevated && !config.elevated)
+            continue;
+        if (!elevated && p->shipped) { /* the game's own plugins: what they declare */
+            out.push_back(cap);
+            continue;
+        }
         for (const Grant& g : grants())
             if (g.plugin == p->id() && g.hash == p->hash && g.capability == cap) {
                 std::string why;
@@ -350,6 +377,7 @@ std::vector<std::string> active_grants(const Plugin* p)
                     log(LOG_WARN, p->id(), "refused grant " + cap + ": " + why);
                 break;
             }
+    }
     return out;
 }
 

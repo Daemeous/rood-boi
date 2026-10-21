@@ -255,12 +255,33 @@ extern int pc_input_stick(float out[2], int live_valid);
 /* button_roles.c (battle builds): Circle and Cross exchanged where the
  * options qol_confirm_cross / qol_field_cross_attack cover the game's context. */
 extern unsigned pc_button_roles_buttons(unsigned buttons) __attribute__((weak));
+/* photo.cpp: a plugin captures the input (rood.input.capture), or a photo mode render runs (the game
+ * runs from the frozen moment): the game sees no buttons and no stick. */
+extern int pc_photo_input_captured __attribute__((weak));
+extern int pc_photo_rendering __attribute__((weak));
+extern int pc_photo_input_event(const void* event) __attribute__((weak));
+extern int pc_photo_input_escape(const void* event) __attribute__((weak));
+extern unsigned pc_photo_input_swallowed __attribute__((weak));
+extern void pc_photo_input_tick(void) __attribute__((weak));
+extern void pc_photo_action(const char* name, const char* device) __attribute__((weak));
+static int photo_blind(void)
+{
+    return (&pc_photo_input_captured && pc_photo_input_captured) || (&pc_photo_rendering && pc_photo_rendering);
+}
 unsigned pc_window_buttons(void)
 {
+    if (&pc_photo_rendering && pc_photo_rendering)
+        return 0;
+    if (photo_blind()) {
+        pc_input_buttons(0, 0); /* (a recording's vsync still counted) */
+        return 0;
+    }
     /* Developer RPC input (dev_rpc.c) applies even while unfocused. */
     unsigned keys = buttons | (pc_camera_stick_keys && (camera_keys & 16) ? 1u << 10 : 0);
     unsigned pad = capture_filter(NULL) ? 0 : pc_controller_buttons(); /* a binding capture takes the pad */
     unsigned result = pc_input_buttons(focused ? keys | pad : 0, pc_rpc_buttons());
+    if (&pc_photo_input_swallowed)
+        result &= ~pc_photo_input_swallowed; /* the photo mode's safety took it (photo.cpp) */
     if (pc_button_roles_buttons)
         result = pc_button_roles_buttons(result);
     /* R3 resets the right-stick camera instead (camera_stick.c). */
@@ -269,9 +290,9 @@ unsigned pc_window_buttons(void)
 /* The camera's stick: the gamepad's right stick and the keys (focused). */
 int pc_window_stick(float out[2])
 {
-    int valid = focused;
+    int valid = focused && !photo_blind();
     out[0] = out[1] = 0;
-    if (focused) {
+    if (valid) {
         pc_controller_right_stick(out);
         if (pc_camera_stick_keys) {
             out[0] += (camera_keys & 2 ? 1.0f : 0) - (camera_keys & 1 ? 1.0f : 0);
@@ -290,8 +311,17 @@ void pc_window_tick(void)
         /* A binding capture (System > Bindings) takes keys and pad buttons first. */
         if (capture_filter(&event))
             continue;
+        /* The photo mode's safety (photo.cpp): Escape gives a plugin's input capture or pause back. */
+        if (pc_photo_input_escape && pc_photo_input_escape(&event))
+            continue;
         /* The developer overlay (F1) takes the events it uses. */
         if ((pc_gl_active || PC_VK_ACTIVE) && pc_overlay_event(&event))
+            continue;
+        /* The photo mode's key (bind_key_photo): a Lua event, captured or not (photo_input.cpp). */
+        if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat && pc_photo_action && pc_keyboard_photo(event.key.key))
+            pc_photo_action("photo", "keyboard");
+        /* A plugin's input capture takes the keys (photo.cpp; Escape gives them back). */
+        if (pc_photo_input_event && pc_photo_input_event(&event))
             continue;
         switch (event.type) {
         case SDL_EVENT_QUIT:
@@ -350,9 +380,11 @@ void pc_window_tick(void)
         }
     }
     pc_controller_poll();
+    if (pc_photo_input_tick)
+        pc_photo_input_tick(); /* a plugin's input capture: the pad's and the RPC's buttons as events */
     capture_tick();
     charge_update();
-    if (fast_forward_held() || charge_hidden)
+    if (fast_forward_held() || charge_hidden || (&pc_photo_rendering && pc_photo_rendering))
         deadline.tv_sec = 0; /* pace again from now when it is released (or presents again) */
     else if (!fast) {
         /* Pace to absolute NTSC field deadlines (59.94 Hz) so the frame's own

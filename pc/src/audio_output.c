@@ -103,8 +103,12 @@ static int turbo, cut; /* (the game thread's) */
 static short last_kept[2];
 void pc_audio_output_turbo(int on) { turbo = on; }
 
+/* photo.cpp: a photo mode render runs the game from its frozen moment: nothing it plays is heard. */
+extern int pc_photo_rendering __attribute__((weak));
 void pc_audio_output_push(const short* frames, int count)
 {
+    if (&pc_photo_rendering && pc_photo_rendering)
+        return;
     if (wav) {
         if (wav_gain != 1.0f || master_target() != 1.0f) { /* (also the first block: GAIN_UNSET) */
             short scaled[BLOCK * 2];

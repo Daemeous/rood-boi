@@ -20,7 +20,10 @@ static int travel; /* the Travel slot's pad element held (fast travel) */
 static int fast_forward; /* L3 + R3 held (boot_window.c) */
 static unsigned state_actions; /* the save state actions' pad elements held (bit n: PC_BIND_STATE_FIRST + n) */
 extern void pc_savestate_actions(unsigned bits) __attribute__((weak)); /* savestate_slots.c */
+static int photo_action; /* the photo mode's pad element held (PC_BIND_PHOTO) */
+extern void pc_photo_action(const char* name, const char* device) __attribute__((weak)); /* photo_input.cpp */
 static float right_stick[2]; /* -1..1, SDL's direction (down is +y) */
+static float left_stick[2];  /* the same (photo.cpp's input capture reads it; the game's pad stays digital) */
 static float triggers[2];    /* L2, R2: their axis' travel past the press point (0..1), -1 not an axis */
 static const char* requested;
 static char requested_event[300];
@@ -179,8 +182,10 @@ void pc_controller_poll(void)
         mask = 0;
         travel = 0;
         state_actions = 0;
+        photo_action = 0;
         fast_forward = 0;
         right_stick[0] = right_stick[1] = 0;
+        left_stick[0] = left_stick[1] = 0;
         triggers[0] = triggers[1] = -1;
         return;
     }
@@ -193,12 +198,17 @@ void pc_controller_poll(void)
     travel = pc_controller_element(&state, pc_bind_pad[PC_BIND_TRAVEL]);
     /* The save state actions: on a press (savestate_slots.c). */
     unsigned held = 0;
-    for (int s = PC_BIND_STATE_FIRST; s < PC_BIND_SLOTS; s++)
+    for (int s = PC_BIND_STATE_FIRST; s <= PC_BIND_STATE_LAST; s++)
         if (pc_bind_pad[s] != PC_PAD_NONE && pc_controller_element(&state, pc_bind_pad[s]))
             held |= 1u << (s - PC_BIND_STATE_FIRST);
     if (pc_savestate_actions && (held & ~state_actions))
         pc_savestate_actions(held & ~state_actions);
     state_actions = held;
+    /* The photo mode's button: on a press, a Lua event (rood.photo; any input capture or none). */
+    int photo = pc_bind_pad[PC_BIND_PHOTO] != PC_PAD_NONE && pc_controller_element(&state, pc_bind_pad[PC_BIND_PHOTO]);
+    if (photo && !photo_action && pc_photo_action)
+        pc_photo_action("photo", "pad");
+    photo_action = photo;
     /* Both stick clicks together: fast-forward while held, instead of
      * whatever PS1 buttons they are bound to (L3 and R3 by default; R3
      * resets the camera). */
@@ -207,6 +217,8 @@ void pc_controller_poll(void)
         for (int i = 0; i < PC_PAD_BUTTONS; i++)
             if (pc_bind_pad[i] == SDL_GAMEPAD_BUTTON_LEFT_STICK || pc_bind_pad[i] == SDL_GAMEPAD_BUTTON_RIGHT_STICK)
                 mask &= ~(1u << i);
+    left_stick[0] = state.axes[SDL_GAMEPAD_AXIS_LEFTX] / 32767.0f;
+    left_stick[1] = state.axes[SDL_GAMEPAD_AXIS_LEFTY] / 32767.0f;
     right_stick[0] = state.axes[SDL_GAMEPAD_AXIS_RIGHTX] / 32767.0f;
     right_stick[1] = state.axes[SDL_GAMEPAD_AXIS_RIGHTY] / 32767.0f;
     for (int i = 0; i < 2; i++) { /* (pad bits 0 and 1: L2, R2) */
@@ -226,6 +238,11 @@ int pc_controller_fast_forward(void) { return fast_forward; }
 /* L2 (0) or R2 (1) bound to an axis: how far past the press point it is
  * (0..1; the map's zoom, ui/map_bridge.c); -1: a button, or no gamepad. */
 float pc_controller_trigger(int which) { return which == 0 || which == 1 ? triggers[which] : -1; }
+void pc_controller_left_stick(float out[2])
+{
+    out[0] = left_stick[0] < -1 ? -1 : left_stick[0];
+    out[1] = left_stick[1] < -1 ? -1 : left_stick[1];
+}
 void pc_controller_right_stick(float out[2])
 {
     out[0] = right_stick[0] < -1 ? -1 : right_stick[0];

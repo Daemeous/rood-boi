@@ -81,6 +81,8 @@ struct Map {
     }
     float x(float px, int anchor) const
     {
+        if (anchor == PC_HUD_ANCHOR_SCREEN)
+            return vx + px * vh / 240.0f;
         if (anchor == PC_HUD_ANCHOR_PICTURE)
             return vx + px / 320.0f * vw;
         float f = px / gw;
@@ -88,13 +90,11 @@ struct Map {
             f = anchor == 1 ? f * 0.75f : anchor == 2 ? 1.0f - (1.0f - f) * 0.75f : 0.5f + (f - 0.5f) * 0.75f;
         return vx + f * vw;
     }
-    float y(float py, int anchor) const { return vy + py / (anchor == PC_HUD_ANCHOR_PICTURE ? 240.0f : gh) * vh; }
+    static bool square(int anchor) { return anchor == PC_HUD_ANCHOR_PICTURE || anchor == PC_HUD_ANCHOR_SCREEN; }
+    float y(float py, int anchor) const { return vy + py / (square(anchor) ? 240.0f : gh) * vh; }
     // window pixels per game pixel down, and across (widescreen's 3/4 for the game's 2D)
-    float down(int anchor) const { return vh / (anchor == PC_HUD_ANCHOR_PICTURE ? 240.0f : gh); }
-    float across(int anchor) const
-    {
-        return anchor == PC_HUD_ANCHOR_PICTURE ? down(anchor) : vw / gw * (wide ? 0.75f : 1.0f);
-    }
+    float down(int anchor) const { return vh / (square(anchor) ? 240.0f : gh); }
+    float across(int anchor) const { return square(anchor) ? down(anchor) : vw / gw * (wide ? 0.75f : 1.0f); }
 };
 
 unsigned rgba(unsigned rgb, float a)

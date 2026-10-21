@@ -19,7 +19,8 @@ const char* const pc_pad_button_names[PC_PAD_BUTTONS] = { "l2", "r2", "l1", "r1"
         { SDLK_1 }, { SDLK_2 }, { SDLK_Q }, { SDLK_W }, { SDLK_S }, { SDLK_Z }, { SDLK_X }, { SDLK_A }, \
             { SDLK_TAB }, { 0 }, { 0 }, { SDLK_RETURN }, { SDLK_UP }, { SDLK_RIGHT }, { SDLK_DOWN },    \
             { SDLK_LEFT }, { 0 } /* Travel: no key */,                                                  \
-            { SDLK_F5 }, { SDLK_F9 }, { SDLK_F6 }, { SDLK_F7 } /* save states: save, load, slot -, + */ \
+            { SDLK_F5 }, { SDLK_F9 }, { SDLK_F6 }, { SDLK_F7 }, /* save states: save, load, slot -, + */ \
+            { SDLK_F12 } /* the photo mode (rood.photo) */                                        \
     }
 #define DEFAULT_PAD                                                                             \
     {                                                                                           \
@@ -34,7 +35,8 @@ const char* const pc_pad_button_names[PC_PAD_BUTTONS] = { "l2", "r2", "l1", "r1"
             SDL_GAMEPAD_BUTTON_DPAD_UP, SDL_GAMEPAD_BUTTON_DPAD_RIGHT, SDL_GAMEPAD_BUTTON_DPAD_DOWN, \
             SDL_GAMEPAD_BUTTON_DPAD_LEFT,                                                       \
             SDL_GAMEPAD_BUTTON_BACK /* Travel: shares Select's back */,                          \
-            PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE /* save states: no button */       \
+            PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, /* save states: no button */      \
+            SDL_GAMEPAD_BUTTON_MISC1 /* the photo mode: Xbox Share, Switch Capture, PS5 mic */    \
     }
 static const SDL_Keycode default_keys[PC_BIND_SLOTS][PC_BIND_KEYS] = DEFAULT_KEYS;
 static const int default_pad[PC_BIND_SLOTS] = DEFAULT_PAD;
@@ -90,7 +92,7 @@ int pc_pad_button_index(const char* name)
 
 /* The port's own actions' settings names, from PC_BIND_TRAVEL on. */
 static const char* const action_names[PC_BIND_SLOTS - PC_PAD_BUTTONS] = { "travel", "state_save", "state_load",
-    "state_slot_prev", "state_slot_next" };
+    "state_slot_prev", "state_slot_next", "photo" };
 
 const char* pc_bind_slot_name(int slot)
 {
@@ -124,10 +126,15 @@ int pc_keyboard_travel(SDL_Keycode key)
 unsigned pc_keyboard_state_actions(SDL_Keycode key)
 {
     unsigned bits = 0;
-    for (int s = PC_BIND_STATE_FIRST; key && s < PC_BIND_SLOTS; s++)
+    for (int s = PC_BIND_STATE_FIRST; key && s <= PC_BIND_STATE_LAST; s++)
         if (pc_bind_keys[s][0] == key || pc_bind_keys[s][1] == key)
             bits |= 1u << (s - PC_BIND_STATE_FIRST);
     return bits;
+}
+
+int pc_keyboard_photo(SDL_Keycode key)
+{
+    return key && (pc_bind_keys[PC_BIND_PHOTO][0] == key || pc_bind_keys[PC_BIND_PHOTO][1] == key);
 }
 
 /* The PS1 buttons that share one of `slot`'s keys or its pad element: a

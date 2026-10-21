@@ -1052,13 +1052,58 @@ void pc_draw_packet(void* data, int chain)
         ot_scene = NULL, ot_front = 0;
     pc_cost_end(PC_COST_DRAW, cost);
 }
+/* The photo mode's hidden game 2D (photo.cpp, rood.ui.hide{game2d}): in the field's ordering tables
+ * (D_80055C80, 0x822 entries each, drawn from the far end), the packets linked at entries below
+ * pc_photo_game2d_slots (the HUD, text and window layer: vs_scratch.unk4 is entry 18, the game's 2D
+ * slots lie within 16 entries of it) are not drawn; native lists' markers and mode packets still are. */
+extern int pc_photo_hide_game2d __attribute__((weak));
+extern int pc_photo_game2d_slots __attribute__((weak));
+extern void* D_80055C80[] __attribute__((weak)); /* (absent in the GPU probe) */
+static int game2d_entry(const uint32_t* p, int* hidden)
+{
+    if (!(uintptr_t)D_80055C80)
+        return 0;
+    for (int b = 0; b < 2; b++) {
+        const uint32_t* ot = D_80055C80[b];
+        if (ot && p >= ot && p < ot + 0x822) {
+            *hidden = p - ot < pc_photo_game2d_slots;
+            return 1;
+        }
+    }
+    return 0;
+}
+static int mode_packet(const uint32_t* p)
+{
+    unsigned n = p[0] >> 24;
+    for (unsigned i = 1; i <= n; i++)
+        if (!((p[i] >> 24) >= 0xE1 && (p[i] >> 24) <= 0xE6))
+            return 0;
+    return 1;
+}
 static void draw_packet(void* data, int chain)
 {
     uint32_t* p = data;
+    int hide2d = chain && &pc_photo_hide_game2d && pc_photo_hide_game2d && &pc_photo_game2d_slots, hidden = 0;
     for (unsigned links = 0; links < 100000; links++) {
         uint32_t tag = *p;
         if (chain)
             ot_layers_note(p);
+        uint32_t t_list;
+        int t_first, t_count;
+        if (hide2d && !game2d_entry(p, &hidden) && hidden && !(render_is_marker && render_is_marker(p))
+            && !(render_translucent_marker && render_translucent_marker(p, &t_list, &t_first, &t_count))
+            && !mode_packet(p)) {
+            unsigned next = tag & 0xffffff;
+            if (next == 0xffffff)
+                return;
+            if (next < 0x200000)
+                p = (void*)(uintptr_t)(next | 0x80000000u);
+            else if (sizeof(void*) == 4 && next >= 0x400000 && next < 0x1000000)
+                p = (void*)(uintptr_t)next;
+            else
+                return;
+            continue;
+        }
         if (pc_hw_anchor_packet)
             pc_hw_anchor_packet(p, draw_x, display_w);
         if (pc_ui_bubble_packet) {
@@ -1150,6 +1195,7 @@ extern void pc_window_wait_fraction(int k, int n) __attribute__((weak));
 extern void pc_charge_skip_vsync(void) __attribute__((weak));
 extern int pc_charge_skip_hidden(void) __attribute__((weak));
 extern void pc_hw_skip_present(void) __attribute__((weak)); /* gpu_hw.c */
+extern int pc_photo_rendering __attribute__((weak));       /* photo.cpp: a photo mode render runs */
 extern void pc_state_diff_vsync(void) __attribute__((weak));
 static void tick_frame(void);
 static void tick_frame_work(void);
@@ -1183,18 +1229,21 @@ static void tick_frame(void)
 }
 static void tick_frame_work(void)
 {
+    /* A photo mode render (photo.cpp): the game runs from the frozen moment, nothing to see (no
+     * present), no plugin tick (game time stays the moment's), no charging skip; then it is rewound. */
+    int photo = &pc_photo_rendering && pc_photo_rendering;
     if (pc_fog_vsync)
         pc_fog_vsync(); /* once per game vsync, after the RPC's changes, before the frame */
-    if (pc_lua_tick)
+    if (pc_lua_tick && !photo)
         pc_lua_tick(); /* plugins' tick handlers and game-time timers, after the RPC's changes */
-    if (pc_charge_skip_vsync)
+    if (pc_charge_skip_vsync && !photo)
         pc_charge_skip_vsync();
     pc_window_tick();
     if (pc_cd_tick)
         pc_cd_tick(); /* before the audio: this field's XA sectors */
     pc_audio_frame();
     clock_gettime(CLOCK_MONOTONIC, &last_vsync);
-    if (pc_charge_skip_hidden && pc_charge_skip_hidden()) {
+    if (photo || (pc_charge_skip_hidden && pc_charge_skip_hidden())) {
         /* Not presented: the window keeps the last picture; the frame ends as at a present. */
         if (pc_hw_skip_present)
             pc_hw_skip_present();
@@ -1270,7 +1319,8 @@ static int deterministic_scanlines(void)
         const char* value = getenv("ROOD_DETERMINISTIC");
         env = value && *value && strcmp(value, "0");
     }
-    return env || (pc_input_deterministic && pc_input_deterministic());
+    return env || (pc_input_deterministic && pc_input_deterministic())
+        || (&pc_photo_rendering && pc_photo_rendering); /* every render of the frozen moment the same */
 }
 int func_800E45B4(void)
 {

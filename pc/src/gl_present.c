@@ -1605,6 +1605,26 @@ static void capture_present(void)
     }
 }
 
+/* photo.cpp (rood.capture.photo): the picture as presented (post applied, the overlay not drawn yet),
+ * the view's rectangle read back for a photo when one waits. */
+extern int pc_photo_capture_wanted(void) __attribute__((weak));
+extern void pc_photo_capture_pixels(const unsigned char* rgba, int w, int h, int stride, int bottom_up)
+    __attribute__((weak));
+static void photo_capture(void)
+{
+    if (!pc_photo_capture_wanted || !pc_photo_capture_wanted() || pc_gl_view[2] <= 0 || pc_gl_view[3] <= 0)
+        return;
+    int w = pc_gl_view[2], h = pc_gl_view[3];
+    unsigned char* pixels = malloc((size_t)w * h * 4);
+    if (!pixels)
+        return;
+    gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
+    gl_PixelStorei(GL_PACK_ALIGNMENT, 1);
+    gl_ReadPixels(pc_gl_view[0], window_h - pc_gl_view[1] - h, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    pc_photo_capture_pixels(pixels, w, h, w * 4, 1);
+    free(pixels);
+}
+
 /* Wait for the GPU to finish the frame before handing it to the display
  * server. Under XWayland without explicit sync (NVIDIA), the compositor
  * can otherwise take the buffer while it is still being drawn: polygons
@@ -2178,6 +2198,7 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
         gl_BindVertexArray(0);
     }
     gl_Viewport(0, 0, window_w, window_h);
+    photo_capture();
     pc_overlay_frame(window_w, window_h);
     if (pc_hw_active)
         pc_hw_present_done();

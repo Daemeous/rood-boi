@@ -263,7 +263,11 @@ struct CapabilityInfo {
     bool scoped;       /* takes ":<scope>" (a folder, a host) */
     bool implemented;  /* M0: fs.read and fs.write; the others refuse with a message */
     const char* plain; /* what the grant dialog says */
+    bool elevated;     /* needs plugins_elevated too (files, the network, programs, memory); the photo mode's
+                        * (game.pause, camera, post, ui.hide, capture, input.capture) only their grant, and a
+                        * shipped plugin has those it declares */
 };
+bool granted(const Plugin* p, const char* capability); /* in this load (p->granted), without a scope */
 const std::vector<CapabilityInfo>& capability_table();
 const CapabilityInfo* capability_info(const std::string& name); /* without the scope */
 bool capability_ok(const std::string& capability, std::string* why);
@@ -343,6 +347,10 @@ int start_tests(const std::string& plugin, const std::string& filter);
 void step_tests(bool tick); /* a tick: waiting cases count down; ready ones run */
 std::string test_run_json(int run); /* {run, done, passed, failed, skipped, waiting, results}; "" if unknown */
 void drop_tests(const std::string& plugin); /* its waiting cases fail: the plugin unloaded */
+
+/* ---- lua_api_photo.cpp (the photo mode foundation: rood.camera, rood.post, rood.ui, rood.capture,
+ * rood.input; rood.game.pause/resume/paused through open_game) ---- */
+void open_game_pause(lua_State* L, Plugin* p); /* adds pause, resume, paused to the rood.game table on top */
 
 /* ---- lua_api_hud.cpp ---- */
 /* The claims' draws of the live HUD elements into the command buffer (pc_hud_frame, then

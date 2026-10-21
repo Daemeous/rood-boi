@@ -135,6 +135,34 @@ int pc_post_rpc(const char* params, char* out, int size);
 /* Editor: Details > Post-processing. */
 void pc_post_panel(void);
 
+/* Plugins' overrides (rood.post, pc/src/lua/lua_api_photo.cpp): the field table read, the live values,
+ * and a layer per owner over every other (applied in the order the owners began, before the lens blur's
+ * gate), never saved (settings, presets, room files never see it), dropped when the owner lets go. */
+typedef struct {
+    const char* key;
+    const char* kind;   /* "bool", "float", "enum", "color", "vec4", "text" */
+    const char* group;  /* "Lens|Depth of Field" */
+    const char* label;
+    const char* tip;
+    const char* names;  /* enum: the values' keys, '\0'-separated, ending in an empty one */
+    const char* labels; /* enum: their names, the same way */
+    int count;          /* components (color 3, vec4 4, text 0) */
+    float lo, hi, def[4];
+    int log, integer;   /* a logarithmic slider; whole numbers */
+} pc_post_field_desc;
+int pc_post_field_count(void);
+int pc_post_field_info(int index, pc_post_field_desc* out); /* 0 past the end */
+int pc_post_field_find(const char* key);                    /* its index, -1 none */
+/* The value the post stack resolves now (the overrides included), as the settings write it; -1 unknown. */
+int pc_post_value_text(const char* key, char* out, int size);
+/* 0, or -1 with why (an unknown field, a value that does not parse); numbers are clamped to the range. */
+int pc_post_override_set(const char* owner, const char* key, const char* value, char* why, int size);
+void pc_post_override_clear(const char* owner, const char* key); /* key NULL: all of the owner's */
+int pc_post_override_count(const char* owner);                   /* NULL: every owner's */
+/* "preset" is a key too: a named profile under the owner's values (a filter). Its names ('\0'-separated,
+ * ending in an empty one; the count returned). */
+int pc_post_preset_names(char* out, int size);
+
 #ifdef __cplusplus
 }
 #endif

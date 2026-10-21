@@ -64,15 +64,28 @@ int pc_classic_walk_slots(const int* offsets, int count, int with_unk8, int encl
 
 static const int panel_slots[] = { -4, -8, -12, -16 };
 
+/* photo.cpp (rood.ui.hide{hud}): the HUD hidden; every site's packets become no-ops after it ran (its
+ * element recorded, its state stepped, as the game does). */
+extern int pc_photo_hide_hud(void) __attribute__((weak));
+
 void pc_classic_site(int kind, void* record, int x, int y, void* first, void* end)
 {
     static pc_classic_packet captured[PC_CLASSIC_CAPTURE];
+    int hide = pc_photo_hide_hud && pc_photo_hide_hud();
     if (kind >= PC_CLASSIC_STATUS && kind <= PC_CLASSIC_DAMAGE) {
         pc_hud_element(kind, record, x, y, first, end);
+        if (hide) /* (a classic claim's own packets too: allocated after the game's) */
+            pc_classic_suppress(first, psx_get(vs_scratch.unk0));
         return;
     }
     if (kind == PC_CLASSIC_GAUGES) {
         pc_hud_gauges(record, first, end);
+        if (hide)
+            pc_classic_suppress(first, psx_get(vs_scratch.unk0));
+        return;
+    }
+    if (hide && kind == PC_CLASSIC_STATUS_PANEL) {
+        pc_classic_suppress(first, psx_get(vs_scratch.unk0));
         return;
     }
     if (kind == PC_CLASSIC_STATUS_PANEL && pc_classic_capturing()) {

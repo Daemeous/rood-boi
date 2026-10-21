@@ -68,7 +68,12 @@ void push_plugin_info(lua_State* L, Plugin* p)
     lua_setfield(L, -2, "api_version");
     lua_pushboolean(L, p->shipped);
     lua_setfield(L, -2, "shipped");
-    lua_pushboolean(L, !p->granted.empty());
+    bool elevated = false; /* an elevated capability granted (not the photo mode's) */
+    for (const std::string& cap : p->granted) {
+        const CapabilityInfo* info = capability_info(cap.substr(0, cap.find(':')));
+        elevated |= !info || info->elevated;
+    }
+    lua_pushboolean(L, elevated);
     lua_setfield(L, -2, "elevated");
     set_strings(L, "capabilities", m.capabilities);
     set_strings(L, "granted", p->granted);

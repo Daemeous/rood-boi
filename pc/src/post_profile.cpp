@@ -11,6 +11,7 @@
 #include "post.h"
 
 #include <math.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,6 +44,7 @@ extern int pc_ui_menu_active(void) __attribute__((weak)); /* ui/menu_bridge.c: t
 extern float pc_hw_present_fade(float rect[4]) __attribute__((weak)); /* gpu_hw.c: the shown picture's screen fade */
 extern int pc_hw_present_menu_model(void) __attribute__((weak)); /* gpu_hw.c: the shown picture is the menu's model view */
 extern int pc_hw_active;
+extern int pc_photo_holding(void) __attribute__((weak)); /* photo.cpp: the photo mode holds the game */
 void pc_lights_mark_dirty(void);
 void pc_settings_save(void);
 const char* pc_settings_status(void);
@@ -56,6 +58,13 @@ int pc_post_active_grade, pc_post_active_bloom;
 float pc_post_active_ev;
 
 namespace {
+
+double rl_now_seconds()
+{
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec + t.tv_nsec * 1e-9;
+}
 
 /* ------------------------------------------------------------ the fields */
 
@@ -751,6 +760,9 @@ const char* lens_blur_gate(int context)
 const char* gate_now = "";
 bool frame_menu_model; /* the last present showed the menu's model view (neutral; RPC post menu_model) */
 
+/* Plugins' overrides (rood.post): one layer per owner, in the order they began; never saved. */
+std::vector<std::pair<std::string, Layer>> overrides;
+
 Values resolve(int context)
 {
     Values v = defaults();
@@ -766,6 +778,8 @@ Values resolve(int context)
         if (e != room_events.end())
             apply_with_preset(v, e->second);
     }
+    for (const auto& o : overrides)
+        apply_with_preset(v, o.second); /* (a preset under the owner's own: a photo mode's filter) */
     gate_now = lens_blur_gate(context);
     if (*gate_now) {
         v.f[F("dof").offset] = 0;
@@ -1235,6 +1249,12 @@ extern "C" void pc_post_frame_get(pc_post_frame* out)
     unsigned vsync = pc_vsync_count ? pc_vsync_count() : 0;
     static unsigned last_vsync;
     float dt = started ? (float)(vsync - last_vsync) / 59.94f : 0.0f;
+    /* The photo mode's pause (photo.cpp): no vsync passes, the focus and the exposure follow real time. */
+    static double last_real;
+    double real = rl_now_seconds();
+    if (pc_photo_holding && pc_photo_holding())
+        dt = started && last_real > 0 ? (float)(real - last_real) : 0.0f;
+    last_real = real;
     if (dt > 1.0f)
         dt = 1.0f;
     last_vsync = vsync;
@@ -2235,4 +2255,146 @@ extern "C" void pc_post_panel(void)
     ImGui::TextDisabled("Grade pass %s, bloom %s, exposure %+.2f EV, blend %.0f%%", pc_post_active_grade ? "on" : "off",
         pc_post_active_bloom == PC_BLOOM_CONVOLUTION ? "convolution" : pc_post_active_bloom == PC_BLOOM_GAUSSIAN ? "gaussian" : "off",
         pc_post_active_ev, blend_progress * 100);
+}
+
+/* ------------------------------------------------------------ plugins' overrides (rood.post) */
+
+namespace { /* (inside: Windows has INT, BOOL and FLOAT of its own) */
+bool numeric(const Field& x) { return x.kind == FLOAT || x.kind == COLOR || x.kind == VEC4; }
+bool integral(const Field& x) { return (x.flags & INT) != 0; }
+bool whole(const Field& x) { return integral(x) || x.kind == BOOL || x.kind == ENUM; }
+bool logarithmic(const Field& x) { return (x.flags & LOG) != 0; }
+} // namespace
+
+extern "C" int pc_post_field_count(void) { return (int)fields().size(); }
+extern "C" int pc_post_field_find(const char* key) { return key ? field_index(key) : -1; }
+extern "C" int pc_post_field_info(int index, pc_post_field_desc* out)
+{
+    if (index < 0 || index >= (int)fields().size())
+        return 0;
+    const Field& x = fields()[index];
+    static const char* const kinds[] = { "bool", "float", "enum", "color", "vec4", "text" };
+    memset(out, 0, sizeof *out);
+    out->key = x.key;
+    out->kind = kinds[x.kind];
+    out->group = x.group;
+    out->label = x.label;
+    out->tip = x.tip;
+    out->names = x.names;
+    out->labels = x.labels;
+    out->count = x.count();
+    out->lo = x.lo, out->hi = x.hi;
+    memcpy(out->def, x.def, sizeof out->def);
+    out->log = logarithmic(x);
+    out->integer = whole(x);
+    return 1;
+}
+extern "C" int pc_post_value_text(const char* key, char* out, int size)
+{
+    if (key && !strcmp(key, "preset") && size > 0) { /* the newest override's preset ("" none) */
+        std::string name;
+        for (const auto& o : overrides)
+            if (!o.second.preset.empty())
+                name = o.second.preset;
+        snprintf(out, (size_t)size, "%s", name.c_str());
+        return 0;
+    }
+    int i = key ? field_index(key) : -1;
+    if (i < 0 || size <= 0)
+        return -1;
+    const char* gate = gate_now;
+    Values v = resolve(effective_context());
+    gate_now = gate;
+    snprintf(out, (size_t)size, "%s", field_text(fields()[i], v).c_str());
+    return 0;
+}
+extern "C" int pc_post_override_set(const char* owner, const char* key, const char* value, char* why, int size)
+{
+    if (key && !strcmp(key, "preset")) { /* a named profile under the owner's values ("": none) */
+        presets_refresh();
+        std::string name = value ? value : "";
+        if (!name.empty() && !preset_layer(name)) {
+            snprintf(why, (size_t)size, "no post preset '%s' (pc/assets/post, pc/user/post)", name.c_str());
+            return -1;
+        }
+        auto it = std::find_if(overrides.begin(), overrides.end(), [&](const auto& o) { return o.first == owner; });
+        if (it == overrides.end()) {
+            if (name.empty())
+                return 0;
+            overrides.emplace_back(owner, Layer());
+            it = overrides.end() - 1;
+        }
+        it->second.preset = name;
+        if (!it->second.any())
+            overrides.erase(it);
+        return 0;
+    }
+    int i = key ? field_index(key) : -1;
+    if (i < 0) {
+        snprintf(why, (size_t)size, "no post field '%s' (rood.post.list())", key ? key : "");
+        return -1;
+    }
+    const Field& x = fields()[i];
+    auto it = std::find_if(overrides.begin(), overrides.end(), [&](const auto& o) { return o.first == owner; });
+    Layer trial = it == overrides.end() ? Layer() : it->second;
+    if (!field_parse(x, trial.v, value ? value : "")) {
+        snprintf(why, (size_t)size, "'%s' does not fit %s", value ? value : "", x.key);
+        return -1;
+    }
+    if (numeric(x))
+        for (int k = 0; k < x.count(); k++) {
+            float& f = trial.v.f[x.offset + k];
+            f = fminf(fmaxf(f, x.lo), x.hi);
+            if (integral(x))
+                f = roundf(f);
+        }
+    trial.set[i] = true;
+    if (it == overrides.end())
+        overrides.emplace_back(owner, trial);
+    else
+        it->second = trial;
+    return 0;
+}
+extern "C" void pc_post_override_clear(const char* owner, const char* key)
+{
+    auto it = std::find_if(overrides.begin(), overrides.end(), [&](const auto& o) { return o.first == owner; });
+    if (it == overrides.end())
+        return;
+    int i = key ? field_index(key) : -1;
+    if (key && !strcmp(key, "preset")) {
+        it->second.preset.clear();
+        if (!it->second.any())
+            overrides.erase(it);
+    } else if (key && i >= 0) {
+        it->second.set[i] = false;
+        const Field& x = fields()[i];
+        for (int k = 0; k < x.count(); k++)
+            it->second.v.f[x.offset + k] = x.def[k];
+        if (!it->second.any())
+            overrides.erase(it);
+    } else if (!key)
+        overrides.erase(it);
+}
+extern "C" int pc_post_override_count(const char* owner)
+{
+    int n = 0;
+    for (const auto& o : overrides)
+        if (!owner || o.first == owner)
+            n += (int)std::count(o.second.set.begin(), o.second.set.end(), true) + !o.second.preset.empty();
+    return n;
+}
+extern "C" int pc_post_preset_names(char* out, int size)
+{
+    presets_refresh();
+    int at = 0, n = 0;
+    for (const auto& p : presets) {
+        int len = (int)p.first.size() + 1;
+        if (at + len + 1 > size)
+            break;
+        memcpy(out + at, p.first.c_str(), (size_t)len);
+        at += len, ++n;
+    }
+    if (size > 0)
+        out[at < size ? at : size - 1] = 0;
+    return n;
 }

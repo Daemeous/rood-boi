@@ -68,7 +68,7 @@ suites = []
 paths = ["pc/src/engine_host.c", "pc/src/engine_reload.c", "pc/tools/engine_boundary.py", "pc/tools/engine_lib.py",
          "pc/src/boot_gamepad.c", "pc/src/atmosphere.cpp", "pc/src/lights.cpp", "pc/src/fixture_editor.cpp",
          "pc/src/fog_sim.cpp"]
-suites = ["engine_reload_smoke"]
+suites = ["engine_reload_smoke", "photo_engine_reload_smoke"]
 
 # ---- reloadable Zig game code and the host dispatch boundary ----
 [[rule]]
@@ -98,7 +98,21 @@ suites = ["frame_cost_smoke", "rpc_smoke", "ctest"]
 [[rule]]
 paths = ["pc/src/lua/*", "pc/plugins/*", "pc/tests/lua/*", "pc/third_party/lua*"]
 suites = ["lua_smoke", "ctest", "hud_bench_smoke", "repl_smoke", "options_classic_smoke", "options_confirm_smoke",
-          "classic_parity", "classic_hud_smoke"]
+          "classic_parity", "classic_hud_smoke", "photo_foundation_smoke"]
+
+# ---- the photo mode foundation (rood.game.pause, rood.camera, rood.post, rood.ui, rood.capture, rood.input) ----
+[[rule]]
+paths = ["pc/src/photo*", "pc/src/lua/lua_api_photo.cpp", "pc/src/lua/lua_photo*", "pc/tests/lua/plugins/test.photo/*",
+         "pc/src/state_rewind.c",
+         "pc/src/editor_view.cpp", "pc/src/post_profile.cpp", "pc/src/post.h"]
+suites = ["photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "ctest"]
+
+# ---- the shipped photo mode (pc/plugins/rood.photo) and its button (bind_*_photo), plugins' panels ----
+[[rule]]
+paths = ["pc/plugins/rood.photo/*", "pc/plugins/rood.photo/tests/*", "pc/src/boot_controller.*", "pc/src/boot_gamepad.c",
+         "pc/src/boot_window.c", "pc/src/lua/lua_api_hud.cpp", "pc/src/hud/hud_draw.cpp", "pc/src/hud/hud.h",
+         "pc/tests/photo_mode_smoke.py"]
+suites = ["photo_mode_smoke", "lua_smoke", "ctest"]
 
 # ---- the REPL bridge's client (run by repl_smoke as a process, not imported) ----
 [[rule]]

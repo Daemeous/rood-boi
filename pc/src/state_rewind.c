@@ -1,6 +1,9 @@
 /* In-process oracle checkpoint at the vsync boundary (snapshot.c). Host
  * allocations stay outside snapshot ranges; restoration runs on a side stack
- * because the game stack itself is restored. */
+ * because the game stack itself is restored. Two slots: the RPC's (snapshot
+ * mark / rewind: the RPC pauses at the rewound vsync and the hardware target
+ * is rebuilt from native VRAM) and the photo mode's (photo.cpp: the frozen
+ * moment a render returns to, the picture kept, the RPC left as it is). */
 #include "snapshot_context.h"
 #include "state_diff.h"
 #include <stdint.h>
@@ -15,6 +18,10 @@ int pc_snapshot_mark_point(char* error, int size)
     return -1;
 }
 int pc_snapshot_rewind(char* error, int size) { return pc_snapshot_mark_point(error, size); }
+int pc_snapshot_mark_slot(int slot, char* error, int size) { return (void)slot, pc_snapshot_mark_point(error, size); }
+int pc_snapshot_rewind_slot(int slot, char* error, int size) { return (void)slot, pc_snapshot_mark_point(error, size); }
+void pc_snapshot_drop_slot(int slot) { (void)slot; }
+int pc_snapshot_slot_valid(int slot) { return (void)slot, 0; }
 #else
 /* snapshot.c: the game side of the current vsync's boundary, and entering
  * the game there (a resume uses the same pair). */
@@ -34,18 +41,26 @@ extern void pc_cd_release(void) __attribute__((weak));
 extern void pc_hw_resync(void) __attribute__((weak));
 extern void pc_input_rewound(void) __attribute__((weak));
 #define MAX_RANGES 170
-static struct {
+#define SLOTS 2 /* 0: the RPC's, 1: the photo mode's (PC_REWIND_PHOTO) */
+static struct rewind_mark {
     int valid, count, spu_size, fog_size;
     snap_context context;
     pc_state_range ranges[MAX_RANGES];
     char *memory, *stack, *spu, *fog;
     uintptr_t sp;
     size_t stack_bytes;
-} mark;
+} marks[SLOTS];
+static int restoring; /* the slot restore() puts back */
 
 extern int pc_game_snapshot_safe(void) __attribute__((weak));
-__attribute__((noinline)) int pc_snapshot_mark_point(char* error, int size)
+__attribute__((noinline)) int pc_snapshot_mark_slot(int slot, char* error, int size)
 {
+    if (slot < 0 || slot >= SLOTS) {
+        snprintf(error, (size_t)size, "no slot %d", slot);
+        return -1;
+    }
+    struct rewind_mark* m = &marks[slot];
+#define mark (*m)
     if (pc_game_snapshot_safe && !pc_game_snapshot_safe()) {
         snprintf(error, (size_t)size, "mark refused: owned frame live or incomplete unwind");
         return -1;
@@ -101,7 +116,20 @@ __attribute__((noinline)) int pc_snapshot_mark_point(char* error, int size)
 oom:
     snprintf(error, (size_t)size, "cannot allocate checkpoint");
     return -1;
+#undef mark
 }
+__attribute__((noinline)) int pc_snapshot_mark_point(char* error, int size) { return pc_snapshot_mark_slot(0, error, size); }
+/* The slot's memory given back (the photo mode's moment, once resumed). */
+void pc_snapshot_drop_slot(int slot)
+{
+    if (slot < 0 || slot >= SLOTS)
+        return;
+    struct rewind_mark* m = &marks[slot];
+    m->valid = 0;
+    free(m->memory); free(m->stack); free(m->spu); free(m->fog);
+    m->memory = m->stack = m->spu = m->fog = NULL;
+}
+int pc_snapshot_slot_valid(int slot) { return slot >= 0 && slot < SLOTS && marks[slot].valid; }
 
 __attribute__((noreturn)) void pc_rewind_call_on_stack(void*, void (*)(void));
 #ifdef _WIN32
@@ -119,6 +147,8 @@ __asm__(".text\n.globl pc_rewind_call_on_stack\n.type pc_rewind_call_on_stack,@f
 #endif
 static __attribute__((noreturn)) void restore(void)
 {
+    struct rewind_mark* m = &marks[restoring];
+#define mark (*m)
     if (pc_cd_release)
         pc_cd_release(); /* the open disc file: closed, not leaked (pc_cd_restored opens it) */
     const char* p = mark.memory;
@@ -130,18 +160,23 @@ static __attribute__((noreturn)) void restore(void)
     if (mark.spu) pc_spu_state_load(mark.spu, mark.spu_size);
     if (mark.fog) pc_fog_state_load(mark.fog, mark.fog_size);
     if (pc_cd_restored) pc_cd_restored();
-    if (pc_hw_resync) pc_hw_resync();
     if (pc_input_rewound) pc_input_rewound();
+    /* The photo mode's slot keeps the hardware target (the render's picture: photo.cpp resyncs before
+     * the next one and at resume) and the RPC as it is (photo.cpp knows it landed). */
+    if (restoring == 0) {
+        if (pc_hw_resync) pc_hw_resync();
+        pc_rpc_rewound();
+    }
     /* Same process/thread: the TLS stack canary has not changed. The rest of
      * the marked vsync runs again from the boundary, as after a resume. */
-    pc_rpc_rewound();
     pc_snap_enter(&mark.context, pc_tick_resumed);
+#undef mark
 }
-int pc_snapshot_rewind(char* error, int size)
+int pc_snapshot_rewind_slot(int slot, char* error, int size)
 {
     static char* side;
     enum { SIDE = 1 << 20 };
-    if (!mark.valid) {
+    if (slot < 0 || slot >= SLOTS || !marks[slot].valid) {
         snprintf(error, (size_t)size, "no mark (snapshot mark first)");
         return -1;
     }
@@ -149,6 +184,8 @@ int pc_snapshot_rewind(char* error, int size)
         snprintf(error, (size_t)size, "cannot allocate rewind stack");
         return -1;
     }
+    restoring = slot;
     pc_rewind_call_on_stack(side + SIDE, restore);
 }
+int pc_snapshot_rewind(char* error, int size) { return pc_snapshot_rewind_slot(0, error, size); }
 #endif

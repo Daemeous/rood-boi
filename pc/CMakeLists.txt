@@ -398,6 +398,8 @@ set(ROOD_LUA_RUNTIME src/lua/lua_limits.cpp src/lua/lua_value.cpp src/lua/lua_ru
     src/lua/lua_registry.cpp src/lua/lua_files.cpp src/lua/sha256.cpp
     src/lua/lua_plugins.cpp src/lua/lua_caps.cpp src/lua/lua_storage.cpp
     src/lua/lua_test.cpp src/lua/lua_rpc.cpp src/lua/lua_api_hud.cpp src/lua/lua_api_game.cpp src/lua/lua_bench.cpp src/lua/lua_repl.cpp
+    src/lua/lua_api_photo.cpp src/lua/lua_photo_camera.cpp src/lua/lua_photo_post.cpp src/lua/lua_photo_ui.cpp
+    src/lua/lua_photo_capture.cpp src/lua/lua_photo_input.cpp
     src/hud/hud_elements.cpp)
 find_package(Threads REQUIRED)
 add_executable(lua_probe tests/lua_probe.cpp ${ROOD_LUA_RUNTIME})

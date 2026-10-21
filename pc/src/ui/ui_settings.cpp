@@ -720,6 +720,13 @@ void build()
         };
         b.push_back(r);
     }
+    // The photo mode's button (a Lua event: the shipped plugin rood.photo).
+    Row photo = base("bind_photo", "Photo mode",
+        "Enters and leaves the photo mode (the Photo mode plugin), in the field and in battle. Circle to change.",
+        PC_UI_SET_BINDING);
+    photo.arg = PC_BIND_PHOTO;
+    photo.why = [](const Row&) { return pc_ui_capture_begin ? nullptr : COMING; };
+    b.push_back(photo);
     b.push_back(action("bind_reset", "Reset to defaults", "Every key and gamepad button back to its default.",
         [](const Row&) { pc_bindings_reset(); }));
 

@@ -60,7 +60,7 @@ M.pages = {
       "bind_circle", "bind_cross", "bind_triangle", "bind_square", "bind_l1", "bind_r1", "bind_l2", "bind_r2",
       "bind_start", "bind_select", "bind_l3", "bind_r3", "bind_up", "bind_down", "bind_left", "bind_right",
       "bind_travel", "bind_travel_clear",
-      "bind_state_save", "bind_state_load", "bind_state_slot_prev", "bind_state_slot_next",
+      "bind_state_save", "bind_state_load", "bind_state_slot_prev", "bind_state_slot_next", "bind_photo",
       "bind_reset",
     } },
 }

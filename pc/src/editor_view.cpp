@@ -577,10 +577,82 @@ void from_game_camera()
         pivot[k] = eye[k] + f[k] * 1500;
     grid_height = 0;
 }
+
+/* The photo mode's camera (photo.cpp, rood.camera): the live free camera driven by a plugin while the
+ * game is paused. It borrows the editor's camera (eye, yaw, pitch, the projection) for its time and gives
+ * it back as it was; the editor itself (active, its panel) is not turned on. Roll and the field of view
+ * are the game's own: the roll the view matrix takes (vs_scratch.camera.angles.vz) and the projection
+ * distance (vs_battle_setProjectionDistance), set in func_8007ACB0's hook each frame (the game's state
+ * of a render is rewound after it, photo.cpp). */
+bool photo;
+float photo_roll;          /* degrees */
+float photo_fov;           /* degrees of the vertical field of view; 0: the game's */
+float photo_game_fov = 25; /* the game camera's when the photo camera began */
+int photo_game_h;          /* its projection distance (vs_main_projectionDistance) */
+struct EditorCamera {
+    bool active, live;
+    float eye[3], yaw, pitch, fov_y, pivot[3], stretch, centre[2];
+} editor_saved;
 } // namespace
+
+extern "C" int vs_main_projectionDistance __attribute__((weak));
+extern "C" void vs_battle_setProjectionDistance(int) __attribute__((weak));
 
 extern "C" int pc_editor_active(void) { return active; }
 extern "C" int pc_editor_flying(void) { return active && flying; }
+/* photo.cpp: 0 without the hardware renderer (the live camera needs it). */
+extern "C" int pc_editor_photo_begin(void)
+{
+    if (!pc_hw_active)
+        return 0;
+    if (photo)
+        return 1;
+    editor_saved.active = active, editor_saved.live = live;
+    memcpy(editor_saved.eye, eye, sizeof eye);
+    editor_saved.yaw = yaw, editor_saved.pitch = pitch, editor_saved.fov_y = fov_y;
+    memcpy(editor_saved.pivot, pivot, sizeof pivot);
+    editor_saved.stretch = stretch;
+    memcpy(editor_saved.centre, centre, sizeof centre);
+    from_game_camera();
+    photo_game_fov = fov_y;
+    photo_game_h = &vs_main_projectionDistance ? vs_main_projectionDistance : 0;
+    photo_roll = 0, photo_fov = 0;
+    photo = true;
+    return 1;
+}
+extern "C" void pc_editor_photo_end(void)
+{
+    if (!photo)
+        return;
+    photo = false;
+    active = editor_saved.active, live = editor_saved.live;
+    memcpy(eye, editor_saved.eye, sizeof eye);
+    yaw = editor_saved.yaw, pitch = editor_saved.pitch, fov_y = editor_saved.fov_y;
+    memcpy(pivot, editor_saved.pivot, sizeof pivot);
+    stretch = editor_saved.stretch;
+    memcpy(centre, editor_saved.centre, sizeof centre);
+}
+/* The pose (radians; fov: degrees, the game's when none is set). */
+extern "C" int pc_editor_photo_get(float out_eye[3], float* out_yaw, float* out_pitch, float* roll, float* fov)
+{
+    if (!photo)
+        return 0;
+    memcpy(out_eye, eye, sizeof eye);
+    *out_yaw = yaw, *out_pitch = pitch;
+    *roll = photo_roll;
+    *fov = photo_fov > 0 ? photo_fov : photo_game_fov;
+    return 1;
+}
+extern "C" void pc_editor_photo_set(const float in_eye[3], float in_yaw, float in_pitch, float roll, float fov)
+{
+    if (!photo)
+        return;
+    memcpy(eye, in_eye, sizeof eye);
+    yaw = in_yaw;
+    pitch = in_pitch > 1.55f ? 1.55f : in_pitch < -1.55f ? -1.55f : in_pitch;
+    photo_roll = roll;
+    photo_fov = fabsf(fov - photo_game_fov) < 1e-3f ? 0 : fov;
+}
 /* The separate renderer draws the view (not the game). */
 extern "C" int pc_editor_separate(void) { return active && !live; }
 
@@ -589,7 +661,7 @@ extern "C" int pc_editor_separate(void) { return active && !live; }
 struct PsxVector {
     int32_t vx, vy, vz, pad;
 };
-extern "C" int pc_live_camera_active(void) { return active && live; }
+extern "C" int pc_live_camera_active(void) { return (active && live) || photo; }
 
 /* The cutaway's focus: fixed over RPC (editor_view focus), else the selected
  * light or glow, else Ashley (the middle of her body). */
@@ -767,8 +839,8 @@ extern "C" int pc_editor_cutaway_state(int* hidden, float* amount)
     if (hidden)
         *hidden = cutaway_hidden;
     if (amount)
-        *amount = active && live ? cutaway_amount : 0;
-    return active && live;
+        *amount = (active && live) || photo ? cutaway_amount : 0;
+    return (active && live) || photo;
 }
 /* RPC editor_view: a fixed focus (fixed 1) or the automatic one (0). */
 extern "C" void pc_editor_set_focus(int fixed, const float point[3])
@@ -780,7 +852,7 @@ extern "C" void pc_editor_set_focus(int fixed, const float point[3])
 
 extern "C" int pc_live_camera(PsxVector* position, PsxVector* look_at)
 {
-    if (!active || !live) {
+    if ((!active || !live) && !photo) {
         if (render_cutaway)
             render_cutaway(0, nullptr, 0);
         cutaway_amount = 0;
@@ -801,6 +873,14 @@ extern "C" int pc_live_camera(PsxVector* position, PsxVector* look_at)
     look_at->vx = (int32_t)((eye[0] + f[0] * 1024) * 4096);
     look_at->vy = (int32_t)((eye[1] + f[1] * 1024) * 4096);
     look_at->vz = (int32_t)((eye[2] + f[2] * 1024) * 4096);
+    if (photo) {
+        /* The roll func_8007ACB0 turns the view by next (vs_scratch.camera.angles.vz, 4096 a turn). */
+        *(volatile int32_t*)(uintptr_t)(0x1F800000u + 0x34 + 0x20 + 8) = (int32_t)lroundf(photo_roll * 4096.0f / 360.0f);
+        if (photo_fov > 0 && photo_game_h > 0 && vs_battle_setProjectionDistance) {
+            float h = photo_game_h * tanf(photo_game_fov * 3.14159265f / 360.0f) / tanf(photo_fov * 3.14159265f / 360.0f);
+            vs_battle_setProjectionDistance((int)lroundf(h < 16 ? 16 : h > 8192 ? 8192 : h));
+        }
+    }
     return 1;
 }
 
