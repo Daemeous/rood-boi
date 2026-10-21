@@ -22,12 +22,25 @@ budget makes any call a stop.
     builds; a C crash is reported with its fault address, arguments and
     plain advice (no spurious class/mutation errors), the coverage gate's
     sign flag in plain words, and a saved reply to another prompt is not
-    reused.
+    reused;
+  - the model client (a fake OpenAI-compatible server on loopback): a local
+    endpoint sends no Authorization header, the thinking switch as
+    chat_template_kwargs, the temperature, max_tokens clamped to the
+    server's context, a reasoning block stripped, cost 0, the key never in
+    a record; a remote one sends the key; neither sends a local path; a
+    conversation too long for the context stops the function as `context`;
+  - best-of-N (--attempts 2): a failing first sample, a passing second one
+    kept without a retry; two functions with --jobs 2;
+  - the 7CD68 head-to-head's tooling fixes: a table sized from the object
+    defining it, a pointer to rows typed in the views and the prompt, a
+    routed function's own name in the c module, a self-call's note.
 
 CPU only; needs a 64-bit build (exit 77 without one)."""
+import http.server
 import json
 import os
 import pathlib
+import threading
 import shutil
 import subprocess
 import sys
@@ -58,6 +71,122 @@ def pipeline(args, work, replies=None, edit=None, table=None):
                         "--records", work / "records", "--build", BUILD, *(["--table", table] if table else [])],
                        capture_output=True, text=True, env=env)
     return r
+
+
+class FakeServer(http.server.BaseHTTPRequestHandler):
+    """An OpenAI-compatible server: /v1/models (a 4096-token context), /tokenize, /v1/chat/completions."""
+    seen = []
+
+    def log_message(self, *a):
+        pass
+
+    def reply(self, data):
+        body = json.dumps(data).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        self.reply({"data": [{"id": "fake", "max_model_len": 4096}]})
+
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if self.path == "/tokenize":
+            return self.reply({"count": sum(len(m["content"]) for m in body["messages"]) // 4})
+        FakeServer.seen.append({"headers": dict(self.headers), "body": body})
+        self.reply({"model": body["model"], "choices": [{"message": {"content": "<think>hmm</think>\nanswer"},
+                                                          "finish_reason": "stop"}],
+                    "usage": {"prompt_tokens": 10, "completion_tokens": 3, "cost": 0.5}})
+
+
+def client_checks(tmp):
+    import model_client as mc
+    import port_pipeline as pp
+    failures = []
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FakeServer)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{server.server_port}/v1"
+    try:
+        os.environ["PIPELINE_TEST_KEY"] = "sk-test-secret"
+        local = mc.Endpoint(base_url=url, thinking="off", temperature=0.6)
+        state = {"spent": 0.0, "budget": 0.0, "reserve": 0.0, "model": "fake", "max_tokens": 64000,
+                 "dry_run": False, "endpoint": local}
+        path = tmp / "client" / "spec_reply1.s2.md"
+        path.parent.mkdir(parents=True)
+        text, call = pp.ask(state, [{"role": "user", "content": "x" * 400}], path, "test", sample=2)
+        sent = FakeServer.seen[-1]
+        if text != "answer" or call["endpoint"] != "local" or call["cost"] != 0.0 or call["sample"] != 2:
+            failures.append(f"local call: {text!r} {call}")
+        if "Authorization" in sent["headers"] or sent["body"].get("chat_template_kwargs") != {"enable_thinking": False} \
+                or sent["body"]["temperature"] != 0.6 or sent["body"]["max_tokens"] != 4096 - 100 - 64:
+            failures.append(f"local request: {sent['headers'].get('Authorization')} {sent['body'].get('chat_template_kwargs')} "
+                            f"{sent['body']['temperature']} {sent['body']['max_tokens']}")
+        # The same conversation is reused; sample 1 of it is another one.
+        if pp.ask(state, [{"role": "user", "content": "x" * 400}], path, "test", sample=2)[1] is None \
+                or len(FakeServer.seen) != 1:
+            failures.append("a saved sample was not reused")
+        if pp.conversation_key([], "m", {"sample": 2}) == pp.conversation_key([], "m") \
+                or pp.conversation_key([], "m", mc.Endpoint().key_fields()) != pp.conversation_key([], "m"):
+            failures.append("conversation keys: a sample or a non-default endpoint must change the key; OpenRouter's not")
+        try:
+            pp.ask(state, [{"role": "user", "content": "x" * 20000}], tmp / "client" / "long.md", "test")
+            failures.append("a conversation past the context was sent")
+        except pp.Stop as stop:
+            if not str(stop).startswith("context:"):
+                failures.append(f"context stop: {stop}")
+        remote = mc.Endpoint(base_url=url, local=False, api_key_env="PIPELINE_TEST_KEY", thinking="on")
+        call = mc.call([{"role": "user", "content": "hi"}], "fake", 100, remote)
+        sent = FakeServer.seen[-1]
+        if sent["headers"].get("Authorization") != "Bearer sk-test-secret" or call["cost"] != 0.5 \
+                or sent["body"].get("reasoning") != {"enabled": True} or "chat_template_kwargs" in sent["body"]:
+            failures.append(f"remote request: {sent['body']} cost {call['cost']}")
+        if "sk-test-secret" in json.dumps(call) or any("sk-test-secret" in p.read_text() for p in (tmp / "client").iterdir()):
+            failures.append("the key in a call record")
+        for endpoint in (remote, local):
+            mc.call([{"role": "user", "content": f"see {HOME}/x"}], "fake", 100, endpoint)
+            if HOME in json.dumps(FakeServer.seen[-1]["body"]):
+                failures.append(f"a {endpoint.kind} call sent a local path")
+        if mc.Endpoint().api_key_env != "OPENROUTER_API_KEY" or mc.Endpoint(base_url=url).api_key_env != "" \
+                or not mc.Endpoint(base_url="http://localhost:1/v1").local or mc.Endpoint().local:
+            failures.append("endpoint defaults")
+        if mc.strip_thinking("a</think>\nb") != "b":
+            failures.append("strip_thinking: a block opened by the template")
+    finally:
+        os.environ.pop("PIPELINE_TEST_KEY", None)
+        server.shutdown()
+    return failures
+
+
+def head_to_head_7CD68(tmp, table):
+    """The tooling failures the 7CD68 head-to-head found (BAKEOFF.md, "Local Qwen vs Haiku")."""
+    import bakeoff_context as bc
+    import port_pipeline as pp
+    import zig_c
+    import zig_diff
+    failures = []
+    # A table defined in another unit (`extern T x[];` here): sized from the defining object.
+    if zig_diff.sizes_from_objects(BUILD, ["D_800F1790"]).get("D_800F1790") != 80:
+        failures.append("sizes_from_objects: D_800F1790 (battle_movement.o, 80 bytes)")
+    # A pointer to rows (`u_short (*D_800F58B8)[32]`): typed, an accessor, shown as one.
+    unit = pp.Unit("7CD68", "src/BATTLE/BATTLE.PRG/7CD68.c", BUILD, tmp / "unit-7CD68", table)
+    views, _ = unit.views([], ["D_800F58B8"], tag="rows")
+    want = 'pub inline fn D_800F58B8() *?[*][32]u16 { return psx.global(?[*][32]u16, "D_800F58B8"); }'
+    if want not in views.read_text() or want not in bc.views_subset(views.read_text(), {"D_800F58B8"}):
+        failures.append("views: D_800F58B8 as rows of 32 u16 (the views and the prompt's subset)")
+    # A routed function without a prototype of its own: the c module declares the routed name too.
+    text = zig_c._routed_names("pub extern fn f__orig(a: c_int) c_int;\npub extern fn g__orig() void;\npub extern fn g() void;\n")
+    if text.count("pub extern fn f(a: c_int) c_int;") != 1 or text.count("pub extern fn g()") != 1:
+        failures.append(f"zig_c routed names: {text}")
+    # A self-recursive function's port prompt says the self-call goes through the routed symbol.
+    plan = pp.Plan(name="func_800E5EC0", unit="src/BATTLE/BATTLE.PRG/7CD68.c", stem="7CD68", address=0x800E5EC0,
+                   difficulty="S", zig_name="func_800E5EC0", name_source="test", module="func_800E5EC0",
+                   subsystem="battle_7CD68_port", signature="pub fn func_800E5EC0(arg0: c_int, arg1: c_int, "
+                   "arg2: c_int) callconv(.c) void")
+    if "The C calls itself" not in pp.port_prompt(plan, unit, views, table, BUILD):
+        failures.append("port prompt of a self-recursive function: no note on the routed self-call")
+    return failures
 
 
 def record(work, function, unit="146C"):
@@ -112,9 +241,13 @@ def pilot_38C1C(tmp, rows, names):
     # Canned spec and port: (A) func_800A1AF8 (a [*c]c_ushort parameter, a stub
     # taking one); (B, C) func_800A17BC (the views accessors, a stub of
     # func_800A1DE8 declared with views MATRIX pointers, PS1 low RAM read for NULL).
+    # Both at once (--jobs 2).
+    work = tmp / "pilot"
     for name in PILOT:
-        r = pipeline([name, "--no-write"], tmp / f"pilot-{name}", CANNED / name, table=table_path)
-        rec = record(tmp / f"pilot-{name}", name, "38C1C")
+        shutil.copytree(CANNED / name, work / name)
+    r = pipeline([*PILOT, "--no-write", "--jobs", "2"], work, table=table_path)
+    for name in PILOT:
+        rec = record(work, name, "38C1C")
         if not rec or rec["status"] != "passed (not written)":
             errors = rec and [e for k in ("spec", "port") for a in rec[k]["attempts"] for e in a["errors"]]
             failures.append(f"canned {name}: {rec and rec['status']}: {errors and errors[:3]} {r.stderr[-800:]}")
@@ -215,7 +348,24 @@ def main():
         if not r or r["status"] != "stopped" or "never generated: status-set" not in errors \
                 or "not caught" not in errors or "UNCOVERED" not in errors:
             failures.append(f"weak spec not stopped at its gate: {r and r['status']}: {errors[:1500]} {bad_spec.stderr[-500:]}")
+        # Best-of-N: the weak spec as the first sample, the good one as the second.
+        work = tmp / "best-of-2"
+        shutil.copytree(CANNED / "func_8006B214", work / "func_8006B214")
+        (work / "func_8006B214/spec_reply1.s2.md").write_text((CANNED / "func_8006B214/spec_reply1.md").read_text())
+        weak = (work / "func_8006B214/spec_reply1.md")
+        weak.write_text(weak.read_text().replace("        0 => 0x100000,\n        1 => ctx.int(i32) | 0x100000,\n",
+                                                 "        0, 1 => ctx.int(i32) & ~@as(i32, 0x100000),\n")
+                   .replace("else => ctx.pick(i32, &.{ 0, 0x80000, 0x200000, -1 }),", "else => 0x80000,"))
+        best = pipeline(["func_8006B214", "--no-write", "--attempts", "2"], work)
+        r = record(work, "func_8006B214")
+        verdicts = r and [(a["round"], a["sample"], a["passed"]) for a in r["spec"]["attempts"]]
+        if not r or r["status"] != "passed (not written)" or verdicts != [(1, 1, False), (1, 2, True)] \
+                or r["spec"].get("kept") != {"round": 1, "sample": 2} or pp.gate_outcome(r["spec"]) != "best-of-N" \
+                or pp.gate_outcome(r["port"]) != "first":
+            failures.append(f"best-of-2: {r and r['status']} {verdicts} {r and r['spec'].get('kept')} {best.stderr[-800:]}")
         failures += pilot_38C1C(tmp, rows, names)
+        failures += client_checks(tmp)
+        failures += head_to_head_7CD68(tmp, table)
         for p in tmp.rglob("records/**/*.json"):
             if HOME in p.read_text() or os.path.join(tempfile.gettempdir(), "claude") in p.read_text():
                 failures.append(f"{p.name}: a local path in the record")

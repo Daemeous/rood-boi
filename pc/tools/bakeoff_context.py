@@ -155,7 +155,7 @@ def views_subset(views_text, tokens):
                          g_text):
         if m.group(5) in tokens:
             accessors.append((m.group(1) + "    pub inline fn " + m.group(2) + "() " + m.group(3)
-                              + " { return psx.global" + ("Many" if "[*]" in m.group(3) else "") + "(" + m.group(4)
+                              + " { return psx.global" + ("Many" if m.group(3).startswith("[*]") else "") + "(" + m.group(4)
                               + ', "' + m.group(5) + '"); }').strip("\n"))
             wanted |= {t for t in IDENT.findall(m.group(3)) if t in types}
     wanted |= {t for t in tokens if t in types}

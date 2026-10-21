@@ -37,13 +37,29 @@ Everything sent is passed through pc/tools/prompt_privacy.py and refused if
 anything local is left. The model is called through OpenRouter
 (OPENROUTER_API_KEY from the environment, never printed or logged),
 temperature 0, max_tokens 64000; --budget (US$, default 5) is checked before
-every call. Resumable: a function whose record says `ported` is skipped, and
+every call. Another endpoint (pc/tools/model_client.py): --base-url (a
+loopback host is local: no key, no cost, max_tokens clamped to the server's
+context), --api-key-env, --thinking on|off|default, --temperature:
+
+    python3 pc/tools/port_pipeline.py --unit 7CD68 --base-url http://127.0.0.1:8990/v1 \
+        --model qwen3.8-27b-port --thinking off --temperature 0.6 --attempts 4 --jobs 3
+
+--attempts N is best-of-N: up to N independent samples of a step's prompt
+(asked for at once on a local endpoint), the first that passes the gate
+kept, before the one feedback retry (fed the furthest sample's errors).
+--jobs J runs functions in parallel; the checker's builds and runs are
+bounded (--check-jobs) and niced; writing into the tree is one function at
+a time, each re-checked against the views the earlier writes widened.
+Every call is recorded: model, endpoint kind, tokens, seconds, cost, round
+and sample. Resumable: a function whose record says `ported` is skipped, and
 a saved reply (in --work) is reused instead of calling again when it answered
 the same conversation (the model, the prompt and any feedback: a key in its
 .json; a reply placed by hand, without one, is always used); one that
 answered another is kept aside as .staleN.
 """
 import argparse
+import concurrent.futures
+import contextlib
 import dataclasses
 import hashlib
 import json
@@ -53,12 +69,14 @@ import re
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 import bakeoff_context as bc  # noqa: E402
+import model_client  # noqa: E402
 import ownership  # noqa: E402
 import prompt_privacy  # noqa: E402
 import spec_bakeoff as sb  # noqa: E402
@@ -468,6 +486,27 @@ The spec must:
   negative values, signed vs unsigned reads, null where the C tests for it,
   out-of-range indices the C allows (as far as they stay inside memory the
   harness owns);
+- model each callee the C calls, not just record it. Ask of each: what can
+  the real callee CHANGE that the C reads back after the call (a field of
+  an object it was passed, a global, an out-parameter, the scratchpad)?
+  Its stub must write that (with `ctx.value`, some calls), or a port that
+  reads it before the call still passes. And what can it RETURN: NULL, -1,
+  0, an error code? Its stub must return each value the C tests for (in
+  some calls) and a valid object otherwise. Stubs draw only `ctx.value`
+  (the same in both runs), never `ctx.int`/`ctx.pick`/`ctx.range`. E.g.
+  for `p = getActor(id); hp = p->hp; refresh(p); if (p->hp != hp) ...`
+  with `if (p == NULL) return -1;` after the fetch:
+      pub const stubs = struct {{
+          pub fn getActor(ctx: *zd.Ctx, id: anytype) ?*v.Actor {{
+              _ = id;
+              if (ctx.value(u8) < 32) return null; // the C's NULL test
+              return actor; // set by prepare (a var of the spec)
+          }}
+          pub fn refresh(ctx: *zd.Ctx, p: anytype) void {{
+              const a: *v.Actor = @ptrCast(@alignCast(p));
+              if (ctx.value(u1) == 1) a.hp = ctx.value(i16); // re-read by the C
+          }}
+      }};
 - declare input classes (`classes` + `classify`) naming those cases; every
   class must occur;
 - come with {MIN_MUTATIONS}-6 mutations of the C (`target = "c"`) that your
@@ -513,6 +552,13 @@ def port_prompt(plan, unit, views_path, table, build):
     text = bc.context(entry, table, build, guide=True, sub=sub, views_path=views_path, c_path=unit.c_path)
     note = (f"\nThe Zig name `{plan.zig_name}` is fixed ({plan.name_source}); keep it, and keep the "
             f"signature exactly (the checker builds its inputs from this type).\n")
+    body = bc.c_body(unit.unit_i.read_text(errors="replace"), plan.name) or ""
+    if re.search(rf"\b{re.escape(plan.name)}\s*\(", body[body.find("{"):]):
+        # The C's call to itself goes through the routed symbol (the game's
+        # router; the checker's recording stub), like any other call.
+        note += (f"\nThe C calls itself: that call goes through the routed symbol, like a call to any other "
+                 f"function, so the port calls `c.{plan.name}(...)` there (not `{plan.zig_name}` directly); the "
+                 f"checker records it as an external call and compares it.\n")
     return text.replace("- Reply with the file only.", "- Reply with the file only." + note, 1)
 
 
@@ -574,7 +620,7 @@ def spec_gate(plan, entry, spec_path, views_path, unit, table, build, work):
     text = zig_diff.name_addresses(exe, text or "")
     classes = re.search(r"classes:(.*)", text)
     details["classes"] = dict(c.split("=") for c in classes.group(1).split()) if classes else {}
-    if code == 4 and "CRASH" in text:
+    if code == 4 and "CRASH" in text and not re.search(r"CRASH[^\n]* in the (prepare|classify) run", text):
         # Nothing else can be judged on inputs that crash the C itself: the
         # mutations and the coverage run would only crash the same way.
         errors.append(CRASH_ADVICE.format(what="the C itself") + first_lines(text))
@@ -675,19 +721,28 @@ def feedback(errors, what):
         + "\n\n".join(errors))
 
 
-def conversation_key(messages, model):
-    """What a saved reply answered: the model and every message sent."""
-    return hashlib.sha256(json.dumps({"model": model, "messages": messages}, sort_keys=True).encode()).hexdigest()
+def conversation_key(messages, model, extra=None):
+    """What a saved reply answered: the model and every message sent (and,
+    off the default endpoint, its settings and the sample's index)."""
+    key = {"model": model, "messages": messages}
+    if extra:
+        key["extra"] = extra
+    return hashlib.sha256(json.dumps(key, sort_keys=True).encode()).hexdigest()
 
 
-def ask(state, messages, path, label):
+def ask(state, messages, path, label, sample=1):
     """A saved reply to this very conversation, or a call (budget checked
     first); (text, call record). A saved reply to anything else (the prompt or
     the checker's feedback changed since, or no key: an older run) is moved
     aside as `<name>.stale<N>.md` and asked again; a reply without a .json
     (placed by hand: the tests' canned replies) is used as it is."""
+    endpoint = state.get("endpoint") or model_client.Endpoint()
+    lock = state.setdefault("lock", threading.Lock())
     meta = path.with_suffix(".json")
-    key = conversation_key(messages, state["model"])
+    extra = dict(endpoint.key_fields())
+    if sample > 1:
+        extra["sample"] = sample
+    key = conversation_key(messages, state["model"], extra)
     if path.exists():
         if not meta.exists():  # placed by hand (the tests' canned replies): used as it is
             return path.read_text(), None
@@ -703,16 +758,35 @@ def ask(state, messages, path, label):
         print(f"port_pipeline: {label}: the saved reply answered another prompt: asking again", file=sys.stderr)
     if state["dry_run"]:
         raise Stop("dry run")
-    if state["spent"] + state["reserve"] > state["budget"]:
-        raise Stop(f"budget: ${state['spent']:.4f} spent of ${state['budget']:.2f}")
-    call = sb.call_model(messages, state["model"], state["max_tokens"])
-    state["spent"] += call["cost"] or 0.0
+    with lock:
+        if state.get("halt"):
+            raise Stop(state["halt"])
+        inflight = state.get("inflight", 0)
+        if state["spent"] + state["reserve"] * (inflight + 1) > state["budget"]:
+            raise Stop(f"budget: ${state['spent']:.4f} spent of ${state['budget']:.2f}")
+        state["inflight"] = inflight + 1
+    try:
+        with state.get("calls") or contextlib.nullcontext():
+            call = model_client.call(messages, state["model"], state["max_tokens"], endpoint)
+    except model_client.ContextError as error:
+        raise Stop(f"context: {error}") from None
+    except model_client.ModelError as error:
+        with lock:
+            state["halt"] = f"model call failed: {error}"
+        raise Stop(state["halt"]) from None
+    finally:
+        with lock:
+            state["inflight"] -= 1
+    with lock:
+        state["spent"] += call["cost"] or 0.0
+        spent = state["spent"]
     path.write_text(call["text"])
     record = {k: v for k, v in call.items() if k != "text"}
+    record["sample"] = sample
     record["conversation"] = key
     meta.write_text(json.dumps(record, indent=1))
-    print(f"port_pipeline: {label}: {call['prompt_tokens']} in, {call['completion_tokens']} out, ${call['cost']:.4f}, "
-          f"{call['seconds']} s (run total ${state['spent']:.4f})", file=sys.stderr)
+    print(f"port_pipeline: {label}: {call['endpoint']} {call['prompt_tokens']} in, {call['completion_tokens']} out, "
+          f"${call['cost']:.4f}, {call['seconds']} s, {call['finish_reason']} (run total ${spent:.4f})", file=sys.stderr)
     return call["text"], record
 
 
@@ -833,14 +907,33 @@ def regression(plan, unit, views_path, table, build, work):
 
 
 # ---------------------------------------------------------------- records
+def rounds(step):
+    """(round, sample, passed) per judged draft of a step (older records: one sample per round)."""
+    return [(a.get("round", i + 1), a.get("sample", 1), a.get("passed"))
+            for i, a in enumerate(step.get("attempts", [])) if a.get("passed") is not None]
+
+
+def gate_outcome(step):
+    """How a step passed: 'first' (its first sample), 'best-of-N' (a later sample), 'retry', or 'failed'."""
+    passed = [(r, s) for r, s, ok in rounds(step) if ok]
+    if not passed:
+        return "failed"
+    r, s = passed[0]
+    return "retry" if r > 1 else "first" if s == 1 else "best-of-N"
+
+
 def review_reasons(record):
     out = []
     plan = record["plan"]
     spec = record.get("spec", {})
-    if len(spec.get("attempts", [])) > 1:
+    if any(r > 1 for r, _, _ in rounds(spec)):
         out.append("the spec needed a retry")
-    if len(record.get("port", {}).get("attempts", [])) > 1:
+    if any(r > 1 for r, _, _ in rounds(record.get("port", {}))):
         out.append("the port needed a retry")
+    for kind in ("spec", "port"):
+        if gate_outcome(record.get(kind, {})) == "best-of-N":
+            kept = record[kind].get("kept", {})
+            out.append(f"the {kind} is sample {kept.get('sample')} of best-of-{record.get('samples')}")
     if plan.get("hooks"):
         out.append("ROOD_PC hooks: " + ", ".join(plan["hooks"]))
     if plan.get("statics"):
@@ -876,6 +969,10 @@ def write_review(records_dir):
         lines += ["", f"## `{r['function']}` ({r['unit']}) -> `{plan['module']}.{plan['zig_name']}`: {r['status']}", ""]
         reasons = review_reasons(r)
         lines.append("- **Flags:** " + ("; ".join(reasons) if reasons else "none"))
+        if r.get("model"):
+            lines.append(f"- Drafted by {r['model']}" + (f" ({r['endpoint']}, thinking {r.get('thinking')}, "
+                                                         f"temperature {r.get('temperature')}, best of "
+                                                         f"{r.get('samples')})" if r.get("endpoint") else ""))
         lines.append(f"- Name: {plan['name_source']}; signature `{plan['signature']}`")
         if spec.get("classes"):
             lines.append("- Input classes: " + ", ".join(f"{k}={v}" for k, v in spec["classes"].items()))
@@ -908,7 +1005,7 @@ def write_review(records_dir):
     (records_dir / "REVIEW.md").write_text(prompt_privacy.sanitise("\n".join(lines) + "\n"))
 
 
-def write_summary(records_dir, unit_stem):
+def write_summary(records_dir, unit_stem, wall=None):
     rows = []
     for p in sorted((records_dir / unit_stem).glob("*.json")):
         if p.name != "summary.json":
@@ -919,11 +1016,17 @@ def write_summary(records_dir, unit_stem):
               "completion_tokens": sum(r["totals"]["completion_tokens"] for r in rows),
               "model_seconds": round(sum(r["totals"]["model_seconds"] for r in rows), 1),
               "check_seconds": round(sum(r["totals"]["check_seconds"] for r in rows), 1),
+              "calls": sum(r["totals"].get("calls", 0) for r in rows),
               "statuses": {s: sum(r["status"] == s for r in rows) for s in sorted({r["status"] for r in rows})}}
+    if wall is not None:
+        totals["last_run_wall_seconds"] = round(wall, 1)
     (records_dir / unit_stem / "summary.json").write_text(json.dumps(
         {"unit": unit_stem, "totals": totals, "functions": [
-            {"function": r["function"], "status": r["status"], "spec_attempts": len(r.get("spec", {}).get("attempts", [])),
-             "port_attempts": len(r.get("port", {}).get("attempts", [])), "cost": r["totals"]["cost"]} for r in rows]},
+            {"function": r["function"], "status": r["status"], "model": r.get("model"),
+             "spec_attempts": len(r.get("spec", {}).get("attempts", [])),
+             "port_attempts": len(r.get("port", {}).get("attempts", [])),
+             "spec": gate_outcome(r.get("spec", {})), "port": gate_outcome(r.get("port", {})),
+             "cost": r["totals"]["cost"], "wall_seconds": r["totals"].get("wall_seconds")} for r in rows]},
         indent=1) + "\n")
     return totals
 
@@ -935,25 +1038,117 @@ def totals_of(record):
             "prompt_tokens": sum(c.get("prompt_tokens") or 0 for c in calls),
             "completion_tokens": sum(c.get("completion_tokens") or 0 for c in calls),
             "model_seconds": round(sum(c.get("seconds") or 0.0 for c in calls), 1),
-            "check_seconds": round(record.get("check_seconds", 0.0), 1)}
+            "check_seconds": round(record.get("check_seconds", 0.0), 1),
+            "calls": sum(bool(c) for c in calls),
+            "wall_seconds": round(record.get("wall_seconds", 0.0), 1)}
 
 
 def run_function(plan, unit, table, args, state):
     record = {}
+    started = time.monotonic()
     try:
-        return run_steps(plan, unit, table, args, state, record)
+        run_steps(plan, unit, table, args, state, record)
     except Stop as stop:
-        record["status"] = "stopped"
+        record["status"] = "context" if str(stop).startswith("context:") else "stopped"
         record["stopped"] = str(stop)
-        return record
+    record["wall_seconds"] = time.monotonic() - started
+    return record
+
+
+def reply_path(fdir, kind, round_, sample):
+    """spec_reply1.md, spec_reply1.s2.md (best-of-N's second sample), spec_reply2.md (the retry)."""
+    return fdir / (f"{kind}_reply{round_}.md" if sample == 1 else f"{kind}_reply{round_}.s{sample}.md")
+
+
+def progress(errors):
+    """How far a failed draft got (a retry is fed the furthest): built, ran, judged."""
+    text = "\n".join(errors)
+    if re.search(r"^FAIL: (no ```|no Zig file|the harness does not build|does not compile|specs\.toml entry)", text, re.M):
+        return 0
+    if "crashed on your inputs" in text or "your spec's own code" in text:
+        return 1
+    return 2
+
+
+def sample_round(kind, messages, round_, samples, evaluate, state, fdir, label):
+    """Up to `samples` independent replies to `messages`, gated in order until
+    one passes; [(sample, reply, call, ok, errors, details)]. A local endpoint's
+    samples are asked for at once (the server batches them); a remote one's
+    one at a time, only while none has passed."""
+    endpoint = state.get("endpoint") or model_client.Endpoint()
+    ask_one = lambda k: ask(state, messages, reply_path(fdir, kind, round_, k), f"{label} {kind} {round_}"
+                            + (f" s{k}" if samples > 1 else ""), sample=k)
+    futures, pool = {}, None
+    if samples > 1 and endpoint.local and not state["dry_run"]:
+        pool = concurrent.futures.ThreadPoolExecutor(samples)
+        futures = {k: pool.submit(ask_one, k) for k in range(1, samples + 1)}
+    out = []
+    try:
+        for k in range(1, samples + 1):
+            try:
+                reply, call = futures[k].result() if futures else ask_one(k)
+            except Stop:
+                if out:  # a later sample could not be asked: judge what there is
+                    break
+                raise
+            with state.get("checks") or contextlib.nullcontext():
+                ok, errors, details = evaluate(reply, round_, k)
+            out.append((k, reply, call, ok, errors, details))
+            if ok:
+                break
+    finally:
+        if pool:
+            pool.shutdown(wait=True)
+    # The samples asked for but never judged still cost: record their calls.
+    for k, f in futures.items():
+        if k > len(out) and not f.exception():
+            out.append((k, None, f.result()[1], None, [], {}))
+    return out
+
+
+def run_step(kind, first_prompt, evaluate, record, args, state, fdir, label):
+    """Best-of-N on the prompt, then one retry fed the furthest draft's errors;
+    the passing draft's details (with its round and sample), or None. The
+    record keeps every sample's call and verdict, and (failing) the
+    furthest draft's JSON-safe details."""
+    attempts = record[kind]["attempts"]
+    messages = [{"role": "user", "content": first_prompt}]
+    best = None
+    for round_ in (1, 2):
+        try:
+            results = sample_round(kind, messages, round_, args.attempts if round_ == 1 else 1, evaluate, state,
+                                   fdir, label)
+        except Stop as stop:
+            if round_ == 1 or not str(stop).startswith("context:"):
+                raise
+            attempts.append({"round": 2, "sample": 1, "call": None, "passed": False, "errors": [str(stop)]})
+            break
+        for k, reply, call, ok, errors, details in results:
+            attempts.append({"round": round_, "sample": k, "call": call, "passed": ok,
+                             "errors": [prompt_privacy.sanitise(e)[:3000] for e in errors]}
+                            | ({"runs": details.get("runs", [])} if kind == "port" else {})
+                            | ({"skipped": "an earlier sample passed"} if ok is None else {}))
+        judged = [r for r in results if r[3] is not None]
+        passed = next((r for r in judged if r[3]), None)
+        if passed:
+            return dict(passed[5], round=round_, sample=passed[0])
+        best = max(judged, key=lambda r: (progress(r[4]), -len(r[4]), -r[0]))
+        if round_ == 1:
+            messages = messages + [{"role": "assistant", "content": best[1]},
+                                   {"role": "user", "content": feedback(best[4], kind)}]
+    record[kind].update({k: v for k, v in (best[5] if best else {}).items() if k not in ("entry", "path", "runs")})
+    return None
 
 
 def run_steps(plan, unit, table, args, state, record):
     fdir = args.work / plan.name
     fdir.mkdir(parents=True, exist_ok=True)
+    endpoint = state.get("endpoint") or model_client.Endpoint()
     record.update({"function": plan.name, "unit": plan.unit, "difficulty": plan.difficulty, "model": args.model,
-              "status": "started", "reviewed": False, "plan": dataclasses.asdict(plan), "spec": {"attempts": []},
-              "port": {"attempts": []}, "written": [], "check_seconds": 0.0})
+                   "endpoint": endpoint.kind, "thinking": endpoint.thinking, "temperature": endpoint.temperature,
+                   "samples": args.attempts,
+                   "status": "started", "reviewed": False, "plan": dataclasses.asdict(plan), "spec": {"attempts": []},
+                   "port": {"attempts": []}, "written": [], "check_seconds": 0.0})
     record["plan"]["address"] = f"{plan.address:#010x}"
     views_path, _ = unit.views(plan.types, plan.globals, tag=f"fn-{plan.name}")
     spec_text = prompt_privacy.sanitise(spec_prompt(plan, unit, views_path, table, args.build))
@@ -969,79 +1164,91 @@ def run_steps(plan, unit, table, args, state, record):
         print(f"port_pipeline: {plan.name}: dry run: spec prompt {len(spec_text)} chars, port prompt "
               f"{len(port_text)} chars -> {plan.module}.{plan.zig_name} ({plan.name_source})", file=sys.stderr)
         return record
-    started = time.monotonic()
+    checked = [0.0]
+
     # 1. The spec.
-    messages = [{"role": "user", "content": spec_text}]
-    entry = spec_path = None
-    for attempt in (1, 2):
-        reply, call = ask(state, messages, fdir / f"spec_reply{attempt}.md", f"{plan.name} spec {attempt}")
+    def spec_eval(reply, round_, k):
+        started = time.monotonic()
+        tag = f"{round_}" if k == 1 else f"{round_}s{k}"
         zig_text, toml_text = sb.split_reply(reply)
         entry, toml_error = sb.parse_toml(plan.name, toml_text)
-        errors, details = [], {}
+        errors, details, ok = [], {"entry": entry}, False
         if zig_text is None:
             errors.append("FAIL: no ```zig block in the reply")
         if toml_error:
             errors.append(toml_error)
-        ok = False
         if not errors:
-            spec_path = fdir / f"spec{attempt}.zig"
+            spec_path = fdir / f"spec{tag}.zig"
             spec_path.write_text(zig_text)
-            ok, errors, details = spec_gate(plan, entry, spec_path, views_path, unit, table, args.build,
-                                            fdir / f"spec{attempt}")
-        record["spec"]["attempts"].append({"call": call, "passed": ok, "errors": [prompt_privacy.sanitise(e)[:3000]
-                                                                                for e in errors]})
-        record["spec"].update(details)
-        if ok:
-            record["spec"]["waivers"] = entry.get("coverage_waiver", [])
-            break
-        messages += [{"role": "assistant", "content": reply}, {"role": "user", "content": feedback(errors, "spec")}]
-    record["check_seconds"] += time.monotonic() - started
-    if not record["spec"]["attempts"][-1]["passed"]:
+            ok, errors, gate = spec_gate(plan, entry, spec_path, views_path, unit, table, args.build, fdir / f"spec{tag}")
+            details.update(gate, path=spec_path)
+        checked[0] += time.monotonic() - started
+        return ok, errors, details
+
+    passed = run_step("spec", spec_text, spec_eval, record, args, state, fdir, plan.name)
+    if not passed:
+        record["check_seconds"] = checked[0]
         record["status"] = "spec-failed"
         return record
+    entry, spec_path = passed.pop("entry"), passed.pop("path")
+    record["spec"]["kept"] = {"round": passed.pop("round"), "sample": passed.pop("sample")}
+    record["spec"].update(passed)
+    record["spec"]["waivers"] = entry.get("coverage_waiver", [])
+
     # 2. The port.
-    started = time.monotonic()
-    messages = [{"role": "user", "content": port_text}]
-    port_path = None
-    for attempt in (1, 2):
-        reply, call = ask(state, messages, fdir / f"port_reply{attempt}.md", f"{plan.name} port {attempt}")
+    def port_eval(reply, round_, k):
+        started = time.monotonic()
+        tag = f"{round_}" if k == 1 else f"{round_}s{k}"
         code = zig_block(reply)
-        errors, runs, ok = [], [], False
+        errors, runs, ok, details = [], [], False, {}
         if code is None:
             errors.append("FAIL: no Zig file in the reply")
         else:
-            port_path = fdir / f"port{attempt}" / f"{plan.module}.zig"
+            port_path = fdir / f"port{tag}" / f"{plan.module}.zig"
             port_path.parent.mkdir(parents=True, exist_ok=True)
             port_path.write_text(code)
             ok, errors, runs = port_gate(plan, entry, spec_path, port_path, views_path, unit, table, args.build,
-                                         fdir / f"port{attempt}", args.seeds)
-        record["port"]["attempts"].append({"call": call, "passed": ok, "runs": runs,
-                                           "errors": [prompt_privacy.sanitise(e)[:3000] for e in errors]})
-        if ok:
-            break
-        messages += [{"role": "assistant", "content": reply}, {"role": "user", "content": feedback(errors, "port")}]
-    record["check_seconds"] += time.monotonic() - started
-    if not record["port"]["attempts"][-1]["passed"]:
+                                         fdir / f"port{tag}", args.seeds)
+            details = {"path": port_path, "runs": runs}
+        checked[0] += time.monotonic() - started
+        return ok, errors, details
+
+    passed = run_step("port", port_text, port_eval, record, args, state, fdir, plan.name)
+    record["check_seconds"] = checked[0]
+    if not passed:
         record["status"] = "port-failed"
         return record
-    # 3. Into the tree (unless the unit's existing ports break with the widened views).
-    problems = regression(plan, unit, views_path, table, args.build, fdir)
-    if problems:
-        record["status"] = "views-conflict"
-        record["conflicts"] = [prompt_privacy.sanitise(p) for p in problems]
-        return record
-    if args.no_write:
-        record["status"] = "passed (not written)"
-        return record
-    spec_dest = SPEC_DIR / plan.spec_file
-    spec_dest.write_text(spec_path.read_text())
-    SPECS_TOML.write_text(SPECS_TOML.read_text().rstrip("\n") + "\n\n" + toml_entry(plan, entry, args.model))
-    port_dest = GAME / OVERLAY / f"{plan.module}.zig"
-    port_dest.write_text(port_path.read_text())
-    write_ownership(plan)
-    write_root(plan)
-    unit.base_types |= set(plan.types)
-    unit.base_globals |= set(plan.globals)
+    port_path = passed["path"]
+    record["port"]["kept"] = {"round": passed["round"], "sample": passed["sample"]}
+    # 3. Into the tree (unless the unit's existing ports break with the widened
+    # views): one function at a time, against the views as the earlier writes
+    # left them.
+    with state.setdefault("write_lock", threading.Lock()):
+        started = time.monotonic()
+        wide_path, _ = unit.views(plan.types, plan.globals, tag=f"write-{plan.name}")
+        current = ownership.load(args.table or OWNERSHIP)
+        problems = regression(plan, unit, wide_path, current, args.build, fdir)
+        if not problems and wide_path.read_text() != views_path.read_text():
+            ok, errors, _ = port_gate(plan, entry, spec_path, port_path, wide_path, unit, current, args.build,
+                                      fdir / "recheck", args.seeds[:1])
+            problems += [] if ok else [f"{plan.name} with the widened views: " + "; ".join(errors)[:600]]
+        record["check_seconds"] += time.monotonic() - started
+        if problems:
+            record["status"] = "views-conflict"
+            record["conflicts"] = [prompt_privacy.sanitise(p) for p in problems]
+            return record
+        if args.no_write:
+            record["status"] = "passed (not written)"
+            return record
+        spec_dest = SPEC_DIR / plan.spec_file
+        spec_dest.write_text(spec_path.read_text())
+        SPECS_TOML.write_text(SPECS_TOML.read_text().rstrip("\n") + "\n\n" + toml_entry(plan, entry, args.model))
+        port_dest = GAME / OVERLAY / f"{plan.module}.zig"
+        port_dest.write_text(port_path.read_text())
+        write_ownership(plan)
+        write_root(plan)
+        unit.base_types |= set(plan.types)
+        unit.base_globals |= set(plan.globals)
     record["written"] = [str(p.relative_to(ROOT)) for p in (spec_dest, SPECS_TOML, port_dest, OWNERSHIP, ROOT_ZIG)]
     record["status"] = "ported"
     return record
@@ -1068,6 +1275,14 @@ def main(argv=None):
     parser.add_argument("--difficulty", help="with --unit: only these difficulties (S,M,L,XL)")
     parser.add_argument("--limit", type=int, help="with --unit: at most this many functions")
     parser.add_argument("--model", default=DEFAULT_MODEL)
+    model_client.add_arguments(parser)
+    parser.add_argument("--attempts", type=int, default=1,
+                        help="best-of-N: up to N independent samples of each step's prompt, the first that passes "
+                             "its gate kept, before the feedback retry (use with --temperature > 0)")
+    parser.add_argument("-j", "--jobs", type=int, default=1, help="functions in parallel")
+    parser.add_argument("--check-jobs", type=int, default=None,
+                        help="checker builds/runs at once (CPU; default min(jobs, cores/4)), all at nice 10")
+    parser.add_argument("--max-calls", type=int, default=8, help="model calls in flight at once")
     parser.add_argument("--budget", type=float, default=5.0, help="US$ for this run, checked before every call")
     parser.add_argument("--reserve", type=float, default=0.02, help="US$ kept free for the next call (default 0.02)")
     parser.add_argument("--max-tokens", type=int, default=64000)
@@ -1095,18 +1310,27 @@ def main(argv=None):
         print(f"port_pipeline: {args.build} has no 64-bit build (python3 pc/tools/build_boot.py --arch 64)",
               file=sys.stderr)
         return 77
-    if not args.dry_run and not os.environ.get("OPENROUTER_API_KEY"):
-        print("port_pipeline: OPENROUTER_API_KEY is not set (run through `bash -ic` so your profile sets it)",
+    endpoint = model_client.from_args(args)
+    if not args.dry_run and endpoint.missing_key():
+        print(f"port_pipeline: {endpoint.missing_key()} is not set (run through `bash -ic` so your profile sets it)",
               file=sys.stderr)
         return 2
+    if args.attempts < 1 or args.jobs < 1:
+        parser.error("--attempts and --jobs are at least 1")
+    check_jobs = args.check_jobs or max(1, min(args.jobs, (os.cpu_count() or 4) // 4))
     rows = functions_tsv()
     names = meanings()
     if args.table and not args.no_write and not args.dry_run:
         parser.error("--table needs --no-write")
     table = ownership.load(args.table or OWNERSHIP)
     state = {"spent": 0.0, "budget": args.budget, "reserve": args.reserve, "model": args.model,
-             "max_tokens": args.max_tokens, "dry_run": args.dry_run}
-    units, done_units, results = {}, set(), []
+             "max_tokens": args.max_tokens, "dry_run": args.dry_run, "endpoint": endpoint, "lock": threading.Lock(),
+             "write_lock": threading.Lock(), "calls": threading.BoundedSemaphore(max(1, args.max_calls)),
+             "checks": threading.BoundedSemaphore(check_jobs)}
+    if not args.dry_run:
+        os.nice(10)  # the checker's builds and runs are this process's children
+    started = time.monotonic()
+    units, done_units, results, todo = {}, set(), [], []
     for name in select(args, rows):
         stem = pathlib.PurePosixPath(rows[name]["file"]).stem
         record_path = args.records / stem / f"{name}.json"
@@ -1117,26 +1341,44 @@ def main(argv=None):
         if plan.skip:
             print(f"port_pipeline: {name}: skipped: {plan.skip}", file=sys.stderr)
             continue
+        todo.append((name, stem, record_path, plan, unit))
+
+    def one(item):
+        name, stem, record_path, plan, unit = item
+        if state.get("halt"):
+            return None
         record = run_function(plan, unit, table, args, state)
         record["totals"] = totals_of(record)
-        results.append(record)
-        print(f"port_pipeline: {name}: {record['status']} (${record['totals']['cost']:.4f})", file=sys.stderr)
+        print(f"port_pipeline: {name}: {record['status']} (${record['totals']['cost']:.4f}, "
+              f"{record['totals']['wall_seconds']} s)", file=sys.stderr)
         if args.dry_run:
-            continue
-        record_path.parent.mkdir(parents=True, exist_ok=True)
-        record_path.write_text(prompt_privacy.sanitise(json.dumps(record, indent=1)) + "\n")
-        done_units.add(stem)
-        if record["status"] == "ported":
-            table = ownership.load(OWNERSHIP)
+            return record
+        with state["lock"]:
+            record_path.parent.mkdir(parents=True, exist_ok=True)
+            record_path.write_text(prompt_privacy.sanitise(json.dumps(record, indent=1)) + "\n")
+            done_units.add(stem)
         if record["status"] == "stopped":
             print(f"port_pipeline: stopped in {name}: {record['stopped']}", file=sys.stderr)
-            break
+            with state["lock"]:
+                state.setdefault("halt", record["stopped"])
+        return record
+
+    if args.jobs > 1 and len(todo) > 1:
+        with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
+            results = [r for r in pool.map(one, todo) if r]
+    else:
+        for item in todo:
+            record = one(item)
+            if record:
+                results.append(record)
+    wall = time.monotonic() - started
     for stem in sorted(done_units):
-        totals = write_summary(args.records, stem)
+        totals = write_summary(args.records, stem, wall)
         print(f"port_pipeline: unit {stem}: {totals}", file=sys.stderr)
     if done_units:
         write_review(args.records)
-    print(f"port_pipeline: {len(results)} function(s), ${state['spent']:.4f} spent this run", file=sys.stderr)
+    print(f"port_pipeline: {len(results)} function(s), ${state['spent']:.4f} spent this run, {wall:.0f} s wall",
+          file=sys.stderr)
     return 0 if all(r["status"] in ("ported", "dry-run", "passed (not written)") for r in results) else 1
 
 

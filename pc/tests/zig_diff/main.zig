@@ -164,6 +164,13 @@ fn adapt(comptime To: type, value: anytype) To {
     const From = @TypeOf(value);
     if (From == To) return value;
     if (comptime pointerLike(From) and pointerLike(To)) return @ptrCast(@alignCast(value));
+    // What would not coerce, said in the spec's terms (not as an error in this file).
+    const fi = @typeInfo(From);
+    const ti = @typeInfo(To);
+    if ((fi == .int and ti == .int and (fi.int.signedness != ti.int.signedness or fi.int.bits > ti.int.bits)) or
+        (To == void) != (From == void))
+        @compileError("zdiff: a spec stub gives " ++ @typeName(From) ++ " where the C prototype has " ++ @typeName(To) ++
+            ": declare the stub's return and parameter types as the c module's prototype does (or `anytype`)");
     return value;
 }
 

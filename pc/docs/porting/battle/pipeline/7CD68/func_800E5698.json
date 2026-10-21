@@ -1,0 +1,248 @@
+{
+ "function": "func_800E5698",
+ "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "port-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800E5698",
+  "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
+  "stem": "7CD68",
+  "address": "0x800e5698",
+  "difficulty": "S",
+  "zig_name": "func_800E5698",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800E5698",
+  "spec_file": "func_800E5698.zig",
+  "subsystem": "battle_7CD68_port",
+  "signature": "pub fn func_800E5698(arg0: ?*v.func_800E5698_t, actionId: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800E5698_t"
+   ],
+   [
+    "actionId",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "func_800E5568_t",
+   "func_800E5698_t",
+   "func_800E5698_t2",
+   "vs_action_t"
+  ],
+  "globals": [
+   "vs_main_actions"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12619,
+     "completion_tokens": 9762,
+     "reasoning_tokens": 8348,
+     "cost": 0.0061429,
+     "seconds": 44.2,
+     "sample": 1,
+     "conversation": "9fb2d1fde7a68f3031a6945d9cdc5912acb77d8642f511b987017a9c7a95bb71"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:172:9: error: zdiff: a spec stub gives u32 where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:206:29\n    f: <tmp>/.../route.zig:24:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14351,
+     "completion_tokens": 1977,
+     "reasoning_tokens": 546,
+     "cost": 0.0024236,
+     "seconds": 7.6,
+     "sample": 1,
+     "conversation": "038da0eb065a210e5c378154e9b6d9ac641489609f0fe4c565e6320da2c4f790"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "literal-range": "15045",
+   "ptr-range-arena": "11248",
+   "ptr-range-lowram": "3707"
+  },
+  "mutations": [
+   {
+    "name": "F1: clamp at >= 0x20 (the value 0x20 becomes 0 rather than 0)",
+    "caught": true
+   },
+   {
+    "name": "F2: wrong subtraction constant",
+    "caught": true
+   },
+   {
+    "name": "F3: signed comparison of the unsigned result",
+    "caught": true
+   },
+   {
+    "name": "F4: the 0xFF test reads rangeY",
+    "caught": true
+   },
+   {
+    "name": "F5: literal range points at rangeY",
+    "caught": true
+   },
+   {
+    "name": "F6: wrong constant added to the square",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 9,
+   "lines_hit": 9,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min 0, max 255, seen zero, never negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "if (action->rangeX == 0xFF) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14955, < 7486, > 7559 (signed); < 15045, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-128..127"
+    },
+    {
+     "line": 12,
+     "text": "if (v > 0x20) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 7419, < 14994, > 7587 (signed); < 3727, > 18854 (unsigned)",
+     "operand": "constant 32",
+     "a": "-2147483648..2147443928"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35934,
+     "completion_tokens": 3191,
+     "reasoning_tokens": 2781,
+     "cost": 0.0051889,
+     "seconds": 14.3,
+     "sample": 1,
+     "conversation": "6d44b326043d60f4da42d97d60bf3744361fd0dca1ee223a628e33e5193bfcc2"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800E5698.zig:15:39: error: expected type 'c_uint', found 'c_int'\n    var dist: c_uint = c.func_800E5568(@ptrCast(range));\n                       ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~\ngame/battle/func_800E5698.zig:15:39: note: unsigned 32-bit int cannot represent all possible signed 32-bit values\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:430:31\n    main: pc/tests/zig_diff/main.zig:353:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36666,
+     "completion_tokens": 900,
+     "reasoning_tokens": 478,
+     "cost": 0.0041166,
+     "seconds": 4.6,
+     "sample": 1,
+     "conversation": "9a26733b353fc69f7445aec285689e2c8207304d664bba63f26bf9ad29e1a49a"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 3):\nzdiff: PANIC in the Zig run, iteration 15: attempt to use null value (return address 0x403524)"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 3,
+      "mismatches": null,
+      "first": "PANIC in the Zig run, iteration 15: attempt to use null value (return address 0x403524)"
+     }
+    ]
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 9.460190881000017,
+ "wall_seconds": 9.588906990000396,
+ "totals": {
+  "cost": 0.01787,
+  "prompt_tokens": 99570,
+  "completion_tokens": 15830,
+  "model_seconds": 70.7,
+  "check_seconds": 9.5,
+  "calls": 4,
+  "wall_seconds": 9.6
+ }
+}

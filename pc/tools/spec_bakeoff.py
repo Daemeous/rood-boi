@@ -23,7 +23,9 @@ then scored in a scratch directory (the checkout's specs are never written):
 One attempt per function; when (a) or (b) fails, one retry that is fed only
 the checker's own error output. The model is called through OpenRouter
 (OPENROUTER_API_KEY from the environment; never printed), temperature 0,
-stopping when the budget is spent. DIR gets the prompts, the replies, the
+stopping when the budget is spent; --base-url/--api-key-env/--thinking/
+--temperature pick another endpoint (pc/tools/model_client.py: a local
+server needs no key and costs nothing). DIR gets the prompts, the replies, the
 scratch builds and results.json; keep it out of the repository (pc/build is
 ignored). Needs a 64-bit build (python3 pc/tools/build_boot.py --arch 64).
 """
@@ -38,17 +40,15 @@ import sys
 import threading
 import time
 import tomllib
-import urllib.error
-import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 import bakeoff_context as bc  # noqa: E402
+import model_client  # noqa: E402
 import ownership  # noqa: E402
 import prompt_privacy  # noqa: E402
 import zig_diff  # noqa: E402
 
-API_URL = "https://openrouter.ai/api/v1/chat/completions"
 # The worked examples: never one of the eleven bake-off functions.
 EXAMPLES = ["_updateEnemyKills", "func_800B07DC"]
 HARNESS_DOC = """How the harness (pc/tests/zig_diff/main.zig) uses a spec, per iteration:
@@ -184,42 +184,12 @@ class Budget(Exception):
     pass
 
 
-def call_model(messages, model, max_tokens):
-    # Every message goes through the one sanitiser, and is refused if anything local is left.
-    messages = [dict(m, content=prompt_privacy.check(prompt_privacy.sanitise(m["content"]))) for m in messages]
-    key = os.environ.get("OPENROUTER_API_KEY")
-    if not key:
-        raise SystemExit("spec_bakeoff: OPENROUTER_API_KEY is not set")
-    body = json.dumps({"model": model, "messages": messages, "temperature": 0, "max_tokens": max_tokens,
-                       "usage": {"include": True}}).encode()
-    request = urllib.request.Request(API_URL, data=body, headers={
-        "Authorization": "Bearer " + key, "Content-Type": "application/json",
-        "X-Title": "rood-boi spec bake-off"})
-    start = time.monotonic()
-    for attempt in range(3):
-        try:
-            with urllib.request.urlopen(request, timeout=600) as response:
-                data = json.loads(response.read())
-            break
-        except urllib.error.HTTPError as error:
-            detail = error.read().decode(errors="replace")[:500]
-            if error.code in (429, 500, 502, 503) and attempt < 2:
-                time.sleep(10 * (attempt + 1))
-                continue
-            raise SystemExit(f"spec_bakeoff: OpenRouter HTTP {error.code}: {detail}")
-    if "choices" not in data:
-        raise SystemExit(f"spec_bakeoff: OpenRouter: {json.dumps(data)[:500]}")
-    usage = data.get("usage") or {}
-    return {
-        "text": data["choices"][0]["message"].get("content") or "",
-        "finish_reason": data["choices"][0].get("finish_reason"),
-        "model": data.get("model"),
-        "prompt_tokens": usage.get("prompt_tokens"),
-        "completion_tokens": usage.get("completion_tokens"),
-        "reasoning_tokens": (usage.get("completion_tokens_details") or {}).get("reasoning_tokens"),
-        "cost": usage.get("cost") or 0.0,
-        "seconds": round(time.monotonic() - start, 1),
-    }
+def call_model(messages, model, max_tokens, endpoint=None):
+    """One call through pc/tools/model_client.py (OpenRouter unless `endpoint` says otherwise)."""
+    try:
+        return model_client.call(messages, model, max_tokens, endpoint)
+    except model_client.ModelError as error:
+        raise SystemExit(f"spec_bakeoff: {error}")
 
 
 def split_reply(text):
@@ -380,7 +350,7 @@ def function_run(entry, ref_spec, table, args, state):
                 if state["cost"] >= args.budget:
                     out["stopped"] = "budget"
                     break
-            call = call_model(messages, args.model, args.max_tokens)
+            call = call_model(messages, args.model, args.max_tokens, args.endpoint)
             reply_path.write_text(call["text"])
             (fdir / f"call{attempt}.json").write_text(json.dumps({k: v for k, v in call.items() if k != "text"}, indent=2))
             with state["lock"]:
@@ -470,7 +440,9 @@ def main(argv=None):
     parser.add_argument("--timeout", type=int, default=120, help="seconds per harness run")
     parser.add_argument("-j", "--jobs", type=int, default=min(4, os.cpu_count() or 1))
     parser.add_argument("--build", type=pathlib.Path, default=ROOT / "pc/build/boot64")
+    model_client.add_arguments(parser)
     args = parser.parse_args(argv)
+    args.endpoint = model_client.from_args(args, "rood-boi spec bake-off")
     if not (args.build / "imports.ld").exists():
         print(f"spec_bakeoff: {args.build} has no 64-bit build (python3 pc/tools/build_boot.py --arch 64)", file=sys.stderr)
         return 77

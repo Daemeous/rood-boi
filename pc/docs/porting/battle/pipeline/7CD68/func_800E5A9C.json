@@ -1,0 +1,126 @@
+{
+ "function": "func_800E5A9C",
+ "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800E5A9C",
+  "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
+  "stem": "7CD68",
+  "address": "0x800e5a9c",
+  "difficulty": "M",
+  "zig_name": "func_800E5A9C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800E5A9C",
+  "spec_file": "func_800E5A9C.zig",
+  "subsystem": "battle_7CD68_port",
+  "signature": "pub fn func_800E5A9C(state: ?*v.actorSettingsState, settings: ?*v.actorSettingsWord) callconv(.c) void",
+  "params": [
+   [
+    "state",
+    "?*v.actorSettingsState"
+   ],
+   [
+    "settings",
+    "?*v.actorSettingsWord"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "actorSettingsActor",
+   "actorSettingsState",
+   "actorSettingsWord"
+  ],
+  "globals": [
+   "D_80069C08",
+   "D_80069C18",
+   "D_80069C1C",
+   "D_80069C3C",
+   "D_800F1790",
+   "D_800F17B8",
+   "D_800F17C8",
+   "D_800F17D8",
+   "D_800F58C0",
+   "D_800F58C8"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16110,
+     "completion_tokens": 21818,
+     "reasoning_tokens": 19849,
+     "cost": 0.01252,
+     "seconds": 94.6,
+     "sample": 1,
+     "conversation": "8869326a7e4507cac7a2cd0227f4ad3dc99698c1418e2daffee49360521f69c7"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: PANIC in the prepare run, iteration 0: incorrect alignment (return address 0x403d75)",
+     "(the mutations and the coverage gate are checked once the spec runs)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18237,
+     "completion_tokens": 5054,
+     "reasoning_tokens": 3273,
+     "cost": 0.0043507,
+     "seconds": 21.2,
+     "sample": 1,
+     "conversation": "400a369e813e8ed87eb7edecdc9b9592180fd7221939e06bc544b3fa323eb4a5"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 0, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0x407070 [arena] 0x407210 [arena] (class clamped)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   }
+  ],
+  "classes": {},
+  "mutations": [],
+  "coverage": null
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 0.9101281910006946,
+ "wall_seconds": 0.9892619020010898,
+ "totals": {
+  "cost": 0.01687,
+  "prompt_tokens": 34347,
+  "completion_tokens": 26872,
+  "model_seconds": 115.8,
+  "check_seconds": 0.9,
+  "calls": 2,
+  "wall_seconds": 1.0
+ }
+}

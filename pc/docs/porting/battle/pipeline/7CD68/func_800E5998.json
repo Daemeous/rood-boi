@@ -1,0 +1,197 @@
+{
+ "function": "func_800E5998",
+ "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800E5998",
+  "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
+  "stem": "7CD68",
+  "address": "0x800e5998",
+  "difficulty": "S",
+  "zig_name": "func_800E5998",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800E5998",
+  "spec_file": "func_800E5998.zig",
+  "subsystem": "battle_7CD68_port",
+  "signature": "pub fn func_800E5998() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [
+   "func_800DEEA4_t2",
+   "vs_battle_actor"
+  ],
+  "globals": [
+   "D_800F5878",
+   "vs_battle_actors"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12898,
+     "completion_tokens": 20193,
+     "reasoning_tokens": 18377,
+     "cost": 0.0113863,
+     "seconds": 88.8,
+     "sample": 1,
+     "conversation": "8e6ba575f0451d468278089e3414797f7a9097372d152dc9a8b9bf10f060f7e1"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "empty": "4962",
+   "no-trigger": "4932",
+   "trigger-no-match": "9379",
+   "trigger-match": "10727"
+  },
+  "mutations": [
+   {
+    "name": "F1: a match is found but the search reports none",
+    "caught": true
+   },
+   {
+    "name": "F2: unk30_9 read as a 4-bit field",
+    "caught": true
+   },
+   {
+    "name": "F3: the store writes the actor's own id",
+    "caught": true
+   },
+   {
+    "name": "F4: wrong trigger constant (0x11 for 0x10)",
+    "caught": true
+   },
+   {
+    "name": "F5: the inner search starts from the actor, not the list head",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 13,
+   "lines_hit": 13,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 5,
+     "text": "if (D_800F5878[actor->id]->unk16 == 0x10) {",
+     "size": 1,
+     "count": 75349,
+     "kind": "against a constant",
+     "outcomes": "== 37886, < 23164, > 14299 (signed); < 7290, > 30173 (unsigned)",
+     "operand": "constant 16",
+     "a": "-128..127"
+    },
+    {
+     "line": 9,
+     "text": "if (other->unk30_0 == actor->unk30_9) {",
+     "size": 4,
+     "count": 111444,
+     "kind": "a == b / a < b",
+     "outcomes": "== 14521, < 67507, > 29416 (signed); < 67507, > 29416 (unsigned)",
+     "operand": "b 0..31",
+     "a": "0..4"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36213,
+     "completion_tokens": 3741,
+     "reasoning_tokens": 3243,
+     "cost": 0.0054918,
+     "seconds": 16.2,
+     "sample": 1,
+     "conversation": "c3a20f27c9745ef8ab6c579d3d5459eb8c04e607db74b5729d91a2cd6a54d577"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800E5998.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800E5998.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 19.316254698000193,
+ "wall_seconds": 19.39479206100077,
+ "totals": {
+  "cost": 0.01688,
+  "prompt_tokens": 49111,
+  "completion_tokens": 23934,
+  "model_seconds": 105.0,
+  "check_seconds": 19.3,
+  "calls": 2,
+  "wall_seconds": 19.4
+ }
+}

@@ -98,6 +98,11 @@ def _dump(type_names, global_names):
             return named(stripped.tag, stripped)
         if stripped.code in (gdb.TYPE_CODE_INT, gdb.TYPE_CODE_CHAR, gdb.TYPE_CODE_ENUM, gdb.TYPE_CODE_BOOL):
             return ref(stripped, context)
+        # A pointer to a sized array of integers (`u_short (*grid)[32]`, rows
+        # of a table): typed, so `grid[z][x]` reads as the C's.
+        if stripped.code == gdb.TYPE_CODE_ARRAY and stripped.sizeof > 0 and stripped.target().strip_typedefs().code in (
+                gdb.TYPE_CODE_INT, gdb.TYPE_CODE_CHAR, gdb.TYPE_CODE_ENUM, gdb.TYPE_CODE_BOOL):
+            return ref(stripped, context)
         return {"kind": "opaque", "name": str(target)}
 
     def named(name, struct):
@@ -197,6 +202,8 @@ class Emitter:
                 return "?*const anyopaque"
             if t["kind"] == "opaque":
                 return "?*anyopaque"
+            if t["kind"] == "array":  # rows: the C indexes the pointer (`grid[z][x]`)
+                return "?[*]" + self.ztype(t)
             # A guest address is only 4-aligned (PORTING.md §20 item 1).
             over = t["kind"] == "named" and self.align(t) > 4
             return ("?*align(4) " if over else "?*") + self.ztype(t)

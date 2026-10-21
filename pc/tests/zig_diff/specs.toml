@@ -1236,3 +1236,296 @@ target = "c"
 from = "    func_800A0204(actor->unk0.unkF, animation, 0, 4);\n    *(u_int*)((char*)actor + 8) = (*(u_int*)((char*)actor + 8) & ~0x70000) | 0x20000;"
 to = "    { u_int flags = *(u_int*)((char*)actor + 8);\n    func_800A0204(actor->unk0.unkF, animation, 0, 4);\n    *(u_int*)((char*)actor + 8) = (flags & ~0x70000) | 0x20000; }"
 
+[function.func_800E5568]
+spec = "func_800E5568.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800E5568.mutation]]
+name = "S1: shape 1 falls through to the rsin branch"
+target = "c"
+from = "mask & 0x16"
+to = "mask & 0x14"
+
+[[function.func_800E5568.mutation]]
+name = "S2: the rcos-Z branch reads rangeY"
+target = "c"
+from = "r = arg0->rangeZ;"
+to = "r = arg0->rangeY;"
+
+[[function.func_800E5568.mutation]]
+name = "S3: angle shifted by 6, not 7"
+target = "c"
+from = "fn(arg0->angle << 7)"
+to = "fn(arg0->angle << 6)"
+
+[[function.func_800E5568.mutation]]
+name = "S4: result shifted by 11, not 12"
+target = "c"
+from = ">> 12;"
+to = ">> 11;"
+
+[[function.func_800E5568.mutation]]
+name = "S5: v unsigned, so negative sines take the wrong sign"
+target = "c"
+from = "int v;"
+to = "unsigned v;"
+
+[[function.func_800E5568.mutation]]
+name = "S6: the rsin branch calls rcos"
+target = "c"
+from = "fn = rsin;"
+to = "fn = rcos;"
+
+[function.func_800E5600]
+spec = "func_800E5600.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800E5600.mutation]]
+name = "M1: the first test reads flagsE_3 instead of flagsE_13"
+target = "c"
+from = "if (action->flagsE_13 << 0x1D) {"
+to = "if (action->flagsE_3 << 0x17) {"
+
+[[function.func_800E5600.mutation]]
+name = "M2: aoe_8 shifted by 4, not 5"
+target = "c"
+from = "r = action->aoe_8 << 5;"
+to = "r = action->aoe_8 << 4;"
+
+[[function.func_800E5600.mutation]]
+name = "M3: v < arg2 compared signed"
+target = "c"
+from = "if (v < arg2) {"
+to = "if ((int)v < (int)arg2) {"
+
+[[function.func_800E5600.mutation]]
+name = "M4: bound slip, v <= arg2"
+target = "c"
+from = "if (v < arg2) {"
+to = "if (v <= arg2) {"
+
+[[function.func_800E5600.mutation]]
+name = "M5: the callee is not called"
+target = "c"
+from = "v = func_800E5568((func_800E5568_t*)&action->aoe_0);"
+to = "v = 0;"
+
+[function.func_800E5998]
+spec = "func_800E5998.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800E5998.mutation]]
+name = "F1: a match is found but the search reports none"
+target = "c"
+from = "break;"
+to = "other = 0; break;"
+
+[[function.func_800E5998.mutation]]
+name = "F2: unk30_9 read as a 4-bit field"
+target = "c"
+from = "if (other->unk30_0 == actor->unk30_9) {"
+to = "if (other->unk30_0 == (actor->unk30_9 & 15)) {"
+
+[[function.func_800E5998.mutation]]
+name = "F3: the store writes the actor's own id"
+target = "c"
+from = "D_800F5878[actor->id]->unk16 = other->id;"
+to = "D_800F5878[actor->id]->unk16 = actor->id;"
+
+[[function.func_800E5998.mutation]]
+name = "F4: wrong trigger constant (0x11 for 0x10)"
+target = "c"
+from = "if (D_800F5878[actor->id]->unk16 == 0x10) {"
+to = "if (D_800F5878[actor->id]->unk16 == 0x11) {"
+
+[[function.func_800E5998.mutation]]
+name = "F5: the inner search starts from the actor, not the list head"
+target = "c"
+from = "vs_battle_actor* other = ((__typeof__((vs_battle_actors[0]->next).psx_type_[0]))(long unsigned int)(vs_battle_actors[0]->next).raw);"
+to = "vs_battle_actor* other = ((__typeof__((actor->next).psx_type_[0]))(long unsigned int)(actor->next).raw);"
+
+[function.func_800E5A74]
+spec = "func_800E5A74.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800E5A74.mutation]]
+name = "M1: mask drops bit 11 (0x7FE, not 0xFFE)"
+target = "c"
+from = "(arg1->unk4 & 0xFFE)"
+to = "(arg1->unk4 & 0x7FE)"
+
+[[function.func_800E5A74.mutation]]
+name = "M2: shift by 21, not 20"
+target = "c"
+from = "<< 20) |"
+to = "<< 21) |"
+
+[[function.func_800E5A74.mutation]]
+name = "M3: low mask keeps bit 20 (0x0FFFFF)"
+target = "c"
+from = "& 0x1FFFFF)"
+to = "& 0x0FFFFF)"
+
+[[function.func_800E5A74.mutation]]
+name = "M4: store to *arg0 never runs"
+target = "c"
+from = "*arg0 = (("
+to = "if (0) *arg0 = (("
+
+[[function.func_800E5A74.mutation]]
+name = "M5: wrong field (unk0 read, not unk4)"
+target = "c"
+from = "arg1->unk4 & 0xFFE"
+to = "arg1->unk0 & 0xFFE"
+
+[function.func_800E5EC0]
+spec = "func_800E5EC0.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800E5EC0.mutation]]
+name = "F1: value masked to 9 bits"
+target = "c"
+from = "int value = arg2 & 0x3FF;"
+to = "int value = arg2 & 0x1FF;"
+
+[[function.func_800E5EC0.mutation]]
+name = "F2: visited bit set as 0x4000"
+target = "c"
+from = "value | 0x2000;"
+to = "value | 0x4000;"
+
+[[function.func_800E5EC0.mutation]]
+name = "F3: x bound off by one (<= 32)"
+target = "c"
+from = "x < 32 && z < 32"
+to = "x <= 32 && z < 32"
+
+[[function.func_800E5EC0.mutation]]
+name = "F4: wrong bitmap bit (0x10 for 0x20)"
+target = "c"
+from = "(D_800F58B8[z][x] & 0x20)"
+to = "(D_800F58B8[z][x] & 0x10)"
+
+[[function.func_800E5EC0.mutation]]
+name = "F5: step advances by 1, not 2"
+target = "c"
+from = "step += 2) {"
+to = "step += 1) {"
+
+[[function.func_800E5EC0.mutation]]
+name = "F6: recursion dropped"
+target = "c"
+from = "func_800E5EC0(x, z, arg2);"
+to = "(void)0;"
+
+[function.func_800E6158]
+spec = "func_800E6158.zig"
+iterations = 20000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800E6158.mutation]]
+name = "F1: the call is dropped"
+target = "c"
+from = "func_800E6F9C();"
+to = "(void)0;"
+
+[[function.func_800E6158.mutation]]
+name = "F2: the call is made twice"
+target = "c"
+from = "func_800E6F9C();"
+to = "func_800E6F9C(); func_800E6F9C();"
+
+[[function.func_800E6158.mutation]]
+name = "F3: the body is empty"
+target = "c"
+from = "{ func_800E6F9C(); }"
+to = "{ }"
+
+[function.func_800E5FDC]
+spec = "func_800E5FDC.zig"
+iterations = 40000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800E5FDC.mutation]]
+name = "F1: x bound off by one (x < 31)"
+target = "c"
+from = "x < 32 && z < 32"
+to = "x < 31 && z < 32"
+
+[[function.func_800E5FDC.mutation]]
+name = "F2: mask tests bit 5 instead of 4-6"
+target = "c"
+from = "& 0x70)"
+to = "& 0x60)"
+
+[[function.func_800E5FDC.mutation]]
+name = "F3: z centre offset dropped from the callee's argument"
+target = "c"
+from = "x << 7 | 0x40, z << 7 | 0x40)"
+to = "x << 7 | 0x40, z << 7)"
+
+[[function.func_800E5FDC.mutation]]
+name = "F4: loop stops before the fourth entry"
+target = "c"
+from = "for (i = 0; i < 4; i++)"
+to = "for (i = 0; i < 3; i++)"
+
+[[function.func_800E5FDC.mutation]]
+name = "F5: z read from dx, not dz"
+target = "c"
+from = "z = arg1 + D_800F16EC[i * 2].dz;"
+to = "z = arg1 + D_800F16EC[i * 2].dx;"
+
+[[function.func_800E5FDC.mutation]]
+name = "F6: signed division instead of arithmetic shift"
+target = "c"
+from = "z << 7 | 0x40) >> 6;"
+to = "z << 7 | 0x40) / 64;"
+
+[function.func_800E6098]
+spec = "func_800E6098.zig"
+# 2000, not the drafted 30000: each iteration scans the whole 32x32 grid (~5 ms), and every class
+# still occurs ~500 times (the gates took 13 min at 30000).
+iterations = 2000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800E6098.mutation]]
+name = "M1: active test uses 0x10 instead of 0x20"
+target = "c"
+from = "(D_800F58B8[z][x] & 0x20)"
+to = "(D_800F58B8[z][x] & 0x10)"
+
+[[function.func_800E6098.mutation]]
+name = "M2: blocked test uses 0x4000 instead of 0x2000"
+target = "c"
+from = "!(D_800F58D0[z][x] & 0x2000)"
+to = "!(D_800F58D0[z][x] & 0x4000)"
+
+[[function.func_800E6098.mutation]]
+name = "M3: r > 0 instead of r >= 0"
+target = "c"
+from = "if (r >= 0)"
+to = "if (r > 0)"
+
+[[function.func_800E6098.mutation]]
+name = "M4: func_800E5EC0 called with x and z swapped"
+target = "c"
+from = "func_800E5EC0(x, z, r);"
+to = "func_800E5EC0(z, x, r);"
+
+[[function.func_800E6098.mutation]]
+name = "M5: the x scan stops at 31 (last column skipped)"
+target = "c"
+from = "for (x = 0; x < 32; ++x)"
+to = "for (x = 0; x < 31; ++x)"
+
+[[function.func_800E6098.mutation]]
+name = "M6: the call to func_800E5EC0 is dropped"
+target = "c"
+from = "func_800E5EC0(x, z, r);"
+to = "(void)r;"

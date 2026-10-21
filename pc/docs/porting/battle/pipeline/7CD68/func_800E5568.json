@@ -1,0 +1,207 @@
+{
+ "function": "func_800E5568",
+ "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800E5568",
+  "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
+  "stem": "7CD68",
+  "address": "0x800e5568",
+  "difficulty": "M",
+  "zig_name": "func_800E5568",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800E5568",
+  "spec_file": "func_800E5568.zig",
+  "subsystem": "battle_7CD68_port",
+  "signature": "pub fn func_800E5568(arg0: ?*v.func_800E5568_t) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800E5568_t"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "func_800E5568_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11593,
+     "completion_tokens": 5880,
+     "reasoning_tokens": 4571,
+     "cost": 0.0040993,
+     "seconds": 26.7,
+     "sample": 1,
+     "conversation": "b66ad3f07d777f5fb31a586dfc8442f29a43746bbb7fb8e0ec88f9b3d2d8ee75"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "shape-rcos-z": "11227",
+   "shape-rcos-y": "3708",
+   "shape-rsin": "15065"
+  },
+  "mutations": [
+   {
+    "name": "S1: shape 1 falls through to the rsin branch",
+    "caught": true
+   },
+   {
+    "name": "S2: the rcos-Z branch reads rangeY",
+    "caught": true
+   },
+   {
+    "name": "S3: angle shifted by 6, not 7",
+    "caught": true
+   },
+   {
+    "name": "S4: result shifted by 11, not 12",
+    "caught": true
+   },
+   {
+    "name": "S5: v unsigned, so negative sines take the wrong sign",
+    "caught": true
+   },
+   {
+    "name": "S6: the rsin branch calls rcos",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 12,
+   "lines_hit": 12,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "if (mask & 0x16) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 18773, < 0, > 11227 (signed); < 0, > 11227 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..16"
+    },
+    {
+     "line": 11,
+     "text": "} else if (mask & 0x8) {",
+     "size": 4,
+     "count": 18773,
+     "kind": "against a constant",
+     "outcomes": "== 15065, < 0, > 3708 (signed); < 0, > 3708 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..8"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34908,
+     "completion_tokens": 2775,
+     "reasoning_tokens": 2228,
+     "cost": 0.0048783,
+     "seconds": 12.5,
+     "sample": 1,
+     "conversation": "d9711d52e1a997d08f71be3afa71ff70d3d06a1d2fd246f165f57d132df48d69"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800E5568.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800E5568.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 15.839410257003692,
+ "wall_seconds": 15.980818363999788,
+ "totals": {
+  "cost": 0.00898,
+  "prompt_tokens": 46501,
+  "completion_tokens": 8655,
+  "model_seconds": 39.2,
+  "check_seconds": 15.8,
+  "calls": 2,
+  "wall_seconds": 16.0
+ }
+}

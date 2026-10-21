@@ -1,0 +1,121 @@
+{
+ "function": "func_800E6178",
+ "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800E6178",
+  "unit": "src/BATTLE/BATTLE.PRG/7CD68.c",
+  "stem": "7CD68",
+  "address": "0x800e6178",
+  "difficulty": "M",
+  "zig_name": "func_800E6178",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800E6178",
+  "spec_file": "func_800E6178.zig",
+  "subsystem": "battle_7CD68_port",
+  "signature": "pub fn func_800E6178(actor: [*c]c.struct_actorInitializationActor, options: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "actor",
+    "[*c]c.struct_actorInitializationActor"
+   ],
+   [
+    "options",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F58BC_t",
+   "actorInitializationActor",
+   "actorInitializationModel",
+   "actorInitializationState",
+   "actorInitializationStats",
+   "func_800DEEA4_t2"
+  ],
+  "globals": [
+   "D_800F5878",
+   "D_800F58B8",
+   "D_800F58BC",
+   "D_800F590C"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17407,
+     "completion_tokens": 52724,
+     "reasoning_tokens": 48625,
+     "cost": 0.0281027,
+     "seconds": 228.1,
+     "sample": 1,
+     "conversation": "573e6424288df1b59a24b7115fc6eee0d4ca56a0e869e1cb87a949b6eb698da6"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: <tmp>/.../c_7CD68.zig:3625:12: error: cannot directly embed opaque type 'c_7CD68.actorInitializationFlags' in struct\n    flags: actorInitializationFlags = @import(\"std\").mem.zeroes(actorInitializationFlags),\n           ^~~~~~~~~~~~~~~~~~~~~~~~\n<tmp>/.../c_7CD68.zig:3625:12: note: opaque types have unknown size\n<tmp>/.../c_7CD68.zig:4765:38: note: opaque declared here\npub const actorInitializationFlags = opaque {};\n                                     ^~~~~~~~~\nreferenced by:\n    classify: <tmp>/.../spec.zig:80:68\n    main: pc/tests/zig_diff/main.zig:404:36\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 21901,
+     "completion_tokens": 7918,
+     "reasoning_tokens": 3773,
+     "cost": 0.0061491,
+     "seconds": 29.5,
+     "sample": 1,
+     "conversation": "ae21b599e4885b9907f0055b9e7269a8af239acef6c41c33ddf1c8ad2a22de82"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: <tmp>/.../c_7CD68.zig:3625:12: error: cannot directly embed opaque type 'c_7CD68.actorInitializationFlags' in struct\n    flags: actorInitializationFlags = @import(\"std\").mem.zeroes(actorInitializationFlags),\n           ^~~~~~~~~~~~~~~~~~~~~~~~\n<tmp>/.../c_7CD68.zig:3625:12: note: opaque types have unknown size\n<tmp>/.../c_7CD68.zig:4765:38: note: opaque declared here\npub const actorInitializationFlags = opaque {};\n                                     ^~~~~~~~~\nreferenced by:\n    prepare: <tmp>/.../spec.zig:78:15\n    main: pc/tests/zig_diff/main.zig:396:40\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   }
+  ],
+  "classes": {},
+  "mutations": [],
+  "coverage": null
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 0.4672007039989694,
+ "wall_seconds": 0.5504659729995183,
+ "totals": {
+  "cost": 0.03425,
+  "prompt_tokens": 39308,
+  "completion_tokens": 60642,
+  "model_seconds": 257.6,
+  "check_seconds": 0.5,
+  "calls": 2,
+  "wall_seconds": 0.6
+ }
+}

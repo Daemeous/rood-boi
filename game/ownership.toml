@@ -179,3 +179,23 @@ functions = [
 [subsystem.battle_38C1C_port.views]
 types = ["D_800F4538_t", "D_800F4538_unk68", "D_800F45E0_t", "D_800F45E0_unk68", "MATRIX", "SVECTOR", "VECTOR", "_wepModelOffsets", "boneMatrixScratch", "vs_battle_wepModels_t"]
 globals = ["D_800E90AC", "D_800E90B4", "D_800F4538", "D_800F45E0", "D_800F49B8", "pc_gte_anchored", "vs_battle_wepModels"]
+
+[subsystem.battle_7CD68_port]
+overlay = "battle"
+unit = "src/BATTLE/BATTLE.PRG/7CD68.c"
+default = "original"
+roots = []
+functions = [
+    { addr = 0x800E5568, name = "func_800E5568", zig = "func_800E5568.func_800E5568" },
+    { addr = 0x800E5600, name = "func_800E5600", zig = "func_800E5600.func_800E5600" },
+    { addr = 0x800E5998, name = "func_800E5998", zig = "func_800E5998.func_800E5998" },
+    { addr = 0x800E5A74, name = "func_800E5A74", zig = "func_800E5A74.func_800E5A74" },
+    { addr = 0x800E5EC0, name = "func_800E5EC0", zig = "func_800E5EC0.func_800E5EC0" },
+    { addr = 0x800E5FDC, name = "func_800E5FDC", zig = "func_800E5FDC.func_800E5FDC" },
+    { addr = 0x800E6098, name = "func_800E6098", zig = "func_800E6098.func_800E6098" },
+    { addr = 0x800E6158, name = "func_800E6158", zig = "func_800E6158.func_800E6158" },
+]
+
+[subsystem.battle_7CD68_port.views]
+types = ["D_800F16EC_t", "func_800DEEA4_t2", "func_800E5568_t", "func_800E5A74_t", "vs_action_t", "vs_battle_actor"]
+globals = ["D_800F16EC", "D_800F5878", "D_800F58B8", "D_800F58D0", "vs_battle_actors", "vs_main_actions"]

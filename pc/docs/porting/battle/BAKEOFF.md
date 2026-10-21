@@ -350,6 +350,8 @@ a stronger reviewer works from `pipeline/REVIEW.md`.
 python3 pc/tools/port_pipeline.py --unit 146C --difficulty S --limit 10 --dry-run   # plan + prompts, no calls
 bash -ic 'python3 pc/tools/port_pipeline.py --unit 146C --difficulty S --budget 2'   # key from your profile
 bash -ic 'python3 pc/tools/port_pipeline.py func_80069D14 _insertActor --budget 0.10'
+python3 pc/tools/port_pipeline.py --unit 7CD68 --base-url http://127.0.0.1:8990/v1 --model M --thinking off \
+    --temperature 0.6 --attempts 4 --jobs 3      # a local OpenAI-compatible server, best-of-4 ("Local Qwen vs Haiku")
 ```
 
 - **Plan (deterministic, recorded):** Zig name from `MEANINGS.tsv`'s
@@ -487,3 +489,153 @@ of its value from asking what each callee changes.
 (`func_8006CE50`, `func_8007C088`) on into the next function's body; it now
 ends at the matching brace, so those two bake-off prompts are shorter than the
 sizes table above says.
+
+## Local Qwen vs Haiku (unit 7CD68, 2026-10-21)
+
+A fresh unit neither model had seen: `src/BATTLE/BATTLE.PRG/7CD68.c`, 12
+functions (9 S, 3 M; movement-grid flood fills, range shapes, a callback
+table). Same pipeline, same prompts (including the new callee question
+below), each run with `--no-write` into its own scratch `--work`/`--records`:
+
+- **Haiku 5.5** on OpenRouter: temperature 0, thinking default, one sample,
+  one feedback retry, `--jobs 4`, budget $1.
+- **Qwen 3.8 27B FP8** on the local vLLM server (48K context, prefix
+  caching): thinking **off**, temperature 0.6, `--attempts 4` (best-of-4
+  before the feedback retry, the four samples asked for at once), `--jobs 3
+  --max-calls 9`. Then one rerun of its failures with thinking **on**
+  (`--max-tokens 24000`, same sampling).
+
+The endpoint switches (pc/tools/model_client.py, shared with spec_bakeoff):
+`--base-url` (a loopback host is local: no key, no Authorization header,
+cost 0, max_tokens clamped to what the server's `max_model_len` leaves
+after the prompt, counted with its `/tokenize`), `--api-key-env`,
+`--thinking on|off|default` (local: `chat_template_kwargs.enable_thinking`;
+OpenRouter: `reasoning.enabled`), `--temperature`; `--attempts N`
+(best-of-N), `--jobs J` (functions in parallel; checker builds/runs bounded
+by `--check-jobs`, the process at nice 10; tree writes one at a time, each
+re-checked against the views earlier writes widened). Every call is
+recorded: model, endpoint kind, tokens, seconds, cost, round and sample;
+records and REVIEW.md say which model drafted a function and how.
+
+```sh
+bash -ic 'python3 pc/tools/port_pipeline.py --unit 7CD68 --budget 1 --jobs 4'
+python3 pc/tools/port_pipeline.py --unit 7CD68 --base-url http://127.0.0.1:8990/v1 --model qwen3.8-27b-port \
+    --thinking off --temperature 0.6 --attempts 4 --jobs 3 --max-calls 9
+```
+
+### Result
+
+Gate outcome per step: `first` (the first sample passed), `best-of-N` (a
+later sample), `retry` (after the feedback retry), `failed`. Haiku's columns
+are after the tooling fixes below (its first run, before them: 6/12).
+Tokens are prompt + completion over every call of the function's final
+conversation; model time is the sum of call times.
+
+| Function | | Haiku spec / port | Haiku tokens, model s, $ | Qwen off spec / port | Qwen off tokens, model s | Qwen think spec |
+|---|---|---|---|---|---|---|
+| `func_800E5568` | M | first / first | 46k+8k, 39, 0.009 | failed | 44k+6k, 117 | failed |
+| `func_800E5600` | S | first / first | 47k+14k, 65, 0.012 | failed | 48k+10k, 178 | failed |
+| `func_800E5698` | S | retry / **failed** | 99k+15k, 71, 0.018 | failed | 49k+8k, 124 | failed |
+| `func_800E5710` | S | retry / **failed** | 107k+42k, 180, 0.032 | failed | 55k+11k, 158 | failed |
+| `func_800E5998` | S | first / first | 49k+23k, 105, 0.017 | failed | 50k+8k, 118 | failed |
+| `func_800E5A74` | S | retry / first | 57k+7k, 35, 0.010 | retry / first | 142k+6k, 137 | (passed off) |
+| `func_800E5A9C` | M | **failed** | 34k+26k, 116, 0.017 | failed | 65k+12k, 219 | failed |
+| `func_800E5EC0` | S | first / first | 46k+19k, 88, 0.014 | failed | 45k+13k, 174 | failed |
+| `func_800E5FDC` | S | first / first | 46k+20k, 89, 0.015 | failed | 44k+8k, 120 | failed |
+| `func_800E6098` | S | first / first | 45k+12k, 53, 0.011 | failed | 44k+14k, 171 | failed |
+| `func_800E6158` | S | first / first | 45k+2k, 13, 0.006 | failed | 40k+5k, 102 | first / first |
+| `func_800E6178` | M | **failed** | 39k+60k, 258, 0.034 | failed | 72k+16k, 202 | failed |
+
+| | Haiku 5.5 | Qwen 27B, thinking off, best-of-4 | Qwen 27B, thinking on (11 failures) |
+|---|---|---|---|
+| Ported (both gates) | **8/12** (6 first try for both steps) | 1/12 | 1/11 |
+| Spec gate passed | 10/12 | 1/12 | 1/11 |
+| Port gate passed (of specs passed) | 8/10 (all first try) | 1/1 | 1/1 |
+| Calls (all runs) | 40 | 89 | 58 |
+| Tokens (all runs, in + out) | 884k + 390k | 972k + 196k | 632k + 1287k |
+| Model time (sum of calls) | 1694 s | 2719 s | 16763 s |
+| Wall | 1041 s first run (`--jobs 4`; 13 min of it `func_800E6098`'s checks at 30000 iterations), +820 s rerun | 318 s first run, 549 s rerun | 2424 s |
+| Cost | $0.28 (first run $0.19) | $0 | $0 |
+
+Why the drafts failed (every judged draft, final runs):
+
+| | Haiku | Qwen off | Qwen think |
+|---|---|---|---|
+| Spec does not compile | 4 of 16 | **54 of 61** | 4 of 50 |
+| Spec reply truncated (24K tokens, all of it reasoning) | 0 | 0 | **44 of 50** |
+| No/bad fenced block | 0 | 0 | 2 |
+| Spec runs but wrong (C crashes, prepare panics, coverage, classes, mutations) | 2 | 5 | 0 |
+| Port does not compile / differs | 3 / 1 | 0 / 0 | 0 / 0 |
+
+**Model failures.** Qwen with thinking off writes Zig that does not
+compile: Zig 0.17 idioms it does not know (`@bitCast`/`@ptrCast` need a
+result type, `for (a..b) |i|` captures, no `?:`/`let`/`for (i := 0; ...)`,
+`packed` as a parameter name, unused locals/parameters are errors, `1 <<
+x` with a runtime `x`), stub types that are not the prototype's (`u32` for
+`c_int`), `ctx.chance` inside stubs. Best-of-4 rarely helps: the four
+samples make the same kinds of mistakes, and only `func_800E5A74` got a
+passing spec (after the retry). With thinking on it reasons past 24K tokens
+on 44 of 50 drafts (the 48K context leaves no room for more after a ~10K
+prompt), so almost nothing comes out; the one function it passed is the
+one-line `func_800E6158`. Haiku's four failures: `func_800E5698` and
+`func_800E5710` passed the spec gate and failed the port with type slips
+(`c_int` vs `c_uint` at a call, then a null unwrap); `func_800E5A9C` (a
+callback-table dispatcher) and `func_800E6178` (111 lines, four callees, a
+`while (func_800DEC88(0))` loop) failed the spec: misaligned objects, a C
+crash on its inputs, a `c.` struct translate-c left opaque, one
+uncovered loop branch.
+
+**Tooling failures, fixed (and covered in CTest `port_pipeline`):**
+
+- `func_800E5A9C`'s harness did not build for either model: `D_800F1790`, a
+  function-pointer table declared `extern T x[];` here and defined in
+  `battle_movement.o`, had no size (no DWARF, not in imports.ld); zig_diff now
+  takes the size from the object that defines it (`nm -S`).
+- `u_short (*D_800F58B8)[32]` (the movement grids, rows of 32) was
+  `?*anyopaque` in the views, so the models guessed a table of row pointers
+  (and wrote past the global): a pointer to a sized integer array is now
+  `?[*][32]u16` (zig_views), and the prompt's subset keeps its
+  `psx.global` accessor (it used to turn any `[*]` into `globalMany`).
+  Haiku's `func_800E5EC0`/`func_800E5FDC` specs passed on the rerun.
+- A crash in the spec's own `prepare` was reported as "the C itself
+  crashed"; it is now the spec's-own-code message.
+- A spec stub returning `u32` where the prototype has `c_int` failed
+  inside the harness's `main.zig` with a bare type error; it now says to
+  declare the stub with the prototype's types.
+- `func_800E5EC0` calls itself: in the harness (as in the game) that call
+  goes through the routed symbol, a recording stub, so a port recursing
+  into its own Zig function differs. The port prompt now says so for a
+  self-recursive function (the port calls `c.FUNCTION`); Haiku's port
+  then passed first try.
+- Writing the ports, the 64-bit build failed: a routed function the unit
+  has no prototype of exists in the c module only as `FUNCTION__orig`, so
+  `c.func_800E5568` (a sibling's call) did not resolve. zig_c now declares
+  the routed name too.
+- `func_800E6098` scans the whole 32x32 grid per iteration: its drafted
+  30000 iterations took 13 minutes of gate time; its entry now runs 2000
+  (every class still ~500 times).
+
+The new spec-prompt question (from the 38C1C review: callees were treated
+as pure recorders) asks, per callee, what it can change that the C reads
+back and what it can return, with a short stub example. On 7CD68 Haiku's
+stubs write back where the C re-reads (e.g. `func_800E6098`'s
+`func_800E5FDC` stub returns negative results and the scan reads cells
+the stub of `func_800E5EC0` changes); whether it closes the gap the 38C1C
+review found is for the review of these 8.
+
+**Kept:** Haiku's 8 ported functions (routed as `battle_7CD68_port`,
+default original; queued in `pipeline/REVIEW.md`, not reviewed). The one
+function both models passed, `func_800E5A74`: each spec catches all of the
+other's mutations (Haiku's 3/3 of Qwen's, Qwen's 5/5 of Haiku's), so
+Haiku's (five mutations, three classes) is kept.
+
+**Recommendation.** Haiku 5.5 for the bulk port, as run here: temperature
+0, thinking default, one sample plus the feedback retry, `--jobs 4`
+(~$0.02 per function, 8/12 on a fresh unit after the tooling fixes, the
+four failures all model mistakes a second retry or the reviewer can take).
+Qwen 3.8 27B is not usable for drafting specs in this pipeline: with
+thinking off its Zig does not compile, with thinking on it does not finish
+in the context the server has. If the local model is to earn a place, the
+cheapest thing to try is a compile-fix loop (feed back only zig's errors,
+several cheap rounds, no gate run) rather than more samples; server-side,
+see the suggestions in the agent's report (not applied).

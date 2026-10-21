@@ -77,6 +77,14 @@ pub const func_800A1B9C = @import("func_800A1B9C.zig");
 pub const bone_view_point = @import("bone_view_point.zig");
 pub const bone_view_matrix = @import("bone_view_matrix.zig");
 pub const start_jump = @import("start_jump.zig");
+pub const func_800E5568 = @import("func_800E5568.zig");
+pub const func_800E5600 = @import("func_800E5600.zig");
+pub const func_800E5998 = @import("func_800E5998.zig");
+pub const func_800E5A74 = @import("func_800E5A74.zig");
+pub const func_800E5EC0 = @import("func_800E5EC0.zig");
+pub const func_800E6158 = @import("func_800E6158.zig");
+pub const func_800E5FDC = @import("func_800E5FDC.zig");
+pub const func_800E6098 = @import("func_800E6098.zig");
 
 comptime {
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_146C), ownership.routesOf(.battle_146C), @This());
@@ -88,4 +96,5 @@ comptime {
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_40564), ownership.routesOf(.battle_40564), @This());
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_146C_port), ownership.routesOf(.battle_146C_port), @This());
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_38C1C_port), ownership.routesOf(.battle_38C1C_port), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.battle_7CD68_port), ownership.routesOf(.battle_7CD68_port), @This());
 }
