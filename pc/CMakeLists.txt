@@ -93,12 +93,24 @@ if(ROOD_ZIG_MISSING EQUAL 0)
     # self-checks (pc/tools/zig_diff.py; reads the 64-bit build, skipped without one).
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
         add_test(NAME zig_diff COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/zig_diff.py
-            --self-check --build ${CMAKE_CURRENT_BINARY_DIR}/boot64 --work ${CMAKE_CURRENT_BINARY_DIR}/zig-diff)
+            --self-check --coverage --build ${CMAKE_CURRENT_BINARY_DIR}/boot64 --work ${CMAKE_CURRENT_BINARY_DIR}/zig-diff)
         set_tests_properties(zig_diff PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 900)
+        # The coverage lane flags what weakened specs miss (uncovered branches, boundary equality, sign-only tests).
+        add_test(NAME zig_diff_coverage COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/zig_diff_coverage_test.py
+            ${CMAKE_CURRENT_BINARY_DIR}/boot64)
+        set_tests_properties(zig_diff_coverage PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
         # The model bake-off's prompt and scoring tools (pc/docs/porting/battle/BAKEOFF.md).
         add_test(NAME bakeoff_tools COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/bakeoff_test.py
             ${CMAKE_CURRENT_BINARY_DIR}/boot64)
         set_tests_properties(bakeoff_tools PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
+        # What is sent to an external model: no local paths; the C a prompt carries is the function's own.
+        add_test(NAME prompt_tools COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/prompt_tools_test.py
+            ${CMAKE_CURRENT_BINARY_DIR}/boot64)
+        set_tests_properties(prompt_tools PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300)
+        # The port pipeline's plan, gates and writers, offline (canned replies, budget 0).
+        add_test(NAME port_pipeline COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/port_pipeline_test.py
+            ${CMAKE_CURRENT_BINARY_DIR}/boot64)
+        set_tests_properties(port_pipeline PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 600)
     endif()
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
         set(SHADOW_ZIG_OBJECT ${CMAKE_CURRENT_BINARY_DIR}/shadow_zig_probe.o)

@@ -49,14 +49,46 @@ def unit_of(table, name):
     raise SystemExit(f"bakeoff_context: {name} is not routed in game/ownership.toml")
 
 
+def matching_brace(text, open_index):
+    """The index of the `}` that closes the `{` at `open_index`, skipping
+    string and character literals and comments (None when unbalanced)."""
+    depth, i, n = 0, open_index, len(text)
+    while i < n:
+        ch = text[i]
+        if ch in "\"'":
+            i += 1
+            while i < n and text[i] != ch:
+                i += 2 if text[i] == "\\" else 1
+        elif text.startswith("//", i):
+            i = text.find("\n", i)
+            if i < 0:
+                return None
+        elif text.startswith("/*", i):
+            i = text.find("*/", i + 2)
+            if i < 0:
+                return None
+            i += 1
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return i
+        i += 1
+    return None
+
+
 def c_body(text, name):
     """The definition of `name` (or `name__orig`) in C source text, from its
-    return type to the closing brace at column 0."""
+    return type to its matching closing brace (a one-line body ends on its
+    own line)."""
     m = re.search(rf"^[A-Za-z_][^;{{}}\n]*\b{re.escape(name)}(?:__orig)?\s*\([^;{{]*\)\s*\{{", text, re.M | re.S)
     if not m:
         return None
-    end = text.find("\n}", m.end())
-    return text[m.start():end + 2].replace(name + "__orig", name)
+    end = matching_brace(text, m.end() - 1)
+    if end is None:
+        return None
+    return text[m.start():end + 1].replace(name + "__orig", name)
 
 
 def blocks(text):
@@ -198,12 +230,15 @@ def disassembly(obj, name):
     return text[start:end if end > 0 else None].strip()
 
 
-def context(entry, table, build, guide=True):
+def context(entry, table, build, guide=True, sub=None, views_path=None, c_path=None):
+    """sub, views_path, c_path: pc/tools/port_pipeline.py's, for a function
+    the table and the build do not route yet."""
     name, module = entry["name"], entry["module"]
-    sub = unit_of(table, name)
+    sub = sub or unit_of(table, name)
     stem = pathlib.PurePosixPath(sub.unit).stem
     unit_i = next(build.glob(f"*_{stem}.i"), None)
-    views_path, c_path = build / "zig" / f"views_{stem}.zig", build / "zig" / f"c_{stem}.zig"
+    views_path = pathlib.Path(views_path) if views_path else build / "zig" / f"views_{stem}.zig"
+    c_path = pathlib.Path(c_path) if c_path else build / "zig" / f"c_{stem}.zig"
     for p in (unit_i, views_path, c_path):
         if p is None or not p.exists():
             raise SystemExit(f"bakeoff_context: {p or stem}: missing (python3 pc/tools/build_boot.py --arch 64)")

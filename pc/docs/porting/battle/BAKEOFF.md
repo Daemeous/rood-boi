@@ -337,3 +337,62 @@ model's review (or the porter's) should look at the classes for exact
 boundaries (`==` against a bound, a value with only the sign bit or only
 the high byte) and at callee results the C tests bit by bit (a `stubs`
 entry), which is where both misses were.
+
+## The port pipeline (after both bake-offs)
+
+`pc/tools/port_pipeline.py` turns the two bake-offs into the bulk port's
+loop: per function, the model drafts the spec (with mutations of the **C**,
+`target = "c"`), then the port; each draft is gated by the checker, with one
+retry fed only its sanitised errors; what passes is written into the tree;
+a stronger reviewer works from `pipeline/REVIEW.md`.
+
+```sh
+python3 pc/tools/port_pipeline.py --unit 146C --difficulty S --limit 10 --dry-run   # plan + prompts, no calls
+bash -ic 'python3 pc/tools/port_pipeline.py --unit 146C --difficulty S --budget 2'   # key from your profile
+bash -ic 'python3 pc/tools/port_pipeline.py func_80069D14 _insertActor --budget 0.10'
+```
+
+- **Plan (deterministic, recorded):** Zig name from `MEANINGS.tsv`'s
+  `zig_name`, else the decompilation's name without `vs_battle_`/`vs_main_`/`_`
+  (`_insertActor` -> `insertActor`), else the original symbol kept
+  (`func_80069D14`); module `game/battle/<snake_case>.zig`; spec
+  `pc/tests/zig_diff/<zigName>.zig`; subsystem `battle_<unit>_port` (one per
+  unit, default original); signature from the unit's translate-c prototype
+  with struct pointers as views pointers; the views types and globals the
+  body names, closed over the fields it reaches. Static functions, functions
+  routed elsewhere and already ported ones are skipped.
+- **Spec gate:** `zig_diff` against a stand-in port that is the C itself
+  (`--standin`): 0 mismatches (the spec is deterministic and the C never
+  faults on it), every class occurs, 3-6 C mutations all caught, and the
+  coverage lane passes (every branch, no boundary/sign flag, or a waiver
+  with a reason). The spec does not depend on the port, so a wrong port
+  cannot bend it.
+- **Port gate:** 0 mismatches on seeds 1-3 and the `/// orig:` line.
+- **Writing:** the spec and its `specs.toml` entry, the port, the
+  `ownership.toml` route and views, `root.zig`'s import and export, after the
+  unit's existing specs pass with the widened views (else `views-conflict`,
+  nothing written). Records: `pipeline/<unit>/<function>.json` (plan, tokens,
+  cost, seconds, attempts, verdicts, sanitised errors), `pipeline/<unit>/summary.json`.
+- **REVIEW.md** lists every function's classes, C mutations, argument ranges
+  and comparison outcomes (the value edges), flagged first: a retry, a
+  `ROOD_PC` hook, unit statics, a coverage waiver.
+- **Privacy:** every message goes through `pc/tools/prompt_privacy.py` (the
+  checkout, home, Zig cache and scratch paths and the user name replaced)
+  and is refused if anything local is left (CTest `prompt_tools`).
+- **Budget/resume:** `--budget` (default $5) checked before every call;
+  replies are saved in `--work` (default `pc/build/port-pipeline`) and reused;
+  a function whose record says `ported` is skipped.
+
+Smoke run (Haiku 5.5, 2026-10-20): `func_80069D14` (S, a 16-slot scan) and
+`_insertActor` (S, a list insert with a dead inner `else`) both **ported**,
+$0.031 in all (6 calls, 118k prompt + 37k completion tokens, 162 s of model
+time, 214 s of checking). Both specs needed their retry: `func_80069D14`
+declared a class its inputs never made; `_insertActor`'s first spec left the
+dead `else` uncovered, and the retry waived it with the right reason (the
+outer test already requires `id != 0`). Both ports passed first try. CTest
+`port_pipeline` runs the whole pipeline offline on canned replies.
+
+`c_body` (bakeoff_context.py) used to run a one-line function
+(`func_8006CE50`, `func_8007C088`) on into the next function's body; it now
+ends at the matching brace, so those two bake-off prompts are shorter than the
+sizes table above says.

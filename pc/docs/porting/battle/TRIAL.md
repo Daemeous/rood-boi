@@ -388,7 +388,8 @@ that is small once runs are batched as above.
 
 ### Design note: the coverage lane and per-call value ranges (next task)
 
-Not built here (a separate task follows); what it should be:
+Not built here (a separate task follows; its spec half is now built: see
+"Built: the coverage lane on the zig_diff inputs" below); what it should be:
 
 - **Coverage build**: compile each routed unit's `__orig` bodies (the same
   `.i`, the routed functions only) a second time at `-O0 --coverage
@@ -415,11 +416,83 @@ Not built here (a separate task follows); what it should be:
 - **Cost**: gcov runs are cheaper than the gdb prototype (40-85 s per
   recipe); one coverage pass over ~25 recipes is ~30-40 min of machine time.
 
+### Built: the coverage lane on the zig_diff inputs (`zig_diff.py --coverage`)
+
+The first lane built measures what the **specs** reach, not the corpus
+recipes (the corpus lane above remains a design): CPU only, seconds per
+function, and the gate every port's spec passes before any game run.
+
+- **Build**: the routed `.i`'s `FUNCTION__orig` (or an unrouted function's
+  body, renamed) again at `-O0` with `--coverage` (gcov branches; GCC 14+
+  adds `-fcondition-coverage`, MC/DC: this machine's GCC 13 gives branches
+  only, and the report says so), `-fsanitize-coverage=trace-cmp` (every
+  comparison's operands) and `-fsanitize=thread` instrumentation with
+  `pc/tests/zig_diff/zdiff_cov.c` as its runtime (every load's address and
+  value; libtsan is never linked). gcov's counters stay out of the
+  per-iteration restored section. Only the C runs (`gen.coverage`).
+- **Report** per function: branches hit/total and each uncovered one with
+  its line (`+N bK`, relative to the function's first line, so waivers
+  survive edits elsewhere in the unit); per argument min/max, zero,
+  negative, the values when few; per comparison the `==`/`<`/`>` counts
+  (signed and unsigned); per load its range and where it read (a global +
+  offset, the arena, the scratchpad).
+- **Value flags** (branch coverage cannot see them): `+N eq`, an ordered
+  comparison whose two sides were seen both ways but equal never, or fewer
+  than 10 times and under 1% of its runs (one equal input can be masked by
+  a later test: Haiku's U1 spec had exactly one); `+N sign`, a test whose
+  true side (values above its constant, unsigned) only ever held values with
+  the sign bit set, so a port testing `< 0` would pass (Haiku's A3; a lone
+  -1 or a lone sign bit, which is what a 1-bit or top-bit field gives, is
+  not flagged).
+- **Gate**: `--coverage-threshold` (default 100% of branches, waivers counted
+  as covered), no unwaived flag (`--coverage-values report` only reports
+  them); waivers in the function's `specs.toml` entry,
+  `[[function.F.coverage_waiver]] id = "+38 b1"`, `reason = "..."`, a waiver
+  without a reason fails, a stale one is reported. CTest `zig_diff` runs
+  `--self-check --coverage`; CTest `zig_diff_coverage` weakens checked-in
+  specs the way real misses looked and requires the gate to name them.
+
+**The 14 functions with specs on `main`** (seed 1, the specs' own iterations),
+before and after this branch's spec fixes:
+
+| Function | Branches (main's spec) | Flags (main's spec) | After |
+|---|---|---|---|
+| `_updateEnemyKills` | 14/14 | `+25 eq`: `streakScore > 999999999` never exactly at the clamp | streak score exactly 999999999 a quarter of the clamp cases: passes |
+| `func_800B07DC` | 0/0 (one block), 21/21 lines | - | passes |
+| `vs_battle_displaySceneMessage` | 9/10: `+38 b1` `if (pc_hud_name_window)` null side | - | waived (the weak hook is always linked); `message == 11`, `== 12` and the `else` rows are all covered (the trial reviewer's gap is closed by the spec) |
+| `func_8006CE50` | 0/0, 1/1 lines | - | passes |
+| `func_8007C088` | 0/0, 1/1 lines | - | passes |
+| `vs_battle_lerpSvector` | 0/0, 11/11 lines | - | passes |
+| `func_8007357C` | 0/0, 6/6 lines | - | passes |
+| `_factorDamageReceived` | 4/4 | - | passes |
+| `func_8008D5FC` | 4/4 | - | passes |
+| `func_80074A20` | 10/10 | - | passes |
+| `vs_battle_applyWeaponStats` | 8/8 | - | passes |
+| `func_800AD494` | 32/32 | - | passes |
+| `func_80078828` | 49/50: `+10 b3`, `unk4A == 0` never generated (the spec left the random fill, never 0) | `+76 eq`, `+82 eq`: the cost never exactly 0x00FFFFFF (GCC tests `& 0xFF000000` as `> 0xFFFFFF`) | unk4A 0 one time in 8, the stub returns 0x00FFFFFF and 0x01000000 too: 50/50, passes |
+| `func_800A0204` | 82/84: `+34 b2` the second flag-15 test never reached with keepFlag15 clear (only a callee could set the bit again); `+85 b2` unk34 never with only vz nonzero | - | a `func_800AC500` stub that sets flag 15 again half the time, unk34 with vx = vy = 0 and vz nonzero: 84/84, passes |
+
+**Haiku's two spec misses (the spec bake-off) are now caught**, with the
+model's own saved specs: `func_800AD494` (its final spec): `+32 eq`,
+`idx >= actor->unk5B6` in the 0xFE branch equal 1 time in 763 (the one
+equal input returned 0 for another reason, so U1 slipped), plus an uncovered
+`+13 b2` (`unk6E6 == 2` never); `func_80078828`: `+76 sign` and `+82 sign`,
+every cost above 0xFFFFFF had the sign bit set (the stub returned the top
+byte all clear or all set), so A3 (the sign bit only) slipped. Both specs fail
+the gate. Boundary equality is not visible to branch coverage (the branch
+was covered both ways); the value flags are what see it.
+
+Not built: the corpus half (each recipe through a coverage build of the
+game). The specs' lane covers what the bulk port gates on; the corpus lane
+remains the design above.
+
 ## Reproducing
 
 ```sh
 python3 pc/tools/build_boot.py --arch 64            # under $ROOD_BUILD_LOCK
-python3 pc/tools/zig_diff.py --self-check           # CPU only, ~40 s (CTest zig_diff)
+python3 pc/tools/zig_diff.py --self-check           # CPU only, ~40 s
+python3 pc/tools/zig_diff.py --self-check --coverage # + the coverage lane, ~2.5 min (CTest zig_diff)
+python3 pc/tools/zig_diff.py func_800AD494 --coverage --spec SPEC.zig   # another spec through the lane
 ROOD_ARCH=64 ROOD_RENDERER=null python3 pc/tests/diff/differ.py battle_146C --scenario enemy_kill --profile features
 ROOD_ARCH=64 python3 pc/tests/run.py --arch 64 trial_corpus shadow_battle_smoke
 ROOD_ARCH=64 ROOD_RENDERER=null python3 pc/tests/run.py --arch 64 --renderer null trial_corpus

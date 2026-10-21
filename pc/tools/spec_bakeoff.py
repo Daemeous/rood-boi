@@ -45,6 +45,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 import bakeoff_context as bc  # noqa: E402
 import ownership  # noqa: E402
+import prompt_privacy  # noqa: E402
 import zig_diff  # noqa: E402
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -109,20 +110,6 @@ def toml_entry(name):
     return "\n".join(out).strip()
 
 
-def c_body(text, name):
-    """bakeoff_context.c_body, ended at the matching brace (a one-line body
-    there runs on to the next function's closing brace)."""
-    body = bc.c_body(text, name)
-    if body is None:
-        return None
-    depth = 0
-    for i, ch in enumerate(body):
-        depth += (ch == "{") - (ch == "}")
-        if ch == "}" and depth == 0:
-            return body[:i + 1]
-    return body
-
-
 def route(table, name):
     sub, zig_path = zig_diff.find_route(table, name)
     module, fn = zig_path.split(".")
@@ -134,8 +121,8 @@ def prompt(entry, table, specs, build):
     sub, port_path, fn = route(table, name)
     stem = pathlib.PurePosixPath(sub.unit).stem
     unit_i = next(build.glob(f"*_{stem}.i"))
-    i_body = c_body(unit_i.read_text(errors="replace"), name)
-    c_source = c_body((ROOT / sub.unit).read_text(errors="replace"), name)
+    i_body = bc.c_body(unit_i.read_text(errors="replace"), name)
+    c_source = bc.c_body((ROOT / sub.unit).read_text(errors="replace"), name)
     port = port_path.read_text()
     tokens = set(bc.IDENT.findall(i_body)) | set(bc.IDENT.findall(c_source or "")) | set(bc.IDENT.findall(port))
     spec_file = specs[name]["spec"]
@@ -197,6 +184,8 @@ class Budget(Exception):
 
 
 def call_model(messages, model, max_tokens):
+    # Every message goes through the one sanitiser, and is refused if anything local is left.
+    messages = [dict(m, content=prompt_privacy.check(prompt_privacy.sanitise(m["content"]))) for m in messages]
     key = os.environ.get("OPENROUTER_API_KEY")
     if not key:
         raise SystemExit("spec_bakeoff: OPENROUTER_API_KEY is not set")
@@ -408,7 +397,7 @@ def function_run(entry, ref_spec, table, args, state):
             break
         feedback = "zig_diff.py --self-check output for your spec (fix the spec and the entry; reply with the two " \
                    "blocks again):\n\n" + "\n\n".join(result["errors"])
-        feedback = feedback.replace(str(ROOT) + "/", "").replace(str(pathlib.Path.home()), "~")  # no local paths
+        feedback = prompt_privacy.sanitise(feedback)  # no local paths
         messages += [{"role": "assistant", "content": reply}, {"role": "user", "content": feedback}]
     return out
 
@@ -493,7 +482,7 @@ def main(argv=None):
     for e in entries:
         fdir = args.out / e["name"]
         fdir.mkdir(parents=True, exist_ok=True)
-        text = prompt(e, table, specs, args.build)
+        text = prompt_privacy.sanitise(prompt(e, table, specs, args.build))
         (fdir / "prompt.md").write_text(text)
         print(f"spec_bakeoff: {e['name']:28} prompt {len(text):7} chars", file=sys.stderr)
     if args.prompts_only:

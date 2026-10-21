@@ -9,7 +9,8 @@
 //! Stubs: func_800AD494 follows a per-iteration plan (found or not, frames
 //! NULL or an arena entry, D_800F49DC equal to unk6E3 or not, found equal
 //! to unk187C or not) for the first call and the retry with animation 0;
-//! func_800BEB00 (unprototyped in 30DB0.c) returns 4 or not; the others
+//! func_800BEB00 (unprototyped in 30DB0.c) returns 4 or not;
+//! func_800AC500 sets flag 15 again half the time; the others
 //! are recording stubs. A failed retry is `return;` in the C: the object
 //! returns func_800AD494's result.
 const std = @import("std");
@@ -40,7 +41,8 @@ pub fn prepare(ctx: *zd.Ctx) Args {
     v.g.D_800F4538()[@intCast(id)] = if (ctx.chance(10)) null else actor;
     const flags = psx.byteAt(u32, actor, 0x5AC);
     if (!ctx.chance(10)) flags.* &= ~@as(u32, 0x0100_0000);
-    if (ctx.chance(2)) actor.unk0.unk34 = .{ .vx = 0, .vy = 0, .vz = 0, .pad = actor.unk0.unk34.pad };
+    // unk34 all zero, or only vx/vy zero (the C tests the first word, then vz: the coverage lane's +85).
+    if (ctx.chance(2)) actor.unk0.unk34 = .{ .vx = 0, .vy = 0, .vz = if (ctx.chance(3)) ctx.int(i16) | 1 else 0, .pad = actor.unk0.unk34.pad };
     if (ctx.chance(3)) actor.animationId = 84;
     actor.unk63C = ctx.pick(u16, &.{ 0, 0x7F, 0x80, 0xFFFF });
     frame_word = @ptrCast(@alignCast(ctx.allocBytes(2, 2)));
@@ -75,6 +77,14 @@ pub const stubs = struct {
         v.g.D_800F49DC().* = if (plan.same_index) actor.unk6E3 else ctx.value(u8);
         const found = if (plan.same_found) actor.unk187C else ctx.value(i32);
         return if (found == 0) 1 else found;
+    }
+    /// Sometimes sets the actor's flag 15 again, so the C's second test of it
+    /// (after the calls) is reached with keepFlag15 clear (the coverage lane's +34).
+    pub fn func_800AC500(ctx: *zd.Ctx, actor_: anytype) void {
+        if (ctx.value(u8) & 1 != 0) {
+            const actor: *v.D_800F4538_t = @ptrCast(@alignCast(actor_.?));
+            psx.byteAt(u32, actor, 0x5AC).* |= 0x8000;
+        }
     }
     pub fn func_800BEB00(ctx: *zd.Ctx) c_short {
         return if (plan.mode4) 4 else ctx.value(i16) & 0x7FF3;

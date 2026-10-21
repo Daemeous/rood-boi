@@ -133,3 +133,20 @@ functions = [
 [subsystem.battle_40564.views]
 types = ["D_800F4538_t", "func_800AD494_t"]
 globals = ["D_800E8F2C", "D_800F4768", "D_800F49DC", "D_800F49E4"]
+
+# The port pipeline (pc/tools/port_pipeline.py): one subsystem per unit,
+# battle_<unit>_port, written by the pipeline (default original).
+
+[subsystem.battle_146C_port]
+overlay = "battle"
+unit = "src/BATTLE/BATTLE.PRG/146C.c"
+default = "original"
+roots = []
+functions = [
+    { addr = 0x80069D14, name = "func_80069D14", zig = "func_80069D14.func_80069D14" },
+    { addr = 0x8006A11C, name = "_insertActor", zig = "insert_actor.insertActor" },
+]
+
+[subsystem.battle_146C_port.views]
+types = []
+globals = []

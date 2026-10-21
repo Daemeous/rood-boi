@@ -24,7 +24,8 @@ pub fn prepare(ctx: *zd.Ctx) Args {
     stats.maxHP = ctx.pick(i16, &.{ 0, 1, -1, 32767, -32768, 999 });
     if (ctx.chance(2)) score.killStreakEnemyClass = class;
     if (ctx.chance(2)) score.killStreakEnemyCount = ctx.pick(u8, &.{ 98, 99, 100, 101, 255 });
-    if (ctx.chance(3)) score.streakScore = 999999999 - ctx.range(u32, 0, 70000);
+    // Exactly at the clamp sometimes (with maxHP 0 it stays there: the coverage lane's `+25 eq`).
+    if (ctx.chance(3)) score.streakScore = if (ctx.chance(4)) 999999999 else 999999999 - ctx.range(u32, 0, 70000);
     if (ctx.chance(4)) score.enemyKills[class % 6] = ctx.pick(u16, &.{ 65534, 65535 });
     return .{actor};
 }

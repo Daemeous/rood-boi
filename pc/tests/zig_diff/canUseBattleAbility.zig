@@ -8,7 +8,8 @@
 //! vs_battle_actors slot an arena actor, unk27 0x80 or not; the character's
 //! stats in the arena; the previous input equal to the button or not;
 //! battleAbilityInputAttempted 0 or not. _getActionCost's stub returns a
-//! value with its top byte set half the time; func_800A0BE0 is a plain stub.
+//! value with its top byte set half the time, and sometimes 0x00FFFFFF or
+//! 0x01000000 exactly; func_800A0BE0 is a plain stub.
 const std = @import("std");
 const zd = @import("zdiff");
 const psx = @import("common").psx;
@@ -32,7 +33,8 @@ pub fn prepare(ctx: *zd.Ctx) Args {
 
     const current = &block.unk854[block.unk0 & 3];
     if (!ctx.chance(8)) current.unk4.unk40 = 0;
-    if (!ctx.chance(8)) current.unk4A = ctx.pick(u16, &.{ 1, 0xFFFF });
+    // The second entry test fails on 0 (found missing by the coverage lane: the random fill was never 0).
+    current.unk4A = if (ctx.chance(8)) 0 else ctx.pick(u16, &.{ 1, 0xFFFF });
     if (!ctx.chance(8)) current.unk4C[0].unk40 = 0;
     current.unk4.unk0.targetActor = if (ctx.chance(2)) 0 else ctx.range(u8, 1, 15);
     current.unk4C[0].unk0.targetActor = switch (ctx.range(u8, 0, 2)) {
@@ -65,9 +67,12 @@ pub fn classify(args: Args) usize {
 }
 
 pub const stubs = struct {
-    /// Half the time the top byte (what the C tests) is set.
+    /// Half the time the top byte (what the C tests) is set; sometimes
+    /// exactly at the edge (0x00FFFFFF, 0x01000000: GCC tests `> 0xFFFFFF`).
     pub fn _getActionCost(ctx: *zd.Ctx, _: anytype, _: anytype, _: anytype) c_int {
         const value = ctx.value(u32);
+        if (value % 16 == 2) return 0x00FF_FFFF;
+        if (value % 16 == 4) return 0x0100_0000;
         return @bitCast(if (value & 1 != 0) value | 0x0100_0000 else value & 0x00FF_FFFF);
     }
 };

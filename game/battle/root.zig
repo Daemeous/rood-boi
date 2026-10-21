@@ -57,6 +57,10 @@ pub const vector_lerp = @import("vector_lerp.zig");
 pub const animation_lookup = @import("animation_lookup.zig");
 pub const actor_animation = @import("actor_animation.zig");
 
+// The port pipeline (pc/tools/port_pipeline.py): one module per function.
+pub const func_80069D14 = @import("func_80069D14.zig");
+pub const insert_actor = @import("insert_actor.zig");
+
 comptime {
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_146C), ownership.routesOf(.battle_146C), @This());
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_44F14), ownership.routesOf(.battle_44F14), @This());
@@ -65,4 +69,5 @@ comptime {
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_5BF94_bakeoff), ownership.routesOf(.battle_5BF94_bakeoff), @This());
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_30DB0), ownership.routesOf(.battle_30DB0), @This());
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_40564), ownership.routesOf(.battle_40564), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.battle_146C_port), ownership.routesOf(.battle_146C_port), @This());
 }

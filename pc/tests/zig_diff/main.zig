@@ -13,6 +13,11 @@
 //!
 //! argv: ITERATIONS SEED. Exit 0: no mismatch; 1: mismatches; 3: the port
 //! panicked; 4: a crash (a spec bug or a port fault).
+//!
+//! The coverage lane (`gen.coverage`, zig_diff.py --coverage) runs only the
+//! C, built with gcov and the value probes of zdiff_cov.c: each call's
+//! arguments are recorded, the probes are on around the C run, and nothing
+//! is compared.
 const std = @import("std");
 const zd = @import("zdiff");
 const gen = @import("gen");
@@ -247,6 +252,24 @@ fn stubName(id: u16) [*:0]const u8 {
     return "?";
 }
 
+const coverage = @hasDecl(gen, "coverage") and gen.coverage;
+extern fn zdiff_cov_enable(on: c_int, stack: usize) void;
+extern fn zdiff_cov_arg(index: c_int, kind: c_int, bits: c_int, value: u64) void;
+extern fn zdiff_cov_dump() void;
+
+/// One argument's value for the coverage lane's ranges (kind 0 an integer, 1 a pointer: its address).
+fn coverArg(comptime i: usize, a: anytype) void {
+    const T = @TypeOf(a);
+    switch (@typeInfo(T)) {
+        .int => |info| zdiff_cov_arg(@intCast(i), 0, info.bits, @as(@Int(.unsigned, info.bits), @bitCast(a))),
+        .bool => zdiff_cov_arg(@intCast(i), 0, 1, @intFromBool(a)),
+        .pointer => zdiff_cov_arg(@intCast(i), 1, 64, @intFromPtr(a)),
+        .optional => zdiff_cov_arg(@intCast(i), 1, 64, if (a) |p| @intFromPtr(p) else 0),
+        .@"enum" => coverArg(i, @intFromEnum(a)),
+        else => {},
+    }
+}
+
 const class_count = if (@hasDecl(spec, "classes")) spec.classes.len else 0;
 var classes: [class_count]u64 = @splat(0);
 
@@ -295,25 +318,33 @@ export fn main(argc: c_int, argv: [*][*:0]u8) c_int {
         phase = "C";
         side = 0;
         trace_len[0] = 0;
+        if (coverage) {
+            inline for (0..args.len) |i| coverArg(i, args[i]);
+            zdiff_cov_enable(1, stack_top);
+        }
         const expected: R = @call(.never_inline, orig, args);
-        snapshot(after_c);
+        if (coverage) zdiff_cov_enable(0, stack_top);
+        if (!coverage) {
+            snapshot(after_c);
 
-        restore(before);
-        ctx = saved;
-        prng = saved_prng;
-        phase = "Zig";
-        side = 1;
-        trace_len[1] = 0;
-        const actual: R = @call(.never_inline, gen.port_fn, args);
-        phase = "compare";
+            restore(before);
+            ctx = saved;
+            prng = saved_prng;
+            phase = "Zig";
+            side = 1;
+            trace_len[1] = 0;
+            const actual: R = @call(.never_inline, gen.port_fn, args);
+            phase = "compare";
 
-        const before_count = mismatches;
-        compareState(after_c);
-        if (mismatches == before_count) compareTraces();
-        if (mismatches == before_count and R != void and !std.mem.eql(u8, std.mem.asBytes(&expected), std.mem.asBytes(&actual)))
-            report("zdiff: MISMATCH iteration %llu: return value\n", .{@as(c_ulonglong, iteration)});
-        if (mismatches >= 1000) break;
+            const before_count = mismatches;
+            compareState(after_c);
+            if (mismatches == before_count) compareTraces();
+            if (mismatches == before_count and R != void and !std.mem.eql(u8, std.mem.asBytes(&expected), std.mem.asBytes(&actual)))
+                report("zdiff: MISMATCH iteration %llu: return value\n", .{@as(c_ulonglong, iteration)});
+            if (mismatches >= 1000) break;
+        }
     }
+    if (coverage) zdiff_cov_dump();
     _ = printf("zdiff: %s: %llu iterations, seed %llu, %llu mismatches", gen.function ++ "", @as(c_ulonglong, iteration + 1),
         @as(c_ulonglong, seed), @as(c_ulonglong, mismatches));
     if (class_count != 0) {

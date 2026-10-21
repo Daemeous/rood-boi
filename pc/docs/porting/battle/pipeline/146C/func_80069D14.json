@@ -1,0 +1,184 @@
+{
+ "function": "func_80069D14",
+ "unit": "src/BATTLE/BATTLE.PRG/146C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "func_80069D14",
+  "unit": "src/BATTLE/BATTLE.PRG/146C.c",
+  "stem": "146C",
+  "address": "0x80069d14",
+  "difficulty": "S",
+  "zig_name": "func_80069D14",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80069D14",
+  "spec_file": "func_80069D14.zig",
+  "subsystem": "battle_146C_port",
+  "signature": "pub fn func_80069D14() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 11000,
+     "completion_tokens": 5545,
+     "reasoning_tokens": 4328,
+     "cost": 0.0038725,
+     "seconds": 24.3
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: input classes never generated: empty"
+    ]
+   },
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 12260,
+     "completion_tokens": 2557,
+     "reasoning_tokens": 1180,
+     "cost": 0.0025045,
+     "seconds": 10.0
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "empty": "2914",
+   "no-match": "3014",
+   "match": "24072"
+  },
+  "mutations": [
+   {
+    "name": "M1: the matched actor gets 9, not 8",
+    "caught": true
+   },
+   {
+    "name": "M2: the loop stops at 15 and skips the last slot",
+    "caught": true
+   },
+   {
+    "name": "M3: the unk9 test uses the wrong constant",
+    "caught": true
+   },
+   {
+    "name": "M4: the store goes to unk9, not unk8 (wrong field)",
+    "caught": true
+   },
+   {
+    "name": "M5: the null guard is dropped and a null slot is dereferenced",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 7,
+   "lines_hit": 7,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 4,
+     "text": "for (i = 0; i < 16; ++i) {",
+     "size": 4,
+     "count": 510000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 450000, > 30000 (signed); < 450000, > 30000 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..16"
+    },
+    {
+     "line": 8,
+     "text": "if ((actor != 0) && (actor->unk8 == 0x80)",
+     "size": 1,
+     "count": 297159,
+     "kind": "against a constant",
+     "outcomes": "== 47563, < 0, > 249596 (signed); < 136409, > 113187 (unsigned)",
+     "operand": "constant -128",
+     "a": "-128..127"
+    },
+    {
+     "line": 9,
+     "text": "&& (vs_battle_actors[i]->unk9 == 0x18)) {",
+     "size": 1,
+     "count": 47563,
+     "kind": "against a constant",
+     "outcomes": "== 26155, < 14352, > 7056 (signed); < 6198, > 15210 (unsigned)",
+     "operand": "constant 24",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 35006,
+     "completion_tokens": 1892,
+     "reasoning_tokens": 1557,
+     "cost": 0.0044466,
+     "seconds": 8.6
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80069D14.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80069D14.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 62.22306265200314,
+ "totals": {
+  "cost": 0.01082,
+  "prompt_tokens": 58266,
+  "completion_tokens": 9994,
+  "model_seconds": 42.9,
+  "check_seconds": 62.2
+ }
+}

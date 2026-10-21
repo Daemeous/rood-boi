@@ -5,7 +5,14 @@
 # mutation whose `from` text is gone fails the check (keep them current).
 #
 #   file   the file the mutation edits (default: the port's file)
+#   target "c": the mutation edits the original C body instead (its `from` copied from the
+#          C), checked against a stand-in port that is the C itself (no Zig port needed)
 #   expect "mismatch" (default), "panic" or "crash" (a signal in the port's run)
+#
+# zig_diff.py --coverage also gates on the coverage lane (branches of the original covered by
+# the spec's inputs; no boundary-equality or sign-only value flag). A gap the spec cannot or
+# should not close is waived with its reason:
+#   [[function.F.coverage_waiver]]  id = "+38 b1" (as the report prints it), reason = "..."
 
 [function._updateEnemyKills]
 spec = "updateEnemyKills.zig"
@@ -60,6 +67,10 @@ to = "scratch.offset.vx = @intCast(@max(-32768, @min(32767, scratch.matrix.t[0])
 [function.vs_battle_displaySceneMessage]
 spec = "displaySceneMessage.zig"
 iterations = 40000
+
+[[function.vs_battle_displaySceneMessage.coverage_waiver]]
+id = "+38 b1"
+reason = "`if (pc_hud_name_window)`: the weak hook is always linked (hud_bridge.c in the game, a recording stub here); its null side never runs"
 
 [[function.vs_battle_displaySceneMessage.mutation]]
 name = "N1: menuStrings[type + 21]"
@@ -135,6 +146,12 @@ name = "W2: the next actor's slot (slot 16 is past the array: a crash there)"
 from = "psx.at(v.g.vs_battle_actors(), actorId)"
 to = "psx.at(v.g.vs_battle_actors(), actorId +% 1)"
 expect = "crash"
+
+[[function.func_8007C088.mutation]]
+name = "W3 (the C): bit 1 tested too (a mutation of the original, run against the C as the port)"
+target = "c"
+from = "->weaponDrawn & 1"
+to = "->weaponDrawn & 3"
 
 [function.func_8007357C]
 spec = "enterMenuMode.zig"
@@ -401,3 +418,85 @@ from = '''            anim = 0;
             continue :retry;'''
 to = '''            if (anim == 0x7FFF_FFFF) continue :retry;
             return found;'''
+
+[function.func_80069D14]
+spec = "func_80069D14.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_80069D14.mutation]]
+name = "M1: the matched actor gets 9, not 8"
+target = "c"
+from = "actor->unk8 = 8;"
+to = "actor->unk8 = 9;"
+
+[[function.func_80069D14.mutation]]
+name = "M2: the loop stops at 15 and skips the last slot"
+target = "c"
+from = "i < 16"
+to = "i < 15"
+
+[[function.func_80069D14.mutation]]
+name = "M3: the unk9 test uses the wrong constant"
+target = "c"
+from = "vs_battle_actors[i]->unk9 == 0x18"
+to = "vs_battle_actors[i]->unk9 == 0x19"
+
+[[function.func_80069D14.mutation]]
+name = "M4: the store goes to unk9, not unk8 (wrong field)"
+target = "c"
+from = "actor->unk8 = 8;"
+to = "actor->unk9 = 8;"
+
+[[function.func_80069D14.mutation]]
+name = "M5: the null guard is dropped and a null slot is dereferenced"
+target = "c"
+from = "(actor != 0) && (actor->unk8 == 0x80)"
+to = "(1) && (actor->unk8 == 0x80)"
+expect = "crash"
+
+[function._insertActor]
+spec = "insertActor.zig"
+iterations = 40000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function._insertActor.mutation]]
+name = "I1: the list scan misses slot 15"
+target = "c"
+from = "i < 16; ++i"
+to = "i < 15; ++i"
+
+[[function._insertActor.mutation]]
+name = "I2: allegiance mask 3 instead of 7"
+target = "c"
+from = "(actor->unk1C & 7)"
+to = "(actor->unk1C & 3)"
+
+[[function._insertActor.mutation]]
+name = "I3: the new actor's next is not copied from the head"
+target = "c"
+from = "((actor->next).raw = (vs_battle_actors[0]->next).raw);"
+to = "((void)0);"
+
+[[function._insertActor.mutation]]
+name = "I4: insert returns 0"
+target = "c"
+from = "return 1;"
+to = "return 0;"
+
+[[function._insertActor.mutation]]
+name = "I5: the null test on list slots is dropped"
+target = "c"
+from = "if ((vs_battle_actors[i] != 0)"
+to = "if ((1)"
+expect = "crash"
+
+[[function._insertActor.mutation]]
+name = "I6: id tested against 1 instead of 0"
+target = "c"
+from = "&& (actor->id != 0)) {"
+to = "&& (actor->id != 1)) {"
+
+[[function._insertActor.coverage_waiver]]
+id = "+13 b1"
+reason = "the outer test already requires actor->id != 0 and the list scan writes nothing, so the inner else cannot be taken"

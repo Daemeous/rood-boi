@@ -1,0 +1,223 @@
+{
+ "function": "_insertActor",
+ "unit": "src/BATTLE/BATTLE.PRG/146C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "_insertActor",
+  "unit": "src/BATTLE/BATTLE.PRG/146C.c",
+  "stem": "146C",
+  "address": "0x8006a11c",
+  "difficulty": "S",
+  "zig_name": "insertActor",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "insert_actor",
+  "spec_file": "insertActor.zig",
+  "subsystem": "battle_146C_port",
+  "signature": "pub fn insertActor(actor: ?*v.vs_battle_actor) callconv(.c) c_int",
+  "params": [
+   [
+    "actor",
+    "?*v.vs_battle_actor"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 11410,
+     "completion_tokens": 18484,
+     "reasoning_tokens": 16903,
+     "cost": 0.010383,
+     "seconds": 79.8
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage _insertActor: branches 11/12 (91.7%), conditions not measured (GCC < 14: branch coverage only), lines 11/12\n  UNCOVERED +13 b1: branch never taken: `if (actor->id != 0) {`\ncoverage _insertActor: FAILED (threshold 100%: 1 uncovered, 0 value flag(s) not waived)"
+    ]
+   },
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 13171,
+     "completion_tokens": 2976,
+     "reasoning_tokens": 1279,
+     "cost": 0.0028051,
+     "seconds": 11.9
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "allegiance-low-clear": "9934",
+   "id-zero": "4974",
+   "already-listed": "8306",
+   "self-in-slot-0": "2093",
+   "inserted": "14693"
+  },
+  "mutations": [
+   {
+    "name": "I1: the list scan misses slot 15",
+    "caught": true
+   },
+   {
+    "name": "I2: allegiance mask 3 instead of 7",
+    "caught": true
+   },
+   {
+    "name": "I3: the new actor's next is not copied from the head",
+    "caught": true
+   },
+   {
+    "name": "I4: insert returns 0",
+    "caught": true
+   },
+   {
+    "name": "I5: the null test on list slots is dropped",
+    "caught": true
+   },
+   {
+    "name": "I6: id tested against 1 instead of 0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 11,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 12,
+   "lines_hit": 11,
+   "uncovered": [
+    {
+     "id": "+13 b1",
+     "line": 13,
+     "text": "if (actor->id != 0) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 3,
+     "text": "if ((actor->unk1C & 7) && (actor->id != 0)) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 9934, < 0, > 30066 (signed); < 0, > 30066 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..7"
+    },
+    {
+     "line": 3,
+     "text": "if ((actor->unk1C & 7) && (actor->id != 0)) {",
+     "size": 4,
+     "count": 30066,
+     "kind": "against a constant",
+     "outcomes": "== 4974, < 12454, > 12638 (signed); < 0, > 25092 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 6,
+     "text": "for (i = 0; i < 16; ++i) {",
+     "size": 4,
+     "count": 355896,
+     "kind": "against a constant",
+     "outcomes": "== 17303, < 321807, > 16786 (signed); < 321807, > 16786 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..16"
+    },
+    {
+     "line": 13,
+     "text": "if (actor->id != 0) {",
+     "size": 4,
+     "count": 16786,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 8312, > 8474 (signed); < 0, > 16786 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+13 b1",
+    "reason": "the outer test already requires actor->id != 0 and the list scan writes nothing, so the inner else cannot be taken"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 35585,
+     "completion_tokens": 5999,
+     "reasoning_tokens": 5403,
+     "cost": 0.006558,
+     "seconds": 27.6
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/insertActor.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/insert_actor.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 151.50964470400504,
+ "totals": {
+  "cost": 0.01975,
+  "prompt_tokens": 60166,
+  "completion_tokens": 27459,
+  "model_seconds": 119.3,
+  "check_seconds": 151.5
+ }
+}

@@ -84,7 +84,13 @@ Contents:
   (a `prepare` that builds valid inputs, biased to the C's edges, and
   `classes` naming the paths the inputs must reach) and its reviewers' wrong
   variants as `mutation`s in `specs.toml`; `--self-check` requires every
-  mutation caught and every class reached. It complements the oracle, it
+  mutation caught and every class reached. `--coverage` adds the coverage
+  lane: the original again at `-O0` with gcov and value probes, on the
+  spec's inputs, failing on any branch of the C the inputs never take and
+  on value edges branch coverage cannot see (an ordered compare whose two
+  sides were never, or only rarely, equal; a nonzero test only ever seen
+  with the sign bit set); gaps nothing can reach are waived in `specs.toml`
+  with a reason. It complements the oracle, it
   does not replace it: it does not see state a stub hides (what a callee
   would have done with the arguments it got), nor inputs the spec cannot
   build.
@@ -1167,7 +1173,8 @@ For every ported function, against the `.i` and the object:
     `zig` entry in `ownership.toml`; comments only where §17 allows?
 11. A `pc/tests/zig_diff` spec whose classes cover every branch of the C, with
     the wrong variants the review tried as mutations, passing
-    `zig_diff.py --self-check`?
+    `zig_diff.py --self-check --coverage` (every waiver with a reason that
+    holds)?
 
 ## 20. Prerequisites this guide assumes (not built yet)
 

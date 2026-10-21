@@ -1,0 +1,31 @@
+{
+ "unit": "146C",
+ "totals": {
+  "functions": 2,
+  "ported": 2,
+  "cost": 0.0306,
+  "prompt_tokens": 118432,
+  "completion_tokens": 37453,
+  "model_seconds": 162.2,
+  "check_seconds": 213.7,
+  "statuses": {
+   "ported": 2
+  }
+ },
+ "functions": [
+  {
+   "function": "_insertActor",
+   "status": "ported",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "cost": 0.01975
+  },
+  {
+   "function": "func_80069D14",
+   "status": "ported",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "cost": 0.01082
+  }
+ ]
+}
