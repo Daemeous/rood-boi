@@ -121,7 +121,9 @@ def suites(args, mode="egl"):
     # Software GL on Xvfb is several times slower than a GPU.
     scale = args.timeout_scale * (3 if mode == "xvfb" else 1)
     return [suite.scaled(scale) if not suite.name.startswith("input:") else suite for suite in [
-        Suite("ctest", ["ctest", "--test-dir", str(ROOT / "pc/build"), "--output-on-failure"], 300, binary=None,
+        # zig_diff (every spec's self-check, 900 s cap of its own) grows with each
+        # ported unit: the suite's budget follows it.
+        Suite("ctest", ["ctest", "--test-dir", str(ROOT / "pc/build"), "--output-on-failure", "-j", "4"], 1200, binary=None,
               note="CMake probes in pc/build", sources=[ROOT / "pc/tools/ownership.py",
                   ROOT / "game/ownership.toml", TESTS / "ownership_test.py", TESTS / "routing_probe/run.py",
                   TESTS / "routing_probe/unit.c", TESTS / "routing_probe/owned.c", TESTS / "routing_probe/main.c",

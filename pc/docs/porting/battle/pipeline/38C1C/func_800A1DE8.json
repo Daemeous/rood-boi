@@ -1,0 +1,237 @@
+{
+ "function": "func_800A1DE8",
+ "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": "faithful; spec strengthened (callee writes modelled); renamed boneViewMatrix",
+ "plan": {
+  "name": "func_800A1DE8",
+  "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+  "stem": "38C1C",
+  "address": "0x800a1de8",
+  "difficulty": "L",
+  "zig_name": "func_800A1DE8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A1DE8",
+  "spec_file": "func_800A1DE8.zig",
+  "subsystem": "battle_38C1C_port",
+  "signature": "pub fn func_800A1DE8(actorId: c_int, bone: c_int, unused: ?*v.MATRIX) callconv(.c) ?*v.MATRIX",
+  "params": [
+   [
+    "actorId",
+    "c_int"
+   ],
+   [
+    "bone",
+    "c_int"
+   ],
+   [
+    "unused",
+    "?*v.MATRIX"
+   ]
+  ],
+  "ret": "?*v.MATRIX",
+  "types": [
+   "boneMatrixScratch"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 20872,
+     "completion_tokens": 28525,
+     "reasoning_tokens": 26034,
+     "cost": 0.0163497,
+     "seconds": 123.5,
+     "conversation": "44abe803bab549f988c5e4f348de2a21a728ffb5aca929652e25963c03b5273c"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C differs from a copy of itself under this spec (exit 3: the spec is not deterministic: everything prepare does must come from `ctx`):\nzdiff: PANIC in the prepare run, iteration 8: index out of bounds: index 16, len 16 (return address 0x403d4c)",
+     "FAIL: no input classes declared (`classes` and `classify`)",
+     "FAIL: mutation M1: the 255 offset divides by 4096 as a shift: not caught as mismatch (exit 3): zdiff: PANIC in the prepare run, iteration 8: index out of bounds: index 16, len 16 (return address 0x403d4c)",
+     "FAIL: mutation M2: the 255 root's u16 field read unsigned: not caught as mismatch (exit 3): zdiff: MISMATCH iteration 3: memory at 0x1f8003b1 [scratchpad+0x3b1] (scratchpad+0x3b1): C 214, Zig 182\nzdiff: MISMATCH iteration 4: memory at 0x1f8003b0 [scratchpad+0x3b0] (scratchpad+0x3b0): C 76, Zig 180\nzdiff: PANIC in the prepare run, iteration 8: index out of bounds: index 16, len 16 (return address 0x403d4c)",
+     "FAIL: mutation M3: the 255 path drops the func_800B07DC call: not caught as mismatch (exit 3): zdiff: MISMATCH iteration 3: C makes 1 external calls, Zig 0 (first unmatched: func_800B07DC)\nzdiff: MISMATCH iteration 4: C makes 1 external calls, Zig 0 (first unmatched: func_800B07DC)\nzdiff: MISMATCH iteration 7: C makes 1 external calls, Zig 0 (first unmatched: func_800B07DC)\nzdiff: PANIC in the prepare run, iteration 8: index out of bounds: index 16, len 16 (return address 0x403d4c)",
+     "FAIL: mutation M4: weapon matrix index off by one: not caught as mismatch (exit 3): zdiff: PANIC in the prepare run, iteration 8: index out of bounds: index 16, len 16 (return address 0x403d4c)",
+     "FAIL: mutation M5: weapon range tested with mask 0xF8: not caught as mismatch (exit 3): zdiff: MISMATCH iteration 6: memory at 0x1f8003a8 [scratchpad+0x3a8] (scratchpad+0x3a8): C 76, Zig 50\nzdiff: PANIC in the prepare run, iteration 8: index out of bounds: index 16, len 16 (return address 0x403d4c)",
+     "FAIL: mutation M6: matrix.t[1] taken from offset.vz: not caught as mismatch (exit 3): zdiff: MISMATCH iteration 3: memory at 0x1f8003d8 [scratchpad+0x3d8] (scratchpad+0x3d8): C 160, Zig 235\nzdiff: MISMATCH iteration 4: memory at 0x1f8003d8 [scratchpad+0x3d8] (scratchpad+0x3d8): C 21, Zig 173\nzdiff: MISMATCH iteration 7: memory at 0x1f8003d8 [scratchpad+0x3d8] (scratchpad+0x3d8): C 174, Zig 249\nzdiff: PANIC in the prepare run, iteration 8: index out of bounds: index 16, len 16 (return address 0x403d4c)",
+     "FAIL: the coverage run: coverage run: exit 3: zdiff: PANIC in the prepare run, iteration 8: index out of bounds: index 16, len 16 (return address 0x40316b)\n"
+    ]
+   },
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 24665,
+     "completion_tokens": 5450,
+     "reasoning_tokens": 2912,
+     "cost": 0.0051915,
+     "seconds": 22.3,
+     "conversation": "b4506fe76447800cca710527840865d538fbe0887c7b0cc69a51b0862a7a465f"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "no-actor-no-object": "4919",
+   "object": "4890",
+   "weapon-null": "5016",
+   "weapon": "5038",
+   "bone-255": "5049",
+   "bone": "5088"
+  },
+  "mutations": [
+   {
+    "name": "M1: the 255 offset divides by 4096 as a shift",
+    "caught": true
+   },
+   {
+    "name": "M2: the 255 root's u16 field read unsigned",
+    "caught": true
+   },
+   {
+    "name": "M3: the 255 path drops the func_800B07DC call",
+    "caught": true
+   },
+   {
+    "name": "M4: weapon matrix index off by one",
+    "caught": true
+   },
+   {
+    "name": "M5: weapon range tested with mask 0xF8",
+    "caught": true
+   },
+   {
+    "name": "M6: matrix.t[1] taken from offset.vz",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 39,
+   "lines_hit": 39,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -256, max 320, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [
+    {
+     "line": 14,
+     "text": "} else if ((bone & 0xF0) == 0x40) {",
+     "size": 4,
+     "count": 20191,
+     "kind": "against a constant",
+     "outcomes": "== 10054, < 1686, > 8451 (signed); < 1686, > 8451 (unsigned)",
+     "operand": "constant 64",
+     "a": "0..240"
+    },
+    {
+     "line": 19,
+     "text": "} else if (bone == 255) {",
+     "size": 4,
+     "count": 10137,
+     "kind": "against a constant",
+     "outcomes": "== 5049, < 4637, > 451 (signed); < 2276, > 2812 (unsigned)",
+     "operand": "constant 255",
+     "a": "-256..300"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 44785,
+     "completion_tokens": 13194,
+     "reasoning_tokens": 11587,
+     "cost": 0.0110755,
+     "seconds": 52.9,
+     "conversation": "7f462498c74ac280451c83d8451e7f90ec2eace45b9f31444c23951d59a36b3d"
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A1DE8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A1DE8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 227.55841517999943,
+ "totals": {
+  "cost": 0.03262,
+  "prompt_tokens": 90322,
+  "completion_tokens": 47169,
+  "model_seconds": 198.7,
+  "check_seconds": 227.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [
+   "func_800B07DC and func_80041C68 were plain recorders: a port reading the scratch offset / the product's t before the call (as locals) passed; the stubs now write what the real ones write"
+  ],
+  "mutations_added": [
+   "R1: the root's t from the offset read before func_800B07DC",
+   "R2: the position from t read before func_80041C68"
+  ],
+  "port_fixes": [],
+  "renamed": "bone_view_matrix.boneViewMatrix",
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (411 / 849 / 993)"
+ }
+}

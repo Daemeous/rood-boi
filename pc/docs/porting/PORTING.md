@@ -76,7 +76,8 @@ Contents:
   `FUNCTION__orig` (from the routed `.i`, compiled with the game's flags) and
   the Zig port run side by side on random and edge inputs, with every global
   either reaches defined at its C size, every external call a recording stub
-  (arguments, and a hash of the state at the call) and the scratchpad mapped;
+  (arguments, and a hash of the state at the call), the scratchpad and PS1
+  low RAM (address 0 at `0x80000000`, where the PC C's NULL guards read) mapped;
   touched memory, call traces and return values must agree. It takes
   seconds, needs no game, and sees branches and values a corpus recipe never
   reaches (the trial's K3, T2, T3, N3 slipped through the corpus; it catches

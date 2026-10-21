@@ -500,3 +500,739 @@ to = "&& (actor->id != 1)) {"
 [[function._insertActor.coverage_waiver]]
 id = "+13 b1"
 reason = "the outer test already requires actor->id != 0 and the list scan writes nothing, so the inner else cannot be taken"
+
+[function.func_800A249C]
+spec = "turnToward.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A249C.mutation]]
+name = "F1: upper turn bound taken as >= (0x800 wraps)"
+target = "c"
+from = "if (var_a1 > 0x800) {"
+to = "if (var_a1 >= 0x800) {"
+
+[[function.func_800A249C.mutation]]
+name = "F2: left-turn constant 0x12 becomes 0x11"
+target = "c"
+from = "var_a2 = 0x12;"
+to = "var_a2 = 0x11;"
+
+[[function.func_800A249C.mutation]]
+name = "F3: the call's last argument is 0x9, not 0xA"
+target = "c"
+from = "func_800A0204(arg0, var_a2, 0, 0xA);"
+to = "func_800A0204(arg0, var_a2, 0, 0x9);"
+
+[[function.func_800A249C.mutation]]
+name = "F4: lower turn bound compared unsigned"
+target = "c"
+from = "if (var_a1 < -0x800) {"
+to = "if ((unsigned int)var_a1 < (unsigned int)-0x800) {"
+
+[[function.func_800A249C.mutation]]
+name = "F5: the turn-state store goes to the wrong field"
+target = "c"
+from = "temp_a3->unk1848.unk0 = 6;"
+to = "temp_a3->unk1848.unk1 = 6;"
+
+[[function.func_800A249C.coverage_waiver]]
+id = "+39 eq"
+reason = "var_a1 == 0 returns before the `var_a1 < 0` test (`if (var_a1 == 0) return;`), so the two sides of that comparison can never be equal; no input reaches the flag."
+
+[function.func_800A2574]
+spec = "func_800A2574.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A2574.mutation]]
+name = "M1: first call passes 9, not 8"
+target = "c"
+from = "func_800A9EB4(arg0, arg1, 8);"
+to = "func_800A9EB4(arg0, arg1, 9);"
+
+[[function.func_800A2574.mutation]]
+name = "M2: second call dropped"
+target = "c"
+from = "func_8009DF3C(arg0, 3);"
+to = "(void)arg0;"
+
+[[function.func_800A2574.mutation]]
+name = "M3: stored bitfield value 2, not 6"
+target = "c"
+from = "temp_s1->unk0.unkB_4 = 6;"
+to = "temp_s1->unk0.unkB_4 = 2;"
+
+[[function.func_800A2574.mutation]]
+name = "M4: arg1 zero-extended (signed/unsigned slip)"
+target = "c"
+from = "func_800A9EB4(arg0, arg1, 8);"
+to = "func_800A9EB4(arg0, (unsigned short)arg1, 8);"
+
+[[function.func_800A2574.mutation]]
+name = "M5: store moved across the first call"
+target = "c"
+from = "func_800A9EB4(arg0, arg1, 8);"
+to = "temp_s1->unk0.unkB_4 = 6; func_800A9EB4(arg0, arg1, 8);"
+
+[[function.func_800A2574.mutation]]
+name = "M6: wrong bitfield (unkA_5 for unkB_4)"
+target = "c"
+from = "temp_s1->unk0.unkB_4 = 6;"
+to = "temp_s1->unk0.unkA_5 = 6;"
+
+[[function.func_800A2574.mutation]]
+name = "R1 (review): the slot fetched after the calls, not before"
+target = "c"
+from = "temp_s1->unk0.unkB_4 = 6;"
+to = "D_800F4538[arg0]->unk0.unkB_4 = 6;"
+
+[function.func_800A25EC]
+spec = "func_800A25EC.zig"
+iterations = 40000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A25EC.mutation]]
+name = "F1: sentinel off by one (-3001)"
+target = "c"
+from = "if (next.vy == -3000)"
+to = "if (next.vy == -3001)"
+
+[[function.func_800A25EC.mutation]]
+name = "F2: step bound > 64 instead of >= 64"
+target = "c"
+from = "height - actor->unk0.position.vy >= 64"
+to = "height - actor->unk0.position.vy > 64"
+
+[[function.func_800A25EC.mutation]]
+name = "F3: signed / 128 replaced by >> 7"
+target = "c"
+from = "actor->unk0.currentTileX = actor->unk0.position.vx / 128;"
+to = "actor->unk0.currentTileX = actor->unk0.position.vx >> 7;"
+
+[[function.func_800A25EC.mutation]]
+name = "F4: the level-change call dropped"
+target = "c"
+from = "func_800A0204(actor->unk0.unkF, 47, 0, 4);"
+to = "(void)0;"
+
+[[function.func_800A25EC.mutation]]
+name = "F5: wrong field cleared (unk1818 for unk181A)"
+target = "c"
+from = "actor->unk181A = 0;"
+to = "actor->unk1818 = 0;"
+
+[[function.func_800A25EC.mutation]]
+name = "F6: wrong mask (0x30000 for 0x70000)"
+target = "c"
+from = "& 0x70000"
+to = "& 0x30000"
+
+[[function.func_800A25EC.mutation]]
+name = "R1 (review): the -3000 sentinel tested on the int result, not the stored short"
+target = "c"
+from = "next.vy = func_800A6EE8(&actor->unk0.position, next.vx, next.vz, 1);\n    if (next.vy == -3000)"
+to = "int ground = func_800A6EE8(&actor->unk0.position, next.vx, next.vz, 1);\n    next.vy = ground;\n    if (ground == -3000)"
+
+[function.func_800A2790]
+spec = "func_800A2790.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A2790.mutation]]
+name = "A1: moving test takes speed >= 0 (zero speed moves)"
+target = "c"
+from = "if (speed > 0) {"
+to = "if (speed >= 0) {"
+
+[[function.func_800A2790.mutation]]
+name = "A2: rising test uses <= -2 (delta -2 counts as rising)"
+target = "c"
+from = "if (delta.vy < -2)"
+to = "if (delta.vy <= -2)"
+
+[[function.func_800A2790.mutation]]
+name = "A3: fast threshold is > 12 (speed 12 not fast)"
+target = "c"
+from = "if (speed >= 12)"
+to = "if (speed > 12)"
+
+[[function.func_800A2790.mutation]]
+name = "A4: tile from a shift, not a signed divide (negative positions differ)"
+target = "c"
+from = "actor->unk0.currentTileX = actor->unk0.position.vx / 128;"
+to = "actor->unk0.currentTileX = actor->unk0.position.vx >> 7;"
+
+[[function.func_800A2790.mutation]]
+name = "A5: animation change call dropped"
+target = "c"
+from = "func_800A0204(actor->unk0.unkF, animation, 0, 4);"
+to = "(void)0;"
+
+[[function.func_800A2790.mutation]]
+name = "A6: unsigned slip on the moving test (negative speed moves)"
+target = "c"
+from = "if (speed > 0) {"
+to = "if ((unsigned int)speed > 0) {"
+
+[function.func_800A291C]
+spec = "func_800A291C.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A291C.mutation]]
+name = "F1: tile index by shift (floor, not truncation, for negatives)"
+target = "c"
+from = "arg0->unk0.currentTileX = arg0->unk0.position.vx / 128;"
+to = "arg0->unk0.currentTileX = arg0->unk0.position.vx >> 7;"
+
+[[function.func_800A291C.mutation]]
+name = "F2: currentTileZ read from x"
+target = "c"
+from = "arg0->unk0.currentTileZ = arg0->unk0.position.vz / 128;"
+to = "arg0->unk0.currentTileZ = arg0->unk0.position.vx / 128;"
+
+[[function.func_800A291C.mutation]]
+name = "F3: unsigned division slip on the x position"
+target = "c"
+from = "arg0->unk0.currentTileX = arg0->unk0.position.vx / 128;"
+to = "arg0->unk0.currentTileX = (unsigned short)arg0->unk0.position.vx / 128;"
+
+[[function.func_800A291C.mutation]]
+name = "F4: dropped call to func_800AA850"
+target = "c"
+from = "func_800AA850(arg0->unk0.unkF, arg0->unk1848.unk6, 12);"
+to = "(void)0;"
+
+[[function.func_800A291C.mutation]]
+name = "F5: wrong constant passed to func_800AA850"
+target = "c"
+from = "arg0->unk1848.unk6, 12);"
+to = "arg0->unk1848.unk6, 11);"
+
+[[function.func_800A291C.mutation]]
+name = "F6: y addend dropped"
+target = "c"
+from = "(&arg0->unk0.position)->vy += (&arg0->unk1848.unk10)->vy, "
+to = ""
+
+[function.func_800A141C]
+spec = "projectBonePoint.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A141C.mutation]]
+name = "A1: armature value read without the negation"
+target = "c"
+from = "sp0.vx = -(u_short)temp_v1->armatures[arg1].unk0;"
+to = "sp0.vx = (u_short)temp_v1->armatures[arg1].unk0;"
+
+[[function.func_800A141C.mutation]]
+name = "A2: signed divide by 2 turned into a shift"
+target = "c"
+from = "sp0.vx = -temp_v1->armatures[arg1].unk0 / 2;"
+to = "sp0.vx = -temp_v1->armatures[arg1].unk0 >> 1;"
+
+[[function.func_800A141C.mutation]]
+name = "A3: wrong constant in the arg3 test"
+target = "c"
+from = "if (arg3 == 1) {"
+to = "if (arg3 == 2) {"
+
+[[function.func_800A141C.mutation]]
+name = "A4: SetTransMatrix call dropped"
+target = "c"
+from = "SetTransMatrix(v0);"
+to = "(void)v0;"
+
+[[function.func_800A141C.mutation]]
+name = "A5: second output word read from the wrong function"
+target = "c"
+from = "[1] = MFC2(19);"
+to = "[1] = MFC2(14);"
+
+[[function.func_800A141C.mutation]]
+name = "A6: missing table entry returns 0, not -1"
+target = "c"
+from = "return -1;"
+to = "return 0;"
+
+[[function.func_800A141C.mutation]]
+name = "R1 (review): PC_GTE_UNNARROWED dropped (the projection is narrowed for widescreen)"
+target = "c"
+from = "do { ++pc_gte_anchored; doCOP2(0x0180001);; --pc_gte_anchored; } while (0);"
+to = "doCOP2(0x0180001);"
+
+[function.func_800A152C]
+spec = "findBone.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A152C.mutation]]
+name = "M1: unk6 compared against a masked-off low byte"
+target = "c"
+from = "unk6 == (arg1 & 0xFF)"
+to = "unk6 == (arg1 & 0x7F)"
+
+[[function.func_800A152C.mutation]]
+name = "M2: case 1 shifts the class nibble by 3"
+target = "c"
+from = "new_var = (var_v1->armatures[i].unk7 >> 4) == ((arg1 & 0xFF) + 1);"
+to = "new_var = (var_v1->armatures[i].unk7 >> 3) == ((arg1 & 0xFF) + 1);"
+
+[[function.func_800A152C.mutation]]
+name = "M3: the bone loop runs one past nBones"
+target = "c"
+from = "for (i = 0; i < nBones; ++i) {"
+to = "for (i = 0; i <= nBones; ++i) {"
+
+[[function.func_800A152C.mutation]]
+name = "M4: the no-object return is -2"
+target = "c"
+from = "return -1;"
+to = "return -2;"
+
+[[function.func_800A152C.mutation]]
+name = "M5: case 3 compares against an even-masked byte"
+target = "c"
+from = "unk8 == (arg1 & 0xFF)"
+to = "unk8 == (arg1 & 0xFE)"
+
+[[function.func_800A152C.mutation]]
+name = "R1 (review): nBones read as a signed char"
+target = "c"
+from = "nBones = var_v0_2->unk0.nBones;"
+to = "nBones = (signed char)var_v0_2->unk0.nBones;"
+
+[function.func_800A1648]
+spec = "func_800A1648.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A1648.mutation]]
+name = "M1: unk6 read in the unk7 kind"
+target = "c"
+from = "v = model->armatures[arg1].unk6;"
+to = "v = model->armatures[arg1].unk7;"
+
+[[function.func_800A1648.mutation]]
+name = "M2: unk7 high nibble shifted by 3"
+target = "c"
+from = "v = model->armatures[arg1].unk7 >> 4;"
+to = "v = model->armatures[arg1].unk7 >> 3;"
+
+[[function.func_800A1648.mutation]]
+name = "M3: unk7 low nibble masked to 3 bits"
+target = "c"
+from = "v = model->armatures[arg1].unk7 & 0xF;"
+to = "v = model->armatures[arg1].unk7 & 0x7;"
+
+[[function.func_800A1648.mutation]]
+name = "M4: zero high nibble returns -2"
+target = "c"
+from = "v = model->armatures[arg1].unk7 >> 4;\n        if (v == 0) {\n            return -3;"
+to = "v = model->armatures[arg1].unk7 >> 4;\n        if (v == 0) {\n            return -2;"
+
+[[function.func_800A1648.mutation]]
+name = "M5: the D_800F45E0 fallback dropped"
+target = "c"
+from = "actor = (D_800F4538_t*)D_800F45E0[arg0];"
+to = "actor = 0;"
+
+[[function.func_800A1648.coverage_waiver]]
+id = "+14 b3"
+reason = "switch (arg2) with arg2 outside 0..2 leaves the C's v uninitialised and returns it; the two runs cannot agree on that value"
+
+[[function.func_800A1648.mutation]]
+name = "R1 (review): the high nibble taken from a signed byte"
+target = "c"
+from = "v = model->armatures[arg1].unk7 >> 4;"
+to = "v = (signed char)model->armatures[arg1].unk7 >> 4;"
+
+[function.func_800A1720]
+spec = "func_800A1720.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A1720.mutation]]
+name = "F1: remap constant wrong (stub gets 1 for 0xFD)"
+target = "c"
+from = "var_v0 = 0;"
+to = "var_v0 = 1;"
+
+[[function.func_800A1720.mutation]]
+name = "F2: early return bound <= for <"
+target = "c"
+from = "if (var_v0 < 0) {"
+to = "if (var_v0 <= 0) {"
+
+[[function.func_800A1720.mutation]]
+name = "F3: signed compare slipped to unsigned"
+target = "c"
+from = "if (var_v0 < 0) {"
+to = "if ((unsigned int)var_v0 < 0) {"
+
+[[function.func_800A1720.mutation]]
+name = "F4: null-slot path reads the wrong field"
+target = "c"
+from = "arg2[6] = ((D_800F4538_t*)0x80000000)->unk0.position.vy;"
+to = "arg2[6] = ((D_800F4538_t*)0x80000000)->unk0.position.vx;"
+
+[[function.func_800A1720.mutation]]
+name = "F5: store to arg2[6] dropped"
+target = "c"
+from = "arg2[6] = D_800F4538[arg0]->unk0.position.vy;"
+to = "(void)D_800F4538[arg0]->unk0.position.vy;"
+
+[[function.func_800A1720.mutation]]
+name = "F6: callee gets arg1 instead of the remapped value"
+target = "c"
+from = "var_v0 = func_800A17BC(arg0, var_v0, arg2, arg3);"
+to = "var_v0 = func_800A17BC(arg0, arg1, arg2, arg3);"
+
+[function.func_800A17BC]
+spec = "func_800A17BC.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A17BC.mutation]]
+name = "M1: the no-object case writes 1"
+target = "c"
+from = "*arg3 = 0;"
+to = "*arg3 = 1;"
+
+[[function.func_800A17BC.mutation]]
+name = "M2: the 0xFF case tests 0xFE"
+target = "c"
+from = "arg1 == 0xFF"
+to = "arg1 == 0xFE"
+
+[[function.func_800A17BC.mutation]]
+name = "M3: model arm tested against the wrong nibble constant"
+target = "c"
+from = "(arg1 & 0xF0) == 0x40"
+to = "(arg1 & 0xF0) == 0x41"
+
+[[function.func_800A17BC.mutation]]
+name = "M4: armature index off by one"
+target = "c"
+from = "armatures[arg1 - 0x3F].unk0"
+to = "armatures[arg1 - 0x40].unk0"
+
+[[function.func_800A17BC.mutation]]
+name = "M5: model read from the slot after"
+target = "c"
+from = "vs_battle_wepModels[arg0 * 2]"
+to = "vs_battle_wepModels[arg0 * 2 + 1]"
+
+[[function.func_800A17BC.mutation]]
+name = "M6: NULL matrix read from 0x80000010"
+target = "c"
+from = "*(MATRIX*)0x80000000"
+to = "*(MATRIX*)0x80000010"
+
+[function.func_800A190C]
+spec = "func_800A190C.zig"
+iterations = 40000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A190C.mutation]]
+name = "F1: fallback position offset 0xC8, not 0xC0"
+target = "c"
+from = "arg2->vy -= 0xC0;"
+to = "arg2->vy -= 0xC8;"
+
+[[function.func_800A190C.mutation]]
+name = "F2: the FA scale divides by a shift (floors negatives)"
+target = "c"
+from = "* var_a2->unk183C / 4096;"
+to = "* var_a2->unk183C >> 12;"
+
+[[function.func_800A190C.mutation]]
+name = "F3: the 0x40 family tests the low byte, so 0x140 matches"
+target = "c"
+from = "if ((arg1 & 0xF0) == 0x40) {"
+to = "if ((arg1 & 0xFF) == 0x40) {"
+
+[[function.func_800A190C.mutation]]
+name = "F4: the FA offset is never added to vy"
+target = "c"
+from = "arg2->vy += var_v0;"
+to = "(void)var_v0;"
+
+[[function.func_800A190C.mutation]]
+name = "F5: the 0xFB fallback table is never read"
+target = "c"
+from = "var_a2 = (D_800F4538_t*)D_800F45E0[arg0];"
+to = "var_a2 = D_800F4538[arg0];"
+
+[[function.func_800A190C.mutation]]
+name = "F6: unsigned slip on unk65A (negative scales become positive)"
+target = "c"
+from = "var_v0 = var_a2->unk65A * var_a2->unk183C / 4096;"
+to = "var_v0 = (u_short)var_a2->unk65A * var_a2->unk183C / 4096;"
+
+[function.func_800A1AF8]
+spec = "func_800A1AF8.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A1AF8.mutation]]
+name = "W1: the negative test flipped to positive"
+target = "c"
+from = "if (var_v0 < 0)"
+to = "if (var_v0 > 0)"
+
+[[function.func_800A1AF8.mutation]]
+name = "W2: the result returned with a bit ORed in"
+target = "c"
+from = "return var_v0;"
+to = "return var_v0 | 1;"
+
+[[function.func_800A1AF8.mutation]]
+name = "W3: the success value is 1, not 0"
+target = "c"
+from = "return 0;"
+to = "return 1;"
+
+[[function.func_800A1AF8.mutation]]
+name = "W4: the call passes arg0 where arg3 belongs"
+target = "c"
+from = "int var_v0 = func_800A1C10(arg0, arg1, arg2, arg3);"
+to = "int var_v0 = func_800A1C10(arg0, arg1, arg2, arg0);"
+
+[[function.func_800A1AF8.mutation]]
+name = "W5: the negative test done unsigned (never true)"
+target = "c"
+from = "if (var_v0 < 0)"
+to = "if ((unsigned int)var_v0 < 0)"
+
+[function.func_800A1B28]
+spec = "func_800A1B28.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A1B28.mutation]]
+name = "F1: first callee given flag 0"
+target = "c"
+from = "int var_v0 = func_800A152C(arg0, arg1, 1);"
+to = "int var_v0 = func_800A152C(arg0, arg1, 0);"
+
+[[function.func_800A1B28.mutation]]
+name = "F2: second callee gets arg0 for arg3"
+target = "c"
+from = "var_v0 = func_800A1C10(arg0, var_v0, arg2, arg3);"
+to = "var_v0 = func_800A1C10(arg0, var_v0, arg2, arg0);"
+
+[[function.func_800A1B28.mutation]]
+name = "F3: first check tests <= 0"
+target = "c"
+from = "if (var_v0 < 0) {\n        return var_v0;\n    }\n\n    var_v0 = func_800A1C10"
+to = "if (var_v0 <= 0) {\n        return var_v0;\n    }\n\n    var_v0 = func_800A1C10"
+
+[[function.func_800A1B28.mutation]]
+name = "F4: success returns 1"
+target = "c"
+from = "return 0;"
+to = "return 1;"
+
+[[function.func_800A1B28.mutation]]
+name = "F5: first failure check dropped"
+target = "c"
+from = "if (var_v0 < 0) {\n        return var_v0;\n    }\n\n    var_v0 = func_800A1C10"
+to = "var_v0 = func_800A1C10"
+
+[[function.func_800A1B28.mutation]]
+name = "R1 (review): the second call gets arg1, not the bone the first found"
+target = "c"
+from = "var_v0 = func_800A1C10(arg0, var_v0, arg2, arg3);"
+to = "var_v0 = func_800A1C10(arg0, arg1, arg2, arg3);"
+
+[function.func_800A1B9C]
+spec = "func_800A1B9C.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A1B9C.mutation]]
+name = "F1: wrong constant passed to the first call"
+target = "c"
+from = "int var_v0 = func_800A152C(arg0, arg1, 2);"
+to = "int var_v0 = func_800A152C(arg0, arg1, 1);"
+
+[[function.func_800A1B9C.mutation]]
+name = "F2: second call dropped (its argument chain broken)"
+target = "c"
+from = "var_v0 = func_800A1C10(arg0, var_v0, arg2, arg3);"
+to = "var_v0 = var_v0;"
+
+[[function.func_800A1B9C.mutation]]
+name = "F3: first check unsigned (negative results never return early)"
+target = "c"
+from = "if (var_v0 < 0) {\n        return var_v0;\n    }\n\n    var_v0 = func_800A1C10"
+to = "if ((unsigned)var_v0 < 0) {\n        return var_v0;\n    }\n\n    var_v0 = func_800A1C10"
+
+[[function.func_800A1B9C.mutation]]
+name = "F4: success path returns the second result, not 0"
+target = "c"
+from = "return 0;"
+to = "return var_v0;"
+
+[[function.func_800A1B9C.mutation]]
+name = "R1 (review): the second call gets arg1, not the bone the first found"
+target = "c"
+from = "var_v0 = func_800A1C10(arg0, var_v0, arg2, arg3);"
+to = "var_v0 = func_800A1C10(arg0, arg1, arg2, arg3);"
+
+[function.func_800A1C10]
+spec = "boneViewPoint.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A1C10.mutation]]
+name = "F1: endpoint 1 tested as 2"
+target = "c"
+from = "if (endpoint == 1)"
+to = "if (endpoint == 2)"
+
+[[function.func_800A1C10.mutation]]
+name = "F2: weapon bone rebased by 0x40"
+target = "c"
+from = "bone -= 0x3F;"
+to = "bone -= 0x40;"
+
+[[function.func_800A1C10.mutation]]
+name = "F3: result[2] takes vy"
+target = "c"
+from = "result[2] = transformed.vz;"
+to = "result[2] = transformed.vy;"
+
+[[function.func_800A1C10.mutation]]
+name = "F4: endpoint 0 armature halved with a shift"
+target = "c"
+from = "local.vx = -model->armatures[bone].unk0 / 2;"
+to = "local.vx = -model->armatures[bone].unk0 >> 1;"
+
+[[function.func_800A1C10.mutation]]
+name = "F5: dropped store of result[1] on endpoint 0"
+target = "c"
+from = "result[1] = matrix->t[1];"
+to = "/* dropped */"
+
+[[function.func_800A1C10.mutation]]
+name = "F6: fallback actor lookup dropped"
+target = "c"
+from = "actor = (D_800F4538_t*)D_800F45E0[actorId];"
+to = "actor = 0;"
+
+[[function.func_800A1C10.mutation]]
+name = "R1 (review): endpoint 0 stores t[1] into result[2] (slipped while the stub's three t were equal)"
+target = "c"
+from = "result[2] = matrix->t[2];"
+to = "result[2] = matrix->t[1];"
+
+[[function.func_800A1C10.mutation]]
+name = "R2 (review): the matrix dereferenced before the weapon test (the pipeline's port: a panic where the C returns -1)"
+expect = "panic"
+from = "    if (endpoint == 0) {\n        result[0] = psx.conv(c_ushort, matrix.?.t[0]);"
+to = "    _ = matrix.?.t[0];\n    if (endpoint == 0) {\n        result[0] = psx.conv(c_ushort, matrix.?.t[0]);"
+
+[function.func_800A1DE8]
+spec = "boneViewMatrix.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A1DE8.mutation]]
+name = "M1: the 255 offset divides by 4096 as a shift"
+target = "c"
+from = "scratch->offset.vx = scratch->offset.vx * actor->unk183C / 4096;"
+to = "scratch->offset.vx = (scratch->offset.vx * actor->unk183C) >> 12;"
+
+[[function.func_800A1DE8.mutation]]
+name = "M2: the 255 root's u16 field read unsigned"
+target = "c"
+from = "scratch->offset.vx = (short)*(u_short*)((char*)actor + 0x84C) >> 1;"
+to = "scratch->offset.vx = *(u_short*)((char*)actor + 0x84C) >> 1;"
+
+[[function.func_800A1DE8.mutation]]
+name = "M3: the 255 path drops the func_800B07DC call"
+target = "c"
+from = "func_800B07DC(actor);"
+to = "(void)actor;"
+
+[[function.func_800A1DE8.mutation]]
+name = "M4: weapon matrix index off by one"
+target = "c"
+from = "[bone - 63]"
+to = "[bone - 64]"
+
+[[function.func_800A1DE8.mutation]]
+name = "M5: weapon range tested with mask 0xF8"
+target = "c"
+from = "(bone & 0xF0) == 0x40"
+to = "(bone & 0xF8) == 0x40"
+
+[[function.func_800A1DE8.mutation]]
+name = "M6: matrix.t[1] taken from offset.vz"
+target = "c"
+from = "scratch->matrix.t[1] = scratch->offset.vy;"
+to = "scratch->matrix.t[1] = scratch->offset.vz;"
+
+[[function.func_800A1DE8.mutation]]
+name = "R1 (review): the root's t from the offset as read before func_800B07DC (a port keeping it in locals)"
+target = "c"
+from = "        func_800B07DC(actor);\n        scratch->matrix.t[0] = scratch->offset.vx;\n        scratch->matrix.t[1] = scratch->offset.vy;\n        scratch->matrix.t[2] = scratch->offset.vz;"
+to = "        { short ox = scratch->offset.vx, oy = scratch->offset.vy, oz = scratch->offset.vz;\n        func_800B07DC(actor);\n        scratch->matrix.t[0] = ox;\n        scratch->matrix.t[1] = oy;\n        scratch->matrix.t[2] = oz; }"
+
+[[function.func_800A1DE8.mutation]]
+name = "R2 (review): the position from the bone's t as read before func_80041C68 (a port keeping it in locals)"
+target = "c"
+from = "    func_80041C68(camera, result);\n    SetRotMatrix(camera);\n    zeroTranslation.t[0] = 0;\n    zeroTranslation.t[1] = 0;\n    zeroTranslation.t[2] = 0;\n    SetTransMatrix(&zeroTranslation);\n    scratch->position.vx = scratch->matrix.t[0] - camera->t[0];\n    scratch->position.vy = scratch->matrix.t[1] - camera->t[1];\n    scratch->position.vz = scratch->matrix.t[2] - camera->t[2];\n"
+to = "    int tx = scratch->matrix.t[0], ty = scratch->matrix.t[1], tz = scratch->matrix.t[2];\n    func_80041C68(camera, result);\n    SetRotMatrix(camera);\n    zeroTranslation.t[0] = 0;\n    zeroTranslation.t[1] = 0;\n    zeroTranslation.t[2] = 0;\n    SetTransMatrix(&zeroTranslation);\n    scratch->position.vx = tx - camera->t[0];\n    scratch->position.vy = ty - camera->t[1];\n    scratch->position.vz = tz - camera->t[2];\n"
+
+[function.func_800A208C]
+spec = "startJump.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function.func_800A208C.mutation]]
+name = "F1: speed bound <= 18 (speed 18 skips the clamp flag)"
+target = "c"
+from = "if (speed < 18) {"
+to = "if (speed <= 18) {"
+
+[[function.func_800A208C.mutation]]
+name = "F2: y >= -64 became y > -64"
+target = "c"
+from = "i = y >= -64;"
+to = "i = y > -64;"
+
+[[function.func_800A208C.mutation]]
+name = "F3: the 0x4000000 store dropped"
+target = "c"
+from = "*(u_int*)((char*)actor + 0x5AC) |= 0x4000000;"
+to = "(void)0;"
+
+[[function.func_800A208C.mutation]]
+name = "F4: signed y compared as unsigned"
+target = "c"
+from = "if (y <= 0) {"
+to = "if ((u_int)y <= 0) {"
+
+[[function.func_800A208C.mutation]]
+name = "F5: unk1818 stores x, not z"
+target = "c"
+from = "actor->unk1818 = z;"
+to = "actor->unk1818 = x;"
+
+[[function.func_800A208C.mutation]]
+name = "R1 (review): the fast flag kept from before func_800AE4FC (i += 3 tests accel)"
+target = "c"
+from = "        if (*(u_int*)((char*)actor + 8) & 0x400000) {\n            i += 3;"
+to = "        if (accel == 1) {\n            i += 3;"
+
+[[function.func_800A208C.mutation]]
+name = "R2 (review): the final flags store from the word as read before func_800A0204"
+target = "c"
+from = "    func_800A0204(actor->unk0.unkF, animation, 0, 4);\n    *(u_int*)((char*)actor + 8) = (*(u_int*)((char*)actor + 8) & ~0x70000) | 0x20000;"
+to = "    { u_int flags = *(u_int*)((char*)actor + 8);\n    func_800A0204(actor->unk0.unkF, animation, 0, 4);\n    *(u_int*)((char*)actor + 8) = (flags & ~0x70000) | 0x20000; }"
+

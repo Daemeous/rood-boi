@@ -1,0 +1,265 @@
+{
+ "function": "func_800A152C",
+ "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": "faithful; spec sound (one signedness mutation added); renamed findBone",
+ "plan": {
+  "name": "func_800A152C",
+  "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+  "stem": "38C1C",
+  "address": "0x800a152c",
+  "difficulty": "M",
+  "zig_name": "func_800A152C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A152C",
+  "spec_file": "func_800A152C.zig",
+  "subsystem": "battle_38C1C_port",
+  "signature": "pub fn func_800A152C(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 19752,
+     "completion_tokens": 22669,
+     "reasoning_tokens": 20388,
+     "cost": 0.0133097,
+     "seconds": 96.8,
+     "conversation": "01a755d2ef2c3b011ddb97b463e893b34e3648a270ac95ead29fd7dcf2816578"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "no-object": "3052",
+   "exact-ff": "3724",
+   "masked-ff": "2879",
+   "bad-case": "4159",
+   "no-bones": "1386",
+   "fallback-table": "3084",
+   "searched": "11716"
+  },
+  "mutations": [
+   {
+    "name": "M1: unk6 compared against a masked-off low byte",
+    "caught": true
+   },
+   {
+    "name": "M2: case 1 shifts the class nibble by 3",
+    "caught": true
+   },
+   {
+    "name": "M3: the bone loop runs one past nBones",
+    "caught": true
+   },
+   {
+    "name": "M4: the no-object return is -2",
+    "caught": true
+   },
+   {
+    "name": "M5: case 3 compares against an even-masked byte",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 21,
+   "branches_hit": 21,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 30,
+   "lines_hit": 30,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147184369, max 2147072403, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2145008806, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 21,
+     "text": "if (arg1 == 0xFF) {",
+     "size": 4,
+     "count": 26948,
+     "kind": "against a constant",
+     "outcomes": "== 3724, < 17886, > 5338 (signed); < 10243, > 12981 (unsigned)",
+     "operand": "constant 255",
+     "a": "-2147184369..2147072403"
+    },
+    {
+     "line": 26,
+     "text": "for (i = 0; i < nBones; ++i) {",
+     "size": 4,
+     "count": 1097071,
+     "kind": "a == b / a < b",
+     "outcomes": "== 14791, < 1082280, > 0 (signed); < 1082280, > 0 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..255"
+    },
+    {
+     "line": 27,
+     "text": "switch (arg2) {",
+     "size": 4,
+     "count": 1082280,
+     "kind": "switch",
+     "outcomes": "== 687399, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "-2147483648..2145008806"
+    },
+    {
+     "line": 29,
+     "text": "if (var_v1->armatures[i].unk6 == (arg1 & 0xFF)) {",
+     "size": 4,
+     "count": 10304,
+     "kind": "a == b / a < b",
+     "outcomes": "== 3603, < 3210, > 3491 (signed); < 3210, > 3491 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..255"
+    },
+    {
+     "line": 35,
+     "text": "new_var = (var_v1->armatures[i].unk7 >> 4) == ((arg1 & 0xFF) + 1);",
+     "size": 4,
+     "count": 333445,
+     "kind": "a == b / a < b",
+     "outcomes": "== 594, < 332105, > 746 (signed); < 332105, > 746 (unsigned)",
+     "operand": "b 1..256",
+     "a": "0..15"
+    },
+    {
+     "line": 36,
+     "text": "if (new_var) {",
+     "size": 4,
+     "count": 333445,
+     "kind": "against a constant",
+     "outcomes": "== 332851, < 0, > 594 (signed); < 0, > 594 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 42,
+     "text": "if ((var_v1->armatures[i].unk7 & 0xF) == ((arg1 & 0xFF) + 1)) {",
+     "size": 4,
+     "count": 332983,
+     "kind": "a == b / a < b",
+     "outcomes": "== 668, < 331330, > 985 (signed); < 331330, > 985 (unsigned)",
+     "operand": "b 1..256",
+     "a": "0..15"
+    },
+    {
+     "line": 48,
+     "text": "if (var_v1->armatures[i].unk8 == (arg1 & 0xFF)) {",
+     "size": 4,
+     "count": 10667,
+     "kind": "a == b / a < b",
+     "outcomes": "== 3568, < 3322, > 3777 (signed); < 3322, > 3777 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..255"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 43682,
+     "completion_tokens": 5571,
+     "reasoning_tokens": 4874,
+     "cost": 0.0071537,
+     "seconds": 23.9,
+     "conversation": "19b5f97ddcfc8a2a35be2b3f08f39883f47452ea419a0e5ff0a8bc3b93f3e173"
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A152C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A152C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 141.81938464700215,
+ "totals": {
+  "cost": 0.02046,
+  "prompt_tokens": 63434,
+  "completion_tokens": 28240,
+  "model_seconds": 120.7,
+  "check_seconds": 141.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [
+   "R1: nBones read as a signed char"
+  ],
+  "port_fixes": [],
+  "renamed": "find_bone.findBone",
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: 43 / 111 / 194 root calls (57 / 117 / 99 nested)"
+ }
+}

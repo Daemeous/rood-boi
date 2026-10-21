@@ -1,0 +1,215 @@
+{
+ "function": "func_800A2574",
+ "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": "faithful; spec strengthened (fetch order)",
+ "plan": {
+  "name": "func_800A2574",
+  "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+  "stem": "38C1C",
+  "address": "0x800a2574",
+  "difficulty": "S",
+  "zig_name": "func_800A2574",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A2574",
+  "spec_file": "func_800A2574.zig",
+  "subsystem": "battle_38C1C_port",
+  "signature": "pub fn func_800A2574(arg0: c_int, arg1: c_short) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 14723,
+     "completion_tokens": 8190,
+     "reasoning_tokens": 6858,
+     "cost": 0.0055673,
+     "seconds": 35.1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C differs from a copy of itself under this spec (exit 4: the spec is not deterministic, or the C faults on its inputs):\nzdiff: CRASH (signal 7) in the C run, iteration 0",
+     "FAIL: no input classes declared (`classes` and `classify`)",
+     "FAIL: mutation M1: first call passes 9, not 8: not caught as mismatch (exit 4): zdiff: CRASH (signal 7) in the C run, iteration 0",
+     "FAIL: mutation M2: second call dropped: not caught as mismatch (exit 4): zdiff: CRASH (signal 7) in the C run, iteration 0",
+     "FAIL: mutation M3: stored bitfield value 2, not 6: not caught as mismatch (exit 4): zdiff: CRASH (signal 7) in the C run, iteration 0",
+     "FAIL: mutation M4: arg1 zero-extended (signed/unsigned slip): not caught as mismatch (exit 4): zdiff: CRASH (signal 7) in the C run, iteration 0",
+     "FAIL: mutation M5: store moved across the first call: not caught as mismatch (exit 4): zdiff: CRASH (signal 7) in the C run, iteration 0",
+     "FAIL: mutation M6: wrong bitfield (unkA_5 for unkB_4): not caught as mismatch (exit 4): zdiff: CRASH (signal 7) in the C run, iteration 0",
+     "FAIL: the coverage run: coverage run: exit 4: zdiff: CRASH (signal 11) in the C run, iteration 0\n"
+    ]
+   },
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 16613,
+     "completion_tokens": 3601,
+     "reasoning_tokens": 2255,
+     "cost": 0.0034618,
+     "seconds": 15.3
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "index0-arg1-negative": "3425",
+   "index0-arg1-positive": "4059",
+   "index-nonzero-arg1-negative": "10119",
+   "index-nonzero-arg1-positive": "12397"
+  },
+  "mutations": [
+   {
+    "name": "M1: first call passes 9, not 8",
+    "caught": true
+   },
+   {
+    "name": "M2: second call dropped",
+    "caught": true
+   },
+   {
+    "name": "M3: stored bitfield value 2, not 6",
+    "caught": true
+   },
+   {
+    "name": "M4: arg1 zero-extended (signed/unsigned slip)",
+    "caught": true
+   },
+   {
+    "name": "M5: store moved across the first call",
+    "caught": true
+   },
+   {
+    "name": "M6: wrong bitfield (unkA_5 for unkB_4)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 6,
+   "lines_hit": 6,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 3, seen zero, never negative, 4 value(s): 0, 3, 1, 2"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 38880,
+     "completion_tokens": 2635,
+     "reasoning_tokens": 2241,
+     "cost": 0.0052055,
+     "seconds": 13.4
+    },
+    "passed": false,
+    "runs": [],
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800A2574.zig:11:49: error: struct 'views_38C1C.g' has no member named 'D_800F4538'\n    const temp_s1: ?*v.D_800F4538_t = psx.at(v.g.D_800F4538(), arg0).*;\n                                             ~~~^~~~~~~~~~~\npc/build/port-pipeline/gen/38C1C/fn-func_800A2574/views_38C1C.zig:557:15: note: struct declared here\npub const g = struct {\n              ^~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:336:31\n    main: pc/tests/zig_diff/main.zig:276:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 39627,
+     "completion_tokens": 1301,
+     "reasoning_tokens": 882,
+     "cost": 0.0046132,
+     "seconds": 6.8
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A2574.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A2574.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 87.78582631099562,
+ "totals": {
+  "cost": 0.01885,
+  "prompt_tokens": 109843,
+  "completion_tokens": 15727,
+  "model_seconds": 70.6,
+  "check_seconds": 87.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [
+   "the C fetches the slot before its two calls: a port fetching it after passed (the stubs left the table alone); func_8009DF3C's stub now sometimes puts another actor in the slot; indices 0-16, not 0-3"
+  ],
+  "mutations_added": [
+   "R1: the slot fetched after the calls"
+  ],
+  "port_fixes": [],
+  "renamed": null,
+  "corpus": "call mode (shadow): not reached by the three recipes"
+ }
+}

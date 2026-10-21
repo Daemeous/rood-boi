@@ -1,0 +1,206 @@
+{
+ "function": "func_800A1B9C",
+ "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": "faithful; spec sound (one argument-chain mutation added)",
+ "plan": {
+  "name": "func_800A1B9C",
+  "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+  "stem": "38C1C",
+  "address": "0x800a1b9c",
+  "difficulty": "S",
+  "zig_name": "func_800A1B9C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A1B9C",
+  "spec_file": "func_800A1B9C.zig",
+  "subsystem": "battle_38C1C_port",
+  "signature": "pub fn func_800A1B9C(arg0: c_int, arg1: c_int, arg2: [*c]c_ushort, arg3: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "[*c]c_ushort"
+   ],
+   [
+    "arg3",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 10543,
+     "completion_tokens": 7083,
+     "reasoning_tokens": 5308,
+     "cost": 0.0045958,
+     "seconds": 29.9,
+     "conversation": "c01907f358cb9ecffb33c4e569a9dcb08face4c561e98509d1e20a66c1834da8"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "first-negative": "9872",
+   "second-negative": "6606",
+   "both-ok": "13522"
+  },
+  "mutations": [
+   {
+    "name": "F1: wrong constant passed to the first call",
+    "caught": true
+   },
+   {
+    "name": "F2: second call dropped (its argument chain broken)",
+    "caught": true
+   },
+   {
+    "name": "F3: first check unsigned (negative results never return early)",
+    "caught": true
+   },
+   {
+    "name": "F4: success path returns the second result, not 0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (var_v0 < 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 10002, < 9872, > 10126 (signed); < 0, > 19998 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 10,
+     "text": "if (var_v0 < 0) {",
+     "size": 4,
+     "count": 20128,
+     "kind": "against a constant",
+     "outcomes": "== 6801, < 6606, > 6721 (signed); < 0, > 13327 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 34457,
+     "completion_tokens": 1021,
+     "reasoning_tokens": 715,
+     "cost": 0.0039562,
+     "seconds": 4.8,
+     "conversation": "19f4cbffca1edefff3fce12b25608dc11dea47dee1cf71f85770607d5a133c53"
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A1B9C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A1B9C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 52.234899610004504,
+ "totals": {
+  "cost": 0.00855,
+  "prompt_tokens": 45000,
+  "completion_tokens": 8104,
+  "model_seconds": 34.7,
+  "check_seconds": 52.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [
+   "R1: the second call gets arg1, not the bone found"
+  ],
+  "port_fixes": [],
+  "renamed": null,
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: 18 / 36 / 33 root calls"
+ }
+}

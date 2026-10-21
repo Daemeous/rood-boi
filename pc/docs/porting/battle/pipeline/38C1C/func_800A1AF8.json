@@ -1,0 +1,198 @@
+{
+ "function": "func_800A1AF8",
+ "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A1AF8",
+  "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+  "stem": "38C1C",
+  "address": "0x800a1af8",
+  "difficulty": "S",
+  "zig_name": "func_800A1AF8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A1AF8",
+  "spec_file": "func_800A1AF8.zig",
+  "subsystem": "battle_38C1C_port",
+  "signature": "pub fn func_800A1AF8(arg0: c_int, arg1: c_int, arg2: [*c]c_ushort, arg3: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "[*c]c_ushort"
+   ],
+   [
+    "arg3",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 10463,
+     "completion_tokens": 4903,
+     "reasoning_tokens": 3683,
+     "cost": 0.0034978,
+     "seconds": 21.2,
+     "conversation": "fdb46bb7dee686f22f8ad08940ce17e438815e51830912178c9375dc955c425e"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "null-buf": "7413",
+   "buf-neg-arg3": "10191",
+   "buf-pos-arg3": "12396"
+  },
+  "mutations": [
+   {
+    "name": "W1: the negative test flipped to positive",
+    "caught": true
+   },
+   {
+    "name": "W2: the result returned with a bit ORed in",
+    "caught": true
+   },
+   {
+    "name": "W3: the success value is 1, not 0",
+    "caught": true
+   },
+   {
+    "name": "W4: the call passes arg0 where arg3 belongs",
+    "caught": true
+   },
+   {
+    "name": "W5: the negative test done unsigned (never true)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 5,
+   "lines_hit": 5,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (var_v0 < 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 4953, < 15078, > 9969 (signed); < 0, > 25047 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 34376,
+     "completion_tokens": 1032,
+     "reasoning_tokens": 778,
+     "cost": 0.0039536,
+     "seconds": 5.2,
+     "conversation": "e0fbc432d301fa127801081d6d9ec031bfc624a7e3bf10e1509f2cb7b820732a"
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A1AF8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A1AF8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 41.48278847299662,
+ "totals": {
+  "cost": 0.00745,
+  "prompt_tokens": 44839,
+  "completion_tokens": 5935,
+  "model_seconds": 26.4,
+  "check_seconds": 41.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "renamed": null,
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: 38 / 83 / 110 root calls"
+ }
+}

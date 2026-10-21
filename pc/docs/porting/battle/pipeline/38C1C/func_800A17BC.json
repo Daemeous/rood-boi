@@ -1,0 +1,240 @@
+{
+ "function": "func_800A17BC",
+ "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": "faithful; spec sound (NULL matrix and low-RAM guard covered)",
+ "plan": {
+  "name": "func_800A17BC",
+  "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+  "stem": "38C1C",
+  "address": "0x800a17bc",
+  "difficulty": "M",
+  "zig_name": "func_800A17BC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A17BC",
+  "spec_file": "func_800A17BC.zig",
+  "subsystem": "battle_38C1C_port",
+  "signature": "pub fn func_800A17BC(arg0: c_int, arg1: c_int, arg2: ?*anyopaque, arg3: [*c]c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "?*anyopaque"
+   ],
+   [
+    "arg3",
+    "[*c]c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "_wepModelOffsets",
+   "vs_battle_wepModels_t"
+  ],
+  "globals": [
+   "D_800F49B8",
+   "vs_battle_wepModels"
+  ],
+  "hooks": [
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 21313,
+     "completion_tokens": 27035,
+     "reasoning_tokens": 24706,
+     "cost": 0.0156488,
+     "seconds": 115.0,
+     "conversation": "a63f676c1356611f555f67075cbf136020c802b08730bd772cfcfb59cd0ebd12"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M3: model arm tested as 0x50: not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: MISMATCH iteration 6: memory at 0x406090 [arena] (zdiff_state+0x20): C 247, Zig 250\nzdiff: MISMATCH iteration 7: memory at 0x406090 [arena] (zdiff_state+0x20): C 62, Zig 154\nzdiff: MISMATCH iteration 10: memory at 0x406090 [arena] (zdiff_state+0x20): C 182, Zig 170\nzdiff: CRASH (signal 11) in the Zig run, iteration 353, fault address 0x1d [NULL+0x1d: a field of a null pointer]"
+    ]
+   },
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 23980,
+     "completion_tokens": 7866,
+     "reasoning_tokens": 5532,
+     "cost": 0.006331,
+     "seconds": 33.7,
+     "conversation": "9c740a23384a0ca678391b540a192215271b390cbd47fc2d34158a5f5ae179f0"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "no-actor-no-obj": "4520",
+   "obj-armature": "4441",
+   "actor-0xFF": "2245",
+   "actor-model-null": "2225",
+   "actor-model": "4464",
+   "actor-body": "4571",
+   "matrix-null": "7534"
+  },
+  "mutations": [
+   {
+    "name": "M1: the no-object case writes 1",
+    "caught": true
+   },
+   {
+    "name": "M2: the 0xFF case tests 0xFE",
+    "caught": true
+   },
+   {
+    "name": "M3: model arm tested against the wrong nibble constant",
+    "caught": true
+   },
+   {
+    "name": "M4: armature index off by one",
+    "caught": true
+   },
+   {
+    "name": "M5: model read from the slot after",
+    "caught": true
+   },
+   {
+    "name": "M6: NULL matrix read from 0x80000010",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 18,
+   "lines_hit": 18,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 15, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2, max 335, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 28,
+     "text": "} else if (arg1 == 0xFF) {",
+     "size": 4,
+     "count": 17999,
+     "kind": "against a constant",
+     "outcomes": "== 2980, < 10532, > 4487 (signed); < 9518, > 5501 (unsigned)",
+     "operand": "constant 255",
+     "a": "-2..335"
+    },
+    {
+     "line": 30,
+     "text": "} else if ((arg1 & 0xF0) == 0x40) {",
+     "size": 4,
+     "count": 15019,
+     "kind": "against a constant",
+     "outcomes": "== 8944, < 1294, > 4781 (signed); < 1294, > 4781 (unsigned)",
+     "operand": "constant 64",
+     "a": "0..240"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 45235,
+     "completion_tokens": 11483,
+     "reasoning_tokens": 10587,
+     "cost": 0.010265,
+     "seconds": 46.0,
+     "conversation": "ff3ac2f56465d8872182b46e0825421dd9e891dcfe96cf7abe06f85fa1ca480a"
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A17BC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A17BC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 225.0132096860034,
+ "totals": {
+  "cost": 0.03224,
+  "prompt_tokens": 90528,
+  "completion_tokens": 46384,
+  "model_seconds": 194.7,
+  "check_seconds": 225.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "renamed": null,
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (249 / 501 / 564)"
+ }
+}

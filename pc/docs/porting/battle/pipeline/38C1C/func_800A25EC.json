@@ -1,0 +1,213 @@
+{
+ "function": "func_800A25EC",
+ "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": "faithful; spec strengthened (the int->short edge of the sentinel)",
+ "plan": {
+  "name": "func_800A25EC",
+  "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+  "stem": "38C1C",
+  "address": "0x800a25ec",
+  "difficulty": "S",
+  "zig_name": "func_800A25EC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A25EC",
+  "spec_file": "func_800A25EC.zig",
+  "subsystem": "battle_38C1C_port",
+  "signature": "pub fn func_800A25EC(actor: ?*v.D_800F4538_t) callconv(.c) void",
+  "params": [
+   [
+    "actor",
+    "?*v.D_800F4538_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "SVECTOR"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 16107,
+     "completion_tokens": 17675,
+     "reasoning_tokens": 15792,
+     "cost": 0.0104482,
+     "seconds": 78.2
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "early-return": "4884",
+   "no-target": "11613",
+   "flag-set": "15732",
+   "step-up": "2313",
+   "step-short": "1098",
+   "level": "2145",
+   "random-height": "2215"
+  },
+  "mutations": [
+   {
+    "name": "F1: sentinel off by one (-3001)",
+    "caught": true
+   },
+   {
+    "name": "F2: step bound > 64 instead of >= 64",
+    "caught": true
+   },
+   {
+    "name": "F3: signed / 128 replaced by >> 7",
+    "caught": true
+   },
+   {
+    "name": "F4: the level-change call dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: wrong field cleared (unk1818 for unk181A)",
+    "caught": true
+   },
+   {
+    "name": "F6: wrong mask (0x30000 for 0x70000)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 30,
+   "lines_hit": 30,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "if (next.vy == -3000)",
+     "size": 2,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 4884, < 12707, > 22409 (signed); < 31190, > 3926 (unsigned)",
+     "operand": "constant -3000",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 16,
+     "text": "if (*(u_int*)((char*)actor + 8) & 0x70000) {",
+     "size": 4,
+     "count": 23503,
+     "kind": "against a constant",
+     "outcomes": "== 7771, < 0, > 15732 (signed); < 0, > 15732 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..458752"
+    },
+    {
+     "line": 20,
+     "text": "if (height > actor->unk0.position.vy && height - actor->unk0.position.vy >= 64) {",
+     "size": 2,
+     "count": 7771,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1087, < 2356, > 4328 (signed); < 2263, > 4421 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 20,
+     "text": "if (height > actor->unk0.position.vy && height - actor->unk0.position.vy >= 64) {",
+     "size": 4,
+     "count": 4328,
+     "kind": "against a constant",
+     "outcomes": "== 1023, < 5, > 3300 (signed); < 5, > 3300 (unsigned)",
+     "operand": "constant 63",
+     "a": "29..65535"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 40257,
+     "completion_tokens": 6580,
+     "reasoning_tokens": 5447,
+     "cost": 0.0073157,
+     "seconds": 26.4
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A25EC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A25EC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 139.23465381599817,
+ "totals": {
+  "cost": 0.01776,
+  "prompt_tokens": 56364,
+  "completion_tokens": 24255,
+  "model_seconds": 104.6,
+  "check_seconds": 139.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [
+   "the -3000 sentinel is tested on the short the C stored: -3000 + 65536 from func_800A6EE8 is now an input"
+  ],
+  "mutations_added": [
+   "R1: the sentinel tested on the int result"
+  ],
+  "port_fixes": [],
+  "renamed": null,
+  "corpus": "call mode (shadow): not reached by the three recipes"
+ }
+}

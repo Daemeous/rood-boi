@@ -17,6 +17,11 @@ pub export var zdiff_arena: [arena_size]u8 align(16) linksection("zdiff_state") 
 
 pub const scratchpad: usize = 0x1F80_0000;
 pub const scratchpad_size: usize = 0x1000;
+/// PS1 address 0, where the host maps PS1 RAM (`psx.lowRam`): the PC C's
+/// safety guards read a missing object from here instead of NULL
+/// (PORTING.md §5.3). Random bytes, compared like the rest of the state.
+pub const low_ram: usize = 0x8000_0000;
+pub const low_ram_size: usize = 0x8000;
 
 pub const Ctx = struct {
     random: std.Random,
@@ -25,6 +30,8 @@ pub const Ctx = struct {
     seed: u64,
     /// Stub calls so far in this run (the C run and the Zig run each start at 0).
     calls: u32 = 0,
+    /// `value` draws so far in this stub call: two draws in one call differ.
+    draws: u32 = 0,
     /// Arena bytes in use.
     used: usize = 0,
 
@@ -63,8 +70,11 @@ pub const Ctx = struct {
 
     /// The value a stub returns for this call: the same for the C run and the
     /// Zig run as long as both make the same calls in the same order.
+    /// Each draw in one call is a different value (a stub filling three
+    /// fields must not give all three the same one).
     pub fn value(self: *Ctx, comptime T: type) T {
-        var z = self.seed +% @as(u64, self.calls) *% 0x9E37_79B9_7F4A_7C15;
+        var z = self.seed +% @as(u64, self.calls) *% 0x9E37_79B9_7F4A_7C15 +% @as(u64, self.draws) *% 0xD1B5_4A32_D192_ED03;
+        self.draws += 1;
         z = (z ^ (z >> 30)) *% 0xBF58_476D_1CE4_E5B9;
         z = (z ^ (z >> 27)) *% 0x94D0_49BB_1331_11EB;
         z ^= z >> 31;

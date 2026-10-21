@@ -1,0 +1,236 @@
+{
+ "function": "func_800A1C10",
+ "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": "port bug fixed (panic where the C returns -1 on a missing weapon model); spec strengthened (NULL matrix, distinct t); renamed boneViewPoint",
+ "plan": {
+  "name": "func_800A1C10",
+  "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+  "stem": "38C1C",
+  "address": "0x800a1c10",
+  "difficulty": "L",
+  "zig_name": "func_800A1C10",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A1C10",
+  "spec_file": "func_800A1C10.zig",
+  "subsystem": "battle_38C1C_port",
+  "signature": "pub fn func_800A1C10(actorId: c_int, bone: c_int, result: [*c]c_ushort, endpoint: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "actorId",
+    "c_int"
+   ],
+   [
+    "bone",
+    "c_int"
+   ],
+   [
+    "result",
+    "[*c]c_ushort"
+   ],
+   [
+    "endpoint",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 22032,
+     "completion_tokens": 29014,
+     "reasoning_tokens": 26342,
+     "cost": 0.0167102,
+     "seconds": 125.1,
+     "conversation": "457d2e89773f6dfebfebfc1663c89944bbcc97052c10df407d583a820a523114"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "no-actor": "968",
+   "endpoint0": "2420",
+   "weapon-null": "1103",
+   "weapon": "3209",
+   "endpoint1": "1820",
+   "plain": "17918",
+   "fallback": "2562"
+  },
+  "mutations": [
+   {
+    "name": "F1: endpoint 1 tested as 2",
+    "caught": true
+   },
+   {
+    "name": "F2: weapon bone rebased by 0x40",
+    "caught": true
+   },
+   {
+    "name": "F3: result[2] takes vy",
+    "caught": true
+   },
+   {
+    "name": "F4: endpoint 0 armature halved with a shift",
+    "caught": true
+   },
+   {
+    "name": "F5: dropped store of result[1] on endpoint 0",
+    "caught": true
+   },
+   {
+    "name": "F6: fallback actor lookup dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 14,
+   "branches_hit": 14,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 34,
+   "lines_hit": 34,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 15, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min 0, max 1023, seen zero, never negative"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 21,
+     "text": "if (endpoint == 0) {",
+     "size": 4,
+     "count": 29032,
+     "kind": "against a constant",
+     "outcomes": "== 2420, < 12115, > 14497 (signed); < 0, > 26612 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 29,
+     "text": "if ((bone & 0xF0) == 0x40) {",
+     "size": 4,
+     "count": 26612,
+     "kind": "against a constant",
+     "outcomes": "== 4779, < 8854, > 12979 (signed); < 8854, > 12979 (unsigned)",
+     "operand": "constant 64",
+     "a": "0..240"
+    },
+    {
+     "line": 36,
+     "text": "if (endpoint == 1)",
+     "size": 4,
+     "count": 25403,
+     "kind": "against a constant",
+     "outcomes": "== 2291, < 11576, > 11536 (signed); < 0, > 23112 (unsigned)",
+     "operand": "constant 1",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 45953,
+     "completion_tokens": 16690,
+     "reasoning_tokens": 15033,
+     "cost": 0.0129403,
+     "seconds": 69.6,
+     "conversation": "eef2b4f14f3d7ea3730b7c5bdf2c76ae2b51f3dcc5a0a5a80ddfe4d203eb68ac"
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A1C10.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A1C10.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 238.49101838999923,
+ "totals": {
+  "cost": 0.02965,
+  "prompt_tokens": 67985,
+  "completion_tokens": 45704,
+  "model_seconds": 194.7,
+  "check_seconds": 238.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [
+   "the func_800A1DE8 stub never returned NULL: it now does where the real one does (a weapon bone without a weapon model), and the spec never builds that NULL with endpoint 0 (a C crash)",
+   "the stub's three t values were equal (zdiff's ctx.value was one value per stub call): an index swap at endpoint 0 slipped; fixed in the harness (each draw differs)"
+  ],
+  "mutations_added": [
+   "R1: endpoint 0 stores t[1] into result[2]",
+   "R2 (port): the matrix dereferenced before the weapon test (expect panic)"
+  ],
+  "port_fixes": [
+   "the matrix was cast to a non-optional pointer before the weapon test: a ReleaseSafe panic ('cast causes pointer to be null') where the C returns -1 (an actor whose weapon bone has no weapon model)"
+  ],
+  "renamed": "bone_view_point.boneViewPoint",
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (162 / 348 / 429)"
+ }
+}

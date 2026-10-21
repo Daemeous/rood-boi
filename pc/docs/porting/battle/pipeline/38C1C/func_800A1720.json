@@ -1,0 +1,224 @@
+{
+ "function": "func_800A1720",
+ "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": "faithful; spec sound (the ROOD_PC empty-slot guard covered)",
+ "plan": {
+  "name": "func_800A1720",
+  "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+  "stem": "38C1C",
+  "address": "0x800a1720",
+  "difficulty": "M",
+  "zig_name": "func_800A1720",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A1720",
+  "spec_file": "func_800A1720.zig",
+  "subsystem": "battle_38C1C_port",
+  "signature": "pub fn func_800A1720(arg0: c_int, arg1: c_int, arg2: [*c]c_int, arg3: [*c]c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "[*c]c_int"
+   ],
+   [
+    "arg3",
+    "[*c]c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 15622,
+     "completion_tokens": 11274,
+     "reasoning_tokens": 9632,
+     "cost": 0.0071992,
+     "seconds": 49.1,
+     "conversation": "0a00602ea44fe4688a23cbfd14fcea07895f8d7afb5334a558e351736d99ba44"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "not-fd": "15052",
+   "fd-null-slot": "7349",
+   "fd-live-slot": "7599"
+  },
+  "mutations": [
+   {
+    "name": "F1: remap constant wrong (stub gets 1 for 0xFD)",
+    "caught": true
+   },
+   {
+    "name": "F2: early return bound <= for <",
+    "caught": true
+   },
+   {
+    "name": "F3: signed compare slipped to unsigned",
+    "caught": true
+   },
+   {
+    "name": "F4: null-slot path reads the wrong field",
+    "caught": true
+   },
+   {
+    "name": "F5: store to arg2[6] dropped",
+    "caught": true
+   },
+   {
+    "name": "F6: callee gets arg1 instead of the remapped value",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 13,
+   "lines_hit": 13,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147258116, max 2146399473, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (arg1 == 0xFD) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14948, < 10096, > 4956 (signed); < 3876, > 11176 (unsigned)",
+     "operand": "constant 253",
+     "a": "-2147258116..2146399473"
+    },
+    {
+     "line": 10,
+     "text": "if (var_v0 < 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 7528, < 11281, > 11191 (signed); < 0, > 22472 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147244289..2147479315"
+    },
+    {
+     "line": 14,
+     "text": "if (arg1 == 0xFD) {",
+     "size": 4,
+     "count": 18719,
+     "kind": "against a constant",
+     "outcomes": "== 9430, < 6204, > 3085 (signed); < 2358, > 6931 (unsigned)",
+     "operand": "constant 253",
+     "a": "-2147258116..2146399473"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 39551,
+     "completion_tokens": 3642,
+     "reasoning_tokens": 3093,
+     "cost": 0.0057761,
+     "seconds": 15.9,
+     "conversation": "9fe4053f6fe5f65370de4a2f5c465c21f5a6c8bb73e61ddf8bc5e35848840d4e"
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A1720.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A1720.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 81.50029724200431,
+ "totals": {
+  "cost": 0.01298,
+  "prompt_tokens": 55173,
+  "completion_tokens": 14916,
+  "model_seconds": 65.0,
+  "check_seconds": 81.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "renamed": null,
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: 83 / 167 / 188 root calls"
+ }
+}

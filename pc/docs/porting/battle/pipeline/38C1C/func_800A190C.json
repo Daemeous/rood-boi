@@ -1,0 +1,260 @@
+{
+ "function": "func_800A190C",
+ "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": "faithful; spec sound (all five selector paths, both guards)",
+ "plan": {
+  "name": "func_800A190C",
+  "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+  "stem": "38C1C",
+  "address": "0x800a190c",
+  "difficulty": "L",
+  "zig_name": "func_800A190C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A190C",
+  "spec_file": "func_800A190C.zig",
+  "subsystem": "battle_38C1C_port",
+  "signature": "pub fn func_800A190C(arg0: c_int, arg1: c_int, arg2: ?*v.SVECTOR, arg3: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "?*v.SVECTOR"
+   ],
+   [
+    "arg3",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 20020,
+     "completion_tokens": 23458,
+     "reasoning_tokens": 20886,
+     "cost": 0.013731,
+     "seconds": 97.9,
+     "conversation": "ecfcbbd1aa506ffb7c3bccd0989f8be69951b5da8f03d1be731cd961c046d201"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "fb-actor": "1343",
+   "fb-fallback": "383",
+   "fb-none": "203",
+   "fd-actor": "1246",
+   "fd-empty": "605",
+   "fa-actor": "1240",
+   "fa-empty": "591",
+   "mask-40": "6702",
+   "other": "27687"
+  },
+  "mutations": [
+   {
+    "name": "F1: fallback position offset 0xC8, not 0xC0",
+    "caught": true
+   },
+   {
+    "name": "F2: the FA scale divides by a shift (floors negatives)",
+    "caught": true
+   },
+   {
+    "name": "F3: the 0x40 family tests the low byte, so 0x140 matches",
+    "caught": true
+   },
+   {
+    "name": "F4: the FA offset is never added to vy",
+    "caught": true
+   },
+   {
+    "name": "F5: the 0xFB fallback table is never read",
+    "caught": true
+   },
+   {
+    "name": "F6: unsigned slip on unk65A (negative scales become positive)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 20,
+   "branches_hit": 20,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 32,
+   "lines_hit": 32,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "32-bit: min -2147445037, max 2147218647, unsigned 64..4294967232, seen negative, never zero"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 3,
+     "count": 40000,
+     "text": "32-bit: min -2147411709, max 2147406065, unsigned 4888..4294873976, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 5,
+     "text": "if (arg1 == 0xFB) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 1929, < 19169, > 18902 (signed); < 7330, > 30741 (unsigned)",
+     "operand": "constant 251",
+     "a": "-2147445037..2147218647"
+    },
+    {
+     "line": 24,
+     "text": "if (arg1 == 0xFD) {",
+     "size": 4,
+     "count": 38071,
+     "kind": "against a constant",
+     "outcomes": "== 1851, < 21003, > 15217 (signed); < 9164, > 27056 (unsigned)",
+     "operand": "constant 253",
+     "a": "-2147445037..2147218647"
+    },
+    {
+     "line": 35,
+     "text": "if ((arg1 & 0xF0) == 0x40) {",
+     "size": 4,
+     "count": 36220,
+     "kind": "against a constant",
+     "outcomes": "== 6702, < 4936, > 24582 (signed); < 4936, > 24582 (unsigned)",
+     "operand": "constant 64",
+     "a": "0..240"
+    },
+    {
+     "line": 37,
+     "text": "} else if (arg1 == 0xFA) {",
+     "size": 4,
+     "count": 29518,
+     "kind": "against a constant",
+     "outcomes": "== 1831, < 12986, > 14701 (signed); < 1830, > 25857 (unsigned)",
+     "operand": "constant 250",
+     "a": "-2147445037..2147218647"
+    },
+    {
+     "line": 55,
+     "text": "if (var_v0 < 0) {",
+     "size": 4,
+     "count": 27687,
+     "kind": "against a constant",
+     "outcomes": "== 4479, < 11535, > 11673 (signed); < 0, > 23208 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147193355..2147228326"
+    },
+    {
+     "line": 62,
+     "text": "if (var_v0 < 0) {",
+     "size": 4,
+     "count": 22854,
+     "kind": "against a constant",
+     "outcomes": "== 3781, < 9397, > 9676 (signed); < 0, > 19073 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147001985..2147157053"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 43950,
+     "completion_tokens": 7803,
+     "reasoning_tokens": 6612,
+     "cost": 0.0082965,
+     "seconds": 31.1,
+     "conversation": "ec6ae5e635b1ffb04550e433c5103d8aef998e38ab5aeb4f89e00e87a4ca5327"
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A190C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A190C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 166.23754533899773,
+ "totals": {
+  "cost": 0.02203,
+  "prompt_tokens": 63970,
+  "completion_tokens": 31261,
+  "model_seconds": 129.0,
+  "check_seconds": 166.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "renamed": null,
+  "corpus": "call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: 18 / 56 / 132 root calls"
+ }
+}

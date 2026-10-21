@@ -1,0 +1,408 @@
+{
+ "function": "func_800A208C",
+ "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": "faithful; spec strengthened (re-reads after calls); renamed startJump",
+ "plan": {
+  "name": "func_800A208C",
+  "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+  "stem": "38C1C",
+  "address": "0x800a208c",
+  "difficulty": "L",
+  "zig_name": "func_800A208C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A208C",
+  "spec_file": "func_800A208C.zig",
+  "subsystem": "battle_38C1C_port",
+  "signature": "pub fn func_800A208C(actor: ?*v.D_800F4538_t, target: [*c]u8, speed: c_int, facing: c_short) callconv(.c) void",
+  "params": [
+   [
+    "actor",
+    "?*v.D_800F4538_t"
+   ],
+   [
+    "target",
+    "[*c]u8"
+   ],
+   [
+    "speed",
+    "c_int"
+   ],
+   [
+    "facing",
+    "c_short"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800E90AC",
+   "D_800E90B4"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 19554,
+     "completion_tokens": 46193,
+     "reasoning_tokens": 43166,
+     "cost": 0.0250519,
+     "seconds": 202.2,
+     "conversation": "c3362ba9e0fa4dfdf63a98cc52f16e1fd5f9e0c86727e4bc6db55b01cfa42dc2"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "early-return": "4836",
+   "anchor-path": "12565",
+   "airborne": "3156",
+   "grounded": "8731",
+   "clamped": "712"
+  },
+  "mutations": [
+   {
+    "name": "F1: speed bound <= 18 (speed 18 skips the clamp flag)",
+    "caught": true
+   },
+   {
+    "name": "F2: y >= -64 became y > -64",
+    "caught": true
+   },
+   {
+    "name": "F3: the 0x4000000 store dropped",
+    "caught": true
+   },
+   {
+    "name": "F4: signed y compared as unsigned",
+    "caught": true
+   },
+   {
+    "name": "F5: unk1818 stores x, not z",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 40,
+   "branches_hit": 40,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 82,
+   "lines_hit": 82,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "16-bit: min -32768, max 32762, unsigned 0..65535, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 17,
+     "text": "if (*(u_int*)((char*)actor + 8) & 0x70000) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 25164, < 0, > 4836 (signed); < 0, > 4836 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..458752"
+    },
+    {
+     "line": 23,
+     "text": "if (speed >= actor->unk5B9) {",
+     "size": 4,
+     "count": 25164,
+     "kind": "a == b / a < b",
+     "outcomes": "== 5181, < 5948, > 14035 (signed); < 2796, > 17187 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 26,
+     "text": "if (speed < 18) {",
+     "size": 4,
+     "count": 25164,
+     "kind": "against a constant",
+     "outcomes": "== 569, < 4081, > 20514 (signed); < 929, > 23666 (unsigned)",
+     "operand": "constant 17",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 31,
+     "text": "if (target[1] >= 2) {",
+     "size": 1,
+     "count": 25164,
+     "kind": "against a constant",
+     "outcomes": "== 6294, < 9398, > 9472 (signed); < 6305, > 12565 (unsigned)",
+     "operand": "constant 1",
+     "a": "-128..127"
+    },
+    {
+     "line": 50,
+     "text": "if (x < 0) {",
+     "size": 4,
+     "count": 25164,
+     "kind": "against a constant",
+     "outcomes": "== 6789, < 8934, > 9441 (signed); < 0, > 18375 (unsigned)",
+     "operand": "constant 0",
+     "a": "-65075..65467"
+    },
+    {
+     "line": 54,
+     "text": "if (z < 0) {",
+     "size": 4,
+     "count": 25164,
+     "kind": "against a constant",
+     "outcomes": "== 9962, < 7472, > 7730 (signed); < 0, > 15202 (unsigned)",
+     "operand": "constant 0",
+     "a": "-65279..65376"
+    },
+    {
+     "line": 57,
+     "text": "if (i < dz) {",
+     "size": 4,
+     "count": 25164,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8039, < 6843, > 10282 (signed); < 6843, > 10282 (unsigned)",
+     "operand": "b 0..65376",
+     "a": "0..65467"
+    },
+    {
+     "line": 62,
+     "text": "if (*(u_int*)((char*)actor + 8) & 0x400000) {",
+     "size": 4,
+     "count": 25164,
+     "kind": "against a constant",
+     "outcomes": "== 12708, < 0, > 12456 (signed); < 0, > 12456 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4194304"
+    },
+    {
+     "line": 70,
+     "text": "if (y <= 0) {",
+     "size": 4,
+     "count": 25164,
+     "kind": "against a constant",
+     "outcomes": "== 9483, < 7909, > 7772 (signed); < 0, > 15681 (unsigned)",
+     "operand": "constant 0",
+     "a": "-65399..65435"
+    },
+    {
+     "line": 71,
+     "text": "if (actor->unk0.unkF != 0) {",
+     "size": 1,
+     "count": 17392,
+     "kind": "against a constant",
+     "outcomes": "== 5855, < 5743, > 5794 (signed); < 0, > 11537 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 74,
+     "text": "i = y >= -64;",
+     "size": 4,
+     "count": 17392,
+     "kind": "against a constant",
+     "outcomes": "== 2718, < 4111, > 10563 (signed); < 13594, > 1080 (unsigned)",
+     "operand": "constant -64",
+     "a": "-65399..0"
+    },
+    {
+     "line": 75,
+     "text": "if (*(u_int*)((char*)actor + 8) & 0x400000) {",
+     "size": 4,
+     "count": 17392,
+     "kind": "against a constant",
+     "outcomes": "== 8810, < 0, > 8582 (signed); < 0, > 8582 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4194304"
+    },
+    {
+     "line": 81,
+     "text": "for (frames = 0, fall = 0, velocity = 0; y < fall; ++frames) {",
+     "size": 4,
+     "count": 78367870,
+     "kind": "a == b / a < b",
+     "outcomes": "== 10323, < 78165638, > 191909 (signed); < 77861678, > 495869 (unsigned)",
+     "operand": "b -4414410..0",
+     "a": "-4414302..0"
+    },
+    {
+     "line": 89,
+     "text": "if ((((actor->unk0.unk34.vx)>=0)?(actor->unk0.unk34.vx):(-(actor->unk0.unk34.vx))) > speed || (((actor->unk0.unk34.vz)>=0)?(actor->unk0.unk34.vz):(-(actor->unk0.unk34.vz))) > speed) {",
+     "size": 4,
+     "count": 202232,
+     "kind": "a == b / a < b",
+     "outcomes": "== 6321, < 116906, > 79005 (signed); < 116906, > 79005 (unsigned)",
+     "operand": "b 0..32422",
+     "a": "18..2147483647"
+    },
+    {
+     "line": 89,
+     "text": "if ((((actor->unk0.unk34.vx)>=0)?(actor->unk0.unk34.vx):(-(actor->unk0.unk34.vx))) > speed || (((actor->unk0.unk34.vz)>=0)?(actor->unk0.unk34.vz):(-(actor->unk0.unk34.vz))) > speed) {",
+     "size": 4,
+     "count": 85326,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1825, < 67934, > 15567 (signed); < 67934, > 15567 (unsigned)",
+     "operand": "b 0..15906",
+     "a": "18..2147483647"
+    },
+    {
+     "line": 96,
+     "text": "if (*(u_int*)((char*)actor + 8) & 0x400000) {",
+     "size": 4,
+     "count": 7772,
+     "kind": "against a constant",
+     "outcomes": "== 3898, < 0, > 3874 (signed); < 0, > 3874 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4194304"
+    },
+    {
+     "line": 101,
+     "text": "if ((*(u_int*)((char*)actor + 8) & 0x400000) && (y > 128)) {",
+     "size": 4,
+     "count": 7772,
+     "kind": "against a constant",
+     "outcomes": "== 3898, < 0, > 3874 (signed); < 0, > 3874 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4194304"
+    },
+    {
+     "line": 101,
+     "text": "if ((*(u_int*)((char*)actor + 8) & 0x400000) && (y > 128)) {",
+     "size": 4,
+     "count": 3874,
+     "kind": "against a constant",
+     "outcomes": "== 1358, < 918, > 1598 (signed); < 918, > 1598 (unsigned)",
+     "operand": "constant 128",
+     "a": "1..340"
+    },
+    {
+     "line": 104,
+     "text": "for (frames = 0, fall = 0, velocity = 0; fall < y; ++frames) {",
+     "size": 4,
+     "count": 129949,
+     "kind": "a == b / a < b",
+     "outcomes": "== 234, < 122177, > 7538 (signed); < 122177, > 7538 (unsigned)",
+     "operand": "b 1..65457",
+     "a": "0..65835"
+    },
+    {
+     "line": 109,
+     "text": "if (frames < minFrames) {",
+     "size": 4,
+     "count": 7772,
+     "kind": "a == b / a < b",
+     "outcomes": "== 32, < 1947, > 5793 (signed); < 1947, > 5793 (unsigned)",
+     "operand": "b 0..3625",
+     "a": "3..214"
+    },
+    {
+     "line": 116,
+     "text": "if (*(u_int*)((char*)actor + 8) & 0x400000) {",
+     "size": 4,
+     "count": 7772,
+     "kind": "against a constant",
+     "outcomes": "== 3898, < 0, > 3874 (signed); < 0, > 3874 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4194304"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 43484,
+     "completion_tokens": 16860,
+     "reasoning_tokens": 14571,
+     "cost": 0.0127784,
+     "seconds": 65.2,
+     "conversation": "68c0aafc8488897292e4d7bd2030897cc559943f12a9e4790d11027efc8951ec"
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A208C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A208C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 294.22705458499695,
+ "totals": {
+  "cost": 0.03783,
+  "prompt_tokens": 63038,
+  "completion_tokens": 63053,
+  "model_seconds": 267.4,
+  "check_seconds": 294.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [
+   "func_800AE4FC and func_800A0204 were plain recorders, but the C re-reads the flags word at +8 (and unkF) after them: the stubs now change it"
+  ],
+  "mutations_added": [
+   "R1: the fast flag kept from before func_800AE4FC",
+   "R2: the final flags store from the word read before func_800A0204"
+  ],
+  "port_fixes": [],
+  "renamed": "start_jump.startJump",
+  "corpus": "call mode (shadow): not reached by the three recipes"
+ }
+}

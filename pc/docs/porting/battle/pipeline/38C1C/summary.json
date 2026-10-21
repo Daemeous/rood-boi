@@ -1,0 +1,136 @@
+{
+ "unit": "38C1C",
+ "totals": {
+  "functions": 17,
+  "ported": 17,
+  "cost": 0.3413,
+  "prompt_tokens": 1165903,
+  "completion_tokens": 449432,
+  "model_seconds": 1915.7,
+  "check_seconds": 2331.1,
+  "statuses": {
+   "ported": 17
+  }
+ },
+ "functions": [
+  {
+   "function": "func_800A141C",
+   "status": "ported",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "cost": 0.02148
+  },
+  {
+   "function": "func_800A152C",
+   "status": "ported",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "cost": 0.02046
+  },
+  {
+   "function": "func_800A1648",
+   "status": "ported",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "cost": 0.02237
+  },
+  {
+   "function": "func_800A1720",
+   "status": "ported",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "cost": 0.01298
+  },
+  {
+   "function": "func_800A17BC",
+   "status": "ported",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "cost": 0.03224
+  },
+  {
+   "function": "func_800A190C",
+   "status": "ported",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "cost": 0.02203
+  },
+  {
+   "function": "func_800A1AF8",
+   "status": "ported",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "cost": 0.00745
+  },
+  {
+   "function": "func_800A1B28",
+   "status": "ported",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "cost": 0.00882
+  },
+  {
+   "function": "func_800A1B9C",
+   "status": "ported",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "cost": 0.00855
+  },
+  {
+   "function": "func_800A1C10",
+   "status": "ported",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "cost": 0.02965
+  },
+  {
+   "function": "func_800A1DE8",
+   "status": "ported",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "cost": 0.03262
+  },
+  {
+   "function": "func_800A208C",
+   "status": "ported",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "cost": 0.03783
+  },
+  {
+   "function": "func_800A249C",
+   "status": "ported",
+   "spec_attempts": 2,
+   "port_attempts": 2,
+   "cost": 0.02234
+  },
+  {
+   "function": "func_800A2574",
+   "status": "ported",
+   "spec_attempts": 2,
+   "port_attempts": 2,
+   "cost": 0.01885
+  },
+  {
+   "function": "func_800A25EC",
+   "status": "ported",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "cost": 0.01776
+  },
+  {
+   "function": "func_800A2790",
+   "status": "ported",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "cost": 0.01571
+  },
+  {
+   "function": "func_800A291C",
+   "status": "ported",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "cost": 0.01017
+  }
+ ]
+}

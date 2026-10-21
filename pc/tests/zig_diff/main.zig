@@ -35,13 +35,21 @@ extern fn fflush(stream: ?*anyopaque) c_int;
 extern fn malloc(size: usize) ?[*]u8;
 extern fn memcpy(dst: [*]u8, src: [*]const u8, n: usize) [*]u8;
 extern fn mmap(addr: ?*anyopaque, len: usize, prot: c_int, flags: c_int, fd: c_int, off: c_long) isize;
-extern fn signal(sig: c_int, handler: *const fn (c_int) callconv(.c) void) ?*anyopaque;
+const SigInfo = extern struct { signo: c_int, errno_: c_int, code: c_int, _pad: c_int, addr: usize };
+const SigAction = extern struct {
+    handler: *const fn (c_int, *const SigInfo, ?*anyopaque) callconv(.c) void,
+    mask: [16]u64 = @splat(0),
+    flags: c_int,
+    restorer: ?*anyopaque = null,
+};
+const SA_SIGINFO = 4;
+extern fn sigaction(sig: c_int, act: *const SigAction, old: ?*SigAction) c_int;
 extern fn _exit(code: c_int) noreturn;
 extern fn strtoull(s: [*:0]const u8, end: ?*?[*:0]u8, base: c_int) c_ulonglong;
 
 // ---------------------------------------------------------------- regions
 const Region = struct { base: [*]u8, size: usize, name: [*:0]const u8, random: bool };
-var regions: [3]Region = undefined;
+var regions: [4]Region = undefined;
 var total: usize = 0;
 
 fn sectionRegion(comptime name: []const u8, random: bool) Region {
@@ -140,6 +148,41 @@ fn StubType(comptime name: []const u8) type {
     return fn () callconv(.c) info.return_type.?;
 }
 
+fn pointerLike(comptime T: type) bool {
+    return switch (@typeInfo(T)) {
+        .pointer => true,
+        .optional => |o| @typeInfo(o.child) == .pointer,
+        else => false,
+    };
+}
+
+/// A value as the type the other side declares. The stub's type is the c
+/// module's prototype (`[*c]c_UNIT.MATRIX`), a spec's stub may name the
+/// same struct by its views type (`?*views_UNIT.MATRIX`): pointers to the
+/// same bytes, cast here; anything else coerces as usual.
+fn adapt(comptime To: type, value: anytype) To {
+    const From = @TypeOf(value);
+    if (From == To) return value;
+    if (comptime pointerLike(From) and pointerLike(To)) return @ptrCast(@alignCast(value));
+    return value;
+}
+
+/// The stub's arguments as the spec's stub declares its parameters (after
+/// the `*Ctx`); an `anytype` parameter takes the argument as it is.
+fn StubArgs(comptime G: type, comptime A: type) type {
+    const params = @typeInfo(G).@"fn".param_types;
+    const fields = @typeInfo(A).@"struct".field_types;
+    var types: [fields.len]type = undefined;
+    for (fields, 0..) |t, i| types[i] = if (i + 1 < params.len) (params[i + 1] orelse t) else t;
+    return @Tuple(&types);
+}
+
+fn stubArgs(comptime G: type, args: anytype) StubArgs(G, @TypeOf(args)) {
+    var out: StubArgs(G, @TypeOf(args)) = undefined;
+    inline for (0..args.len) |i| out[i] = adapt(@TypeOf(out[i]), args[i]);
+    return out;
+}
+
 fn Stub(comptime id: u16, comptime name: []const u8) type {
     const G = StubType(name);
     const info = @typeInfo(G).@"fn";
@@ -147,9 +190,14 @@ fn Stub(comptime id: u16, comptime name: []const u8) type {
     return struct {
         fn body(args: std.meta.ArgsTuple(G)) S {
             record(id, args);
-            defer ctx.calls += 1;
-            if (@hasDecl(spec, "stubs") and @hasDecl(spec.stubs, name))
-                return @call(.auto, @field(spec.stubs, name), .{&ctx} ++ args);
+            defer {
+                ctx.calls += 1;
+                ctx.draws = 0;
+            }
+            if (@hasDecl(spec, "stubs") and @hasDecl(spec.stubs, name)) {
+                const f = @field(spec.stubs, name);
+                return adapt(S, @call(.auto, f, .{&ctx} ++ stubArgs(@TypeOf(f), args)));
+            }
             return defaultReturn(S, name);
         }
         const call = common.route.withSignature(G, body);
@@ -183,8 +231,30 @@ export fn pc_zig_panic(msg: [*]const u8, len: usize, return_address: usize) nore
 var phase: [*:0]const u8 = "setup";
 var iteration: u64 = 0;
 
-fn onSignal(sig: c_int) callconv(.c) void {
-    _ = printf("zdiff: CRASH (signal %d) in the %s run, iteration %llu\n", sig, phase, @as(c_ulonglong, iteration));
+/// The iteration's arguments (as the call traces log them) and input
+/// class, printed when a run crashes: which input the spec must fix.
+var arg_words: [16]u64 = @splat(0);
+var arg_count: usize = 0;
+var class_index: ?usize = null;
+
+fn onSignal(sig: c_int, info: *const SigInfo, _: ?*anyopaque) callconv(.c) void {
+    _ = printf("zdiff: CRASH (signal %d) in the %s run, iteration %llu", sig, phase, @as(c_ulonglong, iteration));
+    // SI_KERNEL: a general protection fault (a non-canonical address: no
+    // fault address is reported).
+    if ((sig == 11 or sig == 7) and info.code == 0x80) {
+        _ = printf(", a wild pointer (a non-canonical address: random bytes used as a pointer?)");
+    } else if (sig == 11 or sig == 7) _ = printf(", fault address 0x%zx", info.addr);
+    _ = printf("\n");
+    if (!std.mem.eql(u8, std.mem.span(phase), "setup") and !std.mem.eql(u8, std.mem.span(phase), "prepare")) {
+        _ = printf("zdiff: crashed on arguments:");
+        for (0..arg_count) |i| _ = printf(" %#llx", @as(c_ulonglong, arg_words[i]));
+        if (class_count != 0) {
+            if (class_index) |k| {
+                if (k < class_count) _ = printf(" (class %s)", spec.classes[k].ptr);
+            }
+        }
+        _ = printf("\n");
+    }
     _ = fflush(null);
     _exit(4);
 }
@@ -281,16 +351,23 @@ export fn main(argc: c_int, argv: [*][*:0]u8) c_int {
     }
     const iterations = strtoull(argv[1], null, 0);
     const seed = strtoull(argv[2], null, 0);
-    for ([_]c_int{ 4, 7, 8, 11 }) |sig| _ = signal(sig, onSignal); // SIGILL, SIGBUS, SIGFPE, SIGSEGV
-    // The PS1 scratchpad, which the decompilation addresses by number.
+    const action = SigAction{ .handler = onSignal, .flags = SA_SIGINFO };
+    for ([_]c_int{ 4, 7, 8, 11 }) |sig| _ = sigaction(sig, &action, null); // SIGILL, SIGBUS, SIGFPE, SIGSEGV
+    // The PS1 scratchpad, which the decompilation addresses by number, and
+    // PS1 address 0 (low RAM), where the PC C's guards read for NULL.
     if (mmap(@ptrFromInt(zd.scratchpad), zd.scratchpad_size, 3, 0x22 | 0x10, -1, 0) != @as(isize, @bitCast(zd.scratchpad))) {
         _ = printf("zdiff: cannot map the scratchpad at %#zx\n", zd.scratchpad);
+        return 2;
+    }
+    if (mmap(@ptrFromInt(zd.low_ram), zd.low_ram_size, 3, 0x22 | 0x10, -1, 0) != @as(isize, @bitCast(zd.low_ram))) {
+        _ = printf("zdiff: cannot map PS1 low RAM at %#zx\n", zd.low_ram);
         return 2;
     }
     regions = .{
         sectionRegion("zdiff_state", true),
         sectionRegion("zdiff_fixed", false),
         .{ .base = @ptrFromInt(zd.scratchpad), .size = zd.scratchpad_size, .name = "scratchpad", .random = true },
+        .{ .base = @ptrFromInt(zd.low_ram), .size = zd.low_ram_size, .name = "low_ram", .random = true },
     };
     for (regions) |r| total += r.size;
     const fixed = malloc(regions[1].size + 1).?;
@@ -310,7 +387,17 @@ export fn main(argc: c_int, argv: [*][*:0]u8) c_int {
         }
         phase = "prepare";
         const args: Args = spec.prepare(&ctx);
-        if (class_count != 0) classes[spec.classify(args)] += 1;
+        arg_count = @min(args.len, arg_words.len);
+        inline for (0..args.len) |i| {
+            if (i < arg_words.len) arg_words[i] = word(args[i]);
+        }
+        class_index = null;
+        phase = "classify";
+        if (class_count != 0) {
+            const k = spec.classify(args);
+            class_index = k;
+            classes[k] += 1;
+        }
         snapshot(before);
         const saved = ctx;
         const saved_prng = prng;

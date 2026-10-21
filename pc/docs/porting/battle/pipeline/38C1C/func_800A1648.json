@@ -1,0 +1,245 @@
+{
+ "function": "func_800A1648",
+ "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": "port fixed: its no-case path (part outside 0..2) read memory the C does not (every caller passes part 0); spec sound",
+ "plan": {
+  "name": "func_800A1648",
+  "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+  "stem": "38C1C",
+  "address": "0x800a1648",
+  "difficulty": "S",
+  "zig_name": "func_800A1648",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A1648",
+  "spec_file": "func_800A1648.zig",
+  "subsystem": "battle_38C1C_port",
+  "signature": "pub fn func_800A1648(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 19293,
+     "completion_tokens": 18546,
+     "reasoning_tokens": 16617,
+     "cost": 0.0112023,
+     "seconds": 81.6,
+     "conversation": "acf9dea43239fd39cfdcc085d4d9ddd180ab77abc6cd9a854e0fdbc781a167d5"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800A1648: branches 11/12 (91.7%), conditions not measured (GCC < 14: branch coverage only), lines 22/22\n  UNCOVERED +14 b3: branch never taken: `switch (arg2) {`\n  note: waivers no longer needed: switch default (arg2 outside 0..2)\ncoverage func_800A1648: FAILED (threshold 100%: 1 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `switch (arg2) {` (+14): one way out of this test (+14 b3) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800A1648.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 21530,
+     "completion_tokens": 3585,
+     "reasoning_tokens": 1645,
+     "cost": 0.0039455,
+     "seconds": 15.0,
+     "conversation": "d4252de880c12a7428a1eef25046dd80f8bf26457c400a49c25cc602b6003eb9"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "no-actor": "3765",
+   "fallback-entry": "7590",
+   "case0": "6243",
+   "case1-zero": "837",
+   "case1-nonzero": "5408",
+   "case2-zero": "1776",
+   "case2-nonzero": "4381"
+  },
+  "mutations": [
+   {
+    "name": "M1: unk6 read in the unk7 kind",
+    "caught": true
+   },
+   {
+    "name": "M2: unk7 high nibble shifted by 3",
+    "caught": true
+   },
+   {
+    "name": "M3: unk7 low nibble masked to 3 bits",
+    "caught": true
+   },
+   {
+    "name": "M4: zero high nibble returns -2",
+    "caught": true
+   },
+   {
+    "name": "M5: the D_800F45E0 fallback dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 11,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 22,
+   "lines_hit": 22,
+   "uncovered": [
+    {
+     "id": "+14 b3",
+     "line": 14,
+     "text": "switch (arg2) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 15, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -4, max 15, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min 0, max 2, seen zero, never negative, 3 value(s): 2, 0, 1"
+    }
+   ],
+   "compares": [
+    {
+     "line": 14,
+     "text": "switch (arg2) {",
+     "size": 4,
+     "count": 26235,
+     "kind": "switch",
+     "outcomes": "== 26235, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..2"
+    },
+    {
+     "line": 20,
+     "text": "if (v == 0) {",
+     "size": 4,
+     "count": 8838,
+     "kind": "against a constant",
+     "outcomes": "== 1193, < 0, > 7645 (signed); < 0, > 7645 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 26,
+     "text": "if (v == 0) {",
+     "size": 4,
+     "count": 8689,
+     "kind": "against a constant",
+     "outcomes": "== 2549, < 0, > 6140 (signed); < 0, > 6140 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+14 b3",
+    "reason": "switch (arg2) with arg2 outside 0..2 leaves the C's v uninitialised and returns it; the two runs cannot agree on that value"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 43222,
+     "completion_tokens": 5808,
+     "reasoning_tokens": 5215,
+     "cost": 0.0072262,
+     "seconds": 25.7,
+     "conversation": "a8da5a838ef70e9ac618a2cdbed9ca6096b6645d78ddaa4fcc6a8c7eab6db529"
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A1648.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A1648.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 152.19440967799164,
+ "totals": {
+  "cost": 0.02237,
+  "prompt_tokens": 84045,
+  "completion_tokens": 27939,
+  "model_seconds": 122.3,
+  "check_seconds": 152.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [
+   "R1: the high nibble from a signed byte"
+  ],
+  "port_fixes": [
+   "an out-of-range part took case 2 and read the armature (comment claimed GCC does so; the object returns its uninitialised result register without a read): now v uninitialised as in the C, the model unwrapped only in the cases"
+  ],
+  "renamed": null,
+  "corpus": "call mode (shadow): enemy_kill: 20 root calls (none in enemy_cast_wait, action_name_window)"
+ }
+}

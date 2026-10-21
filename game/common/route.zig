@@ -114,6 +114,9 @@ pub fn Shadow(comptime name: []const u8, comptime F: type, comptime owned: F) ty
 /// pairing by the original symbol.
 pub fn exportAll(comptime subsystem: u8, comptime routes: anytype, comptime Impl: type) void {
     _ = subsystem;
+    // Resolving each dotted path is comptime work that grows with the routes
+    // (the default 1000 backward branches ran out at five pipeline routes).
+    @setEvalBranchQuota(2000 + 1000 * routes.len);
     for (routes) |route| {
         const is_route = @typeInfo(@TypeOf(route)) == .@"struct";
         const name: []const u8 = if (is_route) route.name else route;

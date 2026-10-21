@@ -150,3 +150,32 @@ functions = [
 [subsystem.battle_146C_port.views]
 types = []
 globals = []
+
+[subsystem.battle_38C1C_port]
+overlay = "battle"
+unit = "src/BATTLE/BATTLE.PRG/38C1C.c"
+default = "original"
+roots = []
+functions = [
+    { addr = 0x800A141C, name = "func_800A141C", zig = "project_bone_point.projectBonePoint" },
+    { addr = 0x800A152C, name = "func_800A152C", zig = "find_bone.findBone" },
+    { addr = 0x800A1648, name = "func_800A1648", zig = "func_800A1648.func_800A1648" },
+    { addr = 0x800A1720, name = "func_800A1720", zig = "func_800A1720.func_800A1720" },
+    { addr = 0x800A17BC, name = "func_800A17BC", zig = "func_800A17BC.func_800A17BC" },
+    { addr = 0x800A190C, name = "func_800A190C", zig = "func_800A190C.func_800A190C" },
+    { addr = 0x800A1AF8, name = "func_800A1AF8", zig = "func_800A1AF8.func_800A1AF8" },
+    { addr = 0x800A1B28, name = "func_800A1B28", zig = "func_800A1B28.func_800A1B28" },
+    { addr = 0x800A1B9C, name = "func_800A1B9C", zig = "func_800A1B9C.func_800A1B9C" },
+    { addr = 0x800A1C10, name = "func_800A1C10", zig = "bone_view_point.boneViewPoint" },
+    { addr = 0x800A1DE8, name = "func_800A1DE8", zig = "bone_view_matrix.boneViewMatrix" },
+    { addr = 0x800A208C, name = "func_800A208C", zig = "start_jump.startJump" },
+    { addr = 0x800A249C, name = "func_800A249C", zig = "turn_toward.turnToward" },
+    { addr = 0x800A2574, name = "func_800A2574", zig = "func_800A2574.func_800A2574" },
+    { addr = 0x800A25EC, name = "func_800A25EC", zig = "func_800A25EC.func_800A25EC" },
+    { addr = 0x800A2790, name = "func_800A2790", zig = "func_800A2790.func_800A2790" },
+    { addr = 0x800A291C, name = "func_800A291C", zig = "func_800A291C.func_800A291C" },
+]
+
+[subsystem.battle_38C1C_port.views]
+types = ["D_800F4538_t", "D_800F4538_unk68", "D_800F45E0_t", "D_800F45E0_unk68", "MATRIX", "SVECTOR", "VECTOR", "_wepModelOffsets", "boneMatrixScratch", "vs_battle_wepModels_t"]
+globals = ["D_800E90AC", "D_800E90B4", "D_800F4538", "D_800F45E0", "D_800F49B8", "pc_gte_anchored", "vs_battle_wepModels"]

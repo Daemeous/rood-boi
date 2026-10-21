@@ -38,10 +38,14 @@ anything local is left. The model is called through OpenRouter
 (OPENROUTER_API_KEY from the environment, never printed or logged),
 temperature 0, max_tokens 64000; --budget (US$, default 5) is checked before
 every call. Resumable: a function whose record says `ported` is skipped, and
-saved replies (in --work) are reused instead of calling again.
+a saved reply (in --work) is reused instead of calling again when it answered
+the same conversation (the model, the prompt and any feedback: a key in its
+.json; a reply placed by hand, without one, is always used); one that
+answered another is kept aside as .staleN.
 """
 import argparse
 import dataclasses
+import hashlib
 import json
 import os
 import pathlib
@@ -159,8 +163,25 @@ def c_decls(c_text):
     for m in re.finditer(r"^pub const (\w+) = (?:extern struct|extern union|opaque|struct_\1;|union_\1;)", c_text, re.M):
         if not m.group(1).startswith(("struct_", "union_")):
             types.add(m.group(1))
+    # translate-c spells a global either way: `pub extern var X: T;` (most)
+    # or `pub const X: T = @extern(T, ...)` (an array of unknown size).
     globals_ = set(re.findall(r"^pub const (\w+): [^=]+ = @extern\(", c_text, re.M))
+    globals_ |= set(re.findall(r"^pub extern (?:var|const) (\w+):", c_text, re.M))
     return types, globals_
+
+
+# Zig's own type names: an alias that ends at one of these is spelled as it.
+PRIMITIVE = re.compile(r"(?:[iu]\d+|c_u?(?:char|short|int|long|longlong)|c_longdouble|f(?:16|32|64|80|128)|bool|void|"
+                       r"anyopaque|usize|isize|anyerror|noreturn)")
+
+
+def c_aliases(c_text):
+    """The c module's plain aliases (`pub const u_short = c_ushort;`)."""
+    return dict(re.findall(r"^pub const (\w+) = (\w+);$", c_text, re.M))
+
+
+def c_names(c_text):
+    return set(re.findall(r"^pub (?:const|extern var|extern const|extern fn|inline fn|fn) (\w+)", c_text, re.M))
 
 
 def split_params(text):
@@ -180,22 +201,39 @@ def split_params(text):
     return out
 
 
-def zig_type(t, views_types, c_types):
+def views_globals(views_text):
+    """The globals a views module has accessors for (in `g`)."""
+    return set(re.findall(r'pub inline fn \w+\(\) [^{]*\{ return psx\.global(?:Many)?\([^\n]*?, "(\w+)"\); \}',
+                          views_text))
+
+
+def zig_type(t, views_types, c_types, aliases=None, names=None):
     """A translate-c type as the port's parameter type: struct pointers as
-    views pointers, other unit types through the c module."""
+    views pointers, the c module's typedef aliases resolved to Zig's own
+    types (`u_short` is `c_ushort`), anything else the unit declares through
+    the c module (the signature is compiled where `c` and `v` are the only
+    names the unit's declarations go by)."""
     t = t.strip()
+    aliases, names = aliases or {}, names or set()
+
+    def resolve(word):
+        seen = set()
+        while word in aliases and word not in seen and word not in views_types and word not in c_types:
+            seen.add(word)
+            word = aliases[word]
+        return word
     m = re.fullmatch(r"(\[\*c\]|\?\*)(const )?(\w+)", t)
-    if m and m.group(3) in views_types:
-        return f"?*{m.group(2) or ''}v.{m.group(3)}"
+    if m and resolve(m.group(3)) in views_types:
+        return f"?*{m.group(2) or ''}v.{resolve(m.group(3))}"
 
     def qualify(match):
-        word = match.group(0)
+        word = resolve(match.group(0))
         if word in views_types:
             return "v." + word
-        if word in c_types:
+        if word in c_types or (word in names and not PRIMITIVE.fullmatch(word)):
             return "c." + word
         return word
-    return re.sub(r"(?<![.\w])[A-Za-z_]\w*", qualify, t)
+    return re.sub(r"(?<![.\w@])[A-Za-z_]\w*", qualify, t)
 
 
 def c_param_names(header):
@@ -211,19 +249,22 @@ def c_param_names(header):
 
 
 def signature_of(plan, c_text, views_types, c_types, header):
-    m = re.search(rf"^pub extern fn {re.escape(plan.name)}\((.*)\) (.+);$", c_text, re.M)
+    # A function the build already routes is declared as NAME__orig (and as
+    # NAME only where the unit has a prototype of its own).
+    m = re.search(rf"^pub extern fn {re.escape(plan.name)}(?:__orig)?\((.*)\) (.+);$", c_text, re.M)
     if not m:
         raise SystemExit(f"port_pipeline: {plan.name}: no prototype in c_{plan.stem}")
     params = split_params(m.group(1))
     names = c_param_names(header)
+    aliases, names_ = c_aliases(c_text), c_names(c_text)
     out = []
     for i, p in enumerate(params):
         ptype = p.split(":", 1)[1] if ":" in p and not p.startswith(("[", "?")) else p
         name = names[i] if i < len(names) else f"arg{i}"
         if name in zig_views.KEYWORDS:
             name = name + "_"
-        out.append((name, zig_type(ptype, views_types, c_types)))
-    ret = zig_type(m.group(2), views_types, c_types)
+        out.append((name, zig_type(ptype, views_types, c_types, aliases, names_)))
+    ret = zig_type(m.group(2), views_types, c_types, aliases, names_)
     sig = f"pub fn {plan.zig_name}(" + ", ".join(f"{n}: {t}" for n, t in out) + f") callconv(.c) {ret}"
     return sig, out, ret
 
@@ -342,6 +383,13 @@ def plan_function(name, row, table, names, units, build, work):
         if not more:
             break
         types |= more
+    # Every global the body names gets a views accessor (the prompts show
+    # only what exists, so a missing one would leave the model guessing).
+    views_path, _ = u.views(types, plan.globals, tag=f"plan-{name}")
+    missing = sorted(set(plan.globals) - views_globals(views_path.read_text()))
+    if missing:
+        plan.skip = f"no views accessor generated for {', '.join(missing)}"
+        return plan, None
     plan.types = sorted(types - u.base_types)
     plan.globals = sorted(set(plan.globals) - u.base_globals)
     views_types = set(dump["types"])
@@ -406,7 +454,11 @@ C), with your mutations applied to that copy.
 
 The spec must:
 - build the inputs through the zdiff API (`zdiff.zig`, below): the arguments
-  and every object and global the C reads, so that the C never faults;
+  and every object and global the C reads, so that the C never faults.
+  Globals start as random bytes: an entry of a global pointer table that
+  the C reads must be set by prepare (through its `v.g` accessor, below:
+  its type gives the table's length and its element type), and an object
+  the C indexes past a `[0]` array needs room for every element it reads;
 - reach every branch of the C: the checker builds the C with gcov and fails
   on any branch your inputs never take;
 - hit every value edge the C has: an ordered comparison (`<`, `>=`, ...) must
@@ -465,6 +517,20 @@ def port_prompt(plan, unit, views_path, table, build):
 
 
 # ---------------------------------------------------------------- the gates
+CRASH_ADVICE = """FAIL: {what} crashed on your inputs (the C runs first, so this is the spec's
+bug). The harness fills every global and the arena with random bytes before
+prepare, so every pointer the C follows must be one prepare set: each
+argument, each pointer field of an object you build, and each ENTRY of a
+global pointer table the C indexes (only the entry it reads: e.g.
+`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`
+(sized for every element the C indexes past a `[0]` array), at a global, or
+null where the C tests for null. An index into a global table must stay
+inside its length (the views accessor's type gives it). Below: the crash, its
+fault address (named when it is inside an object the harness owns) and the
+arguments of that iteration:
+"""
+
+
 def first_lines(text, n=12):
     keep = [l for l in text.splitlines() if l.startswith(("FAIL", "zdiff:", "coverage", "  UNCOVERED", "  FLAG"))
             or "error:" in l]
@@ -505,15 +571,31 @@ def spec_gate(plan, entry, spec_path, views_path, unit, table, build, work):
         errors.append("FAIL: the harness does not build:\n" + str(error)[-4000:])
         return False, errors, details
     code, text = run_exe(exe, iterations, 1)
-    classes = re.search(r"classes:(.*)", text or "")
+    text = zig_diff.name_addresses(exe, text or "")
+    classes = re.search(r"classes:(.*)", text)
     details["classes"] = dict(c.split("=") for c in classes.group(1).split()) if classes else {}
+    if code == 4 and "CRASH" in text:
+        # Nothing else can be judged on inputs that crash the C itself: the
+        # mutations and the coverage run would only crash the same way.
+        errors.append(CRASH_ADVICE.format(what="the C itself") + first_lines(text))
+        if mutations:
+            errors.append("(the mutations and the coverage gate are checked once the C runs crash-free)")
+        return False, errors, details
+    if code in (3, 4) and re.search(r"(PANIC|CRASH)[^\n]* in the (prepare|classify) run", text):
+        # The spec's own code failed: nothing else can be judged either.
+        errors.append("FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety "
+                      "check (an index past an array's length, an integer that does not fit, a null unwrap) "
+                      "or a fault in it:\n" + first_lines(text))
+        if mutations:
+            errors.append("(the mutations and the coverage gate are checked once the spec runs)")
+        return False, errors, details
     if code != 0:
         errors.append(f"FAIL: the C differs from a copy of itself under this spec (exit {code}: the spec is not "
-                      f"deterministic, or the C faults on its inputs):\n" + first_lines(text))
+                      f"deterministic: everything prepare does must come from `ctx`):\n" + first_lines(text))
     empty = [c for c, n in details["classes"].items() if n == "0"]
     if empty:
         errors.append("FAIL: input classes never generated: " + ", ".join(empty))
-    if not details["classes"]:
+    if not details["classes"] and code is not None:
         errors.append("FAIL: no input classes declared (`classes` and `classify`)")
     for m in mutations:
         record = {"name": m.get("name"), "caught": False}
@@ -522,11 +604,19 @@ def spec_gate(plan, entry, spec_path, views_path, unit, table, build, work):
                 raise zig_diff.Failure("needs string `from` and `to`")
             mexe, _ = build_.compile(m, standin=True)
             mcode, mtext = run_exe(mexe, iterations, 1)
+            mtext = zig_diff.name_addresses(mexe, mtext or "")
             expect = m.get("expect", "mismatch")
             record["caught"] = mcode is not None and sb.caught(mcode, mtext, expect)
             if not record["caught"]:
-                errors.append(f"FAIL: mutation {m.get('name')}: not caught as {expect} (exit {mcode}): "
-                              + first_lines(mtext or "", 4))
+                hint = ""
+                if mcode == 4 and expect != "crash" and "in the Zig run" in mtext:
+                    hint = (" (the mutated copy crashes where the C does not: if that is what this mistake does on "
+                            "your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a "
+                            "difference)")
+                elif mcode == 0:
+                    hint = " (no input made the mutated copy behave differently: add inputs that do)"
+                errors.append(f"FAIL: mutation {m.get('name')}: not caught as {expect} (exit {mcode}){hint}: "
+                              + first_lines(mtext, 4))
         except zig_diff.Failure as error:
             errors.append(f"FAIL: mutation {m.get('name')}: {str(error)[-1200:]}")
         details["mutations"].append(record)
@@ -540,7 +630,8 @@ def spec_gate(plan, entry, spec_path, views_path, unit, table, build, work):
         details["coverage"]["passed"] = passed
         if not passed:
             errors.append("FAIL: the coverage gate (zig_diff.py --coverage):\n" + "\n".join(
-                l for l in lines if not l.startswith(("  read", "  compare", "  arg"))))
+                l for l in lines if not l.startswith(("  read", "  compare", "  arg")))
+                + "\nWhat to add:\n" + "\n".join(zig_diff.coverage_hints(report, waivers)))
     except zig_diff.Failure as error:
         errors.append(f"FAIL: the coverage run: {str(error)[-1500:]}")
     build_.compile(standin=True)
@@ -571,7 +662,8 @@ def port_gate(plan, entry, spec_path, port_path, views_path, unit, table, build,
         runs.append({"seed": seed, "exit": code, "mismatches": int(summary.group(2)) if summary else None,
                      "first": None if code == 0 else sb.first_line(out or "")})
         if code != 0:
-            errors.append(f"FAIL: seed {seed}: the port differs from the C (exit {code}):\n" + first_lines(out or "", 6))
+            out = zig_diff.name_addresses(exe, out or "")
+            errors.append(f"FAIL: seed {seed}: the port differs from the C (exit {code}):\n" + first_lines(out, 6))
             break
     return not errors, errors, runs
 
@@ -583,11 +675,32 @@ def feedback(errors, what):
         + "\n\n".join(errors))
 
 
+def conversation_key(messages, model):
+    """What a saved reply answered: the model and every message sent."""
+    return hashlib.sha256(json.dumps({"model": model, "messages": messages}, sort_keys=True).encode()).hexdigest()
+
+
 def ask(state, messages, path, label):
-    """A saved reply, or a call (budget checked first); (text, call record)."""
+    """A saved reply to this very conversation, or a call (budget checked
+    first); (text, call record). A saved reply to anything else (the prompt or
+    the checker's feedback changed since, or no key: an older run) is moved
+    aside as `<name>.stale<N>.md` and asked again; a reply without a .json
+    (placed by hand: the tests' canned replies) is used as it is."""
     meta = path.with_suffix(".json")
+    key = conversation_key(messages, state["model"])
     if path.exists():
-        return path.read_text(), (json.loads(meta.read_text()) if meta.exists() else None)
+        if not meta.exists():  # placed by hand (the tests' canned replies): used as it is
+            return path.read_text(), None
+        saved = json.loads(meta.read_text())
+        if saved.get("conversation") == key:
+            return path.read_text(), saved
+        n = 1
+        while path.with_name(f"{path.stem}.stale{n}.md").exists():
+            n += 1
+        path.rename(path.with_name(f"{path.stem}.stale{n}.md"))
+        if meta.exists():
+            meta.rename(path.with_name(f"{path.stem}.stale{n}.json"))
+        print(f"port_pipeline: {label}: the saved reply answered another prompt: asking again", file=sys.stderr)
     if state["dry_run"]:
         raise Stop("dry run")
     if state["spent"] + state["reserve"] > state["budget"]:
@@ -596,6 +709,7 @@ def ask(state, messages, path, label):
     state["spent"] += call["cost"] or 0.0
     path.write_text(call["text"])
     record = {k: v for k, v in call.items() if k != "text"}
+    record["conversation"] = key
     meta.write_text(json.dumps(record, indent=1))
     print(f"port_pipeline: {label}: {call['prompt_tokens']} in, {call['completion_tokens']} out, ${call['cost']:.4f}, "
           f"{call['seconds']} s (run total ${state['spent']:.4f})", file=sys.stderr)
@@ -750,8 +864,10 @@ def write_review(records_dir):
              "do not edit. A stronger reviewer checks, per function: every spec's input",
              "classes and value edges (are the C's boundaries, signs and nulls all",
              "there?), and above all the functions flagged below (a retry, a ROOD_PC",
-             "hook, statics, waivers). Mark a function reviewed by moving its record's",
-             "`reviewed` to true (the queue then lists it under Reviewed).", ""]
+             "hook, statics, waivers). Mark a function reviewed by setting its record's",
+             "`reviewed` to a one-line verdict, with the details (spec fixes, mutations",
+             "added, port fixes, a rename, corpus reach) in `review`; the queue then",
+             "lists it under Reviewed.", ""]
     pending = [r for r in records if not r.get("reviewed")]
     flagged = [r for r in pending if review_reasons(r)]
     lines.append(f"{len(pending)} to review ({len(flagged)} flagged), {len(records) - len(pending)} reviewed.")
@@ -778,7 +894,17 @@ def write_review(records_dir):
                 lines.append(f"  - {u['id']}: {u['what']}")
     done = [r for r in records if r.get("reviewed")]
     if done:
-        lines += ["", "## Reviewed", ""] + [f"- `{r['function']}` ({r['unit']})" for r in done]
+        lines += ["", "## Reviewed", ""]
+        for r in sorted(done, key=lambda r: (r["unit"], r["function"])):
+            review = r.get("review") or {}
+            renamed = f" -> `{review['renamed']}`" if review.get("renamed") else ""
+            verdict = r["reviewed"] if isinstance(r["reviewed"], str) else "reviewed"
+            lines.append(f"- `{r['function']}` ({r['unit']}){renamed}: {verdict}")
+            for key, label in (("port_fixes", "port fix"), ("spec_fixes", "spec fix"),
+                               ("mutations_added", "mutations added"), ("corpus", "corpus")):
+                value = review.get(key)
+                if value:
+                    lines.append(f"  - {label}: " + ("; ".join(value) if isinstance(value, list) else value))
     (records_dir / "REVIEW.md").write_text(prompt_privacy.sanitise("\n".join(lines) + "\n"))
 
 
@@ -956,6 +1082,8 @@ def main(argv=None):
     parser.add_argument("--out", type=pathlib.Path, help="(--dry-run) the work directory, records under it")
     parser.add_argument("--build", type=pathlib.Path, default=ROOT / "pc/build/boot64")
     parser.add_argument("--leak-probe", action="store_true", help=argparse.SUPPRESS)
+    # The tests: plan against a copy of the table (with --no-write).
+    parser.add_argument("--table", type=pathlib.Path, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     if bool(args.functions) == bool(args.unit):
         parser.error("give FUNCTION... or --unit UNIT")
@@ -973,7 +1101,9 @@ def main(argv=None):
         return 2
     rows = functions_tsv()
     names = meanings()
-    table = ownership.load(OWNERSHIP)
+    if args.table and not args.no_write and not args.dry_run:
+        parser.error("--table needs --no-write")
+    table = ownership.load(args.table or OWNERSHIP)
     state = {"spent": 0.0, "budget": args.budget, "reserve": args.reserve, "model": args.model,
              "max_tokens": args.max_tokens, "dry_run": args.dry_run}
     units, done_units, results = {}, set(), []

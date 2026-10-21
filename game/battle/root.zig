@@ -60,6 +60,23 @@ pub const actor_animation = @import("actor_animation.zig");
 // The port pipeline (pc/tools/port_pipeline.py): one module per function.
 pub const func_80069D14 = @import("func_80069D14.zig");
 pub const insert_actor = @import("insert_actor.zig");
+pub const turn_toward = @import("turn_toward.zig");
+pub const func_800A2574 = @import("func_800A2574.zig");
+pub const func_800A25EC = @import("func_800A25EC.zig");
+pub const func_800A2790 = @import("func_800A2790.zig");
+pub const func_800A291C = @import("func_800A291C.zig");
+pub const project_bone_point = @import("project_bone_point.zig");
+pub const find_bone = @import("find_bone.zig");
+pub const func_800A1648 = @import("func_800A1648.zig");
+pub const func_800A1720 = @import("func_800A1720.zig");
+pub const func_800A17BC = @import("func_800A17BC.zig");
+pub const func_800A190C = @import("func_800A190C.zig");
+pub const func_800A1AF8 = @import("func_800A1AF8.zig");
+pub const func_800A1B28 = @import("func_800A1B28.zig");
+pub const func_800A1B9C = @import("func_800A1B9C.zig");
+pub const bone_view_point = @import("bone_view_point.zig");
+pub const bone_view_matrix = @import("bone_view_matrix.zig");
+pub const start_jump = @import("start_jump.zig");
 
 comptime {
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_146C), ownership.routesOf(.battle_146C), @This());
@@ -70,4 +87,5 @@ comptime {
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_30DB0), ownership.routesOf(.battle_30DB0), @This());
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_40564), ownership.routesOf(.battle_40564), @This());
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_146C_port), ownership.routesOf(.battle_146C_port), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.battle_38C1C_port), ownership.routesOf(.battle_38C1C_port), @This());
 }

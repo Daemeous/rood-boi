@@ -1,0 +1,218 @@
+{
+ "function": "func_800A2790",
+ "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A2790",
+  "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+  "stem": "38C1C",
+  "address": "0x800a2790",
+  "difficulty": "S",
+  "zig_name": "func_800A2790",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A2790",
+  "spec_file": "func_800A2790.zig",
+  "subsystem": "battle_38C1C_port",
+  "signature": "pub fn func_800A2790(actor: ?*v.D_800F4538_t) callconv(.c) void",
+  "params": [
+   [
+    "actor",
+    "?*v.D_800F4538_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "VECTOR"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 15324,
+     "completion_tokens": 15400,
+     "reasoning_tokens": 13051,
+     "cost": 0.0092324,
+     "seconds": 67.0
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "animation-unchanged": "15026",
+   "not-moving": "1882",
+   "rising": "1291",
+   "falling": "1587",
+   "level-slow": "1518",
+   "level-fast": "8696"
+  },
+  "mutations": [
+   {
+    "name": "A1: moving test takes speed >= 0 (zero speed moves)",
+    "caught": true
+   },
+   {
+    "name": "A2: rising test uses <= -2 (delta -2 counts as rising)",
+    "caught": true
+   },
+   {
+    "name": "A3: fast threshold is > 12 (speed 12 not fast)",
+    "caught": true
+   },
+   {
+    "name": "A4: tile from a shift, not a signed divide (negative positions differ)",
+    "caught": true
+   },
+   {
+    "name": "A5: animation change call dropped",
+    "caught": true
+   },
+   {
+    "name": "A6: unsigned slip on the moving test (negative speed moves)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 24,
+   "lines_hit": 24,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 16,
+     "text": "if (speed > 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 1523, < 2392, > 26085 (signed); < 0, > 28477 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 17,
+     "text": "if (delta.vy < -2)",
+     "size": 4,
+     "count": 26085,
+     "kind": "against a constant",
+     "outcomes": "== 2193, < 2533, > 21359 (signed); < 21523, > 2369 (unsigned)",
+     "operand": "constant -2",
+     "a": "-7..127"
+    },
+    {
+     "line": 21,
+     "text": "if (delta.vy >= 3)",
+     "size": 4,
+     "count": 23552,
+     "kind": "against a constant",
+     "outcomes": "== 2150, < 18172, > 3230 (signed); < 13610, > 7792 (unsigned)",
+     "operand": "constant 2",
+     "a": "-2..127"
+    },
+    {
+     "line": 24,
+     "text": "if (speed >= 12)",
+     "size": 4,
+     "count": 26085,
+     "kind": "against a constant",
+     "outcomes": "== 1521, < 1531, > 23033 (signed); < 1531, > 23033 (unsigned)",
+     "operand": "constant 11",
+     "a": "1..2147483647"
+    },
+    {
+     "line": 27,
+     "text": "if (actor->animationId != animation) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 15026, < 13119, > 1855 (signed); < 13119, > 1855 (unsigned)",
+     "operand": "b 0..255",
+     "a": "1..40"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 39481,
+     "completion_tokens": 5057,
+     "reasoning_tokens": 4121,
+     "cost": 0.0064766,
+     "seconds": 21.8
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A2790.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A2790.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 105.87147275699681,
+ "totals": {
+  "cost": 0.01571,
+  "prompt_tokens": 54805,
+  "completion_tokens": 20457,
+  "model_seconds": 88.8,
+  "check_seconds": 105.9
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "renamed": null,
+  "corpus": "call mode (shadow): not reached by the three recipes"
+ }
+}

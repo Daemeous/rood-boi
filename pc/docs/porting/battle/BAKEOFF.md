@@ -358,15 +358,25 @@ bash -ic 'python3 pc/tools/port_pipeline.py func_80069D14 _insertActor --budget 
   (`func_80069D14`); module `game/battle/<snake_case>.zig`; spec
   `pc/tests/zig_diff/<zigName>.zig`; subsystem `battle_<unit>_port` (one per
   unit, default original); signature from the unit's translate-c prototype
-  with struct pointers as views pointers; the views types and globals the
-  body names, closed over the fields it reaches. Static functions, functions
-  routed elsewhere and already ported ones are skipped.
+  with struct pointers as views pointers and the c module's typedefs as Zig
+  types (`u_short*` -> `[*c]c_ushort`; another unit name goes through `c.`);
+  the views types and globals the body names (translate-c's `pub extern var`
+  and `@extern` globals both), closed over the fields it reaches; a global
+  without a generated views accessor stops the plan (the prompts show only
+  what exists). Static functions, functions routed elsewhere and already
+  ported ones are skipped.
 - **Spec gate:** `zig_diff` against a stand-in port that is the C itself
   (`--standin`): 0 mismatches (the spec is deterministic and the C never
   faults on it), every class occurs, 3-6 C mutations all caught, and the
   coverage lane passes (every branch, no boundary/sign flag, or a waiver
   with a reason). The spec does not depend on the port, so a wrong port
-  cannot bend it.
+  cannot bend it. A spec stub may name struct pointers by their views
+  types (the harness casts to the c prototype's). The retry's feedback is
+  meant to be acted on: a C crash comes with plain advice, its fault address
+  and the iteration's arguments, named (`arena`, a global, `low_ram`,
+  `NULL+0x68`), and nothing else (the mutations and coverage wait for a
+  crash-free run); each coverage gap with what to add (a sign flag: values
+  above the constant that are positive).
 - **Port gate:** 0 mismatches on seeds 1-3 and the `/// orig:` line.
 - **Writing:** the spec and its `specs.toml` entry, the port, the
   `ownership.toml` route and views, `root.zig`'s import and export, after the
@@ -380,8 +390,11 @@ bash -ic 'python3 pc/tools/port_pipeline.py func_80069D14 _insertActor --budget 
   checkout, home, Zig cache and scratch paths and the user name replaced)
   and is refused if anything local is left (CTest `prompt_tools`).
 - **Budget/resume:** `--budget` (default $5) checked before every call;
-  replies are saved in `--work` (default `pc/build/port-pipeline`) and reused;
-  a function whose record says `ported` is skipped.
+  replies are saved in `--work` (default `pc/build/port-pipeline`) with a key
+  of the conversation they answered (model, prompt, feedback) and reused only
+  for the same conversation (else set aside as `.staleN`; a reply placed by
+  hand, without its `.json`, is always used); a function whose record says
+  `ported` is skipped.
 
 Smoke run (Haiku 5.5, 2026-10-20): `func_80069D14` (S, a 16-slot scan) and
 `_insertActor` (S, a list insert with a dead inner `else`) both **ported**,
@@ -391,6 +404,84 @@ declared a class its inputs never made; `_insertActor`'s first spec left the
 dead `else` uncovered, and the retry waived it with the right reason (the
 outer test already requires `id != 0`). Both ports passed first try. CTest
 `port_pipeline` runs the whole pipeline offline on canned replies.
+
+Pilot, unit 38C1C (17 functions, Haiku 5.5, 2026-10-20): first run 5
+ported ($0.32). The failures were the pipeline's: typedef'd parameters
+(`[*c]u_short`) the stub, harness and port could not name (3 specs); the
+globals the C reads (`D_800F4538`, a table of actor pointers, translate-c's
+`pub extern var`) missing from the views, so the prompts showed no
+declaration and the model guessed a 32-bit `psx.Ptr` table (crashes, ports
+that did not compile); spec stubs typed with views structs where the c
+prototype has c ones (harness did not build); the PC C's NULL guards read
+PS1 address 0, which the harness did not map; and the written tree did not
+build (`route.exportAll` ran out of comptime branches at five routes). After
+the fixes the 12 failed functions all ported on the rerun ($0.26, 3 spec
+retries, no port retry): 17/17. CTest `port_pipeline` keeps canned
+`func_800A1AF8` and `func_800A17BC` for these regressions.
+
+### The pilot's review (Opus 5.5, 2026-10-21)
+
+All 17 reviewed adversarially against the `.c`, the routed `.i` and (where
+the C is undefined) the object: per-function verdicts in the records and
+`pipeline/REVIEW.md`.
+
+| | Functions | What |
+|---|---|---|
+| Port bugs | 1 | `func_800A1C10`: the matrix from `func_800A1DE8` cast to a non-optional pointer before the weapon test, so ReleaseSafe panicked ("cast causes pointer to be null") where the C returns -1: an actor whose weapon bone has no weapon model. A crash in owned mode, invisible to the corpus (no recipe reaches it) and to the spec (its stub never returned NULL) |
+| Port faithfulness fixes | 1 | `func_800A1648`: the switch has no default; the port took case 2 for any other part and read the armature, with a comment saying GCC does so. The object returns its uninitialised result register without a read; the port now leaves `v` undefined as the C does (every caller passes 0) |
+| Spec fixes (behaviour) | 4 (+ `func_800A1C10`) | the stubs modelled no callee effects, so "read before the call" ports passed: `func_800A1DE8` (`func_800B07DC` rotates the scratch offset, `func_80041C68` writes the product's t: both now written), `func_800A208C` (the flags word at +8 and `unkF` re-read after `func_800AE4FC` / `func_800A0204`: now changed by the stubs), `func_800A2574` (the slot fetched before two calls: a stub now swaps it; indices 0-16, not 0-3), and `func_800A1C10`'s NULL matrix above; one missing value edge: `func_800A25EC`'s -3000 sentinel is tested on the stored short (-3000 + 65536 now an input) |
+| Harness fix | 1 | `zdiff.Ctx.value` gave one value per stub call, so a stub filling three fields filled them alike (`func_800A1C10`'s t[0..2]: a t-index swap slipped); each draw now differs |
+| Mutations added only | 4 | `func_800A141C` (PC_GTE_UNNARROWED dropped), `func_800A152C` (nBones signed), `func_800A1B28`, `func_800A1B9C` (the second call given arg1); `func_800A1648` got one too (a signed nibble) |
+| Sound as drafted | 7 | `func_800A1720`, `func_800A17BC`, `func_800A190C`, `func_800A1AF8`, `func_800A249C` (its `+39 eq` waiver holds), `func_800A2790`, `func_800A291C` |
+
+13 mutations added (R1/R2 in `specs.toml`); the 7 that need the spec fixes
+were each checked to slip the drafted spec and be caught by the fixed one
+(`func_800A1C10`'s t-index swap slipped the old harness). Names: six
+renamed (`projectBonePoint`, `findBone`, `boneViewPoint`, `boneViewMatrix`,
+`startJump`, `turnToward`); left as symbols, with proposals not yet
+confident: `func_800A1648` (a bone's limb code), `func_800A1720`/`func_800A17BC`
+(bone view matrix and length), `func_800A190C` (an actor's anchor point by
+selector), `func_800A1AF8`/`func_800A1B28`/`func_800A1B9C` (boneViewPoint by
+index / high / low code), `func_800A2574`, `func_800A25EC`, `func_800A2790`,
+`func_800A291C` (movement steps whose callees are unnamed).
+
+The pattern: Haiku's specs reach every branch and the value edges the
+coverage lane flags (it passed the gate everywhere), but treat callees as
+pure recorders. What the lane cannot flag is a callee's effect the C reads
+back (state re-read after a call, a slot fetched before it, a NULL a real
+callee returns). The reviewer's first question per call: what does the
+real callee change that the C reads afterwards, and what can it return?
+
+Corpus (64-bit, classic profile; `differ.py battle_38C1C_port` on the three
+implemented recipes): call mode (shadow) passes everywhere, 0 mismatches.
+Reached as roots: `func_800A152C`, `func_800A1720`, `func_800A190C`,
+`func_800A1AF8`, `func_800A1B9C`, `func_800A249C` (all three recipes),
+`func_800A141C`, `func_800A1648` (enemy_kill); nested only:
+`func_800A17BC`, `func_800A1C10`, `func_800A1DE8`; never: `func_800A1B28`,
+`func_800A208C`, `func_800A2574`, `func_800A25EC`, `func_800A2790`,
+`func_800A291C` (movement and jumps: no recipe moves an actor). Tick and
+alternate modes, and `shadow_battle_smoke --owner battle_38C1C_port=shadow`
+(battle_action's `_handleCombatCameraZoom` shadowed with 38C1C nested),
+diverge in guest RAM 0x800F5248..0x800F5290 (inside the unnamed BATTLE bss
+after `D_800F5238`). Not a port bug: owning only `func_800A1AF8` (a 3-line
+forwarder) diverges there too, and the original side's bytes change from
+build to build with the C unchanged (only the routing trampolines differ):
+bytes derived from dead host stack (callers pass SVECTORs whose `pad` the
+callee never writes), which the double oracle cannot mask because both
+original runs leave the same residue. An oracle gap to close before 38C1C
+can pass tick mode: find the writer and mask or fix it.
+
+Review cost (agent time, 17 functions): ~32 min reading and fixing the
+specs and ports (zig_diff `--self-check --coverage` for all 17 in 3.5 min,
+re-runs of single functions under a minute), ~5 min renames, ~20 min corpus
+including the bisection of the tick divergence. Per function: ~1 min for a
+forwarder (`func_800A1AF8`), 2-3 min for a sound mid-size one, 5-8 min for
+one needing a spec or port fix; mean ~2 min of review plus ~1 min of
+corpus per function once the oracle gap is closed. For the bulk port's
+cost model: one fix in three functions (6/17 needed a spec behaviour or
+port change), and the one port bug was in a path neither the spec nor the
+corpus reached: budget the review at ~3 min per function, and expect most
+of its value from asking what each callee changes.
 
 `c_body` (bakeoff_context.py) used to run a one-line function
 (`func_8006CE50`, `func_8007C088`) on into the next function's body; it now

@@ -1,0 +1,162 @@
+{
+ "function": "func_800A291C",
+ "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A291C",
+  "unit": "src/BATTLE/BATTLE.PRG/38C1C.c",
+  "stem": "38C1C",
+  "address": "0x800a291c",
+  "difficulty": "S",
+  "zig_name": "func_800A291C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A291C",
+  "spec_file": "func_800A291C.zig",
+  "subsystem": "battle_38C1C_port",
+  "signature": "pub fn func_800A291C(arg0: ?*v.D_800F4538_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F4538_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 15148,
+     "completion_tokens": 7105,
+     "reasoning_tokens": 5356,
+     "cost": 0.0050673,
+     "seconds": 30.2
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "classes": {
+   "wrap": "15888",
+   "negative": "7248",
+   "nonnegative": "6864"
+  },
+  "mutations": [
+   {
+    "name": "F1: tile index by shift (floor, not truncation, for negatives)",
+    "caught": true
+   },
+   {
+    "name": "F2: currentTileZ read from x",
+    "caught": true
+   },
+   {
+    "name": "F3: unsigned division slip on the x position",
+    "caught": true
+   },
+   {
+    "name": "F4: dropped call to func_800AA850",
+    "caught": true
+   },
+   {
+    "name": "F5: wrong constant passed to func_800AA850",
+    "caught": true
+   },
+   {
+    "name": "F6: y addend dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 6,
+   "lines_hit": 6,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "prompt_tokens": 39306,
+     "completion_tokens": 2336,
+     "reasoning_tokens": 1760,
+     "cost": 0.0050986,
+     "seconds": 10.4
+    },
+    "passed": true,
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ],
+    "errors": []
+   }
+  ]
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A291C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A291C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 52.61900916200102,
+ "totals": {
+  "cost": 0.01017,
+  "prompt_tokens": 54454,
+  "completion_tokens": 9441,
+  "model_seconds": 40.6,
+  "check_seconds": 52.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "renamed": null,
+  "corpus": "call mode (shadow): not reached by the three recipes"
+ }
+}

@@ -13,7 +13,8 @@ For each function (default: every one in pc/tests/zig_diff/specs.toml):
     the game's Zig flags against the build's generated views_<unit>/c_<unit>;
   - every global either side reaches is defined at its C size in one
     section (`zdiff_state`); the unit's own data definitions keep their
-    values (`zdiff_fixed`); the PS1 scratchpad is mapped;
+    values (`zdiff_fixed`); the PS1 scratchpad and PS1 address 0 (low RAM, where
+    the PC C's NULL guards read) are mapped;
   - every external function is a recording stub generated from the `c`
     module's prototype (the spec may give one a behaviour: an arena block
     for an allocator); a static the C calls is a trap;
@@ -394,20 +395,30 @@ class Build:
             stubs = sorted(set(stubs) | set(extra))
 
     def name_address(self, exe, text):
-        """Name the addresses in the harness output (symbol+offset)."""
-        symbols = []
-        for line in run(["nm", "-n", "-S", exe]).splitlines():
-            parts = line.split()
-            if len(parts) == 4:
-                symbols.append((int(parts[0], 16), int(parts[1], 16), parts[3]))
+        """Name the addresses in the harness output (symbol+offset): memory
+        that differs, a crash's fault address and the arguments it ran on."""
+        return name_addresses(exe, text)
 
-        def name(m):
-            address = int(m.group(1), 16)
-            for start, size, symbol in symbols:
-                if start <= address < start + size:
-                    return f"{m.group(1)} [{symbol}+{address - start:#x}]"
-            return m.group(1)
-        return re.sub(r"memory at (0x[0-9a-f]+)", lambda m: "memory at " + name(m), text)
+
+def name_addresses(exe, text):
+    symbols = _symbols(exe)
+
+    def name(hex_text, fault=False):
+        address = int(hex_text, 16)
+        if fault and address < 0x10000:
+            return f"{hex_text} [NULL+{address:#x}: a field of a null pointer]"
+        where = _addr_name(symbols, address)
+        if where != f"{address:#x}":
+            return f"{hex_text} [{where}]"
+        if fault:
+            return f"{hex_text} [memory the harness does not own: a pointer from random bytes?]"
+        return hex_text
+    text = re.sub(r"memory at (0x[0-9a-f]+)", lambda m: "memory at " + name(m.group(1)), text)
+    text = re.sub(r"fault address (0x[0-9a-f]+)", lambda m: "fault address " + name(m.group(1), True), text)
+
+    def args(m):
+        return m.group(1) + re.sub(r"0x[0-9a-f]{6,}", lambda a: name(a.group(0)), m.group(2))
+    return re.sub(r"(crashed on arguments:)([^\n]*)", args, text)
 
 
 # ---------------------------------------------------------------- coverage lane
@@ -423,6 +434,8 @@ def _symbols(exe):
 def _addr_name(symbols, address):
     if 0x1F800000 <= address < 0x1F801000:
         return f"scratchpad+{address - 0x1F800000:#x}"
+    if 0x80000000 <= address < 0x80008000:
+        return f"low_ram+{address - 0x80000000:#x}"
     for start, size, name in symbols:
         if start <= address < start + size:
             return "arena" if name == "zdiff_arena" else f"{name}+{address - start:#x}"
@@ -581,7 +594,8 @@ def coverage_run(build, exe, iterations, seed):
         rare = c["eq"] < RARE_EQUAL and c["eq"] * 100 < c["count"]
         if ordered and rare and not any(u["line"] == rel for u in report["uncovered"]):
             seen = "never occurred" if not c["eq"] else f"occurred only {c['eq']} time(s) in {c['count']}"
-            report["flags"].append({"id": f"+{rel} eq", "line": rel, "text": text,
+            report["flags"].append({"id": f"+{rel} eq", "line": rel, "text": text, "kind": "eq", "bits": c["size"] * 8,
+                                    "equal": c["eq"], "count": c["count"],
                                     "what": f"boundary equality {seen} ({c['size'] * 8}-bit compare, {operand}: both "
                                             f"sides seen; a port's `<` for `<=` could pass)"})
         all_ones, sign_bit = (1 << (8 * c["size"])) - 1, 1 << (8 * c["size"] - 1)
@@ -590,7 +604,8 @@ def coverage_run(build, exe, iterations, seed):
         above = [x for x in c["values"] if x > c["bmin"]]
         sign_test = c["distinct"] <= 8 and above and all(x in (all_ones, sign_bit) for x in above)
         if c["const"] == 1 and c["bmin"] >= 0 and c["gtneg"] and not c["gtpos"] and not sign_test:
-            report["flags"].append({"id": f"+{rel} sign", "line": rel, "text": text,
+            report["flags"].append({"id": f"+{rel} sign", "line": rel, "text": text, "kind": "sign",
+                                    "bits": c["size"] * 8, "constant": c["bmin"],
                                     "what": f"every value above {c['bmin']} had the sign bit set (a port testing the "
                                             f"sign, `< 0`, for this test would pass)"})
     for r in sorted(reads, key=lambda r: (where.get(r["pc"]) or 0, r["pc"])):
@@ -602,6 +617,40 @@ def coverage_run(build, exe, iterations, seed):
                                 "size": r["size"], "count": r["count"], "where": name,
                                 "range": _range_text(r, r["size"] * 8), "distinct": r["distinct"]})
     return report
+
+
+def coverage_hints(report, waivers=()):
+    """What each open coverage gap asks of the spec, in plain words (for a
+    spec writer's retry: the gate's lines name the gap, these say what to add)."""
+    waived = {w["id"] for w in waivers}
+    out = []
+    for u in report["uncovered"]:
+        if u["id"] in waived:
+            continue
+        if "(not executed)" in u["what"]:
+            out.append(f"- `{u['text']}` (+{u['line']}) never ran: no input reaches this line; add inputs that get "
+                       f"there (the tests before it must come out the other way).")
+        else:
+            out.append(f"- `{u['text']}` (+{u['line']}): one way out of this test ({u['id']}) was never taken; add "
+                       f"inputs that take it.")
+    for f in report["flags"]:
+        if f["id"] in waived:
+            continue
+        if f.get("kind") == "sign":
+            k, bits = f["constant"], f["bits"]
+            examples = ", ".join(str(x) for x in dict.fromkeys([k + 1, max(k * 2 + 1, 0x100), (1 << (bits - 1)) - 1]))
+            out.append(f"- `{f['text']}` (+{f['line']}): this compares a value with {k}. Every input where the value "
+                       f"was above {k} also had its sign bit set (negative as a signed {bits}-bit number), so a port "
+                       f"that tests the sign instead (`< 0`, or a signed read where the C reads unsigned) would pass "
+                       f"your spec. Add inputs where the value is above {k} AND positive (e.g. {examples}).")
+        elif f.get("kind") == "eq":
+            out.append(f"- `{f['text']}` (+{f['line']}): the two sides of this ordered compare were equal "
+                       f"{f['equal']} time(s) in {f['count']}. A port's `<` for `<=` would pass; add inputs that make "
+                       f"them exactly equal at least {RARE_EQUAL} times and in at least 1% of the runs.")
+    if out:
+        out.append(f"Only a gap no input can reach (say why) may be waived instead: "
+                   f"[[function.{report['function']}.coverage_waiver]] with its `id` and a `reason`.")
+    return out
 
 
 def coverage_verdict(report, threshold, waivers, values_gate=True):

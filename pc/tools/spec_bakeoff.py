@@ -53,7 +53,8 @@ API_URL = "https://openrouter.ai/api/v1/chat/completions"
 EXAMPLES = ["_updateEnemyKills", "func_800B07DC"]
 HARNESS_DOC = """How the harness (pc/tests/zig_diff/main.zig) uses a spec, per iteration:
 the state regions (the arena `zd.zdiff_arena`, every global either side
-reaches, the PS1 scratchpad at 0x1F800000) are filled with random bytes; the
+reaches, the PS1 scratchpad at 0x1F800000, PS1 address 0 at 0x80000000 where
+the PC C's NULL guards read: `psx.lowRam`) are filled with random bytes; the
 unit's own initialised data is restored; `prepare(ctx)` builds the arguments
 (and may write globals and arena objects to bias the state toward edges: a
 pointer the C dereferences must point at valid memory, an arena object from
