@@ -173,8 +173,10 @@ void func_8008AC78(void)
  * action started casting, 7 a swing or a release started (func_80070278, once
  * per swing, chain step and release), 8 a chain step succeeded, 9 ending),
  * the chain step, its kind (vs_main_actions: type and unk2_0, 0 a plain
- * attack) and its aim point (unk844, world units). */
-int pc_battle_action(int* actor, int* action, int* phase, int* chain, int* type, int* plain, int aim[3])
+ * attack), its aim point (unk844, world units) and its first target, the
+ * actor func_800780A8 frames with the performer (unk4C[0] when it has
+ * targets and that target is an actor; -1: none, or a point). */
+int pc_battle_action(int* actor, int* action, int* phase, int* chain, int* type, int* plain, int aim[3], int* target)
 {
     D_800F19CC_t2* a;
     if (D_800F196C != 2 || D_800F19CC == NULL)
@@ -189,7 +191,45 @@ int pc_battle_action(int* actor, int* action, int* phase, int* chain, int* type,
     aim[0] = D_800F19CC->unk8.unk844.vx;
     aim[1] = D_800F19CC->unk8.unk844.vy;
     aim[2] = D_800F19CC->unk8.unk844.vz;
+    *target = a->unk4A != 0 && a->unk4C[0].unk40 == 0 ? (int)(u_char)a->unk4C[0].unk0.targetActor : -1;
     return 1;
+}
+
+/* Host-only query for the depth of field's camera subject (post_profile.cpp,
+ * dof_focus `subject`; dev_state.c pc_dev_battle_camera): what BATTLE's camera
+ * steps toward now, read the way func_8006E640 reads it in the action state
+ * (D_800F196C 2): in _cameraMode 1 and 3 the chosen target candidate
+ * (unk29C0[unk298D], while one is chosen: the targeting sphere's), in mode 2
+ * the area point (unk2998); and the camera's look-at (vs_scratch.camera,
+ * world units). out: [0] D_800F196C (-1: no battle state), [1] _cameraMode,
+ * [2] a target candidate chosen, [3..5] its point (the body part's, or the
+ * actor's: func_800719FC's list), [6] an area point, [7..9] it, [10..12] the
+ * look-at, [13] the candidate's actor slot (unk9). Reads only. */
+void pc_battle_camera_focus(int out[14])
+{
+    int i;
+    for (i = 0; i < 14; ++i)
+        out[i] = 0;
+    out[0] = D_800F19CC != NULL ? (int)D_800F196C : -1;
+    out[1] = (int)_cameraMode;
+    if (D_800F19CC != NULL && D_800F196C == 2) {
+        if ((_cameraMode == 1 || _cameraMode == 3) && D_800F19CC->unk298D != 0xFF && D_800F19CC->unk2C00 != 0
+            && D_800F19CC->unk298D < 23) {
+            out[2] = 1;
+            out[3] = D_800F19CC->unk29C0[D_800F19CC->unk298D].unk0.vx;
+            out[4] = D_800F19CC->unk29C0[D_800F19CC->unk298D].unk0.vy;
+            out[5] = D_800F19CC->unk29C0[D_800F19CC->unk298D].unk0.vz;
+            out[13] = (u_char)D_800F19CC->unk29C0[D_800F19CC->unk298D].unk9;
+        } else if (_cameraMode == 2) {
+            out[6] = 1;
+            out[7] = D_800F19CC->unk2998.vx;
+            out[8] = D_800F19CC->unk2998.vy;
+            out[9] = D_800F19CC->unk2998.vz;
+        }
+    }
+    out[10] = vs_scratch.camera.lookAt.vx >> 12;
+    out[11] = vs_scratch.camera.lookAt.vy >> 12;
+    out[12] = vs_scratch.camera.lookAt.vz >> 12;
 }
 
 /* Host-only queries for gameplay_walls.c (smart cutaway walls). */

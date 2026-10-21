@@ -89,16 +89,22 @@ std::vector<Field>& fields()
     auto add = [&](Field x) { f.push_back(x); };
     /* Depth of field (gameplay; the cutscene layer turns it off). */
     add({ "dof", BOOL, V1(0), 0, 1, "Lens|Depth of Field", "Depth of field",
-        "Blur away from the focal plane (focus on Ashley by default). Off in cutscenes unless the cutscene layer turns it on.",
+        "Blur away from the focal plane (focus on the camera's subject by default: Ashley in the field). Off in\n"
+        "cutscenes unless the cutscene layer turns it on.",
         nullptr, nullptr, 0 });
     add({ "dof_model", ENUM, V1(1), 0, 1, "Lens|Depth of Field", "Model",
         "Physical: a camera lens (f-stop, focal length, sensor; the scene's scale from Ashley's height).\n"
         "Artistic: blur grows with the aperture value from the focal plane, whatever the lens.",
         "physical\0artistic\0", "Physical camera\0Artistic\0", 0 });
-    add({ "dof_focus", ENUM, V1(0), 0, 3, "Lens|Depth of Field", "Focus",
-        "On Ashley: her tracked position (walls in front never steal the focus). Screen centre and Cursor: the depth\n"
-        "there (the mouse over the picture), measured each frame and eased. Manual: a fixed depth.",
-        "ashley\0centre\0manual\0cursor\0", "On Ashley\0Screen centre\0Manual depth\0Cursor\0", 0 });
+    add({ "dof_focus", ENUM, V1(4), 0, 4, "Lens|Depth of Field", "Focus",
+        "Camera subject (the default): whom the game's camera frames. Ashley in the field; in a battle action the\n"
+        "actor the action camera turns to (an enemy's wind-up and cast, Ashley's chain, a counter), the target\n"
+        "while targeting (the rules below); eased between them, Ashley whenever no subject is known.\n"
+        "On Ashley: her tracked position always. Neither lets a wall in front steal the focus.\n"
+        "Screen centre and Cursor: the depth there (the mouse over the picture), measured each frame and eased.\n"
+        "Manual: a fixed depth.",
+        "ashley\0centre\0manual\0cursor\0subject\0",
+        "On Ashley\0Screen centre\0Manual depth\0Cursor\0Camera subject\0", 0 });
     add({ "dof_focus_depth", FLOAT, V1(1024), 64, 8000, "Lens|Depth of Field", "Focus depth",
         "Manual focus: the focal plane's view depth (GTE SZ; the RPC `post` reply gives it in metres).", nullptr,
         nullptr, LOG });
@@ -127,6 +133,25 @@ std::vector<Field>& fields()
         "soft veil instead of a smear (1: as much as behind; 0: no foreground layer).", nullptr, nullptr, 0 });
     add({ "dof_focus_speed", FLOAT, V1(0.15f), 0, 2, "Lens|Depth of Field", "Focus pull time",
         "Seconds the focus takes to follow a change (0: at once). Camera cuts and room changes snap.", nullptr, nullptr, 0 });
+    /* The camera subject's rules: which situation follows which actor (camera_subject() below; data, so a
+     * room, a preset or the user, and later a Lua plugin through the same fields, can change them). */
+    add({ "dof_subject_others", ENUM, V1(0), 0, 3, "Lens|Camera subject", "Another actor's action",
+        "Camera subject focus while an enemy (any actor but Ashley) acts, from its wind-up to the camera's return:\n"
+        "the actor (the caster), its target, the game camera's look-at point (between the two), or Ashley.",
+        "actor\0target\0look_at\0ashley\0", "The actor\0Its target\0The camera's look-at\0Ashley\0", 0 });
+    add({ "dof_subject_ashley", ENUM, V1(0), 0, 3, "Lens|Camera subject", "Ashley's action",
+        "Camera subject focus while Ashley acts (an attack, a chain, a spell, an item): Ashley herself, her target,\n"
+        "the game camera's look-at point, or Ashley.",
+        "actor\0target\0look_at\0ashley\0", "Ashley (the actor)\0Her target\0The camera's look-at\0Ashley\0", 0 });
+    add({ "dof_subject_keep_ashley", BOOL, V1(0), 0, 1, "Lens|Camera subject",
+        "Keep Ashley when targeted", "Camera subject: an enemy's action aimed at Ashley keeps the focus on her\n"
+        "(off: on the enemy, as Another actor's action says).", nullptr, nullptr, 0 });
+    add({ "dof_subject_targeting", ENUM, V1(0), 0, 1, "Lens|Camera subject", "Targeting",
+        "Camera subject focus while a target is chosen (the targeting sphere, an area point): the target, or Ashley.",
+        "target\0ashley\0", "The target\0Ashley\0", 0 });
+    add({ "dof_subject_speed", FLOAT, V1(0.4f), 0, 3, "Lens|Camera subject", "Subject change time",
+        "Seconds the focus takes to move to a new camera subject (0: at once). Camera cuts still snap.", nullptr,
+        nullptr, 0 });
     /* The bokeh: the aperture's shape and character (both depth of fields). */
     add({ "bokeh_blades", FLOAT, V1(0), 0, 9, "Lens|Bokeh", "Aperture blades",
         "0: a round aperture. 5 to 9: a polygon of that many blades (the shape bright out-of-focus points take).",
@@ -790,7 +815,7 @@ bool camera_cut()
 float focus_eased = -1;
 int focus_room = -1, focus_mode = -1;
 bool focus_fp, focus_snap;
-enum { FOCUS_ASHLEY, FOCUS_CENTRE, FOCUS_MANUAL, FOCUS_CURSOR };
+enum { FOCUS_ASHLEY, FOCUS_CENTRE, FOCUS_MANUAL, FOCUS_CURSOR, FOCUS_SUBJECT };
 /* The focus probe's latest result (pc_post_focus_result): the view depth (GTE SZ, <= 0 none) and the share
  * of 3D around the point; results still in flight from before a jump are skipped. */
 float probe_sz = -1, probe_share;
@@ -834,6 +859,149 @@ float ashley_depth()
     if (!s.has_player)
         return -1;
     return r[2][0] * s.x + r[2][1] * (s.y - 96) + r[2][2] * s.z + t[2];
+}
+
+/* ---- the camera subject (dof_focus subject) ----
+ * Whom the game's camera frames, from the game's state (read only; dev_state.c, scene_submit.inc):
+ *   - BATTLE's action state (D_800F196C 2), _cameraMode 4 to 10: from the wind-up on, the action camera
+ *     (_handleCombatCameraZoom) steps toward func_800780A8's point, halfway between the performer and its
+ *     first target (or its aim point), and holds the performer through the cast, the release, the chain
+ *     steps and the hits; 11 is the camera's return to Ashley. That look-at is no actor's: the subject is
+ *     the performer (the caster), unless the rules say its target, the look-at itself or Ashley.
+ *   - the same state's modes 1 and 3 with a target candidate chosen (the targeting sphere: func_8006E640
+ *     steps the camera toward it) and mode 2's area point: the target.
+ *   - anything else (field play, the camera following Ashley): Ashley.
+ * The rules (dof_subject_*) are post fields, so any layer sets them; Situation -> Choice is one pure
+ * function (pick_subject) so a plugin can replace it later without touching how depth is measured. */
+struct Situation {
+    bool action; /* an action camera (mode 4..10) */
+    int performer, target; /* actor slots (-1 none) */
+    bool targeting, area; /* modes 1 / 3 with a candidate; mode 2 */
+};
+enum Choice { CHOOSE_ASHLEY, CHOOSE_ACTOR, CHOOSE_TARGET, CHOOSE_LOOK_AT, CHOOSE_CANDIDATE, CHOOSE_AREA };
+struct Rules {
+    int others, ashley; /* 0 the actor, 1 its target, 2 the look-at, 3 Ashley */
+    bool keep_ashley; /* an action aimed at Ashley keeps her */
+    int targeting; /* 0 the target, 1 Ashley */
+};
+Choice pick_subject(const Situation& s, const Rules& r, const char** why)
+{
+    *why = "field";
+    if (s.action && s.performer >= 0) {
+        *why = s.performer == 0 ? "ashley_action" : "action";
+        if (s.performer != 0 && r.keep_ashley && s.target == 0) {
+            *why = "targets_ashley";
+            return CHOOSE_ASHLEY;
+        }
+        switch (s.performer == 0 ? r.ashley : r.others) {
+        case 0: return s.performer == 0 ? CHOOSE_ASHLEY : CHOOSE_ACTOR;
+        case 1: return s.target >= 0 ? CHOOSE_TARGET : CHOOSE_LOOK_AT; /* a point aimed at: the camera frames it */
+        case 2: return CHOOSE_LOOK_AT;
+        default: return CHOOSE_ASHLEY;
+        }
+    }
+    if ((s.targeting || s.area) && r.targeting == 0) {
+        *why = "targeting";
+        return s.targeting ? CHOOSE_CANDIDATE : CHOOSE_AREA;
+    }
+    return CHOOSE_ASHLEY;
+}
+/* The subject this present (RPC `post` subject, the panel's readout). */
+struct SubjectNow {
+    const char* kind = "ashley"; /* ashley, actor (the performer), target, look_at, point (an area's) */
+    const char* why = "field";
+    int actor = 0; /* its actor slot (-1: a point) */
+    float depth = -1; /* its view depth (GTE SZ; <= 0 unknown) */
+    bool fallback; /* the choice had no depth: Ashley instead */
+    int state = -1, mode = 0, performer = -1, target = -1; /* the game's: D_800F196C, _cameraMode, the action's */
+} subject_now;
+std::string subject_key; /* what the focus follows: a change eases over dof_subject_speed */
+bool subject_pulling;
+/* A world point's view depth (GTE SZ), or <= 0 when there is no camera. */
+float point_depth(const float p[3])
+{
+    float r[3][3], t[3], h, ox, oy;
+    if (!pc_scene_camera_get(r, t, &h, &ox, &oy))
+        return -1;
+    return r[2][0] * p[0] + r[2][1] * p[1] + r[2][2] * p[2] + t[2];
+}
+/* An actor's chest (its feet 96 units up, as Ashley's: ashley_depth), or false when its slot is empty. */
+bool actor_chest(int slot, float out[3])
+{
+    struct pc_dev_actor actors[17];
+    int n = pc_dev_actors ? pc_dev_actors(actors, 17) : 0;
+    for (int i = 0; i < n; i++)
+        if (actors[i].slot == slot) {
+            out[0] = actors[i].pos[0], out[1] = actors[i].pos[1] - 96, out[2] = actors[i].pos[2];
+            return true;
+        }
+    return false;
+}
+/* The camera subject's depth now (and subject_now); falls back to Ashley's whenever the subject's is unknown. */
+float subject_depth(const Values& v)
+{
+    Situation sit = { false, -1, -1, false, false };
+    struct pc_dev_camera cam;
+    struct pc_dev_action act;
+    memset(&cam, 0, sizeof cam);
+    memset(&act, 0, sizeof act);
+    bool have_cam = pc_dev_battle_camera && pc_dev_battle_camera(&cam);
+    if (have_cam && cam.state == 2 && cam.mode >= 4 && cam.mode <= 10 && pc_dev_battle_action
+        && pc_dev_battle_action(&act)) {
+        sit.action = true;
+        sit.performer = act.actor;
+        sit.target = act.target;
+    } else if (have_cam && cam.state == 2) {
+        sit.targeting = cam.candidate != 0;
+        sit.area = cam.area != 0;
+    }
+    Rules rules = { (int)get(v, "dof_subject_others"), (int)get(v, "dof_subject_ashley"),
+        get(v, "dof_subject_keep_ashley") > 0.5f, (int)get(v, "dof_subject_targeting") };
+    SubjectNow now;
+    if (have_cam)
+        now.state = cam.state, now.mode = cam.mode;
+    now.performer = sit.performer, now.target = sit.target;
+    Choice c = pick_subject(sit, rules, &now.why);
+    float p[3];
+    bool have = false;
+    switch (c) {
+    case CHOOSE_ACTOR:
+    case CHOOSE_TARGET:
+        now.kind = c == CHOOSE_ACTOR ? "actor" : "target";
+        now.actor = c == CHOOSE_ACTOR ? sit.performer : sit.target;
+        have = now.actor != 0 && actor_chest(now.actor, p);
+        if (now.actor == 0) /* Ashley: her own tracked depth */
+            now.kind = "ashley";
+        break;
+    case CHOOSE_LOOK_AT:
+        now.kind = "look_at", now.actor = -1;
+        memcpy(p, cam.look_at, sizeof p);
+        have = true;
+        break;
+    case CHOOSE_CANDIDATE: /* the targeted actor, at the body part (or the point) the camera turns to */
+        now.kind = "target", now.actor = cam.candidate_actor;
+        memcpy(p, cam.candidate_pos, sizeof p);
+        have = true;
+        break;
+    case CHOOSE_AREA:
+        now.kind = "point", now.actor = -1;
+        memcpy(p, cam.area_pos, sizeof p);
+        have = true;
+        break;
+    default:
+        break;
+    }
+    float d = have ? point_depth(p) : -1;
+    if (!(d > 16)) { /* Ashley (her choice, or no subject known) */
+        now.fallback = strcmp(now.kind, "ashley") != 0;
+        if (now.fallback)
+            now.why = "fallback";
+        now.kind = "ashley", now.actor = 0;
+        d = ashley_depth();
+    }
+    now.depth = d;
+    subject_now = now;
+    return d;
 }
 
 /* ---- auto exposure ---- */
@@ -1166,6 +1334,13 @@ extern "C" void pc_post_frame_get(pc_post_frame* out)
         pc_dev_state(&s);
     bool jump = cut || s.room != focus_room || fp != focus_fp || mode != focus_mode;
     focus_room = s.room, focus_fp = fp, focus_mode = mode;
+    if (jump || mode != FOCUS_SUBJECT || !(f.flags & 1)) /* a cut snaps: no subject pull to finish */
+        subject_pulling = false;
+    if (mode != FOCUS_SUBJECT || !(f.flags & 1)) {
+        subject_key.clear();
+        subject_now = SubjectNow();
+        subject_now.why = "";
+    }
     if (!(f.flags & 1)) {
         focus_eased = probe_sz = -1;
     } else if (mode == FOCUS_MANUAL) {
@@ -1173,9 +1348,17 @@ extern "C" void pc_post_frame_get(pc_post_frame* out)
         focus_eased = -1;
     } else {
         float d = -1;
+        bool subject_pull = false; /* easing to a new camera subject: dof_subject_speed */
         if (mode == FOCUS_ASHLEY)
             d = ashley_depth();
-        else {
+        else if (mode == FOCUS_SUBJECT) {
+            d = subject_depth(v);
+            std::string key = std::string(subject_now.kind) + ":" + std::to_string(subject_now.actor);
+            if (key != subject_key && !subject_key.empty())
+                subject_pulling = true;
+            subject_key = key;
+            subject_pull = subject_pulling;
+        } else {
             f.focus_probe = 1;
             if (mode == FOCUS_CURSOR)
                 cursor_point(f.focus_uv);
@@ -1191,12 +1374,15 @@ extern "C" void pc_post_frame_get(pc_post_frame* out)
         if (jump)
             focus_snap = true;
         if (d > 16) {
-            float speed = get(v, fp ? "dof_fp_focus_speed" : "dof_focus_speed");
+            float speed = get(v, fp ? "dof_fp_focus_speed" : subject_pull ? "dof_subject_speed" : "dof_focus_speed");
             if (focus_eased <= 0 || focus_snap || speed <= 0)
                 focus_eased = d;
             else
                 focus_eased += (d - focus_eased) * (1.0f - expf(-dt / speed));
             focus_snap = false;
+            /* the subject change is done once the focus is there (then the ordinary pull time again) */
+            if (subject_pulling && fabsf(d - focus_eased) <= 0.02f * d)
+                subject_pulling = false;
         }
         f.focus_sz = focus_eased > 0 ? focus_eased : 0;
     }
@@ -1510,8 +1696,8 @@ extern "C" int pc_post_settings_parse(const char* key, const char* rest)
                 legacy(i == 0 ? "dof" : i == 1 ? "tilt_shift" : "depth_fog", ((int)n[0] >> i) & 1 ? "1" : "0");
         return 1;
     }
-    if (!strcmp(key, "focus_mode"))
-        return count >= 1 ? (legacy("dof_focus", std::to_string((int)n[0])), 1) : 1;
+    if (!strcmp(key, "focus_mode")) /* 0, on Ashley, was the default then: the camera subject is now */
+        return count >= 1 && (int)n[0] != 0 ? (legacy("dof_focus", std::to_string((int)n[0])), 1) : 1;
     if (!strcmp(key, "aperture"))
         return count >= 1 ? (legacy("dof_aperture", number(n[0])), 1) : 1;
     if (!strcmp(key, "focus_depth"))
@@ -1764,7 +1950,13 @@ extern "C" int pc_post_rpc(const char* params_text, char* out, int size)
                                                                                : "none")
         + ",\"fft_available\":" + (pc_post_fft_available ? "true" : "false") + ",\"fft_size\":"
         + std::to_string(pc_post_fft_size) + ",\"ev\":" + number(pc_post_active_ev) + ",\"focus\":"
-        + number(frame.focus_sz) + ",\"first_person\":" + (lens.first_person ? "true" : "false")
+        + number(frame.focus_sz) + ",\"subject\":{\"kind\":" + jstr(subject_now.why[0] ? subject_now.kind : "")
+        + ",\"why\":" + jstr(subject_now.why) + ",\"actor\":" + std::to_string(subject_now.actor) + ",\"depth\":"
+        + number(subject_now.depth) + ",\"fallback\":" + (subject_now.fallback ? "true" : "false") + ",\"pulling\":"
+        + (subject_pulling ? "true" : "false") + ",\"state\":" + std::to_string(subject_now.state) + ",\"mode\":"
+        + std::to_string(subject_now.mode) + ",\"performer\":" + std::to_string(subject_now.performer)
+        + ",\"action_target\":" + std::to_string(subject_now.target) + "}"
+        + ",\"first_person\":" + (lens.first_person ? "true" : "false")
         + ",\"lens\":{\"model\":" + jstr(lens.physical ? "physical" : "artistic") + ",\"focal_mm\":"
         + number(lens.focal_mm) + ",\"fstop\":" + number(lens.fstop) + ",\"sensor_mm\":" + number(lens.sensor_mm)
         + ",\"focus_m\":" + number(lens.focus_m) + ",\"far_px\":" + number(lens.far_px) + ",\"cap\":"
@@ -2028,6 +2220,14 @@ extern "C" void pc_post_panel(void)
         else
             ImGui::TextDisabled("Depth of field%s: artistic, focus SZ %.0f", lens.first_person ? " (first person)" : "",
                 frame.focus_sz);
+        if (subject_now.why[0]) {
+            if (subject_now.actor > 0)
+                ImGui::TextDisabled("Camera subject: %s %d (%s), SZ %.0f%s", subject_now.kind, subject_now.actor,
+                    subject_now.why, subject_now.depth, subject_pulling ? ", pulling focus" : "");
+            else
+                ImGui::TextDisabled("Camera subject: %s (%s), SZ %.0f%s", subject_now.kind, subject_now.why,
+                    subject_now.depth, subject_pulling ? ", pulling focus" : "");
+        }
     }
     ImGui::Checkbox("Bokeh test card", &bokeh_test);
     tooltip("While depth of field is on: the 3D replaced by small white dots, blurred by the maximum, to see the\n"

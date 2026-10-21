@@ -30,8 +30,23 @@ struct pc_dev_action {
     int type; /* vs_main_actions type: 1 spell, 2 ability, 3 break art, 5 item, 6 base attack, 7 trap */
     int plain; /* a plain attack (no effect) */
     float aim[3]; /* its aim point, world units */
+    int target; /* its first target's actor slot (-1: none, or a point) */
 };
 int pc_dev_battle_action(struct pc_dev_action* out) __attribute__((weak));
+/* What BATTLE's camera steps toward now (scene_submit.inc
+ * pc_battle_camera_focus), for the depth of field's camera subject
+ * (post_profile.cpp): returns 0 outside the battle overlay's states. */
+struct pc_dev_camera {
+    int state; /* D_800F196C: 2 the action state */
+    int mode; /* _cameraMode */
+    int candidate; /* modes 1 and 3: a target candidate is chosen (the targeting sphere's) */
+    float candidate_pos[3]; /* its point (the body part's or the actor's), world units */
+    int candidate_actor; /* its actor slot (-1: none) */
+    int area; /* mode 2: an area point */
+    float area_pos[3];
+    float look_at[3]; /* the camera's look-at, world units */
+};
+int pc_dev_battle_camera(struct pc_dev_camera* out) __attribute__((weak));
 #ifdef __cplusplus
 }
 #endif

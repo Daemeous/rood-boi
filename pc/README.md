@@ -996,8 +996,11 @@ Design notes: `pc/docs/Native_Rendering.md`.
 ### Post-processing
 
 An Unreal-style post stack works on the 3D picture before the 2D/UI and the
-overlay: depth of field (focus on Ashley's tracked position; a softer
-foreground so walls in front become a veil), tilt-shift, depth fog, and in
+overlay: depth of field (focus on the camera's subject: Ashley in the field,
+the actor a battle action's camera turns to, such as an enemy casting across
+the room, and the target while targeting; never the depth under a wall in
+front; a softer foreground so walls in front become a veil), tilt-shift,
+depth fog, and in
 a grade pass sharpen, chromatic aberration, exposure (manual or auto),
 bloom (Gaussian on both renderers, an FFT convolution with our own lens
 kernel on Vulkan), white balance, colour grading (Unreal's ColorCorrect per
@@ -1019,6 +1022,24 @@ context changes. Details > Post-processing edits every layer; RPC `post`
 drives it; RPC `graphics` `post` (bit 0 DoF, 1 tilt-shift, 2 fog) still sets
 the gameplay values. Fields, order, the data model (including per-cutscene
 profiles later) and costs: [docs/Post_Processing.md](docs/Post_Processing.md).
+
+Depth of field's focus (`post_dof_focus`): `subject` (the default, "Camera
+subject"), `ashley`, `centre`, `manual`, `cursor`. The camera subject is read
+from the game's own state: in the field the camera follows Ashley, so it is
+exactly `ashley`; from a battle action's wind-up (`_cameraMode` 4 to 10) the
+subject is the action's performer, the actor the game's action camera turns
+to (an enemy's wind-up and cast, Ashley's chain, a counter), until the
+camera's return; while targeting it is the targeted actor (the body part the
+camera turns to). Which situation follows whom is data, the post fields
+`dof_subject_others` (an enemy's action: `actor`, `target`, `look_at`,
+`ashley`), `dof_subject_ashley` (Ashley's action, the same choices),
+`dof_subject_keep_ashley` (an enemy's action aimed at Ashley keeps her; off)
+and `dof_subject_targeting` (`target`, `ashley`), so presets, rooms and the
+user can change them (`post_dof_subject_*` in the settings). The focus eases
+to a new subject over `dof_subject_speed` seconds (0.4), and falls back to
+Ashley whenever the subject is unknown. RPC `post` reports it: `subject`
+{`kind`, `why`, `actor`, `depth` (GTE SZ), `fallback`, `pulling`, `state`,
+`mode`, `performer`, `action_target`}, `focus` the focal depth used.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -2410,6 +2431,7 @@ what limits a full run.
 | `golden_frames` | fixed scenes and camera poses against reference frames |
 | `transition_fade_smoke` | room transitions (a door in the card's zone, another zone): the fade darkens the lit picture monotonically to black and back, lit until black, the 3D keeping its depth (needs `pc/save/card1.mcd`) |
 | `title_fade_smoke` | the title's fade after Continue (New Game without a card) against the software rasteriser frame by frame: in 4:3 no black box over the menu and the backdrop fades; in 16:9 the brightness follows the original's |
+| `dof_subject_smoke` | depth of field on the camera subject (the default): Ashley in the field (identical to On Ashley), in zone 48 room 10 an enemy's caster from its wind-up (the focus eased there, its chest depth during the cast, its pixels sharper than with focus on Ashley), Ashley again after; `dof_subject_keep_ashley` keeps her; the targeted actor while targeting (zone 9 room 18); needs the test card |
 | `post_smoke` | the post stack: each effect changes the 3D as it should and leaves the 2D/UI exact, defaults neutral, presets, profile save/load, a room item, blending, auto exposure, the convolution bloom (Vulkan); depth of field stays off on the title, in the attract demo, the opening (a cutscene) and a field menu (field play needs `pc/save/card1.mcd`) |
 | `camera_stick_smoke` | the right-stick camera in the save room: continuous yaw proportional to the stick, facing masks, L1/R1, zoom limits, no camera behind drawn walls, R3, idle reset, first-person view and targeting sphere, the RT camera (Vulkan); the opening's scripted camera unchanged (needs `pc/save/card1.mcd`) |
 | `fixture_lighting_smoke` | generated fixture lights in zone 9: types, lit, shadow exclusion, glow links, suppressed glows, live type edits, catalog save, regenerate (needs `pc/save/card1.mcd`); the catalog's schema, round trip and generator determinism are the CTest `fixture_catalog` |

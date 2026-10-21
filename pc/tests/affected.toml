@@ -216,7 +216,7 @@ suites = ["particles_smoke", "ctest"]
 [[rule]]
 paths = ["pc/src/post*", "pc/src/post_*.inc", "pc/assets/post/*", "pc/shaders/vulkan/bloom*",
          "pc/shaders/vulkan/post_*", "pc/shaders/vulkan/blur.frag"]
-suites = ["post_smoke", "aa_smoke", "transition_fade_smoke", "tunables_smoke"]
+suites = ["post_smoke", "dof_smoke", "dof_subject_smoke", "aa_smoke", "transition_fade_smoke", "tunables_smoke"]
 
 [[rule]]
 paths = ["pc/src/antialias.*", "pc/shaders/vulkan/smaa*", "pc/shaders/vulkan/fxaa.frag",

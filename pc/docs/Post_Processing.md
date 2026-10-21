@@ -133,11 +133,12 @@ reports why (`lens_blur_off`: `title`, `attract`, `menu`, `no_player`). In a
 cutscene the built-in cutscene layer turns them off; a cutscene layer may
 turn them on (the hook for authored cutscene depth of field, below).
 
-When on: focus "On Ashley" uses her tracked position (her chest's view
-depth), never the depth under a screen point, so a wall in front does not
-steal the focus; the focus eases over `dof_focus_speed` seconds of game time,
-holds while she is briefly missing, and snaps on a camera cut or a room
-change. In front of the focus the blur is `dof_near_blur` of the maximum
+When on: the default focus, "Camera subject", follows whom the game's
+camera frames (below): Ashley in the field, where it is exactly "On Ashley"
+(her tracked position, her chest's view depth). Neither uses the depth under
+a screen point, so a wall in front does not steal the focus; the focus eases
+over `dof_focus_speed` seconds of game time, holds while she is briefly
+missing, and snaps on a camera cut or a room change. In front of the focus the blur is `dof_near_blur` of the maximum
 (0.5): walls and props between the camera and Ashley become a soft veil
 rather than a smear (0: no foreground layer at all).
 
@@ -166,7 +167,8 @@ sensor or a smaller scene scale (the miniature look) give more.
 present shader's formula (radius = `dof_radius` x clamp(`aperture` x
 (1 - focus / z), -1, 1)): the CPU folds the lens into those two numbers.
 
-Focus (`dof_focus`): **On Ashley** (her tracked position), **Screen
+Focus (`dof_focus`): **Camera subject** (`subject`, the default; next
+section), **On Ashley** (her tracked position), **Screen
 centre** and **Cursor** (the mouse over the picture; RPC `post`
 `focus_point` [u, v] sets a point instead), **Manual** (`dof_focus_depth`,
 GTE SZ). Centre and cursor read the depth there on the GPU: the focus probe
@@ -176,6 +178,56 @@ frames later (Vulkan: when the frame is done; OpenGL: a ring of three pixel
 buffers), so the focus takes walls, props and enemies alike. Every mode
 eases over `dof_focus_speed` seconds of game time; a camera cut, a room
 change or a mode change snaps to the probe's first fresh result.
+
+### The camera subject
+
+`dof_focus subject` focuses on whom the game's camera frames, read from the
+game's state every present and never written (`scene_submit.inc`
+`pc_battle_action`, `pc_battle_camera_focus`; `dev_state.c`;
+`post_profile.cpp` `subject_depth`):
+
+- **Battle actions.** BATTLE's action state (`D_800F196C` 2) runs one action
+  at a time, any actor's. From the wind-up on (`_cameraMode` 4:
+  `_handleCombatCameraZoom`) the camera steps toward `func_800780A8`'s
+  point, halfway between the performer (the action record's
+  `unk4.unk0.targetActor`) and its first target (`unk4C[0]`, or its aim
+  point), and holds through the cast (5, 6), the release and hits (7), chain
+  steps (8) and the end (9, 10); mode 11 is the camera's return to Ashley.
+  That look-at is between two actors, nobody's: the subject is the performer
+  (the caster; Ashley for her own attacks, chains and spells), at its chest
+  (its feet 96 units up, as Ashley's). An enemy's plain attack goes through
+  mode 4 too, so the attacker is the subject from its wind-up.
+- **Targeting.** In modes 1 and 3 with a target candidate chosen (the
+  targeting sphere; `func_8006E640` steps the camera toward it) the subject
+  is the targeted actor, at the body part (or the point) the camera turns to;
+  in mode 2 an area spell's point.
+- **Anything else** (field play, the camera following Ashley): Ashley. When
+  the chosen subject has no depth (an empty slot, behind the camera) the
+  focus falls back to Ashley too.
+
+The rules are post fields (any layer sets them: presets, rooms, the user's
+`post_dof_subject_*` settings, the RPC):
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `dof_subject_others` | `actor` | an enemy's (any other actor's) action: `actor` (the caster), `target` (its target), `look_at` (the game camera's look-at point), `ashley` |
+| `dof_subject_ashley` | `actor` | Ashley's action: the same choices (`actor` is Ashley) |
+| `dof_subject_keep_ashley` | 0 | an enemy's action aimed at Ashley keeps the focus on her |
+| `dof_subject_targeting` | `target` | while targeting: `target`, `ashley` |
+| `dof_subject_speed` | 0.4 | seconds the focus takes to move to a new subject (the ordinary pull time again once there; a camera cut snaps) |
+
+The choice is one pure function of the situation (action, performer, target,
+targeting) and the rules (`pick_subject`), separate from measuring depth, so
+a Lua plugin can later replace or extend the rules (e.g. per enemy or per
+action) without touching the focus code; no Lua API exposes it yet. RPC
+`post` reports the subject: `subject` {`kind` (`ashley`, `actor`, `target`,
+`look_at`, `point`; "" when another focus mode is on), `why` (`field`,
+`action`, `ashley_action`, `targets_ashley`, `targeting`, `fallback`),
+`actor` (its slot, -1 a point), `depth` (its view depth, GTE SZ),
+`fallback`, `pulling` (easing to a new subject), `state` / `mode` (the
+game's `D_800F196C` / `_cameraMode`), `performer`, `action_target`}; `focus`
+is the focal depth used. Details > Post-processing shows it under the lens
+readout. Test: `dof_subject_smoke`.
 
 ### Bokeh
 
@@ -328,7 +380,8 @@ The pieces are in place for authored cutscene looks without new formats:
   interpolates fields between resolved profiles.
 - **Focus targets**: `dof_focus` gains `actor` (an actor slot or name the
   script uses) and `point` (a world position), so a cutscene can rack focus
-  between speakers.
+  between speakers (the camera subject's depth and easing, above, are the
+  pieces to reuse).
 - **Extensible by others**: a new effect is one row in the field table (plus
   its shader code); every layer, file format, the RPC and the editor pick
   it up.
@@ -387,4 +440,7 @@ neutral, contexts, profiles, presets, blending, auto exposure);
 default; blur growing with lower f-stops and away from the focus; the
 blade count, squeeze and cat's eye measured on the test card's bokeh; the
 title, attract demo, cutscenes and menus unblurred; the first-person focus
-following the centre of the view; Vulkan's GPU time).
+following the centre of the view; Vulkan's GPU time);
+`pc/tests/dof_subject_smoke.py` (the camera subject: the default, Ashley in
+the field, an enemy's caster from its wind-up and Ashley again after, eased,
+a rule, the targeted actor).

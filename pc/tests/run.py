@@ -575,6 +575,10 @@ def suites(args, mode="egl"):
               note="physical depth of field: off by default, blur grows with lower f-stops and away from the focus, "
                    "bokeh blade count / squeeze / cat's eye on the test card, unblurred title, attract, cutscene, "
                    "menu; first-person focus follows the centre (eased); Vulkan GPU ms"),
+        Suite("dof_subject_smoke", [PY, str(TESTS / "dof_subject_smoke.py"), "--card", str(args.save)], 300,
+              note="depth of field on the camera subject (the default): Ashley in the field (as On Ashley), an "
+                   "enemy's caster from its wind-up (eased, sharper than on Ashley), Ashley after; a rule as data; "
+                   "the targeted actor"),
         Suite("aa_smoke", [PY, str(TESTS / "aa_smoke.py")], 300,
               note="anti-aliasing: each method renders, smooths edges, keeps texels and 2D; interpolation"),
         Suite("coplanar_order_smoke", [PY, str(TESTS / "coplanar_order_smoke.py"),
@@ -648,7 +652,7 @@ CHECKPOINT_SUITES = {
     "void_fog_smoke",
     "fog_sim_smoke", "fog_volume_smoke", "particles_smoke", "save_point_glow_smoke", "emissive_smoke", "ui_ashley_smoke", "ui_ashley_stability_smoke",
     "ui_equip_smoke",
-    "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "fast_travel_smoke", "fast_travel_shell_smoke", "post_smoke", "dof_smoke",
+    "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "fast_travel_smoke", "fast_travel_shell_smoke", "post_smoke", "dof_smoke", "dof_subject_smoke",
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
     "options_classic_smoke", "options_confirm_smoke",
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",

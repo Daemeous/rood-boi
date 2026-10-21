@@ -75,13 +75,31 @@ int pc_dev_actors(struct pc_dev_actor* out, int max)
     return n;
 }
 /* scene_submit.inc (in BATTLE's 146C.c, which knows the action record). */
-extern int pc_battle_action(int* actor, int* action, int* phase, int* chain, int* type, int* plain, int aim[3]);
+extern int pc_battle_action(int* actor, int* action, int* phase, int* chain, int* type, int* plain, int aim[3],
+    int* target);
 int pc_dev_battle_action(struct pc_dev_action* out)
 {
     int aim[3];
-    if (!pc_battle_action(&out->actor, &out->action, &out->phase, &out->chain, &out->type, &out->plain, aim))
+    if (!pc_battle_action(&out->actor, &out->action, &out->phase, &out->chain, &out->type, &out->plain, aim,
+            &out->target))
         return 0;
     out->aim[0] = (float)aim[0], out->aim[1] = (float)aim[1], out->aim[2] = (float)aim[2];
+    return 1;
+}
+extern void pc_battle_camera_focus(int out[14]);
+int pc_dev_battle_camera(struct pc_dev_camera* out)
+{
+    int v[14];
+    pc_battle_camera_focus(v);
+    if (v[0] < 0)
+        return 0;
+    out->state = v[0], out->mode = v[1];
+    out->candidate = v[2], out->area = v[6], out->candidate_actor = v[2] ? v[13] : -1;
+    for (int i = 0; i < 3; i++) {
+        out->candidate_pos[i] = (float)v[3 + i];
+        out->area_pos[i] = (float)v[7 + i];
+        out->look_at[i] = (float)v[10 + i];
+    }
     return 1;
 }
 void pc_rpc_state(char* out, unsigned size)

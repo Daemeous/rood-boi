@@ -2,7 +2,7 @@
   "title": "Subtle cinematic",
   "description": "A light blur behind Ashley with a seven-blade bokeh: the artistic model, small enough for play.",
   "values": {
-    "dof": 1, "dof_model": "artistic", "dof_focus": "ashley",
+    "dof": 1, "dof_model": "artistic", "dof_focus": "subject",
     "dof_aperture": 1.5, "dof_max_blur": 10, "dof_near_blur": 0.5,
     "bokeh_blades": 7, "bokeh_curvature": 0.6, "bokeh_highlights": 0.8
   }

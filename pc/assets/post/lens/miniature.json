@@ -2,7 +2,7 @@
   "title": "Miniature",
   "description": "The scene read as a small model (Ashley 0.6 m tall): a diorama look, blurred in front and behind.",
   "values": {
-    "dof": 1, "dof_model": "physical", "dof_focus": "ashley", "dof_focus_speed": 0.15,
+    "dof": 1, "dof_model": "physical", "dof_focus": "subject", "dof_focus_speed": 0.15,
     "dof_focal_length": 0, "dof_ashley_height": 0.6, "dof_fstop": 2, "dof_max_blur": 14, "dof_near_blur": 1,
     "bokeh_blades": 0, "bokeh_edge": "soft", "bokeh_edge_amount": 0.5, "bokeh_highlights": 0.8
   }
