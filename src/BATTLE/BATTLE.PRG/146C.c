@@ -26,6 +26,7 @@
 #include "pc/src/psx_types.h"
 #ifdef ROOD_PC
 #include "pc/src/widescreen.h"
+#include "pc/src/classic/classic_hook.h"
 int pc_charge_skip(int phase); /* pc/src/charge_skip.inc: battle charging skip */
 int pc_charge_skip_hold(void);
 void pc_charge_skip_name(int now);
@@ -8085,15 +8086,16 @@ void vs_battle_exec(void)
 #ifdef ROOD_PC
                     /* Widescreen: the status display (HP, MP, RISK, Ashley's
                      * figure, status effects) is anchored to the left edge
-                     * of the screen (pc/src/gpu_hw.c). */
-                    {
+                     * of the screen (pc/src/gpu_hw.c). PC_CLASSIC: its
+                     * packets are the classic layer's (pc/src/classic). */
+                    PC_CLASSIC(PC_CLASSIC_SITE_STATUS_PANEL, NULL, 0, 0, {
                         extern void pc_hw_anchor_packets(const void*, const void*, int)
                             __attribute__((weak));
                         void* hud = psx_get(vs_scratch.unk0);
                         func_800CA2DC();
                         if (pc_hw_anchor_packets)
                             pc_hw_anchor_packets(hud, psx_get(vs_scratch.unk0), 1);
-                    }
+                    });
 #else
                     func_800CA2DC();
 #endif

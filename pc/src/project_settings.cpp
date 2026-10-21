@@ -365,6 +365,13 @@ const Entry entries[] = {
     I("skip_intro", pc_skip_intro),
     I("ui_menus", pc_ui_menus),
     I("hud_classic_override", pc_hud_classic_override), /* HUD claims honoured with ui_menus 0 too (hud.h) */
+    /* the classic look drawn in Lua per kind (a claim made for the classic flavour: rood.classic; hud.h);
+     * on for the kinds through the parity gate (pc/src/classic/classic_parity.h) */
+    I("hud_classic_status", pc_hud_classic_status),
+    I("hud_classic_chain", pc_hud_classic_chain),
+    I("hud_classic_buff", pc_hud_classic_buff),
+    I("hud_classic_damage", pc_hud_classic_damage),
+    I("hud_classic_gauges", pc_hud_classic_gauges),
     I("save_states", pc_save_states), /* the save state slots (savestate_slots.c), 0 off */
     F("ui_menu_opacity", pc_ui_menu_opacity),
 };

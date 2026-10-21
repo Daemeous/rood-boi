@@ -97,7 +97,8 @@ suites = ["frame_cost_smoke", "rpc_smoke", "ctest"]
 # ---- Lua plugins ----
 [[rule]]
 paths = ["pc/src/lua/*", "pc/plugins/*", "pc/tests/lua/*", "pc/third_party/lua*"]
-suites = ["lua_smoke", "ctest", "hud_bench_smoke", "repl_smoke", "options_classic_smoke", "options_confirm_smoke"]
+suites = ["lua_smoke", "ctest", "hud_bench_smoke", "repl_smoke", "options_classic_smoke", "options_confirm_smoke",
+          "classic_parity", "classic_hud_smoke"]
 
 # ---- the REPL bridge's client (run by repl_smoke as a process, not imported) ----
 [[rule]]
@@ -107,7 +108,12 @@ suites = ["repl_smoke"]
 # ---- the Lua visible layer's HUD elements (pc/src/hud) ----
 [[rule]]
 paths = ["pc/src/hud/*"]
-suites = ["hud_bench_smoke", "lua_smoke", "ctest", "ui_text_smoke"]
+suites = ["hud_bench_smoke", "lua_smoke", "ctest", "ui_text_smoke", "classic_parity", "classic_hud_smoke"]
+
+# ---- the classic look drawn in Lua (pc/src/classic: hooks, the parity gate; its waivers) ----
+[[rule]]
+paths = ["pc/src/classic/*", "pc/tests/classic/*"]
+suites = ["classic_parity", "classic_hud_smoke", "hud_bench_smoke", "ui_text_smoke", "ctest"]
 
 # ---- modern menus (pc/src/ui) and the original menus they mirror ----
 [[rule]]
@@ -133,7 +139,7 @@ paths = ["src/BATTLE/*", "pc/src/charge_skip.*", "pc/src/gameplay_walls.*"]
 suites = ["tunables_smoke", "skip_charging_smoke", "charge_skip_soak", "soak", "soak:save", "two_model_enemy_smoke",
           "route_continuation_smoke", "damage_numbers_smoke", "menu0_levelled_smoke", "input:*", "animation_smoke",
           "snapshot_equivalence", "facing_cutaway_smoke", "camera_stick_smoke", "ending_smoke", "weapon_slots_smoke",
-          "hud_bench_smoke"]
+          "hud_bench_smoke", "classic_parity", "classic_hud_smoke"]
 
 [[rule]]
 paths = ["src/EFFECT/*", "pc/src/effect_*"]
@@ -222,7 +228,7 @@ suites = ["aa_smoke", "ui_lines_smoke", "ui_text_smoke", "post_smoke", "flipped_
 paths = ["pc/src/ui_text.*", "pc/src/fixed_font.c", "pc/src/text_lines.c", "pc/src/ui_labels.h",
          "pc/shaders/vulkan/text_*"]
 suites = ["ui_text_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "button_prompts_smoke",
-          "button_roles_symbols_smoke", "ui_manual_smoke", "ui_score_smoke", "ctest"]
+          "button_roles_symbols_smoke", "ui_manual_smoke", "ui_score_smoke", "ctest", "classic_hud_smoke"]
 
 [[rule]]
 paths = ["pc/src/ui_bubbles.*", "pc/src/ui_emotes.c"]

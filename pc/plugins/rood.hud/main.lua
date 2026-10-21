@@ -9,9 +9,10 @@
 --   rood.dev.show("travel")                             the Travel prompt without a Circle of Magic
 --   rood.dev.show("notice", { text = "Saved to slot 3", value = 3 })   the save state slots' line
 -- With the modern look (ui_menus 1) the claims below draw them and the game's own drawing is
--- skipped; with the classic look the game draws them (only typography: look.status.classic), unless
--- hud_classic_override is on: then the same claims run in the classic flavour (e.flavour "classic":
--- the game's own printers, sprites and windows, drawn in its frame).
+-- skipped. The classic look (ui_menus 0) is rood.classic's (its timing words and chains, their
+-- typography); there these claims draw only with hud_classic_override on, in the classic flavour
+-- (e.flavour "classic": the game's own printers, sprites and windows, drawn in its frame), for the
+-- kinds rood.classic does not draw yet.
 -- Turned off (the Lua console's Plugins list), everything is the game's and the C++ drawing.
 -- The module (returned at the end; the REPL's M, pc/tools/rood_repl.py --plugin rood.hud): the look,
 -- the styles, refresh and the draw functions. The claims call M.draw[kind], so a draw function
@@ -46,11 +47,6 @@ local function make_look()
       nudge = 0.5,  -- the capitals' middle below the middle of the game's glyph boxes
       margin = 1,   -- pixels a word (its outline included) keeps from the screen's edges (WELL TIMED! at x 5)
     },
-    -- The classic look (ui_menus 0) keeps the game's drawing: only the status style's
-    -- typography may change here (ui_text font). Fields of ui_text's styles (size, stroke,
-    -- tracking, stretch, font, ...) for this run, over the ui_text_status_* settings; empty:
-    -- the settings' as they are.
-    classic = {},
     -- An equipment's class or affinity change (WEAPON HUMAN +1): each word fitted inside the
     -- game's box for it, the outline kept in.
     buff = {
@@ -138,7 +134,6 @@ local function refresh()
   style.damage_digits = d.style(look.damage.fitted_digits)
   if travel_unit then travel_styles(travel_unit) end
   if notice_unit then notice_style(notice_unit) end
-  rood.hud.typography("status", next(look.classic) and look.classic or nil)
 end
 M.style, M.refresh = style, refresh
 refresh()

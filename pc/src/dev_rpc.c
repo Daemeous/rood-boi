@@ -437,6 +437,7 @@
 #include "probe_gi.h"
 #include "ui_upscale.h"
 #include "ui_text.h"
+#include "classic/classic_parity.h" /* RPC packets, classic */
 #include "ui_bubbles.h"
 #include "button_prompts.h"
 #include "boot_controller.h" /* pc_pad_button_index */
@@ -3188,6 +3189,50 @@ static void handle_method(int fd, const char* request)
             return;
         }
         reply(fd, id, result);
+    } else if (!strcmp(method, "packets")) {
+        /* The classic layer's packet captures (pc/src/classic/classic_parity.h), normalised:
+         * {kind} a site's last (status, chain, buff, damage, gauges, status_panel; sites capture from the
+         * first call on, so the first may find none), with the Lua draw's in the parity mode;
+         * {start, end} the packets of a guest range (main RAM, at most 64 KB) in allocation order. */
+        static char out[LINE_MAX_BYTES / 2];
+        char kind[32];
+        long long lo, hi;
+        if (params && number_value(member(params, "start"), &lo) && number_value(member(params, "end"), &hi)) {
+            static pc_classic_packet packets[1024];
+            if (lo < 0x80000000LL || hi > 0x80200000LL || hi <= lo || hi - lo > 65536 || (lo & 3)) {
+                fail(fd, id, -32602, "start, end: a word-aligned range of main RAM (0x80000000..0x80200000), "
+                                     "at most 64 KB");
+                return;
+            }
+            pc_classic_walker guest = pc_classic_guest();
+            int n = pc_classic_scan(&guest, (const void*)(uintptr_t)lo, (const void*)(uintptr_t)hi,
+                packets, 1024);
+            int used = snprintf(out, sizeof out, "{\"count\":%d,\"packets\":", n);
+            used += pc_classic_packets_json(packets, n, out + used, (int)sizeof out - used - 2);
+            snprintf(out + used, sizeof out - (size_t)used, "}");
+        } else if (params && string_value(member(params, "kind"), kind, sizeof kind)) {
+            if (pc_classic_packets_rpc(kind, out, sizeof out) < 0) {
+                fail(fd, id, -32602, out);
+                return;
+            }
+        } else {
+            fail(fd, id, -32602, "packets: {kind} (status, chain, buff, damage, gauges, status_panel) or {start, end}");
+            return;
+        }
+        reply(fd, id, out);
+    } else if (!strcmp(method, "classic")) {
+        /* The parity gate (pc/src/classic/classic_parity.h): {parity: true|false} turns the parity mode
+         * on or off (the game draws; each classic Lua draw is compared with it), {reset: true} clears the
+         * counters; the reply: per kind frames compared, matched, mismatched (by field), skipped, the
+         * first difference. */
+        static char out[65536];
+        int on;
+        if (params && bool_value(member(params, "parity"), &on))
+            pc_classic_parity_set(on);
+        if (params && bool_value(member(params, "reset"), &on) && on)
+            pc_classic_parity_reset();
+        pc_classic_parity_json(out, sizeof out);
+        reply(fd, id, out);
     } else if (!strcmp(method, "hud")) {
         /* HUD elements plugins claim (pc/src/hud/hud.h); lua_api_hud.cpp parses the params. */
         extern int pc_hud_rpc(const char*, char*, int) __attribute__((weak));

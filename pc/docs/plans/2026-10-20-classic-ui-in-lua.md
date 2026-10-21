@@ -1,8 +1,66 @@
 # The classic HUD and menus drawn in Lua
 
-Status: plan, 2026-10-20. Not started. It follows
-`2026-10-18-lua-visible-layer.md` (F1-F3, done), `2026-10-18-lua-m1-options.md`
-(done) and F5 of `2026-10-18-freedom-and-fast-iteration.md` (the lint).
+Status: in progress. Phase 0 done; phase 1 steps 1-3 done, step 4 in part
+(the gauges), 2026-10-20, branch `classic-lua` (see "Progress" below). It
+follows `2026-10-18-lua-visible-layer.md` (F1-F3, done),
+`2026-10-18-lua-m1-options.md` (done) and F5 of
+`2026-10-18-freedom-and-fast-iteration.md` (the lint).
+
+## Progress
+
+2026-10-20 (branch `classic-lua`; Extensions.md "The classic look in Lua"):
+
+- **Phase 0, done.** `pc/src/classic/classic_parity.c` (the walker in
+  ordering-table order, the normaliser, the comparison by field, the JSON
+  dump), ctest `classic_parity_probe` (synthetic packets, the round trip),
+  RPC `packets {kind | start, end}` (the status panel's range dumped
+  normalised: `packets {kind: "status_panel"}`) and `classic {parity,
+  reset}`. `PC_CLASSIC` (`classic_hook.h`; `PC_HUD` is now this hook) with
+  the emit-only suppression generalised (`pc_classic_suppress`: every
+  drawing packet of the range, packets that only set draw modes kept). The
+  unknowns are in the inventory below (MISS, BATTLE MODE, area titles,
+  Ending). `PC_ANCHOR_EXACT` (widescreen.h) for ranges placed by data.
+- **Phase 1 step 1, in part.** On game routines: `d.text_raw`
+  (vs_battle_renderTextRawColor), `d.value`, `d.digit`
+  (vs_battle_renderValue, _renderDigit), `d.bar` (as before), `d.sprite`
+  (the game's sprite packet), `d.layer`, `d.anchor`, `d.xy` (the game's
+  packed arithmetic). Still hand-written: `d.window`, `d.rect`,
+  `d.gradient`, `d.glyph`, `d.cursor`, `d.text` (no kind of rood.classic
+  uses them yet).
+- **Step 2, done** for the kinds rood.classic draws: the parity mode at the
+  hooks (the Lua draw into shadow slots), `pc/tests/classic_parity.py`
+  (run.py `classic_parity`, null renderer, verify.sh's CPU lane): whole
+  lives of every element, waivers = declared overrides, the default and
+  the fallback, state parity from one mark (§3.4). Buff and damage are
+  compared only once rood.classic claims them (step 5).
+- **Step 3, done.** `pc/plugins/rood.classic` (shipped, on): status and
+  chain as exact copies, green (576 and 558 frames, 0 mismatches), on by
+  default (`hud_classic_status`, `hud_classic_chain`). Their typography is
+  its `look.typeset` (blanks, keep on screen, margin, word space: `645a7477`
+  as Lua values, handed to ui_text with the range,
+  `pc_text_status_typeset`) and `look.typography`. Claims per flavour
+  (`rood.hud.claim(kind, fn, {flavour})`); rood.hud keeps the modern look.
+  Hot reload measured at 60 Hz: 0.19 s mean, 0.20 s max from the save to the
+  first frame set with it (classic_hud_smoke times it on every run).
+- **Step 4, in part: the gauges.** A HUD kind `gauges` (the classic look's
+  only): 5BF94.c's `PC_CLASSIC` around func_800CA2DC's `_renderStatBar`
+  calls and RISK ZERO (commit-checked); fields hp, max_hp, mp, max_mp,
+  risk, slide. rood.classic's copy is green (1192 frames: digits of one to
+  four figures, empty and full bars, RISK ZERO and RISK's bar, the slide
+  out and back) and on by default (`hud_classic_gauges`); their 16:9 place
+  is `look.gauges.place`; the digits' typography is
+  `look.typography.digits.descender_lift` (`1d2f20c5`), through
+  `rood.hud.typography`, which now also takes ui_text's tunables. Still
+  the game's: Ashley's figure, the status icons, BATTLE MODE, the ability
+  icons (the rest of func_800CA2DC). The digits' typography is style-wide
+  (every digit the digits style draws), not keyed by range: per-range
+  overrides for ui_text's glyph path are still to do (§6 "ui_text
+  coupling").
+- **Left in phase 1:** step 1's remaining primitives; step 4's other parts
+  (and a corpus fight for HP changes in play); steps 5-8 (buff and damage,
+  text boxes and the name window, the remaining HUD kinds, targeting);
+  the per-range typography; the look lint (§5: not started, not even its
+  report-only baseline).
 
 ## Goal
 
@@ -117,14 +175,14 @@ numbers…) come from the 2842C.c label loop (~1830-1930), over a pool of
 | HP / MP / RISK gauges and digits, RISK ZERO, the panel's slide (`D_800EB9B0`) | `func_800CA2DC` → `_renderStatBar` (5BF94.c:2959) → `vs_battle_renderStatBar`, `vs_battle_renderValue` / `_renderDigit`, `vs_battle_renderTextRaw("RISK  ZERO")`; labels HP/MP/RISK as sprites (`func_800C9CB4`) | whole panel anchored left (146C.c:8090-8095, raw `pc_hw_anchor_packets(…, 1)`); the label sprite made opaque under PC in `_renderStatBar`; ui_text `digits` and fixed labels (HP/MP/RISK, `ui_labels.h`); modern menus hide it | no | squashed digits (`1d2f20c5`) |
 | Limb status figure (5 parts, colour by limb status) | `func_800CA2DC` loop over `D_800EBCEC`/`D_800EBD14` | none | no | |
 | Status-effect icons and words (poison, …) | `func_800CA2DC` after `vs_battle_getStatusFlags` | ui_text | no | |
-| Top-right sliding sprite `D_800EB9CD` (73 x 10; probably BATTLE MODE, unconfirmed) | `func_800CA2DC` | anchored right inside the panel's left range | no | confirm in phase 0 |
+| BATTLE MODE, the top-right sliding sprite (`D_800EB9CD` its slide-in step while `D_800EB9CC` is 1: battle mode on) | `func_800CA2DC` (`vs_battle_setSprite` 73 x 10, page (448, 256), texels (64, 0), CLUT (976, 220), bobbing by `rsin(D_800EBD64)`) | anchored right inside the panel's left range | no | confirmed (phase 0: RPC `packets {kind: status_panel}` after Circle, and its picture) |
 | Chain / defense ability icons (L2 cross, face-button diamond, D-pad) | `func_800C9FE8`, `func_800C9F98` (5BF94.c) | centre anchor; `weapon_slots.c` replaces `func_800C9EB8`; `button_prompts.c` redraws texels | no | |
 | Emote balloons (…, !, ?, heart) | `func_80095C18` (2842C.c) | `PC_GTE_UNNARROWED`; `ui_emotes.c` vector redraw | no | |
 | Timing word (TOO FAST!, FAST!, SLOW!, success words) | 2842C.c label kind 4 → `func_800958A4` | `PC_HUD(PC_HUD_STATUS)`, anchored left, ui_text `status` (`pc_text_status`) | yes (opt-in flavour) | gaps and left-edge cut (`645a7477`) |
 | Chains (3 CHAINS) | kind 5 → `func_80095A4C` | `PC_HUD(PC_HUD_CHAIN)`, anchored left | yes (opt-in) | |
 | Buff popup (WEAPON HUMAN +1) | kind 6/7 → `func_8009695C` | `PC_HUD(PC_HUD_BUFF)`, anchored left | yes (opt-in) | |
 | Damage / heal / MP / stat numbers over actors | kind 1 → `func_80094844` / `func_80094B0C` | `PC_HUD(PC_HUD_DAMAGE)`; unnarrowed projection; ui_text `popup_scale` | yes (opt-in) | digits share the squash bug |
-| Over-actor words: `func_8009506C` (4-piece word when `unkE == 2`, probably MISS/GUARD) and `func_80095258` (status-ailment names) | 2842C.c label loop, kind 2 | ui_text; centre-compressed | no | confirm the words in phase 0 |
+| Over-actor words: `func_8009506C` (`unkE == 2`, label kinds 1-3): MISS, four textured quads of the info capitals (`D_800E8640`: M at (100, 86) w 11, I, S, S; page (768, 0), CLUT (864, 223)) squashed open and shut (`D_800E8634`); `func_80095258` (kind 2 otherwise): a `CombatLabel` (`D_800690B4[unkC]`: one or two pieces of page (448, 256) from `D_80068FAC`, a colour from `D_80069134`; the status ailments' and buffs' words), sliding in, a fade ramp, `func_800957D0`'s arrow for a lowered stat | 2842C.c label loop | ui_text; centre-compressed | no | confirmed (phase 0: the tables read from RAM) |
 | Name window (action name, text box 7 band) | `vs_battle_displaySceneMessage` → text box 7 → `func_800CB83C` | `pc_charge_skip_name`, `pc_hud_name_window` event; drawn as a band by `func_800CD158`; Zig trial port of `displaySceneMessage` (logic only) | event only | |
 | Text boxes: dialogue bubbles, information box (box 7), item/notice boxes | `func_800CB83C` (all 8 boxes) → frames `func_800CD158` / `func_800CD3E4`; text `_printVariableWidthFont` / `_printFixedWidthFont` / `_renderTextImmediate` into the private OT `D_800F51B8`, spliced with `AddPrims` | ui_text `dialogue`/`menu` (line layout, `bubble_segments`); `ui_bubbles.c` vector bubbles (`pc_bubble_rect`/`pc_bubble_frame`); `text_lines.c`, `fixed_font.c`; centre-compressed; portraits/stills `func_800CCA90` (full-screen ones `PC_ANCHOR_FILL`) | no | |
 | Timer (time attacks) | `_renderTimer` (5BF94.c:3788) | ui_text digits | no | |
@@ -132,7 +190,7 @@ numbers…) come from the 2842C.c label loop (~1830-1930), over a pool of
 | Travel prompt (PC feature) | `pc/src/fast_travel.c`, C++ | modern claim; the classic look is drawn with the game's sprites by C++ | modern only | |
 | Targeting: range shapes, target rows and leader lines, lock-on marker, part details | `58578.c:func_800C0D78` (shapes), `func_800C20B4` / `func_800C1DC4` (rows: gradient + `renderTextRawColor`), `func_800C16FC` / `func_800C1A40` (leader lines), `5BF94.c:func_800C28AC` (marker); state machine `func_800C58F8` prints part HP/status/class/affinity into text box 7 | `PC_GTE_UNNARROWED` on the line start and marker; rest centre-compressed; ui_text | no | |
 | Minimap / compass | none in the field HUD; the compass is the Map screen's (`_renderCompass`, MENU5) | — | — | |
-| Area titles, loading | no dedicated draw found (room names appear in MENU5's text box 0; title cards are probably event text boxes); no loading screen, only `146C.c:_drawScreenTransition` | — | — | unconfirmed |
+| Area titles, loading | no HUD drawer: the room names (`vs_battle_initSceneAndGetRoomNames`, the scene's section F) are shown by the map (MENU5 text box 0) and by event text boxes (`func_800CB83C`), so an area's title card is a `text_box` (phase 1 step 6); no loading screen, only `146C.c:_drawScreenTransition` (fades) | — | — | phase 0: no separate drawer in BATTLE.PRG; the card's box id is recorded with step 6 |
 | Command ring (battle mode menu, rows 0-9) | `func_800C930C` (logic) and `func_800C97BC` → `vs_battle_renderMenuItem`, `vs_battle_drawCursor` | modern menus replace it (`pc_ui_menu_*`) | no | |
 
 ### Menus (MAINMENU.PRG + MENUx overlays; `vs_mainMenu_exec`, C48.c:347)
@@ -175,7 +233,7 @@ separate plugin later).
 | Container | MENUD | `vs_menuD_exec` (234.c) | container_bridge | no | |
 | Results (congratulations, time attack, cube puzzle) | MENUF | `_renderCongratulationsScreen`, `_renderTime*`, `_renderCubePuzzle*` (3B8.c) | 1 hook | no | |
 | Title, its card screens | TITLE.PRG (22C.c) | own `_drawSprt`, `_drawSaveInfoUI`, `_drawHPMP`, `_printCharacter` (a copy of MENU7's) | ui_text | no | runs without BATTLE.PRG: its primitives differ |
-| Ending | ENDING.PRG | not surveyed | — | no | |
+| Ending | ENDING.PRG (D4.c) | credits elements (`_renderText`, `_renderPhantomPain`, `_renderVagrantStory`, `_renderFin`, illustrations), then the results screen: `_renderCongratulationsScreen`, `_renderScore` / `_renderIncrementalScore`, `_renderMapCompletion`, `_renderRiskbreakerRank`; its own `_drawScreen` and OT | `ending_smoke`; ui_text | no | surveyed in phase 0: the results screen is UI (phase 3 #10); the credits stay the game's |
 
 ## 2. Architecture
 

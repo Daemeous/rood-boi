@@ -1,0 +1,21 @@
+# The parity gate's waivers (pc/tests/classic_parity.py; plan
+# pc/docs/plans/2026-10-20-classic-ui-in-lua.md §3.2): per kind, each deliberate
+# difference of rood.classic's draw from the game's own. A table [kind.override]
+# names one of the overrides rood.classic declares (its look.overrides): the
+# harness requires the two lists to be the same. `fields` are the packet fields
+# the override may change (classic_parity.h: count, length, code, colour, xy,
+# uv, clut, tpage, wh, mode, anchor, word); a mismatch in any other field fails.
+# Typography changes no packet (ui_text restyles the game's glyphs at raster
+# time), so it waives none.
+
+[status.typography]
+reason = "the status words set by rood.classic's look.typeset (blanks, keep on screen, margin, word space) and look.typography"
+fields = []
+
+[chain.typography]
+reason = "the chain count set as the status words are (look.typeset, look.typography)"
+fields = []
+
+[gauges.typography]
+reason = "the gauges' digits set with rood.classic's look.typography.digits (descender_lift: playtest fix 1d2f20c5)"
+fields = []

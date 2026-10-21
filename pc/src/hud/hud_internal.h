@@ -29,7 +29,7 @@ unsigned vsync(); // pc_vsync_count, or the ticks seen (lua_probe)
 bool live(const Element& e);
 const char* kind_name(int kind);  // "status", "chain", "buff", "damage", "travel"; "" for none
 int kind_of(const char* name);    // PC_HUD_*, 0 unknown
-#define HUD_KIND_LIST "status, chain, buff, damage, travel, notice, name_window"
+#define HUD_KIND_LIST "status, chain, buff, damage, travel, notice, name_window, gauges"
 // Status: "too_fast", "fast", "success", "slow", "too_slow" (0..4); -1 unknown.
 int timing_of(const char* name);
 const char* timing_name(int timing);
@@ -86,7 +86,8 @@ Element* last_recorded();
 bool classic_look();
 
 // ---- claims (lua_api_hud.cpp) ----
-bool claimed(int kind); // a claim stands and has not failed
+bool claimed(int kind); // a claim stands and has not failed (the owner for the look now)
+bool claimed_classic(int kind); // ... and it was made for the classic flavour only (rood.classic's)
 
 // ---- the command buffer (lua_api_hud.cpp fills it, hud_draw.cpp draws it) ----
 enum Align { ALIGN_LEFT, ALIGN_CENTRE, ALIGN_RIGHT };

@@ -142,8 +142,24 @@ void bench()
     if (ImGui::Checkbox("Claims in the classic look (hud_classic_override)", &classic))
         pc_hud_classic_override = classic;
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("With the modern UI off, claims draw in the classic flavour: the game's own printers,\n"
-                          "sprites and windows, at the game's hooks. Off: the game draws the HUD (typography only).");
+        ImGui::SetTooltip("With the modern UI off, every claim draws in the classic flavour: the game's own\n"
+                          "printers, sprites and windows, at the game's hooks. Off: only the kinds below.");
+    ImGui::TextUnformatted("Classic look in Lua (rood.classic):");
+    struct {
+        int kind;
+        int* on;
+    } kinds[] = { { PC_HUD_STATUS, &pc_hud_classic_status }, { PC_HUD_CHAIN, &pc_hud_classic_chain },
+        { PC_HUD_BUFF, &pc_hud_classic_buff }, { PC_HUD_DAMAGE, &pc_hud_classic_damage },
+        { PC_HUD_GAUGES, &pc_hud_classic_gauges } };
+    for (auto& k : kinds) {
+        bool on = *k.on != 0;
+        ImGui::SameLine();
+        if (ImGui::Checkbox(hud::kind_name(k.kind), &on))
+            *k.on = on;
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("hud_classic_%s: a claim made for the classic flavour draws it (the kinds through\n"
+                              "the parity gate are on); off: the game draws it.", hud::kind_name(k.kind));
+    }
     if (&pc_ui_menus) {
         ImGui::SameLine();
         ImGui::TextDisabled(pc_ui_menus ? "(the modern look now)" : "(the classic look now)");

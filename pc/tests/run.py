@@ -366,6 +366,16 @@ def suites(args, mode="egl"):
                       "drawn), hot-reloaded while held; the game's own drawing with no claim, a draw error, the "
                       "plugin off, the classic look")]
           if args.save.exists() else []),
+        *([Suite("classic_parity", [PY, str(TESTS / "classic_parity.py"), "--card", str(args.save)], 600, gpu=False,
+                 note="the classic look in Lua: rood.classic's timing words and chain counts packet for packet "
+                      "against the game's own in the same frames (the null renderer), waivers = its declared "
+                      "overrides, on by default, the game's drawing as the fallback, state parity")]
+          if args.save.exists() else []),
+        *([Suite("classic_hud_smoke", [PY, str(TESTS / "classic_hud_smoke.py"), "--card", str(args.save)], 300,
+                 note="rood.classic on a renderer: its typeset decides the status words' typography (one space, on "
+                      "screen at 16:9), hot-reloaded (timed), the REPL, place as data (the gate sees dx), the same "
+                      "picture as the game's")]
+          if args.save.exists() else []),
         *([Suite("repl_smoke", [PY, str(TESTS / "repl_smoke.py"), "--card", str(args.save)], 300,
                  note="Lua REPL bridge: rood_repl.py -e sessions across processes, sandboxes, inspection, "
                       "rood.hud's draw redefined live (next frame), then its file reloaded wins")]
@@ -644,7 +654,7 @@ CHECKPOINT_SUITES = {
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
     "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "frame_cost_smoke",
-    "hud_bench_smoke",
+    "hud_bench_smoke", "classic_hud_smoke",
     "repl_smoke",
 }
 
@@ -991,7 +1001,7 @@ def main():
         # Only explicitly CPU-safe game suites; never run screenshots or GPU
         # probes in this lane merely because they can launch the game binary.
         safe = {"null_backend_smoke", "shadow_battle_smoke", "ownership_smoke", "battle_corpus_candidate",
-                "zig_hotswap_smoke", "engine_rewind_smoke",
+                "zig_hotswap_smoke", "engine_rewind_smoke", "classic_parity",
                 *(f"trial_corpus_{t[0]}{suffix}" for t in TRIAL_CORPUS for suffix in ("", "_features"))}
         every = [s for s in every if s.binary is None or s.name in safe]
         for suite in every:

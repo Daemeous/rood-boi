@@ -35,6 +35,11 @@ enum { PC_UPLOAD_SCREEN_IMAGE = 1, PC_UPLOAD_SCREEN_PICTURE = 2 };
  * the whole screen (dust motes), drawn over the whole view. */
 enum { PC_ANCHOR_CENTRE = 0x10, PC_ANCHOR_LEFT_EDGE = 0x11, PC_ANCHOR_RIGHT_EDGE = 0x12, PC_ANCHOR_FILL = 0x13,
     PC_ANCHOR_SCENE = 0x14, PC_ANCHOR_COVER = 0x15 };
+/* PC_ANCHOR_EXACT, or'ed with one of the above: a range placed by data (the
+ * classic look drawn in Lua, pc/src/classic): scaled about its anchor and
+ * nothing more: no edge extension, no cover or backdrop guesses, no side
+ * paint (gpu_hw.c's heuristics are for the game's own 2D). */
+#define PC_ANCHOR_EXACT 0x20
 /* The 4:3 screen's X range widened to the 16:9 view, for culling tests on
  * un-narrowed screen X (PC_GTE_UNNARROWED projections): 320 * (4/3 - 1) / 2
  * = 53.3 more pixels each side in widescreen, 0 otherwise. */

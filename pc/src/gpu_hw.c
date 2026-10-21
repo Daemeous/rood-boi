@@ -256,6 +256,7 @@ static int layout_enabled(void)
 int pc_widescreen_trace;
 enum { PC_ANCHOR_NONE, PC_ANCHOR_LEFT, PC_ANCHOR_RIGHT, PC_ANCHOR_FILL, PC_ANCHOR_SCENE, PC_ANCHOR_COVER };
 static int primitive_anchor;
+static int primitive_exact; /* of the packet being drawn: its range is PC_ANCHOR_EXACT (widescreen.h) */
 static void trace_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv, const int* clip)
 {
     if (!pc_widescreen_trace)
@@ -279,6 +280,13 @@ void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tp
     if (!primitive_2d || clip[2] <= 0 || clip[3] <= 0)
         return;
     if (primitive_narrowed) {
+        trace_bounds(x0, y0, x1, y1, code, tpage, uv, clip);
+        side_paint_primitive(x0, y0, x1, y1, code, clip);
+        return;
+    }
+    if (primitive_exact) { /* placed by data: its anchor, nothing guessed */
+        primitive_extend = 0;
+        primitive_cover = 0;
         trace_bounds(x0, y0, x1, y1, code, tpage, uv, clip);
         side_paint_primitive(x0, y0, x1, y1, code, clip);
         return;
@@ -621,6 +629,7 @@ static int edge_anchored(void)
 typedef struct {
     uintptr_t start, end;
     int anchor;
+    int exact; /* PC_ANCHOR_EXACT: placed by data, no heuristics */
 } anchor_range;
 static anchor_range pending_anchors[MAX_ANCHOR_RANGES], active_anchors[MAX_ANCHOR_RANGES];
 static int pending_anchor_count, active_anchor_count;
@@ -628,6 +637,8 @@ static int pending_anchor_count, active_anchor_count;
 static float anchor_left, anchor_right; /* the screen's edges in VRAM X */
 void pc_hw_anchor_packets(const void* start, const void* end, int anchor)
 {
+    int exact = (anchor & 0x20) != 0; /* PC_ANCHOR_EXACT */
+    anchor &= ~0x20;
     /* Ranges marked 0x10 belong to the widescreen layout fixes
      * (pc/src/widescreen.h): off with them (ROOD_WIDESCREEN_LAYOUT=0). */
     if (anchor & 0x10) {
@@ -642,7 +653,37 @@ void pc_hw_anchor_packets(const void* start, const void* end, int anchor)
         r->start = (uintptr_t)start;
         r->end = (uintptr_t)end;
         r->anchor = anchor;
+        r->exact = exact;
     }
+}
+/* What a range anchored `anchor` records (pc/src/classic: a classic draw's
+ * anchor, compared with the game's): 0 (centred) when it records nothing. */
+int pc_hw_anchor_recorded(int anchor)
+{
+    anchor &= ~0x20;
+    if (anchor & 0x10) {
+        if (!layout_enabled())
+            return 0;
+        anchor &= 0x0f;
+    }
+    if ((anchor == PC_ANCHOR_SCENE || anchor == PC_ANCHOR_COVER) && !scene_enabled())
+        return 0;
+    return anchor;
+}
+/* The anchor of a packet of the ordering table being built (the innermost
+ * pending range holding it; 0: none, centred): the parity gate's. */
+int pc_hw_anchor_of(const void* packet)
+{
+    uintptr_t best = UINTPTR_MAX;
+    int anchor = PC_ANCHOR_NONE;
+    for (int i = 0; i < pending_anchor_count; i++) {
+        const anchor_range* r = &pending_anchors[i];
+        if ((uintptr_t)packet >= r->start && (uintptr_t)packet < r->end && r->end - r->start < best) {
+            best = r->end - r->start;
+            anchor = r->anchor;
+        }
+    }
+    return anchor;
 }
 /* The next primitives come from GPU packet `p`, drawn with the screen at
  * VRAM X screen_x..screen_x + screen_w (drawing offset, display width). */
@@ -650,11 +691,13 @@ void pc_hw_anchor_packet(const void* p, int screen_x, int screen_w)
 {
     uintptr_t best = UINTPTR_MAX;
     primitive_anchor = PC_ANCHOR_NONE;
+    primitive_exact = 0;
     for (int i = 0; i < active_anchor_count; i++) {
         const anchor_range* r = &active_anchors[i];
         if ((uintptr_t)p >= r->start && (uintptr_t)p < r->end && r->end - r->start < best) {
             best = r->end - r->start;
             primitive_anchor = r->anchor;
+            primitive_exact = r->exact;
         }
     }
     anchor_left = (float)screen_x;
@@ -783,6 +826,7 @@ void pc_hw_begin_ot(void)
     active_anchor_count = pending_anchor_count;
     pending_anchor_count = 0;
     primitive_anchor = PC_ANCHOR_NONE;
+    primitive_exact = 0;
     pc_hw_suppress = 0;
     ++edge_generation;
     if (pc_ui_bubbles_frame)
@@ -3094,6 +3138,8 @@ static void side_paint_primitive(int x0, int y0, int x1, int y1, unsigned code, 
         }
         return;
     }
+    if (primitive_exact)
+        return; /* placed by data: neither paints nor clears the sides */
     if (primitive_extend > 0)
         side_paint_add(inner_right, y0, right, y1);
     else if (primitive_extend < 0)

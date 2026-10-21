@@ -293,6 +293,12 @@ target_include_directories(display_confirm_probe PRIVATE src)
 target_compile_options(display_confirm_probe PRIVATE -Wall -Wextra -Werror)
 add_test(NAME display_confirm_probe COMMAND display_confirm_probe)
 
+# The classic look's parity gate (classic/classic_parity.c): the walker and comparison on synthetic packets.
+add_executable(classic_parity_probe tests/classic_parity_probe.c src/classic/classic_parity.c)
+target_include_directories(classic_parity_probe PRIVATE src)
+target_compile_options(classic_parity_probe PRIVATE -Wall -Wextra -Werror)
+add_test(NAME classic_parity_probe COMMAND classic_parity_probe)
+
 # The right-stick camera's logic (camera_stick.c) against a fake game camera.
 add_executable(camera_stick_probe tests/camera_stick_probe.c src/camera_stick.c)
 target_include_directories(camera_stick_probe PRIVATE src)

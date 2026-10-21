@@ -18,8 +18,26 @@ extern "C" void pc_fast_travel_prompt_fields(pc_hud_fields* f) __attribute__((we
 // savestate_notice.cpp: a notice's place and size (a synthetic element's)
 extern "C" void pc_savestate_notice_fields(pc_hud_fields* f) __attribute__((weak));
 
+// classic_parity.c: the parity mode (the game draws, the Lua draw is compared); absent in lua_probe
+extern "C" int pc_classic_parity_on(void) __attribute__((weak));
+
 extern "C" {
 int pc_hud_classic_override;
+// Per kind (hud.h): on for the kinds whose classic Lua draw passes the parity gate
+// (pc/tests/classic_parity.py): the timing word, the chain count, the gauges.
+int pc_hud_classic_status = 1, pc_hud_classic_chain = 1, pc_hud_classic_buff = 0, pc_hud_classic_damage = 0,
+    pc_hud_classic_gauges = 1;
+int pc_hud_classic_default(int kind)
+{
+    switch (kind) {
+    case PC_HUD_STATUS: return pc_hud_classic_status != 0;
+    case PC_HUD_CHAIN: return pc_hud_classic_chain != 0;
+    case PC_HUD_BUFF: return pc_hud_classic_buff != 0;
+    case PC_HUD_DAMAGE: return pc_hud_classic_damage != 0;
+    case PC_HUD_GAUGES: return pc_hud_classic_gauges != 0;
+    }
+    return 0;
+}
 }
 
 namespace hud {
@@ -47,7 +65,7 @@ Hold holds[PC_HUD_KINDS];
 #define RESPAWN_VSYNCS 15
 
 const char* const KINDS[PC_HUD_KINDS] = { "", "status", "chain", "buff", "damage", "travel", "notice",
-    "name_window" };
+    "name_window", "gauges" };
 const char* const TIMINGS[] = { "too_fast", "fast", "success", "slow", "too_slow" };
 // BATTLE.PRG func_800958A4's words and colours (PS1 BGR, 0x80 full).
 const char* const TIMING_WORDS[] = { "TOO FAST!", "FAST!", "", "SLOW!", "TOO SLOW!" };
@@ -60,9 +78,9 @@ const char* const STATS[] = { "HUMAN", "BEAST", "UNDEAD", "PHANTOM", "DRAGON", "
     "EARTH", "WATER", "LIGHT", "DARKNESS" };
 const char* const POOLS[] = { "hp", "mp", "stat" };
 // The ages a held element is kept at: past its slide-in, before its slide-out or end.
-const int AGE_MIN[PC_HUD_KINDS] = { 0, 4, 4, 0, 0, 0, 0, 0 };
-const int AGE_MAX[PC_HUD_KINDS] = { 0, 41, 86, 60, 30, 0, 0, 0 };
-const int LIFE[PC_HUD_KINDS] = { 0, 46, 91, 61, 31, 0, 150, 120 }; // (name_window: a show without hold, vsyncs)
+const int AGE_MIN[PC_HUD_KINDS] = { 0, 4, 4, 0, 0, 0, 0, 0, 0 };
+const int AGE_MAX[PC_HUD_KINDS] = { 0, 41, 86, 60, 30, 0, 0, 0, 0 };
+const int LIFE[PC_HUD_KINDS] = { 0, 46, 91, 61, 31, 0, 150, 120, 0 }; // (name_window: a show without hold, vsyncs)
 
 unsigned full(unsigned bgr)
 {
@@ -79,7 +97,7 @@ unsigned full(unsigned bgr)
 bool single(int kind)
 {
     return kind == PC_HUD_STATUS || kind == PC_HUD_CHAIN || kind == PC_HUD_TRAVEL || kind == PC_HUD_NOTICE
-        || kind == PC_HUD_NAME_WINDOW;
+        || kind == PC_HUD_NAME_WINDOW || kind == PC_HUD_GAUGES;
 }
 
 Appearance appeared[64];
@@ -277,9 +295,10 @@ int word_index(const char* name, const char* (*word)(int), int count)
 
 bool show(int kind, const ShowArgs& args, std::string* error)
 {
-    if (kind <= 0 || kind >= PC_HUD_KINDS) {
+    if (kind <= 0 || kind >= PC_HUD_KINDS || kind == PC_HUD_GAUGES) {
         if (error)
-            *error = "no show for that HUD kind (" HUD_KIND_LIST ")";
+            *error = kind == PC_HUD_GAUGES ? "the gauges have no show: they are up whenever the field is"
+                                           : "no show for that HUD kind (" HUD_KIND_LIST ")";
         return false;
     }
     ShowArgs a = args;
@@ -381,8 +400,15 @@ extern "C" int pc_hud_honoured(int kind)
 {
     if (!claimed(kind))
         return 0;
-    if (hud::classic_look()) // the game's own drawing (typography only) unless hud_classic_override: then the
-        return pc_hud_classic_override != 0; // claim draws at the game's hook, in the classic flavour
+    if (hud::classic_look()) { // the claim draws at the game's hook, in the classic flavour, when
+        if (pc_classic_parity_on && pc_classic_parity_on())
+            return 0; // (the parity mode: the game draws, the Lua draw only compared)
+        if (pc_hud_classic_override)
+            return 1; // every kind (the opt-in for draws not yet through the parity gate)
+        return claimed_classic(kind) && pc_hud_classic_default(kind); // a classic claim on a kind that passed
+    }
+    if (kind == PC_HUD_GAUGES)
+        return 0; // (the classic look's only: the modern look hides the status display)
     return !pc_overlay_active || pc_overlay_active(); // nobody would draw it otherwise
 }
 

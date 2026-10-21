@@ -5,10 +5,13 @@ Milestone 0 is the runtime, its safety nets and the core API; the HUD layer
 adds drawing the game's HUD elements, their events and read-only game
 queries; M1 adds the Option screens' pages (`rood.menu`). Input comes in a
 later milestone. Vanilla stays vanilla: the shipped example is off; the
-shipped `rood.hud` (on) draws the HUD's words only with the modern look (or
-the classic look with `hud_classic_override`), and off, the game draws
-them; the shipped `rood.options` (on) defines the core Option pages, which
-the C++ fallback builds identically without it.
+shipped `rood.hud` (on) draws the HUD's words with the modern look, and
+off, the game draws them; the shipped `rood.classic` (on) draws the classic
+look's timing words, chain counts and HP / MP / RISK gauges with the game's own pieces, packet for
+packet as the game does (the parity gate), its typography and 16:9
+placement a hot-reloaded table, and off, the game draws them; the shipped
+`rood.options` (on) defines the core Option pages, which the C++ fallback
+builds identically without it.
 
 ## Where Lua runs
 
@@ -20,7 +23,7 @@ Single-threaded, on the game thread (`rl::run` refuses any other):
 | `pc_lua_tick` | `pc_tick()`, after the RPC | every game vsync while the game runs (not while the RPC has it paused) |
 | `pc_lua_frame` | `pc_overlay_frame()`, the ImGui frame open | every presented image (interpolated in-betweens, paused redraws) |
 | `pc_lua_rpc` | RPC method `lua` (`dev_rpc.c`) | between frames |
-| `pc_hud_classic_draw` | the game's HUD hooks (`hud_bridge.c`), inside its frame | a claim in the classic flavour, per element drawn |
+| `pc_hud_classic_draw` | the game's HUD hooks (`PC_CLASSIC`, `hud_bridge.c`), inside its frame | a claim in the classic flavour, per element drawn (in the parity mode `pc_hud_classic_parity_draw`, into a shadow slot) |
 | `pc_lua_shutdown` | `atexit` | writes stores and plugin settings; runs no Lua |
 
 Never on the audio callback thread or helper threads. Save states
@@ -32,7 +35,7 @@ Never on the audio callback thread or helper threads. Save states
 A plugin is a folder named after its id, with a manifest and a main chunk:
 
 ```
-pc/plugins/rood.example/      shipped (committed; rood.hud, rood.options too); ROOD_PLUGINS_SHIPPED overrides, "" for none
+pc/plugins/rood.example/      shipped (committed; rood.hud, rood.classic, rood.options too); ROOD_PLUGINS_SHIPPED overrides, "" for none
 pc/user/plugins/<id>/         yours (not committed); ROOD_PLUGINS overrides
 pc/user/plugin_data/<id>/     its storage, its settings.json; ROOD_PLUGIN_DATA overrides
 ```
@@ -176,6 +179,7 @@ decides how it looks. The kinds:
 | `travel` | the Travel prompt on a Circle of Magic (the modern look) | `glyph` (the button: `travel`), `corner` (0..8: which of its corners goes on `x, y`, top left .. bottom right), `unit` (game pixels per layout unit of the menus, 720 high) |
 | `notice` | a line of the port's own news: the save state slots' ("Saved to slot 3", `pc/src/savestate_notice.cpp`; never the classic flavour) | `slot` (the save state slot, 0 none), `corner` (which of its corners goes on `x, y`: 1, its top middle), `unit` (game pixels per layout unit of the menus, 720 high) |
 | `name_window` | the action's name in text box 7 (vs_battle_displaySceneMessage: a band across the bottom); an event, never claimed: the game draws it | `index` (the action, `vs_main_actions`), `message` (the scene message: 11 a technique's name, 12 a spell mastered, ...) |
+| `gauges` | the classic look's only (claimed with `{flavour = "classic"}`; the modern look hides the status display): the status display's HP / MP / RISK gauges, their digits and labels, or RISK ZERO (5BF94.c func_800CA2DC's `_renderStatBar` calls); up whenever the field is (no show) | `hp`, `max_hp`, `mp`, `max_mp`, `risk` (Ashley's HUD record), `slide` (D_800EB9B0: the display sliding up, 0x80000 a step of 8 pixels in its high half) |
 
 Every element: `kind, id, text, x, y, w, h` (the game's drawing's box in its
 screen, 320 x 224 in the field, `x, y` its centre; a damage number: where the
@@ -191,9 +195,9 @@ drawing is the claims'.
 
 | | |
 |---|---|
-| `rood.hud.claim(kind, fn) -> owner?` | the kinds of `rood.hud.kinds()` (not `name_window`); `fn(e, d)` draws each element of the kind on every presented frame; while the claim is honoured the game's packets for it are no-ops (the Travel prompt: its C++ drawing skipped). One owner per kind: the last in load order (a console sandbox after every plugin), with a warning |
-| `rood.hud.release(kind)`, `rood.hud.kinds()`, `rood.hud.honoured(kind)` | |
-| `rood.hud.typography(style, {...} \| nil)` | a ui_text style's fields (`font`, `size`, `stroke`, `tracking`, `stretch`, `slant`, `embolden`, ...: the `ui_text_<style>_<field>` settings) for this run, over the settings, never saved; nil gives the settings' back; dropped when the plugin unloads. What the classic look may change (with ui_text font) |
+| `rood.hud.claim(kind, fn[, {flavour}]) -> owner?` | the kinds of `rood.hud.kinds()` (not `name_window`); `fn(e, d)` draws each element of the kind on every presented frame; while the claim is honoured the game's packets for it are no-ops (the Travel prompt: its C++ drawing skipped). `flavour`: `"both"` (default), `"modern"` or `"classic"`, the looks it draws in. One owner per kind and look: a claim made for that look's flavour alone first, then the last in load order (a console sandbox after every plugin), with a warning |
+| `rood.hud.release(kind)`, `rood.hud.kinds([flavour])`, `rood.hud.honoured(kind)`, `rood.hud.look()` | `kinds()`: the modern look's kinds (`kinds("classic")`: the classic look's, with `gauges`, without `travel` and `notice`, the port's own); `look()`: `"classic"` (ui_menus 0) or `"modern"` |
+| `rood.hud.typography(style, {...} \| nil)` | a ui_text style's fields (`font`, `size`, `stroke`, `tracking`, `stretch`, `slant`, `embolden`, ...: the `ui_text_<style>_<field>` settings) and ui_text's tunables (`word_space`, `edge_margin`, `popup_scale`, `descender_lift`: the `ui_text_<tunable>` settings, held through the style named) for this run, over the settings, never saved; nil gives the settings' back; dropped when the plugin unloads. What the classic look may change (with ui_text font) |
 | `rood.draw.style{...} -> style` (also `d.style`) | an immutable handle, parsed once (make styles at load): `font` (a ui_text style's font: `dialogue`, `menu`, `info`, `digits`, `status`, `labels`), `size` (em, game pixels), `cap` (instead of size: a capital H this tall), `color` (`0xRRGGBB` or `"#rrggbb"`), `alpha`, `stroke` (game pixels), `stroke_color`, `stroke_alpha`, `tracking` (em), `stretch`, `align` (`left`, `center`, `right`), `anchor` (`top`, `middle`: the capitals' middle, `baseline`, `bottom`); unknown fields and bad values raise; at most 256 at once (a collected handle lets its slot go) |
 | `d.text(style, s, x, y[, color[, alpha]]) -> queued` | inside a draw function only; game coordinates (widescreen narrows them about the element's anchored edge, as the game's 2D) |
 | `d.fit(style, s, x, y, w, h[, color[, alpha]]) -> queued` | inside the box (its top-left at `x, y`): no larger than the style, smaller to fit its height and condensed to fit its width (`w` 0: any) with the outline kept in; across by the style's align, the capitals' middle on the box's |
@@ -204,16 +208,25 @@ drawing is the claims'.
 | `d.window(x, y, w, h[, brightness])` | classic only: the game's text box window (its stone body, frame and shadow); brightness 1 a selected box, 0.5 the others |
 | `d.cursor(x, y[, step])` | classic only: the menus' pointing hand, its brightness animation at `step` (0..15; default: the game's) |
 | `d.bar(x, y, value, max[, pool])` | classic only: the status display's bar (`hp`, `mp`, `risk`) filled value / max |
+| `d.text_raw(s, x, y, word[, typeset])` | classic only: the game's raw printer (`vs_battle_renderTextRawColor`: the status words, RISK ZERO) called as the game calls it: `s` as given (`$` centres it on `x`, `#` right-aligns, the game's narrow blanks), `word` the PS1 colour word (`0xBBGGRR`, `0x80` full); `typeset` how ui_text sets it: `{style = "status", blanks = "one" \| "each", keep_on_screen, screen_w, margin, word_space}` (fields left out: ui_text's defaults, its settings) |
+| `d.layer(offset \| nil)` | classic only: the ordering-table slot the commands that follow link into, as the game names its slots: bytes from `vs_scratch.unk4` (-64..64, a multiple of 4: the status words' -16, the gauges' bars and labels -12, their digits -16); nil the kind's own. A slot draws its packets in the order of the commands (the game's: the reverse of its calls) |
+| `d.value(font, x, y, value) -> x, y`, `d.digit(font, x, y, digit)` | classic only: the HUD's digits (`vs_battle_renderValue`: the rightmost at `x, y`; font 0 small, 1 large; returns the pen the game's call leaves) and one digit (`_renderDigit`; font 2 the separator) |
+| `d.xy(x, y, delta) -> x, y` | the game's packed position arithmetic: `x, y` packed as the game packs them plus `delta` written as the game writes its steps (`56 \| (-8 << 16)`), so x's carry or borrow reaches y as in the game |
+| `d.anchor(where)` | where the draw's commands sit in 16:9: `"left"`, `"right"`, `"centre"`, `"element"` (its own, the default); in the classic flavour the range is placed exactly (`PC_ANCHOR_EXACT`: no edge extension, cover or side-paint guesses) |
 | `rood.dev.show(kind, {...})` | dev mode only (`ROOD_RPC` set or `ROOD_DEV=1`): in the field the game's own spawner (status: `timing`, `variant`; chain: `count`; buff: `slot`, `stat`, `value`, `sign`; damage on Ashley: `value`, `heal` or `sign`, `pool`, `stat`; travel: the prompt without a Circle of Magic; name_window: `index` (184), `message` (11), the game's own `vs_battle_displaySceneMessage`), held at `age` (10) until `rood.dev.clear([kind])` (`hold = false`: it plays out; a name window closes after 120 vsyncs); elsewhere a synthetic element (the name window's `text`) only modern claims draw. `rood.dev.list()` (with `drawn`, `suppressed`) |
 | `rood.dev.bench.save(name)`, `list()`, `load(name)`, `current()` | the gallery (below) |
 
-Honoured: a claim that has not failed, and the modern look (`ui_menus 1`)
-or `hud_classic_override 1` (default 0: the classic look stays the game's,
-typography only).
+Honoured: a claim that has not failed, and the modern look (`ui_menus 1`);
+in the classic look a claim made for the classic flavour when the kind's
+`hud_classic_<kind>` is on (status and chain by default: the kinds whose
+`rood.classic` draw passes the parity gate; buff and damage off), any
+claim with `hud_classic_override 1` (default 0). With the parity mode on
+(below) nothing is honoured in the classic look: the game draws and the
+Lua draw is only compared.
 
 Two flavours (`e.flavour`). Modern: the presented frame's pass, drawn over
 the picture (ImGui, the fonts of ui_text's styles, outlines, any size).
-Classic (the classic look with `hud_classic_override 1`): the claim runs
+Classic (the classic look, as honoured above): the claim runs
 inside the game's frame at the element's own hook and its commands become
 PS1 packets of the game's kinds in the HUD labels' slot, anchored as the
 element in widescreen (`pc/src/hud/hud_bridge.c`): `d.text` and `d.measure`
@@ -237,6 +250,10 @@ count against the draw's budget. A reload drops the plugin's claims, styles
 and typography; held moments belong to the host and stay, so an edit shows
 on the held word about half a second after it is saved (the hot reload
 check).
+
+Classic elements also carry `call_x, call_y`: the place the game's call
+was given (the timing word's 44, 48 before its slide), which an exact copy
+of the game's draw starts from.
 
 RPC `hud`: `list`, `show {kind, ...}` (as `rood.dev.show`; the name
 window's `index`, `message`, `text`), `clear {kind}`, `stats {reset}` (per
@@ -301,10 +318,10 @@ typography (`ui_text_status_*`) outlined, where the game centres them; a
 buff's words and digits each fitted inside the game's box for it, the
 outline kept in; a damage number's digits where the game bounces them; the
 Travel prompt as the C++ prompt lays it out (`qol_fast_travel_prompt_*`,
-`ui_prompt_*`): the icon and TRAVEL outlined, no plate. With the classic look
-the game draws them; `classic` in the table holds typography for the status
-style (empty: the settings'). Turned off, everything is the game's and the
-C++ drawing. Its Lua tests (`tests/hud_test.lua`) summon each kind and wait
+`ui_prompt_*`): the icon and TRAVEL outlined, no plate. The classic look is
+`rood.classic`'s (below); there rood.hud's claims draw only with
+`hud_classic_override`, for the kinds rood.classic does not draw yet.
+Turned off, everything is the game's and the C++ drawing. Its Lua tests (`tests/hud_test.lua`) summon each kind and wait
 for its fields and drawn frames.
 
 Try it (the Lua console, F1, in the field with the modern look):
@@ -320,6 +337,85 @@ rood.hud.claim("status", function(e, d) d.text(w, e.text, e.x, e.y, e.rgb) end) 
 rood.hud.release("status")   -- rood.hud's again
 rood.dev.clear()
 ```
+
+### The classic look in Lua: rood.classic (shipped, on)
+
+Plan `pc/docs/plans/2026-10-20-classic-ui-in-lua.md` (phase 0 and the first
+slice of phase 1). With the modern UI off the classic look keeps the
+game's own sprites, windows and layout; only typography may change. So
+`pc/plugins/rood.classic` draws each kind it owns as an exact copy of the
+game's own drawing, made of the game's own pieces (`d.text_raw` is the
+game's raw printer), and what it may change is a table:
+
+- `look.status`, `look.chain`: the game's strings, colour words and slides
+  (func_800958A4, func_80095A4C) as data, and `place = {anchor, dx, dy}`
+  (16:9: the left edge, as the game's hook anchors them);
+- `look.gauges`: the HP / MP / RISK gauges' places, labels (the field UI
+  page's HP, MP, RISK), steps (as the game writes them: packed
+  `x | y << 16`), slots and RISK ZERO, and their `place`;
+- `look.typeset`: how ui_text sets the words (`blanks = "one"`: a run of
+  the game's narrow blanks is one space, `keep_on_screen`, `screen_w`,
+  `margin`, `word_space`; the playtest fix `645a7477` as Lua values, the
+  settings `ui_text_edge_margin` and `ui_text_word_space` read into it);
+- `look.typography`: per ui_text style, its fields and tunables for this
+  run (`rood.hud.typography`): `digits = {descender_lift}` is playtest fix
+  `1d2f20c5` (the old-style figures risen into the room above them before
+  any is squeezed), read from the setting `ui_text_descender_lift`;
+- `look.overrides`: per kind, each deliberate difference from the game's
+  packets (`typography` for all three; a non-zero `dx` would be `place`). The parity
+  gate's waivers (`pc/tests/classic/waivers.toml`) must list the same.
+
+Edit and save: the running game reloads it (measured: 0.19 s mean from the
+save to the first frame set with it at 60 Hz, 0.20 s max). From the REPL
+(`pc/tools/rood_repl.py --plugin rood.classic`) `M.look.typeset.margin = 4`
+shows on a held word at the next frame; `M.draw.status` replaced draws from
+the next frame; saving the file brings its own back.
+
+```lua
+rood.dev.show("status", { timing = "success", variant = 5 })  -- WELL TIMED!, held
+rood.dev.show("chain", { count = 3 })
+```
+
+The fallback: rood.classic off or failing (a draw that raises: counted, the
+game draws until the plugin reloads), a kind's `hud_classic_<kind>` off,
+or Lua off: the game's own drawing (its typography ui_text's defaults,
+which keep the same fixes). Settings: `hud_classic_status`,
+`hud_classic_chain`, `hud_classic_gauges` (on), `hud_classic_buff`,
+`hud_classic_damage` (off: not through the gate yet); the Lua console's
+Bench toggles them.
+
+**The parity gate** (`pc/src/classic/classic_parity.c`; plan §3). The
+hooks (`PC_CLASSIC`, `pc/src/classic/classic_hook.h`; `PC_HUD` is one)
+capture the packets of their range in ordering-table order from their
+slots, each kept as its words without the link and its widescreen anchor.
+With the parity mode on (`ROOD_CLASSIC_PARITY=1` or RPC `classic
+{parity: true}`; dev mode only) the game draws and the classic claim of
+the same element draws into a shadow slot (packets after the game's,
+never linked, given back); both are compared packet for packet: code,
+colours, vertices, texels, CLUT and page, sizes, draw modes, anchor. Text
+needs nothing more: a glyph sprite's texels and CLUT are its code, and
+ui_text restyles at raster time, after the gate.
+
+| RPC | |
+|---|---|
+| `packets {kind}` | a site's last capture (`status`, `chain`, `buff`, `damage`, `status_panel`), normalised: each packet's words, kind, vertices, texels, CLUT, page, colour, the glyph it shows; in the parity mode the Lua draw's beside it. Sites capture from the first call |
+| `packets {start, end}` | the packets of a guest range in allocation order |
+| `classic {parity, reset}` | per kind: frames compared, matched, mismatched (by field), skipped (why), the first difference with both packets |
+
+`pc/tests/classic_parity.py` (run.py `classic_parity`, the null renderer;
+also in verify.sh's CPU lane) plays every element of each kind with
+`rood.dev.show`'s spawners: each timing and success word, chains 1, 2, 3,
+9, 10, 99, first held, then its whole life (slide in, held, slide out:
+every age compared, the slides required); the gauges through HP / MP of
+one to four digits, empty and full, RISK ZERO and RISK's bar, the display
+sliding out and back (Ashley's record and `D_800EB9AF` written). It
+requires no unwaived mismatch and waivers = declared overrides; checks the
+default (drawn by rood.classic), the fallback (setting off, a raising
+draw, the plugin off) and state parity (from one mark, rood.classic
+drawing then the game: every vsync's state the same but the packets and
+the host clock: Oracle page digests). Reports `<out>/<kind>.json`.
+Result 2026-10-20: status 576 frames, chain 558, gauges 1192, 0
+mismatches; state parity 120 of 120 vsyncs.
 
 ## Option pages
 
@@ -513,6 +609,17 @@ rood_repl.py --json -s hud -e 'repl.reload()'                     # or save main
   its look hot-reloaded; off: the game's drawing; typography never saved);
   last the gallery (save, list, the moment changed, load: the restarted
   process holds the word again; a stale entry refused).
+- `ctest classic_parity_probe`: the parity gate's walker and comparison on
+  synthetic packets (the round trip, each field named, the scan, the
+  emit-only suppression, the dump).
+- `pc/tests/run.py classic_parity` (null renderer): the gate (above).
+- `pc/tests/run.py classic_hud_smoke`: rood.classic on a renderer: the
+  word and the gauges drawn by default, its typeset handed to ui_text, its
+  Lua tests in the field, the two-word phrases one space apart and on
+  screen at 16:9 (sizes 1 and 1.6), the same HUD picture as the game's, the
+  digits' descender lift edited in its look (the setting untouched), hot
+  reload timed (paused and running), a live REPL edit, an undeclared
+  `place.dx` reported by the gate.
 - `pc/tests/run.py repl_smoke`: one game in the save room, driven as an agent
   does with `rood_repl.py -e` processes: a session's bindings across them,
   JSON replies, an error's exit status and traceback, multi-line input from a

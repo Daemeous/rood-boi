@@ -1,14 +1,18 @@
 // The Lua visible layer's HUD API (plan pc/docs/plans/2026-10-18-lua-visible-layer.md;
 // pc/docs/Extensions.md "HUD"): the game decides when and what, a plugin's
 // claim how it looks.
-//   rood.hud.claim(kind, fn)   fn(e, d) draws each element of the kind (status, chain, buff,
-//                              damage, travel) on every presented frame; the game's own
-//                              drawing is suppressed while the claim is honoured (the modern
-//                              look, or hud_classic_override). One owner per kind: the last
+//   rood.hud.claim(kind, fn[, {flavour}])   fn(e, d) draws each element of the kind (status,
+//                              chain, buff, damage, travel) on every presented frame; the game's
+//                              own drawing is suppressed while the claim is honoured (the modern
+//                              look; the classic look: below). flavour "modern", "classic" or
+//                              "both" (default): the looks it draws in. One owner per kind and
+//                              look: a claim made for that flavour alone first, then the last
 //                              in load order (the console's last of all), with a warning. A
 //                              draw error stops honouring it (the game draws again) until the
-//                              plugin reloads.
-//   rood.hud.release(kind), rood.hud.kinds(), rood.hud.honoured(kind)
+//                              plugin reloads. The classic look honours a claim made for the
+//                              classic flavour when the kind's hud_classic_<kind> is on (the
+//                              kinds through the parity gate), any with hud_classic_override.
+//   rood.hud.release(kind), rood.hud.kinds(), rood.hud.honoured(kind), rood.hud.look()
 //   rood.hud.typography(style, {...} | nil): ui_text's style fields for this run (the classic
 //                              look's typography; never saved), dropped on unload.
 //   rood.draw (also d):        style{font, size, cap, color, alpha, stroke, stroke_color,
@@ -33,6 +37,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -67,16 +72,19 @@ const char* const ALIGNS[] = { "left", "center", "right" };
 const char* const ANCHORS[] = { "top", "middle", "baseline", "bottom" };
 
 // ---- claims ----
+enum { FLAVOUR_MODERN = 1, FLAVOUR_CLASSIC = 2, FLAVOUR_BOTH = 3 };
 struct Claim {
     Plugin* plugin;
     unsigned generation;
     int ref;               // fn in the plugin's registry
     unsigned long long seq;
     bool failed = false;   // its draw raised: not honoured until the plugin reloads
+    int flavours = FLAVOUR_BOTH; // the looks it draws in
 };
 std::vector<Claim> claims[PC_HUD_KINDS];
-int active[PC_HUD_KINDS] = { -1, -1, -1, -1, -1, -1, -1, -1 }; // index into claims[kind] (PC_HUD_KINDS entries)
+int active[2][PC_HUD_KINDS] = {}; // per look (0 modern, 1 classic): 1 + the owner's index in claims[kind], 0 none
 unsigned long long next_claim = 1;
+int look_now() { return hud::classic_look() ? 1 : 0; }
 
 bool valid(const Claim& c)
 {
@@ -94,20 +102,27 @@ void choose(int kind)
         auto it = std::find(order.begin(), order.end(), c.plugin);
         return it == order.end() ? -1 : (long long)(it - order.begin());
     };
-    int best = -1;
-    for (int i = 0; i < (int)claims[kind].size(); ++i)
-        if (valid(claims[kind][i]) && (best < 0 || rank(claims[kind][i]) >= rank(claims[kind][best])))
-            best = i;
-    active[kind] = best;
+    for (int look = 0; look < 2; ++look) { // a claim made for this look's flavour alone first
+        int bit = look ? FLAVOUR_CLASSIC : FLAVOUR_MODERN, best = -1;
+        auto key = [&](const Claim& c) { return (c.flavours == bit ? 1LL << 40 : 0) + rank(c); };
+        for (int i = 0; i < (int)claims[kind].size(); ++i) {
+            const Claim& c = claims[kind][i];
+            if (valid(c) && (c.flavours & bit) && (best < 0 || key(c) >= key(claims[kind][best])))
+                best = i;
+        }
+        active[look][kind] = best + 1;
+    }
 }
 
-const Claim* owner(int kind)
+const Claim* owner_for(int kind, int look)
 {
-    if (kind <= 0 || kind >= PC_HUD_KINDS || active[kind] < 0 || active[kind] >= (int)claims[kind].size())
+    if (kind <= 0 || kind >= PC_HUD_KINDS || active[look][kind] <= 0
+        || active[look][kind] > (int)claims[kind].size())
         return nullptr;
-    const Claim& c = claims[kind][active[kind]];
+    const Claim& c = claims[kind][active[look][kind] - 1];
     return valid(c) ? &c : nullptr;
 }
+const Claim* owner(int kind) { return owner_for(kind, look_now()); }
 
 // ---- styles ----
 StyleSlot style_slots[HUD_STYLES];
@@ -309,6 +324,7 @@ unsigned arena_used;
 unsigned long long dropped; // commands the full buffer refused
 struct Drawing {
     int anchor;
+    int element_anchor; // the element's (d.anchor("element"))
 } drawing;
 bool in_draw; // inside a claim's draw function
 // The classic flavour (hud.h pc_hud_classic_cmd): a draw run at the game's hook, into these.
@@ -317,6 +333,8 @@ pc_hud_classic_cmd classic_buffer[PC_HUD_CLASSIC_COMMANDS];
 int classic_used;
 char classic_arena[4096];
 unsigned classic_arena_used;
+int classic_anchor = -1; // d.anchor in the last classic draw (PC_HUD_ANCHOR_*), -1: the element's
+int classic_layer = PC_HUD_LAYER_KIND; // d.layer: the slot of the commands that follow
 
 pc_hud_classic_cmd* next_classic(int type)
 {
@@ -328,6 +346,7 @@ pc_hud_classic_cmd* next_classic(int type)
     *c = pc_hud_classic_cmd();
     c->type = type;
     c->alpha = 1;
+    c->layer = classic_layer;
     return c;
 }
 int pixel(float v) { return (int)std::floor(v + 0.5f); }
@@ -736,6 +755,192 @@ int api_measure(lua_State* L)
     return 2;
 }
 
+// The typography a classic draw hands ui_text with its packets (typeset.h): the table at idx.
+void typeset_arg(lua_State* L, int idx, pc_hud_classic_cmd* c, const char* fn)
+{
+    c->font = 2; // (the info style's capitals, restyled as the info style)
+    if (lua_isnoneornil(L, idx))
+        return;
+    luaL_checktype(L, idx, LUA_TTABLE);
+    pc_text_typeset& t = c->typeset;
+    lua_pushnil(L);
+    while (lua_next(L, idx)) {
+        const char* k = lua_type(L, -2) == LUA_TSTRING ? lua_tostring(L, -2) : "";
+        auto num = [&](float lo, float hi) {
+            if (lua_type(L, -1) != LUA_TNUMBER)
+                luaL_error(L, "%s: typeset.%s must be a number", fn, k);
+            double v = lua_tonumber(L, -1);
+            if (!(v >= lo && v <= hi))
+                luaL_error(L, "%s: typeset.%s is outside its range", fn, k);
+            return (float)v;
+        };
+        if (!std::strcmp(k, "style")) {
+            const char* v = lua_tostring(L, -1);
+            if (!v || std::strcmp(v, "status"))
+                luaL_error(L, "%s: typeset.style must be \"status\" (the status words' layout)", fn);
+            c->font = 4;
+        } else if (!std::strcmp(k, "blanks")) {
+            const char* v = lua_tostring(L, -1);
+            if (!v || (std::strcmp(v, "one") && std::strcmp(v, "each")))
+                luaL_error(L, "%s: typeset.blanks must be \"one\" (a run of blanks is one space) or \"each\"", fn);
+            t.blanks = !std::strcmp(v, "one");
+            t.set |= PC_TYPESET_BLANKS;
+        } else if (!std::strcmp(k, "keep_on_screen")) {
+            if (!lua_isboolean(L, -1))
+                luaL_error(L, "%s: typeset.keep_on_screen must be a boolean", fn);
+            t.keep_on_screen = lua_toboolean(L, -1);
+            t.set |= PC_TYPESET_KEEP;
+        } else if (!std::strcmp(k, "screen_w")) {
+            t.screen_w = num(16, 4096);
+            t.set |= PC_TYPESET_SCREEN_W;
+        } else if (!std::strcmp(k, "margin")) {
+            t.margin = num(-64, 64);
+            t.set |= PC_TYPESET_MARGIN;
+        } else if (!std::strcmp(k, "word_space")) {
+            t.word_space = num(0, 8);
+            t.set |= PC_TYPESET_WORD_SPACE;
+        } else {
+            luaL_error(L, "%s: unknown typeset field '%s' (style, blanks, keep_on_screen, screen_w, margin, "
+                          "word_space)", fn, k);
+        }
+        lua_pop(L, 1);
+    }
+    if (c->font != 4 && t.set)
+        luaL_error(L, "%s: typeset fields need style = \"status\"", fn);
+}
+
+// d.text_raw(s, x, y, word[, typeset]): classic only: the game's raw printer (the status words', RISK ZERO's:
+// vs_battle_renderTextRawColor) called as the game calls it: s as given ('$' centres it on x, '#'
+// right-aligns, its own blanks), word the PS1 colour word (0xBBGGRR, 0x80 full); typeset (typeset.h): how
+// ui_text sets it ({style = "status", blanks, keep_on_screen, screen_w, margin, word_space}).
+int api_text_raw(lua_State* L)
+{
+    const char* fn = "rood.draw.text_raw";
+    size_t len;
+    const char* text = luaL_checklstring(L, 1, &len);
+    float x = coordinate(L, 2, fn), y = coordinate(L, 3, fn);
+    lua_Integer word = luaL_checkinteger(L, 4);
+    if (word < 0 || word > 0xFFFFFF)
+        return luaL_error(L, "%s: the colour word must be 0..0xFFFFFF (0xBBGGRR)", fn);
+    need_classic(L, fn);
+    if (len > 63)
+        return luaL_error(L, "%s: text longer than 63 bytes", fn);
+    pc_hud_classic_cmd scratch = pc_hud_classic_cmd();
+    typeset_arg(L, 5, &scratch, fn);
+    pc_hud_classic_cmd* c = classic_arena_used + len + 1 <= sizeof classic_arena ? next_classic(PC_HUD_CMD_TEXT_RAW)
+                                                                                  : nullptr;
+    if (!c) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+    std::memcpy(classic_arena + classic_arena_used, text, len);
+    classic_arena[classic_arena_used + len] = 0;
+    c->text = classic_arena + classic_arena_used;
+    c->length = (int)len;
+    classic_arena_used += (unsigned)len + 1;
+    c->x = pixel(x), c->y = pixel(y);
+    c->a = (int)word;
+    c->font = scratch.font;
+    c->typeset = scratch.typeset;
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+// d.anchor(where): where this draw's commands sit in 16:9 (the classic flavour: their packets' range, placed
+// exactly, no heuristics; the modern: the commands that follow): "left", "right", "centre", or "element"
+// (the element's own, the default).
+int api_anchor(lua_State* L)
+{
+    const char* fn = "rood.draw.anchor";
+    static const char* const names[] = { "centre", "left", "right", "element", "center", nullptr };
+    int i = luaL_checkoption(L, 1, nullptr, names);
+    need_draw(L, fn);
+    int anchor = i == 4 ? PC_HUD_ANCHOR_CENTRE : i == 3 ? -1 : i;
+    if (classic_pass)
+        classic_anchor = anchor;
+    else
+        drawing.anchor = anchor < 0 ? drawing.element_anchor : anchor;
+    return 0;
+}
+
+// d.layer(offset | nil): classic only: the ordering-table slot the commands that follow link into, as the
+// game names its slots: bytes from vs_scratch.unk4 (-64..64, a multiple of 4; the status words' -16, the
+// gauges' bars -12 and digits -16); nil: the kind's own. The slot orders packets as the game's do.
+int api_layer(lua_State* L)
+{
+    const char* fn = "rood.draw.layer";
+    int layer = PC_HUD_LAYER_KIND;
+    if (!lua_isnoneornil(L, 1)) {
+        lua_Integer v = luaL_checkinteger(L, 1);
+        if (v < -64 || v > 64 || v % 4)
+            return luaL_error(L, "%s: a slot is -64..64 bytes from vs_scratch.unk4, a multiple of 4", fn);
+        layer = (int)v;
+    }
+    need_classic(L, fn);
+    classic_layer = layer;
+    return 0;
+}
+
+// The game's packed screen position (x in the low half, y in the high: its arithmetic carries between them).
+uint32_t packed_xy(lua_Integer x, lua_Integer y) { return (uint32_t)(x & 0xFFFF) + ((uint32_t)(y & 0xFFFF) << 16); }
+void push_xy(lua_State* L, uint32_t xy)
+{
+    lua_pushinteger(L, (int16_t)(xy & 0xFFFF));
+    lua_pushinteger(L, (int16_t)(xy >> 16));
+}
+
+// d.value(font, x, y, value) -> x, y: classic only: the HUD's digits (vs_battle_renderValue), the rightmost at
+// x, y, leftwards; font 0 the small digits, 1 the large; returns where the game's call leaves its pen (the
+// position left of the last digit, as the game's packed arithmetic gives it).
+int api_value(lua_State* L)
+{
+    const char* fn = "rood.draw.value";
+    lua_Integer font = luaL_checkinteger(L, 1);
+    float x = coordinate(L, 2, fn), y = coordinate(L, 3, fn);
+    lua_Integer value = luaL_checkinteger(L, 4);
+    if (font < 0 || font > 1 || value < 0 || value > 99999999)
+        return luaL_error(L, "%s: font 0 or 1, value 0..99999999", fn);
+    need_classic(L, fn);
+    pc_hud_classic_cmd* k = next_classic(PC_HUD_CMD_VALUE);
+    if (k)
+        k->x = pixel(x), k->y = pixel(y), k->a = (int)font, k->b = (int)value;
+    uint32_t xy = packed_xy(pixel(x), pixel(y));
+    lua_Integer v = value;
+    do { // (vs_battle_renderValue: one digit per decimal digit, each 5 + font pixels left)
+        xy -= (uint32_t)(5 + font);
+        v /= 10;
+    } while (v);
+    push_xy(L, xy);
+    return 2;
+}
+
+// d.digit(font, x, y, digit): classic only: one of the HUD's digits (_renderDigit; font 2: the HP / MP separator).
+int api_digit(lua_State* L)
+{
+    const char* fn = "rood.draw.digit";
+    lua_Integer font = luaL_checkinteger(L, 1);
+    float x = coordinate(L, 2, fn), y = coordinate(L, 3, fn);
+    lua_Integer digit = luaL_checkinteger(L, 4);
+    if (font < 0 || font > 2 || digit < 0 || digit > 9)
+        return luaL_error(L, "%s: font 0..2, digit 0..9", fn);
+    need_classic(L, fn);
+    pc_hud_classic_cmd* k = next_classic(PC_HUD_CMD_DIGIT);
+    if (k)
+        k->x = pixel(x), k->y = pixel(y), k->a = (int)font, k->b = (int)digit;
+    lua_pushboolean(L, k != nullptr);
+    return 1;
+}
+
+// d.xy(x, y, delta) -> x, y: the game's packed position arithmetic: x, y packed as the game packs them (x in
+// the low half, y in the high) plus delta, an integer as the game writes its steps (56 | (-8 << 16), or
+// 0xFFF9 | (0xFFFE << 16): x's carry or borrow reaches y as in the game), modulo 2^32.
+int api_xy(lua_State* L)
+{
+    uint32_t xy = packed_xy(luaL_checkinteger(L, 1), luaL_checkinteger(L, 2)) + (uint32_t)luaL_checkinteger(L, 3);
+    push_xy(L, xy);
+    return 2;
+}
+
 // ---- rood.hud ----
 int kind_arg(lua_State* L, int idx, const char* fn)
 {
@@ -762,17 +967,33 @@ void drop_claim(int kind, Plugin* p, lua_State* L)
 int api_claim(lua_State* L)
 {
     int kind = kind_arg(L, 1, "rood.hud.claim");
-    if (kind >= PC_HUD_CLAIMABLE)
+    if (!PC_HUD_CLAIMABLE(kind))
         return luaL_error(L, "rood.hud.claim: '%s' is an event (rood.on(\"hud.%s\", fn)): the game draws it",
             hud::kind_name(kind), hud::kind_name(kind));
     luaL_checktype(L, 2, LUA_TFUNCTION);
+    int flavours = FLAVOUR_BOTH;
+    if (!lua_isnoneornil(L, 3)) {
+        luaL_checktype(L, 3, LUA_TTABLE);
+        lua_getfield(L, 3, "flavour");
+        static const char* const names[] = { "modern", "classic", "both", nullptr };
+        if (!lua_isnil(L, -1))
+            flavours = luaL_checkoption(L, -1, nullptr, names) + 1;
+        lua_pop(L, 1);
+        if ((kind == PC_HUD_TRAVEL || kind == PC_HUD_NOTICE) && flavours == FLAVOUR_CLASSIC)
+            return luaL_error(L, "rood.hud.claim: '%s' has no classic flavour (the port's own: drawn over the picture)",
+                hud::kind_name(kind));
+    }
+    if (kind == PC_HUD_GAUGES && flavours != FLAVOUR_CLASSIC)
+        return luaL_error(L, "rood.hud.claim: 'gauges' is the classic look's only: { flavour = \"classic\" }");
     Plugin* p = plugin_of(L);
     const Claim* had = owner(kind);
     Plugin* before = had ? had->plugin : nullptr;
     drop_claim(kind, p, L);
     lua_settop(L, 2);
     int ref = luaL_ref(L, LUA_REGISTRYINDEX);
-    claims[kind].push_back({ p, p->generation, ref, next_claim++ });
+    Claim made{ p, p->generation, ref, next_claim++ };
+    made.flavours = flavours;
+    claims[kind].push_back(made);
     choose(kind);
     const Claim* now = owner(kind);
     if (before && before != p && now && now->plugin == p)
@@ -810,7 +1031,9 @@ Typography typography_of[8];
 // rood.hud.typography(style, {font, size, stretch, slant, embolden, stroke, tracking, ...}): a ui_text
 // style's fields (the game's own text drawn from fonts with ui_text font: the classic look's
 // status words, labels, ...) for this run, over the settings (never saved); nil or {} gives the
-// settings' back. One owner per style, the last to call; dropped when the plugin unloads.
+// settings' back. Also ui_text's tunables (word_space, edge_margin, popup_scale, descender_lift: the
+// digits' old-style figures risen into the room above them), held through the style named. One owner
+// per style, the last to call; dropped when the plugin unloads.
 int api_typography(lua_State* L)
 {
     const char* fn = "rood.hud.typography";
@@ -843,7 +1066,8 @@ int api_typography(lua_State* L)
         if (!pc_ui_text_override(style, k, value)) {
             pc_ui_text_override_clear(style);
             return luaL_error(L, "%s: unknown field '%s' (font, stretch, slant, embolden, aspect, small_caps, "
-                                 "outline, size, stroke, tracking)", fn, k);
+                                 "outline, size, stroke, tracking; word_space, edge_margin, popup_scale, "
+                                 "descender_lift)", fn, k);
         }
         lua_pop(L, 1);
     }
@@ -852,13 +1076,27 @@ int api_typography(lua_State* L)
     return 0;
 }
 
+// rood.hud.look() -> "classic" (ui_menus 0: claims draw at the game's hooks, in the classic flavour) or "modern".
+int api_look(lua_State* L)
+{
+    lua_pushstring(L, hud::classic_look() ? "classic" : "modern");
+    return 1;
+}
+
+// rood.hud.kinds([flavour]): the kinds a claim draws (name_window: an event only) in the modern look (the
+// default; a claim for both flavours may take each), or with "classic" those of the classic look (the
+// gauges: the classic look's only; not travel or notice, the port's own).
 int api_kinds(lua_State* L)
 {
-    lua_createtable(L, PC_HUD_CLAIMABLE - 1, 0);
-    for (int k = 1; k < PC_HUD_CLAIMABLE; ++k) { // (the kinds a claim draws; name_window: an event only)
-        lua_pushstring(L, hud::kind_name(k));
-        lua_rawseti(L, -2, k);
-    }
+    static const char* const flavours[] = { "modern", "classic", nullptr };
+    int classic = luaL_checkoption(L, 1, "modern", flavours) == 1;
+    lua_createtable(L, PC_HUD_KINDS, 0);
+    int n = 0;
+    for (int k = 1; k < PC_HUD_KINDS; ++k)
+        if (PC_HUD_CLAIMABLE(k) && (classic ? k != PC_HUD_TRAVEL && k != PC_HUD_NOTICE : k != PC_HUD_GAUGES)) {
+            lua_pushstring(L, hud::kind_name(k));
+            lua_rawseti(L, -2, ++n);
+        }
     return 1;
 }
 
@@ -1021,6 +1259,25 @@ void fill_element(lua_State* L, const hud::Element& e, bool fresh = false)
     } else {
         set_nil(L, "timing");
         set_nil(L, "variant");
+    }
+    if (k == PC_HUD_GAUGES) {
+        set_int(L, "hp", f.hp);
+        set_int(L, "max_hp", f.max_hp);
+        set_int(L, "mp", f.mp);
+        set_int(L, "max_mp", f.max_mp);
+        set_int(L, "risk", f.risk);
+        set_int(L, "slide", f.slide);
+    } else {
+        static const char* const gauge_fields[] = { "hp", "max_hp", "mp", "max_mp", "risk", "slide" };
+        for (const char* g : gauge_fields)
+            set_nil(L, g);
+    }
+    if (k >= PC_HUD_STATUS && k <= PC_HUD_DAMAGE && !e.synthetic) { // where the game's call put it
+        set_int(L, "call_x", f.call_x);
+        set_int(L, "call_y", f.call_y);
+    } else {
+        set_nil(L, "call_x");
+        set_nil(L, "call_y");
     }
     if (k == PC_HUD_CHAIN || k == PC_HUD_BUFF || k == PC_HUD_DAMAGE)
         set_int(L, "value", f.value);
@@ -1198,6 +1455,7 @@ void open_hud(lua_State* L, Plugin*)
     set_cfunction(L, -1, "release", api_release);
     set_cfunction(L, -1, "kinds", api_kinds);
     set_cfunction(L, -1, "honoured", api_honoured);
+    set_cfunction(L, -1, "look", api_look);
     set_cfunction(L, -1, "typography", api_typography);
     lock_table(L);
     lua_setfield(L, -2, "hud");
@@ -1214,6 +1472,12 @@ void open_hud(lua_State* L, Plugin*)
     set_cfunction(L, -1, "window", api_window);
     set_cfunction(L, -1, "cursor", api_cursor);
     set_cfunction(L, -1, "bar", api_bar);
+    set_cfunction(L, -1, "text_raw", api_text_raw);
+    set_cfunction(L, -1, "anchor", api_anchor);
+    set_cfunction(L, -1, "layer", api_layer);
+    set_cfunction(L, -1, "value", api_value);
+    set_cfunction(L, -1, "digit", api_digit);
+    set_cfunction(L, -1, "xy", api_xy);
     lock_table(L);
     lua_pushvalue(L, -1);
     lua_setfield(L, LUA_REGISTRYINDEX, "rood.hud.draw"); // d in draw functions
@@ -1319,7 +1583,7 @@ int hud_pass()
         if (!c || c->failed || !pc_hud_honoured(e.f.kind))
             continue;
         job = { c, &e, false };
-        drawing.anchor = e.f.anchor;
+        drawing.anchor = drawing.element_anchor = e.f.anchor;
         in_draw = true;
         std::string error;
         unsigned long long allocations = c->plugin->mem.allocations;
@@ -1347,19 +1611,32 @@ int hud_pass()
 double classic_ms[CLASSIC_RING]; // the claims' Lua per game frame (every element drawn in it)
 unsigned classic_frames;
 unsigned classic_frame_vsync = ~0u;
-int classic_draw()
+int classic_draw(bool parity = false, const char** why = nullptr)
 {
     classic_used = 0;
     classic_arena_used = 0;
+    classic_anchor = -1;
+    classic_layer = PC_HUD_LAYER_KIND;
     hud::Element* e = hud::last_recorded();
-    if (!e || !e->used || !e->suppressed)
+    if (!e || !e->used || (!parity && !e->suppressed)) {
+        if (why)
+            *why = "no element recorded";
         return -1;
-    Claim* c = const_cast<Claim*>(owner(e->f.kind));
-    if (!c || c->failed)
+    }
+    Claim* c = const_cast<Claim*>(parity ? owner_for(e->f.kind, 1) : owner(e->f.kind));
+    if (parity && (!c || c->flavours != FLAVOUR_CLASSIC)) {
+        if (why)
+            *why = "no claim made for the classic flavour";
         return -1;
+    }
+    if (!c || c->failed) {
+        if (why)
+            *why = "its classic claim failed";
+        return -1;
+    }
     double start = now_seconds();
     job = { c, e, false };
-    drawing.anchor = e->f.anchor;
+    drawing.anchor = drawing.element_anchor = e->f.anchor;
     in_draw = classic_pass = true;
     std::string error;
     unsigned long long allocations = c->plugin->mem.allocations;
@@ -1375,6 +1652,15 @@ int classic_draw()
         classic_ms[(classic_frames + CLASSIC_RING - 1) % CLASSIC_RING] += ms;
     }
     hud::KindStats& s = hud::stats(e->f.kind);
+    if (!ok && parity) {
+        ++s.faults;
+        c->failed = true;
+        if (why)
+            *why = "its classic draw failed";
+        log(LOG_WARN, c->plugin->id(), std::string("its '") + hud::kind_name(e->f.kind)
+            + "' classic draw failed (parity): the game draws it until the plugin reloads");
+        return -1;
+    }
     if (!ok) {
         ++s.faults;
         c->failed = true;
@@ -1417,6 +1703,11 @@ std::string element_json(const hud::Element& e)
         + ",\"sign\":" + std::to_string(e.f.sign) + ",\"pool\":" + q(hud::pool_name(e.f.pool))
         + ",\"stat\":" + std::to_string(e.f.stat) + ",\"slot\":" + std::to_string(e.f.slot)
         + ",\"bounce\":" + num(e.f.bounce) + ",\"unit\":" + num(e.f.unit) + ",\"anchor\":" + std::to_string(e.f.anchor)
+        + ",\"call_x\":" + std::to_string(e.f.call_x) + ",\"call_y\":" + std::to_string(e.f.call_y)
+        + (e.f.kind == PC_HUD_GAUGES ? ",\"hp\":" + std::to_string(e.f.hp) + ",\"max_hp\":" + std::to_string(e.f.max_hp)
+                    + ",\"mp\":" + std::to_string(e.f.mp) + ",\"max_mp\":" + std::to_string(e.f.max_mp)
+                    + ",\"risk\":" + std::to_string(e.f.risk) + ",\"slide\":" + std::to_string(e.f.slide)
+                                     : std::string())
         + ",\"parts\":" + parts_json(e.f) + ",\"age\":" + std::to_string(e.f.age)
         + ",\"life\":" + std::to_string(e.f.life) + ",\"held\":" + (e.held ? "true" : "false")
         + ",\"synthetic\":" + (e.synthetic ? "true" : "false") + ",\"live\":" + (hud::live(e) ? "true" : "false")
@@ -1479,16 +1770,18 @@ std::string stats_json()
         cmds += "}";
     }
     static const char* const CLASSIC_TYPES[] = { "text", "rect", "gradient", "glyph", "sprite", "window", "cursor",
-        "bar" };
+        "bar", "text_raw", "value", "digit" };
     std::string classic_cmds;
     for (int i = 0; i < classic_used && i < 16; ++i) {
         const pc_hud_classic_cmd& c = classic_buffer[i];
-        classic_cmds += std::string(i ? "," : "") + "{\"type\":" + q(CLASSIC_TYPES[c.type & 7]) + ",\"x\":"
+        classic_cmds += std::string(i ? "," : "") + "{\"type\":"
+            + q(CLASSIC_TYPES[c.type >= 0 && c.type <= PC_HUD_CMD_DIGIT ? c.type : 0]) + ",\"x\":"
             + std::to_string(c.x) + ",\"y\":" + std::to_string(c.y) + ",\"w\":" + std::to_string(c.w) + ",\"h\":"
             + std::to_string(c.h) + ",\"color\":" + std::to_string(c.color)
-            + (c.type == PC_HUD_CMD_TEXT ? ",\"text\":" + q(std::string(c.text, (size_t)c.length)) + ",\"font\":"
-                       + q(FONTS[c.font]) + ",\"align\":" + std::to_string(c.align)
-                                       : std::string())
+            + (c.type == PC_HUD_CMD_TEXT || c.type == PC_HUD_CMD_TEXT_RAW
+                    ? ",\"text\":" + q(std::string(c.text, (size_t)c.length)) + ",\"font\":" + q(FONTS[c.font])
+                        + ",\"align\":" + std::to_string(c.align) + ",\"word\":" + std::to_string(c.a)
+                    : std::string())
             + "}";
     }
     int styles_used = 0;
@@ -1521,6 +1814,13 @@ extern "C" int pc_hud_classic_draw(const pc_hud_classic_cmd** out)
     *out = rl::classic_buffer;
     return rl::initialized() ? rl::classic_draw() : -1;
 }
+extern "C" int pc_hud_classic_parity_draw(const pc_hud_classic_cmd** out, const char** why)
+{
+    *out = rl::classic_buffer;
+    *why = "Lua not running";
+    return rl::initialized() ? rl::classic_draw(true, why) : -1;
+}
+extern "C" int pc_hud_classic_anchor(void) { return rl::classic_anchor; }
 
 extern "C" void pc_hud_frame(void)
 {
@@ -1538,11 +1838,11 @@ namespace rl {
 std::vector<ClaimInfo> hud_claims()
 {
     std::vector<ClaimInfo> out;
-    for (int k = 1; k < PC_HUD_CLAIMABLE; ++k)
-        for (int i = 0; i < (int)claims[k].size(); ++i) {
+    for (int k = 1; k < PC_HUD_KINDS; ++k)
+        for (int i = 0; i < (int)claims[k].size() && PC_HUD_CLAIMABLE(k); ++i) {
             const Claim& c = claims[k][i];
             if (valid(c))
-                out.push_back({ hud::kind_name(k), c.plugin, c.ref, c.failed, i == active[k] });
+                out.push_back({ hud::kind_name(k), c.plugin, c.ref, c.failed, i + 1 == active[rl::look_now()][k] });
         }
     return out;
 }
@@ -1557,6 +1857,11 @@ bool claimed(int kind)
 {
     const rl::Claim* c = rl::owner(kind);
     return c && !c->failed;
+}
+bool claimed_classic(int kind)
+{
+    const rl::Claim* c = rl::owner_for(kind, 1);
+    return c && !c->failed && c->flavours == rl::FLAVOUR_CLASSIC;
 }
 } // namespace hud
 

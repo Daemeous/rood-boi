@@ -15,6 +15,7 @@
 #define ROOD_UI_TEXT_H
 #include <stdint.h>
 #include <stdio.h>
+#include "classic/typeset.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -153,6 +154,9 @@ int pc_ui_text_image_render(int image, int factor, uint32_t* out);
  * drawn from the status style as one word (the font's advances, tracking,
  * size), centred where the game centres it. */
 void pc_text_status(const void* first, const void* end);
+/* The same with a classic draw's typography (pc/src/classic/typeset.h: the plugin's look
+ * table decides; NULL or fields not set: the defaults, ui_text_edge_margin, ui_text_word_space). */
+void pc_text_status_typeset(const void* first, const void* end, const pc_text_typeset* typeset);
 /* gpu_hw.c: whether the sprite whose command word is at `command` (texels u,
  * v, w x h of page tpage, CLUT clut) is a status word's glyph; then its
  * image's quad, x and y from the sprite's own top-left (a whole image: row0
@@ -189,6 +193,9 @@ int pc_ui_text_style_index(const char* name); /* PC_UI_TEXT_*, -1 unknown */
 /* The label word (ui_labels.h) most of the texels u0..u1, v0..v1 of the 4-bit page at
  * (page_x, page_y) show; NULL for none (hud_bridge.c names the damage popups' stat icons). */
 const char* pc_ui_text_label_at(int page_x, int page_y, int u0, int v0, int u1, int v1);
+/* The game glyph a sprite of the page `tpage` (GP0 E1 bits) and CLUT word shows over the texels
+ * u0..u1, v0..v1: its code point, 0 for none (the parity gate's dumps, pc/src/classic). */
+unsigned pc_ui_text_glyph_at(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1);
 int pc_ui_text_override(int style, const char* field, const char* value);
 void pc_ui_text_override_clear(int style);
 unsigned pc_ui_text_overridden(int style);

@@ -1121,6 +1121,88 @@ static void classic_flavour()
     rl::config.watch_vsyncs = 30;
 }
 
+/* Claims made for the classic flavour (rood.classic's: rood.hud.claim(kind, fn, {flavour = "classic"})):
+ * in the classic look one is honoured without hud_classic_override when the kind's hud_classic_<kind> is
+ * on (status by default; not buff), and it outranks a claim for both flavours there, never in the modern
+ * look; d.text_raw is the game's raw printer as the game calls it (its string, place, colour word and a
+ * typeset for ui_text); d.anchor places the draw's range; a classic-only claim of the Travel prompt and
+ * a bad typeset raise. */
+static void classic_claims()
+{
+    std::string root = scratch + "/plugins";
+    write_text(root + "/probe.both/plugin.lua", "return { id = 'probe.both', api_version = 1 }\n");
+    write_text(root + "/probe.both/main.lua",
+        "rood.hud.claim('status', function(e, d) both_drew = e.flavour end)\n");
+    write_text(root + "/probe.classic2/plugin.lua", "return { id = 'probe.classic2', api_version = 1 }\n");
+    write_text(root + "/probe.classic2/main.lua",
+        "look = { blanks = 'one', style = 'status', keep_on_screen = true, margin = 2.5 }\n"
+        "rood.hud.claim('status', function(e, d)\n"
+        "  d.anchor('right')\n"
+        "  d.text_raw('$WELL   TIMED!', 44, 48, 0x408040, look)\n"
+        "  d.text_raw('RISK  ZERO', 12, 22, 0x808080)\n"
+        "  d.layer(-16)\n"
+        "  pen = { d.value(1, 126, 9, 157) }\n"
+        "  d.digit(2, 120, 12, 0)\n"
+        "  d.layer()\n"
+        "  d.bar(10, 18, 157, 253, 'hp')\n"
+        "end, { flavour = 'classic' })\n"
+        "packed = { rood.draw.xy(126, 9, 0xFFF9 | (0xFFFE << 16)) }\n"
+        "borrow = { rood.draw.xy(3, 9, -5) }\n"
+        "rood.hud.claim('buff', function(e, d) end, { flavour = 'classic' })\n");
+    rl::config.watch_vsyncs = 2;
+    pc_lua_tick();
+    pc_lua_tick();
+    rl::Plugin* p = rl::find("probe.classic2");
+    CHECK(p && p->state == rl::PLUGIN_LOADED);
+    if (!p || p->state != rl::PLUGIN_LOADED)
+        return;
+    CHECK(contains(eval_error(p, "rood.hud.claim('travel', function() end, { flavour = 'classic' })"),
+        "no classic flavour"));
+    CHECK(contains(eval_error(p, "rood.hud.claim('status', function() end, { flavour = 'retro' })"), "invalid option"));
+    pc_ui_menus = 0;
+    pc_hud_classic_override = 0;
+    CHECK(pc_hud_honoured(PC_HUD_STATUS) && hud::claimed_classic(PC_HUD_STATUS)); // on by default (status)
+    CHECK(!pc_hud_honoured(PC_HUD_BUFF));                                     // hud_classic_buff 0
+    pc_hud_classic_status = 0;
+    CHECK(!pc_hud_honoured(PC_HUD_STATUS) && record_status() == 0);
+    pc_hud_classic_status = 1;
+    CHECK(record_status() == 2);
+    const pc_hud_classic_cmd* cmds = nullptr;
+    int n = pc_hud_classic_draw(&cmds);
+    CHECK(n == 5 && pc_hud_classic_anchor() == PC_HUD_ANCHOR_RIGHT);
+    if (n == 5) {
+        CHECK(cmds[2].type == PC_HUD_CMD_VALUE && cmds[2].layer == -16 && cmds[2].a == 1 && cmds[2].b == 157
+            && cmds[2].x == 126 && cmds[2].y == 9);
+        CHECK(cmds[3].type == PC_HUD_CMD_DIGIT && cmds[3].layer == -16 && cmds[3].a == 2 && cmds[3].b == 0);
+        CHECK(cmds[4].type == PC_HUD_CMD_BAR && cmds[4].layer == PC_HUD_LAYER_KIND && cmds[0].layer == PC_HUD_LAYER_KIND);
+    }
+    CHECK(eval_json(p, "pen[1], pen[2], packed[1], packed[2], borrow[1], borrow[2]") == "108,9,119,8,-2,8");
+    CHECK(contains(eval_error(p, "rood.hud.claim('gauges', function() end)"), "classic look's only"));
+    if (n == 5) {
+        CHECK(cmds[0].type == PC_HUD_CMD_TEXT_RAW && std::string(cmds[0].text) == "$WELL   TIMED!" && cmds[0].x == 44
+            && cmds[0].y == 48 && cmds[0].a == 0x408040 && cmds[0].font == 4);
+        CHECK(cmds[0].typeset.set == (PC_TYPESET_BLANKS | PC_TYPESET_KEEP | PC_TYPESET_MARGIN)
+            && cmds[0].typeset.blanks == 1 && cmds[0].typeset.keep_on_screen == 1 && cmds[0].typeset.margin == 2.5f);
+        CHECK(cmds[1].type == PC_HUD_CMD_TEXT_RAW && cmds[1].font == 2 && cmds[1].typeset.set == 0);
+    }
+    CHECK(eval_json(rl::find("probe.both"), "both_drew") == "null"); // the classic-only claim drew, not the one for both
+    write_text(root + "/probe.classic2/main.lua",
+        "rood.hud.claim('status', function(e, d) d.text_raw('X', 1, 2, 3, { margin = 1 }) end, "
+        "{ flavour = 'classic' })\n");
+    pc_lua_tick();
+    pc_lua_tick();
+    CHECK(record_status() == 2 && pc_hud_classic_draw(&cmds) == -1); // typeset fields need style = "status"
+    pc_ui_menus = 1;
+    CHECK(record_status() == 1); // the modern look: the claim for both
+    pc_hud_frame();
+    CHECK(eval_json(rl::find("probe.both"), "both_drew") == "\"modern\"");
+    std::filesystem::remove_all(root + "/probe.both");
+    std::filesystem::remove_all(root + "/probe.classic2");
+    pc_lua_tick();
+    pc_lua_tick();
+    rl::config.watch_vsyncs = 30;
+}
+
 /* hud.<kind> events (task 9): one per appearance, after the tick that saw it, with the element's
  * fields; the name window: an event and a show, never a claim. */
 static void hud_events()
@@ -1435,6 +1517,7 @@ int main(int argc, char** argv)
     rpc_actions();
     hud_layer();
     classic_flavour();
+    classic_claims();
     hud_events();
     game_queries();
     repl_bridge();

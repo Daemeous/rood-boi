@@ -27,6 +27,9 @@
 #include <abs.h>
 #include <inline_c.h>
 #include "pc/src/psx_types.h"
+#ifdef ROOD_PC
+#include "pc/src/classic/classic_hook.h"
+#endif
 
 typedef struct {
     u_int unk0_0 : 8;
@@ -3283,6 +3286,20 @@ void func_800CA2DC(void)
         }
     }
 
+#ifdef ROOD_PC
+    /* PC_CLASSIC: the gauges, a plugin's in the classic look (pc/src/classic). */
+    PC_CLASSIC(PC_CLASSIC_SITE_GAUGES, actor, 0, 0, {
+        _renderStatBar(0, actor->currentHP, actor->maxHP);
+        _renderStatBar(1, actor->currentMP, actor->maxMP);
+        if ((k = actor->risk) != 0) {
+            _renderStatBar(2, k, 100);
+        }
+        if (k == 0) {
+            vs_battle_renderTextRaw(
+                "RISK  ZERO", 0x16000C - D_800EB9B0, psx_get(vs_scratch.unk4) - 0xC);
+        }
+    });
+#else
     _renderStatBar(0, actor->currentHP, actor->maxHP);
     _renderStatBar(1, actor->currentMP, actor->maxMP);
     if ((k = actor->risk) != 0) {
@@ -3292,6 +3309,7 @@ void func_800CA2DC(void)
         vs_battle_renderTextRaw(
             "RISK  ZERO", 0x16000C - D_800EB9B0, psx_get(vs_scratch.unk4) - 0xC);
     }
+#endif
 
     if (D_800EB9AE != 0) {
         return;

@@ -37,7 +37,8 @@ local function summon_now(kind, args, text, check, away)
   end
   t.ok(found, kind .. ": an element appears")
   check(e)
-  if rood.hud.honoured(kind) then
+  -- (a synthetic element is drawn only in the modern look; the classic look's claims draw at the game's hooks)
+  if rood.hud.honoured(kind) and not (e.synthetic and rood.hud.look() == "classic") then
     t.ok(wait_for(function() e = element(kind, text) return e and e.drawn >= 2 end, 120),
       kind .. ": drawn by rood.hud (" .. tostring(e and e.drawn) .. " frames)")
     t.ok(e.synthetic or e.suppressed, kind .. ": the game's own drawing skipped")

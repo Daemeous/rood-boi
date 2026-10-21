@@ -661,6 +661,12 @@ static int texel4(const uint16_t* vram, int page_x, int page_y, int u, int v)
     return (vram[((page_y + v) & 511) * 1024 + ((page_x + (u >> 2)) & 1023)] >> ((u & 3) * 4)) & 15;
 }
 
+unsigned pc_ui_text_glyph_at(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1)
+{
+    glyph_info g;
+    return identify(tpage, clut, u0, v0, u1, v1, &g) ? g.codepoint : 0;
+}
+
 /* The label word most of a texel region shows (the HUD layer names a quad's image:
  * hud_bridge.c); NULL when it covers none. */
 const char* pc_ui_text_label_at(int page_x, int page_y, int u0, int v0, int u1, int v1)
@@ -2040,18 +2046,22 @@ typedef struct {
     text_image image[STATUS_GLYPHS];
     char text[STATUS_GLYPHS + 1];
     float extent[4], original[4]; /* laid-out and original ink (x0, y0, x1, y1) from the first sprite's place */
+    pc_text_typeset typeset;      /* a classic draw's (pc/src/classic/typeset.h); set 0: the defaults below */
 } status_string;
 static status_string statuses[STATUS_STRINGS];
 static int status_next;
 static long status_glyphs_drawn; /* glyph quads handed to gpu_hw (RPC) */
 
-void pc_text_status(const void* first, const void* end)
+void pc_text_status(const void* first, const void* end) { pc_text_status_typeset(first, end, NULL); }
+void pc_text_status_typeset(const void* first, const void* end, const pc_text_typeset* typeset)
 {
     const uint32_t *w = first, *stop = end;
     if (!w || !stop || stop <= w || stop - w > 8 * STATUS_GLYPHS)
         return;
     status_string* s = &statuses[status_next];
     memset(s, 0, sizeof *s);
+    if (typeset)
+        s->typeset = *typeset;
     s->tpage = 12;
     while (w + 1 < stop && s->count < STATUS_GLYPHS) {
         unsigned len = w[0] >> 24, code = w[1] >> 24;
@@ -2098,18 +2108,26 @@ static int status_layout(const uint16_t* vram, status_string* s)
     unsigned drawn[STATUS_GLYPHS] = { 0 };
     int space_u, space_v, space_w;
     int have_space = small_find(' ', &space_u, &space_v, &space_w);
+    /* The decisions: a classic draw's (its plugin's look table), else these
+     * defaults (the game's own drawing: the fallback). */
+    const pc_text_typeset* ts = &s->typeset;
+    int blanks_one = ts->set & PC_TYPESET_BLANKS ? ts->blanks != 0 : 1;          /* look-default */
+    int keep_on_screen = ts->set & PC_TYPESET_KEEP ? ts->keep_on_screen != 0 : 1; /* look-default */
+    float screen_w = ts->set & PC_TYPESET_SCREEN_W ? ts->screen_w : STATUS_SCREEN_W;
+    float margin = ts->set & PC_TYPESET_MARGIN ? ts->margin : pc_ui_text_edge_margin;
+    float word_space = ts->set & PC_TYPESET_WORD_SPACE ? ts->word_space : pc_ui_text_word_space;
     for (int i = 0; i < s->count; i++) {
         glyph_info g;
         int box[4], u = s->glyph[i].u, v = s->glyph[i].v, w = s->glyph[i].w;
         float rel = (float)(s->glyph[i].x - s->glyph[0].x);
         if (have_space && u == space_u && v == space_v && w == space_w) {
             s->glyph[i].space = 1;
-            if (!prev)
+            if (!prev && blanks_one)
                 continue; /* the game pads its words with narrow blanks (3 between WELL and TIMED!): one space */
             int space = stbtt_FindGlyphIndex(&f->info, ' '), advance, bearing;
             stbtt_GetGlyphHMetrics(&f->info, space, &advance, &bearing);
             if (sx > 0)
-                x += advance * f->scale * sx * pc_ui_text_word_space + track;
+                x += advance * f->scale * sx * word_space + track;
             prev = 0;
             if (chars < STATUS_GLYPHS)
                 s->text[chars++] = ' ';
@@ -2164,11 +2182,11 @@ static int status_layout(const uint16_t* vram, status_string* s)
      * kept on the PS1's 320-pixel screen, its outline and that outline's
      * edge (ui_text_edge_margin) included (16:9 anchors the HUD at the
      * window's edges, so the same holds there). */
-    float room = (st->outline ? stroke : 0.0f) + pc_ui_text_edge_margin + fmaxf(bold, 0.0f) * sc;
-    float at = (float)s->glyph[0].x, lo_x = room - at, hi_x = STATUS_SCREEN_W - room - at;
-    if (shift + l1 > hi_x)
+    float room = (st->outline ? stroke : 0.0f) + margin + fmaxf(bold, 0.0f) * sc;
+    float at = (float)s->glyph[0].x, lo_x = room - at, hi_x = screen_w - room - at;
+    if (keep_on_screen && shift + l1 > hi_x)
         shift = hi_x - l1;
-    if (shift + l0 < lo_x)
+    if (keep_on_screen && shift + l0 < lo_x)
         shift = lo_x - l0;
     float t = floorf(new_base - top * sc - pad), b = ceilf(new_base + depth * sc + pad);
     int lo = st->outline ? 2 : 1;
@@ -2242,10 +2260,10 @@ static int status_json(char* out, int size)
             continue;
         used += snprintf(out + used, (size_t)(size - used),
             "%s{\"text\":\"%s\",\"x\":%d,\"y\":%d,\"vsync\":%u,\"extent\":[%.3f,%.3f,%.3f,%.3f],"
-            "\"original\":[%.3f,%.3f,%.3f,%.3f],\"scale\":%.4f}",
+            "\"original\":[%.3f,%.3f,%.3f,%.3f],\"scale\":%.4f,\"typeset\":%u}",
             first ? "" : ",", s->text, s->glyph[0].x, s->glyph[0].y, s->stamp, s->extent[0], s->extent[1],
             s->extent[2], s->extent[3], s->original[0], s->original[1], s->original[2], s->original[3],
-            s->image[0].s);
+            s->image[0].s, s->typeset.set);
         first = 0;
     }
     if (used < size)
@@ -2446,10 +2464,28 @@ int pc_ui_text_style_index(const char* name)
     return -1;
 }
 
+/* The tunables (word_space, edge_margin, popup_scale, descender_lift) a plugin's typography overrides
+ * too, through a style (the digits' descender lift is rood.classic's): the style that holds each (-1:
+ * none) and the settings' value under it. */
+static int tunable_holder[TUNABLES] = { -1, -1, -1, -1 };
+static float tunable_base[TUNABLES];
+#define TUNABLE_OVERRIDDEN (1u << 31) /* pc_ui_text_overridden's bit for them */
+
 int pc_ui_text_override(int style, const char* field, const char* value)
 {
     if (style < 0 || style >= PC_UI_TEXT_STYLES || !field || !value)
         return 0;
+    for (int t = 0; t < TUNABLES; t++) {
+        if (strcmp(field, tunables[t].name))
+            continue;
+        if (tunable_holder[t] < 0)
+            tunable_base[t] = *tunables[t].value;
+        tunable_holder[t] = style;
+        float v = tunable_parse(t, value);
+        if (v != *tunables[t].value)
+            *tunables[t].value = v, ++pc_ui_text_generation;
+        return 1;
+    }
     for (int k = 0; k < FIELDS; k++) {
         if (strcmp(field, fields[k].name))
             continue;
@@ -2475,6 +2511,12 @@ int pc_ui_text_override(int style, const char* field, const char* value)
 
 void pc_ui_text_override_clear(int style)
 {
+    for (int t = 0; t < TUNABLES && style >= 0; t++)
+        if (tunable_holder[t] == style) {
+            tunable_holder[t] = -1;
+            if (*tunables[t].value != tunable_base[t])
+                *tunables[t].value = tunable_base[t], ++pc_ui_text_generation;
+        }
     if (style < 0 || style >= PC_UI_TEXT_STYLES || !overridden[style])
         return;
     pc_ui_text_style* st = &pc_ui_text_styles[style];
@@ -2489,7 +2531,14 @@ void pc_ui_text_override_clear(int style)
     ++pc_ui_text_generation;
 }
 
-unsigned pc_ui_text_overridden(int style) { return style >= 0 && style < PC_UI_TEXT_STYLES ? overridden[style] : 0; }
+unsigned pc_ui_text_overridden(int style)
+{
+    unsigned mask = style >= 0 && style < PC_UI_TEXT_STYLES ? overridden[style] : 0;
+    for (int t = 0; t < TUNABLES; t++)
+        if (tunable_holder[t] == style && style >= 0)
+            mask |= TUNABLE_OVERRIDDEN;
+    return mask;
+}
 
 /* A field's style as the settings have it (under any override). */
 static const pc_ui_text_style* settings_style(int style, int k)
@@ -2511,7 +2560,7 @@ int pc_ui_text_setting_value(const char* key, char* out, int size)
         return 1;
     }
     if ((t = tunable_key(key)) >= 0) {
-        snprintf(out, (size_t)size, "%.9g", (double)*tunables[t].value);
+        snprintf(out, (size_t)size, "%.9g", (double)(tunable_holder[t] >= 0 ? tunable_base[t] : *tunables[t].value));
         return 1;
     }
     return 0;
@@ -2568,7 +2617,9 @@ int pc_ui_text_setting(const char* key, const char* value)
     }
     if ((t = tunable_key(key)) >= 0) {
         float v = tunable_parse(t, value);
-        if (v != *tunables[t].value)
+        if (tunable_holder[t] >= 0) /* the setting under a plugin's override (back when it goes) */
+            tunable_base[t] = v;
+        else if (v != *tunables[t].value)
             *tunables[t].value = v, ++pc_ui_text_generation;
         return 1;
     }
@@ -2599,9 +2650,11 @@ void pc_ui_text_settings_write(FILE* f)
                 field_print(f, settings_style(i, k), k);
                 fputc('\n', f);
             }
-    for (int t = 0; t < TUNABLES; t++)
-        if (*tunables[t].value != tunables[t].builtin)
-            fprintf(f, "ui_text_%s %g\n", tunables[t].name, (double)*tunables[t].value);
+    for (int t = 0; t < TUNABLES; t++) {
+        float v = tunable_holder[t] >= 0 ? tunable_base[t] : *tunables[t].value; /* (never a plugin's override) */
+        if (v != tunables[t].builtin)
+            fprintf(f, "ui_text_%s %g\n", tunables[t].name, (double)v);
+    }
 }
 
 void pc_ui_text_get_stats(pc_ui_text_stats* s) { *s = stats; }

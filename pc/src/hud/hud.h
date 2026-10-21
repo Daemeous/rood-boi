@@ -21,6 +21,7 @@
  * fallback). Every call is on the game thread. */
 #ifndef ROOD_HUD_H
 #define ROOD_HUD_H
+#include "../classic/typeset.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -33,8 +34,11 @@ extern "C" {
  * state slots': "Saved to slot 3", savestate_notice.cpp); name_window, the action's name in
  * text box 7 (5BF94.c vs_battle_displaySceneMessage: an event, not claimed: the game draws it). */
 enum { PC_HUD_NONE = 0, PC_HUD_STATUS = 1, PC_HUD_CHAIN, PC_HUD_BUFF, PC_HUD_DAMAGE, PC_HUD_TRAVEL, PC_HUD_NOTICE,
-    PC_HUD_NAME_WINDOW, PC_HUD_KINDS };
-#define PC_HUD_CLAIMABLE PC_HUD_NAME_WINDOW /* kinds below it may be claimed */
+    PC_HUD_NAME_WINDOW, PC_HUD_GAUGES, PC_HUD_KINDS };
+/* gauges: the status display's HP / MP / RISK gauges with their digits and labels, or RISK ZERO (5BF94.c
+ * func_800CA2DC's _renderStatBar calls: a part of the panel; its figure, status icons, BATTLE MODE and the
+ * ability icons stay the game's); the classic look's only (no modern drawing), always up in the field. */
+#define PC_HUD_CLAIMABLE(kind) ((kind) > PC_HUD_NONE && (kind) < PC_HUD_KINDS && (kind) != PC_HUD_NAME_WINDOW)
 #define PC_HUD_TEXT 32
 #define PC_HUD_PART_TEXT 12
 #define PC_HUD_PARTS 4
@@ -75,6 +79,10 @@ typedef struct {
     int slot;             /* buff: the equipment (0..6: WEAPON, SHIELD, R.ARM, L.ARM, HEAD, BODY, LEGS) */
     float bounce;         /* damage: its digits' rise this frame (game pixels, - up) */
     float unit;           /* travel, notice: game pixels per menus' layout unit (720 high) */
+    int call_x, call_y;   /* status, chain, buff, damage: the place the game's call was given (its hook's x, y:
+                           * the timing word at 44, 48 before its slide) */
+    int hp, max_hp, mp, max_mp, risk; /* gauges: Ashley's (the HUD record func_800CA2DC draws) */
+    int slide;            /* gauges: D_800EB9B0, the display's slide up (0x80000 a step; packed into its y) */
     int glyph;            /* travel: the button whose icon it shows (PC_PROMPT_*) */
     int age, life;        /* game frames since it appeared, and when it goes (travel: 0, 0) */
     int anchor;           /* PC_HUD_ANCHOR_* */
@@ -89,8 +97,17 @@ typedef struct {
  * (pc_hud_classic_draw, then the bridge's packets), 0 for the game's own. */
 int pc_hud_record(const pc_hud_fields* f);
 /* settings hud_classic_override (project_settings.cpp): with the classic look
- * (ui_menus 0) claims are honoured only with it (0, default: typography only). */
+ * (ui_menus 0) every claim is honoured with it (0, default). Without it a kind's
+ * claim is honoured there only when it was made for the classic flavour
+ * (rood.hud.claim(kind, fn, {flavour = "classic"}): rood.classic's) and the kind's
+ * own setting is on: hud_classic_status, _chain, _buff, _damage (on for the kinds
+ * whose Lua draw passes the parity gate, pc/src/classic/classic_parity.h). With the
+ * parity mode on nothing is honoured there: the game draws and the Lua draw is
+ * compared. */
 extern int pc_hud_classic_override;
+extern int pc_hud_classic_status, pc_hud_classic_chain, pc_hud_classic_buff, pc_hud_classic_damage,
+    pc_hud_classic_gauges;
+int pc_hud_classic_default(int kind); /* the kind's hud_classic_<kind> */
 /* Whether claims on `kind` are honoured now (a claim, the look, the overlay drawing). */
 int pc_hud_honoured(int kind);
 /* Game vsync (pc_lua_tick): held moments kept, gone elements freed. */
@@ -129,7 +146,13 @@ enum {
     PC_HUD_CMD_SPRITE,   /* VRAM: a the texture page word, b the CLUT word, c, d its u, v; w x h */
     PC_HUD_CMD_WINDOW,   /* the text boxes' window frame (a: its brightness, 0x80 full) */
     PC_HUD_CMD_CURSOR,   /* the menus' pointing hand (a: its brightness step 0..15) */
-    PC_HUD_CMD_BAR       /* the HP / MP / RISK bar: a value, b max, c pool (0 HP, 1 MP, 2 RISK) */
+    PC_HUD_CMD_BAR,      /* the HP / MP / RISK bar: a value, b max, c pool (0 HP, 1 MP, 2 RISK) */
+    PC_HUD_CMD_TEXT_RAW, /* the game's raw printer (vs_battle_renderTextRawColor) as the game calls it: text as
+                          * given ('$' centres, '#' right-aligns, its blanks), x, y, a the colour word (PS1
+                          * BGR, 0x80 full); typeset: ui_text's status layout for it (font 4) */
+    PC_HUD_CMD_VALUE,    /* the HUD's digits (vs_battle_renderValue): a the font (0 small, 1 large), b the value,
+                          * x, y its rightmost digit */
+    PC_HUD_CMD_DIGIT     /* one digit (_renderDigit): a the font (2: the separator), b the digit */
 };
 typedef struct {
     int type;
@@ -141,12 +164,22 @@ typedef struct {
     const char* text;
     int length;
     int a, b, c, d;
+    pc_text_typeset typeset; /* text_raw with font 4 (the status style) */
+    int layer;               /* the ordering-table slot (bytes from vs_scratch.unk4, d.layer); PC_HUD_LAYER_KIND: the
+                              * kind's own */
 } pc_hud_classic_cmd;
+#define PC_HUD_LAYER_KIND (-0x7FFF)
 #define PC_HUD_CLASSIC_COMMANDS 256
 /* lua_api_hud.cpp: the claim on the element just recorded draws in the classic flavour;
  * its commands (in drawing order) in *out, their count, or -1 when it failed (the game
  * draws it: its packets stay). */
 int pc_hud_classic_draw(const pc_hud_classic_cmd** out) __attribute__((weak));
+/* The parity gate (pc/src/classic/classic_parity.h): the classic claim of the element just recorded draws
+ * although the game draws it (the parity mode); its commands, or -1 (none made for the classic flavour, it
+ * failed: why in *why). */
+int pc_hud_classic_parity_draw(const pc_hud_classic_cmd** out, const char** why) __attribute__((weak));
+/* The anchor the last classic draw placed its commands by (d.anchor: PC_HUD_ANCHOR_*), -1: the element's. */
+int pc_hud_classic_anchor(void) __attribute__((weak));
 /* hud_bridge.c: the game's font's width and height of text (font PC_UI_TEXT_*), and a
  * button sprite's width (0: the game has none for it). */
 void pc_hud_classic_measure(int font, const char* text, int length, int* w, int* h) __attribute__((weak));

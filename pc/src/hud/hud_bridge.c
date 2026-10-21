@@ -36,6 +36,7 @@
 #include "../../../src/BATTLE/BATTLE.PRG/5BF94.h"
 #include "../widescreen.h"
 #include "../ui/vs_encode.h"
+#include "../classic/classic_parity.h"
 #include "hud.h"
 
 
@@ -55,7 +56,23 @@ extern unsigned pc_vsync_count(void) __attribute__((weak));
 extern int* D_800EB9D8; /* the name window's text (5BF94.c) */
 extern char D_800F4E68; /* its countdown (func_800CB45C) */
 int pc_ui_text_decode(const unsigned char* text, int max_bytes, char* out, int out_size); /* ui_text.c */
-static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor);
+static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor, int kind, int shadowed);
+int pc_classic_walk_slots(const int* offsets, int count, int with_unk8, int enclosing, const void* first,
+    const void* end, pc_classic_packet* out, int max); /* classic_bridge.c */
+extern int pc_hw_anchor_recorded(int anchor) __attribute__((weak)); /* gpu_hw.c */
+void _renderDigit(int font, int xy, int digit, u_long* before); /* 5BF94.c */
+
+/* The ordering-table slot each kind's game drawing links into (bytes from vs_scratch.unk4): the status
+ * words and the chain count -16 (func_800958A4, func_80095A4C), a buff +8 (func_8009695C), a number -20
+ * (func_80094B0C), the gauges -12 (their bars, labels and separators; their digits -16). A classic draw
+ * links its packets there too, unless it names another (d.layer). */
+static const int kind_slot[PC_HUD_GAUGES + 1] = { 0, -16, -16, 8, -20, 0, 0, 0, -12 };
+static const int gauge_slots[2] = { -12, -16 };
+/* (the classic layer's kinds are the HUD layer's, by number) */
+typedef char pc_hud_classic_kinds_agree[PC_CLASSIC_STATUS == PC_HUD_STATUS && PC_CLASSIC_CHAIN == PC_HUD_CHAIN
+            && PC_CLASSIC_BUFF == PC_HUD_BUFF && PC_CLASSIC_DAMAGE == PC_HUD_DAMAGE && PC_CLASSIC_GAUGES == PC_HUD_GAUGES
+        ? 1
+        : -1];
 
 #define STATUS_LIFE 46
 #define CHAIN_LIFE 91
@@ -226,6 +243,136 @@ static const char* const success_words[] = { "COOL!", "GOOD!", "EXCELLENT!", "RI
 /* func_80094B0C's bounce, by frame. */
 static const signed char bounce[] = { 0, -6, -12, -14, -16, -10, -5, -1, 0, -3, -6, -7, -8, -5, -3, -1, 0, -2, -1, 0 };
 
+/* The parity gate (classic_parity.h): the game's drawing of the element just recorded stays live; its
+ * classic claim draws into a shadow slot (packets after the game's, never linked into the ordering
+ * table, then given back), normalised and compared with the game's capture. */
+static int lua_anchor;
+static int shadow_anchor(const unsigned* tag, void* user)
+{
+    (void)tag, (void)user;
+    return lua_anchor;
+}
+/* The parity mode's shadow slots: one word per slot a classic draw links into (its d.layer's), in place of
+ * the ordering table's; walked in the table's drawing order (the higher slot first). */
+#define SHADOW_SLOTS 8
+static struct {
+    int offset; /* bytes from vs_scratch.unk4 */
+    u_long head;
+} shadows[SHADOW_SLOTS];
+static int shadow_count, shadowing;
+static int slot_offset(int kind, int layer)
+{
+    return layer != PC_HUD_LAYER_KIND ? layer : kind_slot[kind >= 1 && kind <= PC_HUD_GAUGES ? kind : 1];
+}
+static u_long* slot_for(int kind, int layer)
+{
+    int offset = slot_offset(kind, layer), i;
+    if (!shadowing)
+        return (u_long*)((char*)psx_get(vs_scratch.unk4) + offset);
+    for (i = 0; i < shadow_count; ++i)
+        if (shadows[i].offset == offset)
+            return &shadows[i].head;
+    if (shadow_count == SHADOW_SLOTS)
+        i = SHADOW_SLOTS - 1; /* (more slots than any draw uses: the last is shared) */
+    else
+        ++shadow_count;
+    shadows[i].offset = offset;
+    shadows[i].head = 0x00FFFFFF;
+    return &shadows[i].head;
+}
+static void parity(int kind, int element_anchor)
+{
+    static pc_classic_packet lua[PC_CLASSIC_CAPTURE];
+    const pc_hud_classic_cmd* cmds;
+    const char* why = "no Lua";
+    int count = pc_hud_classic_parity_draw ? pc_hud_classic_parity_draw(&cmds, &why) : -1, anchor, n = 0, i, j;
+    void* start = psx_get(vs_scratch.unk0);
+    pc_classic_walker walker = pc_classic_guest();
+    if (count < 0) {
+        pc_classic_parity_skip(kind, why);
+        return;
+    }
+    anchor = pc_hud_classic_anchor && pc_hud_classic_anchor() >= 0 ? pc_hud_classic_anchor() : element_anchor;
+    shadow_count = 0;
+    shadowing = 1;
+    classic_packets(cmds, count, anchor, kind, 1);
+    shadowing = 0;
+    lua_anchor = !pc_hw_anchor_recorded ? 0
+        : pc_hw_anchor_recorded(anchor == PC_HUD_ANCHOR_LEFT ? PC_ANCHOR_LEFT_EDGE
+                : anchor == PC_HUD_ANCHOR_RIGHT          ? PC_ANCHOR_RIGHT_EDGE
+                                                         : PC_ANCHOR_CENTRE);
+    walker.anchor = shadow_anchor;
+    for (i = 1; i < shadow_count; ++i) /* (the table's drawing order: the higher slot first) */
+        for (j = i; j > 0 && shadows[j].offset > shadows[j - 1].offset; --j) {
+            int o = shadows[j].offset;
+            u_long h = shadows[j].head;
+            shadows[j] = shadows[j - 1];
+            shadows[j - 1].offset = o, shadows[j - 1].head = h;
+        }
+    for (i = 0; i < shadow_count; ++i)
+        n += pc_classic_walk(&walker, (const unsigned*)&shadows[i].head, start, psx_get(vs_scratch.unk0), lua + n,
+            PC_CLASSIC_CAPTURE - n);
+    pc_classic_parity_compare(kind, lua, n, pc_vsync_count ? pc_vsync_count() : 0);
+    psx_set(vs_scratch.unk0, start); /* (given back: nothing links to them) */
+}
+
+/* After a hook's statement, its fields read: the capture (RPC packets, the gate), the record, then the
+ * parity gate, the classic claim's draw (the game's packets suppressed) or the game's own drawing.
+ * slots: the game's (bytes from vs_scratch.unk4), drawing order sorted by the walk; enclosing: the
+ * anchor a caller gives the range after the hook (the gauges' panel, 146C.c). Returns pc_hud_record's. */
+static int classic_finish(int kind, pc_hud_fields* f, void* first, void* end, const int* slots, int nslots,
+    int enclosing)
+{
+    int amount;
+    if (pc_classic_capturing()) { /* (RPC packets, the parity gate) */
+        static pc_classic_packet game[PC_CLASSIC_CAPTURE], scanned[PC_CLASSIC_CAPTURE];
+        int count = pc_classic_walk_slots(slots, nslots, 0, enclosing, first, end, game, PC_CLASSIC_CAPTURE);
+        pc_classic_capture_game(kind, game, count, pc_vsync_count ? pc_vsync_count() : 0, f->text);
+        pc_classic_walker guest = pc_classic_guest();
+        pc_classic_capture_allocated(kind, pc_classic_scan(&guest, first, end, scanned, PC_CLASSIC_CAPTURE));
+    }
+    amount = pc_hud_record(f);
+    if (pc_classic_parity_on() && !amount) {
+        parity(kind, f->anchor);
+        return 0;
+    }
+    if (amount == 2) { /* the classic flavour: the claim draws now, into packets of the game's kinds */
+        const pc_hud_classic_cmd* cmds;
+        int count = pc_hud_classic_draw ? pc_hud_classic_draw(&cmds) : -1;
+        if (count < 0)
+            return 0; /* it failed: the game's own drawing */
+        pc_classic_suppress(first, end); /* (emit-only: the game's call ran, its packets are no-ops) */
+        classic_packets(cmds, count, f->anchor, kind, 0);
+    }
+    return amount;
+}
+
+/* The gauges (hud.h PC_HUD_GAUGES): 5BF94.c's PC_CLASSIC around func_800CA2DC's _renderStatBar calls and
+ * RISK ZERO; record the HUD record (vs_battle_actor2: currentHP .. risk). */
+extern int D_800EB9B0; /* the status display's slide (5BF94.c) */
+void pc_hud_gauges(void* record, void* first, void* end)
+{
+    static pc_hud_fields f;
+    vs_battle_actor2* actor = record;
+    if (!actor || first == end)
+        return;
+    f = (pc_hud_fields) { 0 };
+    f.kind = PC_HUD_GAUGES;
+    f.key = &f;
+    f.hp = actor->currentHP, f.max_hp = actor->maxHP;
+    f.mp = actor->currentMP, f.max_mp = actor->maxMP;
+    f.risk = actor->risk;
+    f.slide = D_800EB9B0;
+    append(number(append(number(append(f.text, f.text + sizeof f.text, "HP "), f.text + sizeof f.text, f.hp),
+                      f.text + sizeof f.text, " MP "),
+               f.text + sizeof f.text, f.mp),
+        f.text + sizeof f.text, f.risk ? " RISK" : " RISK ZERO");
+    f.x = 50, f.y = 18, f.w = 140, f.h = 20; /* (the gauges' box, the panel's top-left) */
+    f.rgb = 0xFFFFFF;
+    f.anchor = PC_HUD_ANCHOR_LEFT;
+    classic_finish(PC_HUD_GAUGES, &f, first, end, gauge_slots, 2, 1 /* the panel's left edge, 146C.c */);
+}
+
 void pc_hud_element(int kind, void* record, int x, int y, void* first, void* end)
 {
     static pc_hud_fields f; /* (reused: no stack churn of a 200-byte record per label) */
@@ -242,6 +389,7 @@ void pc_hud_element(int kind, void* record, int x, int y, void* first, void* end
     f.kind = kind;
     f.key = p;
     f.age = p->unkB;
+    f.call_x = x, f.call_y = y;
     f.rgb = q[0].rgb;
     box(&f, q, n);
     switch (kind) {
@@ -304,18 +452,8 @@ void pc_hud_element(int kind, void* record, int x, int y, void* first, void* end
         f.anchor = PC_HUD_ANCHOR_CENTRE;
         break;
     }
-    amount = pc_hud_record(&f);
-    if (amount == 2) { /* the classic flavour: the claim draws now, into packets of the game's kinds */
-        const pc_hud_classic_cmd* cmds;
-        int count = pc_hud_classic_draw ? pc_hud_classic_draw(&cmds) : -1;
-        if (count < 0)
-            return; /* it failed: the game's own drawing */
-        for (i = 0; i < n; ++i)
-            q[i].packet[0] &= 0x00ffffff;
-        classic_packets(cmds, count, f.anchor);
-        return;
-    }
-    if (amount)
+    amount = classic_finish(kind, &f, first, end, &kind_slot[kind], 1, 0);
+    if (amount == 1) /* the modern look: the claim draws over the picture */
         for (i = 0; i < n; ++i)
             q[i].packet[0] &= 0x00ffffff;
 }
@@ -501,10 +639,12 @@ void pc_hud_bridge_release(int kind, const pc_hud_spawn* s)
  *   bar      vs_battle_renderStatBar (HP, MP, RISK) */
 extern u_char D_800EB708[], D_800EB7B4[]; /* the info capitals' kerning and widths (5BF94.c) */
 extern void pc_text_status(const void* first, const void* end) __attribute__((weak)); /* ui_text.c */
+extern void pc_text_status_typeset(const void* first, const void* end, const pc_text_typeset* typeset)
+    __attribute__((weak));
 extern void pc_text_glyph(void* const* commands, int count, int glyph, int x, int y, int next_x, int advance)
     __attribute__((weak));
 
-static u_long* classic_ot(void) { return (u_long*)((char*)psx_get(vs_scratch.unk4) - 16); }
+static int restyle = 1; /* text reported to ui_text (not for the parity gate's shadow packets) */
 
 /* n words after a tag at the packet pointer, linked at the head of ot. */
 static u_long* packet(u_long* ot, int n)
@@ -620,7 +760,7 @@ static void text_packets(u_long* ot, const pc_hud_classic_cmd* c)
                       ((glyph % 21) * 12) | ((glyph / 21) * 12 << 8) | 0x37B80000u, c->color, 0.5f)
                 : NULL;
         }
-        for (i = 0, pen = x; i < n && pc_text_glyph; ++i) {
+        for (i = 0, pen = x; i < n && pc_text_glyph && restyle; ++i) {
             u_int glyph = glyphs[i];
             int advance = glyph == MENU_SPACE ? 6 : glyph < 0xE7 ? vs_battle_characterWidths[glyph] : 0;
             if (command[i])
@@ -644,7 +784,7 @@ static void text_packets(u_long* ot, const pc_hud_classic_cmd* c)
         }
         ascii[n] = 0;
         vs_battle_renderTextRawColor(ascii, xy(x, y), (int)modulate(c->color), ot);
-        if (c->font == 4 && pc_text_status) /* PC_UI_TEXT_STATUS: set as the status words are */
+        if (c->font == 4 && pc_text_status && restyle) /* PC_UI_TEXT_STATUS: set as the status words are */
             pc_text_status(first, psx_get(vs_scratch.unk0));
     }
 }
@@ -733,19 +873,39 @@ static void quad_packets(u_long* ot, const pc_hud_classic_cmd* c)
     }
 }
 
-static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor)
+/* The commands as packets in the kind's slot (shadow: into that word instead, for the parity gate:
+ * nothing reported to ui_text or widescreen), the range anchored exactly (PC_ANCHOR_EXACT) where
+ * `anchor` says (PC_HUD_ANCHOR_*; d.anchor's, else the element's). */
+static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor, int kind, int shadowed)
 {
-    u_long* ot = classic_ot();
+    u_long* ot;
     void* start = psx_get(vs_scratch.unk0);
     int i;
+    restyle = !shadowed;
+    if (!shadowed && pc_hud_classic_anchor && pc_hud_classic_anchor() >= 0)
+        anchor = pc_hud_classic_anchor();
     for (i = n - 1; i >= 0; --i) {
         const pc_hud_classic_cmd* c = &cmds[i];
+        ot = slot_for(kind, c->layer);
         if (c->alpha <= 0.01f && c->type != PC_HUD_CMD_WINDOW && c->type != PC_HUD_CMD_BAR && c->type != PC_HUD_CMD_CURSOR)
             continue;
         switch (c->type) {
         case PC_HUD_CMD_TEXT:
             text_packets(ot, c);
             break;
+        case PC_HUD_CMD_VALUE:
+            vs_battle_renderValue(c->a, (int)xy(c->x, c->y), c->b, ot);
+            break;
+        case PC_HUD_CMD_DIGIT:
+            _renderDigit(c->a, (int)xy(c->x, c->y), c->b, ot);
+            break;
+        case PC_HUD_CMD_TEXT_RAW: { /* as the game calls it (func_800958A4: its string, place, colour word) */
+            void* first = psx_get(vs_scratch.unk0);
+            vs_battle_renderTextRawColor(c->text, (int)xy(c->x, c->y), c->a, ot);
+            if (c->font == 4 && restyle && pc_text_status_typeset)
+                pc_text_status_typeset(first, psx_get(vs_scratch.unk0), &c->typeset);
+            break;
+        }
         case PC_HUD_CMD_RECT:
         case PC_HUD_CMD_GRADIENT:
             quad_packets(ot, c);
@@ -776,7 +936,11 @@ static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor)
         }
         }
     }
-    if (pc_hw_anchor_packets && (anchor == PC_HUD_ANCHOR_LEFT || anchor == PC_HUD_ANCHOR_RIGHT))
+    restyle = 1;
+    if (!shadowed && pc_hw_anchor_packets) /* placed by data: exactly, no heuristics */
         pc_hw_anchor_packets(start, psx_get(vs_scratch.unk0),
-            anchor == PC_HUD_ANCHOR_LEFT ? PC_ANCHOR_LEFT_EDGE : PC_ANCHOR_RIGHT_EDGE);
+            (anchor == PC_HUD_ANCHOR_LEFT ? PC_ANCHOR_LEFT_EDGE
+                    : anchor == PC_HUD_ANCHOR_RIGHT ? PC_ANCHOR_RIGHT_EDGE
+                                                    : PC_ANCHOR_CENTRE)
+                | PC_ANCHOR_EXACT);
 }
