@@ -1,0 +1,335 @@
+{
+ "function": "func_800E0918",
+ "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the two callbacks through a function pointer as the C); spec sound",
+ "plan": {
+  "name": "func_800E0918",
+  "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+  "stem": "771A8",
+  "address": "0x800e0918",
+  "difficulty": "M",
+  "zig_name": "func_800E0918",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800E0918",
+  "spec_file": "func_800E0918.zig",
+  "subsystem": "battle_771A8_port",
+  "signature": "pub fn func_800E0918(state: ?*v.movementCheckState, action: c_int, mode: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "state",
+    "?*v.movementCheckState"
+   ],
+   [
+    "action",
+    "c_int"
+   ],
+   [
+    "mode",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F58BC_t",
+   "movementCheckObject",
+   "movementCheckState"
+  ],
+  "globals": [
+   "D_800F58BC"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12467,
+     "completion_tokens": 18522,
+     "reasoning_tokens": 15890,
+     "cost": 0.0105077,
+     "seconds": 79.0,
+     "sample": 1,
+     "conversation": "df107e39b5287472c78af5bac460badc4a61e3a66b4682ff1ec6901fd3736958"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:225:46: error: expected 3 argument(s), found 1\n                return adapt(S, @call(.auto, f, .{&ctx} ++ stubArgs(@TypeOf(f), args)));\n                                             ^\npc/build/port-pipeline/func_800E0918/spec1/build/spec.zig:82:9: note: function declared here\n    pub fn func_800E4B2C(ctx: *zd.Ctx, state: anytype, action: anytype) void {\n    ~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    f: pc/build/port-pipeline/func_800E0918/spec1/build/game/common/route.zig:19:28\n    comptime: pc/tests/zig_diff/main.zig:234:58\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\npc/tests/zig_diff/main.zig:225:46: error: expected 3 argument(s), found 1\n                return adapt(S, @call(.auto, f, .{&ctx} ++ stubArgs(@TypeOf(f), args)));\n                                             ^\npc/build/port-pipeline/func_800E0918/spec1/build/spec.zig:87:9: note: function declared here\n    pub fn func_800E4B70(ctx: *zd.Ctx, state: anytype, action: anytype) void {\n    ~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15786,
+     "completion_tokens": 3980,
+     "reasoning_tokens": 1223,
+     "cost": 0.0035686,
+     "seconds": 14.5,
+     "sample": 1,
+     "conversation": "3b2d4355de9616ff4806cb67aea6720683cd8a1c9c5af0bcb52a7b2869f5481b"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "inactive": "10249",
+   "near-unflagged": "1608",
+   "near-flagged": "1294",
+   "no-hud-height": "2859",
+   "out-of-reach": "10985",
+   "flagged-no-move": "780",
+   "flagged-move": "622",
+   "unflagged-move": "1603"
+  },
+  "mutations": [
+   {
+    "name": "F1: near test takes distance 16 (<= for <)",
+    "caught": true
+   },
+   {
+    "name": "F2: height test takes the sum equal to unk14",
+    "caught": true
+   },
+   {
+    "name": "F3: func_800D954C tested for >= 0",
+    "caught": true
+   },
+   {
+    "name": "F4: flag test on the wrong mask (4, not 6)",
+    "caught": true
+   },
+   {
+    "name": "F5: distance call arguments swapped",
+    "caught": true
+   },
+   {
+    "name": "F6: the 678C call dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 18,
+   "branches_hit": 18,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 20,
+   "lines_hit": 20,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147383359, max 2147379599, unsigned 72403..4294905681, seen negative, never zero"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147258861, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (mode)",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 2968, < 13435, > 13597 (signed); < 0, > 27032 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147258861"
+    },
+    {
+     "line": 8,
+     "text": "if (state->flags & 6) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 10249, < 0, > 19751 (signed); < 0, > 19751 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..6"
+    },
+    {
+     "line": 10,
+     "text": "if (mode && distance < 16) {",
+     "size": 4,
+     "count": 19751,
+     "kind": "against a constant",
+     "outcomes": "== 1994, < 8864, > 8893 (signed); < 0, > 17757 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147258861"
+    },
+    {
+     "line": 10,
+     "text": "if (mode && distance < 16) {",
+     "size": 4,
+     "count": 17757,
+     "kind": "against a constant",
+     "outcomes": "== 1449, < 8897, > 7411 (signed); < 1453, > 14855 (unsigned)",
+     "operand": "constant 15",
+     "a": "-2147483648..2146555603"
+    },
+    {
+     "line": 11,
+     "text": "if (!(((__typeof__((state->object).psx_type_[0]))(long unsigned int)(state->object).raw)->flags & 0x200000)) {",
+     "size": 4,
+     "count": 2902,
+     "kind": "against a constant",
+     "outcomes": "== 1608, < 0, > 1294 (signed); < 0, > 1294 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2097152"
+    },
+    {
+     "line": 15,
+     "text": "} else if (D_800F58BC->unk14) {",
+     "size": 4,
+     "count": 16849,
+     "kind": "against a constant",
+     "outcomes": "== 2859, < 6943, > 7047 (signed); < 0, > 13990 (unsigned)",
+     "operand": "constant 0",
+     "a": "-536702911..536892204"
+    },
+    {
+     "line": 16,
+     "text": "if (func_800E42E0(state->position) + state->height < D_800F58BC->unk14) {",
+     "size": 4,
+     "count": 13990,
+     "kind": "a == b / a < b",
+     "outcomes": "== 7954, < 3005, > 3031 (signed); < 3005, > 3031 (unsigned)",
+     "operand": "b -536702911..536892204",
+     "a": "-536702911..536892204"
+    },
+    {
+     "line": 17,
+     "text": "if (((__typeof__((state->object).psx_type_[0]))(long unsigned int)(state->object).raw)->flags & 0x200000) {",
+     "size": 4,
+     "count": 3005,
+     "kind": "against a constant",
+     "outcomes": "== 1603, < 0, > 1402 (signed); < 0, > 1402 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2097152"
+    },
+    {
+     "line": 18,
+     "text": "if (func_800D954C((void*)state, state->position) > 0) {",
+     "size": 4,
+     "count": 1402,
+     "kind": "against a constant",
+     "outcomes": "== 138, < 642, > 622 (signed); < 0, > 1264 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35877,
+     "completion_tokens": 5850,
+     "reasoning_tokens": 5087,
+     "cost": 0.0065127,
+     "seconds": 24.7,
+     "sample": 1,
+     "conversation": "f8a63f1e78db836ffb4bc79ad6a34e0a5c3ca7cf028f0057e4056dbb7116954a"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800E0918.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800E0918.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 30.578260491999117,
+ "wall_seconds": 148.968453726,
+ "totals": {
+  "cost": 0.02059,
+  "prompt_tokens": 64130,
+  "completion_tokens": 28352,
+  "model_seconds": 118.2,
+  "check_seconds": 30.6,
+  "calls": 3,
+  "wall_seconds": 149.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

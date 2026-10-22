@@ -1,0 +1,145 @@
+{
+ "function": "func_800DE030",
+ "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.4,
+ "samples": 2,
+ "status": "spec-failed",
+ "reviewed": "not ported in this wave (unrouted): Haiku's specs (two runs) crash in their own classify or the C",
+ "plan": {
+  "name": "func_800DE030",
+  "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+  "stem": "74088",
+  "address": "0x800de030",
+  "difficulty": "M",
+  "zig_name": "func_800DE030",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DE030",
+  "spec_file": "func_800DE030.zig",
+  "subsystem": "battle_74088_port",
+  "signature": "pub fn func_800DE030(elapsed: c_int) callconv(.c) void",
+  "params": [
+   [
+    "elapsed",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "statusEffectTable",
+   "vs_battle_uiEquipment_limb"
+  ],
+  "globals": [
+   "D_80069BBC",
+   "vs_main_statusEffectParams"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 16860,
+     "completion_tokens": 32909,
+     "reasoning_tokens": 29759,
+     "cost": 0.0181405,
+     "seconds": 143.2,
+     "sample": 1,
+     "conversation": "7f6bd2dc57913eb00acf6dd39bc04ee9c79f51579b101a57473ad4b702816ca3"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: CRASH (signal 11) in the classify run, iteration 0, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0xf1 (class chained)",
+     "(the mutations and the coverage gate are checked once the spec runs)"
+    ]
+   },
+   {
+    "round": 1,
+    "sample": 2,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 16860,
+     "completion_tokens": 43797,
+     "reasoning_tokens": 40115,
+     "cost": 0.0235845,
+     "seconds": 186.7,
+     "sample": 2,
+     "conversation": "325381a0cdf9ccf834b59189cbe02f03ea67e3fc44615796c85f2b5f52d1587e"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: CRASH (signal 11) in the classify run, iteration 0, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0xef (class plain)",
+     "(the mutations and the coverage gate are checked once the spec runs)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 20208,
+     "completion_tokens": 5261,
+     "reasoning_tokens": 2082,
+     "cost": 0.0046513,
+     "seconds": 18.6,
+     "sample": 1,
+     "conversation": "0f2f02781df4823d82661443034f9e4f5666e6792ed31c5e388d99b5c6fb76e9"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: CRASH (signal 11) in the classify run, iteration 0, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0xf1 (class chained)",
+     "(the mutations and the coverage gate are checked once the spec runs)"
+    ]
+   }
+  ],
+  "classes": {},
+  "mutations": [],
+  "coverage": null
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 1.649946294000074,
+ "wall_seconds": 350.3437940169997,
+ "totals": {
+  "cost": 0.04638,
+  "prompt_tokens": 53928,
+  "completion_tokens": 81967,
+  "model_seconds": 348.5,
+  "check_seconds": 1.6,
+  "calls": 3,
+  "wall_seconds": 350.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": ""
+ }
+}

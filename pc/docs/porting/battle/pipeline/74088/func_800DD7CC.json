@@ -1,0 +1,261 @@
+{
+ "function": "func_800DD7CC",
+ "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the scratchpad map word saved and restored); spec sound",
+ "plan": {
+  "name": "func_800DD7CC",
+  "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+  "stem": "74088",
+  "address": "0x800dd7cc",
+  "difficulty": "M",
+  "zig_name": "func_800DD7CC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DD7CC",
+  "spec_file": "func_800DD7CC.zig",
+  "subsystem": "battle_74088_port",
+  "signature": "pub fn func_800DD7CC(state: ?*v.nearestWaypointState, destination: ?*v.nearestWaypointDestination) callconv(.c) void",
+  "params": [
+   [
+    "state",
+    "?*v.nearestWaypointState"
+   ],
+   [
+    "destination",
+    "?*v.nearestWaypointDestination"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "nearestWaypointDestination",
+   "nearestWaypointState"
+  ],
+  "globals": [
+   "D_800F58C8",
+   "D_800F58D0"
+  ],
+  "hooks": [],
+  "statics": [
+   "nearestWaypointAddress",
+   "nearestWaypointValue"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12553,
+     "completion_tokens": 13306,
+     "reasoning_tokens": 11554,
+     "cost": 0.0079083,
+     "seconds": 57.0,
+     "sample": 1,
+     "conversation": "e2d03fb516c2878dee29b27ef7abe25f2f338111145380bf3a48b6e896028380"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "none-valid": "9934",
+   "some-valid": "9948",
+   "all-valid": "10118"
+  },
+  "mutations": [
+   {
+    "name": "W1: signed compare of distance and closest",
+    "caught": true
+   },
+   {
+    "name": "W2: closest not stored when a better waypoint is found",
+    "caught": true
+   },
+   {
+    "name": "W3: wrong z mask (0xF00 for 0xF80)",
+    "caught": true
+   },
+   {
+    "name": "W4: dx uses state->z instead of state->x",
+    "caught": true
+   },
+   {
+    "name": "W5: loop bound 7 instead of 8 (last entry skipped)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 24,
+   "lines_hit": 24,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 23,
+     "text": "if ((packed >> 0xF) != 0) {",
+     "size": 4,
+     "count": 240000,
+     "kind": "against a constant",
+     "outcomes": "== 120507, < 0, > 119493 (signed); < 0, > 119493 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 29,
+     "text": "if (distance < closest) {",
+     "size": 4,
+     "count": 119493,
+     "kind": "a == b / a < b",
+     "outcomes": "== 29774, < 35337, > 54382 (signed); < 31815, > 57904 (unsigned)",
+     "operand": "b -1..2147483647",
+     "a": "-1..2147483647"
+    },
+    {
+     "line": 40,
+     "text": "} while (index < 8);",
+     "size": 4,
+     "count": 240000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 180000, > 30000 (signed); < 180000, > 30000 (unsigned)",
+     "operand": "constant 7",
+     "a": "1..8"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36128,
+     "completion_tokens": 7046,
+     "reasoning_tokens": 6163,
+     "cost": 0.0071358,
+     "seconds": 30.8,
+     "sample": 1,
+     "conversation": "91f59fb9c19ccaf98ac1f155b655129cbfb633044cb200564834c648ab85d86c"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800DD7CC.zig:23:15: error: expected 'an identifier', found 'packed'\n        const packed: c_uint = @as(c_uint, entry) & 0xFFFF;\n              ^~~~~~\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37178,
+     "completion_tokens": 2140,
+     "reasoning_tokens": 1125,
+     "cost": 0.0047878,
+     "seconds": 9.1,
+     "sample": 1,
+     "conversation": "a8e87882385fd60230d4ea789d1d08e0554704615c3e13748b51ef661dfe171f"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DD7CC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DD7CC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 34.32207654300146,
+ "wall_seconds": 131.46018302000084,
+ "totals": {
+  "cost": 0.01983,
+  "prompt_tokens": 85859,
+  "completion_tokens": 22492,
+  "model_seconds": 96.9,
+  "check_seconds": 34.3,
+  "calls": 3,
+  "wall_seconds": 131.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

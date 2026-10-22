@@ -1,0 +1,355 @@
+{
+ "function": "func_800DEC88",
+ "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (sibling ports called through typed function pointers for the opaque c structs); spec sound (null context, the timer-reset arms)",
+ "plan": {
+  "name": "func_800DEC88",
+  "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+  "stem": "74088",
+  "address": "0x800dec88",
+  "difficulty": "S",
+  "zig_name": "func_800DEC88",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DEC88",
+  "spec_file": "func_800DEC88.zig",
+  "subsystem": "battle_74088_port",
+  "signature": "pub fn func_800DEC88(arg0: ?*anyopaque) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*anyopaque"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F58BC_t",
+   "actionCandidateEntry",
+   "actionPlanState",
+   "actorEvaluationActor",
+   "actorEvaluationContext",
+   "actorEvaluationState",
+   "actorEvaluationStats"
+  ],
+  "globals": [
+   "D_800F58BC",
+   "D_800F58EC",
+   "D_800F58F8",
+   "D_800F5904"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17852,
+     "completion_tokens": 32524,
+     "reasoning_tokens": 29642,
+     "cost": 0.0180472,
+     "seconds": 139.4,
+     "sample": 1,
+     "conversation": "bbc858d0070f988b610c6bf481e69648a61834b2c41eae7c749aaa6be17eb775"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 3, fault address 0x33 [NULL+0x33: a field of a null pointer]\nzdiff: crashed on arguments: 0 (class null-context)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 21136,
+     "completion_tokens": 4212,
+     "reasoning_tokens": 1398,
+     "cost": 0.0042196,
+     "seconds": 15.8,
+     "sample": 1,
+     "conversation": "ab209e0dc965807ea9cad883e2ea52bd4d2c3dbb0702ac8cd4855bbe1c9053d1"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800DEC88/spec2/build/spec.zig:94:11: error: no field named 'hp' in struct 'views_74088.vs_battle_actor2'\n        s.hp = ctx.value(i16);\n          ^~\npc/build/port-pipeline/gen/74088/fn-func_800DEC88/views_74088.zig:485:37: note: struct declared here\npub const vs_battle_actor2 = extern struct {\n                             ~~~~~~~^~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:225:33\n    f: pc/build/port-pipeline/func_800DEC88/spec2/build/game/common/route.zig:24:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 24315,
+     "completion_tokens": 4758,
+     "reasoning_tokens": 1905,
+     "cost": 0.0048105,
+     "seconds": 16.9,
+     "sample": 1,
+     "conversation": "f289651235374e7a19030051f1182d5a0daef7a31069e8b0c8f9be7955bd8cdf"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 3,
+   "sample": 1
+  },
+  "classes": {
+   "no-actors": "5059",
+   "null-context": "4919",
+   "context-f44-set": "15710",
+   "context-id-match": "2140",
+   "context-id-differs": "2172"
+  },
+  "mutations": [
+   {
+    "name": "E1: dead tests hp <= 0 (wrong bound)",
+    "caught": true
+   },
+   {
+    "name": "E2: flag tested against 64, not 32",
+    "caught": true
+   },
+   {
+    "name": "E3: wrong constant in the 128 argument",
+    "caught": true
+   },
+   {
+    "name": "E4: dropped fE7 clear",
+    "caught": true
+   },
+   {
+    "name": "E5: f13 tested with the sign bit masked off",
+    "caught": true
+   },
+   {
+    "name": "E6: timer reset compares the wrong field",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 20,
+   "branches_hit": 20,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 37,
+   "lines_hit": 37,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [
+    {
+     "line": 21,
+     "text": "if (context && !context->f44 && context->id == state->id)",
+     "size": 4,
+     "count": 43731,
+     "kind": "against a constant",
+     "outcomes": "== 4883, < 19262, > 19586 (signed); < 0, > 38848 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 21,
+     "text": "if (context && !context->f44 && context->id == state->id)",
+     "size": 1,
+     "count": 4883,
+     "kind": "a == b / a < b",
+     "outcomes": "== 260, < 2285, > 2338 (signed); < 1873, > 2750 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 28,
+     "text": "((__typeof__((actor->stats).psx_type_[0]))(long unsigned int)(actor->stats).raw)->hp == 0;",
+     "size": 2,
+     "count": 54467,
+     "kind": "against a constant",
+     "outcomes": "== 4398, < 25028, > 25041 (signed); < 0, > 50069 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 34,
+     "text": "if (state->f13) {",
+     "size": 1,
+     "count": 54467,
+     "kind": "against a constant",
+     "outcomes": "== 2869, < 20041, > 31557 (signed); < 0, > 51598 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 35,
+     "text": "if (actor->flags & 32)",
+     "size": 4,
+     "count": 51598,
+     "kind": "against a constant",
+     "outcomes": "== 25785, < 0, > 25813 (signed); < 0, > 25813 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..32"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 41124,
+     "completion_tokens": 15274,
+     "reasoning_tokens": 14009,
+     "cost": 0.0117494,
+     "seconds": 59.8,
+     "sample": 1,
+     "conversation": "49a0de81df194f2d11aef4edb3b18ec4d2984a2e39d2c50ada11526e727911c8"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800DEC88.zig:19:25: error: @ptrCast increases pointer alignment\n        c.func_800DEB10(@ptrCast(arg0));\n                        ^~~~~~~~~~~~~~\ngame/battle/func_800DEC88.zig:19:34: note: '?*anyopaque' has alignment '1'\n        c.func_800DEB10(@ptrCast(arg0));\n                                 ^~~~\ngame/battle/func_800DEC88.zig:19:25: note: '[*c]c_74088.func_800DEEA4_t' has alignment '4'\ngame/battle/func_800DEC88.zig:19:25: note: use @alignCast to assert pointer alignment\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 42797,
+     "completion_tokens": 3170,
+     "reasoning_tokens": 1891,
+     "cost": 0.0058647,
+     "seconds": 12.8,
+     "sample": 1,
+     "conversation": "39e06ed5be763845f849216523471f3ee40773bc96b0914e40be0a070cf78ae3"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/boot64/zig/c_74088.zig:4839:21: error: array of opaque type 'c_74088.actionCandidateEntry' not allowed\n    candidates: [16]actionCandidateEntry = @import(\"std\").mem.zeroes([16]actionCandidateEntry),\n                    ^~~~~~~~~~~~~~~~~~~~\npc/build/boot64/zig/c_74088.zig:4555:34: note: opaque declared here\npub const actionCandidateEntry = opaque {\n                                 ^~~~~~\nreferenced by:\n    func_800DEC88: game/battle/func_800DEC88.zig:46:29\n    main: pc/tests/zig_diff/main.zig:454:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 44437,
+     "completion_tokens": 3041,
+     "reasoning_tokens": 1589,
+     "cost": 0.0059642,
+     "seconds": 11.8,
+     "sample": 1,
+     "conversation": "7fe2f4f9b49b70885b8f2e7b3c725533833730bd7c96c2100fa984eb138c0098"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 3,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DEC88.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DEC88.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 55.064557208,
+ "wall_seconds": 311.7994752320001,
+ "totals": {
+  "cost": 0.05066,
+  "prompt_tokens": 191661,
+  "completion_tokens": 62979,
+  "model_seconds": 256.5,
+  "check_seconds": 55.1,
+  "calls": 6,
+  "wall_seconds": 311.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [
+   "reviewer, after the wave: no writable data for the engine library (a labelled-switch jump table or module-level function-pointer constants rewritten)"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 1 / 2 / 4 (after the hit requests of func_8008631C/func_800863A4 were zeroed under ROOD_PC: before, call mode diverged in the freed evaluation block, host stack residue), 0 mismatches"
+ }
+}

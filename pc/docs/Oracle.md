@@ -164,6 +164,22 @@ past `count`, the others past `otherCount` and `position.pad` were dead
 stack (offsets 0x18..0x60 diverged with `battle_38C1C_port` owned). No
 reader found interprets them. Regression: run.py `shadow_battle_smoke_38C1C`.
 
+Fixed: `func_800E1388` (771A8.c) zeroes its `dest` tile under ROOD_PC. It
+writes only `dest.p.x`/`dest.p.z` and copies the whole word into
+`state->destination`: `p.y` and `p.status` were dead host stack, and with
+`battle_71618_port` owned (`func_800D9E18`, which reaches it through
+`func_800DB370` -> `func_800E24EC`) call mode diverged in `destination.y`
+(0 owned, 64 original) on enemy_cast_wait and action_name_window. Found
+with a `gdb` write watchpoint on the guest byte (the method below).
+
+Fixed: `func_8008631C` and `func_800863A4` (146C.c) zero their hit request
+`sp10` (a `D_800F19CC_t2`, 0x84C bytes) under ROOD_PC. They fill a few
+fields and `func_80085B10` copies the rest (`unk844`, the hit entries'
+SVECTOR padding) into its result, the evaluation block `D_800F5900`; with
+`battle_74088_port` owned (`func_800DCAA0` calls both) call mode diverged
+in that block on enemy_cast_wait and action_name_window. Found with the
+same watchpoint: the byte's last writer was `func_80085B10`'s copy.
+
 Found by watching the bytes: `ROOD_BINARY` can be a wrapper that runs the
 game under `gdb -batch` with a Python script setting access watchpoints on
 the guest addresses (they are host addresses in the 64-bit build) whose

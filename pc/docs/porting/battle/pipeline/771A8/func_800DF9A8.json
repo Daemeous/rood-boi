@@ -1,0 +1,248 @@
+{
+ "function": "func_800DF9A8",
+ "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the 4-byte copy over a 3-byte struct kept); spec sound (aliased arguments, both parities)",
+ "plan": {
+  "name": "func_800DF9A8",
+  "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+  "stem": "771A8",
+  "address": "0x800df9a8",
+  "difficulty": "S",
+  "zig_name": "func_800DF9A8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DF9A8",
+  "spec_file": "func_800DF9A8.zig",
+  "subsystem": "battle_771A8_port",
+  "signature": "pub fn func_800DF9A8(arg0: ?*v.func_800DFA54_t, arg1: ?*v.func_800DFA54_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800DFA54_t"
+   ],
+   [
+    "arg1",
+    "?*v.func_800DFA54_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F5910_t",
+   "func_800DFA54_t"
+  ],
+  "globals": [
+   "D_800F5910"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11459,
+     "completion_tokens": 14568,
+     "reasoning_tokens": 12639,
+     "cost": 0.0084299,
+     "seconds": 63.3,
+     "sample": 1,
+     "conversation": "28981fefc6ead08ff2f6a8798d9615b70aafb470fc7018a5366fcc91042cb4ed"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-match": "9826",
+   "match-even": "9010",
+   "match-odd": "7467",
+   "alias": "3697"
+  },
+  "mutations": [
+   {
+    "name": "F1: parity test uses bit 1",
+    "caught": true
+   },
+   {
+    "name": "F2: unk1 stores i, not i >> 1",
+    "caught": true
+   },
+   {
+    "name": "F3: fallback copies unk0 only",
+    "caught": true
+   },
+   {
+    "name": "F4: search stops before entry 7",
+    "caught": true
+   },
+   {
+    "name": "F5: unk0_5 test OR'd with unk0_0",
+    "caught": true
+   },
+   {
+    "name": "F6: unk2 read from unk0_0 of the partner entry",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 12,
+   "lines_hit": 12,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "for (i = 0; i < 8; i++) {",
+     "size": 4,
+     "count": 166264,
+     "kind": "against a constant",
+     "outcomes": "== 12223, < 142840, > 11201 (signed); < 142840, > 11201 (unsigned)",
+     "operand": "constant 7",
+     "a": "0..8"
+    },
+    {
+     "line": 5,
+     "text": "if (D_800F5910[i * 2].unk0_0 == arg0->unk0",
+     "size": 4,
+     "count": 155063,
+     "kind": "a == b / a < b",
+     "outcomes": "== 48936, < 73603, > 32524 (signed); < 73603, > 32524 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..31"
+    },
+    {
+     "line": 6,
+     "text": "&& D_800F5910[i * 2].unk0_5 == arg0->unk2) {",
+     "size": 4,
+     "count": 48936,
+     "kind": "a == b / a < b",
+     "outcomes": "== 18799, < 22269, > 7868 (signed); < 22269, > 7868 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..31"
+    },
+    {
+     "line": 7,
+     "text": "if (i & 1) {",
+     "size": 4,
+     "count": 18799,
+     "kind": "against a constant",
+     "outcomes": "== 10295, < 0, > 8504 (signed); < 0, > 8504 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34853,
+     "completion_tokens": 4771,
+     "reasoning_tokens": 4033,
+     "cost": 0.0058708,
+     "seconds": 20.4,
+     "sample": 1,
+     "conversation": "3f3bafb70f3ef3ed6ac8cb42873c5f39971f92de26ac22b025fa2f8801337fe9"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DF9A8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DF9A8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 17.23809495500018,
+ "wall_seconds": 101.20235548999972,
+ "totals": {
+  "cost": 0.0143,
+  "prompt_tokens": 46312,
+  "completion_tokens": 19339,
+  "model_seconds": 83.7,
+  "check_seconds": 17.2,
+  "calls": 2,
+  "wall_seconds": 101.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

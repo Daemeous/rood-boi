@@ -1,0 +1,312 @@
+{
+ "function": "func_800D7CFC",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (_loadfile carried; values past 2 return 0 where the C's result is unset); spec sound; ported after the static-callee fixes",
+ "plan": {
+  "name": "func_800D7CFC",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d7cfc",
+  "difficulty": "M",
+  "zig_name": "func_800D7CFC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D7CFC",
+  "spec_file": "func_800D7CFC.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn func_800D7CFC() callconv(.c) c_int",
+  "params": [],
+  "ret": "c_int",
+  "types": [
+   "RECT",
+   "vs_main_CdFile"
+  ],
+  "globals": [
+   "D_800F5630"
+  ],
+  "hooks": [],
+  "statics": [
+   "_loadfile"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13305,
+     "completion_tokens": 29572,
+     "reasoning_tokens": 26917,
+     "cost": 0.0161165,
+     "seconds": 128.5,
+     "sample": 1,
+     "conversation": "83fe7c98184a8527bdce0e378fa1de4546824c37533935cf5b8840e1eb15c16f"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation S1: the shifted bit or-ed into D_800F5874 is dropped: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D7CFC: 40000 iterations, seed 1, 0 mismatches; classes: state-1=9927 state-2=10049 state-0-unk0-nonzero=19038 state-0-unk0-zero=986",
+     "FAIL: mutation S2: state re-read before the entry call (stale read): not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D7CFC: 40000 iterations, seed 1, 0 mismatches; classes: state-1=9927 state-2=10049 state-0-unk0-nonzero=19038 state-0-unk0-zero=986",
+     "FAIL: mutation S3: the done-check is a bound, not equality: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D7CFC: 40000 iterations, seed 1, 0 mismatches; classes: state-1=9927 state-2=10049 state-0-unk0-nonzero=19038 state-0-unk0-zero=986",
+     "FAIL: mutation S4: wrong slot base for the CLUT-less upload: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D7CFC: 40000 iterations, seed 1, 0 mismatches; classes: state-1=9927 state-2=10049 state-0-unk0-nonzero=19038 state-0-unk0-zero=986",
+     "FAIL: mutation S6: wrong constant to func_8007DFF0: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D7CFC: 40000 iterations, seed 1, 0 mismatches; classes: state-1=9927 state-2=10049 state-0-unk0-nonzero=19038 state-0-unk0-zero=986",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800D7CFC: branches 12/18 (66.7%), conditions not measured (GCC < 14: branch coverage only), lines 20/40\n  UNCOVERED +14 b3: branch never taken: `switch (temp_s1) {`\n  UNCOVERED +24 b0: branch never taken: `if (var_s0 == 0) {`\n  UNCOVERED +28 b0: branch never taken (not executed): `if (D_800F5638.isClut[D_800F5630] == 0) {`\n  UNCOVERED +28 b1: branch never taken (not executed): `if (D_800F5638.isClut[D_800F5630] == 0) {`\n  UNCOVERED +47 b0: branch never taken (not executed): `if (D_800F5638.unk0 == D_800F5630) {`\n  UNCOVERED +47 b1: branch never taken (not executed): `if (D_800F5638.unk0 == D_800F5630) {`\n  note: waivers no longer needed: +26 b1\ncoverage func_800D7CFC: FAILED (threshold 100%: 6 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `switch (temp_s1) {` (+14): one way out of this test (+14 b3) was never taken; add inputs that take it.\n- `if (var_s0 == 0) {` (+24): one way out of this test (+24 b0) was never taken; add inputs that take it.\n- `if (D_800F5638.isClut[D_800F5630] == 0) {` (+28) never ran: no input reaches this line; add inputs that get there (the tests before it must come out the other way).\n- `if (D_800F5638.isClut[D_800F5630] == 0) {` (+28) never ran: no input reaches this line; add inputs that get there (the tests before it must come out the other way).\n- `if (D_800F5638.unk0 == D_800F5630) {` (+47) never ran: no input reaches this line; add inputs that get there (the tests before it must come out the other way).\n- `if (D_800F5638.unk0 == D_800F5630) {` (+47) never ran: no input reaches this line; add inputs that get there (the tests before it must come out the other way).\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800D7CFC.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17527,
+     "completion_tokens": 9564,
+     "reasoning_tokens": 6937,
+     "cost": 0.0065347,
+     "seconds": 39.3,
+     "sample": 1,
+     "conversation": "7dddcedb6d7f072c73d10fc20af555b67661e836d5cfcd2074c04c891fbb266c"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "state-1": "9939",
+   "state-2": "10039",
+   "state-0-unk0-nonzero": "19066",
+   "state-0-unk0-zero": "956"
+  },
+  "mutations": [
+   {
+    "name": "S1: the shifted bit or-ed into D_800F5874 is dropped",
+    "caught": true
+   },
+   {
+    "name": "S2: the entry call's state write is overwritten by a stale 0",
+    "caught": true
+   },
+   {
+    "name": "S3: the done-check is a bound, not equality",
+    "caught": true
+   },
+   {
+    "name": "S4: wrong slot base for the CLUT-less upload",
+    "caught": true
+   },
+   {
+    "name": "S6: wrong constant to func_8007DFF0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 18,
+   "branches_hit": 17,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 40,
+   "lines_hit": 40,
+   "uncovered": [
+    {
+     "id": "+14 b3",
+     "line": 14,
+     "text": "switch (temp_s1) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if ((D_800F5680 == 0) && (D_800F5638.unk0 != 0)) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 20022, < 0, > 19978 (signed); < 0, > 19978 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2"
+    },
+    {
+     "line": 7,
+     "text": "if ((D_800F5680 == 0) && (D_800F5638.unk0 != 0)) {",
+     "size": 4,
+     "count": 20022,
+     "kind": "against a constant",
+     "outcomes": "== 956, < 5187, > 13879 (signed); < 0, > 19066 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 14,
+     "text": "switch (temp_s1) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "switch",
+     "outcomes": "== 40000, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..2"
+    },
+    {
+     "line": 24,
+     "text": "if (var_s0 == 0) {",
+     "size": 4,
+     "count": 13160,
+     "kind": "against a constant",
+     "outcomes": "== 1092, < 0, > 12068 (signed); < 0, > 12068 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 28,
+     "text": "if (D_800F5638.isClut[D_800F5630] == 0) {",
+     "size": 2,
+     "count": 1092,
+     "kind": "against a constant",
+     "outcomes": "== 561, < 370, > 161 (signed); < 0, > 531 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..1"
+    },
+    {
+     "line": 47,
+     "text": "if (D_800F5638.unk0 == D_800F5630) {",
+     "size": 4,
+     "count": 1092,
+     "kind": "a == b / a < b",
+     "outcomes": "== 298, < 412, > 382 (signed); < 97, > 697 (unsigned)",
+     "operand": "b 1..8",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+14 b3",
+    "reason": "switch default edge: state 3 and up returns an uninitialised var_s0, so no defined input takes it"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36734,
+     "completion_tokens": 15543,
+     "reasoning_tokens": 13799,
+     "cost": 0.0114449,
+     "seconds": 62.9,
+     "sample": 1,
+     "conversation": "0a79291099b7c2af673fb76193495caa70a80f1a0aa3a3430d4c25c23aafcbb0"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800D7CFC.zig:13:59: error: expected type '?*views_6F014.vs_main_CdQueueSlot', found '[*c]c_6F014.vs_main_CdQueueSlot'\n        v.g.D_800F568C().* = c.vs_main_allocateCdQueueSlot(&cd_file);\n                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~\ngame/battle/func_800D7CFC.zig:13:59: note: pointer type child 'c_6F014.vs_main_CdQueueSlot' cannot cast into pointer type child 'views_6F014.vs_main_CdQueueSlot'\npc/build/boot64/zig/c_6F014.zig:1845:40: note: struct declared here\npub const vs_main_CdQueueSlot = extern struct {\n                                ~~~~~~~^~~~~~\npc/build/port-pipeline/gen/6F014/fn-func_800D7CFC/views_6F014.zig:271:40: note: struct declared here\npub const vs_main_CdQueueSlot = extern struct {\n                                ~~~~~~~^~~~~~\nreferenced by:\n    func_800D7CFC: game/battle/func_800D7CFC.zig:47:30\n    main: pc/tests/zig_diff/main.zig:454:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39064,
+     "completion_tokens": 3370,
+     "reasoning_tokens": 1606,
+     "cost": 0.0055914,
+     "seconds": 12.8,
+     "sample": 1,
+     "conversation": "2a69caafcc9c58ae4512fa71d7011d26e23d817ee3ddeadbde9a68e64737f4ac"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800D7CFC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800D7CFC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 80.78425252499983,
+ "wall_seconds": 324.61250429200027,
+ "totals": {
+  "cost": 0.03969,
+  "prompt_tokens": 106630,
+  "completion_tokens": 58049,
+  "model_seconds": 243.5,
+  "check_seconds": 80.8,
+  "calls": 4,
+  "wall_seconds": 324.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [
+   "reviewer, after the wave: no writable data for the engine library (a labelled-switch jump table or module-level function-pointer constants rewritten)"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 10 root / 30 root / -, 0 mismatches"
+ }
+}

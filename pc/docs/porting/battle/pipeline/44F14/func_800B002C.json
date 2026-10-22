@@ -1,0 +1,119 @@
+{
+ "function": "func_800B002C",
+ "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+ "difficulty": "XL",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.4,
+ "samples": 2,
+ "status": "stopped",
+ "reviewed": "not ported in this wave (unrouted): Haiku's specs name a field the struct does not have and miss the 2047 equality edge; the retry stopped at the wave's budget",
+ "plan": {
+  "name": "func_800B002C",
+  "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+  "stem": "44F14",
+  "address": "0x800b002c",
+  "difficulty": "XL",
+  "zig_name": "func_800B002C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B002C",
+  "spec_file": "func_800B002C.zig",
+  "subsystem": "battle_44F14_port",
+  "signature": "pub fn func_800B002C(actor: ?*v.D_800F4538_t, arg1: c_int) callconv(.c) void",
+  "params": [
+   [
+    "actor",
+    "?*v.D_800F4538_t"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "intPair"
+  ],
+  "globals": [
+   "D_800F49F8"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 19583,
+     "completion_tokens": 31835,
+     "reasoning_tokens": 28960,
+     "cost": 0.0178758,
+     "seconds": 131.7,
+     "sample": 1,
+     "conversation": "6336dc04b54d53593c21a7e5a6fa11dd583ce55086f22313bf2e691c1f6f2a22"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:172:9: error: zdiff: a spec stub gives c_int where the C prototype has c_short: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:225:29\n    f: pc/build/port-pipeline/func_800B002C/spec1/build/game/common/route.zig:19:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 1,
+    "sample": 2,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 19583,
+     "completion_tokens": 46336,
+     "reasoning_tokens": 42970,
+     "cost": 0.0251263,
+     "seconds": 193.6,
+     "sample": 2,
+     "conversation": "e2306ec022e33d8d495a2cd4e77550a6ba232a690c4c480be892c3f6af578403"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800B002C/spec1s2/build/game/common/psx.zig:83:32: error: no field named 'unkA_3' in struct 'views_44F14.D_800F4538_t.bitfields__struct_64'\n    return @field(S.bitfields, name);\n                               ^~~~\npc/build/port-pipeline/gen/44F14/fn-func_800B002C/views_44F14.zig:457:28: note: struct declared here\n    pub const bitfields = .{\n                          ~^\npc/build/port-pipeline/func_800B002C/spec1s2/build/game/common/psx.zig:98:76: note: called at comptime here\npub fn setBits(p: anytype, comptime name: []const u8, value: BitInt(bitSpec(@TypeOf(p), name))) void {\n                                                                    ~~~~~~~^~~~~~~~~~~~~~~~~~\npc/build/port-pipeline/func_800B002C/spec1s2/build/spec.zig:53:20: note: generic function instantiated here\n        psx.setBits(actor, \"unkA_3\", ctx.range(u2, 0, 3));\n        ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:420:40\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\npc/tests/zig_diff/main.zig:172:9: error: zdiff: a spec stub gives c_int where the C prototype has c_short: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\n"
+    ]
+   }
+  ]
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 0.0,
+ "stopped": "budget: $0.3872 spent of $0.45",
+ "wall_seconds": 325.9956713339998,
+ "totals": {
+  "cost": 0.043,
+  "prompt_tokens": 39166,
+  "completion_tokens": 78171,
+  "model_seconds": 325.3,
+  "check_seconds": 0.0,
+  "calls": 2,
+  "wall_seconds": 326.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": ""
+ }
+}

@@ -726,3 +726,203 @@ min for one with a mutation or port tidy (`func_800E6098`, `func_800E5710`,
 `func_800E5A9C`), ~6 min for `func_800E5EC0` (spec fix) and `func_800E6178`
 (111 lines, eight callees, asm check). Mean ~2.5 min per function, close to
 the 38C1C estimate, with fewer fixes (1 behaviour gap in 14).
+
+## Wave 1 (Haiku 5.5 drafts, Opus 5.5 review, 2026-10-21)
+
+The proven process on the next battle units, one branch per unit: the
+pipeline as recommended (Haiku 5.5, temperature 0, one sample, the feedback
+retry, one compile-fix round, `--jobs 4`), the reviewer's tooling fixes and
+reruns, the 7CD68 review per function, and the oracle (`differ.py` call,
+tick and alternate on the three implemented recipes, 64-bit, classic
+profile; `shadow_battle_smoke --owner battle_UNIT_port=shadow`). Model
+failures the review could finish cheaply were finished by hand: the
+reviewer's reply placed as the failed round's reply (the pipeline uses a
+reply without its `.json` as is), noted in the function's record. Cost is
+every call of every run (the summaries count only the final conversations).
+
+| Unit | Ported | Haiku alone | Finished by the reviewer | Review fixes | Cost | Minutes |
+|---|---|---|---|---|---|---|
+| 71618 | 12/12 | 8 + 1 after the tooling fix | 3 specs (an rsqrt stub, a waiver), 1 port (an unchecked grid index) | 0 port bugs in Haiku's passing ports; 1 oracle hazard fixed (below) | $0.38 | 40 |
+| 573B8 | 24/25 | 23 + 1 after a tooling fix | 0 | 1 port fixed (`func_800BFE50`'s caseless nibbles return arg0, as the object does) | $0.31 | 35 |
+| 6FC00 | 5/5 | 2 | 3 specs (grid pointer, GTE-stub zeros, edges, waivers), 1 port (an unchecked grid index) | 0 port bugs in Haiku's passing ports | $0.38 | 35 |
+| 58578 | 18/20 | 11 + 3 after tooling fixes + 1 on the retry | 4 specs (an equivalent and a crashing mutation dropped, an MFC2 stub, a waiver) | 1 port tidy (gte.zig macros); 2 left unrouted (ports differ) | $0.52 (est.) | 40 |
+| 44F14 | 16/23 | 14 + 1 after a tooling fix + 1 on the retry | 0 | 1 port tidy (host pointer arithmetic); 7 left unrouted | $0.60 | 45 |
+| 74088 | 11/14 | 9 | 1 spec (a waiver), 1 port (an aligned pointer from an integer) | 3 port tidies (unchecked table reads); 1 oracle hazard fixed | $0.47 (est.) | 50 |
+| 771A8 | 19/24 | 16 + 3 on a retry | 0 | 0 port bugs; 1 stale spec stub fixed (typed prototypes) | $0.96 | 45 |
+| 6F014 | 31/31 | 27 + 3 after tooling fixes | 1 port (a host pointer kept as a guest one) | 0 port bugs in Haiku's passing ports | $0.45 | 35 |
+
+**71618.** Tooling: `func_800DA738` calls `func_800E1388`, which takes a
+`vs_battle_movementPosition` (a union with bitfields) by value; translate-c
+made it opaque and Zig refuses an opaque parameter, so no harness built.
+zig_c now makes a by-value opaque type of 1/2/4/8 bytes the unsigned integer
+of its size (CTest `port_pipeline`). The three spec failures were value
+edges behind `vs_gte_rsqrt`: Haiku's stubs left it random, so an equality
+edge on the root never happened (`func_800DA4BC`, `func_800D9E18`), and a
+waiver of an unreachable `&&` arm was missing (`func_800DAED0`). Haiku's
+retry of `func_800DAED0`'s port indexed the movement grid as `[*][32]u16`
+and panicked on a tile byte past 31 (the C indexes unchecked). Corpus:
+`func_800DAED0` (the per-tick AI dispatch) is a root in all three recipes
+and reaches `func_800DAD9C`, `func_800DAC80`, `func_800DB0BC` and (cast
+recipes) `func_800DA1D4`/`func_800D9E18` nested; the other six never run.
+Owning `func_800D9E18` diverged in call mode: `func_800E1388` (771A8.c)
+copies a tile word whose `y`/`status` bytes it never writes into
+`state->destination`; zeroed under ROOD_PC (Oracle.md, known hazards;
+commit-check matches), then call, tick and alternate pass on all three
+recipes and the smoke passes. Renamed: `detourWhenStuck` (`func_800DB0BC`).
+
+**573B8.** Tooling: `func_800BFBB8`'s views did not build (a global named
+as its type, `vs_main_buttonsPressed`: inside `g` the bare name is the
+accessor itself; zig_views now names the type `views.T`), and
+`func_800C05EC`'s mutation spelled `NULL`, which the preprocessed body has
+as 0 (zig_diff now takes either). `func_800BFBB8`, the event-script
+interpreter, is left unrouted: it dispatches through the opcode function
+tables behind a ROOD_PC native-callback check, and a spec has to fill
+those tables with callable entries (Haiku's three drafts crashed the C on
+random table words). Review: one port fix, `func_800BFE50`, whose switch
+has no default (undefined in C): Haiku returned `arg0 >> 12` as "the
+return register"; the PS1 object returns `arg0` (case 2's delay slot sets
+`v0` whichever way the branch goes). Corpus: enemy_kill reaches 12 of the
+24 (the menu-circle and target-marker drawing: `func_800C0990` 8928 calls,
+`func_800C0758` 342, `func_800C02A8` 154, `func_800C085C` 46,
+`vs_battle_memcpy` 40 + 6 nested), the cast recipes three
+(`func_800C06E0`, `func_800C0738`, `func_800C05B4`); call, tick and
+alternate pass with 0 mismatches, as does the smoke.
+
+**6FC00** (the per-tick actor update, `func_800D8EF4`, and its relation
+scan, `func_800D87E8`: 181 and 193 lines). Tooling: the port prompt now
+carries the bodies of the unit's static helpers a function calls
+(`checkExtent`/`checkHeight`, `historyStalled`/`historyRepeats`): Haiku's
+ports had linked against them, and owned code cannot call a static. Three
+specs were finished by the reviewer: `func_800D87E8` (the scratchpad's
+movement-grid pointer at 0x1F8003C0 was never set, so the C crashed; a
+`func_800E44E8` stub answering 0 for the `!` edges; the counter's 120
+edge; an unreachable `id != actorId` arm waived), `func_800D8EF4` (Haiku's
+first draft ran out of its 64K tokens; a stalled history, `unkFA` 3, calm
+target tables), `func_800D8400` (a waiver). `func_800D87E8`'s port indexed
+the grid as `[*][32]u16` and panicked past column 31, the same slip as
+71618's `func_800DAED0`. Corpus: four of five are roots or nested in all
+three recipes (`func_800D8EF4` 86/130/246 calls, `func_800D87E8` nested
+111/309/327), `func_800D8400` in enemy_kill (60); call, tick and alternate
+pass with 0 mismatches, as does the smoke.
+
+**58578** (the menu circle and target marker: vertex rings, curves, the
+fading lines). Tooling: the run stopped at `func_800C2B0C`, whose class
+names hold spaces and `=` (`row>=9`; the class counts are now parsed by
+name=count pairs, in zig_diff too); `func_800C16DC` was planned `f(...)`
+(a header's unprototyped `void f();` before the unit's `void f(void)`:
+zig_c now declares `f()`); `game/common/gte.zig` had no `rtps2`, `stsxy`,
+`stszotz` and five more of the macros the BATTLE units use (now all of
+them, from PsyCross's USE_PGXP=0 definitions). Specs finished by the
+reviewer: `func_800C0FA8` (an equivalent mutation: char is unsigned in this
+build), `func_800C123C` (a mutation that made the C copy divide by zero),
+`func_800C1384` (the GTE is a recording stub, so the NCLIP result never sat
+on `clip < 0`: an MFC2 stub returning 0), `func_800C20B4` (case 0 after the
+`v1 == 0` continue, waived). Left unrouted (Haiku's ports differ after the
+retry and a compile-fix round; a reviewer's port is the next step):
+`func_800C2B0C`, `func_800C1DC4`, `func_800C28AC`. Corpus: 10 of the 17
+are reached (enemy_kill: `func_800C0D78` 46 roots drawing through
+`func_800C253C` and `func_800C20B4` 138 nested; `func_800C1564` 16-33
+roots in all three); call, tick and alternate pass with 0 mismatches, as
+does the smoke.
+
+**44F14** (actor animation, sound panning and object motion; 23 functions
+after the trial's `func_800B07DC`). Tooling: `func_800B101C` was planned
+`f(...)` (`int f();` before the definition with parameters: zig_c now drops
+the unprototyped declaration from the header translate-c reads);
+`func_800AD714`'s stand-in did not compile (it calls `func_800AE46C(x)`
+through `void func_800AE46C();`, and the stand-in, appended at the end of
+the file, saw the later `(void)` definition: zig_diff now places the copy
+right after the original's body); `func_800AE47C` and `func_800AEF94` hold a
+block-scope static (a ROOD_PC log-once counter), which owned code cannot
+have: the plan now skips such functions instead of spending three calls.
+Left unrouted: those two; `func_800AECA0`, which copies 32 bytes of its own
+stack from its parameter's address (`*(MATRIX*)&source`: the PS1 parameter
+home area, natively host stack no port can reproduce; it needs a ROOD_PC
+decision in the C first); and five Haiku spec failures (`func_800AD714`,
+`func_800AE980`, `func_800B002C`, `func_800B0908`, `func_800B13CC`: an
+uncaught mutation, a C crash on unset pointers, missed equality edges).
+Review: `func_800AE7D8` computed `arg0 + 0x1C` through a 32-bit guest
+address (wrong for a host pointer). Corpus: the animation path is hot in
+all three recipes (`func_800AF6E8` 496/962/1560 roots, `func_800AFDE8`
+58k-115k nested calls, `func_800AFA28`, `func_800AF844`, `func_800AE4FC`,
+`func_800AE828`, and in enemy_kill `func_800AEAE8`, `func_800AE6C0`); call,
+tick and alternate pass with 0 mismatches, as does the smoke.
+
+**74088** (the AI action evaluation: `func_800DEC88` runs it per actor,
+`func_800DD918` scores slots, `func_800DCAA0` and `func_800DC888` apply
+stat deltas). Tooling: the port prompt's static helpers (above) let Haiku
+carry `actorLimb` and the score helpers. Specs finished by the reviewer:
+`func_800DEB10` (its NULL test comes after the C has dereferenced the
+pointer: waived). Ports: `func_800DCAA0` passes `psx_to_ptr(void*, arg1)`
+on, any integer: Haiku's typed `@ptrFromInt` panicked on odd addresses (now
+through the callee typed with an untyped pointer); `D_800F5878[...]` was
+indexed through a bounds-checked slice in three ports where the C reads on
+(`func_800DEEA4`, `func_800DD000`, `func_800DEB10`: now `psx.at`). Left
+unrouted: `func_800DCC94`, `func_800DE030`, `func_800DE3E4` (Haiku's specs
+crash the C or their own classify, or miss their mutations). Oracle: owning
+the unit diverged in call mode in the evaluation block `D_800F5900`, which
+`func_80085B10` fills from `func_8008631C`'s and `func_800863A4`'s partly
+written hit requests (Oracle.md, known hazards); both are zeroed under
+ROOD_PC (commit-check matches), then call, tick and alternate pass with 0
+mismatches on all three recipes, as does the smoke. Corpus: `func_800DEC88`
+is a root in all three (1/2/4 calls) and reaches nine of the others nested;
+`func_800DD7CC` and `func_800DEEA4` never run.
+
+**6F014** (the battle file and effect loaders and the p-file block
+parsers). Tooling: four functions call the unit's static `_loadfile`; the
+checker had made it a trap (a static is not linked into the reference), so
+the C could not run. zig_diff now keeps the unit's static callees in the
+reference (a static with a block-scope static stays a trap), and the
+pipeline plans their globals into the views and shows their bodies in both
+prompts (Haiku's first specs crashed the C on `D_800F568C`, which only
+`_loadfile` reads). Three then ported; `vs_battle_loadEffPurge`'s three
+drafts declared `D_800F568C` (a host pointer) as a 4-byte guest pointer: the
+reviewer's port reuses `func_800D7BF8`'s `_loadfile`. Corpus: 25 of the 31
+run in the cast recipes (the load state machine, the p-file parse, the
+effect-renderer setup; `func_800D7890` 747-2554 roots); call, tick and
+alternate pass with 0 mismatches, as does the smoke.
+
+**771A8** (enemy movement: approach, recovery, patrols, wander, terrain
+steps). 16 ported on the first run; a retry with two fresh samples per
+function (temperature 0.4) ported `func_800E153C`, `func_800E19FC` and
+`func_800E2B2C`, at a high price ($0.33 for the seven retried). Writing
+them first failed: zig_c's prototype fix (above) made `func_800E4B2C` and
+`func_800E4B70` typed in the c module, and `func_800E0918`'s committed spec
+stubbed them with no parameters; the stubs now take the parameters. Left
+unrouted: `func_800DFBCC`, `func_800E0A68`, `func_800E1EAC`, `func_800E24EC`
+(Haiku's specs miss edges, crash or do not compile), and `func_800E2F5C`,
+which passes a tile word whose `y` byte it never writes: the C differs from
+a copy of itself in the checker (host stack residue, the 71618 hazard), so
+it cannot be specified until that local is zeroed under ROOD_PC. Corpus:
+the approach/recovery path runs in all three recipes (`func_800E1388`,
+`func_800E153C` 17/43 roots, `func_800E3600` and `func_800E2CCC` nested 39
+to 180, `func_800E19FC` 60 roots in enemy_kill); call, tick and alternate
+pass with 0 mismatches, as does the smoke.
+
+**Retry and totals.** A last pass gave eleven of the remaining failures two
+fresh Haiku samples each (temperature 0.4, then the feedback retry):
+`func_800C2B0C` (58578) and `func_800AE980` (44F14) ported and were
+reviewed; the rest are left unrouted with notes in their records. The pass
+stopped at the wave's budget. Wave 1: **136 of 154** planned functions
+ported and reviewed (the eight units' portable functions: statics and
+already-owned ones excluded), 18 left unrouted with a reason each
+(REVIEW.md lists them under Reviewed as "not ported"); about **$4.6**
+spent on Haiku (every call; two runs' logs were lost to a power cut and
+are estimated from their records), about 5.5 hours of reviewer time.
+Review fixes: 13 specs finished by the reviewer (waivers, stubs for value
+edges, a missing scratchpad pointer, an equivalent mutation dropped), 5
+ports written or fixed by the reviewer (two unchecked-grid panics, an
+aligned-pointer panic, a 4-byte guest pointer for an 8-byte global, the
+caseless nibbles of `func_800BFE50`), 6 port tidies (unchecked table reads,
+host pointer arithmetic, the gte.zig macros), no port bugs in a function
+Haiku's gates passed; two oracle hazards fixed under ROOD_PC (`func_800E1388`'s
+tile, the hit requests of `func_8008631C`/`func_800863A4`). Tooling: ten
+fixes, each with a `port_pipeline` CTest case (zig_c: by-value opaque
+unions, unprototyped declarations twice; zig_views: a global named as its
+type; zig_diff: class names with spaces and `=`, `NULL` in a C mutation, the
+stand-in's position, static callees kept; the pipeline: static helpers in
+the prompts and the plan, block-scope statics skipped), and the gte.zig
+macros. What still fails is mostly the model's: specs that miss their own
+mutations or an equality edge, specs that leave a pointer random (a
+reviewer-written spec or a port by hand is the next step for each).
+

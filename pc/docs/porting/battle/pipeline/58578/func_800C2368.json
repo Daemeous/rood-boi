@@ -1,0 +1,322 @@
+{
+ "function": "func_800C2368",
+ "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the radius test after radius <<= 9, as the C); spec sound (the radius 5 edge of the second pass)",
+ "plan": {
+  "name": "func_800C2368",
+  "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+  "stem": "58578",
+  "address": "0x800c2368",
+  "difficulty": "L",
+  "zig_name": "func_800C2368",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C2368",
+  "spec_file": "func_800C2368.zig",
+  "subsystem": "battle_58578_port",
+  "signature": "pub fn func_800C2368(step: c_int, radius: c_int, index: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "step",
+    "c_int"
+   ],
+   [
+    "radius",
+    "c_int"
+   ],
+   [
+    "index",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800EB9B8_t",
+   "menuCircleVertex"
+  ],
+  "globals": [
+   "D_800EB9B8"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11835,
+     "completion_tokens": 14865,
+     "reasoning_tokens": 13258,
+     "cost": 0.008616,
+     "seconds": 66.5,
+     "sample": 1,
+     "conversation": "41e1decc11db867e5f9f3d03716385e949f8ae5a3ffe8a88b7bbfea7fcfc02f9"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M4: the second pass is taken only above 5: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800C2368: 40000 iterations, seed 1, 0 mismatches; classes: radius-negative=1886 radius-zero=639 radius-1-to-4=6754 radius-5=5149 radius-over-5=25572",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800C2368: branches 8/8 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 28/28\n  FLAG +10 eq: boundary equality never occurred (32-bit compare, constant 4095: both sides seen; a port's `<` for `<=` could pass): `for (base = 0; base < 0x1000; base += 0x400) {`\n  FLAG +32 eq: boundary equality never occurred (32-bit compare, constant 4: both sides seen; a port's `<` for `<=` could pass): `if (radius >= 5) {`\ncoverage func_800C2368: FAILED (threshold 100%: 0 uncovered, 2 value flag(s) not waived)\nWhat to add:\n- `for (base = 0; base < 0x1000; base += 0x400) {` (+10): the two sides of this ordered compare were equal 0 time(s) in 200000. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `if (radius >= 5) {` (+32): the two sides of this ordered compare were equal 0 time(s) in 40000. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800C2368.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14130,
+     "completion_tokens": 5018,
+     "reasoning_tokens": 3123,
+     "cost": 0.003922,
+     "seconds": 21.0,
+     "sample": 1,
+     "conversation": "f4b2ce0975b4349b50012f1ee2117758660b91a1875d43759fb3ead68f7abfd8"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "radius-negative": "1886",
+   "radius-zero": "639",
+   "radius-1-to-4": "6754",
+   "radius-5": "5149",
+   "radius-over-5": "25572"
+  },
+  "mutations": [
+   {
+    "name": "M1: the flag is inverted (point 0 flagged, not the rest)",
+    "caught": true
+   },
+   {
+    "name": "M2: x steps by 0x100, not 0x200",
+    "caught": true
+   },
+   {
+    "name": "M3: the base loop stops at 0xC00 (three bases, not four)",
+    "caught": true
+   },
+   {
+    "name": "M4: the second pass is taken only from radius 16 (its test is radius*512 >= 0x2000)",
+    "caught": true
+   },
+   {
+    "name": "M5: the first callee's return value is dropped",
+    "caught": true
+   },
+   {
+    "name": "M6: the vertex base offset is 0x40, not 0x48",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 28,
+   "lines_hit": 28,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+10 eq",
+     "line": 10,
+     "text": "for (base = 0; base < 0x1000; base += 0x400) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 200000,
+     "what": "boundary equality never occurred (32-bit compare, constant 4095: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+32 eq",
+     "line": 32,
+     "text": "if (radius >= 5) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 40000,
+     "what": "boundary equality never occurred (32-bit compare, constant 4: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "32-bit: min -4096, max 4096, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "32-bit: min -3, max 40, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "32-bit: min -512, max 512, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 10,
+     "text": "for (base = 0; base < 0x1000; base += 0x400) {",
+     "size": 4,
+     "count": 200000,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 160000, > 40000 (signed); < 160000, > 40000 (unsigned)",
+     "operand": "constant 4095",
+     "a": "0..4096"
+    },
+    {
+     "line": 13,
+     "text": "for (point = 0; point <= radius; ++index, ++point, phase += step, ++vertex) {",
+     "size": 4,
+     "count": 2553996,
+     "kind": "a == b / a < b",
+     "outcomes": "== 152456, < 2241540, > 160000 (signed); < 2249084, > 152456 (unsigned)",
+     "operand": "b -3..40",
+     "a": "0..41"
+    },
+    {
+     "line": 17,
+     "text": "i = point != 0;",
+     "size": 4,
+     "count": 2393996,
+     "kind": "against a constant",
+     "outcomes": "== 152456, < 0, > 2241540 (signed); < 0, > 2241540 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..40"
+    },
+    {
+     "line": 25,
+     "text": "for (i = 8; i >= 0; --i) {",
+     "size": 4,
+     "count": 400000,
+     "kind": "against a constant",
+     "outcomes": "== 40000, < 40000, > 320000 (signed); < 0, > 360000 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..8"
+    },
+    {
+     "line": 32,
+     "text": "if (radius >= 5) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 2525, > 37475 (signed); < 639, > 39361 (unsigned)",
+     "operand": "constant 4",
+     "a": "-1536..20480"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+10 eq",
+    "reason": "The C's `base < 0x1000` is canonicalised by GCC to `base <= 4095`, and base only takes multiples of 0x400 (0, 0x400, 0x800, 0xC00), so base can never equal 4095 (or 0x1000 in the source's own terms). No input can make the two sides equal."
+   },
+   {
+    "id": "+32 eq",
+    "reason": "The C shifts radius left by 9 before `radius >= 5`, so the compared value is radius*512, a multiple of 512. GCC canonicalises the test to `> 4`, and a multiple of 512 can never equal 4 (or 5). No input can make the two sides equal."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35245,
+     "completion_tokens": 6989,
+     "reasoning_tokens": 5939,
+     "cost": 0.007019,
+     "seconds": 28.9,
+     "sample": 1,
+     "conversation": "91b0d2cc435c163ea617d49c56b91c587156ba26f9f14efc28e55d16b81d04f5"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C2368.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C2368.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 497.886639413995,
+ "wall_seconds": 614.3574773429973,
+ "totals": {
+  "cost": 0.01956,
+  "prompt_tokens": 61210,
+  "completion_tokens": 26872,
+  "model_seconds": 116.4,
+  "check_seconds": 497.9,
+  "calls": 3,
+  "wall_seconds": 614.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

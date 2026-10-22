@@ -1,0 +1,493 @@
+{
+ "function": "func_800C2B0C",
+ "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.4,
+ "samples": 2,
+ "status": "ported",
+ "reviewed": "faithful (libc memset kept as a call; the height out-parameter starts at 0 where the C leaves it to func_800FA188); spec sound; ported on the wave's retry (two fresh samples) after the class-name parsing fix",
+ "plan": {
+  "name": "func_800C2B0C",
+  "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+  "stem": "58578",
+  "address": "0x800c2b0c",
+  "difficulty": "M",
+  "zig_name": "func_800C2B0C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C2B0C",
+  "spec_file": "func_800C2B0C.zig",
+  "subsystem": "battle_58578_port",
+  "signature": "pub fn func_800C2B0C(position: [*c]c_ushort, row: c_uint) callconv(.c) void",
+  "params": [
+   [
+    "position",
+    "[*c]c_ushort"
+   ],
+   [
+    "row",
+    "c_uint"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F45E0_t",
+   "_mpdRoomSection3"
+  ],
+  "globals": [
+   "D_800F45E0"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 16737,
+     "completion_tokens": 35785,
+     "reasoning_tokens": 32141,
+     "cost": 0.0195662,
+     "seconds": 155.1,
+     "sample": 1,
+     "conversation": "13467f8c1f33cabf53e17960df63de96d9199c43731ddd5ba2b0ef00a633c6fc"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800C2B0C: branches 30/30 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 51/51\n  FLAG +58 eq: boundary equality never occurred (32-bit compare, constant 127: both sides seen; a port's `<` for `<=` could pass): `for (dz = 0; dz < 0x80; dz += 0x20) {`\n  FLAG +59 eq: boundary equality never occurred (32-bit compare, constant 127: both sides seen; a port's `<` for `<=` could pass): `for (dx = 0; dx < 0x80; dx += 0x20) {`\n  FLAG +76 eq: boundary equality never occurred (32-bit compare, b -16384..48828: both sides seen; a port's `<` for `<=` could pass): `value = low == high;`\ncoverage func_800C2B0C: FAILED (threshold 100%: 0 uncovered, 3 value flag(s) not waived)\nWhat to add:\n- `for (dz = 0; dz < 0x80; dz += 0x20) {` (+58): the two sides of this ordered compare were equal 0 time(s) in 69650. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `for (dx = 0; dx < 0x80; dx += 0x20) {` (+59): the two sides of this ordered compare were equal 0 time(s) in 278600. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `value = low == high;` (+76): the two sides of this ordered compare were equal 0 time(s) in 11146. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800C2B0C.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 1,
+    "sample": 2,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 16737,
+     "completion_tokens": 31453,
+     "reasoning_tokens": 28412,
+     "cost": 0.0174002,
+     "seconds": 134.5,
+     "sample": 2,
+     "conversation": "f158518cda4bf19c0174b01225e0b3896d5d13dd807bab352826d1b3720040aa"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800C2B0C/spec1s2/build/spec.zig:48:31: error: pointer capture of non pointer type '[16]?*views_58578.D_800F45E0_t'\n    for (v.g.D_800F45E0().*) |*e| e.* = det;\n                              ^~~\npc/build/port-pipeline/func_800C2B0C/spec1s2/build/spec.zig:48:26: note: consider using '&' here\n    for (v.g.D_800F45E0().*) |*e| e.* = det;\n         ~~~~~~~~~~~~~~~~^~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:420:40\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 21117,
+     "completion_tokens": 7362,
+     "reasoning_tokens": 3062,
+     "cost": 0.0057927,
+     "seconds": 28.5,
+     "sample": 1,
+     "conversation": "dd3c32c4d491fc636da0812edb859e13337da122c6c5cc9e73846895da9244b2"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "row-out": "8052",
+   "off-map": "24312",
+   "solid": "2542",
+   "skipped": "2580",
+   "scanned": "2514"
+  },
+  "mutations": [
+   {
+    "name": "C1: row 9 not returned early",
+    "caught": true
+   },
+   {
+    "name": "C2: x equal to width counts as on the map",
+    "caught": true
+   },
+   {
+    "name": "C3: solid value constant off by one",
+    "caught": true
+   },
+   {
+    "name": "C4: unk0_10 bound 4 instead of 5",
+    "caught": true
+   },
+   {
+    "name": "C5: the offset call dropped (offset set to 0)",
+    "caught": true
+   },
+   {
+    "name": "C6: signed compare for unk0_10 - 1 (unk0_10 == 0 enters)",
+    "caught": true
+   },
+   {
+    "name": "C7: the column scan runs one row too far (<= 0x80)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 30,
+   "branches_hit": 30,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 51,
+   "lines_hit": 51,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+58 eq",
+     "line": 58,
+     "text": "for (dz = 0; dz < 0x80; dz += 0x20) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 66885,
+     "what": "boundary equality never occurred (32-bit compare, constant 127: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+59 eq",
+     "line": 59,
+     "text": "for (dx = 0; dx < 0x80; dx += 0x20) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 267540,
+     "what": "boundary equality never occurred (32-bit compare, constant 127: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "32-bit: min -2147483648, max 2146859480, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 22,
+     "text": "if (row >= 9) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 3579, < 32362, > 4059 (signed); < 28369, > 8052 (unsigned)",
+     "operand": "constant 8",
+     "a": "-2147483648..2146859480"
+    },
+    {
+     "line": 30,
+     "text": "for (column = 0; column < 9; ++column) {",
+     "size": 4,
+     "count": 319480,
+     "kind": "against a constant",
+     "outcomes": "== 31948, < 255584, > 31948 (signed); < 255584, > 31948 (unsigned)",
+     "operand": "constant 8",
+     "a": "0..9"
+    },
+    {
+     "line": 38,
+     "text": "if (((u_int)x < width) & ((u_int)z < height)) {",
+     "size": 4,
+     "count": 287532,
+     "kind": "a == b / a < b",
+     "outcomes": "== 9101, < 144910, > 133521 (signed); < 92197, > 186234 (unsigned)",
+     "operand": "b 0..20",
+     "a": "-260..259"
+    },
+    {
+     "line": 38,
+     "text": "if (((u_int)x < width) & ((u_int)z < height)) {",
+     "size": 4,
+     "count": 287532,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8136, < 163143, > 116253 (signed); < 128277, > 151119 (unsigned)",
+     "operand": "b -2..20",
+     "a": "-260..259"
+    },
+    {
+     "line": 38,
+     "text": "if (((u_int)x < width) & ((u_int)z < height)) {",
+     "size": 1,
+     "count": 287532,
+     "kind": "against a constant",
+     "outcomes": "== 246889, < 0, > 40643 (signed); < 0, > 40643 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 40,
+     "text": "if ((room->unk0_5 >> 1) & 1) {",
+     "size": 4,
+     "count": 40643,
+     "kind": "against a constant",
+     "outcomes": "== 26989, < 0, > 13654 (signed); < 0, > 13654 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2"
+    },
+    {
+     "line": 43,
+     "text": "} else if (room->unk0_10 < 5 || (room->unk0_18 >> 1)) {",
+     "size": 1,
+     "count": 26989,
+     "kind": "against a constant",
+     "outcomes": "== 1587, < 6824, > 18578 (signed); < 6824, > 18578 (unsigned)",
+     "operand": "constant 4",
+     "a": "0..7"
+    },
+    {
+     "line": 43,
+     "text": "} else if (room->unk0_10 < 5 || (room->unk0_18 >> 1)) {",
+     "size": 4,
+     "count": 18578,
+     "kind": "against a constant",
+     "outcomes": "== 13612, < 0, > 4966 (signed); < 0, > 4966 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 45,
+     "text": "if (offset != 0) {",
+     "size": 4,
+     "count": 13377,
+     "kind": "against a constant",
+     "outcomes": "== 3405, < 4955, > 5017 (signed); < 0, > 9972 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32762..32764"
+    },
+    {
+     "line": 46,
+     "text": "if (D_800F45E0[func_800A91DC(x, z, 0)]->unk6C[8].actorId < 2) {",
+     "size": 1,
+     "count": 9972,
+     "kind": "against a constant",
+     "outcomes": "== 1303, < 1225, > 7444 (signed); < 1225, > 7444 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..7"
+    },
+    {
+     "line": 58,
+     "text": "for (dz = 0; dz < 0x80; dz += 0x20) {",
+     "size": 4,
+     "count": 66885,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 53508, > 13377 (signed); < 53508, > 13377 (unsigned)",
+     "operand": "constant 127",
+     "a": "0..128"
+    },
+    {
+     "line": 59,
+     "text": "for (dx = 0; dx < 0x80; dx += 0x20) {",
+     "size": 4,
+     "count": 267540,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 214032, > 53508 (signed); < 214032, > 53508 (unsigned)",
+     "operand": "constant 127",
+     "a": "0..128"
+    },
+    {
+     "line": 63,
+     "text": "if (type < low) {",
+     "size": 4,
+     "count": 214032,
+     "kind": "a == b / a < b",
+     "outcomes": "== 85855, < 23456, > 104721 (signed); < 39652, > 88525 (unsigned)",
+     "operand": "b -48775..16384",
+     "a": "-48775..48953"
+    },
+    {
+     "line": 66,
+     "text": "if (high < type) {",
+     "size": 4,
+     "count": 214032,
+     "kind": "a == b / a < b",
+     "outcomes": "== 84229, < 23476, > 106327 (signed); < 28858, > 100945 (unsigned)",
+     "operand": "b -48775..48953",
+     "a": "-16384..48953"
+    },
+    {
+     "line": 70,
+     "text": "if (top < type) {",
+     "size": 4,
+     "count": 214032,
+     "kind": "a == b / a < b",
+     "outcomes": "== 117239, < 24672, > 72121 (signed); < 32666, > 64127 (unsigned)",
+     "operand": "b -16384..16383",
+     "a": "-16384..16383"
+    },
+    {
+     "line": 75,
+     "text": "if (value != 0) {",
+     "size": 4,
+     "count": 13377,
+     "kind": "against a constant",
+     "outcomes": "== 2528, < 0, > 10849 (signed); < 0, > 10849 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..65536"
+    },
+    {
+     "line": 76,
+     "text": "value = low == high;",
+     "size": 4,
+     "count": 10849,
+     "kind": "a == b / a < b",
+     "outcomes": "== 3596, < 7253, > 0 (signed); < 4324, > 2929 (unsigned)",
+     "operand": "b -16384..48953",
+     "a": "-48775..16384"
+    },
+    {
+     "line": 78,
+     "text": "if ((u_int)(room->unk0_10 - 1) < 4) {",
+     "size": 4,
+     "count": 13377,
+     "kind": "against a constant",
+     "outcomes": "== 1587, < 6824, > 4966 (signed); < 5100, > 6690 (unsigned)",
+     "operand": "constant 3",
+     "a": "-1..6"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+58 eq",
+    "reason": "The loop counter dz steps 0x20 from 0, so it is always a multiple of 32 and never equals the bound's 127 (0x80 - 1) that the checker reports as the boundary. The loop bound is still pinned: C7 (`<=`) adds a fifth sample row and changes low, high and top, which the outputs catch."
+   },
+   {
+    "id": "+59 eq",
+    "reason": "The loop counter dx steps 0x20 from 0, so it is always a multiple of 32 and never equals the bound's 127 (0x80 - 1) that the checker reports as the boundary. A `<=` bound would add a fifth sample column, changing low, high and top; the outputs catch that."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 40132,
+     "completion_tokens": 16775,
+     "reasoning_tokens": 15187,
+     "cost": 0.0124007,
+     "seconds": 67.1,
+     "sample": 1,
+     "conversation": "eab88188e3325575f93e1dc6eb71503c1dc555df08972ef169e1c5e44f4f40aa"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800C2B0C.zig:49:21: error: local variable is never mutated\n                var sz: c_int = z << 7;\n                    ^~\ngame/battle/func_800C2B0C.zig:49:21: note: consider using 'const'\ngame/battle/func_800C2B0C.zig:48:21: error: local variable is never mutated\n                var sx: c_int = x << 7;\n                    ^~\ngame/battle/func_800C2B0C.zig:48:21: note: consider using 'const'\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 1,
+    "sample": 2,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 40132,
+     "completion_tokens": 17382,
+     "reasoning_tokens": 15674,
+     "cost": 0.0127042,
+     "seconds": 70.8,
+     "sample": 2,
+     "conversation": "00ac397375332e58d023e665f7a95583d0cf2ef6271d7ae7ca4698208babbc65"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 2
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C2B0C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C2B0C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 126.6635166319993,
+ "wall_seconds": 582.9556190310004,
+ "totals": {
+  "cost": 0.06786,
+  "prompt_tokens": 134855,
+  "completion_tokens": 108757,
+  "model_seconds": 456.0,
+  "check_seconds": 126.7,
+  "calls": 5,
+  "wall_seconds": 583.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), the three recipes: not reached (58578's subsystem run on port-wave1 after the merge: 0 mismatches)"
+ }
+}

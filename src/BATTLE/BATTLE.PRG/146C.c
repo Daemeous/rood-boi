@@ -13595,6 +13595,12 @@ int func_8008631C(int arg0, int arg1, int targetActor, int targetLimb, void* arg
 {
     D_800F19CC_t2 sp10;
 
+#ifdef ROOD_PC
+    /* Only the fields below are written: func_80085B10 copies the request's
+       unwritten parts (unk844, the hit entries' padding) into its result,
+       and they were stack residue (pc/docs/Oracle.md, known hazards). */
+    memset(&sp10, 0, sizeof sp10);
+#endif
     sp10.unk4C[0].unk0.targetActor = targetActor;
     sp10.actionIndex = arg0;
     sp10.unk4.unk40 = 0;
@@ -13619,6 +13625,12 @@ int func_800863A4(int arg0, int arg1, int targetActor, int arg3, SVECTOR* arg4,
     int temp_v0;
     int i;
 
+#ifdef ROOD_PC
+    /* Only the fields below are written: func_80085B10 copies the request's
+       unwritten parts (unk844, the hit entries' padding) into its result,
+       and they were stack residue (pc/docs/Oracle.md, known hazards). */
+    memset(&sp10, 0, sizeof sp10);
+#endif
     sp10.actionIndex = arg0;
     sp10.unk4.unk40 = 0;
     sp10.unk4.unk0.targetActor = arg1;

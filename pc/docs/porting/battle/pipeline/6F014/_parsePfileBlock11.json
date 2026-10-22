@@ -1,0 +1,210 @@
+{
+ "function": "_parsePfileBlock11",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (a guest-pointer store)",
+ "plan": {
+  "name": "_parsePfileBlock11",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d7ab4",
+  "difficulty": "S",
+  "zig_name": "parsePfileBlock11",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "parse_pfile_block11",
+  "spec_file": "parsePfileBlock11.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn parsePfileBlock11(arg0: [*c]u8) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F569C_t"
+  ],
+  "globals": [
+   "D_800F569C"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11569,
+     "completion_tokens": 5183,
+     "reasoning_tokens": 4120,
+     "cost": 0.0037484,
+     "seconds": 21.8,
+     "sample": 1,
+     "conversation": "2e82563a46e7916a8066ecae87f2834bf9c1d962a031f05a0725a6b34ac19b19"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation P4: stores the address of the parameter, not the pointer: not caught as mismatch (exit 3): zdiff: PANIC in the Zig run, iteration 0: psx_addr of 0x7ffc0cafd7e8 (above 4 GB)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12753,
+     "completion_tokens": 1686,
+     "reasoning_tokens": 615,
+     "cost": 0.0021183,
+     "seconds": 7.1,
+     "sample": 1,
+     "conversation": "9ef7a59015af009386fb791ef2a9822054119ae5cc472d6ed777adaf41a0e995"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "arena": "14904",
+   "low-ram": "15096"
+  },
+  "mutations": [
+   {
+    "name": "P1: the store is dropped",
+    "caught": true
+   },
+   {
+    "name": "P2: guest address off by one",
+    "caught": true
+   },
+   {
+    "name": "P3: address narrowed to a byte",
+    "caught": true
+   },
+   {
+    "name": "P4: stores the address of the parameter, not the pointer",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 1,
+   "lines_hit": 1,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34957,
+     "completion_tokens": 1746,
+     "reasoning_tokens": 1533,
+     "cost": 0.0043687,
+     "seconds": 8.3,
+     "sample": 1,
+     "conversation": "29fd4f4ff1eab478d1a4d4148f321b5ba93120c81232ead8ae1152bd79ca0cba"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/parsePfileBlock11.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/parse_pfile_block11.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 29.32993904200066,
+ "wall_seconds": 66.73963637700035,
+ "totals": {
+  "cost": 0.01024,
+  "prompt_tokens": 59279,
+  "completion_tokens": 8615,
+  "model_seconds": 37.2,
+  "check_seconds": 29.3,
+  "calls": 3,
+  "wall_seconds": 66.7
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches"
+ }
+}

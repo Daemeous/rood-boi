@@ -1,0 +1,291 @@
+{
+ "function": "func_800DAED0",
+ "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful after a reviewer fix of Haiku's retry (the movement grid indexed through [32]-row arrays panicked on a tile byte past 31; the C indexes z * 32 + x unchecked); spec finished by the reviewer (an unreachable branch waived)",
+ "plan": {
+  "name": "func_800DAED0",
+  "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+  "stem": "71618",
+  "address": "0x800daed0",
+  "difficulty": "M",
+  "zig_name": "func_800DAED0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DAED0",
+  "spec_file": "func_800DAED0.zig",
+  "subsystem": "battle_71618_port",
+  "signature": "pub fn func_800DAED0() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800F16F4",
+   "D_800F5878"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18301,
+     "completion_tokens": 29670,
+     "reasoning_tokens": 26294,
+     "cost": 0.0166651,
+     "seconds": 126.2,
+     "sample": 1,
+     "conversation": "9e8de68fd575850f0e7c5b10f3dc5856755855cc83f076148766608e532cf92a"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800DAED0: branches 17/18 (94.4%), conditions not measured (GCC < 14: branch coverage only), lines 39/39\n  UNCOVERED +14 b3: branch never taken: `if (state->f14 && state->f1D) {`\ncoverage func_800DAED0: FAILED (threshold 100%: 1 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `if (state->f14 && state->f1D) {` (+14): one way out of this test (+14 b3) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800DAED0.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "empty": "6038",
+   "idle": "2703",
+   "active": "18283",
+   "init": "2976"
+  },
+  "mutations": [
+   {
+    "name": "D1: the deferral test takes equal values",
+    "caught": true
+   },
+   {
+    "name": "D2: the position test takes equal values",
+    "caught": true
+   },
+   {
+    "name": "D3: wrong mask on the tile value",
+    "caught": true
+   },
+   {
+    "name": "D4: DB7B4 call dropped",
+    "caught": true
+   },
+   {
+    "name": "D5: entry test uses || instead of &&",
+    "caught": true
+   },
+   {
+    "name": "D6: depth negation dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 18,
+   "branches_hit": 17,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 39,
+   "lines_hit": 39,
+   "uncovered": [
+    {
+     "id": "+14 b3",
+     "line": 14,
+     "text": "if (state->f14 && state->f1D) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 8,
+     "text": "if (!state->f14 || state->f1D) {",
+     "size": 1,
+     "count": 59825,
+     "kind": "against a constant",
+     "outcomes": "== 7280, < 30019, > 22526 (signed); < 0, > 52545 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 8,
+     "text": "if (!state->f14 || state->f1D) {",
+     "size": 1,
+     "count": 52545,
+     "kind": "against a constant",
+     "outcomes": "== 6707, < 26251, > 19587 (signed); < 0, > 45838 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 10,
+     "text": "if (D_800F16F4 < value)",
+     "size": 4,
+     "count": 53118,
+     "kind": "a == b / a < b",
+     "outcomes": "== 13317, < 20012, > 19789 (signed); < 18075, > 21726 (unsigned)",
+     "operand": "b -2147483648..2147483647",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 14,
+     "text": "if (state->f14 && state->f1D) {",
+     "size": 1,
+     "count": 33329,
+     "kind": "against a constant",
+     "outcomes": "== 4562, < 16379, > 12388 (signed); < 0, > 28767 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 14,
+     "text": "if (state->f14 && state->f1D) {",
+     "size": 1,
+     "count": 28767,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 16472, > 12295 (signed); < 0, > 28767 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 16,
+     "text": "if ((((actionDispatchModel*)D_800F4538[0])->flags & 0x180000)",
+     "size": 4,
+     "count": 21415,
+     "kind": "against a constant",
+     "outcomes": "== 5720, < 0, > 15695 (signed); < 0, > 15695 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1572864"
+    },
+    {
+     "line": 17,
+     "text": "&& (coordinate =",
+     "size": 4,
+     "count": 15695,
+     "kind": "a == b / a < b",
+     "outcomes": "== 7902, < 3844, > 3949 (signed); < 4266, > 3527 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-32768..32767"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+14 b3",
+    "reason": "unreachable: the outer test lets through only states with f14 clear or f1D set, so f14 set with f1D clear never reaches the inner test"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 41573,
+     "completion_tokens": 12898,
+     "reasoning_tokens": 11696,
+     "cost": 0.0106063,
+     "seconds": 51.4,
+     "sample": 1,
+     "conversation": "487aa55c707a49232def1051bb922cfbc3d5e0cfca5bd890d02f09a2feb7af7a"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800DAED0.zig:42:41: error: expected type '[*c]c_71618.struct_actionDispatchState', found '*views_71618.actionDispatchState'\n                    _ = c.func_800DAD9C(state);\n                                        ^~~~~\ngame/battle/func_800DAED0.zig:42:41: note: pointer type child 'views_71618.actionDispatchState' cannot cast into pointer type child 'c_71618.struct_actionDispatchState'\npc/build/port-pipeline/gen/71618/fn-func_800DAED0/views_71618.zig:1090:40: note: struct declared here\npub const actionDispatchState = extern struct {\n                                ~~~~~~~^~~~~~\npc/build/port-pipeline/gen/71618/c_71618.zig:4766:47: note: struct declared here\npub const struct_actionDispatchState = extern struct {\n                                       ~~~~~~~^~~~~~\npc/build/port-pipeline/gen/71618/c_71618.zig:4821:36: note: parameter type declared here\npub extern fn func_800DAD9C(state: [*c]actionDispatchState) c_int;\n                                   ^~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DAED0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DAED0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 53.08226234200265,
+ "wall_seconds": 53.27555895099795,
+ "totals": {
+  "cost": 0.02727,
+  "prompt_tokens": 59874,
+  "completion_tokens": 42568,
+  "model_seconds": 177.6,
+  "check_seconds": 53.1,
+  "calls": 2,
+  "wall_seconds": 53.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [
+   "reviewer's round-2 reply: Haiku's first spec plus a waiver of +14 b3 (f14 set with f1D clear cannot reach the inner test: the outer one lets through only f14 clear or f1D set)"
+  ],
+  "mutations_added": [],
+  "port_fixes": [
+   "the grid cell read as cells[z * 32 + x] from a many-item u16 pointer, unchecked as in the C (Haiku's [*][32]u16 indexing panicked: index out of bounds, 194 of 32)"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 86 / 130 / 246 calls, 0 mismatches (after func_800E1388's dest zeroed under ROOD_PC: before, call mode diverged in destination.y, host stack residue)"
+ }
+}

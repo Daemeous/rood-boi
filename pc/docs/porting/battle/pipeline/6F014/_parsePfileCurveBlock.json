@@ -1,0 +1,205 @@
+{
+ "function": "_parsePfileCurveBlock",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (count re-read per pass, curves past 32 unchecked as the C); spec sound (counts 0, 1, many, past 32)",
+ "plan": {
+  "name": "_parsePfileCurveBlock",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d7990",
+  "difficulty": "S",
+  "zig_name": "parsePfileCurveBlock",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "parse_pfile_curve_block",
+  "spec_file": "parsePfileCurveBlock.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn parsePfileCurveBlock(block: ?*v.pFileCurveBlock) callconv(.c) void",
+  "params": [
+   [
+    "block",
+    "?*v.pFileCurveBlock"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F569C_t",
+   "pFileCurveBlock"
+  ],
+  "globals": [
+   "D_800F569C"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11926,
+     "completion_tokens": 11861,
+     "reasoning_tokens": 10413,
+     "cost": 0.0071231,
+     "seconds": 49.7,
+     "sample": 1,
+     "conversation": "0b5236e3c3c09948bbaf38297d4117c78cfe5335d06eb71a1995fb50c01514c2"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "count-0": "2198",
+   "count-1": "2240",
+   "count-2-to-32": "9514",
+   "count-past-32": "16048"
+  },
+  "mutations": [
+   {
+    "name": "P1: loop runs one curve past count",
+    "caught": true
+   },
+   {
+    "name": "P2: every advance uses curveSizes[0]",
+    "caught": true
+   },
+   {
+    "name": "P3: dataOffset read as signed short",
+    "caught": true
+   },
+   {
+    "name": "P4: curveBlock store dropped",
+    "caught": true
+   },
+   {
+    "name": "P5: each curve points at the block, not its data",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 7,
+   "lines_hit": 7,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "for (i = 0; i < block->count; i++) {",
+     "size": 4,
+     "count": 1697649,
+     "kind": "a == b / a < b",
+     "outcomes": "== 30000, < 1667649, > 0 (signed); < 1667649, > 0 (unsigned)",
+     "operand": "b 0..150",
+     "a": "0..150"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35299,
+     "completion_tokens": 5006,
+     "reasoning_tokens": 4585,
+     "cost": 0.0060329,
+     "seconds": 21.8,
+     "sample": 1,
+     "conversation": "d233e330c132e250937413b0e1da7a584673911883f5fd7dbc6ab973bbcde6c0"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/parsePfileCurveBlock.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/parse_pfile_curve_block.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 23.375087302999418,
+ "wall_seconds": 95.04512711500047,
+ "totals": {
+  "cost": 0.01316,
+  "prompt_tokens": 47225,
+  "completion_tokens": 16867,
+  "model_seconds": 71.5,
+  "check_seconds": 23.4,
+  "calls": 2,
+  "wall_seconds": 95.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches"
+ }
+}

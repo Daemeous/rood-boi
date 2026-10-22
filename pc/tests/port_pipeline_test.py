@@ -42,6 +42,7 @@ budget makes any call a stop.
 CPU only; needs a 64-bit build (exit 77 without one)."""
 import http.server
 import json
+import re
 import os
 import pathlib
 import threading
@@ -252,6 +253,99 @@ def review_7CD68(tmp, table):
     return failures
 
 
+def wave1(tmp, table):
+    """The tooling failures wave 1 found (BAKEOFF.md, "Wave 1")."""
+    import zig_c
+    import zig_toolchain
+    failures = []
+    # A union with bitfields (translate-c: opaque) passed by value in a prototype
+    # (func_800DA738's callee func_800E1388): the integer of its size.
+    unit_i = tmp / "byvalue.i"
+    unit_i.write_text("typedef union { unsigned int raw; struct { unsigned int x : 8, y : 8, z : 8, s : 8; } p; } pos;\n"
+                      "typedef union { unsigned long long raw; struct { unsigned int a : 3; } p; } wide;\n"
+                      "typedef union { unsigned int r; struct { unsigned int a : 3; } p; } byref;\n"
+                      "void f(int, pos, unsigned int);\nwide g(void);\nvoid h(byref*);\n")
+    text = zig_c.translate(zig_toolchain.ensure(), unit_i, tmp / "c_byvalue.zig", "x86_64-linux-none").read_text()
+    for want in ("pub const pos = u32;", "pub const wide = u64;", "pub const byref = opaque {"):
+        if want not in text:
+            failures.append(f"zig_c: an opaque by value: {want!r} missing")
+    import port_pipeline as pp
+    import ownership
+    # A header's `void f();` before the unit's `void f(void)` (58578's func_800C16DC): f() is the prototype.
+    unit_i = tmp / "proto.i"
+    unit_i.write_text("void f();\nvoid g();\nvoid f(void) { g(); }\n")
+    text = zig_c.translate(zig_toolchain.ensure(), unit_i, tmp / "c_proto.zig", "x86_64-linux-none").read_text()
+    if "pub extern fn f() void;" not in text or "pub extern fn g(...) void;" not in text:
+        failures.append("zig_c: a header's unprototyped declaration before the unit's (void) definition")
+    # `T f();` before the unit's definition with parameters (44F14's func_800B101C): the prototype wins.
+    unit_i = tmp / "proto2.i"
+    unit_i.write_text("int h();\nint h(int* p) { return *p; }\n")
+    text = zig_c.translate(zig_toolchain.ensure(), unit_i, tmp / "c_proto2.zig", "x86_64-linux-none").read_text()
+    if "pub extern fn h(p: [*c]c_int) c_int;" not in text:
+        failures.append("zig_c: a header's unprototyped declaration before the unit's (void) definition")
+    # A global named as its type (573B8's vs_main_buttonsPressed): the accessor names the type through the module.
+    unit = pp.Unit("573B8", "src/BATTLE/BATTLE.PRG/573B8.c", BUILD, tmp / "unit-573B8", table)
+    views, _ = unit.views([], ["vs_main_buttonsPressed"], tag="type-named-global")
+    want = ('pub inline fn vs_main_buttonsPressed() *views.vs_main_buttonsPressed { return '
+            'psx.global(views.vs_main_buttonsPressed, "vs_main_buttonsPressed"); }')
+    if want not in views.read_text() or "const views = @This();" not in views.read_text():
+        failures.append("views: a global named as its type (vs_main_buttonsPressed)")
+    # zdiff's class counts, a spec's class names holding spaces and `=` (58578's func_800C2B0C).
+    # A C mutation copied from the .c with NULL, where the preprocessed body has 0 (573B8's func_800C05EC).
+    import types
+    import zig_diff
+    text = zig_diff.Build.standin_source(types.SimpleNamespace(function="f"),
+                                         "int f(int* p)\n{\n    if (p != 0) {\n        return 1;\n    }\n    return 0;\n}\n",
+                                         {"name": "m", "from": "if (p != NULL) {", "to": "if (p != NULL && *p) {"})
+    if "if (p != 0 && *p) {" not in text:
+        failures.append(f"a C mutation spelling NULL: {text}")
+    # The unit's static helpers a function calls go into its port prompt (6FC00's func_800D87E8, func_800D8EF4).
+    helpers = pp.static_helpers(types.SimpleNamespace(unit="src/BATTLE/BATTLE.PRG/6FC00.c", name="func_800D8EF4"))
+    if [h.split("(")[0].split()[-1] for h in helpers] != ["historyStalled", "historyRepeats"]:
+        failures.append(f"static helpers of func_800D8EF4: {helpers}")
+    # A block-scope static (44F14's func_800AE47C, a ROOD_PC log-once counter): skipped at the plan.
+    rows, names = pp.functions_tsv(), pp.meanings()
+    plan, _ = pp.plan_function("func_800AE47C", rows["func_800AE47C"], table, names, {}, BUILD, tmp / "plan-AE47C")
+    if "block-scope static" not in plan.skip:
+        failures.append(f"func_800AE47C not skipped for its block-scope static: {plan.skip!r}")
+    # The stand-in copy sits right after the original's body (44F14's func_800AD714 calls
+    # func_800AE46C(x) through `void func_800AE46C();`; its later (void) definition rejected a copy at the end).
+    sub = ownership.Subsystem("battle_44F14_test", 0, "battle", "src/BATTLE/BATTLE.PRG/44F14.c", "original", [],
+                              [(0x800AD714, "func_800AD714")], {}, {"func_800AD714": "x.func_800AD714"})
+    try:
+        b = zig_diff.Build("func_800AD714", {"spec": "none"}, BUILD, tmp / "standin-AD714", None,
+                           route=(sub, "x.func_800AD714"))
+        b.reference(standin=True)
+    except Exception as error:
+        failures.append(f"stand-in of func_800AD714 (calls through an unprototyped declaration): {str(error)[-600:]}")
+    # A unit static the function calls (6F014's _loadfile) is kept in the reference, not a trap.
+    sub = ownership.Subsystem("battle_6F014_test", 0, "battle", "src/BATTLE/BATTLE.PRG/6F014.c", "original", [],
+                              [(0x800D7BF8, "func_800D7BF8")], {}, {"func_800D7BF8": "x.func_800D7BF8"})
+    try:
+        b = zig_diff.Build("func_800D7BF8", {"spec": "none"}, BUILD, tmp / "static-7BF8", None,
+                           route=(sub, "x.func_800D7BF8"), views=BUILD / "zig/views_146C.zig",
+                           cmod=zig_c.translate(zig_toolchain.ensure(), next(BUILD.glob("*_6F014.i")),
+                                                tmp / "c_6F014.zig", "x86_64-linux-none"))
+        _, traps, _ = b.symbols(b.reference(standin=True))
+        if "_loadfile" in traps:
+            failures.append("func_800D7BF8: the unit static _loadfile is still a trap")
+    except Exception as error:
+        failures.append(f"reference of func_800D7BF8 with its static callee: {str(error)[-600:]}")
+    # ... and what that static reads is planned into the views (D_800F568C, read only by _loadfile).
+    # (on a table without the unit's port subsystem: its views would already hold the global)
+    text = re.sub(r"\[subsystem\.battle_6F014_port\].*?(?=\n\[subsystem\.(?!battle_6F014_port))", "",
+                  (ROOT / "game/ownership.toml").read_text(), flags=re.S)
+    (tmp / "ownership-7BF8.toml").write_text(text)
+    plan, _ = pp.plan_function("func_800D7BF8", rows["func_800D7BF8"], ownership.load(tmp / "ownership-7BF8.toml"), names,
+                               {}, BUILD, tmp / "plan-7BF8")
+    if "D_800F568C" not in plan.globals:
+        failures.append(f"func_800D7BF8's plan misses its static callee's global: {plan.globals}")
+    got = pp.parse_classes(" row>=9=12 row<9 position[0] negative=3 plain=0")
+    if got != {"row>=9": "12", "row<9 position[0] negative": "3", "plain": "0"}:
+        failures.append(f"parse_classes: {got}")
+    return failures
+
+
 def record(work, function, unit="146C"):
     path = work / "records" / unit / f"{function}.json"
     return json.loads(path.read_text()) if path.exists() else None
@@ -436,6 +530,7 @@ def main():
         failures += client_checks(tmp)
         failures += head_to_head_7CD68(tmp, table)
         failures += review_7CD68(tmp, table)
+        failures += wave1(tmp, table)
         for p in tmp.rglob("records/**/*.json"):
             if HOME in p.read_text() or os.path.join(tempfile.gettempdir(), "claude") in p.read_text():
                 failures.append(f"{p.name}: a local path in the record")

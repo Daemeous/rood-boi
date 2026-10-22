@@ -1,0 +1,612 @@
+{
+ "function": "func_800D87E8",
+ "unit": "src/BATTLE/BATTLE.PRG/6FC00.c",
+ "difficulty": "XL",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful after a reviewer fix of Haiku's retry (the movement grid indexed as [*][32]u16 panicked on a tile byte past 31; the C indexes z * 32 + x unchecked); spec finished by the reviewer (the movement-grid pointer at 0x1F8003C0, a func_800E44E8 stub returning 0, the counter's 120 edge, a waiver)",
+ "plan": {
+  "name": "func_800D87E8",
+  "unit": "src/BATTLE/BATTLE.PRG/6FC00.c",
+  "stem": "6FC00",
+  "address": "0x800d87e8",
+  "difficulty": "XL",
+  "zig_name": "func_800D87E8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D87E8",
+  "spec_file": "func_800D87E8.zig",
+  "subsystem": "battle_6FC00_port",
+  "signature": "pub fn func_800D87E8(state: ?*v.actorRelationState, id: c_int) callconv(.c) void",
+  "params": [
+   [
+    "state",
+    "?*v.actorRelationState"
+   ],
+   [
+    "id",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_unk0",
+   "D_800F45E0_t",
+   "actorRelation"
+  ],
+  "globals": [
+   "D_800F45E0",
+   "D_800F5878"
+  ],
+  "hooks": [],
+  "statics": [
+   "checkExtent",
+   "checkHeight"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 27765,
+     "completion_tokens": 54080,
+     "reasoning_tokens": 49963,
+     "cost": 0.0298165,
+     "seconds": 228.0,
+     "sample": 1,
+     "conversation": "ec6697fca424cd284b80e8e9baabf8beb00d611069588ddcb19a41f006cc3b25"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:172:9: error: zdiff: a spec stub gives u32 where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:225:29\n    f: pc/build/port-pipeline/func_800D87E8/spec1/build/game/common/route.zig:24:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-target": "6674",
+   "self-actor": "9781",
+   "dlist-skip": "7862",
+   "linked": "7934",
+   "plain": "7749"
+  },
+  "mutations": [
+   {
+    "name": "F1: phase bit read before the increment",
+    "caught": true
+   },
+   {
+    "name": "F2: farDistance compared strictly",
+    "caught": true
+   },
+   {
+    "name": "F3: candidate at the target distance is skipped",
+    "caught": true
+   },
+   {
+    "name": "F4: default radius 0 instead of 63",
+    "caught": true
+   },
+   {
+    "name": "F5: streak kind set to 2, not 1",
+    "caught": true
+   },
+   {
+    "name": "F6: target flag test on the wrong bit",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 74,
+   "branches_hit": 73,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 105,
+   "lines_hit": 105,
+   "uncovered": [
+    {
+     "id": "+78 b1",
+     "line": 78,
+     "text": "&& id != state->actorId && (state->unk25 || relation.bits.outOfReach)) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "32-bit: min 0, max 15, seen zero, never negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 27,
+     "text": "if ((targetObject->flags.raw & 0x180000)",
+     "size": 4,
+     "count": 33326,
+     "kind": "against a constant",
+     "outcomes": "== 8238, < 0, > 25088 (signed); < 0, > 25088 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1572864"
+    },
+    {
+     "line": 28,
+     "text": "&& targetObject->position.vy > state->position.vy) {",
+     "size": 2,
+     "count": 25088,
+     "kind": "a == b / a < b",
+     "outcomes": "== 9161, < 7896, > 8031 (signed); < 8020, > 7907 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 42,
+     "text": "|| ((object = (actorObject*)((__typeof__((vs_battle_actors[id]->unk44).psx_type_[0]))(long unsigned int)(vs_battle_actors[id]->unk44).raw)),",
+     "size": 4,
+     "count": 26692,
+     "kind": "against a constant",
+     "outcomes": "== 8962, < 0, > 17730 (signed); < 0, > 17730 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..16711935"
+    },
+    {
+     "line": 44,
+     "text": "|| ((object->flags.raw & 0x180000)",
+     "size": 4,
+     "count": 17730,
+     "kind": "against a constant",
+     "outcomes": "== 4422, < 0, > 13308 (signed); < 0, > 13308 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1572864"
+    },
+    {
+     "line": 45,
+     "text": "&& (object->lastTile.raw & 0xFF00FF) == (state->tile.raw & 0xFF00FF))) {",
+     "size": 4,
+     "count": 13308,
+     "kind": "against a constant",
+     "outcomes": "== 3286, < 0, > 10022 (signed); < 0, > 10022 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..16711927"
+    },
+    {
+     "line": 48,
+     "text": "if (++state->phase & 1) {",
+     "size": 4,
+     "count": 14444,
+     "kind": "against a constant",
+     "outcomes": "== 7138, < 0, > 7306 (signed); < 0, > 7306 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 50,
+     "text": "!checkExtent(&object->position, &state->position, state, id);",
+     "size": 4,
+     "count": 7306,
+     "kind": "against a constant",
+     "outcomes": "== 1865, < 2735, > 2706 (signed); < 0, > 5441 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146496743..2146167175"
+    },
+    {
+     "line": 53,
+     "text": "!checkHeight(&object->position, &state->position, state, id);",
+     "size": 4,
+     "count": 7138,
+     "kind": "against a constant",
+     "outcomes": "== 1824, < 2673, > 2641 (signed); < 0, > 5314 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146045537..2144219593"
+    },
+    {
+     "line": 55,
+     "text": "if (state->relations[id].bits.hidden) {",
+     "size": 1,
+     "count": 14444,
+     "kind": "against a constant",
+     "outcomes": "== 9010, < 0, > 5434 (signed); < 0, > 5434 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 66,
+     "text": ">= (int)state->angleLimit;",
+     "size": 4,
+     "count": 40000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1620, < 15737, > 22643 (signed); < 30697, > 7683 (unsigned)",
+     "operand": "b -2147483648..2147483647",
+     "a": "0..224"
+    },
+    {
+     "line": 71,
+     "text": "if (state->actorId == id) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 11733, < 14135, > 14132 (signed); < 14135, > 14132 (unsigned)",
+     "operand": "b 0..15",
+     "a": "0..15"
+    },
+    {
+     "line": 77,
+     "text": "if (state->distances[id] <= state->farDistance && relation.bits.inView",
+     "size": 4,
+     "count": 28267,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1395, < 11870, > 15002 (signed); < 20727, > 6145 (unsigned)",
+     "operand": "b -2147483648..2147190577",
+     "a": "-1..448"
+    },
+    {
+     "line": 77,
+     "text": "if (state->distances[id] <= state->farDistance && relation.bits.inView",
+     "size": 1,
+     "count": 22122,
+     "kind": "against a constant",
+     "outcomes": "== 8745, < 0, > 13377 (signed); < 0, > 13377 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..8"
+    },
+    {
+     "line": 78,
+     "text": "&& id != state->actorId && (state->unk25 || relation.bits.outOfReach)) {",
+     "size": 4,
+     "count": 13377,
+     "kind": "a == b / a < b",
+     "outcomes": "== 0, < 6640, > 6737 (signed); < 6640, > 6737 (unsigned)",
+     "operand": "b 0..15",
+     "a": "0..15"
+    },
+    {
+     "line": 78,
+     "text": "&& id != state->actorId && (state->unk25 || relation.bits.outOfReach)) {",
+     "size": 1,
+     "count": 13377,
+     "kind": "against a constant",
+     "outcomes": "== 4538, < 4438, > 4401 (signed); < 0, > 8839 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 78,
+     "text": "&& id != state->actorId && (state->unk25 || relation.bits.outOfReach)) {",
+     "size": 1,
+     "count": 4538,
+     "kind": "against a constant",
+     "outcomes": "== 621, < 0, > 3917 (signed); < 0, > 3917 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..64"
+    },
+    {
+     "line": 84,
+     "text": "if (timer) {",
+     "size": 4,
+     "count": 28267,
+     "kind": "against a constant",
+     "outcomes": "== 883, < 0, > 27384 (signed); < 0, > 27384 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..31"
+    },
+    {
+     "line": 90,
+     "text": "if (!relation.bits.active) {",
+     "size": 1,
+     "count": 28267,
+     "kind": "against a constant",
+     "outcomes": "== 464, < 0, > 27803 (signed); < 0, > 27803 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 95,
+     "text": "if (relation.bits.active",
+     "size": 1,
+     "count": 28267,
+     "kind": "against a constant",
+     "outcomes": "== 464, < 0, > 27803 (signed); < 0, > 27803 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 96,
+     "text": "|| (state->distances[id] < state->nearDistance && relation.bits.outOfReach)) {",
+     "size": 4,
+     "count": 464,
+     "kind": "a == b / a < b",
+     "outcomes": "== 23, < 207, > 234 (signed); < 270, > 171 (unsigned)",
+     "operand": "b -2147173158..2146085717",
+     "a": "-1..448"
+    },
+    {
+     "line": 96,
+     "text": "|| (state->distances[id] < state->nearDistance && relation.bits.outOfReach)) {",
+     "size": 1,
+     "count": 270,
+     "kind": "against a constant",
+     "outcomes": "== 49, < 0, > 221 (signed); < 0, > 221 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..64"
+    },
+    {
+     "line": 104,
+     "text": "if ((((__typeof__(u_short(*)[32]))(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F8003C0) + 4 * (0))))",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 20204, < 0, > 19796 (signed); < 0, > 19796 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..8192"
+    },
+    {
+     "line": 132,
+     "text": "if (candidate == owner || candidate == id",
+     "size": 4,
+     "count": 140193,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8653, < 100541, > 30999 (signed); < 100541, > 30999 (unsigned)",
+     "operand": "b 0..15",
+     "a": "0..15"
+    },
+    {
+     "line": 132,
+     "text": "if (candidate == owner || candidate == id",
+     "size": 4,
+     "count": 131540,
+     "kind": "a == b / a < b",
+     "outcomes": "== 6391, < 94498, > 30651 (signed); < 94498, > 30651 (unsigned)",
+     "operand": "b 0..15",
+     "a": "0..15"
+    },
+    {
+     "line": 133,
+     "text": "|| state->distances[candidate] > targetDistance) {",
+     "size": 4,
+     "count": 125149,
+     "kind": "a == b / a < b",
+     "outcomes": "== 13742, < 59055, > 52352 (signed); < 69837, > 41570 (unsigned)",
+     "operand": "b -1..448",
+     "a": "-1..448"
+    },
+    {
+     "line": 140,
+     "text": "if (rcos(angle) < 0) {",
+     "size": 4,
+     "count": 55312,
+     "kind": "against a constant",
+     "outcomes": "== 13718, < 20823, > 20771 (signed); < 0, > 41594 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32765..32767"
+    },
+    {
+     "line": 145,
+     "text": "if (distance < 0) {",
+     "size": 4,
+     "count": 34489,
+     "kind": "against a constant",
+     "outcomes": "== 4142, < 16187, > 14160 (signed); < 0, > 30347 (unsigned)",
+     "operand": "constant 0",
+     "a": "-120..105"
+    },
+    {
+     "line": 148,
+     "text": "if ((u_int)distance < radius) {",
+     "size": 4,
+     "count": 34489,
+     "kind": "a == b / a < b",
+     "outcomes": "== 726, < 11089, > 22674 (signed); < 11089, > 22674 (unsigned)",
+     "operand": "b 0..120",
+     "a": "0..65525"
+    },
+    {
+     "line": 160,
+     "text": "if (state->actorId != id && ((actorRelationState*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F80037C) + 4 * (id))))) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 11733, < 14135, > 14132 (signed); < 14135, > 14132 (unsigned)",
+     "operand": "b 0..15",
+     "a": "0..15"
+    },
+    {
+     "line": 160,
+     "text": "if (state->actorId != id && ((actorRelationState*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F80037C) + 4 * (id))))) {",
+     "size": 4,
+     "count": 28267,
+     "kind": "against a constant",
+     "outcomes": "== 14113, < 0, > 14154 (signed); < 0, > 14154 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4300096"
+    },
+    {
+     "line": 161,
+     "text": "if (final.bits.kindTimer) {",
+     "size": 2,
+     "count": 14154,
+     "kind": "against a constant",
+     "outcomes": "== 7142, < 0, > 7012 (signed); < 0, > 7012 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2032"
+    },
+    {
+     "line": 163,
+     "text": "if (!final.bits.kindTimer) {",
+     "size": 2,
+     "count": 7012,
+     "kind": "against a constant",
+     "outcomes": "== 3583, < 0, > 3429 (signed); < 0, > 3429 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2016"
+    },
+    {
+     "line": 167,
+     "text": "if (state->unk22 && final.bits.kind == 3) {",
+     "size": 1,
+     "count": 14154,
+     "kind": "against a constant",
+     "outcomes": "== 4707, < 4769, > 4678 (signed); < 0, > 9447 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 167,
+     "text": "if (state->unk22 && final.bits.kind == 3) {",
+     "size": 1,
+     "count": 9447,
+     "kind": "against a constant",
+     "outcomes": "== 4976, < 1591, > 2880 (signed); < 4471, > 0 (unsigned)",
+     "operand": "constant -64",
+     "a": "-128..64"
+    },
+    {
+     "line": 168,
+     "text": "if (final.bits.active) {",
+     "size": 1,
+     "count": 4976,
+     "kind": "against a constant",
+     "outcomes": "== 81, < 0, > 4895 (signed); < 0, > 4895 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 172,
+     "text": "if (final.bits.counter >= 121) {",
+     "size": 1,
+     "count": 81,
+     "kind": "against a constant",
+     "outcomes": "== 15, < 55, > 11 (signed); < 55, > 11 (unsigned)",
+     "operand": "constant 120",
+     "a": "2..125"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+78 b1",
+    "reason": "unreachable: id == state->actorId takes the branch above, so `id != state->actorId` is always true here"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 51403,
+     "completion_tokens": 43841,
+     "reasoning_tokens": 40151,
+     "cost": 0.0270608,
+     "seconds": 174.4,
+     "sample": 1,
+     "conversation": "3c7efe65f1a252073cf2dacdf15e9e5f3ee0e880f8b2073ae1d18aff9b49d4fe"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800D87E8.zig:168:77: error: expected type 'c_int', found 'u32'\n        const root: c_uint = c.vs_gte_rsqrt(psx.at(&st.distances, candidate).*);\n                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~\ngame/battle/func_800D87E8.zig:168:77: note: signed 32-bit int cannot represent all possible unsigned 32-bit values\npc/build/port-pipeline/gen/6FC00/c_6FC00.zig:4324:28: note: parameter type declared here\npub extern fn vs_gte_rsqrt(c_int) c_int;\n                           ^~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800D87E8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800D87E8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 54.40083033299999,
+ "wall_seconds": 229.120388213,
+ "totals": {
+  "cost": 0.05688,
+  "prompt_tokens": 79168,
+  "completion_tokens": 97921,
+  "model_seconds": 402.4,
+  "check_seconds": 54.4,
+  "calls": 2,
+  "wall_seconds": 229.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [
+   "reviewer's round-2 replies: the scratchpad's movement-grid pointer (0x1F8003C0) set to an arena grid (Haiku's spec crashed the C through it)",
+   "a func_800E44E8 stub answering 0, 1, -1 or any value (the ! edges of checkExtent/checkHeight)",
+   "counter 119 and 120 (the >= 121 edge)",
+   "a waiver of +78 b1 (id == actorId takes the branch above)"
+  ],
+  "mutations_added": [],
+  "port_fixes": [
+   "the grid cell read as cells[z * 32 + x] from a many-item u16 pointer, unchecked as in the C (Haiku's retry panicked: index 157 of 32)"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (111 / 309 / 327), 0 mismatches"
+ }
+}

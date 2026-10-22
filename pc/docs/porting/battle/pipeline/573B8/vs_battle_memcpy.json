@@ -1,0 +1,274 @@
+{
+ "function": "vs_battle_memcpy",
+ "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the ROOD_PC size guard kept, the do-while's first block always copied); spec sound (the guard's arms waived: a bad size never ends the C loop)",
+ "plan": {
+  "name": "vs_battle_memcpy",
+  "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+  "stem": "573B8",
+  "address": "0x800c01e0",
+  "difficulty": "S",
+  "zig_name": "memcpy",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "memcpy",
+  "spec_file": "memcpy.zig",
+  "subsystem": "battle_573B8_port",
+  "signature": "pub fn memcpy(dst: ?*anyopaque, src: ?*const anyopaque, numBytes: c_int) callconv(.c) void",
+  "params": [
+   [
+    "dst",
+    "?*anyopaque"
+   ],
+   [
+    "src",
+    "?*const anyopaque"
+   ],
+   [
+    "numBytes",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [
+   "pc_unimplemented"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11092,
+     "completion_tokens": 12020,
+     "reasoning_tokens": 10471,
+     "cost": 0.0071192,
+     "seconds": 56.2,
+     "sample": 1,
+     "conversation": "ab8002fa8e62801eb654bae56abdf118e6c1ce794c1a80d1ad67c1f355181184"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage vs_battle_memcpy: branches 4/6 (66.7%), conditions not measured (GCC < 14: branch coverage only), lines 13/14\n  UNCOVERED +5 b1: branch never taken: `if (numBytes <= 0 || (numBytes & 7)) {`\n  UNCOVERED +5 b2: branch never taken: `if (numBytes <= 0 || (numBytes & 7)) {`\n  note: waivers no longer needed: +6 b0, +6 b1, +6 eq, +6 sign\ncoverage vs_battle_memcpy: FAILED (threshold 100%: 2 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `if (numBytes <= 0 || (numBytes & 7)) {` (+5): one way out of this test (+5 b1) was never taken; add inputs that take it.\n- `if (numBytes <= 0 || (numBytes & 7)) {` (+5): one way out of this test (+5 b2) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.vs_battle_memcpy.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13102,
+     "completion_tokens": 4616,
+     "reasoning_tokens": 3063,
+     "cost": 0.0036182,
+     "seconds": 21.6,
+     "sample": 1,
+     "conversation": "45cc8ebfec9f7e8a2c4b34754b52d56def5ec036ec0860fbb6b072a4f3483b1d"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "copy-8": "11838",
+   "copy-multi": "10678",
+   "overlap": "7484"
+  },
+  "mutations": [
+   {
+    "name": "M1: word 3 read from word 2",
+    "caught": true
+   },
+   {
+    "name": "M2: destination advances 2 shorts instead of 4",
+    "caught": true
+   },
+   {
+    "name": "M3: dropped store to word 2",
+    "caught": true
+   },
+   {
+    "name": "M4: word 0 read from word 1",
+    "caught": true
+   },
+   {
+    "name": "M5: end pointer overshoots by 8 bytes",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 14,
+   "lines_hit": 13,
+   "uncovered": [
+    {
+     "id": "+5 b1",
+     "line": 5,
+     "text": "if (numBytes <= 0 || (numBytes & 7)) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+5 b2",
+     "line": 5,
+     "text": "if (numBytes <= 0 || (numBytes & 7)) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min 8, max 192, never zero/negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 5,
+     "text": "if (numBytes <= 0 || (numBytes & 7)) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 0, > 30000 (signed); < 0, > 30000 (unsigned)",
+     "operand": "constant 0",
+     "a": "8..192"
+    },
+    {
+     "line": 5,
+     "text": "if (numBytes <= 0 || (numBytes & 7)) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..0"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+5 b1",
+    "reason": "numBytes <= 0 taken into the pc_unimplemented body: the do-loop then never meets end (from = src + 8k cannot equal src + numBytes for numBytes <= 0 at any k the mapped memory allows), so the C faults; no non-crashing input enters the body."
+   },
+   {
+    "id": "+5 b2",
+    "reason": "numBytes not a multiple of 8 taken into the pc_unimplemented body: from = src + 8k never equals src + numBytes, so the do-loop runs off mapped memory and the C faults; no non-crashing input enters the body."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34503,
+     "completion_tokens": 3443,
+     "reasoning_tokens": 2885,
+     "cost": 0.0051718,
+     "seconds": 16.1,
+     "sample": 1,
+     "conversation": "470a2c5c5623ce0b769f3a1fd2525d882c9ae95cbcac68dd412638a936c31847"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/memcpy.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/memcpy.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 29.424505222003063,
+ "wall_seconds": 123.44082095400154,
+ "totals": {
+  "cost": 0.01591,
+  "prompt_tokens": 58697,
+  "completion_tokens": 20079,
+  "model_seconds": 93.9,
+  "check_seconds": 29.4,
+  "calls": 3,
+  "wall_seconds": 123.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 40, nested 6, 0 mismatches"
+ }
+}

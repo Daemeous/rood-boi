@@ -1,0 +1,218 @@
+{
+ "function": "func_800C0FA8",
+ "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec finished by the reviewer (an equivalent mutation dropped: char is unsigned in this build, -funsigned-char)",
+ "plan": {
+  "name": "func_800C0FA8",
+  "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+  "stem": "58578",
+  "address": "0x800c0fa8",
+  "difficulty": "M",
+  "zig_name": "func_800C0FA8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C0FA8",
+  "spec_file": "func_800C0FA8.zig",
+  "subsystem": "battle_58578_port",
+  "signature": "pub fn func_800C0FA8(arg0: ?*v.func_800C1564_t, arg1: ?*v.func_800C0FA8_t2, arg2: ?*v.MATRIX) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800C1564_t"
+   ],
+   [
+    "arg1",
+    "?*v.func_800C0FA8_t2"
+   ],
+   [
+    "arg2",
+    "?*v.MATRIX"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11633,
+     "completion_tokens": 14656,
+     "reasoning_tokens": 12974,
+     "cost": 0.0084913,
+     "seconds": 60.4,
+     "sample": 1,
+     "conversation": "6a0eba661b1f1aaffcdf08dcd83ecea185ef6519752113ea420174a4f00c77a8"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "separate": "19977",
+   "aliased": "10023"
+  },
+  "mutations": [
+   {
+    "name": "F1: loop stops at 2 (unk10[2] and unk18[2] never written)",
+    "caught": true
+   },
+   {
+    "name": "F2: vy not negated",
+    "caught": true
+   },
+   {
+    "name": "F3: divisor read as signed char (values 128..255 go negative)",
+    "caught": true
+   },
+   {
+    "name": "F4: RotMatrix_gte call dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: wrong constant for unk0.vz",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 9,
+   "lines_hit": 9,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "for (i = 0; i < 3; ++i) {",
+     "size": 4,
+     "count": 120000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 60000, > 30000 (signed); < 60000, > 30000 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35027,
+     "completion_tokens": 3934,
+     "reasoning_tokens": 3320,
+     "cost": 0.0054697,
+     "seconds": 17.0,
+     "sample": 1,
+     "conversation": "61cf5327d53685a845f1cac002abbda5b750fa8b3a69f2d685ee6200de945782"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C0FA8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C0FA8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 28.809731986999395,
+ "wall_seconds": 106.38895683699957,
+ "totals": {
+  "cost": 0.01396,
+  "prompt_tokens": 46660,
+  "completion_tokens": 18590,
+  "model_seconds": 77.4,
+  "check_seconds": 28.8,
+  "calls": 2,
+  "wall_seconds": 106.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [
+   "reviewer's round-2 reply: Haiku's retry without F2 (\"divisor read as unsigned byte\"): with -funsigned-char the C's char is already unsigned, so no input can catch it"
+  ],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (3 / 9 / 99), 0 mismatches"
+ }
+}

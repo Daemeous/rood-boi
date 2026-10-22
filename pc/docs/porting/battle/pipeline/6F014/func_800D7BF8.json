@@ -1,0 +1,234 @@
+{
+ "function": "func_800D7BF8",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the static _loadfile carried as a private function, the CD file request zeroed where the C leaves its other fields unset); spec sound; ported after the static-callee tooling fixes (the reference keeps _loadfile, the plan and prompt show it)",
+ "plan": {
+  "name": "func_800D7BF8",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d7bf8",
+  "difficulty": "S",
+  "zig_name": "func_800D7BF8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D7BF8",
+  "spec_file": "func_800D7BF8.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn func_800D7BF8() callconv(.c) c_int",
+  "params": [],
+  "ret": "c_int",
+  "types": [
+   "vs_main_CdFile"
+  ],
+  "globals": [
+   "vs_battle_pFileLoadContext"
+  ],
+  "hooks": [],
+  "statics": [
+   "_loadfile"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11706,
+     "completion_tokens": 13263,
+     "reasoning_tokens": 11394,
+     "cost": 0.0078021,
+     "seconds": 55.2,
+     "sample": 1,
+     "conversation": "25562563a0527146d590d17dc4c31695c889f45bc08a474666799455eaf6089c"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F1: load LBA off by one: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D7BF8: 30000 iterations, seed 1, 0 mismatches; classes: buf-null, slot-free=7418 buf-null, slot-busy=7494 buf-kept, slot-free=7638 buf-kept, slot-busy=7450",
+     "FAIL: mutation F3: wrong return code for a finished load: mutation F3: wrong return code for a finished load: its `from` text occurs 0 times in the C body of func_800D7BF8 (copy it exactly from the C)",
+     "FAIL: mutation F4: enqueue dropped: mutation F4: enqueue dropped: its `from` text occurs 0 times in the C body of func_800D7BF8 (copy it exactly from the C)",
+     "FAIL: mutation F5: loaded test inverted: mutation F5: loaded test inverted: its `from` text occurs 0 times in the C body of func_800D7BF8 (copy it exactly from the C)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13971,
+     "completion_tokens": 5797,
+     "reasoning_tokens": 3830,
+     "cost": 0.0042956,
+     "seconds": 24.1,
+     "sample": 1,
+     "conversation": "1d074da22443a6960393b8a72c9a5273961e07a347548ac18329df9f3be45368"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "buf-null, slot-free": "7418",
+   "buf-null, slot-busy": "7494",
+   "buf-kept, slot-free": "7638",
+   "buf-kept, slot-busy": "7450"
+  },
+  "mutations": [
+   {
+    "name": "F1: load LBA off by one",
+    "caught": true
+   },
+   {
+    "name": "F2: buffer allocated when already present (test inverted)",
+    "caught": true
+   },
+   {
+    "name": "F3: _loadfile result negated",
+    "caught": true
+   },
+   {
+    "name": "F4: heap allocation dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: heap allocated with size one too big",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 5,
+   "lines_hit": 5,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35134,
+     "completion_tokens": 4987,
+     "reasoning_tokens": 4164,
+     "cost": 0.0060069,
+     "seconds": 20.8,
+     "sample": 1,
+     "conversation": "56111f086bc3060d1285e36d43b7c7b39a2f62d8437c0806f4a48c2d6eb17cb1"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800D7BF8.zig:16:59: error: expected type '?*views_6F014.vs_main_CdQueueSlot', found '[*c]c_6F014.vs_main_CdQueueSlot'\n        v.g.D_800F568C().* = c.vs_main_allocateCdQueueSlot(&cdFile);\n                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~\ngame/battle/func_800D7BF8.zig:16:59: note: pointer type child 'c_6F014.vs_main_CdQueueSlot' cannot cast into pointer type child 'views_6F014.vs_main_CdQueueSlot'\npc/build/boot64/zig/c_6F014.zig:1845:40: note: struct declared here\npub const vs_main_CdQueueSlot = extern struct {\n                                ~~~~~~~^~~~~~\npc/build/port-pipeline/gen/6F014/fn-func_800D7BF8/views_6F014.zig:258:40: note: struct declared here\npub const vs_main_CdQueueSlot = extern struct {\n                                ~~~~~~~^~~~~~\nreferenced by:\n    func_800D7BF8: game/battle/func_800D7BF8.zig:38:20\n    main: pc/tests/zig_diff/main.zig:454:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36542,
+     "completion_tokens": 1804,
+     "reasoning_tokens": 919,
+     "cost": 0.0045562,
+     "seconds": 8.3,
+     "sample": 1,
+     "conversation": "426aa77b0ab828089b38470ed62aa5ca3a49b1871e59c2cdbf164a76ae649155"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800D7BF8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800D7BF8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 41.86140555499969,
+ "wall_seconds": 150.66865028200027,
+ "totals": {
+  "cost": 0.02266,
+  "prompt_tokens": 97353,
+  "completion_tokens": 25851,
+  "model_seconds": 108.4,
+  "check_seconds": 41.9,
+  "calls": 4,
+  "wall_seconds": 150.7
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 root / 6 root / -, 0 mismatches"
+ }
+}

@@ -1,0 +1,330 @@
+{
+ "function": "func_800C20B4",
+ "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec finished by the reviewer (a waiver: the switch's case 0 after the v1 == 0 continue)",
+ "plan": {
+  "name": "func_800C20B4",
+  "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+  "stem": "58578",
+  "address": "0x800c20b4",
+  "difficulty": "M",
+  "zig_name": "func_800C20B4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C20B4",
+  "spec_file": "func_800C20B4.zig",
+  "subsystem": "battle_58578_port",
+  "signature": "pub fn func_800C20B4() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [
+   "D_800EB9B8_unk990"
+  ],
+  "globals": [
+   "vs_battle_rowAnimationSteps"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12521,
+     "completion_tokens": 17963,
+     "reasoning_tokens": 16118,
+     "cost": 0.0102336,
+     "seconds": 77.1,
+     "sample": 1,
+     "conversation": "92d73c88b6f3c9fd0faaf39832887bbbb191ab925fc103fdc5c81cfcdec53ebd"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800C20B4: branches 25/26 (96.2%), conditions not measured (GCC < 14: branch coverage only), lines 37/39\n  UNCOVERED +15 b0: branch never taken: `switch (v1) {`\ncoverage func_800C20B4: FAILED (threshold 100%: 1 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `switch (v1) {` (+15): one way out of this test (+15 b0) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800C20B4.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-step": "10085",
+   "case-2": "10135",
+   "case-3": "9956",
+   "case-2-and-3": "9824"
+  },
+  "mutations": [
+   {
+    "name": "R1: case 2 bound is > not >=",
+    "caught": true
+   },
+   {
+    "name": "R2: tail window compared signed, not unsigned",
+    "caught": true
+   },
+   {
+    "name": "R3: wrong constant on the case 2 floor",
+    "caught": true
+   },
+   {
+    "name": "R4: the row callback is dropped",
+    "caught": true
+   },
+   {
+    "name": "R5: case 3 floor is 1, not 0",
+    "caught": true
+   },
+   {
+    "name": "R6: case 3 search uses > not >=",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 26,
+   "branches_hit": 25,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 39,
+   "lines_hit": 37,
+   "uncovered": [
+    {
+     "id": "+15 b0",
+     "line": 15,
+     "text": "switch (v1) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 8,
+     "text": "for (var_s3 = 0; var_s3 < 24; ++var_s3, var_s0 += 10, ++var_s1) {",
+     "size": 4,
+     "count": 1000000,
+     "kind": "against a constant",
+     "outcomes": "== 40000, < 920000, > 40000 (signed); < 920000, > 40000 (unsigned)",
+     "operand": "constant 23",
+     "a": "0..24"
+    },
+    {
+     "line": 11,
+     "text": "if (v1 == 0) {",
+     "size": 4,
+     "count": 960000,
+     "kind": "against a constant",
+     "outcomes": "== 263123, < 0, > 696877 (signed); < 0, > 696877 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..255"
+    },
+    {
+     "line": 15,
+     "text": "switch (v1) {",
+     "size": 4,
+     "count": 696877,
+     "kind": "switch",
+     "outcomes": "== 263698, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "1..255"
+    },
+    {
+     "line": 21,
+     "text": "if (temp_a0 >= 160) {",
+     "size": 4,
+     "count": 132571,
+     "kind": "against a constant",
+     "outcomes": "== 2485, < 39408, > 90678 (signed); < 7390, > 122696 (unsigned)",
+     "operand": "constant 159",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 22,
+     "text": "for (var_v1 = 0; var_v1 < 16; ++var_v1) {",
+     "size": 4,
+     "count": 906944,
+     "kind": "against a constant",
+     "outcomes": "== 29361, < 851196, > 26387 (signed); < 851196, > 26387 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..16"
+    },
+    {
+     "line": 23,
+     "text": "if ((vs_battle_rowAnimationSteps[var_v1] + 0xF8) >= temp_a0) {",
+     "size": 4,
+     "count": 880557,
+     "kind": "a == b / a < b",
+     "outcomes": "== 45411, < 18880, > 816266 (signed); < 18880, > 816266 (unsigned)",
+     "operand": "b 248..503",
+     "a": "160..32767"
+    },
+    {
+     "line": 28,
+     "text": "if (var_v1 != 0) {",
+     "size": 4,
+     "count": 90678,
+     "kind": "against a constant",
+     "outcomes": "== 12794, < 0, > 77884 (signed); < 0, > 77884 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..16"
+    },
+    {
+     "line": 42,
+     "text": "if (temp_a0 >= 0xA0) {",
+     "size": 4,
+     "count": 131127,
+     "kind": "against a constant",
+     "outcomes": "== 2329, < 82761, > 46037 (signed); < 7424, > 121374 (unsigned)",
+     "operand": "constant 159",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 45,
+     "text": "for (var_v1 = 0; var_v1 < 16; ++var_v1) {",
+     "size": 4,
+     "count": 827350,
+     "kind": "against a constant",
+     "outcomes": "== 27242, < 775595, > 24513 (signed); < 775595, > 24513 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..16"
+    },
+    {
+     "line": 46,
+     "text": "if ((temp_a0 + 4) >= -vs_battle_rowAnimationSteps[var_v1]) {",
+     "size": 4,
+     "count": 802837,
+     "kind": "a == b / a < b",
+     "outcomes": "== 43754, < 742260, > 16823 (signed); < 754851, > 4232 (unsigned)",
+     "operand": "b -255..0",
+     "a": "-32764..163"
+    },
+    {
+     "line": 51,
+     "text": "if (var_v1 != 0) {",
+     "size": 4,
+     "count": 85090,
+     "kind": "against a constant",
+     "outcomes": "== 17501, < 0, > 67589 (signed); < 0, > 67589 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..16"
+    },
+    {
+     "line": 63,
+     "text": "if ((*var_s0 + 0x7E) < 0x1BEU) {",
+     "size": 4,
+     "count": 696877,
+     "kind": "against a constant",
+     "outcomes": "== 12654, < 438170, > 246053 (signed); < 256194, > 428029 (unsigned)",
+     "operand": "constant 445",
+     "a": "-32642..32893"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+15 b0",
+    "reason": "unreachable: the switch's case 0, after `if (v1 == 0) continue;` above"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35809,
+     "completion_tokens": 7156,
+     "reasoning_tokens": 6196,
+     "cost": 0.0071589,
+     "seconds": 29.3,
+     "sample": 1,
+     "conversation": "747e767dfff8b5302c81b7969206f4ee9b01d66cb2a48824e810671d72fc5bce"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C20B4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C20B4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 62.82562965800025,
+ "wall_seconds": 92.22960457799854,
+ "totals": {
+  "cost": 0.01739,
+  "prompt_tokens": 48330,
+  "completion_tokens": 25119,
+  "model_seconds": 106.4,
+  "check_seconds": 62.8,
+  "calls": 2,
+  "wall_seconds": 92.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [
+   "reviewer's round-2 reply: Haiku's retry plus a waiver of +15 b0 (case 0 is unreachable after the continue above)"
+  ],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: nested 138, 0 mismatches"
+ }
+}

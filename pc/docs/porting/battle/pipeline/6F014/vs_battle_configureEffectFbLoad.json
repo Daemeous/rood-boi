@@ -1,0 +1,225 @@
+{
+ "function": "vs_battle_configureEffectFbLoad",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (index unchecked, as the C); spec sound (an index past the end)",
+ "plan": {
+  "name": "vs_battle_configureEffectFbLoad",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d8008",
+  "difficulty": "S",
+  "zig_name": "configureEffectFbLoad",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "configure_effect_fb_load",
+  "spec_file": "configureEffectFbLoad.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn configureEffectFbLoad(lba: c_int, size: c_int, slot: c_int, isClut: c_int, index: c_int) callconv(.c) void",
+  "params": [
+   [
+    "lba",
+    "c_int"
+   ],
+   [
+    "size",
+    "c_int"
+   ],
+   [
+    "slot",
+    "c_int"
+   ],
+   [
+    "isClut",
+    "c_int"
+   ],
+   [
+    "index",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800F5638"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11236,
+     "completion_tokens": 3723,
+     "reasoning_tokens": 2719,
+     "cost": 0.0029851,
+     "seconds": 16.8,
+     "sample": 1,
+     "conversation": "05cd9fc2ce73e4aebea1c7f63f39a78d3dddf3918b41765b9875b83140800cd5"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "index-in-range": "13415",
+   "index-past-end": "6585"
+  },
+  "mutations": [
+   {
+    "name": "F1: slot stored from isClut",
+    "caught": true
+   },
+   {
+    "name": "F2: size stored from slot",
+    "caught": true
+   },
+   {
+    "name": "F3: isClut store dropped",
+    "caught": true
+   },
+   {
+    "name": "F4: index masked to 3 bits (wrong bound)",
+    "caught": true
+   },
+   {
+    "name": "F5: lba stored plus one (wrong constant)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 6,
+   "lines_hit": 6,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "32-bit: min -2147311355, max 2146446331, unsigned 36934..4294919903, seen negative, never zero"
+    },
+    {
+     "arg": 1,
+     "count": 20000,
+     "text": "32-bit: min -2147476829, max 2147355926, unsigned 336537..4294881976, seen negative, never zero"
+    },
+    {
+     "arg": 2,
+     "count": 20000,
+     "text": "32-bit: min -2147234126, max 2147313852, unsigned 332023..4294960233, seen negative, never zero"
+    },
+    {
+     "arg": 3,
+     "count": 20000,
+     "text": "32-bit: min -2147464170, max 2147424449, unsigned 613419..4294887303, seen negative, never zero"
+    },
+    {
+     "arg": 4,
+     "count": 20000,
+     "text": "32-bit: min 0, max 11, seen zero, never negative"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34599,
+     "completion_tokens": 1680,
+     "reasoning_tokens": 1284,
+     "cost": 0.0042999,
+     "seconds": 7.5,
+     "sample": 1,
+     "conversation": "c2be945403c081cbbce501958c34c1e0a2968062c5e50e4fefe605e4b55a88f7"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/configureEffectFbLoad.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/configure_effect_fb_load.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 34.97543022099944,
+ "wall_seconds": 82.02216488300019,
+ "totals": {
+  "cost": 0.00728,
+  "prompt_tokens": 45835,
+  "completion_tokens": 5403,
+  "model_seconds": 24.3,
+  "check_seconds": 35.0,
+  "calls": 2,
+  "wall_seconds": 82.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 root / 9 root / -, 0 mismatches"
+ }
+}

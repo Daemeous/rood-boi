@@ -1,0 +1,282 @@
+{
+ "function": "func_800E1388",
+ "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (dest starts at 0 as the ROOD_PC C now does; the tile word passed by value is ABI-identical to the c module's u32); spec sound",
+ "plan": {
+  "name": "func_800E1388",
+  "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+  "stem": "771A8",
+  "address": "0x800e1388",
+  "difficulty": "M",
+  "zig_name": "func_800E1388",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800E1388",
+  "spec_file": "func_800E1388.zig",
+  "subsystem": "battle_771A8_port",
+  "signature": "pub fn func_800E1388(state: ?*v.func_800D8400_t, source: v.vs_battle_movementPosition, angle: c_int, distance: c_uint) callconv(.c) void",
+  "params": [
+   [
+    "state",
+    "?*v.func_800D8400_t"
+   ],
+   [
+    "source",
+    "v.vs_battle_movementPosition"
+   ],
+   [
+    "angle",
+    "c_int"
+   ],
+   [
+    "distance",
+    "c_uint"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F58BC_t",
+   "func_800D8400_t"
+  ],
+  "globals": [
+   "D_800F58BC"
+  ],
+  "hooks": [
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12753,
+     "completion_tokens": 16327,
+     "reasoning_tokens": 14313,
+     "cost": 0.0094388,
+     "seconds": 70.7,
+     "sample": 1,
+     "conversation": "8058565a497b716772577a63871a7ce2b90094854915362b7f6b28bc0ac28471"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "wide-distance": "26012",
+   "small-bound-at-source": "11301",
+   "small-distance": "2687"
+  },
+  "mutations": [
+   {
+    "name": "H1: heading off by one",
+    "caught": true
+   },
+   {
+    "name": "S1: step is distance / 4",
+    "caught": true
+   },
+   {
+    "name": "C1: z clamp at the high side uses minZ",
+    "caught": true
+   },
+   {
+    "name": "D1: signed / 4096 in place of >> 12",
+    "caught": true
+   },
+   {
+    "name": "W1: destination store dropped",
+    "caught": true
+   },
+   {
+    "name": "L1: loop breaks on zero too",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 23,
+   "lines_hit": 23,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 3,
+     "count": 40000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 16,
+     "text": "for (i = 0; i < 8; i++, distance -= step) {",
+     "size": 4,
+     "count": 147889,
+     "kind": "against a constant",
+     "outcomes": "== 5370, < 138512, > 4007 (signed); < 138512, > 4007 (unsigned)",
+     "operand": "constant 7",
+     "a": "0..8"
+    },
+    {
+     "line": 21,
+     "text": "if (func_800D954C(state, dest.raw) > 0)",
+     "size": 4,
+     "count": 143882,
+     "kind": "against a constant",
+     "outcomes": "== 54054, < 53835, > 35993 (signed); < 0, > 89828 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..1"
+    },
+    {
+     "line": 24,
+     "text": "if (dest.p.x < D_800F58BC->minX)",
+     "size": 1,
+     "count": 40000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4511, < 17692, > 17797 (signed); < 17741, > 17748 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 26,
+     "text": "else if (dest.p.x > D_800F58BC->maxX)",
+     "size": 1,
+     "count": 22259,
+     "kind": "a == b / a < b",
+     "outcomes": "== 3990, < 10135, > 8134 (signed); < 6281, > 11988 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 28,
+     "text": "if (dest.p.z < D_800F58BC->minZ)",
+     "size": 1,
+     "count": 40000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 6411, < 16778, > 16811 (signed); < 16800, > 16789 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 30,
+     "text": "else if (dest.p.z > D_800F58BC->maxZ)",
+     "size": 1,
+     "count": 23200,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4217, < 10642, > 8341 (signed); < 6774, > 12209 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36163,
+     "completion_tokens": 6880,
+     "reasoning_tokens": 5813,
+     "cost": 0.0070563,
+     "seconds": 29.1,
+     "sample": 1,
+     "conversation": "56bd5a61a17339333dc217414a79ea4dc49957aaf6c167433157e4b018fba6de"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800E1388.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800E1388.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 60.965129241999875,
+ "wall_seconds": 160.87958917099968,
+ "totals": {
+  "cost": 0.0165,
+  "prompt_tokens": 48916,
+  "completion_tokens": 23207,
+  "model_seconds": 99.8,
+  "check_seconds": 61.0,
+  "calls": 2,
+  "wall_seconds": 160.9
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 17 / 43 / -, 0 mismatches"
+ }
+}

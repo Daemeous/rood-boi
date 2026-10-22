@@ -21,7 +21,15 @@ Post-processing:
 - warning comments lose the scratch path;
 - a routed function the unit has no prototype of (only its renamed
   definition, FUNCTION__orig) is declared under its own name too: the
-  routed symbol owned code calls.
+  routed symbol owned code calls;
+- an opaque type (a union or struct with bitfields) a prototype passes by
+  value becomes the unsigned integer of its size when that is 1, 2, 4 or 8
+  bytes (Zig allows no opaque parameter; the calling conventions pass such
+  an all-integer aggregate as that integer);
+- `T f();` (no prototype) before the unit's own declaration or definition
+  of f with its parameters: the unprototyped one is dropped from the header
+  translate-c reads (it keeps the first, `f(...)`, which no port can
+  define), and `f(void)` is declared `f()`.
 The Windows twin's module is translated from the twin's own .i (MinGW
 preprocessed, the game's longs already respelled `long long` there,
 build_boot.py lp64_longs) with a Linux target for GCC's bitfield layout:
@@ -175,11 +183,80 @@ def _routed_names(text):
     return text.rstrip("\n") + "\n" + "".join(e + "\n" for e in extra) if extra else text
 
 
+_OPAQUE = re.compile(r"^pub const (\w+) = opaque \{\};$", re.M)
+
+
+def by_value_opaques(text):
+    """The opaque types (translate-c's demotion of a union or struct with
+    bitfields) a prototype passes or returns by value: Zig rejects such a
+    parameter, so neither a port nor zig_diff's stub could name the function."""
+    opaque = set(_OPAQUE.findall(text))
+    used = set()
+    for m in re.finditer(r"^pub extern fn \w+\((.*)\) (.+);$", text, re.M):
+        for part in [p.strip() for p in m.group(1).split(",")] + [m.group(2).strip()]:
+            name = part.split(":")[-1].strip()
+            if name in opaque:
+                used.add(name)
+    return sorted(used)
+
+
+def _sized_opaques(text, zig, decls, target):
+    """A by-value opaque type of 1, 2, 4 or 8 bytes becomes the unsigned
+    integer of its size (clang's sizeof, asked through translate-c): the
+    calling convention passes such an all-integer union or struct as that
+    integer on every target the game builds (i386 cdecl, x86_64 SysV,
+    Windows x64). A port passes its bytes (`psx.byteAt(u32, &tile, 0).*`)."""
+    names = by_value_opaques(text)
+    if not names:
+        return text
+    def c_name(n):
+        for tag in ("struct", "union"):
+            if n.startswith(tag + "_"):
+                return f"{tag} {n[len(tag) + 1:]}"
+        return n
+    probe = decls.with_suffix(".sizes.h")
+    probe.write_bytes(decls.read_bytes() + ("\nenum {" + ",".join(
+        f"zig_c_size_{n} = sizeof({c_name(n)}), zig_c_align_{n} = _Alignof({c_name(n)})" for n in names) + "};\n").encode())
+    result = subprocess.run([str(zig), "translate-c", "-target", target, str(probe)], capture_output=True, text=True)
+    if result.returncode:
+        raise SystemExit(f"zig_c: sizing {', '.join(names)}: {result.stderr[-2000:]}")
+    sizes = {k: int(v) for k, v in re.findall(r"pub const zig_c_size_(\w+): c_int = (\d+);", result.stdout)}
+    for n in names:
+        if sizes.get(n) in (1, 2, 4, 8):
+            text = text.replace(f"pub const {n} = opaque {{}};",
+                                f"pub const {n} = u{sizes[n] * 8}; // passed by value (zig_c.py: an opaque by value)")
+    return text
+
+
+def _prototyped_void(text, decls):
+    """`void f();` (a header's unprototyped declaration) before the unit's own
+    `void f(void)`: translate-c keeps the first, `f(...)`, which no Zig port
+    can define; the `(void)` the unit also declares is the prototype."""
+    def fix(m):
+        if re.search(rb"\b" + m.group(1).encode() + rb"\s*\(\s*void\s*\)", decls):
+            return f"pub extern fn {m.group(1)}() {m.group(2)};"
+        return m.group(0)
+    return re.sub(r"^pub extern fn (\w+)\(\.\.\.\) (.+);$", fix, text, flags=re.M)
+
+
+def _drop_unprototyped(decls):
+    """A function declared `T f();` (no prototype) and declared again with its
+    parameters (the unit's definition, stripped to a declaration): translate-c
+    keeps the first, `f(...)`, which no port can define or call typed (44F14's
+    func_800B101C). The unprototyped declaration goes; a body-less header
+    needs no order."""
+    names = set(re.findall(rb"^[\w\s\*]*?\b(\w+)\s*\(\s*\)\s*;", decls, re.M))
+    for name in names:
+        if re.search(rb"\b" + re.escape(name) + rb"\s*\((?!\s*\))[^;]*\)\s*;", decls):
+            decls = re.sub(rb"^[\w\s\*]*?\b" + re.escape(name) + rb"\s*\(\s*\)\s*;[ \t]*$", b"", decls, flags=re.M)
+    return decls
+
+
 def translate(zig, unit_i, out, target):
     out = pathlib.Path(out)
     decls = out.with_suffix(".decls.h")
     source = pathlib.Path(unit_i).read_bytes()
-    decls.write_bytes(ownership.strip_bodies(source))
+    decls.write_bytes(_drop_unprototyped(ownership.strip_bodies(source)))
     result = subprocess.run([str(zig), "translate-c", "-target", target, str(decls)], capture_output=True, text=True)
     if result.returncode:
         raise SystemExit(f"zig translate-c {unit_i}: {result.stderr[-2000:]}")
@@ -190,6 +267,8 @@ def translate(zig, unit_i, out, target):
     if left:
         raise SystemExit(f"zig_c {unit_i}: translate-c left mutable copies {', '.join(left)}: "
                          "neither an extern nor a static of the unit (zig_c.py)")
+    text = _sized_opaques(text, zig, decls, target)
+    text = _prototyped_void(text, decls.read_bytes())
     text = text.replace(str(decls), pathlib.Path(unit_i).name)
     text = _routed_names(text)
     text = "//! Generated by build_boot.py (pc/tools/zig_c.py): do not edit.\n" + text

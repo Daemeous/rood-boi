@@ -1,0 +1,271 @@
+{
+ "function": "func_800C1664",
+ "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (unk2D at the clamped count, negatives)",
+ "plan": {
+  "name": "func_800C1664",
+  "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+  "stem": "58578",
+  "address": "0x800c1664",
+  "difficulty": "S",
+  "zig_name": "func_800C1664",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C1664",
+  "spec_file": "func_800C1664.zig",
+  "subsystem": "battle_58578_port",
+  "signature": "pub fn func_800C1664(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800EB9B8_t"
+  ],
+  "globals": [
+   "D_800EB9B8"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11857,
+     "completion_tokens": 8633,
+     "reasoning_tokens": 6995,
+     "cost": 0.0055022,
+     "seconds": 35.8,
+     "sample": 1,
+     "conversation": "b1bca3db6ad534ec0098c8c76a648f7ac9e4a156cc31881d78049a8c5f22edd4"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M6: unk31 store moved after the call: not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: MISMATCH iteration 0: call 0 (func_800C58F8): the state differs when it is called\nzdiff: MISMATCH iteration 1: call 0 (func_800C58F8): the state differs when it is called\nzdiff: MISMATCH iteration 2: call 0 (func_800C58F8): the state differs when it is called\nzdiff: CRASH (signal 11) in the Zig run, iteration 36, fault address 0x31 [NULL+0x31: a field of a null pointer]"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13793,
+     "completion_tokens": 2588,
+     "reasoning_tokens": 941,
+     "cost": 0.0026733,
+     "seconds": 9.7,
+     "sample": 1,
+     "conversation": "8614a78e8286a681b37a6c6a9f46cdecb6054b846d4a923edb4bca0c1113895a"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "null-object": "5004",
+   "arg-negative": "9630",
+   "arg-zero": "1156",
+   "arg-at-clamp": "1121",
+   "arg-over-clamp": "10828",
+   "arg-in-range": "2261"
+  },
+  "mutations": [
+   {
+    "name": "M1: clamp bound off by one (> for >=)",
+    "caught": true
+   },
+   {
+    "name": "M2: clamp value 0x17 instead of 0x18",
+    "caught": true
+   },
+   {
+    "name": "M3: unk2D reset only when strictly greater",
+    "caught": true
+   },
+   {
+    "name": "M4: unk40[0] store dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: unk2C stores unclamped arg0",
+    "caught": true
+   },
+   {
+    "name": "M6: unk31 store moved after the call",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 15,
+   "lines_hit": 15,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147109983, max 2147317390, unsigned 330957..4294488463, seen negative, never zero"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147348062, max 2147461277, unsigned 90785..4294898971, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if (var_a0 >= 0x19) {",
+     "size": 4,
+     "count": 24996,
+     "kind": "against a constant",
+     "outcomes": "== 1124, < 11923, > 11949 (signed); < 2293, > 21579 (unsigned)",
+     "operand": "constant 24",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 12,
+     "text": "if (D_800EB9B8->unk2D >= var_a0) {",
+     "size": 4,
+     "count": 24996,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8465, < 14888, > 1643 (signed); < 5258, > 11273 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-2147483648..24"
+    },
+    {
+     "line": 14,
+     "text": "if (var_a0 == 0) {",
+     "size": 4,
+     "count": 23353,
+     "kind": "against a constant",
+     "outcomes": "== 1156, < 9630, > 12567 (signed); < 0, > 22197 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..24"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35267,
+     "completion_tokens": 2247,
+     "reasoning_tokens": 1783,
+     "cost": 0.0046502,
+     "seconds": 9.5,
+     "sample": 1,
+     "conversation": "6d13f911e49bc3b367c467c15d56a8f71b5180f5e2ef5eda7d3b59e69c3cfc62"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C1664.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C1664.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 28.790357710000535,
+ "wall_seconds": 83.98500692099697,
+ "totals": {
+  "cost": 0.01283,
+  "prompt_tokens": 60917,
+  "completion_tokens": 13468,
+  "model_seconds": 55.0,
+  "check_seconds": 28.8,
+  "calls": 3,
+  "wall_seconds": 84.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 2, 0 mismatches"
+ }
+}

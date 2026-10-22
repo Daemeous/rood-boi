@@ -1,0 +1,187 @@
+{
+ "function": "func_800D7A90",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the base plus its own u16 entry, unchecked); spec sound (negative indices)",
+ "plan": {
+  "name": "func_800D7A90",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d7a90",
+  "difficulty": "S",
+  "zig_name": "func_800D7A90",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D7A90",
+  "spec_file": "func_800D7A90.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn func_800D7A90(arg0: c_int) callconv(.c) ?*anyopaque",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "?*anyopaque",
+  "types": [
+   "D_800F569C_t"
+  ],
+  "globals": [
+   "D_800F569C"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11566,
+     "completion_tokens": 11745,
+     "reasoning_tokens": 10644,
+     "cost": 0.0070291,
+     "seconds": 51.0,
+     "sample": 1,
+     "conversation": "7d37f8ac3357f6dd4bb360b627a1e7636d86230d9d00ed0b81c40ac84422426b"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "index-nonnegative": "15114",
+   "index-negative": "14886"
+  },
+  "mutations": [
+   {
+    "name": "F1: index one word early",
+    "caught": true
+   },
+   {
+    "name": "F2: the loaded offset off by one",
+    "caught": true
+   },
+   {
+    "name": "F3: base typed u16 (offset scaled by 2)",
+    "caught": true
+   },
+   {
+    "name": "F4: offset read signed (top bit sign-extends)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 3,
+   "lines_hit": 3,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -200, max 200, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34968,
+     "completion_tokens": 2037,
+     "reasoning_tokens": 1650,
+     "cost": 0.0045153,
+     "seconds": 9.9,
+     "sample": 1,
+     "conversation": "2e69c391f91878b1574212595eedb74bf3c7b2205fcd8b74c17f2bf02b32901d"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800D7A90.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800D7A90.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 23.89436007399945,
+ "wall_seconds": 91.1094425350002,
+ "totals": {
+  "cost": 0.01154,
+  "prompt_tokens": 46534,
+  "completion_tokens": 13782,
+  "model_seconds": 60.9,
+  "check_seconds": 23.9,
+  "calls": 2,
+  "wall_seconds": 91.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

@@ -1,0 +1,230 @@
+{
+ "function": "func_800C00E8",
+ "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (the slot stored before the enqueue reads it)",
+ "plan": {
+  "name": "func_800C00E8",
+  "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+  "stem": "573B8",
+  "address": "0x800c00e8",
+  "difficulty": "S",
+  "zig_name": "func_800C00E8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C00E8",
+  "spec_file": "func_800C00E8.zig",
+  "subsystem": "battle_573B8_port",
+  "signature": "pub fn func_800C00E8(arg0: c_int, arg1: ?*anyopaque) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*anyopaque"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "vs_main_CdQueueSlot"
+  ],
+  "globals": [
+   "D_800F4BBC",
+   "D_800F4BF0",
+   "_evtFile"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11689,
+     "completion_tokens": 8695,
+     "reasoning_tokens": 7102,
+     "cost": 0.0055164,
+     "seconds": 35.5,
+     "sample": 1,
+     "conversation": "38acebcf57cc542098fbe3a8a354aa477a81936630d14b0e95ebc54489418bcb"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F6: enqueue moved before the slot store: not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: MISMATCH iteration 0: memory at 0x406070 [arena] (zdiff_state+0): C 117, Zig 100\nzdiff: CRASH (signal 11) in the Zig run, iteration 1, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0x49bb4a26 0x406070 [arena] (class evt-positive)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13556,
+     "completion_tokens": 2343,
+     "reasoning_tokens": 731,
+     "cost": 0.0025271,
+     "seconds": 8.5,
+     "sample": 1,
+     "conversation": "ff220426db54c2144780e85659b165a51ac632261f9c2cdcc6bf5c95daa479bb"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "evt-negative": "13957",
+   "evt-zero": "2151",
+   "evt-positive": "13892"
+  },
+  "mutations": [
+   {
+    "name": "F1: EVT size off by one",
+    "caught": true
+   },
+   {
+    "name": "F2: LBA stride 2 instead of 3",
+    "caught": true
+   },
+   {
+    "name": "F3: _evtFile read unsigned",
+    "caught": true
+   },
+   {
+    "name": "F4: enqueue call dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: enqueue gets a null vram, not arg1",
+    "caught": true
+   },
+   {
+    "name": "F6: enqueue moved before the slot store (the slot is read before it is set)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 6,
+   "lines_hit": 6,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147234702, max 2147467587, unsigned 190417..4294676040, seen negative, never zero"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35091,
+     "completion_tokens": 3025,
+     "reasoning_tokens": 2607,
+     "cost": 0.0050216,
+     "seconds": 13.0,
+     "sample": 1,
+     "conversation": "46e137275633eaebdab293d5509ca667f193d33198f73b623a55993834d29ddf"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C00E8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C00E8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 27.682813545005047,
+ "wall_seconds": 84.78382326200153,
+ "totals": {
+  "cost": 0.01307,
+  "prompt_tokens": 60336,
+  "completion_tokens": 14063,
+  "model_seconds": 57.0,
+  "check_seconds": 27.7,
+  "calls": 3,
+  "wall_seconds": 84.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

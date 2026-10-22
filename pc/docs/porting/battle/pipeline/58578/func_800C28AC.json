@@ -1,0 +1,300 @@
+{
+ "function": "func_800C28AC",
+ "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.4,
+ "samples": 2,
+ "status": "port-failed",
+ "reviewed": "not ported in this wave (unrouted): spec passed; Haiku's ports on two runs differ from the C (the ordering-table pointer, 4 entries back, and a global byte); a reviewer's port is the next step",
+ "plan": {
+  "name": "func_800C28AC",
+  "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+  "stem": "58578",
+  "address": "0x800c28ac",
+  "difficulty": "L",
+  "zig_name": "func_800C28AC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C28AC",
+  "spec_file": "func_800C28AC.zig",
+  "subsystem": "battle_58578_port",
+  "signature": "pub fn func_800C28AC(position: ?*v.SVECTOR, arg1: c_int) callconv(.c) void",
+  "params": [
+   [
+    "position",
+    "?*v.SVECTOR"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800EA670",
+   "D_800EA684",
+   "D_800EA698",
+   "D_800EA6AC",
+   "pc_gte_anchored",
+   "vs_battle_cursorBrightnessAnimation"
+  ],
+  "hooks": [
+   "pc_gte_anchored",
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 13761,
+     "completion_tokens": 12498,
+     "reasoning_tokens": 10679,
+     "cost": 0.0076251,
+     "seconds": 52.9,
+     "sample": 1,
+     "conversation": "9a387f32ce94e49e3e49c67c860ed2991e69eef8d91fedccc170328bc438d6af"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M3: scratch unk0 not advanced (dropped store): mutation M3: scratch unk0 not advanced (dropped store): its `from` text occurs 0 times in the C body of func_800C28AC (copy it exactly from the C)"
+    ]
+   },
+   {
+    "round": 1,
+    "sample": 2,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 13761,
+     "completion_tokens": 14230,
+     "reasoning_tokens": 12378,
+     "cost": 0.0084911,
+     "seconds": 60.4,
+     "sample": 2,
+     "conversation": "e9a7c852deee7c0988ab2b7fa385f46d7243a89ea96e625a893b7c2b1a52dc8a"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 2
+  },
+  "classes": {
+   "arg1-zero": "9889",
+   "arg1-one": "10034",
+   "arg1-sign-bit": "10077"
+  },
+  "mutations": [
+   {
+    "name": "F1: brightness table read when index == 1 (wrong branch constant)",
+    "caught": true
+   },
+   {
+    "name": "F2: brightness counter wraps at 8 instead of 16",
+    "caught": true
+   },
+   {
+    "name": "F3: wrong constant in the second quad's word 5",
+    "caught": true
+   },
+   {
+    "name": "F4: loop runs twice, one sprite dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: the two offset tables swapped",
+    "caught": true
+   },
+   {
+    "name": "F6: sprite word 4 masked to 16 bits (signed slip on a 32-bit table)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 40,
+   "lines_hit": 40,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 1, unsigned 0..2147483648, seen zero/negative, 3 value(s): 0, 1, 2147483648"
+    }
+   ],
+   "compares": [
+    {
+     "line": 20,
+     "text": "if (arg1 == 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 9889, < 10077, > 10034 (signed); < 0, > 20111 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..1"
+    },
+    {
+     "line": 49,
+     "text": "for (i = 0; i < 3; ++i) {",
+     "size": 4,
+     "count": 120000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 60000, > 30000 (signed); < 60000, > 30000 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 51,
+     "text": "prim = vs_battle_setSpriteDefaultTexPage(",
+     "size": 4,
+     "count": 90000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 39932, > 20068 (signed); < 39932, > 20068 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..4"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 36936,
+     "completion_tokens": 17913,
+     "reasoning_tokens": 16527,
+     "cost": 0.0126501,
+     "seconds": 75.4,
+     "sample": 1,
+     "conversation": "34a642a1fc3056e971b16c017df738e460968850c291ae83d0b880567963fd41"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x407080 [arena] (zdiff_state+0x10): C 74, Zig 214\nzdiff: MISMATCH iteration 1: call 4 (vs_battle_setSpriteDefaultTexPage): argument 3: C 0x407100, Zig 0x4270f4\nzdiff: MISMATCH iteration 2: memory at 0x407100 [arena] (zdiff_state+0x90): C 141, Zig 222\nzdiff: func_800C28AC: 1000 iterations, seed 1, 1000 mismatches; classes: arg1-zero=313 arg1-one=365 arg1-sign-bit=322"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x407080 (zdiff_state+0x10): C 74, Zig 214"
+     }
+    ]
+   },
+   {
+    "round": 1,
+    "sample": 2,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 36936,
+     "completion_tokens": 16690,
+     "reasoning_tokens": 15259,
+     "cost": 0.0120386,
+     "seconds": 66.8,
+     "sample": 2,
+     "conversation": "b2d3ece98ad80f5a256bd59811b25fb74b2100cc5e1346caeee74f0714ceab8d"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800C28AC.zig:13:33: error: expected type '[*]c_uint', found '*c_uint'\n    const ot: [*]c_uint = psx.at(base, -4);\n                          ~~~~~~^~~~~~~~~~\ngame/battle/func_800C28AC.zig:13:33: note: a single pointer cannot cast into a many pointer\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 38609,
+     "completion_tokens": 4688,
+     "reasoning_tokens": 3225,
+     "cost": 0.0062049,
+     "seconds": 19.3,
+     "sample": 1,
+     "conversation": "881a899b326e655f7137a15aed44ffdc93eee9589a50158437f1a74e03f28ac4"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x407080 [arena] (zdiff_state+0x10): C 74, Zig 217\nzdiff: MISMATCH iteration 1: call 4 (vs_battle_setSpriteDefaultTexPage): argument 3: C 0x407100, Zig 0x4070f4\nzdiff: MISMATCH iteration 2: memory at 0x4070f4 [arena] (zdiff_state+0x84): C 106, Zig 141\nzdiff: func_800C28AC: 1000 iterations, seed 1, 1000 mismatches; classes: arg1-zero=313 arg1-one=365 arg1-sign-bit=322"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x407080 (zdiff_state+0x10): C 74, Zig 217"
+     }
+    ]
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 25.493399615998896,
+ "wall_seconds": 300.7420198059999,
+ "totals": {
+  "cost": 0.04701,
+  "prompt_tokens": 140003,
+  "completion_tokens": 66019,
+  "model_seconds": 274.8,
+  "check_seconds": 25.5,
+  "calls": 5,
+  "wall_seconds": 300.7
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": ""
+ }
+}

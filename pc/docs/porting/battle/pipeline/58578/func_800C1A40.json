@@ -1,0 +1,351 @@
+{
+ "function": "func_800C1A40",
+ "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (flat and sloped, every count edge)",
+ "plan": {
+  "name": "func_800C1A40",
+  "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+  "stem": "58578",
+  "address": "0x800c1a40",
+  "difficulty": "M",
+  "zig_name": "func_800C1A40",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C1A40",
+  "spec_file": "func_800C1A40.zig",
+  "subsystem": "battle_58578_port",
+  "signature": "pub fn func_800C1A40(x0: c_int, x1: c_int, count: c_int) callconv(.c) void",
+  "params": [
+   [
+    "x0",
+    "c_int"
+   ],
+   [
+    "x1",
+    "c_int"
+   ],
+   [
+    "count",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "vs_scratch"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13713,
+     "completion_tokens": 19589,
+     "reasoning_tokens": 17649,
+     "cost": 0.0111658,
+     "seconds": 86.0,
+     "sample": 1,
+     "conversation": "f6e7c1d99bb2256bb3619f0b855a0eaef4380750cfc917ab89996e359e7ad1f2"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "count-clipped": "10120",
+   "flat": "4638",
+   "sloped": "15242"
+  },
+  "mutations": [
+   {
+    "name": "M1: count bound slip (<= for <)",
+    "caught": true
+   },
+   {
+    "name": "M2: x0 read unsigned",
+    "caught": true
+   },
+   {
+    "name": "M3: dx<0 branch leaves signX positive",
+    "caught": true
+   },
+   {
+    "name": "M4: wrong Tpage constant",
+    "caught": true
+   },
+   {
+    "name": "M5: far2 uses 15 - i",
+    "caught": true
+   },
+   {
+    "name": "M6: lineColor end tile at midX + signX",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 18,
+   "branches_hit": 18,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 54,
+   "lines_hit": 54,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147343427, max 2146964932, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 29,
+     "text": "if (length < 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 7043, < 11524, > 11433 (signed); < 0, > 22957 (unsigned)",
+     "operand": "constant 0",
+     "a": "-40..40"
+    },
+    {
+     "line": 33,
+     "text": "if (length & 1) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 18446, < 0, > 11554 (signed); < 0, > 11554 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 39,
+     "text": "if (dx < 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 9496, < 11020, > 9484 (signed); < 0, > 20504 (unsigned)",
+     "operand": "constant 0",
+     "a": "-65552..65535"
+    },
+    {
+     "line": 47,
+     "text": "for (i = 0; i < 16; ++i, segmentEnd += length, segmentStart += length) {",
+     "size": 4,
+     "count": 510000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 450000, > 30000 (signed); < 450000, > 30000 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..16"
+    },
+    {
+     "line": 49,
+     "text": "if (count < i || level < 0) {",
+     "size": 4,
+     "count": 480000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 9835, < 154384, > 315781 (signed); < 73312, > 396853 (unsigned)",
+     "operand": "b 0..15",
+     "a": "-2147343427..2146964932"
+    },
+    {
+     "line": 49,
+     "text": "if (count < i || level < 0) {",
+     "size": 4,
+     "count": 325616,
+     "kind": "against a constant",
+     "outcomes": "== 10045, < 156126, > 159445 (signed); < 0, > 315571 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146964916..16"
+    },
+    {
+     "line": 56,
+     "text": "if (start < dx) {",
+     "size": 4,
+     "count": 169490,
+     "kind": "a == b / a < b",
+     "outcomes": "== 23186, < 68228, > 78076 (signed); < 68228, > 78076 (unsigned)",
+     "operand": "b 0..65552",
+     "a": "0..61489"
+    },
+    {
+     "line": 58,
+     "text": "if (end < dx) {",
+     "size": 4,
+     "count": 68228,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4373, < 61020, > 2835 (signed); < 61020, > 2835 (unsigned)",
+     "operand": "b 1..65552",
+     "a": "0..65589"
+    },
+    {
+     "line": 68,
+     "text": "if (y1 != y0 - (tail >> 4) * signY) {",
+     "size": 4,
+     "count": 7208,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1892, < 2670, > 2646 (signed); < 2696, > 2620 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-32768..32767"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37115,
+     "completion_tokens": 10394,
+     "reasoning_tokens": 8862,
+     "cost": 0.0089085,
+     "seconds": 41.7,
+     "sample": 1,
+     "conversation": "a3116a13261cb06ed2710a3abcecaa60c0aac8b91723ee984acf2aa87d1afc25"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800C1A40.zig:52:28: error: expected type '[*c]c_uint', found '?*anyopaque'\n                    psx.get(v.g.vs_scratch().unk8),\n                    ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/func_800C1A40.zig:52:28: note: pointer type child 'anyopaque' cannot cast into pointer type child 'c_uint'\npc/build/port-pipeline/gen/58578/c_58578.zig:4158:41: note: parameter type declared here\npub extern fn vs_battle_addTile(before: [*c]u_long, rgb0: c_int, xy: c_int, wh: c_int) void;\n                                        ^~~~~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39082,
+     "completion_tokens": 2495,
+     "reasoning_tokens": 923,
+     "cost": 0.0051557,
+     "seconds": 9.4,
+     "sample": 1,
+     "conversation": "05e8216264f63a2d36fc503ef3bc459aa3067a6a80c3ca5d50a0b7584a841076"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800C1A40.zig:52:21: error: @ptrCast increases pointer alignment\n                    @ptrCast(psx.get(v.g.vs_scratch().unk8)),\n                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/func_800C1A40.zig:52:37: note: '?*anyopaque' has alignment '1'\n                    @ptrCast(psx.get(v.g.vs_scratch().unk8)),\n                             ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/func_800C1A40.zig:52:21: note: '[*c]c_uint' has alignment '4'\ngame/battle/func_800C1A40.zig:52:21: note: use @alignCast to assert pointer alignment\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 41118,
+     "completion_tokens": 3088,
+     "reasoning_tokens": 1461,
+     "cost": 0.0056558,
+     "seconds": 12.0,
+     "sample": 1,
+     "conversation": "71bef6519f6619fc74d329e30f9a5e1fe6c1e92d62c492030e5a49227ebd7625"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 3,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C1A40.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C1A40.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 29.610669887999393,
+ "wall_seconds": 178.93692263600315,
+ "totals": {
+  "cost": 0.03089,
+  "prompt_tokens": 131028,
+  "completion_tokens": 35566,
+  "model_seconds": 149.1,
+  "check_seconds": 29.6,
+  "calls": 4,
+  "wall_seconds": 178.9
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

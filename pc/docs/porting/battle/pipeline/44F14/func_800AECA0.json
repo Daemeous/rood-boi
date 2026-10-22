@@ -1,0 +1,222 @@
+{
+ "function": "func_800AECA0",
+ "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "port-failed",
+ "reviewed": "not ported (left unrouted): `D_800F4910 = *(MATRIX*)&source;` copies 32 bytes of the C's own stack from its parameter's address (the PS1 parameter home area and the caller's frame); natively that is host stack, which no port can reproduce (the gate's mismatch at D_800F4910+8). Needs a ROOD_PC decision in the C first (what the game reads from D_800F4910)",
+ "plan": {
+  "name": "func_800AECA0",
+  "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+  "stem": "44F14",
+  "address": "0x800aeca0",
+  "difficulty": "L",
+  "zig_name": "func_800AECA0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AECA0",
+  "spec_file": "func_800AECA0.zig",
+  "subsystem": "battle_44F14_port",
+  "signature": "pub fn func_800AECA0(source: ?*v.MATRIX) callconv(.c) void",
+  "params": [
+   [
+    "source",
+    "?*v.MATRIX"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "MATRIX",
+   "cameraTransformScratch"
+  ],
+  "globals": [
+   "D_8005E218",
+   "D_800F4910",
+   "D_800F49B8"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12817,
+     "completion_tokens": 17264,
+     "reasoning_tokens": 15298,
+     "cost": 0.0099137,
+     "seconds": 74.1,
+     "sample": 1,
+     "conversation": "03a25edccc04af28f0dfd8e7c51001c372141970aba1e3e0167734c5f7c71ecf"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "zoom-pos-angle-pos": "9351",
+   "zoom-pos-angle-neg": "7102",
+   "zoom-neg-angle-pos": "7539",
+   "zoom-neg-angle-neg": "6008"
+  },
+  "mutations": [
+   {
+    "name": "M1: rcos gets the angle without its sign flip",
+    "caught": true
+   },
+   {
+    "name": "M2: rotation.m[0][1] loses its negation",
+    "caught": true
+   },
+   {
+    "name": "M3: zoom divided unsigned",
+    "caught": true
+   },
+   {
+    "name": "M4: dropped store of source->t[2]",
+    "caught": true
+   },
+   {
+    "name": "M5: wrong scale constant for vx",
+    "caught": true
+   },
+   {
+    "name": "M6: dropped func_80041C68 call",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 29,
+   "lines_hit": 29,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 9,
+     "text": "for (i = 0; i < 3; ++i) {",
+     "size": 4,
+     "count": 120000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 60000, > 30000 (signed); < 60000, > 30000 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36219,
+     "completion_tokens": 10477,
+     "reasoning_tokens": 9148,
+     "cost": 0.0088604,
+     "seconds": 43.0,
+     "sample": 1,
+     "conversation": "a2f7c0fe8b08a0a72c776a895e93a585da5fd55b4d5567d308296ac536bbe2cc"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x4270a8 [D_800F4910+0x8] (zdiff_state+0x20028): C 56, Zig 81\nzdiff: MISMATCH iteration 1: memory at 0x4270a8 [D_800F4910+0x8] (zdiff_state+0x20028): C 218, Zig 49\nzdiff: MISMATCH iteration 2: memory at 0x4270a8 [D_800F4910+0x8] (zdiff_state+0x20028): C 81, Zig 250\nzdiff: func_800AECA0: 1000 iterations, seed 1, 1000 mismatches; classes: zoom-pos-angle-pos=331 zoom-pos-angle-neg=225 zoom-neg-angle-pos=253 zoom-neg-angle-neg=191"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x4270a8 (zdiff_state+0x20028): C 56, Zig 81"
+     }
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37886,
+     "completion_tokens": 5567,
+     "reasoning_tokens": 3800,
+     "cost": 0.0065721,
+     "seconds": 24.7,
+     "sample": 1,
+     "conversation": "e052068aff986aa326a81729b77df80f06023bcc69b08bb09c34327b77a69c7a"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x4270a8 [D_800F4910+0x8] (zdiff_state+0x20028): C 56, Zig 0\nzdiff: MISMATCH iteration 1: memory at 0x4270a8 [D_800F4910+0x8] (zdiff_state+0x20028): C 218, Zig 0\nzdiff: MISMATCH iteration 2: memory at 0x4270a8 [D_800F4910+0x8] (zdiff_state+0x20028): C 81, Zig 0\nzdiff: func_800AECA0: 1000 iterations, seed 1, 1000 mismatches; classes: zoom-pos-angle-pos=331 zoom-pos-angle-neg=225 zoom-neg-angle-pos=253 zoom-neg-angle-neg=191"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x4270a8 (zdiff_state+0x20028): C 56, Zig 0"
+     }
+    ]
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 12.347371166999892,
+ "wall_seconds": 154.35863692299995,
+ "totals": {
+  "cost": 0.02535,
+  "prompt_tokens": 86922,
+  "completion_tokens": 33308,
+  "model_seconds": 141.8,
+  "check_seconds": 12.3,
+  "calls": 3,
+  "wall_seconds": 154.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": ""
+ }
+}

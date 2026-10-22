@@ -1,0 +1,220 @@
+{
+ "function": "func_800C1564",
+ "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (the stubs perturb the flags the C restores)",
+ "plan": {
+  "name": "func_800C1564",
+  "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+  "stem": "58578",
+  "address": "0x800c1564",
+  "difficulty": "S",
+  "zig_name": "func_800C1564",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C1564",
+  "spec_file": "func_800C1564.zig",
+  "subsystem": "battle_58578_port",
+  "signature": "pub fn func_800C1564(arg0: ?*v.func_800C1564_t, arg1: [*c]c_ushort) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800C1564_t"
+   ],
+   [
+    "arg1",
+    "[*c]c_ushort"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "func_800C1564_flags",
+   "func_800C1564_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11787,
+     "completion_tokens": 11683,
+     "reasoning_tokens": 9747,
+     "cost": 0.0070202,
+     "seconds": 49.6,
+     "sample": 1,
+     "conversation": "1471ab37c85f037aa290f1ab8a070caec6af82c476e1108948dc5e715024f795"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "case1": "1489",
+   "case2": "1528",
+   "case3": "1537",
+   "case4": "1577",
+   "case5": "1625",
+   "case6": "1547",
+   "case7": "1514",
+   "other": "19183"
+  },
+  "mutations": [
+   {
+    "name": "M1: case 5 adds 0x40 to the saved unk3",
+    "caught": true
+   },
+   {
+    "name": "M2: case 2 drops the unk1 shift",
+    "caught": true
+   },
+   {
+    "name": "M3: case 3 passes 1 as the flag",
+    "caught": true
+   },
+   {
+    "name": "M4: the saved flags are not restored",
+    "caught": true
+   },
+   {
+    "name": "M5: case 1 drops the return value",
+    "caught": true
+   },
+   {
+    "name": "M6: case 7 becomes case 8 (no call)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 29,
+   "lines_hit": 29,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [
+    {
+     "line": 5,
+     "text": "switch (arg0->unk0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "switch",
+     "outcomes": "== 10817, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..255"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35197,
+     "completion_tokens": 5403,
+     "reasoning_tokens": 4671,
+     "cost": 0.0062212,
+     "seconds": 23.2,
+     "sample": 1,
+     "conversation": "28ddf144d84c8e71ce0a18c3530cbae32889fd65f142ba29c0c9e25942944c65"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C1564.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C1564.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 21.093918375001522,
+ "wall_seconds": 94.02683307999905,
+ "totals": {
+  "cost": 0.01324,
+  "prompt_tokens": 46984,
+  "completion_tokens": 17086,
+  "model_seconds": 72.8,
+  "check_seconds": 21.1,
+  "calls": 2,
+  "wall_seconds": 94.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 16 / 33 / 33, 0 mismatches"
+ }
+}

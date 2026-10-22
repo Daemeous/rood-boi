@@ -1,0 +1,323 @@
+{
+ "function": "func_800DEB10",
+ "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the slot dereferenced before its NULL test, as the C; D_800F5878 indexed unchecked); spec finished by the reviewer (a waiver: the NULL test after the dereference)",
+ "plan": {
+  "name": "func_800DEB10",
+  "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+  "stem": "74088",
+  "address": "0x800deb10",
+  "difficulty": "M",
+  "zig_name": "func_800DEB10",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DEB10",
+  "spec_file": "func_800DEB10.zig",
+  "subsystem": "battle_74088_port",
+  "signature": "pub fn func_800DEB10(arg0: ?*v.func_800DEEA4_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800DEEA4_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F45E0_t",
+   "func_800DEB10_t2"
+  ],
+  "globals": [
+   "D_800F45E0"
+  ],
+  "hooks": [
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17778,
+     "completion_tokens": 42627,
+     "reasoning_tokens": 39379,
+     "cost": 0.0230913,
+     "seconds": 180.4,
+     "sample": 1,
+     "conversation": "bb3aae16b75bf16cf408eeaf43a67390d1d4c19eb986f378f20d425b90e2537b"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 16, fault address 0x54 [NULL+0x54: a field of a null pointer]\nzdiff: crashed on arguments: 0x407070 [arena] (class null-entry)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "null-arg": "3347",
+   "busy": "6189",
+   "wrong-type": "7589",
+   "no-match": "16175",
+   "match-no-hit": "2460",
+   "match-hit": "4240"
+  },
+  "mutations": [
+   {
+    "name": "M1: the last candidate block is skipped",
+    "caught": true
+   },
+   {
+    "name": "M3: the teardown call dropped",
+    "caught": true
+   },
+   {
+    "name": "M4: the unkFB store dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: unkE compared against unkC",
+    "caught": true
+   },
+   {
+    "name": "M6: busy test signed (negative busy word passes)",
+    "caught": true
+   },
+   {
+    "name": "M7: wrong constant in the actor bit test",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 24,
+   "branches_hit": 23,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 24,
+   "lines_hit": 23,
+   "uncovered": [
+    {
+     "id": "+18 b0",
+     "line": 18,
+     "text": "if (entry == 0) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [
+    {
+     "line": 11,
+     "text": "if (arg0->unk44 != 0) {",
+     "size": 4,
+     "count": 36653,
+     "kind": "against a constant",
+     "outcomes": "== 30464, < 3053, > 3136 (signed); < 0, > 6189 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..256"
+    },
+    {
+     "line": 22,
+     "text": "if (temp_t1->unk9 != 24) {",
+     "size": 1,
+     "count": 30464,
+     "kind": "against a constant",
+     "outcomes": "== 22875, < 4507, > 3082 (signed); < 679, > 6910 (unsigned)",
+     "operand": "constant 24",
+     "a": "-128..127"
+    },
+    {
+     "line": 26,
+     "text": "for (i = 0; i < entry->unk470; ++i) {",
+     "size": 4,
+     "count": 149363,
+     "kind": "a == b / a < b",
+     "outcomes": "== 17466, < 130728, > 1169 (signed); < 131897, > 0 (unsigned)",
+     "operand": "b -1..16",
+     "a": "0..16"
+    },
+    {
+     "line": 34,
+     "text": "if ((arg0->unk0 == temp_a2->unk4_5) && (temp_t1->unkC == temp_a2->unk4_0)",
+     "size": 2,
+     "count": 130728,
+     "kind": "a == b / a < b",
+     "outcomes": "== 52963, < 38699, > 39066 (signed); < 23265, > 54500 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-32767..32724"
+    },
+    {
+     "line": 34,
+     "text": "if ((arg0->unk0 == temp_a2->unk4_5) && (temp_t1->unkC == temp_a2->unk4_0)",
+     "size": 2,
+     "count": 52963,
+     "kind": "a == b / a < b",
+     "outcomes": "== 22270, < 15300, > 15393 (signed); < 6929, > 23764 (unsigned)",
+     "operand": "b 0..7",
+     "a": "-32765..32756"
+    },
+    {
+     "line": 35,
+     "text": "&& (temp_t1->unkE == temp_a2->unk4_3)) {",
+     "size": 2,
+     "count": 22270,
+     "kind": "a == b / a < b",
+     "outcomes": "== 10162, < 6085, > 6023 (signed); < 2122, > 9986 (unsigned)",
+     "operand": "b 0..3",
+     "a": "-32710..32752"
+    },
+    {
+     "line": 37,
+     "text": "for (j = 0; j < arg0->unk4A; ++j) {",
+     "size": 4,
+     "count": 48951,
+     "kind": "a == b / a < b",
+     "outcomes": "== 5922, < 43029, > 0 (signed); < 43029, > 0 (unsigned)",
+     "operand": "b 0..16",
+     "a": "0..16"
+    },
+    {
+     "line": 40,
+     "text": "if (elem->unk40 == 0) {",
+     "size": 4,
+     "count": 43029,
+     "kind": "against a constant",
+     "outcomes": "== 27958, < 7426, > 7645 (signed); < 0, > 15071 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146098470..2147315296"
+    },
+    {
+     "line": 43,
+     "text": "if ((actor == 0) || ((0x14 >> actor->unk6C[8].actorId) & 1)) {",
+     "size": 4,
+     "count": 25485,
+     "kind": "against a constant",
+     "outcomes": "== 23718, < 0, > 1767 (signed); < 0, > 1767 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+15 b0",
+    "reason": "entry is read (entry->unk54) before its NULL test; a null table entry faults in the C, so the test is unreachable"
+   },
+   {
+    "id": "+18 b0",
+    "reason": "unreachable without a fault: the C reads entry->unk54 before it tests entry for NULL, so a NULL entry crashes first (the game's own order)"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 41082,
+     "completion_tokens": 7380,
+     "reasoning_tokens": 6469,
+     "cost": 0.0077982,
+     "seconds": 30.7,
+     "sample": 1,
+     "conversation": "8334386c3328601c5f3bfce860ad9d927c92b4837e3ae1b452e22c7c6c0dcf60"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DEB10.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DEB10.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 42.22491211799991,
+ "wall_seconds": 73.15956278099998,
+ "totals": {
+  "cost": 0.03089,
+  "prompt_tokens": 58860,
+  "completion_tokens": 50007,
+  "model_seconds": 211.1,
+  "check_seconds": 42.2,
+  "calls": 2,
+  "wall_seconds": 73.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [
+   "reviewer's round-2 reply: Haiku's retry plus a waiver of +18 b0 (the C reads entry->unk54 before testing entry, so a NULL entry faults first)"
+  ],
+  "mutations_added": [],
+  "port_fixes": [
+   "D_800F5878[unk4] read through psx.at (unchecked) like the C"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (3 / 6 / 12), 0 mismatches"
+ }
+}

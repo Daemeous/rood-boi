@@ -1,0 +1,256 @@
+{
+ "function": "func_800E23AC",
+ "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the goto move as a labelled block); spec sound",
+ "plan": {
+  "name": "func_800E23AC",
+  "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+  "stem": "771A8",
+  "address": "0x800e23ac",
+  "difficulty": "M",
+  "zig_name": "func_800E23AC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800E23AC",
+  "spec_file": "func_800E23AC.zig",
+  "subsystem": "battle_771A8_port",
+  "signature": "pub fn func_800E23AC(state: ?*v.patrolWaypointState) callconv(.c) void",
+  "params": [
+   [
+    "state",
+    "?*v.patrolWaypointState"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "patrolWaypointState"
+  ],
+  "globals": [
+   "D_800F58D8"
+  ],
+  "hooks": [],
+  "statics": [
+   "patrolWaypoint"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11851,
+     "completion_tokens": 20201,
+     "reasoning_tokens": 18094,
+     "cost": 0.0112856,
+     "seconds": 89.4,
+     "sample": 1,
+     "conversation": "d6b2f24cf01f5c5958cbd148210c1e85d3ba3f85c92e143230d1b9b03b55cfd4"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "arrived": "7547",
+   "x-off": "14883",
+   "z-off-timer-running": "6623",
+   "z-off-turn": "947"
+  },
+  "mutations": [
+   {
+    "name": "T1: the timer counts down twice",
+    "caught": true
+   },
+   {
+    "name": "T2: no turn at the end of a wait",
+    "caught": true
+   },
+   {
+    "name": "T3: the callee's result dropped from the wait test",
+    "caught": true
+   },
+   {
+    "name": "T4: rate shift masked to 4 bits",
+    "caught": true
+   },
+   {
+    "name": "T5: dest.z read from bit 6",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 18,
+   "lines_hit": 18,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if (state->tile.p.x != (entry & 31) || state->tile.p.z != ((entry >> 5) & 31)) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 15117, < 845, > 14038 (signed); < 845, > 14038 (unsigned)",
+     "operand": "b 0..31",
+     "a": "0..255"
+    },
+    {
+     "line": 7,
+     "text": "if (state->tile.p.x != (entry & 31) || state->tile.p.z != ((entry >> 5) & 31)) {",
+     "size": 4,
+     "count": 15117,
+     "kind": "a == b / a < b",
+     "outcomes": "== 7547, < 435, > 7135 (signed); < 435, > 7135 (unsigned)",
+     "operand": "b 0..31",
+     "a": "0..255"
+    },
+    {
+     "line": 8,
+     "text": "if (state->timer)",
+     "size": 1,
+     "count": 22453,
+     "kind": "against a constant",
+     "outcomes": "== 2816, < 8412, > 11225 (signed); < 0, > 19637 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 10,
+     "text": "if (func_800E45D4(1 << state->rate) || state->timer)",
+     "size": 4,
+     "count": 22453,
+     "kind": "against a constant",
+     "outcomes": "== 11190, < 5663, > 5600 (signed); < 0, > 11263 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147432930..2147314434"
+    },
+    {
+     "line": 10,
+     "text": "if (func_800E45D4(1 << state->rate) || state->timer)",
+     "size": 1,
+     "count": 11190,
+     "kind": "against a constant",
+     "outcomes": "== 2790, < 4152, > 4248 (signed); < 0, > 8400 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 17,
+     "text": "} while (!(patrolWaypoint(row, state->index) >> 15));",
+     "size": 4,
+     "count": 13582,
+     "kind": "against a constant",
+     "outcomes": "== 3245, < 0, > 10337 (signed); < 0, > 10337 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35392,
+     "completion_tokens": 6945,
+     "reasoning_tokens": 6017,
+     "cost": 0.0070117,
+     "seconds": 28.2,
+     "sample": 1,
+     "conversation": "8afbe0975f223412027e340e6e90d9a4821e7e77126e08928115cebba0b2b41b"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800E23AC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800E23AC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 31.025518221999846,
+ "wall_seconds": 153.78023704399993,
+ "totals": {
+  "cost": 0.0183,
+  "prompt_tokens": 47243,
+  "completion_tokens": 27146,
+  "model_seconds": 117.6,
+  "check_seconds": 31.0,
+  "calls": 2,
+  "wall_seconds": 153.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

@@ -1,0 +1,361 @@
+{
+ "function": "func_800D8400",
+ "unit": "src/BATTLE/BATTLE.PRG/6FC00.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (dest starts at 0 where the C leaves y uninitialised: the C passes that residue byte to its callees, masked off the result); spec finished by the reviewer (a waiver: the second result < 0 test is reached only with results not above 0)",
+ "plan": {
+  "name": "func_800D8400",
+  "unit": "src/BATTLE/BATTLE.PRG/6FC00.c",
+  "stem": "6FC00",
+  "address": "0x800d8400",
+  "difficulty": "L",
+  "zig_name": "func_800D8400",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D8400",
+  "spec_file": "func_800D8400.zig",
+  "subsystem": "battle_6FC00_port",
+  "signature": "pub fn func_800D8400(state: ?*v.func_800D8400_t, first: c_int, second: c_int, direction: c_uint) callconv(.c) c_uint",
+  "params": [
+   [
+    "state",
+    "?*v.func_800D8400_t"
+   ],
+   [
+    "first",
+    "c_int"
+   ],
+   [
+    "second",
+    "c_int"
+   ],
+   [
+    "direction",
+    "c_uint"
+   ]
+  ],
+  "ret": "c_uint",
+  "types": [
+   "D_800F16EC_t",
+   "func_800D8400_t",
+   "vs_battle_movementPosition"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12252,
+     "completion_tokens": 26110,
+     "reasoning_tokens": 23479,
+     "cost": 0.0142802,
+     "seconds": 109.2,
+     "sample": 1,
+     "conversation": "cc425c8193c5bb814a1417db01682f165a89d382b44192cc88a03cb865c0d191"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800D8400/spec1/build/spec.zig:41:38: error: type '*c_6FC00.func_800D8400_t' does not support field access\n            if (ctx.value(u2) == 0) s.destination.raw = ctx.value(u32);\n                                    ~^~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:225:33\n    f: pc/build/port-pipeline/func_800D8400/spec1/build/game/common/route.zig:39:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\npc/build/port-pipeline/func_800D8400/spec1/build/spec.zig:49:38: error: type '*c_6FC00.func_800D8400_t' does not support field access\n            if (ctx.value(u2) == 0) s.disabled = ctx.value(u8);\n                                    ~^~~~~~~~~\npc/build/port-pipeline/func_800D8400/spec1/build/spec.zig:59:38: error: type '*c_6FC00.func_800D8400_t' does not support field access\n            if (ctx.value(u2) == 0) s.position.raw = ctx.value(u32);\n                                    ~^~~~~~~~~\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "disabled": "6003",
+   "equal": "8035",
+   "first-is-nearest": "1995",
+   "first-is-other": "13967"
+  },
+  "mutations": [
+   {
+    "name": "F1: the first step's result > 0 test becomes >= 0",
+    "caught": true
+   },
+   {
+    "name": "F2: the 512 bound becomes >= 512",
+    "caught": true
+   },
+   {
+    "name": "F3: quadrant masked to 11 bits (wrong mask)",
+    "caught": true
+   },
+   {
+    "name": "F4: the initial status is 3, not 1 (wrong constant on the done path)",
+    "caught": true
+   },
+   {
+    "name": "F5: DB93C gets dest and source swapped",
+    "caught": true
+   },
+   {
+    "name": "F6: the first call reads the live position, not the copied source",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 22,
+   "branches_hit": 22,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 41,
+   "lines_hit": 41,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+40 sign",
+     "line": 40,
+     "text": "if (result < 0)",
+     "kind": "sign",
+     "bits": 32,
+     "constant": 0,
+     "what": "every value above 0 had the sign bit set (a port testing the sign, `< 0`, for this test would pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147482871, max 2147420408, unsigned 0..4294892763, seen zero/negative"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147352571, max 2147391270, unsigned 7..4294892763, seen negative, never zero"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -2146965842, max 2147439630, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if (state->disabled)",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 23997, < 3554, > 2449 (signed); < 0, > 6003 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 11,
+     "text": "if (first == second) {",
+     "size": 4,
+     "count": 23997,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8035, < 7908, > 8054 (signed); < 11962, > 4000 (unsigned)",
+     "operand": "b -2147352571..2147391270",
+     "a": "-2147482871..2147420408"
+    },
+    {
+     "line": 16,
+     "text": "if ((direction & 0x3FF) > 512)",
+     "size": 4,
+     "count": 15962,
+     "kind": "against a constant",
+     "outcomes": "== 768, < 7653, > 7541 (signed); < 7653, > 7541 (unsigned)",
+     "operand": "constant 512",
+     "a": "0..1023"
+    },
+    {
+     "line": 21,
+     "text": "if (direction != first)",
+     "size": 4,
+     "count": 15962,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1995, < 7831, > 6136 (signed); < 11799, > 2168 (unsigned)",
+     "operand": "b -2147482871..2147420408",
+     "a": "0..6"
+    },
+    {
+     "line": 27,
+     "text": "for (i = 0; i < count; i++) {",
+     "size": 4,
+     "count": 25154,
+     "kind": "a == b / a < b",
+     "outcomes": "== 403, < 24751, > 0 (signed); < 24751, > 0 (unsigned)",
+     "operand": "b 1..2",
+     "a": "0..2"
+    },
+    {
+     "line": 32,
+     "text": "if (result > 0) {",
+     "size": 4,
+     "count": 24751,
+     "kind": "against a constant",
+     "outcomes": "== 3068, < 9289, > 12394 (signed); < 0, > 21683 (unsigned)",
+     "operand": "constant 0",
+     "a": "-65535..65536"
+    },
+    {
+     "line": 34,
+     "text": "if (result < 0)",
+     "size": 4,
+     "count": 12394,
+     "kind": "against a constant",
+     "outcomes": "== 1550, < 4628, > 6216 (signed); < 0, > 10844 (unsigned)",
+     "operand": "constant 0",
+     "a": "-65526..65534"
+    },
+    {
+     "line": 36,
+     "text": "if (result)",
+     "size": 4,
+     "count": 7766,
+     "kind": "against a constant",
+     "outcomes": "== 1550, < 0, > 6216 (signed); < 0, > 6216 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..65534"
+    },
+    {
+     "line": 40,
+     "text": "if (result < 0)",
+     "size": 4,
+     "count": 12357,
+     "kind": "against a constant",
+     "outcomes": "== 3068, < 9289, > 0 (signed); < 0, > 9289 (unsigned)",
+     "operand": "constant 0",
+     "a": "-65535..0"
+    },
+    {
+     "line": 43,
+     "text": "if (dest.p.status == 1)",
+     "size": 1,
+     "count": 3068,
+     "kind": "against a constant",
+     "outcomes": "== 733, < 1555, > 780 (signed); < 1157, > 1178 (unsigned)",
+     "operand": "constant 1",
+     "a": "-128..3"
+    },
+    {
+     "line": 45,
+     "text": "if (dest.p.status)",
+     "size": 1,
+     "count": 2335,
+     "kind": "against a constant",
+     "outcomes": "== 1157, < 398, > 780 (signed); < 0, > 1178 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..3"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+40 sign",
+    "reason": "unreachable with a positive value: this test runs only when func_800D96C8's result is not above 0 (a positive result takes the branch above, which returns or jumps), so the value is 0 or negative"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35662,
+     "completion_tokens": 14150,
+     "reasoning_tokens": 12880,
+     "cost": 0.0106412,
+     "seconds": 55.8,
+     "sample": 1,
+     "conversation": "8abe3da11ae94d49eb9f310605f4e9d3788c54029a79e360b8dffc5656d97f26"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800D8400.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800D8400.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 24.78318663800019,
+ "wall_seconds": 80.78844384100012,
+ "totals": {
+  "cost": 0.02492,
+  "prompt_tokens": 47914,
+  "completion_tokens": 40260,
+  "model_seconds": 165.0,
+  "check_seconds": 24.8,
+  "calls": 2,
+  "wall_seconds": 80.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [
+   "reviewer's round-2 reply: Haiku's retry plus a waiver of +40 sign (that test runs only when func_800D96C8's result is not above 0)"
+  ],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 60, 0 mismatches"
+ }
+}

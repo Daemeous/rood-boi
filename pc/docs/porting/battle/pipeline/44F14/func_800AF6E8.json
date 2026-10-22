@@ -1,0 +1,269 @@
+{
+ "function": "func_800AF6E8",
+ "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the goto tail as a labelled block); spec sound",
+ "plan": {
+  "name": "func_800AF6E8",
+  "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+  "stem": "44F14",
+  "address": "0x800af6e8",
+  "difficulty": "M",
+  "zig_name": "func_800AF6E8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AF6E8",
+  "spec_file": "func_800AF6E8.zig",
+  "subsystem": "battle_44F14_port",
+  "signature": "pub fn func_800AF6E8(arg0: ?*v.D_800F4538_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F4538_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16498,
+     "completion_tokens": 18774,
+     "reasoning_tokens": 16422,
+     "cost": 0.0110368,
+     "seconds": 76.4,
+     "sample": 1,
+     "conversation": "3782cf30b6f34b3d3f2d7824aa16da732733e4167a6c960477b252f2cc918a05"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "idle": "1937",
+   "first-chunk": "2016",
+   "no-step": "2193",
+   "finished": "13026",
+   "continue": "10828"
+  },
+  "mutations": [
+   {
+    "name": "M1: the first-chunk test is == 2",
+    "caught": true
+   },
+   {
+    "name": "M2: wrong constant in the step (0xFE for 0xFF)",
+    "caught": true
+   },
+   {
+    "name": "M3: the step subtracts instead of adds",
+    "caught": true
+   },
+   {
+    "name": "M4: the goto to tail is dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: the early return is dropped (falls into tail)",
+    "caught": true
+   },
+   {
+    "name": "M6: memcpy copies one byte short",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 26,
+   "lines_hit": 26,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (arg0->unk5CC != 0) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 1937, < 13132, > 14931 (signed); < 0, > 28063 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 7,
+     "text": "if (arg0->unk5CC == 1) {",
+     "size": 1,
+     "count": 28063,
+     "kind": "against a constant",
+     "outcomes": "== 2016, < 13132, > 12915 (signed); < 0, > 26047 (unsigned)",
+     "operand": "constant 1",
+     "a": "-128..127"
+    },
+    {
+     "line": 13,
+     "text": "if (v5b2 != 1) {",
+     "size": 4,
+     "count": 28063,
+     "kind": "against a constant",
+     "outcomes": "== 1781, < 1776, > 24506 (signed); < 1776, > 24506 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..255"
+    },
+    {
+     "line": 17,
+     "text": "if (arg0->unk5CC >= arg0->unk5CD) {",
+     "size": 1,
+     "count": 26282,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4830, < 13036, > 8416 (signed); < 11964, > 9488 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 34,
+     "text": "if (arg0->unk5CC >= arg0->unk5CD) {",
+     "size": 1,
+     "count": 13745,
+     "kind": "a == b / a < b",
+     "outcomes": "== 3531, < 4856, > 5358 (signed); < 7639, > 2575 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39892,
+     "completion_tokens": 5088,
+     "reasoning_tokens": 4178,
+     "cost": 0.0065332,
+     "seconds": 21.0,
+     "sample": 1,
+     "conversation": "59c480c370c67183aa5f7e8ee77e78d9e325f5cb8afb95dafb1ef35fa2900d3f"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800AF6E8.zig:33:29: error: expected type '?*c_44F14.D_800F4538_unkC54', found '*views_44F14.D_800F4538_unkC54'\n            c.func_800B147C(&unit.unk704, &unit.unkC54, unit.unk0.nBones, unit.unk5CC, unit.unk5CD);\n                            ^~~~~~~~~~~~\ngame/battle/func_800AF6E8.zig:33:29: note: pointer type child 'views_44F14.D_800F4538_unkC54' cannot cast into pointer type child 'c_44F14.D_800F4538_unkC54'\npc/build/port-pipeline/gen/44F14/fn-func_800AF6E8/views_44F14.zig:251:38: note: struct declared here\npub const D_800F4538_unkC54 = extern struct {\n                              ~~~~~~~^~~~~~\npc/build/boot64/zig/c_44F14.zig:2174:31: note: opaque declared here\npub const D_800F4538_unkC54 = opaque {\n                              ^~~~~~\npc/build/boot64/zig/c_44F14.zig:3490:29: note: parameter type declared here\npub extern fn func_800B147C(?*D_800F4538_unkC54, ?*D_800F4538_unkC54, c_int, c_int, c_int) void;\n                            ^~~~~~~~~~~~~~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 41467,
+     "completion_tokens": 1586,
+     "reasoning_tokens": 649,
+     "cost": 0.0049397,
+     "seconds": 6.4,
+     "sample": 1,
+     "conversation": "c05e23caef1cfad323810bafc2c21c9942a30dd0451c44c75be30930b87216a4"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AF6E8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AF6E8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 31.25644464700008,
+ "wall_seconds": 135.893628112,
+ "totals": {
+  "cost": 0.02251,
+  "prompt_tokens": 97857,
+  "completion_tokens": 25448,
+  "model_seconds": 103.8,
+  "check_seconds": 31.3,
+  "calls": 3,
+  "wall_seconds": 135.9
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 496 / 962 / 1560, 0 mismatches"
+ }
+}

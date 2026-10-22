@@ -1,0 +1,242 @@
+{
+ "function": "func_800AF960",
+ "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (counts of one, signed remainders)",
+ "plan": {
+  "name": "func_800AF960",
+  "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+  "stem": "44F14",
+  "address": "0x800af960",
+  "difficulty": "S",
+  "zig_name": "func_800AF960",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AF960",
+  "spec_file": "func_800AF960.zig",
+  "subsystem": "battle_44F14_port",
+  "signature": "pub fn func_800AF960(arg0: ?*v.D_800F45E0_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F45E0_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_unk1864",
+   "D_800F45E0_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14613,
+     "completion_tokens": 7888,
+     "reasoning_tokens": 6330,
+     "cost": 0.0054053,
+     "seconds": 32.3,
+     "sample": 1,
+     "conversation": "aaeda07c13efe5277cba390903c1525ee272d0582bb04be07cbfa1e53fb0f238"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "neither": "227",
+   "unk4-only": "2316",
+   "unk5-only": "2293",
+   "count-of-one": "4485",
+   "both-general": "20679"
+  },
+  "mutations": [
+   {
+    "name": "F1: mask 0xFFF narrowed to 0x7FF",
+    "caught": true
+   },
+   {
+    "name": "F2: signed slip on the first division (unkA read unsigned)",
+    "caught": true
+   },
+   {
+    "name": "F3: second division reads unk10 for unk12",
+    "caught": true
+   },
+   {
+    "name": "F4: unkE store dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: unk5 decremented by 2 (wraps when it is 1)",
+    "caught": true
+   },
+   {
+    "name": "F6: first block guard skips unk4 == 1",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 17,
+   "lines_hit": 17,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "if (a2->unk4 != 0) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 2520, < 12493, > 14987 (signed); < 0, > 27480 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 15,
+     "text": "if (a2->unk5 != 0) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 2543, < 12549, > 14908 (signed); < 0, > 27457 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38023,
+     "completion_tokens": 2805,
+     "reasoning_tokens": 2093,
+     "cost": 0.0052048,
+     "seconds": 11.8,
+     "sample": 1,
+     "conversation": "b8aa419049b1867fb180218f54d77071f1a210bd871d6588749d5d1d0e775181"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800AF960.zig:11:13: error: local variable is never mutated\n        var temp_lo: c_int = @divTrunc(@as(c_int, a2.unkA), @as(c_int, a2.unk4));\n            ^~~~~~~\ngame/battle/func_800AF960.zig:11:13: note: consider using 'const'\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38940,
+     "completion_tokens": 1011,
+     "reasoning_tokens": 299,
+     "cost": 0.0043995,
+     "seconds": 4.4,
+     "sample": 1,
+     "conversation": "266c3cd983c6b144a80ebc45667953d6e30050b653c22640095d2691494a9e7c"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AF960.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AF960.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 22.346162348000462,
+ "wall_seconds": 70.99390343999994,
+ "totals": {
+  "cost": 0.01501,
+  "prompt_tokens": 91576,
+  "completion_tokens": 11704,
+  "model_seconds": 48.5,
+  "check_seconds": 22.3,
+  "calls": 3,
+  "wall_seconds": 71.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

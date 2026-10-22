@@ -1,0 +1,277 @@
+{
+ "function": "func_800C0758",
+ "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (negative, zero, 32 and many segments; any index)",
+ "plan": {
+  "name": "func_800C0758",
+  "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+  "stem": "573B8",
+  "address": "0x800c0758",
+  "difficulty": "M",
+  "zig_name": "func_800C0758",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C0758",
+  "spec_file": "func_800C0758.zig",
+  "subsystem": "battle_573B8_port",
+  "signature": "pub fn func_800C0758(phase: c_int, segments: c_int, index: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "phase",
+    "c_int"
+   ],
+   [
+    "segments",
+    "c_int"
+   ],
+   [
+    "index",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800EB9B8_t",
+   "menuCurveVertex"
+  ],
+  "globals": [
+   "D_800EB9B8"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11477,
+     "completion_tokens": 11524,
+     "reasoning_tokens": 10049,
+     "cost": 0.0069097,
+     "seconds": 50.5,
+     "sample": 1,
+     "conversation": "58d21d4277ab09a6b473e0dd8c4d2c36742863dc2048401ac95770a63480b6e8"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-vertices": "5034",
+   "single-vertex": "2540",
+   "segments-32": "4618",
+   "multi-vertex": "17808"
+  },
+  "mutations": [
+   {
+    "name": "V1: trig index uses phase + 7",
+    "caught": true
+   },
+   {
+    "name": "V2: loop stops one vertex early (< for <=)",
+    "caught": true
+   },
+   {
+    "name": "V3: the seam test compares 31, not 32",
+    "caught": true
+   },
+   {
+    "name": "V4: tail flag window is < 3, not < 2",
+    "caught": true
+   },
+   {
+    "name": "V5: the flags store is dropped",
+    "caught": true
+   },
+   {
+    "name": "V6: second basis term shifted by 11, not 12",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 15,
+   "lines_hit": 15,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483392, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -5, max 40, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -64, max 200, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "for (i = 0; i <= segments; ++index, ++i, ++vertex) {",
+     "size": 4,
+     "count": 562563,
+     "kind": "a == b / a < b",
+     "outcomes": "== 24966, < 507597, > 30000 (signed); < 512631, > 24966 (unsigned)",
+     "operand": "b -5..40",
+     "a": "0..41"
+    },
+    {
+     "line": 7,
+     "text": "for (component = 0; component < 3; ++component) {",
+     "size": 4,
+     "count": 2130252,
+     "kind": "against a constant",
+     "outcomes": "== 532563, < 1065126, > 532563 (signed); < 1065126, > 532563 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 13,
+     "text": "component = i != 0;",
+     "size": 4,
+     "count": 532563,
+     "kind": "against a constant",
+     "outcomes": "== 24966, < 0, > 507597 (signed); < 0, > 507597 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..40"
+    },
+    {
+     "line": 14,
+     "text": "if (component && segments != 32)",
+     "size": 4,
+     "count": 532563,
+     "kind": "against a constant",
+     "outcomes": "== 24966, < 0, > 507597 (signed); < 0, > 507597 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 14,
+     "text": "if (component && segments != 32)",
+     "size": 4,
+     "count": 507597,
+     "kind": "against a constant",
+     "outcomes": "== 147776, < 227386, > 132435 (signed); < 227386, > 132435 (unsigned)",
+     "operand": "constant 32",
+     "a": "1..40"
+    },
+    {
+     "line": 15,
+     "text": "component += segments - i < 2;",
+     "size": 4,
+     "count": 359821,
+     "kind": "against a constant",
+     "outcomes": "== 17351, < 17808, > 324662 (signed); < 17808, > 324662 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..39"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34887,
+     "completion_tokens": 9578,
+     "reasoning_tokens": 8716,
+     "cost": 0.0082777,
+     "seconds": 40.6,
+     "sample": 1,
+     "conversation": "d1c1e2d7c8e865186fc692aeb189fa7ef8870acd9d7b9605f17c2043a6fda68a"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C0758.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C0758.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 24.61906051400001,
+ "wall_seconds": 115.84577749199889,
+ "totals": {
+  "cost": 0.01519,
+  "prompt_tokens": 46364,
+  "completion_tokens": 21102,
+  "model_seconds": 91.1,
+  "check_seconds": 24.6,
+  "calls": 2,
+  "wall_seconds": 115.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 342, 0 mismatches"
+ }
+}

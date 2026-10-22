@@ -1,0 +1,220 @@
+{
+ "function": "vs_battle_copyAligned",
+ "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (negative and unaligned counts; the memcpy sibling recorded)",
+ "plan": {
+  "name": "vs_battle_copyAligned",
+  "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+  "stem": "573B8",
+  "address": "0x800c01c0",
+  "difficulty": "S",
+  "zig_name": "copyAligned",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "copy_aligned",
+  "spec_file": "copyAligned.zig",
+  "subsystem": "battle_573B8_port",
+  "signature": "pub fn copyAligned(dst: ?*anyopaque, src: ?*const anyopaque, numBytes: c_int) callconv(.c) void",
+  "params": [
+   [
+    "dst",
+    "?*anyopaque"
+   ],
+   [
+    "src",
+    "?*const anyopaque"
+   ],
+   [
+    "numBytes",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 10994,
+     "completion_tokens": 13738,
+     "reasoning_tokens": 12392,
+     "cost": 0.0079684,
+     "seconds": 60.7,
+     "sample": 1,
+     "conversation": "fef1c14b344f608c810afd8eb65b10370c34a74e078783052e17e33336e771e8"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "aligned": "5079",
+   "aligned-negative": "3933",
+   "loop-1": "3016",
+   "loop-2": "2917",
+   "loop-3": "5047",
+   "loop-negative": "10008"
+  },
+  "mutations": [
+   {
+    "name": "C1: loop tests the low two bits",
+    "caught": true
+   },
+   {
+    "name": "C2: memcpy gets numBytes masked to 3 bits",
+    "caught": true
+   },
+   {
+    "name": "C3: the memcpy call dropped",
+    "caught": true
+   },
+   {
+    "name": "C4: memcpy restarts at dst, not the loop's end",
+    "caught": true
+   },
+   {
+    "name": "C5: each copied short is off by one",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483646, unsigned 0..4294967294, seen zero/negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "while (numBytes & 7) {",
+     "size": 4,
+     "count": 72914,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 0, > 42914 (signed); < 0, > 42914 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..6"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34396,
+     "completion_tokens": 2799,
+     "reasoning_tokens": 2398,
+     "cost": 0.0048391,
+     "seconds": 12.8,
+     "sample": 1,
+     "conversation": "b76f4dbb6aa39316a8b9b63f059d9ed9835cb09d58eacd0bee7d1ebbd01b3031"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/copyAligned.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/copy_aligned.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 22.92706120999719,
+ "wall_seconds": 96.5491982579988,
+ "totals": {
+  "cost": 0.01281,
+  "prompt_tokens": 45390,
+  "completion_tokens": 16537,
+  "model_seconds": 73.5,
+  "check_seconds": 22.9,
+  "calls": 2,
+  "wall_seconds": 96.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 2, 0 mismatches"
+ }
+}

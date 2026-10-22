@@ -124,6 +124,31 @@ def static_inline_names(text):
     return names
 
 
+def static_callee_names(text, function):
+    """The unit's file-scope static functions `function` calls, and theirs in
+    turn (6F014's `_loadfile`): kept whole in the reference like the header
+    inlines, since the port carries the same logic (the port prompt shows
+    their bodies). A static holding a block-scope static stays a trap."""
+    tokens, found = ownership._file_scope_functions(text)
+    statics = {}
+    for name_index, _, _, start in found:
+        spec = [t[2] for t in tokens[start:name_index]]
+        if b"static" in spec:
+            statics[tokens[name_index][2].decode()] = True
+    out, todo = [], [function]
+    while todo:
+        body = bakeoff_context.c_body(text.decode(errors="replace"), todo.pop()) or ""
+        inner = body[body.find("{"):] if "{" in body else ""
+        for name in re.findall(r"\b([A-Za-z_]\w*)\s*\(", inner):
+            if name in statics and name not in out:
+                callee = bakeoff_context.c_body(text.decode(errors="replace"), name) or ""
+                if re.search(r"\bstatic\b", callee[callee.find("{"):] if "{" in callee else ""):
+                    continue
+                out.append(name)
+                todo.append(name)
+    return out
+
+
 def sizes_from_dwarf(obj, names):
     """sizeof each global in the unit object's DWARF (-1: incomplete)."""
     script = ("import gdb, json\nout = {}\nfor n in %r:\n    try:\n        out[n] = int(gdb.parse_and_eval('sizeof(' + n + ')'))\n"
@@ -252,14 +277,27 @@ class Build:
             text, counts = ownership.rename_definitions(text, [self.function])
             if counts[self.function] != 1:
                 raise Failure(f"{self.unit_i.name}: no definition of {self.function}")
-        keep = [orig] + static_inline_names(text)
+        keep = [orig] + static_inline_names(text) + static_callee_names(text, orig)
         ref_c = self.work / ("cov" if coverage else "") / "ref.c"
         ref_c.parent.mkdir(parents=True, exist_ok=True)
         source = ownership.strip_bodies(text, keep=keep)
         if (orig + "(").encode() not in source:
             raise Failure(f"{self.unit_i.name}: no {orig} definition")
         if standin:
-            source += self.standin_source(source.decode(errors="replace"), c_mutation).encode()
+            # Right after the original's body, so the copy sees the declarations
+            # the original saw: a later `void f(void)` definition would reject the
+            # original's call `f(x)` through an earlier `void f();` (44F14's
+            # func_800AD714 calling func_800AE46C).
+            text_ = source.decode(errors="replace")
+            copy = self.standin_source(text_, c_mutation)
+            body = bakeoff_context.c_body(text_, orig)
+            at = text_.find(body) if body else -1
+            if at >= 0:
+                end = at + len(body)
+                text_ = text_[:end] + copy + f'\n#line 1 "zdiff_after_standin.c"\n' + text_[end:]
+            else:
+                text_ += copy
+            source = text_.encode()
         ref_c.write_bytes(source)
         ref_o = ref_c.with_suffix(".o")
         flags = C_FLAGS
@@ -291,6 +329,12 @@ class Build:
         inner = body[body.index("{"):]
         if re.search(r"\bstatic\b", inner):
             raise Failure(f"stand-in: {self.function} has a block-scope static (a second copy would have its own)")
+        if c_mutation and inner.count(c_mutation["from"]) != 1 and re.search(r"\bNULL\b", c_mutation["from"]):
+            # The body is the preprocessed text, where NULL is already 0 (a spec
+            # copies its `from` from the .c).
+            expanded = {k: re.sub(r"\bNULL\b", "0", c_mutation[k]) for k in ("from", "to")}
+            if inner.count(expanded["from"]) == 1:
+                c_mutation = {**c_mutation, **expanded}
         if c_mutation:
             if inner.count(c_mutation["from"]) != 1:
                 raise Failure(f"mutation {c_mutation['name']}: its `from` text occurs {inner.count(c_mutation['from'])} "
@@ -742,7 +786,8 @@ def check_function(function, entry, args, table, out):
         return False
     classes = re.search(r"classes:(.*)", text)
     if classes and args.self_check:
-        empty = [c.split("=")[0] for c in classes.group(1).split() if c.endswith("=0")]
+        # Class names may hold spaces and `=` (`row>=9`): NAME=COUNT pairs end at a space.
+        empty = [m.group(1) for m in re.finditer(r"\s*(.+?)=(\d+)(?=\s|$)", classes.group(1)) if m.group(2) == "0"]
         if empty:
             print(f"FAIL: {function}: input classes never generated: {', '.join(empty)}")
             ok = False
@@ -796,12 +841,18 @@ def main(argv=None):
                              "or are only reported")
     parser.add_argument("--coverage-json", type=pathlib.Path, metavar="FILE", help="write the coverage reports here")
     parser.add_argument("--spec", type=pathlib.Path, help="use this spec file (one FUNCTION) instead of specs.toml's")
+    parser.add_argument("--shard", metavar="K/N",
+                        help="only every N-th function of the sorted list, from the K-th (0-based): CTest runs "
+                             "the specs as N shards in parallel")
     parser.add_argument("--standin", action="store_true",
                         help="the C itself as the port (checks a spec and its `target = \"c\"` mutations without a port)")
     args = parser.parse_args(argv)
     json_path, args.coverage_json = args.coverage_json, ({} if args.coverage_json else None)
     specs = tomllib.loads((SPECS / "specs.toml").read_text())["function"]
     functions = args.functions or sorted(specs)
+    if args.shard:
+        k, n = (int(x) for x in args.shard.split("/"))
+        functions = functions[k::n]
     unknown = [f for f in functions if f not in specs]
     if unknown:
         print(f"zig_diff: no spec for {', '.join(unknown)} (pc/tests/zig_diff/specs.toml)")

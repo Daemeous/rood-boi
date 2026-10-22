@@ -55,3 +55,68 @@ pub inline fn stlvnl(r0: anytype) void {
     store32(r0, 4, MFC2(26));
     store32(r0, 8, MFC2(27));
 }
+
+/// gte_rtps: perspective transformation of V0.
+pub inline fn rtps() void {
+    _ = doCOP2(0x0180001);
+}
+
+/// gte_rtps2 (vs_inline_c.h): gte_rtps on the PC.
+pub inline fn rtps2() void {
+    rtps();
+}
+
+/// gte_rtpt: perspective transformation of V0-V2.
+pub inline fn rtpt() void {
+    _ = doCOP2(0x0280030);
+}
+
+/// gte_nclip: normal clipping (the sign of the screen triangle's area into MAC0).
+pub inline fn nclip() void {
+    _ = doCOP2(0x01400006);
+}
+
+/// gte_avsz3: the average of SZ1-SZ3 into OTZ.
+pub inline fn avsz3() void {
+    _ = doCOP2(0x0158002D);
+}
+
+/// gte_stsxy (USE_PGXP=0): SXY2 (data register 14) into a 32-bit word.
+pub inline fn stsxy(r0: anytype) void {
+    store32(r0, 0, MFC2(14));
+}
+
+/// gte_stotz: OTZ (data register 7) into a 32-bit word.
+pub inline fn stotz(r0: anytype) void {
+    store32(r0, 0, MFC2(7));
+}
+
+/// gte_stszotz: SZ3 (data register 19) >> 2 into a 32-bit word.
+pub inline fn stszotz(r0: anytype) void {
+    store32(r0, 0, MFC2(19) >> 2);
+}
+
+/// gte_stopz: MAC0 (data register 24) into a 32-bit word.
+pub inline fn stopz(r0: anytype) void {
+    store32(r0, 0, MFC2(24));
+}
+
+/// gte_ldsxy3: SXY0-SXY2 through three pointers (PsyCross's takes pointers;
+/// the PS1 macro takes values), loaded in the macro's order 12, 14, 13.
+pub inline fn ldsxy3(r0: anytype, r1: anytype, r2: anytype) void {
+    MTC2(load32(r0, 0), 12);
+    MTC2(load32(r2, 0), 14);
+    MTC2(load32(r1, 0), 13);
+}
+
+/// gte_nclip2 (vs_inline_c.h): gte_nclip on the PC.
+pub inline fn nclip2() void {
+    nclip();
+}
+
+/// gte_zrtr (vs_inline_c.h): the translation (control registers 5-7) zeroed.
+pub inline fn zrtr() void {
+    CTC2(0, 5);
+    CTC2(0, 6);
+    CTC2(0, 7);
+}

@@ -1,0 +1,219 @@
+{
+ "function": "func_800D7814",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the ROOD_PC branch: unkD0 stored as the struct's guest pointer); spec sound",
+ "plan": {
+  "name": "func_800D7814",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d7814",
+  "difficulty": "S",
+  "zig_name": "func_800D7814",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D7814",
+  "spec_file": "func_800D7814.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn func_800D7814() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [
+   "pFileCurveBlock",
+   "vs_main_CdQueueSlot"
+  ],
+  "globals": [
+   "D_800EC4BC",
+   "D_800F5230",
+   "D_800F53C0",
+   "D_800F5684",
+   "D_800F568C",
+   "D_800F56A0",
+   "D_800F56C8",
+   "D_800F57A0",
+   "D_800F5874",
+   "vs_battle_pfileBuf"
+  ],
+  "hooks": [
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13144,
+     "completion_tokens": 6669,
+     "reasoning_tokens": 5625,
+     "cost": 0.0046489,
+     "seconds": 29.3,
+     "sample": 1,
+     "conversation": "07719da9b308d6bfb37c858a14921a95c5b82c714250dd2ff0276aa4328c9bc4"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "always": "20000"
+  },
+  "mutations": [
+   {
+    "name": "F1: D_800F5874 store dropped",
+    "caught": true
+   },
+   {
+    "name": "F2: D_800F5684 set to 1, not 0",
+    "caught": true
+   },
+   {
+    "name": "F3: curveBlock set to guest address 4, not NULL",
+    "caught": true
+   },
+   {
+    "name": "F4: unkD0 of D_800F57A0 points at D_800F5230 (wrong target)",
+    "caught": true
+   },
+   {
+    "name": "F5: func_800D7890 call dropped",
+    "caught": true
+   },
+   {
+    "name": "F6: func_800D8060 called with NULL, not &D_800EC4BC",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 12,
+   "lines_hit": 12,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36448,
+     "completion_tokens": 2001,
+     "reasoning_tokens": 1493,
+     "cost": 0.0046453,
+     "seconds": 9.0,
+     "sample": 1,
+     "conversation": "d5ce71fe9ed748e73f163b91e35b38252c10230d7a200d09f2d75888a50839d2"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/common/psx.zig:33:29: error: expected pointer, found '@TypeOf(null)'\n        else => @intFromPtr(p),\n                            ^\nreferenced by:\n    put__func_39: game/common/psx.zig:155:33\n    func_800D7814: game/battle/func_800D7814.zig:15:12\n    6 reference(s) hidden; use '-freference-trace=8' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37180,
+     "completion_tokens": 1306,
+     "reasoning_tokens": 781,
+     "cost": 0.004371,
+     "seconds": 5.9,
+     "sample": 1,
+     "conversation": "b8c69a0e976b4554ed907b1bede9ce81ef7fce323f08c323785fcfb836ca1dca"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800D7814.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800D7814.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 18.14549105399874,
+ "wall_seconds": 62.515668360000745,
+ "totals": {
+  "cost": 0.01367,
+  "prompt_tokens": 86772,
+  "completion_tokens": 9976,
+  "model_seconds": 44.2,
+  "check_seconds": 18.1,
+  "calls": 3,
+  "wall_seconds": 62.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

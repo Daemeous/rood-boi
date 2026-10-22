@@ -1,0 +1,216 @@
+{
+ "function": "func_800E1908",
+ "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the tile mask restored after the call; the mode shift masked as x86); spec sound",
+ "plan": {
+  "name": "func_800E1908",
+  "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+  "stem": "771A8",
+  "address": "0x800e1908",
+  "difficulty": "L",
+  "zig_name": "func_800E1908",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800E1908",
+  "spec_file": "func_800E1908.zig",
+  "subsystem": "battle_771A8_port",
+  "signature": "pub fn func_800E1908(state: ?*v.terrainMovementState) callconv(.c) void",
+  "params": [
+   [
+    "state",
+    "?*v.terrainMovementState"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "terrainMovementActor",
+   "terrainMovementState"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12355,
+     "completion_tokens": 17048,
+     "reasoning_tokens": 15176,
+     "cost": 0.0097595,
+     "seconds": 73.3,
+     "sample": 1,
+     "conversation": "e885db8a057403d2e3e8f8d792d5a8f91ecad8b8ee82682ef33da152df64a76f"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "mode-5": "7965",
+   "mode-7": "7991",
+   "mode-other": "14044"
+  },
+  "mutations": [
+   {
+    "name": "F1: mode 9 stored as 8",
+    "caught": true
+   },
+   {
+    "name": "F2: the angle shift tests mode 7, not 5",
+    "caught": true
+   },
+   {
+    "name": "F3: the mode mask is 0x20 (bit 7 lost)",
+    "caught": true
+   },
+   {
+    "name": "F4: angle shifted by 8, not 9",
+    "caught": true
+   },
+   {
+    "name": "F5: the tile is not restored after the call",
+    "caught": true
+   },
+   {
+    "name": "F6: ratan2 angle masked to 11 bits",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 16,
+   "lines_hit": 16,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 14,
+     "text": "if ((0xA0 >> mode) & 1) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14044, < 0, > 15956 (signed); < 0, > 15956 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 16,
+     "text": "if (mode == 5)",
+     "size": 4,
+     "count": 15956,
+     "kind": "against a constant",
+     "outcomes": "== 7965, < 0, > 7991 (signed); < 0, > 7991 (unsigned)",
+     "operand": "constant 5",
+     "a": "5..7"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35765,
+     "completion_tokens": 4816,
+     "reasoning_tokens": 3942,
+     "cost": 0.0059845,
+     "seconds": 20.8,
+     "sample": 1,
+     "conversation": "6622159dac8b78b8b88129c4d531b20410175cd7f4c2cf730b30e12bcf8ac8c6"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800E1908.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800E1908.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 36.87653450800008,
+ "wall_seconds": 131.10304006700017,
+ "totals": {
+  "cost": 0.01574,
+  "prompt_tokens": 48120,
+  "completion_tokens": 21864,
+  "model_seconds": 94.1,
+  "check_seconds": 36.9,
+  "calls": 2,
+  "wall_seconds": 131.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

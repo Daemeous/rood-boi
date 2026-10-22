@@ -1,0 +1,125 @@
+{
+ "function": "func_800E1EAC",
+ "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+ "difficulty": "XL",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.4,
+ "samples": 2,
+ "status": "stopped",
+ "reviewed": "not ported in this wave (unrouted): Haiku's specs crash the C on pointers they leave random; the retry stopped at the wave's budget",
+ "plan": {
+  "name": "func_800E1EAC",
+  "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+  "stem": "771A8",
+  "address": "0x800e1eac",
+  "difficulty": "XL",
+  "zig_name": "func_800E1EAC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800E1EAC",
+  "spec_file": "func_800E1EAC.zig",
+  "subsystem": "battle_771A8_port",
+  "signature": "pub fn func_800E1EAC(state: ?*v.wanderState, tile: c_uint, range: c_uint) callconv(.c) void",
+  "params": [
+   [
+    "state",
+    "?*v.wanderState"
+   ],
+   [
+    "tile",
+    "c_uint"
+   ],
+   [
+    "range",
+    "c_uint"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "wanderObject"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [
+   "wanderRandomHeading",
+   "wanderStartWalk"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 16599,
+     "completion_tokens": 51582,
+     "reasoning_tokens": 47393,
+     "cost": 0.0274509,
+     "seconds": 217.4,
+     "sample": 1,
+     "conversation": "b1f9e259389201a1d8f0b75be9e036eddfe283a996474f9f9cfabc1626a869c7"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800E1EAC: branches 69/70 (98.6%), conditions not measured (GCC < 14: branch coverage only), lines 92/92\n  UNCOVERED +54 b1: branch never taken: `else if (state->cooldown)`\ncoverage func_800E1EAC: FAILED (threshold 100%: 1 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `else if (state->cooldown)` (+54): one way out of this test (+54 b1) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800E1EAC.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 1,
+    "sample": 2,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 16599,
+     "completion_tokens": 44083,
+     "reasoning_tokens": 40346,
+     "cost": 0.0237014,
+     "seconds": 188.5,
+     "sample": 2,
+     "conversation": "7b9a01d081566aac14cc57587f5934bed73633467f2ae4167bda614770d2c060"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 110, fault address 0x4773826a [memory the harness does not own: a pointer from random bytes?]\nzdiff: crashed on arguments: 0x409070 [arena] 0x2c956bab 0x8e81 (class long-recover)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   }
+  ]
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 0.0,
+ "stopped": "budget: $0.2845 spent of $0.35",
+ "wall_seconds": 439.7969297790005,
+ "totals": {
+  "cost": 0.05115,
+  "prompt_tokens": 33198,
+  "completion_tokens": 95665,
+  "model_seconds": 405.9,
+  "check_seconds": 0.0,
+  "calls": 2,
+  "wall_seconds": 439.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": ""
+ }
+}

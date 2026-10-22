@@ -1,0 +1,299 @@
+{
+ "function": "func_800DC888",
+ "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (the +25 b1 waiver holds: the C's ok guard is constant)",
+ "plan": {
+  "name": "func_800DC888",
+  "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+  "stem": "74088",
+  "address": "0x800dc888",
+  "difficulty": "S",
+  "zig_name": "func_800DC888",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DC888",
+  "spec_file": "func_800DC888.zig",
+  "subsystem": "battle_74088_port",
+  "signature": "pub fn func_800DC888(stats: ?*v.actionStatSnapshot) callconv(.c) void",
+  "params": [
+   [
+    "stats",
+    "?*v.actionStatSnapshot"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "actionCostView",
+   "actionStatApplication",
+   "actionStatDelta",
+   "actionStatSnapshot",
+   "func_800DEEA4_t"
+  ],
+  "globals": [
+   "D_800F5900",
+   "vs_main_actions"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14035,
+     "completion_tokens": 20142,
+     "reasoning_tokens": 17974,
+     "cost": 0.0114745,
+     "seconds": 85.3,
+     "sample": 1,
+     "conversation": "164bef4ba123051e0b02fff2de5b476fe6fa0135ddfed664795f35c083f8e8bb"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800DC888: branches 13/14 (92.9%), conditions not measured (GCC < 14: branch coverage only), lines 32/32\n  UNCOVERED +25 b1: branch never taken: `if (ok) {`\ncoverage func_800DC888: FAILED (threshold 100%: 1 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `if (ok) {` (+25): one way out of this test (+25 b1) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800DC888.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16479,
+     "completion_tokens": 2812,
+     "reasoning_tokens": 546,
+     "cost": 0.0030539,
+     "seconds": 9.7,
+     "sample": 1,
+     "conversation": "b3aad030d8ed8b4cb9855b52dcaa5f74c5066be0bb4fa67a1efb7c66f706fb27"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "first-skipped": "7368",
+   "case-1-mp": "2793",
+   "case-3-hp": "2797",
+   "case-6-value10": "2873",
+   "other-case": "14169"
+  },
+  "mutations": [
+   {
+    "name": "M1: the value10 cost case read as case 7",
+    "caught": true
+   },
+   {
+    "name": "M2: the loop runs one entry past count",
+    "caught": true
+   },
+   {
+    "name": "M3: entry 0 replaced by the first delta",
+    "caught": true
+   },
+   {
+    "name": "M4: the mp mode read from the wrong bits",
+    "caught": true
+   },
+   {
+    "name": "M5: removeStatus applied without the complement",
+    "caught": true
+   },
+   {
+    "name": "M6: the cost taken from byte 2 of the action",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 14,
+   "branches_hit": 13,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 32,
+   "lines_hit": 32,
+   "uncovered": [
+    {
+     "id": "+25 b1",
+     "line": 25,
+     "text": "if (ok) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "if (!((actionStatApplication*)D_800F5900)->first.skip) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 22632, < 3672, > 3696 (signed); < 0, > 7368 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 10,
+     "text": "switch ((int)((action->flags >> 17) & 7)) {",
+     "size": 4,
+     "count": 22632,
+     "kind": "switch",
+     "outcomes": "== 8463, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..7"
+    },
+    {
+     "line": 25,
+     "text": "if (ok) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 0, > 30000 (signed); < 0, > 30000 (unsigned)",
+     "operand": "constant 0",
+     "a": "1..1"
+    },
+    {
+     "line": 26,
+     "text": "for (i = -1; i < ((actionStatApplication*)D_800F5900)->count; i++) {",
+     "size": 4,
+     "count": 179167,
+     "kind": "a == b / a < b",
+     "outcomes": "== 30000, < 149167, > 0 (signed); < 119167, > 30000 (unsigned)",
+     "operand": "b 0..8",
+     "a": "-1..8"
+    },
+    {
+     "line": 27,
+     "text": "if (i < 0)",
+     "size": 4,
+     "count": 149167,
+     "kind": "against a constant",
+     "outcomes": "== 26626, < 30000, > 92541 (signed); < 0, > 122541 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..7"
+    },
+    {
+     "line": 31,
+     "text": "if (!entry->skip) {",
+     "size": 4,
+     "count": 149167,
+     "kind": "against a constant",
+     "outcomes": "== 62311, < 43358, > 43498 (signed); < 0, > 86856 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+25 b1",
+    "reason": "`ok` is assigned the constant 1 on the line directly above `if (ok) {`, so the false edge of that test is dead code in the C. No input can take it, and the port has no such test to reach."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37445,
+     "completion_tokens": 11023,
+     "reasoning_tokens": 9917,
+     "cost": 0.009256,
+     "seconds": 47.0,
+     "sample": 1,
+     "conversation": "c9f9760c4ec5606985d6f4013666ca7926ab207d0373a4ee7962a9764148b888"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DC888.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DC888.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 53.907704021003156,
+ "wall_seconds": 196.53813940100008,
+ "totals": {
+  "cost": 0.02378,
+  "prompt_tokens": 67959,
+  "completion_tokens": 33977,
+  "model_seconds": 142.0,
+  "check_seconds": 53.9,
+  "calls": 3,
+  "wall_seconds": 196.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (21 / 48 / none), 0 mismatches"
+ }
+}

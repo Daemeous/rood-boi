@@ -1,0 +1,193 @@
+{
+ "function": "func_800AE474",
+ "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (an empty body: stray stores are caught)",
+ "plan": {
+  "name": "func_800AE474",
+  "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+  "stem": "44F14",
+  "address": "0x800ae474",
+  "difficulty": "S",
+  "zig_name": "func_800AE474",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AE474",
+  "spec_file": "func_800AE474.zig",
+  "subsystem": "battle_44F14_port",
+  "signature": "pub fn func_800AE474() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 10845,
+     "completion_tokens": 2269,
+     "reasoning_tokens": 1611,
+     "cost": 0.002219,
+     "seconds": 10.4,
+     "sample": 1,
+     "conversation": "40adc84c4b52d8fe196165833dbe072bca65fd02b823836c15f606156faa0ef2"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: no input classes declared (`classes` and `classify`)",
+     "FAIL: mutation E1: a scratchpad word is bumped: mutation E1: a scratchpad word is bumped: its `from` text occurs 0 times in the C body of func_800AE474 (copy it exactly from the C)",
+     "FAIL: mutation E2: a PS1 low-RAM word is bumped: mutation E2: a PS1 low-RAM word is bumped: its `from` text occurs 0 times in the C body of func_800AE474 (copy it exactly from the C)",
+     "FAIL: mutation E3: a scratchpad byte at the top of the page is cleared: mutation E3: a scratchpad byte at the top of the page is cleared: its `from` text occurs 0 times in the C body of func_800AE474 (copy it exactly from the C)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11807,
+     "completion_tokens": 1511,
+     "reasoning_tokens": 853,
+     "cost": 0.0019362,
+     "seconds": 6.6,
+     "sample": 1,
+     "conversation": "18ca8acd969c2e8206595c6c6bd7d63454ac5e4365fd47bf47137e54e3f7e2f0"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "empty": "20000"
+  },
+  "mutations": [
+   {
+    "name": "E1: a scratchpad word is bumped",
+    "caught": true
+   },
+   {
+    "name": "E2: a PS1 low-RAM word is bumped",
+    "caught": true
+   },
+   {
+    "name": "E3: a scratchpad byte at the top of the page is cleared",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 1,
+   "lines_hit": 1,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34255,
+     "completion_tokens": 400,
+     "reasoning_tokens": 268,
+     "cost": 0.0036255,
+     "seconds": 2.6,
+     "sample": 1,
+     "conversation": "25895ba920e8958b2dbf5eb03320d4421c317c107222f3721fb378865826a495"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AE474.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AE474.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 12.790520654000147,
+ "wall_seconds": 32.544576409,
+ "totals": {
+  "cost": 0.00778,
+  "prompt_tokens": 56907,
+  "completion_tokens": 4180,
+  "model_seconds": 19.6,
+  "check_seconds": 12.8,
+  "calls": 3,
+  "wall_seconds": 32.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

@@ -1,0 +1,130 @@
+{
+ "function": "func_800AD714",
+ "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+ "difficulty": "XL",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.4,
+ "samples": 2,
+ "status": "stopped",
+ "reviewed": "not ported in this wave (unrouted): the harness builds after the stand-in placement fix; Haiku's specs miss their own mutations; the retry stopped at the wave's budget",
+ "plan": {
+  "name": "func_800AD714",
+  "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+  "stem": "44F14",
+  "address": "0x800ad714",
+  "difficulty": "XL",
+  "zig_name": "func_800AD714",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AD714",
+  "spec_file": "func_800AD714.zig",
+  "subsystem": "battle_44F14_port",
+  "signature": "pub fn func_800AD714(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "actor",
+    "?*v.D_800F4538_t"
+   ],
+   [
+    "state",
+    "?*v.D_800F4538_unkC54"
+   ],
+   [
+    "mode",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F45E0_unk68",
+   "vs_battle_wepModels_t"
+  ],
+  "globals": [
+   "D_800E9298",
+   "D_800E92DC",
+   "D_800E9A28",
+   "D_800F1868",
+   "vs_battle_wepModels"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "length",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 29910,
+     "completion_tokens": 64000,
+     "reasoning_tokens": 64000,
+     "cost": 0.034991,
+     "seconds": 295.3,
+     "sample": 1,
+     "conversation": "7bf57e22d1b505441d0a6e5632489fc1d2c98ed84527be86009caa23edf04c9a"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: no ```zig block in the reply",
+     "FAIL: no ```toml block in the reply"
+    ]
+   },
+   {
+    "round": 1,
+    "sample": 2,
+    "call": {
+     "finish_reason": "length",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 29910,
+     "completion_tokens": 64000,
+     "reasoning_tokens": 64000,
+     "cost": 0.034991,
+     "seconds": 297.3,
+     "sample": 2,
+     "conversation": "ce30ff7d56546a08874b80532308976c35235033dd6d97c431e84a82e54c63ae"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: no ```zig block in the reply",
+     "FAIL: no ```toml block in the reply"
+    ]
+   }
+  ]
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 0.0,
+ "stopped": "budget: $0.3872 spent of $0.45",
+ "wall_seconds": 592.8913228599995,
+ "totals": {
+  "cost": 0.06998,
+  "prompt_tokens": 59820,
+  "completion_tokens": 128000,
+  "model_seconds": 592.6,
+  "check_seconds": 0.0,
+  "calls": 2,
+  "wall_seconds": 592.9
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": ""
+ }
+}

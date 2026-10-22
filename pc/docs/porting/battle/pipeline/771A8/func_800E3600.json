@@ -1,0 +1,756 @@
+{
+ "function": "func_800E3600",
+ "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+ "difficulty": "XL",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the movement-test and D_800F1760 callback tables called through typed function pointers, the tile bytes edited as the C); spec sound (every arm reached: path, nearest open, both sides blocked, diagonal)",
+ "plan": {
+  "name": "func_800E3600",
+  "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+  "stem": "771A8",
+  "address": "0x800e3600",
+  "difficulty": "XL",
+  "zig_name": "func_800E3600",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800E3600",
+  "spec_file": "func_800E3600.zig",
+  "subsystem": "battle_771A8_port",
+  "signature": "pub fn func_800E3600(approach: ?*v.func_800E0850_t, angleArg: c_int, mode: c_int) callconv(.c) void",
+  "params": [
+   [
+    "approach",
+    "?*v.func_800E0850_t"
+   ],
+   [
+    "angleArg",
+    "c_int"
+   ],
+   [
+    "mode",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F16EC_t",
+   "func_800D8400_t",
+   "func_800E0850_t",
+   "movementApproachState",
+   "movementPathState",
+   "movementRecoveryState",
+   "terrainMovementState"
+  ],
+  "globals": [
+   "D_800F1760"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 19330,
+     "completion_tokens": 44286,
+     "reasoning_tokens": 41036,
+     "cost": 0.024076,
+     "seconds": 186.8,
+     "sample": 1,
+     "conversation": "078e9f9ec5c6fe1df931a66b413eabff03572e4abd7a759ca735e9777a9098b9"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800E3600/spec1/build/spec.zig:97:56: error: expected type expression, found 'test'\n    pub fn func_800E2F5C(ctx: *zd.Ctx, state: anytype, test: anytype, mask: anytype) c_int {\n                                                       ^~~~\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 22781,
+     "completion_tokens": 4779,
+     "reasoning_tokens": 1529,
+     "cost": 0.0046676,
+     "seconds": 16.0,
+     "sample": 1,
+     "conversation": "1edb67928233e7abc5593b26c0d5b969696dc0d18102d9e3d0e340c5e0fb5df1"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "path-follow": "13353",
+   "straight": "11782",
+   "sector-idle": "11758",
+   "sector-busy-mode-0-2": "1546",
+   "sector-busy-mode-1-3": "1561"
+  },
+  "mutations": [
+   {
+    "name": "M1: the mode 1 unk4 test loses its negation",
+    "caught": true
+   },
+   {
+    "name": "M2: the nearest-side test is >= 512, not > 512",
+    "caught": true
+   },
+   {
+    "name": "M3: a signed slip drops the sign bit of the angle",
+    "caught": true
+   },
+   {
+    "name": "M4: the terrain recovery call is dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: the path-blocked next tile is not stored",
+    "caught": true
+   },
+   {
+    "name": "M6: the rcos bound is > 3959, not >= 3959",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 96,
+   "branches_hit": 96,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 144,
+   "lines_hit": 144,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "32-bit: min 0, max 3, seen zero, never negative, 4 value(s): 3, 1, 2, 0"
+    }
+   ],
+   "compares": [
+    {
+     "line": 22,
+     "text": "if (mode == 2 || mode == 3) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 10015, < 20050, > 9935 (signed); < 20050, > 9935 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 22,
+     "text": "if (mode == 2 || mode == 3) {",
+     "size": 4,
+     "count": 29985,
+     "kind": "against a constant",
+     "outcomes": "== 9935, < 20050, > 0 (signed); < 20050, > 0 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..3"
+    },
+    {
+     "line": 30,
+     "text": "if (state->path & 1) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 26647, < 0, > 13353 (signed); < 0, > 13353 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 32,
+     "text": "if (action < 0) {",
+     "size": 4,
+     "count": 13353,
+     "kind": "against a constant",
+     "outcomes": "== 47, < 3376, > 9930 (signed); < 0, > 13306 (unsigned)",
+     "operand": "constant 0",
+     "a": "-256..255"
+    },
+    {
+     "line": 44,
+     "text": "if ((angle & 0x3FF) > 512) {",
+     "size": 4,
+     "count": 26647,
+     "kind": "against a constant",
+     "outcomes": "== 2059, < 16193, > 8395 (signed); < 16193, > 8395 (unsigned)",
+     "operand": "constant 512",
+     "a": "0..1023"
+    },
+    {
+     "line": 50,
+     "text": "if (nearest & 2) {",
+     "size": 4,
+     "count": 26647,
+     "kind": "against a constant",
+     "outcomes": "== 15533, < 0, > 11114 (signed); < 0, > 11114 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2"
+    },
+    {
+     "line": 60,
+     "text": "if (distance >= quadrant) {",
+     "size": 4,
+     "count": 26647,
+     "kind": "a == b / a < b",
+     "outcomes": "== 7255, < 3843, > 15549 (signed); < 3843, > 15549 (unsigned)",
+     "operand": "b 0..40",
+     "a": "0..255"
+    },
+    {
+     "line": 64,
+     "text": "if (point.raw) {",
+     "size": 4,
+     "count": 26647,
+     "kind": "against a constant",
+     "outcomes": "== 19898, < 3380, > 3369 (signed); < 0, > 6749 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146825681..2146487557"
+    },
+    {
+     "line": 71,
+     "text": "if (angle & 0x3FF) {",
+     "size": 4,
+     "count": 19898,
+     "kind": "against a constant",
+     "outcomes": "== 8851, < 0, > 11047 (signed); < 0, > 11047 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1023"
+    },
+    {
+     "line": 78,
+     "text": "if (!leftOpen) {",
+     "size": 4,
+     "count": 11047,
+     "kind": "against a constant",
+     "outcomes": "== 4221, < 3377, > 3449 (signed); < 0, > 6826 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147265153..2147188101"
+    },
+    {
+     "line": 79,
+     "text": "if (!rightOpen) {",
+     "size": 4,
+     "count": 4221,
+     "kind": "against a constant",
+     "outcomes": "== 1578, < 1297, > 1346 (signed); < 0, > 2643 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147313771..2143023287"
+    },
+    {
+     "line": 80,
+     "text": "if ((u_int)(state->timer - 1) >= 126) {",
+     "size": 4,
+     "count": 1578,
+     "kind": "against a constant",
+     "outcomes": "== 114, < 361, > 1103 (signed); < 235, > 1229 (unsigned)",
+     "operand": "constant 125",
+     "a": "-1..65534"
+    },
+    {
+     "line": 83,
+     "text": "if (quadrant == 2) {",
+     "size": 4,
+     "count": 1229,
+     "kind": "against a constant",
+     "outcomes": "== 212, < 262, > 755 (signed); < 262, > 755 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..255"
+    },
+    {
+     "line": 84,
+     "text": "if (state->timer == 0) {",
+     "size": 2,
+     "count": 212,
+     "kind": "against a constant",
+     "outcomes": "== 11, < 105, > 96 (signed); < 0, > 201 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32721..32638"
+    },
+    {
+     "line": 90,
+     "text": "if (first) {",
+     "size": 4,
+     "count": 1017,
+     "kind": "against a constant",
+     "outcomes": "== 254, < 385, > 378 (signed); < 0, > 763 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146301003..2144294835"
+    },
+    {
+     "line": 91,
+     "text": "if (func_800E47E4(state, first)",
+     "size": 4,
+     "count": 763,
+     "kind": "against a constant",
+     "outcomes": "== 271, < 236, > 256 (signed); < 0, > 492 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2144660469..2118467039"
+    },
+    {
+     "line": 92,
+     "text": "&& func_800E4180(state, 128, 2, state->unk89)) {",
+     "size": 4,
+     "count": 492,
+     "kind": "against a constant",
+     "outcomes": "== 183, < 160, > 149 (signed); < 0, > 309 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2134564255..2141400207"
+    },
+    {
+     "line": 100,
+     "text": "if (!D_800F1760[0][mode](state, left, right, test)) {",
+     "size": 4,
+     "count": 603,
+     "kind": "against a constant",
+     "outcomes": "== 225, < 201, > 177 (signed); < 0, > 378 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146340313..2142075473"
+    },
+    {
+     "line": 109,
+     "text": "if (rightOpen) {",
+     "size": 4,
+     "count": 6826,
+     "kind": "against a constant",
+     "outcomes": "== 2632, < 2122, > 2072 (signed); < 0, > 4194 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2145873399..2144792405"
+    },
+    {
+     "line": 110,
+     "text": "if (!test(state, diagonal)) {",
+     "size": 4,
+     "count": 4194,
+     "kind": "against a constant",
+     "outcomes": "== 1539, < 1337, > 1318 (signed); < 0, > 2655 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147211249..2146651773"
+    },
+    {
+     "line": 111,
+     "text": "if (nearest == left) {",
+     "size": 4,
+     "count": 1539,
+     "kind": "a == b / a < b",
+     "outcomes": "== 862, < 549, > 128 (signed); < 549, > 128 (unsigned)",
+     "operand": "b 0..6",
+     "a": "0..6"
+    },
+    {
+     "line": 124,
+     "text": "if (!rightOpen) {",
+     "size": 4,
+     "count": 5275,
+     "kind": "against a constant",
+     "outcomes": "== 2632, < 1297, > 1346 (signed); < 0, > 2643 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147313771..2143023287"
+    },
+    {
+     "line": 130,
+     "text": "if ((u_int)(state->timer - 1) >= 126) {",
+     "size": 4,
+     "count": 5275,
+     "kind": "against a constant",
+     "outcomes": "== 349, < 1121, > 3805 (signed); < 756, > 4170 (unsigned)",
+     "operand": "constant 125",
+     "a": "-1..65534"
+    },
+    {
+     "line": 132,
+     "text": "func_800D8400((func_800D8400_t*)state, 0, 0, !leftOpen ? left : right);",
+     "size": 4,
+     "count": 4170,
+     "kind": "against a constant",
+     "outcomes": "== 2098, < 997, > 1075 (signed); < 0, > 2072 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2140688877..2147154081"
+    },
+    {
+     "line": 134,
+     "text": "if (quadrant == 2) {",
+     "size": 4,
+     "count": 4170,
+     "kind": "against a constant",
+     "outcomes": "== 833, < 776, > 2561 (signed); < 776, > 2561 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..255"
+    },
+    {
+     "line": 135,
+     "text": "if (state->timer == 0) {",
+     "size": 2,
+     "count": 833,
+     "kind": "against a constant",
+     "outcomes": "== 38, < 365, > 430 (signed); < 0, > 795 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32748..32488"
+    },
+    {
+     "line": 141,
+     "text": "if (second) {",
+     "size": 4,
+     "count": 3337,
+     "kind": "against a constant",
+     "outcomes": "== 753, < 1289, > 1295 (signed); < 0, > 2584 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147460316..2147359649"
+    },
+    {
+     "line": 142,
+     "text": "if (func_800E47E4(state, second)",
+     "size": 4,
+     "count": 2584,
+     "kind": "against a constant",
+     "outcomes": "== 1001, < 812, > 771 (signed); < 0, > 1583 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147396013..2144594933"
+    },
+    {
+     "line": 143,
+     "text": "&& func_800E4180(state, 128, 2, state->unk89)) {",
+     "size": 4,
+     "count": 1583,
+     "kind": "against a constant",
+     "outcomes": "== 617, < 443, > 523 (signed); < 0, > 966 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2145586443..2146296981"
+    },
+    {
+     "line": 152,
+     "text": "if (mode == 0 || mode == 2) {",
+     "size": 4,
+     "count": 1858,
+     "kind": "against a constant",
+     "outcomes": "== 472, < 0, > 1386 (signed); < 0, > 1386 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3"
+    },
+    {
+     "line": 152,
+     "text": "if (mode == 0 || mode == 2) {",
+     "size": 4,
+     "count": 1386,
+     "kind": "against a constant",
+     "outcomes": "== 451, < 478, > 457 (signed); < 478, > 457 (unsigned)",
+     "operand": "constant 2",
+     "a": "1..3"
+    },
+    {
+     "line": 154,
+     "text": "if ((state->heading & 2) ? state->tile.p.x == state->destination.p.x",
+     "size": 4,
+     "count": 923,
+     "kind": "against a constant",
+     "outcomes": "== 469, < 0, > 454 (signed); < 0, > 454 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2"
+    },
+    {
+     "line": 154,
+     "text": "if ((state->heading & 2) ? state->tile.p.x == state->destination.p.x",
+     "size": 1,
+     "count": 454,
+     "kind": "a == b / a < b",
+     "outcomes": "== 114, < 150, > 190 (signed); < 145, > 195 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 154,
+     "text": "if ((state->heading & 2) ? state->tile.p.x == state->destination.p.x",
+     "size": 1,
+     "count": 469,
+     "kind": "a == b / a < b",
+     "outcomes": "== 119, < 198, > 152 (signed); < 192, > 158 (unsigned)",
+     "operand": "b -128..126",
+     "a": "-128..127"
+    },
+    {
+     "line": 154,
+     "text": "if ((state->heading & 2) ? state->tile.p.x == state->destination.p.x",
+     "size": 1,
+     "count": 923,
+     "kind": "against a constant",
+     "outcomes": "== 690, < 0, > 233 (signed); < 0, > 233 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 160,
+     "text": "if (state->unk4) {",
+     "size": 1,
+     "count": 935,
+     "kind": "against a constant",
+     "outcomes": "== 319, < 296, > 320 (signed); < 0, > 616 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 161,
+     "text": "action = rcos((((leftOpen ? right : left) << 9) - angle) & 0xFFF) >= 3959;",
+     "size": 4,
+     "count": 616,
+     "kind": "against a constant",
+     "outcomes": "== 283, < 150, > 183 (signed); < 0, > 333 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2140688877..2144142343"
+    },
+    {
+     "line": 161,
+     "text": "action = rcos((((leftOpen ? right : left) << 9) - angle) & 0xFFF) >= 3959;",
+     "size": 4,
+     "count": 616,
+     "kind": "against a constant",
+     "outcomes": "== 67, < 268, > 281 (signed); < 29, > 520 (unsigned)",
+     "operand": "constant 3958",
+     "a": "-32558..32718"
+    },
+    {
+     "line": 164,
+     "text": "if (action) {",
+     "size": 4,
+     "count": 1858,
+     "kind": "against a constant",
+     "outcomes": "== 1344, < 0, > 514 (signed); < 0, > 514 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 165,
+     "text": "if (!D_800F1760[1][mode](state, state->heading, leftOpen ? 1 : -1, test)) {",
+     "size": 4,
+     "count": 514,
+     "kind": "against a constant",
+     "outcomes": "== 269, < 126, > 119 (signed); < 0, > 245 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2140688877..2113607649"
+    },
+    {
+     "line": 165,
+     "text": "if (!D_800F1760[1][mode](state, state->heading, leftOpen ? 1 : -1, test)) {",
+     "size": 4,
+     "count": 514,
+     "kind": "against a constant",
+     "outcomes": "== 215, < 151, > 148 (signed); < 0, > 299 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2142085277..2103338389"
+    },
+    {
+     "line": 178,
+     "text": "if (test(state, distance)) {",
+     "size": 4,
+     "count": 8851,
+     "kind": "against a constant",
+     "outcomes": "== 3398, < 2711, > 2742 (signed); < 0, > 5453 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146370493..2147343901"
+    },
+    {
+     "line": 183,
+     "text": "if ((u_int)(state->timer - 1) >= 126) {",
+     "size": 4,
+     "count": 3398,
+     "kind": "against a constant",
+     "outcomes": "== 215, < 720, > 2463 (signed); < 463, > 2720 (unsigned)",
+     "operand": "constant 125",
+     "a": "-1..65534"
+    },
+    {
+     "line": 186,
+     "text": "if (quadrant == 2) {",
+     "size": 4,
+     "count": 2720,
+     "kind": "against a constant",
+     "outcomes": "== 528, < 557, > 1635 (signed); < 557, > 1635 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..255"
+    },
+    {
+     "line": 187,
+     "text": "if (state->timer == 0) {",
+     "size": 2,
+     "count": 528,
+     "kind": "against a constant",
+     "outcomes": "== 28, < 254, > 246 (signed); < 0, > 500 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32623..32718"
+    },
+    {
+     "line": 193,
+     "text": "if (third) {",
+     "size": 4,
+     "count": 2192,
+     "kind": "against a constant",
+     "outcomes": "== 545, < 829, > 818 (signed); < 0, > 1647 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2141750368..2141915388"
+    },
+    {
+     "line": 194,
+     "text": "if (func_800E47E4(state, third)",
+     "size": 4,
+     "count": 1647,
+     "kind": "against a constant",
+     "outcomes": "== 627, < 536, > 484 (signed); < 0, > 1020 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146522421..2144653685"
+    },
+    {
+     "line": 195,
+     "text": "&& func_800E4180(state, 128, 2, state->unk89)) {",
+     "size": 4,
+     "count": 1020,
+     "kind": "against a constant",
+     "outcomes": "== 396, < 287, > 337 (signed); < 0, > 624 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2145668177..2144318907"
+    },
+    {
+     "line": 203,
+     "text": "if (mode == 1 && !state->unk4) {",
+     "size": 4,
+     "count": 1223,
+     "kind": "against a constant",
+     "outcomes": "== 290, < 312, > 621 (signed); < 312, > 621 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..3"
+    },
+    {
+     "line": 203,
+     "text": "if (mode == 1 && !state->unk4) {",
+     "size": 1,
+     "count": 290,
+     "kind": "against a constant",
+     "outcomes": "== 82, < 98, > 110 (signed); < 0, > 208 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..126"
+    },
+    {
+     "line": 207,
+     "text": "if (!D_800F1760[2][mode](state, distance, test)) {",
+     "size": 4,
+     "count": 1141,
+     "kind": "against a constant",
+     "outcomes": "== 409, < 357, > 375 (signed); < 0, > 732 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2145756139..2145092191"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 42740,
+     "completion_tokens": 31079,
+     "reasoning_tokens": 27391,
+     "cost": 0.0198135,
+     "seconds": 114.5,
+     "sample": 1,
+     "conversation": "67ff284df7e2c969a03c107c52900e46574a5e8b4ca39266dde8e2c8c26d3fb7"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800E3600.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800E3600.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 62.31015539500049,
+ "wall_seconds": 379.83573326099986,
+ "totals": {
+  "cost": 0.04856,
+  "prompt_tokens": 84851,
+  "completion_tokens": 80144,
+  "model_seconds": 317.3,
+  "check_seconds": 62.3,
+  "calls": 3,
+  "wall_seconds": 379.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested 39 / 117 / 180, 0 mismatches"
+ }
+}

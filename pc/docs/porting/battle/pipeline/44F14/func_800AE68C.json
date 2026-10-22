@@ -1,0 +1,195 @@
+{
+ "function": "func_800AE68C",
+ "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (D_800F4538 indexed unchecked as the C); spec sound",
+ "plan": {
+  "name": "func_800AE68C",
+  "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+  "stem": "44F14",
+  "address": "0x800ae68c",
+  "difficulty": "S",
+  "zig_name": "func_800AE68C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AE68C",
+  "spec_file": "func_800AE68C.zig",
+  "subsystem": "battle_44F14_port",
+  "signature": "pub fn func_800AE68C(arg0: c_int, arg1: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15511,
+     "completion_tokens": 6173,
+     "reasoning_tokens": 5043,
+     "cost": 0.0046376,
+     "seconds": 27.5,
+     "sample": 1,
+     "conversation": "10959599be96fe673d13f965e2bfce6d47be3e943f8586d75ae6809c80ef41c1"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "first-entry": "1837",
+   "last-entry": "1745",
+   "middle-entry": "26418"
+  },
+  "mutations": [
+   {
+    "name": "F1: the callee gets arg1 + 5",
+    "caught": true
+   },
+   {
+    "name": "F2: the block is taken from entry 0, not arg0",
+    "caught": true
+   },
+   {
+    "name": "F3: the offset is built from arg0",
+    "caught": true
+   },
+   {
+    "name": "F4: the call is dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 3,
+   "lines_hit": 3,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483643, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38914,
+     "completion_tokens": 2167,
+     "reasoning_tokens": 1833,
+     "cost": 0.0049749,
+     "seconds": 10.2,
+     "sample": 1,
+     "conversation": "193beb200a6b0982c135cb6473c8ff61e9d143dccbc514fb93662adaa6b7d11a"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AE68C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AE68C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 16.115058113000032,
+ "wall_seconds": 53.97919045200001,
+ "totals": {
+  "cost": 0.00961,
+  "prompt_tokens": 54425,
+  "completion_tokens": 8340,
+  "model_seconds": 37.7,
+  "check_seconds": 16.1,
+  "calls": 2,
+  "wall_seconds": 54.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

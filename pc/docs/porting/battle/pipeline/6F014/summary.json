@@ -1,0 +1,360 @@
+{
+ "unit": "6F014",
+ "totals": {
+  "functions": 31,
+  "ported": 31,
+  "cost": 0.3679,
+  "prompt_tokens": 1772393,
+  "completion_tokens": 381294,
+  "model_seconds": 1667.9,
+  "check_seconds": 902.4,
+  "calls": 77,
+  "statuses": {
+   "ported": 31
+  },
+  "last_run_wall_seconds": 60.6
+ },
+ "functions": [
+  {
+   "function": "_parsePfileBlock1",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "spec": "retry",
+   "port": "first",
+   "cost": 0.02255,
+   "wall_seconds": 181.6
+  },
+  {
+   "function": "_parsePfileBlock10",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00795,
+   "wall_seconds": 48.4
+  },
+  {
+   "function": "_parsePfileBlock11",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "spec": "retry",
+   "port": "first",
+   "cost": 0.01024,
+   "wall_seconds": 66.7
+  },
+  {
+   "function": "_parsePfileBlock12",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00888,
+   "wall_seconds": 55.8
+  },
+  {
+   "function": "_parsePfileBlock13",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00925,
+   "wall_seconds": 62.2
+  },
+  {
+   "function": "_parsePfileBlock2",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00796,
+   "wall_seconds": 46.8
+  },
+  {
+   "function": "_parsePfileBlock3",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00802,
+   "wall_seconds": 44.8
+  },
+  {
+   "function": "_parsePfileBlock5",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00717,
+   "wall_seconds": 41.1
+  },
+  {
+   "function": "_parsePfileBlock8",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "spec": "retry",
+   "port": "first",
+   "cost": 0.01161,
+   "wall_seconds": 69.5
+  },
+  {
+   "function": "_parsePfileBlock9",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00724,
+   "wall_seconds": 41.8
+  },
+  {
+   "function": "_parsePfileCurveBlock",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.01316,
+   "wall_seconds": 95.0
+  },
+  {
+   "function": "func_800D7814",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 2,
+   "spec": "first",
+   "port": "retry",
+   "cost": 0.01367,
+   "wall_seconds": 62.5
+  },
+  {
+   "function": "func_800D7890",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00694,
+   "wall_seconds": 37.2
+  },
+  {
+   "function": "func_800D78B8",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00672,
+   "wall_seconds": 30.4
+  },
+  {
+   "function": "func_800D78CC",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00628,
+   "wall_seconds": 25.6
+  },
+  {
+   "function": "func_800D78F0",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.01191,
+   "wall_seconds": 86.8
+  },
+  {
+   "function": "func_800D7A90",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.01154,
+   "wall_seconds": 91.1
+  },
+  {
+   "function": "func_800D7BF8",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 2,
+   "spec": "retry",
+   "port": "retry",
+   "cost": 0.02266,
+   "wall_seconds": 150.7
+  },
+  {
+   "function": "func_800D7C5C",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00887,
+   "wall_seconds": 76.8
+  },
+  {
+   "function": "func_800D7CFC",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 2,
+   "spec": "retry",
+   "port": "retry",
+   "cost": 0.03969,
+   "wall_seconds": 324.6
+  },
+  {
+   "function": "func_800D7EF4",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "spec": "retry",
+   "port": "first",
+   "cost": 0.02211,
+   "wall_seconds": 197.2
+  },
+  {
+   "function": "func_800D7FFC",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00585,
+   "wall_seconds": 66.6
+  },
+  {
+   "function": "func_800D8038",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "spec": "retry",
+   "port": "first",
+   "cost": 0.00783,
+   "wall_seconds": 60.1
+  },
+  {
+   "function": "func_800D8044",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00577,
+   "wall_seconds": 49.8
+  },
+  {
+   "function": "func_800D8060",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 2,
+   "spec": "retry",
+   "port": "retry",
+   "cost": 0.02602,
+   "wall_seconds": 178.4
+  },
+  {
+   "function": "vs_battle_configureEffectFbLoad",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00728,
+   "wall_seconds": 82.0
+  },
+  {
+   "function": "vs_battle_configurePlg",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00674,
+   "wall_seconds": 42.1
+  },
+  {
+   "function": "vs_battle_getMainMenuLba",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "spec": "retry",
+   "port": "first",
+   "cost": 0.00688,
+   "wall_seconds": 47.0
+  },
+  {
+   "function": "vs_battle_loadEffPurge",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 3,
+   "spec": "retry",
+   "port": "retry",
+   "cost": 0.02391,
+   "wall_seconds": 60.4
+  },
+  {
+   "function": "vs_battle_setEffectExec",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00702,
+   "wall_seconds": 52.7
+  },
+  {
+   "function": "vs_battle_setPlgLoadState",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00617,
+   "wall_seconds": 63.6
+  }
+ ]
+}

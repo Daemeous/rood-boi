@@ -1,0 +1,119 @@
+{
+ "function": "func_800DE3E4",
+ "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.4,
+ "samples": 2,
+ "status": "stopped",
+ "reviewed": "not ported in this wave (unrouted): Haiku's specs miss mutations; the retry stopped at the wave's budget",
+ "plan": {
+  "name": "func_800DE3E4",
+  "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+  "stem": "74088",
+  "address": "0x800de3e4",
+  "difficulty": "L",
+  "zig_name": "func_800DE3E4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DE3E4",
+  "spec_file": "func_800DE3E4.zig",
+  "subsystem": "battle_74088_port",
+  "signature": "pub fn func_800DE3E4(state: ?*v.actionPlanState) callconv(.c) void",
+  "params": [
+   [
+    "state",
+    "?*v.actionPlanState"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800F58E8",
+   "D_800F58F0",
+   "D_800F58F4"
+  ],
+  "hooks": [],
+  "statics": [
+   "restoreActorStats",
+   "snapshotActorStats"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "length",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 19927,
+     "completion_tokens": 64000,
+     "reasoning_tokens": 64000,
+     "cost": 0.0339927,
+     "seconds": 280.9,
+     "sample": 1,
+     "conversation": "bbd7300f0d92d33a956e5e558d353b3662fdf1586f214d26817a809135790891"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: no ```zig block in the reply",
+     "FAIL: no ```toml block in the reply"
+    ]
+   },
+   {
+    "round": 1,
+    "sample": 2,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 19927,
+     "completion_tokens": 62631,
+     "reasoning_tokens": 58301,
+     "cost": 0.0333082,
+     "seconds": 266.2,
+     "sample": 2,
+     "conversation": "565c24651d9c4728c6319e1e0f1204e5a02a91e29f8f626104bf79bb85faf75c"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/boot64/zig/c_74088.zig:4837:21: error: array of opaque type 'c_74088.actionCandidateEntry' not allowed\n    candidates: [16]actionCandidateEntry = @import(\"std\").mem.zeroes([16]actionCandidateEntry),\n                    ^~~~~~~~~~~~~~~~~~~~\npc/build/boot64/zig/c_74088.zig:4554:34: note: opaque declared here\npub const actionCandidateEntry = opaque {\n                                 ^~~~~~\nreferenced by:\n    asPtr__func_92: pc/build/port-pipeline/func_800DE3E4/spec1s2/build/spec.zig:27:32\n    func_800DC574__func_87: pc/build/port-pipeline/func_800DE3E4/spec1s2/build/spec.zig:74:24\n    7 reference(s) hidden; use '-freference-trace=9' to see all references\n"
+    ]
+   }
+  ]
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 0.0,
+ "stopped": "budget: $0.3872 spent of $0.45",
+ "wall_seconds": 547.6323040749994,
+ "totals": {
+  "cost": 0.0673,
+  "prompt_tokens": 39854,
+  "completion_tokens": 126631,
+  "model_seconds": 547.1,
+  "check_seconds": 0.0,
+  "calls": 2,
+  "wall_seconds": 547.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": ""
+ }
+}

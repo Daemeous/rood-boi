@@ -1063,6 +1063,11 @@ void func_800E1388(func_800D8400_t* state, vs_battle_movementPosition source, in
     vs_battle_movementPosition dest;
     int i, x, z, heading;
     unsigned int step;
+#ifdef ROOD_PC
+    /* Only x and z are written: y and status were stack residue, copied whole
+       into state->destination (pc/docs/Oracle.md, known hazards). */
+    dest.raw = 0;
+#endif
     angle = -angle;
     angle += 0xC00;
     heading = angle & 0xFFF;

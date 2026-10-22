@@ -1,0 +1,198 @@
+{
+ "function": "vs_battle_setEffectExec",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "vs_battle_setEffectExec",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d7fe4",
+  "difficulty": "S",
+  "zig_name": "setEffectExec",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "set_effect_exec",
+  "spec_file": "setEffectExec.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn setEffectExec(func: c.effectExec, index: c_int) callconv(.c) void",
+  "params": [
+   [
+    "func",
+    "c.effectExec"
+   ],
+   [
+    "index",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "vs_battle_effectRenderers"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11155,
+     "completion_tokens": 3397,
+     "reasoning_tokens": 2409,
+     "cost": 0.002814,
+     "seconds": 16.0,
+     "sample": 1,
+     "conversation": "463d9598248ab3c1391307272d96b2b3bde7feebfd152fb4dd91bd740a5513cf"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null-func": "4992",
+   "fn-func": "15008"
+  },
+  "mutations": [
+   {
+    "name": "E1: index masked to 0..3 (entries 4-7 written at 0-3)",
+    "caught": true
+   },
+   {
+    "name": "E2: store dropped",
+    "caught": true
+   },
+   {
+    "name": "E3: entries swapped (index ^ 1)",
+    "caught": true
+   },
+   {
+    "name": "E4: stores NULL instead of the renderer",
+    "caught": true
+   },
+   {
+    "name": "E5: index 7 wraps to entry 0 (% 7)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 3,
+   "lines_hit": 3,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 1,
+     "count": 20000,
+     "text": "32-bit: min 0, max 7, seen zero, never negative, 8 value(s): 0, 1, 6, 7, 2, 5, 3, 4"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34445,
+     "completion_tokens": 1524,
+     "reasoning_tokens": 1278,
+     "cost": 0.0042065,
+     "seconds": 7.5,
+     "sample": 1,
+     "conversation": "b75498b4bea222c2db729474eb1587fd57054453fbeccac2951f7d47e9c0351e"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/setEffectExec.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/set_effect_exec.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 28.98854381899946,
+ "wall_seconds": 52.66641788299967,
+ "totals": {
+  "cost": 0.00702,
+  "prompt_tokens": 45600,
+  "completion_tokens": 4921,
+  "model_seconds": 23.5,
+  "check_seconds": 29.0,
+  "calls": 2,
+  "wall_seconds": 52.7
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

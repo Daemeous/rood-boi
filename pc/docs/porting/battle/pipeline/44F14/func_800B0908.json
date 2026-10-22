@@ -1,0 +1,94 @@
+{
+ "function": "func_800B0908",
+ "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+ "difficulty": "XL",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.4,
+ "samples": 2,
+ "status": "stopped",
+ "reviewed": "not ported in this wave (unrouted): Haiku's specs (two runs) never make object->position.vy equal the step",
+ "plan": {
+  "name": "func_800B0908",
+  "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+  "stem": "44F14",
+  "address": "0x800b0908",
+  "difficulty": "XL",
+  "zig_name": "func_800B0908",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B0908",
+  "spec_file": "func_800B0908.zig",
+  "subsystem": "battle_44F14_port",
+  "signature": "pub fn func_800B0908(object: ?*v.objectAnimationState, unused: c_int) callconv(.c) void",
+  "params": [
+   [
+    "object",
+    "?*v.objectAnimationState"
+   ],
+   [
+    "unused",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "objectAnimationState"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 17390,
+     "completion_tokens": 41594,
+     "reasoning_tokens": 38150,
+     "cost": 0.022536,
+     "seconds": 176.9,
+     "sample": 1,
+     "conversation": "7b42c7ee87acfa10c0591ec6de078c9d908d6031dda3169918e5424e65b11e6e"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:225:46: error: expected 2 argument(s), found 1\n                return adapt(S, @call(.auto, f, .{&ctx} ++ stubArgs(@TypeOf(f), args)));\n                                             ^\npc/build/port-pipeline/func_800B0908/spec1/build/spec.zig:113:9: note: function declared here\n    pub fn func_800B101C(ctx: *zd.Ctx, obj: anytype) c_int {\n    ~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    f: pc/build/port-pipeline/func_800B0908/spec1/build/game/common/route.zig:19:28\n    comptime: pc/tests/zig_diff/main.zig:234:58\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   }
+  ]
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 0.0,
+ "stopped": "budget: $0.3872 spent of $0.45",
+ "wall_seconds": 177.40390776000095,
+ "totals": {
+  "cost": 0.02254,
+  "prompt_tokens": 17390,
+  "completion_tokens": 41594,
+  "model_seconds": 176.9,
+  "check_seconds": 0.0,
+  "calls": 1,
+  "wall_seconds": 177.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": ""
+ }
+}

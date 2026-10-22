@@ -1,0 +1,191 @@
+{
+ "function": "func_800C0700",
+ "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the ROOD_PC low-RAM fallback for a freed shape kept); spec sound (a self-copy class)",
+ "plan": {
+  "name": "func_800C0700",
+  "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+  "stem": "573B8",
+  "address": "0x800c0700",
+  "difficulty": "M",
+  "zig_name": "func_800C0700",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C0700",
+  "spec_file": "func_800C0700.zig",
+  "subsystem": "battle_573B8_port",
+  "signature": "pub fn func_800C0700(arg0: ?*v.D_800EB9B8_t2) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800EB9B8_t2"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800EB9B8_t",
+   "D_800EB9B8_t2"
+  ],
+  "globals": [
+   "D_800EB9B8"
+  ],
+  "hooks": [
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11650,
+     "completion_tokens": 4865,
+     "reasoning_tokens": 3928,
+     "cost": 0.0035975,
+     "seconds": 20.0,
+     "sample": 1,
+     "conversation": "bf1681a0995e67cc44c7a0f4a3a3355eeaff24ceb32185617e5fc8ed70cee4d5"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "shape-null": "7499",
+   "shape-arena": "14955",
+   "self-copy": "7546"
+  },
+  "mutations": [
+   {
+    "name": "S1: unk2A cleared to 1, not 0",
+    "caught": true
+   },
+   {
+    "name": "S2: only the last word of the copy is stored",
+    "caught": true
+   },
+   {
+    "name": "S3: the store goes to unk0 (wrong field)",
+    "caught": true
+   },
+   {
+    "name": "S4: NULL fallback at PS1 address 8, not 0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 5,
+   "lines_hit": 5,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35060,
+     "completion_tokens": 2338,
+     "reasoning_tokens": 2004,
+     "cost": 0.004675,
+     "seconds": 10.6,
+     "sample": 1,
+     "conversation": "fcc3d4641747bf911785d33d63532fc02704391de171f3feadc87420beef3ce5"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C0700.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C0700.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 21.88616435399672,
+ "wall_seconds": 52.553830214998015,
+ "totals": {
+  "cost": 0.00827,
+  "prompt_tokens": 46710,
+  "completion_tokens": 7203,
+  "model_seconds": 30.6,
+  "check_seconds": 21.9,
+  "calls": 2,
+  "wall_seconds": 52.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

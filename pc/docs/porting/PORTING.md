@@ -1140,6 +1140,14 @@ order).
   arithmetic on unpromoted `u8`/`u16`.
 - `extern var`, Zig `var` globals, Zig-allocated memory, addresses of Zig
   functions or constants stored in game memory.
+- Anything that puts writable data in the object: a module-level constant
+  holding a function's address (`const f: Fn = @extern(Fn, ...)`: a
+  relocated slot in `.data` of the engine library, `build_boot.py
+  --engine-library` rejects it; take the pointer where it is called, or
+  call `c.f` through `@as(Fn, @ptrCast(&c.f))` locally), and a labelled
+  `switch` with `continue :label` over many cases (its jump table lands in
+  `.data` there too: write a loop over a plain `switch`, or the fallthrough
+  as two tests).
 - Editing `src/` to make a port easier (the only `src/` edit in D is the
   feature-hook removal at the flip).
 - "Fixing" a prototype or a struct layout in one unit to match another.

@@ -1,0 +1,261 @@
+{
+ "function": "func_800DAC80",
+ "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (unkC_0 rewritten by func_800DBD80's stub, read after it as in the C; kind and the cooldown source read after the calls)",
+ "plan": {
+  "name": "func_800DAC80",
+  "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+  "stem": "71618",
+  "address": "0x800dac80",
+  "difficulty": "S",
+  "zig_name": "func_800DAC80",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DAC80",
+  "spec_file": "func_800DAC80.zig",
+  "subsystem": "battle_71618_port",
+  "signature": "pub fn func_800DAC80(context: ?*v.actionSetupContext, action: ?*v.func_800DCAA0_t) callconv(.c) c_int",
+  "params": [
+   [
+    "context",
+    "?*v.actionSetupContext"
+   ],
+   [
+    "action",
+    "?*v.func_800DCAA0_t"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F4538_t",
+   "D_800F58BC_t",
+   "actionSetupContext",
+   "func_800DCAA0_t"
+  ],
+  "globals": [
+   "D_800F4538",
+   "D_800F58BC",
+   "D_800F58E0"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16020,
+     "completion_tokens": 19461,
+     "reasoning_tokens": 17233,
+     "cost": 0.0113325,
+     "seconds": 83.4,
+     "sample": 1,
+     "conversation": "bde997f2861c7a7b19219b9e505123d77b29b27c32329ad351ca03cec3808ece"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "table-empty": "4870",
+   "kind-zero": "12735",
+   "kind-nonzero": "12395"
+  },
+  "mutations": [
+   {
+    "name": "A1: the actor bit test looks at 0x80000 only",
+    "caught": true
+   },
+   {
+    "name": "A2: unkC_7 stored as 216",
+    "caught": true
+   },
+   {
+    "name": "A3: cooldown 50 becomes 49 when kind is nonzero",
+    "caught": true
+   },
+   {
+    "name": "A4: cooldown read from D_800F58BC + 7",
+    "caught": true
+   },
+   {
+    "name": "A5: D_800F58E0 stored as 0",
+    "caught": true
+   },
+   {
+    "name": "A6: kind tested against 1, not 0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 18,
+   "lines_hit": 18,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 3,
+     "text": "if (!func_800DBD80(context, action))",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 7421, < 11193, > 11386 (signed); < 0, > 22579 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147266207..2147477073"
+    },
+    {
+     "line": 6,
+     "text": "if (func_800D826C(context)) {",
+     "size": 4,
+     "count": 22579,
+     "kind": "against a constant",
+     "outcomes": "== 5631, < 8433, > 8515 (signed); < 0, > 16948 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147458503..2146230399"
+    },
+    {
+     "line": 10,
+     "text": "if (actor != 0 && (*(u_int*)((char*)actor + 8) & 0x180000)) {",
+     "size": 4,
+     "count": 9472,
+     "kind": "against a constant",
+     "outcomes": "== 2747, < 0, > 6725 (signed); < 0, > 6725 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1572864"
+    },
+    {
+     "line": 15,
+     "text": "if (func_800DBC60(context, action)) {",
+     "size": 4,
+     "count": 16948,
+     "kind": "against a constant",
+     "outcomes": "== 4270, < 6321, > 6357 (signed); < 0, > 12678 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147377183..2147481479"
+    },
+    {
+     "line": 16,
+     "text": "if (context->kind == 0)",
+     "size": 1,
+     "count": 12678,
+     "kind": "against a constant",
+     "outcomes": "== 3278, < 4687, > 4713 (signed); < 0, > 9400 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39422,
+     "completion_tokens": 5210,
+     "reasoning_tokens": 4526,
+     "cost": 0.0065472,
+     "seconds": 22.5,
+     "sample": 1,
+     "conversation": "18788fac48fd1bf2ca54a519a41299d06b813323f69ff8cf86bef9291d79fedc"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DAC80.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DAC80.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 27.296198802003346,
+ "wall_seconds": 133.42806181900232,
+ "totals": {
+  "cost": 0.01788,
+  "prompt_tokens": 55442,
+  "completion_tokens": 24671,
+  "model_seconds": 105.9,
+  "check_seconds": 27.3,
+  "calls": 2,
+  "wall_seconds": 133.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (291 / 801 / 546), 0 mismatches"
+ }
+}

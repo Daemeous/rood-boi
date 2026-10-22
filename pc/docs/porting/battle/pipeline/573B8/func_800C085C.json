@@ -1,0 +1,254 @@
+{
+ "function": "func_800C085C",
+ "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (each scale byte read once per axis, before its row is written: the same unless scale aliased the scratchpad, which no caller does); spec sound (callee outputs written by the GTE stubs)",
+ "plan": {
+  "name": "func_800C085C",
+  "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+  "stem": "573B8",
+  "address": "0x800c085c",
+  "difficulty": "L",
+  "zig_name": "func_800C085C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C085C",
+  "spec_file": "func_800C085C.zig",
+  "subsystem": "battle_573B8_port",
+  "signature": "pub fn func_800C085C(scale: [*c]u8, angle: c_int) callconv(.c) ?*v.MATRIX",
+  "params": [
+   [
+    "scale",
+    "[*c]u8"
+   ],
+   [
+    "angle",
+    "c_int"
+   ]
+  ],
+  "ret": "?*v.MATRIX",
+  "types": [
+   "MATRIX",
+   "SVECTOR"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11601,
+     "completion_tokens": 13721,
+     "reasoning_tokens": 12017,
+     "cost": 0.0080206,
+     "seconds": 57.4,
+     "sample": 1,
+     "conversation": "da2bc5fcfa71e48c39bb4d940f6a4b5af7dd696b9aa3dbf9862f5b66fe03d3d6"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "angle-fits-i16": "6876",
+   "angle-wraps-i16": "23124"
+  },
+  "mutations": [
+   {
+    "name": "A: scale[3] shifted by 3, not 4",
+    "caught": true
+   },
+   {
+    "name": "B: scale bytes read as signed chars",
+    "caught": true
+   },
+   {
+    "name": "C: ApplyMatrixSV call dropped",
+    "caught": true
+   },
+   {
+    "name": "D: transpose reads the rows, not the columns",
+    "caught": true
+   },
+   {
+    "name": "E: returns the rotation matrix, not the scratch matrix",
+    "caught": true
+   },
+   {
+    "name": "F: angle stored negated",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 20,
+   "lines_hit": 20,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 12,
+     "text": "for (axis = 0; axis < 3; ++axis) {",
+     "size": 4,
+     "count": 120000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 60000, > 30000 (signed); < 60000, > 30000 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 17,
+     "text": "for (; component < 3; ++component, ++coordinate) {",
+     "size": 4,
+     "count": 360000,
+     "kind": "against a constant",
+     "outcomes": "== 90000, < 180000, > 90000 (signed); < 180000, > 90000 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 18,
+     "text": "if (axis == component) {",
+     "size": 4,
+     "count": 270000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 90000, < 90000, > 90000 (signed); < 90000, > 90000 (unsigned)",
+     "operand": "b 0..2",
+     "a": "0..2"
+    },
+    {
+     "line": 26,
+     "text": "for (axis = 0; axis < 3; ++axis) {",
+     "size": 4,
+     "count": 120000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 60000, > 30000 (signed); < 60000, > 30000 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 27,
+     "text": "for (component = 0; component < 3; ++component) {",
+     "size": 4,
+     "count": 360000,
+     "kind": "against a constant",
+     "outcomes": "== 90000, < 180000, > 90000 (signed); < 180000, > 90000 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35012,
+     "completion_tokens": 6074,
+     "reasoning_tokens": 5190,
+     "cost": 0.0065382,
+     "seconds": 25.3,
+     "sample": 1,
+     "conversation": "6655626f9097faddd176f7fdd3a4997c72d4a2787d22890a9f46bd059b788398"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C085C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C085C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 34.51994477300468,
+ "wall_seconds": 117.33640594399913,
+ "totals": {
+  "cost": 0.01456,
+  "prompt_tokens": 46613,
+  "completion_tokens": 19795,
+  "model_seconds": 82.7,
+  "check_seconds": 34.5,
+  "calls": 2,
+  "wall_seconds": 117.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 46, 0 mismatches"
+ }
+}

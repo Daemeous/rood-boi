@@ -1,0 +1,446 @@
+{
+ "function": "func_800DA738",
+ "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the tile word passed by value as the c module's u32); spec sound (point and target16 written by func_800DBB2C's stub before the C reads them); blocked on the first run by a tooling failure (an opaque by-value parameter), ported after the zig_c fix",
+ "plan": {
+  "name": "func_800DA738",
+  "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+  "stem": "71618",
+  "address": "0x800da738",
+  "difficulty": "L",
+  "zig_name": "func_800DA738",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DA738",
+  "spec_file": "func_800DA738.zig",
+  "subsystem": "battle_71618_port",
+  "signature": "pub fn func_800DA738(state: ?*v.da4bcState) callconv(.c) c_int",
+  "params": [
+   [
+    "state",
+    "?*v.da4bcState"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "da4bcModel",
+   "da4bcPoint"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17483,
+     "completion_tokens": 47869,
+     "reasoning_tokens": 44026,
+     "cost": 0.0256828,
+     "seconds": 207.0,
+     "sample": 1,
+     "conversation": "ab706ba33650f013cb4cd9fcd5e6f488cd3592f376688949f7525f5f38951553"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation D4: valid taken from the sign of candidate, not its complement: not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: MISMATCH iteration 0: memory at 0x409498 [arena] (zdiff_state+0x418): C 132, Zig 1\nzdiff: MISMATCH iteration 1: memory at 0x4095b1 [arena] (zdiff_state+0x531): C 105, Zig 209\nzdiff: MISMATCH iteration 2: memory at 0x4095b1 [arena] (zdiff_state+0x531): C 96, Zig 22\nzdiff: CRASH (signal 11) in the Zig run, iteration 22, fault address 0xfffffffe0040fdd4 [memory the harness does not own: a pointer from random bytes?]"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 21687,
+     "completion_tokens": 5521,
+     "reasoning_tokens": 1702,
+     "cost": 0.0049292,
+     "seconds": 19.5,
+     "sample": 1,
+     "conversation": "433fba4ccfd8b473d120e3e7e34830b276d9d5b0547430c02d7d448625a07984"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "self-or-16": "7585",
+   "out-of-range": "3709",
+   "empty-slot": "3755",
+   "inactive": "3710",
+   "active-no-bit5": "3707",
+   "active-bit5": "7534"
+  },
+  "mutations": [
+   {
+    "name": "D1: dot threshold is > instead of >=",
+    "caught": true
+   },
+   {
+    "name": "D2: flag edge tests < instead of <=",
+    "caught": true
+   },
+   {
+    "name": "D3: func_800E45D4 result compared <= 128",
+    "caught": true
+   },
+   {
+    "name": "D4: dot shifted by 11 instead of 12",
+    "caught": true
+   },
+   {
+    "name": "D5: timer44 reset to 11 instead of 10",
+    "caught": true
+   },
+   {
+    "name": "D6: func_800D8260 call dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 38,
+   "branches_hit": 38,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 57,
+   "lines_hit": 57,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 18,
+     "text": "if (state->id != target && target != 16) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2949, < 26640, > 411 (signed); < 25247, > 1804 (unsigned)",
+     "operand": "b 0..200",
+     "a": "-128..127"
+    },
+    {
+     "line": 18,
+     "text": "if (state->id != target && target != 16) {",
+     "size": 4,
+     "count": 27051,
+     "kind": "against a constant",
+     "outcomes": "== 2869, < 22797, > 1385 (signed); < 21404, > 2778 (unsigned)",
+     "operand": "constant 16",
+     "a": "-128..127"
+    },
+    {
+     "line": 19,
+     "text": "if (((da4bcState*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F80037C) + 4 * (target)))))",
+     "size": 4,
+     "count": 24182,
+     "kind": "against a constant",
+     "outcomes": "== 6971, < 2818, > 14393 (signed); < 0, > 17211 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147406791..4275680"
+    },
+    {
+     "line": 20,
+     "text": "active = ((unsigned char)state->targets[target] >> 6) == 2;",
+     "size": 1,
+     "count": 17211,
+     "kind": "against a constant",
+     "outcomes": "== 10024, < 5699, > 1488 (signed); < 5699, > 1488 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 24,
+     "text": "if (valid) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 11255, < 0, > 18745 (signed); < 0, > 18745 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 25,
+     "text": "if (active) {",
+     "size": 4,
+     "count": 18745,
+     "kind": "against a constant",
+     "outcomes": "== 12523, < 0, > 6222 (signed); < 0, > 6222 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 26,
+     "text": "if ((state->targets[target] >> 5) & 1) {",
+     "size": 4,
+     "count": 6222,
+     "kind": "against a constant",
+     "outcomes": "== 2245, < 0, > 3977 (signed); < 0, > 3977 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..32"
+    },
+    {
+     "line": 40,
+     "text": "if (state->timer44)",
+     "size": 1,
+     "count": 3977,
+     "kind": "against a constant",
+     "outcomes": "== 475, < 1471, > 2031 (signed); < 0, > 3502 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 42,
+     "text": "if (dot >= -1200 || state->timer44) {",
+     "size": 4,
+     "count": 3977,
+     "kind": "against a constant",
+     "outcomes": "== 667, < 256, > 3054 (signed); < 2689, > 621 (unsigned)",
+     "operand": "constant -1200",
+     "a": "-5296..8192"
+    },
+    {
+     "line": 42,
+     "text": "if (dot >= -1200 || state->timer44) {",
+     "size": 1,
+     "count": 256,
+     "kind": "against a constant",
+     "outcomes": "== 61, < 92, > 103 (signed); < 0, > 195 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 49,
+     "text": "if (!state->timer44)",
+     "size": 1,
+     "count": 3916,
+     "kind": "against a constant",
+     "outcomes": "== 1960, < 1001, > 955 (signed); < 0, > 1956 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 57,
+     "text": "if (active) {",
+     "size": 4,
+     "count": 13561,
+     "kind": "against a constant",
+     "outcomes": "== 7453, < 0, > 6108 (signed); < 0, > 6108 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 58,
+     "text": "if (valid",
+     "size": 4,
+     "count": 6108,
+     "kind": "against a constant",
+     "outcomes": "== 3802, < 0, > 2306 (signed); < 0, > 2306 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 59,
+     "text": "&& ((da4bcState*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F80037C) + 4 * (target))))->distances[candidate]",
+     "size": 4,
+     "count": 2306,
+     "kind": "against a constant",
+     "outcomes": "== 374, < 1132, > 800 (signed); < 378, > 1554 (unsigned)",
+     "operand": "constant 147455",
+     "a": "-2146180483..2135495310"
+    },
+    {
+     "line": 65,
+     "text": "if (func_800DB370((void*)state, target, 320, 1))",
+     "size": 4,
+     "count": 5356,
+     "kind": "against a constant",
+     "outcomes": "== 2640, < 1373, > 1343 (signed); < 0, > 2716 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146817319..2147457927"
+    },
+    {
+     "line": 67,
+     "text": "if (func_800DB74C((void*)state, target))",
+     "size": 4,
+     "count": 2640,
+     "kind": "against a constant",
+     "outcomes": "== 1293, < 694, > 653 (signed); < 0, > 1347 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2145692513..2143266999"
+    },
+    {
+     "line": 71,
+     "text": "if (valid) {",
+     "size": 4,
+     "count": 21269,
+     "kind": "against a constant",
+     "outcomes": "== 8369, < 0, > 12900 (signed); < 0, > 12900 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 72,
+     "text": "if (oldFlag) {",
+     "size": 4,
+     "count": 12900,
+     "kind": "against a constant",
+     "outcomes": "== 49, < 0, > 12851 (signed); < 0, > 12851 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..255"
+    },
+    {
+     "line": 73,
+     "text": "if ((unsigned int)func_800E45D4(128) < 128)",
+     "size": 4,
+     "count": 12851,
+     "kind": "against a constant",
+     "outcomes": "== 3247, < 4769, > 4835 (signed); < 0, > 9604 (unsigned)",
+     "operand": "constant 127",
+     "a": "-2144752112..2146583189"
+    },
+    {
+     "line": 77,
+     "text": "if (func_800DB61C((void*)state, 1))",
+     "size": 4,
+     "count": 12900,
+     "kind": "against a constant",
+     "outcomes": "== 6467, < 3229, > 3204 (signed); < 0, > 6433 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147197149..2147228881"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40893,
+     "completion_tokens": 23643,
+     "reasoning_tokens": 21834,
+     "cost": 0.0159108,
+     "seconds": 94.3,
+     "sample": 1,
+     "conversation": "8c927da6e883216b5b13f7e55d435b178684a3d28e48857981194fb6623bf437"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800DA738.zig:47:63: error: cannot @bitCast from 'views_71618.vs_battle_movementPosition'\n                        c.func_800E1388(@ptrCast(s), @bitCast(tile), c.ratan2(\n                                                              ^~~~\npc/build/port-pipeline/gen/71618/fn-func_800DA738/views_71618.zig:1244:47: note: union declared here\npub const vs_battle_movementPosition = extern union {\n                                       ~~~~~~~^~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 43054,
+     "completion_tokens": 3392,
+     "reasoning_tokens": 1527,
+     "cost": 0.0060014,
+     "seconds": 13.1,
+     "sample": 1,
+     "conversation": "e4f63172ab918e5f8196a12572f86dc814a2a87acfef186c71545091ee45ba47"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DA738.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DA738.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 62.066225236994796,
+ "wall_seconds": 189.2800322410003,
+ "totals": {
+  "cost": 0.05252,
+  "prompt_tokens": 123117,
+  "completion_tokens": 80425,
+  "model_seconds": 333.9,
+  "check_seconds": 62.1,
+  "calls": 4,
+  "wall_seconds": 189.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

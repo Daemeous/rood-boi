@@ -1,0 +1,184 @@
+{
+ "function": "_parsePfileBlock10",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (a guest-pointer store, null and any address)",
+ "plan": {
+  "name": "_parsePfileBlock10",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d7a04",
+  "difficulty": "S",
+  "zig_name": "parsePfileBlock10",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "parse_pfile_block10",
+  "spec_file": "parsePfileBlock10.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn parsePfileBlock10(arg0: ?*anyopaque) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*anyopaque"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F569C_t"
+  ],
+  "globals": [
+   "D_800F569C"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11556,
+     "completion_tokens": 5205,
+     "reasoning_tokens": 4275,
+     "cost": 0.0037581,
+     "seconds": 22.5,
+     "sample": 1,
+     "conversation": "a847f806f0082d20d32f709b26b82fbd027521a335f5885218e68366bc8960a9"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null": "5919",
+   "low": "14103",
+   "high": "9978"
+  },
+  "mutations": [
+   {
+    "name": "P1: stored guest address off by four",
+    "caught": true
+   },
+   {
+    "name": "P2: stored into block9Data's field",
+    "caught": true
+   },
+   {
+    "name": "P3: store drops the argument (writes 0)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 1,
+   "lines_hit": 1,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34944,
+     "completion_tokens": 1388,
+     "reasoning_tokens": 1156,
+     "cost": 0.0041884,
+     "seconds": 6.6,
+     "sample": 1,
+     "conversation": "d333c7f5e3114a2304e7a2c0b4afc6b87b6b4c831cce38cb6314a67dc89953ed"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/parsePfileBlock10.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/parse_pfile_block10.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 19.068009671000254,
+ "wall_seconds": 48.36434501799977,
+ "totals": {
+  "cost": 0.00795,
+  "prompt_tokens": 46500,
+  "completion_tokens": 6593,
+  "model_seconds": 29.1,
+  "check_seconds": 19.1,
+  "calls": 2,
+  "wall_seconds": 48.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches"
+ }
+}

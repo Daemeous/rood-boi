@@ -1,0 +1,141 @@
+{
+ "function": "func_800AE47C",
+ "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": "not ported (skipped): a block-scope static (its ROOD_PC hook's log-once counter); the C must define it outside the function first (PORTING \u00a76.3)",
+ "plan": {
+  "name": "func_800AE47C",
+  "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+  "stem": "44F14",
+  "address": "0x800ae47c",
+  "difficulty": "L",
+  "zig_name": "func_800AE47C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AE47C",
+  "spec_file": "func_800AE47C.zig",
+  "subsystem": "battle_44F14_port",
+  "signature": "pub fn func_800AE47C(arg0: ?*v.D_800F4538_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F4538_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [
+   "pc_log",
+   "ROOD_PC block in the source"
+  ],
+  "statics": [
+   "a block-scope static"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17240,
+     "completion_tokens": 19463,
+     "reasoning_tokens": 17405,
+     "cost": 0.0114555,
+     "seconds": 83.9,
+     "sample": 1,
+     "conversation": "9fed8274b3ab4a869eed302e2cde6ddfff20c2990fe2c4d830e4d33011c79ce0"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\nstand-in: func_800AE47C has a block-scope static (a second copy would have its own)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 19369,
+     "completion_tokens": 3581,
+     "reasoning_tokens": 1212,
+     "cost": 0.0037274,
+     "seconds": 14.3,
+     "sample": 1,
+     "conversation": "08479fc2a5b317060afd5b9599593d0339b4397dd609ab294d020547ce01a645"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\nstand-in: func_800AE47C has a block-scope static (a second copy would have its own)"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 21809,
+     "completion_tokens": 3145,
+     "reasoning_tokens": 898,
+     "cost": 0.0037534,
+     "seconds": 12.0,
+     "sample": 1,
+     "conversation": "5edc647b2848b05c1433209d5c70d715e4459efdfaea4b9152373d404dd19b8e"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\nstand-in: func_800AE47C has a block-scope static (a second copy would have its own)"
+    ]
+   }
+  ],
+  "classes": {},
+  "mutations": [],
+  "coverage": null
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 0.12443440300012298,
+ "wall_seconds": 110.62613452599999,
+ "totals": {
+  "cost": 0.01894,
+  "prompt_tokens": 58418,
+  "completion_tokens": 26189,
+  "model_seconds": 110.2,
+  "check_seconds": 0.1,
+  "calls": 3,
+  "wall_seconds": 110.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": ""
+ }
+}

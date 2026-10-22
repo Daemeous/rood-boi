@@ -1,0 +1,246 @@
+{
+ "function": "func_800BFE50",
+ "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "port fixed: nibbles 3..15 (no case in the C, undefined) now return arg0 as the PS1 object does, not arg0 >> 12; spec sound (the default edge waived: no caller passes it)",
+ "plan": {
+  "name": "func_800BFE50",
+  "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+  "stem": "573B8",
+  "address": "0x800bfe50",
+  "difficulty": "S",
+  "zig_name": "func_800BFE50",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BFE50",
+  "spec_file": "func_800BFE50.zig",
+  "subsystem": "battle_573B8_port",
+  "signature": "pub fn func_800BFE50(arg0: c_ushort) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_ushort"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 10995,
+     "completion_tokens": 4895,
+     "reasoning_tokens": 3853,
+     "cost": 0.003547,
+     "seconds": 22.2,
+     "sample": 1,
+     "conversation": "9f7ed6097e478cbe5a3ab375d9002f2149eb2b524fb98e8b13ecb3d8a7018946"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800BFE50: branches 3/4 (75.0%), conditions not measured (GCC < 14: branch coverage only), lines 8/9\n  UNCOVERED +2 b3: branch never taken: `switch (arg0 >> 12) {`\ncoverage func_800BFE50: FAILED (threshold 100%: 1 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `switch (arg0 >> 12) {` (+2): one way out of this test (+2 b3) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800BFE50.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12330,
+     "completion_tokens": 2375,
+     "reasoning_tokens": 1181,
+     "cost": 0.0024205,
+     "seconds": 10.5,
+     "sample": 1,
+     "conversation": "06318923d49ee316f21d7ce90819eb628fe54878b0c2ebcf8d0bd4f2ff89f48b"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "call-case-0": "6687",
+   "mask-case-1": "6571",
+   "identity-case-2": "6742"
+  },
+  "mutations": [
+   {
+    "name": "F1: case 0 forwards the wrong mask",
+    "caught": true
+   },
+   {
+    "name": "F2: case 0 drops the call",
+    "caught": true
+   },
+   {
+    "name": "F3: case 1 wrong constant",
+    "caught": true
+   },
+   {
+    "name": "F4: case 2 masks its result",
+    "caught": true
+   },
+   {
+    "name": "F5: switch on the wrong shift",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 3,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 9,
+   "lines_hit": 8,
+   "uncovered": [
+    {
+     "id": "+2 b3",
+     "line": 2,
+     "text": "switch (arg0 >> 12) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "16-bit: min 0, max 12287, seen zero, never negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 2,
+     "text": "switch (arg0 >> 12) {",
+     "size": 4,
+     "count": 20000,
+     "kind": "switch",
+     "outcomes": "== 20000, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..2"
+    },
+    {
+     "line": 8,
+     "text": "return arg0;",
+     "size": 4,
+     "count": 20000,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 20000, > 0 (signed); < 20000, > 0 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..0"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+2 b3",
+    "reason": "The switch's default edge is the fall-off past case 2 for nibbles 3-15. The C has no return there, so its return value is undefined behaviour: no defined value exists for a port to match, and any input that takes the edge compares garbage. Reachable only by UB, so it is waived rather than driven."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34397,
+     "completion_tokens": 2061,
+     "reasoning_tokens": 1670,
+     "cost": 0.0044702,
+     "seconds": 10.3,
+     "sample": 1,
+     "conversation": "ffc3544d2fa2f028a2ce1a0d7065fd4de65695535ccc453385a348702f402794"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800BFE50.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800BFE50.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 20.87266266900042,
+ "wall_seconds": 64.08756331300174,
+ "totals": {
+  "cost": 0.01044,
+  "prompt_tokens": 57722,
+  "completion_tokens": 9331,
+  "model_seconds": 43.0,
+  "check_seconds": 20.9,
+  "calls": 3,
+  "wall_seconds": 64.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [
+   "nibbles 3..15 returned arg0 >> 12 (a guess at the return register); the object returns arg0 (case 2's delay slot sets v0 = arg0 before the branch resolves)"
+  ],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

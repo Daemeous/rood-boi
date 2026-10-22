@@ -1,0 +1,583 @@
+{
+ "function": "func_800DD000",
+ "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (callee-typed function pointers for the opaque c struct; D_800F5878 now indexed unchecked as the C); spec sound (the reaction stubs rewrite the flags and target words the C re-reads)",
+ "plan": {
+  "name": "func_800DD000",
+  "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+  "stem": "74088",
+  "address": "0x800dd000",
+  "difficulty": "M",
+  "zig_name": "func_800DD000",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DD000",
+  "spec_file": "func_800DD000.zig",
+  "subsystem": "battle_74088_port",
+  "signature": "pub fn func_800DD000(state: ?*v.actionReactionState, app: ?*v.actionStatApplication) callconv(.c) void",
+  "params": [
+   [
+    "state",
+    "?*v.actionReactionState"
+   ],
+   [
+    "app",
+    "?*v.actionStatApplication"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F5920_t",
+   "actionReactionAction",
+   "actionReactionMotion",
+   "actionReactionState",
+   "actionStatApplication",
+   "actionStatDelta",
+   "func_800DEEA4_t2"
+  ],
+  "globals": [
+   "D_800F5878",
+   "D_800F5920",
+   "vs_main_actions"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14848,
+     "completion_tokens": 34503,
+     "reasoning_tokens": 31144,
+     "cost": 0.0187363,
+     "seconds": 147.5,
+     "sample": 1,
+     "conversation": "4e2f4fff59e482964c63bcff8dbceb4bb6f6d72c89c15cb413a1c822ad264eb8"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/gen/74088/c_74088.zig:4707:18: error: array of opaque type 'c_74088.actionReactionTarget' not allowed\n    targets: [16]actionReactionTarget = @import(\"std\").mem.zeroes([16]actionReactionTarget),\n                 ^~~~~~~~~~~~~~~~~~~~\npc/build/port-pipeline/gen/74088/c_74088.zig:4689:34: note: opaque declared here\npub const actionReactionTarget = opaque {};\n                                 ^~~~~~~~~\nreferenced by:\n    func_800DC784__func_13: pc/build/port-pipeline/func_800DD000/spec1/build/spec.zig:49:63\n    body: pc/tests/zig_diff/main.zig:225:33\n    6 reference(s) hidden; use '-freference-trace=8' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18600,
+     "completion_tokens": 6975,
+     "reasoning_tokens": 3469,
+     "cost": 0.0053475,
+     "seconds": 27.1,
+     "sample": 1,
+     "conversation": "6575a326faa39e48222876038b513bfab918ff36f97a75f26bbd72b92e1fe9a0"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/gen/74088/c_74088.zig:4707:18: error: array of opaque type 'c_74088.actionReactionTarget' not allowed\n    targets: [16]actionReactionTarget = @import(\"std\").mem.zeroes([16]actionReactionTarget),\n                 ^~~~~~~~~~~~~~~~~~~~\npc/build/port-pipeline/gen/74088/c_74088.zig:4689:34: note: opaque declared here\npub const actionReactionTarget = opaque {};\n                                 ^~~~~~~~~\nreferenced by:\n    stateOf__func_14: pc/build/port-pipeline/func_800DD000/spec2/build/spec.zig:22:33\n    func_800DC784__func_13: pc/build/port-pipeline/func_800DD000/spec2/build/spec.zig:62:26\n    7 reference(s) hidden; use '-freference-trace=9' to see all references\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 22520,
+     "completion_tokens": 5505,
+     "reasoning_tokens": 1971,
+     "cost": 0.0050045,
+     "seconds": 19.5,
+     "sample": 1,
+     "conversation": "c3676a6fd9fc057730478b102298b3b8573b3fbc1c10834c6104291da43a51f6"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 3,
+   "sample": 1
+  },
+  "classes": {
+   "no-app": "1501",
+   "skip": "2880",
+   "own-zero": "2190",
+   "bad-action": "4714",
+   "no-entry": "8329",
+   "applied": "10386"
+  },
+  "mutations": [
+   {
+    "name": "M1: mode 1 becomes 3, not 2",
+    "caught": true
+   },
+   {
+    "name": "M2: hp test with >= 0 instead of > 0",
+    "caught": true
+   },
+   {
+    "name": "M3: timer stored as 27",
+    "caught": true
+   },
+   {
+    "name": "M4: effect2 field read one bit low",
+    "caught": true
+   },
+   {
+    "name": "M5: func_800DC210 called with 1, not 0",
+    "caught": true
+   },
+   {
+    "name": "M6: the other counter clear is dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 58,
+   "branches_hit": 58,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 43,
+   "lines_hit": 43,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "if (!app || app->first.skip)",
+     "size": 4,
+     "count": 28499,
+     "kind": "against a constant",
+     "outcomes": "== 25619, < 1702, > 1178 (signed); < 0, > 2880 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2142802561"
+    },
+    {
+     "line": 9,
+     "text": "if (!own)",
+     "size": 4,
+     "count": 25619,
+     "kind": "against a constant",
+     "outcomes": "== 2190, < 0, > 23429 (signed); < 0, > 23429 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..255"
+    },
+    {
+     "line": 13,
+     "text": "if (((info->effect1 >> 7) & 63) == 3 || ((info->effect2 >> 7) & 63) == 3)",
+     "size": 4,
+     "count": 23429,
+     "kind": "against a constant",
+     "outcomes": "== 2369, < 994, > 20066 (signed); < 994, > 20066 (unsigned)",
+     "operand": "constant 384",
+     "a": "0..8064"
+    },
+    {
+     "line": 13,
+     "text": "if (((info->effect1 >> 7) & 63) == 3 || ((info->effect2 >> 7) & 63) == 3)",
+     "size": 4,
+     "count": 21060,
+     "kind": "against a constant",
+     "outcomes": "== 2345, < 817, > 17898 (signed); < 817, > 17898 (unsigned)",
+     "operand": "constant 384",
+     "a": "0..8064"
+    },
+    {
+     "line": 15,
+     "text": "if (bad)",
+     "size": 4,
+     "count": 23429,
+     "kind": "against a constant",
+     "outcomes": "== 18715, < 0, > 4714 (signed); < 0, > 4714 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 20,
+     "text": "for (i = 0; i < app->count; i++) {",
+     "size": 4,
+     "count": 55805,
+     "kind": "a == b / a < b",
+     "outcomes": "== 18715, < 37090, > 0 (signed); < 37090, > 0 (unsigned)",
+     "operand": "b 0..4",
+     "a": "0..4"
+    },
+    {
+     "line": 22,
+     "text": "if (entry->skip || entry->actor != own || source == own)",
+     "size": 4,
+     "count": 37090,
+     "kind": "against a constant",
+     "outcomes": "== 29689, < 3708, > 3693 (signed); < 0, > 7401 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147088000..2146790748"
+    },
+    {
+     "line": 22,
+     "text": "if (entry->skip || entry->actor != own || source == own)",
+     "size": 4,
+     "count": 29689,
+     "kind": "a == b / a < b",
+     "outcomes": "== 10486, < 11220, > 7983 (signed); < 11220, > 7983 (unsigned)",
+     "operand": "b 0..255",
+     "a": "1..255"
+    },
+    {
+     "line": 22,
+     "text": "if (entry->skip || entry->actor != own || source == own)",
+     "size": 4,
+     "count": 10486,
+     "kind": "a == b / a < b",
+     "outcomes": "== 89, < 9760, > 637 (signed); < 9760, > 637 (unsigned)",
+     "operand": "b 1..255",
+     "a": "0..15"
+    },
+    {
+     "line": 24,
+     "text": "if (state->mode == 1)",
+     "size": 1,
+     "count": 10397,
+     "kind": "against a constant",
+     "outcomes": "== 1705, < 3602, > 5090 (signed); < 1038, > 7654 (unsigned)",
+     "operand": "constant 1",
+     "a": "-128..127"
+    },
+    {
+     "line": 26,
+     "text": "if (func_800DC48C(action, state->id)) {",
+     "size": 4,
+     "count": 10397,
+     "kind": "against a constant",
+     "outcomes": "== 3950, < 3196, > 3251 (signed); < 0, > 6447 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147289709..2147194369"
+    },
+    {
+     "line": 27,
+     "text": "if (source == 0 && state->flag13 == 0 && state->flag27)",
+     "size": 4,
+     "count": 6447,
+     "kind": "against a constant",
+     "outcomes": "== 4473, < 0, > 1974 (signed); < 0, > 1974 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 27,
+     "text": "if (source == 0 && state->flag13 == 0 && state->flag27)",
+     "size": 1,
+     "count": 4473,
+     "kind": "against a constant",
+     "outcomes": "== 2021, < 1250, > 1202 (signed); < 0, > 2452 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 27,
+     "text": "if (source == 0 && state->flag13 == 0 && state->flag27)",
+     "size": 1,
+     "count": 2021,
+     "kind": "against a constant",
+     "outcomes": "== 672, < 657, > 692 (signed); < 0, > 1349 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 29,
+     "text": "else if ((other->targets[0].b.flags >> 6) == 3)",
+     "size": 1,
+     "count": 5098,
+     "kind": "against a constant",
+     "outcomes": "== 2507, < 2591, > 0 (signed); < 2591, > 0 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..3"
+    },
+    {
+     "line": 33,
+     "text": "if (func_800DC484(action, state->id)) {",
+     "size": 4,
+     "count": 10397,
+     "kind": "against a constant",
+     "outcomes": "== 4053, < 3150, > 3194 (signed); < 0, > 6344 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2145182499..2147387711"
+    },
+    {
+     "line": 34,
+     "text": "if (D_800F5920 && source == 0 && (entry->modes & 3) != 2 && entry->hp > 0)",
+     "size": 4,
+     "count": 4743,
+     "kind": "against a constant",
+     "outcomes": "== 3301, < 0, > 1442 (signed); < 0, > 1442 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 34,
+     "text": "if (D_800F5920 && source == 0 && (entry->modes & 3) != 2 && entry->hp > 0)",
+     "size": 4,
+     "count": 3301,
+     "kind": "against a constant",
+     "outcomes": "== 681, < 1649, > 971 (signed); < 1649, > 971 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 34,
+     "text": "if (D_800F5920 && source == 0 && (entry->modes & 3) != 2 && entry->hp > 0)",
+     "size": 2,
+     "count": 2620,
+     "kind": "against a constant",
+     "outcomes": "== 756, < 891, > 973 (signed); < 0, > 1864 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32762..32676"
+    },
+    {
+     "line": 36,
+     "text": "if (source == 0 && state->flag27)",
+     "size": 4,
+     "count": 6344,
+     "kind": "against a constant",
+     "outcomes": "== 4411, < 0, > 1933 (signed); < 0, > 1933 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 36,
+     "text": "if (source == 0 && state->flag27)",
+     "size": 1,
+     "count": 4411,
+     "kind": "against a constant",
+     "outcomes": "== 947, < 1724, > 1740 (signed); < 0, > 3464 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 38,
+     "text": "if (state->flag30 && (state->flag20 == 0 || source == 0)) {",
+     "size": 1,
+     "count": 6344,
+     "kind": "against a constant",
+     "outcomes": "== 800, < 2817, > 2727 (signed); < 0, > 5544 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 38,
+     "text": "if (state->flag30 && (state->flag20 == 0 || source == 0)) {",
+     "size": 1,
+     "count": 5544,
+     "kind": "against a constant",
+     "outcomes": "== 2482, < 1564, > 1498 (signed); < 0, > 3062 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 38,
+     "text": "if (state->flag30 && (state->flag20 == 0 || source == 0)) {",
+     "size": 4,
+     "count": 3062,
+     "kind": "against a constant",
+     "outcomes": "== 2239, < 0, > 823 (signed); < 0, > 823 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 40,
+     "text": "} else if (state->targets[source].p.classification != 3) {",
+     "size": 1,
+     "count": 1623,
+     "kind": "against a constant",
+     "outcomes": "== 409, < 1214, > 0 (signed); < 1214, > 0 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..3"
+    },
+    {
+     "line": 41,
+     "text": "if (other->targets[own].p.counter) {",
+     "size": 1,
+     "count": 1214,
+     "kind": "against a constant",
+     "outcomes": "== 701, < 0, > 513 (signed); < 0, > 513 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..127"
+    },
+    {
+     "line": 48,
+     "text": "if (state->flag20)",
+     "size": 1,
+     "count": 701,
+     "kind": "against a constant",
+     "outcomes": "== 172, < 266, > 263 (signed); < 0, > 529 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38160,
+     "completion_tokens": 12831,
+     "reasoning_tokens": 11505,
+     "cost": 0.0102315,
+     "seconds": 52.0,
+     "sample": 1,
+     "conversation": "a2bcde5e7047bae5ed0f2d87c5d1e0ecdb7b96614a41ece7f91b22c7b6ae1215"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/gen/74088/c_74088.zig:4707:18: error: array of opaque type 'c_74088.actionReactionTarget' not allowed\n    targets: [16]actionReactionTarget = @import(\"std\").mem.zeroes([16]actionReactionTarget),\n                 ^~~~~~~~~~~~~~~~~~~~\npc/build/port-pipeline/gen/74088/c_74088.zig:4689:34: note: opaque declared here\npub const actionReactionTarget = opaque {};\n                                 ^~~~~~~~~\nreferenced by:\n    cptr__func_63: game/common/psx.zig:229:13\n    func_800DD000: game/battle/func_800DD000.zig:33:41\n    6 reference(s) hidden; use '-freference-trace=8' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39855,
+     "completion_tokens": 2678,
+     "reasoning_tokens": 1397,
+     "cost": 0.0053245,
+     "seconds": 11.5,
+     "sample": 1,
+     "conversation": "9bb5a27dcffa706ad553ed24498de16cf8607c418b90812eb07418cd64aad18f"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/gen/74088/c_74088.zig:4707:18: error: array of opaque type 'c_74088.actionReactionTarget' not allowed\n    targets: [16]actionReactionTarget = @import(\"std\").mem.zeroes([16]actionReactionTarget),\n                 ^~~~~~~~~~~~~~~~~~~~\npc/build/port-pipeline/gen/74088/c_74088.zig:4689:34: note: opaque declared here\npub const actionReactionTarget = opaque {};\n                                 ^~~~~~~~~\nreferenced by:\n    func_800DD000: game/battle/func_800DD000.zig:33:33\n    main: pc/tests/zig_diff/main.zig:454:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 41506,
+     "completion_tokens": 3390,
+     "reasoning_tokens": 1987,
+     "cost": 0.0058456,
+     "seconds": 14.2,
+     "sample": 1,
+     "conversation": "e185ea116a70751f17ea0c204349e65db5750640d64b376856ccbc4681e3cff9"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 3,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DD000.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DD000.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 39.7427567250088,
+ "wall_seconds": 319.2274475749982,
+ "totals": {
+  "cost": 0.05049,
+  "prompt_tokens": 175489,
+  "completion_tokens": 65882,
+  "model_seconds": 271.8,
+  "check_seconds": 39.7,
+  "calls": 6,
+  "wall_seconds": 319.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [
+   "D_800F5878[source] read through psx.at (unchecked) like the C, not a bounds-checked index"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (6 / 12 / 27), 0 mismatches"
+ }
+}

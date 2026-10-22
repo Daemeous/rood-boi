@@ -1,0 +1,267 @@
+{
+ "function": "func_800C05EC",
+ "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (arg1 aliasing the target's first record); ported on the rerun after zig_diff took NULL in a C mutation's text",
+ "plan": {
+  "name": "func_800C05EC",
+  "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+  "stem": "573B8",
+  "address": "0x800c05ec",
+  "difficulty": "S",
+  "zig_name": "func_800C05EC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C05EC",
+  "spec_file": "func_800C05EC.zig",
+  "subsystem": "battle_573B8_port",
+  "signature": "pub fn func_800C05EC(arg0: ?*v.D_800EB9B8_t2, arg1: ?*v.D_800EB9B8_t2, arg2: u8, arg3: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800EB9B8_t2"
+   ],
+   [
+    "arg1",
+    "?*v.D_800EB9B8_t2"
+   ],
+   [
+    "arg2",
+    "u8"
+   ],
+   [
+    "arg3",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800EB9AC"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12191,
+     "completion_tokens": 11554,
+     "reasoning_tokens": 9890,
+     "cost": 0.0069961,
+     "seconds": 47.1,
+     "sample": 1,
+     "conversation": "b698b9d4a9900dae7f479aaa686fdb36740de7e67f7d95e98548148fb7a4a12d"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 0, fault address 0x0 [NULL+0x0: a field of a null pointer]\nzdiff: crashed on arguments: 0x4060c0 [arena] 0 0x7f 0x1 (class armed)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14277,
+     "completion_tokens": 2927,
+     "reasoning_tokens": 1095,
+     "cost": 0.0028912,
+     "seconds": 10.8,
+     "sample": 1,
+     "conversation": "fe545bf02c0bd47e0e56652781f72e0017df2327470efdcb393987f6d7aff5ea"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "armed": "35970",
+   "idle-no-arg1": "1372",
+   "idle-arg1": "1352",
+   "idle-arg1-aliases-target": "1306"
+  },
+  "mutations": [
+   {
+    "name": "M1: the armed flag is not cleared",
+    "caught": true
+   },
+   {
+    "name": "M2: wrong constant in the armed path's flag bit",
+    "caught": true
+   },
+   {
+    "name": "M3: the arg1 test also requires arg2 nonzero",
+    "caught": true
+   },
+   {
+    "name": "M4: arg3 truncated to a byte",
+    "caught": true
+   },
+   {
+    "name": "M5: ordered test where the C has equality",
+    "caught": true
+   },
+   {
+    "name": "M6: the armed-path copy reads arg0 instead of arg1",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 20,
+   "lines_hit": 20,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "8-bit: min -128, max 127, unsigned 0..255, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 3,
+     "count": 40000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (arg0->unk0 != 1) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 6835, < 20155, > 13010 (signed); < 3422, > 29743 (unsigned)",
+     "operand": "constant 1",
+     "a": "-128..127"
+    },
+    {
+     "line": 9,
+     "text": "if (D_800EB9AC != 0) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 4030, < 18030, > 17940 (signed); < 0, > 35970 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35594,
+     "completion_tokens": 3502,
+     "reasoning_tokens": 2951,
+     "cost": 0.0053104,
+     "seconds": 14.3,
+     "sample": 1,
+     "conversation": "3417470f684f6dfc1760b56f16ac89e23267ee3ba083e2d21577c521f53ff6b8"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C05EC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C05EC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 34.53111665899996,
+ "wall_seconds": 48.96752407199892,
+ "totals": {
+  "cost": 0.0152,
+  "prompt_tokens": 62062,
+  "completion_tokens": 17983,
+  "model_seconds": 72.2,
+  "check_seconds": 34.5,
+  "calls": 3,
+  "wall_seconds": 49.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 2, 0 mismatches"
+ }
+}

@@ -1,0 +1,303 @@
+{
+ "function": "func_800DAAD8",
+ "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (mode/action, flagsC and oldMode rewritten by the stubs where the C re-reads them; actor ids outside 0..15 index inside the state as the C allows)",
+ "plan": {
+  "name": "func_800DAAD8",
+  "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+  "stem": "71618",
+  "address": "0x800daad8",
+  "difficulty": "M",
+  "zig_name": "func_800DAAD8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DAAD8",
+  "spec_file": "func_800DAAD8.zig",
+  "subsystem": "battle_71618_port",
+  "signature": "pub fn func_800DAAD8(state: ?*v.da4bcState) callconv(.c) c_int",
+  "params": [
+   [
+    "state",
+    "?*v.da4bcState"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "da4bcActor",
+   "da4bcEntry",
+   "da4bcEntryTarget",
+   "da4bcState",
+   "da4bcTargetState",
+   "vs_battle_actor"
+  ],
+  "globals": [
+   "vs_battle_actors"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14506,
+     "completion_tokens": 28549,
+     "reasoning_tokens": 25899,
+     "cost": 0.0157251,
+     "seconds": 120.6,
+     "sample": 1,
+     "conversation": "6c2290b6c39bf3608c6c8f8614bbdb68a8159de3ffd1e7991215072d8ed70947"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "pending": "7480",
+   "target-16-up-no-actors": "1923",
+   "target-16-up-actors": "7822",
+   "target-below-16": "12775"
+  },
+  "mutations": [
+   {
+    "name": "M1: target bound <= 16 (a target of 16 enters the range branch)",
+    "caught": true
+   },
+   {
+    "name": "M2: target compared unsigned (negative targets skip the range branch)",
+    "caught": true
+   },
+   {
+    "name": "M3: wrong action constant in the mode-1 test",
+    "caught": true
+   },
+   {
+    "name": "M4: the second callee (func_800DB74C) is dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: the target15C store is dropped",
+    "caught": true
+   },
+   {
+    "name": "M6: wrong mode constant in the target skip test",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 22,
+   "branches_hit": 22,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 25,
+   "lines_hit": 25,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "if (!state->pending && func_800DA4BC(state, entry))",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 22520, < 4363, > 3117 (signed); < 0, > 7480 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 6,
+     "text": "if (!state->pending && func_800DA4BC(state, entry))",
+     "size": 4,
+     "count": 22520,
+     "kind": "against a constant",
+     "outcomes": "== 11219, < 5704, > 5597 (signed); < 0, > 11301 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146793035..2146970971"
+    },
+    {
+     "line": 9,
+     "text": "if (target < 16) {",
+     "size": 4,
+     "count": 18699,
+     "kind": "against a constant",
+     "outcomes": "== 1361, < 9296, > 8042 (signed); < 1879, > 15459 (unsigned)",
+     "operand": "constant 15",
+     "a": "-128..127"
+    },
+    {
+     "line": 10,
+     "text": "if (func_800DB370((void*)state, target, 384, 0)) {",
+     "size": 4,
+     "count": 10657,
+     "kind": "against a constant",
+     "outcomes": "== 5290, < 2665, > 2702 (signed); < 0, > 5367 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147216439..2146084307"
+    },
+    {
+     "line": 11,
+     "text": "if (state->mode == 1 && state->action != 7) {",
+     "size": 1,
+     "count": 5367,
+     "kind": "against a constant",
+     "outcomes": "== 575, < 2301, > 2491 (signed); < 276, > 4516 (unsigned)",
+     "operand": "constant 1",
+     "a": "-128..127"
+    },
+    {
+     "line": 11,
+     "text": "if (state->mode == 1 && state->action != 7) {",
+     "size": 1,
+     "count": 575,
+     "kind": "against a constant",
+     "outcomes": "== 54, < 280, > 241 (signed); < 55, > 466 (unsigned)",
+     "operand": "constant 7",
+     "a": "-128..127"
+    },
+    {
+     "line": 18,
+     "text": "if (func_800DB74C((void*)state, target))",
+     "size": 4,
+     "count": 5290,
+     "kind": "against a constant",
+     "outcomes": "== 2630, < 1361, > 1299 (signed); < 0, > 2660 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146707849..2146315709"
+    },
+    {
+     "line": 22,
+     "text": "if (((da4bcTargetState*)state)->targets[actor->id].mode != 3",
+     "size": 1,
+     "count": 14820,
+     "kind": "against a constant",
+     "outcomes": "== 3757, < 11063, > 0 (signed); < 11063, > 0 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..3"
+    },
+    {
+     "line": 23,
+     "text": "&& ((da4bcTargetState*)state)->targets[actor->id].category) {",
+     "size": 1,
+     "count": 11063,
+     "kind": "against a constant",
+     "outcomes": "== 438, < 0, > 10625 (signed); < 0, > 10625 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..127"
+    },
+    {
+     "line": 25,
+     "text": "if (func_800DB61C((void*)state, 0)) {",
+     "size": 4,
+     "count": 10625,
+     "kind": "against a constant",
+     "outcomes": "== 5247, < 2691, > 2687 (signed); < 0, > 5378 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146165623..2146927379"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37800,
+     "completion_tokens": 7539,
+     "reasoning_tokens": 6627,
+     "cost": 0.0075495,
+     "seconds": 31.4,
+     "sample": 1,
+     "conversation": "553703963f0657889d6160e7e6213f4453f85a2bf0f0593ce5375ac6305e28e8"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DAAD8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DAAD8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 31.979755917000148,
+ "wall_seconds": 184.12659427499966,
+ "totals": {
+  "cost": 0.02327,
+  "prompt_tokens": 52306,
+  "completion_tokens": 36088,
+  "model_seconds": 152.0,
+  "check_seconds": 32.0,
+  "calls": 2,
+  "wall_seconds": 184.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

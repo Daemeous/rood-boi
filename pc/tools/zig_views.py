@@ -354,6 +354,11 @@ class Emitter:
                 zt = self.ztype(r)
                 if r["kind"] == "ptr" and r["target"]["kind"] in ("int", "float"):
                     zt = "?[*]" + self.ztype(r["target"])
+                # A global named as a type (`vs_main_buttonsPressed`, a union and its
+                # one variable): inside `g` the bare name is the accessor itself.
+                if re.search(rf"(?<![\w.]){re.escape(zid(zig))}\b", zt):
+                    zt = re.sub(rf"(?<![\w.]){re.escape(zid(zig))}\b", f"views.{zid(zig)}", zt)
+                    self.self_alias = True
                 out.append(f"    pub inline fn {zid(zig)}() *{zt} "
                            f'{{ return psx.global({zt}, "{name}"); }}')
         out.append("};")
@@ -369,7 +374,10 @@ def emit(dump, names=None, psx_import="common"):
     body = [e.struct(name) for name in dump["order"]]
     # Every layout is checked whenever the module is imported, used or not.
     check = ["comptime {"] + [f"    _ = @sizeOf({zid(name)});" for name in dump["order"]] + ["}"]
-    return "\n".join(head + body + [e.globals_()] + check) + "\n"
+    globals_ = e.globals_()
+    if getattr(e, "self_alias", False):
+        head.append("const views = @This();")
+    return "\n".join(head + body + [globals_] + check) + "\n"
 
 
 def main(argv=None):

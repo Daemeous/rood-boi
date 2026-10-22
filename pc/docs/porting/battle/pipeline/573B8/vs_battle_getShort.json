@@ -1,0 +1,223 @@
+{
+ "function": "vs_battle_getShort",
+ "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (both alignments, arena and low RAM)",
+ "plan": {
+  "name": "vs_battle_getShort",
+  "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+  "stem": "573B8",
+  "address": "0x800bfe00",
+  "difficulty": "S",
+  "zig_name": "getShort",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "get_short",
+  "spec_file": "getShort.zig",
+  "subsystem": "battle_573B8_port",
+  "signature": "pub fn getShort(arg0: [*c]u8) callconv(.c) c_short",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ]
+  ],
+  "ret": "c_short",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 10923,
+     "completion_tokens": 5717,
+     "reasoning_tokens": 4613,
+     "cost": 0.0039508,
+     "seconds": 24.3,
+     "sample": 1,
+     "conversation": "66dee23c768894a43b88a4712c4f1a75efed23a6f1370e337799fd20fbc567c1"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation G1: branch inverted: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_getShort: 20000 iterations, seed 1, 0 mismatches; classes: arena-even=6583 arena-odd=6743 lowram-even=3328 lowram-odd=3346"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12183,
+     "completion_tokens": 3096,
+     "reasoning_tokens": 1961,
+     "cost": 0.0027663,
+     "seconds": 13.2,
+     "sample": 1,
+     "conversation": "29c435d1f84f30151c66e91c59ef1e5f1d3ee9d39f892946c7acbdf2f1ea289a"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "arena-even": "6583",
+   "arena-odd": "6743",
+   "lowram-even": "3328",
+   "lowram-odd": "3346"
+  },
+  "mutations": [
+   {
+    "name": "G1: sign bit of the address zeroes the even path",
+    "caught": true
+   },
+   {
+    "name": "G2: odd path bytes swapped",
+    "caught": true
+   },
+   {
+    "name": "G3: odd path shift of 9",
+    "caught": true
+   },
+   {
+    "name": "G4: odd path high bit masked off",
+    "caught": true
+   },
+   {
+    "name": "G5: even path reads two bytes further",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 4,
+   "lines_hit": 4,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 2,
+     "text": "if (!((long)arg0 & 1)) {",
+     "size": 8,
+     "count": 20000,
+     "kind": "against a constant",
+     "outcomes": "== 9911, < 0, > 10089 (signed); < 0, > 10089 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34342,
+     "completion_tokens": 2050,
+     "reasoning_tokens": 1779,
+     "cost": 0.0044592,
+     "seconds": 9.5,
+     "sample": 1,
+     "conversation": "c55c4b54a55dd4b3952ebaa0c666cd6abb00364c135544f9e22e7d3542cde600"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/getShort.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/get_short.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 23.788162987999385,
+ "wall_seconds": 71.02057061899905,
+ "totals": {
+  "cost": 0.01118,
+  "prompt_tokens": 57448,
+  "completion_tokens": 10863,
+  "model_seconds": 47.0,
+  "check_seconds": 23.8,
+  "calls": 3,
+  "wall_seconds": 71.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

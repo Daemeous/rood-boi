@@ -1,0 +1,258 @@
+{
+ "function": "func_800D7EF4",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (_loadfile carried; the case 1 fallthrough as two tests (a labelled switch continue put a writable jump table in the engine library); states past 3 return 0 where the C's result is unset); spec sound (the +6 b3 waiver holds); ported after the static-callee fixes",
+ "plan": {
+  "name": "func_800D7EF4",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d7ef4",
+  "difficulty": "S",
+  "zig_name": "func_800D7EF4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D7EF4",
+  "spec_file": "func_800D7EF4.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn func_800D7EF4() callconv(.c) c_int",
+  "params": [],
+  "ret": "c_int",
+  "types": [
+   "vs_main_CdFile"
+  ],
+  "globals": [
+   "vs_overlay_slots"
+  ],
+  "hooks": [],
+  "statics": [
+   "_loadfile"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11953,
+     "completion_tokens": 14137,
+     "reasoning_tokens": 12091,
+     "cost": 0.0082638,
+     "seconds": 59.9,
+     "sample": 1,
+     "conversation": "9cb09604130427797341f62fca5387336b54d64917f888532d4b06f370c4ea00"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F2: load LBA off by one sector: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D7EF4: 30000 iterations, seed 1, 0 mismatches; classes: state0-or-3=15079 state1-flag-clear=3766 state1-flag-set=3759 state2-no-slot=3699 state2-loaded=1846 state2-loading=1851",
+     "FAIL: mutation F3: completion sets the wrong load state: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D7EF4: 30000 iterations, seed 1, 0 mismatches; classes: state0-or-3=15079 state1-flag-clear=3766 state1-flag-set=3759 state2-no-slot=3699 state2-loaded=1846 state2-loading=1851",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800D7EF4: branches 6/8 (75.0%), conditions not measured (GCC < 14: branch coverage only), lines 15/16\n  UNCOVERED +6 b3: branch never taken: `switch (state) {`\n  UNCOVERED +17 b0: branch never taken: `if (ret == 0) {`\ncoverage func_800D7EF4: FAILED (threshold 100%: 2 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `switch (state) {` (+6): one way out of this test (+6 b3) was never taken; add inputs that take it.\n- `if (ret == 0) {` (+17): one way out of this test (+17 b0) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800D7EF4.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14673,
+     "completion_tokens": 12789,
+     "reasoning_tokens": 10410,
+     "cost": 0.0078618,
+     "seconds": 59.8,
+     "sample": 1,
+     "conversation": "26f6568269368dd251c6bbe9586430b9e72cf4ba86f94b0a5e84218c69caa23b"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "state0-or-3": "15012",
+   "state1-flag-clear": "3669",
+   "state1-flag-set": "3773",
+   "state2-no-slot": "2508",
+   "state2-loaded": "2552",
+   "state2-loading": "2486"
+  },
+  "mutations": [
+   {
+    "name": "F1: state 1 stores the wrong value into the flag",
+    "caught": true
+   },
+   {
+    "name": "F2: load LBA off by one sector",
+    "caught": true
+   },
+   {
+    "name": "F3: completion sets the wrong load state",
+    "caught": true
+   },
+   {
+    "name": "F4: completion test inverted",
+    "caught": true
+   },
+   {
+    "name": "F5: state 3 returns 1",
+    "caught": true
+   },
+   {
+    "name": "F6: the state-1 flag test inverted (the call is dropped on flag set)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 7,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 16,
+   "lines_hit": 16,
+   "uncovered": [
+    {
+     "id": "+6 b3",
+     "line": 6,
+     "text": "switch (state) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 6,
+     "text": "switch (state) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "switch",
+     "outcomes": "== 30000, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..3"
+    },
+    {
+     "line": 8,
+     "text": "if (D_800F5684 == 0) {",
+     "size": 4,
+     "count": 7442,
+     "kind": "against a constant",
+     "outcomes": "== 3669, < 1941, > 1832 (signed); < 0, > 3773 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147297195..2146685515"
+    },
+    {
+     "line": 17,
+     "text": "if (ret == 0) {",
+     "size": 4,
+     "count": 14988,
+     "kind": "against a constant",
+     "outcomes": "== 306, < 0, > 14682 (signed); < 0, > 14682 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+6 b3",
+    "reason": "The switch has no default, so the state-not-0..3 edge leaves ret unassigned: the C returns an indeterminate value that no port can reproduce. The spec keeps the state in 0..3, where every return is defined."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35381,
+     "completion_tokens": 4896,
+     "reasoning_tokens": 3921,
+     "cost": 0.0059861,
+     "seconds": 21.1,
+     "sample": 1,
+     "conversation": "9545bd13580a316855ef6dbb8790bce61fe93805c055f3259fc04f3c2ca96a74"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800D7EF4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800D7EF4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 53.13554557399948,
+ "wall_seconds": 197.191195333,
+ "totals": {
+  "cost": 0.02211,
+  "prompt_tokens": 62007,
+  "completion_tokens": 31822,
+  "model_seconds": 140.8,
+  "check_seconds": 53.1,
+  "calls": 3,
+  "wall_seconds": 197.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 1 root / 2 root / -, 0 mismatches"
+ }
+}

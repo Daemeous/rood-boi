@@ -1,0 +1,175 @@
+{
+ "function": "vs_battle_playSfx10",
+ "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (a forwarder)",
+ "plan": {
+  "name": "vs_battle_playSfx10",
+  "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+  "stem": "573B8",
+  "address": "0x800c02d8",
+  "difficulty": "S",
+  "zig_name": "playSfx10",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "play_sfx10",
+  "spec_file": "playSfx10.zig",
+  "subsystem": "battle_573B8_port",
+  "signature": "pub fn playSfx10() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 10920,
+     "completion_tokens": 1849,
+     "reasoning_tokens": 1066,
+     "cost": 0.0020165,
+     "seconds": 8.5,
+     "sample": 1,
+     "conversation": "e8929061e4def63163f23b8efbed8740e8463e2626947bb6e0a1c80337573779"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "always": "20000"
+  },
+  "mutations": [
+   {
+    "name": "P1: wrong first argument constant (0x7F)",
+    "caught": true
+   },
+   {
+    "name": "P2: wrong second argument (11)",
+    "caught": true
+   },
+   {
+    "name": "P3: arguments swapped",
+    "caught": true
+   },
+   {
+    "name": "P4: call dropped",
+    "caught": true
+   },
+   {
+    "name": "P5: call duplicated",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 1,
+   "lines_hit": 1,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34321,
+     "completion_tokens": 503,
+     "reasoning_tokens": 316,
+     "cost": 0.0036836,
+     "seconds": 3.0,
+     "sample": 1,
+     "conversation": "b41df240f875a3d7634f9931ca179f8dfb6d885462907144f49f157a6a0717e8"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/playSfx10.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/play_sfx10.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 16.651915522998024,
+ "wall_seconds": 35.56710424499761,
+ "totals": {
+  "cost": 0.0057,
+  "prompt_tokens": 45241,
+  "completion_tokens": 2352,
+  "model_seconds": 11.5,
+  "check_seconds": 16.7,
+  "calls": 2,
+  "wall_seconds": 35.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 1, 0 mismatches"
+ }
+}

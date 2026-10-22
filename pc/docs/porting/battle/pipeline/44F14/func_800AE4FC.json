@@ -1,0 +1,337 @@
+{
+ "function": "func_800AE4FC",
+ "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (unk6FC read after func_800A1280 refreshes it; the AKAO pointer is align-checked where the C is not: AKAO offsets are word-aligned); spec sound",
+ "plan": {
+  "name": "func_800AE4FC",
+  "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+  "stem": "44F14",
+  "address": "0x800ae4fc",
+  "difficulty": "S",
+  "zig_name": "func_800AE4FC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AE4FC",
+  "spec_file": "func_800AE4FC.zig",
+  "subsystem": "battle_44F14_port",
+  "signature": "pub fn func_800AE4FC(arg0: ?*v.D_800F4538_unk0, arg1: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F4538_unk0"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_unk0",
+   "D_800F4538_unk68"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17598,
+     "completion_tokens": 23156,
+     "reasoning_tokens": 20723,
+     "cost": 0.0133378,
+     "seconds": 95.4,
+     "sample": 1,
+     "conversation": "4f87e9b60e00c76cdcbb3e701f5da6feeff6200800fec2d1a09b317f5eda344d"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:172:9: error: zdiff: a spec stub gives void where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:225:29\n    f: pc/build/port-pipeline/func_800AE4FC/spec1/build/game/common/route.zig:39:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 20370,
+     "completion_tokens": 3926,
+     "reasoning_tokens": 1475,
+     "cost": 0.004,
+     "seconds": 14.7,
+     "sample": 1,
+     "conversation": "a30b65271b9faa29a5c524a77b936335533854dba1c4008008498753fc9dc79b"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "early-return": "17656",
+   "flag-two": "7553",
+   "bits-equal": "7409",
+   "unk1-override": "3758",
+   "unk2-override": "1795",
+   "plain": "1829"
+  },
+  "mutations": [
+   {
+    "name": "M1: early return one value too tight (> for >=)",
+    "caught": true
+   },
+   {
+    "name": "M2: unsigned shift of the computeSfxPan result",
+    "caught": true
+   },
+   {
+    "name": "M3: wrong mask constant in the nQuads+4 word test",
+    "caught": true
+   },
+   {
+    "name": "M4: unk1 override reads unk2",
+    "caught": true
+   },
+   {
+    "name": "M5: wrong constant in the random sound index",
+    "caught": true
+   },
+   {
+    "name": "M6: dropped call to func_800A1280 (no unk6FC refresh)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 16,
+   "branches_hit": 16,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 25,
+   "lines_hit": 25,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "32-bit: min -2146957850, max 2147134277, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if (arg0->position.vy >= 0xBB8) {",
+     "size": 2,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 2736, < 19608, > 17656 (signed); < 3784, > 33480 (unsigned)",
+     "operand": "constant 2999",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 13,
+     "text": "if (actor->unk17E4.unk0 == 2) {",
+     "size": 1,
+     "count": 22344,
+     "kind": "against a constant",
+     "outcomes": "== 7553, < 9304, > 5487 (signed); < 3866, > 10925 (unsigned)",
+     "operand": "constant 2",
+     "a": "-128..127"
+    },
+    {
+     "line": 17,
+     "text": "if ((*((int*)&actor->unk0.nQuads + 1) & 0x3F9F00) != 0x8000) {",
+     "size": 4,
+     "count": 14791,
+     "kind": "against a constant",
+     "outcomes": "== 7409, < 59, > 7323 (signed); < 59, > 7323 (unsigned)",
+     "operand": "constant 32768",
+     "a": "0..4169472"
+    },
+    {
+     "line": 24,
+     "text": "if (actor->unk17E4.unk1 != 0) {",
+     "size": 1,
+     "count": 14791,
+     "kind": "against a constant",
+     "outcomes": "== 7300, < 3685, > 3806 (signed); < 0, > 7491 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 30,
+     "text": "if (actor->unk17E4.unk2 != 0) {",
+     "size": 1,
+     "count": 14791,
+     "kind": "against a constant",
+     "outcomes": "== 7339, < 3773, > 3679 (signed); < 0, > 7452 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 35,
+     "text": "if (sp[1] == 0) {",
+     "size": 4,
+     "count": 22344,
+     "kind": "against a constant",
+     "outcomes": "== 11252, < 0, > 11092 (signed); < 0, > 11092 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..65518"
+    },
+    {
+     "line": 39,
+     "text": "if (type == 8) {",
+     "size": 4,
+     "count": 11092,
+     "kind": "against a constant",
+     "outcomes": "== 697, < 6216, > 4179 (signed); < 2753, > 7642 (unsigned)",
+     "operand": "constant 8",
+     "a": "-2146037529..2147092827"
+    },
+    {
+     "line": 41,
+     "text": "} else if (type == 4) {",
+     "size": 4,
+     "count": 10395,
+     "kind": "against a constant",
+     "outcomes": "== 665, < 4876, > 4854 (signed); < 1413, > 8317 (unsigned)",
+     "operand": "constant 4",
+     "a": "-2146037529..2147092827"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40993,
+     "completion_tokens": 7940,
+     "reasoning_tokens": 7023,
+     "cost": 0.0080693,
+     "seconds": 32.7,
+     "sample": 1,
+     "conversation": "8c137f1dbf92b3ca5fb3413b84ab2062dc5c47e338f3c40403d71f9574ea61c0"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800AE4FC.zig:26:28: error: value of type 'c_int' ignored\n            c.func_800A1280(@as(c_int, rec.unkF), 0xFF, @ptrCast(&actor.unk6FC), 0);\n            ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/func_800AE4FC.zig:26:28: note: all non-void values must be used\ngame/battle/func_800AE4FC.zig:26:28: note: to discard the value, assign it to '_'\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 42310,
+     "completion_tokens": 5751,
+     "reasoning_tokens": 4749,
+     "cost": 0.0071065,
+     "seconds": 24.0,
+     "sample": 1,
+     "conversation": "afc97b5ba2d53b5d617e59d428831ccbeab1dfa40f7c48e966c2f4efc36c2031"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AE4FC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AE4FC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 29.94514840299985,
+ "wall_seconds": 196.79988386299988,
+ "totals": {
+  "cost": 0.03251,
+  "prompt_tokens": 121271,
+  "completion_tokens": 40773,
+  "model_seconds": 166.8,
+  "check_seconds": 29.9,
+  "calls": 4,
+  "wall_seconds": 196.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 2 / 3 / 2, nested 6 / 12 / 36, 0 mismatches"
+ }
+}

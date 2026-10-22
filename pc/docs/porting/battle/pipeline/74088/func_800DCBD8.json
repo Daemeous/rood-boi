@@ -1,0 +1,230 @@
+{
+ "function": "func_800DCBD8",
+ "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (a matching decoy past the table's end)",
+ "plan": {
+  "name": "func_800DCBD8",
+  "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+  "stem": "74088",
+  "address": "0x800dcbd8",
+  "difficulty": "S",
+  "zig_name": "func_800DCBD8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DCBD8",
+  "spec_file": "func_800DCBD8.zig",
+  "subsystem": "battle_74088_port",
+  "signature": "pub fn func_800DCBD8(arg0: ?*v.func_800DCAA0_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800DCAA0_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "func_800DCAA0_t",
+   "func_800DEB10_t",
+   "func_800DEEA4_t"
+  ],
+  "globals": [
+   "D_800F5900"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11919,
+     "completion_tokens": 10856,
+     "reasoning_tokens": 9028,
+     "cost": 0.0066199,
+     "seconds": 45.6,
+     "sample": 1,
+     "conversation": "5e28d705f728af29bbd1d808be212f3f29750bd83855876f86c1f80b9d56d0cf"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "empty": "5139",
+   "miss": "17236",
+   "hit-first": "1493",
+   "hit-later": "6132"
+  },
+  "mutations": [
+   {
+    "name": "F1: entry flag tested with || instead of &&",
+    "caught": true
+   },
+   {
+    "name": "F2: loop bound <= instead of < (reads the entry past the end)",
+    "caught": true
+   },
+   {
+    "name": "F3: threshold read from unk0 instead of unk2",
+    "caught": true
+   },
+   {
+    "name": "F4: wrong shift constant (>> 4 for >> 5)",
+    "caught": true
+   },
+   {
+    "name": "F5: break dropped (a later match overwrites the threshold)",
+    "caught": true
+   },
+   {
+    "name": "F6: store to unkC_19 dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 10,
+   "lines_hit": 10,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "for (i = 0; i < D_800F5900->unk4A; ++i) {",
+     "size": 4,
+     "count": 154066,
+     "kind": "a == b / a < b",
+     "outcomes": "== 22375, < 131691, > 0 (signed); < 131691, > 0 (unsigned)",
+     "operand": "b 0..12",
+     "a": "0..12"
+    },
+    {
+     "line": 8,
+     "text": "if ((entry->unk40 == 0) && (id == D_800F5900->unk4C[i].unk0)) {",
+     "size": 4,
+     "count": 131691,
+     "kind": "against a constant",
+     "outcomes": "== 21896, < 54549, > 55246 (signed); < 0, > 109795 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 8,
+     "text": "if ((entry->unk40 == 0) && (id == D_800F5900->unk4C[i].unk0)) {",
+     "size": 4,
+     "count": 21896,
+     "kind": "a == b / a < b",
+     "outcomes": "== 7625, < 12329, > 1942 (signed); < 12329, > 1942 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..15"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35313,
+     "completion_tokens": 3819,
+     "reasoning_tokens": 3317,
+     "cost": 0.0054408,
+     "seconds": 16.1,
+     "sample": 1,
+     "conversation": "8bd032071171efabcc0e2cf0db961df9e6497f3e330c869b6f7e7ac042b66378"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DCBD8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DCBD8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 15.693805265993433,
+ "wall_seconds": 78.13339016100144,
+ "totals": {
+  "cost": 0.01206,
+  "prompt_tokens": 47232,
+  "completion_tokens": 14675,
+  "model_seconds": 61.7,
+  "check_seconds": 15.7,
+  "calls": 2,
+  "wall_seconds": 78.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (21 / 48 / none), 0 mismatches"
+ }
+}

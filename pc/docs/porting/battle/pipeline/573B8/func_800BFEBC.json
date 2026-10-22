@@ -1,0 +1,326 @@
+{
+ "function": "func_800BFEBC",
+ "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (the +20 eq waiver holds: power != 0 is tested first)",
+ "plan": {
+  "name": "func_800BFEBC",
+  "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+  "stem": "573B8",
+  "address": "0x800bfebc",
+  "difficulty": "M",
+  "zig_name": "func_800BFEBC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BFEBC",
+  "spec_file": "func_800BFEBC.zig",
+  "subsystem": "battle_573B8_port",
+  "signature": "pub fn func_800BFEBC(mode: c_short, frame: c_short, duration: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "mode",
+    "c_short"
+   ],
+   [
+    "frame",
+    "c_short"
+   ],
+   [
+    "duration",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800F4B28"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11943,
+     "completion_tokens": 13177,
+     "reasoning_tokens": 11493,
+     "cost": 0.0077828,
+     "seconds": 58.3,
+     "sample": 1,
+     "conversation": "ecfbd7e2a08460ee4aba5bb149056ea635b18cb0c1451f6cdedf2ded4d97558d"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800BFEBC: branches 19/19 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 35/35\n  FLAG +20 eq: boundary equality never occurred (32-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (power > 0) {`\n  note: waivers no longer needed: +NN eq\ncoverage func_800BFEBC: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (power > 0) {` (+20): the two sides of this ordered compare were equal 0 time(s) in 18775. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800BFEBC.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14010,
+     "completion_tokens": 2396,
+     "reasoning_tokens": 685,
+     "cost": 0.002599,
+     "seconds": 9.0,
+     "sample": 1,
+     "conversation": "64665daf121d7659c33bf0f2038c956fa3a6a9d6c72b49f52c27a7881b79b4cb"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "mode-0": "5056",
+   "mode-1": "5027",
+   "mode-2": "4952",
+   "mode-3": "5040",
+   "default-power-zero": "1150",
+   "default-power-pos": "9410",
+   "default-power-neg": "9365"
+  },
+  "mutations": [
+   {
+    "name": "M1: a frame past duration is clamped one short",
+    "caught": true
+   },
+   {
+    "name": "M2: case 0 shifts by 11, not 12",
+    "caught": true
+   },
+   {
+    "name": "M3: case 2 divides by 2 instead of the arithmetic >> 1",
+    "caught": true
+   },
+   {
+    "name": "M4: the negative power loop runs one time too many",
+    "caught": true
+   },
+   {
+    "name": "M5: power read from the type byte (wrong field)",
+    "caught": true
+   },
+   {
+    "name": "M6: the default type-3 offset is 0x3FF, not 0x400",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 19,
+   "branches_hit": 19,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 35,
+   "lines_hit": 35,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+20 eq",
+     "line": 20,
+     "text": "if (power > 0) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 18775,
+     "what": "boundary equality never occurred (32-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "16-bit: min 0, max 7, seen zero, never negative, 8 value(s): 3, 6, 2, 0, 1, 7, 4, 5"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "16-bit: min -32768, max 32767, unsigned 1..65535, seen negative/signed max/all ones, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (frame > duration)",
+     "size": 2,
+     "count": 40000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 16402, < 12054, > 11544 (signed); < 11906, > 11692 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 6,
+     "text": "switch (mode) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "switch",
+     "outcomes": "== 20075, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..7"
+    },
+    {
+     "line": 19,
+     "text": "if (power != 0) {",
+     "size": 4,
+     "count": 19925,
+     "kind": "against a constant",
+     "outcomes": "== 1150, < 9365, > 9410 (signed); < 0, > 18775 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 20,
+     "text": "if (power > 0) {",
+     "size": 4,
+     "count": 18775,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 9365, > 9410 (signed); < 0, > 18775 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 21,
+     "text": "for (i = 0; i < power; ++i)",
+     "size": 4,
+     "count": 477546,
+     "kind": "a == b / a < b",
+     "outcomes": "== 9410, < 468136, > 0 (signed); < 468136, > 0 (unsigned)",
+     "operand": "b 1..127",
+     "a": "0..127"
+    },
+    {
+     "line": 26,
+     "text": "for (i = 0; i < magnitude; ++i)",
+     "size": 4,
+     "count": 478483,
+     "kind": "a == b / a < b",
+     "outcomes": "== 9365, < 469118, > 0 (signed); < 469118, > 0 (unsigned)",
+     "operand": "b 1..128",
+     "a": "0..128"
+    },
+    {
+     "line": 31,
+     "text": "switch ((int)(u_char)D_800F4B28[mode][0]) {",
+     "size": 4,
+     "count": 19925,
+     "kind": "switch",
+     "outcomes": "== 3850, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..255"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+20 eq",
+    "reason": "The test sits under `if (power != 0)`, so power is never 0 when `power > 0` runs and its sides are never equal."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35232,
+     "completion_tokens": 6131,
+     "reasoning_tokens": 5222,
+     "cost": 0.0065887,
+     "seconds": 26.5,
+     "sample": 1,
+     "conversation": "72e7208514c4efb67bf23be91b14ea7f5b7a3576c9b7b88b1c4516d54faf0e76"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800BFEBC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800BFEBC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 52.749199778998445,
+ "wall_seconds": 149.64117540900043,
+ "totals": {
+  "cost": 0.01697,
+  "prompt_tokens": 61185,
+  "completion_tokens": 21704,
+  "model_seconds": 93.8,
+  "check_seconds": 52.7,
+  "calls": 3,
+  "wall_seconds": 149.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

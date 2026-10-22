@@ -1,0 +1,156 @@
+{
+ "function": "func_800AEF94",
+ "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+ "difficulty": "XL",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": "not ported (skipped): a block-scope static; the C must define it outside the function first (PORTING \u00a76.3)",
+ "plan": {
+  "name": "func_800AEF94",
+  "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+  "stem": "44F14",
+  "address": "0x800aef94",
+  "difficulty": "XL",
+  "zig_name": "func_800AEF94",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AEF94",
+  "spec_file": "func_800AEF94.zig",
+  "subsystem": "battle_44F14_port",
+  "signature": "pub fn func_800AEF94(camera: ?*v.MATRIX) callconv(.c) void",
+  "params": [
+   [
+    "camera",
+    "?*v.MATRIX"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_unk68",
+   "D_800F45E0_t",
+   "D_800F45E0_unk68",
+   "MATRIX",
+   "objectAnimationState",
+   "vs_battle_wepModels_t"
+  ],
+  "globals": [
+   "D_800E9308",
+   "D_800F4538",
+   "D_800F45E0",
+   "D_800F4B18",
+   "D_800F4B19",
+   "vs_battle_wepModels",
+   "vs_gametime_tickspeed"
+  ],
+  "hooks": [
+   "pc_log",
+   "ROOD_PC block in the source"
+  ],
+  "statics": [
+   "a block-scope static"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 29642,
+     "completion_tokens": 58220,
+     "reasoning_tokens": 53596,
+     "cost": 0.0320742,
+     "seconds": 243.5,
+     "sample": 1,
+     "conversation": "5a4793ea2134c691b1675151bbaa34987a931afa24a2715b90671b995def0705"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\nstand-in: func_800AEF94 has a block-scope static (a second copy would have its own)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34338,
+     "completion_tokens": 5807,
+     "reasoning_tokens": 972,
+     "cost": 0.0063373,
+     "seconds": 20.3,
+     "sample": 1,
+     "conversation": "537b6a205d189fb6559887648ec86bdbe5a587a4c89f51d3d92f5d85d2078941"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\nstand-in: func_800AEF94 has a block-scope static (a second copy would have its own)"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39245,
+     "completion_tokens": 5764,
+     "reasoning_tokens": 973,
+     "cost": 0.0068065,
+     "seconds": 19.2,
+     "sample": 1,
+     "conversation": "9f0954b7d571be3a2a54075c438917cd98993cc4440f6ef6767f0bbb135e2319"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\nstand-in: func_800AEF94 has a block-scope static (a second copy would have its own)"
+    ]
+   }
+  ],
+  "classes": {},
+  "mutations": [],
+  "coverage": null
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 0.13281596199976775,
+ "wall_seconds": 283.3261674789999,
+ "totals": {
+  "cost": 0.04522,
+  "prompt_tokens": 103225,
+  "completion_tokens": 69791,
+  "model_seconds": 283.0,
+  "check_seconds": 0.1,
+  "calls": 3,
+  "wall_seconds": 283.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": ""
+ }
+}

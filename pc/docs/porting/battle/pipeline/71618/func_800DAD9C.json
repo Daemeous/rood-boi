@@ -1,0 +1,276 @@
+{
+ "function": "func_800DAD9C",
+ "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the registry pointer D_800F58BC is loaded once where the C reloads it per slot: no callee reassigns it); spec sound (the stub rewrites count, registry slots, model status and the fallback's flagsC)",
+ "plan": {
+  "name": "func_800DAD9C",
+  "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+  "stem": "71618",
+  "address": "0x800dad9c",
+  "difficulty": "S",
+  "zig_name": "func_800DAD9C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DAD9C",
+  "spec_file": "func_800DAD9C.zig",
+  "subsystem": "battle_71618_port",
+  "signature": "pub fn func_800DAD9C(state: ?*v.actionDispatchState) callconv(.c) c_int",
+  "params": [
+   [
+    "state",
+    "?*v.actionDispatchState"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F45E0_t",
+   "D_800F58BC_t",
+   "actionDispatchActor",
+   "actionDispatchEntry",
+   "actionDispatchModel",
+   "actionDispatchRegistry",
+   "actionDispatchState"
+  ],
+  "globals": [
+   "D_800F45E0",
+   "D_800F58BC"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16267,
+     "completion_tokens": 24730,
+     "reasoning_tokens": 22223,
+     "cost": 0.0139917,
+     "seconds": 109.3,
+     "sample": 1,
+     "conversation": "e766c16a62406613f4dc6f15074024e12583011e4da89145133e7531b748eaf9"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "count-le-0": "10098",
+   "fallback-field-zero": "3794",
+   "no-actor": "8947",
+   "actor-dead-model": "10558",
+   "actor-live-model": "6603"
+  },
+  "mutations": [
+   {
+    "name": "M1: last entry skipped",
+    "caught": true
+   },
+   {
+    "name": "M2: flag index uses the id's low 3 bits",
+    "caught": true
+   },
+   {
+    "name": "M3: a negative status counts as dead",
+    "caught": true
+   },
+   {
+    "name": "M4: flags4 field drops its top bit",
+    "caught": true
+   },
+   {
+    "name": "M5: the registry scan stops at slot 2",
+    "caught": true
+   },
+   {
+    "name": "M6: model read from the neighbouring slot",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 16,
+   "branches_hit": 16,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 16,
+   "lines_hit": 16,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "for (i = 0; i < state->count; i++) {",
+     "size": 4,
+     "count": 203086,
+     "kind": "a == b / a < b",
+     "outcomes": "== 18092, < 173962, > 11032 (signed); < 180678, > 4316 (unsigned)",
+     "operand": "b -2..16",
+     "a": "0..16"
+    },
+    {
+     "line": 8,
+     "text": "if (func_800DAC80((void*)state, (void*)entry))",
+     "size": 4,
+     "count": 173962,
+     "kind": "against a constant",
+     "outcomes": "== 163086, < 0, > 10876 (signed); < 0, > 10876 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 12,
+     "text": "if ((entry->flags4 >> 5) & 255) {",
+     "size": 4,
+     "count": 29124,
+     "kind": "against a constant",
+     "outcomes": "== 3736, < 0, > 25388 (signed); < 0, > 25388 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..8160"
+    },
+    {
+     "line": 13,
+     "text": "for (j = 0; j < 4; j++) {",
+     "size": 4,
+     "count": 125457,
+     "kind": "against a constant",
+     "outcomes": "== 24937, < 75708, > 24812 (signed); < 75708, > 24812 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..4"
+    },
+    {
+     "line": 18,
+     "text": "if (model->id && model->status == 0) {",
+     "size": 1,
+     "count": 44953,
+     "kind": "against a constant",
+     "outcomes": "== 5696, < 22414, > 16843 (signed); < 0, > 39257 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 18,
+     "text": "if (model->id && model->status == 0) {",
+     "size": 2,
+     "count": 39257,
+     "kind": "against a constant",
+     "outcomes": "== 9435, < 14726, > 15096 (signed); < 0, > 29822 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32764"
+    },
+    {
+     "line": 19,
+     "text": "if (func_800DAC80((void*)state, (void*)entry))",
+     "size": 4,
+     "count": 9435,
+     "kind": "against a constant",
+     "outcomes": "== 8859, < 0, > 576 (signed); < 0, > 576 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39662,
+     "completion_tokens": 7727,
+     "reasoning_tokens": 7054,
+     "cost": 0.0078297,
+     "seconds": 32.9,
+     "sample": 1,
+     "conversation": "5fdaaac3ce2c130a8d617e3a41f1db52ccc6849054340f689aa95114c039492c"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DAD9C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DAD9C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 38.90523827499419,
+ "wall_seconds": 181.21960830399985,
+ "totals": {
+  "cost": 0.02182,
+  "prompt_tokens": 55929,
+  "completion_tokens": 32457,
+  "model_seconds": 142.2,
+  "check_seconds": 38.9,
+  "calls": 2,
+  "wall_seconds": 181.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (75 / 207 / 186), 0 mismatches"
+ }
+}

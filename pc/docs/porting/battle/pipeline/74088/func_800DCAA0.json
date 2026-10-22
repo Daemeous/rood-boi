@@ -1,0 +1,284 @@
+{
+ "function": "func_800DCAA0",
+ "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful after a reviewer fix of Haiku's retry (psx_to_ptr(void*, arg1) made an aligned pointer and panicked on an odd address; it now goes through the callee typed with an untyped pointer); spec sound",
+ "plan": {
+  "name": "func_800DCAA0",
+  "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+  "stem": "74088",
+  "address": "0x800dcaa0",
+  "difficulty": "S",
+  "zig_name": "func_800DCAA0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DCAA0",
+  "spec_file": "func_800DCAA0.zig",
+  "subsystem": "battle_74088_port",
+  "signature": "pub fn func_800DCAA0(arg0: ?*v.func_800DCAA0_t1, arg1: c_int, arg2: ?*v.func_800DCAA0_t, arg3: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800DCAA0_t1"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "?*v.func_800DCAA0_t"
+   ],
+   [
+    "arg3",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_t",
+   "SVECTOR",
+   "func_800DCAA0_t1"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17543,
+     "completion_tokens": 18045,
+     "reasoning_tokens": 15978,
+     "cost": 0.0107768,
+     "seconds": 76.2,
+     "sample": 1,
+     "conversation": "e1c730d115eb0d74827c99d197c3d8de6dcafbb19feffc83f602f40e6443ec23"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F2: vy offset adds unkC_7 instead of subtracting: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800DCAA0: 30000 iterations, seed 1, 0 mismatches; classes: other-callee=9982 actor-low-index=10009 actor-high-index=10009",
+     "FAIL: mutation F3: depth offset taken from vx: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800DCAA0: 30000 iterations, seed 1, 0 mismatches; classes: other-callee=9982 actor-low-index=10009 actor-high-index=10009",
+     "FAIL: mutation F4: the two output vectors swapped in the callee call: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800DCAA0: 30000 iterations, seed 1, 0 mismatches; classes: other-callee=9982 actor-low-index=10009 actor-high-index=10009",
+     "FAIL: mutation F6: sp20.vy zeroed instead of copied from sp28.vy: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800DCAA0: 30000 iterations, seed 1, 0 mismatches; classes: other-callee=9982 actor-low-index=10009 actor-high-index=10009"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 20158,
+     "completion_tokens": 4832,
+     "reasoning_tokens": 2549,
+     "cost": 0.0044318,
+     "seconds": 19.4,
+     "sample": 1,
+     "conversation": "0658726d38cdec1178b2a0613d0587edb43c20b26e0c378b15cb0d010ee43d81"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "other-callee": "9982",
+   "actor-low-index": "10009",
+   "actor-high-index": "10009"
+  },
+  "mutations": [
+   {
+    "name": "F1: result tested for > 0 (negative results skipped)",
+    "caught": true
+   },
+   {
+    "name": "F2: vy offset adds unkC_7 instead of subtracting",
+    "caught": true
+   },
+   {
+    "name": "F3: depth offset taken from vx",
+    "caught": true
+   },
+   {
+    "name": "F4: the two output vectors swapped in the callee call",
+    "caught": true
+   },
+   {
+    "name": "F5: the func_800DC888 call is dropped",
+    "caught": true
+   },
+   {
+    "name": "F6: sp20.vy zeroed instead of copied from sp28.vy",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 15,
+   "lines_hit": 15,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147448929, max 2147451500, unsigned 154937..4294930154, seen negative, never zero"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -2147282090, max 2146868419, unsigned 3..4294866167, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if (arg3 != 3) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 20018, < 5009, > 4973 (signed); < 0, > 9982 (unsigned)",
+     "operand": "constant 3",
+     "a": "-2147282090..2146868419"
+    },
+    {
+     "line": 20,
+     "text": "if (temp_v0 != 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 11266, < 9212, > 9522 (signed); < 0, > 18734 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147293789..2147470508"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40937,
+     "completion_tokens": 9303,
+     "reasoning_tokens": 8280,
+     "cost": 0.0087452,
+     "seconds": 38.1,
+     "sample": 1,
+     "conversation": "fb9f54938161c600a95e65f1e384f1f69936e91100d2579ae37cf08c8e82fa22"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800DCAA0.zig:45:27: error: indexable pointer to opaque type 'anyopaque' not allowed\n        const target: [*c]anyopaque = @ptrFromInt(@as(usize, psx.conv(u32, arg1)));\n                          ^~~~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DCAA0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DCAA0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 49.620800489999965,
+ "wall_seconds": 49.842126689999986,
+ "totals": {
+  "cost": 0.02395,
+  "prompt_tokens": 78638,
+  "completion_tokens": 32180,
+  "model_seconds": 133.7,
+  "check_seconds": 49.6,
+  "calls": 3,
+  "wall_seconds": 49.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [
+   "the integer passed as a pointer to func_800DC888 through a function pointer typed ?*anyopaque (Haiku's @ptrFromInt to the aligned parameter type panicked: incorrect alignment)"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (21 / 48 / none), 0 mismatches"
+ }
+}

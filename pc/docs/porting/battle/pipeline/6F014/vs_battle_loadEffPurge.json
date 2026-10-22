@@ -1,0 +1,261 @@
+{
+ "function": "vs_battle_loadEffPurge",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful after a reviewer port: Haiku's three drafts kept D_800F568C (a host pointer) as a 4-byte guest pointer; the port reuses func_800D7BF8's _loadfile; spec sound; after the static-callee fixes",
+ "plan": {
+  "name": "vs_battle_loadEffPurge",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d7ba4",
+  "difficulty": "S",
+  "zig_name": "loadEffPurge",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "load_eff_purge",
+  "spec_file": "loadEffPurge.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn loadEffPurge() callconv(.c) c_int",
+  "params": [],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [
+   "_loadfile"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11543,
+     "completion_tokens": 16673,
+     "reasoning_tokens": 14774,
+     "cost": 0.0094908,
+     "seconds": 74.5,
+     "sample": 1,
+     "conversation": "5508b24dce5eb17e75d5592f5a758bebda868b1ab777035d55c5bf59f0dbee8b"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation L7: a loaded queue returns 1, not 0: mutation L7: a loaded queue returns 1, not 0: its `from` text occurs 0 times in the C body of vs_battle_loadEffPurge (copy it exactly from the C)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13559,
+     "completion_tokens": 3249,
+     "reasoning_tokens": 1305,
+     "cost": 0.0029804,
+     "seconds": 11.9,
+     "sample": 1,
+     "conversation": "cc740257f63302ef6d7a6d0c16fd081e430b11f7891c5b5aced59bb471743abc"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "flag-clear": "7460",
+   "alloc-null": "3704",
+   "alloc-ok": "7373",
+   "queued": "11463"
+  },
+  "mutations": [
+   {
+    "name": "L1: the one-shot flag test inverted",
+    "caught": true
+   },
+   {
+    "name": "L2: the flag is set to 2, not 1",
+    "caught": true
+   },
+   {
+    "name": "L3: the flag-setting call gets argument 3",
+    "caught": true
+   },
+   {
+    "name": "L4: the overlay slot index is 2, not 3",
+    "caught": true
+   },
+   {
+    "name": "L5: the CD size is off by one",
+    "caught": true
+   },
+   {
+    "name": "L6: the load call's result is off by one",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 5,
+   "lines_hit": 5,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 2,
+     "text": "if (D_800F5684 == 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 7460, < 10044, > 12496 (signed); < 0, > 22540 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34964,
+     "completion_tokens": 4578,
+     "reasoning_tokens": 3622,
+     "cost": 0.0057854,
+     "seconds": 20.2,
+     "sample": 1,
+     "conversation": "adb0024754505b0f6b6193316f94bec05434fb21f2cc3ae85938aa0f018d4991"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 2: memory at 0x426090 [D_800F568C+0x0] (zdiff_state+0x20010): C 0, Zig 144\nzdiff: MISMATCH iteration 4: memory at 0x426090 [D_800F568C+0x0] (zdiff_state+0x20010): C 0, Zig 144\nzdiff: MISMATCH iteration 11: memory at 0x426090 [D_800F568C+0x0] (zdiff_state+0x20010): C 144, Zig 0\nzdiff: vs_battle_loadEffPurge: 7829 iterations, seed 1, 1000 mismatches; classes: flag-clear=1986 alloc-null=973 alloc-ok=1930 queued=2940"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 2: memory at 0x426090 (zdiff_state+0x20010): C 0, Zig 144"
+     }
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36231,
+     "completion_tokens": 4064,
+     "reasoning_tokens": 3039,
+     "cost": 0.0056551,
+     "seconds": 18.1,
+     "sample": 1,
+     "conversation": "3aeb49cba56d77ac90d60efb915660258639257e6b71bc5dc08c3b7536d2672a"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/common/psx.zig:33:29: error: expected pointer, found '@TypeOf(null)'\n        else => @intFromPtr(p),\n                            ^\nreferenced by:\n    put__func_62: game/common/psx.zig:155:33\n    loadfile: game/battle/load_eff_purge.zig:44:16\n    7 reference(s) hidden; use '-freference-trace=9' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 3,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/loadEffPurge.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/load_eff_purge.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 60.25598268500016,
+ "wall_seconds": 60.42078832700008,
+ "totals": {
+  "cost": 0.02391,
+  "prompt_tokens": 96297,
+  "completion_tokens": 28564,
+  "model_seconds": 124.7,
+  "check_seconds": 60.3,
+  "calls": 4,
+  "wall_seconds": 60.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [
+   "reviewer's round-3 reply: _loadfile as in func_800D7BF8's port (D_800F568C read and written as the host pointer it is; Haiku's psx.Ptr wrote 4 bytes of an 8-byte global)"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 root / 9 root / -, 0 mismatches"
+ }
+}

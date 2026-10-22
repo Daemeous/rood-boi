@@ -1,0 +1,771 @@
+{
+ "function": "func_800E2F5C",
+ "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+ "difficulty": "XL",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": "not ported in this wave (unrouted): the C differs from a copy of itself: it passes a tile word whose y byte it never writes (a partly written local, host stack residue: Oracle.md, known hazards); needs the local zeroed under ROOD_PC before it can be specified",
+ "plan": {
+  "name": "func_800E2F5C",
+  "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+  "stem": "771A8",
+  "address": "0x800e2f5c",
+  "difficulty": "XL",
+  "zig_name": "func_800E2F5C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800E2F5C",
+  "spec_file": "func_800E2F5C.zig",
+  "subsystem": "battle_771A8_port",
+  "signature": "pub fn func_800E2F5C(state: ?*v.movementPathState, test_: c.movementPathTest, mask: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "state",
+    "?*v.movementPathState"
+   ],
+   [
+    "test_",
+    "c.movementPathTest"
+   ],
+   [
+    "mask",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F16EC_t",
+   "D_800F58BC_t",
+   "func_800D8400_t",
+   "movementPath",
+   "movementPathState"
+  ],
+  "globals": [
+   "D_800F58BC"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17432,
+     "completion_tokens": 40524,
+     "reasoning_tokens": 36520,
+     "cost": 0.0220052,
+     "seconds": 171.7,
+     "sample": 1,
+     "conversation": "b9efb94a0f9aee959ff545cb47ac1fead28ef6eae1adaa27b530eff6f51a39c3"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C differs from a copy of itself under this spec (exit 1: the spec is not deterministic: everything prepare does must come from `ctx`):\nzdiff: MISMATCH iteration 40: memory at 0x4081e3 [arena] (zdiff_state+0x173): C 0, Zig 135\nzdiff: MISMATCH iteration 43: memory at 0x4081e3 [arena] (zdiff_state+0x173): C 0, Zig 135\nzdiff: MISMATCH iteration 47: memory at 0x4081e3 [arena] (zdiff_state+0x173): C 0, Zig 135\nzdiff: func_800E2F5C: 10791 iterations, seed 1, 1000 mismatches; classes: no-count=1318 unk4-set=4742 clockwise=2336 counter-clockwise=2395",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800E2F5C: branches 98/98 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 107/107\n  FLAG +68 eq: boundary equality never occurred (32-bit compare, b 128..3968: both sides seen; a port's `<` for `<=` could pass): `if ((center < boundZ && state->z < boundZ)`\n  waived +69 eq: boundary equality never occurred (32-bit compare, b 64..32704: both sides seen; a port's `<` for `<=` could pass): `|| (boundZ < center && boundZ < state->z)) {` (center is destination.z << 7 plus 64, so it is never equal to boundZ (a multiple of 128): the two sides of this compare cannot be equal)\n  FLAG +75 eq: boundary equality never occurred (32-bit compare, b 128..3968: both sides seen; a port's `<` for `<=` could pass): `if ((center < boundX && state->x < boundX)`\n  waived +76 eq: boundary equality never occurred (32-bit compare, b 64..32704: both sides seen; a port's `<` for `<=` could pass): `|| (boundX < center && boundX < state->x)) {` (center is destination.x << 7 plus 64, so it is never equal to boundX (a multiple of 128): the two sides of this compare cannot be equal)\n  FLAG +83 eq: boundary equality never occurred (32-bit compare, b 64..32704: both sides seen; a port's `<` for `<=` could pass): `if ((boundZ < center && state->z < boundZ)`\n  waived +84 eq: boundary equality never occurred (32-bit compare, b 128..3968: both sides seen; a port's `<` for `<=` could pass): `|| (center < boundZ && boundZ < state->z)) {` (center is destination.z << 7 plus 64, so it is never equal to boundZ (a multiple of 128): the two sides of this compare cannot be equal)\n  FLAG +90 eq: boundary equality never occurred (32-bit compare, b 64..32704: both sides seen; a port's `<` for `<=` could pass): `if ((boundX < center && state->x < boundX)`\n  waived +91 eq: boundary equality never occurred (32-bit compare, b 128..3968: both sides seen; a port's `<` for `<=` could pass): `|| (center < boundX && boundX < state->x)) {` (center is destination.x << 7 plus 64, so it is never equal to boundX (a multiple of 128): the two sides of this compare cannot be equal)\n  FLAG +109 eq: boundary equality occurred only 2 time(s) in 803 (8-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (!(state->flags & 0x30) && !state->waitTimer) {`\n  note: waivers no longer needed: +70 eq, +77 eq, +85 eq, +92 eq\ncoverage func_800E2F5C: FAILED (threshold 100%: 0 uncovered, 5 value flag(s) not waived)\nWhat to add:\n- `if ((center < boundZ && state->z < boundZ)` (+68): the two sides of this ordered compare were equal 0 time(s) in 719. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `if ((center < boundX && state->x < boundX)` (+75): the two sides of this ordered compare were equal 0 time(s) in 510. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `if "
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 23373,
+     "completion_tokens": 27259,
+     "reasoning_tokens": 22542,
+     "cost": 0.0159668,
+     "seconds": 122.3,
+     "sample": 1,
+     "conversation": "9e9ab80e8ad992314b4464e274ff8841f3cb6f91d190cf92dc6b67c75823e307"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C differs from a copy of itself under this spec (exit 1: the spec is not deterministic: everything prepare does must come from `ctx`):\nzdiff: MISMATCH iteration 12: call 2 (func_800D96C8): argument 2: C 0x9500cd, Zig 0x3d9500cd\nzdiff: MISMATCH iteration 26: call 2 (func_800D96C8): argument 2: C 0x2d007a, Zig 0x3d2d007a\nzdiff: MISMATCH iteration 30: call 4 (func_800D96C8): argument 2: C 0x8000c8, Zig 0x3d8000c8\nzdiff: func_800E2F5C: 9610 iterations, seed 1, 1000 mismatches; classes: no-count=1200 unk4-set=2126 clockwise=3111 counter-clockwise=3173",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800E2F5C: branches 98/98 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 107/107\n  FLAG +68 eq: boundary equality never occurred (32-bit compare, b 128..3968: both sides seen; a port's `<` for `<=` could pass): `if ((center < boundZ && state->z < boundZ)`\n  waived +69 eq: boundary equality never occurred (32-bit compare, b 64..32704: both sides seen; a port's `<` for `<=` could pass): `|| (boundZ < center && boundZ < state->z)) {` (center is destination.z << 7 plus 64, so it is never equal to boundZ (a multiple of 128): the two sides of this compare cannot be equal)\n  FLAG +75 eq: boundary equality never occurred (32-bit compare, b 128..3968: both sides seen; a port's `<` for `<=` could pass): `if ((center < boundX && state->x < boundX)`\n  waived +76 eq: boundary equality never occurred (32-bit compare, b 64..32704: both sides seen; a port's `<` for `<=` could pass): `|| (boundX < center && boundX < state->x)) {` (center is destination.x << 7 plus 64, so it is never equal to boundX (a multiple of 128): the two sides of this compare cannot be equal)\n  FLAG +83 eq: boundary equality never occurred (32-bit compare, b 64..32704: both sides seen; a port's `<` for `<=` could pass): `if ((boundZ < center && state->z < boundZ)`\n  waived +84 eq: boundary equality never occurred (32-bit compare, b 128..3968: both sides seen; a port's `<` for `<=` could pass): `|| (center < boundZ && boundZ < state->z)) {` (center is destination.z << 7 plus 64, so it is never equal to boundZ (a multiple of 128): the two sides of this compare cannot be equal)\n  FLAG +90 eq: boundary equality never occurred (32-bit compare, b 64..32704: both sides seen; a port's `<` for `<=` could pass): `if ((boundX < center && state->x < boundX)`\n  waived +91 eq: boundary equality never occurred (32-bit compare, b 128..3968: both sides seen; a port's `<` for `<=` could pass): `|| (center < boundX && boundX < state->x)) {` (center is destination.x << 7 plus 64, so it is never equal to boundX (a multiple of 128): the two sides of this compare cannot be equal)\n  note: waivers no longer needed: +134 b1, +136 b1, +138 b0, +138 b1, +142 b0\ncoverage func_800E2F5C: FAILED (threshold 100%: 0 uncovered, 4 value flag(s) not waived)\nWhat to add:\n- `if ((center < boundZ && state->z < boundZ)` (+68): the two sides of this ordered compare were equal 0 time(s) in 6669. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `if ((center < boundX && state->x < boundX)` (+75): the two sides of this ordered compare were equal 0 time(s) in 5262. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `if ((boundZ < center && state->z < boundZ)` (+83): the two sides of this ordered compare were equal 0 time(s) in 7787. A port's `<` for `<=` would pass; add inputs that make them exactly"
+    ]
+   }
+  ],
+  "classes": {
+   "no-count": "1200",
+   "unk4-set": "2126",
+   "clockwise": "3111",
+   "counter-clockwise": "3173"
+  },
+  "mutations": [
+   {
+    "name": "F1: the bounds stop at x == maxX too",
+    "caught": true
+   },
+   {
+    "name": "F2: state->z read with <= against boundZ",
+    "caught": true
+   },
+   {
+    "name": "F3: the wait timer is 3, not 4, past the roll",
+    "caught": true
+   },
+   {
+    "name": "F4: the visited bit shifted by direction >> 2",
+    "caught": true
+   },
+   {
+    "name": "F5: visited compared as signed -1",
+    "caught": true
+   },
+   {
+    "name": "F6: the default turn is +1, not -1",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 98,
+   "branches_hit": 98,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 107,
+   "lines_hit": 107,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+68 eq",
+     "line": 68,
+     "text": "if ((center < boundZ && state->z < boundZ)",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 6669,
+     "what": "boundary equality never occurred (32-bit compare, b 128..3968: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+69 eq",
+     "line": 69,
+     "text": "|| (boundZ < center && boundZ < state->z)) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 6177,
+     "what": "boundary equality never occurred (32-bit compare, b 64..32704: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+75 eq",
+     "line": 75,
+     "text": "if ((center < boundX && state->x < boundX)",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 5262,
+     "what": "boundary equality never occurred (32-bit compare, b 128..3968: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+76 eq",
+     "line": 76,
+     "text": "|| (boundX < center && boundX < state->x)) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 4844,
+     "what": "boundary equality never occurred (32-bit compare, b 64..32704: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+83 eq",
+     "line": 83,
+     "text": "if ((boundZ < center && state->z < boundZ)",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 7787,
+     "what": "boundary equality never occurred (32-bit compare, b 64..32704: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+84 eq",
+     "line": 84,
+     "text": "|| (center < boundZ && boundZ < state->z)) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 6259,
+     "what": "boundary equality never occurred (32-bit compare, b 128..3968: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+90 eq",
+     "line": 90,
+     "text": "if ((boundX < center && state->x < boundX)",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 5992,
+     "what": "boundary equality never occurred (32-bit compare, b 64..32704: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+91 eq",
+     "line": 91,
+     "text": "|| (center < boundX && boundX < state->x)) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 4637,
+     "what": "boundary equality never occurred (32-bit compare, b 128..3968: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "32-bit: min 0, max 15, seen zero, never negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 21,
+     "text": "if (path.bits.count == 0) {",
+     "size": 2,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 4958, < 0, > 35042 (signed); < 0, > 35042 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4064"
+    },
+    {
+     "line": 26,
+     "text": "direction = (path.bits.clockwise ? heading - 2 : heading + 2) & 7;",
+     "size": 1,
+     "count": 35042,
+     "kind": "against a constant",
+     "outcomes": "== 17532, < 0, > 17510 (signed); < 0, > 17510 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..16"
+    },
+    {
+     "line": 29,
+     "text": "if (hit) {",
+     "size": 4,
+     "count": 35042,
+     "kind": "against a constant",
+     "outcomes": "== 8828, < 0, > 26214 (signed); < 0, > 26214 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3"
+    },
+    {
+     "line": 30,
+     "text": "if (!(((movementPathState*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F80037C) + 4 * (blocker))))->flags & 0x30)",
+     "size": 4,
+     "count": 26214,
+     "kind": "against a constant",
+     "outcomes": "== 6437, < 0, > 19777 (signed); < 0, > 19777 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..48"
+    },
+    {
+     "line": 31,
+     "text": "&& !((movementPathState*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F80037C) + 4 * (blocker))))->waitTimer) {",
+     "size": 1,
+     "count": 6437,
+     "kind": "against a constant",
+     "outcomes": "== 3233, < 1576, > 1628 (signed); < 0, > 3204 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 37,
+     "text": "if (!state->unk4 && !path.bits.changed && !test(state, path.bits.direction)) {",
+     "size": 1,
+     "count": 35042,
+     "kind": "against a constant",
+     "outcomes": "== 26281, < 4426, > 4335 (signed); < 0, > 8761 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 37,
+     "text": "if (!state->unk4 && !path.bits.changed && !test(state, path.bits.direction)) {",
+     "size": 1,
+     "count": 26281,
+     "kind": "against a constant",
+     "outcomes": "== 13228, < 0, > 13053 (signed); < 0, > 13053 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2"
+    },
+    {
+     "line": 37,
+     "text": "if (!state->unk4 && !path.bits.changed && !test(state, path.bits.direction)) {",
+     "size": 4,
+     "count": 13228,
+     "kind": "against a constant",
+     "outcomes": "== 6564, < 0, > 6664 (signed); < 0, > 6664 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 41,
+     "text": "if (!func_800D96C8(",
+     "size": 4,
+     "count": 6564,
+     "kind": "against a constant",
+     "outcomes": "== 2194, < 0, > 4370 (signed); < 0, > 4370 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2"
+    },
+    {
+     "line": 43,
+     "text": "|| func_800D954C((func_800D8400_t*)state, ahead.raw) <= 0) {",
+     "size": 4,
+     "count": 4370,
+     "kind": "against a constant",
+     "outcomes": "== 1051, < 1648, > 1671 (signed); < 0, > 3319 (unsigned)",
+     "operand": "constant 0",
+     "a": "-127..127"
+    },
+    {
+     "line": 45,
+     "text": "path.bits.clockwise = !path.bits.clockwise;",
+     "size": 1,
+     "count": 4893,
+     "kind": "against a constant",
+     "outcomes": "== 2410, < 0, > 2483 (signed); < 0, > 2483 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..16"
+    },
+    {
+     "line": 53,
+     "text": "if (!state->unk4) {",
+     "size": 1,
+     "count": 35042,
+     "kind": "against a constant",
+     "outcomes": "== 26281, < 4426, > 4335 (signed); < 0, > 8761 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 56,
+     "text": "if (((((__typeof__(unsigned short (*)[32]))(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F8003C0) + 4 * (0)))))[z][x]",
+     "size": 4,
+     "count": 26281,
+     "kind": "against a constant",
+     "outcomes": "== 22933, < 0, > 3348 (signed); < 0, > 3348 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 59,
+     "text": "|| x > D_800F58BC->maxX || z > D_800F58BC->maxZ || x < D_800F58BC->minX",
+     "size": 4,
+     "count": 22933,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1149, < 15484, > 6300 (signed); < 15420, > 6364 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-2..251"
+    },
+    {
+     "line": 59,
+     "text": "|| x > D_800F58BC->maxX || z > D_800F58BC->maxZ || x < D_800F58BC->minX",
+     "size": 4,
+     "count": 16633,
+     "kind": "a == b / a < b",
+     "outcomes": "== 714, < 11874, > 4045 (signed); < 11817, > 4102 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-2..251"
+    },
+    {
+     "line": 59,
+     "text": "|| x > D_800F58BC->maxX || z > D_800F58BC->maxZ || x < D_800F58BC->minX",
+     "size": 4,
+     "count": 12588,
+     "kind": "a == b / a < b",
+     "outcomes": "== 513, < 3290, > 8785 (signed); < 3249, > 8826 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-2..251"
+    },
+    {
+     "line": 60,
+     "text": "|| z < D_800F58BC->minZ) {",
+     "size": 4,
+     "count": 9298,
+     "kind": "a == b / a < b",
+     "outcomes": "== 285, < 1714, > 7299 (signed); < 1676, > 7337 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-2..251"
+    },
+    {
+     "line": 66,
+     "text": "if (boundZ > 0) {",
+     "size": 4,
+     "count": 7584,
+     "kind": "against a constant",
+     "outcomes": "== 915, < 0, > 6669 (signed); < 0, > 6669 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3968"
+    },
+    {
+     "line": 68,
+     "text": "if ((center < boundZ && state->z < boundZ)",
+     "size": 4,
+     "count": 6669,
+     "kind": "a == b / a < b",
+     "outcomes": "== 0, < 1819, > 4850 (signed); < 1819, > 4850 (unsigned)",
+     "operand": "b 128..3968",
+     "a": "64..32704"
+    },
+    {
+     "line": 68,
+     "text": "if ((center < boundZ && state->z < boundZ)",
+     "size": 4,
+     "count": 1819,
+     "kind": "a == b / a < b",
+     "outcomes": "== 894, < 433, > 492 (signed); < 886, > 39 (unsigned)",
+     "operand": "b -32732..32752",
+     "a": "128..3968"
+    },
+    {
+     "line": 69,
+     "text": "|| (boundZ < center && boundZ < state->z)) {",
+     "size": 4,
+     "count": 6177,
+     "kind": "a == b / a < b",
+     "outcomes": "== 0, < 4850, > 1327 (signed); < 4850, > 1327 (unsigned)",
+     "operand": "b 64..32704",
+     "a": "128..3968"
+    },
+    {
+     "line": 69,
+     "text": "|| (boundZ < center && boundZ < state->z)) {",
+     "size": 4,
+     "count": 4850,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2395, < 1162, > 1293 (signed); < 2399, > 56 (unsigned)",
+     "operand": "b -32764..32742",
+     "a": "128..3968"
+    },
+    {
+     "line": 73,
+     "text": "if (boundX > 0) {",
+     "size": 4,
+     "count": 5930,
+     "kind": "against a constant",
+     "outcomes": "== 668, < 0, > 5262 (signed); < 0, > 5262 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3968"
+    },
+    {
+     "line": 75,
+     "text": "if ((center < boundX && state->x < boundX)",
+     "size": 4,
+     "count": 5262,
+     "kind": "a == b / a < b",
+     "outcomes": "== 0, < 1356, > 3906 (signed); < 1356, > 3906 (unsigned)",
+     "operand": "b 128..3968",
+     "a": "64..32704"
+    },
+    {
+     "line": 75,
+     "text": "if ((center < boundX && state->x < boundX)",
+     "size": 4,
+     "count": 1356,
+     "kind": "a == b / a < b",
+     "outcomes": "== 624, < 314, > 418 (signed); < 704, > 28 (unsigned)",
+     "operand": "b -32662..32631",
+     "a": "128..3968"
+    },
+    {
+     "line": 76,
+     "text": "|| (boundX < center && boundX < state->x)) {",
+     "size": 4,
+     "count": 4844,
+     "kind": "a == b / a < b",
+     "outcomes": "== 0, < 3906, > 938 (signed); < 3906, > 938 (unsigned)",
+     "operand": "b 64..32704",
+     "a": "128..3968"
+    },
+    {
+     "line": 76,
+     "text": "|| (boundX < center && boundX < state->x)) {",
+     "size": 4,
+     "count": 3906,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1719, < 1050, > 1137 (signed); < 2137, > 50 (unsigned)",
+     "operand": "b -32707..32755",
+     "a": "128..3968"
+    },
+    {
+     "line": 81,
+     "text": "if (boundZ > 0) {",
+     "size": 4,
+     "count": 8761,
+     "kind": "against a constant",
+     "outcomes": "== 974, < 0, > 7787 (signed); < 0, > 7787 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3968"
+    },
+    {
+     "line": 83,
+     "text": "if ((boundZ < center && state->z < boundZ)",
+     "size": 4,
+     "count": 7787,
+     "kind": "a == b / a < b",
+     "outcomes": "== 0, < 5751, > 2036 (signed); < 5751, > 2036 (unsigned)",
+     "operand": "b 64..32704",
+     "a": "128..3968"
+    },
+    {
+     "line": 83,
+     "text": "if ((boundZ < center && state->z < boundZ)",
+     "size": 4,
+     "count": 5751,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2850, < 1373, > 1528 (signed); < 2837, > 64 (unsigned)",
+     "operand": "b -32765..32747",
+     "a": "128..3968"
+    },
+    {
+     "line": 84,
+     "text": "|| (center < boundZ && boundZ < state->z)) {",
+     "size": 4,
+     "count": 6259,
+     "kind": "a == b / a < b",
+     "outcomes": "== 0, < 2036, > 4223 (signed); < 2036, > 4223 (unsigned)",
+     "operand": "b 128..3968",
+     "a": "64..32704"
+    },
+    {
+     "line": 84,
+     "text": "|| (center < boundZ && boundZ < state->z)) {",
+     "size": 4,
+     "count": 2036,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1041, < 464, > 531 (signed); < 954, > 41 (unsigned)",
+     "operand": "b -32746..32484",
+     "a": "128..3968"
+    },
+    {
+     "line": 88,
+     "text": "if (boundX > 0) {",
+     "size": 4,
+     "count": 6769,
+     "kind": "against a constant",
+     "outcomes": "== 777, < 0, > 5992 (signed); < 0, > 5992 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3968"
+    },
+    {
+     "line": 90,
+     "text": "if ((boundX < center && state->x < boundX)",
+     "size": 4,
+     "count": 5992,
+     "kind": "a == b / a < b",
+     "outcomes": "== 0, < 4495, > 1497 (signed); < 4495, > 1497 (unsigned)",
+     "operand": "b 64..32704",
+     "a": "128..3968"
+    },
+    {
+     "line": 90,
+     "text": "if ((boundX < center && state->x < boundX)",
+     "size": 4,
+     "count": 4495,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1955, < 1185, > 1355 (signed); < 2485, > 55 (unsigned)",
+     "operand": "b -32737..32757",
+     "a": "128..3968"
+    },
+    {
+     "line": 91,
+     "text": "|| (center < boundX && boundX < state->x)) {",
+     "size": 4,
+     "count": 4637,
+     "kind": "a == b / a < b",
+     "outcomes": "== 0, < 1497, > 3140 (signed); < 1497, > 3140 (unsigned)",
+     "operand": "b 128..3968",
+     "a": "64..32704"
+    },
+    {
+     "line": 91,
+     "text": "|| (center < boundX && boundX < state->x)) {",
+     "size": 4,
+     "count": 1497,
+     "kind": "a == b / a < b",
+     "outcomes": "== 585, < 414, > 498 (signed); < 874, > 38 (unsigned)",
+     "operand": "b -32704..32740",
+     "a": "128..3968"
+    },
+    {
+     "line": 98,
+     "text": "if (cell == path.bits.cell) {",
+     "size": 4,
+     "count": 9462,
+     "kind": "a == b / a < b",
+     "outcomes": "== 543, < 4449, > 4470 (signed); < 4449, > 4470 (unsigned)",
+     "operand": "b 0..15",
+     "a": "0..15"
+    },
+    {
+     "line": 104,
+     "text": "if (path.bits.clockwise) {",
+     "size": 1,
+     "count": 8919,
+     "kind": "against a constant",
+     "outcomes": "== 4501, < 0, > 4418 (signed); < 0, > 4418 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..16"
+    },
+    {
+     "line": 107,
+     "text": "if (test(state, (path.bits.direction - turn * 2 - turn) & 7)",
+     "size": 4,
+     "count": 8919,
+     "kind": "against a constant",
+     "outcomes": "== 4400, < 0, > 4519 (signed); < 0, > 4519 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 108,
+     "text": "&& test(state, (path.bits.direction - turn * 2) & 7)) {",
+     "size": 4,
+     "count": 4519,
+     "kind": "against a constant",
+     "outcomes": "== 1189, < 0, > 3330 (signed); < 0, > 3330 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 109,
+     "text": "if (!(state->flags & 0x30) && !state->waitTimer) {",
+     "size": 4,
+     "count": 3330,
+     "kind": "against a constant",
+     "outcomes": "== 2094, < 0, > 1236 (signed); < 0, > 1236 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..48"
+    },
+    {
+     "line": 109,
+     "text": "if (!(state->flags & 0x30) && !state->waitTimer) {",
+     "size": 1,
+     "count": 2094,
+     "kind": "against a constant",
+     "outcomes": "== 1085, < 501, > 508 (signed); < 0, > 1009 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 116,
+     "text": "if (path.bits.visited == 15) {",
+     "size": 1,
+     "count": 5589,
+     "kind": "against a constant",
+     "outcomes": "== 585, < 2604, > 2400 (signed); < 5004, > 0 (unsigned)",
+     "operand": "constant -16",
+     "a": "-128..112"
+    },
+    {
+     "line": 121,
+     "text": "for (i = 0; i < 4; i++) {",
+     "size": 4,
+     "count": 11260,
+     "kind": "against a constant",
+     "outcomes": "== 1009, < 9575, > 676 (signed); < 9575, > 676 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..4"
+    },
+    {
+     "line": 122,
+     "text": "if (test(state, direction)) {",
+     "size": 4,
+     "count": 10584,
+     "kind": "against a constant",
+     "outcomes": "== 8435, < 0, > 2149 (signed); < 0, > 2149 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 123,
+     "text": "if (path.bits.direction != direction) {",
+     "size": 4,
+     "count": 2149,
+     "kind": "a == b / a < b",
+     "outcomes": "== 812, < 650, > 687 (signed); < 650, > 687 (unsigned)",
+     "operand": "b 0..7",
+     "a": "0..7"
+    },
+    {
+     "line": 134,
+     "text": "if (func_800D96C8(",
+     "size": 4,
+     "count": 8435,
+     "kind": "against a constant",
+     "outcomes": "== 2772, < 0, > 5663 (signed); < 0, > 5663 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2"
+    },
+    {
+     "line": 136,
+     "text": "&& func_800D954C((func_800D8400_t*)state, *(u_int*)&point) > 0) {",
+     "size": 4,
+     "count": 5663,
+     "kind": "against a constant",
+     "outcomes": "== 1386, < 2098, > 2179 (signed); < 0, > 4277 (unsigned)",
+     "operand": "constant 0",
+     "a": "-127..127"
+    },
+    {
+     "line": 138,
+     "text": "if (path.bits.direction != direction) {",
+     "size": 4,
+     "count": 2179,
+     "kind": "a == b / a < b",
+     "outcomes": "== 567, < 808, > 804 (signed); < 808, > 804 (unsigned)",
+     "operand": "b 0..7",
+     "a": "0..7"
+    }
+   ],
+   "passed": false
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 26.658742582000286,
+ "wall_seconds": 320.85523343199975,
+ "totals": {
+  "cost": 0.03797,
+  "prompt_tokens": 40805,
+  "completion_tokens": 67783,
+  "model_seconds": 294.0,
+  "check_seconds": 26.7,
+  "calls": 2,
+  "wall_seconds": 320.9
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": ""
+ }
+}

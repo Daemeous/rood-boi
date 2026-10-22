@@ -1,0 +1,255 @@
+{
+ "function": "func_800D8060",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the parsers, sibling ports, called through one untyped-block function type); spec sound (unmatched kinds, a negative meta, big sizes)",
+ "plan": {
+  "name": "func_800D8060",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d8060",
+  "difficulty": "M",
+  "zig_name": "func_800D8060",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D8060",
+  "spec_file": "func_800D8060.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn func_800D8060(arg0: ?*v.p_file_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.p_file_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "pFileBlock1",
+   "pFileBlock2",
+   "pFileBlock5",
+   "pFileBlock9",
+   "pFileCurveBlock",
+   "p_file_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11986,
+     "completion_tokens": 20524,
+     "reasoning_tokens": 18664,
+     "cost": 0.0114606,
+     "seconds": 93.4,
+     "sample": 1,
+     "conversation": "2a839e94928fafed52913c6039452a63d52fc12e48fa3a0ff1b7ddd7c890570c"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800D8060/spec1/build/spec.zig:47:35: error: coercion from slice to array pointer type '*[4]u8' requires length to be known at compile-time\n        std.mem.writeInt(u32, base[off .. off + 4], m, .little);\n                              ~~~~^~~~~~~~~~~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:420:40\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14142,
+     "completion_tokens": 3093,
+     "reasoning_tokens": 1227,
+     "cost": 0.0029607,
+     "seconds": 11.3,
+     "sample": 1,
+     "conversation": "a410b752e1e9e7732634330d226d39e7221e3d9a4e7c2abf78b2b68c3cad62c7"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "empty": "3689",
+   "unmatched": "2634",
+   "matched": "13758",
+   "negative": "4120",
+   "big-size": "5799"
+  },
+  "mutations": [
+   {
+    "name": "F1: block 8 call dropped",
+    "caught": true
+   },
+   {
+    "name": "F2: block 2 gets the header, not the data",
+    "caught": true
+   },
+   {
+    "name": "F3: block 12 dispatches to block 13's parser",
+    "caught": true
+   },
+   {
+    "name": "F4: block 9 data offset by one element",
+    "caught": true
+   },
+   {
+    "name": "F5: sign bit dropped from the type test",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 13,
+   "branches_hit": 13,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 40,
+   "lines_hit": 40,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 5,
+     "text": "switch (meta & 0xFFFF0000) {",
+     "size": 4,
+     "count": 108718,
+     "kind": "switch",
+     "outcomes": "== 82285, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "-2147418112..16711680"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35396,
+     "completion_tokens": 4928,
+     "reasoning_tokens": 3895,
+     "cost": 0.0060036,
+     "seconds": 21.7,
+     "sample": 1,
+     "conversation": "d9ac1c6848a31a2b861c5d28792f15961b71a0b4f69065c55a0c40248c4516eb"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: g:232:12: error: @ptrCast increases pointer alignment\n    return @ptrCast(p);\n           ^~~~~~~~~~~\ngame/common/psx.zig:232:21: note: '*align(1) views_6F014.pFileBlock1' has alignment '1'\n    return @ptrCast(p);\n                    ^\ngame/common/psx.zig:232:12: note: '[*c]c_6F014.pFileBlock1' has alignment '4'\ngame/common/psx.zig:232:12: note: use @alignCast to assert pointer alignment\nreferenced by:\n    func_800D8060: game/battle/func_800D8060.zig:16:52\n    main: pc/tests/zig_diff/main.zig:454:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\ngame/common/psx.zig:232:12: error: @ptrCast increases pointer alignment\n    return @ptrCast(p);\n           ^~~~~~~~~~~\ngame/common/psx.zig:232:21: note: '*align(1) views_6F014.pFileBlock2' has alignment '1'\n    return @ptrCast(p);\n                    ^\ngame/common/psx.zig:232:12: note: '[*c]c_6F014.pFileBlock2' has alignment '4'\ngame/common/psx.zig:232:12: note: use @alignCast to assert pointer alignment\ngame/common/psx.zig:232:12: error: @ptrCast increases pointer alignment\n    return @ptrCast(p);\n           ^~~~~~~~~~~\ngame/common/psx.zig:232:21: note: '*align(1) views_6F014.pFileBlock9' has alignment '1'\n    return @ptrCast(p);\n                    ^\ngame/common/psx.zig:232:12: note: '[*c]c_6F014.pFileBlock9' has alignment '2'\ngame/common/psx.zig:232:12: note: use @alignCast to assert pointer alignment\ngame/common/psx.zig:232:12: error: @ptrCast increases pointer alignment\n    return @ptrCast(p);\n           ^~~~~~~~~~~\ngame/common/psx.zig:232:21: note: '*align(1) views_6F014.pFileCurveBlock' has alignment '1'\n    return @ptrCast(p);\n                    ^\ngame/common/psx.zig:232:12: note: '[*c]c_6F014.pFileCurveBlock' has alignment '2'\ngame/common/psx.zig:232:12: note: use @alignCast to assert pointer alignment\npc/build/port-pipeline/gen/6F014/c_6F014.zig:3862:15: error: array of opaque type 'c_6F014.func_800FA098_arg0' not allowed\n    _unk4: [0]func_800FA098_arg0 = @import(\"std\").mem.zeroes([0]func_800FA098_arg0),\n              ^~~~~~~~~~~~~~~~~~\npc/build/port-pipeline/gen/6F014/c_6F014.zig:3806:32: note: opaque declared here\npub const func_800FA098_arg0 = opaque {};\n                               ^~~~~~~~~\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37580,
+     "completion_tokens": 3684,
+     "reasoning_tokens": 2530,
+     "cost": 0.0056,
+     "seconds": 15.4,
+     "sample": 1,
+     "conversation": "46515f6aa20e6322d9e77998e49eb917bfd4a2d9f8fa092284898460a738a771"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800D8060.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800D8060.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 36.226506109000184,
+ "wall_seconds": 178.3605016620004,
+ "totals": {
+  "cost": 0.02602,
+  "prompt_tokens": 99104,
+  "completion_tokens": 32229,
+  "model_seconds": 141.8,
+  "check_seconds": 36.2,
+  "calls": 4,
+  "wall_seconds": 178.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 1 root / 2 root / -, 0 mismatches"
+ }
+}

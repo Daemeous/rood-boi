@@ -1,0 +1,317 @@
+{
+ "function": "func_800C0990",
+ "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (the depth edge, every octant, intensity clamps)",
+ "plan": {
+  "name": "func_800C0990",
+  "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+  "stem": "573B8",
+  "address": "0x800c0990",
+  "difficulty": "M",
+  "zig_name": "func_800C0990",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C0990",
+  "spec_file": "func_800C0990.zig",
+  "subsystem": "battle_573B8_port",
+  "signature": "pub fn func_800C0990(start: ?*v.SVECTOR, end: ?*v.SVECTOR, color: c_uint, intensity: c_int) callconv(.c) void",
+  "params": [
+   [
+    "start",
+    "?*v.SVECTOR"
+   ],
+   [
+    "end",
+    "?*v.SVECTOR"
+   ],
+   [
+    "color",
+    "c_uint"
+   ],
+   [
+    "intensity",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "SVECTOR"
+  ],
+  "globals": [
+   "D_80040A14",
+   "vs_scratch"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13822,
+     "completion_tokens": 18006,
+     "reasoning_tokens": 15690,
+     "cost": 0.0103852,
+     "seconds": 75.2,
+     "sample": 1,
+     "conversation": "3e77263caf4ab6412cc35c318d3c87bf3c18e87b4682527f13fe3ddd5a1c9c2f"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "depth-out": "17848",
+   "point": "2705",
+   "diagonal": "5899",
+   "x-major": "8266",
+   "y-major": "5282"
+  },
+  "mutations": [
+   {
+    "name": "F1: depth test strict (depth 2048 passes)",
+    "caught": true
+   },
+   {
+    "name": "F2: ax <= ay for the first octant branch",
+    "caught": true
+   },
+   {
+    "name": "F3: sign slip in the first octant angle",
+    "caught": true
+   },
+   {
+    "name": "F4: wrong X constant in the position offset",
+    "caught": true
+   },
+   {
+    "name": "F5: last primitive word from start, not end",
+    "caught": true
+   },
+   {
+    "name": "F6: intensity clamp to 64, not 63",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 18,
+   "branches_hit": 18,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 48,
+   "lines_hit": 48,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "32-bit: min -2147483648, max 2147259637, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 3,
+     "count": 40000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if ((u_int)depth >= 2048)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 2444, < 31881, > 5675 (signed); < 19708, > 17848 (unsigned)",
+     "operand": "constant 2047",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 13,
+     "text": "if (shift) {",
+     "size": 4,
+     "count": 22152,
+     "kind": "against a constant",
+     "outcomes": "== 2705, < 12939, > 6508 (signed); < 0, > 19447 (unsigned)",
+     "operand": "constant 0",
+     "a": "-65497..65528"
+    },
+    {
+     "line": 16,
+     "text": "if (ax < 0)",
+     "size": 4,
+     "count": 19447,
+     "kind": "against a constant",
+     "outcomes": "== 1738, < 8831, > 8878 (signed); < 0, > 17709 (unsigned)",
+     "operand": "constant 0",
+     "a": "-65462..65528"
+    },
+    {
+     "line": 18,
+     "text": "if (ay < 0)",
+     "size": 4,
+     "count": 19447,
+     "kind": "against a constant",
+     "outcomes": "== 4745, < 7419, > 7283 (signed); < 0, > 14702 (unsigned)",
+     "operand": "constant 0",
+     "a": "-65531..65500"
+    },
+    {
+     "line": 21,
+     "text": "if (ax < ay) {",
+     "size": 4,
+     "count": 19447,
+     "kind": "a == b / a < b",
+     "outcomes": "== 5899, < 5282, > 8266 (signed); < 5282, > 8266 (unsigned)",
+     "operand": "b 0..65531",
+     "a": "0..65528"
+    },
+    {
+     "line": 32,
+     "text": "if (ax != dx)",
+     "size": 4,
+     "count": 19447,
+     "kind": "a == b / a < b",
+     "outcomes": "== 10616, < 0, > 8831 (signed); < 8831, > 0 (unsigned)",
+     "operand": "b -65462..65528",
+     "a": "0..65528"
+    },
+    {
+     "line": 35,
+     "text": "if (ay != dy)",
+     "size": 4,
+     "count": 19447,
+     "kind": "a == b / a < b",
+     "outcomes": "== 12028, < 0, > 7419 (signed); < 7419, > 0 (unsigned)",
+     "operand": "b -65531..65500",
+     "a": "0..65531"
+    },
+    {
+     "line": 41,
+     "text": "if (intensity < 0)",
+     "size": 4,
+     "count": 22152,
+     "kind": "against a constant",
+     "outcomes": "== 1400, < 8183, > 12569 (signed); < 0, > 20752 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 43,
+     "text": "else if (intensity >= 64)",
+     "size": 4,
+     "count": 13969,
+     "kind": "against a constant",
+     "outcomes": "== 1373, < 2826, > 9770 (signed); < 2826, > 9770 (unsigned)",
+     "operand": "constant 63",
+     "a": "0..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37127,
+     "completion_tokens": 13376,
+     "reasoning_tokens": 12037,
+     "cost": 0.0104007,
+     "seconds": 54.6,
+     "sample": 1,
+     "conversation": "df9025924bc5fdd17df486bad7a9210d1356976b616f795fb4696ff780a13fd2"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C0990.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C0990.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 35.25489955399826,
+ "wall_seconds": 165.20155266599977,
+ "totals": {
+  "cost": 0.02079,
+  "prompt_tokens": 50949,
+  "completion_tokens": 31382,
+  "model_seconds": 129.8,
+  "check_seconds": 35.3,
+  "calls": 2,
+  "wall_seconds": 165.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 8928, 0 mismatches"
+ }
+}

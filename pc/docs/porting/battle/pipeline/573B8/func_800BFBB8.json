@@ -1,0 +1,131 @@
+{
+ "function": "func_800BFBB8",
+ "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": "not ported (left unrouted): the event-script interpreter dispatches through the opcode function tables (_opcodeFunctionTable, D_800F4C28) behind a ROOD_PC native-callback check; a spec has to fill those tables with callable entries, and Haiku's three drafts crashed the C on random table words. Needs a hand-written spec (PORTING \u00a710.1)",
+ "plan": {
+  "name": "func_800BFBB8",
+  "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+  "stem": "573B8",
+  "address": "0x800bfbb8",
+  "difficulty": "L",
+  "zig_name": "func_800BFBB8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BFBB8",
+  "spec_file": "func_800BFBB8.zig",
+  "subsystem": "battle_573B8_port",
+  "signature": "pub fn func_800BFBB8(arg0: [*c][*c]u8, arg1: c_short) callconv(.c) c_short",
+  "params": [
+   [
+    "arg0",
+    "[*c][*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_short",
+  "types": [],
+  "globals": [
+   "D_800F4C20",
+   "D_800F4C28",
+   "D_800F4C2C",
+   "D_800F4C58",
+   "D_800F4C68",
+   "_opcodeFunctionTable",
+   "vs_battle_textBoxStatuses",
+   "vs_main_buttonsPressed"
+  ],
+  "hooks": [
+   "pc_require_native_callback",
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13472,
+     "completion_tokens": 38098,
+     "reasoning_tokens": 35808,
+     "cost": 0.0203962,
+     "seconds": 171.2,
+     "sample": 1,
+     "conversation": "46edb431e796cd99e1ce4d94235c5d3d8680e8cc326c38308f487c72eb8a798b"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 0, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0x409070 [arena] 0 (class enter-flag)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16177,
+     "completion_tokens": 7562,
+     "reasoning_tokens": 5058,
+     "cost": 0.0053987,
+     "seconds": 31.8,
+     "sample": 1,
+     "conversation": "a904da29520f1ac3d12012abe14a8f47e8233e2253c4ec4a38bd866ff5ea87e2"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 0, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0x409070 [arena] 0 (class enter-flag)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   }
+  ],
+  "classes": {},
+  "mutations": [],
+  "coverage": null
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 2.2260069320000184,
+ "wall_seconds": 205.49964611000178,
+ "totals": {
+  "cost": 0.02579,
+  "prompt_tokens": 29649,
+  "completion_tokens": 45660,
+  "model_seconds": 203.0,
+  "check_seconds": 2.2,
+  "calls": 2,
+  "wall_seconds": 205.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": ""
+ }
+}

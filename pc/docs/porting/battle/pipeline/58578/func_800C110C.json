@@ -1,0 +1,265 @@
+{
+ "function": "func_800C110C",
+ "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (flags re-read after the calls, as the C); spec sound (the flag byte rewritten by func_800C0FA8's stub; the depth edge made equal)",
+ "plan": {
+  "name": "func_800C110C",
+  "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+  "stem": "58578",
+  "address": "0x800c110c",
+  "difficulty": "M",
+  "zig_name": "func_800C110C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C110C",
+  "spec_file": "func_800C110C.zig",
+  "subsystem": "battle_58578_port",
+  "signature": "pub fn func_800C110C(arg0: ?*v.func_800C1564_t, arg1: [*c]c_ushort, arg2: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800C1564_t"
+   ],
+   [
+    "arg1",
+    "[*c]c_ushort"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "MATRIX",
+   "func_800C0FA8_t2",
+   "func_800C1564_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12104,
+     "completion_tokens": 23747,
+     "reasoning_tokens": 21432,
+     "cost": 0.0130839,
+     "seconds": 102.4,
+     "sample": 1,
+     "conversation": "2fd892ed374433ecce1ae2a3e4f5443d6967b843e14f22c4516bcd2e7f59af83"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "arg2-zero": "3022",
+   "arg2-positive": "13382",
+   "arg2-negative": "13596"
+  },
+  "mutations": [
+   {
+    "name": "F1: clamp test shifts the flag by 4, not 5",
+    "caught": true
+   },
+   {
+    "name": "F2: sum compared as signed (negative sums pass)",
+    "caught": true
+   },
+   {
+    "name": "F3: term scaled by >> 11, not >> 12",
+    "caught": true
+   },
+   {
+    "name": "F4: arg2 tested as > 0 (negative arg2 skips the step)",
+    "caught": true
+   },
+   {
+    "name": "F5: the second loop runs once (step 3)",
+    "caught": true
+   },
+   {
+    "name": "F6: ApplyMatrixSV call dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 26,
+   "lines_hit": 26,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 20,
+     "text": "for (; i < 3; ++i) {",
+     "size": 4,
+     "count": 120000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 60000, > 30000 (signed); < 60000, > 30000 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 31,
+     "text": "if (arg2 != 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 3022, < 13596, > 13382 (signed); < 0, > 26978 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 35,
+     "text": "if (!((u_short)-work.unk8.vy > (arg0->unk4.flags.unk1 << 5))) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 9285, < 6856, > 13859 (signed); < 6856, > 13859 (unsigned)",
+     "operand": "b 0..8160",
+     "a": "0..65535"
+    },
+    {
+     "line": 45,
+     "text": "for (; i < 3; i += 2) {",
+     "size": 4,
+     "count": 48423,
+     "kind": "against a constant",
+     "outcomes": "== 16141, < 16141, > 16141 (signed); < 16141, > 16141 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..4"
+    },
+    {
+     "line": 52,
+     "text": "sum = (sum >> 16) < 1u;",
+     "size": 4,
+     "count": 16141,
+     "kind": "against a constant",
+     "outcomes": "== 574, < 2134, > 13433 (signed); < 0, > 15567 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32751..32764"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35515,
+     "completion_tokens": 10386,
+     "reasoning_tokens": 9311,
+     "cost": 0.0087445,
+     "seconds": 44.2,
+     "sample": 1,
+     "conversation": "67a934b1e40c5d21fddb5c5f024a3e8675334de1b473a3afae5d29eb9e03ca76"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C110C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C110C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 27.109989247001067,
+ "wall_seconds": 173.85556631700092,
+ "totals": {
+  "cost": 0.02183,
+  "prompt_tokens": 47619,
+  "completion_tokens": 34133,
+  "model_seconds": 146.6,
+  "check_seconds": 27.1,
+  "calls": 2,
+  "wall_seconds": 173.9
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

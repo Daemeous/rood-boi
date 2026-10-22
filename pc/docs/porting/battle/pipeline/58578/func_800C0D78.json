@@ -1,0 +1,253 @@
+{
+ "function": "func_800C0D78",
+ "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (D_800EB9B8 loaded once: only the allocator and freer assign it, neither called here); spec sound; ported after gte.zig gained rtps2 and stszotz",
+ "plan": {
+  "name": "func_800C0D78",
+  "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+  "stem": "58578",
+  "address": "0x800c0d78",
+  "difficulty": "L",
+  "zig_name": "func_800C0D78",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C0D78",
+  "spec_file": "func_800C0D78.zig",
+  "subsystem": "battle_58578_port",
+  "signature": "pub fn func_800C0D78() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13111,
+     "completion_tokens": 14413,
+     "reasoning_tokens": 12431,
+     "cost": 0.0085176,
+     "seconds": 61.7,
+     "sample": 1,
+     "conversation": "8eabca51c3cdbf20b490e1c84c2ebed87c5829bc9e5d7973d64483502f869f72"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null-global": "3669",
+   "case-2-or-4": "5211",
+   "case-1-3-5-7": "10465",
+   "default-only": "10655"
+  },
+  "mutations": [
+   {
+    "name": "M1: matrix term not shifted right by 1 in case 2",
+    "caught": true
+   },
+   {
+    "name": "M2: case 4 adds 0x40 instead of 0x80",
+    "caught": true
+   },
+   {
+    "name": "M3: second shape is never drawn (loop bound)",
+    "caught": true
+   },
+   {
+    "name": "M4: case 6 uses type 2 (wrong constant)",
+    "caught": true
+   },
+   {
+    "name": "M5: first shape drawn with the second's colour",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 18,
+   "branches_hit": 18,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 49,
+   "lines_hit": 49,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 15,
+     "text": "for (i = 0; i < 40; ++i) {",
+     "size": 4,
+     "count": 1079571,
+     "kind": "against a constant",
+     "outcomes": "== 26331, < 1026909, > 26331 (signed); < 1026909, > 26331 (unsigned)",
+     "operand": "constant 39",
+     "a": "0..40"
+    },
+    {
+     "line": 19,
+     "text": "for (i = 0; i < 2; color = 0x10104, ++shape, ++i) {",
+     "size": 4,
+     "count": 78993,
+     "kind": "against a constant",
+     "outcomes": "== 26331, < 26331, > 26331 (signed); < 26331, > 26331 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..2"
+    },
+    {
+     "line": 25,
+     "text": "switch (shape->unk0) {",
+     "size": 4,
+     "count": 52662,
+     "kind": "switch",
+     "outcomes": "== 18377, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..255"
+    },
+    {
+     "line": 32,
+     "text": "for (j = 0; j < 3; ++j) {",
+     "size": 4,
+     "count": 10644,
+     "kind": "against a constant",
+     "outcomes": "== 2661, < 5322, > 2661 (signed); < 5322, > 2661 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 43,
+     "text": "for (j = 0; j < 3; ++j) {",
+     "size": 4,
+     "count": 10540,
+     "kind": "against a constant",
+     "outcomes": "== 2635, < 5270, > 2635 (signed); < 5270, > 2635 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36513,
+     "completion_tokens": 13526,
+     "reasoning_tokens": 12350,
+     "cost": 0.0104143,
+     "seconds": 54.8,
+     "sample": 1,
+     "conversation": "cac4a901f9e747ba850ede00936041ddac939409dae5a194658704b705c8e8a5"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/common/psx.zig:220:48: error: indexable pointer to opaque type 'c_58578.func_800C1564_t' not allowed\npub fn cptr(comptime CT: type, p: anytype) [*c]CT {\n                                               ^~\npc/build/boot64/zig/c_58578.zig:3444:29: note: opaque declared here\npub const func_800C1564_t = opaque {\n                            ^~~~~~\ngame/battle/func_800C0D78.zig:65:33: note: generic function instantiated here\n        c.func_800C0B50(psx.cptr(c.func_800C1564_t, shape), color);\n                        ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38109,
+     "completion_tokens": 1750,
+     "reasoning_tokens": 585,
+     "cost": 0.0046859,
+     "seconds": 6.4,
+     "sample": 1,
+     "conversation": "1d43a7cc58ec21ff6d8aeccc4ccc02520cf13e26ec1cda1d42d283df97ce3e91"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C0D78.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C0D78.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 126.20758392999778,
+ "wall_seconds": 132.75131931800206,
+ "totals": {
+  "cost": 0.02362,
+  "prompt_tokens": 87733,
+  "completion_tokens": 29689,
+  "model_seconds": 122.9,
+  "check_seconds": 126.2,
+  "calls": 3,
+  "wall_seconds": 132.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 46, 0 mismatches"
+ }
+}

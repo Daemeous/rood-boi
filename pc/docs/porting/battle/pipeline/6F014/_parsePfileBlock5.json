@@ -1,0 +1,192 @@
+{
+ "function": "_parsePfileBlock5",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (a guest-pointer store, null and any address)",
+ "plan": {
+  "name": "_parsePfileBlock5",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d78e0",
+  "difficulty": "S",
+  "zig_name": "parsePfileBlock5",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "parse_pfile_block5",
+  "spec_file": "parsePfileBlock5.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn parsePfileBlock5(block: ?*v.pFileBlock5) callconv(.c) void",
+  "params": [
+   [
+    "block",
+    "?*v.pFileBlock5"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F569C_t",
+   "pFileBlock5"
+  ],
+  "globals": [
+   "D_800F569C"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11632,
+     "completion_tokens": 3913,
+     "reasoning_tokens": 2947,
+     "cost": 0.0031197,
+     "seconds": 17.2,
+     "sample": 1,
+     "conversation": "8bf0fa9f52c1f8bf689f3835c919b9f1b7bfa8854877cf7fcbc8360a38787837"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null-block": "5059",
+   "arena-block": "14941"
+  },
+  "mutations": [
+   {
+    "name": "P1: store dropped",
+    "caught": true
+   },
+   {
+    "name": "P2: stored into the wrong field (unk4, not block5Data.raw)",
+    "caught": true
+   },
+   {
+    "name": "P3: address off by 4",
+    "caught": true
+   },
+   {
+    "name": "P4: null block skipped (a porter's null guard)",
+    "caught": true
+   },
+   {
+    "name": "P5: wrong constant bit (high bit flipped)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 1,
+   "lines_hit": 1,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35020,
+     "completion_tokens": 1093,
+     "reasoning_tokens": 867,
+     "cost": 0.0040485,
+     "seconds": 5.5,
+     "sample": 1,
+     "conversation": "d61297e88543c9f87298fb8bee6853df7fabf6755109fc2cfbb3694f28b1094e"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/parsePfileBlock5.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/parse_pfile_block5.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 15.026958602000377,
+ "wall_seconds": 41.07090612199954,
+ "totals": {
+  "cost": 0.00717,
+  "prompt_tokens": 46652,
+  "completion_tokens": 5006,
+  "model_seconds": 22.7,
+  "check_seconds": 15.0,
+  "calls": 2,
+  "wall_seconds": 41.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches"
+ }
+}

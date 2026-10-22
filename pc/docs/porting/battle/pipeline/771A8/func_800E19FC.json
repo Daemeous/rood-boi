@@ -1,0 +1,256 @@
+{
+ "function": "func_800E19FC",
+ "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.4,
+ "samples": 2,
+ "status": "ported",
+ "reviewed": "faithful (goto move as a flag); spec sound; ported on the retry",
+ "plan": {
+  "name": "func_800E19FC",
+  "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
+  "stem": "771A8",
+  "address": "0x800e19fc",
+  "difficulty": "L",
+  "zig_name": "func_800E19FC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800E19FC",
+  "spec_file": "func_800E19FC.zig",
+  "subsystem": "battle_771A8_port",
+  "signature": "pub fn func_800E19FC(state: ?*v.terrainMovementState) callconv(.c) void",
+  "params": [
+   [
+    "state",
+    "?*v.terrainMovementState"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "routeEdgeState"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 13644,
+     "completion_tokens": 18537,
+     "reasoning_tokens": 15700,
+     "cost": 0.0106329,
+     "seconds": 80.0,
+     "sample": 1,
+     "conversation": "61f23c2a7b049d40c3545f662c94ba36fc7fe0275458d1275c682542c363d444"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "f1A-set": "7394",
+   "same-cell": "7609",
+   "no-f29": "1299",
+   "moving": "13698"
+  },
+  "mutations": [
+   {
+    "name": "T1: targetZ off by one",
+    "caught": true
+   },
+   {
+    "name": "F1: f29 tested for its low seven bits only",
+    "caught": true
+   },
+   {
+    "name": "F2: f2 flag stored as zero",
+    "caught": true
+   },
+   {
+    "name": "A1: exit angle shifted by 8, not 9",
+    "caught": true
+   },
+   {
+    "name": "G1: goto move dropped (no final move call)",
+    "caught": true
+   },
+   {
+    "name": "R1: ratan2 takes position[2] for x",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 28,
+   "lines_hit": 28,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "if (state->f1A) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 22606, < 3731, > 3663 (signed); < 0, > 7394 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 12,
+     "text": "if (current != next) {",
+     "size": 4,
+     "count": 22606,
+     "kind": "a == b / a < b",
+     "outcomes": "== 7609, < 7519, > 7478 (signed); < 7519, > 7478 (unsigned)",
+     "operand": "b 0..15",
+     "a": "0..15"
+    },
+    {
+     "line": 13,
+     "text": "if (state->f29) {",
+     "size": 1,
+     "count": 14997,
+     "kind": "against a constant",
+     "outcomes": "== 1299, < 6245, > 7453 (signed); < 0, > 13698 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 15,
+     "text": "if (mode == 6) {",
+     "size": 4,
+     "count": 13698,
+     "kind": "against a constant",
+     "outcomes": "== 5753, < 5208, > 2737 (signed); < 2292, > 5653 (unsigned)",
+     "operand": "constant 6",
+     "a": "-128..127"
+    },
+    {
+     "line": 18,
+     "text": "if (((((__typeof__(unsigned short(*)[32]))(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F8003C0) + 4 * (0)))))[state->destination.p.z][state->destination.p.x] & 15)",
+     "size": 4,
+     "count": 5753,
+     "kind": "against a constant",
+     "outcomes": "== 2408, < 0, > 3345 (signed); < 0, > 3345 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 23,
+     "text": "if (mode == 5)",
+     "size": 4,
+     "count": 7945,
+     "kind": "against a constant",
+     "outcomes": "== 2187, < 3021, > 2737 (signed); < 105, > 5653 (unsigned)",
+     "operand": "constant 5",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 37047,
+     "completion_tokens": 7602,
+     "reasoning_tokens": 6560,
+     "cost": 0.0075057,
+     "seconds": 30.3,
+     "sample": 1,
+     "conversation": "97d4444a6a4d4754e13b602900d3ea933edb6f18dcc8ec41e5ea7a9b24fe5ea5"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800E19FC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800E19FC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 40.804899337998904,
+ "wall_seconds": 55.564735725999526,
+ "totals": {
+  "cost": 0.01814,
+  "prompt_tokens": 50691,
+  "completion_tokens": 26139,
+  "model_seconds": 110.3,
+  "check_seconds": 40.8,
+  "calls": 2,
+  "wall_seconds": 55.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested 39 / nested 117 / root 60, 0 mismatches"
+ }
+}

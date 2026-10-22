@@ -1,0 +1,193 @@
+{
+ "function": "_parsePfileBlock3",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (a guest-pointer store, null and any address)",
+ "plan": {
+  "name": "_parsePfileBlock3",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d7980",
+  "difficulty": "S",
+  "zig_name": "parsePfileBlock3",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "parse_pfile_block3",
+  "spec_file": "parsePfileBlock3.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn parsePfileBlock3(block: ?*anyopaque) callconv(.c) void",
+  "params": [
+   [
+    "block",
+    "?*anyopaque"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F569C_t",
+   "pFileBlock3"
+  ],
+  "globals": [
+   "D_800F569C"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11575,
+     "completion_tokens": 5195,
+     "reasoning_tokens": 3939,
+     "cost": 0.003755,
+     "seconds": 21.9,
+     "sample": 1,
+     "conversation": "b5283ad9aacbaf6e1ba16b5a6ae269422a7e1fab1cdcae384bb6da80322ab8d3"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null-block": "4614",
+   "low-bit-clear": "9258",
+   "high-bit-set": "6128"
+  },
+  "mutations": [
+   {
+    "name": "P1: the stored address is off by four",
+    "caught": true
+   },
+   {
+    "name": "P2: the store is dropped",
+    "caught": true
+   },
+   {
+    "name": "P3: stored into block2Data instead of block3Data",
+    "caught": true
+   },
+   {
+    "name": "P4: bit 31 of the address dropped (signed/unsigned slip in the mask)",
+    "caught": true
+   },
+   {
+    "name": "P5: a null block stored as 1 (a null guard the C does not have)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 1,
+   "lines_hit": 1,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34963,
+     "completion_tokens": 1531,
+     "reasoning_tokens": 1255,
+     "cost": 0.0042618,
+     "seconds": 7.3,
+     "sample": 1,
+     "conversation": "9c60039eda0de3b57e8123ec89d50492e7035916d4e7a237397f8ede89100f15"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/parsePfileBlock3.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/parse_pfile_block3.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 15.478374483000152,
+ "wall_seconds": 44.83733729800042,
+ "totals": {
+  "cost": 0.00802,
+  "prompt_tokens": 46538,
+  "completion_tokens": 6726,
+  "model_seconds": 29.2,
+  "check_seconds": 15.5,
+  "calls": 2,
+  "wall_seconds": 44.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches"
+ }
+}

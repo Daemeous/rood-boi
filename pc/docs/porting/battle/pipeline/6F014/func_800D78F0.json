@@ -1,0 +1,183 @@
+{
+ "function": "func_800D78F0",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (block9Data loaded once where the C reloads it after the lerp call: the callees write only their outputs); spec sound",
+ "plan": {
+  "name": "func_800D78F0",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d78f0",
+  "difficulty": "S",
+  "zig_name": "func_800D78F0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D78F0",
+  "spec_file": "func_800D78F0.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn func_800D78F0() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [
+   "D_800F569C_t",
+   "VECTOR",
+   "pFileBlock9"
+  ],
+  "globals": [
+   "D_800F5330",
+   "D_800F569C"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14098,
+     "completion_tokens": 10287,
+     "reasoning_tokens": 8662,
+     "cost": 0.0065533,
+     "seconds": 44.4,
+     "sample": 1,
+     "conversation": "d9272dd09ec1c278d7b652f9de5fa379bfebd2f0d49fc08f6f9c05b65dacb056"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "edge-indices": "2306",
+   "interior-indices": "27694"
+  },
+  "mutations": [
+   {
+    "name": "F1: second table index reads unk12 instead of unk13",
+    "caught": true
+   },
+   {
+    "name": "F2: lerp table index reads unk13 instead of unk12",
+    "caught": true
+   },
+   {
+    "name": "F3: scalar callee gets unk0 instead of unkC",
+    "caught": true
+   },
+   {
+    "name": "F4: the two consumers swapped",
+    "caught": true
+   },
+   {
+    "name": "F5: dropped call to func_800D5294",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37395,
+     "completion_tokens": 3234,
+     "reasoning_tokens": 2793,
+     "cost": 0.0053565,
+     "seconds": 13.7,
+     "sample": 1,
+     "conversation": "dbdc117b22dd9f5ca92128e293afe87bb5eccd1a63ecb780710e4479626c0475"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800D78F0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800D78F0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 28.55256601200017,
+ "wall_seconds": 86.76055000999986,
+ "totals": {
+  "cost": 0.01191,
+  "prompt_tokens": 51493,
+  "completion_tokens": 13521,
+  "model_seconds": 58.1,
+  "check_seconds": 28.6,
+  "calls": 2,
+  "wall_seconds": 86.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 79 root / 174 root / 64 root, 0 mismatches"
+ }
+}

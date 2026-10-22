@@ -1,0 +1,220 @@
+{
+ "function": "func_800DAA6C",
+ "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (a two-way dispatcher, no state read after a call)",
+ "plan": {
+  "name": "func_800DAA6C",
+  "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+  "stem": "71618",
+  "address": "0x800daa6c",
+  "difficulty": "S",
+  "zig_name": "func_800DAA6C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DAA6C",
+  "spec_file": "func_800DAA6C.zig",
+  "subsystem": "battle_71618_port",
+  "signature": "pub fn func_800DAA6C(state: ?*v.da4bcState) callconv(.c) c_int",
+  "params": [
+   [
+    "state",
+    "?*v.da4bcState"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "da4bcState"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11656,
+     "completion_tokens": 5870,
+     "reasoning_tokens": 4437,
+     "cost": 0.0041006,
+     "seconds": 24.9,
+     "sample": 1,
+     "conversation": "070e15d489db90434ce166efeba934af5ea5c1afd7f51817f5755b1e09f4f704"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "flagE": "14914",
+   "no-flagE": "15086"
+  },
+  "mutations": [
+   {
+    "name": "F1: flagE tested by its sign bit only",
+    "caught": true
+   },
+   {
+    "name": "F2: first call's result tested inverted",
+    "caught": true
+   },
+   {
+    "name": "F3: wrong constant passed to func_800DB61C",
+    "caught": true
+   },
+   {
+    "name": "F4: dropped call to func_800DB5B0",
+    "caught": true
+   },
+   {
+    "name": "F5: second branch calls the wrong callee",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 2,
+     "text": "if (state->flagE) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 15086, < 7524, > 7390 (signed); < 0, > 14914 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 3,
+     "text": "if (!func_800DB61C((void*)state, 1))",
+     "size": 4,
+     "count": 14914,
+     "kind": "against a constant",
+     "outcomes": "== 3760, < 5648, > 5506 (signed); < 0, > 11154 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147451055..2147071021"
+    },
+    {
+     "line": 7,
+     "text": "if (!func_800DA1D4((void*)state))",
+     "size": 4,
+     "count": 15086,
+     "kind": "against a constant",
+     "outcomes": "== 3787, < 5721, > 5578 (signed); < 0, > 11299 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147189463..2146744603"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35051,
+     "completion_tokens": 2226,
+     "reasoning_tokens": 1903,
+     "cost": 0.0046181,
+     "seconds": 9.8,
+     "sample": 1,
+     "conversation": "c4133912ad23969aa9cdd41754ff149c1a7cdf4e9e198914616def0a5ca961c3"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DAA6C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DAA6C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 22.180576293998456,
+ "wall_seconds": 57.038411646000895,
+ "totals": {
+  "cost": 0.00872,
+  "prompt_tokens": 46707,
+  "completion_tokens": 8096,
+  "model_seconds": 34.7,
+  "check_seconds": 22.2,
+  "calls": 2,
+  "wall_seconds": 57.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

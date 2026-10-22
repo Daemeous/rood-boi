@@ -1,0 +1,233 @@
+{
+ "function": "func_800C1034",
+ "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (the work vectors func_800C0FA8 and ApplyMatrixSV fill are written by their stubs)",
+ "plan": {
+  "name": "func_800C1034",
+  "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+  "stem": "58578",
+  "address": "0x800c1034",
+  "difficulty": "M",
+  "zig_name": "func_800C1034",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C1034",
+  "spec_file": "func_800C1034.zig",
+  "subsystem": "battle_58578_port",
+  "signature": "pub fn func_800C1034(arg0: ?*v.func_800C1564_t, arg1: [*c]c_ushort) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800C1564_t"
+   ],
+   [
+    "arg1",
+    "[*c]c_ushort"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "MATRIX",
+   "func_800C0FA8_t2",
+   "func_800C1564_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11724,
+     "completion_tokens": 26368,
+     "reasoning_tokens": 24376,
+     "cost": 0.0143564,
+     "seconds": 117.8,
+     "sample": 1,
+     "conversation": "a06b04ba905b344bea9d80dc391f8ebe3b2367507bcb43d9d3d1219f6f499527"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "echo": "7595",
+   "small": "7538",
+   "threshold": "7448",
+   "wide": "7419"
+  },
+  "mutations": [
+   {
+    "name": "M1: the sum adds 2 * term, not term squared",
+    "caught": true
+   },
+   {
+    "name": "M2: the result compares signed",
+    "caught": true
+   },
+   {
+    "name": "M3: product shifted by 11, not 12",
+    "caught": true
+   },
+   {
+    "name": "M4: second vector read from unk10, not unk18",
+    "caught": true
+   },
+   {
+    "name": "M5: first loop adds the unk10 entry instead of subtracting",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 24,
+   "lines_hit": 24,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 25,
+     "text": "} while (i < 3);",
+     "size": 4,
+     "count": 90000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 30000, > 30000 (signed); < 30000, > 30000 (unsigned)",
+     "operand": "constant 2",
+     "a": "1..3"
+    },
+    {
+     "line": 48,
+     "text": "} while (i < 3);",
+     "size": 4,
+     "count": 90000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 30000, > 30000 (signed); < 30000, > 30000 (unsigned)",
+     "operand": "constant 2",
+     "a": "1..3"
+    },
+    {
+     "line": 51,
+     "text": "return (sum >> 16) < 1u;",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 9251, < 6273, > 14476 (signed); < 0, > 20749 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32765..32757"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35134,
+     "completion_tokens": 5543,
+     "reasoning_tokens": 4771,
+     "cost": 0.0062849,
+     "seconds": 24.2,
+     "sample": 1,
+     "conversation": "04989d455676b9898300e8e259975f9d86363995b7bdcb2fbd9abf21201d25e9"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C1034.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C1034.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 17.467377048000344,
+ "wall_seconds": 159.72700352000174,
+ "totals": {
+  "cost": 0.02064,
+  "prompt_tokens": 46858,
+  "completion_tokens": 31911,
+  "model_seconds": 142.0,
+  "check_seconds": 17.5,
+  "calls": 2,
+  "wall_seconds": 159.7
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (3 / 9 / 99), 0 mismatches"
+ }
+}

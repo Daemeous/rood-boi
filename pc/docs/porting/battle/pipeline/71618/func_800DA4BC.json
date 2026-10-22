@@ -1,0 +1,289 @@
+{
+ "function": "func_800DA4BC",
+ "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec finished by the reviewer (Haiku's two drafts never made distances[target] equal the computed radius: a vs_gte_rsqrt stub returning a root prepare chooses, and the exact square, one less and one more as inputs)",
+ "plan": {
+  "name": "func_800DA4BC",
+  "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+  "stem": "71618",
+  "address": "0x800da4bc",
+  "difficulty": "S",
+  "zig_name": "func_800DA4BC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DA4BC",
+  "spec_file": "func_800DA4BC.zig",
+  "subsystem": "battle_71618_port",
+  "signature": "pub fn func_800DA4BC(state: ?*v.da4bcState, entry: ?*v.da4bcEntry) callconv(.c) c_int",
+  "params": [
+   [
+    "state",
+    "?*v.da4bcState"
+   ],
+   [
+    "entry",
+    "?*v.da4bcEntry"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12263,
+     "completion_tokens": 17664,
+     "reasoning_tokens": 15321,
+     "cost": 0.0100583,
+     "seconds": 76.1,
+     "sample": 1,
+     "conversation": "8bec69787140b241b64639d0dab54409c03b1ad391a827c19a08a03667226ee2"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800DA4BC: branches 10/10 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 16/16\n  FLAG +11 eq: boundary equality occurred only 1 time(s) in 18071 (32-bit compare, b -2147258428..2147410705: both sides seen; a port's `<` for `<=` could pass): `if (state->distances[target] < (unsigned int)radius) {`\ncoverage func_800DA4BC: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (state->distances[target] < (unsigned int)radius) {` (+11): the two sides of this ordered compare were equal 1 time(s) in 18071. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800DA4BC.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "null-state": "3019",
+   "null-entry": "2679",
+   "zero-distance": "7300",
+   "flag-set": "8586",
+   "flag-clear": "8416"
+  },
+  "mutations": [
+   {
+    "name": "R1: the flag mask drops bit 3",
+    "caught": true
+   },
+   {
+    "name": "R2: radius doubled instead of squared",
+    "caught": true
+   },
+   {
+    "name": "R3: the kill counter steps by 2",
+    "caught": true
+   },
+   {
+    "name": "R4: the target flag tested against bit 1",
+    "caught": true
+   },
+   {
+    "name": "R5: the func_800DB74C test dropped",
+    "caught": true
+   },
+   {
+    "name": "R6: the distance read from the wrong entry field",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 16,
+   "lines_hit": 16,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [
+    {
+     "line": 5,
+     "text": "if (func_800DB8AC((void*)state, (void*)entry)) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 11714, < 6153, > 12133 (signed); < 0, > 18286 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..1"
+    },
+    {
+     "line": 11,
+     "text": "if (state->distances[target] < (unsigned int)radius) {",
+     "size": 4,
+     "count": 18286,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1227, < 10718, > 6341 (signed); < 7141, > 9918 (unsigned)",
+     "operand": "b -2147081519..2147434697",
+     "a": "-2147483648..2147318850"
+    },
+    {
+     "line": 12,
+     "text": "if (state->targets[entry->flagsC & 15] & 1)",
+     "size": 4,
+     "count": 7141,
+     "kind": "against a constant",
+     "outcomes": "== 3499, < 0, > 3642 (signed); < 0, > 3642 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 15,
+     "text": "if (func_800DB370((void*)state, target, distance, 1))",
+     "size": 4,
+     "count": 18286,
+     "kind": "against a constant",
+     "outcomes": "== 6250, < 6057, > 5979 (signed); < 0, > 12036 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..1"
+    },
+    {
+     "line": 17,
+     "text": "if (func_800DB74C((void*)state, target))",
+     "size": 4,
+     "count": 6250,
+     "kind": "against a constant",
+     "outcomes": "== 2100, < 2026, > 2124 (signed); < 0, > 4150 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35658,
+     "completion_tokens": 5837,
+     "reasoning_tokens": 5184,
+     "cost": 0.0064843,
+     "seconds": 25.6,
+     "sample": 1,
+     "conversation": "48fa117b364bed638263b8a34950b8cd0bdd241f9bb3afd79e07673c2fd2e2c0"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800DA4BC.zig:11:9: error: local variable is never mutated\n    var result: c_int = 0;\n        ^~~~~~\ngame/battle/func_800DA4BC.zig:11:9: note: consider using 'const'\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36483,
+     "completion_tokens": 975,
+     "reasoning_tokens": 322,
+     "cost": 0.0041358,
+     "seconds": 4.0,
+     "sample": 1,
+     "conversation": "2393b1abeb9161d0aff3c720cb1cb0dec7d288648686decb8afa8e8e851d9e58"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DA4BC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DA4BC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 39.2933450659948,
+ "wall_seconds": 69.06477603099847,
+ "totals": {
+  "cost": 0.02068,
+  "prompt_tokens": 84404,
+  "completion_tokens": 24476,
+  "model_seconds": 105.7,
+  "check_seconds": 39.3,
+  "calls": 3,
+  "wall_seconds": 69.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [
+   "reviewer's round-2 reply: vs_gte_rsqrt stubbed with a chosen root (the drafts guessed the real rsqrt's value of 0 from a later call), distances[target] set to the square the C computes (and one either side) a quarter of the time"
+  ],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

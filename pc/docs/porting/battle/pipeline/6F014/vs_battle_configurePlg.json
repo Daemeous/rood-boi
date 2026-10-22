@@ -1,0 +1,205 @@
+{
+ "function": "vs_battle_configurePlg",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (the u16 narrowing of lba and size)",
+ "plan": {
+  "name": "vs_battle_configurePlg",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d7fc8",
+  "difficulty": "S",
+  "zig_name": "configurePlg",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "configure_plg",
+  "spec_file": "configurePlg.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn configurePlg(lba: c_int, size: c_int, entryPointCount: c_int) callconv(.c) void",
+  "params": [
+   [
+    "lba",
+    "c_int"
+   ],
+   [
+    "size",
+    "c_int"
+   ],
+   [
+    "entryPointCount",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "_plgEntryPointCount",
+   "_plgLoadContext"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11100,
+     "completion_tokens": 3376,
+     "reasoning_tokens": 2191,
+     "cost": 0.002798,
+     "seconds": 15.4,
+     "sample": 1,
+     "conversation": "8d4e835ffe77c3800ae7f788499495457fca15f1d617c45c543c6ebf59cf8a11"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "negative": "15872",
+   "past-16-bit": "5290",
+   "in-16-bit": "8838"
+  },
+  "mutations": [
+   {
+    "name": "P1: lba truncated to u8",
+    "caught": true
+   },
+   {
+    "name": "P2: size store dropped",
+    "caught": true
+   },
+   {
+    "name": "P3: entry count narrowed to short",
+    "caught": true
+   },
+   {
+    "name": "P4: size loaded from lba",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 5,
+   "lines_hit": 5,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34503,
+     "completion_tokens": 977,
+     "reasoning_tokens": 690,
+     "cost": 0.0039388,
+     "seconds": 4.7,
+     "sample": 1,
+     "conversation": "c8fcf4c0c28d8f2c925445beb7a7ab843e33864ab351f262d96400e468e44033"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/configurePlg.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/configure_plg.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 21.802163601000757,
+ "wall_seconds": 42.087012236999726,
+ "totals": {
+  "cost": 0.00674,
+  "prompt_tokens": 45603,
+  "completion_tokens": 4353,
+  "model_seconds": 20.1,
+  "check_seconds": 21.8,
+  "calls": 2,
+  "wall_seconds": 42.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 1 root / 3 root / -, 0 mismatches"
+ }
+}

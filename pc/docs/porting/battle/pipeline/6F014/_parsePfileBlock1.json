@@ -1,0 +1,234 @@
+{
+ "function": "_parsePfileBlock1",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the count re-read from the pfile each pass; offsets added as guest addresses); spec sound (tables past the array)",
+ "plan": {
+  "name": "_parsePfileBlock1",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d7a14",
+  "difficulty": "S",
+  "zig_name": "parsePfileBlock1",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "parse_pfile_block1",
+  "spec_file": "parsePfileBlock1.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn parsePfileBlock1(block: ?*v.pFileBlock1) callconv(.c) void",
+  "params": [
+   [
+    "block",
+    "?*v.pFileBlock1"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F569C_t",
+   "pFileBlock1",
+   "pFileBlock1Data",
+   "pFileBlock1Indices"
+  ],
+  "globals": [
+   "D_800F569C"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12093,
+     "completion_tokens": 17708,
+     "reasoning_tokens": 16088,
+     "cost": 0.0100633,
+     "seconds": 76.6,
+     "sample": 1,
+     "conversation": "a11f51f62d4711b647d5a992321f97cc51e352ede92c7a5525aff2e416924a19"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation P2: table count stored unsigned (-1 becomes 65535): not caught as mismatch (exit 3): zdiff: PANIC in the Zig run, iteration 1: psx_addr of 0xffffffffe4cadb7e (above 4 GB)",
+     "FAIL: mutation P6: table count store dropped (loop reads a stale count): not caught as mismatch (exit 3): zdiff: PANIC in the Zig run, iteration 0: psx_addr of 0xfffffffffbddecd3 (above 4 GB)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13928,
+     "completion_tokens": 8540,
+     "reasoning_tokens": 6831,
+     "cost": 0.0056628,
+     "seconds": 39.5,
+     "sample": 1,
+     "conversation": "0c0f5fe530f9f83907b5e9210c94e416cf0857e128f4474d7a5e51696b689748"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-tables": "7517",
+   "one-to-four": "15077",
+   "overflow": "7406"
+  },
+  "mutations": [
+   {
+    "name": "P1: loop runs one table too many",
+    "caught": true
+   },
+   {
+    "name": "P2: table count stored one short (off-by-one on the store)",
+    "caught": true
+   },
+   {
+    "name": "P3: block1Data taken from tableCount, not dataOffset",
+    "caught": true
+   },
+   {
+    "name": "P4: every table takes tableOffsets[0]",
+    "caught": true
+   },
+   {
+    "name": "P5: table store dropped",
+    "caught": true
+   },
+   {
+    "name": "P6: table count store dropped (loop reads a stale count)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 6,
+   "lines_hit": 6,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "for (i = 0; i < D_800F569C->block1TableCount; ++i) {",
+     "size": 4,
+     "count": 115963,
+     "kind": "a == b / a < b",
+     "outcomes": "== 30000, < 85963, > 0 (signed); < 85963, > 0 (unsigned)",
+     "operand": "b 0..8",
+     "a": "0..8"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35481,
+     "completion_tokens": 6550,
+     "reasoning_tokens": 5951,
+     "cost": 0.0068231,
+     "seconds": 29.7,
+     "sample": 1,
+     "conversation": "274dbd5674208296d0000dd6cc06482c94c6467779545777fe7ce212c7fd7fd3"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/parsePfileBlock1.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/parse_pfile_block1.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 33.71383747300024,
+ "wall_seconds": 181.6363865760004,
+ "totals": {
+  "cost": 0.02255,
+  "prompt_tokens": 61502,
+  "completion_tokens": 32798,
+  "model_seconds": 145.8,
+  "check_seconds": 33.7,
+  "calls": 3,
+  "wall_seconds": 181.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches"
+ }
+}

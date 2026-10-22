@@ -1,0 +1,185 @@
+{
+ "function": "func_800D7FFC",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800D7FFC",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d7ffc",
+  "difficulty": "S",
+  "zig_name": "func_800D7FFC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D7FFC",
+  "spec_file": "func_800D7FFC.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn func_800D7FFC(arg0: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800F5638"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11030,
+     "completion_tokens": 1911,
+     "reasoning_tokens": 1050,
+     "cost": 0.0020585,
+     "seconds": 9.0,
+     "sample": 1,
+     "conversation": "9b95e17303abf8bb26b984fa3b58ae495f45bc1c5094193ef2de57ba83a58d10"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "negative": "9321",
+   "non-negative": "10679"
+  },
+  "mutations": [
+   {
+    "name": "S1: stored value off by one",
+    "caught": true
+   },
+   {
+    "name": "S2: unsigned short truncation of the argument",
+    "caught": true
+   },
+   {
+    "name": "S3: store dropped",
+    "caught": true
+   },
+   {
+    "name": "S4: wrong field (slots[0] instead of unk0)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 1,
+   "lines_hit": 1,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34425,
+     "completion_tokens": 700,
+     "reasoning_tokens": 520,
+     "cost": 0.0037925,
+     "seconds": 3.5,
+     "sample": 1,
+     "conversation": "60376a9823135b67e22d67684fb437cdaf40ad28d96e7c0aee863be72960cc1f"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800D7FFC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800D7FFC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 36.92730706900056,
+ "wall_seconds": 66.63722044899987,
+ "totals": {
+  "cost": 0.00585,
+  "prompt_tokens": 45455,
+  "completion_tokens": 2611,
+  "model_seconds": 12.5,
+  "check_seconds": 36.9,
+  "calls": 2,
+  "wall_seconds": 66.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 1 root / 3 root / -, 0 mismatches"
+ }
+}

@@ -1,0 +1,339 @@
+{
+ "function": "func_800C1DC4",
+ "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.4,
+ "samples": 2,
+ "status": "port-failed",
+ "reviewed": "not ported in this wave (unrouted): spec passed; Haiku's ports on two runs differ from the C (packet words) or crash; a reviewer's port is the next step",
+ "plan": {
+  "name": "func_800C1DC4",
+  "unit": "src/BATTLE/BATTLE.PRG/58578.c",
+  "stem": "58578",
+  "address": "0x800c1dc4",
+  "difficulty": "L",
+  "zig_name": "func_800C1DC4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C1DC4",
+  "spec_file": "func_800C1DC4.zig",
+  "subsystem": "battle_58578_port",
+  "signature": "pub fn func_800C1DC4(arg0: ?*v.D_800EB9B8_unk990) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800EB9B8_unk990"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800F4CB4",
+   "pc_gte_anchored"
+  ],
+  "hooks": [
+   "pc_gte_anchored",
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 14774,
+     "completion_tokens": 20398,
+     "reasoning_tokens": 17974,
+     "cost": 0.0116764,
+     "seconds": 86.3,
+     "sample": 1,
+     "conversation": "2b3d93d0e0d8f6347eec79c2c11057c0c18214418e6b0e8b36df9c5b930f86ae"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "flag-clear": "6685",
+   "flag-left-count-low": "5153",
+   "flag-left-count-high": "12758",
+   "flag-right-count-low": "4359",
+   "flag-right-count-high": "11045"
+  },
+  "mutations": [
+   {
+    "name": "D1: the isLeft test takes x == 160 as left",
+    "caught": true
+   },
+   {
+    "name": "D2: the gradient flag tests x == 160 as left",
+    "caught": true
+   },
+   {
+    "name": "D3: the GTE anchor call dropped",
+    "caught": true
+   },
+   {
+    "name": "D4: the ring count mask 0x1F becomes 0x0F",
+    "caught": true
+   },
+   {
+    "name": "D5: the flagged gradient is 7, not 8",
+    "caught": true
+   },
+   {
+    "name": "D6: the text row takes unk7 instead of the y offset",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 20,
+   "branches_hit": 20,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 64,
+   "lines_hit": 64,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 19,
+     "text": "if (arg0->unk1 != 0) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 6685, < 16772, > 16543 (signed); < 0, > 33315 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 27,
+     "text": "isLeft = xy < 160;",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 2798, < 18684, > 18518 (signed); < 2846, > 34356 (unsigned)",
+     "operand": "constant 159",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 28,
+     "text": "if (isLeft) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 18518, < 0, > 21482 (signed); < 0, > 21482 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 35,
+     "text": "if (isLeft) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 18518, < 0, > 21482 (signed); < 0, > 21482 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 42,
+     "text": "if (arg0->unk1 != 0) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 6685, < 16772, > 16543 (signed); < 0, > 33315 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 48,
+     "text": "if (gradient != 0) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 485, < 0, > 39515 (signed); < 0, > 39515 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..255"
+    },
+    {
+     "line": 52,
+     "text": "gradient = (arg0->unk4 < 160) * 2;",
+     "size": 2,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 2798, < 18684, > 18518 (signed); < 2846, > 34356 (unsigned)",
+     "operand": "constant 159",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 71,
+     "text": "if (arg0->unk1 != 0) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 6685, < 16772, > 16543 (signed); < 0, > 33315 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 83,
+     "text": "if (arg0->unk4 < 160) {",
+     "size": 2,
+     "count": 33315,
+     "kind": "against a constant",
+     "outcomes": "== 2323, < 15588, > 15404 (signed); < 2361, > 28631 (unsigned)",
+     "operand": "constant 159",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 87,
+     "text": "if (arg0->unk3 >= 18) {",
+     "size": 1,
+     "count": 17911,
+     "kind": "against a constant",
+     "outcomes": "== 1506, < 9539, > 6866 (signed); < 3647, > 12758 (unsigned)",
+     "operand": "constant 17",
+     "a": "-128..127"
+    },
+    {
+     "line": 93,
+     "text": "if (arg0->unk3 >= 18) {",
+     "size": 1,
+     "count": 15404,
+     "kind": "against a constant",
+     "outcomes": "== 1300, < 8258, > 5846 (signed); < 3059, > 11045 (unsigned)",
+     "operand": "constant 17",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 38168,
+     "completion_tokens": 20887,
+     "reasoning_tokens": 18871,
+     "cost": 0.0142603,
+     "seconds": 81.6,
+     "sample": 1,
+     "conversation": "b0e90e0298993e11b33e545894ba69597a8bf57b8cf20fd4475c0e38b16f53dc"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800C1DC4.zig:18:36: error: expected type '[*]u32', found '*u32'\n    const nextPrim: [*]u32 = psx.at(base, -%nextDelta);\n                             ~~~~~~^~~~~~~~~~~~~~~~~~~\ngame/battle/func_800C1DC4.zig:18:36: note: a single pointer cannot cast into a many pointer\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 1,
+    "sample": 2,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 38168,
+     "completion_tokens": 18045,
+     "reasoning_tokens": 15997,
+     "cost": 0.0128393,
+     "seconds": 71.9,
+     "sample": 2,
+     "conversation": "6626985c2a1723bf1e47e566801ef37f9e74c752811ca596d35285534d3d84fb"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800C1DC4.zig:18:36: error: expected type '[*]u32', found '*u32'\n    const nextPrim: [*]u32 = psx.at(base, -%k);\n                             ~~~~~~^~~~~~~~~~~\ngame/battle/func_800C1DC4.zig:18:36: note: a single pointer cannot cast into a many pointer\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 40494,
+     "completion_tokens": 3494,
+     "reasoning_tokens": 1482,
+     "cost": 0.0057964,
+     "seconds": 12.5,
+     "sample": 1,
+     "conversation": "11d073ebcb83af4f35e73e09e27a40c10bec828c567acadd321e6a0423793071"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 4):\nzdiff: MISMATCH iteration 0: memory at 0x408898 [arena] (zdiff_state+0x828): C 144, Zig 178\nzdiff: MISMATCH iteration 1: memory at 0x408750 [arena] (zdiff_state+0x6e0): C 183, Zig 144\nzdiff: MISMATCH iteration 2: memory at 0x408260 [arena] (zdiff_state+0x1f0): C 58, Zig 144\nzdiff: CRASH (signal 11) in the Zig run, iteration 4, fault address 0x407c70 [memory the harness does not own: a pointer from random bytes?]\nzdiff: crashed on arguments: 0x408070 [arena] (class flag-left-count-high)"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 4,
+      "mismatches": null,
+      "first": "MISMATCH iteration 0: memory at 0x408898 (zdiff_state+0x828): C 144, Zig 178"
+     }
+    ]
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 24.739386265000576,
+ "wall_seconds": 277.40201636799975,
+ "totals": {
+  "cost": 0.04457,
+  "prompt_tokens": 131604,
+  "completion_tokens": 62824,
+  "model_seconds": 252.3,
+  "check_seconds": 24.7,
+  "calls": 4,
+  "wall_seconds": 277.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": ""
+ }
+}

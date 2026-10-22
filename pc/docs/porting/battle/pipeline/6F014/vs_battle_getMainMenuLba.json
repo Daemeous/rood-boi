@@ -1,0 +1,194 @@
+{
+ "function": "vs_battle_getMainMenuLba",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (VS_MAINMENU_PRG_LBA, 85000, as a literal: the c module has no translation of the generated lbas.h macro); spec sound",
+ "plan": {
+  "name": "vs_battle_getMainMenuLba",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d8200",
+  "difficulty": "S",
+  "zig_name": "getMainMenuLba",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "get_main_menu_lba",
+  "spec_file": "getMainMenuLba.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn getMainMenuLba() callconv(.c) c_int",
+  "params": [],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 10997,
+     "completion_tokens": 1208,
+     "reasoning_tokens": 665,
+     "cost": 0.0017037,
+     "seconds": 5.9,
+     "sample": 1,
+     "conversation": "79b0acf9adc655453a8e66b0bacb742b13c92103dc349be0cb788c03f317983b"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: no input classes declared (`classes` and `classify`)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11591,
+     "completion_tokens": 724,
+     "reasoning_tokens": 103,
+     "cost": 0.0015211,
+     "seconds": 3.1,
+     "sample": 1,
+     "conversation": "6aa58cda11a9e4f6bd8ab07e835c3ff9c813ddb824667ed99fa40366172ce851"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-input": "20000"
+  },
+  "mutations": [
+   {
+    "name": "M1: the menu LBA is off by one (high)",
+    "caught": true
+   },
+   {
+    "name": "M2: the menu LBA is off by one (low)",
+    "caught": true
+   },
+   {
+    "name": "M3: the menu LBA returns zero",
+    "caught": true
+   },
+   {
+    "name": "M4: the menu LBA is negated",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 1,
+   "lines_hit": 1,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34375,
+     "completion_tokens": 432,
+     "reasoning_tokens": 290,
+     "cost": 0.0036535,
+     "seconds": 2.8,
+     "sample": 1,
+     "conversation": "4768e8e5a8ae1f7cae9ba6d4f2266ba2ec0d14db742023bf816d65fc7ca39284"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/getMainMenuLba.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/get_main_menu_lba.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 33.568938117999096,
+ "wall_seconds": 46.98693816500054,
+ "totals": {
+  "cost": 0.00688,
+  "prompt_tokens": 56963,
+  "completion_tokens": 2364,
+  "model_seconds": 11.8,
+  "check_seconds": 33.6,
+  "calls": 3,
+  "wall_seconds": 47.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 1 root / 2 root / -, 0 mismatches"
+ }
+}

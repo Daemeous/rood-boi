@@ -1,0 +1,273 @@
+{
+ "function": "func_800AF844",
+ "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (aliased arrays, both fold edges)",
+ "plan": {
+  "name": "func_800AF844",
+  "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+  "stem": "44F14",
+  "address": "0x800af844",
+  "difficulty": "S",
+  "zig_name": "func_800AF844",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AF844",
+  "spec_file": "func_800AF844.zig",
+  "subsystem": "battle_44F14_port",
+  "signature": "pub fn func_800AF844(dst: ?*v.SVECTOR, src: ?*v.SVECTOR, count: c_int) callconv(.c) void",
+  "params": [
+   [
+    "dst",
+    "?*v.SVECTOR"
+   ],
+   [
+    "src",
+    "?*v.SVECTOR"
+   ],
+   [
+    "count",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "SVECTOR"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11706,
+     "completion_tokens": 14114,
+     "reasoning_tokens": 12133,
+     "cost": 0.0082276,
+     "seconds": 58.7,
+     "sample": 1,
+     "conversation": "8f9d7256bc05fb08ace47dfcb81f779b5ecdfb9e25d2efea3b796c4d154ffc02"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-elements": "6004",
+   "aliased": "2075",
+   "distinct": "21921"
+  },
+  "mutations": [
+   {
+    "name": "F1: fold subtracts one ONE, not two (x)",
+    "caught": true
+   },
+   {
+    "name": "F2: the sum test is strict (> for >=)",
+    "caught": true
+   },
+   {
+    "name": "F3: vy reflected with the wrong sign",
+    "caught": true
+   },
+   {
+    "name": "F4: z is not made absolute",
+    "caught": true
+   },
+   {
+    "name": "F5: dropped vz store",
+    "caught": true
+   },
+   {
+    "name": "F6: z difference reads src.vx",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 19,
+   "lines_hit": 19,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -3, max 5, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "for (i = 0; i < count; ++i) {",
+     "size": 4,
+     "count": 102459,
+     "kind": "a == b / a < b",
+     "outcomes": "== 25390, < 72459, > 4610 (signed); < 77069, > 0 (unsigned)",
+     "operand": "b -3..5",
+     "a": "0..5"
+    },
+    {
+     "line": 8,
+     "text": "if (x >= 4096) {",
+     "size": 4,
+     "count": 72459,
+     "kind": "against a constant",
+     "outcomes": "== 2280, < 45986, > 24193 (signed); < 16282, > 53897 (unsigned)",
+     "operand": "constant 4095",
+     "a": "-65535..65535"
+    },
+    {
+     "line": 10,
+     "text": "} else if (x < -4096) {",
+     "size": 4,
+     "count": 48266,
+     "kind": "against a constant",
+     "outcomes": "== 2341, < 19747, > 26178 (signed); < 38309, > 7616 (unsigned)",
+     "operand": "constant -4096",
+     "a": "-65535..4095"
+    },
+    {
+     "line": 17,
+     "text": "if (z >= 4096) {",
+     "size": 4,
+     "count": 72459,
+     "kind": "against a constant",
+     "outcomes": "== 2336, < 45939, > 24184 (signed); < 16361, > 53762 (unsigned)",
+     "operand": "constant 4095",
+     "a": "-65535..65535"
+    },
+    {
+     "line": 19,
+     "text": "} else if (z < -4096) {",
+     "size": 4,
+     "count": 48275,
+     "kind": "against a constant",
+     "outcomes": "== 2401, < 19630, > 26244 (signed); < 38327, > 7547 (unsigned)",
+     "operand": "constant -4096",
+     "a": "-65535..4095"
+    },
+    {
+     "line": 25,
+     "text": "if (x + z >= 4096) {",
+     "size": 4,
+     "count": 72459,
+     "kind": "against a constant",
+     "outcomes": "== 2646, < 14537, > 55276 (signed); < 14537, > 55276 (unsigned)",
+     "operand": "constant 4095",
+     "a": "0..114686"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35116,
+     "completion_tokens": 2899,
+     "reasoning_tokens": 2193,
+     "cost": 0.0049611,
+     "seconds": 13.9,
+     "sample": 1,
+     "conversation": "413c2155876f26526226d5546fc5a97ae00b4f5e86854abf01a8a5bfb2b81312"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AF844.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AF844.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 21.76383872999986,
+ "wall_seconds": 94.55844281200007,
+ "totals": {
+  "cost": 0.01319,
+  "prompt_tokens": 46822,
+  "completion_tokens": 17013,
+  "model_seconds": 72.6,
+  "check_seconds": 21.8,
+  "calls": 2,
+  "wall_seconds": 94.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (45 / 78 / 60), 0 mismatches"
+ }
+}

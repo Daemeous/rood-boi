@@ -9,7 +9,7 @@ hook, statics, waivers). Mark a function reviewed by setting its record's
 added, port fixes, a rename, corpus reach) in `review`; the queue then
 lists it under Reviewed.
 
-0 to review (0 flagged), 31 reviewed.
+0 to review (0 flagged), 185 reviewed.
 
 ## Reviewed
 
@@ -68,6 +68,322 @@ lists it under Reviewed.
   - corpus: call mode (shadow): not reached by the three recipes
 - `func_800A291C` (src/BATTLE/BATTLE.PRG/38C1C.c): faithful; spec sound
   - corpus: call mode (shadow): not reached by the three recipes
+- `func_800AD714` (src/BATTLE/BATTLE.PRG/44F14.c): not ported in this wave (unrouted): the harness builds after the stand-in placement fix; Haiku's specs miss their own mutations; the retry stopped at the wave's budget
+- `func_800AE46C` (src/BATTLE/BATTLE.PRG/44F14.c): faithful; spec sound (an empty body: stray stores are caught)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800AE474` (src/BATTLE/BATTLE.PRG/44F14.c): faithful; spec sound (an empty body: stray stores are caught)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800AE47C` (src/BATTLE/BATTLE.PRG/44F14.c): not ported (skipped): a block-scope static (its ROOD_PC hook's log-once counter); the C must define it outside the function first (PORTING §6.3)
+- `func_800AE4FC` (src/BATTLE/BATTLE.PRG/44F14.c): faithful (unk6FC read after func_800A1280 refreshes it; the AKAO pointer is align-checked where the C is not: AKAO offsets are word-aligned); spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 2 / 3 / 2, nested 6 / 12 / 36, 0 mismatches
+- `func_800AE68C` (src/BATTLE/BATTLE.PRG/44F14.c): faithful (D_800F4538 indexed unchecked as the C); spec sound
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800AE6C0` (src/BATTLE/BATTLE.PRG/44F14.c): faithful; spec sound (an aliased actor, the six flag terms)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: nested 12, 0 mismatches
+- `func_800AE7D8` (src/BATTLE/BATTLE.PRG/44F14.c): port tidied: arg0 + 0x1C as host pointer arithmetic (Haiku narrowed the pointer to a 32-bit guest address first, wrong for a host pointer); spec sound
+  - port fix: temp_s0 computed from @intFromPtr(arg0) + 0x1C, not from psx.addr (which narrows to 32 bits)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800AE828` (src/BATTLE/BATTLE.PRG/44F14.c): faithful; spec sound (both id paths, the variant offsets, the out-parameters of func_8008EB04)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (3 / 6 / 6), 0 mismatches
+- `func_800AE980` (src/BATTLE/BATTLE.PRG/44F14.c): faithful; spec sound (both fold edges, aliasing); ported on the wave's retry (two fresh samples)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (39 / 66 / 48), 0 mismatches (run on port-wave1 after the merge)
+- `func_800AEAE8` (src/BATTLE/BATTLE.PRG/44F14.c): faithful; spec sound (the fixed-scale word test, signed extents)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 116, 0 mismatches
+- `func_800AECA0` (src/BATTLE/BATTLE.PRG/44F14.c): not ported (left unrouted): `D_800F4910 = *(MATRIX*)&source;` copies 32 bytes of the C's own stack from its parameter's address (the PS1 parameter home area and the caller's frame); natively that is host stack, which no port can reproduce (the gate's mismatch at D_800F4910+8). Needs a ROOD_PC decision in the C first (what the game reads from D_800F4910)
+- `func_800AEEC4` (src/BATTLE/BATTLE.PRG/44F14.c): faithful; spec sound (duration at, below and above half the tick speed)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800AEF94` (src/BATTLE/BATTLE.PRG/44F14.c): not ported (skipped): a block-scope static; the C must define it outside the function first (PORTING §6.3)
+- `func_800AF6E8` (src/BATTLE/BATTLE.PRG/44F14.c): faithful (the goto tail as a labelled block); spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 496 / 962 / 1560, 0 mismatches
+- `func_800AF844` (src/BATTLE/BATTLE.PRG/44F14.c): faithful; spec sound (aliased arrays, both fold edges)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (45 / 78 / 60), 0 mismatches
+- `func_800AF960` (src/BATTLE/BATTLE.PRG/44F14.c): faithful; spec sound (counts of one, signed remainders)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800AFA28` (src/BATTLE/BATTLE.PRG/44F14.c): faithful (the advance_frame goto as a loop; header and the animation word through func_800AD494's out-parameter as the LP64 C); spec sound (queued animations, the bit 16/17 flags, the data path)
+  - port fix: reviewer, after the wave: no writable data for the engine library (a labelled-switch jump table or module-level function-pointer constants rewritten)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (1488 / 2886 / 4680), 0 mismatches
+- `func_800AFDE8` (src/BATTLE/BATTLE.PRG/44F14.c): faithful (the decode/advance gotos as two nested loops, same order; the stream pointer kept as a 32-bit guest address as the LP64 branch computes it); spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (57969 / 115185 / 107610), 0 mismatches
+- `func_800B002C` (src/BATTLE/BATTLE.PRG/44F14.c): not ported in this wave (unrouted): Haiku's specs name a field the struct does not have and miss the 2047 equality edge; the retry stopped at the wave's budget
+- `func_800B0908` (src/BATTLE/BATTLE.PRG/44F14.c): not ported in this wave (unrouted): Haiku's specs (two runs) never make object->position.vy equal the step
+- `func_800B101C` (src/BATTLE/BATTLE.PRG/44F14.c): faithful (the next/complete/done gotos as an outcome switch); spec sound (every mode, the completion frames); planned f(...) on the first run (an unprototyped declaration before the definition), ported after the zig_c fix
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800B13CC` (src/BATTLE/BATTLE.PRG/44F14.c): not ported in this wave (unrouted): Haiku's specs (two runs) never produce the input that tells > 0 from >= 0
+- `func_800BFBB8` (src/BATTLE/BATTLE.PRG/573B8.c): not ported (left unrouted): the event-script interpreter dispatches through the opcode function tables (_opcodeFunctionTable, D_800F4C28) behind a ROOD_PC native-callback check; a spec has to fill those tables with callable entries, and Haiku's three drafts crashed the C on random table words. Needs a hand-written spec (PORTING §10.1)
+- `func_800BFD9C` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound (the stubs rewrite table entries the loop reads later)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800BFE34` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800BFE50` (src/BATTLE/BATTLE.PRG/573B8.c): port fixed: nibbles 3..15 (no case in the C, undefined) now return arg0 as the PS1 object does, not arg0 >> 12; spec sound (the default edge waived: no caller passes it)
+  - port fix: nibbles 3..15 returned arg0 >> 12 (a guess at the return register); the object returns arg0 (case 2's delay slot sets v0 = arg0 before the branch resolves)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800BFEBC` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound (the +20 eq waiver holds: power != 0 is tested first)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800C00E8` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound (the slot stored before the enqueue reads it)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800C0150` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800C02A8` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound (a forwarder)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 154, 0 mismatches
+- `func_800C031C` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound (allocation and reuse; all 720 edge entries compared)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 2, 0 mismatches
+- `func_800C05B4` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 1 / 3 / 4, 0 mismatches
+- `func_800C05EC` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound (arg1 aliasing the target's first record); ported on the rerun after zig_diff took NULL in a C mutation's text
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 2, 0 mismatches
+- `func_800C06E0` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 2 / 6 / 10, 0 mismatches
+- `func_800C0700` (src/BATTLE/BATTLE.PRG/573B8.c): faithful (the ROOD_PC low-RAM fallback for a freed shape kept); spec sound (a self-copy class)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800C0738` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 2 / 6 / 8, 0 mismatches
+- `func_800C0758` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound (negative, zero, 32 and many segments; any index)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 342, 0 mismatches
+- `func_800C085C` (src/BATTLE/BATTLE.PRG/573B8.c): faithful (each scale byte read once per axis, before its row is written: the same unless scale aliased the scratchpad, which no caller does); spec sound (callee outputs written by the GTE stubs)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 46, 0 mismatches
+- `func_800C0990` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound (the depth edge, every octant, intensity clamps)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 8928, 0 mismatches
+- `vs_battle_copyAligned` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound (negative and unaligned counts; the memcpy sibling recorded)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 2, 0 mismatches
+- `vs_battle_getShort` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound (both alignments, arena and low RAM)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `vs_battle_memcpy` (src/BATTLE/BATTLE.PRG/573B8.c): faithful (the ROOD_PC size guard kept, the do-while's first block always copied); spec sound (the guard's arms waived: a bad size never ends the C loop)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 40, nested 6, 0 mismatches
+- `vs_battle_playInvalidSfx` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound (a forwarder: both constants, the call count)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `vs_battle_playMenuChangeSfx` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound (a forwarder: both constants, the call count)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `vs_battle_playMenuLeaveSfx` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound (a forwarder: both constants, the call count)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `vs_battle_playMenuSelectSfx` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound (a forwarder: both constants, the call count)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `vs_battle_playSfx10` (src/BATTLE/BATTLE.PRG/573B8.c): faithful; spec sound (a forwarder)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 1, 0 mismatches
+- `func_800C0D78` (src/BATTLE/BATTLE.PRG/58578.c): faithful (D_800EB9B8 loaded once: only the allocator and freer assign it, neither called here); spec sound; ported after gte.zig gained rtps2 and stszotz
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 46, 0 mismatches
+- `func_800C0FA8` (src/BATTLE/BATTLE.PRG/58578.c): faithful; spec finished by the reviewer (an equivalent mutation dropped: char is unsigned in this build, -funsigned-char)
+  - spec fix: reviewer's round-2 reply: Haiku's retry without F2 ("divisor read as unsigned byte"): with -funsigned-char the C's char is already unsigned, so no input can catch it
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (3 / 9 / 99), 0 mismatches
+- `func_800C1034` (src/BATTLE/BATTLE.PRG/58578.c): faithful; spec sound (the work vectors func_800C0FA8 and ApplyMatrixSV fill are written by their stubs)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (3 / 9 / 99), 0 mismatches
+- `func_800C110C` (src/BATTLE/BATTLE.PRG/58578.c): faithful (flags re-read after the calls, as the C); spec sound (the flag byte rewritten by func_800C0FA8's stub; the depth edge made equal)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800C123C` (src/BATTLE/BATTLE.PRG/58578.c): faithful (unk1 read once after ApplyMatrixSV where the C reads it twice with no call between); spec finished by the reviewer (a mutation that crashed the C copy dropped)
+  - spec fix: reviewer's round-2 reply: Haiku's retry without F1 (its mutated C divided by zero where the original does not, so it could not be judged)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800C1384` (src/BATTLE/BATTLE.PRG/58578.c): faithful; port tidied to the gte.zig macros (ldsxy3, nclip2, stopz) where Haiku spelled out MTC2/doCOP2/MFC2, same calls in the same order; spec finished by the reviewer (an MFC2 stub answering 0, the clip < 0 edge)
+  - port fix: the GTE sequence written with gte.ldsxy3/nclip2/stopz (identical register traffic; PORTING §8.2)
+  - spec fix: reviewer's round-2 reply: an MFC2 stub returning 0 a quarter of the time (the GTE is a recording stub, so NCLIP's result never sat on the clip < 0 edge and the <= mutation slipped)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800C1564` (src/BATTLE/BATTLE.PRG/58578.c): faithful; spec sound (the stubs perturb the flags the C restores)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 16 / 33 / 33, 0 mismatches
+- `func_800C1664` (src/BATTLE/BATTLE.PRG/58578.c): faithful; spec sound (unk2D at the clamped count, negatives)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 2, 0 mismatches
+- `func_800C16DC` (src/BATTLE/BATTLE.PRG/58578.c): faithful; spec sound; blocked on the first run by a tooling failure (the header's unprototyped declaration made its prototype f(...)), ported after the zig_c fix
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 2 / 6 / 8, 0 mismatches
+- `func_800C16FC` (src/BATTLE/BATTLE.PRG/58578.c): faithful; spec sound (the addTile stub moves the scratch table pointer, re-read by the C per call)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: nested 48, 0 mismatches
+- `func_800C1A40` (src/BATTLE/BATTLE.PRG/58578.c): faithful; spec sound (flat and sloped, every count edge)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800C1D84` (src/BATTLE/BATTLE.PRG/58578.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 16, 0 mismatches
+- `func_800C1DC4` (src/BATTLE/BATTLE.PRG/58578.c): not ported in this wave (unrouted): spec passed; Haiku's ports on two runs differ from the C (packet words) or crash; a reviewer's port is the next step
+- `func_800C20B4` (src/BATTLE/BATTLE.PRG/58578.c): faithful; spec finished by the reviewer (a waiver: the switch's case 0 after the v1 == 0 continue)
+  - spec fix: reviewer's round-2 reply: Haiku's retry plus a waiver of +15 b0 (case 0 is unreachable after the continue above)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: nested 138, 0 mismatches
+- `func_800C2254` (src/BATTLE/BATTLE.PRG/58578.c): faithful; spec sound (negative, zero and positive indices)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800C2368` (src/BATTLE/BATTLE.PRG/58578.c): faithful (the radius test after radius <<= 9, as the C); spec sound (the radius 5 edge of the second pass)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800C253C` (src/BATTLE/BATTLE.PRG/58578.c): faithful; spec sound (every command kind, the table bounds kept in range, count 0)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: nested 138, 0 mismatches
+- `func_800C282C` (src/BATTLE/BATTLE.PRG/58578.c): faithful; spec sound (the camera stub moves D_800EB9B8, read after it as in the C)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800C28AC` (src/BATTLE/BATTLE.PRG/58578.c): not ported in this wave (unrouted): spec passed; Haiku's ports on two runs differ from the C (the ordering-table pointer, 4 entries back, and a global byte); a reviewer's port is the next step
+- `func_800C2B0C` (src/BATTLE/BATTLE.PRG/58578.c): faithful (libc memset kept as a call; the height out-parameter starts at 0 where the C leaves it to func_800FA188); spec sound; ported on the wave's retry (two fresh samples) after the class-name parsing fix
+  - corpus: call / tick / alternate (shadow), the three recipes: not reached (58578's subsystem run on port-wave1 after the merge: 0 mismatches)
+- `_parsePfileBlock1` (src/BATTLE/BATTLE.PRG/6F014.c): faithful (the count re-read from the pfile each pass; offsets added as guest addresses); spec sound (tables past the array)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches
+- `_parsePfileBlock10` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound (a guest-pointer store, null and any address)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches
+- `_parsePfileBlock11` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound (a guest-pointer store)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches
+- `_parsePfileBlock12` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches
+- `_parsePfileBlock13` (src/BATTLE/BATTLE.PRG/6F014.c): faithful (D_800F569C loaded once: the callee does not reassign it); spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches
+- `_parsePfileBlock2` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches
+- `_parsePfileBlock3` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound (a guest-pointer store, null and any address)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches
+- `_parsePfileBlock5` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound (a guest-pointer store, null and any address)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches
+- `_parsePfileBlock8` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound (a guest-pointer store, null and any address)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches
+- `_parsePfileBlock9` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound (a guest-pointer store, null and any address)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches
+- `_parsePfileCurveBlock` (src/BATTLE/BATTLE.PRG/6F014.c): faithful (count re-read per pass, curves past 32 unchecked as the C); spec sound (counts 0, 1, many, past 32)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches
+- `func_800D7814` (src/BATTLE/BATTLE.PRG/6F014.c): faithful (the ROOD_PC branch: unkD0 stored as the struct's guest pointer); spec sound
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800D7890` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 747 root / 1450 root / 2554 root, 0 mismatches
+- `func_800D78B8` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound (a pointer copy)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800D78CC` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound (a pointer copy)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800D78F0` (src/BATTLE/BATTLE.PRG/6F014.c): faithful (block9Data loaded once where the C reloads it after the lerp call: the callees write only their outputs); spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 79 root / 174 root / 64 root, 0 mismatches
+- `func_800D7A90` (src/BATTLE/BATTLE.PRG/6F014.c): faithful (the base plus its own u16 entry, unchecked); spec sound (negative indices)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800D7BF8` (src/BATTLE/BATTLE.PRG/6F014.c): faithful (the static _loadfile carried as a private function, the CD file request zeroed where the C leaves its other fields unset); spec sound; ported after the static-callee tooling fixes (the reference keeps _loadfile, the plan and prompt show it)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 root / 6 root / -, 0 mismatches
+- `func_800D7C5C` (src/BATTLE/BATTLE.PRG/6F014.c): faithful (D_800F5874 re-read after each handler, as the C); spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 1 root / 2 root / -, 0 mismatches
+- `func_800D7CFC` (src/BATTLE/BATTLE.PRG/6F014.c): faithful (_loadfile carried; values past 2 return 0 where the C's result is unset); spec sound; ported after the static-callee fixes
+  - port fix: reviewer, after the wave: no writable data for the engine library (a labelled-switch jump table or module-level function-pointer constants rewritten)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 10 root / 30 root / -, 0 mismatches
+- `func_800D7EF4` (src/BATTLE/BATTLE.PRG/6F014.c): faithful (_loadfile carried; the case 1 fallthrough as two tests (a labelled switch continue put a writable jump table in the engine library); states past 3 return 0 where the C's result is unset); spec sound (the +6 b3 waiver holds); ported after the static-callee fixes
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 1 root / 2 root / -, 0 mismatches
+- `func_800D7FFC` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 1 root / 3 root / -, 0 mismatches
+- `func_800D8038` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 1 root + 6 nested / 3 root + 18 nested / -, 0 mismatches
+- `func_800D8044` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800D8060` (src/BATTLE/BATTLE.PRG/6F014.c): faithful (the parsers, sibling ports, called through one untyped-block function type); spec sound (unmatched kinds, a negative meta, big sizes)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 1 root / 2 root / -, 0 mismatches
+- `vs_battle_configureEffectFbLoad` (src/BATTLE/BATTLE.PRG/6F014.c): faithful (index unchecked, as the C); spec sound (an index past the end)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 root / 9 root / -, 0 mismatches
+- `vs_battle_configurePlg` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound (the u16 narrowing of lba and size)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 1 root / 3 root / -, 0 mismatches
+- `vs_battle_getMainMenuLba` (src/BATTLE/BATTLE.PRG/6F014.c): faithful (VS_MAINMENU_PRG_LBA, 85000, as a literal: the c module has no translation of the generated lbas.h macro); spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 1 root / 2 root / -, 0 mismatches
+- `vs_battle_loadEffPurge` (src/BATTLE/BATTLE.PRG/6F014.c): faithful after a reviewer port: Haiku's three drafts kept D_800F568C (a host pointer) as a 4-byte guest pointer; the port reuses func_800D7BF8's _loadfile; spec sound; after the static-callee fixes
+  - port fix: reviewer's round-3 reply: _loadfile as in func_800D7BF8's port (D_800F568C read and written as the host pointer it is; Haiku's psx.Ptr wrote 4 bytes of an 8-byte global)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 root / 9 root / -, 0 mismatches
+- `vs_battle_setEffectExec` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `vs_battle_setPlgLoadState` (src/BATTLE/BATTLE.PRG/6F014.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 1 root / 3 root / -, 0 mismatches
+- `func_800D8400` (src/BATTLE/BATTLE.PRG/6FC00.c): faithful (dest starts at 0 where the C leaves y uninitialised: the C passes that residue byte to its callees, masked off the result); spec finished by the reviewer (a waiver: the second result < 0 test is reached only with results not above 0)
+  - spec fix: reviewer's round-2 reply: Haiku's retry plus a waiver of +40 sign (that test runs only when func_800D96C8's result is not above 0)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: enemy_kill only: root 60, 0 mismatches
+- `func_800D85D8` (src/BATTLE/BATTLE.PRG/6FC00.c): faithful; spec sound (the stubs rewrite weights, unk18, count, the head entry and target flags the C re-reads)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 1 / 2 / 5, nested 75 / 207 / 186, 0 mismatches
+- `func_800D87E8` (src/BATTLE/BATTLE.PRG/6FC00.c): faithful after a reviewer fix of Haiku's retry (the movement grid indexed as [*][32]u16 panicked on a tile byte past 31; the C indexes z * 32 + x unchecked); spec finished by the reviewer (the movement-grid pointer at 0x1F8003C0, a func_800E44E8 stub returning 0, the counter's 120 edge, a waiver)
+  - port fix: the grid cell read as cells[z * 32 + x] from a many-item u16 pointer, unchecked as in the C (Haiku's retry panicked: index 157 of 32)
+  - spec fix: reviewer's round-2 replies: the scratchpad's movement-grid pointer (0x1F8003C0) set to an arena grid (Haiku's spec crashed the C through it); a func_800E44E8 stub answering 0, 1, -1 or any value (the ! edges of checkExtent/checkHeight); counter 119 and 120 (the >= 121 edge); a waiver of +78 b1 (id == actorId takes the branch above)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (111 / 309 / 327), 0 mismatches
+- `func_800D8EF4` (src/BATTLE/BATTLE.PRG/6FC00.c): faithful (the static helpers carried as private functions; the shift by unk124 masked to 5 bits as the x86 shift does); spec finished by the reviewer (a stalled history, unkFA at 3, calm target tables)
+  - spec fix: reviewer's round-2 reply (Haiku's first draft ran out of tokens): states whose history is full and repeating (historyStalled true); unkFA 3 (the ++ >= 5 edge); half the states without an alerting target, so the actor scan runs to its end
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 86 / 130 / 246, 0 mismatches
+- `func_800D9538` (src/BATTLE/BATTLE.PRG/6FC00.c): faithful; spec sound (a one-word copy from the scratchpad)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 86 / 130 / 246, 0 mismatches
+- `func_800D9E18` (src/BATTLE/BATTLE.PRG/71618.c): faithful; spec finished by the reviewer (vs_gte_rsqrt stubbed as the integer square root so the clamp's 0x64000 edge and the case-2 range test's equal sides happen; Haiku's waiver of the 4-bit id == 16 test holds)
+  - port fix: reviewer, after the wave: no writable data for the engine library (a labelled-switch jump table or module-level function-pointer constants rewritten)
+  - spec fix: reviewer's round-2 reply: vs_gte_rsqrt stubbed as the integer square root (the default stub's random roots left the clamp's taken branch and both equality edges unreached, so the F2 clamp-constant mutation slipped); lane 2's distanceSquared 640^2 (limit^2 exactly 0x64000)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (72 / 198 / none), 0 mismatches; owning it exposed func_800E1388's partly written dest (fixed under ROOD_PC)
+- `func_800DA1D4` (src/BATTLE/BATTLE.PRG/71618.c): faithful (case 1 falls into case 2 with its id, a labelled switch continue); spec sound (the stubs rewrite the target flags and count the C re-reads)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (72 / 198 / none), 0 mismatches
+- `func_800DA4BC` (src/BATTLE/BATTLE.PRG/71618.c): faithful; spec finished by the reviewer (Haiku's two drafts never made distances[target] equal the computed radius: a vs_gte_rsqrt stub returning a root prepare chooses, and the exact square, one less and one more as inputs)
+  - spec fix: reviewer's round-2 reply: vs_gte_rsqrt stubbed with a chosen root (the drafts guessed the real rsqrt's value of 0 from a later call), distances[target] set to the square the C computes (and one either side) a quarter of the time
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800DA5CC` (src/BATTLE/BATTLE.PRG/71618.c): faithful; spec sound (entry fetched once before the calls, as in the C; target16, mode and action re-read after the stubs change them)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800DA6A4` (src/BATTLE/BATTLE.PRG/71618.c): faithful; spec sound (no state the C reads after its calls)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800DA738` (src/BATTLE/BATTLE.PRG/71618.c): faithful (the tile word passed by value as the c module's u32); spec sound (point and target16 written by func_800DBB2C's stub before the C reads them); blocked on the first run by a tooling failure (an opaque by-value parameter), ported after the zig_c fix
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800DAA6C` (src/BATTLE/BATTLE.PRG/71618.c): faithful; spec sound (a two-way dispatcher, no state read after a call)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800DAAD8` (src/BATTLE/BATTLE.PRG/71618.c): faithful; spec sound (mode/action, flagsC and oldMode rewritten by the stubs where the C re-reads them; actor ids outside 0..15 index inside the state as the C allows)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800DAC80` (src/BATTLE/BATTLE.PRG/71618.c): faithful; spec sound (unkC_0 rewritten by func_800DBD80's stub, read after it as in the C; kind and the cooldown source read after the calls)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (291 / 801 / 546), 0 mismatches
+- `func_800DAD9C` (src/BATTLE/BATTLE.PRG/71618.c): faithful (the registry pointer D_800F58BC is loaded once where the C reloads it per slot: no callee reassigns it); spec sound (the stub rewrites count, registry slots, model status and the fallback's flagsC)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (75 / 207 / 186), 0 mismatches
+- `func_800DAED0` (src/BATTLE/BATTLE.PRG/71618.c): faithful after a reviewer fix of Haiku's retry (the movement grid indexed through [32]-row arrays panicked on a tile byte past 31; the C indexes z * 32 + x unchecked); spec finished by the reviewer (an unreachable branch waived)
+  - port fix: the grid cell read as cells[z * 32 + x] from a many-item u16 pointer, unchecked as in the C (Haiku's [*][32]u16 indexing panicked: index out of bounds, 194 of 32)
+  - spec fix: reviewer's round-2 reply: Haiku's first spec plus a waiver of +14 b3 (f14 set with f1D clear cannot reach the inner test: the outer one lets through only f14 clear or f1D set)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 86 / 130 / 246 calls, 0 mismatches (after func_800E1388's dest zeroed under ROOD_PC: before, call mode diverged in destination.y, host stack residue)
+- `func_800DB0BC` (src/BATTLE/BATTLE.PRG/71618.c) -> `detour_when_stuck.detourWhenStuck`: faithful (the probe word rebuilt per direction, bytes 1 and 3 zero as in the C); spec sound (unkFB rewritten by func_800D954C's stub before the C copies it); renamed detourWhenStuck
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (72 / 198 / 180), 0 mismatches
+- `func_800DC888` (src/BATTLE/BATTLE.PRG/74088.c): faithful; spec sound (the +25 b1 waiver holds: the C's ok guard is constant)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (21 / 48 / none), 0 mismatches
+- `func_800DCAA0` (src/BATTLE/BATTLE.PRG/74088.c): faithful after a reviewer fix of Haiku's retry (psx_to_ptr(void*, arg1) made an aligned pointer and panicked on an odd address; it now goes through the callee typed with an untyped pointer); spec sound
+  - port fix: the integer passed as a pointer to func_800DC888 through a function pointer typed ?*anyopaque (Haiku's @ptrFromInt to the aligned parameter type panicked: incorrect alignment)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (21 / 48 / none), 0 mismatches
+- `func_800DCBD8` (src/BATTLE/BATTLE.PRG/74088.c): faithful; spec sound (a matching decoy past the table's end)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (21 / 48 / none), 0 mismatches
+- `func_800DCC94` (src/BATTLE/BATTLE.PRG/74088.c): not ported in this wave (unrouted): the retry's spec passed; Haiku's ports differ from the C in the score passed to func_800DC284 (the four static score helpers); a reviewer's port is the next step
+- `func_800DD000` (src/BATTLE/BATTLE.PRG/74088.c): faithful (callee-typed function pointers for the opaque c struct; D_800F5878 now indexed unchecked as the C); spec sound (the reaction stubs rewrite the flags and target words the C re-reads)
+  - port fix: D_800F5878[source] read through psx.at (unchecked) like the C, not a bounds-checked index
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (6 / 12 / 27), 0 mismatches
+- `func_800DD344` (src/BATTLE/BATTLE.PRG/74088.c): faithful; spec sound (the queue stub rewrites target words the scan re-reads); spec strengthened at the final CTest (marginal coverage of the ally arms)
+  - spec fix: reviewer, at the final CTest: the ally test's last arms (classification 2, a running counter with previous class 2) were reached only by the arena's random bytes, and a later layout left one uncovered: the stubs' tables now set counter and previous and favour class 2
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (6 / 12 / 27), 0 mismatches
+- `func_800DD604` (src/BATTLE/BATTLE.PRG/74088.c): faithful; spec sound (the slot stub rewrites usable and value the C reads after it)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (6 / 12 / 27), 0 mismatches
+- `func_800DD7CC` (src/BATTLE/BATTLE.PRG/74088.c): faithful (the scratchpad map word saved and restored); spec sound
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800DD918` (src/BATTLE/BATTLE.PRG/74088.c): faithful (the static actorLimb carried as a private function; the scratchpad list indexed 0..3 as the C); spec sound (every mode, dead actors, the rand-driven arms recorded)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (9 / 18 / 45), 0 mismatches
+- `func_800DE030` (src/BATTLE/BATTLE.PRG/74088.c): not ported in this wave (unrouted): Haiku's specs (two runs) crash in their own classify or the C
+- `func_800DE3E4` (src/BATTLE/BATTLE.PRG/74088.c): not ported in this wave (unrouted): Haiku's specs miss mutations; the retry stopped at the wave's budget
+- `func_800DEB10` (src/BATTLE/BATTLE.PRG/74088.c): faithful (the slot dereferenced before its NULL test, as the C; D_800F5878 indexed unchecked); spec finished by the reviewer (a waiver: the NULL test after the dereference)
+  - port fix: D_800F5878[unk4] read through psx.at (unchecked) like the C
+  - spec fix: reviewer's round-2 reply: Haiku's retry plus a waiver of +18 b0 (the C reads entry->unk54 before testing entry, so a NULL entry faults first)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (3 / 6 / 12), 0 mismatches
+- `func_800DEC88` (src/BATTLE/BATTLE.PRG/74088.c): faithful (sibling ports called through typed function pointers for the opaque c structs); spec sound (null context, the timer-reset arms)
+  - port fix: reviewer, after the wave: no writable data for the engine library (a labelled-switch jump table or module-level function-pointer constants rewritten)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 1 / 2 / 4 (after the hit requests of func_8008631C/func_800863A4 were zeroed under ROOD_PC: before, call mode diverged in the freed evaluation block, host stack residue), 0 mismatches
+- `func_800DEEA4` (src/BATTLE/BATTLE.PRG/74088.c): port tidied: D_800F5878 indexed unchecked as the C (the slice index panicked past 18 entries where the C reads on); spec sound
+  - port fix: D_800F5878[unk4] read through psx.at (unchecked) instead of a bounds-checked index: an unk4 past 17 panicked where the C reads past the table
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800DF9A8` (src/BATTLE/BATTLE.PRG/771A8.c): faithful (the 4-byte copy over a 3-byte struct kept); spec sound (aliased arguments, both parities)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800DFA54` (src/BATTLE/BATTLE.PRG/771A8.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800DFAF8` (src/BATTLE/BATTLE.PRG/771A8.c): faithful; spec sound (the out-parameter table from func_8008D2C0's stub)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800DFBCC` (src/BATTLE/BATTLE.PRG/771A8.c): not ported in this wave (unrouted): Haiku's specs (four rounds over two runs) miss a 16-bit equality edge or do not compile; needs a reviewer-finished spec
+- `func_800E02B4` (src/BATTLE/BATTLE.PRG/771A8.c): faithful; spec sound (the +56 b0 waiver holds: id 0 is skipped above)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800E0678` (src/BATTLE/BATTLE.PRG/771A8.c): faithful (the cache bits in the scratchpad; the grid indexed z * 32 + x unchecked); spec sound (every exit, the bounds edges)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800E0850` (src/BATTLE/BATTLE.PRG/771A8.c): faithful; spec sound (one and three passes, the callee's verdict)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800E0918` (src/BATTLE/BATTLE.PRG/771A8.c): faithful (the two callbacks through a function pointer as the C); spec sound
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800E0A68` (src/BATTLE/BATTLE.PRG/771A8.c): not ported in this wave (unrouted): Haiku's specs (two runs) leave a ground-height branch uncovered and an equality edge unmet (211 lines, thirteen callees)
+- `func_800E1238` (src/BATTLE/BATTLE.PRG/771A8.c): faithful (the pointer handed on before the C dereferences it); spec sound (both scratchpad modes, the position edge, the out-parameter)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800E1388` (src/BATTLE/BATTLE.PRG/771A8.c): faithful (dest starts at 0 as the ROOD_PC C now does; the tile word passed by value is ABI-identical to the c module's u32); spec sound
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 17 / 43 / -, 0 mismatches
+- `func_800E153C` (src/BATTLE/BATTLE.PRG/771A8.c): faithful (destination re-read after func_800E1388 rewrites it; the gotos as a labelled block); spec sound; ported on the retry (two fresh samples), written after a stale stub in func_800E0918's spec was fixed
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 17 / 43 / -, 0 mismatches
+- `func_800E1764` (src/BATTLE/BATTLE.PRG/771A8.c): faithful (the previous tile's bytes 0 and 2 as the C reads them); spec sound
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800E1850` (src/BATTLE/BATTLE.PRG/771A8.c): faithful; spec sound
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800E1908` (src/BATTLE/BATTLE.PRG/771A8.c): faithful (the tile mask restored after the call; the mode shift masked as x86); spec sound
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800E19FC` (src/BATTLE/BATTLE.PRG/771A8.c): faithful (goto move as a flag); spec sound; ported on the retry
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested 39 / nested 117 / root 60, 0 mismatches
+- `func_800E1BB8` (src/BATTLE/BATTLE.PRG/771A8.c): faithful; spec sound (zero max, fresh and running states, the re-draw)
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800E1EAC` (src/BATTLE/BATTLE.PRG/771A8.c): not ported in this wave (unrouted): Haiku's specs crash the C on pointers they leave random; the retry stopped at the wave's budget
+- `func_800E23AC` (src/BATTLE/BATTLE.PRG/771A8.c): faithful (the goto move as a labelled block); spec sound
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800E24EC` (src/BATTLE/BATTLE.PRG/771A8.c): not ported in this wave (unrouted): Haiku's specs (two runs) do not compile or name mutation text the C does not have
+- `func_800E2B2C` (src/BATTLE/BATTLE.PRG/771A8.c): faithful; spec sound (every exit); ported on the retry
+  - corpus: call / tick / alternate (shadow): not reached by the three recipes
+- `func_800E2CCC` (src/BATTLE/BATTLE.PRG/771A8.c): faithful (counter++ only when the context flag passes, as the && chain); spec sound (guard, targeted, flag9 and scan paths)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 7 + 9 nested / 23 + 9 nested / 180 nested, 0 mismatches
+- `func_800E2F5C` (src/BATTLE/BATTLE.PRG/771A8.c): not ported in this wave (unrouted): the C differs from a copy of itself: it passes a tile word whose y byte it never writes (a partly written local, host stack residue: Oracle.md, known hazards); needs the local zeroed under ROOD_PC before it can be specified
+- `func_800E3600` (src/BATTLE/BATTLE.PRG/771A8.c): faithful (the movement-test and D_800F1760 callback tables called through typed function pointers, the tile bytes edited as the C); spec sound (every arm reached: path, nearest open, both sides blocked, diagonal)
+  - corpus: call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested 39 / 117 / 180, 0 mismatches
 - `func_800E5568` (src/BATTLE/BATTLE.PRG/7CD68.c): sound as drafted (rcos/rsin are pure; every shape, sign and range byte edge)
   - corpus: call mode (shadow), enemy_cast_wait / action_name_window / enemy_kill: never called (a setup-time function, before the recipes' mark)
 - `func_800E5600` (src/BATTLE/BATTLE.PRG/7CD68.c) -> `action_radius.actionRadius`: sound as drafted; renamed actionRadius

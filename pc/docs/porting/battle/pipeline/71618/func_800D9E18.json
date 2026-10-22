@@ -1,0 +1,454 @@
+{
+ "function": "func_800D9E18",
+ "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec finished by the reviewer (vs_gte_rsqrt stubbed as the integer square root so the clamp's 0x64000 edge and the case-2 range test's equal sides happen; Haiku's waiver of the 4-bit id == 16 test holds)",
+ "plan": {
+  "name": "func_800D9E18",
+  "unit": "src/BATTLE/BATTLE.PRG/71618.c",
+  "stem": "71618",
+  "address": "0x800d9e18",
+  "difficulty": "L",
+  "zig_name": "func_800D9E18",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D9E18",
+  "spec_file": "func_800D9E18.zig",
+  "subsystem": "battle_71618_port",
+  "signature": "pub fn func_800D9E18(state: ?*v.candidateMovementState, entry: ?*v.actionCandidateEntry) callconv(.c) c_int",
+  "params": [
+   [
+    "state",
+    "?*v.candidateMovementState"
+   ],
+   [
+    "entry",
+    "?*v.actionCandidateEntry"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "candidateMovementState"
+  ],
+  "globals": [
+   "D_800F5878"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 20701,
+     "completion_tokens": 41319,
+     "reasoning_tokens": 37345,
+     "cost": 0.0227296,
+     "seconds": 171.7,
+     "sample": 1,
+     "conversation": "7efbe866c0fb48864ddb8208f051be3ae1ceb285570775a6601e0726e3205386"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800D9E18: branches 36/37 (97.3%), conditions not measured (GCC < 14: branch coverage only), lines 69/69\n  UNCOVERED +10 b1: branch never taken: `if (id == 16 || !((candidateMovementState*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F80037C) + 4 * (id)))))`\n  FLAG +10 sign: every value above 0 had the sign bit set (a port testing the sign, `< 0`, for this test would pass): `if (id == 16 || !((candidateMovementState*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F80037C) + 4 * (id)))))`\n  FLAG +31 eq: boundary equality never occurred (32-bit compare, b 409600..409600: both sides seen; a port's `<` for `<=` could pass): `if (distance < minimum)`\n  FLAG +58 eq: boundary equality never occurred (32-bit compare, b -2145630075..2145651540: both sides seen; a port's `<` for `<=` could pass): `(int)distance < vs_gte_rsqrt(entry->distanceSquared) - entry->range;`\ncoverage func_800D9E18: FAILED (threshold 100%: 1 uncovered, 3 value flag(s) not waived)\nWhat to add:\n- `if (id == 16 || !((candidateMovementState*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F80037C) + 4 * (id)))))` (+10): one way out of this test (+10 b1) was never taken; add inputs that take it.\n- `if (id == 16 || !((candidateMovementState*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F80037C) + 4 * (id)))))` (+10): this compares a value with 0. Every input where the value was above 0 also had its sign bit set (negative as a signed 32-bit number), so a port that tests the sign instead (`< 0`, or a signed read where the C reads unsigned) would pass your spec. Add inputs where the value is above 0 AND positive (e.g. 1, 256, 2147483647).\n- `if (distance < minimum)` (+31): the two sides of this ordered compare were equal 0 time(s) in 3571. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `(int)distance < vs_gte_rsqrt(entry->distanceSquared) - entry->range;` (+58): the two sides of this ordered compare were equal 0 time(s) in 1447. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800D9E18.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "count-zero": "848",
+   "no-slot": "7718",
+   "mode1-own": "5161",
+   "mode1": "3371",
+   "mode2": "8520",
+   "mode4": "4513",
+   "mode7": "4515",
+   "other-mode": "5354"
+  },
+  "mutations": [
+   {
+    "name": "F1: a negative count is treated as empty",
+    "caught": true
+   },
+   {
+    "name": "F2: wrong minimum clamp constant",
+    "caught": true
+   },
+   {
+    "name": "F3: distances[id] compared with <= (equal case)",
+    "caught": true
+   },
+   {
+    "name": "F4: func_800D836C call dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: wrong field passed to func_800DB5B8 (next, not destination)",
+    "caught": true
+   },
+   {
+    "name": "F6: the target-found test is < 0xFFFF (equal case)",
+    "caught": true
+   },
+   {
+    "name": "F7: wrong constant for the mode 7 move distance",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 37,
+   "branches_hit": 36,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 69,
+   "lines_hit": 69,
+   "uncovered": [
+    {
+     "id": "+10 b1",
+     "line": 10,
+     "text": "if (id == 16 || !((candidateMovementState*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F80037C) + 4 * (id)))))",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if (!state->count)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 848, < 18931, > 20221 (signed); < 0, > 39152 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 10,
+     "text": "if (id == 16 || !((candidateMovementState*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F80037C) + 4 * (id)))))",
+     "size": 4,
+     "count": 39152,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 39152, > 0 (signed); < 39152, > 0 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..15"
+    },
+    {
+     "line": 10,
+     "text": "if (id == 16 || !((candidateMovementState*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((long unsigned int)(0x1F80037C) + 4 * (id)))))",
+     "size": 4,
+     "count": 39152,
+     "kind": "against a constant",
+     "outcomes": "== 7718, < 15760, > 15674 (signed); < 0, > 31434 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147318687..2147470663"
+    },
+    {
+     "line": 12,
+     "text": "switch (state->mode) {",
+     "size": 4,
+     "count": 31434,
+     "kind": "switch",
+     "outcomes": "== 26080, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..255"
+    },
+    {
+     "line": 16,
+     "text": "if (!(state->flags & 8))",
+     "size": 4,
+     "count": 13543,
+     "kind": "against a constant",
+     "outcomes": "== 7076, < 0, > 6467 (signed); < 0, > 6467 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..8"
+    },
+    {
+     "line": 19,
+     "text": "if ((state->targets[id].bytes[0] >> 6) == 2) {",
+     "size": 1,
+     "count": 13543,
+     "kind": "against a constant",
+     "outcomes": "== 6376, < 4784, > 2383 (signed); < 4784, > 2383 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 24,
+     "text": "if (func_800DB8AC(state, entry)) {",
+     "size": 4,
+     "count": 7167,
+     "kind": "against a constant",
+     "outcomes": "== 3628, < 0, > 3539 (signed); < 0, > 3539 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 31,
+     "text": "if (distance < minimum)",
+     "size": 4,
+     "count": 3628,
+     "kind": "a == b / a < b",
+     "outcomes": "== 385, < 1317, > 1926 (signed); < 409, > 2834 (unsigned)",
+     "operand": "b 409600..409600",
+     "a": "-2145903132..2147395600"
+    },
+    {
+     "line": 38,
+     "text": "if (active) {",
+     "size": 4,
+     "count": 13543,
+     "kind": "against a constant",
+     "outcomes": "== 3628, < 0, > 9915 (signed); < 0, > 9915 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 40,
+     "text": "if (state->distances[id] < limit && (state->targets[entry->targetId].raw & 1))",
+     "size": 4,
+     "count": 9915,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4007, < 2969, > 2939 (signed); < 4429, > 1479 (unsigned)",
+     "operand": "b -2146063122..2147158048",
+     "a": "-2145717696..2147395600"
+    },
+    {
+     "line": 40,
+     "text": "if (state->distances[id] < limit && (state->targets[entry->targetId].raw & 1))",
+     "size": 4,
+     "count": 1479,
+     "kind": "against a constant",
+     "outcomes": "== 754, < 0, > 725 (signed); < 0, > 725 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 44,
+     "text": "if (func_800DB370((void*)state, id, distance, flag))",
+     "size": 4,
+     "count": 16940,
+     "kind": "against a constant",
+     "outcomes": "== 8516, < 0, > 8424 (signed); < 0, > 8424 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 46,
+     "text": "return func_800DB74C((void*)state, id) != 0;",
+     "size": 4,
+     "count": 8516,
+     "kind": "against a constant",
+     "outcomes": "== 4302, < 0, > 4214 (signed); < 0, > 4214 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 48,
+     "text": "if (!func_800DBCB4((void*)state, (void*)entry))",
+     "size": 4,
+     "count": 8520,
+     "kind": "against a constant",
+     "outcomes": "== 4311, < 0, > 4209 (signed); < 0, > 4209 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 50,
+     "text": "if (entry->flag1) {",
+     "size": 1,
+     "count": 4209,
+     "kind": "against a constant",
+     "outcomes": "== 1404, < 0, > 2805 (signed); < 0, > 2805 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2"
+    },
+    {
+     "line": 58,
+     "text": "(int)distance < vs_gte_rsqrt(entry->distanceSquared) - entry->range;",
+     "size": 4,
+     "count": 2805,
+     "kind": "a == b / a < b",
+     "outcomes": "== 869, < 1236, > 700 (signed); < 914, > 1022 (unsigned)",
+     "operand": "b 476..65527",
+     "a": "-65001..65535"
+    },
+    {
+     "line": 59,
+     "text": "if (distance)",
+     "size": 4,
+     "count": 2805,
+     "kind": "against a constant",
+     "outcomes": "== 2105, < 0, > 700 (signed); < 0, > 700 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 65,
+     "text": "if (func_800E4660(",
+     "size": 4,
+     "count": 3509,
+     "kind": "against a constant",
+     "outcomes": "== 417, < 1772, > 1320 (signed); < 876, > 2216 (unsigned)",
+     "operand": "constant 65535",
+     "a": "-2144902363..2146974157"
+    },
+    {
+     "line": 81,
+     "text": "if ((state->targets[id].bytes[0] >> 6) == 3) {",
+     "size": 1,
+     "count": 4515,
+     "kind": "against a constant",
+     "outcomes": "== 3397, < 1118, > 0 (signed); < 1118, > 0 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..3"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+10 b1",
+    "reason": "id == 16 needs targetId == 16, but targetId is a 4-bit bitfield (0..15): the C's id == 16 test cannot be made true from the entry."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 44005,
+     "completion_tokens": 25335,
+     "reasoning_tokens": 23089,
+     "cost": 0.017068,
+     "seconds": 103.6,
+     "sample": 1,
+     "conversation": "159e21a69c9b1f4167986d816722d67c6f60ecfe84793a7e478958139edd17bb"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800D9E18.zig:31:9: error: local variable is never mutated\n    var label: Label = switch (st.mode) {\n        ^~~~~\ngame/battle/func_800D9E18.zig:31:9: note: consider using 'const'\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 46425,
+     "completion_tokens": 3736,
+     "reasoning_tokens": 1490,
+     "cost": 0.0065105,
+     "seconds": 16.5,
+     "sample": 1,
+     "conversation": "ba3f0e1e7c20c4bfde91754d3053d6d7a3837c59ca9fa36a3fe358c9a30461fd"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800D9E18.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800D9E18.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 85.8800763569925,
+ "wall_seconds": 206.15438869100035,
+ "totals": {
+  "cost": 0.04631,
+  "prompt_tokens": 111131,
+  "completion_tokens": 70390,
+  "model_seconds": 291.8,
+  "check_seconds": 85.9,
+  "calls": 3,
+  "wall_seconds": 206.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [
+   "reviewer's round-2 reply: vs_gte_rsqrt stubbed as the integer square root (the default stub's random roots left the clamp's taken branch and both equality edges unreached, so the F2 clamp-constant mutation slipped); lane 2's distanceSquared 640^2 (limit^2 exactly 0x64000)"
+  ],
+  "mutations_added": [],
+  "port_fixes": [
+   "reviewer, after the wave: no writable data for the engine library (a labelled-switch jump table or module-level function-pointer constants rewritten)"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (72 / 198 / none), 0 mismatches; owning it exposed func_800E1388's partly written dest (fixed under ROOD_PC)"
+ }
+}

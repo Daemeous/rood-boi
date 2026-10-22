@@ -92,9 +92,13 @@ if(ROOD_ZIG_MISSING EQUAL 0)
     # Each Zig port against its original C body on random and edge inputs, with the mutation
     # self-checks (pc/tools/zig_diff.py; reads the 64-bit build, skipped without one).
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
-        add_test(NAME zig_diff COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/zig_diff.py
-            --self-check --coverage --build ${CMAKE_CURRENT_BINARY_DIR}/boot64 --work ${CMAKE_CURRENT_BINARY_DIR}/zig-diff)
-        set_tests_properties(zig_diff PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 900)
+        # Six shards (the specs grew past one test's timeout with the battle port's waves).
+        foreach(shard RANGE 5)
+            add_test(NAME zig_diff_${shard} COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/zig_diff.py
+                --self-check --coverage --shard ${shard}/6 --build ${CMAKE_CURRENT_BINARY_DIR}/boot64
+                --work ${CMAKE_CURRENT_BINARY_DIR}/zig-diff-${shard})
+            set_tests_properties(zig_diff_${shard} PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 1800)
+        endforeach()
         # The coverage lane flags what weakened specs miss (uncovered branches, boundary equality, sign-only tests).
         add_test(NAME zig_diff_coverage COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/zig_diff_coverage_test.py
             ${CMAKE_CURRENT_BINARY_DIR}/boot64)

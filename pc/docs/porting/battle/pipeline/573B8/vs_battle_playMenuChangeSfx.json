@@ -1,0 +1,194 @@
+{
+ "function": "vs_battle_playMenuChangeSfx",
+ "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (a forwarder: both constants, the call count)",
+ "plan": {
+  "name": "vs_battle_playMenuChangeSfx",
+  "unit": "src/BATTLE/BATTLE.PRG/573B8.c",
+  "stem": "573B8",
+  "address": "0x800c02f8",
+  "difficulty": "S",
+  "zig_name": "playMenuChangeSfx",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "play_menu_change_sfx",
+  "spec_file": "playMenuChangeSfx.zig",
+  "subsystem": "battle_573B8_port",
+  "signature": "pub fn playMenuChangeSfx() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 10986,
+     "completion_tokens": 1928,
+     "reasoning_tokens": 1243,
+     "cost": 0.0020626,
+     "seconds": 8.1,
+     "sample": 1,
+     "conversation": "1d6997fb04f001cf5d1bf27dc30b4ff8abec32f68e98551a23a1580560ec01a9"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: no input classes declared (`classes` and `classify`)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11722,
+     "completion_tokens": 1173,
+     "reasoning_tokens": 419,
+     "cost": 0.0017587,
+     "seconds": 4.9,
+     "sample": 1,
+     "conversation": "e8e727bad0bcf583f4f6fd169a5f39ff1efe258d2b2f975a4fd5201bda2e08c1"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "always": "20000"
+  },
+  "mutations": [
+   {
+    "name": "M1: wrong sound id (0x7F for 0x7E)",
+    "caught": true
+   },
+   {
+    "name": "M2: wrong second argument (5 for 4)",
+    "caught": true
+   },
+   {
+    "name": "M3: arguments swapped",
+    "caught": true
+   },
+   {
+    "name": "M4: call dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 1,
+   "lines_hit": 1,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34349,
+     "completion_tokens": 547,
+     "reasoning_tokens": 368,
+     "cost": 0.0037084,
+     "seconds": 3.2,
+     "sample": 1,
+     "conversation": "e434edb65d6e421f57fc37e84bf3a90f7793a74d039bc006779724082b4c7c41"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/playMenuChangeSfx.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/play_menu_change_sfx.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 22.750566834001802,
+ "wall_seconds": 39.07414027499908,
+ "totals": {
+  "cost": 0.00753,
+  "prompt_tokens": 57057,
+  "completion_tokens": 3648,
+  "model_seconds": 16.2,
+  "check_seconds": 22.8,
+  "calls": 3,
+  "wall_seconds": 39.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

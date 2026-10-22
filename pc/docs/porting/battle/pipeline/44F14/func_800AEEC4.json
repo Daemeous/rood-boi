@@ -1,0 +1,246 @@
+{
+ "function": "func_800AEEC4",
+ "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (duration at, below and above half the tick speed)",
+ "plan": {
+  "name": "func_800AEEC4",
+  "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+  "stem": "44F14",
+  "address": "0x800aeec4",
+  "difficulty": "S",
+  "zig_name": "func_800AEEC4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AEEC4",
+  "spec_file": "func_800AEEC4.zig",
+  "subsystem": "battle_44F14_port",
+  "signature": "pub fn func_800AEEC4(arg0: ?*v.D_800F4538_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F4538_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "vs_gametime_tickspeed"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16066,
+     "completion_tokens": 14922,
+     "reasoning_tokens": 13009,
+     "cost": 0.0090676,
+     "seconds": 61.3,
+     "sample": 1,
+     "conversation": "401ad91cfef0559cc183c9c3d4416ddbf3c48c5edce21c1252276de94df8c2a7"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "early-return": "7730",
+   "duration-equals-half": "2776",
+   "duration-below-half": "6332",
+   "duration-above-half": "13162"
+  },
+  "mutations": [
+   {
+    "name": "A1: duration compared the wrong way",
+    "caught": true
+   },
+   {
+    "name": "A2: tickspeed read unsigned",
+    "caught": true
+   },
+   {
+    "name": "A3: unsigned division for the y step",
+    "caught": true
+   },
+   {
+    "name": "A4: the second position store dropped",
+    "caught": true
+   },
+   {
+    "name": "A5: mode test uses the wrong constant",
+    "caught": true
+   },
+   {
+    "name": "A6: the second delta reads the wrong field",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 18,
+   "lines_hit": 18,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if ((temp_v1 != 1) || (arg0->unk17E4.unk3 == 0)) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 24118, < 19, > 5863 (signed); < 19, > 5863 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..255"
+    },
+    {
+     "line": 7,
+     "text": "if ((temp_v1 != 1) || (arg0->unk17E4.unk3 == 0)) {",
+     "size": 1,
+     "count": 24118,
+     "kind": "against a constant",
+     "outcomes": "== 1848, < 10095, > 12175 (signed); < 0, > 22270 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 13,
+     "text": "if (arg0->unk17E4.unk3 < var_a2) {",
+     "size": 4,
+     "count": 22270,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2776, < 13162, > 6332 (signed); < 3970, > 15524 (unsigned)",
+     "operand": "b 1..255",
+     "a": "-512..512"
+    },
+    {
+     "line": 19,
+     "text": "if (temp_v1 != 0) {",
+     "size": 4,
+     "count": 22270,
+     "kind": "against a constant",
+     "outcomes": "== 5672, < 8243, > 8355 (signed); < 0, > 16598 (unsigned)",
+     "operand": "constant 0",
+     "a": "-254..254"
+    },
+    {
+     "line": 27,
+     "text": "if (temp_v1 != 0) {",
+     "size": 4,
+     "count": 22270,
+     "kind": "against a constant",
+     "outcomes": "== 5642, < 8238, > 8390 (signed); < 0, > 16628 (unsigned)",
+     "operand": "constant 0",
+     "a": "-255..254"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39460,
+     "completion_tokens": 3518,
+     "reasoning_tokens": 2751,
+     "cost": 0.005705,
+     "seconds": 14.2,
+     "sample": 1,
+     "conversation": "7ea183a78e0ffe19cfe72b1dd1c7b4de0f54ead0a64d01aa41aab4a77e90eeba"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AEEC4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AEEC4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 22.784593191000113,
+ "wall_seconds": 98.3914359769999,
+ "totals": {
+  "cost": 0.01477,
+  "prompt_tokens": 55526,
+  "completion_tokens": 18440,
+  "model_seconds": 75.5,
+  "check_seconds": 22.8,
+  "calls": 2,
+  "wall_seconds": 98.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

@@ -1,0 +1,263 @@
+{
+ "function": "func_800DD604",
+ "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (the slot stub rewrites usable and value the C reads after it)",
+ "plan": {
+  "name": "func_800DD604",
+  "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+  "stem": "74088",
+  "address": "0x800dd604",
+  "difficulty": "M",
+  "zig_name": "func_800DD604",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DD604",
+  "spec_file": "func_800DD604.zig",
+  "subsystem": "battle_74088_port",
+  "signature": "pub fn func_800DD604(state: ?*v.actionChoiceState) callconv(.c) void",
+  "params": [
+   [
+    "state",
+    "?*v.actionChoiceState"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "actionCandidateState",
+   "actionChoice",
+   "actionChoiceFlags",
+   "actionChoiceInfo",
+   "actionChoiceState",
+   "actionSlotConfig",
+   "vs_battle_actor2"
+  ],
+  "globals": [
+   "vs_main_actions"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15794,
+     "completion_tokens": 22868,
+     "reasoning_tokens": 20886,
+     "cost": 0.0130134,
+     "seconds": 101.7,
+     "sample": 1,
+     "conversation": "73018319ef74f438baf68170fc97485443d5e55c017ff96c829f83a1122b9d80"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-allowed-action": "3693",
+   "no-usable-slot": "6568",
+   "candidates": "19739"
+  },
+  "mutations": [
+   {
+    "name": "M1: a tie replaces the best (<= for <)",
+    "caught": true
+   },
+   {
+    "name": "M2: target weight 127, not 128",
+    "caught": true
+   },
+   {
+    "name": "M3: flag3 not cleared (dropped store)",
+    "caught": true
+   },
+   {
+    "name": "M4: no-candidate action is 1, not 0",
+    "caught": true
+   },
+   {
+    "name": "M5: signed zero test on best (sign bit reads as zero)",
+    "caught": true
+   },
+   {
+    "name": "M6: streak score store dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 25,
+   "lines_hit": 25,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 14,
+     "text": "for (row = 0; row < 6; ++row) {",
+     "size": 4,
+     "count": 210000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 150000, > 30000 (signed); < 150000, > 30000 (unsigned)",
+     "operand": "constant 5",
+     "a": "0..6"
+    },
+    {
+     "line": 15,
+     "text": "for (col = 0; col < 4; ++col) {",
+     "size": 4,
+     "count": 900000,
+     "kind": "against a constant",
+     "outcomes": "== 180000, < 540000, > 180000 (signed); < 540000, > 180000 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..4"
+    },
+    {
+     "line": 18,
+     "text": "if (func_800E4DF8((actionCandidateState*)state, row, col) && config->usable",
+     "size": 4,
+     "count": 720000,
+     "kind": "against a constant",
+     "outcomes": "== 328051, < 196335, > 195614 (signed); < 0, > 391949 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147478975..2147479139"
+    },
+    {
+     "line": 18,
+     "text": "if (func_800E4DF8((actionCandidateState*)state, row, col) && config->usable",
+     "size": 1,
+     "count": 391949,
+     "kind": "against a constant",
+     "outcomes": "== 173718, < 0, > 218231 (signed); < 0, > 218231 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..64"
+    },
+    {
+     "line": 19,
+     "text": "&& best < config->value) {",
+     "size": 4,
+     "count": 218231,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4775, < 135864, > 77592 (signed); < 60457, > 152999 (unsigned)",
+     "operand": "b -2147483648..2147483647",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 35,
+     "text": "if (best == 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 6488, < 21649, > 1863 (signed); < 0, > 23512 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39204,
+     "completion_tokens": 8649,
+     "reasoning_tokens": 7784,
+     "cost": 0.0082449,
+     "seconds": 34.9,
+     "sample": 1,
+     "conversation": "fb8d078b1bf71b65cf6967c45cc30c03dc3918ec056d9b38a55cc57e5b1533ed"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DD604.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DD604.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 74.23608341300132,
+ "wall_seconds": 210.92811947600057,
+ "totals": {
+  "cost": 0.02126,
+  "prompt_tokens": 54998,
+  "completion_tokens": 31517,
+  "model_seconds": 136.6,
+  "check_seconds": 74.2,
+  "calls": 2,
+  "wall_seconds": 210.9
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (6 / 12 / 27), 0 mismatches"
+ }
+}

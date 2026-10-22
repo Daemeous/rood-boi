@@ -1,0 +1,208 @@
+{
+ "function": "func_800DEEA4",
+ "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "port tidied: D_800F5878 indexed unchecked as the C (the slice index panicked past 18 entries where the C reads on); spec sound",
+ "plan": {
+  "name": "func_800DEEA4",
+  "unit": "src/BATTLE/BATTLE.PRG/74088.c",
+  "stem": "74088",
+  "address": "0x800deea4",
+  "difficulty": "S",
+  "zig_name": "func_800DEEA4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DEEA4",
+  "spec_file": "func_800DEEA4.zig",
+  "subsystem": "battle_74088_port",
+  "signature": "pub fn func_800DEEA4(arg0: ?*v.func_800DEEA4_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800DEEA4_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_unk0"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12157,
+     "completion_tokens": 9010,
+     "reasoning_tokens": 7394,
+     "cost": 0.0057207,
+     "seconds": 37.9,
+     "sample": 1,
+     "conversation": "699e44451df3a9e1d47c4337bcba3d8ef94fffcf2c7d08d8b2960a6a65dfb339"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null-arg": "3665",
+   "nonzero-unk44": "13090",
+   "zero-unk44-null-entry": "4442",
+   "zero-unk44-entry": "8803"
+  },
+  "mutations": [
+   {
+    "name": "F1: the entry is cleared when unk44 is nonzero",
+    "caught": true
+   },
+   {
+    "name": "F2: wrong constant stored to unk9A",
+    "caught": true
+   },
+   {
+    "name": "F3: the entry is skipped when unk4 is 0",
+    "caught": true
+   },
+   {
+    "name": "F4: the call to func_800DC810 is dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: the null guard on the entry is dropped",
+    "caught": true
+   },
+   {
+    "name": "F6: wrong field tested (unk48[0] for unk44)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [
+    {
+     "line": 3,
+     "text": "if (arg0->unk44 == 0) {",
+     "size": 4,
+     "count": 26335,
+     "kind": "against a constant",
+     "outcomes": "== 13245, < 6616, > 6474 (signed); < 0, > 13090 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35453,
+     "completion_tokens": 1980,
+     "reasoning_tokens": 1637,
+     "cost": 0.0045353,
+     "seconds": 9.3,
+     "sample": 1,
+     "conversation": "6221755b4940e9e1a343b78acc892bebee5898a649076d57dff14022ff923232"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DEEA4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DEEA4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 34.07192768300001,
+ "wall_seconds": 81.42163209900002,
+ "totals": {
+  "cost": 0.01026,
+  "prompt_tokens": 47610,
+  "completion_tokens": 10990,
+  "model_seconds": 47.2,
+  "check_seconds": 34.1,
+  "calls": 2,
+  "wall_seconds": 81.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [
+   "D_800F5878[unk4] read through psx.at (unchecked) instead of a bounds-checked index: an unk4 past 17 panicked where the C reads past the table"
+  ],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

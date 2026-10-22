@@ -1,0 +1,282 @@
+{
+ "function": "func_800AE980",
+ "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.4,
+ "samples": 2,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (both fold edges, aliasing); ported on the wave's retry (two fresh samples)",
+ "plan": {
+  "name": "func_800AE980",
+  "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
+  "stem": "44F14",
+  "address": "0x800ae980",
+  "difficulty": "S",
+  "zig_name": "func_800AE980",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AE980",
+  "spec_file": "func_800AE980.zig",
+  "subsystem": "battle_44F14_port",
+  "signature": "pub fn func_800AE980(dst: ?*v.D_800F4538_unkC54, src: ?*v.D_800F4538_unkC54, count: c_int) callconv(.c) void",
+  "params": [
+   [
+    "dst",
+    "?*v.D_800F4538_unkC54"
+   ],
+   [
+    "src",
+    "?*v.D_800F4538_unkC54"
+   ],
+   [
+    "count",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 12656,
+     "completion_tokens": 13739,
+     "reasoning_tokens": 11781,
+     "cost": 0.0081351,
+     "seconds": 58.4,
+     "sample": 1,
+     "conversation": "573cbe781ef51b2fe4b930ca8db45d9942f410b83aaaf3023867e8ca24aa0afd"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "empty": "5728",
+   "aliased": "4247",
+   "clamp-edge": "26091",
+   "general": "3934"
+  },
+  "mutations": [
+   {
+    "name": "M1: x >= ONE becomes x > ONE (equal difference takes the clamp)",
+    "caught": true
+   },
+   {
+    "name": "M2: the negative clamp at -4096 is one too low",
+    "caught": true
+   },
+   {
+    "name": "M3: the clamp subtracts one ONE instead of two",
+    "caught": true
+   },
+   {
+    "name": "M4: halving by division instead of arithmetic shift (odd negatives)",
+    "caught": true
+   },
+   {
+    "name": "M5: the unk150 vy average is dropped",
+    "caught": true
+   },
+   {
+    "name": "M6: loop bound off by one (i <= count)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 14,
+   "branches_hit": 14,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 27,
+   "lines_hit": 27,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "32-bit: min -3, max 60, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "for (i = 0; i < count; ++i) {",
+     "size": 4,
+     "count": 1164575,
+     "kind": "a == b / a < b",
+     "outcomes": "== 36899, < 1124575, > 3101 (signed); < 1127676, > 0 (unsigned)",
+     "operand": "b -3..60",
+     "a": "0..60"
+    },
+    {
+     "line": 13,
+     "text": "if (x >= 4096) {",
+     "size": 4,
+     "count": 1124575,
+     "kind": "against a constant",
+     "outcomes": "== 28343, < 733549, > 362683 (signed); < 255307, > 840925 (unsigned)",
+     "operand": "constant 4095",
+     "a": "-65535..65535"
+    },
+    {
+     "line": 15,
+     "text": "} else if (x < -4096) {",
+     "size": 4,
+     "count": 761892,
+     "kind": "against a constant",
+     "outcomes": "== 28644, < 335510, > 397738 (signed); < 619160, > 114088 (unsigned)",
+     "operand": "constant -4096",
+     "a": "-65535..4095"
+    },
+    {
+     "line": 22,
+     "text": "if (y >= 4096) {",
+     "size": 4,
+     "count": 1124575,
+     "kind": "against a constant",
+     "outcomes": "== 28489, < 732220, > 363866 (signed); < 254785, > 841301 (unsigned)",
+     "operand": "constant 4095",
+     "a": "-65535..65535"
+    },
+    {
+     "line": 24,
+     "text": "} else if (y < -4096) {",
+     "size": 4,
+     "count": 760709,
+     "kind": "against a constant",
+     "outcomes": "== 29017, < 333838, > 397854 (signed); < 617112, > 114580 (unsigned)",
+     "operand": "constant -4096",
+     "a": "-65535..4095"
+    },
+    {
+     "line": 31,
+     "text": "if (z >= 4096) {",
+     "size": 4,
+     "count": 1124575,
+     "kind": "against a constant",
+     "outcomes": "== 28609, < 733253, > 362713 (signed); < 255637, > 840329 (unsigned)",
+     "operand": "constant 4095",
+     "a": "-65535..65535"
+    },
+    {
+     "line": 33,
+     "text": "} else if (z < -4096) {",
+     "size": 4,
+     "count": 761862,
+     "kind": "against a constant",
+     "outcomes": "== 28733, < 334017, > 399112 (signed); < 618263, > 114866 (unsigned)",
+     "operand": "constant -4096",
+     "a": "-65535..4095"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 36066,
+     "completion_tokens": 4621,
+     "reasoning_tokens": 3488,
+     "cost": 0.0059171,
+     "seconds": 20.0,
+     "sample": 1,
+     "conversation": "24e0e996999c8141b73047fc25e10131f2352e7b14c1e67843f1dc8c4e0cd2cb"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AE980.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AE980.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 28.692047194001134,
+ "wall_seconds": 107.2615433359988,
+ "totals": {
+  "cost": 0.01405,
+  "prompt_tokens": 48722,
+  "completion_tokens": 18360,
+  "model_seconds": 78.4,
+  "check_seconds": 28.7,
+  "calls": 2,
+  "wall_seconds": 107.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested only (39 / 66 / 48), 0 mismatches (run on port-wave1 after the merge)"
+ }
+}

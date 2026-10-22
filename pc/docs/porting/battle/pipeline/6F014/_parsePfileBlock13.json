@@ -1,0 +1,189 @@
+{
+ "function": "_parsePfileBlock13",
+ "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (D_800F569C loaded once: the callee does not reassign it); spec sound",
+ "plan": {
+  "name": "_parsePfileBlock13",
+  "unit": "src/BATTLE/BATTLE.PRG/6F014.c",
+  "stem": "6F014",
+  "address": "0x800d7aec",
+  "difficulty": "S",
+  "zig_name": "parsePfileBlock13",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "parse_pfile_block13",
+  "spec_file": "parsePfileBlock13.zig",
+  "subsystem": "battle_6F014_port",
+  "signature": "pub fn parsePfileBlock13(arg0: ?*anyopaque) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*anyopaque"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F569C_t"
+  ],
+  "globals": [
+   "D_800F569C"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11672,
+     "completion_tokens": 7545,
+     "reasoning_tokens": 6211,
+     "cost": 0.0049397,
+     "seconds": 32.1,
+     "sample": 1,
+     "conversation": "0c2013e67b1a2d56bb8f37603e0dfab3d555048b0436a00b026ca2d27d803054"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null": "7577",
+   "arena": "7361",
+   "high-address": "7544",
+   "other": "7518"
+  },
+  "mutations": [
+   {
+    "name": "P1: the block address keeps its top bit masked",
+    "caught": true
+   },
+   {
+    "name": "P2: the block store goes to the wrong field (unkD0)",
+    "caught": true
+   },
+   {
+    "name": "P3: the callee is dropped",
+    "caught": true
+   },
+   {
+    "name": "P4: the callee's result is masked to non-negative",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 4,
+   "lines_hit": 4,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35060,
+     "completion_tokens": 1601,
+     "reasoning_tokens": 1320,
+     "cost": 0.0043065,
+     "seconds": 7.2,
+     "sample": 1,
+     "conversation": "7dcd1cff4853688395b6cf0e5f3b64a5c927dcf78d4811bdec8057840dd87631"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/parsePfileBlock13.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/parse_pfile_block13.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 22.739319210999383,
+ "wall_seconds": 62.17449827500059,
+ "totals": {
+  "cost": 0.00925,
+  "prompt_tokens": 46732,
+  "completion_tokens": 9146,
+  "model_seconds": 39.3,
+  "check_seconds": 22.7,
+  "calls": 2,
+  "wall_seconds": 62.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-21",
+  "spec_fixes": [],
+  "mutations_added": [],
+  "port_fixes": [],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: 3 nested / 6 nested / -, 0 mismatches"
+ }
+}
