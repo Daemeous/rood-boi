@@ -2753,14 +2753,17 @@ int pc_hw_text_quad(const float* xy, const int* uv, const int* rgb, unsigned cod
 }
 
 /* A battle status word's glyph sprite (ui_text.c pc_text_status: SLOW!,
- * 3 CHAINS): drawn as itself tagged TEXT_TAG_GLYPH, then as its glyph's
+ * 3 CHAINS), or a small-capital word's (pc_ui_text_word_quad: a menu's
+ * WEAPON, UNDEAD): drawn as itself tagged TEXT_TAG_GLYPH, then as its glyph's
  * image where the word is set, tagged for both layouts (the word is set the
  * same either way); 1 when it was one. */
 static int status_rect(int x, int y, int w, int h, int u, int v, unsigned rgb, unsigned code, unsigned tpage,
     unsigned clut, unsigned window, const int* clip, int mask_set, int mask_check)
 {
     pc_ui_text_quad q;
-    if (!pc_ui_text_status_quad(native_vram, &pc_gpu_command ? pc_gpu_command : NULL, u, v, w, h, tpage, clut, &q))
+    const void* command = &pc_gpu_command ? pc_gpu_command : NULL;
+    if (!pc_ui_text_status_quad(native_vram, command, u, v, w, h, tpage, clut, &q)
+        && !pc_ui_text_word_quad(native_vram, command, u, v, w, h, tpage, clut, &q))
         return 0;
     triangle_tag = TEXT_TAG_GLYPH;
     rect_triangles(x, y, w, h, u, v, rgb, code, tpage, clut, window, clip, mask_set, mask_check);

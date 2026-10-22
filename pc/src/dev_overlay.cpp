@@ -36,6 +36,7 @@
 #include "particles_internal.h"
 #include "editor_selection.h"
 #include "camera_stick.h"
+#include <string>
 #include "fast_travel.h"
 #include "ui/ui_shell.h"
 #include "ui/map_frame.h"
@@ -976,6 +977,28 @@ static void camera_stick_panel()
     bool keys = pc_camera_stick_keys != 0;
     if (ImGui::Checkbox("Keyboard J/L/I/K/O", &keys))
         pc_camera_stick_keys = keys;
+    if (ImGui::TreeNode("In menus")) {
+        /* camera_stick_menus: a checkbox per context (camera_stick.h). */
+        static const char* const contexts[] = { "command", "magic", "arts", "abilities", "loot", "chest",
+            "shortcut", "message", "items", "status", "equip", "map", "data", "options", "score", "manual", "setup",
+            "storage" };
+        std::string list;
+        bool changed = false;
+        for (const char* c : contexts) {
+            bool listed = pc_camera_stick_menu_listed(c) != 0;
+            changed |= ImGui::Checkbox(c, &listed);
+            if (listed)
+                list += (list.empty() ? "" : " ") + std::string(c);
+        }
+        if (changed)
+            pc_camera_stick_menus_set(list.c_str());
+        if (ImGui::Button("Default menus"))
+            pc_camera_stick_menus_set(pc_camera_stick_menus_default);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("The menus that leave the scene in view; not the full-screen ones (items, status,\n"
+                              "map, data, options, score, manual, setup, storage)");
+        ImGui::TreePop();
+    }
     if (ImGui::Button("Reset camera"))
         pc_camera_stick_reset();
     ImGui::Unindent();

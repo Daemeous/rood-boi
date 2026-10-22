@@ -39,10 +39,13 @@
  *                                settings (enabled, speed, deadzone, curve,
  *                                invert_x, invert_y, zoom, zoom_speed,
  *                                zoom_min, zoom_max, zoom_pitch, collision,
- *                                r3_reset, idle_reset, keys), action "reset";
- *                                replies the settings and its state (with
- *                                the first-person look: first_person,
- *                                fp_looks, fp_step)
+ *                                r3_reset, idle_reset, keys), menus (the
+ *                                camera_stick_menus list, "none", "default"),
+ *                                action "reset"; replies the settings and its
+ *                                state (with the first-person look:
+ *                                first_person, fp_looks, fp_step; the menus:
+ *                                menu (the context now), menu_allowed,
+ *                                menu_ticks, menu_places)
  *   camera_options {map_invert, map_controls, fp_invert_y}  settings
  *                                qol_map_invert (the map screen's panning),
  *                                qol_map_controls (its right stick and
@@ -1419,6 +1422,15 @@ static void handle_method(int fd, const char* request)
                     *keys[i].floats = (float)real;
             }
         }
+        {
+            /* menus: the camera_stick_menus list ("none": nowhere; "default"). */
+            char list[256];
+            if (params && string_value(member(params, "menus"), list, sizeof list)
+                && pc_camera_stick_menus_set(strcmp(list, "default") ? list : pc_camera_stick_menus_default)) {
+                fail(fd, id, -32602, "camera_stick menus: unknown menu name (camera_stick.h)");
+                return;
+            }
+        }
         char action[32] = "";
         if (params)
             string_value(member(params, "action"), action, sizeof action);
@@ -2344,7 +2356,8 @@ static void handle_method(int fd, const char* request)
          * glyph fields made, regions and labels drawn, the status words laid
          * out; {style, font, stretch, slant, embolden, aspect, small_caps,
          * outline, size, stroke, tracking} changes a style and {word_space,
-         * edge_margin, popup_scale, descender_lift} a tunable, as the settings keys do. */
+         * edge_margin, popup_scale, descender_lift, info_words, info_slack,
+         * info_tracking} a tunable, as the settings keys do. */
         char style[32], text[300];
         if (params && string_value(member(params, "style"), style, sizeof style)) {
             static const char* const keys[] = { "font", "stretch", "slant", "embolden", "aspect", "small_caps",
@@ -2372,7 +2385,8 @@ static void handle_method(int fd, const char* request)
             }
         }
         {
-            static const char* const tunables[] = { "word_space", "edge_margin", "popup_scale", "descender_lift" };
+            static const char* const tunables[] = { "word_space", "edge_margin", "popup_scale", "descender_lift",
+                "info_words", "info_slack", "info_tracking" };
             for (int k = 0; k < (int)(sizeof tunables / sizeof tunables[0]); k++) {
                 double value;
                 char key[64];

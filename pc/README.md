@@ -292,6 +292,19 @@ this camera's dead zone, curve and speed; `camera_stick` and its
 inversions are about the follow camera and do not apply. There R3 is the
 game's again: it leaves the view, as Start and Cross do.
 
+In menus that leave the scene in view the stick turns and zooms the camera
+too (`camera_stick_menus`): the Triangle menu's top level, Magic, Break
+Arts and Battle Abilities, the loot after a fight and a chest's, the L2
+shortcut cross and a message at something examined; with the modern menus
+the shell's Abilities, Magick and Lea Monde tabs. Not the full-screen ones
+(Items, Status, Equip, Map, Data, Options, Score, the Quick Manual, an
+equipment setup, the storage container): the map and the modern Ashley and
+Equipment screens use the stick themselves. The game's menus never see the
+stick (the PC pad is a digital one); only the camera's own yaw and zoom
+change, placed again by a `ROOD_PC` hook in `vs_battle_exec` (before the
+frame's camera is derived), and closing the menu leaves them where the
+stick put them. An R3 reset in a menu waits for the field.
+
 | Setting | Default | |
 | --- | --- | --- |
 | `camera_stick` | 1 | the stick turns and zooms |
@@ -305,6 +318,7 @@ game's again: it leaves the view, as Start and Cross do.
 | `camera_stick_r3_reset` | 1 | R3 resets the camera (off: R3 is the game's) |
 | `camera_stick_idle_reset` | 0 | seconds without stick input before the camera resets itself (0 off) |
 | `camera_stick_keys` | 1 | the keyboard keys above |
+| `camera_stick_menus` | `command magic arts abilities loot chest shortcut message` | the menus where the stick turns the camera, space separated (`none`: none); also `items`, `status`, `equip`, `map`, `data`, `options`, `score`, `manual`, `setup`, `storage`, `menu11`, `menu15`; saved only when changed |
 | `qol_map_invert` | 0 | the map screen pans the other way on both axes (D-pad, the left stick the game reads as the D-pad, arrow keys) |
 | `qol_map_controls` | 0 | the map screen's right stick and triggers: 0 Modern (the right stick turns and tilts, L2 / R2 alone zoom out / in), 1 Original (the PlayStation's: L2 / R2 with the right stick, the right stick pans) |
 | `qol_fp_invert_y` | 0 | in the first-person view up looks down and down looks up (D-pad and right stick; left and right unchanged) |
@@ -1375,6 +1389,7 @@ pixel's corner as the PS1 does, not one past the image (`pc_hw_set_flipped_uv`).
 | `ui_text_bubble_align` | `centre` | with `ui_text_layout line`, talk bubbles only (menus and the information box stay left): `centre` centres each line within the original line's extent, `left` starts it where the game does |
 | `ui_text_<style>_<field>` | the chosen fonts | per style (`dialogue`, `menu`, `info`, `digits`, `status`, `labels`; HUD typography below): `font` a TrueType file (relative to the repository root), `stretch` horizontal scale, `slant` added shear, `embolden` distance-field offset in em (bolder > 0), `aspect` for `digits` the least share of the font's own width/height a digit size may be condensed to (0.78; 0: any), `small_caps`, `outline` (the original is outlined), `size` (`status`, `labels`: cap height x the original's), `stroke` (outlined styles: the outline's width in PS1 pixels, 1), `tracking` (`status`, `labels`: letter spacing in em); saved only when they differ from the defaults |
 | `ui_text_word_space`, `ui_text_edge_margin`, `ui_text_popup_scale` | 1.5, 0.15, 1 | line layout's space (x the font's), the PS1 pixels an outline's anti-aliased edge keeps from the box the game draws it in, the battle number popups' size |
+| `ui_text_info_words`, `ui_text_info_slack`, `ui_text_info_tracking` | 1, 0.5, 0.75 | with `ui_text font`: the menus' small-capital labels (WEAPON, UNDEAD, ATTACK/STR) set as words with the font's own spacing (0: letter by letter in the game's boxes), the PS1 pixels such a word may run past the game's before it is condensed, the most PS1 pixels a gap is opened towards the game's width (below) |
 | `ui_text_descender_lift` | 1 | 0..1: the HUD digits (old-style figures: 3 4 5 7 9 descend) rise together by this much of the room their deepest descender lacks below the baseline, into the room above them, so the figures keep their shape; what is still lacking is squeezed (0: squeezed only, a 5's bowl flattened) |
 | `ui_lines` | `joined` | 2D lines (GP0 0x40-0x5F: the map, the minimap, the targeting sphere, talk bubble outlines) at the internal resolution. `joined`: one PS1 pixel thick at any scale, joins closed, no light dots along outlines (below). `legacy`: the earlier one-pixel quads, for comparison |
 | `ui_outline_boost` | 0 | 2D lines (and vector bubble outlines) 0-3 output pixels thicker: a bolder inked look |
@@ -1479,6 +1494,23 @@ Colours, brightness, places, timing and the slide in and out stay the
 game's. RPC `ui_text`
 reports `status` (each word laid out lately: its text, the first glyph's
 place, the laid-out and original ink extents) and `status_glyphs`.
+
+**Small-capital words.** The same printer sets the menus' small-capital
+labels and headings (the equip screen's WEAPON ... ACCESSORY, the weapon
+list's HUMAN ... EVIL, RANGE, ATTACK/STR, ORG/EQP) at the original font's
+own widths, so the font's letters, each centred in its own narrow box,
+spaced unevenly (UN DEAD, DR AGON, ACCESSO RY). With `ui_text font` and
+`ui_text_info_words 1` (the default, either `ui_text_layout`) each call's
+string is set as one word in the `info` style, as the status words are:
+found from any of its sprites through its packets in guest RAM (a texture
+page packet, then one linked 5-word sprite per character: no hook), set
+with the font's advances and kerning, condensed where it would run more
+than `ui_text_info_slack` (0.5 PS1 pixels) past the game's ink, opened by
+up to `ui_text_info_tracking` (0.75) a gap where it is narrower, and
+centred on the game's ink, so the word keeps the game's place and width.
+Strings another printer draws stay glyph by glyph. RPC `ui_text {lines}`
+adds `words` (each letter's laid-out ink across, the font's own and glyph
+by glyph's) and `ui_text` reports `word_glyphs`.
 
 **Nothing cut at a box's edges.** The 2D path replaces only the texels of
 the box the game draws (a label's word, a glyph's cell, a popup's quad), so

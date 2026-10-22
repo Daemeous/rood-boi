@@ -297,6 +297,10 @@ def suites(args, mode="egl"):
             Suite("camera_stick_smoke", [PY, str(TESTS / "camera_stick_smoke.py"), "--card", str(args.save)], 300,
                   note="right-stick camera: continuous yaw, facing masks, L1/R1, zoom limits, walls, R3, "
                        "first-person/targeting, RT camera (Vulkan), opening's scripted camera unchanged"),
+            Suite("camera_stick_menus_smoke", [PY, str(TESTS / "camera_stick_menus_smoke.py"), "--card",
+                                               str(args.save)], 300,
+                  note="right-stick camera in menus over the scene (command, chest; classic and modern): turns, "
+                       "game state as without; full-screen menus and camera_stick_menus none: nothing"),
             Suite("camera_options_smoke", [PY, str(TESTS / "camera_options_smoke.py"), "--card", str(args.save)],
                   300, note="map panning and first-person up/down inversions off and on; the right stick looks "
                             "around in first person; R3 leaves it"),
@@ -691,7 +695,7 @@ def stale_binaries(selected):
 # a suite that does not.
 CHECKPOINT_SUITES = {
     "probe_gi_smoke", "animation_smoke", "editor_cutaway_smoke", "editor_undo_smoke", "editor_selection_smoke", "editor_schema_smoke", "editor_transform_smoke", "barn_doors_smoke", "editor_handles_smoke", "facing_cutaway_smoke",
-    "camera_stick_smoke", "editor_snap_smoke", "editor_roomload_smoke", "room_browser_smoke", "route_continuation_smoke", "ending_smoke",
+    "camera_stick_smoke", "camera_stick_menus_smoke", "editor_snap_smoke", "editor_roomload_smoke", "room_browser_smoke", "route_continuation_smoke", "ending_smoke",
     "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
     "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "narrowed_2d_smoke", "weapon_slots_smoke", "ui_menus_smoke",
     "ui_lines_smoke", "ui_text_smoke", "button_prompts_smoke", "button_roles_symbols_smoke", "coplanar_order_smoke", "atmosphere_smoke",

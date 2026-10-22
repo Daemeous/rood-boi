@@ -2560,6 +2560,24 @@ extern "C" int pc_ui_shell_step_tab(int dir) { return step_tab(s.tab, dir < 0 ? 
 
 /* For ui_draw.cpp: read-only views of the state. */
 extern "C" int pc_ui_shell_tab(void) { return s.tab; }
+/* The right-stick camera's menu context for the tab shown (camera_stick.c
+ * camera_stick_menus; the classic menus' names), NULL while the shell is
+ * not up: its full-screen screens as the original's (Ashley: status,
+ * Equipment: equip, Items, System: options), the lists over the scene as
+ * the original's lists (Abilities, Magick, the Le\xc3\xa1 Monde rows: command). */
+extern "C" const char* pc_ui_shell_camera_context(void)
+{
+    if (!s.visible)
+        return nullptr;
+    static const struct {
+        const char *tab, *context;
+    } contexts[] = { { "ashley", "status" }, { "equipment", "equip" }, { "items", "items" },
+        { "abilities", "abilities" }, { "magick", "magic" }, { "lea_monde", "command" }, { "system", "options" } };
+    for (const auto& c : contexts)
+        if (!strcmp(TABS[s.tab].id, c.tab))
+            return c.context;
+    return "options"; /* (a tab added later: full screen until listed here) */
+}
 extern "C" int pc_ui_shell_tab_count(void) { return TAB_COUNT; }
 extern "C" const char* pc_ui_shell_tab_title(int tab) { return TABS[tab].title; }
 /* Row i of the current tab (shown rows only): label, help, value (or null),

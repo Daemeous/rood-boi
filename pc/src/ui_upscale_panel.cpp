@@ -101,6 +101,23 @@ void hud_typography()
         set("ui_text_popup_scale", popup);
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("ui_text_popup_scale: battle number popups (damage, heal, a stat change) x this");
+    bool words = pc_ui_text_info_words >= 0.5f;
+    if (ImGui::Checkbox("Small-capital words", &words))
+        set("ui_text_info_words", words ? 1.0f : 0.0f);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("ui_text_info_words: menu labels and headings in small capitals (WEAPON, UNDEAD,\n"
+                          "ATTACK/STR) set as words with the font's own spacing, not letter by letter");
+    float slack = pc_ui_text_info_slack, track = pc_ui_text_info_tracking;
+    if (ImGui::SliderFloat("Word slack", &slack, 0.0f, 4.0f, "%.2f px"))
+        set("ui_text_info_slack", slack);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("ui_text_info_slack: PS1 pixels a small-capital word may run past the game's\n"
+                          "before it is condensed");
+    if (ImGui::SliderFloat("Word tracking", &track, 0.0f, 3.0f, "%.2f px"))
+        set("ui_text_info_tracking", track);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("ui_text_info_tracking: most PS1 pixels added between two letters of a narrower\n"
+                          "small-capital word towards the game's width (the rest is centred)");
     ImGui::TreePop();
 }
 } // namespace

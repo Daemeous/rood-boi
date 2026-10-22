@@ -7973,6 +7973,23 @@ void vs_battle_exec(void)
                         }
                         break;
                     }
+#ifdef ROOD_PC
+                    {
+                        /* Right-stick camera in the menus that leave the scene
+                         * in view (pc/src/camera_stick.c, camera_stick_menus):
+                         * the follow camera's own yaw and zoom, placed again
+                         * when the stick moved them; nothing else. */
+                        extern int pc_camera_stick_menu(void*, int, int, int)
+                            __attribute__((weak));
+                        if (pc_camera_stick_menu
+                            && pc_camera_stick_menu(&vs_battle_cameraCurrentSpherical,
+                                D_800F196C, _cameraMode,
+                                vs_battle_menuState.currentMenu)) {
+                            _setCameraPositionFromAngles(
+                                &vs_battle_cameraCurrentSpherical.values);
+                        }
+                    }
+#endif
 
                     func_80069D78();
                     func_8007ACB0();

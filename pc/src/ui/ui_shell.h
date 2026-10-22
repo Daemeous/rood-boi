@@ -39,6 +39,9 @@ int pc_ui_shell_tick(const pc_ui_input* input);
 void pc_ui_shell_close(void);
 /* The shell is up (opened and not closed). */
 int pc_ui_shell_visible(void);
+/* The right-stick camera's menu context for the tab shown (camera_stick.h
+ * names), NULL while the shell is not up. */
+const char* pc_ui_shell_camera_context(void);
 /* The focused screen takes Circle, Triangle and Square as the buttons to put
  * an ability on (Abilities' learned list, as the original's own screen):
  * button_roles.c leaves Circle and Cross as they are there. */

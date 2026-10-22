@@ -42,6 +42,14 @@ ui_text font, so nothing moves between the two images. Checks:
   other stay close (at most WORD_GAP) and each space it left stays a space
   (at least WORD_GAP), with the line checks above (descenders whole both
   ways: glyph by glyph no longer cuts them at the cell);
+- small-capital words (ui_text_info_words: the equip screen's WEAPON ...
+  ACCESSORY, its weapon list's HUMAN ... EVIL, ATTACK/STR, ORG/EQP; RPC
+  ui_text lines' words): in both layouts each word's letter gaps are the
+  font's own (its advances and kerning, as condensed) plus at most
+  ui_text_info_tracking, evenly (INFO_GAP_TOL), the word stays within the
+  game's ink extent (ui_text_info_slack and INFO_EDGE_TOL), and the letters
+  set glyph by glyph in their own boxes would not be (their gaps stray from
+  the font's by more than a pixel somewhere: what this replaces);
 - text at the window's resolution (ui_text_overlay auto; the title's memory
   card screen in a 1920 x 1440 window, six times the PS1's): at internal
   resolution 4 text is held back and presented at the window's resolution,
@@ -403,6 +411,7 @@ def check_words(lines, label):
 SCREENS = [
     ("status", [("triangle", 90), ("pick", "STATUS", 120)]),
     ("equip", [("triangle", 90), ("pick", "ITEMS", 90), ("pick", "EQUIP", 120)]),
+    ("equip-weapons", [("circle", 120)]),  # (continues the equip screen: the weapon list, CLASS/AFFINITY/TYPE)
     ("load", [("triangle", 90), ("pick", "DATA", 90), ("pick", "LOAD", 150), ("pick", "MEMORYCARDslot1", 150)]),
     ("manual", [("triangle", 90), ("pick", "QUICKMANUAL", 150)]),
     ("manual-page", [("pick", "BASICCONTROLS", 150)]),  # (continues the quick manual)
@@ -616,7 +625,7 @@ def run_screens(work, card, shots):
     log_clean(game, "title")
     game = None
     for name, steps in SCREENS:
-        if not name.startswith("manual-"):  # (a page continues the screen before)
+        if not name.startswith(("manual-", "equip-")):  # (a page continues the screen before)
             if game:
                 game.close()
                 log_clean(game, "screens")
@@ -640,6 +649,7 @@ def run_screens(work, card, shots):
                 game.press(step[0], vsyncs=3, settle=step[1])
         check_printers(game, work, name, shots)
         check_signs(game, name)
+        check_info_words(game, work, name)
     if game:
         game.close()
         log_clean(game, "screens")
@@ -791,6 +801,58 @@ def check_digit_shapes(game, work):
     check(got is not None and abs(got[5] - want[5]) > 0.04,
           f"digit shapes: squeezed only (ui_text_descender_lift 0) the large 5 is flattened, which the check sees "
           f"({got and round(got[5], 3)} vs {want[5]:.3f})")
+
+
+# Small-capital words (ui_text.c pc_ui_text_word_quad) each screen must show, set as words.
+INFO_WORDS = {"equip": {"WEAPON", "SHIELD", "R.ARM", "HEAD", "BODY", "LEGS", "ACCESSORY"},
+              "equip-weapons": {"HUMAN", "BEAST", "UNDEAD", "PHANTOM", "DRAGON", "EVIL", "RANGE", "RISK",
+                                "ATTACK/STR", "ATTACK/INT", "AGILITY", "ORG/EQP"}}
+INFO_GAP_TOL = 0.02  # PS1 pixels: a letter gap's departure from the font's own + the word's tracking
+INFO_EDGE_TOL = 0.3  # PS1 pixels beyond the game's ink extent (+ ui_text_info_slack): centring's rounding
+
+
+def check_info_words(game, work, name):
+    if name not in INFO_WORDS:
+        return
+    tunables = game.call("ui_text")["tunables"]
+    slack, most = tunables["info_slack"], tunables["info_tracking"]
+    for layout in ("glyph", "line"):
+        game.call("graphics", ui_text="font", ui_text_layout=layout)
+        game.run(4)
+        path = work / "words.json"
+        game.call("ui_text", lines=str(path))
+        words = {w["text"]: w for w in json.loads(path.read_text())["words"]}
+        path.unlink()
+        label = f"{name} ({layout})"
+        missing = INFO_WORDS[name] - set(words)
+        check(not missing, f"{label}: small-capital words set as words ({sorted(missing)} missing)")
+        worst, worst_cell, worst_edge, over = 0.0, 0.0, 0.0, []
+        for text in INFO_WORDS[name] & set(words):
+            w = words[text]
+            letters = w["letters"]
+            if w["tracking"] > most + 1e-4:
+                over.append(text)
+            for a, b in zip(letters, letters[1:]):
+                gap, font_gap = b["ink"][0] - a["ink"][1], b["font"][0] - a["font"][1]
+                worst = max(worst, abs(gap - font_gap - w["tracking"]))
+                worst_cell = max(worst_cell, abs(b["cell"][0] - a["cell"][1] - font_gap))
+            ox0, ox1, ex0, ex1 = w["original"][0], w["original"][2], w["extent"][0], w["extent"][2]
+            worst_edge = max(worst_edge, ox0 - ex0 - slack, ex1 - ox1 - slack)
+        check(worst <= INFO_GAP_TOL and not over,
+              f"{label}: letter gaps are the font's own + the word's even tracking (worst {worst:.3f} PS1 pixels; "
+              f"tracking over ui_text_info_tracking {most}: {over})")
+        check(worst_edge <= INFO_EDGE_TOL,
+              f"{label}: words within the game's extent + ui_text_info_slack {slack} (worst {worst_edge:.2f})")
+        check(worst_cell > 1.0, f"{label}: glyph by glyph in their boxes the gaps would stray "
+                                f"({worst_cell:.2f} PS1 pixels from the font's)")
+    # Off: the letters drawn glyph by glyph again (no words drawn).
+    game.call("ui_text", info_words=0)
+    before = game.call("ui_text")["word_glyphs"]
+    game.run(4)
+    after = game.call("ui_text")["word_glyphs"]
+    game.call("ui_text", info_words=1)
+    check(after == before, f"{name}: ui_text_info_words 0 sets no words ({after - before} glyphs)")
+    game.call("graphics", ui_text="font", ui_text_layout="line")
 
 
 # Signs beside replaced text, drawn from the font too (RPC ui_text signs_drawn): the memory card screens'

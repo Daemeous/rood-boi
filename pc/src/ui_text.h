@@ -163,10 +163,20 @@ void pc_text_status_typeset(const void* first, const void* end, const pc_text_ty
  * 0, row1 h). 0: draw it as any glyph. */
 int pc_ui_text_status_quad(const uint16_t* vram, const void* command, int u, int v, int w, int h, unsigned tpage,
     unsigned clut, pc_ui_text_quad* quad);
+/* The same for a small-capital word's glyph (BATTLE vs_battle_renderTextRawColor's
+ * strings in menus: WEAPON, HEAD, UNDEAD, ATTACK/STR, ...): with ui_text font and
+ * ui_text_info_words 1 each such string is set as one word in the info style with
+ * the font's own advances and kerning, within the game's width (condensed beyond
+ * ui_text_info_slack, opened by up to ui_text_info_tracking a gap, centred), in
+ * either ui_text_layout. Found from the sprite's packet in guest RAM (no hook). */
+int pc_ui_text_word_quad(const uint16_t* vram, const void* command, int u, int v, int w, int h, unsigned tpage,
+    unsigned clut, pc_ui_text_quad* quad);
 /* JSON (RPC ui_text {lines: true}): the lines laid out in the newest frame
  * that drew text: per glyph its character, the original glyph's position,
  * advance and ink, the laid-out pen and ink (screen PS1 pixels; ink per
- * image row as [row, x0, x1]), and per line its baseline. */
+ * image row as [row, x0, x1]), and per line its baseline; and the
+ * small-capital words drawn lately (per letter its laid-out ink across, the
+ * font's own and glyph by glyph's). */
 int pc_ui_text_lines_json(char* out, int size);
 
 /* Make the distance fields of the characters the styles can show, at most
@@ -205,6 +215,11 @@ unsigned pc_ui_text_overridden(int style);
  * the room the HUD digits' descenders lack they take by rising into the room
  * above them before being squeezed (ui_text_descender_lift, 0..1, 1). */
 extern float pc_ui_text_word_space, pc_ui_text_edge_margin, pc_ui_text_descender_lift;
+/* Small-capital words (pc_ui_text_word_quad): on (ui_text_info_words 1), the
+ * PS1 pixels a word may run past the game's (ui_text_info_slack 0.5), the
+ * most tracking opened a gap towards the game's width (ui_text_info_tracking
+ * 0.75 PS1 pixels). */
+extern float pc_ui_text_info_words, pc_ui_text_info_slack, pc_ui_text_info_tracking;
 /* JSON object (RPC ui_text): option, styles, fonts loaded, glyphs cached,
  * regions drawn. */
 int pc_ui_text_json(char* out, int size);

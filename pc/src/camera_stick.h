@@ -33,6 +33,11 @@ extern int pc_camera_stick_collision; /* pull in before room geometry when zoome
 extern int pc_camera_stick_r3; /* R3 resets the camera (else the game's R3: first-person view) */
 extern float pc_camera_stick_idle_reset; /* seconds without stick input, then reset (0 off) */
 extern int pc_camera_stick_keys; /* keyboard J/L turn, I/K zoom, O resets */
+/* camera_stick_menus: the menu contexts (pc_camera_stick_context) where the
+ * stick turns the camera, space separated ("none": nowhere); the default
+ * (the menus that leave the scene in view) is pc_camera_stick_menus_default. */
+extern char pc_camera_stick_menus[256];
+extern const char* const pc_camera_stick_menus_default;
 
 /* BATTLE func_8006E158 (the L1/R1 handler), once per game frame wherever the
  * game turns its follow camera; locked: CAMERA_INPUT_LOCKED(). */
@@ -52,6 +57,26 @@ unsigned pc_camera_stick_buttons(unsigned buttons);
  * (Right: yaw up; Down: pitch up; the game applies qol_fp_invert_y). Not
  * behind the camera_stick switch: the stick has nothing else to do there. */
 void pc_camera_stick_first_person(int* yaw, int* pitch);
+/* vs_battle_exec, once per game frame before the camera is derived (ROOD_PC
+ * hook): the field mode (D_800F196C), the camera mode and
+ * vs_battle_menuState.currentMenu. In a menu context camera_stick_menus
+ * lists, the stick turns and zooms the camera; 1 when it moved, and the
+ * caller places the camera again from its spherical values. */
+int pc_camera_stick_menu(void* spherical, int field_mode, int camera_mode, int current_menu);
+/* The menu context of those three, NULL when none: command (the Triangle
+ * menu's top level), magic, arts, abilities, items, status, map, data,
+ * options, score, manual, menu11, loot, setup, storage, menu15 (the menu
+ * open in field mode 5); loot (mode 2, the drops after a fight), chest (mode
+ * 9: a chest's loot), shortcut (mode 6: the L2 cross), message (mode 11);
+ * with the modern menus the shell's tab replaces command (equip: its
+ * Equipment tab; pc_camera_stick_menu). */
+const char* pc_camera_stick_context(int field_mode, int camera_mode, int current_menu);
+/* Set camera_stick_menus from a list (spaces or commas; "none"); unknown
+ * names are reported and left out: their count. */
+int pc_camera_stick_menus_set(const char* list);
+int pc_camera_stick_menu_known(const char* name, int length);
+/* Whether context `name` is in camera_stick_menus. */
+int pc_camera_stick_menu_listed(const char* name);
 /* Reset now (R3, the editor's button, RPC). */
 void pc_camera_stick_reset(void);
 /* RPC camera_stick: the state as a JSON object. */

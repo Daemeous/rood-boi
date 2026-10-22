@@ -209,6 +209,52 @@ int main(void)
     pc_camera_stick_r3 = 0;
     check(pc_camera_stick_buttons(1u << 10) == (1u << 10), "R3 reset off: R3 is the game's");
 
+    /* Menus (pc_camera_stick_menu): the contexts, the list, a turn there. */
+    pc_camera_stick_r3 = 1;
+    check(!strcmp(pc_camera_stick_context(5, 1, 0), "command") && !strcmp(pc_camera_stick_context(5, 1, 0x41), "magic")
+              && !strcmp(pc_camera_stick_context(5, 1, 0x44), "items")
+              && !strcmp(pc_camera_stick_context(5, 1, 0x48), "options")
+              && !strcmp(pc_camera_stick_context(5, 1, 0x0C), "loot") && !strcmp(pc_camera_stick_context(2, 12, 0x3F), "loot")
+              && !strcmp(pc_camera_stick_context(9, 3, 0x0C), "chest") && !strcmp(pc_camera_stick_context(6, 0, 0x3F), "shortcut")
+              && !strcmp(pc_camera_stick_context(11, 0, 0x3F), "message"),
+        "menu contexts by field mode, camera mode and currentMenu");
+    check(!pc_camera_stick_context(1, 0, 0x3F) && !pc_camera_stick_context(5, 1, 0x3F) && !pc_camera_stick_context(5, 1, 0x1F)
+              && !pc_camera_stick_context(2, 1, 0x3F) && !pc_camera_stick_context(9, 1, 0x3F),
+        "no menu context in the field, a closed menu, targeting or a chest's framing");
+    check(pc_camera_stick_menu_listed("command") && pc_camera_stick_menu_listed("loot") && pc_camera_stick_menu_listed("chest")
+              && !pc_camera_stick_menu_listed("items") && !pc_camera_stick_menu_listed("status")
+              && !pc_camera_stick_menu_listed("map") && !pc_camera_stick_menu_listed("options")
+              && !pc_camera_stick_menu_listed("comma"),
+        "default list: the menus that leave the scene in view, not the full-screen ones");
+    check(pc_camera_stick_menus_set("items, bogus status") == 1 && !strcmp(pc_camera_stick_menus, "items status")
+              && pc_camera_stick_menus_set("none") == 0 && !*pc_camera_stick_menus,
+        "camera_stick_menus parsing: commas, unknown names left out, none");
+    pc_camera_stick_menus_set(pc_camera_stick_menus_default);
+    camera.values.yaw = 0x400, camera.delta.yaw = 0;
+    stick[0] = 1;
+    int menu_moved = 0;
+    for (int i = 0; i < 20; i++)
+        vsync += 2, menu_moved += pc_camera_stick_menu(&camera, 5, 1, 0);
+    snprintf(what, sizeof what, "the command menu: the stick turns (yaw %#x, %d placements)", camera.values.yaw, menu_moved);
+    check(camera.values.yaw != 0x400 && menu_moved > 0, what);
+    before = camera.values.yaw;
+    for (int i = 0; i < 20; i++)
+        vsync += 2, menu_moved = pc_camera_stick_menu(&camera, 5, 1, 0x44);
+    check(camera.values.yaw == before && !menu_moved, "items (full screen): the stick does nothing");
+    stick[0] = 0;
+    for (int i = 0; i < 20; i++)
+        vsync += 2, pc_camera_stick_menu(&camera, 5, 1, 0);
+    before = camera.values.yaw;
+    menu_moved = 0;
+    for (int i = 0; i < 10; i++)
+        vsync += 2, menu_moved += pc_camera_stick_menu(&camera, 5, 1, 0);
+    check(camera.values.yaw == before && !menu_moved, "the stick at rest in a menu: nothing placed");
+    pc_camera_stick_reset(); /* waits for the field: no L1/R1 animation in a menu */
+    vsync += 2, pc_camera_stick_menu(&camera, 5, 1, 0);
+    check(camera.delta.yaw == 0, "a reset in a menu waits for the field");
+    frames(1, 0);
+    check(camera.delta.yaw != 0 || !(camera.values.yaw & 0x1FF), "... and runs there");
+
     printf(failures ? "camera_stick_probe: %d failures\n" : "camera_stick_probe: all passed\n", failures);
     return failures != 0;
 }

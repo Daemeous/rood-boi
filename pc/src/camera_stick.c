@@ -36,7 +36,25 @@
  * pitch steps on top of the D-pad's, always (not behind the camera_stick
  * switch, which is about the follow camera), with this camera's dead zone,
  * curve and speed. While that view runs, R3 is the game's again (it leaves
- * the view). */
+ * the view).
+ *
+ * Menus: func_8006E158 runs only while the field (or a fight's targeting)
+ * takes camera input, and the menus' field modes (vs_battle_exec: 5 the
+ * Triangle menu and its screens, 6 the L2 shortcut cross, 11 a message, 9
+ * a chest's loot, 2 with camera mode 12 the loot after a fight) never call
+ * it, nor (5, 6, 11) place the camera at all. A ROOD_PC hook just before
+ * the frame's camera is derived (func_80069D78) calls pc_camera_stick_menu
+ * with the field mode, the camera mode and vs_battle_menuState.currentMenu:
+ * in a menu context listed in camera_stick_menus (the menus that leave the
+ * scene in view; by default not the full-screen ones: items, status, map,
+ * data, options, score, manual, setup, storage) the stick turns and zooms as
+ * in the field (no L1/R1 turn runs there, an R3 reset waits for the field)
+ * and the hook places the camera again from the spherical values when they
+ * moved. The modern menus' shell runs inside the top level: its tab decides
+ * (Abilities, Magick and the Lea Monde rows over the scene; Ashley, Equipment,
+ * Items and System full screen: ui_shell.cpp pc_ui_shell_camera_context). Only the camera's own values change; the game's are untouched, and
+ * the menus never see the stick (a digital pad: 0x41). Closing the menu
+ * leaves the yaw and zoom where the stick put them, as the field does. */
 #include "camera_stick.h"
 #include <math.h>
 #include <stdio.h>
@@ -57,6 +75,21 @@ int pc_camera_stick_collision = 1;
 int pc_camera_stick_r3 = 1;
 float pc_camera_stick_idle_reset;
 int pc_camera_stick_keys = 1;
+#define MENUS_DEFAULT "command magic arts abilities loot chest shortcut message"
+char pc_camera_stick_menus[256] = MENUS_DEFAULT;
+const char* const pc_camera_stick_menus_default = MENUS_DEFAULT;
+
+/* The menu contexts (pc_camera_stick_context): vs_battle_menuState's menus
+ * 0-15 by currentMenu & 0x3F (MAINMENU's submenus: MENU0.PRG magic, MENU1
+ * break arts, MENU2 abilities, MENU3 items, MENU4 status, MENU5 map, MENU7
+ * data, MENU9 score, MENUE the manual, MENUB the loot, 13 an equipment
+ * setup, MENUD the storage container), then the field modes'. */
+static const char* const menu_names[16] = { "command", "magic", "arts", "abilities", "items", "status", "map",
+    "data", "options", "score", "manual", "menu11", "loot", "setup", "storage", "menu15" };
+static const char* const other_names[] = { "chest", "shortcut", "message", "equip" };
+/* The modern menus' shell (ui/ui_shell.cpp, ui_menus 1) runs inside the
+ * top level (currentMenu 0): its tab's context, NULL while it is not up. */
+extern const char* pc_ui_shell_camera_context(void) __attribute__((weak));
 
 /* Inputs and the scene, weak so the CTest probe links this file alone. */
 extern unsigned pc_vsync_count(void) __attribute__((weak));
@@ -84,6 +117,11 @@ static struct {
     float desired, hit;
     int ticks, turns, resets;
     int stick_yaw, stick_yaw_valid; /* the yaw the stick last wrote */
+    /* Menus (pc_camera_stick_menu): the last context seen, whether it was
+     * listed, ticks and placements there. */
+    const char* menu_context;
+    int menu_allowed, menu_ticks, menu_places;
+    unsigned menu_vsync;
     /* First-person look (pc_camera_stick_first_person). */
     unsigned fp_vsync;
     int fp_ticked, fp_looks, fp_yaw, fp_pitch;
@@ -226,9 +264,8 @@ static void read_stick(float out[2])
         out[k] = out[k] > 1 ? 1 : out[k] < -1 ? -1 : out[k];
 }
 
-void pc_camera_stick_tick(void* spherical, int locked)
+static void tick(pc_spherical_camera* camera, int locked, int menu)
 {
-    pc_spherical_camera* camera = spherical;
     unsigned t = now();
     unsigned gap = s.ticked ? t - s.last_tick : 2;
     s.ticked = 1;
@@ -263,7 +300,7 @@ void pc_camera_stick_tick(void* spherical, int locked)
     if (pc_camera_stick_idle_reset > 0 && s.offset && !x && !y
         && (t - s.last_input) / 59.94f >= pc_camera_stick_idle_reset)
         s.reset = 1;
-    if (s.reset) {
+    if (s.reset && !menu) { /* (in a menu no L1/R1 animation runs: the reset waits for the field) */
         s.reset = 0;
         s.offset = 0;
         s.resets++;
@@ -313,6 +350,93 @@ void pc_camera_stick_tick(void* spherical, int locked)
     }
     float lo = zoom_min(), hi = zoom_max();
     s.zoom = z < lo ? lo : z > hi ? hi : z;
+}
+
+void pc_camera_stick_tick(void* spherical, int locked) { tick(spherical, locked, 0); }
+
+const char* pc_camera_stick_context(int field_mode, int camera_mode, int current_menu)
+{
+    int m = current_menu & 0x3F;
+    switch (field_mode) {
+    case 5: /* the Triangle menu (and a loot list the RPC opens) */
+        return m < 16 ? menu_names[m] : NULL; /* (0x1F closing, 0x3F closed) */
+    case 2:
+        return camera_mode == 12 ? "loot" : NULL; /* the drops after a fight (func_8006FB48) */
+    case 9:
+        return camera_mode == 3 ? "chest" : NULL; /* framed on a chest, its loot or its key's message */
+    case 6:
+        return "shortcut"; /* the L2 shortcut cross */
+    case 11:
+        return "message"; /* a message at something examined (func_80073AA4) */
+    }
+    return NULL;
+}
+
+int pc_camera_stick_menu_known(const char* name, int length)
+{
+    for (int i = 0; i < 16; i++)
+        if ((int)strlen(menu_names[i]) == length && !strncmp(menu_names[i], name, (size_t)length))
+            return 1;
+    for (size_t i = 0; i < sizeof other_names / sizeof *other_names; i++)
+        if ((int)strlen(other_names[i]) == length && !strncmp(other_names[i], name, (size_t)length))
+            return 1;
+    return 0;
+}
+
+int pc_camera_stick_menus_set(const char* list)
+{
+    char out[sizeof pc_camera_stick_menus] = "";
+    int unknown = 0;
+    size_t used = 0;
+    for (const char* p = list; p && *p;) {
+        while (*p == ' ' || *p == '\t' || *p == ',')
+            ++p;
+        int n = 0;
+        while (p[n] && p[n] != ' ' && p[n] != '\t' && p[n] != ',' && p[n] != '\n' && p[n] != '\r')
+            ++n;
+        if (!n)
+            break;
+        if (!pc_camera_stick_menu_known(p, n) && !(n == 4 && !strncmp(p, "none", 4)))
+            ++unknown, fprintf(stderr, "[camera_stick] camera_stick_menus: unknown menu '%.*s'\n", n, p);
+        else if (!(n == 4 && !strncmp(p, "none", 4)) && used + (size_t)n + 2 < sizeof out)
+            used += (size_t)snprintf(out + used, sizeof out - used, "%s%.*s", used ? " " : "", n, p);
+        p += n;
+    }
+    snprintf(pc_camera_stick_menus, sizeof pc_camera_stick_menus, "%s", out);
+    return unknown;
+}
+
+int pc_camera_stick_menu_listed(const char* name)
+{
+    size_t n = name ? strlen(name) : 0;
+    for (const char* p = pc_camera_stick_menus; n && (p = strstr(p, name)); p += n)
+        if ((p == pc_camera_stick_menus || p[-1] == ' ') && (p[n] == 0 || p[n] == ' '))
+            return 1;
+    return 0;
+}
+
+int pc_camera_stick_menu(void* spherical, int field_mode, int camera_mode, int current_menu)
+{
+    pc_spherical_camera* camera = spherical;
+    const char* name = pc_camera_stick_context(field_mode, camera_mode, current_menu);
+    if (name && !strcmp(name, "command") && pc_ui_shell_camera_context && pc_ui_shell_camera_context())
+        name = pc_ui_shell_camera_context();
+    s.menu_context = name;
+    s.menu_allowed = name && pc_camera_stick_menu_listed(name);
+    if (!s.menu_allowed || !pc_camera_stick)
+        return 0;
+    int yaw = camera->values.yaw;
+    float zoom = s.zoom;
+    s.menu_ticks++;
+    s.menu_vsync = now();
+    tick(camera, 0, 1);
+    /* Placed again (the same placement the field makes) when the stick moved
+     * the yaw or the zoom, or the zoom still eases there; else the game's
+     * camera stays exactly as it was. */
+    if (camera->values.yaw == yaw && s.zoom == zoom && s.zoom_applied == s.zoom)
+        return 0;
+    s.menu_places++;
+    return 1;
 }
 
 void pc_camera_stick_turn(void* spherical)
@@ -465,7 +589,8 @@ int pc_camera_stick_json(char* out, int size)
         "\"zoom_target\":%g,\"zoom_applied\":%g,\"room_zoom_max\":%g,\"room_extent\":%g,"
         "\"game_distance\":%d,\"desired\":%g,\"hit\":%g,\"arm\":%g,\"distance\":%d,\"pitch\":%d,\"yaw\":%d,"
         "\"offset\":%d,\"ticks\":%d,\"turns\":%d,\"resets\":%d,\"vsyncs_since_tick\":%u,\"stick_yaw\":%d,"
-        "\"first_person\":%d,\"fp_looks\":%d,\"fp_step\":[%d,%d]}",
+        "\"first_person\":%d,\"fp_looks\":%d,\"fp_step\":[%d,%d],\"menus\":\"%s\",\"menu\":%s%s%s,"
+        "\"menu_allowed\":%d,\"menu_ticks\":%d,\"menu_places\":%d,\"vsyncs_since_menu\":%u}",
         pc_camera_stick, pc_camera_stick_speed, pc_camera_stick_deadzone, pc_camera_stick_curve,
         pc_camera_stick_invert_x, pc_camera_stick_invert_y, pc_camera_stick_zoom, pc_camera_stick_zoom_speed,
         pc_camera_stick_zoom_min, pc_camera_stick_zoom_max, pc_camera_stick_zoom_pitch, pc_camera_stick_collision,
@@ -473,5 +598,7 @@ int pc_camera_stick_json(char* out, int size)
         s.stick[1], s.shaped[0], s.shaped[1], s.rate, s.zoom, s.zoom_applied, s.room_zoom_max, s.room_extent,
         s.game_distance, s.desired, s.hit, s.arm, s.placed_distance, s.placed_pitch, s.placed_yaw, s.offset,
         s.ticks, s.turns, s.resets, s.ticked ? t - s.last_tick : 0, s.stick_yaw_valid ? s.stick_yaw : -1,
-        first_person(), s.fp_looks, s.fp_yaw, s.fp_pitch);
+        first_person(), s.fp_looks, s.fp_yaw, s.fp_pitch, pc_camera_stick_menus, s.menu_context ? "\"" : "",
+        s.menu_context ? s.menu_context : "null", s.menu_context ? "\"" : "", s.menu_allowed, s.menu_ticks,
+        s.menu_places, s.menu_ticks ? t - s.menu_vsync : 0);
 }

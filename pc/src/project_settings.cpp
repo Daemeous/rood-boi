@@ -570,6 +570,10 @@ int apply_line(const char* line, int* scale, bool now)
     }
     if (!strncmp(key, "editor_hidden_", 14)) /* editor state: objects hidden in a room (editor_selection.h) */
         return rood_selection::parse_hidden(key, rest) ? 1 : 0;
+    if (!strcmp(key, "camera_stick_menus")) { /* menu contexts, space separated (camera_stick.h); "none" */
+        pc_camera_stick_menus_set(rest);
+        return 1;
+    }
     if (!strcmp(key, "card1") || !strcmp(key, "card2")) { /* the rest of the line: a path, spaces allowed */
         pc_memory_card_set_path(key[4] - '1', rest);
         return 1;
@@ -799,6 +803,8 @@ extern "C" void pc_settings_write(FILE* f)
         if (pc_window_remember_get() && pc_window_rect_get && pc_window_rect_get(r))
             fprintf(f, "window_rect %d %d %d %d\n", r[0], r[1], r[2], r[3]);
     }
+    if (strcmp(pc_camera_stick_menus, pc_camera_stick_menus_default)) /* (only a choice: the default may grow) */
+        fprintf(f, "camera_stick_menus %s\n", *pc_camera_stick_menus ? pc_camera_stick_menus : "none");
     for (int slot = 0; slot < 2; slot++) {
         const char* card = pc_memory_card_path_setting(slot);
         fprintf(f, "card%d %s\n", slot + 1, *card ? card : "default");
