@@ -54,6 +54,7 @@ import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
+sys.path.insert(0, str(ROOT / "pc/tests"))
 BUILD = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "pc/build/boot64"
 CANNED = ROOT / "pc/tests/port_pipeline"
 HOME = str(pathlib.Path.home())
@@ -460,6 +461,44 @@ def pilot_38C1C(tmp, rows, names):
     return failures
 
 
+def rounds_end_to_end(tmp):
+    """--mode rounds through the real gates: func_8006B214's canned replies
+    from a fake batch server, the process killed once after a reply was saved
+    (PORT_ROUNDS_DIE), then resumed to the end."""
+    import port_rounds_test as prt
+    failures = []
+    server, url = prt.serve()
+    spec, port = (CANNED / "func_8006B214/spec_reply1.md").read_text(), (CANNED / "func_8006B214/port_reply1.md").read_text()
+    prt.FakeBatches.respond = lambda cid, body: spec if "Write the zig_diff spec" in body["messages"][0]["content"] else port
+    posts = len(prt.FakeBatches.posts)
+    work = tmp / "rounds-e2e"
+    try:
+        def go(die=None):
+            env = dict(os.environ, PORT_ROUNDS_DIE=die or "")
+            return subprocess.run([sys.executable, ROOT / "pc/tools/port_pipeline.py", "run", "func_8006B214",
+                                   "--mode", "rounds", "--no-write", "--base-url", url, "--api-key-env", "",
+                                   "--transport", "batch", "--poll", "0.2", "--budget", "1", "--work", work,
+                                   "--records", work / "records", "--build", BUILD], capture_output=True, text=True,
+                                  env=env)
+        killed = go("after-reply-saved:2")  # the port's reply saved, the function not yet told
+        resumed = go()
+        r = record(work, "func_8006B214")
+        state = json.loads((work / "rounds/func_8006B214/functions/func_8006B214.json").read_text())
+        if killed.returncode != 137 or resumed.returncode != 0 or not r or r["status"] != "passed (not written)" \
+                or r.get("mode") != "rounds" or len(prt.FakeBatches.posts) - posts != 2 \
+                or [a["passed"] for a in r["spec"]["attempts"] + r["port"]["attempts"]] != [True, True] \
+                or not r["spec"]["coverage"]["passed"] or state["stage"] != "done":
+            failures.append(f"rounds end to end: exit {killed.returncode}/{resumed.returncode} {r and r['status']} "
+                            f"{len(prt.FakeBatches.posts) - posts} batches: {killed.stderr[-600:]} {resumed.stderr[-1200:]}")
+        status = subprocess.run([sys.executable, ROOT / "pc/tools/port_pipeline.py", "status", "func_8006B214",
+                                 "--mode", "rounds", "--work", work, "--build", BUILD], capture_output=True, text=True)
+        if "done: passed (not written): 1" not in status.stdout:
+            failures.append(f"rounds status: {status.stdout} {status.stderr[-300:]}")
+    finally:
+        server.shutdown()
+    return failures
+
+
 def main():
     if not (BUILD / "imports.ld").exists():
         print(f"port_pipeline_test: no 64-bit build in {BUILD}: skipped")
@@ -531,6 +570,9 @@ def main():
         failures += head_to_head_7CD68(tmp, table)
         failures += review_7CD68(tmp, table)
         failures += wave1(tmp, table)
+        import port_rounds_test
+        failures += port_rounds_test.checks(tmp / "rounds-machine")
+        failures += rounds_end_to_end(tmp)
         for p in tmp.rglob("records/**/*.json"):
             if HOME in p.read_text() or os.path.join(tempfile.gettempdir(), "claude") in p.read_text():
                 failures.append(f"{p.name}: a local path in the record")

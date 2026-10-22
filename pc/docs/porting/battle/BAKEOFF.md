@@ -399,6 +399,9 @@ python3 pc/tools/port_pipeline.py --unit 7CD68 --base-url http://127.0.0.1:8990/
   for the same conversation (else set aside as `.staleN`; a reply placed by
   hand, without its `.json`, is always used); a function whose record says
   `ported` is skipped.
+- **Rounds (batches):** `--mode rounds` runs many units as rounds of one
+  batch each, at OpenRouter's batch price (half), the state on disk; see
+  "Batches and rounds" below.
 
 Smoke run (Haiku 5.5, 2026-10-20): `func_80069D14` (S, a 16-slot scan) and
 `_insertActor` (S, a list insert with a dead inner `else`) both **ported**,
@@ -926,3 +929,159 @@ macros. What still fails is mostly the model's: specs that miss their own
 mutations or an equality edge, specs that leave a pointer random (a
 reviewer-written spec or a port by hand is the next step for each).
 
+## Batches and rounds (2026-10-21)
+
+### What OpenRouter's batch is
+
+A real asynchronous batch API (OpenRouter docs: "Batch API quickstart",
+"Create a batch"), not a scheduling variant of chat completions:
+
+- `POST /api/v1/batches` with `endpoint` (`/v1/chat/completions`, also
+  `/v1/messages`, `/v1/responses`), `model` (the **normal** slug,
+  `anthropic/claude-haiku-5.5`), `completion_window` (only `24h`) and then
+  `requests: [{custom_id, body}]` (the metadata must come before
+  `requests`: the body is streamed); up to 5000 requests or 200 MB; 202 and a
+  batch object, status `validating`.
+- `GET /api/v1/batches/{id}`: `validating` -> `in_progress` -> `finalizing`
+  -> `completed` / `failed` / `expired` / `cancelled`; `request_counts`;
+  `results` (`[{custom_id, response: {status_code, body}, error}]`,
+  unsorted) and the batch's `usage` (tokens, `cost`) only once completed;
+  items fail one by one. Results stay 30 days; a webhook (`callback_url`)
+  is the alternative to polling (once a minute recommended).
+- `anthropic/claude-haiku-5.5:batch` in the model list is the catalog entry
+  of the batch price ($0.05/$0.25 per M, half), not a model to call: chat
+  completions with it answer 404 ("cannot be used with the chat/completions
+  endpoint (adapter AnthropicBatchAdapter)"). OpenRouter runs it on
+  Anthropic's Message Batches API itself (`provider: Anthropic`, expiry 24 h),
+  so no Anthropic key is needed.
+- Latency, measured 2026-10-21: a rounds smoke batch (two Haiku spec
+  requests, submitted 14:06) finished after **6.1 hours** (20:12); two
+  probe batches submitted at 13:52 and 14:03 (2 and 1 tiny requests) were
+  still `in_progress`, 0 done, at 20:14. OpenRouter says most batches finish
+  "within minutes"; today none did. Plan for hours per round: a function
+  needs 2-6 rounds (spec, its retry and a compile-fix, the same for the
+  port), so a unit in batch rounds takes several such round trips.
+- What comes back: each result's body is a normal chat completion
+  (`choices`, `usage` with `completion_tokens_details.reasoning_tokens`) but
+  without `usage.cost`; the batch's own `usage.cost` is the total. Priced
+  from the batch price list, the smoke's two replies came to $0.0017, as
+  the provider's total ($0.00165) said.
+
+### Rounds mode
+
+`pc/tools/port_rounds.py`, reached as `port_pipeline.py ACTION --mode rounds`:
+each function is a state machine on disk instead of a loop of calls
+(`needs-spec` -> `spec-submitted` -> `spec-gate` -> `needs-spec-retry` ... ->
+`needs-port` -> ... -> `write` -> `done`), with the synchronous pipeline's
+rules (one feedback retry, `--compile-fixes` rounds while a draft does not
+build, the same gates, writer, records and REVIEW.md).
+
+```sh
+bash -ic 'python3 pc/tools/port_pipeline.py run --mode rounds --units 7CD68 38C1C --budget 3 --until 21:30'
+python3 pc/tools/port_pipeline.py status --mode rounds --units 7CD68 38C1C
+bash -ic 'python3 pc/tools/port_pipeline.py submit --mode rounds --units 7CD68 38C1C'   # one step at a time
+bash -ic 'python3 pc/tools/port_pipeline.py collect --mode rounds --units 7CD68 38C1C'
+```
+
+- `submit`: every function's pending request in one batch (budget: spent +
+  `--reserve` per request out <= `--budget`); `collect`: the finished
+  batches' results applied (each function takes only the result of the
+  request it waits for), the gates of every function with a fresh reply at
+  once (`--check-jobs`, nice 10), the next requests queued, passing
+  functions written one at a time; `status`; `run`: collect, submit, poll
+  (`--poll`, default 60 s) until every function is done, nothing can be sent,
+  or `--until HH:MM`, where it parks (exit 3): the batches already submitted
+  keep running at OpenRouter and the next `run` collects them.
+- State: `pc/build/port-pipeline/rounds/<units joined by +>/` (`run.json`:
+  the settings fixed at creation and the batches; `functions/<NAME>.json`:
+  stage, round, the conversation so far, the pending request, the record).
+  Every change is written atomically before the next step: a kill (or the
+  machine's shutdown) anywhere resumes without sending a request twice or
+  counting a cost twice (spending is the sum of the recorded calls). Replies
+  are saved where the synchronous mode saves them, with the same
+  conversation key, so either mode reuses the other's replies.
+- Keep `--work` on a disk that survives a reboot (the default does; `/tmp`
+  does not): the 2026-10-21 power cut wiped a smoke run's state kept under
+  `/tmp`. Its batch was still at OpenRouter and was re-attached rather than
+  sent again: create the run (`collect` with the same functions and
+  settings), add the batch to `run.json`'s `batches` (`ids`: custom_id ->
+  function, `<function>-<step><round>-<try>`, `collected: false`), and the
+  next `collect` marks those functions as waiting for it.
+- A failed item is asked again next round; its second failure stops the
+  function (`stopped`); a failed or expired batch fails its items.
+- `--transport sync` (the default for a local endpoint): the same rounds,
+  each round's requests asked at once through chat completions
+  (`--max-calls` in flight); worth it for a local server, and for OpenRouter
+  when latency matters more than half the price.
+- Per-item cost: a batch result's body carries tokens but no cost, so it is
+  priced from the batch price list (`/models/<model>:batch/endpoints`);
+  `status` also shows the provider's own total per batch.
+- Live smoke (2026-10-21, `func_800E5A74` and `func_800E6158`, thinking
+  off to keep it cheap): round 1 went out as one batch, survived a power cut
+  (its state, under `/tmp`, did not: re-attached as above), came back 6.1 h
+  later, was gated (one spec passed, one failed), and round 2 (a port and a
+  spec retry) was submitted automatically; stopped there (the worker's
+  deadline), its batch left unread.
+- CTest `port_pipeline` (with `pc/tests/port_rounds_test.py`): a fake batch
+  server; retries and compile-fix rounds, partial collection (two open
+  batches, one finished), failed items and a failed batch, kills after a
+  batch was recorded, after a reply was saved and after a gate, the sync
+  transport; and one function through the real gates in rounds, killed once
+  and resumed.
+
+### The reasoning budget, measured (unit 7CD68, Haiku 5.5, synchronous, --no-write)
+
+The 12 functions of 7CD68 (ported and reviewed already; planned on a copy
+of the table without their routes), `--jobs 3`, three arms side by side,
+$0.60 cap in all:
+
+| Arm | Passed | Cost | $/pass | Spec 1st try | Port 1st try | Completion tokens (reasoning) |
+|---|---|---|---|---|---|---|
+| default | 11/12 (`func_800E6178` port-failed after 3 rounds) | $0.236 | $0.021 | 7/12 | 9/12 | 296k (246k) |
+| `--reasoning-budget 4000` | 8 of 9 run (budget cap $0.17 hit; 3 not run) | $0.147 | $0.018 | 6/11 | 7/8 | 190k (158k) |
+| `--reasoning-budget 1500` | 6 of 6 run (stopped: no effect, see below) | $0.085 | $0.014 | 6/6 | 4/6 | 97k (83k) |
+| `--thinking off` | 1 of 8 run (stopped) | $0.041 | $0.041 | 0/8 | 0/1 | 25k (0) |
+
+(The 1500 arm crashed once on a connection cut mid-reply,
+`http.client.IncompleteRead`, which `model_client.call` did not retry; it
+does now. The arm resumed from its saved replies.)
+
+**`reasoning.max_tokens` does nothing for Haiku 5.5**: with a 1500 budget
+the spec replies still reasoned 5.8k-18.5k tokens (default: 7k-20k), and the
+same spec prompt (`func_800E5568`) reasoned 6964 (default), 6723 (4000),
+5841 (1500) and 6119 (1024) tokens: noise. Haiku 5.5 thinks adaptively;
+OpenRouter passes the budget and the model ignores it (the per-arm
+differences above are which functions ran, not the budget). What it does
+honour is `reasoning.effort` (now `--reasoning-effort`): on that prompt
+`low` reasoned 4781 tokens, `minimal` 3720 (one sample each, -30%/-45%).
+Thinking off is cheap (1.6k tokens, a third of the cost) but useless: no
+spec passed its gate first try, 4 of 8 failed after their retries.
+
+Where the money goes (default arm): prompts 882k tokens ($0.088, 37%),
+completions 296k ($0.148, 63%, 83% of it reasoning). Halving the
+price with batches saves more than any reasoning setting could, without
+touching quality.
+
+### Recommendation for the big units
+
+- **Keep default reasoning.** `--reasoning-budget` is a no-op on Haiku 5.5;
+  thinking off breaks the specs. `--reasoning-effort low` is the only lever
+  that moved the reasoning (-30% on one prompt); try it A/B on one unit
+  (expected saving ~15% of the cost) before using it widely.
+- **Batch rounds overnight, synchronous by day.** Batches halve the cost
+  (7CD68: ~$0.12 instead of $0.24 for 12 functions) but a round took
+  6 hours today. So: before the shutdown, start every big unit as one rounds
+  run, `bash -ic 'python3 pc/tools/port_pipeline.py run --mode rounds --units
+  U1 U2 ... --budget N --until 22:15'` in a worktree (state under its
+  `pc/build`, which survives the reboot); it submits round 1 for every
+  function and parks; the batches run overnight; the next session runs the
+  same command again to collect, gate and submit round 2, and so on. With
+  hours per round the bulk port takes a few days of nights, but at half
+  price and with no machine time spent waiting.
+- When latency matters more than cost (a unit someone is waiting to
+  review), use the synchronous mode as today (`--jobs 3`, ~20 min per
+  12-function unit), or rounds with `--transport sync` (the same state
+  machine, every round's calls at once).
+- Budget per function at full price: about $0.02 (7CD68: $0.236 for 12, 11
+  passed); a rounds run reserves `--reserve` ($0.02) per request out, so
+  `--budget` must cover the functions of a round at once.

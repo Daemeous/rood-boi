@@ -58,6 +58,19 @@ a saved reply (in --work) is reused instead of calling again when it answered
 the same conversation (the model, the prompt and any feedback: a key in its
 .json; a reply placed by hand, without one, is always used); one that
 answered another is kept aside as .staleN.
+
+--reasoning-budget N asks to cap the model's hidden reasoning (OpenRouter's
+`reasoning.max_tokens`, Anthropic's thinking budget, at least 1024), most of
+Haiku's output cost; Haiku 5.5 ignores it (adaptive thinking). --reasoning-
+effort minimal|low|medium|high (`reasoning.effort`) is what it honours
+(BAKEOFF.md, "Batches and rounds").
+
+--mode rounds (pc/tools/port_rounds.py) runs many functions as rounds of
+one batch each, OpenRouter's Batch API at half the price, the state on disk
+(resumable after a shutdown):
+
+    bash -ic 'python3 pc/tools/port_pipeline.py run --mode rounds --units 7CD68 38C1C --until 21:30'
+    python3 pc/tools/port_pipeline.py status --mode rounds --units 7CD68 38C1C
 """
 import argparse
 import concurrent.futures
@@ -1232,21 +1245,31 @@ def run_step(kind, first_prompt, evaluate, record, args, state, fdir, label):
     return None
 
 
-def run_steps(plan, unit, table, args, state, record):
+def begin(plan, unit, table, args, endpoint, record):
+    """A function's record started and its two prompts written (fdir/spec_prompt.md,
+    port_prompt.md): (views_path, spec prompt, port prompt)."""
     fdir = args.work / plan.name
     fdir.mkdir(parents=True, exist_ok=True)
-    endpoint = state.get("endpoint") or model_client.Endpoint()
     record.update({"function": plan.name, "unit": plan.unit, "difficulty": plan.difficulty, "model": args.model,
                    "endpoint": endpoint.kind, "thinking": endpoint.thinking, "temperature": endpoint.temperature,
                    "samples": args.attempts,
                    "status": "started", "reviewed": False, "plan": dataclasses.asdict(plan), "spec": {"attempts": []},
-                   "port": {"attempts": []}, "written": [], "check_seconds": 0.0})
+                   "port": {"attempts": []}, "written": [], "check_seconds": 0.0}
+                  | {k: getattr(endpoint, k) for k in ("reasoning_budget", "reasoning_effort")
+                     if getattr(endpoint, k) is not None})
     record["plan"]["address"] = f"{plan.address:#010x}"
     views_path, _ = unit.views(plan.types, plan.globals, tag=f"fn-{plan.name}")
     spec_text = prompt_privacy.sanitise(spec_prompt(plan, unit, views_path, table, args.build))
     port_text = prompt_privacy.sanitise(port_prompt(plan, unit, views_path, table, args.build))
     (fdir / "spec_prompt.md").write_text(spec_text)
     (fdir / "port_prompt.md").write_text(port_text)
+    return views_path, spec_text, port_text
+
+
+def run_steps(plan, unit, table, args, state, record):
+    fdir = args.work / plan.name
+    endpoint = state.get("endpoint") or model_client.Endpoint()
+    views_path, spec_text, port_text = begin(plan, unit, table, args, endpoint, record)
     if args.leak_probe:
         probe = feedback([f"FAIL: {fdir}/build/ref.c:12: error in {ROOT}/game/battle/x.zig "
                           f"({zig_toolchain.global_cache()}/o/abc) {pathlib.Path.home()}/.cache/x"], "probe")
@@ -1261,21 +1284,9 @@ def run_steps(plan, unit, table, args, state, record):
     # 1. The spec.
     def spec_eval(reply, round_, k):
         started = time.monotonic()
-        tag = f"{round_}" if k == 1 else f"{round_}s{k}"
-        zig_text, toml_text = sb.split_reply(reply)
-        entry, toml_error = sb.parse_toml(plan.name, toml_text)
-        errors, details, ok = [], {"entry": entry}, False
-        if zig_text is None:
-            errors.append("FAIL: no ```zig block in the reply")
-        if toml_error:
-            errors.append(toml_error)
-        if not errors:
-            spec_path = fdir / f"spec{tag}.zig"
-            spec_path.write_text(zig_text)
-            ok, errors, gate = spec_gate(plan, entry, spec_path, views_path, unit, table, args.build, fdir / f"spec{tag}")
-            details.update(gate, path=spec_path)
+        out = evaluate_spec(plan, unit, views_path, table, args, fdir, reply, round_, k)
         checked[0] += time.monotonic() - started
-        return ok, errors, details
+        return out
 
     passed = run_step("spec", spec_text, spec_eval, record, args, state, fdir, plan.name)
     if not passed:
@@ -1290,20 +1301,9 @@ def run_steps(plan, unit, table, args, state, record):
     # 2. The port.
     def port_eval(reply, round_, k):
         started = time.monotonic()
-        tag = f"{round_}" if k == 1 else f"{round_}s{k}"
-        code = zig_block(reply)
-        errors, runs, ok, details = [], [], False, {}
-        if code is None:
-            errors.append("FAIL: no Zig file in the reply")
-        else:
-            port_path = fdir / f"port{tag}" / f"{plan.module}.zig"
-            port_path.parent.mkdir(parents=True, exist_ok=True)
-            port_path.write_text(code)
-            ok, errors, runs = port_gate(plan, entry, spec_path, port_path, views_path, unit, table, args.build,
-                                         fdir / f"port{tag}", args.seeds)
-            details = {"path": port_path, "runs": runs}
+        out = evaluate_port(plan, unit, views_path, table, args, fdir, entry, spec_path, reply, round_, k)
         checked[0] += time.monotonic() - started
-        return ok, errors, details
+        return out
 
     passed = run_step("port", port_text, port_eval, record, args, state, fdir, plan.name)
     record["check_seconds"] = checked[0]
@@ -1312,9 +1312,49 @@ def run_steps(plan, unit, table, args, state, record):
         return record
     port_path = passed["path"]
     record["port"]["kept"] = {"round": passed["round"], "sample": passed["sample"]}
-    # 3. Into the tree (unless the unit's existing ports break with the widened
-    # views): one function at a time, against the views as the earlier writes
-    # left them.
+    return write_function(plan, unit, views_path, entry, spec_path, port_path, args, state, record)
+
+
+def evaluate_spec(plan, unit, views_path, table, args, fdir, reply, round_, k=1):
+    """Gate a spec draft (round, sample k): (ok, errors, details with `entry` and `path`)."""
+    tag = f"{round_}" if k == 1 else f"{round_}s{k}"
+    zig_text, toml_text = sb.split_reply(reply)
+    entry, toml_error = sb.parse_toml(plan.name, toml_text)
+    errors, details, ok = [], {"entry": entry}, False
+    if zig_text is None:
+        errors.append("FAIL: no ```zig block in the reply")
+    if toml_error:
+        errors.append(toml_error)
+    if not errors:
+        spec_path = fdir / f"spec{tag}.zig"
+        spec_path.write_text(zig_text)
+        ok, errors, gate = spec_gate(plan, entry, spec_path, views_path, unit, table, args.build, fdir / f"spec{tag}")
+        details.update(gate, path=spec_path)
+    return ok, errors, details
+
+
+def evaluate_port(plan, unit, views_path, table, args, fdir, entry, spec_path, reply, round_, k=1):
+    """Gate a port draft against the kept spec: (ok, errors, details with `path` and `runs`)."""
+    tag = f"{round_}" if k == 1 else f"{round_}s{k}"
+    code = zig_block(reply)
+    errors, runs, ok, details = [], [], False, {}
+    if code is None:
+        errors.append("FAIL: no Zig file in the reply")
+    else:
+        port_path = fdir / f"port{tag}" / f"{plan.module}.zig"
+        port_path.parent.mkdir(parents=True, exist_ok=True)
+        port_path.write_text(code)
+        ok, errors, runs = port_gate(plan, entry, spec_path, port_path, views_path, unit, table, args.build,
+                                     fdir / f"port{tag}", args.seeds)
+        details = {"path": port_path, "runs": runs}
+    return ok, errors, details
+
+
+def write_function(plan, unit, views_path, entry, spec_path, port_path, args, state, record):
+    """3. Into the tree (unless the unit's existing ports break with the widened
+    views): one function at a time, against the views as the earlier writes
+    left them. Sets the record's status (and `written`)."""
+    fdir = args.work / plan.name
     with state.setdefault("write_lock", threading.Lock()):
         started = time.monotonic()
         wide_path, _ = unit.views(plan.types, plan.globals, tag=f"write-{plan.name}")
@@ -1390,10 +1430,24 @@ def main(argv=None):
                         help="per-function records, unit summaries and REVIEW.md (committed)")
     parser.add_argument("--out", type=pathlib.Path, help="(--dry-run) the work directory, records under it")
     parser.add_argument("--build", type=pathlib.Path, default=ROOT / "pc/build/boot64")
+    parser.add_argument("--mode", choices=("sync", "rounds"), default="sync",
+                        help="sync (default): each function's calls one after another; rounds: every function's "
+                             "next request together, as a batch (pc/tools/port_rounds.py; ACTION first: "
+                             "submit, collect, status or run)")
+    parser.add_argument("--units", nargs="+", help="(rounds) every portable function of these units")
+    parser.add_argument("--transport", choices=("batch", "sync"),
+                        help="(rounds) batch: OpenRouter's Batch API (default remote); sync: concurrent chat calls")
+    parser.add_argument("--until", metavar="HH:MM", help="(rounds run) park at this local time")
+    parser.add_argument("--poll", type=float, default=60.0, help="(rounds run) seconds between batch polls")
+    parser.add_argument("--run-name", help="(rounds) the run's directory under --work/rounds (default: the units)")
     parser.add_argument("--leak-probe", action="store_true", help=argparse.SUPPRESS)
     # The tests: plan against a copy of the table (with --no-write).
     parser.add_argument("--table", type=pathlib.Path, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
+    if args.mode == "rounds":
+        return rounds_main(parser, args)
+    if args.units or args.transport or args.until or args.run_name:
+        parser.error("--units, --transport, --until and --run-name are for --mode rounds")
     if bool(args.functions) == bool(args.unit):
         parser.error("give FUNCTION... or --unit UNIT")
     if args.out:
@@ -1474,6 +1528,21 @@ def main(argv=None):
     print(f"port_pipeline: {len(results)} function(s), ${state['spent']:.4f} spent this run, {wall:.0f} s wall",
           file=sys.stderr)
     return 0 if all(r["status"] in ("ported", "dry-run", "passed (not written)") for r in results) else 1
+
+
+def rounds_main(parser, args):
+    import port_rounds
+    if args.unit or args.dry_run or args.attempts != 1 or args.jobs != 1:
+        parser.error("--mode rounds: use --units (not --unit); no --dry-run, --attempts or --jobs (one request "
+                     "per function per round; the gates run --check-jobs at once)")
+    args.work = args.work.resolve()
+    args.seeds = [int(s) for s in args.seeds.split(",") if s]
+    if not (args.build / "imports.ld").exists():
+        print(f"port_pipeline: {args.build} has no 64-bit build (python3 pc/tools/build_boot.py --arch 64)",
+              file=sys.stderr)
+        return 77
+    args.check_jobs = args.check_jobs or max(1, (os.cpu_count() or 4) // 4)
+    return port_rounds.main(args)
 
 
 if __name__ == "__main__":
