@@ -49,6 +49,7 @@ All of these are hand-written `div $zero`, which has no zero check. The R3000 th
 |---|---|---|
 | `battle_movement.c` func_800D954C | tile entry test against an actor without state | An actor without an AI state (attributes lack bit 0/2, func_800E6178) has a null `0x1F80037C` entry. The original then reads 0x94/0x174/0x178 from address 0, which is PS1 low RAM. Those bytes are now read through guest RAM |
 | `actor_update.c` func_800E5308 | actor navigation state missing | Same null entry: the original loads the route record from address 0x18C. That is now read through guest RAM. On a PS1 it must be 0, or the game would write into its kernel |
+| `25AC.c` Sound_UpdateSlidesAndDelays (`LFO_WAVE`) | none (crashed in the sound driver) | A vibrato/tremolo/auto-pan depth slide (opcodes DD/DE/DF) on a channel whose LFO was never enabled (BC etc.) reads its NULL wave: address 0. Zone 15 room 0's and zone 48 room 3's entry sound effects do this from a fresh launch. The wave is now read through guest RAM 0x80000000. Regression: run.py `room_entry_sound_smoke` |
 | `actor_update.c` `pc_actor_scratch` | actor navigation grid missing | func_800E5308 does not test `D_800F58BC`. Word 4 of address 0 is now read through guest RAM |
 | `battle_movement.c` func_800DBCEC | actor engagement with out-of-list hostile id | The walk starts at `&vs_battle_actors`. The first "node" id is a pointer. Its relation, model (0x800F4538 + id*4) and tile (+0x5C) are now read through guest RAM, including the KUSEG/KSEG1 mirrors |
 

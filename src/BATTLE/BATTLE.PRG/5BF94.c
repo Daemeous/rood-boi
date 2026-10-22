@@ -29,6 +29,7 @@
 #include "pc/src/psx_types.h"
 #ifdef ROOD_PC
 #include "pc/src/classic/classic_hook.h"
+#include "pc/src/widescreen.h"
 #endif
 
 typedef struct {
@@ -4195,6 +4196,11 @@ void func_800CC204(gim_t* image, int clut, u_long* ot)
     int color = (u_short)image->unkE;
     int y, column, x, end, tile, tpage;
     u_long* prim;
+#ifdef ROOD_PC
+    extern int pc_hw_anchor_recorded(int) __attribute__((weak));
+    void* pc_wipe_start = psx_get(vs_scratch.unk0);
+    int pc_margin = 0;
+#endif
 
     end = image->unk3;
     x = image->unkC & 0x3FFF;
@@ -4228,6 +4234,21 @@ void func_800CC204(gim_t* image, int clut, u_long* ot)
             }
         }
     }
+#ifdef ROOD_PC
+    /* Widescreen: the wipe crosses the whole 16:9 view as it crosses the 4:3
+     * screen (the opening's credits tear into the next shot): each line's
+     * span is spread from 0..320 over the view's -54..374 and drawn
+     * compressed but clipped to the whole view (PC_ANCHOR_SCENE). Past the
+     * 4:3 screen's sides, where the image has no tiles, the span is its
+     * ground colour, as its empty tiles are (nothing where it has none). */
+    if (pc_gte_widescreen && pc_hw_anchor_recorded && pc_hw_anchor_recorded(PC_ANCHOR_SCENE)) {
+        pc_margin = PC_WIDESCREEN_MARGIN;
+        for (y = 0; y < 240; y++) {
+            left[y] = -pc_margin + left[y] * (320 + 2 * pc_margin) / 320;
+            right[y] = -pc_margin + right[y] * (320 + 2 * pc_margin) / 320;
+        }
+    }
+#endif
     for (y = 0; y < 240; y++) {
         for (column = 0; column < 5; column++) {
             x = left[y];
@@ -4266,7 +4287,26 @@ void func_800CC204(gim_t* image, int clut, u_long* ot)
                     (x & 0xFFFF) | (y << 16), (end - 1) | (y << 16));
             }
         }
+#ifdef ROOD_PC
+        for (column = 0; pc_margin && color && column < 2; column++) {
+            x = column ? 320 : -pc_margin; /* the left side, then the right */
+            end = column ? 320 + pc_margin : 0;
+            x = left[y] > x ? left[y] : x;
+            end = right[y] < end ? right[y] : end;
+            if (end > x) {
+                vs_battle_addTile(ot,
+                    ((color & 0x1F) << 3) | ((color & 0x3E0) << 6)
+                        | ((color & 0x7C00) << 9) | 0x40000000,
+                    (x & 0xFFFF) | (y << 16), ((end - 1) & 0xFFFF) | (y << 16));
+            }
+        }
+#endif
     }
+#ifdef ROOD_PC
+    if (pc_margin) {
+        pc_hw_anchor_packets(pc_wipe_start, psx_get(vs_scratch.unk0), PC_ANCHOR_SCENE);
+    }
+#endif
 }
 
 void func_800CC580(u_long* arg0, int arg1)

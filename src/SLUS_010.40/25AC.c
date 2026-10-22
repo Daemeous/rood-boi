@@ -179,6 +179,15 @@ extern FSoundChannelConfig* g_pSavedMousicConfig;
 #else
 #define SAVED_MUSIC_CONFIG g_pSavedMousicConfig
 #endif
+#ifdef ROOD_PC
+/* A depth slide (opcodes DD/DE/DF) on a channel whose LFO was never enabled
+ * reads a NULL wave: PS1 physical RAM at 0, as above. Zone 15 room
+ * 0's and zone 48 room 3's entry sound effects slide the auto-pan depth. */
+#define LFO_WAVE(field)                                                         \
+    (psx_get(field) ? psx_get(field) : (short*)0x80000000)
+#else
+#define LFO_WAVE(field) psx_get(field)
+#endif
 extern FSoundChannel* g_pSecondaryMusicChannels;
 extern FSoundFadeTimer g_Sound_MasterFadeTimer;
 extern FSoundCutsceneStreamState g_Sound_Cutscene_StreamState;
@@ -1624,7 +1633,7 @@ void Sound_UpdateSlidesAndDelays(
         in_pChannel->VibratoBase = var_lo;
 
         if ((in_pChannel->VibratoDelayCurrent == 0) && (in_pChannel->unkA4 != 1)) {
-            Wave = psx_get(in_pChannel->VibratoWave);
+            Wave = LFO_WAVE(in_pChannel->VibratoWave);
             if (Wave[0] == 0 && Wave[1] == 0) {
                 Wave += Wave[2];
             }
@@ -1651,7 +1660,7 @@ void Sound_UpdateSlidesAndDelays(
             int VolumeBalanceHigh8;
             int VolumeHigh16;
 
-            Wave = psx_get(in_pChannel->TremeloWave);
+            Wave = LFO_WAVE(in_pChannel->TremeloWave);
             if (Wave[0] == 0 && Wave[1] == 0) {
                 Wave += Wave[2];
             }
@@ -1673,7 +1682,7 @@ void Sound_UpdateSlidesAndDelays(
         in_pChannel->AutoPanDepthSlideLength--;
         in_pChannel->AutoPanDepth += in_pChannel->AutoPanDepthSlideStep;
         if (in_pChannel->AutoPanRateCurrent != 1) {
-            Wave = psx_get(in_pChannel->AutoPanWave);
+            Wave = LFO_WAVE(in_pChannel->AutoPanWave);
             if ((Wave[0] == 0) && (Wave[1] == 0)) {
                 Wave += Wave[2];
             }

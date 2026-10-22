@@ -288,7 +288,7 @@ suites = ["camera_stick_smoke", "camera_options_smoke", "facing_cutaway_smoke", 
 [[rule]]
 paths = ["pc/src/room_browser.cpp", "pc/src/room_warp.*", "pc/src/room_catalog.c", "pc/src/screff2_warp.c",
          "pc/src/map_view.c"]
-suites = ["room_browser_smoke", "editor_roomload_smoke", "fast_travel_*", "atmosphere_sweep", "void_fog_smoke",
+suites = ["room_browser_smoke", "room_entry_sound_smoke", "editor_roomload_smoke", "fast_travel_*", "atmosphere_sweep", "void_fog_smoke",
           "two_model_enemy_smoke", "platform_shadow_smoke", "ui_map_smoke", "narrowed_2d_smoke", "ctest"]
 
 [[rule]]
