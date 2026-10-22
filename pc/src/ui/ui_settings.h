@@ -79,6 +79,9 @@ typedef struct {
     /* 1: a risky display change (window mode, ...): applied at once, kept only
      * when confirmed ("Keep these settings?", display_confirm.h) */
     int confirm;
+    /* 1: the Option screens offer a preview of it (hold Square: the menu steps
+     * aside for the live 3D view; option_peek.h); a page's row may say otherwise */
+    int preview;
 } pc_ui_setting_row;
 
 int pc_ui_settings_pages(void);

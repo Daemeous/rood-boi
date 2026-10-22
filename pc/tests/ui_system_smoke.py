@@ -13,7 +13,9 @@ in the save room with ui_menus on; Triangle, L1 (System). One row per page:
     scale only on release (Right/Left put it back at once);
     Right on Anti-aliasing filter to FXAA (graphics aa, saved aa);
     Downsample filter while supersampling is off: greyed with a reason,
-    Right does nothing (value, dirty)
+    Right does nothing (value, dirty); Glowing surfaces offers a preview:
+    Square held hides the menu (the live 3D view), Right changes it live,
+    release brings the page back
   - debounce: right after a change the page is dirty; the save (the save
     counter) follows at the first tick after 1 s of quiet, by the shell's
     own clock (RPC debounce; a stopped or slow game does not change that);
@@ -323,6 +325,35 @@ def main():
         r2 = rows()["aa_downsample"]
         check(r2["value"] == r["value"] and sysv()["dirty"] == dirty and g["aa_downsample"]
               == game.call("graphics")["aa_downsample"], f"Right on the greyed row changes nothing ({r2['value']})")
+        # the preview: Square held on a row that offers one hides the menu for the live 3D view
+        import numpy as np
+        from PIL import Image
+        r = goto_row("emissive")
+        settle()
+        menu_shot = out / "preview-menu.png"
+        game.present_screenshot(menu_shot)
+        menu_image = np.asarray(Image.open(menu_shot).convert("RGB")).astype(np.int16)
+        game.call("input", buttons=["square"], vsyncs=40)
+        wait(lambda: sysv().get("peek"), "the preview on", limit=30, step=1)
+        peek_shot = out / "preview-peek.png"
+        game.present_screenshot(peek_shot)
+        peek_image = np.asarray(Image.open(peek_shot).convert("RGB")).astype(np.int16)
+        changed = float((np.abs(peek_image - menu_image).max(axis=2) > 16).mean())
+        before = r["value"]
+        game.call("input", buttons=["square", "right"], vsyncs=4)
+        game.run(6)
+        during = rows()["emissive"]["value"]
+        check(r.get("preview") and changed > 0.2 and during != before,
+              f"Square held on Glowing surfaces: the menu steps aside ({changed * 100:.0f}% of the picture "
+              f"changed), Right changes it live ({before} -> {during})")
+        game.call("input", buttons=["square", "left"], vsyncs=4)
+        game.run(6)
+        wait(lambda: not sysv().get("peek"), "the preview off (Square let go)", limit=120, step=2)
+        check(rows()["emissive"]["value"] == before and sysv()["mode"] == "page",
+              f"released: the page back ({rows()['emissive']['value']})")
+        if not args.out:
+            menu_shot.unlink(missing_ok=True)
+            peek_shot.unlink(missing_ok=True)
         shot("graphics")
         leave()  # Cross saves at once
         saved = settings_lines(settings)

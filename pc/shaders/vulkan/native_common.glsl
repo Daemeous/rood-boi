@@ -43,6 +43,8 @@ layout(std140, binding = 0) uniform Draw {
     vec4 occl_params; // 432: visibility kept, softness, subject count (0: off), dither (0 Bayer, 1 noise)
     vec4 occl_instance; // 448: a character's mesh (x: never faded), its silhouette strength (y), rim weight (z)
     vec4 occl_tint; // 464: its silhouette's colour
+    vec4 occl_up; // 480: the world's up in the same view space (xyz)
+    vec4 occl_feet; // 496: each subject's middle above its feet (world units)
 } u;
 // Animated materials (render_list_uv_effects), entry 0 none: the UV offset
 // the game's effect writes this frame (offset.xy), its window (base u, v,

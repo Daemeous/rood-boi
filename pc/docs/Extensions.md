@@ -822,10 +822,10 @@ rood.menu.action("clear", function() rood.storage.set("seen", {}) end, { help = 
 
 | | |
 |---|---|
-| `rood.menu.page(t) -> id` | defines (or, again, redefines in place) a page `"<plugin id>/<id>"`. `id`: a slug (1-32 of a-z 0-9 _ -); `title` 1-24 characters the game's font has (`vs_encode`); `help`; `after` / `before` (ids, local names, `group:<name>`) or `parent` must name pages that exist; `group` defaults to `plugins` (after every core page; `system` is the shipped pages'); `rows` at most 64, 16 pages a plugin. A row is a key or a table with exactly one of `setting`, `define`, `header`, `page`, `action` (or `help` alone: a help line), plus `label`, `help`, `where` (`classic`, `modern`, `all`). A setting must be in the catalog (the plugin's own defined first; another plugin's is allowed); `define` takes `rood.settings.define`'s spec, with `kind` `toggle` / `choice` / `slider` for `type`. Errors raise in the plugin; text the font lacks in labels and help is a warning (shown as `?` in the classic look) |
+| `rood.menu.page(t) -> id` | defines (or, again, redefines in place) a page `"<plugin id>/<id>"`. `id`: a slug (1-32 of a-z 0-9 _ -); `title` 1-24 characters the game's font has (`vs_encode`); `help`; `after` / `before` (ids, local names, `group:<name>`) or `parent` must name pages that exist; `group` defaults to `plugins` (after every core page; `system` is the shipped pages'); `rows` at most 64, 16 pages a plugin. A row is a key or a table with exactly one of `setting`, `define`, `header`, `page`, `action` (or `help` alone: a help line), plus `label`, `help`, `where` (`classic`, `modern`, `all`), `preview` (true / false: the row offers a preview; default the setting's own, every Graphics setting and Brightness). A setting must be in the catalog (the plugin's own defined first; another plugin's is allowed); `define` takes `rood.settings.define`'s spec, with `kind` `toggle` / `choice` / `slider` for `type`. Errors raise in the plugin; text the font lacks in labels and help is a warning (shown as `?` in the classic look) |
 | `rood.menu.action(name, fn[, {label, help}]) -> id` | `"<plugin id>/<name>"`, run in the plugin's sandbox under its budget when the player picks its row (an error: the plugin's fault) |
 | `rood.menu.style{ classic = {...}, confirm = {...} } -> values` | the Option screens' look and feel (`pc/src/ui/option_style.h`; fields `<group>_<name>`): the classic page layout (`row_x`, `row_w`, `value_x`, `uppercase`, `toggle_gap`, `bar_colour`, `bar_width`, `lit`, `other`, `help_width`, `help_seconds`, `help_lines`) and `confirm.seconds`. Only `rood.options` sets it (its `M.style` table; the C defaults are the same values); back to the defaults when it unloads; RPC `options {style}` tries values live. No argument: the values |
-| `rood.menu.remove(id) -> bool`, `rood.menu.pages()`, `rood.menu.rows(id[, where])`, `rood.menu.actions()`, `rood.menu.generation()` | own pages only; every listed page (`id, title, help, source, group, parent, depth`); a page's rows a screen shows now (`id, form, kind, label, help, text, enabled, reason, page, where`); the core actions (`plugin_ok`) and plugins' (`owner`); the page model's change counter |
+| `rood.menu.remove(id) -> bool`, `rood.menu.pages()`, `rood.menu.rows(id[, where])`, `rood.menu.actions()`, `rood.menu.generation()` | own pages only; every listed page (`id, title, help, source, group, parent, depth`); a page's rows a screen shows now (`id, form, kind, label, help, text, enabled, reason, page, where, preview`); the core actions (`plugin_ok`) and plugins' (`owner`); the page model's change counter |
 
 In the classic look a label wider than its column is cut (the game logs it;
 RPC `options` lists them as `cut`): keep labels short (about 20 capitals).
@@ -834,6 +834,21 @@ the display cannot show leaves a black screen; the window mode and the display
 apply and save at once) asks "Keep these settings?" in both screens: it
 applies at once, settings.cfg keeps the old value until it is kept, and it
 reverts by itself after `confirm.seconds` (`pc/src/display_confirm.h`).
+
+**Preview.** A row that offers one (`preview`) says "Hold SQUARE: preview."
+after its help (both screens). While it is focused and Square is held the
+menu steps aside (`pc/src/ui/option_peek.c`): the classic screen's 2D layer
+(its windows, text, information box) and the HUD, or the modern shell, are
+hidden, so the live 3D view shows the value; Left / Right still change it
+and a small readout at the bottom names the row and its value; releasing
+Square brings the menu back as it was. The game stays paused under the menu
+(the field does not move) while the 3D view is redrawn every frame (lighting,
+occlusion, post; lens blur is allowed during the preview). The classic menu
+draws no dimming layer: the field looks darker under it because the game
+holds its effects while a menu is open (torch flames and their glow lights),
+and that stays so in the preview. See-through walls only fade when Ashley is
+hidden, so its help says to stand behind something first. RPC `options`
+(classic) and `ui_menu` (modern) report `peek` and each row's `preview`.
 
 Rows show live values and greyed reasons from the catalog; a plugin's own
 settings (`plugin:<id>/<name>`, and standalone schema kinds' `<kind>/<field>`)

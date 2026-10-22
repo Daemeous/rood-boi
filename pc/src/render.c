@@ -1436,6 +1436,12 @@ static void cutaway_params(const draw_list* list, const render_camera* cam, floa
  * lists: its hidden pixels drawn in a dither of `tint`), z rim weight. */
 typedef struct {
     float subject[PC_OCCLUSION_SUBJECTS][4], shape[PC_OCCLUSION_SUBJECTS][4], params[4];
+    /* up: the world's up in the same view space (xyz); feet: each subject's
+     * middle above its feet (world units). A fragment more than a little
+     * above a subject's feet, nearer than it and inside its ellipse is in
+     * front of it whatever its plane (a pillar's narrow side seen edge on,
+     * a blade, the cap on a post); the floor it stands on never is. */
+    float up[4], feet[4];
 } occlusion_draw;
 static void occlusion_params(const draw_list* list, const render_camera* cam, float t, occlusion_draw* o)
 {
@@ -1467,6 +1473,7 @@ static void occlusion_params(const draw_list* list, const render_camera* cam, fl
         o->shape[i][1] = s[i].half_h;
         o->shape[i][2] = s[i].body;
         o->shape[i][3] = s[i].hidden * (strength < 0 ? 0 : strength > 1 ? 1 : strength);
+        o->feet[i] = s[i].feet_y - s[i].center[1];
         any |= o->subject[i][3] > 0.001f || o->shape[i][3] > 0.001f;
     }
     if (!any)
@@ -1475,6 +1482,13 @@ static void occlusion_params(const draw_list* list, const render_camera* cam, fl
     float soft = pc_occlusion_softness < 0.01f ? 0.01f : pc_occlusion_softness > 1 ? 1 : pc_occlusion_softness;
     o->params[0] = v, o->params[1] = soft, o->params[2] = (float)(n < PC_OCCLUSION_SUBJECTS ? n : PC_OCCLUSION_SUBJECTS);
     o->params[3] = pc_occlusion_dither ? 1.0f : 0.0f;
+    /* world up (y is down) */
+    float up[3], length = 0;
+    for (int a = 0; a < 3; a++)
+        up[a] = -cam->rotation[a][1] * scale[a], length += up[a] * up[a];
+    length = sqrtf(length);
+    for (int a = 0; a < 3; a++)
+        o->up[a] = length > 1e-9f ? up[a] / length : 0;
 }
 /* The instance's occl_instance and occl_tint (see above). */
 static void occlusion_instance(const draw_list* list, const list_instance* in, int painter, float out[4], float tint[4])
@@ -1832,6 +1846,8 @@ static const char* fragment_source =
     "uniform vec4 occl_params;\n" /* visibility, softness, subject count, dither */
     "uniform vec4 occl_instance;\n" /* a character's mesh (x), its silhouette strength (y), rim weight (z) */
     "uniform vec4 occl_tint;\n" /* its silhouette's colour */
+    "uniform vec4 occl_up;\n" /* the world's up in view space (occlusion_draw) */
+    "uniform vec4 occl_feet;\n" /* each subject's middle above its feet */
     "uniform int perspective;\n"
     "uniform int filtering;\n"
     "uniform uint window;\n"
@@ -1938,12 +1954,15 @@ static const char* fragment_source =
      * Semi-transparent texels (a save point's light, glass) hide nothing:
      * never faded (decided below, once the texel is known). */
     "    float occl_cover = 1.0;\n"
-    "    if (occl_params.z > 0.0 && occl_instance.x == 0.0 && (v_cut >> 4) != 0 && v_view.z > 1.0) {\n"
+    "    if (occl_params.z > 0.0 && occl_instance.x == 0.0 && v_view.z > 1.0) {\n"
     "        vec2 sp = v_view.xy / v_view.z;\n"
     "        float fade = 0.0;\n"
     "        for (int i = 0; i < 4; i++) {\n"
     "            vec4 s = occl_subject[i];\n"
-    "            if (((v_cut >> (4 + i)) & 1) == 0 || s.w <= 0.0 || v_view.z > s.z - occl_shape[i].z) continue;\n"
+    "            if (s.w <= 0.0 || v_view.z > s.z - occl_shape[i].z * 0.5) continue;\n"
+    /* in front: its plane separates the eye from the subject, or it stands
+     * above the subject's feet (not the floor under it) */
+    "            if (((v_cut >> (4 + i)) & 1) == 0 && dot(v_view - s.xyz, occl_up.xyz) + occl_feet[i] < 12.0) continue;\n"
     "            vec2 d = (sp - s.xy / s.z) * s.z / max(occl_shape[i].xy, vec2(1.0));\n"
     "            fade = max(fade, (1.0 - smoothstep(1.0 - occl_params.y, 1.0, length(d))) * s.w);\n"
     "        }\n"
@@ -2039,7 +2058,8 @@ static const char* fragment_source =
     "        }\n"
     "    }\n"
     "    if ((semi_pass == 1 && semi) || (semi_pass == 2 && !semi)) discard;\n"
-    "    if (occl_cover < 1.0 && !semi && occl_cover < occl_threshold(ivec2(gl_FragCoord.xy))) discard;\n"
+    "    uint occl_blend = (tpage >> 5) & 3u;\n" /* additive light (B + F, B + F/4) hides nothing: never faded */
+    "    if (occl_cover < 1.0 && !(semi && (occl_blend == 1u || occl_blend == 3u)) && occl_cover < occl_threshold(ivec2(gl_FragCoord.xy))) discard;\n"
     "    if (silhouette) {\n"
     "        color = vec4(occl_tint.rgb, float(mask));\n"
     "        normal_out = vec4(0.5, 0.5, 0.0, 0.0);\n" /* unlit */
@@ -2057,7 +2077,7 @@ static const char* fragment_source =
 static GLint u_bone_rotation, u_bone_translation, u_normal_matrix, u_projection, u_offset, u_rules, u_split, u_tint,
     u_clip_z, u_perspective, u_filtering, u_window, u_mask_set, u_vram, u_objects, u_zsf3, u_override_color,
     u_override_texture, u_surface, u_depth_pass, u_surface_depth, u_painter, u_surface_before, u_instance_blend,
-    u_translucent, u_forced, u_semi_pass, u_surface_test, u_order, u_room_slack, u_room_order, u_layer_slack, u_cut_focus, u_cut_scale, u_instance_cut, u_occl_subject, u_occl_shape, u_occl_params, u_occl_instance, u_occl_tint, u_uv_offset, u_uv_count, u_uv_window,
+    u_translucent, u_forced, u_semi_pass, u_surface_test, u_order, u_room_slack, u_room_order, u_layer_slack, u_cut_focus, u_cut_scale, u_instance_cut, u_occl_subject, u_occl_shape, u_occl_params, u_occl_instance, u_occl_tint, u_occl_up, u_occl_feet, u_uv_offset, u_uv_count, u_uv_window,
     u_uv_shift, u_emissive_map, u_emissive_on;
 static GLuint element_buffer; /* PS1 draw order, streamed per list */
 
@@ -2120,6 +2140,8 @@ static int ensure_program(void)
     U(occl_params);
     U(occl_instance);
     U(occl_tint);
+    U(occl_up);
+    U(occl_feet);
 #undef U
     gl_GenBuffers(1, &element_buffer);
     u_bone_rotation = gl_GetUniformLocation(program, "bone_rotation[0]");
@@ -2365,6 +2387,8 @@ static const render_camera* begin_draw(const draw_list* list, const render_targe
     gl_Uniform4fv(u_occl_subject, PC_OCCLUSION_SUBJECTS, occl.subject[0]);
     gl_Uniform4fv(u_occl_shape, PC_OCCLUSION_SUBJECTS, occl.shape[0]);
     gl_Uniform4fv(u_occl_params, 1, occl.params);
+    gl_Uniform4fv(u_occl_up, 1, occl.up);
+    gl_Uniform4fv(u_occl_feet, 1, occl.feet);
     /* Animated materials (render_list_uv_effects). */
     static uv_effect_gpu table[RENDER_MAX_UV_EFFECTS + 1];
     static GLint offsets[(RENDER_MAX_UV_EFFECTS + 1) * 4], windows[(RENDER_MAX_UV_EFFECTS + 1) * 4];

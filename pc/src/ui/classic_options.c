@@ -41,6 +41,7 @@
 #include "classic_options.h"
 #include "option_actions.h"
 #include "option_pages.h"
+#include "option_peek.h"
 #include "option_style.h"
 #include "options_nav.h"
 #include "ui_settings.h"
@@ -551,7 +552,27 @@ static void row_help(void)
         info("");
         return;
     }
-    info(!r.row.enabled && r.row.reason[0] ? r.row.reason : r.row.help);
+    if (!r.row.enabled && r.row.reason[0]) {
+        info(r.row.reason);
+        return;
+    }
+    if (r.row.preview) { /* the preview's button, after the help */
+        char text[512];
+        pc_format(text, sizeof text, "%s%s%s", r.row.help, r.row.help[0] ? " " : "", pc_option_peek_hint);
+        info(text);
+        return;
+    }
+    info(r.row.help);
+}
+
+/* The preview (option_peek.h): Square held on a row that offers one. */
+static int peek_update(void)
+{
+    pc_option_row r;
+    int on = S.state == S_PAGE && S.count && row_info(S.cursor, &r) && r.row.preview && r.row.enabled
+          && (vs_main_buttonsState & PADRleft) && pc_ui_settings_capture_button() < 0;
+    pc_option_peek(on, on ? r.row.label : NULL, on ? r.row.value : NULL);
+    return on;
 }
 
 static void draw_cursor(int item_id)
@@ -565,6 +586,7 @@ static void draw_cursor(int item_id)
 
 static void leave(int result)
 {
+    pc_option_peek(0, NULL, NULL); /* the menu back */
     pc_display_confirm_revert(); /* (nothing pending: nothing happens) */
     pc_ui_settings_flush();      /* the page's changes saved as it closes */
     if (result == -2) {
@@ -823,6 +845,13 @@ static void page_input(void)
         leave(-2);
         return;
     }
+    if (pc_option_peek_active()) { /* the preview: Left / Right change the value, nothing else moves */
+        if (repeat & PADLleft)
+            step_value(-1);
+        else if (repeat & PADLright)
+            step_value(1);
+        return;
+    }
     if (pressed & PADRright) {
         activate();
         return;
@@ -980,11 +1009,13 @@ int pc_options_exec(void)
             place_all(0);
         }
         refresh_items();
+        peek_update();
         if (vs_mainmenu_ready()) {
             page_input();
             if (S.state != S_PAGE)
                 return 0;
         }
+        peek_update(); /* (the value it shows, after a change) */
         if (S.count)
             draw_cursor(ROW_BASE + S.cursor - S.top);
         draw_values();
@@ -1142,6 +1173,8 @@ int pc_options_json(char* out, int size)
         }
         if (r.row.confirm)
             PUT(",\"confirm\":true");
+        if (r.row.preview)
+            PUT(",\"preview\":true");
         if (label_cut(&r))
             PUT(",\"cut\":true");
         PUT("}");
@@ -1185,7 +1218,7 @@ int pc_options_json(char* out, int size)
         PUT("%s", i > help.shown * help.per_box ? "," : "");
         TEXT_(line);
     }
-    PUT("],\"info\":");
+    PUT("],\"peek\":%s,\"info\":", pc_option_peek_active() ? "true" : "false");
     TEXT_(S.state != S_NONE ? S.info_key : "");
     PUT("}");
 #undef PUT

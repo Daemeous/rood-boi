@@ -50,6 +50,7 @@ typedef struct {
     const char* label; /* header / note: the text; else NULL (the setting's, action id's or page's title) or the label */
     const char* help;  /* NULL: the setting's or linked page's help */
     int where;         /* PC_UI_WHERE_*; 0: the setting's own (catalog), all screens for the other forms */
+    int preview;       /* setting: 1 offer a preview (hold Square: option_peek.h), -1 none, 0 the setting's own */
 } pc_option_row_def;
 
 typedef struct {

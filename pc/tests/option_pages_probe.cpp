@@ -367,14 +367,14 @@ static void cycles_and_errors()
     CHECK(pc_option_pages_info(pc_option_pages_index("t/p"), &info) && info.parent == -1); // unchanged
     CHECK(pc_option_pages_generation() == gen);
     // link cycles: R links back to P (P -> Q -> R by parents); a page links itself; two pages link each other
-    pc_option_row_def to_p = {PC_OPT_LINK, "t/p", nullptr, nullptr, 0};
+    pc_option_row_def to_p = {PC_OPT_LINK, "t/p", nullptr, nullptr, 0, 0};
     r.rows = &to_p, r.row_count = 1;
     CHECK(define(r) == PC_OPT_ERR_CYCLE);
-    pc_option_row_def to_self = {PC_OPT_LINK, "t/x", nullptr, nullptr, 0};
+    pc_option_row_def to_self = {PC_OPT_LINK, "t/x", nullptr, nullptr, 0, 0};
     pc_option_page_def x = page("t/x", "X");
     x.rows = &to_self, x.row_count = 1;
     CHECK(define(x) == PC_OPT_ERR_CYCLE);
-    pc_option_row_def to_y = {PC_OPT_LINK, "t/y", nullptr, nullptr, 0}, to_x = {PC_OPT_LINK, "t/x", nullptr, nullptr, 0};
+    pc_option_row_def to_y = {PC_OPT_LINK, "t/y", nullptr, nullptr, 0, 0}, to_x = {PC_OPT_LINK, "t/x", nullptr, nullptr, 0, 0};
     x.rows = &to_y;
     CHECK(define(x) == PC_OPT_OK); // a link to a page not there yet: allowed (greyed)
     pc_option_page_def y = page("t/y", "Y");
@@ -382,7 +382,7 @@ static void cycles_and_errors()
     CHECK(define(y) == PC_OPT_ERR_CYCLE);
     CHECK(pc_option_pages_index("t/y") == -1);
     // a link down the tree is fine (Controls -> Bindings)
-    pc_option_row_def to_r = {PC_OPT_LINK, "t/r", nullptr, nullptr, 0};
+    pc_option_row_def to_r = {PC_OPT_LINK, "t/r", nullptr, nullptr, 0, 0};
     p = page("t/p", "P");
     p.rows = &to_r, p.row_count = 1;
     CHECK(define(p) == PC_OPT_OK);
@@ -394,13 +394,13 @@ static void cycles_and_errors()
     orphan.parent = "t/none";
     CHECK(define(orphan) == PC_OPT_ERR_PARENT);
     CHECK(define(page("t/p", "Taken"), "other") == PC_OPT_ERR_OWNER);
-    pc_option_row_def bad = {PC_OPT_SETTING, nullptr, nullptr, nullptr, 0};
+    pc_option_row_def bad = {PC_OPT_SETTING, nullptr, nullptr, nullptr, 0, 0};
     pc_option_page_def badp = page("t/bad", "Bad");
     badp.rows = &bad, badp.row_count = 1;
     CHECK(define(badp) == PC_OPT_ERR_ROW);
-    bad = {PC_OPT_HEADER, nullptr, nullptr, nullptr, 0};
+    bad = {PC_OPT_HEADER, nullptr, nullptr, nullptr, 0, 0};
     CHECK(define(badp) == PC_OPT_ERR_ROW);
-    bad = {42, "x", nullptr, nullptr, 0};
+    bad = {42, "x", nullptr, nullptr, 0, 0};
     CHECK(define(badp) == PC_OPT_ERR_ROW);
     CHECK(pc_option_pages_index("t/bad") == -1);
     CHECK(std::strstr(pc_option_pages_error(PC_OPT_ERR_CYCLE), "back"));
@@ -413,16 +413,16 @@ static void rows_of_every_form()
     sub_def.help = "Below";
     CHECK(define(sub_def) == PC_OPT_OK);
     const pc_option_row_def rows[] = {
-        {PC_OPT_HEADER, nullptr, "Picture", nullptr, 0},
-        {PC_OPT_SETTING, "widescreen", nullptr, nullptr, 0},
-        {PC_OPT_SETTING, "aspect", "Fill", "How it fills.", 0},
-        {PC_OPT_SETTING, "plugin:gone/speed", "Speed", nullptr, 0},
-        {PC_OPT_NOTE, nullptr, "Restart to apply.", nullptr, 0},
-        {PC_OPT_ACTION, "settings.save", "Save", "Now.", 0},
-        {PC_OPT_LINK, "t/sub", nullptr, nullptr, 0},
-        {PC_OPT_LINK, "t/later", "Later", nullptr, 0},
-        {PC_OPT_SETTING, "vibration", nullptr, nullptr, 0},                    // the game's: modern only
-        {PC_OPT_SETTING, "skip_intro", nullptr, nullptr, PC_UI_WHERE_CLASSIC}, // narrowed by the page
+        {PC_OPT_HEADER, nullptr, "Picture", nullptr, 0, 0},
+        {PC_OPT_SETTING, "widescreen", nullptr, nullptr, 0, 0},
+        {PC_OPT_SETTING, "aspect", "Fill", "How it fills.", 0, 0},
+        {PC_OPT_SETTING, "plugin:gone/speed", "Speed", nullptr, 0, 0},
+        {PC_OPT_NOTE, nullptr, "Restart to apply.", nullptr, 0, 0},
+        {PC_OPT_ACTION, "settings.save", "Save", "Now.", 0, 0},
+        {PC_OPT_LINK, "t/sub", nullptr, nullptr, 0, 0},
+        {PC_OPT_LINK, "t/later", "Later", nullptr, 0, 0},
+        {PC_OPT_SETTING, "vibration", nullptr, nullptr, 0, 0},                    // the game's: modern only
+        {PC_OPT_SETTING, "skip_intro", nullptr, nullptr, PC_UI_WHERE_CLASSIC, 0}, // narrowed by the page
     };
     pc_option_page_def d = page("t/main", "Main");
     d.rows = rows, d.row_count = (int)(sizeof rows / sizeof rows[0]);
@@ -465,7 +465,7 @@ static void rows_of_every_form()
     CHECK(pc_option_page_row(main_page, PC_UI_WHERE_ALL, 7, &r) && r.link == pc_option_pages_index("t/later")
         && r.row.enabled && same(r.row.label, "Later")); // the row's own label wins
     // a setting row the catalog hides now is not listed
-    pc_option_row_def hidden_rows[] = {{PC_OPT_SETTING, "present_rate", nullptr, nullptr, 0}};
+    pc_option_row_def hidden_rows[] = {{PC_OPT_SETTING, "present_rate", nullptr, nullptr, 0, 0}};
     pc_option_page_def h = page("t/hidden", "Hidden");
     h.rows = hidden_rows, h.row_count = 1;
     CHECK(define(h) == PC_OPT_OK);
@@ -473,6 +473,19 @@ static void rows_of_every_form()
     CHECK(pc_option_page_rows(pc_option_pages_index("t/hidden"), PC_UI_WHERE_ALL) == 0);
     pc_hw_interpolate = 1;
     CHECK(pc_option_page_rows(pc_option_pages_index("t/hidden"), PC_UI_WHERE_ALL) == 1);
+    // the preview (option_peek.h): a setting's own (every Graphics row) unless the page's row says
+    pc_option_row_def preview_rows[] = {{PC_OPT_SETTING, "emissive", nullptr, nullptr, 0, 0},
+        {PC_OPT_SETTING, "dust", nullptr, nullptr, 0, -1}, {PC_OPT_SETTING, "widescreen", nullptr, nullptr, 0, 0},
+        {PC_OPT_SETTING, "aspect", nullptr, nullptr, 0, 1}, {PC_OPT_ACTION, "settings.save", nullptr, nullptr, 0, 1}};
+    pc_option_page_def pv = page("t/preview", "Preview");
+    pv.rows = preview_rows, pv.row_count = 5;
+    CHECK(define(pv) == PC_OPT_OK);
+    int pvi = pc_option_pages_index("t/preview");
+    CHECK(pc_option_page_row(pvi, PC_UI_WHERE_ALL, 0, &r) && r.row.preview);  // Graphics: its own
+    CHECK(pc_option_page_row(pvi, PC_UI_WHERE_ALL, 1, &r) && !r.row.preview); // the page says no
+    CHECK(pc_option_page_row(pvi, PC_UI_WHERE_ALL, 2, &r) && !r.row.preview); // Display's widescreen: none
+    CHECK(pc_option_page_row(pvi, PC_UI_WHERE_ALL, 3, &r) && r.row.preview);  // the page says yes
+    CHECK(pc_option_page_row(pvi, PC_UI_WHERE_ALL, 4, &r) && !r.row.preview); // an action never
 }
 
 static void generation_and_sources()

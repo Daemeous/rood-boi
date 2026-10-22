@@ -286,6 +286,12 @@ int api_page(lua_State* L)
             if (value.empty())
                 return luaL_error(L, "rood.menu.page: '%s' row %d: %s must be a non-empty string", id.c_str(), row, form);
             d.where = where_field(L, r_idx, row);
+            lua_getfield(L, r_idx, "preview"); /* true / false: a preview offered (option_peek.h); nil: the setting's own */
+            if (lua_isboolean(L, -1))
+                d.preview = lua_toboolean(L, -1) ? 1 : -1;
+            else if (!lua_isnil(L, -1))
+                return luaL_error(L, "rood.menu.page: '%s' row %d: preview is true or false", id.c_str(), row);
+            lua_pop(L, 1);
             if (!std::strcmp(form, "setting")) {
                 check_setting(L, p, value, row);
                 d.form = PC_OPT_SETTING, d.ref = hold(value);
@@ -466,6 +472,8 @@ int api_rows(lua_State* L)
         }
         static const char* const WHERE[] = { "", "classic", "modern", "all" };
         set_str(L, "where", WHERE[r.row.where & PC_UI_WHERE_ALL]);
+        lua_pushboolean(L, r.row.preview);
+        lua_setfield(L, -2, "preview");
         lua_rawseti(L, -2, i + 1);
     }
     return 1;

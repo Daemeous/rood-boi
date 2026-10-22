@@ -974,13 +974,18 @@ solid: Baldur's Gate 3's idea, in the PS1's own terms.
   out.
 - **Fade**: per draw, the subjects go to the shaders in the list camera's
   view space (`render.c occlusion_params`; Vulkan: `native_ubo` from offset
-  304). The geometry stage marks each polygon whose plane separates the eye
-  from a subject (`v_cut` bits 4-7: walls between them, never the floor
-  under the subject or a wall behind it); the fragment stage, for marked
-  fragments nearer than the subject inside its ellipse, keeps
-  `1 - fade * (1 - occlusion_visibility)` of the pixels with a smooth
-  radial falloff (`occlusion_softness`), the rest discarded. Room lists
-  and props fade (semi-transparent texels, a save point's light, never); characters (an object mesh
+  304). A fragment is in front of a subject when it is nearer than the
+  subject's middle (less half its body) and either its polygon's plane
+  separates the eye from the subject (the geometry stage's `v_cut` bits
+  4-7: walls between them) or it stands more than 12 units above the
+  subject's feet (`occl_up`, `occl_feet`: what the plane test misses, a
+  pillar's narrow side seen edge on, a step's lip, a blade, the cap on a
+  post; the floor under the subject never counts). Inside the subject's
+  ellipse such fragments keep `1 - fade * (1 - occlusion_visibility)` of
+  their pixels with a smooth radial falloff (`occlusion_softness`), the
+  rest discarded. Room lists and props fade, semi-transparent texels too
+  except additive light (blend B + F, B + F/4: a save point's glow hides
+  nothing); characters (an object mesh
   whose root lies within an actor's reach, `pc_occlusion_character`) and
   effects never do.
 - **Why a dither, not alpha**: the native passes write a G-buffer that is
@@ -1016,7 +1021,11 @@ solid: Baldur's Gate 3's idea, in the PS1's own terms.
 
 `occlusion_smoke.py` checks it on both renderers (Undercity save point:
 eased, stable, only around her; zone 9 room 18 in battle: an enemy hidden
-by a wall).
+by a wall; Rue Vermillion's pillars and the beam: wholly faded, nothing in
+front of her stays solid, measured with a magenta silhouette).
+Tuning: the developer overlay's Graphics tab has an "Occlusion
+(see-through walls)" header with every key; the player's Graphics page has
+See-through walls, amount, size and softness.
 
 ## Verification (2026-10-10)
 

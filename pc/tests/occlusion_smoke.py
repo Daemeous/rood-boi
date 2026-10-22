@@ -26,6 +26,10 @@ OpenGL and once for Vulkan):
    deterministic): once drawn solid (visibility 1, no silhouettes), once
    with fade_silhouette; at the same vsync the enemy's ellipse differs
    between the two and the picture away from the subjects is the same.
+3. Nothing in front stays solid: at Rue Vermillion's pillars (zone 32 room
+   0, camera yaw 0: their narrow sides seen edge on and a step's lip stand
+   in front of her) and at the beam, wholly faded with her silhouette in
+   magenta, almost none of her body inside the ellipse stays hidden.
 No crash, shader error or validation message. --shots saves pictures (game
 imagery: keep them local)."""
 import argparse
@@ -204,6 +208,47 @@ def field(game, out, save):
     game.call("occlusion", occlusion="fade")
 
 
+def nothing_in_front(game, out, save, name, zone, room, presses, spot=None, target=None, limit=0.003):
+    """Faded wholly (visibility 0, a crisp edge) with her silhouette in pure magenta at full strength: every
+    pixel of Ashley still hidden by something in front of her shows magenta. Inside most of her ellipse none
+    may (a sole the floor at her feet hides aside): thin pieces seen edge on, a step's lip, a post's cap or a
+    blade fade like the walls. Before they did (rooms' plane test only), 1.5% of it stayed hidden at the
+    pillars; now under 0.1%."""
+    if not goto(game, zone, room, False):
+        check(False, f"zone {zone} room {room} through room_goto")
+        return
+    if spot:
+        width = pointer_size()
+        actor = int.from_bytes(game.read(symbols()["D_800F4538"], width), "little")
+        game.write(actor + POSITION, struct.pack("<3h", *spot))
+        game.run(60)
+    for _ in range(presses):
+        game.call("input", buttons=["r1"], vsyncs=4)
+    game.run(80)
+    if target is not None:
+        turn_to(game, target)
+    game.call("occlusion", occlusion="fade_silhouette", occlusion_visibility=0.0, occlusion_softness=0.05,
+              occlusion_silhouette_ashley=1.0, occlusion_silhouette_rim=0.0, occlusion_tint_ashley=[1, 0, 1])
+    game.run(30)
+    image = gf.capture(game, out / "n")
+    save(f"{name}-magenta", image)
+    s = subjects(game)
+    game.call("occlusion", occlusion="fade", occlusion_visibility=0.35, occlusion_softness=0.45,
+              occlusion_silhouette_ashley=0.3, occlusion_silhouette_rim=0.6, occlusion_tint_ashley=[0.42, 0.5, 0.6])
+    if not s or s[0]["slot"] != 0 or s[0]["rays_blocked"] < 1 or s[0]["fade"] < 0.99:
+        check(False, f"{name}: Ashley is hidden and faded ({s[:1]})")
+        return
+    x, y, depth, k = screen(game, s[0]["center"], image.shape)
+    hw, hh = s[0]["half_w"] * k / depth, s[0]["half_h"] * k / depth
+    ys, xs = np.mgrid[0:image.shape[0], 0:image.shape[1]]
+    region = ((xs - x) / hw) ** 2 + ((ys - y) / hh) ** 2 < 0.6 ** 2  # her body, down to her feet
+    img = image.astype(np.int32)
+    magenta = (img[..., 0] > 120) & (img[..., 2] > 120) & (img[..., 1] < 0.5 * np.minimum(img[..., 0], img[..., 2]))
+    share = float(magenta[region].mean())
+    check(share < limit, f"{name}: nothing in front of Ashley stays solid inside her ellipse ({share * 100:.2f}% of "
+          f"{int(region.sum())} pixels still hide her; {s[0]['rays_blocked']} rays blocked)")
+
+
 def battle(game, out, save, stop=None):
     """Zone 9 room 18, the weapon drawn, the camera turned until a wall hides the enemy that comes. Returns
     the vsync steps taken to that moment, the subjects and the picture."""
@@ -267,6 +312,11 @@ def main():
     logs.append(game.log)
     try:
         field(game, out, save)
+        # Thin pieces in front: Rue Vermillion (zone 32 room 0) where the warp puts her, the camera at
+        # yaw 0: a pillar's narrow sides and the lip of a step stand between the camera and her.
+        nothing_in_front(game, out, save, "pillars", 32, 0, 0, target=0x000)
+        # The beam at the Undercity save point (zone 51 room 1).
+        nothing_in_front(game, out, save, "beam", 51, 1, 0, spot=SPOT, target=0x400)
     finally:
         game.close()
     if not found:

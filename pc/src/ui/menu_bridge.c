@@ -292,6 +292,8 @@ extern int pc_overlay_active(void) __attribute__((weak));
 static unsigned map_buttons(unsigned pad);
 /* map_bridge.c: the Map frame's area list reads the pad as the shell does */
 unsigned pc_ui_map_buttons(unsigned pad) { return map_buttons(pad); }
+/* The buttons held now, in the shell's order (ui_shell.cpp: the Option pages' preview, Square held). */
+unsigned pc_ui_menu_held(void) { return map_buttons((unsigned)vs_main_buttonsState); }
 
 static unsigned map_buttons(unsigned pad)
 {

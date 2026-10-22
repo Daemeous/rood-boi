@@ -41,6 +41,7 @@ extern int pc_battle_first_person(void) __attribute__((weak)); /* weapon_slots.c
 extern int pc_gl_view[4] __attribute__((weak)); /* the presented view in the window (gl_present.c / vk_present.c) */
 extern int pc_gl_display[4] __attribute__((weak)); /* the display area in VRAM */
 extern int pc_ui_menu_active(void) __attribute__((weak)); /* ui/menu_bridge.c: the modern menus */
+extern int pc_option_peek_active(void) __attribute__((weak)); /* ui/option_peek.h: the Option pages' preview */
 extern float pc_hw_present_fade(float rect[4]) __attribute__((weak)); /* gpu_hw.c: the shown picture's screen fade */
 extern int pc_hw_present_menu_model(void) __attribute__((weak)); /* gpu_hw.c: the shown picture is the menu's model view */
 extern int pc_hw_active;
@@ -752,7 +753,8 @@ const char* lens_blur_gate(int context)
         return "title";
     if (&pc_game_phase && pc_game_phase == 2)
         return "attract";
-    if ((pc_battle_field_menu_open && pc_battle_field_menu_open()) || (pc_ui_menu_active && pc_ui_menu_active()))
+    if (((pc_battle_field_menu_open && pc_battle_field_menu_open()) || (pc_ui_menu_active && pc_ui_menu_active()))
+        && !(pc_option_peek_active && pc_option_peek_active())) /* (the Option pages' preview shows the field) */
         return "menu";
     if (context == PC_POST_CUTSCENE)
         return "";

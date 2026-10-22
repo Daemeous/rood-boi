@@ -96,12 +96,16 @@ void main() {
     // Semi-transparent texels (a save point's light, glass) hide nothing:
     // never faded (decided below, once the texel is known).
     float occl_cover = 1.0;
-    if (u.occl_params.z > 0.0 && u.occl_instance.x == 0.0 && (v_cut >> 4) != 0 && v_view.z > 1.0) {
+    if (u.occl_params.z > 0.0 && u.occl_instance.x == 0.0 && v_view.z > 1.0) {
         vec2 sp = v_view.xy / v_view.z;
         float fade = 0.0;
         for (int i = 0; i < 4; i++) {
             vec4 s = u.occl_subject[i];
-            if (((v_cut >> (4 + i)) & 1) == 0 || s.w <= 0.0 || v_view.z > s.z - u.occl_shape[i].z) continue;
+            if (s.w <= 0.0 || v_view.z > s.z - u.occl_shape[i].z * 0.5) continue;
+            // In front: its plane separates the eye from the subject, or it
+            // stands above the subject's feet (not the floor under it): a
+            // pillar's narrow side seen edge on, a blade, the cap on a post.
+            if (((v_cut >> (4 + i)) & 1) == 0 && dot(v_view - s.xyz, u.occl_up.xyz) + u.occl_feet[i] < 12.0) continue;
             vec2 d = (sp - s.xy / s.z) * s.z / max(u.occl_shape[i].xy, vec2(1.0));
             fade = max(fade, (1.0 - smoothstep(1.0 - u.occl_params.y, 1.0, length(d))) * s.w);
         }
@@ -193,7 +197,11 @@ void main() {
         }
     }
     if ((u.semi_pass == 1 && semi) || (u.semi_pass == 2 && !semi)) discard;
-    if (occl_cover < 1.0 && !semi && occl_cover < occl_threshold(ivec2(gl_FragCoord.xy))) discard;
+    // Additive light (B + F, B + F/4: a save point's glow) hides nothing:
+    // never faded; other semi-transparent texels hide what is behind them.
+    uint occl_blend = (tpage >> 5) & 3u;
+    if (occl_cover < 1.0 && !(semi && (occl_blend == 1u || occl_blend == 3u))
+        && occl_cover < occl_threshold(ivec2(gl_FragCoord.xy))) discard;
     if (silhouette) {
         color = vec4(u.occl_tint.rgb, float(mask));
         normal_out = vec4(0.5, 0.5, 0.0, 0.0); // unlit

@@ -550,6 +550,7 @@ extern "C" int pc_ui_shell_wants_mouse(void)
         && p.y < pc_gl_view[1] + pc_gl_view[3];
 }
 
+extern "C" int pc_option_peek_active(void) __attribute__((weak)); // option_peek.h
 static void draw_frame(float dt);
 // The last drawn frame's glides (approach) were all within this of their targets.
 static const float AT_REST = 0.01f;
@@ -568,6 +569,8 @@ static void draw_frame(float dt)
 {
     // the System pages' save debounce (ui_settings.cpp): every frame, shell up or not
     pc_ui_settings_tick(ImGui::GetTime());
+    if (pc_option_peek_active && pc_option_peek_active())
+        return; // the Option pages' preview: the menu steps aside for the live 3D view (option_peek.h)
     if ((!pc_ui_shell_drawn() && !pc_ui_loot_visible() && !pc_ui_map_visible() && !pc_ui_data_visible()
             && !pc_ui_container_visible())
         || pc_gl_view[2] <= 0

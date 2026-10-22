@@ -25,6 +25,7 @@ struct RowDef {
     std::string ref, label, help, id; // id: header / note "<page id>#<n>"
     bool has_label = false, has_help = false;
     int where = 0;
+    int preview = 0; // 1 / -1: as defined; 0: the setting's own
 };
 struct Page {
     std::string id, title, help, parent, group, source;
@@ -127,12 +128,12 @@ void define_fallback()
         for (int i = 0, n = pc_ui_settings_catalog_count(); i < n; i++) {
             pc_ui_setting_row r;
             if (pc_ui_settings_catalog_row(i, &r) && r.home && !std::strcmp(r.home, f.id))
-                rows.push_back({PC_OPT_SETTING, r.id, nullptr, nullptr, 0});
+                rows.push_back({PC_OPT_SETTING, r.id, nullptr, nullptr, 0, 0});
         }
         // The classic Option screen reaches Bindings from Controls; the modern
         // System list shows it as an entry of its own.
         if (!std::strcmp(f.id, "rood.options/controls"))
-            rows.push_back({PC_OPT_LINK, "rood.options/bindings", nullptr, nullptr, PC_UI_WHERE_CLASSIC});
+            rows.push_back({PC_OPT_LINK, "rood.options/bindings", nullptr, nullptr, PC_UI_WHERE_CLASSIC, 0});
         pc_option_page_def def = {};
         def.id = f.id, def.title = f.title, def.help = f.help, def.parent = f.parent;
         def.group = f.parent ? nullptr : "system";
@@ -359,6 +360,10 @@ void fill(const Page* p, const RowDef& d, int catalog, pc_option_row* out)
     if (!r.home)
         r.home = p->id.c_str();
     r.where = row_where(d, catalog);
+    if (d.preview)
+        r.preview = d.form == PC_OPT_SETTING && d.preview > 0;
+    else if (d.form != PC_OPT_SETTING)
+        r.preview = 0;
 }
 
 } // namespace
@@ -392,6 +397,7 @@ extern "C" int pc_option_pages_define(const char* source, const pc_option_page_d
         RowDef r;
         r.form = d.form;
         r.where = d.where & PC_UI_WHERE_ALL;
+        r.preview = d.preview > 0 ? 1 : d.preview < 0 ? -1 : 0;
         bool text = d.form == PC_OPT_HEADER || d.form == PC_OPT_NOTE;
         if (d.form < PC_OPT_SETTING || d.form > PC_OPT_NOTE || (text ? !d.label || !d.label[0] : !d.ref || !d.ref[0]))
             return PC_OPT_ERR_ROW;

@@ -26,6 +26,10 @@ of its own: a header, a help line, settings it defines, an action):
     Fast (rood.settings), the action runs (the plugin's counter), the help
     line shows; editing the plugin's main.lua while the page is open reloads
     it: the new row shows, the focus stays
+  - Graphics > Glowing surfaces offers a preview ("Hold SQUARE: preview." in
+    its help): Square held hides the menu's rows (the live 3D view), Right
+    changes the value live meanwhile, release brings the menu back exactly,
+    the field does not move
   - Triangle on a page closes the menu
   - the game's own options (vs_main_settings) and the card are byte for byte
     what they were
@@ -210,6 +214,50 @@ def main():
               f"flyout Down + Circle: Scaling {current['value']} -> {picked['value']}")
         check(game.call("settings", get="aspect")["line"] == f"aspect {picked['index']}",
               f"live: {game.call('settings', get='aspect')['line']}")
+        press("cross")
+        wait("list")
+
+        # ---- Graphics: the preview (hold Square: the menu steps aside) ----
+        list_to(VANILLA_ROWS + entries.index("rood.options/graphics"))
+        press("circle")
+        o = page_to("emissive")
+        r = row(o, "emissive")
+        check(r.get("preview") and o["info"].endswith("Hold SQUARE: preview."),
+              f"Glowing surfaces offers a preview; its help says how ({o['info']!r})")
+        player = game.state()["player"]
+        page_image = capture(game, out / "peek-page")[1]
+        game.call("input", buttons=["square"], vsyncs=40)
+        for _ in range(30):
+            if opt()["peek"]:
+                break
+            game.run(1)
+        o = opt()
+        peek_image = capture(game, out / "peek-on")[1]
+        rows_area = np.abs(peek_image[60:560, 330:] - page_image[60:560, 330:]).max(axis=2)
+        check(o["peek"] and o["screen"] == "page" and o["focus_id"] == "emissive"
+              and float((rows_area > 40).mean()) > 0.2,
+              f"Square held: the menu's rows step aside for the 3D view ({(rows_area > 40).mean() * 100:.0f}% "
+              f"of their area changed; peek {o['peek']})")
+        before = r["value"]
+        game.call("input", buttons=["square", "right"], vsyncs=4)
+        game.run(6)
+        o = opt()
+        during = row(o, "emissive")["value"]
+        check(o["peek"] and during != before and game.call("settings", get="emissive")["line"].split()[-1]
+              != before, f"Right during the preview changes the value live ({before} -> {during})")
+        game.call("input", buttons=["square", "left"], vsyncs=4)
+        game.run(6)
+        for _ in range(120):  # the hold ends: Square let go
+            if not opt()["peek"]:
+                break
+            game.run(2)
+        o = wait("page")
+        back_image = capture(game, out / "peek-off")[1]
+        check(not o["peek"] and row(o, "emissive")["value"] == before
+              and float(np.abs(back_image - page_image).mean()) < 1.0,
+              f"released: the menu exactly as before (mean difference "
+              f"{np.abs(back_image - page_image).mean():.2f}, {row(o, 'emissive')['value']})")
+        check(game.state()["player"] == player, "the field did not move during the preview (the menu holds it)")
         press("cross")
         wait("list")
 

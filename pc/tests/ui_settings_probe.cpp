@@ -82,7 +82,7 @@ static void pages()
     CHECK(!std::strcmp(pc_ui_settings_page_help(C), "The right stick camera and vibration."));
     CHECK(pc_ui_settings_page_depth(B) == 1 && pc_ui_settings_page_depth(C) == 0);
     CHECK(pc_ui_settings_page_title(7) == nullptr);
-    CHECK(pc_ui_settings_rows(G) == 19);
+    CHECK(pc_ui_settings_rows(G) == 21);
     // Glowing surfaces (emissive): after Sun and sky, a slider 0..2, Off at 0
     CHECK(find(G, "emissive") == find(G, "environment") + 1);
     CHECK(value(G, "emissive") == "1.0");
@@ -100,6 +100,15 @@ static void pages()
     CHECK(value(G, "occlusion") == "Fade");
     CHECK(find(G, "occlusion_visibility") == find(G, "occlusion") + 1);
     CHECK(value(G, "occlusion_visibility") == "0.35");
+    // its size and softness, reachable from the player's page
+    CHECK(find(G, "occlusion_radius") == find(G, "occlusion_visibility") + 1);
+    CHECK(value(G, "occlusion_radius") == "96");
+    CHECK(find(G, "occlusion_softness") == find(G, "occlusion_radius") + 1);
+    CHECK(value(G, "occlusion_softness") == "0.45");
+    // Graphics rows offer the Option pages' preview (option_peek.h); Display's only on Brightness
+    pc_ui_setting_row pr;
+    CHECK(pc_ui_settings_row(G, find(G, "occlusion_radius"), &pr) && pr.preview);
+    CHECK(pc_ui_settings_row(G, find(G, "aa"), &pr) && pr.preview);
     CHECK(pc_ui_settings_rows(D) == 12); // Images per vsync shows: interpolation is on
     CHECK(pc_ui_settings_rows(A) == (game ? 2 : 1));
     CHECK(pc_ui_settings_rows(I) == 15); // with Menu opacity, Menu tint, Tint red, green, blue
@@ -636,13 +645,13 @@ static void page_model()
     pc_ui_settings_set_provider(&provider);
     unsigned gen = pc_ui_settings_generation();
     const pc_option_row_def rows[] = {
-        {PC_OPT_HEADER, nullptr, "Picture", nullptr, 0},
-        {PC_OPT_SETTING, "widescreen", "Wide", nullptr, 0},
-        {PC_OPT_SETTING, "plugin:me.test/speed", nullptr, nullptr, 0},
-        {PC_OPT_NOTE, nullptr, "Restart to apply.", nullptr, 0},
-        {PC_OPT_ACTION, "settings.save", nullptr, nullptr, 0},
-        {PC_OPT_LINK, "rood.options/display", nullptr, nullptr, 0},
-        {PC_OPT_SETTING, "skip_intro", nullptr, nullptr, PC_UI_WHERE_CLASSIC}, // not on the modern screen
+        {PC_OPT_HEADER, nullptr, "Picture", nullptr, 0, 0},
+        {PC_OPT_SETTING, "widescreen", "Wide", nullptr, 0, 0},
+        {PC_OPT_SETTING, "plugin:me.test/speed", nullptr, nullptr, 0, 0},
+        {PC_OPT_NOTE, nullptr, "Restart to apply.", nullptr, 0, 0},
+        {PC_OPT_ACTION, "settings.save", nullptr, nullptr, 0, 0},
+        {PC_OPT_LINK, "rood.options/display", nullptr, nullptr, 0, 0},
+        {PC_OPT_SETTING, "skip_intro", nullptr, nullptr, PC_UI_WHERE_CLASSIC, 0}, // not on the modern screen
     };
     pc_option_page_def d = {};
     d.id = "me.test/tweaks", d.title = "Tweaks", d.help = "Mine.", d.group = "plugins";

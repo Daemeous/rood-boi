@@ -537,6 +537,11 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
     float hy = ry1 + 6;
     f.dl->AddLine(f.p(cx + 1, hy), f.p(cx + cw - 1, hy), t.rule, f.s(1));
     const char* hint = v.entered && have_focus ? focus_row.help : focus_help;
+    std::string with_preview; // a row that offers a preview: its button after the help (option_peek.h)
+    if (v.entered && have_focus && focus_row.preview && focus_row.enabled) {
+        with_preview = std::string(hint ? hint : "") + (hint && hint[0] ? " " : "") + "Hold Square: preview.";
+        hint = with_preview.c_str();
+    }
     f.dl->PushClipRect(f.p(cx, hy + 1), f.p(cx + cw, BOTTOM - 26), true);
     float hh = paragraph(f, t, x0, hy + 12, x1 - x0, t.ash, hint ? hint : "");
     if (v.entered && have_focus && focus_row.reason[0]) {

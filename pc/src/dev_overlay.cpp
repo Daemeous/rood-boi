@@ -21,6 +21,7 @@
 #include "room_editor.h"
 #include "gameplay_walls.h"
 #include "occlusion.h"
+#include "ui/option_peek.h"
 #include "editor_overlays.h"
 #include "lighting_quality.h"
 #include "editor_undo.h"
@@ -592,6 +593,84 @@ static void update_relative_mouse()
 }
 
 extern "C" void pc_ui_upscale_panel(void);
+/* The Option pages' preview (option_peek.h): while the menu steps aside, a small readout of the
+ * focused row and its value at the picture's bottom edge, unobtrusive (no menu chrome). */
+extern "C" int pc_gl_view[4]; /* gl_present.c: the picture's rectangle in the window */
+static void option_peek_readout()
+{
+    const char *label, *value;
+    if (!pc_option_peek_text(&label, &value) || pc_gl_view[2] <= 0)
+        return;
+    char text[224];
+    snprintf(text, sizeof text, "%s  %s", label, value);
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    float scale = pc_gl_view[3] / 720.0f, size = ImGui::GetFontSize() * (scale * 1.4f > 1.2f ? scale * 1.4f : 1.2f);
+    ImVec2 extent = ImGui::GetFont()->CalcTextSizeA(size, 1e9f, 0, text);
+    float x = pc_gl_view[0] + (pc_gl_view[2] - extent.x) * 0.5f, y = pc_gl_view[1] + pc_gl_view[3] - extent.y - 24 * scale;
+    dl->AddRectFilled(ImVec2(x - 10 * scale, y - 5 * scale), ImVec2(x + extent.x + 10 * scale, y + extent.y + 5 * scale),
+        IM_COL32(10, 10, 12, 150), 4 * scale);
+    dl->AddText(ImGui::GetFont(), size, ImVec2(x, y), IM_COL32(230, 226, 214, 235), text);
+}
+
+/* Occlusion in play (occlusion.c): its own header in the Graphics tab. */
+static void occlusion_panel()
+{
+    /* Occlusion in play (occlusion.c): settings keys occlusion, occlusion_*; RPC occlusion. */
+    static const char* modes[] = { "Off", "Fade", "Fade + silhouettes", "Silhouettes" };
+    ImGui::SetNextItemWidth(160);
+    ImGui::Combo("Mode##occl", &pc_occlusion, modes, 4);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Settings occlusion: off | fade | fade_silhouette | silhouette.\n"
+                          "Fade: what stands between the camera and a subject (Ashley; in battle the target,\n"
+                          "the action's actors, enemies near her) is dithered away in a soft ellipse around\n"
+                          "the subject while it hides it. Silhouettes: a subject's hidden pixels in a faint tint.");
+    ImGui::SetNextItemWidth(160);
+    ImGui::SliderFloat("Visibility kept##occl", &pc_occlusion_visibility, 0, 1, "%.2f");
+    ImGui::SetNextItemWidth(160);
+    ImGui::SliderFloat("Radius (world)##occl", &pc_occlusion_radius, 16, 400, "%.0f");
+    ImGui::SetNextItemWidth(160);
+    ImGui::SliderFloat("Aspect (h / w)##occl", &pc_occlusion_aspect, 0.5f, 3, "%.2f");
+    ImGui::SetNextItemWidth(160);
+    ImGui::SliderFloat("Softness##occl", &pc_occlusion_softness, 0.01f, 1, "%.2f");
+    ImGui::SetNextItemWidth(160);
+    ImGui::SliderFloat("Ease (s)##occl", &pc_occlusion_ease, 0, 1, "%.2f");
+    ImGui::SetNextItemWidth(160);
+    ImGui::SliderFloat("Hold (s)##occl", &pc_occlusion_hold, 0, 1, "%.2f");
+    static const char* dithers[] = { "Bayer 8x8", "Noise" };
+    ImGui::SetNextItemWidth(160);
+    ImGui::Combo("Dither##occl", &pc_occlusion_dither, dithers, 2);
+    ImGui::TextUnformatted("Subjects:");
+    static const char* kinds[] = { "Ashley", "Target", "Action", "Enemies near" };
+    for (int k = 0; k < 4; k++) {
+        bool on = (pc_occlusion_subjects >> k) & 1;
+        ImGui::SameLine();
+        if (ImGui::Checkbox(kinds[k], &on))
+            pc_occlusion_subjects = (pc_occlusion_subjects & ~(1 << k)) | (on ? 1 << k : 0);
+    }
+    ImGui::SetNextItemWidth(160);
+    ImGui::SliderFloat("Enemy range##occl", &pc_occlusion_enemy_range, 0, 2048, "%.0f");
+    bool props = pc_occlusion_props != 0, cutscenes = pc_occlusion_cutscenes != 0;
+    if (ImGui::Checkbox("Fade props##occl", &props))
+        pc_occlusion_props = props;
+    ImGui::SameLine();
+    if (ImGui::Checkbox("In cutscenes##occl", &cutscenes))
+        pc_occlusion_cutscenes = cutscenes;
+    ImGui::SetNextItemWidth(160);
+    ImGui::SliderFloat("Silhouette Ashley##occl", &pc_occlusion_silhouette_ashley, 0, 1, "%.2f");
+    ImGui::SetNextItemWidth(160);
+    ImGui::SliderFloat("Silhouette enemies##occl", &pc_occlusion_silhouette_enemy, 0, 1, "%.2f");
+    ImGui::SetNextItemWidth(160);
+    ImGui::SliderFloat("Silhouette rim##occl", &pc_occlusion_silhouette_rim, 0, 1, "%.2f");
+    ImGui::ColorEdit3("Tint Ashley##occl", pc_occlusion_tint_ashley, ImGuiColorEditFlags_NoInputs);
+    ImGui::SameLine();
+    ImGui::ColorEdit3("Tint enemies##occl", pc_occlusion_tint_enemy, ImGuiColorEditFlags_NoInputs);
+    const pc_occlusion_subject* s;
+    int n = pc_occlusion_subjects_get(&s);
+    for (int i = 0; i < n; i++)
+        ImGui::Text("slot %d%s: fade %.2f hidden %.2f rays %d/5", s[i].slot, s[i].enemy ? " (enemy)" : "",
+            s[i].fade, s[i].hidden, s[i].rays_blocked);
+}
+
 static void graphics_panel()
 {
     ImGui::SliderFloat("Glowing surfaces", &pc_emissive, 0.0f, 2.0f, pc_emissive <= 0 ? "Off" : "%.2f");
@@ -721,63 +800,6 @@ static void graphics_panel()
                     ImGui::SetTooltip("Settings gameplay_walls_clear: game frames a wall must stay clear of a\n"
                                       "slightly wider region before it stops counting as in the way (no flicker).");
             }
-        }
-        if (ImGui::TreeNode("Occlusion (see-through walls)")) {
-            /* Occlusion in play (occlusion.c): settings keys occlusion, occlusion_*; RPC occlusion. */
-            static const char* modes[] = { "Off", "Fade", "Fade + silhouettes", "Silhouettes" };
-            ImGui::SetNextItemWidth(160);
-            ImGui::Combo("Mode##occl", &pc_occlusion, modes, 4);
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Settings occlusion: off | fade | fade_silhouette | silhouette.\n"
-                                  "Fade: what stands between the camera and a subject (Ashley; in battle the target,\n"
-                                  "the action's actors, enemies near her) is dithered away in a soft ellipse around\n"
-                                  "the subject while it hides it. Silhouettes: a subject's hidden pixels in a faint tint.");
-            ImGui::SetNextItemWidth(160);
-            ImGui::SliderFloat("Visibility kept##occl", &pc_occlusion_visibility, 0, 1, "%.2f");
-            ImGui::SetNextItemWidth(160);
-            ImGui::SliderFloat("Radius (world)##occl", &pc_occlusion_radius, 16, 400, "%.0f");
-            ImGui::SetNextItemWidth(160);
-            ImGui::SliderFloat("Aspect (h / w)##occl", &pc_occlusion_aspect, 0.5f, 3, "%.2f");
-            ImGui::SetNextItemWidth(160);
-            ImGui::SliderFloat("Softness##occl", &pc_occlusion_softness, 0.01f, 1, "%.2f");
-            ImGui::SetNextItemWidth(160);
-            ImGui::SliderFloat("Ease (s)##occl", &pc_occlusion_ease, 0, 1, "%.2f");
-            ImGui::SetNextItemWidth(160);
-            ImGui::SliderFloat("Hold (s)##occl", &pc_occlusion_hold, 0, 1, "%.2f");
-            static const char* dithers[] = { "Bayer 8x8", "Noise" };
-            ImGui::SetNextItemWidth(160);
-            ImGui::Combo("Dither##occl", &pc_occlusion_dither, dithers, 2);
-            ImGui::TextUnformatted("Subjects:");
-            static const char* kinds[] = { "Ashley", "Target", "Action", "Enemies near" };
-            for (int k = 0; k < 4; k++) {
-                bool on = (pc_occlusion_subjects >> k) & 1;
-                ImGui::SameLine();
-                if (ImGui::Checkbox(kinds[k], &on))
-                    pc_occlusion_subjects = (pc_occlusion_subjects & ~(1 << k)) | (on ? 1 << k : 0);
-            }
-            ImGui::SetNextItemWidth(160);
-            ImGui::SliderFloat("Enemy range##occl", &pc_occlusion_enemy_range, 0, 2048, "%.0f");
-            bool props = pc_occlusion_props != 0, cutscenes = pc_occlusion_cutscenes != 0;
-            if (ImGui::Checkbox("Fade props##occl", &props))
-                pc_occlusion_props = props;
-            ImGui::SameLine();
-            if (ImGui::Checkbox("In cutscenes##occl", &cutscenes))
-                pc_occlusion_cutscenes = cutscenes;
-            ImGui::SetNextItemWidth(160);
-            ImGui::SliderFloat("Silhouette Ashley##occl", &pc_occlusion_silhouette_ashley, 0, 1, "%.2f");
-            ImGui::SetNextItemWidth(160);
-            ImGui::SliderFloat("Silhouette enemies##occl", &pc_occlusion_silhouette_enemy, 0, 1, "%.2f");
-            ImGui::SetNextItemWidth(160);
-            ImGui::SliderFloat("Silhouette rim##occl", &pc_occlusion_silhouette_rim, 0, 1, "%.2f");
-            ImGui::ColorEdit3("Tint Ashley##occl", pc_occlusion_tint_ashley, ImGuiColorEditFlags_NoInputs);
-            ImGui::SameLine();
-            ImGui::ColorEdit3("Tint enemies##occl", pc_occlusion_tint_enemy, ImGuiColorEditFlags_NoInputs);
-            const pc_occlusion_subject* s;
-            int n = pc_occlusion_subjects_get(&s);
-            for (int i = 0; i < n; i++)
-                ImGui::Text("slot %d%s: fade %.2f hidden %.2f rays %d/5", s[i].slot, s[i].enemy ? " (enemy)" : "",
-                    s[i].fade, s[i].hidden, s[i].rays_blocked);
-            ImGui::TreePop();
         }
         bool native = pc_native_room != 0;
         if (ImGui::Checkbox("Native room geometry", &native))
@@ -2037,6 +2059,8 @@ static void details(float x, float y, float w, float h, double frame_ms)
                 pc_lighting_panel();
             if (ImGui::CollapsingHeader("Display and rendering", ImGuiTreeNodeFlags_DefaultOpen))
                 graphics_panel();
+            if (pc_hw_active && ImGui::CollapsingHeader("Occlusion (see-through walls)"))
+                occlusion_panel();
             rood_details::kind_section("menu_model_light", "Menu model light"); /* ui/menu_light_kind.cpp */
             if (ImGui::CollapsingHeader("Controls")) {
                 camera_stick_panel();
@@ -2296,6 +2320,7 @@ extern "C" void pc_overlay_frame(int width, int height)
         pc_hud_frame(); /* HUD elements plugins claim (pc/src/hud): over the picture, under the menus */
     }
     pc_ui_draw_frame((float)dt); /* modern menus (pc/src/ui) over the game picture */
+    option_peek_readout(); /* the Option pages' preview: the row and its value, small, over the live view */
     if (!hide_hud)
         pc_savestate_notice_draw(); /* the save state slots' notice, unless a plugin drew it (the HUD pass) */
     if (!visible && !hide_hud)

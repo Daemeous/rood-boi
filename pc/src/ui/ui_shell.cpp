@@ -720,8 +720,18 @@ int sys_clamp()
 }
 // Out of the page (Cross, another tab, the menu closing, an original screen):
 // a capture that listens is cancelled and what changed is saved.
+// The Option pages' preview (option_peek.h): weak, the probes run without it.
+extern "C" void pc_option_peek(int on, const char* label, const char* value) __attribute__((weak));
+extern "C" int pc_option_peek_active(void) __attribute__((weak));
+extern "C" unsigned pc_ui_menu_held(void) __attribute__((weak)); // menu_bridge.c
+void peek(bool on, const pc_ui_setting_row* r = nullptr)
+{
+    if (pc_option_peek)
+        pc_option_peek(on, on && r ? r->label : nullptr, on && r ? r->value : nullptr);
+}
 void sys_leave()
 {
+    peek(false);
     pc_ui_manual_leave(); // out of the Quick manual too (its store events and the freeze back)
     pc_ui_score_leave();  // and the Score screen (its gazetteRow and the freeze back)
     if (capturing())
@@ -840,6 +850,20 @@ int system_tick(const pc_ui_input* in)
     if (!rows)
         return 0;
     int& row = sys_row(page);
+    // The preview: Square held on a row that offers one: the menu steps aside for the live 3D view
+    // (option_peek.h); Left / Right still change the value, nothing else moves.
+    pc_ui_setting_row focused;
+    bool previewing = pc_ui_menu_held && (pc_ui_menu_held() & PC_UI_ALT) && !capturing()
+        && pc_ui_settings_row(page, row, &focused) && focused.preview && focused.enabled;
+    if (previewing) {
+        int step = ((in->repeat & PC_UI_RIGHT) ? 1 : 0) - ((in->repeat & PC_UI_LEFT) ? 1 : 0);
+        if (step)
+            pc_ui_settings_change(page, row, step);
+        pc_ui_settings_row(page, row, &focused);
+        peek(true, &focused);
+        return 0;
+    }
+    peek(false);
     for (int k = 0; k < rows && (in->repeat & PC_UI_DOWN); k++) { // past headers and notes
         row = (row + 1) % rows;
         if (sys_selectable(page, row))
@@ -908,7 +932,7 @@ const char* capture_row_id()
 void system_json(std::string& j)
 {
     int page = sys_shown_page();
-    char buf[96];
+    char buf[160];
     j += ",\"system\":{\"mode\":\"";
     j += s.sys.page >= 0 ? "page" : "list";
     j += "\",\"item\":\"";
@@ -941,9 +965,12 @@ void system_json(std::string& j)
                 r.swatch_rgb[2]);
             j += buf;
         }
+        if (r.preview)
+            j += ",\"preview\":true";
         j += "}";
     }
-    std::snprintf(buf, sizeof buf, "],\"capture\":\"%s\",\"dirty\":%s,\"saves\":%d,", capture_row_id(),
+    std::snprintf(buf, sizeof buf, "],\"peek\":%s,\"capture\":\"%s\",\"dirty\":%s,\"saves\":%d,",
+        pc_option_peek_active && pc_option_peek_active() ? "true" : "false", capture_row_id(),
         pc_ui_settings_dirty() ? "true" : "false", pc_ui_settings_saves());
     j += buf;
     double quiet, quiet_before;

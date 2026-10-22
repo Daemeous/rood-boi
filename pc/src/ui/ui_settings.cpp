@@ -143,9 +143,11 @@ struct Row {
     bool on_release = false; // slider: a pointer drag previews the number, the value applies when it ends
     float def = 0;       // hook row: the value shown while greyed (choice index or slider value)
     bool confirm = false; // a risky display change: "Keep these settings?" (display_confirm.h), unsaved until kept
+    bool preview = false; // the Option screens offer a preview (hold Square: the live 3D view; option_peek.h)
     const char* home = nullptr;  // its page in the page model ("rood.options/display"), set by build()
     int where = PC_UI_WHERE_ALL; // the Option screens that show it
     Row grey(Why w) const { Row r = *this; r.why = w; return r; }
+    Row peek() const { Row r = *this; r.preview = true; return r; }
     Row when(Shown s) const { Row r = *this; r.shown = s; return r; }
     Row choices_why(ChoiceWhy c) const { Row r = *this; r.choice_why = c; return r; }
     Row unsaved() const { Row r = *this; r.saved = false; return r; }
@@ -401,19 +403,31 @@ void build()
         g.push_back(choice("occlusion", "See-through walls",
             "Walls and props between the camera and Ashley (in battle also her target and the enemies near her) fade "
             "in a soft circle around her while they hide her. Silhouettes: what still hides a character shows its "
-            "shape faintly. Off: as the PS1 drew them.",
+            "shape faintly. Off: as the PS1 drew them. To preview it here, stand behind something first.",
             &pc_occlusion, occlusion, 4)
                         .grey(need_hw));
-        Row r = fslider("occlusion_visibility", "See-through amount",
-            "How much of a faded wall stays at the circle's middle. Lower: you see more of what it hides.",
-            &pc_occlusion_visibility, 0, 0.9f, 0.05f, "%.2f");
-        g.push_back(r.grey([](const Row& r) {
+        auto fades = [](const Row& r) -> const char* {
             if (const char* why = need_hw(r))
                 return why;
             return pc_occlusion == PC_OCCLUSION_FADE || pc_occlusion == PC_OCCLUSION_FADE_SILHOUETTE ? nullptr
                                                                                                       : "Needs See-through walls to fade";
-        }));
+        };
+        g.push_back(fslider("occlusion_visibility", "See-through amount",
+            "How much of a faded wall stays at the circle's middle. Lower: you see more of what it hides.",
+            &pc_occlusion_visibility, 0, 0.9f, 0.05f, "%.2f")
+                        .grey(fades));
+        g.push_back(fslider("occlusion_radius", "See-through size",
+            "How wide the see-through circle is around Ashley (world units at her; larger enemies get larger ones).",
+            &pc_occlusion_radius, 32, 320, 8, "%.0f")
+                        .grey(fades));
+        g.push_back(fslider("occlusion_softness", "See-through softness",
+            "How gradually the circle's edge turns back to solid wall. Low: a crisp edge; high: a long soft one.",
+            &pc_occlusion_softness, 0.05f, 1, 0.05f, "%.2f")
+                        .grey(fades));
     }
+    // Every Graphics row changes the 3D picture: the Option screens offer a preview of it.
+    for (Row& r : g)
+        r.preview = true;
 
     // Display
     static const char* const aspects[] = {"Keep aspect", "Stretch to window", "Integer scale"};
@@ -510,7 +524,7 @@ void build()
         r.getf = [](const Row&) { return (float)pc_brightness_get(); };
         r.setf = [](const Row&, float v) { pc_brightness_set((int)v); };
         r.integer = true, r.hook = true, r.def = 50;
-        d.push_back(r.grey([](const Row&) { return pc_brightness_get && pc_brightness_set ? nullptr : COMING; }));
+        d.push_back(r.grey([](const Row&) { return pc_brightness_get && pc_brightness_set ? nullptr : COMING; }).peek());
     }
     {
         Row r = base("renderer", "Renderer",
@@ -1124,6 +1138,7 @@ static void fill(const Row* r, bool previewing, pc_ui_setting_row* out)
     out->home = r->home;
     out->where = r->where;
     out->confirm = r->confirm;
+    out->preview = r->preview;
     if (!row_shown(*r)) // not shown now: its metadata only (its getters may be missing: game options)
         return;
     if (r->swatch) {
