@@ -3622,7 +3622,8 @@ static void handle_method(int fd, const char* request)
          * read from the disc (and the warp's state); room_goto {zone, room,
          * entry, enemies, scripts, block_saves} asks the game to load one,
          * {action: "return"} goes back where the warps started, "clear"
-         * ends the warped state, "cancel" drops a request. */
+         * ends the warped state, "cancel" drops a request, "reset" makes the
+         * warp machinery idle (host state: after an RPC rewind). */
         extern int pc_rooms_json(char*, int) __attribute__((weak));
         extern int pc_room_browser_go(int, int, int, char*, int) __attribute__((weak));
         extern int pc_room_warp_request(int, int, int, char*, int) __attribute__((weak));
@@ -3675,8 +3676,11 @@ static void handle_method(int fd, const char* request)
         long long zone = -1, room = -1, entry = 0;
         int oz = -1, orr = -1;
         int warped = pc_room_warp_warped(&oz, &orr);
+        extern void pc_room_warp_reset(void) __attribute__((weak));
         if (!strcmp(action, "clear"))
             pc_room_warp_clear();
+        else if (!strcmp(action, "reset") && pc_room_warp_reset)
+            pc_room_warp_reset(); /* the warp machinery idle, as when the game's state is replaced (a rewind) */
         else if (!strcmp(action, "cancel"))
             pc_room_warp_cancel();
         else if (!strcmp(action, "status"))
@@ -3908,6 +3912,27 @@ static void handle_method(int fd, const char* request)
         }
         snprintf(result, sizeof result, "{\"path\":\"%s\",\"remaining\":%d}", json_str(path), render_anim_trace_remaining());
         reply(fd, id, result);
+    } else if (!strcmp(method, "cutscene")) {
+        /* The cutscene player (cutscene.cpp; pc/docs/Cutscene_Player.md): {action, ...}; the reply is its
+         * status (action list: the catalogued scenes). */
+        extern int pc_take_rpc(const char*, char*, int) __attribute__((weak));
+        static char args[4096], out[16384];
+        const char* end = params ? value_end(params) : NULL;
+        if (params && end && (size_t)(end - params) < sizeof args) {
+            memcpy(args, params, (size_t)(end - params));
+            args[end - params] = 0;
+        } else {
+            strcpy(args, "{}");
+        }
+        if (!pc_take_rpc) {
+            fail(fd, id, -32000, "no cutscene player in this build");
+            return;
+        }
+        if (pc_take_rpc(args, out, (int)sizeof out)) {
+            fail(fd, id, -32000, out);
+            return;
+        }
+        reply(fd, id, out);
     } else if (!strcmp(method, "photo")) {
         /* The photo mode's state (photo.cpp): {phase, owners, renders, camera, ...}; params
          * {render_frames, game2d_slots} tune it. */
@@ -4800,6 +4825,8 @@ static int photo_holding(void) { return pc_photo_holding && pc_photo_holding(); 
 /* Called once per vsync from pc_tick, before the frame is presented. While
  * paused it keeps the window (and overlay) live and serves requests. */
 static void poll_requests(void);
+extern void pc_take_vsync(void) __attribute__((weak)); /* cutscene.cpp */
+extern void pc_take_idle(void) __attribute__((weak));
 void pc_rpc_poll(void)
 {
     if (!initialized)
@@ -4859,6 +4886,8 @@ static void poll_requests(void)
         return; /* the host reloads the engine now; the next library carries on (pc_rpc_reloaded) */
     if (pc_savestate_poll)
         pc_savestate_poll();
+    if (pc_take_vsync)
+        pc_take_vsync(); /* the cutscene player's take: its log, its marks, a go-to (may rewind) */
     if (paused && step_budget > 0 && !photo_holding()) {
         --step_budget;
         return;
@@ -4901,6 +4930,8 @@ static void poll_requests(void)
             return;
         if (pc_savestate_poll)
             pc_savestate_poll();
+        if (pc_take_idle)
+            pc_take_idle(); /* the cutscene player's requests (may step, or rewind) */
         if (pc_photo_poll && pc_photo_poll())
             return; /* a photo render starts: this vsync runs it */
     }

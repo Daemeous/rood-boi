@@ -430,6 +430,13 @@ def suites(args, mode="egl"):
                       "Cross / the pad button / Start leave with everything restored (state digest, post values, "
                       "the picture, settings.cfg)")]
           if args.save.exists() else []),
+        Suite("cutscene_player_smoke", [PY, str(TESTS / "cutscene_player_smoke.py")]
+              + (["--card", str(args.save)] if args.save.exists() else []), 600,
+              note="the cutscene player on the opening: a take from New Game, back to an earlier mark and replayed "
+                   "(per-vsync digests, state and pictures identical, host-time scanlines), one frame back, "
+                   "capture PNGs, a repro written and reopened on the same frame, 1/4 slow motion, the instant "
+                   "replay frozen by its key and replayed, the free camera; the credits' tear wipes across the "
+                   "whole 16:9 view; with the card a warp scene (9/1)"),
         *([Suite("frame_cost_smoke", [PY, str(TESTS / "frame_cost_smoke.py"), "--card", str(args.save)], 300,
                  note="per-frame cost (ROOD_PERF counters): no read-backs (sphere, Status rows: GPU copies), "
                       "emissive not re-hashed, CPU skips stale 2D; pictures = the old paths'")]
@@ -713,6 +720,7 @@ CHECKPOINT_SUITES = {
     "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "frame_cost_smoke",
     "hud_bench_smoke", "classic_hud_smoke",
     "repl_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke",
+    "cutscene_player_smoke",
 }
 
 

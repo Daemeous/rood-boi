@@ -35,6 +35,9 @@ extern float pc_emissive; /* emissive.cpp: glowing surfaces' strength (0 off) */
 int pc_emissive_view_setting(const char* key, const char* rest);
 void pc_emissive_view_settings_write(FILE* f);
 extern int pc_fog_global; /* atmosphere.cpp */
+/* cutscene.cpp: the cutscene player's marks and the instant replay */
+extern int pc_take_interval, pc_take_marks_max, pc_take_budget_mb, pc_instant_replay, pc_instant_replay_seconds,
+    pc_instant_replay_interval;
 extern float pc_fog_disturb[4]; /* atmosphere.cpp: the interactive fog's weights per source */
 extern int pc_fog_sim_budget;
 extern int pc_fog_volume_render, pc_fog_volume_steps, pc_fog_volume_steps_gl, pc_fog_volume_shadows; /* atmosphere.cpp */
@@ -226,6 +229,12 @@ const Entry entries[] = {
     I("native_occlusion", pc_native_occlusion),
     I("native_room_order", pc_native_room_order),
     I("room_texture_lod", pc_room_texture_lod),
+    I("cutscene_mark_interval", pc_take_interval),
+    I("cutscene_marks_max", pc_take_marks_max),
+    I("cutscene_budget_mb", pc_take_budget_mb),
+    I("instant_replay", pc_instant_replay),
+    I("instant_replay_seconds", pc_instant_replay_seconds),
+    I("instant_replay_interval", pc_instant_replay_interval),
     I("native_actors", pc_native_actors),
     I("native_actor_order", pc_native_actor_order),
     I("native_blend", pc_native_blend),

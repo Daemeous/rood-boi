@@ -240,6 +240,25 @@ int pc_battle_event_running(void) { return D_800F4C34 != 0; }
  * -1 when none runs (post_profile.cpp: `post event.<id>` items). */
 extern u_short D_800F4BE0;
 int pc_battle_event_id(void) { return D_800F4C34 != 0 ? (int)(u_short)((D_800F4BE0 << 12) | _evtFile) : -1; }
+/* The event interpreter's place, for the cutscene player (cutscene.cpp): state[0] the runner's
+ * state (D_800F4C34: 0 none, 1-3 loading, 4 running), state[1] the skip state (D_800F4C2C: 0 not
+ * skippable, 1 a skippable part, 2 skipping); per script thread (0 the main one, 1-3 forked) its
+ * offset in the script buffer (-1: not running) and the opcode there, and that opcode's handler. */
+extern u_char* D_800F4C38[];
+extern int (*_opcodeFunctionTable[256])(u_char*, short);
+int pc_battle_event_threads(int state[2], int offset[4], int opcode[4], void* handler[4])
+{
+    int i;
+    state[0] = D_800F4C34;
+    state[1] = D_800F4C2C;
+    for (i = 0; i < 4; ++i) {
+        u_char* pc = D_800F4C34 != 0 ? D_800F4C38[i] : NULL;
+        offset[i] = pc != NULL && D_800F4C30 != NULL ? (int)(pc - (u_char*)D_800F4C30) : -1;
+        opcode[i] = pc != NULL ? *pc : -1;
+        handler[i] = pc != NULL ? (void*)_opcodeFunctionTable[*pc] : NULL;
+    }
+    return D_800F4C34 != 0;
+}
 /* The battle camera's target (weapon drawn, a target chosen: the point the
  * camera follows in its modes 1 and 3), as func_8007ACB0's caller reads it. */
 int pc_battle_camera_target(int position[3])

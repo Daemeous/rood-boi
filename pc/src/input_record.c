@@ -278,6 +278,11 @@ static void replay_to(unsigned vsync)
     }
 }
 
+/* The cutscene player's take (cutscene.cpp): logs the pad and stick the game read per vsync and, while
+ * a part of the take replays, gives the logged values back (a file replay wins over it). */
+extern int pc_take_buttons(unsigned vsync, unsigned* pad) __attribute__((weak));
+extern int pc_take_stick(unsigned vsync, float stick[2], int* valid) __attribute__((weak));
+
 /* The pad for this vblank: live (recorded) or replayed. `live` is the
  * keyboard and gamepad, `rpc` the developer RPC's input: both are recorded
  * (so a route driven over the RPC can be recorded too), and neither applies
@@ -286,6 +291,8 @@ unsigned pc_input_buttons(unsigned live, unsigned rpc)
 {
     unsigned vsync = pc_vsync_count();
     unsigned pad = live | rpc;
+    if (pc_take_buttons && start() != 2)
+        pc_take_buttons(vsync, &pad);
     switch (start()) {
     case 1:
         record_tick = vsync;
@@ -323,6 +330,8 @@ int pc_input_stick(float out[2], int live_valid)
         out[k] = out[k] > 1 ? 1 : out[k] < -1 ? -1 : out[k];
     }
     int q[2];
+    if (pc_take_stick && start() != 2)
+        pc_take_stick(vsync, out, &live_valid); /* logged as it is (no quantising: live play unchanged) */
     switch (start()) {
     case 1:
         record_tick = vsync;
@@ -352,6 +361,7 @@ int pc_input_stick(float out[2], int live_valid)
  * reads virtual scanlines (boot_runtime.c func_800E45B4): the AI uses it as a
  * per-frame time budget, so measured host time would make a replay diverge. */
 int pc_input_deterministic(void) { return start() > 0; }
+/* (A take does not switch to virtual scanlines: it logs the measured ones, boot_runtime.c.) */
 
 /* For the RPC: 0 off, 1 recording, 2 replaying, 3 replay over; the file; the replay's end. */
 int pc_input_record_state(const char** file, unsigned* end)

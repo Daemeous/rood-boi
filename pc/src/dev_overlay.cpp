@@ -45,6 +45,8 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl3.h"
 #include "ImGuizmo.h"
+#include "cutscene_internal.h" /* the Cutscene window, the instant replay key */
+extern "C" int pc_keyboard_replay(SDL_Keycode key); /* boot_controller.c */
 #ifdef ROOD_VULKAN
 #include "vk_hooks.h" /* ROOD_RENDERER=vulkan: drawn by vk_overlay.cpp */
 #endif
@@ -513,6 +515,14 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
              * was pressed while typing; its release comes after). */
             if (!down && visible)
                 ImGui_ImplSDL3_ProcessEvent(event);
+            return 1;
+        }
+        /* The instant replay key (bind_key_replay, F8): freeze and open the Cutscene window (cutscene.cpp). */
+        if (!typing && pc_keyboard_replay(key)) {
+            if (down && !event->key.repeat) {
+                pc_take_hotkey();
+                set_visible(true);
+            }
             return 1;
         }
         if (key == SDLK_F2 && !typing) { /* free camera; opens the editor */
@@ -1427,6 +1437,7 @@ static void menu_bar(float* height)
         if (ImGui::MenuItem("Library", "Shift+1", place_tab_shown || !rood_library::docked()))
             outliner_tab_request = 1;
         ImGui::MenuItem("Room Browser", "Ctrl+R", &pc_room_browser_open);
+        ImGui::MenuItem("Cutscene", cutscene::replay_key_name().c_str(), &cutscene::window_open);
         pc_lua_console_menu_item();
         ImGui::MenuItem("Keyboard shortcuts", nullptr, &show_help);
         ImGui::EndMenu();
@@ -2326,6 +2337,7 @@ extern "C" void pc_overlay_frame(int width, int height)
         rood_details::ladder_frame(); /* a value ladder being dragged (editor_details.cpp) */
         pc_lights_editor_windows();
         pc_room_browser_window();
+        pc_cutscene_window();
         help_window();
         memory_cards_window();
         pc_lua_console_window();

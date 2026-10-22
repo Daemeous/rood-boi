@@ -23,6 +23,9 @@ static int resyncs, rewound, entered;
 static jmp_buf back;
 snap_context pc_snap_boundary;
 extern int pc_snapshot_mark_point(char*, int), pc_snapshot_rewind(char*, int);
+extern int pc_snapshot_mark_slot(int, char*, int), pc_snapshot_rewind_slot(int, char*, int), pc_snapshot_slot_valid(int);
+extern void pc_snapshot_drop_slot(int);
+extern size_t pc_snapshot_slot_bytes(int);
 char* pc_game_stack(size_t* size) { *size = sizeof game_stack; return game_stack; }
 int pc_state_ranges(pc_state_range* out, int max)
 {
@@ -68,6 +71,25 @@ int main(void)
         }
     }
     assert(entered == 2 && rewound == 2 && resyncs == 2);
+    /* The cutscene player's ring (slots 2..): allocated on first use, restored like the RPC's (the
+     * RPC told), its size known, dropped on request; slots out of range refused. */
+    const int take = 2 + 300;
+    assert(!pc_snapshot_slot_valid(take) && pc_snapshot_slot_bytes(take) == 0);
+    memory[123] = 42;
+    game_stack[sizeof game_stack - 200] = 0x5a;
+    pc_snap_boundary.regs[0] = 0xb0b0;
+    assert(pc_snapshot_mark_slot(take, error, sizeof error) == 0 && pc_snapshot_slot_valid(take));
+    assert(pc_snapshot_slot_bytes(take) >= sizeof memory + 256);
+    memory[123] = 7;
+    pc_snap_boundary.regs[0] = 0xdead;
+    if (!setjmp(back)) {
+        pc_snapshot_rewind_slot(take, error, sizeof error);
+        assert(!"rewind returned instead of entering the game");
+    }
+    assert(entered == 3 && rewound == 3);
+    pc_snapshot_drop_slot(take);
+    assert(!pc_snapshot_slot_valid(take) && pc_snapshot_rewind_slot(take, error, sizeof error) == -1);
+    assert(pc_snapshot_mark_slot(100000, error, sizeof error) == -1 && pc_snapshot_rewind_slot(-1, error, sizeof error) == -1);
     puts("state_rewind: boundary mark, restored state and stack, repeated rewind and invalid calls pass");
     return 0;
 }

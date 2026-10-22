@@ -41,7 +41,8 @@ unsigned pc_controller_stick_dpad(const PcControllerState*);
 #define PC_BIND_STATE_FIRST PC_BIND_STATE_SAVE
 #define PC_BIND_STATE_LAST PC_BIND_STATE_SLOT_NEXT
 #define PC_BIND_PHOTO 21
-#define PC_BIND_SLOTS 22
+#define PC_BIND_REPLAY 22 /* the cutscene player's instant replay (bind_key_replay F8; no pad element by default) */
+#define PC_BIND_SLOTS 23
 #define PC_BIND_KEYS 2              /* keys per PS1 button */
 #define PC_PAD_AXIS(axis) (100 + (axis)) /* a gamepad element that is an axis (the triggers) */
 #define PC_PAD_NONE (-1)
@@ -64,7 +65,7 @@ unsigned pc_keyboard_bits(SDL_Keycode key);
 /* PS1 button index for a name ("circle", "l1", ...), -1 if none. */
 int pc_pad_button_index(const char* name);
 /* A slot's settings name: pc_pad_button_names, then "travel", "state_save",
- * "state_load", "state_slot_prev", "state_slot_next", "photo". */
+ * "state_load", "state_slot_prev", "state_slot_next", "photo", "replay". */
 const char* pc_bind_slot_name(int slot);
 /* A slot for a settings name (a PS1 button or an action), -1 if none. */
 int pc_bind_slot_index(const char* name);
@@ -78,6 +79,8 @@ unsigned pc_keyboard_state_actions(SDL_Keycode key);
 const char* pc_bind_pad_text(int slot, char* out, size_t size);
 /* Whether `key` is bound to the photo mode's button. */
 int pc_keyboard_photo(SDL_Keycode key);
+/* Whether `key` is bound to the instant replay (cutscene.cpp). */
+int pc_keyboard_replay(SDL_Keycode key);
 /* The PS1 buttons bound to one of slot's keys or to its pad element (pressed with it). */
 unsigned pc_bind_shared_bits(int slot);
 /* Key and gamepad element names as in the settings ("z", "return", "f1";

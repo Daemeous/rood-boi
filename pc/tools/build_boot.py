@@ -1323,6 +1323,8 @@ for source in [
     root / "pc/src/photo_ui.cpp",
     root / "pc/src/photo_capture.cpp",
     root / "pc/src/photo_input.cpp",
+    root / "pc/src/cutscene.cpp",
+    root / "pc/src/cutscene_panel.cpp",
     root / "pc/src/fog_sim.cpp",
     root / "pc/src/particles.cpp",
     root / "pc/src/particle_assets.cpp",

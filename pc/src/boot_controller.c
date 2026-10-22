@@ -21,7 +21,8 @@ const char* const pc_pad_button_names[PC_PAD_BUTTONS] = { "l2", "r2", "l1", "r1"
             { SDLK_TAB }, { 0 }, { 0 }, { SDLK_RETURN }, { SDLK_UP }, { SDLK_RIGHT }, { SDLK_DOWN },    \
             { SDLK_LEFT }, { 0 } /* Travel: no key */,                                                  \
             { SDLK_F5 }, { SDLK_F9 }, { SDLK_F6 }, { SDLK_F7 }, /* save states: save, load, slot -, + */ \
-            { SDLK_F12 } /* the photo mode (rood.photo) */                                        \
+            { SDLK_F12 } /* the photo mode (rood.photo) */,                                       \
+            { SDLK_F8 } /* the instant replay (cutscene.cpp) */                                    \
     }
 #define DEFAULT_PAD                                                                             \
     {                                                                                           \
@@ -37,7 +38,8 @@ const char* const pc_pad_button_names[PC_PAD_BUTTONS] = { "l2", "r2", "l1", "r1"
             SDL_GAMEPAD_BUTTON_DPAD_LEFT,                                                       \
             SDL_GAMEPAD_BUTTON_BACK /* Travel: shares Select's back */,                          \
             PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, /* save states: no button */      \
-            SDL_GAMEPAD_BUTTON_DPAD_UP /* the photo mode: with Back held (DEFAULT_PAD_MOD) */     \
+            SDL_GAMEPAD_BUTTON_DPAD_UP /* the photo mode: with Back held (DEFAULT_PAD_MOD) */,    \
+            PC_PAD_NONE /* the instant replay: no button */                                     \
     }
 /* Chords' modifiers: the photo mode is Select (Back) + D-pad up. Vagrant Story reads every PS1 button
  * (Select: the field camera's mode; L3 is unused but shares its stick with L3 + R3, fast-forward, and a
@@ -48,7 +50,7 @@ const char* const pc_pad_button_names[PC_PAD_BUTTONS] = { "l2", "r2", "l1", "r1"
         PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, \
             PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE,      \
             PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE,                   \
-            SDL_GAMEPAD_BUTTON_BACK                                                                        \
+            SDL_GAMEPAD_BUTTON_BACK, PC_PAD_NONE                                                           \
     }
 static const SDL_Keycode default_keys[PC_BIND_SLOTS][PC_BIND_KEYS] = DEFAULT_KEYS;
 static const int default_pad_mod[PC_BIND_SLOTS] = DEFAULT_PAD_MOD;
@@ -113,7 +115,7 @@ int pc_pad_button_index(const char* name)
 
 /* The port's own actions' settings names, from PC_BIND_TRAVEL on. */
 static const char* const action_names[PC_BIND_SLOTS - PC_PAD_BUTTONS] = { "travel", "state_save", "state_load",
-    "state_slot_prev", "state_slot_next", "photo" };
+    "state_slot_prev", "state_slot_next", "photo", "replay" };
 
 const char* pc_bind_slot_name(int slot)
 {
@@ -156,6 +158,11 @@ unsigned pc_keyboard_state_actions(SDL_Keycode key)
 int pc_keyboard_photo(SDL_Keycode key)
 {
     return key && (pc_bind_keys[PC_BIND_PHOTO][0] == key || pc_bind_keys[PC_BIND_PHOTO][1] == key);
+}
+
+int pc_keyboard_replay(SDL_Keycode key)
+{
+    return key && (pc_bind_keys[PC_BIND_REPLAY][0] == key || pc_bind_keys[PC_BIND_REPLAY][1] == key);
 }
 
 /* The PS1 buttons that share one of `slot`'s keys or its pad element: a

@@ -1176,8 +1176,10 @@ static void draw_packet(void* data, int chain)
     pc_unimplemented("ordering table cycle");
 }
 
+extern int pc_title_input_ready; /* (below) */
 void pc_title_menu_ready(void)
 {
+    pc_title_input_ready = 1;
     pc_present_now();
     pc_log("TITLE MENU READY: original game entered title input loop");
     if (intro_skipped_by_setting) {
@@ -1307,8 +1309,12 @@ static void tick_frame_work(void)
  * boot_sdk.c vs_overlay_jumpToTitle), 2 an attract demo (the title's idle
  * cutscenes, modes 3 and 4), 0 a game started from the title. */
 int pc_game_phase = 1;
+/* The title menu takes input (from pc_title_menu_ready until a mode starts): the cutscene player's
+ * New Game recipe presses Start then (cutscene.cpp). */
+int pc_title_input_ready;
 void pc_title_start(int state)
 {
+    pc_title_input_ready = 0;
     fprintf(stderr, "[title] starting mode %d (0=new game, 3/4=idle cutscene)\n", state);
     pc_game_phase = state == 3 || state == 4 ? 2 : 0;
 }
@@ -1357,7 +1363,10 @@ static int deterministic_scanlines(void)
     return env || (pc_input_deterministic && pc_input_deterministic())
         || (&pc_photo_rendering && pc_photo_rendering); /* every render of the frozen moment the same */
 }
-int func_800E45B4(void)
+/* The cutscene player's take (cutscene.cpp) logs what this returned per vsync and, replaying a part of
+ * the take, returns the logged values instead: the one host-clock input of game state, made exact. */
+extern int pc_take_scanlines(int value) __attribute__((weak));
+static int scanlines_now(void)
 {
     if (deterministic_scanlines()) {
         static unsigned lines, vblank;
@@ -1375,6 +1384,11 @@ int func_800E45B4(void)
     int64_t elapsed = (int64_t)(now.tv_sec - last_vsync.tv_sec) * 1000000000 + now.tv_nsec
                     - last_vsync.tv_nsec;
     return (unsigned)((elapsed * 15734) / 1000000000) & 65535;
+}
+int func_800E45B4(void)
+{
+    int value = scanlines_now();
+    return pc_take_scanlines ? pc_take_scanlines(value) : value;
 }
 
 /* The game's code pinned for save states (64 bits: pc/tools/snapshot_layout.py). */

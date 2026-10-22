@@ -4241,7 +4241,8 @@ void func_800CC204(gim_t* image, int clut, u_long* ot)
      * compressed but clipped to the whole view (PC_ANCHOR_SCENE). Past the
      * 4:3 screen's sides, where the image has no tiles, the span is its
      * ground colour, as its empty tiles are (nothing where it has none). */
-    if (pc_gte_widescreen && pc_hw_anchor_recorded && pc_hw_anchor_recorded(PC_ANCHOR_SCENE)) {
+    if (pc_gte_widescreen && pc_hw_anchor_recorded
+        && pc_hw_anchor_recorded(PC_ANCHOR_SCENE)) {
         pc_margin = PC_WIDESCREEN_MARGIN;
         for (y = 0; y < 240; y++) {
             left[y] = -pc_margin + left[y] * (320 + 2 * pc_margin) / 320;

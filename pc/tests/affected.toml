@@ -107,6 +107,22 @@ paths = ["pc/src/photo*", "pc/src/lua/lua_api_photo.cpp", "pc/src/lua/lua_photo*
          "pc/src/editor_view.cpp", "pc/src/post_profile.cpp", "pc/src/post.h"]
 suites = ["photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "ctest"]
 
+# ---- the cutscene player (takes, marks, the Cutscene window, its catalog and opcode names) ----
+[[rule]]
+paths = ["pc/src/cutscene*", "pc/assets/cutscenes/*", "pc/src/state_rewind.c", "pc/src/scene_submit.inc",
+         "pc/src/boot_controller.*", "pc/src/photo_capture.cpp", "pc/src/photo.cpp"]
+suites = ["cutscene_player_smoke", "ctest"]
+
+# ---- the event's screen images (stills, the credits' tear wipe: widened in 16:9) ----
+[[rule]]
+paths = ["src/BATTLE/BATTLE.PRG/5BF94.c"]
+suites = ["cutscene_player_smoke", "widescreen_smoke"]
+
+# ---- the cutscene player's offline tools (catalog scan, opcode names) ----
+[[rule]]
+paths = ["pc/tools/cutscene_scan.py", "pc/tools/cutscene_opcodes.py"]
+suites = []
+
 # ---- the shipped photo mode (pc/plugins/rood.photo) and its button (bind_*_photo), plugins' panels ----
 [[rule]]
 paths = ["pc/plugins/rood.photo/*", "pc/plugins/rood.photo/tests/*", "pc/src/boot_controller.*", "pc/src/boot_gamepad.c",

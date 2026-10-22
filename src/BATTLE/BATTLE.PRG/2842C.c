@@ -2296,9 +2296,9 @@ void func_800958A4(int x, int y, D_800F1BAC_t* p)
     }
 draw:
     if (p->unkC != 2) {
-        PC_TEXT_STATUS(vs_battle_renderTextRawColor(timing[p->unkC],
-            (x & 0xFFFF) | (y << 16), colors[p->unkC],
-            psx_get(((vs_scratch_t*)0x1F800000)->unk4) - 16));
+        PC_TEXT_STATUS(
+            vs_battle_renderTextRawColor(timing[p->unkC], (x & 0xFFFF) | (y << 16),
+                colors[p->unkC], psx_get(((vs_scratch_t*)0x1F800000)->unk4) - 16));
     } else {
         PC_TEXT_STATUS(vs_battle_renderTextRawColor(success[p->displayTextLen],
             (x & 0xFFFF) | (y << 16), 0x408040,

@@ -97,6 +97,11 @@ with design notes in [`pc/docs/`](pc/docs).
   packet against the game's own drawing, which stays the fallback).
 - **Save state slots** (optional, off by default): System > Gameplay > Save
   states, then F5 saves, F9 loads, F6/F7 pick the slot (bindable).
+- **Cutscene player** (developer tool, Window > Cutscene): reach a cutscene
+  (New Game's opening, 39 room events by warp, the ending), pause, step, go
+  back to any earlier frame and replay it exactly, slow motion, clean PNG
+  captures and repro files; the optional instant replay keeps the last 30 s
+  and F8 freezes it (`pc/docs/Cutscene_Player.md`).
 - **Developer tooling.** A JSON-RPC control socket and Python client
   (`pc/tools/rood_rpc.py`) for scripted play, screenshots and memory
   inspection; a Lua REPL into the running game (`pc/tools/rood_repl.py`);

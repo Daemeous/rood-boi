@@ -1,0 +1,611 @@
+{
+  "about": "The cutscene player's scenes (pc/src/cutscene.cpp, pc/docs/Cutscene_Player.md): how each is reached. recipe kind new_game: at the title menu, Start (the cursor on New Game); warp: from the field, the Room Browser's warp with the room's scripts and enemies on; ending: from the field, the developer jump into the ending. reliable: reached and seen to play every time; event: the event id a scan saw ((source << 12) | file). Warp entries come from pc/tools/cutscene_scan.py.",
+  "scenes": [
+    {
+      "id": "opening",
+      "name": "Opening (New Game)",
+      "recipe": {
+        "kind": "new_game"
+      },
+      "from": "the title menu with the cursor on New Game (an empty card, or move it there)",
+      "notes": "The prologue: narration over the manor, the knights, Ashley's entry; the first talk bubbles. The test checkpoints opening / first_bubble take the same route.",
+      "reliable": true
+    },
+    {
+      "id": "ending",
+      "name": "Ending (credits, MISSION COMPLETE)",
+      "recipe": {
+        "kind": "ending"
+      },
+      "from": "any field room with no event running (a loaded game)",
+      "notes": "ENDING.PRG: the credits over the illustrations, then the score screen. About 27,400 frames; Start skips them.",
+      "frames": 27431,
+      "reliable": true
+    },
+    {
+      "id": "z009r01",
+      "name": "Room of Cheap Red Wine (9/1, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 9,
+        "room": 1,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 1980 frames, dialogue advanced 16 times (Circle / Cross)",
+      "frames": 1980,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z009r02",
+      "name": "Room of Cheap White Wine (9/2, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 9,
+        "room": 2,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 720 frames, dialogue advanced 6 times (Circle / Cross)",
+      "frames": 720,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z017r00",
+      "name": "The Cleansing Chantry (17/0, event 0x001c)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 17,
+        "room": 0,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "zone EVT script 28; about 6480 frames, dialogue advanced 54 times (Circle / Cross)",
+      "frames": 6480,
+      "event": 28,
+      "reliable": true
+    },
+    {
+      "id": "z022r00",
+      "name": "Sanity and Madness (22/0, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 22,
+        "room": 0,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 940 frames, dialogue advanced 7 times (Circle / Cross)",
+      "frames": 940,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z022r04",
+      "name": "Truth and Lies (22/4, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 22,
+        "room": 4,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 900 frames, dialogue advanced 7 times (Circle / Cross)",
+      "frames": 900,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z022r06",
+      "name": "Order and Chaos (22/6, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 22,
+        "room": 6,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 880 frames, dialogue advanced 7 times (Circle / Cross)",
+      "frames": 880,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z024r00",
+      "name": "The Flayed Confessional (24/0, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 24,
+        "room": 0,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 880 frames, dialogue advanced 7 times (Circle / Cross)",
+      "frames": 880,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z024r04",
+      "name": "A Light in the Dark (24/4, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 24,
+        "room": 4,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 360 frames, dialogue advanced 3 times (Circle / Cross)",
+      "frames": 360,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z024r11",
+      "name": "The Hall of Broken Vows (24/11, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 24,
+        "room": 11,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 720 frames, dialogue advanced 6 times (Circle / Cross)",
+      "frames": 720,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z024r15",
+      "name": "Hopes of the Idealist (24/15, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 24,
+        "room": 15,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 860 frames, dialogue advanced 7 times (Circle / Cross)",
+      "frames": 860,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z025r01",
+      "name": "What Ails You, Kills You (25/1, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 25,
+        "room": 1,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 720 frames, dialogue advanced 6 times (Circle / Cross)",
+      "frames": 720,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z029r00",
+      "name": "The Warrior's Rest (29/0, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 29,
+        "room": 0,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 7200 frames, dialogue advanced 60 times (Circle / Cross); did not end within the scan's cap",
+      "frames": 7200,
+      "event": 4096,
+      "reliable": false
+    },
+    {
+      "id": "z031r00",
+      "name": "Chamber of Reason (31/0, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 31,
+        "room": 0,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 7200 frames, dialogue advanced 60 times (Circle / Cross); did not end within the scan's cap",
+      "frames": 7200,
+      "event": 4096,
+      "reliable": false
+    },
+    {
+      "id": "z032r00",
+      "name": "Rue Vermillion (32/0, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 32,
+        "room": 0,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 4320 frames, dialogue advanced 36 times (Circle / Cross)",
+      "frames": 4320,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z032r01",
+      "name": "The Rene Coastroad (32/1, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 32,
+        "room": 1,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 7200 frames, dialogue advanced 60 times (Circle / Cross); did not end within the scan's cap",
+      "frames": 7200,
+      "event": 4096,
+      "reliable": false
+    },
+    {
+      "id": "z032r03",
+      "name": "Tircolas Flow (32/3, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 32,
+        "room": 3,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 7200 frames, dialogue advanced 60 times (Circle / Cross); did not end within the scan's cap",
+      "frames": 7200,
+      "event": 4096,
+      "reliable": false
+    },
+    {
+      "id": "z032r06",
+      "name": "Villeport Way (32/6, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 32,
+        "room": 6,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 7200 frames, dialogue advanced 60 times (Circle / Cross); did not end within the scan's cap",
+      "frames": 7200,
+      "event": 4096,
+      "reliable": false
+    },
+    {
+      "id": "z032r17",
+      "name": "Rue Crimnade (32/17, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 32,
+        "room": 17,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 7200 frames, dialogue advanced 60 times (Circle / Cross); did not end within the scan's cap",
+      "frames": 7200,
+      "event": 4096,
+      "reliable": false
+    },
+    {
+      "id": "z034r00",
+      "name": "Dinas Walk (34/0, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 34,
+        "room": 0,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 7200 frames, dialogue advanced 60 times (Circle / Cross); did not end within the scan's cap",
+      "frames": 7200,
+      "event": 4096,
+      "reliable": false
+    },
+    {
+      "id": "z039r00",
+      "name": "Plateia Lumitar (39/0, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 39,
+        "room": 0,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 1040 frames, dialogue advanced 8 times (Circle / Cross)",
+      "frames": 1040,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z040r13",
+      "name": "Where Soft Rains Fell (40/13, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 40,
+        "room": 13,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 1920 frames, dialogue advanced 16 times (Circle / Cross)",
+      "frames": 1920,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z040r21",
+      "name": "The Faerie Circle (40/21, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 40,
+        "room": 21,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 7200 frames, dialogue advanced 60 times (Circle / Cross); did not end within the scan's cap",
+      "frames": 7200,
+      "event": 4096,
+      "reliable": false
+    },
+    {
+      "id": "z040r22",
+      "name": "Return to the Land (40/22, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 40,
+        "room": 22,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 700 frames, dialogue advanced 5 times (Circle / Cross)",
+      "frames": 700,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z040r24",
+      "name": "Hewn from Nature (40/24, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 40,
+        "room": 24,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 4080 frames, dialogue advanced 34 times (Circle / Cross)",
+      "frames": 4080,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z041r02",
+      "name": "Nature's Womb (41/2, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 41,
+        "room": 2,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 380 frames, dialogue advanced 3 times (Circle / Cross)",
+      "frames": 380,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z049r01",
+      "name": "Place of Free Words (49/1, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 49,
+        "room": 1,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 480 frames, dialogue advanced 4 times (Circle / Cross)",
+      "frames": 480,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z049r05",
+      "name": "Gemsword Blackmarket (49/5, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 49,
+        "room": 5,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 740 frames, dialogue advanced 6 times (Circle / Cross)",
+      "frames": 740,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z050r06",
+      "name": "The Battle's Beginning (50/6, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 50,
+        "room": 6,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 580 frames, dialogue advanced 4 times (Circle / Cross)",
+      "frames": 580,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z050r22",
+      "name": "Traitor's Parting (50/22, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 50,
+        "room": 22,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 480 frames, dialogue advanced 4 times (Circle / Cross)",
+      "frames": 480,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z051r02",
+      "name": "The Miner's End (51/2, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 51,
+        "room": 2,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 1020 frames, dialogue advanced 8 times (Circle / Cross)",
+      "frames": 1020,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z051r06",
+      "name": "Dining in Darkness (51/6, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 51,
+        "room": 6,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 600 frames, dialogue advanced 5 times (Circle / Cross)",
+      "frames": 600,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z053r01",
+      "name": "Dream of the Holy Land (53/1, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 53,
+        "room": 1,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 720 frames, dialogue advanced 6 times (Circle / Cross)",
+      "frames": 720,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z053r23",
+      "name": "Torture Without End (53/23, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 53,
+        "room": 23,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 580 frames, dialogue advanced 4 times (Circle / Cross)",
+      "frames": 580,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z053r29",
+      "name": "Hall of the Wage-Paying (53/29, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 53,
+        "room": 29,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 560 frames, dialogue advanced 4 times (Circle / Cross)",
+      "frames": 560,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z054r01",
+      "name": "Slaugher of the Innocent (54/1, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 54,
+        "room": 1,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 460 frames, dialogue advanced 3 times (Circle / Cross)",
+      "frames": 460,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z055r03",
+      "name": "Starvation (55/3, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 55,
+        "room": 3,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 360 frames, dialogue advanced 3 times (Circle / Cross)",
+      "frames": 360,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z055r12",
+      "name": "Burial (55/12, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 55,
+        "room": 12,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 1100 frames, dialogue advanced 9 times (Circle / Cross)",
+      "frames": 1100,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z056r14",
+      "name": "The Shin-Vice (56/14, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 56,
+        "room": 14,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 420 frames, dialogue advanced 3 times (Circle / Cross)",
+      "frames": 420,
+      "event": 4096,
+      "reliable": true
+    },
+    {
+      "id": "z056r22",
+      "name": "The Iron Maiden (56/22, event 0x1000)",
+      "recipe": {
+        "kind": "warp",
+        "zone": 56,
+        "room": 22,
+        "entry": 0
+      },
+      "from": "any field room: a warp with the room's scripts and enemies on (out of story order)",
+      "notes": "room entry script 0; about 620 frames, dialogue advanced 5 times (Circle / Cross)",
+      "frames": 620,
+      "event": 4096,
+      "reliable": true
+    }
+  ]
+}

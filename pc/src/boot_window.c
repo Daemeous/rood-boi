@@ -32,6 +32,7 @@ static int fast_forward_held(void) { return focused && (fast_forward_key || pc_c
  * what the audio device has no room for meanwhile is dropped
  * (audio_output.c). */
 extern int pc_charge_skip_hidden(void) __attribute__((weak));
+extern int pc_take_pace(void) __attribute__((weak)); /* cutscene.cpp */
 extern void pc_audio_output_turbo(int on) __attribute__((weak)); /* audio_output.c */
 static int charge_hidden; /* this vsync's */
 static void charge_update(void)
@@ -384,17 +385,19 @@ void pc_window_tick(void)
         pc_photo_input_tick(); /* a plugin's input capture: the pad's and the RPC's buttons as events */
     capture_tick();
     charge_update();
-    if (fast_forward_held() || charge_hidden || (&pc_photo_rendering && pc_photo_rendering))
+    /* The cutscene player (cutscene.cpp): 0 while it goes to a frame (unpaced), 2 or 4 in slow motion. */
+    int pace = pc_take_pace ? pc_take_pace() : 1;
+    if (fast_forward_held() || charge_hidden || (&pc_photo_rendering && pc_photo_rendering) || pace <= 0)
         deadline.tv_sec = 0; /* pace again from now when it is released (or presents again) */
-    else if (!fast) {
+    else if (!fast || pace > 1) {
         /* Pace to absolute NTSC field deadlines (59.94 Hz) so the frame's own
          * work counts toward the period; resynchronise after long stalls. */
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
         if (!deadline.tv_sec)
             deadline = now;
-        deadline.tv_nsec += FIELD_NS;
-        if (deadline.tv_nsec >= 1000000000) {
+        deadline.tv_nsec += FIELD_NS * (long)(pace > 1 ? pace : 1);
+        while (deadline.tv_nsec >= 1000000000) {
             deadline.tv_nsec -= 1000000000;
             ++deadline.tv_sec;
         }
