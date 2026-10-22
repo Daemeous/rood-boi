@@ -75,7 +75,7 @@ extern "C" int pc_photo_input_capture(const char* owner, int on)
         input_owner = owner;
         pc_photo_input_captured = 1;
         key_bits = 0;
-        last_buttons = pc_rpc_buttons ? pc_rpc_buttons() | pc_controller_buttons() : 0;
+        last_buttons = (pc_rpc_buttons ? pc_rpc_buttons() : 0) | (pc_controller_buttons() & ~pc_controller_stick_only());
         events.clear();
         if (pc_window_release_keys)
             pc_window_release_keys(); /* what the game held is let go */
@@ -163,7 +163,8 @@ extern "C" int pc_photo_input_event(const void* sdl_event)
 }
 extern "C" void pc_photo_input_tick(void)
 {
-    unsigned pad = pc_controller_buttons(), rpc = pc_rpc_buttons ? pc_rpc_buttons() : 0;
+    /* (the left stick's D-pad is the camera's here, never the rows') */
+    unsigned pad = pc_controller_buttons() & ~pc_controller_stick_only(), rpc = pc_rpc_buttons ? pc_rpc_buttons() : 0;
     unsigned held = key_bits | pad | rpc;
     const unsigned START = 1u << 11;
     pc_photo_input_swallowed &= held; /* (the safety's Start, until it is let go) */

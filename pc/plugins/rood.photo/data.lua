@@ -77,6 +77,10 @@ M.camera = {
   repeat_delay = 0.35, repeat_every = 0.06, -- a held left / right on a row
 }
 
+-- The card hidden (Triangle): the PS1 buttons that still act (show the card, a photo, leave); the others
+-- (the D-pad, L1 / R1, Square ...) do nothing then, so the card's last row never changes unseen.
+M.hidden_buttons = { triangle = true, circle = true, cross = true }
+
 -- ---------------------------------------------------------------- the rows' choices
 -- Format: the picture cropped to an aspect ratio (width over height; 0: the whole picture).
 M.formats = {
@@ -136,16 +140,15 @@ M.bars = {
 -- A row: id, label, kind (slider, choice, toggle, action) and what it changes:
 --   post = key (rood.post; `component` 1-4 of a colour / vec4 key, 4 the master), camera = fov / roll /
 --   collision (rood.camera), setting = a setting of this plugin's, state = mode / guides / bars / filter /
---   filter_amount (the plugin's own).
+--   filter_amount / show_ashley / show_others (the plugin's own; `default` its first value, else 1).
 -- Sliders: min, max, step (a held left / right repeats), fmt (string.format of the value times `scale`), or
 -- show = a unit main.lua formats (focal: a field of view as a focal length; metres: a GTE depth; percent).
 -- Choices: choices = a list above (by name), its items { label, value }. needs = { id, value }: the row is
 -- dimmed (and left / right do nothing) unless that row has that value (true: a toggle on); needs_post = key:
 -- unless that post value is set (a LUT file); needs_grade: unless the filter is a grade (not Off, a preset).
 -- There is no Pose row: the game has no pose system, and Ashley's animation is game state (a paused moment
--- is rewound after every render), so changing it is not read-only. Hide Ashley / enemies: not offered
--- (the frozen moment's actors are drawn by the game's own frame; a renderer-side actor filter is a
--- follow-up), see pc/docs/Extensions.md "Photo mode".
+-- is rewound after every render), so changing it is not read-only. Show Ashley / Show others: the
+-- characters left out of the renders (rood.ui.hide{actors}: their models, weapons and drop shadows).
 M.tabs = {
   { id = "camera", label = "Camera", rows = {
     { id = "mode", label = "Camera", kind = "choice", state = "mode", choices = "camera_modes" },
@@ -154,6 +157,8 @@ M.tabs = {
     { id = "speed", label = "Move speed", kind = "slider", setting = "camera_speed", min = 0.25, max = 4, step = 0.25,
       fmt = "%.2fx" },
     { id = "collision", label = "Collision", kind = "toggle", camera = "collision" },
+    { id = "show_ashley", label = "Show Ashley", kind = "toggle", state = "show_ashley", default = true },
+    { id = "show_others", label = "Show others", kind = "toggle", state = "show_others", default = true },
     { id = "reset_camera", label = "Reset camera", kind = "action", action = "reset_camera" },
   } },
   { id = "lens", label = "Lens", rows = {

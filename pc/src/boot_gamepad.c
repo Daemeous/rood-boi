@@ -25,6 +25,7 @@ extern void pc_photo_action(const char* name, const char* device) __attribute__(
 extern unsigned pc_vsync_count(void) __attribute__((weak)); /* boot_runtime.c */
 static float right_stick[2]; /* -1..1, SDL's direction (down is +y) */
 static float left_stick[2];  /* the same (photo.cpp's input capture reads it; the game's pad stays digital) */
+static unsigned stick_only; /* pc_controller_stick_only */
 static float triggers[2];    /* L2, R2: their axis' travel past the press point (0..1), -1 not an axis */
 static const char* requested;
 static char requested_event[300];
@@ -246,6 +247,7 @@ void pc_controller_poll(void)
         fast_forward = 0;
         right_stick[0] = right_stick[1] = 0;
         left_stick[0] = left_stick[1] = 0;
+        stick_only = 0;
         triggers[0] = triggers[1] = -1;
         return;
     }
@@ -255,6 +257,13 @@ void pc_controller_poll(void)
     for (int i = 0; i < SDL_GAMEPAD_AXIS_COUNT; i++)
         state.axes[i] = SDL_GetGamepadAxis(pad, (SDL_GamepadAxis)i);
     unsigned game = pc_controller_mask(&state);
+    {
+        unsigned stick = pc_controller_stick_dpad(&state), elements = 0;
+        for (int i = 0; i < PC_PAD_BUTTONS; ++i)
+            if ((stick & (1u << i)) && pc_controller_element(&state, pc_bind_pad[i]))
+                elements |= 1u << i;
+        stick_only = stick & ~elements;
+    }
     travel = action_held(&state, PC_BIND_TRAVEL, &game);
     /* The save state actions: on a press (savestate_slots.c). */
     unsigned held = 0;
@@ -296,6 +305,7 @@ void pc_controller_poll(void)
 }
 
 unsigned pc_controller_buttons(void) { return mask; }
+unsigned pc_controller_stick_only(void) { return stick_only & mask; }
 /* The Travel slot's pad element held (fast travel). */
 int pc_controller_travel(void) { return travel; }
 int pc_controller_fast_forward(void) { return fast_forward; }

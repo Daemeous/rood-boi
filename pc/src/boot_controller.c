@@ -73,6 +73,12 @@ unsigned pc_controller_mask(const PcControllerState* s)
         if (pc_controller_element(s, pc_bind_pad[i]))
             result |= 1u << i;
     /* The left stick navigates like the D-pad. */
+    return result | pc_controller_stick_dpad(s);
+}
+
+unsigned pc_controller_stick_dpad(const PcControllerState* s)
+{
+    unsigned result = 0;
     int x = s->axes[SDL_GAMEPAD_AXIS_LEFTX], y = s->axes[SDL_GAMEPAD_AXIS_LEFTY];
     if (x < -12000)
         result |= 1u << 15;
@@ -235,7 +241,10 @@ static const struct {
     { "paddle1", SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1 }, { "paddle2", SDL_GAMEPAD_BUTTON_LEFT_PADDLE1 },
     { "paddle3", SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2 }, { "paddle4", SDL_GAMEPAD_BUTTON_LEFT_PADDLE2 },
     { "touchpad", SDL_GAMEPAD_BUTTON_TOUCHPAD }, { "lefttrigger", PC_PAD_AXIS(SDL_GAMEPAD_AXIS_LEFT_TRIGGER) },
-    { "righttrigger", PC_PAD_AXIS(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) }, { "none", PC_PAD_NONE },
+    { "righttrigger", PC_PAD_AXIS(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) },
+    /* the left stick pushed right / down (tests: RPC system {virtual_pad}) */
+    { "leftx", PC_PAD_AXIS(SDL_GAMEPAD_AXIS_LEFTX) }, { "lefty", PC_PAD_AXIS(SDL_GAMEPAD_AXIS_LEFTY) },
+    { "none", PC_PAD_NONE },
 };
 
 int pc_pad_element_from_name(const char* name)

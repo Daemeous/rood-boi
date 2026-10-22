@@ -18,6 +18,7 @@
 
 extern "C" {
 int pc_photo_hide_game2d;
+int pc_photo_hide_actors;
 int pc_photo_game2d_slots = 35; /* the field's ordering table: entries 0..34, vs_scratch.unk4 (entry 18) +- 16 */
 extern int pc_gl_view[4] __attribute__((weak));
 }
@@ -37,6 +38,7 @@ void hidden_update()
         pc_photo_redraw();
     }
     pc_photo_hide_game2d = (flags & PC_PHOTO_HIDE_GAME2D) != 0;
+    pc_photo_hide_actors = (flags & PC_PHOTO_HIDE_ASHLEY ? 1 : 0) | (flags & PC_PHOTO_HIDE_OTHERS ? 2 : 0);
 }
 
 std::vector<std::pair<std::string, float>> formats;
@@ -144,6 +146,7 @@ void reset()
     formats.clear();
     format_colours.clear();
     hidden_flags = 0;
+    pc_photo_hide_actors = 0;
     pc_photo_hide_game2d = 0; /* (crosses an engine reload: a host-owned block) */
 }
 void json(std::string& out)

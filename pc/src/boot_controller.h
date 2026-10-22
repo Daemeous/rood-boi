@@ -10,6 +10,8 @@ typedef struct {
 } PcControllerState;
 /* boot_controller.c: PS1 pad bits for a gamepad state (no SDL calls). */
 unsigned pc_controller_mask(const PcControllerState*);
+/* The D-pad bits the left stick gives (pc_controller_mask has them too). */
+unsigned pc_controller_stick_dpad(const PcControllerState*);
 
 /* Bindings (boot_controller.c, settings bind_key_<button> / bind_pad_<button>):
  * which key and which gamepad element press each PS1 button. PS1 buttons
@@ -95,6 +97,9 @@ void pc_controller_init(void);
 void pc_controller_event(const union SDL_Event*);
 void pc_controller_poll(void);
 unsigned pc_controller_buttons(void);
+/* Of pc_controller_buttons: the D-pad bits only the left stick gives (no D-pad element bound to them
+ * is held): rood.input's events leave them out, the stick being the photo camera's. */
+unsigned pc_controller_stick_only(void);
 int pc_controller_fast_forward(void); /* both stick clicks held: fast-forward (boot_window.c) */
 void pc_controller_right_stick(float out[2]);
 void pc_controller_left_stick(float out[2]); /* -1..1 (down +y); 0 without a gamepad */

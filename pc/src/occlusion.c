@@ -396,9 +396,21 @@ void pc_occlusion_frame(int free_camera)
     updated_serial = render_frame_serial();
 }
 
+/* photo.h: a plugin's free camera (the photo mode) flies over the held moment: the walls stay solid (the
+ * fades follow the game's camera, which it no longer is); the setting itself is kept and works again once
+ * the camera is the game's. */
+extern int pc_photo_camera_owner(char* out, int size) __attribute__((weak));
+static int photo_camera(void)
+{
+    char owner[64];
+    return pc_photo_camera_owner && pc_photo_camera_owner(owner, (int)sizeof owner);
+}
+
 int pc_occlusion_subjects_get(const pc_occlusion_subject** out)
 {
     *out = subjects;
+    if (photo_camera())
+        return 0;
     /* Stale (no room drawn for a while: a menu, a load): none. */
     if (!updated || (uint32_t)(render_frame_serial() - updated_serial) > 2)
         return 0;

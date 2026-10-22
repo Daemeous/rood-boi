@@ -83,7 +83,11 @@ int pc_photo_camera_orbit(const char* owner, float yaw, float pitch, float zoom,
 int pc_photo_camera_move(const char* owner, float right, float up, float forward, char* why, int size);
 
 /* ---- ui ---- */
-enum { PC_PHOTO_HIDE_HUD = 1, PC_PHOTO_HIDE_GAME2D = 2, PC_PHOTO_HIDE_OVERLAY = 4 };
+enum { PC_PHOTO_HIDE_HUD = 1, PC_PHOTO_HIDE_GAME2D = 2, PC_PHOTO_HIDE_OVERLAY = 4,
+    PC_PHOTO_HIDE_ASHLEY = 8, PC_PHOTO_HIDE_OTHERS = 16 /* the actors (rood.ui.hide{actors}) */ };
+/* The characters not drawn (actor_native.c: their models, weapons and shields; every owner's together):
+ * bit 1 Ashley (actor slot 0), bit 2 the others (enemies, NPCs). */
+extern int pc_photo_hide_actors;
 void pc_photo_ui_hide(const char* owner, int flags); /* this owner's (0: shown again) */
 int pc_photo_ui_hidden(void);                        /* every owner's together */
 int pc_photo_hide_hud(void);                         /* hud_elements.cpp, the classic hooks, dev_overlay.cpp */

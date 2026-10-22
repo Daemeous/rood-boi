@@ -40,8 +40,16 @@ static short slope_angle(int a, int b, unsigned radius)
     int angle = ratan2(aa <= ab ? a : b, radius);
     return angle >= -640 && angle < 640 ? angle : 0;
 }
+/* photo.h (rood.ui.hide{actors}), dev_state.c: a hidden character casts no drop shadow either. */
+extern int pc_photo_hide_actors __attribute__((weak));
+extern int pc_dev_actor_of(const void* p) __attribute__((weak));
 void pc_actor_shadow(unsigned char* actor, unsigned char* scratch)
 {
+    if (&pc_photo_hide_actors && pc_photo_hide_actors && pc_dev_actor_of) {
+        int slot = pc_dev_actor_of(actor);
+        if (slot >= 0 && (pc_photo_hide_actors & (slot == 0 ? 1 : 2)))
+            return;
+    }
     SVECTOR* position = (SVECTOR*)(actor + 0x1c);
     int floor = func_800A6EE8(position, 0, 0, 3);
     if (position->vy > floor)

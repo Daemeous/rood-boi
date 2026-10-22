@@ -75,6 +75,18 @@ int pc_dev_actors(struct pc_dev_actor* out, int max)
     }
     return n;
 }
+/* The actor slot whose record holds p (its model, its weapon and shield are in it), -1 none
+ * (actor_native.c: rood.ui.hide{actors}). */
+int pc_dev_actor_of(const void* p)
+{
+    for (int i = 0; i < 17; i++) {
+        D_800F4538_t* actor = D_800F4538[i];
+        if (guest_pointer(actor, sizeof *actor) && (const char*)p >= (const char*)actor
+            && (const char*)p < (const char*)actor + sizeof *actor)
+            return i;
+    }
+    return -1;
+}
 /* scene_submit.inc (in BATTLE's 146C.c, which knows the action record). */
 extern int pc_battle_action(int* actor, int* action, int* phase, int* chain, int* type, int* plain, int aim[3],
     int* target);

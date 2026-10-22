@@ -80,7 +80,72 @@ def main():
         shutil.rmtree(out / d, ignore_errors=True)
     (out / "plugins").mkdir(parents=True, exist_ok=True)
     with card_guard(out / "cards", source=args.card) as cards:
-        return run(out, cards.card1)
+        status = run(out, cards.card1)
+    return run_bubbles(out) or status
+
+
+def run_bubbles(out):
+    """rood.ui.hide{game2d}: the 2D anchored in the world (the emote bubbles over actors, the battle page's
+    status words) goes too, not only the HUD's slots: the opening's actors with every emote forced on
+    (as ui_text_smoke), drawn again by ui_bubbles vector / ui_text font (their counters count each)."""
+    failures = []
+
+    def check(ok, message):
+        print(("ok:   " if ok else "FAIL: ") + message, flush=True)
+        if not ok:
+            failures.append(message)
+
+    settings = out / "settings-bubbles.cfg"
+    settings.write_text("aspect 4:3\nui_menus 0\n")
+    env = {"ROOD_SETTINGS": str(settings), "ROOD_PLUGINS": str(out / "plugins"),
+           "ROOD_PLUGIN_DATA": str(out / "plugin_data"), "ROOD_GI": "0"}
+    g = launch_at("first_bubble", fast=True, log=out / "game-bubbles.log", extra_env=env)
+    try:
+        g.call("graphics", interpolate=False, ui_text="font", ui_bubbles="vector")
+        g.run(200)
+        sym = rood_rpc.symbols()
+        g.write(sym["D_800F2270"], bytes(4))  # (the scene keeps them off)
+        g.write(sym["D_800F2260"], bytes([0] + [1] * 15))  # a balloon with dots over each actor
+
+        def emotes():
+            e = g.call("ui_bubbles")["emotes"]
+            return e["balloons"] + e["dots"] + e["marks"]
+
+        def drawn(vsyncs=8):
+            before = emotes()
+            g.run(vsyncs)
+            g.wait_presents(2)
+            return emotes() - before
+
+        def hide(code):
+            r = g.repl("eval", session="photo-bubbles", plugin=PLUGIN, code=code)
+            return r.get("ok") and (r.get("results") or [None])[0]
+
+        shown = drawn()
+        check(shown > 0, f"the emote bubbles drawn over the actors ({shown})")
+        check(hide("return rood.ui.hide { game2d = true }") is True, "rood.ui.hide{game2d}")
+        # (each image is drawn again once and kept: kinds not drawn yet show whether they are drawn)
+        def every_kind():
+            total = 0
+            for kind in range(2, 8):
+                g.write(sym["D_800F2260"], bytes([0] + [kind] * 15))
+                total += drawn()
+            return total
+
+        g.run(2)
+        hidden = every_kind()
+        check(hidden == 0, f"hidden: no emote bubble drawn, of any kind ({hidden})")
+        hide("rood.ui.show() return true")
+        g.run(2)
+        again = every_kind()
+        check(again > 0, f"shown again: drawn ({again})")
+        g.write(sym["D_800F2260"], bytes(16))
+    finally:
+        g.close()
+    log = (out / "game-bubbles.log").read_text(errors="replace")
+    check("[crash]" not in log, "no crash")
+    print(f"photo_mode_smoke (bubbles): {'FAIL' if failures else 'PASS'} ({len(failures)} failure(s))")
+    return 1 if failures else 0
 
 
 def run(out, card):
@@ -208,6 +273,7 @@ def run(out, card):
         check(digest() == before_session, "(rewound for the session)")
         v0 = g.status()["vsync"]
 
+        check(g.call("occlusion")["subjects"] != [], "occlusion has subjects in play (Ashley)")
         # ---- F12 enters ----
         press("f12")
         until("F12: the photo mode open (held, the camera, hidden layers, the input)",
@@ -347,6 +413,67 @@ def run(out, card):
         until("Select: the camera back", lambda: abs(value("rood.camera.get().target.x") - pose0["target"]["x"]) < 1
               and abs(value("rood.camera.get().yaw") - pose0["yaw"]) < 0.5)
 
+        # ---- the left stick is the camera's, never the card's (only the D-pad moves rows and values) ----
+        press("w"), press("w"), press("w"), at(4, 1)  # Colour > Filter: a row left / right would change
+        filter0, sat0 = value("M.state.value.filter"), value("rood.post.get('saturation')")
+        pose1 = value("rood.camera.get()")
+        for element in ("lefty", "leftx"):
+            g.call("system", virtual_pad=element, down=True)
+            g.wait_presents(20)
+            g.call("system", virtual_pad=element, down=False)
+            g.wait_presents(3)
+        check(value("M.state.tab") == 4 and value("M.state.row") == 1, "the left stick moves no row")
+        check(value("M.state.value.filter") == filter0 and value("rood.post.get('saturation')") == sat0,
+              "the left stick changes no value")
+        moved = value("rood.camera.get()")
+        check(abs(moved["target"]["x"] - pose1["target"]["x"]) + abs(moved["target"]["z"] - pose1["target"]["z"]) > 1
+              or abs(moved["fov"] - pose1["fov"]) > 1e-3
+              or abs(moved["position"]["x"] - pose1["position"]["x"]) > 1, "the left stick drives the camera")
+
+        # ---- the card hidden (Triangle): only the camera, Triangle, a photo and leaving act ----
+        press("s")  # Triangle
+        until("Triangle hides the card", lambda: value("M.state.card") is False)
+        for key in ("right", "down", "left", "w", "q", "a", "e", "r"):
+            press(key)
+        check(value("M.state.tab") == 4 and value("M.state.row") == 1 and value("M.state.value.filter") == filter0
+              and value("rood.post.get('saturation')") == sat0,
+              "hidden: the D-pad, L1 / R1, Square and the tab keys change nothing")
+        press("s")
+        until("Triangle shows it again", lambda: value("M.state.card") is True)
+        press("right")
+        until("shown: the D-pad changes the row's value again", lambda: value("M.state.value.filter") != filter0)
+        press("tab")  # Select: everything reset
+        until("(reset)", lambda: value("next(rood.post.overrides()) == nil") is True)
+        press("w"), press("w"), at(6, 1)
+        press("w"), at(1, 1)
+
+        # ---- occlusion (see-through walls) never applies to the frozen moment's renders ----
+        occ = g.call("occlusion")
+        check(occ["occlusion"] == "fade" and occ["subjects"] == [],
+              f"occlusion suspended while the photo camera flies (the setting kept: {occ['occlusion']}, "
+              f"subjects {len(occ['subjects'])})")
+
+        # ---- Show Ashley / Show others (rood.ui.hide{actors}): the characters left out of the renders ----
+        goto_row(6)
+        g.wait_presents(4)
+        with_her = shot("with-ashley")
+        press("right")
+        until("Camera > Show Ashley: off (rood.ui.hidden().actors ashley)",
+              lambda: value("rood.ui.hidden().actors") == "ashley" and photo()["hidden"] == 7 | 8)
+        g.wait_presents(4)
+        d_hidden = difference(with_her, shot("without-ashley"))
+        check(d_hidden > 0.3, f"the picture without her ({d_hidden:.2f})")
+        press("right")
+        until("on again: nothing left out", lambda: value("rood.ui.hidden().actors") is None)
+        g.wait_presents(12)  # (Vulkan: the lighting's history settles)
+        d_back = difference(with_her, shot("with-ashley-again"))
+        check(d_back < d_hidden / 2, f"and the picture with her again ({d_back:.2f} against {d_hidden:.2f})")
+        press("down"), press("right")
+        until("Camera > Show others: off (actors others)", lambda: value("rood.ui.hidden().actors") == "others")
+        press("a")  # Square: the row back to its default (shown)
+        until("Square: Show others on again", lambda: value("rood.ui.hidden().actors") is None)
+        press("w"), press("q"), at(1, 1)
+
         # ---- a photo ----
         press("z")
         until("Circle: a photo written (the Saved notice)",
@@ -366,6 +493,8 @@ def run(out, card):
         until("the Saved notice gone (real time: it is over the picture, never in a photo)",
               lambda: value("M.state.notice == nil") is True)
         g.run(6)
+        occ = g.call("occlusion")
+        check(occ["occlusion"] == "fade" and occ["subjects"] != [], "occlusion back after leaving (its subjects)")
         d_after = difference(image_without, shot("after-session"))
         check(d_after < 1.0, f"6 vsyncs on: the picture the game draws without the session (the camera back: {d_after:.2f})")
 

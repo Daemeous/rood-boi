@@ -60,7 +60,7 @@ local S = {
   filter_keys = {}, -- post keys the filter set
   capturing = nil,
   -- the plugin's own values (rows with `state`)
-  own = { mode = 1, guides = 1, bars = 1, filter = 1, filter_amount = 1 },
+  own = { mode = 1, guides = 1, bars = 1, filter = 1, filter_amount = 1, show_ashley = true, show_others = true },
 }
 M.state = S
 local d = rood.draw
@@ -178,6 +178,13 @@ local function read_rows()
   end
 end
 
+-- The layers hidden while the photo mode is open, and the characters left out (Show Ashley / Show others).
+function M.apply_hide()
+  local a, o = S.own.show_ashley ~= false, S.own.show_others ~= false
+  local actors = (a and o) and "none" or (not a and not o) and "all" or (a and "others" or "ashley")
+  rood.ui.hide { hud = true, game2d = true, overlay = true, actors = actors }
+end
+
 local apply_filter
 local function apply_row(row)
   local v = S.value[row.id]
@@ -185,6 +192,7 @@ local function apply_row(row)
     S.own[row.state] = v
     if row.state == "filter" or row.state == "filter_amount" then apply_filter() end
     if row.state == "bars" then set("format_color", choices(row)[v].value) end
+    if row.state == "show_ashley" or row.state == "show_others" then M.apply_hide() end
     return
   end
   local value = v
@@ -371,7 +379,7 @@ local function reset_row(row)
   elseif row.setting then
     rood.settings.reset(SET.speed)
   elseif row.state then
-    S.value[row.id] = row.default or 1
+    if row.default ~= nil then S.value[row.id] = row.default else S.value[row.id] = 1 end
     apply_row(row)
     S.touched[row.id] = nil
   end
@@ -389,7 +397,8 @@ function M.reset_all()
   for key in pairs(S.filter_keys) do rood.post.reset(key) end
   S.filter_keys = {}
   rood.post.reset()
-  S.own = { mode = 1, guides = 1, bars = 1, filter = 1, filter_amount = 1 }
+  S.own = { mode = 1, guides = 1, bars = 1, filter = 1, filter_amount = 1, show_ashley = true, show_others = true }
+  M.apply_hide()
   S.touched = {}
   rood.camera.set { collision = M.camera.collision }
   actions.reset_camera()
@@ -489,9 +498,9 @@ local function on_input(e)
     return
   end
   if e.type == "key" then
-    S.keys[e.name] = e.down or nil
-    if e.down and e.name == M.camera.keys.next_tab then select_tab(S.tab + 1) end
-    if e.down and e.name == M.camera.keys.reset_tab then M.reset_tab() end
+    S.keys[e.name] = e.down or nil -- (the camera's keys, the card shown or not)
+    if e.down and S.card and e.name == M.camera.keys.next_tab then select_tab(S.tab + 1) end
+    if e.down and S.card and e.name == M.camera.keys.reset_tab then M.reset_tab() end
     return
   end
   if e.type ~= "button" then return end
@@ -500,6 +509,9 @@ local function on_input(e)
     return
   end
   local n, rows = e.name, current_rows()
+  -- The card hidden: only Triangle (show it), Circle (a photo) and Cross (leave) act; the rest is the
+  -- camera's (the sticks, L2 / R2), never the card's last row.
+  if not S.card and not M.hidden_buttons[n] then return end
   if n == "up" then S.row = (S.row - 2) % #rows + 1
   elseif n == "down" then S.row = S.row % #rows + 1
   elseif n == "left" or n == "right" then
@@ -511,7 +523,7 @@ local function on_input(e)
   elseif n == "r1" then select_tab(S.tab + 1)
   elseif n == "circle" then M.capture()
   elseif n == "cross" then M.leave("cross")
-  elseif n == "triangle" then S.card = not S.card
+  elseif n == "triangle" then S.card = not S.card S.rep = nil
   elseif n == "square" then M.reset_row()
   elseif n == "r3" then M.reset_tab()
   elseif n == "select" then M.reset_all()
@@ -539,7 +551,8 @@ function M.enter()
   rood.camera.set { collision = M.camera.collision }
   S.start_pose = rood.camera.get()
   S.origin = S.start_pose.target
-  rood.ui.hide { hud = true, game2d = true, overlay = true }
+  S.own = { show_ashley = true, show_others = true }
+  M.apply_hide()
   ok, why = rood.input.capture(on_input)
   if not ok then
     rood.ui.show() rood.camera.finish() rood.game.resume()
@@ -548,7 +561,8 @@ function M.enter()
   end
   S.active, S.card, S.tab, S.row, S.touched, S.keys, S.rep, S.notice = true, true, 1, 1, {}, {}, nil, nil
   S.top = {}
-  S.own = { mode = 1, guides = rood.settings.get(SET.grid) and 2 or 1, bars = 1, filter = 1, filter_amount = 1 }
+  S.own = { mode = 1, guides = rood.settings.get(SET.grid) and 2 or 1, bars = 1, filter = 1, filter_amount = 1,
+            show_ashley = true, show_others = true }
   S.filters = filters()
   S.filter_keys = {}
   read_rows()

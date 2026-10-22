@@ -52,6 +52,10 @@ extern void render_count_object_mesh_built(void);
 /* emissive.cpp: the model a mesh draws (its content hash: emissive scopes). */
 extern void pc_emissive_model_mesh(uint32_t mesh, uint32_t model) __attribute__((weak));
 extern int pc_live_camera_active(void) __attribute__((weak));
+/* photo.h (rood.ui.hide{actors}): bit 1 Ashley, bit 2 the other characters not drawn; dev_state.c. */
+extern int pc_photo_hide_actors __attribute__((weak));
+extern int pc_dev_actor_of(const void* p) __attribute__((weak));
+#define HW_OBJECT_HIDDEN 0xffffffffu /* pc_hw_object_packets: the packets drawn by nothing */
 
 typedef struct {
     short m[3][3];
@@ -779,6 +783,14 @@ void pc_object_native_draw(int kind, const void* projected, const void* object, 
     unsigned texture = *(const unsigned*)(uintptr_t)0x1f800390;
     if (kind < KIND_FLAT || kind > KIND_COLORED_GROUPS)
         kind = KIND_FLAT;
+    if (&pc_photo_hide_actors && pc_photo_hide_actors && pc_dev_actor_of && pc_hw_active) {
+        int slot = pc_dev_actor_of(object);
+        if (slot >= 0 && (pc_photo_hide_actors & (slot == 0 ? 1 : 2))) {
+            if (pc_hw_object_packets)
+                pc_hw_object_packets(start, end, HW_OBJECT_HIDDEN);
+            return;
+        }
+    }
     if (pc_native_actors && pc_hw_active && object == last_object && model == last_model && last_matrices) {
         const unsigned* xy = projected;
         const unsigned* depths = (const unsigned*)((const char*)projected + 0xc00);

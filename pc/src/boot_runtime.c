@@ -1072,6 +1072,40 @@ static int game2d_entry(const uint32_t* p, int* hidden)
     }
     return 0;
 }
+/* The game's 2D anchored in the world (the bubbles over actors, ui_emotes.c; the status words and numbers
+ * over heads, ui_labels.h): the battle page's images (VRAM (448, 256)), linked at the actors' depths, out
+ * of reach of pc_photo_game2d_slots. A packet of primitives that draws from that page (its polygons' tpage,
+ * a sprite's: the packet's or the draw mode's) is one of them; 1 when it is. */
+static int battle_page(unsigned tp) { return (tp & 15) == 448 / 64 && (tp >> 4 & 1) == 1; }
+static int world2d_packet(const uint32_t* p)
+{
+    unsigned n = p[0] >> 24, i = 1, tp = (unsigned)tpage;
+    int found = 0;
+    while (i <= n) {
+        unsigned code = p[i] >> 24, words;
+        if (code == 0xe1) {
+            tp = p[i] & 0x7ff;
+            i++;
+            continue;
+        }
+        if ((code >= 0xe2 && code <= 0xe6) || code == 0)
+            words = 1;
+        else if ((code & 0xe0) == 0x20) { /* polygons */
+            unsigned v = code & 8 ? 4 : 3, tex = code >> 2 & 1, shade = code >> 4 & 1;
+            words = 1 + v * (1 + tex) + (shade ? v - 1 : 0);
+            if (tex && i + 4 + shade <= n && battle_page(p[i + 4 + shade] >> 16))
+                found = 1;
+        } else if ((code & 0xe0) == 0x60) { /* sprites and rectangles */
+            unsigned tex = code >> 2 & 1;
+            words = 2 + tex + ((code & 0x18) == 0);
+            if (tex && battle_page(tp))
+                found = 1;
+        } else
+            return 0; /* lines, copies, anything else: drawn */
+        i += words;
+    }
+    return found;
+}
 static int mode_packet(const uint32_t* p)
 {
     unsigned n = p[0] >> 24;
@@ -1090,7 +1124,8 @@ static void draw_packet(void* data, int chain)
             ot_layers_note(p);
         uint32_t t_list;
         int t_first, t_count;
-        if (hide2d && !game2d_entry(p, &hidden) && hidden && !(render_is_marker && render_is_marker(p))
+        if (hide2d && !game2d_entry(p, &hidden) && (hidden || world2d_packet(p))
+            && !(render_is_marker && render_is_marker(p))
             && !(render_translucent_marker && render_translucent_marker(p, &t_list, &t_first, &t_count))
             && !mode_packet(p)) {
             unsigned next = tag & 0xffffff;

@@ -474,7 +474,7 @@ and room files never see it, and the game's state is untouched (below).
 | `game.pause` | `rood.game.pause([{audio, duck}]) -> true \| nil, why`, `resume()`; `rood.game.paused()` (any plugin) needs no grant |
 | `camera` | `rood.camera.begin()`, `finish()`, `active()`, `get()`, `set{...}`, `orbit(yaw, pitch[, zoom])`, `move(right, up, forward)` |
 | `post` | `rood.post.list()`, `get(key)`, `set(key, value)`, `reset([key])`, `overrides()` |
-| `ui.hide` | `rood.ui.hide{hud, game2d, overlay}` (no table: all three), `show()`, `hidden()` |
+| `ui.hide` | `rood.ui.hide{hud, game2d, overlay, actors}` (no table: the three layers), `show()`, `hidden()` |
 | `capture` | `rood.capture.photo{scale, path, done} -> path, id[, note]`, `status(id)`, `folder` |
 | `input.capture` | `rood.input.capture(fn)`, `release()`, `captured()`, `state()` |
 
@@ -520,7 +520,10 @@ VRAM, as after a rewind).
 
 The editor's live free camera (`editor_view.cpp`), borrowed: its eye, yaw
 and pitch for the plugin's time, the editor's own camera given back after,
-the editor not turned on. World units (y down), degrees.
+the editor not turned on. World units (y down), degrees. While begun,
+occlusion (see-through walls, `occlusion.c`) is suspended: its fades follow
+the game's camera, so the held moment's renders draw every wall solid (the
+setting itself is kept; RPC `occlusion` lists no subjects meanwhile).
 
 | | |
 |---|---|
@@ -570,8 +573,16 @@ notice). `game2d`: the rest of the game's 2D in the field: the packets
 linked at the ordering table's first `game2d_slots` entries (35: the text,
 window and HUD layer, `vs_scratch.unk4` +- 16 entries; RPC `photo
 {game2d_slots}`): text boxes, the name window, the minimap, targeting
-marks; native lists' markers and mode packets are kept. `overlay`: the
+marks; and anywhere in the ordering table, the 2D anchored in the world:
+packets drawing from the battle page (VRAM (448, 256): the emote bubbles
+over actors, the status words and numbers over heads); native lists'
+markers and mode packets are kept. `overlay`: the
 developer overlay (its windows and the free camera's grid) as if closed.
+`actors = "ashley" | "others" | "all" | "none"`: characters left out of the
+renders (actor_native.c: a model drawn from an actor record's memory, slot
+0 Ashley, the others enemies and NPCs; its weapon and shield, which live in
+the record, and its drop shadow too; props stay); `hidden().actors` says
+which (nil: none).
 While held, a change is drawn by a render.
 
 ### rood.capture
@@ -721,13 +732,13 @@ mode was restarted after an error"; Budgets and faults).
 | L1 / R1 (Q / W, E) | the previous / next tab |
 | D-pad up / down (arrows) | the row (the card scrolls) |
 | D-pad left / right (arrows) | the row's value (held: repeats); on a preset: left saves, right loads |
-| Left stick (I J K L) | Orbit: move sideways (J L) and the distance to the pivot (up / down); Free: fly (forward, sideways). The pivot stays within `radius` of where it began |
+| Left stick (I J K L) | Orbit: move sideways (J L) and the distance to the pivot (up / down); Free: fly (forward, sideways). The pivot stays within `radius` of where it began. The camera's only: while a plugin captures the input, the stick's D-pad (the game's menus') gives `rood.input` no button events |
 | Right stick (F H T G) | Orbit: turn about the pivot; Free: look around |
 | L2 / R2 (1 2; U O) | lower / raise |
 | (C V) | the distance to the pivot |
 | Circle (Z) | take a photo (`rood.capture.photo`, the "Photo size" setting's scale): "Saved <name>" |
 | Cross (X), Start (Enter), Escape, the photo button | leave |
-| Triangle (S) | hide / show the card |
+| Triangle (S) | hide / show the card; hidden, only the camera, Triangle, Circle and leaving act (`M.hidden_buttons`): the D-pad, L1 / R1, Square, R3 and Select do nothing |
 | Square (A) | reset the row (its override dropped); on a preset: clear it |
 | R3 (R) | reset the tab (the Camera tab: the camera too) |
 | Select (Tab) | reset everything: every row, the filter, the camera |
@@ -739,7 +750,7 @@ applies):
 
 | Tab | Rows (post keys) |
 |---|---|
-| Camera | Camera Orbit / Free; Field of view 10-110 degrees shown with the focal length giving it on a 24 mm sensor (`rood.camera` fov); Roll -45..45 degrees; Move speed (the Camera speed setting); Collision (`rood.camera` collision); Reset camera |
+| Camera | Camera Orbit / Free; Field of view 10-110 degrees shown with the focal length giving it on a 24 mm sensor (`rood.camera` fov); Roll -45..45 degrees; Move speed (the Camera speed setting); Collision (`rood.camera` collision); Show Ashley, Show others (`rood.ui.hide{actors}`); Reset camera |
 | Lens | Depth of field (`dof`); Focus: Camera subject, On Ashley, Screen centre, Cursor, Manual (`dof_focus`); Focus distance in metres (Manual; `dof_focus_depth`); Model Physical / Artistic (`dof_model`); Aperture f/1.2-f/22 in stops (Physical; `dof_fstop`); Blur amount (Artistic; `dof_aperture`); Lens mm or From FOV (`dof_focal_length`); Max blur, Near blur (`dof_max_blur`, `dof_near_blur`); Bokeh blades (Round, 3-9), Blade curve, Bokeh rotation, Anamorphic squeeze, Bokeh edge Soft / Even / Rim, Highlights, Bokeh fringe, Cat's eye (`bokeh_*`) |
 | Effects | Vignette, Vignette size, Vignette shape (`vignette`, `vignette_gain`, `vignette_roundness`); Lens distortion (`lens_distortion`); Grain, Grain size, Grain colour; Aberration px; Bloom, Bloom threshold, Bloom size; Sharpen; Tilt-shift, its band, width and blur |
 | Colour | Filter: Off, Noir, Sepia, Faded, Vivid, Warm, Cold, Bleach, Teal & orange (grades), then every post preset (Film, Cinematic, Clean, the user's); Filter strength (a grade blended over the picture's own values); Exposure EV; Contrast, Saturation (the master of `contrast`, `saturation`); Temperature K, Tint; LUT strength (with a LUT set) |
@@ -751,9 +762,7 @@ writes the rows on its keys (a starting point the rows then change).
 
 Not offered, and why: a Pose row (the game has no pose system, and Ashley's
 animation is game state: a paused moment is rewound after every render, so
-changing it is not read-only); Hide Ashley / Hide enemies (the frozen
-moment's actors are drawn by the game's own frame during each render; hiding
-them needs a renderer-side actor filter, a follow-up); borders inside the photo
+changing it is not read-only); borders inside the photo
 (the capture crops to the format; the bars' colour is for the live view);
 naming presets (no text entry on a pad: they are named after their content).
 

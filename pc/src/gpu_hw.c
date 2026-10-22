@@ -493,8 +493,9 @@ void pc_hw_object_packets(const void* start, const void* end, uint32_t list)
         object_range* r = &pending_objects[pending_object_count++];
         r->start = (uintptr_t)start;
         r->end = (uintptr_t)end;
-        r->list = list;
-        r->covered = 0;
+        /* 0xffffffff (actor_native.c: rood.ui.hide{actors}): drawn by nothing, as if a list had */
+        r->list = list == 0xffffffffu ? 0 : list;
+        r->covered = list == 0xffffffffu ? 2 : 0;
         r->effects = 0;
     }
 }

@@ -41,12 +41,26 @@ int ui_hide(lua_State* L)
                 flags |= l.bit;
             lua_pop(L, 1);
         }
+        /* actors: "ashley", "others", "all" (or nil / "none"): characters not drawn */
+        lua_getfield(L, 1, "actors");
+        if (!lua_isnil(L, -1)) {
+            const char* a = lua_type(L, -1) == LUA_TSTRING ? lua_tostring(L, -1) : "";
+            if (!strcmp(a, "ashley"))
+                flags |= PC_PHOTO_HIDE_ASHLEY;
+            else if (!strcmp(a, "others"))
+                flags |= PC_PHOTO_HIDE_OTHERS;
+            else if (!strcmp(a, "all"))
+                flags |= PC_PHOTO_HIDE_ASHLEY | PC_PHOTO_HIDE_OTHERS;
+            else if (strcmp(a, "none"))
+                return luaL_error(L, "rood.ui.hide: actors '%s' (ashley, others, all, none)", a);
+        }
+        lua_pop(L, 1);
         lua_pushnil(L);
         while (lua_next(L, 1)) {
             lua_pop(L, 1);
             const char* k = lua_type(L, -1) == LUA_TSTRING ? lua_tostring(L, -1) : "";
-            if (strcmp(k, "hud") && strcmp(k, "game2d") && strcmp(k, "overlay"))
-                return luaL_error(L, "rood.ui.hide: unknown layer '%s' (hud, game2d, overlay)", k);
+            if (strcmp(k, "hud") && strcmp(k, "game2d") && strcmp(k, "overlay") && strcmp(k, "actors"))
+                return luaL_error(L, "rood.ui.hide: unknown layer '%s' (hud, game2d, overlay, actors)", k);
         }
     }
     if (pc_photo_ui_hide)
@@ -70,6 +84,11 @@ int ui_hidden(lua_State* L)
     lua_setfield(L, -2, "game2d");
     lua_pushboolean(L, (flags & PC_PHOTO_HIDE_OVERLAY) != 0);
     lua_setfield(L, -2, "overlay");
+    int actors = flags & (PC_PHOTO_HIDE_ASHLEY | PC_PHOTO_HIDE_OTHERS);
+    if (actors) {
+        lua_pushstring(L, actors == PC_PHOTO_HIDE_ASHLEY ? "ashley" : actors == PC_PHOTO_HIDE_OTHERS ? "others" : "all");
+        lua_setfield(L, -2, "actors");
+    }
     return 1;
 }
 
