@@ -32,22 +32,6 @@ struct Names {
     char area[64] = "", name[96] = "";
 } names;
 
-// The host's own work inside a call (the room list read from the disc once) is not the
-// plugin's: its budget moves on by it (as lua_api_hud.cpp's draws).
-struct HostWork {
-    Plugin* p;
-    double start;
-    explicit HostWork(lua_State* L) : p(plugin_of(L)), start(now_seconds()) {}
-    ~HostWork()
-    {
-        if (p && p->budget.active) {
-            double spent = now_seconds() - start;
-            p->budget.start += spent;
-            p->budget.deadline += spent;
-        }
-    }
-};
-
 const pc_game_query& now()
 {
     if (filled != ticks) {
@@ -179,7 +163,6 @@ int api_room(lua_State* L)
         lua_pushnil(L);
     } else {
         if (names.zone != s.zone || names.room != s.room) {
-            HostWork host(L);
             names = Names();
             names.zone = s.zone, names.room = s.room;
             names.found = pc_game_query_room_names

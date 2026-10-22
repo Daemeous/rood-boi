@@ -53,6 +53,12 @@ int pc_photo_pause(const char* owner, char* why, int size);
 void pc_photo_resume(const char* owner);
 int pc_photo_paused(void);                  /* held, or asked for */
 int pc_photo_paused_by(const char* owner);  /* this owner's hold */
+/* What is heard while held (this owner's wish; with several holders the quietest wins): PC_PHOTO_AUDIO_STOP
+ * (silence: the default), _KEEP (the sound driver and the SPU go on in real time: music and loops play;
+ * the game's logic stays held; renders put the sound's state back after their rewind), _DUCK (kept, at
+ * `gain`). On resume the game goes on with the sound where it got to. */
+enum { PC_PHOTO_AUDIO_STOP = 0, PC_PHOTO_AUDIO_DUCK = 1, PC_PHOTO_AUDIO_KEEP = 2 };
+void pc_photo_pause_audio(const char* owner, int mode, float gain);
 /* Redraw the frozen moment (a layer changed, the camera moved); nothing while running. */
 void pc_photo_redraw(void);
 
@@ -86,6 +92,8 @@ int pc_photo_hide_overlay(void);                     /* dev_overlay.cpp */
 /* ---- the format mask (rood.post "format"): the picture cropped to an aspect ratio ---- */
 void pc_photo_format_set(const char* owner, float aspect); /* 0: this owner's none */
 float pc_photo_format(void);                               /* the newest owner's, 0: the whole picture */
+void pc_photo_format_colour_set(const char* owner, int rgb); /* the bars' colour, 0xRRGGBB (0: this owner's none) */
+int pc_photo_format_colour(void);                            /* the newest owner's (0: black) */
 void pc_photo_format_draw(void); /* dev_overlay.cpp, its ImGui frame open: the bars over the picture */
 
 /* ---- capture ---- */

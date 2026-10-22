@@ -22,6 +22,7 @@ static unsigned state_actions; /* the save state actions' pad elements held (bit
 extern void pc_savestate_actions(unsigned bits) __attribute__((weak)); /* savestate_slots.c */
 static int photo_action; /* the photo mode's pad element held (PC_BIND_PHOTO) */
 extern void pc_photo_action(const char* name, const char* device) __attribute__((weak)); /* photo_input.cpp */
+extern unsigned pc_vsync_count(void) __attribute__((weak)); /* boot_runtime.c */
 static float right_stick[2]; /* -1..1, SDL's direction (down is +y) */
 static float left_stick[2];  /* the same (photo.cpp's input capture reads it; the game's pad stays digital) */
 static float triggers[2];    /* L2, R2: their axis' travel past the press point (0..1), -1 not an axis */
@@ -176,6 +177,65 @@ void pc_controller_event(const SDL_Event* event)
         prompts_device(SDL_GetGamepadType(pad));
 }
 
+/* Chords (boot_controller.h, pc_bind_pad_mod): per port action, its modifier's hold. */
+static struct {
+    int held;  /* the modifier is down */
+    int wait;  /* polls its own PS1 buttons are still kept from the game, waiting for the element */
+    int fired; /* the element was pressed with it: kept from the game until it is let go */
+    int tap;   /* let go before the wait was over, unused: its PS1 buttons pressed (a tap) ... */
+    unsigned tap_vsync; /* ... until the game has run 2 vsyncs from here (it reads the pad once a vsync; a
+                         * paused game's redraws poll without reading), or 120 polls pass */
+} chords[PC_BIND_SLOTS];
+static unsigned vsync_now(void) { return pc_vsync_count ? pc_vsync_count() : 0; }
+/* The PS1 buttons bound to `element`. */
+static unsigned element_bits(int element)
+{
+    unsigned bits = 0;
+    for (int i = 0; element != PC_PAD_NONE && i < PC_PAD_BUTTONS; i++)
+        if (pc_bind_pad[i] == element)
+            bits |= 1u << i;
+    return bits;
+}
+/* A port action's binding pressed now (a chord: its element with the modifier held); *mask loses what the
+ * game must not see of a chord and gains a modifier's late tap. */
+static int action_held(const PcControllerState* state, int slot, unsigned* mask)
+{
+    int element = pc_bind_pad[slot], modifier = pc_bind_pad_mod[slot];
+    if (element == PC_PAD_NONE)
+        return 0;
+    if (modifier == PC_PAD_NONE)
+        return pc_controller_element(state, element);
+    int m = pc_controller_element(state, modifier), e = pc_controller_element(state, element);
+    if (m && !chords[slot].held) {
+        chords[slot].held = 1;
+        chords[slot].wait = e ? 0 : PC_CHORD_WAIT; /* (the element first: no chord, the modifier as it is) */
+        chords[slot].fired = 0;
+    } else if (!m && chords[slot].held) {
+        chords[slot].held = 0;
+        if (!chords[slot].fired && chords[slot].wait > 0) {
+            chords[slot].tap = 120;
+            chords[slot].tap_vsync = vsync_now();
+        }
+        chords[slot].wait = 0;
+    }
+    int pressed = m && e && (chords[slot].wait > 0 || chords[slot].fired);
+    if (pressed)
+        chords[slot].fired = 1;
+    if (chords[slot].held && (chords[slot].wait > 0 || chords[slot].fired)) {
+        *mask &= ~element_bits(modifier);
+        if (e)
+            *mask &= ~element_bits(element);
+    }
+    if (chords[slot].tap > 0) {
+        *mask |= element_bits(modifier);
+        if (--chords[slot].tap > 0 && vsync_now() - chords[slot].tap_vsync >= 2)
+            chords[slot].tap = 0;
+    }
+    if (chords[slot].wait > 0)
+        --chords[slot].wait;
+    return pressed;
+}
+
 void pc_controller_poll(void)
 {
     if (!pad) {
@@ -194,18 +254,24 @@ void pc_controller_poll(void)
         state.buttons[i] = SDL_GetGamepadButton(pad, (SDL_GamepadButton)i);
     for (int i = 0; i < SDL_GAMEPAD_AXIS_COUNT; i++)
         state.axes[i] = SDL_GetGamepadAxis(pad, (SDL_GamepadAxis)i);
-    mask = pc_controller_mask(&state);
-    travel = pc_controller_element(&state, pc_bind_pad[PC_BIND_TRAVEL]);
+    unsigned game = pc_controller_mask(&state);
+    travel = action_held(&state, PC_BIND_TRAVEL, &game);
     /* The save state actions: on a press (savestate_slots.c). */
     unsigned held = 0;
     for (int s = PC_BIND_STATE_FIRST; s <= PC_BIND_STATE_LAST; s++)
-        if (pc_bind_pad[s] != PC_PAD_NONE && pc_controller_element(&state, pc_bind_pad[s]))
+        if (action_held(&state, s, &game))
             held |= 1u << (s - PC_BIND_STATE_FIRST);
     if (pc_savestate_actions && (held & ~state_actions))
         pc_savestate_actions(held & ~state_actions);
     state_actions = held;
     /* The photo mode's button: on a press, a Lua event (rood.photo; any input capture or none). */
-    int photo = pc_bind_pad[PC_BIND_PHOTO] != PC_PAD_NONE && pc_controller_element(&state, pc_bind_pad[PC_BIND_PHOTO]);
+    int photo = action_held(&state, PC_BIND_PHOTO, &game);
+    /* Travel shares Back by default: it sees Back at once (fast travel's prompt is its own), but not once the
+     * photo mode's chord fired with it. */
+    if (pc_bind_pad_mod[PC_BIND_PHOTO] == pc_bind_pad[PC_BIND_TRAVEL] && chords[PC_BIND_PHOTO].held
+        && chords[PC_BIND_PHOTO].fired)
+        travel = 0;
+    mask = game;
     if (photo && !photo_action && pc_photo_action)
         pc_photo_action("photo", "pad");
     photo_action = photo;

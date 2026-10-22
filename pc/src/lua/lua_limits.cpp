@@ -8,6 +8,7 @@
 // luai_cwork; pc/third_party/lua/ROOD-NOTES.md).
 #include "rl_internal.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
@@ -22,6 +23,21 @@ double now_seconds()
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
     return (double)t.tv_sec + (double)t.tv_nsec * 1e-9;
+}
+
+/* The budgets' clock: the game thread's own CPU time, so that time the thread did not run (the OS gave the
+ * core to another process, the machine throttled, the thread waited on the GPU) is never a plugin's: a
+ * runaway loop burns CPU and still stops at the same budget. Windows' thread times tick in 15.6 ms steps,
+ * too coarse for a 4 ms budget: there it is the monotonic clock. */
+double budget_now()
+{
+#if defined(_WIN32) || !defined(CLOCK_THREAD_CPUTIME_ID)
+    return now_seconds();
+#else
+    struct timespec t;
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t);
+    return (double)t.tv_sec + (double)t.tv_nsec * 1e-9;
+#endif
 }
 
 void* alloc(void* ud, void* ptr, size_t osize, size_t nsize)
@@ -60,10 +76,22 @@ Plugin* plugin_of(lua_State* L) { return *(Plugin**)lua_getextraspace(L); }
 
 void budget_error(lua_State* L, const Budget& b, const char* where)
 {
-    char text[200];
-    std::snprintf(text, sizeof text, "budget exceeded%s: %.1f ms and %lld instructions (limits %.1f ms, %lld)",
-        where, (now_seconds() - b.start) * 1000.0, b.instructions, b.limit_ms, b.max_instructions);
+    char text[240];
+    double elapsed = (budget_now() - b.start) * 1000.0;
+    std::snprintf(text, sizeof text,
+        "budget exceeded%s: %.1f ms and %lld instructions (limits %.1f ms, %lld; host work excluded: %.1f ms)",
+        where, elapsed - b.host * 1000.0, b.instructions, b.limit_ms, b.max_instructions, b.host * 1000.0);
     luaL_error(L, "%s", text);
+}
+
+void host_time(Plugin* p, double seconds)
+{
+    if (!p || !p->budget.active || seconds <= 0)
+        return;
+    Budget& b = p->budget;
+    double excluded = std::min(seconds, std::max(0.0, b.host_limit - b.host));
+    b.host += excluded;
+    b.deadline += excluded;
 }
 
 void check_budget(lua_State* L)
@@ -72,7 +100,7 @@ void check_budget(lua_State* L)
     if (!p || !p->budget.active)
         return;
     Budget& b = p->budget;
-    if (b.killed || now_seconds() > b.deadline) {
+    if (b.killed || budget_now() > b.deadline) {
         b.killed = true;
         budget_error(L, b, "");
     }
@@ -90,7 +118,7 @@ static void hook(lua_State* L, lua_Debug*)
     b.instructions += count;
     if (!b.active)
         return;
-    if (!b.killed && (b.instructions > b.max_instructions || now_seconds() > b.deadline))
+    if (!b.killed && (b.instructions > b.max_instructions || budget_now() > b.deadline))
         b.killed = true;
     if (b.killed) {
         if (count != 1)
@@ -112,8 +140,12 @@ void begin_budget(Plugin* p, BudgetKind kind)
     b.instructions = 0;
     b.limit_ms = load ? config.load_budget_ms : config.budget_ms;
     b.max_instructions = load ? config.load_budget_instructions : config.budget_instructions;
-    b.start = now_seconds();
+    b.wall_start = now_seconds();
+    b.start = budget_now();
     b.deadline = b.start + b.limit_ms / 1000.0;
+    b.host = 0;
+    b.host_limit = load ? 0 : config.host_budget_ms / 1000.0; /* a load's budget is already generous */
+    b.host_depth = 0;
     lua_sethook(p->L, hook, LUA_MASKCOUNT, RL_HOOK_STEP);
 }
 
@@ -121,7 +153,7 @@ double end_budget(Plugin* p)
 {
     p->budget.active = false;
     p->mem.grace = 0;
-    return (now_seconds() - p->budget.start) * 1000.0;
+    return (now_seconds() - p->budget.wall_start) * 1000.0; /* (the stats: the wall clock's) */
 }
 
 } // namespace rl
@@ -141,7 +173,7 @@ void rood_lua_work(lua_State* L, size_t units)
     if (!p || !p->budget.active)
         return;
     rl::Budget& b = p->budget;
-    if (b.killed || b.instructions > b.max_instructions || rl::now_seconds() > b.deadline) {
+    if (b.killed || b.instructions > b.max_instructions || rl::budget_now() > b.deadline) {
         b.killed = true;
         rl::budget_error(L, b, " in a C loop (a string pattern, find, or table.insert/remove/move/sort)");
     }

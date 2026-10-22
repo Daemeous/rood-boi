@@ -31,6 +31,8 @@ void pc_spu_clear_cd(void);
 
 void pc_audio_output_push(const short* frames, int count);
 void pc_audio_output_start(void);
+/* A gain over master_volume (the photo mode's ducking; 1: none), ramped as the volume is. */
+void pc_audio_output_duck(float gain);
 void pc_audio_set_tick(psx_long (*fn)(void));
 void pc_audio_enable_tick(int enabled);
 void pc_audio_frame(void);

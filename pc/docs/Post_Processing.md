@@ -18,6 +18,9 @@ goes through:
 1. anti-aliasing (FXAA / SMAA; MSAA and supersampling are earlier and later),
 2. depth of field and tilt-shift (half-size bokeh layers and their composite: below),
 3. **the grade pass** (only when an effect in it is on):
+   0. lens distortion (`lens_distortion`, -0.5..0.5, 0 off: above 0
+      barrel, below 0 pincushion; each pixel samples the lit image along
+      its radius, scaled so the corners stay in the picture),
    1. sharpen (contrast-adaptive: never past the neighbours' range;
       `sharpen_gain`, 1.5, the gain on the difference from the neighbours'
       mean),
@@ -32,7 +35,8 @@ goes through:
       gain, offset, each per channel and master, global x shadows / midtones
       / highlights (blended by luminance, `shadows_max`, `highlights_min`),
    8. vignette (`vignette_gain`, 1.2: how fast it darkens toward the
-      corners for a given intensity),
+      corners for a given intensity; `vignette_roundness`, 1: a circle, 0:
+      the frame's own shape),
    9. tone mapping: `none` (the original picture: the lit image's own soft
       shoulder above `shoulder_start` 0.8 with `shoulder_width` 0.2 of
       headroom, then a clamp; the present shaders bend lit pixels the same

@@ -24,6 +24,7 @@
 extern "C" {
 int pc_photo_pause(const char* owner, char* why, int size) __attribute__((weak));
 void pc_photo_resume(const char* owner) __attribute__((weak));
+void pc_photo_pause_audio(const char* owner, int mode, float gain) __attribute__((weak));
 int pc_photo_paused(void) __attribute__((weak));
 void pc_photo_release(const char* owner) __attribute__((weak));
 int pc_photo_notice_next(char* owner, int owner_size, char* what, int what_size, char* reason, int reason_size)
@@ -113,13 +114,34 @@ using photo::owner_of;
 
 /* ------------------------------------------------------------ rood.game */
 
+/* rood.game.pause([{audio = "stop" | "duck" | "keep", duck = 0..1}]): what is heard while held (photo.h
+ * pc_photo_pause_audio; default stop). Again while held: only the sound changes. */
 int game_pause(lua_State* L)
 {
     char why[256] = "";
+    int mode = PC_PHOTO_AUDIO_STOP;
+    float gain = 1;
+    if (!lua_isnoneornil(L, 1)) {
+        luaL_checktype(L, 1, LUA_TTABLE);
+        lua_getfield(L, 1, "audio");
+        const char* a = luaL_optstring(L, -1, "stop");
+        if (!strcmp(a, "keep"))
+            mode = PC_PHOTO_AUDIO_KEEP;
+        else if (!strcmp(a, "duck"))
+            mode = PC_PHOTO_AUDIO_DUCK;
+        else if (strcmp(a, "stop"))
+            return luaL_error(L, "rood.game.pause: audio must be stop, duck or keep (not '%s')", a);
+        lua_pop(L, 1);
+        lua_getfield(L, 1, "duck");
+        gain = (float)luaL_optnumber(L, -1, 0.35);
+        lua_pop(L, 1);
+    }
     if (!pc_photo_pause)
         return fail(L, "no photo mode in this build");
     if (pc_photo_pause(owner_of(L), why, (int)sizeof why))
         return fail(L, why);
+    if (pc_photo_pause_audio)
+        pc_photo_pause_audio(owner_of(L), mode, gain);
     lua_pushboolean(L, 1);
     return 1;
 }
@@ -144,6 +166,7 @@ void poll_notices()
         Value v = Value::new_table();
         v.set("name", Value::str(name));
         v.set("device", Value::str(device));
+        revive_due(name); /* a plugin disabled by faults that listened to it loads again first */
         emit("input.action", v);
     }
     if (!pc_photo_notice_next)

@@ -16,6 +16,8 @@
 extern "C" {
 void pc_photo_format_set(const char* owner, float aspect) __attribute__((weak));
 float pc_photo_format(void) __attribute__((weak));
+void pc_photo_format_colour_set(const char* owner, int rgb) __attribute__((weak));
+int pc_photo_format_colour(void) __attribute__((weak));
 int pc_post_field_count(void) __attribute__((weak));
 int pc_post_field_info(int index, pc_post_field_desc* out) __attribute__((weak));
 int pc_post_field_find(const char* key) __attribute__((weak));
@@ -41,6 +43,8 @@ std::map<std::string, std::map<std::string, std::string>> post_owned;
  * "preset": a named post profile under the plugin's values (a filter). */
 const char* const FORMAT = "format";
 const char* const PRESET = "preset";
+/* ... and the format bars' colour over the view, 0xRRGGBB (0: black). */
+const char* const FORMAT_COLOUR = "format_color";
 
 void push_names(lua_State* L, const char* list)
 {
@@ -54,7 +58,7 @@ void push_names(lua_State* L, const char* list)
 int post_list(lua_State* L)
 {
     int n = pc_post_field_count ? pc_post_field_count() : 0;
-    lua_createtable(L, n + 2, 0);
+    lua_createtable(L, n + 3, 0);
     pc_post_field_desc d;
     for (int i = 0; i < n && pc_post_field_info(i, &d); i++) {
         lua_createtable(L, 0, 12);
@@ -161,6 +165,26 @@ int post_list(lua_State* L)
     lua_pushnumber(L, 0);
     lua_setfield(L, -2, "default");
     lua_rawseti(L, -2, n + 2);
+    lua_createtable(L, 0, 10);
+    lua_pushstring(L, FORMAT_COLOUR);
+    lua_setfield(L, -2, "key");
+    lua_pushstring(L, "float");
+    lua_setfield(L, -2, "kind");
+    lua_pushstring(L, "Photo|Format");
+    lua_setfield(L, -2, "group");
+    lua_pushstring(L, "Format bars colour");
+    lua_setfield(L, -2, "label");
+    lua_pushstring(L, "The format's bars over the view, 0xRRGGBB (0: black); the photo is cropped to the format.");
+    lua_setfield(L, -2, "tip");
+    lua_pushinteger(L, 1);
+    lua_setfield(L, -2, "components");
+    lua_pushnumber(L, 0);
+    lua_setfield(L, -2, "min");
+    lua_pushnumber(L, 16777215);
+    lua_setfield(L, -2, "max");
+    lua_pushnumber(L, 0);
+    lua_setfield(L, -2, "default");
+    lua_rawseti(L, -2, n + 3);
     return 1;
 }
 /* The text the settings write for a field, as Lua: a boolean, a number, a name, a list of numbers. */
@@ -187,6 +211,10 @@ int post_get(lua_State* L)
     const char* key = luaL_checkstring(L, 1);
     if (!strcmp(key, FORMAT)) {
         lua_pushnumber(L, pc_photo_format ? pc_photo_format() : 0);
+        return 1;
+    }
+    if (!strcmp(key, FORMAT_COLOUR)) {
+        lua_pushinteger(L, pc_photo_format_colour ? pc_photo_format_colour() : 0);
         return 1;
     }
     char text[512];
@@ -252,6 +280,19 @@ int post_set(lua_State* L)
         lua_pushboolean(L, 1);
         return 1;
     }
+    if (!strcmp(key, FORMAT_COLOUR)) {
+        lua_Number rgb = luaL_checknumber(L, 2);
+        if (!(rgb >= 0 && rgb <= 0xFFFFFF))
+            return fail(L, "format_color: 0xRRGGBB (0 to 16777215)");
+        if (pc_photo_format_colour_set)
+            pc_photo_format_colour_set(p->id().c_str(), (int)rgb);
+        if (rgb > 0)
+            post_owned[p->id()][FORMAT_COLOUR] = value_text(L, 2);
+        else
+            post_owned[p->id()].erase(FORMAT_COLOUR);
+        lua_pushboolean(L, 1);
+        return 1;
+    }
     std::string text = value_text(L, 2);
     char why[256] = "";
     if (!pc_post_override_set)
@@ -270,7 +311,9 @@ int post_reset(lua_State* L)
         if (pc_photo_format_set)
             pc_photo_format_set(p->id().c_str(), 0);
     }
-    if (pc_post_override_clear && (!key || strcmp(key, FORMAT)))
+    if ((!key || !strcmp(key, FORMAT_COLOUR)) && pc_photo_format_colour_set)
+        pc_photo_format_colour_set(p->id().c_str(), 0);
+    if (pc_post_override_clear && (!key || (strcmp(key, FORMAT) && strcmp(key, FORMAT_COLOUR))))
         pc_post_override_clear(p->id().c_str(), key);
     if (key)
         post_owned[p->id()].erase(key);

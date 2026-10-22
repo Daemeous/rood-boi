@@ -1605,6 +1605,9 @@ void pc_photo_ui_hide(const char* owner, int flags)
 int pc_photo_ui_hidden(void) { return fake_photo::hidden; }
 void pc_photo_format_set(const char*, float aspect) { fake_photo::format = aspect; }
 float pc_photo_format(void) { return fake_photo::format; }
+static int fake_format_colour;
+void pc_photo_format_colour_set(const char*, int rgb) { fake_format_colour = rgb; }
+int pc_photo_format_colour(void) { return fake_format_colour; }
 const char* pc_photo_dir(void) { return "photos"; }
 int pc_photo_capture(const char* owner, const char* path, int scale, char* path_out, int path_size, char*, int)
 {
@@ -1758,8 +1761,13 @@ static void photo_foundation()
     CHECK(contains(eval_error(p, "rood.camera.set{ position = { 1, 'x', 3 } }"), "position"));
     CHECK(eval_json(p, "rood.camera.orbit(10, 5, 2)") == "true" && fake_photo::called("orbit 2"));
     /* post */
-    CHECK(eval_json(p, "local l = rood.post.list() return #l, l[1].key, l[1].min, l[2].choices[2], l[3].key, l[4].key")
-        == "4,\"dof_fstop\",1.2000000476837158,\"centre\",\"preset\",\"format\"");
+    CHECK(eval_json(p, "local l = rood.post.list() return #l, l[1].key, l[1].min, l[2].choices[2], l[3].key, l[4].key, "
+                       "l[5].key")
+        == "5,\"dof_fstop\",1.2000000476837158,\"centre\",\"preset\",\"format\",\"format_color\"");
+    CHECK(eval_json(p, "rood.post.set('format_color', 0xFFFFFF), rood.post.get('format_color'), "
+                       "rood.post.set('format_color', -1)")
+        == "true,16777215,null,\"format_color: 0xRRGGBB (0 to 16777215)\"");
+    CHECK(eval_json(p, "rood.post.reset('format_color') return rood.post.get('format_color')") == "0");
     CHECK(eval_json(p, "rood.post.set('dof_fstop', 1.5), rood.post.get('dof_fstop')") == "true,1.5");
     CHECK(eval_json(p, "rood.post.set('dof_focus', 'centre'), rood.post.get('dof_focus')") == "true,\"centre\"");
     CHECK(eval_json(p, "rood.post.set('nope', 1)") == "null,\"no post field 'nope'\"");

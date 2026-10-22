@@ -40,6 +40,7 @@ void hidden_update()
 }
 
 std::vector<std::pair<std::string, float>> formats;
+std::vector<std::pair<std::string, unsigned>> format_colours; /* the bars' colour (0xRRGGBB), newest owner's */
 } // namespace
 
 /* The picture's rectangle in the window cropped to the format: x, y, w, h (top-left origin). */
@@ -90,6 +91,16 @@ extern "C" void pc_photo_format_set(const char* owner, float aspect)
     (void)before;
 }
 extern "C" float pc_photo_format(void) { return formats.empty() ? 0.0f : formats.back().second; }
+/* The bars' colour over the view (the photo is cropped to the format: never in it); black by default. */
+extern "C" void pc_photo_format_colour_set(const char* owner, int rgb)
+{
+    format_colours.erase(std::remove_if(format_colours.begin(), format_colours.end(),
+                             [&](const auto& f) { return f.first == owner; }),
+        format_colours.end());
+    if (rgb > 0)
+        format_colours.emplace_back(owner, (unsigned)rgb & 0xFFFFFFu);
+}
+extern "C" int pc_photo_format_colour(void) { return format_colours.empty() ? 0 : (int)format_colours.back().second; }
 extern "C" void pc_photo_format_draw(void)
 {
     if (formats.empty() || !&pc_gl_view || pc_gl_view[2] <= 0 || pc_gl_view[3] <= 0)
@@ -97,7 +108,8 @@ extern "C" void pc_photo_format_draw(void)
     int r[4];
     photo::format_rect(pc_gl_view, r);
     ImDrawList* d = ImGui::GetBackgroundDrawList();
-    const ImU32 black = IM_COL32(0, 0, 0, 255);
+    unsigned rgb = (unsigned)pc_photo_format_colour();
+    const ImU32 black = IM_COL32((rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255, 255);
     float x0 = (float)pc_gl_view[0], y0 = (float)pc_gl_view[1];
     float x1 = x0 + pc_gl_view[2], y1 = y0 + pc_gl_view[3];
     if (r[1] > pc_gl_view[1]) {
@@ -114,6 +126,7 @@ namespace {
 void release(const std::string& owner)
 {
     pc_photo_format_set(owner.c_str(), 0);
+    pc_photo_format_colour_set(owner.c_str(), 0);
     pc_photo_ui_hide(owner.c_str(), 0);
 }
 void owners(std::vector<std::string>& out)
@@ -122,11 +135,14 @@ void owners(std::vector<std::string>& out)
         out.push_back(h.first);
     for (const auto& f : formats)
         out.push_back(f.first);
+    for (const auto& f : format_colours)
+        out.push_back(f.first);
 }
 void reset()
 {
     hidden.clear();
     formats.clear();
+    format_colours.clear();
     hidden_flags = 0;
     pc_photo_hide_game2d = 0; /* (crosses an engine reload: a host-owned block) */
 }

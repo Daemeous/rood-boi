@@ -118,7 +118,43 @@ int main(int argc, char** argv)
     }
     pc_bindings_reset();
     CHECK(!pc_keyboard_travel(SDLK_TAB) && pc_bind_pad[PC_BIND_TRAVEL] == SDL_GAMEPAD_BUTTON_BACK);
+    /* The photo mode's pad binding: a chord, Back held + D-pad up (boot_gamepad.c keeps it from the game). */
+    {
+        char chord[64];
+        FILE* f;
+        char text[4096] = "";
+        size_t n;
+        CHECK(pc_bind_pad[PC_BIND_PHOTO] == SDL_GAMEPAD_BUTTON_DPAD_UP
+              && pc_bind_pad_mod[PC_BIND_PHOTO] == SDL_GAMEPAD_BUTTON_BACK);
+        CHECK(!strcmp(pc_bind_pad_text(PC_BIND_PHOTO, chord, sizeof chord), "back+dpup"));
+        CHECK(pc_binding_setting("bind_pad_photo", "misc1") && pc_bind_pad[PC_BIND_PHOTO] == SDL_GAMEPAD_BUTTON_MISC1
+              && pc_bind_pad_mod[PC_BIND_PHOTO] == PC_PAD_NONE); /* a single element */
+        CHECK(pc_binding_setting("bind_pad_photo", "leftshoulder+dpdown")
+              && pc_bind_pad[PC_BIND_PHOTO] == SDL_GAMEPAD_BUTTON_DPAD_DOWN
+              && pc_bind_pad_mod[PC_BIND_PHOTO] == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER);
+        /* a PS1 button never takes a chord (the game reads it alone); an unknown modifier changes nothing */
+        CHECK(pc_binding_setting("bind_pad_circle", "back+east") && pc_bind_pad[5] == SDL_GAMEPAD_BUTTON_EAST
+              && pc_bind_pad_mod[5] == PC_PAD_NONE);
+        CHECK(pc_binding_setting("bind_pad_photo", "nothing+dpup")
+              && pc_bind_pad_mod[PC_BIND_PHOTO] == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER);
+        f = tmpfile();
+        CHECK(f != NULL);
+        pc_binding_settings_write(f);
+        rewind(f);
+        n = fread(text, 1, sizeof text - 1, f);
+        text[n] = 0;
+        fclose(f);
+        CHECK(strstr(text, "bind_pad_photo leftshoulder+dpdown\n") != NULL);
+        pc_bindings_reset();
+        f = tmpfile();
+        pc_binding_settings_write(f);
+        rewind(f);
+        n = fread(text, 1, sizeof text - 1, f);
+        text[n] = 0;
+        fclose(f);
+        CHECK(!strstr(text, "bind_pad_photo")); /* the default chord is not written */
+    }
     puts("PASS: positional gamepad mapping (east confirms, south cancels), shoulders, Start/Select, "
-         "stick clicks, stick dead zone, D-pad/stick overlap, triggers, rebinding, the Travel slot");
+         "stick clicks, stick dead zone, D-pad/stick overlap, triggers, rebinding, the Travel slot, the photo chord");
     return 0;
 }

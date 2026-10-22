@@ -78,9 +78,41 @@ struct Claim {
     unsigned generation;
     int ref;               // fn in the plugin's registry
     unsigned long long seq;
-    bool failed = false;   // its draw raised: not honoured until the plugin reloads
+    bool failed = false;   // its draw raised an error: not honoured until the plugin reloads (or retry_at)
+    double retry_at = 0;   // a shipped plugin's failed claim is honoured again from then (fault_cooldown_s)
     int flavours = FLAVOUR_BOTH; // the looks it draws in
 };
+// Whether a claim is down now: failed, and (a shipped plugin's) not yet due to be tried again.
+bool claim_down(Claim* c)
+{
+    if (!c->failed)
+        return false;
+    if (c->retry_at > 0 && now_seconds() >= c->retry_at) {
+        c->failed = false;
+        c->retry_at = 0;
+        log(LOG_INFO, c->plugin->id(), "its failed HUD draw is tried again (the cool-down is over)");
+        return false;
+    }
+    return true;
+}
+bool claim_down(const Claim* c) { return claim_down(const_cast<Claim*>(c)); }
+// A claim's draw did not finish. Over its budget (a slow frame: the plugin's fault, counted by the fault
+// policy): drawn again next frame. An error: the game draws the kind, until the plugin reloads, or for a
+// shipped plugin until fault_cooldown_s has passed (a slow moment never loses a shipped kind for the
+// session). Returns whether the claim is down now.
+bool claim_fault(Claim* c, int kind, const char* what)
+{
+    if (c->plugin->budget.killed)
+        return false;
+    c->failed = true;
+    bool retry = c->plugin->shipped && config.fault_cooldown_s > 0;
+    c->retry_at = retry ? now_seconds() + config.fault_cooldown_s : 0;
+    char until[64];
+    std::snprintf(until, sizeof until, retry ? "for %g s" : "until the plugin reloads", config.fault_cooldown_s);
+    log(LOG_WARN, c->plugin->id(), std::string("its '") + hud::kind_name(kind) + "' " + what
+        + " failed: the game draws it " + until);
+    return true;
+}
 std::vector<Claim> claims[PC_HUD_KINDS];
 int active[2][PC_HUD_KINDS] = {}; // per look (0 modern, 1 classic): 1 + the owner's index in claims[kind], 0 none
 unsigned long long next_claim = 1;
@@ -397,22 +429,6 @@ Command* next_command()
     return &command_buffer[command_used++];
 }
 
-// The host's own work inside a call (a font file loaded, its glyphs baked on first use: several
-// milliseconds once) is not the plugin's: the call's budget moves on by it.
-struct HostWork {
-    Plugin* p;
-    double start;
-    explicit HostWork(lua_State* L) : p(plugin_of(L)), start(now_seconds()) {}
-    ~HostWork()
-    {
-        if (p && p->budget.active) {
-            double spent = now_seconds() - start;
-            p->budget.start += spent;
-            p->budget.deadline += spent;
-        }
-    }
-};
-
 // One text command: style at 1, the string at 2, then x, y (and with fit w, h), colour, alpha.
 int text_command(lua_State* L, const char* fn, bool fit)
 {
@@ -504,7 +520,6 @@ int api_glyph_width(lua_State* L)
         lua_pushnumber(L, pc_hud_classic_glyph ? pc_hud_classic_glyph(button) : 0);
         return 1;
     }
-    HostWork host(L);
     lua_pushnumber(L, hud::glyph_width ? hud::glyph_width(button, h) : h);
     return 1;
 }
@@ -539,11 +554,7 @@ int api_glyph(lua_State* L)
         lua_pushnumber(L, gw);
         return 1;
     }
-    float w;
-    {
-        HostWork host(L);
-        w = hud::glyph_width ? hud::glyph_width(button, h) : h;
-    }
+    float w = hud::glyph_width ? hud::glyph_width(button, h) : h;
     if (w <= 0) {
         lua_pushnumber(L, 0);
         return 1;
@@ -747,7 +758,6 @@ int api_measure(lua_State* L)
         pc_hud_classic_measure(s.style.font, text, (int)len, &iw, &ih);
         w = (float)iw, h = (float)ih;
     } else {
-        HostWork host(L);
         (hud::measure ? hud::measure : estimate)(s.style, text, len, &w, &h);
     }
     lua_pushnumber(L, w);
@@ -962,6 +972,7 @@ struct Panel {
     unsigned generation;
     int ref;
     bool failed;
+    double retry_at; // a shipped plugin's failed panel is drawn again from then (fault_cooldown_s)
 };
 std::vector<Panel> panels;
 const Panel* panel_job;
@@ -986,7 +997,7 @@ int api_panel(lua_State* L)
     if (lua_isnoneornil(L, 1))
         return 0;
     lua_settop(L, 1);
-    panels.push_back({ p, p->generation, luaL_ref(L, LUA_REGISTRYINDEX), false });
+    panels.push_back({ p, p->generation, luaL_ref(L, LUA_REGISTRYINDEX), false, 0 });
     return 0;
 }
 
@@ -1039,8 +1050,9 @@ int api_claim(lua_State* L)
         log(LOG_WARN, p->id(), std::string("takes the HUD kind '") + hud::kind_name(kind) + "' from "
             + before->id() + " (one owner per kind: the last in load order)");
     else if (now && now->plugin != p)
-        log(LOG_WARN, p->id(), std::string("claims the HUD kind '") + hud::kind_name(kind) + "', which "
-            + now->plugin->id() + " keeps (later in load order)");
+        // (the shipped plugins' own layering, rood.hud under rood.classic, is expected: info)
+        log(p->shipped && now->plugin->shipped ? LOG_INFO : LOG_WARN, p->id(), std::string("claims the HUD kind '")
+            + hud::kind_name(kind) + "', which " + now->plugin->id() + " keeps (later in load order)");
     lua_pushboolean(L, now && now->plugin == p);
     return 1;
 }
@@ -1621,7 +1633,7 @@ int hud_pass()
         if (!hud::live(e) || !(e.suppressed || e.synthetic))
             continue; // the game draws it (no claim was honoured when it drew)
         Claim* c = const_cast<Claim*>(owner(e.f.kind));
-        if (!c || c->failed || !pc_hud_honoured(e.f.kind))
+        if (!c || claim_down(c) || !pc_hud_honoured(e.f.kind))
             continue;
         job = { c, &e, false };
         drawing.anchor = drawing.element_anchor = e.f.anchor;
@@ -1637,9 +1649,7 @@ int hud_pass()
             ++e.drawn;
         } else {
             ++s.faults;
-            c->failed = true; // the game's own drawing from the next frame on
-            log(LOG_WARN, c->plugin->id(), std::string("its '") + hud::kind_name(e.f.kind)
-                + "' draw failed: the game draws it until the plugin reloads");
+            claim_fault(c, e.f.kind, "draw"); // (down: the game's own drawing from the next frame on)
         }
     }
     if (command_used || frame_count) // (frames with nothing claimed do not dilute the figures)
@@ -1656,6 +1666,8 @@ int panels_pass(float width, float height)
     for (size_t i = 0; i < panels.size(); ++i) {
         Panel& pn = panels[i];
         Plugin* p = pn.plugin;
+        if (pn.failed && pn.retry_at > 0 && now_seconds() >= pn.retry_at)
+            pn.failed = false, pn.retry_at = 0;
         if (pn.failed || !p->L || p->state != PLUGIN_LOADED || p->generation != pn.generation
             || !p->disable_reason.empty())
             continue;
@@ -1681,8 +1693,17 @@ int panels_pass(float width, float height)
         }, &error);
         in_draw = false;
         if (i < panels.size() && &panels[i] == panel_job && !ok) {
-            panels[i].failed = true; // until the plugin reloads (or sets its panel again)
-            log(LOG_WARN, p->id(), "its panel draw failed: not drawn until the plugin reloads or sets it again");
+            if (p->budget.killed) {
+                // Over its budget (a slow frame): drawn again next frame; one that keeps overrunning is
+                // disabled by the fault policy (fault_limit within fault_window_s).
+            } else {
+                // an error: until the plugin reloads or sets its panel again (shipped: or the cool-down)
+                panels[i].failed = true;
+                bool retry = p->shipped && config.fault_cooldown_s > 0;
+                panels[i].retry_at = retry ? now_seconds() + config.fault_cooldown_s : 0;
+                log(LOG_WARN, p->id(), retry ? "its panel draw failed: not drawn for a while (the cool-down)"
+                                             : "its panel draw failed: not drawn until the plugin reloads or sets it again");
+            }
         }
     }
     panel_job = nullptr;
@@ -1712,7 +1733,7 @@ int classic_draw(bool parity = false, const char** why = nullptr)
             *why = "no claim made for the classic flavour";
         return -1;
     }
-    if (!c || c->failed) {
+    if (!c || claim_down(c)) {
         if (why)
             *why = "its classic claim failed";
         return -1;
@@ -1737,20 +1758,16 @@ int classic_draw(bool parity = false, const char** why = nullptr)
     hud::KindStats& s = hud::stats(e->f.kind);
     if (!ok && parity) {
         ++s.faults;
-        c->failed = true;
+        claim_fault(c, e->f.kind, "classic draw (parity)");
         if (why)
             *why = "its classic draw failed";
-        log(LOG_WARN, c->plugin->id(), std::string("its '") + hud::kind_name(e->f.kind)
-            + "' classic draw failed (parity): the game draws it until the plugin reloads");
         return -1;
     }
     if (!ok) {
         ++s.faults;
-        c->failed = true;
-        e->suppressed = false; // the game's packets stay
+        claim_fault(c, e->f.kind, "draw");
+        e->suppressed = false; // this element: the game's packets stay
         --s.suppressed, ++s.fallback;
-        log(LOG_WARN, c->plugin->id(), std::string("its '") + hud::kind_name(e->f.kind)
-            + "' draw failed: the game draws it until the plugin reloads");
         return -1;
     }
     ++s.drawn;
@@ -1831,7 +1848,7 @@ std::string stats_json()
             + ",\"suppressed\":" + std::to_string(s.suppressed) + ",\"fallback\":" + std::to_string(s.fallback)
             + ",\"drawn\":" + std::to_string(s.drawn) + ",\"faults\":" + std::to_string(s.faults)
             + ",\"claimed_by\":" + (c ? q(c->plugin->id()) : "null") + ",\"claim_failed\":"
-            + (c && c->failed ? "true" : "false") + ",\"honoured\":" + (pc_hud_honoured(k) ? "true" : "false") + "}";
+            + (c && claim_down(c) ? "true" : "false") + ",\"honoured\":" + (pc_hud_honoured(k) ? "true" : "false") + "}";
     }
     std::string cmds;
     size_t memory = 0;
@@ -1951,12 +1968,12 @@ StyleSlot* styles() { return rl::style_slots; }
 bool claimed(int kind)
 {
     const rl::Claim* c = rl::owner(kind);
-    return c && !c->failed;
+    return c && !rl::claim_down(c);
 }
 bool claimed_classic(int kind)
 {
     const rl::Claim* c = rl::owner_for(kind, 1);
-    return c && !c->failed && c->flavours == rl::FLAVOUR_CLASSIC;
+    return c && !rl::claim_down(c) && c->flavours == rl::FLAVOUR_CLASSIC;
 }
 } // namespace hud
 

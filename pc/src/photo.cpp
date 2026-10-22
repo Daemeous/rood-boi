@@ -29,6 +29,8 @@
 
 extern "C" {
 int pc_photo_rendering;
+void pc_audio_frame(void) __attribute__((weak));               /* audio_libspu.c: a vsync's sound */
+void pc_audio_output_duck(float gain) __attribute__((weak));   /* audio_output.c */
 
 /* state_rewind.c (absent where save states are: weak) */
 int pc_snapshot_mark_slot(int slot, char* error, int size) __attribute__((weak));
@@ -60,6 +62,58 @@ double render_start, last_render_ms;
 int render_frames = 4;    /* game frames a render runs (RPC photo render_frames) */
 int render_max_vsyncs = 40;
 std::string last_error;
+
+/* ---- the sound while held (pc_photo_pause_audio) ---- */
+struct AudioWish {
+    std::string owner;
+    int mode;
+    float gain;
+};
+std::vector<AudioWish> audio_wishes;
+double audio_next;          /* when the next sound vsync is due (0: not started) */
+bool audio_moved;           /* sound vsyncs ran since the mark: the next render marks again */
+unsigned audio_vsyncs;      /* sound vsyncs run while held (RPC photo) */
+constexpr double SOUND_VSYNC = 1001.0 / 60000.0;
+int audio_mode(float* gain)
+{
+    int mode = PC_PHOTO_AUDIO_KEEP;
+    *gain = 1;
+    for (const std::string& o : pausers) {
+        int m = PC_PHOTO_AUDIO_STOP;
+        float g = 1;
+        for (const AudioWish& w : audio_wishes)
+            if (w.owner == o)
+                m = w.mode, g = w.gain;
+        mode = std::min(mode, m);
+        if (m == PC_PHOTO_AUDIO_DUCK)
+            *gain = std::min(*gain, g);
+    }
+    if (mode != PC_PHOTO_AUDIO_DUCK)
+        *gain = 1;
+    return pausers.empty() ? PC_PHOTO_AUDIO_STOP : mode;
+}
+/* Held: the sound driver's ticks and the SPU in real time (pc_audio_frame: what a vsync runs for the
+ * sound, nothing else), a few at most to catch up after a render. */
+void audio_pump()
+{
+    float gain;
+    int mode = audio_mode(&gain);
+    if (pc_audio_output_duck)
+        pc_audio_output_duck(mode == PC_PHOTO_AUDIO_DUCK ? gain : 1);
+    double now = photo::now_seconds();
+    if (mode == PC_PHOTO_AUDIO_STOP || !pc_audio_frame) {
+        audio_next = 0;
+        return;
+    }
+    if (audio_next == 0 || now - audio_next > 0.25)
+        audio_next = now;
+    for (int n = 0; n < 8 && now >= audio_next; n++) {
+        pc_audio_frame();
+        audio_next += SOUND_VSYNC;
+        audio_moved = true;
+        ++audio_vsyncs;
+    }
+}
 
 /* What makes holding the game unsafe now ("" none). */
 std::string unsafe()
@@ -182,6 +236,8 @@ extern "C" int pc_photo_poll(void)
         phase = HELD;
         held_vsync = pc_vsync_count();
         rendered = false;
+        audio_next = 0;
+        audio_vsyncs = 0;
         fprintf(stderr, "[photo] held at vsync %u (%s)\n", held_vsync, pausers.front().c_str());
     }
     if (phase != HELD)
@@ -199,6 +255,10 @@ extern "C" int pc_photo_poll(void)
     if (pausers.empty()) {
         phase = RUNNING;
         redraw_wanted = false;
+        audio_next = 0;
+        audio_moved = false;
+        if (pc_audio_output_duck)
+            pc_audio_output_duck(1);
         if (rendered && pc_hw_resync)
             pc_hw_resync(); /* the hardware target is M's again (the renders' pictures were not) */
         rendered = false;
@@ -207,6 +267,7 @@ extern "C" int pc_photo_poll(void)
         fprintf(stderr, "[photo] resumed at vsync %u\n", pc_vsync_count());
         return 0;
     }
+    audio_pump();
     if (!redraw_wanted)
         return 0;
     redraw_wanted = false;
@@ -218,6 +279,9 @@ extern "C" int pc_photo_poll(void)
         last_error = "a render needs save states (x86)";
         return 0;
     }
+    if (audio_moved && pc_snapshot_drop_slot) /* the sound went on: the moment a render returns to is now */
+        pc_snapshot_drop_slot(SLOT);
+    audio_moved = false;
     if (!pc_snapshot_slot_valid(SLOT)) {
         char error[160] = "";
         if (pc_snapshot_mark_slot(SLOT, error, (int)sizeof error)) {
@@ -248,15 +312,16 @@ extern "C" int pc_photo_rpc(const char* params, char* out, int size)
     for (const photo::Part& p : photo::parts())
         if (p.params)
             p.params(params);
+    float audio_gain_now;
     std::string owners;
     for (const std::string& o : pausers)
         owners += (owners.empty() ? "" : ",") + photo::json_quote(o);
     char head[512];
     snprintf(head, sizeof head,
         "{\"phase\":\"%s\",\"owners\":[%s],\"held_vsync\":%u,\"renders\":%u,\"last_render_ms\":%.2f,"
-        "\"last_render_vsyncs\":%u,\"render_frames\":%d,\"redraw_wanted\":%s,\"mark\":%s,\"error\":%s",
+        "\"last_render_vsyncs\":%u,\"render_frames\":%d,\"audio_vsyncs\":%u,\"audio\":%d,\"redraw_wanted\":%s,\"mark\":%s,\"error\":%s",
         PHASES[phase], owners.c_str(), held_vsync, renders, last_render_ms, render_vsyncs, render_frames,
-        redraw_wanted ? "true" : "false", pc_snapshot_slot_valid && pc_snapshot_slot_valid(SLOT) ? "true" : "false",
+        audio_vsyncs, audio_mode(&audio_gain_now), redraw_wanted ? "true" : "false", pc_snapshot_slot_valid && pc_snapshot_slot_valid(SLOT) ? "true" : "false",
         photo::json_quote(last_error).c_str());
     std::string reply = head;
     for (const photo::Part& p : photo::parts())
@@ -288,9 +353,18 @@ extern "C" int pc_photo_pause(const char* owner, char* why, int size)
 }
 extern "C" void pc_photo_resume(const char* owner)
 {
+    pc_photo_pause_audio(owner, PC_PHOTO_AUDIO_STOP, 1);
     pausers.erase(std::remove(pausers.begin(), pausers.end(), owner), pausers.end());
     if (pausers.empty() && phase == ASKED)
         phase = RUNNING;
+}
+extern "C" void pc_photo_pause_audio(const char* owner, int mode, float gain)
+{
+    audio_wishes.erase(std::remove_if(audio_wishes.begin(), audio_wishes.end(),
+                           [&](const AudioWish& w) { return w.owner == owner; }),
+        audio_wishes.end());
+    if (mode != PC_PHOTO_AUDIO_STOP)
+        audio_wishes.push_back({ owner, mode, std::max(0.0f, std::min(1.0f, gain)) });
 }
 extern "C" int pc_photo_paused(void) { return phase != RUNNING; }
 extern "C" int pc_photo_paused_by(const char* owner) { return contains(pausers, owner); }
@@ -333,6 +407,11 @@ extern "C" int pc_photo_engine_unload(char* why, int size)
     /* Held: the state is M's (renders rewind); resumed here, the next library runs on from it. */
     phase = RUNNING;
     pausers.clear();
+    audio_wishes.clear();
+    audio_next = 0;
+    audio_moved = false;
+    if (pc_audio_output_duck)
+        pc_audio_output_duck(1);
     redraw_wanted = false;
     if (pc_snapshot_drop_slot)
         pc_snapshot_drop_slot(SLOT);

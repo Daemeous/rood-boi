@@ -25,6 +25,8 @@ the test can edit it), no player plugins:
   - 16:9 placement: look.status.place.dx written: the parity gate reports the
     difference as xy (an undeclared placement is a mismatch), the file's own
     values give parity again;
+  - a slow host call (RPC lua budget slow_call: d.anchor 6 ms) never faults
+    rood.classic or hands its gauges back to the game;
   - screenshots (16:9, <out>/shots): WELL TIMED! drawn by rood.classic, and by
     the game with rood.classic off: the same picture."""
 import argparse
@@ -141,6 +143,24 @@ def run(out, card):
               f"cost: {st['classic_frames']} game frames, mean {st['classic_mean_ms']:.4f} ms, p99 "
               f"{st['classic_p99_ms']:.4f} ms of Lua a game frame (budget 0.1), "
               f"{st['classic_allocations_per_frame']:.2f} allocations a frame")
+
+        # a slow host call is the host's: d.anchor made 6 ms slow (on the host's side) in rood.classic's draws
+        # for a while never faults it nor hands its gauges back to the game (the user's log: one slow d.anchor
+        # cost the gauges for the session)
+        before = g.lua_plugins()["rood.classic"]
+        gauges = g.call("hud", action="stats")["kinds"]["gauges"]
+        g.call("lua", action="budget", slow_call={"name": "anchor", "ms": 6, "plugin": "rood.classic"})
+        try:
+            g.until(lambda: g.call("hud", action="stats")["kinds"]["gauges"]["drawn"] >= gauges["drawn"] + 20,
+                    guard=400)
+        finally:
+            g.call("lua", action="budget", slow_call={"name": "", "ms": 0})
+        after = g.lua_plugins()["rood.classic"]
+        g3 = g.call("hud", action="stats")["kinds"]["gauges"]
+        check(after["faults"] == before["faults"] and after["kills"] == before["kills"] and after["state"] == "loaded"
+              and not g3["claim_failed"] and g3["claimed_by"] == "rood.classic" and g3["honoured"],
+              f"a 6 ms d.anchor (host work) for 20 gauge draws: no faults ({after['faults'] - before['faults']}), "
+              f"the gauges still rood.classic's (failed {g3['claim_failed']})")
 
         # rood.classic's own Lua tests, in the field with the classic look (none skipped here)
         g.call("hud", action="clear")

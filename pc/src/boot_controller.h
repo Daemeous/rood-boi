@@ -24,8 +24,13 @@ unsigned pc_controller_mask(const PcControllerState*);
  * _state_slot_prev, _state_slot_next, and their bind_pad_); the photo mode's
  * button, PC_BIND_PHOTO (a Lua event "input.action" {name "photo"}: the
  * shipped plugin rood.photo enters and leaves the photo mode on it;
- * bind_key_photo F12, bind_pad_photo misc1: the Xbox Share, Switch Capture
- * or PS5 microphone button, where the pad has one). */
+ * bind_key_photo F12, bind_pad_photo back+dpup: Select held, then D-pad up).
+ * A pad binding may be a chord, "modifier+element" (pc_bind_pad_mod): the
+ * element fires while the modifier is held. The game never sees a chord:
+ * the element's PS1 buttons are taken out while the modifier is held, and the
+ * modifier's own PS1 buttons (Select: the field camera's mode) wait
+ * PC_CHORD_WAIT polls for the element (pressed after them; a tap reaches the
+ * game when it is let go, for 2 of the game's vsyncs), so normal play never fires it. */
 #define PC_BIND_TRAVEL 16
 #define PC_BIND_STATE_SAVE 17
 #define PC_BIND_STATE_LOAD 18
@@ -46,6 +51,10 @@ unsigned pc_controller_mask(const PcControllerState*);
 extern const char* const pc_pad_button_names[PC_PAD_BUTTONS];
 extern SDL_Keycode pc_bind_keys[PC_BIND_SLOTS][PC_BIND_KEYS]; /* 0: none */
 extern int pc_bind_pad[PC_BIND_SLOTS]; /* SDL_GamepadButton, PC_PAD_AXIS(trigger) or PC_PAD_NONE */
+/* A chord's modifier (held with pc_bind_pad's element), PC_PAD_NONE: a single element. The port's actions
+ * only (Travel, save states, the photo mode); a binding capture binds a single element. */
+extern int pc_bind_pad_mod[PC_BIND_SLOTS];
+#define PC_CHORD_WAIT 15 /* polls (vsyncs, ~250 ms) a chord's modifier is kept from the game, waiting */
 /* Bumped whenever a binding changes (button prompts follow). */
 extern unsigned pc_bind_generation;
 /* The PS1 bits a key presses (0: not bound). */
@@ -63,6 +72,8 @@ int pc_controller_element(const PcControllerState* s, int element);
 int pc_keyboard_travel(SDL_Keycode key);
 /* The save state actions `key` is bound to: bit n for slot PC_BIND_STATE_FIRST + n. */
 unsigned pc_keyboard_state_actions(SDL_Keycode key);
+/* A slot's pad binding as the settings write it: "dpup", "back+dpup". */
+const char* pc_bind_pad_text(int slot, char* out, size_t size);
 /* Whether `key` is bound to the photo mode's button. */
 int pc_keyboard_photo(SDL_Keycode key);
 /* The PS1 buttons bound to one of slot's keys or to its pad element (pressed with it). */

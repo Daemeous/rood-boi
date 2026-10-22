@@ -6,6 +6,7 @@
  * prompts (button_prompts.c) show whatever is bound. No SDL calls here (the
  * controller probe links this alone). */
 #include "boot_controller.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -36,9 +37,22 @@ const char* const pc_pad_button_names[PC_PAD_BUTTONS] = { "l2", "r2", "l1", "r1"
             SDL_GAMEPAD_BUTTON_DPAD_LEFT,                                                       \
             SDL_GAMEPAD_BUTTON_BACK /* Travel: shares Select's back */,                          \
             PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, /* save states: no button */      \
-            SDL_GAMEPAD_BUTTON_MISC1 /* the photo mode: Xbox Share, Switch Capture, PS5 mic */    \
+            SDL_GAMEPAD_BUTTON_DPAD_UP /* the photo mode: with Back held (DEFAULT_PAD_MOD) */     \
+    }
+/* Chords' modifiers: the photo mode is Select (Back) + D-pad up. Vagrant Story reads every PS1 button
+ * (Select: the field camera's mode; L3 is unused but shares its stick with L3 + R3, fast-forward, and a
+ * thumb with the D-pad; R3: the camera's reset) and the Share / Capture button is the system's on many
+ * pads, so the photo mode takes a chord the game never sees (pc_controller_poll). */
+#define DEFAULT_PAD_MOD                                                                                    \
+    {                                                                                                      \
+        PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, \
+            PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE,      \
+            PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE, PC_PAD_NONE,                   \
+            SDL_GAMEPAD_BUTTON_BACK                                                                        \
     }
 static const SDL_Keycode default_keys[PC_BIND_SLOTS][PC_BIND_KEYS] = DEFAULT_KEYS;
+static const int default_pad_mod[PC_BIND_SLOTS] = DEFAULT_PAD_MOD;
+int pc_bind_pad_mod[PC_BIND_SLOTS] = DEFAULT_PAD_MOD;
 static const int default_pad[PC_BIND_SLOTS] = DEFAULT_PAD;
 SDL_Keycode pc_bind_keys[PC_BIND_SLOTS][PC_BIND_KEYS] = DEFAULT_KEYS;
 int pc_bind_pad[PC_BIND_SLOTS] = DEFAULT_PAD;
@@ -48,6 +62,7 @@ void pc_bindings_reset(void)
 {
     memcpy(pc_bind_keys, default_keys, sizeof pc_bind_keys);
     memcpy(pc_bind_pad, default_pad, sizeof pc_bind_pad);
+    memcpy(pc_bind_pad_mod, default_pad_mod, sizeof pc_bind_pad_mod);
     ++pc_bind_generation;
 }
 
@@ -239,6 +254,18 @@ const char* pc_pad_element_name(int element)
     return "none";
 }
 
+/* "element" or "modifier+element" (the settings' form). */
+const char* pc_bind_pad_text(int slot, char* out, size_t size)
+{
+    if (slot < 0 || slot >= PC_BIND_SLOTS)
+        return "none";
+    if (pc_bind_pad_mod[slot] == PC_PAD_NONE || pc_bind_pad[slot] == PC_PAD_NONE)
+        snprintf(out, size, "%s", pc_pad_element_name(pc_bind_pad[slot]));
+    else
+        snprintf(out, size, "%s+%s", pc_pad_element_name(pc_bind_pad_mod[slot]), pc_pad_element_name(pc_bind_pad[slot]));
+    return out;
+}
+
 /* ---- settings ---- */
 
 int pc_binding_setting(const char* key, const char* value)
@@ -255,13 +282,26 @@ int pc_binding_setting(const char* key, const char* value)
     char text[96] = "";
     sscanf(value, " %95[^\r\n]", text);
     if (pad) {
-        char name[32] = "";
-        sscanf(text, "%31s", name);
+        /* "element", or a chord "modifier+element" (the port's actions only). */
+        char name[64] = "", *plus;
+        sscanf(text, "%63s", name);
+        int modifier = PC_PAD_NONE;
+        if ((plus = strchr(name, '+'))) {
+            *plus = 0;
+            modifier = pc_pad_element_from_name(name);
+            memmove(name, plus + 1, strlen(plus + 1) + 1);
+            if (button < PC_PAD_BUTTONS || modifier == -2 || modifier == PC_PAD_NONE) {
+                fprintf(stderr, "[settings] %s: a chord needs a port action and a known modifier (back+dpup)\n", key);
+                return 1;
+            }
+        }
         int element = pc_pad_element_from_name(name);
         if (element == -2)
             fprintf(stderr, "[settings] %s: unknown gamepad element '%s'\n", key, name);
-        else
+        else {
             pc_bind_pad[button] = element;
+            pc_bind_pad_mod[button] = element == PC_PAD_NONE || element == modifier ? PC_PAD_NONE : modifier;
+        }
     } else {
         /* One or two keys, comma-separated; "none" unbinds. */
         SDL_Keycode keys[PC_BIND_KEYS] = { 0 };
@@ -295,7 +335,9 @@ void pc_binding_settings_write(FILE* f)
             }
             fprintf(f, "%s\n", any ? "" : " none");
         }
-        if (pc_bind_pad[i] != default_pad[i])
-            fprintf(f, "bind_pad_%s %s\n", pc_bind_slot_name(i), pc_pad_element_name(pc_bind_pad[i]));
+        if (pc_bind_pad[i] != default_pad[i] || pc_bind_pad_mod[i] != default_pad_mod[i]) {
+            char chord[64];
+            fprintf(f, "bind_pad_%s %s\n", pc_bind_slot_name(i), pc_bind_pad_text(i, chord, sizeof chord));
+        }
     }
 }

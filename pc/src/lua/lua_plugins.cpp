@@ -569,6 +569,7 @@ bool load(Plugin* p)
     ++p->generation;
     p->fault_times.clear();
     p->disable_reason.clear();
+    p->fault_disabled = false;
     if (!open_state(p, &error)) {
         p->state = PLUGIN_FAILED;
         p->status = first_line(error);
@@ -705,6 +706,49 @@ void poll_files()
     pc_lua_file_polls++;
 }
 
+/* A plugin disabled by faults comes back (a slow moment must not leave a dead button): with `action` (a port
+ * action pressed: "photo"), every plugin that listened to "input.action" at once; without, the shipped ones
+ * fault_cooldown_s after. At most fault_revivals in 10 minutes each (a plugin that keeps failing stays off
+ * until its files change). The plugin gets "plugin.recovered" {reason} after its load. */
+void revive_due(const char* action)
+{
+    if (calls_in_progress() > 0)
+        return;
+    double now = now_seconds();
+    for (auto& up : all()) {
+        Plugin* p = up.get();
+        if (!p->fault_disabled || p->state != PLUGIN_DISABLED)
+            continue;
+        bool due = action ? p->revive_on_action
+                          : p->shipped && config.fault_cooldown_s > 0 && now - p->disabled_at >= config.fault_cooldown_s;
+        if (!due)
+            continue;
+        while (!p->revivals.empty() && now - p->revivals.front() > 600)
+            p->revivals.erase(p->revivals.begin());
+        if ((int)p->revivals.size() >= config.fault_revivals) {
+            if (p->disabled_at > 0) {
+                log(LOG_ERROR, p->id(), "stays disabled: revived " + std::to_string(p->revivals.size())
+                        + " times in 10 minutes; it reloads when its files change");
+                p->disabled_at = 0;
+            }
+            p->fault_disabled = false;
+            continue;
+        }
+        p->revivals.push_back(now);
+        std::string reason = p->fault_reason;
+        log(LOG_WARN, p->id(), std::string("re-enabled (") + (action ? "its button was pressed" : "after the cool-down")
+                + ") after it was disabled: " + reason);
+        p->fault_disabled = false;
+        reload(p);
+        if (p->state == PLUGIN_LOADED) {
+            Value payload = Value::new_table();
+            payload.set("reason", Value::str(reason));
+            payload.set("by", Value::str(action ? "action" : "cooldown"));
+            emit_to(p, "plugin.recovered", payload);
+        }
+    }
+}
+
 void settle()
 {
     if (calls_in_progress() > 0)
@@ -716,10 +760,22 @@ void settle()
         std::string reason = p->disable_reason;
         p->disable_reason.clear();
         if (p->state == PLUGIN_LOADED) {
-            log(LOG_ERROR, p->id(), "disabled: " + reason + "; it reloads when its files change");
+            bool action = has_handler(p->id(), "input.action");
+            std::string when = action ? "; it loads again when its button is pressed" : "";
+            if (p->shipped && config.fault_cooldown_s > 0) {
+                char text[64];
+                std::snprintf(text, sizeof text, "%s in %g s", action ? ", or" : "; it loads again", config.fault_cooldown_s);
+                when += text;
+            }
+            log(LOG_ERROR, p->id(), "disabled: " + reason + when + "; it reloads when its files change");
             unload_with_dependents(p, PLUGIN_DISABLED, "disabled: " + reason);
+            p->fault_disabled = true;
+            p->revive_on_action = action;
+            p->fault_reason = reason;
+            p->disabled_at = now_seconds();
         }
     }
+    revive_due(nullptr);
     for (auto& up : all())
         if (up->reload_requested) {
             up->reload_requested = false;
@@ -785,6 +841,8 @@ const std::vector<Tunable>& tunables()
 {
     static const std::vector<Tunable> list = {
         { "plugin_budget_ms", "budget_ms", "Call budget (ms)", &config.budget_ms, nullptr, nullptr, 0.1, 1000 },
+        { "plugin_host_budget_ms", "host_budget_ms", "Host work excluded a call (ms)", &config.host_budget_ms, nullptr,
+            nullptr, 0, 10000 },
         { "plugin_budget_instructions", "budget_instructions", "Call budget (instructions)", nullptr,
             &config.budget_instructions, nullptr, 1000, 1e11 },
         { "plugin_load_budget_ms", "load_budget_ms", "Load budget (ms)", &config.load_budget_ms, nullptr, nullptr, 1,
@@ -796,6 +854,10 @@ const std::vector<Tunable>& tunables()
             1000 },
         { "plugin_fault_window", "fault_window_s", "Fault window (s)", &config.fault_window_s, nullptr, nullptr, 0.1,
             3600 },
+        { "plugin_fault_cooldown", "fault_cooldown_s", "Shipped plugin revival (s)", &config.fault_cooldown_s, nullptr,
+            nullptr, 0, 3600 },
+        { "plugin_fault_revivals", "fault_revivals", "Revivals in 10 minutes", nullptr, nullptr, &config.fault_revivals,
+            0, 100 },
         { "plugin_watch_vsyncs", "watch_vsyncs", "Hot reload check (vsyncs)", nullptr, nullptr, &config.watch_vsyncs, 1,
             3600 },
     };

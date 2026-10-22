@@ -14,8 +14,9 @@
 //   grant {plugin, capability, revoke, elevated}
 //                             a grant as the user's dialog will make it (dev mode;
 //                             elevated: the master switch), saved in settings.cfg
-//   budget {budget_ms, budget_instructions, load_budget_ms, load_budget_instructions,
-//           memory_mb, fault_limit, fault_window_s, watch_vsyncs, reset_stats}
+//   budget {budget_ms, host_budget_ms, budget_instructions, load_budget_ms, load_budget_instructions,
+//           memory_mb, fault_limit, fault_window_s, fault_cooldown_s, fault_revivals, watch_vsyncs,
+//           reset_stats, slow_call {name, ms, plugin} (tests: that rood function made slow on the host's side)}
 //                             the tunables (tunables()), then them and every plugin
 //   test {plugin, filter}     start a test run (rood.test); test_status {run} polls it
 //   log {since}               log lines after a sequence number
@@ -296,6 +297,14 @@ extern "C" int pc_lua_rpc(const char* params_text, char* out, int size)
             const Json* v = params.get(t.rpc);
             if (v && v->type == Json::Number)
                 rl::set_tunable(t, v->number);
+        }
+        if (const Json* slow = params.get("slow_call")) { /* tests: {name, ms} (ms 0: off) */
+            const Json* name = slow->get("name");
+            const Json* ms = slow->get("ms");
+            const Json* who = slow->get("plugin");
+            rl::config.slow_call_plugin = who && who->type == Json::String ? who->string : "";
+            rl::config.slow_call_name = name && name->type == Json::String ? name->string : "";
+            rl::config.slow_call_ms = ms && ms->type == Json::Number ? ms->number : 0;
         }
         if (flag_param(params, "reset_stats", false))
             for (auto& p : rl::all())

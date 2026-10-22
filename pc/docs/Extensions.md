@@ -95,13 +95,27 @@ Windows device (`CON`, `COM1`, ...) and only regular files are read.
 
 | Setting (`settings.cfg`) | RPC `budget` | Default | |
 |---|---|---|---|
-| `plugin_budget_ms` | `budget_ms` | 4 | one handler, timer or call between plugins |
+| `plugin_budget_ms` | `budget_ms` | 4 | one handler, timer or call between plugins: the plugin's own Lua, on the game thread's CPU clock (below) |
+| `plugin_host_budget_ms` | `host_budget_ms` | 100 | the host's work inside `rood` calls a handler may make on top, uncounted |
 | `plugin_budget_instructions` | `budget_instructions` | 2000000 | |
 | `plugin_load_budget_ms` | `load_budget_ms` | 250 | a main chunk, an eval, a test step |
 | `plugin_load_budget_instructions` | `load_budget_instructions` | 50000000 | |
 | `plugin_memory_mb` | `memory_mb` | 32 | each plugin's allocator refuses past it |
 | `plugin_fault_limit`, `plugin_fault_window` | `fault_limit`, `fault_window_s` | 5, 10 | that many faults in that many seconds disable a plugin |
+| `plugin_fault_cooldown`, `plugin_fault_revivals` | `fault_cooldown_s`, `fault_revivals` | 20, 3 | a shipped plugin disabled by faults loads again after that many seconds; at most that many revivals (cool-down or button) in 10 minutes |
 | `plugin_watch_vsyncs` | `watch_vsyncs` | 30 | hot reload checks |
+
+What counts is the plugin's own time: the budget clock is the game
+thread's CPU time (Linux; Windows' thread times are too coarse, there it is
+the monotonic clock), so time the thread did not run (the OS gave the core
+to another process, a throttled CPU, a wait on the GPU) is never a plugin's,
+and the host's work inside every `rood` function (drawing, queries, a font
+baked, the renderer asked) is excluded, up to `plugin_host_budget_ms` a call
+(past that it counts, so a loop of costly calls still stops). RPC `budget
+{slow_call = {name, ms, plugin}}` makes a `rood` function that slow on the
+host's side (tests); `ROOD_LUA_SLOW_MS=N` logs every `rood` call slower than
+N ms (wall clock), with its name. The over-budget message gives the plugin's
+time and the host work excluded.
 
 Once a call is over budget, every following instruction fails until the
 call returns, so `pcall` cannot keep a runaway alive. The C loops a
@@ -110,7 +124,16 @@ plugin can make long check the clock too (string patterns, plain `find`,
 every `rood` function checks it on entry, so a loop of costly calls stops
 at the first one past the budget. Errors are caught with a traceback (the
 log, the console, stderr `[lua] ...`). Disabled plugins come back when
-their files change or with a reload. Known limits: one C call without Lua
+their files change or with a reload; one disabled by faults comes back by
+itself too, so a run of slow frames never leaves a dead button: a plugin
+that listened to `input.action` loads again when that action's button is
+pressed (before the event reaches it: the photo mode opens on the same
+press), a shipped plugin after `plugin_fault_cooldown` seconds, at most
+`plugin_fault_revivals` times in 10 minutes (then it stays off until its
+files change). After such a load it gets `plugin.recovered {reason, by}`
+(`by`: `action`, `cooldown`). A panel draw over its budget is drawn again
+next frame (one that raises an error stays off until the plugin sets it
+again or reloads). Known limits: one C call without Lua
 instructions (a large `table.concat`, a `..` or `<` of two 16 MB strings)
 overruns by its own length, and up to 1000 of them between two checks of
 the hook; memory is capped, which bounds them (about a second at worst).
@@ -161,7 +184,7 @@ checks are not a defense against another process racing filesystem changes.
 | `rood.log/warn/error(...)` | to the log and the console |
 | `rood.version`, `rood.api_version` | |
 | `rood.plugin` | `id, name, version, dir, data_dir, shipped, capabilities, granted, missing, elevated` |
-| `rood.on(event, fn) -> handle`, `rood.off(handle)`, `rood.emit(event, payload) -> count` | `fn(payload, sender)`: sender is the emitting plugin's id (nil for the core's events), since a plugin may emit in another's namespace (a request); plugins emit namespaced events (`my.plugin/changed`); core events: `tick {vsync, game_time}`, `frame {dt, real_time}`, `plugin.loaded/unloaded {id}`, `registry.changed {kind, id, action}`, `unload` (to the plugin itself), `input.action {name, device}` (a port action's button pressed, whatever captures the input: `photo`, bind_key_photo F12 / bind_pad_photo misc1; device `keyboard` or `pad`), `photo.released {what, reason}` (to its owner: below) |
+| `rood.on(event, fn) -> handle`, `rood.off(handle)`, `rood.emit(event, payload) -> count` | `fn(payload, sender)`: sender is the emitting plugin's id (nil for the core's events), since a plugin may emit in another's namespace (a request); plugins emit namespaced events (`my.plugin/changed`); core events: `tick {vsync, game_time}`, `frame {dt, real_time}`, `plugin.loaded/unloaded {id}`, `registry.changed {kind, id, action}`, `unload` (to the plugin itself), `input.action {name, device}` (a port action's button pressed, whatever captures the input: `photo`, bind_key_photo F12 / bind_pad_photo back+dpup; device `keyboard` or `pad`), `plugin.recovered {reason, by}` (to a plugin loaded again after a fault disable), `photo.released {what, reason}` (to its owner: below) |
 | `rood.timer.after/every(seconds, fn[, {clock = "real"}]) -> id`, `rood.timer.cancel(id)` | game time by default (stops while paused) |
 | `rood.clock.game()`, `rood.clock.real()` | seconds |
 | `rood.registry.register(kind, id, data[, {after, before, group}])`, `get`, `list(kind[, {group}])`, `remove`, `kinds()` | ids in the plugin's namespace (`<plugin id>/<name>`); `after`/`before`: ids or `group:<name>` |
@@ -221,7 +244,7 @@ drawing is the claims'.
 | `d.value(font, x, y, value) -> x, y`, `d.digit(font, x, y, digit)` | classic only: the HUD's digits (`vs_battle_renderValue`: the rightmost at `x, y`; font 0 small, 1 large; returns the pen the game's call leaves) and one digit (`_renderDigit`; font 2 the separator) |
 | `d.xy(x, y, delta) -> x, y` | the game's packed position arithmetic: `x, y` packed as the game packs them plus `delta` written as the game writes its steps (`56 \| (-8 << 16)`), so x's carry or borrow reaches y as in the game |
 | `d.anchor(where)` | where the draw's commands sit in 16:9: `"left"`, `"right"`, `"centre"`, `"element"` (its own, the default), `"screen"` (a panel's: the picture's square pixels, 240 high; not in the classic flavour); in the classic flavour the range is placed exactly (`PC_ANCHOR_EXACT`: no edge extension, cover or side-paint guesses) |
-| `rood.draw.panel(fn \| nil)` | the plugin's own layer over the picture (one a plugin; nil removes it): `fn(d, view)` every presented frame, in the modern pass whatever the look, after the HUD and the menus, whatever `rood.ui.hide` hides; `view`: `width` (240 times the picture's aspect), `height` 240, `aspect`, `look` (`classic`, `modern`), `dt`. Coordinates are the picture's square pixels from its top-left (`d.anchor("screen")`, its default); the classic-only primitives raise. Never in a photo (captured before the overlay). A draw that raises stops it until the plugin sets it again or reloads. While one is set its commands replace the HUD's in RPC `hud {stats}`'s last frame |
+| `rood.draw.panel(fn \| nil)` | the plugin's own layer over the picture (one a plugin; nil removes it): `fn(d, view)` every presented frame, in the modern pass whatever the look, after the HUD and the menus, whatever `rood.ui.hide` hides; `view`: `width` (240 times the picture's aspect), `height` 240, `aspect`, `look` (`classic`, `modern`), `dt`. Coordinates are the picture's square pixels from its top-left (`d.anchor("screen")`, its default); the classic-only primitives raise. Never in a photo (captured before the overlay). A draw over its budget is drawn again next frame; one that raises an error stops it until the plugin sets it again or reloads (a shipped plugin's: for `plugin_fault_cooldown` seconds). While one is set its commands replace the HUD's in RPC `hud {stats}`'s last frame |
 | `rood.dev.show(kind, {...})` | dev mode only (`ROOD_RPC` set or `ROOD_DEV=1`): in the field the game's own spawner (status: `timing`, `variant`; chain: `count`; buff: `slot`, `stat`, `value`, `sign`; damage on Ashley: `value`, `heal` or `sign`, `pool`, `stat`; travel: the prompt without a Circle of Magic; name_window: `index` (184), `message` (11), the game's own `vs_battle_displaySceneMessage`), held at `age` (10) until `rood.dev.clear([kind])` (`hold = false`: it plays out; a name window closes after 120 vsyncs); elsewhere a synthetic element (the name window's `text`) only modern claims draw. `rood.dev.list()` (with `drawn`, `suppressed`) |
 | `rood.dev.bench.save(name)`, `list()`, `load(name)`, `current()` | the gallery (below) |
 
@@ -251,11 +274,15 @@ below 1: the PS1's half blending), and the classic-only `d.sprite`,
 `d.window`, `d.cursor`, `d.bar` exist (in the modern flavour they raise).
 So the classic look gains only what a plugin draws with the game's own
 pieces; the Travel prompt has no classic flavour (its classic look is the
-game's), and synthetic elements are drawn only in the modern look. A draw that raises counts a fault and the game draws the
-element again until the plugin reloads. The command buffer is fixed (1024
+game's), and synthetic elements are drawn only in the modern look. A draw that raises counts a fault; over its budget (a slow
+frame) the element is the game's for that frame and the claim is drawn again
+next frame (the fault policy disables a plugin that keeps overrunning); an
+error hands the kind back to the game until the plugin reloads, or for a
+shipped plugin for `plugin_fault_cooldown` seconds, so one slow moment never
+costs a shipped kind for the session. The command buffer is fixed (1024
 commands, 16 KB of text: past it `d.text` returns false). The host's own
-work inside a call (a font loaded and its glyphs baked on first use) does not
-count against the draw's budget. A reload drops the plugin's claims, styles
+work inside every call (a font loaded and its glyphs baked on first use, any
+`d.*`) does not count against the draw's budget (Budgets and faults). A reload drops the plugin's claims, styles
 and typography; held moments belong to the host and stay, so an edit shows
 on the held word about half a second after it is saved (the hot reload
 check).
@@ -444,7 +471,7 @@ and room files never see it, and the game's state is untouched (below).
 
 | Capability | Functions |
 |---|---|
-| `game.pause` | `rood.game.pause() -> true \| nil, why`, `resume()`; `rood.game.paused()` (any plugin) needs no grant |
+| `game.pause` | `rood.game.pause([{audio, duck}]) -> true \| nil, why`, `resume()`; `rood.game.paused()` (any plugin) needs no grant |
 | `camera` | `rood.camera.begin()`, `finish()`, `active()`, `get()`, `set{...}`, `orbit(yaw, pitch[, zoom])`, `move(right, up, forward)` |
 | `post` | `rood.post.list()`, `get(key)`, `set(key, value)`, `reset([key])`, `overrides()` |
 | `ui.hide` | `rood.ui.hide{hud, game2d, overlay}` (no table: all three), `show()`, `hidden()` |
@@ -456,8 +483,17 @@ and room files never see it, and the game's state is untouched (below).
 `rood.game.pause()` holds the game at the next vsync boundary (at once when
 asked between frames, as from the REPL or the RPC): no vsync advances (RPC
 `step`s asked meanwhile are dropped, so a test's `run` returns at the same
-vsync), no game-time Lua (ticks, game-clock timers), no audio fed (the
-queued tail plays out, then silence). The window, the overlay, Lua's frames
+vsync), no game-time Lua (ticks, game-clock timers). The sound:
+`audio = "stop"` (the default: nothing fed, the queued tail plays out, then
+silence), `"keep"` (the sound driver's ticks and the SPU go on in real time,
+nothing else of the game: the music and the sound loops play on, sounds
+already playing finish, no new one starts since the game's logic is held)
+or `"duck"` (kept, at `duck` 0..1 of the master volume, default 0.35). With
+several holders the quietest wins. Kept, the sound's RAM moves on while the
+rest of the game stays M's: each render first marks the moment again (so
+its rewind keeps the sound where it got to), the vsync and every other part
+of the digest stay, and on resume the game goes on with the music where it
+is (RPC `photo` `audio`, `audio_vsyncs`). The window, the overlay, Lua's frames
 (`frame` events, `{clock = "real"}` timers), the post stack (the focus and
 auto exposure follow real time while held) and the RPC go on. Refused, with
 the reason, while it is not safe: loading (no room: a door, a movie), a room
@@ -504,11 +540,11 @@ table (depth of field: `dof`, `dof_focus`, `dof_focus_depth`, `dof_fstop`,
 `exposure`, `exposure_mode`, auto exposure; bloom; `chromatic_aberration`;
 `vignette`; grading: white balance, the four ranges' saturation / contrast /
 gamma / gain / offset, `lut`, `lut_intensity`; `tonemapper`; film `grain`;
-...) and two of the photo mode's own: `preset` (a named post profile from
+...) and three of the photo mode's own: `preset` (a named post profile from
 `pc/assets/post` or `pc/user/post` under the plugin's values: a filter;
-`""` none) and `format` (the picture cropped to an aspect ratio, width over
-height, 0 the whole picture: black bars over the live view, the photo
-cropped to it).
+`""` none), `format` (the picture cropped to an aspect ratio, width over
+height, 0 the whole picture: bars over the live view, the photo cropped to
+it) and `format_color` (the bars' colour, `0xRRGGBB`, 0 black).
 
 | | |
 |---|---|
@@ -642,58 +678,92 @@ tiles) follows the camera only as the game draws it from the free camera.
 ## Photo mode (rood.photo, shipped, on)
 
 `pc/plugins/rood.photo` is the photo mode, made only of the foundation
-above, `rood.draw.panel`, `rood.settings` and `rood.menu`. It does nothing
-until its button is pressed: the binding slot `photo` (`bind_key_photo`
-F12, `bind_pad_photo` `misc1`: the Xbox Share, Switch Capture or PS5
-microphone button; System > Bindings: Photo mode), which the host sends as
-the event `input.action {name = "photo"}` whether or not the input is
-captured, so the same button enters and leaves.
+above, `rood.draw.panel`, `rood.settings`, `rood.storage` and `rood.menu`.
+It does nothing until its button is pressed: the binding slot `photo`
+(`bind_key_photo` F12; `bind_pad_photo` `back+dpup`: Back (Select) held,
+then D-pad up; System > Bindings: Photo mode), which the host sends as the
+event `input.action {name = "photo"}` whether or not the input is captured,
+so the same button enters and leaves.
+
+**The pad's default.** Vagrant Story reads every button of its digital pad:
+the D-pad, the face buttons, L1 / R1 (the camera's 45-degree turns), L2 /
+R2, Start (the first-person view) and Select (the field camera's mode, on a
+press: `146C.c`); the port adds the right stick (the camera), R3 (its reset;
+R3 is `PADj`, which battle code reads too), L3 + R3 (fast-forward) and Back
+for Travel at save points, and many pads' Share / Capture button is the
+system's (the old default, `misc1`). So the photo mode takes a **chord** the
+game never sees (`pc_bind_pad_mod`, `boot_gamepad.c`): while Back is held,
+its PS1 buttons (Select) are kept from the game for up to 15 polls (~250 ms)
+waiting for D-pad up; D-pad up then fires the photo mode, and neither
+reaches the game (nor Travel); Back let go before that without D-pad up is a
+Select tap the game gets at the release; Back held longer is Select as
+always. Any port action may be a chord in `settings.cfg` (`bind_pad_photo
+back+dpup`, `bind_pad_travel leftshoulder+start`, ...); a binding captured
+in System > Bindings is a single element. D-pad up alone, or pressed before
+Back, is the game's.
 
 Entering is allowed in the field and in battle (`rood.game.mode()` `field`,
 `battle`); elsewhere a short notice says why ("Photo mode: not in a menu",
 "... not during a scene", "... not while loading", the title, the demo), and
 the foundation's own refusals (a room transition, memory card I/O) are shown
-the same way. Then: the game held (`rood.game.pause`), the free camera begun
-at the game's (its pivot on Ashley), the HUD, the game's 2D and the
-developer overlay hidden, the input captured, and the card drawn as a panel.
-Leaving gives back the input, the layers, the post overrides (the format
-too), the camera and the pause, in that order; the plugin unloading or
-reloading does the same by itself.
+the same way. Then: the game held (`rood.game.pause` with the Music
+setting: keep by default, the music and sound loops playing on), the free
+camera begun at the game's (its pivot on Ashley), the HUD, the game's 2D and
+the developer overlay hidden, the input captured, and the card drawn as a
+panel. Leaving gives back the input, the layers, the post overrides (the
+format and its bars too), the camera and the pause, in that order; the
+plugin unloading or reloading does the same by itself. Disabled for its
+faults, the photo button loads it again and opens it with a notice ("Photo
+mode was restarted after an error"; Budgets and faults).
 
 | Pad (keyboard) | |
 |---|---|
-| D-pad up / down (arrows) | the row |
-| D-pad left / right (arrows) | the row's value (held: repeats) |
-| Left stick (I J K L) | move the camera (the pivot along), within `radius` of where it began |
-| Right stick (F H T G) | turn about the pivot |
-| L1 / R1 (Q W; U O) | lower / raise |
-| L2 / R2 (1 2; C V) | zoom (the distance to the pivot) |
+| L1 / R1 (Q / W, E) | the previous / next tab |
+| D-pad up / down (arrows) | the row (the card scrolls) |
+| D-pad left / right (arrows) | the row's value (held: repeats); on a preset: left saves, right loads |
+| Left stick (I J K L) | Orbit: move sideways (J L) and the distance to the pivot (up / down); Free: fly (forward, sideways). The pivot stays within `radius` of where it began |
+| Right stick (F H T G) | Orbit: turn about the pivot; Free: look around |
+| L2 / R2 (1 2; U O) | lower / raise |
+| (C V) | the distance to the pivot |
 | Circle (Z) | take a photo (`rood.capture.photo`, the "Photo size" setting's scale): "Saved <name>" |
 | Cross (X), Start (Enter), Escape, the photo button | leave |
 | Triangle (S) | hide / show the card |
-| Square (A) | reset the row (its override dropped) |
-| Select (Tab) | the camera back where it began |
+| Square (A) | reset the row (its override dropped); on a preset: clear it |
+| R3 (R) | reset the tab (the Camera tab: the camera too) |
+| Select (Tab) | reset everything: every row, the filter, the camera |
 
-The rows (`M.rows`; each a post override of the plugin's, live, never saved):
+The tabs (`M.tabs` in `data.lua`; each row live, a post override of the
+plugin's never saved, or the camera, or the plugin's own; values shown with
+units; a row that depends on another is dimmed and does nothing until it
+applies):
 
-| Row | Values | Post keys |
-|---|---|---|
-| Format | Fullscreen, 4:3, 3:2, 16:9, Cinema 2.39:1, Square, Portrait 4:5, Vertical 9:16 | `format` |
-| Filter | Off, Noir, Sepia, Faded, Vivid, Warm, Cold (grades: saturation, contrast, white balance, gains, offsets), then every post preset (Film, Cinematic, Clean, and the user's) | the grade's keys, `preset` |
-| Vignette, Grain | 0..1 by 0.05 | `vignette`, `grain` |
-| Aberration | 0..2 by 0.1 | `chromatic_aberration` |
-| Exposure | -3..+3 EV by 0.25 | `exposure` |
-| Aperture | Off, f/1.4 .. f/22 | `dof` off, or on with `dof_fstop` |
-| Focus | Subject (the DoF camera subject: Ashley in the field, the acting actor in battle), Centre, Cursor (the mouse), Ashley | `dof_focus` (greyed with Aperture off) |
+| Tab | Rows (post keys) |
+|---|---|
+| Camera | Camera Orbit / Free; Field of view 10-110 degrees shown with the focal length giving it on a 24 mm sensor (`rood.camera` fov); Roll -45..45 degrees; Move speed (the Camera speed setting); Collision (`rood.camera` collision); Reset camera |
+| Lens | Depth of field (`dof`); Focus: Camera subject, On Ashley, Screen centre, Cursor, Manual (`dof_focus`); Focus distance in metres (Manual; `dof_focus_depth`); Model Physical / Artistic (`dof_model`); Aperture f/1.2-f/22 in stops (Physical; `dof_fstop`); Blur amount (Artistic; `dof_aperture`); Lens mm or From FOV (`dof_focal_length`); Max blur, Near blur (`dof_max_blur`, `dof_near_blur`); Bokeh blades (Round, 3-9), Blade curve, Bokeh rotation, Anamorphic squeeze, Bokeh edge Soft / Even / Rim, Highlights, Bokeh fringe, Cat's eye (`bokeh_*`) |
+| Effects | Vignette, Vignette size, Vignette shape (`vignette`, `vignette_gain`, `vignette_roundness`); Lens distortion (`lens_distortion`); Grain, Grain size, Grain colour; Aberration px; Bloom, Bloom threshold, Bloom size; Sharpen; Tilt-shift, its band, width and blur |
+| Colour | Filter: Off, Noir, Sepia, Faded, Vivid, Warm, Cold, Bleach, Teal & orange (grades), then every post preset (Film, Cinematic, Clean, the user's); Filter strength (a grade blended over the picture's own values); Exposure EV; Contrast, Saturation (the master of `contrast`, `saturation`); Temperature K, Tint; LUT strength (with a LUT set) |
+| Frame | Format: Fullscreen, 4:3, 3:2, 16:9, 1.85:1, 2.39:1, Square, 4:5, 9:16 (`format`); Bars: Black, White, Grey, Ink (`format_color`); Guides: Off, Thirds, Grid 4x4, Golden ratio, Centre (over the view, never in the photo) |
+| Presets | six slots in the plugin's storage (`presets`): every row of the Lens, Effects, Colour and Frame tabs (not the camera's place), named after what they hold ("Noir, f/2.0, Cinema 2.39:1") |
 
-Sliders start at the live value (so entering changes nothing), untouched
-rows follow a filter's preset. No Pose row: see above.
+Rows start at the live value (so entering changes nothing); a filter's grade
+writes the rows on its keys (a starting point the rows then change).
+
+Not offered, and why: a Pose row (the game has no pose system, and Ashley's
+animation is game state: a paused moment is rewound after every render, so
+changing it is not read-only); Hide Ashley / Hide enemies (the frozen
+moment's actors are drawn by the game's own frame during each render; hiding
+them needs a renderer-side actor filter, a follow-up); borders inside the photo
+(the capture crops to the format; the bars' colour is for the live view);
+naming presets (no text entry on a pad: they are named after their content).
 
 Look and feel are tables in `data.lua` (hot-reloaded; the REPL's `M`):
-`M.look` (the card's place and size, the modern and classic colours and
-typography, the notices, the thirds grid, the hints), `M.camera` (speeds,
-dead zone, radius, collision, the keys, the slider repeat), `M.formats`,
-`M.filters`, `M.preset_labels`, `M.apertures`, `M.focus`, `M.rows`. The card
+`M.look` (the card's place, size and row count, the modern and classic
+colours and typography, the tabs, the notices, the guides, the hints),
+`M.audio` (the duck gain), `M.camera` (speeds, dead zone, radius,
+collision, sensor, the keys, the repeat), `M.formats`, `M.filters`,
+`M.preset_labels`, `M.apertures`, `M.focus`, `M.dof_models`,
+`M.bokeh_edges`, `M.camera_modes`, `M.guides`, `M.bars`, `M.tabs`. The card
 is drawn over the picture (never in the photo): with the modern look in the
 labels font with the button prompt icons; with the classic look in the
 game's window colours and its menu font (ui_text's typography) and the
@@ -703,17 +773,21 @@ over the picture.
 The player's settings (the Option screen's Photo mode page, saved in the
 plugin's own `settings.json`, never `settings.cfg`): Photo size (1x; 2x-4x
 are not supported yet: saved at the window's size, the notice says so),
-Camera speed, Invert camera Y, Thirds grid; the page also shows the
-binding.
+Camera speed, Invert camera Y, Music (keep, duck, stop), Thirds grid (the
+Guides row's first value); the page also shows the binding.
 
 Tests: its Lua tests (`tests/photo_test.lua`, in `lua_smoke`: where it
-opens, the rows' keys and ranges, the filters' keys, the page) and
-`photo_mode_smoke` (`--renderer gl` and `vulkan`): in the save room, the
-button refused in the field menu; F12 enters; every row by the keyboard
-read back through `rood.post`; the camera keys; a photo; Cross leaves with
-the state digest, the vsync, the post values and the picture as without the
-session; the pad's button enters, F12 leaves, Start leaves; settings.cfg
-untouched.
+opens, the tabs' rows, keys and ranges, the choices, the settings and page)
+and `photo_mode_smoke` (`--renderer gl` and `vulkan`): in the save room,
+the button refused in the field menu; F12 enters; the tabs by L1 / R1 and
+E and rows of each read back live (a dimmed row, the f-stops, a filter's
+strength, units, Square, R, Select, a preset saved and loaded); the camera
+keys; a photo; Cross leaves with the state digest, the vsync, the post
+values and the picture as without the session (Music stop); D-pad up alone
+does nothing, the pad's chord enters, F12 leaves, Start leaves; Music keep
+(the sound driver runs, the vsync held); a host call made 6 ms slow every
+frame never faults it; disabled by faults, F12 brings it back open with the
+notice, and the cool-down brings it back by itself; settings.cfg untouched.
 
 ## Option pages
 

@@ -137,17 +137,24 @@ in the build that made it (on Windows: the same `rood.exe`).
 
 ### Photo mode
 
-**F12** (or the pad's Share / Capture button: `misc1`) in the field or in
-battle opens the photo mode, the shipped plugin `pc/plugins/rood.photo`: the
-game holds, the HUD hides, and a card of settings (Format, Filter, Vignette,
-Grain, Aberration, Exposure, Aperture, Focus) changes the picture live. The
-sticks (or I J K L, U O; F H T G turn, C V zoom) move and turn a free
-camera, L1 / R1 lower and raise it, L2 / R2 zoom, Select puts it back;
-Circle saves a PNG in `pc/user/photos`, Triangle hides the card, Square
-resets a row, Cross (or Start, Escape, F12 again) leaves and gives
-everything back. In menus, scenes and loading it says it cannot open. The
-button is a binding (System > Bindings: Photo mode; `bind_key_photo`,
-`bind_pad_photo`); the Option screen's Photo mode page has its settings. See
+**F12** (on a pad: hold Back / Select and press D-pad up, a chord the game
+never sees) in the field or in battle opens the photo mode, the shipped
+plugin `pc/plugins/rood.photo`: the game holds (the music plays on: the
+Music setting keep / duck / stop), the HUD hides, and a tabbed card changes
+the picture live: Camera (orbit or free, field of view with its focal
+length, roll, speed, collision), Lens (depth of field, focus mode and
+distance, f-stops, bokeh blades, curvature, rotation, anamorphic squeeze,
+edge, highlights), Effects (vignette, grain, aberration, bloom, sharpen,
+tilt-shift), Colour (filters and their strength, exposure, contrast,
+saturation, white balance), Frame (format, bars colour, guides) and Presets
+(six slots). L1 / R1 (Q / E) change the tab, the D-pad the rows and values;
+the sticks (or I J K L; F H T G turn, C V zoom) move and turn the camera,
+L2 / R2 (U O) lower and raise it; Circle saves a PNG in `pc/user/photos`,
+Triangle hides the card, Square resets a row, R3 (R) the tab, Select (Tab)
+everything; Cross (or Start, Escape, F12 again) leaves and gives everything
+back. In menus, scenes and loading it says it cannot open. The button is a
+binding (System > Bindings: Photo mode; `bind_key_photo`, `bind_pad_photo`);
+the Option screen's Photo mode page has its settings. See
 [docs/Extensions.md](docs/Extensions.md) "Photo mode".
 
 ### Back at the same moment after a rebuild (save states)
@@ -1658,7 +1665,7 @@ prompts in the editor, RPC `button_prompts`.
 | `button_prompts_color_<name>` | see Meaning | the icons' colours, `#rrggbb` (saved only when changed): `neutral` `#eeeee8` (every icon outside the colour styles, and the families and buttons without colours of their own), `playstation_triangle` `#40d8a8`, `playstation_circle` `#f06070`, `playstation_cross` `#80b0f0`, `playstation_square` `#e098d8`, `xbox_a` `#70c840`, `xbox_b` `#f04840`, `xbox_x` `#4890f0`, `xbox_y` `#f8c830`, `dim` `#101014` (what a dimmed D-pad arm's colour mixes toward); Graphics > 2D / UI > Prompt colours, RPC `button_prompts {colors}` |
 | `button_prompts_dim_mix` | 0.62 | 0-1: how far a dimmed D-pad arm's colour goes toward `dim` (saved only when changed; RPC `button_prompts {dim_mix}`) |
 | `bind_key_<button>` | see Controls | the key(s) for a PS1 button (`circle`, `cross`, `triangle`, `square`, `l1`, `r1`, `l2`, `r2`, `start`, `select`, `l3`, `r3`, `up`, `down`, `left`, `right`) or for `travel` (fast travel's Travel button: no key by default; it may share a PS1 button's key) or a save state action (`state_save` F5, `state_load` F9, `state_slot_prev` F6, `state_slot_next` F7) or `photo` (the photo mode, F12): one or two names separated by a comma (`a`-`z`, `0`-`9`, `return`, `tab`, `space`, `escape`, `backspace`, arrows `up`..., `lshift`, `lctrl`, `lalt`, ..., `f1`-`f12`, `minus`, `comma`, `period`, `slash`, ...) or `none`; saved only when changed |
-| `bind_pad_<button>` | positional | the gamepad element for a PS1 button, `travel` (`back` by default, shared with Select) or `photo` (`misc1`: the Xbox Share, Switch Capture or PS5 microphone button): `south`, `east`, `west`, `north`, `leftshoulder`, `rightshoulder`, `lefttrigger`, `righttrigger`, `back`, `start`, `guide`, `leftstick`, `rightstick`, `dpup`, `dpdown`, `dpleft`, `dpright`, `misc1`, `paddle1`-`4`, `touchpad` or `none`; saved only when changed |
+| `bind_pad_<button>` | positional | the gamepad element for a PS1 button, `travel` (`back` by default, shared with Select) or `photo` (`back+dpup`: a chord, Back held then D-pad up; any port action may be `modifier+element`): `south`, `east`, `west`, `north`, `leftshoulder`, `rightshoulder`, `lefttrigger`, `righttrigger`, `back`, `start`, `guide`, `leftstick`, `rightstick`, `dpup`, `dpdown`, `dpleft`, `dpright`, `misc1`, `paddle1`-`4`, `touchpad` or `none`; saved only when changed |
 
 The gamepad family comes from SDL (`SDL_GetGamepadType`): PS3/PS4/PS5 show
 PlayStation icons (Start/Select as the PS3's, Options/Share on a PS4,

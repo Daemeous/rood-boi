@@ -8,6 +8,7 @@
 #include "rl_internal.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <exception>
 #ifndef _WIN32
 #include <pthread.h>
@@ -55,6 +56,22 @@ int trampoline(lua_State* L)
     return 0;
 }
 
+/* ROOD_LUA_SLOW_MS=N (diagnostic): every rood call that took longer than N ms is logged, with its name. */
+void slow_call(lua_State* L, double spent)
+{
+    static double limit = [] {
+        const char* env = getenv("ROOD_LUA_SLOW_MS");
+        return env ? atof(env) / 1000.0 : 0.0;
+    }();
+    if (limit <= 0 || spent < limit)
+        return;
+    lua_Debug ar;
+    const char* name = "?";
+    if (lua_getstack(L, 0, &ar) && lua_getinfo(L, "n", &ar) && ar.name)
+        name = ar.name;
+    std::fprintf(stderr, "[lua] %s: slow rood call '%s': %.2f ms\n", plugin_of(L)->id().c_str(), name, spent * 1000);
+}
+
 int traceback(lua_State* L)
 {
     plugin_of(L)->mem.grace = 256 * 1024; /* room for the text when the cap is what failed */
@@ -65,15 +82,62 @@ int traceback(lua_State* L)
     return 1;
 }
 
+/* Tests: a host call made slow (config.slow_call_*): CPU spent, as host work would. */
+void test_slow_call(lua_State* L)
+{
+    if (!config.slow_call_plugin.empty() && plugin_of(L)->id() != config.slow_call_plugin)
+        return;
+    lua_Debug ar;
+    if (!lua_getstack(L, 0, &ar) || !lua_getinfo(L, "n", &ar) || !ar.name || config.slow_call_name != ar.name)
+        return;
+    double until = budget_now() + config.slow_call_ms / 1000.0, wall = now_seconds() + 1;
+    volatile unsigned spin = 0;
+    while (budget_now() < until && now_seconds() < wall)
+        ++spin;
+}
+
+/* Every rood function: the budget checked on the way in; the time inside it is the host's (host_time),
+ * the outermost call's only (a call that runs Lua, a draw callback, times its own calls once). Lua is
+ * built as C++ (its errors are exceptions), so the timer's destructor runs when a call raises too. */
+struct HostTimer {
+    lua_State* L;
+    Plugin* p;
+    bool counted, outer;
+    double start, wall;
+    explicit HostTimer(lua_State* l) : L(l), p(plugin_of(l))
+    {
+        counted = p && p->budget.active;
+        outer = counted && p->budget.host_depth++ == 0;
+        start = outer ? budget_now() : 0;
+        wall = outer ? now_seconds() : 0;
+    }
+    ~HostTimer()
+    {
+        if (!counted || !p->budget.active || p->budget.host_depth <= 0)
+            return;
+        --p->budget.host_depth;
+        if (outer) {
+            double spent = budget_now() - start;
+            host_time(p, spent);
+            if (!std::uncaught_exceptions())
+                slow_call(L, now_seconds() - wall); /* (the wall clock: a call that waits shows too) */
+        }
+    }
+};
 int guarded_call(lua_State* L)
 {
     lua_CFunction f = lua_tocfunction(L, lua_upvalueindex(1));
     check_budget(L);
+    int results;
     try {
-        return f(L);
+        HostTimer timer(L);
+        if (config.slow_call_ms > 0)
+            test_slow_call(L);
+        results = f(L);
     } catch (const std::exception& e) {
         return luaL_error(L, "internal error: %s", e.what());
     }
+    return results;
 }
 
 int locked_newindex(lua_State* L)

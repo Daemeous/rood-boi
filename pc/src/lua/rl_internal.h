@@ -37,14 +37,24 @@ namespace rl {
 /* ---- Tunables: settings plugin_* (lua_plugins.cpp tunables()), RPC lua {action "budget"}, the console ---- */
 struct Config {
     double budget_ms = 4;                   /* one handler, timer or call between plugins */
+    double host_budget_ms = 100;            /* the host's own work inside rood calls, excluded from budget_ms
+                                             * up to this much a call (past it, it counts: a loop of costly
+                                             * calls still stops) */
     long long budget_instructions = 2000000;
     double load_budget_ms = 250;            /* a main chunk, a test step, an eval */
     long long load_budget_instructions = 50000000;
     double memory_mb = 32;                  /* each plugin's cap */
     int fault_limit = 5;                    /* this many faults ... */
     double fault_window_s = 10;             /* ... within this many seconds disable a plugin */
+    double fault_cooldown_s = 20;           /* a shipped plugin disabled by faults loads again after this (0: never) */
+    int fault_revivals = 3;                 /* at most this many revivals (cool-down or its action) in 10 minutes */
     int watch_vsyncs = 30;                  /* hot reload: files checked every N vsyncs (and every 0.5 s of frames) */
     bool elevated = false;                  /* plugins_elevated: elevated capabilities may be granted */
+    /* Tests (RPC lua budget {slow_call: {name, ms}}): every rood function of that name spends `ms` of CPU
+     * on the host's side before it runs (a host call made slow; never in the settings), in `plugin`'s
+     * calls only when given. */
+    std::string slow_call_name, slow_call_plugin;
+    double slow_call_ms = 0;
 };
 extern Config config;
 
@@ -57,7 +67,10 @@ struct Memory {
 };
 struct Budget {
     bool active = false, killed = false;
-    double start = 0, deadline = 0, limit_ms = 0;
+    double start = 0, deadline = 0, limit_ms = 0; /* budget_now() seconds */
+    double wall_start = 0;                        /* now_seconds() at the start (the stats) */
+    double host = 0, host_limit = 0; /* seconds of host work excluded so far, and the most that may be */
+    int host_depth = 0;              /* rood calls in progress (only the outermost one is timed) */
     long long instructions = 0, max_instructions = 0;
 };
 /* CALL: handlers, timers, calls between plugins. LOAD: main chunks. TEST: evals and test
@@ -101,6 +114,12 @@ struct Plugin {
     int depth = 0; /* calls into it in progress */
     std::vector<double> fault_times;
     std::string disable_reason; /* set by fault(): settle() disables it */
+    /* Disabled by faults (settle): revived after fault_cooldown_s when shipped, or at once when the
+     * port's action button it listened to ("input.action": bind_photo) is pressed (revive_due). */
+    bool fault_disabled = false, revive_on_action = false;
+    std::string fault_reason;
+    double disabled_at = 0;
+    std::vector<double> revivals;
     bool reload_requested = false;
     std::vector<int> pending_unrefs; /* registry references freed at its next call */
     std::map<std::string, std::pair<long long, long long>> files; /* hot reload: path -> (mtime ns, size) */
@@ -109,6 +128,7 @@ struct Plugin {
 
 /* ---- lua_limits.cpp ---- */
 double now_seconds(); /* monotonic */
+double budget_now();  /* the budgets' clock: the game thread's CPU time (Windows: monotonic) */
 void* alloc(void* ud, void* ptr, size_t osize, size_t nsize); /* lua_Alloc; ud: the plugin's Memory */
 lua_State* new_state(Plugin* p); /* with p's allocator and p in the extra space; no libraries */
 Plugin* plugin_of(lua_State* L);
@@ -120,6 +140,10 @@ void budget_error(lua_State* L, const Budget& b, const char* where);
 /* At the start of every rood function (and proxy): a call over its budget stops here, so a
  * loop of costly API calls (copies, JSON) overruns by one call, not by RL_HOOK_STEP of them. */
 void check_budget(lua_State* L);
+/* Host work inside a rood call (the API's own C++: drawing, queries, file reads, a font baked, the
+ * renderer asked): `seconds` excluded from the plugin's budget, up to host_budget_ms a call. Every
+ * rood function is timed by guarded_call; the rest (a proxy's callee is its own plugin's) need not. */
+void host_time(Plugin* p, double seconds);
 
 /* ---- lua_value.cpp: values crossing between plugin states ---- */
 struct FunctionRef {
@@ -233,6 +257,7 @@ int emit_to(Plugin* p, const std::string& event, const Value& payload); /* p's h
 void tick_events(unsigned vsync);  /* game time: "tick", game-time timers */
 void frame_events(double dt);      /* real time: "frame", real-time timers */
 void drop_events(const std::string& plugin); /* its handlers and timers */
+bool has_handler(const std::string& plugin, const std::string& event);
 size_t handler_count(const std::string& plugin);
 size_t timer_count(const std::string& plugin);
 double game_clock(); /* seconds of game time (ticks / 59.94) */
@@ -315,6 +340,7 @@ void save_settings_now(); /* pc_settings_save when the game has it (enable, gran
 void remember_files(Plugin* p); /* its code files' (mtime, size) now */
 void poll_files();              /* changed plugins reload at settle(); new folders load; removed ones unload */
 
+void revive_due(const char* action); /* plugins disabled by faults back: an action pressed (or nullptr: cool-downs) */
 void settle();         /* the safe point: disables, reloads, reconcile; nothing when a call is in progress */
 void init();
 bool initialized();

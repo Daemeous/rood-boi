@@ -283,6 +283,14 @@ void drop_events(const std::string& plugin)
         list2.end());
 }
 
+bool has_handler(const std::string& plugin, const std::string& event)
+{
+    for (const Handler& h : handlers())
+        if (h.plugin == plugin && h.event == event)
+            return true;
+    return false;
+}
+
 size_t handler_count(const std::string& plugin)
 {
     return (size_t)std::count_if(handlers().begin(), handlers().end(),

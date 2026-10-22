@@ -12,11 +12,12 @@ input path):
   - F12 (bind_key_photo) enters: held at once (the vsync and the state digest
     kept to the end), the HUD, the game's 2D and the overlay hidden, the input
     and the camera the plugin's, the post values unchanged;
-  - each row of the card by the keyboard's arrows (the d-pad's keys): Format
-    (the format), Filter (a grade's post values), Vignette, Grain,
-    Aberration, Exposure (sliders: a step each), Aperture (depth of field on,
-    the f-stop), Focus (dof_focus), each read back live through rood.post;
-    Square resets a row;
+  - the tabbed card: R1 / L1 (W / Q) and E change the tab; rows by the
+    keyboard's arrows (the d-pad's keys): Lens (depth of field, focus, a
+    dimmed row, the f-stops), Effects (vignette, grain, aberration), Colour
+    (a filter and its strength, exposure; Square resets a row), Frame
+    (format, bars colour, guides), Presets (save, Select resets everything,
+    load), Camera (field of view; R resets the tab), each read back live;
   - the camera: a held key moves the pivot (rood.camera.get), the picture
     changes; Select puts it back;
   - Circle (Z) takes a photo: a PNG in the private photos folder, the
@@ -25,9 +26,16 @@ input path):
     input, post overrides), the post values as before, the state digest the
     held one, and the picture 6 vsyncs on the same as the game draws without
     the session (the camera back);
-  - the pad's photo button (misc1, bind_pad_photo) enters, F12 leaves; Start
-    (the foundation's safety) leaves too;
-  - settings.cfg unchanged; no plugin errors in the log.
+  - D-pad up alone does nothing; the pad's chord (Back held + D-pad up,
+    bind_pad_photo back+dpup) enters, F12 leaves; Start (the foundation's
+    safety) leaves too;
+  - Music keep: the sound driver runs while held (RPC photo audio_vsyncs),
+    the vsync stays; the exact digest checks run with Music stop;
+  - a host call made slow (RPC lua budget slow_call) never counts against the
+    plugin's budget: no faults, no kills;
+  - disabled by faults: F12 brings it back at once, open, with a notice; the
+    cool-down brings it back by itself;
+  - settings.cfg unchanged; no plugin errors in the log (before the faults).
 Deterministic: every wait is on a condition (the paused loop redraws in real
 time); nothing depends on how long a wait took."""
 import argparse
@@ -188,6 +196,9 @@ def run(out, card):
             check(value("rood.game.mode()") == "field", "back in the field")
             g.run(30)
 
+        # Music "stop" for the exact checks below (the state digest held to the byte); "keep" is checked after.
+        value("rood.settings.set('plugin:rood.photo/music', 'stop')")
+
         # ---- the reference: the same vsyncs without the session ----
         before_session = digest()
         g.mark()
@@ -208,48 +219,117 @@ def run(out, card):
         check(value("M.state.active and M.state.row == 1") is True, "the card on its first row")
         check({k: value(f"rood.post.get('{k}')") for k in keys} == post_before, "entering changes no post value")
 
-        # ---- each row ----
-        def row_is(n):
-            until(f"row {n}", lambda: value("M.state.row") == n)
+        # ---- the tabs and their rows ----
+        def at(tab, row):
+            until(f"tab {tab}, row {row}", lambda: value("M.state.tab") == tab and value("M.state.row") == row)
 
-        def right():
+        def goto_row(n):
+            while value("M.state.row") != n:
+                press("down")
+
+        def close(a, b, eps=1e-3):
+            return a is not None and b is not None and abs(a - b) < eps
+
+        press("w")  # R1: the next tab
+        at(2, 1)
+        press("q")  # L1: back
+        at(1, 1)
+        press("e")  # E: the next tab (the keyboard's own)
+        at(2, 1)
+        # Lens: depth of field on, the focus, a dimmed row, the aperture's stops
+        press("right")
+        until("Lens > Depth of field: on", lambda: value("rood.post.get('dof')") is True)
+        press("down"), at(2, 2)
+        focus0 = value("rood.post.get('dof_focus')")
+        press("right")
+        until("Lens > Focus: the next mode", lambda: value("rood.post.get('dof_focus')") not in (None, focus0))
+        if value("rood.post.get('dof_focus')") != "manual":
+            press("down"), at(2, 3)
+            depth0 = value("rood.post.get('dof_focus_depth')")
             press("right")
-
-        right()
-        until("Format: 4:3 (the format, a crop)", lambda: abs(value("rood.post.get('format')") - 4 / 3) < 1e-3)
-        press("down"), row_is(2)
-        right()
-        until("Filter: Noir (its grade's post values)",
-              lambda: value("M.choices(M.rows[2])[M.state.value.filter].label") == "Noir"
+            g.wait_presents(3)
+            check(value("rood.post.get('dof_focus_depth')") == depth0 and value("M.dimmed(M.find('focus_distance'))"),
+                  "Lens > Focus distance: dimmed unless the focus is manual (left / right do nothing)")
+        goto_row(4)
+        if value("rood.post.get('dof_model')") != "physical":
+            press("right")
+            until("Lens > Model: physical", lambda: value("rood.post.get('dof_model')") == "physical")
+        check(value("M.dimmed(M.find('aperture'))") is True, "Blur amount (the artistic model's) dimmed")
+        goto_row(5)
+        stop0 = value("rood.post.get('dof_fstop')")
+        press("right")
+        until("Lens > Aperture: the next f-stop",
+              lambda: (lambda f: f is not None and f > stop0 and f in [1.2, 1.4, 2, 2.8, 4, 5.6, 8, 11, 16, 22])(
+                  value("rood.post.get('dof_fstop')")))
+        check(value("M.value_text(M.find('fstop'))").startswith("f/"), "the aperture shown as an f-number")
+        # Effects: vignette, grain
+        press("w"), at(3, 1)
+        press("right")
+        until("Effects > Vignette: a step up, live", lambda: close(value("rood.post.get('vignette')"), post_before["vignette"] + 0.05))
+        check(value("M.value_text(M.find('vignette'))") == "5%", "shown in per cent")
+        goto_row(5)
+        press("right")
+        until("Effects > Grain: a step up, live", lambda: close(value("rood.post.get('grain')"), post_before["grain"] + 0.05))
+        goto_row(4)
+        press("right")
+        until("Effects > Lens distortion: barrel, live", lambda: close(value("rood.post.get('lens_distortion')"), 0.05))
+        goto_row(8)
+        press("right")
+        until("Effects > Aberration: a step up, live",
+              lambda: close(value("rood.post.get('chromatic_aberration')"), post_before["chromatic_aberration"] + 0.1))
+        # Colour: a filter blended by its strength, exposure, reset of a row
+        press("w"), at(4, 1)
+        press("right")
+        until("Colour > Filter: Noir (its grade's post values)",
+              lambda: value("M.choices(M.find('filter'))[M.state.value.filter].label") == "Noir"
               and value("rood.post.get('saturation')")[3] == 0)
-        press("down"), row_is(3)
-        v_before = value("M.state.value.vignette")
-        right()
-        until("Vignette: a step up, live", lambda: abs(value("rood.post.get('vignette')") - (v_before + 0.05)) < 1e-3)
-        press("down"), row_is(4)
-        right()
-        until("Grain: a step up, live", lambda: abs(value("rood.post.get('grain')") - (post_before["grain"] + 0.05)) < 1e-3)
-        press("down"), row_is(5)
-        right()
-        until("Aberration: a step up, live",
-              lambda: abs(value("rood.post.get('chromatic_aberration')") - (post_before["chromatic_aberration"] + 0.1)) < 1e-3)
-        press("down"), row_is(6)
+        press("down"), at(4, 2)
         press("left")
-        until("Exposure: a step down, live", lambda: abs(value("rood.post.get('exposure')") - (post_before["exposure"] - 0.25)) < 1e-3)
+        until("Colour > Filter strength 95%: the grade blended in",
+              lambda: close(value("rood.post.get('saturation')")[3], post_before["saturation"][3] * 0.05, 1e-2))
+        press("down"), at(4, 3)
+        press("left")
+        until("Colour > Exposure: a step down, live",
+              lambda: close(value("rood.post.get('exposure')"), post_before["exposure"] - 0.25))
+        check(value("M.value_text(M.find('exposure'))") == "-0.25 EV", "shown in EV")
         press("a")  # Square resets the row
-        until("Square resets Exposure", lambda: abs(value("rood.post.get('exposure')") - post_before["exposure"]) < 1e-3
+        until("Square resets Exposure", lambda: close(value("rood.post.get('exposure')"), post_before["exposure"])
               and not value("rood.post.overrides().exposure"))
+        # Frame: the format, its bars, the guides
+        press("w"), at(5, 1)
+        press("right")
+        until("Frame > Format: 4:3 (the format, a crop)", lambda: close(value("rood.post.get('format')"), 4 / 3))
+        press("down")
+        press("right")
+        until("Frame > Bars: white", lambda: value("rood.post.get('format_color')") == 0xFFFFFF)
         press("left")
-        press("down"), row_is(7)
-        start_aperture = value("M.state.value.aperture")
-        right()
-        until("Aperture: depth of field on at the next f-stop",
-              lambda: value("rood.post.get('dof')") is True
-              and abs(value("rood.post.get('dof_fstop')") - value(f"M.apertures[{start_aperture % 10 + 1}]")) < 1e-3)
-        press("down"), row_is(8)
-        right()
-        until("Focus: the screen centre", lambda: value("rood.post.get('dof_focus')") == "centre")
-        press("down"), row_is(1)  # wraps
+        until("Frame > Bars: black again", lambda: value("rood.post.get('format_color')") == 0)
+        press("down")
+        press("right")
+        until("Frame > Guides: thirds", lambda: value("M.state.own.guides") == 2)
+        # Presets: save, everything reset (Select), load
+        press("w"), at(6, 1)
+        press("left")
+        until("Presets: slot 1 saved (plugin storage)",
+              lambda: value("rood.storage.get('presets') and rood.storage.get('presets')[1] ~= nil") is True)
+        press("tab")  # Select: everything reset
+        until("Select: everything reset", lambda: value("next(rood.post.overrides()) == nil") is True
+              and close(value("rood.post.get('vignette')"), post_before["vignette"]))
+        press("right")
+        until("Presets: slot 1 loaded (format, vignette, the filter, the aperture)",
+              lambda: close(value("rood.post.get('format')"), 4 / 3)
+              and close(value("rood.post.get('vignette')"), post_before["vignette"] + 0.05)
+              and value("rood.post.get('saturation')")[3] < 0.2 and value("rood.post.get('dof')") is True)
+        # Camera: the field of view, R (the tab's reset)
+        press("w"), at(1, 1)
+        goto_row(2)
+        fov0 = value("rood.camera.get().fov")
+        press("right")
+        until("Camera > Field of view: a step wider (on the degree grid)",
+              lambda: 0.4 < value("rood.camera.get().fov") - fov0 < 1.6)
+        check("mm" in value("M.value_text(M.find('fov'))"), "shown with its focal length")
+        press("r")  # R: the tab's reset
+        until("R resets the Camera tab", lambda: close(value("rood.camera.get().fov"), fov0, 0.05))
 
         # ---- the camera ----
         pose0 = value("rood.camera.get()")
@@ -290,8 +370,20 @@ def run(out, card):
         check(d_after < 1.0, f"6 vsyncs on: the picture the game draws without the session (the camera back: {d_after:.2f})")
 
         # ---- the pad's button, F12 again, Start ----
-        pad("misc1")
-        until("the pad's photo button (misc1) enters", lambda: value("M.state.active") is True and photo()["input"] == PLUGIN)
+        g.call("system", virtual_pad="dpup", down=True)  # D-pad up alone: the game's, no photo mode
+        g.wait_presents(3)
+        g.call("system", virtual_pad="dpup", down=False)
+        g.wait_presents(6)
+        check(value("M.state.active") is False, "D-pad up alone does not open it")
+        g.call("system", virtual_pad="back", down=True)  # the chord: Select (Back) held, then D-pad up
+        g.wait_presents(2)
+        g.call("system", virtual_pad="dpup", down=True)
+        g.wait_presents(3)
+        g.call("system", virtual_pad="dpup", down=False)
+        g.call("system", virtual_pad="back", down=False)
+        g.wait_presents(3)
+        until("the pad's chord (bind_pad_photo back+dpup) enters",
+              lambda: value("M.state.active") is True and photo()["input"] == PLUGIN)
         press("f12")
         until("F12 leaves", lambda: nothing_held(photo()) and value("M.state.active") is False)
         press("f12")
@@ -302,11 +394,70 @@ def run(out, card):
         check(value("next(rood.post.overrides()) == nil") is True and
               {k: value(f"rood.post.get('{k}')") for k in keys} == post_before, "and the post values as before")
 
+        # ---- Music keep (the default): the sound goes on while the game is held ----
+        value("rood.settings.set('plugin:rood.photo/music', 'keep')")
+        held_keep = digest()
+        press("f12")
+        until("Music keep: the sound driver runs in real time while held",
+              lambda: photo()["audio"] == 2 and photo()["audio_vsyncs"] > 30)
+        g.call("system", key="h", down=True)  # renders meanwhile: each returns to the moment with the sound on
+        g.wait_presents(20)
+        g.call("system", key="h", down=False)
+        kept = digest()
+        check(kept["vsync"] == held_keep["vsync"] and all(kept[k] == held_keep[k] for k in ("scratch", "overlays")),
+              "the game itself still held (the vsync, the overlays; only the sound's RAM moves)")
+        press("f12")
+        until("and it leaves", lambda: nothing_held(photo()) and value("M.state.active") is False)
+        g.run(30)
+        check(g.status()["vsync"] == held_keep["vsync"] + 30, "the game goes on from the moment")
+
+        # ---- a slow host call is the host's: never the plugin's budget ----
+        g.call("lua", action="budget", reset_stats=True, slow_call={"name": "state", "ms": 6, "plugin": PLUGIN})
+        press("f12")
+        until("entered with rood.input.state 6 ms slow on the host's side (every frame)", lambda: value("M.state.active") is True)
+        g.call("system", key="h", down=True)
+        g.wait_presents(60)
+        g.call("system", key="h", down=False)
+        g.wait_presents(4)
+        info = g.lua_plugins()[PLUGIN]
+        check(info.get("state") == "loaded" and info.get("faults") == 0 and info.get("kills") == 0,
+              f"slow host calls: no faults, no kills ({info.get('state')}, {info.get('faults')}, {info.get('kills')})")
+        g.call("lua", action="budget", slow_call={"name": "", "ms": 0})
+        press("f12")
+        until("and it leaves", lambda: nothing_held(photo()) and value("M.state.active") is False)
+
         check(settings.read_text() == settings_before, "settings.cfg unchanged")
         log = (out / "game.log").read_text(errors="replace")
         errors = [line for line in log.splitlines() if "[lua]" in line and PLUGIN in line
                   and ("error" in line or "warn" in line.lower())]
         check(not errors, f"no plugin errors or warnings ({errors[:3]})")
+
+        # ---- disabled by faults: the next press brings it back; so does the cool-down ----
+        def state():
+            return g.lua_plugins().get(PLUGIN, {}).get("state")
+
+        def overrun():
+            # its own Lua made slow: host work counted (host_budget_ms 0), every draw's fit 2 ms
+            g.call("lua", action="budget", host_budget_ms=0, slow_call={"name": "fit", "ms": 2, "plugin": PLUGIN})
+            press("f12")
+            until("over its budget every frame: disabled by the fault policy", lambda: state() == "disabled", 60)
+            g.call("lua", action="budget", host_budget_ms=100, slow_call={"name": "", "ms": 0})
+            until("everything given back by the disable", lambda: nothing_held(photo()))
+
+        overrun()
+        g.wait_presents(10)
+        check(state() == "disabled", "it stays disabled until asked for (cool-down 20 s)")
+        press("f12")
+        until("F12: re-enabled and open at once, with a notice",
+              lambda: state() == "loaded" and value("M.state.active") is True
+              and value("M.state.notice and M.state.notice.text") == value("M.look.recovered_notice"))
+        press("f12")
+        until("F12 leaves", lambda: nothing_held(photo()) and value("M.state.active") is False)
+        g.call("lua", action="budget", fault_cooldown_s=1)
+        overrun()
+        until("the cool-down (1 s) re-enables it by itself", lambda: state() == "loaded", 30)
+        check(value("M.state.active") is False and nothing_held(photo()), "closed after a cool-down revival")
+        g.call("lua", action="budget", fault_cooldown_s=20)
     finally:
         g.close()
     check(settings.read_text() == settings_before, "settings.cfg unchanged after the exit")

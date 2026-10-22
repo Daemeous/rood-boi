@@ -35,10 +35,16 @@ void pc_master_volume_set(int volume)
 {
     __atomic_store_n(&master_volume, volume < 0 ? 0 : volume > 100 ? 100 : volume, __ATOMIC_RELAXED);
 }
+static float duck = 1.0f; /* pc_audio_output_duck */
+void pc_audio_output_duck(float gain)
+{
+    __atomic_store(&duck, &gain, __ATOMIC_RELAXED);
+}
 static float master_target(void)
 {
-    float v = pc_master_volume_get() / 100.0f;
-    return v * v;
+    float v = pc_master_volume_get() / 100.0f, d;
+    __atomic_load(&duck, &d, __ATOMIC_RELAXED);
+    return v * v * (d < 0 ? 0 : d > 1 ? 1 : d);
 }
 /* Scales `count` stereo frames in place; *gain is the stream's current gain
  * (one per consumer thread), moved toward the target per frame. A stream

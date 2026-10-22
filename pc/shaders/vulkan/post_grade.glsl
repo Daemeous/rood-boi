@@ -46,6 +46,8 @@
 #define PG_SHARPEN_GAIN PG(30).x /* post sharpen_gain */
 #define PG_VIGNETTE_GAIN PG(30).y /* post vignette_gain */
 #define PG_SHOULDER PG(30).zw /* post shoulder_start, shoulder_width */
+#define PG_VIGNETTE_ROUND PG(31).x /* post vignette_roundness: 1 a circle, 0 the frame's shape */
+#define PG_DISTORTION PG(31).y /* post lens_distortion: > 0 barrel, < 0 pincushion */
 
 const vec3 PG_LUMA = vec3(0.2126, 0.7152, 0.0722);
 
@@ -178,6 +180,21 @@ float pg_noise(vec2 p, float channel)
 // includer samples it, st_per_uv its direction ((1, 1) Vulkan, (1, -1) OpenGL).
 vec3 pg_pixel(vec4 centre, vec2 uv, vec2 st, vec2 st_per_uv)
 {
+    // Lens distortion: the pixel samples the lit image along its radius (r 1 at the corners, aspect-true),
+    // scaled so the corners stay the corners (barrel) or inside (pincushion). A 2D/UI pixel met there is
+    // left as the lit one around it.
+    if (PG_DISTORTION != 0.0) {
+        vec2 d = (uv - 0.5) * vec2(PG_ASPECT, 1.0);
+        float r2 = dot(d, d) / dot(vec2(PG_ASPECT, 1.0) * 0.5, vec2(PG_ASPECT, 1.0) * 0.5);
+        vec2 uv2 = 0.5 + (uv - 0.5) * (1.0 + PG_DISTORTION * r2) / (1.0 + max(PG_DISTORTION, 0.0));
+        vec2 st2 = st + (uv2 - uv) * st_per_uv;
+        vec4 moved = pg_input(st2);
+        if (moved.a < 9000.0) {
+            centre = moved;
+            uv = uv2;
+            st = st2;
+        }
+    }
     vec3 c = centre.rgb;
     // Sharpen (contrast-adaptive: never past the neighbours' range).
     if (PG_SHARPEN > 0.0) {
@@ -207,8 +224,9 @@ vec3 pg_pixel(vec4 centre, vec2 uv, vec2 st, vec2 st_per_uv)
     if (PG_GRADING)
         lin = max(pg_grade(lin), vec3(0.0));
     if (PG_VIGNETTE > 0.0) {
-        vec2 d = (uv - 0.5) * vec2(PG_ASPECT, 1.0);
-        float r = length(d) / length(vec2(PG_ASPECT, 1.0) * 0.5);
+        vec2 shape = vec2(mix(1.0, PG_ASPECT, PG_VIGNETTE_ROUND), 1.0); // the circle, or the frame's ellipse
+        vec2 d = (uv - 0.5) * shape;
+        float r = length(d) / length(shape * 0.5); // 1 at the corners either way
         float k = r * PG_VIGNETTE * PG_VIGNETTE_GAIN;
         lin *= 1.0 / ((1.0 + k * k) * (1.0 + k * k));
     }

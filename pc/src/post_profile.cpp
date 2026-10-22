@@ -256,6 +256,11 @@ std::vector<Field>& fields()
     add({ "vignette_gain", FLOAT, V1(1.2f), 0.25f, 4, "Lens|Image Effects", "Vignette falloff",
         "How fast the vignette darkens toward the corners for a given intensity (larger: darker, reaching further in).",
         nullptr, nullptr, 0 });
+    add({ "vignette_roundness", FLOAT, V1(1), 0, 1, "Lens|Image Effects", "Vignette roundness",
+        "1: a circle; 0: the frame's own shape (an ellipse as wide as the picture).", nullptr, nullptr, 0 });
+    add({ "lens_distortion", FLOAT, V1(0), -0.5f, 0.5f, "Lens|Image Effects", "Lens distortion",
+        "Above 0: barrel (straight lines bow outward, a wide lens), below 0: pincushion; scaled so the corners stay\n"
+        "in the picture.", nullptr, nullptr, 0 });
     /* Depth fog (the older screen-space fog, by GTE depth). */
     add({ "depth_fog", BOOL, V1(0), 0, 1, "Rendering Features|Depth fog", "Depth fog",
         "A plain fog by view depth (the room's haze and ground fog are in the Atmosphere tab).", nullptr, nullptr, 0 });
@@ -1613,6 +1618,7 @@ extern "C" void pc_post_gpu_pack(pc_post_gpu* out, int lit_w, int lit_h, int vie
     memcpy(g[29], frame.fade_rect, sizeof g[29]);
     g[30][0] = get(v, "sharpen_gain"), g[30][1] = get(v, "vignette_gain");
     g[30][2] = frame.shoulder[0], g[30][3] = frame.shoulder[1];
+    g[31][0] = get(v, "vignette_roundness"), g[31][1] = get(v, "lens_distortion");
 }
 
 /* ------------------------------------------------------------ the convolution kernel */

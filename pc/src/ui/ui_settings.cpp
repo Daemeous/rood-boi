@@ -742,7 +742,8 @@ void build()
     }
     // The photo mode's button (a Lua event: the shipped plugin rood.photo).
     Row photo = base("bind_photo", "Photo mode",
-        "Enters and leaves the photo mode (the Photo mode plugin), in the field and in battle. Circle to change.",
+        "Enters and leaves the photo mode (the Photo mode plugin), in the field and in battle. On a pad: hold Back "
+        "(Select) and press D-pad up (the game never sees it). Circle to change.",
         PC_UI_SET_BINDING);
     photo.arg = PC_BIND_PHOTO;
     photo.why = [](const Row&) { return pc_ui_capture_begin ? nullptr : COMING; };
@@ -1071,6 +1072,12 @@ void binding_text(int button, pc_ui_setting_row* out)
     if (!out->keys[0])
         std::snprintf(out->keys, sizeof out->keys, "None");
     pad_label(pc_bind_pad[button], out->pad, sizeof out->pad);
+    if (pc_bind_pad_mod[button] != PC_PAD_NONE && pc_bind_pad[button] != PC_PAD_NONE) { // a chord
+        char modifier[32];
+        pad_label(pc_bind_pad_mod[button], modifier, sizeof modifier);
+        std::string chord = std::string(modifier) + " + " + out->pad;
+        std::snprintf(out->pad, sizeof out->pad, "%.*s", (int)sizeof out->pad - 1, chord.c_str());
+    }
     std::snprintf(out->value, sizeof out->value, "%s / %s", out->keys, out->pad);
 }
 // "bind_key_<button> a,b" / "none" through the settings parser (a key given
@@ -1670,7 +1677,7 @@ extern "C" int pc_ui_settings_bind(int button, int kind, int code)
             const char* name = pc_pad_element_name(code);
             if (code == PC_PAD_NONE || pc_pad_element_from_name(name) != code)
                 return -2;
-            if (pc_bind_pad[button] == code)
+            if (pc_bind_pad[button] == code && pc_bind_pad_mod[button] == PC_PAD_NONE)
                 return -1;
             std::string key = std::string("bind_pad_") + pc_bind_slot_name(button);
             pc_binding_setting(key.c_str(), name);
