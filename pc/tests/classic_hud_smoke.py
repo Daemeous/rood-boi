@@ -188,19 +188,25 @@ def run(out, card):
                       f"{text} (size {size}): on the screen with its outline ({w['x'] + x0:.1f}..{w['x'] + x1:.1f})")
         g.call("ui_text", style="status", size=1.0)
 
-        # screenshots: rood.classic's and the game's (rood.classic off) at 16:9
-        def more(field, n=2):  # (the frame shown is the one drawn before: a couple more drawn first)
-            start = stats()[field]
-            g.until(lambda: stats()[field] >= start + n, guard=30)
-
+        # Compare the same game frame, not successive frames: the world behind this
+        # unchanged crop (including Ashley and the save-point glow) also animates.
+        # Rewind both paths, then draw enough frames to replace both packet buffers.
         show({"timing": "success", "variant": 5})
         laid_out("WELL TIMED!", lambda w: w["typeset"] != 0)
-        more("drawn")
-        g.present_screenshot(shots / "well_timed_lua.png")
-        g.call("lua", action="enable", plugin="rood.classic", enabled=False)
-        laid_out("WELL TIMED!", lambda w: w["typeset"] == 0)
-        more("fallback")
-        g.present_screenshot(shots / "well_timed_game.png")
+        g.pause()
+        marked = g.mark()["vsync"]
+        for enabled, field, filename in ((True, "drawn", "well_timed_lua.png"),
+                                          (False, "fallback", "well_timed_game.png")):
+            g.rewind()
+            g.call("lua", action="enable", plugin="rood.classic", enabled=enabled)
+            before = stats()[field]
+            g.run(12)
+            word = words().get("WELL TIMED!")
+            check(g.status()["vsync"] == marked + 12 and stats()[field] >= before + 2
+                  and word is not None and word["vsync"] > marked
+                  and bool(word["typeset"]) == enabled,
+                  f"screenshot {filename}: same mark + 12 vsyncs, fresh {field} word")
+            g.present_screenshot(shots / filename)
         g.call("lua", action="enable", plugin="rood.classic", enabled=True)
         laid_out("WELL TIMED!", lambda w: w["typeset"] != 0)
         same = images_equal(shots / "well_timed_lua.png", shots / "well_timed_game.png")

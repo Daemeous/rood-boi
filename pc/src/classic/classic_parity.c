@@ -15,7 +15,7 @@ extern unsigned pc_ui_text_glyph_at(unsigned tpage, unsigned clut, int u0, int v
 extern int pc_hw_anchor_of(const void* packet) __attribute__((weak));
 
 static const char* const KIND_NAMES[PC_CLASSIC_KINDS] = { "", "status", "chain", "buff", "damage", "", "", "",
-    "gauges", "status_panel" }; /* (hud.h's travel, notice, name_window: not the classic layer's) */
+    "gauges", "figure", "status_icons", "battle_mode", "ability_icons", "status_panel" }; /* (hud.h's travel, notice, name_window: not the classic layer's) */
 const char* pc_classic_kind_name(int kind)
 {
     return kind > 0 && kind < PC_CLASSIC_KINDS ? KIND_NAMES[kind] : "";

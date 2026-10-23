@@ -1,12 +1,80 @@
 # The classic HUD and menus drawn in Lua
 
-Status: in progress. Phase 0 done; phase 1 steps 1-3 done, step 4 in part
-(the gauges), 2026-10-20, branch `classic-lua` (see "Progress" below). It
+Status: in progress. Phase 0 done; phase 1's battle-status-panel drawing
+migration is done (2026-10-23, branch `classic-lua-step4`; see "Progress"
+below), with the remaining phase 1 work listed separately. It
 follows `2026-10-18-lua-visible-layer.md` (F1-F3, done),
 `2026-10-18-lua-m1-options.md` (done) and F5 of
 `2026-10-18-freedom-and-fast-iteration.md` (the lint).
 
 ## Progress
+
+2026-10-23 (branch `classic-lua-step4`, from main; no merge or publication):
+
+- **Step 4's remaining drawing, done.** Each element passed the packet and
+  state gates before its default was enabled and before the next element
+  was started. All have zero mismatches, zero skips and no packet waivers.
+  Counts below are from the final canonical-card null-renderer run:
+
+  | Element / HUD kind | Commit | Frames | Scenarios |
+  |---|---|---:|---:|
+  | Ashley's body/damage silhouette / `figure` | `969378ec` | 1,232 | 22 |
+  | Status carousel and indicators / `status_icons` | `9e839185` | 640 | 237 |
+  | BATTLE MODE / `battle_mode` | `2c87e13f` | 139 | 42 |
+  | Ability icons / `ability_icons` | `4e5b322b` | 2,086 | 31 |
+
+  Ability icons have nine ranges per display frame: 18,774 hook comparisons,
+  not 18,774 display frames; the JSON reports distinguish these units.
+  The existing status, chain and gauges remain green (576, 558 and 1,192
+  frames respectively).
+- **Coverage:** both figure stances and every limb-condition boundary;
+  all 32 status icons on/off, clipping, count boundaries and carousel
+  phases; BATTLE MODE entry, exit, pulse and panel slide; ability label
+  availability, every entry index, exit/hidden state and occupied/empty
+  weapon slots. State parity is 120/120 vsyncs per run, including active
+  carousel/pulse at tick speeds 2 and 4 and the ability exit animation.
+  Setting-off, raising-draw and plugin-off fallback/recovery are tested.
+- **Hooks and model:** `5BF94.c` has `ROOD_PC`-only `PC_CLASSIC` ranges in
+  `func_800CA2DC` (figure, carousel, BATTLE MODE) and `func_800C9FE8`
+  (ability groups). Logic, animation and availability decisions stay C;
+  Lua gets copied fields. `pc_weapon_slots_label` remains outside the
+  ranges, called once per ID in the original order, retaining its PC-only
+  weapon names/markers and button-prompt side effects. `_renderTextImmediate`
+  is untouched. The enclosing `status_panel` remains capture-only.
+- **Presentation and primitives:** all four copies use their own Lua look
+  tables. `d.sprite` now allocates/links through `vs_battle_setSprite`
+  (the earlier progress description overstated this); exact BGR, zero-size
+  clipping and inherited texture-page/NOP support preserve the packets.
+  `d.layer("unk8")` resolves the actual slot, including shadow ordering.
+  No additional hand-written primitive was needed. Follow-up look-only
+  commits expose supplemental clipping/indicator geometry (`a17215cc`) and
+  ability availability colours/alpha (`c2847ddb`), each parity-checked.
+- **Defaults on after green:** `hud_classic_figure`,
+  `hud_classic_status_icons`, `hud_classic_battle_mode`,
+  `hud_classic_ability_icons`.
+- **Verification, passed:** 32-bit boot/battle and 64-bit builds passed;
+  CMake probes 67/67; Docker PS1 `make commit-check`: **All files match**.
+  Formatter-only changes were discarded. The requested
+  `run.py classic_parity hud classic` passed 5/5 on GL and 5/5 on Vulkan.
+  The screenshot smoke now compares the same marked frame (`afe72911`),
+  and the HUD bench checks the loaded weapon stance rather than assuming
+  it is sheathed (`284b68db`, corrected model-bit oracle `03459fa0`), without
+  weakening the assertions.
+  Final `verify.sh --changed main -- -j 6` exited 0: **all passed** in
+  4,571 seconds, using the pinned test card. Null: 13/13 passed; Vulkan:
+  149/151 passed, 2 skipped; GL: 148/151 passed, 3 skipped. Skips are the
+  renderer-specific probes and golden frames (no local image references).
+  Logs: `pc/build/step4-final/verify-final.log`, detailed results under
+  `pc/build/verify/`; packet reports under
+  `pc/build/verify/t64null/classic_parity/classic_parity/`.
+  An earlier run using a different play-state fixture was stopped; its
+  failures are superseded by the completed pinned-fixture run. No game data,
+  outputs or player files are committed. Work parked before the deadline.
+- **Still outside this drawing migration:** the dedicated live-fight
+  packet-parity tour for HP changes; step 1's unused remaining primitives;
+  buff/damage, text boxes/name window, actor words/timer/emotes and targeting;
+  per-range typography and the look lint. BATTLE MODE and ability icons
+  from step 7 are now done. The PC-only weapon-slot names/markers remain C.
 
 2026-10-20 (branch `classic-lua`; Extensions.md "The classic look in Lua"):
 

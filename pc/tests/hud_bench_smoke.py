@@ -59,7 +59,7 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Deadline, Game, RpcError, awake, listening  # noqa: E402
+from rood_rpc import OUT, BINARY, Deadline, Game, RpcError, awake, listening, symbols  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import card_guard, default_save  # noqa: E402
 
@@ -445,15 +445,29 @@ def name_window(g, check):
 
 def queries(g, check):
     """rood.game (task 7): Ashley, the room, the mode as the game has them (RPC state)."""
-    st = g.call("state")
-    r = g.lua("local a, r = rood.game.ashley(), rood.game.room() return a.hp, a.max_hp, a.mp, a.max_mp, a.risk,"
-              " a.position.x, a.position.z, #a.statuses, a.battle, r.zone, r.room, r.name, rood.game.mode(),"
-              " rood.game.first_person(), rood.game.ashley() == a")["results"]
-    want = [st["hp"], st["max_hp"], st["mp"], st["max_mp"], st["risk"], st["player"]["x"], st["player"]["z"]]
-    check(r[:7] == want and r[7] == 0 and r[8] is False and r[9:11] == [st["zone"], st["room"]] and r[11]
-          and r[12] == "field" and r[13] is False and r[14] is True,
-          f"rood.game: Ashley, the room, the mode as the game has them ({r}; state {want}, "
-          f"{st['zone']}/{st['room']})")
+    # save_room loads the supplied card; it does not promise a sheathed weapon.
+    # Independent oracle: D_800F4538[0]->unk0.weaponDrawn (3A1A0.h, byte 0x0A bit 7),
+    # not rood.game itself. The array is native pointers even in the LP64 build.
+    pointer = 8 if pathlib.Path(BINARY).read_bytes()[4] == 2 else 4
+    actor_slot = symbols()["D_800F4538"]
+
+    def weapon_drawn():
+        actor = int.from_bytes(g.read(actor_slot, pointer), "little")
+        return bool(g.read(actor + 0x0A, 1)[0] & 0x80)
+
+    def verify():
+        st, battle = g.call("state"), weapon_drawn()
+        mode = "battle" if battle else "field"
+        r = g.lua("local a, r = rood.game.ashley(), rood.game.room() return a.hp, a.max_hp, a.mp, a.max_mp, a.risk,"
+                  " a.position.x, a.position.z, #a.statuses, a.battle, r.zone, r.room, r.name, rood.game.mode(),"
+                  " rood.game.first_person(), rood.game.ashley() == a")["results"]
+        want = [st["hp"], st["max_hp"], st["mp"], st["max_mp"], st["risk"], st["player"]["x"], st["player"]["z"]]
+        check(r[:7] == want and r[7] == 0 and r[8] is battle and r[9:11] == [st["zone"], st["room"]] and r[11]
+              and r[12] == mode and r[13] is False and r[14] is True,
+              f"rood.game: Ashley, room, mode match independent game state ({r}; state {want}, "
+              f"{st['zone']}/{st['room']}, weapon drawn {battle}, mode {mode})")
+
+    verify()
     e = g.lua("rood.game.ashley().hp = 1").get("error") or ""
     check("read-only" in e, f"rood.game's tables are read-only ({e.splitlines()[0] if e else e})")
 

@@ -24,9 +24,9 @@ extern "C" int pc_classic_parity_on(void) __attribute__((weak));
 extern "C" {
 int pc_hud_classic_override;
 // Per kind (hud.h): on for the kinds whose classic Lua draw passes the parity gate
-// (pc/tests/classic_parity.py): the timing word, the chain count, the gauges.
+// (pc/tests/classic_parity.py): the timing word, the chain count, the gauges, Ashley's figure, the status carousel, BATTLE MODE and ability icons.
 int pc_hud_classic_status = 1, pc_hud_classic_chain = 1, pc_hud_classic_buff = 0, pc_hud_classic_damage = 0,
-    pc_hud_classic_gauges = 1;
+    pc_hud_classic_gauges = 1, pc_hud_classic_figure = 1, pc_hud_classic_status_icons = 1, pc_hud_classic_battle_mode = 1, pc_hud_classic_ability_icons = 1;
 int pc_hud_classic_default(int kind)
 {
     switch (kind) {
@@ -35,6 +35,10 @@ int pc_hud_classic_default(int kind)
     case PC_HUD_BUFF: return pc_hud_classic_buff != 0;
     case PC_HUD_DAMAGE: return pc_hud_classic_damage != 0;
     case PC_HUD_GAUGES: return pc_hud_classic_gauges != 0;
+    case PC_HUD_FIGURE: return pc_hud_classic_figure != 0;
+    case PC_HUD_STATUS_ICONS: return pc_hud_classic_status_icons != 0;
+    case PC_HUD_BATTLE_MODE: return pc_hud_classic_battle_mode != 0;
+    case PC_HUD_ABILITY_ICONS: return pc_hud_classic_ability_icons != 0;
     }
     return 0;
 }
@@ -65,7 +69,7 @@ Hold holds[PC_HUD_KINDS];
 #define RESPAWN_VSYNCS 15
 
 const char* const KINDS[PC_HUD_KINDS] = { "", "status", "chain", "buff", "damage", "travel", "notice",
-    "name_window", "gauges" };
+    "name_window", "gauges", "figure", "status_icons", "battle_mode", "ability_icons" };
 const char* const TIMINGS[] = { "too_fast", "fast", "success", "slow", "too_slow" };
 // BATTLE.PRG func_800958A4's words and colours (PS1 BGR, 0x80 full).
 const char* const TIMING_WORDS[] = { "TOO FAST!", "FAST!", "", "SLOW!", "TOO SLOW!" };
@@ -96,8 +100,9 @@ unsigned full(unsigned bgr)
 // one at a time (the game removes the last; one prompt)
 bool single(int kind)
 {
+    // ability_icons deliberately is not single: its nine independently hooked groups have stable keys.
     return kind == PC_HUD_STATUS || kind == PC_HUD_CHAIN || kind == PC_HUD_TRAVEL || kind == PC_HUD_NOTICE
-        || kind == PC_HUD_NAME_WINDOW || kind == PC_HUD_GAUGES;
+        || kind == PC_HUD_NAME_WINDOW || kind == PC_HUD_GAUGES || kind == PC_HUD_FIGURE || kind == PC_HUD_STATUS_ICONS || kind == PC_HUD_BATTLE_MODE;
 }
 
 Appearance appeared[64];
@@ -295,9 +300,9 @@ int word_index(const char* name, const char* (*word)(int), int count)
 
 bool show(int kind, const ShowArgs& args, std::string* error)
 {
-    if (kind <= 0 || kind >= PC_HUD_KINDS || kind == PC_HUD_GAUGES) {
+    if (kind <= 0 || kind >= PC_HUD_KINDS || kind == PC_HUD_GAUGES || kind == PC_HUD_FIGURE || kind == PC_HUD_STATUS_ICONS || kind == PC_HUD_BATTLE_MODE || kind == PC_HUD_ABILITY_ICONS) {
         if (error)
-            *error = kind == PC_HUD_GAUGES ? "the gauges have no show: they are up whenever the field is"
+            *error = (kind == PC_HUD_GAUGES || kind == PC_HUD_FIGURE || kind == PC_HUD_STATUS_ICONS || kind == PC_HUD_BATTLE_MODE || kind == PC_HUD_ABILITY_ICONS) ? "this panel element has no show: the game controls its visibility"
                                            : "no show for that HUD kind (" HUD_KIND_LIST ")";
         return false;
     }
@@ -407,7 +412,7 @@ extern "C" int pc_hud_honoured(int kind)
             return 1; // every kind (the opt-in for draws not yet through the parity gate)
         return claimed_classic(kind) && pc_hud_classic_default(kind); // a classic claim on a kind that passed
     }
-    if (kind == PC_HUD_GAUGES)
+    if (kind == PC_HUD_GAUGES || kind == PC_HUD_FIGURE || kind == PC_HUD_STATUS_ICONS || kind == PC_HUD_BATTLE_MODE || kind == PC_HUD_ABILITY_ICONS)
         return 0; // (the classic look's only: the modern look hides the status display)
     return !pc_overlay_active || pc_overlay_active(); // nobody would draw it otherwise
 }

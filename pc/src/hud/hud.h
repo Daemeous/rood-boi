@@ -34,10 +34,10 @@ extern "C" {
  * state slots': "Saved to slot 3", savestate_notice.cpp); name_window, the action's name in
  * text box 7 (5BF94.c vs_battle_displaySceneMessage: an event, not claimed: the game draws it). */
 enum { PC_HUD_NONE = 0, PC_HUD_STATUS = 1, PC_HUD_CHAIN, PC_HUD_BUFF, PC_HUD_DAMAGE, PC_HUD_TRAVEL, PC_HUD_NOTICE,
-    PC_HUD_NAME_WINDOW, PC_HUD_GAUGES, PC_HUD_KINDS };
+    PC_HUD_NAME_WINDOW, PC_HUD_GAUGES, PC_HUD_FIGURE, PC_HUD_STATUS_ICONS, PC_HUD_BATTLE_MODE, PC_HUD_ABILITY_ICONS, PC_HUD_KINDS };
 /* gauges: the status display's HP / MP / RISK gauges with their digits and labels, or RISK ZERO (5BF94.c
- * func_800CA2DC's _renderStatBar calls: a part of the panel; its figure, status icons, BATTLE MODE and the
- * ability icons stay the game's); the classic look's only (no modern drawing), always up in the field. */
+ * func_800CA2DC's _renderStatBar calls). figure: its five limb sprites, with the game's stance and
+ * condition indices. Both are classic-only (no modern drawing); visibility stays in func_800CA2DC. */
 #define PC_HUD_CLAIMABLE(kind) ((kind) > PC_HUD_NONE && (kind) < PC_HUD_KINDS && (kind) != PC_HUD_NAME_WINDOW)
 #define PC_HUD_TEXT 32
 #define PC_HUD_PART_TEXT 12
@@ -83,6 +83,10 @@ typedef struct {
     int call_x, call_y;   /* status, chain, buff, damage: the place the game's call was given (its hook's x, y:
                            * the timing word at 44, 48 before its slide) */
     int hp, max_hp, mp, max_mp, risk; /* gauges: Ashley's (the HUD record func_800CA2DC draws) */
+    int ability_animation, ability_offset, ability_group, ability_availability;
+    int battle_step, battle_pulse; /* BATTLE MODE: draw-time inputs, before phase advance */
+    int icon_previous, icon_current, icon_next, icon_count, icon_selected, icon_offset;
+    int stance, limb_status[5]; /* figure: stance 0/1, game's limb condition indices (read-only) */
     int slide;            /* gauges: D_800EB9B0, the display's slide up (0x80000 a step; packed into its y) */
     int glyph;            /* travel: the button whose icon it shows (PC_PROMPT_*) */
     int age, life;        /* game frames since it appeared, and when it goes (travel: 0, 0) */
@@ -107,7 +111,7 @@ int pc_hud_record(const pc_hud_fields* f);
  * compared. */
 extern int pc_hud_classic_override;
 extern int pc_hud_classic_status, pc_hud_classic_chain, pc_hud_classic_buff, pc_hud_classic_damage,
-    pc_hud_classic_gauges;
+    pc_hud_classic_gauges, pc_hud_classic_figure, pc_hud_classic_status_icons, pc_hud_classic_battle_mode, pc_hud_classic_ability_icons;
 int pc_hud_classic_default(int kind); /* the kind's hud_classic_<kind> */
 /* Whether claims on `kind` are honoured now (a claim, the look, the overlay drawing). */
 int pc_hud_honoured(int kind);
@@ -170,6 +174,7 @@ typedef struct {
                               * kind's own */
 } pc_hud_classic_cmd;
 #define PC_HUD_LAYER_KIND (-0x7FFF)
+#define PC_HUD_LAYER_UNK8 (-0x7FFE) /* resolve the actual scratchpad OT pointer each draw */
 #define PC_HUD_CLASSIC_COMMANDS 256
 /* lua_api_hud.cpp: the claim on the element just recorded draws in the classic flavour;
  * its commands (in drawing order) in *out, their count, or -1 when it failed (the game

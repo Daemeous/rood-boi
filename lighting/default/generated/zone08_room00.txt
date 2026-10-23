@@ -7,8 +7,13 @@ glow room:3b853ed@1915,-69,-213 pos=1914.7,-69.3,-213.3 fixture_type=T085
 glow room:4e68eea@156,-548,0 pos=156,-548,0 fixture_type=T017
 glow room:eef17ca@2140,-548,0 pos=2140,-548,0 fixture_type=T017
 light gen.window_e011.020e8cc407 name="Window light E011" type=rect pos=1148,-584,1662 dir=0,0,-1 color=1,0.914,0.735 intensity=0.8 radius=700 size=168,528 shadows=1
-light gen.window_e011.04958798a8 name="Window light E011" type=rect pos=1338.6,-720,1594.6 dir=-0.7071,0,-0.7071 color=1,0.956,0.738 intensity=0.8 radius=700 size=79.2,48 shadows=1
-light gen.window_e011.2d685cbe31 name="Window light E011" type=rect pos=957.4,-720,1594.6 dir=0.7071,0,-0.7071 color=1,0.956,0.738 intensity=0.8 radius=700 size=79.2,48 shadows=1
-light gen.window_e011.ab1e4c87dd name="Window light E011" type=rect pos=954.6,-720,1597.4 dir=-0.7071,0,0.7071 color=1,0.956,0.738 intensity=0.8 radius=700 size=79.2,48 shadows=1
-light gen.window_e011.e22598dbad name="Window light E011" type=rect pos=1341.4,-720,1597.4 dir=0.7071,0,0.7071 color=1,0.956,0.738 intensity=0.8 radius=700 size=79.2,48 shadows=1
+light gen.window_e011.662e61fb38 name="Window light E011" type=rect pos=1338.6,-532,1594.6 dir=-0.7071,0,-0.7071 color=1,0.912,0.727 intensity=0.8 radius=700 size=101.8,424 shadows=1
+light gen.window_e011.bf0fa84eb6 name="Window light E011" type=rect pos=954.6,-532,1597.4 dir=-0.7071,0,0.7071 color=1,0.912,0.727 intensity=0.8 radius=700 size=101.8,424 shadows=1
+light gen.window_e011.d7b7b8c848 name="Window light E011" type=rect pos=957.4,-532,1594.6 dir=0.7071,0,-0.7071 color=1,0.912,0.727 intensity=0.8 radius=700 size=101.8,424 shadows=1
 light gen.window_e011.f0fe2ad74d name="Window light E011" type=rect pos=1148,-584,1666 dir=0,0,1 color=1,0.907,0.728 intensity=0.8 radius=700 size=168,528 shadows=1
+light gen.window_e011.ffb1f368ea name="Window light E011" type=rect pos=1341.4,-532,1597.4 dir=0.7071,0,0.7071 color=1,0.912,0.727 intensity=0.8 radius=700 size=101.8,424 shadows=1
+light gen.window_e016.10ae51af56 name="Window light E016" type=rect pos=1196,-1790,-424 color=1,0.916,0.578 intensity=0.2 radius=2000 size=88,176 shadows=1
+light gen.window_e016.33e6b96608 name="Window light E016" type=rect pos=1536,-1790,-256 color=1,0.909,0.562 intensity=0.2 radius=2000 size=96,208 shadows=1
+light gen.window_e016.7a23423d35 name="Window light E016" type=rect pos=728,-1790,-180 color=1,0.911,0.646 intensity=0.2 radius=2000 size=176,360 shadows=1
+light gen.window_e016.814d45feff name="Window light E016" type=rect pos=1524,-1790,88 color=1,0.88,0.576 intensity=0.2 radius=2000 size=280,176 shadows=1
+light gen.window_e016.e6e67fd1b7 name="Window light E016" type=rect pos=852,-1790,292 color=1,0.89,0.625 intensity=0.2 radius=2000 size=280,280 shadows=1

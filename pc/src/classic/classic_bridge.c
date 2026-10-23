@@ -15,6 +15,10 @@
 /* (the hook's site numbers are the classic layer's kinds) */
 typedef char pc_classic_sites_agree[PC_CLASSIC_SITE_GAUGES == PC_CLASSIC_GAUGES
             && PC_CLASSIC_SITE_STATUS_PANEL == PC_CLASSIC_STATUS_PANEL
+            && PC_CLASSIC_SITE_FIGURE == PC_CLASSIC_FIGURE
+            && PC_CLASSIC_SITE_STATUS_ICONS == PC_CLASSIC_STATUS_ICONS
+            && PC_CLASSIC_SITE_BATTLE_MODE == PC_CLASSIC_BATTLE_MODE
+            && PC_CLASSIC_SITE_ABILITY_ICONS == PC_CLASSIC_ABILITY_ICONS
         ? 1
         : -1];
 
@@ -22,6 +26,10 @@ void pc_hud_element(int kind, void* record, int x, int y, void* first, void* end
 void pc_classic_site(int kind, void* record, int x, int y, void* first, void* end);
 int pc_classic_walk_slots(const int* offsets, int count, int with_unk8, int enclosing, const void* first,
     const void* end, pc_classic_packet* out, int max);
+void pc_hud_figure(void* record, int stance, void* first, void* end);
+void pc_hud_status_icons(void* record, void* first, void* end);
+void pc_hud_battle_mode(void* record, void* first, void* end);
+void pc_hud_ability_icons(void* record, void* first, void* end);
 void pc_hud_gauges(void* record, void* first, void* end); /* hud_bridge.c */
 extern unsigned pc_vsync_count(void) __attribute__((weak));
 
@@ -75,6 +83,30 @@ void pc_classic_site(int kind, void* record, int x, int y, void* first, void* en
     if (kind >= PC_CLASSIC_STATUS && kind <= PC_CLASSIC_DAMAGE) {
         pc_hud_element(kind, record, x, y, first, end);
         if (hide) /* (a classic claim's own packets too: allocated after the game's) */
+            pc_classic_suppress(first, psx_get(vs_scratch.unk0));
+        return;
+    }
+    if (kind == PC_CLASSIC_ABILITY_ICONS) {
+        pc_hud_ability_icons(record, first, end);
+        if (hide)
+            pc_classic_suppress(first, psx_get(vs_scratch.unk0));
+        return;
+    }
+    if (kind == PC_CLASSIC_BATTLE_MODE) {
+        pc_hud_battle_mode(record, first, end);
+        if (hide)
+            pc_classic_suppress(first, psx_get(vs_scratch.unk0));
+        return;
+    }
+    if (kind == PC_CLASSIC_STATUS_ICONS) {
+        pc_hud_status_icons(record, first, end);
+        if (hide)
+            pc_classic_suppress(first, psx_get(vs_scratch.unk0));
+        return;
+    }
+    if (kind == PC_CLASSIC_FIGURE) {
+        pc_hud_figure(record, x, first, end);
+        if (hide)
             pc_classic_suppress(first, psx_get(vs_scratch.unk0));
         return;
     }

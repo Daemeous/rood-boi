@@ -6,6 +6,8 @@ actor gen.t035.6605bd6659 name="brazier T035" prefab=brazier pos=892,-276,1408 r
 glow room:0c045ad@1915,-69,1195 pos=1914.7,-69.3,1194.7 fixture_type=T085
 glow room:503d60d@1883,-171,1448 pos=1882.7,-170.7,1448 fixture_type=T101
 glow room:c1fe42d@2136,-427,1760 pos=2136,-426.7,1760 fixture_type=T082
+light gen.window_e011.3f52dfa06a name="Window light E011" type=rect pos=1338.6,-692,3002.6 dir=-0.7071,0,-0.7071 color=1,0.918,0.738 intensity=0.8 radius=700 size=101.8,104 shadows=1
+light gen.window_e011.66bd35b0bf name="Window light E011" type=rect pos=1338.6,-416,3002.6 dir=-0.7071,0,-0.7071 color=1,0.909,0.722 intensity=0.8 radius=700 size=101.8,192 shadows=1
+light gen.window_e011.9a2cc57844 name="Window light E011" type=rect pos=957.4,-692,3002.6 dir=0.7071,0,-0.7071 color=1,0.918,0.738 intensity=0.8 radius=700 size=101.8,104 shadows=1
 light gen.window_e011.c1540ea093 name="Window light E011" type=rect pos=1148,-584,3070 dir=0,0,-1 color=1,0.937,0.79 intensity=0.8 radius=700 size=168,528 shadows=1
-light gen.window_e011.c88a5d2918 name="Window light E011" type=rect pos=957.4,-720,3002.6 dir=0.7071,0,-0.7071 color=1,0.956,0.738 intensity=0.8 radius=700 size=79.2,48 shadows=1
-light gen.window_e011.f1d7cf174e name="Window light E011" type=rect pos=1338.6,-720,3002.6 dir=-0.7071,0,-0.7071 color=1,0.956,0.738 intensity=0.8 radius=700 size=79.2,48 shadows=1
+light gen.window_e011.fd054402a4 name="Window light E011" type=rect pos=957.4,-416,3002.6 dir=0.7071,0,-0.7071 color=1,0.909,0.722 intensity=0.8 radius=700 size=101.8,192 shadows=1

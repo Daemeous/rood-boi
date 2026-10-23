@@ -111,12 +111,316 @@ def tour_gauges(g, check, counters):
     return covered
 
 
+def tour_figure(g, check, counters):
+    """Both stances, every limb condition, mixed conditions, and the game's visibility gates."""
+    import struct
+    symbols = rood_rpc.symbols()
+    at = stats_address(g) - 0x18 + 0x398
+    limbs = [at + i * 0xDC for i in range(5)]
+    saved = [g.read(a, 4) for a in limbs]
+    stance_at = symbols["D_800EB9CC"]
+    stance = g.read(stance_at, 1)
+    covered = []
+    try:
+        for pose in (0, 1):
+            for hp in (0, 1, 2, 24, 25, 74, 75, 99, 100):
+                g.write(stance_at, bytes([pose]))
+                for a in limbs:
+                    g.write(a, struct.pack("<hh", hp, 100))
+                before = counters("figure")["frames"]
+                ok = g.until(lambda: counters("figure")["frames"] >= before + 2, guard=60)
+                check(bool(ok), f"figure stance {pose}, all limbs {hp}/100: compared")
+                e = next(e for e in g.call("hud", action="list")["elements"] if e["kind"] == "figure" and e["live"])
+                condition = 0 if hp < 2 else 1 if hp < 25 else 2 if hp < 75 else 3 if hp < 100 else 4
+                check(e["stance"] == pose and all(e[f"limb_{i}_status"] == condition for i in range(5)),
+                      f"figure stance {pose}, {hp}/100: read-only condition fields {condition}")
+                covered.append({"stance": pose, "hp": [hp] * 5})
+            for i, a in enumerate(limbs):
+                g.write(a, struct.pack("<hh", [1, 24, 50, 99, 100][i], 100))
+            before = counters("figure")["frames"]
+            check(bool(g.until(lambda: counters("figure")["frames"] >= before + 2, guard=60)),
+                  f"figure stance {pose}, mixed conditions: compared")
+            e = next(e for e in g.call("hud", action="list")["elements"] if e["kind"] == "figure" and e["live"])
+            check(e["stance"] == pose and [e[f"limb_{i}_status"] for i in range(5)] == list(range(5)),
+                  f"figure stance {pose}: mixed read-only conditions")
+            covered.append({"stance": pose, "hp": [1, 24, 50, 99, 100]})
+        # Menu slide and lower-screen visibility: no hook while hidden; restored drawing afterwards.
+        for name, hidden in (("D_800EB9AF", 1), ("vs_battle_lowerScreenUiState", 2)):
+            address = symbols[name]
+            original = g.read(address, 1)
+            try:
+                g.write(address, bytes([hidden]))
+                before = counters("figure")["frames"]
+                g.run(12)
+                check(counters("figure")["frames"] == before, f"figure hidden by {name}: no packets")
+                covered.append({"hidden": name})
+            finally:
+                g.write(address, original)
+            before = counters("figure")["frames"]
+            check(bool(g.until(lambda: counters("figure")["frames"] >= before + 2, guard=60)),
+                  f"figure restored after {name}")
+    finally:
+        for a, value in zip(limbs, saved):
+            g.write(a, value)
+        g.write(stance_at, stance)
+    return covered
+
+
+def status_icons_fixture(g, statuses=0x1FFE0, phase=0, current=0, previous=255, next_icon=1):
+    """Guest status bits, not a new spawner: the game still decides carousel transitions."""
+    import struct
+    symbols = rood_rpc.symbols()
+    at = stats_address(g) - 0x18 + 0x948
+    g.write(at, struct.pack("<I", statuses) + b"\xff" * 8)
+    g.write(symbols["D_800EB9D0"], bytes([previous, current, next_icon, phase]))
+
+
+def tour_status_icons(g, check, counters):
+    """Every icon on/off and clipped, both CLUTs, stat glyphs, counts, carousel phases and speeds."""
+    import struct
+    symbols = rood_rpc.symbols()
+    at = stats_address(g) - 0x18 + 0x948
+    saved = [(at, g.read(at, 12))]
+    for name, size in (("D_800EB9D0", 4), ("D_800EB9AE", 1), ("D_800EB9AF", 1),
+                       ("D_800EB9B0", 4), ("vs_gametime_tickspeed", 4)):
+        saved.append((symbols[name], g.read(symbols[name], size)))
+    mapped = struct.unpack("<8H", g.read(symbols["D_800EBC68"], 16))
+    covered = []
+
+    def compared(label, **fields):
+        before = counters("status_icons")["frames"]
+        ok = g.until(lambda: counters("status_icons")["frames"] >= before + 2, step=1, guard=60)
+        check(bool(ok), "status_icons " + label + ": compared")
+        covered.append({"scenario": label, **fields})
+
+    try:
+        for icon in range(32):
+            raw = 1 << (icon + 5) if icon < 16 else next(1 << (i + 21) for i, m in enumerate(mapped) if m & (1 << (icon - 16)))
+            status_icons_fixture(g, raw, current=icon, previous=icon, next_icon=icon)
+            compared(f"icon {icon} on", icon=icon, statuses=raw)
+            e = next(e for e in g.call("hud", action="list")["elements"] if e["kind"] == "status_icons" and e["live"])
+            check(e["current"] == icon, f"status_icons read-only current is icon {icon}")
+            # Each icon exercises its own crop and (for 16..31) supplemental glyph, including zero width.
+            for phase in (9, 11, 12, 15):
+                status_icons_fixture(g, raw, phase=phase, current=icon, previous=icon, next_icon=icon)
+                compared(f"icon {icon} clipped phase {phase}", icon=icon, phase=phase)
+            status_icons_fixture(g, 0)
+            before = counters("status_icons")["frames"]
+            g.run(8)
+            check(counters("status_icons")["frames"] == before, f"status_icons icon {icon} off: no packets")
+            covered.append({"scenario": "off", "icon": icon})
+        for count in (1, 2, 3, 8, 9, 16, 32):
+            raw = ((1 << count) - 1) << 5 if count <= 16 else 0x1FFFFFE0
+            status_icons_fixture(g, raw)
+            compared(f"count {count}", count=count)
+            e = next(e for e in g.call("hud", action="list")["elements"] if e["kind"] == "status_icons" and e["live"])
+            check(e["count"] == count, f"status_icons read-only count is {count}")
+            g.run(64)  # unpinned full carousel lives, not just held phases
+        for speed in (2, 4):
+            g.write(symbols["vs_gametime_tickspeed"], struct.pack("<I", speed))
+            for phase in range(16):
+                status_icons_fixture(g, phase=phase, current=7, previous=6, next_icon=8)
+                compared(f"speed {speed} phase {phase}", speed=speed, phase=phase)
+            check(int.from_bytes(g.read(symbols["vs_gametime_tickspeed"], 4), "little") == speed,
+                  f"status_icons tickspeed {speed} held by game")
+        # Invalidate all three slots, rotate on phase 12, and select the second indicator row.
+        for previous, current, next_icon in ((31, 30, 29), (0, 8, 1), (8, 0, 8)):
+            status_icons_fixture(g, phase=12, previous=previous, current=current, next_icon=next_icon)
+            compared(f"slot removal/rotation {previous}/{current}/{next_icon}")
+        status_icons_fixture(g)
+        for hidden in (1, 0):
+            g.write(symbols["D_800EB9AE"], bytes([hidden]))
+            if hidden:
+                before = counters("status_icons")["frames"]
+                g.run(8)
+                check(counters("status_icons")["frames"] == before, "status_icons disabled: no packets")
+                covered.append({"scenario": "disabled"})
+            else:
+                compared("enabled again")
+        g.write(symbols["D_800EB9AF"], b"\x01")
+        check(bool(g.until(lambda: int.from_bytes(g.read(symbols["D_800EB9B0"], 4), "little") == 0x200000,
+                           step=1, guard=60)), "status_icons slide out")
+        g.write(symbols["D_800EB9AF"], b"\x00")
+        check(bool(g.until(lambda: int.from_bytes(g.read(symbols["D_800EB9B0"], 4), "little") == 0,
+                           step=1, guard=60)), "status_icons slide back")
+        compared("slide out and back")
+    finally:
+        for a, value in saved:
+            g.write(a, value)
+    return covered
+
+
+def battle_mode_fixture(g, mode=1, step=4, phase=0):
+    symbols = rood_rpc.symbols()
+    g.write(symbols["D_800EB9CC"], bytes([mode]))
+    g.write(symbols["D_800EB9CD"], bytes([step]))
+    g.write(symbols["D_800EBD64"], phase.to_bytes(4, "little"))
+
+
+def tour_battle_mode(g, check, counters):
+    """Entry, exit, packed-colour pulse extrema/wrap, and the pre-update panel displacement."""
+    symbols = rood_rpc.symbols()
+    saved = [(symbols[n], g.read(symbols[n], size)) for n, size in
+             (("D_800EB9CC", 1), ("D_800EB9CD", 1), ("D_800EBD64", 4),
+              ("D_800EB9AF", 1), ("D_800EB9B0", 4), ("vs_gametime_tickspeed", 4))]
+    covered = []
+
+    def frame(label, expected_step=None, expected_slide=None, expected_pulse=None):
+        before = counters("battle_mode")["frames"]
+        check(bool(g.until(lambda: counters("battle_mode")["frames"] > before, step=1, guard=60)),
+              "battle_mode " + label + ": compared")
+        e = next(e for e in g.call("hud", action="list")["elements"] if e["kind"] == "battle_mode" and e["live"])
+        check(e["anchor"] == 2, "battle_mode right anchor")
+        for key, value in (("step", expected_step), ("slide", expected_slide), ("pulse", expected_pulse)):
+            if value is not None:
+                check(e[key] == value, f"battle_mode {label}: {key} {e[key]} = {value}")
+        covered.append({"scenario": label, "step": e["step"], "slide": e["slide"], "pulse": e["pulse"]})
+
+    try:
+        g.write(symbols["D_800EB9AF"], b"\x00")
+        g.write(symbols["D_800EB9B0"], bytes(4))
+        for step in range(4):
+            battle_mode_fixture(g, step=step, phase=1024)
+            frame(f"entry {step + 1}", expected_step=step + 1, expected_pulse=0)
+        for step in (4, 3, 2):
+            battle_mode_fixture(g, mode=0, step=step)
+            frame(f"exit {step - 1}", expected_step=step - 1)
+        battle_mode_fixture(g, mode=0, step=1)
+        before = counters("battle_mode")["frames"]
+        g.run(12)
+        check(counters("battle_mode")["frames"] == before, "battle_mode fully hidden: no packets")
+        covered.append({"scenario": "hidden"})
+        for speed in (2, 4):
+            g.write(symbols["vs_gametime_tickspeed"], speed.to_bytes(4, "little"))
+            for phase in (0, 1, 512, 1023, 1024, 1025, 1536, 2047, 2048, 3072, 4095):
+                battle_mode_fixture(g, phase=phase)
+                frame(f"speed {speed} phase {phase}", expected_step=4,
+                      expected_pulse=0 if phase in (0, 2048) else 128 if phase in (1024, 3072) else None)
+            g.run(64)  # an entire unpinned pulse period at each tickspeed
+        for hidden in (1, 0):
+            g.write(symbols["D_800EB9AF"], bytes([hidden]))
+            for slide in ((0, 8, 16, 24, 32) if hidden else (32, 24, 16, 8, 0)):
+                g.write(symbols["D_800EB9B0"], (slide << 16).to_bytes(4, "little"))
+                battle_mode_fixture(g, phase=1024)
+                frame(f"panel {'out' if hidden else 'back'} {slide}", expected_slide=slide << 16)
+        battle_mode_fixture(g, step=0)
+        g.run(40)
+        covered.append({"scenario": "uninterrupted entry and pulse"})
+        battle_mode_fixture(g, mode=0)
+        g.run(20)
+        covered.append({"scenario": "uninterrupted exit"})
+    finally:
+        for at, value in saved:
+            g.write(at, value)
+    return covered
+
+
+def ability_icons_fixture(g, weapon_mode=False):
+    g.call("settings", apply=f"qol_weapon_slots {int(weapon_mode)}")
+    g.call("input", buttons=["l2", "r2"], vsyncs=2000)
+    g.run(24)
+
+
+def bind_test_weapon_slots(g):
+    """Only the launched game's inventory: two occupied slots, the rest empty; caller restores it."""
+    at = rood_rpc.symbols()["vs_main_inventory"]
+    saved = g.read(at, 0x280)
+    data = bytearray(saved)
+    assigned = 0
+    for i in range(8):
+        data[i * 32 + 7] = 0
+        if data[i * 32 + 1] and assigned < 2:
+            assigned += 1
+            data[i * 32 + 7] = assigned
+    g.write(at, data)
+    return at, saved, assigned
+
+
+def tour_ability_icons(g, check, counters):
+    """Nine emit groups, real C eligibility, animation, and weapon-slot side effects."""
+    symbols = rood_rpc.symbols()
+    actions = symbols["vs_main_actions"]
+    saved_actions = g.read(actions, 256 * 52)
+    mp_at = stats_address(g) + 4
+    old_mp = g.read(mp_at, 2)
+    status_at = stats_address(g) - 0x18 + 0x948
+    old_status = g.read(status_at, 12)
+    inventory_at, old_inventory, assigned = bind_test_weapon_slots(g)
+    check(assigned > 0, "ability_icons occupied weapon-slot fixture")
+    covered, seen_availability = [], set()
+
+    def compared(label):
+        before = counters("ability_icons")["frames"]
+        check(bool(g.until(lambda: counters("ability_icons")["frames"] >= before + 9, step=1, guard=60)),
+              "ability_icons " + label + ": nine groups compared")
+        elements = [e for e in g.call("hud", action="list")["elements"] if e["kind"] == "ability_icons" and e["live"]]
+        check({e["group"] for e in elements} == set(range(9)), "ability_icons all group keys live")
+        check(all(e["anchor"] == 0 for e in elements), "ability_icons centre anchored")
+        seen_availability.update(e["availability"] for e in elements if e["group"] != 8)
+        covered.append({"scenario": label, "groups": [{k: e[k] for k in ("group", "availability", "animation", "offset")} for e in elements]})
+        return elements
+
+    try:
+        for unlocked in (False, True):
+            buf = bytearray(saved_actions)
+            for i in range(256):
+                buf[i * 52 + 13] = (buf[i * 52 + 13] & 127) | (128 if unlocked else 0)
+            g.write(actions, buf)
+            ability_icons_fixture(g)
+            for mp in (0, 50):
+                g.write(mp_at, mp.to_bytes(2, "little"))
+                compared(f"unlocked {unlocked}, MP {mp}")
+            if unlocked:
+                g.write(status_at, (1 << 13).to_bytes(4, "little") + b"\xff" * 8)
+                elements = compared("Ward disables Break Arts")
+                check(next(e for e in elements if e["group"] == 7)["availability"] == 0x140,
+                      "ability_icons disabled Break Arts from C")
+                g.write(status_at, old_status)
+            for index in range(1, 11):
+                g.write(symbols["D_800EBCE8"], index.to_bytes(1, "little"))
+                elements = compared(f"unlocked {unlocked}, entry animation {index - 1}")
+                check(all(e["animation"] == index - 1 for e in elements), "ability_icons exact entry index")
+            g.call("input", buttons=[], vsyncs=1)
+            before = counters("ability_icons")["frames"]
+            check(bool(g.until(lambda: g.read(symbols["D_800EBCE8"], 1) == b"\x0a", step=1, guard=90)),
+                  "ability_icons animated hide completed")
+            check(counters("ability_icons")["frames"] > before, "ability_icons hide frames compared")
+            before = counters("ability_icons")["frames"]
+            g.run(12)
+            check(counters("ability_icons")["frames"] == before, "ability_icons hidden: no hook")
+            covered.append({"scenario": f"unlocked {unlocked}, hide and hidden"})
+        check({0, 0x140, 0x180} <= seen_availability,
+              f"ability_icons locked/disabled/enabled observed: {sorted(seen_availability)}")
+        g.write(actions, saved_actions)
+        for mode in (False, True):
+            ability_icons_fixture(g, mode)
+            ws = g.call("weapon_slots")
+            check(ws["overlay"] == int(mode) and ws["field_mode"] == 6,
+                  f"ability_icons real weapon mode {mode}: overlay {ws['overlay']}, field {ws['field_mode']}")
+            elements = compared(f"weapon-slot mode {mode}")
+            if mode:
+                check(all(e["availability"] == 0 for e in elements), "weapon mode C labels return zero; their packets are retained")
+            g.call("input", buttons=[], vsyncs=1)
+            g.run(40)
+            covered.append({"scenario": f"weapon-slot mode {mode} exit"})
+    finally:
+        g.call("input", buttons=[], vsyncs=1)
+        g.run(40)
+        g.call("settings", apply="qol_weapon_slots 0")
+        g.write(actions, saved_actions)
+        g.write(mp_at, old_mp)
+        g.write(status_at, old_status)
+        g.write(inventory_at, old_inventory)
+    return covered
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--card", default=str(default_save()))
     parser.add_argument("--out", help="logs and reports (default pc/build/tests/classic_parity)")
     parser.add_argument("--renderer", choices=["null", "gl", "vulkan"], default="null")
-    parser.add_argument("--kind", default="status,chain,gauges", help="the kinds to check (comma-separated)")
+    parser.add_argument("--kind", default="status,chain,gauges,figure,status_icons,battle_mode,ability_icons", help="the kinds to check (comma-separated)")
+    parser.add_argument("--candidate", action="store_true", help="explicitly opt in ability_icons before its default is gated")
     args = parser.parse_args()
     if not pathlib.Path(args.card).exists():
         print("SKIP: no memory card", args.card)
@@ -124,10 +428,10 @@ def main():
     out = pathlib.Path(args.out) if args.out else OUT / "classic_parity"
     out.mkdir(parents=True, exist_ok=True)
     with card_guard(out / "cards", source=args.card) as cards:
-        return run(out, cards.card1, args.renderer, [k for k in args.kind.split(",") if k])
+        return run(out, cards.card1, args.renderer, [k for k in args.kind.split(",") if k], args.candidate)
 
 
-def run(out, card, renderer, kinds):
+def run(out, card, renderer, kinds, candidate=False):
     failures = []
 
     def check(ok, message):
@@ -156,6 +460,8 @@ def run(out, card, renderer, kinds):
         plugin = g.lua_plugins().get("rood.classic")
         if not check(plugin and plugin.get("state") == "loaded", f"rood.classic loaded ({plugin and plugin.get('state')})"):
             return 1
+        if candidate:
+            g.call("settings", apply="hud_classic_ability_icons 1")
         g.call("classic", parity=True, reset=True)
         check(g.call("classic")["parity"], "the parity mode is on")
 
@@ -176,6 +482,14 @@ def run(out, card, renderer, kinds):
             ages = set()
             if kind == "gauges":
                 covered = tour_gauges(g, check, counters)
+            elif kind == "figure":
+                covered = tour_figure(g, check, counters)
+            elif kind == "status_icons":
+                covered = tour_status_icons(g, check, counters)
+            elif kind == "battle_mode":
+                covered = tour_battle_mode(g, check, counters)
+            elif kind == "ability_icons":
+                covered = tour_ability_icons(g, check, counters)
             for show, text in states(kind):
                 # held (rood.dev.show: the game's own spawner, the age pinned) until the gate compared two of
                 # its frames showing this element's text
@@ -220,16 +534,39 @@ def run(out, card, renderer, kinds):
                              "first": c.get("first"), "waived": {k: v for k, v in waived.items()},
                              "declared": names, "coverage": covered, "states": len(covered),
                              "green": c["frames"] > 0 and c["skipped"] == 0 and not unwaived}
+            if kind == "ability_icons":
+                reports[kind]["capture_unit"] = "group (nine per display frame)"
+                reports[kind]["display_frames"] = c["frames"] // 9
         g.call("classic", parity=False)
         check(not g.call("classic")["parity"], "the parity mode is off")
 
+        ability_icons_fixture(g)
+        battle_mode_fixture(g)  # active phase for fallback and both same-mark state proofs
+        status_icons_fixture(g)  # an active carousel for fallback and the same-mark state proof
         for kind in kinds:
             default_and_fallback(g, kind, check)
         state_parity(g, check)
+        # The doubled tick path and supplemental-glyph carousel get the same state proof too.
+        speed_at = rood_rpc.symbols()["vs_gametime_tickspeed"]
+        old_speed = g.read(speed_at, 4)
+        inventory_at, old_inventory, assigned = bind_test_weapon_slots(g)
+        check(assigned > 0, "state parity weapon-slot names fixture occupied")
+        try:
+            g.write(speed_at, (4).to_bytes(4, "little"))
+            status_icons_fixture(g, 0x1FE00000, phase=12, previous=16, current=17, next_icon=18)
+            ability_icons_fixture(g, weapon_mode=True)
+            state_parity(g, check)
+            ability_icons_fixture(g, weapon_mode=True)
+            state_parity(g, check, ability_hold=False)  # actual animation out, including C weapon-slot side effects
+        finally:
+            g.write(speed_at, old_speed)
+            g.write(inventory_at, old_inventory)
         report_dir = out
         for kind, report in reports.items():
             (report_dir / f"{kind}.json").write_text(json.dumps(report, indent=1))
-            print(f"report: {report_dir / (kind + '.json')}: {report['frames']} frames, {report['states']} states, "
+            measured = (f"{report['frames']} hook comparisons / {report['display_frames']} display frames"
+                        if kind == "ability_icons" else f"{report['frames']} frames")
+            print(f"report: {report_dir / (kind + '.json')}: {measured}, {report['states']} states, "
                   f"{'green' if report['green'] else 'RED'}")
     finally:
         g.close()
@@ -296,7 +633,7 @@ def default_and_fallback(g, kind, check):
     g.call("hud", action="clear")
 
 
-def state_parity(g, check, ticks=120):
+def state_parity(g, check, ticks=120, ability_hold=True):
     """§3.4: SLOW! held (and the gauges up), from one mark: rood.classic drawing them, then the game; every
     vsync's state
     (guest memory, the native game state, VRAM) the same but for the packets (the primitive buffers,
@@ -317,18 +654,44 @@ def state_parity(g, check, ticks=120):
     g.pause()
     g.mark()
     g.rewind()
+    g.call("input", buttons=["l2", "r2"] if ability_hold else [], vsyncs=ticks + 20)
     g.digest("record", ticks=ticks, masks=masks)
     lua_drawn = g.call("hud", action="stats")["kinds"]["status"]["drawn"]
+    figure_drawn = g.call("hud", action="stats")["kinds"]["figure"]["drawn"]
+    icons_drawn = g.call("hud", action="stats")["kinds"]["status_icons"]["drawn"]
+    battle_drawn = g.call("hud", action="stats")["kinds"]["battle_mode"]["drawn"]
+    ability_drawn = g.call("hud", action="stats")["kinds"]["ability_icons"]["drawn"]
     g.until(lambda: g.digest("result")["recorded"] >= ticks, guard=120, what="the digest recorded")
     lua_drawn = g.call("hud", action="stats")["kinds"]["status"]["drawn"] - lua_drawn
+    figure_drawn = g.call("hud", action="stats")["kinds"]["figure"]["drawn"] - figure_drawn
+    icons_drawn = g.call("hud", action="stats")["kinds"]["status_icons"]["drawn"] - icons_drawn
+    battle_drawn = g.call("hud", action="stats")["kinds"]["battle_mode"]["drawn"] - battle_drawn
+    ability_drawn = g.call("hud", action="stats")["kinds"]["ability_icons"]["drawn"] - ability_drawn
     g.rewind()
-    g.call("settings", apply=["hud_classic_status 0", "hud_classic_chain 0", "hud_classic_gauges 0"])
+    g.call("settings", apply=["hud_classic_status 0", "hud_classic_chain 0", "hud_classic_gauges 0", "hud_classic_figure 0", "hud_classic_status_icons 0", "hud_classic_battle_mode 0", "hud_classic_ability_icons 0"])
     fallback = g.call("hud", action="stats")["kinds"]["status"]["fallback"]
+    figure_fallback = g.call("hud", action="stats")["kinds"]["figure"]["fallback"]
+    icons_fallback = g.call("hud", action="stats")["kinds"]["status_icons"]["fallback"]
+    battle_fallback = g.call("hud", action="stats")["kinds"]["battle_mode"]["fallback"]
+    ability_fallback = g.call("hud", action="stats")["kinds"]["ability_icons"]["fallback"]
+    g.call("input", buttons=["l2", "r2"] if ability_hold else [], vsyncs=ticks + 20)
     g.digest("compare")
     g.until(lambda: g.digest("result")["ticks"] >= ticks, guard=120, what="the digest compared")
     result = g.digest("result")
     fallback = g.call("hud", action="stats")["kinds"]["status"]["fallback"] - fallback
-    g.call("settings", apply=["hud_classic_status 1", "hud_classic_chain 1", "hud_classic_gauges 1"])
+    figure_fallback = g.call("hud", action="stats")["kinds"]["figure"]["fallback"] - figure_fallback
+    icons_fallback = g.call("hud", action="stats")["kinds"]["status_icons"]["fallback"] - icons_fallback
+    battle_fallback = g.call("hud", action="stats")["kinds"]["battle_mode"]["fallback"] - battle_fallback
+    ability_fallback = g.call("hud", action="stats")["kinds"]["ability_icons"]["fallback"] - ability_fallback
+    check(ability_drawn == ability_fallback and ability_drawn >= (ticks * 9 // 4 if ability_hold else 9),
+          f"state parity ability_icons: Lua drew {ability_drawn} groups, game drew {ability_fallback}")
+    check(battle_drawn > 0 and battle_fallback > 0,
+          f"state parity battle_mode: Lua drew {battle_drawn} frames, game drew {battle_fallback}")
+    check(icons_drawn > 0 and icons_fallback > 0,
+          f"state parity status_icons: Lua drew {icons_drawn} frames, game drew {icons_fallback}")
+    check(figure_drawn > 0 and figure_fallback > 0,
+          f"state parity figure: Lua drew {figure_drawn} frames, game drew {figure_fallback}")
+    g.call("settings", apply=["hud_classic_status 1", "hud_classic_chain 1", "hud_classic_gauges 1", "hud_classic_figure 1", "hud_classic_status_icons 1", "hud_classic_battle_mode 1", "hud_classic_ability_icons 1"])
     g.call("hud", action="clear")
     check(lua_drawn > 0 and fallback > 0 and result.get("error") == 0 and result.get("first_tick") == -1
           and result.get("ticks") == result.get("recorded"),

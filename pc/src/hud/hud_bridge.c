@@ -37,6 +37,7 @@
 #include "../widescreen.h"
 #include "../ui/vs_encode.h"
 #include "../classic/classic_parity.h"
+#include "../classic/classic_hook.h"
 #include "hud.h"
 
 
@@ -66,11 +67,13 @@ void _renderDigit(int font, int xy, int digit, u_long* before); /* 5BF94.c */
  * words and the chain count -16 (func_800958A4, func_80095A4C), a buff +8 (func_8009695C), a number -20
  * (func_80094B0C), the gauges -12 (their bars, labels and separators; their digits -16). A classic draw
  * links its packets there too, unless it names another (d.layer). */
-static const int kind_slot[PC_HUD_GAUGES + 1] = { 0, -16, -16, 8, -20, 0, 0, 0, -12 };
+static const int kind_slot[PC_HUD_KINDS] = { 0, -16, -16, 8, -20, 0, 0, 0, -12, -4, -4, -12, PC_HUD_LAYER_UNK8 };
 static const int gauge_slots[2] = { -12, -16 };
 /* (the classic layer's kinds are the HUD layer's, by number) */
 typedef char pc_hud_classic_kinds_agree[PC_CLASSIC_STATUS == PC_HUD_STATUS && PC_CLASSIC_CHAIN == PC_HUD_CHAIN
             && PC_CLASSIC_BUFF == PC_HUD_BUFF && PC_CLASSIC_DAMAGE == PC_HUD_DAMAGE && PC_CLASSIC_GAUGES == PC_HUD_GAUGES
+            && PC_CLASSIC_FIGURE == PC_HUD_FIGURE && PC_CLASSIC_STATUS_ICONS == PC_HUD_STATUS_ICONS
+            && PC_CLASSIC_BATTLE_MODE == PC_HUD_BATTLE_MODE && PC_CLASSIC_ABILITY_ICONS == PC_HUD_ABILITY_ICONS
         ? 1
         : -1];
 
@@ -262,7 +265,10 @@ static struct {
 static int shadow_count, shadowing;
 static int slot_offset(int kind, int layer)
 {
-    return layer != PC_HUD_LAYER_KIND ? layer : kind_slot[kind >= 1 && kind <= PC_HUD_GAUGES ? kind : 1];
+    int slot = layer != PC_HUD_LAYER_KIND ? layer : kind_slot[kind >= 1 && kind < PC_HUD_KINDS ? kind : 1];
+    /* Resolve before shadow lookup/sort: aliases coalesce and real OT order is preserved. */
+    return slot == PC_HUD_LAYER_UNK8
+        ? (int)((char*)psx_get(vs_scratch.unk8) - (char*)psx_get(vs_scratch.unk4)) : slot;
 }
 static u_long* slot_for(int kind, int layer)
 {
@@ -326,7 +332,7 @@ static int classic_finish(int kind, pc_hud_fields* f, void* first, void* end, co
     int amount;
     if (pc_classic_capturing()) { /* (RPC packets, the parity gate) */
         static pc_classic_packet game[PC_CLASSIC_CAPTURE], scanned[PC_CLASSIC_CAPTURE];
-        int count = pc_classic_walk_slots(slots, nslots, 0, enclosing, first, end, game, PC_CLASSIC_CAPTURE);
+        int count = pc_classic_walk_slots(slots, nslots, kind == PC_HUD_ABILITY_ICONS, enclosing, first, end, game, PC_CLASSIC_CAPTURE);
         pc_classic_capture_game(kind, game, count, pc_vsync_count ? pc_vsync_count() : 0, f->text);
         pc_classic_walker guest = pc_classic_guest();
         pc_classic_capture_allocated(kind, pc_classic_scan(&guest, first, end, scanned, PC_CLASSIC_CAPTURE));
@@ -371,6 +377,76 @@ void pc_hud_gauges(void* record, void* first, void* end)
     f.rgb = 0xFFFFFF;
     f.anchor = PC_HUD_ANCHOR_LEFT;
     classic_finish(PC_HUD_GAUGES, &f, first, end, gauge_slots, 2, 1 /* the panel's left edge, 146C.c */);
+}
+
+/* Each group excludes pc_weapon_slots_label's own packets/side effects. Nine stable keys. */
+void pc_hud_ability_icons(void* record, void* first, void* end)
+{
+    static pc_hud_fields fields[9];
+    const pc_classic_ability_icons* icons = record;
+    pc_hud_fields* f = &fields[icons->group];
+    *f = (pc_hud_fields) { 0 };
+    f->kind = PC_HUD_ABILITY_ICONS;
+    f->key = f;
+    f->ability_animation = icons->animation;
+    f->ability_offset = icons->offset;
+    f->ability_group = icons->group;
+    f->ability_availability = icons->availability;
+    f->anchor = PC_HUD_ANCHOR_CENTRE;
+    classic_finish(PC_HUD_ABILITY_ICONS, f, first, end, NULL, 0, 0);
+}
+
+void pc_hud_battle_mode(void* record, void* first, void* end)
+{
+    static pc_hud_fields f;
+    static const int slots[] = { -12 };
+    const pc_classic_battle_mode* notice = record;
+    f = (pc_hud_fields) { 0 };
+    f.kind = PC_HUD_BATTLE_MODE;
+    f.key = &f;
+    f.battle_step = notice->step;
+    f.battle_pulse = notice->pulse;
+    f.slide = notice->slide;
+    f.anchor = PC_HUD_ANCHOR_RIGHT;
+    classic_finish(PC_HUD_BATTLE_MODE, &f, first, end, slots, 1, 2);
+}
+
+/* A copy of the carousel's already-stepped inputs: no writes or decisions here. */
+void pc_hud_status_icons(void* record, void* first, void* end)
+{
+    static pc_hud_fields f;
+    static const int slots[] = { -4, -8 };
+    const pc_classic_status_icons* icons = record;
+    f = (pc_hud_fields) { 0 };
+    f.kind = PC_HUD_STATUS_ICONS;
+    f.key = &f;
+    f.icon_previous = icons->previous;
+    f.icon_current = icons->current;
+    f.icon_next = icons->next;
+    f.icon_count = icons->count;
+    f.icon_selected = icons->selected;
+    f.icon_offset = icons->offset;
+    f.slide = icons->slide;
+    f.anchor = PC_HUD_ANCHOR_LEFT;
+    classic_finish(PC_HUD_STATUS_ICONS, &f, first, end, slots, 2, 1);
+}
+
+/* The figure's visibility and limb-condition decisions stay in the game. */
+void pc_hud_figure(void* record, int stance, void* first, void* end)
+{
+    static pc_hud_fields f;
+    static const int slots[] = { -4 };
+    vs_battle_actor2* actor = record;
+    if (!actor || first == end)
+        return;
+    f = (pc_hud_fields) { 0 };
+    f.kind = PC_HUD_FIGURE;
+    f.key = &f;
+    f.stance = stance;
+    for (int i = 0; i < 5; ++i)
+        f.limb_status[i] = vs_battle_getLimbStatus(&actor->limbs[i]);
+    f.anchor = PC_HUD_ANCHOR_LEFT;
+    classic_finish(PC_HUD_FIGURE, &f, first, end, slots, 1, 1);
 }
 
 void pc_hud_element(int kind, void* record, int x, int y, void* first, void* end)
@@ -723,15 +799,15 @@ int pc_hud_classic_glyph(int button) { return button >= 0 && button < 8 ? 16 : 0
 
 /* A sprite as the game's (pc_sprite_packet): its page word (semi-transparent: the page's blending), its
  * colour and command word (returned), place, texels and CLUT, size. */
+extern u_long* vs_battle_setSprite(int brightness, int xy, int wh, u_long* ot);
 static u_long* sprite(u_long* ot, int x, int y, int w, int h, u_long page, u_long uv_clut, unsigned rgb, float alpha)
 {
-    u_long* p = packet(ot, 5);
-    p[0] = 0xE1000000 | page;
-    p[1] = modulate(rgb) | ((u_long)(semi(alpha) ? 0x66 : 0x64) << 24);
-    p[2] = xy(x, y);
-    p[3] = uv_clut;
-    p[4] = xy(w, h);
-    return p + 1;
+    /* Allocate and link through the game's sprite routine, not a parallel packet writer. */
+    u_long* p = vs_battle_setSprite(semi(alpha) ? 0x180 : 0x80, xy(x, y), xy(w, h), ot);
+    p[1] = 0xE1000000 | page;
+    p[2] = modulate(rgb) | (p[2] & 0xFF000000);
+    p[4] = uv_clut;
+    return p + 2;
 }
 
 static void text_packets(u_long* ot, const pc_hud_classic_cmd* c)
@@ -916,10 +992,16 @@ static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor, i
                     (u_long)button_cells[c->a][0] | ((u_long)(128 + button_cells[c->a][1]) << 8) | 0x37FB0000u, c->color,
                     c->alpha);
             break;
-        case PC_HUD_CMD_SPRITE:
-            sprite(ot, c->x, c->y, c->w, c->h, (u_long)c->a, (u_long)(c->c & 255) | ((u_long)(c->d & 255) << 8)
+        case PC_HUD_CMD_SPRITE: {
+            u_long* color = sprite(ot, c->x, c->y, c->w, c->h, (u_long)c->a,
+                (u_long)(c->c & 255) | ((u_long)(c->d & 255) << 8)
                 | ((u_long)(c->b & 0xFFFF) << 16), c->color, c->alpha);
+            if (c->align) /* descriptor.set_page=false: game's setSprite leaves a NOP, inheriting the page */
+                color[-1] = 0;
+            if (c->font) /* descriptor.bgr: exact GPU modulation, not RGB UI colour */
+                *color = (*color & 0xFF000000) | c->color;
             break;
+        }
         case PC_HUD_CMD_WINDOW:
             window_packets(ot, c);
             break;

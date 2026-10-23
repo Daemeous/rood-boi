@@ -662,7 +662,7 @@ int api_sprite(lua_State* L)
     int px = int_field(L, 3, "page_x", 0, 1023, fn), py = int_field(L, 3, "page_y", 0, 256, fn);
     int bits = int_field(L, 3, "bits", 4, 15, fn);
     int u = int_field(L, 3, "u", 0, 255, fn), v = int_field(L, 3, "v", 0, 255, fn);
-    int w = int_field(L, 3, "w", 1, 256, fn), h = int_field(L, 3, "h", 1, 256, fn);
+    int w = int_field(L, 3, "w", 0, 256, fn), h = int_field(L, 3, "h", 0, 256, fn);
     int cx = 0, cy = 0;
     if (bits != 15)
         cx = int_field(L, 3, "clut_x", 0, 1023, fn), cy = int_field(L, 3, "clut_y", 0, 511, fn);
@@ -673,12 +673,24 @@ int api_sprite(lua_State* L)
     optional_colour(L, 4, &colour, fn);
     float alpha = optional_alpha(L, 5, 1);
     need_classic(L, fn);
+    lua_getfield(L, 3, "bgr");
+    bool raw = !lua_isnil(L, -1);
+    lua_pop(L, 1);
+    if (raw)
+        colour = (unsigned)int_field(L, 3, "bgr", 0, 0xFFFFFF, fn);
+    lua_getfield(L, 3, "set_page");
+    if (!lua_isnil(L, -1) && !lua_isboolean(L, -1))
+        return luaL_error(L, "%s: set_page must be boolean", fn);
+    bool inherit_page = lua_isboolean(L, -1) && !lua_toboolean(L, -1);
+    lua_pop(L, 1);
     pc_hud_classic_cmd* k = next_classic(PC_HUD_CMD_SPRITE);
     if (k) {
         k->x = pixel(x), k->y = pixel(y), k->w = w, k->h = h;
         k->a = (px / 64) | (py / 256) << 4 | (bits == 4 ? 0 : bits == 8 ? 1 : 2) << 7; // the page word (GP0 E1)
         k->b = (cx / 16) | cy << 6;                                                     // the CLUT word
         k->c = u, k->d = v;
+        k->font = raw;
+        k->align = inherit_page;
         k->color = colour, k->alpha = alpha;
     }
     lua_pushboolean(L, k != nullptr);
@@ -882,7 +894,11 @@ int api_layer(lua_State* L)
 {
     const char* fn = "rood.draw.layer";
     int layer = PC_HUD_LAYER_KIND;
-    if (!lua_isnoneornil(L, 1)) {
+    if (lua_type(L, 1) == LUA_TSTRING) {
+        if (strcmp(lua_tostring(L, 1), "unk8"))
+            return luaL_error(L, "%s: the named slot is 'unk8'", fn);
+        layer = PC_HUD_LAYER_UNK8;
+    } else if (!lua_isnoneornil(L, 1)) {
         lua_Integer v = luaL_checkinteger(L, 1);
         if (v < -64 || v > 64 || v % 4)
             return luaL_error(L, "%s: a slot is -64..64 bytes from vs_scratch.unk4, a multiple of 4", fn);
@@ -1033,8 +1049,8 @@ int api_claim(lua_State* L)
             return luaL_error(L, "rood.hud.claim: '%s' has no classic flavour (the port's own: drawn over the picture)",
                 hud::kind_name(kind));
     }
-    if (kind == PC_HUD_GAUGES && flavours != FLAVOUR_CLASSIC)
-        return luaL_error(L, "rood.hud.claim: 'gauges' is the classic look's only: { flavour = \"classic\" }");
+    if ((kind == PC_HUD_GAUGES || kind == PC_HUD_FIGURE || kind == PC_HUD_STATUS_ICONS || kind == PC_HUD_BATTLE_MODE || kind == PC_HUD_ABILITY_ICONS) && flavours != FLAVOUR_CLASSIC)
+        return luaL_error(L, "rood.hud.claim: '%s' is the classic look's only: { flavour = \"classic\" }", hud::kind_name(kind));
     Plugin* p = plugin_of(L);
     const Claim* had = owner(kind);
     Plugin* before = had ? had->plugin : nullptr;
@@ -1144,7 +1160,7 @@ int api_kinds(lua_State* L)
     lua_createtable(L, PC_HUD_KINDS, 0);
     int n = 0;
     for (int k = 1; k < PC_HUD_KINDS; ++k)
-        if (PC_HUD_CLAIMABLE(k) && (classic ? k != PC_HUD_TRAVEL && k != PC_HUD_NOTICE : k != PC_HUD_GAUGES)) {
+        if (PC_HUD_CLAIMABLE(k) && (classic ? k != PC_HUD_TRAVEL && k != PC_HUD_NOTICE : k != PC_HUD_GAUGES && k != PC_HUD_FIGURE && k != PC_HUD_STATUS_ICONS && k != PC_HUD_BATTLE_MODE && k != PC_HUD_ABILITY_ICONS)) {
             lua_pushstring(L, hud::kind_name(k));
             lua_rawseti(L, -2, ++n);
         }
@@ -1311,6 +1327,43 @@ void fill_element(lua_State* L, const hud::Element& e, bool fresh = false)
         set_nil(L, "timing");
         set_nil(L, "variant");
     }
+    static const char* const icon_fields[] = { "previous", "current", "next", "count", "selected", "offset" };
+    const int icon_values[] = { f.icon_previous, f.icon_current, f.icon_next, f.icon_count, f.icon_selected, f.icon_offset };
+    for (int i = 0; i < 6; ++i) {
+        if (k == PC_HUD_STATUS_ICONS)
+            set_int(L, icon_fields[i], icon_values[i]);
+        else
+            set_nil(L, icon_fields[i]);
+    }
+    if (k == PC_HUD_ABILITY_ICONS) {
+        set_int(L, "animation", f.ability_animation);
+        set_int(L, "offset", f.ability_offset);
+        set_int(L, "group", f.ability_group);
+        set_int(L, "availability", f.ability_availability);
+    } else {
+        set_nil(L, "animation");
+        set_nil(L, "group");
+        set_nil(L, "availability");
+    }
+    if (k == PC_HUD_BATTLE_MODE) {
+        set_int(L, "step", f.battle_step);
+        set_int(L, "pulse", f.battle_pulse);
+    } else {
+        set_nil(L, "step");
+        set_nil(L, "pulse");
+    }
+    set_int(L, "stance", f.stance);
+    static const char* const limb_fields[] = { "limb_0_status", "limb_1_status", "limb_2_status", "limb_3_status", "limb_4_status" };
+    for (int i = 0; i < 5; ++i) {
+        if (k == PC_HUD_FIGURE)
+            set_int(L, limb_fields[i], f.limb_status[i]);
+        else
+            set_nil(L, limb_fields[i]);
+    }
+    if (k != PC_HUD_FIGURE)
+        set_nil(L, "stance");
+    if (k == PC_HUD_STATUS_ICONS || k == PC_HUD_BATTLE_MODE)
+        set_int(L, "slide", f.slide);
     if (k == PC_HUD_GAUGES) {
         set_int(L, "hp", f.hp);
         set_int(L, "max_hp", f.max_hp);
@@ -1321,7 +1374,8 @@ void fill_element(lua_State* L, const hud::Element& e, bool fresh = false)
     } else {
         static const char* const gauge_fields[] = { "hp", "max_hp", "mp", "max_mp", "risk", "slide" };
         for (const char* g : gauge_fields)
-            set_nil(L, g);
+            if ((k != PC_HUD_STATUS_ICONS && k != PC_HUD_BATTLE_MODE) || strcmp(g, "slide"))
+                set_nil(L, g);
     }
     if (k >= PC_HUD_STATUS && k <= PC_HUD_DAMAGE && !e.synthetic) { // where the game's call put it
         set_int(L, "call_x", f.call_x);
@@ -1796,6 +1850,31 @@ std::string parts_json(const pc_hud_fields& f)
 std::string element_json(const hud::Element& e)
 {
     const Claim* c = owner(e.f.kind);
+    std::string icons;
+    if (e.f.kind == PC_HUD_ABILITY_ICONS)
+        icons = ",\"animation\":" + std::to_string(e.f.ability_animation)
+            + ",\"offset\":" + std::to_string(e.f.ability_offset)
+            + ",\"group\":" + std::to_string(e.f.ability_group)
+            + ",\"availability\":" + std::to_string(e.f.ability_availability);
+    if (e.f.kind == PC_HUD_BATTLE_MODE)
+        icons = ",\"step\":" + std::to_string(e.f.battle_step)
+            + ",\"pulse\":" + std::to_string(e.f.battle_pulse)
+            + ",\"slide\":" + std::to_string(e.f.slide);
+    if (e.f.kind == PC_HUD_STATUS_ICONS) {
+        icons = ",\"previous\":" + std::to_string(e.f.icon_previous)
+            + ",\"current\":" + std::to_string(e.f.icon_current)
+            + ",\"next\":" + std::to_string(e.f.icon_next)
+            + ",\"count\":" + std::to_string(e.f.icon_count)
+            + ",\"selected\":" + std::to_string(e.f.icon_selected)
+            + ",\"offset\":" + std::to_string(e.f.icon_offset)
+            + ",\"slide\":" + std::to_string(e.f.slide);
+    }
+    std::string figure;
+    if (e.f.kind == PC_HUD_FIGURE) {
+        figure = ",\"stance\":" + std::to_string(e.f.stance);
+        for (int i = 0; i < 5; ++i)
+            figure += ",\"limb_" + std::to_string(i) + "_status\":" + std::to_string(e.f.limb_status[i]);
+    }
     return "{\"id\":" + std::to_string(e.id) + ",\"kind\":" + q(hud::kind_name(e.f.kind)) + ",\"text\":" + q(e.f.text)
         + ",\"x\":" + num(e.f.x) + ",\"y\":" + num(e.f.y) + ",\"w\":" + num(e.f.w) + ",\"h\":" + num(e.f.h)
         + ",\"rgb\":" + std::to_string(e.f.rgb) + ",\"timing\":" + q(hud::timing_name(e.f.timing))
@@ -1808,7 +1887,7 @@ std::string element_json(const hud::Element& e)
                     + ",\"mp\":" + std::to_string(e.f.mp) + ",\"max_mp\":" + std::to_string(e.f.max_mp)
                     + ",\"risk\":" + std::to_string(e.f.risk) + ",\"slide\":" + std::to_string(e.f.slide)
                                      : std::string())
-        + ",\"parts\":" + parts_json(e.f) + ",\"age\":" + std::to_string(e.f.age)
+        + figure + icons + ",\"parts\":" + parts_json(e.f) + ",\"age\":" + std::to_string(e.f.age)
         + ",\"life\":" + std::to_string(e.f.life) + ",\"held\":" + (e.held ? "true" : "false")
         + ",\"synthetic\":" + (e.synthetic ? "true" : "false") + ",\"live\":" + (hud::live(e) ? "true" : "false")
         + ",\"suppressed\":" + (e.suppressed ? "true" : "false") + ",\"drawn\":" + std::to_string(e.drawn)

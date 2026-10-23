@@ -17,7 +17,17 @@
 #define ROOD_CLASSIC_HOOK_H
 #ifdef ROOD_PC
 #define PC_CLASSIC_SITE_GAUGES 8       /* classic_parity.h PC_CLASSIC_GAUGES: func_800CA2DC's gauges */
-#define PC_CLASSIC_SITE_STATUS_PANEL 9 /* classic_parity.h PC_CLASSIC_STATUS_PANEL: func_800CA2DC */
+#define PC_CLASSIC_SITE_FIGURE 9       /* Ashley's five limb sprites */
+/* Snapshot at the status carousel's emit boundary; no game pointers escape. */
+typedef struct {
+    int previous, current, next, count, selected, offset, slide;
+} pc_classic_status_icons;
+#define PC_CLASSIC_SITE_STATUS_ICONS 10
+typedef struct { int step, slide, pulse; } pc_classic_battle_mode;
+#define PC_CLASSIC_SITE_BATTLE_MODE 11
+typedef struct { int animation, offset, group, availability; } pc_classic_ability_icons;
+#define PC_CLASSIC_SITE_ABILITY_ICONS 12
+#define PC_CLASSIC_SITE_STATUS_PANEL 13 /* classic_parity.h PC_CLASSIC_STATUS_PANEL: func_800CA2DC */
 void pc_classic_site(int kind, void* record, int x, int y, void* first, void* end) __attribute__((weak));
 #define PC_CLASSIC(kind, record, x, y, statement) \
     do { \

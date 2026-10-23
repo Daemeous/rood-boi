@@ -235,12 +235,12 @@ drawing is the claims'.
 | `d.glyph(button, x, y, h[, style[, color[, alpha]]]) -> w`, `d.glyph_width(button, h)` | the button's prompt icon for the device used last (`l2` .. `left`, `travel`), `h` high, its left at `x`, its middle at `y`; the style's stroke outlines it; 0 when that device has none |
 | `d.rect(x, y, w, h, color[, alpha])`, `d.measure(style, s) -> w, h` | |
 | `d.gradient(x, y, w, h, color, color2[, vertical[, alpha]])` | `color` at the left (the top) to `color2` at the right (the bottom) |
-| `d.sprite(x, y, {page_x, page_y, bits, u, v, w, h, clut_x, clut_y}[, color[, alpha]])` | classic only: a VRAM rectangle as the game draws its sprites (page_x a multiple of 64, page_y 0 or 256, bits 4, 8 or 15; color modulates it, white: as it is) |
+| `d.sprite(x, y, {page_x, page_y, bits, u, v, w, h, clut_x, clut_y, bgr?, set_page?}[, color[, alpha]])` | classic only: a VRAM rectangle allocated/linked by `vs_battle_setSprite` (page_x a multiple of 64, page_y 0 or 256, bits 4, 8 or 15; dimensions 0..256). `color` modulates it, white: as it is. Optional descriptor `bgr` overrides color with an exact GPU modulation word (0xBBGGRR, 0x80 full), preserving the game's colours without RGB conversion. `set_page=false` leaves the game's NOP before the sprite instead of setting a texture page, inheriting the preceding draw mode (default true). |
 | `d.window(x, y, w, h[, brightness])` | classic only: the game's text box window (its stone body, frame and shadow); brightness 1 a selected box, 0.5 the others |
 | `d.cursor(x, y[, step])` | classic only: the menus' pointing hand, its brightness animation at `step` (0..15; default: the game's) |
 | `d.bar(x, y, value, max[, pool])` | classic only: the status display's bar (`hp`, `mp`, `risk`) filled value / max |
 | `d.text_raw(s, x, y, word[, typeset])` | classic only: the game's raw printer (`vs_battle_renderTextRawColor`: the status words, RISK ZERO) called as the game calls it: `s` as given (`$` centres it on `x`, `#` right-aligns, the game's narrow blanks), `word` the PS1 colour word (`0xBBGGRR`, `0x80` full); `typeset` how ui_text sets it: `{style = "status", blanks = "one" \| "each", keep_on_screen, screen_w, margin, word_space}` (fields left out: ui_text's defaults, its settings) |
-| `d.layer(offset \| nil)` | classic only: the ordering-table slot the commands that follow link into, as the game names its slots: bytes from `vs_scratch.unk4` (-64..64, a multiple of 4: the status words' -16, the gauges' bars and labels -12, their digits -16); nil the kind's own. A slot draws its packets in the order of the commands (the game's: the reverse of its calls) |
+| `d.layer(slot \| nil)` | classic only: the ordering-table slot the commands that follow link into, as the game names its slots: bytes from `vs_scratch.unk4` (-64..64, a multiple of 4: the status words' -16, the gauges' bars and labels -12, their digits -16); nil the kind's own. `"unk8"` resolves `vs_scratch.unk8` at the draw, also for shadow-slot identity and OT sorting (not a guessed offset). A slot draws its packets in the order of the commands (the game's: the reverse of its calls) |
 | `d.value(font, x, y, value) -> x, y`, `d.digit(font, x, y, digit)` | classic only: the HUD's digits (`vs_battle_renderValue`: the rightmost at `x, y`; font 0 small, 1 large; returns the pen the game's call leaves) and one digit (`_renderDigit`; font 2 the separator) |
 | `d.xy(x, y, delta) -> x, y` | the game's packed position arithmetic: `x, y` packed as the game packs them plus `delta` written as the game writes its steps (`56 \| (-8 << 16)`), so x's carry or borrow reaches y as in the game |
 | `d.anchor(where)` | where the draw's commands sit in 16:9: `"left"`, `"right"`, `"centre"`, `"element"` (its own, the default), `"screen"` (a panel's: the picture's square pixels, 240 high; not in the classic flavour); in the classic flavour the range is placed exactly (`PC_ANCHOR_EXACT`: no edge extension, cover or side-paint guesses) |
@@ -390,6 +390,30 @@ game's raw printer), and what it may change is a table:
 - `look.gauges`: the HP / MP / RISK gauges' places, labels (the field UI
   page's HP, MP, RISK), steps (as the game writes them: packed
   `x | y << 16`), slots and RISK ZERO, and their `place`;
+- `look.figure`: Ashley's five-part body/damage silhouette, both stances' rectangles,
+  texels, palette, condition colours, layer and `place`. Its read-only fields are
+  `stance` (0/1) and `limb_0_status` through `limb_4_status` in the game's limb order
+  (condition 0 critical, 1 damaged, 2 wounded, 3 good, 4 excellent). C still decides
+  conditions and visibility: there is no `rood.dev.show("figure")`; it is a classic-only kind;
+- `look.status_icons`: the status carousel's clipped texture cells, supplemental stat glyphs,
+  palettes, count/selection indicators, layers and left-edge `place`. Read-only fields are
+  `previous`, `current`, `next` (icon IDs 0..31, 255 absent), `count`, `selected`
+  (the pre-rotation ordinal, 255 absent), `offset` (the draw's pre-increment slide offset),
+  and `slide` (the panel's packed Y displacement). C retains status decisions, carousel
+  mutation, tickspeed and visibility; there is no `rood.dev.show("status_icons")`;
+- `look.battle_mode`: the BATTLE MODE sprite, right-edge `place`, layer, entry spacing,
+  packed base colour and semitransparency. Read-only `step` (1..4), `slide` (packed panel
+  displacement before its update), and `pulse` (`rsin(phase & 0x7ff) >> 5` before phase
+  advance) are copied at the emit boundary. The pulse adds to the packed BGR word,
+  not to every channel. C retains slide/reset/phase logic; no `rood.dev.show("battle_mode")`;
+- `look.ability_icons`: marker/label rectangles, cross and face-button texels, palettes,
+  spacing and centre-edge `place`; `layer = "unk8"`. Read-only `animation`, `offset`
+  (the game's negative row-animation displacement), `group` (0..3 right labels and
+  face buttons, 4..7 left labels, 8 cross), and `availability` (0 absent, 0x140 dim,
+  0x180 bright) are copied after the original C availability call. Nine emit ranges
+  share this kind but have separate stable keys. `pc_weapon_slots_label` is invoked
+  exactly once in its original order; its weapon-mode names/markers and button-prompt
+  side effects remain C, outside these ranges. No `rood.dev.show("ability_icons")`;
 - `look.typeset`: how ui_text sets the words (`blanks = "one"`: a run of
   the game's narrow blanks is one space, `keep_on_screen`, `screen_w`,
   `margin`, `word_space`; the playtest fix `645a7477` as Lua values, the
@@ -417,7 +441,7 @@ The fallback: rood.classic off or failing (a draw that raises: counted, the
 game draws until the plugin reloads), a kind's `hud_classic_<kind>` off,
 or Lua off: the game's own drawing (its typography ui_text's defaults,
 which keep the same fixes). Settings: `hud_classic_status`,
-`hud_classic_chain`, `hud_classic_gauges` (on), `hud_classic_buff`,
+`hud_classic_chain`, `hud_classic_gauges`, `hud_classic_figure`, `hud_classic_status_icons`, `hud_classic_battle_mode`, `hud_classic_ability_icons` (on), `hud_classic_buff`,
 `hud_classic_damage` (off: not through the gate yet); the Lua console's
 Bench toggles them.
 
@@ -435,7 +459,7 @@ ui_text restyles at raster time, after the gate.
 
 | RPC | |
 |---|---|
-| `packets {kind}` | a site's last capture (`status`, `chain`, `buff`, `damage`, `status_panel`), normalised: each packet's words, kind, vertices, texels, CLUT, page, colour, the glyph it shows; in the parity mode the Lua draw's beside it. Sites capture from the first call |
+| `packets {kind}` | a site's last capture (`status`, `chain`, `buff`, `damage`, `gauges`, `figure`, `status_icons`, `battle_mode`, `ability_icons`, `status_panel`), normalised: each packet's words, kind, vertices, texels, CLUT, page, colour, the glyph it shows; in the parity mode the Lua draw's beside it. Sites capture from the first call |
 | `packets {start, end}` | the packets of a guest range in allocation order |
 | `classic {parity, reset}` | per kind: frames compared, matched, mismatched (by field), skipped (why), the first difference with both packets |
 
@@ -445,7 +469,19 @@ also in verify.sh's CPU lane) plays every element of each kind with
 9, 10, 99, first held, then its whole life (slide in, held, slide out:
 every age compared, the slides required); the gauges through HP / MP of
 one to four digits, empty and full, RISK ZERO and RISK's bar, the display
-sliding out and back (Ashley's record and `D_800EB9AF` written). It
+sliding out and back (Ashley's record and `D_800EB9AF` written); the figure in both
+stances at all five limb conditions and their threshold boundaries, mixed conditions,
+and hidden/restored by the menu slide and lower-screen UI gate. Status icons cover all
+32 IDs on/off and clipped (including zero-width cells), counts 1/2/3/8/9/16/32,
+all carousel phases at tickspeed 2 and 4, invalidated slots, visibility and panel slide.
+BATTLE MODE covers entry/exit, hidden, pulse extrema and phase wrap at both tickspeeds,
+all panel slide positions and the right anchor. The same-mark state proof includes an
+active carousel and advancing BATTLE MODE phase, in Lua and fallback at both tickspeeds.
+Ability icons cover all nine groups, locked/enabled/disabled availability, every entry
+index, hide/hidden, and real weapon-slot mode off/on with occupied and empty slots.
+Their counter counts group comparisons (nine per display frame); `packets` shows the
+last group. State parity checks normal and occupied weapon-slot modes held open, then
+weapon-slot exit, preserving C names/markers and side effects. It
 requires no unwaived mismatch and waivers = declared overrides; checks the
 default (drawn by rood.classic), the fallback (setting off, a raising
 draw, the plugin off) and state parity (from one mark, rood.classic

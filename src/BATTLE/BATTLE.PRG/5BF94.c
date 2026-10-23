@@ -3155,10 +3155,17 @@ void func_800C9FE8(void)
     if (D_800EBCE8 != 10) {
 
         temp_s3 = -vs_battle_rowAnimationSteps[D_800EBCE8];
+#ifdef ROOD_PC
+        pc_classic_ability_icons icons = { D_800EBCE8, temp_s3, 0, 0 };
+#endif
 
         for (i = 0; i < 4; ++i) {
 #ifdef ROOD_PC
             temp_v0 = pc_weapon_slots_label(i + 4);
+            /* This call may emit weapon-slot UI: leave it outside the classic range. */
+            icons.group = i + 4;
+            icons.availability = temp_v0;
+            PC_CLASSIC(PC_CLASSIC_SITE_ABILITY_ICONS, &icons, 0, 0, {
 #else
             temp_v0 = func_800C9EB8(i + 4);
 #endif
@@ -3172,15 +3179,29 @@ void func_800C9FE8(void)
                 temp_v0_2[1] = 0xE1000017;
                 temp_v0_2[4] = (*((i) + D_800EBCB8) | 0x373D0000);
             }
+#ifdef ROOD_PC
+            });
+#endif
         }
 
+#ifdef ROOD_PC
+        icons.group = 8;
+        icons.availability = 0;
+        PC_CLASSIC(PC_CLASSIC_SITE_ABILITY_ICONS, &icons, 0, 0, {
+#endif
         vs_battle_setSpriteDefaultTexPage(0x180, ((temp_s3 + 0x48) & 0xFFFF) | 0x660000,
             0x1E001E, psx_get(vs_scratch.unk8))[4] = 0x37FBA0B8;
+#ifdef ROOD_PC
+        });
+#endif
         temp_s3 = (0xA0 - temp_s3);
 
         for (i = 0; i < 4; ++i) {
 #ifdef ROOD_PC
             temp_v0 = pc_weapon_slots_label(i);
+            icons.group = i;
+            icons.availability = temp_v0;
+            PC_CLASSIC(PC_CLASSIC_SITE_ABILITY_ICONS, &icons, 0, 0, {
 #else
             temp_v0 = func_800C9EB8(i);
 #endif
@@ -3197,6 +3218,9 @@ void func_800C9FE8(void)
             }
             vs_battle_setSpriteDefaultTexPage(0x80, temp_s3 + D_800EBC88[3 - i], 0x100010,
                 psx_get(vs_scratch.unk8))[4] = (((3 - i) * 0x10) | 0x37FB8000);
+#ifdef ROOD_PC
+            });
+#endif
         }
     }
     D_800EBC78 = 0;
@@ -3247,6 +3271,8 @@ void func_800CA2DC(void)
         extern void pc_hw_anchor_packets(const void*, const void*, int)
             __attribute__((weak));
         void* start = psx_get(vs_scratch.unk0);
+        pc_classic_battle_mode notice = { (u_char)D_800EB9CD, D_800EB9B0, 0 };
+        PC_CLASSIC(PC_CLASSIC_SITE_BATTLE_MODE, &notice, 0, 0, {
 #endif
         prim = vs_battle_setSprite(0x140,
             ((((u_char)D_800EB9CD * 3 - 4) << 16) - D_800EB9B0) | 0xEC, 0xA0049,
@@ -3259,6 +3285,10 @@ void func_800CA2DC(void)
         k = rsin(D_800EBD64 & 0x7FF);
         prim[4] = 0x373D0040;
         prim[2] += k >> 5;
+#ifdef ROOD_PC
+        notice.pulse = k >> 5; /* snapshot before the game advances its phase */
+        });
+#endif
         D_800EBD64 += vs_gametime_tickspeed * 64;
     }
 
@@ -3271,6 +3301,9 @@ void func_800CA2DC(void)
         k = vs_battle_textBoxes[7].state;
         if (!(vs_battle_lowerScreenUiState & 2)
             && ((k == 0) || (k != vs_battle_textBoxes[7].unk22 + 1))) {
+#ifdef ROOD_PC
+            PC_CLASSIC(PC_CLASSIC_SITE_FIGURE, actor, D_800EB9CC & 1, 0, {
+#endif
             k = 0xB80008;
             for (i = 0; i < 5; ++i) {
                 j = i + (D_800EB9CC & 1) * 5;
@@ -3281,6 +3314,9 @@ void func_800CA2DC(void)
                         | 0x64000000;
                 prim[4] = D_800EBD3C[j];
             }
+#ifdef ROOD_PC
+            });
+#endif
         }
         if (D_800EB9B0 != 0) {
             D_800EB9B0 -= 0x80000;
@@ -3377,6 +3413,13 @@ void func_800CA2DC(void)
     }
     rightX = k + 16;
     D_800EB9D0.u8[3] = j & 0xF;
+#ifdef ROOD_PC
+    /* Capture after the carousel's state steps, before drawing reuses k. */
+    pc_classic_status_icons icons = { D_800EB9D0.u8[0], D_800EB9D0.u8[1],
+        D_800EB9D0.u8[2], count, selected, k, D_800EB9B0 };
+    PC_CLASSIC(PC_CLASSIC_SITE_STATUS_ICONS, &icons, 0, 0, {
+    do {
+#endif
     func_800C9CB4(D_800EB9D0.u8[2], rightX, 1);
     ot -= 4;
     func_800C9CB4(D_800EB9D0.u8[1], k, 1);
@@ -3390,7 +3433,11 @@ void func_800CA2DC(void)
                 vs_battle_setSpriteDefaultTexPage(0x80, (0x94 + i * 3) | k, 0x40004, ot);
             prim[4] = 0x37F40C1A;
         }
+#ifdef ROOD_PC
+        break; /* finish the emit-only hook, rather than returning past it */
+#else
         return;
+#endif
     }
 
     j = k + 0x30000;
@@ -3408,6 +3455,10 @@ void func_800CA2DC(void)
     }
     prim = vs_battle_setSpriteDefaultTexPage(0x80, k | 0x94, i | 0x40000, ot);
     prim[4] = 0x37F40C00;
+#ifdef ROOD_PC
+    } while (0);
+    });
+#endif
 }
 
 void func_800CA97C(void)

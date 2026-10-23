@@ -387,6 +387,10 @@ const Entry entries[] = {
     I("hud_classic_buff", pc_hud_classic_buff),
     I("hud_classic_damage", pc_hud_classic_damage),
     I("hud_classic_gauges", pc_hud_classic_gauges),
+    I("hud_classic_figure", pc_hud_classic_figure),
+    I("hud_classic_status_icons", pc_hud_classic_status_icons),
+    I("hud_classic_battle_mode", pc_hud_classic_battle_mode),
+    I("hud_classic_ability_icons", pc_hud_classic_ability_icons),
     I("save_states", pc_save_states), /* the save state slots (savestate_slots.c), 0 off */
     F("ui_menu_opacity", pc_ui_menu_opacity),
 };

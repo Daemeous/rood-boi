@@ -8,3 +8,4 @@ light gen.window_e008.11cdad6974 name="Window light E008" type=rect pos=1558,-89
 light gen.window_e008.3acc34e803 name="Window light E008" type=rect pos=1806,-328,576 dir=-1,0,0 color=1,0.925,0.831 intensity=0.9 radius=700 size=112,128 shadows=1
 light gen.window_e008.821e81f0db name="Window light E008" type=rect pos=1806,-328,960 dir=-1,0,0 color=1,0.925,0.831 intensity=0.9 radius=700 size=112,128 shadows=1
 light gen.window_e008.f341bfbb11 name="Window light E008" type=rect pos=1558,-896,640 dir=-1,0,0 color=1,0.97,0.9 intensity=0.9 radius=700 size=64,128 shadows=1
+light gen.window_e014.ac05689de5 name="Window light E014" type=rect pos=194,-816,1024 dir=1,0,0 color=1,0.928,0.854 intensity=0.5 radius=900 size=256,96 shadows=1

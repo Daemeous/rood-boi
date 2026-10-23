@@ -178,12 +178,10 @@
         { "key": "6e27e2c348", "size": [31, 25], "clut": "9d231dff74" },
         { "key": "fe11de0ee9", "size": [31, 23], "clut": "9d231dff74" }
       ],
-      "mask": {
-        "indices": [14, 15]
-      },
+      "mask": { "rects": [[8, 11, 13, 12], [18, 1, 26, 6]], "indices": [14, 15] },
       "color": [1, 0.97, 0.9],
       "strength": 1.25,
-      "light": 0,
+      "light": 1,
       "rect_light": {
         "intensity": 0.9,
         "radius": 700,
@@ -416,7 +414,9 @@
         { "key": "b98113ee73", "size": [11, 53], "clut": "02b01e4467" },
         { "key": "f150723aeb", "size": [15, 45], "clut": "02b01e4467" },
         { "key": "087abf9fe6", "size": [27, 15], "clut": "67dfbed02a" },
-        { "key": "7d1348ee70", "size": [27, 17], "clut": "67dfbed02a" }
+        { "key": "7d1348ee70", "size": [27, 17], "clut": "67dfbed02a" },
+        { "key": "1e98bd2f88", "size": [31, 19], "clut": "67dfbed02a" },
+        { "key": "1c16abc6f5", "size": [31, 55], "clut": "67dfbed02a" }
       ],
       "mask": {
         "indices": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
@@ -466,6 +466,89 @@
       "light_reach": 300,
       "review": "new",
       "note": "the glass (9-15, semi-transparent); 0-7 the holder"
+    },
+    {
+      "id": "E014",
+      "name": "Town house transom panes",
+      "where": "zones 37, 38 and 69 room 0",
+      "match": [
+        { "key": "80d84f780a", "size": [31, 31], "clut": "41c2c7080f" },
+        { "key": "1521890b71", "size": [33, 31], "clut": "41c2c7080f" }
+      ],
+      "scope": { "rooms": [[37, 0], [38, 0], [69, 0]] },
+      "mask": { "rects": [[5, 5, 27, 11]], "indices": [14, 15] },
+      "color": [1, 0.97, 0.92],
+      "strength": 1.2,
+      "light": 1,
+      "rect_light": { "intensity": 0.5, "radius": 900, "offset": 2 },
+      "review": "checked",
+      "note": "Pale transom pane and its lit edge only; indices 0-13 are wood and remain unlit. The low-intensity rect covers the supporting polygon, including the panel below the pane."
+    },
+    {
+      "id": "E015",
+      "name": "Great Cathedral B1 stained glass windows",
+      "where": "zone 22 rooms 8 and 9",
+      "match": [
+        { "key": "48638bf3fb", "size": [47, 77], "clut": "50bca45a16" },
+        { "key": "b1c080c00a", "size": [25, 77], "clut": "50bca45a16" },
+        { "key": "e01f3fc70c", "size": [23, 77], "clut": "50bca45a16" }
+      ],
+      "scope": { "rooms": [[22, 8], [22, 9]] },
+      "mask": { "indices": [8, 9, 10, 11, 12, 13, 14, 15] },
+      "color": [1, 0.98, 0.94],
+      "strength": 0.85,
+      "light": 0,
+      "rect_light": { "intensity": 0.55, "radius": 2000, "offset": 2 },
+      "review": "new",
+      "note": "Bright glass ramp only; the dark lead and brown surround (0-7) stay unlit. Three UV boxes cover the whole window and its split halves. The high windows use the catalog's maximum 2000-unit reach toward the floor; restrained emission preserves the glass detail."
+    },
+    {
+      "id": "E016",
+      "name": "Alternate-palette stained glass lancets",
+      "where": "zones 6, 7 and 8 room 0",
+      "match": [
+        { "key": "1ce0dac97c", "size": [27, 21], "clut": "ad6158f9d7" },
+        { "key": "58575bafc1", "size": [33, 23], "clut": "ad6158f9d7" },
+        { "key": "3db366aa09", "size": [17, 31], "clut": "ad6158f9d7" },
+        { "key": "0aa30c3f8c", "size": [31, 25], "clut": "ad6158f9d7" },
+        { "key": "109ed7dd33", "size": [27, 21], "clut": "ad6158f9d7" },
+        { "key": "566006b533", "size": [27, 45], "clut": "ad6158f9d7" },
+        { "key": "5a14a4ec8b", "size": [53, 65], "clut": "ad6158f9d7" },
+        { "key": "8600854332", "size": [53, 33], "clut": "ad6158f9d7" },
+        { "key": "d907a288f0", "size": [15, 25], "clut": "ad6158f9d7" }
+      ],
+      "scope": { "rooms": [[6, 0], [7, 0], [8, 0]] },
+      "mask": { "indices": [0, 1, 2, 3, 4, 5, 6, 7, 11] },
+      "color": [1, 1, 1],
+      "strength": 1.15,
+      "light": 0,
+      "rect_light": { "intensity": 0.2, "radius": 2000, "offset": 2 },
+      "review": "new",
+      "note": "This palette reverses the bright ramp: 0-7 and 11 are glass; 8-10 and 12-15 are dark surround and lead, not the E011 mask. These ceiling panes are about 1800 units above the floor; a long reach with low intensity gives a gentle daylight fill below."
+    },
+    {
+      "id": "E017",
+      "name": "City wall stone window slit backings",
+      "where": "zone 28 rooms 8, 10, 14 and 17 (City Walls East and North)",
+      "match": [
+        { "key": "7f8b49f469", "size": [1, 1], "clut": "97ad08ce0c" }
+      ],
+      "scope": {
+        "rooms": [[28, 8], [28, 10], [28, 14], [28, 17]],
+        "surfaces": [
+          { "room": [28, 8], "polygons": [25924, 25964, 26004, 26044, 26084, 26124, 26164, 26204, 38036, 38076, 38156, 38196, 38236, 38276, 38356, 38396, 42092, 42132, 42172, 42372] },
+          { "room": [28, 10], "polygons": [25924, 25964, 26004, 26044, 26084, 26124, 26164, 26204, 38036, 38076, 38156, 38196, 38236, 38276, 38356, 38396, 42092, 42132, 42172, 42372] },
+          { "room": [28, 14], "polygons": [26084, 26124, 26164, 26204, 26244, 26284, 26324, 26364, 38196, 38236, 38316, 38356, 38396, 38436, 38516, 38556, 42252, 42292, 42332, 42532] },
+          { "room": [28, 17], "polygons": [25924, 25964, 26004, 26044, 26084, 26124, 26164, 26204, 38036, 38076, 38156, 38196, 38236, 38276, 38356, 38396, 42092, 42132, 42172, 42372] }
+        ]
+      },
+      "mask": { "indices": [15] },
+      "color": [0.842, 0.889, 1],
+      "strength": 1.25,
+      "light": 1,
+      "rect_light": { "intensity": 0.06, "radius": 1500, "offset": 2, "min_area": 512, "max_per_room": 16 },
+      "review": "checked",
+      "note": "The actual recessed opening, not the stone jamb: a single texel stretched over the backing, made white by the game's bright vertex colors. RPC pick identifies polygon 26324 at the upper west slit. Palette, room and surface scope are essential for this common 1x1 key; all 20 matches in each of these four geometry-equivalent rooms are bright backings. Tint balances the sampled stone-colored texel to neutral daylight. Keep the 16 connected openings separate: wall merging puts their source centers behind solid stone. Low intensity avoids washing out the room; small decorative uses elsewhere are excluded."
     }
   ]
 }

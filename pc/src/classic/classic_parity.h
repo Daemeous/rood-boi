@@ -36,8 +36,12 @@ enum {
     PC_CLASSIC_BUFF = 3,   /* WEAPON HUMAN +1 (func_8009695C) */
     PC_CLASSIC_DAMAGE = 4, /* a number over an actor (func_80094B0C) */
     PC_CLASSIC_GAUGES = 8, /* the HP / MP / RISK gauges, digits, labels or RISK ZERO inside the panel (hud.h PC_HUD_GAUGES) */
-    PC_CLASSIC_STATUS_PANEL = 9, /* the whole status display (func_800CA2DC): captured only */
-    PC_CLASSIC_KINDS = 10
+    PC_CLASSIC_FIGURE = 9, /* Ashley's five limb sprites (hud.h PC_HUD_FIGURE) */
+    PC_CLASSIC_STATUS_ICONS = 10, /* status carousel and count indicators */
+    PC_CLASSIC_BATTLE_MODE = 11, /* sliding BATTLE MODE notice */
+    PC_CLASSIC_ABILITY_ICONS = 12, /* ability label groups, cross and face buttons */
+    PC_CLASSIC_STATUS_PANEL = 13, /* the whole status display (func_800CA2DC): captured only */
+    PC_CLASSIC_KINDS = 14
 };
 const char* pc_classic_kind_name(int kind); /* "status", ...; "" for none */
 int pc_classic_kind_of(const char* name);   /* 0 unknown */

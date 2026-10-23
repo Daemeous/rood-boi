@@ -5,9 +5,16 @@ actor gen.t017.fcf779221d name="wall_torch T017" prefab=torch pos=2140,-548,1408
 env sky zenith=0.066,0.088,0.172 horizon=0.161,0.176,0.247 ground=0.028,0.029,0.038 sun_tint=0.25 ambient=0.6
 env sun azimuth=279 elevation=35 color=0.52,0.637,1.021 intensity=0.7 angle=2
 glow room:b64532d@2136,-427,1760 pos=2136,-426.7,1760 fixture_type=T082
-light gen.window_e011.245086daf4 name="Window light E011" type=rect pos=957.4,-720,3002.6 dir=0.7071,0,-0.7071 color=1,0.956,0.738 intensity=0.8 radius=700 size=79.2,48 shadows=1
+light gen.window_e011.0de6f6a969 name="Window light E011" type=rect pos=1338.6,-416,3002.6 dir=-0.7071,0,-0.7071 color=1,0.909,0.722 intensity=0.8 radius=700 size=101.8,192 shadows=1
 light gen.window_e011.470c8b5a63 name="Window light E011" type=rect pos=1148,-640,3070 dir=0,0,-1 color=1,0.909,0.728 intensity=0.8 radius=700 size=168,416 shadows=1
+light gen.window_e011.5fc64eb061 name="Window light E011" type=rect pos=957.4,-416,3002.6 dir=0.7071,0,-0.7071 color=1,0.909,0.722 intensity=0.8 radius=700 size=101.8,192 shadows=1
 light gen.window_e011.8a38082d0b name="Window light E011" type=rect pos=1148,-416,3070 dir=0,0,-1 color=1,0.95,0.789 intensity=0.8 radius=700 size=168,192 shadows=1
-light gen.window_e011.cde96fe1bf name="Window light E011" type=rect pos=1338.6,-720,3002.6 dir=-0.7071,0,-0.7071 color=1,0.956,0.738 intensity=0.8 radius=700 size=79.2,48 shadows=1
+light gen.window_e011.9fee2a5a39 name="Window light E011" type=rect pos=957.4,-692,3002.6 dir=0.7071,0,-0.7071 color=1,0.918,0.738 intensity=0.8 radius=700 size=101.8,104 shadows=1
+light gen.window_e011.c46e884f24 name="Window light E011" type=rect pos=1338.6,-692,3002.6 dir=-0.7071,0,-0.7071 color=1,0.918,0.738 intensity=0.8 radius=700 size=101.8,104 shadows=1
+light gen.window_e016.095555fbb8 name="Window light E016" type=rect pos=1196,-1790,980 color=1,0.916,0.578 intensity=0.2 radius=2000 size=88,168 shadows=1
+light gen.window_e016.63794876e3 name="Window light E016" type=rect pos=1536,-1790,1144 color=1,0.909,0.562 intensity=0.2 radius=2000 size=96,208 shadows=1
+light gen.window_e016.813e1a8c66 name="Window light E016" type=rect pos=728,-1790,1224 color=1,0.911,0.646 intensity=0.2 radius=2000 size=176,368 shadows=1
+light gen.window_e016.aa0000b092 name="Window light E016" type=rect pos=1524,-1790,1496 color=1,0.88,0.576 intensity=0.2 radius=2000 size=280,176 shadows=1
+light gen.window_e016.facca491c7 name="Window light E016" type=rect pos=852,-1790,1700 color=1,0.89,0.625 intensity=0.2 radius=2000 size=280,280 shadows=1
 set haze_anisotropy value=0.35
 set haze_density value=0.0001
